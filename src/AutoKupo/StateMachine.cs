@@ -22,10 +22,10 @@ internal sealed class StateMachine : IDisposable
 
     private DateTime lastTargetAttempt = DateTime.MinValue;
     private DateTime stateEnteredAt = DateTime.UtcNow;
+    private DateTime lastInteract = DateTime.MinValue;
     private ulong targetObjectId;
     private bool started;
     private bool dialogActive;
-    private bool interactionFired;
 
     public StateMachine(Configuration config)
     {
@@ -47,7 +47,6 @@ internal sealed class StateMachine : IDisposable
         started = true;
         CardsProcessed = 0;
         dialogActive = false;
-        interactionFired = false;
         TransitionTo(KupoState.ScanningForLizbeth);
     }
 
@@ -55,7 +54,6 @@ internal sealed class StateMachine : IDisposable
     {
         started = false;
         dialogActive = false;
-        interactionFired = false;
         TransitionTo(KupoState.Idle);
     }
 
@@ -229,7 +227,6 @@ internal sealed class StateMachine : IDisposable
             return;
 
         lastTargetAttempt = DateTime.UtcNow;
-        interactionFired = false;
 
         Plugin.TargetManager.Target = targetObj;
         Plugin.Log.Debug($"Target set to Lizbeth (ID: {targetObjectId})");
@@ -251,7 +248,7 @@ internal sealed class StateMachine : IDisposable
             return;
         }
 
-        if (interactionFired)
+        if ((DateTime.UtcNow - lastInteract).TotalMilliseconds < 2_000)
             return;
 
         try
@@ -266,7 +263,7 @@ internal sealed class StateMachine : IDisposable
             var ts = TargetSystem.Instance();
             var ptr = (GameObject*)obj.Address;
             ts->OpenObjectInteraction(ptr);
-            interactionFired = true;
+            lastInteract = DateTime.UtcNow;
             Plugin.Log.Debug($"Interacted with Lizbeth via OpenObjectInteraction");
         }
         catch (Exception ex)
