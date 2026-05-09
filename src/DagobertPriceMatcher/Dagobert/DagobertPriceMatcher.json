@@ -1,0 +1,21 @@
+{
+  "Author": "dajoey",
+  "Name": "Dagobert - Price Matcher",
+  "Punchline": "Matches (instead of undercuts) market board prices",
+  "Description": "Fork of Dagobert — matches the lowest market board price instead of undercutting. Default amount is 0 (exact match). You can still set a negative amount to undercut if desired.",
+  "ApplicableVersion": "any",
+  "Tags": [
+    "marketboard",
+    "match",
+    "price",
+    "undercut",
+    "retainer"
+  ],
+  "CategoryTags": [ "utility" ],
+  "RepoUrl": "https://github.com/SHOEGAZEssb/Dagobert",
+  "InternalName": "DagobertPriceMatcher",
+  "DalamudApiLevel": 15,
+  "IconUrl": "",
+  "ImageUrls": [ "" ],
+  "Changelog": "Forked from Dagobert v1.10.0.0 — default match amount changed to 0 (exact price match)"
+}

@@ -1,0 +1,17 @@
+{
+  "Author": "dajoey",
+  "Name": "AutoPotion",
+  "InternalName": "AutoPotion",
+  "Description": "Automatically uses the highest-tier HP potion in your inventory at a configurable HP threshold. In deep dungeons, also auto-uses the dungeon's regen potion (Sustaining / Eurekan / Orthos / Pilgrim's) at its own threshold.",
+  "Punchline": "Auto-uses HP and deep dungeon potions at configurable HP thresholds.",
+  "ApplicableVersion": "any",
+  "DalamudApiLevel": 15,
+  "Tags": ["auto", "potion", "healing", "deep dungeon"],
+  "CategoryTags": ["utility"],
+  "AcceptsFeedback": false,
+  "LoadRequiredState": 0,
+  "LoadSync": false,
+  "CanUnloadAsync": false,
+  "LoadPriority": 0,
+  "IsTestingExclusive": false
+}

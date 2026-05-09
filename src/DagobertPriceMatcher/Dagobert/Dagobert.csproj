@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <Import Project="Dalamud.Plugin.Bootstrap.targets" />
+
+  <PropertyGroup>
+    <Version>1.10.0.0</Version>
+    <AssemblyName>DagobertPriceMatcher</AssemblyName>
+    <Description>Fork of Dagobert — matches the lowest market board price instead of undercutting.</Description>
+    <PackageProjectUrl>https://github.com/SHOEGAZEssb/Dagobert</PackageProjectUrl>
+    <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
+    <IsPackable>false</IsPackable>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <SupportedOSPlatformVersion>8.0</SupportedOSPlatformVersion>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <!-- Packager manifest properties -->
+    <Author>dajoey</Author>
+    <Name>Dagobert - Price Matcher</Name>
+    <InternalName>DagobertPriceMatcher</InternalName>
+    <Punchline>Matches (instead of undercuts) market board prices</Punchline>
+    <ApplicableVersion>any</ApplicableVersion>
+    <Tags>marketboard;match;price;undercut;retainer</Tags>
+    <CategoryTags>utility</CategoryTags>
+    <DalamudApiLevel>15</DalamudApiLevel>
+    <LoadRequiredState>0</LoadRequiredState>
+    <LoadSync>false</LoadSync>
+    <CanUnloadAsync>false</CanUnloadAsync>
+    <LoadPriority>0</LoadPriority>
+    <AcceptsFeedback>false</AcceptsFeedback>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="DagobertPriceMatcher.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ECommons\ECommons\ECommons.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Speech" Version="10.0.5" />
+  </ItemGroup>
+</Project>

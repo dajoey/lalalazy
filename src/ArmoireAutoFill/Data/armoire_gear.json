@@ -1,0 +1,97 @@
+{
+  "dungeons": [
+    {
+      "cfcId": 14,
+      "name": "Brayflox's Longstop",
+      "level": 32,
+      "items": [
+        {"id": 2828, "name": "Foestriker's Tabard", "slot": "Body"},
+        {"id": 2829, "name": "Foestriker's Mitts", "slot": "Hands"},
+        {"id": 2830, "name": "Foestriker's Boots", "slot": "Feet"},
+        {"id": 2833, "name": "Battlemage's Robe", "slot": "Body"},
+        {"id": 2834, "name": "Battlemage's Gloves", "slot": "Hands"},
+        {"id": 2835, "name": "Battlemage's Crakows", "slot": "Feet"},
+        {"id": 2838, "name": "Infantry Shirt", "slot": "Body"},
+        {"id": 2839, "name": "Infantry Gloves", "slot": "Hands"},
+        {"id": 2840, "name": "Infantry Thighboots", "slot": "Feet"},
+        {"id": 2843, "name": "Cavalry Cuirass", "slot": "Body"},
+        {"id": 2844, "name": "Cavalry Gauntlets", "slot": "Hands"},
+        {"id": 2845, "name": "Cavalry Jackboots", "slot": "Feet"}
+      ]
+    },
+    {
+      "cfcId": 17,
+      "name": "The Sunken Temple of Qarn",
+      "level": 35,
+      "items": [
+        {"id": 3252, "name": "Plundered Goggles", "slot": "Head"},
+        {"id": 3253, "name": "Plundered Cuirass", "slot": "Body"},
+        {"id": 3254, "name": "Plundered Gauntlets", "slot": "Hands"},
+        {"id": 3255, "name": "Plundered Sabatons", "slot": "Feet"},
+        {"id": 3256, "name": "Plundered Cavalier's Hat", "slot": "Head"},
+        {"id": 3257, "name": "Plundered Chestpiece", "slot": "Body"},
+        {"id": 3258, "name": "Plundered Moccasins", "slot": "Feet"},
+        {"id": 3259, "name": "Plundered Trousers", "slot": "Legs"},
+        {"id": 3261, "name": "Plundered Bliaud", "slot": "Body"}
+      ]
+    },
+    {
+      "cfcId": 19,
+      "name": "Cutter's Cry",
+      "level": 38,
+      "items": [
+        {"id": 3560, "name": "Loyalist's Bliaud", "slot": "Body"},
+        {"id": 3561, "name": "Loyalist's Gloves", "slot": "Hands"},
+        {"id": 3562, "name": "Loyalist's Trousers", "slot": "Legs"},
+        {"id": 3563, "name": "Loyalist's Boots", "slot": "Feet"},
+        {"id": 3564, "name": "Sipahi Turban", "slot": "Head"},
+        {"id": 3565, "name": "Sipahi Shirt", "slot": "Body"},
+        {"id": 3566, "name": "Sipahi Gloves", "slot": "Hands"},
+        {"id": 3567, "name": "Sipahi Sarouel", "slot": "Legs"},
+        {"id": 3568, "name": "Sipahi Crakows", "slot": "Feet"}
+      ]
+    },
+    {
+      "cfcId": 20,
+      "name": "The Stone Vigil",
+      "level": 41,
+      "items": [
+        {"id": 3880, "name": "Peltast Galerus", "slot": "Head"},
+        {"id": 3881, "name": "Peltast Acton", "slot": "Body"},
+        {"id": 3882, "name": "Peltast Mitts", "slot": "Hands"},
+        {"id": 3883, "name": "Peltast Breeches", "slot": "Legs"},
+        {"id": 3884, "name": "Peltast Schynbalds", "slot": "Feet"},
+        {"id": 3885, "name": "Harlequin's Cap", "slot": "Head"},
+        {"id": 3886, "name": "Harlequin's Acton", "slot": "Body"},
+        {"id": 3887, "name": "Harlequin's Mitts", "slot": "Hands"},
+        {"id": 3888, "name": "Harlequin's Hose", "slot": "Legs"},
+        {"id": 3889, "name": "Harlequin's Boots", "slot": "Feet"}
+      ]
+    },
+    {
+      "cfcId": 22,
+      "name": "Dzemael Darkhold",
+      "level": 44,
+      "items": [
+        {"id": 4104, "name": "Coliseum Galerus", "slot": "Head"},
+        {"id": 4105, "name": "Coliseum Shawl", "slot": "Body"},
+        {"id": 4106, "name": "Coliseum Loincloth", "slot": "Legs"},
+        {"id": 4108, "name": "Coliseum Subligar", "slot": "Legs"},
+        {"id": 4110, "name": "Fingerless Goatskin Gloves", "slot": "Hands"}
+      ]
+    },
+    {
+      "cfcId": 23,
+      "name": "The Aurum Vale",
+      "level": 47,
+      "items": [
+        {"id": 4336, "name": "Dodore Doublet", "slot": "Body"},
+        {"id": 4337, "name": "Dodore Wings", "slot": "Head"},
+        {"id": 4338, "name": "Dodore Boots", "slot": "Feet"},
+        {"id": 4339, "name": "Dodore Gloves", "slot": "Hands"},
+        {"id": 4340, "name": "Dodore Subligar", "slot": "Legs"},
+        {"id": 4341, "name": "Bliaud of the Divine Harvest", "slot": "Body"}
+      ]
+    }
+  ]
+}

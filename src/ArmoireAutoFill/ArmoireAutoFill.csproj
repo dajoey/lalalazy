@@ -1,0 +1,40 @@
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <Version>0.1.0.0</Version>
+    <AssemblyName>ArmoireAutoFill</AssemblyName>
+    <Description>Scans your inventory for missing armoire-compatible dungeon gear (level 31+) and tracks what you need from each dungeon.</Description>
+    <IsPackable>false</IsPackable>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <SupportedOSPlatformVersion>8.0</SupportedOSPlatformVersion>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Author>dajoey</Author>
+    <Name>Armoire Auto-Fill</Name>
+    <InternalName>ArmoireAutoFill</InternalName>
+    <Punchline>Tracks missing armoire-compatible dungeon gear</Punchline>
+    <ApplicableVersion>any</ApplicableVersion>
+    <Tags>armoire;dungeon;gear;collection;scanner</Tags>
+    <CategoryTags>utility</CategoryTags>
+    <DalamudApiLevel>15</DalamudApiLevel>
+    <LoadRequiredState>0</LoadRequiredState>
+    <LoadSync>false</LoadSync>
+    <CanUnloadAsync>false</CanUnloadAsync>
+    <LoadPriority>0</LoadPriority>
+    <AcceptsFeedback>false</AcceptsFeedback>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Data\armoire_gear.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="ArmoireAutoFill.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ECommons" Version="3.2.0.9" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,81 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {
+      "DagobertPriceMatcher/1.10.0.0": {
+        "dependencies": {
+          "ECommons": "3.2.0.9-stg",
+          "System.Speech": "10.0.5",
+          "runtimepack.Microsoft.Windows.SDK.NET.Ref": "10.0.26100.57"
+        },
+        "runtime": {
+          "DagobertPriceMatcher.dll": {}
+        }
+      },
+      "runtimepack.Microsoft.Windows.SDK.NET.Ref/10.0.26100.57": {
+        "runtime": {
+          "Microsoft.Windows.SDK.NET.dll": {
+            "assemblyVersion": "10.0.26100.38",
+            "fileVersion": "10.0.26100.55"
+          },
+          "WinRT.Runtime.dll": {
+            "assemblyVersion": "2.2.0.0",
+            "fileVersion": "2.2.0.48161"
+          }
+        }
+      },
+      "System.Speech/10.0.5": {
+        "runtime": {
+          "lib/net10.0/System.Speech.dll": {
+            "assemblyVersion": "10.0.0.5",
+            "fileVersion": "10.0.526.15411"
+          }
+        },
+        "runtimeTargets": {
+          "runtimes/win/lib/net10.0/System.Speech.dll": {
+            "rid": "win",
+            "assetType": "runtime",
+            "assemblyVersion": "10.0.0.5",
+            "fileVersion": "10.0.526.15411"
+          }
+        }
+      },
+      "ECommons/3.2.0.9-stg": {
+        "runtime": {
+          "ECommons.dll": {
+            "assemblyVersion": "3.2.0.9",
+            "fileVersion": "3.2.0.9"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "DagobertPriceMatcher/1.10.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "runtimepack.Microsoft.Windows.SDK.NET.Ref/10.0.26100.57": {
+      "type": "runtimepack",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "System.Speech/10.0.5": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-MYkGiMGWYc9rhyvsmf2UGIHD4RVJ3+uNgllFPP1YW6ILJJDXpDN8jMcy++0E/KrG507kTPCo5EOW4tEwUOCKhQ==",
+      "path": "system.speech/10.0.5",
+      "hashPath": "system.speech.10.0.5.nupkg.sha512"
+    },
+    "ECommons/3.2.0.9-stg": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

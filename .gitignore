@@ -1,0 +1,8 @@
+.vs/
+bin/
+obj/
+lib/
+.idea/
+*.user
+packages.lock.json
+*.DotSettings.user

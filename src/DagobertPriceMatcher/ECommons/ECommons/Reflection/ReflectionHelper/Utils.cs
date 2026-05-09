@@ -1,0 +1,298 @@
+using ECommons.Logging;
+using ECommons.Reflection.FieldPropertyUnion;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Linq.Expressions;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+
+namespace ECommons.Reflection;
+#nullable disable
+public static partial class ReflectionHelper
+{
+    /// <summary>
+    /// Searches for a static method in the array of assemblies.
+    /// </summary>
+    /// <param name="assemblies">Assemblies to search in</param>
+    /// <param name="typeName">Fully qualified class name</param>
+    /// <param name="typeArguments">Type arguments, if necessary. Leave as null if type is non-generic.</param>
+    /// <param name="methodName">Static method name</param>
+    /// <param name="methodTypeArguments">Method type arguments, if necessary. Leave as null if method is non-generic.</param>
+    /// <param name="parameterTypes">Method parameters types.</param>
+    /// <returns>MethodInfo of a method that was found or null.</returns>
+    public static MethodInfo FindStaticMethodInAssemblies(IEnumerable<Assembly> assemblies, string typeName, Type[] typeArguments, string methodName, Type[] methodTypeArguments, Type[] parameterTypes)
+    {
+        MethodInfo methodInfo = null;
+        foreach(var t in FindTypesInAssemblies(assemblies, [(typeName, typeArguments)]))
+        {
+            if(t != null)
+            {
+                methodInfo = t.GetMethod(methodName, AllFlags, parameterTypes);
+                if(methodInfo != null)
+                {
+                    if(methodTypeArguments != null && methodTypeArguments.Length > 0)
+                    {
+                        try
+                        {
+                            methodInfo = methodInfo.MakeGenericMethod(methodTypeArguments);
+                        }
+                        catch(Exception)
+                        {
+                            methodInfo = null;
+                        }
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+        return methodInfo;
+    }
+
+    /// <summary>
+    /// Searches for specified non-generic types in specified assembly list.
+    /// </summary>
+    /// <param name="assemblies">Assemblies to search in</param>
+    /// <param name="typeNames">A list of requested types names</param>
+    /// <returns>A list of requested types. Please check resulting list length to ensure all types were found.</returns>
+    public static List<Type> FindTypesInAssemblies(IEnumerable<Assembly> assemblies, IEnumerable<string> typeNames)
+    {
+        var genericArgs = new List<Type>();
+        foreach(var x in typeNames)
+        {
+            foreach(var a in assemblies)
+            {
+                var type = a.GetType(x, false);
+                if(type != null)
+                {
+                    genericArgs.Add(type);
+                    break;
+                }
+            }
+        }
+        return genericArgs;
+    }
+
+    /// <summary>
+    /// Searches for specified generic and non-generic types in specified assembly list.
+    /// </summary>
+    /// <param name="assemblies">Assemblies to search in</param>
+    /// <param name="typeNames">A list of tuples of requested types names and generic argument types. Array of types can be left empty or null to specify that this type is non-generic.</param>
+    /// <returns>A list of requested types. Please check resulting list length to ensure all types were found.</returns>
+    public static List<Type> FindTypesInAssemblies(IEnumerable<Assembly> assemblies, IEnumerable<(string TypeName, Type[] TypeArguments)> typeNames)
+    {
+        var genericArgs = new List<Type>();
+        foreach(var x in typeNames)
+        {
+            foreach(var a in assemblies)
+            {
+                var type = a.GetType(x.TypeName, false);
+                if(type != null)
+                {
+                    if(x.TypeArguments != null && x.TypeArguments.Length > 0)
+                    {
+                        try
+                        {
+                            type = type.MakeGenericType(x.TypeArguments);
+                            genericArgs.Add(type);
+                        }
+                        catch(Exception)
+                        {
+                            type = null;
+                        }
+                    }
+                    else
+                    {
+                        genericArgs.Add(type);
+                    }
+                    break;
+                }
+            }
+        }
+        return genericArgs;
+    }
+
+    /// <summary>
+    /// Converts array of objects into array of these objects' types.
+    /// </summary>
+    /// <param name="objects"></param>
+    /// <returns></returns>
+    public static Type[] GetTypes(this IEnumerable<object> objects)
+    {
+        return objects.Select(x => x.GetType()).ToArray();
+    }
+
+    /// <summary>
+    /// Creates delegate to a method by MethodInfo
+    /// </summary>
+    /// <param name="methodInfo">MethodInfo of a method for which a delegate will be created.</param>
+    /// <param name="target">Instance object that is hosting the method. Pass null if a method is static.</param>
+    /// <returns></returns>
+    public static Delegate CreateDelegate(MethodInfo methodInfo, object target)
+    {
+        Func<Type[], Type> getType;
+        var isAction = methodInfo.ReturnType.Equals((typeof(void)));
+        var types = methodInfo.GetParameters().Select(p => p.ParameterType);
+
+        if(isAction)
+        {
+            getType = Expression.GetActionType;
+        }
+        else
+        {
+            getType = Expression.GetFuncType;
+            types = types.Concat(new[] { methodInfo.ReturnType });
+        }
+
+        if(methodInfo.IsStatic)
+        {
+            return Delegate.CreateDelegate(getType(types.ToArray()), methodInfo);
+        }
+
+        return Delegate.CreateDelegate(getType(types.ToArray()), target, methodInfo.Name);
+    }
+
+    public static IFieldPropertyUnion[] GetFieldPropertyUnions(this Type type, BindingFlags bindingFlags = BindingFlags.Default, bool propertyFirst = false)
+    {
+        var ret = new List<IFieldPropertyUnion>();
+        void fields()
+        {
+            foreach(var item in type.GetFields(bindingFlags))
+            {
+                //if (item.GetCustomAttribute<CompilerGeneratedAttribute>() != null) continue;
+                ret.Add(new UnionField(item));
+            }
+        }
+        void properties()
+        {
+            foreach(var item in type.GetProperties(bindingFlags))
+            {
+                //if (item.GetCustomAttribute<CompilerGeneratedAttribute>() != null) continue;
+                ret.Add(new UnionProperty(item));
+            }
+        }
+        if(propertyFirst)
+        {
+            properties();
+            fields();
+        }
+        else
+        {
+            fields();
+            properties();
+        }
+        return [.. ret];
+    }
+
+    public static IFieldPropertyUnion? GetFieldPropertyUnion(this Type type, string name, BindingFlags bindingFlags = BindingFlags.Default)
+    {
+        var f = type.GetField(name, bindingFlags);
+        if(f != null)
+        {
+            return new UnionField(f);
+        }
+        var p = type.GetProperty(name, bindingFlags);
+        if(p != null)
+        {
+            return new UnionProperty(p);
+        }
+        return null;
+    }
+
+    public static Type GetTypeFromRuntimeAssembly(string assemblyName, string type)
+    {
+        try
+        {
+            var fType = Assembly.Load(assemblyName);
+            var t = fType.GetType(type);
+            return t;
+        }
+        catch(Exception e)
+        {
+            e.Log();
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Information about a delegate field
+    /// </summary>
+    public class DelegateInfo
+    {
+        public bool IsDelegate { get; set; }
+        public Type[] ParameterTypes { get; set; }
+        public Type ReturnType { get; set; } // null if void
+        public Type DelegateType { get; set; }
+    }
+
+    /// <summary>
+    /// Analyzes a field to determine if it's a delegate and extracts its signature
+    /// </summary>
+    public static DelegateInfo AnalyzeDelegateField(IFieldPropertyUnion field)
+    {
+        ArgumentNullException.ThrowIfNull(field);
+
+        var info = new DelegateInfo();
+        var fieldType = field.UnionType;
+
+        // Check if the field type is a delegate
+        if(!typeof(Delegate).IsAssignableFrom(fieldType))
+        {
+            info.IsDelegate = false;
+            return info;
+        }
+
+        info.IsDelegate = true;
+        info.DelegateType = fieldType;
+
+        // Get the Invoke method which contains the delegate signature
+        var invokeMethod = fieldType.GetMethod("Invoke");
+        if(invokeMethod == null)
+        {
+            info.IsDelegate = false;
+            return info;
+        }
+
+        // Extract parameter types
+        info.ParameterTypes = [.. invokeMethod.GetParameters().Select(p => p.ParameterType)];
+
+        // Extract return type (null if void)
+        info.ReturnType = invokeMethod.ReturnType == typeof(void)
+            ? null
+            : invokeMethod.ReturnType;
+
+        return info;
+    }
+
+    /// <summary>
+    /// Assigns a delegate to a field on a target object
+    /// </summary>
+    public static void AssignDelegateToField(IFieldPropertyUnion field, object target, Delegate delegateInstance)
+    {
+        ArgumentNullException.ThrowIfNull(field);
+
+        if(target == null && !field.IsStatic)
+            throw new ArgumentNullException(nameof(target), "Target cannot be null for instance fields");
+
+        ArgumentNullException.ThrowIfNull(delegateInstance);
+
+        // Verify the field is a delegate type
+        if(!typeof(Delegate).IsAssignableFrom(field.UnionType))
+            throw new ArgumentException("Field is not a delegate type", nameof(field));
+
+        // Check if the delegate can be assigned to the field
+        if(!field.UnionType.IsAssignableFrom(delegateInstance.GetType()))
+        {
+            // Try to create a delegate of the correct type
+            var converted = Delegate.CreateDelegate(field.UnionType, delegateInstance.Target, delegateInstance.Method);
+            field.SetValue(target, converted);
+        }
+        else
+        {
+            field.SetValue(target, delegateInstance);
+        }
+    }
+}
