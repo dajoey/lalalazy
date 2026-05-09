@@ -85,11 +85,7 @@ internal sealed class StateMachine : IDisposable
     {
         if (!started) return;
         dialogActive = true;
-
-        if (CurrentState != KupoState.ProcessingCard && CurrentState != KupoState.SelectingMenu)
-        {
-            TransitionTo(KupoState.InDialog);
-        }
+        TransitionTo(KupoState.InDialog);
     }
 
     public void OnTalkClosed(AddonEvent type, AddonArgs args)
@@ -102,11 +98,7 @@ internal sealed class StateMachine : IDisposable
     {
         if (!started) return;
         dialogActive = true;
-
-        if (CurrentState != KupoState.ProcessingCard)
-        {
-            TransitionTo(KupoState.SelectingMenu);
-        }
+        TransitionTo(KupoState.SelectingMenu);
     }
 
     private void OnCardOpened(AddonEvent type, AddonArgs args)
@@ -118,7 +110,9 @@ internal sealed class StateMachine : IDisposable
     private void OnCardClosed(AddonEvent type, AddonArgs args)
     {
         if (!started) return;
+        dialogActive = false;
         Plugin.Log.Debug("HWDLottery closed.");
+        TransitionTo(KupoState.ScanningForLizbeth);
     }
 
     public void OnMenuSelected()
