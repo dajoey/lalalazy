@@ -23,15 +23,20 @@ internal sealed class SelectStringHandler : IDisposable
     private unsafe void OnPostSetup(AddonEvent type, AddonArgs args)
     {
         if (stateMachine.CurrentState != KupoState.SelectingMenu)
+        {
+            Plugin.Log.Information($"SelectString opened but state is {stateMachine.CurrentState}, ignoring");
             return;
+        }
 
         try
         {
             var atk = (AtkUnitBase*)args.Addon.Address;
-            Plugin.Log.Debug($"SelectString opened (visible entries: {atk->UldManager.NodeListCount})");
+            Plugin.Log.Information($"SelectString opened — selecting first entry");
 
-            AtkUnitBase.MemberFunctionPointers.FireCallback(atk, 0, null, false);
-            Plugin.Log.Debug("SelectString: fired callback to select first entry");
+            var v = stackalloc AtkValue[1];
+            v[0].Type = AtkValueType.Int;
+            v[0].Int = 0;
+            AtkUnitBase.MemberFunctionPointers.FireCallback(atk, 0, v, false);
 
             stateMachine.OnMenuSelected();
         }
