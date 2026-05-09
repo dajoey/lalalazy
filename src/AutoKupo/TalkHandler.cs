@@ -35,12 +35,9 @@ internal sealed class TalkHandler : IDisposable
         try
         {
             var atk = (AtkUnitBase*)args.Addon.Address;
-            if (atk->IsVisible)
-            {
-                lastClick = now;
-                AtkUnitBase.MemberFunctionPointers.FireCallback(atk, 0, null, false);
-                Plugin.Log.Debug("Talk: auto-advancing dialog");
-            }
+            lastClick = now;
+            AtkUnitBase.MemberFunctionPointers.FireCallback(atk, 0, null, false);
+            Plugin.Log.Information($"Talk: auto-advancing dialog (state={stateMachine.CurrentState})");
         }
         catch (Exception ex)
         {
@@ -52,7 +49,7 @@ internal sealed class TalkHandler : IDisposable
     {
         if (stateMachine.CurrentState == KupoState.InDialog)
         {
-            Plugin.Log.Debug("Talk closed — signaling state machine.");
+            Plugin.Log.Information("Talk closed — signaling state machine.");
             stateMachine.OnTalkClosed();
         }
     }
