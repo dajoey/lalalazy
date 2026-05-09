@@ -2,7 +2,7 @@
   "Author": "dajoey",
   "Name": "AutoPotion",
   "InternalName": "AutoPotion",
-  "AssemblyVersion": "0.1.1.0",
+  "AssemblyVersion": "0.1.1.1",
   "Description": "Automatically uses the highest-tier HP potion in your inventory at a configurable HP threshold. In deep dungeons, also auto-uses the dungeon's regen potion (Sustaining / Eurekan / Orthos / Pilgrim's) at its own threshold.",
   "Punchline": "Auto-uses HP and deep dungeon potions at configurable HP thresholds.",
   "RepoUrl": "https://github.com/dajoey/lalalazy",

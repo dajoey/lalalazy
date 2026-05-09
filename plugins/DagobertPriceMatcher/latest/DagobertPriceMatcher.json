@@ -2,7 +2,7 @@
   "Author": "dajoey",
   "Name": "Dagobert - Price Matcher",
   "InternalName": "DagobertPriceMatcher",
-  "AssemblyVersion": "1.10.0.0",
+  "AssemblyVersion": "1.10.0.1",
   "Description": "Fork of Dagobert \u2014 matches the lowest market board price instead of undercutting. Default amount is 0 (exact match). You can still set a negative amount to undercut if desired.",
   "Punchline": "Matches (instead of undercuts) market board prices",
   "RepoUrl": "https://github.com/dajoey/lalalazy",

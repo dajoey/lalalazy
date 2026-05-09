@@ -2,7 +2,7 @@
   "Author": "dajoey",
   "Name": "PvP Solver",
   "InternalName": "PvPSolver",
-  "AssemblyVersion": "0.1.0.0",
+  "AssemblyVersion": "0.1.0.1",
   "Description": "Auto-rotation for FFXIV PvP only. Automatically activates in PvP zones. Designed to run alongside Wrath Combo (handles PvE). Includes default PvP rotations for all jobs.",
   "Punchline": "PvP-only auto-rotation.",
   "RepoUrl": "https://github.com/dajoey/lalalazy",
