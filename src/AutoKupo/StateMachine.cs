@@ -25,6 +25,7 @@ internal sealed class StateMachine : IDisposable
     private ulong targetObjectId;
     private bool started;
     private bool dialogActive;
+    private bool interactionFired;
 
     public StateMachine(Configuration config)
     {
@@ -46,6 +47,7 @@ internal sealed class StateMachine : IDisposable
         started = true;
         CardsProcessed = 0;
         dialogActive = false;
+        interactionFired = false;
         TransitionTo(KupoState.ScanningForLizbeth);
     }
 
@@ -53,6 +55,7 @@ internal sealed class StateMachine : IDisposable
     {
         started = false;
         dialogActive = false;
+        interactionFired = false;
         TransitionTo(KupoState.Idle);
     }
 
@@ -130,6 +133,18 @@ internal sealed class StateMachine : IDisposable
 
     private unsafe void OnFrameworkUpdate(IFramework framework)
     {
+        if (Configuration.Enabled && !started)
+        {
+            Start();
+            Plugin.ChatGui.Print("[AutoKupo] Auto-started. Scanning for Lizbeth...");
+        }
+        else if (!Configuration.Enabled && started)
+        {
+            Stop();
+            Plugin.ChatGui.Print("[AutoKupo] Stopped.");
+            return;
+        }
+
         if (!started || !Configuration.Enabled)
             return;
 
@@ -220,6 +235,7 @@ internal sealed class StateMachine : IDisposable
             return;
 
         lastTargetAttempt = DateTime.UtcNow;
+        interactionFired = false;
 
         Plugin.TargetManager.Target = targetObj;
         Plugin.Log.Debug($"Target set to Lizbeth (ID: {targetObjectId})");
@@ -231,26 +247,40 @@ internal sealed class StateMachine : IDisposable
         if ((DateTime.UtcNow - stateEnteredAt).TotalMilliseconds < 500)
             return;
 
+        if (dialogActive)
+            return;
+
+        if ((DateTime.UtcNow - stateEnteredAt).TotalMilliseconds > 10_000)
+        {
+            Plugin.Log.Warning("Interaction timed out waiting for dialog. Re-scanning.");
+            TransitionTo(KupoState.ScanningForLizbeth);
+            return;
+        }
+
+        if (interactionFired)
+            return;
+
         try
         {
             var obj = FindObjectById(targetObjectId);
-            if (obj != null)
+            if (obj == null)
             {
-                var ts = TargetSystem.Instance();
-                var ptr = (GameObject*)obj.Address;
-                ts->OpenObjectInteraction(ptr);
-                Plugin.Log.Debug($"Interacted with Lizbeth via OpenObjectInteraction");
+                TransitionTo(KupoState.ScanningForLizbeth);
+                return;
             }
+
+            var ts = TargetSystem.Instance();
+            var ptr = (GameObject*)obj.Address;
+            ts->OpenObjectInteraction(ptr);
+            interactionFired = true;
+            Plugin.Log.Debug($"Interacted with Lizbeth via OpenObjectInteraction");
         }
         catch (Exception ex)
         {
             Plugin.Log.Error($"Interact failed: {ex}");
             Plugin.ChatGui.PrintError("[AutoKupo] Auto-interact failed. Try manually.");
-            TransitionTo(KupoState.Done);
-            return;
+            TransitionTo(KupoState.Error);
         }
-
-        TransitionTo(KupoState.ScanningForLizbeth);
     }
 
     private void HandleInDialog(double timeInState)
