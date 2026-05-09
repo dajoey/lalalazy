@@ -1,0 +1,23 @@
+{
+  "Author": "dajoey",
+  "Name": "AutoKupo",
+  "InternalName": "AutoKupo",
+  "AssemblyVersion": "0.0.0.1",
+  "Description": "Stand near Lizbeth and type /autokupo to automatically turn in all your Kupo of Fortune cards. Random right-side selection. Only activates when near Lizbeth.",
+  "ApplicableVersion": "any",
+  "Tags": [
+    "auto",
+    "kupo",
+    "fortune",
+    "ishgard",
+    "restoration",
+    "lizbeth"
+  ],
+  "DalamudApiLevel": 15,
+  "LoadRequiredState": 0,
+  "LoadSync": false,
+  "CanUnloadAsync": false,
+  "LoadPriority": 0,
+  "Punchline": "Automates Kupo of Fortune card turn-ins at Lizbeth in the Firmament.",
+  "AcceptsFeedback": true
+}

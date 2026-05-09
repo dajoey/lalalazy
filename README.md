@@ -9,6 +9,7 @@ A collection of Dalamud plugins for Final Fantasy XIV, maintained by [dajoey](ht
 | **PvP Solver** | Auto-rotation for PvP combat. All jobs. Activates automatically in PvP zones. | Active |
 | **Dagobert Price Matcher** | Matches market board prices instead of undercutting. Default match amount: 0 (exact match). | Active |
 | **AutoPotion** | Auto-uses HP potions and deep dungeon regen potions at configurable HP thresholds. | Active |
+| **AutoKupo** | Automates Kupo of Fortune card turn-ins at Lizbeth in the Firmament. | Active |
 | **Armoire Auto-Fill** | Scans inventory for missing armoire-compatible dungeon gear. | Archived |
 
 ## Installation
@@ -32,6 +33,9 @@ Fork of [RotationSolverReborn](https://github.com/FFXIV-CombatReborn/RotationSol
 
 ### Dagobert Price Matcher
 Fork of [Dagobert](https://github.com/SHOEGAZEssb/Dagobert) by SHOEGAZEssb. Licensed under AGPLv3. Changed default price behavior from undercutting to exact matching.
+
+### AutoKupo
+Original plugin by dajoey. Automates Kupo of Fortune card turn-ins.
 
 ### AutoPotion
 Original plugin by dajoey. Built from scratch using the Dalamud plugin SDK.
