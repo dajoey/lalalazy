@@ -1,3 +1,5 @@
+# ![](https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/repo-icon.png)
+
 # lalalazy — FFXIV Dalamud Plugins
 
 A collection of Dalamud plugins for Final Fantasy XIV, maintained by [dajoey](https://github.com/dajoey).

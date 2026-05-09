@@ -8,11 +8,20 @@
   "RepoUrl": "https://github.com/dajoey/lalalazy",
   "ApplicableVersion": "any",
   "DalamudApiLevel": 15,
-  "Tags": ["combat", "rotation", "auto", "pvp"],
-  "CategoryTags": ["jobs"],
+  "Tags": [
+    "combat",
+    "rotation",
+    "auto",
+    "pvp"
+  ],
+  "CategoryTags": [
+    "jobs"
+  ],
   "Changelog": "v0.1.0.0 - PvP fork of RotationSolverReborn",
-  "IconUrl": "",
-  "ImageUrls": [""],
+  "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/pvpsolver-icon.png",
+  "ImageUrls": [
+    ""
+  ],
   "AcceptsFeedback": false,
   "LoadRequiredState": 0,
   "LoadSync": false,

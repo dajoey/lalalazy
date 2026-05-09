@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="500" height="500" viewBox="0 0 500 500">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a5c38"/>
+      <stop offset="100%" stop-color="#2d8a56"/>
+    </linearGradient>
+  </defs>
+  <rect width="500" height="500" rx="80" fill="url(#bg)"/>
+  <!-- Gil coin -->
+  <circle cx="250" cy="220" r="100" fill="none" stroke="white" stroke-width="10"/>
+  <circle cx="250" cy="220" r="80" fill="none" stroke="white" stroke-width="3" opacity="0.5"/>
+  <!-- Gil G letter -->
+  <text x="250" y="250" text-anchor="middle" font-family="serif" font-size="100" font-weight="bold" fill="white">G</text>
+  <!-- Checkmark -->
+  <circle cx="380" cy="370" r="55" fill="#2d8a56" stroke="white" stroke-width="10"/>
+  <polyline points="350,375 375,395 410,345" fill="none" stroke="white" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Label -->
+  <text x="250" y="430" text-anchor="middle" font-family="sans-serif" font-size="36" font-weight="bold" fill="white" opacity="0.7">MATCH</text>
+</svg>

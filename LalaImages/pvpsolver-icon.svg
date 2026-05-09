@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="500" height="500" viewBox="0 0 500 500">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a5c38"/>
+      <stop offset="100%" stop-color="#2d8a56"/>
+    </linearGradient>
+  </defs>
+  <rect width="500" height="500" rx="80" fill="url(#bg)"/>
+  <!-- Crossed swords -->
+  <g stroke="white" stroke-width="14" stroke-linecap="round" fill="none">
+    <line x1="160" y1="100" x2="340" y2="380"/>
+    <line x1="340" y1="100" x2="160" y2="380"/>
+    <!-- Sword hilts -->
+    <line x1="145" y1="365" x2="175" y2="395" stroke-width="10"/>
+    <line x1="355" y1="365" x2="325" y2="395" stroke-width="10"/>
+  </g>
+  <!-- PvP shield -->
+  <path d="M250,130 L385,180 L385,290 C385,370 250,420 250,420 C250,420 115,370 115,290 L115,180 Z" fill="none" stroke="white" stroke-width="10" opacity="0.35"/>
+  <!-- PvP text -->
+  <text x="250" y="290" text-anchor="middle" font-family="sans-serif" font-size="48" font-weight="bold" fill="white" opacity="0.8">PvP</text>
+</svg>

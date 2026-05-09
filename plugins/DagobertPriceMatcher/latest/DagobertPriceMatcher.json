@@ -3,16 +3,26 @@
   "Name": "Dagobert - Price Matcher",
   "InternalName": "DagobertPriceMatcher",
   "AssemblyVersion": "1.10.0.0",
-  "Description": "Fork of Dagobert — matches the lowest market board price instead of undercutting. Default amount is 0 (exact match). You can still set a negative amount to undercut if desired.",
+  "Description": "Fork of Dagobert \u2014 matches the lowest market board price instead of undercutting. Default amount is 0 (exact match). You can still set a negative amount to undercut if desired.",
   "Punchline": "Matches (instead of undercuts) market board prices",
   "RepoUrl": "https://github.com/dajoey/lalalazy",
   "ApplicableVersion": "any",
   "DalamudApiLevel": 15,
-  "Tags": ["marketboard", "match", "price", "undercut", "retainer"],
-  "CategoryTags": ["utility"],
-  "Changelog": "Forked from Dagobert v1.10.0.0 — default match amount changed to 0 (exact price match)",
-  "IconUrl": "",
-  "ImageUrls": [""],
+  "Tags": [
+    "marketboard",
+    "match",
+    "price",
+    "undercut",
+    "retainer"
+  ],
+  "CategoryTags": [
+    "utility"
+  ],
+  "Changelog": "Forked from Dagobert v1.10.0.0 \u2014 default match amount changed to 0 (exact price match)",
+  "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/dagobert-icon.png",
+  "ImageUrls": [
+    ""
+  ],
   "AcceptsFeedback": true,
   "LoadRequiredState": 0,
   "LoadSync": false,

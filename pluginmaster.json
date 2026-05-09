@@ -16,7 +16,7 @@
     "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/PvPSolver/latest/latest.zip",
     "Tags": ["combat", "rotation", "auto", "pvp"],
     "CategoryTags": ["jobs"],
-    "IconUrl": "",
+    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/pvpsolver-icon.png",
     "ImageUrls": [""],
     "DownloadCount": 0,
     "LastUpdate": "0"
@@ -38,7 +38,7 @@
     "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/DagobertPriceMatcher/latest/latest.zip",
     "Tags": ["marketboard", "match", "price", "undercut", "retainer"],
     "CategoryTags": ["utility"],
-    "IconUrl": "",
+    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/dagobert-icon.png",
     "ImageUrls": [""],
     "DownloadCount": 0,
     "LastUpdate": "0"
@@ -60,7 +60,7 @@
     "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/AutoPotion/latest/latest.zip",
     "Tags": ["auto", "potion", "healing", "deep dungeon"],
     "CategoryTags": ["utility"],
-    "IconUrl": "",
+    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/autopotion-icon.png",
     "ImageUrls": [""],
     "DownloadCount": 0,
     "LastUpdate": "0"
@@ -82,7 +82,7 @@
     "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/AutoKupo/latest/latest.zip",
     "Tags": ["auto", "kupo", "fortune", "ishgard", "restoration", "lizbeth"],
     "CategoryTags": ["utility"],
-    "IconUrl": "",
+    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/autokupo-icon.png",
     "ImageUrls": [""],
     "DownloadCount": 0,
     "LastUpdate": "0"

@@ -19,5 +19,9 @@
   "CanUnloadAsync": false,
   "LoadPriority": 0,
   "Punchline": "Automates Kupo of Fortune card turn-ins at Lizbeth in the Firmament.",
-  "AcceptsFeedback": true
+  "AcceptsFeedback": true,
+  "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/autokupo-icon.png",
+  "ImageUrls": [
+    ""
+  ]
 }
