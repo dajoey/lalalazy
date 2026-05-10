@@ -1,0 +1,15 @@
+{
+  "Author": "dajoey",
+  "Name": "PvP Solver",
+  "InternalName": "PvPSolver",
+  "AssemblyVersion": "0.2.0.0",
+  "Description": "PvP-only auto-rotation for FFXIV. Activates in PvP zones.",
+  "ApplicableVersion": "any",
+  "DalamudApiLevel": 15,
+  "LoadRequiredState": 0,
+  "LoadSync": false,
+  "CanUnloadAsync": false,
+  "LoadPriority": 0,
+  "Punchline": "PvP-only auto-rotation",
+  "AcceptsFeedback": true
+}

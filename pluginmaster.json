@@ -13,19 +13,29 @@
     "IsTestingExclusive": false,
     "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/PvPSolver/latest/latest.zip",
     "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/PvPSolver/latest/latest.zip",
-    "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/PvPSolver/latest/latest.zip",
-    "Tags": ["combat", "rotation", "auto", "pvp"],
-    "CategoryTags": ["jobs"],
+    "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/PvPSolver/testing/testing.zip",
+    "Tags": [
+      "combat",
+      "rotation",
+      "auto",
+      "pvp"
+    ],
+    "CategoryTags": [
+      "jobs"
+    ],
     "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/pvpsolver-icon.png",
-    "ImageUrls": [""],
+    "ImageUrls": [
+      ""
+    ],
     "DownloadCount": 0,
-    "LastUpdate": "0"
+    "LastUpdate": "0",
+    "TestingAssemblyVersion": "0.2.0.0"
   },
   {
     "Author": "dajoey",
     "Name": "Dagobert - Price Matcher",
     "Punchline": "Matches (instead of undercuts) market board prices",
-    "Description": "Fork of Dagobert — matches the lowest market board price instead of undercutting. Default amount is 0 (exact match). You can still set a negative amount to undercut if desired.",
+    "Description": "Fork of Dagobert \u2014 matches the lowest market board price instead of undercutting. Default amount is 0 (exact match). You can still set a negative amount to undercut if desired.",
     "InternalName": "DagobertPriceMatcher",
     "AssemblyVersion": "1.10.0.1",
     "RepoUrl": "https://github.com/dajoey/lalalazy",
@@ -36,10 +46,20 @@
     "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/DagobertPriceMatcher/latest/latest.zip",
     "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/DagobertPriceMatcher/latest/latest.zip",
     "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/DagobertPriceMatcher/latest/latest.zip",
-    "Tags": ["marketboard", "match", "price", "undercut", "retainer"],
-    "CategoryTags": ["utility"],
+    "Tags": [
+      "marketboard",
+      "match",
+      "price",
+      "undercut",
+      "retainer"
+    ],
+    "CategoryTags": [
+      "utility"
+    ],
     "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/dagobert-icon.png",
-    "ImageUrls": [""],
+    "ImageUrls": [
+      ""
+    ],
     "DownloadCount": 0,
     "LastUpdate": "0"
   },
@@ -58,10 +78,19 @@
     "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/AutoPotion/latest/latest.zip",
     "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/AutoPotion/latest/latest.zip",
     "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/AutoPotion/latest/latest.zip",
-    "Tags": ["auto", "potion", "healing", "deep dungeon"],
-    "CategoryTags": ["utility"],
+    "Tags": [
+      "auto",
+      "potion",
+      "healing",
+      "deep dungeon"
+    ],
+    "CategoryTags": [
+      "utility"
+    ],
     "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/autopotion-icon.png",
-    "ImageUrls": [""],
+    "ImageUrls": [
+      ""
+    ],
     "DownloadCount": 0,
     "LastUpdate": "0"
   },
