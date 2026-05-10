@@ -1,4 +1,4 @@
-ï»¿using Dalamud.Interface.Colors;
+using Dalamud.Interface.Colors;
 
 namespace RotationSolver.Basic.Rotations.Basic;
 
@@ -194,4 +194,7 @@ public partial class DancerRotation : CustomRotation
 	}
 
 	#endregion
+
+	// PvP helper — pulled from upstream DancerRotation.cs:139 to satisfy DNC_DefaultPvP after rotation sync.
+	public static bool HasHoningDance => StatusHelper.PlayerHasStatus(true, StatusID.HoningDance);
 }
