@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<AssemblyName>PvPSolver.SourceGenerators</AssemblyName>
@@ -26,6 +26,7 @@
 	  <EmbeddedResource Update="Properties\Resources.resx">
 	    <Generator>ResXFileCodeGenerator</Generator>
 	    <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+	    <LogicalName>RotationSolver.SourceGenerators.Resources.resources</LogicalName>
 	  </EmbeddedResource>
 	</ItemGroup>
 </Project>
