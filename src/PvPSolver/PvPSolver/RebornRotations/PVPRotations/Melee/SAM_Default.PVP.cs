@@ -1,6 +1,6 @@
 ﻿namespace RotationSolver.RebornRotations.PVPRotations.Melee;
 
-[Rotation("Default PVP", CombatType.PvP, GameVersion = "7.45")]
+[Rotation("Default PVP", CombatType.PvP, GameVersion = "7.5")]
 [SourceCode(Path = "main/RebornRotations/PVPRotations/Melee/SAM_Default.PvP.cs")]
 
 public sealed class SAM_DefaultPvP : SamuraiRotation
@@ -141,6 +141,21 @@ public sealed class SAM_DefaultPvP : SamuraiRotation
 		}
 
 		if (OgiNamikiriPvP.CanUse(out action))
+		{
+			return true;
+		}
+
+		if (HyosetsuPvP.CanUse(out action))
+		{
+			return true;
+		}
+
+		if (MangetsuPvP.CanUse(out action))
+		{
+			return true;
+		}
+
+		if (OkaPvP.CanUse(out action))
 		{
 			return true;
 		}

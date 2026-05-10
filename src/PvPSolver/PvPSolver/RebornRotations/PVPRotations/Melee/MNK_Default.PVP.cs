@@ -1,6 +1,6 @@
 ﻿namespace RotationSolver.RebornRotations.PVPRotations.Melee;
 
-[Rotation("Default", CombatType.PvP, GameVersion = "7.45")]
+[Rotation("Default", CombatType.PvP, GameVersion = "7.5")]
 [SourceCode(Path = "main/RebornRotations/PVPRotations/Melee/MNK_Default.PVP.cs")]
 
 public sealed class MNK_DefaultPvP : MonkRotation
@@ -13,25 +13,40 @@ public sealed class MNK_DefaultPvP : MonkRotation
 	[Range(0, 1, ConfigUnitType.Percent)]
 	[RotationConfig(CombatType.PvP, Name = "Enemy health threshold needed for Smite use")]
 	public float SmitePvPPercent { get; set; } = 0.25f;
+
+	[Range(0, 1, ConfigUnitType.Percent)]
+	[RotationConfig(CombatType.PvP, Name = "Personal health threshold needed for Earth's Reply use without hostiles nearby")]
+	public float EarthsReplyPercent { get; set; } = 0.5f;
+
+	[RotationConfig(CombatType.PvP, Name = "Use Earth's Reply if a hositle is within range")]
+	public bool EarthsReplyAttack { get; set; } = true;
+
+	[RotationConfig(CombatType.PvP, Name = "Use Earth's Reply if the status will end within the next GCD")]
+	public bool EarthsReplyStatusEnd { get; set; } = true;
 	#endregion
 
 	#region oGCDs
 	protected override bool EmergencyAbility(IAction nextGCD, out IAction? action)
 	{
+		if (EarthsReplyStatusEnd && StatusHelper.PlayerHasStatus(true, StatusID.EarthResonance) && StatusHelper.PlayerWillStatusEndGCD(1, 0, true, StatusID.EarthResonance))
+		{
+			if (EarthsReplyPvP.CanUse(out action, usedUp: true, skipAoeCheck: true, skipStatusNeed: true))
+			{
+				return true;
+			}
+		}
+
+		if (Player?.GetHealthRatio() <= EarthsReplyPercent && StatusHelper.PlayerHasStatus(true, StatusID.EarthResonance))
+		{
+			if (EarthsReplyPvP.CanUse(out action, usedUp: true, skipAoeCheck: true, skipStatusNeed: true))
+			{
+				return true;
+			}
+		}
+
 		if (RiddleOfEarthPvP.CanUse(out action) && InCombat && Player?.GetHealthRatio() < 0.8)
 		{
 			return true;
-		}
-
-		if (EarthsReplyPvP.CanUse(out action))
-		{
-			if (StatusHelper.PlayerHasStatus(true, StatusID.EarthResonance) && StatusHelper.PlayerWillStatusEnd(1, true, StatusID.EarthResonance))
-			{
-				if (Player?.GetHealthRatio() < 0.5 || StatusHelper.PlayerWillStatusEnd(1, true, StatusID.EarthResonance))
-				{
-					return true;
-				}
-			}
 		}
 
 		if (BloodbathPvP.CanUse(out action) && Player?.GetHealthRatio() < BloodBathPvPPercent)
@@ -59,7 +74,7 @@ public sealed class MNK_DefaultPvP : MonkRotation
 			return true;
 		}
 
-		if (EarthsReplyPvP.CanUse(out action, usedUp: true) && HasHostilesInRange)
+		if (EarthsReplyAttack && EarthsReplyPvP.CanUse(out action, usedUp: true) && HasHostilesInRange)
 		{
 			return true;
 		}
@@ -76,7 +91,7 @@ public sealed class MNK_DefaultPvP : MonkRotation
 			return true;
 		}
 
-		if (FiresReplyPvP.CanUse(out action, usedUp: true))
+		if (FiresReplyPvP.CanUse(out action, usedUp: true, skipAoeCheck: true))
 		{
 			return true;
 		}

@@ -1,6 +1,6 @@
 ﻿namespace RotationSolver.RebornRotations.PVPRotations.Ranged;
 
-[Rotation("Default PVP", CombatType.PvP, GameVersion = "7.45")]
+[Rotation("Default PVP", CombatType.PvP, GameVersion = "7.5")]
 [SourceCode(Path = "main/RebornRotations/PVPRotations/Ranged/DNC_Default.PvP.cs")]
 
 public sealed class DNC_DefaultPvP : DancerRotation
@@ -36,6 +36,11 @@ public sealed class DNC_DefaultPvP : DancerRotation
 
 	protected override bool HealAreaAbility(IAction nextGCD, out IAction? action)
 	{
+		if (HasHoningDance)
+		{
+			return base.HealAreaAbility(nextGCD, out action);
+		}
+
 		if (CuringWaltzPvP.CanUse(out action))
 		{
 			return true;
@@ -46,6 +51,11 @@ public sealed class DNC_DefaultPvP : DancerRotation
 
 	protected override bool AttackAbility(IAction nextGCD, out IAction? action)
 	{
+		if (HasHoningDance)
+		{
+			return base.AttackAbility(nextGCD, out action);
+		}
+
 		if (FanDancePvP.CanUse(out action))
 		{
 			return true;
@@ -63,6 +73,11 @@ public sealed class DNC_DefaultPvP : DancerRotation
 	#region GCDs
 	protected override bool GeneralGCD(out IAction? action)
 	{
+		if (HasHoningDance)
+		{
+			return base.GeneralGCD(out action);
+		}
+
 		if (DanceOfTheDawnPvP.CanUse(out action))
 		{
 			return true;

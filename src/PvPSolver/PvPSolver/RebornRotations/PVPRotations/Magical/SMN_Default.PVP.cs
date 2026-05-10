@@ -1,6 +1,6 @@
 ﻿namespace RotationSolver.RebornRotations.PVPRotations.Magical;
 
-[Rotation("Default PVP", CombatType.PvP, GameVersion = "7.45")]
+[Rotation("Default PVP", CombatType.PvP, GameVersion = "7.5")]
 [SourceCode(Path = "main/BasicRotations/PVPRotations/Magical/SMN_Default.PVP.cs")]
 
 public class SMN_DefaultPvP : SummonerRotation
@@ -48,13 +48,18 @@ public class SMN_DefaultPvP : SummonerRotation
 			return true;
 		}
 
+		if (CrimsonCyclonePvP.CanUse(out action) && Target.DistanceToPlayer() <= 5f)
+		{
+			return true;
+		}
+
 		return base.AttackAbility(nextGCD, out action);
 	}
 
 	[RotationDesc(ActionID.CrimsonCyclonePvP)]
 	protected override bool MoveForwardAbility(IAction nextGCD, out IAction? action)
 	{
-		if (CrimsonCyclonePvP.CanUse(out action) && Target.DistanceToPlayer() < 5)
+		if (CrimsonCyclonePvP.CanUse(out action))
 		{
 			return true;
 		}

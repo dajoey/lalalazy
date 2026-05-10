@@ -1,6 +1,6 @@
 ﻿namespace RotationSolver.RebornRotations.PVPRotations.Ranged;
 
-[Rotation("Default PVP", CombatType.PvP, GameVersion = "7.45")]
+[Rotation("Default PVP", CombatType.PvP, GameVersion = "7.5")]
 [SourceCode(Path = "main/RebornRotations/PVPRotations/Ranged/BRD_Default.PvP.cs")]
 
 public sealed class BRD_DefaultPvP : BardRotation
@@ -85,7 +85,7 @@ public sealed class BRD_DefaultPvP : BardRotation
 			return true;
 		}
 
-		if (PitchPerfectPvP.CanUse(out action))
+		if (PitchPerfectPvP.CanUse(out action, skipAoeCheck: true))
 		{
 			return true;
 		}
