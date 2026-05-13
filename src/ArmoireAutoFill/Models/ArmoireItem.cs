@@ -1,20 +1,21 @@
-using System.Text.Json.Serialization;
-
 namespace ArmoireAutoFill.Models;
 
 public enum GearSlot
 {
+    Unknown,
     Head,
     Body,
     Hands,
+    Waist,
     Legs,
-    Feet
+    Feet,
 }
 
 public enum OwnershipStatus
 {
     NotOwned,
-    InInventory
+    InInventory,
+    InArmoire,
 }
 
 public class ArmoireItem

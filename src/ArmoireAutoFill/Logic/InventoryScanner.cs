@@ -26,6 +26,13 @@ public class InventoryScanner
         InventoryType.ArmorySoulCrystal,
     ];
 
+    private readonly CabinetObserver _cabinetObserver;
+
+    public InventoryScanner(CabinetObserver cabinetObserver)
+    {
+        _cabinetObserver = cabinetObserver;
+    }
+
     public void Scan()
     {
         var ownedItemIds = new HashSet<uint>();
@@ -57,9 +64,12 @@ public class InventoryScanner
 
         foreach (var item in ArmoireGearDatabase.AllItems)
         {
-            item.Owned = ownedItemIds.Contains(item.ItemId)
-                ? OwnershipStatus.InInventory
-                : OwnershipStatus.NotOwned;
+            if (ownedItemIds.Contains(item.ItemId))
+                item.Owned = OwnershipStatus.InInventory;
+            else if (_cabinetObserver.IsInArmoire(item.ItemId))
+                item.Owned = OwnershipStatus.InArmoire;
+            else
+                item.Owned = OwnershipStatus.NotOwned;
         }
     }
 }

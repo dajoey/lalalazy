@@ -1,103 +1,211 @@
-using System.Reflection;
-using System.Text.Json;
+using System.Diagnostics;
 using ArmoireAutoFill.Models;
 using ECommons.DalamudServices;
+using LuminaSupplemental.Excel.Model;
+using LuminaSupplemental.Excel.Services;
+using LuminaCabinet = Lumina.Excel.Sheets.Cabinet;
+using LuminaContentFinder = Lumina.Excel.Sheets.ContentFinderCondition;
+using LuminaItem = Lumina.Excel.Sheets.Item;
 
 namespace ArmoireAutoFill.Data;
 
+// Builds the armoire-eligible gear database at plugin startup.
+//
+// Sources:
+//   * Lumina Cabinet sheet  — canonical list of every item the armoire can hold
+//   * Lumina Item sheet     — names + equip-slot category for each item
+//   * LuminaSupplemental    — community-curated drop tables that map items to the
+//                             ContentFinderConditions (dungeons) that drop them
+//
+// Items with no LuminaSupplemental mapping are collected into a synthetic
+// "Source unknown" DungeonInfo so the user can still see they're missing.
 public static class ArmoireGearDatabase
 {
-    private static readonly JsonSerializerOptions _jsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-    };
+    private const uint UnknownSourceCfcId = 0;
+    private const string UnknownSourceName = "Source unknown";
 
     public static List<ArmoireItem> AllItems { get; private set; } = [];
     public static List<DungeonInfo> DungeonSets { get; private set; } = [];
 
-    public static void LoadFromEmbeddedResource()
-    {
-        var assembly = Assembly.GetExecutingAssembly();
-        var resourceName = "ArmoireAutoFill.Data.armoire_gear.json";
-
-        using var stream = assembly.GetManifestResourceStream(resourceName);
-        if (stream == null)
-        {
-            Svc.Log.Error($"Failed to load embedded resource: {resourceName}");
-            return;
-        }
-
-        using var reader = new StreamReader(stream);
-        var json = reader.ReadToEnd();
-        var data = JsonSerializer.Deserialize<EmbeddedGearData>(json, _jsonOptions);
-
-        if (data?.dungeons == null)
-            return;
-
-        var allItems = new List<ArmoireItem>();
-        var dungeonSets = new List<DungeonInfo>();
-
-        foreach (var dungeonEntry in data.dungeons)
-        {
-            var dungeon = new DungeonInfo
-            {
-                ContentFinderConditionId = dungeonEntry.cfcId,
-                Name = dungeonEntry.name,
-            };
-
-            foreach (var itemEntry in dungeonEntry.items)
-            {
-                var slot = ParseSlot(itemEntry.slot);
-                var item = new ArmoireItem
-                {
-                    ItemId = itemEntry.id,
-                    Name = itemEntry.name,
-                    Slot = slot,
-                    DungeonName = dungeon.Name,
-                    ContentFinderConditionId = dungeon.ContentFinderConditionId,
-                };
-                dungeon.Items.Add(item);
-                allItems.Add(item);
-            }
-
-            dungeonSets.Add(dungeon);
-        }
-
-        AllItems = allItems;
-        DungeonSets = dungeonSets;
-    }
-
-    private static GearSlot ParseSlot(string slot) => slot switch
-    {
-        "Head" => GearSlot.Head,
-        "Body" => GearSlot.Body,
-        "Hands" => GearSlot.Hands,
-        "Legs" => GearSlot.Legs,
-        "Feet" => GearSlot.Feet,
-        _ => GearSlot.Body,
-    };
+    public static bool IsLoaded { get; private set; }
 
     public static int TotalItems => AllItems.Count;
     public static int OwnedCount => AllItems.Count(i => i.Owned != OwnershipStatus.NotOwned);
     public static int MissingCount => AllItems.Count(i => i.Owned == OwnershipStatus.NotOwned);
 
-    private sealed class EmbeddedGearData
+    public static void Build()
     {
-        public List<EmbeddedDungeon> dungeons { get; set; } = [];
+        var stopwatch = Stopwatch.StartNew();
+
+        var cabinetSheet = Svc.Data.GetExcelSheet<LuminaCabinet>();
+        var itemSheet = Svc.Data.GetExcelSheet<LuminaItem>();
+        var cfcSheet = Svc.Data.GetExcelSheet<LuminaContentFinder>();
+        if (cabinetSheet == null || itemSheet == null || cfcSheet == null)
+        {
+            Svc.Log.Error("[ArmoireAutoFill] Required excel sheets unavailable; database not built.");
+            return;
+        }
+
+        var itemIdToCfcIds = BuildItemToCfcIndex();
+
+        var dungeons = new Dictionary<uint, DungeonInfo>();
+        var allItems = new List<ArmoireItem>();
+
+        foreach (var cabinetRow in cabinetSheet)
+        {
+            var itemId = cabinetRow.Item.RowId;
+            if (itemId == 0)
+                continue;
+
+            var itemRow = itemSheet.GetRowOrDefault(itemId);
+            if (itemRow == null)
+                continue;
+
+            var name = itemRow.Value.Name.ExtractText();
+            var slot = MapEquipSlot(itemRow.Value.EquipSlotCategory.RowId);
+
+            if (itemIdToCfcIds.TryGetValue(itemId, out var cfcIds) && cfcIds.Count > 0)
+            {
+                foreach (var cfcId in cfcIds)
+                {
+                    var dungeon = GetOrCreateDungeon(dungeons, cfcId, cfcSheet);
+                    var armoireItem = new ArmoireItem
+                    {
+                        ItemId = itemId,
+                        Name = name,
+                        Slot = slot,
+                        DungeonName = dungeon.Name,
+                        ContentFinderConditionId = dungeon.ContentFinderConditionId == UnknownSourceCfcId
+                            ? null
+                            : dungeon.ContentFinderConditionId,
+                    };
+                    dungeon.Items.Add(armoireItem);
+                    allItems.Add(armoireItem);
+                }
+            }
+            else
+            {
+                var dungeon = GetOrCreateDungeon(dungeons, UnknownSourceCfcId, cfcSheet);
+                var armoireItem = new ArmoireItem
+                {
+                    ItemId = itemId,
+                    Name = name,
+                    Slot = slot,
+                    DungeonName = dungeon.Name,
+                    ContentFinderConditionId = null,
+                };
+                dungeon.Items.Add(armoireItem);
+                allItems.Add(armoireItem);
+            }
+        }
+
+        AllItems = allItems;
+        DungeonSets = [.. dungeons.Values];
+        IsLoaded = true;
+
+        stopwatch.Stop();
+        var unknownCount = dungeons.TryGetValue(UnknownSourceCfcId, out var unknown) ? unknown.Items.Count : 0;
+        Svc.Log.Information(
+            $"[ArmoireAutoFill] database built in {stopwatch.ElapsedMilliseconds}ms: "
+            + $"{allItems.Count} entries across {DungeonSets.Count} sources "
+            + $"({unknownCount} with no known source).");
     }
 
-    private sealed class EmbeddedDungeon
+    private static DungeonInfo GetOrCreateDungeon(Dictionary<uint, DungeonInfo> bucket, uint cfcId, Lumina.Excel.ExcelSheet<LuminaContentFinder> cfcSheet)
     {
-        public uint cfcId { get; set; }
-        public string name { get; set; } = string.Empty;
-        public uint level { get; set; }
-        public List<EmbeddedItem> items { get; set; } = [];
+        if (bucket.TryGetValue(cfcId, out var existing))
+            return existing;
+
+        string name;
+        if (cfcId == UnknownSourceCfcId)
+        {
+            name = UnknownSourceName;
+        }
+        else
+        {
+            var cfcRow = cfcSheet.GetRowOrDefault(cfcId);
+            name = cfcRow.HasValue ? cfcRow.Value.Name.ExtractText() : $"Duty #{cfcId}";
+            if (string.IsNullOrWhiteSpace(name))
+                name = $"Duty #{cfcId}";
+        }
+
+        var info = new DungeonInfo
+        {
+            ContentFinderConditionId = cfcId,
+            Name = name,
+        };
+        bucket[cfcId] = info;
+        return info;
     }
 
-    private sealed class EmbeddedItem
+    private static Dictionary<uint, HashSet<uint>> BuildItemToCfcIndex()
     {
-        public uint id { get; set; }
-        public string name { get; set; } = string.Empty;
-        public string slot { get; set; } = string.Empty;
+        var index = new Dictionary<uint, HashSet<uint>>();
+
+        void Add(uint itemId, uint cfcId)
+        {
+            if (itemId == 0 || cfcId == 0)
+                return;
+            if (!index.TryGetValue(itemId, out var bucket))
+            {
+                bucket = [];
+                index[itemId] = bucket;
+            }
+            bucket.Add(cfcId);
+        }
+
+        // DungeonChest + DungeonChestItem need joining: chest entries carry the CFC,
+        // chest-item entries carry the item ID and reference a chest by ChestId.
+        var dungeonChests = LoadCsv<DungeonChest>(CsvLoader.DungeonChestResourceName);
+        var chestIdToCfc = dungeonChests
+            .GroupBy(c => c.ChestId)
+            .ToDictionary(g => g.Key, g => g.First().ContentFinderConditionId);
+        foreach (var chestItem in LoadCsv<DungeonChestItem>(CsvLoader.DungeonChestItemResourceName))
+        {
+            if (chestIdToCfc.TryGetValue(chestItem.ChestId, out var cfcId))
+                Add(chestItem.ItemId, cfcId);
+        }
+
+        foreach (var bossChest in LoadCsv<DungeonBossChest>(CsvLoader.DungeonBossChestResourceName))
+            Add(bossChest.ItemId, bossChest.ContentFinderConditionId);
+
+        foreach (var bossDrop in LoadCsv<DungeonBossDrop>(CsvLoader.DungeonBossDropResourceName))
+            Add(bossDrop.ItemId, bossDrop.ContentFinderConditionId);
+
+        foreach (var drop in LoadCsv<DungeonDrop>(CsvLoader.DungeonDropItemResourceName))
+            Add(drop.ItemId, drop.ContentFinderConditionId);
+
+        return index;
     }
+
+    private static List<T> LoadCsv<T>(string resourceName) where T : ICsv, new()
+    {
+        try
+        {
+            var rows = CsvLoader.LoadResource<T>(resourceName, true, out var failedLines, out var exceptions);
+            if (failedLines.Count > 0)
+            {
+                Svc.Log.Warning(
+                    $"[ArmoireAutoFill] {failedLines.Count} CSV rows failed to parse from {resourceName} "
+                    + $"(first exception: {exceptions.FirstOrDefault()?.Message ?? "n/a"})");
+            }
+            return rows;
+        }
+        catch (Exception e)
+        {
+            Svc.Log.Error(e, $"[ArmoireAutoFill] Failed to load {resourceName}");
+            return [];
+        }
+    }
+
+    private static GearSlot MapEquipSlot(uint equipSlotCategoryRowId) => equipSlotCategoryRowId switch
+    {
+        1 => GearSlot.Head,
+        2 => GearSlot.Body,
+        3 => GearSlot.Hands,
+        4 => GearSlot.Waist,
+        5 => GearSlot.Legs,
+        6 => GearSlot.Feet,
+        _ => GearSlot.Unknown,
+    };
 }

@@ -2,7 +2,7 @@
   <PropertyGroup>
     <Version>0.1.0.0</Version>
     <AssemblyName>ArmoireAutoFill</AssemblyName>
-    <Description>Scans your inventory for missing armoire-compatible dungeon gear (level 31+) and tracks what you need from each dungeon.</Description>
+    <Description>Tracks which armoire-eligible dungeon gear pieces you still need. Detects items in your inventory, armory chest, and the armoire itself (after one visit to the armoire UI at an inn).</Description>
     <IsPackable>false</IsPackable>
     <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
     <SupportedOSPlatformVersion>8.0</SupportedOSPlatformVersion>
@@ -27,14 +27,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Data\armoire_gear.json" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Content Include="ArmoireAutoFill.json" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="ECommons" Version="3.2.0.9" />
+    <PackageReference Include="LuminaSupplemental.Excel" Version="4.3.1" />
   </ItemGroup>
 </Project>
