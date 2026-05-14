@@ -1,8 +1,8 @@
 {
   "Author": "dajoey",
   "Name": "Armoire Auto-Fill",
-  "Punchline": "Tracks missing armoire-compatible dungeon gear",
-  "Description": "Scans your inventory and armory chest for armoire-compatible dungeon gear (level 31+). Shows what pieces you're missing from each dungeon. Use /armoire to open.",
+  "Punchline": "Per-dungeon view of which armoire-eligible gear pieces you're still missing",
+  "Description": "Lists every armoire-eligible dungeon drop in the game and shows whether each is in your inventory, in your armoire, or still missing. Sort by level, hide completed dungeons, toggle to show owned items too. Open the armoire UI at an inn once per session to populate the in-armoire state; in-inventory and equipped state is detected automatically.",
   "ApplicableVersion": "any",
   "Tags": [
     "armoire",
@@ -14,7 +14,7 @@
   "CategoryTags": [ "utility" ],
   "InternalName": "ArmoireAutoFill",
   "DalamudApiLevel": 15,
-  "IconUrl": "",
+  "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/armoire-icon.png",
   "ImageUrls": [ "" ],
-  "Changelog": "v0.1.0 - Initial release: scan inventory for missing armoire-compatible dungeon gear"
+  "Changelog": "v0.3.0 - First production release. Reads the in-game Cabinet sheet to enumerate every armoire-eligible item, joins LuminaSupplemental's drop tables to derive a dungeon source per item, and groups the resulting list per dungeon. Detects armoire contents via UIState.Cabinet.IsItemInCabinet (live, full row coverage; needs you to open the armoire UI once per session) with ItemFinderModule.CabinetItemUnlockBits as a cold-start fallback. Detects in-inventory items across bags, armory chest, equipped slots, and saddlebags. Use /armoire to open."
 }
