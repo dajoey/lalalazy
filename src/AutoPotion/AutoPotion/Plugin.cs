@@ -17,6 +17,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IFramework Framework { get; private set; } = null!;
     [PluginService] internal static ICondition Condition { get; private set; } = null!;
     [PluginService] internal static IDataManager Data { get; private set; } = null!;
+    [PluginService] internal static ITextureProvider Textures { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
 
     private const string CommandName = "/autopotion";
@@ -32,6 +33,7 @@ public sealed class Plugin : IDalamudPlugin
         pi.Inject(this);
 
         Config = pi.GetPluginConfig() as Configuration ?? new Configuration();
+        Config.MigrateIfNeeded();
         _service = new PotionService(this);
 
         _configWindow = new ConfigWindow(this);

@@ -26,6 +26,7 @@ internal class PotionService
 
     private readonly Plugin _plugin;
     private readonly Potion[] _hpPotions;
+    private readonly Potion[] _mpPotions;
     private readonly Potion[] _regenPotions;
     private DateTime _nextAttempt = DateTime.MinValue;
 
@@ -35,6 +36,7 @@ internal class PotionService
 
         var itemSheet = Plugin.Data.GetExcelSheet<Item>();
         var hp = new List<Potion>();
+        var mp = new List<Potion>();
         var regen = new List<Potion>();
         if (itemSheet != null)
         {
@@ -45,6 +47,13 @@ internal class PotionService
                 {
                     hp.Add(new Potion(i));
                 }
+                else if (i.FilterGroup == 8 && i.ItemSearchCategory.RowId == 44)
+                {
+                    // Ethers / Hi-Ethers / etc. Same ItemAction Data layout as HP potions
+                    // (data[0] = percent of MaxMP, data[1] = MP cap), so Potion.MaxHealFor
+                    // works against MaxMp the same way.
+                    mp.Add(new Potion(i));
+                }
                 else if (Array.IndexOf(RegenPotionIds, i.RowId) >= 0)
                 {
                     regen.Add(new Potion(i));
@@ -52,9 +61,10 @@ internal class PotionService
             }
         }
         _hpPotions = hp.ToArray();
+        _mpPotions = mp.ToArray();
         _regenPotions = regen.ToArray();
         Plugin.Log.Information(
-            $"AutoPotion: indexed {_hpPotions.Length} HP potions, {_regenPotions.Length} regen potions");
+            $"AutoPotion: indexed {_hpPotions.Length} HP, {_mpPotions.Length} MP, {_regenPotions.Length} regen potions");
     }
 
     public void Tick()
@@ -71,15 +81,17 @@ internal class PotionService
         if (cfg.OnlyInCombat && !Plugin.Condition[ConditionFlag.InCombat]) return;
         if (cfg.OnlyInDuty && !Plugin.Condition[ConditionFlag.BoundByDuty]) return;
 
+        var job = cfg.GetJobSettings(local.ClassJob.RowId);
+
         var hpRatio = (float)local.CurrentHp / local.MaxHp;
-        var missing = local.MaxHp - local.CurrentHp;
+        var hpMissing = local.MaxHp - local.CurrentHp;
         var inDeepDungeon = IsInDeepDungeon();
 
         var targetId = local.GameObjectId;
 
-        if (cfg.HpPotionEnable && hpRatio <= cfg.HpPotionThreshold / 100f)
+        if (job.HpPotionEnable && hpRatio <= job.HpPotionThreshold / 100f)
         {
-            var picked = PickBest(_hpPotions, local.MaxHp, missing, targetId, isRegen: false);
+            var picked = PickBest(_hpPotions, local.MaxHp, hpMissing, targetId, isRegen: false);
             if (picked != null && picked.TryUse(targetId))
             {
                 _nextAttempt = DateTime.UtcNow.AddMilliseconds(750);
@@ -88,9 +100,25 @@ internal class PotionService
             }
         }
 
-        if (cfg.RegenPotionEnable && inDeepDungeon && hpRatio <= cfg.RegenPotionThreshold / 100f)
+        if (job.MpPotionEnable && local.MaxMp > 0)
         {
-            var picked = PickBest(_regenPotions, local.MaxHp, missing, targetId, isRegen: true);
+            var mpRatio = (float)local.CurrentMp / local.MaxMp;
+            if (mpRatio <= job.MpPotionThreshold / 100f)
+            {
+                var mpMissing = local.MaxMp - local.CurrentMp;
+                var picked = PickBest(_mpPotions, local.MaxMp, mpMissing, targetId, isRegen: false);
+                if (picked != null && picked.TryUse(targetId))
+                {
+                    _nextAttempt = DateTime.UtcNow.AddMilliseconds(750);
+                    Plugin.Log.Information($"AutoPotion: used MP potion {picked.Name} ({picked.Id})");
+                    return;
+                }
+            }
+        }
+
+        if (job.RegenPotionEnable && inDeepDungeon && hpRatio <= job.RegenPotionThreshold / 100f)
+        {
+            var picked = PickBest(_regenPotions, local.MaxHp, hpMissing, targetId, isRegen: true);
             if (picked != null && picked.TryUse(targetId))
             {
                 _nextAttempt = DateTime.UtcNow.AddMilliseconds(750);
@@ -105,7 +133,7 @@ internal class PotionService
         _nextAttempt = DateTime.UtcNow.AddMilliseconds(150);
     }
 
-    private static Potion? PickBest(Potion[] potions, uint maxHp, uint missing, ulong targetId, bool isRegen)
+    private static Potion? PickBest(Potion[] potions, uint maxResource, uint missing, ulong targetId, bool isRegen)
     {
         // For regen potions: skip entirely while Rehabilitation is up. All deep
         // dungeon medicines share status 648, so this single check covers PotD,
@@ -125,8 +153,8 @@ internal class PotionService
             // only ever one duty-specific candidate usable at a time anyway — return the
             // first one that passes the status filter.
             if (isRegen) return p;
-            var heal = p.MaxHealFor(maxHp);
-            // For HP potions, don't fire if the heal would overshoot (waste).
+            var heal = p.MaxHealFor(maxResource);
+            // Don't fire if the heal would overshoot (waste).
             if (missing < heal) continue;
             if (heal > bestHeal)
             {
@@ -163,10 +191,14 @@ internal class PotionService
         var cfg = _plugin.Config;
         var local = Plugin.Objects.LocalPlayer;
         var territoryId = Plugin.ClientState.TerritoryType;
+        var jobId = local?.ClassJob.RowId ?? 0;
+        var job = cfg.GetJobSettings(jobId);
         Plugin.Log.Information("=== AutoPotion debug ===");
-        Plugin.Log.Information($"MasterEnable={cfg.MasterEnable} HpEnable={cfg.HpPotionEnable} RegenEnable={cfg.RegenPotionEnable}");
-        Plugin.Log.Information($"HpThreshold={cfg.HpPotionThreshold}% RegenThreshold={cfg.RegenPotionThreshold}%");
-        Plugin.Log.Information($"OnlyInCombat={cfg.OnlyInCombat} OnlyInDuty={cfg.OnlyInDuty}");
+        Plugin.Log.Information($"MasterEnable={cfg.MasterEnable} OnlyInCombat={cfg.OnlyInCombat} OnlyInDuty={cfg.OnlyInDuty}");
+        Plugin.Log.Information($"Job={jobId} (per-job overrides: {cfg.Jobs.Count})");
+        Plugin.Log.Information($"  HpEnable={job.HpPotionEnable} HpThreshold={job.HpPotionThreshold}%");
+        Plugin.Log.Information($"  MpEnable={job.MpPotionEnable} MpThreshold={job.MpPotionThreshold}%");
+        Plugin.Log.Information($"  RegenEnable={job.RegenPotionEnable} RegenThreshold={job.RegenPotionThreshold}%");
         Plugin.Log.Information($"InCombat={Plugin.Condition[ConditionFlag.InCombat]} BoundByDuty={Plugin.Condition[ConditionFlag.BoundByDuty]}");
         Plugin.Log.Information($"TerritoryId={territoryId} IsInDeepDungeon={IsInDeepDungeon()}");
 
@@ -182,7 +214,8 @@ internal class PotionService
         if (local != null)
         {
             var hpRatio = local.MaxHp > 0 ? (float)local.CurrentHp / local.MaxHp : 0f;
-            Plugin.Log.Information($"HP={local.CurrentHp}/{local.MaxHp} ({hpRatio:P0}) IsDead={local.IsDead}");
+            var mpRatio = local.MaxMp > 0 ? (float)local.CurrentMp / local.MaxMp : 0f;
+            Plugin.Log.Information($"HP={local.CurrentHp}/{local.MaxHp} ({hpRatio:P0}) MP={local.CurrentMp}/{local.MaxMp} ({mpRatio:P0}) IsDead={local.IsDead}");
         }
         else { Plugin.Log.Information("LocalPlayer=null"); }
 
@@ -197,6 +230,9 @@ internal class PotionService
 
         Plugin.Log.Information($"HP potions ({_hpPotions.Length}):");
         foreach (var p in _hpPotions)
+            Plugin.Log.Information($"  {p.Id} {p.Name} hq={p.InventoryCount(true)} nq={p.InventoryCount(false)} cd={p.IsOnCooldown()} status={ResolveStatus(p.GetActionStatus(local?.GameObjectId ?? 0xE000_0000))}");
+        Plugin.Log.Information($"MP potions ({_mpPotions.Length}):");
+        foreach (var p in _mpPotions)
             Plugin.Log.Information($"  {p.Id} {p.Name} hq={p.InventoryCount(true)} nq={p.InventoryCount(false)} cd={p.IsOnCooldown()} status={ResolveStatus(p.GetActionStatus(local?.GameObjectId ?? 0xE000_0000))}");
         Plugin.Log.Information($"Regen potions ({_regenPotions.Length}):");
         foreach (var p in _regenPotions)

@@ -46,10 +46,10 @@
   {
     "Author": "dajoey",
     "Name": "AutoPotion",
-    "Punchline": "Auto-uses HP and deep dungeon potions at configurable HP thresholds",
-    "Description": "Automatically uses the highest-tier HP potion in your inventory at a configurable HP threshold. In deep dungeons, also auto-uses the dungeon's regen potion (Sustaining / Eurekan / Orthos / Pilgrim's) at its own threshold.",
+    "Punchline": "Per-job HP, MP, and deep dungeon potion automation",
+    "Description": "Auto-uses the highest-tier HP potion, MP potion (Ether), and the deep dungeon regen potion (Sustaining / Eurekan / Orthos / Pilgrim's) at configurable thresholds. Each potion's threshold and on/off state is stored per-job, so casters and tanks can have completely different setups.",
     "InternalName": "AutoPotion",
-    "AssemblyVersion": "0.1.1.1",
+    "AssemblyVersion": "0.2.0.0",
     "RepoUrl": "https://github.com/dajoey/lalalazy",
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
