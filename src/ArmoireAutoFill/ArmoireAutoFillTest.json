@@ -2,7 +2,7 @@
   "Author": "dajoey",
   "Name": "Armoire Auto-Fill (Testing)",
   "Punchline": "TESTING — armoire gear tracker rewrite (Cabinet + LuminaSupplemental data)",
-  "Description": "TESTING build. Lists every armoire-eligible item in the game and shows whether each is in your inventory, in your armoire, or missing. Open the armoire UI at an inn once to populate armoire state. Will be replaced by the non-testing build once verified.",
+  "Description": "TESTING build. Lists every armoire-eligible item in the game and shows whether each is in your inventory, in your armoire, or missing. Will be replaced by the non-testing build once verified.",
   "ApplicableVersion": "any",
   "Tags": [
     "armoire",
@@ -17,5 +17,5 @@
   "DalamudApiLevel": 15,
   "IconUrl": "",
   "ImageUrls": [ "" ],
-  "Changelog": "v0.2.0 (testing) - Rewritten from scratch. Now uses the Lumina Cabinet sheet for the full list of armoire-eligible items (every expansion, not just ARR), LuminaSupplemental for dungeon drop attribution, and an addon-lifecycle observer for armoire contents."
+  "Changelog": "v0.2.1 (testing) - Fix slot labels (was \"Unknown\" everywhere; EquipSlotCategory mapping was off-by-two). Switch armoire detection to ItemFinderModule->CabinetItemUnlockBits — no longer need to open the armoire UI; the cabinet cache loads on login. Auto-scan inventory whenever the main window opens or the cabinet snapshot changes. Add per-state ownership counts and last-scan timestamp. Bump LuminaSupplemental.Excel 4.3.1 -> 4.3.3 for newer dungeon drop data."
 }

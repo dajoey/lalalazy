@@ -17,8 +17,7 @@ public class MainWindow : Window
 
     private readonly InventoryScanner _scanner;
     private readonly CabinetObserver _cabinet;
-    private DateTime _lastScan = DateTime.MinValue;
-    private static readonly TimeSpan ScanCooldown = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan ScanCooldown = TimeSpan.FromSeconds(2);
 
     public MainWindow(InventoryScanner scanner, CabinetObserver cabinet)
         : base("Armoire Auto-Fill###ArmoireAutoFillMain")
@@ -27,9 +26,16 @@ public class MainWindow : Window
         _cabinet = cabinet;
         SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(600, 360),
+            MinimumSize = new Vector2(620, 380),
             MaximumSize = new Vector2(float.MaxValue, float.MaxValue),
         };
+    }
+
+    public override void OnOpen()
+    {
+        // Always refresh ownership when the window opens so the user doesn't
+        // wonder whether the data is stale.
+        _scanner.Scan();
     }
 
     public override void Draw()
@@ -42,61 +48,65 @@ public class MainWindow : Window
 
         DrawSummary();
         ImGui.Separator();
-        DrawScanButton();
+        DrawActions();
         ImGui.Separator();
         DrawDungeonTable();
     }
 
     private void DrawSummary()
     {
-        var owned = ArmoireGearDatabase.OwnedCount;
         var total = ArmoireGearDatabase.TotalItems;
+        var inInv = _scanner.LastInventoryHits;
+        var inArm = _scanner.LastArmoireHits;
+        var owned = inInv + inArm;
+        var missing = total - owned;
         var progress = total > 0 ? (float)owned / total : 0f;
 
         ImGui.Text($"Armoire-eligible gear: {owned} / {total} owned");
         ImGui.ProgressBar(progress, new Vector2(-1, 0), $"{progress * 100:F1}%");
 
-        if (ArmoireGearDatabase.MissingCount > 0)
-        {
-            var incompleteDungeons = ArmoireGearDatabase.DungeonSets.Count(d => !d.IsComplete);
-            ImGui.TextColored(ColorMissing, $"Missing: {ArmoireGearDatabase.MissingCount} entries across {incompleteDungeons} sources");
-        }
-        else if (owned > 0)
-        {
-            ImGui.TextColored(ColorOk, "All tracked armoire gear collected.");
-        }
+        ImGui.TextColored(ColorInventory, $"  Inventory / armory chest: {inInv}");
+        ImGui.SameLine();
+        ImGui.TextColored(ColorArmoire, $"   Stored in armoire: {inArm}");
+        ImGui.SameLine();
+        ImGui.TextColored(ColorMissing, $"   Missing: {missing}");
 
-        if (_cabinet.LastSnapshot == DateTime.MinValue && _cabinet.CachedArmoireItemIds.Count == 0)
+        ImGui.Spacing();
+
+        var scanText = _scanner.LastScan == DateTime.MinValue
+            ? "inventory not yet scanned"
+            : $"inventory scanned {Ago(_scanner.LastScan)} ago — found {_scanner.LastInventoryItemsSeen} items";
+        ImGui.TextColored(ColorMuted, scanText);
+
+        if (!_cabinet.CabinetDataAvailable && _cabinet.CachedArmoireItemIds.Count == 0)
         {
-            ImGui.TextColored(ColorMuted, "Armoire contents unknown. Open the armoire UI at an inn once to populate.");
+            ImGui.TextColored(ColorMuted, "Armoire: still waiting for the server to send cabinet data (usually a few seconds after login).");
         }
         else
         {
             var snapshotText = _cabinet.LastSnapshot == DateTime.MinValue
                 ? "cached from previous session"
-                : $"last snapshot {(DateTime.UtcNow - _cabinet.LastSnapshot).TotalMinutes:F0}m ago";
-            ImGui.TextColored(ColorMuted, $"Armoire snapshot: {_cabinet.CachedArmoireItemIds.Count} items stored ({snapshotText}).");
+                : $"last update {Ago(_cabinet.LastSnapshot)} ago";
+            var availability = _cabinet.CabinetDataAvailable ? "live" : "cached";
+            ImGui.TextColored(ColorMuted,
+                $"Armoire snapshot ({availability}): {_cabinet.CachedArmoireItemIds.Count} items currently stored — {snapshotText}.");
         }
     }
 
-    private void DrawScanButton()
+    private void DrawActions()
     {
         if (ImGui.Button("Rescan inventory"))
-        {
             _scanner.Scan();
-            _lastScan = DateTime.UtcNow;
-        }
+        ImGui.SameLine();
+        if (ImGui.Button("Snapshot armoire now"))
+            _cabinet.ForceSnapshot();
 
         ImGui.SameLine();
-        var cooldownRemaining = ScanCooldown - (DateTime.UtcNow - _lastScan);
-        if (cooldownRemaining > TimeSpan.Zero)
-        {
-            ImGui.TextDisabled($"(cooldown: {cooldownRemaining.TotalSeconds:F0}s)");
-        }
+        var sinceScan = DateTime.UtcNow - _scanner.LastScan;
+        if (_scanner.LastScan != DateTime.MinValue && sinceScan < ScanCooldown)
+            ImGui.TextDisabled($"(scan cooldown {ScanCooldown.TotalSeconds - sinceScan.TotalSeconds:F0}s)");
         else
-        {
             ImGui.TextDisabled("(idle)");
-        }
     }
 
     private static void DrawDungeonTable()
@@ -173,5 +183,15 @@ public class MainWindow : Window
         }
 
         ImGui.EndTable();
+    }
+
+    private static string Ago(DateTime utc)
+    {
+        var elapsed = DateTime.UtcNow - utc;
+        if (elapsed.TotalSeconds < 60)
+            return $"{elapsed.TotalSeconds:F0}s";
+        if (elapsed.TotalMinutes < 60)
+            return $"{elapsed.TotalMinutes:F0}m";
+        return $"{elapsed.TotalHours:F1}h";
     }
 }

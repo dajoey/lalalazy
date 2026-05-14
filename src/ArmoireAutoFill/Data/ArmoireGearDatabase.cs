@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using ArmoireAutoFill.Models;
 using ECommons.DalamudServices;
+using ECommons.ExcelServices;
 using LuminaSupplemental.Excel.Model;
 using LuminaSupplemental.Excel.Services;
 using LuminaCabinet = Lumina.Excel.Sheets.Cabinet;
@@ -198,14 +199,26 @@ public static class ArmoireGearDatabase
         }
     }
 
-    private static GearSlot MapEquipSlot(uint equipSlotCategoryRowId) => equipSlotCategoryRowId switch
+    // EquipSlotCategory RowId mapping — values come from ECommons.ExcelServices.EquipSlotCategoryEnum.
+    // The previous mapping was wrong: it used 1..6 = Head..Feet, but the real game data is
+    // 1=MainHand, 2=OffHand, 3=Head, 4=Body, 5=Gloves, 6=Waist, 7=Legs, 8=Feet, plus a slew of
+    // multi-slot "set" variants. For armoire display we collapse set items to whichever single
+    // drawer they conceptually live in (body takes precedence on combos).
+    private static GearSlot MapEquipSlot(uint equipSlotCategoryRowId) => (EquipSlotCategoryEnum)equipSlotCategoryRowId switch
     {
-        1 => GearSlot.Head,
-        2 => GearSlot.Body,
-        3 => GearSlot.Hands,
-        4 => GearSlot.Waist,
-        5 => GearSlot.Legs,
-        6 => GearSlot.Feet,
+        EquipSlotCategoryEnum.Head => GearSlot.Head,
+        EquipSlotCategoryEnum.Body => GearSlot.Body,
+        EquipSlotCategoryEnum.Gloves => GearSlot.Hands,
+        EquipSlotCategoryEnum.Waist => GearSlot.Waist,
+        EquipSlotCategoryEnum.Legs => GearSlot.Legs,
+        EquipSlotCategoryEnum.Feet => GearSlot.Feet,
+        EquipSlotCategoryEnum.BodyHead
+            or EquipSlotCategoryEnum.BodyGloves
+            or EquipSlotCategoryEnum.BodyGlovesLegs
+            or EquipSlotCategoryEnum.BodyGlovesLegsFeet
+            or EquipSlotCategoryEnum.BodyHeadGlovesLegsFeet
+            or EquipSlotCategoryEnum.BodyLegsFeet => GearSlot.Body,
+        EquipSlotCategoryEnum.LegsFeet => GearSlot.Legs,
         _ => GearSlot.Unknown,
     };
 }
