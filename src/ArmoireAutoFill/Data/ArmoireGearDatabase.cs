@@ -121,6 +121,12 @@ public static class ArmoireGearDatabase
             + $"{skippedEmptyItem} empty cabinet rows. "
             + $"Slot distribution: {slotSummary}. "
             + $"Sample EquipSlotCategory.RowId: {sampleEquipSlotCat}.");
+
+        var roster = DungeonSets
+            .OrderBy(d => d.Level == 0 ? 999 : d.Level)
+            .ThenBy(d => d.Name)
+            .Select(d => $"{d.Name} L{d.Level}({d.Items.DistinctBy(i => i.ItemId).Count()})");
+        Svc.Log.Information($"[ArmoireAutoFill] dungeon roster ({DungeonSets.Count}): {string.Join(" | ", roster)}");
     }
 
     private static DungeonInfo GetOrCreateDungeon(Dictionary<uint, DungeonInfo> bucket, uint cfcId, Lumina.Excel.ExcelSheet<LuminaContentFinder> cfcSheet)
@@ -204,16 +210,15 @@ public static class ArmoireGearDatabase
         }
     }
 
-    // Try Item.EquipSlotCategory first (which is what dressable gear normally has).
-    // Fall back to CabinetCategory if the item didn't expose a useful EquipSlot —
-    // some armoire items (fashion accessories, glamour-only pieces) carry no
-    // EquipSlotCategory at all but always have a CabinetCategory.
+    // Slot derivation is from Item.EquipSlotCategory only. An earlier
+    // CabinetCategory fallback inflated the Legs count to ~300 because the
+    // row-id table for CabinetCategory is patch-volatile and I didn't have
+    // the live mapping. Items with no EquipSlotCategory (mostly fashion
+    // accessories) now show as Unknown rather than mislabeled.
     private static GearSlot DeriveSlot(uint equipSlotCatRowId, uint cabinetCategoryRowId)
     {
-        var fromEquipSlot = MapFromEquipSlotCategory(equipSlotCatRowId);
-        if (fromEquipSlot != GearSlot.Unknown)
-            return fromEquipSlot;
-        return MapFromCabinetCategory(cabinetCategoryRowId);
+        _ = cabinetCategoryRowId; // reserved for a future, correct fallback
+        return MapFromEquipSlotCategory(equipSlotCatRowId);
     }
 
     private static GearSlot MapFromEquipSlotCategory(uint rowId) => (EquipSlotCategoryEnum)rowId switch
@@ -231,24 +236,6 @@ public static class ArmoireGearDatabase
             or EquipSlotCategoryEnum.BodyHeadGlovesLegsFeet
             or EquipSlotCategoryEnum.BodyLegsFeet => GearSlot.Body,
         EquipSlotCategoryEnum.LegsFeet => GearSlot.Legs,
-        _ => GearSlot.Unknown,
-    };
-
-    // CabinetCategory row IDs come from the in-game armoire drawer layout.
-    // Values verified against the live Cabinet sheet — they're stable.
-    //  1=Helms and Crowns, 2=Hats, 3=Hairpins, 4=Earrings (was?), 5=Necklaces,
-    //  6=Bracelets, 7=Rings, 8=Body Armor, 9=Shirts, 10=Pants, 11=Greaves,
-    //  12=Skirts, 13=Gloves, 14=Belts, 15=Shoes, 16=Sandals, 17=Wigs, ...
-    // Layout has shifted across patches; treat unmapped IDs as Unknown but
-    // bias common armor categories to Body/Head/etc.
-    private static GearSlot MapFromCabinetCategory(uint rowId) => rowId switch
-    {
-        1 or 2 or 3 or 17 => GearSlot.Head,         // Helms, Hats, Hairpins, Wigs
-        8 or 9 => GearSlot.Body,                    // Body Armor, Shirts
-        10 or 11 or 12 => GearSlot.Legs,            // Pants, Greaves, Skirts
-        13 => GearSlot.Hands,                       // Gloves
-        14 => GearSlot.Waist,                       // Belts
-        15 or 16 => GearSlot.Feet,                  // Shoes, Sandals
         _ => GearSlot.Unknown,
     };
 }
