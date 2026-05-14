@@ -33,8 +33,6 @@ public class MainWindow : Window
 
     public override void OnOpen()
     {
-        // Always refresh ownership when the window opens so the user doesn't
-        // wonder whether the data is stale.
         _scanner.Scan();
     }
 
@@ -62,7 +60,7 @@ public class MainWindow : Window
         var missing = total - owned;
         var progress = total > 0 ? (float)owned / total : 0f;
 
-        ImGui.Text($"Armoire-eligible gear: {owned} / {total} owned");
+        ImGui.Text($"Dungeon armoire pieces: {owned} / {total} owned");
         ImGui.ProgressBar(progress, new Vector2(-1, 0), $"{progress * 100:F1}%");
 
         ImGui.TextColored(ColorInventory, $"  Inventory / armory chest: {inInv}");
@@ -100,13 +98,26 @@ public class MainWindow : Window
         ImGui.SameLine();
         if (ImGui.Button("Snapshot armoire now"))
             _cabinet.ForceSnapshot();
-
         ImGui.SameLine();
         var sinceScan = DateTime.UtcNow - _scanner.LastScan;
         if (_scanner.LastScan != DateTime.MinValue && sinceScan < ScanCooldown)
             ImGui.TextDisabled($"(scan cooldown {ScanCooldown.TotalSeconds - sinceScan.TotalSeconds:F0}s)");
         else
             ImGui.TextDisabled("(idle)");
+
+        var showOwned = Plugin.Configuration.ShowOwnedItems;
+        if (ImGui.Checkbox("Show owned items", ref showOwned))
+        {
+            Plugin.Configuration.ShowOwnedItems = showOwned;
+            Plugin.Configuration.Save();
+        }
+        ImGui.SameLine();
+        var hideComplete = Plugin.Configuration.HideCompleteDungeons;
+        if (ImGui.Checkbox("Hide completed dungeons", ref hideComplete))
+        {
+            Plugin.Configuration.HideCompleteDungeons = hideComplete;
+            Plugin.Configuration.Save();
+        }
     }
 
     private static void DrawDungeonTable()
@@ -115,16 +126,19 @@ public class MainWindow : Window
                 ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.Resizable | ImGuiTableFlags.ScrollY))
             return;
 
-        ImGui.TableSetupColumn("Source", ImGuiTableColumnFlags.WidthStretch);
-        ImGui.TableSetupColumn("Items", ImGuiTableColumnFlags.WidthFixed, 60);
-        ImGui.TableSetupColumn("Owned", ImGuiTableColumnFlags.WidthFixed, 60);
+        ImGui.TableSetupColumn("Dungeon", ImGuiTableColumnFlags.WidthStretch);
+        ImGui.TableSetupColumn("Level", ImGuiTableColumnFlags.WidthFixed, 50);
+        ImGui.TableSetupColumn("Items", ImGuiTableColumnFlags.WidthFixed, 50);
         ImGui.TableSetupColumn("Missing", ImGuiTableColumnFlags.WidthFixed, 60);
         ImGui.TableSetupColumn("Status", ImGuiTableColumnFlags.WidthFixed, 100);
         ImGui.TableHeadersRow();
 
-        // Known dungeons first (alphabetical); "Source unknown" sinks to the bottom.
+        var hideComplete = Plugin.Configuration.HideCompleteDungeons;
+        var showOwned = Plugin.Configuration.ShowOwnedItems;
+
         var ordered = ArmoireGearDatabase.DungeonSets
-            .OrderBy(d => d.ContentFinderConditionId == 0 ? 1 : 0)
+            .Where(d => !hideComplete || !d.IsComplete)
+            .OrderBy(d => d.Level == 0 ? 999 : d.Level)
             .ThenBy(d => d.Name);
 
         foreach (var dungeon in ordered)
@@ -132,13 +146,13 @@ public class MainWindow : Window
             ImGui.TableNextRow();
 
             ImGui.TableSetColumnIndex(0);
-            var open = ImGui.TreeNodeEx(dungeon.Name, ImGuiTreeNodeFlags.SpanFullWidth);
+            var open = ImGui.TreeNodeEx($"{dungeon.Name}###cfc{dungeon.ContentFinderConditionId}", ImGuiTreeNodeFlags.SpanFullWidth);
 
             ImGui.TableSetColumnIndex(1);
-            ImGui.Text(dungeon.Items.Count.ToString());
+            ImGui.Text(dungeon.Level > 0 ? $"Lv {dungeon.Level}" : "—");
 
             ImGui.TableSetColumnIndex(2);
-            ImGui.Text(dungeon.OwnedCount.ToString());
+            ImGui.Text(dungeon.Items.Count.ToString());
 
             ImGui.TableSetColumnIndex(3);
             if (dungeon.MissingCount > 0)
@@ -154,7 +168,11 @@ public class MainWindow : Window
 
             if (open)
             {
-                foreach (var item in dungeon.Items.OrderBy(i => i.Slot).ThenBy(i => i.Name))
+                var itemsToShow = showOwned
+                    ? dungeon.Items
+                    : dungeon.Items.Where(i => i.Owned == OwnershipStatus.NotOwned);
+
+                foreach (var item in itemsToShow.OrderBy(i => i.Slot).ThenBy(i => i.Name))
                 {
                     ImGui.Bullet();
                     ImGui.SameLine();
@@ -166,7 +184,8 @@ public class MainWindow : Window
                         _ => (ColorMissing, "Missing"),
                     };
 
-                    ImGui.TextColored(color, $"[{item.Slot}] {item.Name} — {badge}");
+                    var slotLabel = item.Slot == GearSlot.Unknown ? "" : $"[{item.Slot}] ";
+                    ImGui.TextColored(color, $"{slotLabel}{item.Name} — {badge}");
 
                     if (ImGui.IsItemHovered())
                     {

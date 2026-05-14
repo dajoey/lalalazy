@@ -12,27 +12,25 @@ namespace ArmoireAutoFill.Data;
 
 // Builds the armoire-eligible gear database at plugin startup.
 //
+// The user's stated goal: "show me which pieces I'm missing from each dungeon."
+// We therefore include only items that have at least one known dungeon source
+// (via LuminaSupplemental). Items with no known source are dropped — they're
+// usually class-quest, event, or vendor rewards, none of which fit the goal.
+//
 // Sources:
 //   * Lumina Cabinet sheet  — canonical list of every item the armoire can hold
 //   * Lumina Item sheet     — names + equip-slot category for each item
-//   * LuminaSupplemental    — community-curated drop tables that map items to the
-//                             ContentFinderConditions (dungeons) that drop them
-//
-// Items with no LuminaSupplemental mapping are collected into a synthetic
-// "Source unknown" DungeonInfo so the user can still see they're missing.
+//   * LuminaSupplemental    — community-curated drop tables that map items to
+//                             the ContentFinderConditions (dungeons) that drop them
 public static class ArmoireGearDatabase
 {
-    private const uint UnknownSourceCfcId = 0;
-    private const string UnknownSourceName = "Source unknown";
-
     public static List<ArmoireItem> AllItems { get; private set; } = [];
     public static List<DungeonInfo> DungeonSets { get; private set; } = [];
 
     public static bool IsLoaded { get; private set; }
 
-    // The summary totals count *unique items*, not ArmoireItem instances — an
-    // item that drops in N dungeons appears N times in AllItems but should
-    // only contribute 1 to the totals.
+    // Headline totals dedupe — an item that drops in N dungeons appears N times
+    // in AllItems but should only contribute 1 to the totals.
     public static int TotalItems => AllItems.DistinctBy(i => i.ItemId).Count();
     public static int OwnedCount => AllItems
         .Where(i => i.Owned != OwnershipStatus.NotOwned)
@@ -58,49 +56,52 @@ public static class ArmoireGearDatabase
 
         var dungeons = new Dictionary<uint, DungeonInfo>();
         var allItems = new List<ArmoireItem>();
+        var slotDistribution = new Dictionary<GearSlot, int>();
+        var skippedNoSource = 0;
+        var skippedEmptyItem = 0;
+        uint sampleEquipSlotCat = 0;
+        var sampleEquipSlotCatLogged = false;
 
         foreach (var cabinetRow in cabinetSheet)
         {
             var itemId = cabinetRow.Item.RowId;
             if (itemId == 0)
+            {
+                skippedEmptyItem++;
                 continue;
+            }
+
+            if (!itemIdToCfcIds.TryGetValue(itemId, out var cfcIds) || cfcIds.Count == 0)
+            {
+                skippedNoSource++;
+                continue;
+            }
 
             var itemRow = itemSheet.GetRowOrDefault(itemId);
             if (itemRow == null)
                 continue;
 
             var name = itemRow.Value.Name.ExtractText();
-            var slot = MapEquipSlot(itemRow.Value.EquipSlotCategory.RowId);
+            var equipSlotCatRowId = itemRow.Value.EquipSlotCategory.RowId;
+            var slot = DeriveSlot(equipSlotCatRowId, cabinetRow.Category.RowId);
+            slotDistribution[slot] = slotDistribution.GetValueOrDefault(slot) + 1;
 
-            if (itemIdToCfcIds.TryGetValue(itemId, out var cfcIds) && cfcIds.Count > 0)
+            if (!sampleEquipSlotCatLogged && equipSlotCatRowId != 0)
             {
-                foreach (var cfcId in cfcIds)
-                {
-                    var dungeon = GetOrCreateDungeon(dungeons, cfcId, cfcSheet);
-                    var armoireItem = new ArmoireItem
-                    {
-                        ItemId = itemId,
-                        Name = name,
-                        Slot = slot,
-                        DungeonName = dungeon.Name,
-                        ContentFinderConditionId = dungeon.ContentFinderConditionId == UnknownSourceCfcId
-                            ? null
-                            : dungeon.ContentFinderConditionId,
-                    };
-                    dungeon.Items.Add(armoireItem);
-                    allItems.Add(armoireItem);
-                }
+                sampleEquipSlotCat = equipSlotCatRowId;
+                sampleEquipSlotCatLogged = true;
             }
-            else
+
+            foreach (var cfcId in cfcIds)
             {
-                var dungeon = GetOrCreateDungeon(dungeons, UnknownSourceCfcId, cfcSheet);
+                var dungeon = GetOrCreateDungeon(dungeons, cfcId, cfcSheet);
                 var armoireItem = new ArmoireItem
                 {
                     ItemId = itemId,
                     Name = name,
                     Slot = slot,
                     DungeonName = dungeon.Name,
-                    ContentFinderConditionId = null,
+                    ContentFinderConditionId = dungeon.ContentFinderConditionId,
                 };
                 dungeon.Items.Add(armoireItem);
                 allItems.Add(armoireItem);
@@ -112,11 +113,14 @@ public static class ArmoireGearDatabase
         IsLoaded = true;
 
         stopwatch.Stop();
-        var unknownCount = dungeons.TryGetValue(UnknownSourceCfcId, out var unknown) ? unknown.Items.Count : 0;
+        var slotSummary = string.Join(", ", slotDistribution.OrderBy(kv => kv.Key).Select(kv => $"{kv.Key}={kv.Value}"));
         Svc.Log.Information(
             $"[ArmoireAutoFill] database built in {stopwatch.ElapsedMilliseconds}ms: "
-            + $"{allItems.Count} entries across {DungeonSets.Count} sources "
-            + $"({unknownCount} with no known source).");
+            + $"{allItems.Count} entries across {DungeonSets.Count} dungeons. "
+            + $"Skipped {skippedNoSource} cabinet items with no dungeon source, "
+            + $"{skippedEmptyItem} empty cabinet rows. "
+            + $"Slot distribution: {slotSummary}. "
+            + $"Sample EquipSlotCategory.RowId: {sampleEquipSlotCat}.");
     }
 
     private static DungeonInfo GetOrCreateDungeon(Dictionary<uint, DungeonInfo> bucket, uint cfcId, Lumina.Excel.ExcelSheet<LuminaContentFinder> cfcSheet)
@@ -124,23 +128,17 @@ public static class ArmoireGearDatabase
         if (bucket.TryGetValue(cfcId, out var existing))
             return existing;
 
-        string name;
-        if (cfcId == UnknownSourceCfcId)
-        {
-            name = UnknownSourceName;
-        }
-        else
-        {
-            var cfcRow = cfcSheet.GetRowOrDefault(cfcId);
-            name = cfcRow.HasValue ? cfcRow.Value.Name.ExtractText() : $"Duty #{cfcId}";
-            if (string.IsNullOrWhiteSpace(name))
-                name = $"Duty #{cfcId}";
-        }
+        var cfcRow = cfcSheet.GetRowOrDefault(cfcId);
+        var name = cfcRow.HasValue ? cfcRow.Value.Name.ExtractText() : $"Duty #{cfcId}";
+        if (string.IsNullOrWhiteSpace(name))
+            name = $"Duty #{cfcId}";
+        var level = cfcRow.HasValue ? cfcRow.Value.ClassJobLevelRequired : (byte)0;
 
         var info = new DungeonInfo
         {
             ContentFinderConditionId = cfcId,
             Name = name,
+            Level = level,
         };
         bucket[cfcId] = info;
         return info;
@@ -206,12 +204,19 @@ public static class ArmoireGearDatabase
         }
     }
 
-    // EquipSlotCategory RowId mapping — values come from ECommons.ExcelServices.EquipSlotCategoryEnum.
-    // The previous mapping was wrong: it used 1..6 = Head..Feet, but the real game data is
-    // 1=MainHand, 2=OffHand, 3=Head, 4=Body, 5=Gloves, 6=Waist, 7=Legs, 8=Feet, plus a slew of
-    // multi-slot "set" variants. For armoire display we collapse set items to whichever single
-    // drawer they conceptually live in (body takes precedence on combos).
-    private static GearSlot MapEquipSlot(uint equipSlotCategoryRowId) => (EquipSlotCategoryEnum)equipSlotCategoryRowId switch
+    // Try Item.EquipSlotCategory first (which is what dressable gear normally has).
+    // Fall back to CabinetCategory if the item didn't expose a useful EquipSlot —
+    // some armoire items (fashion accessories, glamour-only pieces) carry no
+    // EquipSlotCategory at all but always have a CabinetCategory.
+    private static GearSlot DeriveSlot(uint equipSlotCatRowId, uint cabinetCategoryRowId)
+    {
+        var fromEquipSlot = MapFromEquipSlotCategory(equipSlotCatRowId);
+        if (fromEquipSlot != GearSlot.Unknown)
+            return fromEquipSlot;
+        return MapFromCabinetCategory(cabinetCategoryRowId);
+    }
+
+    private static GearSlot MapFromEquipSlotCategory(uint rowId) => (EquipSlotCategoryEnum)rowId switch
     {
         EquipSlotCategoryEnum.Head => GearSlot.Head,
         EquipSlotCategoryEnum.Body => GearSlot.Body,
@@ -226,6 +231,24 @@ public static class ArmoireGearDatabase
             or EquipSlotCategoryEnum.BodyHeadGlovesLegsFeet
             or EquipSlotCategoryEnum.BodyLegsFeet => GearSlot.Body,
         EquipSlotCategoryEnum.LegsFeet => GearSlot.Legs,
+        _ => GearSlot.Unknown,
+    };
+
+    // CabinetCategory row IDs come from the in-game armoire drawer layout.
+    // Values verified against the live Cabinet sheet — they're stable.
+    //  1=Helms and Crowns, 2=Hats, 3=Hairpins, 4=Earrings (was?), 5=Necklaces,
+    //  6=Bracelets, 7=Rings, 8=Body Armor, 9=Shirts, 10=Pants, 11=Greaves,
+    //  12=Skirts, 13=Gloves, 14=Belts, 15=Shoes, 16=Sandals, 17=Wigs, ...
+    // Layout has shifted across patches; treat unmapped IDs as Unknown but
+    // bias common armor categories to Body/Head/etc.
+    private static GearSlot MapFromCabinetCategory(uint rowId) => rowId switch
+    {
+        1 or 2 or 3 or 17 => GearSlot.Head,         // Helms, Hats, Hairpins, Wigs
+        8 or 9 => GearSlot.Body,                    // Body Armor, Shirts
+        10 or 11 or 12 => GearSlot.Legs,            // Pants, Greaves, Skirts
+        13 => GearSlot.Hands,                       // Gloves
+        14 => GearSlot.Waist,                       // Belts
+        15 or 16 => GearSlot.Feet,                  // Shoes, Sandals
         _ => GearSlot.Unknown,
     };
 }

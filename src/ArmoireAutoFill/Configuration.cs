@@ -5,13 +5,16 @@ namespace ArmoireAutoFill;
 [System.Serializable]
 public sealed class Configuration : IPluginConfiguration
 {
-    public int Version { get; set; } = 1;
+    public int Version { get; set; } = 2;
 
     public bool ScanOnLoad { get; set; } = true;
 
-    // Cache of item IDs currently stored in the player's armoire. Populated when
-    // the player opens the armoire UI at an inn; persisted so the plugin can
-    // surface armoire ownership across sessions without re-prompting.
+    // UI toggles
+    public bool ShowOwnedItems { get; set; } = false;
+    public bool HideCompleteDungeons { get; set; } = true;
+
+    // Cache of item IDs the player has unlocked in the armoire. Populated from
+    // ItemFinderModule->CabinetItemUnlockBits at startup and on framework polls.
     public List<uint> ArmoireItemIds { get; set; } = [];
 
     public void Save()
