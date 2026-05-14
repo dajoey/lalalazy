@@ -1,27 +1,32 @@
+# ![](https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/armoire-icon.png)
+
 # Armoire Auto-Fill
 
-Dalamud plugin that scans your inventory, armory chest, and the armoire itself for armoire-compatible gear, showing what pieces you're still missing from each dungeon.
+Dalamud plugin that lists every armoire-eligible dungeon drop in the game and shows whether each piece is in your inventory, in your armoire, or still missing.
 
 ## Features
 
-- Detects armoire-eligible gear from the in-game Cabinet sheet (covers every expansion)
-- Three-state ownership: in inventory, in armoire, or missing
-- Per-dungeon grouping using community-curated drop tables (LuminaSupplemental)
-- Items with no known drop source are bucketed under "Source unknown"
+- Reads the in-game Cabinet sheet to enumerate every armoire-eligible item (every expansion)
+- Three-state ownership: in inventory / armory chest / equipped / saddlebag → "Inventory"; stored in armoire → "Armoire"; otherwise → "Missing"
+- Per-dungeon grouping via [LuminaSupplemental](https://github.com/Critical-Impact/LuminaSupplemental) drop tables; items with no known dungeon source are excluded from view
+- Sort by level, hide completed dungeons by default, toggle to show owned items too
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `/armoire` | Open the main scanner window |
+| `/armoire` | Open the main window |
 
 The config window is available from the plugin installer's gear icon, or from inside the main window.
 
 ## How armoire detection works
 
-The game only exposes the armoire's contents to plugins while the armoire UI is loaded. The plugin hooks the `Cabinet` and `MiragePrismPrismBox` (Glamour Dresser) addons; the first time you open either at an inn, the plugin takes a snapshot of what's stored and caches the result. Subsequent sessions reuse that cache so you don't have to revisit the armoire just to see what's in it.
+Two sources, in order of preference:
 
-The status line in the main window shows when the last snapshot was taken.
+1. **Live API** (`UIState.Cabinet.IsItemInCabinet`) — full row coverage, including current-expansion items. Only usable while the armoire UI is loaded, which happens when you open an armoire NPC at an inn. The plugin hooks the `Cabinet` and `MiragePrismPrismBox` addons to snapshot whenever the UI refreshes.
+2. **Bitmap fallback** (`ItemFinderModule.CabinetItemUnlockBits`) — auto-populates on login, but is capped at 4000 cabinet rows (FixedSizeArray125<uint>), so current-expansion items past row 4000 won't show. Used only as a cold-start fallback before the live API is available.
+
+Once the live API has run at least once this session, the plugin sticks with that snapshot rather than downgrading back to the bitmap. The cached result is persisted across sessions.
 
 ## Building
 
@@ -30,8 +35,8 @@ cd src/ArmoireAutoFill
 dotnet build --configuration Release
 ```
 
-Requires the Dalamud SDK and the `DALAMUD_HOME` environment variable on Linux (point it at your `~/.xlcore/dalamud/Hooks/dev/` directory).
+Requires the Dalamud SDK. On Linux set `DALAMUD_HOME` to your `~/.xlcore/dalamud/Hooks/dev/` directory.
 
 ## Credits
 
-Original plugin by **dajoey**. Built on the [Dalamud plugin framework](https://github.com/goatcorp/Dalamud). Drop-table data ships via [LuminaSupplemental](https://github.com/Critical-Impact/LuminaSupplemental) (GPL-3.0, by Critical-Impact). Cabinet observation technique inspired by [seventhxiv/Collections](https://github.com/seventhxiv/Collections).
+Original plugin by **dajoey**. Built on the [Dalamud plugin framework](https://github.com/goatcorp/Dalamud). Drop-table data ships via [LuminaSupplemental.Excel](https://github.com/Critical-Impact/LuminaSupplemental) (GPL-3.0, by Critical-Impact). Cabinet observation technique inspired by [seventhxiv/Collections](https://github.com/seventhxiv/Collections).

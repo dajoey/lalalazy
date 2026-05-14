@@ -1,3 +1,5 @@
+# ![](https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/dagobert-icon.png)
+
 # Dagobert Price Matcher
 
 Dalamud plugin that automatically adjusts your market board prices to **match** the lowest offer (instead of undercutting).

@@ -11,7 +11,7 @@ A collection of Dalamud plugins for Final Fantasy XIV, maintained by [dajoey](ht
 | **PvP Solver** | Auto-rotation for PvP combat. All jobs. Activates automatically in PvP zones. | Active |
 | **Dagobert Price Matcher** | Matches market board prices instead of undercutting. Default match amount: 0 (exact match). | Active |
 | **AutoPotion** | Auto-uses HP potions and deep dungeon regen potions at configurable HP thresholds. | Active |
-| **Armoire Auto-Fill** | Scans inventory for missing armoire-compatible dungeon gear. | Archived |
+| **Armoire Auto-Fill** | Per-dungeon view of armoire-eligible gear pieces you're still missing. Detects in-armoire, in-inventory, and equipped state. | Active |
 
 ## Installation
 
@@ -39,7 +39,7 @@ Fork of [Dagobert](https://github.com/SHOEGAZEssb/Dagobert) by SHOEGAZEssb. Lice
 Original plugin by dajoey. Built from scratch using the Dalamud plugin SDK.
 
 ### Armoire Auto-Fill
-Original plugin by dajoey. Archived.
+Original plugin by dajoey. Reads the in-game Cabinet sheet for the canonical armoire-eligible item list, joined with [LuminaSupplemental.Excel](https://github.com/Critical-Impact/LuminaSupplemental) (GPL-3.0, by Critical-Impact) for dungeon drop attribution. Cabinet observation technique inspired by [seventhxiv/Collections](https://github.com/seventhxiv/Collections).
 
 ## Build
 
@@ -49,6 +49,7 @@ Each plugin builds with the Dalamud SDK. See individual plugin READMEs in `src/`
 cd src/PvPSolver && dotnet build --configuration Release
 cd src/DagobertPriceMatcher && dotnet build --configuration Release
 cd src/AutoPotion && dotnet build --configuration Release
+cd src/ArmoireAutoFill && dotnet build --configuration Release
 ```
 
 ## License

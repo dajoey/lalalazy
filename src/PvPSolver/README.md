@@ -1,3 +1,5 @@
+# ![](https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/pvpsolver-icon.png)
+
 # PvP Solver
 
 Auto-rotation plugin for FFXIV **PvP only**. Automatically activates in PvP zones (Frontlines, Crystalline Conflict, Rival Wings) and disables in PvE areas. Designed to run alongside **Wrath Combo** (which handles PvE rotations).

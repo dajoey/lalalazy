@@ -1,3 +1,5 @@
+# ![](https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/autopotion-icon.png)
+
 # AutoPotion
 
 Dalamud plugin that automatically uses potions at configurable HP thresholds.
