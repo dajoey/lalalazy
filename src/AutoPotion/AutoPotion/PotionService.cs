@@ -24,11 +24,23 @@ internal class PotionService
     // we'd attempt a use while regen is still ticking.
     private const uint RehabilitationStatusId = 648;
 
+    private enum PickMode
+    {
+        HpBest,                 // Heal-comparison + overshoot guard (HP potions).
+        FirstAvailable,         // First entry that passes status checks (MP potions).
+        RegenFirstAvailable,    // Same, plus Rehabilitation lockout (deep dungeon regen).
+    }
+
     private readonly Plugin _plugin;
     private readonly Potion[] _hpPotions;
     private readonly Potion[] _mpPotions;
     private readonly Potion[] _regenPotions;
     private DateTime _nextAttempt = DateTime.MinValue;
+
+    // Last reason the previous tick didn't fire a potion. Surfaced by /autopotion debug
+    // so the user can tell at a glance which gate is blocking (combat? duty? threshold?
+    // no candidate?) without having to enable a verbose log.
+    private string _lastSkipReason = "(no tick yet)";
 
     public PotionService(Plugin plugin)
     {
@@ -43,21 +55,23 @@ internal class PotionService
             foreach (var i in itemSheet)
             {
                 if (i.ItemAction.RowId == 0) continue;
-                if (i.FilterGroup == 8 && i.ItemSearchCategory.RowId == 43)
-                {
-                    hp.Add(new Potion(i));
-                }
-                else if (i.FilterGroup == 8 && i.ItemSearchCategory.RowId == 44)
-                {
-                    // Ethers / Hi-Ethers / etc. Same ItemAction Data layout as HP potions
-                    // (data[0] = percent of MaxMP, data[1] = MP cap), so Potion.MaxHealFor
-                    // works against MaxMp the same way.
-                    mp.Add(new Potion(i));
-                }
-                else if (Array.IndexOf(RegenPotionIds, i.RowId) >= 0)
+
+                if (Array.IndexOf(RegenPotionIds, i.RowId) >= 0)
                 {
                     regen.Add(new Potion(i));
+                    continue;
                 }
+
+                // Medicine FilterGroup. Within it, the canonical naming is reliable across
+                // every expansion: HP potions end in "Potion", MP potions end in "Ether".
+                // ItemSearchCategory split (43 vs 44) is unreliable — older code keyed on
+                // 44 and indexed zero ethers in practice.
+                if (i.FilterGroup != 8) continue;
+                var name = i.Name.ExtractText();
+                if (name.EndsWith("Ether", StringComparison.OrdinalIgnoreCase))
+                    mp.Add(new Potion(i));
+                else if (name.EndsWith("Potion", StringComparison.OrdinalIgnoreCase))
+                    hp.Add(new Potion(i));
             }
         }
         _hpPotions = hp.ToArray();
@@ -70,16 +84,18 @@ internal class PotionService
     public void Tick()
     {
         var cfg = _plugin.Config;
-        if (!cfg.MasterEnable) return;
+        if (!cfg.MasterEnable) { _lastSkipReason = "MasterEnable=false"; return; }
         if (DateTime.UtcNow < _nextAttempt) return;
 
         var local = Plugin.Objects.LocalPlayer;
-        if (local == null) return;
-        if (local.IsDead) return;
-        if (local.MaxHp == 0) return;
+        if (local == null) { _lastSkipReason = "no LocalPlayer"; return; }
+        if (local.IsDead) { _lastSkipReason = "player dead"; return; }
+        if (local.MaxHp == 0) { _lastSkipReason = "MaxHp=0"; return; }
 
-        if (cfg.OnlyInCombat && !Plugin.Condition[ConditionFlag.InCombat]) return;
-        if (cfg.OnlyInDuty && !Plugin.Condition[ConditionFlag.BoundByDuty]) return;
+        if (cfg.OnlyInCombat && !Plugin.Condition[ConditionFlag.InCombat])
+        { _lastSkipReason = "OnlyInCombat=true and not InCombat"; return; }
+        if (cfg.OnlyInDuty && !Plugin.Condition[ConditionFlag.BoundByDuty])
+        { _lastSkipReason = "OnlyInDuty=true and not BoundByDuty"; return; }
 
         var job = cfg.GetJobSettings(local.ClassJob.RowId);
 
@@ -91,10 +107,11 @@ internal class PotionService
 
         if (job.HpPotionEnable && hpRatio <= job.HpPotionThreshold / 100f)
         {
-            var picked = PickBest(_hpPotions, local.MaxHp, hpMissing, targetId, isRegen: false);
+            var picked = PickBest(_hpPotions, local.MaxHp, hpMissing, targetId, PickMode.HpBest);
             if (picked != null && picked.TryUse(targetId))
             {
                 _nextAttempt = DateTime.UtcNow.AddMilliseconds(750);
+                _lastSkipReason = $"used HP potion {picked.Name}";
                 Plugin.Log.Information($"AutoPotion: used HP potion {picked.Name} ({picked.Id})");
                 return;
             }
@@ -105,11 +122,11 @@ internal class PotionService
             var mpRatio = (float)local.CurrentMp / local.MaxMp;
             if (mpRatio <= job.MpPotionThreshold / 100f)
             {
-                var mpMissing = local.MaxMp - local.CurrentMp;
-                var picked = PickBest(_mpPotions, local.MaxMp, mpMissing, targetId, isRegen: false);
+                var picked = PickBest(_mpPotions, local.MaxMp, 0, targetId, PickMode.FirstAvailable);
                 if (picked != null && picked.TryUse(targetId))
                 {
                     _nextAttempt = DateTime.UtcNow.AddMilliseconds(750);
+                    _lastSkipReason = $"used MP potion {picked.Name}";
                     Plugin.Log.Information($"AutoPotion: used MP potion {picked.Name} ({picked.Id})");
                     return;
                 }
@@ -118,27 +135,33 @@ internal class PotionService
 
         if (job.RegenPotionEnable && inDeepDungeon && hpRatio <= job.RegenPotionThreshold / 100f)
         {
-            var picked = PickBest(_regenPotions, local.MaxHp, hpMissing, targetId, isRegen: true);
+            var picked = PickBest(_regenPotions, local.MaxHp, hpMissing, targetId, PickMode.RegenFirstAvailable);
             if (picked != null && picked.TryUse(targetId))
             {
                 _nextAttempt = DateTime.UtcNow.AddMilliseconds(750);
+                _lastSkipReason = $"used regen potion {picked.Name}";
                 Plugin.Log.Information($"AutoPotion: used regen potion {picked.Name} ({picked.Id})");
                 return;
             }
         }
 
-        // Idle throttle. TryUse pre-checks GetActionStatus and returns false
-        // silently when blocked (cooldown, Item Penalty, Silence, between areas,
-        // etc.), so polling here never produces in-game feedback.
+        // No threshold crossed (or no candidate passed status checks). Keep last reason
+        // informative so /autopotion debug shows the most recent meaningful state instead
+        // of a stale "no tick yet".
+        _lastSkipReason = $"no candidate fired (HP={hpRatio:P0}/{job.HpPotionThreshold:F0}%, MP={(local.MaxMp > 0 ? (float)local.CurrentMp / local.MaxMp : 0):P0}/{job.MpPotionThreshold:F0}%, deepDungeon={inDeepDungeon})";
+
+        // Idle throttle. TryUse pre-checks GetActionStatus and returns false silently when
+        // blocked (cooldown, Item Penalty, Silence, between areas, etc.), so polling here
+        // never produces in-game feedback.
         _nextAttempt = DateTime.UtcNow.AddMilliseconds(150);
     }
 
-    private static Potion? PickBest(Potion[] potions, uint maxResource, uint missing, ulong targetId, bool isRegen)
+    private static Potion? PickBest(Potion[] potions, uint maxResource, uint missing, ulong targetId, PickMode mode)
     {
-        // For regen potions: skip entirely while Rehabilitation is up. All deep
-        // dungeon medicines share status 648, so this single check covers PotD,
+        // Regen potions: skip entirely while Rehabilitation is up. All deep dungeon
+        // medicines share status 648 (Rehabilitation), so this single check covers PotD,
         // HoH, Eureka Orthos, and Variant Dungeons.
-        if (isRegen && PlayerHasStatus(RehabilitationStatusId)) return null;
+        if (mode == PickMode.RegenFirstAvailable && PlayerHasStatus(RehabilitationStatusId)) return null;
 
         Potion? best = null;
         uint bestHeal = 0;
@@ -148,13 +171,15 @@ internal class PotionService
             // (2651), between areas, blocking statuses, etc. in one shot. Pass the player's
             // GameObjectId as target so self-targeted item checks evaluate correctly.
             if (p.GetActionStatus(targetId) != 0) continue;
-            // Regen potions: deep dungeon potions have a different ItemAction Data layout,
-            // so MaxHealFor returns 0 and heal-comparison logic is meaningless. There is
-            // only ever one duty-specific candidate usable at a time anyway — return the
-            // first one that passes the status filter.
-            if (isRegen) return p;
+
+            // FirstAvailable / RegenFirstAvailable: deep dungeon and MP potions don't expose
+            // a usable percent/cap pair via Potion.MaxHealFor (flat-amount ethers and
+            // duty-specific actions), so heal-comparison is meaningless. Take the first
+            // candidate that passes the status filter.
+            if (mode != PickMode.HpBest) return p;
+
             var heal = p.MaxHealFor(maxResource);
-            // Don't fire if the heal would overshoot (waste).
+            // For HP potions, don't fire if the heal would overshoot (waste).
             if (missing < heal) continue;
             if (heal > bestHeal)
             {
@@ -194,6 +219,7 @@ internal class PotionService
         var jobId = local?.ClassJob.RowId ?? 0;
         var job = cfg.GetJobSettings(jobId);
         Plugin.Log.Information("=== AutoPotion debug ===");
+        Plugin.Log.Information($"Last tick: {_lastSkipReason}");
         Plugin.Log.Information($"MasterEnable={cfg.MasterEnable} OnlyInCombat={cfg.OnlyInCombat} OnlyInDuty={cfg.OnlyInDuty}");
         Plugin.Log.Information($"Job={jobId} (per-job overrides: {cfg.Jobs.Count})");
         Plugin.Log.Information($"  HpEnable={job.HpPotionEnable} HpThreshold={job.HpPotionThreshold}%");
