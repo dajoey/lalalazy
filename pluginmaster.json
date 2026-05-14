@@ -71,7 +71,7 @@
     "Punchline": "TESTING — armoire gear tracker rewrite (Cabinet + LuminaSupplemental data)",
     "Description": "TESTING build. Lists every armoire-eligible item in the game and shows whether each is in your inventory, in your armoire, or missing. Will be replaced by the non-testing build once verified.",
     "InternalName": "ArmoireAutoFillTest",
-    "AssemblyVersion": "0.2.2.0",
+    "AssemblyVersion": "0.2.3.0",
     "RepoUrl": "https://github.com/dajoey/lalalazy",
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
