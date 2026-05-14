@@ -1,8 +1,8 @@
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
-    <Version>0.2.5.0</Version>
-    <AssemblyName>ArmoireAutoFillTest</AssemblyName>
-    <Description>TESTING build. Lists every armoire-eligible item in the game and shows whether each is in your inventory, in your armoire, or missing. Open the armoire UI at an inn once to populate armoire state. Will be replaced by the non-testing build once verified.</Description>
+    <Version>0.3.0.0</Version>
+    <AssemblyName>ArmoireAutoFill</AssemblyName>
+    <Description>Lists every armoire-eligible dungeon drop in the game and shows whether each is in your inventory, in your armoire, or still missing. Open the armoire UI at an inn once per session to populate the in-armoire state; in-inventory and equipped state is detected automatically.</Description>
     <IsPackable>false</IsPackable>
     <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
     <SupportedOSPlatformVersion>8.0</SupportedOSPlatformVersion>
@@ -12,11 +12,11 @@
     <LangVersion>latest</LangVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Author>dajoey</Author>
-    <Name>Armoire Auto-Fill (Testing)</Name>
-    <InternalName>ArmoireAutoFillTest</InternalName>
-    <Punchline>TESTING — armoire gear tracker rewrite (Cabinet + LuminaSupplemental data)</Punchline>
+    <Name>Armoire Auto-Fill</Name>
+    <InternalName>ArmoireAutoFill</InternalName>
+    <Punchline>Per-dungeon view of which armoire-eligible gear pieces you're still missing</Punchline>
     <ApplicableVersion>any</ApplicableVersion>
-    <Tags>armoire;dungeon;gear;collection;scanner;testing</Tags>
+    <Tags>armoire;dungeon;gear;collection;scanner</Tags>
     <CategoryTags>utility</CategoryTags>
     <DalamudApiLevel>15</DalamudApiLevel>
     <LoadRequiredState>0</LoadRequiredState>
@@ -27,7 +27,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="ArmoireAutoFillTest.json" />
+    <Content Include="ArmoireAutoFill.json" />
   </ItemGroup>
 
   <ItemGroup>
@@ -40,7 +40,7 @@
   <Target Name="PruneOutputDlls" AfterTargets="ResolveReferences">
     <ItemGroup>
       <_KeepDlls Include="@(ReferenceCopyLocalPaths)" Condition="
-          '%(Filename)' == 'ArmoireAutoFillTest' or
+          '%(Filename)' == 'ArmoireAutoFill' or
           '%(Filename)' == 'ECommons' or
           '%(Filename)' == 'LuminaSupplemental.Excel' or
           '%(Filename)' == 'CSVFile' or
