@@ -1,6 +1,6 @@
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
-    <Version>0.2.1.0</Version>
+    <Version>0.2.2.0</Version>
     <AssemblyName>ArmoireAutoFillTest</AssemblyName>
     <Description>TESTING build. Lists every armoire-eligible item in the game and shows whether each is in your inventory, in your armoire, or missing. Open the armoire UI at an inn once to populate armoire state. Will be replaced by the non-testing build once verified.</Description>
     <IsPackable>false</IsPackable>

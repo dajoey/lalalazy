@@ -71,18 +71,21 @@ public class InventoryScanner
             }
         }
 
-        int inv = 0, arm = 0;
+        // ArmoireItems are duplicated when one item drops in multiple dungeons —
+        // count uniques for the headline diagnostic numbers.
+        var seenInInv = new HashSet<uint>();
+        var seenInArm = new HashSet<uint>();
         foreach (var item in ArmoireGearDatabase.AllItems)
         {
             if (ownedItemIds.Contains(item.ItemId))
             {
                 item.Owned = OwnershipStatus.InInventory;
-                inv++;
+                seenInInv.Add(item.ItemId);
             }
             else if (_cabinetObserver.IsInArmoire(item.ItemId))
             {
                 item.Owned = OwnershipStatus.InArmoire;
-                arm++;
+                seenInArm.Add(item.ItemId);
             }
             else
             {
@@ -92,11 +95,11 @@ public class InventoryScanner
 
         LastScan = DateTime.UtcNow;
         LastInventoryItemsSeen = ownedItemIds.Count;
-        LastInventoryHits = inv;
-        LastArmoireHits = arm;
+        LastInventoryHits = seenInInv.Count;
+        LastArmoireHits = seenInArm.Count;
         Svc.Log.Information(
-            $"[ArmoireAutoFill] scan complete: inventory={LastInventoryItemsSeen} items "
-            + $"({inv} armoire-eligible hits + {arm} from armoire cache, "
-            + $"{ArmoireGearDatabase.AllItems.Count - inv - arm} missing)");
+            $"[ArmoireAutoFill] scan complete: inventory={LastInventoryItemsSeen} items, "
+            + $"armoire-eligible breakdown: {seenInInv.Count} in inventory + {seenInArm.Count} in armoire + "
+            + $"{ArmoireGearDatabase.MissingCount} missing");
     }
 }

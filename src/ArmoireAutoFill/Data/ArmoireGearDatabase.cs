@@ -30,9 +30,16 @@ public static class ArmoireGearDatabase
 
     public static bool IsLoaded { get; private set; }
 
-    public static int TotalItems => AllItems.Count;
-    public static int OwnedCount => AllItems.Count(i => i.Owned != OwnershipStatus.NotOwned);
-    public static int MissingCount => AllItems.Count(i => i.Owned == OwnershipStatus.NotOwned);
+    // The summary totals count *unique items*, not ArmoireItem instances — an
+    // item that drops in N dungeons appears N times in AllItems but should
+    // only contribute 1 to the totals.
+    public static int TotalItems => AllItems.DistinctBy(i => i.ItemId).Count();
+    public static int OwnedCount => AllItems
+        .Where(i => i.Owned != OwnershipStatus.NotOwned)
+        .Select(i => i.ItemId)
+        .Distinct()
+        .Count();
+    public static int MissingCount => TotalItems - OwnedCount;
 
     public static void Build()
     {
@@ -155,15 +162,15 @@ public static class ArmoireGearDatabase
             bucket.Add(cfcId);
         }
 
-        // DungeonChest + DungeonChestItem need joining: chest entries carry the CFC,
-        // chest-item entries carry the item ID and reference a chest by ChestId.
+        // DungeonChest + DungeonChestItem need joining: each chest-item references
+        // a chest by DungeonChest.RowId (NOT DungeonChest.ChestId — that's the
+        // in-map chest position, not the primary key).
         var dungeonChests = LoadCsv<DungeonChest>(CsvLoader.DungeonChestResourceName);
-        var chestIdToCfc = dungeonChests
-            .GroupBy(c => c.ChestId)
-            .ToDictionary(g => g.Key, g => g.First().ContentFinderConditionId);
+        var chestRowIdToCfc = dungeonChests
+            .ToDictionary(c => c.RowId, c => c.ContentFinderConditionId);
         foreach (var chestItem in LoadCsv<DungeonChestItem>(CsvLoader.DungeonChestItemResourceName))
         {
-            if (chestIdToCfc.TryGetValue(chestItem.ChestId, out var cfcId))
+            if (chestRowIdToCfc.TryGetValue(chestItem.ChestId, out var cfcId))
                 Add(chestItem.ItemId, cfcId);
         }
 
