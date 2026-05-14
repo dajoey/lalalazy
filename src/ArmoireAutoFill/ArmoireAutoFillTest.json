@@ -1,0 +1,21 @@
+{
+  "Author": "dajoey",
+  "Name": "Armoire Auto-Fill (Testing)",
+  "Punchline": "TESTING — armoire gear tracker rewrite (Cabinet + LuminaSupplemental data)",
+  "Description": "TESTING build. Lists every armoire-eligible item in the game and shows whether each is in your inventory, in your armoire, or missing. Open the armoire UI at an inn once to populate armoire state. Will be replaced by the non-testing build once verified.",
+  "ApplicableVersion": "any",
+  "Tags": [
+    "armoire",
+    "dungeon",
+    "gear",
+    "collection",
+    "scanner",
+    "testing"
+  ],
+  "CategoryTags": [ "utility" ],
+  "InternalName": "ArmoireAutoFillTest",
+  "DalamudApiLevel": 15,
+  "IconUrl": "",
+  "ImageUrls": [ "" ],
+  "Changelog": "v0.2.0 (testing) - Rewritten from scratch. Now uses the Lumina Cabinet sheet for the full list of armoire-eligible items (every expansion, not just ARR), LuminaSupplemental for dungeon drop attribution, and an addon-lifecycle observer for armoire contents."
+}
