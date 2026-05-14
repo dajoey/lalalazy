@@ -64,5 +64,27 @@
     "ImageUrls": [""],
     "DownloadCount": 0,
     "LastUpdate": "0"
+  },
+  {
+    "Author": "dajoey",
+    "Name": "Armoire Auto-Fill (Testing)",
+    "Punchline": "TESTING — armoire gear tracker rewrite (Cabinet + LuminaSupplemental data)",
+    "Description": "TESTING build. Lists every armoire-eligible item in the game and shows whether each is in your inventory, in your armoire, or missing. Open the armoire UI at an inn once to populate armoire state. Will be replaced by the non-testing build once verified.",
+    "InternalName": "ArmoireAutoFillTest",
+    "AssemblyVersion": "0.2.0.0",
+    "RepoUrl": "https://github.com/dajoey/lalalazy",
+    "ApplicableVersion": "any",
+    "DalamudApiLevel": 15,
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/armoire-rewrite/plugins/ArmoireAutoFillTest/latest/latest.zip",
+    "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/armoire-rewrite/plugins/ArmoireAutoFillTest/latest/latest.zip",
+    "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/armoire-rewrite/plugins/ArmoireAutoFillTest/latest/latest.zip",
+    "Tags": ["armoire", "dungeon", "gear", "collection", "scanner", "testing"],
+    "CategoryTags": ["utility"],
+    "IconUrl": "",
+    "ImageUrls": [""],
+    "DownloadCount": 0,
+    "LastUpdate": "0"
   }
 ]
