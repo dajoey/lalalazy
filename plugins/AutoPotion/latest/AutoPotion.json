@@ -2,7 +2,7 @@
   "Author": "dajoey",
   "Name": "AutoPotion",
   "InternalName": "AutoPotion",
-  "AssemblyVersion": "0.2.1.0",
+  "AssemblyVersion": "0.2.2.0",
   "Description": "Auto-uses the highest-tier HP potion, MP potion (Ether), and the deep dungeon regen potion (Sustaining / Eurekan / Orthos / Pilgrim's) at configurable thresholds. Each potion's threshold and on/off state is stored per-job, so casters and tanks can have completely different setups.",
   "ApplicableVersion": "any",
   "Tags": [

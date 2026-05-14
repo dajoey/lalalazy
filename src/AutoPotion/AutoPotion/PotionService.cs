@@ -62,12 +62,12 @@ internal class PotionService
                     continue;
                 }
 
-                // Medicine FilterGroup. Within it, the canonical naming is reliable across
-                // every expansion: HP potions end in "Potion", MP potions end in "Ether".
-                // ItemSearchCategory split (43 vs 44) is unreliable — older code keyed on
-                // 44 and indexed zero ethers in practice.
-                if (i.FilterGroup != 8) continue;
-                var name = i.Name.ExtractText();
+                // Name-suffix dispatch only: HP potions end in "Potion", MP potions end in
+                // "Ether". 0.2.0.0 keyed on FilterGroup==8 + ItemSearchCategory; 0.2.1.0
+                // dropped the category but kept FilterGroup. Both filtered out every Ether
+                // in practice. The name suffix is reliable across every expansion and the
+                // ItemAction.RowId pre-check rules out non-consumable name collisions.
+                var name = i.Name.ExtractText().Trim();
                 if (name.EndsWith("Ether", StringComparison.OrdinalIgnoreCase))
                     mp.Add(new Potion(i));
                 else if (name.EndsWith("Potion", StringComparison.OrdinalIgnoreCase))
@@ -79,6 +79,10 @@ internal class PotionService
         _regenPotions = regen.ToArray();
         Plugin.Log.Information(
             $"AutoPotion: indexed {_hpPotions.Length} HP, {_mpPotions.Length} MP, {_regenPotions.Length} regen potions");
+        // One-shot dump so /autopotion debug shows exactly what was indexed and lets us
+        // catch missed items without another rebuild.
+        foreach (var p in _mpPotions)
+            Plugin.Log.Information($"  MP[{p.Id}] {p.Name}");
     }
 
     public void Tick()
