@@ -489,10 +489,10 @@ public static class ActionWatching
 
                     // For autorotation ground-targeted heals, prefer centering on the tank
                     if (AutoRotationController.WouldLikeToGroundTarget &&
-                        Player.Object?.GetRole() is Dalamud.Game.ClientState.Objects.Enums.CombatRole.Healer)
+                        Player.Object?.Role is CombatRole.Healer)
                     {
                         var tank = GetPartyMembers()
-                            .Where(x => !x.BattleChara.IsDead && x.BattleChara?.GetRole() is Dalamud.Game.ClientState.Objects.Enums.CombatRole.Tank)
+                            .Where(x => !x.BattleChara.IsDead && x.BattleChara?.GetRole() is CombatRole.Tank)
                             .OrderByDescending(x => x.BattleChara.CurrentHp)
                             .FirstOrDefault();
 
@@ -501,10 +501,10 @@ public static class ActionWatching
                             Vector3.Distance(Player.Position, tank.BattleChara.Position) <= replacedWith.ActionRange())
                         {
                             location = tank.BattleChara.Position;
-                            var ret = ActionManager.Instance()->UseActionLocation
+                            var tankRet = ActionManager.Instance()->UseActionLocation
                                 (actionType, replacedWith, location: &location);
                             Service.ActionReplacer.EnableActionReplacingIfRequired();
-                            return ret;
+                            return tankRet;
                         }
                     }
 
