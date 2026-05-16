@@ -1,141 +1,166 @@
 [
-  {
-    "Author": "dajoey",
-    "Name": "PvP Solver",
-    "Punchline": "PvP-only auto-rotation",
-    "Description": "Auto-rotation for FFXIV PvP only. Automatically activates in PvP zones. Designed to run alongside Wrath Combo (handles PvE). Includes default PvP rotations for all jobs.",
-    "InternalName": "PvPSolver",
-    "AssemblyVersion": "0.1.0.1",
-    "RepoUrl": "https://github.com/dajoey/lalalazy",
-    "ApplicableVersion": "any",
-    "DalamudApiLevel": 15,
-    "IsHide": false,
-    "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/PvPSolver/latest/latest.zip",
-    "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/PvPSolver/latest/latest.zip",
-    "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/PvPSolver/testing/testing.zip",
-    "Tags": [
-      "combat",
-      "rotation",
-      "auto",
-      "pvp"
-    ],
-    "CategoryTags": [
-      "jobs"
-    ],
-    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/pvpsolver-icon.png",
-    "ImageUrls": [
-      ""
-    ],
-    "DownloadCount": 0,
-    "LastUpdate": "0",
-    "TestingAssemblyVersion": "0.2.0.0"
-  },
-  {
-    "Author": "dajoey",
-    "Name": "Dagobert - Price Matcher",
-    "Punchline": "Matches (instead of undercuts) market board prices",
-    "Description": "Fork of Dagobert \u2014 matches the lowest market board price instead of undercutting. Default amount is 0 (exact match). You can still set a negative amount to undercut if desired.",
-    "InternalName": "DagobertPriceMatcher",
-    "AssemblyVersion": "1.10.0.1",
-    "RepoUrl": "https://github.com/dajoey/lalalazy",
-    "ApplicableVersion": "any",
-    "DalamudApiLevel": 15,
-    "IsHide": false,
-    "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/DagobertPriceMatcher/latest/latest.zip",
-    "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/DagobertPriceMatcher/latest/latest.zip",
-    "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/DagobertPriceMatcher/latest/latest.zip",
-    "Tags": [
-      "marketboard",
-      "match",
-      "price",
-      "undercut",
-      "retainer"
-    ],
-    "CategoryTags": [
-      "utility"
-    ],
-    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/dagobert-icon.png",
-    "ImageUrls": [
-      ""
-    ],
-    "DownloadCount": 0,
-    "LastUpdate": "0"
-  },
-  {
-    "Author": "dajoey",
-    "Name": "AutoPotion",
-    "Punchline": "Per-job HP, MP, and deep dungeon potion automation",
-    "Description": "Auto-uses the highest-tier HP potion, MP potion (Ether), and the deep dungeon regen potion (Sustaining / Eurekan / Orthos / Pilgrim's) at configurable thresholds. Each potion's threshold and on/off state is stored per-job, so casters and tanks can have completely different setups.",
-    "InternalName": "AutoPotion",
-    "AssemblyVersion": "0.2.2.0",
-    "RepoUrl": "https://github.com/dajoey/lalalazy",
-    "ApplicableVersion": "any",
-    "DalamudApiLevel": 15,
-    "IsHide": false,
-    "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/AutoPotion/latest/latest.zip",
-    "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/AutoPotion/latest/latest.zip",
-    "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/AutoPotion/latest/latest.zip",
-    "Tags": [
-      "auto",
-      "potion",
-      "healing",
-      "deep dungeon"
-    ],
-    "CategoryTags": [
-      "utility"
-    ],
-    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/autopotion-icon.png",
-    "ImageUrls": [
-      ""
-    ],
-    "DownloadCount": 0,
-    "LastUpdate": "0"
-  },
-  {
-    "Author": "dajoey",
-    "Name": "Armoire Auto-Fill",
-    "Punchline": "Per-dungeon view of which armoire-eligible gear pieces you're still missing",
-    "Description": "Lists every armoire-eligible dungeon drop in the game and shows whether each is in your inventory, in your armoire, or still missing. Sort by level, hide completed dungeons, toggle to show owned items too. Open the armoire UI at an inn once per session to populate the in-armoire state; in-inventory and equipped state is detected automatically. Use /armoire.",
-    "InternalName": "ArmoireAutoFill",
-    "AssemblyVersion": "0.3.0.0",
-    "RepoUrl": "https://github.com/dajoey/lalalazy",
-    "ApplicableVersion": "any",
-    "DalamudApiLevel": 15,
-    "IsHide": false,
-    "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/ArmoireAutoFill/latest/latest.zip",
-    "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/ArmoireAutoFill/latest/latest.zip",
-    "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/ArmoireAutoFill/latest/latest.zip",
-    "Tags": ["armoire", "dungeon", "gear", "collection", "scanner"],
-    "CategoryTags": ["utility"],
-    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/armoire-icon.png",
-    "ImageUrls": [""],
-    "DownloadCount": 0,
-    "LastUpdate": "0"
-  },
-  {
-    "Author": "dajoey",
-    "Name": "Gluttony Combo",
-    "Punchline": "Lalalazy fork of Wrath Combo — XIVCombo for very lazy players.",
-    "Description": "Gluttony Combo is a lalalazy-branded fork of Wrath Combo. Condenses combos and mutually exclusive abilities onto a single button — and then some. All upstream credit to Team Wrath / PunishXIV.",
-    "InternalName": "GluttonyCombo",
-    "AssemblyVersion": "1.0.4.5",
-    "RepoUrl": "https://github.com/dajoey/lalalazy",
-    "ApplicableVersion": "any",
-    "DalamudApiLevel": 15,
-    "IsHide": true,
-    "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/GluttonyCombo/latest/latest.zip",
-    "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/GluttonyCombo/latest/latest.zip",
-    "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/GluttonyCombo/latest/latest.zip",
-    "Tags": ["combo", "gluttony", "wrath", "wrathcombo", "auto", "autorotation", "rotation", "pve", "pvp", "lalalazy"],
-    "CategoryTags": ["jobs"],
-    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/gluttonycombo-icon.png",
-    "ImageUrls": [""],
-    "DownloadCount": 0,
-    "LastUpdate": "0"
-  }
+    {
+        "Author":  "dajoey",
+        "Name":  "PvP Solver",
+        "Punchline":  "PvP-only auto-rotation",
+        "Description":  "Auto-rotation for FFXIV PvP only. Automatically activates in PvP zones. Designed to run alongside Wrath Combo (handles PvE). Includes default PvP rotations for all jobs.",
+        "InternalName":  "PvPSolver",
+        "AssemblyVersion":  "0.1.0.1",
+        "RepoUrl":  "https://github.com/dajoey/lalalazy",
+        "ApplicableVersion":  "any",
+        "DalamudApiLevel":  15,
+        "IsHide":  false,
+        "IsTestingExclusive":  false,
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/PvPSolver/latest/latest.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/PvPSolver/latest/latest.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/PvPSolver/testing/testing.zip",
+        "Tags":  [
+                     "combat",
+                     "rotation",
+                     "auto",
+                     "pvp"
+                 ],
+        "CategoryTags":  [
+                             "jobs"
+                         ],
+        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/pvpsolver-icon.png",
+        "ImageUrls":  [
+                          ""
+                      ],
+        "DownloadCount":  0,
+        "LastUpdate":  "0",
+        "TestingAssemblyVersion":  "0.2.0.0"
+    },
+    {
+        "Author":  "dajoey",
+        "Name":  "Dagobert - Price Matcher",
+        "Punchline":  "Matches (instead of undercuts) market board prices",
+        "Description":  "Fork of Dagobert � matches the lowest market board price instead of undercutting. Default amount is 0 (exact match). You can still set a negative amount to undercut if desired.",
+        "InternalName":  "DagobertPriceMatcher",
+        "AssemblyVersion":  "1.10.0.1",
+        "RepoUrl":  "https://github.com/dajoey/lalalazy",
+        "ApplicableVersion":  "any",
+        "DalamudApiLevel":  15,
+        "IsHide":  false,
+        "IsTestingExclusive":  false,
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/DagobertPriceMatcher/latest/latest.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/DagobertPriceMatcher/latest/latest.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/DagobertPriceMatcher/latest/latest.zip",
+        "Tags":  [
+                     "marketboard",
+                     "match",
+                     "price",
+                     "undercut",
+                     "retainer"
+                 ],
+        "CategoryTags":  [
+                             "utility"
+                         ],
+        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/dagobert-icon.png",
+        "ImageUrls":  [
+                          ""
+                      ],
+        "DownloadCount":  0,
+        "LastUpdate":  "0"
+    },
+    {
+        "Author":  "dajoey",
+        "Name":  "AutoPotion",
+        "Punchline":  "Per-job HP, MP, and deep dungeon potion automation",
+        "Description":  "Auto-uses the highest-tier HP potion, MP potion (Ether), and the deep dungeon regen potion (Sustaining / Eurekan / Orthos / Pilgrim\u0027s) at configurable thresholds. Each potion\u0027s threshold and on/off state is stored per-job, so casters and tanks can have completely different setups.",
+        "InternalName":  "AutoPotion",
+        "AssemblyVersion":  "0.2.2.0",
+        "RepoUrl":  "https://github.com/dajoey/lalalazy",
+        "ApplicableVersion":  "any",
+        "DalamudApiLevel":  15,
+        "IsHide":  false,
+        "IsTestingExclusive":  false,
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/AutoPotion/latest/latest.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/AutoPotion/latest/latest.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/AutoPotion/latest/latest.zip",
+        "Tags":  [
+                     "auto",
+                     "potion",
+                     "healing",
+                     "deep dungeon"
+                 ],
+        "CategoryTags":  [
+                             "utility"
+                         ],
+        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/autopotion-icon.png",
+        "ImageUrls":  [
+                          ""
+                      ],
+        "DownloadCount":  0,
+        "LastUpdate":  "0"
+    },
+    {
+        "Author":  "dajoey",
+        "Name":  "Armoire Auto-Fill",
+        "Punchline":  "Per-dungeon view of which armoire-eligible gear pieces you\u0027re still missing",
+        "Description":  "Lists every armoire-eligible dungeon drop in the game and shows whether each is in your inventory, in your armoire, or still missing. Sort by level, hide completed dungeons, toggle to show owned items too. Open the armoire UI at an inn once per session to populate the in-armoire state; in-inventory and equipped state is detected automatically. Use /armoire.",
+        "InternalName":  "ArmoireAutoFill",
+        "AssemblyVersion":  "0.3.0.0",
+        "RepoUrl":  "https://github.com/dajoey/lalalazy",
+        "ApplicableVersion":  "any",
+        "DalamudApiLevel":  15,
+        "IsHide":  false,
+        "IsTestingExclusive":  false,
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/ArmoireAutoFill/latest/latest.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/ArmoireAutoFill/latest/latest.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/ArmoireAutoFill/latest/latest.zip",
+        "Tags":  [
+                     "armoire",
+                     "dungeon",
+                     "gear",
+                     "collection",
+                     "scanner"
+                 ],
+        "CategoryTags":  [
+                             "utility"
+                         ],
+        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/armoire-icon.png",
+        "ImageUrls":  [
+                          ""
+                      ],
+        "DownloadCount":  0,
+        "LastUpdate":  "0"
+    },
+    {
+        "Author":  "dajoey",
+        "Name":  "Gluttony Combo",
+        "Punchline":  "Lalalazy fork of Wrath Combo — XIVCombo for very lazy players.",
+        "Description":  "Gluttony Combo is a lalalazy-branded fork of Wrath Combo. Condenses combos and mutually exclusive abilities onto a single button — and then some. All upstream credit to Team Wrath / PunishXIV.",
+        "InternalName":  "GluttonyCombo",
+        "AssemblyVersion":  "1.0.4.5",
+        "RepoUrl":  "https://github.com/dajoey/lalalazy",
+        "ApplicableVersion":  "any",
+        "DalamudApiLevel":  15,
+        "IsHide":  false,
+        "IsTestingExclusive":  false,
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/GluttonyCombo/latest/latest.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/GluttonyCombo/latest/latest.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/GluttonyCombo/latest/latest.zip",
+        "Tags":  [
+                     "combo",
+                     "gluttony",
+                     "wrath",
+                     "wrathcombo",
+                     "auto",
+                     "autorotation",
+                     "rotation",
+                     "pve",
+                     "pvp",
+                     "lalalazy"
+                 ],
+        "CategoryTags":  [
+                             "jobs"
+                         ],
+        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/gluttonycombo-icon.png",
+        "ImageUrls":  [
+                          ""
+                      ],
+        "DownloadCount":  0,
+        "LastUpdate":  "0"
+    }
 ]
