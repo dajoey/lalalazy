@@ -1,0 +1,51 @@
+## VENICE IMG2IMG TEMPLATE — lalalazy logo kit
+##
+## Endpoint:     POST https://api.venice.ai/api/v1/image/edit
+## Model:        qwen-edit  (inpaint-class, ~$0.04/edit, ~7s wall-clock)
+## Base image:   LalaImages/kit/assets/canonical-base.png  (frozen copy of
+##                 the original pvpsolver-icon.png — DO NOT edit in place)
+## Output size:  1024x1024 native, downscaled to 500x500 LANCZOS for the repo
+##
+## The base image is passed as a data:image/png;base64,... URI in the
+## request body's `image` field. The prompt swaps out only the contents
+## of the thought bubble. The preserve clause locks everything else.
+
+=== PROMPT TEMPLATE ===
+Replace the crossed swords inside the white thought bubble with {DREAM}. Keep the sleeping lalafell face, brown bob hair, white duvet, dark green background, the zZz letters, and the white thought bubble outline EXACTLY the same as the original. Maintain the chunky retro pixel-art aesthetic.
+
+=== {DREAM} CANON EXAMPLES ===
+dagobert    : a single shiny gold gil coin with a star symbol on its face
+autopotion  : a small green-filled glass potion flask with a brown cork stopper and a tiny red heart symbol
+armoire     : a tiny pastel-blue folded shirt with visible fold lines, centered in the bubble
+
+=== {DREAM} AUTHORING GUIDE ===
+- Lead with the dominant color (gold, green, cyan, etc.) — this is what makes the icon read at 64 px
+- One small icon, centered in the bubble. Use "tiny" or "small" if the model wants to make it large
+- Anchor in FFXIV vocabulary where useful: "gil coin", "linkshell pearl", "aetheryte shard", "chocobo feather"
+- 3 distinct colors max
+- Don't mention the lalafell, the bubble, the background, the zZz, or the blanket — those come from the canonical base
+- Don't say "thought bubble" again in {DREAM} — the template already names it
+
+=== WHY IMG2IMG, NOT GENERATE ===
+Pure text-to-image (z-image-turbo + Pixel Art preset) produces a similar
+style, but every render comes out slightly different — the lala face,
+crop, hair, blanket folds, and bubble shape all drift between logos.
+img2img against a single frozen base gives pixel-faithful reproductions
+across every plugin logo: the canvas is byte-near-identical and only
+what's INSIDE the bubble varies.
+
+=== ADDING A NEW LOGO ===
+1. Pick a one-line {DREAM} description (see authoring guide).
+2. Run `generate_logo.ps1` (on dajoeyrog) or `generate_logo.sh` (from a
+   Cowork VM session). It SCPs the canonical base, calls /image/edit
+   with the assembled prompt, downscales to 500x500, and saves the
+   result as LalaImages/<slug>-icon.png.
+3. Update pluginmaster.json so the new mod's IconUrl points at
+   https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/<slug>-icon.png
+
+=== WHAT NOT TO TWEAK ===
+- The preserve clause ("Keep the sleeping lalafell face, brown bob hair, white duvet, dark green background, the zZz letters, and the white thought bubble outline EXACTLY the same as the original. Maintain the chunky retro pixel-art aesthetic.") is what holds the rest of the image stable. Don't shorten it.
+- Don't switch models away from qwen-edit casually — other edit models
+  (seedream-v5-lite-edit, flux-2-max-edit, etc.) interpret "keep the rest
+  the same" differently and may smooth the chunky pixels. qwen-edit is
+  the cheapest tested-good option.
