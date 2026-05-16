@@ -1,10 +1,10 @@
-﻿#region
+#region
 
-using WrathCombo.API.Attribute;
+using GluttonyCombo.API.Attribute;
 
 #endregion
 
-namespace WrathCombo.API.Enum;
+namespace GluttonyCombo.API.Enum;
 
 /// <summary>
 ///     IPC-settable AutoRotation configuration options.

@@ -1,7 +1,7 @@
 using System;
-using WrathCombo.CustomComboNS;
-using static WrathCombo.Combos.PvE.MCH.Config;
-namespace WrathCombo.Combos.PvE;
+using GluttonyCombo.CustomComboNS;
+using static GluttonyCombo.Combos.PvE.MCH.Config;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class MCH : PhysicalRanged
 {

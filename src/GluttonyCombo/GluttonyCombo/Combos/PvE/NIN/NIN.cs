@@ -2,12 +2,12 @@ using Dalamud.Game.ClientState.JobGauge.Types;
 using ECommons;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using System.Linq;
-using WrathCombo.CustomComboNS;
-using WrathCombo.Data;
-using WrathCombo.Extensions;
-using static WrathCombo.Combos.PvE.NIN.Config;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.Data;
+using GluttonyCombo.Extensions;
+using static GluttonyCombo.Combos.PvE.NIN.Config;
 
-namespace WrathCombo.Combos.PvE;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class NIN : Melee
 {

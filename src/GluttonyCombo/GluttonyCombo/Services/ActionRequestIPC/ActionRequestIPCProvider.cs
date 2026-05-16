@@ -1,4 +1,4 @@
-﻿using Dalamud.Game.ClientState.Objects.Types;
+using Dalamud.Game.ClientState.Objects.Types;
 using ECommons.DalamudServices;
 using ECommons.ExcelServices;
 using ECommons.EzIpcManager;
@@ -13,11 +13,11 @@ using System.Linq;
 using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
-using WrathCombo.Combos.PvE;
-using WrathCombo.CustomComboNS.Functions;
+using GluttonyCombo.Combos.PvE;
+using GluttonyCombo.CustomComboNS.Functions;
 using static ECommons.UIHelpers.AddonMasterImplementations.AddonMaster;
 
-namespace WrathCombo.Services.ActionRequestIPC;
+namespace GluttonyCombo.Services.ActionRequestIPC;
 //this is static to maximize performance
 public static class ActionRequestIPCProvider
 {

@@ -1,9 +1,9 @@
 using Dalamud.Interface.Colors;
-using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Extensions;
-using WrathCombo.Resources.Localization.JobConfigs;
-using static WrathCombo.Window.Functions.UserConfig;
-namespace WrathCombo.Combos.PvE;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Extensions;
+using GluttonyCombo.Resources.Localization.JobConfigs;
+using static GluttonyCombo.Window.Functions.UserConfig;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class BRD
 {

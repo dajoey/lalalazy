@@ -1,4 +1,4 @@
-﻿namespace WrathCombo.Combos.PvE.Enums;
+namespace GluttonyCombo.Combos.PvE.Enums;
 
 public enum OpenerState
 {

@@ -1,10 +1,10 @@
-﻿using FFXIVClientStructs.FFXIV.Client.Game;
+using FFXIVClientStructs.FFXIV.Client.Game;
 using System.Linq;
-using WrathCombo.CustomComboNS.Functions;
-using static WrathCombo.Data.ActionWatching;
-using static WrathCombo.Window.Text;
+using GluttonyCombo.CustomComboNS.Functions;
+using static GluttonyCombo.Data.ActionWatching;
+using static GluttonyCombo.Window.Text;
 
-namespace WrathCombo.Extensions;
+namespace GluttonyCombo.Extensions;
 
 internal static class UIntExtensions
 {

@@ -1,4 +1,4 @@
-﻿using Dalamud.Interface.Textures;
+using Dalamud.Interface.Textures;
 using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Utility;
 using ECommons.DalamudServices;
@@ -7,10 +7,10 @@ using Lumina.Data.Files;
 using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
-using WrathCombo.Combos.PvE;
-using static WrathCombo.CustomComboNS.Functions.Jobs;
+using GluttonyCombo.Combos.PvE;
+using static GluttonyCombo.CustomComboNS.Functions.Jobs;
 
-namespace WrathCombo.Window;
+namespace GluttonyCombo.Window;
 
 internal static class Icons
 {

@@ -1,4 +1,4 @@
-﻿namespace WrathCombo.Extensions;
+namespace GluttonyCombo.Extensions;
 
 internal static class ByteExtensions
 {

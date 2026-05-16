@@ -1,11 +1,11 @@
 #region
 
 using System;
-using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Data;
-using static WrathCombo.Combos.PvE.DRK.Config;
-using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
-using PartyRequirement = WrathCombo.Combos.PvE.All.Enums.PartyRequirement;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Data;
+using static GluttonyCombo.Combos.PvE.DRK.Config;
+using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
+using PartyRequirement = GluttonyCombo.Combos.PvE.All.Enums.PartyRequirement;
 
 // ReSharper disable ConditionIsAlwaysTrueOrFalse
 // ReSharper disable InconsistentNaming
@@ -15,7 +15,7 @@ using PartyRequirement = WrathCombo.Combos.PvE.All.Enums.PartyRequirement;
 
 #endregion
 
-namespace WrathCombo.Combos.PvE;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class DRK
 {
@@ -344,7 +344,7 @@ internal partial class DRK
             // Bail if Mitigation is not enabled for this combo
             // (unless IPC-controlled)
             if (config != (int)SimpleMitigation.On &&
-                P.UIHelper.PresetControlled(preset)?.enabled != true)
+                GluttonyCombo.P.UIHelper.PresetControlled(preset)?.enabled != true)
                 return false;
 
             if (InBossEncounter())

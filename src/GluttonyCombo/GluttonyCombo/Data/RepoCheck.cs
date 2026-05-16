@@ -1,7 +1,7 @@
-﻿using ECommons.DalamudServices;
+using ECommons.DalamudServices;
 using Newtonsoft.Json;
 using System.IO;
-namespace WrathCombo.Data;
+namespace GluttonyCombo.Data;
 
 public class RepoCheck
 {

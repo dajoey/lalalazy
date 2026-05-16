@@ -1,13 +1,13 @@
-﻿using Dalamud.Game.ClientState.Objects.Types;
+using Dalamud.Game.ClientState.Objects.Types;
 using ECommons.DalamudServices;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Linq;
-using WrathCombo.Extensions;
+using GluttonyCombo.Extensions;
 using Status = Dalamud.Game.ClientState.Statuses.IStatus; // conflicts with structs if not defined
-namespace WrathCombo.Data;
+namespace GluttonyCombo.Data;
 
 internal partial class CustomComboCache : IDisposable
 {

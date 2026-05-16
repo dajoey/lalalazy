@@ -1,12 +1,12 @@
-﻿using Dalamud.Game.ClientState.Objects.Types;
+using Dalamud.Game.ClientState.Objects.Types;
 using ECommons.ExcelServices;
 using ECommons.GameHelpers;
 using System.Collections.Generic;
 using System.Linq;
-using WrathCombo.Core;
-using WrathCombo.CustomComboNS;
-using WrathCombo.Extensions;
-namespace WrathCombo.Combos.PvE;
+using GluttonyCombo.Core;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.Extensions;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class All
 {

@@ -1,4 +1,4 @@
-﻿using Dalamud.Game.ClientState.Conditions;
+using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Plugin.Services;
 using ECommons.DalamudServices;
 using ECommons.GameFunctions;
@@ -7,9 +7,9 @@ using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using WrathCombo.AutoRotation;
-using WrathCombo.Services;
-namespace WrathCombo.CustomComboNS.Functions;
+using GluttonyCombo.AutoRotation;
+using GluttonyCombo.Services;
+namespace GluttonyCombo.CustomComboNS.Functions;
 
 internal abstract partial class CustomComboFunctions
 {

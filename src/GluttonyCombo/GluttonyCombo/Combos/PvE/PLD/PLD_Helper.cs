@@ -1,14 +1,14 @@
-﻿using Dalamud.Game.ClientState.JobGauge.Types;
+using Dalamud.Game.ClientState.JobGauge.Types;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using WrathCombo.CustomComboNS;
-using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Data;
-using static WrathCombo.Combos.PvE.PLD.Config;
-using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
-using PartyRequirement = WrathCombo.Combos.PvE.All.Enums.PartyRequirement;
-namespace WrathCombo.Combos.PvE;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Data;
+using static GluttonyCombo.Combos.PvE.PLD.Config;
+using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
+using PartyRequirement = GluttonyCombo.Combos.PvE.All.Enums.PartyRequirement;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class PLD
 {

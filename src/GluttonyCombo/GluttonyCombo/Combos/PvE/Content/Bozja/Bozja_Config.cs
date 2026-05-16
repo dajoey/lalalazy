@@ -1,8 +1,8 @@
-﻿using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Resources.Localization.JobConfigs;
-using static WrathCombo.Window.Functions.UserConfig;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Resources.Localization.JobConfigs;
+using static GluttonyCombo.Window.Functions.UserConfig;
 
-namespace WrathCombo.Combos.PvE;
+namespace GluttonyCombo.Combos.PvE;
 
 internal static partial class Bozja
 {

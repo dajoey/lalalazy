@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 using ECommons;
 using ECommons.Logging;
@@ -9,7 +9,7 @@ using System.Linq;
 
 #endregion
 
-namespace WrathCombo.Services.IPC_Subscriber;
+namespace GluttonyCombo.Services.IPC_Subscriber;
 
 internal sealed class RedirectIPC(
     string? pluginName = null,

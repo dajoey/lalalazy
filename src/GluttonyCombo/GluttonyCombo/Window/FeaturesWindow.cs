@@ -8,18 +8,18 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using WrathCombo.Attributes;
-using WrathCombo.Core;
-using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Extensions;
-using WrathCombo.Resources.Localization.UI.Features;
-using WrathCombo.Resources.Localization.UI.Misc;
-using WrathCombo.Services;
-using WrathCombo.Window.Functions;
+using GluttonyCombo.Attributes;
+using GluttonyCombo.Core;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Extensions;
+using GluttonyCombo.Resources.Localization.UI.Features;
+using GluttonyCombo.Resources.Localization.UI.Misc;
+using GluttonyCombo.Services;
+using GluttonyCombo.Window.Functions;
 
 #endregion
 
-namespace WrathCombo.Window;
+namespace GluttonyCombo.Window;
 
 internal class FeaturesWindow : ConfigWindow
 {
@@ -142,10 +142,10 @@ internal class FeaturesWindow : ConfigWindow
 
         #region IPC Indicator
 
-        if (!pvp && P.UIHelper.JobControlled(job) is not null)
+        if (!pvp && GluttonyCombo.P.UIHelper.JobControlled(job) is not null)
         {
             ImGui.SameLine();
-            P.UIHelper
+            GluttonyCombo.P.UIHelper
                 .ShowIPCControlledIndicatorIfNeeded(job);
         }
 

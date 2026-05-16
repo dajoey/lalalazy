@@ -1,6 +1,6 @@
 using System;
 
-namespace WrathCombo.Attributes;
+namespace GluttonyCombo.Attributes;
 
 /// <summary> Attribute documenting required combo relationships. </summary>
 [AttributeUsage(AttributeTargets.Field)]

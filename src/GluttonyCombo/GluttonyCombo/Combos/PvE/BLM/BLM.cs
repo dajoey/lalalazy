@@ -1,9 +1,9 @@
 using System;
-using WrathCombo.Core;
-using WrathCombo.CustomComboNS;
-using WrathCombo.Extensions;
-using static WrathCombo.Combos.PvE.BLM.Config;
-namespace WrathCombo.Combos.PvE;
+using GluttonyCombo.Core;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.Extensions;
+using static GluttonyCombo.Combos.PvE.BLM.Config;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class BLM : Caster
 {

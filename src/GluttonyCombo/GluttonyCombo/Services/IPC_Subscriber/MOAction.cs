@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 using ECommons;
 using ECommons.EzIpcManager;
@@ -9,7 +9,7 @@ using System;
 
 #endregion
 
-namespace WrathCombo.Services.IPC_Subscriber;
+namespace GluttonyCombo.Services.IPC_Subscriber;
 
 internal sealed class MOActionIPC(
     string? pluginName = null,

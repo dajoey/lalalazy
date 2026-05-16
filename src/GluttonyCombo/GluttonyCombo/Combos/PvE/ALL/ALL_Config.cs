@@ -1,11 +1,11 @@
 using Dalamud.Interface.Colors;
 using ECommons.ImGuiMethods;
-using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Extensions;
-using WrathCombo.Window;
-using WrathCombo.Window.Functions;
-using WrathCombo.Resources.Localization.JobConfigs;
-namespace WrathCombo.Combos.PvE;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Extensions;
+using GluttonyCombo.Window;
+using GluttonyCombo.Window.Functions;
+using GluttonyCombo.Resources.Localization.JobConfigs;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class All
 {

@@ -11,13 +11,13 @@ using System;
 using System.Linq;
 using Dalamud.Game.ClientState.Statuses;
 using ECommons.Logging;
-using WrathCombo.CustomComboNS;
-using WrathCombo.CustomComboNS.Functions;
-using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.CustomComboNS.Functions;
+using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
 
 #endregion
 
-namespace WrathCombo.Extensions;
+namespace GluttonyCombo.Extensions;
 
 public static class GameObjectExtensions
 {

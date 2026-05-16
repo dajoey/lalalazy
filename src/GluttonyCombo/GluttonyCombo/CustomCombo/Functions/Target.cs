@@ -1,4 +1,4 @@
-﻿using Dalamud.Game.ClientState.Objects.Types;
+using Dalamud.Game.ClientState.Objects.Types;
 using ECommons.DalamudServices;
 using ECommons.GameFunctions;
 using ECommons.Throttlers;
@@ -9,13 +9,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using WrathCombo.Combos.PvE;
-using WrathCombo.Core;
-using WrathCombo.Data;
-using WrathCombo.Extensions;
-using WrathCombo.Services;
+using GluttonyCombo.Combos.PvE;
+using GluttonyCombo.Core;
+using GluttonyCombo.Data;
+using GluttonyCombo.Extensions;
+using GluttonyCombo.Services;
 using ObjectKind = Dalamud.Game.ClientState.Objects.Enums.ObjectKind;
-namespace WrathCombo.CustomComboNS.Functions;
+namespace GluttonyCombo.CustomComboNS.Functions;
 
 internal abstract partial class CustomComboFunctions
 {

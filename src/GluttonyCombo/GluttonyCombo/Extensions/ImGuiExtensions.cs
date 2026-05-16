@@ -1,5 +1,5 @@
-﻿using System.Numerics;
-namespace WrathCombo.Extensions;
+using System.Numerics;
+namespace GluttonyCombo.Extensions;
 
 internal class ImGuiExtensions
 {

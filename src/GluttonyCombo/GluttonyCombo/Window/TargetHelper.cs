@@ -1,4 +1,4 @@
-﻿using Dalamud.Game.ClientState.Objects.Types;
+using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Interface.Utility;
 using ECommons.DalamudServices;
 using FFXIVClientStructs.FFXIV.Client.UI;
@@ -6,10 +6,10 @@ using FFXIVClientStructs.FFXIV.Component.GUI;
 using System;
 using System.Numerics;
 using System.Runtime.InteropServices;
-using WrathCombo.CustomComboNS;
-using WrathCombo.Extensions;
-using WrathCombo.Services;
-namespace WrathCombo.Window;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.Extensions;
+using GluttonyCombo.Services;
+namespace GluttonyCombo.Window;
 
 internal class TargetHelper : Dalamud.Interface.Windowing.Window
 {

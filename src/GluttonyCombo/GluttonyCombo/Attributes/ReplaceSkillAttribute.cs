@@ -1,8 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using WrathCombo.Data;
+using GluttonyCombo.Data;
 
-namespace WrathCombo.Attributes;
+namespace GluttonyCombo.Attributes;
 
 /// <summary> Attribute documenting which skill each preset replace. </summary>
 [AttributeUsage(AttributeTargets.Field)]

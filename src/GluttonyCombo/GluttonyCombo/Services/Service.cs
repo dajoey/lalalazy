@@ -1,7 +1,7 @@
-using WrathCombo.AutoRotation;
-using WrathCombo.Core;
-using WrathCombo.Data;
-namespace WrathCombo.Services;
+using GluttonyCombo.AutoRotation;
+using GluttonyCombo.Core;
+using GluttonyCombo.Data;
+namespace GluttonyCombo.Services;
 
 /// <summary> Dalamud and plugin services. </summary>
 internal class Service

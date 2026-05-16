@@ -14,24 +14,24 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using WrathCombo.API.Enum;
-using WrathCombo.Combos.PvE;
-using WrathCombo.Combos.PvE.Enums;
-using WrathCombo.Core;
-using WrathCombo.CustomComboNS;
-using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Extensions;
-using WrathCombo.Services;
-using WrathCombo.Services.IPC_Subscriber;
-using WrathCombo.Window.Functions;
-using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
-using static WrathCombo.CustomComboNS.Functions.Jobs;
-using static WrathCombo.Data.ActionWatching;
+using GluttonyCombo.API.Enum;
+using GluttonyCombo.Combos.PvE;
+using GluttonyCombo.Combos.PvE.Enums;
+using GluttonyCombo.Core;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Extensions;
+using GluttonyCombo.Services;
+using GluttonyCombo.Services.IPC_Subscriber;
+using GluttonyCombo.Window.Functions;
+using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
+using static GluttonyCombo.CustomComboNS.Functions.Jobs;
+using static GluttonyCombo.Data.ActionWatching;
 using ActionType = FFXIVClientStructs.FFXIV.Client.Game.ActionType;
 
 #endregion
 
-namespace WrathCombo.AutoRotation;
+namespace GluttonyCombo.AutoRotation;
 
 internal unsafe class AutoRotationController
 {

@@ -1,6 +1,6 @@
-﻿using Dalamud.Game.ClientState.Objects.Types;
+using Dalamud.Game.ClientState.Objects.Types;
 using ECommons.GameFunctions;
-namespace WrathCombo.Extensions;
+namespace GluttonyCombo.Extensions;
 
 internal static class TargetExtensions
 {

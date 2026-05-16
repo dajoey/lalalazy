@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 using ECommons.DalamudServices;
 using ECommons.ExcelServices;
@@ -7,18 +7,18 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
-using WrathCombo.API.Enum;
-using WrathCombo.Attributes;
-using WrathCombo.Core;
-using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Extensions;
-using WrathCombo.Window.Tabs;
+using GluttonyCombo.API.Enum;
+using GluttonyCombo.Attributes;
+using GluttonyCombo.Core;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Extensions;
+using GluttonyCombo.Window.Tabs;
 using EZ = ECommons.Throttlers.EzThrottler;
 using TS = System.TimeSpan;
 
 #endregion
 
-namespace WrathCombo.Services.IPC;
+namespace GluttonyCombo.Services.IPC;
 
 public class Search(Leasing leasing)
 {
@@ -207,7 +207,7 @@ public class Search(Leasing leasing)
             pluginConfig =
                 pluginConfig
                     [..pluginConfig.LastIndexOf(Path.DirectorySeparatorChar)];
-            pluginConfig = Path.Combine(pluginConfig, "WrathCombo.json");
+            pluginConfig = Path.Combine(pluginConfig, "GluttonyCombo.json");
             return pluginConfig;
         }
     }
@@ -391,7 +391,7 @@ public class Search(Leasing leasing)
     {
         get
         {
-            Job job = (WrathCombo.JobID!.Value).GetUpgradedJob();
+            Job job = (GluttonyCombo.JobID!.Value).GetUpgradedJob();
 
             if (field != null && field.ContainsKey(job))
                 return field;

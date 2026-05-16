@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 using Dalamud.Interface.Colors;
 using ECommons.ExcelServices;
@@ -8,20 +8,20 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using WrathCombo.API.Attribute;
-using WrathCombo.API.Enum;
-using WrathCombo.Extensions;
+using GluttonyCombo.API.Attribute;
+using GluttonyCombo.API.Enum;
+using GluttonyCombo.Extensions;
 
 // ReSharper disable VariableHidesOuterVariable
 
 #endregion
 
-namespace WrathCombo.Services.IPC;
+namespace GluttonyCombo.Services.IPC;
 
 public class UIHelper(Leasing leasing)
 {
     private readonly Leasing _leasing = leasing;
-    private readonly Search _search = P.IPCSearch;
+    private readonly Search _search = GluttonyCombo.P.IPCSearch;
 
     #region Checks for the UI
 

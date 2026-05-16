@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-namespace WrathCombo.Extensions;
+namespace GluttonyCombo.Extensions;
 
 internal static class ListExtensions
 {

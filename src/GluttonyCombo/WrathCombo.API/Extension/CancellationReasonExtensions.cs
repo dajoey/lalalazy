@@ -1,12 +1,12 @@
-﻿#region
+#region
 
 using System.ComponentModel;
 using System.Reflection;
-using WrathCombo.API.Enum;
+using GluttonyCombo.API.Enum;
 
 #endregion
 
-namespace WrathCombo.API.Extension;
+namespace GluttonyCombo.API.Extension;
 
 /// <summary>
 ///     Extension methods for <see cref="CancellationReason" />.

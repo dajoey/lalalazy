@@ -1,11 +1,11 @@
-﻿using Dalamud.Interface.Colors;
-using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Extensions;
-using WrathCombo.Resources.Localization.JobConfigs;
-using static WrathCombo.Window.Functions.SliderIncrements;
-using static WrathCombo.Window.Functions.UserConfig;
-using static WrathCombo.Window.Text;
-namespace WrathCombo.Combos.PvE;
+using Dalamud.Interface.Colors;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Extensions;
+using GluttonyCombo.Resources.Localization.JobConfigs;
+using static GluttonyCombo.Window.Functions.SliderIncrements;
+using static GluttonyCombo.Window.Functions.UserConfig;
+using static GluttonyCombo.Window.Text;
+namespace GluttonyCombo.Combos.PvE;
 internal partial class RDM
 {
     internal static class Config

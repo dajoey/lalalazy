@@ -1,12 +1,12 @@
 #region
 using System.Linq;
 using ECommons.GameFunctions;
-using WrathCombo.AutoRotation;
-using WrathCombo.Core;
-using WrathCombo.CustomComboNS;
-using WrathCombo.Data;
-using WrathCombo.Extensions;
-using static WrathCombo.Combos.PvE.WHM.Config;
+using GluttonyCombo.AutoRotation;
+using GluttonyCombo.Core;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.Data;
+using GluttonyCombo.Extensions;
+using static GluttonyCombo.Combos.PvE.WHM.Config;
 using EZ = ECommons.Throttlers.EzThrottler;
 using TS = System.TimeSpan;
 
@@ -19,7 +19,7 @@ using TS = System.TimeSpan;
 
 #endregion
 
-namespace WrathCombo.Combos.PvE;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class WHM : Healer
 {

@@ -1,12 +1,12 @@
-﻿using Dalamud.Game.ClientState.Objects.Types;
+using Dalamud.Game.ClientState.Objects.Types;
 using System;
-using WrathCombo.Core;
-using WrathCombo.CustomComboNS;
-using WrathCombo.Data;
-using WrathCombo.Extensions;
-using static WrathCombo.Combos.PvE.PLD.Config;
+using GluttonyCombo.Core;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.Data;
+using GluttonyCombo.Extensions;
+using static GluttonyCombo.Combos.PvE.PLD.Config;
 
-namespace WrathCombo.Combos.PvE;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class PLD : Tank
 {
@@ -41,7 +41,7 @@ internal partial class PLD : Tank
             if (ContentSpecificActions.TryGet(out uint contentAction))
                 return contentAction;
 
-            if (PLD_ST_MitOptions != 1 || P.UIHelper.PresetControlled(Preset)?.enabled == true)
+            if (PLD_ST_MitOptions != 1 || GluttonyCombo.P.UIHelper.PresetControlled(Preset)?.enabled == true)
             {
                 if (TryUseMits(RotationMode.Simple, ref actionID))
                     return actionID;
@@ -201,7 +201,7 @@ internal partial class PLD : Tank
             if (ContentSpecificActions.TryGet(out uint contentAction))
                 return contentAction;
 
-            if (PLD_AoE_MitOptions != 1 || P.UIHelper.PresetControlled(Preset)?.enabled == true)
+            if (PLD_AoE_MitOptions != 1 || GluttonyCombo.P.UIHelper.PresetControlled(Preset)?.enabled == true)
             {
                 if (TryUseMits(RotationMode.Simple, ref actionID))
                     return actionID;
@@ -300,7 +300,7 @@ internal partial class PLD : Tank
             if (ContentSpecificActions.TryGet(out uint contentAction))
                 return contentAction;
 
-            if (PLD_ST_Advanced_MitOptions != 1 || P.UIHelper.PresetControlled(Preset)?.enabled == true)
+            if (PLD_ST_Advanced_MitOptions != 1 || GluttonyCombo.P.UIHelper.PresetControlled(Preset)?.enabled == true)
             {
                 if (TryUseMits(RotationMode.Advanced, ref actionID))
                     return actionID;
@@ -477,7 +477,7 @@ internal partial class PLD : Tank
             if (ContentSpecificActions.TryGet(out uint contentAction))
                 return contentAction;
 
-            if (PLD_AoE_Advanced_MitOptions != 1 || P.UIHelper.PresetControlled(Preset)?.enabled == true)
+            if (PLD_AoE_Advanced_MitOptions != 1 || GluttonyCombo.P.UIHelper.PresetControlled(Preset)?.enabled == true)
             {
                 if (TryUseMits(RotationMode.Advanced, ref actionID))
                     return actionID;

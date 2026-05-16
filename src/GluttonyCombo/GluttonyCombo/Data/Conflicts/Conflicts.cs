@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 using Dalamud.Plugin;
 using ECommons.DalamudServices;
@@ -8,7 +8,7 @@ using System.Linq;
 
 #endregion
 
-namespace WrathCombo.Data.Conflicts;
+namespace GluttonyCombo.Data.Conflicts;
 
 /// The different types of conflicts that are checked for.
 public enum ConflictType

@@ -1,4 +1,4 @@
-﻿using Dalamud.Game;
+using Dalamud.Game;
 using ECommons.DalamudServices;
 using ECommons.ExcelServices;
 using Lumina.Excel.Sheets;
@@ -8,19 +8,19 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Resources;
 using System.Threading;
-using WrathCombo.Core;
-using WrathCombo.Resources.Localization.JobConfigs;
-using WrathCombo.Resources.Localization.Misc;
-using WrathCombo.Resources.Localization.Presets;
-using WrathCombo.Resources.Localization.UI.AutoRotation;
-using WrathCombo.Resources.Localization.UI.Features;
-using WrathCombo.Resources.Localization.UI.MainWindow;
-using WrathCombo.Resources.Localization.UI.Misc;
-using WrathCombo.Resources.Localization.UI.Settings;
-using WrathCombo.Window.Functions;
-using WrathCombo.Window.Tabs;
+using GluttonyCombo.Core;
+using GluttonyCombo.Resources.Localization.JobConfigs;
+using GluttonyCombo.Resources.Localization.Misc;
+using GluttonyCombo.Resources.Localization.Presets;
+using GluttonyCombo.Resources.Localization.UI.AutoRotation;
+using GluttonyCombo.Resources.Localization.UI.Features;
+using GluttonyCombo.Resources.Localization.UI.MainWindow;
+using GluttonyCombo.Resources.Localization.UI.Misc;
+using GluttonyCombo.Resources.Localization.UI.Settings;
+using GluttonyCombo.Window.Functions;
+using GluttonyCombo.Window.Tabs;
 
-namespace WrathCombo.Window
+namespace GluttonyCombo.Window
 {
     internal static class Text
     {

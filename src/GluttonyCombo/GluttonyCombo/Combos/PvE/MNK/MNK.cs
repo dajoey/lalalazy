@@ -1,7 +1,7 @@
-using WrathCombo.Core;
-using WrathCombo.CustomComboNS;
-using static WrathCombo.Combos.PvE.MNK.Config;
-namespace WrathCombo.Combos.PvE;
+using GluttonyCombo.Core;
+using GluttonyCombo.CustomComboNS;
+using static GluttonyCombo.Combos.PvE.MNK.Config;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class MNK : Melee
 {

@@ -2,16 +2,16 @@
 
 using ECommons.Logging;
 using System;
-using WrathCombo.Combos.PvE;
-using WrathCombo.Core;
-using WrathCombo.Services;
-using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
+using GluttonyCombo.Combos.PvE;
+using GluttonyCombo.Core;
+using GluttonyCombo.Services;
+using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
 
 // ReSharper disable ClassNeverInstantiated.Global
 
 #endregion
 
-namespace WrathCombo.Attributes;
+namespace GluttonyCombo.Attributes;
 
 /// <summary>
 ///     Flags a Preset as one that is Retargeted with

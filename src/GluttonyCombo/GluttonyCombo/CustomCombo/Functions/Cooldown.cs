@@ -1,10 +1,10 @@
 using Dalamud.Game.ClientState.Objects.Types;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using System;
-using WrathCombo.Data;
-using WrathCombo.Services;
-using static WrathCombo.Data.ActionWatching;
-namespace WrathCombo.CustomComboNS.Functions;
+using GluttonyCombo.Data;
+using GluttonyCombo.Services;
+using static GluttonyCombo.Data.ActionWatching;
+namespace GluttonyCombo.CustomComboNS.Functions;
 
 internal abstract partial class CustomComboFunctions
 {

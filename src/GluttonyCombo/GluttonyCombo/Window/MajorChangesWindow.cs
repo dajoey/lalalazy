@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
@@ -12,14 +12,14 @@ using FFXIVClientStructs.FFXIV.Common.Math;
 using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using WrathCombo.Core;
-using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
-using WrathCombo.Services;
+using GluttonyCombo.Core;
+using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
+using GluttonyCombo.Services;
 using Vector4 = System.Numerics.Vector4;
 
 #endregion
 
-namespace WrathCombo.Window;
+namespace GluttonyCombo.Window;
 
 internal class MajorChangesWindow : Dalamud.Interface.Windowing.Window
 {
@@ -78,15 +78,15 @@ internal class MajorChangesWindow : Dalamud.Interface.Windowing.Window
             "Mitigations");
         ImGui.NewLine();
         if (ImGui.Button("> Open Dark Knight's Config##majorSettings2"))
-            P.HandleOpenCommand(["DRK"], forceOpen: true);
+            GluttonyCombo.P.HandleOpenCommand(["DRK"], forceOpen: true);
         ImGui.SameLine();
         ImGui.Text("(then just search for 'Mitigation')");
         if (ImGui.Button("> Open Gun Breaker's Config##majorSettings2"))
-            P.HandleOpenCommand(["GNB"], forceOpen: true);
+            GluttonyCombo.P.HandleOpenCommand(["GNB"], forceOpen: true);
         if (ImGui.Button("> Open Paladin's Config##majorSettings3"))
-            P.HandleOpenCommand(["PLD"], forceOpen: true);
+            GluttonyCombo.P.HandleOpenCommand(["PLD"], forceOpen: true);
         if (ImGui.Button("> Open Warrior's Config##majorSettings4"))
-            P.HandleOpenCommand(["WAR"], forceOpen: true);
+            GluttonyCombo.P.HandleOpenCommand(["WAR"], forceOpen: true);
 
         #endregion
 

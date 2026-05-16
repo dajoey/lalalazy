@@ -1,7 +1,7 @@
-﻿#region
+#region
 
 using Dalamud.Plugin.Ipc;
-using WrathCombo.API.Enum;
+using GluttonyCombo.API.Enum;
 
 // ReSharper disable MemberHidesStaticFromOuterClass
 // ReSharper disable RedundantSuppressNullableWarningExpression
@@ -9,7 +9,7 @@ using WrathCombo.API.Enum;
 
 #endregion
 
-namespace WrathCombo.API;
+namespace GluttonyCombo.API;
 
 public static partial class WrathIPCWrapper
 {

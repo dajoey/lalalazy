@@ -1,4 +1,4 @@
-﻿using Dalamud.Game.ClientState.Objects.Enums;
+using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
 using ECommons.DalamudServices;
@@ -13,12 +13,12 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using WrathCombo.AutoRotation;
-using WrathCombo.Combos.PvE;
-using WrathCombo.Extensions;
-using WrathCombo.Services;
+using GluttonyCombo.AutoRotation;
+using GluttonyCombo.Combos.PvE;
+using GluttonyCombo.Extensions;
+using GluttonyCombo.Services;
 using BattleNpcSubKindCS = FFXIVClientStructs.FFXIV.Client.Game.Object.BattleNpcSubKind;
-namespace WrathCombo.CustomComboNS.Functions;
+namespace GluttonyCombo.CustomComboNS.Functions;
 
 internal abstract partial class CustomComboFunctions
 {

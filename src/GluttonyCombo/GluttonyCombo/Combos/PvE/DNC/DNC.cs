@@ -1,10 +1,10 @@
-﻿#region
+#region
 
-using WrathCombo.Combos.PvE.Enums;
-using WrathCombo.Core;
-using WrathCombo.CustomComboNS;
-using WrathCombo.Data;
-using static WrathCombo.Combos.PvE.DNC.Config;
+using GluttonyCombo.Combos.PvE.Enums;
+using GluttonyCombo.Core;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.Data;
+using static GluttonyCombo.Combos.PvE.DNC.Config;
 
 // ReSharper disable UnusedType.Global
 // ReSharper disable ClassNeverInstantiated.Global
@@ -13,7 +13,7 @@ using static WrathCombo.Combos.PvE.DNC.Config;
 
 #endregion
 
-namespace WrathCombo.Combos.PvE;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class DNC : PhysicalRanged
 {

@@ -1,8 +1,8 @@
-﻿using Dalamud.Game.ClientState.JobGauge.Types;
+using Dalamud.Game.ClientState.JobGauge.Types;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
-using WrathCombo.Data;
-using WrathCombo.Services;
-namespace WrathCombo.CustomComboNS.Functions;
+using GluttonyCombo.Data;
+using GluttonyCombo.Services;
+namespace GluttonyCombo.CustomComboNS.Functions;
 
 internal abstract partial class CustomComboFunctions
 {

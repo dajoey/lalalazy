@@ -1,8 +1,8 @@
-﻿using ECommons.DalamudServices;
+using ECommons.DalamudServices;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using System;
-using WrathCombo.Services.ActionRequestIPC;
-namespace WrathCombo.Data;
+using GluttonyCombo.Services.ActionRequestIPC;
+namespace GluttonyCombo.Data;
 using Action = Lumina.Excel.Sheets.Action;
 
 internal class CooldownData

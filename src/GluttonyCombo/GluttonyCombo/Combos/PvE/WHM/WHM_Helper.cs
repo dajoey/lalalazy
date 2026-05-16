@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 using System;
 using Dalamud.Game.ClientState.JobGauge.Types;
@@ -6,13 +6,13 @@ using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Game.ClientState.Statuses;
 using System.Collections.Generic;
 using ECommons.GameFunctions;
-using WrathCombo.CustomComboNS;
-using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Data;
-using WrathCombo.Extensions;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Data;
+using GluttonyCombo.Extensions;
 using TS = System.TimeSpan;
-using static WrathCombo.Combos.PvE.WHM.Config;
-using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
+using static GluttonyCombo.Combos.PvE.WHM.Config;
+using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
 
 // ReSharper disable AccessToStaticMemberViaDerivedType
 // ReSharper disable ConditionIsAlwaysTrueOrFalse
@@ -26,7 +26,7 @@ using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
 
 #endregion
 
-namespace WrathCombo.Combos.PvE;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class WHM
 {

@@ -1,6 +1,6 @@
-using WrathCombo.Combos.PvE.Content;
+using GluttonyCombo.Combos.PvE.Content;
 
-namespace WrathCombo.Combos.PvE;
+namespace GluttonyCombo.Combos.PvE;
 
 /// <summary>
 ///     This class is used to organize the TryGet methods for specific,

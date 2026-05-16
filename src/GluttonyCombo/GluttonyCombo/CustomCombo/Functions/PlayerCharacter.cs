@@ -1,4 +1,4 @@
-﻿using Dalamud.Game.ClientState.Conditions;
+using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Memory;
 using ECommons.DalamudServices;
@@ -11,10 +11,10 @@ using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using System;
 using System.Linq;
-using WrathCombo.Combos.PvE;
-using WrathCombo.Data;
+using GluttonyCombo.Combos.PvE;
+using GluttonyCombo.Data;
 using GameMain = FFXIVClientStructs.FFXIV.Client.Game.GameMain;
-namespace WrathCombo.CustomComboNS.Functions;
+namespace GluttonyCombo.CustomComboNS.Functions;
 
 internal abstract partial class CustomComboFunctions
 {

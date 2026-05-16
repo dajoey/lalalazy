@@ -1,4 +1,4 @@
-﻿using Dalamud.Game.ClientState.Conditions;
+using Dalamud.Game.ClientState.Conditions;
 using ECommons.DalamudServices;
 using ECommons.ExcelServices;
 using ECommons.GameHelpers;
@@ -6,14 +6,14 @@ using ECommons.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using WrathCombo.Combos.PvE;
-using WrathCombo.Combos.PvE.Enums;
-using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Data;
-using WrathCombo.Extensions;
-using WrathCombo.Services;
-using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
-namespace WrathCombo.CustomComboNS;
+using GluttonyCombo.Combos.PvE;
+using GluttonyCombo.Combos.PvE.Enums;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Data;
+using GluttonyCombo.Extensions;
+using GluttonyCombo.Services;
+using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
+namespace GluttonyCombo.CustomComboNS;
 
 public abstract class WrathOpener
 {

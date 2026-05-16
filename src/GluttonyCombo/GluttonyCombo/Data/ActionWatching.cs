@@ -17,16 +17,16 @@ using System.Linq;
 using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
-using WrathCombo.AutoRotation;
-using WrathCombo.Combos.PvE;
-using WrathCombo.CustomComboNS;
-using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Extensions;
-using WrathCombo.Services;
+using GluttonyCombo.AutoRotation;
+using GluttonyCombo.Combos.PvE;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Extensions;
+using GluttonyCombo.Services;
 using static FFXIVClientStructs.FFXIV.Client.Game.Character.ActionEffectHandler;
-using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
+using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
 using Action = Lumina.Excel.Sheets.Action;
-namespace WrathCombo.Data;
+namespace GluttonyCombo.Data;
 
 public static class ActionWatching
 {
@@ -311,9 +311,9 @@ public static class ActionWatching
     {
         try
         {
-            if (P.IPC.OnActionUsedProvider.SubscriptionCount > 0)
+            if (GluttonyCombo.P.IPC.OnActionUsedProvider.SubscriptionCount > 0)
             {
-                P.IPC.OnActionUsedProvider.SendMessage((ActionType)actionType, actionId);
+                GluttonyCombo.P.IPC.OnActionUsedProvider.SendMessage((ActionType)actionType, actionId);
             }
             if (actionType is 1)
             {
@@ -570,7 +570,7 @@ public static class ActionWatching
     public static bool CheckForChangedTarget(uint actionId, ref ulong targetObjectId, out uint replacedWith)
     {
         replacedWith = actionId;
-        if (!P.ActionRetargeting.TryGetTargetFor(actionId, out var target, out replacedWith) ||
+        if (!GluttonyCombo.P.ActionRetargeting.TryGetTargetFor(actionId, out var target, out replacedWith) ||
             target is null)
             return false;
 

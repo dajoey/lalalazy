@@ -1,11 +1,11 @@
 using Dalamud.Game.ClientState.JobGauge.Types;
 using System.Linq;
 using Dalamud.Game.ClientState.Objects.Types;
-using WrathCombo.Core;
-using WrathCombo.CustomComboNS;
-using WrathCombo.Extensions;
-using static WrathCombo.Combos.PvE.SMN.Config;
-namespace WrathCombo.Combos.PvE;
+using GluttonyCombo.Core;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.Extensions;
+using static GluttonyCombo.Combos.PvE.SMN.Config;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class SMN : Caster
 {

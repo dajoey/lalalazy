@@ -1,14 +1,14 @@
 #region
 
 using System;
-using WrathCombo.Resources.Localization.UI.Settings;
+using GluttonyCombo.Resources.Localization.UI.Settings;
 // ReSharper disable ClassNeverInstantiated.Global
 
 #endregion
 
 // ReSharper disable InconsistentNaming
 
-namespace WrathCombo.Attributes;
+namespace GluttonyCombo.Attributes;
 
 [AttributeUsage(AttributeTargets.Field)]
 public class SettingCategory(SettingCategory.Category category) : Attribute

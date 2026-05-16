@@ -1,11 +1,11 @@
-﻿#region
+#region
 
 using ECommons.ExcelServices;
-using WrathCombo.Attributes;
-using WrathCombo.Combos.PvE;
-using WrathCombo.Combos.PvP;
-using static WrathCombo.Attributes.PossiblyRetargetedAttribute;
-using JobRole = WrathCombo.CustomComboNS.Functions.Jobs.JobRole;
+using GluttonyCombo.Attributes;
+using GluttonyCombo.Combos.PvE;
+using GluttonyCombo.Combos.PvP;
+using static GluttonyCombo.Attributes.PossiblyRetargetedAttribute;
+using JobRole = GluttonyCombo.CustomComboNS.Functions.Jobs.JobRole;
 
 // ReSharper disable EmptyRegion
 // ReSharper disable InconsistentNaming
@@ -15,7 +15,7 @@ using JobRole = WrathCombo.CustomComboNS.Functions.Jobs.JobRole;
 
 #endregion
 
-namespace WrathCombo.Combos;
+namespace GluttonyCombo.Combos;
 
 /// <summary> Combo presets. </summary>
 public enum Preset

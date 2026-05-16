@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility.Raii;
@@ -9,17 +9,17 @@ using ECommons.ImGuiMethods;
 using Lumina.Excel.Sheets;
 using System;
 using System.Linq;
-using WrathCombo.Combos.PvE;
-using WrathCombo.Extensions;
-using WrathCombo.Services;
-using WrathCombo.Services.IPC_Subscriber;
-using WrathCombo.API.Enum;
-using WrathCombo.Resources.Localization.UI.AutoRotation;
-using static WrathCombo.Window.Text.Misc.Strings;
+using GluttonyCombo.Combos.PvE;
+using GluttonyCombo.Extensions;
+using GluttonyCombo.Services;
+using GluttonyCombo.Services.IPC_Subscriber;
+using GluttonyCombo.API.Enum;
+using GluttonyCombo.Resources.Localization.UI.AutoRotation;
+using static GluttonyCombo.Window.Text.Misc.Strings;
 
 #endregion
 
-namespace WrathCombo.Window.Tabs;
+namespace GluttonyCombo.Window.Tabs;
 
 internal class AutoRotationTab : ConfigWindow
 {
@@ -32,17 +32,17 @@ internal class AutoRotationTab : ConfigWindow
         var cfg = Service.Configuration.RotationConfig;
         bool changed = false;
 
-        if (P.UIHelper.ShowIPCControlledIndicatorIfNeeded())
-            changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
+        if (GluttonyCombo.P.UIHelper.ShowIPCControlledIndicatorIfNeeded())
+            changed |= GluttonyCombo.P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
                 AutoRotationUI.Checkbox_EnableAutoRotation, ref cfg.Enabled);
         else
             changed |= ImGui.Checkbox(AutoRotationUI.Checkbox_EnableAutoRotation, ref cfg.Enabled);
-        if (P.IPC.GetAutoRotationState())
+        if (GluttonyCombo.P.IPC.GetAutoRotationState())
         {
-            var inCombatOnly = (bool)P.IPC.GetAutoRotationConfigState(
+            var inCombatOnly = (bool)GluttonyCombo.P.IPC.GetAutoRotationConfigState(
                 Enum.Parse<AutoRotationConfigOption>("InCombatOnly"))!;
             ImGuiExtensions.Prefix(!inCombatOnly);
-            changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
+            changed |= GluttonyCombo.P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
                 AutoRotationUI.Checkbox_OnlyInCombat, ref cfg.InCombatOnly, "InCombatOnly");
 
             if (inCombatOnly)
@@ -57,11 +57,11 @@ internal class AutoRotationTab : ConfigWindow
                 );
 
                 ImGuiExtensions.Prefix(false);
-                changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(AutoRotationUI.Checkbox_BypassQuestTargets, ref cfg.BypassQuest, "BypassQuest");
+                changed |= GluttonyCombo.P.UIHelper.ShowIPCControlledCheckboxIfNeeded(AutoRotationUI.Checkbox_BypassQuestTargets, ref cfg.BypassQuest, "BypassQuest");
                 ImGuiComponents.HelpMarker(AutoRotationUI.HelpText_BypassQuestTargets);
 
                 ImGuiExtensions.Prefix(false);
-                changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(AutoRotationUI.Checkbox_BypassFATETargets, ref cfg.BypassFATE, "BypassFATE");
+                changed |= GluttonyCombo.P.UIHelper.ShowIPCControlledCheckboxIfNeeded(AutoRotationUI.Checkbox_BypassFATETargets, ref cfg.BypassFATE, "BypassFATE");
                 ImGuiComponents.HelpMarker(AutoRotationUI.HelpText_BypassFATETargets);
 
                 ImGuiExtensions.Prefix(true);
@@ -89,8 +89,8 @@ internal class AutoRotationTab : ConfigWindow
         {
             ImGuiEx.TextUnderlined(AutoRotationUI.Label_DPSTargetingMode);
 
-            P.UIHelper.ShowIPCControlledIndicatorIfNeeded("DPSRotationMode");
-            changed |= P.UIHelper.ShowIPCControlledComboIfNeeded(
+            GluttonyCombo.P.UIHelper.ShowIPCControlledIndicatorIfNeeded("DPSRotationMode");
+            changed |= GluttonyCombo.P.UIHelper.ShowIPCControlledComboIfNeeded(
                 "###DPSTargetingMode", true, ref cfg.DPSRotationMode,
                 ref cfg.HealerRotationMode, "DPSRotationMode");
 
@@ -105,8 +105,8 @@ internal class AutoRotationTab : ConfigWindow
             }
 
 
-            P.UIHelper.ShowIPCControlledIndicatorIfNeeded("DPSAoETargets");
-            var input = P.UIHelper.ShowIPCControlledNumberInputIfNeeded(
+            GluttonyCombo.P.UIHelper.ShowIPCControlledIndicatorIfNeeded("DPSAoETargets");
+            var input = GluttonyCombo.P.UIHelper.ShowIPCControlledNumberInputIfNeeded(
                 AutoRotationUI.Input_AoETargetCount, ref cfg.DPSSettings.DPSAoETargets, "DPSAoETargets");
             if (input)
             {
@@ -123,23 +123,23 @@ internal class AutoRotationTab : ConfigWindow
 
             ImGuiComponents.HelpMarker(AutoRotationUI.HelpText_DPSMaxTargetDistance);
 
-            P.UIHelper.ShowIPCControlledIndicatorIfNeeded("IgnoreRangeInBoss");
-            changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(AutoRotationUI.Label_IgnoreRangeInBoss, ref cfg.DPSSettings.IgnoreRangeInBoss, "IgnoreRangeInBoss");
+            GluttonyCombo.P.UIHelper.ShowIPCControlledIndicatorIfNeeded("IgnoreRangeInBoss");
+            changed |= GluttonyCombo.P.UIHelper.ShowIPCControlledCheckboxIfNeeded(AutoRotationUI.Label_IgnoreRangeInBoss, ref cfg.DPSSettings.IgnoreRangeInBoss, "IgnoreRangeInBoss");
 
             ImGuiComponents.HelpMarker(AutoRotationUI.HelpText_IgnoreRangeInBoss);
 
-            P.UIHelper.ShowIPCControlledIndicatorIfNeeded("FATEPriority");
-            changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
+            GluttonyCombo.P.UIHelper.ShowIPCControlledIndicatorIfNeeded("FATEPriority");
+            changed |= GluttonyCombo.P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
                 AutoRotationUI.Checkbox_FATEPriority, ref cfg.DPSSettings.FATEPriority, "FATEPriority");
-            P.UIHelper.ShowIPCControlledIndicatorIfNeeded("QuestPriority");
-            changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
+            GluttonyCombo.P.UIHelper.ShowIPCControlledIndicatorIfNeeded("QuestPriority");
+            changed |= GluttonyCombo.P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
                 AutoRotationUI.Checkbox_QuestPriority, ref cfg.DPSSettings.QuestPriority, "QuestPriority");
             changed |= ImGui.Checkbox(AutoRotationUI.Checkbox_PreferNonCombat, ref cfg.DPSSettings.PreferNonCombat);
 
             if (cfg.DPSSettings.PreferNonCombat && changed)
                 cfg.DPSSettings.OnlyAttackInCombat = false;
 
-            changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
+            changed |= GluttonyCombo.P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
                 AutoRotationUI.Checkbox_OnlyAttackInCombat, ref cfg.DPSSettings.OnlyAttackInCombat,
                 "OnlyAttackInCombat");
 
@@ -150,7 +150,7 @@ internal class AutoRotationTab : ConfigWindow
 
             ImGuiComponents.HelpMarker(AutoRotationUI.HelpText_UnTargetAndDisableForPenalty);
 
-            changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(AutoRotationUI.Checkbox_DPSAlwaysHardTarget, ref cfg.DPSSettings.DPSAlwaysHardTarget, "DPSAlwaysHardTarget");
+            changed |= GluttonyCombo.P.UIHelper.ShowIPCControlledCheckboxIfNeeded(AutoRotationUI.Checkbox_DPSAlwaysHardTarget, ref cfg.DPSSettings.DPSAlwaysHardTarget, "DPSAlwaysHardTarget");
 
             ImGuiComponents.HelpMarker(AutoRotationUI.HelpText_DPSAlwaysHardTarget);
 
@@ -196,28 +196,28 @@ internal class AutoRotationTab : ConfigWindow
         if (ImGui.CollapsingHeader(AutoRotationUI.Header_HealingSettings))
         {
             ImGuiEx.TextUnderlined(AutoRotationUI.Label_HealingTargetingMode);
-            P.UIHelper.ShowIPCControlledIndicatorIfNeeded("HealerRotationMode");
-            changed |= P.UIHelper.ShowIPCControlledComboIfNeeded(
+            GluttonyCombo.P.UIHelper.ShowIPCControlledIndicatorIfNeeded("HealerRotationMode");
+            changed |= GluttonyCombo.P.UIHelper.ShowIPCControlledComboIfNeeded(
                 "###HealerTargetingMode", false, ref cfg.DPSRotationMode,
                 ref cfg.HealerRotationMode, "HealerRotationMode");
             ImGuiComponents.HelpMarker(AutoRotationUI.HelpText_HealerTargetingMode);
 
-            P.UIHelper.ShowIPCControlledIndicatorIfNeeded("SingleTargetHPP");
-            changed |= P.UIHelper.ShowIPCControlledSliderIfNeeded(
+            GluttonyCombo.P.UIHelper.ShowIPCControlledIndicatorIfNeeded("SingleTargetHPP");
+            changed |= GluttonyCombo.P.UIHelper.ShowIPCControlledSliderIfNeeded(
                 AutoRotationUI.Slider_SingleTargetHPP, ref cfg.HealerSettings.SingleTargetHPP, "SingleTargetHPP");
 
-            P.UIHelper.ShowIPCControlledIndicatorIfNeeded("SingleTargetRegenHPP");
-            changed |= P.UIHelper.ShowIPCControlledSliderIfNeeded(
+            GluttonyCombo.P.UIHelper.ShowIPCControlledIndicatorIfNeeded("SingleTargetRegenHPP");
+            changed |= GluttonyCombo.P.UIHelper.ShowIPCControlledSliderIfNeeded(
                 AutoRotationUI.Slider_SingleTargetRegenHPP, ref cfg.HealerSettings.SingleTargetRegenHPP, "SingleTargetRegenHPP");
             ImGuiComponents.HelpMarker(AutoRotationUI.HelpText_SingleTargetRegenHPP);
 
-            P.UIHelper.ShowIPCControlledIndicatorIfNeeded("SingleTargetExcogHPP");
-            changed |= P.UIHelper.ShowIPCControlledSliderIfNeeded(
+            GluttonyCombo.P.UIHelper.ShowIPCControlledIndicatorIfNeeded("SingleTargetExcogHPP");
+            changed |= GluttonyCombo.P.UIHelper.ShowIPCControlledSliderIfNeeded(
                 AutoRotationUI.Slider_SingleTargetExcogHPP, ref cfg.HealerSettings.SingleTargetExcogHPP, "SingleTargetExcogHPP");
             ImGuiComponents.HelpMarker(AutoRotationUI.HelpText_SingleTargetExcogHPP);
 
-            P.UIHelper.ShowIPCControlledIndicatorIfNeeded("AoETargetHPP");
-            changed |= P.UIHelper.ShowIPCControlledSliderIfNeeded(
+            GluttonyCombo.P.UIHelper.ShowIPCControlledIndicatorIfNeeded("AoETargetHPP");
+            changed |= GluttonyCombo.P.UIHelper.ShowIPCControlledSliderIfNeeded(
                 AutoRotationUI.Slider_AoETargetHPP, ref cfg.HealerSettings.AoETargetHPP, "AoETargetHPP");
 
             var input = ImGuiEx.InputInt(100f.Scale(), AutoRotationUI.Input_AoEHealTargetCount, ref cfg.HealerSettings.AoEHealTargetCount);
@@ -237,8 +237,8 @@ internal class AutoRotationTab : ConfigWindow
 
             ImGui.Spacing();
 
-            P.UIHelper.ShowIPCControlledIndicatorIfNeeded("AutoRez");
-            changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
+            GluttonyCombo.P.UIHelper.ShowIPCControlledIndicatorIfNeeded("AutoRez");
+            changed |= GluttonyCombo.P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
                 AutoRotationUI.Checkbox_AutoRez, ref cfg.HealerSettings.AutoRez, "AutoRez");
             ImGuiComponents.HelpMarker(
                 Text.FormatAndCache(AutoRotationUI.HelpText_AutoRez,
@@ -253,12 +253,12 @@ internal class AutoRotationTab : ConfigWindow
                     OccultCrescent.Revive.ActionName()
                 )
             );
-            var autoRez = (bool)P.IPC.GetAutoRotationConfigState(AutoRotationConfigOption.AutoRez)!;
+            var autoRez = (bool)GluttonyCombo.P.IPC.GetAutoRotationConfigState(AutoRotationConfigOption.AutoRez)!;
             if (autoRez)
             {
                 ImGuiExtensions.Prefix(false);
-                P.UIHelper.ShowIPCControlledIndicatorIfNeeded("AutoRezOutOfParty");
-                changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
+                GluttonyCombo.P.UIHelper.ShowIPCControlledIndicatorIfNeeded("AutoRezOutOfParty");
+                changed |= GluttonyCombo.P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
                     AutoRotationUI.Checkbox_AutoRezOutOfParty, ref cfg.HealerSettings.AutoRezOutOfParty, "AutoRezOutOfParty");
 
                 ImGuiExtensions.Prefix(false);
@@ -276,8 +276,8 @@ internal class AutoRotationTab : ConfigWindow
                 );
 
                 ImGuiExtensions.Prefix(true);
-                P.UIHelper.ShowIPCControlledIndicatorIfNeeded("AutoRezDPSJobs");
-                changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
+                GluttonyCombo.P.UIHelper.ShowIPCControlledIndicatorIfNeeded("AutoRezDPSJobs");
+                changed |= GluttonyCombo.P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
                     Text.FormatAndCache(
                         AutoRotationUI.Checkbox_AutoRezDPSJobs,
                         Job.SMN.Shorthand(),
@@ -297,8 +297,8 @@ internal class AutoRotationTab : ConfigWindow
                 if (cfg.HealerSettings.AutoRezDPSJobs)
                 {
                     ImGuiExtensions.Prefix(true);
-                    P.UIHelper.ShowIPCControlledIndicatorIfNeeded("AutoRezDPSJobsHealersOnly");
-                    changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
+                    GluttonyCombo.P.UIHelper.ShowIPCControlledIndicatorIfNeeded("AutoRezDPSJobsHealersOnly");
+                    changed |= GluttonyCombo.P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
                         AutoRotationUI.Checkbox_AutoRezDPSJobsHealersOnly, ref cfg.HealerSettings.AutoRezDPSJobsHealersOnly, "AutoRezDPSJobsHealersOnly");
                     ImGuiComponents.HelpMarker(
                         Text.FormatAndCache(
@@ -310,8 +310,8 @@ internal class AutoRotationTab : ConfigWindow
                 }
             }
 
-            P.UIHelper.ShowIPCControlledIndicatorIfNeeded("AutoCleanse");
-            changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
+            GluttonyCombo.P.UIHelper.ShowIPCControlledIndicatorIfNeeded("AutoCleanse");
+            changed |= GluttonyCombo.P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
             	Text.FormatAndCache(
                     AutoRotationUI.Checkbox_AutoCleanse,
                     RoleActions.Healer.Esuna.ActionName()),
@@ -322,8 +322,8 @@ internal class AutoRotationTab : ConfigWindow
                     RoleActions.Healer.Esuna.ActionName())
             );
 
-            P.UIHelper.ShowIPCControlledIndicatorIfNeeded("ManageKardia");
-            changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
+            GluttonyCombo.P.UIHelper.ShowIPCControlledIndicatorIfNeeded("ManageKardia");
+            changed |= GluttonyCombo.P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
                 Text.FormatAndCache(
                     AutoRotationUI.Checkbox_ManageKardia,
                     Job.SGE.Shorthand(),
@@ -360,24 +360,24 @@ internal class AutoRotationTab : ConfigWindow
                     SGE.EukrasianDiagnosis.ActionName(),
                     SCH.Adloquium.ActionName()));
 
-            P.UIHelper.ShowIPCControlledIndicatorIfNeeded("IncludeNPCs");
-            changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
+            GluttonyCombo.P.UIHelper.ShowIPCControlledIndicatorIfNeeded("IncludeNPCs");
+            changed |= GluttonyCombo.P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
                 AutoRotationUI.Checkbox_IncludeNPCs,
                 ref cfg.HealerSettings.IncludeNPCs);
             ImGuiComponents.HelpMarker(AutoRotationUI.HelpText_IncludeNPCs);
 
-            changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
+            changed |= GluttonyCombo.P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
                 AutoRotationUI.Checkbox_HealerAlwaysHardTarget,
                 ref cfg.HealerSettings.HealerAlwaysHardTarget,
                 "HealerAlwaysHardTarget");
             ImGuiComponents.HelpMarker(AutoRotationUI.HelpText_HealerAlwaysHardTarget);
 
-            changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
+            changed |= GluttonyCombo.P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
                 AutoRotationUI.Checkbox_HandleRaidwides,
                 ref cfg.HealerSettings.HandleRaidwides);
             ImGuiComponents.HelpMarker(Text.FormatAndCache(AutoRotationUI.HelpText_HandleRaidwides, SGE.Eukrasia.ActionName()));
 
-            changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
+            changed |= GluttonyCombo.P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
                 AutoRotationUI.Checkbox_HandleTankbusters,
                 ref cfg.HealerSettings.HandleTankbusters);
             ImGuiComponents.HelpMarker(Text.FormatAndCache(AutoRotationUI.HelpText_HandleTankbusters, SGE.Eukrasia.ActionName()));
@@ -391,8 +391,8 @@ internal class AutoRotationTab : ConfigWindow
         var orbwalker = OrbwalkerIPC.IsEnabled && OrbwalkerIPC.PluginEnabled();
         using (ImRaii.Disabled(!orbwalker))
         {
-            P.UIHelper.ShowIPCControlledIndicatorIfNeeded("OrbwalkerIntegration");
-            changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
+            GluttonyCombo.P.UIHelper.ShowIPCControlledIndicatorIfNeeded("OrbwalkerIntegration");
+            changed |= GluttonyCombo.P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
                 AutoRotationUI.Checkbox_Orbwalker, ref cfg.OrbwalkerIntegration, "OrbwalkerIntegration");
 
             ImGuiComponents.HelpMarker(AutoRotationUI.HelpText_Orbwalker);

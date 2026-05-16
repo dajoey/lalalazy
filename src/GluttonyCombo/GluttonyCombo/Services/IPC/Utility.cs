@@ -1,13 +1,13 @@
-﻿using ECommons.EzIpcManager;
+using ECommons.EzIpcManager;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using WrathCombo.CustomComboNS.Functions;
+using GluttonyCombo.CustomComboNS.Functions;
 
-namespace WrathCombo.Services.IPC;
+namespace GluttonyCombo.Services.IPC;
 
 public partial class Provider
 {

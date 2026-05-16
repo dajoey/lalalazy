@@ -1,16 +1,16 @@
-﻿#region
+#region
 
 using System;
-using WrathCombo.API.Enum;
+using GluttonyCombo.API.Enum;
 
 #endregion
 
-namespace WrathCombo.AutoRotation;
+namespace GluttonyCombo.AutoRotation;
 
 public class AutoRotationConfigIPCWrapper(AutoRotationConfig? config)
 {
     public bool Enabled =>
-        P?.UIHelper.AutoRotationStateControlled()?.state ??
+        GluttonyCombo.P?.UIHelper.AutoRotationStateControlled()?.state ??
         config?.Enabled ??
         false;
 
@@ -19,7 +19,7 @@ public class AutoRotationConfigIPCWrapper(AutoRotationConfig? config)
         get
         {
             var checkControlled =
-                P.UIHelper.AutoRotationConfigControlled("InCombatOnly");
+                GluttonyCombo.P.UIHelper.AutoRotationConfigControlled("InCombatOnly");
             return checkControlled is not null
                 ? checkControlled.Value.state == 1
                 : config.InCombatOnly;
@@ -31,7 +31,7 @@ public class AutoRotationConfigIPCWrapper(AutoRotationConfig? config)
         get
         {
             var checkControlled =
-                P.UIHelper.AutoRotationConfigControlled("DPSRotationMode");
+                GluttonyCombo.P.UIHelper.AutoRotationConfigControlled("DPSRotationMode");
             return checkControlled is not null
                 ? Enum.Parse<DPSRotationMode>(checkControlled.Value.state.ToString())
                 : config.DPSRotationMode;
@@ -43,7 +43,7 @@ public class AutoRotationConfigIPCWrapper(AutoRotationConfig? config)
         get
         {
             var checkControlled =
-                P.UIHelper.AutoRotationConfigControlled("HealerRotationMode");
+                GluttonyCombo.P.UIHelper.AutoRotationConfigControlled("HealerRotationMode");
             return checkControlled is not null
                 ? Enum.Parse<HealerRotationMode>(
                     checkControlled.Value.state.ToString())
@@ -60,7 +60,7 @@ public class AutoRotationConfigIPCWrapper(AutoRotationConfig? config)
         get
         {
             var checkControlled =
-                P.UIHelper.AutoRotationConfigControlled("OrbwalkerIntegration");
+                GluttonyCombo.P.UIHelper.AutoRotationConfigControlled("OrbwalkerIntegration");
             return checkControlled is not null
                 ? checkControlled.Value.state == 1
                 : config.OrbwalkerIntegration;
@@ -72,7 +72,7 @@ public class AutoRotationConfigIPCWrapper(AutoRotationConfig? config)
         get
         {
             var checkControlled =
-                P.UIHelper.AutoRotationConfigControlled("BypassQuest");
+                GluttonyCombo.P.UIHelper.AutoRotationConfigControlled("BypassQuest");
             return checkControlled is not null
                 ? checkControlled.Value.state == 1
                 : config.BypassQuest;
@@ -84,7 +84,7 @@ public class AutoRotationConfigIPCWrapper(AutoRotationConfig? config)
         get
         {
             var checkControlled =
-                P.UIHelper.AutoRotationConfigControlled("BypassFATE");
+                GluttonyCombo.P.UIHelper.AutoRotationConfigControlled("BypassFATE");
             return checkControlled is not null
                 ? checkControlled.Value.state == 1
                 : config.BypassFATE;
@@ -111,7 +111,7 @@ public class DPSSettingsIPCWrapper(DPSSettings settings)
         get
         {
             var checkControlled =
-                P.UIHelper.AutoRotationConfigControlled("FATEPriority");
+                GluttonyCombo.P.UIHelper.AutoRotationConfigControlled("FATEPriority");
             return checkControlled is not null
                 ? checkControlled.Value.state == 1
                 : settings.FATEPriority;
@@ -123,7 +123,7 @@ public class DPSSettingsIPCWrapper(DPSSettings settings)
         get
         {
             var checkControlled =
-                P.UIHelper.AutoRotationConfigControlled("QuestPriority");
+                GluttonyCombo.P.UIHelper.AutoRotationConfigControlled("QuestPriority");
             return checkControlled is not null
                 ? checkControlled.Value.state == 1
                 : settings.QuestPriority;
@@ -135,7 +135,7 @@ public class DPSSettingsIPCWrapper(DPSSettings settings)
         get
         {
             var checkControlled =
-                P.UIHelper.AutoRotationConfigControlled("OnlyAttackInCombat");
+                GluttonyCombo.P.UIHelper.AutoRotationConfigControlled("OnlyAttackInCombat");
             return checkControlled is not null
                 ? checkControlled.Value.state == 1
                 : settings.OnlyAttackInCombat;
@@ -147,7 +147,7 @@ public class DPSSettingsIPCWrapper(DPSSettings settings)
         get
         {
             var checkControlled =
-                P.UIHelper.AutoRotationConfigControlled("DPSAoETargets");
+                GluttonyCombo.P.UIHelper.AutoRotationConfigControlled("DPSAoETargets");
             return checkControlled?.state ?? settings.DPSAoETargets;
         }
     }
@@ -157,7 +157,7 @@ public class DPSSettingsIPCWrapper(DPSSettings settings)
         get
         {
             var checkControlled =
-                P.UIHelper.AutoRotationConfigControlled("DPSAlwaysHardTarget");
+                GluttonyCombo.P.UIHelper.AutoRotationConfigControlled("DPSAlwaysHardTarget");
             return checkControlled is not null
                 ? checkControlled.Value.state == 1
                 : settings.DPSAlwaysHardTarget;
@@ -169,7 +169,7 @@ public class DPSSettingsIPCWrapper(DPSSettings settings)
         get
         {
             var checkControlled =
-                P.UIHelper.AutoRotationConfigControlled("IgnoreRangeInBoss");
+                GluttonyCombo.P.UIHelper.AutoRotationConfigControlled("IgnoreRangeInBoss");
             return checkControlled is not null
                 ? checkControlled.Value.state == 1
                 : settings.IgnoreRangeInBoss;
@@ -192,19 +192,19 @@ public class DPSSettingsIPCWrapper(DPSSettings settings)
 public class HealerSettingsIPCWrapper(HealerSettings settings)
 {
     public int SingleTargetHPP =>
-        P.UIHelper.AutoRotationConfigControlled("SingleTargetHPP")?.state
+        GluttonyCombo.P.UIHelper.AutoRotationConfigControlled("SingleTargetHPP")?.state
         ?? settings.SingleTargetHPP;
 
     public int AoETargetHPP =>
-        P.UIHelper.AutoRotationConfigControlled("AoETargetHPP")?.state
+        GluttonyCombo.P.UIHelper.AutoRotationConfigControlled("AoETargetHPP")?.state
         ?? settings.AoETargetHPP;
 
     public int SingleTargetExcogHPP =>
-        P.UIHelper.AutoRotationConfigControlled("SingleTargetExcogHPP")?.state
+        GluttonyCombo.P.UIHelper.AutoRotationConfigControlled("SingleTargetExcogHPP")?.state
         ?? settings.SingleTargetExcogHPP;
     
     public int SingleTargetRegenHPP =>
-        P.UIHelper.AutoRotationConfigControlled("SingleTargetRegenHPP")?.state
+        GluttonyCombo.P.UIHelper.AutoRotationConfigControlled("SingleTargetRegenHPP")?.state
         ?? settings.SingleTargetRegenHPP;
 
     public bool ManageKardia
@@ -212,7 +212,7 @@ public class HealerSettingsIPCWrapper(HealerSettings settings)
         get
         {
             var checkControlled =
-                P.UIHelper.AutoRotationConfigControlled("ManageKardia");
+                GluttonyCombo.P.UIHelper.AutoRotationConfigControlled("ManageKardia");
             return checkControlled is not null
                 ? checkControlled.Value.state == 1
                 : settings.ManageKardia;
@@ -224,7 +224,7 @@ public class HealerSettingsIPCWrapper(HealerSettings settings)
         get
         {
             var checkControlled =
-                P.UIHelper.AutoRotationConfigControlled("AutoRez");
+                GluttonyCombo.P.UIHelper.AutoRotationConfigControlled("AutoRez");
             return checkControlled is not null
                 ? checkControlled.Value.state == 1
                 : settings.AutoRez;
@@ -236,7 +236,7 @@ public class HealerSettingsIPCWrapper(HealerSettings settings)
         get
         {
             var checkControlled =
-                P.UIHelper.AutoRotationConfigControlled("AutoRezDPSJobs");
+                GluttonyCombo.P.UIHelper.AutoRotationConfigControlled("AutoRezDPSJobs");
             return checkControlled is not null
                 ? checkControlled.Value.state == 1
                 : settings.AutoRezDPSJobs;
@@ -248,7 +248,7 @@ public class HealerSettingsIPCWrapper(HealerSettings settings)
         get
         {
             var checkControlled =
-                P.UIHelper.AutoRotationConfigControlled("AutoRezOutOfParty");
+                GluttonyCombo.P.UIHelper.AutoRotationConfigControlled("AutoRezOutOfParty");
             return checkControlled is not null
                 ? checkControlled.Value.state == 1
                 : settings.AutoRezOutOfParty;
@@ -260,7 +260,7 @@ public class HealerSettingsIPCWrapper(HealerSettings settings)
         get
         {
             var checkControlled =
-                P.UIHelper.AutoRotationConfigControlled("AutoCleanse");
+                GluttonyCombo.P.UIHelper.AutoRotationConfigControlled("AutoCleanse");
             return checkControlled is not null
                 ? checkControlled.Value.state == 1
                 : settings.AutoCleanse;
@@ -272,7 +272,7 @@ public class HealerSettingsIPCWrapper(HealerSettings settings)
         get
         {
             var checkControlled =
-                P.UIHelper.AutoRotationConfigControlled("IncludeNPCs");
+                GluttonyCombo.P.UIHelper.AutoRotationConfigControlled("IncludeNPCs");
             return checkControlled is not null
                 ? checkControlled.Value.state == 1
                 : settings.IncludeNPCs;
@@ -284,7 +284,7 @@ public class HealerSettingsIPCWrapper(HealerSettings settings)
         get
         {
             var checkControlled =
-                P.UIHelper.AutoRotationConfigControlled("HealerAlwaysHardTarget");
+                GluttonyCombo.P.UIHelper.AutoRotationConfigControlled("HealerAlwaysHardTarget");
             return checkControlled is not null
                 ? checkControlled.Value.state == 1
                 : settings.HealerAlwaysHardTarget;

@@ -1,12 +1,12 @@
-﻿#region
+#region
 using Dalamud.Interface.Colors;
-using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Data;
-using WrathCombo.Resources.Localization.JobConfigs;
-using WrathCombo.Window.Functions;
-using static WrathCombo.Extensions.UIntExtensions;
-using static WrathCombo.Window.Functions.UserConfig;
-using static WrathCombo.Window.Text;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Data;
+using GluttonyCombo.Resources.Localization.JobConfigs;
+using GluttonyCombo.Window.Functions;
+using static GluttonyCombo.Extensions.UIntExtensions;
+using static GluttonyCombo.Window.Functions.UserConfig;
+using static GluttonyCombo.Window.Text;
 
 // ReSharper disable AccessToStaticMemberViaDerivedType
 // ReSharper disable GrammarMistakeInComment
@@ -17,7 +17,7 @@ using static WrathCombo.Window.Text;
 
 #endregion
 
-namespace WrathCombo.Combos.PvE;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class WHM
 {

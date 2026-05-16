@@ -1,4 +1,4 @@
-namespace WrathCombo.API.Enum;
+namespace GluttonyCombo.API.Enum;
 
 /// <summary>
 ///     Rotation targeting mode for DPS.

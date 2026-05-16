@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 using Dalamud.Plugin.Ipc;
 
@@ -8,7 +8,7 @@ using Dalamud.Plugin.Ipc;
 
 #endregion
 
-namespace WrathCombo.API;
+namespace GluttonyCombo.API;
 
 public static partial class WrathIPCWrapper
 {

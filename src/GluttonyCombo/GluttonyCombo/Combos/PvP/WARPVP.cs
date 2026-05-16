@@ -1,10 +1,10 @@
-using WrathCombo.CustomComboNS;
-using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Extensions;
-using static WrathCombo.Window.Functions.UserConfig;
-using static WrathCombo.Combos.PvP.WARPvP.Config;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Extensions;
+using static GluttonyCombo.Window.Functions.UserConfig;
+using static GluttonyCombo.Combos.PvP.WARPvP.Config;
 
-namespace WrathCombo.Combos.PvP;
+namespace GluttonyCombo.Combos.PvP;
 
 internal static class WARPvP
 {

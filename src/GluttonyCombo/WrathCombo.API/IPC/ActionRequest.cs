@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 using FFXIVClientStructs.FFXIV.Client.Game;
 
@@ -6,7 +6,7 @@ using FFXIVClientStructs.FFXIV.Client.Game;
 
 #endregion
 
-namespace WrathCombo.API;
+namespace GluttonyCombo.API;
 
 public static partial class WrathIPCWrapper
 {

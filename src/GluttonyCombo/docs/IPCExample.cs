@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using ECommons.EzIpcManager;
 using ECommons.Logging;
 using ECommons.Reflection;
 
-namespace WrathCombo;
+namespace GluttonyCombo;
 
 public static class YourCode
 {
@@ -59,10 +59,10 @@ public static class YourCode
 internal static class WrathIPC
 {
     private static EzIPCDisposalToken[] _disposalTokens =
-        EzIPC.Init(typeof(WrathIPC), "WrathCombo", SafeWrapper.IPCException);
+        EzIPC.Init(typeof(WrathIPC), "GluttonyCombo", SafeWrapper.IPCException);
 
     internal static bool IsEnabled =>
-        DalamudReflector.TryGetDalamudPlugin("WrathCombo", out _, false, true);
+        DalamudReflector.TryGetDalamudPlugin("GluttonyCombo", out _, false, true);
 
     internal static Guid? CurrentLease
     {

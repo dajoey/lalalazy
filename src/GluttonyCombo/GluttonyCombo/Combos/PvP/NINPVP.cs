@@ -1,12 +1,12 @@
-﻿using System;
+using System;
 using System.Linq;
 using ECommons.GameHelpers;
-using WrathCombo.CustomComboNS;
-using WrathCombo.CustomComboNS.Functions;
-using static WrathCombo.Window.Functions.UserConfig;
-using static WrathCombo.Combos.PvP.NINPvP.Config;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.CustomComboNS.Functions;
+using static GluttonyCombo.Window.Functions.UserConfig;
+using static GluttonyCombo.Combos.PvP.NINPvP.Config;
 
-namespace WrathCombo.Combos.PvP;
+namespace GluttonyCombo.Combos.PvP;
 
 internal static class NINPvP
 {

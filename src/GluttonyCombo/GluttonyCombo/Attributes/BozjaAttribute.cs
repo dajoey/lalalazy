@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 
-namespace WrathCombo.Attributes;
+namespace GluttonyCombo.Attributes;
 
 /// <summary> Attribute designating Bozja combos. </summary>
 [AttributeUsage(AttributeTargets.Field)]

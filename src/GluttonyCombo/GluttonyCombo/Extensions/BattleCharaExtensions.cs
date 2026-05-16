@@ -1,9 +1,9 @@
-﻿using Dalamud.Game.ClientState.Objects.Types;
+using Dalamud.Game.ClientState.Objects.Types;
 using ECommons.GameFunctions;
 using System;
 using System.Linq;
-using WrathCombo.CustomComboNS.Functions;
-namespace WrathCombo.Extensions;
+using GluttonyCombo.CustomComboNS.Functions;
+namespace GluttonyCombo.Extensions;
 
 internal static class BattleCharaExtensions
 {

@@ -1,12 +1,12 @@
 using Dalamud.Game.ClientState.Objects.Types;
 using System;
-using WrathCombo.Core;
-using WrathCombo.CustomComboNS;
-using WrathCombo.Data;
-using WrathCombo.Extensions;
-using static WrathCombo.Combos.PvE.WAR.Config;
+using GluttonyCombo.Core;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.Data;
+using GluttonyCombo.Extensions;
+using static GluttonyCombo.Combos.PvE.WAR.Config;
 
-namespace WrathCombo.Combos.PvE;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class WAR
 {
@@ -25,7 +25,7 @@ internal partial class WAR
             
             const Combo comboFlags = Combo.ST | Combo.Simple;
             
-            if (WAR_ST_MitsOptions != 1 || P.UIHelper.PresetControlled(Preset)?.enabled == true)
+            if (WAR_ST_MitsOptions != 1 || GluttonyCombo.P.UIHelper.PresetControlled(Preset)?.enabled == true)
             {
                 if (TryUseMits(RotationMode.simple, ref actionID))
                     return actionID == Holmgang && IsEnabled(Preset.WAR_RetargetHolmgang)
@@ -56,7 +56,7 @@ internal partial class WAR
             
             const Combo comboFlags = Combo.AoE | Combo.Simple;
             
-            if (WAR_AoE_MitsOptions != 1 || P.UIHelper.PresetControlled(Preset)?.enabled == true)
+            if (WAR_AoE_MitsOptions != 1 || GluttonyCombo.P.UIHelper.PresetControlled(Preset)?.enabled == true)
             {
                 if (TryUseMits(RotationMode.simple, ref actionID))
                     return actionID == Holmgang && IsEnabled(Preset.WAR_RetargetHolmgang)
@@ -90,7 +90,7 @@ internal partial class WAR
             
             const Combo comboFlags = Combo.ST | Combo.Adv;
             
-            if (WAR_ST_Advanced_MitsOptions != 1 || P.UIHelper.PresetControlled(Preset)?.enabled == true)
+            if (WAR_ST_Advanced_MitsOptions != 1 || GluttonyCombo.P.UIHelper.PresetControlled(Preset)?.enabled == true)
             {
                 if (TryUseMits(RotationMode.advanced, ref actionID))
                     return actionID == Holmgang && IsEnabled(Preset.WAR_RetargetHolmgang)
@@ -126,7 +126,7 @@ internal partial class WAR
             
             const Combo comboFlags = Combo.AoE | Combo.Adv;
             
-            if (WAR_AoE_Advanced_MitsOptions != 1 || P.UIHelper.PresetControlled(Preset)?.enabled == true)
+            if (WAR_AoE_Advanced_MitsOptions != 1 || GluttonyCombo.P.UIHelper.PresetControlled(Preset)?.enabled == true)
             {
                 if (TryUseMits(RotationMode.advanced, ref actionID))
                     return actionID == Holmgang && IsEnabled(Preset.WAR_RetargetHolmgang)

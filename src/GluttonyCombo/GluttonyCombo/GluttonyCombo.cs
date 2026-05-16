@@ -1,4 +1,4 @@
-﻿using Dalamud.Game.Gui.Dtr;
+using Dalamud.Game.Gui.Dtr;
 using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
@@ -22,32 +22,32 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
-using WrathCombo.API.Enum;
-using WrathCombo.AutoRotation;
-using WrathCombo.Core;
-using WrathCombo.CustomComboNS;
-using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Data;
-using WrathCombo.Data.Conflicts;
-using WrathCombo.Resources.Localization.UI.MainWindow;
-using WrathCombo.Services;
-using WrathCombo.Services.ActionRequestIPC;
-using WrathCombo.Services.IPC;
-using WrathCombo.Services.IPC_Subscriber;
-using WrathCombo.Window;
-using WrathCombo.Window.Tabs;
+using GluttonyCombo.API.Enum;
+using GluttonyCombo.AutoRotation;
+using GluttonyCombo.Core;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Data;
+using GluttonyCombo.Data.Conflicts;
+using GluttonyCombo.Resources.Localization.UI.MainWindow;
+using GluttonyCombo.Services;
+using GluttonyCombo.Services.ActionRequestIPC;
+using GluttonyCombo.Services.IPC;
+using GluttonyCombo.Services.IPC_Subscriber;
+using GluttonyCombo.Window;
+using GluttonyCombo.Window.Tabs;
 using GenericHelpers = ECommons.GenericHelpers;
 
-namespace WrathCombo;
+namespace GluttonyCombo;
 
 /// <summary> Main plugin implementation. </summary>
-public sealed partial class WrathCombo : IDalamudPlugin
+public sealed partial class GluttonyCombo : IDalamudPlugin
 {
     internal static TaskManager? TM;
     internal readonly ConfigWindow ConfigWindow;
     private readonly MajorChangesWindow _majorChangesWindow;
     private readonly TargetHelper TargetHelper;
-    internal static WrathCombo? P;
+    internal static GluttonyCombo? P;
     private readonly WindowSystem ws;
     private static readonly SocketsHttpHandler httpHandler = new()
     {
@@ -167,9 +167,9 @@ public sealed partial class WrathCombo : IDalamudPlugin
         }, "UpdateCaches");
     }
 
-    /// <summary> Initializes a new instance of the <see cref="WrathCombo"/> class. </summary>
+    /// <summary> Initializes a new instance of the <see cref="GluttonyCombo"/> class. </summary>
     /// <param name="pluginInterface"> Dalamud plugin interface. </param>
-    public WrathCombo(IDalamudPluginInterface pluginInterface)
+    public GluttonyCombo(IDalamudPluginInterface pluginInterface)
     {
         P = this;
         pluginInterface.Create<Service>();

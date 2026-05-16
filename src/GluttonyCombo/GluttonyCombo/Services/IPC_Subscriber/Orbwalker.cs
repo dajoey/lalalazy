@@ -1,4 +1,4 @@
-﻿using ECommons;
+using ECommons;
 using ECommons.EzIpcManager;
 using ECommons.GameHelpers;
 using ECommons.Reflection;
@@ -8,7 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 #nullable disable
 
-namespace WrathCombo.Services.IPC_Subscriber;
+namespace GluttonyCombo.Services.IPC_Subscriber;
 
 internal static class OrbwalkerIPC
 {

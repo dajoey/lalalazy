@@ -1,21 +1,21 @@
-﻿using ECommons;
+using ECommons;
 using ECommons.Logging;
 using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using WrathCombo.API.Enum;
-using WrathCombo.Attributes;
-using WrathCombo.Extensions;
-using WrathCombo.Services;
-using static WrathCombo.Attributes.PossiblyRetargetedAttribute;
-using static WrathCombo.Core.Configuration;
-using static WrathCombo.Window.Text;
+using GluttonyCombo.API.Enum;
+using GluttonyCombo.Attributes;
+using GluttonyCombo.Extensions;
+using GluttonyCombo.Services;
+using static GluttonyCombo.Attributes.PossiblyRetargetedAttribute;
+using static GluttonyCombo.Core.Configuration;
+using static GluttonyCombo.Window.Text;
 using EZ = ECommons.Throttlers.EzThrottler;
 using TS = System.TimeSpan;
 
-namespace WrathCombo.Core;
+namespace GluttonyCombo.Core;
 
 internal static class PresetStorage
 {
@@ -301,7 +301,7 @@ internal static class PresetStorage
 
     private static object GetControlledText(Preset preset)
     {
-        var controlled = P.UIHelper.PresetControlled(preset) is not null;
+        var controlled = GluttonyCombo.P.UIHelper.PresetControlled(preset) is not null;
         var ctrlText = controlled ? " " + OptionControlledByIPC : "";
 
         return ctrlText;
@@ -384,7 +384,7 @@ internal static class PresetStorage
         Service.Configuration.TriggerUserConfigChanged(
             ConfigChangeType.Preset, source ?? ConfigChangeSource.UI,
             preset.ToString(), true);
-        P.IPCSearch.UpdateActiveJobPresets();
+        GluttonyCombo.P.IPCSearch.UpdateActiveJobPresets();
         Service.Configuration.Save();
 
         return true;
@@ -411,7 +411,7 @@ internal static class PresetStorage
         Service.Configuration.TriggerUserConfigChanged(
             ConfigChangeType.Preset, source ?? ConfigChangeSource.UI,
             preset.ToString(), false);
-        P.IPCSearch.UpdateActiveJobPresets();
+        GluttonyCombo.P.IPCSearch.UpdateActiveJobPresets();
         Service.Configuration.Save();
 
         return true;
@@ -440,7 +440,7 @@ internal static class PresetStorage
         Service.Configuration.TriggerUserConfigChanged(
             ConfigChangeType.Preset, source ?? ConfigChangeSource.UI,
             preset.ToString(), false);
-        P.IPCSearch.UpdateActiveJobPresets();
+        GluttonyCombo.P.IPCSearch.UpdateActiveJobPresets();
         Service.Configuration.Save();
         return true;
     }
@@ -469,7 +469,7 @@ internal static class PresetStorage
         Service.Configuration.TriggerUserConfigChanged(
             ConfigChangeType.PresetAutoMode, source ?? ConfigChangeSource.UI,
             preset.ToString(), true);
-        P.IPCSearch.UpdateActiveJobPresets();
+        GluttonyCombo.P.IPCSearch.UpdateActiveJobPresets();
         Service.Configuration.Save();
 
         return true;
@@ -497,7 +497,7 @@ internal static class PresetStorage
         Service.Configuration.TriggerUserConfigChanged(
             ConfigChangeType.PresetAutoMode, source ?? ConfigChangeSource.UI,
             preset.ToString(), false);
-        P.IPCSearch.UpdateActiveJobPresets();
+        GluttonyCombo.P.IPCSearch.UpdateActiveJobPresets();
         Service.Configuration.Save();
 
         return true;
@@ -526,7 +526,7 @@ internal static class PresetStorage
         Service.Configuration.TriggerUserConfigChanged(
             ConfigChangeType.PresetAutoMode, source ?? ConfigChangeSource.UI,
             preset.ToString(), newValue);
-        P.IPCSearch.UpdateActiveJobPresets();
+        GluttonyCombo.P.IPCSearch.UpdateActiveJobPresets();
         Service.Configuration.Save();
         return true;
     }

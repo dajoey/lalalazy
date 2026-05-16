@@ -1,4 +1,4 @@
-﻿using Dalamud.Game.ClientState.Objects.Types;
+using Dalamud.Game.ClientState.Objects.Types;
 using ECommons.DalamudServices;
 using ECommons.GameFunctions;
 using ECommons.GameHelpers;
@@ -8,13 +8,13 @@ using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using WrathCombo.Core;
-using WrathCombo.Data;
-using WrathCombo.Services;
-using WrathCombo.Services.ActionRequestIPC;
-using static WrathCombo.Data.ActionWatching;
-using static WrathCombo.Window.Text;
-namespace WrathCombo.CustomComboNS.Functions;
+using GluttonyCombo.Core;
+using GluttonyCombo.Data;
+using GluttonyCombo.Services;
+using GluttonyCombo.Services.ActionRequestIPC;
+using static GluttonyCombo.Data.ActionWatching;
+using static GluttonyCombo.Window.Text;
+namespace GluttonyCombo.CustomComboNS.Functions;
 
 internal abstract partial class CustomComboFunctions
 {

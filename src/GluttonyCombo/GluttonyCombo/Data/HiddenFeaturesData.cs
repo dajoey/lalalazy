@@ -3,15 +3,15 @@
 using Dalamud.Game.ClientState.Objects.Types;
 using ECommons.GameHelpers;
 using System;
-using WrathCombo.Services;
-using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
+using GluttonyCombo.Services;
+using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
 using ContentInfo = ECommons.GameHelpers.Content;
 using EZ = ECommons.Throttlers.EzThrottler;
 using TS = System.TimeSpan;
 
 #endregion
 
-namespace WrathCombo.Data;
+namespace GluttonyCombo.Data;
 
 internal static class HiddenFeaturesData
 {

@@ -1,6 +1,6 @@
-using WrathCombo.CustomComboNS;
-using static WrathCombo.Combos.PvE.DRG.Config;
-namespace WrathCombo.Combos.PvE;
+using GluttonyCombo.CustomComboNS;
+using static GluttonyCombo.Combos.PvE.DRG.Config;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class DRG : Melee
 {

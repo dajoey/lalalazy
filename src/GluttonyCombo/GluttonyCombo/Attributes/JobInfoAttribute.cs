@@ -2,11 +2,11 @@ using ECommons.ExcelServices;
 using System;
 using System.Runtime;
 using System.Runtime.CompilerServices;
-using WrathCombo.Extensions;
-using static WrathCombo.CustomComboNS.Functions.Jobs;
-using static WrathCombo.Window.Text;
+using GluttonyCombo.Extensions;
+using static GluttonyCombo.CustomComboNS.Functions.Jobs;
+using static GluttonyCombo.Window.Text;
 
-namespace WrathCombo.Attributes;
+namespace GluttonyCombo.Attributes;
 
 [AttributeUsage(AttributeTargets.Field)]
 internal class JobInfoAttribute : Attribute

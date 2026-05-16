@@ -13,15 +13,15 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Numerics;
-using WrathCombo.Core;
-using WrathCombo.Data.Conflicts;
-using WrathCombo.Resources.Localization.UI.MainWindow;
-using WrathCombo.Services;
-using WrathCombo.Window.Tabs;
-using static WrathCombo.Core.PresetStorage;
-using static WrathCombo.CustomComboNS.Functions.Jobs;
+using GluttonyCombo.Core;
+using GluttonyCombo.Data.Conflicts;
+using GluttonyCombo.Resources.Localization.UI.MainWindow;
+using GluttonyCombo.Services;
+using GluttonyCombo.Window.Tabs;
+using static GluttonyCombo.Core.PresetStorage;
+using static GluttonyCombo.CustomComboNS.Functions.Jobs;
 using PunishGui = PunishLib.ImGuiMethods;
-namespace WrathCombo.Window;
+namespace GluttonyCombo.Window;
 
 /// <summary> Plugin configuration window. </summary>
 internal class ConfigWindow : Dalamud.Interface.Windowing.Window
@@ -115,7 +115,7 @@ internal class ConfigWindow : Dalamud.Interface.Windowing.Window
     } = OpenWindow.PvE;
 
     /// <summary> Initializes a new instance of the <see cref="ConfigWindow"/> class. </summary>
-    public ConfigWindow() : base($"{P.Name} {P.GetType().Assembly.GetName().Version}###WrathCombo")
+    public ConfigWindow() : base($"{GluttonyCombo.P.Name} {GluttonyCombo.P.GetType().Assembly.GetName().Version}###WrathCombo")
     {
         RespectCloseHotkey = true;
 
@@ -282,7 +282,7 @@ internal class ConfigWindow : Dalamud.Interface.Windowing.Window
                 Settings.Draw();
                 break;
             case OpenWindow.About:
-                PunishGui.AboutTab.Draw(P.Name);
+                PunishGui.AboutTab.Draw(GluttonyCombo.P.Name);
                 break;
             case OpenWindow.Debug:
                 Debug.Draw();

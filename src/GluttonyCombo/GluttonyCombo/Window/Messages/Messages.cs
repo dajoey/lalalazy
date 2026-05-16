@@ -1,6 +1,6 @@
-﻿using Dalamud.Interface.Colors;
+using Dalamud.Interface.Colors;
 using ECommons.ExcelServices;
-namespace WrathCombo.Window.MessagesNS;
+namespace GluttonyCombo.Window.MessagesNS;
 
 internal static class Messages
 {

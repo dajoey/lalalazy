@@ -6,25 +6,25 @@ using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using Dalamud.Configuration;
 using Newtonsoft.Json;
-using WrathCombo.AutoRotation;
-using WrathCombo.Window;
-using WrathCombo.Attributes;
-using WrathCombo.Window.Functions;
-using WrathCombo.Window.Tabs;
-using WrathCombo.Combos.PvE;
-using WrathCombo.CustomComboNS.Functions;
-using static WrathCombo.Attributes.SettingCategory.Category;
-using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
-using Setting = WrathCombo.Attributes.Setting;
-using Space = WrathCombo.Attributes.SettingUI_Space;
-using Or = WrathCombo.Attributes.SettingUI_Or;
-using Retarget = WrathCombo.Attributes.SettingUI_RetargetIcon;
+using GluttonyCombo.AutoRotation;
+using GluttonyCombo.Window;
+using GluttonyCombo.Attributes;
+using GluttonyCombo.Window.Functions;
+using GluttonyCombo.Window.Tabs;
+using GluttonyCombo.Combos.PvE;
+using GluttonyCombo.CustomComboNS.Functions;
+using static GluttonyCombo.Attributes.SettingCategory.Category;
+using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
+using Setting = GluttonyCombo.Attributes.Setting;
+using Space = GluttonyCombo.Attributes.SettingUI_Space;
+using Or = GluttonyCombo.Attributes.SettingUI_Or;
+using Retarget = GluttonyCombo.Attributes.SettingUI_RetargetIcon;
 
 #endregion
 
 // ReSharper disable RedundantDefaultMemberInitializer
 
-namespace WrathCombo.Core;
+namespace GluttonyCombo.Core;
 
 /// <summary> Plugin configuration. </summary>
 [Serializable]
@@ -69,19 +69,19 @@ public partial class Configuration : IPluginConfiguration
     public bool ShowOpenerDtr = false;
 
     /// Hides the message of the day. Default: false.
-    /// <seealso cref="WrathCombo.PrintLoginMessage"/>
+    /// <seealso cref="GluttonyCombo.PrintLoginMessage"/>
     [SettingCategory(Main_UI_Options)]
     [Setting(Setting.Type.Toggle)]
     public bool SuppressSetCommands = false;
 
     /// Hides the Autorot set message. Default: false.
-    /// <seealso cref="WrathCombo.PrintLoginMessage"/>
+    /// <seealso cref="GluttonyCombo.PrintLoginMessage"/>
     [SettingCategory(Main_UI_Options)]
     [Setting(Setting.Type.Toggle)]
     public bool SuppressAutorotCommand = false;
 
     /// Hides the message of the day. Default: false.
-    /// <seealso cref="WrathCombo.PrintLoginMessage"/>
+    /// <seealso cref="GluttonyCombo.PrintLoginMessage"/>
     [SettingCategory(Main_UI_Options)]
     [Setting(Setting.Type.Toggle)]
     public bool HideMessageOfTheDay = false;

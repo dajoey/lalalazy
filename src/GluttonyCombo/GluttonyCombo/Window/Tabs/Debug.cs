@@ -1,4 +1,4 @@
-﻿#region Directives
+#region Directives
 
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Interface;
@@ -23,26 +23,26 @@ using System.IO.Compression;
 using System.Linq;
 using System.Numerics;
 using System.Text;
-using WrathCombo.API.Enum;
-using WrathCombo.AutoRotation;
-using WrathCombo.Combos.PvE;
-using WrathCombo.Core;
-using WrathCombo.CustomComboNS;
-using WrathCombo.Data;
-using WrathCombo.Extensions;
-using WrathCombo.Services;
-using WrathCombo.Services.ActionRequestIPC;
-using WrathCombo.Services.IPC;
-using WrathCombo.Services.IPC_Subscriber;
-using WrathCombo.Window.Functions;
-using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
+using GluttonyCombo.API.Enum;
+using GluttonyCombo.AutoRotation;
+using GluttonyCombo.Combos.PvE;
+using GluttonyCombo.Core;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.Data;
+using GluttonyCombo.Extensions;
+using GluttonyCombo.Services;
+using GluttonyCombo.Services.ActionRequestIPC;
+using GluttonyCombo.Services.IPC;
+using GluttonyCombo.Services.IPC_Subscriber;
+using GluttonyCombo.Window.Functions;
+using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
 using Action = Lumina.Excel.Sheets.Action;
 using BattleNpcSubKindCS = FFXIVClientStructs.FFXIV.Client.Game.Object.BattleNpcSubKind;
 using ObjectKind = Dalamud.Game.ClientState.Objects.Enums.ObjectKind;
 using Status = Dalamud.Game.ClientState.Statuses.IStatus;
 #endregion
 
-namespace WrathCombo.Window.Tabs;
+namespace GluttonyCombo.Window.Tabs;
 
 internal class Debug : ConfigWindow, IDisposable
 {
@@ -169,7 +169,7 @@ internal class Debug : ConfigWindow, IDisposable
                     DebugConfig = true;
                     _previousConfig = Service.Configuration;
                     Service.Configuration = config;
-                    P.IPC = Provider.Init();
+                    GluttonyCombo.P.IPC = Provider.Init();
                     AutoRotationController.cfg = null;
                     UpdateCaches(true, true, false);
                     _debugError = "";
@@ -856,7 +856,7 @@ internal class Debug : ConfigWindow, IDisposable
 
         if (ImGui.CollapsingHeader("Action Retargeting"))
         {
-            var retargets = P.ActionRetargeting.Retargets;
+            var retargets = GluttonyCombo.P.ActionRetargeting.Retargets;
 
             CustomStyleText("Current Unique Retargeting entries:",
                 $"{retargets.Select(x => x.Value.ID)
@@ -1024,7 +1024,7 @@ internal class Debug : ConfigWindow, IDisposable
                 ImGui.Indent();
                 if (ImGui.Button("Register"))
                 {
-                    _wrathLease = P.IPC.RegisterForLease("WrathCombo", "WrathCombo", WrathIPCCallback);
+                    _wrathLease = GluttonyCombo.P.IPC.RegisterForLease("GluttonyCombo", "GluttonyCombo", WrathIPCCallback);
                 }
                 ImGui.Unindent();
             }
@@ -1032,25 +1032,25 @@ internal class Debug : ConfigWindow, IDisposable
             if (_wrathLease is not null)
             {
                 CustomStyleText("Lease GUID", $"{_wrathLease}");
-                CustomStyleText("Configurations: ", $"{P.IPC.Leasing.Registrations[_wrathLease!.Value].SetsLeased}");
+                CustomStyleText("Configurations: ", $"{GluttonyCombo.P.IPC.Leasing.Registrations[_wrathLease!.Value].SetsLeased}");
 
                 ImGuiEx.Spacing(new Vector2(20, 20));
 
                 if (ImGui.Button("Release"))
                 {
-                    P.IPC.ReleaseControl(_wrathLease.Value);
+                    GluttonyCombo.P.IPC.ReleaseControl(_wrathLease.Value);
                     _wrathLease = null;
                 }
 
                 ImGui.SameLine();
                 if (ImGui.Button("Set Autorot For Job"))
                 {
-                    P.IPC.SetCurrentJobAutoRotationReady(_wrathLease!.Value);
+                    GluttonyCombo.P.IPC.SetCurrentJobAutoRotationReady(_wrathLease!.Value);
                 }
                 ImGui.SameLine();
                 if (ImGui.Button("Set Autorot For WHM"))
                 {
-                    P.IPC.Leasing.AddRegistrationForCurrentJob(_wrathLease!.Value, Job.WHM);
+                    GluttonyCombo.P.IPC.Leasing.AddRegistrationForCurrentJob(_wrathLease!.Value, Job.WHM);
                 }
 
                 ImGuiEx.Spacing(new Vector2(20, 20));
@@ -1058,23 +1058,23 @@ internal class Debug : ConfigWindow, IDisposable
                 if (ImGui.Button("Mimic AutoDuty"))
                 {
                     // https://github.com/ffxivcode/AutoDuty/blob/master/AutoDuty/IPC/IPCSubscriber.cs#L460
-                    if (!P.IPC.IsCurrentJobAutoRotationReady())
-                        P.IPC.SetCurrentJobAutoRotationReady(_wrathLease!.Value);
+                    if (!GluttonyCombo.P.IPC.IsCurrentJobAutoRotationReady())
+                        GluttonyCombo.P.IPC.SetCurrentJobAutoRotationReady(_wrathLease!.Value);
 
-                    P.IPC.SetAutoRotationState(_wrathLease!.Value);
-                    P.IPC.SetAutoRotationConfigState(_wrathLease!.Value, AutoRotationConfigOption.InCombatOnly, false);
-                    P.IPC.SetAutoRotationConfigState(_wrathLease!.Value, AutoRotationConfigOption.AutoRez, true);
-                    P.IPC.SetAutoRotationConfigState(_wrathLease!.Value, AutoRotationConfigOption.AutoRezDPSJobs, true);
-                    P.IPC.SetAutoRotationConfigState(_wrathLease!.Value, AutoRotationConfigOption.IncludeNPCs, true);
-                    P.IPC.SetAutoRotationConfigState(_wrathLease!.Value, AutoRotationConfigOption.DPSRotationMode, DPSRotationMode.Lowest_Current);
-                    P.IPC.SetAutoRotationConfigState(_wrathLease!.Value, AutoRotationConfigOption.HealerRotationMode, HealerRotationMode.Lowest_Current);
+                    GluttonyCombo.P.IPC.SetAutoRotationState(_wrathLease!.Value);
+                    GluttonyCombo.P.IPC.SetAutoRotationConfigState(_wrathLease!.Value, AutoRotationConfigOption.InCombatOnly, false);
+                    GluttonyCombo.P.IPC.SetAutoRotationConfigState(_wrathLease!.Value, AutoRotationConfigOption.AutoRez, true);
+                    GluttonyCombo.P.IPC.SetAutoRotationConfigState(_wrathLease!.Value, AutoRotationConfigOption.AutoRezDPSJobs, true);
+                    GluttonyCombo.P.IPC.SetAutoRotationConfigState(_wrathLease!.Value, AutoRotationConfigOption.IncludeNPCs, true);
+                    GluttonyCombo.P.IPC.SetAutoRotationConfigState(_wrathLease!.Value, AutoRotationConfigOption.DPSRotationMode, DPSRotationMode.Lowest_Current);
+                    GluttonyCombo.P.IPC.SetAutoRotationConfigState(_wrathLease!.Value, AutoRotationConfigOption.HealerRotationMode, HealerRotationMode.Lowest_Current);
                 }
                 ImGui.SameLine();
                 if (ImGui.Button("Mimic Questionable"))
                 {
                     // https://git.carvel.li/liza/Questionable/src/commit/de90882ecbb609c2f79fecc1ec17b751dc8763f2/Questionable/Controller/CombatModules/WrathComboModule.cs#L68
-                    P.IPC.SetAutoRotationState(_wrathLease!.Value);
-                    P.IPC.SetCurrentJobAutoRotationReady(_wrathLease!.Value);
+                    GluttonyCombo.P.IPC.SetAutoRotationState(_wrathLease!.Value);
+                    GluttonyCombo.P.IPC.SetCurrentJobAutoRotationReady(_wrathLease!.Value);
                 }
             }
 
@@ -1082,19 +1082,19 @@ internal class Debug : ConfigWindow, IDisposable
 
             CustomStyleText("All Leases:", "");
 
-            if (P.IPC.Leasing.Registrations.Count > 0)
+            if (GluttonyCombo.P.IPC.Leasing.Registrations.Count > 0)
             {
                 ImGui.SameLine();
                 if (ImGui.Button("Release All Leases"))
                 {
-                    P.IPC.Leasing.SuspendLeases();
+                    GluttonyCombo.P.IPC.Leasing.SuspendLeases();
                     _wrathLease = null;
                 }
             }
 
-            if (P.IPC.Leasing.Registrations.Count > 0)
+            if (GluttonyCombo.P.IPC.Leasing.Registrations.Count > 0)
             {
-                foreach (var registration in P.IPC.Leasing.Registrations)
+                foreach (var registration in GluttonyCombo.P.IPC.Leasing.Registrations)
                 {
                     var jobs = registration.Value.JobsControlled.Count > 0
                         ? string.Join(",", registration.Value.JobsControlled.Keys)
@@ -1113,7 +1113,7 @@ internal class Debug : ConfigWindow, IDisposable
                     ImGui.SameLine();
                     if (ImGui.Button("Release##releaseFromList" + registration.Key))
                     {
-                        P.IPC.ReleaseControl(registration.Key);
+                        GluttonyCombo.P.IPC.ReleaseControl(registration.Key);
                     }
                     ImGui.SameLine();
 
@@ -1393,7 +1393,7 @@ internal class Debug : ConfigWindow, IDisposable
             new Configuration();
         _previousConfig = null;
 
-        P.IPC = Provider.Init();
+        GluttonyCombo.P.IPC = Provider.Init();
         AutoRotationController.cfg = null;
         UpdateCaches(true, true, false);
     }

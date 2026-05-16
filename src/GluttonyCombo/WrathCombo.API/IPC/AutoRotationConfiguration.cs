@@ -1,14 +1,14 @@
-﻿#region
+#region
 
-using WrathCombo.API.Enum;
-using DPSMode = WrathCombo.API.Enum.DPSRotationMode;
-using HealerMode = WrathCombo.API.Enum.HealerRotationMode;
+using GluttonyCombo.API.Enum;
+using DPSMode = GluttonyCombo.API.Enum.DPSRotationMode;
+using HealerMode = GluttonyCombo.API.Enum.HealerRotationMode;
 
 #pragma warning disable CS0618 // Obsoletes here are likely ours, for consumers
 
 #endregion
 
-namespace WrathCombo.API;
+namespace GluttonyCombo.API;
 
 public static partial class WrathIPCWrapper
 {

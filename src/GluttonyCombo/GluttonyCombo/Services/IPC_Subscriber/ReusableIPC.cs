@@ -1,15 +1,15 @@
-﻿#region
+#region
 
 using Dalamud.Plugin;
 using ECommons;
 using ECommons.EzIpcManager;
 using ECommons.Reflection;
 using System;
-using WrathCombo.Combos.PvE;
+using GluttonyCombo.Combos.PvE;
 
 #endregion
 
-namespace WrathCombo.Services.IPC_Subscriber;
+namespace GluttonyCombo.Services.IPC_Subscriber;
 
 public abstract class ReusableIPC : IDisposable
 {

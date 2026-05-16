@@ -1,10 +1,10 @@
-﻿using Dalamud.Game.ClientState.JobGauge.Types;
+using Dalamud.Game.ClientState.JobGauge.Types;
 using Dalamud.Plugin.Services;
 using ECommons.DalamudServices;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using System;
 using System.Collections.Concurrent;
-namespace WrathCombo.Data;
+namespace GluttonyCombo.Data;
 
 /// <summary> Cached conditional combo logic. </summary>
 internal partial class CustomComboCache : IDisposable

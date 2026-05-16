@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 using Dalamud.Plugin.Ipc;
 using ECommons.DalamudServices;
@@ -14,9 +14,9 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using WrathCombo.API.Enum;
-using WrathCombo.API.Extension;
-using WrathCombo.Combos;
+using GluttonyCombo.API.Enum;
+using GluttonyCombo.API.Extension;
+using GluttonyCombo.Combos;
 using EZ = ECommons.Throttlers.EzThrottler;
 using TS = System.TimeSpan;
 
@@ -25,7 +25,7 @@ using TS = System.TimeSpan;
 
 #endregion
 
-namespace WrathCombo.Services.IPC;
+namespace GluttonyCombo.Services.IPC;
 
 /// <summary>
 ///     IPC service for other plugins to have user-overridable control of Wrath.<br />
@@ -81,9 +81,9 @@ public partial class Provider : IDisposable
         Provider output = new();
 
         // Initiate the IPC and helper services
-        EzIPC.Init(output, prefix: "WrathCombo");
-        P.IPCSearch = new Search(output.Leasing);
-        P.UIHelper = new UIHelper(output.Leasing);
+        EzIPC.Init(output, prefix: "GluttonyCombo");
+        GluttonyCombo.P.IPCSearch = new Search(output.Leasing);
+        GluttonyCombo.P.UIHelper = new UIHelper(output.Leasing);
 
         // Build Caches of presets
         Svc.Framework.RunOnTick(BuildCachesAction(output));
@@ -106,7 +106,7 @@ public partial class Provider : IDisposable
     /// <returns>An Action of <see cref="BuildCaches" /></returns>
     internal static Action BuildCachesAction(Provider? output = null)
     {
-        return () => BuildCaches(output ?? P.IPC);
+        return () => BuildCaches(output ?? GluttonyCombo.P.IPC);
     }
 
     /// <summary>
@@ -133,14 +133,14 @@ public partial class Provider : IDisposable
         }
 
         // Getting the IPC status early
-        Task.Run(() => P.IPC.Helper.IPCEnabled);
+        Task.Run(() => GluttonyCombo.P.IPC.Helper.IPCEnabled);
 
         // Build job-specific combo state caches
         // ReSharper disable once ReturnValueOfPureMethodIsNotUsed
-        P.IPCSearch.ComboStatesByJob.TryGetValue(Player.Job, out _);
+        GluttonyCombo.P.IPCSearch.ComboStatesByJob.TryGetValue(Player.Job, out _);
 
         // Build UI-state caches
-        P.UIHelper.PresetControlled(Preset.AST_ST_DPS);
+        GluttonyCombo.P.UIHelper.PresetControlled(Preset.AST_ST_DPS);
 
         // Mark IPC as ready after caches are built
         output._ipcReady = true;
@@ -379,7 +379,7 @@ public partial class Provider : IDisposable
     [EzIPC]
     public bool IsCurrentJobAutoRotationReady()
     {
-        if (File.GetLastWriteTime(P.IPCSearch.ConfigFilePath) <= _lastJobReadyCheck &&
+        if (File.GetLastWriteTime(GluttonyCombo.P.IPCSearch.ConfigFilePath) <= _lastJobReadyCheck &&
             (Leasing.CombosUpdated ?? DateTime.MinValue) <= _lastJobReadyCheck &&
             !EZ.Throttle("ipcJobReadyCheck", TS.FromSeconds(30)))
             return _lastJobReady;
@@ -573,7 +573,7 @@ public partial class Provider : IDisposable
     [EzIPC]
     [SuppressMessage("Performance", "CA1822:Mark members as static")]
     public List<string>? GetComboNamesForJob(uint jobID) =>
-        P.IPCSearch.ComboNamesByJob.GetValueOrDefault((Job)jobID);
+        GluttonyCombo.P.IPCSearch.ComboNamesByJob.GetValueOrDefault((Job)jobID);
 
     /// <summary>
     ///     Gets the names of all combo options for the given job.
@@ -588,7 +588,7 @@ public partial class Provider : IDisposable
     [EzIPC]
     [SuppressMessage("Performance", "CA1822:Mark members as static")]
     public Dictionary<string, List<string>>? GetComboOptionNamesForJob(uint jobID) =>
-        P.IPCSearch.OptionNamesByJob.GetValueOrDefault((Job)jobID);
+        GluttonyCombo.P.IPCSearch.OptionNamesByJob.GetValueOrDefault((Job)jobID);
 
     /// <summary>
     ///     Get the current state of a combo in Wrath Combo.
@@ -625,7 +625,7 @@ public partial class Provider : IDisposable
         }
 
         // Otherwise just the saved state
-        return P.IPCSearch.PresetStates.GetValueOrDefault(comboInternalName);
+        return GluttonyCombo.P.IPCSearch.PresetStates.GetValueOrDefault(comboInternalName);
     }
 
     /// <summary>
@@ -688,7 +688,7 @@ public partial class Provider : IDisposable
         // Override if the combo option is controlled by a lease,
         // otherwise return the saved state
         return Leasing.CheckComboOptionControlled(optionName) ??
-               P.IPCSearch.PresetStates.GetValueOrDefault(optionName)[
+               GluttonyCombo.P.IPCSearch.PresetStates.GetValueOrDefault(optionName)[
                    ComboStateKeys.Enabled];
     }
 

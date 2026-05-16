@@ -1,4 +1,4 @@
-﻿using ECommons;
+using ECommons;
 using ECommons.DalamudServices;
 using ECommons.ExcelServices;
 using ECommons.GameHelpers;
@@ -14,7 +14,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Action = Lumina.Excel.Sheets.Action;
 
-namespace WrathCombo.Services.ActionRequestIPC;
+namespace GluttonyCombo.Services.ActionRequestIPC;
 public static class ActionRequestDebugUI
 {
     static bool? IsGCD;

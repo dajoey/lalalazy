@@ -1,11 +1,11 @@
-﻿using System;
-using WrathCombo.Data;
-using WrathCombo.Extensions;
-using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
-using static WrathCombo.Combos.PvE.OccultCrescent.Config;
+using System;
+using GluttonyCombo.Data;
+using GluttonyCombo.Extensions;
+using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
+using static GluttonyCombo.Combos.PvE.OccultCrescent.Config;
 using ContentHelper = ECommons.GameHelpers;
 using IntendedUse = ECommons.ExcelServices.TerritoryIntendedUseEnum;
-namespace WrathCombo.Combos.PvE;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class OccultCrescent
 {

@@ -1,15 +1,15 @@
 #region Dependencies
 
 using Dalamud.Game.ClientState.Objects.Types;
-using WrathCombo.Core;
-using WrathCombo.CustomComboNS;
-using WrathCombo.Data;
-using WrathCombo.Extensions;
-using static WrathCombo.Combos.PvE.GNB.Config;
+using GluttonyCombo.Core;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.Data;
+using GluttonyCombo.Extensions;
+using static GluttonyCombo.Combos.PvE.GNB.Config;
 
 #endregion
 
-namespace WrathCombo.Combos.PvE;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class GNB : Tank
 {
@@ -33,7 +33,7 @@ internal partial class GNB : Tank
             if (ContentSpecificActions.TryGet(out var contentAction))
                 return contentAction;
 
-            if (GNB_ST_MitOptions != 1 || P.UIHelper.PresetControlled(Preset)?.enabled == true)
+            if (GNB_ST_MitOptions != 1 || GluttonyCombo.P.UIHelper.PresetControlled(Preset)?.enabled == true)
             {
                 if (TryUseMits(RotationMode.simple, ref actionID))
                     return actionID;
@@ -141,7 +141,7 @@ internal partial class GNB : Tank
             if (ContentSpecificActions.TryGet(out var contentAction))
                 return contentAction;
 
-            if (GNB_ST_Advanced_MitOptions != 1 || P.UIHelper.PresetControlled(Preset)?.enabled == true)
+            if (GNB_ST_Advanced_MitOptions != 1 || GluttonyCombo.P.UIHelper.PresetControlled(Preset)?.enabled == true)
             {
                 if (TryUseMits(RotationMode.advanced, ref actionID))
                     return actionID;
@@ -256,7 +256,7 @@ internal partial class GNB : Tank
             if (ContentSpecificActions.TryGet(out var contentAction))
                 return contentAction;
 
-            if (GNB_AoE_MitOptions != 1 || P.UIHelper.PresetControlled(Preset)?.enabled == true)
+            if (GNB_AoE_MitOptions != 1 || GluttonyCombo.P.UIHelper.PresetControlled(Preset)?.enabled == true)
             {
                 if (TryUseMits(RotationMode.simple, ref actionID))
                     return actionID;
@@ -330,7 +330,7 @@ internal partial class GNB : Tank
             if (ContentSpecificActions.TryGet(out var contentAction))
                 return contentAction;
 
-            if (GNB_AoE_Advanced_MitOptions != 1 || P.UIHelper.PresetControlled(Preset)?.enabled == true)
+            if (GNB_AoE_Advanced_MitOptions != 1 || GluttonyCombo.P.UIHelper.PresetControlled(Preset)?.enabled == true)
             {
                 if (TryUseMits(RotationMode.advanced, ref actionID))
                     return actionID;

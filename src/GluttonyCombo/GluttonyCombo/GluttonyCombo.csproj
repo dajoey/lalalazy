@@ -17,6 +17,7 @@
     <!-- Build Parameters -->
     <PropertyGroup>
         <AssemblyName>GluttonyCombo</AssemblyName>
+        <RootNamespace>GluttonyCombo</RootNamespace>
         <TargetFramework>net10.0-windows</TargetFramework>
         <Configurations>Debug;Release</Configurations>
         <EnableWindowsTargeting>true</EnableWindowsTargeting>

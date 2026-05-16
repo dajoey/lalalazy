@@ -5,10 +5,10 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
-using WrathCombo.Services;
-using Debug = WrathCombo.Window.Tabs.Debug;
+using GluttonyCombo.Services;
+using Debug = GluttonyCombo.Window.Tabs.Debug;
 
-namespace WrathCombo.Core;
+namespace GluttonyCombo.Core;
 
 public partial class Configuration
 {

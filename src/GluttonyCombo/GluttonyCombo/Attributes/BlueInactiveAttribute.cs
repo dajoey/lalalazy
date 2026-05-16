@@ -1,8 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using WrathCombo.Services;
+using GluttonyCombo.Services;
 
-namespace WrathCombo.Attributes;
+namespace GluttonyCombo.Attributes;
 
 /// <summary> Attribute documenting which skill the feature uses the user does not have active currently. </summary>
 [AttributeUsage(AttributeTargets.Field)]

@@ -1,8 +1,8 @@
-﻿using ECommons.DalamudServices;
+using ECommons.DalamudServices;
 using System.Linq;
-using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
+using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
 
-namespace WrathCombo.Combos.PvE
+namespace GluttonyCombo.Combos.PvE
 {
     internal static partial class Variant
     {

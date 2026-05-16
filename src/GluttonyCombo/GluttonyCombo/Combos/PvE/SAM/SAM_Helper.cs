@@ -1,15 +1,15 @@
-﻿using Dalamud.Game.ClientState.JobGauge.Enums;
+using Dalamud.Game.ClientState.JobGauge.Enums;
 using Dalamud.Game.ClientState.JobGauge.Types;
 using System;
 using System.Collections.Generic;
-using WrathCombo.CustomComboNS;
-using WrathCombo.CustomComboNS.Functions;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.CustomComboNS.Functions;
 using static FFXIVClientStructs.FFXIV.Client.Game.ActionManager;
-using static WrathCombo.Combos.PvE.SAM.Config;
-using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
-using static WrathCombo.Data.ActionWatching;
+using static GluttonyCombo.Combos.PvE.SAM.Config;
+using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
+using static GluttonyCombo.Data.ActionWatching;
 using ActionType = FFXIVClientStructs.FFXIV.Client.Game.ActionType;
-namespace WrathCombo.Combos.PvE;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class SAM
 {

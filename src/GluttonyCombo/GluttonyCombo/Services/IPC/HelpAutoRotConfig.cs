@@ -1,12 +1,12 @@
-﻿#region
+#region
 
 using System;
 using System.Linq;
-using WrathCombo.API.Enum;
+using GluttonyCombo.API.Enum;
 
 #endregion
 
-namespace WrathCombo.Services.IPC;
+namespace GluttonyCombo.Services.IPC;
 
 public partial class Leasing
 {

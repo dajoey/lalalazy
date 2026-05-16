@@ -2,14 +2,14 @@ using Dalamud.Game.ClientState.Statuses;
 using System.Linq;
 using Dalamud.Game.ClientState.Objects.Types;
 using ECommons.GameFunctions;
-using WrathCombo.Core;
-using WrathCombo.CustomComboNS;
-using WrathCombo.Extensions;
-using static WrathCombo.Combos.PvE.AST.Config;
+using GluttonyCombo.Core;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.Extensions;
+using static GluttonyCombo.Combos.PvE.AST.Config;
 using EZ = ECommons.Throttlers.EzThrottler;
 using TS = System.TimeSpan;
-using WrathCombo.AutoRotation;
-namespace WrathCombo.Combos.PvE;
+using GluttonyCombo.AutoRotation;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class AST : Healer
 {

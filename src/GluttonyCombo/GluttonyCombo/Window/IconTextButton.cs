@@ -1,8 +1,8 @@
-﻿using Dalamud.Interface;
+using Dalamud.Interface;
 using Dalamud.Interface.Textures.TextureWraps;
 using ECommons.ImGuiMethods;
 using System.Numerics;
-namespace WrathCombo.Window;
+namespace GluttonyCombo.Window;
 
 public static class IconButtons
 {

@@ -4,12 +4,12 @@ using Dalamud.Interface.Colors;
 using ECommons.ImGuiMethods;
 using System.Linq;
 using System.Numerics;
-using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Data;
-using WrathCombo.Extensions;
-using WrathCombo.Services;
-using WrathCombo.Window.Functions;
-using static WrathCombo.Window.Functions.UserConfig;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Data;
+using GluttonyCombo.Extensions;
+using GluttonyCombo.Services;
+using GluttonyCombo.Window.Functions;
+using static GluttonyCombo.Window.Functions.UserConfig;
 
 // ReSharper disable SwitchStatementMissingSomeEnumCasesNoDefault
 // ReSharper disable InconsistentNaming
@@ -18,7 +18,7 @@ using static WrathCombo.Window.Functions.UserConfig;
 
 #endregion
 
-namespace WrathCombo.Combos.PvE;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class DNC
 {

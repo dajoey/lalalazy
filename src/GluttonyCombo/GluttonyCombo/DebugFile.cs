@@ -17,25 +17,25 @@ using System.IO.Compression;
 using System.Linq;
 using System.Reflection;
 using System.Text;
-using WrathCombo.AutoRotation;
-using WrathCombo.Combos.PvE;
-using WrathCombo.Combos.PvP;
-using WrathCombo.Core;
-using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Data;
-using WrathCombo.Data.Conflicts;
-using WrathCombo.Extensions;
-using WrathCombo.Services;
-using WrathCombo.Services.IPC_Subscriber;
-using WrathCombo.Window.Functions;
-using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
+using GluttonyCombo.AutoRotation;
+using GluttonyCombo.Combos.PvE;
+using GluttonyCombo.Combos.PvP;
+using GluttonyCombo.Core;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Data;
+using GluttonyCombo.Data.Conflicts;
+using GluttonyCombo.Extensions;
+using GluttonyCombo.Services;
+using GluttonyCombo.Services.IPC_Subscriber;
+using GluttonyCombo.Window.Functions;
+using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
 using SysConfig = Dalamud.Game.Config.SystemConfigOption;
 using UIConfig = Dalamud.Game.Config.UiConfigOption;
 using UIControl = Dalamud.Game.Config.UiControlOption;
 
 #endregion
 
-namespace WrathCombo;
+namespace GluttonyCombo;
 
 public static class DebugFile
 {
@@ -161,7 +161,7 @@ public static class DebugFile
                 "WrathDebug.txt created on your desktop, for " +
                 (job is null ? "all jobs" : job.Value.Abbreviation.ToString()) +
                 ". Upload this file where requested.\n" +
-                "If you're unsure of where the file was created, use: /wrath debug path");
+                "If you're unsure of where the file was created, use: /gluttony debug path");
         }
     }
 
@@ -947,7 +947,7 @@ public static class DebugFile
                         if (currentEntry.Length > 0)
                         {
                             var entryText = currentEntry.ToString();
-                            if (!onlyOurs || entryText.Contains("WrathCombo"))
+                            if (!onlyOurs || entryText.Contains("GluttonyCombo"))
                             {
                                 mergedEntries.Add(entryText);
                                 foundEntries++;
@@ -987,7 +987,7 @@ public static class DebugFile
             if (currentEntry.Length > 0 && foundEntries < count)
             {
                 var entryText = currentEntry.ToString();
-                if (!onlyOurs || entryText.Contains("WrathCombo"))
+                if (!onlyOurs || entryText.Contains("GluttonyCombo"))
                 {
                     mergedEntries.Add(entryText);
                 }

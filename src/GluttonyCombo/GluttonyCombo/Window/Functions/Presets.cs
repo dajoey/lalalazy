@@ -1,4 +1,4 @@
-﻿using Dalamud.Interface;
+using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility.Raii;
@@ -12,22 +12,22 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using WrathCombo.Attributes;
-using WrathCombo.Combos.PvE;
-using WrathCombo.Combos.PvP;
-using WrathCombo.Core;
-using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Data;
-using WrathCombo.Extensions;
-using WrathCombo.Resources.Localization.UI.Features;
-using WrathCombo.Resources.Localization.UI.Misc;
-using WrathCombo.Resources.Localization.UI.Settings;
-using WrathCombo.Services;
-using static WrathCombo.Attributes.PossiblyRetargetedAttribute;
-using static WrathCombo.Core.PresetStorage;
-using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
-using static WrathCombo.CustomComboNS.Functions.Jobs;
-namespace WrathCombo.Window.Functions;
+using GluttonyCombo.Attributes;
+using GluttonyCombo.Combos.PvE;
+using GluttonyCombo.Combos.PvP;
+using GluttonyCombo.Core;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Data;
+using GluttonyCombo.Extensions;
+using GluttonyCombo.Resources.Localization.UI.Features;
+using GluttonyCombo.Resources.Localization.UI.Misc;
+using GluttonyCombo.Resources.Localization.UI.Settings;
+using GluttonyCombo.Services;
+using static GluttonyCombo.Attributes.PossiblyRetargetedAttribute;
+using static GluttonyCombo.Core.PresetStorage;
+using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
+using static GluttonyCombo.CustomComboNS.Functions.Jobs;
+namespace GluttonyCombo.Window.Functions;
 
 internal class Presets : ConfigWindow
 {
@@ -38,7 +38,7 @@ internal class Presets : ConfigWindow
     {
         get
         {
-            var autoActions = P.IPCSearch.AutoActions;
+            var autoActions = GluttonyCombo.P.IPCSearch.AutoActions;
 
             return autoActions
                 .Where(kvp =>
@@ -88,7 +88,7 @@ internal class Presets : ConfigWindow
             var labelSize = ImGui.CalcTextSize(label);
             ImGui.SetCursorPosX(ImGui.GetContentRegionAvail().X - labelSize.X.Scale() - 64f.Scale());
             bool autoOn = Service.Configuration.AutoActions[preset];
-            if (P.UIHelper.ShowIPCControlledCheckboxIfNeeded
+            if (GluttonyCombo.P.UIHelper.ShowIPCControlledCheckboxIfNeeded
                 ($"###AutoAction{preset}", ref autoOn, preset, false))
                 PresetStorage.ToggleAutoModeForPreset(preset);
             ImGui.SameLine();
@@ -97,18 +97,18 @@ internal class Presets : ConfigWindow
             ImGui.Separator();
         }
 
-        var ipcControl = P.UIHelper.PresetControlled(preset);
+        var ipcControl = GluttonyCombo.P.UIHelper.PresetControlled(preset);
         if (ipcControl is not null)
             enabled = ipcControl.Value.enabled;
 
         if (comboType is (ComboType.Advanced or ComboType.Simple))
             if (ipcControl is not null)
-                P.UIHelper.ShowIPCControlledIndicatorIfNeeded(preset);
+                GluttonyCombo.P.UIHelper.ShowIPCControlledIndicatorIfNeeded(preset);
 
         if (IsSearching)
             presetName = preset.NameWithFullLineage(presetData.JobInfo.Job);
 
-        if (P.UIHelper.ShowIPCControlledCheckboxIfNeeded
+        if (GluttonyCombo.P.UIHelper.ShowIPCControlledCheckboxIfNeeded
             ($"{presetName}###{preset}", ref enabled, preset, true))
             PresetStorage.TogglePreset(preset);
 

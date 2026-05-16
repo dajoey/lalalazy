@@ -1,11 +1,11 @@
-﻿using ECommons.GameHelpers;
-using WrathCombo.Data;
-using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
-using static WrathCombo.CustomComboNS.Functions.Jobs;
+using ECommons.GameHelpers;
+using GluttonyCombo.Data;
+using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
+using static GluttonyCombo.CustomComboNS.Functions.Jobs;
 using ContentHelper = ECommons.GameHelpers;
 using IntendedUse = ECommons.ExcelServices.TerritoryIntendedUseEnum;
 
-namespace WrathCombo.Combos.PvE;
+namespace GluttonyCombo.Combos.PvE;
 
 internal static partial class Bozja
 {

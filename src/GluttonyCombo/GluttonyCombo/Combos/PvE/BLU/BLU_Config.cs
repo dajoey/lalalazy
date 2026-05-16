@@ -1,4 +1,4 @@
-namespace WrathCombo.Combos.PvE;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class BLU
 {

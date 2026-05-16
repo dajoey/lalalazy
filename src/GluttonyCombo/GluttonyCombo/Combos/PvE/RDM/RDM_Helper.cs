@@ -3,13 +3,13 @@ using Dalamud.Game.ClientState.JobGauge.Types;
 using ECommons.GameHelpers;
 using System;
 using System.Collections.Generic;
-using WrathCombo.CustomComboNS;
-using WrathCombo.CustomComboNS.Functions;
-using static WrathCombo.Combos.PvE.RDM.Config;
-using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.CustomComboNS.Functions;
+using static GluttonyCombo.Combos.PvE.RDM.Config;
+using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
 #endregion
 
-namespace WrathCombo.Combos.PvE;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class RDM
 {

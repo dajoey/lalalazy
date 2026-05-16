@@ -1,13 +1,13 @@
-﻿using Dalamud.Game.ClientState.JobGauge.Types;
+using Dalamud.Game.ClientState.JobGauge.Types;
 using ECommons.MathHelpers;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using System;
 using System.Collections.Generic;
-using WrathCombo.CustomComboNS;
-using WrathCombo.CustomComboNS.Functions;
-using static WrathCombo.Combos.PvE.RPR.Config;
-using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
-namespace WrathCombo.Combos.PvE;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.CustomComboNS.Functions;
+using static GluttonyCombo.Combos.PvE.RPR.Config;
+using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class RPR
 {

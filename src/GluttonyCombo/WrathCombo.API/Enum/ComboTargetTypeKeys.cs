@@ -1,4 +1,4 @@
-namespace WrathCombo.API.Enum;
+namespace GluttonyCombo.API.Enum;
 
 /// <summary>
 ///     The keys for the types of target a combo is designed for, Single-Target or

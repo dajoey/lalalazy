@@ -1,6 +1,6 @@
-﻿using WrathCombo.Attributes;
-using WrathCombo.Core;
-namespace WrathCombo.Extensions;
+using GluttonyCombo.Attributes;
+using GluttonyCombo.Core;
+namespace GluttonyCombo.Extensions;
 
 internal static partial class PresetExtensions
 {

@@ -1,12 +1,12 @@
-﻿using Dalamud.Game.ClientState.Objects.Types;
-using WrathCombo.Combos.PvE;
-using WrathCombo.CustomComboNS;
-using WrathCombo.CustomComboNS.Functions;
-using static WrathCombo.Window.Functions.UserConfig;
-using static WrathCombo.Combos.PvP.RDMPvP.Config;
+using Dalamud.Game.ClientState.Objects.Types;
+using GluttonyCombo.Combos.PvE;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.CustomComboNS.Functions;
+using static GluttonyCombo.Window.Functions.UserConfig;
+using static GluttonyCombo.Combos.PvP.RDMPvP.Config;
 
 
-namespace WrathCombo.Combos.PvP;
+namespace GluttonyCombo.Combos.PvP;
 
 internal static class RDMPvP
 {

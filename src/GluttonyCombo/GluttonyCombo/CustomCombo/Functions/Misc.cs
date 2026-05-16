@@ -1,10 +1,10 @@
-﻿using ECommons.DalamudServices;
+using ECommons.DalamudServices;
 using Lumina.Excel.Sheets;
 using System;
 using System.Collections.Frozen;
 using System.Linq;
-using WrathCombo.Core;
-namespace WrathCombo.CustomComboNS.Functions;
+using GluttonyCombo.Core;
+namespace GluttonyCombo.CustomComboNS.Functions;
 
 internal abstract partial class CustomComboFunctions
 {
@@ -16,7 +16,7 @@ internal abstract partial class CustomComboFunctions
 
         try
         {
-            (string controllers, bool enabled, bool autoMode)? checkControlled = P.UIHelper.PresetControlled(preset);
+            (string controllers, bool enabled, bool autoMode)? checkControlled = GluttonyCombo.P.UIHelper.PresetControlled(preset);
             bool controlled = checkControlled is not null;
             bool? controlledState = checkControlled?.enabled;
 

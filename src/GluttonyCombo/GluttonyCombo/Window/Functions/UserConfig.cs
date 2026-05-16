@@ -1,4 +1,4 @@
-﻿using Dalamud.Interface;
+using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility.Raii;
@@ -9,14 +9,14 @@ using System.Linq;
 using System.Numerics;
 using System.Reflection;
 using System.Text.RegularExpressions;
-using WrathCombo.Combos.PvP;
-using WrathCombo.Core;
-using WrathCombo.CustomComboNS;
-using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Data;
-using WrathCombo.Resources.Localization.JobConfigs;
-using WrathCombo.Services;
-namespace WrathCombo.Window.Functions;
+using GluttonyCombo.Combos.PvP;
+using GluttonyCombo.Core;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Data;
+using GluttonyCombo.Resources.Localization.JobConfigs;
+using GluttonyCombo.Services;
+namespace GluttonyCombo.Window.Functions;
 
 public static class UserConfig
 {

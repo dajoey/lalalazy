@@ -1,9 +1,9 @@
-﻿using Dalamud.Game.ClientState.Conditions;
-using WrathCombo.Core;
-using WrathCombo.CustomComboNS;
-using WrathCombo.Extensions;
+using Dalamud.Game.ClientState.Conditions;
+using GluttonyCombo.Core;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.Extensions;
 
-namespace WrathCombo.Combos.PvE;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class BLU : Caster
 {

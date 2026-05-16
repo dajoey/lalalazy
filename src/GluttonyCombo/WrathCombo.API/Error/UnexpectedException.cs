@@ -1,4 +1,4 @@
-﻿namespace WrathCombo.API.Error;
+namespace GluttonyCombo.API.Error;
 
 public class UnexpectedException(string? msg, System.Exception? ex)
     : Exception(msg, ex);

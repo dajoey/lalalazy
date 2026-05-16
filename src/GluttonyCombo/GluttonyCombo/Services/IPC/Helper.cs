@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 using Dalamud.Networking.Http;
 using ECommons;
@@ -12,17 +12,17 @@ using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-using WrathCombo.API.Enum;
-using WrathCombo.API.Extension;
-using WrathCombo.Attributes;
-using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Extensions;
+using GluttonyCombo.API.Enum;
+using GluttonyCombo.API.Extension;
+using GluttonyCombo.Attributes;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Extensions;
 using EZ = ECommons.Throttlers.EzThrottler;
 using TS = System.TimeSpan;
 
 #endregion
 
-namespace WrathCombo.Services.IPC;
+namespace GluttonyCombo.Services.IPC;
 
 public partial class Helper(ref Leasing leasing)
 {
@@ -108,7 +108,7 @@ public partial class Helper(ref Leasing leasing)
         {
             // Get the opposite mode
             var categorizedPreset =
-                P.IPCSearch.CurrentJobComboStatesCategorized
+                GluttonyCombo.P.IPCSearch.CurrentJobComboStatesCategorized
                         [presetData.JobInfo.Job]
                     [targetType][simplicityLevelToSearchFor];
 
@@ -164,7 +164,7 @@ public partial class Helper(ref Leasing leasing)
         var job = Player.Job.GetUpgradedJob();
 
         // Get the user's settings for this job
-        P.IPCSearch.CurrentJobComboStatesCategorized.TryGetValue(job,
+        GluttonyCombo.P.IPCSearch.CurrentJobComboStatesCategorized.TryGetValue(job,
             out var comboStates);
 
         // Bail if there are no combos found for this job
@@ -186,9 +186,9 @@ public partial class Helper(ref Leasing leasing)
         if (simpleComboPreset is not null)
         {
             simple[ComboStateKeys.AutoMode] =
-                P.IPCSearch.AutoActions[(Preset)simpleComboPreset];
+                GluttonyCombo.P.IPCSearch.AutoActions[(Preset)simpleComboPreset];
             simple[ComboStateKeys.Enabled] =
-                P.IPCSearch.EnabledActions.Contains(
+                GluttonyCombo.P.IPCSearch.EnabledActions.Contains(
                     (Preset)simpleComboPreset);
         }
 
@@ -203,9 +203,9 @@ public partial class Helper(ref Leasing leasing)
         var advancedComboPreset = (Preset)
             Enum.Parse(typeof(Preset), advancedKey, true);
         advancedValue[ComboStateKeys.AutoMode] =
-            P.IPCSearch.AutoActions[advancedComboPreset];
+            GluttonyCombo.P.IPCSearch.AutoActions[advancedComboPreset];
         advancedValue[ComboStateKeys.Enabled] =
-            P.IPCSearch.EnabledActions.Contains(advancedComboPreset);
+            GluttonyCombo.P.IPCSearch.EnabledActions.Contains(advancedComboPreset);
 
         #endregion
 
@@ -252,7 +252,7 @@ public partial class Helper(ref Leasing leasing)
         if (CombosForARCache.TryGetValue(job, out var value))
             return value;
 
-        P.IPCSearch.CurrentJobComboStatesCategorized.TryGetValue(job,
+        GluttonyCombo.P.IPCSearch.CurrentJobComboStatesCategorized.TryGetValue(job,
             out var comboStates);
 
         if (comboStates is null)
@@ -278,7 +278,7 @@ public partial class Helper(ref Leasing leasing)
                 [ComboSimplicityLevelKeys.Advanced].First().Key;
             combos.Add(stAdvanced);
             if (includeOptions)
-                combos.AddRange(P.IPCSearch.OptionNamesByJob[job][stAdvanced]);
+                combos.AddRange(GluttonyCombo.P.IPCSearch.OptionNamesByJob[job][stAdvanced]);
         }
 
         #endregion
@@ -299,7 +299,7 @@ public partial class Helper(ref Leasing leasing)
                 [ComboSimplicityLevelKeys.Advanced].First().Key;
             combos.Add(mtAdvanced);
             if (includeOptions)
-                combos.AddRange(P.IPCSearch.OptionNamesByJob[job][mtAdvanced]);
+                combos.AddRange(GluttonyCombo.P.IPCSearch.OptionNamesByJob[job][mtAdvanced]);
         }
 
         #endregion
@@ -315,7 +315,7 @@ public partial class Helper(ref Leasing leasing)
             var healSTPreset = comboStates[ComboTargetTypeKeys.HealST]
                 [ComboSimplicityLevelKeys.Other].First().Key;
             if (includeOptions)
-                combos.AddRange(P.IPCSearch.OptionNamesByJob[job][healSTPreset]);
+                combos.AddRange(GluttonyCombo.P.IPCSearch.OptionNamesByJob[job][healSTPreset]);
         }
 
         if (comboStates.TryGetValue(ComboTargetTypeKeys.HealMT, out healResults))
@@ -327,7 +327,7 @@ public partial class Helper(ref Leasing leasing)
             var healMTPreset = comboStates[ComboTargetTypeKeys.HealMT]
                 [ComboSimplicityLevelKeys.Other].First().Key;
             if (includeOptions)
-                combos.AddRange(P.IPCSearch.OptionNamesByJob[job][healMTPreset]);
+                combos.AddRange(GluttonyCombo.P.IPCSearch.OptionNamesByJob[job][healMTPreset]);
         }
 
         #endregion

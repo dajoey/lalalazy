@@ -6,10 +6,10 @@ using System.Linq;
 using Dalamud.Game.ClientState.Objects.Types;
 using ECommons.DalamudServices;
 using ECommons.Logging;
-using WrathCombo.Combos.PvE;
-using WrathCombo.CustomComboNS;
-using WrathCombo.Extensions;
-using WrathCombo.Services;
+using GluttonyCombo.Combos.PvE;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.Extensions;
+using GluttonyCombo.Services;
 using EZ = ECommons.Throttlers.EzThrottler;
 using TS = System.TimeSpan;
 
@@ -20,7 +20,7 @@ using TS = System.TimeSpan;
 
 #endregion
 
-namespace WrathCombo.Core;
+namespace GluttonyCombo.Core;
 
 /// <summary>
 ///     Action Retargeting capabilities, to remove any dependence on Redirect or
@@ -363,7 +363,7 @@ public class ActionRetargeting : IDisposable
             // This doesn't even need set at Dispose() technically,
             // since it becomes un-reference-able once the plugin is unloaded.
             // Either way, it's an easy check, for sure.
-            if (P.ActionRetargeting.CancelCacheClearing)
+            if (GluttonyCombo.P.ActionRetargeting.CancelCacheClearing)
                 return;
         }
         // When unloading the plugin, just kill the task
@@ -373,7 +373,7 @@ public class ActionRetargeting : IDisposable
         }
 
         // Find old Retargets that are allowed to be culled
-        var oldRetargets = P.ActionRetargeting.Retargets.Values
+        var oldRetargets = GluttonyCombo.P.ActionRetargeting.Retargets.Values
             .Where(x => (DateTime.Now - x.Created) > TS.FromSeconds(20))
             .ToList();
 
@@ -381,13 +381,13 @@ public class ActionRetargeting : IDisposable
         if (oldRetargets.Count > 0)
             foreach (var old in oldRetargets)
             {
-                P.ActionRetargeting.RemoveRetarget(old.ID);
+                GluttonyCombo.P.ActionRetargeting.RemoveRetarget(old.ID);
                 // Make sure not to spam if the same retarget is culled more than once
                 if (!EZ.Throttle($"retargetClr{old.ID}", TS.FromSeconds(3)))
                     log("cleared old Retarget for", showAction: true, retarget: old);
             }
 
-        Svc.Framework.RunOnTick(P.ActionRetargeting.ClearOldRetargets,
+        Svc.Framework.RunOnTick(GluttonyCombo.P.ActionRetargeting.ClearOldRetargets,
             TS.FromSeconds(11));
     };
 
@@ -505,7 +505,7 @@ internal static class UIntExtensions
         /// <returns>The <paramref name="action" />.</returns>
         internal uint Retarget
             (IGameObject? target) =>
-            P.ActionRetargeting.Register(action, [action], () => target);
+            GluttonyCombo.P.ActionRetargeting.Register(action, [action], () => target);
 
         /// <summary>
         ///     Retargets the action to the target specified.<br />
@@ -522,7 +522,7 @@ internal static class UIntExtensions
         /// <returns>The <paramref name="action" />.</returns>
         internal uint Retarget
             (Func<IGameObject?> target) =>
-            P.ActionRetargeting.Register(action, [action],
+            GluttonyCombo.P.ActionRetargeting.Register(action, [action],
                 target.CheckForAttribute());
 
         /// <summary>
@@ -541,7 +541,7 @@ internal static class UIntExtensions
         internal uint Retarget
         (uint replaced,
             IGameObject? target) =>
-            P.ActionRetargeting.Register(action, [replaced], () => target);
+            GluttonyCombo.P.ActionRetargeting.Register(action, [replaced], () => target);
 
         /// <summary>
         ///     Retargets the action to the target specified.
@@ -559,7 +559,7 @@ internal static class UIntExtensions
         internal uint Retarget
         (uint replaced,
             Func<IGameObject?> target) =>
-            P.ActionRetargeting.Register(action, [replaced],
+            GluttonyCombo.P.ActionRetargeting.Register(action, [replaced],
                 target.CheckForAttribute());
 
         /// <summary>
@@ -579,7 +579,7 @@ internal static class UIntExtensions
         internal uint Retarget
         (uint[] replaced,
             IGameObject? target) =>
-            P.ActionRetargeting.Register(action, replaced, () => target);
+            GluttonyCombo.P.ActionRetargeting.Register(action, replaced, () => target);
 
         /// <summary>
         ///     Retargets the action to the target specified.
@@ -598,7 +598,7 @@ internal static class UIntExtensions
         internal uint Retarget
         (uint[] replaced,
             Func<IGameObject?> target) =>
-            P.ActionRetargeting.Register(action, replaced,
+            GluttonyCombo.P.ActionRetargeting.Register(action, replaced,
                 target.CheckForAttribute());
     }
 }

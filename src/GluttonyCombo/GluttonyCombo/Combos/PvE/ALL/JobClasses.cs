@@ -1,5 +1,5 @@
-﻿using static WrathCombo.Combos.PvE.RoleActions;
-namespace WrathCombo.Combos.PvE;
+using static GluttonyCombo.Combos.PvE.RoleActions;
+namespace GluttonyCombo.Combos.PvE;
 
 //This defines a FFXIV job type, and maps specific Role and Variant actions to that job
 //Examples

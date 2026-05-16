@@ -1,12 +1,12 @@
-﻿using Dalamud.Interface.Colors;
+using Dalamud.Interface.Colors;
 using System.Linq;
-using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Resources.Localization.JobConfigs;
-using WrathCombo.Window;
-using static WrathCombo.Extensions.UIntExtensions;
-using static WrathCombo.Window.Functions.SliderIncrements;
-using static WrathCombo.Window.Functions.UserConfig;
-namespace WrathCombo.Combos.PvE;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Resources.Localization.JobConfigs;
+using GluttonyCombo.Window;
+using static GluttonyCombo.Extensions.UIntExtensions;
+using static GluttonyCombo.Window.Functions.SliderIncrements;
+using static GluttonyCombo.Window.Functions.UserConfig;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class AST
 {

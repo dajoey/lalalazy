@@ -1,4 +1,4 @@
-﻿using Dalamud.Interface;
+using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Interface.Utility.Raii;
@@ -10,14 +10,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using WrathCombo.Core;
-using WrathCombo.Extensions;
-using WrathCombo.Resources.Localization.UI.Features;
-using WrathCombo.Resources.Localization.UI.Misc;
-using WrathCombo.Services;
-using WrathCombo.Window.Functions;
+using GluttonyCombo.Core;
+using GluttonyCombo.Extensions;
+using GluttonyCombo.Resources.Localization.UI.Features;
+using GluttonyCombo.Resources.Localization.UI.Misc;
+using GluttonyCombo.Services;
+using GluttonyCombo.Window.Functions;
 
-namespace WrathCombo.Window.Tabs;
+namespace GluttonyCombo.Window.Tabs;
 
 internal class PvPFeatures : FeaturesWindow
 {
@@ -33,7 +33,7 @@ internal class PvPFeatures : FeaturesWindow
                 var userwarned = false;
 
                 //Auto-Rotation warning
-                if (P.IPC.GetAutoRotationState())
+                if (GluttonyCombo.P.IPC.GetAutoRotationState())
                 {
                     ImGuiEx.LineCentered($"pvpWarning", () =>
                     {

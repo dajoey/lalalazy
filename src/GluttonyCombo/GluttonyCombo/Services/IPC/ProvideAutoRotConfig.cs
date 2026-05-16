@@ -1,14 +1,14 @@
-﻿#region
+#region
 
 using ECommons.EzIpcManager;
 using System;
-using WrathCombo.API.Enum;
-using WrathCombo.API.Extension;
-using arcOption = WrathCombo.API.Enum.AutoRotationConfigOption;
+using GluttonyCombo.API.Enum;
+using GluttonyCombo.API.Extension;
+using arcOption = GluttonyCombo.API.Enum.AutoRotationConfigOption;
 
 #endregion
 
-namespace WrathCombo.Services.IPC;
+namespace GluttonyCombo.Services.IPC;
 
 public partial class Provider
 {
@@ -43,7 +43,7 @@ public partial class Provider
         {
             Logging.Warn("Invalid or not-yet-implemented `option` of " +
                           $"'{passedOption}'. Please refer to " +
-                          "WrathCombo.Services.IPC.AutoRotationConfigOption");
+                          "GluttonyCombo.Services.IPC.AutoRotationConfigOption");
             return null;
         }
 
@@ -85,7 +85,7 @@ public partial class Provider
         catch (Exception)
         {
             Logging.Error($"Invalid `option` of '{passedOption}'. Please refer to " +
-                          "WrathCombo.Services.IPC.AutoRotationConfigOption");
+                          "GluttonyCombo.Services.IPC.AutoRotationConfigOption");
             return null;
         }
     }
@@ -132,7 +132,7 @@ public partial class Provider
         {
             Logging.Warn("Invalid or not-yet-implemented `option` of " +
                           $"'{passedOption}'. Please refer to " +
-                          "WrathCombo.Services.IPC.AutoRotationConfigOption");
+                          "GluttonyCombo.Services.IPC.AutoRotationConfigOption");
             return SetResult.InvalidConfiguration;
         }
 

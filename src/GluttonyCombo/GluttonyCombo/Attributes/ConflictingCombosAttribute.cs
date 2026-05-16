@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 
-namespace WrathCombo.Attributes;
+namespace GluttonyCombo.Attributes;
 
 /// <summary> Attribute documenting conflicting presets for each combo. </summary>
 [AttributeUsage(AttributeTargets.Field)]

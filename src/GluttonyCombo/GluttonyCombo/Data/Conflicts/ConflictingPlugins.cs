@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 using Dalamud.Interface.Colors;
 using ECommons;
@@ -9,16 +9,16 @@ using System;
 using System.Linq;
 using System.Numerics;
 using System.Text;
-using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Extensions;
-using WrathCombo.Resources.Localization.UI.MainWindow;
-using WrathCombo.Resources.Localization.UI.Misc;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Extensions;
+using GluttonyCombo.Resources.Localization.UI.MainWindow;
+using GluttonyCombo.Resources.Localization.UI.Misc;
 using EZ = ECommons.Throttlers.EzThrottler;
 using TS = System.TimeSpan;
 
 #endregion
 
-namespace WrathCombo.Data.Conflicts;
+namespace GluttonyCombo.Data.Conflicts;
 
 public static class ConflictingPlugins
 {
@@ -238,7 +238,7 @@ public static class ConflictingPlugins
 
             var tooltipText = string.Format(
                 MainWindowUI.Tooltip_ConflictingWrathSettings,
-                P.Name,
+                GluttonyCombo.P.Name,
                 conflictLines.ToString());
 
             ShowWarning(ConflictType.WrathSetting, tooltipText,
@@ -266,13 +266,13 @@ public static class ConflictingPlugins
                     MainWindowUI.Tooltip_TargettingConflicts_Plugin,
                     conflict.Name,
                     conflict.Version,
-                    P.Name,
+                    GluttonyCombo.P.Name,
                     actionLines.ToString()));
             }
 
             var tooltipText = string.Format(
                 MainWindowUI.Tooltip_TargettingConflicts,
-                P.Name,
+                GluttonyCombo.P.Name,
                 pluginLines.ToString());
 
             ShowWarning(ConflictType.Targeting, tooltipText,

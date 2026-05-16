@@ -1,13 +1,13 @@
-﻿using ECommons.DalamudServices;
+using ECommons.DalamudServices;
 using ECommons.GameHelpers;
-using WrathCombo.Attributes;
-using WrathCombo.Data;
-using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
-using static WrathCombo.CustomComboNS.Functions.Jobs;
+using GluttonyCombo.Attributes;
+using GluttonyCombo.Data;
+using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
+using static GluttonyCombo.CustomComboNS.Functions.Jobs;
 using EZ = ECommons.Throttlers.EzThrottler;
 using TS = System.TimeSpan;
 
-namespace WrathCombo.Combos.PvE;
+namespace GluttonyCombo.Combos.PvE;
 
 // Static utility class for shared logic
 internal static partial class Variant

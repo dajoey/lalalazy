@@ -1,5 +1,5 @@
-﻿using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
-namespace WrathCombo.Combos.PvP;
+using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
+namespace GluttonyCombo.Combos.PvP;
 
 class PvPCaster //Offensive Magic
 {

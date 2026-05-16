@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 using Dalamud.Game.ClientState.JobGauge.Types;
 using Dalamud.Game.ClientState.Objects.Types;
@@ -9,13 +9,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Dalamud.Game.ClientState.Conditions;
-using WrathCombo.Core;
-using WrathCombo.CustomComboNS;
-using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Extensions;
-using WrathCombo.Services;
-using static WrathCombo.Combos.PvE.DNC.Config;
-using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
+using GluttonyCombo.Core;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Extensions;
+using GluttonyCombo.Services;
+using static GluttonyCombo.Combos.PvE.DNC.Config;
+using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
 using EZ = ECommons.Throttlers.EzThrottler;
 using TS = System.TimeSpan;
 
@@ -29,7 +29,7 @@ using TS = System.TimeSpan;
 
 #endregion
 
-namespace WrathCombo.Combos.PvE;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class DNC
 {
@@ -112,7 +112,7 @@ internal partial class DNC
     ///     (whether by user settings or another plugin).
     /// </returns>
     private static bool InAutoMode(bool singleTarget, bool simpleMode) =>
-        P.IPC.GetAutoRotationState() && P.IPC.GetComboState(
+        GluttonyCombo.P.IPC.GetAutoRotationState() && GluttonyCombo.P.IPC.GetComboState(
             (singleTarget
                 ? (simpleMode
                     ? Preset.DNC_ST_SimpleMode

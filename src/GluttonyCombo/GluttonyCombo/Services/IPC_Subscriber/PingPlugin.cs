@@ -1,4 +1,4 @@
-﻿using Dalamud.Plugin.Ipc;
+using Dalamud.Plugin.Ipc;
 using ECommons.DalamudServices;
 using ECommons.EzIpcManager;
 using ECommons.Reflection;
@@ -6,7 +6,7 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Text.Json;
 
-namespace WrathCombo.Services.IPC_Subscriber
+namespace GluttonyCombo.Services.IPC_Subscriber
 {
     // Requires the use of 1PP "PingPlugin" because I really can't be bothered implementing all the same checks myself
     // Maybe that can be an ECommons thing at some point instead?

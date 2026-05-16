@@ -1,4 +1,4 @@
-﻿#region Dependencies
+#region Dependencies
 using Dalamud.Game.ClientState.JobGauge.Enums;
 using Dalamud.Game.ClientState.JobGauge.Types;
 using Dalamud.Game.ClientState.Objects.Types;
@@ -7,15 +7,15 @@ using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Linq;
-using WrathCombo.Core;
-using WrathCombo.CustomComboNS;
-using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Extensions;
-using static WrathCombo.Combos.PvE.BRD.Config;
-using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
+using GluttonyCombo.Core;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Extensions;
+using static GluttonyCombo.Combos.PvE.BRD.Config;
+using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
 #endregion
 
-namespace WrathCombo.Combos.PvE;
+namespace GluttonyCombo.Combos.PvE;
 internal partial class BRD
 {
     #region Variables

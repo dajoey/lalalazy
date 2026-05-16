@@ -1,11 +1,11 @@
-﻿#region
+#region
 
 using System.Reflection;
 using Dalamud.Plugin;
 
 #endregion
 
-namespace WrathCombo.API;
+namespace GluttonyCombo.API;
 
 public static partial class WrathIPCWrapper
 {

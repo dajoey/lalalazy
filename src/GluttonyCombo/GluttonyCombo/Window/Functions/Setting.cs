@@ -4,17 +4,17 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using ECommons.Reflection;
-using WrathCombo.Attributes;
-using WrathCombo.Core;
-using WrathCombo.Resources.Localization.UI.Settings;
-using WrathCombo.Services;
-using SettingType = WrathCombo.Attributes.Setting.Type;
-using Category = WrathCombo.Attributes.SettingCategory.Category;
+using GluttonyCombo.Attributes;
+using GluttonyCombo.Core;
+using GluttonyCombo.Resources.Localization.UI.Settings;
+using GluttonyCombo.Services;
+using SettingType = GluttonyCombo.Attributes.Setting.Type;
+using Category = GluttonyCombo.Attributes.SettingCategory.Category;
 using ECommons.DalamudServices;
 
 #endregion
 
-namespace WrathCombo.Window.Functions;
+namespace GluttonyCombo.Window.Functions;
 
 public class Setting
 {

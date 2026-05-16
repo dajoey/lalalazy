@@ -1,16 +1,16 @@
-﻿using Dalamud.Game.ClientState.JobGauge.Types;
+using Dalamud.Game.ClientState.JobGauge.Types;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Game.ClientState.Statuses;
 using ECommons.GameFunctions;
 using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
-using WrathCombo.CustomComboNS;
-using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Extensions;
-using static WrathCombo.Combos.PvE.SGE.Config;
-using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
-namespace WrathCombo.Combos.PvE;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Extensions;
+using static GluttonyCombo.Combos.PvE.SGE.Config;
+using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class SGE
 {

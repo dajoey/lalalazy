@@ -1,15 +1,15 @@
-﻿using Dalamud.Game.ClientState.Objects.Types;
+using Dalamud.Game.ClientState.Objects.Types;
 using ECommons.ExcelServices;
 using ECommons.GameHelpers;
 using System.Collections.Generic;
-using WrathCombo.Attributes;
-using WrathCombo.Combos.PvE;
-using WrathCombo.Core;
-using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Services.ActionRequestIPC;
+using GluttonyCombo.Attributes;
+using GluttonyCombo.Combos.PvE;
+using GluttonyCombo.Core;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Services.ActionRequestIPC;
 using ECommonsJob = ECommons.ExcelServices.Job;
 
-namespace WrathCombo.CustomComboNS;
+namespace GluttonyCombo.CustomComboNS;
 
 /// <summary> Base class for each combo. </summary>
 internal abstract partial class CustomCombo : CustomComboFunctions

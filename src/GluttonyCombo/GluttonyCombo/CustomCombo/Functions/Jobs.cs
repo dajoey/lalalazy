@@ -1,6 +1,6 @@
-﻿using ECommons.ExcelServices;
+using ECommons.ExcelServices;
 
-namespace WrathCombo.CustomComboNS.Functions
+namespace GluttonyCombo.CustomComboNS.Functions
 {
     internal class Jobs
     {

@@ -1,11 +1,11 @@
-using WrathCombo.Combos.PvE;
-using WrathCombo.Core;
-using WrathCombo.CustomComboNS;
-using WrathCombo.CustomComboNS.Functions;
-using static WrathCombo.Window.Functions.UserConfig;
-using static WrathCombo.Combos.PvP.SMNPvP.Config;
+using GluttonyCombo.Combos.PvE;
+using GluttonyCombo.Core;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.CustomComboNS.Functions;
+using static GluttonyCombo.Window.Functions.UserConfig;
+using static GluttonyCombo.Combos.PvP.SMNPvP.Config;
 
-namespace WrathCombo.Combos.PvP;
+namespace GluttonyCombo.Combos.PvP;
 
 internal static class SMNPvP
 {

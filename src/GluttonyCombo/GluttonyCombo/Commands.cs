@@ -10,26 +10,26 @@ using Lumina.Excel.Sheets;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using WrathCombo.API.Enum;
-using WrathCombo.Attributes;
-using WrathCombo.Core;
-using WrathCombo.CustomComboNS;
-using WrathCombo.Data;
-using WrathCombo.Data.Conflicts;
-using WrathCombo.Extensions;
-using WrathCombo.Services;
-using WrathCombo.Window;
-using WrathCombo.Window.Tabs;
+using GluttonyCombo.API.Enum;
+using GluttonyCombo.Attributes;
+using GluttonyCombo.Core;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.Data;
+using GluttonyCombo.Data.Conflicts;
+using GluttonyCombo.Extensions;
+using GluttonyCombo.Services;
+using GluttonyCombo.Window;
+using GluttonyCombo.Window.Tabs;
 using static ECommons.ExcelServices.ExcelJobHelper;
-using static WrathCombo.Core.Configuration;
+using static GluttonyCombo.Core.Configuration;
 
 #endregion
 
-namespace WrathCombo;
+namespace GluttonyCombo;
 
-public partial class WrathCombo
+public partial class GluttonyCombo
 {
-    private const string Command = "/wrath";
+    private const string Command = "/gluttony";
     private const string OldCommand = "/scombo";
 
     private static readonly Dictionary<Job, Preset[]> BurstPresetMap = new()
@@ -510,7 +510,7 @@ public partial class WrathCombo
                         return;
                     }
                 default:
-                    DuoLog.Error("Usage: /wrath auto target <damage|healer> <mode>");
+                    DuoLog.Error("Usage: /gluttony auto target <damage|healer> <mode>");
                     return;
             }
         }

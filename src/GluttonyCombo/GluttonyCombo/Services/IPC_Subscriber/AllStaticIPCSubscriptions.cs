@@ -1,4 +1,4 @@
-﻿namespace WrathCombo.Services.IPC_Subscriber;
+namespace GluttonyCombo.Services.IPC_Subscriber;
 
 public static class AllStaticIPCSubscriptions
 {

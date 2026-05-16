@@ -1,7 +1,7 @@
-﻿using Dalamud.Game.ClientState.JobGauge.Types;
-using WrathCombo.CustomComboNS;
-using static WrathCombo.Combos.PvE.PCT.Config;
-namespace WrathCombo.Combos.PvE;
+using Dalamud.Game.ClientState.JobGauge.Types;
+using GluttonyCombo.CustomComboNS;
+using static GluttonyCombo.Combos.PvE.PCT.Config;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class PCT : Caster
 {

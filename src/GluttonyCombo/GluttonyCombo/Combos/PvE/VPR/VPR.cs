@@ -1,8 +1,8 @@
 using Dalamud.Game.ClientState.JobGauge.Enums;
-using WrathCombo.Core;
-using WrathCombo.CustomComboNS;
-using static WrathCombo.Combos.PvE.VPR.Config;
-namespace WrathCombo.Combos.PvE;
+using GluttonyCombo.Core;
+using GluttonyCombo.CustomComboNS;
+using static GluttonyCombo.Combos.PvE.VPR.Config;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class VPR : Melee
 {

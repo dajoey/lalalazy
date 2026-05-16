@@ -1,6 +1,6 @@
-﻿using FFXIVClientStructs.FFXIV.Client.Game;
+using FFXIVClientStructs.FFXIV.Client.Game;
 using System.Linq;
-namespace WrathCombo.Services;
+namespace GluttonyCombo.Services;
 
 internal unsafe static class BlueMageService
 {

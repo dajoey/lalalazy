@@ -1,9 +1,9 @@
 using Dalamud.Game.ClientState.JobGauge.Enums;
-using WrathCombo.Core;
-using WrathCombo.CustomComboNS;
-using WrathCombo.Data;
-using static WrathCombo.Combos.PvE.BRD.Config;
-namespace WrathCombo.Combos.PvE;
+using GluttonyCombo.Core;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.Data;
+using static GluttonyCombo.Combos.PvE.BRD.Config;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class BRD : PhysicalRanged
 {

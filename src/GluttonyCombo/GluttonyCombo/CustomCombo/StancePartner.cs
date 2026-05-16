@@ -7,13 +7,13 @@ using ECommons.Logging;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using System;
 using System.Threading.Tasks;
-using WrathCombo.Combos.PvE;
-using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Extensions;
+using GluttonyCombo.Combos.PvE;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Extensions;
 
 #endregion
 
-namespace WrathCombo.CustomComboNS;
+namespace GluttonyCombo.CustomComboNS;
 
 public static class StancePartner
 {
@@ -26,7 +26,7 @@ public static class StancePartner
     /// <summary>
     ///     The Action to check if an IPC is in control, after a territory change.
     /// </summary>
-    /// <seealso cref="WrathCombo.ClientState_TerritoryChanged"/>
+    /// <seealso cref="GluttonyCombo.ClientState_TerritoryChanged"/>
     public static readonly Action CheckForIPCControl = () =>
     {
         // Reset run count
@@ -48,7 +48,7 @@ public static class StancePartner
         Task.Delay(4000).Wait();
 
         // If IPC-Controlled: Run Check() on the next tick
-        if (P.UIHelper.AutoRotationStateControlled() is not null)
+        if (GluttonyCombo.P.UIHelper.AutoRotationStateControlled() is not null)
         {
             PluginLog.Verbose("OnIPCInstanceChange: Is IPC-Controlled");
             Svc.Framework.RunOnTick(CheckStancePartner!);
@@ -132,7 +132,7 @@ public static class StancePartner
     (Job job, uint action, ushort buff, ulong? target, ref bool
         callAgain)
     {
-        if (WrathCombo.JobID != job || CustomComboFunctions.HasStatusEffect(buff))
+        if (GluttonyCombo.JobID != job || CustomComboFunctions.HasStatusEffect(buff))
             return;
         PluginLog.Verbose(
             $"OnIPCInstanceChange: Trying to cast {action.ActionName()}");

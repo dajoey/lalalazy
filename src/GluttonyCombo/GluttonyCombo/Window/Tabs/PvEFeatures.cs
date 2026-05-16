@@ -1,4 +1,4 @@
-﻿using Dalamud.Interface.Textures.TextureWraps;
+using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Interface.Utility.Raii;
 using ECommons;
 using ECommons.ExcelServices;
@@ -9,15 +9,15 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using WrathCombo.Core;
-using WrathCombo.Extensions;
-using WrathCombo.Resources.Localization.UI.Features;
-using WrathCombo.Resources.Localization.UI.Misc;
-using WrathCombo.Services;
-using WrathCombo.Window.Functions;
-using WrathCombo.Window.MessagesNS;
+using GluttonyCombo.Core;
+using GluttonyCombo.Extensions;
+using GluttonyCombo.Resources.Localization.UI.Features;
+using GluttonyCombo.Resources.Localization.UI.Misc;
+using GluttonyCombo.Services;
+using GluttonyCombo.Window.Functions;
+using GluttonyCombo.Window.MessagesNS;
 
-namespace WrathCombo.Window.Tabs;
+namespace GluttonyCombo.Window.Tabs;
 
 internal class PvEFeatures : FeaturesWindow
 {
@@ -60,7 +60,7 @@ internal class PvEFeatures : FeaturesWindow
                         string header = string.IsNullOrEmpty(abbreviation) ? jobName : $"{jobName} - {abbreviation}";
                         var id = info.Job;
 
-                        if (Service.Configuration.AprilFools2026 && IsAprilFools)
+                        if (Service.Configuration.AprilFools2026 && GluttonyCombo.IsAprilFools)
                         {
                             var mnkInfo = groupedPresets[Job.MNK][0].JobInfo;
                             jobName = mnkInfo.JobName;
@@ -95,10 +95,10 @@ internal class PvEFeatures : FeaturesWindow
                             ImGui.TextWrapped($"{header} {(disabled.Count > 0 ? FeaturesUI.Warning_DisabledDueToUpdate : "")}");
 
                             if (!string.IsNullOrEmpty(abbreviation) &&
-                                P.UIHelper.JobControlled(id) is not null)
+                                GluttonyCombo.P.UIHelper.JobControlled(id) is not null)
                             {
                                 ImGui.SameLine();
-                                P.UIHelper
+                                GluttonyCombo.P.UIHelper
                                     .ShowIPCControlledIndicatorIfNeeded(id, false, ColCount > 1);
                             }
                         }
@@ -109,7 +109,7 @@ internal class PvEFeatures : FeaturesWindow
             }
             else
             {
-                if (Service.Configuration.AprilFools2026 && IsAprilFools)
+                if (Service.Configuration.AprilFools2026 && GluttonyCombo.IsAprilFools)
                 {
                     openJob = Job.MNK;
                 }
@@ -348,7 +348,7 @@ internal class PvEFeatures : FeaturesWindow
             (onJobChange || !Service.Configuration.OpenToCurrentJob ||
              !Player.Available)) return;
 
-        if (onJobChange && !P.ConfigWindow.IsOpen)
+        if (onJobChange && !GluttonyCombo.P.ConfigWindow.IsOpen)
             return;
 
         if (Player.Job.IsDoh())

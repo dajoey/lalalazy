@@ -1,6 +1,6 @@
-﻿using WrathCombo.API.Enum;
+using GluttonyCombo.API.Enum;
 
-namespace WrathCombo.AutoRotation;
+namespace GluttonyCombo.AutoRotation;
 
 public class AutoRotationConfig
 {

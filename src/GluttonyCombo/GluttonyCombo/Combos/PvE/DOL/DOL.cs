@@ -1,6 +1,6 @@
-﻿using Dalamud.Game.ClientState.Conditions;
-using WrathCombo.CustomComboNS;
-namespace WrathCombo.Combos.PvE;
+using Dalamud.Game.ClientState.Conditions;
+using GluttonyCombo.CustomComboNS;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class DOL
 {

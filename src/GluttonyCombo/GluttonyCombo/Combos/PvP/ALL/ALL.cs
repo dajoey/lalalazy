@@ -1,13 +1,13 @@
-﻿using Dalamud.Game.ClientState.Objects.Types;
+using Dalamud.Game.ClientState.Objects.Types;
 using System;
 using System.Collections.Frozen;
 using System.Linq;
-using WrathCombo.Combos.PvE;
-using WrathCombo.CustomComboNS;
-using WrathCombo.CustomComboNS.Functions;
-using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
-using static WrathCombo.Window.Functions.UserConfig;
-namespace WrathCombo.Combos.PvP;
+using GluttonyCombo.Combos.PvE;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.CustomComboNS.Functions;
+using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
+using static GluttonyCombo.Window.Functions.UserConfig;
+namespace GluttonyCombo.Combos.PvP;
 
 internal static class PvPCommon
 {

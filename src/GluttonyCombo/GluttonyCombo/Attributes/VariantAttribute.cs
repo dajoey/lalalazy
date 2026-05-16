@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 
-namespace WrathCombo.Attributes;
+namespace GluttonyCombo.Attributes;
 
 /// <summary> Attribute designating variant combos. </summary>
 [AttributeUsage(AttributeTargets.Field)]

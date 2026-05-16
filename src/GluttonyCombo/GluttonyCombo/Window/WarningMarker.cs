@@ -2,7 +2,7 @@ using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Components;
 
-namespace WrathCombo.Window;
+namespace GluttonyCombo.Window;
 
 public static class WarningMarkerComponent
 {

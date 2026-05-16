@@ -1,7 +1,7 @@
-﻿using System;
-using WrathCombo.Combos.PvE;
+using System;
+using GluttonyCombo.Combos.PvE;
 
-namespace WrathCombo.Attributes;
+namespace GluttonyCombo.Attributes;
 
 /// <summary> Attribute designating Occult Crescent actions. </summary>
 [AttributeUsage(AttributeTargets.Field)]

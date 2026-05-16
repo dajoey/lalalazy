@@ -1,15 +1,15 @@
 using Dalamud.Interface.Colors;
 using ECommons.ImGuiMethods;
-using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Data;
-using WrathCombo.Extensions;
-using WrathCombo.Resources.Localization.JobConfigs;
-using WrathCombo.Window.Functions;
-using static WrathCombo.Window.Text;
-using static WrathCombo.Window.Functions.UserConfig;
-using BossAvoidance = WrathCombo.Combos.PvE.All.Enums.BossAvoidance;
-using PartyRequirement = WrathCombo.Combos.PvE.All.Enums.PartyRequirement;
-namespace WrathCombo.Combos.PvE;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Data;
+using GluttonyCombo.Extensions;
+using GluttonyCombo.Resources.Localization.JobConfigs;
+using GluttonyCombo.Window.Functions;
+using static GluttonyCombo.Window.Text;
+using static GluttonyCombo.Window.Functions.UserConfig;
+using BossAvoidance = GluttonyCombo.Combos.PvE.All.Enums.BossAvoidance;
+using PartyRequirement = GluttonyCombo.Combos.PvE.All.Enums.PartyRequirement;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class WAR
 {

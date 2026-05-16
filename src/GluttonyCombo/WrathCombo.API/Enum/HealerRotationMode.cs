@@ -1,4 +1,4 @@
-namespace WrathCombo.API.Enum;
+namespace GluttonyCombo.API.Enum;
 
 // ReSharper disable UnusedMember.Global
 // ReSharper disable InconsistentNaming

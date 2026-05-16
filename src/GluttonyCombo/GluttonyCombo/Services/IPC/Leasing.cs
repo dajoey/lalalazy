@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 // ReSharper disable RedundantUsingDirective
 
@@ -11,11 +11,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
-using WrathCombo.API.Enum;
-using WrathCombo.Combos;
-using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Extensions;
-using CancellationReasonEnum = WrathCombo.API.Enum.CancellationReason;
+using GluttonyCombo.API.Enum;
+using GluttonyCombo.Combos;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Extensions;
+using CancellationReasonEnum = GluttonyCombo.API.Enum.CancellationReason;
 using EZ = ECommons.Throttlers.EzThrottler;
 using TS = System.TimeSpan;
 
@@ -24,7 +24,7 @@ using TS = System.TimeSpan;
 
 #endregion
 
-namespace WrathCombo.Services.IPC;
+namespace GluttonyCombo.Services.IPC;
 
 public class Lease(
     string internalPluginName,
@@ -400,17 +400,17 @@ public partial class Leasing
         string[] stringKeys;
 
         // Lock the job if it's already ready
-        if (P.IPC.IsCurrentJobAutoRotationReady())
+        if (GluttonyCombo.P.IPC.IsCurrentJobAutoRotationReady())
         {
             locking = true;
             stringKeys = [];
-            combos = P.IPCSearch.EnabledActions
+            combos = GluttonyCombo.P.IPCSearch.EnabledActions
                 .Where(a => a.Attributes().JobInfo.Job
                            == job)
                 .Where(a => a.Attributes().Parent is null)
                 .Select(a => a.ToString())
                 .ToList();
-            options = P.IPCSearch.EnabledActions
+            options = GluttonyCombo.P.IPCSearch.EnabledActions
                 .Where(a => a.Attributes().JobInfo.Job
                            == job)
                 .Where(a => a.Attributes().Parent is not null)
@@ -460,7 +460,7 @@ public partial class Leasing
         CombosUpdated = DateTime.Now;
         OptionsUpdated = DateTime.Now;
 
-        P.IPCSearch.UpdateActiveJobPresets();
+        GluttonyCombo.P.IPCSearch.UpdateActiveJobPresets();
 
         return SetResult.OkayWorking;
     }
@@ -503,7 +503,7 @@ public partial class Leasing
         CombosUpdated = DateTime.Now;
         OptionsUpdated = DateTime.Now;
 
-        P.IPCSearch.UpdateActiveJobPresets();
+        GluttonyCombo.P.IPCSearch.UpdateActiveJobPresets();
     }
 
     #endregion

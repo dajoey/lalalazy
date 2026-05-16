@@ -8,13 +8,13 @@ using ECommons.DalamudServices;
 using ECommons.ExcelServices;
 using ECommons.GameHelpers;
 using Lumina.Excel.Sheets;
-using WrathCombo.CustomComboNS;
-using WrathCombo.Extensions;
-using WrathCombo.Services;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.Extensions;
+using GluttonyCombo.Services;
 
 #endregion
 
-namespace WrathCombo.Combos.PvE.Content;
+namespace GluttonyCombo.Combos.PvE.Content;
 
 public class Quests
 {

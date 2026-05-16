@@ -1,12 +1,12 @@
 #region
 
 using System.Reflection;
-using WrathCombo.API.Attribute;
-using WrathCombo.API.Enum;
+using GluttonyCombo.API.Attribute;
+using GluttonyCombo.API.Enum;
 
 #endregion
 
-namespace WrathCombo.API.Extension;
+namespace GluttonyCombo.API.Extension;
 
 /// <summary>
 ///     Extension methods for <see cref="AutoRotationConfigOption" />.

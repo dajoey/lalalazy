@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Components;
@@ -11,18 +11,18 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using WrathCombo.Attributes;
-using WrathCombo.Core;
-using WrathCombo.Data.Conflicts;
-using WrathCombo.Resources.Localization.UI.Misc;
-using WrathCombo.Resources.Localization.UI.Settings;
-using WrathCombo.Services;
-using WrathCombo.Window.Functions;
-using Setting = WrathCombo.Window.Functions.Setting;
+using GluttonyCombo.Attributes;
+using GluttonyCombo.Core;
+using GluttonyCombo.Data.Conflicts;
+using GluttonyCombo.Resources.Localization.UI.Misc;
+using GluttonyCombo.Resources.Localization.UI.Settings;
+using GluttonyCombo.Services;
+using GluttonyCombo.Window.Functions;
+using Setting = GluttonyCombo.Window.Functions.Setting;
 
 #endregion
 
-namespace WrathCombo.Window.Tabs;
+namespace GluttonyCombo.Window.Tabs;
 
 internal class Settings : ConfigWindow
 {
@@ -291,7 +291,7 @@ internal class Settings : ConfigWindow
         {
             case Attributes.Setting.Type.Toggle:
                 {
-                    if (setting.FieldName == "AprilFools2026" && !IsAprilFools)
+                    if (setting.FieldName == "AprilFools2026" && !GluttonyCombo.IsAprilFools)
                         return;
 
                     var value = (bool)setting.Value;

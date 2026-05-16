@@ -4,7 +4,7 @@ using System.ComponentModel;
 
 #endregion
 
-namespace WrathCombo.API.Enum;
+namespace GluttonyCombo.API.Enum;
 
 // ReSharper disable UnusedType.Global
 // ReSharper disable UnusedMember.Global

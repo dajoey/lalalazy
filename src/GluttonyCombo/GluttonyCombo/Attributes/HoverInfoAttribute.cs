@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 
-namespace WrathCombo.Attributes;
+namespace GluttonyCombo.Attributes;
 
 [AttributeUsage(AttributeTargets.Field)]
 public class HoverInfoAttribute : Attribute

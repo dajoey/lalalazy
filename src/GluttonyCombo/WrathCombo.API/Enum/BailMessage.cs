@@ -1,10 +1,10 @@
-﻿#region
+#region
 
 using System.ComponentModel;
 
 #endregion
 
-namespace WrathCombo.API.Enum;
+namespace GluttonyCombo.API.Enum;
 
 public enum BailMessage
 {

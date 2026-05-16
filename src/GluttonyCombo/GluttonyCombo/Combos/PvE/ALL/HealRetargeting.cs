@@ -1,16 +1,16 @@
 #region
 
 using Dalamud.Game.ClientState.Objects.Types;
-using WrathCombo.Core;
-using WrathCombo.CustomComboNS;
-using WrathCombo.Services;
+using GluttonyCombo.Core;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.Services;
 using EZ = ECommons.Throttlers.EzThrottler;
 using TS = System.TimeSpan;
 
 // ReSharper disable CheckNamespace
 
 #endregion
-namespace WrathCombo.Combos.PvE;
+namespace GluttonyCombo.Combos.PvE;
 
 /// <summary>
 ///     Should be the same as <see cref="UIntExtensions" />, but with checking

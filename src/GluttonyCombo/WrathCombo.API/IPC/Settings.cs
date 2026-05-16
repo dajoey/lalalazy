@@ -1,12 +1,12 @@
-﻿#region
+#region
 
-using WrathCombo.API.Enum;
+using GluttonyCombo.API.Enum;
 
 #pragma warning disable CS0618 // Obsoletes here are likely ours, for consumers
 
 #endregion
 
-namespace WrathCombo.API;
+namespace GluttonyCombo.API;
 
 public static partial class WrathIPCWrapper
 {

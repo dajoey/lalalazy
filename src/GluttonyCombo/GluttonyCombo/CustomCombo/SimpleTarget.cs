@@ -8,14 +8,14 @@ using ECommons.GameHelpers;
 using ECommons.Logging;
 using System;
 using System.Linq;
-using WrathCombo.AutoRotation;
-using WrathCombo.Combos.PvE;
-using WrathCombo.Core;
-using WrathCombo.Data;
-using WrathCombo.Extensions;
-using WrathCombo.Services;
-using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
-using static WrathCombo.CustomComboNS.Functions.Jobs;
+using GluttonyCombo.AutoRotation;
+using GluttonyCombo.Combos.PvE;
+using GluttonyCombo.Core;
+using GluttonyCombo.Data;
+using GluttonyCombo.Extensions;
+using GluttonyCombo.Services;
+using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
+using static GluttonyCombo.CustomComboNS.Functions.Jobs;
 // ReSharper disable once RedundantUsingDirective
 using EZ = ECommons.Throttlers.EzThrottler;
 using TS = System.TimeSpan;
@@ -28,7 +28,7 @@ using TS = System.TimeSpan;
 
 #endregion
 
-namespace WrathCombo.CustomComboNS;
+namespace GluttonyCombo.CustomComboNS;
 
 internal static class SimpleTarget
 {

@@ -1,14 +1,14 @@
-﻿#region
+#region
 
 using ECommons.ExcelServices;
 using System.Collections.Generic;
 using System.Text;
-using WrathCombo.Core;
-using WrathCombo.Resources.Localization.UI.Misc;
+using GluttonyCombo.Core;
+using GluttonyCombo.Resources.Localization.UI.Misc;
 
 #endregion
 
-namespace WrathCombo.Extensions;
+namespace GluttonyCombo.Extensions;
 
 internal static partial class PresetExtensions
 {

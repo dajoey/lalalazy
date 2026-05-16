@@ -1,12 +1,12 @@
-﻿using Dalamud.Interface.Colors;
+using Dalamud.Interface.Colors;
 using ECommons.ImGuiMethods;
-using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Extensions;
-using WrathCombo.Resources.Localization.JobConfigs;
-using WrathCombo.Window.Functions;
-using static WrathCombo.Window.Functions.UserConfig;
-using static WrathCombo.Window.Text;
-namespace WrathCombo.Combos.PvE;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Extensions;
+using GluttonyCombo.Resources.Localization.JobConfigs;
+using GluttonyCombo.Window.Functions;
+using static GluttonyCombo.Window.Functions.UserConfig;
+using static GluttonyCombo.Window.Text;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class OccultCrescent
 {

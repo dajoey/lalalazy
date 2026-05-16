@@ -6,7 +6,7 @@ using ECommons.DalamudServices;
 using FFXIVClientStructs.FFXIV.Client.System.Framework;
 using FFXIVClientStructs.FFXIV.Client.UI.Misc;
 using System;
-using WrathCombo.Extensions;
+using GluttonyCombo.Extensions;
 using GameObject = FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject;
 
 // ReSharper disable UnusedType.Global
@@ -14,7 +14,7 @@ using GameObject = FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject;
 
 #endregion
 
-namespace WrathCombo.Services;
+namespace GluttonyCombo.Services;
 
 public static unsafe class PronounService
 {

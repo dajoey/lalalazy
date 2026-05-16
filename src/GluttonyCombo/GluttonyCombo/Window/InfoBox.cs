@@ -1,10 +1,10 @@
-﻿using Dalamud.Interface.Utility;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using System;
 using System.Numerics;
 using Dalamud.Interface.Style;
 
-namespace WrathCombo.Window;
+namespace GluttonyCombo.Window;
 
 internal class InfoBox
 {

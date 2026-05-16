@@ -7,7 +7,7 @@ using ECommons.Logging;
 
 #endregion
 
-namespace WrathCombo.Core;
+namespace GluttonyCombo.Core;
 
 public partial class Configuration
 {

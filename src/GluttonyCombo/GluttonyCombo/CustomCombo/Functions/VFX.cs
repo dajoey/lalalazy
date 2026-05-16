@@ -1,4 +1,4 @@
-﻿using Dalamud.Game.ClientState.Conditions;
+using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Game.Gui.Toast;
 using ECommons;
@@ -11,11 +11,11 @@ using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Linq;
 using System.Speech.Synthesis;
-using WrathCombo.Extensions;
-using WrathCombo.Resources.Localization.Misc;
-using WrathCombo.Services;
+using GluttonyCombo.Extensions;
+using GluttonyCombo.Resources.Localization.Misc;
+using GluttonyCombo.Services;
 
-namespace WrathCombo.CustomComboNS.Functions;
+namespace GluttonyCombo.CustomComboNS.Functions;
 
 internal abstract partial class CustomComboFunctions
 {

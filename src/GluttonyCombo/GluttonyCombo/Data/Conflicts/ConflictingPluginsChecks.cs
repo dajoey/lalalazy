@@ -1,25 +1,25 @@
-﻿#region
+#region
 
 using ECommons.DalamudServices;
 using ECommons.Logging;
 using System;
 using System.Linq;
 using Dalamud.Game.Config;
-using WrathCombo.API.Enum;
-using WrathCombo.AutoRotation;
-using WrathCombo.Combos.PvE;
-using WrathCombo.Core;
-using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Extensions;
-using WrathCombo.Services;
-using WrathCombo.Services.IPC_Subscriber;
-using WrathCombo.Window.Functions;
+using GluttonyCombo.API.Enum;
+using GluttonyCombo.AutoRotation;
+using GluttonyCombo.Combos.PvE;
+using GluttonyCombo.Core;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Extensions;
+using GluttonyCombo.Services;
+using GluttonyCombo.Services.IPC_Subscriber;
+using GluttonyCombo.Window.Functions;
 using EZ = ECommons.Throttlers.EzThrottler;
 using TS = System.TimeSpan;
 
 #endregion
 
-namespace WrathCombo.Data.Conflicts;
+namespace GluttonyCombo.Data.Conflicts;
 
 public static class ConflictingPluginsChecks
 {
@@ -568,7 +568,7 @@ public static class ConflictingPluginsChecks
             if (!ThrottlePassed(forceRefresh: forceRefresh))
                 return;
 
-            OpenerDTRDisabled = P.OpenerDtr.UserHidden && Service.Configuration.ShowOpenerDtr;
+            OpenerDTRDisabled = GluttonyCombo.P.OpenerDtr.UserHidden && Service.Configuration.ShowOpenerDtr;
 
             if (OpenerDTRDisabled)
                 MarkConflict();

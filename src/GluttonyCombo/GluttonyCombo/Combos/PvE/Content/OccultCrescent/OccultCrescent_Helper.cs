@@ -1,14 +1,14 @@
-﻿#region Dependencies
+#region Dependencies
 
 using FFXIVClientStructs.FFXIV.Client.Game.InstanceContent;
 using System;
 using System.Reflection;
-using static WrathCombo.Combos.PvE.JobIDExtensions;
-using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
+using static GluttonyCombo.Combos.PvE.JobIDExtensions;
+using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
 
 #endregion
 
-namespace WrathCombo.Combos.PvE;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class OccultCrescent
 {

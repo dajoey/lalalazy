@@ -1,6 +1,6 @@
 using Dalamud.Plugin.Services;
 using ECommons.DalamudServices;
-namespace WrathCombo.Core;
+namespace GluttonyCombo.Core;
 
 /// <summary> Plugin address resolver. </summary>
 internal class AddressResolver

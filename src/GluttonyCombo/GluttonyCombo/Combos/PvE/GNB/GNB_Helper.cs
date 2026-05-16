@@ -1,17 +1,17 @@
-﻿#region Dependencies
+#region Dependencies
 using Dalamud.Game.ClientState.JobGauge.Types;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using System;
 using System.Collections.Generic;
-using WrathCombo.CustomComboNS;
-using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Data;
-using static WrathCombo.Combos.PvE.GNB.Config;
-using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
-using PartyRequirement = WrathCombo.Combos.PvE.All.Enums.PartyRequirement;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Data;
+using static GluttonyCombo.Combos.PvE.GNB.Config;
+using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
+using PartyRequirement = GluttonyCombo.Combos.PvE.All.Enums.PartyRequirement;
 #endregion
 
-namespace WrathCombo.Combos.PvE;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class GNB : Tank
 {

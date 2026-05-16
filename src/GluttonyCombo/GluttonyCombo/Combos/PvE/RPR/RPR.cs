@@ -1,6 +1,6 @@
-using WrathCombo.CustomComboNS;
-using static WrathCombo.Combos.PvE.RPR.Config;
-namespace WrathCombo.Combos.PvE;
+using GluttonyCombo.CustomComboNS;
+using static GluttonyCombo.Combos.PvE.RPR.Config;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class RPR : Melee
 {

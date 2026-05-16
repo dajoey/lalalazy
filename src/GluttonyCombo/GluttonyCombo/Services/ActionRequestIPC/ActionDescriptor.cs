@@ -1,11 +1,11 @@
-﻿using FFXIVClientStructs.FFXIV.Client.Game;
+using FFXIVClientStructs.FFXIV.Client.Game;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace WrathCombo.Services.ActionRequestIPC;
+namespace GluttonyCombo.Services.ActionRequestIPC;
 public readonly record struct ActionDescriptor
 {
     public readonly ActionType ActionType;

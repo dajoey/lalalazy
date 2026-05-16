@@ -13,17 +13,17 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using WrathCombo.Combos.PvE;
-using WrathCombo.CustomComboNS;
-using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Data;
-using WrathCombo.Extensions;
-using WrathCombo.Services;
-using static WrathCombo.CustomComboNS.Functions.Jobs;
+using GluttonyCombo.Combos.PvE;
+using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Data;
+using GluttonyCombo.Extensions;
+using GluttonyCombo.Services;
+using static GluttonyCombo.CustomComboNS.Functions.Jobs;
 
 #endregion
 
-namespace WrathCombo.Core;
+namespace GluttonyCombo.Core;
 
 /// <summary> This class facilitates action+icon replacement. </summary>
 internal sealed class ActionReplacer : IDisposable

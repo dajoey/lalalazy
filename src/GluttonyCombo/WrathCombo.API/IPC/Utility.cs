@@ -1,10 +1,10 @@
-﻿#region
+#region
 
 #pragma warning disable CS0618 // Obsoletes here are likely ours, for consumers
 
 #endregion
 
-namespace WrathCombo.API;
+namespace GluttonyCombo.API;
 
 public static partial class WrathIPCWrapper
 {
@@ -30,7 +30,7 @@ public static partial class WrathIPCWrapper
     ///     thrown.
     /// </exception>
     /// <exception cref="Error.UnexpectedException">
-    ///     When WrathCombo.IPC needs updating.
+    ///     When GluttonyCombo.IPC needs updating.
     /// </exception>
     /// <remarks>
     ///     Respects the user's Setting in Wrath Combo for the maximum number of

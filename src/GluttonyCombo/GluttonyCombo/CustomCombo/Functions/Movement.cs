@@ -1,4 +1,4 @@
-﻿using Dalamud.Hooking;
+using Dalamud.Hooking;
 using Dalamud.Utility.Signatures;
 using ECommons.DalamudServices;
 using ECommons.GameHelpers;
@@ -6,9 +6,9 @@ using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using System;
 using System.Numerics;
 using System.Runtime.InteropServices;
-using WrathCombo.Services;
+using GluttonyCombo.Services;
 
-namespace WrathCombo.CustomComboNS.Functions;
+namespace GluttonyCombo.CustomComboNS.Functions;
 
 internal abstract partial class CustomComboFunctions
 {

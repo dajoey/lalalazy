@@ -1,6 +1,6 @@
-﻿using Dalamud.Game.ClientState.Objects.Types;
-using static WrathCombo.CustomComboNS.Functions.CustomComboFunctions;
-namespace WrathCombo.Combos.PvE;
+using Dalamud.Game.ClientState.Objects.Types;
+using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
+namespace GluttonyCombo.Combos.PvE;
 
 internal static partial class RoleActions
 {

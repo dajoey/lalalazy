@@ -1,7 +1,7 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-namespace WrathCombo.Data;
+namespace GluttonyCombo.Data;
 
 public enum ActionEffectType : byte
 {

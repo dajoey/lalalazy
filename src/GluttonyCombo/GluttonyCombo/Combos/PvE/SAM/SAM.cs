@@ -1,6 +1,6 @@
-using WrathCombo.CustomComboNS;
-using static WrathCombo.Combos.PvE.SAM.Config;
-namespace WrathCombo.Combos.PvE;
+using GluttonyCombo.CustomComboNS;
+using static GluttonyCombo.Combos.PvE.SAM.Config;
+namespace GluttonyCombo.Combos.PvE;
 
 internal partial class SAM : Melee
 {

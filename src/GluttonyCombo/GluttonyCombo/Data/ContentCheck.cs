@@ -1,18 +1,18 @@
-﻿#region
+#region
 
 using ECommons.GameHelpers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using WrathCombo.CustomComboNS.Functions;
-using WrathCombo.Window.Functions;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Window.Functions;
 using GameMain = FFXIVClientStructs.FFXIV.Client.Game.GameMain;
 using EZ = ECommons.Throttlers.EzThrottler;
 using TS = System.TimeSpan;
 
 #endregion
 
-namespace WrathCombo.Data;
+namespace GluttonyCombo.Data;
 
 public class ContentCheck
 {

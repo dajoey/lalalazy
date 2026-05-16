@@ -1,10 +1,10 @@
-﻿using Dalamud.Game.ClientState.JobGauge.Enums;
+using Dalamud.Game.ClientState.JobGauge.Enums;
 using Dalamud.Game.ClientState.JobGauge.Types;
 using ECommons.DalamudServices;
 using FFXIVClientStructs.FFXIV.Client.Game.Gauge;
 using System;
 using System.Runtime.InteropServices;
-namespace WrathCombo.Data;
+namespace GluttonyCombo.Data;
 
 public unsafe class TmpSCHGauge
 {
