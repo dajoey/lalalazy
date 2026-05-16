@@ -86,5 +86,27 @@
     "ImageUrls": [""],
     "DownloadCount": 0,
     "LastUpdate": "0"
+  },
+  {
+    "Author": "dajoey",
+    "Name": "Gluttony Combo",
+    "Punchline": "Lalalazy fork of Wrath Combo — XIVCombo for very lazy players.",
+    "Description": "Gluttony Combo is a lalalazy-branded fork of Wrath Combo. Condenses combos and mutually exclusive abilities onto a single button — and then some. All upstream credit to Team Wrath / PunishXIV.",
+    "InternalName": "GluttonyCombo",
+    "AssemblyVersion": "1.0.4.5",
+    "RepoUrl": "https://github.com/dajoey/lalalazy",
+    "ApplicableVersion": "any",
+    "DalamudApiLevel": 15,
+    "IsHide": true,
+    "IsTestingExclusive": false,
+    "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/GluttonyCombo/latest/latest.zip",
+    "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/GluttonyCombo/latest/latest.zip",
+    "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/GluttonyCombo/latest/latest.zip",
+    "Tags": ["combo", "gluttony", "wrath", "wrathcombo", "auto", "autorotation", "rotation", "pve", "pvp", "lalalazy"],
+    "CategoryTags": ["jobs"],
+    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/gluttonycombo-icon.png",
+    "ImageUrls": [""],
+    "DownloadCount": 0,
+    "LastUpdate": "0"
   }
 ]

@@ -1,0 +1,196 @@
+﻿using Dalamud.Plugin;
+using ECommons.Automation;
+using ECommons.Commands;
+using ECommons.Configuration;
+using ECommons.DalamudServices;
+using ECommons.Events;
+using ECommons.EzContextMenu;
+using ECommons.EzDTR;
+using ECommons.EzEventManager;
+using ECommons.EzHookManager;
+using ECommons.EzIpcManager;
+using ECommons.EzSharedDataManager;
+using ECommons.GameFunctions;
+using ECommons.GameHelpers;
+using ECommons.Hooks;
+using ECommons.ImGuiMethods;
+using ECommons.Interop;
+using ECommons.LazyDataHelpers;
+using ECommons.Loader;
+using ECommons.Logging;
+using ECommons.ObjectLifeTracker;
+using ECommons.Reflection;
+using ECommons.SimpleGui;
+using ECommons.Singletons;
+using ECommons.SplatoonAPI;
+using ECommons.StringHelpers;
+using ECommons.Throttlers;
+using Serilog.Events;
+using System;
+using System.Linq;
+using System.Reflection;
+using System.Threading;
+using TerraFX.Interop.Windows;
+using Callback = ECommons.Automation.Callback;
+
+
+#nullable disable
+
+namespace ECommons;
+
+public static class ECommonsMain
+{
+    public static object Instance = null;
+    public static bool Disposed { get; private set; } = false;
+
+    /// <summary>
+    /// Set this to true to significantly reduce amount of logging ECommons will do. You can change it any time. 
+    /// </summary>
+    public static bool ReducedLogging = false;
+
+    public unsafe static void Init(IDalamudPluginInterface pluginInterface, object instance, params Module[] modules)
+    {
+        if(instance is not IDalamudPlugin && instance is not IAsyncDalamudPlugin)
+        {
+            throw new InvalidOperationException($"Invalid \"instance\" argument has been detected. Must be an instance of type that implements either {nameof(IDalamudPlugin)} or {nameof(IAsyncDalamudPlugin)} interface.");
+        }
+        Instance = instance;
+        try
+        {
+            Svc.Init(pluginInterface);
+        }
+        catch(Exception ex)
+        {
+            new Thread(() =>
+            {
+                try
+                {
+                    var title = "Error initializing ECommons";
+                    var message = $"Error initializing ECommons services: {ex.Message}\nPlugin {pluginInterface?.Manifest?.InternalName} can not be loaded.\nPlease contact the developer.\nSee dalamud.boot.log for stack trace.";
+                    Console.WriteLine($"Error initializing ECommons services\n{ex.ToStringFull()}");
+                    var windowd = WindowFunctions.TryFindGameWindow(out var handle);
+                    fixed(char* titlePtr = title)
+                    fixed(char* messagePtr = message)
+                        TerraFX.Interop.Windows.Windows.MessageBox(windowd ? handle : default, messagePtr, titlePtr, 0);
+                }
+                catch(Exception e)
+                {
+                    Console.WriteLine($"Error showing MessageBox: {e.ToStringFull()}\nError initializing ECommons services\n{ex.ToStringFull()}");
+                }
+            }).Start();
+            throw;
+        }
+#if DEBUG
+var type = "debug build";
+#elif RELEASE
+        var type = "release build";
+#else
+var type = "unknown build";
+#endif
+        if(!ReducedLogging) PluginLog.Information($"This is ECommons v{typeof(ECommonsMain).Assembly.GetName().Version} ({type}) and {Svc.PluginInterface.InternalName} v{instance.GetType().Assembly.GetName().Version}. Hello!");
+        Svc.Log.MinimumLogLevel = LogEventLevel.Verbose;
+        GenericHelpers.Safe(CmdManager.Init);
+        if(modules.ContainsAny(Module.VfxTracking, Module.All))
+        {
+            GenericHelpers.Safe(VfxManager.Init);
+        }
+        if(modules.ContainsAny(Module.All, Module.ObjectFunctions))
+        {
+            if(!ReducedLogging) PluginLog.Information("Object functions module has been requested");
+            GenericHelpers.Safe(ObjectFunctions.Init);
+        }
+        if(modules.ContainsAny(Module.All, Module.DalamudReflector, Module.SplatoonAPI))
+        {
+            if(!ReducedLogging) PluginLog.Information("Advanced Dalamud reflection module has been requested");
+            GenericHelpers.Safe(() => DalamudReflector.Init());
+        }
+        if(modules.ContainsAny(Module.All, Module.ObjectLife))
+        {
+            if(!ReducedLogging) PluginLog.Information("Object life module has been requested");
+            GenericHelpers.Safe(ObjectLife.Init);
+        }
+        if(modules.ContainsAny(Module.All, Module.SplatoonAPI))
+        {
+            if(!ReducedLogging) PluginLog.Information("Splatoon API module has been requested");
+            GenericHelpers.Safe(Splatoon.Init);
+        }
+    }
+
+    public static void CheckForObfuscation()
+    {
+        if(Assembly.GetCallingAssembly().GetTypes().FirstOrDefault(x => x.IsAssignableTo(typeof(IDalamudPlugin))).Name == Svc.PluginInterface.InternalName)
+        {
+            DuoLog.Error($"{Svc.PluginInterface.InternalName} name match error!");
+        }
+    }
+
+    public static void Dispose()
+    {
+        Disposed = true;
+        GenericHelpers.Safe(SingletonServiceManager.DisposeAll);
+        GenericHelpers.Safe(PluginLoader.Dispose);
+        GenericHelpers.Safe(CmdManager.Dispose);
+        if(EzConfig.Config != null)
+        {
+            GenericHelpers.Safe(EzConfig.Save);
+        }
+        GenericHelpers.Safe(EzConfig.Dispose);
+        GenericHelpers.Safe(ThreadLoadImageHandler.ClearAll);
+        GenericHelpers.Safe(ObjectLife.Dispose);
+        GenericHelpers.Safe(DalamudReflector.Dispose);
+        if(EzConfigGui.WindowSystem != null)
+        {
+            if(EzConfigGui.Type is EzConfigGui.WindowType.Main or EzConfigGui.WindowType.Both)
+                Svc.PluginInterface.UiBuilder.OpenMainUi -= EzConfigGui.Open;
+            if(EzConfigGui.Type is EzConfigGui.WindowType.Config or EzConfigGui.WindowType.Both)
+                Svc.PluginInterface.UiBuilder.OpenConfigUi -= EzConfigGui.Open;
+            Svc.PluginInterface.UiBuilder.Draw -= EzConfigGui.Draw;
+            if(EzConfigGui.Config != null)
+            {
+                Svc.PluginInterface.SavePluginConfig(EzConfigGui.Config);
+                Notify.Info("Configuration saved");
+            }
+            EzConfigGui.WindowSystem.RemoveAllWindows();
+            EzConfigGui.WindowSystem = null;
+        }
+        foreach(var x in EzCmd.RegisteredCommands)
+        {
+            Svc.Commands.RemoveHandler(x);
+        }
+        if(Splatoon.Instance != null)
+        {
+            GenericHelpers.Safe(Splatoon.Reset);
+        }
+        GenericHelpers.Safe(Splatoon.Shutdown);
+        GenericHelpers.Safe(ProperOnLogin.Dispose);
+        GenericHelpers.Safe(DirectorUpdate.Dispose);
+        GenericHelpers.Safe(ActionEffect.Dispose);
+        GenericHelpers.Safe(MapEffect.Dispose);
+        GenericHelpers.Safe(SendAction.Dispose);
+        GenericHelpers.Safe(ActorVfx.Dispose);
+        GenericHelpers.Safe(StaticVfx.Dispose);
+        GenericHelpers.Safe(GameObjectCtor.Dispose);
+        GenericHelpers.Safe(VfxManager.Dispose);
+        GenericHelpers.Safe(Automation.LegacyTaskManager.TaskManager.DisposeAll);
+        GenericHelpers.Safe(Automation.NeoTaskManager.TaskManager.DisposeAll);
+ // Type or member is obsolete
+        GenericHelpers.Safe(EqualStrings.Dispose);
+#pragma warning restore CS0618 // Type or member is obsolete
+        GenericHelpers.Safe(AutoCutsceneSkipper.Dispose);
+        GenericHelpers.Safe(() => ThreadLoadImageHandler.httpClient?.Dispose());
+        EzThrottler.Throttler = null;
+        FrameThrottler.Throttler = null;
+        GenericHelpers.Safe(Callback.Dispose);
+        GenericHelpers.Safe(EzEvent.DisposeAll);
+        GenericHelpers.Safe(EzHookCommon.DisposeAll);
+        GenericHelpers.Safe(EzSharedData.Dispose);
+        GenericHelpers.Safe(EzIPC.Dispose);
+        GenericHelpers.Safe(ContextMenuPrefixRemover.Dispose);
+        GenericHelpers.Safe(Purgatory.Purge);
+        GenericHelpers.Safe(ExternalWriter.Dispose);
+        GenericHelpers.Safe(EzDtr.DisposeAll);
+        GenericHelpers.Safe(TradeDetectionManager.Dispose);
+        //SingletonManager.Dispose();
+        Instance = null;
+    }
+}

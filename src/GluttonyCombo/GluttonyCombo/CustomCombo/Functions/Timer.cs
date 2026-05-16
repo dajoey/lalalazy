@@ -1,0 +1,179 @@
+﻿using Dalamud.Game.ClientState.Conditions;
+using Dalamud.Plugin.Services;
+using ECommons.DalamudServices;
+using ECommons.GameFunctions;
+using ECommons.GameHelpers;
+using FFXIVClientStructs.FFXIV.Client.UI.Agent;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using WrathCombo.AutoRotation;
+using WrathCombo.Services;
+namespace WrathCombo.CustomComboNS.Functions;
+
+internal abstract partial class CustomComboFunctions
+{
+    private static DateTime combatStart = DateTime.Now;
+    private static DateTime partyCombat = DateTime.Now;
+    private static DateTime? castFinishedAt;
+    private static uint castId;
+    private static HashSet<uint> onPlayerStatuses = [];
+
+    public static bool PartyInCombatCheck
+    {
+        get => field;
+        set
+        {
+            if (field != value)
+            {
+                Svc.Log.Verbose($"Party has {(value ? "entered" : "left")} combat");
+                OnPartyCombatChanged?.Invoke(value);
+                field = value;
+            }
+        }
+    }
+
+    public delegate void OnCastInterruptedDelegate(uint interruptedAction);
+    public static event OnCastInterruptedDelegate? OnCastInterrupted;
+
+    public delegate void OnPartyCombatChangedDelegate(bool state);
+    public static event OnPartyCombatChangedDelegate? OnPartyCombatChanged;
+
+    public delegate void OnStatusChangedDelegate(uint statusId, bool onPlayer);
+    public static event OnStatusChangedDelegate? OnStatusChanged;
+
+    public static Dictionary<ulong, long> Deadtionary { get; set; } = new();
+
+    /// <summary> Tells the elapsed time since the combat started. </summary>
+    /// <returns> Combat time in seconds. </returns>
+    public static TimeSpan CombatEngageDuration() => InCombat() ? DateTime.Now - combatStart : TimeSpan.Zero;
+
+    public static TimeSpan PartyEngageDuration() => PartyInCombatCheck ? DateTime.Now - partyCombat : TimeSpan.Zero;
+
+    public static TimeSpan TimeSpentDead(ulong partyMemberObjectId) => TimeSpentDead((uint)partyMemberObjectId);
+
+    public static TimeSpan TimeSpentDead(uint partyMemberObjectId) => Deadtionary.ContainsKey(partyMemberObjectId) ? TimeSpan.FromMilliseconds((Environment.TickCount64 - Deadtionary[partyMemberObjectId])) : TimeSpan.Zero;
+
+    public static void TimerSetup()
+    {
+        Svc.Condition.ConditionChange += OnCombat;
+        Svc.Framework.Update += UpdatePartyTimer;
+        Svc.Framework.Update += UpdateDeadtionary;
+        Svc.Framework.Update += CheckInterruptedCasts;
+        Svc.Framework.Update += CheckStatuses;
+    }
+
+    private static void CheckStatuses(IFramework framework)
+    {
+        if (!Player.Available) return;
+        foreach (var status in LocalPlayer.StatusList)
+        {
+            if (status.StatusId == 0)
+                continue;
+
+            if (!onPlayerStatuses.Contains(status.StatusId))
+                OnStatusChanged.Invoke(status.StatusId, true);
+
+            onPlayerStatuses.Add(status.StatusId);
+        }
+
+        if (onPlayerStatuses.Count == 0)
+            return;
+
+        var clonedList = onPlayerStatuses.ToList();
+        foreach (var status in clonedList)
+        {
+            if (!LocalPlayer.StatusList.Any(x => x.StatusId == status))
+            {
+                OnStatusChanged.Invoke(status, false);
+                onPlayerStatuses.Remove(status);
+            }
+        }
+    }
+
+    private static void CheckInterruptedCasts(IFramework framework)
+    {
+        if (Player.Available && Player.Object.CurrentCastTime > 0)
+        {
+            if (castFinishedAt is null)
+            {
+                castId = Player.Object.CastActionId;
+                float timeLeft = ((Player.Object.TotalCastTime - Player.Object.CurrentCastTime) * 1000f) - 500f;
+                castFinishedAt = DateTime.Now + TimeSpan.FromMilliseconds(timeLeft);
+            }
+
+        }
+        else
+        {
+            if (castFinishedAt is not null)
+            {
+                if (DateTime.Now < castFinishedAt)
+                {
+                    OnCastInterrupted?.Invoke(castId);
+                    Service.ActionReplacer.EnableActionReplacingIfRequired();
+                }
+            }
+
+            castFinishedAt = null;
+        }
+    }
+
+    private static void UpdateDeadtionary(IFramework framework)
+    {
+        if (!Player.Available) return;
+        foreach (var member in DeadPeople.Where(x => x.BattleChara is not null && x.BattleChara.IsDead))
+        {
+            if (!Deadtionary.ContainsKey(member.BattleChara.GameObjectId))
+                Deadtionary[member.BattleChara.GameObjectId] = Environment.TickCount64;
+        }
+
+        var deadCopy = Deadtionary.ToList();
+        foreach (var member in deadCopy)
+        {
+            var obj = Svc.Objects.SearchById(member.Key);
+            if (obj == null || !obj.IsDead)  // Not found OR no longer dead
+            {
+                Deadtionary.Remove(member.Key);
+            }
+        }
+    }
+
+    private static unsafe void UpdatePartyTimer(IFramework framework)
+    {
+        if (!Player.Available) return;
+        if (GetPartyMembers().Any(x => x.BattleChara is not null && x.BattleChara.Struct()->InCombat) && !PartyInCombatCheck)
+        {
+            PartyInCombatCheck = true;
+            partyCombat = DateTime.Now;
+        }
+        else if (!GetPartyMembers().Any(x => x.BattleChara is not null && x.BattleChara.Struct()->InCombat))
+        {
+            PartyInCombatCheck = false;
+        }
+    }
+
+    public static void TimerDispose()
+    {
+        Svc.Condition.ConditionChange -= OnCombat;
+        Svc.Framework.Update -= UpdatePartyTimer;
+        Svc.Framework.Update -= UpdateDeadtionary;
+        Svc.Framework.Update -= CheckInterruptedCasts;
+        Svc.Framework.Update -= CheckStatuses;
+    }
+
+    internal static void OnCombat(ConditionFlag flag, bool value)
+    {
+        if (flag == ConditionFlag.InCombat)
+        {
+            if (value)
+            {
+                combatStart = DateTime.Now;
+                AutoRotationController.Paused = false;
+            }
+        }
+    }
+
+    public static unsafe float CountdownRemaining => MathF.Max(0, AgentCountDownSettingDialog.Instance()->TimeRemaining);
+
+    public static unsafe bool CountdownActive => AgentCountDownSettingDialog.Instance()->Active;
+}

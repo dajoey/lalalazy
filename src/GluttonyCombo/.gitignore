@@ -1,0 +1,11 @@
+# Build Artifacts
+WrathCombo/obj/
+WrathCombo/bin/
+
+# IDE-specific files
+.idea/
+/WrathCombo.sln.DotSettings.user
+.vs/
+*.v2
+/WrathCombo/packages.lock.json
+*.csproj.user

@@ -1,0 +1,81 @@
+﻿using ECommons.DalamudServices;
+using FFXIVClientStructs.FFXIV.Client.Game;
+using System;
+using WrathCombo.Services.ActionRequestIPC;
+namespace WrathCombo.Data;
+using Action = Lumina.Excel.Sheets.Action;
+
+internal class CooldownData
+{
+    /// <summary> Gets a value indicating whether the action is on cooldown. </summary>
+    public bool IsCooldown
+    {
+        get
+        {
+            var a = ActionRequestIPCProvider.GetArtificialCooldown(ActionType.Action, this.ActionID);
+            if(a > 0) return true;
+            return CooldownRemaining > 0;
+        }
+    }
+
+    /// <summary> Gets the action ID on cooldown. </summary>
+    public uint ActionID;
+
+    /// <summary> Gets the elapsed cooldown time. </summary>
+    public unsafe float CooldownElapsed => ActionManager.Instance()->GetRecastTimeElapsed(ActionType.Action, ActionID);
+
+    /// <summary> Gets the total cooldown time. </summary>
+    public unsafe float CooldownTotal => BaseCooldownTotal * MaxCharges;
+
+    /// <summary> Includes Skill/Spell Speed modifiers along with any job trait modifiers </summary>
+    public unsafe float BaseCooldownTotal => ActionManager.GetAdjustedRecastTime(ActionType.Action, ActionID) / 1000f;
+
+    /// <summary> Current total recast for an action, affected by other actions. </summary>
+    public unsafe float CurrentRecast => ActionManager.Instance()->GetRecastTime(ActionType.Action, ActionID);
+
+    /// <summary> Gets the cooldown time remaining. </summary>
+    public unsafe float CooldownRemaining
+    {
+        get
+        {
+            var a = ActionRequestIPCProvider.GetArtificialCooldown(ActionType.Action, this.ActionID);
+            var ret = CurrentRecast - CooldownElapsed;
+            return Math.Max(a, ret);
+        }
+    }
+
+    /// <summary> Gets the maximum number of charges for an action at the current level. </summary>
+    /// <returns> Number of charges. </returns>
+    public ushort MaxCharges => ActionManager.GetMaxCharges(ActionID, 0);
+
+    /// <summary> Gets a value indicating whether the action has charges, not charges available. </summary>
+    public bool HasCharges => MaxCharges > 1;
+
+    /// <summary> Gets the remaining number of charges for an action. </summary>
+    public unsafe uint RemainingCharges
+    {
+        get
+        {
+            if (MaxCharges == 1)
+                return ActionManager.Instance()->GetActionStatus(ActionType.Action, ActionID) == 0 || CooldownRemaining == 0 ? 1 : 0u;
+
+            return ActionManager.Instance()->GetCurrentCharges(ActionID);
+        }
+    }
+
+    /// <summary> Gets the cooldown time remaining until the next charge. </summary>
+    public float ChargeCooldownRemaining
+    {
+        get
+        {
+            var a = ActionRequestIPCProvider.GetArtificialCooldown(ActionType.Action, this.ActionID);
+            var ret = CooldownRemaining % (CooldownTotal / MaxCharges);
+            return Math.Max(a, ret);
+        }
+    }
+
+    /// <summary>
+    /// Base Cooldown taken from the sheets without any adjustments.
+    /// </summary>
+    public float BaseCooldown => Svc.Data.GetExcelSheet<Action>().GetRow(ActionID).Recast100ms;
+}

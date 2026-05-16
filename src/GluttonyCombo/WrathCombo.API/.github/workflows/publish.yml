@@ -1,0 +1,129 @@
+﻿name: Publish NuGet on Tag push
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_call:
+    secrets:
+      NUGET_API_KEY:
+        description: 'API key for pushing to NuGet'
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  DOTNET_VERSION: '10.x.x'
+  PROJECT_PATH: 'WrathCombo.API.csproj'
+  PACKAGE_OUTPUT: 'bin/Release/nuget'
+
+jobs:
+  pack-and-push:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          dotnet-quality: preview
+
+      #- name: Setup Dalamud
+      #  id: download_dalamud
+      #  shell: pwsh
+      #  run: |
+      #    $dalamudHome = Join-Path $env:APPDATA 'XIVLauncher\addon\Hooks\dev'
+      #    curl -L https://goatcorp.github.io/dalamud-distrib/latest.zip -o dalamud.zip
+      #    New-Item -Path $dalamudHome -ItemType Directory -Force | Out-Null
+      #    Expand-Archive -Force dalamud.zip -DestinationPath $dalamudHome
+
+      - name: Setup STG Dalamud
+        id: download_stg_dalamud
+        shell: pwsh
+        run: |
+          $dalamudHome = Join-Path $env:APPDATA 'XIVLauncher\addon\Hooks\dev'
+          curl -L https://goatcorp.github.io/dalamud-distrib/stg/latest.zip -o dalamud.zip
+          New-Item -Path $dalamudHome -ItemType Directory -Force | Out-Null
+          Expand-Archive -Force dalamud.zip -DestinationPath $dalamudHome
+
+      - name: Derive package version from tag
+        shell: pwsh
+        run: |
+          $tag = $env:GITHUB_REF.Split('/')[-1]
+          $version = $tag.TrimStart('v')
+          if (-not $version) { throw 'Tag name missing version' }
+          Write-Host "Derived version: $version"
+          "PACKAGE_VERSION=$version" >> $env:GITHUB_ENV
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build $env:PROJECT_PATH -c Release -p:ContinuousIntegrationBuild=true --no-restore
+
+      - name: Pack
+        run: dotnet pack $env:PROJECT_PATH -c Release --no-build -p:PackageVersion=$env:PACKAGE_VERSION -p:ContinuousIntegrationBuild=true -o $env:PACKAGE_OUTPUT
+
+      - name: Verify and locate packages
+        shell: pwsh
+        run: |
+          Write-Host "PACKAGE_OUTPUT=$env:PACKAGE_OUTPUT"
+          if (Test-Path "$env:PACKAGE_OUTPUT") {
+            Write-Host "Listing contents of $env:PACKAGE_OUTPUT";
+            Get-ChildItem -Path "$env:PACKAGE_OUTPUT" -Recurse | Format-Table -AutoSize FullName, Length
+            $pkgDir = (Resolve-Path "$env:PACKAGE_OUTPUT").Path
+          } else {
+            Write-Host "Package output directory missing: $env:PACKAGE_OUTPUT"
+          }
+
+          Write-Host "Searching for .nupkg under workspace: $env:GITHUB_WORKSPACE"
+          $nupkgs = Get-ChildItem -Path $env:GITHUB_WORKSPACE -Recurse -Filter '*.nupkg'
+          if (-not $nupkgs) {
+            Write-Host "No .nupkg found anywhere under $env:GITHUB_WORKSPACE"; exit 1
+          }
+          Write-Host "Found .nupkg files:";
+          $nupkgs | ForEach-Object { Write-Host $_.FullName }
+          if (-not $pkgDir) { $pkgDir = $nupkgs[0].Directory.FullName }
+          Write-Host "Using package directory: $pkgDir"
+          "PKG_DIR=$pkgDir" >> $env:GITHUB_ENV
+
+      - name: Push package to NuGet
+        shell: pwsh
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          Write-Host "Pushing packages from $env:PKG_DIR"
+          $nupkgs = Get-ChildItem -Path $env:PKG_DIR -Filter '*.nupkg'
+          if (-not $nupkgs) {
+            Write-Host "No .nupkg found in $env:PKG_DIR"; exit 1
+          }
+          foreach ($pkg in $nupkgs) {
+            Write-Host "Pushing $($pkg.FullName)";
+            dotnet nuget push $pkg.FullName --api-key $env:NUGET_API_KEY --source https://api.nuget.org/v3/index.json --skip-duplicate
+          }
+
+          $snupkgs = Get-ChildItem -Path $env:PKG_DIR -Filter '*.snupkg'
+          foreach ($pkg in $snupkgs) {
+            Write-Host "Pushing symbols $($pkg.FullName)";
+            dotnet nuget push $pkg.FullName --api-key $env:NUGET_API_KEY --source https://api.nuget.org/v3/index.json --skip-duplicate
+          }
+
+      - name: Push to GitHub Packages
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          dotnet nuget push "$env:PKG_DIR\*.nupkg" `
+            --api-key $env:GITHUB_TOKEN `
+            --source "https://nuget.pkg.github.com/PunishXIV/index.json" `
+            --skip-duplicate
+
+      - name: Upload packages as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages
+          path: ${{ env.PACKAGE_OUTPUT }}/*

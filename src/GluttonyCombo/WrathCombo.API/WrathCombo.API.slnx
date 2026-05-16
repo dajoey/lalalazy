@@ -1,0 +1,13 @@
+<Solution>
+    <Project Path="WrathCombo.API.csproj"/>
+
+    <Folder Name="/Docs/">
+        <File Path="Contributing.md"/>
+        <File Path="Docs/Usage.md"/>
+        <File Path="Docs/Changes.md"/>
+    </Folder>
+    <Folder Name="/Solution Items/">
+        <File Path=".github/workflows/publish.yml"/>
+        <File Path="README.md"/>
+    </Folder>
+</Solution>
