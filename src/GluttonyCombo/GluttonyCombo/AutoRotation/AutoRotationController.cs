@@ -53,6 +53,7 @@ internal unsafe class AutoRotationController
     public static IGameObject? AutorotHealTarget;
     public static bool AutorotRaidwiding;
     public static int AutorotRaidwides = 0;
+    private static DateTime LastRaidwideMitTime = DateTime.MinValue;
     public static bool TankbusterHandled = false;
 
     public AutoRotationController()
@@ -352,7 +353,7 @@ internal unsafe class AutoRotationController
     {
         foreach (var (spell, multihitter) in RaidwideActions)
         {
-            if (AutorotRaidwides >= 2)
+            if (AutorotRaidwides >= 1)
                 return;
 
             if (!multihit && multihitter)
