@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <!-- 
     Microsoft ResX Schema 
@@ -176,7 +176,7 @@ to prevent unexpected behavior and bugs.</value>
     <value>Unknown conflict type:</value>
   </data>
   <data name="Wrath_Combo" xml:space="preserve">
-    <value>Wrath Combo</value>
+    <value>Gluttony Combo</value>
     <comment>Plugin Name</comment>
   </data>
   <data name="Button_CollapseSidebar" xml:space="preserve">

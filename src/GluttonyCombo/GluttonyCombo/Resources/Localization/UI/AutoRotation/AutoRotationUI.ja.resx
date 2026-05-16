@@ -162,7 +162,7 @@
   <data name="HelpText_IgnoredNPCs" xml:space="preserve"><value>ここに登録した NPC は自動ローテーションの対象外になります。
 同じ NPC の全出現個体が自動ターゲットから除外されます（手動は引き続き利用可能です）。
 一覧から削除するには対象を選んで下の削除ボタンを押してください。
-追加するには NPC をターゲットした状態で /wrath ignore を実行します。</value></data>
+追加するには NPC をターゲットした状態で /gluttony ignore を実行します。</value></data>
   <data name="Button_DeleteFromIgnored" xml:space="preserve"><value>無視リストから削除</value></data>
   <data name="Header_HealingSettings" xml:space="preserve"><value>回復設定</value></data>
   <data name="Label_HealingTargetingMode" xml:space="preserve"><value>回復対象モード</value></data>

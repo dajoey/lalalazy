@@ -343,8 +343,8 @@
     <value>关</value>
   </data>
   <data name="OpenToPvE_helpMark" xml:space="preserve">
-    <value>使用 `/wrath` 打开 Wrath 时，将进入 PvE 功能页，而不是你上次停留页签。
-等同于始终使用 `/wrath pve` 命令打开 Wrath。</value>
+    <value>使用 `/gluttony` 打开 Wrath 时，将进入 PvE 功能页，而不是你上次停留页签。
+等同于始终使用 `/gluttony pve` 命令打开 Wrath。</value>
   </data>
   <data name="OpenToPvE_Name" xml:space="preserve">
     <value>打开 Wrath 时进入 PvE 功能页</value>
@@ -356,8 +356,8 @@
     <value>关</value>
   </data>
   <data name="OpenToPvP_helpMark" xml:space="preserve">
-    <value>与上方类似：在 PvP 区域中使用 `/wrath` 打开 Wrath 时，将进入 PvP 功能页，而非上次停留页签。
-类似于使用 `/wrath pvp` 命令打开 Wrath。</value>
+    <value>与上方类似：在 PvP 区域中使用 `/gluttony` 打开 Wrath 时，将进入 PvP 功能页，而非上次停留页签。
+类似于使用 `/gluttony pvp` 命令打开 Wrath。</value>
   </data>
   <data name="OpenToPvP_Name" xml:space="preserve">
     <value>在 PvP 区域打开 Wrath 时进入 PvP 功能页</value>
@@ -517,7 +517,7 @@
     <value>关</value>
   </data>
   <data name="SuppressAutorotCommand_helpMark" xml:space="preserve">
-    <value>隐藏 /wrath auto 命令的聊天反馈</value>
+    <value>隐藏 /gluttony auto 命令的聊天反馈</value>
   </data>
   <data name="SuppressAutorotCommand_Name" xml:space="preserve">
     <value>隐藏自动循环命令反馈</value>
@@ -529,7 +529,7 @@
     <value>关</value>
   </data>
   <data name="SuppressSetCommands_helpMark" xml:space="preserve">
-    <value>隐藏 /wrath set 与 /wrath unset 命令的聊天反馈。
+    <value>隐藏 /gluttony set 与 /gluttony unset 命令的聊天反馈。
 （若命令被 IPC 覆盖或执行失败，仍会显示反馈）</value>
   </data>
   <data name="SuppressSetCommands_Name" xml:space="preserve">
@@ -575,7 +575,7 @@
   </data>
   <data name="UIShowPresetIDs_helpMark" xml:space="preserve">
     <value>在每个连击与功能名称旁显示预设 ID 编号。
-这些 ID 可用于 `/wrath toggle &lt;ID&gt;` 等命令。
+这些 ID 可用于 `/gluttony toggle &lt;ID&gt;` 等命令。
 7.3 之前这里显示的是更短的编号，但无法用于命令。</value>
   </data>
   <data name="UIShowPresetIDs_Name" xml:space="preserve">

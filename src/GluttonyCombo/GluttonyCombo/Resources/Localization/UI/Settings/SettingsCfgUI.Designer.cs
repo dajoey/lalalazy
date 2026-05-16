@@ -805,7 +805,7 @@ namespace GluttonyCombo.Resources.Localization.UI.Settings {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to When you open Wrath with `/wrath`, it will open to the PvE Features tab, instead of the last tab you were on.
+        ///   Looks up a localized string similar to When you open Wrath with `/gluttony`, it will open to the PvE Features tab, instead of the last tab you were on.
         ///Same as always using the `/gluttony pve` command to open Wrath..
         /// </summary>
         internal static string OpenToPvE_helpMark {
@@ -842,7 +842,7 @@ namespace GluttonyCombo.Resources.Localization.UI.Settings {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Same as above, when you open Wrath with `/wrath`, it will open to the PvP Features tab, instead of the last tab you were on, when in a PvP area.
+        ///   Looks up a localized string similar to Same as above, when you open Wrath with `/gluttony`, it will open to the PvP Features tab, instead of the last tab you were on, when in a PvP area.
         ///Similar to using the `/gluttony pvp` command to open Wrath..
         /// </summary>
         internal static string OpenToPvP_helpMark {

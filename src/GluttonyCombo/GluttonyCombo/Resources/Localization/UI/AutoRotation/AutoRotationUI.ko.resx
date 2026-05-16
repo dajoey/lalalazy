@@ -231,7 +231,7 @@
     <value>이 NPC들은 자동 순환에서 무시됩니다.
 이 NPC의 모든 개체는 자동 타겟팅에서 제외됩니다(수동 모드는 계속 작동).
 목록에서 NPC를 제거하려면, 해당 NPC를 선택하고 아래의 삭제 버튼을 누르세요.
-목록에 NPC를 추가하려면, NPC를 타겟한 후 다음 명령어를 사용하세요: /wrath ignore
+목록에 NPC를 추가하려면, NPC를 타겟한 후 다음 명령어를 사용하세요: /gluttony ignore
 </value>
   </data>
   <data name="Button_DeleteFromIgnored" xml:space="preserve">

@@ -231,7 +231,7 @@
     <value>这些 NPC 会被自动循环忽略。
 该 NPC 的所有实例都将被排除在自动选目标之外（手动模式仍可正常选择）。
 要从列表移除 NPC，请选中后点击下方“从忽略列表删除”按钮。
-要添加 NPC，请先选中目标并使用命令：/wrath ignore</value>
+要添加 NPC，请先选中目标并使用命令：/gluttony ignore</value>
   </data>
   <data name="Button_DeleteFromIgnored" xml:space="preserve">
     <value>从忽略列表删除</value>

@@ -26,7 +26,7 @@ internal class MajorChangesWindow : Dalamud.Interface.Windowing.Window
     /// <summary>
     ///     Create a major changes window, with some settings about it.
     /// </summary>
-    public MajorChangesWindow() : base("Wrath Combo | New Changes")
+    public MajorChangesWindow() : base("Gluttony Combo | New Changes")
     {
         PluginLog.Debug(
             "MajorChangesWindow: " +
@@ -51,7 +51,7 @@ internal class MajorChangesWindow : Dalamud.Interface.Windowing.Window
     /// </summary>
     public override void Draw()
     {
-        PadOutMinimumWidthFor("Wrath Combo | New Changes");
+        PadOutMinimumWidthFor("Gluttony Combo | New Changes");
 
         #region Tanks
 

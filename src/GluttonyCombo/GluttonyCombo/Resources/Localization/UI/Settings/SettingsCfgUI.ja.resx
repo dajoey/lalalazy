@@ -338,8 +338,8 @@
     <value>オフ</value>
   </data>
   <data name="OpenToPvE_helpMark" xml:space="preserve">
-    <value>/wrath で開いたとき、最後に開いていたタブではなく PvE 機能タブを表示します。
-常に/wrath pve を使うのと同じ動作です。</value>
+    <value>/gluttony で開いたとき、最後に開いていたタブではなく PvE 機能タブを表示します。
+常に/gluttony pve を使うのと同じ動作です。</value>
   </data>
   <data name="OpenToPvE_Name" xml:space="preserve">
     <value>Wrath を PvE 機能タブで開く</value>
@@ -351,8 +351,8 @@
     <value>オフ</value>
   </data>
   <data name="OpenToPvP_helpMark" xml:space="preserve">
-    <value>PvP エリアで /wrath で開いたとき、最後に開いていたタブではなく PvP 機能タブを表示します。
-/wrath pvp を使う動作に近い設定です。</value>
+    <value>PvP エリアで /gluttony で開いたとき、最後に開いていたタブではなく PvP 機能タブを表示します。
+/gluttony pvp を使う動作に近い設定です。</value>
   </data>
   <data name="OpenToPvP_Name" xml:space="preserve">
     <value>PvP エリアでは Wrath を PvP 機能タブで開く</value>
@@ -511,7 +511,7 @@ Redirect や Reaction に近い挙動です。
     <value>オフ</value>
   </data>
   <data name="SuppressAutorotCommand_helpMark" xml:space="preserve">
-    <value>`/wrath auto` 系コマンドのチャットフィードバックを非表示にします。</value>
+    <value>`/gluttony auto` 系コマンドのチャットフィードバックを非表示にします。</value>
   </data>
   <data name="SuppressAutorotCommand_Name" xml:space="preserve">
     <value>自動ローテーション関連コマンドのフィードバックを抑制</value>
@@ -523,7 +523,7 @@ Redirect や Reaction に近い挙動です。
     <value>オフ</value>
   </data>
   <data name="SuppressSetCommands_helpMark" xml:space="preserve">
-    <value>/wrath set と /wrath unset のチャットフィードバックを非表示にします。
+    <value>/gluttony set と /gluttony unset のチャットフィードバックを非表示にします。
 ただし IPC により上書きされている場合や、コマンド失敗時は表示されます。</value>
   </data>
   <data name="SuppressSetCommands_Name" xml:space="preserve">
@@ -568,7 +568,7 @@ Redirect や Reaction に近い挙動です。
   </data>
   <data name="UIShowPresetIDs_helpMark" xml:space="preserve">
     <value>各コンボ・機能名の横にプリセットIDを表示します。
-/wrath toggle &lt;ID&gt; などのコマンドで使うIDです。</value>
+/gluttony toggle &lt;ID&gt; などのコマンドで使うIDです。</value>
   </data>
   <data name="UIShowPresetIDs_Name" xml:space="preserve">
     <value>コンボ名の横にプリセットIDを表示</value>

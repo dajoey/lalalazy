@@ -140,10 +140,10 @@
   <data name="HelpText_CreateDebug" xml:space="preserve">
     <value>将在你的桌面生成一个调试文件。
 可提供给开发者以协助排查问题。
-等同于使用以下命令：/wrath debug</value>
+等同于使用以下命令：/gluttony debug</value>
   </data>
   <data name="Header_SettingsAbout" xml:space="preserve">
-    <value>此页签用于自定义 Wrath Combo 的全局设置。</value>
+    <value>此页签用于自定义 Gluttony Combo 的全局设置。</value>
   </data>
   <data name="Text_RecommendedValue" xml:space="preserve">
     <value>推荐值：</value>

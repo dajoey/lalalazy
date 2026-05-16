@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <!-- 
     Microsoft ResX Schema 
@@ -343,8 +343,8 @@
     <value>끄기</value>
   </data>
   <data name="OpenToPvE_helpMark" xml:space="preserve">
-    <value>`/wrath` 명령어로 Wrath를 열 때, 마지막으로 있던 탭이 아니라 PvE 기능 탭으로 열립니다.
-이는 항상 `/wrath pve` 명령어를 사용하여 Wrath를 열 때와 동일합니다.</value>
+    <value>`/gluttony` 명령어로 Wrath를 열 때, 마지막으로 있던 탭이 아니라 PvE 기능 탭으로 열립니다.
+이는 항상 `/gluttony pve` 명령어를 사용하여 Wrath를 열 때와 동일합니다.</value>
   </data>
   <data name="OpenToPvE_Name" xml:space="preserve">
     <value>Wrath를 PvE 기능 탭으로 열기</value>
@@ -356,8 +356,8 @@
     <value>끄기</value>
   </data>
   <data name="OpenToPvP_helpMark" xml:space="preserve">
-    <value>위와 동일하게, PvP 지역에 있을 때 `/wrath` 명령어로 Wrath를 열면 마지막으로 있던 탭이 아니라 PvP 기능 탭으로 열립니다.
-이는 항상 `/wrath pvp` 명령어를 사용하여 Wrath를 열 때와 동일합니다.</value>
+    <value>위와 동일하게, PvP 지역에 있을 때 `/gluttony` 명령어로 Wrath를 열면 마지막으로 있던 탭이 아니라 PvP 기능 탭으로 열립니다.
+이는 항상 `/gluttony pvp` 명령어를 사용하여 Wrath를 열 때와 동일합니다.</value>
   </data>
   <data name="OpenToPvP_Name" xml:space="preserve">
     <value>PvP 지역에서 Wrath를 PvP 기능 탭으로 열기</value>
@@ -516,7 +516,7 @@
     <value>끄기</value>
   </data>
   <data name="SuppressAutorotCommand_helpMark" xml:space="preserve">
-    <value>/wrath auto 명령어의 채팅 피드백을 숨깁니다</value>
+    <value>/gluttony auto 명령어의 채팅 피드백을 숨깁니다</value>
   </data>
   <data name="SuppressAutorotCommand_Name" xml:space="preserve">
     <value>자동 순환 명령어 피드백 숨기기</value>
@@ -528,7 +528,7 @@
     <value>끄기</value>
   </data>
   <data name="SuppressSetCommands_helpMark" xml:space="preserve">
-    <value>/wrath set 및 /wrath unset 명령어의 채팅 피드백을 숨깁니다.
+    <value>/gluttony set 및 /gluttony unset 명령어의 채팅 피드백을 숨깁니다.
 (단, IPC에 의해 명령이 덮어쓰여지거나 실패하는 경우에는 여전히 피드백이 표시됩니다)</value>
   </data>
   <data name="SuppressSetCommands_Name" xml:space="preserve">
@@ -574,7 +574,7 @@
   </data>
   <data name="UIShowPresetIDs_helpMark" xml:space="preserve">
     <value>각 콤보와 기능 이름 옆에 프리셋 ID 번호를 표시합니다.
-이 번호는 `/wrath toggle &lt;ID&gt;`와 같은 명령어에서 사용됩니다.
+이 번호는 `/gluttony toggle &lt;ID&gt;`와 같은 명령어에서 사용됩니다.
 버전 7.3 이전에는 여기에 숫자가 표시되긴 했지만, 훨씬 짧았고 명령어에서는 작동하지 않았습니다.</value>
   </data>
   <data name="UIShowPresetIDs_Name" xml:space="preserve">

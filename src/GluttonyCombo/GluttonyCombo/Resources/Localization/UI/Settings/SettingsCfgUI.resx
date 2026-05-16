@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <!-- 
     Microsoft ResX Schema 
@@ -343,8 +343,8 @@ Can be necessary for some casters to increase, particularly when the first actio
     <value>Off</value>
   </data>
   <data name="OpenToPvE_helpMark" xml:space="preserve">
-    <value>When you open Wrath with `/wrath`, it will open to the PvE Features tab, instead of the last tab you were on.
-Same as always using the `/wrath pve` command to open Wrath.</value>
+    <value>When you open Wrath with `/gluttony`, it will open to the PvE Features tab, instead of the last tab you were on.
+Same as always using the `/gluttony pve` command to open Wrath.</value>
   </data>
   <data name="OpenToPvE_Name" xml:space="preserve">
     <value>Open Wrath to the PvE Features Tab</value>
@@ -356,8 +356,8 @@ Same as always using the `/wrath pve` command to open Wrath.</value>
     <value>Off</value>
   </data>
   <data name="OpenToPvP_helpMark" xml:space="preserve">
-    <value>Same as above, when you open Wrath with `/wrath`, it will open to the PvP Features tab, instead of the last tab you were on, when in a PvP area.
-Similar to using the `/wrath pvp` command to open Wrath.</value>
+    <value>Same as above, when you open Wrath with `/gluttony`, it will open to the PvP Features tab, instead of the last tab you were on, when in a PvP area.
+Similar to using the `/gluttony pvp` command to open Wrath.</value>
   </data>
   <data name="OpenToPvP_Name" xml:space="preserve">
     <value>Open Wrath to the PvP Features Tab in PvP areas</value>
@@ -517,7 +517,7 @@ By default the Server Info Bar shows:
     <value>Off</value>
   </data>
   <data name="SuppressAutorotCommand_helpMark" xml:space="preserve">
-    <value>Will hide chat feedback for /wrath auto commands</value>
+    <value>Will hide chat feedback for /gluttony auto commands</value>
   </data>
   <data name="SuppressAutorotCommand_Name" xml:space="preserve">
     <value>Suppress Auto-Rotation commands feedback</value>
@@ -529,7 +529,7 @@ By default the Server Info Bar shows:
     <value>Off</value>
   </data>
   <data name="SuppressSetCommands_helpMark" xml:space="preserve">
-    <value>Will hide chat feedback for /wrath set and /wrath unset commands.
+    <value>Will hide chat feedback for /gluttony set and /gluttony unset commands.
 (Will still show feedback if the command is being overriden by IPC, or fails)</value>
   </data>
   <data name="SuppressSetCommands_Name" xml:space="preserve">
@@ -575,7 +575,7 @@ At high values this will clip your GCDs by several seconds or break your rotatio
   </data>
   <data name="UIShowPresetIDs_helpMark" xml:space="preserve">
     <value>Displays the Preset ID number next to the name of each Combo and Feature.
-These are the IDs used for commands like `/wrath toggle &lt;ID&gt;`.
+These are the IDs used for commands like `/gluttony toggle &lt;ID&gt;`.
 Pre-7.3 the behavior was to show a number here, but it was much shorter, and did not work in commands.</value>
   </data>
   <data name="UIShowPresetIDs_Name" xml:space="preserve">

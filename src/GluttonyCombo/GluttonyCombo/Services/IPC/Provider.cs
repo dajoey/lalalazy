@@ -164,7 +164,7 @@ public partial class Provider : IDisposable
     /// <summary>
     ///     Checks the state of the Wrath IPC.<br />
     ///     Subscribers should check this before using IPC methods, especially
-    ///     if working on a local build of Wrath Combo.
+    ///     if working on a local build of Gluttony Combo.
     /// </summary>
     /// <returns>
     ///     <see langword="true" /> once IPC has been fully initialised, including
@@ -177,7 +177,7 @@ public partial class Provider : IDisposable
     }
 
     /// <summary>
-    ///     Register your plugin for control of Wrath Combo.<br />
+    ///     Register your plugin for control of Gluttony Combo.<br />
     ///     Use
     ///     <see cref="RegisterForLeaseWithCallback">
     ///         RegisterForLeaseWithCallback
@@ -231,7 +231,7 @@ public partial class Provider : IDisposable
     }
 
     /// <summary>
-    ///     Register your plugin for control of Wrath Combo.<br />
+    ///     Register your plugin for control of Gluttony Combo.<br />
     ///     IPC implementation of a callback for
     ///     <see cref="RegisterForLease(string,string)">RegisterForLease</see>.<br />
     ///     This is the main method to provide a callback for when your lease is
@@ -279,7 +279,7 @@ public partial class Provider : IDisposable
     }
 
     /// <summary>
-    ///     Register your plugin for control of Wrath Combo.<br />
+    ///     Register your plugin for control of Gluttony Combo.<br />
     ///     Direct <c>Action</c> implementation of a callback for
     ///     <see cref="RegisterForLease(string,string)">RegisterForLease</see>.<br />
     ///     Primarily for testing, or where a callback is desired without providing
@@ -314,7 +314,7 @@ public partial class Provider : IDisposable
     }
 
     /// <summary>
-    ///     Get the current state of the Auto-Rotation setting in Wrath Combo.
+    ///     Get the current state of the Auto-Rotation setting in Gluttony Combo.
     /// </summary>
     /// <returns>Whether Auto-Rotation is enabled or disabled</returns>
     /// <remarks>
@@ -328,7 +328,7 @@ public partial class Provider : IDisposable
         Service.Configuration.RotationConfig.Enabled;
 
     /// <summary>
-    ///     Set the state of Auto-Rotation in Wrath Combo.
+    ///     Set the state of Auto-Rotation in Gluttony Combo.
     /// </summary>
     /// <param name="lease">
     ///     Your lease ID from
@@ -436,7 +436,7 @@ public partial class Provider : IDisposable
     }
 
     /// <summary>
-    ///     This cancels your lease, removing your control of Wrath Combo.
+    ///     This cancels your lease, removing your control of Gluttony Combo.
     /// </summary>
     /// <param name="lease">
     ///     Your lease ID from
@@ -591,7 +591,7 @@ public partial class Provider : IDisposable
         GluttonyCombo.P.IPCSearch.OptionNamesByJob.GetValueOrDefault((Job)jobID);
 
     /// <summary>
-    ///     Get the current state of a combo in Wrath Combo.
+    ///     Get the current state of a combo in Gluttony Combo.
     /// </summary>
     /// <param name="comboInternalName">
     ///     The internal name of the combo you want to check.<br />
@@ -629,7 +629,7 @@ public partial class Provider : IDisposable
     }
 
     /// <summary>
-    ///     Set the state of a combo in Wrath Combo.
+    ///     Set the state of a combo in Gluttony Combo.
     /// </summary>
     /// <param name="lease">
     ///     Your lease ID from
@@ -672,7 +672,7 @@ public partial class Provider : IDisposable
     }
 
     /// <summary>
-    ///     Gets the current state of a combo option in Wrath Combo.
+    ///     Gets the current state of a combo option in Gluttony Combo.
     /// </summary>
     /// <param name="optionName">
     ///     The internal name of the combo option you want to check.<br />
@@ -693,7 +693,7 @@ public partial class Provider : IDisposable
     }
 
     /// <summary>
-    ///     Sets the state of a combo option in Wrath Combo.
+    ///     Sets the state of a combo option in Gluttony Combo.
     /// </summary>
     /// <param name="lease">
     ///     Your lease ID from <see cref="RegisterForLease(string,string)" />.

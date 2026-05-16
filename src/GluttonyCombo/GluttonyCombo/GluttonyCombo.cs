@@ -65,7 +65,7 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
 
     internal static bool IsAprilFools => DateTime.UtcNow.Day == 1 && DateTime.UtcNow.Month == 4;
 
-    private readonly TextPayload starterMotd = new("[Wrath Message of the Day] ");
+    private readonly TextPayload starterMotd = new("[Gluttony Combo] ");
     private static Job? jobID;
     private static bool EnteringInstancedContent
     {
@@ -174,7 +174,7 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         P = this;
         pluginInterface.Create<Service>();
         ECommonsMain.Init(pluginInterface, this, Module.All);
-        PunishLibMain.Init(pluginInterface, "Wrath Combo");
+        PunishLibMain.Init(pluginInterface, "Gluttony Combo");
 
         ActionRequestIPCProvider.Initialize();
 
@@ -223,16 +223,16 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
 
         RegisterCommands();
 
-        DtrBarEntry ??= Svc.DtrBar.Get("Wrath Combo");
+        DtrBarEntry ??= Svc.DtrBar.Get("Gluttony Combo");
         DtrBarEntry.OnClick = (_) =>
         {
             ToggleAutoRotation(!Service.Configuration.RotationConfig.Enabled);
         };
         DtrBarEntry.Tooltip = new SeString(
-        new TextPayload("Click to toggle Wrath Combo's Auto-Rotation.\n"),
+        new TextPayload("Click to toggle Gluttony Combo's Auto-Rotation.\n"),
         new TextPayload("Disable this icon in /xlsettings -> Server Info Bar"));
 
-        OpenerDtr ??= Svc.DtrBar.Get("Wrath Combo Opener");
+        OpenerDtr ??= Svc.DtrBar.Get("Gluttony Combo Opener");
 
         Svc.ClientState.Login += PrintLoginMessage;
         if (Svc.ClientState.IsLoggedIn) ResetFeatures();
@@ -451,7 +451,7 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Used for non-static only window initialization")]
-    public string Name => MainWindowUI.Wrath_Combo;
+    public string Name => "Gluttony Combo";
 
     /// <inheritdoc/>
     public void Dispose()
@@ -470,8 +470,8 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
             }
 
         ws.RemoveAllWindows();
-        Svc.DtrBar.Remove("Wrath Combo");
-        Svc.DtrBar.Remove("Wrath Combo Opener");
+        Svc.DtrBar.Remove("Gluttony Combo");
+        Svc.DtrBar.Remove("Gluttony Combo Opener");
         Configuration.ConfigChanged -= DebugFile.LoggingConfigChanges;
         Svc.Framework.Update -= OnFrameworkUpdate;
         Svc.ClientState.TerritoryChanged -= ClientState_TerritoryChanged;

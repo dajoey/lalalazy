@@ -653,7 +653,7 @@ public static class ConflictingPlugins
         {
             if (ConflictingPluginsChecks.Wrath.ActionReplacingOffNoAutos)
                 conflicts = conflicts.Append(new Conflict(
-                        "Wrath", ConflictType.WrathSetting,
+                        "Gluttony", ConflictType.WrathSetting,
                         "Action Replacing OFF" +
                         "    " +
                         "Your current job has no Combos enabled in Auto-Mode; " +
@@ -662,7 +662,7 @@ public static class ConflictingPlugins
 
             if (ConflictingPluginsChecks.Wrath.ActionReplacingOffInPvP)
                 conflicts = conflicts.Append(new Conflict(
-                        "Wrath", ConflictType.WrathSetting,
+                        "Gluttony", ConflictType.WrathSetting,
                         "Action Replacing OFF" +
                         "    " +
                         "Your current job has PvP Combos on, " +

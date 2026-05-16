@@ -656,7 +656,7 @@ public static class ConflictingPluginsChecks
             Conflicted = true;
         }
 
-        private class WrathSettingsIPC() : ReusableIPC("Wrath", new Version(0, 0))
+        private class WrathSettingsIPC() : ReusableIPC("Gluttony", new Version(0, 0))
         {
         }
 

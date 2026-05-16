@@ -70,7 +70,7 @@ namespace GluttonyCombo.Resources.Localization.UI.Settings {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to This tab allows you to customise global settings for Wrath Combo..
+        ///   Looks up a localized string similar to This tab allows you to customise global settings for Gluttony Combo..
         /// </summary>
         internal static string Header_SettingsAbout {
             get {

@@ -195,7 +195,7 @@ public class Search(Leasing leasing)
     #region Cached Preset Info
 
     /// <summary>
-    ///     The path to the configuration file for Wrath Combo.
+    ///     The path to the configuration file for Gluttony Combo.
     /// </summary>
     internal string ConfigFilePath
     {

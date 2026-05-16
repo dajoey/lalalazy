@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <!-- 
     Microsoft ResX Schema 
@@ -147,7 +147,7 @@
     そのプラグインと {2} の両方でリターゲットされているアクション:
 {3}</value></data>
   <data name="Warning_UnknownConflictType" xml:space="preserve"><value>不明な競合タイプ:</value></data>
-  <data name="Wrath_Combo" xml:space="preserve"><value>Wrath Combo (JA)</value></data>
+  <data name="Wrath_Combo" xml:space="preserve"><value>Gluttony Combo (JA)</value></data>
   <data name="Button_CollapseSidebar" xml:space="preserve"><value>サイドバーを折りたたむ</value></data>
   <data name="Button_ExpandSidebar" xml:space="preserve"><value>サイドバーを展開</value></data>
   <data name="Button_PvEFeatures" xml:space="preserve"><value>PvE 機能</value></data>

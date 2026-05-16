@@ -138,10 +138,10 @@
   <data name="HelpText_CreateDebug" xml:space="preserve">
     <value>바탕화면에 디버그 파일을 생성합니다.
 개발자가 문제를 해결하는 데 도움을 줄 수 있도록 세심하게 제공합니다.
-다음 명령을 사용하는 것과 동일합니다: /wrath debug</value>
+다음 명령을 사용하는 것과 동일합니다: /gluttony debug</value>
   </data>
   <data name="Header_SettingsAbout" xml:space="preserve">
-    <value>이 탭을 사용하면 Wrath Combo의 전체 설정을 사용자 지정할 수 있습니다</value>
+    <value>이 탭을 사용하면 Gluttony Combo의 전체 설정을 사용자 지정할 수 있습니다</value>
   </data>
   <data name="Text_RecommendedValue" xml:space="preserve">
     <value>권장값:</value>
