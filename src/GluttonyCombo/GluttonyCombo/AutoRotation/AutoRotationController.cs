@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 using Dalamud.Game.ClientState.Objects.Types;
 using ECommons;
@@ -366,6 +366,8 @@ internal unsafe class AutoRotationController
                 WouldLikeToGroundTarget = ActionSheet[spell].TargetArea;
                 ActionManager.Instance()->UseAction(ActionType.Action, spell);
                 WouldLikeToGroundTarget = false;
+                BlacklistedRaidwides.Add(spell);
+                AutorotRaidwides++;
                 return;
             }
         }

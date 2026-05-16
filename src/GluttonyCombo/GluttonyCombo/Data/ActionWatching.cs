@@ -1,4 +1,4 @@
-﻿using Dalamud.Game.ClientState.Conditions;
+using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Hooking;
 using ECommons;
@@ -157,7 +157,7 @@ public static class ActionWatching
                         $"Type: {effType} | " +
                         $"Value: {effValue} | " +
                         $"Params: [{eff.Param0}, {eff.Param1}, {eff.Param2}, {eff.Param3}, {eff.Param4}] | " +
-                        $"Action: {debugActionName} (ID: {actionId}) → " +
+                        $"Action: {debugActionName} (ID: {actionId}) ? " +
                         $"Target: {debugTargetName} | " +
                         $"Flags: [AtSource: {eff.AtSource}, FromTarget: {eff.FromTarget}]"
                     );
@@ -486,6 +486,27 @@ public static class ActionWatching
                 {
                     var location = Player.Position;
                     replacedWith = Service.ActionReplacer.LastActionInvokeFor.TryGetValue(actionId, out var replacedGT) ? replacedGT : replacedWith;
+
+                    // For autorotation ground-targeted heals, prefer centering on the tank
+                    if (AutoRotationController.WouldLikeToGroundTarget &&
+                        Player.Object?.GetRole() is Dalamud.Game.ClientState.Objects.Enums.CombatRole.Healer)
+                    {
+                        var tank = GetPartyMembers()
+                            .Where(x => !x.BattleChara.IsDead && x.BattleChara?.GetRole() is Dalamud.Game.ClientState.Objects.Enums.CombatRole.Tank)
+                            .OrderByDescending(x => x.BattleChara.CurrentHp)
+                            .FirstOrDefault();
+
+                        if (tank?.BattleChara != null &&
+                            IsOverGround(tank.BattleChara) &&
+                            Vector3.Distance(Player.Position, tank.BattleChara.Position) <= replacedWith.ActionRange())
+                        {
+                            location = tank.BattleChara.Position;
+                            var ret = ActionManager.Instance()->UseActionLocation
+                                (actionType, replacedWith, location: &location);
+                            Service.ActionReplacer.EnableActionReplacingIfRequired();
+                            return ret;
+                        }
+                    }
 
                     if (IsOverGround(targetObject) &&
                         Vector3.Distance(Player.Position, targetObject.Position) <= replacedWith.ActionRange()) // not GetTargetDistance or something, as hitboxes should not count here

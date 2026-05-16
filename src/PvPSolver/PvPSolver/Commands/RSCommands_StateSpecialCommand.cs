@@ -1,4 +1,4 @@
-﻿using Dalamud.Game.Config;
+using Dalamud.Game.Config;
 using ECommons.DalamudServices;
 using ECommons.GameHelpers;
 using RotationSolver.IPC;
@@ -41,7 +41,7 @@ namespace RotationSolver.Commands
 			{
 				if (!DataCenter.State && stateType != StateCommandType.Off && !DataCenter.IsPvP)
 				{
-					Svc.Chat.PrintError("[PvP Solver] Can only be enabled in PvP zones.");
+					// Silently ignore — PvP Solver only activates in PvP zones.
 					return stateType;
 				}
 
@@ -81,7 +81,7 @@ namespace RotationSolver.Commands
 				return StateCommandType.Off;
 			}
 
-			// PvP-only: one state — PvP (on) or Off
+			// PvP-only: one state � PvP (on) or Off
 			return StateCommandType.Off;
 		}
 
@@ -148,7 +148,7 @@ namespace RotationSolver.Commands
 		{
 			if (stateType == StateCommandType.PvP && !DataCenter.IsPvP)
 			{
-				Svc.Chat.PrintError("[PvP Solver] Can only be enabled in PvP zones.");
+				// Silently ignore — PvP Solver only activates in PvP zones.
 				return;
 			}
 

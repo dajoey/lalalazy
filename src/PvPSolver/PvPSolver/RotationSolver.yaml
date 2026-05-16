@@ -1,25 +1,24 @@
-﻿
+
 name: PvP Solver
-author: The Combat Reborn Team
+author: dajoey
 description: |-
-  Analyses combat information every frame and finds the best action.
+  PvP-only auto-rotation for FFXIV. Automatically activates in PvP zones.
+  Designed to run alongside Gluttony Combo (handles PvE).
+  Includes default PvP rotations for all jobs.
 
-  This means almost all the information available in one frame in combat, including the status of all players in the party, the status of any hostile targets, skill cooldowns, the MP and HP of characters, the location of characters, casting status of the hostile target, combo, combat duration, player level, etc.
-
-  Then, it will highlight the best action on the hot bar, or help you to click on it.
-
-  It is designed for `general combat`, not for savage or ultimate. Use it carefully.
-punchline: Analyses combat information every frame and finds the best action.
-repo_url: https://github.com/FFXIV-CombatReborn/RotationSolverReborn
-icon_url: https://raw.githubusercontent.com/FFXIV-CombatReborn/RotationSolverReborn/main/Images/Logo.png
-dalamud_api_level: 14
+  Fork of Rotation Solver Reborn — all upstream credit to Combat Reborn / PunishXIV.
+punchline: PvP-only auto-rotation — activates automatically in PvP zones.
+repo_url: https://github.com/dajoey/lalalazy
+icon_url: https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/pvpsolver-icon.png
+dalamud_api_level: 15
 tags:
   - combat
   - rotation
+  - pvp
 category_tags:
   - jobs
 image_urls:
-download_count: 1024
-download_link_install: https://github.com/FFXIV-CombatReborn/RotationSolverReborn/releases/latest/download/latest.zip
-download_link_update: https://github.com/FFXIV-CombatReborn/RotationSolverReborn/releases/latest/download/latest.zip
-download_link_testing: https://github.com/FFXIV-CombatReborn/RotationSolverReborn/releases/latest/download/latest.zip
+download_count: 0
+download_link_install: https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/PvPSolver/latest/latest.zip
+download_link_update: https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/PvPSolver/latest/latest.zip
+download_link_testing: https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/PvPSolver/latest/latest.zip
