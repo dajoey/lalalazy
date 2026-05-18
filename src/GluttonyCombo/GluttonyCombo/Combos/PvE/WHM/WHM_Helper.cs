@@ -13,6 +13,7 @@ using GluttonyCombo.Extensions;
 using TS = System.TimeSpan;
 using static GluttonyCombo.Combos.PvE.WHM.Config;
 using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
+using GluttonyCombo.AutoRotation;
 
 // ReSharper disable AccessToStaticMemberViaDerivedType
 // ReSharper disable ConditionIsAlwaysTrueOrFalse
@@ -249,30 +250,50 @@ internal partial class WHM
 
     internal static bool RaidwideAsylum()
     {
-        return IsEnabled(Preset.WHM_Raidwide_Asylum) &&
+        if (AutoRotationController.RaidwideMitOnCooldown)
+            return false;
+        if (!(IsEnabled(Preset.WHM_Raidwide_Asylum) &&
                ActionReady(Asylum) &&
-               CanWeave() && GroupDamageIncoming();
+               CanWeave() && GroupDamageIncoming()))
+            return false;
+        AutoRotationController.MarkRaidwideMitUsed();
+        return true;
     }
 
     internal static bool RaidwideTemperance()
     {
-        return IsEnabled(Preset.WHM_Raidwide_Temperance) &&
+        if (AutoRotationController.RaidwideMitOnCooldown)
+            return false;
+        if (!(IsEnabled(Preset.WHM_Raidwide_Temperance) &&
                ActionReady(Temperance) &&
-               CanWeave() && GroupDamageIncoming();
+               CanWeave() && GroupDamageIncoming()))
+            return false;
+        AutoRotationController.MarkRaidwideMitUsed();
+        return true;
     }
 
     internal static bool RaidwideLiturgyOfTheBell()
     {
-        return IsEnabled(Preset.WHM_Raidwide_LiturgyOfTheBell) &&
+        if (AutoRotationController.RaidwideMitOnCooldown)
+            return false;
+        if (!(IsEnabled(Preset.WHM_Raidwide_LiturgyOfTheBell) &&
                ActionReady(LiturgyOfTheBell) &&
                !HasStatusEffect(Buffs.LiturgyOfTheBell) &&
-               GroupDamageIncoming() && CanWeave();
+               GroupDamageIncoming() && CanWeave()))
+            return false;
+        AutoRotationController.MarkRaidwideMitUsed();
+        return true;
     }
     internal static bool RaidwidePlenaryIndulgence()
     {
-        return IsEnabled(Preset.WHM_Raidwide_PlenaryIndulgence) &&
+        if (AutoRotationController.RaidwideMitOnCooldown)
+            return false;
+        if (!(IsEnabled(Preset.WHM_Raidwide_PlenaryIndulgence) &&
                ActionReady(PlenaryIndulgence) &&
-               GroupDamageIncoming() && CanWeave();
+               GroupDamageIncoming() && CanWeave()))
+            return false;
+        AutoRotationController.MarkRaidwideMitUsed();
+        return true;
     }
 
 

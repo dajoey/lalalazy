@@ -132,7 +132,7 @@
         "Punchline":  "Lalalazy fork of Wrath Combo — XIVCombo for very lazy players.",
         "Description":  "Gluttony Combo is a lalalazy-branded fork of Wrath Combo. Condenses combos and mutually exclusive abilities onto a single button — and then some. All upstream credit to Team Wrath / PunishXIV.",
         "InternalName":  "GluttonyCombo",
-        "AssemblyVersion": "1.0.4.11",
+        "AssemblyVersion": "1.0.4.12",
         "RepoUrl":  "https://github.com/dajoey/lalalazy",
         "ApplicableVersion":  "any",
         "DalamudApiLevel":  15,

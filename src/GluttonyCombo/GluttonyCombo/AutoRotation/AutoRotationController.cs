@@ -53,8 +53,17 @@ internal unsafe class AutoRotationController
     public static IGameObject? AutorotHealTarget;
     public static bool AutorotRaidwiding;
     public static int AutorotRaidwides = 0;
-    private static DateTime LastRaidwideMitTime = DateTime.MinValue;
-    private const double RaidwideMitCooldownSeconds = 15.0;
+    internal static DateTime LastRaidwideMitTime = DateTime.MinValue;
+    internal const double RaidwideMitCooldownSeconds = 15.0;
+
+    /// <summary>True while we are within the minimum gap from the last
+    /// raidwide mitigation cast. Use this to gate both the autorot path
+    /// and the combo-replacement path (WHM/AST/etc. RaidwideX helpers).</summary>
+    internal static bool RaidwideMitOnCooldown =>
+        (DateTime.UtcNow - LastRaidwideMitTime).TotalSeconds < RaidwideMitCooldownSeconds;
+
+    /// <summary>Record a raidwide-mit cast at "now".</summary>
+    internal static void MarkRaidwideMitUsed() => LastRaidwideMitTime = DateTime.UtcNow;
     public static bool TankbusterHandled = false;
 
     public AutoRotationController()
@@ -356,9 +365,8 @@ internal unsafe class AutoRotationController
     public static List<uint> BlacklistedRaidwides = [];
     private static void HandleRaidwide(bool multihit)
     {
-        // Hard minimum gap between any two autorotation raidwide mitigations
-        // (across consecutive ticks AND across consecutive raidwide casts).
-        if ((DateTime.UtcNow - LastRaidwideMitTime).TotalSeconds < RaidwideMitCooldownSeconds)
+        // Hard minimum gap between any two raidwide mitigations from autorot.
+        if (RaidwideMitOnCooldown)
             return;
 
         foreach (var (spell, multihitter) in RaidwideActions)
@@ -379,7 +387,7 @@ internal unsafe class AutoRotationController
                 WouldLikeToGroundTarget = false;
                 BlacklistedRaidwides.Add(spell);
                 AutorotRaidwides++;
-                LastRaidwideMitTime = DateTime.UtcNow;
+                MarkRaidwideMitUsed();
                 return;
             }
         }
