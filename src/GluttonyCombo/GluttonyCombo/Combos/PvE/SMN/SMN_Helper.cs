@@ -758,9 +758,12 @@ internal partial class SMN
         }
         #endregion
         
-        #region Ruin 4 Dump
-        //Dump for ruin 4 if all your summons are done and you arent ready to demi yet. 
-        if (ruin4Enabled && !IsAttunedAny && DemiNone && HasStatusEffect(Buffs.FurtherRuin) && !CanSummonEgi)
+        #region Ruin 4 Priority
+        // Prefer Ruin IV over any cast-time filler (Ruin / Ruin II / Ruin III / Outburst /
+        // Tridisaster) whenever the FurtherRuin proc is up, EXCEPT inside the Searing Light
+        // burst window where cast-time GCDs are part of the planned rotation.
+        // Phase logic (Titan / Garuda / Ifrit gauge attacks) above still takes priority.
+        if (ruin4Enabled && HasStatusEffect(Buffs.FurtherRuin) && !HasStatusEffect(Buffs.SearingLight))
         {
             actionID = Ruin4;
             return true;

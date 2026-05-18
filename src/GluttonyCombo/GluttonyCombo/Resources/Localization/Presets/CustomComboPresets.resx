@@ -11401,4 +11401,16 @@ This is the ideal option for newcomers to the job.</value>
 
 NOT RECOMMENDED!</value>
   </data>
+  <data name="SMN_ST_Advanced_Combo_RadiantMaintain_Desc" xml:space="preserve">
+    <value>Keeps Radiant Aegis up during combat. Fires whenever the buff drops and a charge is available, so the shield is rolling for as much of the fight as possible.</value>
+  </data>
+  <data name="SMN_ST_Advanced_Combo_RadiantMaintain_Name" xml:space="preserve">
+    <value>Aegis Uptime</value>
+  </data>
+  <data name="SMN_AoE_Advanced_Combo_RadiantMaintain_Desc" xml:space="preserve">
+    <value>Keeps Radiant Aegis up during combat. Fires whenever the buff drops and a charge is available, so the shield is rolling for as much of the fight as possible.</value>
+  </data>
+  <data name="SMN_AoE_Advanced_Combo_RadiantMaintain_Name" xml:space="preserve">
+    <value>Aegis Uptime</value>
+  </data>
 </root>
