@@ -760,10 +760,12 @@ internal partial class SMN
         
         #region Ruin 4 Priority
         // Prefer Ruin IV over any cast-time filler (Ruin / Ruin II / Ruin III / Outburst /
-        // Tridisaster) whenever the FurtherRuin proc is up, EXCEPT inside the Searing Light
-        // burst window where cast-time GCDs are part of the planned rotation.
+        // Tridisaster) whenever the FurtherRuin proc is up, EXCEPT:
+        //   - inside the Searing Light burst window (cast-time GCDs are planned there), or
+        //   - while a major summon is out (Bahamut / Phoenix / Solar Bahamut) where the
+        //     demi-attack rotation should run instead of Ruin IV.
         // Phase logic (Titan / Garuda / Ifrit gauge attacks) above still takes priority.
-        if (ruin4Enabled && HasStatusEffect(Buffs.FurtherRuin) && !HasStatusEffect(Buffs.SearingLight))
+        if (ruin4Enabled && HasStatusEffect(Buffs.FurtherRuin) && !HasStatusEffect(Buffs.SearingLight) && DemiNone)
         {
             actionID = Ruin4;
             return true;
