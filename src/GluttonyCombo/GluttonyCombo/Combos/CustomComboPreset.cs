@@ -6871,6 +6871,10 @@ public enum Preset
     [JobInfo(Job.SMN)]
     SMN_ST_Advanced_Combo_Radiant = 17071,
 
+    [ParentCombo(SMN_ST_Advanced_Combo_Radiant)]
+    [JobInfo(Job.SMN)]
+    SMN_ST_Advanced_Combo_RadiantMaintain = 17091,
+
     [ParentCombo(SMN_ST_Advanced_Combo)]
     [JobInfo(Job.SMN)]
     SMN_ST_Advanced_Combo_Lucid = 17031,
@@ -6962,6 +6966,10 @@ public enum Preset
     [ParentCombo(SMN_AoE_Advanced_Combo)]
     [JobInfo(Job.SMN)]
     SMN_AoE_Advanced_Combo_Radiant = 17070,
+
+    [ParentCombo(SMN_AoE_Advanced_Combo_Radiant)]
+    [JobInfo(Job.SMN)]
+    SMN_AoE_Advanced_Combo_RadiantMaintain = 17092,
 
     [ParentCombo(SMN_AoE_Advanced_Combo)]
     [JobInfo(Job.SMN)]

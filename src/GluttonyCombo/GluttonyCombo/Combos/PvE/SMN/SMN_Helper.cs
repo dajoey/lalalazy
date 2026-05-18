@@ -137,7 +137,8 @@ internal partial class SMN
             SearingLight = 2703,
             RubysGlimmer = 3873,
             RefulgentLux = 3874,
-            CrimsonStrike = 4403;
+            CrimsonStrike = 4403,
+            RadiantAegis = 1875;
     }
 
     public static class Traits
@@ -506,6 +507,10 @@ internal partial class SMN
             IsSTEnabled(flags, Preset.SMN_ST_Advanced_Combo_Radiant) ||
             IsAoEEnabled(flags, Preset.SMN_AoE_Advanced_Combo_Radiant);
         
+        bool radiantAegisMaintainEnabled =
+            IsSTEnabled(flags, Preset.SMN_ST_Advanced_Combo_RadiantMaintain) ||
+            IsAoEEnabled(flags, Preset.SMN_AoE_Advanced_Combo_RadiantMaintain);
+        
         bool addleEnabled =
             flags.HasFlag(Combo.Simple) || IsSTEnabled(flags, Preset.SMN_ST_Advanced_Combo_Addle);
         
@@ -528,6 +533,20 @@ internal partial class SMN
             if (radiantAegisEnabled && 
                 !HasStatusEffect(Buffs.SearingLight) && !HasStatusEffect(Buffs.TitansFavor) && // Dont use in window or when titan needs to do the mountainbuster
                 GetRemainingCharges(RadiantAegis) == 2 && ActionReady(RadiantAegis)) // The shield is super long so no waiting on raidwide
+            {
+                actionID = RadiantAegis;
+                return true;
+            }
+            #endregion
+            
+            #region Radiant Aegis Maintain Uptime
+            // Keep Radiant Aegis up during combat: fire whenever the buff is down
+            // and a charge is available. Two charges naturally bank during downtime.
+            if (radiantAegisMaintainEnabled &&
+                InCombat() &&
+                !HasStatusEffect(Buffs.RadiantAegis) &&
+                GetRemainingCharges(RadiantAegis) >= 1 &&
+                ActionReady(RadiantAegis))
             {
                 actionID = RadiantAegis;
                 return true;
