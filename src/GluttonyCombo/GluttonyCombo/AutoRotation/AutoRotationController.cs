@@ -150,6 +150,11 @@ internal unsafe class AutoRotationController
 
     private static bool ShouldSkipAutorotation()
     {
+        // Yield to AutoDuty when it has paused for mechanics (Pyretic, Untarget, etc.)
+        // This prevents Gluttony from fighting AutoDuty over target selection
+        if (GluttonyCombo.P?.AutoDutyIPC?.ShouldYield == true)
+            return true;
+
         return !cfg.Enabled
                || !Player.Available
                || Player.Object.IsDead

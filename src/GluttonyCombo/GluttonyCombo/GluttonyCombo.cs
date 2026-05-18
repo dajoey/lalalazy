@@ -62,6 +62,7 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
     internal UIHelper UIHelper = null!;
     internal ActionRetargeting ActionRetargeting = null!;
     internal MovementHook MoveHook;
+    internal AutoDuty AutoDutyIPC = null!;
 
     internal static bool IsAprilFools => DateTime.UtcNow.Day == 1 && DateTime.UtcNow.Month == 4;
 
@@ -193,6 +194,7 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         ActionWatching.Enable();
         IPC = Provider.Init();
         PingPluginIPC.Init();
+        AutoDutyIPC = new();
         ConflictingPluginsChecks.Begin();
 
         // Subscribe to language changes to update localized text if needed (Client != Selected UI)
@@ -488,6 +490,7 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
 
         ConflictingPluginsChecks.Dispose();
         AllStaticIPCSubscriptions.Dispose();
+        AutoDutyIPC?.Dispose();
         Svc.ClientState.Login -= PrintLoginMessage;
         ECommonsMain.Dispose();
         P = null;
