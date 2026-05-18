@@ -1,4 +1,14 @@
-# Gluttony Combo â€” Changelog
+# Gluttony Combo Ã¢â‚¬â€ Changelog
+
+## v1.0.4.16 (2026-05-18)
+
+### Changed
+- **Hold-to-Repeat re-implemented as event-driven button-state detection.** The v1.0.4.15 version still used `TimeSinceLastAction` as a proxy for "button still held," which was fragile in practice. The new implementation subscribes to `ActionWatching.OnActionSend` and uses the game itself as the held-button oracle: while the user holds a hotbar button, the game's input layer queues an auto-fire at each GCD which keeps our press tracker fresh; when the user releases, the game stops queueing and the tracker goes stale within 350ms. A short self-fire suppression window (80ms) prevents our own `UseAction` call from feeding back into the tracker and looping forever. Removed the v1.0.4.15 self-cooldown gate (no longer needed).
+- **Subscribe/unsubscribe wiring**: `ActionWatching.OnActionSend += HoldToRepeat_OnActionSend` added next to the `AutoDutyIPC = new()` init; matching unsubscribe in `Dispose()`.
+
+### Notes
+- Still default-OFF. Enable under Main UI Options > Hold to Repeat.
+- The 350ms gate is set wider than a frame interval but tighter than half a GCD, which catches every game-side queue refresh while held but releases promptly on let-go.
 
 ## v1.0.4.15 (2026-05-18)
 
@@ -20,8 +30,8 @@
 ### Fixed
 - **AutoDuty IPC Integration**: Added AutoDuty IPC subscriber to detect when AutoDuty has paused for mechanics (Pyretic, Untarget, etc.). Gluttony now yields autorotation and target acquisition when AutoDuty is in control, preventing the targeting loop where AutoDuty clears the target and Gluttony immediately retargets.
   - New file: `GluttonyCombo/Services/IPC_Subscriber/AutoDuty.cs`
-  - Patched: `GluttonyCombo/GluttonyCombo.cs` â€” initializes and disposes AutoDuty IPC
-  - Patched: `GluttonyCombo/AutoRotation/AutoRotationController.cs` â€” checks `AutoDutyIPC.ShouldYield` in `ShouldSkipAutorotation()`
+  - Patched: `GluttonyCombo/GluttonyCombo.cs` Ã¢â‚¬â€ initializes and disposes AutoDuty IPC
+  - Patched: `GluttonyCombo/AutoRotation/AutoRotationController.cs` Ã¢â‚¬â€ checks `AutoDutyIPC.ShouldYield` in `ShouldSkipAutorotation()`
 
 ---
 *Previous versions: see release tags on GitHub.*

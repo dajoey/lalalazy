@@ -66,7 +66,8 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
     internal ActionRetargeting ActionRetargeting = null!;
     internal MovementHook MoveHook;
     internal AutoDuty AutoDutyIPC = null!;
-    private static long _holdToRepeatLastFireMs;
+    private static long _holdLastUserPressTickMs;
+    private static long _holdSelfFireWindowEndMs;
 
     internal static bool IsAprilFools => DateTime.UtcNow.Day == 1 && DateTime.UtcNow.Month == 4;
 
@@ -199,6 +200,7 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         IPC = Provider.Init();
         PingPluginIPC.Init();
         AutoDutyIPC = new();
+        ActionWatching.OnActionSend += HoldToRepeat_OnActionSend;
         ConflictingPluginsChecks.Begin();
 
         // Subscribe to language changes to update localized text if needed (Client != Selected UI)
@@ -350,24 +352,26 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
 
             unsafe
             {
-                // Hold-to-Repeat: re-fire the last combat action while the user is still
-                // pressing the hotbar button. We use TimeSinceLastAction as a proxy for
-                // "button still held" - the game native hold-to-fire keeps this fresh at
-                // GCD intervals, so a narrow post-press window catches each repeat. A
-                // self-cooldown longer than a GCD prevents runaway re-firing if the user
-                // releases the button before AnimationLock clears.
+                // Hold-to-Repeat: while the user is still holding a hotbar button, re-fire
+                // the last action so combo replacement always sees the latest replaced action.
+                //
+                // Detection: ActionWatching.OnActionSend (see HoldToRepeat_OnActionSend) fires
+                // every time the game sends an action. While the user is holding a button, the
+                // game input layer queues an auto-fire at each GCD which keeps the tracker
+                // fresh; when the user releases, the game stops queueing and the tracker goes
+                // stale within the gate window. A short self-fire suppression window prevents
+                // our own UseAction call from feeding back into the tracker and looping forever.
                 if (Service.Configuration.HoldToRepeatEnabled &&
                     ActionWatching.LastAction > 0 &&
-                    ActionWatching.TimeSinceLastAction.TotalMilliseconds < 400 &&
+                    Environment.TickCount64 - _holdLastUserPressTickMs < 350 &&
                     ActionManager.Instance()->AnimationLock <= 0.1f &&
                     !Player.IsCasting &&
-                    !IsOccupied() &&
-                    Environment.TickCount64 - _holdToRepeatLastFireMs > 2600)
+                    !IsOccupied())
                 {
                     var lastAct = ActionWatching.LastAction;
                     var targetId = Svc.Targets.Target?.GameObjectId ?? 0xE0000000;
+                    _holdSelfFireWindowEndMs = Environment.TickCount64 + 80;
                     ActionManager.Instance()->UseAction(ActionType.Action, lastAct, targetId);
-                    _holdToRepeatLastFireMs = Environment.TickCount64;
                 }
             }
 
@@ -438,6 +442,18 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
     {
         _majorChangesWindow.Draw();
         ConfigWindow.Draw();
+    }
+
+    // ----- Hold-to-Repeat helpers -----
+    // Observes every action the game actually sends. While the user holds a hotbar
+    // button, the game's input layer auto-queues at each GCD which keeps the tracker
+    // fresh. Self-fires from OnFrameworkUpdate are suppressed via a short window so
+    // the plugin's own UseAction call doesn't reset the tracker and loop indefinitely.
+    private static void HoldToRepeat_OnActionSend()
+    {
+        var now = Environment.TickCount64;
+        if (now < _holdSelfFireWindowEndMs) return;
+        _holdLastUserPressTickMs = now;
     }
 
     private void PrintLoginMessage()
@@ -518,6 +534,7 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         ConflictingPluginsChecks.Dispose();
         AllStaticIPCSubscriptions.Dispose();
         AutoDutyIPC?.Dispose();
+        ActionWatching.OnActionSend -= HoldToRepeat_OnActionSend;
         Svc.ClientState.Login -= PrintLoginMessage;
         ECommonsMain.Dispose();
         P = null;
