@@ -344,6 +344,19 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
 
             AutoRotationController.Run();
 
+            // Hold-to-Repeat: continuously re-fire the last combo action while the user holds the button
+            if (Service.Configuration.HoldToRepeatEnabled &&
+                ActionWatching.TimeSinceLastAction.TotalMilliseconds < 1500 &&
+                ActionWatching.LastAction > 0 &&
+                ActionManager.Instance()->AnimationLock <= 0.1f &&
+                !Player.IsCasting &&
+                !IsOccupied())
+            {
+                var lastAct = ActionWatching.LastAction;
+                var targetId = Svc.Targets.Target?.GameObjectId ?? 0xE0000000;
+                ActionManager.Instance()->UseAction(ActionType.Action, lastAct, targetId);
+            }
+
             if (Player.IsDead)
             {
                 ActionRetargeting.Retargets.Clear();

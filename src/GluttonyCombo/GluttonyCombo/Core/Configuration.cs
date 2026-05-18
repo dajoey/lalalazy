@@ -80,6 +80,12 @@ public partial class Configuration : IPluginConfiguration
     [Setting(Setting.Type.Toggle)]
     public bool SuppressAutorotCommand = false;
 
+    /// If enabled, automatically repeats the last used combo action while the user holds the hotbar button.
+    /// <seealso cref="GluttonyCombo.OnFrameworkUpdate"/>
+    [SettingCategory(Main_UI_Options)]
+    [Setting(Setting.Type.Toggle)]
+    public bool HoldToRepeatEnabled = false;
+
     /// Hides the message of the day. Default: false.
     /// <seealso cref="GluttonyCombo.PrintLoginMessage"/>
     [SettingCategory(Main_UI_Options)]

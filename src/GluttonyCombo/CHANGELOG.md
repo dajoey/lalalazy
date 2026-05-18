@@ -1,5 +1,10 @@
 # Gluttony Combo — Changelog
 
+## v1.0.4.14 (2026-05-18)
+
+### Added
+- **Hold to Repeat**: New toggleable option (Main UI Options > Hold to Repeat) that continuously fires your last combo-replaced action while you hold the hotbar button. Automatically respects GCD, animation lock, and casting state. Stops immediately when you release the button.
+
 ## v1.0.4.13 (2026-05-18)
 
 ### Fixed
