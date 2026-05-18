@@ -1,33 +1,61 @@
 #region
 
 using Dalamud.Game.ClientState.Objects.Types;
+using GluttonyCombo.Data;
 using ECommons;
+using GluttonyCombo.Data;
 using ECommons.DalamudServices;
+using GluttonyCombo.Data;
 using ECommons.DalamudServices.Legacy;
+using GluttonyCombo.Data;
 using ECommons.ExcelServices;
+using GluttonyCombo.Data;
 using ECommons.GameFunctions;
+using GluttonyCombo.Data;
 using ECommons.GameHelpers;
+using GluttonyCombo.Data;
 using ECommons.Throttlers;
+using GluttonyCombo.Data;
 using FFXIVClientStructs.FFXIV.Client.Game;
+using GluttonyCombo.Data;
 using Lumina.Excel.Sheets;
+using GluttonyCombo.Data;
 using System;
+using GluttonyCombo.Data;
 using System.Collections.Generic;
+using GluttonyCombo.Data;
 using System.Linq;
+using GluttonyCombo.Data;
 using System.Numerics;
+using GluttonyCombo.Data;
 using GluttonyCombo.API.Enum;
+using GluttonyCombo.Data;
 using GluttonyCombo.Combos.PvE;
+using GluttonyCombo.Data;
 using GluttonyCombo.Combos.PvE.Enums;
+using GluttonyCombo.Data;
 using GluttonyCombo.Core;
+using GluttonyCombo.Data;
 using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.Data;
 using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Data;
 using GluttonyCombo.Extensions;
+using GluttonyCombo.Data;
 using GluttonyCombo.Services;
+using GluttonyCombo.Data;
 using GluttonyCombo.Services.IPC_Subscriber;
+using GluttonyCombo.Data;
 using GluttonyCombo.Window.Functions;
+using GluttonyCombo.Data;
 using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
+using GluttonyCombo.Data;
 using static GluttonyCombo.CustomComboNS.Functions.Jobs;
+using GluttonyCombo.Data;
 using static GluttonyCombo.Data.ActionWatching;
+using GluttonyCombo.Data;
 using ActionType = FFXIVClientStructs.FFXIV.Client.Game.ActionType;
+using GluttonyCombo.Data;
 
 #endregion
 
@@ -150,6 +178,12 @@ internal unsafe class AutoRotationController
 
     private static bool ShouldSkipAutorotation()
     {
+        // Suppress every plugin-driven action while the player has Pyretic, Acceleration Bomb, or
+        // similar "any action = damage/wipe" statuses. Independent of AutoDuty state so it
+        // protects manual play too. See Data/NoActStatus.cs.
+        if (NoActStatus.Active())
+            return true;
+
         // Yield to AutoDuty when it has paused for mechanics (Pyretic, Untarget, etc.)
         // This prevents Gluttony from fighting AutoDuty over target selection
         if (GluttonyCombo.P?.AutoDutyIPC?.ShouldYield == true)
@@ -214,7 +248,7 @@ internal unsafe class AutoRotationController
                 }
                 AutorotRaidwides = 0;
                 AutorotRaidwiding = false;
-                // The 15s mit gate is intentionally NOT reset here — it should carry
+                // The 15s mit gate is intentionally NOT reset here Ã¢â‚¬â€ it should carry
                 // across the gap between raidwides within the same pull. It is reset
                 // out-of-combat by the parent gate (cfg.InCombatOnly) and harmlessly
                 // self-resolves after 15s of no raidwides.

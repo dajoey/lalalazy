@@ -443,6 +443,12 @@ public static class ActionWatching
     {
         try
         {
+            // Hard-block every action while the player has Pyretic / Acceleration Bomb / etc.
+            // This catches AutoDuty queue drains, combo replacement, and direct user presses alike.
+            // Returning false signals the game that the action did not fire - no Pyretic damage.
+            if (NoActStatus.Active())
+                return false;
+
             if (actionType is ActionType.Action)
             {
                 var disablingReplacingTemp = mode == ActionManager.UseActionMode.Queue || AutoRotationController.AutorotRaidwiding;

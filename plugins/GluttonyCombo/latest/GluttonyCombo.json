@@ -2,7 +2,7 @@
   "Author": "dajoey",
   "Name": "Gluttony Combo",
   "InternalName": "GluttonyCombo",
-  "AssemblyVersion": "1.0.4.16",
+  "AssemblyVersion": "1.0.4.17",
   "Description": "Gluttony Combo - lalalazy fork of Gluttony Combo. XIVCombo for very lazy players.",
   "ApplicableVersion": "any",
   "RepoUrl": "https://github.com/dajoey/lalalazy",
@@ -24,7 +24,7 @@
   "CanUnloadAsync": false,
   "LoadPriority": 0,
   "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/gluttonycombo-icon.png",
-  "Punchline": "Lalalazy fork of Wrath Combo â€” XIVCombo for very lazy players.",
-  "Changelog": "v1.0.4.16 - Hold-to-Repeat is now properly event-driven: subscribes to ActionWatching.OnActionSend and uses the game itself as the held-button oracle. When the user releases the hotbar, the tracker goes stale within 350ms and the plugin stops re-firing. Replaces the v1.0.4.15 time-based proxy which was unreliable in practice.\n\nAlso rolled up from v1.0.4.15:\n- Install/update failure repaired (csproj Version was stuck at 1.0.4.12 while pluginmaster.json advertised 1.0.4.14, causing Dalamud to reject the install with a manifest mismatch and silently uninstall the plugin on attempted update).\n- AutoDuty IPC integration actually wired up. The v1.0.4.13 implementation subscribed to AutoDuty.isRunning / AutoDuty.isPaused / AutoDuty.currentState - none of which AutoDuty exports. Rewritten to use the real PascalCase IPC surface (AutoDuty.IsStopped, AutoDuty.IsNavigating). Gluttony now properly yields rotation and targeting whenever AutoDuty has the wheel (Pyretic, untarget, navigation).\n- Hold-to-Repeat compile-time errors fixed (missing FFXIVClientStructs imports + unsafe block wrap; the v1.0.4.14 binary that shipped was actually a pre-A0 build because the source didn't compile).",
+  "Punchline": "Lalalazy fork of Wrath Combo Ã¢â‚¬â€ XIVCombo for very lazy players.",
+  "Changelog": "v1.0.4.17 - CRITICAL: Pyretic / Acceleration Bomb safety. The v1.0.4.13 AutoDuty-yield only blocked autorotation; the plugin was still firing actions through combo replacement during Pyretic and killing the player (Joey verified on the first boss of the latest dungeon). New NoActStatus helper detects Pyretic (status 960) and Acceleration Bomb (1387/2127), and is now gated at both ShouldSkipAutorotation AND the top of UseActionDetour so every UseAction call is hard-swallowed while the status is active, regardless of whether AutoDuty, the user, or the plugin queued it.\n\nAlso: Hold-to-Repeat has been removed entirely from GluttonyCombo. It is being moved to a standalone plugin (LazyPress, shipping separately) so it does not ride along with the combo plugin.",
   "AcceptsFeedback": true
 }
