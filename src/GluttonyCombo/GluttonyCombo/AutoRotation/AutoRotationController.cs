@@ -54,6 +54,7 @@ internal unsafe class AutoRotationController
     public static bool AutorotRaidwiding;
     public static int AutorotRaidwides = 0;
     private static DateTime LastRaidwideMitTime = DateTime.MinValue;
+    private const double RaidwideMitCooldownSeconds = 15.0;
     public static bool TankbusterHandled = false;
 
     public AutoRotationController()
@@ -199,6 +200,10 @@ internal unsafe class AutoRotationController
                 }
                 AutorotRaidwides = 0;
                 AutorotRaidwiding = false;
+                // The 15s mit gate is intentionally NOT reset here — it should carry
+                // across the gap between raidwides within the same pull. It is reset
+                // out-of-combat by the parent gate (cfg.InCombatOnly) and harmlessly
+                // self-resolves after 15s of no raidwides.
             }
         }
 
@@ -351,6 +356,11 @@ internal unsafe class AutoRotationController
     public static List<uint> BlacklistedRaidwides = [];
     private static void HandleRaidwide(bool multihit)
     {
+        // Hard minimum gap between any two autorotation raidwide mitigations
+        // (across consecutive ticks AND across consecutive raidwide casts).
+        if ((DateTime.UtcNow - LastRaidwideMitTime).TotalSeconds < RaidwideMitCooldownSeconds)
+            return;
+
         foreach (var (spell, multihitter) in RaidwideActions)
         {
             if (AutorotRaidwides >= 1)
@@ -369,6 +379,7 @@ internal unsafe class AutoRotationController
                 WouldLikeToGroundTarget = false;
                 BlacklistedRaidwides.Add(spell);
                 AutorotRaidwides++;
+                LastRaidwideMitTime = DateTime.UtcNow;
                 return;
             }
         }
