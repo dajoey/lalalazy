@@ -1,7 +1,8 @@
 #region
 
+using ECommons;
 using ECommons.EzIpcManager;
-using ECommons.Reflection;
+using ECommons.Logging;
 using System;
 
 #endregion
@@ -10,49 +11,75 @@ namespace GluttonyCombo.Services.IPC_Subscriber;
 
 /// <summary>
 /// Subscriber for AutoDuty IPC. Used to detect when AutoDuty is in control
-/// of the player (especially during mechanics like Pyretic where it untargs),
-/// so Gluttony can yield and stop re-targeting.
+/// of the player (running a duty, navigating, or paused for mechanics such
+/// as Pyretic / untarget) so Gluttony can yield autorotation and target
+/// acquisition instead of fighting AutoDuty over target selection.
 /// </summary>
-public class AutoDuty : ReusableIPC
+/// <remarks>
+/// AutoDuty's actual public IPC surface is PascalCase:
+/// <c>AutoDuty.IsStopped</c> and <c>AutoDuty.IsNavigating</c>. The previous
+/// version of this file declared lowercase fields (<c>isRunning</c>,
+/// <c>isPaused</c>, <c>currentState</c>) which EzIPC bound verbatim to
+/// method names that don't exist, so every call threw and the yield logic
+/// was effectively dead.
+/// </remarks>
+internal sealed class AutoDuty()
+    : ReusableIPC("AutoDuty", new Version(0, 0, 0, 0))
 {
-    private const string PluginInternalName = "AutoDuty";
+    /// <summary>True if AutoDuty is fully stopped (not running any duty).</summary>
+    public bool IsStopped
+    {
+        get
+        {
+            if (!IsEnabled) return true; // not installed -> treat as stopped
+            try { return _isStopped(); }
+            catch (Exception e)
+            {
+                PluginLog.Verbose(
+                    $"[ConflictingPlugins] [{PluginName}] " +
+                    $"`IsStopped` failed: {e.ToStringFull()}");
+                return true;
+            }
+        }
+    }
 
-    [EzIPC] private readonly Func<bool> isRunning;
-    [EzIPC] private readonly Func<bool> isPaused;
-    [EzIPC] private readonly Func<string> currentState;
-
-    /// <summary>Whether AutoDuty is currently running a route/dungeon/etc.</summary>
-    public bool IsRunning => SafeInvoke(isRunning, false);
-
-    /// <summary>Whether AutoDuty has paused itself (e.g. for mechanics, combat, or user pause).</summary>
-    public bool IsPaused => SafeInvoke(isPaused, false);
+    /// <summary>True if AutoDuty is currently navigating the player.</summary>
+    public bool IsNavigating
+    {
+        get
+        {
+            if (!IsEnabled) return false;
+            try { return _isNavigating(); }
+            catch (Exception e)
+            {
+                PluginLog.Verbose(
+                    $"[ConflictingPlugins] [{PluginName}] " +
+                    $"`IsNavigating` failed: {e.ToStringFull()}");
+                return false;
+            }
+        }
+    }
 
     /// <summary>
-    /// Current state string: "None", "Navigating", "Stopped", "Paused",
-    /// "Dead", "Revived", "Action", etc.
+    /// True when AutoDuty is actively controlling the player. While true,
+    /// Gluttony skips its own autorotation and target acquisition so it
+    /// doesn't fight AutoDuty's target/mechanic handling (Pyretic untargets,
+    /// LoS movement, between-pull repositioning, etc.).
     /// </summary>
-    public string CurrentStateStr => SafeInvoke(currentState, "None");
+    /// <remarks>
+    /// We treat any state other than <c>IsStopped</c> as "AutoDuty has the
+    /// wheel." This will over-yield slightly during pure-combat phases (when
+    /// AutoDuty is happy to let Gluttony attack), but that's the lesser evil
+    /// compared to the original targeting-loop bug where Gluttony would
+    /// re-target during Pyretic.
+    /// </remarks>
+    public bool ShouldYield => IsEnabled && !IsStopped;
 
-    /// <summary>
-    /// True when AutoDuty is actively controlling the player and has paused
-    /// combat autorotation (e.g. during Pyretic, Untarget mechanics, etc.).
-    /// When true, Gluttony should skip its own autorotation to avoid fighting
-    /// AutoDuty over target selection.
-    /// </summary>
-    public bool ShouldYield => IsRunning && IsPaused;
+#pragma warning disable CS0649, CS8618 // EzIPC assigns these via reflection at construction
+    [EzIPC("AutoDuty.IsStopped", false)]
+    private readonly Func<bool> _isStopped = null!;
 
-    public AutoDuty() : base(PluginInternalName, new Version(1, 0, 0, 0), reflectionNotIPC: false)
-    {
-    }
-
-    private static T SafeInvoke<T>(Func<T> func, T fallback)
-    {
-        try { return func(); }
-        catch { return fallback; }
-    }
-
-    public override void Dispose()
-    {
-        base.Dispose();
-    }
+    [EzIPC("AutoDuty.IsNavigating", false)]
+    private readonly Func<bool> _isNavigating = null!;
+#pragma warning restore CS8618, CS0649
 }

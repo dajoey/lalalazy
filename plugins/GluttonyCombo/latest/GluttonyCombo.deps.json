@@ -1,0 +1,114 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {
+      "GluttonyCombo/1.0.4.15": {
+        "dependencies": {
+          "ECommons": "3.2.0.18",
+          "PunishLib": "2.0.0.1",
+          "System.Speech": "10.0.5",
+          "WrathCombo.API": "0.5.4"
+        },
+        "runtime": {
+          "GluttonyCombo.dll": {}
+        },
+        "resources": {
+          "ja/GluttonyCombo.resources.dll": {
+            "locale": "ja"
+          },
+          "zh-Hans/GluttonyCombo.resources.dll": {
+            "locale": "zh-Hans"
+          },
+          "fr/GluttonyCombo.resources.dll": {
+            "locale": "fr"
+          },
+          "ko/GluttonyCombo.resources.dll": {
+            "locale": "ko"
+          },
+          "de/GluttonyCombo.resources.dll": {
+            "locale": "de"
+          },
+          "zh-Hant/GluttonyCombo.resources.dll": {
+            "locale": "zh-Hant"
+          }
+        }
+      },
+      "System.Speech/10.0.5": {
+        "runtime": {
+          "lib/net10.0/System.Speech.dll": {
+            "assemblyVersion": "10.0.0.5",
+            "fileVersion": "10.0.526.15411"
+          }
+        },
+        "runtimeTargets": {
+          "runtimes/win/lib/net10.0/System.Speech.dll": {
+            "rid": "win",
+            "assetType": "runtime",
+            "assemblyVersion": "10.0.0.5",
+            "fileVersion": "10.0.526.15411"
+          }
+        }
+      },
+      "ECommons/3.2.0.18": {
+        "runtime": {
+          "ECommons.dll": {
+            "assemblyVersion": "3.2.0.18",
+            "fileVersion": "3.2.0.18"
+          }
+        }
+      },
+      "PunishLib/2.0.0.1": {
+        "dependencies": {
+          "ECommons": "3.2.0.18"
+        },
+        "runtime": {
+          "PunishLib.dll": {
+            "assemblyVersion": "2.0.0.1",
+            "fileVersion": "2.0.0.1"
+          }
+        }
+      },
+      "WrathCombo.API/0.5.4": {
+        "runtime": {
+          "WrathCombo.API.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "GluttonyCombo/1.0.4.15": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "System.Speech/10.0.5": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-MYkGiMGWYc9rhyvsmf2UGIHD4RVJ3+uNgllFPP1YW6ILJJDXpDN8jMcy++0E/KrG507kTPCo5EOW4tEwUOCKhQ==",
+      "path": "system.speech/10.0.5",
+      "hashPath": "system.speech.10.0.5.nupkg.sha512"
+    },
+    "ECommons/3.2.0.18": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "PunishLib/2.0.0.1": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "WrathCombo.API/0.5.4": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

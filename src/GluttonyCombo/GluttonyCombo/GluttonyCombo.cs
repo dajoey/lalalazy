@@ -16,6 +16,7 @@ using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using Lumina.Excel.Sheets;
 using Newtonsoft.Json.Linq;
 using PunishLib;
+using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -65,6 +66,7 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
     internal ActionRetargeting ActionRetargeting = null!;
     internal MovementHook MoveHook;
     internal AutoDuty AutoDutyIPC = null!;
+    private static long _holdToRepeatLastFireMs;
 
     internal static bool IsAprilFools => DateTime.UtcNow.Day == 1 && DateTime.UtcNow.Month == 4;
 
@@ -346,17 +348,27 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
 
             AutoRotationController.Run();
 
-            // Hold-to-Repeat: continuously re-fire the last combo action while the user holds the button
-            if (Service.Configuration.HoldToRepeatEnabled &&
-                ActionWatching.TimeSinceLastAction.TotalMilliseconds < 1500 &&
-                ActionWatching.LastAction > 0 &&
-                ActionManager.Instance()->AnimationLock <= 0.1f &&
-                !Player.IsCasting &&
-                !IsOccupied())
+            unsafe
             {
-                var lastAct = ActionWatching.LastAction;
-                var targetId = Svc.Targets.Target?.GameObjectId ?? 0xE0000000;
-                ActionManager.Instance()->UseAction(ActionType.Action, lastAct, targetId);
+                // Hold-to-Repeat: re-fire the last combat action while the user is still
+                // pressing the hotbar button. We use TimeSinceLastAction as a proxy for
+                // "button still held" - the game native hold-to-fire keeps this fresh at
+                // GCD intervals, so a narrow post-press window catches each repeat. A
+                // self-cooldown longer than a GCD prevents runaway re-firing if the user
+                // releases the button before AnimationLock clears.
+                if (Service.Configuration.HoldToRepeatEnabled &&
+                    ActionWatching.LastAction > 0 &&
+                    ActionWatching.TimeSinceLastAction.TotalMilliseconds < 400 &&
+                    ActionManager.Instance()->AnimationLock <= 0.1f &&
+                    !Player.IsCasting &&
+                    !IsOccupied() &&
+                    Environment.TickCount64 - _holdToRepeatLastFireMs > 2600)
+                {
+                    var lastAct = ActionWatching.LastAction;
+                    var targetId = Svc.Targets.Target?.GameObjectId ?? 0xE0000000;
+                    ActionManager.Instance()->UseAction(ActionType.Action, lastAct, targetId);
+                    _holdToRepeatLastFireMs = Environment.TickCount64;
+                }
             }
 
             if (Player.IsDead)
