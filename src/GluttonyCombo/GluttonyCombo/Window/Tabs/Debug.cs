@@ -789,6 +789,7 @@ internal class Debug : ConfigWindow, IDisposable
                 CustomStyleText("Current Charges:", $"{GetCooldown(_debugSpell.Value.RowId).RemainingCharges}");
                 CustomStyleText("Max Charges:", $"{_debugSpell.Value.MaxCharges}");
                 CustomStyleText("Charges (Level):", $"{GetCooldown(_debugSpell.Value.RowId).MaxCharges}");
+                CustomStyleText("Charge CD:", $"{GetCooldown(_debugSpell.Value.RowId).ChargeCooldownRemaining}");
                 CustomStyleText("Range:", $"{GetActionRange(_debugSpell.Value.RowId)}");
                 CustomStyleText("Effect Range:", $"{_debugSpell.Value.EffectRange}");
                 CustomStyleText("In Range:", $"{InActionRange(_debugSpell.Value.RowId)}");
@@ -797,7 +798,7 @@ internal class Debug : ConfigWindow, IDisposable
                 CustomStyleText("Can Target Friendly:", $"{_debugSpell.Value.CanTargetAlly}");
                 CustomStyleText("Can Target Party:", $"{_debugSpell.Value.CanTargetParty}");
                 CustomStyleText("Can Target Area:", $"{_debugSpell.Value.TargetArea}");
-                CustomStyleText("Can Queue:", $"{CanQueue(_debugSpell.Value.RowId)}");
+                CustomStyleText("Can Queue:", $"{ActionWatching.CanQueueCS(_debugSpell.Value.RowId)}");
                 CustomStyleText("Cast Type:", $"{_debugSpell.Value.CastType}");
                 CustomStyleText("Friendly?:", $"{(_debugSpell.Value.Unknown4 == 1 ? "No" : $"Yes {_debugSpell.Value.Unknown4}")}");
 
@@ -1072,7 +1073,7 @@ internal class Debug : ConfigWindow, IDisposable
                 ImGui.SameLine();
                 if (ImGui.Button("Mimic Questionable"))
                 {
-                    // https://git.carvel.li/liza/Questionable/src/commit/de90882ecbb609c2f79fecc1ec17b751dc8763f2/Questionable/Controller/CombatModules/WrathComboModule.cs#L68
+                    // https://git.carvel.li/liza/Questionable/src/commit/de90882ecbb609c2f79fecc1ec17b751dc8763f2/Questionable/Controller/CombatModules/GluttonyComboModule.cs#L68
                     GluttonyCombo.P.IPC.SetAutoRotationState(_wrathLease!.Value);
                     GluttonyCombo.P.IPC.SetCurrentJobAutoRotationReady(_wrathLease!.Value);
                 }

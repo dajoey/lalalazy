@@ -423,10 +423,10 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
     {
         try
         {
-            var basicMessage = $"Welcome to WrathCombo v{GetType().Assembly
+            var basicMessage = $"Welcome to GluttonyCombo v{GetType().Assembly
                 .GetName().Version}!";
             using var motd =
-                httpClient.GetAsync("https://raw.githubusercontent.com/PunishXIV/WrathCombo/main/res/motd.txt").Result;
+                httpClient.GetAsync("https://raw.githubusercontent.com/PunishXIV/GluttonyCombo/main/res/motd.txt").Result;
             motd.EnsureSuccessStatusCode();
             var data = motd.Content.ReadAsStringAsync().Result;
             List<Payload> payloads =
