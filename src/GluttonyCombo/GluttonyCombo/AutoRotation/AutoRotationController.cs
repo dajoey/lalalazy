@@ -184,11 +184,6 @@ internal unsafe class AutoRotationController
         if (NoActStatus.Active())
             return true;
 
-        // Yield to AutoDuty when it has paused for mechanics (Pyretic, Untarget, etc.)
-        // This prevents Gluttony from fighting AutoDuty over target selection
-        if (GluttonyCombo.P?.AutoDutyIPC?.ShouldYield == true)
-            return true;
-
         return !cfg.Enabled
                || !Player.Available
                || Player.Object.IsDead
@@ -248,7 +243,7 @@ internal unsafe class AutoRotationController
                 }
                 AutorotRaidwides = 0;
                 AutorotRaidwiding = false;
-                // The 15s mit gate is intentionally NOT reset here Ã¢â‚¬â€ it should carry
+                // The 15s mit gate is intentionally NOT reset here ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â it should carry
                 // across the gap between raidwides within the same pull. It is reset
                 // out-of-combat by the parent gate (cfg.InCombatOnly) and harmlessly
                 // self-resolves after 15s of no raidwides.
