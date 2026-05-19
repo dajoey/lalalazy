@@ -444,9 +444,9 @@ public static class ActionWatching
         try
         {
             // Hard-block every action while the player has Pyretic / Acceleration Bomb / etc.
-            // This catches AutoDuty queue drains, combo replacement, and direct user presses alike.
-            // Returning false signals the game that the action did not fire - no Pyretic damage.
-            if (NoActStatus.Active())
+            // Uses Wrath PlayerHasActionPenalty (dynamic icon-based detection) so we catch
+            // encounter-specific Pyretic variants the old hardcoded ID list missed.
+            if (PlayerHasActionPenalty())
                 return false;
 
             if (actionType is ActionType.Action)
