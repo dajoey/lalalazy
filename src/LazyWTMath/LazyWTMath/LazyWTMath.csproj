@@ -1,0 +1,19 @@
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <PackageId>LazyWTMath</PackageId>
+    <Version>3.2.2.7</Version>
+    <Authors>daemitus, MidoriKami, dajoey</Authors>
+    <PackageProjectUrl>https://github.com/dajoey/lalalazy</PackageProjectUrl>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Platforms>x64</Platforms>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <SupportedOSPlatformVersion>8.0</SupportedOSPlatformVersion>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <LangVersion>latest</LangVersion>
+    <NoWarn>$(NoWarn);MSB3277;1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KamiToolKit\KamiToolKit.csproj" />
+  </ItemGroup>
+</Project>
