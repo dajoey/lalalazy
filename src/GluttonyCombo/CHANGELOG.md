@@ -1,4 +1,12 @@
-# Gluttony Combo ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â Changelog
+# Gluttony Combo — Changelog
+
+## v1.0.4.20 (2026-05-21)
+
+### Added
+- **Dark Knight (DRK) Blackest Night (TBN) Enhancements**:
+  - Automatically casts TBN when an incoming tankbuster is detected (uses `HasIncomingTankBusterEffect()`).
+  - Automatically casts TBN on cooldown during trash pulls (when 3 or more enemies are targeting the player), bypassing the normal health threshold gates.
+  - Added new target utility helper `EnemiesTargetingPlayerCount()` to reliably track current hostile aggro count.
 
 ## v1.0.4.19 (2026-05-18)
 

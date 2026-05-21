@@ -396,8 +396,9 @@ internal partial class DRK
 
             if (IsEnabled(Preset.DRK_Mitigation_NonBoss_BlackestNight) &&
                 ActionReady(BlackestNight) &&
-                // Read others' TBNs as our own, unless burst is near (need darkside)
-                (!HasAnyTBN || GetCooldownRemainingTime(LivingShadow) < 30))
+                (HasIncomingTankBusterEffect() || 
+                 ((!HasAnyTBN || GetCooldownRemainingTime(LivingShadow) < 30) &&
+                  EnemiesTargetingPlayerCount() >= 3)))
                 return (action = BlackestNight) != 0;
 
             #endregion
@@ -564,9 +565,9 @@ internal partial class DRK
 
             if (ActionReady(BlackestNight) &&
                 IsEnabled(Preset.DRK_Mitigation_Boss_BlackestNight_OnCD) &&
-                PlayerHealthPercentageHp() <= blackestNightHealthThreshold &&
-                IsPlayerTargeted() &&
-                blackestNightOnCDInMitigationContent)
+                blackestNightOnCDInMitigationContent &&
+                ((PlayerHealthPercentageHp() <= blackestNightHealthThreshold && IsPlayerTargeted()) ||
+                 EnemiesTargetingPlayerCount() >= 3))
                 return (action = BlackestNight) != 0;
 
             #endregion

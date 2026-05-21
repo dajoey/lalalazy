@@ -40,6 +40,9 @@ internal abstract partial class CustomComboFunctions
     /// <summary> Checks if the player is being targeted by a hostile, targetable object. </summary>
     public static bool IsPlayerTargeted() => Svc.Objects.Any(x => x.IsTargetable && x.IsHostile() && x.TargetObjectId == LocalPlayer?.GameObjectId);
 
+    /// <summary> Gets the number of hostile, targetable objects targeting the player. </summary>
+    public static int EnemiesTargetingPlayerCount() => Svc.Objects.Count(x => x.IsTargetable && x.IsHostile() && x.TargetObjectId == LocalPlayer?.GameObjectId);
+
     /// <summary> Checks if an object is dead. Defaults to CurrentTarget unless specified. </summary>
     internal static bool TargetIsDead(IGameObject? optionalTarget = null) => (optionalTarget ?? CurrentTarget) is IBattleChara chara && chara.IsDead;
 

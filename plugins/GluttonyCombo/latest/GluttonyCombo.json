@@ -2,7 +2,7 @@
   "Author": "dajoey",
   "Name": "Gluttony Combo",
   "InternalName": "GluttonyCombo",
-  "AssemblyVersion": "1.0.4.19",
+  "AssemblyVersion": "1.0.4.20",
   "Description": "Gluttony Combo - lalalazy fork of Gluttony Combo. XIVCombo for very lazy players.",
   "ApplicableVersion": "any",
   "RepoUrl": "https://github.com/dajoey/lalalazy",
@@ -25,6 +25,6 @@
   "LoadPriority": 0,
   "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/gluttonycombo-icon.png",
   "Punchline": "Lalalazy fork of Wrath Combo ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â XIVCombo for very lazy players.",
-  "Changelog": "v1.0.4.19 - Targeting loop during Pyretic finally fixed. Pyretic damage was already blocked in v1.0.4.17 but Gluttony autorotation kept running because the hardcoded NoActStatus ID list (960 / 1387 / 2127) missed the actual Pyretic variant in the latest dungeon. Run() kept swapping targets, AutoDuty cleared them, Run() swapped back - the fight Joey described.\n\nReplaced NoActStatus with Wrath upstreams PlayerHasActionPenalty at both gates (ShouldSkipAutorotation and UseActionDetour). PlayerHasActionPenalty builds the Pyretic lookup dynamically from Luminas status sheet by icon (215647) plus encounter-specific IDs plus Acceleration Bomb expiry-timing - same detection Wrath has shipped for months. Catches every Pyretic variant in every encounter without us having to maintain a hardcoded list.\n\nAlso cleaned up the duplicate \"using GluttonyCombo.Data;\" lines that the v1.0.4.17 patch script accidentally inserted ~25 times in AutoRotationController.cs (compiled fine but ugly).\n\nDeleted Data/NoActStatus.cs - superseded by PlayerHasActionPenalty.",
+  "Changelog": "v1.0.4.20 - Dark Knight (DRK) TBN Enhancements\n- Added EnemiesTargetingPlayerCount() utility helper to track aggressive hostiles targeting the player.\n- Updated DRK non-boss mitigation to automatically cast The Blackest Night (TBN) when an incoming tankbuster is detected (via HasIncomingTankBusterEffect()).\n- Updated DRK non-boss and boss mitigation to automatically cast TBN on cooldown during trash pulls (when 3 or more enemies target the player), bypassing standard health threshold gates for maximum active mitigation.",
   "AcceptsFeedback": true
 }
