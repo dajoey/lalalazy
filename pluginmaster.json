@@ -204,7 +204,7 @@
         "Punchline": "Fully automated sightseeing log completion",
         "Description": "Fully automated FFXIV sightseeing log completion. Uses vnavmesh for flight and pathing, and lifestream for easy teleportation (/li inn). Automatically skips locked weather/time windows, re-prioritizes if windows open, and returns you to the inn when complete.",
         "InternalName": "LazySightseeing",
-        "AssemblyVersion": "1.0.0.0",
+        "AssemblyVersion": "0.0.1.0",
         "RepoUrl": "https://github.com/dajoey/lalalazy",
         "ApplicableVersion": "any",
         "DalamudApiLevel": 15,
