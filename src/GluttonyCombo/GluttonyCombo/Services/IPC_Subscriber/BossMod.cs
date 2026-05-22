@@ -139,6 +139,44 @@ internal sealed class BossModIPC(
         }
     }
 
+    public void SetMaxDistanceToTarget(float distance)
+    {
+        if (!PluginIsLoaded)
+        {
+            PluginLog.Debug($"[ConflictingPlugins] [{PluginName}] " +
+                            $"Plugin is not loaded.");
+            return;
+        }
+
+        try
+        {
+            var ai = Plugin.GetFoP("_ai");
+            if (ai == null)
+            {
+                PluginLog.Debug(
+                    $"[ConflictingPlugins] [{PluginName}] Could not access _ai field");
+                return;
+            }
+
+            var aiConfig = ai.GetFoP("Config") ?? ai.GetFoP("_config");
+            if (aiConfig == null)
+            {
+                PluginLog.Debug(
+                    $"[ConflictingPlugins] [{PluginName}] Could not access AI.Config field");
+                return;
+            }
+
+            aiConfig.SetFoP("MaxDistanceToTarget", distance);
+            PluginLog.Debug($"[ConflictingPlugins] [{PluginName}] Set MaxDistanceToTarget to {distance}");
+        }
+        catch (Exception e)
+        {
+            PluginLog.Warning($"[ConflictingPlugins] [{PluginName}] " +
+                              $"Failed to set MaxDistanceToTarget: " +
+                              e.ToStringFull());
+        }
+    }
+
 #pragma warning disable CS0649, CS8618 // Complaints of the method
     [EzIPC("BossMod.Rotation.ActionQueue.HasEntries", false)]
     private readonly Func<bool> _hasEntries = null!;

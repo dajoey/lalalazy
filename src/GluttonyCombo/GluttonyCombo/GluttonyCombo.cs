@@ -157,6 +157,21 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
                 Svc.Framework.RunOnTick(Provider.BuildCachesAction());
                 P.IPCSearch.UpdateActiveJobPresets();
                 P.IPC.Leasing.SuspendLeases(CancellationReason.JobChanged);
+
+                var role = global::GluttonyCombo.CustomComboNS.Functions.Jobs.GetRoleFromJob(Player.Job);
+                float? distance = null;
+                if (role is global::GluttonyCombo.CustomComboNS.Functions.Jobs.JobRole.Tank or global::GluttonyCombo.CustomComboNS.Functions.Jobs.JobRole.MeleeDPS)
+                    distance = 3f;
+                else if (role is global::GluttonyCombo.CustomComboNS.Functions.Jobs.JobRole.Healer)
+                    distance = 15f;
+                else if (role is global::GluttonyCombo.CustomComboNS.Functions.Jobs.JobRole.RangedDPS or global::GluttonyCombo.CustomComboNS.Functions.Jobs.JobRole.MagicalDPS)
+                    distance = 20f;
+
+                if (distance.HasValue)
+                {
+                    ConflictingPluginsChecks.BossModReborn.SetMaxDistanceToTarget(distance.Value);
+                    ConflictingPluginsChecks.BossMod.SetMaxDistanceToTarget(distance.Value);
+                }
             }
 
             if (onTerritoryChange || firstRun)

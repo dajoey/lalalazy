@@ -122,6 +122,8 @@ public static class ConflictingPluginsChecks
 
         protected override BossModIPC IPC => (BossModIPC)_ipc;
 
+        internal void SetMaxDistanceToTarget(float distance) => IPC.SetMaxDistanceToTarget(distance);
+
         public override void CheckForConflict(bool forceRefresh = false)
         {
             if (!ThrottlePassed(8, false, forceRefresh))
