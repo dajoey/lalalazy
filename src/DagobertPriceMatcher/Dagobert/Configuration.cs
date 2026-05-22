@@ -1,4 +1,4 @@
-﻿using Dalamud.Configuration;
+using Dalamud.Configuration;
 using Dalamud.Game.ClientState.Keys;
 using System;
 using System.Collections.Generic;
@@ -33,6 +33,8 @@ public sealed class Configuration : IPluginConfiguration
   public VirtualKey PostPinchKey { get; set; } = VirtualKey.SHIFT;
 
   public UndercutMode UndercutMode { get; set; } = UndercutMode.FixedAmount;
+
+  public int DefaultAmount { get; set; } = 0;
 
   public int UndercutAmount { get; set; } = 0;
 

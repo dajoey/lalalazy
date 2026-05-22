@@ -1,4 +1,4 @@
-﻿using Dalamud.Game.Addon.Lifecycle;
+using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using Dalamud.Game.ClientState.Keys;
 using Dalamud.Interface.Utility;
@@ -178,6 +178,7 @@ namespace Dagobert
         if (ImGui.Button("Cancel"))
         {
           _taskManager.Abort();
+          AutoRetainerIPC.Suppressed(false);
           RemoveTalkAddonListeners();
         }
         if (ImGui.IsItemHovered())
@@ -209,6 +210,7 @@ namespace Dagobert
       ClearState();
       if (GenericHelpers.TryGetAddonByName<AtkUnitBase>("RetainerList", out var addon) && GenericHelpers.IsAddonReady(addon))
       {
+        AutoRetainerIPC.Suppressed(true);
         Svc.AddonLifecycle.RegisterListener(AddonEvent.PostSetup, "Talk", SkipRetainerDialog);
         Svc.AddonLifecycle.RegisterListener(AddonEvent.PostUpdate, "Talk", SkipRetainerDialog);
 
@@ -224,6 +226,7 @@ namespace Dagobert
         if (allDisabled)
         {
           Communicator.PrintAllRetainersDisabled();
+          AutoRetainerIPC.Suppressed(false);
           return;
         }
         
@@ -246,6 +249,8 @@ namespace Dagobert
         _taskManager.Enqueue(RemoveTalkAddonListeners);
         if (Plugin.Configuration.TTSWhenAllDone)
           _taskManager.Enqueue(() => SpeakTTS(Plugin.Configuration.TTSWhenAllDoneMsg), "SpeakTTSAll");
+
+        _taskManager.Enqueue(() => AutoRetainerIPC.Suppressed(false));
       }
     }
 
@@ -484,32 +489,35 @@ namespace Dagobert
           var ui = &retainerSell->AtkUnitBase;
           var itemName = retainerSell->ItemName->NodeText.ToString();
           _oldPrice = retainerSell->AskingPrice->Value;
-          if (_newPrice.HasValue && _newPrice > 0)
+          if (!_newPrice.HasValue || !(_newPrice > 0))
           {
-            var cutPercentage = ((float)_newPrice.Value - _oldPrice.Value) / _oldPrice.Value * 100f;
-            if (cutPercentage >= -Plugin.Configuration.MaxUndercutPercentage)
+            if (Plugin.Configuration.DefaultAmount == 0)
             {
-              Svc.Log.Debug($"Setting new price");
-              _cachedPrices.TryAdd(itemName, _newPrice);
-              retainerSell->AskingPrice->SetValue(_newPrice.Value);
-              Communicator.PrintPriceUpdate(itemName, _oldPrice.Value, _newPrice.Value, cutPercentage);
+              Svc.Log.Warning("SetNewPrice: No price to set");
+              Communicator.PrintNoPriceToSetError(itemName);
+              ECommons.Automation.Callback.Fire(&retainerSell->AtkUnitBase, true, 1); // cancel
+              ui->Close(true);
+              return true;
             }
-            else
-              Communicator.PrintAboveMaxCutError(itemName);
-
-            ECommons.Automation.Callback.Fire(&retainerSell->AtkUnitBase, true, 0); // confirm
-            ui->Close(true);
-
-            return true;
+            Svc.Log.Warning("SetNewPrice: Using default amount");
+            _newPrice = Plugin.Configuration.DefaultAmount;
+            Communicator.PrintUsingDefaultAmountWarning(itemName, _newPrice.Value);
+          }
+          var cutPercentage = ((float)_newPrice.Value - _oldPrice.Value) / _oldPrice.Value * 100f;
+          if (cutPercentage >= -Plugin.Configuration.MaxUndercutPercentage)
+          {
+            Svc.Log.Debug($"Setting new price");
+            _cachedPrices.TryAdd(itemName, _newPrice);
+            retainerSell->AskingPrice->SetValue(_newPrice.Value);
+            Communicator.PrintPriceUpdate(itemName, _oldPrice.Value, _newPrice.Value, cutPercentage);
           }
           else
-          {
-            Svc.Log.Warning("SetNewPrice: No price to set");
-            Communicator.PrintNoPriceToSetError(itemName);
-            ECommons.Automation.Callback.Fire(&retainerSell->AtkUnitBase, true, 1); // cancel
-            ui->Close(true);
-            return true;
-          }
+            Communicator.PrintAboveMaxCutError(itemName);
+
+          ECommons.Automation.Callback.Fire(&retainerSell->AtkUnitBase, true, 0); // confirm
+          ui->Close(true);
+
+          return true;
         }
         else
           return false;
