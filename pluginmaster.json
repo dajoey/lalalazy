@@ -212,7 +212,7 @@
         "IsTestingExclusive": false,
         "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazySightseeing/latest/latest.zip",
         "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazySightseeing/latest/latest.zip",
-        "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazySightseeing/latest/latest.zip",
+        "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazySightseeing/testing/testing.zip",
         "Tags": [
             "sightseeing",
             "log",

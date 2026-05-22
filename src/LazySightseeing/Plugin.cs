@@ -73,7 +73,44 @@ public sealed class Plugin : IDalamudPlugin
 
     private void OnCommand(string command, string args)
     {
+        if (args.Equals("debug", StringComparison.OrdinalIgnoreCase))
+        {
+            DumpSheets();
+            return;
+        }
         ToggleWindow();
+    }
+
+    private void DumpSheets()
+    {
+        PluginLog.Information("--- DEBUGGING EXCEL SIGHTSEEING SHEETS ---");
+        try
+        {
+            // Test Adventure sheet
+            var advSheet = Svc.Data.GetExcelSheet<Lumina.Excel.Sheets.Adventure>();
+            if (advSheet != null)
+            {
+                PluginLog.Information($"Adventure sheet exists! Row count: {advSheet.Count}");
+                if (advSheet.Count > 0)
+                {
+                    var firstRow = advSheet.First();
+                    PluginLog.Information("Adventure sheet columns/properties:");
+                    foreach (var prop in firstRow.GetType().GetProperties())
+                    {
+                        PluginLog.Information($"  Property: {prop.Name} (Type: {prop.PropertyType})");
+                    }
+                }
+            }
+            else
+            {
+                PluginLog.Information("Adventure sheet is NULL!");
+            }
+        }
+        catch (Exception ex)
+        {
+            PluginLog.Error(ex, "Failed to dump sheets");
+        }
+        PluginLog.Information("--- END DEBUG ---");
     }
 
     public void Dispose()
