@@ -217,11 +217,21 @@ public sealed class AutomationService
 
                 if (distance < 1.8f)
                 {
-                    Svc.Log.Information($"Arrived at sight {_currentTarget.Name}. Stopping movement and executing emote.");
-                    Chat.SendMessage("/vnav stop");
-                    _state = AutomationState.Emoting;
-                    _hasSentPathingCommand = false;
-                    _nextActionTime = DateTime.UtcNow.AddMilliseconds(500);
+                    if (Svc.Condition[ConditionFlag.Mounted])
+                    {
+                        Svc.Log.Information($"Arrived at sight {_currentTarget.Name} while mounted. Stopping movement and dismounting...");
+                        Chat.SendMessage("/vnav stop");
+                        Chat.SendMessage("/dismount");
+                        _nextActionTime = DateTime.UtcNow.AddSeconds(1.5);
+                    }
+                    else
+                    {
+                        Svc.Log.Information($"Arrived at sight {_currentTarget.Name}. Stopping movement and executing emote.");
+                        Chat.SendMessage("/vnav stop");
+                        _state = AutomationState.Emoting;
+                        _hasSentPathingCommand = false;
+                        _nextActionTime = DateTime.UtcNow.AddMilliseconds(500);
+                    }
                 }
                 else
                 {
