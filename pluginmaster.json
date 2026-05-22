@@ -170,7 +170,7 @@
         "Punchline":  "FFXIV Wondrous Tails probability calculator.",
         "Description":  "Adds row probabilities to the Wondrous Tails display along with the average probability of what would happen if you shuffled. Upgraded for modern FFXIV.",
         "InternalName":  "LazyWTMath",
-        "AssemblyVersion":  "3.2.2.7",
+        "AssemblyVersion":  "3.2.2.8",
         "RepoUrl":  "https://github.com/dajoey/lalalazy",
         "ApplicableVersion":  "any",
         "DalamudApiLevel":  15,
