@@ -14,7 +14,7 @@ public sealed class LazySightseeingWindow : Window
     public LazySightseeingWindow(Plugin plugin) : base("Lazy Sightseeing##lazysight")
     {
         _plugin = plugin;
-        Size = new Vector2(650, 540);
+        Size = new Vector2(720, 540);
         SizeCondition = ImGuiCond.FirstUseEver;
     }
 
@@ -140,14 +140,15 @@ public sealed class LazySightseeingWindow : Window
 
         ImGui.Spacing();
 
-        if (ImGui.BeginTable("sightseeing_table", 6, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY, new Vector2(0, 260)))
+        if (ImGui.BeginTable("sightseeing_table", 7, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY, new Vector2(0, 260)))
         {
             ImGui.TableSetupColumn("Sel", ImGuiTableColumnFlags.WidthFixed, 30);
-            ImGui.TableSetupColumn("ID & Name", ImGuiTableColumnFlags.WidthFixed, 180);
-            ImGui.TableSetupColumn("Emote", ImGuiTableColumnFlags.WidthFixed, 80);
-            ImGui.TableSetupColumn("Requirements", ImGuiTableColumnFlags.WidthFixed, 180);
-            ImGui.TableSetupColumn("Status", ImGuiTableColumnFlags.WidthFixed, 90);
-            ImGui.TableSetupColumn("Action", ImGuiTableColumnFlags.WidthFixed, 50);
+            ImGui.TableSetupColumn("ID & Name", ImGuiTableColumnFlags.WidthFixed, 150);
+            ImGui.TableSetupColumn("Zone", ImGuiTableColumnFlags.WidthFixed, 130);
+            ImGui.TableSetupColumn("Emote", ImGuiTableColumnFlags.WidthFixed, 75);
+            ImGui.TableSetupColumn("Requirements", ImGuiTableColumnFlags.WidthFixed, 140);
+            ImGui.TableSetupColumn("Status", ImGuiTableColumnFlags.WidthFixed, 85);
+            ImGui.TableSetupColumn("Action", ImGuiTableColumnFlags.WidthFixed, 45);
             ImGui.TableHeadersRow();
 
             foreach (var sight in SightseeingDatabase.Sights)
@@ -186,7 +187,18 @@ public sealed class LazySightseeingWindow : Window
                     ImGui.TextUnformatted(sight.Name);
                 }
 
-                // Column 3: Emote
+                // Column 3: Zone
+                ImGui.TableNextColumn();
+                if (isCompleted)
+                {
+                    ImGui.TextDisabled(sight.Aetheryte);
+                }
+                else
+                {
+                    ImGui.TextUnformatted(sight.Aetheryte);
+                }
+
+                // Column 4: Emote
                 ImGui.TableNextColumn();
                 if (isCompleted)
                 {
@@ -197,7 +209,7 @@ public sealed class LazySightseeingWindow : Window
                     ImGui.TextUnformatted($"/{sight.Emote}");
                 }
 
-                // Column 4: Requirements
+                // Column 5: Requirements
                 ImGui.TableNextColumn();
                 string req = "";
                 if (sight.Weathers != null && sight.Weathers.Count > 0)
@@ -221,7 +233,7 @@ public sealed class LazySightseeingWindow : Window
                     ImGui.TextUnformatted(req);
                 }
 
-                // Column 5: Status
+                // Column 6: Status
                 ImGui.TableNextColumn();
                 if (isCompleted)
                 {
@@ -236,7 +248,7 @@ public sealed class LazySightseeingWindow : Window
                     ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1.0f), "Locked");
                 }
 
-                // Column 6: Go Button
+                // Column 7: Go Button
                 ImGui.TableNextColumn();
                 if (isCompleted)
                 {
