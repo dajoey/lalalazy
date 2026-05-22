@@ -1,0 +1,29 @@
+{
+  "Author": "dajoey",
+  "Name": "Lazy Sightseeing",
+  "InternalName": "LazySightseeing",
+  "AssemblyVersion": "0.0.1.0",
+  "Description": "Automates the sightseeing log by finding uncompleted vistas, prioritizing active ones whose weather/time windows are currently open, flying/moving to them using vnavmesh, executing emotes, and automatically returning you to your configured inn via lifestream when done. Use /lazysight to open.",
+  "ApplicableVersion": "any",
+  "Tags": [
+    "sightseeing",
+    "automation",
+    "navigation",
+    "vnavmesh"
+  ],
+  "CategoryTags": [
+    "utility"
+  ],
+  "DalamudApiLevel": 15,
+  "LoadRequiredState": 0,
+  "LoadSync": false,
+  "CanUnloadAsync": false,
+  "LoadPriority": 0,
+  "ImageUrls": [
+    ""
+  ],
+  "IconUrl": "",
+  "Punchline": "Fully automated sightseeing log completions utilizing vnavmesh and lifestream.",
+  "Changelog": "v0.0.1 - Initial development version.",
+  "AcceptsFeedback": true
+}
