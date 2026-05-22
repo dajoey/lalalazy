@@ -153,7 +153,8 @@ public sealed class LazySightseeingWindow : Window
 
             foreach (var sight in SightseeingDatabase.Sights)
             {
-                bool isCompleted = AutomationService.IsSightCompleted(sight.Id);
+                if (AutomationService.IsSightCompleted(sight.Id)) continue;
+
                 bool isSelected = c.SelectedSightIds.Contains(sight.Id);
                 bool isWindowOpen = _plugin.Automation.IsWindowOpen(sight);
 
@@ -161,53 +162,25 @@ public sealed class LazySightseeingWindow : Window
 
                 // Column 1: Checkbox
                 ImGui.TableNextColumn();
-                if (isCompleted)
+                var sel = isSelected;
+                if (ImGui.Checkbox($"##sel_{sight.Id}", ref sel))
                 {
-                    ImGui.TextDisabled("-");
-                }
-                else
-                {
-                    var sel = isSelected;
-                    if (ImGui.Checkbox($"##sel_{sight.Id}", ref sel))
-                    {
-                        if (sel) c.SelectedSightIds.Add(sight.Id);
-                        else c.SelectedSightIds.Remove(sight.Id);
-                        _plugin.SaveConfig();
-                    }
+                    if (sel) c.SelectedSightIds.Add(sight.Id);
+                    else c.SelectedSightIds.Remove(sight.Id);
+                    _plugin.SaveConfig();
                 }
 
                 // Column 2: ID & Name
                 ImGui.TableNextColumn();
-                if (isCompleted)
-                {
-                    ImGui.TextDisabled(sight.Name);
-                }
-                else
-                {
-                    ImGui.TextUnformatted(sight.Name);
-                }
+                ImGui.TextUnformatted(sight.Name);
 
                 // Column 3: Zone
                 ImGui.TableNextColumn();
-                if (isCompleted)
-                {
-                    ImGui.TextDisabled(sight.Aetheryte);
-                }
-                else
-                {
-                    ImGui.TextUnformatted(sight.Aetheryte);
-                }
+                ImGui.TextUnformatted(sight.Aetheryte);
 
                 // Column 4: Emote
                 ImGui.TableNextColumn();
-                if (isCompleted)
-                {
-                    ImGui.TextDisabled($"/{sight.Emote}");
-                }
-                else
-                {
-                    ImGui.TextUnformatted($"/{sight.Emote}");
-                }
+                ImGui.TextUnformatted($"/{sight.Emote}");
 
                 // Column 5: Requirements
                 ImGui.TableNextColumn();
@@ -224,22 +197,11 @@ public sealed class LazySightseeingWindow : Window
                 {
                     req += $" @ {sight.TimeWindow}";
                 }
-                if (isCompleted)
-                {
-                    ImGui.TextDisabled(req);
-                }
-                else
-                {
-                    ImGui.TextUnformatted(req);
-                }
+                ImGui.TextUnformatted(req);
 
                 // Column 6: Status
                 ImGui.TableNextColumn();
-                if (isCompleted)
-                {
-                    ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.3f, 1.0f), "Completed");
-                }
-                else if (isWindowOpen)
+                if (isWindowOpen)
                 {
                     ImGui.TextColored(new Vector4(1.0f, 0.6f, 0.0f, 1.0f), "Active Now!");
                 }
@@ -250,20 +212,13 @@ public sealed class LazySightseeingWindow : Window
 
                 // Column 7: Go Button
                 ImGui.TableNextColumn();
-                if (isCompleted)
+                if (ImGui.SmallButton($"Go##go_{sight.Id}"))
                 {
-                    ImGui.TextDisabled("n/a");
-                }
-                else
-                {
-                    if (ImGui.SmallButton($"Go##go_{sight.Id}"))
-                    {
-                        // Set checklist selection to ONLY this sight for quick single execution
-                        c.SelectedSightIds.Clear();
-                        c.SelectedSightIds.Add(sight.Id);
-                        _plugin.SaveConfig();
-                        _plugin.Automation.Start();
-                    }
+                    // Set checklist selection to ONLY this sight for quick single execution
+                    c.SelectedSightIds.Clear();
+                    c.SelectedSightIds.Add(sight.Id);
+                    _plugin.SaveConfig();
+                    _plugin.Automation.Start();
                 }
             }
             ImGui.EndTable();
