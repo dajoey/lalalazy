@@ -36,6 +36,8 @@ public sealed class AutomationService
     private DateTime _takeoffAttemptTime = DateTime.MinValue;
     private bool _wasMounted = false;
     private bool _wasFlying = false;
+    private Vector3 _lastPosition = Vector3.Zero;
+    private DateTime _lastPositionTime = DateTime.MinValue;
 
     public AutomationState State => _state;
     public SightInfo? CurrentTarget => _currentTarget;
@@ -61,6 +63,8 @@ public sealed class AutomationService
         _takeoffAttemptTime = DateTime.MinValue;
         _wasMounted = Svc.Condition[ConditionFlag.Mounted];
         _wasFlying = Svc.Condition[ConditionFlag.InFlight];
+        _lastPosition = Vector3.Zero;
+        _lastPositionTime = DateTime.MinValue;
         Svc.Log.Information("LazySightseeing automation started.");
     }
 
@@ -151,6 +155,8 @@ public sealed class AutomationService
                 _hasSentPathingCommand = false;
                 _fallbackToWalk = false;
                 _takeoffAttemptTime = DateTime.MinValue;
+                _lastPosition = Vector3.Zero;
+                _lastPositionTime = DateTime.MinValue;
                 Chat.SendMessage("/vnav stop");
                 
                 if (Svc.ClientState.TerritoryType == _currentTarget.TerritoryType)
@@ -235,6 +241,15 @@ public sealed class AutomationService
                 }
                 else
                 {
+                    // Check if player is performing an emote and cancel it via jump to allow movement/mounting
+                    if (Svc.Condition[ConditionFlag.Emoting])
+                    {
+                        Svc.Log.Information("Player is performing an emote. Cancelling emote via jump to allow movement...");
+                        Chat.SendMessage("/gaction \"Jump\"");
+                        _nextActionTime = DateTime.UtcNow.AddSeconds(1.0);
+                        break;
+                    }
+
                     bool forceWalk = ShouldForceWalk(_currentTarget);
 
                     if (forceWalk)
@@ -289,6 +304,8 @@ public sealed class AutomationService
                             Chat.SendMessage($"/vnav moveto {posX} {posY} {posZ}");
                         }
                         _hasSentPathingCommand = true;
+                        _lastPosition = playerPos;
+                        _lastPositionTime = DateTime.UtcNow;
                     }
                     else
                     {
@@ -313,6 +330,23 @@ public sealed class AutomationService
                                     _hasSentPathingCommand = false; // Trigger pathing re-evaluation on next frame
                                     _takeoffAttemptTime = DateTime.MinValue;
                                 }
+                            }
+                        }
+
+                        // Track movement to detect stuck / pathing failure
+                        if (!Svc.Condition[ConditionFlag.Casting])
+                        {
+                            if (_lastPosition == Vector3.Zero || Vector3.Distance(playerPos, _lastPosition) > 0.2f)
+                            {
+                                _lastPosition = playerPos;
+                                _lastPositionTime = DateTime.UtcNow;
+                            }
+                            else if (DateTime.UtcNow - _lastPositionTime > TimeSpan.FromSeconds(3.0))
+                            {
+                                Svc.Log.Warning("Player has not moved for 3 seconds while pathing. Resetting pathing command to retry...");
+                                _hasSentPathingCommand = false;
+                                _lastPosition = playerPos;
+                                _lastPositionTime = DateTime.UtcNow;
                             }
                         }
                     }

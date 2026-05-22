@@ -52,7 +52,11 @@ public static class WeatherService
             var rateProp = territoryRow.GetType().GetProperty("WeatherRate");
             if (rateProp == null) return "Unknown";
             
-            var weatherRateId = Convert.ToUInt32(rateProp.GetValue(territoryRow));
+            var rateValueObj = rateProp.GetValue(territoryRow);
+            if (rateValueObj == null) return "Unknown";
+
+            var rowIdProp = rateValueObj.GetType().GetProperty("RowId");
+            var weatherRateId = rowIdProp != null ? Convert.ToUInt32(rowIdProp.GetValue(rateValueObj)) : Convert.ToUInt32(rateValueObj);
             
             var weatherRateSheet = Svc.Data.GetExcelSheet<Lumina.Excel.Sheets.WeatherRate>();
             if (weatherRateSheet == null) return "Unknown";
