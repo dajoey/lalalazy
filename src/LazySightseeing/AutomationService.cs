@@ -113,8 +113,8 @@ public sealed class AutomationService
         // Handle active re-prioritization / target swapping
         if (_currentTarget == null || _currentTarget.Id != bestTarget.Id)
         {
-            // Only switch target if we aren't currently mid-teleport/cast
-            if (_state != AutomationState.Teleporting && _state != AutomationState.WaitingForTeleport)
+            // Only switch target if we don't have one, or aren't currently mid-teleport/cast
+            if (_currentTarget == null || (_state != AutomationState.Teleporting && _state != AutomationState.WaitingForTeleport))
             {
                 Svc.Log.Information($"Target changed: {bestTarget.Name} (ID: {bestTarget.Id}) is now active.");
                 _currentTarget = bestTarget;
