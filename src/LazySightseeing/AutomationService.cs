@@ -221,7 +221,11 @@ public sealed class AutomationService
                 var playerPos = Svc.Objects.LocalPlayer!.Position;
                 float distance = Vector3.Distance(playerPos, _currentTarget.Position);
 
-                if (distance < 1.8f)
+                // Calculate robust 2D and Y distances to account for mount height offsets and hover altitudes
+                float distance2D = Vector2.Distance(new Vector2(playerPos.X, playerPos.Z), new Vector2(_currentTarget.Position.X, _currentTarget.Position.Z));
+                float distanceY = Math.Abs(playerPos.Y - _currentTarget.Position.Y);
+
+                if (distance2D < 2.0f && distanceY < 4.0f)
                 {
                     if (Svc.Condition[ConditionFlag.Mounted])
                     {
