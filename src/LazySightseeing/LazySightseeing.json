@@ -13,7 +13,7 @@
   "CategoryTags": [ "utility" ],
   "InternalName": "LazySightseeing",
   "DalamudApiLevel": 15,
-  "IconUrl": "",
+  "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazysightseeing-icon.png",
   "ImageUrls": [ "" ],
   "Changelog": "v0.0.1 - Initial development version."
 }

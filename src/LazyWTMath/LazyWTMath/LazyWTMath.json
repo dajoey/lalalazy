@@ -8,6 +8,7 @@
   "DalamudApiLevel": 15,
   "Tags": ["wondrous tails", "math", "calculator", "probability"],
   "CategoryTags": ["utility"],
+  "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazywtmath-icon.png",
   "AcceptsFeedback": false,
   "LoadRequiredState": 0,
   "LoadSync": false,

@@ -19,6 +19,7 @@
   "LoadSync": false,
   "CanUnloadAsync": false,
   "LoadPriority": 0,
+  "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazywtmath-icon.png",
   "Punchline": "FFXIV Wondrous Tails probability calculator.",
   "AcceptsFeedback": false
 }

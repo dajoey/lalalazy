@@ -10,6 +10,7 @@
   "LoadSync": false,
   "CanUnloadAsync": false,
   "LoadPriority": 0,
+  "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/pvpsolver-icon.png",
   "Punchline": "PvP-only auto-rotation",
   "AcceptsFeedback": true
 }

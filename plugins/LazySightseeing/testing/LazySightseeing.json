@@ -22,7 +22,7 @@
   "ImageUrls": [
     ""
   ],
-  "IconUrl": "",
+  "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazysightseeing-icon.png",
   "Punchline": "Fully automated sightseeing log completions utilizing vnavmesh and lifestream.",
   "Changelog": "v0.0.1 - Initial development version.",
   "AcceptsFeedback": true
