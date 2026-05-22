@@ -26,6 +26,39 @@ public sealed class BRD_DefaultPvP : BardRotation
 			}
 		}
 
+		if (PurifyPvP.CanUse(out action))
+		{
+			if (Service.Config.PvpPurifyStun && StatusHelper.PlayerHasStatus(false, StatusID.Stun_1343))
+			{
+				return true;
+			}
+
+			if (Service.Config.PvpPurifyHeavy && StatusHelper.PlayerHasStatus(false, StatusID.Heavy_1344))
+			{
+				return true;
+			}
+
+			if (Service.Config.PvpPurifyBind && StatusHelper.PlayerHasStatus(false, StatusID.Bind_1345))
+			{
+				return true;
+			}
+
+			if (Service.Config.PvpPurifySilence && StatusHelper.PlayerHasStatus(false, StatusID.Silence_1347))
+			{
+				return true;
+			}
+
+			if (Service.Config.PvpPurifyDeepFreeze && StatusHelper.PlayerHasStatus(false, StatusID.DeepFreeze_3219))
+			{
+				return true;
+			}
+
+			if (Service.Config.PvpPurifyMiracleOfNature && StatusHelper.PlayerHasStatus(false, StatusID.MiracleOfNature))
+			{
+				return true;
+			}
+		}
+
 		if (BraveryPvP.CanUse(out action))
 		{
 			if (InCombat)
@@ -78,8 +111,66 @@ public sealed class BRD_DefaultPvP : BardRotation
 	#endregion
 
 	#region GCDs
+	protected override bool EmergencyGCD(out IAction? action)
+	{
+		if (BRDEsuna2 && TheWardensPaeanPvP.CanUse(out action))
+		{
+			return true;
+		}
+		if (StatusHelper.PlayerHasStatus(false, StatusHelper.PurifyPvPStatuses))
+		{
+			if (TheWardensPaeanPvP.CanUse(out action, targetOverride: TargetType.Self))
+			{
+				return true;
+			}
+		}
+
+		if (PurifyPvP.CanUse(out action))
+		{
+			if (Service.Config.PvpPurifyStun && StatusHelper.PlayerHasStatus(false, StatusID.Stun_1343))
+			{
+				return true;
+			}
+
+			if (Service.Config.PvpPurifyHeavy && StatusHelper.PlayerHasStatus(false, StatusID.Heavy_1344))
+			{
+				return true;
+			}
+
+			if (Service.Config.PvpPurifyBind && StatusHelper.PlayerHasStatus(false, StatusID.Bind_1345))
+			{
+				return true;
+			}
+
+			if (Service.Config.PvpPurifySilence && StatusHelper.PlayerHasStatus(false, StatusID.Silence_1347))
+			{
+				return true;
+			}
+
+			if (Service.Config.PvpPurifyDeepFreeze && StatusHelper.PlayerHasStatus(false, StatusID.DeepFreeze_3219))
+			{
+				return true;
+			}
+
+			if (Service.Config.PvpPurifyMiracleOfNature && StatusHelper.PlayerHasStatus(false, StatusID.MiracleOfNature))
+			{
+				return true;
+			}
+		}
+
+		return base.GeneralGCD(out action);
+	}
+
 	protected override bool GeneralGCD(out IAction? action)
 	{
+		if (!StatusHelper.PlayerHasStatus(true, StatusID.FrontlinersMarch))
+		{
+			if (ApexArrowPvP.CanUse(out action, skipStatusProvideCheck: true))
+			{
+				return true;
+			}
+		}
+
 		if (HarmonicArrowPvP.CanUse(out action))
 		{
 			return true;
@@ -95,7 +186,7 @@ public sealed class BRD_DefaultPvP : BardRotation
 			return true;
 		}
 
-		if (ApexArrowPvP.CanUse(out action))
+		if (ApexArrowPvP.CanUse(out action, skipStatusProvideCheck: true))
 		{
 			return true;
 		}

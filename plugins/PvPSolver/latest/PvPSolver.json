@@ -2,30 +2,14 @@
   "Author": "dajoey",
   "Name": "PvP Solver",
   "InternalName": "PvPSolver",
-  "AssemblyVersion": "0.1.0.1",
-  "Description": "Auto-rotation for FFXIV PvP only. Automatically activates in PvP zones. Designed to run alongside Wrath Combo (handles PvE). Includes default PvP rotations for all jobs.",
-  "Punchline": "PvP-only auto-rotation.",
-  "RepoUrl": "https://github.com/dajoey/lalalazy",
+  "AssemblyVersion": "0.1.0.2",
+  "Description": "PvP-only auto-rotation for FFXIV. Activates in PvP zones.",
   "ApplicableVersion": "any",
   "DalamudApiLevel": 15,
-  "Tags": [
-    "combat",
-    "rotation",
-    "auto",
-    "pvp"
-  ],
-  "CategoryTags": [
-    "jobs"
-  ],
-  "Changelog": "v0.1.0.0 - PvP fork of RotationSolverReborn",
-  "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/pvpsolver-icon.png",
-  "ImageUrls": [
-    ""
-  ],
-  "AcceptsFeedback": false,
   "LoadRequiredState": 0,
   "LoadSync": false,
   "CanUnloadAsync": false,
   "LoadPriority": 0,
-  "IsTestingExclusive": false
+  "Punchline": "PvP-only auto-rotation",
+  "AcceptsFeedback": true
 }

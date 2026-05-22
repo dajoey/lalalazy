@@ -26,6 +26,39 @@ public class WHM_DefaultPVP : WhiteMageRotation
 			}
 		}
 
+		if (PurifyPvP.CanUse(out action))
+		{
+			if (Service.Config.PvpPurifyStun && StatusHelper.PlayerHasStatus(false, StatusID.Stun_1343))
+			{
+				return true;
+			}
+
+			if (Service.Config.PvpPurifyHeavy && StatusHelper.PlayerHasStatus(false, StatusID.Heavy_1344))
+			{
+				return true;
+			}
+
+			if (Service.Config.PvpPurifyBind && StatusHelper.PlayerHasStatus(false, StatusID.Bind_1345))
+			{
+				return true;
+			}
+
+			if (Service.Config.PvpPurifySilence && StatusHelper.PlayerHasStatus(false, StatusID.Silence_1347))
+			{
+				return true;
+			}
+
+			if (Service.Config.PvpPurifyDeepFreeze && StatusHelper.PlayerHasStatus(false, StatusID.DeepFreeze_3219))
+			{
+				return true;
+			}
+
+			if (Service.Config.PvpPurifyMiracleOfNature && StatusHelper.PlayerHasStatus(false, StatusID.MiracleOfNature))
+			{
+				return true;
+			}
+		}
+
 		return base.EmergencyAbility(nextGCD, out action);
 	}
 
@@ -41,6 +74,56 @@ public class WHM_DefaultPVP : WhiteMageRotation
 	#endregion
 
 	#region GCDs
+	protected override bool EmergencyGCD(out IAction? action)
+	{
+		if (AquaveilEsuna && AquaveilPvP.CanUse(out action))
+		{
+			return true;
+		}
+		if (StatusHelper.PlayerHasStatus(false, StatusHelper.PurifyPvPStatuses))
+		{
+			if (AquaveilPvP.CanUse(out action, targetOverride: TargetType.Self))
+			{
+				return true;
+			}
+		}
+
+		if (PurifyPvP.CanUse(out action))
+		{
+			if (Service.Config.PvpPurifyStun && StatusHelper.PlayerHasStatus(false, StatusID.Stun_1343))
+			{
+				return true;
+			}
+
+			if (Service.Config.PvpPurifyHeavy && StatusHelper.PlayerHasStatus(false, StatusID.Heavy_1344))
+			{
+				return true;
+			}
+
+			if (Service.Config.PvpPurifyBind && StatusHelper.PlayerHasStatus(false, StatusID.Bind_1345))
+			{
+				return true;
+			}
+
+			if (Service.Config.PvpPurifySilence && StatusHelper.PlayerHasStatus(false, StatusID.Silence_1347))
+			{
+				return true;
+			}
+
+			if (Service.Config.PvpPurifyDeepFreeze && StatusHelper.PlayerHasStatus(false, StatusID.DeepFreeze_3219))
+			{
+				return true;
+			}
+
+			if (Service.Config.PvpPurifyMiracleOfNature && StatusHelper.PlayerHasStatus(false, StatusID.MiracleOfNature))
+			{
+				return true;
+			}
+		}
+
+		return base.GeneralGCD(out action);
+	}
+
 	protected override bool DefenseSingleGCD(out IAction? action)
 	{
 		if (StoneskinIiPvP.CanUse(out action))

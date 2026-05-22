@@ -5,7 +5,7 @@
 		<InternalName>PvPSolver</InternalName>
 		<Punchline>PvP-only auto-rotation</Punchline>
 		<Description>PvP-only auto-rotation for FFXIV. Activates in PvP zones.</Description>
-		<Version>0.1.0.0</Version>
+		<Version>0.1.0.2</Version>
 		<Author>dajoey</Author>
 		<DalamudApiLevel>15</DalamudApiLevel>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
