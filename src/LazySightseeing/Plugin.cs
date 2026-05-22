@@ -113,33 +113,6 @@ public sealed class Plugin : IDalamudPlugin
         PluginLog.Information("--- END DEBUG ---");
     }
 
-    public unsafe void MemoryTeleport(float x, float y, float z)
-    {
-        try
-        {
-            var player = Svc.Objects.LocalPlayer;
-            if (player == null)
-            {
-                PluginLog.Error("MemoryTeleport failed: Local player is null.");
-                return;
-            }
-
-            var gameObject = (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)player.Address;
-            if (gameObject == null)
-            {
-                PluginLog.Error("MemoryTeleport failed: GameObject pointer is null.");
-                return;
-            }
-
-            gameObject->Position = new System.Numerics.Vector3(x, y, z);
-            PluginLog.Information($"MemoryTeleport snapped player to coordinates: {x}, {y}, {z}");
-        }
-        catch (Exception ex)
-        {
-            PluginLog.Error(ex, "MemoryTeleport encountered an exception");
-        }
-    }
-
     public void Dispose()
     {
         Automation.Stop();

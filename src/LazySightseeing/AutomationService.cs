@@ -30,6 +30,12 @@ public sealed class AutomationService
     private bool _triedMount = false;
     private bool _triedTakeoff = false;
 
+    // Smooth pathing and takeoff tracking variables
+    private bool _hasSentPathingCommand = false;
+    private bool _fallbackToWalk = false;
+    private DateTime _takeoffAttemptTime = DateTime.MinValue;
+    private bool _wasMounted = false;
+    private bool _wasFlying = false;
 
     public AutomationState State => _state;
     public SightInfo? CurrentTarget => _currentTarget;
@@ -50,6 +56,11 @@ public sealed class AutomationService
         _lastTerritory = Svc.ClientState.TerritoryType;
         _triedMount = false;
         _triedTakeoff = false;
+        _hasSentPathingCommand = false;
+        _fallbackToWalk = false;
+        _takeoffAttemptTime = DateTime.MinValue;
+        _wasMounted = Svc.Condition[ConditionFlag.Mounted];
+        _wasFlying = Svc.Condition[ConditionFlag.InFlight];
         Svc.Log.Information("LazySightseeing automation started.");
     }
 
@@ -58,6 +69,7 @@ public sealed class AutomationService
         if (!IsRunning) return;
         _state = AutomationState.Idle;
         _currentTarget = null;
+        _hasSentPathingCommand = false;
         Chat.SendMessage("/vnav stop");
         Svc.Log.Information("LazySightseeing automation stopped.");
     }
@@ -65,6 +77,16 @@ public sealed class AutomationService
     public void Tick()
     {
         if (!IsRunning) return;
+
+        // Check for mounting/flying state changes to trigger re-routing
+        bool isMounted = Svc.Condition[ConditionFlag.Mounted];
+        bool isFlying = Svc.Condition[ConditionFlag.InFlight];
+        if (isMounted != _wasMounted || isFlying != _wasFlying)
+        {
+            _hasSentPathingCommand = false;
+            _wasMounted = isMounted;
+            _wasFlying = isFlying;
+        }
 
         // Rate limit tick evaluation
         if (DateTime.UtcNow < _nextActionTime) return;
@@ -126,6 +148,9 @@ public sealed class AutomationService
                 _emoteCount = 0;
                 _triedMount = false;
                 _triedTakeoff = false;
+                _hasSentPathingCommand = false;
+                _fallbackToWalk = false;
+                _takeoffAttemptTime = DateTime.MinValue;
                 Chat.SendMessage("/vnav stop");
                 
                 if (Svc.ClientState.TerritoryType == _currentTarget.TerritoryType)
@@ -192,20 +217,14 @@ public sealed class AutomationService
 
                 if (distance < 1.8f)
                 {
-                    Svc.Log.Information($"Arrived at sight {_currentTarget.Name}. executing emote.");
+                    Svc.Log.Information($"Arrived at sight {_currentTarget.Name}. Stopping movement and executing emote.");
+                    Chat.SendMessage("/vnav stop");
                     _state = AutomationState.Emoting;
+                    _hasSentPathingCommand = false;
                     _nextActionTime = DateTime.UtcNow.AddMilliseconds(500);
                 }
                 else
                 {
-                    if (_plugin.Config.UseMemoryTeleport)
-                    {
-                        Svc.Log.Information($"[MemoryTeleport] Snapping to {_currentTarget.Name} at {_currentTarget.Position}");
-                        _plugin.MemoryTeleport(_currentTarget.Position.X, _currentTarget.Position.Y, _currentTarget.Position.Z);
-                        _nextActionTime = DateTime.UtcNow.AddMilliseconds(500);
-                        break;
-                    }
-
                     bool forceWalk = ShouldForceWalk(_currentTarget);
 
                     if (forceWalk)
@@ -214,6 +233,7 @@ public sealed class AutomationService
                         {
                             Svc.Log.Information("Forcing walk pathing for indoor/complex vista. Dismounting...");
                             Chat.SendMessage("/dismount");
+                            _hasSentPathingCommand = false;
                             _nextActionTime = DateTime.UtcNow.AddSeconds(1.5);
                             break;
                         }
@@ -226,35 +246,69 @@ public sealed class AutomationService
                             _triedMount = true;
                             Svc.Log.Information("Target is far. Attempting to mount...");
                             Chat.SendMessage("/gaction \"Mount\"");
+                            _hasSentPathingCommand = false;
                             _nextActionTime = DateTime.UtcNow.AddSeconds(2.5); // Wait for mount cast
                             break;
                         }
-
-                        // Try to takeoff if mounted, not flying, and haven't tried yet
-                        if (Svc.Condition[ConditionFlag.Mounted] && !Svc.Condition[ConditionFlag.InFlight] && !_triedTakeoff)
-                        {
-                            _triedTakeoff = true;
-                            Svc.Log.Information("Mounted but not flying. Attempting to jump to enter flight...");
-                            Chat.SendMessage("/gaction \"Jump\"");
-                            _nextActionTime = DateTime.UtcNow.AddSeconds(1.0); // Wait for takeoff/jump to register
-                            break;
-                        }
                     }
 
-                    // Choose pathing command based on flight state and use culture-invariant float formatting
-                    string posX = _currentTarget.Position.X.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                    string posY = _currentTarget.Position.Y.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                    string posZ = _currentTarget.Position.Z.ToString(System.Globalization.CultureInfo.InvariantCulture);
-
-                    if (Svc.Condition[ConditionFlag.Mounted] && Svc.Condition[ConditionFlag.InFlight] && !forceWalk)
+                    // Choose and execute pathing command once
+                    if (!_hasSentPathingCommand)
                     {
-                        Chat.SendMessage($"/vnav flyto {posX} {posY} {posZ}");
+                        string posX = _currentTarget.Position.X.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                        string posY = _currentTarget.Position.Y.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                        string posZ = _currentTarget.Position.Z.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+                        bool tryFlying = Svc.Condition[ConditionFlag.Mounted] && !forceWalk && !_fallbackToWalk;
+
+                        if (tryFlying)
+                        {
+                            Svc.Log.Information($"Sending flyto command for {_currentTarget.Name} to {posX}, {posY}, {posZ}");
+                            Chat.SendMessage($"/vnav flyto {posX} {posY} {posZ}");
+                            
+                            // Schedule takeoff jump after starting movement
+                            if (!Svc.Condition[ConditionFlag.InFlight])
+                            {
+                                _takeoffAttemptTime = DateTime.UtcNow.AddSeconds(1.0);
+                                _triedTakeoff = false;
+                            }
+                        }
+                        else
+                        {
+                            Svc.Log.Information($"Sending moveto command for {_currentTarget.Name} to {posX}, {posY}, {posZ}");
+                            Chat.SendMessage($"/vnav moveto {posX} {posY} {posZ}");
+                        }
+                        _hasSentPathingCommand = true;
                     }
                     else
                     {
-                        Chat.SendMessage($"/vnav moveto {posX} {posY} {posZ}");
+                        // Pathing is active. Trigger takeoff if trying to fly
+                        bool tryFlying = Svc.Condition[ConditionFlag.Mounted] && !forceWalk && !_fallbackToWalk;
+                        if (tryFlying && !Svc.Condition[ConditionFlag.InFlight])
+                        {
+                            if (_takeoffAttemptTime != DateTime.MinValue && DateTime.UtcNow > _takeoffAttemptTime)
+                            {
+                                if (!_triedTakeoff)
+                                {
+                                    Svc.Log.Information("Mounted but not flying. Attempting jump to initiate flight...");
+                                    Chat.SendMessage("/gaction \"Jump\"");
+                                    _triedTakeoff = true;
+                                    _takeoffAttemptTime = DateTime.UtcNow.AddSeconds(1.5); // Wait 1.5s to see if flight activates
+                                }
+                                else
+                                {
+                                    // Takeoff jump didn't enter flight state (no flying in this zone or not unlocked)
+                                    Svc.Log.Warning("Takeoff jump failed. Falling back to ground pathing.");
+                                    _fallbackToWalk = true;
+                                    _hasSentPathingCommand = false; // Trigger pathing re-evaluation on next frame
+                                    _takeoffAttemptTime = DateTime.MinValue;
+                                }
+                            }
+                        }
                     }
-                    _nextActionTime = DateTime.UtcNow.AddSeconds(4);
+
+                    // Check distance and status frequently without spamming pathing commands
+                    _nextActionTime = DateTime.UtcNow.AddMilliseconds(200);
                 }
                 break;
 

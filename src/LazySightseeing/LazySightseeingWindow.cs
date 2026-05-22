@@ -67,12 +67,6 @@ public sealed class LazySightseeingWindow : Window
             _plugin.SaveConfig();
         }
 
-        var useMemTp = c.UseMemoryTeleport;
-        if (ImGui.Checkbox("Auto-teleport to vista (Memory Snap)", ref useMemTp))
-        {
-            c.UseMemoryTeleport = useMemTp;
-            _plugin.SaveConfig();
-        }
 
         ImGui.SetNextItemWidth(150);
         var inn = c.DefaultInn;
@@ -217,7 +211,7 @@ public sealed class LazySightseeingWindow : Window
                     ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1.0f), "Locked");
                 }
 
-                // Column 7: Actions (Go & Tp)
+                // Column 7: Actions (Go)
                 ImGui.TableNextColumn();
                 if (ImGui.SmallButton($"Go##go_{sight.Id}"))
                 {
@@ -226,11 +220,6 @@ public sealed class LazySightseeingWindow : Window
                     c.SelectedSightIds.Add(sight.Id);
                     _plugin.SaveConfig();
                     _plugin.Automation.Start();
-                }
-                ImGui.SameLine();
-                if (ImGui.SmallButton($"Tp##tp_{sight.Id}"))
-                {
-                    _plugin.MemoryTeleport(sight.Position.X, sight.Position.Y, sight.Position.Z);
                 }
             }
             ImGui.EndTable();
