@@ -198,24 +198,47 @@ public sealed class AutomationService
                 }
                 else
                 {
-                    // Try to mount up if target is far, we aren't mounted, and haven't tried yet
-                    if (distance > 30f && !Svc.Condition[ConditionFlag.Mounted] && !_triedMount && !Svc.Condition[ConditionFlag.Casting])
+                    if (_plugin.Config.UseMemoryTeleport)
                     {
-                        _triedMount = true;
-                        Svc.Log.Information("Target is far. Attempting to mount...");
-                        Chat.SendMessage("/gaction \"Mount\"");
-                        _nextActionTime = DateTime.UtcNow.AddSeconds(2.5); // Wait for mount cast
+                        Svc.Log.Information($"[MemoryTeleport] Snapping to {_currentTarget.Name} at {_currentTarget.Position}");
+                        _plugin.MemoryTeleport(_currentTarget.Position.X, _currentTarget.Position.Y, _currentTarget.Position.Z);
+                        _nextActionTime = DateTime.UtcNow.AddMilliseconds(500);
                         break;
                     }
 
-                    // Try to takeoff if mounted, not flying, and haven't tried yet
-                    if (Svc.Condition[ConditionFlag.Mounted] && !Svc.Condition[ConditionFlag.InFlight] && !_triedTakeoff)
+                    bool forceWalk = ShouldForceWalk(_currentTarget);
+
+                    if (forceWalk)
                     {
-                        _triedTakeoff = true;
-                        Svc.Log.Information("Mounted but not flying. Attempting to jump to enter flight...");
-                        Chat.SendMessage("/gaction \"Jump\"");
-                        _nextActionTime = DateTime.UtcNow.AddSeconds(1.0); // Wait for takeoff/jump to register
-                        break;
+                        if (Svc.Condition[ConditionFlag.Mounted])
+                        {
+                            Svc.Log.Information("Forcing walk pathing for indoor/complex vista. Dismounting...");
+                            Chat.SendMessage("/dismount");
+                            _nextActionTime = DateTime.UtcNow.AddSeconds(1.5);
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        // Try to mount up if target is far, we aren't mounted, and haven't tried yet
+                        if (distance > 30f && !Svc.Condition[ConditionFlag.Mounted] && !_triedMount && !Svc.Condition[ConditionFlag.Casting])
+                        {
+                            _triedMount = true;
+                            Svc.Log.Information("Target is far. Attempting to mount...");
+                            Chat.SendMessage("/gaction \"Mount\"");
+                            _nextActionTime = DateTime.UtcNow.AddSeconds(2.5); // Wait for mount cast
+                            break;
+                        }
+
+                        // Try to takeoff if mounted, not flying, and haven't tried yet
+                        if (Svc.Condition[ConditionFlag.Mounted] && !Svc.Condition[ConditionFlag.InFlight] && !_triedTakeoff)
+                        {
+                            _triedTakeoff = true;
+                            Svc.Log.Information("Mounted but not flying. Attempting to jump to enter flight...");
+                            Chat.SendMessage("/gaction \"Jump\"");
+                            _nextActionTime = DateTime.UtcNow.AddSeconds(1.0); // Wait for takeoff/jump to register
+                            break;
+                        }
                     }
 
                     // Choose pathing command based on flight state and use culture-invariant float formatting
@@ -223,7 +246,7 @@ public sealed class AutomationService
                     string posY = _currentTarget.Position.Y.ToString(System.Globalization.CultureInfo.InvariantCulture);
                     string posZ = _currentTarget.Position.Z.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
-                    if (Svc.Condition[ConditionFlag.Mounted] && Svc.Condition[ConditionFlag.InFlight])
+                    if (Svc.Condition[ConditionFlag.Mounted] && Svc.Condition[ConditionFlag.InFlight] && !forceWalk)
                     {
                         Chat.SendMessage($"/vnav flyto {posX} {posY} {posZ}");
                     }
@@ -397,8 +420,8 @@ public sealed class AutomationService
                 // Tamamizu vs Onokoro
                 return sight.Position.Z > 0 ? "Tamamizu" : "Onokoro";
             case "Yanxia":
-                // Namai vs The House of the Fierce
-                return sight.Position.X > 100 ? "Namai" : "The House of the Fierce";
+                // Namai vs House of the Fierce
+                return sight.Position.X > 100 ? "Namai" : "House of the Fierce";
             case "The Azim Steppe":
                 // Reunion vs The Dawn Throne
                 return sight.Position.X > 0 ? "Reunion" : "The Dawn Throne";
@@ -463,8 +486,11 @@ public sealed class AutomationService
                 // Outskirts vs Electrope Strike
                 return sight.Position.Y > 0 ? "The Outskirts" : "Electrope Strike";
             case "Living Memory":
-                // Leyene vs Yyasulani
-                return "Leyene";
+                // Mnemo (south/east - Canal Town/Yesterland)
+                // Pyro (north/east - Asyle Volcane)
+                // Aero (north/west - Windspath Gardens)
+                if (sight.Position.X < 0) return "Leynode Aero";
+                return sight.Position.Z > 0 ? "Leynode Mnemo" : "Leynode Pyro";
 
             default:
                 return sight.Aetheryte;
@@ -478,5 +504,12 @@ public sealed class AutomationService
         if (Svc.Condition[ConditionFlag.OccupiedInCutSceneEvent] || Svc.Condition[ConditionFlag.OccupiedInQuestEvent]) return false;
         if (Svc.Objects.LocalPlayer.IsDead) return false;
         return true;
+    }
+
+    private bool ShouldForceWalk(SightInfo sight)
+    {
+        // Vistas that are indoor or require ground pathing to not get stuck on walls/ceilings:
+        // - ID 340: Steps of the Speaker (Living Memory - inside a circular building on spiral walkways)
+        return sight.Id == 340;
     }
 }

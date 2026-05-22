@@ -204,8 +204,8 @@
         "Punchline": "Fully automated sightseeing log completion",
         "Description": "Fully automated FFXIV sightseeing log completion. Uses vnavmesh for flight and pathing, and lifestream for easy teleportation (/li inn). Automatically skips locked weather/time windows, re-prioritizes if windows open, and returns you to the inn when complete.",
         "InternalName": "LazySightseeing",
-        "AssemblyVersion": "0.0.2.4",
-        "Changelog": "v0.0.2.4 - Aetheryte Mapping Teleport Hang Fix\n- Dynamically maps database zone Aetheryte targets to the closest exact/real Aetheryte names based on world coordinates, resolving the Swallow's Compass/Yanxia teleport hang and all other zone teleport conflicts.\n\nv0.0.2.3 - Clean Completed Sights Filtering (Testing/Incomplete Build)\n- Modified the checklist ImGui table to filter out completed vistas entirely for a cleaner, decluttered UI.\n\nv0.0.2.2 - Takeoff & Hybrid Flight Navigation (Testing/Incomplete Build)\n- Implemented flight takeoff jump to prevent getting stuck in 'State: movingtosight' on the ground when vnav flyto is used.\n- Added hybrid flight navigation logic: falls back to ground movement /vnav moveto when on the ground or in non-flying areas.\n\nv0.0.2.1 - Target Selection Startup Fix (Testing/Incomplete Build)\n- Fixed a bug where the plugin gets stuck on 'State: Teleporting' without sending the /tp command due to null target evaluation on startup.\n\nv0.0.2.0 - Sightseeing Expansion & UI Upgrade\n- Added all 340 sightseeing vistas across Heavensward, Stormblood, Shadowbringers, Endwalker, and Dawntrail.\n- Added new 'Zone' column displaying the area of each vista in the ImGui checklist.\n- Implemented culture-invariant float formatting for precise pathing coordinates.",
+        "AssemblyVersion": "0.0.2.5",
+        "Changelog": "v0.0.2.5 - Memory Teleport Movement Automation\n- Added option to automatically teleport/snap directly to the selected vista's exact coordinate in memory once in the correct zone, completely bypassing standard pathfinding, walls, and Kugane jumping puzzles.\n- Added \"Auto-teleport to vista (Memory Snap)\" checkbox toggle in the ImGui control panel.\n\nv0.0.2.4 - Aetheryte Mapping Teleport Hang Fix\n- Dynamically maps database zone Aetheryte targets to the closest exact/real Aetheryte names based on world coordinates, resolving the Swallow's Compass/Yanxia teleport hang and all other zone teleport conflicts.\n\nv0.0.2.3 - Clean Completed Sights Filtering (Testing/Incomplete Build)\n- Modified the checklist ImGui table to filter out completed vistas entirely for a cleaner, decluttered UI.\n\nv0.0.2.2 - Takeoff & Hybrid Flight Navigation (Testing/Incomplete Build)\n- Implemented flight takeoff jump to prevent getting stuck in 'State: movingtosight' on the ground when vnav flyto is used.\n- Added hybrid flight navigation logic: falls back to ground movement /vnav moveto when on the ground or in non-flying areas.\n\nv0.0.2.1 - Target Selection Startup Fix (Testing/Incomplete Build)\n- Fixed a bug where the plugin gets stuck on 'State: Teleporting' without sending the /tp command due to null target evaluation on startup.\n- Added culture-invariant float formatting for precise pathing coordinates.",
         "RepoUrl": "https://github.com/dajoey/lalalazy",
         "ApplicableVersion": "any",
         "DalamudApiLevel": 15,
@@ -231,6 +231,6 @@
         ],
         "DownloadCount": 0,
         "LastUpdate": "0",
-        "TestingAssemblyVersion": "0.0.2.4"
+        "TestingAssemblyVersion": "0.0.2.5"
     }
 ]

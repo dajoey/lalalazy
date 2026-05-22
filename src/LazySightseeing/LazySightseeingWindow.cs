@@ -67,6 +67,13 @@ public sealed class LazySightseeingWindow : Window
             _plugin.SaveConfig();
         }
 
+        var useMemTp = c.UseMemoryTeleport;
+        if (ImGui.Checkbox("Auto-teleport to vista (Memory Snap)", ref useMemTp))
+        {
+            c.UseMemoryTeleport = useMemTp;
+            _plugin.SaveConfig();
+        }
+
         ImGui.SetNextItemWidth(150);
         var inn = c.DefaultInn;
         var inns = new[] { "Gridania", "Limsa", "Ul'dah", "Kugane" };
@@ -148,7 +155,7 @@ public sealed class LazySightseeingWindow : Window
             ImGui.TableSetupColumn("Emote", ImGuiTableColumnFlags.WidthFixed, 75);
             ImGui.TableSetupColumn("Requirements", ImGuiTableColumnFlags.WidthFixed, 140);
             ImGui.TableSetupColumn("Status", ImGuiTableColumnFlags.WidthFixed, 85);
-            ImGui.TableSetupColumn("Action", ImGuiTableColumnFlags.WidthFixed, 45);
+            ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.WidthFixed, 80);
             ImGui.TableHeadersRow();
 
             foreach (var sight in SightseeingDatabase.Sights)
@@ -210,7 +217,7 @@ public sealed class LazySightseeingWindow : Window
                     ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1.0f), "Locked");
                 }
 
-                // Column 7: Go Button
+                // Column 7: Actions (Go & Tp)
                 ImGui.TableNextColumn();
                 if (ImGui.SmallButton($"Go##go_{sight.Id}"))
                 {
@@ -219,6 +226,11 @@ public sealed class LazySightseeingWindow : Window
                     c.SelectedSightIds.Add(sight.Id);
                     _plugin.SaveConfig();
                     _plugin.Automation.Start();
+                }
+                ImGui.SameLine();
+                if (ImGui.SmallButton($"Tp##tp_{sight.Id}"))
+                {
+                    _plugin.MemoryTeleport(sight.Position.X, sight.Position.Y, sight.Position.Z);
                 }
             }
             ImGui.EndTable();

@@ -17,6 +17,9 @@ public sealed class Configuration : IPluginConfiguration
     // Option to skip sights whose weather/time window is currently closed.
     public bool SkipIfWindowNotOpen { get; set; } = true;
 
+    // Option to use memory teleportation directly to the vista instead of pathing
+    public bool UseMemoryTeleport { get; set; } = false;
+
     // Optional delay between actions/emotes (in milliseconds)
     public int EmoteIntervalMs { get; set; } = 4000;
 
