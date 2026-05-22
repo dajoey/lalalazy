@@ -345,6 +345,7 @@ public sealed class AutomationService
                             {
                                 Svc.Log.Warning("Player has not moved for 3 seconds while pathing. Resetting pathing command to retry...");
                                 _hasSentPathingCommand = false;
+                                _triedMount = false; // Allow retrying mount if we got stuck unmounted
                                 _lastPosition = playerPos;
                                 _lastPositionTime = DateTime.UtcNow;
                             }
