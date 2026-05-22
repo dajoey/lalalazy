@@ -145,8 +145,9 @@ public sealed class AutomationService
             case AutomationState.Teleporting:
                 if (_currentTarget == null) break;
 
-                Svc.Log.Information($"Teleporting to {_currentTarget.Aetheryte} for sight {_currentTarget.Name}");
-                Chat.SendMessage($"/tp {_currentTarget.Aetheryte}");
+                var tpTarget = GetTeleportTarget(_currentTarget);
+                Svc.Log.Information($"Teleporting to {tpTarget} (mapped from {_currentTarget.Aetheryte}) for sight {_currentTarget.Name}");
+                Chat.SendMessage($"/tp {tpTarget}");
                 _state = AutomationState.WaitingForTeleport;
                 _stateChangeTimeout = DateTime.UtcNow.AddSeconds(15); // Safety timeout for cast to start
                 _nextActionTime = DateTime.UtcNow.AddSeconds(3); // Wait for cast start
@@ -335,6 +336,139 @@ public sealed class AutomationService
         var playerState = FFXIVClientStructs.FFXIV.Client.Game.UI.PlayerState.Instance();
         if (playerState == null) return false;
         return playerState->IsAdventureComplete(sightId - 1);
+    }
+
+    private string GetTeleportTarget(SightInfo sight)
+    {
+        switch (sight.Aetheryte)
+        {
+            // ARR Zones
+            case "Middle La Noscea": return "Summerford Farms";
+            case "Lower La Noscea": return "Moraby Drydocks";
+            case "Western La Noscea":
+                // Swiftperch vs Aleport
+                return sight.Position.X < 0 ? "Aleport" : "Swiftperch";
+            case "Eastern La Noscea":
+                // Costa del Sol vs Wineport
+                return sight.Position.X > 0 ? "Costa del Sol" : "Wineport";
+            case "Upper La Noscea": return "Camp Bronze Lake";
+            case "Outer La Noscea": return "Camp Overlook";
+            case "Central Shroud": return "Bentbranch Meadows";
+            case "East Shroud": return "The Hawthorne Hut";
+            case "South Shroud":
+                // Quarrymill vs Camp Tranquil
+                return sight.Position.Z < 100 ? "Quarrymill" : "Camp Tranquil";
+            case "North Shroud": return "Fallgourd Float";
+            case "Western Thanalan": return "Horizon";
+            case "Central Thanalan": return "Black Brush Station";
+            case "Eastern Thanalan": return "Camp Drybone";
+            case "Southern Thanalan":
+                // Little Ala Mhigo vs Forgotten Springs
+                return sight.Position.Z < 0 ? "Little Ala Mhigo" : "Forgotten Springs";
+            case "Northern Thanalan": return "Ceruleum Processing Plant";
+            case "Coerthas Central Highlands": return "Camp Dragonhead";
+            case "Mor Dhona": return "Revenant's Toll";
+
+            // Heavensward Zones
+            case "Coerthas Western Highlands": return "Falcon's Nest";
+            case "The Dravanian Forelands":
+                // Tailfeather vs Anyx Trine
+                return sight.Position.X < 100 ? "Anyx Trine" : "Tailfeather";
+            case "The Churning Mists":
+                // Moghome vs Zenith
+                return sight.Position.X > 0 ? "Moghome" : "Zenith";
+            case "The Sea of Clouds":
+                // Ok' Zundu vs Camp Cloudtop
+                return sight.Position.Z < 0 ? "Ok' Zundu" : "Camp Cloudtop";
+            case "The Dravanian Hinterlands": return "Idyllshire";
+            case "Azys Lla": return "Helix";
+
+            // Stormblood Zones
+            case "The Fringes":
+                // Castrum Oriens vs The Peering Stones
+                return sight.Position.X > 0 ? "Castrum Oriens" : "The Peering Stones";
+            case "The Peaks":
+                // Ala Gannha vs The Portage
+                return sight.Position.X < 0 ? "Ala Gannha" : "The Portage";
+            case "The Lochs":
+                // Porta Praetoria vs The Ala Mhigan Quarter
+                return sight.Position.Z > 0 ? "Porta Praetoria" : "The Ala Mhigan Quarter";
+            case "The Ruby Sea":
+                // Tamamizu vs Onokoro
+                return sight.Position.Z > 0 ? "Tamamizu" : "Onokoro";
+            case "Yanxia":
+                // Namai vs The House of the Fierce
+                return sight.Position.X > 100 ? "Namai" : "The House of the Fierce";
+            case "The Azim Steppe":
+                // Reunion vs The Dawn Throne
+                return sight.Position.X > 0 ? "Reunion" : "The Dawn Throne";
+
+            // Shadowbringers Zones
+            case "Lakeland":
+                // Fort Jobb vs The Ostall Imperative
+                return sight.Position.X < 150 ? "Fort Jobb" : "The Ostall Imperative";
+            case "Kholusia":
+                // Stilltide vs Tomra
+                return sight.Position.Y < 100 ? "Stilltide" : "Tomra";
+            case "Amh Araeng":
+                // Twine vs Inn at Journey's Head
+                return sight.Position.X > 0 ? "Twine" : "Inn at Journey's Head";
+            case "Il Mheg":
+                // Lydha Lran vs Wolekdorf vs Pla Enni
+                if (sight.Position.X < -100) return "Wolekdorf";
+                return sight.Position.Z > 0 ? "Lydha Lran" : "Pla Enni";
+            case "The Rak'tika Greatwood":
+                // Slitherbough vs Fanow
+                return sight.Position.X < 0 ? "Slitherbough" : "Fanow";
+            case "The Tempest":
+                // Ondo Cups vs Macarenses Angle
+                return sight.Position.Y > -300 ? "Ondo Cups" : "Macarenses Angle";
+
+            // Endwalker Zones
+            case "Labyrinthos":
+                // The Archeion vs Sharlayan Hamlet vs Aporia
+                if (sight.Position.Y > 100) return "The Archeion";
+                return sight.Position.X < 0 ? "Sharlayan Hamlet" : "Aporia";
+            case "Thavnair":
+                // Yadovhna's Legacy vs Palaka's Stand vs The Great Work
+                if (sight.Position.X < -200) return "Yadovhna's Legacy";
+                return sight.Position.Z < -400 ? "The Great Work" : "Palaka's Stand";
+            case "Garlemald":
+                // Camp Broken Glass vs Tertium
+                return sight.Position.X < 0 ? "Camp Broken Glass" : "Tertium";
+            case "Elpis":
+                // Anagnorisis vs Poeten Oikos
+                return sight.Position.X < 100 ? "Anagnorisis" : "Poeten Oikos";
+            case "Mare Lamentorum":
+                // Sinus Lacrimarum vs Bestways Burrow
+                return sight.Position.X < 0 ? "Sinus Lacrimarum" : "Bestways Burrow";
+            case "Ultima Thule":
+                // Abode of the Ea vs Base Omicron
+                return sight.Position.X < 0 ? "Abode of the Ea" : "Base Omicron";
+
+            // Dawntrail Zones
+            case "Urqopacha":
+                // Wachunpaji vs Many Fires
+                return sight.Position.X > 0 ? "Wachunpaji" : "Many Fires";
+            case "Kozama'uka":
+                // Ok'hanu vs Earth's Eye
+                return sight.Position.X > 100 ? "Ok'hanu" : "The Earth's Eye";
+            case "Yak T'el":
+                // Iq Br'aax vs Mamook
+                return sight.Position.Y > 0 ? "Iq Br'aax" : "Mamook";
+            case "Shaaloani":
+                // Hunu'tey vs Sheshenewezi Springs
+                return sight.Position.X < 0 ? "Hunu'tey" : "Sheshenewezi Springs";
+            case "Heritage Found":
+                // Outskirts vs Electrope Strike
+                return sight.Position.Y > 0 ? "The Outskirts" : "Electrope Strike";
+            case "Living Memory":
+                // Leyene vs Yyasulani
+                return "Leyene";
+
+            default:
+                return sight.Aetheryte;
+        }
     }
 
     private bool IsPlayerAvailable()
