@@ -27,6 +27,9 @@ public sealed class AutomationService
     private int _emoteCount = 0;
     private uint _lastTerritory = 0;
     private DateTime _stateChangeTimeout = DateTime.MinValue;
+    private bool _triedMount = false;
+    private bool _triedTakeoff = false;
+
 
     public AutomationState State => _state;
     public SightInfo? CurrentTarget => _currentTarget;
@@ -45,6 +48,8 @@ public sealed class AutomationService
         _emoteCount = 0;
         _nextActionTime = DateTime.MinValue;
         _lastTerritory = Svc.ClientState.TerritoryType;
+        _triedMount = false;
+        _triedTakeoff = false;
         Svc.Log.Information("LazySightseeing automation started.");
     }
 
@@ -119,6 +124,8 @@ public sealed class AutomationService
                 Svc.Log.Information($"Target changed: {bestTarget.Name} (ID: {bestTarget.Id}) is now active.");
                 _currentTarget = bestTarget;
                 _emoteCount = 0;
+                _triedMount = false;
+                _triedTakeoff = false;
                 Chat.SendMessage("/vnav stop");
                 
                 if (Svc.ClientState.TerritoryType == _currentTarget.TerritoryType)
@@ -190,9 +197,39 @@ public sealed class AutomationService
                 }
                 else
                 {
-                    // Send flyto command periodically to ensure pathing is active and updated
-                    // We send it if player is not moving or every 5 seconds to keep mesh updated
-                    Chat.SendMessage($"/vnav flyto {_currentTarget.Position.X} {_currentTarget.Position.Y} {_currentTarget.Position.Z}");
+                    // Try to mount up if target is far, we aren't mounted, and haven't tried yet
+                    if (distance > 30f && !Svc.Condition[ConditionFlag.Mounted] && !_triedMount && !Svc.Condition[ConditionFlag.Casting])
+                    {
+                        _triedMount = true;
+                        Svc.Log.Information("Target is far. Attempting to mount...");
+                        Chat.SendMessage("/gaction \"Mount\"");
+                        _nextActionTime = DateTime.UtcNow.AddSeconds(2.5); // Wait for mount cast
+                        break;
+                    }
+
+                    // Try to takeoff if mounted, not flying, and haven't tried yet
+                    if (Svc.Condition[ConditionFlag.Mounted] && !Svc.Condition[ConditionFlag.InFlight] && !_triedTakeoff)
+                    {
+                        _triedTakeoff = true;
+                        Svc.Log.Information("Mounted but not flying. Attempting to jump to enter flight...");
+                        Chat.SendMessage("/gaction \"Jump\"");
+                        _nextActionTime = DateTime.UtcNow.AddSeconds(1.0); // Wait for takeoff/jump to register
+                        break;
+                    }
+
+                    // Choose pathing command based on flight state and use culture-invariant float formatting
+                    string posX = _currentTarget.Position.X.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    string posY = _currentTarget.Position.Y.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    string posZ = _currentTarget.Position.Z.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+                    if (Svc.Condition[ConditionFlag.Mounted] && Svc.Condition[ConditionFlag.InFlight])
+                    {
+                        Chat.SendMessage($"/vnav flyto {posX} {posY} {posZ}");
+                    }
+                    else
+                    {
+                        Chat.SendMessage($"/vnav moveto {posX} {posY} {posZ}");
+                    }
                     _nextActionTime = DateTime.UtcNow.AddSeconds(4);
                 }
                 break;
