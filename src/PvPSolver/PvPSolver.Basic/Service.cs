@@ -19,10 +19,10 @@ namespace RotationSolver.Basic;
 /// </summary>
 internal class Service : IDisposable
 {
-	public const string COMMAND = "/rotation";
-	public const string ALTCOMMAND = "/rsr";
-	public const string AUTOCOMMAND = "/rotation Auto";
-	public const string OFFCOMMAND = "/rotation Off";
+	public const string COMMAND = "/pvpsolver";
+	public const string ALTCOMMAND = "/pvs";
+	public const string AUTOCOMMAND = "/pvpsolver Auto";
+	public const string OFFCOMMAND = "/pvpsolver Off";
 	public const string USERNAME = "dajoey";
 	public const string REPO = "lalalazy";
 

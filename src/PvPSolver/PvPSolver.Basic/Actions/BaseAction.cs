@@ -183,6 +183,56 @@ public class BaseAction : IBaseAction
 	{
 		act = this;
 
+		if (DataCenter.IsPvP)
+		{
+			// Check if there are no hostiles within 40 yalms
+			if (DataCenter.NumberOfHostilesInRangeOf(40) == 0)
+			{
+				bool isAllowed = false;
+
+				// 1. Allow Sprint and standard PvP utility actions
+				if (ID == 3 ||      // Sprint
+				    ID == 29711 ||  // Recuperate
+				    ID == 29054 ||  // Purify
+				    ID == 29055 ||  // Guard
+				    ID == 29484)    // Standard Elixir
+				{
+					isAllowed = true;
+				}
+				// 2. Allow Mount actions
+				else if (Info.IsMountAction)
+				{
+					isAllowed = true;
+				}
+				// 3. Allow healing/shielding actions if a target (self or ally) actually has less than 90% HP
+				else if (Setting.IsFriendly)
+				{
+					var partyMembers = DataCenter.PartyMembers;
+					if (partyMembers != null)
+					{
+						foreach (var member in partyMembers)
+						{
+							if (member != null && member.CurrentHp < member.MaxHp * 0.9f)
+							{
+								isAllowed = true;
+								break;
+							}
+						}
+					}
+					// Also check self if not in a party
+					if (!isAllowed && ECommons.GameHelpers.Player.Object != null && ECommons.GameHelpers.Player.Object.CurrentHp < ECommons.GameHelpers.Player.Object.MaxHp * 0.9f)
+					{
+						isAllowed = true;
+					}
+				}
+
+				if (!isAllowed)
+				{
+					return false;
+				}
+			}
+		}
+
 		if (IBaseAction.ActionPreview)
 		{
 			skipCastingCheck = true;

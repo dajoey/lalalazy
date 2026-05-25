@@ -5,8 +5,8 @@
         "Punchline":  "PvP-only auto-rotation",
         "Description":  "Auto-rotation for FFXIV PvP only. Automatically activates in PvP zones. Designed to run alongside Wrath Combo (handles PvE). Includes default PvP rotations for all jobs.",
         "InternalName":  "PvPSolver",
-        "AssemblyVersion":  "0.1.0.2",
-        "Changelog": "v0.1.0.2 - Upstream Rotations Update\n- Merged latest PvP rotations for WHM and BRD.",
+        "AssemblyVersion":  "0.1.0.3",
+        "Changelog": "v0.1.0.3 - Wholly Original Rebrand & PvP Cast Protection\n- Renamed all commands to /pvpsolver and /pvs to prevent collisions with stock RSR.\n- Built protection against autocasting when zero enemies are nearby in PvP zones.",
         "RepoUrl":  "https://github.com/dajoey/lalalazy",
         "ApplicableVersion":  "any",
         "DalamudApiLevel":  15,
@@ -30,7 +30,7 @@
                       ],
         "DownloadCount":  0,
         "LastUpdate":  "0",
-        "TestingAssemblyVersion":  "0.2.0.0"
+        "TestingAssemblyVersion":  "0.2.0.1"
     },
     {
         "Author":  "dajoey",

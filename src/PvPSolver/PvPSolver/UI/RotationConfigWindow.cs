@@ -1,4 +1,4 @@
-﻿using Dalamud.Common;
+using Dalamud.Common;
 using Dalamud.Common.Game;
 using Dalamud.Game.ClientState.Keys;
 using Dalamud.Interface.Colors;
@@ -102,14 +102,14 @@ public partial class RotationConfigWindow : Window
 	private static readonly string[] _baseUsageHints =
 	[
 		"Right-click any action, setting, or toggle to view/copy its macro chat command.",
-		"Use /rsr as a shorter alias for /rotation.",
-		"Use /rotation Auto, /rotation Manual, or /rotation Off to change modes quickly.",
+		"Use /pvs as a shorter alias for /pvpsolver.",
+		"Use /pvpsolver Auto, /pvpsolver Manual, or /pvpsolver Off to change modes quickly.",
 		"Use the search box (top-left) to jump directly to settings.",
 		"Click the external-link icon in search results to jump to that menu.",
-		"Right-click a setting label to copy a ready-to-use /rotation Settings command.",
+		"Right-click a setting label to copy a ready-to-use /pvpsolver Settings command.",
 		"Actions tab: click an action icon to configure, enable/disable, or set hotkeys.",
 		"Actions: toggle 'Show on CD Window' to include an action in the cooldown overlay.",
-		"Actions: enable 'Intercepted' to let RSR fire an action you queue (PvE only).",
+		"Actions: enable 'Intercepted' to let PvP Solver fire an action you queue (PvE only).",
 		"UI > Information: enable DTR status, toasts, original cooldowns, and these hints.",
 		"UI > Windows: enable Next Action, Control, Cooldown, and Timeline windows.",
 		"Next Action: 'No Inputs' and 'No Move' options change overlay behavior.",
@@ -119,8 +119,8 @@ public partial class RotationConfigWindow : Window
 		"Status lists: press '+' to search by name or ID; fuzzy search is supported.",
 		"Status lists: right-click an icon to remove; Delete key works in the popup too.",
 		"Target tab: tweak target selection, vision cone, engage behavior, and dummy/boss handling.",
-		"Target tab: set /rotation Cycle behaviour and targeting delays.",
-		"Manage TargetingTypes via chat: /rotation Settings TargetingTypes add|remove <Type>.",
+		"Target tab: set /pvpsolver Cycle behaviour and targeting delays.",
+		"Manage TargetingTypes via chat: /pvpsolver Settings TargetingTypes add|remove <Type>.",
 		"Auto > Action Usage: allow/deny oGCDs, set AoE style, tinctures, interrupts, and True North.",
 		"Auto > Healing: adjust thresholds and non-healer healing behavior.",
 		"Healer: customize Raise/Swiftcast and prioritization in Auto > Healing.",
@@ -139,7 +139,7 @@ public partial class RotationConfigWindow : Window
 		"Healing: the only HP that matters is the last one",
 		"Be kind",
 		"You can remove some self-buffs with “/statusoff <Name>” (e.g., Peloton) when needed.",
-		"RSR works best with Legacy Type movement settings."
+		"PvP Solver works best with Legacy Type movement settings."
 	];
 	private int _hintIndex = 0;
 	private float _lastHintSwitch = 0f;
@@ -280,7 +280,7 @@ public partial class RotationConfigWindow : Window
 	{
 		if (_showResetPopup)
 		{
-			ImGui.OpenPopup("Reset RSR Plugin Settings");
+			ImGui.OpenPopup("Reset PvP Solver Plugin Settings");
 			_showResetPopup = false;
 		}
 
@@ -300,7 +300,7 @@ public partial class RotationConfigWindow : Window
 		using var popupScrollbarRounding = ImRaii.PushStyle(ImGuiStyleVar.ScrollbarRounding, 11f * Scale);
 		using var popupGrabRounding = ImRaii.PushStyle(ImGuiStyleVar.GrabRounding, 11f * Scale);
 		using var popupTabRounding = ImRaii.PushStyle(ImGuiStyleVar.TabRounding, 11f * Scale);
-		if (ImGui.BeginPopupModal("Reset RSR Plugin Settings"))
+		if (ImGui.BeginPopupModal("Reset PvP Solver Plugin Settings"))
 		{
 			if (CNLanguageClient)
 			{
@@ -313,11 +313,11 @@ public partial class RotationConfigWindow : Window
 			ImGui.Spacing();
 			if (CNLanguageClient)
 			{
-				ImGui.Text("如果你在使用旧版默认配置的 RSR 时遇到问题，通常推荐执行此操作。");
+				ImGui.Text("如果你在使用旧版默认配置的 PvP Solver 时遇到问题，通常推荐执行此操作。");
 			}
 			else
 			{
-				ImGui.Text("This is often recommended for users having issues while using an installation of RSR using an outdated default configuration.");
+				ImGui.Text("This is often recommended for users having issues while using an installation of PvP Solver using an outdated default configuration.");
 			}
 			ImGui.Spacing();
 
