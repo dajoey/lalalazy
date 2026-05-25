@@ -48,13 +48,10 @@ namespace CurrencySpender.Helpers
                 C.SelectedCurrencies.Add(45691);
                 C.SelectedCurrencies.Add(48146);
             }
-            if (LowerVersionThan("1.2.6"))
+            var limitedTomestone = P.Currencies.FirstOrDefault(cur => cur.Type == CurrencyType.LimitedTomestone);
+            if (limitedTomestone != null && !C.SelectedCurrencies.Contains(limitedTomestone.ItemId))
             {
-                var limitedTomestone = P.Currencies.FirstOrDefault(cur => cur.Type == CurrencyType.LimitedTomestone);
-                if (limitedTomestone != null)
-                {
-                    C.SelectedCurrencies.Add(limitedTomestone.ItemId);
-                }
+                C.SelectedCurrencies.Add(limitedTomestone.ItemId);
             }
             if (C.Version == "0.0.0") return;
             if (LowerVersionThan(GetVersion()))

@@ -58,5 +58,11 @@ namespace CurrencySpender.Helpers
                 .Where(item => item.Currency == Currency.ItemId && C.ItemsOfInterest.Contains(item.Id) && !item.Shop.Disabled)
                 .ToList();
         }
+        public static List<ShopItem> GetGeneralItems(TrackedCurrency Currency)
+        {
+            return Generator.items
+                .Where(item => item.Currency == Currency.ItemId && !item.Type.HasFlag(ItemType.Collectable) && !item.Type.HasFlag(ItemType.Tradeable) && !item.Type.HasFlag(ItemType.Venture) && !C.ItemsOfInterest.Contains(item.Id) && !item.Shop.Disabled)
+                .ToList();
+        }
     }
 }

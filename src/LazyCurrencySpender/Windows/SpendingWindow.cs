@@ -11,6 +11,7 @@ internal class SpendingWindow : Window
     internal static List<ShopItem>? Ventures;
     internal static List<ShopItem>? SellableItems;
     internal static List<ShopItem>? ItemsOfInterest;
+    internal static List<ShopItem>? GeneralItems;
     public SpendingWindow() : base("SpendingWindow")
     {
         this.SizeConstraints = new()
@@ -592,6 +593,83 @@ internal class SpendingWindow : Window
                     ImGui.EndTable();
                 }
             }
+
+            if (GeneralItems != null && GeneralItems.Count > 0)
+            {
+                ImGui.Separator();
+                UiHelper.LeftAlign("Equipment and Gear Exchange:");
+                if (ImGui.BeginTable("##generalgear", 4, ImGuiTableFlags.Borders | ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.Sortable))
+                {
+                    ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch);
+                    ImGui.TableSetupColumn("Price", ImGuiTableColumnFlags.WidthFixed, 100);
+                    ImGui.TableSetupColumn("Zone");
+                    ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.NoSort);
+                    ImGui.TableHeadersRow();
+
+                    ImGuiTableSortSpecsPtr sortSpecs = ImGui.TableGetSortSpecs();
+                    if (!sortSpecs.IsNull && sortSpecs.SpecsCount > 0)
+                    {
+                        ImGuiTableColumnSortSpecsPtr spec = sortSpecs.Specs;
+                        int columnIndex = spec.ColumnIndex;
+                        bool ascending = spec.SortDirection == ImGuiSortDirection.Ascending;
+
+                        switch (columnIndex)
+                        {
+                            case 0:
+                                GeneralItems = ascending
+                                    ? GeneralItems.OrderBy(item => item.Name).ToList()
+                                    : GeneralItems.OrderByDescending(item => item.Name).ToList();
+                                break;
+                            case 1:
+                                GeneralItems = ascending
+                                    ? GeneralItems.OrderBy(item => item.Price).ToList()
+                                    : GeneralItems.OrderByDescending(item => item.Price).ToList();
+                                break;
+                            case 2:
+                                GeneralItems = ascending
+                                    ? GeneralItems.OrderBy(item => item.Shop.Location.Zone).ToList()
+                                    : GeneralItems.OrderByDescending(item => item.Shop.Location.Zone).ToList();
+                                break;
+                        }
+                    }
+
+                    foreach (var item in GeneralItems)
+                    {
+                        ImGui.TableNextRow();
+                        ImGui.TableSetColumnIndex(0);
+                        UiHelper.LeftAlign(item.Name);
+                        using (var context = ImRaii.ContextPopupItem($"context##{item.Id}-{item.ShopId}-{item.Shop.NpcId}"))
+                        {
+                            if (context)
+                            {
+                                if (ImGui.Selectable("Copy item name"))
+                                {
+                                    ImGui.SetClipboardText(item.Name);
+                                    UiHelper.Notification("Copied item name to clipboard");
+                                }
+                                if (ImGui.Selectable("Create item link"))
+                                {
+                                    UiHelper.LinkItem(item.Id);
+                                    UiHelper.Notification("Item link created");
+                                }
+                            }
+                        }
+                        if (ImGui.IsItemHovered() && C.Debug)
+                        {
+                            ImGui.BeginTooltip();
+                            UiHelper.LeftAlign($"ID: {item.Id}\nCat: {item.Category}\nShopId: {item.Shop.ShopId}\nNPCName: {item.Shop.NpcName}\nNPCID: {item.Shop.NpcId}");
+                            ImGui.EndTooltip();
+                        }
+                        ImGui.TableSetColumnIndex(1);
+                        UiHelper.RightAlignWithIcon(item.Price.ToString(), Currency.Icon.Handle, true);
+                        ImGui.TableSetColumnIndex(2);
+                        UiHelper.LeftAlign(item.Shop.Location != null ? item.Shop.Location.Zone : "Unknown");
+                        ImGui.TableSetColumnIndex(3);
+                        UiHelper.BuildMapButtons(item);
+                    }
+                    ImGui.EndTable();
+                }
+            }
         }
         catch (Exception e)
         {
@@ -606,6 +684,7 @@ internal class SpendingWindow : Window
         Ventures = ShopHelper.GetVentures(Currency);
         SellableItems = ShopHelper.GetSellableItems(Currency);
         ItemsOfInterest = ShopHelper.GetItemsOfInterest(Currency);
+        GeneralItems = ShopHelper.GetGeneralItems(Currency);
     }
     public void UpdateData()
     {
@@ -614,5 +693,6 @@ internal class SpendingWindow : Window
         Ventures = ShopHelper.GetVentures(Currency);
         SellableItems = ShopHelper.GetSellableItems(Currency);
         ItemsOfInterest = ShopHelper.GetItemsOfInterest(Currency);
+        GeneralItems = ShopHelper.GetGeneralItems(Currency);
     }
 }
