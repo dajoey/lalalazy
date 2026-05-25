@@ -130,7 +130,7 @@ namespace CurrencySpender.Data
 
                             { ListRange(1770764, 1770765), 1048387 }, // Ryubool Ja
 
-                            { new List<uint> { 1770766, 1770767 }, 1049079 }, // Zircon
+                            { new List<uint> { 1770766, 1770767, 1770768, 1770769, 1770770, 1770911, 1770912, 1770913, 1770994, 1770980, 1770981, 1770982 }, 1049079 }, // Zircon
 
                         };
                         //DuoLog.Information($"{npcMapping[1013397]}");
