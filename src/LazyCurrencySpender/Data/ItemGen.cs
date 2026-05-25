@@ -12,7 +12,7 @@ namespace CurrencySpender.Data
         {
             PluginLog.Debug("ItemGen init");
             
-            List<uint> npcIds = [1052612, 1052642];
+            List<uint> npcIds = [1052612, 1052642, 1052608, 1052640];
             foreach (uint npcId in npcIds)
             {
                 Location location = Location.GetLocation(npcId);
@@ -376,7 +376,11 @@ namespace CurrencySpender.Data
             {
                 cur = 48146;
                 items = [47973, 46795, 46782, 46840, 46155];
-
+            } else if (shop.NpcId == 1052608 || shop.NpcId == 1052640) // Mesouaidonque (Cosmocredit)
+            {
+                cur = 45690;
+                shop.ShopName = "Mesouaidonque Exchange";
+                items = [46825, 50445, 50446, 45918, 43632, 45923, 45963];
             }
             foreach (uint item_id in items)
             {
