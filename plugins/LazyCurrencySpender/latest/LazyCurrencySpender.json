@@ -1,0 +1,22 @@
+{
+  "Author": "Blackcatz1911, dajoey",
+  "Name": "Lazy Currency Spender",
+  "InternalName": "LazyCurrencySpender",
+  "AssemblyVersion": "1.2.5.1",
+  "Description": "Fork of CurrencySpender by Blackcatz1911. Never wonder 'What should I do with this?' again. Access real-time prices from Universalis, identify missing collectibles tied to your currencies, and unlock new possibilities for utilizing your in-game resources effectively.",
+  "ApplicableVersion": "any",
+  "Tags": [
+    "currency",
+    "poetics",
+    "tomestone",
+    "lazy"
+  ],
+  "DalamudApiLevel": 15,
+  "LoadRequiredState": 0,
+  "LoadSync": false,
+  "CanUnloadAsync": false,
+  "LoadPriority": 0,
+  "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazycurrencyspender-icon.png",
+  "Punchline": "Find the absolute best way to spend all your FFXIV currencies.",
+  "AcceptsFeedback": true
+}

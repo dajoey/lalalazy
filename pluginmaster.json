@@ -232,5 +232,37 @@
         "DownloadCount": 0,
         "LastUpdate": "0",
         "TestingAssemblyVersion": "0.0.3.4"
+    },
+    {
+        "Author": "Blackcatz1911, dajoey",
+        "Name": "Lazy Currency Spender",
+        "Punchline": "Find the absolute best way to spend all your FFXIV currencies.",
+        "Description": "Fork of CurrencySpender by Blackcatz1911. Never wonder 'What should I do with this?' again. Access real-time prices from Universalis, identify missing collectibles tied to your currencies, and unlock new possibilities for utilizing your in-game resources effectively.",
+        "InternalName": "LazyCurrencySpender",
+        "AssemblyVersion": "1.2.5.1",
+        "Changelog": "v1.2.5.1 - API 15 & Patch 7.50 Rebrand Update\n- Forked and renamed to Lazy Currency Spender, crediting original creator Blackcatz1911.\n- Updated to Dalamud API Level 15 and .NET 10.\n- Added /lazycur and /lazycurrencyspender command shortcuts.\n- Fixed all obsolete player state properties and font loading issues under FFXIV Patch 7.50.",
+        "RepoUrl": "https://github.com/dajoey/lalalazy",
+        "ApplicableVersion": "any",
+        "DalamudApiLevel": 15,
+        "IsHide": false,
+        "IsTestingExclusive": false,
+        "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyCurrencySpender/latest/latest.zip",
+        "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyCurrencySpender/latest/latest.zip",
+        "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyCurrencySpender/latest/latest.zip",
+        "Tags": [
+            "currency",
+            "poetics",
+            "tomestone",
+            "lazy"
+        ],
+        "CategoryTags": [
+            "utility"
+        ],
+        "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazycurrencyspender-icon.png",
+        "ImageUrls": [
+            ""
+        ],
+        "DownloadCount": 0,
+        "LastUpdate": "0"
     }
 ]

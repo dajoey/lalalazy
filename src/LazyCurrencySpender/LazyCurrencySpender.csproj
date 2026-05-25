@@ -1,0 +1,56 @@
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <PackageId>LazyCurrencySpender</PackageId>
+    <Authors>Blackcatz1911, dajoey</Authors>
+    <Version>1.2.5.1</Version>
+    <Description>Lazy Currency Spender — FFXIV Plugin to find the best options to spend your ingame currency. Fork of CurrencySpender by Blackcatz1911.</Description>
+    <PackageProjectUrl>https://github.com/dajoey/lalalazy</PackageProjectUrl>
+    <RepoUrl>https://github.com/dajoey/lalalazy</RepoUrl>
+    <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
+    <IsPackable>false</IsPackable>
+    <Platforms>x64</Platforms>
+    <AssemblyVersion>1.2.5.1</AssemblyVersion>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <SupportedOSPlatformVersion>8.0</SupportedOSPlatformVersion>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <LangVersion>latest</LangVersion>
+    <NoWarn>$(NoWarn);MSB3277;1591</NoWarn>
+  </PropertyGroup>
+  
+  <ItemGroup>
+    <Content Include="CHANGELOG.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Visible>true</Visible>
+    </Content>
+  </ItemGroup>
+  
+  <ItemGroup>
+    <PackageReference Include="ECommons" Version="3.1.0.5" />
+  </ItemGroup>
+
+   <ItemGroup Condition="!Exists('$(ProjectDir)..\FFXIVClientStructs')">
+    <Reference Include="InteropGenerator.Runtime" Private="false" />
+    <Reference Include="FFXIVClientStructs" Private="false" />
+  </ItemGroup>
+
+  <PropertyGroup Condition="Exists('$(ProjectDir)..\FFXIVClientStructs')">
+    <Use_Dalamud_FFXIVClientStructs>false</Use_Dalamud_FFXIVClientStructs>
+    <InteropGenerator_InteropNamespace>LazyCurrencySpender</InteropGenerator_InteropNamespace>
+    <DefineConstants>HAS_LOCAL_CS</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup Condition="Exists('$(ProjectDir)..\FFXIVClientStructs')">
+    <CompilerVisibleProperty Include="InteropGenerator_InteropNamespace" />
+    <ProjectReference Include="..\FFXIVClientStructs\InteropGenerator\InteropGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\FFXIVClientStructs\FFXIVClientStructs\FFXIVClientStructs.csproj" Private="True" />
+    <ProjectReference Include="..\FFXIVClientStructs\InteropGenerator.Runtime\InteropGenerator.Runtime.csproj" Private="True" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="DotNet.ReproducibleBuilds" Version="1.2.25" />
+  </ItemGroup>
+
+  <Target Name="Message" BeforeTargets="BeforeBuild">
+    <Message Text="Dalamud.Plugin: root at $(DalamudLibPath)" Importance="high" />
+  </Target>
+</Project>

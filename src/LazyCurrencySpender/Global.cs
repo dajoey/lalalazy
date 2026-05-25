@@ -1,0 +1,14 @@
+global using System.Runtime.InteropServices;
+global using System;
+global using System.Collections.Generic;
+global using System.Linq;
+global using Dalamud.Plugin;
+global using Dalamud.Bindings.ImGui;
+global using Dalamud.Interface.Windowing;
+global using ECommons;
+global using System.Numerics;
+global using ECommons.ImGuiMethods;
+global using static CurrencySpender.Plugin;
+global using CurrencySpender.Configuration;
+global using CurrencySpender.Helpers;
+global using ECommons.Logging;
