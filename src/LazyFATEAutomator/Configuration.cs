@@ -15,7 +15,7 @@ public class Configuration : IPluginConfiguration
     public int MaxDuration { get; set; } = 900; // seconds
 
     // Automation Behavior
-    public bool SwapZones { get; set; } = true;
+    public bool SwapZones { get; set; } = false;
     public int GemstoneThreshold { get; set; } = 1250; // default warning threshold
     public bool AutoSyncLevel { get; set; } = true;
 

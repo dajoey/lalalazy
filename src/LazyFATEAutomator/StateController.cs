@@ -26,6 +26,9 @@ public class StateController : IDisposable
     private DateTime _nextTickTime = DateTime.MinValue;
     private Vector3 _lastTargetPosition = Vector3.Zero;
     private DateTime _stateChangeTimeout = DateTime.MinValue;
+    private bool _triedMount = false;
+    private DateTime _dryZoneDetectionTime = DateTime.MinValue;
+    private uint _lastTerritory = 0;
 
     public bool IsEnabled { get; private set; } = false;
     public GrindState State { get; private set; } = GrindState.Idle;
@@ -48,6 +51,9 @@ public class StateController : IDisposable
         CompletedFatesCount = 0;
         SessionStartTime = DateTime.Now;
         _plugin.StuckTracker.Reset();
+        _triedMount = false;
+        _dryZoneDetectionTime = DateTime.Now.AddSeconds(15);
+        _lastTerritory = Svc.ClientState.TerritoryType;
 
         // Lock Gluttony Combo configuration for optimal automated combat
         AcquireGluttonyLease();
@@ -79,6 +85,12 @@ public class StateController : IDisposable
         var player = Svc.Objects.LocalPlayer;
         if (player == null) return;
 
+        if (Svc.ClientState.TerritoryType != _lastTerritory)
+        {
+            _lastTerritory = Svc.ClientState.TerritoryType;
+            _dryZoneDetectionTime = DateTime.Now.AddSeconds(15);
+        }
+
         // Death state evaluation
         if (player.IsDead)
         {
@@ -109,12 +121,13 @@ public class StateController : IDisposable
                     Status = $"Heading to FATE: {nextFate.Name}";
                     _lastTargetPosition = nextFate.Position;
                     _plugin.StuckTracker.Reset();
+                    _triedMount = false;
                     _nextTickTime = DateTime.Now.AddMilliseconds(500);
                 }
                 else
                 {
                     Status = "No active FATEs found. Scanning...";
-                    if (_plugin.Config.SwapZones)
+                    if (_plugin.Config.SwapZones && DateTime.Now > _dryZoneDetectionTime)
                     {
                         State = GrindState.SwapZones;
                         Status = "Zone dry. Preparing same-expansion zone swap...";
@@ -174,11 +187,12 @@ public class StateController : IDisposable
                 else
                 {
                     // Choose ground or flight pathing based on distance
-                    if (dist > 35.0f && !Plugin.Condition[ConditionFlag.Mounted] && !Plugin.Condition[ConditionFlag.Casting])
+                    if (dist > 35.0f && !Plugin.Condition[ConditionFlag.Mounted] && !_triedMount && !Plugin.Condition[ConditionFlag.Casting])
                     {
+                        _triedMount = true;
                         Status = "Target is far. Mounting up...";
                         _plugin.Navigation.Mount();
-                        _nextTickTime = DateTime.Now.AddSeconds(3); // Wait for mount cast
+                        _nextTickTime = DateTime.Now.AddSeconds(2.5); // Wait for mount cast
                     }
                     else
                     {
