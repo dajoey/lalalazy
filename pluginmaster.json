@@ -264,5 +264,37 @@
                       ],
         "DownloadCount":  0,
         "LastUpdate":  "0"
+    },
+    {
+        "Author": "dajoey",
+        "Name": "Lazy FATE Automator",
+        "Punchline": "Fully automated FATE grinding utilizing vnavmesh, lifestream, and Gluttony Combo.",
+        "Description": "Grinds open-world FATEs by prioritizing Twist of Fate experience bonuses, active progress, and proximity. Integrates with vnavmesh for flight/navigation, lifestream for zone teleports, and Gluttony Combo IPC to automatically lock optimal rotation settings. Use /lazyfate to open.",
+        "InternalName": "LazyFATEAutomator",
+        "AssemblyVersion": "0.0.0.1",
+        "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/LazyFATEAutomator",
+        "ApplicableVersion": "any",
+        "DalamudApiLevel": 15,
+        "IsHide": false,
+        "IsTestingExclusive": false,
+        "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyFATEAutomator/latest/latest.zip",
+        "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyFATEAutomator/latest/latest.zip",
+        "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyFATEAutomator/latest/latest.zip",
+        "Tags": [
+            "fate",
+            "automation",
+            "navigation",
+            "combat",
+            "vnavmesh"
+        ],
+        "CategoryTags": [
+            "utility"
+        ],
+        "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyfateautomator-icon.png",
+        "ImageUrls": [
+            ""
+        ],
+        "DownloadCount": 0,
+        "LastUpdate": "0"
     }
 ]
