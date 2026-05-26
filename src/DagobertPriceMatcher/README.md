@@ -1,39 +1,68 @@
 # ![](https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/dagobert-icon.png)
 
-# Dagobert Price Matcher
+# Dagobert Price Matcher — Retainer Market Board Price Sync
 
-Dalamud plugin that automatically adjusts your market board prices to **match** the lowest offer (instead of undercutting).
+An automated retainer pricing plugin that adjusts your listed market board offers to **match** the lowest existing price exactly (0 undercut default), protecting market rates from descending into severe undercutting wars.
 
-## How It Works
+---
 
-When you adjust prices via the retainer market board, Dagobert sets your price to the current lowest offer. By default it matches exactly (0 gil difference). You can configure a negative offset to undercut if desired.
+## 🌟 Core Features
 
-## Configuration
+* **Exact Price Matching:** Default adjustment value is set to `0` (exact matching). You can still configure a custom positive or negative value to undercut or overprice if desired.
+* **Auto-Pinch Automation:** Automatically clicks the final confirmation and price adjustment buttons inside the retainer UI, making pricing sweeps completely friction-free.
+* **AutoRetainer IPC Integration:** Fully integrates with AutoRetainer IPC for smooth, automated retainer inventory adjustments.
+* **Safe Missing-Price Handling:** Fallback safeguards built in to handle cases where market board query limits are hit or prices are not returned, preventing accidental listing at default/NPC vendor values.
 
-Use `/pricematch` to open the configuration window.
+---
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| Match Amount | 0 | Gil difference from lowest offer. Use negative to undercut. |
-| Auto-pinch | Enabled | Automatically clicks the price adjustment buttons. |
+## 🚀 Installation
 
-## Building
+Add the custom plugin repository URL to your Dalamud settings:
 
-Requires .NET 10 SDK and Dalamud.
+```text
+https://raw.githubusercontent.com/dajoey/lalalazy/main/pluginmaster.json
+```
 
-```bash
-# Clone with submodules
-git clone --recurse-submodules <repo>
+1. In-game, type `/xlsettings` in chat to open Dalamud Settings.
+2. Select the **Experimental** tab.
+3. Scroll to **Custom Plugin Repositories**, paste the repository URL into the empty field, and click **+**.
+4. Click **Save and Close** (bottom-right).
+5. Open `/xlplugins` in chat, search for **Dagobert - Price Matcher** in the **Available Plugins** tab, and click **Install**.
+
+---
+
+## 🛠️ Commands
+
+| **Chat Command** | **Function** |
+|:---|:---|
+| `/pricematch` | Opens the main configuration GUI to manage price match offsets. |
+
+---
+
+## ⚙️ Configuration Parameters
+
+| **Setting** | **Default** | **Description** |
+|:---|:---:|:---|
+| **Match Amount** | `0` | Gil difference from lowest offer. Use negative values to undercut, or positive to overprice. |
+| **Auto-pinch** | `Enabled` | Automatically clicks price adjustment and listing confirmation buttons. |
+
+---
+
+## 🛠️ Build Requirements
+
+Requires the .NET 10 SDK and Dalamud SDK.
+
+```powershell
+cd src/DagobertPriceMatcher
 dotnet build --configuration Release
 ```
 
-## Credits
+---
 
-**Forked from [Dagobert](https://github.com/SHOEGAZEssb/Dagobert)** by **SHOEGAZEssb**.
+## ⚖️ Credits & Licensing
 
-Licensed under **AGPLv3**. See [LICENSE.md](LICENSE.md).
-
-### Key Changes from Upstream
-
-- Default match amount changed from -1 (undercut by 1 gil) to **0** (exact price match)
-- Author metadata updated
+* **Forked from [Dagobert](https://github.com/SHOEGAZEssb/Dagobert)** by **SHOEGAZEssb**.
+* Licensed under the **AGPLv3** license. See `LICENSE.md` for details.
+* **Key Improvements:** 
+  * Changed default pricing offset from `-1` (undercut by 1 gil) to `0` (exact price match).
+  * AutoRetainer pricing IPC integrations.

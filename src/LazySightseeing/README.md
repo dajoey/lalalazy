@@ -1,6 +1,8 @@
-# Lazy Sightseeing
+# ![](https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazysightseeing-icon.png)
 
-Lazy Sightseeing is a fully automated FFXIV sightseeing log completion plugin. It handles flying to vista coordinates, waiting for correct weather and time windows, executing the appropriate emote, and returning to safety when done.
+# Lazy Sightseeing — Fully Automated Sightseeing Log Completion
+
+A premium Dalamud exploration plugin that fully automates FFXIV sightseeing log completion. It navigates to vista coordinates, skips locked weather/time windows, waits for open windows, executes the correct emotes, and teleports you back to safety when done.
 
 ---
 
@@ -12,7 +14,7 @@ To use Lazy Sightseeing, you must have the following external plugins installed 
 
 ---
 
-## 🌟 Key Features
+## 🌟 Core Features
 
 * **Ban-Safe Navigation (Anti-Ban Hardening):** 100% compliant with safe-play guidelines. Memory snapping (direct coordinate teleportation cheats) has been completely removed to prevent server-side client bans. All movement uses natural flight pathing.
 * **Smart Flight Takeoff:** Gracefully handles transitioning from ground movement to flight. Starts pathing via `flyto`, triggers a single **Jump** input to initiate takeoff, and falls back to ground movement (`/vnav moveto`) if flying is locked in the zone.
@@ -20,6 +22,22 @@ To use Lazy Sightseeing, you must have the following external plugins installed 
 * **Stuck Mount Recovery:** Tracks character movement in real-time. If pathing gets stuck or stationary for more than 3 seconds, it resets the mount attempt latch (`_triedMount = false`) and tries mounting/un-stuck routines automatically.
 * **Emote Standstill Fix:** Automatically cancels emotes via Jump when starting to navigate, resolving the bug where players got stuck in the `movingtosight` state with arms crossed.
 * **Weather & Time Window Sheet Parsing:** Evaluates FFXIV weather sheets and in-game time windows dynamically. It will automatically re-prioritize vistas based on current weather windows, skipping locked weather targets and returning to the inn when all active windows are closed.
+
+---
+
+## 🚀 Installation
+
+Add the custom plugin repository URL to your Dalamud settings:
+
+```text
+https://raw.githubusercontent.com/dajoey/lalalazy/main/pluginmaster.json
+```
+
+1. In-game, type `/xlsettings` in chat to open Dalamud Settings.
+2. Select the **Experimental** tab.
+3. Scroll to **Custom Plugin Repositories**, paste the repository URL into the empty field, and click **+**.
+4. Click **Save and Close** (bottom-right).
+5. Open `/xlplugins` in chat, search for **Lazy Sightseeing** in the **Available Plugins** tab, and click **Install**.
 
 ---
 
