@@ -247,7 +247,7 @@ public class StateController : IDisposable
                                 _isMounting = true;
                                 _mountCastTimeout = DateTime.Now.AddSeconds(3.0); // Wait up to 3 seconds for mounted condition
                                 Status = $"Attempting to mount (Try {_mountAttempts + 1}/3)...";
-                                _plugin.Navigation.Stop();
+                                _plugin.Navigation.MoveTo(target.Position); // Mount on the move!
                                 _plugin.Navigation.Mount();
                                 _nextTickTime = DateTime.Now.AddMilliseconds(500); // Give FFXIV and Dalamud time to register
                             }
