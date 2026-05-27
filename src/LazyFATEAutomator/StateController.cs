@@ -69,6 +69,7 @@ public class StateController : IDisposable
     // it finishes/expires/we die/we change zones. Without this, every tick re-evaluates
     // 3D distance and can boot us back into mount/flight logic mid-dismount or mid-fight.
     private uint? _engagingFateId;
+    private DateTime _nextTeleportShortcutUtc = DateTime.MinValue;
     private const float ENGAGE_LEAVE_THRESHOLD_YALMS = 60f; // bail out if we've ended up this far from our committed FATE
     private uint _lastTerritory;
     private DateTime _zoneDryDeadlineUtc = DateTime.MinValue;
@@ -98,6 +99,7 @@ public class StateController : IDisposable
         _dismountInFlight = false;
         _dismountAttempts = 0;
         _engagingFateId = null;
+        _nextTeleportShortcutUtc = DateTime.MinValue;
         _zoneDryDeadlineUtc = DateTime.UtcNow.AddSeconds(15);
         _lastTerritory = Svc.ClientState.TerritoryType;
         _consecutiveTickErrors = 0;
@@ -286,14 +288,22 @@ public class StateController : IDisposable
         try { Svc.Targets.Target = null; } catch { }
     }
 
-    /// <summary>Pick the nearest live, targetable FATE-area enemy.</summary>
+    /// <summary>
+    /// Pick the highest-priority targetable FATE-area enemy. Forlorn / Forlorn Maiden /
+    /// Forlorn of the [whatever] are special bonus mobs — always prioritise them over normal
+    /// FATE mobs. Among each tier we pick the closest to the player.
+    /// </summary>
     private Dalamud.Game.ClientState.Objects.Types.IGameObject? PickFateMob(IFate fate)
     {
         var player = Svc.Objects.LocalPlayer;
         if (player == null) return null;
-        Dalamud.Game.ClientState.Objects.Types.IGameObject? best = null;
-        float bestDist = float.MaxValue;
+
+        Dalamud.Game.ClientState.Objects.Types.IGameObject? bestForlorn = null;
+        float bestForlornDist = float.MaxValue;
+        Dalamud.Game.ClientState.Objects.Types.IGameObject? bestNormal = null;
+        float bestNormalDist = float.MaxValue;
         var fateRadiusPlus = MathF.Max(fate.Radius + 5f, 25f);
+
         foreach (var obj in Plugin.ObjectTable)
         {
             if (obj is not Dalamud.Game.ClientState.Objects.Types.IBattleNpc bnpc) continue;
@@ -302,9 +312,20 @@ public class StateController : IDisposable
             if (!bnpc.IsTargetable) continue;
             if (Vector3.Distance(bnpc.Position, fate.Position) > fateRadiusPlus) continue;
             var d = Vector3.Distance(bnpc.Position, player.Position);
-            if (d < bestDist) { bestDist = d; best = bnpc; }
+
+            var name = bnpc.Name.TextValue ?? string.Empty;
+            bool isForlorn = name.Contains("Forlorn", StringComparison.OrdinalIgnoreCase);
+            if (isForlorn)
+            {
+                if (d < bestForlornDist) { bestForlornDist = d; bestForlorn = bnpc; }
+            }
+            else
+            {
+                if (d < bestNormalDist) { bestNormalDist = d; bestNormal = bnpc; }
+            }
         }
-        return best;
+
+        return bestForlorn ?? bestNormal;
     }
 
     /// <summary>Find the FATE-starter / motivation NPC near the fate. Non-aggressive characters only.</summary>
@@ -370,7 +391,7 @@ public class StateController : IDisposable
             {
                 // cast in progress; poll for the Mounted flag to flip
                 Status = "Dismounting...";
-                _nextActionTimeUtc = now.AddMilliseconds(250);
+                _nextActionTimeUtc = now.AddMilliseconds(100);
                 return;
             }
 
@@ -395,7 +416,7 @@ public class StateController : IDisposable
             // Clear any target so nothing fires auto-attack and interrupts the dismount channel
             ClearTarget();
             _plugin.Navigation.Dismount();
-            _nextActionTimeUtc = now.AddMilliseconds(500);
+            _nextActionTimeUtc = now.AddMilliseconds(100);  // poll for Mounted flip fast
             return;
         }
 
@@ -541,6 +562,32 @@ public class StateController : IDisposable
             ClearActivePath();
             HandleEngaging(target, now);
             return;
+        }
+
+        // Aetheryte shortcut: for distant FATEs, /tp to the closest aetheryte in this zone
+        // before mounting and flying. Only fires once per ~20s to prevent /tp loops.
+        const float TP_DISTANCE_THRESHOLD = 200f;
+        const float TP_MIN_SAVINGS = 100f;
+        if (dist > TP_DISTANCE_THRESHOLD && now > _nextTeleportShortcutUtc)
+        {
+            var currentTerrId = Svc.ClientState.TerritoryType;
+            var ae = ZoneSwapper.FindNearestAetheryteToFate(currentTerrId, target.Position);
+            if (ae.HasValue)
+            {
+                var aeToFate = Vector3.Distance(ae.Value.Position, target.Position);
+                if (aeToFate + TP_MIN_SAVINGS < dist)
+                {
+                    Plugin.PluginLog.Information($"Teleport shortcut: '{ae.Value.Name}' ({aeToFate:F0}y from FATE) instead of flying {dist:F0}y from current pos.");
+                    Status = $"Teleporting to {ae.Value.Name} (saves ~{(dist - aeToFate):F0}y)...";
+                    ClearActivePath();
+                    if (Plugin.Condition[ConditionFlag.Mounted])
+                        _plugin.Navigation.Dismount();
+                    ZoneSwapper.TeleportTo(ae.Value.Name);
+                    _nextTeleportShortcutUtc = now.AddSeconds(20);
+                    _nextActionTimeUtc = now.AddSeconds(12);
+                    return;
+                }
+            }
         }
 
         // Far FATE — mount + fly preferred

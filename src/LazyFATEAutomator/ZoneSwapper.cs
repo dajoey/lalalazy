@@ -103,4 +103,61 @@ public static class ZoneSwapper
         if (string.IsNullOrEmpty(aetheryteName)) return;
         Chat.SendMessage($"/tp {aetheryteName}");
     }
+
+    /// <summary>
+    /// Find the aetheryte in the given territory whose world position is closest to targetPos.
+    /// Uses the Aetheryte sheet's Level[] collection for world coordinates.
+    /// </summary>
+    public static (string Name, System.Numerics.Vector3 Position)? FindNearestAetheryteToFate(uint territoryId, System.Numerics.Vector3 targetPos)
+    {
+        try
+        {
+            var aetheryteSheet = Plugin.DataManager.GetExcelSheet<Aetheryte>();
+            if (aetheryteSheet == null) return null;
+
+            string? bestName = null;
+            System.Numerics.Vector3 bestPos = default;
+            float bestDist = float.MaxValue;
+            int considered = 0, withLevel = 0;
+
+            foreach (var ae in aetheryteSheet)
+            {
+                if (ae.RowId == 0) continue;
+                if (!ae.IsAetheryte) continue;
+                if (ae.Territory.RowId != territoryId) continue;
+                considered++;
+                var name = ae.PlaceName.ValueNullable?.Name.ExtractText() ?? string.Empty;
+                if (string.IsNullOrEmpty(name)) continue;
+
+                // Get a world position from the Level collection
+                System.Numerics.Vector3? pos = null;
+                foreach (var lvlRef in ae.Level)
+                {
+                    if (lvlRef.ValueNullable is { } lvl)
+                    {
+                        pos = new System.Numerics.Vector3(lvl.X, lvl.Y, lvl.Z);
+                        break;
+                    }
+                }
+                if (pos == null) continue;
+                withLevel++;
+
+                var d = System.Numerics.Vector3.Distance(pos.Value, targetPos);
+                if (d < bestDist) { bestDist = d; bestName = name; bestPos = pos.Value; }
+            }
+
+            if (bestName == null)
+            {
+                Plugin.PluginLog.Information($"FindNearestAetheryteToFate: no aetheryte found in territory {territoryId} (considered={considered}, withLevel={withLevel})");
+                return null;
+            }
+            Plugin.PluginLog.Information($"FindNearestAetheryteToFate: '{bestName}' is {bestDist:F0}y from target in territory {territoryId} (considered={considered}, withLevel={withLevel})");
+            return (bestName, bestPos);
+        }
+        catch (Exception ex)
+        {
+            Plugin.PluginLog.Warning(ex, "FindNearestAetheryteToFate failed");
+            return null;
+        }
+    }
 }
