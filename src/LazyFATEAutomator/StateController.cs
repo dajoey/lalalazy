@@ -26,7 +26,12 @@ public class StateController : IDisposable
     private DateTime _nextTickTime = DateTime.MinValue;
     private Vector3 _lastTargetPosition = Vector3.Zero;
     private DateTime _stateChangeTimeout = DateTime.MinValue;
-    private bool _triedMount = false;
+    
+    // Robust mount verification states
+    private bool _isMounting = false;
+    private DateTime _mountCastTimeout = DateTime.MinValue;
+    private int _mountAttempts = 0;
+    
     private DateTime _dryZoneDetectionTime = DateTime.MinValue;
     private uint _lastTerritory = 0;
 
@@ -51,7 +56,9 @@ public class StateController : IDisposable
         CompletedFatesCount = 0;
         SessionStartTime = DateTime.Now;
         _plugin.StuckTracker.Reset();
-        _triedMount = false;
+        
+        _isMounting = false;
+        _mountAttempts = 0;
         _dryZoneDetectionTime = DateTime.Now.AddSeconds(15);
         _lastTerritory = Svc.ClientState.TerritoryType;
 
@@ -121,7 +128,8 @@ public class StateController : IDisposable
                     Status = $"Heading to FATE: {nextFate.Name}";
                     _lastTargetPosition = nextFate.Position;
                     _plugin.StuckTracker.Reset();
-                    _triedMount = false;
+                    _isMounting = false;
+                    _mountAttempts = 0;
                     _plugin.Navigation.Stop(); // Ensure all prior movement is stopped
                     _nextTickTime = DateTime.Now.AddMilliseconds(500);
                 }
@@ -188,34 +196,84 @@ public class StateController : IDisposable
                 else
                 {
                     // Choose ground or flight pathing based on distance
-                    bool inCombat = Plugin.Condition[ConditionFlag.InCombat];
-                    if (dist > 35.0f && !Plugin.Condition[ConditionFlag.Mounted] && !_triedMount && !inCombat && !Plugin.Condition[ConditionFlag.Casting])
+                    if (dist > 35.0f)
                     {
-                        _triedMount = true;
-                        Status = "Target is far. Mounting up...";
-                        _plugin.Navigation.Stop(); // Force-cancel pathfinding to guarantee player is stationary for cast
-                        _plugin.Navigation.Mount();
-                        _nextTickTime = DateTime.Now.AddSeconds(2.5); // Wait for mount cast
-                    }
-                    else
-                    {
-                        if (Plugin.Condition[ConditionFlag.Mounted] && !Plugin.Condition[ConditionFlag.InFlight])
+                        if (Plugin.Condition[ConditionFlag.Mounted])
                         {
-                            // Trigger flight takeoff
-                            _plugin.Navigation.FlyTo(target.Position);
-                            Chat.SendMessage("/gaction \"Jump\"");
-                            _nextTickTime = DateTime.Now.AddSeconds(2);
+                            _isMounting = false; // Successfully mounted
+                            
+                            if (!Plugin.Condition[ConditionFlag.InFlight])
+                            {
+                                // Trigger flight takeoff
+                                _plugin.Navigation.FlyTo(target.Position);
+                                Chat.SendMessage("/gaction \"Jump\"");
+                                _nextTickTime = DateTime.Now.AddSeconds(2);
+                            }
+                            else
+                            {
+                                _plugin.Navigation.FlyTo(target.Position);
+                                _nextTickTime = DateTime.Now.AddMilliseconds(500);
+                            }
                         }
-                        else if (Plugin.Condition[ConditionFlag.InFlight])
+                        else if (_isMounting)
                         {
-                            _plugin.Navigation.FlyTo(target.Position);
-                            _nextTickTime = DateTime.Now.AddMilliseconds(500);
+                            if (Plugin.Condition[ConditionFlag.InCombat])
+                            {
+                                Plugin.PluginLog.Warning("Entered combat while mounting. Aborting mount attempt.");
+                                _isMounting = false;
+                                _mountAttempts = 3; // Force immediate fallback to running on foot
+                                _nextTickTime = DateTime.Now.AddMilliseconds(100);
+                            }
+                            else if (DateTime.Now > _mountCastTimeout.AddSeconds(-2.8) && !Plugin.Condition[ConditionFlag.Casting] && !Plugin.Condition[ConditionFlag.Mounted])
+                            {
+                                // Cast was interrupted or failed to start (latency buffer elapsed)
+                                _mountAttempts++;
+                                _isMounting = false;
+                                Plugin.PluginLog.Warning($"Mount attempt {_mountAttempts} was interrupted or failed to start.");
+                                _nextTickTime = DateTime.Now.AddMilliseconds(200);
+                            }
+                            else if (DateTime.Now > _mountCastTimeout)
+                            {
+                                // Mount cast timed out
+                                _mountAttempts++;
+                                _isMounting = false;
+                                Plugin.PluginLog.Warning($"Mount attempt {_mountAttempts} timed out.");
+                                _nextTickTime = DateTime.Now.AddMilliseconds(500);
+                            }
+                            else
+                            {
+                                // Active cast in progress, wait and poll without sending movement commands
+                                Status = $"Waiting for mount cast ({_mountAttempts + 1}/3)...";
+                                _nextTickTime = DateTime.Now.AddMilliseconds(200);
+                            }
                         }
                         else
                         {
-                            _plugin.Navigation.MoveTo(target.Position);
-                            _nextTickTime = DateTime.Now.AddMilliseconds(500);
+                            // Not mounted, not currently casting. Can we try?
+                            if (_mountAttempts < 3 && !Plugin.Condition[ConditionFlag.Casting] && !Plugin.Condition[ConditionFlag.InCombat])
+                            {
+                                _isMounting = true;
+                                _mountCastTimeout = DateTime.Now.AddSeconds(3.5);
+                                Status = $"Attempting to mount (Try {_mountAttempts + 1}/3)...";
+                                _plugin.Navigation.Stop();
+                                _plugin.Navigation.Mount();
+                                _nextTickTime = DateTime.Now.AddMilliseconds(500); // Give cast time to start
+                            }
+                            else
+                            {
+                                // Fallback to ground running
+                                Status = "Target is far, mounting failed. Running on foot...";
+                                _plugin.Navigation.MoveTo(target.Position);
+                                _nextTickTime = DateTime.Now.AddMilliseconds(500);
+                            }
                         }
+                    }
+                    else
+                    {
+                        // Short distance: always ground move
+                        _isMounting = false;
+                        _plugin.Navigation.MoveTo(target.Position);
+                        _nextTickTime = DateTime.Now.AddMilliseconds(500);
                     }
                 }
                 break;
