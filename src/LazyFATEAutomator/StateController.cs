@@ -255,12 +255,24 @@ public class StateController : IDisposable
 
         if (_plugin.Config.SwapZones && now > _zoneDryDeadlineUtc && !_plugin.FatesSolver.PlayerHasTwistOfFate())
         {
+            var aetheryteName = ZoneSwapper.PickRandomSameExpacAetheryte();
+            if (aetheryteName == null)
+            {
+                Status = "Zone dry, but no other unlocked aetherytes in this expansion. Sitting tight.";
+                _nextActionTimeUtc = now.AddSeconds(30);
+                _zoneDryDeadlineUtc = now.AddSeconds(60);
+                return;
+            }
+
             State = GrindState.SwapZones;
-            Status = "Zone dry. Swapping...";
+            Status = $"Zone dry. Teleporting to {aetheryteName}...";
             ClearActivePath();
-            _plugin.Navigation.LifestreamTravel("random");
-            _nextActionTimeUtc = now.AddSeconds(15);
-            _zoneDryDeadlineUtc = now.AddSeconds(45); // anti-loop
+            // Dismount before teleport — /tp ignored while mounted in some cases
+            if (Plugin.Condition[ConditionFlag.Mounted])
+                _plugin.Navigation.Dismount();
+            ZoneSwapper.TeleportTo(aetheryteName);
+            _nextActionTimeUtc = now.AddSeconds(20);   // teleport + load time
+            _zoneDryDeadlineUtc = now.AddSeconds(60);  // anti-loop, refreshed after zone change too
             return;
         }
 
