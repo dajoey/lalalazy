@@ -39,20 +39,29 @@ public class NavigationHelper
     }
 
     /// <summary>
-    /// Triggers mounting via general action and roulette fallback.
+    /// Natively triggers mounting using FFXIVClientStructs ActionManager.
     /// </summary>
-    public void Mount()
+    public unsafe void Mount()
     {
-        Chat.SendMessage("/gaction \"Mount\"");
-        Chat.SendMessage("/mountroulette");
+        var actionManager = FFXIVClientStructs.FFXIV.Client.Game.ActionManager.Instance();
+        if (actionManager != null)
+        {
+            // ActionType 4 = GeneralAction, ID 24 = Mount Roulette
+            actionManager->UseAction((FFXIVClientStructs.FFXIV.Client.Game.ActionType)4, 24);
+        }
     }
 
     /// <summary>
-    /// Triggers dismounting from any mount.
+    /// Natively triggers dismounting using FFXIVClientStructs ActionManager.
     /// </summary>
-    public void Dismount()
+    public unsafe void Dismount()
     {
-        Chat.SendMessage("/dismount");
+        var actionManager = FFXIVClientStructs.FFXIV.Client.Game.ActionManager.Instance();
+        if (actionManager != null)
+        {
+            // ActionType 4 = GeneralAction, ID 10 = Dismount
+            actionManager->UseAction((FFXIVClientStructs.FFXIV.Client.Game.ActionType)4, 10);
+        }
     }
 
     /// <summary>
