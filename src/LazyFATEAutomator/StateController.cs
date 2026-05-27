@@ -50,6 +50,11 @@ public class StateController : IDisposable
     private DateTime _mountCastTimeoutUtc = DateTime.MinValue;
     private int _mountAttempts;
 
+    // Dismount-cast verification (cast is ~2s; without this we'd re-issue every tick and cancel ourselves)
+    private bool _dismountInFlight;
+    private DateTime _dismountTimeoutUtc = DateTime.MinValue;
+    private int _dismountAttempts;
+
     // Active path tracking — prevents re-issuing the same /vnav command tick after tick.
     // We additionally gate on Navigation.IsBusy (vnav's own state) for robustness.
     private enum PathMode { None, Ground, Flight }
@@ -84,6 +89,8 @@ public class StateController : IDisposable
         SessionStartTime = DateTime.UtcNow;
         _mountInFlight = false;
         _mountAttempts = 0;
+        _dismountInFlight = false;
+        _dismountAttempts = 0;
         _zoneDryDeadlineUtc = DateTime.UtcNow.AddSeconds(15);
         _lastTerritory = Svc.ClientState.TerritoryType;
         _consecutiveTickErrors = 0;
@@ -232,15 +239,59 @@ public class StateController : IDisposable
 
     private void HandleEngaging(IFate fate, DateTime now)
     {
+        State = GrindState.Engaging;
+
+        // FATE finished while we were arriving
         if (fate.Progress >= 100 || fate.TimeRemaining <= 0)
         {
             Plugin.PluginLog.Information($"FATE {fate.FateId} concluded ({fate.Progress}%).");
             CompletedFatesCount++;
             _plugin.FatesSolver.ClearTarget();
             _currentTargetFateId = null;
+            _dismountInFlight = false;
+            _dismountAttempts = 0;
             _nextActionTimeUtc = now.AddSeconds(2);
             return;
         }
+
+        // Still mounted? Dismount, then sit tight until !Mounted.
+        // The dismount cast is ~2s — we must NOT re-issue it every tick or we'd
+        // cancel our own cast and never finish. Track _dismountInFlight with a timeout.
+        if (Plugin.Condition[ConditionFlag.Mounted])
+        {
+            if (_dismountInFlight && now < _dismountTimeoutUtc)
+            {
+                // cast in progress; poll for the Mounted flag to flip
+                Status = "Dismounting...";
+                _nextActionTimeUtc = now.AddMilliseconds(250);
+                return;
+            }
+
+            if (_dismountAttempts >= 3)
+            {
+                // Pathological: 3 dismount attempts failed. Walk away from FATE so we don't loop forever.
+                Plugin.PluginLog.Warning($"Dismount failed 3 times on FATE {fate.FateId}. Abandoning target.");
+                _plugin.FatesSolver.ClearTarget();
+                _currentTargetFateId = null;
+                _dismountInFlight = false;
+                _dismountAttempts = 0;
+                _nextActionTimeUtc = now.AddSeconds(2);
+                return;
+            }
+
+            _dismountAttempts++;
+            _dismountInFlight = true;
+            _dismountTimeoutUtc = now.AddSeconds(4);
+            Status = $"Dismounting (try {_dismountAttempts}/3)...";
+            Plugin.PluginLog.Information($"[LazyFATE] dismount cast requested. try={_dismountAttempts}/3");
+            _plugin.Navigation.Dismount();
+            _nextActionTimeUtc = now.AddMilliseconds(500);
+            return;
+        }
+
+        // We're on the ground.
+        _dismountInFlight = false;
+        _dismountAttempts = 0;
 
         // Level sync if overlevel by 5+
         var player = Svc.Objects.LocalPlayer;
@@ -288,15 +339,11 @@ public class StateController : IDisposable
             _nextActionTimeUtc = now.AddMilliseconds(800);
         }
 
-        // Arrived?
+        // Arrived? Hand off to HandleEngaging which owns the dismount + combat lifecycle.
         if (dist < 15f)
         {
-            State = GrindState.Engaging;
-            Status = $"Arrived at: {target.Name}";
             ClearActivePath();
-            if (Plugin.Condition[ConditionFlag.Mounted])
-                _plugin.Navigation.Dismount();
-            _nextActionTimeUtc = now.AddSeconds(1);
+            HandleEngaging(target, now);
             return;
         }
 
