@@ -1,4 +1,4 @@
-[
+﻿[
     {
         "Author":  "dajoey",
         "Name":  "PvP Solver",
@@ -131,8 +131,8 @@
     {
         "Author":  "dajoey",
         "Name":  "Gluttony Combo",
-        "Punchline":  "Lalalazy fork of Wrath Combo — XIVCombo for very lazy players.",
-        "Description":  "Gluttony Combo is a lalalazy-branded fork of Wrath Combo. Condenses combos and mutually exclusive abilities onto a single button — and then some. All upstream credit to Team Wrath / PunishXIV.",
+        "Punchline":  "Lalalazy fork of Wrath Combo â€” XIVCombo for very lazy players.",
+        "Description":  "Gluttony Combo is a lalalazy-branded fork of Wrath Combo. Condenses combos and mutually exclusive abilities onto a single button â€” and then some. All upstream credit to Team Wrath / PunishXIV.",
         "InternalName":  "GluttonyCombo",
         "AssemblyVersion":  "1.0.4.22",
         "Changelog":  "v1.0.4.22 - Dynamic BossMod Distance Adjustments\n- Automatically sets BossMod / BossModReborn AI target distance on job change (3 for melee/tanks, 15 for healers, 20 for ranged/magical DPS).\n\nv1.0.4.21 - Upstream Queueing Fix\n- Integrated WrathCombo 1.0.4.7\u0027s improved recast queueing detour for reliable action queuing.\n\nv1.0.4.20 - Dark Knight (DRK) TBN Enhancements\n- Added EnemiesTargetingPlayerCount() utility helper to track aggressive hostiles targeting the player.\n- Updated DRK non-boss mitigation to automatically cast The Blackest Night (TBN) when an incoming tankbuster is detected (via HasIncomingTankBusterEffect()).\n- Updated DRK non-boss and boss mitigation to automatically cast TBN on cooldown during trash pulls (when 3 or more enemies target the player), bypassing standard health threshold gates for maximum active mitigation.",
@@ -271,7 +271,7 @@
         "Punchline":  "Fully automated FATE grinding utilizing vnavmesh, lifestream, and Gluttony Combo.",
         "Description":  "Grinds open-world FATEs by prioritizing Twist of Fate experience bonuses, active progress, and proximity. Integrates with vnavmesh for flight/navigation, lifestream for zone teleports, and Gluttony Combo IPC to automatically lock optimal rotation settings. Use /lazyfate to open.",
         "InternalName":  "LazyFATEAutomator",
-        "AssemblyVersion":  "0.0.1.1",
+        "AssemblyVersion":  "0.0.1.2",
         "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/LazyFATEAutomator",
         "ApplicableVersion":  "any",
         "DalamudApiLevel":  15,
@@ -295,6 +295,6 @@
                           ""
                       ],
         "DownloadCount":  0,
-        "LastUpdate":  "0"
+        "LastUpdate":  "1779829006"
     }
 ]

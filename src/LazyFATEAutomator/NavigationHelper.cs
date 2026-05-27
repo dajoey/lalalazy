@@ -3,11 +3,22 @@ using System.Numerics;
 using System.Globalization;
 using ECommons.DalamudServices;
 using ECommons.Automation;
+using ActionType = FFXIVClientStructs.FFXIV.Client.Game.ActionType;
+using ActionManager = FFXIVClientStructs.FFXIV.Client.Game.ActionManager;
 
 namespace LazyFATEAutomator;
 
 public class NavigationHelper
 {
+    // GeneralAction IDs from Lumina/XIVAPI:
+    //   9  = Mount Roulette        (summons any unlocked mount — works in every zone)
+    //   23 = Dismount
+    //   24 = Flying Mount Roulette (only summons flying mounts — fails outside flight-unlocked zones)
+    // We use 9 so the call succeeds whether or not flight is unlocked; the state machine
+    // handles takeoff separately once mounted.
+    private const uint GENERAL_ACTION_MOUNT_ROULETTE = 9;
+    private const uint GENERAL_ACTION_DISMOUNT       = 23;
+
     /// <summary>
     /// Commands vnavmesh to stop all pathfinding and movement immediately.
     /// </summary>
@@ -39,29 +50,25 @@ public class NavigationHelper
     }
 
     /// <summary>
-    /// Natively triggers mounting using FFXIVClientStructs ActionManager.
+    /// Natively triggers Mount Roulette via FFXIVClientStructs ActionManager.
+    /// Must be called from the framework thread (StateController.Tick is wired to Framework.Update,
+    /// so this is satisfied by default).
     /// </summary>
     public unsafe void Mount()
     {
-        var actionManager = FFXIVClientStructs.FFXIV.Client.Game.ActionManager.Instance();
-        if (actionManager != null)
-        {
-            // ActionType 4 = GeneralAction, ID 24 = Mount Roulette
-            actionManager->UseAction((FFXIVClientStructs.FFXIV.Client.Game.ActionType)4, 24);
-        }
+        var am = ActionManager.Instance();
+        if (am == null) return;
+        am->UseAction(ActionType.GeneralAction, GENERAL_ACTION_MOUNT_ROULETTE);
     }
 
     /// <summary>
-    /// Natively triggers dismounting using FFXIVClientStructs ActionManager.
+    /// Natively triggers Dismount via FFXIVClientStructs ActionManager.
     /// </summary>
     public unsafe void Dismount()
     {
-        var actionManager = FFXIVClientStructs.FFXIV.Client.Game.ActionManager.Instance();
-        if (actionManager != null)
-        {
-            // ActionType 4 = GeneralAction, ID 10 = Dismount
-            actionManager->UseAction((FFXIVClientStructs.FFXIV.Client.Game.ActionType)4, 10);
-        }
+        var am = ActionManager.Instance();
+        if (am == null) return;
+        am->UseAction(ActionType.GeneralAction, GENERAL_ACTION_DISMOUNT);
     }
 
     /// <summary>
