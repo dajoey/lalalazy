@@ -64,6 +64,12 @@ public class StateController : IDisposable
 
     // Per-target tracking — re-evaluate priorities every tick during BetweenFates
     private uint? _currentTargetFateId;
+
+    // Sticky engagement — once we arrive at a FATE, stay committed to HandleEngaging until
+    // it finishes/expires/we die/we change zones. Without this, every tick re-evaluates
+    // 3D distance and can boot us back into mount/flight logic mid-dismount or mid-fight.
+    private uint? _engagingFateId;
+    private const float ENGAGE_LEAVE_THRESHOLD_YALMS = 60f; // bail out if we've ended up this far from our committed FATE
     private uint _lastTerritory;
     private DateTime _zoneDryDeadlineUtc = DateTime.MinValue;
 
@@ -91,6 +97,7 @@ public class StateController : IDisposable
         _mountAttempts = 0;
         _dismountInFlight = false;
         _dismountAttempts = 0;
+        _engagingFateId = null;
         _zoneDryDeadlineUtc = DateTime.UtcNow.AddSeconds(15);
         _lastTerritory = Svc.ClientState.TerritoryType;
         _consecutiveTickErrors = 0;
@@ -107,6 +114,7 @@ public class StateController : IDisposable
         State = GrindState.Idle;
         Status = "Idle";
         _plugin.FatesSolver.ClearTarget();
+        _engagingFateId = null;
         ClearActivePath();
         ReleaseGluttonyLease();
         Plugin.PluginLog.Information("Lazy FATE Automator stopped.");
@@ -161,6 +169,7 @@ public class StateController : IDisposable
             _zoneDryDeadlineUtc = now.AddSeconds(15);
             _pathMode = PathMode.None;
             _pathDest = Vector3.Zero;
+            _engagingFateId = null;
             _plugin.StuckTracker.Reset();
         }
 
@@ -172,20 +181,41 @@ public class StateController : IDisposable
                 State = GrindState.Unconscious;
                 Status = "Dead. Waiting for revive...";
                 ClearActivePath();
+                _engagingFateId = null;
+                _dismountInFlight = false;
+                _dismountAttempts = 0;
             }
             _nextActionTimeUtc = now.AddSeconds(2);
             return;
         }
 
-        // Already engaging a FATE — just sit there and let combat IPC handle it
-        if (Plugin.Condition[ConditionFlag.InCombat] && _plugin.FatesSolver.ActiveTarget is { } engaging)
+        // Sticky engagement — if we previously committed to a FATE, stay in HandleEngaging
+        // until it ends. Don't re-evaluate distance or route to movement.
+        if (_engagingFateId.HasValue)
         {
-            State = GrindState.Engaging;
-            HandleEngaging(engaging, now);
-            return;
+            var stickyFate = System.Linq.Enumerable.FirstOrDefault(Svc.Fates, f => f.FateId == _engagingFateId.Value);
+            if (stickyFate == null)
+            {
+                // FATE vanished from the table (completed, expired, or zone changed). Release.
+                Plugin.PluginLog.Information($"Releasing engagement on FATE {_engagingFateId.Value} (no longer in table)");
+                _engagingFateId = null;
+                _plugin.FatesSolver.ClearTarget();
+            }
+            else if (_plugin.Navigation.GetDistance2DTo(stickyFate.Position) > ENGAGE_LEAVE_THRESHOLD_YALMS && !Plugin.Condition[ConditionFlag.InCombat])
+            {
+                // We've drifted very far from the FATE and aren't fighting anything — let go and re-route.
+                Plugin.PluginLog.Information($"Releasing engagement on FATE {_engagingFateId.Value} (drifted {_plugin.Navigation.GetDistance2DTo(stickyFate.Position):F0}y away)");
+                _engagingFateId = null;
+                _plugin.FatesSolver.ClearTarget();
+            }
+            else
+            {
+                HandleEngaging(stickyFate, now);
+                return;
+            }
         }
 
-        // Pick a target if we don't have one (or revalidate the existing one)
+        // No sticky engagement — pick a target if we don't have one (or revalidate the existing one)
         var target = _plugin.FatesSolver.ActiveTarget;
         if (target == null || !_plugin.FatesSolver.IsEligible(target))
         {
@@ -248,6 +278,7 @@ public class StateController : IDisposable
             CompletedFatesCount++;
             _plugin.FatesSolver.ClearTarget();
             _currentTargetFateId = null;
+            _engagingFateId = null;
             _dismountInFlight = false;
             _dismountAttempts = 0;
             _nextActionTimeUtc = now.AddSeconds(2);
@@ -273,6 +304,7 @@ public class StateController : IDisposable
                 Plugin.PluginLog.Warning($"Dismount failed 3 times on FATE {fate.FateId}. Abandoning target.");
                 _plugin.FatesSolver.ClearTarget();
                 _currentTargetFateId = null;
+                _engagingFateId = null;
                 _dismountInFlight = false;
                 _dismountAttempts = 0;
                 _nextActionTimeUtc = now.AddSeconds(2);
@@ -315,6 +347,11 @@ public class StateController : IDisposable
         var player = Svc.Objects.LocalPlayer!;
         var reachable = _plugin.Navigation.NearestReachable(target.Position);
         var dist = _plugin.Navigation.GetDistanceTo(reachable);
+        // Use 2D distance to the FATE *center* for the arrival decision: when flying down to
+        // a ground FATE, the 3D distance can stay 20-30y while we're descending, but
+        // horizontally we're already on top. The dismount cast handles the actual descent.
+        var dist2DToFate = _plugin.Navigation.GetDistance2DTo(target.Position);
+        var arriveThreshold = MathF.Max(15f, MathF.Min(target.Radius * 0.85f, 30f));
 
         // Stuck evaluation
         var stuck = _plugin.StuckTracker.Update(player.Position);
@@ -339,9 +376,13 @@ public class StateController : IDisposable
             _nextActionTimeUtc = now.AddMilliseconds(800);
         }
 
-        // Arrived? Hand off to HandleEngaging which owns the dismount + combat lifecycle.
-        if (dist < 15f)
+        // Arrived? Commit to engagement (sticky) and hand off to HandleEngaging which owns the
+        // dismount + combat lifecycle. Once committed we won't re-route via BetweenFates until
+        // the FATE ends/expires/we drift far away.
+        if (dist2DToFate < arriveThreshold)
         {
+            Plugin.PluginLog.Information($"Arrived at FATE {target.FateId} (2D dist {dist2DToFate:F1}y, threshold {arriveThreshold:F1}y). Committing engagement.");
+            _engagingFateId = target.FateId;
             ClearActivePath();
             HandleEngaging(target, now);
             return;
