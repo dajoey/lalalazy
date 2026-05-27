@@ -1,6 +1,6 @@
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
-    <Version>0.0.0.2</Version>
+    <Version>0.0.0.3</Version>
     <AssemblyName>LazyFATEAutomator</AssemblyName>
     <Description>Fully automated FATE grinding utilizing vnavmesh, lifestream, and Gluttony Combo IPC.</Description>
     <IsPackable>false</IsPackable>
@@ -25,21 +25,15 @@
     <LoadPriority>0</LoadPriority>
     <AcceptsFeedback>false</AcceptsFeedback>
   </PropertyGroup>
-
   <ItemGroup>
     <Content Include="LazyFATEAutomator.json" />
   </ItemGroup>
-
   <ItemGroup>
     <PackageReference Include="ECommons" Version="3.2.0.9" />
   </ItemGroup>
-
   <Target Name="PruneOutputDlls" AfterTargets="ResolveReferences">
     <ItemGroup>
-      <_KeepDlls Include="@(ReferenceCopyLocalPaths)" Condition="
-          '%(Filename)' == 'LazyFATEAutomator' or
-          '%(Filename)' == 'ECommons'
-        " />
+      <_KeepDlls Include="@(ReferenceCopyLocalPaths)" Condition="           '%(Filename)' == 'LazyFATEAutomator' or           '%(Filename)' == 'ECommons'         " />
       <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)" />
       <ReferenceCopyLocalPaths Include="@(_KeepDlls)" />
     </ItemGroup>

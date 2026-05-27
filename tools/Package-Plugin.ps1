@@ -34,6 +34,37 @@ if (-not (Test-Path $srcDir)) {
 
 Write-Host "==> Standardized Packaging: $PluginName ($Channel)" -ForegroundColor Cyan
 
+# Parse pluginmaster.json first to evaluate version status
+if (-not (Test-Path $masterPath)) {
+    throw "pluginmaster.json not found at $masterPath"
+}
+$masterJsonText = [System.IO.File]::ReadAllText($masterPath, [System.Text.Encoding]::UTF8)
+$masterList = $masterJsonText | ConvertFrom-Json
+$entry = $masterList | Where-Object { $_.InternalName -eq $PluginName }
+
+# Check csproj version and perform auto-bump if deploying production with unchanged version
+$csprojPath = Join-Path $srcDir "$PluginName.csproj"
+if (Test-Path $csprojPath) {
+    [xml]$csproj = Get-Content $csprojPath
+    $projVersion = $csproj.Project.PropertyGroup.Version
+    
+    if ($entry -and $Channel -eq 'production' -and -not $VersionOverride) {
+        $lastPublishedVersion = $entry.AssemblyVersion
+        if ($projVersion -eq $lastPublishedVersion) {
+            $parts = $projVersion.Split('.')
+            if ($parts.Count -eq 4) {
+                $patch = [int]$parts[3] + 1
+                $newVersion = "$($parts[0]).$($parts[1]).$($parts[2]).$patch"
+                Write-Host "WARNING: Version $projVersion is already registered in pluginmaster.json!" -ForegroundColor Yellow
+                Write-Host "Auto-Bumping version in csproj to: $newVersion" -ForegroundColor Green
+                
+                $csproj.Project.PropertyGroup.Version = $newVersion
+                $csproj.Save($csprojPath)
+            }
+        }
+    }
+}
+
 # 1. Clean old outputs
 Write-Host "Cleaning build folders..."
 $cleanPaths = @(
@@ -130,11 +161,8 @@ Remove-Item -Recurse -Force $stageDir
 
 # 5. Synchronize pluginmaster.json automatically
 Write-Host "Updating pluginmaster.json index..."
-if (-not (Test-Path $masterPath)) {
-    throw "pluginmaster.json not found at $masterPath"
-}
 
-# Read pluginmaster.json (explicit UTF-8)
+# Reload pluginmaster.json in case version was modified on disk during prep
 $masterJsonText = [System.IO.File]::ReadAllText($masterPath, [System.Text.Encoding]::UTF8)
 $masterList = $masterJsonText | ConvertFrom-Json
 
