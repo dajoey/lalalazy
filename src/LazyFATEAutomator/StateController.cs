@@ -122,6 +122,7 @@ public class StateController : IDisposable
                     _lastTargetPosition = nextFate.Position;
                     _plugin.StuckTracker.Reset();
                     _triedMount = false;
+                    _plugin.Navigation.Stop(); // Ensure all prior movement is stopped
                     _nextTickTime = DateTime.Now.AddMilliseconds(500);
                 }
                 else
@@ -191,6 +192,7 @@ public class StateController : IDisposable
                     {
                         _triedMount = true;
                         Status = "Target is far. Mounting up...";
+                        _plugin.Navigation.Stop(); // Force-cancel pathfinding to guarantee player is stationary for cast
                         _plugin.Navigation.Mount();
                         _nextTickTime = DateTime.Now.AddSeconds(2.5); // Wait for mount cast
                     }
