@@ -1,6 +1,6 @@
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
-    <Version>0.0.2.4</Version>
+    <Version>0.0.2.5</Version>
     <AssemblyName>LazyFATEAutomator</AssemblyName>
     <Description>Fully automated FATE grinding utilizing vnavmesh IPC, lifestream, and Gluttony Combo IPC.</Description>
     <IsPackable>false</IsPackable>

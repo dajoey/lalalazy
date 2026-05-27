@@ -389,7 +389,7 @@ public class StateController : IDisposable
 
             _dismountAttempts++;
             _dismountInFlight = true;
-            _dismountTimeoutUtc = now.AddSeconds(4);
+            _dismountTimeoutUtc = now.AddSeconds(6);  // 2s cast + up to 4s descent for flying mounts
             Status = $"Dismounting (try {_dismountAttempts}/3)...";
             Plugin.PluginLog.Information($"[LazyFATE] dismount cast requested. try={_dismountAttempts}/3");
             // Clear any target so nothing fires auto-attack and interrupts the dismount channel
@@ -453,31 +453,48 @@ public class StateController : IDisposable
 
         // Make sure we have a valid target on a FATE mob so Gluttony's rotation has something to fire on.
         // (Gluttony is now configured DPSRotationMode=Manual + AlwaysHardTarget so it only fires on our pick.)
+        // Crucially: a "valid" target must be a hostile combatant — friendly NPCs / EventNpcs would
+        // otherwise stick forever because their distance to fate.Position is fine.
         var currentTarget = Svc.Targets.Target;
-        bool needNewTarget = currentTarget == null
-            || currentTarget.IsDead
-            || (currentTarget is Dalamud.Game.ClientState.Objects.Types.IBattleNpc cbn
-                && Vector3.Distance(cbn.Position, fate.Position) > fate.Radius + 5f);
+        bool currentIsGoodMob =
+            currentTarget is Dalamud.Game.ClientState.Objects.Types.IBattleNpc cbn
+            && cbn.BattleNpcKind == Dalamud.Game.ClientState.Objects.Enums.BattleNpcSubKind.Combatant
+            && !cbn.IsDead
+            && cbn.IsTargetable
+            && Vector3.Distance(cbn.Position, fate.Position) <= MathF.Max(fate.Radius + 5f, 25f);
 
-        if (needNewTarget)
+        Dalamud.Game.ClientState.Objects.Types.IGameObject? activeMob = currentIsGoodMob ? currentTarget : null;
+        if (activeMob == null)
         {
-            var mob = PickFateMob(fate);
-            if (mob != null)
-            {
-                try { Svc.Targets.Target = mob; } catch { }
-                Status = $"Engaging: {mob.Name} ({fate.Progress}%, {fate.TimeRemaining:F0}s)";
-            }
-            else
-            {
-                Status = $"Waiting for FATE mobs to spawn ({fate.Progress}%, {fate.TimeRemaining:F0}s)";
-            }
+            activeMob = PickFateMob(fate);
+            if (activeMob != null)
+                try { Svc.Targets.Target = activeMob; } catch { }
+        }
+
+        if (activeMob == null)
+        {
+            Status = $"Waiting for FATE mobs ({fate.Progress}%, {fate.TimeRemaining:F0}s)";
+            if (_pathMode != PathMode.None) ClearActivePath();
+            _nextActionTimeUtc = now.AddSeconds(1);
+            return;
+        }
+
+        // Chase: vnav.MoveTo if we're not in melee range. EnsureGroundPath has the 5-yalm repath
+        // threshold built in, so we don't spam vnav with new commands.
+        var mobDist = Vector3.Distance(player.Position, activeMob.Position);
+        const float MELEE_RANGE = 3.5f;
+        if (mobDist > MELEE_RANGE)
+        {
+            EnsureGroundPath(activeMob.Position);
+            Status = $"Chasing {activeMob.Name} ({mobDist:F0}y, FATE {fate.Progress}%, {fate.TimeRemaining:F0}s)";
         }
         else
         {
-            Status = $"Fighting: {currentTarget!.Name} ({fate.Progress}%, {fate.TimeRemaining:F0}s)";
+            if (_pathMode != PathMode.None) ClearActivePath();
+            Status = $"Fighting {activeMob.Name} (FATE {fate.Progress}%, {fate.TimeRemaining:F0}s)";
         }
 
-        _nextActionTimeUtc = now.AddMilliseconds(750);
+        _nextActionTimeUtc = now.AddMilliseconds(500);
     }
 
     private void HandleBetweenFates(IFate target, DateTime now)
