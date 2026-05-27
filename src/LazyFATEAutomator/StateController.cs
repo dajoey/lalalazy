@@ -188,7 +188,8 @@ public class StateController : IDisposable
                 else
                 {
                     // Choose ground or flight pathing based on distance
-                    if (dist > 35.0f && !Plugin.Condition[ConditionFlag.Mounted] && !_triedMount && !Plugin.Condition[ConditionFlag.Casting])
+                    bool inCombat = Plugin.Condition[ConditionFlag.InCombat];
+                    if (dist > 35.0f && !Plugin.Condition[ConditionFlag.Mounted] && !_triedMount && !inCombat && !Plugin.Condition[ConditionFlag.Casting])
                     {
                         _triedMount = true;
                         Status = "Target is far. Mounting up...";
