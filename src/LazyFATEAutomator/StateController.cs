@@ -279,6 +279,70 @@ public class StateController : IDisposable
         _nextActionTimeUtc = now.AddSeconds(3);
     }
 
+    // Clear target before dismounting so any in-flight auto-attack stops (prevents
+    // interrupting the dismount cast).
+    private void ClearTarget()
+    {
+        try { Svc.Targets.Target = null; } catch { }
+    }
+
+    /// <summary>Pick the nearest live, targetable FATE-area enemy.</summary>
+    private Dalamud.Game.ClientState.Objects.Types.IGameObject? PickFateMob(IFate fate)
+    {
+        var player = Svc.Objects.LocalPlayer;
+        if (player == null) return null;
+        Dalamud.Game.ClientState.Objects.Types.IGameObject? best = null;
+        float bestDist = float.MaxValue;
+        var fateRadiusPlus = MathF.Max(fate.Radius + 5f, 25f);
+        foreach (var obj in Plugin.ObjectTable)
+        {
+            if (obj is not Dalamud.Game.ClientState.Objects.Types.IBattleNpc bnpc) continue;
+            if (bnpc.BattleNpcKind != Dalamud.Game.ClientState.Objects.Enums.BattleNpcSubKind.Combatant) continue;
+            if (bnpc.IsDead) continue;
+            if (!bnpc.IsTargetable) continue;
+            if (Vector3.Distance(bnpc.Position, fate.Position) > fateRadiusPlus) continue;
+            var d = Vector3.Distance(bnpc.Position, player.Position);
+            if (d < bestDist) { bestDist = d; best = bnpc; }
+        }
+        return best;
+    }
+
+    /// <summary>Find the FATE-starter / motivation NPC near the fate. Non-aggressive characters only.</summary>
+    private Dalamud.Game.ClientState.Objects.Types.IGameObject? FindMotivationNpc(IFate fate)
+    {
+        var player = Svc.Objects.LocalPlayer;
+        if (player == null) return null;
+        var searchRadius = MathF.Max(fate.Radius + 5f, 30f);
+        foreach (var obj in Plugin.ObjectTable)
+        {
+            if (obj is not Dalamud.Game.ClientState.Objects.Types.ICharacter ic) continue;
+            if (ic.ObjectKind == Dalamud.Game.ClientState.Objects.Enums.ObjectKind.Pc) continue;
+            if (ic.IsDead) continue;
+            if (!ic.IsTargetable) continue;
+            // Skip aggressive enemy mobs — we want a friendly starter
+            if (obj is Dalamud.Game.ClientState.Objects.Types.IBattleNpc bnpc
+                && bnpc.BattleNpcKind == Dalamud.Game.ClientState.Objects.Enums.BattleNpcSubKind.Combatant) continue;
+            if (Vector3.Distance(obj.Position, fate.Position) > searchRadius) continue;
+            return obj;
+        }
+        return null;
+    }
+
+    /// <summary>Calls FFXIVClientStructs TargetSystem.InteractWithObject(GameObject*).</summary>
+    private unsafe void InteractWith(Dalamud.Game.ClientState.Objects.Types.IGameObject obj)
+    {
+        try
+        {
+            var ts = FFXIVClientStructs.FFXIV.Client.Game.Control.TargetSystem.Instance();
+            if (ts == null) return;
+            ts->InteractWithObject((FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)obj.Address);
+        }
+        catch (Exception ex)
+        {
+            Plugin.PluginLog.Warning(ex, "InteractWith failed");
+        }
+    }
+
     private void HandleEngaging(IFate fate, DateTime now)
     {
         State = GrindState.Engaging;
@@ -328,6 +392,8 @@ public class StateController : IDisposable
             _dismountTimeoutUtc = now.AddSeconds(4);
             Status = $"Dismounting (try {_dismountAttempts}/3)...";
             Plugin.PluginLog.Information($"[LazyFATE] dismount cast requested. try={_dismountAttempts}/3");
+            // Clear any target so nothing fires auto-attack and interrupts the dismount channel
+            ClearTarget();
             _plugin.Navigation.Dismount();
             _nextActionTimeUtc = now.AddMilliseconds(500);
             return;
@@ -337,9 +403,44 @@ public class StateController : IDisposable
         _dismountInFlight = false;
         _dismountAttempts = 0;
 
-        // Level sync if overlevel by 5+
         var player = Svc.Objects.LocalPlayer;
-        if (player != null && _plugin.Config.AutoSyncLevel && player.Level > fate.Level + 4)
+        if (player == null)
+        {
+            _nextActionTimeUtc = now.AddMilliseconds(500);
+            return;
+        }
+
+        // FATE in Preparing state — needs an NPC interaction to start.
+        // Find the motivation NPC, walk close if needed, then interact.
+        if (fate.State == Dalamud.Game.ClientState.Fates.FateState.Preparing)
+        {
+            var npc = FindMotivationNpc(fate);
+            if (npc == null)
+            {
+                Status = $"Waiting for FATE NPC to spawn: {fate.Name}";
+                _nextActionTimeUtc = now.AddSeconds(1);
+                return;
+            }
+
+            var npcDist = Vector3.Distance(player.Position, npc.Position);
+            if (npcDist > 3.5f)
+            {
+                Status = $"Approaching FATE NPC ({npcDist:F0}y)...";
+                _plugin.Navigation.MoveTo(npc.Position);
+                _nextActionTimeUtc = now.AddMilliseconds(500);
+                return;
+            }
+
+            // In range — target + interact
+            Status = $"Activating FATE: {fate.Name}";
+            try { Svc.Targets.Target = npc; } catch { }
+            InteractWith(npc);
+            _nextActionTimeUtc = now.AddSeconds(2);
+            return;
+        }
+
+        // Level sync if overlevel by 5+
+        if (_plugin.Config.AutoSyncLevel && player.Level > fate.Level + 4)
         {
             if (!Player.IsLevelSynced)
             {
@@ -350,8 +451,33 @@ public class StateController : IDisposable
             }
         }
 
-        Status = $"Fighting: {fate.Name} ({fate.Progress}{'%'})";
-        _nextActionTimeUtc = now.AddSeconds(1);
+        // Make sure we have a valid target on a FATE mob so Gluttony's rotation has something to fire on.
+        // (Gluttony is now configured DPSRotationMode=Manual + AlwaysHardTarget so it only fires on our pick.)
+        var currentTarget = Svc.Targets.Target;
+        bool needNewTarget = currentTarget == null
+            || currentTarget.IsDead
+            || (currentTarget is Dalamud.Game.ClientState.Objects.Types.IBattleNpc cbn
+                && Vector3.Distance(cbn.Position, fate.Position) > fate.Radius + 5f);
+
+        if (needNewTarget)
+        {
+            var mob = PickFateMob(fate);
+            if (mob != null)
+            {
+                try { Svc.Targets.Target = mob; } catch { }
+                Status = $"Engaging: {mob.Name} ({fate.Progress}%, {fate.TimeRemaining:F0}s)";
+            }
+            else
+            {
+                Status = $"Waiting for FATE mobs to spawn ({fate.Progress}%, {fate.TimeRemaining:F0}s)";
+            }
+        }
+        else
+        {
+            Status = $"Fighting: {currentTarget!.Name} ({fate.Progress}%, {fate.TimeRemaining:F0}s)";
+        }
+
+        _nextActionTimeUtc = now.AddMilliseconds(750);
     }
 
     private void HandleBetweenFates(IFate target, DateTime now)
@@ -554,8 +680,19 @@ public class StateController : IDisposable
                 var setState = Plugin.PluginInterface.GetIpcSubscriber<Guid, bool, int>("GluttonyCombo.SetAutoRotationState");
                 setState.InvokeFunc(_activeLease.Value, true);
                 var setCfg = Plugin.PluginInterface.GetIpcSubscriber<Guid, string, object, int>("GluttonyCombo.SetAutoRotationConfigState");
-                setCfg.InvokeFunc(_activeLease.Value, "InCombatOnly", 0);
-                setCfg.InvokeFunc(_activeLease.Value, "FATEPriority", 1);
+
+                // Gluttony's defaults are too aggressive for FATE grinding — they auto-pick random
+                // distant targets and fire actions out of combat, which (a) interrupts our dismount
+                // cast and (b) makes the player ranged-attack from wrong positions. Force the
+                // rotation into a passive mode that fires only on OUR explicit hard target.
+                setCfg.InvokeFunc(_activeLease.Value, "InCombatOnly", 1);      // default: only fire in combat
+                setCfg.InvokeFunc(_activeLease.Value, "BypassFATE", 1);        // ... but bypass that rule once inside a FATE
+                setCfg.InvokeFunc(_activeLease.Value, "FATEPriority", 1);      // prioritize FATE mobs when filtering
+                setCfg.InvokeFunc(_activeLease.Value, "DPSRotationMode", 0);   // Manual — never auto-pick a target
+                setCfg.InvokeFunc(_activeLease.Value, "HealerRotationMode", 0);
+                setCfg.InvokeFunc(_activeLease.Value, "DPSAlwaysHardTarget", 1);    // always use OUR hard target
+                setCfg.InvokeFunc(_activeLease.Value, "HealerAlwaysHardTarget", 1);
+                setCfg.InvokeFunc(_activeLease.Value, "OnlyAttackInCombat", 0);     // we control target acquisition
             }
             catch (Exception cfgEx)
             {
