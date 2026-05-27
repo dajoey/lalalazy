@@ -221,20 +221,12 @@ public class StateController : IDisposable
                             {
                                 Plugin.PluginLog.Warning("Entered combat while mounting. Aborting mount attempt.");
                                 _isMounting = false;
-                                _mountAttempts = 3; // Force immediate fallback to running on foot
+                                _mountAttempts = 3; // Force immediate fallback
                                 _nextTickTime = DateTime.Now.AddMilliseconds(100);
-                            }
-                            else if (DateTime.Now > _mountCastTimeout.AddSeconds(-2.8) && !Plugin.Condition[ConditionFlag.Casting] && !Plugin.Condition[ConditionFlag.Mounted])
-                            {
-                                // Cast was interrupted or failed to start (latency buffer elapsed)
-                                _mountAttempts++;
-                                _isMounting = false;
-                                Plugin.PluginLog.Warning($"Mount attempt {_mountAttempts} was interrupted or failed to start.");
-                                _nextTickTime = DateTime.Now.AddMilliseconds(200);
                             }
                             else if (DateTime.Now > _mountCastTimeout)
                             {
-                                // Mount cast timed out
+                                // Mount cast timed out (waited full 3.0 seconds without getting mounted)
                                 _mountAttempts++;
                                 _isMounting = false;
                                 Plugin.PluginLog.Warning($"Mount attempt {_mountAttempts} timed out.");
@@ -242,8 +234,8 @@ public class StateController : IDisposable
                             }
                             else
                             {
-                                // Active cast in progress, wait and poll without sending movement commands
-                                Status = $"Waiting for mount cast ({_mountAttempts + 1}/3)...";
+                                // Active mount attempt in progress, wait and poll for Mounted state every 200ms
+                                Status = $"Waiting for mount ({_mountAttempts + 1}/3)...";
                                 _nextTickTime = DateTime.Now.AddMilliseconds(200);
                             }
                         }
@@ -253,18 +245,29 @@ public class StateController : IDisposable
                             if (_mountAttempts < 3 && !Plugin.Condition[ConditionFlag.Casting] && !Plugin.Condition[ConditionFlag.InCombat])
                             {
                                 _isMounting = true;
-                                _mountCastTimeout = DateTime.Now.AddSeconds(3.5);
+                                _mountCastTimeout = DateTime.Now.AddSeconds(3.0); // Wait up to 3 seconds for mounted condition
                                 Status = $"Attempting to mount (Try {_mountAttempts + 1}/3)...";
                                 _plugin.Navigation.Stop();
                                 _plugin.Navigation.Mount();
-                                _nextTickTime = DateTime.Now.AddMilliseconds(500); // Give cast time to start
+                                _nextTickTime = DateTime.Now.AddMilliseconds(500); // Give FFXIV and Dalamud time to register
                             }
                             else
                             {
-                                // Fallback to ground running
-                                Status = "Target is far, mounting failed. Running on foot...";
-                                _plugin.Navigation.MoveTo(target.Position);
-                                _nextTickTime = DateTime.Now.AddMilliseconds(500);
+                                // 3 attempts exhausted. Walk on foot only if target is nearby, otherwise abort to avoid bot behavior
+                                if (dist > 80.0f)
+                                {
+                                    Plugin.PluginLog.Warning($"Mounting failed 3 times and target is far ({dist:F1}y). Aborting FATE to avoid suspicious walking on foot.");
+                                    _plugin.FatesSolver.ClearTarget();
+                                    State = GrindState.WaitingForFates;
+                                    _plugin.Navigation.Stop();
+                                    _nextTickTime = DateTime.Now.AddSeconds(2);
+                                }
+                                else
+                                {
+                                    Status = "Target is nearby, mounting failed. Walking on foot...";
+                                    _plugin.Navigation.MoveTo(target.Position);
+                                    _nextTickTime = DateTime.Now.AddMilliseconds(500);
+                                }
                             }
                         }
                     }
