@@ -271,7 +271,7 @@
         "Punchline":  "Fully automated FATE grinding utilizing vnavmesh, lifestream, and Gluttony Combo.",
         "Description":  "Grinds open-world FATEs by prioritizing Twist of Fate experience bonuses, active progress, and proximity. Integrates with vnavmesh for flight/navigation, lifestream for zone teleports, and Gluttony Combo IPC to automatically lock optimal rotation settings. Use /lazyfate to open.",
         "InternalName":  "LazyFATEAutomator",
-        "AssemblyVersion":  "0.0.0.9",
+        "AssemblyVersion":  "0.0.1.0",
         "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/LazyFATEAutomator",
         "ApplicableVersion":  "any",
         "DalamudApiLevel":  15,
