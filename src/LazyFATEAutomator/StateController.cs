@@ -241,12 +241,13 @@ public class StateController : IDisposable
                         }
                         else
                         {
-                            // Not mounted, not currently casting. Can we try?
-                            if (_mountAttempts < 3 && !Plugin.Condition[ConditionFlag.Casting] && !Plugin.Condition[ConditionFlag.InCombat])
+                            // Not mounted. Can we try?
+                            if (_mountAttempts < 3 && !Plugin.Condition[ConditionFlag.InCombat])
                             {
                                 _isMounting = true;
                                 _mountCastTimeout = DateTime.Now.AddSeconds(3.0); // Wait up to 3 seconds for mounted condition
                                 Status = $"Attempting to mount (Try {_mountAttempts + 1}/3)...";
+                                Plugin.PluginLog.Information($"[LazyFATE] Gaction mount requested. Try: {_mountAttempts + 1}/3. Distance to FATE: {dist:F1}y");
                                 _plugin.Navigation.MoveTo(target.Position); // Mount on the move!
                                 _plugin.Navigation.Mount();
                                 _nextTickTime = DateTime.Now.AddMilliseconds(500); // Give FFXIV and Dalamud time to register

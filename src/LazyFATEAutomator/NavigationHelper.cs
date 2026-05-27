@@ -39,11 +39,12 @@ public class NavigationHelper
     }
 
     /// <summary>
-    /// Triggers mounting via general action.
+    /// Triggers mounting via general action and roulette fallback.
     /// </summary>
     public void Mount()
     {
         Chat.SendMessage("/gaction \"Mount\"");
+        Chat.SendMessage("/mountroulette");
     }
 
     /// <summary>
