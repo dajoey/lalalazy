@@ -2,7 +2,7 @@
     "Author":  "dajoey",
     "Name":  "Lazy FATE Automator",
     "InternalName":  "LazyFATEAutomator",
-    "AssemblyVersion":  "0.0.1.2",
+    "AssemblyVersion":  "0.0.1.3",
     "Description":  "Grinds open-world FATEs by prioritizing Twist of Fate experience bonuses, active progress, and proximity. Integrates with vnavmesh for flight/navigation, lifestream for zone teleports, and Gluttony Combo IPC to automatically lock optimal rotation settings. Use /lazyfate to open.",
     "ApplicableVersion":  "any",
     "Tags":  [
@@ -25,6 +25,6 @@
                   ],
     "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyfateautomator-icon.png",
     "Punchline":  "Fully automated FATE grinding utilizing vnavmesh, lifestream, and Gluttony Combo.",
-    "Changelog":  "v0.0.1.2 - Fix mount/dismount: corrected ActionType enum (was EventAction, now GeneralAction) and General Action IDs (Mount Roulette 9, Dismount 23; was incorrectly Flying Mount Roulette 24 and Minion Roulette 10).\nv0.0.1 - Initial development version.",
+    "Changelog":  "v0.0.1.3 - Fix movement stutter: only re-issue vnav flyto/moveto when destination shifts \u003e5y, instead of every 500ms tick.\nv0.0.1.2 - Fix mount/dismount: corrected ActionType enum (was EventAction, now GeneralAction) and General Action IDs (Mount Roulette 9, Dismount 23; was incorrectly Flying Mount Roulette 24 and Minion Roulette 10).\nv0.0.1 - Initial development version.",
     "AcceptsFeedback":  true
 }

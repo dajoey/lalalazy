@@ -26,12 +26,20 @@ public class StateController : IDisposable
     private DateTime _nextTickTime = DateTime.MinValue;
     private Vector3 _lastTargetPosition = Vector3.Zero;
     private DateTime _stateChangeTimeout = DateTime.MinValue;
-    
+
     // Robust mount verification states
     private bool _isMounting = false;
     private DateTime _mountCastTimeout = DateTime.MinValue;
     private int _mountAttempts = 0;
-    
+
+    // Active vnavmesh path tracking - prevents re-issuing the same /vnav command every tick
+    // (re-issuing tears down the in-progress path and forces a fresh recompute, which causes
+    // the visible "3 steps forward, 2 steps back" stutter)
+    private enum ActivePath { None, Ground, Flight }
+    private ActivePath _activePath = ActivePath.None;
+    private Vector3 _activePathDest = Vector3.Zero;
+    private const float REPATH_THRESHOLD_YALMS = 5.0f;
+
     private DateTime _dryZoneDetectionTime = DateTime.MinValue;
     private uint _lastTerritory = 0;
 
@@ -46,6 +54,46 @@ public class StateController : IDisposable
         _plugin = plugin;
     }
 
+    /// <summary>
+    /// Issues /vnav moveto only if no ground path is currently active to this destination.
+    /// Reissues if mode changed (flight->ground) or target shifted by more than REPATH_THRESHOLD_YALMS.
+    /// </summary>
+    private void EnsureGroundPath(Vector3 dest)
+    {
+        if (_activePath != ActivePath.Ground ||
+            Vector3.Distance(_activePathDest, dest) > REPATH_THRESHOLD_YALMS)
+        {
+            _plugin.Navigation.MoveTo(dest);
+            _activePath = ActivePath.Ground;
+            _activePathDest = dest;
+        }
+    }
+
+    /// <summary>
+    /// Issues /vnav flyto only if no flight path is currently active to this destination.
+    /// </summary>
+    private void EnsureFlightPath(Vector3 dest)
+    {
+        if (_activePath != ActivePath.Flight ||
+            Vector3.Distance(_activePathDest, dest) > REPATH_THRESHOLD_YALMS)
+        {
+            _plugin.Navigation.FlyTo(dest);
+            _activePath = ActivePath.Flight;
+            _activePathDest = dest;
+        }
+    }
+
+    /// <summary>
+    /// Halts vnavmesh and clears active path tracking. Use this anywhere we previously
+    /// called Navigation.Stop() so the next EnsureGroundPath/EnsureFlightPath actually fires.
+    /// </summary>
+    private void ClearActivePath()
+    {
+        _plugin.Navigation.Stop();
+        _activePath = ActivePath.None;
+        _activePathDest = Vector3.Zero;
+    }
+
     public void Start()
     {
         if (IsEnabled) return;
@@ -56,11 +104,13 @@ public class StateController : IDisposable
         CompletedFatesCount = 0;
         SessionStartTime = DateTime.Now;
         _plugin.StuckTracker.Reset();
-        
+
         _isMounting = false;
         _mountAttempts = 0;
         _dryZoneDetectionTime = DateTime.Now.AddSeconds(15);
         _lastTerritory = Svc.ClientState.TerritoryType;
+
+        ClearActivePath();
 
         // Lock Gluttony Combo configuration for optimal automated combat
         AcquireGluttonyLease();
@@ -76,7 +126,7 @@ public class StateController : IDisposable
         State = GrindState.Idle;
         Status = "Idle";
         _plugin.FatesSolver.ClearTarget();
-        _plugin.Navigation.Stop();
+        ClearActivePath();
 
         // Cleanly release Gluttony Combo IPC control back to player defaults
         ReleaseGluttonyLease();
@@ -96,6 +146,9 @@ public class StateController : IDisposable
         {
             _lastTerritory = Svc.ClientState.TerritoryType;
             _dryZoneDetectionTime = DateTime.Now.AddSeconds(15);
+            // Path is invalid in a new zone
+            _activePath = ActivePath.None;
+            _activePathDest = Vector3.Zero;
         }
 
         // Death state evaluation
@@ -105,7 +158,7 @@ public class StateController : IDisposable
             {
                 State = GrindState.Unconscious;
                 Status = "Character is dead. Waiting for resurrect or release...";
-                _plugin.Navigation.Stop();
+                ClearActivePath();
             }
             _nextTickTime = DateTime.Now.AddSeconds(2);
             return;
@@ -130,7 +183,7 @@ public class StateController : IDisposable
                     _plugin.StuckTracker.Reset();
                     _isMounting = false;
                     _mountAttempts = 0;
-                    _plugin.Navigation.Stop(); // Ensure all prior movement is stopped
+                    ClearActivePath(); // ensure any prior movement is dropped
                     _nextTickTime = DateTime.Now.AddMilliseconds(500);
                 }
                 else
@@ -151,7 +204,7 @@ public class StateController : IDisposable
                 if (target == null)
                 {
                     State = GrindState.WaitingForFates;
-                    _plugin.Navigation.Stop();
+                    ClearActivePath();
                     break;
                 }
 
@@ -161,21 +214,21 @@ public class StateController : IDisposable
                 var stuckReason = _plugin.StuckTracker.Update(player.Position);
                 if (stuckReason == MoveStopReason.StuckRetry)
                 {
-                    // Trigger flight jump or path re-routing
-                    _plugin.Navigation.Stop();
+                    // Force a fresh path computation by clearing state then re-issuing flight
+                    ClearActivePath();
                     if (Plugin.Condition[ConditionFlag.Mounted] && !Plugin.Condition[ConditionFlag.InFlight])
                     {
                         Chat.SendMessage("/gaction \"Jump\"");
                     }
                     _nextTickTime = DateTime.Now.AddSeconds(2);
-                    _plugin.Navigation.FlyTo(target.Position);
+                    EnsureFlightPath(target.Position);
                     break;
                 }
                 else if (stuckReason == MoveStopReason.StuckTeleport)
                 {
                     // Unstuck failsafe: Teleport to local zone Aetheryte
                     State = GrindState.WaitingForFates;
-                    _plugin.Navigation.Stop();
+                    ClearActivePath();
                     _plugin.Navigation.LifestreamTravel("nearest");
                     _nextTickTime = DateTime.Now.AddSeconds(10);
                     break;
@@ -186,7 +239,7 @@ public class StateController : IDisposable
                     // Arrived! Transition to engaging
                     State = GrindState.Engaging;
                     Status = $"Engaging FATE: {target.Name}";
-                    _plugin.Navigation.Stop();
+                    ClearActivePath();
                     if (Plugin.Condition[ConditionFlag.Mounted])
                     {
                         _plugin.Navigation.Dismount();
@@ -201,17 +254,20 @@ public class StateController : IDisposable
                         if (Plugin.Condition[ConditionFlag.Mounted])
                         {
                             _isMounting = false; // Successfully mounted
-                            
+
                             if (!Plugin.Condition[ConditionFlag.InFlight])
                             {
                                 // Trigger flight takeoff
-                                _plugin.Navigation.FlyTo(target.Position);
+                                EnsureFlightPath(target.Position);
                                 Chat.SendMessage("/gaction \"Jump\"");
                                 _nextTickTime = DateTime.Now.AddSeconds(2);
                             }
                             else
                             {
-                                _plugin.Navigation.FlyTo(target.Position);
+                                // Already in flight - just keep vnav heading there
+                                // EnsureFlightPath is idempotent if dest hasn't shifted >5y,
+                                // so this no-ops most ticks (fixing the stutter).
+                                EnsureFlightPath(target.Position);
                                 _nextTickTime = DateTime.Now.AddMilliseconds(500);
                             }
                         }
@@ -248,7 +304,7 @@ public class StateController : IDisposable
                                 _mountCastTimeout = DateTime.Now.AddSeconds(3.0); // Wait up to 3 seconds for mounted condition
                                 Status = $"Attempting to mount (Try {_mountAttempts + 1}/3)...";
                                 Plugin.PluginLog.Information($"[LazyFATE] Gaction mount requested. Try: {_mountAttempts + 1}/3. Distance to FATE: {dist:F1}y");
-                                _plugin.Navigation.Stop(); // Pathfinder-controlled movement blocks mount registration; we must halt pathfinder.
+                                ClearActivePath(); // Pathfinder must be halted for the mount cast to register.
                                 _plugin.Navigation.Mount();
                                 _nextTickTime = DateTime.Now.AddMilliseconds(500); // Give FFXIV and Dalamud time to register
                             }
@@ -260,13 +316,13 @@ public class StateController : IDisposable
                                     Plugin.PluginLog.Warning($"Mounting failed 3 times and target is far ({dist:F1}y). Aborting FATE to avoid suspicious walking on foot.");
                                     _plugin.FatesSolver.ClearTarget();
                                     State = GrindState.WaitingForFates;
-                                    _plugin.Navigation.Stop();
+                                    ClearActivePath();
                                     _nextTickTime = DateTime.Now.AddSeconds(2);
                                 }
                                 else
                                 {
                                     Status = "Target is nearby, mounting failed. Walking on foot...";
-                                    _plugin.Navigation.MoveTo(target.Position);
+                                    EnsureGroundPath(target.Position);
                                     _nextTickTime = DateTime.Now.AddMilliseconds(500);
                                 }
                             }
@@ -276,7 +332,7 @@ public class StateController : IDisposable
                     {
                         // Short distance: always ground move
                         _isMounting = false;
-                        _plugin.Navigation.MoveTo(target.Position);
+                        EnsureGroundPath(target.Position);
                         _nextTickTime = DateTime.Now.AddMilliseconds(500);
                     }
                 }
@@ -314,7 +370,7 @@ public class StateController : IDisposable
 
             case GrindState.SwapZones:
                 // Teleport randomly to escape dry zones and avoid bot profiles
-                _plugin.Navigation.Stop();
+                ClearActivePath();
                 _plugin.Navigation.LifestreamTravel("random");
                 State = GrindState.WaitingForFates;
                 _nextTickTime = DateTime.Now.AddSeconds(15);
