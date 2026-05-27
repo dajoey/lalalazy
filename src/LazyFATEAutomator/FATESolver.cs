@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Numerics;
 using Dalamud.Game.ClientState.Fates;
 using Dalamud.Game.ClientState.Objects.Types;
 using ECommons.DalamudServices;
@@ -11,148 +10,131 @@ namespace LazyFATEAutomator;
 public class FATESolver
 {
     private readonly Plugin _plugin;
+
+    /// <summary>Lumina row ID for the "Twist of Fate" XP-buff status.</summary>
     private const uint TwistOfFateStatusId = 1230;
 
     public IFate? ActiveTarget { get; private set; }
 
-    public FATESolver(Plugin plugin)
-    {
-        _plugin = plugin;
-    }
+    public FATESolver(Plugin plugin) { _plugin = plugin; }
+
+    public bool PlayerHasTwistOfFate()
+        => Svc.Objects.LocalPlayer?.StatusList?.Any(s => s.StatusId == TwistOfFateStatusId) ?? false;
 
     /// <summary>
-    /// Checks if the player currently has the "Twist of Fate" experience bonus buff.
+    /// Predicate: a FATE is "eligible" for our automation given the user's filter config.
+    /// Used by both the solver and the UI for highlighting.
     /// </summary>
-    public bool PlayerHasTwistOfFate()
+    public bool IsEligible(IFate fate)
     {
         var player = Svc.Objects.LocalPlayer;
         if (player == null) return false;
 
-        return player.StatusList.Any(s => s.StatusId == TwistOfFateStatusId);
+        if (_plugin.Config.BlacklistedFateIds.Contains(fate.FateId)) return false;
+        if (fate.Progress >= _plugin.Config.MaxProgress) return false;
+
+        // Unactivated FATEs report negative TimeRemaining — only filter active ones on time
+        if (fate.TimeRemaining >= 0 && fate.TimeRemaining < _plugin.Config.MinTimeRemaining) return false;
+
+        // FATE.Level above us by more than MaxLevelDelta — can't sync UP
+        if (fate.Level > player.Level + _plugin.Config.MaxLevelDelta) return false;
+
+        return true;
     }
 
-    /// <summary>
-    /// Checks if a given FATE has an inherent experience/gemstone bonus.
-    /// </summary>
-    public bool HasBonus(uint fateId)
+    /// <summary>Returns FATEs from the current zone, ordered by the configured sort chain.</summary>
+    public IEnumerable<IFate> GetSortedEligibleFates()
     {
-        var fate = Svc.Fates.FirstOrDefault(f => f.FateId == fateId);
-        if (fate == null) return false;
-
-        return fate.HasBonus;
+        var eligible = Svc.Fates.Where(IsEligible);
+        return ApplySort(eligible, _plugin.Config.SortRules);
     }
 
-    /// <summary>
-    /// Scans the zone and returns a list of FATEs that match the user's filtering rules.
-    /// </summary>
-    public IEnumerable<IFate> GetFilteredFates()
+    /// <summary>For UI: ALL FATEs in zone, eligible-first, both subsets sorted independently.</summary>
+    public IEnumerable<(IFate Fate, bool Eligible)> GetAllForDisplay()
     {
-        var player = Svc.Objects.LocalPlayer;
-        if (player == null) return Enumerable.Empty<IFate>();
-
-        return Svc.Fates.Where(fate =>
-        {
-            // 1. Exclude if blacklisted in configuration
-            if (_plugin.Config.BlacklistedFateIds.Contains(fate.FateId))
-                return false;
-
-            // 2. Exclude if progress is already complete or past threshold
-            if (fate.Progress >= _plugin.Config.MaxProgress)
-                return false;
-
-            // 3. Exclude if time remaining is too low
-            if (fate.TimeRemaining < _plugin.Config.MinTimeRemaining)
-                return false;
-
-            // 4. Exclude if level difference is too high (unless we sync)
-            if (fate.Level > player.Level + 5) // Ignore FATEs that are too high level
-                return false;
-
-            return true;
-        });
+        var all = Svc.Fates.ToList();
+        var eligible   = ApplySort(all.Where(IsEligible),  _plugin.Config.SortRules).ToList();
+        var ineligible = ApplySort(all.Where(f => !IsEligible(f)), _plugin.Config.SortRules).ToList();
+        foreach (var f in eligible)   yield return (f, true);
+        foreach (var f in ineligible) yield return (f, false);
     }
 
-    /// <summary>
-    /// Sorts and returns the available FATEs based on the configured priority criteria.
-    /// </summary>
-    public IOrderedEnumerable<IFate> GetSortedAvailableFates()
-    {
-        var filtered = GetFilteredFates();
-        var twist = PlayerHasTwistOfFate();
-
-        // Perform multi-criteria sorting based on configured ordering
-        IOrderedEnumerable<IFate> sorted = filtered.OrderBy(f => 0); // Identity starting ordered enumerable
-
-        // Apply our custom sorting chain
-        foreach (var criterion in _plugin.Config.SortCriteria)
-        {
-            switch (criterion)
-            {
-                case "HasTwistOfFate":
-                    // If player has Twist of Fate, prioritize inherent Bonus FATEs for maximum stacking
-                    if (twist)
-                    {
-                        sorted = sorted.ThenByDescending(f => f.HasBonus);
-                    }
-                    break;
-                case "Progress":
-                    // Prioritize FATEs that are already highly complete to clear them fast
-                    sorted = sorted.ThenByDescending(f => f.Progress);
-                    break;
-                case "HasBonus":
-                    // Prioritize FATEs with the inherent golden bonus icon on the map
-                    sorted = sorted.ThenByDescending(f => f.HasBonus);
-                    break;
-                case "Distance":
-                    // Prioritize FATEs that are physically closer to the player
-                    sorted = sorted.ThenBy(f => _plugin.Navigation.GetDistanceTo(f.Position));
-                    break;
-            }
-        }
-
-        return sorted;
-    }
-
-    /// <summary>
-    /// Updates the current active target FATE from the sorted available ones.
-    /// </summary>
     public IFate? SelectNextTarget()
     {
-        var sorted = GetSortedAvailableFates().ToList();
-        ActiveTarget = sorted.FirstOrDefault();
+        ActiveTarget = GetSortedEligibleFates().FirstOrDefault();
         return ActiveTarget;
     }
 
-    /// <summary>
-    /// Clears the active target FATE.
-    /// </summary>
-    public void ClearTarget()
-    {
-        ActiveTarget = null;
-    }
+    public void ClearTarget() => ActiveTarget = null;
 
     /// <summary>
-    /// Attempts to find a valid FATE starter NPC in the Object Table for FATEs that require interaction to begin.
+    /// FATE-starter NPC near the FATE center. Used for FATEs that require an NPC interaction
+    /// to spawn the actual encounter (the "Preparing" state). Properly parenthesised.
     /// </summary>
     public bool TryGetValidMotivationNpc(IFate fate, out IGameObject? npc)
     {
         npc = null;
         if (fate == null) return false;
+        if (GetDistance(Svc.Objects.LocalPlayer?.Position, fate.Position) > 50f) return false; // half ObjectTable range
 
-        // Search ObjectTable for hostiles/NPCs near the center of the FATE matching common starter markers.
-        // FATE-starter NPCs usually have special Names or are marked near the center point.
-        var targetNpc = Plugin.ObjectTable.FirstOrDefault(obj =>
-            obj is ICharacter &&
-            !obj.IsDead &&
-            Vector3.Distance(obj.Position, fate.Position) < 30.0f &&
-            obj.Name.TextValue.Contains("Motivated") || obj.Name.TextValue.Contains("Initiate") || obj.Name.TextValue.Contains("Citizen"));
-
-        if (targetNpc != null)
+        IGameObject? found = null;
+        foreach (var obj in Plugin.ObjectTable)
         {
-            npc = targetNpc;
-            return true;
+            if (obj is not ICharacter) continue;
+            if (obj.IsDead) continue;
+            if (System.Numerics.Vector3.Distance(obj.Position, fate.Position) > 30f) continue;
+
+            var name = obj.Name?.TextValue ?? string.Empty;
+            // BUG FIX (pre-rewrite): the OR group MUST be parenthesised, otherwise &&-precedence
+            // collapses the filter into "Initiate OR Citizen anywhere on the map".
+            if (name.Contains("Motivated") || name.Contains("Initiate") || name.Contains("Citizen"))
+            {
+                found = obj;
+                break;
+            }
         }
 
-        return false;
+        npc = found;
+        return found != null;
     }
+
+    // ------------------------------------------------------------------
+    // Sorting
+    // ------------------------------------------------------------------
+
+    private System.Numerics.Vector3 _playerPos; // captured per-sort to avoid per-comparator service lookups
+
+    private IOrderedEnumerable<IFate> ApplySort(IEnumerable<IFate> source, IReadOnlyList<FateSortRule> rules)
+    {
+        var player = Svc.Objects.LocalPlayer;
+        _playerPos = player?.Position ?? System.Numerics.Vector3.Zero;
+        var twist = PlayerHasTwistOfFate();
+        var minToPrio = _plugin.Config.MinTimeToPrioritise;
+
+        IOrderedEnumerable<IFate>? ordered = null;
+        foreach (var rule in rules)
+        {
+            Func<IFate, IComparable> key = rule.Criteria switch
+            {
+                FateSortCriteria.HasBonusWithTwist  => f => f.HasBonus && twist ? 1 : 0,
+                FateSortCriteria.Progress           => f => (int)f.Progress,
+                FateSortCriteria.HasBonus           => f => f.HasBonus ? 1 : 0,
+                FateSortCriteria.TimeRemainingUrgent=> f => f.TimeRemaining is >= 0 and var t && t < minToPrio ? 1 : 0,
+                FateSortCriteria.Distance           => f => System.Numerics.Vector3.Distance(_playerPos, f.Position),
+                FateSortCriteria.TimeRemaining      => f => f.TimeRemaining,
+                FateSortCriteria.Level              => f => (int)f.Level,
+                FateSortCriteria.Name               => f => f.Name?.TextValue ?? string.Empty,
+                _                                   => f => 0,
+            };
+            ordered = ordered == null
+                ? (rule.Descending ? source.OrderByDescending(key) : source.OrderBy(key))
+                : (rule.Descending ? ordered.ThenByDescending(key) : ordered.ThenBy(key));
+        }
+
+        // Deterministic terminal tiebreaker so output is stable across ticks
+        return ordered?.ThenBy(f => f.FateId) ?? source.OrderBy(f => f.FateId);
+    }
+
+    private static float GetDistance(System.Numerics.Vector3? a, System.Numerics.Vector3 b)
+        => a is { } va ? System.Numerics.Vector3.Distance(va, b) : float.MaxValue;
 }

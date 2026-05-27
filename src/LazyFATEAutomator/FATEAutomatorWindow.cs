@@ -1,22 +1,21 @@
 using System;
-using System.Numerics;
 using System.Linq;
+using System.Numerics;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Windowing;
 using Dalamud.Bindings.ImGui;
-using ECommons.ImGuiMethods;
 
 namespace LazyFATEAutomator;
 
 public class FATEAutomatorWindow : Window, IDisposable
 {
     private readonly Plugin _plugin;
-    private readonly string[] _availableCriteria = { "HasTwistOfFate", "Progress", "HasBonus", "Distance" };
 
-    public FATEAutomatorWindow(Plugin plugin) : base("Lazy FATE Automator###LazyFATEAutomatorMain")
+    public FATEAutomatorWindow(Plugin plugin)
+        : base("Lazy FATE Automator###LazyFATEAutomatorMain")
     {
         _plugin = plugin;
-        Size = new Vector2(480, 520);
+        Size = new Vector2(520, 560);
         SizeCondition = ImGuiCond.FirstUseEver;
     }
 
@@ -24,282 +23,271 @@ public class FATEAutomatorWindow : Window, IDisposable
     {
         if (ImGui.BeginTabBar("LazyFateAutomatorTabs"))
         {
-            if (ImGui.BeginTabItem("Dashboard"))
-            {
-                DrawDashboard();
-                ImGui.EndTabItem();
-            }
-
-            if (ImGui.BeginTabItem("Active FATEs"))
-            {
-                DrawActiveFates();
-                ImGui.EndTabItem();
-            }
-
-            if (ImGui.BeginTabItem("Settings"))
-            {
-                DrawSettings();
-                ImGui.EndTabItem();
-            }
-
+            if (ImGui.BeginTabItem("Dashboard")) { DrawDashboard();    ImGui.EndTabItem(); }
+            if (ImGui.BeginTabItem("Active FATEs")) { DrawActiveFates(); ImGui.EndTabItem(); }
+            if (ImGui.BeginTabItem("Sort Order")) { DrawSortOrder();   ImGui.EndTabItem(); }
+            if (ImGui.BeginTabItem("Settings"))    { DrawSettings();    ImGui.EndTabItem(); }
             ImGui.EndTabBar();
         }
     }
 
+    // ----------- Dashboard -----------
+
     private void DrawDashboard()
     {
         ImGui.Spacing();
-
-        // Core Automator Toggle
-        bool isEnabled = _plugin.StateController.IsEnabled;
-        if (ImGui.Checkbox("Enable Auto-FATE Farming", ref isEnabled))
+        bool enabled = _plugin.StateController.IsEnabled;
+        if (ImGui.Checkbox("Enable Auto-FATE Farming", ref enabled))
         {
-            if (isEnabled) _plugin.StateController.Start();
+            if (enabled) _plugin.StateController.Start();
             else _plugin.StateController.Stop();
         }
-
         ImGui.Separator();
         ImGui.Spacing();
 
-        // State & Status
-        ImGui.Text("Automator State: ");
-        ImGui.SameLine();
+        ImGui.Text("State: "); ImGui.SameLine();
         var state = _plugin.StateController.State;
-        Vector4 stateColor = state switch
+        var color = state switch
         {
-            GrindState.Idle => ImGuiColors.DalamudGrey,
-            GrindState.WaitingForFates => ImGuiColors.DalamudOrange,
-            GrindState.WaitingForFollowUp => ImGuiColors.ParsedPurple,
-            GrindState.BetweenFates => ImGuiColors.DalamudYellow,
-            GrindState.SwapZones => ImGuiColors.ParsedPink,
-            GrindState.Engaging => ImGuiColors.HealerGreen,
-            GrindState.Unconscious => ImGuiColors.DalamudRed,
-            _ => ImGuiColors.DalamudWhite
+            GrindState.Idle             => ImGuiColors.DalamudGrey,
+            GrindState.WaitingForFates  => ImGuiColors.DalamudOrange,
+            GrindState.BetweenFates     => ImGuiColors.DalamudYellow,
+            GrindState.Mounting         => ImGuiColors.ParsedBlue,
+            GrindState.SwapZones        => ImGuiColors.ParsedPink,
+            GrindState.Engaging         => ImGuiColors.HealerGreen,
+            GrindState.Unconscious      => ImGuiColors.DalamudRed,
+            _                           => ImGuiColors.DalamudWhite
         };
-        ImGui.TextColored(stateColor, state.ToString());
+        ImGui.TextColored(color, state.ToString());
 
-        ImGui.Text("Current Status: ");
-        ImGui.SameLine();
-        ImGui.TextColored(ImGuiColors.DalamudWhite, _plugin.StateController.Status);
+        ImGui.Text("Status: "); ImGui.SameLine();
+        ImGui.TextUnformatted(_plugin.StateController.Status);
 
-        ImGui.Spacing();
-        ImGui.Separator();
-        ImGui.Spacing();
+        ImGui.Text("Gluttony lease: "); ImGui.SameLine();
+        ImGui.TextColored(_plugin.StateController.GluttonyLeaseHeld ? ImGuiColors.HealerGreen : ImGuiColors.DalamudGrey,
+            _plugin.StateController.GluttonyLeaseHeld ? "held" : "not held (manual combat)");
 
-        // Active Target FATE Details
-        ImGui.TextColored(ImGuiColors.DalamudWhite, "Active Target FATE:");
-        var activeFate = _plugin.FatesSolver.ActiveTarget;
-        if (activeFate != null)
+        ImGui.Spacing(); ImGui.Separator(); ImGui.Spacing();
+
+        ImGui.TextColored(ImGuiColors.DalamudWhite, "Active target:");
+        var active = _plugin.FatesSolver.ActiveTarget;
+        ImGui.Indent();
+        if (active != null)
         {
-            ImGui.Indent();
-            ImGui.Text($"Name: {activeFate.Name}");
-            ImGui.Text($"ID: {activeFate.FateId} | Level: {activeFate.Level}");
-            ImGui.Text($"Progress: {activeFate.Progress}%");
-            int timeRemaining = (int)activeFate.TimeRemaining;
-            ImGui.Text($"Time Remaining: {timeRemaining / 60}m {timeRemaining % 60}s");
-            ImGui.Unindent();
+            ImGui.Text($"Name: {active.Name}");
+            ImGui.Text($"ID: {active.FateId}  Level: {active.Level}");
+            ImGui.TextUnformatted($"Progress: {active.Progress}%");
+            var t = (int)Math.Max(0, active.TimeRemaining);
+            ImGui.Text($"Time remaining: {t / 60}m {t % 60}s");
         }
         else
         {
-            ImGui.Indent();
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "No active target FATE.");
-            ImGui.Unindent();
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "(none)");
         }
+        ImGui.Unindent();
 
-        ImGui.Spacing();
-        ImGui.Separator();
-        ImGui.Spacing();
+        ImGui.Spacing(); ImGui.Separator(); ImGui.Spacing();
 
-        // Session Performance Metrics
-        ImGui.TextColored(ImGuiColors.DalamudWhite, "Session Statistics:");
+        ImGui.TextColored(ImGuiColors.DalamudWhite, "Session:");
         ImGui.Indent();
         ImGui.Text($"Completed FATEs: {_plugin.StateController.CompletedFatesCount}");
-        
-        var duration = DateTime.Now - _plugin.StateController.SessionStartTime;
-        string durationStr = _plugin.StateController.IsEnabled 
-            ? $"{(int)duration.TotalHours}h {duration.Minutes}m {duration.Seconds}s"
-            : "0h 0m 0s";
-        ImGui.Text($"Session Duration: {durationStr}");
+        var dur = _plugin.StateController.IsEnabled
+            ? DateTime.UtcNow - _plugin.StateController.SessionStartTime
+            : TimeSpan.Zero;
+        ImGui.Text($"Duration: {(int)dur.TotalHours}h {dur.Minutes}m {dur.Seconds}s");
         ImGui.Unindent();
     }
+
+    // ----------- Active FATEs -----------
 
     private void DrawActiveFates()
     {
         ImGui.Spacing();
-        ImGui.TextColored(ImGuiColors.DalamudWhite, "Sorted List of Available FATEs in Current Zone:");
+        ImGui.TextColored(ImGuiColors.DalamudWhite, "FATEs in this zone:");
+        ImGui.SameLine();
+        ImGui.TextColored(ImGuiColors.DalamudGrey, "(sorted by configured priority; eligible first)");
         ImGui.Spacing();
 
-        var sortedFates = _plugin.FatesSolver.GetSortedAvailableFates().ToList();
-        if (sortedFates.Count == 0)
+        var rows = _plugin.FatesSolver.GetAllForDisplay().ToList();
+        if (rows.Count == 0)
         {
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "No FATEs in the zone match the filter configuration.");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "No FATEs in zone.");
             return;
         }
 
-        if (ImGui.BeginTable("ActiveFatesTable", 5, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY))
+        if (ImGui.BeginTable("ActiveFatesTable", 6, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY))
         {
-            ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch);
+            ImGui.TableSetupColumn("Name",     ImGuiTableColumnFlags.WidthStretch);
+            ImGui.TableSetupColumn("Lv",       ImGuiTableColumnFlags.WidthFixed, 30);
             ImGui.TableSetupColumn("Progress", ImGuiTableColumnFlags.WidthFixed, 60);
-            ImGui.TableSetupColumn("Bonus", ImGuiTableColumnFlags.WidthFixed, 50);
+            ImGui.TableSetupColumn("Bonus",    ImGuiTableColumnFlags.WidthFixed, 50);
             ImGui.TableSetupColumn("Distance", ImGuiTableColumnFlags.WidthFixed, 65);
-            ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.WidthFixed, 60);
+            ImGui.TableSetupColumn("Action",   ImGuiTableColumnFlags.WidthFixed, 70);
             ImGui.TableHeadersRow();
 
-            foreach (var fate in sortedFates)
+            foreach (var (fate, eligible) in rows)
             {
                 ImGui.TableNextRow();
-                
-                // Name
                 ImGui.TableNextColumn();
-                ImGui.Text(fate.Name.ToString());
+                if (!eligible) ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudGrey);
+                ImGui.TextUnformatted(fate.Name.ToString());
+                if (!eligible) ImGui.PopStyleColor();
                 if (ImGui.IsItemHovered())
+                    ImGui.SetTooltip($"FATE {fate.FateId}\nLevel {fate.Level}\n{fate.TimeRemaining:F0}s remaining");
+
+                ImGui.TableNextColumn(); ImGui.Text(fate.Level.ToString());
+                ImGui.TableNextColumn(); ImGui.TextUnformatted($"{fate.Progress}%");
+                ImGui.TableNextColumn();
+                if (fate.HasBonus) ImGui.TextColored(ImGuiColors.HealerGreen, "YES");
+                else               ImGui.TextColored(ImGuiColors.DalamudGrey, "No");
+                ImGui.TableNextColumn(); ImGui.Text($"{_plugin.Navigation.GetDistanceTo(fate.Position):F0}y");
+
+                ImGui.TableNextColumn();
+                bool isBlack = _plugin.Config.BlacklistedFateIds.Contains(fate.FateId);
+                if (ImGui.SmallButton((isBlack ? "Unban##" : "Ban##") + fate.FateId))
                 {
-                    ImGui.SetTooltip($"FATE ID: {fate.FateId}\nLevel: {fate.Level}\nDuration: {fate.TimeRemaining}s");
-                }
-
-                // Progress
-                ImGui.TableNextColumn();
-                ImGui.Text($"{fate.Progress}%");
-
-                // Bonus
-                ImGui.TableNextColumn();
-                bool hasBonus = _plugin.FatesSolver.HasBonus(fate.FateId);
-                if (hasBonus) ImGui.TextColored(ImGuiColors.HealerGreen, "YES");
-                else ImGui.TextColored(ImGuiColors.DalamudGrey, "No");
-
-                // Distance
-                ImGui.TableNextColumn();
-                float dist = _plugin.Navigation.GetDistanceTo(fate.Position);
-                ImGui.Text($"{dist:F1}y");
-
-                // Actions
-                ImGui.TableNextColumn();
-                if (ImGui.SmallButton($"Blacklist###BL_{fate.FateId}"))
-                {
-                    _plugin.Config.BlacklistedFateIds.Add(fate.FateId);
+                    if (isBlack) _plugin.Config.BlacklistedFateIds.Remove(fate.FateId);
+                    else         _plugin.Config.BlacklistedFateIds.Add(fate.FateId);
                     _plugin.SaveConfig();
                 }
             }
-
             ImGui.EndTable();
         }
     }
 
+    // ----------- Sort order -----------
+
+    private void DrawSortOrder()
+    {
+        ImGui.Spacing();
+        ImGui.TextColored(ImGuiColors.DalamudWhite, "Priority order (first row = primary sort key):");
+        ImGui.Spacing();
+
+        var rules = _plugin.Config.SortRules;
+        int? swapA = null, swapB = null;
+        int? removeAt = null;
+        bool changed = false;
+
+        for (int i = 0; i < rules.Count; i++)
+        {
+            ImGui.PushID(i);
+            var rule = rules[i];
+
+            if (ImGui.ArrowButton("up", ImGuiDir.Up) && i > 0)   { swapA = i; swapB = i - 1; }
+            ImGui.SameLine();
+            if (ImGui.ArrowButton("dn", ImGuiDir.Down) && i < rules.Count - 1) { swapA = i; swapB = i + 1; }
+            ImGui.SameLine();
+
+            // Criterion combo
+            int idx = (int)rule.Criteria;
+            var names = Enum.GetNames(typeof(FateSortCriteria));
+            ImGui.SetNextItemWidth(180);
+            if (ImGui.Combo("##crit", ref idx, names, names.Length))
+            {
+                rule.Criteria = (FateSortCriteria)idx;
+                changed = true;
+            }
+            ImGui.SameLine();
+
+            bool desc = rule.Descending;
+            if (ImGui.Checkbox("Descending", ref desc)) { rule.Descending = desc; changed = true; }
+            ImGui.SameLine();
+            if (ImGui.SmallButton("Remove")) removeAt = i;
+            ImGui.PopID();
+        }
+
+        if (swapA.HasValue) { (rules[swapA.Value], rules[swapB!.Value]) = (rules[swapB.Value], rules[swapA.Value]); changed = true; }
+        if (removeAt.HasValue) { rules.RemoveAt(removeAt.Value); changed = true; }
+
+        ImGui.Spacing();
+        if (ImGui.Button("Add criterion"))
+        {
+            rules.Add(new FateSortRule { Criteria = FateSortCriteria.Distance, Descending = false });
+            changed = true;
+        }
+        ImGui.SameLine();
+        if (ImGui.Button("Reset to defaults"))
+        {
+            rules.Clear();
+            rules.Add(new FateSortRule { Criteria = FateSortCriteria.HasBonusWithTwist,   Descending = true });
+            rules.Add(new FateSortRule { Criteria = FateSortCriteria.Progress,            Descending = true });
+            rules.Add(new FateSortRule { Criteria = FateSortCriteria.HasBonus,            Descending = true });
+            rules.Add(new FateSortRule { Criteria = FateSortCriteria.TimeRemainingUrgent, Descending = true });
+            rules.Add(new FateSortRule { Criteria = FateSortCriteria.Distance,            Descending = false });
+            changed = true;
+        }
+
+        if (changed) _plugin.SaveConfig();
+    }
+
+    // ----------- Settings -----------
+
     private void DrawSettings()
     {
         ImGui.Spacing();
-        bool configChanged = false;
+        bool dirty = false;
 
-        // FATE Threshold Settings
-        ImGui.TextColored(ImGuiColors.DalamudWhite, "FATE Filters & Limits:");
-        
-        int minTime = _plugin.Config.MinTimeRemaining;
+        ImGui.TextColored(ImGuiColors.DalamudWhite, "FATE filters:");
+
+        int v = _plugin.Config.MinTimeRemaining;
         ImGui.SetNextItemWidth(120);
-        if (ImGui.DragInt("Min Time Remaining (s)", ref minTime, 5, 30, 600))
-        {
-            _plugin.Config.MinTimeRemaining = minTime;
-            configChanged = true;
-        }
+        if (ImGui.DragInt("Min time remaining (s)", ref v, 5, 30, 600)) { _plugin.Config.MinTimeRemaining = v; dirty = true; }
 
-        int maxProg = _plugin.Config.MaxProgress;
+        v = _plugin.Config.MaxProgress;
         ImGui.SetNextItemWidth(120);
-        if (ImGui.SliderInt("Max Progress (%)", ref maxProg, 10, 100))
-        {
-            _plugin.Config.MaxProgress = maxProg;
-            configChanged = true;
-        }
+        if (ImGui.SliderInt("Max progress (%)", ref v, 10, 100)) { _plugin.Config.MaxProgress = v; dirty = true; }
 
-        int maxDur = _plugin.Config.MaxDuration;
+        v = _plugin.Config.MaxDuration;
         ImGui.SetNextItemWidth(120);
-        if (ImGui.DragInt("Max Duration (s)", ref maxDur, 10, 300, 1800))
-        {
-            _plugin.Config.MaxDuration = maxDur;
-            configChanged = true;
-        }
+        if (ImGui.DragInt("Max duration (s)", ref v, 10, 300, 1800)) { _plugin.Config.MaxDuration = v; dirty = true; }
 
-        ImGui.Spacing();
-        ImGui.Separator();
-        ImGui.Spacing();
-
-        // Automation Rule Toggles
-        ImGui.TextColored(ImGuiColors.DalamudWhite, "Automation Parameters:");
-
-        bool swapZones = _plugin.Config.SwapZones;
-        if (ImGui.Checkbox("Automatically Swap Zones when Dry", ref swapZones))
-        {
-            _plugin.Config.SwapZones = swapZones;
-            configChanged = true;
-        }
+        v = _plugin.Config.MaxLevelDelta;
+        ImGui.SetNextItemWidth(120);
+        if (ImGui.SliderInt("Max FATE-level above me", ref v, 0, 5))  { _plugin.Config.MaxLevelDelta = v; dirty = true; }
         if (ImGui.IsItemHovered())
-        {
-            ImGui.SetTooltip("Uses lifestream to teleport to random zone in same expansion when no FATEs are active.");
-        }
+            ImGui.SetTooltip("FATEs above your current level cannot be synced UP. Default 0.");
 
-        bool autoSync = _plugin.Config.AutoSyncLevel;
-        if (ImGui.Checkbox("Automatically Sync Level", ref autoSync))
-        {
-            _plugin.Config.AutoSyncLevel = autoSync;
-            configChanged = true;
-        }
+        v = _plugin.Config.MinTimeToPrioritise;
+        ImGui.SetNextItemWidth(120);
+        if (ImGui.DragInt("Urgent-when-under (s)", ref v, 10, 30, 600)) { _plugin.Config.MinTimeToPrioritise = v; dirty = true; }
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("FATEs with less than this remaining are flagged 'urgent' for the TimeRemainingUrgent sort key.");
 
-        bool yokai = _plugin.Config.YokaiGrindMode;
-        if (ImGui.Checkbox("Yokai Watch Grind Mode", ref yokai))
-        {
-            _plugin.Config.YokaiGrindMode = yokai;
-            configChanged = true;
-        }
+        ImGui.Spacing(); ImGui.Separator(); ImGui.Spacing();
+        ImGui.TextColored(ImGuiColors.DalamudWhite, "Automation:");
 
-        bool relic = _plugin.Config.RelicGrindMode;
-        if (ImGui.Checkbox("Relic Grind Mode", ref relic))
-        {
-            _plugin.Config.RelicGrindMode = relic;
-            configChanged = true;
-        }
+        bool b = _plugin.Config.SwapZones;
+        if (ImGui.Checkbox("Swap zones when dry", ref b)) { _plugin.Config.SwapZones = b; dirty = true; }
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Lifestream-teleport to a random zone when no FATEs are active. Suppressed while you have Twist of Fate.");
 
-        ImGui.Spacing();
-        ImGui.Separator();
-        ImGui.Spacing();
+        b = _plugin.Config.AutoSyncLevel;
+        if (ImGui.Checkbox("Auto level-sync inside FATEs", ref b)) { _plugin.Config.AutoSyncLevel = b; dirty = true; }
 
-        // Blacklist Management
-        ImGui.TextColored(ImGuiColors.DalamudWhite, $"FATE Blacklist ({_plugin.Config.BlacklistedFateIds.Count} items):");
+        ImGui.Spacing(); ImGui.Separator(); ImGui.Spacing();
+        ImGui.TextColored(ImGuiColors.DalamudWhite, $"Blacklist ({_plugin.Config.BlacklistedFateIds.Count} items):");
         if (_plugin.Config.BlacklistedFateIds.Count > 0)
         {
             ImGui.Spacing();
-            if (ImGui.Button("Clear Entire Blacklist"))
-            {
-                _plugin.Config.BlacklistedFateIds.Clear();
-                _plugin.SaveConfig();
-            }
-
+            if (ImGui.Button("Clear all")) { _plugin.Config.BlacklistedFateIds.Clear(); _plugin.SaveConfig(); }
             ImGui.Spacing();
-            if (ImGui.BeginChild("BlacklistChild", new Vector2(0, 120), true))
+            if (ImGui.BeginChild("BL", new Vector2(0, 140), true))
             {
-                uint[] blacklistedIds = _plugin.Config.BlacklistedFateIds.ToArray();
-                foreach (uint bid in blacklistedIds)
+                foreach (var bid in _plugin.Config.BlacklistedFateIds.ToArray())
                 {
-                    if (ImGui.SmallButton($"Remove###RBL_{bid}"))
-                    {
-                        _plugin.Config.BlacklistedFateIds.Remove(bid);
-                        _plugin.SaveConfig();
-                    }
-                    ImGui.SameLine();
-                    ImGui.Text($"FATE ID: {bid}");
+                    if (ImGui.SmallButton($"Remove##{bid}")) { _plugin.Config.BlacklistedFateIds.Remove(bid); _plugin.SaveConfig(); }
+                    ImGui.SameLine(); ImGui.Text($"FATE {bid}");
                 }
                 ImGui.EndChild();
             }
         }
         else
         {
-            ImGui.TextColored(ImGuiColors.DalamudGrey, "Blacklist is currently empty.");
+            ImGui.TextColored(ImGuiColors.DalamudGrey, "(empty)");
         }
 
-        if (configChanged)
-        {
-            _plugin.SaveConfig();
-        }
+        if (dirty) _plugin.SaveConfig();
     }
 
-    public void Dispose()
-    {
-    }
+    public void Dispose() { }
 }

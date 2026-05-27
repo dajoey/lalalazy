@@ -1,8 +1,8 @@
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
-    <Version>0.0.1.3</Version>
+    <Version>0.0.2.0</Version>
     <AssemblyName>LazyFATEAutomator</AssemblyName>
-    <Description>Fully automated FATE grinding utilizing vnavmesh, lifestream, and Gluttony Combo IPC.</Description>
+    <Description>Fully automated FATE grinding utilizing vnavmesh IPC, lifestream, and Gluttony Combo IPC.</Description>
     <IsPackable>false</IsPackable>
     <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
     <SupportedOSPlatformVersion>8.0</SupportedOSPlatformVersion>
@@ -14,7 +14,7 @@
     <Author>dajoey</Author>
     <Name>Lazy FATE Automator</Name>
     <InternalName>LazyFATEAutomator</InternalName>
-    <Punchline>Fully automated FATE grinding utilizing vnavmesh, lifestream, and Gluttony Combo</Punchline>
+    <Punchline>Fully automated FATE grinding using vnavmesh IPC + Gluttony Combo.</Punchline>
     <ApplicableVersion>any</ApplicableVersion>
     <Tags>fate;automation;navigation;combat;vnavmesh</Tags>
     <CategoryTags>utility</CategoryTags>
@@ -23,7 +23,7 @@
     <LoadSync>false</LoadSync>
     <CanUnloadAsync>false</CanUnloadAsync>
     <LoadPriority>0</LoadPriority>
-    <AcceptsFeedback>false</AcceptsFeedback>
+    <AcceptsFeedback>true</AcceptsFeedback>
   </PropertyGroup>
   <ItemGroup>
     <Content Include="LazyFATEAutomator.json" />
@@ -31,9 +31,19 @@
   <ItemGroup>
     <PackageReference Include="ECommons" Version="3.2.0.9" />
   </ItemGroup>
+  <!--
+    Prune output to drop Dalamud-provided assemblies (FFXIVClientStructs, ImGuiNet, Lumina,
+    Newtonsoft.Json, etc.) which would otherwise be duplicated into the plugin folder.
+    Allowlist approach: keep our own DLL + every NuGet package we explicitly reference.
+    If you add a PackageReference above, add its assembly name here.
+  -->
   <Target Name="PruneOutputDlls" AfterTargets="ResolveReferences">
     <ItemGroup>
-      <_KeepDlls Include="@(ReferenceCopyLocalPaths)" Condition="           '%(Filename)' == 'LazyFATEAutomator' or           '%(Filename)' == 'ECommons'         " />
+      <_KeepDlls Include="@(ReferenceCopyLocalPaths)"
+                 Condition="
+                   '%(Filename)' == 'LazyFATEAutomator' or
+                   '%(Filename)' == 'ECommons'
+                 " />
       <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)" />
       <ReferenceCopyLocalPaths Include="@(_KeepDlls)" />
     </ItemGroup>

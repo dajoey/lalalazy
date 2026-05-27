@@ -2,8 +2,8 @@
     "Author":  "dajoey",
     "Name":  "Lazy FATE Automator",
     "InternalName":  "LazyFATEAutomator",
-    "AssemblyVersion":  "0.0.1.3",
-    "Description":  "Grinds open-world FATEs by prioritizing Twist of Fate experience bonuses, active progress, and proximity. Integrates with vnavmesh for flight/navigation, lifestream for zone teleports, and Gluttony Combo IPC to automatically lock optimal rotation settings. Use /lazyfate to open.",
+    "AssemblyVersion":  "0.0.2.0",
+    "Description":  "Fully automated FATE grinding using vnavmesh IPC, Mount Roulette / Dismount via ActionManager, Gluttony Combo IPC for combat, and a priority-aware sort engine ported from CBT (Croizat\u0027s Bundle of Tweaks / Automaton).",
     "ApplicableVersion":  "any",
     "Tags":  [
                  "fate",
@@ -25,6 +25,6 @@
                   ],
     "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyfateautomator-icon.png",
     "Punchline":  "Fully automated FATE grinding utilizing vnavmesh, lifestream, and Gluttony Combo.",
-    "Changelog":  "v0.0.1.3 - Fix movement stutter: only re-issue vnav flyto/moveto when destination shifts \u003e5y, instead of every 500ms tick.\nv0.0.1.2 - Fix mount/dismount: corrected ActionType enum (was EventAction, now GeneralAction) and General Action IDs (Mount Roulette 9, Dismount 23; was incorrectly Flying Mount Roulette 24 and Minion Roulette 10).\nv0.0.1 - Initial development version.",
+    "Changelog":  "v0.0.2.0 - Major rewrite. NavigationHelper now uses vnavmesh IPC subscribers (SimpleMove.PathfindAndMoveTo, Path.IsRunning, Query.Mesh.NearestPointReachable) instead of chat commands. Stuck detection uses live navmesh state. FATESolver fixes the operator-precedence bug in NPC matching, drops magic-string sort criteria for a typed enum + descending toggle, and adds a deterministic tiebreaker. State machine re-evaluates the target FATE every tick so higher-priority FATEs preempt mid-path. Configuration has a real Version migration scaffold; bad values are clamped. Tick loop has try/catch with exponential backoff (auto-stops after 5 consecutive errors). New /lazyfate start|stop|toggle|status subcommands. UI: sort-order editor, eligibility highlighting, distance column, Gluttony lease indicator, ImGui % escaping.\nv0.0.1.3 - Fix movement stutter.\nv0.0.1.2 - Fix mount/dismount enum + IDs.\nv0.0.1 - Initial development version.",
     "AcceptsFeedback":  true
 }
