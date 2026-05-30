@@ -34,6 +34,7 @@ $nameMapping = @{
     "LazyWTMath"           = "Lazy-WT-Math.md"
     "LazySightseeing"      = "Lazy-Sightseeing.md"
     "LazyCurrencySpender"  = "Lazy-Currency-Spender.md"
+    "LazyFateAutomation"   = "Lazy-Fate-Automation.md"
 }
 
 foreach ($plugin in $manifest) {
