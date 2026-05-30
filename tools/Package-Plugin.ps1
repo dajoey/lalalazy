@@ -143,7 +143,7 @@ Get-ChildItem $releaseDir -Filter "*.dll" | Where-Object {
     $_.Name -ne "$PluginName.dll" -and 
     $_.Name -ne "ECommons.dll" -and
     $_.Name -notmatch "Dalamud" -and
-    $_.Name -notmatch "Lumina" -and
+    $_.Name -notmatch "^Lumina(\.Excel)?\.dll$" -and
     $_.Name -notmatch "Newtonsoft"
 } | ForEach-Object {
     Copy-Item $_.FullName "$stageDir\"
