@@ -215,6 +215,15 @@ public partial class Configuration : IPluginConfiguration
     [SettingCategory(Rotation_Behavior_Options)]
     [Setting(Setting.Type.Toggle)]
     public bool ActionChanging = true;
+    /// <summary>
+    /// Whether to auto-dismount when the plugin tries to fire an ability
+    /// while the player is mounted. The ability press is swallowed;
+    /// the user has to press again after dismounting. Default: true.
+    /// </summary>
+    /// <seealso cref="GluttonyCombo.Data.ActionWatching.UseActionDetour"/>
+    [SettingCategory(Rotation_Behavior_Options)]
+    [Setting(Setting.Type.Toggle)]
+    public bool DismountOnAbility = true;
 
     [SettingCategory(Rotation_Behavior_Options)]
     [Setting(Setting.Type.Toggle)]

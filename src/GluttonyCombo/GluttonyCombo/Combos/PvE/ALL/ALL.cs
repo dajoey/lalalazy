@@ -45,6 +45,8 @@ internal partial class All
     {
         public const ushort
             Stun = 2,
+            Pacification = 6,
+            Silence = 7,
             Weakness = 43,
             BrinkOfDeath = 44;
     }

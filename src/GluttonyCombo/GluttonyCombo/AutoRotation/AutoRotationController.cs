@@ -423,6 +423,31 @@ internal unsafe class AutoRotationController
             if (!action.IsHeal && HasStatusEffect(418))
                 continue;
 
+
+            // Pacification: skip oGCD abilities entirely
+            if (HasStatusEffect(All.Debuffs.Pacification))
+            {
+                uint pacCheckAct = attributes.ReplaceSkill!.ActionIDs.First();
+                if (pacCheckAct.ActionAttackType() is ActionAttackType.Ability)
+                    continue;
+            }
+
+            // Silence: try echo drops first, then skip spells
+            if (HasStatusEffect(All.Debuffs.Silence))
+            {
+                uint silCheckAct = attributes.ReplaceSkill!.ActionIDs.First();
+                if (silCheckAct.ActionAttackType() is ActionAttackType.Spell)
+                {
+                    // Try to use Echo Drops (item ID 4566, +1000000 for HQ offset)
+                    if (AnimationLock == 0 && ActionManager.Instance()->GetActionStatus(ActionType.Item, 4566 + 1000000) == 0)
+                    {
+                        ActionManager.Instance()->UseAction(ActionType.Item, 4566 + 1000000);
+                        return false;
+                    }
+                    continue; // Skip this spell, fall through to weaponskills
+                }
+            }
+
             uint gameAct = attributes.ReplaceSkill!.ActionIDs.First();
             var status = ActionManager.Instance()->GetActionStatus(ActionType.Action, gameAct, checkCastingActive: false, checkRecastActive: false);
 
