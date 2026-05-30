@@ -1,4 +1,4 @@
-﻿using System.Threading;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace LazyFateAutomation.Helpers.Services;
@@ -66,7 +66,7 @@ public abstract class AutoTask {
         var task = Execute();
         await task.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing); // we don't really care about cancelation...
         if (task.IsFaulted)
-            Svc.Log.Warning($"Task ended with error: {task.Exception}");
+            Svc.Log.PrintWarning($"Task ended with error: {task.Exception}");
         InvokeDisposables();
         completed();
         OnCompleted?.Invoke();
@@ -168,9 +168,21 @@ public abstract class AutoTask {
         }
     }
 
-    protected void Log(string message) => Svc.Log.Debug($"[{GetType().Name}] [{string.Join(" > ", _debugContext)}] {message}");
-    protected void Verbose(string message) => Svc.Log.Verbose($"[{GetType().Name}] [{string.Join(" > ", _debugContext)}] {message}");
-    protected void Warning(string message) => Svc.Log.Warning($"[{GetType().Name}] [{string.Join(" > ", _debugContext)}] {message}");
+    protected void Log(string message) {
+        var msg = $"[{GetType().Name}] [{string.Join(" > ", _debugContext)}] {message}";
+        Svc.Log.Debug(msg);
+        Svc.LogToFile("DBG", msg);
+    }
+    protected void Verbose(string message) {
+        var msg = $"[{GetType().Name}] [{string.Join(" > ", _debugContext)}] {message}";
+        Svc.Log.Verbose(msg);
+        Svc.LogToFile("TRC", msg);
+    }
+    protected void Warning(string message) {
+        var msg = $"[{GetType().Name}] [{string.Join(" > ", _debugContext)}] {message}";
+        Svc.Log.Warning(msg);
+        Svc.LogToFile("WRN", msg);
+    }
     protected void WarningIf(bool condition, string message) {
         if (condition)
             Warning(message);
@@ -181,8 +193,11 @@ public abstract class AutoTask {
 
     // abort a task unconditionally
     protected void Error(string message) {
-        Svc.Log.Error($"Error: {message}");
-        throw new Exception($"[{GetType().Name}] [{string.Join(" > ", _debugContext)}] {message}");
+        var msg = $"Error: {message}";
+        Svc.Log.Error(msg);
+        var fullMsg = $"[{GetType().Name}] [{string.Join(" > ", _debugContext)}] {message}";
+        Svc.LogToFile("ERR", fullMsg);
+        throw new Exception(fullMsg);
     }
 
     // abort a task if condition is true
@@ -235,7 +250,7 @@ public sealed class Automation : IDisposable {
         }
 
         if (CurrentTask != null) {
-            Svc.Log.Debug($"[{nameof(Automation)}] Canceling current task: {CurrentTask.GetType().Name}");
+            Svc.Log.Print($"[{nameof(Automation)}] Canceling current task: {CurrentTask.GetType().Name}");
         }
         Stop();
         CurrentTask = task;

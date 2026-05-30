@@ -37,10 +37,41 @@ public class Svc {
         pi.Create<Svc>();
         Navmesh = new NavmeshIPC();
     }
+
+    public static void LogToFile(string level, string message) {
+        try {
+            var logPath = System.IO.Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.ApplicationData), "XIVLauncher", "addon", "Hooks", "dev", "LazyFateAutomation.log");
+            
+            var wineHomeLogDir = $"Z:\\home\\{System.Environment.UserName}\\.xlcore\\logs";
+            if (System.IO.Directory.Exists(wineHomeLogDir)) {
+                logPath = System.IO.Path.Combine(wineHomeLogDir, "LazyFateAutomation.log");
+            }
+            else if (!System.IO.Directory.Exists(System.IO.Path.GetDirectoryName(logPath))) {
+                logPath = System.IO.Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile), ".xlcore", "logs", "LazyFateAutomation.log");
+            }
+            
+            var dir = System.IO.Path.GetDirectoryName(logPath);
+            if (!string.IsNullOrEmpty(dir)) {
+                System.IO.Directory.CreateDirectory(dir);
+            }
+            
+            System.IO.File.AppendAllText(logPath, $"[{System.DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [{level}] {message}\n");
+        }
+        catch { }
+    }
 }
 
 internal static class LogExtensions {
-    public static void Print(this IPluginLog log, string message) => log.Debug($"[LazyFateAutomation] {message}");
-    public static void PrintWarning(this IPluginLog log, string message) => log.Warning($"[LazyFateAutomation] {message}");
-    public static void PrintError(this IPluginLog log, string message) => log.Error($"[LazyFateAutomation] {message}");
+    public static void Print(this IPluginLog log, string message) {
+        log.Debug($"[LazyFateAutomation] {message}");
+        Svc.LogToFile("DBG", $"[LazyFateAutomation] {message}");
+    }
+    public static void PrintWarning(this IPluginLog log, string message) {
+        log.Warning($"[LazyFateAutomation] {message}");
+        Svc.LogToFile("WRN", $"[LazyFateAutomation] {message}");
+    }
+    public static void PrintError(this IPluginLog log, string message) {
+        log.Error($"[LazyFateAutomation] {message}");
+        Svc.LogToFile("ERR", $"[LazyFateAutomation] {message}");
+    }
 }
