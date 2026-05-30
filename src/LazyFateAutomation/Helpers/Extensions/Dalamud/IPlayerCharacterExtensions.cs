@@ -28,7 +28,6 @@ public static unsafe class IPlayerCharacterExtensions {
         (pc?.IsCasting ?? false) ||
         pc.IsMoving() ||
         ActionManager.Instance()->AnimationLock > 0 ||
-        Svc.Condition[ConditionFlag.InCombat] ||
         !GameMainExtensions.IsTerritoryLoaded;
 
     public static RowRef<TerritoryType> Territory(this IPlayerCharacter? pc) => Svc.Data.GetRef<TerritoryType>(Svc.ClientState.TerritoryType);

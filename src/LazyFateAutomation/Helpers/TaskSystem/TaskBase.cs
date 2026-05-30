@@ -113,6 +113,15 @@ public abstract class TaskBase : AutoTask {
             Status = $"Moving to {dest}";
             using var stop = new OnDispose(Service.Navmesh.Stop);
 
+            if (config.Movement.HasFlag(MovementOptions.Fly) && Player.Mounted() && !Player.InFlight() && Control.CanFly) {
+                await NextFrame(15);
+                if (Player.Mounted() && !Player.InFlight()) {
+                    Log("Mounted but not flying. Executing jump to initiate flight...");
+                    ActionManagerExtensions.UseAction(ActionType.GeneralAction, 2); // Jump
+                    await NextFrame(10);
+                }
+            }
+
             if (stopCondition is null)
                 await WaitWhile(() => !Player.WithinRange(dest, tolerance), "Navigate");
             else {
@@ -124,7 +133,7 @@ public abstract class TaskBase : AutoTask {
             }
         }
 
-        if (config.Movement.HasFlag(MovementOptions.Dismount) && Player.WithinRange(dest, tolerance)) // only dismount if we're close
+        if (config.Movement.HasFlag(MovementOptions.Dismount) && (Player.WithinRange(dest, tolerance) || Svc.Condition[ConditionFlag.InCombat] || PublicEvent.CurrentFate != null)) // only dismount if we're close or ready to fight
             await Dismount();
     }
 

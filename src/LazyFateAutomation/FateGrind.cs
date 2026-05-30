@@ -297,6 +297,11 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
 
             stopReason = MoveStopReason.None;
 
+            if (PublicEvent.CurrentFate is { } current && NextFate is { } next && current.Id == next.Id) {
+                stopReason = MoveStopReason.None;
+                return true;
+            }
+
             if (IsCurrentFateInvalid()) {
                 stopReason = MoveStopReason.FateInvalid;
                 return true;
