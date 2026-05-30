@@ -440,21 +440,36 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
                 return;
             }
 
-            if (Service.BossMod.GetActive() != _presetName) {
-                if (Service.BossMod.Get(_presetName) is null) {
-                    Service.BossMod.Create(_preset, true);
-                    Service.BossMod.SetActive(_presetName);
-                    Service.BossMod.Activate();
+            try {
+                if (Service.BossMod.IsLoaded) {
+                    if (Service.BossMod.GetActive() != _presetName) {
+                        if (Service.BossMod.Get(_presetName) is null) {
+                            Service.BossMod.Create(_preset, true);
+                        }
+                        Service.BossMod.SetActive(_presetName);
+                        try {
+                            Service.BossMod.Activate();
+                        } catch (Exception ex) {
+                            Log($"Failed to call BossMod Activate IPC: {ex.Message}");
+                        }
+                    }
+                    try {
+                        Svc.BossMod.AddTransientStrategy(_presetName, "BossMod.Autorotation.MiscAI.AutoTarget", "MaxTargets", PullSize.ToString());
+                    } catch (Exception ex) {
+                        Log($"Failed to call BossMod AddTransientStrategy IPC: {ex.Message}");
+                    }
                 }
-                else {
-                    Service.BossMod.SetActive(_presetName);
-                    Service.BossMod.Activate();
-                }
+            } catch (Exception ex) {
+                Log($"Failed to configure BossMod preset: {ex.Message}");
             }
-            Svc.BossMod.AddTransientStrategy(_presetName, "BossMod.Autorotation.MiscAI.AutoTarget", "MaxTargets", PullSize.ToString());
 
-            if (PublicEvent.CurrentFate is { Rule: PublicEvent.FateRule.Collect } && !Svc.TextAdvance.IsInExternalControl())
-                Svc.TextAdvance.EnableExternalControl(tweak.Name, new() { EnableTalkSkip = true, EnableRequestFill = true, EnableRequestHandin = true });
+            try {
+                if (PublicEvent.CurrentFate is { Rule: PublicEvent.FateRule.Collect } && !Svc.TextAdvance.IsInExternalControl()) {
+                    Svc.TextAdvance.EnableExternalControl(tweak.Name, new() { EnableTalkSkip = true, EnableRequestFill = true, EnableRequestHandin = true });
+                }
+            } catch (Exception ex) {
+                Log($"Failed to call TextAdvance EnableExternalControl IPC: {ex.Message}");
+            }
         }
         else {
             // Fate ended; clear NextFate so routing is correct. Only turn off combat preset once out of combat,
@@ -469,11 +484,30 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
         if (clearNextFate)
             NextFate = null;
 
-        Service.BossMod.ClearActive();
-        Service.BossMod.Deactivate();
+        try {
+            if (Service.BossMod.IsLoaded) {
+                Service.BossMod.ClearActive();
+            }
+        } catch (Exception ex) {
+            Log($"Failed to call BossMod ClearActive IPC: {ex.Message}");
+        }
+
+        try {
+            if (Service.BossMod.IsLoaded) {
+                Service.BossMod.Deactivate();
+            }
+        } catch (Exception ex) {
+            Log($"Failed to call BossMod Deactivate IPC: {ex.Message}");
+        }
+
         Svc.Targets.Target = null; // avoid preset trying to go to the mob and interfering with casts
-        if (Svc.TextAdvance.IsInExternalControl())
-            Svc.TextAdvance.DisableExternalControl(tweak.Name);
+
+        try {
+            if (Svc.TextAdvance.IsInExternalControl())
+                Svc.TextAdvance.DisableExternalControl(tweak.Name);
+        } catch (Exception ex) {
+            Log($"Failed to call TextAdvance DisableExternalControl IPC: {ex.Message}");
+        }
     }
 
     private bool TryGetValidMotivationNpc(PublicEvent fate, [NotNullWhen(true)] out IGameObject? npc) {

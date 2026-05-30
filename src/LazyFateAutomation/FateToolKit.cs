@@ -93,7 +93,13 @@ public class FateToolKit : IFateGrindRunState {
             else {
                 PendingStopWhenSafe = false;
                 CurrentState = "Idle";
-                Service.BossMod.ClearActive();
+                try {
+                    if (Service.BossMod.IsLoaded) {
+                        Service.BossMod.ClearActive();
+                    }
+                } catch (Exception ex) {
+                    Svc.Log.PrintWarning($"Failed to call BossMod ClearActive IPC: {ex.Message}");
+                }
                 Service.Automation.Stop();
                 RunUntilCompleted = null;
             }
