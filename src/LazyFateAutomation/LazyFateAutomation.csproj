@@ -1,0 +1,42 @@
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <Version>0.0.1.1</Version>
+    <AssemblyName>LazyFateAutomation</AssemblyName>
+    <Description>Fully automated FATE grinding utilizing vnavmesh, lifestream, and Gluttony Combo.</Description>
+    <IsPackable>false</IsPackable>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <SupportedOSPlatformVersion>8.0</SupportedOSPlatformVersion>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Author>croizat, dajoey</Author>
+    <Name>Lazy Fate Automation</Name>
+    <InternalName>LazyFateAutomation</InternalName>
+    <Punchline>Fully automated FATE grinding utilizing vnavmesh, lifestream, and Gluttony Combo</Punchline>
+    <ApplicableVersion>any</ApplicableVersion>
+    <Tags>fate;grind;automation;relic;yokai;vnavmesh</Tags>
+    <CategoryTags>utility</CategoryTags>
+    <DalamudApiLevel>15</DalamudApiLevel>
+    <LoadRequiredState>0</LoadRequiredState>
+    <LoadSync>false</LoadSync>
+    <CanUnloadAsync>false</CanUnloadAsync>
+    <LoadPriority>0</LoadPriority>
+    <AcceptsFeedback>false</AcceptsFeedback>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Include="LazyFateAutomation.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="ECommons" Version="3.2.0.9" />
+    <PackageReference Include="LuminaSupplemental.Excel" Version="4.1.1" />
+  </ItemGroup>
+  <Target Name="PruneOutputDlls" AfterTargets="ResolveReferences">
+    <ItemGroup>
+      <_KeepDlls Include="@(ReferenceCopyLocalPaths)" Condition="           '%(Filename)' == 'LazyFateAutomation' or           '%(Filename)' == 'ECommons' or           '%(Filename)' == 'LuminaSupplemental.Excel'         " />
+      <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)" />
+      <ReferenceCopyLocalPaths Include="@(_KeepDlls)" />
+    </ItemGroup>
+  </Target>
+</Project>

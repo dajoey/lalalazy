@@ -1,0 +1,31 @@
+{
+    "Author":  "croizat, dajoey",
+    "Name":  "Lazy Fate Automation",
+    "InternalName":  "LazyFateAutomation",
+    "AssemblyVersion":  "0.0.1.1",
+    "Description":  "Automates FATE grinding, including Zodiac Atma, Anima Luminous Crystals, Resistance Memories, Phantom Demiatmas, Yo-kai Watch Medals, and Bicolor Gemstones. Seamlessly integrates with vnavmesh for pathing and flight, lifestream for zone swapping, TextAdvance for dialogue skipping, and Gluttony Combo/BossMod for combat. Use /lazyfate to open.",
+    "ApplicableVersion":  "any",
+    "Tags":  [
+                 "fate",
+                 "grind",
+                 "automation",
+                 "relic",
+                 "yokai",
+                 "vnavmesh"
+             ],
+    "CategoryTags":  [
+                         "utility"
+                     ],
+    "DalamudApiLevel":  15,
+    "LoadRequiredState":  0,
+    "LoadSync":  false,
+    "CanUnloadAsync":  false,
+    "LoadPriority":  0,
+    "ImageUrls":  [
+                      ""
+                  ],
+    "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyfateautomation-icon.png",
+    "Punchline":  "Fully automated FATE grinding utilizing vnavmesh, lifestream, and Gluttony Combo.",
+    "Changelog":  "v0.0.1 - Initial FATE grinding module spin-off with BossMod and BossModReborn support.",
+    "AcceptsFeedback":  true
+}
