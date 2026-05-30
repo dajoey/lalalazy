@@ -271,7 +271,7 @@
         "Punchline":  "Fully automated FATE grinding utilizing vnavmesh, lifestream, and Gluttony Combo.",
         "Description":  "Automates FATE grinding, including Zodiac Atma, Anima Luminous Crystals, Resistance Memories, Phantom Demiatmas, Yo-kai Watch Medals, and Bicolor Gemstones. Seamlessly integrates with vnavmesh for pathing and flight, lifestream for zone swapping, TextAdvance for dialogue skipping, and Gluttony Combo/BossMod for combat. Use /lazyfate to open.",
         "InternalName":  "LazyFateAutomation",
-        "AssemblyVersion":  "0.0.1.1",
+        "AssemblyVersion":  "0.0.1.2",
         "Changelog":  "v0.0.1.0 - Standalone Release\n- Initial extraction of FateToolKit module from CBT into standalone plugin.\n- Refactored all CBT extensions to standard C#.\n- Added support for BossMod or BossModReborn as active rotation systems.",
         "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/LazyFateAutomation",
         "ApplicableVersion":  "any",
