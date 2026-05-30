@@ -1,20 +1,14 @@
+using LazyFateAutomation.Helpers.ImGuiHelpers;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Windowing;
 using Dalamud.Game.Text;
 using Dalamud.Interface;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility.Raii;
-using Dalamud.Interface.Windowing;
 using ECommons.ImGuiMethods;
 using System.Globalization;
 using System.Reflection;
 using System.Text;
-using System.Collections.Generic;
-using System.Linq;
-using System.Numerics;
-using LazyFateAutomation.Helpers.IPC;
-using LazyFateAutomation.Helpers.Services;
-using LazyFateAutomation.Helpers.Utils;
-using LazyFateAutomation.Helpers.Extensions;
 
 namespace LazyFateAutomation;
 
@@ -64,7 +58,7 @@ public class FateToolKitWindow : MinimisableWindow {
                     _tweak.ToggleRunning();
                 }
             }
-            TooltipOnHover(_tweak.Running, $"Stop. Ctrl+{SeIconChar.MouseLeftClick.ToIconString()} soft stop");
+            ImGui.TooltipOnHover(_tweak.Running, $"Stop. Ctrl+{SeIconChar.MouseLeftClick.ToIconString()} soft stop");
 
             ImGui.SameLine();
             DrawHeaderChip(
@@ -112,11 +106,11 @@ public class FateToolKitWindow : MinimisableWindow {
                     _tweak.OpenZoneSelector();
             }
             if (_tweak.ModeSuppliesSwapZones)
-                TooltipOnHover(ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled), "Zone list is defined by the current grind mode. Switch to None to select zones manually.");
+                ImGui.TooltipOnHover(ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled), "Zone list is defined by the current grind mode. Switch to None to select zones manually.");
             else if (_tweak.HasSelectedSwapZones)
-                TooltipOnHover($"Swap Zones: {_tweak.SelectedSwapZones.Count}");
+                ImGui.TooltipOnHover($"Swap Zones: {_tweak.SelectedSwapZones.Count}");
             else
-                TooltipOnHover("Swap Zones (uses default swap behaviour if none selected)");
+                ImGui.TooltipOnHover("Swap Zones (uses default swap behaviour if none selected)");
 
             if (minimised) {
                 MinimisedContentWidth = Math.Max(400, leftContentRight - ImGui.GetWindowPos().X + leftRightGap + rightButtonWidth + style.WindowPadding.X * 2);
@@ -129,7 +123,7 @@ public class FateToolKitWindow : MinimisableWindow {
         if (minimised)
             return;
 
-        SpacedSeparator();
+        ImGui.SpacedSeparator();
 
         if (_tweak.GetOrderedFates().ToList() is not { Count: > 0 } fates) {
             ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1f), "No fates match the current filters.");
@@ -149,28 +143,28 @@ public class FateToolKitWindow : MinimisableWindow {
                 var isBlacklisted = _tweak.IsBlacklisted(fate);
 
                 if (fate.HasBonus) {
-                    ImGui.Image(Svc.Texture.GetFromGameIcon(new Dalamud.Interface.Textures.GameIconLookup(65001)).GetWrapOrEmpty().Handle, new Vector2(IconUnitHeight()));
+                    ImGui.Image(Svc.Texture.GetFromGameIcon(new Dalamud.Interface.Textures.GameIconLookup(65001)).GetWrapOrEmpty().Handle, new Vector2(ImGui.IconUnitHeight()));
                     ImGui.SameLine(0f, 0f);
                 }
 
                 using (var nameCol = ImRaii.PushColor(ImGuiCol.Text, isAvailable && !isBlacklisted ? (uint)EzColor.White : Colors.Grey3)) {
                     if (ImGui.Button(displayName, new Vector2(
                         fate.HasBonus
-                            ? Math.Max(1f, nameWidth - IconUnitWidth())
+                            ? Math.Max(1f, nameWidth - ImGui.IconUnitWidth())
                             : nameWidth,
                         0
                     ))) {
-                        if (Service.Navmesh.IsRunning())
-                            Service.Navmesh.Stop();
+                        if (Svc.Navmesh.IsRunning())
+                            Svc.Navmesh.Stop();
                         else
-                            Service.Navmesh.PathfindAndMoveTo(fate.Position.RandomPoint(fate.Radius * 0.5f).OnMesh(), Svc.Condition[ConditionFlag.InFlight]);
+                            Svc.Navmesh.PathfindAndMoveTo(fate.Position.RandomPoint(fate.Radius * 0.5f).OnMesh(), Svc.Condition[ConditionFlag.InFlight]);
                     }
                 }
 
                 if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
                     _tweak.ToggleBlacklist(fate);
 
-                TooltipOnHover(BuildFateTooltip(fate, displayName, isBlacklisted));
+                ImGui.TooltipOnHover(BuildFateTooltip(fate, displayName, isBlacklisted));
             }
 
             ImGui.SameLine();
@@ -182,23 +176,23 @@ public class FateToolKitWindow : MinimisableWindow {
             var labelSize = ImGui.CalcTextSize(progressLabel);
             var textX = Math.Max(0f, progressWidth - labelSize.X - 4f);
 
-            using (var color = ImRaii.PushColor(ImGuiCol.PlotHistogram, Config.BarColour))
+            using (var color = ImRaii.PushColor(ImGuiCol.PlotHistogram, _tweak.Config.BarColour))
                 ImGui.ProgressBar(percentage, new Vector2(progressWidth, ImGui.GetFrameHeight()), "");
 
             ImGui.SetCursorPos(new Vector2(cursorPos.X + textX, cursorPos.Y + (ImGui.GetFrameHeight() - labelSize.Y) * 0.5f));
             ImGui.TextColored(
-                GetProgressBarTextColor(Config.BarColour, ImGui.GetStyle().Colors[(int)ImGuiCol.FrameBg], percentage, textX, labelSize.X, progressWidth),
+                ImGui.GetProgressBarTextColor(_tweak.Config.BarColour, ImGui.GetStyle().Colors[(int)ImGuiCol.FrameBg], percentage, textX, labelSize.X, progressWidth),
                 progressLabel
             );
 
-            SpacedSeparator();
+            ImGui.SpacedSeparator();
         }
     }
 
     private void DrawModeButton() {
         if (ImGuiComponents.IconButton("###GrindMode", FontAwesomeIcon.List))
             ImGui.OpenPopup("###GrindModePopup");
-        TooltipOnHover($"Grind mode: {_tweak.GetCurrentMode().DisplayName}\nEXPERIMENTAL (didn't get to test non-gemstones)");
+        ImGui.TooltipOnHover($"Grind mode: {_tweak.GetCurrentMode().DisplayName}\nEXPERIMENTAL (didn't get to test non-gemstones)");
 
         using var popup = ImRaii.Popup("###GrindModePopup");
         if (popup) {
@@ -227,18 +221,14 @@ public class FateToolKitWindow : MinimisableWindow {
 
         ImGui.TextColored(new Vector4(0.8f, 0.8f, 1f, 1f), "Display Name");
         ImGui.Spacing();
-        TextV("Format:");
+        ImGuiEx.TextV("Format:");
         ImGui.SameLine();
         ImGui.SetNextItemWidth(400f);
-        var fmt = Config.DisplayNameFormat;
-        if (ImGui.InputText("###DisplayNameFormat", ref fmt, 256)) {
-            Config.DisplayNameFormat = fmt;
-            Config.Save();
-        }
+        ImGui.InputText("###DisplayNameFormat", ref _tweak.Config.DisplayNameFormat, 256);
         ImGuiComponents.HelpMarker("Available tokens: {Level}, {Name}, {Id}, {Progress}, {TimeRemaining}, {Distance}, {State}");
         ImGui.Spacing();
 
-        var sortOrder = Config.SortOrder.ToList();
+        var sortOrder = _tweak.Config.SortOrder.ToList();
         for (var i = 0; i < sortOrder.Count; i++) {
             using var id = ImRaii.PushId($"sort_{i}");
             var item = sortOrder[i];
@@ -247,18 +237,17 @@ public class FateToolKitWindow : MinimisableWindow {
             var handleSize = new Vector2(ImGui.GetFrameHeight());
             ImGui.Button($"##Drag{i}", handleSize);
 
-            DragDropSource(i, "FATE_SORT_ITEM"u8, criteria.ToString().Replace("_", " "));
-            DragDropTarget(i, "FATE_SORT_ITEM"u8, sortOrder.Count, (sourceIndex, insertIndex) => {
+            ImGui.DragDropSource(i, "FATE_SORT_ITEM"u8, criteria.ToString().Replace("_", " "));
+            ImGui.DragDropTarget(i, "FATE_SORT_ITEM"u8, sortOrder.Count, (sourceIndex, insertIndex) => {
                 var dragged = sortOrder[sourceIndex];
                 sortOrder.RemoveAt(sourceIndex);
                 if (sourceIndex < insertIndex)
                     insertIndex--;
                 sortOrder.Insert(insertIndex, dragged);
-                Config.SortOrder = sortOrder;
-                Config.Save();
+                _tweak.Config.SortOrder = sortOrder;
             });
 
-            TooltipOnHover("Drag to change priority order");
+            ImGui.TooltipOnHover("Drag to change priority order");
 
             ImGui.SameLine();
 
@@ -268,8 +257,7 @@ public class FateToolKitWindow : MinimisableWindow {
                     foreach (var crit in Enum.GetValues<FateSortCriteria>()) {
                         if (ImGui.Selectable(crit.ToString().Replace("_", " "), crit == criteria)) {
                             item.Criteria = crit;
-                            Config.SortOrder[i] = item;
-                            Config.Save();
+                            _tweak.Config.SortOrder[i] = item;
                         }
                     }
                 }
@@ -279,8 +267,7 @@ public class FateToolKitWindow : MinimisableWindow {
             var arrowIcon = item.Descending ? FontAwesomeIcon.ArrowDown : FontAwesomeIcon.ArrowUp;
             if (ImGuiComponents.IconButton($"###Dir{i}", arrowIcon)) {
                 item.Descending = !item.Descending;
-                Config.SortOrder[i] = item;
-                Config.Save();
+                _tweak.Config.SortOrder[i] = item;
             }
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip(item.Descending ? "Descending (highest first)" : "Ascending (lowest first)");
@@ -288,8 +275,7 @@ public class FateToolKitWindow : MinimisableWindow {
             ImGui.SameLine();
             if (ImGuiComponents.IconButton($"###Remove{i}", FontAwesomeIcon.Trash)) {
                 sortOrder.RemoveAt(i);
-                Config.SortOrder = sortOrder;
-                Config.Save();
+                _tweak.Config.SortOrder = sortOrder;
                 i--;
                 continue;
             }
@@ -306,8 +292,7 @@ public class FateToolKitWindow : MinimisableWindow {
                 foreach (var crit in Enum.GetValues<FateSortCriteria>()) {
                     if (ImGui.Selectable(crit.ToString().Replace("_", " "))) {
                         sortOrder.Add(new FateSortOrder { Criteria = crit, Descending = true });
-                        Config.SortOrder = sortOrder;
-                        Config.Save();
+                        _tweak.Config.SortOrder = sortOrder;
                     }
                 }
             }
@@ -315,18 +300,17 @@ public class FateToolKitWindow : MinimisableWindow {
 
         ImGui.SameLine();
         if (ImGui.Button("Reset to Default")) {
-            Config.SortOrder =
+            _tweak.Config.SortOrder =
             [
                 new() { Criteria = FateSortCriteria.HasBonusWithTwist, Descending = true },
-                new() { Criteria = FateSortCriteria.Progress, Descending = true },
-                new() { Criteria = FateSortCriteria.HasBonus, Descending = true },
-                new() { Criteria = FateSortCriteria.TimeRemainingUrgent, Descending = false },
-                new() { Criteria = FateSortCriteria.Distance, Descending = false },
+                    new() { Criteria = FateSortCriteria.Progress, Descending = true },
+                    new() { Criteria = FateSortCriteria.HasBonus, Descending = true },
+                    new() { Criteria = FateSortCriteria.TimeRemainingUrgent, Descending = false },
+                    new() { Criteria = FateSortCriteria.Distance, Descending = false },
             ];
-            Config.Save();
         }
 
-        SpacedSeparator();
+        ImGui.SpacedSeparator();
     }
 
     private string BuildFateTooltip(PublicEvent fate, string displayName, bool isBlacklisted) {
@@ -346,7 +330,7 @@ public class FateToolKitWindow : MinimisableWindow {
             var value = raw switch {
                 null => "?",
                 float f when prop.Name == nameof(PublicEvent.TimeRemaining) =>
-                    f >= 0 ? TimeSpan.FromSeconds(f).ToString(@"mm\:ss") : "∞",
+                    f >= 0 ? TimeSpan.FromSeconds(f).ToString(@"mm\:ss") : "âˆž",
                 Vector3 v when prop.Name == nameof(PublicEvent.Position) =>
                     v.ToString(),
                 bool b => b ? "True" : "False",
@@ -370,12 +354,12 @@ public class FateToolKitWindow : MinimisableWindow {
         return sb.ToString().TrimEnd();
     }
 
-    public string FormatDisplayName(PublicEvent fate) => Config.DisplayNameFormat
+    public string FormatDisplayName(PublicEvent fate) => _tweak.Config.DisplayNameFormat
         .Replace("{Level}", fate.Level.ToString())
         .Replace("{Name}", fate.Name)
         .Replace("{Id}", fate.Id.ToString())
         .Replace("{Progress}", fate.Progress.ToString())
-        .Replace("{TimeRemaining}", fate.TimeRemaining >= 0 ? TimeSpan.FromSeconds(fate.TimeRemaining).ToString(@"mm\:ss") : "∞")
+        .Replace("{TimeRemaining}", fate.TimeRemaining >= 0 ? TimeSpan.FromSeconds(fate.TimeRemaining).ToString(@"mm\:ss") : "âˆž")
         .Replace("{Distance}", Player.Available ? Player.DistanceTo(fate.Position).ToString("F1") : "?")
         .Replace("{State}", fate.State.ToString());
 }

@@ -2,7 +2,7 @@
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using System.Runtime.CompilerServices;
 
-namespace clib.Extensions;
+namespace LazyFateAutomation.Helpers.Extensions;
 
 public static unsafe class GameObjectExtensions {
     public static BattleChara* BattleChara(ref this GameObject obj) => (BattleChara*)Unsafe.AsPointer(ref obj);

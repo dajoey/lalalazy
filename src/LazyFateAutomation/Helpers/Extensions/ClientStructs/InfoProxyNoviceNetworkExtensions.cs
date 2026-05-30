@@ -1,6 +1,6 @@
 ﻿using FFXIVClientStructs.FFXIV.Client.UI.Info;
 
-namespace clib.Extensions;
+namespace LazyFateAutomation.Helpers.Extensions;
 
 public static unsafe class InfoProxyNoviceNetworkExtensions {
     extension(InfoProxyNoviceNetwork) {

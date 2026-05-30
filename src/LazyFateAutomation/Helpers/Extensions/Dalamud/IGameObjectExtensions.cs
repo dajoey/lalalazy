@@ -5,7 +5,7 @@ using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Common.Component.BGCollision;
 using Lumina.Excel.Sheets;
 
-namespace clib.Extensions;
+namespace LazyFateAutomation.Helpers.Extensions;
 
 public static class IGameObjectExtensions {
     public static unsafe BattleChara* BattleChara(this IGameObject obj) => (BattleChara*)obj.Address;

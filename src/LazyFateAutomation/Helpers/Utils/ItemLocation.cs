@@ -1,4 +1,4 @@
-using FFXIVClientStructs.FFXIV.Client.Game;
+﻿using FFXIVClientStructs.FFXIV.Client.Game;
 
 namespace LazyFateAutomation.Helpers.Utils;
 
@@ -41,7 +41,7 @@ public class ItemLocation {
         if (sorter == null)
             return new ItemLocation(Container, Slot);
 
-        var startIndex = Container.InventoryStartIndex();
+        var startIndex = Container.InventoryStartIndex;
         var sorterIndex = startIndex + Slot;
 
         if (sorterIndex < 0 || sorterIndex >= sorter->Items.LongCount)
@@ -52,11 +52,11 @@ public class ItemLocation {
             return new ItemLocation(Container, Slot);
 
         var baseType = Container switch {
-            _ when Container.IsMainInventory() => InventoryType.Inventory1,
-            _ when Container.IsSaddleBag() => Container is InventoryType.SaddleBag1 or InventoryType.SaddleBag2
+            _ when Container.IsMainInventory => InventoryType.Inventory1,
+            _ when Container.IsSaddleBag => Container is InventoryType.SaddleBag1 or InventoryType.SaddleBag2
                 ? InventoryType.SaddleBag1
                 : InventoryType.PremiumSaddleBag1,
-            _ when Container.IsRetainer() => InventoryType.RetainerPage1,
+            _ when Container.IsRetainer => InventoryType.RetainerPage1,
             _ => Container,
         };
 

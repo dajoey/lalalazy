@@ -1,8 +1,9 @@
-using ECommons.EzIpcManager;
+﻿using ECommons.EzIpcManager;
 
 namespace LazyFateAutomation.Helpers.IPC;
 
 #nullable disable
+[Ipc(Ipc.TextAdvance)]
 public class TextAdvanceIpc : BaseIPC {
     public override string Name => "TextAdvance";
     public override string Repo => Nightmare;

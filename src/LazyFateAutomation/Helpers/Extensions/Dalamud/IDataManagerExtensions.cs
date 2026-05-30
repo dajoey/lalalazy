@@ -1,4 +1,4 @@
-using Dalamud.Game;
+﻿using Dalamud.Game;
 using Dalamud.Plugin.Services;
 using Dalamud.Utility;
 using FFXIVClientStructs.FFXIV.Client.Game;
@@ -12,7 +12,7 @@ using LuminaSupplemental.Excel.Model;
 using LuminaSupplemental.Excel.Services;
 using Action = Lumina.Excel.Sheets.Action;
 
-namespace clib.Extensions;
+namespace LazyFateAutomation.Helpers.Extensions;
 
 // https://github.com/Haselnussbomber/HaselCommon/blob/main/HaselCommon/Services/ExcelService.cs
 public static class IDataManagerExtensions {
@@ -22,7 +22,7 @@ public static class IDataManagerExtensions {
         var scene = GetRow<TerritoryType>(data, territoryId)!.Value.Bg.ToString();
         var filenameStart = scene.LastIndexOf('/') + 1;
         var planeventLayerGroup = "bg/" + scene[0..filenameStart] + "planevent.lgb";
-        Svc.Log.Debug($"Territory {territoryId} -> {planeventLayerGroup}");
+        Svc.Log.Print($"Territory {territoryId} -> {planeventLayerGroup}");
         var lvb = Svc.Data.GetFile<LgbFile>(planeventLayerGroup);
         if (lvb != null) {
             foreach (var layer in lvb.Layers) {
@@ -33,11 +33,11 @@ public static class IDataManagerExtensions {
                     if (baseId == enpcId) {
                         var npcId = (1ul << 32) | instance.InstanceId;
                         Vector3 npcLocation = new(instance.Transform.Translation.X, instance.Transform.Translation.Y, instance.Transform.Translation.Z);
-                        Svc.Log.Debug($"Found npc {baseId} {instance.InstanceId} '{GetRow<ENpcResident>(data, baseId)?.Singular}' at {npcLocation}");
+                        Svc.Log.Print($"Found npc {baseId} {instance.InstanceId} '{GetRow<ENpcResident>(data, baseId)?.Singular}' at {npcLocation}");
                         if (itemId != 0) {
                             var vendor = FindVendorItem(data, baseId, itemId);
                             if (vendor.itemIndex >= 0) {
-                                Svc.Log.Debug($"Found shop #{vendor.shopId} and item index #{vendor.itemIndex}");
+                                Svc.Log.Print($"Found shop #{vendor.shopId} and item index #{vendor.itemIndex}");
                                 return new NPCInfo(npcId, npcLocation, vendor.shopId);
                             }
                         }
@@ -50,7 +50,7 @@ public static class IDataManagerExtensions {
     }
 
     public static List<Recipe> GetCraftableRecipes(this IDataManager data)
-        => [.. GetSheet<Recipe>(data).Where(r => r.ItemResult.RowId != 0).Where(r => r.IngredientsWithAmounts().All(x => x.item.GetCount() >= x.amount))];
+        => [.. GetSheet<Recipe>(data).Where(r => r.ItemResult.RowId != 0).Where(r => r.IngredientsWithAmounts.All(x => x.item.GetCount() >= x.amount))];
 
     public static List<Recipe> GetUncompletedRecipes(this IDataManager data)
         => [.. GetSheet<Recipe>(data).Where(r => r.ItemResult.RowId != 0 && r.SecretRecipeBook.RowId == 0 && r.RecipeNotebookList.RowId == 0 && !QuestManager.IsRecipeComplete(r.RowId))];
@@ -104,7 +104,7 @@ public static class IDataManagerExtensions {
         => GetSheet<T>(data, language ?? Svc.ClientState.ClientLanguage).TryGetFirst(predicate, out row);
 
     public static T? FindRow<T>(this IDataManager data, Func<T, bool> predicate) where T : struct, IExcelRow<T>
-         => Lumina.Extensions.LinqExtensions.FirstOrNull(GetSheet<T>(data), row => predicate(row));
+         => GetSheet<T>(data).FirstOrNull(row => predicate(row));
 
     public static IReadOnlyList<T> FindRows<T>(this IDataManager data, Predicate<T> predicate, ClientLanguage? language = null) where T : struct, IExcelRow<T>
         => [.. GetSheet<T>(data, language ?? Svc.ClientState.ClientLanguage).Where(row => predicate(row))];

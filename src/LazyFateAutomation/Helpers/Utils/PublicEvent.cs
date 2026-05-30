@@ -42,14 +42,14 @@ public unsafe class PublicEvent(nint address, FateType fateType, uint id) {
     }
     public static implicit operator PublicEvent(WKSMechaEvent mechaEvent) => new((nint)(&mechaEvent), FateType.MechaEvent, mechaEvent.WKSMechaEventDataRowId);
 
-    public static PublicEvent? CurrentFate => Svc.Objects.LocalPlayer == null ? null : Svc.Objects.LocalPlayer.Territory().Value.TerritoryIntendedUse.Value.StructsEnum switch {
+    public static PublicEvent? CurrentFate => Svc.Objects.LocalPlayer.Territory.Value.TerritoryIntendedUse.Value.StructsEnum switch {
         TerritoryIntendedUse.Overworld => GetCurrentFateOverworld(),
         TerritoryIntendedUse.Bozja or TerritoryIntendedUse.OccultCrescent => GetCurrentForayEvent(),
         TerritoryIntendedUse.CosmicExploration => GetCurrentCosmicEvent(),
         _ => null, // zone doesn't support FATEs (instance, city, etc.)
     };
 
-    public static IEnumerable<PublicEvent> Fates => Svc.Objects.LocalPlayer == null ? [] : Svc.Objects.LocalPlayer.Territory().Value.TerritoryIntendedUse.Value.StructsEnum switch {
+    public static IEnumerable<PublicEvent> Fates => Svc.Objects.LocalPlayer.Territory.Value.TerritoryIntendedUse.Value.StructsEnum switch {
         TerritoryIntendedUse.Overworld => GetOverworldFates(),
         TerritoryIntendedUse.Bozja or TerritoryIntendedUse.OccultCrescent => GetForayFates(),
         TerritoryIntendedUse.CosmicExploration => GetCosmicFates(),
@@ -207,7 +207,7 @@ public unsafe class PublicEvent(nint address, FateType fateType, uint id) {
     public string Name => FateType switch {
         FateType.Normal => Svc.Data.GetRef<Sheets.Fate>(Id).Value.Name.ToString() ?? $"FATE {Id}",
         FateType.DynamicEvent => Svc.Data.GetRef<Sheets.DynamicEvent>(Id).Value.Name.ToString() ?? $"DynamicEvent {Id}",
-        FateType.MechaEvent => $"MechaEvent {Id}",
+        FateType.MechaEvent => Svc.Data.GetRef<Sheets.WKSMechaEventData>(Id).Value.Name.ToString() ?? $"MechaEvent {Id}",
         _ => $"Unknown Type: {Id}",
     };
 
@@ -220,7 +220,7 @@ public unsafe class PublicEvent(nint address, FateType fateType, uint id) {
 
     public IGameObject? MotivationNpc => GetValue(
         // sometimes when they're initially loaded, the gameobject is garbage with an entity id of 200000001 and object kind MountType
-        fate => Svc.Objects.FirstOrDefault(o => o.EntityId == fate.As<FateContext>()->MotivationNpc && o.ObjectKind == ObjectKind.BattleNpc),
+        fate => Svc.Objects.FirstOrDefault(o => o.EntityId == fate.As<FateContext>()->MotivationNpc && (o.ObjectKind == ObjectKind.BattleNpc || o.ObjectKind == ObjectKind.EventNpc)),
         _ => null,
         _ => null,
         null
@@ -234,7 +234,7 @@ public unsafe class PublicEvent(nint address, FateType fateType, uint id) {
     );
 
     public ItemHandle? EventItem => GetValue(
-        fate => fate.As<FateContext>()->TurnInEventItem != 0 ? new ItemHandle(fate.As<FateContext>()->TurnInEventItem) : null,
+        fate => (ItemHandle)fate.As<FateContext>()->TurnInEventItem,
         _ => null,
         _ => null,
         null
@@ -290,3 +290,4 @@ public unsafe class PublicEvent(nint address, FateType fateType, uint id) {
         Fete = 8, // firmament fates
     }
 }
+

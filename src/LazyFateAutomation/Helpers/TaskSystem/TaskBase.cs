@@ -26,14 +26,14 @@ public enum PathingStrategy {
 }
 
 public static class MovementOptionsExtensions {
-    public static MovementOptions GetCurrent() {
-        if (Svc.Objects.LocalPlayer == null)
+    extension(MovementOptions) {
+        public static MovementOptions GetCurrent() {
+            if (Svc.Objects.LocalPlayer.InFlight)
+                return MovementOptions.Mount | MovementOptions.Fly | MovementOptions.Dismount;
+            if (Svc.Objects.LocalPlayer.Mounted)
+                return MovementOptions.Mount | MovementOptions.Dismount;
             return MovementOptions.None;
-        if (Svc.Objects.LocalPlayer.InFlight())
-            return MovementOptions.Mount | MovementOptions.Fly | MovementOptions.Dismount;
-        if (Svc.Objects.LocalPlayer.Mounted())
-            return MovementOptions.Mount | MovementOptions.Dismount;
-        return MovementOptions.None;
+        }
     }
 }
 
@@ -58,7 +58,7 @@ public enum UiSkipOptions {
 
 public abstract class TaskBase : AutoTask {
     private readonly OverrideMovement movement = new();
-    protected static IPlayerCharacter? Player => Svc.Objects.LocalPlayer;
+    private static IPlayerCharacter? Player => Svc.Objects.LocalPlayer;
 
     protected TaskBase() {
         RegisterCleanup(movement);
@@ -67,22 +67,22 @@ public abstract class TaskBase : AutoTask {
     private async Task NavmeshReady() {
         using var scope = BeginScope("WaitingForNavmesh");
         Status = "Waiting for Navmesh";
-        await WaitUntil(() => Service.Navmesh.IsReady() || Service.Navmesh.BuildProgress() >= 0, "WaitForBuildStart");
-        if (Service.Navmesh.BuildProgress() >= 0) {
-            await WaitWhile(() => Service.Navmesh.BuildProgress() >= 0, "BuildMesh");
+        await WaitUntil(() => Svc.Navmesh.IsReady || Svc.Navmesh.BuildProgress >= 0, "WaitForBuildStart");
+        if (Svc.Navmesh.BuildProgress >= 0) {
+            await WaitWhile(() => Svc.Navmesh.BuildProgress >= 0, "BuildMesh");
         }
-        ErrorIf(!Service.Navmesh.IsReady(), "Failed to build navmesh for the zone");
+        ErrorIf(!Svc.Navmesh.IsReady, "Failed to build navmesh for the zone");
     }
 
     protected async Task MoveToFlag(MovementConfig config, bool allowTeleportIfFaster = true, Func<bool>? stopCondition = null, Func<Task>? onStopReached = null) {
         using var scope = BeginScope("MoveToFlag");
-        if (FlagMapMarkerExtensions.Get() is not { } flag) {
+        if (FlagMapMarker.Get() is not { } flag) {
             Error($"No flag set!");
             return;
         }
-        await TeleportTo(flag.TerritoryId, flag);
+        await TeleportTo(flag.TerritoryId, flag.Position.ToVector3());
         await NavmeshReady();
-        if (Service.Navmesh.FlagToPoint() is not { } pof) {
+        if (Svc.Navmesh.FlagToPoint() is not { } pof) {
             Error($"Unable to convert flag to point on floor");
             return;
         }
@@ -91,14 +91,14 @@ public abstract class TaskBase : AutoTask {
 
     protected async Task MoveTo(Vector3 dest, MovementConfig config, bool allowTeleportIfFaster = true, Func<bool>? stopCondition = null, Func<Task>? onStopReached = null) {
         using var scope = BeginScope("MoveTo");
-        await WaitUntil(() => Player != null && Player.Available(), "WaitingForPlayer");
-        var tolerance = config.Tolerance ?? Service.Navmesh.GetTolerance();
+        await WaitUntil(() => Player.Available, "WaitingForPlayer");
+        var tolerance = config.Tolerance ?? Svc.Navmesh.GetTolerance();
         if (Player.WithinRange(dest, tolerance))
             return;
 
         if (allowTeleportIfFaster && Coords.IsTeleportingFaster(dest)) {
             await TeleportTo(Svc.ClientState.TerritoryType, dest, allowSameZoneTeleport: true);
-            await WaitWhile(() => Player.IsBusy(), "WaitForAvailable");
+            await WaitWhile(() => Player.IsBusy, "WaitForAvailable");
         }
 
         if (config.Movement.HasFlag(MovementOptions.Mount) || config.Movement.HasFlag(MovementOptions.Fly))
@@ -108,32 +108,23 @@ public abstract class TaskBase : AutoTask {
             await MoveToDirectly(dest, tolerance);
         else {
             await NavmeshReady();
-            await WaitUntil(() => !Service.Navmesh.PathfindInProgress(), "WaitingForInProgressCalls");
-            ErrorIf(!Service.Navmesh.PathfindAndMoveTo(dest, Player.InFlight() || config.Movement.HasFlag(MovementOptions.Fly) && Control.CanFly), "Failed to start pathfinding to destination");
+            await WaitUntil(() => !Svc.Navmesh.PathfindingInProgress, "WaitingForInProgressCalls");
+            ErrorIf(!Svc.Navmesh.PathfindAndMoveTo(dest, Player.InFlight || config.Movement.HasFlag(MovementOptions.Fly) && Control.CanFly), "Failed to start pathfinding to destination");
             Status = $"Moving to {dest}";
-            using var stop = new OnDispose(Service.Navmesh.Stop);
-
-            if (config.Movement.HasFlag(MovementOptions.Fly) && Player.Mounted() && !Player.InFlight() && Control.CanFly) {
-                await NextFrame(15);
-                if (Player.Mounted() && !Player.InFlight()) {
-                    Log("Mounted but not flying. Executing jump to initiate flight...");
-                    ActionManagerExtensions.UseAction(ActionType.GeneralAction, 2); // Jump
-                    await NextFrame(10);
-                }
-            }
+            using var stop = new OnDispose(Svc.Navmesh.Stop);
 
             if (stopCondition is null)
                 await WaitWhile(() => !Player.WithinRange(dest, tolerance), "Navigate");
             else {
                 await WaitWhile(() => !(Player.WithinRange(dest, tolerance) || stopCondition()), "Navigate");
                 if (stopCondition() && onStopReached is not null) {
-                    Service.Navmesh.Stop(); // must be stopped because onStopReached's MoveTo (if present) calls !PathfindingInProgress
+                    Svc.Navmesh.Stop(); // must be stopped because onStopReached's MoveTo (if present) calls !PathfindingInProgress
                     await onStopReached();
                 }
             }
         }
 
-        if (config.Movement.HasFlag(MovementOptions.Dismount) && (Player.WithinRange(dest, tolerance) || Svc.Condition[ConditionFlag.InCombat] || PublicEvent.CurrentFate != null)) // only dismount if we're close or ready to fight
+        if (config.Movement.HasFlag(MovementOptions.Dismount) && Player.WithinRange(dest, tolerance)) // only dismount if we're close
             await Dismount();
     }
 
@@ -154,7 +145,7 @@ public abstract class TaskBase : AutoTask {
         await MoveToDirectly(dest, () => Player.WithinRange(dest, tolerance));
     }
 
-    protected async Task TeleportTo(uint territoryId, FFXIVClientStructs.FFXIV.Client.UI.Agent.FlagMapMarker flag, bool allowSameZoneTeleport = false)
+    protected async Task TeleportTo(uint territoryId, FlagMapMarker flag, bool allowSameZoneTeleport = false)
         => await TeleportTo(territoryId, new Vector3(flag.XFloat, 0, flag.YFloat), allowSameZoneTeleport);
 
     protected async Task TeleportTo(uint territoryId, Vector3 destination, bool allowSameZoneTeleport = false) {
@@ -167,24 +158,24 @@ public abstract class TaskBase : AutoTask {
         ErrorIf(teleportAetheryteId == 0, $"Failed to find aetheryte in [{territoryId}] {Svc.Data.GetRef<Sheets.TerritoryType>(territoryId).Value.PlaceName.Value.Name}");
         if (Svc.Data.GetRef<Sheets.Aetheryte>(teleportAetheryteId) is { Value.Territory.RowId: var destinationId, Value.PlaceName.Value.Name: var destinationName } && Svc.ClientState.TerritoryType != destinationId) {
             Status = $"Teleporting to {destinationName}";
-            ErrorIf(!ActionManagerExtensions.Teleport(teleportAetheryteId), $"Failed to teleport to {teleportAetheryteId}");
+            ErrorIf(!ActionManager.Teleport(teleportAetheryteId), $"Failed to teleport to {teleportAetheryteId}");
             await WaitUntilTerritory(destinationId);
             if (destinationId == territoryId) return; // we're in target zone; otherwise fall through to aethernet to get from primary zone to target zone
         }
 
         if (Svc.ClientState.TerritoryType == territoryId) {
             Status = "Teleporting to aetheryte";
-            ErrorIf(!ActionManagerExtensions.Teleport(teleportAetheryteId), $"Failed to teleport to {teleportAetheryteId}");
+            ErrorIf(!ActionManager.Teleport(teleportAetheryteId), $"Failed to teleport to {teleportAetheryteId}");
             if (teleportAetheryteId == closestAetheryteId) return;
 
             var (aetheryteId, aetherytePos) = Coords.FindAetheryte(teleportAetheryteId);
             if (!Player.WithinRange(aetherytePos, 15))
                 await MoveTo(aetherytePos, MovementConfig.GroundMove.WithTolerance(10));
-            ErrorIf(!TargetSystemExtensions.InteractWith(aetheryteId), "Failed to interact with aetheryte");
-            await WaitUntilSkipping(() => AtkUnitBaseExtensions.IsAddonReady("SelectString"), "WaitSelectAethernet", UiSkipOptions.Talk);
-            PacketDispatcherExtensions.TeleportToAethernet(teleportAetheryteId, closestAetheryteId);
-            await WaitUntil(() => Player.IsBusy(), "TeleportStart");
-            await WaitUntil(() => Svc.ClientState.TerritoryType == territoryId && GameMainExtensions.IsTerritoryLoaded && Player.Interactable(), "TeleportFinish");
+            ErrorIf(!TargetSystem.InteractWith(aetheryteId), "Failed to interact with aetheryte");
+            await WaitUntilSkipping(() => AtkUnitBase.IsAddonReady("SelectString"), "WaitSelectAethernet", UiSkipOptions.Talk);
+            PacketDispatcher.TeleportToAethernet(teleportAetheryteId, closestAetheryteId);
+            await WaitUntil(() => Player.IsBusy, "TeleportStart");
+            await WaitUntil(() => Svc.ClientState.TerritoryType == territoryId && GameMain.IsTerritoryLoaded && Player.Interactable, "TeleportFinish");
             return;
         }
 
@@ -192,11 +183,11 @@ public abstract class TaskBase : AutoTask {
             Status = $"Interacting with aethernet to get to [{territoryId}]";
             var (aetheryteId, aetherytePos) = Coords.FindAetheryte(teleportAetheryteId);
             await MoveTo(aetherytePos, MovementConfig.Default.WithTolerance(10));
-            ErrorIf(!TargetSystemExtensions.InteractWith(aetheryteId), "Failed to interact with aetheryte");
-            await WaitUntilSkipping(() => AtkUnitBaseExtensions.IsAddonReady("SelectString"), "WaitSelectAethernet", UiSkipOptions.Talk);
-            PacketDispatcherExtensions.TeleportToAethernet(teleportAetheryteId, closestAetheryteId);
-            await WaitUntil(() => Player.IsBusy(), "TeleportStart"); // TODO: something better
-            await WaitUntil(() => Svc.ClientState.TerritoryType == territoryId && GameMainExtensions.IsTerritoryLoaded && Player.Interactable(), "TeleportFinish");
+            ErrorIf(!TargetSystem.InteractWith(aetheryteId), "Failed to interact with aetheryte");
+            await WaitUntilSkipping(() => AtkUnitBase.IsAddonReady("SelectString"), "WaitSelectAethernet", UiSkipOptions.Talk);
+            PacketDispatcher.TeleportToAethernet(teleportAetheryteId, closestAetheryteId);
+            await WaitUntil(() => Player.IsBusy, "TeleportStart"); // TODO: something better
+            await WaitUntil(() => Svc.ClientState.TerritoryType == territoryId && GameMain.IsTerritoryLoaded && Player.Interactable, "TeleportFinish");
         }
 
         if (territoryId == 886) {
@@ -204,9 +195,9 @@ public abstract class TaskBase : AutoTask {
             Status = $"Interacting with aetheryte to get to the Firmament";
             var (aetheryteId, aetherytePos) = Coords.FindAetheryte(teleportAetheryteId);
             await MoveTo(aetherytePos, MovementConfig.Default.WithTolerance(10));
-            ErrorIf(!TargetSystemExtensions.InteractWith(aetheryteId), "Failed to interact with aetheryte");
-            await WaitUntilSkipping(() => AtkUnitBaseExtensions.IsAddonReady("SelectString"), "WaitSelectFirmament", UiSkipOptions.Talk);
-            PacketDispatcherExtensions.TeleportToFirmament(teleportAetheryteId);
+            ErrorIf(!TargetSystem.InteractWith(aetheryteId), "Failed to interact with aetheryte");
+            await WaitUntilSkipping(() => AtkUnitBase.IsAddonReady("SelectString"), "WaitSelectFirmament", UiSkipOptions.Talk);
+            PacketDispatcher.TeleportToFirmament(teleportAetheryteId);
             await WaitUntilTerritory(territoryId);
         }
 
@@ -216,42 +207,42 @@ public abstract class TaskBase : AutoTask {
 
     protected async Task Mount() {
         using var scope = BeginScope(nameof(Mount));
-        if (Player == null || !Player.CanMount()) return; // early return if not in mounting territories
+        if (!Player.CanMount) return; // early return if not in mounting territories
 
         Status = "Mounting";
-        while (!Player.Mounted()) {
-            if (!Player.IsBusy() && !ActionManagerExtensions.IsActionInUse(ActionType.GeneralAction, 24))
-                ActionManagerExtensions.UseAction(ActionType.GeneralAction, 24);
+        while (!Player.Mounted) {
+            if (!Player.IsBusy && !ActionManager.IsActionInUse(ActionType.GeneralAction, 24))
+                ActionManager.UseAction(ActionType.GeneralAction, 24);
             await NextFrame();
         }
     }
 
     protected async Task Dismount() {
         using var scope = BeginScope("Dismount");
-        if (Player is null || !Player.Mounted()) return;
+        if (Player is null || !Player.Mounted) return;
 
-        if (Service.Navmesh.NearestPoint(Player.Position, 5f, 5f) is { } nearestPoint)
+        if (Svc.Navmesh.NearestPointReachable(Player.Position) is { } nearestPoint)
             await MoveTo(nearestPoint, MovementConfig.Everything);
         else
             Warning($"No nearest landable point found from {Player.Position}. Dismounting may fail");
 
         Status = "Dismounting";
-        while (Player.Mounted()) {
+        while (Player.Mounted) {
             // we are assuming from here on out that you cannot possibly be above ground that is unlandable
-            if (Player.InFlight() && !Player.IsAirDismountable()) {
+            if (Player.InFlight && !Player.IsAirDismountable) {
                 Log($"Descending");
-                ActionManagerExtensions.UseAction(ActionType.GeneralAction, 23); // TODO: find a force ground function
-                // await WaitWhile(() => Player.InFlight() || !Player.IsAirDismountable(), "WaitForGround");
+                ActionManager.UseAction(ActionType.GeneralAction, 23); // TODO: find a force ground function
+                // await WaitWhile(() => Player.InFlight || !Player.IsAirDismountable, "WaitForGround");
             }
-            else if (Player.InFlight() && Player.IsAirDismountable()) {
+            else if (Player.InFlight && Player.IsAirDismountable) {
                 Log($"Air Dismount");
-                GameMainExtensions.ExecuteLocationCommand(LocationCommandFlag.Dismount, Player.Position, (int)Player.PackedRotation());
-                //await WaitWhile(() => Player.Mounted(), "WaitForDismount");
+                GameMain.ExecuteLocationCommand(LocationCommandFlag.Dismount, Player.Position, (int)Player.PackedRotation);
+                //await WaitWhile(() => Player.Mounted, "WaitForDismount");
             }
-            else if (Player.Mounted() && !Player.InFlight()) {
+            else if (Player.Mounted && !Player.InFlight) {
                 Log($"Ground Dismount");
-                GameMainExtensions.ExecuteCommand(CommandFlag.Dismount, 1);
-                //await WaitWhile(() => Player.Mounted(), "WaitForDismount");
+                GameMain.ExecuteCommand(CommandFlag.Dismount, 1);
+                //await WaitWhile(() => Player.Mounted, "WaitForDismount");
             }
             await NextFrame();
         }
@@ -260,17 +251,17 @@ public abstract class TaskBase : AutoTask {
     protected async Task WaitUntilSkipping(Func<bool> condition, string scopeName, UiSkipOptions skip) {
         using var scope = BeginScope(scopeName);
         while (!condition()) {
-            if (skip.HasFlag(UiSkipOptions.Talk) && AtkUnitBaseExtensions.IsAddonReady("Talk")) {
+            if (skip.HasFlag(UiSkipOptions.Talk) && AtkUnitBase.IsAddonReady("Talk")) {
                 Log("progressing talk...");
-                AddonTalkExtensions.Progress();
+                AddonTalk.Progress();
             }
-            if (skip.HasFlag(UiSkipOptions.YesNo) && AtkUnitBaseExtensions.IsAddonReady("SelectYesno")) {
+            if (skip.HasFlag(UiSkipOptions.YesNo) && AtkUnitBase.IsAddonReady("SelectYesno")) {
                 Log("progressing yes/no...");
-                AddonSelectYesnoExtensions.Yes();
+                AddonSelectYesno.Yes();
             }
-            if (skip.HasFlag(UiSkipOptions.Request) && AtkUnitBaseExtensions.IsAddonReady("Request")) {
+            if (skip.HasFlag(UiSkipOptions.Request) && AtkUnitBase.IsAddonReady("Request")) {
                 Log("progressing request...");
-                AgentNpcTradeExtensions.TurnInRequests();
+                AgentNpcTrade.TurnInRequests();
             }
             Log("waiting...");
             await NextFrame();
@@ -279,7 +270,7 @@ public abstract class TaskBase : AutoTask {
 
     protected async Task WaitUntilTerritory(uint territoryId) {
         using var scope = BeginScope("WaitUntilTerritory");
-        await WaitUntil(() => Svc.ClientState.TerritoryType == territoryId && GameMainExtensions.IsTerritoryLoaded && Player != null && Player.Interactable(), "WaitingForTerritory");
+        await WaitUntil(() => Svc.ClientState.TerritoryType == territoryId && GameMain.IsTerritoryLoaded && Player.Interactable, "WaitingForTerritory");
     }
 
     protected async Task InteractWith(IGameObject obj, Func<bool>? waitUntil = null, int? selectStringIndex = null, UiSkipOptions skip = UiSkipOptions.None) {
@@ -287,17 +278,17 @@ public abstract class TaskBase : AutoTask {
 
         if (!obj.IsInInteractRange()) {
             Log("Not in interact range, moving closer");
-            await MoveToDirectly(obj.Position, () => obj.IsInInteractRange());
+            await MoveToDirectly(obj.Position, obj.IsInInteractRange);
         }
 
         Status = $"Interacting with {obj.GameObjectId}";
-        await WaitWhile(() => Player != null && Player.IsJumping(), "WaitForAbleToInteract");
+        await WaitWhile(() => Player.IsJumping, "WaitForAbleToInteract");
         const int maxAttempts = 5;
         for (var attempt = 0; attempt < maxAttempts; attempt++) {
-            if (TargetSystemExtensions.InteractWith(obj.GameObjectId)) {
+            if (TargetSystem.InteractWith(obj.GameObjectId)) {
                 if (selectStringIndex is { } index) {
-                    await WaitUntil(() => AtkUnitBaseExtensions.IsAddonReady("SelectString"), "WaitingForSelectString");
-                    AddonSelectStringExtensions.Select(index);
+                    await WaitUntil(() => AtkUnitBase.IsAddonReady("SelectString"), "WaitingForSelectString");
+                    AddonSelectString.Select(index);
                 }
                 if (waitUntil is { } condition) {
                     await WaitUntilSkipping(condition, "WaitingForNpcInteractionToFinish", skip);

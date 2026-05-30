@@ -1,4 +1,4 @@
-using Dalamud.Game.Inventory;
+﻿using Dalamud.Game.Inventory;
 using Dalamud.Utility;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
@@ -53,7 +53,7 @@ public class ItemHandle {
     [MemberNotNullWhen(true, nameof(ItemLocation))]
     public unsafe bool TrySetItemLocation(InventoryItem.ItemFlags requiredFlag = InventoryItem.ItemFlags.None) {
         if (ItemLocation is not null) return true;
-        foreach (var inv in InventoryTypeExtensions.FullInventory) {
+        foreach (var inv in InventoryType.FullInventory) {
             if (InventoryManager.Instance()->GetInventoryItems(inv).FirstOrDefault(i => i.Value != null && i.Value->ItemId == ItemId && (requiredFlag is InventoryItem.ItemFlags.None || i.Value->Flags.HasFlag(requiredFlag)))
                 is { } item && item.Value != null) {
                 ItemLocation = new ItemLocation(inv, item.Value->GetSlot());
@@ -93,10 +93,6 @@ public class ItemHandle {
         => ignoreHq ? InventoryManager.Instance()->GetInventoryItemCount(BaseItemId) + InventoryManager.Instance()->GetInventoryItemCount(ItemId, true)
         : InventoryManager.Instance()->GetInventoryItemCount(ItemId);
 
-    public static unsafe int GetCount(uint itemId, bool ignoreHq = true)
-        => ignoreHq ? InventoryManager.Instance()->GetInventoryItemCount(ItemUtil.GetBaseId(itemId).ItemId) + InventoryManager.Instance()->GetInventoryItemCount(itemId, true)
-        : InventoryManager.Instance()->GetInventoryItemCount(itemId);
-
     public unsafe bool LowerItemQuality() {
         if (ItemLocation is null) return false;
         if (RaptureAtkModule.Instance()->AgentUpdateFlag.HasFlag(RaptureAtkModule.AgentUpdateFlags.InventoryUpdate)) return false;
@@ -123,10 +119,22 @@ public class ItemHandle {
     /// <summary>
     /// Be sure to check <see cref="CanEquip"/> first. This only handles the move operation
     /// </summary>
+    /// TODO: ring slots
     public unsafe void Equip() {
         if (ItemLocation is null) return;
-        Svc.Log.Debug($"Equipping item [{this}] from {ItemLocation} to {new ItemLocation(InventoryType.EquippedItems, (ushort)GameData.Value.EquipSlot())}");
-        InventoryManager.Instance()->MoveItemSlot(ItemLocation.Container, ItemLocation.Slot, InventoryType.EquippedItems, (ushort)GameData.Value.EquipSlot(), true);
+        Svc.Log.Debug($"Equipping item [{this}] from {ItemLocation} to {new ItemLocation(InventoryType.EquippedItems, (ushort)GameData.Value.EquipSlot)}");
+        InventoryManager.Instance()->MoveItemSlot(ItemLocation.Container, ItemLocation.Slot, InventoryType.EquippedItems, (ushort)GameData.Value.EquipSlot, true);
+        // This seems to not work depending on the item. Conditionally uses ODR location? Can't tell, don't care that much
+        //if (ItemLocation.Container.GetContainerId() is not 0 and var srcContId && InventoryType.EquippedItems.GetContainerId() is not 0 and var destContId) {
+        //    var eis = stackalloc AtkValue[4];
+        //    var dropOut = stackalloc AtkValue[32];
+        //    eis[0].SetUInt(srcContId);
+        //    eis[1].SetUInt(ItemLocation.Slot);
+        //    eis[2].SetUInt(destContId);
+        //    eis[3].SetUInt(GameData.Value.EquipSlot);
+        //    Svc.Log.Debug($"Equipping item [{this}] from {ItemLocation}/{ItemLocation.GetODR()} to {(InventoryType.EquippedItems, GameData.Value.EquipSlot)}");
+        //    RaptureAtkModule.Instance()->HandleItemMove(dropOut, eis, 4);
+        //}
     }
 
     public unsafe void MoveTo(InventoryType[] containers) {

@@ -1,5 +1,8 @@
 namespace LazyFateAutomation;
 
+using LazyFateAutomation.Helpers.IPC;
+using LazyFateAutomation.Helpers.Services;
+
 public static class Service {
     public static BossModIPC BossMod { get; set; } = null!;
     public static NavmeshIPC Navmesh { get; set; } = null!;

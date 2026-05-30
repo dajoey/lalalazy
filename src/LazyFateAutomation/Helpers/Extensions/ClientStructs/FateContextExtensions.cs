@@ -1,9 +1,10 @@
-using FFXIVClientStructs.FFXIV.Client.Game.Fate;
+﻿using FFXIVClientStructs.FFXIV.Client.Game.Fate;
 using Lumina.Excel.Sheets;
 
-namespace clib.Extensions;
+namespace LazyFateAutomation.Helpers.Extensions;
 
 public static class FateContextExtensions {
-    public static unsafe Lumina.Excel.Sheets.Fate? GameData(this ref FateContext ctx)
-        => Svc.Data.GetRow<Lumina.Excel.Sheets.Fate>(ctx.FateId);
+    extension(ref FateContext ctx) {
+        public Fate GameData => Fate.GetRow(ctx.FateId);
+    }
 }

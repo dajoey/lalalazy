@@ -1,7 +1,7 @@
 ﻿using FFXIVClientStructs.FFXIV.Client.Network;
 using FFXIVClientStructs.Interop;
 
-namespace clib.Extensions;
+namespace LazyFateAutomation.Helpers.Extensions;
 
 public static unsafe class PacketDispatcherExtensions {
     extension(PacketDispatcher) {

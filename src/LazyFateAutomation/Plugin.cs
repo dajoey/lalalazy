@@ -2,6 +2,9 @@ using Dalamud.Plugin;
 using ECommons;
 using ECommons.SimpleGui;
 using ECommons.EzIpcManager;
+using LazyFateAutomation.Helpers.IPC;
+using LazyFateAutomation.Helpers.Services;
+using LazyFateAutomation.Helpers.Internal;
 
 namespace LazyFateAutomation;
 
@@ -18,9 +21,10 @@ public class Plugin : IDalamudPlugin {
 
         Config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
 
-        // Initialize IPC services
+        // Initialize IPC and helper services
+        Svc.Init(pluginInterface);
         Service.BossMod = new BossModIPC();
-        Service.Navmesh = new NavmeshIPC();
+        Service.Navmesh = Svc.Navmesh; // Use the initialized Navmesh IPC from Svc
         Service.TextAdvance = new TextAdvanceIpc();
         Service.Automation = new Automation();
 
@@ -31,7 +35,7 @@ public class Plugin : IDalamudPlugin {
         
         EzConfigGui.Init(Window, nameOverride: Name);
 
-        // Command handler
+        // Standalone commands
         Svc.Commands.AddHandler("/lazyfate", new Dalamud.Game.Command.CommandInfo(OnCommand) {
             HelpMessage = "Opens the Lazy Fate Automation UI",
             ShowInHelp = true

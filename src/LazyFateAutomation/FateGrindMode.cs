@@ -15,7 +15,7 @@ public interface IFateGrindRunState {
     int RelicsCompletedForStep { get; }
 }
 
-public interface IFateGrindMode {
+internal interface IFateGrindMode {
     string DisplayName { get; }
     int UiPriority => 0;
 
@@ -56,22 +56,22 @@ public static class FateGrindModes {
             .Select(t => (IFateGrindMode)Activator.CreateInstance(t)!)
             .OrderBy(m => m.DisplayName)];
 
-        var zeniths = RelicItemExtensions.GetItemsByStep(2);
+        var zeniths = RelicItem.GetItemsByStep(2);
         Register(new RelicItemMultiZoneGrindMode(
             "Atma (Zodiac)",
             [(7851, [148]), (7852, [146]), (7853, [139]), (7854, [152]), (7855, [145]), (7856, [134]), (7857, [140]), (7858, [180]), (7859, [135]), (7860, [154]), (7861, [141]), (7862, [138])],
             relicItemIds: [.. zeniths.Select(r => r.RowId)],
             perRelicInfo: (1, zeniths.Count - 1), // subtract pld shield
-            requiredCondition: () => zeniths.Any(i => new ItemHandle(i.RowId).IsEquipped)));
+            requiredCondition: () => zeniths.Any(i => i.Value.Handle.IsEquipped)));
 
-        var animateds = QuestClassJobRewardExtensions.GetRelicsByRow(3);
+        var animateds = QuestClassJobReward.GetRelicsByRow(3);
         Register(new RelicItemMultiZoneGrindMode(
             "Luminous Crystals (Anima)",
             [(13569, [397]), (13570, [401]), (13571, [402]), (13572, [398]), (13573, [400]), (13574, [399])],
             relicItemIds: [.. animateds.Select(r => r.RowId)],
             perRelicInfo: (1, animateds.Count - 1))); // subtract pld shield
 
-        var augmented = QuestClassJobRewardExtensions.GetRelicsByRow(17);
+        var augmented = QuestClassJobReward.GetRelicsByRow(17);
         Register(new RelicItemMultiZoneGrindMode(
             "Memories (Resistance)",
             [
@@ -104,7 +104,7 @@ public static class FateGrindModes {
 
         Register(new RelicItemMultiZoneGrindMode(
             "Paste (Phantom)",
-            [(50059, Svc.Data.GetExcelSheet<Sheets.TerritoryType>().Where(r => r.IsInUse && !r.IsPvpZone && r.TerritoryIntendedUse.Value.StructsEnum is TerritoryIntendedUse.Overworld && r.ExVersion.RowId is 5).Select(r => r.RowId).ToList(), 1200)],
+            [(50059, TerritoryType.Where(r => r.IsInUse && !r.IsPvpZone && r.TerritoryIntendedUse.Value.StructsEnum is TerritoryIntendedUse.Overworld && r.ExVersion.RowId is 5).Select(r => r.RowId).ToList(), 1200)],
             questId: 70991)); // In Pursuit of Perfection
     }
 
@@ -137,7 +137,7 @@ public sealed class YokaiGrindMode : IFateGrindMode {
         if (state.RemainingUntilCompleted is { } r && r > 0) return $"{r} fates";
         var entry = GetCurrentMinionEntry();
         if (entry is null) return null;
-        var count = ItemHandle.GetCount(entry.Medal.RowId);
+        var count = GetItemCount(entry.Medal.RowId);
         var name = entry.Medal.Value.Name.ToString() ?? $"Item {entry.Medal.RowId}";
         return count < 10 ? $"{name} {count}/10" : null;
     }
@@ -145,7 +145,7 @@ public sealed class YokaiGrindMode : IFateGrindMode {
     public IEnumerable<(uint TerritoryId, uint ItemId, int RequiredCount)>? GetZoneItemTargets(IFateGrindRunState? state = null) => null;
 
     public async Task OnSwapZone(uint fromTerritoryId, uint toTerritoryId, CancellationToken cancellationToken) {
-        if (Yokai.Values.FirstOrDefault(e => e.Zones.Any(z => z.RowId == toTerritoryId) && ItemHandle.GetCount(e.Medal.RowId) < 10 && e.Unlocked) is not { } entry) return;
+        if (Yokai.Values.FirstOrDefault(e => e.Zones.Any(z => z.RowId == toTerritoryId) && GetItemCount(e.Medal.RowId) < 10 && e.Unlocked) is not { } entry) return;
 
         var watch = new ItemHandle(15222);
         if (!IsWatchEquipped() && watch.GetCount() > 0) {
@@ -163,6 +163,8 @@ public sealed class YokaiGrindMode : IFateGrindMode {
 
     private static YokaiEntry? GetCurrentMinionEntry()
         => Yokai.Values.FirstOrDefault(e => e.Minion.RowId == CurrentCompanion.RowId);
+
+    private static unsafe int GetItemCount(uint itemId) => InventoryManager.Instance()->GetInventoryItemCount(itemId);
 
     public record YokaiEntry {
         public RowRef<Companion> Minion { get; init; }
@@ -211,7 +213,7 @@ public sealed class GemstoneGrindMode : IFateGrindMode {
 
     // any zone shb+ is valid unless they stop doing this in the future
     public IReadOnlySet<uint>? GetAllowedZones()
-        => Svc.Data.GetExcelSheet<Sheets.TerritoryType>().Where(r => r.IsInUse && r.TerritoryIntendedUse.Value.StructsEnum is TerritoryIntendedUse.Overworld && r.ExVersion.RowId >= 3 && !r.IsPvpZone).Select(r => r.RowId).ToHashSet();
+        => TerritoryType.Where(r => r.IsInUse && r.TerritoryIntendedUse.Value.StructsEnum is TerritoryIntendedUse.Overworld && r.ExVersion.RowId >= 3 && !r.IsPvpZone).Select(r => r.RowId).ToHashSet();
 
     public bool IsComplete(IFateGrindRunState _) => GetGemstoneRemaining() == 0;
 
@@ -234,17 +236,19 @@ public sealed class RelicZoneItemGrindMode(string displayName, IEnumerable<(uint
 
     public bool IsComplete(IFateGrindRunState _) {
         foreach (var (_, itemId, required) in _targets) {
-            if (ItemHandle.GetCount(itemId) < required) return false;
+            if (GetItemCount(itemId) < required) return false;
         }
         return true;
     }
 
     public string? GetRemainingDisplay(IFateGrindRunState _) {
-        var total = _targets.Sum(t => Math.Max(0, t.RequiredCount - ItemHandle.GetCount(t.ItemId)));
+        var total = _targets.Sum(t => Math.Max(0, t.RequiredCount - GetItemCount(t.ItemId)));
         return total == 0 ? null : $"{total} left";
     }
 
     public IEnumerable<(uint TerritoryId, uint ItemId, int RequiredCount)>? GetZoneItemTargets(IFateGrindRunState? state = null) => _targets;
+
+    private static unsafe int GetItemCount(uint itemId) => InventoryManager.Instance()->GetInventoryItemCount(itemId);
 }
 
 public sealed class RelicItemMultiZoneGrindMode(
@@ -287,7 +291,7 @@ public sealed class RelicItemMultiZoneGrindMode(
         if (!_requiredCondition?.Invoke() ?? false)
             return false;
         foreach (var entry in _itemZones)
-            if (ItemHandle.GetCount(entry.ItemId) < GetEffectiveRequired(entry, state)) return false;
+            if (GetItemCount(entry.ItemId) < GetEffectiveRequired(entry, state)) return false;
         return true;
     }
 
@@ -296,7 +300,7 @@ public sealed class RelicItemMultiZoneGrindMode(
             return "Done";
         if (!_requiredCondition?.Invoke() ?? false)
             return _questId is { } q ? $"Need Quest #{q}" : "Need relic equipped!";
-        var total = _itemZones.Sum(e => Math.Max(0, GetEffectiveRequired(e, state) - ItemHandle.GetCount(e.ItemId)));
+        var total = _itemZones.Sum(e => Math.Max(0, GetEffectiveRequired(e, state) - GetItemCount(e.ItemId)));
         return total == 0 ? null : $"{total} left";
     }
 
@@ -304,7 +308,7 @@ public sealed class RelicItemMultiZoneGrindMode(
         foreach (var entry in _itemZones) {
             var total = GetEffectiveRequired(entry, state);
             if (total <= 0) continue;
-            var current = ItemHandle.GetCount(entry.ItemId);
+            var current = GetItemCount(entry.ItemId);
             var remaining = Math.Max(0, total - current);
             if (remaining <= 0) continue;
             foreach (var territoryId in entry.TerritoryIds.Where(id => id != 0))
@@ -319,33 +323,6 @@ public sealed class RelicItemMultiZoneGrindMode(
         }
         return entry.TotalRequired ?? 0;
     }
-}
 
-public static class RelicItemExtensions {
-    public static List<RowRef<Item>> GetItemsByStep(uint step) {
-        var row = Svc.Data.GetSheet<Sheets.RelicItem>().GetRowOrDefault(step - 1);
-        if (row == null) return [];
-        var r = row.Value;
-        var items = new List<RowRef<Item>> {
-            r.GladiatorItem,
-            r.PugilistItem,
-            r.MarauderItem,
-            r.LancerItem,
-            r.ArcanistSCHItem,
-            r.ConjurerItem,
-            r.ThaumaturgeItem,
-            r.ArcanistSMNItem,
-            r.ArcanistSCHItem,
-            r.ShieldItem,
-            r.RogueItem,
-        };
-        return items;
-    }
-}
-
-public static class QuestClassJobRewardExtensions {
-    public static List<RowRef<Item>> GetRelicsByRow(int row)
-        => Svc.Data.TryGetSubrows<Sheets.QuestClassJobReward>((uint)row, out var subrows)
-            ? [.. subrows.SelectMany(q => q.RewardItem.TakeWhile(r => r.RowId != 0).Select(r => Svc.Data.GetRef<Item>(r.RowId)))]
-            : [];
+    private static unsafe int GetItemCount(uint itemId) => InventoryManager.Instance()->GetInventoryItemCount(itemId);
 }

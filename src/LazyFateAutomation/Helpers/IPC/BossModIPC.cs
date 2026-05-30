@@ -4,12 +4,12 @@ namespace LazyFateAutomation.Helpers.IPC;
 
 #nullable disable
 #pragma warning disable CS8632
+[Ipc(Ipc.BossMod)]
 public class BossModIPC : BaseIPC {
     public override string Name => "BossMod";
     public override string Repo => Veyn;
-    public BossModIPC() => EzIPC.Init(this, Name);
-
     public override bool IsLoaded => Svc.PluginInterface.InstalledPlugins.Any(p => (p.InternalName == "BossMod" || p.InternalName == "BossModReborn") && p.IsLoaded);
+    public BossModIPC() => EzIPC.Init(this, Name);
 
     /// <remarks> string name </remarks>
     [EzIPC("Presets.%m", true)] public readonly Func<string, string?> Get;

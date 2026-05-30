@@ -2,7 +2,7 @@
 using FFXIVClientStructs.FFXIV.Client.Game.Control;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
 
-namespace clib.Extensions;
+namespace LazyFateAutomation.Helpers.Extensions;
 
 public static unsafe class TargetSystemExtensions {
     extension(TargetSystem) {

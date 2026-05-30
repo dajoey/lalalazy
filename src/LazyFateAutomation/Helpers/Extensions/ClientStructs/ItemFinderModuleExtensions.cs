@@ -1,7 +1,7 @@
 ﻿using Dalamud.Utility;
 using FFXIVClientStructs.FFXIV.Client.UI.Misc;
 
-namespace clib.Extensions;
+namespace LazyFateAutomation.Helpers.Extensions;
 
 public static class ItemFinderModuleExtensions {
     extension(ref ItemFinderModule module) {

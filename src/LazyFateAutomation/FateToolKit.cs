@@ -1,15 +1,17 @@
-using Dalamud.Game.Addon.Lifecycle;
-using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
+using ECommons.ImGuiMethods.TerritorySelection;
 using Lumina.Excel.Sheets;
 using TerritoryIntendedUse = FFXIVClientStructs.FFXIV.Client.Enums.TerritoryIntendedUse;
-using Dalamud.Interface.Utility;
-using ECommons.ImGuiMethods.TerritorySelection;
+using Dalamud.Game.Addon.Lifecycle;
+using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using LazyFateAutomation.Helpers.IPC;
 using LazyFateAutomation.Helpers.Services;
 using LazyFateAutomation.Helpers.Utils;
+using ECommons.DalamudServices;
+using Dalamud.Game.Text;
+using Dalamud.Game.Text.SeStringHandling;
 
 namespace LazyFateAutomation;
 
@@ -31,7 +33,21 @@ public class FateSortOrder {
 
 public class FateToolKit : IFateGrindRunState {
     public static readonly uint[] TwistOfFateStatusIDs = [1288, 1289];
+    public string Name => "Fate Tool Kit (Date With Destiny)";
+    public string Description => "Fate tracker with additional fate automations. This is a WIP v3 of Date With Destiny.";
+    public Configuration Config => Plugin.Config;
+    private static IEnumerable<TerritoryType> TerritoryType => Svc.Data.GetExcelSheet<TerritoryType>();
+
     private const int MinTimeToPrioritise = 240;
+    private static readonly CommandRouter<FateToolKit> Router = new(
+        CommandNode<FateToolKit>
+            .Root()
+            .Default(tweak => Plugin.Window.Toggle())
+            .Sub("run", "Run until completed count target", node => node
+                .ArgInt("count", min: 1)
+                .Handle((tweak, args) => tweak.RunUntil(args.Get<int>("count"))))
+            .Sub("stop", $"Stops {nameof(FateGrind)} task", node => node.Handle((tweak, _) => tweak.Running = false))
+    );
 
     private static readonly Dictionary<FateSortCriteria, Func<PublicEvent, IComparable>> SortKeys = new() {
         [FateSortCriteria.HasBonusWithTwist] = f => f.HasBonus && Svc.Objects.LocalPlayer != null && Svc.Objects.LocalPlayer.StatusList.FirstOrDefault(x => TwistOfFateStatusIDs.Contains(x.StatusId)) != null,
@@ -84,15 +100,8 @@ public class FateToolKit : IFateGrindRunState {
         }
     }
 
-    private static IEnumerable<TerritoryType> TerritoryType => Svc.Data.GetExcelSheet<TerritoryType>();
-
-    public void Enable() {
-        Svc.AddonLifecycle.RegisterListener(AddonEvent.PostSetup, "FateReward", OnFateRewardPostSetup);
-    }
-
-    public void Disable() {
-        Svc.AddonLifecycle.UnregisterListener(OnFateRewardPostSetup);
-    }
+    public void Enable() => Svc.AddonLifecycle.RegisterListener(AddonEvent.PostSetup, "FateReward", OnFateRewardPostSetup);
+    public void Disable() => Svc.AddonLifecycle.UnregisterListener(OnFateRewardPostSetup);
 
     private void OnFateRewardPostSetup(AddonEvent type, AddonArgs args) {
         if (!Running)
@@ -197,12 +206,10 @@ public class FateToolKit : IFateGrindRunState {
             SelectedSwapZones.Clear();
             foreach (var zoneId in selected)
                 SelectedSwapZones.Add(zoneId);
-            Config.Save();
-        }, "Lazy Fate Zones");
+        }, "FTK Zones");
 
-        var territorySheet = Svc.Data.GetExcelSheet<TerritoryType>();
-        var allowedIds = territorySheet.Where(row => row.IsInUse && row.TerritoryIntendedUse.Value.StructsEnum is TerritoryIntendedUse.Overworld && !row.IsPvpZone).Select(row => row.RowId).ToHashSet();
-        selector.HiddenTerritories = [.. territorySheet.Select(row => row.RowId).Where(id => !allowedIds.Contains(id))];
+        var allowedIds = TerritoryType.Where(row => row.IsInUse && row.TerritoryIntendedUse.Value.StructsEnum is TerritoryIntendedUse.Overworld && !row.IsPvpZone).Select(row => row.RowId).ToHashSet();
+        selector.HiddenTerritories = [.. TerritoryType.Select(row => row.RowId).Where(id => !allowedIds.Contains(id))];
 
         selector.HiddenCategories = [TerritorySelector.Category.All];
         selector.SelectedCategory = TerritorySelector.Category.World;
@@ -213,45 +220,39 @@ public class FateToolKit : IFateGrindRunState {
         Running ^= true;
     }
 
-    public void OnCommand(string command, string arguments) {
-        if (string.IsNullOrWhiteSpace(arguments)) {
-            Plugin.Window.Toggle();
+    public void OnCommand(string _, string arguments) {
+        var result = Router.Execute(arguments, this, "/lazyfate");
+        if (!string.IsNullOrWhiteSpace(result.Help)) {
+            ModuleMessage(result.Help);
             return;
         }
 
-        var parts = arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        var sub = parts[0].ToLowerInvariant();
-        if (sub == "run") {
-            if (parts.Length > 1 && int.TryParse(parts[1], out var count) && count >= 1) {
-                RunUntil(count);
-            } else {
-                ModuleMessage("Usage: /lazyfate run <count>");
-            }
-        }
-        else if (sub == "stop") {
-            Running = false;
-        }
-        else {
-            ModuleMessage("Unknown subcommand. Usage:\n/lazyfate - Toggle window\n/lazyfate run <count> - Run for a target number of FATEs\n/lazyfate stop - Stop grinding");
+        if (!result.Success) {
+            result.Error?.ModuleMessage(this);
+            result.Usage?.ModuleMessage(this);
         }
     }
 
-    public static void ModuleMessage(string message) {
-        Svc.Chat.Print($"[Lazy Fate Automation] {message}");
+    public void ModuleMessage(string messageTemplate) {
+        var message = new XivChatEntry {
+            Message = new SeStringBuilder()
+                .AddUiForeground($"[{Name}] ", 62)
+                .Append(messageTemplate)
+                .Build()
+        };
+
+        Svc.Chat.Print(message);
     }
 
     internal bool IsBlacklisted(PublicEvent f)
         => Config.Blacklist.TryGetValue(f.FateType, out var set) && set.Contains(f.Id);
 
     public void ToggleBlacklist(PublicEvent f) {
-        if (!Config.Blacklist.TryGetValue(f.FateType, out var set)) {
+        if (!Config.Blacklist.TryGetValue(f.FateType, out var set))
             Config.Blacklist[f.FateType] = set = [];
-        }
 
         if (!set.Add(f.Id))
             set.Remove(f.Id);
-        
-        Config.Save();
     }
 
     public bool FateConditions(PublicEvent f)
@@ -312,4 +313,9 @@ public class FateToolKit : IFateGrindRunState {
 
         return ordered ?? source.OrderBy(_ => 0);
     }
+}
+
+public static class CommandExtensions {
+    public static void ModuleMessage(this string messageTemplate, FateToolKit tweak) => tweak.ModuleMessage(messageTemplate);
+    public static void ModuleMessage(this SeString messageTemplate, FateToolKit tweak) => tweak.ModuleMessage(messageTemplate.ToString());
 }

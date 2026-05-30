@@ -1,4 +1,4 @@
-using FFXIVClientStructs.FFXIV.Client.Game.Object;
+﻿using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using Lumina.Extensions;
 
@@ -24,7 +24,7 @@ public static class Coords {
     }
 
     public static uint? FindClosestAetheryteToFlag(bool includeAethernet = true)
-        => FlagMapMarkerExtensions.Get() is { } flag ? FindClosestAetheryte(flag.TerritoryId, flag.Position().ToVector3(), includeAethernet) : null;
+        => FlagMapMarker.Get() is { } flag ? FindClosestAetheryte(flag.TerritoryId, flag.Position.ToVector3(), includeAethernet) : null;
 
     public static uint? FindClosestAetheryte(uint territoryTypeId, Vector3 worldPos, bool includeAethernet = true) {
         if (territoryTypeId == 886) // Firmament
@@ -61,7 +61,7 @@ public static class Coords {
         var row = Svc.Data.GetRef<Sheets.Aetheryte>(aetheryteId).Value;
         if (row.IsAetheryte)
             return aetheryteId;
-        var primary = Lumina.Extensions.LinqExtensions.FirstOrNull(Svc.Data.GetExcelSheet<Sheets.Aetheryte>(), a => a.AethernetGroup == row.AethernetGroup);
+        var primary = Svc.Data.GetExcelSheet<Sheets.Aetheryte>().FirstOrNull(a => a.AethernetGroup == row.AethernetGroup);
         return primary?.RowId ?? 0;
     }
 

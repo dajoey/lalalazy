@@ -1,10 +1,8 @@
-using Dalamud.Game.ClientState.Conditions;
+﻿using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
-using System.Collections.Generic;
-using System.Linq;
 
-namespace clib.Extensions;
+namespace LazyFateAutomation.Helpers.Extensions;
 
 public static class IConditionExtensions {
     public static unsafe bool HasPermission(this ICondition condition, uint id) => Conditions.Instance()->HasPermission(id);

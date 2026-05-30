@@ -1,6 +1,6 @@
 ﻿using Lumina.Excel.Sheets;
 
-namespace clib.Extensions;
+namespace LazyFateAutomation.Helpers.Extensions;
 
 public static class TerritoryIntendedUseExtensions {
     extension(TerritoryIntendedUse row) {

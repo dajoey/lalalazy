@@ -6,32 +6,23 @@ using Lumina.Excel.Sheets;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using TerritoryIntendedUse = FFXIVClientStructs.FFXIV.Client.Enums.TerritoryIntendedUse;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Numerics;
-using LazyFateAutomation.Helpers.IPC;
-using LazyFateAutomation.Helpers.Services;
-using LazyFateAutomation.Helpers.Utils;
-using LazyFateAutomation.Helpers.TaskSystem;
-using LazyFateAutomation.Helpers.Extensions;
 
 namespace LazyFateAutomation;
 
 internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
     private const string _presetName = "CBT - DwD";
-    private const string _presetCompressed = "G7sgAORUXTtl2E+e+WjPVqrAAflbPZILOMWW4oP+/v+fCkIhzvG84ACJWKy03g9Qaz瞬e+fXv/wD";
-    private static readonly string _preset = "G7sgAORUXTtl2E+e+WjPVqrAAflbPZILOMWW4oP+/v+fCkIhzvG84ACJWKy03g9QazmlsQdIscatVWu8Jo51H+IdQI2Y/jafAIgSBxI+iCh8ggeIT7FYvBsibX3oyQkfvp0RQITWOWlrLziwHS0ja2s8qV0VFM9HPOG4IxY+fP6kw98KhNFPI1ad8EGkwVOChw66yKpuovBBJAa3PdXiV+P/U9/QTEWMlgExR9Cf8OIautG+4TKoVL4zGi8uI4qkFB6axuHukAPbAVlXOxtgfEw9XpCtINLWwgfxuNcNLyDisW/8CtaMH5RgnRCYeNqpNjsWcKM8fSbI7mCRUV5IK5dOlU3x2ricRQ7tQ5R9bVl0XBvJx6P+2shwJsusDaZtJaYxsIme1BEBeCFKy5r2uezJsB6IcHQjyomPlVWsEYDlMZDsLi1LtpXZASsvGyVssFIWpVQFS1aGWtKdRYp1rMRqWdxblD76YHnNjbtYCR6fykdLqKzS+xY37ADDlfPFNqKC3F7oYl4DtbgPbFNttNtHdtiqFA8WFeuIOIlVVqge1O1LkemZde8EfSiPF1NRhvynbSTDEp7ReBE6plH48Pl9B+SEPY1B0WdEUk/UVIhCs6O6DPsJTQddZeT5LO04YC/tkQYyoQAsMTnWhnwckdPwBnnfaFMzuct8AvA/n/wD".FromBase64();
+    private const string _presetCompressed = "G7sgAORUXTtl2E+e+WjPVqrAAflbPZILOMWW4oP+/v+fCkIhzvG84ACJWKy03g9QazmlsQdIscatVWu8Jo51H+IdQI2Y/jafAIgSBxI+iCh8ggeIT7FYvBsibX3oyQkfvp0RQITWOWlrLziwHS0ja2s8qV0VFM9HPOG4IxY+fP6kw98KhNFPI1ad8EGkwVOChw66yKpuovBBJAa3PdXiV+P/U9/QTEWMlgExR9Cf8OIautG+4TKoVL4zGi8uI4qkFB6axuHukAPbAVlXOxtgfEw9XpCtINLWwgfxuNcNLyDisW/8CtaMH5RgnRCYeNqpNjsWcKM8fSbI7mCRUV5IK5dOlU3x2ricRQ7tQ5R9bVl0XBvJx6P+2shwJsusDaZtJaYxsIme1BEBeCFKy5r2uezJsB6IcHQjyomPlVWsEYDlMZDsLi1LtpXZASsvGyVssFIWpVQFS1aGWtKdRYp1rMRqWdxblD76YHnNjbtYCR6fykdLqKzS+xY37ADDlfPFNqKC3F7oYl4DtbgPbFNttNtHdtiqFA8WFeuIOIlVVqge1O1LkemZde8EfSiPF1NRhvynbSTDEp7ReBE6plH48Pl9B+SEPY1B0WdEUk/UVIhCs6O6DPsJTQddZeT5LO04YC/tkQYyoQAsMTnWhnwckdPwBnnfaFMzuct8AvA/n/wD";
+    private static readonly string _preset = _presetCompressed.FromBase64();
 
     private int PullSize => Player.ClassJob.Value switch {
-        var cj when cj.IsTank() => 0, // unlimited
-        var cj when cj.IsDps() => 3,
-        var cj when cj.IsHealer() => 5,
+        var cj when cj.IsTank => 0, // unlimited
+        var cj when cj.IsDps => 3,
+        var cj when cj.IsHealer => 5,
         _ => 1,
     };
 
     protected override async Task Execute() {
-        using var stop = new OnDispose(() => Service.TextAdvance.DisableExternalControl(Name));
+        using var stop = new OnDispose(() => Svc.TextAdvance.DisableExternalControl(tweak.Name));
         try {
             while (!CancelToken.IsCancellationRequested && tweak.Running) {
                 tweak.StopIfNoRemaining();
@@ -83,8 +74,8 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
     private long FollowUpWatchUntilMs { get; set; }
     private uint? WaitForExpiryFateId { get; set; } // id for when we leave a collect fate. Stay in zone until fate is null
 
-    public IOrderedEnumerable<PublicEvent> AvailableFates => FateToolKit.ApplySortOrder(PublicEvent.Fates.Where(tweak.FateConditions), Config.SortOrder);
-    private bool HasTwistOfFate => Player != null && Player.StatusList.Any(status => FateToolKit.TwistOfFateStatusIDs.Contains(status.StatusId));
+    public IOrderedEnumerable<PublicEvent> AvailableFates => FateToolKit.ApplySortOrder(PublicEvent.Fates.Where(tweak.FateConditions), tweak.Config.SortOrder);
+    private bool HasTwistOfFate => Player.Status.Any(status => FateToolKit.TwistOfFateStatusIDs.Contains(status.StatusId));
 
     private GrindState State {
         get {
@@ -105,7 +96,7 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
                     FollowUpFateId = null;
 
                 // treat completed collect fates as done and wait for out of combat/not busy before trying to move away
-                if (current is { Rule: PublicEvent.FateRule.Collect, Progress: >= 100, Id: var id } && Player != null && !Player.IsBusy()) {
+                if (current is { Rule: PublicEvent.FateRule.Collect, Progress: >= 100, Id: var id } && !Player.IsBusy) {
                     WaitForExpiryFateId = id;
                     return AvailableFates.FirstOrDefault(f => f.Id != id) is { } ? GrindState.BetweenFates : GrindState.WaitingForFates;
                 }
@@ -125,7 +116,6 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
             return GrindState.Idle;
         }
     }
-
     private enum GrindState {
         Idle,
         WaitingForFates,
@@ -154,8 +144,8 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
 
         public MoveStopReason CheckStuck(Vector3 currentPosition) {
             var now = Environment.TickCount64;
-            var isRunning = Service.Navmesh.IsRunning();
-            var isPathfinding = Service.Navmesh.PathfindInProgress();
+            var isRunning = Svc.Navmesh.IsRunning();
+            var isPathfinding = Svc.Navmesh.PathfindInProgress();
 
             if (isRunning || isPathfinding)
                 LastPathActivityAt = now;
@@ -205,21 +195,20 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
 
     private async Task Revive() {
         using var scope = BeginScope(nameof(Revive));
-        await WaitUntil(() => Player.Revivable(), "WaitForRevivable");
-        (var lastZone, var lastPos) = (Player.Territory(), Player.Position);
+        await WaitUntil(() => Player.Revivable, "WaitForRevivable");
+        (var lastZone, var lastPos) = (Player.Territory, Player.Position);
         if (Svc.Party.Length is 0) {
             Status = "Reviving";
-            GameMainExtensions.ExecuteCommand(CommandFlag.Revive, (int)AgentReviveOp.Return);
+            GameMain.ExecuteCommand(CommandFlag.Revive.Value, AgentReviveOp.Return.Value);
         }
         else {
             Status = "Waiting For Raise";
-            await WaitUntil(() => Player.ReviveState() is 2, "WaitingForRaise"); // 1 = return, 2 = raise
-            GameMainExtensions.ExecuteCommand(CommandFlag.Revive, (int)AgentReviveOp.AcceptRevive); // a1=5 for raises
+            await WaitUntil(() => Player.ReviveState is 2, "WaitingForRaise"); // 1 = return, 2 = raise
+            GameMain.ExecuteCommand(CommandFlag.Revive.Value, AgentReviveOp.AcceptRevive.Value); // a1=5 for raises
         }
-
         await WaitWhile(() => Svc.Condition[ConditionFlag.Unconscious], "WaitForAlive");
 
-        if (Player.Territory().RowId != lastZone.RowId) {
+        if (Player.Territory.RowId != lastZone.RowId) {
             await TeleportTo(lastZone.RowId, lastPos);
         }
     }
@@ -257,6 +246,7 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
             return;
 
         NextFate = nextFate;
+        // TODO: if rnd=msh, retry?
         var rnd = NextFate.Position.RandomPoint(NextFate.Radius * 0.5f);
         var msh = rnd.OnMesh();
         WarningIf(rnd == msh, "Failed to find a random point on mesh. Destination might not land.");
@@ -296,11 +286,6 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
                 return true;
 
             stopReason = MoveStopReason.None;
-
-            if (PublicEvent.CurrentFate is { } current && NextFate is { } next && current.Id == next.Id) {
-                stopReason = MoveStopReason.None;
-                return true;
-            }
 
             if (IsCurrentFateInvalid()) {
                 stopReason = MoveStopReason.FateInvalid;
@@ -369,7 +354,7 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
             ConsecutiveStuckRetries = 0;
             Status = "Teleporting to fate";
             await Mount();
-            await TeleportTo(Player.Territory().RowId, currentFate.Position, allowSameZoneTeleport: true);
+            await TeleportTo(Player.Territory.RowId, currentFate.Position, allowSameZoneTeleport: true);
             return;
         }
 
@@ -390,9 +375,8 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
 
         if (TryGetValidMotivationNpc(fate, out var npc)) {
             Log($"ActivateFate start: fate={NextFate.Id} npc={npc.EntityId} npcPos={npc.Position} playerPos={Player.Position} dist={Player.DistanceTo(npc.Position):F2} inRange={npc.IsInInteractRange()}");
-            await MoveTo(npc.Position, MovementConfig.InteractRange.WithOptions(MovementOptionsExtensions.GetCurrent()));
+            await MoveTo(npc.Position, MovementConfig.InteractRange.WithOptions(MovementOptions.GetCurrent()));
             Log($"ActivateFate after MoveTo: npc={npc.EntityId} playerPos={Player.Position} dist={Player.DistanceTo(npc.Position):F2} inRange={npc.IsInInteractRange()}");
-
             try {
                 await InteractWith(npc, () => NextFate?.State == FateState.Running, skip: UiSkipOptions.Talk | UiSkipOptions.YesNo);
             }
@@ -419,17 +403,17 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
         }
 
         var hasEffectiveZones = tweak.GetEffectiveSwapZones() is { Count: > 0 } || tweak.HasSelectedSwapZones;
-        if (!HasTwistOfFate && (hasEffectiveZones || Config.SwapZones)) {
+        if (!HasTwistOfFate && (hasEffectiveZones || tweak.Config.SwapZones)) {
             using var scope = BeginScope("SwapZones");
-            var destination = tweak.GetNextPreferredSwapZone(Player.Territory().RowId) ?? GetNextAchievementZone() ?? GetRandomSameExpacZone();
-            if (destination == Player.Territory().RowId) {
+            var destination = tweak.GetNextPreferredSwapZone(Player.Territory.RowId) ?? GetNextAchievementZone() ?? GetRandomSameExpacZone();
+            if (destination == Player.Territory.RowId) {
                 Status = "Waiting for fates in selected zones";
                 await Mount();
                 await NextFrame(60);
                 return;
             }
 
-            var fromTerritoryId = Player.Territory().RowId;
+            var fromTerritoryId = Player.Territory.RowId;
             await Mount();
             await TeleportTo(destination, Vector3.Zero);
             await tweak.GetCurrentMode().OnSwapZone(fromTerritoryId, destination, CancelToken);
@@ -457,15 +441,20 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
             }
 
             if (Service.BossMod.GetActive() != _presetName) {
-                if (Service.BossMod.Get(_presetName) is null)
+                if (Service.BossMod.Get(_presetName) is null) {
                     Service.BossMod.Create(_preset, true);
-                else
                     Service.BossMod.SetActive(_presetName);
+                    Service.BossMod.Activate();
+                }
+                else {
+                    Service.BossMod.SetActive(_presetName);
+                    Service.BossMod.Activate();
+                }
             }
-            Service.BossMod.AddTransientStrategy(_presetName, "BossMod.Autorotation.MiscAI.AutoTarget", "MaxTargets", PullSize.ToString());
+            Svc.BossMod.AddTransientStrategy(_presetName, "BossMod.Autorotation.MiscAI.AutoTarget", "MaxTargets", PullSize.ToString());
 
-            if (PublicEvent.CurrentFate is { Rule: PublicEvent.FateRule.Collect } && !Service.TextAdvance.IsInExternalControl())
-                Service.TextAdvance.EnableExternalControl(Name, new() { EnableTalkSkip = true, EnableRequestFill = true, EnableRequestHandin = true });
+            if (PublicEvent.CurrentFate is { Rule: PublicEvent.FateRule.Collect } && !Svc.TextAdvance.IsInExternalControl())
+                Svc.TextAdvance.EnableExternalControl(tweak.Name, new() { EnableTalkSkip = true, EnableRequestFill = true, EnableRequestHandin = true });
         }
         else {
             // Fate ended; clear NextFate so routing is correct. Only turn off combat preset once out of combat,
@@ -481,9 +470,10 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
             NextFate = null;
 
         Service.BossMod.ClearActive();
+        Service.BossMod.Deactivate();
         Svc.Targets.Target = null; // avoid preset trying to go to the mob and interfering with casts
-        if (Service.TextAdvance.IsInExternalControl())
-            Service.TextAdvance.DisableExternalControl(Name);
+        if (Svc.TextAdvance.IsInExternalControl())
+            Svc.TextAdvance.DisableExternalControl(tweak.Name);
     }
 
     private bool TryGetValidMotivationNpc(PublicEvent fate, [NotNullWhen(true)] out IGameObject? npc) {
@@ -498,10 +488,10 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
         return true;
     }
 
+    // TODO: find better shit for this
     private const int FollowUpWaitLimit = 15_000;
     private void StartFollowUpWatch(uint completedFateId) {
-        var row = Svc.Data.GetExcelSheet<Fate>().GetRowOrDefault(completedFateId);
-        if (row is null || !row.Value.HasFollowUp())
+        if (!Fate.GetRow(completedFateId).HasFollowUp)
             return;
 
         if (FollowUpFateId != completedFateId)
@@ -515,11 +505,8 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
         if (FollowUpFateId is not { } fateId)
             return false;
 
-        var row = Svc.Data.GetExcelSheet<Fate>().GetRowOrDefault(fateId);
-        if (row is null)
-            return false;
-
-        if (PublicEvent.Fates.Any(f => f.Id > fateId && Svc.Data.GetExcelSheet<Fate>().GetRowOrDefault(f.Id)?.Location == row.Value.Location)) {
+        var row = Fate.GetRow(fateId);
+        if (PublicEvent.Fates.Any(f => f.Id > fateId && Fate.GetRow(f.Id).Location == row.Location)) {
             Log($"Detected follow-up fate for {fateId}, resuming routing");
             FollowUpFateId = null;
             return false;
@@ -539,17 +526,17 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
         if (agent == null) return null;
 
         // prioritise zones in the same expac as current area
-        var currentTabIndex = Array.FindIndex(agent->Tabs.ToArray(), tab => tab.Zones.ToArray().Any(zone => Player.Territory().RowId == zone.TerritoryTypeId));
+        var currentTabIndex = Array.FindIndex(agent->Tabs.ToArray(), tab => tab.Zones.ToArray().Any(zone => Player.Territory.RowId == zone.TerritoryTypeId));
         var zones = (currentTabIndex != -1 && currentTabIndex < agent->Tabs.Length - 1)
             ? agent->Tabs[currentTabIndex].Zones.ToArray()
             : agent->Tabs.ToArray().SelectMany(tab => tab.Zones.ToArray());
 
-        return zones.FirstOrNull(zone => zone.NeededFates - zone.FateProgress > 0)?.TerritoryTypeId;
+        var match = zones.FirstOrDefault(zone => zone.NeededFates - zone.FateProgress > 0);
+        return match.TerritoryTypeId != 0 ? match.TerritoryTypeId : null;
     }
 
     private uint GetRandomSameExpacZone() {
-        var territorySheet = Svc.Data.GetExcelSheet<TerritoryType>();
-        var rows = territorySheet.Where(x => x.IsInUse && x.TerritoryIntendedUse.Value.StructsEnum is TerritoryIntendedUse.Overworld && x.ExVersion.RowId == Player.Territory().Value.ExVersion.RowId && !x.IsPvpZone).ToArray();
+        var rows = TerritoryType.Where(x => x.IsInUse && x.TerritoryIntendedUse.Value.StructsEnum is TerritoryIntendedUse.Overworld && x.ExVersion.RowId == Player.Territory.Value.ExVersion.RowId && !x.IsPvpZone);
         return rows[new Random().Next(rows.Length)].RowId;
     }
 }

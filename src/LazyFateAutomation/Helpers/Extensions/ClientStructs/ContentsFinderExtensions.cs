@@ -1,6 +1,6 @@
 ﻿using FFXIVClientStructs.FFXIV.Client.Game.UI;
 
-namespace clib.Extensions;
+namespace LazyFateAutomation.Helpers.Extensions;
 
 public static class ContentsFinderExtensions {
     public static void ResetFlags(ref this ContentsFinder cf) {
