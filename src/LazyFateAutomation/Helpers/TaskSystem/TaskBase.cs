@@ -158,6 +158,10 @@ public abstract class TaskBase : AutoTask {
         ErrorIf(teleportAetheryteId == 0, $"Failed to find aetheryte in [{territoryId}] {Svc.Data.GetRef<Sheets.TerritoryType>(territoryId).Value.PlaceName.Value.Name}");
         if (Svc.Data.GetRef<Sheets.Aetheryte>(teleportAetheryteId) is { Value.Territory.RowId: var destinationId, Value.PlaceName.Value.Name: var destinationName } && Svc.ClientState.TerritoryType != destinationId) {
             Status = $"Teleporting to {destinationName}";
+            if (Player.Mounted) {
+                Log("Mounted during teleport. Safely landing and dismounting first.");
+                await Dismount();
+            }
             ErrorIf(!ActionManager.Teleport(teleportAetheryteId), $"Failed to teleport to {teleportAetheryteId}");
             await WaitUntilTerritory(destinationId);
             if (destinationId == territoryId) return; // we're in target zone; otherwise fall through to aethernet to get from primary zone to target zone
@@ -165,6 +169,10 @@ public abstract class TaskBase : AutoTask {
 
         if (Svc.ClientState.TerritoryType == territoryId) {
             Status = "Teleporting to aetheryte";
+            if (Player.Mounted) {
+                Log("Mounted during same-zone teleport. Safely landing and dismounting first.");
+                await Dismount();
+            }
             ErrorIf(!ActionManager.Teleport(teleportAetheryteId), $"Failed to teleport to {teleportAetheryteId}");
             if (teleportAetheryteId == closestAetheryteId) return;
 
