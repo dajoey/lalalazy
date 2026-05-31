@@ -31,7 +31,8 @@ internal partial class SAM
 
                 if ((simpleMode || IsEnabled(Preset.SAM_ST_Kasha)) &&
                     LevelChecked(Shifu) &&
-                    ((OnTargetsFlank() || OnTargetsFront()) && !HasKa && LevelChecked(Kasha) ||
+                    !HasKa &&
+                    ((OnTargetsFlank() || OnTargetsFront()) && LevelChecked(Kasha) ||
                      OnTargetsRear() && HasGetsu && LevelChecked(Kasha) ||
                      !HasStatusEffect(Buffs.Fuka) ||
                      SenCount is 3 && RefreshFuka))
@@ -39,7 +40,8 @@ internal partial class SAM
 
                 if ((simpleMode || IsEnabled(Preset.SAM_ST_Gekko)) &&
                     LevelChecked(Jinpu) &&
-                    ((OnTargetsRear() || OnTargetsFront()) && !HasGetsu && LevelChecked(Gekko) ||
+                    !HasGetsu &&
+                    ((OnTargetsRear() || OnTargetsFront()) && LevelChecked(Gekko) ||
                      OnTargetsFlank() && HasKa && LevelChecked(Gekko) ||
                      !HasStatusEffect(Buffs.Fugetsu) ||
                      SenCount is 3 && RefreshFugetsu))
@@ -221,8 +223,9 @@ internal partial class SAM
 
         if ((simpleMode || IsEnabled(Preset.SAM_ST_Gekko)) &&
             LevelChecked(Gekko) &&
+            !HasGetsu &&
             (!HasStatusEffect(Buffs.Fugetsu) ||
-             (OnTargetsRear() || OnTargetsFront()) && !HasGetsu ||
+             (OnTargetsRear() || OnTargetsFront()) ||
              OnTargetsFlank() && HasKa))
             return !OnTargetsRear() &&
                    Role.CanTrueNorth() &&
@@ -233,8 +236,9 @@ internal partial class SAM
 
         if ((simpleMode || IsEnabled(Preset.SAM_ST_Kasha)) &&
             LevelChecked(Kasha) &&
+            !HasKa &&
             (!HasStatusEffect(Buffs.Fuka) ||
-             (OnTargetsFlank() || OnTargetsFront()) && !HasKa ||
+             (OnTargetsFlank() || OnTargetsFront()) ||
              OnTargetsRear() && HasGetsu))
             return !OnTargetsFlank() &&
                    Role.CanTrueNorth() &&

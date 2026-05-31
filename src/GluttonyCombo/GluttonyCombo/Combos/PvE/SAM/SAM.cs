@@ -182,14 +182,10 @@ internal partial class SAM : Melee
             if (ComboTimer > 0 && ComboAction is Fuko or Fuga ||
                 HasStatusEffect(Buffs.MeikyoShisui))
             {
-                if (LevelChecked(Mangetsu) &&
-                    (!HasGetsu ||
-                     !HasStatusEffect(Buffs.Fugetsu)))
+                if (LevelChecked(Mangetsu) && !HasGetsu)
                     return Mangetsu;
 
-                if (LevelChecked(Oka) &&
-                    (!HasKa ||
-                     !HasStatusEffect(Buffs.Fuka)))
+                if (LevelChecked(Oka) && !HasKa)
                     return Oka;
             }
 
@@ -446,15 +442,17 @@ internal partial class SAM : Melee
                 HasStatusEffect(Buffs.MeikyoShisui))
             {
                 if (LevelChecked(Mangetsu) &&
-                    (!HasGetsu ||
-                     IsNotEnabled(Preset.SAM_AoE_Oka) ||
-                     !HasStatusEffect(Buffs.Fugetsu)))
+                    !HasGetsu &&
+                    (IsNotEnabled(Preset.SAM_AoE_Oka) ||
+                     !HasStatusEffect(Buffs.Fugetsu) ||
+                     HasKa))
                     return Mangetsu;
 
                 if (IsEnabled(Preset.SAM_AoE_Oka) &&
                     LevelChecked(Oka) &&
-                    (!HasKa ||
-                     !HasStatusEffect(Buffs.Fuka)))
+                    !HasKa &&
+                    (!HasStatusEffect(Buffs.Fuka) ||
+                     HasGetsu))
                     return Oka;
             }
 
@@ -510,16 +508,18 @@ internal partial class SAM : Melee
 
                     if (SAM_Yukaze_Gekko &&
                         LevelChecked(Jinpu) &&
-                        ((OnTargetsRear() || OnTargetsFront()) && !HasGetsu && LevelChecked(Gekko) ||
-                         HasKa && !HasGetsu && LevelChecked(Gekko) ||
+                        !HasGetsu &&
+                        ((OnTargetsRear() || OnTargetsFront()) && LevelChecked(Gekko) ||
+                         HasKa && LevelChecked(Gekko) ||
                          SAM_ST_YukikazeCombo_Prio == 1 && !HasStatusEffect(Buffs.Fugetsu) ||
                          SenCount is 3 && RefreshFugetsu))
                         return Jinpu;
 
                     if (SAM_Yukaze_Kasha &&
                         LevelChecked(Shifu) &&
-                        ((OnTargetsFlank() || OnTargetsFront()) && !HasKa && LevelChecked(Kasha) ||
-                         HasGetsu && !HasKa && LevelChecked(Kasha) ||
+                        !HasKa &&
+                        ((OnTargetsFlank() || OnTargetsFront()) && LevelChecked(Kasha) ||
+                         HasGetsu && LevelChecked(Kasha) ||
                          SAM_ST_YukikazeCombo_Prio == 1 && !HasStatusEffect(Buffs.Fuka) ||
                          SenCount is 3 && RefreshFuka))
                         return Shifu;
@@ -636,16 +636,16 @@ internal partial class SAM : Melee
                 HasStatusEffect(Buffs.MeikyoShisui))
             {
                 if (LevelChecked(Mangetsu) &&
-                    (!HasGetsu ||
-                     !SAM_Mangetsu_Oka ||
+                    !HasGetsu &&
+                    (!SAM_Mangetsu_Oka ||
                      !HasStatusEffect(Buffs.Fugetsu) ||
                      SenCount is 2 or 3 && RefreshFugetsu))
                     return Mangetsu;
 
                 if (SAM_Mangetsu_Oka &&
                     LevelChecked(Oka) &&
-                    (!HasKa ||
-                     !HasStatusEffect(Buffs.Fuka) ||
+                    !HasKa &&
+                    (!HasStatusEffect(Buffs.Fuka) ||
                      SenCount is 2 or 3 && RefreshFuka))
                     return Oka;
             }
@@ -663,12 +663,14 @@ internal partial class SAM : Melee
             if (actionID is not MeikyoShisui || !HasStatusEffect(Buffs.MeikyoShisui))
                 return actionID;
 
-            if (!HasStatusEffect(Buffs.Fugetsu) ||
-                !HasGetsu)
+            if (!HasGetsu &&
+                (!HasStatusEffect(Buffs.Fugetsu) ||
+                 HasKa && HasSetsu))
                 return Gekko;
 
-            if (!HasStatusEffect(Buffs.Fuka) ||
-                !HasKa)
+            if (!HasKa &&
+                (!HasStatusEffect(Buffs.Fuka) ||
+                 HasGetsu && HasSetsu))
                 return Kasha;
 
             if (!HasSetsu)
