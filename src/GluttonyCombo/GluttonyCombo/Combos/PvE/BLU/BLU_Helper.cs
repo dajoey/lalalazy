@@ -332,7 +332,7 @@ internal partial class BLU
                 }
                 // If chain is in progress (1-3 stacks), continue
                 int stacks = GetStatusEffect(Buffs.WingedReprobation)?.Param ?? 0;
-                if (stacks >= 1 && stacks <= 3 && IsOffCooldown(OriginalHook(WingedReprobation)))
+                if (stacks >= 1 && stacks <= 3 && IsOffCooldown(WingedReprobation))
                 {
                     DbgNote = $"WR chain stk={stacks}";
                     return OriginalHook(WingedReprobation);
@@ -352,7 +352,7 @@ internal partial class BLU
             }
 
             // --- Surpanakha charge dump: keep firing until all charges spent ---
-            if (IsSpellActive(Surpanakha) && JustUsed(Surpanakha, 2f) && GetRemainingCharges(Surpanakha) > 0)
+            if (IsSpellActive(Surpanakha) && JustUsed(Surpanakha, 2f) && GetRemainingCharges(Surpanakha) > 0 && CanWeave())
             {
                 DbgNote = "Surp dump";
                 return Surpanakha;
@@ -431,7 +431,7 @@ internal partial class BLU
         private uint BestWeave()
         {
             // Surpanakha dump: if we just used it and charges remain, force it
-            if (IsSpellActive(Surpanakha) && JustUsed(Surpanakha, 2f) && GetRemainingCharges(Surpanakha) > 0)
+            if (IsSpellActive(Surpanakha) && JustUsed(Surpanakha, 2f) && GetRemainingCharges(Surpanakha) > 0 && CanWeave())
                 return Surpanakha;
 
             uint best = 0;
