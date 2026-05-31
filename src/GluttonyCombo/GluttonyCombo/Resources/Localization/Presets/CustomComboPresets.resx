@@ -11413,4 +11413,10 @@ NOT RECOMMENDED!</value>
   <data name="SMN_AoE_Advanced_Combo_RadiantMaintain_Name" xml:space="preserve">
     <value>Aegis Uptime</value>
   </data>
+  <data name="BLU_ST_AdvancedMode_Name" xml:space="preserve">
+    <value>Single Target - Advanced [ALPHA]</value>
+  </data>
+  <data name="BLU_ST_AdvancedMode_Desc" xml:space="preserve">
+    <value>[ALPHA - experimental, work in progress] Automatic single-target damage priority for Blue Mage. Scores every spell you have active in your spellbook by damage-per-cast-time, weaves oGCDs, keeps DoTs up without clipping, dumps Surpanakha charges together, and only spends a GCD on Bristle/Whistle/Tingle when the payload is big enough to be worth it. Greedy (fires on cooldown); no Moon Flute burst window yet. Potencies are the level 80 set. Expect rough edges - tuning pass pending.</value>
+  </data>
 </root>

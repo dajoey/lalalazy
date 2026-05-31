@@ -1623,6 +1623,12 @@ public enum Preset
 
     #region BLUE MAGE
 
+    [AutoAction(false, false)]
+    [ReplaceSkill(BLU.WaterCannon)]
+    [JobInfo(Job.BLU)]
+    [AdvancedCombo]
+    BLU_ST_AdvancedMode = 70030,
+
     [ReplaceSkill(BLU.MoonFlute)]
     [BlueInactive(BLU.Whistle, BLU.Tingle, BLU.RoseOfDestruction, BLU.MoonFlute, BLU.JKick, BLU.TripleTrident,
         BLU.Nightbloom, BLU.WingedReprobation, BLU.SeaShanty, BLU.BeingMortal, BLU.ShockStrike, BLU.Surpanakha,
