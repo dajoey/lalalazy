@@ -1763,7 +1763,13 @@ public enum Preset
     [JobInfo(Job.BLU)]
     BLU_PeatClean = 70023,
 
-    // Last value = 70023
+    [AutoAction(false, true)]
+    [ReplaceSkill(BLU.SonicBoom)]
+    [JobInfo(Job.BLU)]
+    [AdvancedCombo]
+    BLU_Heal_AdvancedMode = 70031,
+
+    // Last value = 70031
 
     #endregion
 

@@ -1,5 +1,25 @@
 # Gluttony Combo — Changelog
 
+## v1.0.4.30 (2026-05-31)
+
+### Complete Rewrite
+- **Complete BLU autorotation engine rewrite with full spell catalog.** Replaced the ~317-line partial catalog with a ~730-line engine covering the entire Blue Mage damage kit (100+ spells cataloged). Every candidate spell is now scored by damage-per-effective-time (DPET) with AoE-aware target counting, so the engine naturally transitions from ST to AoE priority based on how many enemies each spell will hit.
+
+### Added
+- **AoE-aware scoring.** Every AoE spell multiplies its effective potency by `NumberOfEnemiesInRange(spellId)` so multi-target situations automatically shift priority from ST fillers to AoE nukes without a separate AoE preset.
+- **Conditional/gated spells.** White Death (needs Touch of Frost 2494), Divine Cataract (needs Auspicious Trance 2497), and Conviction Marcato (needs Winged Redemption 3641) fire instantly when their enabler buffs proc.
+- **Full spell catalog.** All ST fillers (Sonic Boom, Water Cannon, Sharpened Knife, Goblin Punch, Glower, Mustard Bomb, Abyssal Transfixion, Reflux, Matra Magic, Triple Trident, Revenge Blast, Flying Sardine, Blood Drain), all AoE GCDs (40+ spells from Drill Cannons to Candy Cane), all oGCDs (Feather Rain through Being Mortal + Surpanakha), DoTs (Song of Torment, Breath of Magic, Mortal Flame, Aetherial Spark), channels (Phantom Flurry with finisher, Apokalypsis), and self-KO/percent-HP gimmick spells (cataloged but never auto-cast).
+- **Movement awareness.** Cast-time GCDs and buff spells are skipped while moving; only instant-cast spells are selected.
+- **Shared recast handling.** Being Mortal / Apokalypsis and Magic Hammer / Candy Cane correctly share cooldowns.
+- **DPS Mimicry awareness.** Matra Magic scores at 800 potency when DPS Mimicry (status 2125) is active.
+- **New BLU_Heal_AdvancedMode preset** (enum 70031). Heal mode raises dead party members (Angel Whisper), heals when anyone drops below 50%% HP (Gobskin, Angels Snack, Pom Cure, White Wind, Rehydration, Exuviation), then falls through to the full DPS engine when nobody needs healing.
+- **Expanded debug readout.** Shows buff states, movement, melee range, and per-spell active/ready/AoE/channel flags with enemy counts.
+
+### Notes
+- Still ALPHA. Greedy priority (fires on cooldown), no Moon Flute burst window optimization yet.
+- Self-KO spells (Final Sting, Self-destruct, Wild Rage) and percent-HP gimmick spells (Missile, Tail Screw, Dimensional Shift, Launcher) are cataloged but never auto-cast.
+
+
 ## v1.0.4.29 (2026-05-31)
 
 ### Fixed
