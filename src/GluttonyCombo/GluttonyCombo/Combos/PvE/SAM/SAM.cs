@@ -502,8 +502,8 @@ internal partial class SAM : Melee
                     if (LevelChecked(Yukikaze) &&
                         !HasSetsu &&
                         (SAM_ST_YukikazeCombo_Prio == 0 ||
-                         (HasStatusEffect(Buffs.Fugetsu) || !SAM_Yukaze_Gekko) &&
-                         (HasStatusEffect(Buffs.Fuka) || !SAM_Yukaze_Kasha)))
+                         (HasGetsu || HasStatusEffect(Buffs.Fugetsu) || !SAM_Yukaze_Gekko) &&
+                         (HasKa || HasStatusEffect(Buffs.Fuka) || !SAM_Yukaze_Kasha)))
                         return Yukikaze;
 
                     if (SAM_Yukaze_Gekko &&
