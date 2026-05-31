@@ -73,6 +73,7 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
     private uint? FollowUpFateId { get; set; } // id to store to check if NextFate is a follow up to this
     private long FollowUpWatchUntilMs { get; set; }
     private uint? WaitForExpiryFateId { get; set; } // id for when we leave a collect fate. Stay in zone until fate is null
+    private long LastEmptyZoneSwapTimeMs { get; set; }
 
     public IOrderedEnumerable<PublicEvent> AvailableFates => FateToolKit.ApplySortOrder(PublicEvent.Fates.Where(tweak.FateConditions), tweak.Config.SortOrder);
     private bool HasTwistOfFate => Player.Status.Any(status => FateToolKit.TwistOfFateStatusIDs.Contains(status.StatusId));
@@ -407,6 +408,14 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
         var hasEffectiveZones = tweak.GetEffectiveSwapZones() is { Count: > 0 };
 
         if (!HasTwistOfFate && (hasEffectiveZones || (tweak.Config.SwapZones && !hasRawZones))) {
+            var timeSinceLastSwap = Environment.TickCount64 - LastEmptyZoneSwapTimeMs;
+            if (timeSinceLastSwap < 30_000) {
+                Status = $"Empty zone swap cooldown ({(30_000 - timeSinceLastSwap) / 1000 + 1}s)";
+                await Mount();
+                await NextFrame(60);
+                return;
+            }
+
             using var scope = BeginScope("SwapZones");
             var destination = tweak.GetNextPreferredSwapZone(Player.Territory.RowId) ?? GetNextAchievementZone() ?? GetRandomSameExpacZone();
             if (destination == Player.Territory.RowId) {
@@ -419,6 +428,7 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
             var fromTerritoryId = Player.Territory.RowId;
             await Mount();
             await TeleportTo(destination, Vector3.Zero);
+            LastEmptyZoneSwapTimeMs = Environment.TickCount64;
             await tweak.GetCurrentMode().OnSwapZone(fromTerritoryId, destination, CancelToken);
         }
         else {

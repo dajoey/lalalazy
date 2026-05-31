@@ -124,37 +124,10 @@ public class FateToolKitWindow : MinimisableWindow {
         if (minimised)
             return;
 
-        var rawZones = _tweak.GetRawSwapZones();
-        var hasRawZones = rawZones is { Count: > 0 };
+        ImGui.SpacedSeparator();
 
-        var fates = _tweak.GetOrderedFates().ToList();
-        var hasActiveFates = fates.Any(x => x.IsAvailable);
-
-        if (!hasActiveFates) {
-            ImGui.TextColored(new Vector4(1f, 0.8f, 0.2f, 1f), "No active fates in current zone.");
-            if (hasRawZones) {
-                ImGui.Spacing();
-                ImGui.TextColored(new Vector4(0.8f, 0.8f, 1f, 1f), "Thinking of teleporting between:");
-                using (var indent = ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 4f)) {
-                    foreach (var zoneId in rawZones!.OrderBy(FateToolKit.GetZoneName)) {
-                        var isChecked = !_tweak.Config.ExcludedSwapZones.Contains(zoneId);
-                        if (ImGui.Checkbox($"{FateToolKit.GetZoneName(zoneId)}##zone_{zoneId}", ref isChecked)) {
-                            if (isChecked)
-                                _tweak.Config.ExcludedSwapZones.Remove(zoneId);
-                            else
-                                _tweak.Config.ExcludedSwapZones.Add(zoneId);
-                            _tweak.Config.Save();
-                        }
-                    }
-                }
-            }
-            else {
-                ImGui.TextColored(new Vector4(0.6f, 0.6f, 0.6f, 1f), "No swap zones configured.");
-            }
-            ImGui.Spacing();
-        }
-
-        if (fates.Count == 0) {
+        if (_tweak.GetOrderedFates().ToList() is not { Count: > 0 } fates) {
+            ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1f), "No fates match the current filters.");
             return;
         }
 

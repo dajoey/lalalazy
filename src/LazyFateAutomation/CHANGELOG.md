@@ -1,5 +1,11 @@
 # Changelog - Lazy Fate Automation
 
+## [0.0.1.19] - 2026-05-31
+### Added
+- Added a 30-second cooldown on empty-zone teleports to prevent rapid infinite teleporting loops when all selected/mode zones are empty.
+### Changed
+- Moved the checkable swap zones list exclusively to the Settings panel (hidden by default) rather than showing on the main tracker window to keep the UI clean.
+
 ## [0.0.1.18] - 2026-05-31
 ### Added
 - Added ability to list and selectively restrict/exclude teleport zones directly in the main UI and settings panel.
