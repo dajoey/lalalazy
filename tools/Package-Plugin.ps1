@@ -32,6 +32,12 @@ if (-not (Test-Path $srcDir)) {
     throw "Plugin source directory not found: $srcDir"
 }
 
+# Support nested project folder (e.g. src/GluttonyCombo/GluttonyCombo)
+$nestedDir = Join-Path $srcDir $PluginName
+if (Test-Path $nestedDir) {
+    $srcDir = $nestedDir
+}
+
 Write-Host "==> Standardized Packaging: $PluginName ($Channel)" -ForegroundColor Cyan
 
 # Parse pluginmaster.json first to evaluate version status
@@ -46,9 +52,10 @@ $entry = $masterList | Where-Object { $_.InternalName -eq $PluginName }
 $csprojPath = Join-Path $srcDir "$PluginName.csproj"
 if (Test-Path $csprojPath) {
     [xml]$csproj = Get-Content $csprojPath
-    $projVersion = $csproj.Project.PropertyGroup.Version
+    $targetGroup = $csproj.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1
+    $projVersion = if ($targetGroup) { $targetGroup.Version } else { $null }
     
-    if ($entry -and $Channel -eq 'production' -and -not $VersionOverride) {
+    if ($projVersion -and $entry -and $Channel -eq 'production' -and -not $VersionOverride) {
         $lastPublishedVersion = $entry.AssemblyVersion
         if ($projVersion -eq $lastPublishedVersion) {
             $parts = $projVersion.Split('.')
@@ -58,7 +65,7 @@ if (Test-Path $csprojPath) {
                 Write-Host "WARNING: Version $projVersion is already registered in pluginmaster.json!" -ForegroundColor Yellow
                 Write-Host "Auto-Bumping version in csproj to: $newVersion" -ForegroundColor Green
                 
-                $csproj.Project.PropertyGroup.Version = $newVersion
+                $targetGroup.Version = $newVersion
                 $csproj.Save($csprojPath)
             }
         }

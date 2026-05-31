@@ -728,6 +728,13 @@ internal partial class SMN
                 return true;
             }
 
+            if ((IfritAstralFlowCyclone && HasStatusEffect(Buffs.IfritsFavor) && GetTargetDistance() <= crimsonCycloneMeleeDistance) //Melee Check
+                || (IfritAstralFlowStrike && HasStatusEffect(Buffs.CrimsonStrike) && InMeleeRange())) //After Strike
+            {
+                actionID = OriginalHook(AstralFlow);
+                return true;
+            }
+
             if (egiSummonAttacksEnabled && GemshineReady && (!IsMoving() || HasStatusEffect(Role.Buffs.Swiftcast)))
             {
                 if (flags.HasFlag(Combo.ST))
@@ -740,14 +747,6 @@ internal partial class SMN
                     actionID = OriginalHook(PreciousBrilliance);
                     return true;
                 }
-            }
-
-            if (IfritAstralFlowCyclone && HasStatusEffect(Buffs.IfritsFavor) &&
-                GetTargetDistance() <= crimsonCycloneMeleeDistance  //Melee Check
-                || IfritAstralFlowStrike && HasStatusEffect(Buffs.CrimsonStrike) && InMeleeRange()) //After Strike
-            {
-                actionID = OriginalHook(AstralFlow);
-                return true;
             }
 
             if (ruin4Enabled && HasStatusEffect(Buffs.FurtherRuin) && !HasStatusEffect(Role.Buffs.Swiftcast))
