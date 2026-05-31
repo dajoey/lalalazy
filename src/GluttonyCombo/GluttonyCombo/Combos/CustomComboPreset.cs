@@ -1624,7 +1624,7 @@ public enum Preset
     #region BLUE MAGE
 
     [AutoAction(false, false)]
-    [ReplaceSkill(BLU.WaterCannon)]
+    [ReplaceSkill(BLU.SonicBoom)]
     [JobInfo(Job.BLU)]
     [AdvancedCombo]
     BLU_ST_AdvancedMode = 70030,
