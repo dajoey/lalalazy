@@ -1,4 +1,4 @@
-using GluttonyCombo.Core;
+﻿using GluttonyCombo.Core;
 using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.CustomComboNS.Functions;
 using GluttonyCombo.Extensions;
@@ -8,7 +8,7 @@ using System.Linq;
 
 namespace GluttonyCombo.Combos.PvE;
 
-// BLU AutoRotation — Phase 2: complete DPET engine with full spell catalog,
+// BLU AutoRotation â€” Phase 2: complete DPET engine with full spell catalog,
 // AoE-aware scoring, heal preset, and conditional/gated spells.
 // See CHANGELOG. Key behaviors: GCD spells are NOT gated on the global-GCD cooldown (only
 // real cooldowns gate); oGCDs weave on CanWeave(); DoTs use per-action JustUsed cadence;
@@ -19,10 +19,11 @@ namespace GluttonyCombo.Combos.PvE;
 // will hit (via NumberOfEnemiesInRange), so the engine naturally transitions from ST to AoE.
 internal partial class BLU
 {
-    // ── Action IDs not already defined in BLU.cs ──────────────────────────
+    // â”€â”€ Action IDs not already defined in BLU.cs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     public const uint
         WaterCannon       = 11385,
         FlyingSardine     = 11423,
+        FlameThrower      = 11402,
         BloodDrain        = 11395,
         GoblinPunch       = 34563,
         MountainBuster    = 11428,
@@ -127,10 +128,10 @@ internal partial class BLU
     private const float DotApplyGrace= 8f;
     private const int BuffWorthPotency = 400;
 
-    // ── FULL SPELL CATALOG ───────────────────────────────────────────────
+    // â”€â”€ FULL SPELL CATALOG â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     internal static readonly List<BluSpell> FullCatalog =
     [
-        // ════════ ST/Filler GCDs ════════
+        // â•â•â•â•â•â•â•â• ST/Filler GCDs â•â•â•â•â•â•â•â•
         new() { Id = SonicBoom,         Name = "Sonic Boom",        Potency = 210, Aspect = BluAspect.Magical },
         new() { Id = WaterCannon,       Name = "Water Cannon",      Potency = 200, Aspect = BluAspect.Magical },
         new() { Id = SharpenedKnife,    Name = "Sharpened Knife",   Potency = 220, Aspect = BluAspect.Physical, Melee = true },
@@ -145,7 +146,7 @@ internal partial class BLU
         new() { Id = FlyingSardine,     Name = "Flying Sardine",    Potency = 10, Aspect = BluAspect.Physical },
         new() { Id = BloodDrain,        Name = "Blood Drain",       Potency = 50, Aspect = BluAspect.Unaspected },
 
-        // ════════ AoE GCDs ════════
+        // â•â•â•â•â•â•â•â• AoE GCDs â•â•â•â•â•â•â•â•
         new() { Id = DrillCannons,      Name = "Drill Cannons",     Potency = 220, CastS = 1f, Aspect = BluAspect.Physical, IsAoE = true, Shape = BluShape.Line },
         new() { Id = PerpetualRay,      Name = "Perpetual Ray",     Potency = 220, CastS = 1f, Aspect = BluAspect.Physical, IsAoE = true, Melee = true },
         new() { Id = WhiteKnightsTour,  Name = "White Knight Tour", Potency = 200, CastS = 2f, Aspect = BluAspect.Physical, IsAoE = true, Shape = BluShape.Circle },
@@ -189,18 +190,18 @@ internal partial class BLU
         new() { Id = MagicHammer,       Name = "Magic Hammer",      Potency = 250, CastS = 1f, Aspect = BluAspect.Unaspected, IsAoE = true, Shape = BluShape.Circle, CooldownS = 90f },
         new() { Id = CandyCane,         Name = "Candy Cane",        Potency = 250, CastS = 1f, Aspect = BluAspect.Unaspected, IsAoE = true, Shape = BluShape.Circle, CooldownS = 90f, SharesRecast = MagicHammer },
 
-        // ════════ Conditional/Gated GCDs ════════
+        // â•â•â•â•â•â•â•â• Conditional/Gated GCDs â•â•â•â•â•â•â•â•
         new() { Id = WhiteDeath,        Name = "White Death",       Potency = 400, Aspect = BluAspect.Magical, RequiresStatus = TouchOfFrost },
         new() { Id = DivineCataract,    Name = "Divine Cataract",   Potency = 500, Aspect = BluAspect.Magical, RequiresStatus = AuspiciousTrance },
         new() { Id = ConvictionMarcato, Name = "Conviction Marcato",Potency = 220, CastS = 2f, Aspect = BluAspect.Unaspected, IsAoE = true, Shape = BluShape.Line, RequiresStatus = WingedRedemptionStatus },
 
-        // ════════ DoTs ════════
+        // â•â•â•â•â•â•â•â• DoTs â•â•â•â•â•â•â•â•
         new() { Id = SongOfTorment,     Name = "Song of Torment",   DotPotency = 50,  DotDurationS = 30, DotStatus = Debuffs.SongOfTorment, CastS = 2f, Aspect = BluAspect.Unaspected, WantsBuffs = [Bristle] },
         new() { Id = BreathOfMagic,     Name = "Breath of Magic",   DotPotency = 120, DotDurationS = 60, DotStatus = Debuffs.BreathOfMagic, CastS = 2f, Aspect = BluAspect.Unaspected, WantsBuffs = [Bristle] },
         new() { Id = MortalFlame,       Name = "Mortal Flame",      DotPotency = 40,  DotDurationS = 90, DotStatus = Debuffs.MortalFlame, NoTimer = true, CastS = 2f, Aspect = BluAspect.Magical, WantsBuffs = [Bristle] },
         new() { Id = AetherialSpark,    Name = "Aetherial Spark",   Potency = 50, DotPotency = 50, DotDurationS = 15, DotStatus = 0, Aspect = BluAspect.Magical },
 
-        // ════════ oGCDs (weave) ════════
+        // â•â•â•â•â•â•â•â• oGCDs (weave) â•â•â•â•â•â•â•â•
         new() { Id = FeatherRain,       Name = "Feather Rain",      Potency = 100, IsOgcd = true, CooldownS = 30f, Aspect = BluAspect.Physical, IsAoE = true },
         new() { Id = Eruption,          Name = "Eruption",          Potency = 200, IsOgcd = true, CooldownS = 30f, Aspect = BluAspect.Magical, IsAoE = true },
         new() { Id = ShockStrike,       Name = "Shock Strike",      Potency = 400, IsOgcd = true, CooldownS = 60f, Aspect = BluAspect.Magical },
@@ -215,16 +216,17 @@ internal partial class BLU
         new() { Id = BeingMortal,       Name = "Being Mortal",      Potency = 800, IsOgcd = true, CooldownS = 120f, Aspect = BluAspect.Unaspected, SharesRecast = Apokalypsis },
         new() { Id = Surpanakha,        Name = "Surpanakha",        Potency = 200, IsOgcd = true, IsCharge = true, CooldownS = 30f, Aspect = BluAspect.Magical },
 
-        // ════════ Channels ════════
+        // â•â•â•â•â•â•â•â• Channels â•â•â•â•â•â•â•â•
         new() { Id = PhantomFlurry,     Name = "Phantom Flurry",    Potency = 200, IsChannel = true, ChannelDuration = 5f, ChannelFinisher = 600, CooldownS = 120f, Aspect = BluAspect.Physical, IsAoE = true, Shape = BluShape.Cone },
         new() { Id = Apokalypsis,       Name = "Apokalypsis",       Potency = 140, IsChannel = true, ChannelDuration = 10f, CooldownS = 120f, Aspect = BluAspect.Magical, IsAoE = true, Shape = BluShape.Line, SharesRecast = BeingMortal },
+        new() { Id = FlameThrower,     Name = "Flame Thrower",     Potency = 220, IsChannel = true, ChannelDuration = 10f, Aspect = BluAspect.Magical, IsAoE = true, Shape = BluShape.Cone },
 
-        // ════════ Self-KO (OFF by default, never auto-cast) ════════
+        // â•â•â•â•â•â•â•â• Self-KO (OFF by default, never auto-cast) â•â•â•â•â•â•â•â•
         new() { Id = FinalStingId,      Name = "Final Sting",       Potency = 2000, SelfKO = true, Aspect = BluAspect.Physical },
         new() { Id = SelfDestructId,    Name = "Self-destruct",     Potency = 1500, SelfKO = true, IsAoE = true, Aspect = BluAspect.Physical },
         new() { Id = WildRage,          Name = "Wild Rage",         Potency = 500,  SelfKO = true, Aspect = BluAspect.Physical },
 
-        // ════════ %HP Gimmick (rank last, never auto-cast) ════════
+        // â•â•â•â•â•â•â•â• %HP Gimmick (rank last, never auto-cast) â•â•â•â•â•â•â•â•
         new() { Id = Missile,           Name = "Missile",           Potency = 0, PercentHP = true },
         new() { Id = TailScrew,         Name = "Tail Screw",        Potency = 0, PercentHP = true },
         new() { Id = DimensionalShift,  Name = "Dimensional Shift", Potency = 0, PercentHP = true },
@@ -239,14 +241,14 @@ internal partial class BLU
         _ => 0,
     };
 
-    // ══════════════════════════════════════════════════════════════════════
-    //  DPS PRESET — BLU_ST_AdvancedMode (enum 70030)
-    // ══════════════════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    //  DPS PRESET â€” BLU_ST_AdvancedMode (enum 70030)
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     internal class BLU_ST_AdvancedMode : CustomCombo
     {
         protected internal override Preset Preset => Preset.BLU_ST_AdvancedMode;
 
-        // ── Debug state ──
+        // â”€â”€ Debug state â”€â”€
         internal static bool DbgCanWeave;
         internal static uint DbgWeavePick;
         internal static uint DbgGcdPick;
@@ -283,7 +285,7 @@ internal partial class BLU
 
             DbgNote = "";
 
-            // ── Channel hold: never cancel an active channel ──
+            // â”€â”€ Channel hold: never cancel an active channel â”€â”€
             if (HasStatusEffect(Buffs.PhantomFlurry) || JustUsed(PhantomFlurry, 2f))
             {
                 var pf = GetStatusEffect(Buffs.PhantomFlurry);
@@ -301,7 +303,7 @@ internal partial class BLU
                 return All.SavageBlade;
             }
 
-            // ── Start a channel when stationary and in range ──
+            // â”€â”€ Start a channel when stationary and in range â”€â”€
             if (!IsMoving())
             {
                 if (IsSpellActive(PhantomFlurry) && IsOffCooldown(PhantomFlurry) && InActionRange(PhantomFlurry))
@@ -319,7 +321,7 @@ internal partial class BLU
                 }
             }
 
-            // ── Winged Reprobation chain: finish once started ──
+            // â”€â”€ Winged Reprobation chain: finish once started â”€â”€
             if (IsSpellActive(WingedReprobation))
             {
                 // If we have Winged Redemption status -> fire Conviction Marcato
@@ -337,7 +339,7 @@ internal partial class BLU
                 }
             }
 
-            // ── Conditional spells: fire immediately if their enabler buff is up ──
+            // â”€â”€ Conditional spells: fire immediately if their enabler buff is up â”€â”€
             if (HasStatusEffect(TouchOfFrost) && IsSpellActive(WhiteDeath) && ReadyGcd(WhiteDeath))
             {
                 DbgNote = "WhiteDeath proc";
@@ -349,7 +351,14 @@ internal partial class BLU
                 return DivineCataract;
             }
 
-            // ── oGCD weave ──
+            // --- Surpanakha charge dump: keep firing until all charges spent ---
+            if (IsSpellActive(Surpanakha) && JustUsed(Surpanakha, 2f) && GetRemainingCharges(Surpanakha) > 0)
+            {
+                DbgNote = "Surp dump";
+                return Surpanakha;
+            }
+
+            // â”€â”€ oGCD weave â”€â”€
             DbgCanWeave = CanWeave();
             if (DbgCanWeave)
             {
@@ -359,13 +368,13 @@ internal partial class BLU
                     return og;
             }
 
-            // ── GCD selection ──
+            // â”€â”€ GCD selection â”€â”€
             uint gcd = BestGcd();
             DbgGcdPick = gcd;
             return gcd != 0 ? gcd : actionID;
         }
 
-        // ── Buff multiplier ──
+        // â”€â”€ Buff multiplier â”€â”€
         private static double Mult(BluSpell s)
         {
             double m = 1.0;
@@ -391,8 +400,12 @@ internal partial class BLU
         }
 
         // GCD spells: only "not ready" if they have a REAL cooldown (> the global GCD).
+        // Spells with CooldownS > 0 in the catalog use IsOffCooldown (real CD gating).
         private static bool ReadyGcd(uint id)
         {
+            var entry = FullCatalog.FirstOrDefault(s => s.Id == id);
+            if (entry is not null && entry.CooldownS > 0)
+                return IsOffCooldown(id);
             var cd = GetCooldown(id);
             return !cd.IsCooldown || cd.CooldownTotal <= 3f;
         }
@@ -417,6 +430,10 @@ internal partial class BLU
 
         private uint BestWeave()
         {
+            // Surpanakha dump: if we just used it and charges remain, force it
+            if (IsSpellActive(Surpanakha) && JustUsed(Surpanakha, 2f) && GetRemainingCharges(Surpanakha) > 0)
+                return Surpanakha;
+
             uint best = 0;
             double bestVal = 0;
             foreach (var s in FullCatalog)
@@ -448,7 +465,7 @@ internal partial class BLU
         {
             bool targetAlive = CurrentTarget is not null && !TargetIsDead() && GetTargetHPPercent() > 2f;
 
-            // ── DoT lane ──
+            // â”€â”€ DoT lane â”€â”€
             uint dotAct = 0; double dotVal = 0; int dotPot = 0;
             if (targetAlive)
             {
@@ -468,7 +485,7 @@ internal partial class BLU
                 }
             }
 
-            // ── Winged Reprobation fresh chain ── (start through normal priority)
+            // â”€â”€ Winged Reprobation fresh chain â”€â”€ (start through normal priority)
             uint wrAct = 0; double wrVal = 0;
             if (targetAlive && IsSpellActive(WingedReprobation) && IsOffCooldown(WingedReprobation))
             {
@@ -476,11 +493,12 @@ internal partial class BLU
                 if (stacks == 0 && !HasStatusEffect(WingedRedemptionStatus))
                 {
                     wrAct = OriginalHook(WingedReprobation);
-                    wrVal = 220 * 5 * Mult(new BluSpell { Aspect = BluAspect.Unaspected }) / (GcdCost * 5);
+                    // Total chain: 120+220+300+400+440(CM) = 1480 potency over 5 GCDs -> 296/GCD
+                    wrVal = 296 * Mult(new BluSpell { Aspect = BluAspect.Unaspected }) / GcdCost;
                 }
             }
 
-            // ── Direct nuke lane ──
+            // â”€â”€ Direct nuke lane â”€â”€
             uint nukeAct = 0; double nukeVal = 0; int nukePot = 0;
             uint fillAct = 0; double fillVal = 0; int fillPot = 0;
             foreach (var s in FullCatalog)
@@ -523,7 +541,7 @@ internal partial class BLU
             if (nukeAct == 0 && fillAct != 0)
             { nukeAct = fillAct; nukeVal = fillVal; nukePot = fillPot; }
 
-            // ── Pick best between DoT, WR chain, and nuke ──
+            // â”€â”€ Pick best between DoT, WR chain, and nuke â”€â”€
             uint payload; int payloadPot; uint[] wants;
             if (wrVal > dotVal && wrVal > nukeVal && wrAct != 0)
             {
@@ -538,7 +556,7 @@ internal partial class BLU
             if (payload == 0)
                 return 0;
 
-            // ── Buff GCDs before big payloads ──
+            // â”€â”€ Buff GCDs before big payloads â”€â”€
             if (payloadPot >= BuffWorthPotency)
             {
                 foreach (uint buffSpell in wants)
@@ -566,9 +584,9 @@ internal partial class BLU
         }
     }
 
-    // ══════════════════════════════════════════════════════════════════════
-    //  HEAL PRESET — BLU_Heal_AdvancedMode (enum 70031)
-    // ══════════════════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    //  HEAL PRESET â€” BLU_Heal_AdvancedMode (enum 70031)
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     internal class BLU_Heal_AdvancedMode : CustomCombo
     {
         protected internal override Preset Preset => Preset.BLU_Heal_AdvancedMode;
@@ -578,7 +596,7 @@ internal partial class BLU
             if (actionID is not SonicBoom)
                 return actionID;
 
-            // ── Raise dead party members ──
+            // â”€â”€ Raise dead party members â”€â”€
             if (IsSpellActive(AngelWhisper) && IsOffCooldown(AngelWhisper))
             {
                 var dead = GetPartyMembers()
@@ -588,7 +606,7 @@ internal partial class BLU
                     return AngelWhisper;
             }
 
-            // ── Emergency healing: party member below 50% ──
+            // â”€â”€ Emergency healing: party member below 50% â”€â”€
             bool needHeal = false;
             float lowestHp = 100f;
             foreach (var m in GetPartyMembers())
@@ -626,11 +644,11 @@ internal partial class BLU
                     return Rehydration;
             }
 
-            // ── Exuviation (AoE cleanse + heal) ──
+            // â”€â”€ Exuviation (AoE cleanse + heal) â”€â”€
             if (lowestHp < 70f && IsSpellActive(Exuviation) && ReadyGcdH(Exuviation))
                 return Exuviation;
 
-            // ── Nobody needs healing: fall through to DPS engine ──
+            // â”€â”€ Nobody needs healing: fall through to DPS engine â”€â”€
             return DpsEngine(actionID);
         }
 

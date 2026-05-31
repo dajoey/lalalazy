@@ -1,4 +1,4 @@
-#region
+﻿#region
 
 using ECommons.ExcelServices;
 using GluttonyCombo.Attributes;
@@ -1629,6 +1629,12 @@ public enum Preset
     [AdvancedCombo]
     BLU_ST_AdvancedMode = 70030,
 
+    [AutoAction(false, true)]
+    [ReplaceSkill(BLU.SonicBoom)]
+    [JobInfo(Job.BLU)]
+    [AdvancedCombo]
+    BLU_Heal_AdvancedMode = 70031,
+
     [ReplaceSkill(BLU.MoonFlute)]
     [BlueInactive(BLU.Whistle, BLU.Tingle, BLU.RoseOfDestruction, BLU.MoonFlute, BLU.JKick, BLU.TripleTrident,
         BLU.Nightbloom, BLU.WingedReprobation, BLU.SeaShanty, BLU.BeingMortal, BLU.ShockStrike, BLU.Surpanakha,
@@ -1762,12 +1768,6 @@ public enum Preset
     [BlueInactive(BLU.PeatPelt, BLU.DeepClean)]
     [JobInfo(Job.BLU)]
     BLU_PeatClean = 70023,
-
-    [AutoAction(false, true)]
-    [ReplaceSkill(BLU.SonicBoom)]
-    [JobInfo(Job.BLU)]
-    [AdvancedCombo]
-    BLU_Heal_AdvancedMode = 70031,
 
     // Last value = 70031
 
