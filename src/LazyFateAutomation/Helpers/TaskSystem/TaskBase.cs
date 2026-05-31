@@ -161,6 +161,8 @@ public abstract class TaskBase : AutoTask {
             if (Player.Mounted) {
                 Log("Mounted during teleport. Safely landing and dismounting first.");
                 await Dismount();
+                await WaitWhile(() => Player.IsBusy, "WaitForAvailable");
+                Status = $"Teleporting to {destinationName}";
             }
             ErrorIf(!ActionManager.Teleport(teleportAetheryteId), $"Failed to teleport to {teleportAetheryteId}");
             await WaitUntilTerritory(destinationId);
@@ -172,6 +174,8 @@ public abstract class TaskBase : AutoTask {
             if (Player.Mounted) {
                 Log("Mounted during same-zone teleport. Safely landing and dismounting first.");
                 await Dismount();
+                await WaitWhile(() => Player.IsBusy, "WaitForAvailable");
+                Status = "Teleporting to aetheryte";
             }
             ErrorIf(!ActionManager.Teleport(teleportAetheryteId), $"Failed to teleport to {teleportAetheryteId}");
             if (teleportAetheryteId == closestAetheryteId) return;
