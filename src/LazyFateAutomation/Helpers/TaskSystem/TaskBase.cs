@@ -165,7 +165,39 @@ public abstract class TaskBase : AutoTask {
                 Status = $"Teleporting to {destinationName}";
             }
             ErrorIf(!ActionManager.Teleport(teleportAetheryteId), $"Failed to teleport to {teleportAetheryteId}");
-            await WaitUntilTerritory(destinationId);
+            
+            // Wait up to 2 seconds for teleport cast to start
+            var started = false;
+            for (var i = 0; i < 100; i++) {
+                if (Player.IsBusy) {
+                    started = true;
+                    break;
+                }
+                await NextFrame();
+            }
+            
+            if (started) {
+                await WaitUntilTerritory(destinationId);
+            } else {
+                Warning($"Teleport to {destinationName} failed to start casting within 2 seconds. Client might be stuck. Attempting Return as fallback.");
+                Svc.Chat.PrintMessage("Teleport stuck. Executing '/return' to reset...");
+                Svc.Chat.ExecuteCommand("/return");
+                // Wait for Return cast to start and finish
+                var returnStarted = false;
+                for (var j = 0; j < 100; j++) {
+                    if (Player.IsBusy) {
+                        returnStarted = true;
+                        break;
+                    }
+                    await NextFrame();
+                }
+                if (returnStarted) {
+                    await WaitUntil(() => !Player.IsBusy, "ReturnFinish");
+                } else {
+                    Error("Failed to start Return to reset stuck teleport state.");
+                }
+            }
+            
             if (destinationId == territoryId) return; // we're in target zone; otherwise fall through to aethernet to get from primary zone to target zone
         }
 
@@ -178,6 +210,39 @@ public abstract class TaskBase : AutoTask {
                 Status = "Teleporting to aetheryte";
             }
             ErrorIf(!ActionManager.Teleport(teleportAetheryteId), $"Failed to teleport to {teleportAetheryteId}");
+            
+            // Wait up to 2 seconds for same-zone teleport cast to start
+            var started = false;
+            for (var i = 0; i < 100; i++) {
+                if (Player.IsBusy) {
+                    started = true;
+                    break;
+                }
+                await NextFrame();
+            }
+            
+            if (started) {
+                await WaitUntil(() => !Player.IsBusy, "TeleportFinish");
+            } else {
+                Warning($"Same-zone teleport failed to start casting within 2 seconds. Client might be stuck. Attempting Return as fallback.");
+                Svc.Chat.PrintMessage("Teleport stuck. Executing '/return' to reset...");
+                Svc.Chat.ExecuteCommand("/return");
+                // Wait for Return cast to start and finish
+                var returnStarted = false;
+                for (var j = 0; j < 100; j++) {
+                    if (Player.IsBusy) {
+                        returnStarted = true;
+                        break;
+                    }
+                    await NextFrame();
+                }
+                if (returnStarted) {
+                    await WaitUntil(() => !Player.IsBusy, "ReturnFinish");
+                } else {
+                    Error("Failed to start Return to reset stuck teleport state.");
+                }
+            }
+
             if (teleportAetheryteId == closestAetheryteId) return;
 
             var (aetheryteId, aetherytePos) = Coords.FindAetheryte(teleportAetheryteId);

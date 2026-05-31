@@ -1,5 +1,11 @@
 # Changelog - Lazy Fate Automation
 
+## [0.0.1.17] - 2026-05-31
+### Fixed
+- Fixed same-zone teleport race conditions where the bot would immediately proceed and start moving before the teleport cast actually began or completed.
+- Added a robust 2-second timeout safeguard to detect if the teleport cast failed to start.
+- Added an automatic recovery mechanism that executes the `/return` command to reset the client state if it detects the client is stuck in the FFXIV "another teleport is underway" bugged state.
+
 ## [0.0.1.15] - 2026-05-30
 ### Fixed
 - Fixed an issue where the bot would mount, dismount, and then get stuck saying "Automation: Dismounting" during zone swaps or same-zone teleports.
