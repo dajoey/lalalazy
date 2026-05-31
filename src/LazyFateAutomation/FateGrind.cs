@@ -402,8 +402,11 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
             return;
         }
 
-        var hasEffectiveZones = tweak.GetEffectiveSwapZones() is { Count: > 0 } || tweak.HasSelectedSwapZones;
-        if (!HasTwistOfFate && (hasEffectiveZones || tweak.Config.SwapZones)) {
+        var rawZones = tweak.GetRawSwapZones();
+        var hasRawZones = rawZones is { Count: > 0 };
+        var hasEffectiveZones = tweak.GetEffectiveSwapZones() is { Count: > 0 };
+
+        if (!HasTwistOfFate && (hasEffectiveZones || (tweak.Config.SwapZones && !hasRawZones))) {
             using var scope = BeginScope("SwapZones");
             var destination = tweak.GetNextPreferredSwapZone(Player.Territory.RowId) ?? GetNextAchievementZone() ?? GetRandomSameExpacZone();
             if (destination == Player.Territory.RowId) {

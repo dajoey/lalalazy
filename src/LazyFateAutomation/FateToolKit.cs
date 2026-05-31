@@ -148,8 +148,15 @@ public class FateToolKit : IFateGrindRunState {
     internal static int GetRelicsCompletedForStep(IReadOnlyList<uint>? relicItemIds)
         => relicItemIds is { Count: > 0 } ids ? ids.Count(IsRelicStepComplete) : 0;
 
-    /// <summary>Zones used for swap rotation: mode's allowed zones if set, otherwise selected swap zones.</summary>
-    internal IReadOnlySet<uint>? GetEffectiveSwapZones() => GetCurrentMode().GetAllowedZones() ?? (SelectedSwapZones.Count > 0 ? SelectedSwapZones : null);
+    /// <summary>Zones used for swap rotation: mode's allowed zones if set, otherwise selected swap zones, unfiltered.</summary>
+    internal IReadOnlySet<uint>? GetRawSwapZones() => GetCurrentMode().GetAllowedZones() ?? (SelectedSwapZones.Count > 0 ? SelectedSwapZones : null);
+
+    /// <summary>Zones used for swap rotation: mode's allowed zones if set, otherwise selected swap zones, filtered by user exclusions.</summary>
+    internal IReadOnlySet<uint>? GetEffectiveSwapZones() {
+        var zones = GetRawSwapZones();
+        if (zones == null) return null;
+        return zones.Where(z => !Config.ExcludedSwapZones.Contains(z)).ToHashSet();
+    }
 
     /// <summary>True when the current mode defines its own zones; territory selector is disabled to avoid confusion.</summary>
     internal bool ModeSuppliesSwapZones => GetCurrentMode().GetAllowedZones() != null;
@@ -159,6 +166,7 @@ public class FateToolKit : IFateGrindRunState {
         var targets = GetCurrentMode().GetZoneItemTargets(this);
         if (targets != null) {
             var incomplete = targets.Where(t => GetItemCount(t.ItemId) < t.RequiredCount).Select(t => t.TerritoryId).Distinct().ToList();
+            incomplete = incomplete.Where(z => !Config.ExcludedSwapZones.Contains(z)).ToList();
             if (incomplete.Count > 0) {
                 var next = incomplete.FirstOrDefault(z => z != currentTerritoryId);
                 if (next != 0) return next;
@@ -166,6 +174,16 @@ public class FateToolKit : IFateGrindRunState {
             }
         }
         return GetNextSelectedSwapZone(currentTerritoryId);
+    }
+
+    internal static string GetZoneName(uint territoryId) {
+        var territory = Svc.Data.GetExcelSheet<TerritoryType>()?.GetRow(territoryId);
+        if (territory == null) return $"Zone {territoryId}";
+        var name = territory.Value.PlaceName.Value.Name.ToString();
+        if (string.IsNullOrEmpty(name)) {
+            name = territory.Value.Name.ToString();
+        }
+        return string.IsNullOrEmpty(name) ? $"Zone {territoryId}" : name;
     }
 
     private static unsafe int GetItemCount(uint itemId) => FFXIVClientStructs.FFXIV.Client.Game.InventoryManager.Instance()->GetInventoryItemCount(itemId);

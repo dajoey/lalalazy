@@ -29,6 +29,7 @@ public class Configuration : IPluginConfiguration {
 
     // Standalone plugin specific fields that are loaded/saved
     public HashSet<uint> SelectedSwapZones = [];
+    public HashSet<uint> ExcludedSwapZones = [];
     public string SelectedModeId = "None";
 
     public void Save() => Svc.PluginInterface.SavePluginConfig(this);

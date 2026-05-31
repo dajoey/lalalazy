@@ -7,6 +7,7 @@ using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility.Raii;
 using ECommons.ImGuiMethods;
 using System.Globalization;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 
@@ -123,10 +124,37 @@ public class FateToolKitWindow : MinimisableWindow {
         if (minimised)
             return;
 
-        ImGui.SpacedSeparator();
+        var rawZones = _tweak.GetRawSwapZones();
+        var hasRawZones = rawZones is { Count: > 0 };
 
-        if (_tweak.GetOrderedFates().ToList() is not { Count: > 0 } fates) {
-            ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1f), "No fates match the current filters.");
+        var fates = _tweak.GetOrderedFates().ToList();
+        var hasActiveFates = fates.Any(x => x.IsAvailable);
+
+        if (!hasActiveFates) {
+            ImGui.TextColored(new Vector4(1f, 0.8f, 0.2f, 1f), "No active fates in current zone.");
+            if (hasRawZones) {
+                ImGui.Spacing();
+                ImGui.TextColored(new Vector4(0.8f, 0.8f, 1f, 1f), "Thinking of teleporting between:");
+                using (var indent = ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 4f)) {
+                    foreach (var zoneId in rawZones!.OrderBy(FateToolKit.GetZoneName)) {
+                        var isChecked = !_tweak.Config.ExcludedSwapZones.Contains(zoneId);
+                        if (ImGui.Checkbox($"{FateToolKit.GetZoneName(zoneId)}##zone_{zoneId}", ref isChecked)) {
+                            if (isChecked)
+                                _tweak.Config.ExcludedSwapZones.Remove(zoneId);
+                            else
+                                _tweak.Config.ExcludedSwapZones.Add(zoneId);
+                            _tweak.Config.Save();
+                        }
+                    }
+                }
+            }
+            else {
+                ImGui.TextColored(new Vector4(0.6f, 0.6f, 0.6f, 1f), "No swap zones configured.");
+            }
+            ImGui.Spacing();
+        }
+
+        if (fates.Count == 0) {
             return;
         }
 
@@ -308,6 +336,43 @@ public class FateToolKitWindow : MinimisableWindow {
                     new() { Criteria = FateSortCriteria.TimeRemainingUrgent, Descending = false },
                     new() { Criteria = FateSortCriteria.Distance, Descending = false },
             ];
+        }
+
+        ImGui.Spacing();
+        ImGui.SpacedSeparator();
+
+        ImGui.TextColored(new Vector4(0.8f, 0.8f, 1f, 1f), "Allowed Swap Zones");
+        ImGui.Spacing();
+        ImGui.TextWrapped("Configure which zones the automation is allowed to teleport to. Uncheck a zone to exclude it from rotation.");
+        ImGui.Spacing();
+
+        var rawSettingsZones = _tweak.GetRawSwapZones();
+        if (rawSettingsZones is { Count: > 0 }) {
+            if (ImGui.Button("Select All")) {
+                _tweak.Config.ExcludedSwapZones.Clear();
+                _tweak.Config.Save();
+            }
+            ImGui.SameLine();
+            if (ImGui.Button("Clear All")) {
+                foreach (var z in rawSettingsZones)
+                    _tweak.Config.ExcludedSwapZones.Add(z);
+                _tweak.Config.Save();
+            }
+            ImGui.Spacing();
+
+            foreach (var zoneId in rawSettingsZones.OrderBy(FateToolKit.GetZoneName)) {
+                var isChecked = !_tweak.Config.ExcludedSwapZones.Contains(zoneId);
+                if (ImGui.Checkbox($"{FateToolKit.GetZoneName(zoneId)}##settings_zone_{zoneId}", ref isChecked)) {
+                    if (isChecked)
+                        _tweak.Config.ExcludedSwapZones.Remove(zoneId);
+                    else
+                        _tweak.Config.ExcludedSwapZones.Add(zoneId);
+                    _tweak.Config.Save();
+                }
+            }
+        }
+        else {
+            ImGui.TextColored(new Vector4(0.6f, 0.6f, 0.6f, 1f), "No swap zones configured for current mode/selection.");
         }
 
         ImGui.SpacedSeparator();

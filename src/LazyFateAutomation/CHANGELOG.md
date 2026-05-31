@@ -1,5 +1,11 @@
 # Changelog - Lazy Fate Automation
 
+## [0.0.1.18] - 2026-05-31
+### Added
+- Added ability to list and selectively restrict/exclude teleport zones directly in the main UI and settings panel.
+- Added Select All and Clear All quick-configuration controls.
+- Added custom filtering to relic item target zone swapping to strictly honor user restrictions.
+
 ## [0.0.1.17] - 2026-05-31
 ### Fixed
 - Fixed same-zone teleport race conditions where the bot would immediately proceed and start moving before the teleport cast actually began or completed.
