@@ -1,5 +1,20 @@
 # Gluttony Combo — Changelog
 
+## v1.0.4.29 (2026-05-31)
+
+### Fixed
+- **The Ram's Voice spam + cooldowns never firing (same root cause).** GCD nukes were gated on `IsOffCooldown`, which for an instant GCD just reflects the rolling 2.5s global GCD, so at the decision moment every standard nuke read 'on cooldown' and the engine fell to a 2s-cast filler. Those hardcasts consumed the whole GCD, leaving no weave window -- which is why oGCD cooldowns stopped firing. GCD spells are now gated by `ReadyGcd` (only a REAL cooldown > the GCD blocks them), so instant nukes are selected normally and weave windows return. `Combos/PvE/BLU/BLU_Helper.cs`.
+- **Surpanakha now fires.** Dropped the max-stack latch (which never triggered if charges were not full); it now fires on any available charge.
+- **Mortal Flame double-cast.** Suppression window widened for permanent DoTs so it is not re-applied after the status readback lapses.
+
+### Added
+- **Channels implemented (Phantom Flurry, Apokalypsis), not excluded.** Cast on cooldown when stationary and in range, then HELD with a no-op (All.SavageBlade) so no other action cancels the channel; Phantom Flurry fires its 600 finisher just before expiry. Apokalypsis yields to the instant Being Mortal when both are slotted (shared recast).
+- **Revenge Blast modeled by its synergy** -- valued at 500 only when your HP < 20% (never self-harms to set it up), otherwise treated as the ~50 it is.
+- **Debug readout.** Settings -> Debug -> Blue Mage Data -> 'ST Advanced Engine' shows CanWeave, the chosen weave/GCD action, and a per-spell active/ready/charge table for diagnosing what the engine sees.
+
+### Notes
+- Still ALPHA, greedy single-target priority.
+
 ## v1.0.4.28 (2026-05-31)
 
 ### Fixed

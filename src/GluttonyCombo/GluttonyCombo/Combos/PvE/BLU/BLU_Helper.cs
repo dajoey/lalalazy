@@ -6,29 +6,12 @@ using System.Collections.Generic;
 
 namespace GluttonyCombo.Combos.PvE;
 
-// =====================================================================================
-//  BLU AutoRotation — Phase 1.4: greedy DPET priority engine over the full damaging kit.
-//
-//  Scores every slotted damaging spell (ST and AoE) by damage-per-execution-time and casts
-//  the best. oGCDs weave on CanWeave(); GCDs fill otherwise.
-//
-//  DoT up-detection (fixes Breath of Magic / Mortal Flame re-spam): a DoT is "up" if the
-//  debuff is detected with time left OR we cast it within its duration. The cadence check
-//  uses the per-ACTION JustUsed timestamp (reliably recorded on every cast) rather than the
-//  per-target variant, because cone/AoE DoTs like Breath of Magic are not recorded against a
-//  specific target. Permanent DoTs (Mortal Flame -> RemainingTime 0) skip on presence alone.
-//
-//  Winged Reprobation: 4-stack chain that resets its own recast and upgrades to Conviction
-//  Marcato at max stacks. Once started (or when Conviction Marcato/Winged Redemption is up)
-//  the chain is finished before other GCDs, via OriginalHook.
-//
-//  FillerOnly spells (e.g. The Ram's Voice, which freezes the target for the Ultravibration
-//  combo) are used only when nothing else is available.
-//
-//  Excluded from greedy auto (reasons): channels (Flame Thrower/Phantom Flurry/Apokalypsis),
-//  self-KO (Final Sting/Self-destruct), Revenge Blast (needs low-HP setup). Utility/CC/heal/
-//  mit/buff spells are not damage and not auto-cast. Potencies = lv80; some approximate.
-// =====================================================================================
+// BLU AutoRotation — Phase 1.5: greedy DPET priority engine over the full damaging kit.
+// See CHANGELOG. Key behaviors: GCD spells are NOT gated on the global-GCD cooldown (only
+// real cooldowns gate); oGCDs weave on CanWeave(); DoTs use per-action JustUsed cadence;
+// Surpanakha fires on any available charge; channels (Phantom Flurry/Apokalypsis) are cast
+// when stationary+in-range then held with All.SavageBlade (a no-op) so they aren't cancelled;
+// Winged Reprobation runs its 4-stack -> Conviction Marcato chain via OriginalHook.
 internal partial class BLU
 {
     public const uint
@@ -44,9 +27,12 @@ internal partial class BLU
         DrillCannons   = 11398,
         ThousandNeedles= 11397,
         Stotram        = 23269,
-        AetherialSpark = 23281;
+        AetherialSpark = 23281,
+        Apokalypsis    = 34581,
+        RevengeBlast   = 18316;
 
-    private const ushort WingedRedemptionStatus = 3641; // max-stack upgrade -> Conviction Marcato
+    private const ushort WingedRedemptionStatus = 3641;
+    private const ushort ApokalypsisStatus = 3644;
 
     internal enum BluAspect { Physical, Magical, Unaspected }
 
@@ -63,7 +49,7 @@ internal partial class BLU
         public bool IsOgcd;
         public bool IsCharge;
         public bool Melee;
-        public bool FillerOnly;   // only when nothing else is available
+        public bool FillerOnly;
         public BluAspect Aspect = BluAspect.Magical;
         public uint[] WantsBuffs = [];
     }
@@ -76,7 +62,6 @@ internal partial class BLU
 
     internal static readonly List<BluSpell> StCatalog =
     [
-        // Single-target GCD nukes / filler
         new() { Id = SonicBoom,        Name = "Sonic Boom",      Potency = 210, Aspect = BluAspect.Magical },
         new() { Id = WaterCannon,      Name = "Water Cannon",    Potency = 200, CastS = 2f, Aspect = BluAspect.Magical },
         new() { Id = Glower,           Name = "Glower",          Potency = 220, Aspect = BluAspect.Magical },
@@ -87,11 +72,10 @@ internal partial class BLU
         new() { Id = PerpetualRay,     Name = "Perpetual Ray",   Potency = 200, Aspect = BluAspect.Physical, Melee = true },
         new() { Id = WhiteKnightsTour, Name = "White Knight's Tour", Potency = 200, Aspect = BluAspect.Magical },
         new() { Id = BlackKnightsTour, Name = "Black Knight's Tour", Potency = 200, Aspect = BluAspect.Magical },
-        new() { Id = WingedReprobation,Name = "Winged Reprobation", Potency = 300, CastS = 1f, Aspect = BluAspect.Physical },
+        new() { Id = RevengeBlast,     Name = "Revenge Blast",   Potency = 50,  Aspect = BluAspect.Physical, Melee = true },
         new() { Id = MatraMagic,       Name = "Matra Magic",     Potency = 400, Aspect = BluAspect.Magical, WantsBuffs = [Bristle] },
         new() { Id = TripleTrident,    Name = "Triple Trident",  Potency = 600, Aspect = BluAspect.Physical, WantsBuffs = [Whistle, Tingle] },
 
-        // AoE GCD nukes (also hit the ST target; filler / multi-target)
         new() { Id = AquaBreath,       Name = "Aqua Breath",     Potency = 140, CastS = 2f, Aspect = BluAspect.Magical },
         new() { Id = HighVoltage,      Name = "High Voltage",    Potency = 200, Aspect = BluAspect.Magical },
         new() { Id = ThousandNeedles,  Name = "1000 Needles",    Potency = 140, CastS = 2f, Aspect = BluAspect.Physical },
@@ -100,13 +84,11 @@ internal partial class BLU
         new() { Id = PeripheralSynthesis, Name = "Peripheral Synthesis", Potency = 240, Aspect = BluAspect.Magical },
         new() { Id = RamsVoice,        Name = "The Ram's Voice", Potency = 220, CastS = 2f, Aspect = BluAspect.Magical, FillerOnly = true },
 
-        // DoTs (GCD)
         new() { Id = SongOfTorment,    Name = "Song of Torment", DotPotency = 50,  DotDurationS = 30, DotStatus = Debuffs.SongOfTorment, CastS = 2f, Aspect = BluAspect.Unaspected, WantsBuffs = [Bristle] },
         new() { Id = BreathOfMagic,    Name = "Breath of Magic", DotPotency = 120, DotDurationS = 60, DotStatus = Debuffs.BreathOfMagic, CastS = 2f, Aspect = BluAspect.Unaspected, WantsBuffs = [Bristle] },
         new() { Id = MortalFlame,      Name = "Mortal Flame",    DotPotency = 40,  DotDurationS = 90, DotStatus = Debuffs.MortalFlame,   NoTimer = true, CastS = 2f, Aspect = BluAspect.Magical, WantsBuffs = [Bristle] },
         new() { Id = AetherialSpark,   Name = "Aetherial Spark", DotPotency = 35,  DotDurationS = 15, DotStatus = 0, Aspect = BluAspect.Magical },
 
-        // Damage oGCDs (weave)
         new() { Id = FeatherRain,      Name = "Feather Rain",    Potency = 220, IsOgcd = true, Aspect = BluAspect.Magical },
         new() { Id = Eruption,         Name = "Eruption",        Potency = 290, IsOgcd = true, Aspect = BluAspect.Magical },
         new() { Id = ShockStrike,      Name = "Shock Strike",    Potency = 400, IsOgcd = true, Aspect = BluAspect.Magical },
@@ -130,25 +112,63 @@ internal partial class BLU
         _ => 0,
     };
 
-    internal static bool SurpanakhaDumping;
-
     internal class BLU_ST_AdvancedMode : CustomCombo
     {
         protected internal override Preset Preset => Preset.BLU_ST_AdvancedMode;
+
+        internal static bool DbgCanWeave;
+        internal static uint DbgWeavePick;
+        internal static uint DbgGcdPick;
+
+        internal static List<string> BluDebugRows()
+        {
+            var rows = new List<string>();
+            foreach (var s in StCatalog)
+            {
+                bool active = IsSpellActive(s.Id);
+                var cd = GetCooldown(s.Id);
+                bool ready = s.IsOgcd ? !cd.IsCooldown : (!cd.IsCooldown || cd.CooldownTotal <= 3f);
+                rows.Add($"{(active ? "*" : " ")}{(ready ? "R" : "-")}{(s.IsOgcd ? "o" : "g")} {s.Name}  rem={cd.CooldownRemaining:0.0} chg={cd.RemainingCharges}/{cd.MaxCharges}");
+            }
+            return rows;
+        }
 
         protected override uint Invoke(uint actionID)
         {
             if (actionID is not SonicBoom)
                 return actionID;
 
-            if (CanWeave())
+            // Channel hold: never cancel an active channel (any other action/movement ends it).
+            if (HasStatusEffect(Buffs.PhantomFlurry) || JustUsed(PhantomFlurry, 2f))
+            {
+                var pf = GetStatusEffect(Buffs.PhantomFlurry);
+                if (IsSpellActive(PhantomFlurry) && pf is not null && pf.RemainingTime is > 0 and <= 1.2f)
+                    return OriginalHook(PhantomFlurry);
+                return All.SavageBlade;
+            }
+            if (HasStatusEffect(ApokalypsisStatus) || JustUsed(Apokalypsis, 2f))
+                return All.SavageBlade;
+
+            // Start a channel on cooldown when stationary and in range.
+            if (!IsMoving())
+            {
+                if (IsSpellActive(PhantomFlurry) && IsOffCooldown(PhantomFlurry) && InActionRange(PhantomFlurry))
+                    return PhantomFlurry;
+                if (IsSpellActive(Apokalypsis) && IsOffCooldown(Apokalypsis) && !IsSpellActive(BeingMortal) && InActionRange(Apokalypsis))
+                    return Apokalypsis;
+            }
+
+            DbgCanWeave = CanWeave();
+            if (DbgCanWeave)
             {
                 uint og = BestWeave();
+                DbgWeavePick = og;
                 if (og != 0)
                     return og;
             }
 
             uint gcd = BestGcd();
+            DbgGcdPick = gcd;
             return gcd != 0 ? gcd : actionID;
         }
 
@@ -171,16 +191,23 @@ internal partial class BLU
 
         private static float Cost(BluSpell s) => s.IsOgcd ? OgcdCost : Math.Max(s.CastS, GcdCost);
 
-        // A DoT is "up" if detected with time left, or cast within its duration (per-ACTION
-        // wall-clock, reliable even for cone/target-less DoTs). Permanent DoTs: presence alone.
+        // GCD spells are only "not ready" if they have a REAL cooldown (> the global GCD).
+        // Gating plain GCDs on IsOffCooldown wrongly excludes them while the 2.5s GCD rolls.
+        private static bool ReadyGcd(uint id)
+        {
+            var cd = GetCooldown(id);
+            return !cd.IsCooldown || cd.CooldownTotal <= 3f;
+        }
+
         private bool DotIsUp(BluSpell s)
         {
-            bool present = s.DotStatus != 0 && HasStatusEffect(s.DotStatus, CurrentTarget, true);
-            if (s.NoTimer)
-                return present || JustUsed(s.Id, DotApplyGrace);
-            if (present && GetStatusEffectRemainingTime(s.DotStatus, CurrentTarget, true) > DotRefresh)
+            float window = s.NoTimer ? 300f : Math.Max(s.DotDurationS - DotRefresh, DotApplyGrace);
+            if (JustUsed(s.Id, window))
                 return true;
-            return JustUsed(s.Id, Math.Max(s.DotDurationS - DotRefresh, DotApplyGrace));
+            if (s.DotStatus != 0 && HasStatusEffect(s.DotStatus, CurrentTarget, true)
+                && (s.NoTimer || GetStatusEffectRemainingTime(s.DotStatus, CurrentTarget, true) > DotRefresh))
+                return true;
+            return false;
         }
 
         private uint BestWeave()
@@ -193,12 +220,7 @@ internal partial class BLU
                     continue;
                 if (s.IsCharge)
                 {
-                    uint charges = GetRemainingCharges(s.Id);
-                    if (charges >= GetMaxCharges(s.Id) && charges > 0)
-                        SurpanakhaDumping = true;
-                    if (charges == 0)
-                        SurpanakhaDumping = false;
-                    if (!SurpanakhaDumping || charges == 0)
+                    if (GetRemainingCharges(s.Id) == 0)
                         continue;
                 }
                 else if (!IsOffCooldown(s.Id))
@@ -214,9 +236,7 @@ internal partial class BLU
         {
             bool targetAlive = CurrentTarget is not null && !TargetIsDead() && GetTargetHPPercent() > 2f;
 
-            // Winged Reprobation: once the chain is started (1-3 stacks) or Conviction Marcato
-            // (Winged Redemption) is ready, finish it before other GCDs. OriginalHook resolves
-            // the upgraded action. A fresh chain (0 stacks) starts via the normal nuke lane.
+            // Winged Reprobation chain (finish once started / when Conviction Marcato is ready).
             if (targetAlive && IsSpellActive(WingedReprobation))
             {
                 uint wr = OriginalHook(WingedReprobation);
@@ -225,7 +245,7 @@ internal partial class BLU
                     return wr;
             }
 
-            // 1) DoT lane
+            // DoT lane
             uint dotAct = 0; double dotVal = 0; int dotPot = 0;
             if (targetAlive)
             {
@@ -241,23 +261,24 @@ internal partial class BLU
                 }
             }
 
-            // 2) Direct nuke lane (FillerOnly considered only if nothing else)
+            // Direct nuke lane (FillerOnly only if nothing else)
             uint nukeAct = 0; double nukeVal = 0; int nukePot = 0;
             uint fillAct = 0; double fillVal = 0; int fillPot = 0;
             foreach (var s in StCatalog)
             {
                 if (s.IsOgcd || s.DotDurationS != 0 || s.Potency == 0 || !IsSpellActive(s.Id))
                     continue;
-                if (!IsOffCooldown(s.Id))
+                if (!ReadyGcd(s.Id))
                     continue;
                 if (s.Melee && !InMeleeRange())
                     continue;
-                double eff = s.Potency * Mult(s) + (HasStatusEffect(Buffs.Tingle) ? 100 : 0);
+                int basePot = s.Id == RevengeBlast ? (PlayerHealthPercentageHp() < 20f ? 500 : 50) : s.Potency;
+                double eff = basePot * Mult(s) + (HasStatusEffect(Buffs.Tingle) ? 100 : 0);
                 double val = eff / Cost(s);
                 if (s.FillerOnly)
-                { if (val > fillVal) { fillVal = val; fillAct = s.Id; fillPot = s.Potency; } }
+                { if (val > fillVal) { fillVal = val; fillAct = s.Id; fillPot = basePot; } }
                 else
-                { if (val > nukeVal) { nukeVal = val; nukeAct = s.Id; nukePot = s.Potency; } }
+                { if (val > nukeVal) { nukeVal = val; nukeAct = s.Id; nukePot = basePot; } }
             }
             if (nukeAct == 0 && fillAct != 0)
             { nukeAct = fillAct; nukeVal = fillVal; nukePot = fillPot; }
@@ -276,7 +297,7 @@ internal partial class BLU
                 foreach (uint buffSpell in wants)
                 {
                     ushort status = BuffStatusOf(buffSpell);
-                    if (status != 0 && IsSpellActive(buffSpell) && IsOffCooldown(buffSpell)
+                    if (status != 0 && IsSpellActive(buffSpell) && ReadyGcd(buffSpell)
                         && !HasStatusEffect(status) && !JustUsed(buffSpell))
                         return buffSpell;
                 }
