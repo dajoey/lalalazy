@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <!-- 
     Microsoft ResX Schema 
@@ -11412,17 +11412,5 @@ NOT RECOMMENDED!</value>
   </data>
   <data name="SMN_AoE_Advanced_Combo_RadiantMaintain_Name" xml:space="preserve">
     <value>Aegis Uptime</value>
-  </data>
-  <data name="BLU_ST_AdvancedMode_Name" xml:space="preserve">
-    <value>Single Target - Advanced [ALPHA]</value>
-  </data>
-  <data name="BLU_ST_AdvancedMode_Desc" xml:space="preserve">
-    <value>[ALPHA] Complete BLU autorotation engine. Scores every slotted spell by damage-per-effective-time (DPET) with AoE-aware target counting -- automatically transitions from ST to AoE priority. Handles all GCDs (100+ spells), oGCD weaving, DoT maintenance, channels (Phantom Flurry with finisher, Apokalypsis), Winged Reprobation 4-stack chain, conditional procs (White Death, Divine Cataract), buff setup (Bristle/Whistle/Tingle), Surpanakha charge dumping, movement awareness, and shared recast management. Greedy (fires on cooldown); no Moon Flute burst window yet.</value>
-  </data>
-  <data name="BLU_Heal_AdvancedMode_Name" xml:space="preserve">
-    <value>BLU Heal [ALPHA]</value>
-  </data>
-  <data name="BLU_Heal_AdvancedMode_Desc" xml:space="preserve">
-    <value>[ALPHA] Autorotation heal mode for Blue Mage. Raises dead party members, heals when anyone drops below 50% HP using Gobskin, Angels Snack, Pom Cure, White Wind, Rehydration, and Exuviation. When nobody needs healing, falls through to the full DPS engine (same DPET scoring, AoE-aware).</value>
   </data>
 </root>

@@ -433,16 +433,6 @@ public static class ActionWatching
     {
         try
         {
-            // Dismount instead of firing an ability when mounted.
-            // Swallows the press so the user presses again once dismounted.
-            if (Service.Configuration.DismountOnAbility &&
-                actionType is ActionType.Action &&
-                (Svc.Condition[ConditionFlag.Mounted] ||
-                 Svc.Condition[ConditionFlag.RidingPillion]))
-            {
-                ECommons.Automation.Chat.ExecuteCommand("/dismount");
-                return false;
-            }
             // Hard-block every action while the player has Pyretic / Acceleration Bomb / etc.
             // Uses Wrath PlayerHasActionPenalty (dynamic icon-based detection) so we catch
             // encounter-specific Pyretic variants the old hardcoded ID list missed.

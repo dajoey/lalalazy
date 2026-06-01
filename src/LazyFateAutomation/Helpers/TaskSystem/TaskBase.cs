@@ -182,6 +182,14 @@ public abstract class TaskBase : AutoTask {
                 Warning($"Teleport to {destinationName} failed to start casting within 2 seconds. Client might be stuck. Attempting Return as fallback.");
                 Svc.Chat.PrintMessage("Teleport stuck. Executing '/return' to reset...");
                 Svc.Chat.ExecuteCommand("/return");
+                // Wait for and accept the Return confirmation dialog
+                await WaitUntilSkipping(
+                    () => Player.IsBusy || AtkUnitBase.IsAddonReady("SelectYesno"),
+                    "WaitReturnConfirm",
+                    UiSkipOptions.None
+                );
+                if (AtkUnitBase.IsAddonReady("SelectYesno"))
+                    AddonSelectYesno.Yes();
                 // Wait for Return cast to start and finish
                 var returnStarted = false;
                 for (var j = 0; j < 100; j++) {
@@ -194,7 +202,7 @@ public abstract class TaskBase : AutoTask {
                 if (returnStarted) {
                     await WaitUntil(() => !Player.IsBusy, "ReturnFinish");
                 } else {
-                    Error("Failed to start Return to reset stuck teleport state.");
+                    Warning("Failed to start Return to reset stuck teleport state.");
                 }
             }
             
@@ -227,6 +235,14 @@ public abstract class TaskBase : AutoTask {
                 Warning($"Same-zone teleport failed to start casting within 2 seconds. Client might be stuck. Attempting Return as fallback.");
                 Svc.Chat.PrintMessage("Teleport stuck. Executing '/return' to reset...");
                 Svc.Chat.ExecuteCommand("/return");
+                // Wait for and accept the Return confirmation dialog
+                await WaitUntilSkipping(
+                    () => Player.IsBusy || AtkUnitBase.IsAddonReady("SelectYesno"),
+                    "WaitReturnConfirm",
+                    UiSkipOptions.None
+                );
+                if (AtkUnitBase.IsAddonReady("SelectYesno"))
+                    AddonSelectYesno.Yes();
                 // Wait for Return cast to start and finish
                 var returnStarted = false;
                 for (var j = 0; j < 100; j++) {
@@ -239,7 +255,7 @@ public abstract class TaskBase : AutoTask {
                 if (returnStarted) {
                     await WaitUntil(() => !Player.IsBusy, "ReturnFinish");
                 } else {
-                    Error("Failed to start Return to reset stuck teleport state.");
+                    Warning("Failed to start Return to reset stuck teleport state.");
                 }
             }
 

@@ -8,7 +8,6 @@ internal static class Messages
     {
         if (job is Job.BLU) //Blue Mage ID
         {
-            ImGui.TextColored(ImGuiColors.DalamudRed, "ALPHA: Blue Mage autorotation/features here are experimental and a work in progress. Expect rough edges; BLU-specific breakage is possible. Other jobs are unaffected.");
             ImGui.TextColored(ImGuiColors.ParsedPink, $"Please note that even if you do not have all the required spells active, you may still use these features.\nAny spells you do not have active will be skipped over so if a feature is not working as intended then\nplease try and enable more required spells.");
         }
 

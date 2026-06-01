@@ -933,16 +933,6 @@ internal class Debug : ConfigWindow, IDisposable
                 ImGui.TreePop();
             }
 
-            if (ImGui.TreeNode("ST Advanced Engine"))
-            {
-                ImGui.TextUnformatted($"CanWeave: {BLU.BLU_ST_AdvancedMode.DbgCanWeave}");
-                ImGui.TextUnformatted($"Weave pick: {GetActionName(BLU.BLU_ST_AdvancedMode.DbgWeavePick)}");
-                ImGui.TextUnformatted($"GCD pick: {GetActionName(BLU.BLU_ST_AdvancedMode.DbgGcdPick)}");
-                ImGui.Separator();
-                ImGui.TextUnformatted(string.Join("\n", BLU.BLU_ST_AdvancedMode.BluDebugRows()));
-                ImGui.TreePop();
-            }
-
             ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
         }
 
