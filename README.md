@@ -15,6 +15,7 @@ A collection of Dalamud plugins for Final Fantasy XIV, maintained by [dajoey](ht
 | **Armoire Auto-Fill** | Per-dungeon view of armoire-eligible gear pieces you're still missing. Detects in-armoire, in-inventory, and equipped state. | Active |
 | **Lazy WT Math** | Adds row probabilities to the Wondrous Tails display along with the average probability of what would happen if you shuffled. Fork of EzWondrousTails. | Active |
 | **Lazy Fate Automation** | Fully automated FATE grinding utilizing vnavmesh, lifestream, and Gluttony Combo. | Active |
+| **Lazy Skyward Tracker** | Track your Skybuilders' (Skyward) points for all jobs toward the Pteranodon mount. | Active |
 
 ## Installation
 
@@ -64,6 +65,7 @@ cd src/LazyWTMath && dotnet build --configuration Release
 cd src/LazyCurrencySpender && dotnet build --configuration Release
 cd src/LazySightseeing && dotnet build --configuration Release
 cd src/LazyFateAutomation && dotnet build --configuration Release
+cd src/LazySkywardTracker && dotnet build --configuration Release
 
 ```
 
