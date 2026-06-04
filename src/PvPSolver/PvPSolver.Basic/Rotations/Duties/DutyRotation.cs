@@ -1,4 +1,4 @@
-﻿using Dalamud.Game.ClientState.Objects.SubKinds;
+using Dalamud.Game.ClientState.Objects.SubKinds;
 using ECommons.ExcelServices;
 
 namespace RotationSolver.Basic.Rotations.Duties;
@@ -361,13 +361,13 @@ public partial class DutyRotation : IDisposable
 	public static bool IsBurst => MergedStatus.HasFlag(AutoStatus.Burst);
 
 	/// <summary>
-	/// Is RSR enabled.
+	/// Is PvP Solver enabled.
 	/// </summary>
 	[Description("The state of auto. True for on.")]
 	public static bool AutoState => DataCenter.State;
 
 	/// <summary>
-	/// Is RSR in manual mode.
+	/// Is PvP Solver in manual mode.
 	/// </summary>
 	[Description("The state of manual. True for manual.")]
 	public static bool IsManual => DataCenter.IsManual;

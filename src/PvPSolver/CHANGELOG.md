@@ -1,5 +1,9 @@
 # Changelog - PvP Solver
 
+## [0.1.0.5] - 2026-06-04
+### Changed
+- Rebranded and updated all remaining user-facing references to `RSR` and `/rotation` (such as in settings tooltips, enum descriptions, and compatibility diagnostics) to `PvP Solver` and `/pvpsolver`.
+
 ## [0.1.0.4] - 2026-06-04
 ### Changed
 - Rebranded and updated all leftover RSR and `/rotation` command references in the UI, settings, and first-start tutorial to PvP Solver and `/pvpsolver` to avoid user confusion.

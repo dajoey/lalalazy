@@ -1939,7 +1939,7 @@ public partial class RotationConfigWindow : Window
 
 	private void DrawAutoduty()
 	{
-		ImGui.TextWrapped("While the RSR Team has made effort to make RSR compatible with Autoduty, please keep in mind that RSR is not designed with botting in mind.");
+		ImGui.TextWrapped("While the PvP Solver developer has made effort to make PvP Solver compatible with Autoduty, please keep in mind that PvP Solver is not designed with botting in mind.");
 		ImGui.Spacing();
 		ImGui.TextWrapped($"Below are plugins used by Autoduty and their current states");
 		ImGui.Spacing();
@@ -2028,7 +2028,7 @@ public partial class RotationConfigWindow : Window
 			else if (plugin.Name == "Boss Mod" && isBossModEnabled && !isBossModRebornEnabled)
 			{
 				color = isEnabled ? ImGuiColors.DalamudYellow : ImGuiColors.DalamudRed;
-				text = $"{plugin.Name} is {(isEnabled ? "installed and enabled" : "not enabled")}. Please use BossModReborn instead, BMR has specific integration with RSR that improves RSRs ability to react to combat i.e. Gaze effects.";
+				text = $"{plugin.Name} is {(isEnabled ? "installed and enabled" : "not enabled")}. Please use BossModReborn instead, BMR has specific integration with PvP Solver that improves PvP Solver's ability to react to combat i.e. Gaze effects.";
 			}
 			else if (plugin.Name == "BossModReborn" && isBossModRebornEnabled && !isBossModEnabled)
 			{

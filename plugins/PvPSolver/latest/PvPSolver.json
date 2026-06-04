@@ -2,7 +2,7 @@
     "Author":  "dajoey",
     "Name":  "PvP Solver",
     "InternalName":  "PvPSolver",
-    "AssemblyVersion":  "0.1.0.4",
+    "AssemblyVersion":  "0.1.0.5",
     "Description":  "PvP-only auto-rotation for FFXIV. Activates in PvP zones.",
     "ApplicableVersion":  "any",
     "DalamudApiLevel":  15,

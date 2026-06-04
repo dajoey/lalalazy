@@ -1,4 +1,4 @@
-﻿using Dalamud.Game;
+using Dalamud.Game;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Plugin.Services;
 using ECommons.DalamudServices;
@@ -43,7 +43,7 @@ public partial class CustomRotation
 	/// <summary>
 	/// 
 	/// </summary>
-	[Description("Is RSR active")]
+	[Description("Is PvP Solver active")]
 	public static bool StateEnabled => DataCenter.State;
 
 	/// <summary>
@@ -1218,13 +1218,13 @@ public partial class CustomRotation
 	public static int RaiseMPMinimum => Service.Config.LessMPNoRaise;
 
 	/// <summary>
-	/// Is RSR enabled.
+	/// Is PvP Solver enabled.
 	/// </summary>
 	[Description("The state of auto. True for on.")]
 	public static bool AutoState => DataCenter.State;
 
 	/// <summary>
-	/// Is RSR in manual mode.
+	/// Is PvP Solver in manual mode.
 	/// </summary>
 	[Description("The state of manual. True for manual.")]
 	public static bool IsManual => DataCenter.IsManual;

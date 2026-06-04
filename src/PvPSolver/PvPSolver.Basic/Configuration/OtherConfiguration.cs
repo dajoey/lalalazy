@@ -1,4 +1,4 @@
-﻿using ECommons.DalamudServices;
+using ECommons.DalamudServices;
 using ECommons.ExcelServices;
 using ECommons.Logging;
 using Newtonsoft.Json.Converters;
@@ -22,7 +22,7 @@ internal class OtherConfiguration
 	/// <markdown file="List" name="AoE" section="Actions">
 	/// **`It is recommended to click on the reset button after every patch.`**
 	/// 
-	/// RSR will use group mitigation if any enemy in the enmity list is casting
+	/// PvP Solver will use group mitigation if any enemy in the enmity list is casting
 	/// one of the listed actions. Usually those actions are raid-wides.
 	/// </markdown>
 	public static HashSet<uint> HostileCastingArea = [];
@@ -30,7 +30,7 @@ internal class OtherConfiguration
 	/// <markdown file="List" name="Tank Buster" section="Actions">
 	/// **`It is recommended to click on the reset button after every patch.`**
 	/// 
-	/// RSR will use mitigation on target (heal) or self (tank) if the target is currently
+	/// PvP Solver will use mitigation on target (heal) or self (tank) if the target is currently
 	/// being targeted by one of the listed actions.
 	/// </markdown>
 	public static HashSet<uint> HostileCastingTank = [];
@@ -41,14 +41,14 @@ internal class OtherConfiguration
 	/// **Click on "Record knockback actions" at your own peril. Some duties expect you take the
 	/// knockback in order to reach a proper safe-spot, like in Sil'dihn Subterrane (Savage).**
 	/// 
-	/// RSR will use anti-knockback actions when you would be hit by one of the listed actions.
+	/// PvP Solver will use anti-knockback actions when you would be hit by one of the listed actions.
 	/// </markdown>
 	public static HashSet<uint> HostileCastingKnockback = [];
 
 	/// <markdown file="List" name="Gaze/Stop" section="Actions">
 	/// **`It is recommended to click on the reset button after every patch.`**
 	/// 
-	/// If the target is casting one of the listed actions, RSR will stop casting
+	/// If the target is casting one of the listed actions, PvP Solver will stop casting
 	/// in the seconds before the action is resolved
 	/// <see cref="RotationSolver.Basic.Configuration.Configs._castingStop">here</see>.
 	/// </markdown>
@@ -90,7 +90,7 @@ internal class OtherConfiguration
 	/// <markdown file="List" name="No-Casting Debuffs" section="Statuses">
 	/// **`It is recommended to click on the reset button after every patch.`**
 	/// 
-	/// If you have any of the statuses listed, RSR will stop taking any actions.
+	/// If you have any of the statuses listed, PvP Solver will stop taking any actions.
 	/// </markdown>
 	public static HashSet<uint> NoCastingStatus = [];
 	public static HashSet<string> SupportersList = [];

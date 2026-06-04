@@ -5,7 +5,7 @@
         "Punchline":  "PvP-only auto-rotation",
         "Description":  "PvP-only auto-rotation for FFXIV. Activates in PvP zones.",
         "InternalName":  "PvPSolver",
-        "AssemblyVersion":  "0.1.0.4",
+        "AssemblyVersion":  "0.1.0.5",
         "Changelog":  "v0.1.0.3 - Wholly Original Rebrand \u0026 PvP Cast Protection\n- Renamed all commands to /pvpsolver and /pvs to prevent collisions with stock RSR.\n- Built protection against autocasting when zero enemies are nearby in PvP zones.",
         "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/PvPSolver",
         "ApplicableVersion":  "any",

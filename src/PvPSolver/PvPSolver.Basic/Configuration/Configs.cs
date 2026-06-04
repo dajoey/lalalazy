@@ -288,7 +288,7 @@ internal partial class Configs : IPluginConfiguration
 
 	#endregion
 
-	[ConditionBool, UI("Intercept player input and queue it for RSR to execute the action. (PvE only)",
+	[ConditionBool, UI("Intercept player input and queue it for PvP Solver to execute the action.",
 	Filter = AutoActionUsage, Section = 5)]
 	private static readonly bool _interceptAction3 = true;
 
@@ -316,7 +316,7 @@ internal partial class Configs : IPluginConfiguration
 	Filter = AutoActionUsage, Section = 5, Parent = nameof(InterceptAction3))]
 	private static readonly bool _interceptPassing = true;
 
-	[UI("Intercepted action execution window (amount of time RSR is allowed to attempt to use an action after it has been intercepted)",
+	[UI("Intercepted action execution window (amount of time PvP Solver is allowed to attempt to use an action after it has been intercepted)",
 	Filter = AutoActionUsage, Section = 5)]
 	[Range(1, 10, ConfigUnitType.Seconds)]
 	public float InterceptActionTime { get; set; } = 5;
@@ -640,7 +640,7 @@ internal partial class Configs : IPluginConfiguration
 	private static readonly bool _useAOEDefense = true;
 
 	[ConditionBool, UI("Use BossModReborn timeline for proactive mitigation",
-		Description = "When enabled and BossModReborn is loaded, RSR will use its timeline data to trigger defensive abilities before raidwides and tankbusters hit.",
+		Description = "When enabled and BossModReborn is loaded, PvP Solver will use its timeline data to trigger defensive abilities before raidwides and tankbusters hit.",
 		Filter = AutoActionUsage, Parent = nameof(UseDefenseAbility))]
 	private static readonly bool _useBMRTimeline = false;
 
@@ -840,18 +840,18 @@ internal partial class Configs : IPluginConfiguration
 
 	#endregion
 
-	/// <markdown file="Auto" name="How early before next GCD should RSR use swiftcast for raise" section="Healing Usage and Control">
+	/// <markdown file="Auto" name="How early before next GCD should PvP Solver use swiftcast for raise" section="Healing Usage and Control">
 	/// If your cast a GCD and your cooldown is of 2.5 seconds, if a teammate dies when your cooldown starts, the Swiftcast action will wait
 	/// the specified amount of time before your cooldown ends to cast Swiftcast. This is to prevent using your Swiftcast too early and waste it
 	/// if your co-healer manages to raise your target within your global cooldown period.
 	/// </markdown>
-	[JobConfig, UI("How early before next GCD should RSR use swiftcast for raise",
+	[JobConfig, UI("How early before next GCD should PvP Solver use swiftcast for raise",
 		Filter = HealingActionCondition, Section = 2)]
 	[Range(0, 1.0f, ConfigUnitType.Seconds, 0.01f)]
 	public float SwiftcastBuffer { get; set; } = 0.6f;
 
 	/// <markdown file="Auto" name="Random delay range for resurrecting players" section="Healing Usage and Control">
-	/// In order to not make is so obvious that you use RSR, casting a raise action will be delayed by a random amount of seconds
+	/// In order to not make is so obvious that you use PvP Solver, casting a raise action will be delayed by a random amount of seconds
 	/// between the two values.
 	/// </markdown>
 	[UI("Random delay range for resurrecting players.",
@@ -983,20 +983,20 @@ internal partial class Configs : IPluginConfiguration
 	[Range(0, 30, ConfigUnitType.Seconds, 0.02f)]
 	public float AutoHealTimeToKill { get; set; } = 8f;
 
-	[UI("The minimum time between updating RSR information. (Raising this will help with framerate issues but can cause issues with rotation performance)",
+	[UI("The minimum time between updating PvP Solver information. (Raising this will help with framerate issues but can cause issues with rotation performance)",
 	Filter = BasicTimer)]
 	[JobConfig, Range(0, 0.3f, ConfigUnitType.Seconds, 0.002f)]
 	public float MinUpdatingTime { get; set; } = 0.00f;
 
 	/// <markdown file="Basic" name="Action Ahead">
-	/// Percent of your GCD time remaining on a GCD cycle before RSR will try to queue the next GCD.
+	/// Percent of your GCD time remaining on a GCD cycle before PvP Solver will try to queue the next GCD.
 	///
-	/// This setting controls how many oGCDs RSR will try to fit in a single GCD window.
+	/// This setting controls how many oGCDs PvP Solver will try to fit in a single GCD window.
 	/// Lower numbers mean more oGCDs, but potentially more GCD clipping.
 	/// </markdown>
 	[JobConfig, Range(0.05f, 0.25f, ConfigUnitType.Percent)]
-	[UI("Action Ahead (Percent of your GCD time remaining on a GCD cycle before RSR will try to queue the next GCD)", Filter = BasicTimer,
-	Description = "This setting controls how many oGCDs RSR will try to fit in a single GCD window\nLower numbers mean more oGCDs, but potentially more GCD clipping")]
+	[UI("Action Ahead (Percent of your GCD time remaining on a GCD cycle before PvP Solver will try to queue the next GCD)", Filter = BasicTimer,
+	Description = "This setting controls how many oGCDs PvP Solver will try to fit in a single GCD window\nLower numbers mean more oGCDs, but potentially more GCD clipping")]
 	private readonly float _action6head = 0.25f;
 
 	/// <summary>
@@ -1099,7 +1099,7 @@ internal partial class Configs : IPluginConfiguration
 		Filter = TargetConfig, Section = 2)]
 	private static readonly bool _moveAreaActionFarthest = false;
 
-	[ConditionBool, UI("Hard Target for all actions", Description = "If this is disabled, RSR will only use the game's built-in soft-targeting for allies for heals, shields, etc.",
+	[ConditionBool, UI("Hard Target for all actions", Description = "If this is disabled, PvP Solver will only use the game's built-in soft-targeting for allies for heals, shields, etc.",
 		Filter = TargetConfig, Section = 3)]
 	private static readonly bool _switchTargetFriendly2 = false;
 
