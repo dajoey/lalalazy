@@ -284,6 +284,14 @@ internal unsafe class AutoRotationController
         if (Player.Job is Job.SGE && cfg.HealerSettings.ManageKardia)
             UpdateKardiaTarget();
 
+        // WHM Divine Caress logic
+        if (Player.Job is Job.WHM && HasStatusEffect(WHM.Buffs.DivineGrace) && AbleToCast(WHM.DivineCaress) && !(Player.Object?.IsCasting() is true))
+        {
+            WouldLikeToGroundTarget = ActionSheet[WHM.DivineCaress].TargetArea;
+            ActionManager.Instance()->UseAction(ActionType.Action, WHM.DivineCaress);
+            WouldLikeToGroundTarget = false;
+        }
+
         // Reset locks if no action for 3 seconds
         if (TimeSinceLastAction.TotalSeconds >= 3)
         {
