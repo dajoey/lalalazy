@@ -1,4 +1,4 @@
-﻿using Dalamud.Configuration;
+using Dalamud.Configuration;
 using ECommons.DalamudServices;
 using ECommons.ExcelServices;
 using ECommons.Logging;
@@ -246,7 +246,7 @@ internal partial class Configs : IPluginConfiguration
 		 Filter = DutySpecifcPvP)]
 	private static readonly bool _autoOnPvPMatchStart = true;
 
-	[ConditionBool, UI("Set RSR to PvP specific state when enabled in PvP zone.",
+	[ConditionBool, UI("Set PvP Solver to PvP specific state when enabled in PvP zone.",
 		 Filter = DutySpecifcPvP)]
 	private static readonly bool _pvpStateControl = false;
 
@@ -472,7 +472,7 @@ internal partial class Configs : IPluginConfiguration
 		Filter = BasicAutoSwitch, Section = 1)]
 	private static readonly bool _cancelStateOnCombatBeforeCountdown = false;
 
-	[ConditionBool, UI("I understand that Auto On settings will turn RSRs autorotation on, automatically.",
+	[ConditionBool, UI("I understand that Auto On settings will turn PvP Solver's autorotation on, automatically.",
 		Filter = BasicAutoSwitch, Section = 1)]
 	private static readonly bool _AutoOnYes = false;
 
@@ -524,11 +524,11 @@ internal partial class Configs : IPluginConfiguration
 	[ConditionBool, UI("Debug Mode", Filter = Debug)]
 	private static readonly bool _inDebug = false;
 
-	[ConditionBool, UI("Make /rotation Manual a toggle command.",
+	[ConditionBool, UI("Make /pvpsolver Manual a toggle command.",
 		Filter = BasicParams)]
 	private static readonly bool _toggleManual = false;
 
-	[ConditionBool, UI("Make /rotation Auto a toggle command. (Normal behavior cycles between targeting settings)",
+	[ConditionBool, UI("Make /pvpsolver Auto a toggle command. (Normal behavior cycles between targeting settings)",
 		Filter = BasicParams)]
 	private static readonly bool _toggleAuto = false;
 
@@ -585,7 +585,7 @@ internal partial class Configs : IPluginConfiguration
 	private static readonly bool _showHints = true;
 
 	[ConditionBool, UI("Color disabled actions on hotbars",
-		Description = "When enabled, actions you have disabled in RSR will be tinted on in-game hotbars.",
+		Description = "When enabled, actions you have disabled in PvP Solver will be tinted on in-game hotbars.",
 		Filter = UiInformation)]
 	private static readonly bool _reddenDisabledHotbarActions = false;
 
@@ -605,7 +605,7 @@ internal partial class Configs : IPluginConfiguration
 	[ConditionBool, UI("Disable hostile actions if something is casting an action on the Gaze/Stop list (EXPERIMENTAL)", Filter = AutoActionUsage, Section = 4)]
 	private static readonly bool _castingStop = false;
 
-	[UI("Configurable amount of time before the cast finishes that RSR stops taking actions", Filter = AutoActionUsage, Section = 4, Parent = nameof(CastingStop))]
+	[UI("Configurable amount of time before the cast finishes that PvP Solver stops taking actions", Filter = AutoActionUsage, Section = 4, Parent = nameof(CastingStop))]
 	[Range(0, 15, ConfigUnitType.Seconds)]
 	public float CastingStopTime { get; set; } = 2.5f;
 
@@ -713,7 +713,7 @@ internal partial class Configs : IPluginConfiguration
 	[ConditionBool, UI("Only show timeline in combat", Parent = nameof(ShowActionTimelineWindow))]
 	private static readonly bool _actionTimelineOnlyInCombat = true;
 
-	[ConditionBool, UI("Only show timeline when RSR is active", Parent = nameof(ShowActionTimelineWindow))]
+	[ConditionBool, UI("Only show timeline when PvP Solver is active", Parent = nameof(ShowActionTimelineWindow))]
 	private static readonly bool _actionTimelineOnlyWhenActive = true;
 
 	[ConditionBool, UI("Show oGCD actions in timeline", Parent = nameof(ShowActionTimelineWindow))]
@@ -728,11 +728,11 @@ internal partial class Configs : IPluginConfiguration
 	[ConditionBool, UI("Record AOE actions", Filter = List)]
 	private static readonly bool _recordCastingArea = true;
 
-	[ConditionBool, UI("Auto turn off RSR when combat is over for more than:",
+	[ConditionBool, UI("Auto turn off PvP Solver when combat is over for more than:",
 		Filter = BasicAutoSwitch)]
 	private static readonly bool _autoOffAfterCombat = true;
 
-	[ConditionBool, UI("Enable RSR click counter in main menu",
+	[ConditionBool, UI("Enable PvP Solver click counter in main menu",
 		Filter = Extra)]
 	private static readonly bool _enableClickingCount = true;
 
@@ -759,11 +759,11 @@ internal partial class Configs : IPluginConfiguration
 	[ConditionBool, UI("Record knockback actions", Filter = List2)]
 	private static readonly bool _recordKnockbackies = false;
 
-	[ConditionBool, UI("Set Blue Mage Actions Automatically", Description = "When using a Blue Mage Rotation, RSR can automatically set your spell book to the spells required by that rotation.", Filter = Extra)]
+	[ConditionBool, UI("Set Blue Mage Actions Automatically", Description = "When using a Blue Mage Rotation, PvP Solver can automatically set your spell book to the spells required by that rotation.", Filter = Extra)]
 	private static readonly bool _setBluActions2 = false;
 
 	#region Float
-	[UI("Auto turn off RSR when combat is over for more than...",
+	[UI("Auto turn off PvP Solver when combat is over for more than...",
 		Parent = nameof(AutoOffAfterCombat))]
 	[Range(0, 600, ConfigUnitType.Seconds)]
 	public float AutoOffAfterCombatTime { get; set; } = 30;
@@ -909,16 +909,16 @@ internal partial class Configs : IPluginConfiguration
 		Filter = HealingActionCondition, Section = 3)]
 	private static readonly bool _priolowtank = false;
 
-	/// <markdown file="Basic" name="The duration of special windows opened by /rotation commands by default">
-	/// The duration of special windows opened by /rotation commands by default.
+	/// <markdown file="Basic" name="The duration of special windows opened by /pvpsolver commands by default">
+	/// The duration of special windows opened by /pvpsolver commands by default.
 	/// (Found in Main => Macros)
 	/// </markdown>
-	[UI("The duration of special windows opened by /rotation commands by default.",
+	[UI("The duration of special windows opened by /pvpsolver commands by default.",
 		Filter = BasicTimer, Section = 1)]
 	[Range(1, 20, ConfigUnitType.Seconds, 1f)]
 	public float SpecialDuration { get; set; } = 3;
 
-	[UI("Random range of delay for RSR to stop attacking when the target is dead or immune to damage.",
+	[UI("Random range of delay for PvP Solver to stop attacking when the target is dead or immune to damage.",
 		Parent = nameof(UseStopCasting))]
 	[Range(0, 3, ConfigUnitType.Seconds, 0.002f)]
 	public Vector2 StopCastingDelay { get; set; } = new(0.5f, 1);
@@ -1181,7 +1181,7 @@ internal partial class Configs : IPluginConfiguration
 		Filter = TargetConfig)]
 	private static readonly bool _bigHP = false;
 
-	[UI("/rotation Cycle behaviour", Filter = TargetConfig)]
+	[UI("/pvpsolver Cycle behaviour", Filter = TargetConfig)]
 	public CycleType CycleType { get; set; } = CycleType.CycleNormal;
 
 	[JobConfig, UI("Engage settings", Filter = TargetConfig, PvPFilter = JobFilterType.NoJob)]

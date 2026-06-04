@@ -1,4 +1,4 @@
-﻿using Dalamud.Interface.Colors;
+using Dalamud.Interface.Colors;
 using Dalamud.Interface.Windowing;
 using ECommons.DalamudServices;
 
@@ -11,9 +11,9 @@ internal sealed class FirstStartTutorialWindow : Window
 
 	private static readonly string[] StarterMacros =
 	[
-		"/rotation Settings AoEType Full\r\n/rotation Auto",
-		"/rotation Settings AoEType Cleave\r\n/rotation Manual",
-		"/rotation Off",
+		"/pvpsolver Settings AoEType Full\r\n/pvpsolver Auto",
+		"/pvpsolver Settings AoEType Cleave\r\n/pvpsolver Manual",
+		"/pvpsolver Off",
 	];
 
 	private static readonly TutorialStep[] Steps =
@@ -23,7 +23,7 @@ internal sealed class FirstStartTutorialWindow : Window
 			"This walkthrough explains how to set up PvP Solver and what each section controls and includes recommended macros.",
 			Bullets:
 			[
-				"Open the config with /rotation or the plugin UI button.",
+				"Open the config with /pvpsolver or the plugin UI button.",
 				"Use Next/Back to move through sections and apply changes as you go.",
 				"Most settings are safe to change while logged in, but avoid in-combat tweaks until you’re comfortable.",
 				"Right-click any setting or action label to copy its macro command."
@@ -48,11 +48,11 @@ internal sealed class FirstStartTutorialWindow : Window
 			]),
 		new(
 			"Actions",
-			"Actions config decides what abilities RSR can use and how they behave.",
+			"Actions config decides what abilities PvP Solver can use and how they behave.",
 			RotationConfigWindowTab.Actions,
 			[
 				"Click an action icon in a category to see settings to enable/disable it or change its usage rules.",
-				"Use intercept if you want RSR to fire actions you queue manually.",
+				"Use intercept if you want PvP Solver to fire actions you queue manually.",
 				"Toggle cooldown window inclusion so overlays show only what you want."
 			]),
 		new(
@@ -71,7 +71,7 @@ internal sealed class FirstStartTutorialWindow : Window
 			[
 				"Action Ahead affects weave count and clipping—smaller values = more oGCDs. You typically don't need to change this.",
 				"Min Updating Time trades performance for responsiveness.",
-				"Auto Switch controls when RSR turns on/off automatically (countdowns, deaths, duty events)."
+				"Auto Switch controls when PvP Solver turns on/off automatically (countdowns, deaths, duty events)."
 			]),
 		new(
 			"UI",
@@ -84,7 +84,7 @@ internal sealed class FirstStartTutorialWindow : Window
 			]),
 		new(
 			"Target",
-			"Target controls what enemies or allies RSR considers valid.",
+			"Target controls what enemies or allies PvP Solver considers valid.",
 			RotationConfigWindowTab.Target,
 			[
 				"Tune vision cone and engage behavior to avoid unwanted pulls.",
@@ -118,7 +118,7 @@ internal sealed class FirstStartTutorialWindow : Window
 			]),
 		new(
 			"Macros",
-			"Starter macros let you control RSR quickly without opening the UI.",
+			"Starter macros let you control PvP Solver quickly without opening the UI.",
 			RotationConfigWindowTab.Main,
 			[
 				"Use the macros below to toggle Auto/Manual/Off instantly.",
@@ -129,7 +129,7 @@ internal sealed class FirstStartTutorialWindow : Window
 	];
 
 	public FirstStartTutorialWindow()
-		: base("RSR First Start Tutorial", BaseFlags)
+		: base("PvP Solver First Start Tutorial", BaseFlags)
 	{
 		Size = new Vector2(720, 530);
 		SizeCondition = ImGuiCond.FirstUseEver;

@@ -1,4 +1,4 @@
-﻿using ECommons.EzIpcManager;
+using ECommons.EzIpcManager;
 using ECommons.Logging;
 using RotationSolver.Commands;
 
@@ -15,7 +15,7 @@ namespace RotationSolver.IPC
 		/// </summary>
 		internal IPCProvider()
 		{
-			_ = EzIPC.Init(this, prefix: "RotationSolverReborn");
+			_ = EzIPC.Init(this, prefix: "PvPSolver");
 		}
 
 		/// <summary>

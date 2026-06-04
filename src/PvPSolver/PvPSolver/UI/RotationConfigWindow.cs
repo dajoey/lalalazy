@@ -1920,7 +1920,7 @@ public partial class RotationConfigWindow : Window
 
 		ImGui.Spacing();
 		// Display GitHub link button
-		if (IconSet.GetTexture("https://GitHub-readme-stats.vercel.app/api/pin/?username=FFXIV-CombatReborn&repo=RotationSolverReborn&show_icons=true&theme=dark", out Dalamud.Interface.Textures.TextureWraps.IDalamudTextureWrap? icon))
+		if (IconSet.GetTexture($"https://GitHub-readme-stats.vercel.app/api/pin/?username={Service.USERNAME}&repo={Service.REPO}&show_icons=true&theme=dark", out Dalamud.Interface.Textures.TextureWraps.IDalamudTextureWrap? icon))
 		{
 			if (ImGuiHelper.TextureButton(icon, width, width))
 			{

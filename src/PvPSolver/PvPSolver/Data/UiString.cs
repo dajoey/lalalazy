@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 
 namespace RotationSolver.Data
 {
@@ -40,7 +40,7 @@ namespace RotationSolver.Data
 		[Description("Load from folder")]
 		ActionSequencer_Load,
 
-		[Description("Analyzes PvE combat information in every frame and finds the best action.")]
+		[Description("Analyzes PvP combat information in every frame and finds the best action.")]
 		ConfigWindow_About_Punchline,
 
 		[Description("Invalid Rotation! \nPlease update to the latest version or contact {0}!")]
@@ -55,10 +55,10 @@ namespace RotationSolver.Data
 		[Description("This includes almost all information available in one combat frame, including the status of all party members, hostile target statuses, skill cooldowns, MP and HP of characters, character locations, hostile target casting status, combo state, combat duration, player level, etc.\n\nIt will then highlight the best action on the hotbar, or help you click it.")]
 		ConfigWindow_About_Description,
 
-		[Description("This is designed for GENERAL COMBAT, not for Savage or Ultimate content. \n\nUse it carefully! While not designed specifically for Savage or Ultimate content RSR works fine in them, but it will not solve mechanics for you. Pay attention and use macros.")]
+		[Description("This is designed for PvP combat only. Do not use in PvE zones. Ensure you pay attention to mechanics and map conditions!")]
 		ConfigWindow_About_Warning,
 
-		[Description("RSR has helped you by clicking actions {0:N0} times.")]
+		[Description("PvP Solver has helped you by clicking actions {0:N0} times.")]
 		ConfigWindow_About_ClickingCount,
 
 		[Description("State Macros")]
@@ -85,13 +85,13 @@ namespace RotationSolver.Data
 		[Description("Warning Time")]
 		ConfigWindow_About_Warnings_Time,
 
-		[Description("Rotation Solver helps you choose targets and click actions. Any plugin that changes these will affect its decisions.\n\nHere is a list of known incompatible plugins:")]
+		[Description("PvP Solver helps you choose targets and click actions. Any plugin that changes these will affect its decisions.\n\nHere is a list of known incompatible plugins:")]
 		ConfigWindow_About_Compatibility_Description,
 
-		[Description("Cannot properly execute the behavior that RSR wants to perform.")]
+		[Description("Cannot properly execute the behavior that PvP Solver wants to perform.")]
 		ConfigWindow_About_Compatibility_Mistake,
 
-		[Description("Conflicts with RSR decision-making")]
+		[Description("Conflicts with PvP Solver decision-making")]
 		ConfigWindow_About_Compatibility_Mislead,
 
 		[Description("Causes the game to crash")]
@@ -118,7 +118,7 @@ namespace RotationSolver.Data
 		[Description("Duty Rotation Status")]
 		ConfigWindow_DutyRotation_Status,
 
-		[Description("Used to customize when RSR uses specific actions automatically. Click on an action's icon in the left list. Below, you may set the conditions for when that specific action is used. Each action can have different conditions to override the default rotation behavior.")]
+		[Description("Used to customize when PvP Solver uses specific actions automatically. Click on an action's icon in the left list. Below, you may set the conditions for when that specific action is used. Each action can have different conditions to override the default rotation behavior.")]
 		ConfigWindow_Actions_Description,
 
 		[Description("Show on CD window")]
@@ -322,7 +322,7 @@ namespace RotationSolver.Data
 		[Description("The animation lock time for individual actions. For example, 0.6s.")]
 		ConfigWindow_Basic_AnimationLockTime,
 
-		[Description("The clicking duration - RSR will try to click at this moment.")]
+		[Description("The clicking duration - PvP Solver will try to click at this moment.")]
 		ConfigWindow_Basic_ClickingDuration,
 
 		[Description("The ideal click time")]
@@ -352,19 +352,19 @@ namespace RotationSolver.Data
 		[Description("Windows")]
 		ConfigWindow_UI_Windows,
 
-		[Description("Change how RSR automatically uses actions")]
+		[Description("Change how PvP Solver automatically uses actions")]
 		ConfigWindow_Auto_Description,
 
 		[Description("Action Usage and Control")]
 		ConfigWindow_Auto_ActionUsage,
 
-		[Description("Which actions RSR can use")]
+		[Description("Which actions PvP Solver can use")]
 		ConfigWindow_Auto_ActionUsage_Description,
 
 		[Description("Healing Usage and Control")]
 		ConfigWindow_Auto_HealingCondition,
 
-		[Description("How RSR should use healing abilities")]
+		[Description("How PvP Solver should use healing abilities")]
 		ConfigWindow_Auto_HealingCondition_Description,
 
 		[Description("Custom State Condition (Unsupported)")]
@@ -403,7 +403,7 @@ namespace RotationSolver.Data
 		[Description("No Casting Condition Set")]
 		ConfigWindow_Auto_NoCastingConditionSet,
 
-		[Description("This will change how RSR uses actions")]
+		[Description("This will change how PvP Solver uses actions")]
 		ConfigWindow_Auto_ActionCondition_Description,
 
 		[Description("Configuration")]
@@ -412,7 +412,7 @@ namespace RotationSolver.Data
 		[Description("Hostile")]
 		ConfigWindow_List_Hostile,
 
-		[Description("Enemy targeting logic. Adding more options cycles them when using /rotation Auto.\nUse /rotation Settings TargetingTypes add <option> to add,\n/rotation Settings TargetingTypes remove <option> to remove,\nand /rotation Settings TargetingTypes removeall to remove all options.")]
+		[Description("Enemy targeting logic. Adding more options cycles them when using /pvpsolver Auto.\nUse /pvpsolver Settings TargetingTypes add <option> to add,\n/pvpsolver Settings TargetingTypes remove <option> to remove,\nand /pvpsolver Settings TargetingTypes removeall to remove all options.")]
 		ConfigWindow_Param_HostileDesc,
 
 		[Description("Move Up")]
@@ -424,7 +424,7 @@ namespace RotationSolver.Data
 		[Description("Hostile target selection condition")]
 		ConfigWindow_Param_HostileCondition,
 
-		[Description("RSR focuses on the rotation itself. These are side features. Subject to removal at any time.")]
+		[Description("PvP Solver focuses on the rotation itself. These are side features. Subject to removal at any time.")]
 		ConfigWindow_Extra_Description,
 
 		[Description("Event")]
@@ -535,7 +535,7 @@ namespace RotationSolver.Data
 		[Description("Duty Name")]
 		ConfigWindow_Condition_DutyName,
 
-		[Description("Please separately bind damage reduction/shield cooldowns in case RSR fails at a crucial moment in {0}!")]
+		[Description("Please separately bind damage reduction/shield cooldowns in case PvP Solver fails at a crucial moment in {0}!")]
 		HighEndWarning,
 
 		[Description("Click to execute the command")]
@@ -637,10 +637,10 @@ namespace RotationSolver.Data
 		[Description("Open config window")]
 		Commands_Rotation,
 
-		[Description("Start RSR combat rotation state")]
+		[Description("Start PvP Solver combat rotation state")]
 		Commands_Start,
 
-		[Description("Disable RSR combat rotation state")]
+		[Description("Disable PvP Solver combat rotation state")]
 		Commands_Off,
 
 		[Description("PvP Solver Settings v")]

@@ -1,4 +1,4 @@
-﻿using Dalamud.Game.ClientState.Conditions;
+using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using ECommons.DalamudServices;
 using ECommons.EzIpcManager;
@@ -15,7 +15,7 @@ internal static class ActionUpdater
 
 	static ActionUpdater()
 	{
-		_ = EzIPC.Init(typeof(ActionUpdater), "RotationSolverReborn.ActionUpdater");
+		_ = EzIPC.Init(typeof(ActionUpdater), "PvPSolver.ActionUpdater");
 	}
 
 	[EzIPCEvent] public static Action<uint> NextGCDActionChanged = delegate { };

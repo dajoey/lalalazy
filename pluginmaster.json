@@ -3,9 +3,9 @@
         "Author":  "dajoey",
         "Name":  "PvP Solver",
         "Punchline":  "PvP-only auto-rotation",
-        "Description":  "Auto-rotation for FFXIV PvP only. Automatically activates in PvP zones. Designed to run alongside Wrath Combo (handles PvE). Includes default PvP rotations for all jobs.",
+        "Description":  "PvP-only auto-rotation for FFXIV. Activates in PvP zones.",
         "InternalName":  "PvPSolver",
-        "AssemblyVersion":  "0.1.0.3",
+        "AssemblyVersion":  "0.1.0.4",
         "Changelog":  "v0.1.0.3 - Wholly Original Rebrand \u0026 PvP Cast Protection\n- Renamed all commands to /pvpsolver and /pvs to prevent collisions with stock RSR.\n- Built protection against autocasting when zero enemies are nearby in PvP zones.",
         "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/PvPSolver",
         "ApplicableVersion":  "any",
@@ -15,15 +15,8 @@
         "DownloadLinkInstall":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/PvPSolver/latest/latest.zip",
         "DownloadLinkUpdate":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/PvPSolver/latest/latest.zip",
         "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/PvPSolver/testing/testing.zip",
-        "Tags":  [
-                     "combat",
-                     "rotation",
-                     "auto",
-                     "pvp"
-                 ],
-        "CategoryTags":  [
-                             "jobs"
-                         ],
+        "Tags":  null,
+        "CategoryTags":  null,
         "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/pvpsolver-icon.png",
         "ImageUrls":  [
                           ""
