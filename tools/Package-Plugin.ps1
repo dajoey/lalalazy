@@ -220,7 +220,10 @@ if (-not $entry) {
 
 if ($isNew) {
     # Append to master list
-    $tempList = [System.Collections.Generic.List[PSCustomObject]]::new($masterList)
+    $tempList = [System.Collections.Generic.List[PSCustomObject]]::new()
+    foreach ($m in $masterList) {
+        $tempList.Add($m)
+    }
     $tempList.Add($entry)
     $masterList = $tempList
 }

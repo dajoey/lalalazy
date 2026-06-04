@@ -1,0 +1,20 @@
+{
+  "Author": "dajoey",
+  "Name": "Lazy Skyward Tracker",
+  "Punchline": "Track your Skyward points for all jobs toward the Pteranodon mount",
+  "Description": "Lists all jobs who need points for Castle in the Sky (Pteranodon mount achievement) and their current point tally in a clean display window. Use /lazysky to open.",
+  "ApplicableVersion": "any",
+  "Tags": [
+    "skybuilders",
+    "restoration",
+    "pteranodon",
+    "achievement",
+    "tracker"
+  ],
+  "CategoryTags": [ "utility" ],
+  "InternalName": "LazySkywardTracker",
+  "DalamudApiLevel": 15,
+  "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyskywardtracker-icon.png",
+  "ImageUrls": [ "" ],
+  "Changelog": "v0.0.1 - Initial development version."
+}

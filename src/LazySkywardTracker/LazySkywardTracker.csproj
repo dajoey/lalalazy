@@ -1,0 +1,47 @@
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <Version>0.0.1.0</Version>
+    <AssemblyName>LazySkywardTracker</AssemblyName>
+    <Description>Simple tracker plugin for Skyward / Skybuilders' points towards the Pteranodon mount.</Description>
+    <IsPackable>false</IsPackable>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <SupportedOSPlatformVersion>8.0</SupportedOSPlatformVersion>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Author>dajoey</Author>
+    <Name>Lazy Skyward Tracker</Name>
+    <InternalName>LazySkywardTracker</InternalName>
+    <Punchline>Track your Skyward points for all jobs toward the Pteranodon mount</Punchline>
+    <ApplicableVersion>any</ApplicableVersion>
+    <Tags>skybuilders;restoration;pteranodon;achievement;tracker</Tags>
+    <CategoryTags>utility</CategoryTags>
+    <DalamudApiLevel>15</DalamudApiLevel>
+    <LoadRequiredState>0</LoadRequiredState>
+    <LoadSync>false</LoadSync>
+    <CanUnloadAsync>false</CanUnloadAsync>
+    <LoadPriority>0</LoadPriority>
+    <AcceptsFeedback>false</AcceptsFeedback>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="LazySkywardTracker.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ECommons" Version="3.2.0.9" />
+  </ItemGroup>
+
+  <Target Name="PruneOutputDlls" AfterTargets="ResolveReferences">
+    <ItemGroup>
+      <_KeepDlls Include="@(ReferenceCopyLocalPaths)" Condition="
+          '%(Filename)' == 'LazySkywardTracker' or
+          '%(Filename)' == 'ECommons'
+        " />
+      <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)" />
+      <ReferenceCopyLocalPaths Include="@(_KeepDlls)" />
+    </ItemGroup>
+  </Target>
+</Project>

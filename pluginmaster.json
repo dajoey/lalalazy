@@ -1,4 +1,4 @@
-﻿[
+[
     {
         "Author":  "dajoey",
         "Name":  "PvP Solver",
@@ -291,6 +291,38 @@
                              "utility"
                          ],
         "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyfateautomation-icon.png",
+        "ImageUrls":  [
+                          ""
+                      ],
+        "DownloadCount":  0,
+        "LastUpdate":  "0"
+    },
+    {
+        "Author":  "dajoey",
+        "Name":  "Lazy Skyward Tracker",
+        "Punchline":  "Track your Skyward points for all jobs toward the Pteranodon mount",
+        "Description":  "Lists all jobs who need points for Castle in the Sky (Pteranodon mount achievement) and their current point tally in a clean display window. Use /lazysky to open.",
+        "InternalName":  "LazySkywardTracker",
+        "AssemblyVersion":  "0.0.1.0",
+        "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/LazySkywardTracker",
+        "ApplicableVersion":  "any",
+        "DalamudApiLevel":  15,
+        "IsHide":  false,
+        "IsTestingExclusive":  false,
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazySkywardTracker/latest/latest.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazySkywardTracker/latest/latest.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazySkywardTracker/testing/testing.zip",
+        "Tags":  [
+                     "skybuilders",
+                     "restoration",
+                     "pteranodon",
+                     "achievement",
+                     "tracker"
+                 ],
+        "CategoryTags":  [
+                             "utility"
+                         ],
+        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyskywardtracker-icon.png",
         "ImageUrls":  [
                           ""
                       ],
