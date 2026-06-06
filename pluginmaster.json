@@ -129,6 +129,7 @@
         "InternalName":  "GluttonyCombo",
         "AssemblyVersion":  "1.0.4.39",
         "TestingAssemblyVersion":  "1.0.4.40",
+        "TestingDalamudApiLevel":  15,
         "Changelog":  "v1.0.4.30 - BLU Complete Autorotation Engine\n- Complete rewrite of BLU autorotation with full spell catalog (100+ spells).\n- AoE-aware DPET scoring: automatically transitions from ST to AoE priority based on target count.\n- Conditional procs (White Death, Divine Cataract) fire instantly when enabler buffs proc.\n- Movement awareness: only instant-cast spells selected while moving.\n- Shared recast handling (Being Mortal/Apokalypsis, Magic Hammer/Candy Cane).\n- New BLU_Heal_AdvancedMode preset: heals party, raises dead, falls through to DPS when nobody needs healing.\n- Still ALPHA, greedy priority, no Moon Flute burst window yet.",
         "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/GluttonyCombo",
         "ApplicableVersion":  "any",
