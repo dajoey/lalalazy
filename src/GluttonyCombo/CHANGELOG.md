@@ -1,5 +1,10 @@
 # Gluttony Combo â€” Changelog
 
+## v1.0.4.41 (2026-06-06)
+
+### Fixed
+- In-game changelog display: the packaged manifest's Changelog had been stuck at v1.0.4.35 (template was never updated on release), so 1.0.4.36-1.0.4.40 notes never showed in Dalamud. Template + embedded manifest + pluginmaster now synced.
+
 ## v1.0.4.40 (2026-06-06)
 
 ### Changed
