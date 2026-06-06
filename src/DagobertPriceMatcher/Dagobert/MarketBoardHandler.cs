@@ -12,11 +12,17 @@ namespace Dagobert
 {
   internal unsafe sealed class MarketBoardHandler : IDisposable
   {
+    private const int UnknownRequestId = -1;
+    private const int ListingsPerBatch = 10;
+
     private readonly Lumina.Excel.ExcelSheet<Item> _items;
     private bool _newRequest;
     private bool _useHq;
     private bool _itemHq;
-    private int _lastRequestId = -1;
+    private int _lastRequestId = UnknownRequestId;
+    private int _pendingNoMatchRequestId = UnknownRequestId;
+    private long _pendingNoMatchTimeoutAt;
+    private long _pendingNoOfferingsTimeoutAt;
 
     private int NewPrice
     {
@@ -36,6 +42,7 @@ namespace Dagobert
       _items = Svc.Data.GetExcelSheet<Item>();
 
       Plugin.MarketBoard.OfferingsReceived += MarketBoardOnOfferingsReceived;
+      Svc.Framework.Update += FrameworkOnUpdate;
 
       Plugin.AddonLifecycle.RegisterListener(AddonEvent.PostSetup, "RetainerSell", AddonRetainerSellPostSetup);
       Plugin.AddonLifecycle.RegisterListener(AddonEvent.PostSetup, "ItemSearchResult", ItemSearchResultPostSetup);
@@ -44,6 +51,7 @@ namespace Dagobert
     public void Dispose()
     {
       Plugin.MarketBoard.OfferingsReceived -= MarketBoardOnOfferingsReceived;
+      Svc.Framework.Update -= FrameworkOnUpdate;
       Plugin.AddonLifecycle.UnregisterListener(AddonEvent.PostSetup, "RetainerSell", AddonRetainerSellPostSetup);
       Plugin.AddonLifecycle.UnregisterListener(AddonEvent.PostSetup, "ItemSearchResult", ItemSearchResultPostSetup);
     }
@@ -53,47 +61,81 @@ namespace Dagobert
       if (!_newRequest)
         return;
 
+      if (currentOfferings.RequestId == _lastRequestId)
+        return;
+
+      ClearPendingNoOfferings();
+
+      if (currentOfferings.ItemListings.Count == 0)
+      {
+        CompletePriceRequest(-1, currentOfferings.RequestId);
+        return;
+      }
+
+      var skipNq = _useHq && _items.Single(j => j.RowId == currentOfferings.ItemListings[0].ItemId).CanBeHq;
       var i = 0;
-      if (_useHq && _items.Single(j => j.RowId == currentOfferings.ItemListings[0].ItemId).CanBeHq)
+      while (i < currentOfferings.ItemListings.Count)
       {
-        while (i < currentOfferings.ItemListings.Count && !currentOfferings.ItemListings[i].IsHq)
+        if (skipNq && !currentOfferings.ItemListings[i].IsHq)
           i++;
-      }
-      else
-      {
-        if (currentOfferings.ItemListings.Count > 0)
-          i = 0;
         else
-          i = currentOfferings.ItemListings.Count;
+          break;
       }
 
-      if (i >= currentOfferings.ItemListings.Count || currentOfferings.RequestId == _lastRequestId)
+      // offerings arrive in batches of 10; if no match in this batch, wait for the next
+      if (i >= currentOfferings.ItemListings.Count)
       {
-        NewPrice = -1;
-        return; // wait for more incoming offerings (currentOfferings only contains 10 per call)
+        if (currentOfferings.ItemListings.Count < ListingsPerBatch)
+        {
+          CompletePriceRequest(-1, currentOfferings.RequestId);
+          return;
+        }
+
+        _pendingNoMatchRequestId = currentOfferings.RequestId;
+        _pendingNoMatchTimeoutAt = Environment.TickCount64 + GetMarketBoardResultTimeoutMs();
+        return;
       }
+
+      ClearPendingNoMatch();
+
+      int price;
+
+      if (!Plugin.Configuration.UndercutSelf && IsOwnRetainer(currentOfferings.ItemListings[i].RetainerId))
+        price = (int)currentOfferings.ItemListings[i].PricePerUnit;
+      else if (Plugin.Configuration.UndercutMode == UndercutMode.FixedAmount)
+        price = Math.Max((int)currentOfferings.ItemListings[i].PricePerUnit - Plugin.Configuration.UndercutAmount, 1);
       else
+        price = Math.Max((100 - Plugin.Configuration.UndercutAmount) * (int)currentOfferings.ItemListings[i].PricePerUnit / 100, 1);
+
+      CompletePriceRequest(price, currentOfferings.RequestId);
+    }
+
+    private void FrameworkOnUpdate(object _)
+    {
+      if (!_newRequest)
+        return;
+
+      var now = Environment.TickCount64;
+      if (_pendingNoMatchRequestId >= 0 && now >= _pendingNoMatchTimeoutAt)
       {
-        int price;
-
-        if (!Plugin.Configuration.UndercutSelf && IsOwnRetainer(currentOfferings.ItemListings[i].RetainerId))
-          price = (int)currentOfferings.ItemListings[i].PricePerUnit;
-        else if (Plugin.Configuration.UndercutMode == UndercutMode.FixedAmount)
-          price = Math.Max((int)currentOfferings.ItemListings[i].PricePerUnit - Plugin.Configuration.UndercutAmount, 1);
-        else
-          price = Math.Max((100 - Plugin.Configuration.UndercutAmount) * (int)currentOfferings.ItemListings[i].PricePerUnit / 100, 1);
-
-        NewPrice = price;
+        Svc.Log.Debug("No matching market board listing received before timeout");
+        CompletePriceRequest(-1, _pendingNoMatchRequestId);
+        return;
       }
 
-      _lastRequestId = currentOfferings.RequestId;
-      _newRequest = false;
+      if (_pendingNoOfferingsTimeoutAt > 0 && now >= _pendingNoOfferingsTimeoutAt)
+      {
+        Svc.Log.Debug("No market board offerings received before timeout");
+        CompletePriceRequest(-1, UnknownRequestId);
+      }
     }
 
     private void ItemSearchResultPostSetup(AddonEvent type, AddonArgs args)
     {
       _newRequest = true;
       _useHq = Plugin.Configuration.HQ && _itemHq;
+      ClearPendingNoMatch();
+      _pendingNoOfferingsTimeoutAt = Environment.TickCount64 + GetMarketBoardResultTimeoutMs();
     }
 
     private unsafe void AddonRetainerSellPostSetup(AddonEvent type, AddonArgs args)
@@ -122,5 +164,28 @@ namespace Dagobert
     }
 
     private static bool IsOwnRetainer(ulong retainerId) => Plugin.Configuration.SeenRetainers.Contains(retainerId);
+
+    private static int GetMarketBoardResultTimeoutMs() => Math.Max(Plugin.Configuration.MarketBoardKeepOpenMS, 1000);
+
+    private void CompletePriceRequest(int price, int requestId)
+    {
+      ClearPendingNoMatch();
+      ClearPendingNoOfferings();
+      if (requestId >= 0)
+        _lastRequestId = requestId;
+      _newRequest = false;
+      NewPrice = price;
+    }
+
+    private void ClearPendingNoMatch()
+    {
+      _pendingNoMatchRequestId = UnknownRequestId;
+      _pendingNoMatchTimeoutAt = 0;
+    }
+
+    private void ClearPendingNoOfferings()
+    {
+      _pendingNoOfferingsTimeoutAt = 0;
+    }
   }
 }
