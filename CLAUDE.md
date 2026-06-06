@@ -62,3 +62,42 @@ Joey tests on **dajoeybaz** (192.168.10.7, Linux/Wine) — NOT dajoeyrog. dajoey
 - Debug log: writes to `System.IO.Path.GetTempPath()/blu-debug.log`
 - Labeled ALPHA — BLU-specific breakage is acceptable during dev; other jobs must stay untouched
 - Full spell catalog in BLU_Helper.cs — every damaging BLU ability must be represented
+
+## Landing site (`docs/`) & design system — maintenance rules
+
+The repo ships a public landing site at **https://dajoey.github.io/lalalazy/**, served by **GitHub Pages from `main` → `/docs`** (repo Settings → Pages → Deploy from a branch → `main` / `/docs`). The green pixel-art "sleeping lalafell" look is the brand — keep it consistent.
+
+### CRITICAL — the GitHub Pages path gotcha (do not regress this)
+
+Because Pages serves from `/docs`, **`docs/` is the web root**. Anything *outside* `docs/` is NOT reachable by a relative path. The icons live in `LalaImages/` at the **repo root**, which Pages does **not** publish. So every icon in `docs/` is referenced by **absolute URL**:
+
+```
+https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/<slug>-icon.png
+```
+
+**Never** use `../LalaImages/…`, `../../LalaImages/…`, or `assets/icons/…` inside `docs/` — they 404 under Pages. (This exact bug shipped 2026-06-06 and was fixed by switching to absolute `raw.githubusercontent.com` URLs.) CSS/JS that live *inside* `docs/` stay relative.
+
+### Layout
+
+- `docs/index.html` — landing (hero, install box, plugin grid). The grid is generated from `docs/plugins.js` (the `PLUGINS` array).
+- `docs/mods/<slug>.html` — one page per plugin. The bottom prev/next nav is a **loop in the same order as the `PLUGINS` array**.
+- `docs/site.css` — layout. `docs/colors_and_type.css` — design tokens. **Do not delete `colors_and_type.css`**: `site.css` reads `--font-ui` (Noto Sans), `--font-pixel` (Pixelify Sans), `--font-mono` (JetBrains Mono), and `--gil-gold: #E8C148` from it.
+
+### Icons / logos — the contract is `LalaImages/STYLE.md`
+
+- Every icon: **500×500 PNG**, pixel-art sleeping lalafell on `#244A3A`, a thought bubble holding the per-mod "dream" icon, chunky pixels, 3–4 colors, **no anti-aliasing / no photoreal**. `repo-icon.png` is the bare base (no bubble).
+- Generate with the kit: `LalaImages/kit/generate_logo.sh <slug> "<dream description>"` (img2img off `kit/assets/canonical-base.png`). Don't hand-drop photoreal or AI-illustrated art.
+- **Size sanity check:** themed icons run ~225–415 KB. A 600 KB+ file is a red flag it's off-theme — that's how the bad Currency Spender icon was caught (a 719 KB photoreal coin purse; replaced 2026-06-06 with a 378 KB themed render).
+- Single source of truth = `LalaImages/`. Both `pluginmaster.json` `IconUrl` and the landing site point at the same `raw.githubusercontent.com/.../LalaImages/<slug>-icon.png`. After replacing an icon, the raw CDN can serve the old image for a few minutes — that's cache lag, not a failed push.
+
+### Keep the landing in sync with `pluginmaster.json`
+
+Every shipping plugin should have a `PLUGINS` entry in `docs/plugins.js` and a `docs/mods/<slug>.html`. The slug must equal the icon basename `<slug>-icon.png`.
+
+**Add a plugin** — touch all of: `src/<Plugin>/`, `plugins/<Plugin>/`, `pluginmaster.json` entry, `LalaImages/<slug>-icon.png` (per STYLE.md), `README.md` (table + build list), `docs/plugins.js` (`PLUGINS` entry), `docs/mods/<slug>.html`, the nav-loop neighbors, and `tools/sync-wiki.ps1` (name mapping).
+
+**Remove a plugin** — reverse all of the above. (Done for **LazySightseeing** on 2026-06-06: removed from `src/`, `plugins/`, `pluginmaster.json`, its `LalaImages` icon, the `README` build line, and `tools/sync-wiki.ps1`.)
+
+### Current roster (9 plugins, as of 2026-06-06)
+
+GluttonyCombo, PvPSolver, DagobertPriceMatcher, AutoPotion, ArmoireAutoFill, LazyWTMath, LazyCurrencySpender, LazyFateAutomation, LazySkywardTracker.
