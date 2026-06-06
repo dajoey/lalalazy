@@ -231,7 +231,7 @@
     <value>이 NPC들은 자동 순환에서 무시됩니다.
 이 NPC의 모든 개체는 자동 타겟팅에서 제외됩니다(수동 모드는 계속 작동).
 목록에서 NPC를 제거하려면, 해당 NPC를 선택하고 아래의 삭제 버튼을 누르세요.
-목록에 NPC를 추가하려면, NPC를 타겟한 후 다음 명령어를 사용하세요: /gluttony ignore
+목록에 NPC를 추가하려면, NPC를 타겟한 후 다음 명령어를 사용하세요: /wrath ignore
 </value>
   </data>
   <data name="Button_DeleteFromIgnored" xml:space="preserve">
@@ -358,7 +358,7 @@
     <value>감지된 광역 공격 처리</value>
   </data>
   <data name="HelpText_HandleRaidwides" xml:space="preserve">
-    <value>감지된 광역 공격이나 파티 전체 피해 전에 기술을 사용해 피해를 완화하거나 파티원의 체력을 회복(최대치로 보충) 합니다. 준비용 {0}을 제외하고 최대 2개의 기술을 사용합니다.</value>
+    <value>감지된 광역 공격이나 파티 전체 피해 전에 기술을 사용해 피해를 완화하거나 파티원의 체력을 회복(최대치로 보충) 합니다. 준비용 {0}을 제외하고 최대 3개의 기술을 사용합니다.</value>
   </data>
   <data name="Checkbox_HandleTankbusters" xml:space="preserve">
     <value>감지된 탱커 버스터 대응</value>

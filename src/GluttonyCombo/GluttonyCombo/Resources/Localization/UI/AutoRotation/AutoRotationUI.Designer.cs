@@ -465,7 +465,7 @@ namespace GluttonyCombo.Resources.Localization.UI.AutoRotation {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Will try to use actions before detected raidwides or group damage to either mitigate or top-off party members. Max 2 actions (excluding {0} for setup).
+        ///   Looks up a localized string similar to Will try to use actions before detected raidwides or group damage to either mitigate or top-off party members. Max 3 actions (excluding {0} for setup).
         /// </summary>
         internal static string HelpText_HandleRaidwides {
             get {

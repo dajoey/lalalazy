@@ -2,8 +2,11 @@ using ECommons.GameFunctions;
 using System;
 using System.Linq;
 using Dalamud.Game.ClientState.Objects.Types;
+using FFXIVClientStructs.FFXIV.Client.Game;
+using GluttonyCombo.Combos.PvE.Enums;
 using GluttonyCombo.Core;
 using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.Data;
 using GluttonyCombo.Extensions;
 using static GluttonyCombo.Combos.PvE.RDM.Config;
 namespace GluttonyCombo.Combos.PvE;
@@ -217,9 +220,14 @@ internal partial class RDM : Caster
                 return actionID;
 
             #region Opener
-            if (IsEnabled(Preset.RDM_Balance_Opener) && HasBattleTarget() &&
+
+            if (!InCombat() && RDM_Opener_Selection == 2 && HasAccelerate && Opener().OpenerStep == 2)
+                StatusManager.ExecuteStatusOff(Buffs.Acceleration);
+
+            if (IsEnabled(Preset.RDM_Balance_Opener) &&
                 Opener().FullOpener(ref actionID))
                 return actionID;
+            
             #endregion
 
             #region Special Content

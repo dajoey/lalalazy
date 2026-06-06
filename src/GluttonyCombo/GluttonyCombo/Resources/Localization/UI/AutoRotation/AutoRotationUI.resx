@@ -231,7 +231,7 @@ Features marked with an 'Auto-Mode' checkbox are able to be used with Auto-Rotat
     <value>These NPCs will be ignored by Auto-Rotation.
 Every instance of this NPC will be excluded from automatic targeting (Manual will still work).
 To remove an NPC from this list, select it and press the Delete button below.
-To add an NPC to this list, target the NPC and use the command: /gluttony ignore</value>
+To add an NPC to this list, target the NPC and use the command: /wrath ignore</value>
   </data>
   <data name="Button_DeleteFromIgnored" xml:space="preserve">
     <value>Delete From Ignored</value>
@@ -357,7 +357,7 @@ Applies to {0}, {1}, {2}, {3}, {4}, and {5} {6} {7}</value>
     <value>Handle Detected Raidwides</value>
   </data>
   <data name="HelpText_HandleRaidwides" xml:space="preserve">
-    <value>Will try to use actions before detected raidwides or group damage to either mitigate or top-off party members. Max 2 actions (excluding {0} for setup)</value>
+    <value>Will try to use actions before detected raidwides or group damage to either mitigate or top-off party members. Max 3 actions (excluding {0} for setup)</value>
   </data>
   <data name="Checkbox_HandleTankbusters" xml:space="preserve">
     <value>Handle Detected Tankbusters</value>

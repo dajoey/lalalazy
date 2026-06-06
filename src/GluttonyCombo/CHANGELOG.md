@@ -1,5 +1,17 @@
 # Gluttony Combo â€” Changelog
 
+## v1.0.4.40 (2026-06-06) - TESTING
+
+### Changed
+- Synced upstream WrathCombo 1.0.4.6 -> 1.0.4.8 (80 commits, 44 files): job-combo updates (BRD/DRG/MCH/MNK/PLD/RDM/SGE/WAR/WHM), IPC (Leasing/Provider/Search), ActionWatching/StatusCache, localization, debug tab.
+- **Raidwide cap converged to upstream:** dropped our hard `AutorotRaidwides >= 1` in favor of upstream's HP-scaled `numberOfCasts` (1 when party healthy, 2 at <=60%, 3 at <=30%). Less future merge friction.
+
+### Preserved
+- Our customizations kept: 15s raidwide-mit cooldown gate, WHM Divine Caress ground-heal targeting, Pacification/Silence handling, BLU autorotation engine, SMN 'Aegis Uptime' (Radiant Aegis maintain) preset.
+
+### Notes
+- TESTING build pending in-game validation; production stays 1.0.4.39 until promoted. Merge conflicts resolved: AutoRotationController.cs (cap->upstream), Debug.cs (took upstream debug UI), CustomComboPresets.resx (kept both SMN + MCH entries).
+
 ## v1.0.4.37 (2026-05-31)
 ### Removed
 - **BLU autorotation ALPHA reverted.** Removed BLU_Helper.cs, BLU_ST_AdvancedMode, BLU_Heal_AdvancedMode, the ALPHA warning banner, and the ST Advanced Engine debug readout. Manual BLU combos (Moon Flute Opener, Final Sting, Primal Combo, etc.) are unchanged.
