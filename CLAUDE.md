@@ -2,19 +2,19 @@
 
 ## Version Management (MANDATORY — read before ANY version change)
 
-All four version locations MUST match in every release commit:
+All four version locations MUST match in every release commit for any plugin `<PluginName>`:
 
-1. `src/GluttonyCombo/GluttonyCombo/GluttonyCombo.csproj` `<Version>`
-2. `pluginmaster.json` → GluttonyCombo `AssemblyVersion`
-3. `plugins/GluttonyCombo/latest/GluttonyCombo.json` `AssemblyVersion` (inside the zip AND the standalone copy)
-4. `src/GluttonyCombo/CHANGELOG.md`
+1. `src/<PluginName>/<PluginName>.csproj` (or `src/<PluginName>/<PluginName>/<PluginName>.csproj`) `<Version>`
+2. `pluginmaster.json` → `<PluginName>` `AssemblyVersion`
+3. `plugins/<PluginName>/latest/<PluginName>.json` `AssemblyVersion` (inside the zip AND the standalone copy)
+4. `src/<PluginName>/CHANGELOG.md`
 
 ### Rules
 
-- **Read the current version from the csproj BEFORE setting any version.** Never assume the version from conversation context.
-- **If the version you're about to write is LOWER than what's there, STOP.** That's a regression. Dalamud won't offer downgrades — users get stranded.
-- **After updating pluginmaster.json, READ IT BACK and verify the version actually changed.** The file has a UTF-8 BOM and inconsistent whitespace — regex replacements silently fail. Always verify with a post-write read.
-- **After building, verify the manifest inside the zip matches.** Extract `GluttonyCombo.json` from the zip and confirm `AssemblyVersion`.
+- **Read the current version from the `.csproj` file BEFORE setting any version.** Never assume the version from conversation context or from `pluginmaster.json` alone.
+- **If the version you're about to write is LOWER than or EQUAL to what's there, STOP.** That's a regression. Dalamud won't offer downgrades — users get stranded.
+- **After running the packaging script, check the `git diff` of `pluginmaster.json` and verify the version actually increased and did not regress.** Always perform a manual or command-line diff inspection before staging.
+- **After building, verify the manifest inside the zip matches.** Extract `<PluginName>.json` from the zip and confirm `AssemblyVersion`.
 - **Never use `git push --force` or `git commit --amend` on this repo.**
 - **Never touch game files** (XIVLauncher installedPlugins, pluginConfigs, etc.) — only work on the repo and push. The game downloads from GitHub.
 
@@ -22,17 +22,13 @@ All four version locations MUST match in every release commit:
 
 ```
 1. Read current csproj version
-2. Increment to next version
+2. Increment to next version (or verify it matches the planned release version)
 3. Update csproj
-4. Build
-5. Stage DLLs + manifest into zip
-6. Patch manifest version in staged copy
-7. Create zip
-8. Update pluginmaster.json
-9. ** VERIFY: read pluginmaster.json back, confirm version matches **
-10. ** VERIFY: extract manifest from zip, confirm version matches **
-11. ** VERIFY: all four locations show the same version **
-12. git add, commit, push
+4. Run packaging script (e.g. Package-Plugin.ps1)
+5. ** VERIFY: Run `git diff` of pluginmaster.json and confirm version has increased and did not regress **
+6. ** VERIFY: extract manifest from zip, confirm version matches **
+7. ** VERIFY: all four locations show the same version **
+8. git add, commit, push
 ```
 
 ## Build
