@@ -13,7 +13,7 @@
 <div class="wrap">
 
   <nav class="nav">
-    <span class="brand"><img src="../LalaImages/repo-icon.png" alt=""><b>lalalazy</b></span>
+    <span class="brand"><img src="https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/repo-icon.png" alt=""><b>lalalazy</b></span>
     <span class="spacer"></span>
     <a class="link" href="#plugins">Plugins</a>
     <a class="link" href="#install">Install</a>
@@ -21,7 +21,7 @@
   </nav>
 
   <header class="hero">
-    <img class="mascot" src="../LalaImages/repo-icon.png" alt="Sleeping lalafell mascot">
+    <img class="mascot" src="https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/repo-icon.png" alt="Sleeping lalafell mascot">
     <div>
       <h1>lalalazy</h1>
       <p class="tag">A collection of Final Fantasy XIV Dalamud plugins that automate the tedious bits — <b>for very lazy players</b>.</p>
@@ -65,7 +65,7 @@ function copyRepo(btn){
 const grid = document.getElementById('plugin-grid');
 grid.innerHTML = PLUGINS.map(p => `
   <a class="pcard" href="mods/${p.slug}.html">
-    <img src="../LalaImages/${p.slug}-icon.png" alt="">
+    <img src="https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/${p.slug}-icon.png" alt="">
     <div>
       <div class="pc-name">${p.name}
         ${p.hasWindow ? '<span class="pill window">Window</span>' : ''}
