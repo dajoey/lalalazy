@@ -63,7 +63,6 @@ cd src/AutoPotion && dotnet build --configuration Release
 cd src/ArmoireAutoFill && dotnet build --configuration Release
 cd src/LazyWTMath && dotnet build --configuration Release
 cd src/LazyCurrencySpender && dotnet build --configuration Release
-cd src/LazySightseeing && dotnet build --configuration Release
 cd src/LazyFateAutomation && dotnet build --configuration Release
 cd src/LazySkywardTracker && dotnet build --configuration Release
 

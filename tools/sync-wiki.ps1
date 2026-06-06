@@ -32,7 +32,6 @@ $nameMapping = @{
     "ArmoireAutoFill"      = "Armoire-Auto-Fill.md"
     "GluttonyCombo"        = "Gluttony-Combo.md"
     "LazyWTMath"           = "Lazy-WT-Math.md"
-    "LazySightseeing"      = "Lazy-Sightseeing.md"
     "LazyCurrencySpender"  = "Lazy-Currency-Spender.md"
     "LazyFateAutomation"   = "Lazy-Fate-Automation.md"
 }
