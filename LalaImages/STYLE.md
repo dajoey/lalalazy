@@ -60,6 +60,11 @@ For each plugin logo, the only thing that changes is the icon inside the thought
 | `dagobert-icon.png` | Gold gil coin with a star on its face | Original |
 | `autopotion-icon.png` | Green-filled flask with red heart symbol | img2img from canonical-base |
 | `armoire-icon.png` | Folded pastel-blue glamour shirt | img2img from canonical-base |
+| `gluttonycombo-icon.png` | Golden roast drumstick | img2img from canonical-base |
+| `lazywtmath-icon.png` | Yellow Wondrous Tails journal with a grid cover | img2img from canonical-base |
+| `lazycurrencyspender-icon.png` | Blue Allagan tomestone (gem) | img2img from canonical-base |
+| `lazyfateautomation-icon.png` | Multicolored FATE crystal star | img2img from canonical-base |
+| `lazyskywardtracker-icon.png` | Golden castle floating on a cloud (the Firmament) | img2img from canonical-base |
 
 ## Palette (sampled)
 
