@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<!-- @dsCard group="Brand" name="Landing page — repo" subtitle="Hero, install box, plugin grid — the repo landing page" viewport="1000x760" -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>lalalazy — FFXIV Dalamud plugins for very lazy players</title>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=Noto+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="colors_and_type.css">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="nav">
+    <span class="brand"><img src="../LalaImages/repo-icon.png" alt=""><b>lalalazy</b></span>
+    <span class="spacer"></span>
+    <a class="link" href="#plugins">Plugins</a>
+    <a class="link" href="#install">Install</a>
+    <a class="link" href="https://github.com/dajoey/lalalazy">GitHub</a>
+  </nav>
+
+  <header class="hero">
+    <img class="mascot" src="../LalaImages/repo-icon.png" alt="Sleeping lalafell mascot">
+    <div>
+      <h1>lalalazy</h1>
+      <p class="tag">A collection of Final Fantasy XIV Dalamud plugins that automate the tedious bits — <b>for very lazy players</b>.</p>
+      <div class="ctas">
+        <a class="btn" href="#install">Add the repo</a>
+        <a class="btn ghost" href="#plugins">Browse plugins</a>
+      </div>
+    </div>
+  </header>
+
+  <section class="install" id="install">
+    <div class="label">Custom Dalamud repository</div>
+    <div class="urlrow">
+      <code id="repo-url">https://raw.githubusercontent.com/dajoey/lalalazy/main/pluginmaster.json</code>
+      <button class="copybtn" onclick="copyRepo(this)">Copy</button>
+    </div>
+    <div class="steps">
+      <div class="step"><b>1.</b> In-game, type <span class="mono">/xlsettings</span> → <b>Experimental</b> tab.</div>
+      <div class="step"><b>2.</b> Paste the URL into <b>Custom Plugin Repositories</b> and hit <b>+</b>.</div>
+      <div class="step"><b>3.</b> Save, then find the plugins in <span class="mono">/xlplugins</span>.</div>
+    </div>
+  </section>
+
+  <h2 class="shead" id="plugins">The plugins</h2>
+  <div class="grid" id="plugin-grid"></div>
+
+  <footer class="foot">
+    Maintained by <a href="https://github.com/dajoey">dajoey</a>. Individual plugins retain the licenses of their origin projects — see each <span class="mono">src/</span> subdirectory.
+    <div class="disc">Not affiliated with Square Enix or goatcorp/Dalamud. FINAL FANTASY XIV is a registered trademark of Square Enix Holdings Co., Ltd.</div>
+  </footer>
+
+</div>
+
+<script src="plugins.js"></script>
+<script>
+function copyRepo(btn){
+  navigator.clipboard && navigator.clipboard.writeText(document.getElementById('repo-url').textContent);
+  const t = btn.textContent; btn.textContent = 'Copied!';
+  setTimeout(()=>btn.textContent=t, 1400);
+}
+const grid = document.getElementById('plugin-grid');
+grid.innerHTML = PLUGINS.map(p => `
+  <a class="pcard" href="mods/${p.slug}.html">
+    <img src="../LalaImages/${p.slug}-icon.png" alt="">
+    <div>
+      <div class="pc-name">${p.name}
+        ${p.hasWindow ? '<span class="pill window">Window</span>' : ''}
+      </div>
+      <div class="pc-desc">${p.short}</div>
+      <div class="pc-foot">
+        <span class="pill ${p.origin==='Original' ? 'original':'fork'}">${p.origin}</span>
+        <span class="view">View →</span>
+      </div>
+    </div>
+  </a>`).join('');
+</script>
+</body>
+</html>

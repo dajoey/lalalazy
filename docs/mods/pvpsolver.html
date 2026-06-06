@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PvP Solver — lalalazy</title>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=Noto+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="nav">
+    <a class="brand" href="../index.html"><img src="../../LalaImages/repo-icon.png" alt=""><b>lalalazy</b></a>
+    <span class="spacer"></span>
+    <a class="link" href="../index.html#plugins">All plugins</a>
+    <a class="link" href="https://github.com/dajoey/lalalazy">GitHub</a>
+  </nav>
+
+  <header class="mod-hero">
+    <img class="mico" src="../../LalaImages/pvpsolver-icon.png" alt="PvP Solver icon">
+    <div>
+      <h1>PvP Solver</h1>
+      <div class="badges">
+        <span class="pill fork">Fork</span>
+        <span class="pill active">Active</span>
+        <span class="pill window">Config window</span>
+      </div>
+      <p class="tag">Wins the duty while you sip your coffee.</p>
+    </div>
+  </header>
+
+  <div class="feat">
+    <div class="f"><div class="fi">Every job covered</div><div class="ft">PvP rotations for all jobs, with action IDs remapped to their PvP equivalents.</div></div>
+    <div class="f"><div class="fi">Auto-activates</div><div class="ft">Switches on the moment you load into a PvP zone — nothing to toggle.</div></div>
+    <div class="f"><div class="fi">Pairs with Gluttony</div><div class="ft">Designed to run alongside Gluttony Combo, which keeps your PvE covered.</div></div>
+  </div>
+
+  <div class="kv">
+    <div class="row"><span class="k">Access</span><span class="v"><code>/pvpsolver</code> &nbsp; <code>/pvs</code></span></div>
+    <div class="row"><span class="k">Type</span><span class="v">Branded fork</span></div>
+    <div class="row"><span class="k">Config</span><span class="v">In-game window</span></div>
+    <div class="row"><span class="k">Credit</span><span class="v">Fork of RotationSolverReborn by ArchiDog1998 / FFXIV-CombatReborn · GPLv3</span></div>
+  </div>
+
+  <section class="install">
+    <div class="label">Install — add the repo, then grab PvP Solver</div>
+    <div class="urlrow">
+      <code id="repo-url">https://raw.githubusercontent.com/dajoey/lalalazy/main/pluginmaster.json</code>
+      <button class="copybtn" onclick="copyRepo(this)">Copy</button>
+    </div>
+    <div class="steps">
+      <div class="step"><b>1.</b> <span class="mono">/xlsettings</span> → <b>Experimental</b> → paste under Custom Plugin Repositories.</div>
+      <div class="step"><b>2.</b> Save, open <span class="mono">/xlplugins</span>, search <b>PvP Solver</b>.</div>
+      <div class="step"><b>3.</b> Install — done.</div>
+    </div>
+  </section>
+
+  <div style="display:flex;justify-content:space-between;gap:12px">
+    <a class="backlink" href="../index.html#plugins">← All plugins</a>
+    <a class="backlink" href="dagobert.html">Dagobert Price Matcher →</a>
+  </div>
+
+  <footer class="foot">
+    Maintained by <a href="https://github.com/dajoey">dajoey</a>. Fork of RotationSolverReborn by ArchiDog1998 / FFXIV-CombatReborn · GPLv3.
+    <div class="disc">Not affiliated with Square Enix or goatcorp/Dalamud. FINAL FANTASY XIV is a registered trademark of Square Enix Holdings Co., Ltd.</div>
+  </footer>
+
+</div>
+<script>
+function copyRepo(btn){
+  navigator.clipboard && navigator.clipboard.writeText(document.getElementById('repo-url').textContent);
+  const t = btn.textContent; btn.textContent='Copied!'; setTimeout(()=>btn.textContent=t,1400);
+}
+</script>
+</body>
+</html>

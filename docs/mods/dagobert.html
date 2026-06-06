@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dagobert Price Matcher — lalalazy</title>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=Noto+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="nav">
+    <a class="brand" href="../index.html"><img src="../../LalaImages/repo-icon.png" alt=""><b>lalalazy</b></a>
+    <span class="spacer"></span>
+    <a class="link" href="../index.html#plugins">All plugins</a>
+    <a class="link" href="https://github.com/dajoey/lalalazy">GitHub</a>
+  </nav>
+
+  <header class="mod-hero">
+    <img class="mico" src="../../LalaImages/dagobert-icon.png" alt="Dagobert Price Matcher icon">
+    <div>
+      <h1>Dagobert Price Matcher</h1>
+      <div class="badges">
+        <span class="pill fork">Fork</span>
+        <span class="pill active">Active</span>
+        <span class="pill window">Config window</span>
+      </div>
+      <p class="tag">Match the board. Never undercut yourself again.</p>
+    </div>
+  </header>
+
+  <div class="feat">
+    <div class="f"><div class="fi">Exact-match by default</div><div class="ft">Default match amount is 0 — list at the current lowest, no race to the bottom.</div></div>
+    <div class="f"><div class="fi">Configurable margin</div><div class="ft">Set a match amount if you want to sit a little under or over the board.</div></div>
+    <div class="f"><div class="fi">Hands-off listing</div><div class="ft">Re-prices as you list, so you spend less time fiddling with the retainer.</div></div>
+  </div>
+
+  <div class="kv">
+    <div class="row"><span class="k">Access</span><span class="v"><code>/pricematch</code></span></div>
+    <div class="row"><span class="k">Type</span><span class="v">Branded fork</span></div>
+    <div class="row"><span class="k">Config</span><span class="v">In-game window</span></div>
+    <div class="row"><span class="k">Credit</span><span class="v">Fork of Dagobert by SHOEGAZEssb · AGPLv3</span></div>
+  </div>
+
+  <section class="install">
+    <div class="label">Install — add the repo, then grab Dagobert Price Matcher</div>
+    <div class="urlrow">
+      <code id="repo-url">https://raw.githubusercontent.com/dajoey/lalalazy/main/pluginmaster.json</code>
+      <button class="copybtn" onclick="copyRepo(this)">Copy</button>
+    </div>
+    <div class="steps">
+      <div class="step"><b>1.</b> <span class="mono">/xlsettings</span> → <b>Experimental</b> → paste under Custom Plugin Repositories.</div>
+      <div class="step"><b>2.</b> Save, open <span class="mono">/xlplugins</span>, search <b>Dagobert Price Matcher</b>.</div>
+      <div class="step"><b>3.</b> Install — done.</div>
+    </div>
+  </section>
+
+  <div style="display:flex;justify-content:space-between;gap:12px">
+    <a class="backlink" href="../index.html#plugins">← All plugins</a>
+    <a class="backlink" href="autopotion.html">AutoPotion →</a>
+  </div>
+
+  <footer class="foot">
+    Maintained by <a href="https://github.com/dajoey">dajoey</a>. Fork of Dagobert by SHOEGAZEssb · AGPLv3.
+    <div class="disc">Not affiliated with Square Enix or goatcorp/Dalamud. FINAL FANTASY XIV is a registered trademark of Square Enix Holdings Co., Ltd.</div>
+  </footer>
+
+</div>
+<script>
+function copyRepo(btn){
+  navigator.clipboard && navigator.clipboard.writeText(document.getElementById('repo-url').textContent);
+  const t = btn.textContent; btn.textContent='Copied!'; setTimeout(()=>btn.textContent=t,1400);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<!-- @dsCard group="Brand" name="Landing page — per-mod" subtitle="Per-plugin page template (AutoPotion shown)" viewport="1000x620" -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AutoPotion — lalalazy</title>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=Noto+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="nav">
+    <a class="brand" href="../index.html"><img src="../../LalaImages/repo-icon.png" alt=""><b>lalalazy</b></a>
+    <span class="spacer"></span>
+    <a class="link" href="../index.html#plugins">All plugins</a>
+    <a class="link" href="https://github.com/dajoey/lalalazy">GitHub</a>
+  </nav>
+
+  <header class="mod-hero">
+    <img class="mico" src="../../LalaImages/autopotion-icon.png" alt="AutoPotion icon">
+    <div>
+      <h1>AutoPotion</h1>
+      <div class="badges">
+        <span class="pill original">Original</span>
+        <span class="pill active">Active</span>
+        <span class="pill window">Config window</span>
+      </div>
+      <p class="tag">Never watch your HP bar again.</p>
+    </div>
+  </header>
+
+  <div class="feat">
+    <div class="f"><div class="fi">Best potion, always</div><div class="ft">Scans your bag and fires the highest-tier HP potion available (HQ first).</div></div>
+    <div class="f"><div class="fi">Deep dungeon aware</div><div class="ft">Sustaining, Empyrean, Orthos, Eurekan and Pilgrim’s potions, by zone.</div></div>
+    <div class="f"><div class="fi">Per-job profiles</div><div class="ft">Separate toggles and thresholds for every class — ethers on casters, off on tanks.</div></div>
+  </div>
+
+  <div class="kv">
+    <div class="row"><span class="k">Access</span><span class="v"><code>/autopotion</code> &nbsp; <code>/pot</code></span></div>
+    <div class="row"><span class="k">Type</span><span class="v">Original plugin</span></div>
+    <div class="row"><span class="k">Config</span><span class="v">In-game window</span></div>
+    <div class="row"><span class="k">Credit</span><span class="v">Original plugin by dajoey · built on the Dalamud SDK</span></div>
+  </div>
+
+  <section class="install">
+    <div class="label">Install — add the repo, then grab AutoPotion</div>
+    <div class="urlrow">
+      <code id="repo-url">https://raw.githubusercontent.com/dajoey/lalalazy/main/pluginmaster.json</code>
+      <button class="copybtn" onclick="copyRepo(this)">Copy</button>
+    </div>
+    <div class="steps">
+      <div class="step"><b>1.</b> <span class="mono">/xlsettings</span> → <b>Experimental</b> → paste under Custom Plugin Repositories.</div>
+      <div class="step"><b>2.</b> Save, open <span class="mono">/xlplugins</span>, search <b>AutoPotion</b>.</div>
+      <div class="step"><b>3.</b> Install — done.</div>
+    </div>
+  </section>
+
+  <div style="display:flex;justify-content:space-between;gap:12px">
+    <a class="backlink" href="../index.html#plugins">← All plugins</a>
+    <a class="backlink" href="armoire.html">Armoire Auto-Fill →</a>
+  </div>
+
+  <footer class="foot">
+    Maintained by <a href="https://github.com/dajoey">dajoey</a>. Original plugin by dajoey · built on the Dalamud SDK.
+    <div class="disc">Not affiliated with Square Enix or goatcorp/Dalamud. FINAL FANTASY XIV is a registered trademark of Square Enix Holdings Co., Ltd.</div>
+  </footer>
+
+</div>
+<script>
+function copyRepo(btn){
+  navigator.clipboard && navigator.clipboard.writeText(document.getElementById('repo-url').textContent);
+  const t = btn.textContent; btn.textContent='Copied!'; setTimeout(()=>btn.textContent=t,1400);
+}
+</script>
+</body>
+</html>

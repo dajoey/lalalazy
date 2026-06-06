@@ -1,0 +1,10 @@
+/* lalalazy — colors & type tokens.
+   Reconstructed to match the design-system export that site.css consumes.
+   Font families come from the Google Fonts <link> in each page;
+   --gil-gold is the documented brand gold from LalaImages/STYLE.md. */
+:root{
+  --font-ui:    'Noto Sans', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-pixel: 'Pixelify Sans', 'Noto Sans', system-ui, sans-serif;
+  --font-mono:  'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --gil-gold:   #E8C148;
+}
