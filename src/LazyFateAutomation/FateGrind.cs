@@ -317,9 +317,8 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
         }
 
         await MoveTo(msh, MovementConfig.Everything.WithTolerance(3),
-            // in progress = urgent, otherwise I don't think teleporting all the time is necessary
             // also prohibit when you have the xp buff or when waiting for collect fate rewards
-            allowTeleportIfFaster: NextFate is { Progress: > 0 } && !HasTwistOfFate && WaitForExpiryFateId is null,
+            allowTeleportIfFaster: NextFate is not null && !HasTwistOfFate && WaitForExpiryFateId is null,
             stopCondition: ShouldStopMove,
             onStopReached: async () => {
                 if (stopReason == MoveStopReason.NpcLoaded)
@@ -471,6 +470,24 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
                     } catch (Exception ex) {
                         Log($"Failed to call BossMod AddTransientStrategy IPC: {ex.Message}");
                     }
+
+                    // Protect against BossMod moving character outside FATE range
+                    var dist = Svc.Objects.LocalPlayer != null ? Svc.Objects.LocalPlayer.DistanceTo(fate.Position) : 0f;
+                    var maxAllowedDist = fate.Radius * 0.9f;
+                    var safeDist = fate.Radius * 0.8f;
+                    if (dist > maxAllowedDist) {
+                        try {
+                            Svc.BossMod.AddTransientStrategy(_presetName, "BossMod.Autorotation.MiscAI.NormalMovement", "Destination", "None");
+                        } catch (Exception ex) {
+                            Log($"Failed to disable BossMod movement: {ex.Message}");
+                        }
+                    } else if (dist <= safeDist) {
+                        try {
+                            Svc.BossMod.ClearTransientStrategy(_presetName, "BossMod.Autorotation.MiscAI.NormalMovement", "Destination");
+                        } catch (Exception ex) {
+                            Log($"Failed to restore BossMod movement: {ex.Message}");
+                        }
+                    }
                 }
             } catch (Exception ex) {
                 Log($"Failed to configure BossMod preset: {ex.Message}");
@@ -496,6 +513,14 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
     private void DeactivateIntegrations(bool clearNextFate) {
         if (clearNextFate)
             NextFate = null;
+
+        try {
+            if (Service.BossMod.IsLoaded) {
+                Service.BossMod.ClearTransientPresetStrategies(_presetName);
+            }
+        } catch (Exception ex) {
+            Log($"Failed to call BossMod ClearTransientPresetStrategies IPC: {ex.Message}");
+        }
 
         try {
             if (Service.BossMod.IsLoaded) {

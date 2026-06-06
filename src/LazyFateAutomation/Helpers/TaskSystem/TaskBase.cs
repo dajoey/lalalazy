@@ -112,11 +112,28 @@ public abstract class TaskBase : AutoTask {
             ErrorIf(!Svc.Navmesh.PathfindAndMoveTo(dest, Player.InFlight || config.Movement.HasFlag(MovementOptions.Fly) && Control.CanFly), "Failed to start pathfinding to destination");
             Status = $"Moving to {dest}";
             using var stop = new OnDispose(Svc.Navmesh.Stop);
+            using var restoreMovement = new OnDispose(() => Svc.Navmesh.SetMovementAllowed(true));
 
-            if (stopCondition is null)
-                await WaitWhile(() => !Player.WithinRange(dest, tolerance), "Navigate");
+            var wasCasting = false;
+            if (stopCondition is null) {
+                while (!Player.WithinRange(dest, tolerance)) {
+                    var isCasting = Player?.IsCasting ?? false;
+                    if (isCasting != wasCasting) {
+                        Svc.Navmesh.SetMovementAllowed(!isCasting);
+                        wasCasting = isCasting;
+                    }
+                    await NextFrame();
+                }
+            }
             else {
-                await WaitWhile(() => !(Player.WithinRange(dest, tolerance) || stopCondition()), "Navigate");
+                while (!(Player.WithinRange(dest, tolerance) || stopCondition())) {
+                    var isCasting = Player?.IsCasting ?? false;
+                    if (isCasting != wasCasting) {
+                        Svc.Navmesh.SetMovementAllowed(!isCasting);
+                        wasCasting = isCasting;
+                    }
+                    await NextFrame();
+                }
                 if (stopCondition() && onStopReached is not null) {
                     Svc.Navmesh.Stop(); // must be stopped because onStopReached's MoveTo (if present) calls !PathfindingInProgress
                     await onStopReached();
@@ -134,10 +151,20 @@ public abstract class TaskBase : AutoTask {
             return;
 
         Status = $"Moving to {dest}";
-        movement.DesiredPosition = dest;
-        movement.Enabled = true;
+        var wasCasting = false;
         using var stop = new OnDispose(() => movement.Enabled = false);
-        await WaitUntil(stopCondition, "WaitForCondition");
+        
+        while (!stopCondition()) {
+            var isCasting = Player?.IsCasting ?? false;
+            if (isCasting != wasCasting) {
+                movement.Enabled = !isCasting;
+                wasCasting = isCasting;
+            }
+            if (!isCasting) {
+                movement.DesiredPosition = dest;
+            }
+            await NextFrame();
+        }
     }
 
     protected async Task MoveToDirectly(Vector3 dest, float tolerance) {
@@ -158,12 +185,6 @@ public abstract class TaskBase : AutoTask {
         ErrorIf(teleportAetheryteId == 0, $"Failed to find aetheryte in [{territoryId}] {Svc.Data.GetRef<Sheets.TerritoryType>(territoryId).Value.PlaceName.Value.Name}");
         if (Svc.Data.GetRef<Sheets.Aetheryte>(teleportAetheryteId) is { Value.Territory.RowId: var destinationId, Value.PlaceName.Value.Name: var destinationName } && Svc.ClientState.TerritoryType != destinationId) {
             Status = $"Teleporting to {destinationName}";
-            if (Player.Mounted) {
-                Log("Mounted during teleport. Safely landing and dismounting first.");
-                await Dismount();
-                await WaitWhile(() => Player.IsBusy, "WaitForAvailable");
-                Status = $"Teleporting to {destinationName}";
-            }
             ErrorIf(!ActionManager.Teleport(teleportAetheryteId), $"Failed to teleport to {teleportAetheryteId}");
             
             // Wait up to 2 seconds for teleport cast to start
@@ -211,12 +232,6 @@ public abstract class TaskBase : AutoTask {
 
         if (Svc.ClientState.TerritoryType == territoryId) {
             Status = "Teleporting to aetheryte";
-            if (Player.Mounted) {
-                Log("Mounted during same-zone teleport. Safely landing and dismounting first.");
-                await Dismount();
-                await WaitWhile(() => Player.IsBusy, "WaitForAvailable");
-                Status = "Teleporting to aetheryte";
-            }
             ErrorIf(!ActionManager.Teleport(teleportAetheryteId), $"Failed to teleport to {teleportAetheryteId}");
             
             // Wait up to 2 seconds for same-zone teleport cast to start
