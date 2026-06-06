@@ -1,6 +1,6 @@
 # Gluttony Combo â€” Changelog
 
-## v1.0.4.40 (2026-06-06) - TESTING
+## v1.0.4.40 (2026-06-06)
 
 ### Changed
 - Synced upstream WrathCombo 1.0.4.6 -> 1.0.4.8 (80 commits, 44 files): job-combo updates (BRD/DRG/MCH/MNK/PLD/RDM/SGE/WAR/WHM), IPC (Leasing/Provider/Search), ActionWatching/StatusCache, localization, debug tab.
