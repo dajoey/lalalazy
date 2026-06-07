@@ -104,7 +104,7 @@ public static class FateGrindModes {
 
         Register(new RelicItemMultiZoneGrindMode(
             "Paste (Phantom)",
-            [(50059, TerritoryType.Where(r => r.IsInUse && !r.IsPvpZone && r.TerritoryIntendedUse.Value.StructsEnum is TerritoryIntendedUse.Overworld && r.ExVersion.RowId is 5).Select(r => r.RowId).ToList(), 1200)],
+            [(50059, TerritoryType.Where(r => r.IsInUse && !r.IsPvpZone && r.TerritoryIntendedUse.Value.StructsEnum is TerritoryIntendedUse.Overworld && r.ExVersion.RowId is 5 && r.Mount).Select(r => r.RowId).ToList(), 1200)],
             questId: 70991)); // In Pursuit of Perfection
     }
 
@@ -213,7 +213,7 @@ public sealed class GemstoneGrindMode : IFateGrindMode {
 
     // any zone shb+ is valid unless they stop doing this in the future
     public IReadOnlySet<uint>? GetAllowedZones()
-        => TerritoryType.Where(r => r.IsInUse && r.TerritoryIntendedUse.Value.StructsEnum is TerritoryIntendedUse.Overworld && r.ExVersion.RowId >= 3 && !r.IsPvpZone).Select(r => r.RowId).ToHashSet();
+        => TerritoryType.Where(r => r.IsInUse && r.TerritoryIntendedUse.Value.StructsEnum is TerritoryIntendedUse.Overworld && r.ExVersion.RowId >= 3 && !r.IsPvpZone && r.Mount).Select(r => r.RowId).ToHashSet();
 
     public bool IsComplete(IFateGrindRunState _) => GetGemstoneRemaining() == 0;
 

@@ -232,7 +232,7 @@ public class FateToolKit : IFateGrindRunState {
                 SelectedSwapZones.Add(zoneId);
         }, "FTK Zones");
 
-        var allowedIds = TerritoryType.Where(row => row.IsInUse && row.TerritoryIntendedUse.Value.StructsEnum is TerritoryIntendedUse.Overworld && !row.IsPvpZone).Select(row => row.RowId).ToHashSet();
+        var allowedIds = TerritoryType.Where(row => row.IsInUse && row.TerritoryIntendedUse.Value.StructsEnum is TerritoryIntendedUse.Overworld && !row.IsPvpZone && row.Mount).Select(row => row.RowId).ToHashSet();
         selector.HiddenTerritories = [.. TerritoryType.Select(row => row.RowId).Where(id => !allowedIds.Contains(id))];
 
         selector.HiddenCategories = [TerritorySelector.Category.All];

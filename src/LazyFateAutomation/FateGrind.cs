@@ -619,12 +619,12 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
             ? agent->Tabs[currentTabIndex].Zones.ToArray()
             : agent->Tabs.ToArray().SelectMany(tab => tab.Zones.ToArray());
 
-        var match = zones.FirstOrDefault(zone => zone.NeededFates - zone.FateProgress > 0);
+        var match = zones.FirstOrDefault(zone => zone.TerritoryTypeId != 0 && zone.NeededFates - zone.FateProgress > 0 && Svc.Data.GetRef<Sheets.TerritoryType>(zone.TerritoryTypeId).Value.Mount);
         return match.TerritoryTypeId != 0 ? match.TerritoryTypeId : null;
     }
 
     private uint GetRandomSameExpacZone() {
-        var rows = TerritoryType.Where(x => x.IsInUse && x.TerritoryIntendedUse.Value.StructsEnum is TerritoryIntendedUse.Overworld && x.ExVersion.RowId == Player.Territory.Value.ExVersion.RowId && !x.IsPvpZone);
+        var rows = TerritoryType.Where(x => x.IsInUse && x.TerritoryIntendedUse.Value.StructsEnum is TerritoryIntendedUse.Overworld && x.ExVersion.RowId == Player.Territory.Value.ExVersion.RowId && !x.IsPvpZone && x.Mount).ToArray();
         return rows[new Random().Next(rows.Length)].RowId;
     }
 
