@@ -14,7 +14,7 @@
         "IsTestingExclusive":  false,
         "DownloadLinkInstall":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/PvPSolver/latest/latest.zip",
         "DownloadLinkUpdate":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/PvPSolver/latest/latest.zip",
-        "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/PvPSolver/testing/testing.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/PvPSolver/latest/latest.zip",
         "Tags":  null,
         "CategoryTags":  null,
         "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/pvpsolver-icon.png",
@@ -22,8 +22,7 @@
                           ""
                       ],
         "DownloadCount":  0,
-        "LastUpdate":  "0",
-        "TestingAssemblyVersion":  "0.2.0.1"
+        "LastUpdate":  "0"
     },
     {
         "Author":  "dajoey",
