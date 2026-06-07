@@ -1,5 +1,13 @@
 # Changelog - Lazy Fate Automation
 
+## [0.0.1.26] - 2026-06-07
+### Added
+- Added combat stuck detection and mitigation in `HandleCombatStuckDetection()`. If BossMod's straight-line movement gets the player stuck on trees/obstacles in combat for 1.5 seconds, the bot disables BossMod movement and uses `vnavmesh` to pathfind around the obstacle to the target.
+- Added auto-skipping for NPC dialogue SelectString option lists in `TaskBase.WaitUntilSkipping()`.
+### Fixed
+- Gated teleporting and mounting on `!Svc.Condition[ConditionFlag.InCombat]` in `TaskBase.cs` to prevent getting stuck in combat.
+- Prevented rapid mounting and dismounting loops during chain FATEs while waiting for the next FATE to spawn.
+
 ## [0.0.1.23] - 2026-06-06
 ### Changed
 - File logging now suppresses DBG/TRC scope tracing by default; only WRN/ERR are written to LazyFateAutomation.log. Set VerboseFileLogging to true in the plugin config (LazyFateAutomation.json) to restore full debug logging for troubleshooting. (Svc.cs LogToFile gate, Configuration.cs flag.)

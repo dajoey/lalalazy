@@ -1,5 +1,10 @@
 # Changelog - PvP Solver
 
+## [0.1.0.7] - 2026-06-07
+### Added
+- Auto-targeting for Forlorn / Maiden targets: checks the global `Svc.Objects` list to target any targetable, alive Forlorn/Maiden immediately upon rendering, regardless of whether they are in the hostile list.
+- Increased `sipRange` in `ObjectHelper.cs` to 48f (from 25f) to ensure they are targeted immediately upon entering the player's hostile radar range.
+
 ## [0.1.0.5] - 2026-06-04
 ### Changed
 - Rebranded and updated all remaining user-facing references to `RSR` and `/rotation` (such as in settings tooltips, enum descriptions, and compatibility diagnostics) to `PvP Solver` and `/pvpsolver`.
