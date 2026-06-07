@@ -1,4 +1,4 @@
-﻿using Dalamud.Game.ClientState.Conditions;
+using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using ECommons;
@@ -314,7 +314,7 @@ public static class ObjectHelper
 				return false;
 			}
 
-			const float sipRange = 25f;
+			const float sipRange = 48f;
 
 			bool sipInRange = false;
 			foreach (var o in Svc.Objects)

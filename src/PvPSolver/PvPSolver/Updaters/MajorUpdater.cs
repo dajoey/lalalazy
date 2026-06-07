@@ -7,6 +7,7 @@ using Lumina.Excel.Sheets;
 using RotationSolver.Commands;
 using RotationSolver.IPC;
 using RotationSolver.UI.HighlightTeachingMode;
+using RotationSolver.Basic.Helpers;
 using static FFXIVClientStructs.FFXIV.Client.UI.Misc.RaptureHotbarModule;
 
 namespace RotationSolver.Updaters;
@@ -390,6 +391,31 @@ internal static class MajorUpdater
 
 		try
 		{
+			if (DataCenter.State && !DataCenter.IsPvP && Service.Config.ForlornPriority && DataCenter.IsInFate && Player.Object != null)
+			{
+				IBattleChara? forlorn = null;
+				foreach (var obj in Svc.Objects)
+				{
+					if (obj is IBattleChara enemy && enemy.IsForlorn() && enemy.IsTargetable && !enemy.IsDead)
+					{
+						forlorn = enemy;
+						break;
+					}
+				}
+
+				if (forlorn != null && Svc.Targets.Target?.GameObjectId != forlorn.GameObjectId)
+				{
+					if (!Service.Config.TargetDelayEnable)
+					{
+						Svc.Targets.Target = forlorn;
+					}
+					else
+					{
+						RSCommands.SetTargetWithDelay(forlorn);
+					}
+				}
+			}
+
 			MiscUpdater.UpdateMisc();
 
 			if (Service.Config.TargetFreely && !DataCenter.IsPvP && DataCenter.State)

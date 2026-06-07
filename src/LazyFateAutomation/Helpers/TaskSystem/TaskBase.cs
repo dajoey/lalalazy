@@ -8,6 +8,7 @@ using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using System.Threading.Tasks;
+using LazyFateAutomation.Helpers.Extensions;
 
 namespace LazyFateAutomation.Helpers.TaskSystem;
 
@@ -54,6 +55,7 @@ public enum UiSkipOptions {
     Talk = 1 << 0,
     YesNo = 1 << 1,
     Request = 1 << 2,
+    SelectString = 1 << 3,
 }
 
 public abstract class TaskBase : AutoTask {
@@ -179,6 +181,11 @@ public abstract class TaskBase : AutoTask {
         using var scope = BeginScope("Teleport");
         if (!allowSameZoneTeleport && Svc.ClientState.TerritoryType == territoryId)
             return; // already in correct zone
+
+        if (Svc.Condition[ConditionFlag.InCombat]) {
+            Status = "Waiting for combat to end before teleporting";
+            await WaitWhile(() => Svc.Condition[ConditionFlag.InCombat], "WaitForCombatEndTeleport");
+        }
 
         var closestAetheryteId = Coords.FindClosestAetheryte(territoryId, destination) ?? 0;
         var teleportAetheryteId = Coords.FindPrimaryAetheryte(closestAetheryteId);
@@ -316,9 +323,10 @@ public abstract class TaskBase : AutoTask {
     protected async Task Mount() {
         using var scope = BeginScope(nameof(Mount));
         if (!Player.CanMount) return; // early return if not in mounting territories
+        if (Svc.Condition[ConditionFlag.InCombat]) return; // do not mount in combat
 
         Status = "Mounting";
-        while (!Player.Mounted) {
+        while (!Player.Mounted && !Svc.Condition[ConditionFlag.InCombat]) {
             if (!Player.IsBusy && !ActionManager.IsActionInUse(ActionType.GeneralAction, 24))
                 ActionManager.UseAction(ActionType.GeneralAction, 24);
             await NextFrame();
@@ -358,19 +366,36 @@ public abstract class TaskBase : AutoTask {
 
     protected async Task WaitUntilSkipping(Func<bool> condition, string scopeName, UiSkipOptions skip) {
         using var scope = BeginScope(scopeName);
+        var startTime = Environment.TickCount64;
         while (!condition()) {
-            if (skip.HasFlag(UiSkipOptions.Talk) && AtkUnitBase.IsAddonReady("Talk")) {
+            var talkReady = AtkUnitBase.IsAddonReady("Talk");
+            var yesNoReady = AtkUnitBase.IsAddonReady("SelectYesno");
+            var requestReady = AtkUnitBase.IsAddonReady("Request");
+            var selectStringReady = AtkUnitBase.IsAddonReady("SelectString");
+
+            if (skip.HasFlag(UiSkipOptions.Talk) && talkReady) {
                 Log("progressing talk...");
                 AddonTalk.Progress();
             }
-            if (skip.HasFlag(UiSkipOptions.YesNo) && AtkUnitBase.IsAddonReady("SelectYesno")) {
+            if (skip.HasFlag(UiSkipOptions.YesNo) && yesNoReady) {
                 Log("progressing yes/no...");
                 AddonSelectYesno.Yes();
             }
-            if (skip.HasFlag(UiSkipOptions.Request) && AtkUnitBase.IsAddonReady("Request")) {
+            if (skip.HasFlag(UiSkipOptions.Request) && requestReady) {
                 Log("progressing request...");
                 AgentNpcTrade.TurnInRequests();
             }
+            if (skip.HasFlag(UiSkipOptions.SelectString) && selectStringReady) {
+                Log("progressing select string...");
+                AddonSelectString.Select(0);
+            }
+
+            // If we've been waiting for at least 1.5 seconds, and the player is not busy and no dialogue addons are open, we're done.
+            if (Environment.TickCount64 - startTime > 1500 && !Player.IsBusy && !talkReady && !yesNoReady && !requestReady && !selectStringReady) {
+                Log("Dialogue closed and player is not busy, exiting wait");
+                break;
+            }
+
             Log("waiting...");
             await NextFrame();
         }
