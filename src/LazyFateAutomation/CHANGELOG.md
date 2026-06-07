@@ -1,7 +1,8 @@
 # Changelog - Lazy Fate Automation
 
-## [0.0.1.31] - 2026-06-07
+## [0.0.1.33] - 2026-06-07
 ### Added
+- Only dismount before teleporting if the player is flying (`Player.InFlight` is true). If the player is mounted on the ground, they will now remain mounted while teleporting, which makes travels faster and more natural.
 - Added robust mounting verification and retry loops inside `MoveTo()`. If the player is in combat, the bot stands still and waits for combat to end before attempting to mount.
 - Added mid-travel dismount checking inside `MoveTo()` pathfinding loops. If the player is dismounted mid-travel (e.g. from getting aggroed/hit), the bot halts movement, waits for combat to end, mounts up, and resumes pathfinding rather than walking on foot.
 - Rewrote combat/engage stuck detection in `HandleCombatStuckDetection()`. Instead of depending on `InCombat` (which is false when running between FATE mobs) or `IsMoving` (which returns false when stuck against a wall), it now tracks position changes relative to the current target and activates `vnavmesh` pathing fallback if progress towards a distant target stops for 1.5 seconds.

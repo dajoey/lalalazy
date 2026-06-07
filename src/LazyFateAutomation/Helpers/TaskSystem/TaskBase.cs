@@ -226,8 +226,10 @@ public abstract class TaskBase : AutoTask {
         if (!allowSameZoneTeleport && Svc.ClientState.TerritoryType == territoryId)
             return; // already in correct zone
 
-        // Ensure we land and dismount before initiating teleport, and wait until not busy
-        await Dismount();
+        // If we are flying, we must land and dismount before we can cast teleport
+        if (Player.InFlight) {
+            await Dismount();
+        }
         await WaitWhile(() => Player.IsBusy, "WaitForNotBusyBeforeTeleport");
 
         if (Svc.Condition[ConditionFlag.InCombat]) {
