@@ -103,8 +103,20 @@ public abstract class TaskBase : AutoTask {
             await WaitWhile(() => Player.IsBusy, "WaitForAvailable");
         }
 
-        if (config.Movement.HasFlag(MovementOptions.Mount) || config.Movement.HasFlag(MovementOptions.Fly))
+        if (config.Movement.HasFlag(MovementOptions.Mount) || config.Movement.HasFlag(MovementOptions.Fly)) {
             await Mount();
+            // Retry mounting loop until successful if CanMount is true (e.g. if combat started during cast)
+            while (Player.CanMount && !Player.Mounted) {
+                if (Svc.Condition[ConditionFlag.InCombat]) {
+                    Status = "Waiting for combat to end to mount";
+                    await WaitWhile(() => Svc.Condition[ConditionFlag.InCombat], "WaitForCombatEndMountRetry");
+                }
+                await Mount();
+                if (!Player.Mounted) {
+                    await NextFrame(30); // wait 0.5s before retrying
+                }
+            }
+        }
 
         if (config.Pathing == PathingStrategy.Direct)
             await MoveToDirectly(dest, tolerance);
@@ -119,6 +131,22 @@ public abstract class TaskBase : AutoTask {
             var wasCasting = false;
             if (stopCondition is null) {
                 while (!Player.WithinRange(dest, tolerance)) {
+                    // Check if we got dismounted mid-travel and need to remount
+                    if (config.Movement.HasFlag(MovementOptions.Mount) && Player.CanMount && !Player.Mounted) {
+                        Svc.Navmesh.Stop();
+                        while (Player.CanMount && !Player.Mounted) {
+                            if (Svc.Condition[ConditionFlag.InCombat]) {
+                                Status = "Waiting for combat to end to remount";
+                                await WaitWhile(() => Svc.Condition[ConditionFlag.InCombat], "WaitForCombatEndMountRetry");
+                            }
+                            await Mount();
+                            if (!Player.Mounted) {
+                                await NextFrame(30);
+                            }
+                        }
+                        ErrorIf(!Svc.Navmesh.PathfindAndMoveTo(dest, Player.InFlight || config.Movement.HasFlag(MovementOptions.Fly) && Control.CanFly), "Failed to resume pathfinding to destination");
+                    }
+
                     var isCasting = Player?.IsCasting ?? false;
                     if (isCasting != wasCasting) {
                         Svc.Navmesh.SetMovementAllowed(!isCasting);
@@ -129,6 +157,22 @@ public abstract class TaskBase : AutoTask {
             }
             else {
                 while (!(Player.WithinRange(dest, tolerance) || stopCondition())) {
+                    // Check if we got dismounted mid-travel and need to remount
+                    if (config.Movement.HasFlag(MovementOptions.Mount) && Player.CanMount && !Player.Mounted) {
+                        Svc.Navmesh.Stop();
+                        while (Player.CanMount && !Player.Mounted) {
+                            if (Svc.Condition[ConditionFlag.InCombat]) {
+                                Status = "Waiting for combat to end to remount";
+                                await WaitWhile(() => Svc.Condition[ConditionFlag.InCombat], "WaitForCombatEndMountRetry");
+                            }
+                            await Mount();
+                            if (!Player.Mounted) {
+                                await NextFrame(30);
+                            }
+                        }
+                        ErrorIf(!Svc.Navmesh.PathfindAndMoveTo(dest, Player.InFlight || config.Movement.HasFlag(MovementOptions.Fly) && Control.CanFly), "Failed to resume pathfinding to destination");
+                    }
+
                     var isCasting = Player?.IsCasting ?? false;
                     if (isCasting != wasCasting) {
                         Svc.Navmesh.SetMovementAllowed(!isCasting);
@@ -350,7 +394,12 @@ public abstract class TaskBase : AutoTask {
     protected async Task Mount() {
         using var scope = BeginScope(nameof(Mount));
         if (!Player.CanMount) return; // early return if not in mounting territories
-        if (Svc.Condition[ConditionFlag.InCombat]) return; // do not mount in combat
+        if (Player.Mounted) return;
+
+        if (Svc.Condition[ConditionFlag.InCombat]) {
+            Status = "Waiting for combat to end before mounting";
+            await WaitWhile(() => Svc.Condition[ConditionFlag.InCombat], "WaitForCombatEndMount");
+        }
 
         Status = "Mounting";
         while (!Player.Mounted && !Svc.Condition[ConditionFlag.InCombat]) {
