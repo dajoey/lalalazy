@@ -182,6 +182,10 @@ public abstract class TaskBase : AutoTask {
         if (!allowSameZoneTeleport && Svc.ClientState.TerritoryType == territoryId)
             return; // already in correct zone
 
+        // Ensure we land and dismount before initiating teleport, and wait until not busy
+        await Dismount();
+        await WaitWhile(() => Player.IsBusy, "WaitForNotBusyBeforeTeleport");
+
         if (Svc.Condition[ConditionFlag.InCombat]) {
             Status = "Waiting for combat to end before teleporting";
             await WaitWhile(() => Svc.Condition[ConditionFlag.InCombat], "WaitForCombatEndTeleport");
@@ -190,24 +194,36 @@ public abstract class TaskBase : AutoTask {
         var closestAetheryteId = Coords.FindClosestAetheryte(territoryId, destination) ?? 0;
         var teleportAetheryteId = Coords.FindPrimaryAetheryte(closestAetheryteId);
         ErrorIf(teleportAetheryteId == 0, $"Failed to find aetheryte in [{territoryId}] {Svc.Data.GetRef<Sheets.TerritoryType>(territoryId).Value.PlaceName.Value.Name}");
+        
         if (Svc.Data.GetRef<Sheets.Aetheryte>(teleportAetheryteId) is { Value.Territory.RowId: var destinationId, Value.PlaceName.Value.Name: var destinationName } && Svc.ClientState.TerritoryType != destinationId) {
             Status = $"Teleporting to {destinationName}";
-            ErrorIf(!ActionManager.Teleport(teleportAetheryteId), $"Failed to teleport to {teleportAetheryteId}");
             
-            // Wait up to 2 seconds for teleport cast to start
-            var started = false;
-            for (var i = 0; i < 100; i++) {
-                if (Player.IsBusy) {
-                    started = true;
+            var success = false;
+            for (var attempt = 0; attempt < 3; attempt++) {
+                if (ActionManager.Teleport(teleportAetheryteId)) {
+                    success = true;
                     break;
                 }
-                await NextFrame();
+                Warning($"Teleport attempt {attempt + 1} failed. Waiting to retry...");
+                await NextFrame(30); // wait 0.5s before retrying
+            }
+            
+            var started = false;
+            if (success) {
+                // Wait up to 2 seconds for teleport cast to start
+                for (var i = 0; i < 100; i++) {
+                    if (Player.IsBusy) {
+                        started = true;
+                        break;
+                    }
+                    await NextFrame();
+                }
             }
             
             if (started) {
                 await WaitUntilTerritory(destinationId);
             } else {
-                Warning($"Teleport to {destinationName} failed to start casting within 2 seconds. Client might be stuck. Attempting Return as fallback.");
+                Warning($"Teleport to {destinationName} failed to start casting. Attempting Return as fallback.");
                 Svc.Chat.PrintMessage("Teleport stuck. Executing '/return' to reset...");
                 Svc.Chat.ExecuteCommand("/return");
                 // Wait for and accept the Return confirmation dialog
@@ -239,22 +255,33 @@ public abstract class TaskBase : AutoTask {
 
         if (Svc.ClientState.TerritoryType == territoryId) {
             Status = "Teleporting to aetheryte";
-            ErrorIf(!ActionManager.Teleport(teleportAetheryteId), $"Failed to teleport to {teleportAetheryteId}");
             
-            // Wait up to 2 seconds for same-zone teleport cast to start
-            var started = false;
-            for (var i = 0; i < 100; i++) {
-                if (Player.IsBusy) {
-                    started = true;
+            var success = false;
+            for (var attempt = 0; attempt < 3; attempt++) {
+                if (ActionManager.Teleport(teleportAetheryteId)) {
+                    success = true;
                     break;
                 }
-                await NextFrame();
+                Warning($"Same-zone teleport attempt {attempt + 1} failed. Waiting to retry...");
+                await NextFrame(30);
+            }
+            
+            var started = false;
+            if (success) {
+                // Wait up to 2 seconds for same-zone teleport cast to start
+                for (var i = 0; i < 100; i++) {
+                    if (Player.IsBusy) {
+                        started = true;
+                        break;
+                    }
+                    await NextFrame();
+                }
             }
             
             if (started) {
                 await WaitUntil(() => !Player.IsBusy, "TeleportFinish");
             } else {
-                Warning($"Same-zone teleport failed to start casting within 2 seconds. Client might be stuck. Attempting Return as fallback.");
+                Warning("Same-zone teleport failed to start casting. Attempting Return as fallback.");
                 Svc.Chat.PrintMessage("Teleport stuck. Executing '/return' to reset...");
                 Svc.Chat.ExecuteCommand("/return");
                 // Wait for and accept the Return confirmation dialog

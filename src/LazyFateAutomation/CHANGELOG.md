@@ -1,5 +1,12 @@
 # Changelog - Lazy Fate Automation
 
+## [0.0.1.29] - 2026-06-07
+### Added
+- Rewrote combat/engage stuck detection in `HandleCombatStuckDetection()`. Instead of depending on `InCombat` (which is false when running between FATE mobs) or `IsMoving` (which returns false when stuck against a wall), it now tracks position changes relative to the current target and activates `vnavmesh` pathing fallback if progress towards a distant target stops for 1.5 seconds.
+- Added explicit landing and dismounting calls at the beginning of `TeleportTo()`, and wait for `!Player.IsBusy` to prevent teleport casts from immediately failing when mounted/flying.
+### Fixed
+- Fixed task crashing on teleport failures by replacing `ErrorIf(!ActionManager.Teleport())` with a robust 3-attempt retry loop that falls back to the `/return` recovery gracefully.
+
 ## [0.0.1.26] - 2026-06-07
 ### Added
 - Added combat stuck detection and mitigation in `HandleCombatStuckDetection()`. If BossMod's straight-line movement gets the player stuck on trees/obstacles in combat for 1.5 seconds, the bot disables BossMod movement and uses `vnavmesh` to pathfind around the obstacle to the target.

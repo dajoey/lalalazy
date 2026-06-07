@@ -629,16 +629,52 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
     }
 
     private async Task HandleCombatStuckDetection() {
-        if (!Player.Available) return;
+        var localPlayer = Svc.Objects.LocalPlayer;
+        if (localPlayer is null || !localPlayer.Available) return;
 
         var now = Environment.TickCount64;
 
-        // If we are not in combat, reset tracking and return
-        if (!Svc.Condition[ConditionFlag.InCombat]) {
-            _lastEngagePosition = Player.Position;
+        // If we are casting, we stand still on purpose; reset tracking
+        if (localPlayer.IsCasting) {
+            _lastEngagePosition = localPlayer.Position;
+            _lastEngagePositionChangedAt = now;
+            return;
+        }
+
+        // We only care about stuck detection if we have a target that we want to reach
+        var target = Svc.Targets.Target;
+        var hasValidTarget = target is { } && target.IsTargetable && !target.IsDead;
+
+        // If we don't have a valid target, reset tracking and clear mitigation if it was active
+        if (!hasValidTarget) {
+            _lastEngagePosition = localPlayer.Position;
             _lastEngagePositionChangedAt = now;
             if (_isCombatStuckMitigationActive) {
                 _isCombatStuckMitigationActive = false;
+                try {
+                    Svc.Navmesh.Stop();
+                } catch {}
+                try {
+                    if (Service.BossMod.IsLoaded) {
+                        Service.BossMod.ClearTransientStrategy(_presetName, "BossMod.Autorotation.MiscAI.NormalMovement", "Destination");
+                    }
+                } catch {}
+            }
+            return;
+        }
+
+        // If we are already close to the target, we don't need to move; reset tracking and clear mitigation
+        var distanceToTarget = Vector3.Distance(localPlayer.Position, target!.Position);
+        var targetRadius = target!.HitboxRadius;
+        var combatRange = Math.Max(3.0f, targetRadius + 2.0f);
+        if (distanceToTarget <= combatRange) {
+            _lastEngagePosition = localPlayer.Position;
+            _lastEngagePositionChangedAt = now;
+            if (_isCombatStuckMitigationActive) {
+                _isCombatStuckMitigationActive = false;
+                try {
+                    Svc.Navmesh.Stop();
+                } catch {}
                 try {
                     if (Service.BossMod.IsLoaded) {
                         Service.BossMod.ClearTransientStrategy(_presetName, "BossMod.Autorotation.MiscAI.NormalMovement", "Destination");
@@ -650,8 +686,9 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
 
         // If mitigation is already active, check if we've moved or timed out
         if (_isCombatStuckMitigationActive) {
-            var distMoved = Vector3.Distance(Player.Position, _lastEngagePosition);
-            if (distMoved > 2.0f || now - _lastEngagePositionChangedAt > 2500) {
+            var distMoved = Vector3.Distance(localPlayer.Position, _lastEngagePosition);
+            // If we've made progress (moved at least 1.5 yalms) or 3.5 seconds passed, we restore BossMod movement
+            if (distMoved > 1.5f || now - _lastEngagePositionChangedAt > 3500) {
                 Log("Combat stuck mitigation finished or timed out. Restoring BossMod movement.");
                 _isCombatStuckMitigationActive = false;
                 try {
@@ -661,55 +698,41 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
                     if (Service.BossMod.IsLoaded) {
                         Service.BossMod.ClearTransientStrategy(_presetName, "BossMod.Autorotation.MiscAI.NormalMovement", "Destination");
                     }
-                } catch (Exception ex) {
-                    Log($"Failed to restore BossMod movement: {ex.Message}");
-                }
-                _lastEngagePosition = Player.Position;
+                } catch {}
+                _lastEngagePosition = localPlayer.Position;
                 _lastEngagePositionChangedAt = now;
             }
             return;
         }
 
-        // Track movement and check if we are stuck
-        if (Player.IsMoving) {
-            var distMoved = Vector3.Distance(Player.Position, _lastEngagePosition);
-            if (distMoved > 0.5f) {
-                _lastEngagePosition = Player.Position;
-                _lastEngagePositionChangedAt = now;
-            } else if (now - _lastEngagePositionChangedAt > 1500) {
-                // We've been attempting to move but haven't progressed for 1.5 seconds.
-                // Check if we have a valid target to navigate to.
-                if (Svc.Targets.Target is { } target && target.IsTargetable && !target.IsDead) {
-                    Log($"Detected player stuck in combat (dist={distMoved:F2}). Activating vnavmesh pathfinding to target {target.GameObjectId} at {target.Position}.");
-                    _isCombatStuckMitigationActive = true;
-                    _lastEngagePosition = Player.Position;
-                    _lastEngagePositionChangedAt = now;
-
-                    try {
-                        if (Service.BossMod.IsLoaded) {
-                            Svc.BossMod.AddTransientStrategy(_presetName, "BossMod.Autorotation.MiscAI.NormalMovement", "Destination", "None");
-                        }
-                    } catch (Exception ex) {
-                        Log($"Failed to disable BossMod movement during stuck mitigation: {ex.Message}");
-                    }
-
-                    try {
-                        if (Svc.Navmesh.IsReady) {
-                            Svc.Navmesh.PathfindAndMoveTo(target.Position, false);
-                        }
-                    } catch (Exception ex) {
-                        Log($"Failed to start stuck mitigation pathfinding: {ex.Message}");
-                    }
-                } else {
-                    // Reset timer if we have no target
-                    _lastEngagePosition = Player.Position;
-                    _lastEngagePositionChangedAt = now;
-                }
-            }
-        } else {
-            // Player is not attempting to move
-            _lastEngagePosition = Player.Position;
+        // Track movement and check if we are stuck (we are not casting, have a target, and are far from it)
+        var distanceMoved = Vector3.Distance(localPlayer.Position, _lastEngagePosition);
+        if (distanceMoved > 0.5f) {
+            _lastEngagePosition = localPlayer.Position;
             _lastEngagePositionChangedAt = now;
+        } else if (now - _lastEngagePositionChangedAt > 1500) {
+            // We haven't moved more than 0.5 yalms for 1.5 seconds while attempting to reach a target.
+            Log($"Detected player stuck in combat/engage (dist={distanceMoved:F2}, targetDist={distanceToTarget:F2}). Activating vnavmesh pathfinding to target {target.GameObjectId} at {target.Position}.");
+            _isCombatStuckMitigationActive = true;
+            _lastEngagePosition = localPlayer.Position;
+            _lastEngagePositionChangedAt = now;
+
+            try {
+                if (Service.BossMod.IsLoaded) {
+                    // Disable BossMod's own movement control
+                    Svc.BossMod.AddTransientStrategy(_presetName, "BossMod.Autorotation.MiscAI.NormalMovement", "Destination", "None");
+                }
+            } catch (Exception ex) {
+                Log($"Failed to disable BossMod movement during stuck mitigation: {ex.Message}");
+            }
+
+            try {
+                if (Svc.Navmesh.IsReady) {
+                    Svc.Navmesh.PathfindAndMoveTo(target.Position, false);
+                }
+            } catch (Exception ex) {
+                Log($"Failed to start stuck mitigation pathfinding: {ex.Message}");
+            }
         }
     }
 }
