@@ -178,6 +178,24 @@ internal class StatusCache
             5191  // The Clyteum - Motion Tracker
         }.ToFrozenSet();
 
+        /// <summary>
+        /// Statuses that appear on ENEMIES which reflect/counter incoming attacks
+        /// (often lethally). Covers Eureka's Gelid Charge -> Ice Spikes and
+        /// Static Charge -> Shock Spikes, plus the elemental "Counter" stances seen
+        /// in deep dungeons. Resolved by English name so every status ID variant is caught.
+        /// </summary>
+        internal static readonly FrozenSet<uint> EnemyReflects =
+            new[]
+            {
+                "Ice Spikes", "Shock Spikes", "Blaze Spikes",
+                "Shocking Counter", "Burning Counter", "Freezing Counter",
+                "Cutting Counter", "Burying Counter", "Drowning Counter", "Unrelenting Counter",
+            }
+            .SelectMany(name => ENStatusSheet
+                .Where(x => x.Value.Name.ToString().Equals(name, StringComparison.OrdinalIgnoreCase))
+                .Select(x => x.Key))
+            .ToFrozenSet();
+
     }
 
     /// <summary>

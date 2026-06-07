@@ -1,5 +1,16 @@
 # Gluttony Combo â€” Changelog
 
+## v1.0.4.42 (2026-06-06)
+
+### Added
+- **Enemy damage-reflect / "spikes" pause (Eureka).** Autorotation now stops and targets self when any nearby hostile (the rotation's `DPSTargeting.BaseSelection`) has a reflect / counter / elemental "spikes" status, and resumes once it clears on all mobs. Mirrors the player-side Pyretic handling but scans enemies instead of the player. Built for Eureka's **Gelid Charge** (action 1284 -> Ice Spikes) and **Static Charge** (action 1283 -> Shock Spikes), and also covers the elemental Counter stances used in deep dungeons.
+  - `Data/StatusCache.cs`: new `PausingStatuses.EnemyReflects` FrozenSet, resolved by English status name so every ID variant is caught - Ice Spikes / Shock Spikes / Blaze Spikes + Shocking/Burning/Freezing/Cutting/Burying/Drowning/Unrelenting Counter (status IDs 948-954).
+  - `AutoRotation/AutoRotationController.cs`: new `EnemyHasReflectPenalty()` - scans `DPSTargeting.BaseSelection`, and on a hit targets self (`Svc.Targets.Target = Player.Object`), clears `OverrideTarget`, and `UIState.Instance()->Hotbar.CancelCast()`. Called from `ShouldSkipAutorotation()` gated behind `cfg.DPSSettings.UnTargetAndDisableForPenalty`. Added `using FFXIVClientStructs.FFXIV.Client.Game.UI;`.
+
+### Notes
+- Reuses the existing "Un-target and stop actions for Pyretics" toggle (opt-in, off by default). Because it also matches the generic Spikes family, a boss with non-lethal elemental spikes could trip the pause while the toggle is on - acceptable for the Eureka / deep-dungeon farming use case. The enemy scan only runs when that toggle is enabled.
+- Status IDs identified by datamining the live game Status/Action sheets via Lumina.
+
 ## v1.0.4.41 (2026-06-06)
 
 ### Fixed

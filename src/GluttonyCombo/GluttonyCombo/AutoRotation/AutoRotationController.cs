@@ -9,6 +9,7 @@ using ECommons.GameFunctions;
 using ECommons.GameHelpers;
 using ECommons.Throttlers;
 using FFXIVClientStructs.FFXIV.Client.Game;
+using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using Lumina.Excel.Sheets;
 using System;
 using System.Collections.Generic;
@@ -157,6 +158,13 @@ internal unsafe class AutoRotationController
         if (PlayerHasActionPenalty())
             return true;
 
+        // Enemy damage-reflect / spikes (e.g. Eureka Gelid Charge -> Ice Spikes,
+        // Static Charge -> Shock Spikes, and the elemental Counter stances). Scans
+        // nearby hostiles and stops + targets self until it clears on every mob.
+        // Gated behind the same "Un-target and stop actions for Pyretics" toggle.
+        if (cfg.DPSSettings.UnTargetAndDisableForPenalty && EnemyHasReflectPenalty())
+            return true;
+
         return !cfg.Enabled
                || !Player.Available
                || Player.Object.IsDead
@@ -166,6 +174,27 @@ internal unsafe class AutoRotationController
                || (cfg.DPSSettings.UnTargetAndDisableForPenalty && PlayerHasActionPenalty())
                || (ActionManager.Instance()->QueuedActionId > 0)
                || Paused;
+    }
+
+    /// <summary>
+    /// Scans nearby hostile enemies (the same selection the rotation targets) for a
+    /// damage-reflect / counter / "spikes" status that punishes attackers - often a
+    /// one-shot in Eureka (Gelid Charge -> Ice Spikes, Static Charge -> Shock Spikes).
+    /// While any such mob is present, targets self and cancels casts; autorotation
+    /// resumes once no mob has the status. See StatusCache.PausingStatuses.EnemyReflects.
+    /// </summary>
+    private static bool EnemyHasReflectPenalty()
+    {
+        if (!DPSTargeting.BaseSelection.Any(x =>
+                StatusCache.HasStatusInCacheList(StatusCache.PausingStatuses.EnemyReflects, x)))
+            return false;
+
+        // Stop and target self, mirroring the Pyretic handling but for enemy reflects.
+        if (Player.Available)
+            Svc.Targets.Target = Player.Object;
+        OverrideTarget = null;
+        UIState.Instance()->Hotbar.CancelCast();
+        return true;
     }
 
     internal static void Run()
