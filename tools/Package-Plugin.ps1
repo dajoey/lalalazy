@@ -169,6 +169,56 @@ Remove-Item -Recurse -Force $stageDir
 # 5. Synchronize pluginmaster.json automatically
 Write-Host "Updating pluginmaster.json index..."
 
+# Parse CHANGELOG.md if present to populate Changelog field in pluginmaster.json
+$changelogPath = Join-Path $srcDir "CHANGELOG.md"
+if (-not (Test-Path $changelogPath)) {
+    # check parent dir for nested projects
+    $changelogPath = Join-Path (Split-Path $srcDir) "CHANGELOG.md"
+}
+
+$changelogText = $null
+if (Test-Path $changelogPath) {
+    Write-Host "Parsing CHANGELOG.md for metadata..."
+    $lines = Get-Content $changelogPath
+    $formattedEntries = [System.Collections.Generic.List[string]]::new()
+    $currentEntry = [System.Collections.Generic.List[string]]::new()
+    
+    foreach ($line in $lines) {
+        $trimmed = $line.Trim()
+        if ($trimmed.StartsWith("## [")) {
+            if ($currentEntry.Count -gt 0) {
+                $entryStr = ($currentEntry -join "`n").Trim()
+                if ($entryStr) {
+                    $formattedEntries.Add($entryStr)
+                }
+                $currentEntry.Clear()
+            }
+            if ($trimmed -match '^##\s+\[([^\]]+)\](?:\s*-\s*(.+))?') {
+                $ver = $Matches[1]
+                $desc = $Matches[2]
+                if ($desc) {
+                    $currentEntry.Add("v$ver - $desc")
+                } else {
+                    $currentEntry.Add("v$ver")
+                }
+            }
+        } elseif ($trimmed -like "###*") {
+            continue
+        } elseif ($trimmed.StartsWith("-") -or $trimmed.StartsWith("**") -or $trimmed -match '^\d+\.') {
+            $currentEntry.Add($trimmed)
+        } elseif ($trimmed -eq "" -and $currentEntry.Count -gt 0) {
+            $currentEntry.Add("")
+        }
+    }
+    if ($currentEntry.Count -gt 0) {
+        $entryStr = ($currentEntry -join "`n").Trim()
+        if ($entryStr) {
+            $formattedEntries.Add($entryStr)
+        }
+    }
+    $changelogText = ($formattedEntries | Select-Object -First 6) -join "`n`n"
+}
+
 # Reload pluginmaster.json in case version was modified on disk during prep
 $masterJsonText = [System.IO.File]::ReadAllText($masterPath, [System.Text.Encoding]::UTF8)
 $masterList = $masterJsonText | ConvertFrom-Json
@@ -185,6 +235,7 @@ if (-not $entry) {
         Description = $manifest.Description
         InternalName = $PluginName
         AssemblyVersion = $version
+        Changelog = $changelogText
         RepoUrl = "https://github.com/dajoey/lalalazy/tree/main/src/$PluginName"
         ApplicableVersion = "any"
         DalamudApiLevel = $manifest.DalamudApiLevel
@@ -210,6 +261,9 @@ if (-not $entry) {
     $entry.Tags = $manifest.Tags
     $entry.CategoryTags = $manifest.CategoryTags
     $entry.IconUrl = "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/$($PluginName.ToLower())-icon.png"
+    if ($changelogText) {
+        $entry.Changelog = $changelogText
+    }
     
     if ($Channel -eq 'production') {
         $entry.AssemblyVersion = $version

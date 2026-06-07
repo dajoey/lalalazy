@@ -1,5 +1,15 @@
 # Changelog - Lazy Fate Automation
 
+## [0.0.1.35] - 2026-06-07
+### Changed
+- Stop movement and remove dismount/landing logic from `TeleportTo` pre-cast checks. Teleport casts will now initiate directly while remaining mounted.
+- Exclude city hubs (where mounting is disabled) from random zone swapping, gemstone allowed zones, relic allowed zones, and the UI zone selector.
+
+## [0.0.1.34] - 2026-06-07
+### Added
+- Added stuck check mitigation for combat/engage pathfinding fallbacks.
+- Wait for combat to end before mounting.
+
 ## [0.0.1.33] - 2026-06-07
 ### Added
 - Only dismount before teleporting if the player is flying (`Player.InFlight` is true). If the player is mounted on the ground, they will now remain mounted while teleporting, which makes travels faster and more natural.
