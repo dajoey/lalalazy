@@ -331,6 +331,12 @@ public class FateToolKitWindow : MinimisableWindow {
                     _tweak.Config.ExcludedSwapZones.Add(z);
                 _tweak.Config.Save();
             }
+            if (!_tweak.ModeSuppliesSwapZones) {
+                ImGui.SameLine();
+                if (ImGui.Button("Edit Selected Zones...")) {
+                    _tweak.OpenZoneSelector();
+                }
+            }
             ImGui.Spacing();
 
             foreach (var zoneId in rawSettingsZones.OrderBy(FateToolKit.GetZoneName)) {
@@ -346,6 +352,12 @@ public class FateToolKitWindow : MinimisableWindow {
         }
         else {
             ImGui.TextColored(new Vector4(0.6f, 0.6f, 0.6f, 1f), "No swap zones configured for current mode/selection.");
+            if (!_tweak.ModeSuppliesSwapZones) {
+                ImGui.Spacing();
+                if (ImGui.Button("Select Allowed Swap Zones...")) {
+                    _tweak.OpenZoneSelector();
+                }
+            }
         }
 
         ImGui.SpacedSeparator();
