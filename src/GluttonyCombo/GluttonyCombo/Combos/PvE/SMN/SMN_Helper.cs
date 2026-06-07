@@ -510,6 +510,10 @@ internal partial class SMN
         bool radiantAegisMaintainEnabled =
             IsSTEnabled(flags, Preset.SMN_ST_Advanced_Combo_RadiantMaintain) ||
             IsAoEEnabled(flags, Preset.SMN_AoE_Advanced_Combo_RadiantMaintain);
+
+        // HP% at or below which we keep Radiant Aegis up (per ST/AoE slider).
+        int radiantAegisMaintainHP =
+            flags.HasFlag(Combo.ST) ? SMN_ST_RadiantMaintainHP : SMN_AoE_RadiantMaintainHP;
         
         bool addleEnabled =
             flags.HasFlag(Combo.Simple) || IsSTEnabled(flags, Preset.SMN_ST_Advanced_Combo_Addle);
@@ -540,10 +544,12 @@ internal partial class SMN
             #endregion
             
             #region Radiant Aegis Maintain Uptime
-            // Keep Radiant Aegis up during combat: fire whenever the buff is down
-            // and a charge is available. Two charges naturally bank during downtime.
+            // Keep Radiant Aegis up during combat while HP is at or below the configured
+            // threshold: fire whenever the buff is down and a charge is available.
+            // Two charges naturally bank during downtime.
             if (radiantAegisMaintainEnabled &&
                 InCombat() &&
+                PlayerHealthPercentageHp() <= radiantAegisMaintainHP &&
                 !HasStatusEffect(Buffs.RadiantAegis) &&
                 GetRemainingCharges(RadiantAegis) >= 1 &&
                 ActionReady(RadiantAegis))

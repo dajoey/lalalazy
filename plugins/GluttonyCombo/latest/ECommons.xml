@@ -5038,7 +5038,7 @@
             <remarks>
             Will provide Error logs for any type of failure.<br/>
             Will add the remote Master as a Repo if it isn't already one.<br/>
-            Installs via <see cref="M:Dalamud.Plugin.Internal.PluginManager.InstallPluginAsync(Dalamud.Plugin.Internal.Types.Manifest.RemotePluginManifest,System.Boolean,Dalamud.Plugin.PluginLoadReason,System.Nullable{System.Guid})"/>.
+            Installs via <see cref="M:Dalamud.Plugin.Internal.PluginManager.InstallPluginAsync(Dalamud.Plugin.Internal.Types.Manifest.RemotePluginManifest,System.Boolean,Dalamud.Plugin.PluginLoadReason)"/>.
             </remarks>
         </member>
         <member name="M:ECommons.Reflection.DalamudReflector.RemoveCurrentPlugin">

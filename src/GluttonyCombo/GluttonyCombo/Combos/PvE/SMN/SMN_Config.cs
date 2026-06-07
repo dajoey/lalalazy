@@ -19,10 +19,12 @@ internal partial class SMN
             SMN_ST_Lucid = new("SMN_ST_Lucid", 8000),
             SMN_ST_SwiftcastPhase = new("SMN_SwiftcastPhase", 1),
             SMN_ST_CrimsonCycloneMeleeDistance = new("SMN_ST_CrimsonCycloneMeleeDistance", 25),
+            SMN_ST_RadiantMaintainHP = new("SMN_ST_RadiantMaintainHP", 90),
             SMN_Opener_SkipSwiftcast = new("SMN_Opener_SkipSwiftcast", 1),
 
             SMN_AoE_Lucid = new("SMN_AoE_Lucid", 8000),
             SMN_AoE_CrimsonCycloneMeleeDistance = new("SMN_AoE_CrimsonCycloneMeleeDistance", 25),
+            SMN_AoE_RadiantMaintainHP = new("SMN_AoE_RadiantMaintainHP", 90),
             SMN_AoE_SwiftcastPhase = new("SMN_AoE_SwiftcastPhase", 1),
 
             SMN_Balance_Content = new("SMN_Balance_Content", 1);
@@ -86,6 +88,11 @@ internal partial class SMN
                         "Swiftcasts the first available Egi when Swiftcast is ready.", 3);
                     break;
 
+                case Preset.SMN_ST_Advanced_Combo_RadiantMaintain:
+                    DrawSliderInt(0, 100, SMN_ST_RadiantMaintainHP,
+                        FormatAndCache(Generics.HPPercentageThreshold, RadiantAegis.ActionName()));
+                    break;
+
                 case Preset.SMN_ST_Advanced_Combo_Lucid:
                     DrawSliderInt(4000, 9500, SMN_ST_Lucid, Generics.LucidMP, 150,
                         SliderIncrements.Hundreds);
@@ -125,6 +132,11 @@ internal partial class SMN
                     DrawHorizontalRadioButton(SMN_AoE_SwiftcastPhase, "Ifrit", "Swiftcasts Ruby Ruin/Ruby Rite", 2);
                     DrawHorizontalRadioButton(SMN_AoE_SwiftcastPhase, "Flexible (SpS) Option",
                         "Swiftcasts the first available Egi when Swiftcast is ready.", 3);
+                    break;
+
+                case Preset.SMN_AoE_Advanced_Combo_RadiantMaintain:
+                    DrawSliderInt(0, 100, SMN_AoE_RadiantMaintainHP,
+                        FormatAndCache(Generics.HPPercentageThreshold, RadiantAegis.ActionName()));
                     break;
 
                 case Preset.SMN_AoE_Advanced_Combo_Lucid:

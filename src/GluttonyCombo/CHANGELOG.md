@@ -1,5 +1,19 @@
 # Gluttony Combo â€” Changelog
 
+## v1.0.4.43 (2026-06-07)
+
+### Added
+- **HP% threshold for the Radiant Aegis "Maintain Uptime" feature.** The maintain block now fires only when `PlayerHealthPercentageHp()` is at or below a per-mode configurable threshold, instead of unconditionally re-applying whenever the buff was down in combat.
+  - `Combos/PvE/SMN/SMN_Config.cs`: new `SMN_ST_RadiantMaintainHP` / `SMN_AoE_RadiantMaintainHP` `UserInt`s (default 90); `DrawSliderInt(0, 100, ...)` cases for `Preset.SMN_ST_Advanced_Combo_RadiantMaintain` and `Preset.SMN_AoE_Advanced_Combo_RadiantMaintain`, labeled via `FormatAndCache(Generics.HPPercentageThreshold, RadiantAegis.ActionName())`.
+  - `Combos/PvE/SMN/SMN_Helper.cs`: maintain block gated on `PlayerHealthPercentageHp() <= radiantAegisMaintainHP`; threshold = `flags.HasFlag(Combo.ST) ? SMN_ST_RadiantMaintainHP : SMN_AoE_RadiantMaintainHP` (mirrors the existing Lucid ST/AoE selector).
+
+### Changed
+- Default 90%: Radiant Aegis is kept up as a near-constant buffer and only stops topping up at full HP. Set the slider to 100 to restore the previous always-maintain-in-combat behavior.
+
+### Notes
+- The overcap block (fire at 2 charges to avoid wasting a charge) is intentionally left ungated by HP.
+- Reuses the existing `Generics.HPPercentageThreshold` localization string and mirrors the BLM Manaward HP-threshold pattern (`BLM_ST_ManawardHPThreshold`).
+
 ## v1.0.4.42 (2026-06-06)
 
 ### Added
