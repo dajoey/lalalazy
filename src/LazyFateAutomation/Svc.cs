@@ -39,6 +39,9 @@ public class Svc {
     }
 
     public static void LogToFile(string level, string message) {
+        // Skip verbose scope tracing unless explicitly enabled (Configuration.VerboseFileLogging).
+        if ((level == "DBG" || level == "TRC") && !(Plugin.Config?.VerboseFileLogging ?? false))
+            return;
         try {
             var logPath = System.IO.Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.ApplicationData), "XIVLauncher", "addon", "Hooks", "dev", "LazyFateAutomation.log");
             

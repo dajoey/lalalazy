@@ -1,5 +1,10 @@
 # Changelog - Lazy Fate Automation
 
+## [0.0.1.23] - 2026-06-06
+### Changed
+- File logging now suppresses DBG/TRC scope tracing by default; only WRN/ERR are written to LazyFateAutomation.log. Set VerboseFileLogging to true in the plugin config (LazyFateAutomation.json) to restore full debug logging for troubleshooting. (Svc.cs LogToFile gate, Configuration.cs flag.)
+- Fixes ~28 MB log growth observed 2026-06-06 from FATE-grind DebugContext scope enter/exit tracing.
+
 ## [0.0.1.19] - 2026-05-31
 ### Added
 - Added a 30-second cooldown on empty-zone teleports to prevent rapid infinite teleporting loops when all selected/mode zones are empty.

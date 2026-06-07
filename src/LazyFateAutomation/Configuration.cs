@@ -32,5 +32,9 @@ public class Configuration : IPluginConfiguration {
     public HashSet<uint> ExcludedSwapZones = [];
     public string SelectedModeId = "None";
 
+    // When false (default) DBG/TRC scope tracing is NOT written to LazyFateAutomation.log.
+    // Set true in LazyFateAutomation.json to capture full debug logs for troubleshooting.
+    public bool VerboseFileLogging = false;
+
     public void Save() => Svc.PluginInterface.SavePluginConfig(this);
 }
