@@ -1,5 +1,17 @@
 # Gluttony Combo â€” Changelog
 
+## v1.0.4.44 (2026-06-08)
+
+### Changed
+- **Upstream sync — Auto-Rotation tab UI.** Merged WrathCombo `main` commits `27fcf666` (Update autorot UI) and `0e6e5a9e` (More rewords) into `Window/Tabs/AutoRotationTab.cs` and `Resources/Localization/UI/AutoRotation/AutoRotationUI.{resx,Designer.cs}`.
+  - Label rewords: `Checkbox_OnlyInCombat` "Only in Combat" → "Restrict to Combat Only"; `Checkbox_BypassFATETargets`/`Checkbox_BypassQuestTargets` "Bypass Only in Combat for …" → "Bypass for …"; matching `HelpText_PreEmptiveHoT` update.
+  - Tab reorganized: added "Combat Settings" and "Automatic Activation Settings" `ImGuiEx.TextUnderlined` headers; combat settings (InCombatOnly, bypass options, delay) render unconditionally instead of being gated behind `P.IPC.GetAutoRotationState()`.
+
+### Notes
+- Upstream WrathCombo `.csproj` is still 1.0.4.8 — these were UI-only commits with no upstream version bump. Merge base advanced cab2ae9e → 0e6e5a9e.
+- Preserved fork divergences: `UnTargetAndDisableForPenalty` plain-checkbox variant and the `/gluttony ignore` command string. The tab's `GluttonyCombo.P.`-qualified `UIHelper`/`IPC` calls were collapsed to bare `P.` to converge with upstream (functionally identical; `P` resolves to `GluttonyCombo.P`, as already used in `Commands.cs`/`DebugFile.cs`).
+- No autorotation engine, combo, ActionID, or StatusID changes.
+
 ## v1.0.4.43 (2026-06-07)
 
 ### Added
