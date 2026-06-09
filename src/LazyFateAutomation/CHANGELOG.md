@@ -1,5 +1,9 @@
 # Changelog - Lazy Fate Automation
 
+## [0.0.1.38] - 2026-06-09
+### Fixed
+- Prevented mounting and dismounting loops after FATE completion by keeping the bot in Engaging state (clearing remaining combat) before transitioning to BetweenFates or deactivating integrations.
+
 ## [0.0.1.35] - 2026-06-07
 ### Changed
 - Stop movement and remove dismount/landing logic from `TeleportTo` pre-cast checks. Teleport casts will now initiate directly while remaining mounted.
