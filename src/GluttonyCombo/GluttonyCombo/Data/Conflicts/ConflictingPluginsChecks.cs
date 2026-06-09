@@ -124,6 +124,9 @@ public static class ConflictingPluginsChecks
 
         internal void SetMaxDistanceToTarget(float distance) => IPC.SetMaxDistanceToTarget(distance);
 
+        internal bool IsAIActive() => IPC.IsAIActive();
+
+
         public override void CheckForConflict(bool forceRefresh = false)
         {
             if (!ThrottlePassed(8, false, forceRefresh))

@@ -81,6 +81,43 @@ internal sealed class BossModIPC(
         return aiEnabled && !targetingDisabled;
     }
 
+    public bool IsAIActive()
+    {
+        if (!IsEnabled || !PluginIsLoaded)
+            return false;
+
+        try
+        {
+            var ai = Plugin.GetFoP("_ai");
+            if (ai == null)
+            {
+                PluginLog.Debug(
+                    $"[ConflictingPlugins] [{PluginName}] Could not access _ai field");
+                return false;
+            }
+
+            var aiConfig = ai.GetFoP("Config") ?? ai.GetFoP("_config");
+            if (aiConfig == null)
+            {
+                PluginLog.Debug(
+                    $"[ConflictingPlugins] [{PluginName}] Could not access AI.Config field");
+                return false;
+            }
+
+            var aiEnabled = (bool)(aiConfig.GetFoP("Enabled") ??
+                             (ai.GetFoP("Beh") is not null));
+            return aiEnabled;
+        }
+        catch (Exception e)
+        {
+            PluginLog.Warning($"[ConflictingPlugins] [{PluginName}] " +
+                              $"`IsAIActive` failed: " +
+                              e.ToStringFull());
+            return false;
+        }
+    }
+
+
     public bool IsUsingCustomQueuing()
     {
         if (!PluginIsLoaded)

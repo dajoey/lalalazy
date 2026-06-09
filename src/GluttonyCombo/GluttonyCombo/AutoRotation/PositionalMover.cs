@@ -40,6 +40,13 @@ internal static class PositionalMover
     private const float HitboxOffset = 0.5f;
 
     /// <summary>
+    ///     Angle offset (in degrees) from the flank/rear boundary line (135° and 225°).
+    ///     Allows the player to "ride the line" just inside the required positional zone.
+    /// </summary>
+    private const float BoundaryBufferDegrees = 10f;
+
+
+    /// <summary>
     ///     Attempts to move the player to the correct positional for the current
     ///     melee DPS job. No-ops if any guard condition is met.
     /// </summary>
@@ -241,27 +248,38 @@ internal static class PositionalMover
         var hitboxRadius = target.HitboxRadius;
         var distance = hitboxRadius + HitboxOffset;
 
+        // Get player's current relative angle to decide which side (left or right) is closer
+        var playerPos = Player.Object!.Position;
+        float rotation = PositionalMath.GetRotation(targetPos, playerPos) - targetRot;
+        float deg = PositionalMath.ToDegrees(rotation) + (rotation < 0f ? 360f : 0f);
+
         float angle;
         switch (positional)
         {
             case DesiredPositional.Rear:
-                // Directly behind: target rotation + π
-                angle = targetRot + MathF.PI;
+                if (deg < 180f)
+                {
+                    // Closer to Left Flank boundary (135°) -> go just inside Rear (145°)
+                    angle = targetRot + (135f + BoundaryBufferDegrees) * (MathF.PI / 180f);
+                }
+                else
+                {
+                    // Closer to Right Flank boundary (225°) -> go just inside Rear (215°)
+                    angle = targetRot + (225f - BoundaryBufferDegrees) * (MathF.PI / 180f);
+                }
                 break;
 
             case DesiredPositional.Flank:
-                // Pick the closer side (left flank or right flank)
-                var playerPos = Player.Object!.Position;
-                var leftAngle = targetRot + (MathF.PI / 2f);
-                var rightAngle = targetRot - (MathF.PI / 2f);
-
-                var leftPoint = targetPos + new Vector3(MathF.Sin(leftAngle), 0, MathF.Cos(leftAngle)) * distance;
-                var rightPoint = targetPos + new Vector3(MathF.Sin(rightAngle), 0, MathF.Cos(rightAngle)) * distance;
-
-                var leftDist = Vector3.Distance(playerPos, leftPoint);
-                var rightDist = Vector3.Distance(playerPos, rightPoint);
-
-                angle = leftDist <= rightDist ? leftAngle : rightAngle;
+                if (deg < 180f)
+                {
+                    // Go to left flank, riding the rear edge (125°)
+                    angle = targetRot + (135f - BoundaryBufferDegrees) * (MathF.PI / 180f);
+                }
+                else
+                {
+                    // Go to right flank, riding the rear edge (235°)
+                    angle = targetRot + (225f + BoundaryBufferDegrees) * (MathF.PI / 180f);
+                }
                 break;
 
             default:
@@ -276,6 +294,7 @@ internal static class PositionalMover
         return dest;
     }
 
+
     /// <summary>
     ///     Checks if BossMod or BossModReborn AI is actively controlling movement.
     /// </summary>
@@ -283,9 +302,9 @@ internal static class PositionalMover
     {
         try
         {
-            if (ConflictingPluginsChecks.BossMod.TargetingSettingConflicted)
+            if (ConflictingPluginsChecks.BossMod.IsAIActive())
                 return true;
-            if (ConflictingPluginsChecks.BossModReborn.TargetingSettingConflicted)
+            if (ConflictingPluginsChecks.BossModReborn.IsAIActive())
                 return true;
         }
         catch
