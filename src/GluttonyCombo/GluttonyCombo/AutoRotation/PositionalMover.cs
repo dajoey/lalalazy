@@ -69,10 +69,13 @@ internal static class PositionalMover
         if (!InMeleeRange(target))
             return;
 
-        // Don't move if the player is providing movement input
-        if (MovementHook.Instance != null && MovementHook.Instance->Moved == 1)
+        // Don't move if the player is providing movement input (WASD/controller)
+        // Note: Use Wishdir fields, NOT Moved — Moved fires for ALL movement including
+        // vnavmesh-driven movement, which would immediately cancel our own pathfinding.
+        if (MovementHook.Instance != null &&
+            (MovementHook.Instance->Wishdir_Horizontal != 0 || MovementHook.Instance->Wishdir_Vertical != 0))
         {
-            // Player is actively moving — cancel any vnavmesh path and bail
+            // Player is actively providing input — cancel any vnavmesh path and bail
             if (NavmeshIPC.IsRunningFunc is not null && NavmeshIPC.IsRunningFunc())
                 NavmeshIPC.Stop?.Invoke();
             return;
