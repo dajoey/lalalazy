@@ -2,7 +2,7 @@
     "Author":  "croizat, dajoey",
     "Name":  "Lazy Fate Automation",
     "InternalName":  "LazyFateAutomation",
-    "AssemblyVersion":  "0.0.1.36",
+    "AssemblyVersion":  "0.0.1.37",
     "Description":  "Automates FATE grinding, including Zodiac Atma, Anima Luminous Crystals, Resistance Memories, Phantom Demiatmas, Yo-kai Watch Medals, and Bicolor Gemstones. Seamlessly integrates with vnavmesh for pathing and flight, lifestream for zone swapping, TextAdvance for dialogue skipping, and Gluttony Combo/BossMod for combat. Use /lazyfate to open.",
     "ApplicableVersion":  "any",
     "Tags":  [

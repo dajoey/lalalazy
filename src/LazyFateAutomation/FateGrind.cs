@@ -102,11 +102,16 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
                     FollowUpFateId = null;
 
                 // treat completed collect fates as done and wait for out of combat/not busy before trying to move away
-                if (current is { Rule: PublicEvent.FateRule.Collect, Progress: >= 100, Id: var id } && !Player.IsBusy) {
+                if (current is { Rule: PublicEvent.FateRule.Collect, Progress: >= 100, Id: var id } && !Player.IsBusy && !Svc.Condition[ConditionFlag.InCombat]) {
                     WaitForExpiryFateId = id;
                     return AvailableFates.FirstOrDefault(f => f.Id != id) is { } ? GrindState.BetweenFates : GrindState.WaitingForFates;
                 }
                 Status = "Engaging";
+                return GrindState.Engaging;
+            }
+
+            if (Svc.Condition[ConditionFlag.InCombat]) {
+                Status = "Clearing remaining combat";
                 return GrindState.Engaging;
             }
 
@@ -457,7 +462,7 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
     private void HandleIntegrations() {
         if (PublicEvent.CurrentFate is { } fate) {
             // when we leave collect fates early, it's still CurrentFate, so we need to ignore that and deactivate anyway
-            if (fate is { Rule: PublicEvent.FateRule.Collect, Progress: >= 100 } && (NextFate is null || NextFate.Id != fate.Id)) {
+            if (fate is { Rule: PublicEvent.FateRule.Collect, Progress: >= 100 } && (NextFate is null || NextFate.Id != fate.Id) && !Svc.Condition[ConditionFlag.InCombat]) {
                 DeactivateIntegrations(clearNextFate: false);
                 return;
             }
