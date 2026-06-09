@@ -151,6 +151,10 @@ internal class AutoRotationTab : ConfigWindow
 
             ImGuiComponents.HelpMarker(AutoRotationUI.HelpText_UnTargetAndDisableForPenalty);
 
+            changed |= ImGui.Checkbox("Auto Positionals (Melee DPS)###AutoPositionals", ref cfg.DPSSettings.AutoPositionals);
+
+            ImGuiComponents.HelpMarker("When enabled, melee DPS jobs will automatically move to the correct positional (flank/rear) using vnavmesh.\nRequires vnavmesh to be installed.\nOnly activates in melee range. Stops immediately on player movement input.\nDoes not activate when BossMod AI is handling movement.");
+
             changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(AutoRotationUI.Checkbox_DPSAlwaysHardTarget, ref cfg.DPSSettings.DPSAlwaysHardTarget, "DPSAlwaysHardTarget");
 
             ImGuiComponents.HelpMarker(AutoRotationUI.HelpText_DPSAlwaysHardTarget);

@@ -33,6 +33,7 @@ public class DPSSettings
     public bool IgnoreRangeInBoss = true;
     public bool AoEIgnoreManual = false;
     public bool UnTargetAndDisableForPenalty = false;
+    public bool AutoPositionals = false;
 }
 
 public class HealerSettings

@@ -186,6 +186,8 @@ public class DPSSettingsIPCWrapper(DPSSettings settings)
     
     public bool UnTargetAndDisableForPenalty => settings.UnTargetAndDisableForPenalty;
 
+    public bool AutoPositionals => settings.AutoPositionals;
+
     #endregion
 }
 

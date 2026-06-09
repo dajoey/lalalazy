@@ -789,6 +789,14 @@ internal unsafe class AutoRotationController
         }
         else
         {
+            // Auto positional movement for melee DPS
+            if (cfg.DPSSettings.AutoPositionals &&
+                Jobs.GetRoleFromJob(Player.Job) is Jobs.JobRole.MeleeDPS)
+            {
+                var target = AutoRotationHelper.GetSingleTarget(mode);
+                PositionalMover.MoveToPositional(target);
+            }
+
             return AutoRotationHelper.ExecuteST(mode, preset, attributes, gameAct);
         }
     }
