@@ -637,6 +637,23 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
         var localPlayer = Svc.Objects.LocalPlayer;
         if (localPlayer is null || !localPlayer.Available) return;
 
+        // When BossMod is active with our preset, its NormalMovement strategy already handles
+        // melee positioning and its danger avoidance (DwD) handles keeping the player safe.
+        // Our stuck detection would fight danger avoidance by navmeshing straight into danger zones,
+        // causing the player to oscillate back and forth between "move to melee" and "dodge danger."
+        try {
+            if (Service.BossMod.IsLoaded && Service.BossMod.GetActive() == _presetName) {
+                // BossMod is driving movement; clear any active mitigation and bail out.
+                if (_isCombatStuckMitigationActive) {
+                    _isCombatStuckMitigationActive = false;
+                    try { Svc.Navmesh.Stop(); } catch {}
+                }
+                _lastEngagePosition = localPlayer.Position;
+                _lastEngagePositionChangedAt = Environment.TickCount64;
+                return;
+            }
+        } catch {}
+
         var now = Environment.TickCount64;
 
         // If we are casting, we stand still on purpose; reset tracking
