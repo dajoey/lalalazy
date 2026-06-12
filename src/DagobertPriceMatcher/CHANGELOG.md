@@ -1,5 +1,17 @@
 # Changelog — DagobertPriceMatcher
 
+## v1.12.0.3 (2026-06-12)
+
+### Added
+- **Per-item min/max price limits**, synced from upstream Dagobert v1.14.0.0 (`60e1ad1b4`): new `ItemPriceLimit` config model (`Configuration.cs`), per-item limit UI in `Windows/ConfigWindow.cs`, an inventory context-menu entry to add a limit (`Plugin.cs`), and `ItemNameResolver.cs` to map item names to IDs. Limits clamp the computed price in `AutoPinch.cs` after price matching.
+
+### Changed
+- Upstream range merged: `60e1ad1b4` (feature), `fec67b6bb` (packages.lock). The ECommons submodule bump (`b787ca261`) was NOT pulled — our vendored ECommons builds clean against the new code.
+- `System.Speech` kept at 10.0.7 (our csproj pin; upstream's lock moved to 10.0.9).
+
+### Notes
+- Fork invariants preserved: exact price matching (0 undercut default), `/pricematch` command (upstream's `/dagobert` rename in the dispose path resolved to ours), DagobertPriceMatcher branding/version line in the csproj.
+
 ## v1.12.0.2 (2026-06-06)
 
 ### Added

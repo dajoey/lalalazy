@@ -3,7 +3,7 @@
   <Import Project="Dalamud.Plugin.Bootstrap.targets" />
 
   <PropertyGroup>
-    <Version>1.12.0.2</Version>
+    <Version>1.12.0.3</Version>
     <AssemblyName>DagobertPriceMatcher</AssemblyName>
     <Description>Fork of Dagobert — matches the lowest market board price instead of undercutting.</Description>
     <PackageProjectUrl>https://github.com/SHOEGAZEssb/Dagobert</PackageProjectUrl>

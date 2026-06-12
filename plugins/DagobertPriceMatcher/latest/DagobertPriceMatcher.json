@@ -2,7 +2,7 @@
   "Author": "dajoey",
   "Name": "Dagobert - Price Matcher",
   "InternalName": "DagobertPriceMatcher",
-  "AssemblyVersion": "1.12.0.2",
+  "AssemblyVersion": "1.12.0.3",
   "Description": "Fork of Dagobert — matches the lowest market board price instead of undercutting. Default amount is 0 (exact match). You can still set a negative amount to undercut if desired.",
   "ApplicableVersion": "any",
   "RepoUrl": "https://github.com/SHOEGAZEssb/Dagobert",
@@ -26,6 +26,6 @@
   ],
   "IconUrl": "",
   "Punchline": "Matches (instead of undercuts) market board prices",
-  "Changelog": "Forked from Dagobert v1.10.0.0 — default match amount changed to 0 (exact price match)",
+  "Changelog": "v1.12.0.3 - Per-item min/max price limits\n- Synced upstream Dagobert through v1.14.0.0: set an optional price floor/ceiling per item, configurable in the config window or from the item's inventory right-click menu.\n- Limits are applied after the price is determined, so the matched price is clamped into your configured range.\n- Fork behavior preserved: matches the lowest market board price (0 undercut by default); /pricematch command unchanged.",
   "AcceptsFeedback": true
 }
