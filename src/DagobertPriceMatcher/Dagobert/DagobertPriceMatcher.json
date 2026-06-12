@@ -11,11 +11,15 @@
     "undercut",
     "retainer"
   ],
-  "CategoryTags": [ "utility" ],
+  "CategoryTags": [
+    "utility"
+  ],
   "RepoUrl": "https://github.com/SHOEGAZEssb/Dagobert",
   "InternalName": "DagobertPriceMatcher",
   "DalamudApiLevel": 15,
   "IconUrl": "",
-  "ImageUrls": [ "" ],
-  "Changelog": "Forked from Dagobert v1.10.0.0 — default match amount changed to 0 (exact price match)"
+  "ImageUrls": [
+    ""
+  ],
+  "Changelog": "v1.12.0.3 - Per-item min/max price limits\n- Synced upstream Dagobert through v1.14.0.0: set an optional price floor/ceiling per item, configurable in the config window or from the item's inventory right-click menu.\n- Limits are applied after the price is determined, so the matched price is clamped into your configured range.\n- Fork behavior preserved: matches the lowest market board price (0 undercut by default); /pricematch command unchanged."
 }
