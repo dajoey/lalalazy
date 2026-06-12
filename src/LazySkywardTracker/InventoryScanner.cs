@@ -122,15 +122,38 @@ public sealed class InventoryScanner
         {
             foreach (var entry in row.HWDGathererInspectionData)
             {
-                // Walk the chain: HWDGathererInspectionData.RequiredItem → GatheringItem → Item
+                // Resolve the actual Item ID. Two paths:
+                //   MIN/BTN: RequiredItem → GatheringItem → Item
+                //   FSH:     FishParameter → Item  (RequiredItem is 0 for fish)
+                uint itemId;
+                uint achievementId;
                 var gatheringItemRef = entry.RequiredItem;
-                if (gatheringItemRef.RowId == 0) continue;
+                var fishParamRef = entry.FishParameter;
 
-                var gatheringItem = gatheringItemRef.ValueNullable;
-                if (gatheringItem is not { } gi) continue;
+                if (gatheringItemRef.RowId != 0)
+                {
+                    // MIN or BTN path
+                    var gatheringItem = gatheringItemRef.ValueNullable;
+                    if (gatheringItem is not { } gi) continue;
+                    itemId = gi.Item.RowId;
+                    if (itemId == 0) continue;
 
-                var itemId = gi.Item.RowId;
-                if (itemId == 0) continue;
+                    var itemName = GetItemName(itemId) ?? "";
+                    achievementId = LooksLikeMinerItem(itemName) ? 2515u : 2518u;
+                }
+                else if (fishParamRef.RowId != 0)
+                {
+                    // FSH path — item ID comes from FishParameter → Item
+                    var fishParam = fishParamRef.ValueNullable;
+                    if (fishParam is not { } fp) continue;
+                    itemId = fp.Item.RowId;
+                    if (itemId == 0) continue;
+                    achievementId = 2521; // FSH – Skyward Rod III
+                }
+                else
+                {
+                    continue; // Empty entry
+                }
 
                 var amountRequired = entry.AmountRequired;
                 if (amountRequired == 0) continue;
@@ -146,27 +169,14 @@ public sealed class InventoryScanner
                         var reward = rewardRef.ValueNullable;
                         if (reward is { } r && r.Points > 0)
                         {
-                            // Prefer PostPhase (index 1), fall back to active (index 0)
                             if (idx == 1 || points == 0)
-                                points = r.Points;
+                                points = (uint)r.Points;
                         }
                     }
                     idx++;
                 }
 
                 if (points == 0) continue;
-
-                // Determine gathering job
-                uint achievementId;
-                if (entry.FishParameter.RowId > 0)
-                {
-                    achievementId = 2521; // FSH – Skyward Rod III
-                }
-                else
-                {
-                    var itemName = GetItemName(itemId) ?? "";
-                    achievementId = LooksLikeMinerItem(itemName) ? 2515u : 2518u; // MIN or BTN
-                }
 
                 var name = GetItemName(itemId) ?? $"Item#{itemId}";
 

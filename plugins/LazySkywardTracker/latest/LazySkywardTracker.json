@@ -2,7 +2,7 @@
     "Author":  "dajoey",
     "Name":  "Lazy Skyward Tracker",
     "InternalName":  "LazySkywardTracker",
-    "AssemblyVersion":  "0.0.2.0",
+    "AssemblyVersion":  "0.0.2.1",
     "Description":  "Tracks all jobs\u0027 Skyward points for the Pteranodon mount achievement. Scans your inventory for Skybuilders turn-in items and projects how many points they\u0027ll add, shown as a cyan bar extension on each job\u0027s progress bar. Use /lazysky to open.",
     "ApplicableVersion":  "any",
     "Tags":  [
