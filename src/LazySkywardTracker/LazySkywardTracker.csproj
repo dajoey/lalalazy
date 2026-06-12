@@ -1,6 +1,6 @@
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
-    <Version>0.0.1.0</Version>
+    <Version>0.0.2.0</Version>
     <AssemblyName>LazySkywardTracker</AssemblyName>
     <Description>Simple tracker plugin for Skyward / Skybuilders' points towards the Pteranodon mount.</Description>
     <IsPackable>false</IsPackable>

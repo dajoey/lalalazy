@@ -25,6 +25,7 @@ public sealed class Plugin : IDalamudPlugin
     private const string CommandName = "/lazysky";
 
     public Configuration Config { get; }
+    public InventoryScanner Scanner { get; private set; } = null!;
     
     private readonly WindowSystem _windowSystem = new("LazySkywardTracker");
     private readonly TrackerWindow _mainWindow;
@@ -59,6 +60,7 @@ public sealed class Plugin : IDalamudPlugin
         ECommonsMain.Init(pi, this);
 
         Config = pi.GetPluginConfig() as Configuration ?? new Configuration();
+        Scanner = new InventoryScanner(DataManager);
         
         _mainWindow = new TrackerWindow(this);
         _windowSystem.AddWindow(_mainWindow);

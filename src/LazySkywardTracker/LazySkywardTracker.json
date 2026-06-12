@@ -2,7 +2,7 @@
   "Author": "dajoey",
   "Name": "Lazy Skyward Tracker",
   "Punchline": "Track your Skyward points for all jobs toward the Pteranodon mount",
-  "Description": "Lists all jobs who need points for Castle in the Sky (Pteranodon mount achievement) and their current point tally in a clean display window. Use /lazysky to open.",
+  "Description": "Tracks all jobs' Skyward points for the Pteranodon mount achievement. Scans your inventory for Skybuilders turn-in items and projects how many points they'll add, shown as a cyan bar extension on each job's progress bar. Use /lazysky to open.",
   "ApplicableVersion": "any",
   "Tags": [
     "skybuilders",
@@ -16,5 +16,5 @@
   "DalamudApiLevel": 15,
   "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyskywardtracker-icon.png",
   "ImageUrls": [ "" ],
-  "Changelog": "v0.0.1 - Initial development version."
+  "Changelog": "v0.0.2 - Inventory scanning: shows projected points from items in your bags with a cyan bar overlay. Covers all 8 crafters and 3 gatherers."
 }
