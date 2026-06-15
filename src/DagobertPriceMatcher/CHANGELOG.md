@@ -1,5 +1,14 @@
 # Changelog — DagobertPriceMatcher
 
+## v1.12.0.4 (2026-06-15)
+
+### Added
+- **"Show inventory context menu entry" toggle** (on by default), synced from upstream Dagobert v1.14.1.0 (`114a95cc2`): new `ShowInventoryContextMenuEntry` config (`Configuration.cs`), an early-return guard in `OnContextMenuOpened` (`Plugin.cs`), and a checkbox in `Windows/ConfigWindow.cs`. Turn it off to remove Dagobert's right-click entry from inventory items.
+
+### Notes
+- `System.Speech` kept at 10.0.7 (our csproj pin; upstream's csproj moved to 10.0.9). No functional impact — our vendored runtime DLL is unchanged.
+- Fork invariants preserved: exact price matching (0 undercut default), `/pricematch` command, DagobertPriceMatcher branding/version line.
+
 ## v1.12.0.3 (2026-06-12)
 
 ### Added

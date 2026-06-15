@@ -21,5 +21,5 @@
   "ImageUrls": [
     ""
   ],
-  "Changelog": "v1.12.0.3 - Per-item min/max price limits\n- Synced upstream Dagobert through v1.14.0.0: set an optional price floor/ceiling per item, configurable in the config window or from the item's inventory right-click menu.\n- Limits are applied after the price is determined, so the matched price is clamped into your configured range.\n- Fork behavior preserved: matches the lowest market board price (0 undercut by default); /pricematch command unchanged."
+  "Changelog": "v1.12.0.4 - Hide inventory context menu entry\n- Synced upstream Dagobert v1.14.1.0: new Show inventory context menu entry toggle (on by default) in the config window. Turn it off to remove Dagoberts right-click entry from inventory items.\n- Fork behavior preserved: matches the lowest market board price (0 undercut by default); /pricematch command unchanged."
 }
