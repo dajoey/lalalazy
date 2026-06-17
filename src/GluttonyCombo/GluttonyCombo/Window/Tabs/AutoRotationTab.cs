@@ -80,7 +80,6 @@ internal class AutoRotationTab : ConfigWindow
             cfg.QueueWindow = 0.5f;
         if (cfg.QueueWindow < 0)
             cfg.QueueWindow = 0;
-
         ImGuiEx.TextUnderlined("Automatic Activation Settings");
 
         changed |= ImGui.Checkbox(AutoRotationUI.Checkbox_EnableInstancedEnter, ref cfg.EnableInInstance);
@@ -224,6 +223,11 @@ internal class AutoRotationTab : ConfigWindow
             P.UIHelper.ShowIPCControlledIndicatorIfNeeded("AoETargetHPP");
             changed |= P.UIHelper.ShowIPCControlledSliderIfNeeded(
                 AutoRotationUI.Slider_AoETargetHPP, ref cfg.HealerSettings.AoETargetHPP, "AoETargetHPP");
+
+            changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
+                AutoRotationUI.Include_Shields, ref cfg.HealerSettings.IncludeShields, "IncludeShields");
+
+            ImGuiComponents.HelpMarker(AutoRotationUI.Include_Shields_Helptext);
 
             var input = ImGuiEx.InputInt(100f.Scale(), AutoRotationUI.Input_AoEHealTargetCount, ref cfg.HealerSettings.AoEHealTargetCount);
             if (input)

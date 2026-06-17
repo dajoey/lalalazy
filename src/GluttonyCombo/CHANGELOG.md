@@ -1,5 +1,25 @@
 # Gluttony Combo â€” Changelog
 
+## v1.0.4.48 (2026-06-17)
+
+### Changed
+- **Upstream sync — WrathCombo `main` 1.0.4.8 → 1.0.4.9 (~44 commits, 30 files).** Merged the upstream range `0e6e5a9e…06877cca6` across job rotations, autorotation, and UI, preserving all Gluttony fork divergences.
+  - **MCH:** fixed AoE tools firing incorrectly; Reassemble/Hypercharge handling; helper refactors (`Combos/PvE/MCH/MCH.cs`, `MCH_Helper.cs`).
+  - **SAM:** adopted upstream's completed ST/AoE rotation rebalance (Getsu/Ka + Fugetsu/Fuka refresh guards on Mangetsu/Oka/Gekko/Kasha). Our fork carried an earlier, incomplete form of the same logic — converged to upstream to reduce future merge friction (`Combos/PvE/SAM/SAM.cs`, `SAM_Helper.cs`).
+  - **SGE:** AoE simple-heal oGCD spread rebalance; autorotation shield check now optional (`Combos/PvE/SGE/SGE.cs`).
+  - **BLM:** fixed level-90 Ice phase (`BLM.cs`, `BLM_Helper.cs`). **VPR:** early-buff opener (`VPR_Helper.cs`, `VPR_Config.cs`). **WAR:** Fell Cleave cleanup + helper tidy (`WAR.cs`, `WAR_Helper.cs`). **MNK PvP** update (`Combos/PvP/MNKPVP.cs`).
+
+### Added
+- **Encounter safety / Action Penalty Gaze & Motion handling.** New `Combos/PvE/Content/EncounterSafety.cs` plus content-specific action checks — Windurst Motion/Gaze VFX checks, content-specific fallbacks, Clytemnestra motion-scanner range check.
+- **p3 invincible status** added to status handling and Pyretic check moved to post-pre-pull (`CustomCombo/Functions/Status.cs`).
+- **Healer "Include Shields" autorotation setting** and **DTR bar updates while hidden** (`AutoRotation/*`, `Window/Tabs/AutoRotationTab.cs`).
+- **Opener DTR bar is now click-to-toggle** the current opener preset (`GluttonyCombo.cs`).
+
+### Notes
+- Upstream WrathCombo `.csproj` advanced 1.0.4.8 → 1.0.4.9; merge base advanced `0e6e5a9e` → `06877cca6`.
+- **Fork divergences preserved:** AutoRotation tab keeps the `UnTargetAndDisableForPenalty` plain-checkbox variant + the Auto Positionals (Melee DPS) feature at their existing location; upstream relocated that checkbox to the top of DPS settings, so the relocated duplicate was dropped to avoid a doubled control. Pacification/Silence handling, WHM Divine Caress ground-heal targeting, 15s raidwide-mit gate, HP-scaled raidwide `numberOfCasts`, SMN "Aegis Uptime", and the manual BLU combos all live in files outside this upstream range and are untouched.
+- Build clean (0 errors, 9 pre-existing warnings).
+
 ## v1.0.4.44 (2026-06-08)
 
 ### Changed
