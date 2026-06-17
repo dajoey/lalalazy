@@ -32,12 +32,14 @@ using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.CustomComboNS.Functions;
 using GluttonyCombo.Data;
 using GluttonyCombo.Data.Conflicts;
+using GluttonyCombo.Extensions;
 using GluttonyCombo.Resources.Localization.UI.MainWindow;
 using GluttonyCombo.Services;
 using GluttonyCombo.Services.ActionRequestIPC;
 using GluttonyCombo.Services.IPC;
 using GluttonyCombo.Services.IPC_Subscriber;
 using GluttonyCombo.Window;
+using GluttonyCombo.Window.Functions;
 using GluttonyCombo.Window.Tabs;
 using GenericHelpers = ECommons.GenericHelpers;
 
@@ -254,6 +256,19 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
 
         OpenerDtr ??= Svc.DtrBar.Get("Gluttony Combo Opener");
 
+        OpenerDtr.OnClick += (_) =>
+        {
+            var preset = WrathOpener.CurrentOpener?.Preset;
+            if (preset is not { } pre)
+                return;
+
+            PresetStorage.TogglePreset(pre);
+        };
+
+        OpenerDtr.Tooltip = new SeString(
+        new TextPayload("Click to toggle Opener Preset.\n"),
+        new TextPayload("Disable this icon in /xlsettings -> Server Info Bar"));
+
         Svc.ClientState.Login += PrintLoginMessage;
         if (Svc.ClientState.IsLoggedIn) ResetFeatures();
 
@@ -270,7 +285,6 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
 #if DEBUG
         VfxManager.Logging = true;
         ConfigWindow.IsOpen = true;
-        VfxManager.Logging = true;
         Svc.Framework.RunOnTick(() =>
         {
             if (Service.Configuration.OpenToCurrentJob && Player.Available)
@@ -371,29 +385,25 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
 
             #endregion
 
-            // Skip the IPC checking if hidden
-            if (!DtrBarEntry.UserHidden)
-            {
-                #region DTR Bar Updating
+            #region DTR Bar Updating
 
-                var autoOn = IPC.GetAutoRotationState();
-                var icon = new IconPayload(autoOn
-                    ? BitmapFontIcon.SwordUnsheathed
-                    : BitmapFontIcon.SwordSheathed);
+            var autoOn = IPC.GetAutoRotationState();
+            var icon = new IconPayload(autoOn
+                ? BitmapFontIcon.SwordUnsheathed
+                : BitmapFontIcon.SwordSheathed);
 
-                var text = autoOn ? ": On" : ": Off";
-                if (!Service.Configuration.ShortDTRText && autoOn)
-                    text += $" ({P.IPCSearch.ActiveJobPresets} active)";
-                var ipcControlledText =
-                    P.UIHelper.AutoRotationStateControlled() is not null
-                        ? " (Locked)"
-                        : "";
+            var text = autoOn ? ": On" : ": Off";
+            if (!Service.Configuration.ShortDTRText && autoOn)
+                text += $" ({P.IPCSearch.ActiveJobPresets} active)";
+            var ipcControlledText =
+                P.UIHelper.AutoRotationStateControlled() is not null
+                    ? " (Locked)"
+                    : "";
 
-                var payloadText = new TextPayload(text + ipcControlledText);
-                DtrBarEntry.Text = new SeString(icon, payloadText);
+            var payloadText = new TextPayload(text + ipcControlledText);
+            DtrBarEntry.Text = new SeString(icon, payloadText);
 
-                #endregion
-            }
+            #endregion
 
             if (Service.Configuration.ShowOpenerDtr)
             {

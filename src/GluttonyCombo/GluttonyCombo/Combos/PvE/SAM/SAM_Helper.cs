@@ -1,4 +1,4 @@
-using Dalamud.Game.ClientState.JobGauge.Enums;
+﻿using Dalamud.Game.ClientState.JobGauge.Enums;
 using Dalamud.Game.ClientState.JobGauge.Types;
 using System;
 using System.Collections.Generic;
@@ -25,14 +25,13 @@ internal partial class SAM
             {
                 if ((simpleMode || IsEnabled(Preset.SAM_ST_Yukikaze)) &&
                     !HasSetsu && LevelChecked(Yukikaze) &&
-                    (HasGetsu || GetStatusEffectRemainingTime(Buffs.Fugetsu) > 7 || IsNotEnabled(Preset.SAM_ST_Gekko)) &&
-                    (HasKa || GetStatusEffectRemainingTime(Buffs.Fuka) > 7 || IsNotEnabled(Preset.SAM_ST_Kasha)))
+                    (GetStatusEffectRemainingTime(Buffs.Fugetsu) > 7 || IsNotEnabled(Preset.SAM_ST_Gekko) || !LevelChecked(Kasha)) &&
+                    (GetStatusEffectRemainingTime(Buffs.Fuka) > 7 || IsNotEnabled(Preset.SAM_ST_Kasha) || !LevelChecked(Kasha)))
                     return Yukikaze;
 
                 if ((simpleMode || IsEnabled(Preset.SAM_ST_Kasha)) &&
                     LevelChecked(Shifu) &&
-                    !HasKa &&
-                    ((OnTargetsFlank() || OnTargetsFront()) && LevelChecked(Kasha) ||
+                    ((OnTargetsFlank() || OnTargetsFront()) && !HasKa && LevelChecked(Kasha) ||
                      OnTargetsRear() && HasGetsu && LevelChecked(Kasha) ||
                      !HasStatusEffect(Buffs.Fuka) ||
                      SenCount is 3 && RefreshFuka))
@@ -40,8 +39,8 @@ internal partial class SAM
 
                 if ((simpleMode || IsEnabled(Preset.SAM_ST_Gekko)) &&
                     LevelChecked(Jinpu) &&
-                    !HasGetsu &&
-                    ((OnTargetsRear() || OnTargetsFront()) && LevelChecked(Gekko) ||
+                    (!LevelChecked(Kasha) && LevelChecked(Gekko) ||
+                     (OnTargetsRear() || OnTargetsFront()) && !HasGetsu && LevelChecked(Gekko) ||
                      OnTargetsFlank() && HasKa && LevelChecked(Gekko) ||
                      !HasStatusEffect(Buffs.Fugetsu) ||
                      SenCount is 3 && RefreshFugetsu))
@@ -223,9 +222,9 @@ internal partial class SAM
 
         if ((simpleMode || IsEnabled(Preset.SAM_ST_Gekko)) &&
             LevelChecked(Gekko) &&
-            !HasGetsu &&
-            (!HasStatusEffect(Buffs.Fugetsu) ||
-             (OnTargetsRear() || OnTargetsFront()) ||
+            (!LevelChecked(Kasha) ||
+             !HasStatusEffect(Buffs.Fugetsu) ||
+             (OnTargetsRear() || OnTargetsFront()) && !HasGetsu ||
              OnTargetsFlank() && HasKa))
             return !OnTargetsRear() &&
                    Role.CanTrueNorth() &&
@@ -236,9 +235,8 @@ internal partial class SAM
 
         if ((simpleMode || IsEnabled(Preset.SAM_ST_Kasha)) &&
             LevelChecked(Kasha) &&
-            !HasKa &&
             (!HasStatusEffect(Buffs.Fuka) ||
-             (OnTargetsFlank() || OnTargetsFront()) ||
+             (OnTargetsFlank() || OnTargetsFront()) && !HasKa ||
              OnTargetsRear() && HasGetsu))
             return !OnTargetsFlank() &&
                    Role.CanTrueNorth() &&
