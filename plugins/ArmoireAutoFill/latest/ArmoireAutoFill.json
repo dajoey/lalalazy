@@ -2,7 +2,7 @@
   "Author": "dajoey",
   "Name": "Armoire Auto-Fill",
   "InternalName": "ArmoireAutoFill",
-  "AssemblyVersion": "0.4.0.0",
+  "AssemblyVersion": "0.4.1.0",
   "Description": "Lists every armoire-eligible dungeon drop in the game and shows whether each is in your inventory, in your armoire, or still missing. Sort by level, hide completed dungeons, toggle to show owned items too. Open the armoire UI at an inn once per session to populate the in-armoire state; in-inventory and equipped state is detected automatically.",
   "ApplicableVersion": "any",
   "Tags": [

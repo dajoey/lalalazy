@@ -1,5 +1,10 @@
 # Changelog - ArmoireAutoFill
 
+## v0.4.1.0 (2026-06-18)
+
+### Added
+- **"Skip gear that is in a gearset" option** (on by default). Auto-store now excludes any item that belongs to one of your saved gearsets, so it will not deposit gear you actively use. Built from RaptureGearsetModule (same source as the in-game gearset UI), HQ flag stripped for matching. New `SkipGearsetItems` config + checkbox in the main window; result message reports how many items were kept. Files: `Logic/ArmoireAutoStore.cs`, `Configuration.cs`, `Windows/MainWindow.cs`.
+
 ## v0.4.0.0 (2026-06-18)
 
 ### Added

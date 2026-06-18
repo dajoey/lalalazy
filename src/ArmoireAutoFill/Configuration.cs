@@ -17,6 +17,9 @@ public sealed class Configuration : IPluginConfiguration
     // when the armoire UI is opened. A manual button is also available.
     public bool AutoStoreOnOpen { get; set; } = false;
 
+    // When true, any item that belongs to a saved gearset is never auto-stored.
+    public bool SkipGearsetItems { get; set; } = true;
+
     // Cache of item IDs the player has unlocked in the armoire. Populated from
     // ItemFinderModule->CabinetItemUnlockBits at startup and on framework polls.
     public List<uint> ArmoireItemIds { get; set; } = [];

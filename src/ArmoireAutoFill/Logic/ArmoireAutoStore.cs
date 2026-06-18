@@ -6,6 +6,7 @@ using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using ECommons.DalamudServices;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
+using FFXIVClientStructs.FFXIV.Client.UI.Misc;
 using LuminaCabinet = Lumina.Excel.Sheets.Cabinet;
 
 namespace ArmoireAutoFill.Logic;
@@ -67,6 +68,34 @@ public sealed class ArmoireAutoStore : IDisposable
     {
         if (Plugin.Configuration.AutoStoreOnOpen)
             StoreAll();
+    }
+
+    /// <summary>
+    /// Builds the set of base item IDs that belong to any saved gearset, so they can be
+    /// excluded from auto-store. Uses RaptureGearsetModule (same source as the in-game UI).
+    /// </summary>
+    private static unsafe HashSet<uint> BuildGearsetItemSet()
+    {
+        var set = new HashSet<uint>();
+        var gm = RaptureGearsetModule.Instance();
+        if (gm == null)
+            return set;
+
+        for (byte i = 0; i < 100; ++i)
+        {
+            if (!gm->IsValidGearset(i))
+                continue;
+            var gs = gm->GetGearset(i);
+            if (gs == null || !gs->Flags.HasFlag(RaptureGearsetModule.GearsetFlag.Exists))
+                continue;
+            foreach (var it in gs->Items.ToArray())
+            {
+                var id = it.ItemId % 1000000u; // strip the HQ flag
+                if (id != 0)
+                    set.Add(id);
+            }
+        }
+        return set;
     }
 
     /// <summary>
@@ -143,8 +172,19 @@ public sealed class ArmoireAutoStore : IDisposable
             }
         }
 
+        var gearsetItems = Plugin.Configuration.SkipGearsetItems ? BuildGearsetItemSet() : new HashSet<uint>();
+        var gearsetSkipped = 0;
+
         foreach (var itemId in candidates)
         {
+            // Skip gear that belongs to a saved gearset (opt-in via config, on by default).
+            if (gearsetItems.Contains(itemId))
+            {
+                gearsetSkipped++;
+                skipped++;
+                continue;
+            }
+
             // Skip items already in the armoire.
             if (uiState->Cabinet.IsItemInCabinet(_itemToCabinetId.GetValueOrDefault(itemId, 0u)))
             {
@@ -172,9 +212,10 @@ public sealed class ArmoireAutoStore : IDisposable
         }
 
         LastStoredCount = stored;
+        var gsNote = gearsetSkipped > 0 ? $" {gearsetSkipped} kept (in a gearset)." : "";
         LastResultMessage = stored > 0
-            ? $"Stored {stored} item{(stored != 1 ? "s" : "")} to armoire ({skipped} skipped)."
-            : $"Nothing new to store ({skipped} items already stored or ineligible).";
+            ? $"Stored {stored} item{(stored != 1 ? "s" : "")} to armoire ({skipped} skipped).{gsNote}"
+            : $"Nothing new to store ({skipped} items already stored or ineligible).{gsNote}";
 
         Svc.Log.Information($"[ArmoireAutoFill] auto-store complete: {LastResultMessage}");
 

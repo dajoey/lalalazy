@@ -158,6 +158,18 @@ public class MainWindow : Window
             ImGui.EndTooltip();
         }
 
+        var skipGearset = Plugin.Configuration.SkipGearsetItems;
+        if (ImGui.Checkbox("Skip gear that is in a gearset", ref skipGearset))
+        {
+            Plugin.Configuration.SkipGearsetItems = skipGearset;
+            Plugin.Configuration.Save();
+        }
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.SetTooltip("When enabled, any item that belongs to one of your saved gearsets\n" +
+                             "is left alone and never stored to the armoire.");
+        }
+
         if (!string.IsNullOrEmpty(_autoStore.LastResultMessage))
         {
             ImGui.TextColored(_autoStore.LastStoredCount > 0 ? ColorInventory : ColorMuted,
