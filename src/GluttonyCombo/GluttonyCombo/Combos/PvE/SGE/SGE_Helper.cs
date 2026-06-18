@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.CustomComboNS.Functions;
 using GluttonyCombo.Extensions;
+using GluttonyCombo.AutoRotation;
 using static GluttonyCombo.Combos.PvE.SGE.Config;
 using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
 namespace GluttonyCombo.Combos.PvE;
@@ -108,22 +109,41 @@ internal partial class SGE
 
     #region Raidwides
 
-    private static bool RaidwideKerachole() =>
-        IsEnabled(Preset.SGE_Raidwide_Kerachole) &&
-        ActionReady(Kerachole) && AdvancedHasAddersgall() &&
-        CanWeave() && GroupDamageIncoming();
+    private static bool RaidwideKerachole()
+    {
+        if (AutoRotationController.RaidwideMitOnCooldown)
+            return false;
+        if (!(IsEnabled(Preset.SGE_Raidwide_Kerachole) &&
+              ActionReady(Kerachole) && AdvancedHasAddersgall() &&
+              CanWeave() && GroupDamageIncoming()))
+            return false;
+        AutoRotationController.MarkRaidwideMitUsed();
+        return true;
+    }
 
-    private static bool RaidwideHolos() =>
-        IsEnabled(Preset.SGE_Raidwide_Holos) &&
-        ActionReady(Holos) && CanWeave() && GroupDamageIncoming() &&
-        GetPartyAvgHPPercent() <= SGE_Raidwide_HolosOption;
+    private static bool RaidwideHolos()
+    {
+        if (AutoRotationController.RaidwideMitOnCooldown)
+            return false;
+        if (!(IsEnabled(Preset.SGE_Raidwide_Holos) &&
+              ActionReady(Holos) && CanWeave() && GroupDamageIncoming() &&
+              GetPartyAvgHPPercent() <= SGE_Raidwide_HolosOption))
+            return false;
+        AutoRotationController.MarkRaidwideMitUsed();
+        return true;
+    }
 
     private static bool RaidwideEprognosis()
     {
+        if (AutoRotationController.RaidwideMitOnCooldown)
+            return false;
         bool shieldCheck = GetPartyBuffPercent(Buffs.EukrasianPrognosis) <= SGE_AoE_Heal_EPrognosisOption &&
                            GetPartyBuffPercent(SCH.Buffs.Galvanize) <= SGE_AoE_Heal_EPrognosisOption;
 
-        return IsEnabled(Preset.SGE_Raidwide_EPrognosis) && shieldCheck && GroupDamageIncoming() && LevelChecked(Eukrasia);
+        if (!(IsEnabled(Preset.SGE_Raidwide_EPrognosis) && shieldCheck && GroupDamageIncoming() && LevelChecked(Eukrasia)))
+            return false;
+        AutoRotationController.MarkRaidwideMitUsed();
+        return true;
     }
 
     #endregion

@@ -1,5 +1,19 @@
 # Changelog — DagobertPriceMatcher
 
+## v1.12.0.5 (2026-06-18)
+
+### Added
+- **Cross-platform notification option.** New `UseDalamudNotifications` config — when enabled,
+  AutoPinch alerts print to Dalamud chat instead of Windows `System.Speech` TTS, so the plugin
+  is usable on Linux/Wine. Windows TTS is now wrapped in try/catch with a chat fallback if the
+  synthesizer throws. `IClientState` injected for platform awareness. Files: `AutoPinch.cs`,
+  `Configuration.cs`, `Plugin.cs`, `Windows/ConfigWindow.cs`.
+
+### Fixed
+- **Recovery of a broken automated patch.** Added the `UseDalamudNotifications` property that the
+  new code referenced but never defined (compile error), closed an unbalanced `if` block in
+  `ConfigWindow.cs` (CS1513), and fixed `\nr` tooltip newline typos.
+
 ## v1.12.0.4 (2026-06-15)
 
 ### Added

@@ -30,7 +30,10 @@ internal static class RotationUpdater
 	{
 		List<Assembly> assemblies = [typeof(RotationUpdater).Assembly];
 
-		DutyRotations = LoadDutyRotationGroup(assemblies);
+		// PvPSolver is a PvP-only mod. Duty rotations (Bozja, Emanation, MonsterHunter,
+		// Orbonne, Phantom, Variant) are pure PvE content with zero PvP relevance.
+		// Skip loading them entirely to reduce memory and startup time.
+		DutyRotations = new SortedList<uint, Type[]>();
 		CustomRotations = LoadCustomRotationGroup(assemblies);
 		PluginLog.Information($"LoadBuiltInRotations: found {CustomRotations.Length} rotation groups");
 

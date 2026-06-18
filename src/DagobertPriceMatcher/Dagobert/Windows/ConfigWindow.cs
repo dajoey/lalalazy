@@ -466,9 +466,26 @@ public sealed class ConfigWindow : Window
       ImGui.SetTooltip("Clears the list of seen retainers from your other characters");
       ImGui.EndTooltip();
     }
-    if (!Plugin.Configuration.DontUseTTS)
+    if (!Plugin.Configuration.DontUseTTS || Plugin.Configuration.UseDalamudNotifications)
     {
       ImGui.Separator();
+
+      // Cross-platform notification toggle
+      bool useNotifs = Plugin.Configuration.UseDalamudNotifications;
+      if (ImGui.Checkbox("Use Dalamud notifications (cross-platform)", ref useNotifs))
+      {
+        Plugin.Configuration.UseDalamudNotifications = useNotifs;
+        Plugin.Configuration.Save();
+      }
+      if (ImGui.IsItemHovered())
+      {
+        ImGui.BeginTooltip();
+        ImGui.SetTooltip("When enabled, alerts are shown via Dalamud chat instead of Windows TTS.\nWorks on all platforms. Disable to use Windows TTS (Windows only).");
+        ImGui.EndTooltip();
+      }
+
+      if (!Plugin.Configuration.UseDalamudNotifications && !Plugin.Configuration.DontUseTTS)
+      {
       ImGui.Text("Text-To-Speech");
 
       ImGui.BeginGroup();
@@ -532,6 +549,7 @@ public sealed class ConfigWindow : Window
         ImGui.BeginTooltip();
         ImGui.SetTooltip("Sets the volume of the Text-to-speech message");
         ImGui.EndTooltip();
+      }
       }
     }
   }

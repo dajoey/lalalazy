@@ -702,18 +702,34 @@ namespace Dagobert
 
     private static bool? SpeakTTS(string msg)
     {
+      // Cross-platform: use Dalamud's notification system by default.
+      // Windows TTS is opt-in for users who specifically want audio alerts.
+      if (Plugin.Configuration.UseDalamudNotifications)
+      {
+        Svc.Chat.Print($"[Dagobert] {msg}");
+        return true;
+      }
+
       if (!Plugin.Configuration.DontUseTTS)
       {
-        SpeechSynthesizer tts = new()
+        try
         {
-          Volume = Plugin.Configuration.TTSVolume
-        };
-        tts.SpeakAsync(msg);
-        tts.SpeakCompleted += (o, e) =>
+          SpeechSynthesizer tts = new()
+          {
+            Volume = Plugin.Configuration.TTSVolume
+          };
+          tts.SpeakAsync(msg);
+          tts.SpeakCompleted += (o, e) =>
+          {
+            tts.Dispose();
+            Svc.Log.Verbose($"Finished message: {msg} - tts disposed");
+          };
+        }
+        catch (Exception ex)
         {
-          tts.Dispose();
-          Svc.Log.Verbose($"Finished message: {msg} - tts disposed");
-        };
+          Svc.Log.Warning($"TTS failed, falling back to chat: {ex.Message}");
+          Svc.Chat.Print($"[Dagobert] {msg}");
+        }
       }
       return true;
     }

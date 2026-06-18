@@ -1,5 +1,9 @@
 # Changelog - PvP Solver
 
+## [0.1.0.8] - 2026-06-18
+### Changed
+- Skip loading PvE duty rotations (Bozja, Emanation, MonsterHunter, Orbonne, Phantom, Variant) entirely. PvPSolver is PvP-only, so the duty rotation set had zero relevance; not loading it reduces memory use and startup time. (Updaters/RotationUpdater.cs)
+
 ## [0.1.0.7] - 2026-06-07
 ### Added
 - Auto-targeting for Forlorn / Maiden targets: checks the global `Svc.Objects` list to target any targetable, alive Forlorn/Maiden immediately upon rendering, regardless of whether they are in the hostile list.

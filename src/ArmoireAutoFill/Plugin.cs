@@ -24,6 +24,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly ConfigWindow _configWindow;
     private readonly CabinetObserver _cabinetObserver;
     private readonly InventoryScanner _scanner;
+    private readonly ArmoireAutoStore _autoStore;
 
     public Plugin()
     {
@@ -34,12 +35,13 @@ public sealed class Plugin : IDalamudPlugin
 
         _cabinetObserver = new CabinetObserver();
         _scanner = new InventoryScanner(_cabinetObserver);
+        _autoStore = new ArmoireAutoStore();
 
         // Re-scan whenever the cabinet snapshot changes so armoire state shows up
         // without the user having to push a button.
         _cabinetObserver.OnSnapshotChanged += _scanner.Scan;
 
-        _mainWindow = new MainWindow(_scanner, _cabinetObserver);
+        _mainWindow = new MainWindow(_scanner, _cabinetObserver, _autoStore);
         _configWindow = new ConfigWindow();
 
         _windowSystem = new WindowSystem("ArmoireAutoFill");
@@ -75,6 +77,7 @@ public sealed class Plugin : IDalamudPlugin
         _windowSystem.RemoveAllWindows();
         _cabinetObserver.OnSnapshotChanged -= _scanner.Scan;
         _cabinetObserver.Dispose();
+        _autoStore.Dispose();
         ECommonsMain.Dispose();
     }
 

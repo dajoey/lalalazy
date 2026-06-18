@@ -1,5 +1,15 @@
 # Gluttony Combo â€” Changelog
 
+## v1.0.4.49 (2026-06-18)
+
+### Added
+- **Healer raidwide mitigation gating for SCH / AST / SGE.** Raidwide mit oGCDs now respect the
+  shared `AutoRotationController.RaidwideMitOnCooldown` window and call `MarkRaidwideMitUsed()`
+  when they fire, mirroring the existing WHM implementation. Stops the autorotation from dumping
+  multiple raidwide mitigations onto a single incoming hit. AST Aspected Helios is intentionally
+  exempt (it is a reactive heal cast on need, not a pre-cast mitigation). Files:
+  `Combos/PvE/SCH/SCH_Helper.cs`, `Combos/PvE/AST/AST_Helper.cs`, `Combos/PvE/SGE/SGE_Helper.cs`.
+
 ## v1.0.4.48 (2026-06-17)
 
 ### Changed

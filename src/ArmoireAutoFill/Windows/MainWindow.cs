@@ -17,13 +17,15 @@ public class MainWindow : Window
 
     private readonly InventoryScanner _scanner;
     private readonly CabinetObserver _cabinet;
+    private readonly ArmoireAutoStore _autoStore;
     private static readonly TimeSpan ScanCooldown = TimeSpan.FromSeconds(2);
 
-    public MainWindow(InventoryScanner scanner, CabinetObserver cabinet)
+    public MainWindow(InventoryScanner scanner, CabinetObserver cabinet, ArmoireAutoStore autoStore)
         : base("Armoire Auto-Fill###ArmoireAutoFillMain")
     {
         _scanner = scanner;
         _cabinet = cabinet;
+        _autoStore = autoStore;
         SizeConstraints = new WindowSizeConstraints
         {
             MinimumSize = new Vector2(620, 380),
@@ -117,6 +119,49 @@ public class MainWindow : Window
         {
             Plugin.Configuration.HideCompleteDungeons = hideComplete;
             Plugin.Configuration.Save();
+        }
+
+        ImGui.Separator();
+
+        // Auto-store section
+        var autoStore = Plugin.Configuration.AutoStoreOnOpen;
+        if (ImGui.Checkbox("Auto-store when armoire opens", ref autoStore))
+        {
+            Plugin.Configuration.AutoStoreOnOpen = autoStore;
+            Plugin.Configuration.Save();
+        }
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.BeginTooltip();
+            ImGui.SetTooltip("When enabled, eligible items are automatically stored to the armoire\n" +
+                             "the moment you open the armoire UI at an inn room.");
+            ImGui.EndTooltip();
+        }
+
+        ImGui.SameLine();
+        if (_autoStore.IsStoring)
+        {
+            ImGui.BeginDisabled();
+            ImGui.Button("Storing...");
+            ImGui.EndDisabled();
+        }
+        else
+        {
+            if (ImGui.Button("Store all to armoire"))
+                _autoStore.StoreAll();
+        }
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.BeginTooltip();
+            ImGui.SetTooltip("Stores all eligible items from your inventory and armory chest\n" +
+                             "into the armoire. The armoire UI must be open.");
+            ImGui.EndTooltip();
+        }
+
+        if (!string.IsNullOrEmpty(_autoStore.LastResultMessage))
+        {
+            ImGui.TextColored(_autoStore.LastStoredCount > 0 ? ColorInventory : ColorMuted,
+                _autoStore.LastResultMessage);
         }
     }
 

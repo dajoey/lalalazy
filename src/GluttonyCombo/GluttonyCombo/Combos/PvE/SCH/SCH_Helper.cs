@@ -10,6 +10,7 @@ using ECommons.GameFunctions;
 using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.CustomComboNS.Functions;
 using GluttonyCombo.Extensions;
+using GluttonyCombo.AutoRotation;
 using static GluttonyCombo.Combos.PvE.SCH.Config;
 using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
 
@@ -59,18 +60,33 @@ internal partial class SCH
     internal static float ChainStrategemCD => GetCooldownRemainingTime(ChainStratagem);
     
     #region Raidwides
-    
+
     internal static bool RaidwideSacredSoil()
     {
-        return IsEnabled(Preset.SCH_Raidwide_SacredSoil) && ActionReady(SacredSoil) && CanWeave() && GroupDamageIncoming();
+        if (AutoRotationController.RaidwideMitOnCooldown)
+            return false;
+        if (!(IsEnabled(Preset.SCH_Raidwide_SacredSoil) && ActionReady(SacredSoil) && CanWeave() && GroupDamageIncoming()))
+            return false;
+        AutoRotationController.MarkRaidwideMitUsed();
+        return true;
     }
     internal static bool RaidwideExpedient()
     {
-        return IsEnabled(Preset.SCH_Raidwide_Expedient) && ActionReady(Expedient) && CanWeave() && GroupDamageIncoming();
+        if (AutoRotationController.RaidwideMitOnCooldown)
+            return false;
+        if (!(IsEnabled(Preset.SCH_Raidwide_Expedient) && ActionReady(Expedient) && CanWeave() && GroupDamageIncoming()))
+            return false;
+        AutoRotationController.MarkRaidwideMitUsed();
+        return true;
     }
     internal static bool RaidwideSuccor()
     {
-        return IsEnabled(Preset.SCH_Raidwide_Succor) && ActionReady(OriginalHook(Succor)) && ShieldCheck && GroupDamageIncoming();
+        if (AutoRotationController.RaidwideMitOnCooldown)
+            return false;
+        if (!(IsEnabled(Preset.SCH_Raidwide_Succor) && ActionReady(OriginalHook(Succor)) && ShieldCheck && GroupDamageIncoming()))
+            return false;
+        AutoRotationController.MarkRaidwideMitUsed();
+        return true;
     }
     internal static bool RaidwideRecitation()
     {

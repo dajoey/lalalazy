@@ -91,6 +91,8 @@ public sealed class Configuration : IPluginConfiguration
 
   public bool DontUseTTS { get; set; } = false;
 
+  public bool UseDalamudNotifications { get; set; } = false;
+
   public List<ulong> SeenRetainers { get; set; } = [];
 
   public bool ShowInventoryContextMenuEntry { get; set; } = true;

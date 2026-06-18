@@ -21,6 +21,7 @@ public sealed class Plugin : IDalamudPlugin
   [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
   [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
   [PluginService] public static IMarketBoard MarketBoard { get; private set; } = null!;
+  [PluginService] public static IClientState ClientState { get; private set; } = null!;
   [PluginService] public static IKeyState KeyState { get; private set; } = null!;
   [PluginService] public static IAddonLifecycle AddonLifecycle { get; private set; } = null!;
   [PluginService] public static IChatGui ChatGui { get; private set; } = null!;

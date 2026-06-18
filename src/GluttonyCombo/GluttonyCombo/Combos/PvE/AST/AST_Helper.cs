@@ -13,6 +13,7 @@ using System.Linq;
 using ECommons.GameFunctions;
 using GluttonyCombo.Core;
 using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.AutoRotation;
 using GluttonyCombo.CustomComboNS.Functions;
 using GluttonyCombo.Data;
 using GluttonyCombo.Extensions;
@@ -83,21 +84,36 @@ internal partial class AST
     }
     
     #region Hidden Raidwides
-    
+
     internal static bool RaidwideCollectiveUnconscious()
     {
-        return IsEnabled(Preset.AST_Raidwide_CollectiveUnconscious) && ActionReady(CollectiveUnconscious) && CanWeave() && GroupDamageIncoming();
+        if (AutoRotationController.RaidwideMitOnCooldown)
+            return false;
+        if (!(IsEnabled(Preset.AST_Raidwide_CollectiveUnconscious) && ActionReady(CollectiveUnconscious) && CanWeave() && GroupDamageIncoming()))
+            return false;
+        AutoRotationController.MarkRaidwideMitUsed();
+        return true;
     }
     internal static bool RaidwideNeutralSect()
     {
-        return IsEnabled(Preset.AST_Raidwide_NeutralSect) && ActionReady(OriginalHook(NeutralSect)) && CanWeave() && GroupDamageIncoming();
+        if (AutoRotationController.RaidwideMitOnCooldown)
+            return false;
+        if (!(IsEnabled(Preset.AST_Raidwide_NeutralSect) && ActionReady(OriginalHook(NeutralSect)) && CanWeave() && GroupDamageIncoming()))
+            return false;
+        AutoRotationController.MarkRaidwideMitUsed();
+        return true;
     }
     internal static bool RaidwideAspectedHelios()
     {
-        return IsEnabled(Preset.AST_Raidwide_AspectedHelios) && HasStatusEffect(Buffs.NeutralSect) && GroupDamageIncoming() && 
+        // Aspected Helios is a reactive heal, not a pre-cast mitigation.
+        // It should NOT be gated by the raidwide mit cooldown — it's cast on
+        // need (when the party doesn't already have the Neutral Sect shield/regen),
+        // even towards the end of a raidwide cast. Each raidwide can get an
+        // Aspected Helios if the regen isn't already up.
+        return IsEnabled(Preset.AST_Raidwide_AspectedHelios) && HasStatusEffect(Buffs.NeutralSect) && GroupDamageIncoming() &&
                !HasStatusEffect(Buffs.NeutralSectShield);
     }
-    
+
     #endregion
 
     #region Get ST Heals
