@@ -1,3 +1,15 @@
+## v1.0.4.54 (2026-06-19)
+
+### Changed
+- **Upstream sync (WrathCombo `main` 1.0.4.9 tip, 3 commits `06877cca..1c7049c64`).** Per-file 3-way merge; all fork divergences preserved.
+- **Autorotation override-target lifecycle.** `OverrideTarget` is now cleared automatically when it points at a dead/invalid object (self-wiping getter) and wiped when autorotation is disabled (`if (!cfg.Enabled) OverrideTarget = null;`), replacing the per-early-exit `OverrideTarget = null` cleanups in `AutoRotation/AutoRotationController.cs`. Invoke paths now use `OverrideTarget = target ?? OverrideTarget` and pass `OverrideTarget` into range/face/target-id checks.
+- **Ability queue window.** oGCD queueing now uses `AnimationLock <= cfg.QueueWindow` instead of requiring `AnimationLock == 0`, so weaves fire more reliably. `AutoRotationController.cs`.
+- **Target helpers.** `HasBattleTarget()` is now null-safe (`CurrentTarget?.IsHostile() == true`); `OverrideTarget` getter drops dead targets. `CustomCombo/Functions/Target.cs`, `Status.cs` (penalty path no longer force-nulls the override).
+
+### Notes
+- Preserved fork divergences: 15s raidwide-mit gate, Pyretic/`PlayerHasActionPenalty` + enemy-reflect gating, Pacification/Silence handling, WHM Divine Caress ground-heal, BLU autorotation engine, SMN Aegis Uptime.
+- Removed unused `using ECommons.DalamudServices.Legacy;` per upstream.
+
 # Gluttony Combo â€” Changelog
 
 ## v1.0.4.53 (2026-06-18)
