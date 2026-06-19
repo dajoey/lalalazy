@@ -21,9 +21,9 @@ public class Configuration : IPluginConfiguration
     /// </summary>
     public float RefreshThresholdMinutes { get; set; } = 5f;
 
-    // Warning system
+    // Low-food warning — alerts when you're running low on the food you're eating.
     public bool WarningEnabled { get; set; } = true;
-    public float WarningThresholdMinutes { get; set; } = 3f;
+    public int WarningThresholdCount { get; set; } = 3;
     public bool WarningSoundEnabled { get; set; } = true;
     public uint WarningSoundId { get; set; } = 23;
 

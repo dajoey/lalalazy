@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.1.1.0 (2026-06-18)
+
+### Changed
+- **Low-food warning replaces low-time warning.** The alert now fires on how much of the food you're eating remains in your inventory, not on time left on the Well Fed buff. This is what was originally intended. `FoodService.CheckWarning` now counts the active food (or the food it would auto-select for your job) and warns once when it drops to or below the threshold, re-arming after you restock.
+- **New config: "Warn when food left is at or below" count slider** (default 3), replacing the old minutes slider. `Configuration.WarningThresholdCount` replaces `WarningThresholdMinutes`. `ConfigWindow.cs` section renamed to "Low-Food Warning".
+
+### Fixed
+- **Now eats in deep dungeons.** Palace of the Dead, Heaven-on-High and Eureka Orthos (all `TerritoryIntendedUse == 31`) were excluded from the combat-duty allow-list, so auto-eat silently did nothing there. Added Deep Dungeon to `FoodService.CombatDutyIntendedUses`.
+
+### Notes
+- Refresh-before-expiry (auto re-eat to extend the buff) is unchanged and still time-based — only the *warning* moved to a count.
+
 ## v0.1.0.0 (2026-06-18)
 
 ### Initial Release

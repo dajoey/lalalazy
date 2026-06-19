@@ -101,13 +101,13 @@ const PLUGINS = [
   },
   {
     slug: 'lazyfoodbuff', name: 'LazyFoodBuff', origin: 'Original', hasWindow: true,
-    short: 'Auto-eats food in combat duties, with per-job selection and a low-time warning.',
+    short: 'Auto-eats food in combat duties (incl. deep dungeons), with per-job selection and a low-food warning.',
     tag: 'Never forget to eat your food again.',
     command: '/lazyfoodbuff', credit: 'Original plugin by dajoey \u00b7 built on the Dalamud SDK',
     features: [
       { t: 'Auto-eat in duties', d: 'Eats food when you enter combat duties \u2014 dungeons, raids, trials, alliance raids, criterion and variant.' },
       { t: 'Best food, per job', d: 'Auto-selects the highest-value food in your bag for your current job, or use a manual per-job pick.' },
-      { t: 'Refresh & warn', d: 'Re-eats before the buff expires and warns you in chat when it is running low.' },
+      { t: 'Refresh & warn', d: 'Re-eats before the buff expires and warns you in chat when you are running low on food.' },
     ],
   },
 ];

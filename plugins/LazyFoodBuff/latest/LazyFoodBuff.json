@@ -2,8 +2,8 @@
   "Author": "dajoey",
   "Name": "LazyFoodBuff",
   "InternalName": "LazyFoodBuff",
-  "AssemblyVersion": "0.1.0.0",
-  "Description": "Auto-eats food in combat duties with per-job selection, auto-select based on best stats, and a low-time warning.",
+  "AssemblyVersion": "0.1.1.0",
+  "Description": "Auto-eats food in combat duties with per-job selection, auto-select based on best stats, and a low-food warning.",
   "ApplicableVersion": "any",
   "Tags": [
     "auto",
@@ -22,6 +22,6 @@
   "LoadPriority": 0,
   "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyfoodbuff-icon.png",
   "Punchline": "Never forget to eat your food again.",
-  "Changelog": "v0.1.0.0 - Initial release. Auto-eats food in combat duties (dungeons, raids, trials, alliance raids, criterion, variant). Per-job food selection or auto-select by best stats for your job, optional fallback to auto-select, refresh-before-expiry, and a low-time chat warning. Use /lazyfoodbuff.",
+  "Changelog": "v0.1.1.0 - Low-food warning + deep dungeons. (1) The alert now triggers on how much food you have left in your bag, not on time remaining on the buff; new 'Warn when food left is at or below' count slider (default 3), alerts once and re-arms after you restock. (2) Auto-eat now works in deep dungeons (Palace of the Dead, Heaven-on-High, Eureka Orthos) — they were wrongly excluded. v0.1.0.0 - Initial release. Use /lazyfoodbuff.",
   "AcceptsFeedback": false
 }

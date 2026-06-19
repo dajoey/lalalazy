@@ -41,8 +41,8 @@ internal class ConfigWindow : Window
         var onlyDuty = c.OnlyInCombatDuty;
         if (ImGui.Checkbox("Only eat in combat duties", ref onlyDuty))
         { c.OnlyInCombatDuty = onlyDuty; changed = true; }
-        ImGui.TextDisabled("Dungeons, raids, trials, alliance raids, criterion, variant.");
-        ImGui.TextDisabled("Excludes Diadem, field operations, deep dungeons, overworld.");
+        ImGui.TextDisabled("Dungeons, raids, trials, alliance raids, criterion, variant, deep dungeons.");
+        ImGui.TextDisabled("Excludes Diadem, field operations (Eureka/Bozja), overworld.");
 
         ImGui.Spacing();
 
@@ -54,16 +54,18 @@ internal class ConfigWindow : Window
         ImGui.Separator();
 
         // === Warning Settings ===
-        ImGui.TextUnformatted("Low-Time Warning");
+        ImGui.TextUnformatted("Low-Food Warning");
         var warnEnable = c.WarningEnabled;
         if (ImGui.Checkbox("Enable warning", ref warnEnable))
         { c.WarningEnabled = warnEnable; changed = true; }
 
         if (c.WarningEnabled)
         {
-            var warnThr = c.WarningThresholdMinutes;
-            if (ImGui.SliderFloat("Warning threshold (min)", ref warnThr, 0f, 29f, "%.0f"))
-            { c.WarningThresholdMinutes = warnThr; changed = true; }
+            var warnCount = c.WarningThresholdCount;
+            if (ImGui.SliderInt("Warn when food left is at or below", ref warnCount, 1, 20))
+            { c.WarningThresholdCount = warnCount; changed = true; }
+            ImGui.TextDisabled("Alerts in chat once when the food you're eating drops to this");
+            ImGui.TextDisabled("many in your inventory. Re-arms after you restock.");
 
             var warnSound = c.WarningSoundEnabled;
             if (ImGui.Checkbox("Play sound", ref warnSound))

@@ -26,15 +26,16 @@ internal class FoodService
         53,   // Large Scale Savage Raid
         57,   // Criterion Duty
         58,   // Criterion Savage Duty
+        31,   // Deep Dungeon (Palace of the Dead, Heaven-on-High, Eureka Orthos)
     };
 
     private readonly Plugin _plugin;
     private readonly List<Food> _allFoods;
     private DateTime _nextAttempt = DateTime.MinValue;
 
-    // Warning state — tracks whether we've already warned for the current food session.
-    private bool _warningFired;
-    private uint _lastFoodParam; // Track active food to reset warning when food changes.
+    // Low-food warning state — the food Id we've already warned about, so we
+    // alert once when it drops to the threshold and re-arm after restocking.
+    private uint _warnedFoodId;
 
     private string _lastSkipReason = "(no tick yet)";
 
@@ -156,7 +157,6 @@ internal class FoodService
 
         if (food.TryUse(targetId))
         {
-            _warningFired = false; // Reset warning on new food consumption.
             _lastSkipReason = $"ate food {food.Name}";
             Plugin.Log.Information($"LazyFoodBuff: ate food {food.Name} ({food.Id})");
             _nextAttempt = DateTime.UtcNow.AddMilliseconds(750);
@@ -202,37 +202,57 @@ internal class FoodService
         return FoodRecommender.RecommendBest(_allFoods, jobId);
     }
 
+    /// <summary>
+    /// Warn once in chat when the food the player is eating runs low in inventory.
+    /// Counts the food currently providing Well Fed (or, if none, the food we'd
+    /// select for the current job). Re-arms after the count rises back above the
+    /// threshold or the tracked food changes.
+    /// </summary>
     private void CheckWarning()
     {
         var cfg = _plugin.Config;
         if (!cfg.WarningEnabled) return;
-        if (!TryGetWellFedStatus(out _, out var remainingTime)) return;
 
-        // Reset warning if food changed.
-        TryGetWellFedStatus(out var currentParam, out _);
-        if (currentParam != _lastFoodParam)
+        // Which food are we burning through? Prefer the active Well Fed food,
+        // then fall back to the food we'd auto-select for the current job.
+        Food? target = null;
+        if (TryGetWellFedStatus(out var activeFoodRow, out _))
+            target = _allFoods.FirstOrDefault(f => f.ItemFoodRowId == activeFoodRow);
+
+        if (target == null)
         {
-            _warningFired = false;
-            _lastFoodParam = currentParam;
-        }
-
-        var threshold = TimeSpan.FromMinutes(cfg.WarningThresholdMinutes);
-        if (remainingTime <= threshold && !_warningFired)
-        {
-            _warningFired = true;
-
-            // Sound playback removed — IGameGui.PlaySoundEffect does not exist in API 15.
-            // ChatGui.PrintError below provides the visible warning notification.
-
-            // In-game chat notification (visible as red error text in chat log).
-            try
+            var lp = Plugin.Objects.LocalPlayer;
+            if (lp != null)
             {
-                var msg = $"[LazyFoodBuff] Food buff expires in {remainingTime.TotalMinutes:F0} minute(s)!";
-                Plugin.ChatGui.PrintError(msg);
-                Plugin.Log.Information($"LazyFoodBuff: WARNING — {msg}");
+                var jid = lp.ClassJob.RowId;
+                target = SelectFood(cfg.GetJobSettings(jid), jid);
             }
-            catch { /* ignore */ }
         }
+
+        if (target == null) { _warnedFoodId = 0; return; }
+
+        var count = target.InventoryCount(true) + target.InventoryCount(false);
+
+        if (count > cfg.WarningThresholdCount)
+        {
+            // Restocked above the threshold — re-arm so we can warn again later.
+            if (_warnedFoodId == target.Id) _warnedFoodId = 0;
+            return;
+        }
+
+        // At/below threshold — warn once per food until it's restocked.
+        if (_warnedFoodId == target.Id) return;
+        _warnedFoodId = target.Id;
+
+        try
+        {
+            var msg = count == 0
+                ? $"[LazyFoodBuff] Out of {target.Name} \u2014 no more in inventory!"
+                : $"[LazyFoodBuff] Low on food: {count}x {target.Name} left.";
+            Plugin.ChatGui.PrintError(msg);
+            Plugin.Log.Information($"LazyFoodBuff: WARNING \u2014 {msg}");
+        }
+        catch { /* ignore */ }
     }
 
     private static bool TryGetWellFedStatus(out uint itemFoodRowId, out TimeSpan remainingTime)
@@ -286,7 +306,7 @@ internal class FoodService
         Plugin.Log.Information("=== LazyFoodBuff debug ===");
         Plugin.Log.Information($"Last tick: {_lastSkipReason}");
         Plugin.Log.Information($"MasterEnable={cfg.MasterEnable} OnlyInCombatDuty={cfg.OnlyInCombatDuty}");
-        Plugin.Log.Information($"RefreshThreshold={cfg.RefreshThresholdMinutes}min WarningThreshold={cfg.WarningThresholdMinutes}min");
+        Plugin.Log.Information($"RefreshThreshold={cfg.RefreshThresholdMinutes}min WarnAtCount={cfg.WarningThresholdCount}");
         Plugin.Log.Information($"Job={jobId} Mode={job.Mode} ManualFood={job.ManualFoodItemId} Fallback={job.FallbackToAutoSelect}");
         Plugin.Log.Information($"InCombatDuty={IsInCombatDuty()}");
 
