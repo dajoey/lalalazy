@@ -69,6 +69,7 @@ internal partial class BLU
 
         // BMR distance is only pushed when the mimic actually changes (throttle).
         private static int _lastBmrMimic = -99;
+        private static bool _surpReady;
 
         protected override uint Invoke(uint actionID)
         {
@@ -238,26 +239,44 @@ internal partial class BLU
 
             // --- Filler cascade (first castable wins) ---
 
-            // DoT refresh (apply if missing and slotted).
-            if (Config.BLU_Use_BreathOfMagic && IsSpellActive(BreathOfMagic) &&
-                !HasStatusEffect(Debuffs.BreathOfMagic, CurrentTarget, true))
-                return BreathOfMagic;
-            if (Config.BLU_Use_MortalFlame && IsSpellActive(MortalFlame) &&
-                !HasStatusEffect(Debuffs.MortalFlame, CurrentTarget, true))
-                return MortalFlame;
+            // DoT refresh — snapshot Bristle first, and guard against re-applying during the
+            // status-application delay (fixes double Mortal Flame).
+            bool needBreath = Config.BLU_Use_BreathOfMagic && IsSpellActive(BreathOfMagic) &&
+                              !HasStatusEffect(Debuffs.BreathOfMagic, CurrentTarget, true) && !JustUsed(BreathOfMagic);
+            bool needMortal = Config.BLU_Use_MortalFlame && IsSpellActive(MortalFlame) &&
+                              !HasStatusEffect(Debuffs.MortalFlame, CurrentTarget, true) && !JustUsed(MortalFlame);
+            bool needSoT    = Config.BLU_Use_SongOfTorment && IsSpellActive(SongOfTorment) &&
+                              !HasStatusEffect(Debuffs.SongOfTorment, CurrentTarget, true) && !JustUsed(SongOfTorment);
+            if (needBreath || needMortal || needSoT)
+            {
+                if (Config.BLU_Use_Bristle && IsSpellActive(Bristle) && !HasStatusEffect(Buffs.Bristle))
+                    return Bristle;
+                if (needBreath) return BreathOfMagic;
+                if (needMortal) return MortalFlame;
+                if (needSoT)    return SongOfTorment;
+            }
 
             // Rose of Destruction the instant it is up.
             if (Config.BLU_Use_RoseOfDestruction && IsSpellActive(RoseOfDestruction) && IsOffCooldown(RoseOfDestruction))
                 return RoseOfDestruction;
 
-            // Spend Winged Reprobation charges.
+            // Winged Reprobation — spend all charges; OriginalHook resolves the Conviction Marcato
+            // payoff at 3 stacks so the combo keeps going instead of stalling at 2.
             if (Config.BLU_Use_WingedReprobation && IsSpellActive(WingedReprobation) && IsOffCooldown(WingedReprobation))
-                return WingedReprobation;
+                return OriginalHook(WingedReprobation);
 
-            // Surpanakha only when capping and not about to burst.
-            if (Config.BLU_Use_Surpanakha && IsSpellActive(Surpanakha) &&
-                GetRemainingCharges(Surpanakha) == 4 && !BurstSoon())
-                return Surpanakha;
+            // Conviction Marcato payoff while Winged Redemption is up.
+            if (Config.BLU_Use_ConvictionMarcato && IsSpellActive(ConvictionMarcato) && HasStatusEffect(WingedRedemption))
+                return ConvictionMarcato;
+
+            // Surpanakha — once charges cap at 4, dump all 4 consecutively for the ramp.
+            if (Config.BLU_Use_Surpanakha && IsSpellActive(Surpanakha))
+            {
+                if (GetRemainingCharges(Surpanakha) == 4) _surpReady = true;
+                if (GetRemainingCharges(Surpanakha) == 0) _surpReady = false;
+                if (_surpReady && GetRemainingCharges(Surpanakha) > 0 && !BurstSoon())
+                    return Surpanakha;
+            }
 
             // oGCD damage (prioritise the longer recurring ones first).
             if (Config.BLU_Use_ShockStrike && IsSpellActive(ShockStrike) && IsOffCooldown(ShockStrike))
@@ -275,16 +294,10 @@ internal partial class BLU
             if (Config.BLU_Use_SeaShanty && IsSpellActive(SeaShanty) && IsOffCooldown(SeaShanty) && !BurstSoon())
                 return SeaShanty;
 
-            // Song of Torment DoT if its slot is empty.
-            if (Config.BLU_Use_SongOfTorment && IsSpellActive(SongOfTorment) &&
-                !HasStatusEffect(Debuffs.SongOfTorment, CurrentTarget, true))
-                return SongOfTorment;
+            // Terminal filler GCD — keep the GCD rolling (Sonic Boom must be slotted).
+            if (Config.BLU_Use_SonicBoom && IsSpellActive(SonicBoom))
+                return SonicBoom;
 
-            // Conviction Marcato payoff under Winged Redemption.
-            if (Config.BLU_Use_ConvictionMarcato && IsSpellActive(ConvictionMarcato) && HasStatusEffect(WingedRedemption))
-                return ConvictionMarcato;
-
-            // Terminal filler is Sonic Boom (handled by falling through to the replaced button).
             return 0;
         }
 

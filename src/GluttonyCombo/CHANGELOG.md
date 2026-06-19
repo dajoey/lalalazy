@@ -1,5 +1,20 @@
 # Gluttony Combo â€” Changelog
 
+## v1.0.4.52 (2026-06-18)
+
+### Fixed
+- **BLU filler: Bristle now snapshots onto DoTs.** Breath of Magic / Mortal Flame / Song of Torment
+  cast Bristle first (when available and not already up) so the DoT is buffed.
+- **BLU: Mortal Flame no longer double-applies.** Added a `JustUsed` guard so the permanent DoT is not
+  re-cast during the status-application delay (applies to all three DoTs).
+- **BLU: Surpanakha dumps all 4 charges.** Once charges cap at 4 it now fires the full chain
+  consecutively (ready-flag pattern) instead of a single charge.
+- **BLU: Winged Reprobation / Conviction Marcato combo no longer stalls at 2.** The filler returns
+  `OriginalHook(WingedReprobation)` so the 3rd stack and the Conviction Marcato payoff resolve. This
+  also fixes the rotation stalling after DoTs (it was returning an uncastable raw Winged Reprobation
+  at the stack transition).
+- **BLU: explicit Sonic Boom terminal filler** so the GCD keeps rolling when everything else is down.
+
 ## v1.0.4.51 (2026-06-18)
 
 ### Fixed
