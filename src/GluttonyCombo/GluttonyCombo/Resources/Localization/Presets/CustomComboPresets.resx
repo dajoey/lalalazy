@@ -11434,4 +11434,16 @@ NOT RECOMMENDED!</value>
   <data name="MCH_ST_Adv_QueenInHypercharge_Desc" xml:space="preserve">
     <value>Allow Automaton Queen to be used while in Hypercharge</value>
   </data>
+  <data name="BLU_AutoRotation_DPS_Name" xml:space="preserve">
+    <value>BLU Auto-Rotation (DPS)</value>
+  </data>
+  <data name="BLU_AutoRotation_DPS_Desc" xml:space="preserve">
+    <value>Mimic-aware Blue Mage auto-rotation. Hosts the per-ability toggles (all 124 spells), burst/filler/DoT/mitigation/tank tuning, and per-mimic BossMod Reborn distance. Cascade logic is wired in a later phase.</value>
+  </data>
+  <data name="BLU_AutoRotation_Heal_Name" xml:space="preserve">
+    <value>BLU Auto-Rotation (Heal)</value>
+  </data>
+  <data name="BLU_AutoRotation_Heal_Desc" xml:space="preserve">
+    <value>Healing lane for the BLU auto-rotation. Hosts the party-HP percent heal thresholds. Fires generously under Healer mimic, emergency-only otherwise.</value>
+  </data>
 </root>

@@ -126,8 +126,13 @@
     "Punchline": "Lalalazy fork of Wrath Combo - XIVCombo for very lazy players.",
     "Description": "Gluttony Combo - lalalazy fork of Gluttony Combo. XIVCombo for very lazy players.",
     "InternalName": "GluttonyCombo",
-    "AssemblyVersion": "1.0.4.49",
-    "Changelog": "v1.0.4.48 - Upstream sync: WrathCombo main 1.0.4.8 -> 1.0.4.9 (~44 commits, 30 files)\n- Merged upstream range 0e6e5a9e..06877cca6 across job rotations, autorotation, and UI; all Gluttony fork divergences preserved.\n- MCH: fixed AoE tools firing incorrectly; Reassemble/Hypercharge handling; helper refactors.\n- SAM: adopted upstream's completed ST/AoE rotation rebalance (Getsu/Ka + Fugetsu/Fuka refresh guards). Our fork had an earlier incomplete form of the same logic - converged to upstream.\n- SGE: AoE simple-heal oGCD spread rebalance; autorotation shield check now optional.\n- BLM: fixed level-90 Ice phase. VPR: early-buff opener. WAR: Fell Cleave cleanup. MNK PvP update.\n- Added EncounterSafety (Action Penalty Gaze/Motion VFX checks, content-specific fallbacks); p3 invincible status; healer 'Include Shields' setting; DTR updates while hidden; Opener DTR click-to-toggle.\n- Fork divergences preserved: UnTargetAndDisableForPenalty plain checkbox + Auto Positionals kept at their location (upstream's relocated duplicate dropped); Pacification/Silence, WHM ground-heal, 15s raidwide gate, HP-scaled raidwide numberOfCasts, SMN Aegis Uptime, manual BLU combos untouched.\n- Build clean (0 errors).",
+    "AssemblyVersion": "1.0.4.50",
+    "Changelog": "v1.0.4.50 - BLU mimic-aware auto-rotation (Phases 1-3)
+- New opt-in ST DPS preset BLU_AutoRotation_DPS that reads Aetheric Mimicry and runs DPS/Tank/Healer lanes from one combo (heal+tank lanes live inside the DPS Invoke since the engine gates those to Healer/Tank roles).
+- 124 per-ability on/off toggles + tuning sliders in BLU_Config.cs (Final Sting HP%, Cold Fog lead, heal thresholds, Surpanakha hold, per-mimic BossMod Reborn distance, DoT refresh). Second config-only preset BLU_AutoRotation_Heal gates the heal lane.
+- Mimic-aware: pushes BossMod Reborn engagement distance per stance; Tank lane auto-ensures Mighty Guard (never cancels); Healer lane heals generously, emergency-only otherwise.
+- Moon Flute burst reuses the proven opener; Cold Fog->White Death pre-raidwide window; Final Sting kill-range (default off).
+- New file Combos/PvE/BLU/BLU_AutoRotation.cs; BLU.cs untouched (upstream-merge friendly). Additive only; manual BLU combos untouched. Build clean (0 errors).",
     "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/GluttonyCombo",
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,

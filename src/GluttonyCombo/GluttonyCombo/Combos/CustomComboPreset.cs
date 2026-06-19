@@ -1758,7 +1758,17 @@ public enum Preset
     [JobInfo(Job.BLU)]
     BLU_PeatClean = 70023,
 
-    // Last value = 70025
+    [AutoAction(false, false)]
+    [ReplaceSkill(BLU.SonicBoom)]
+    [ConflictingCombos(BLU_MeleeCombo)]
+    [JobInfo(Job.BLU)]
+    BLU_AutoRotation_DPS = 70026,
+
+    [ReplaceSkill(BLU.WhiteWind)]
+    [JobInfo(Job.BLU)]
+    BLU_AutoRotation_Heal = 70027,
+
+    // Last value = 70027
 
     #endregion
 

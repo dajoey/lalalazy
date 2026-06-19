@@ -1,5 +1,34 @@
 # Gluttony Combo â€” Changelog
 
+## v1.0.4.50 (2026-06-18)
+
+### Added
+- **BLU mimic-aware auto-rotation (Phases 1-3).** New opt-in single-target DPS auto-rotation preset
+  `BLU_AutoRotation_DPS` (`[AutoAction(false,false)]`, replaces Sonic Boom) that reads the current
+  Aetheric Mimicry stance and runs DPS / Tank / Healer lanes from one combo. Because the engine's
+  heal/tank automation is hard-gated to `CombatRole.Healer`/`Tank` and never runs for BLU
+  (magical-ranged DPS), the heal and tank lanes live inside the DPS `Invoke`. New file
+  `Combos/PvE/BLU/BLU_AutoRotation.cs`; `BLU.cs` left untouched for upstream-merge friendliness.
+- **124 per-ability toggles + tuning sliders** in `Combos/PvE/BLU/BLU_Config.cs` (was an empty stub).
+  Every learnable BLU spell gets a `UserBool` allow-list toggle (rotation on by default; the suicides
+  plus Diamondback / Basic Instinct off), grouped under collapsible headers. Sliders: Final Sting boss
+  HP%, Cold Fog lead time, party / single-target / emergency heal HP% thresholds, prophylactic mit,
+  Surpanakha hold-for-burst window, per-mimic BossMod Reborn distance (Tank/DPS/Healer), DoT refresh
+  lead. A second config-only preset `BLU_AutoRotation_Heal` hosts the heal thresholds and gates the
+  heal lane.
+- **Mimic-aware behaviour.** Pushes BossMod Reborn `MaxDistanceToTarget` per stance on mimic change
+  (`ConflictingPluginsChecks.BossModReborn.SetMaxDistanceToTarget`). Tank lane auto-ensures Mighty
+  Guard is on and never auto-cancels it (player call); Healer lane heals generously (party-HP% gated),
+  emergency-only under DPS/Tank mimic. Moon Flute burst reuses the proven `BLU_NewMoonFluteOpener`
+  sequence; Cold Fog -> White Death pre-raidwide window via `GroupDamageIncoming`; Final Sting
+  kill-range behind a default-off toggle + HP% slider.
+
+### Notes
+- Additive and opt-in - existing manual BLU button-replacement combos are untouched.
+- ~18 utility/mitigation spells have toggles but no cascade predicate yet (dormant by design). Final
+  Sting currently gates on HP% only (no boss-only check yet); heal triggers use party-average HP as a
+  proxy. Tuning to follow after in-game testing.
+
 ## v1.0.4.49 (2026-06-18)
 
 ### Added
