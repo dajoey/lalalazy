@@ -13,5 +13,7 @@
   "LoadSync": false,
   "CanUnloadAsync": false,
   "LoadPriority": 0,
-  "IsTestingExclusive": false
+  "IsTestingExclusive": false,
+  "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyfoodbuff-icon.png",
+  "Changelog": "v0.1.0.0 - Initial release. Auto-eats food in combat duties (dungeons, raids, trials, alliance raids, criterion, variant). Per-job food selection or auto-select by best stats for your job, optional fallback to auto-select, refresh-before-expiry, and a low-time chat warning. Use /lazyfoodbuff."
 }

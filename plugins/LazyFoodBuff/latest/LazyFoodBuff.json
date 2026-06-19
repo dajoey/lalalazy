@@ -2,16 +2,26 @@
   "Author": "dajoey",
   "Name": "LazyFoodBuff",
   "InternalName": "LazyFoodBuff",
+  "AssemblyVersion": "0.1.0.0",
   "Description": "Auto-eats food in combat duties with per-job selection, auto-select based on best stats, and a low-time warning.",
-  "Punchline": "Never forget to eat your food again.",
   "ApplicableVersion": "any",
+  "Tags": [
+    "auto",
+    "food",
+    "buff",
+    "duty",
+    "lazy"
+  ],
+  "CategoryTags": [
+    "utility"
+  ],
   "DalamudApiLevel": 15,
-  "Tags": ["auto", "food", "buff", "duty", "lazy"],
-  "CategoryTags": ["utility"],
-  "AcceptsFeedback": false,
   "LoadRequiredState": 0,
   "LoadSync": false,
   "CanUnloadAsync": false,
   "LoadPriority": 0,
-  "IsTestingExclusive": false
+  "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyfoodbuff-icon.png",
+  "Punchline": "Never forget to eat your food again.",
+  "Changelog": "v0.1.0.0 - Initial release. Auto-eats food in combat duties (dungeons, raids, trials, alliance raids, criterion, variant). Per-job food selection or auto-select by best stats for your job, optional fallback to auto-select, refresh-before-expiry, and a low-time chat warning. Use /lazyfoodbuff.",
+  "AcceptsFeedback": false
 }

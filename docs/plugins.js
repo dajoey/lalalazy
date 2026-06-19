@@ -99,5 +99,16 @@ const PLUGINS = [
       { t: 'Fills your collections', d: 'Scans your sheet for missing minions, mounts and orchestrion rolls you can buy with what you hold.' },
     ],
   },
+  {
+    slug: 'lazyfoodbuff', name: 'LazyFoodBuff', origin: 'Original', hasWindow: true,
+    short: 'Auto-eats food in combat duties, with per-job selection and a low-time warning.',
+    tag: 'Never forget to eat your food again.',
+    command: '/lazyfoodbuff', credit: 'Original plugin by dajoey \u00b7 built on the Dalamud SDK',
+    features: [
+      { t: 'Auto-eat in duties', d: 'Eats food when you enter combat duties \u2014 dungeons, raids, trials, alliance raids, criterion and variant.' },
+      { t: 'Best food, per job', d: 'Auto-selects the highest-value food in your bag for your current job, or use a manual per-job pick.' },
+      { t: 'Refresh & warn', d: 'Re-eats before the buff expires and warns you in chat when it is running low.' },
+    ],
+  },
 ];
 if (typeof module !== 'undefined') module.exports = PLUGINS;

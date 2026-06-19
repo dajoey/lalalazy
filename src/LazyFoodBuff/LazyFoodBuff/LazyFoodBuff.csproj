@@ -19,4 +19,16 @@
   <ItemGroup>
     <Using Include="System.Numerics" />
   </ItemGroup>
+
+  <!-- Keep the zip lean: this plugin has no external nuget deps, so ship only
+       our own DLL. Drop Microsoft.Windows.SDK.NET.dll (~26 MB) and
+       WinRT.Runtime.dll (already provided by the game host). Matches the
+       repo convention used by ArmoireAutoFill. -->
+  <Target Name="PruneOutputDlls" AfterTargets="ResolveReferences">
+    <ItemGroup>
+      <_KeepDlls Include="@(ReferenceCopyLocalPaths)" Condition="'%(Filename)' == 'LazyFoodBuff'" />
+      <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)" />
+      <ReferenceCopyLocalPaths Include="@(_KeepDlls)" />
+    </ItemGroup>
+  </Target>
 </Project>
