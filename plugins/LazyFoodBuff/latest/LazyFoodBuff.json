@@ -1,0 +1,17 @@
+{
+  "Author": "dajoey",
+  "Name": "LazyFoodBuff",
+  "InternalName": "LazyFoodBuff",
+  "Description": "Auto-eats food in combat duties with per-job selection, auto-select based on best stats, and a low-time warning.",
+  "Punchline": "Never forget to eat your food again.",
+  "ApplicableVersion": "any",
+  "DalamudApiLevel": 15,
+  "Tags": ["auto", "food", "buff", "duty", "lazy"],
+  "CategoryTags": ["utility"],
+  "AcceptsFeedback": false,
+  "LoadRequiredState": 0,
+  "LoadSync": false,
+  "CanUnloadAsync": false,
+  "LoadPriority": 0,
+  "IsTestingExclusive": false
+}

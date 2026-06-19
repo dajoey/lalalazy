@@ -3,36 +3,42 @@
     "Author": "dajoey",
     "Name": "PvP Solver",
     "Punchline": "PvP-only auto-rotation",
-    "Description": "PvP-only auto-rotation for FFXIV. Activates in PvP zones.",
+    "Description": "Auto-rotation for FFXIV PvP only. Automatically activates in PvP zones. Designed to run alongside Wrath Combo (handles PvE). Includes default PvP rotations for all jobs.",
     "InternalName": "PvPSolver",
-    "AssemblyVersion": "0.1.0.8",
-    "Changelog": "v0.1.0.3 - Wholly Original Rebrand & PvP Cast Protection\n- Renamed all commands to /pvpsolver and /pvs to prevent collisions with stock RSR.\n- Built protection against autocasting when zero enemies are nearby in PvP zones.",
-    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/PvPSolver",
+    "AssemblyVersion": "0.1.0.2",
+    "RepoUrl": "https://github.com/dajoey/lalalazy",
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
     "IsHide": false,
     "IsTestingExclusive": false,
     "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/PvPSolver/latest/latest.zip",
     "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/PvPSolver/latest/latest.zip",
-    "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/PvPSolver/latest/latest.zip",
-    "Tags": null,
-    "CategoryTags": null,
+    "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/PvPSolver/testing/testing.zip",
+    "Tags": [
+      "combat",
+      "rotation",
+      "auto",
+      "pvp"
+    ],
+    "CategoryTags": [
+      "jobs"
+    ],
     "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/pvpsolver-icon.png",
     "ImageUrls": [
       ""
     ],
     "DownloadCount": 0,
-    "LastUpdate": "0"
+    "LastUpdate": "0",
+    "TestingAssemblyVersion": "0.2.0.0"
   },
   {
     "Author": "dajoey",
     "Name": "Dagobert - Price Matcher",
     "Punchline": "Matches (instead of undercuts) market board prices",
-    "Description": "Fork of Dagobert - matches the lowest market board price instead of undercutting. Default amount is 0 (exact match). You can still set a negative amount to undercut if desired.",
+    "Description": "Fork of Dagobert \ufffd matches the lowest market board price instead of undercutting. Default amount is 0 (exact match). You can still set a negative amount to undercut if desired.",
     "InternalName": "DagobertPriceMatcher",
-    "AssemblyVersion": "1.12.0.5",
-    "Changelog": "v1.12.0.4 - Hide inventory context menu entry\n- Synced upstream Dagobert v1.14.1.0: new Show inventory context menu entry toggle (on by default) in the config window. Turn it off to remove Dagoberts right-click entry from inventory items.\n- Fork behavior preserved: matches the lowest market board price (0 undercut by default); /pricematch command unchanged.",
-    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/DagobertPriceMatcher",
+    "AssemblyVersion": "1.11.0.0",
+    "RepoUrl": "https://github.com/dajoey/lalalazy",
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
     "IsHide": false,
@@ -64,7 +70,7 @@
     "Description": "Auto-uses the highest-tier HP potion, MP potion (Ether), and the deep dungeon regen potion (Sustaining / Eurekan / Orthos / Pilgrim's) at configurable thresholds. Each potion's threshold and on/off state is stored per-job, so casters and tanks can have completely different setups.",
     "InternalName": "AutoPotion",
     "AssemblyVersion": "0.2.2.0",
-    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/AutoPotion",
+    "RepoUrl": "https://github.com/dajoey/lalalazy",
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
     "IsHide": false,
@@ -94,8 +100,8 @@
     "Punchline": "Per-dungeon view of which armoire-eligible gear pieces you're still missing",
     "Description": "Lists every armoire-eligible dungeon drop in the game and shows whether each is in your inventory, in your armoire, or still missing. Sort by level, hide completed dungeons, toggle to show owned items too. Open the armoire UI at an inn once per session to populate the in-armoire state; in-inventory and equipped state is detected automatically. Use /armoire.",
     "InternalName": "ArmoireAutoFill",
-    "AssemblyVersion": "0.4.1.0",
-    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/ArmoireAutoFill",
+    "AssemblyVersion": "0.4.0.0",
+    "RepoUrl": "https://github.com/dajoey/lalalazy",
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
     "IsHide": false,
@@ -123,12 +129,11 @@
   {
     "Author": "dajoey",
     "Name": "Gluttony Combo",
-    "Punchline": "Lalalazy fork of Wrath Combo - XIVCombo for very lazy players.",
-    "Description": "Gluttony Combo - lalalazy fork of Gluttony Combo. XIVCombo for very lazy players.",
+    "Punchline": "Lalalazy fork of Wrath Combo \u2014 XIVCombo for very lazy players.",
+    "Description": "Gluttony Combo is a lalalazy-branded fork of Wrath Combo. Condenses combos and mutually exclusive abilities onto a single button \u2014 and then some. All upstream credit to Team Wrath / PunishXIV.",
     "InternalName": "GluttonyCombo",
-    "AssemblyVersion": "1.0.4.49",
-    "Changelog": "v1.0.4.48 - Upstream sync: WrathCombo main 1.0.4.8 -> 1.0.4.9 (~44 commits, 30 files)\n- Merged upstream range 0e6e5a9e..06877cca6 across job rotations, autorotation, and UI; all Gluttony fork divergences preserved.\n- MCH: fixed AoE tools firing incorrectly; Reassemble/Hypercharge handling; helper refactors.\n- SAM: adopted upstream's completed ST/AoE rotation rebalance (Getsu/Ka + Fugetsu/Fuka refresh guards). Our fork had an earlier incomplete form of the same logic - converged to upstream.\n- SGE: AoE simple-heal oGCD spread rebalance; autorotation shield check now optional.\n- BLM: fixed level-90 Ice phase. VPR: early-buff opener. WAR: Fell Cleave cleanup. MNK PvP update.\n- Added EncounterSafety (Action Penalty Gaze/Motion VFX checks, content-specific fallbacks); p3 invincible status; healer 'Include Shields' setting; DTR updates while hidden; Opener DTR click-to-toggle.\n- Fork divergences preserved: UnTargetAndDisableForPenalty plain checkbox + Auto Positionals kept at their location (upstream's relocated duplicate dropped); Pacification/Silence, WHM ground-heal, 15s raidwide gate, HP-scaled raidwide numberOfCasts, SMN Aegis Uptime, manual BLU combos untouched.\n- Build clean (0 errors).",
-    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/GluttonyCombo",
+    "AssemblyVersion": "1.0.4.15",
+    "RepoUrl": "https://github.com/dajoey/lalalazy",
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
     "IsHide": false,
@@ -148,7 +153,9 @@
       "pvp",
       "lalalazy"
     ],
-    "CategoryTags": null,
+    "CategoryTags": [
+      "jobs"
+    ],
     "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/gluttonycombo-icon.png",
     "ImageUrls": [
       ""
@@ -157,129 +164,31 @@
     "LastUpdate": "0"
   },
   {
-    "Author": "daemitus, MidoriKami, dajoey",
-    "Name": "Lazy WT Math",
-    "Punchline": "FFXIV Wondrous Tails probability calculator.",
-    "Description": "Adds row probabilities to the Wondrous Tails display along with the average probability of what would happen if you shuffled. Upgraded for modern FFXIV.",
-    "InternalName": "LazyWTMath",
-    "AssemblyVersion": "3.2.2.8",
-    "Changelog": "v3.2.2.8 - Upstream ezwt Features\n- Ported EzWondrousTails v3.2.2.6 probability updates and bingo UI.\n- Preserved Dalamud API 15 / .NET 10 upgrades and unmanaged pointer detours in KamiToolKit.",
-    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/LazyWTMath",
+    "Author": "dajoey",
+    "Name": "LazyFoodBuff",
+    "Punchline": "Never forget to eat your food again.",
+    "Description": "Auto-eats food in combat duties with per-job food selection, auto-select based on best stats, and a low-time warning. Only fires in combat duties (dungeons, raids, trials, alliance raids, criterion, variant). Understands optimal stats for every job and auto-selects the best food from your inventory.",
+    "InternalName": "LazyFoodBuff",
+    "AssemblyVersion": "0.1.0.0",
+    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/LazyFoodBuff",
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
     "IsHide": false,
     "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyWTMath/latest/latest.zip",
-    "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyWTMath/latest/latest.zip",
-    "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyWTMath/latest/latest.zip",
+    "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyFoodBuff/latest/latest.zip",
+    "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyFoodBuff/latest/latest.zip",
+    "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyFoodBuff/latest/latest.zip",
     "Tags": [
-      "wondrous tails",
-      "math",
-      "calculator",
-      "probability"
-    ],
-    "CategoryTags": [
-      "utility"
-    ],
-    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazywtmath-icon.png",
-    "ImageUrls": [
-      ""
-    ],
-    "DownloadCount": 0,
-    "LastUpdate": "0"
-  },
-  {
-    "Author": "Blackcatz1911, dajoey",
-    "Name": "Lazy Currency Spender",
-    "Punchline": "Find the absolute best way to spend all your FFXIV currencies.",
-    "Description": "Fork of CurrencySpender by Blackcatz1911. Never wonder 'What should I do with this?' again. Access real-time prices from Universalis, identify missing collectibles tied to your currencies, and unlock new possibilities for utilizing your in-game resources effectively.",
-    "InternalName": "LazyCurrencySpender",
-    "AssemblyVersion": "1.2.6.1",
-    "Changelog": "v1.2.6.1 - Equipment Rendering Support\n- Added new 'Equipment and Gear Exchange' section in the spending UI to display untradable, non-collectable equipment (such as Bygone Brass gear and weapons) purchased with weekly capped/uncapped endgame tomestones.",
-    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/LazyCurrencySpender",
-    "ApplicableVersion": "any",
-    "DalamudApiLevel": 15,
-    "IsHide": false,
-    "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyCurrencySpender/latest/latest.zip",
-    "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyCurrencySpender/latest/latest.zip",
-    "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyCurrencySpender/latest/latest.zip",
-    "Tags": [
-      "currency",
-      "poetics",
-      "tomestone",
+      "auto",
+      "food",
+      "buff",
+      "duty",
       "lazy"
     ],
     "CategoryTags": [
       "utility"
     ],
-    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazycurrencyspender-icon.png",
-    "ImageUrls": [
-      ""
-    ],
-    "DownloadCount": 0,
-    "LastUpdate": "0"
-  },
-  {
-    "Author": "croizat, dajoey",
-    "Name": "Lazy Fate Automation",
-    "Punchline": "Fully automated FATE grinding utilizing vnavmesh, lifestream, and Gluttony Combo.",
-    "Description": "Automates FATE grinding, including Zodiac Atma, Anima Luminous Crystals, Resistance Memories, Phantom Demiatmas, Yo-kai Watch Medals, and Bicolor Gemstones. Seamlessly integrates with vnavmesh for pathing and flight, lifestream for zone swapping, TextAdvance for dialogue skipping, and Gluttony Combo/BossMod for combat. Use /lazyfate to open.",
-    "InternalName": "LazyFateAutomation",
-    "AssemblyVersion": "0.0.1.39",
-    "Changelog": "v0.0.1.38 - 2026-06-09\n- Prevented mounting and dismounting loops after FATE completion by keeping the bot in Engaging state (clearing remaining combat) before transitioning to BetweenFates or deactivating integrations.\n\nv0.0.1.35 - 2026-06-07\n- Stop movement and remove dismount/landing logic from `TeleportTo` pre-cast checks. Teleport casts will now initiate directly while remaining mounted.\n- Exclude city hubs (where mounting is disabled) from random zone swapping, gemstone allowed zones, relic allowed zones, and the UI zone selector.\n\nv0.0.1.34 - 2026-06-07\n- Added stuck check mitigation for combat/engage pathfinding fallbacks.\n- Wait for combat to end before mounting.\n\nv0.0.1.33 - 2026-06-07\n- Only dismount before teleporting if the player is flying (`Player.InFlight` is true). If the player is mounted on the ground, they will now remain mounted while teleporting, which makes travels faster and more natural.\n- Added robust mounting verification and retry loops inside `MoveTo()`. If the player is in combat, the bot stands still and waits for combat to end before attempting to mount.\n- Added mid-travel dismount checking inside `MoveTo()` pathfinding loops. If the player is dismounted mid-travel (e.g. from getting aggroed/hit), the bot halts movement, waits for combat to end, mounts up, and resumes pathfinding rather than walking on foot.\n- Rewrote combat/engage stuck detection in `HandleCombatStuckDetection()`. Instead of depending on `InCombat` (which is false when running between FATE mobs) or `IsMoving` (which returns false when stuck against a wall), it now tracks position changes relative to the current target and activates `vnavmesh` pathing fallback if progress towards a distant target stops for 1.5 seconds.\n- Added explicit landing and dismounting calls at the beginning of `TeleportTo()`, and wait for `!Player.IsBusy` to prevent teleport casts from immediately failing when mounted/flying.\n- Fixed task crashing on teleport failures by replacing `ErrorIf(!ActionManager.Teleport())` with a robust 3-attempt retry loop that falls back to the `/return` recovery gracefully.\n\nv0.0.1.26 - 2026-06-07\n- Added combat stuck detection and mitigation in `HandleCombatStuckDetection()`. If BossMod's straight-line movement gets the player stuck on trees/obstacles in combat for 1.5 seconds, the bot disables BossMod movement and uses `vnavmesh` to pathfind around the obstacle to the target.\n- Added auto-skipping for NPC dialogue SelectString option lists in `TaskBase.WaitUntilSkipping()`.\n- Gated teleporting and mounting on `!Svc.Condition[ConditionFlag.InCombat]` in `TaskBase.cs` to prevent getting stuck in combat.\n- Prevented rapid mounting and dismounting loops during chain FATEs while waiting for the next FATE to spawn.\n\nv0.0.1.23 - 2026-06-06\n- File logging now suppresses DBG/TRC scope tracing by default; only WRN/ERR are written to LazyFateAutomation.log. Set VerboseFileLogging to true in the plugin config (LazyFateAutomation.json) to restore full debug logging for troubleshooting. (Svc.cs LogToFile gate, Configuration.cs flag.)\n- Fixes ~28 MB log growth observed 2026-06-06 from FATE-grind DebugContext scope enter/exit tracing.",
-    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/LazyFateAutomation",
-    "ApplicableVersion": "any",
-    "DalamudApiLevel": 15,
-    "IsHide": false,
-    "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyFateAutomation/latest/latest.zip",
-    "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyFateAutomation/latest/latest.zip",
-    "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyFateAutomation/latest/latest.zip",
-    "Tags": [
-      "fate",
-      "grind",
-      "automation",
-      "relic",
-      "yokai",
-      "vnavmesh"
-    ],
-    "CategoryTags": [
-      "utility"
-    ],
-    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyfateautomation-icon.png",
-    "ImageUrls": [
-      ""
-    ],
-    "DownloadCount": 0,
-    "LastUpdate": "0"
-  },
-  {
-    "Author": "dajoey",
-    "Name": "Lazy Skyward Tracker",
-    "Punchline": "Track your Skyward points for all jobs toward the Pteranodon mount",
-    "Description": "Tracks all jobs' Skyward points for the Pteranodon mount achievement. Scans your inventory for Skybuilders turn-in items and projects how many points they'll add, shown as a cyan bar extension on each job's progress bar. Use /lazysky to open.",
-    "InternalName": "LazySkywardTracker",
-    "AssemblyVersion": "0.0.2.1",
-    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/LazySkywardTracker",
-    "ApplicableVersion": "any",
-    "DalamudApiLevel": 15,
-    "IsHide": false,
-    "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazySkywardTracker/latest/latest.zip",
-    "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazySkywardTracker/latest/latest.zip",
-    "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazySkywardTracker/testing/testing.zip",
-    "Tags": [
-      "skybuilders",
-      "restoration",
-      "pteranodon",
-      "achievement",
-      "tracker"
-    ],
-    "CategoryTags": [
-      "utility"
-    ],
-    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyskywardtracker-icon.png",
+    "IconUrl": "",
     "ImageUrls": [
       ""
     ],
