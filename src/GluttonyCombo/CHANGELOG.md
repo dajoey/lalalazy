@@ -1,5 +1,14 @@
 # Gluttony Combo â€” Changelog
 
+## v1.0.4.51 (2026-06-18)
+
+### Fixed
+- **BLU auto-rotation reported "0 active" and never auto-cast.** The `BLU_AutoRotation_DPS`
+  preset lacked the `[SimpleCombo]` tag that every other auto-rotation preset carries, so
+  `PresetData.ComboType` resolved to `Feature` (a non-combo UI toggle) instead of `Simple`. Tagged
+  it `[SimpleCombo]` so it registers as a real single-target auto-rotation combo. Also removed a
+  stray `[ConflictingCombos(BLU_MeleeCombo)]` that was added in the previous build.
+
 ## v1.0.4.50 (2026-06-18)
 
 ### Added

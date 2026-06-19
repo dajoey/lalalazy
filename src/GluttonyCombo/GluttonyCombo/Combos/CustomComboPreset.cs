@@ -1760,8 +1760,8 @@ public enum Preset
 
     [AutoAction(false, false)]
     [ReplaceSkill(BLU.SonicBoom)]
-    [ConflictingCombos(BLU_MeleeCombo)]
     [JobInfo(Job.BLU)]
+    [SimpleCombo]
     BLU_AutoRotation_DPS = 70026,
 
     [ReplaceSkill(BLU.WhiteWind)]
