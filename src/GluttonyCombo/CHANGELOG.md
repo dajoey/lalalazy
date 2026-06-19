@@ -1,5 +1,16 @@
 # Gluttony Combo â€” Changelog
 
+## v1.0.4.53 (2026-06-18)
+
+### Fixed
+- **BLU auto-rotation no longer idles when damage spells are available.** The terminal GCD filler
+  was a hand-picked list of specific spells; if none matched it returned nothing. It now iterates
+  your entire slotted spellbook (`ActiveBLUSpells`) and casts the first off-cooldown, in-range
+  damage spell. Only an explicit exclusion set is skipped — buffs, heals, mitigation, hard CC,
+  knockbacks/draws, suicides/self-damage, instant-KO/%HP gimmicks, and the cooldown-managed damage
+  + DoTs the cascade already handles. Any damage spammable you slot is picked up automatically with
+  no per-spell configuration.
+
 ## v1.0.4.52 (2026-06-18)
 
 ### Fixed

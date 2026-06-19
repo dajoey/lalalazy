@@ -4,6 +4,8 @@ using GluttonyCombo.Core;
 using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.Data.Conflicts;
 using GluttonyCombo.Extensions;
+using GluttonyCombo.Services;
+using System.Collections.Generic;
 
 // ReSharper disable CheckNamespace
 // ReSharper disable InconsistentNaming
@@ -70,6 +72,39 @@ internal partial class BLU
         // BMR distance is only pushed when the mimic actually changes (throttle).
         private static int _lastBmrMimic = -99;
         private static bool _surpReady;
+
+        // Spells the generic filler must NEVER auto-cast: buffs/enablers, heals/raise,
+        // mitigation/defensive (Diamondback immobilises, etc.), stances/threat/draw, suicides &
+        // self-damage, knockbacks/movement/channel-locks, hard CC (sleep/stun/dispel/bind),
+        // instant-KO & %HP gimmicks, plus the cooldown-managed damage and DoTs the cascade above
+        // already handles. EVERYTHING ELSE that is slotted, off cooldown and in range is fair game,
+        // so any damage spell you slot is used automatically.
+        private static readonly HashSet<uint> FillerExcluded = new()
+        {
+            // buffs / enablers
+            11415, 18309, 11393, 23265, 11411, 11421, 18322, 18321, 11410, 23276,
+            // heals / raise
+            11406, 18303, 23269, 23416, 18318, 23272, 18304, 34566, 18317,
+            // mitigation / defensive
+            23267, 11424, 34575, 23280, 11431, 11418, 18306, 18315, 34565,
+            // tank stance / threat / draw / self-heal CD
+            11417, 11399, 18307, 11412, 18320,
+            // suicides / self-damage
+            11407, 11408, 11409, 34568,
+            // knockback / draw / movement / channel-lock
+            11383, 18296, 23282, 11401, 11402,
+            // hard CC: sleep / stun / dispel / bind / interrupt / debuff-bomb / MP drain
+            11392, 18301, 11394, 11403, 11396, 23266, 18300, 18314, 18302, 18319, 11423, 11388, 11395,
+            // instant-KO / %HP gimmicks (no effect on bosses)
+            11414, 18312, 11416, 23277, 11397, 11405, 11413, 18313, 34573,
+            // cooldown-managed damage handled by the cascade above
+            23275, 34571, 23264, 34582, 23287, 23290, 34580, 23285, 34581, 23288, 11430, 18323,
+            11426, 11427, 11429, 11428, 18324, 18325, 34576, 34574, 18305, 34578,
+            // DoTs (handled above / not spammable)
+            11386, 34567, 34579, 23281,
+            // niche conditional (Revenge Blast = 50 potency at full HP)
+            18316,
+        };
 
         protected override uint Invoke(uint actionID)
         {
@@ -294,9 +329,12 @@ internal partial class BLU
             if (Config.BLU_Use_SeaShanty && IsSpellActive(SeaShanty) && IsOffCooldown(SeaShanty) && !BurstSoon())
                 return SeaShanty;
 
-            // Terminal filler GCD — keep the GCD rolling (Sonic Boom must be slotted).
-            if (Config.BLU_Use_SonicBoom && IsSpellActive(SonicBoom))
-                return SonicBoom;
+            // Generic filler — cast ANY slotted, off-cooldown, in-range damage spell so the
+            // rotation never idles. Considers your whole loadout (not a hand-picked list); only
+            // FillerExcluded is skipped. Iterates in your spellbook order.
+            foreach (var fillerId in Service.Configuration.ActiveBLUSpells)
+                if (!FillerExcluded.Contains(fillerId) && IsOffCooldown(fillerId) && InActionRange(fillerId))
+                    return fillerId;
 
             return 0;
         }
