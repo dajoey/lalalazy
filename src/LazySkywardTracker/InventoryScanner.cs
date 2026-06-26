@@ -120,6 +120,18 @@ public sealed class InventoryScanner
 
         foreach (var row in sheet)
         {
+            // The HWDGathererInspection row index encodes the gathering class:
+            //   row 1 = Miner, row 2 = Botanist, row 3 = Fisher (row 0 is empty).
+            // This is the game's own classification; never infer the class from item names.
+            uint rowAchievementId = row.RowId switch
+            {
+                1 => 2515u, // MIN - Skyward Sledgehammer III
+                2 => 2518u, // BTN - Skyward Scythe III
+                3 => 2521u, // FSH - Skyward Rod III
+                _ => 0u,
+            };
+            if (rowAchievementId == 0) continue;
+
             foreach (var entry in row.HWDGathererInspectionData)
             {
                 // Resolve the actual Item ID. Two paths:
@@ -138,8 +150,7 @@ public sealed class InventoryScanner
                     itemId = gi.Item.RowId;
                     if (itemId == 0) continue;
 
-                    var itemName = GetItemName(itemId) ?? "";
-                    achievementId = LooksLikeMinerItem(itemName) ? 2515u : 2518u;
+                    achievementId = rowAchievementId;
                 }
                 else if (fishParamRef.RowId != 0)
                 {
@@ -148,7 +159,7 @@ public sealed class InventoryScanner
                     if (fishParam is not { } fp) continue;
                     itemId = fp.Item.RowId;
                     if (itemId == 0) continue;
-                    achievementId = 2521; // FSH – Skyward Rod III
+                    achievementId = rowAchievementId; // FSH – Skyward Rod III
                 }
                 else
                 {
@@ -305,21 +316,5 @@ public sealed class InventoryScanner
         if (!itemSheet.TryGetRow(itemId, out var item)) return null;
         var name = item.Name.ExtractText();
         return string.IsNullOrWhiteSpace(name) ? null : name;
-    }
-
-    /// <summary>
-    /// Heuristic to distinguish Miner items from Botanist items by name keywords.
-    /// All Diadem gathering materials are either MIN or BTN (FSH is handled via FishParameter).
-    /// </summary>
-    private static bool LooksLikeMinerItem(string name)
-    {
-        var lower = name.ToLowerInvariant();
-        return lower.Contains("ore") || lower.Contains("stone") || lower.Contains("sand")
-            || lower.Contains("mineral") || lower.Contains("rock") || lower.Contains("mythrite")
-            || lower.Contains("adamantite") || lower.Contains("cobalt") || lower.Contains("electrum")
-            || lower.Contains("darksteel") || lower.Contains("titanium") || lower.Contains("mythril")
-            || lower.Contains("ragstone") || lower.Contains("gold ore") || lower.Contains("iron ore")
-            || lower.Contains("aurum") || lower.Contains("chalcocite") || lower.Contains("pyrite")
-            || lower.Contains("limonite") || lower.Contains("quartzite");
     }
 }
