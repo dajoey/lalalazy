@@ -22,7 +22,10 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
     };
 
     protected override async Task Execute() {
-        using var stop = new OnDispose(() => Svc.TextAdvance.DisableExternalControl(tweak.Name));
+        using var stop = new OnDispose(() => {
+            try { Svc.Navmesh.PathfindCancelAll(); Svc.Navmesh.Stop(); } catch { }
+            try { Svc.TextAdvance.DisableExternalControl(tweak.Name); } catch { }
+        });
         try {
             while (!CancelToken.IsCancellationRequested && tweak.Running) {
                 tweak.StopIfNoRemaining();

@@ -17,5 +17,5 @@
   "DalamudApiLevel": 15,
   "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyfateautomation-icon.png",
   "ImageUrls": [ "" ],
-  "Changelog": "v0.0.1.43 - Release Gluttony on Stop\n- Stop now fully releases the Gluttony Combo lease (returns control to you) instead of just turning auto-rotation off."
+  "Changelog": "v0.0.1.44 - Stop halts vnavmesh\n- Stop now immediately cancels vnavmesh pathfinding and movement, instead of letting the bot finish walking/flying to its destination after you hit Stop."
 }

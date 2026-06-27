@@ -101,6 +101,7 @@ public class FateToolKit : IFateGrindRunState {
                     Svc.Log.PrintWarning($"Failed to call BossMod ClearActive IPC: {ex.Message}");
                 }
                 try { Service.Gluttony?.Release(); } catch (Exception ex) { Svc.Log.PrintWarning($"Failed to release Gluttony Combo: {ex.Message}"); }
+                try { Svc.Navmesh.PathfindCancelAll(); Svc.Navmesh.Stop(); } catch (Exception ex) { Svc.Log.PrintWarning($"Failed to stop vnavmesh: {ex.Message}"); }
                 Service.Automation.Stop();
                 RunUntilCompleted = null;
             }
