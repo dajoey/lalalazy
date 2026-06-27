@@ -1,5 +1,13 @@
 # Changelog - Lazy Fate Automation
 
+## [0.0.1.41] - 2026-06-27
+### Fixed
+- **Critical: Gluttony Combo lease churn that crashed Gluttony and tanked FPS.** `GluttonyComboIPC` re-registered a new lease on every transient IPC hiccup; because Gluttony's `CreateRegistration` dedups on `PluginName == internalPluginName` (and `PluginName` stores the *display* name), the dedup never matched and duplicate "Lazy Fate Automation" registrations piled up. Two or more registrations make Gluttony's `Search.AllJobsControlled` `ToDictionary` (keyed by plugin name) throw on every UI render and rotation tick - dead framerate, an error dialog in Gluttony's settings window, and a non-functional toggle macro. The lease is now acquired exactly once (throttled, only when none is held) and is never dropped on a transient error - only when Gluttony itself reports the lease invalid (by then it is already removed, so re-acquiring cannot duplicate).
+### Changed
+- Renamed the BossMod combat preset `CBT - DwD` -> `CBT - Gluttony` so the status bar reflects the new combat engine. Preset JSON re-brotli-compressed in `FateGrind._presetCompressed`; `_presetName` updated to match.
+### Notes
+- After updating, **reload Gluttony Combo** (or restart the game) once to clear any orphaned duplicate registrations left behind by v0.0.1.40.
+
 ## [0.0.1.40] - 2026-06-27
 ### Changed
 - Combat is now driven by **Gluttony Combo** instead of BossMod's "DwD" autorotation. BossMod is kept only for movement and danger avoidance; Gluttony Combo's lease-based Auto-Rotation now owns the combat rotation **and** target selection.

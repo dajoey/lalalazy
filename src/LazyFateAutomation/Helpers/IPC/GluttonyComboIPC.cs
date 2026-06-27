@@ -9,6 +9,14 @@ namespace LazyFateAutomation.Helpers.IPC;
 // leaving BossMod to handle only movement and danger avoidance.
 // Modeled on GluttonyCombo/docs/IPCExample.cs. IPC return values are taken as `object`
 // (a boxed SetResult) to avoid cross-plugin enum unboxing; codes are read via Convert.ToInt32.
+//
+// CRITICAL: register the lease EXACTLY ONCE and never churn. Gluttony's CreateRegistration
+// dedups on `PluginName == internalPluginName`, but PluginName stores the *display* name, so
+// the dedup never matches and every RegisterForLease call creates a NEW registration. Two
+// registrations with the same display name make Gluttony's AllJobsControlled ToDictionary throw
+// every frame (dead FPS + broken settings UI). So: only register when we hold no lease, throttle
+// registration attempts, and NEVER drop the lease on a transient error - only when Gluttony
+// itself reports the lease invalid (by then it is already removed, so re-acquiring cannot dup).
 [Ipc(Ipc.GluttonyCombo)]
 public class GluttonyComboIPC : BaseIPC {
     public override string Name => "GluttonyCombo";
@@ -24,7 +32,6 @@ public class GluttonyComboIPC : BaseIPC {
     [EzIPC] public readonly Action<Guid> ReleaseControl;
 
     // SetResult codes (GluttonyCombo.Services.IPC.Enums.SetResult)
-    private const int SetResultIPCDisabled = 10;
     private const int SetResultInvalidLease = 11;
 
     // AutoRotationConfigOption codes (GluttonyCombo.API.Enum.AutoRotationConfigOption)
@@ -43,22 +50,35 @@ public class GluttonyComboIPC : BaseIPC {
     private bool _configured;
     private bool _autoOn;
     private uint _readyJob;
+    private long _nextRegisterMs; // throttle so RegisterForLease can never be spammed
+
+    private static int ToInt(object o) => o is null ? 0 : Convert.ToInt32(o);
 
     private bool EnsureLease() {
         if (!IsLoaded)
             return false;
         if (_lease is not null)
             return true;
+        // Register at most once every 10s, and only when we hold no lease.
+        if (Environment.TickCount64 < _nextRegisterMs)
+            return false;
+        _nextRegisterMs = Environment.TickCount64 + 10_000;
         try {
             _lease = RegisterForLease("LazyFateAutomation", Plugin.Name);
-            if (_lease is null)
-                Svc.Log.PrintWarning("Gluttony Combo: RegisterForLease returned null (lease busy, revoked, or IPC disabled).");
         }
         catch (Exception ex) {
             Svc.Log.PrintWarning($"Gluttony Combo: RegisterForLease failed: {ex.Message}");
             _lease = null;
+            return false;
         }
-        return _lease is not null;
+        if (_lease is null) {
+            Svc.Log.PrintWarning("Gluttony Combo: RegisterForLease returned null (lease busy, revoked, or IPC disabled).");
+            return false;
+        }
+        _configured = false;
+        _autoOn = false;
+        _readyJob = 0;
+        return true;
     }
 
     private void ApplyConfig(Guid lease) {
@@ -90,18 +110,22 @@ public class GluttonyComboIPC : BaseIPC {
             }
 
             if (!_autoOn) {
-                var result = SetAutoRotationState(lease, true);
-                var code = result is null ? 0 : Convert.ToInt32(result);
-                if (code is SetResultInvalidLease or SetResultIPCDisabled) {
-                    Reset();
+                var code = ToInt(SetAutoRotationState(lease, true));
+                if (code == SetResultInvalidLease) {
+                    // Gluttony already dropped this lease; clear our handle so a throttled re-acquire
+                    // can happen. No duplicate risk - an invalid lease is no longer registered.
+                    _lease = null;
+                    _configured = false;
+                    _autoOn = false;
+                    _readyJob = 0;
                     return;
                 }
                 _autoOn = true;
             }
         }
         catch (Exception ex) {
+            // Transient IPC hiccup - KEEP the lease. Re-registering here is what corrupted Gluttony.
             Svc.Log.PrintWarning($"Gluttony Combo: Enable failed: {ex.Message}");
-            Reset();
         }
     }
 
@@ -120,7 +144,7 @@ public class GluttonyComboIPC : BaseIPC {
         }
     }
 
-    /// <summary>Release our lease entirely (plugin shutdown).</summary>
+    /// <summary>Release our lease entirely (plugin shutdown). Frees the registration on Gluttony's side.</summary>
     public void Release() {
         if (_lease is { } lease) {
             try {
@@ -131,13 +155,10 @@ public class GluttonyComboIPC : BaseIPC {
                 // ignore
             }
         }
-        Reset();
-    }
-
-    private void Reset() {
         _lease = null;
         _configured = false;
         _autoOn = false;
         _readyJob = 0;
+        _nextRegisterMs = 0;
     }
 }

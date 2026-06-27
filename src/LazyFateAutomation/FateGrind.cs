@@ -10,8 +10,8 @@ using TerritoryIntendedUse = FFXIVClientStructs.FFXIV.Client.Enums.TerritoryInte
 namespace LazyFateAutomation;
 
 internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
-    private const string _presetName = "CBT - DwD";
-    private const string _presetCompressed = "G7sgAORUXTtl2E+e+WjPVqrAAflbPZILOMWW4oP+/v+fCkIhzvG84ACJWKy03g9QazmlsQdIscatVWu8Jo51H+IdQI2Y/jafAIgSBxI+iCh8ggeIT7FYvBsibX3oyQkfvp0RQITWOWlrLziwHS0ja2s8qV0VFM9HPOG4IxY+fP6kw98KhNFPI1ad8EGkwVOChw66yKpuovBBJAa3PdXiV+P/U9/QTEWMlgExR9Cf8OIautG+4TKoVL4zGi8uI4qkFB6axuHukAPbAVlXOxtgfEw9XpCtINLWwgfxuNcNLyDisW/8CtaMH5RgnRCYeNqpNjsWcKM8fSbI7mCRUV5IK5dOlU3x2ricRQ7tQ5R9bVl0XBvJx6P+2shwJsusDaZtJaYxsIme1BEBeCFKy5r2uezJsB6IcHQjyomPlVWsEYDlMZDsLi1LtpXZASsvGyVssFIWpVQFS1aGWtKdRYp1rMRqWdxblD76YHnNjbtYCR6fykdLqKzS+xY37ADDlfPFNqKC3F7oYl4DtbgPbFNttNtHdtiqFA8WFeuIOIlVVqge1O1LkemZde8EfSiPF1NRhvynbSTDEp7ReBE6plH48Pl9B+SEPY1B0WdEUk/UVIhCs6O6DPsJTQddZeT5LO04YC/tkQYyoQAsMTnWhnwckdPwBnnfaFMzuct8AvA/n/wD";
+    private const string _presetName = "CBT - Gluttony";
+    private const string _presetCompressed = "G8AgABwHzjnKJQkx7DrZZ3+/zVR39C30L4o/mCdErEFEuvoWi459f2nGQyEKUSxgIbn399I6RQ8oAaqFbkKtiHVgLKU/xbERRsTBqDvomOjIGk/PIDi83Yl2WyntHAYAhZCyGI0QTnhYlj6Ox4t4gWFlb6RX4wJIBaAckkbS/t3GFlMQFpHmqHAUsvmY+4JMiXyZ48hthOpvakHI1jKZKYLiKcqDp3pWyXtG9dqoQ1ZEdktAMYtveeEtOszMBMVLeVH9YThUCCev9oWsczsvFcgFH33TMSGYdLVVXyCQZtyZxSZSGOeYnwEDDzZCTu1DYHj7m843vsvGckZAZn7bj/CAR0KRghl2aQ9rddQKDUd/kpHu9DFgUZEW3JklQLbQCTaT97W88vLA2vCKoxzFK8LB4sES2HadVyiY4tACx9EHy1ue7j4IUHBdnhb1aMFwKb1ouYf9k7FlS71XdvVvlJFVQIbfvPSbDF2M4IMF6BGRTygIIT+gHhyP1uy5Vu3imR5cfZJmc48g0bJmc5zi8LLD3DQVQCr02plnkExQipQllURPA506yPjRkJl2JDWko9lJkgGceE/a51WfhpJH7fYD";
     private static readonly string _preset = _presetCompressed.FromBase64();
 
     private int PullSize => Player.ClassJob.Value switch {
@@ -653,7 +653,7 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
         if (localPlayer is null || !localPlayer.Available) return;
 
         // When BossMod is active with our preset, its NormalMovement strategy already handles
-        // melee positioning and its danger avoidance (DwD) handles keeping the player safe.
+        // melee positioning and its danger avoidance handle keeping the player safe.
         // Our stuck detection would fight danger avoidance by navmeshing straight into danger zones,
         // causing the player to oscillate back and forth between "move to melee" and "dodge danger."
         try {

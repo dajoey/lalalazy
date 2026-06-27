@@ -2,7 +2,7 @@
   "Author": "croizat, dajoey",
   "Name": "Lazy Fate Automation",
   "InternalName": "LazyFateAutomation",
-  "AssemblyVersion": "0.0.1.40",
+  "AssemblyVersion": "0.0.1.41",
   "Description": "Automates FATE grinding, including Zodiac Atma, Anima Luminous Crystals, Resistance Memories, Phantom Demiatmas, Yo-kai Watch Medals, and Bicolor Gemstones. Seamlessly integrates with vnavmesh for pathing and flight, lifestream for zone swapping, TextAdvance for dialogue skipping, and Gluttony Combo/BossMod for combat. Use /lazyfate to open.",
   "ApplicableVersion": "any",
   "Tags": [
@@ -26,6 +26,6 @@
   ],
   "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyfateautomation-icon.png",
   "Punchline": "Fully automated FATE grinding utilizing vnavmesh, lifestream, and Gluttony Combo.",
-  "Changelog": "v0.0.1.40 - Gluttony Combo combat\n- Combat rotation and target selection are now handled by Gluttony Combo (lease-based Auto-Rotation) instead of BossMod's DwD autorotation.\n- BossMod is kept only for movement and danger avoidance, and yields target authority to Gluttony (Retarget=NoTarget, FATE priority).\n- Gluttony is configured for FATE grinding: nearest-target, FATE priority, always hard-target so movement follows, AoE at 3+.",
+  "Changelog": "v0.0.1.41 - Gluttony crash hotfix\n- Fixed a lease-registration loop that piled up duplicate Gluttony Combo leases, crashing Gluttony's UI/rotation and tanking FPS. The lease is now acquired exactly once and never churned.\n- Renamed the BossMod combat preset \"CBT - DwD\" to \"CBT - Gluttony\" so the status bar shows the right engine.\n- After updating, reload Gluttony Combo (or restart the game) once to clear orphaned registrations from v0.0.1.40.",
   "AcceptsFeedback": true
 }
