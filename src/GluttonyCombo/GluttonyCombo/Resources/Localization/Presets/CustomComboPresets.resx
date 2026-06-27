@@ -11446,4 +11446,17 @@ NOT RECOMMENDED!</value>
   <data name="BLU_AutoRotation_Heal_Desc" xml:space="preserve">
     <value>Healing lane for the BLU auto-rotation. Hosts the party-HP percent heal thresholds. Fires generously under Healer mimic, emergency-only otherwise.</value>
   </data>
+  <data name="WHM_Raidwide_Medica_Name" xml:space="preserve">
+    <value>RaidWide Medica II/III Option</value>
+  </data>
+  <data name="WHM_Raidwide_Medica_Desc" xml:space="preserve">
+    <value>Times Medica II (or Medica III at 96+) so its regen lands right as a raidwide or stack resolves, healing the hit over time. 
+Will be used in all 4 main combos.</value>
+  </data>
+  <data name="SGE_TankShield_Name" xml:space="preserve">
+    <value>Tank Shield Upkeep (Addersgall pressure)</value>
+  </data>
+  <data name="SGE_TankShield_Desc" xml:space="preserve">
+    <value>While MORE THAN 2 enemies are hitting a tank, keep Eukrasian Diagnosis up on that tank, and spend Addersting with Toxikon when it caps so the shields the tank breaks don't waste the gauge. Auto-rotation only for now.</value>
+  </data>
 </root>

@@ -296,6 +296,18 @@ internal partial class WHM
         return true;
     }
 
+    internal static bool RaidwideMedica()
+    {
+        // Timed AoE regen (Joey 2026-06-27): Medica II / Medica III is a ~2s hard cast, so
+        // start it once the incoming raidwide/stack is ~2.5s from landing - it finishes around
+        // impact and the HoT then recovers the hit. Skip if the party already has the HoT.
+        if (!(IsEnabled(Preset.WHM_Raidwide_Medica) && ActionReady(OriginalHook(Medica2)) && !IsMoving()))
+            return false;
+        if (!GroupDamageIncoming(2.5f))
+            return false;
+        ushort hot = LevelChecked(Medica3) ? Buffs.Medica3 : Buffs.Medica2;
+        return GetPartyBuffPercent(hot) <= 50;
+    }
 
     #endregion
 

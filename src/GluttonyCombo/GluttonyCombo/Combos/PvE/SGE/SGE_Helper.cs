@@ -135,15 +135,15 @@ internal partial class SGE
 
     private static bool RaidwideEprognosis()
     {
-        if (AutoRotationController.RaidwideMitOnCooldown)
+        // The AoE shield uses its OWN gate (not the mit gate) so a mitigation can follow on
+        // the next GCD. The cast is marked in the combo on the Prognosis step so the
+        // Eukrasia -> Prognosis two-step is never cut off mid-sequence.
+        if (AutoRotationController.RaidwideShieldOnCooldown)
             return false;
         bool shieldCheck = GetPartyBuffPercent(Buffs.EukrasianPrognosis) <= SGE_AoE_Heal_EPrognosisOption &&
                            GetPartyBuffPercent(SCH.Buffs.Galvanize) <= SGE_AoE_Heal_EPrognosisOption;
 
-        if (!(IsEnabled(Preset.SGE_Raidwide_EPrognosis) && shieldCheck && GroupDamageIncoming() && LevelChecked(Eukrasia)))
-            return false;
-        AutoRotationController.MarkRaidwideMitUsed();
-        return true;
+        return IsEnabled(Preset.SGE_Raidwide_EPrognosis) && shieldCheck && GroupDamageIncoming() && LevelChecked(Eukrasia);
     }
 
     #endregion

@@ -105,13 +105,21 @@ internal partial class AST
     }
     internal static bool RaidwideAspectedHelios()
     {
-        // Aspected Helios is a reactive heal, not a pre-cast mitigation.
-        // It should NOT be gated by the raidwide mit cooldown — it's cast on
-        // need (when the party doesn't already have the Neutral Sect shield/regen),
-        // even towards the end of a raidwide cast. Each raidwide can get an
-        // Aspected Helios if the regen isn't already up.
-        return IsEnabled(Preset.AST_Raidwide_AspectedHelios) && HasStatusEffect(Buffs.NeutralSect) && GroupDamageIncoming() &&
-               !HasStatusEffect(Buffs.NeutralSectShield);
+        // Aspected Helios / Helios Conjunction is a reactive AoE regen, not a pre-cast
+        // mitigation, so it is NOT gated by the raidwide mit cooldown.
+        // Timing (Joey 2026-06-27): fire only once the incoming damage is about to land
+        // (<= 1.5s left on the cast, or a stack about to pop) so the instant HoT lands right
+        // as/after the hit and recovers it.
+        if (!IsEnabled(Preset.AST_Raidwide_AspectedHelios) || !ActionReady(OriginalHook(AspectedHelios)) ||
+            !GroupDamageIncoming(1.5f))
+            return false;
+
+        // Under Neutral Sect, fire for the enhanced shield+regen when the party lacks it.
+        if (HasStatusEffect(Buffs.NeutralSect))
+            return !HasStatusEffect(Buffs.NeutralSectShield);
+
+        // Otherwise fire as the recovery regen when the party isn't already under the HoT.
+        return GetPartyBuffPercent(Buffs.AspectedHelios) <= 50 && GetPartyBuffPercent(Buffs.HeliosConjunction) <= 50;
     }
 
     #endregion

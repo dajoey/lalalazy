@@ -81,12 +81,12 @@ internal partial class SCH
     }
     internal static bool RaidwideSuccor()
     {
-        if (AutoRotationController.RaidwideMitOnCooldown)
+        // The AoE shield uses its OWN gate (not the mit gate) so a mitigation can follow on
+        // the next GCD. The cast is marked in the combo on the Succor step (not on the
+        // Recitation prep) so the two-step isn't cut off.
+        if (AutoRotationController.RaidwideShieldOnCooldown)
             return false;
-        if (!(IsEnabled(Preset.SCH_Raidwide_Succor) && ActionReady(OriginalHook(Succor)) && ShieldCheck && GroupDamageIncoming()))
-            return false;
-        AutoRotationController.MarkRaidwideMitUsed();
-        return true;
+        return IsEnabled(Preset.SCH_Raidwide_Succor) && ActionReady(OriginalHook(Succor)) && ShieldCheck && GroupDamageIncoming();
     }
     internal static bool RaidwideRecitation()
     {

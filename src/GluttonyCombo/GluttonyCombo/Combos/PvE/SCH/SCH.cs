@@ -303,12 +303,19 @@ internal partial class SCH : Healer
             #region Healing Helpers
             if (EndAetherpact)
                 return DissolveUnion;
+            if (RaidwideSuccor())
+            {
+                // Shield FIRST. Recitation (if enabled) preps the guaranteed-crit shield;
+                // mark the shield gate only when the actual Succor goes out so a mit follows.
+                if (RaidwideRecitation())
+                    return Recitation;
+                AutoRotationController.MarkRaidwideShieldUsed();
+                return OriginalHook(Succor);
+            }
             if (RaidwideSacredSoil())
                 return SacredSoil.Retarget(ReplacedActionsList.ToArray(), SimpleTarget.Self);
             if (RaidwideExpedient())
                 return Expedient;
-            if (RaidwideSuccor())
-                return RaidwideRecitation() ? Recitation : OriginalHook(Succor);
             #endregion
 
             if (InCombat() && CanWeave())
@@ -386,12 +393,19 @@ internal partial class SCH : Healer
             #region Healing Helpers
             if (EndAetherpact)
                 return DissolveUnion;
+            if (RaidwideSuccor())
+            {
+                // Shield FIRST. Recitation (if enabled) preps the guaranteed-crit shield;
+                // mark the shield gate only when the actual Succor goes out so a mit follows.
+                if (RaidwideRecitation())
+                    return Recitation;
+                AutoRotationController.MarkRaidwideShieldUsed();
+                return OriginalHook(Succor);
+            }
             if (RaidwideSacredSoil())
                 return SacredSoil.Retarget(ReplacedActionsList.ToArray(), SimpleTarget.Self);
             if (RaidwideExpedient())
                 return Expedient;
-            if (RaidwideSuccor())
-                return RaidwideRecitation() ? Recitation : OriginalHook(Succor);
             #endregion
 
             if (IsEnabled(Preset.SCH_AoE_ADV_DPS_Aetherflow) && !WasLastAction(Dissipation) && ActionReady(Aetherflow) && !HasAetherflow && CanWeave())
@@ -463,12 +477,19 @@ internal partial class SCH : Healer
             #region Healing Helpers
             if (EndAetherpact)
                 return DissolveUnion;
+            if (RaidwideSuccor())
+            {
+                // Shield FIRST. Recitation (if enabled) preps the guaranteed-crit shield;
+                // mark the shield gate only when the actual Succor goes out so a mit follows.
+                if (RaidwideRecitation())
+                    return Recitation;
+                AutoRotationController.MarkRaidwideShieldUsed();
+                return OriginalHook(Succor);
+            }
             if (RaidwideSacredSoil())
                 return SacredSoil.Retarget(ReplacedActionsList.ToArray(), SimpleTarget.Self);
             if (RaidwideExpedient())
                 return Expedient;
-            if (RaidwideSuccor())
-                return RaidwideRecitation() ? Recitation : OriginalHook(Succor);
             #endregion
 
             // Aetherflow
@@ -526,12 +547,19 @@ internal partial class SCH : Healer
             #region Healing Helpers
             if (EndAetherpact)
                 return DissolveUnion;
+            if (RaidwideSuccor())
+            {
+                // Shield FIRST. Recitation (if enabled) preps the guaranteed-crit shield;
+                // mark the shield gate only when the actual Succor goes out so a mit follows.
+                if (RaidwideRecitation())
+                    return Recitation;
+                AutoRotationController.MarkRaidwideShieldUsed();
+                return OriginalHook(Succor);
+            }
             if (RaidwideSacredSoil())
                 return SacredSoil.Retarget(ReplacedActionsList.ToArray(), SimpleTarget.Self);
             if (RaidwideExpedient())
                 return Expedient;
-            if (RaidwideSuccor())
-                return RaidwideRecitation() ? Recitation : OriginalHook(Succor);
             #endregion
 
             if (!HasAetherflow && InCombat())

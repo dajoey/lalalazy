@@ -1,5 +1,6 @@
 #region
 
+using Dalamud.Game.ClientState.JobGauge.Types;
 using Dalamud.Game.ClientState.Objects.Types;
 using ECommons;
 using ECommons.DalamudServices;
@@ -65,6 +66,15 @@ internal unsafe class AutoRotationController
 
     /// <summary>Record a raidwide-mit cast at "now".</summary>
     internal static void MarkRaidwideMitUsed() => LastRaidwideMitTime = DateTime.UtcNow;
+
+    // --- Raidwide AoE SHIELD gate (SGE Eukrasian Prognosis / SCH Succor) ---
+    // Tracked separately from the mit gate so a healer fires ONE shield and then
+    // immediately follows it with ONE mitigation on the same raidwide. (Joey 2026-06-27)
+    internal static DateTime LastRaidwideShieldTime = DateTime.MinValue;
+    internal const double RaidwideShieldCooldownSeconds = 10.0;
+    internal static bool RaidwideShieldOnCooldown =>
+        (DateTime.UtcNow - LastRaidwideShieldTime).TotalSeconds < RaidwideShieldCooldownSeconds;
+    internal static void MarkRaidwideShieldUsed() => LastRaidwideShieldTime = DateTime.UtcNow;
     public static bool TankbusterHandled = false;
 
     public AutoRotationController()
@@ -239,6 +249,10 @@ internal unsafe class AutoRotationController
             if (isHealer && GroupDamageIncoming(out var multi))
             {
                 AutorotRaidwiding = true;
+                // "Drop what they're doing": cancel an in-progress damage hard-cast so the
+                // instant AoE shield (and its mit follow-up) can fire immediately (SGE/SCH).
+                if (Player.Job is Job.SGE or Job.SCH && RaidwideShieldPending() && IsHardCastingDamage())
+                    UIState.Instance()->Hotbar.CancelCast();
                 HandleRaidwide(multi);
             }
             else
@@ -317,6 +331,11 @@ internal unsafe class AutoRotationController
         // SGE Kardia logic
         if (Player.Job is Job.SGE && cfg.HealerSettings.ManageKardia)
             UpdateKardiaTarget();
+
+        // SGE tank-shield upkeep: keep Eukrasian Diagnosis on a heavily-targeted tank and
+        // spend capped Addersting via Toxikon so the upkeep doesn't waste the gauge.
+        if (Player.Job is Job.SGE)
+            UpdateSgeTankShield();
 
         // WHM Divine Caress logic
         if (Player.Job is Job.WHM && HasStatusEffect(WHM.Buffs.DivineGrace) && AbleToCast(WHM.DivineCaress) && !(Player.Object?.IsCasting() is true))
@@ -412,8 +431,48 @@ internal unsafe class AutoRotationController
     ];
 
     public static List<uint> BlacklistedRaidwides = [];
+
+    private static readonly uint[] SgeDamageHardCasts = [SGE.Dosis, SGE.Dosis2, SGE.Dosis3];
+    private static readonly uint[] SchDamageHardCasts = [SCH.Broil, SCH.Broil2, SCH.Broil3, SCH.Broil4, SCH.Ruin];
+
+    /// <summary>SGE/SCH still owe the party their AoE shield this raidwide: preset on,
+    /// shield not on its short cooldown, and the party is not already shielded. While this
+    /// is true we hold mitigation back so the shield always lands FIRST.</summary>
+    private static bool RaidwideShieldPending()
+    {
+        if (RaidwideShieldOnCooldown)
+            return false;
+        return Player.Job switch
+        {
+            Job.SGE => IsEnabled(Preset.SGE_Raidwide_EPrognosis) && LevelChecked(SGE.Eukrasia) &&
+                       GetPartyBuffPercent(SGE.Buffs.EukrasianPrognosis) <= 50,
+            Job.SCH => IsEnabled(Preset.SCH_Raidwide_Succor) && LevelChecked(SCH.Succor) &&
+                       GetPartyBuffPercent(SCH.Buffs.Galvanize) <= 50,
+            _ => false
+        };
+    }
+
+    /// <summary>True while the player is hard-casting one of their job's damage GCDs, so it
+    /// is safe to cancel for an emergency shield without dropping a queued heal.</summary>
+    private static bool IsHardCastingDamage()
+    {
+        if (Player.Object?.IsCasting() is not true)
+            return false;
+        uint cast = LocalPlayer.CastActionId;
+        return Player.Job switch
+        {
+            Job.SGE => SgeDamageHardCasts.Contains(cast),
+            Job.SCH => SchDamageHardCasts.Contains(cast),
+            _ => false
+        };
+    }
+
     private static void HandleRaidwide(bool multihit)
     {
+        // Shield-first: hold mitigation until SGE/SCH have put their AoE shield up.
+        if (RaidwideShieldPending())
+            return;
+
         // Hard minimum gap between any two raidwide mitigations from autorot.
         if (RaidwideMitOnCooldown)
             return;
@@ -783,6 +842,75 @@ internal unsafe class AutoRotationController
             }
         }
 
+    }
+
+    // SGE tank-shield upkeep (Joey 2026-06-27). When MORE THAN 2 enemies are on a tank, keep
+    // Eukrasian Diagnosis up on that tank; and when Addersting is capped, spend it with Toxikon
+    // so the gauge the breaking shields generate isn't wasted. Gated by the SGE_TankShield preset.
+    // The pending flag drives the Eukrasia -> Eukrasian Diagnosis two-step WITHOUT hijacking an
+    // Eukrasia the rotation pressed for Eukrasian Dosis.
+    private static bool _sgeShieldEukrasiaPending;
+    private static void UpdateSgeTankShield()
+    {
+        if (!IsEnabled(Preset.SGE_TankShield) || !LevelChecked(SGE.Eukrasia))
+        {
+            _sgeShieldEukrasiaPending = false;
+            return;
+        }
+        if (CombatEngageDuration().TotalSeconds < 3) return;
+
+        // Finish a tank-shield Eukrasia WE started: cast Eukrasian Diagnosis on the tank.
+        if (_sgeShieldEukrasiaPending)
+        {
+            if (HasStatusEffect(SGE.Buffs.Eukrasia))
+            {
+                var t = MostTargetedUnshieldedTank();
+                if (t is not null)
+                {
+                    ActionManager.Instance()->UseAction(ActionType.Action, SGE.EukrasianDiagnosis.Retarget(t), t.GameObjectId);
+                    _sgeShieldEukrasiaPending = false;
+                    return;
+                }
+            }
+            else
+            {
+                _sgeShieldEukrasiaPending = false; // Eukrasia gone (consumed elsewhere) - stand down.
+            }
+        }
+
+        // Don't touch an Eukrasia the rotation pressed for something else (e.g. Eukrasian Dosis).
+        if (HasStatusEffect(SGE.Buffs.Eukrasia)) return;
+
+        // 1) Spend capped Addersting (max 3) via Toxikon.
+        if (GetJobGauge<SGEGauge>().Addersting >= 3 &&
+            ActionReady(OriginalHook(SGE.Toxikon)) && HasBattleTarget() && InActionRange(OriginalHook(SGE.Toxikon)))
+        {
+            ActionManager.Instance()->UseAction(ActionType.Action, OriginalHook(SGE.Toxikon));
+            return;
+        }
+
+        // 2) Start the Eukrasia -> Diagnosis sequence for a heavily-targeted, unshielded tank.
+        if (MostTargetedUnshieldedTank() is not null && ActionReady(SGE.Eukrasia))
+        {
+            ActionManager.Instance()->UseAction(ActionType.Action, SGE.Eukrasia);
+            _sgeShieldEukrasiaPending = true;
+        }
+    }
+
+    // The first party tank that more than 2 enemies are targeting and that lacks the Eukrasian
+    // Diagnosis shield, or null if none qualifies.
+    private static IGameObject? MostTargetedUnshieldedTank()
+    {
+        foreach (var member in GetPartyMembers())
+        {
+            var bc = member.BattleChara;
+            if (bc is null || bc.IsDead || bc.GetRole() is not CombatRole.Tank) continue;
+            int enemies = Svc.Objects.Count(x => x.IsTargetable && x.IsHostile() && x.TargetObjectId == bc.GameObjectId);
+            if (enemies <= 2) continue;
+            if (HasStatusEffect(SGE.Buffs.EukrasianDiagnosis, bc, true)) continue;
+            return bc;
+        }
+        return null;
     }
 
     private static bool AutomateDPS(Preset preset, PresetStorage.PresetData attributes, uint gameAct)

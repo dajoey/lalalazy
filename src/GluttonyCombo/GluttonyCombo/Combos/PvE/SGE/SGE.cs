@@ -2,6 +2,7 @@ using Dalamud.Game.ClientState.Objects.Types;
 using ECommons.DalamudServices;
 using ECommons.GameFunctions;
 using System.Linq;
+using GluttonyCombo.AutoRotation;
 using GluttonyCombo.Core;
 using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.Data;
@@ -214,16 +215,23 @@ internal partial class SGE : Healer
 
             #region Raidwide Feature
 
+            if (RaidwideEprognosis())
+            {
+                // Shield FIRST: Eukrasia -> Eukrasian Prognosis. Mark the shield gate only
+                // once the actual Prognosis goes out so a mitigation follows next GCD.
+                if (HasStatusEffect(Buffs.Eukrasia))
+                {
+                    AutoRotationController.MarkRaidwideShieldUsed();
+                    return OriginalHook(Prognosis);
+                }
+                return Eukrasia;
+            }
+
             if (RaidwideKerachole())
                 return Kerachole;
 
             if (RaidwideHolos())
                 return Holos;
-
-            if (RaidwideEprognosis())
-                return HasStatusEffect(Buffs.Eukrasia)
-                    ? OriginalHook(Prognosis)
-                    : Eukrasia;
 
             #endregion
 
@@ -329,16 +337,23 @@ internal partial class SGE : Healer
 
             #region Raidwide Feature
 
+            if (RaidwideEprognosis())
+            {
+                // Shield FIRST: Eukrasia -> Eukrasian Prognosis. Mark the shield gate only
+                // once the actual Prognosis goes out so a mitigation follows next GCD.
+                if (HasStatusEffect(Buffs.Eukrasia))
+                {
+                    AutoRotationController.MarkRaidwideShieldUsed();
+                    return OriginalHook(Prognosis);
+                }
+                return Eukrasia;
+            }
+
             if (RaidwideKerachole())
                 return Kerachole;
 
             if (RaidwideHolos())
                 return Holos;
-
-            if (RaidwideEprognosis())
-                return HasStatusEffect(Buffs.Eukrasia)
-                    ? OriginalHook(Prognosis)
-                    : Eukrasia;
 
             #endregion
 
@@ -565,16 +580,23 @@ internal partial class SGE : Healer
 
             #region Raidwide Feature
 
+            if (RaidwideEprognosis())
+            {
+                // Shield FIRST: Eukrasia -> Eukrasian Prognosis. Mark the shield gate only
+                // once the actual Prognosis goes out so a mitigation follows next GCD.
+                if (HasStatusEffect(Buffs.Eukrasia))
+                {
+                    AutoRotationController.MarkRaidwideShieldUsed();
+                    return OriginalHook(Prognosis);
+                }
+                return Eukrasia;
+            }
+
             if (RaidwideKerachole())
                 return Kerachole;
 
             if (RaidwideHolos())
                 return Holos;
-
-            if (RaidwideEprognosis())
-                return HasStatusEffect(Buffs.Eukrasia)
-                    ? OriginalHook(Prognosis)
-                    : Eukrasia;
 
             #endregion
 
@@ -636,16 +658,23 @@ internal partial class SGE : Healer
 
             #region Raidwide Feature
 
+            if (RaidwideEprognosis())
+            {
+                // Shield FIRST: Eukrasia -> Eukrasian Prognosis. Mark the shield gate only
+                // once the actual Prognosis goes out so a mitigation follows next GCD.
+                if (HasStatusEffect(Buffs.Eukrasia))
+                {
+                    AutoRotationController.MarkRaidwideShieldUsed();
+                    return OriginalHook(Prognosis);
+                }
+                return Eukrasia;
+            }
+
             if (RaidwideKerachole())
                 return Kerachole;
 
             if (RaidwideHolos())
                 return Holos;
-
-            if (RaidwideEprognosis())
-                return HasStatusEffect(Buffs.Eukrasia)
-                    ? OriginalHook(Prognosis)
-                    : Eukrasia;
 
             #endregion
 

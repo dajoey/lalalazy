@@ -1,3 +1,18 @@
+## v1.0.4.55 (2026-06-27)
+
+### Added
+- **SGE/SCH raidwide "shield-first" reaction.** On an incoming raidwide OR stack, SGE/SCH now fire ONE AoE shield FIRST (Eukrasian Prognosis / Succor) then ONE mitigation, instead of only a single mit. New `RaidwideShieldOnCooldown` (10s) gate in `AutoRotation/AutoRotationController.cs`, separate from the 15s mit gate, lets both land on the same raidwide; the shield helpers (`RaidwideEprognosis`, `RaidwideSuccor`) were moved off the mit gate and the combos mark the shield gate only on the actual shield step. Auto-rotation also cancels an in-progress damage hard-cast (Dosis/Broil, scoped via `IsHardCastingDamage`) so the instant shield fires immediately. Applies to auto-rotation and the manual heal combos (`SGE.cs`, `SGE_Helper.cs`, `SCH.cs`, `SCH_Helper.cs`).
+- **WHM `WHM_Raidwide_Medica` (new toggle).** Times Medica II / Medica III so the regen lands as a raidwide/stack resolves (fires at <= 2.5s left on the incoming cast), skipped if the party already has the HoT or while moving. `WHM.cs`, `WHM_Helper.cs`.
+- **SGE `SGE_TankShield` (new toggle, auto-rotation).** While MORE THAN 2 enemies are on a tank, keeps Eukrasian Diagnosis up on that tank (Eukrasia -> Diagnosis, flag-driven so it never hijacks an Eukrasian Dosis), and spends Addersting with Toxikon at cap so the breaking shields don't waste the gauge. `AutoRotationController.cs`.
+
+### Changed
+- **AST raidwide regen timing.** `AST_Raidwide_AspectedHelios` now fires only once the incoming damage is <= 1.5s from landing so the Aspected Helios / Helios Conjunction HoT recovers the hit, and now also applies the regen without Neutral Sect when the party lacks the HoT. `AST_Helper.cs`.
+
+### Notes
+- The SGE/SCH AoE-shield helpers moved off the shared 15s mit gate onto their own 10s shield gate; other healers' raidwide mit behavior is unchanged.
+- Hardcoded tunables: shield gate 10s, AST window 1.5s, WHM Medica window 2.5s, tank threshold > 2, Addersting cap 3.
+- Testing build.
+
 ## v1.0.4.54 (2026-06-19)
 
 ### Changed

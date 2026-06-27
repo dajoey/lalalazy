@@ -6007,9 +6007,14 @@ public enum Preset
     SGE_Raidwide_Holos = 14072,
     #endregion
 
+    #region Tank Shield Upkeep
+    [JobInfo(Job.SGE)]
+    SGE_TankShield = 14088,
     #endregion
 
-    // Last used number = 14087
+    #endregion
+
+    // Last used number = 14088
 
     #endregion
 
@@ -8057,6 +8062,10 @@ public enum Preset
     [ParentCombo(WHM_Raidwide)]
     [JobInfo(Job.WHM)]
     WHM_Raidwide_PlenaryIndulgence = 19224,
+
+    [ParentCombo(WHM_Raidwide)]
+    [JobInfo(Job.WHM)]
+    WHM_Raidwide_Medica = 19225,
 
     #endregion
 

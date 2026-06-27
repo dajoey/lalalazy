@@ -194,6 +194,8 @@ internal partial class WHM : Healer
                 return Asylum.Retarget(actionID, SimpleTarget.Self);
             if (RaidwideLiturgyOfTheBell())
                 return LiturgyOfTheBell.Retarget(actionID, SimpleTarget.Self);
+            if (RaidwideMedica())
+                return OriginalHook(Medica2);
 
             #endregion
 
@@ -316,6 +318,8 @@ internal partial class WHM : Healer
                 return Asylum.Retarget([Holy, Holy3], SimpleTarget.Self);
             if (RaidwideLiturgyOfTheBell())
                 return LiturgyOfTheBell.Retarget([Holy, Holy3], SimpleTarget.Self);
+            if (RaidwideMedica())
+                return OriginalHook(Medica2);
 
             #endregion
 
@@ -532,6 +536,8 @@ internal partial class WHM : Healer
                 return Asylum.Retarget(Cure, SimpleTarget.Self);
             if (RaidwideLiturgyOfTheBell())
                 return LiturgyOfTheBell.Retarget(Cure, SimpleTarget.Self);
+            if (RaidwideMedica())
+                return OriginalHook(Medica2);
 
             #endregion
 
@@ -615,6 +621,8 @@ internal partial class WHM : Healer
                 return Asylum.Retarget(Medica1, SimpleTarget.Self);
             if (RaidwideLiturgyOfTheBell())
                 return LiturgyOfTheBell.Retarget(Medica1, SimpleTarget.Self);
+            if (RaidwideMedica())
+                return OriginalHook(Medica2);
 
             #endregion
 
