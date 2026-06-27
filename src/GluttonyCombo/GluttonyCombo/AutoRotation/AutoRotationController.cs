@@ -249,10 +249,6 @@ internal unsafe class AutoRotationController
             if (isHealer && GroupDamageIncoming(out var multi))
             {
                 AutorotRaidwiding = true;
-                // "Drop what they're doing": cancel an in-progress damage hard-cast so the
-                // instant AoE shield (and its mit follow-up) can fire immediately (SGE/SCH).
-                if (Player.Job is Job.SGE or Job.SCH && RaidwideShieldPending() && IsHardCastingDamage())
-                    UIState.Instance()->Hotbar.CancelCast();
                 HandleRaidwide(multi);
             }
             else
@@ -432,9 +428,6 @@ internal unsafe class AutoRotationController
 
     public static List<uint> BlacklistedRaidwides = [];
 
-    private static readonly uint[] SgeDamageHardCasts = [SGE.Dosis, SGE.Dosis2, SGE.Dosis3];
-    private static readonly uint[] SchDamageHardCasts = [SCH.Broil, SCH.Broil2, SCH.Broil3, SCH.Broil4, SCH.Ruin];
-
     /// <summary>SGE/SCH still owe the party their AoE shield this raidwide: preset on,
     /// shield not on its short cooldown, and the party is not already shielded. While this
     /// is true we hold mitigation back so the shield always lands FIRST.</summary>
@@ -448,21 +441,6 @@ internal unsafe class AutoRotationController
                        GetPartyBuffPercent(SGE.Buffs.EukrasianPrognosis) <= 50,
             Job.SCH => IsEnabled(Preset.SCH_Raidwide_Succor) && LevelChecked(SCH.Succor) &&
                        GetPartyBuffPercent(SCH.Buffs.Galvanize) <= 50,
-            _ => false
-        };
-    }
-
-    /// <summary>True while the player is hard-casting one of their job's damage GCDs, so it
-    /// is safe to cancel for an emergency shield without dropping a queued heal.</summary>
-    private static bool IsHardCastingDamage()
-    {
-        if (Player.Object?.IsCasting() is not true)
-            return false;
-        uint cast = LocalPlayer.CastActionId;
-        return Player.Job switch
-        {
-            Job.SGE => SgeDamageHardCasts.Contains(cast),
-            Job.SCH => SchDamageHardCasts.Contains(cast),
             _ => false
         };
     }

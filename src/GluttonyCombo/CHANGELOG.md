@@ -1,3 +1,8 @@
+## v1.0.4.56 (2026-06-27)
+
+### Changed
+- **Raidwide shield: removed the cast-interrupt.** SGE/SCH no longer cancel an in-progress hard-cast to force the AoE shield out - cancelling the cast could leave the shield unable to slot in (GCD/animation-lock thrash: "stops casting but doesn't start the shield"). The AoE shield (Eukrasian Prognosis / Succor) is still the highest-priority raidwide action and now slots in cleanly on the next available GCD. Removed `IsHardCastingDamage` + the per-job damage-cast tables and the `Hotbar.CancelCast()` call in `AutoRotation/AutoRotationController.cs`; the shield-first mitigation deferral (`RaidwideShieldPending`) is unchanged.
+
 ## v1.0.4.55 (2026-06-27)
 
 ### Added
