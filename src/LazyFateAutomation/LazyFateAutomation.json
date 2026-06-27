@@ -17,5 +17,5 @@
   "DalamudApiLevel": 15,
   "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyfateautomation-icon.png",
   "ImageUrls": [ "" ],
-  "Changelog": "v0.0.1.41 - Gluttony crash hotfix\n- Fixed a lease-registration loop that piled up duplicate Gluttony Combo leases, crashing Gluttony's UI/rotation and tanking FPS. The lease is now acquired exactly once and never churned.\n- Renamed the BossMod combat preset \"CBT - DwD\" to \"CBT - Gluttony\" so the status bar shows the right engine.\n- After updating, reload Gluttony Combo (or restart the game) once to clear orphaned registrations from v0.0.1.40."
+  "Changelog": "v0.0.1.42 - Preset name cleanup\n- Renamed the BossMod combat preset to just \"Gluttony\" (dropped the leftover \"CBT -\" prefix)."
 }
