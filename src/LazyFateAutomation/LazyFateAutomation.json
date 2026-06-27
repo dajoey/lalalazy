@@ -17,5 +17,5 @@
   "DalamudApiLevel": 15,
   "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyfateautomation-icon.png",
   "ImageUrls": [ "" ],
-  "Changelog": "v0.0.1.42 - Preset name cleanup\n- Renamed the BossMod combat preset to just \"Gluttony\" (dropped the leftover \"CBT -\" prefix)."
+  "Changelog": "v0.0.1.43 - Release Gluttony on Stop\n- Stop now fully releases the Gluttony Combo lease (returns control to you) instead of just turning auto-rotation off."
 }

@@ -1,5 +1,9 @@
 # Changelog - Lazy Fate Automation
 
+## [0.0.1.43] - 2026-06-27
+### Fixed
+- **Stop now fully releases the Gluttony Combo lease** instead of only disabling auto-rotation. Previously, Stop (and `/lazyfate stop`, and auto-complete) left Gluttony "controlled by Lazy Fate Automation" with the lease still held, so your manual/macro control of Gluttony stayed locked out. `FateToolKit` Running=false now calls `GluttonyComboIPC.Release()` (which calls `ReleaseControl`) instead of `Disable()`; a fresh lease is acquired on the next grind start. Between-FATE pauses still use `Disable()` (keep the lease, just stop the rotation).
+
 ## [0.0.1.42] - 2026-06-27
 ### Changed
 - Renamed the BossMod combat preset `CBT - Gluttony` -> `Gluttony` (dropped the leftover "CBT -" prefix that came from the original "CBT - DwD" community preset). The status bar now reads just "Gluttony".
