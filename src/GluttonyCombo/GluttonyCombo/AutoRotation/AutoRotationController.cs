@@ -431,23 +431,71 @@ internal unsafe class AutoRotationController
     /// <summary>SGE/SCH still owe the party their AoE shield this raidwide: preset on,
     /// shield not on its short cooldown, and the party is not already shielded. While this
     /// is true we hold mitigation back so the shield always lands FIRST.</summary>
+    /// <summary>SGE/SCH still owe the party an AoE shield this raidwide (not on its short
+    /// cooldown, party not already shielded). Auto-rotation owns the shield directly here -
+    /// preset-INDEPENDENT, exactly like the mit list - so it fires as reliably as the
+    /// mitigations instead of depending on the per-job combo path. (Joey 2026-06-27)</summary>
     private static bool RaidwideShieldPending()
     {
         if (RaidwideShieldOnCooldown)
             return false;
         return Player.Job switch
         {
-            Job.SGE => IsEnabled(Preset.SGE_Raidwide_EPrognosis) && LevelChecked(SGE.Eukrasia) &&
+            Job.SGE => LevelChecked(SGE.Eukrasia) &&
                        GetPartyBuffPercent(SGE.Buffs.EukrasianPrognosis) <= 50,
-            Job.SCH => IsEnabled(Preset.SCH_Raidwide_Succor) && LevelChecked(SCH.Succor) &&
+            Job.SCH => LevelChecked(SCH.Succor) &&
                        GetPartyBuffPercent(SCH.Buffs.Galvanize) <= 50,
             _ => false
         };
     }
 
+    /// <summary>Cast the AoE shield directly (SGE Eukrasia -> Eukrasian Prognosis, SCH Succor)
+    /// the same reliable way HandleRaidwide casts the mits, so it never depends on the per-job
+    /// combo being invoked that tick. Returns true if it issued a cast.</summary>
+    private static bool TryRaidwideShield()
+    {
+        if (!RaidwideShieldPending())
+            return false;
+        if (Player.Object?.IsCasting() is true)
+            return false; // GCD busy; RaidwideShieldPending keeps the mit held until this clears
+
+        switch (Player.Job)
+        {
+            case Job.SGE:
+            {
+                if (!HasStatusEffect(SGE.Buffs.Eukrasia))
+                {
+                    if (!ActionReady(SGE.Eukrasia))
+                        return false;
+                    ActionManager.Instance()->UseAction(ActionType.Action, SGE.Eukrasia);
+                    return true;
+                }
+                uint prog = LevelChecked(SGE.EukrasianPrognosis2) ? SGE.EukrasianPrognosis2 : SGE.EukrasianPrognosis;
+                ActionManager.Instance()->UseAction(ActionType.Action, prog);
+                MarkRaidwideShieldUsed();
+                return true;
+            }
+            case Job.SCH:
+            {
+                uint succor = OriginalHook(SCH.Succor);
+                if (!ActionReady(succor))
+                    return false;
+                ActionManager.Instance()->UseAction(ActionType.Action, succor);
+                MarkRaidwideShieldUsed();
+                return true;
+            }
+            default:
+                return false;
+        }
+    }
+
     private static void HandleRaidwide(bool multihit)
     {
-        // Shield-first: hold mitigation until SGE/SCH have put their AoE shield up.
+        // Shield-first: cast the AoE shield directly (reliable, like the mits below).
+        if (TryRaidwideShield())
+            return;
+
+        // Shield owed but couldn't cast yet (GCD busy): hold mitigation so it stays first.
         if (RaidwideShieldPending())
             return;
 

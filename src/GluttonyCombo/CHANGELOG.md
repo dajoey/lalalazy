@@ -1,3 +1,8 @@
+## v1.0.4.57 (2026-06-27)
+
+### Fixed
+- **SGE/SCH raidwide shield now fires reliably under auto-rotation.** It previously came only from the per-job combo path (needs the `SGE_Raidwide_EPrognosis` / `SCH_Raidwide_Succor` sub-preset AND the right combo invoked that tick), while the mitigations fire from the controller's preset-independent list - so the mit reliably went out but the shield often didn't ("felt like upstream"). The AoE shield (SGE Eukrasia -> Eukrasian Prognosis, SCH Succor) is now cast directly in the auto-rotation controller, FIRST, the same way the mits fire, gated only on raidwide-handling being on (no separate sub-preset needed for auto-rotation). New `TryRaidwideShield` + preset-independent `RaidwideShieldPending` in `AutoRotation/AutoRotationController.cs`. The manual heal-combo raidwide feature (still uses the sub-presets) is unchanged.
+
 ## v1.0.4.56 (2026-06-27)
 
 ### Changed
