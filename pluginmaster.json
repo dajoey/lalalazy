@@ -155,7 +155,8 @@
     ],
     "DownloadCount": 0,
     "LastUpdate": "1782601654",
-    "TestingAssemblyVersion": "1.0.4.55"
+    "TestingAssemblyVersion": "1.0.4.55",
+    "TestingDalamudApiLevel": 15
   },
   {
     "Author": "daemitus, MidoriKami, dajoey",
