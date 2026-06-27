@@ -100,6 +100,7 @@ public class FateToolKit : IFateGrindRunState {
                 } catch (Exception ex) {
                     Svc.Log.PrintWarning($"Failed to call BossMod ClearActive IPC: {ex.Message}");
                 }
+                try { Service.Gluttony?.Disable(); } catch (Exception ex) { Svc.Log.PrintWarning($"Failed to disable Gluttony Combo: {ex.Message}"); }
                 Service.Automation.Stop();
                 RunUntilCompleted = null;
             }

@@ -16,5 +16,6 @@ public enum Ipc {
     QoLBar = 1 << 10,
     ItemVendorLocation = 1 << 11,
     TextAdvance = 1 << 12,
+    GluttonyCombo = 1 << 13,
 }
 

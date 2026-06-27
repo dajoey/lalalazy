@@ -26,6 +26,7 @@ public class Plugin : IDalamudPlugin {
         Service.BossMod = new BossModIPC();
         Service.Navmesh = Svc.Navmesh; // Use the initialized Navmesh IPC from Svc
         Service.TextAdvance = new TextAdvanceIpc();
+        Service.Gluttony = new GluttonyComboIPC();
         Service.Automation = new Automation();
 
         FateToolKit = new FateToolKit();
@@ -52,6 +53,7 @@ public class Plugin : IDalamudPlugin {
         
         FateToolKit.Disable();
         Service.Automation.Stop();
+        Service.Gluttony?.Release();
 
         ECommonsMain.Dispose();
     }

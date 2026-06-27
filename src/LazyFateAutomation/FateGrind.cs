@@ -487,6 +487,8 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
                         }
                     }
                     try {
+                        Svc.BossMod.AddTransientStrategy(_presetName, "BossMod.Autorotation.MiscAI.AutoTarget", "Retarget", "NoTarget");
+                        Svc.BossMod.AddTransientStrategy(_presetName, "BossMod.Autorotation.MiscAI.AutoTarget", "FATE", "Enabled");
                         Svc.BossMod.AddTransientStrategy(_presetName, "BossMod.Autorotation.MiscAI.AutoTarget", "MaxTargets", PullSize.ToString());
                     } catch (Exception ex) {
                         Log($"Failed to call BossMod AddTransientStrategy IPC: {ex.Message}");
@@ -512,6 +514,13 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
                 }
             } catch (Exception ex) {
                 Log($"Failed to configure BossMod preset: {ex.Message}");
+            }
+
+            // Hand combat rotation + targeting to Gluttony Combo (BossMod above only moves + dodges).
+            try {
+                Service.Gluttony.Enable();
+            } catch (Exception ex) {
+                Log($"Failed to enable Gluttony Combo: {ex.Message}");
             }
 
             try {
@@ -557,6 +566,12 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
             }
         } catch (Exception ex) {
             Log($"Failed to call BossMod Deactivate IPC: {ex.Message}");
+        }
+
+        try {
+            Service.Gluttony.Disable();
+        } catch (Exception ex) {
+            Log($"Failed to disable Gluttony Combo: {ex.Message}");
         }
 
         Svc.Targets.Target = null; // avoid preset trying to go to the mob and interfering with casts

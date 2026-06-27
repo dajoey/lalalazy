@@ -1,31 +1,31 @@
 {
-    "Author":  "croizat, dajoey",
-    "Name":  "Lazy Fate Automation",
-    "InternalName":  "LazyFateAutomation",
-    "AssemblyVersion":  "0.0.1.39",
-    "Description":  "Automates FATE grinding, including Zodiac Atma, Anima Luminous Crystals, Resistance Memories, Phantom Demiatmas, Yo-kai Watch Medals, and Bicolor Gemstones. Seamlessly integrates with vnavmesh for pathing and flight, lifestream for zone swapping, TextAdvance for dialogue skipping, and Gluttony Combo/BossMod for combat. Use /lazyfate to open.",
-    "ApplicableVersion":  "any",
-    "Tags":  [
-                 "fate",
-                 "grind",
-                 "automation",
-                 "relic",
-                 "yokai",
-                 "vnavmesh"
-             ],
-    "CategoryTags":  [
-                         "utility"
-                     ],
-    "DalamudApiLevel":  15,
-    "LoadRequiredState":  0,
-    "LoadSync":  false,
-    "CanUnloadAsync":  false,
-    "LoadPriority":  0,
-    "ImageUrls":  [
-                      ""
-                  ],
-    "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyfateautomation-icon.png",
-    "Punchline":  "Fully automated FATE grinding utilizing vnavmesh, lifestream, and Gluttony Combo.",
-    "Changelog":  "v0.0.1.15 - Stuck Dismounting Fix\n- Fixed a bug where the bot got stuck in \"Automation: Dismounting\" state during zone swaps or same-zone teleports.\n- Added a wait condition to ensure the dismount animation lock has fully decayed and player movement momentum has stopped before executing the teleport cast.\n- Corrected task status reporting to reset back to \"Teleporting\" after a dismount completes.",
-    "AcceptsFeedback":  true
+  "Author": "croizat, dajoey",
+  "Name": "Lazy Fate Automation",
+  "InternalName": "LazyFateAutomation",
+  "AssemblyVersion": "0.0.1.40",
+  "Description": "Automates FATE grinding, including Zodiac Atma, Anima Luminous Crystals, Resistance Memories, Phantom Demiatmas, Yo-kai Watch Medals, and Bicolor Gemstones. Seamlessly integrates with vnavmesh for pathing and flight, lifestream for zone swapping, TextAdvance for dialogue skipping, and Gluttony Combo/BossMod for combat. Use /lazyfate to open.",
+  "ApplicableVersion": "any",
+  "Tags": [
+    "fate",
+    "grind",
+    "automation",
+    "relic",
+    "yokai",
+    "vnavmesh"
+  ],
+  "CategoryTags": [
+    "utility"
+  ],
+  "DalamudApiLevel": 15,
+  "LoadRequiredState": 0,
+  "LoadSync": false,
+  "CanUnloadAsync": false,
+  "LoadPriority": 0,
+  "ImageUrls": [
+    ""
+  ],
+  "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyfateautomation-icon.png",
+  "Punchline": "Fully automated FATE grinding utilizing vnavmesh, lifestream, and Gluttony Combo.",
+  "Changelog": "v0.0.1.40 - Gluttony Combo combat\n- Combat rotation and target selection are now handled by Gluttony Combo (lease-based Auto-Rotation) instead of BossMod's DwD autorotation.\n- BossMod is kept only for movement and danger avoidance, and yields target authority to Gluttony (Retarget=NoTarget, FATE priority).\n- Gluttony is configured for FATE grinding: nearest-target, FATE priority, always hard-target so movement follows, AoE at 3+.",
+  "AcceptsFeedback": true
 }

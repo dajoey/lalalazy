@@ -1,5 +1,18 @@
 # Changelog - Lazy Fate Automation
 
+## [0.0.1.40] - 2026-06-27
+### Changed
+- Combat is now driven by **Gluttony Combo** instead of BossMod's "DwD" autorotation. BossMod is kept only for movement and danger avoidance; Gluttony Combo's lease-based Auto-Rotation now owns the combat rotation **and** target selection.
+- `FateGrind.HandleIntegrations` enables Gluttony Combo Auto-Rotation on FATE engage via the `GluttonyCombo` IPC (RegisterForLease -> SetAutoRotationState -> SetCurrentJobAutoRotationReady), configured for FATE grinding: DPSRotationMode=Nearest, FATEPriority=on, DPSAlwaysHardTarget=on (so BossMod movement follows Gluttony's hard target), InCombatOnly=off, BypassFATE=on, DPSAoETargets=3.
+- BossMod `MiscAI.AutoTarget` now yields target authority to Gluttony: `Retarget=NoTarget` (only auto-targets when the player has nothing targeted) plus `FATE=Enabled` for the bootstrap case. The `MaxTargets` pull cap is retained.
+- `FateGrind.DeactivateIntegrations` and the run-stop path disable Gluttony Combo Auto-Rotation so it never fires while travelling between FATEs.
+### Added
+- `Helpers/IPC/GluttonyComboIPC.cs` - IPC subscriber for Gluttony Combo's lease-based Auto-Rotation (prefix `GluttonyCombo`) with lease lifecycle (register/enable/disable/release) and FATE-grinding config. Modeled on GluttonyCombo/docs/IPCExample.cs.
+- `Ipc.GluttonyCombo` flag; `Service.Gluttony` instance wired into plugin start/dispose.
+### Notes
+- Requires Gluttony Combo installed; the current job's Single-Target + AoE combos are enabled in Auto-Mode automatically. If Gluttony Combo is not loaded, the IsLoaded guard skips the integration and combat falls back to BossMod's prior behavior.
+- Version jumped 0.0.1.39 -> 0.0.1.40 (no 0.0.1.39 CHANGELOG entry existed; this entry covers the combat-engine switch).
+
 ## [0.0.1.38] - 2026-06-09
 ### Fixed
 - Prevented mounting and dismounting loops after FATE completion by keeping the bot in Engaging state (clearing remaining combat) before transitioning to BetweenFates or deactivating integrations.
