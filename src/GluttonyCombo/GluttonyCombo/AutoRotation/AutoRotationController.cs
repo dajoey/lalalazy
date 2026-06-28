@@ -463,16 +463,18 @@ internal unsafe class AutoRotationController
         {
             case Job.SGE:
             {
-                // Eukrasia (instant), then the BASE Prognosis - with Eukrasia up the game casts
-                // Eukrasian Prognosis (same way the DPS rotation casts Eukrasian Dosis from base
-                // Dosis). UseAction on the Eukrasian* id directly does NOT cast.
+                // Eukrasia (instant), then Eukrasian Prognosis. Mirror the proven tank-shield
+                // path (UpdateSgeTankShield casts EukrasianDiagnosis fine): explicit Eukrasian
+                // action id + Retarget + an explicit (self) target id. The base Prognosis, or the
+                // Eukrasian id with no target, does NOT fire.
                 if (!HasStatusEffect(SGE.Buffs.Eukrasia))
                 {
                     if (!ActionReady(SGE.Eukrasia))
                         return false;
                     return ActionManager.Instance()->UseAction(ActionType.Action, SGE.Eukrasia);
                 }
-                bool castSge = ActionManager.Instance()->UseAction(ActionType.Action, OriginalHook(SGE.Prognosis));
+                uint prog = LevelChecked(SGE.EukrasianPrognosis2) ? SGE.EukrasianPrognosis2 : SGE.EukrasianPrognosis;
+                bool castSge = ActionManager.Instance()->UseAction(ActionType.Action, prog.Retarget(SimpleTarget.Self), Player.Object.GameObjectId);
                 if (castSge)
                     MarkRaidwideShieldUsed();
                 return castSge;

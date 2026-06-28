@@ -1,3 +1,8 @@
+## v1.0.4.59 (2026-06-27)
+
+### Fixed
+- **SGE raidwide shield now casts the Eukrasian Prognosis follow-up.** Eukrasia fired but the second GCD did nothing. The fix mirrors the working tank-shield path (`UpdateSgeTankShield`, which casts Eukrasian Diagnosis): use the explicit Eukrasian Prognosis action id with `Retarget(Self)` and an explicit self target id. Casting the base Prognosis (v1.0.4.58) or the Eukrasian id with no target (v1.0.4.57) did not fire. `TryRaidwideShield` in `AutoRotation/AutoRotationController.cs`.
+
 ## v1.0.4.58 (2026-06-27)
 
 ### Fixed
