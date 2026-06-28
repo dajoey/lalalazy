@@ -249,6 +249,8 @@ internal unsafe class AutoRotationController
             if (isHealer && GroupDamageIncoming(out var multi))
             {
                 AutorotRaidwiding = true;
+                if (Player.Job is Job.SGE or Job.SCH && EzThrottler.Throttle("RWSDetect", 300))
+                    Svc.Log.Information($"[RWS] detect multi={multi} casting={Player.Object?.IsCasting() is true} gcd={RemainingGCD:F2} pending={RaidwideShieldPending()}");
                 HandleRaidwide(multi);
             }
             else

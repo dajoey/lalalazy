@@ -1,3 +1,8 @@
+## v1.0.4.64 (2026-06-27)
+
+### Changed
+- Diagnostic build: `[RWS]` logging now records GCD/casting/moving state at raidwide detection and combo-fire, to see why the 2-GCD Eukrasian Prognosis sometimes can't slot into a tight raidwide window. No behavior change.
+
 ## v1.0.4.63 (2026-06-27)
 
 ### Fixed

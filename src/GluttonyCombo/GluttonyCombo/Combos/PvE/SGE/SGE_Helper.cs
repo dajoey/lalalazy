@@ -145,7 +145,7 @@ internal partial class SGE
 
         bool _fire = IsEnabled(Preset.SGE_Raidwide_EPrognosis) && shieldCheck && GroupDamageIncoming() && LevelChecked(Eukrasia);
         if (_fire && ECommons.Throttlers.EzThrottler.Throttle("RWSCombo", 300))
-            ECommons.DalamudServices.Svc.Log.Information($"[RWS] combo RaidwideEprognosis fire eukrasia={HasStatusEffect(Buffs.Eukrasia)} epBuff={GetPartyBuffPercent(Buffs.EukrasianPrognosis)}");
+            ECommons.DalamudServices.Svc.Log.Information($"[RWS] combo fire eukrasia={HasStatusEffect(Buffs.Eukrasia)} epBuff={GetPartyBuffPercent(Buffs.EukrasianPrognosis)} gcd={RemainingGCD:F2} moving={IsMoving()}");
         return _fire;
     }
 
