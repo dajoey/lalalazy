@@ -1,3 +1,8 @@
+## v1.0.4.61 (2026-06-27)
+
+### Fixed
+- **SGE raidwide shield: Eukrasian Prognosis now follows the Eukrasia even when Eukrasia was not already up.** The cast itself was fine - it worked whenever Eukrasia happened to already be up - but when the auto-rotation had to put Eukrasia up first, the DPS rotation immediately spent it on Eukrasian Dosis before the Prognosis follow-up. (That is also why the tank-shield always worked: it fires in 3+ enemy AoE where the rotation uses Dyskrasia, not Eukrasian Dosis.) Fix: while SGE/SCH still owe the AoE shield this raidwide, the rest of the rotation is held for that tick so nothing consumes the Eukrasia between it and Eukrasian Prognosis. `Run()` in `AutoRotation/AutoRotationController.cs`.
+
 ## v1.0.4.60 (2026-06-27)
 
 ### Fixed

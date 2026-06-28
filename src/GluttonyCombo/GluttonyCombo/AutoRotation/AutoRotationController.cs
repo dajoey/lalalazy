@@ -250,6 +250,12 @@ internal unsafe class AutoRotationController
             {
                 AutorotRaidwiding = true;
                 HandleRaidwide(multi);
+                // While SGE/SCH still owe the AoE shield this raidwide, hold the rest of the
+                // rotation for this tick - otherwise the DPS rotation spends the Eukrasia on
+                // Eukrasian Dosis before the Eukrasian Prognosis follow-up. Clears the moment the
+                // shield fires (its cooldown gets marked) or the party is already shielded.
+                if (Player.Job is Job.SGE or Job.SCH && RaidwideShieldPending())
+                    return;
             }
             else
             {
