@@ -463,26 +463,29 @@ internal unsafe class AutoRotationController
         {
             case Job.SGE:
             {
+                // Eukrasia (instant), then the BASE Prognosis - with Eukrasia up the game casts
+                // Eukrasian Prognosis (same way the DPS rotation casts Eukrasian Dosis from base
+                // Dosis). UseAction on the Eukrasian* id directly does NOT cast.
                 if (!HasStatusEffect(SGE.Buffs.Eukrasia))
                 {
                     if (!ActionReady(SGE.Eukrasia))
                         return false;
-                    ActionManager.Instance()->UseAction(ActionType.Action, SGE.Eukrasia);
-                    return true;
+                    return ActionManager.Instance()->UseAction(ActionType.Action, SGE.Eukrasia);
                 }
-                uint prog = LevelChecked(SGE.EukrasianPrognosis2) ? SGE.EukrasianPrognosis2 : SGE.EukrasianPrognosis;
-                ActionManager.Instance()->UseAction(ActionType.Action, prog);
-                MarkRaidwideShieldUsed();
-                return true;
+                bool castSge = ActionManager.Instance()->UseAction(ActionType.Action, OriginalHook(SGE.Prognosis));
+                if (castSge)
+                    MarkRaidwideShieldUsed();
+                return castSge;
             }
             case Job.SCH:
             {
                 uint succor = OriginalHook(SCH.Succor);
                 if (!ActionReady(succor))
                     return false;
-                ActionManager.Instance()->UseAction(ActionType.Action, succor);
-                MarkRaidwideShieldUsed();
-                return true;
+                bool castSch = ActionManager.Instance()->UseAction(ActionType.Action, succor);
+                if (castSch)
+                    MarkRaidwideShieldUsed();
+                return castSch;
             }
             default:
                 return false;

@@ -1,3 +1,8 @@
+## v1.0.4.58 (2026-06-27)
+
+### Fixed
+- **SGE Eukrasian Prognosis now actually casts under auto-rotation.** v1.0.4.57 issued the Eukrasian* action id directly (`UseAction(EukrasianPrognosis)`), which the game won't cast, so the SGE shield never went out. With Eukrasia up the controller now uses the BASE `Prognosis` and lets the game transform it into Eukrasian Prognosis - the same proven pattern the DPS rotation uses for Eukrasian Dosis. The shield also only marks its cooldown when `UseAction` actually succeeds, so a missed cast retries instead of gating itself off. `TryRaidwideShield` in `AutoRotation/AutoRotationController.cs`.
+
 ## v1.0.4.57 (2026-06-27)
 
 ### Fixed
