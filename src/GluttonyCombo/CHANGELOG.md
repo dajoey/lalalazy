@@ -1,3 +1,8 @@
+## v1.0.4.68 (2026-06-27)
+
+### Fixed
+- **SCH raidwide shield: added a commit-latch so the hard cast survives `GroupDamageIncoming()` flipping false.** The dajoeybaz log showed `SchRaidwideShieldLock` issuing Succor once (`cast=True`) then never holding or completing - because `wanted` was gated solely on `GroupDamageIncoming()`, which is only true for a brief detection window. The instant it flipped false the lock released mid-cast, the rotation resumed and cancelled the half-started ~2s Succor. Added `_schShieldPending` (mirrors SGE's `_shieldEukrasiaPending`): once Succor is issued the lock stays engaged until the cast COMPLETES (or a 4s safety expiry), so the rotation can't interrupt it. `AutoRotation/AutoRotationController.cs`.
+
 ## v1.0.4.67 (2026-06-27)
 
 ### Fixed

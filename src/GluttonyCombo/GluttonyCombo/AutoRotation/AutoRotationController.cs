@@ -83,6 +83,10 @@ internal unsafe class AutoRotationController
     // SCH raidwide shield is a HARD cast (Joey 2026-06-27): hold the lock through the whole cast
     // and mark the shield done only when the cast COMPLETES. _schSawShieldCast = we watched it cast.
     private static bool _schSawShieldCast;
+    // Commit latch (mirrors SGE's _shieldEukrasiaPending): once we start the Succor cast, keep the
+    // lock engaged until it completes even after GroupDamageIncoming() flips false. (Joey 2026-06-27)
+    private static bool _schShieldPending;
+    private static DateTime _schShieldExpiry = DateTime.MinValue;
     public static bool TankbusterHandled = false;
 
     public AutoRotationController()
@@ -483,10 +487,18 @@ internal unsafe class AutoRotationController
     {
         // No Galvanize gate (Joey 2026-06-27): a Galvanize already on the party - e.g. a lingering
         // Adloquium shield on the tank - must NOT stop the raidwide Succor from going out.
-        bool wanted = GroupDamageIncoming() &&
-                      IsEnabled(Preset.SCH_Raidwide_Succor) &&
-                      LevelChecked(SCH.Succor) &&
-                      !RaidwideShieldOnCooldown;
+        // Commit-latch safety: never lock forever if the cast somehow never lands.
+        if (_schShieldPending && DateTime.UtcNow > _schShieldExpiry)
+        {
+            _schShieldPending = false;
+            _schSawShieldCast = false;
+        }
+
+        bool wanted = _schShieldPending ||
+                      (GroupDamageIncoming() &&
+                       IsEnabled(Preset.SCH_Raidwide_Succor) &&
+                       LevelChecked(SCH.Succor) &&
+                       !RaidwideShieldOnCooldown);
         if (!wanted)
         {
             _schSawShieldCast = false;
@@ -507,6 +519,7 @@ internal unsafe class AutoRotationController
             (_schSawShieldCast || JustUsed(SCH.Succor, 1.5f) || JustUsed(SCH.Concitation, 1.5f) || JustUsed(SCH.Accession, 1.5f)))
         {
             _schSawShieldCast = false;
+            _schShieldPending = false;
             MarkRaidwideShieldUsed();
             if (EzThrottler.Throttle("RWSLockSch", 250))
                 Svc.Log.Information($"[RWS] SCH shield COMPLETE -> release galv={GetPartyBuffPercent(SCH.Buffs.Galvanize)}");
@@ -518,6 +531,7 @@ internal unsafe class AutoRotationController
         if (castingShield)
         {
             _schSawShieldCast = true;
+            _schShieldPending = true;
             if (EzThrottler.Throttle("RWSLockSchHold", 500))
                 Svc.Log.Information($"[RWS] SCH holding cast id={LocalPlayer.CastActionId}");
             return true;
@@ -526,8 +540,13 @@ internal unsafe class AutoRotationController
         // Not casting the shield yet -> claim the next GCD for it (queues if a GCD is mid-cast,
         // fires the instant the GCD frees).
         bool cast = ActionManager.Instance()->UseAction(ActionType.Action, shield, Player.Object.GameObjectId);
+        if (!_schShieldPending)
+        {
+            _schShieldPending = true;
+            _schShieldExpiry = DateTime.UtcNow.AddSeconds(4);
+        }
         if (EzThrottler.Throttle("RWSLockSch", 250))
-            Svc.Log.Information($"[RWS] SCH LOCK issue cast={cast} casting={Player.Object?.IsCasting()} curId={LocalPlayer.CastActionId} shield={shield}");
+            Svc.Log.Information($"[RWS] SCH LOCK issue cast={cast} casting={Player.Object?.IsCasting()} curId={LocalPlayer.CastActionId} pending={_schShieldPending}");
         return true; // LOCK
     }
 
