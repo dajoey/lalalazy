@@ -1,3 +1,8 @@
+## v1.0.4.66 (2026-06-27)
+
+### Fixed
+- **SCH raidwide shield now uses the same hard intention-lock as SGE.** SCH's Succor/Concitation was still cast through the per-job combo path (the controller only *held* mitigation for it), so on a tight window it could be skipped entirely - it missed on the very first raidwide in testing. Generalized `SgeRaidwideShieldLock` into `HealerRaidwideShieldLock`; the new `SchRaidwideShieldLock` claims the next GCD for the AoE shield (single hard cast, no Eukrasia two-step) and LOCKS the rest of the rotation until the Galvanize shield is up, then a mitigation weaves in during the cast. `AutoRotation/AutoRotationController.cs`.
+
 ## v1.0.4.65 (2026-06-27)
 
 ### Fixed

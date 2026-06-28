@@ -251,7 +251,7 @@ internal unsafe class AutoRotationController
 
         // SGE raidwide AoE shield - HARD intention-lock (Joey 2026-06-27): once we cast Eukrasia
         // for the shield, do ONLY Eukrasian Prognosis (nothing else casts) until it is out.
-        if (isHealer && SgeRaidwideShieldLock())
+        if (isHealer && HealerRaidwideShieldLock())
             return;
 
         if (cfg.HealerSettings.HandleRaidwides)
@@ -459,17 +459,49 @@ internal unsafe class AutoRotationController
         };
     }
 
-    /// <summary>SGE raidwide AoE shield HARD intention-lock. Returns true when Run() must lock to
-    /// the shield this tick (and casts the right step). Once Eukrasia is cast for the shield,
-    /// nothing else fires until Eukrasian Prognosis is out. (Joey 2026-06-27)</summary>
-    private static bool SgeRaidwideShieldLock()
+    /// <summary>Healer raidwide AoE shield HARD intention-lock. Returns true when Run() must
+    /// lock to the shield this tick (and casts the right step). SGE: once Eukrasia is pressed for
+    /// the shield, nothing else fires until Eukrasian Prognosis is out. SCH: claim the next GCD for
+    /// Succor/Concitation and lock until the shield lands. (Joey 2026-06-27)</summary>
+    private static bool HealerRaidwideShieldLock()
     {
-        if (Player.Job is not Job.SGE || !cfg.HealerSettings.HandleRaidwides)
+        if (!cfg.HealerSettings.HandleRaidwides || Player.Job is not (Job.SGE or Job.SCH))
         {
             _shieldEukrasiaPending = false;
             return false;
         }
 
+        return Player.Job is Job.SCH ? SchRaidwideShieldLock() : SgeRaidwideShieldLock();
+    }
+
+    /// <summary>SCH shield lock: Succor/Concitation is a single hard cast (no 2-step), so just
+    /// claim the next GCD for it and lock until the Galvanize shield is up. (Joey 2026-06-27)</summary>
+    private static bool SchRaidwideShieldLock()
+    {
+        bool wanted = GroupDamageIncoming() &&
+                      IsEnabled(Preset.SCH_Raidwide_Succor) &&
+                      LevelChecked(SCH.Succor) &&
+                      !RaidwideShieldOnCooldown &&
+                      GetPartyBuffPercent(SCH.Buffs.Galvanize) <= 50;
+        if (!wanted)
+            return false;
+
+        // Self-centred AoE shield: base Succor (auto-upgrades to Concitation) + self target id.
+        // UseAction succeeds the moment the GCD frees, so this claims the very next GCD; a mit
+        // then weaves during the cast on the following tick (shield-first, then mit).
+        bool cast = ActionManager.Instance()->UseAction(ActionType.Action, OriginalHook(SCH.Succor), Player.Object.GameObjectId);
+        if (cast)
+            MarkRaidwideShieldUsed();
+        if (EzThrottler.Throttle("RWSLockSch", 250))
+            Svc.Log.Information($"[RWS] SCH LOCK Succor cast={cast} galv={GetPartyBuffPercent(SCH.Buffs.Galvanize)}");
+
+        return true; // LOCK: hold the rotation until the shield is out.
+    }
+
+    /// <summary>SGE raidwide AoE shield HARD intention-lock (2-step Eukrasia -> Eukrasian
+    /// Prognosis). Only reached for SGE via HealerRaidwideShieldLock. (Joey 2026-06-27)</summary>
+    private static bool SgeRaidwideShieldLock()
+    {
         // Safety: never lock forever if the 2-step somehow stalls.
         if (_shieldEukrasiaPending && DateTime.UtcNow > _shieldLockExpiry)
             _shieldEukrasiaPending = false;
