@@ -1,3 +1,8 @@
+## v1.0.4.67 (2026-06-27)
+
+### Fixed
+- **SCH raidwide shield: hold the lock through the whole hard cast, and mark it done only on completion.** Succor/Concitation is a ~2s hard cast with no instant version (Recitation only removes cost + guarantees a crit; it does NOT grant instant cast), so v1.0.4.66's mark-used-on-cast-start released the lock mid-cast and let the rotation resume while Succor was still casting. `SchRaidwideShieldLock` now HOLDS the lock for the entire cast and calls `MarkRaidwideShieldUsed` only when the cast actually COMPLETES (watched cast-state transition + `JustUsed`), never on start. Also dropped the `GetPartyBuffPercent(Galvanize) <= 50` gate so a Galvanize already on the party (e.g. a tank's Adloquium) can't suppress the raidwide Succor. `AutoRotation/AutoRotationController.cs`.
+
 ## v1.0.4.66 (2026-06-27)
 
 ### Fixed

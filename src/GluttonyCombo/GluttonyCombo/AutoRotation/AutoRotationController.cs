@@ -80,6 +80,9 @@ internal unsafe class AutoRotationController
     // casts until Eukrasian Prognosis is out. (Joey 2026-06-27)
     private static bool _shieldEukrasiaPending;
     private static DateTime _shieldLockExpiry = DateTime.MinValue;
+    // SCH raidwide shield is a HARD cast (Joey 2026-06-27): hold the lock through the whole cast
+    // and mark the shield done only when the cast COMPLETES. _schSawShieldCast = we watched it cast.
+    private static bool _schSawShieldCast;
     public static bool TankbusterHandled = false;
 
     public AutoRotationController()
@@ -478,24 +481,54 @@ internal unsafe class AutoRotationController
     /// claim the next GCD for it and lock until the Galvanize shield is up. (Joey 2026-06-27)</summary>
     private static bool SchRaidwideShieldLock()
     {
+        // No Galvanize gate (Joey 2026-06-27): a Galvanize already on the party - e.g. a lingering
+        // Adloquium shield on the tank - must NOT stop the raidwide Succor from going out.
         bool wanted = GroupDamageIncoming() &&
                       IsEnabled(Preset.SCH_Raidwide_Succor) &&
                       LevelChecked(SCH.Succor) &&
-                      !RaidwideShieldOnCooldown &&
-                      GetPartyBuffPercent(SCH.Buffs.Galvanize) <= 50;
+                      !RaidwideShieldOnCooldown;
         if (!wanted)
+        {
+            _schSawShieldCast = false;
             return false;
+        }
 
-        // Self-centred AoE shield: base Succor (auto-upgrades to Concitation) + self target id.
-        // UseAction succeeds the moment the GCD frees, so this claims the very next GCD; a mit
-        // then weaves during the cast on the following tick (shield-first, then mit).
-        bool cast = ActionManager.Instance()->UseAction(ActionType.Action, OriginalHook(SCH.Succor), Player.Object.GameObjectId);
-        if (cast)
+        uint shield = OriginalHook(SCH.Succor);   // Succor -> Concitation (96+) / Accession (Seraphism)
+        bool castingShield = Player.Object?.IsCasting() is true &&
+                             (LocalPlayer.CastActionId == SCH.Succor ||
+                              LocalPlayer.CastActionId == SCH.Concitation ||
+                              LocalPlayer.CastActionId == SCH.Accession);
+
+        // Succor/Concitation is a ~2s HARD CAST (no instant version - Recitation only removes the
+        // cost + crits, it does NOT make it instant). So we mark the shield gate only when the cast
+        // COMPLETES - never when it merely starts - then release so a mitigation weaves in. Completion
+        // is detected by having watched it cast (then stop), or the spell registering as just-used.
+        if (!castingShield &&
+            (_schSawShieldCast || JustUsed(SCH.Succor, 1.5f) || JustUsed(SCH.Concitation, 1.5f) || JustUsed(SCH.Accession, 1.5f)))
+        {
+            _schSawShieldCast = false;
             MarkRaidwideShieldUsed();
-        if (EzThrottler.Throttle("RWSLockSch", 250))
-            Svc.Log.Information($"[RWS] SCH LOCK Succor cast={cast} galv={GetPartyBuffPercent(SCH.Buffs.Galvanize)}");
+            if (EzThrottler.Throttle("RWSLockSch", 250))
+                Svc.Log.Information($"[RWS] SCH shield COMPLETE -> release galv={GetPartyBuffPercent(SCH.Buffs.Galvanize)}");
+            return false;
+        }
 
-        return true; // LOCK: hold the rotation until the shield is out.
+        // Currently hard-casting the shield -> HOLD the lock through the WHOLE cast so the rotation
+        // never resumes mid-cast and nothing perturbs it. (v1.0.4.66 released the instant it started.)
+        if (castingShield)
+        {
+            _schSawShieldCast = true;
+            if (EzThrottler.Throttle("RWSLockSchHold", 500))
+                Svc.Log.Information($"[RWS] SCH holding cast id={LocalPlayer.CastActionId}");
+            return true;
+        }
+
+        // Not casting the shield yet -> claim the next GCD for it (queues if a GCD is mid-cast,
+        // fires the instant the GCD frees).
+        bool cast = ActionManager.Instance()->UseAction(ActionType.Action, shield, Player.Object.GameObjectId);
+        if (EzThrottler.Throttle("RWSLockSch", 250))
+            Svc.Log.Information($"[RWS] SCH LOCK issue cast={cast} casting={Player.Object?.IsCasting()} curId={LocalPlayer.CastActionId} shield={shield}");
+        return true; // LOCK
     }
 
     /// <summary>SGE raidwide AoE shield HARD intention-lock (2-step Eukrasia -> Eukrasian
