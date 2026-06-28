@@ -1,3 +1,8 @@
+## v1.0.4.60 (2026-06-27)
+
+### Fixed
+- **SGE Eukrasian Prognosis now casts under auto-rotation - the self target id was missing.** The working AoE-heal/mit combos cast it via `UseAction(OriginalHook(Prognosis), player.GameObjectId)`: the BASE Prognosis WITH a self target id, which the game transforms into Eukrasian Prognosis. v1.0.4.58 used the base Prognosis but with NO target id (did not fire); v1.0.4.59 added a Retarget/target but on the explicit Eukrasian id - and Prognosis takes no selectable target, so that was wrong. Now mirrors the proven combo cast exactly. SCH Succor also passes the self target id now. `TryRaidwideShield` in `AutoRotation/AutoRotationController.cs`.
+
 ## v1.0.4.59 (2026-06-27)
 
 ### Fixed
