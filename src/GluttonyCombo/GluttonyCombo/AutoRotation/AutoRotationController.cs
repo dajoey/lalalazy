@@ -75,6 +75,11 @@ internal unsafe class AutoRotationController
     internal static bool RaidwideShieldOnCooldown =>
         (DateTime.UtcNow - LastRaidwideShieldTime).TotalSeconds < RaidwideShieldCooldownSeconds;
     internal static void MarkRaidwideShieldUsed() => LastRaidwideShieldTime = DateTime.UtcNow;
+
+    // SGE raidwide shield intention-lock: once we cast Eukrasia FOR the shield, NOTHING else
+    // casts until Eukrasian Prognosis is out. (Joey 2026-06-27)
+    private static bool _shieldEukrasiaPending;
+    private static DateTime _shieldLockExpiry = DateTime.MinValue;
     public static bool TankbusterHandled = false;
 
     public AutoRotationController()
@@ -244,13 +249,16 @@ internal unsafe class AutoRotationController
         // Healer logic
         bool isHealer = Player.Object?.Role is CombatRole.Healer;
 
+        // SGE raidwide AoE shield - HARD intention-lock (Joey 2026-06-27): once we cast Eukrasia
+        // for the shield, do ONLY Eukrasian Prognosis (nothing else casts) until it is out.
+        if (isHealer && SgeRaidwideShieldLock())
+            return;
+
         if (cfg.HealerSettings.HandleRaidwides)
         {
             if (isHealer && GroupDamageIncoming(out var multi))
             {
                 AutorotRaidwiding = true;
-                if (Player.Job is Job.SGE or Job.SCH && EzThrottler.Throttle("RWSDetect", 300))
-                    Svc.Log.Information($"[RWS] detect multi={multi} casting={Player.Object?.IsCasting() is true} gcd={RemainingGCD:F2} pending={RaidwideShieldPending()}");
                 HandleRaidwide(multi);
             }
             else
@@ -449,6 +457,60 @@ internal unsafe class AutoRotationController
                        GetPartyBuffPercent(SCH.Buffs.Galvanize) <= 50,
             _ => false
         };
+    }
+
+    /// <summary>SGE raidwide AoE shield HARD intention-lock. Returns true when Run() must lock to
+    /// the shield this tick (and casts the right step). Once Eukrasia is cast for the shield,
+    /// nothing else fires until Eukrasian Prognosis is out. (Joey 2026-06-27)</summary>
+    private static bool SgeRaidwideShieldLock()
+    {
+        if (Player.Job is not Job.SGE || !cfg.HealerSettings.HandleRaidwides)
+        {
+            _shieldEukrasiaPending = false;
+            return false;
+        }
+
+        // Safety: never lock forever if the 2-step somehow stalls.
+        if (_shieldEukrasiaPending && DateTime.UtcNow > _shieldLockExpiry)
+            _shieldEukrasiaPending = false;
+
+        bool wanted = _shieldEukrasiaPending ||
+                      (GroupDamageIncoming() &&
+                       IsEnabled(Preset.SGE_Raidwide_EPrognosis) &&
+                       LevelChecked(SGE.Eukrasia) &&
+                       !RaidwideShieldOnCooldown &&
+                       GetPartyBuffPercent(SGE.Buffs.EukrasianPrognosis) <= 50);
+        if (!wanted)
+            return false;
+
+        if (HasStatusEffect(SGE.Buffs.Eukrasia))
+        {
+            // Eukrasia up -> cast Eukrasian Prognosis (base Prognosis + self target; the game
+            // transforms it). Succeeds the moment the GCD is free.
+            bool cast = ActionManager.Instance()->UseAction(ActionType.Action, OriginalHook(SGE.Prognosis), Player.Object.GameObjectId);
+            if (cast)
+            {
+                MarkRaidwideShieldUsed();
+                _shieldEukrasiaPending = false;
+            }
+            if (EzThrottler.Throttle("RWSLock", 250))
+                Svc.Log.Information($"[RWS] LOCK Prognosis cast={cast} epBuff={GetPartyBuffPercent(SGE.Buffs.EukrasianPrognosis)}");
+        }
+        else if (!_shieldEukrasiaPending)
+        {
+            // Begin the 2-step: cast Eukrasia, then lock until Prognosis is out.
+            if (ActionReady(SGE.Eukrasia) &&
+                ActionManager.Instance()->UseAction(ActionType.Action, SGE.Eukrasia))
+            {
+                _shieldEukrasiaPending = true;
+                _shieldLockExpiry = DateTime.UtcNow.AddSeconds(4);
+                if (EzThrottler.Throttle("RWSLock", 250))
+                    Svc.Log.Information("[RWS] LOCK Eukrasia cast=True (committed to Prognosis)");
+            }
+        }
+        // else: pending but Eukrasia not applied yet -> hold (lock).
+
+        return true; // LOCK: caller returns; nothing else this tick.
     }
 
     private static void HandleRaidwide(bool multihit)

@@ -1,3 +1,8 @@
+## v1.0.4.65 (2026-06-27)
+
+### Fixed
+- **SGE raidwide shield: hard intention-lock so Eukrasian Prognosis ALWAYS follows the Eukrasia.** When the auto-rotation casts Eukrasia for the raidwide shield it now sets a lock and the entire rest of the rotation is suppressed until Eukrasian Prognosis is out - so the Eukrasia can never be spent on Eukrasian Dosis (or anything else) first. The lock waits out any in-progress cast, lets the GCD free up, casts Eukrasia, then casts Eukrasian Prognosis, then releases. `SgeRaidwideShieldLock` in `AutoRotation/AutoRotationController.cs`.
+
 ## v1.0.4.64 (2026-06-27)
 
 ### Changed
