@@ -1,3 +1,8 @@
+## v1.0.4.62 (2026-06-27)
+
+### Changed
+- **Diagnostic build.** Added temporary `[RWS]` logging to the SGE/SCH raidwide-shield path (entry state, Eukrasia/Prognosis/Succor cast attempts and their results) so the exact point of failure can be read from the Dalamud log (`/xllog`, filter `RWS`). No behavior change; logging will be removed once the shield sequence is confirmed.
+
 ## v1.0.4.61 (2026-06-27)
 
 ### Fixed

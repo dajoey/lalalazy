@@ -255,7 +255,11 @@ internal unsafe class AutoRotationController
                 // Eukrasian Dosis before the Eukrasian Prognosis follow-up. Clears the moment the
                 // shield fires (its cooldown gets marked) or the party is already shielded.
                 if (Player.Job is Job.SGE or Job.SCH && RaidwideShieldPending())
+                {
+                    if (EzThrottler.Throttle("RWSHoldLog", 350))
+                        Svc.Log.Information("[RWS] Run hold - shield pending, skipping rest of rotation this tick");
                     return;
+                }
             }
             else
             {
@@ -460,7 +464,10 @@ internal unsafe class AutoRotationController
     /// combo being invoked that tick. Returns true if it issued a cast.</summary>
     private static bool TryRaidwideShield()
     {
-        if (!RaidwideShieldPending())
+        bool _rwsPending = RaidwideShieldPending();
+        if (EzThrottler.Throttle("RWSLog", 350))
+            Svc.Log.Information($"[RWS] enter job={Player.Job} pending={_rwsPending} casting={Player.Object?.IsCasting() is true} eukrasia={HasStatusEffect(SGE.Buffs.Eukrasia)} epBuff={GetPartyBuffPercent(SGE.Buffs.EukrasianPrognosis)} shieldCD={RaidwideShieldOnCooldown}");
+        if (!_rwsPending)
             return false;
         if (Player.Object?.IsCasting() is true)
             return false; // GCD busy; RaidwideShieldPending keeps the mit held until this clears
@@ -478,10 +485,17 @@ internal unsafe class AutoRotationController
                 if (!HasStatusEffect(SGE.Buffs.Eukrasia))
                 {
                     if (!ActionReady(SGE.Eukrasia))
+                    {
+                        Svc.Log.Information("[RWS] SGE Eukrasia not ready");
                         return false;
-                    return ActionManager.Instance()->UseAction(ActionType.Action, SGE.Eukrasia);
+                    }
+                    bool _euk = ActionManager.Instance()->UseAction(ActionType.Action, SGE.Eukrasia);
+                    Svc.Log.Information($"[RWS] SGE cast Eukrasia -> {_euk}");
+                    return _euk;
                 }
-                bool castSge = ActionManager.Instance()->UseAction(ActionType.Action, OriginalHook(SGE.Prognosis), Player.Object.GameObjectId);
+                uint _progId = OriginalHook(SGE.Prognosis);
+                bool castSge = ActionManager.Instance()->UseAction(ActionType.Action, _progId, Player.Object.GameObjectId);
+                Svc.Log.Information($"[RWS] SGE cast Prognosis(id={_progId}) eukrasia={HasStatusEffect(SGE.Buffs.Eukrasia)} -> {castSge}");
                 if (castSge)
                     MarkRaidwideShieldUsed();
                 return castSge;
@@ -492,6 +506,7 @@ internal unsafe class AutoRotationController
                 if (!ActionReady(succor))
                     return false;
                 bool castSch = ActionManager.Instance()->UseAction(ActionType.Action, succor, Player.Object.GameObjectId);
+                Svc.Log.Information($"[RWS] SCH cast Succor(id={succor}) -> {castSch}");
                 if (castSch)
                     MarkRaidwideShieldUsed();
                 return castSch;
