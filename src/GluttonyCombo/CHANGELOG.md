@@ -1,3 +1,8 @@
+## v1.0.4.63 (2026-06-27)
+
+### Fixed
+- **SGE/SCH raidwide shield: handed the cast back to the combo path.** The dajoeybaz `[RWS]` trace showed the controller's direct shield cast (added in 1.0.4.57) spamming Eukrasia (rejected ~1s while the GCD rolled, then queued) and the 1.0.4.61 Run-hold STARVING the per-job combo - the path that actually casts Eukrasian Prognosis correctly (via the heal-cast routine, which prioritises the shield over Eukrasian Dosis so the Eukrasia is not stolen). Removed `TryRaidwideShield` and the Run-hold; the shield is cast solely by the combo (`RaidwideEprognosis` / `RaidwideSuccor`) and `RaidwideShieldPending` (preset-gated again) only holds the mitigation until the shield lands. Requires the sub-preset on (SGE: SGE_Raidwide -> Eukrasian Prognosis; SCH: SCH_Raidwide -> Succor). One `[RWS]` combo log kept for verification.
+
 ## v1.0.4.62 (2026-06-27)
 
 ### Changed

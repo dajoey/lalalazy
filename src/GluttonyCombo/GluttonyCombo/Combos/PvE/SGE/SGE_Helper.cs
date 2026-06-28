@@ -143,7 +143,10 @@ internal partial class SGE
         bool shieldCheck = GetPartyBuffPercent(Buffs.EukrasianPrognosis) <= SGE_AoE_Heal_EPrognosisOption &&
                            GetPartyBuffPercent(SCH.Buffs.Galvanize) <= SGE_AoE_Heal_EPrognosisOption;
 
-        return IsEnabled(Preset.SGE_Raidwide_EPrognosis) && shieldCheck && GroupDamageIncoming() && LevelChecked(Eukrasia);
+        bool _fire = IsEnabled(Preset.SGE_Raidwide_EPrognosis) && shieldCheck && GroupDamageIncoming() && LevelChecked(Eukrasia);
+        if (_fire && ECommons.Throttlers.EzThrottler.Throttle("RWSCombo", 300))
+            ECommons.DalamudServices.Svc.Log.Information($"[RWS] combo RaidwideEprognosis fire eukrasia={HasStatusEffect(Buffs.Eukrasia)} epBuff={GetPartyBuffPercent(Buffs.EukrasianPrognosis)}");
+        return _fire;
     }
 
     #endregion

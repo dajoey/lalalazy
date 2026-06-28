@@ -250,16 +250,6 @@ internal unsafe class AutoRotationController
             {
                 AutorotRaidwiding = true;
                 HandleRaidwide(multi);
-                // While SGE/SCH still owe the AoE shield this raidwide, hold the rest of the
-                // rotation for this tick - otherwise the DPS rotation spends the Eukrasia on
-                // Eukrasian Dosis before the Eukrasian Prognosis follow-up. Clears the moment the
-                // shield fires (its cooldown gets marked) or the party is already shielded.
-                if (Player.Job is Job.SGE or Job.SCH && RaidwideShieldPending())
-                {
-                    if (EzThrottler.Throttle("RWSHoldLog", 350))
-                        Svc.Log.Information("[RWS] Run hold - shield pending, skipping rest of rotation this tick");
-                    return;
-                }
             }
             else
             {
@@ -451,78 +441,19 @@ internal unsafe class AutoRotationController
             return false;
         return Player.Job switch
         {
-            Job.SGE => LevelChecked(SGE.Eukrasia) &&
+            Job.SGE => IsEnabled(Preset.SGE_Raidwide_EPrognosis) && LevelChecked(SGE.Eukrasia) &&
                        GetPartyBuffPercent(SGE.Buffs.EukrasianPrognosis) <= 50,
-            Job.SCH => LevelChecked(SCH.Succor) &&
+            Job.SCH => IsEnabled(Preset.SCH_Raidwide_Succor) && LevelChecked(SCH.Succor) &&
                        GetPartyBuffPercent(SCH.Buffs.Galvanize) <= 50,
             _ => false
         };
     }
 
-    /// <summary>Cast the AoE shield directly (SGE Eukrasia -> Eukrasian Prognosis, SCH Succor)
-    /// the same reliable way HandleRaidwide casts the mits, so it never depends on the per-job
-    /// combo being invoked that tick. Returns true if it issued a cast.</summary>
-    private static bool TryRaidwideShield()
-    {
-        bool _rwsPending = RaidwideShieldPending();
-        if (EzThrottler.Throttle("RWSLog", 350))
-            Svc.Log.Information($"[RWS] enter job={Player.Job} pending={_rwsPending} casting={Player.Object?.IsCasting() is true} eukrasia={HasStatusEffect(SGE.Buffs.Eukrasia)} epBuff={GetPartyBuffPercent(SGE.Buffs.EukrasianPrognosis)} shieldCD={RaidwideShieldOnCooldown}");
-        if (!_rwsPending)
-            return false;
-        if (Player.Object?.IsCasting() is true)
-            return false; // GCD busy; RaidwideShieldPending keeps the mit held until this clears
-
-        switch (Player.Job)
-        {
-            case Job.SGE:
-            {
-                // Eukrasia (instant), then the BASE Prognosis WITH a self target id - exactly how
-                // the working AoE-heal/mit combos cast it through ExecuteAoE
-                // (UseAction(OriginalHook(Prognosis), player.GameObjectId)); the game transforms it
-                // into Eukrasian Prognosis. The missing self target id is why v1.0.4.58 did not
-                // fire; Prognosis takes no SELECTABLE target so v1.0.4.59's Retarget on the explicit
-                // Eukrasian id was wrong.
-                if (!HasStatusEffect(SGE.Buffs.Eukrasia))
-                {
-                    if (!ActionReady(SGE.Eukrasia))
-                    {
-                        Svc.Log.Information("[RWS] SGE Eukrasia not ready");
-                        return false;
-                    }
-                    bool _euk = ActionManager.Instance()->UseAction(ActionType.Action, SGE.Eukrasia);
-                    Svc.Log.Information($"[RWS] SGE cast Eukrasia -> {_euk}");
-                    return _euk;
-                }
-                uint _progId = OriginalHook(SGE.Prognosis);
-                bool castSge = ActionManager.Instance()->UseAction(ActionType.Action, _progId, Player.Object.GameObjectId);
-                Svc.Log.Information($"[RWS] SGE cast Prognosis(id={_progId}) eukrasia={HasStatusEffect(SGE.Buffs.Eukrasia)} -> {castSge}");
-                if (castSge)
-                    MarkRaidwideShieldUsed();
-                return castSge;
-            }
-            case Job.SCH:
-            {
-                uint succor = OriginalHook(SCH.Succor);
-                if (!ActionReady(succor))
-                    return false;
-                bool castSch = ActionManager.Instance()->UseAction(ActionType.Action, succor, Player.Object.GameObjectId);
-                Svc.Log.Information($"[RWS] SCH cast Succor(id={succor}) -> {castSch}");
-                if (castSch)
-                    MarkRaidwideShieldUsed();
-                return castSch;
-            }
-            default:
-                return false;
-        }
-    }
-
     private static void HandleRaidwide(bool multihit)
     {
-        // Shield-first: cast the AoE shield directly (reliable, like the mits below).
-        if (TryRaidwideShield())
-            return;
-
-        // Shield owed but couldn't cast yet (GCD busy): hold mitigation so it stays first.
+        // Shield-first: hold mitigation while SGE/SCH still owe the AoE shield. The shield itself
+        // is cast by the per-job combo (RaidwideEprognosis / RaidwideSuccor) through the heal-cast
+        // path, which prioritises the shield over Eukrasian Dosis so the Eukrasia is not stolen.
         if (RaidwideShieldPending())
             return;
 
