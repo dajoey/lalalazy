@@ -87,6 +87,17 @@ internal unsafe class AutoRotationController
     // lock engaged until it completes even after GroupDamageIncoming() flips false. (Joey 2026-06-27)
     private static bool _schShieldPending;
     private static DateTime _schShieldExpiry = DateTime.MinValue;
+
+    // --- WHM/AST timed AoE regen commit-latches (Joey 2026-07-01) ---
+    // Medica II/III and Aspected Helios / Helios Conjunction are HARD casts. Same pattern as the
+    // SCH shield: once the cast is issued, hold the lock through the WHOLE cast and mark the gate
+    // only on COMPLETION, so the rotation can never cancel a half-started cast.
+    private static bool _whmRegenPending;
+    private static bool _whmSawRegenCast;
+    private static DateTime _whmRegenExpiry = DateTime.MinValue;
+    private static bool _astRegenPending;
+    private static bool _astSawRegenCast;
+    private static DateTime _astRegenExpiry = DateTime.MinValue;
     public static bool TankbusterHandled = false;
 
     public AutoRotationController()
@@ -469,16 +480,24 @@ internal unsafe class AutoRotationController
     /// <summary>Healer raidwide AoE shield HARD intention-lock. Returns true when Run() must
     /// lock to the shield this tick (and casts the right step). SGE: once Eukrasia is pressed for
     /// the shield, nothing else fires until Eukrasian Prognosis is out. SCH: claim the next GCD for
-    /// Succor/Concitation and lock until the shield lands. (Joey 2026-06-27)</summary>
+    /// Succor/Concitation and lock until the shield lands. WHM/AST: timed AoE regen hard casts
+    /// on the same commit-latch, started so the HoT lands right as/after the raidwide hits.
+    /// (Joey 2026-06-27 / 2026-07-01)</summary>
     private static bool HealerRaidwideShieldLock()
     {
-        if (!cfg.HealerSettings.HandleRaidwides || Player.Job is not (Job.SGE or Job.SCH))
+        if (!cfg.HealerSettings.HandleRaidwides || Player.Job is not (Job.SGE or Job.SCH or Job.WHM or Job.AST))
         {
             _shieldEukrasiaPending = false;
             return false;
         }
 
-        return Player.Job is Job.SCH ? SchRaidwideShieldLock() : SgeRaidwideShieldLock();
+        return Player.Job switch
+        {
+            Job.SCH => SchRaidwideShieldLock(),
+            Job.SGE => SgeRaidwideShieldLock(),
+            Job.WHM => WhmRaidwideRegenLock(),
+            _ => AstRaidwideRegenLock(),
+        };
     }
 
     /// <summary>SCH shield lock: Succor/Concitation is a single hard cast (no 2-step), so just
@@ -597,6 +616,160 @@ internal unsafe class AutoRotationController
         return true; // LOCK: caller returns; nothing else this tick.
     }
 
+    /// <summary>WHM timed AoE regen lock. Medica II / Medica III is a ~2s HARD cast, started once
+    /// the incoming raidwide/stack is about 2.5s from landing so the heal + HoT land right as/after
+    /// the hit and recover it. Controller-owned because the per-job combo path only ran when the DPS
+    /// combo happened to be invoked inside the window, so it rarely fired under autorot. Mirrors the
+    /// SCH shield commit-latch: hold through the whole cast, mark the gate only on COMPLETION.
+    /// (Joey 2026-07-01)</summary>
+    private static bool WhmRaidwideRegenLock()
+    {
+        // Commit-latch safety: never lock forever if the cast somehow never lands.
+        if (_whmRegenPending && DateTime.UtcNow > _whmRegenExpiry)
+        {
+            _whmRegenPending = false;
+            _whmSawRegenCast = false;
+        }
+
+        uint regen = OriginalHook(WHM.Medica2);   // Medica II -> Medica III (85+)
+        ushort hot = LevelChecked(WHM.Medica3) ? WHM.Buffs.Medica3 : WHM.Buffs.Medica2;
+        bool wanted = _whmRegenPending ||
+                      (GroupDamageIncoming(2.5f) &&
+                       IsEnabled(Preset.WHM_Raidwide_Medica) &&
+                       ActionReady(regen) &&
+                       !RaidwideShieldOnCooldown &&   // the regen fills the "shield slot" for WHM
+                       GetPartyBuffPercent(hot) <= 50);
+        if (!wanted)
+        {
+            _whmSawRegenCast = false;
+            return false;
+        }
+
+        bool castingRegen = Player.Object?.IsCasting() is true &&
+                            (LocalPlayer.CastActionId == WHM.Medica2 ||
+                             LocalPlayer.CastActionId == WHM.Medica3);
+
+        // Cast COMPLETE -> mark the gate + release (a mitigation can follow immediately).
+        if (!castingRegen &&
+            (_whmSawRegenCast || JustUsed(WHM.Medica2, 1.5f) || JustUsed(WHM.Medica3, 1.5f)))
+        {
+            _whmSawRegenCast = false;
+            _whmRegenPending = false;
+            MarkRaidwideShieldUsed();
+            if (EzThrottler.Throttle("RWSLockWhm", 250))
+                Svc.Log.Information($"[RWS] WHM Medica COMPLETE -> release hot={GetPartyBuffPercent(hot)}");
+            return false;
+        }
+
+        // Currently hard-casting the regen -> HOLD the lock through the WHOLE cast.
+        if (castingRegen)
+        {
+            _whmSawRegenCast = true;
+            _whmRegenPending = true;
+            if (EzThrottler.Throttle("RWSLockWhmHold", 500))
+                Svc.Log.Information($"[RWS] WHM holding cast id={LocalPlayer.CastActionId}");
+            return true;
+        }
+
+        // Movement kills a hard cast. If we are moving and have not committed yet, stand down
+        // instead of dead-locking the rotation until the expiry.
+        if (IsMoving())
+        {
+            _whmRegenPending = false;
+            _whmSawRegenCast = false;
+            return false;
+        }
+
+        // Claim the next GCD for the regen (queues if a GCD is mid-cast).
+        bool cast = ActionManager.Instance()->UseAction(ActionType.Action, regen, Player.Object.GameObjectId);
+        if (!_whmRegenPending)
+        {
+            _whmRegenPending = true;
+            _whmRegenExpiry = DateTime.UtcNow.AddSeconds(4);
+        }
+        if (EzThrottler.Throttle("RWSLockWhm", 250))
+            Svc.Log.Information($"[RWS] WHM LOCK issue cast={cast} casting={Player.Object?.IsCasting()} curId={LocalPlayer.CastActionId} pending={_whmRegenPending}");
+        return true; // LOCK
+    }
+
+    /// <summary>AST timed AoE regen lock. Aspected Helios / Helios Conjunction is a ~1.5s HARD
+    /// cast, started once the incoming raidwide/stack is about 1.5s from landing so the heal + HoT
+    /// land right as/after the hit. Fires with or without Neutral Sect (under Neutral Sect it also
+    /// grants the party shield). Same commit-latch as WHM/SCH. (Joey 2026-07-01)</summary>
+    private static bool AstRaidwideRegenLock()
+    {
+        // Commit-latch safety: never lock forever if the cast somehow never lands.
+        if (_astRegenPending && DateTime.UtcNow > _astRegenExpiry)
+        {
+            _astRegenPending = false;
+            _astSawRegenCast = false;
+        }
+
+        uint regen = OriginalHook(AST.AspectedHelios);   // Aspected Helios -> Helios Conjunction (96+)
+        // Under Neutral Sect fire for the enhanced shield+regen when the party lacks it; otherwise
+        // fire as the recovery regen when the party is not already under the HoT.
+        bool partyNeedsIt = HasStatusEffect(AST.Buffs.NeutralSect)
+            ? !HasStatusEffect(AST.Buffs.NeutralSectShield)
+            : GetPartyBuffPercent(AST.Buffs.AspectedHelios) <= 50 &&
+              GetPartyBuffPercent(AST.Buffs.HeliosConjunction) <= 50;
+        bool wanted = _astRegenPending ||
+                      (GroupDamageIncoming(1.5f) &&
+                       IsEnabled(Preset.AST_Raidwide_AspectedHelios) &&
+                       ActionReady(regen) &&
+                       !RaidwideShieldOnCooldown &&   // the regen fills the "shield slot" for AST
+                       partyNeedsIt);
+        if (!wanted)
+        {
+            _astSawRegenCast = false;
+            return false;
+        }
+
+        bool castingRegen = Player.Object?.IsCasting() is true &&
+                            (LocalPlayer.CastActionId == AST.AspectedHelios ||
+                             LocalPlayer.CastActionId == AST.HeliosConjuction);
+
+        // Cast COMPLETE -> mark the gate + release.
+        if (!castingRegen &&
+            (_astSawRegenCast || JustUsed(AST.AspectedHelios, 1.5f) || JustUsed(AST.HeliosConjuction, 1.5f)))
+        {
+            _astSawRegenCast = false;
+            _astRegenPending = false;
+            MarkRaidwideShieldUsed();
+            if (EzThrottler.Throttle("RWSLockAst", 250))
+                Svc.Log.Information($"[RWS] AST Helios COMPLETE -> release hot={GetPartyBuffPercent(AST.Buffs.AspectedHelios)}/{GetPartyBuffPercent(AST.Buffs.HeliosConjunction)}");
+            return false;
+        }
+
+        // Currently hard-casting the regen -> HOLD the lock through the WHOLE cast.
+        if (castingRegen)
+        {
+            _astSawRegenCast = true;
+            _astRegenPending = true;
+            if (EzThrottler.Throttle("RWSLockAstHold", 500))
+                Svc.Log.Information($"[RWS] AST holding cast id={LocalPlayer.CastActionId}");
+            return true;
+        }
+
+        // Movement kills a hard cast - stand down rather than dead-lock.
+        if (IsMoving())
+        {
+            _astRegenPending = false;
+            _astSawRegenCast = false;
+            return false;
+        }
+
+        // Claim the next GCD for the regen (queues if a GCD is mid-cast).
+        bool cast = ActionManager.Instance()->UseAction(ActionType.Action, regen, Player.Object.GameObjectId);
+        if (!_astRegenPending)
+        {
+            _astRegenPending = true;
+            _astRegenExpiry = DateTime.UtcNow.AddSeconds(4);
+        }
+        if (EzThrottler.Throttle("RWSLockAst", 250))
+            Svc.Log.Information($"[RWS] AST LOCK issue cast={cast} casting={Player.Object?.IsCasting()} curId={LocalPlayer.CastActionId} pending={_astRegenPending}");
+        return true; // LOCK
+    }
+
     private static void HandleRaidwide(bool multihit)
     {
         // Shield-first: hold mitigation while SGE/SCH still owe the AoE shield. The shield itself
@@ -625,6 +798,14 @@ internal unsafe class AutoRotationController
                 continue;
 
             if (BlacklistedRaidwides.Contains(spell))
+                continue;
+
+            // The timed-regen presets OWN these casts - don't burn them early as generic mits at
+            // detect time (that would apply the HoT too soon and make the timed cast skip itself
+            // on the party-already-has-the-HoT check).
+            if (IsEnabled(Preset.WHM_Raidwide_Medica) && (spell == WHM.Medica2 || spell == WHM.Medica3))
+                continue;
+            if (IsEnabled(Preset.AST_Raidwide_AspectedHelios) && (spell == AST.AspectedHelios || spell == AST.HeliosConjuction))
                 continue;
 
             if (AbleToCast(spell))

@@ -1,3 +1,14 @@
+## v1.0.4.69 (2026-07-01)
+
+### Fixed
+- **WHM & AST timed AoE regens now fire reliably under auto-rotation (controller-owned locks).** `WHM_Raidwide_Medica` and `AST_Raidwide_AspectedHelios` previously lived only in the per-job combo-replacement path (`WHM_Helper.RaidwideMedica` / `AST_Helper.RaidwideAspectedHelios`), which under autorot only runs when the DPS combo happens to be invoked inside the short timing window - the same architecture flaw that made the SGE/SCH shields hit-or-miss before v1.0.4.57/.65. Ported both into `AutoRotationController` as `WhmRaidwideRegenLock()` / `AstRaidwideRegenLock()`, dispatched from `HealerRaidwideShieldLock()`, using the proven SCH commit-latch pattern: claim the next GCD via direct `UseAction` (base action via `OriginalHook` + self `GameObjectId`), HOLD the lock through the entire hard cast, and mark the 10s shield-slot gate only on cast COMPLETION. WHM starts Medica II/III at ~2.5s before impact; AST starts Aspected Helios / Helios Conjunction at ~1.5s (fires with or without Neutral Sect). Movement releases an uncommitted lock instead of dead-locking; 4s safety expiry. `AutoRotation/AutoRotationController.cs`.
+
+### Changed
+- **Raidwide mit list no longer burns the timed regens early.** When `WHM_Raidwide_Medica` / `AST_Raidwide_AspectedHelios` are enabled, `HandleRaidwide` skips `Medica2/Medica3` / `AspectedHelios/HeliosConjuction` in `RaidwideActions` - firing them as generic mits at detect time applied the HoT too soon and made the timed cast skip itself on the party-already-has-the-HoT check.
+
+### Notes
+- Combo-path helpers unchanged (manual play still works); `[RWS]` diagnostic logging retained pending healer validation.
+
 ## v1.0.4.68 (2026-06-27)
 
 ### Fixed
