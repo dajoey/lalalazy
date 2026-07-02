@@ -98,6 +98,10 @@ internal unsafe class AutoRotationController
     private static bool _astRegenPending;
     private static bool _astSawRegenCast;
     private static DateTime _astRegenExpiry = DateTime.MinValue;
+    // How long AFTER the boss cast bar resolves the timed regen should FINISH casting. The damage
+    // applies just after the bar ends, so completing slightly later puts the heal + HoT on the
+    // post-hit HP. (Joey 2026-07-01: v69's fixed windows landed the heal slightly BEFORE the hit.)
+    private const float RegenLandOffsetSeconds = 0.5f;
     public static bool TankbusterHandled = false;
 
     public AutoRotationController()
@@ -633,8 +637,11 @@ internal unsafe class AutoRotationController
 
         uint regen = OriginalHook(WHM.Medica2);   // Medica II -> Medica III (85+)
         ushort hot = LevelChecked(WHM.Medica3) ? WHM.Buffs.Medica3 : WHM.Buffs.Medica2;
+        // Aim the cast to COMPLETE ~RegenLandOffsetSeconds AFTER the boss cast resolves: start it
+        // when the remaining boss cast time drops below (our adjusted cast time - offset).
+        float whmWindow = Math.Max(0.5f, ActionManager.GetAdjustedCastTime(ActionType.Action, regen) / 1000f - RegenLandOffsetSeconds);
         bool wanted = _whmRegenPending ||
-                      (GroupDamageIncoming(2.5f) &&
+                      (GroupDamageIncoming(whmWindow) &&
                        IsEnabled(Preset.WHM_Raidwide_Medica) &&
                        ActionReady(regen) &&
                        !RaidwideShieldOnCooldown &&   // the regen fills the "shield slot" for WHM
@@ -712,8 +719,10 @@ internal unsafe class AutoRotationController
             ? !HasStatusEffect(AST.Buffs.NeutralSectShield)
             : GetPartyBuffPercent(AST.Buffs.AspectedHelios) <= 50 &&
               GetPartyBuffPercent(AST.Buffs.HeliosConjunction) <= 50;
+        // Same completion-aimed window as WHM: land the heal just AFTER the hit, not before.
+        float astWindow = Math.Max(0.5f, ActionManager.GetAdjustedCastTime(ActionType.Action, regen) / 1000f - RegenLandOffsetSeconds);
         bool wanted = _astRegenPending ||
-                      (GroupDamageIncoming(1.5f) &&
+                      (GroupDamageIncoming(astWindow) &&
                        IsEnabled(Preset.AST_Raidwide_AspectedHelios) &&
                        ActionReady(regen) &&
                        !RaidwideShieldOnCooldown &&   // the regen fills the "shield slot" for AST

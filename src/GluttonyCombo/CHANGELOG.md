@@ -1,3 +1,8 @@
+## v1.0.4.70 (2026-07-01)
+
+### Fixed
+- **WHM/AST timed regen now completes just AFTER the raidwide hits, not before.** v1.0.4.69 used fixed trigger windows (WHM 2.5s / AST 1.5s) that were wider than the regen's own cast time, so the heal finished ~0.5s before the damage landed (Joey's live test). The trigger window is now computed per-cast: `GetAdjustedCastTime(regen) - RegenLandOffsetSeconds (0.5s)`, i.e. the cast starts late enough that it completes ~0.5s after the boss cast bar resolves, landing the heal + HoT on post-hit HP. Floor of 0.5s (covers Swiftcast/instant edge). `AutoRotation/AutoRotationController.cs`.
+
 ## v1.0.4.69 (2026-07-01)
 
 ### Fixed
