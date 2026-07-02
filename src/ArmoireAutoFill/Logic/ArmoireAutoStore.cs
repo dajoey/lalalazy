@@ -137,25 +137,35 @@ public sealed class ArmoireAutoStore : IDisposable
         // to store once per unique item ID. The armoire stores by item type, not stack.
         var candidates = new HashSet<uint>();
 
-        var containers = new[]
+        // Regular inventory (bags) is always scanned; the armoury chest is opt-in.
+        var containerList = new List<FFXIVClientStructs.FFXIV.Client.Game.InventoryType>
         {
             FFXIVClientStructs.FFXIV.Client.Game.InventoryType.Inventory1,
             FFXIVClientStructs.FFXIV.Client.Game.InventoryType.Inventory2,
             FFXIVClientStructs.FFXIV.Client.Game.InventoryType.Inventory3,
             FFXIVClientStructs.FFXIV.Client.Game.InventoryType.Inventory4,
-            FFXIVClientStructs.FFXIV.Client.Game.InventoryType.ArmoryMainHand,
-            FFXIVClientStructs.FFXIV.Client.Game.InventoryType.ArmoryOffHand,
-            FFXIVClientStructs.FFXIV.Client.Game.InventoryType.ArmoryHead,
-            FFXIVClientStructs.FFXIV.Client.Game.InventoryType.ArmoryBody,
-            FFXIVClientStructs.FFXIV.Client.Game.InventoryType.ArmoryHands,
-            FFXIVClientStructs.FFXIV.Client.Game.InventoryType.ArmoryLegs,
-            FFXIVClientStructs.FFXIV.Client.Game.InventoryType.ArmoryFeets,
-            FFXIVClientStructs.FFXIV.Client.Game.InventoryType.ArmoryEar,
-            FFXIVClientStructs.FFXIV.Client.Game.InventoryType.ArmoryNeck,
-            FFXIVClientStructs.FFXIV.Client.Game.InventoryType.ArmoryWrist,
-            FFXIVClientStructs.FFXIV.Client.Game.InventoryType.ArmoryRings,
-            FFXIVClientStructs.FFXIV.Client.Game.InventoryType.ArmorySoulCrystal,
         };
+
+        if (Plugin.Configuration.AutoStoreIncludeArmory)
+        {
+            containerList.AddRange(
+            [
+                FFXIVClientStructs.FFXIV.Client.Game.InventoryType.ArmoryMainHand,
+                FFXIVClientStructs.FFXIV.Client.Game.InventoryType.ArmoryOffHand,
+                FFXIVClientStructs.FFXIV.Client.Game.InventoryType.ArmoryHead,
+                FFXIVClientStructs.FFXIV.Client.Game.InventoryType.ArmoryBody,
+                FFXIVClientStructs.FFXIV.Client.Game.InventoryType.ArmoryHands,
+                FFXIVClientStructs.FFXIV.Client.Game.InventoryType.ArmoryLegs,
+                FFXIVClientStructs.FFXIV.Client.Game.InventoryType.ArmoryFeets,
+                FFXIVClientStructs.FFXIV.Client.Game.InventoryType.ArmoryEar,
+                FFXIVClientStructs.FFXIV.Client.Game.InventoryType.ArmoryNeck,
+                FFXIVClientStructs.FFXIV.Client.Game.InventoryType.ArmoryWrist,
+                FFXIVClientStructs.FFXIV.Client.Game.InventoryType.ArmoryRings,
+                FFXIVClientStructs.FFXIV.Client.Game.InventoryType.ArmorySoulCrystal,
+            ]);
+        }
+
+        var containers = containerList;
 
         foreach (var containerType in containers)
         {
@@ -185,14 +195,15 @@ public sealed class ArmoireAutoStore : IDisposable
                 continue;
             }
 
-            // Skip items already in the armoire.
-            if (uiState->Cabinet.IsItemInCabinet(_itemToCabinetId.GetValueOrDefault(itemId, 0u)))
+            // Not armoire-eligible at all.
+            if (!_itemToCabinetId.TryGetValue(itemId, out var cabinetId))
             {
                 skipped++;
                 continue;
             }
 
-            if (!_itemToCabinetId.TryGetValue(itemId, out var cabinetId))
+            // Skip items already in the armoire.
+            if (uiState->Cabinet.IsItemInCabinet(cabinetId))
             {
                 skipped++;
                 continue;

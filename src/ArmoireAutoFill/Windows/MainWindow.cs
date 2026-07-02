@@ -153,11 +153,24 @@ public class MainWindow : Window
         if (ImGui.IsItemHovered())
         {
             ImGui.BeginTooltip();
-            ImGui.SetTooltip("Stores all eligible items from your inventory and armory chest\n" +
-                             "into the armoire. The armoire UI must be open.");
+            ImGui.SetTooltip("Stores all eligible items from your inventory (and armoury chest,\n" +
+                             "if enabled below) into the armoire. The armoire UI must be open.");
             ImGui.EndTooltip();
         }
 
+        var includeArmory = Plugin.Configuration.AutoStoreIncludeArmory;
+        if (ImGui.Checkbox("Also store from armoury chest", ref includeArmory))
+        {
+            Plugin.Configuration.AutoStoreIncludeArmory = includeArmory;
+            Plugin.Configuration.Save();
+        }
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.SetTooltip("When enabled, storing also pulls eligible gear from the armoury chest.\n" +
+                             "Off by default: only the regular inventory (bags) is scanned.");
+        }
+
+        ImGui.SameLine();
         var skipGearset = Plugin.Configuration.SkipGearsetItems;
         if (ImGui.Checkbox("Skip gear that is in a gearset", ref skipGearset))
         {

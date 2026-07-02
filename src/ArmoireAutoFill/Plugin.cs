@@ -29,6 +29,13 @@ public sealed class Plugin : IDalamudPlugin
     public Plugin()
     {
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+        if (Configuration.Version < 3)
+        {
+            // v3 migration: auto-store on armoire open is now the default behavior.
+            Configuration.AutoStoreOnOpen = true;
+            Configuration.Version = 3;
+            Configuration.Save();
+        }
         ECommonsMain.Init(PluginInterface, this);
 
         ArmoireGearDatabase.Build();
