@@ -403,6 +403,29 @@ internal abstract partial class CustomComboFunctions
         return _raidwideInc = false;
     }
 
+    /// <summary>Seconds left on the soonest-to-resolve hostile raidwide CAST BAR, or null when
+    /// no raidwide cast bar is up (e.g. the raidwide was detected via VFX/stack markers only).
+    /// Same filter as RaidwideCasting: CastType 2/5, EffectRange >= 30. (Joey 2026-07-01)</summary>
+    public static float? RaidwideTimeRemaining()
+    {
+        float? rem = null;
+        foreach (var obj in Svc.Objects)
+        {
+            if (obj is not IBattleChara caster || !caster.IsHostile() || !caster.IsCasting)
+                continue;
+
+            if (ActionSheet.TryGetValue(caster.CastActionId, out var spellSheet) &&
+                spellSheet.CastType is 2 or 5 && spellSheet.EffectRange >= 30)
+            {
+                float r = caster.TotalCastTime - caster.CurrentCastTime;
+                if (rem is null || r < rem)
+                    rem = r;
+            }
+        }
+
+        return rem;
+    }
+
     private static bool _beingTargetedHostile;
     public static bool BeingTargetedHostile
     {

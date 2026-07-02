@@ -1,3 +1,8 @@
+## v1.0.4.71 (2026-07-01)
+
+### Fixed
+- **WHM/AST timed regen: aim at damage APPLICATION, not the cast bar; measured logging.** v1.0.4.70 aimed the regen to complete 0.5s after the boss cast bar - but raidwide damage applies ~0.6-1.5s AFTER the bar (effect-packet delay, per-spell, not present in the game sheets), so the heal still landed in the gap before the hit. The aim point is now `RegenLandDelaySeconds = 1.2s` after the bar. New `RaidwideTimeRemaining()` (`CustomCombo/Functions/Action.cs`) exposes the actual remaining bar time; the locks use it directly and only apply timed logic when a cast bar exists - VFX/stack-marker detections (which carry no timing) fire immediately instead of pretending to be timed. `[RWS]` issue logs now record `rem=` (measured bar remaining, or "VFX") and `castS=` (our adjusted cast time) so the delay constant can be tuned from live data. `AutoRotation/AutoRotationController.cs`.
+
 ## v1.0.4.70 (2026-07-01)
 
 ### Fixed

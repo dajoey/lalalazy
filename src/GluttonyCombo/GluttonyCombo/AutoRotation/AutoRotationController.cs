@@ -98,10 +98,12 @@ internal unsafe class AutoRotationController
     private static bool _astRegenPending;
     private static bool _astSawRegenCast;
     private static DateTime _astRegenExpiry = DateTime.MinValue;
-    // How long AFTER the boss cast bar resolves the timed regen should FINISH casting. The damage
-    // applies just after the bar ends, so completing slightly later puts the heal + HoT on the
-    // post-hit HP. (Joey 2026-07-01: v69's fixed windows landed the heal slightly BEFORE the hit.)
-    private const float RegenLandOffsetSeconds = 0.5f;
+    // How long AFTER the boss cast bar resolves the timed regen should FINISH casting. Raidwide
+    // damage never applies at the bar - the effect packet lands ~0.6-1.5s later, and that delay is
+    // per-spell and NOT available in the game sheets, so it has to be a tuned constant. 1.2s aims
+    // the heal at/just after the typical application. The [RWS] issue logs record the measured
+    // remaining-bar time so this can be tuned from data. (Joey 2026-07-01: 0.5s landed pre-hit.)
+    private const float RegenLandDelaySeconds = 1.2f;
     public static bool TankbusterHandled = false;
 
     public AutoRotationController()
@@ -637,11 +639,16 @@ internal unsafe class AutoRotationController
 
         uint regen = OriginalHook(WHM.Medica2);   // Medica II -> Medica III (85+)
         ushort hot = LevelChecked(WHM.Medica3) ? WHM.Buffs.Medica3 : WHM.Buffs.Medica2;
-        // Aim the cast to COMPLETE ~RegenLandOffsetSeconds AFTER the boss cast resolves: start it
-        // when the remaining boss cast time drops below (our adjusted cast time - offset).
-        float whmWindow = Math.Max(0.5f, ActionManager.GetAdjustedCastTime(ActionType.Action, regen) / 1000f - RegenLandOffsetSeconds);
+        // Timed path (raidwide cast bar up): start our cast so it COMPLETES ~RegenLandDelaySeconds
+        // after the bar resolves - i.e. when remaining bar time <= our cast time - delay. VFX path
+        // (stack markers, no bar): no timing exists, fire immediately as before.
+        float whmCastS = ActionManager.GetAdjustedCastTime(ActionType.Action, regen) / 1000f;
+        float? whmRem = RaidwideTimeRemaining();
+        bool whmInWindow = whmRem is { } whmR
+            ? whmR <= Math.Max(0.1f, whmCastS - RegenLandDelaySeconds)
+            : GroupDamageIncoming();
         bool wanted = _whmRegenPending ||
-                      (GroupDamageIncoming(whmWindow) &&
+                      (whmInWindow &&
                        IsEnabled(Preset.WHM_Raidwide_Medica) &&
                        ActionReady(regen) &&
                        !RaidwideShieldOnCooldown &&   // the regen fills the "shield slot" for WHM
@@ -695,7 +702,7 @@ internal unsafe class AutoRotationController
             _whmRegenExpiry = DateTime.UtcNow.AddSeconds(4);
         }
         if (EzThrottler.Throttle("RWSLockWhm", 250))
-            Svc.Log.Information($"[RWS] WHM LOCK issue cast={cast} casting={Player.Object?.IsCasting()} curId={LocalPlayer.CastActionId} pending={_whmRegenPending}");
+            Svc.Log.Information($"[RWS] WHM LOCK issue cast={cast} rem={(whmRem is { } wr ? wr.ToString("F2") : "VFX")} castS={whmCastS:F2} casting={Player.Object?.IsCasting()} curId={LocalPlayer.CastActionId} pending={_whmRegenPending}");
         return true; // LOCK
     }
 
@@ -719,10 +726,14 @@ internal unsafe class AutoRotationController
             ? !HasStatusEffect(AST.Buffs.NeutralSectShield)
             : GetPartyBuffPercent(AST.Buffs.AspectedHelios) <= 50 &&
               GetPartyBuffPercent(AST.Buffs.HeliosConjunction) <= 50;
-        // Same completion-aimed window as WHM: land the heal just AFTER the hit, not before.
-        float astWindow = Math.Max(0.5f, ActionManager.GetAdjustedCastTime(ActionType.Action, regen) / 1000f - RegenLandOffsetSeconds);
+        // Same completion-aimed timing as WHM: bar-timed when a bar exists, immediate on VFX-only.
+        float astCastS = ActionManager.GetAdjustedCastTime(ActionType.Action, regen) / 1000f;
+        float? astRem = RaidwideTimeRemaining();
+        bool astInWindow = astRem is { } astR
+            ? astR <= Math.Max(0.1f, astCastS - RegenLandDelaySeconds)
+            : GroupDamageIncoming();
         bool wanted = _astRegenPending ||
-                      (GroupDamageIncoming(astWindow) &&
+                      (astInWindow &&
                        IsEnabled(Preset.AST_Raidwide_AspectedHelios) &&
                        ActionReady(regen) &&
                        !RaidwideShieldOnCooldown &&   // the regen fills the "shield slot" for AST
@@ -775,7 +786,7 @@ internal unsafe class AutoRotationController
             _astRegenExpiry = DateTime.UtcNow.AddSeconds(4);
         }
         if (EzThrottler.Throttle("RWSLockAst", 250))
-            Svc.Log.Information($"[RWS] AST LOCK issue cast={cast} casting={Player.Object?.IsCasting()} curId={LocalPlayer.CastActionId} pending={_astRegenPending}");
+            Svc.Log.Information($"[RWS] AST LOCK issue cast={cast} rem={(astRem is { } ar ? ar.ToString("F2") : "VFX")} castS={astCastS:F2} casting={Player.Object?.IsCasting()} curId={LocalPlayer.CastActionId} pending={_astRegenPending}");
         return true; // LOCK
     }
 
