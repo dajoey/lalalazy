@@ -1,3 +1,11 @@
+## v1.0.4.73 (2026-07-01)
+
+### Changed
+- **STABLE PROMOTION of the healer raidwide rework (testing v1.0.4.55-.72).** Everything validated by Joey in live play: SGE shield-first Eukrasian Prognosis + one mit per raidwide (hard intention-lock, v65), SGE tank-shield upkeep, SCH Succor commit-latch through the hard cast (v68), WHM Medica II/III and AST Aspected Helios timed AoE regens - controller-owned, arm-at-detect + fire-by-clock, aimed to complete ~1.2s after the raidwide cast bar so the heal lands on post-hit HP (v69-72).
+
+### Removed
+- **All `[RWS]` diagnostic logging stripped** (SGE/SCH/WHM/AST locks in `AutoRotationController.cs`, combo-fire log in `SGE_Helper.cs`) - clean production build.
+
 ## v1.0.4.72 (2026-07-01)
 
 ### Fixed

@@ -101,8 +101,7 @@ internal unsafe class AutoRotationController
     // How long AFTER the boss cast bar resolves the timed regen should FINISH casting. Raidwide
     // damage never applies at the bar - the effect packet lands ~0.6-1.5s later, and that delay is
     // per-spell and NOT available in the game sheets, so it has to be a tuned constant. 1.2s aims
-    // the heal at/just after the typical application. The [RWS] issue logs record the measured
-    // remaining-bar time so this can be tuned from data. (Joey 2026-07-01: 0.5s landed pre-hit.)
+    // the heal at/just after the typical application. (Joey 2026-07-01: 0.5s landed pre-hit.)
     private const float RegenLandDelaySeconds = 1.2f;
     // Arm-at-detect state: the fire time is scheduled the moment the raidwide bar is first seen,
     // so the gates get the whole bar of leeway instead of a fraction-of-a-second sample window.
@@ -552,8 +551,6 @@ internal unsafe class AutoRotationController
             _schSawShieldCast = false;
             _schShieldPending = false;
             MarkRaidwideShieldUsed();
-            if (EzThrottler.Throttle("RWSLockSch", 250))
-                Svc.Log.Information($"[RWS] SCH shield COMPLETE -> release galv={GetPartyBuffPercent(SCH.Buffs.Galvanize)}");
             return false;
         }
 
@@ -563,8 +560,6 @@ internal unsafe class AutoRotationController
         {
             _schSawShieldCast = true;
             _schShieldPending = true;
-            if (EzThrottler.Throttle("RWSLockSchHold", 500))
-                Svc.Log.Information($"[RWS] SCH holding cast id={LocalPlayer.CastActionId}");
             return true;
         }
 
@@ -576,8 +571,6 @@ internal unsafe class AutoRotationController
             _schShieldPending = true;
             _schShieldExpiry = DateTime.UtcNow.AddSeconds(4);
         }
-        if (EzThrottler.Throttle("RWSLockSch", 250))
-            Svc.Log.Information($"[RWS] SCH LOCK issue cast={cast} casting={Player.Object?.IsCasting()} curId={LocalPlayer.CastActionId} pending={_schShieldPending}");
         return true; // LOCK
     }
 
@@ -608,8 +601,6 @@ internal unsafe class AutoRotationController
                 MarkRaidwideShieldUsed();
                 _shieldEukrasiaPending = false;
             }
-            if (EzThrottler.Throttle("RWSLock", 250))
-                Svc.Log.Information($"[RWS] LOCK Prognosis cast={cast} epBuff={GetPartyBuffPercent(SGE.Buffs.EukrasianPrognosis)}");
         }
         else if (!_shieldEukrasiaPending)
         {
@@ -619,8 +610,6 @@ internal unsafe class AutoRotationController
             {
                 _shieldEukrasiaPending = true;
                 _shieldLockExpiry = DateTime.UtcNow.AddSeconds(4);
-                if (EzThrottler.Throttle("RWSLock", 250))
-                    Svc.Log.Information("[RWS] LOCK Eukrasia cast=True (committed to Prognosis)");
             }
         }
         // else: pending but Eukrasia not applied yet -> hold (lock).
@@ -661,8 +650,6 @@ internal unsafe class AutoRotationController
             float fireIn = Math.Max(0f, armRem + RegenLandDelaySeconds - castS);
             _whmRegenArmed = true;
             _whmRegenFireAt = DateTime.UtcNow.AddSeconds(fireIn);
-            if (EzThrottler.Throttle("RWSArmWhm", 250))
-                Svc.Log.Information($"[RWS] WHM ARM rem={armRem:F2} castS={castS:F2} fireIn={fireIn:F2}");
         }
 
         // Disarm if the bar vanished before the fire time (interrupted / resolved early) or the
@@ -696,8 +683,6 @@ internal unsafe class AutoRotationController
             _whmRegenPending = false;
             _whmRegenArmed = false;
             MarkRaidwideShieldUsed();
-            if (EzThrottler.Throttle("RWSLockWhm", 250))
-                Svc.Log.Information($"[RWS] WHM Medica COMPLETE -> release hot={GetPartyBuffPercent(hot)}");
             return false;
         }
 
@@ -706,8 +691,6 @@ internal unsafe class AutoRotationController
         {
             _whmSawRegenCast = true;
             _whmRegenPending = true;
-            if (EzThrottler.Throttle("RWSLockWhmHold", 500))
-                Svc.Log.Information($"[RWS] WHM holding cast id={LocalPlayer.CastActionId}");
             return true;
         }
 
@@ -723,8 +706,6 @@ internal unsafe class AutoRotationController
             _whmRegenPending = true;
             _whmRegenExpiry = DateTime.UtcNow.AddSeconds(4);
         }
-        if (EzThrottler.Throttle("RWSLockWhm", 250))
-            Svc.Log.Information($"[RWS] WHM LOCK issue cast={cast} rem={(rem is { } lr ? lr.ToString("F2") : "null")} castS={castS:F2} casting={Player.Object?.IsCasting()} pending={_whmRegenPending}");
         return true; // LOCK
     }
 
@@ -760,8 +741,6 @@ internal unsafe class AutoRotationController
             float fireIn = Math.Max(0f, armRem + RegenLandDelaySeconds - castS);
             _astRegenArmed = true;
             _astRegenFireAt = DateTime.UtcNow.AddSeconds(fireIn);
-            if (EzThrottler.Throttle("RWSArmAst", 250))
-                Svc.Log.Information($"[RWS] AST ARM rem={armRem:F2} castS={castS:F2} fireIn={fireIn:F2}");
         }
 
         // Disarm if the bar vanished early or the party got covered while we waited.
@@ -794,8 +773,6 @@ internal unsafe class AutoRotationController
             _astRegenPending = false;
             _astRegenArmed = false;
             MarkRaidwideShieldUsed();
-            if (EzThrottler.Throttle("RWSLockAst", 250))
-                Svc.Log.Information($"[RWS] AST Helios COMPLETE -> release hot={GetPartyBuffPercent(AST.Buffs.AspectedHelios)}/{GetPartyBuffPercent(AST.Buffs.HeliosConjunction)}");
             return false;
         }
 
@@ -804,8 +781,6 @@ internal unsafe class AutoRotationController
         {
             _astSawRegenCast = true;
             _astRegenPending = true;
-            if (EzThrottler.Throttle("RWSLockAstHold", 500))
-                Svc.Log.Information($"[RWS] AST holding cast id={LocalPlayer.CastActionId}");
             return true;
         }
 
@@ -820,8 +795,6 @@ internal unsafe class AutoRotationController
             _astRegenPending = true;
             _astRegenExpiry = DateTime.UtcNow.AddSeconds(4);
         }
-        if (EzThrottler.Throttle("RWSLockAst", 250))
-            Svc.Log.Information($"[RWS] AST LOCK issue cast={cast} rem={(rem is { } lr ? lr.ToString("F2") : "null")} castS={castS:F2} casting={Player.Object?.IsCasting()} pending={_astRegenPending}");
         return true; // LOCK
     }
 
