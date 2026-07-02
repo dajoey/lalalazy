@@ -20,6 +20,12 @@ public sealed class ArmoireAutoStore : IDisposable
 {
     private const string CabinetAddonName = "Cabinet";
 
+    /// <summary>Armed when the Cabinet addon opens; the actual store is deferred until
+    /// the cabinet data has finished loading (polled on Framework.Update).</summary>
+    private bool _pendingAutoStore;
+    private DateTime _pendingDeadline;
+    private static readonly TimeSpan AutoStoreTimeout = TimeSpan.FromSeconds(10);
+
     /// <summary>Item ID → Cabinet RowId lookup, built once from the Lumina Cabinet sheet.</summary>
     private readonly Dictionary<uint, uint> _itemToCabinetId = [];
 
@@ -38,11 +44,15 @@ public sealed class ArmoireAutoStore : IDisposable
 
         // Auto-store when the armoire UI opens, if configured.
         Svc.AddonLifecycle.RegisterListener(AddonEvent.PostSetup, CabinetAddonName, OnCabinetOpened);
+        Svc.AddonLifecycle.RegisterListener(AddonEvent.PreFinalize, CabinetAddonName, OnCabinetClosed);
+        Svc.Framework.Update += OnFrameworkUpdate;
     }
 
     public void Dispose()
     {
+        Svc.Framework.Update -= OnFrameworkUpdate;
         Svc.AddonLifecycle.UnregisterListener(AddonEvent.PostSetup, CabinetAddonName, OnCabinetOpened);
+        Svc.AddonLifecycle.UnregisterListener(AddonEvent.PreFinalize, CabinetAddonName, OnCabinetClosed);
     }
 
     private void BuildItemLookup()
@@ -66,8 +76,40 @@ public sealed class ArmoireAutoStore : IDisposable
 
     private void OnCabinetOpened(AddonEvent type, AddonArgs args)
     {
-        if (Plugin.Configuration.AutoStoreOnOpen)
-            StoreAll();
+        if (!Plugin.Configuration.AutoStoreOnOpen)
+            return;
+
+        // Cabinet contents load from the server asynchronously AFTER the addon opens,
+        // so IsCabinetLoaded() is typically still false here. Arm the store and let
+        // OnFrameworkUpdate fire it once the data is actually available.
+        _pendingAutoStore = true;
+        _pendingDeadline = DateTime.UtcNow + AutoStoreTimeout;
+        Svc.Log.Debug("[ArmoireAutoFill] Cabinet opened; auto-store armed, waiting for cabinet data.");
+    }
+
+    private void OnCabinetClosed(AddonEvent type, AddonArgs args)
+    {
+        _pendingAutoStore = false;
+    }
+
+    private unsafe void OnFrameworkUpdate(Dalamud.Plugin.Services.IFramework framework)
+    {
+        if (!_pendingAutoStore)
+            return;
+
+        if (DateTime.UtcNow > _pendingDeadline)
+        {
+            _pendingAutoStore = false;
+            Svc.Log.Warning("[ArmoireAutoFill] auto-store timed out waiting for cabinet data to load.");
+            return;
+        }
+
+        var uiState = UIState.Instance();
+        if (uiState == null || !uiState->Cabinet.IsCabinetLoaded())
+            return;
+
+        _pendingAutoStore = false;
+        StoreAll();
     }
 
     /// <summary>

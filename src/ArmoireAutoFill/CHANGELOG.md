@@ -1,5 +1,10 @@
 # Changelog - ArmoireAutoFill
 
+## v0.4.3.0 (2026-07-02)
+
+### Fixed
+- **Auto-store on armoire open actually fires now.** v0.4.2.0 ran `StoreAll` directly from the Cabinet addon's PostSetup event, but cabinet contents load from the server asynchronously *after* the addon opens, so `UIState.Cabinet.IsCabinetLoaded()` was still false and the store bailed silently (the manual button worked because the data had loaded by then). PostSetup now just arms a pending flag; a Framework.Update poll fires `StoreAll` once the cabinet data is loaded (10s timeout, disarmed on PreFinalize if the UI closes first). File: `Logic/ArmoireAutoStore.cs`.
+
 ## v0.4.2.0 (2026-07-02)
 
 ### Changed

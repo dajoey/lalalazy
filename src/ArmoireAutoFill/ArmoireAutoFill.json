@@ -20,5 +20,5 @@
   "ImageUrls": [
     ""
   ],
-  "Changelog": "v0.4.2.0 - Auto-store is now ON by default: opening the armoire UI automatically stores eligible gear from your bags (regular inventory only; armoury chest is a new opt-in toggle). Gearset protection stays on. Fixed eligibility check order in StoreAll."
+  "Changelog": "v0.4.3.0 - Fixed: auto-store on armoire open actually fires now (cabinet data loads async after the UI opens; the store is deferred until the data is ready). | v0.4.2.0 - Auto-store ON by default, bags only (armoury chest opt-in), gearset protection stays on."
 }
