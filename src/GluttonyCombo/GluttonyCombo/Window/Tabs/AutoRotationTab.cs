@@ -80,6 +80,12 @@ internal class AutoRotationTab : ConfigWindow
             cfg.QueueWindow = 0.5f;
         if (cfg.QueueWindow < 0)
             cfg.QueueWindow = 0;
+
+        changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
+            "Pause Actions from Combos When No Target Selected", ref cfg.PauseWhenNoTarget);
+
+        ImGuiComponents.HelpMarker($"Pauses all actions that would come from combos if there is no target selected with the selected targeting mode. Ideal for blocking self-use actions if no target is available.");
+
         ImGuiEx.TextUnderlined("Automatic Activation Settings");
 
         changed |= ImGui.Checkbox(AutoRotationUI.Checkbox_EnableInstancedEnter, ref cfg.EnableInInstance);

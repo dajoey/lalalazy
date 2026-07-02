@@ -1,3 +1,18 @@
+## v1.0.4.74 (2026-07-02)
+
+### Added
+- **Custom Actions** (upstream 1.0.4.10-1.0.4.13): native hotbar action UI with drag/drop slots, per-action icon overrides, and the `/gluttony customactions` command. New `Native/CustomActionManager.cs`, `Native/CustomActionWindow.cs`, `Window/Tabs/CustomActions.cs`, plus 4 targeting-mode icons shipped in the package.
+- **OpCode-based health-tick detection** (`Core/OpCodeConfig.cs`) - DoT logic no longer drops targets at 0 HP from natural regen ticks.
+- **BLU broken warning**: prominent red banner on the BLU job page (`Window/Messages/Messages.cs`) and `*** CURRENTLY BROKEN - DO NOT USE ***` prefixes on both BLU Auto-Rotation preset descriptions. BLU auto-rotation is known non-functional in this release.
+
+### Changed
+- **Merged upstream WrathCombo 1.0.4.9 -> 1.0.4.13** (~180 commits, 78 files): full DRG rewrite, VPR rewire, MNK Perfect Balance/burst rework + opener, MCH hypercharge/tools/hotshot splits, RPR fixes (soul overcap, Soul of Death refresh, custom-action brick), NIN Buff Rush opener, healer retargeting fixes (WHM/SGE/SCH/AST), plus BLM/SAM/BRD/DNC/DRK/GNB/PLD/PCT/RDM/SMN/WAR updates and BossMod/BMR autorotation-conflict checks (`Data/Conflicts/*`, `Services/IPC_Subscriber/BossMod.cs`).
+- **WHM Liturgy of the Bell** retarget now uses the replaced action (upstream fix) while keeping our RaidwideMedica timing hooks (`Combos/PvE/WHM/WHM.cs`).
+
+### Notes
+- All fork divergences preserved: healer raidwide shield/regen system (v1.0.4.55-.73), Pacification/Silence handling, Pyretic/action-penalty hard-block, HP-scaled raidwide gate, SMN Aegis Uptime, Gluttony IPC lease API (`SetMaxDistanceToTarget`/`IsAIActive` retained alongside upstream's reworked BossMod IPC).
+- motd URL restored to upstream `PunishXIV/WrathCombo` (previous fork rename had pointed it at a nonexistent repo).
+
 ## v1.0.4.73 (2026-07-01)
 
 ### Changed

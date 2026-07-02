@@ -10,6 +10,7 @@ using ECommons.Logging;
 using ECommons.Throttlers;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Numerics;
@@ -20,6 +21,7 @@ using GluttonyCombo.Services;
 using GluttonyCombo.Window.Tabs;
 using static GluttonyCombo.Core.PresetStorage;
 using static GluttonyCombo.CustomComboNS.Functions.Jobs;
+using Debug = GluttonyCombo.Window.Tabs.Debug;
 using PunishGui = PunishLib.ImGuiMethods;
 namespace GluttonyCombo.Window;
 
@@ -235,6 +237,10 @@ internal class ConfigWindow : Dalamud.Interface.Windowing.Window
             OpenWindow = OpenWindow.AutoRotation;
 
         ImGui.Spacing();
+        if (ImGui.Selectable("Custom Actions", OpenWindow == OpenWindow.CustomActions))
+            OpenWindow = OpenWindow.CustomActions;
+
+        ImGui.Spacing();
         ImGui.Spacing();
 
         ImGui.Spacing();
@@ -282,7 +288,18 @@ internal class ConfigWindow : Dalamud.Interface.Windowing.Window
                 Settings.Draw();
                 break;
             case OpenWindow.About:
-                PunishGui.AboutTab.Draw(GluttonyCombo.P.Name);
+                PunishGui.AboutTab.Draw(P.Name);
+                ImGuiEx.LineCentered(() =>
+                {
+                    if (ImGuiEx.Button($"Additional custom action icons by alexisoffline"))
+                    {
+                        Process.Start(new ProcessStartInfo()
+                        {
+                            FileName = "https://ko-fi.com/alexisoffline/",
+                            UseShellExecute = true
+                        });
+                    }
+                });
                 break;
             case OpenWindow.Debug:
                 Debug.Draw();
@@ -290,7 +307,11 @@ internal class ConfigWindow : Dalamud.Interface.Windowing.Window
             case OpenWindow.AutoRotation:
                 AutoRotationTab.Draw();
                 break;
-        };
+            case OpenWindow.CustomActions:
+                CustomActions.Draw();
+                break;
+        }
+        ;
     }
 
     private static void DrawCollapseButton()
@@ -358,4 +379,5 @@ public enum OpenWindow
     AutoRotation = 4,
     About = 5,
     Debug = 6,
+    CustomActions = 7,
 }

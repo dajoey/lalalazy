@@ -156,6 +156,16 @@ Get-ChildItem $releaseDir -Filter "*.dll" | Where-Object {
     Copy-Item $_.FullName "$stageDir\"
 }
 
+# Copy runtime resource files (e.g. icon PNGs marked CopyToOutputDirectory in the csproj)
+$resDir = Join-Path $releaseDir "Resources"
+if (Test-Path $resDir) {
+    $resFiles = Get-ChildItem $resDir -File
+    if ($resFiles) {
+        New-Item -ItemType Directory -Path "$stageDir\Resources" -Force | Out-Null
+        $resFiles | ForEach-Object { Copy-Item $_.FullName "$stageDir\Resources\" }
+    }
+}
+
 # Zip payload
 if (Test-Path $zipPath) { Remove-Item $zipPath }
 Compress-Archive -Path "$stageDir\*" -DestinationPath $zipPath -Force

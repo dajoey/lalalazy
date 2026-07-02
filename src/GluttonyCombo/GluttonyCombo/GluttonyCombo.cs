@@ -33,6 +33,7 @@ using GluttonyCombo.CustomComboNS.Functions;
 using GluttonyCombo.Data;
 using GluttonyCombo.Data.Conflicts;
 using GluttonyCombo.Extensions;
+using GluttonyCombo.Native;
 using GluttonyCombo.Resources.Localization.UI.MainWindow;
 using GluttonyCombo.Services;
 using GluttonyCombo.Services.ActionRequestIPC;
@@ -59,7 +60,7 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         AutomaticDecompression = DecompressionMethods.All,
         ConnectCallback = new HappyEyeballsCallback().ConnectCallback,
     };
-    private readonly HttpClient httpClient = new(httpHandler) { Timeout = TimeSpan.FromSeconds(5) };
+    internal readonly HttpClient HTTPClient = new(httpHandler) { Timeout = TimeSpan.FromSeconds(5) };
     private readonly IDtrBarEntry DtrBarEntry;
     public readonly IDtrBarEntry OpenerDtr;
     internal Provider IPC;
@@ -68,6 +69,8 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
     internal ActionRetargeting ActionRetargeting = null!;
     internal MovementHook MoveHook;
     internal AutoDuty AutoDutyIPC = null!;
+    internal CustomActionSetup CustomActions;
+    //private readonly CustomActionListAddon _listAddon;
 
     internal static bool IsAprilFools => DateTime.UtcNow.Day == 1 && DateTime.UtcNow.Month == 4;
 
@@ -196,7 +199,6 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         pluginInterface.Create<Service>();
         ECommonsMain.Init(pluginInterface, this, Module.All);
         PunishLibMain.Init(pluginInterface, "Gluttony Combo");
-
         ActionRequestIPCProvider.Initialize();
 
         TM = new();
@@ -205,7 +207,9 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         Service.Address = new AddressResolver();
         Service.Address.Setup(Svc.SigScanner);
         MoveHook = new();
+        CustomActions = new();
         PresetStorage.RemoveRedundantPresets();
+        OpCodeConfigHelper.UpdateOpCodes();
 
         Service.ComboCache = new CustomComboCache();
         Service.ActionReplacer = new ActionReplacer();
@@ -419,6 +423,8 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
 
             if (Service.Configuration.AoEDamageTTS || Service.Configuration.AoEDamageToast)
                 CustomComboFunctions.PlayGroupwideAlert();
+
+            SimpleTargetState.ManageStateList();
         }
         catch (Exception ex)
         {
@@ -457,7 +463,7 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
             var basicMessage = $"Welcome to GluttonyCombo v{GetType().Assembly
                 .GetName().Version}!";
             using var motd =
-                httpClient.GetAsync("https://raw.githubusercontent.com/PunishXIV/GluttonyCombo/main/res/motd.txt").Result;
+                HTTPClient.GetAsync("https://raw.githubusercontent.com/PunishXIV/WrathCombo/main/res/motd.txt").Result;
             motd.EnsureSuccessStatusCode();
             var data = motd.Content.ReadAsStringAsync().Result;
             List<Payload> payloads =
@@ -516,6 +522,7 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         CustomComboFunctions.TimerDispose();
         IPC.Dispose();
         MoveHook.Dispose();
+        CustomActions.Dispose();
 
         ConflictingPluginsChecks.Dispose();
         AllStaticIPCSubscriptions.Dispose();
