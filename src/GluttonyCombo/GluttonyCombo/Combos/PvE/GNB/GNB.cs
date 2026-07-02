@@ -5,6 +5,7 @@ using GluttonyCombo.Core;
 using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.Data;
 using GluttonyCombo.Extensions;
+using GluttonyCombo.Native;
 using static GluttonyCombo.Combos.PvE.GNB.Config;
 
 #endregion
@@ -20,8 +21,7 @@ internal partial class GNB : Tank
 
         protected override uint Invoke(uint actionID)
         {
-            if (actionID != KeenEdge)
-                return actionID;
+            if (!CustomActionHelper.OneButtonRotationChecker(actionID, CustomActionType.SingleTargetDPS, KeenEdge)) return actionID;
 
             #region Non-Rotation
             if (Role.CanInterject())
@@ -126,8 +126,7 @@ internal partial class GNB : Tank
 
         protected override uint Invoke(uint actionID)
         {
-            if (actionID != KeenEdge)
-                return actionID;
+            if (!CustomActionHelper.OneButtonRotationChecker(actionID, CustomActionType.SingleTargetDPS, KeenEdge)) return actionID;
 
             #region Non-Rotation
             if (Role.CanInterject() &&
@@ -243,8 +242,7 @@ internal partial class GNB : Tank
 
         protected override uint Invoke(uint actionID)
         {
-            if (actionID != DemonSlice)
-                return actionID;
+            if (!CustomActionHelper.OneButtonRotationChecker(actionID, CustomActionType.AoEDPS, DemonSlice)) return actionID;
 
             #region Non-Rotation
             if (Role.CanInterject())
@@ -316,8 +314,7 @@ internal partial class GNB : Tank
 
         protected override uint Invoke(uint actionID)
         {
-            if (actionID != DemonSlice)
-                return actionID;
+            if (!CustomActionHelper.OneButtonRotationChecker(actionID, CustomActionType.AoEDPS, DemonSlice)) return actionID;
 
             #region Non-Rotation
 

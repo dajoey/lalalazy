@@ -4,8 +4,10 @@ using Dalamud.Game.ClientState.Objects.Types;
 using FFXIVClientStructs.FFXIV.Client.Game.Gauge;
 using System;
 using System.Collections.Generic;
+using GluttonyCombo.Core;
 using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Extensions;
 using static GluttonyCombo.Combos.PvE.SMN.Config;
 using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
 using AetherFlags = Dalamud.Game.ClientState.JobGauge.Enums.AetherFlags;
@@ -346,6 +348,11 @@ internal partial class SMN
             IsSTEnabled(flags, Preset.SMN_ST_Advanced_Combo_DemiSummons_Rekindle) ||
             IsAoEEnabled(flags, Preset.SMN_AoE_Advanced_Combo_DemiSummons_Rekindle);
         
+        bool rekindleRetargetEnabled =
+            flags.HasFlag(Combo.Simple) ||
+            IsSTEnabled(flags, Preset.SMN_ST_Advanced_Combo_DemiSummons_Rekindle_Retarget) ||
+            IsAoEEnabled(flags, Preset.SMN_AoE_Advanced_Combo_DemiSummons_Rekindle_Retarget);
+        
         bool searingFlashEnabled =
             flags.HasFlag(Combo.Simple) ||
             IsSTEnabled(flags, Preset.SMN_ST_Advanced_Combo_SearingFlash) ||
@@ -429,7 +436,8 @@ internal partial class SMN
             
             if (demiSummonsAttacksEnabled && DemiExists && !JustUsed(SearingLight, 1.5f) &&
                 (HasStatusEffect(Buffs.SearingLight, anyOwner: true) || //Searing is active
-                 SearingCD > Gauge.SummonTimerRemaining / 1000f + GCDTotal))  //There is not enough time left in demi phase for searing to happen
+                 SearingCD > Gauge.SummonTimerRemaining / 1000f + GCDTotal || //There is not enough time left in demi phase for searing to happen
+                 !LevelChecked(SearingLight)))  // Full send if searing light isnt of level
             {
                 if (ActionReady(OriginalHook(EnkindleBahamut)))
                 {
@@ -442,11 +450,22 @@ internal partial class SMN
                     actionID = OriginalHook(AstralFlow);
                     return true;
                 }
-                
+
                 if (rekindleEnabled && ActionReady(OriginalHook(AstralFlow)) && DemiPheonix)
                 {
-                    actionID = Rekindle;
-                    return true;
+                    if (rekindleRetargetEnabled)
+                    {
+                        actionID = Rekindle.Retarget(actionID,
+                            SimpleTarget.TargetsTarget.IfInParty() ??
+                            SimpleTarget.AnyTank.IfMissingHP() ??
+                            SimpleTarget.LowestHPPAlly.IfMissingHP() ??
+                            SimpleTarget.Self);
+                        return true;
+                    }
+                    {
+                        actionID = Rekindle;
+                        return true;
+                    }
                 }
             }
             #endregion

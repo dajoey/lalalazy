@@ -4,7 +4,7 @@
   <PropertyGroup>
     <Authors>dajoey</Authors>
     <Company>-</Company>
-    <Version>1.0.4.73</Version>
+    <Version>1.0.4.74</Version>
     <!-- This is the version that will be used when pushing to the repo.-->
     <Description>Gluttony Combo - lalalazy fork of Gluttony Combo. XIVCombo for very lazy players.</Description>
     <Copyright>Copyleft attick 2021 thanks attick UwU (forked as Gluttony Combo by dajoey)</Copyright>
@@ -28,6 +28,11 @@
     <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
   </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="Native\Icons\**" />
+    <EmbeddedResource Remove="Native\Icons\**" />
+    <None Remove="Native\Icons\**" />
+  </ItemGroup>
   <!-- Styling Rules -->
   <ItemGroup>
     <None Include="..\.editorconfig" Link=".editorconfig" />
@@ -404,6 +409,18 @@
   </ItemGroup>
   <!-- Release Manifest -->
   <ItemGroup>
+    <None Update="Resources\AoEDPS.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Resources\AoEHeals.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Resources\SingleTargetDPS.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Resources\SingleTargetHeals.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="GluttonyCombo.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
