@@ -104,6 +104,12 @@ internal unsafe class AutoRotationController
     // the heal at/just after the typical application. The [RWS] issue logs record the measured
     // remaining-bar time so this can be tuned from data. (Joey 2026-07-01: 0.5s landed pre-hit.)
     private const float RegenLandDelaySeconds = 1.2f;
+    // Arm-at-detect state: the fire time is scheduled the moment the raidwide bar is first seen,
+    // so the gates get the whole bar of leeway instead of a fraction-of-a-second sample window.
+    private static bool _whmRegenArmed;
+    private static DateTime _whmRegenFireAt = DateTime.MinValue;
+    private static bool _astRegenArmed;
+    private static DateTime _astRegenFireAt = DateTime.MinValue;
     public static bool TankbusterHandled = false;
 
     public AutoRotationController()
@@ -622,11 +628,13 @@ internal unsafe class AutoRotationController
         return true; // LOCK: caller returns; nothing else this tick.
     }
 
-    /// <summary>WHM timed AoE regen lock. Medica II / Medica III is a ~2s HARD cast, started once
-    /// the incoming raidwide/stack is about 2.5s from landing so the heal + HoT land right as/after
-    /// the hit and recover it. Controller-owned because the per-job combo path only ran when the DPS
-    /// combo happened to be invoked inside the window, so it rarely fired under autorot. Mirrors the
-    /// SCH shield commit-latch: hold through the whole cast, mark the gate only on COMPLETION.
+    /// <summary>WHM timed AoE regen lock. Medica II / Medica III is a ~2s HARD cast, aimed to
+    /// COMPLETE ~RegenLandDelaySeconds after the raidwide cast bar resolves (damage applies
+    /// ~0.6-1.5s after the bar, never at it). ARM-at-detect: the fire time is scheduled as soon
+    /// as the bar appears - gates are evaluated with the whole bar of leeway. (v71 sampled the
+    /// gates only inside the final castS-minus-delay sliver of the bar, which for short casts
+    /// like AST's 1.5s Helios was ~0.3s wide and missed almost every time.) Same commit-latch as
+    /// the SCH shield: hold through the whole cast, mark the gate only on COMPLETION.
     /// (Joey 2026-07-01)</summary>
     private static bool WhmRaidwideRegenLock()
     {
@@ -639,20 +647,37 @@ internal unsafe class AutoRotationController
 
         uint regen = OriginalHook(WHM.Medica2);   // Medica II -> Medica III (85+)
         ushort hot = LevelChecked(WHM.Medica3) ? WHM.Buffs.Medica3 : WHM.Buffs.Medica2;
-        // Timed path (raidwide cast bar up): start our cast so it COMPLETES ~RegenLandDelaySeconds
-        // after the bar resolves - i.e. when remaining bar time <= our cast time - delay. VFX path
-        // (stack markers, no bar): no timing exists, fire immediately as before.
-        float whmCastS = ActionManager.GetAdjustedCastTime(ActionType.Action, regen) / 1000f;
-        float? whmRem = RaidwideTimeRemaining();
-        bool whmInWindow = whmRem is { } whmR
-            ? whmR <= Math.Max(0.1f, whmCastS - RegenLandDelaySeconds)
-            : GroupDamageIncoming();
-        bool wanted = _whmRegenPending ||
-                      (whmInWindow &&
-                       IsEnabled(Preset.WHM_Raidwide_Medica) &&
-                       ActionReady(regen) &&
-                       !RaidwideShieldOnCooldown &&   // the regen fills the "shield slot" for WHM
-                       GetPartyBuffPercent(hot) <= 50);
+        float castS = ActionManager.GetAdjustedCastTime(ActionType.Action, regen) / 1000f;
+        float? rem = RaidwideTimeRemaining();
+        bool gates = IsEnabled(Preset.WHM_Raidwide_Medica) &&
+                     LevelChecked(WHM.Medica2) &&
+                     !RaidwideShieldOnCooldown &&
+                     GetPartyBuffPercent(hot) <= 50;
+
+        // ARM: raidwide bar is up and the gates pass -> schedule the fire time
+        // (bar end + land delay - our own cast time), then fire by the clock below.
+        if (!_whmRegenPending && !_whmRegenArmed && gates && rem is { } armRem)
+        {
+            float fireIn = Math.Max(0f, armRem + RegenLandDelaySeconds - castS);
+            _whmRegenArmed = true;
+            _whmRegenFireAt = DateTime.UtcNow.AddSeconds(fireIn);
+            if (EzThrottler.Throttle("RWSArmWhm", 250))
+                Svc.Log.Information($"[RWS] WHM ARM rem={armRem:F2} castS={castS:F2} fireIn={fireIn:F2}");
+        }
+
+        // Disarm if the bar vanished before the fire time (interrupted / resolved early) or the
+        // party picked up the HoT some other way while we waited.
+        if (_whmRegenArmed && !_whmRegenPending &&
+            ((rem is null && DateTime.UtcNow < _whmRegenFireAt) || GetPartyBuffPercent(hot) > 50))
+        {
+            _whmRegenArmed = false;
+            return false;
+        }
+
+        bool fireNow = _whmRegenArmed && DateTime.UtcNow >= _whmRegenFireAt;
+        // VFX/stack-marker detections carry no cast bar to time against - fire immediately.
+        bool vfxFire = rem is null && gates && GroupDamageIncoming();
+        bool wanted = _whmRegenPending || fireNow || vfxFire;
         if (!wanted)
         {
             _whmSawRegenCast = false;
@@ -669,6 +694,7 @@ internal unsafe class AutoRotationController
         {
             _whmSawRegenCast = false;
             _whmRegenPending = false;
+            _whmRegenArmed = false;
             MarkRaidwideShieldUsed();
             if (EzThrottler.Throttle("RWSLockWhm", 250))
                 Svc.Log.Information($"[RWS] WHM Medica COMPLETE -> release hot={GetPartyBuffPercent(hot)}");
@@ -685,14 +711,10 @@ internal unsafe class AutoRotationController
             return true;
         }
 
-        // Movement kills a hard cast. If we are moving and have not committed yet, stand down
-        // instead of dead-locking the rotation until the expiry.
-        if (IsMoving())
-        {
-            _whmRegenPending = false;
-            _whmSawRegenCast = false;
+        // Movement kills a hard cast. Not committed yet -> stand down this tick but STAY ARMED;
+        // it fires the moment movement stops (slightly late beats never).
+        if (!_whmRegenPending && IsMoving())
             return false;
-        }
 
         // Claim the next GCD for the regen (queues if a GCD is mid-cast).
         bool cast = ActionManager.Instance()->UseAction(ActionType.Action, regen, Player.Object.GameObjectId);
@@ -702,14 +724,13 @@ internal unsafe class AutoRotationController
             _whmRegenExpiry = DateTime.UtcNow.AddSeconds(4);
         }
         if (EzThrottler.Throttle("RWSLockWhm", 250))
-            Svc.Log.Information($"[RWS] WHM LOCK issue cast={cast} rem={(whmRem is { } wr ? wr.ToString("F2") : "VFX")} castS={whmCastS:F2} casting={Player.Object?.IsCasting()} curId={LocalPlayer.CastActionId} pending={_whmRegenPending}");
+            Svc.Log.Information($"[RWS] WHM LOCK issue cast={cast} rem={(rem is { } lr ? lr.ToString("F2") : "null")} castS={castS:F2} casting={Player.Object?.IsCasting()} pending={_whmRegenPending}");
         return true; // LOCK
     }
 
     /// <summary>AST timed AoE regen lock. Aspected Helios / Helios Conjunction is a ~1.5s HARD
-    /// cast, started once the incoming raidwide/stack is about 1.5s from landing so the heal + HoT
-    /// land right as/after the hit. Fires with or without Neutral Sect (under Neutral Sect it also
-    /// grants the party shield). Same commit-latch as WHM/SCH. (Joey 2026-07-01)</summary>
+    /// cast; same arm-at-detect + fire-by-clock + commit-latch as WHM. Fires with or without
+    /// Neutral Sect (under Neutral Sect it also grants the party shield). (Joey 2026-07-01)</summary>
     private static bool AstRaidwideRegenLock()
     {
         // Commit-latch safety: never lock forever if the cast somehow never lands.
@@ -720,24 +741,41 @@ internal unsafe class AutoRotationController
         }
 
         uint regen = OriginalHook(AST.AspectedHelios);   // Aspected Helios -> Helios Conjunction (96+)
+        float castS = ActionManager.GetAdjustedCastTime(ActionType.Action, regen) / 1000f;
+        float? rem = RaidwideTimeRemaining();
         // Under Neutral Sect fire for the enhanced shield+regen when the party lacks it; otherwise
         // fire as the recovery regen when the party is not already under the HoT.
         bool partyNeedsIt = HasStatusEffect(AST.Buffs.NeutralSect)
             ? !HasStatusEffect(AST.Buffs.NeutralSectShield)
             : GetPartyBuffPercent(AST.Buffs.AspectedHelios) <= 50 &&
               GetPartyBuffPercent(AST.Buffs.HeliosConjunction) <= 50;
-        // Same completion-aimed timing as WHM: bar-timed when a bar exists, immediate on VFX-only.
-        float astCastS = ActionManager.GetAdjustedCastTime(ActionType.Action, regen) / 1000f;
-        float? astRem = RaidwideTimeRemaining();
-        bool astInWindow = astRem is { } astR
-            ? astR <= Math.Max(0.1f, astCastS - RegenLandDelaySeconds)
-            : GroupDamageIncoming();
-        bool wanted = _astRegenPending ||
-                      (astInWindow &&
-                       IsEnabled(Preset.AST_Raidwide_AspectedHelios) &&
-                       ActionReady(regen) &&
-                       !RaidwideShieldOnCooldown &&   // the regen fills the "shield slot" for AST
-                       partyNeedsIt);
+        bool gates = IsEnabled(Preset.AST_Raidwide_AspectedHelios) &&
+                     LevelChecked(AST.AspectedHelios) &&
+                     !RaidwideShieldOnCooldown &&
+                     partyNeedsIt;
+
+        // ARM: raidwide bar is up and the gates pass -> schedule the fire time.
+        if (!_astRegenPending && !_astRegenArmed && gates && rem is { } armRem)
+        {
+            float fireIn = Math.Max(0f, armRem + RegenLandDelaySeconds - castS);
+            _astRegenArmed = true;
+            _astRegenFireAt = DateTime.UtcNow.AddSeconds(fireIn);
+            if (EzThrottler.Throttle("RWSArmAst", 250))
+                Svc.Log.Information($"[RWS] AST ARM rem={armRem:F2} castS={castS:F2} fireIn={fireIn:F2}");
+        }
+
+        // Disarm if the bar vanished early or the party got covered while we waited.
+        if (_astRegenArmed && !_astRegenPending &&
+            ((rem is null && DateTime.UtcNow < _astRegenFireAt) || !partyNeedsIt))
+        {
+            _astRegenArmed = false;
+            return false;
+        }
+
+        bool fireNow = _astRegenArmed && DateTime.UtcNow >= _astRegenFireAt;
+        // VFX/stack-marker detections carry no cast bar to time against - fire immediately.
+        bool vfxFire = rem is null && gates && GroupDamageIncoming();
+        bool wanted = _astRegenPending || fireNow || vfxFire;
         if (!wanted)
         {
             _astSawRegenCast = false;
@@ -754,6 +792,7 @@ internal unsafe class AutoRotationController
         {
             _astSawRegenCast = false;
             _astRegenPending = false;
+            _astRegenArmed = false;
             MarkRaidwideShieldUsed();
             if (EzThrottler.Throttle("RWSLockAst", 250))
                 Svc.Log.Information($"[RWS] AST Helios COMPLETE -> release hot={GetPartyBuffPercent(AST.Buffs.AspectedHelios)}/{GetPartyBuffPercent(AST.Buffs.HeliosConjunction)}");
@@ -770,13 +809,9 @@ internal unsafe class AutoRotationController
             return true;
         }
 
-        // Movement kills a hard cast - stand down rather than dead-lock.
-        if (IsMoving())
-        {
-            _astRegenPending = false;
-            _astSawRegenCast = false;
+        // Movement: not committed yet -> stand down this tick but STAY ARMED.
+        if (!_astRegenPending && IsMoving())
             return false;
-        }
 
         // Claim the next GCD for the regen (queues if a GCD is mid-cast).
         bool cast = ActionManager.Instance()->UseAction(ActionType.Action, regen, Player.Object.GameObjectId);
@@ -786,7 +821,7 @@ internal unsafe class AutoRotationController
             _astRegenExpiry = DateTime.UtcNow.AddSeconds(4);
         }
         if (EzThrottler.Throttle("RWSLockAst", 250))
-            Svc.Log.Information($"[RWS] AST LOCK issue cast={cast} rem={(astRem is { } ar ? ar.ToString("F2") : "VFX")} castS={astCastS:F2} casting={Player.Object?.IsCasting()} curId={LocalPlayer.CastActionId} pending={_astRegenPending}");
+            Svc.Log.Information($"[RWS] AST LOCK issue cast={cast} rem={(rem is { } lr ? lr.ToString("F2") : "null")} castS={castS:F2} casting={Player.Object?.IsCasting()} pending={_astRegenPending}");
         return true; // LOCK
     }
 

@@ -1,3 +1,12 @@
+## v1.0.4.72 (2026-07-01)
+
+### Fixed
+- **AST timed regen now actually fires: arm-at-detect + fire-by-clock (WHM too).** The dajoeybaz log proved the v71 mechanism worked when it triggered (one perfect `rem=0.27 castS=1.48` Helios) but almost never triggered: the trigger gates were only sampled while `remaining bar <= castS - 1.2s`, a window just ~0.3s wide for AST's 1.5s Helios cast (vs ~1.1s for WHM's 2s Medica - why WHM felt fine and AST didn't). Any mid-GCD moment inside that sliver = total miss. The locks now ARM as soon as the raidwide bar appears (gates evaluated with the whole bar of leeway), schedule an absolute fire time (`bar end + RegenLandDelaySeconds - own cast time`), and fire by the clock. Armed state disarms if the bar vanishes early or the party picks up the HoT another way; movement delays the fire instead of cancelling it. `AutoRotation/AutoRotationController.cs`.
+- Log also showed rotation-cast Heliae coinciding with a detection window being counted as the raidwide regen (bare `COMPLETE` lines burning the 10s gate); with arming now happening at bar start this dedupe only engages in the actual fire window.
+
+### Notes
+- New `[RWS] WHM/AST ARM rem= castS= fireIn=` log lines record the scheduled timing for tuning.
+
 ## v1.0.4.71 (2026-07-01)
 
 ### Fixed
