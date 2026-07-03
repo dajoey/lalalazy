@@ -1,7 +1,7 @@
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
     <PackageId>LazyWTMath</PackageId>
-    <Version>3.2.2.8</Version>
+    <Version>3.2.2.9</Version>
     <Authors>daemitus, MidoriKami, dajoey</Authors>
     <PackageProjectUrl>https://github.com/dajoey/lalalazy</PackageProjectUrl>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
