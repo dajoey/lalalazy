@@ -122,7 +122,7 @@
   </data>
   <data name="ActionChanging_helpMark" xml:space="preserve">
     <value>Controls whether Actions on your Hotbar will be Replaced with combos from the plugin.
-If disabled, your manual presses of abilities will no longer be affected by any Wrath settings.
+If disabled, your manual presses of abilities will no longer be affected by any Gluttony settings.
 
 Auto-Rotation will work regardless of the setting.</value>
   </data>
@@ -130,10 +130,10 @@ Auto-Rotation will work regardless of the setting.</value>
     <value>Action Replacing</value>
   </data>
   <data name="ActionChanging_recommendedValue" xml:space="preserve">
-    <value>On (This is essentially turning OFF most of Wrath)</value>
+    <value>On (This is essentially turning OFF most of Gluttony)</value>
   </data>
   <data name="ActionChanging_warningMark" xml:space="preserve">
-    <value>Wrath is largely designed with Action Replacing in mind.
+    <value>Gluttony is largely designed with Action Replacing in mind.
 Only Auto-Rotation will work if this is disabled.
 Disabling it may also lead to unexpected behavior, such as regarding Retargeting.</value>
   </data>
@@ -187,7 +187,7 @@ So adding 'Any Cleansable Ally' or similar is not necessary.</value>
     <value>Off</value>
   </data>
   <data name="EnabledOutputLog_helpMark" xml:space="preserve">
-    <value>Will print to chat every time you use an action provided by Wrath.</value>
+    <value>Will print to chat every time you use an action provided by Gluttony.</value>
   </data>
   <data name="EnabledOutputLog_Name" xml:space="preserve">
     <value>Output Log to Chat</value>
@@ -287,7 +287,7 @@ or a value of 2 would allow you to be 2 yalms further away and still be consider
     <value>0</value>
   </data>
   <data name="MovementLeeway_helpMark" xml:space="preserve">
-    <value>This controls how long of a delay is needed before Wrath recognizes you as moving.
+    <value>This controls how long of a delay is needed before Gluttony recognizes you as moving.
 This allows you to not have to worry about small movements affecting your rotation, primarily for casters.</value>
   </data>
   <data name="MovementLeeway_Name" xml:space="preserve">
@@ -343,11 +343,11 @@ Can be necessary for some casters to increase, particularly when the first actio
     <value>Off</value>
   </data>
   <data name="OpenToPvE_helpMark" xml:space="preserve">
-    <value>When you open Wrath with `/gluttony`, it will open to the PvE Features tab, instead of the last tab you were on.
-Same as always using the `/gluttony pve` command to open Wrath.</value>
+    <value>When you open Gluttony with `/gluttony`, it will open to the PvE Features tab, instead of the last tab you were on.
+Same as always using the `/gluttony pve` command to open Gluttony.</value>
   </data>
   <data name="OpenToPvE_Name" xml:space="preserve">
-    <value>Open Wrath to the PvE Features Tab</value>
+    <value>Open Gluttony to the PvE Features Tab</value>
   </data>
   <data name="OpenToPvE_recommendedValue" xml:space="preserve">
     <value>Preference</value>
@@ -356,11 +356,11 @@ Same as always using the `/gluttony pve` command to open Wrath.</value>
     <value>Off</value>
   </data>
   <data name="OpenToPvP_helpMark" xml:space="preserve">
-    <value>Same as above, when you open Wrath with `/gluttony`, it will open to the PvP Features tab, instead of the last tab you were on, when in a PvP area.
-Similar to using the `/gluttony pvp` command to open Wrath.</value>
+    <value>Same as above, when you open Gluttony with `/gluttony`, it will open to the PvP Features tab, instead of the last tab you were on, when in a PvP area.
+Similar to using the `/gluttony pvp` command to open Gluttony.</value>
   </data>
   <data name="OpenToPvP_Name" xml:space="preserve">
-    <value>Open Wrath to the PvP Features Tab in PvP areas</value>
+    <value>Open Gluttony to the PvP Features Tab in PvP areas</value>
   </data>
   <data name="OpenToPvP_recommendedValue" xml:space="preserve">
     <value>Preference</value>
@@ -427,7 +427,7 @@ e.g. When it is Ready, Fails, or Finishes.</value>
     <value>(all targets are checked for rezz-ability)</value>
   </data>
   <data name="RaiseStack_helpMark" xml:space="preserve">
-    <value>This is the order in which Wrath will try to select a target to Raise,
+    <value>This is the order in which Gluttony will try to select a target to Raise,
 if Retargeting of any Raise Feature is enabled.
 
 You can find Raise Features under PvE&gt;General,

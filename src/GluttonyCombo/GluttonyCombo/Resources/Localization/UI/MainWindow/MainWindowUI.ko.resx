@@ -132,7 +132,7 @@
 예상치 못한 동작 및 버그를 방지하려면 이러한 플러그인을 비활성화하거나, 플러그인에서 충돌하는 설정을 제거하는 것을 권장합니다.</value>
   </data>
   <data name="Tooltip_ConflictingWrathSettings" xml:space="preserve">
-    <value>다음 Wrath 설정은 {0}의 설정과 충돌하는 것으로 알려져 있습니다:
+    <value>다음 Gluttony 설정은 {0}의 설정과 충돌하는 것으로 알려져 있습니다:
 {1}
 
 예상치 못한 동작 및 버그를 방지하려면 이러한 설정을 비활성화하는 것을 권장합니다.</value>

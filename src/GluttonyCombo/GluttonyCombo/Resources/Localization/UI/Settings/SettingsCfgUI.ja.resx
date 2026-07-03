@@ -122,7 +122,7 @@
   </data>
   <data name="ActionChanging_helpMark" xml:space="preserve">
     <value>ホットバー上のアクションを、プラグインのコンボに置き換えるかを制御します。
-無効にすると、手動入力したアクションは Wrath の設定による影響を受けなくなります。
+無効にすると、手動入力したアクションは Gluttony の設定による影響を受けなくなります。
 
 自動ローテーションはこの設定に関係なく動作します。</value>
   </data>
@@ -130,10 +130,10 @@
     <value>アクション置き換え</value>
   </data>
   <data name="ActionChanging_recommendedValue" xml:space="preserve">
-    <value>オン（これをオフにすると、Wrath の大半が実質的に無効になります）</value>
+    <value>オン（これをオフにすると、Gluttony の大半が実質的に無効になります）</value>
   </data>
   <data name="ActionChanging_warningMark" xml:space="preserve">
-    <value>Wrath は主にアクション置き換えを前提に設計されています。
+    <value>Gluttony は主にアクション置き換えを前提に設計されています。
 無効にすると、自動ローテーション以外はほとんど機能しません。
 また、リターゲットなどで想定外の挙動を起こす場合があります。</value>
   </data>
@@ -183,7 +183,7 @@
     <value>オフ</value>
   </data>
   <data name="EnabledOutputLog_helpMark" xml:space="preserve">
-    <value>Wrath が実行したアクションを使うたびに、チャットへ出力します。</value>
+    <value>Gluttony が実行したアクションを使うたびに、チャットへ出力します。</value>
   </data>
   <data name="EnabledOutputLog_Name" xml:space="preserve">
     <value>チャットに出力ログを表示</value>
@@ -282,7 +282,7 @@
     <value>0</value>
   </data>
   <data name="MovementLeeway_helpMark" xml:space="preserve">
-    <value>Wrath が移動中と判定するまでの遅延です。
+    <value>Gluttony が移動中と判定するまでの遅延です。
 主にキャスターで、細かな移動がローテーションに影響しにくくなります。</value>
   </data>
   <data name="MovementLeeway_Name" xml:space="preserve">
@@ -342,7 +342,7 @@
 常に/gluttony pve を使うのと同じ動作です。</value>
   </data>
   <data name="OpenToPvE_Name" xml:space="preserve">
-    <value>Wrath を PvE 機能タブで開く</value>
+    <value>Gluttony を PvE 機能タブで開く</value>
   </data>
   <data name="OpenToPvE_recommendedValue" xml:space="preserve">
     <value>任意</value>
@@ -355,7 +355,7 @@
 /gluttony pvp を使う動作に近い設定です。</value>
   </data>
   <data name="OpenToPvP_Name" xml:space="preserve">
-    <value>PvP エリアでは Wrath を PvP 機能タブで開く</value>
+    <value>PvP エリアでは Gluttony を PvP 機能タブで開く</value>
   </data>
   <data name="OpenToPvP_recommendedValue" xml:space="preserve">
     <value>任意</value>
@@ -423,7 +423,7 @@
     <value>（すべての対象で蘇生可否を確認します）</value>
   </data>
   <data name="RaiseStack_helpMark" xml:space="preserve">
-    <value>これは Wrath が蘇生対象を選ぶ優先順です。
+    <value>これは Gluttony が蘇生対象を選ぶ優先順です。
 いずれかの蘇生機能でリターゲットが有効な場合に使われます。
 
 蘇生機能は PvE &gt; General または蘇生を持つ各キャスターの項目にあります。

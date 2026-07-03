@@ -288,7 +288,19 @@ internal class ConfigWindow : Dalamud.Interface.Windowing.Window
                 Settings.Draw();
                 break;
             case OpenWindow.About:
-                PunishGui.AboutTab.Draw(P.Name);
+                ImGuiEx.LineCentered(() => ImGuiEx.Text(P.Name));
+                ImGuiEx.TextWrapped("A lalalazy fork of Wrath Combo. All upstream credit to Team Wrath / PunishXIV.");
+                ImGuiEx.LineCentered(() =>
+                {
+                    if (ImGuiEx.Button("GitHub: dajoey/lalalazy"))
+                    {
+                        Process.Start(new ProcessStartInfo()
+                        {
+                            FileName = "https://github.com/dajoey/lalalazy",
+                            UseShellExecute = true
+                        });
+                    }
+                });
                 ImGuiEx.LineCentered(() =>
                 {
                     if (ImGuiEx.Button($"Additional custom action icons by alexisoffline"))

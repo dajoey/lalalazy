@@ -1107,9 +1107,9 @@ internal class Debug : ConfigWindow, IDisposable
             _wrathLease = null;
         }
 
-        if (ImGui.CollapsingHeader("Wrath IPC"))
+        if (ImGui.CollapsingHeader("Gluttony IPC"))
         {
-            CustomStyleText("Wrath Leased:", _wrathLease is not null);
+            CustomStyleText("Gluttony Leased:", _wrathLease is not null);
             if (_wrathLease is null)
             {
                 ImGui.Indent();

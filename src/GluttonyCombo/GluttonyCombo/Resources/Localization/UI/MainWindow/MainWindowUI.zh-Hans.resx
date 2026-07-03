@@ -135,7 +135,7 @@
 以避免出现意外行为和错误。</value>
   </data>
   <data name="Tooltip_ConflictingWrathSettings" xml:space="preserve">
-    <value>已知以下 Wrath 设置会与 {0} 的设置冲突：
+    <value>已知以下 Gluttony 设置会与 {0} 的设置冲突：
 {1}
 
 建议禁用这些设置，以避免出现意外行为和错误。</value>

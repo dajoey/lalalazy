@@ -1,3 +1,33 @@
+## v1.0.4.75 (2026-07-02)
+
+### Changed
+- **Fork-branding cleanup (user-facing only).** All user-visible "Wrath" references now say
+  "Gluttony": Settings tab strings (`SettingsCfgUI*.resx`, en/ja/ko/zh), conflict notices
+  ("Gluttony cannot work in this state", "Conflicting Gluttony" header in
+  `Data/Conflicts/ConflictingPlugins.cs` + `Conflicts.cs`), MainWindow conflict tooltip
+  (`MainWindowUI*.resx`), "(In Gluttony Settings)" retarget hints (PvP job files +
+  `CustomComboPresets*.resx`), Debug tab "Gluttony IPC"/"Gluttony Leased" labels.
+  Internal identifiers (WrathOpener, `###WrathCombo` ImGui IDs, WrathCombo.API project) are
+  intentionally untouched to keep nightly upstream merges clean. "Primal Wrath" (WAR action)
+  untouched.
+- **Login MOTD no longer fetched from upstream.** `PrintMotD` previously pulled and printed
+  `PunishXIV/WrathCombo/main/res/motd.txt` (Wrath's news feed) to chat; now prints a local
+  "Welcome to GluttonyCombo vX" line only. `GluttonyCombo.cs`.
+- **IPC kill-switch repointed to this repo.** `Services/IPC/Helper.cs` `IPCStatusEndpoint`
+  previously read `ipc_status.txt` from the upstream PunishXIV repo, meaning upstream could
+  remotely disable Gluttony's IPC (which LazyFateAutomation depends on). Now reads
+  `dajoey/lalalazy/main/res/ipc_status.txt` (new file, contents `enabled`). Fetch failure
+  still defaults to enabled.
+- **About tab de-Punished.** Replaced ECommons `PunishGui.AboutTab` (Punish branding/links)
+  with a fork credit line + GitHub repo button. Kept the alexisoffline custom-action icon
+  credit. `Window/ConfigWindow.cs`.
+- **Debug dump renamed.** `WrathDebug.txt` -> `GluttonyDebug.txt` (`DebugFile.cs`,
+  `Commands.cs`).
+
+### Notes
+- Part of the 2026-07-02 fork-branding cleanup pass across all lalalazy forks.
+- No rotation/behavior changes.
+
 ## v1.0.4.74 (2026-07-02)
 
 ### Added

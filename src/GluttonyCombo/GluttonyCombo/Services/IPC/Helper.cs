@@ -387,7 +387,7 @@ public partial class Helper(ref Leasing leasing)
     ///     necessary.
     /// </summary>
     private const string IPCStatusEndpoint =
-        "https://raw.githubusercontent.com/PunishXIV/WrathCombo/main/res/ipc_status.txt";
+        "https://raw.githubusercontent.com/dajoey/lalalazy/main/res/ipc_status.txt";
 
     /// <summary>
     ///     The cached backing field for the IPC status.
@@ -452,7 +452,7 @@ public partial class Helper(ref Leasing leasing)
 /// </summary>
 internal static class Logging
 {
-    private const string Prefix = "[Wrath IPC] ";
+    private const string Prefix = "[Gluttony IPC] ";
 
     private static StackTrace StackTrace => new();
 

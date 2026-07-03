@@ -122,17 +122,17 @@
   </data>
   <data name="ActionChanging_helpMark" xml:space="preserve">
     <value>이 설정은 단축바의 스킬이 플러그인의 콤보로 대체될지 여부를 결정합니다.
-비활성화하면, 수동으로 스킬을 눌러 사용할 때 Wrath 설정의 영향을 받지 않습니다.
+비활성화하면, 수동으로 스킬을 눌러 사용할 때 Gluttony 설정의 영향을 받지 않습니다.
 자동 순환은 이 설정과 관계없이 계속 작동합니다.</value>
   </data>
   <data name="ActionChanging_Name" xml:space="preserve">
     <value>기술 교체</value>
   </data>
   <data name="ActionChanging_recommendedValue" xml:space="preserve">
-    <value>켜기 (사실상 Wrath의 대부분 기능을 끄는 설정입니다)</value>
+    <value>켜기 (사실상 Gluttony의 대부분 기능을 끄는 설정입니다)</value>
   </data>
   <data name="ActionChanging_warningMark" xml:space="preserve">
-    <value>Wrath는 주로 기술 교체를 염두에 두고 설계되었습니다. 이 기능이 비활성화되면 자동 순환만 작동합니다. 비활성화하면 리타겟팅 등에서 예상치 못한 동작이 발생할 수 있습니다.</value>
+    <value>Gluttony는 주로 기술 교체를 염두에 두고 설계되었습니다. 이 기능이 비활성화되면 자동 순환만 작동합니다. 비활성화하면 리타겟팅 등에서 예상치 못한 동작이 발생할 수 있습니다.</value>
   </data>
   <data name="AddOutOfPartyNPCsToRetargeting_defaultValue" xml:space="preserve">
     <value>끄기</value>
@@ -185,7 +185,7 @@
     <value>끄기</value>
   </data>
   <data name="EnabledOutputLog_helpMark" xml:space="preserve">
-    <value>Wrath에서 제공하는 기술을 사용할 때마다 채팅에 출력됩니다.</value>
+    <value>Gluttony에서 제공하는 기술을 사용할 때마다 채팅에 출력됩니다.</value>
   </data>
   <data name="EnabledOutputLog_Name" xml:space="preserve">
     <value>로그를 채팅에 출력</value>
@@ -287,7 +287,7 @@
     <value>0</value>
   </data>
   <data name="MovementLeeway_helpMark" xml:space="preserve">
-    <value>이 설정은 Wrath가 당신을 이동 중으로 인식하기 전에 필요한 지연 시간을 조절합니다.
+    <value>이 설정은 Gluttony가 당신을 이동 중으로 인식하기 전에 필요한 지연 시간을 조절합니다.
 주로 마법사 직업을 위한 설정으로, 작은 움직임이 순환에 영향을 미치지 않도록 할 수 있습니다.</value>
   </data>
   <data name="MovementLeeway_Name" xml:space="preserve">
@@ -343,11 +343,11 @@
     <value>끄기</value>
   </data>
   <data name="OpenToPvE_helpMark" xml:space="preserve">
-    <value>`/gluttony` 명령어로 Wrath를 열 때, 마지막으로 있던 탭이 아니라 PvE 기능 탭으로 열립니다.
-이는 항상 `/gluttony pve` 명령어를 사용하여 Wrath를 열 때와 동일합니다.</value>
+    <value>`/gluttony` 명령어로 Gluttony를 열 때, 마지막으로 있던 탭이 아니라 PvE 기능 탭으로 열립니다.
+이는 항상 `/gluttony pve` 명령어를 사용하여 Gluttony를 열 때와 동일합니다.</value>
   </data>
   <data name="OpenToPvE_Name" xml:space="preserve">
-    <value>Wrath를 PvE 기능 탭으로 열기</value>
+    <value>Gluttony를 PvE 기능 탭으로 열기</value>
   </data>
   <data name="OpenToPvE_recommendedValue" xml:space="preserve">
     <value>선호</value>
@@ -356,11 +356,11 @@
     <value>끄기</value>
   </data>
   <data name="OpenToPvP_helpMark" xml:space="preserve">
-    <value>위와 동일하게, PvP 지역에 있을 때 `/gluttony` 명령어로 Wrath를 열면 마지막으로 있던 탭이 아니라 PvP 기능 탭으로 열립니다.
-이는 항상 `/gluttony pvp` 명령어를 사용하여 Wrath를 열 때와 동일합니다.</value>
+    <value>위와 동일하게, PvP 지역에 있을 때 `/gluttony` 명령어로 Gluttony를 열면 마지막으로 있던 탭이 아니라 PvP 기능 탭으로 열립니다.
+이는 항상 `/gluttony pvp` 명령어를 사용하여 Gluttony를 열 때와 동일합니다.</value>
   </data>
   <data name="OpenToPvP_Name" xml:space="preserve">
-    <value>PvP 지역에서 Wrath를 PvP 기능 탭으로 열기</value>
+    <value>PvP 지역에서 Gluttony를 PvP 기능 탭으로 열기</value>
   </data>
   <data name="OpenToPvP_recommendedValue" xml:space="preserve">
     <value>선호</value>
@@ -427,7 +427,7 @@
     <value>(모든 대상은 부활 가능 여부가 확인됩니다)</value>
   </data>
   <data name="RaiseStack_helpMark" xml:space="preserve">
-    <value>이 설정은 Wrath가 부활 대상을 선택하려고 시도하는 순서입니다.
+    <value>이 설정은 Gluttony가 부활 대상을 선택하려고 시도하는 순서입니다.
 만약 부활 관련 기능의 리타겟팅이 활성화된 경우에 적용됩니다.
 
 부활 기능은 PvE &gt; 일반 설정에서 찾을 수 있거나, 부활 능력을 가진 각 마법사의 설정에서 찾을 수 있습니다.

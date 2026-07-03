@@ -126,7 +126,7 @@
 {1}
 
 予期しない挙動や不具合を防ぐため、これらのプラグインを無効にするか、競合する設定を解除することを推奨します。</value></data>
-  <data name="Tooltip_ConflictingWrathSettings" xml:space="preserve"><value>次の Wrath の設定は {0} の設定と競合することが知られています:
+  <data name="Tooltip_ConflictingWrathSettings" xml:space="preserve"><value>次の Gluttony の設定は {0} の設定と競合することが知られています:
 {1}
 
 予期しない挙動や不具合を防ぐため、これらの設定を無効にすることを推奨します。</value></data>

@@ -8386,7 +8386,7 @@ Enabling Gekko and Kasha combo options makes this a one button basic combo.</val
     <value>Expedient Option</value>
   </data>
   <data name="SCHPvP_RetargetAdlo_Desc" xml:space="preserve">
-    <value>Retargets Adlo to the heal stack (In Wrath Settings) outside of the Burst Feature</value>
+    <value>Retargets Adlo to the heal stack (In Gluttony Settings) outside of the Burst Feature</value>
   </data>
   <data name="SCHPvP_RetargetAdlo_Name" xml:space="preserve">
     <value>Adlo Retarget</value>
@@ -8933,7 +8933,7 @@ This is the ideal option for newcomers to the job.</value>
     <value>Role Action Diabrosis Option</value>
   </data>
   <data name="SGEPvP_RetargetKardia_Desc" xml:space="preserve">
-    <value>Retargets Kardia to the heal stack (In Wrath Settings) outside of the Burst Feature</value>
+    <value>Retargets Kardia to the heal stack (In Gluttony Settings) outside of the Burst Feature</value>
   </data>
   <data name="SGEPvP_RetargetKardia_Name" xml:space="preserve">
     <value>Kardia Retarget</value>

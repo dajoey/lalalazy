@@ -154,7 +154,7 @@ public class Conflict
     private const string SettingsConflictStart = "Conflicting Plugin";
     private const string SettingsConflictEnd = "Setting(s) Detected!";
 
-    private const string WrathConflictStart = "Conflicting Wrath";
+    private const string WrathConflictStart = "Conflicting Gluttony";
     private const string WrathConflictEnd = "Setting(s) Detected!";
 
     private const string GameConflictStart = "Conflicting Game";

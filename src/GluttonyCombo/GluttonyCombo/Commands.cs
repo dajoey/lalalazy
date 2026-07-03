@@ -622,7 +622,7 @@ public partial class GluttonyCombo
                 if (argument[1] == "path")
                 {
                     DuoLog.Information(
-                        $"WrathDebug.txt should have been created at:\n" +
+                        $"GluttonyDebug.txt should have been created at:\n" +
                         $"{DebugFile.GetDebugFilePath()}");
                     return;
                 }

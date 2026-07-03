@@ -462,10 +462,8 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         {
             var basicMessage = $"Welcome to GluttonyCombo v{GetType().Assembly
                 .GetName().Version}!";
-            using var motd =
-                HTTPClient.GetAsync("https://raw.githubusercontent.com/PunishXIV/WrathCombo/main/res/motd.txt").Result;
-            motd.EnsureSuccessStatusCode();
-            var data = motd.Content.ReadAsStringAsync().Result;
+            // Fork: no remote MOTD fetch (upstream's motd.txt is Wrath's news feed).
+            var data = string.Empty;
             List<Payload> payloads =
             [
                 starterMotd,

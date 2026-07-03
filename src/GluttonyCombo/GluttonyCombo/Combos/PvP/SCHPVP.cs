@@ -52,7 +52,7 @@ internal static class SCHPvP
                     break;
 
                 case Preset.SCHPvP_Adlo:
-                    DrawAdditionalBoolChoice(SCHPvP_Adlo_Retarget, "Retarget Adlo","Will use Heal stack.(In Wrath Settings)");
+                    DrawAdditionalBoolChoice(SCHPvP_Adlo_Retarget, "Retarget Adlo","Will use Heal stack.(In Gluttony Settings)");
                     DrawSliderInt(1, 100, SCHPvP_AdloThreshold, "HP% to use Adlo");
                     break;
                 
