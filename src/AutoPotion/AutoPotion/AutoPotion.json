@@ -8,6 +8,7 @@
   "DalamudApiLevel": 15,
   "Tags": ["auto", "potion", "healing", "deep dungeon"],
   "CategoryTags": ["utility"],
+  "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/autopotion-icon.png",
   "AcceptsFeedback": false,
   "LoadRequiredState": 0,
   "LoadSync": false,

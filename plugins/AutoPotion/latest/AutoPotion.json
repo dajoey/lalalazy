@@ -1,24 +1,25 @@
 {
-  "Author": "dajoey",
-  "Name": "AutoPotion",
-  "InternalName": "AutoPotion",
-  "AssemblyVersion": "0.2.2.0",
-  "Description": "Auto-uses the highest-tier HP potion, MP potion (Ether), and the deep dungeon regen potion (Sustaining / Eurekan / Orthos / Pilgrim's) at configurable thresholds. Each potion's threshold and on/off state is stored per-job, so casters and tanks can have completely different setups.",
-  "ApplicableVersion": "any",
-  "Tags": [
-    "auto",
-    "potion",
-    "healing",
-    "deep dungeon"
-  ],
-  "CategoryTags": [
-    "utility"
-  ],
-  "DalamudApiLevel": 15,
-  "LoadRequiredState": 0,
-  "LoadSync": false,
-  "CanUnloadAsync": false,
-  "LoadPriority": 0,
-  "Punchline": "Per-job HP, MP, and deep dungeon potion automation.",
-  "AcceptsFeedback": false
+    "Author":  "dajoey",
+    "Name":  "AutoPotion",
+    "InternalName":  "AutoPotion",
+    "AssemblyVersion":  "0.2.2.1",
+    "Description":  "Auto-uses the highest-tier HP potion, MP potion (Ether), and the deep dungeon regen potion (Sustaining / Eurekan / Orthos / Pilgrim\u0027s) at configurable thresholds. Each potion\u0027s threshold and on/off state is stored per-job, so casters and tanks can have completely different setups.",
+    "ApplicableVersion":  "any",
+    "Tags":  [
+                 "auto",
+                 "potion",
+                 "healing",
+                 "deep dungeon"
+             ],
+    "CategoryTags":  [
+                         "utility"
+                     ],
+    "DalamudApiLevel":  15,
+    "LoadRequiredState":  0,
+    "LoadSync":  false,
+    "CanUnloadAsync":  false,
+    "LoadPriority":  0,
+    "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/autopotion-icon.png",
+    "Punchline":  "Per-job HP, MP, and deep dungeon potion automation.",
+    "AcceptsFeedback":  false
 }
