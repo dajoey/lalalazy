@@ -176,29 +176,6 @@ public partial class RotationConfigWindow : Window
 			AvailableClickthrough = true
 		});
 
-		TitleBarButtons.Add(new TitleBarButton()
-		{
-			Icon = FontAwesomeIcon.MugHot,
-			ShowTooltip = () =>
-			{
-				ImGui.BeginTooltip();
-				ImGui.Text("Support the developer on Ko-fi");
-				ImGui.EndTooltip();
-			},
-			Priority = 2,
-			Click = _ =>
-			{
-				try
-				{
-					Util.OpenLink("https://ko-fi.com/ltscombatreborn");
-				}
-				catch
-				{
-					// ignored
-				}
-			},
-			AvailableClickthrough = true
-		});
 	}
 
 	public override void OnOpen()
@@ -955,14 +932,6 @@ public partial class RotationConfigWindow : Window
 	// Example: 1 out of 5 times show the special thanks.
 	private static string GetDynamicHintText(int index)
 	{
-		// Show a special thanks message 1 out of every 5 times, otherwise show a normal hint.
-		if (_supporters != null && _supporters.Length > 0 && index % 5 == 0)
-		{
-			// Pick a random supporter for the special thanks message.
-			int supporterIndex = _hintRng.Next(_supporters.Length);
-			string supporter = _supporters[supporterIndex];
-			return $"Special thanks to supporter: {supporter}!";
-		}
 		// Defensive: fallback to base hints if index is valid, else a default message.
 		if (_baseUsageHints != null && _baseUsageHints.Length > 0 && index >= 0 && index < _baseUsageHints.Length)
 		{
@@ -1638,20 +1607,7 @@ public partial class RotationConfigWindow : Window
 			Service.Config.TutorialDone = false;
 		}
 
-		ImGui.Spacing();
-		float width2 = ImGui.GetWindowWidth();
-		if (IconSet.GetTexture("https://storage.ko-fi.com/cdn/brandasset/kofi_button_red.png", out IDalamudTextureWrap? icon2) && ImGuiHelper.TextureButton(icon2, width2, 250 * Scale, "Ko-fi link"))
-		{
-			Util.OpenLink("https://ko-fi.com/ltscombatreborn");
-		}
-
 		float width = ImGui.GetWindowWidth();
-
-		// Draw the Discord link button
-		if (IconSet.GetTexture("https://discordapp.com/api/guilds/1064448004498653245/embed.png?style=banner2", out Dalamud.Interface.Textures.TextureWraps.IDalamudTextureWrap? icon) && ImGuiHelper.TextureButton(icon, width, 250 * Scale, "Discord link"))
-		{
-			Util.OpenLink("https://discord.gg/p54TZMPnC9");
-		}
 
 		uint clickingCount = OtherConfiguration.RotationSolverRecord.ClickingCount;
 		if (clickingCount > 0)
@@ -1675,7 +1631,6 @@ public partial class RotationConfigWindow : Window
 
 	private static readonly CollapsingHeaderGroup _aboutHeaders = new(new()
 	{
-		{ UiString.ConfigWindow_About_ThanksToSupporters.GetDescription, DrawThanksToSupporters },
 		{ UiString.ConfigWindow_About_Macros.GetDescription, DrawAboutMacros },
 		{ UiString.ConfigWindow_About_SettingMacros.GetDescription, DrawAboutSettingsCommands },
 		{ UiString.ConfigWindow_About_Compatibility.GetDescription, DrawAboutCompatibility },

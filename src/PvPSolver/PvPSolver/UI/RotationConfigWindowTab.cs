@@ -35,7 +35,7 @@ internal enum RotationConfigWindowTab : byte
 	[TabIcon(Icon = 4)] Job,
 
 	[Description("Configure Duty Rotation.")]
-	[TabIcon(Icon = 4)] DutyRotation,
+	[TabSkip] [TabIcon(Icon = 4)] DutyRotation, // PvE-only: hidden in PvPSolver fork
 
 	[Description("Configure abilities and custom conditions for your current job.")]
 	[TabIcon(Icon = 4)] Actions,
@@ -56,7 +56,7 @@ internal enum RotationConfigWindowTab : byte
 	[TabIcon(Icon = 16)] Target,
 
 	[Description("Duty specific settings.")]
-	[TabIcon(Icon = 16)] Duty,
+	[TabSkip] [TabIcon(Icon = 16)] Duty, // PvE-only: hidden in PvPSolver fork
 
 	[Description("Configure optional helpful features.")]
 	[TabIcon(Icon = 51)] Extra,
@@ -65,7 +65,7 @@ internal enum RotationConfigWindowTab : byte
 	[TabIcon(Icon = 5)] Debug,
 
 	[Description("Configure AutoDuty settings and view related information.")]
-	[TabIcon(Icon = 4)] AutoDuty,
+	[TabSkip] [TabIcon(Icon = 4)] AutoDuty, // PvE-only: hidden in PvPSolver fork
 }
 
 internal static class RotationConfigWindowTabExtensions

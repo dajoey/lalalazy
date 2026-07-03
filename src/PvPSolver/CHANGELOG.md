@@ -1,5 +1,15 @@
 # Changelog - PvP Solver
 
+## [0.1.0.9] - 2026-07-02
+### Changed
+- Hidden the three PvE-only config tabs inherited from upstream: Duty Rotation, Duty, and AutoDuty (incl. the AutoDuty helper-plugin installer list). Tabs are `[TabSkip]`-hidden, not deleted, so nightly subtree merges stay clean. (UI/RotationConfigWindowTab.cs)
+- Removed upstream Combat Reborn donation/community links: Ko-fi title-bar button, About-tab Ko-fi button and Discord banner, and the "Thanks to Supporters" About section with its random supporter shout-out hints. (UI/RotationConfigWindow.cs)
+- Easter egg window retitled "PvP Solver Lab" (was "RSR Lab"). (UI/EasterEggWindow.cs)
+
+### Notes
+- Part of the 2026-07-02 fork-branding cleanup pass across lalalazy forks. No rotation/behavior changes.
+- The Actions-tab "Intercepted" option is PvE-only by nature and remains visible; candidate for a later pass.
+
 ## [0.1.0.8] - 2026-06-18
 ### Changed
 - Skip loading PvE duty rotations (Bozja, Emanation, MonsterHunter, Orbonne, Phantom, Variant) entirely. PvPSolver is PvP-only, so the duty rotation set had zero relevance; not loading it reduces memory use and startup time. (Updaters/RotationUpdater.cs)

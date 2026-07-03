@@ -22,7 +22,7 @@ internal class EasterEggWindow : Window
 	private bool _aiBlunderThisGame = false; // 1/1000 chance per match to intentionally blunder once
 	private bool _aiBlunderUsed = false;
 
-	public EasterEggWindow() : base("RSR Lab — Tic‑tac‑toe", BaseFlags)
+	public EasterEggWindow() : base("PvP Solver Lab — Tic‑tac‑toe", BaseFlags)
 	{
 		Size = new Vector2(300, 360);
 		SizeCondition = ImGuiCond.FirstUseEver;
