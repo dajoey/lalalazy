@@ -1,5 +1,19 @@
 # Changelog — DagobertPriceMatcher
 
+## v1.12.0.6 (2026-07-02)
+
+### Changed
+- **Manifest `RepoUrl` now points at the fork.** `DagobertPriceMatcher.json` previously pointed
+  at upstream `SHOEGAZEssb/Dagobert`; it now points to `https://github.com/dajoey/lalalazy`, so
+  the repo link shown in the Dalamud installer goes to the fork that actually ships this build.
+
+- **Plugin icon now shows in the Dalamud installer.** The manifest's `IconUrl` was empty,
+  so installed copies displayed the "?" placeholder. Now points at the LalaImages icon.
+
+### Notes
+- No source/behavior changes. Part of the 2026-07-02 fork-branding cleanup pass across lalalazy forks.
+- The stale upstream manifest `Dagobert.json` remains in-tree (not packaged) to keep nightly diff-apply merges quiet.
+
 ## v1.12.0.5 (2026-06-18)
 
 ### Added
