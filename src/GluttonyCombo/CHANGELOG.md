@@ -1,3 +1,26 @@
+## v1.0.4.76 (2026-07-05)
+
+### Added
+- **Amnesia handling (statuses 5, 1092, 4210 — "unable to use abilities").** Eureka Orthos /
+  deep-dungeon floor enchantments and traps apply Amnesia (1092), disabling all oGCD
+  abilities; both rotation modes previously kept trying to use them and stalled.
+  - Auto-rotation: `ProcessAutoActions` skips `ActionAttackType.Ability` actions while any
+    Amnesia status is present. `AutoRotation/AutoRotationController.cs`.
+  - Manual (button-press) combos: `CanWeave`/`CanDelayedWeave` return false and `ActionReady`
+    rejects ability-type actions under Amnesia, so combos fall through to GCDs globally. New
+    `HasAmnesia` helper + `AmnesiaStatusIds` in `CustomCombo/Functions/Action.cs`;
+    `Amnesia = 5` added to `ALL.Debuffs` (`Combos/PvE/ALL/ALL.cs`).
+
+### Fixed
+- **Pacification semantics were crossed since v1.0.4.23.** In-game, Pacification (status 6)
+  blocks *weaponskills*; the v1.0.4.23 code skipped *abilities* under Pacification (Amnesia's
+  rule keyed on the wrong status). Auto-rotation now skips weaponskill-type actions under
+  Pacification. `AutoRotation/AutoRotationController.cs`.
+
+### Notes
+- Combos that return oGCDs without going through `CanWeave`/`ActionReady` are not covered by
+  the global gates. Report any job that still stalls on an Amnesia floor.
+
 ## v1.0.4.75 (2026-07-02)
 
 ### Changed

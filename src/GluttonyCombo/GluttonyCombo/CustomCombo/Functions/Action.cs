@@ -23,6 +23,15 @@ internal abstract partial class CustomComboFunctions
 
     public unsafe static float AnimationLock => ActionManager.Instance()->AnimationLock;
 
+    /// <summary>
+    ///     Amnesia status IDs ("Unable to use abilities"):
+    ///     5 = generic, 1092 = deep dungeon floor enchantment/trap, 4210 = duty variant.
+    /// </summary>
+    internal static readonly ushort[] AmnesiaStatusIds = [5, 1092, 4210];
+
+    /// <summary> Checks if the player is under any Amnesia effect (oGCD abilities disabled). </summary>
+    public static bool HasAmnesia => AmnesiaStatusIds.Any(x => HasStatusEffect(x));
+
     /// <summary> Gets the original hook of an action. </summary>
     /// <param name="actionId"> The action ID. </param>
     public static uint OriginalHook(uint actionId) => Service.ActionReplacer.OriginalHook(actionId);
@@ -166,6 +175,10 @@ internal abstract partial class CustomComboFunctions
             return false;
         }
 
+        // Amnesia (e.g. deep dungeon floor enchantment) disables abilities outright
+        if (GetAttackType(actionId) == ActionAttackType.Ability && HasAmnesia)
+            return false;
+
         return (HasCharges(actionId) || (GetAttackType(actionId) != ActionAttackType.Ability && GetCooldownRemainingTime(actionId) <= RemainingGCD + BaseActionQueue)) &&
             ActionManager.Instance()->GetActionStatus(ActionType.Action, actionId, checkRecastActive: recastCheck, checkCastingActive: castCheck) is 0 or 582 or 580;
     }
@@ -295,7 +308,8 @@ internal abstract partial class CustomComboFunctions
         var remainingCast = player.TotalCastTime - player.CurrentCastTime;
         var animationLock = ActionManager.Instance()->AnimationLock;
 
-        return WeaveActions.Count < weaveLimit &&                                    // Multi-weave Check
+        return !HasAmnesia &&                                                        // Abilities not disabled (Amnesia)
+               WeaveActions.Count < weaveLimit &&                                    // Multi-weave Check
                animationLock <= BaseAnimationLock &&                                   // Animation Threshold
                remainingCast <= BaseActionQueue &&                                   // Casting Threshold
                RemainingGCD > (remainingCast + estimatedWeaveTime + animationLock);  // Window End Threshold
@@ -321,7 +335,8 @@ internal abstract partial class CustomComboFunctions
         var weaveLimit = maxWeaves ?? Service.Configuration.MaximumWeavesPerWindow;
         var animationLock = ActionManager.Instance()->AnimationLock;
 
-        return WeaveActions.Count < weaveLimit &&                              // Multi-weave Check
+        return !HasAmnesia &&                                                  // Abilities not disabled (Amnesia)
+               WeaveActions.Count < weaveLimit &&                              // Multi-weave Check
                animationLock <= BaseActionQueue &&                             // Animation Threshold
                remainingGCD > (weaveEnd + animationLock) &&                    // Window End Threshold
                remainingGCD <= (weaveStart > halfGCD ? halfGCD : weaveStart);  // Window Start Threshold

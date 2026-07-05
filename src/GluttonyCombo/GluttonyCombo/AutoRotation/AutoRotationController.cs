@@ -874,11 +874,19 @@ internal unsafe class AutoRotationController
                 continue;
 
 
-            // Pacification: skip oGCD abilities entirely
+            // Amnesia (incl. deep dungeon floor enchantments/traps): skip oGCD abilities entirely
+            if (HasAmnesia)
+            {
+                uint amnCheckAct = attributes.ReplaceSkill!.ActionIDs.First();
+                if (amnCheckAct.ActionAttackType() is ActionAttackType.Ability)
+                    continue;
+            }
+
+            // Pacification: skip weaponskills entirely
             if (HasStatusEffect(All.Debuffs.Pacification))
             {
                 uint pacCheckAct = attributes.ReplaceSkill!.ActionIDs.First();
-                if (pacCheckAct.ActionAttackType() is ActionAttackType.Ability)
+                if (pacCheckAct.ActionAttackType() is ActionAttackType.Weaponskill)
                     continue;
             }
 
