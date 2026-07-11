@@ -56,6 +56,12 @@ internal static class PositionalMover
         if (target is null || target is not IBattleChara battleTarget)
             return;
 
+        // Skip auto-positionals when our target is targeting us. A mob that has us as its
+        // target rotates to face us as we reposition, so the flank/rear can never be reached
+        // -- the mover would just circle-strafe it. Hold position and attack from the front.
+        if (battleTarget.TargetObjectId == Player.Object?.GameObjectId)
+            return;
+
         // Don't move if vnavmesh is not available
         if (!NavmeshIPC.CanPathfind)
             return;

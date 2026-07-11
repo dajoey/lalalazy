@@ -1,3 +1,15 @@
+## v1.0.4.77 (2026-07-11)
+
+### Changed
+- **Auto Positionals now skips when your target is targeting you.** When the
+  "Auto Positionals (Melee DPS)" option is enabled, `PositionalMover.MoveToPositional`
+  now returns early if the current target has the local player as its target
+  (`battleTarget.TargetObjectId == Player.Object.GameObjectId`). A mob focused on you
+  rotates to face you as you reposition, so the flank/rear can never be reached and the
+  mover would otherwise just circle-strafe it. It now holds position and lets you attack
+  from the front. Complements the existing guards (True North, omnidirectional targets,
+  BossMod AI, active player movement input). `AutoRotation/PositionalMover.cs`.
+
 ## v1.0.4.76 (2026-07-05)
 
 ### Added
