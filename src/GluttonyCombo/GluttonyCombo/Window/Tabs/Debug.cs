@@ -32,6 +32,7 @@ using GluttonyCombo.Combos.PvE;
 using GluttonyCombo.Core;
 using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.Data;
+using GluttonyCombo.Data.BattleData;
 using GluttonyCombo.Extensions;
 using GluttonyCombo.Services;
 using GluttonyCombo.Services.ActionRequestIPC;
@@ -364,7 +365,7 @@ internal class Debug : ConfigWindow, IDisposable
 
             ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
 
-            CustomStyleText("Job Gauge Data", string.Empty);
+            CustomStyleText("Job Specific Data", string.Empty);
             ImGui.Separator();
             switch (Player.Job)
             {
@@ -396,6 +397,12 @@ internal class Debug : ConfigWindow, IDisposable
                     Util.ShowStruct(&JobGaugeManager.Instance()->Scholar);
                     break;
                 case Job.NIN:
+                    CustomStyleText($"First Mudra:", $"{NIN.FirstMudra}");
+                    CustomStyleText($"Second Mudra:", $"{NIN.SecondMudra}");
+                    CustomStyleText($"Third Mudra:", $"{NIN.ThirdMudra}");
+                    CustomStyleText($"JutsuFromFlag:", $"{NIN.JutsuFromFlags.ActionName()}");
+                    CustomStyleText($"LastUsedMudra:", $"{NIN.LastMudra.ActionName()}");
+                    CustomStyleText($"UnusedJutsus:", $"{string.Join(", ", NIN.UnusedJutsus.Select(x => x.ActionName()))}");
                     Util.ShowStruct(&JobGaugeManager.Instance()->Ninja);
                     break;
                 case Job.MCH:
@@ -432,8 +439,6 @@ internal class Debug : ConfigWindow, IDisposable
                     Util.ShowStruct(&JobGaugeManager.Instance()->Pictomancer);
                     break;
             }
-
-            Util.ShowObject(player.Struct()->CastInfo);
 
             ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
 
@@ -1092,6 +1097,14 @@ internal class Debug : ConfigWindow, IDisposable
             ImGui.Unindent();
         }
 
+        if (ImGui.CollapsingHeader("Battle Data"))
+        {
+            CustomStyleText($"Battle Data Loaded", $"{BattleData.BattleDataLoaded}");
+            CustomStyleText($"Pausing Actions:", $"{BattleData.PauseActions()}");
+            CustomStyleText($"Tankbusters:", $"{BattleData.TankbusterAIDs.Count}");
+            CustomStyleText($"Raidwides:", $"{BattleData.RaidwideAIDs.Count}");
+            CustomStyleText($"Ignored Raidwides:", $"{BattleData.IgnoreRaidwideAIDs.Count}");
+        }
 
         #endregion
 
@@ -1185,7 +1198,7 @@ internal class Debug : ConfigWindow, IDisposable
                 ImGui.SameLine();
                 if (ImGui.Button("Mimic Questionable"))
                 {
-                    // https://git.carvel.li/liza/Questionable/src/commit/de90882ecbb609c2f79fecc1ec17b751dc8763f2/Questionable/Controller/CombatModules/WrathComboModule.cs#L68
+                    // https://git.carvel.li/liza/Questionable/src/commit/de90882ecbb609c2f79fecc1ec17b751dc8763f2/Questionable/Controller/CombatModules/GluttonyComboModule.cs#L68
                     GluttonyCombo.P.IPC.SetAutoRotationState(_wrathLease!.Value);
                     GluttonyCombo.P.IPC.SetCurrentJobAutoRotationReady(_wrathLease!.Value);
                 }

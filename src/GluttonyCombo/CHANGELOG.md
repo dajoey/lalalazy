@@ -1,3 +1,39 @@
+## v1.0.4.78 (2026-07-17)
+
+### Added
+- **Upstream BattleData subsystem** (`Data/BattleData/BattleData.cs` + per-expansion
+  `BattleData_2.0_ARR` through `BattleData_7.0_DT`). Curated per-encounter action-ID tables for
+  tankbusters, raidwides, ignore-raidwides (gazes) and invulnerability, exposed via
+  `PauseActions()` / `IsRaidwide()` / `IgnoreRaidwide()` / `IsTankbuster()` / `IsInvincible()`.
+  Loaded on territory change.
+
+### Changed
+- **Synced upstream WrathCombo 1.0.4.13 (`efe5d828b`) to 1.0.4.14 (`93559998d`)** — 68 commits,
+  61 files, +2794/-1942. Method: per-file 3-way in WrathCombo namespace + forward Wrath->Gluttony
+  rename (RUNBOOK 3.3). git merge-file reported 0 conflicts; the two escalation-flagged files
+  converged cleanly (see Notes).
+- **`RaidwideCasting` (`CustomCombo/Functions/Action.cs`) converged with upstream.** Upstream's
+  1.0.4.14 `RaidwideCasting` already ORs our cast-bar heuristic (`CastType 2/5 && EffectRange >= 30`)
+  with `BattleData.IsRaidwide(id)` and adds a `BattleData.IgnoreRaidwide(id)` gaze filter. Our 15s
+  raidwide-mit gate and `RaidwideTimeRemaining()` are unchanged.
+- **`PlayerHasActionPenalty` (`CustomCombo/Functions/Status.cs`) rearchitected onto BattleData.**
+  Adopted upstream's new signature `PlayerHasActionPenalty(bool fromAutorot)`; encounter-specific
+  detection (e.g. Clyteum motion-scanner) now lives in `BattleData.PauseActions()`, with the
+  AccelerationBomb / Pyretic / Misc status scan retained as the fallback branch. Our divergent call
+  sites in `AutoRotation/AutoRotationController.cs` (x2) and `Data/ActionWatching.cs` now pass
+  `fromAutorot: true` (matches upstream's sole call site).
+
+### Preserved (fork divergences carried through unchanged, token counts verified vs pre-merge)
+- Amnesia self-lockout (`AmnesiaStatusIds [5,1092,4210]`), Pacification / Silence handling,
+  Pyretic / Reflect penalties (`EnemyHasReflectPenalty`), WHM Divine Caress ground-heal targeting,
+  SMN "Aegis Uptime" preset, BossMod IPC (`IsAIActive` / `SetMaxDistanceToTarget`), 15s raidwide gate.
+
+### Notes
+- BLU taken-theirs (unprotected per Joey 2026-07-02; BLU autorotation is known-broken).
+- Build: 0 errors, 11 warnings (all pre-existing). Resolves the 2026-07-15 nightly-upstream-merge
+  escalation (upstream BattleData penalty rearchitecture vs. our divergences) — merged cleanly with
+  every standing divergence intact.
+
 ## v1.0.4.77 (2026-07-11)
 
 ### Changed

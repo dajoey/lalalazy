@@ -62,7 +62,7 @@ public partial class Configuration : IPluginConfiguration
     public bool HideConflictedCombos = false;
 
     /// If the DTR Bar text should be shortened. Default: false.
-    /// <seealso cref="WrathCombo.OnFrameworkUpdate"/>
+    /// <seealso cref="GluttonyCombo.OnFrameworkUpdate"/>
     [SettingCategory(Main_UI_Options)]
     [Setting(Setting.Type.Toggle)]
     public bool ShortDTRText = false;
@@ -178,14 +178,14 @@ public partial class Configuration : IPluginConfiguration
     #endregion
 
     /// Whether, upon opening, it should always go to the PvE tab. Default: false.
-    /// <seealso cref="WrathCombo.HandleOpenCommand"/>
+    /// <seealso cref="GluttonyCombo.HandleOpenCommand"/>
     [Space]
     [SettingCategory(Main_UI_Options)]
     [Setting(Setting.Type.Toggle)]
     public bool OpenToPvE = false;
 
     /// Whether, upon opening, it should go to the PvP tab in PvP zones. Default: false.
-    /// <seealso cref="WrathCombo.HandleOpenCommand"/>
+    /// <seealso cref="GluttonyCombo.HandleOpenCommand"/>
     [SettingCategory(Main_UI_Options)]
     [Setting(Setting.Type.Toggle)]
     public bool OpenToPvP = false;
@@ -214,7 +214,7 @@ public partial class Configuration : IPluginConfiguration
 
     /// Whether Hotbars will be walked, and matching actions updated. Default: true.
     /// <seealso cref="SetActionChanging" />
-    /// <seealso cref="WrathCombo.HandleComboCommands" />
+    /// <seealso cref="GluttonyCombo.HandleComboCommands" />
     [SettingCategory(Rotation_Behavior_Options)]
     [Setting(Setting.Type.Toggle)]
     public bool ActionChanging = true;
@@ -241,6 +241,13 @@ public partial class Configuration : IPluginConfiguration
         minInt: 0,
         maxInt: 500)]
     public int Throttle = 50;
+
+    /// <summary>
+    /// When pausing for gazes and other action penalty
+    /// </summary>
+    [SettingCategory(Rotation_Behavior_Options)]
+    [Setting(type: Setting.Type.Slider_Float, minFloat: 0, maxFloat: 3)]
+    public float PenaltyPause = 1.5f;
 
     /// Delay before recognizing movement. Default: 0.
     /// <seealso cref="CustomComboFunctions.IsMoving"/>
@@ -315,7 +322,7 @@ public partial class Configuration : IPluginConfiguration
     [SettingGroup("defaultPlus", "healStackPlus")]
     [Setting(Setting.Type.Toggle)]
     public bool UseUIMouseoverOverridesInDefaultHealStack = false;
-    
+
     /// Whether to include UI Mouseover in 'default' Heal Stack. Default: false.
     /// <seealso cref="CustomComboNS.SimpleTarget.Stack.GetStack"/>
     [SettingCategory(Targeting_Options)]
@@ -323,7 +330,7 @@ public partial class Configuration : IPluginConfiguration
     [SettingGroup("defaultPlus", "healStackPlus")]
     [Setting(Setting.Type.Toggle)]
     public bool UseFieldMouseoverOverridesInDefaultHealStack = false;
-    
+
     /// Whether to include Focus Target in 'default' Heal Stack. Default: false.
     /// <seealso cref="CustomComboNS.SimpleTarget.Stack.GetStack"/>
     [SettingCategory(Targeting_Options)]
@@ -331,7 +338,7 @@ public partial class Configuration : IPluginConfiguration
     [SettingGroup("defaultPlus", "healStackPlus")]
     [Setting(Setting.Type.Toggle)]
     public bool UseFocusTargetOverrideInDefaultHealStack = false;
-    
+
     /// Whether to include Lowest HP% in 'default' Heal Stack. Default: false.
     /// <seealso cref="CustomComboNS.SimpleTarget.Stack.GetStack"/>
     [SettingCategory(Targeting_Options)]

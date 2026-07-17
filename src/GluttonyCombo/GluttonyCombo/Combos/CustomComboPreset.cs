@@ -2851,9 +2851,14 @@ public enum Preset
     [JobInfo(Job.DRK)]
     [Retargeted(DRK.Shadowstride)]
     DRK_RetargetShadowstride = 5135,
+    
+    [ReplaceSkill(DRK.Unmend)]
+    [JobInfo(Job.DRK)]
+    [Retargeted(DRK.Unmend)]
+    DRK_Retarget_Unmend = 5136,
 
     #endregion
-    // Last value = 5135
+    // Last value = 5136
 
     #endregion
     // Last value = 5135
@@ -3544,9 +3549,14 @@ public enum Preset
     [JobInfo(Job.GNB)]
     [Retargeted(GNB.Trajectory)]
     GNB_RetargetTrajectory = 7091,
+    
+    [ReplaceSkill(GNB.LightningShot)]
+    [JobInfo(Job.GNB)]
+    [Retargeted(GNB.LightningShot)]
+    GNB_RetargetLightningShot = 7094,
     #endregion
 
-    // Last Value = 7093
+    // Last Value = 7094
     #endregion
 
     #region MACHINIST
@@ -7678,9 +7688,14 @@ public enum Preset
     [JobInfo(Job.WAR)]
     [Retargeted(WAR.Holmgang)]
     WAR_RetargetHolmgang = 18130,
+    
+    [ReplaceSkill(WAR.Tomahawk)]
+    [JobInfo(Job.WAR)]
+    [Retargeted(WAR.Tomahawk)]
+    WAR_RetargetTomahawk = 18156,
 
     #endregion
-    // Last value = 18155
+    // Last value = 18156
     #endregion
 
     #region WHITE MAGE

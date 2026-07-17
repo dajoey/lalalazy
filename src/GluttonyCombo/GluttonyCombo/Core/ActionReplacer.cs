@@ -17,6 +17,7 @@ using GluttonyCombo.Combos.PvE;
 using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.CustomComboNS.Functions;
 using GluttonyCombo.Data;
+using GluttonyCombo.Data.BattleData;
 using GluttonyCombo.Extensions;
 using GluttonyCombo.Services;
 using static GluttonyCombo.CustomComboNS.Functions.Jobs;
@@ -158,9 +159,9 @@ internal sealed class ActionReplacer : IDisposable
             {
                 if (combo.TryInvoke(actionID, out uint newActionID))
                 {
-                    if (Service.Configuration.BlockSpellOnMove &&
+                    if ((Service.Configuration.BlockSpellOnMove &&
                         ActionManager.GetAdjustedCastTime(ActionType.Action, newActionID) > 0 &&
-                        CustomComboFunctions.TimeMoving.Ticks > 0)
+                        CustomComboFunctions.TimeMoving.Ticks > 0) || (Service.Configuration.PenaltyPause > 0 && CustomComboFunctions.PlayerHasActionPenalty(false)))
                     {
                         return All.SavageBlade;
                     }

@@ -199,7 +199,7 @@ internal unsafe class AutoRotationController
         // Gate autorotation while the player has Pyretic / Acceleration Bomb / similar.
         // PlayerHasActionPenalty (Status.cs) is Wrath dynamic detection: icon-based
         // Pyretic scan + Acceleration Bomb expiry timing + encounter-specific IDs.
-        if (PlayerHasActionPenalty())
+        if (PlayerHasActionPenalty(true))
             return true;
 
         // Enemy damage-reflect / spikes (e.g. Eureka Gelid Charge -> Ice Spikes,
@@ -273,7 +273,7 @@ internal unsafe class AutoRotationController
             return;
 
         // Check for Pyretic / Reasons to stop
-        if (cfg.DPSSettings.UnTargetAndDisableForPenalty && PlayerHasActionPenalty())
+        if (cfg.DPSSettings.UnTargetAndDisableForPenalty && PlayerHasActionPenalty(true))
             return;
 
         // Healer logic
@@ -1376,10 +1376,13 @@ internal unsafe class AutoRotationController
             if (LocalPlayer is not { } player)
                 return false;
 
+            if (ActionManager.Instance()->QueuedActionId != 0)
+                return true;
+
             var target = !cfg.DPSSettings.AoEIgnoreManual && cfg.DPSRotationMode == DPSRotationMode.Manual ?
     Svc.Targets.Target : DPSTargeting.BaseSelection.MaxBy(x => NumberOfEnemiesInRange(OriginalHook(gameAct), x, true));
 
-            if (target is null && cfg.PauseWhenNoTarget) return true;
+            if ((target is not { } t || (!t.IsHostile() && !t.IsFriendly())) && cfg.PauseWhenNoTarget) return true;
 
             if (attributes.AutoAction!.IsHeal)
             {
@@ -1412,7 +1415,7 @@ internal unsafe class AutoRotationController
             }
             else
             {
-                if (!NIN.InMudra)
+                if (!LockedAoE)
                 {
                     var st = GetSingleTarget(mode);
                     var maxHit = NumberOfEnemiesInRange(DontChangeForAoe(gameAct) ? gameAct : OriginalHook(gameAct), target, true);
@@ -1422,15 +1425,8 @@ internal unsafe class AutoRotationController
                         target = st;
 
                     if (cfg.DPSSettings.DPSAoETargets == null || maxHit < cfg.DPSSettings.DPSAoETargets)
-                    {
-                        LockedAoE = false;
                         return false;
-                    }
-                    else
-                    {
-                        LockedAoE = true;
-                        LockedST = false;
-                    }
+
                 }
 
                 OverrideTarget = target ?? OverrideTarget;
@@ -1501,9 +1497,12 @@ internal unsafe class AutoRotationController
             if (LocalPlayer is not { } player)
                 return false;
 
+            if (ActionManager.Instance()->QueuedActionId != 0)
+                return true;
+
             var target = GetSingleTarget(mode);
 
-            if (target is null && cfg.PauseWhenNoTarget) return true;
+            if ((target is not { } t || (!t.IsHostile() && !t.IsFriendly())) && cfg.PauseWhenNoTarget) return true;
 
             OverrideTarget = target ?? OverrideTarget;
             var outAct = OriginalHook(InvokeCombo(preset, attributes, ref gameAct, target));
