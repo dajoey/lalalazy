@@ -37,7 +37,7 @@ namespace GluttonyCombo.Data.BattleData
                     _invincibleCheck = (target, targetID, _) =>
                     {
                         if (targetID is 9511 && target.IsCasting && target.CastActionId == 14574) return Invincible.True;
-                        return Invincible.True;
+                        return Invincible.False;
                     };
                     break;
                 default:
