@@ -1,3 +1,25 @@
+## v1.0.4.79 (2026-07-20)
+
+### Changed
+- **Synced upstream WrathCombo 1.0.4.14 (`93559998d`) -> `0519de6d5` (autorotperf, PR #1234)** - 13 commits, 14 files, +174/-110. Method: per-file 3-way in WrathCombo namespace + forward Wrath->Gluttony rename (RUNBOOK 3.3), token-protected `fwd` guarding the `WrathCombo.json` literal. `git merge-file`: 11 clean, 2 conflicts, 1 hand file.
+- **Autorotation caching (`autorotperf`).** `Window/Functions/Presets.cs` `GetJobAutorots` now caches the computed job->autorotation dictionary (`field`-backed) and only rebuilds when `UpdateDue`, cutting per-frame recompute. Invalidation wired through `Core/Presets.cs` / `Core/ConfigurationChanges.cs`.
+- **`Core/Presets.cs` `TogglePreset` converged to upstream** (delegates to `DisablePreset` instead of inline disable). Our only local delta here was `GluttonyCombo.P` qualification (no behavioral divergence) - took upstream.
+
+### Fixed
+- **Opener no longer resets on area transition** (upstream `c8db6f681`). The `WrathOpener.CurrentOpener` reset moved out of the unconditional top of `UpdateCaches` into the `if (onJobChange || firstRun)` guard - reconciled onto our fork's restructured `UpdateCaches` (keeps the early `SelectOpener()` and the role-based `SetMaxDistanceToTarget` block).
+- **NIN** (`NIN.cs` / `NIN_Helper.cs`): better prevents queueing duplicate mudras on bad ping.
+- **Ghimlyt Dark battle data** fix (`BattleData_5.0_ShB.cs`).
+
+### Added
+- **Vauthry invulnerability** entries; Custom Actions window resized (`Native/CustomActionManager.cs`).
+- Debug tab party info now sourced from the group manager (`Window/Tabs/Debug.cs`).
+
+### Preserved (fork divergences carried through unchanged, token counts verified >= pre-merge)
+- Amnesia / Pacification / Silence handling, Pyretic / Reflect penalties (`EnemyHasReflectPenalty`), 15s raidwide-mitigation gate, `IsRaidwide` / `IgnoreRaidwide`, WHM Divine Caress ground-heal targeting, SMN "Aegis Uptime" preset, BattleData subsystem, BossMod IPC (`SetMaxDistanceToTarget` / `SuspendLeases`), `EnteringInstancedContent` tracking. BLU autorotation engine untouched this merge (upstream has none).
+
+### Notes
+- Build: 0 errors, 11 pre-existing warnings, 12.6s. LF output per RUNBOOK §9. `"WrathCombo.json"` config literal preserved via token-protected rename.
+
 ## v1.0.4.78 (2026-07-17)
 
 ### Added

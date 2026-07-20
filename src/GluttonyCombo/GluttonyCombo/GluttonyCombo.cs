@@ -141,8 +141,6 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
     public static void UpdateCaches
         (bool onJobChange, bool onTerritoryChange, bool firstRun)
     {
-        WrathOpener.CurrentOpener?.CacheReady = false;
-        WrathOpener.CurrentOpener?.ResetOpener(); //Clears opener values, just in case
         ActionRequestIPCProvider.ResetAllBlacklist();
         ActionRequestIPCProvider.ResetAllRequests();
         CustomComboFunctions.CleanupExpiredLineOfSightCache();
@@ -158,6 +156,8 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
                 PvEFeatures.OpenToCurrentJob(true);
             if (onJobChange || firstRun)
             {
+                WrathOpener.CurrentOpener?.CacheReady = false;
+                WrathOpener.CurrentOpener?.ResetOpener(); //Clears opener values, just in case
                 Service.ActionReplacer.UpdateFilteredCombos();
                 Svc.Framework.RunOnTick(Provider.BuildCachesAction());
                 P.IPCSearch.UpdateActiveJobPresets();
