@@ -1,3 +1,21 @@
+## v1.0.4.80 (2026-07-22)
+
+### Changed
+- **Synced upstream WrathCombo `0519de6d5` -> `ad2493662`** (5 commits: PR #1235 `DbgStatuses`, PR #1224 `June`, `SafeStatusList`, "Added Status reads as part of reading target info", CODEOWNERS). Upstream csproj version unchanged at 1.0.4.14; our fork lineage bumps 1.0.4.79 -> 1.0.4.80. Only one code file lands in the fork: `Window/Tabs/Debug.cs`.
+- **Debug tab status-display refactor.** The inline Player Statuses and Target Statuses draw loops were extracted into a shared `private static void DrawStatuses(IGameObject?)` helper that iterates `SafeStatusList` (null-safe), and a new "Statuses" `TreeNode` was added under the target debug tree. Upstream also dropped the old inline Target-Statuses `ICD Tracker` sub-header. Developer-facing diagnostic window only - no autorotation, targeting, or gameplay behavior change.
+
+### Merge method
+- Per-file 3-way (`git merge-file -p ours base theirs`, RUNBOOK 3.3) against the WrathCombo-namespace base/theirs blobs, LF-normalized. 0 conflicts. The three upstream hunks (base lines 240-338, 1469-1477, 1527-1532) carry no rename tokens and sit clear of every local divergence, so no forward-rename was required and all fork edits survived verbatim.
+- `docs/CODEOWNERS` (upstream repo governance) intentionally NOT pulled - out of scope for the fork.
+
+### Preserved (fork divergences carried through unchanged)
+- `Debug.cs` local edits verified present post-merge: "Gluttony IPC" / "Gluttony Leased:" UI branding, `GluttonyCombo.P` qualification (22 sites), no-BOM + LF file conventions.
+- All autorotation divergences untouched (this merge touches no rotation code): Amnesia / Pacification / Silence, Pyretic / Reflect penalties, 15s raidwide-mitigation gate, WHM Divine Caress ground-heal, SMN "Aegis Uptime", BattleData, BossMod IPC, BLU engine.
+
+### Notes
+- `SafeStatusList` confirmed pre-existing in `Extensions/GameObjectExtensions.cs` (not a new upstream symbol) - build-safe.
+- Build clean (0 `error CS`); embedded zip manifest, pluginmaster, and template json all set to 1.0.4.80 with this changelog.
+
 ## v1.0.4.79 (2026-07-20)
 
 ### Changed
