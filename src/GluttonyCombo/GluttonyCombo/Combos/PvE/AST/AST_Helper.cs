@@ -20,6 +20,7 @@ using GluttonyCombo.Extensions;
 using static GluttonyCombo.Combos.PvE.AST.Config;
 using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
 using Status = Dalamud.Game.ClientState.Statuses.IStatus;
+using GluttonyCombo.Combos.PvE.ALL;
 namespace GluttonyCombo.Combos.PvE;
 
 internal partial class AST
@@ -438,7 +439,7 @@ internal partial class AST
                 filter = filter
                     .OrderBy(x =>
                         _cardPriorities.GetValueOrDefault(
-                            (Job)x.RealJob!.Value.RowId, byte.MaxValue))
+                            x.RealJob!.Value.GetJob().GetUpgradedJob(), byte.MaxValue))
                     .ThenByDescending(x => x.BattleChara.MaxHp)
                     .ToList();
                 
@@ -522,6 +523,7 @@ internal partial class AST
         [
             EarthlyStar,
             FallMalefic,
+            Items.UseItem(Items.GetStrongestPotionRow(Items.PotionType.Mind)),
             Combust3,
             Lightspeed,
             FallMalefic,
@@ -548,6 +550,7 @@ internal partial class AST
         public override Preset Preset => Preset.AST_ST_DPS_Opener;
 
         internal override UserData? ContentCheckConfig => AST_ST_DPS_Balance_Content;
+        internal override bool IncludePot => AST_Opener_Potion;
         
         public override List<(int[] Steps, Func<bool> Condition)> SkipSteps { get; set; } =
         [

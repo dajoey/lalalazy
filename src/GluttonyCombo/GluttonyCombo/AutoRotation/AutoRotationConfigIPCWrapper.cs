@@ -190,6 +190,8 @@ public class DPSSettingsIPCWrapper(DPSSettings settings)
 
     public bool AutoPositionals => settings.AutoPositionals;
 
+    public bool AoEOnlyWhenTargeting => settings.AoEOnlyWhenTargeting;
+
     #endregion
 }
 

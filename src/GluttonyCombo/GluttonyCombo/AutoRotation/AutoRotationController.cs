@@ -31,6 +31,7 @@ using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
 using static GluttonyCombo.CustomComboNS.Functions.Jobs;
 using static GluttonyCombo.Data.ActionWatching;
 using ActionType = FFXIVClientStructs.FFXIV.Client.Game.ActionType;
+using Content = ECommons.GameHelpers.Content;
 
 #endregion
 
@@ -261,7 +262,7 @@ internal unsafe class AutoRotationController
 
         if (cfg.HealerSettings.PreEmptiveHoT && Player.Job is Job.SGE or Job.SCH)
             PreEmptiveShield();
-        
+
         // Bypass buffs logic
         if (cfg.BypassBuffs && NotInCombat)
         {
@@ -1380,8 +1381,14 @@ internal unsafe class AutoRotationController
             if (ActionManager.Instance()->QueuedActionId != 0)
                 return true;
 
-            var target = !cfg.DPSSettings.AoEIgnoreManual && cfg.DPSRotationMode == DPSRotationMode.Manual ?
-    Svc.Targets.Target : DPSTargeting.BaseSelection.MaxBy(x => NumberOfEnemiesInRange(OriginalHook(gameAct), x, true));
+            var autoTarget = DPSTargeting.BaseSelection.MaxBy(x => NumberOfEnemiesInRange(OriginalHook(gameAct), x, true));
+            var manualTarget = Svc.Targets.Target;
+
+            IGameObject? target = null;
+            // Determine target according to rotation mode and AoE settings
+
+            var useAutoTarget = cfg.DPSRotationMode != DPSRotationMode.Manual || (cfg.DPSRotationMode == DPSRotationMode.Manual && cfg.DPSSettings.AoEIgnoreManual && (!cfg.DPSSettings.AoEOnlyWhenTargeting || manualTarget is not null));
+            target = useAutoTarget ? autoTarget : manualTarget;
 
             if ((target is not { } t || (!t.IsHostile() && !t.IsFriendly())) && cfg.PauseWhenNoTarget) return true;
 
@@ -1507,6 +1514,12 @@ internal unsafe class AutoRotationController
 
             OverrideTarget = target ?? OverrideTarget;
             var outAct = OriginalHook(InvokeCombo(preset, attributes, ref gameAct, target));
+            if (outAct >= All.Items)
+            {
+                ActionManager.Instance()->UseAction(ActionType.Action, outAct, extraParam: 0xFFFF);
+                return true;
+            }
+
             if (!ActionReady(outAct))
             {
                 return false;

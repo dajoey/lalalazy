@@ -2,6 +2,7 @@ using Dalamud.Game.ClientState.JobGauge.Types;
 using Dalamud.Game.ClientState.Statuses;
 using System.Collections.Frozen;
 using System.Collections.Generic;
+using GluttonyCombo.Combos.PvE.ALL;
 using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.CustomComboNS.Functions;
 using static GluttonyCombo.Combos.PvE.DRG.Config;
@@ -422,6 +423,7 @@ internal partial class DRG
             TrueThrust,
             SpiralBlow,
             LanceCharge,
+            Items.UseItem(Items.GetStrongestPotionRow(Items.PotionType.Strength)),
             ChaoticSpring,
             BattleLitany,
             Geirskogul,
@@ -448,6 +450,7 @@ internal partial class DRG
         public override Preset Preset => Preset.DRG_ST_Opener;
 
         internal override UserData ContentCheckConfig => DRG_BalanceContent;
+        internal override bool IncludePot => DRG_Opener_Potion;
 
         public override bool HasCooldowns() =>
             GetRemainingCharges(LifeSurge) is 2 &&
@@ -466,6 +469,7 @@ internal partial class DRG
         [
             PiercingTalon,
             TrueThrust,
+            Items.UseItem(Items.GetStrongestPotionRow(Items.PotionType.Strength)),
             SpiralBlow,
             LanceCharge,
             BattleLitany,
@@ -494,6 +498,7 @@ internal partial class DRG
         public override Preset Preset => Preset.DRG_ST_Opener;
 
         internal override UserData ContentCheckConfig => DRG_BalanceContent;
+        internal override bool IncludePot => DRG_Opener_Potion;
 
         public override bool HasCooldowns() =>
             GetRemainingCharges(LifeSurge) is 2 &&
@@ -513,35 +518,34 @@ internal partial class DRG
             LanceCharge,
             BattleLitany,
             TrueThrust,
-            DragonfireDive,
-            VorpalThrust,
-            LifeSurge,
+            Items.UseItem(Items.GetStrongestPotionRow(Items.PotionType.Strength)),
             Geirskogul,
-            HeavensThrust,
-            LifeSurge,
-            WyrmwindThrust,
-            Drakesbane,
+            SpiralBlow,
             HighJump,
-            MirageDive,
+            Nastrond,
             ChaoticSpring,
-            Nastrond,
-            RiseOfTheDragon,
+            DragonfireDive,
+            MirageDive,
             WheelingThrust,
-            Nastrond,
-            FangAndClaw,
+            LifeSurge,
+            RiseOfTheDragon,
+            Drakesbane,
             Stardiver,
-            Nastrond,
             RaidenThrust,
-            Nastrond,
-            VorpalThrust,
-            HighJump,
+            Starcross,
+            LanceBarrage,
+            LifeSurge,
             HeavensThrust,
-            MirageDive
+            FangAndClaw,
+            Drakesbane,
+            RaidenThrust,
+            WyrmwindThrust,
         ];
 
         public override Preset Preset => Preset.DRG_ST_Opener;
 
         internal override UserData ContentCheckConfig => DRG_BalanceContent;
+        internal override bool IncludePot => DRG_Opener_Potion;
 
         public override bool HasCooldowns() =>
             GetRemainingCharges(LifeSurge) is 2 &&
