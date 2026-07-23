@@ -28,6 +28,7 @@ using System.Text;
 using GluttonyCombo.API.Enum;
 using GluttonyCombo.AutoRotation;
 using GluttonyCombo.Combos.PvE;
+using GluttonyCombo.Combos.PvE.ALL;
 using GluttonyCombo.Core;
 using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.Data;
@@ -320,6 +321,9 @@ internal class Debug : ConfigWindow, IDisposable
                     Util.ShowStruct(&JobGaugeManager.Instance()->Ninja);
                     break;
                 case Job.MCH:
+                    CustomStyleText($"Max Reassemble Recharges:", $"{GetMaxCharges(MCH.Reassemble)}");
+                    CustomStyleText($"Use Both Charges:", $"{MCH.UseBothCharges}");
+                    CustomStyleText($"Should Reassemble:", $"{MCH.ShouldReassemble()}");
                     Util.ShowStruct(&JobGaugeManager.Instance()->Machinist);
                     break;
                 case Job.DRK:
@@ -1036,6 +1040,22 @@ internal class Debug : ConfigWindow, IDisposable
             CustomStyleText($"Ignored Raidwides:", $"{BattleData.IgnoreRaidwideAIDs.Count}");
         }
 
+        if (ImGui.CollapsingHeader("Items"))
+        {
+            foreach (var pot in Items.AllPots)
+            {
+                CustomStyleText($"{pot.Name} ({pot.RowId})", Svc.Texture.GetFromGameIcon(new() { IconId = pot.Icon }).GetWrapOrEmpty().Handle);
+            }
+        }
+
+        if (ImGui.CollapsingHeader("Custom Actions"))
+        {
+            foreach (var act in P.CustomActions.Manager.Actions)
+            {
+                CustomStyleText($"{act.Name}", $"{act.Id}");
+            }
+        }
+
         #endregion
 
         ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));
@@ -1442,7 +1462,10 @@ internal class Debug : ConfigWindow, IDisposable
 
         // Optional Monofont
         if (useMonofont) ImGui.PushFont(UiBuilder.MonoFont);
-        ImGui.TextWrapped(secondColumn?.ToString() ?? string.Empty);
+        if (secondColumn is ImTextureID tex)
+            ImGui.Image(tex, new Vector2(28f.Scale()));
+        else
+            ImGui.TextWrapped(secondColumn?.ToString() ?? string.Empty);
         if (useMonofont) ImGui.PopFont();
 
         ImGui.PopStyleColor();

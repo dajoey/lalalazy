@@ -1,3 +1,4 @@
+using ECommons.ImGuiMethods;
 using GluttonyCombo.CustomComboNS.Functions;
 using GluttonyCombo.Extensions;
 using GluttonyCombo.Window.Functions;
@@ -29,6 +30,9 @@ internal partial class SMN
 
             SMN_Balance_Content = new("SMN_Balance_Content", 1);
 
+        public static UserBool
+            SMN_Opener_Potion = new("SMN_Opener_Potion");
+
         public static UserBoolArray
             SMN_ST_Egi_AstralFlow = new("SMN_ST_Egi_AstralFlow"),
             SMN_AoE_Egi_AstralFlow = new("SMN_AoE_Egi_AstralFlow");
@@ -59,11 +63,13 @@ internal partial class SMN
 
                 case Preset.SMN_ST_Advanced_Combo_Balance_Opener:
                     DrawBossOnlyChoice(SMN_Balance_Content);
-                    ImGui.NewLine();
-                    DrawHorizontalRadioButton(SMN_Opener_SkipSwiftcast, "Use Swiftcast",
-                        "Will use Swiftcast in opener to try and snapshot in pots for lower gcds", 1);
-                    DrawHorizontalRadioButton(SMN_Opener_SkipSwiftcast, "Skip Swiftcast",
-                        "Will not use swiftcast in opener for higher gcds", 2);
+                    DrawOpenerPotionChoice(SMN_Opener_Potion);
+                    ImGuiEx.TextUnderlined("Swiftcast Settings");
+                    ImGui.Spacing();
+                    DrawRadioButton(SMN_Opener_SkipSwiftcast, "Use Swiftcast",
+                        "Will use Swiftcast in opener to try and snapshot in pots for lower gcds", 1, descriptionAsTooltip: true);
+                    DrawRadioButton(SMN_Opener_SkipSwiftcast, "Skip Swiftcast",
+                        "Will not use swiftcast in opener for higher gcds", 2, descriptionAsTooltip: true);
                     break;
 
                 case Preset.SMN_ST_Advanced_Combo_Titan:

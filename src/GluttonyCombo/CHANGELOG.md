@@ -1,3 +1,25 @@
+## v1.0.4.81 (2026-07-23)
+
+### Changed
+- **Synced upstream WrathCombo `ad2493662` -> `cb50b6040`** (63 commits, upstream csproj 1.0.4.14 -> 1.0.4.16). 84 files merged, 1 added (`Combos/PvE/ALL/Items.cs`), 1 deleted (`Native/CustomActionWindow.cs`). Fork lineage bumps 1.0.4.80 -> 1.0.4.81.
+- **Upstream job-rotation tuning** across BRD (standard-opener delayed-weave/skip fix), DRK (opener fix + large `DRK_Config` expansion + `DRK_ActionLogic`), MCH, NIN (TCJ queue), RPR, DNC, PCT, VPR, SAM, PLD, AST (class->job for cards), MNK, SGE, SCH, SMN.
+- **New item/potion system.** `Combos/PvE/ALL/Items.cs` added; potion configs wired up; `ALL.cs` updated. "AoE manual ignore" option added to the AutoRotation UI.
+- **Custom Action reliability.** Upstream retired `Native/CustomActionWindow.cs` (folded into `CustomActionManager`), added reload/hover crash guards, and fixed queueing the wrong action on overwrite. Pronoun service gutted upstream.
+
+### Merge method
+- Per-file 3-way (`git merge-file`, RUNBOOK 3.3) against WrathCombo-namespace base/theirs blobs, LF-normalized, token-protected forward-rename. 63 passthrough, 21 real 3-way, 1 add, 1 delete.
+- **3 conflicts, all hand-resolved:**
+  - `Data/ActionWatching.cs` (2): (a) `OnActionUsedProvider.SendMessage` -> took upstream's cast removal (`actionType` is already `ActionType`), dropping a spurious `GluttonyCombo.P`-vs-`P` qualifier; (b) preserved our Pyretic / `PlayerHasActionPenalty(true)` hard-block at the top of the send detour while adopting upstream's restructured `ActionType.Action` CustomActions handling (`GetAdjustedActionId` + return-false-on-click), dropping our stale pre-restructure copy.
+  - `Window/Tabs/AutoRotationTab.cs` (1): kept our in-place `UnTargetAndDisableForPenalty` checkbox and literal "Pause when no target" label; dropped upstream's relocated IPC-controlled duplicate.
+- `docs/`, upstream `WrathCombo.csproj` (version/branding = ours) and `*.DotSettings.user` intentionally NOT pulled.
+
+### Preserved (fork divergences, token-count verified vs pre-merge main)
+- Amnesia (15), Pacification (4), Silence (11), Pyretic (18), Reflect (56), Divine Caress ground-heal (14), SMN "Aegis Uptime" (3), SetMaxDistanceToTarget (6), SuspendLeases (5), EnteringInstancedContent (3), RaidwideCasting (5), IsRaidwide (2), BattleData (36), PlayerHasActionPenalty (7). IPC-contract tokens intact (`WrathComboCallback` x4, `###WrathCombo` x2, `"WrathCombo.json"`). `GluttonyCombo.P` 133 -> 132 by design (one spurious qualifier resolved to bare `P`). BLU engine untouched (no upstream counterpart).
+
+### Notes
+- 8 merged `.resx` files validated as well-formed XML post-merge (RUNBOOK 3.3 split-`<data>` hazard). BOM-less LF output throughout.
+- Build clean (0 `error CS`); embedded zip manifest, pluginmaster, and template json all set to 1.0.4.81 with this changelog.
+
 ## v1.0.4.80 (2026-07-22)
 
 ### Changed

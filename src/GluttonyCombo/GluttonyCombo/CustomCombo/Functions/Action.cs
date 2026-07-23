@@ -8,6 +8,7 @@ using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using GluttonyCombo.Combos.PvE;
 using GluttonyCombo.Core;
 using GluttonyCombo.Data;
 using GluttonyCombo.Data.BattleData;
@@ -171,6 +172,9 @@ internal abstract partial class CustomComboFunctions
     /// <param name="actionId"> The action ID. </param>
     public static unsafe bool ActionReady(uint actionId, bool recastCheck = false, bool castCheck = false)
     {
+        if (actionId >= All.SingleTargetDPS)
+            return true;
+
         if (ActionRequestIPCProvider.GetArtificialCooldown(ActionType.Action, actionId) > 0)
         {
             return false;

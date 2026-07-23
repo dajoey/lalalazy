@@ -5,6 +5,7 @@ using ECommons.DalamudServices;
 using ECommons.GameHelpers;
 using ECommons.ImGuiMethods;
 using FFXIVClientStructs.FFXIV.Client.UI.Misc;
+using GluttonyCombo.Combos.PvE;
 using GluttonyCombo.Native;
 using GluttonyCombo.Services;
 
@@ -37,6 +38,9 @@ namespace GluttonyCombo.Window.Tabs
 
                 foreach (var act in P.CustomActions.Manager.Actions)
                 {
+                    if (act.Id >= All.Items)
+                        continue;
+
                     DrawAction(act);
                 }
             }
