@@ -1,3 +1,22 @@
+## v1.0.4.82 (2026-07-25)
+
+### Changed
+- **Synced upstream WrathCombo `cb50b6040` -> `8f3924ee5`** (12 commits, upstream csproj 1.0.4.16 -> 1.0.4.18). 11 code files merged, 0 added, 0 deleted. Fork lineage bumps 1.0.4.81 -> 1.0.4.82.
+- **NIN:** Ten Chi Jin now bypasses simple-mudra remapping in both mudra paths (upstream "simple mudras fix" + "More NIN refinements and fix IPC").
+- **VPR:** out-of-range handling - `CanVicewinderCombo` gains `preferRangedWhenOor`; Vicewinder ST combo prefers ranged uptime when Uncoiled Fury / Ranged Uptime enabled; Writhing Snap gated on melee-range only; opener + one-button-checker flow tidied ("VPR gonna VPR", "fix VPR OOR", "range checks").
+- **MNK:** chakra usage in the opener fixed ("fix chakra in opener").
+- Minor upstream cleanup to `Data/ActionWatching.cs`, `Services/IPC/Leasing.cs`, `Services/IPC/Search.cs`, `Window/Tabs/Debug.cs`.
+
+### Merge method
+- Per-file 3-way (`git merge-file`, RUNBOOK 3.3) against WrathCombo-namespace base/theirs blobs, LF-normalized, token-protected forward-rename. **7 passthrough, 4 clean 3-way, 0 conflicts.**
+- Upstream `WrathCombo.csproj` (version/branding = ours) NOT pulled.
+
+### Preserved (fork divergences, token-count verified vs pre-merge)
+- Diverged touched files preserved every local token: `ActionWatching.cs` Pyretic (2) + PlayerHasActionPenalty (2); `Leasing.cs` SuspendLeases (1); `Debug.cs` BattleData (7) + SuspendLeases (1). `"WrathCombo.json"` config-path literal intact. Untouched this range: Amnesia / Pacification / Silence / Reflect / Divine Caress / SMN Aegis / 15s raidwide gate / SetMaxDistanceToTarget / BLU engine.
+
+### Notes
+- BOM-less LF output throughout (RUNBOOK 9). No `.resx` touched this range.
+
 ## v1.0.4.81 (2026-07-23)
 
 ### Changed
