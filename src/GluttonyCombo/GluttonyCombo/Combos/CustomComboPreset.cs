@@ -4297,9 +4297,12 @@ public enum Preset
     [JobInfo(Job.NIN)]
     NIN_TCJ = 10040,
 
+    [JobInfo(Job.NIN)]
+    NIN_Anti_Rabbit = 10056,
+
     #endregion
 
-    // Last value = 10053
+    // Last value = 10056
 
     #endregion
 

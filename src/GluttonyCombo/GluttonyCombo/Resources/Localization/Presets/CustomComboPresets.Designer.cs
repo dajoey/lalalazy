@@ -13882,6 +13882,24 @@ namespace GluttonyCombo.Resources.Localization.Presets {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Makes it incredibly difficult to rabbit your jutsus. May cause clipping if latency is bad..
+        /// </summary>
+        internal static string NIN_Anti_Rabbit_Desc {
+            get {
+                return ResourceManager.GetString("NIN_Anti_Rabbit_Desc", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Anti-Rabbit Option.
+        /// </summary>
+        internal static string NIN_Anti_Rabbit_Name {
+            get {
+                return ResourceManager.GetString("NIN_Anti_Rabbit_Name", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Adds Assassinate/Dream Within a Dream to Advanced Mode..
         /// </summary>
         internal static string NIN_AoE_AdvancedMode_Assassinate_Desc {

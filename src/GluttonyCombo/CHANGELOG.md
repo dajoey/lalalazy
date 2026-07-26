@@ -1,3 +1,22 @@
+## v1.0.4.83 (2026-07-26)
+
+### Changed
+- **Synced upstream WrathCombo `8f3924ee5` -> `aede233c6`** (1 commit, "Make NIN anti-rabbit optional"; upstream csproj stays 1.0.4.18). Fork lineage 1.0.4.82 -> 1.0.4.83.
+- **NIN "Anti-Rabbit" mudra protection is now opt-in.** New preset `NIN_Anti_Rabbit` (id 10056, "Anti-Rabbit Option"). The `InMudra` rabbit-guard in `Combos/PvE/NIN/NIN_Helper.cs` and the mudra queue-clear guard in `Data/ActionWatching.cs` are now gated behind `IsEnabled(Preset.NIN_Anti_Rabbit)` instead of firing unconditionally.
+- Removed a dead commented-out mudra guard in `ActionWatching.CanQueueActionDetour`.
+
+### Added
+- Localization `NIN_Anti_Rabbit_Name` / `NIN_Anti_Rabbit_Desc` (resx + Designer accessors).
+
+### Merge method
+- Per-file 3-way (`git merge-file`, RUNBOOK 3.3) vs WrathCombo-namespace base/theirs blobs, LF-normalized, plain forward-rename (0 protected / `.API` / `.JobID` tokens in the 5 touched files). **5 files, 0 conflicts.** `.resx` handled by additive `<data>` injection with XML validation (kept all fork entries).
+
+### Preserved (fork divergences, verified post-merge)
+- `ActionWatching.cs`: Pyretic hard-block + `PlayerHasActionPenalty` (2), ground-heal `WouldLikeToGroundTarget` (2), `GluttonyCombo.P` IPC qualifier (2). `CustomComboPreset.cs`: BLU_AutoRotation (2), SGE_TankShield, SMN RadiantMaintain (2), WHM_Raidwide_Medica. `.resx`: "In Gluttony Settings" branding (2) + all SMN / BLU / WHM / SGE entries. Untouched this range: Amnesia / Pacification / Silence / Reflect / Divine Caress / SMN Aegis / 15s raidwide gate / BLU engine.
+
+### Notes
+- BOM-less LF output throughout (RUNBOOK 9).
+
 ## v1.0.4.82 (2026-07-25)
 
 ### Changed
