@@ -474,8 +474,6 @@ public static class ActionWatching
 
     private static unsafe bool CanQueueActionDetour(ActionManager* actionManager, ActionType actionType, uint actionID)
     {
-        //if (NIN.InMudra && NIN.MudraSigns.Any(x => x == actionID) && NIN.MudraToBase(LastAction) == NIN.MudraToBase(actionID)) return false;
-
         float threshold = Service.Configuration.QueueAdjust ? Service.Configuration.QueueAdjustThreshold : 0.5f;
 
         return GetRemainingActionRecast(actionManager, actionType, actionID) is { } remaining && remaining <= threshold;
@@ -572,7 +570,7 @@ public static class ActionWatching
                 var queuedProblem = (queuedAct > 0 && queuedAct != NIN.Ninjutsu && !NIN.MudraSigns.Contains(queuedAct) && !NIN.NormalJutsus.Contains(queuedAct) && !NIN.TCJJutsus.Contains(queuedAct)) || queuedAct == LastAction;
                 var replacedProgressMudra = !NIN.MudraUsed(replacedWith) && (NIN.MudraSigns.Contains(replacedWith) || NIN.NormalJutsus.Contains(replacedWith) || NIN.TCJJutsus.Contains(replacedWith));
 
-                if (NIN.InMudra && (queuedProblem || !replacedProgressMudra))
+                if (IsEnabled(Preset.NIN_Anti_Rabbit) && NIN.InMudra && (queuedProblem || !replacedProgressMudra))
                 {
                     actionManager->QueuedActionId = 0;
                     return false;

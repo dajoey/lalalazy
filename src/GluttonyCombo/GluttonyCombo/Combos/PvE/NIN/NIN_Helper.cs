@@ -25,7 +25,7 @@ internal partial class NIN
     {
         get
         {
-            return InMudra && ActionWatching.LastAction != LastMudra && MudraSigns.Any(x => x == ActionWatching.LastAction);
+            return IsEnabled(Preset.NIN_Anti_Rabbit) && InMudra && ActionWatching.LastAction != LastMudra && MudraSigns.Any(x => x == ActionWatching.LastAction);
         }
     }
 
