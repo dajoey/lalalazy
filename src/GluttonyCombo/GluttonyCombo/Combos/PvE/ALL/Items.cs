@@ -52,7 +52,6 @@ namespace GluttonyCombo.Combos.PvE.ALL
         {
             var res = ActionManager.Instance()->GetActionStatus(ActionType.Item, itemId, checkCastingActive: false);
             var res2 = ActionManager.Instance()->GetActionStatus(ActionType.Item, itemId + 1_000_000, checkCastingActive: false);
-            //Svc.Log.Debug($"{res} {res2}");
             return res is 0 || res2 is 0;
         }
 

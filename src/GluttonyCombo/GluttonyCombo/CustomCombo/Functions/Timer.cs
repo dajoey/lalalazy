@@ -173,7 +173,7 @@ internal abstract partial class CustomComboFunctions
         }
     }
 
-    public static unsafe float CountdownRemaining => MathF.Max(0, AgentCountDownSettingDialog.Instance()->TimeRemaining);
+    public static unsafe float CountdownRemaining => CountdownActive ? MathF.Max(0, AgentCountDownSettingDialog.Instance()->TimeRemaining) : 0;
 
     public static unsafe bool CountdownActive => AgentCountDownSettingDialog.Instance()->Active;
 }

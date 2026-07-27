@@ -583,7 +583,7 @@ internal partial class SAM
             ([2], 11, () => !TargetNeedsPositionals())
         ];
 
-        public override List<(int[] Steps, Func<int> HoldDelay)> PrepullDelays { get; set; } =
+        public override List<(int[] Steps, Func<float> HoldDelay)> PrepullDelays { get; set; } =
         [
             ([2], () => SAM_Opener_PrePullDelay)
         ];
@@ -636,7 +636,7 @@ internal partial class SAM
             ([2], 11, () => !TargetNeedsPositionals())
         ];
 
-        public override List<(int[] Steps, Func<int> HoldDelay)> PrepullDelays { get; set; } =
+        public override List<(int[] Steps, Func<float> HoldDelay)> PrepullDelays { get; set; } =
         [
             ([2], () => SAM_Opener_PrePullDelay)
         ];
@@ -691,7 +691,7 @@ internal partial class SAM
             ([2], 11, () => !TargetNeedsPositionals())
         ];
 
-        public override List<(int[] Steps, Func<int> HoldDelay)> PrepullDelays { get; set; } =
+        public override List<(int[] Steps, Func<float> HoldDelay)> PrepullDelays { get; set; } =
         [
             ([2], () => SAM_Opener_PrePullDelay)
         ];
@@ -761,7 +761,7 @@ internal partial class SAM
             ([14], () => SenCount is not 1 && !(SenCount is 2 && JustUsed(Gekko)))
         ];
 
-        public override List<(int[] Steps, Func<int> HoldDelay)> PrepullDelays { get; set; } =
+        public override List<(int[] Steps, Func<float> HoldDelay)> PrepullDelays { get; set; } =
         [
             ([2], () => SAM_Opener_PrePullDelay)
         ];

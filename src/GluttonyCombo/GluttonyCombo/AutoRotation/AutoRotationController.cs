@@ -1516,6 +1516,7 @@ internal unsafe class AutoRotationController
             var outAct = OriginalHook(InvokeCombo(preset, attributes, ref gameAct, target));
             if (outAct >= All.Items)
             {
+                Svc.Log.Debug($"Using item {outAct.ActionName()}");
                 ActionManager.Instance()->UseAction(ActionType.Action, outAct, extraParam: 0xFFFF);
                 return true;
             }
