@@ -558,8 +558,8 @@ public static class ActionWatching
                     }
                 }
 
-                var replacedWith = Service.ActionReplacer.LastActionInvokeFor.ContainsKey(actionId) ? Service.ActionReplacer.LastActionInvokeFor[actionId] : actionId;
-                var queuedAct = Service.ActionReplacer.LastActionInvokeFor.ContainsKey(actionManager->QueuedActionId) ? Service.ActionReplacer.LastActionInvokeFor[actionManager->QueuedActionId] : actionManager->QueuedActionId;
+                var replacedWith = actionManager->GetAdjustedActionId(actionId);
+                var queuedAct = actionManager->GetAdjustedActionId(actionManager->QueuedActionId);
 
                 // If the replaced action is a mudra and we're already in a mudra sequence
                 // where the base mudra matches, ignore the input.

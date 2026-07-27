@@ -703,7 +703,7 @@ internal partial class MCH
         internal override UserData ContentCheckConfig => MCH_Balance_Content;
         internal override bool IncludePot => MCH_Opener_Potion;
 
-        public override List<(int[] Steps, Func<int> HoldDelay)> PrepullDelays { get; set; } =
+        public override List<(int[] Steps, Func<float> HoldDelay)> PrepullDelays { get; set; } =
         [
             ([2], () => 3)
         ];
@@ -768,7 +768,7 @@ internal partial class MCH
         internal override UserData ContentCheckConfig => MCH_Balance_Content;
         internal override bool IncludePot => MCH_Opener_Potion;
 
-        public override List<(int[] Steps, Func<int> HoldDelay)> PrepullDelays { get; set; } =
+        public override List<(int[] Steps, Func<float> HoldDelay)> PrepullDelays { get; set; } =
         [
             ([2], () => 3)
         ];
@@ -828,7 +828,7 @@ internal partial class MCH
         internal override UserData ContentCheckConfig => MCH_Balance_Content;
         internal override bool IncludePot => MCH_Opener_Potion;
 
-        public override List<(int[] Steps, Func<int> HoldDelay)> PrepullDelays { get; set; } =
+        public override List<(int[] Steps, Func<float> HoldDelay)> PrepullDelays { get; set; } =
         [
             ([2], () => 4)
         ];

@@ -1,3 +1,24 @@
+## v1.0.4.84 (2026-07-27)
+
+### Changed
+- **Synced upstream WrathCombo `aede233c6` -> `b4e7f972f`** (7 commits; upstream csproj stays 1.0.4.18). Fork lineage 1.0.4.83 -> 1.0.4.84. Commits: `92a7e0751` countdown check, `c1c8561b1` DNC prepull delays, `65b150d17` DNC opener updates (pot-on-cooldown fix), `3f68c0a6a` DNC refinements (delay -> float), `b455e8147` NIN adjusted-action update, `3621ebf27` back-to-back skip handling, `b4e7f972f` more skip safety.
+- **DNC** (`Combos/PvE/DNC/DNC_Helper.cs`, `DNC_Config.cs`): opener/prepull delay refinements; prepull delay type changed to float for tighter accuracy; fixed the opener consuming a step when the potion is on cooldown.
+- **NIN** (`Data/ActionWatching.cs`): mudra anti-rabbit replacement lookup switched from manual `LastActionInvokeFor` dictionary probing to `actionManager->GetAdjustedActionId(...)`.
+- **Openers** (`CustomCombo/WrathOpener.cs`): better handling of back-to-back skipped steps + additional skip safety.
+- **MCH / RDM / SAM** helper refinements taken from upstream (`MCH_Helper.cs`, `RDM_Helper.cs`, `SAM_Helper.cs`).
+- **Items** (`AutoRotation/AutoRotationController.cs`): added a `Svc.Log.Debug` line when an item is used; `Combos/PvE/ALL/Items.cs` minor trim; `CustomCombo/Functions/Timer.cs` tweak.
+
+### Merge method
+- Per-file 3-way (`git merge-file --diff3`, RUNBOOK 3.3) vs WrathCombo-namespace base/theirs blobs, LF-normalized, token-protected forward-rename. **10 files, 0 conflicts.** Diffstat matches upstream delta exactly (+58/-55).
+
+### Preserved (fork divergences, token-count verified post-merge)
+- `AutoRotationController.cs`: Pacif 2, Silence 2, Amnesia 2, Pyretic 5, Reflect 4, PlayerHasActionPenalty 3, Raidwide 70, DivineCaress 4, WouldLikeToGroundTarget 13 - all unchanged.
+- `ActionWatching.cs`: Pyretic 2, PlayerHasActionPenalty 2, Raidwide 3, WouldLikeToGroundTarget 2, GluttonyCombo.P 2 - all unchanged.
+- BLU engine, SMN Aegis Uptime, WHM raidwide/ground-heal, 15s raidwide gate untouched this range.
+
+### Notes
+- BOM-less LF output throughout (RUNBOOK 9). No `.resx` touched this range. 0 residual `WrathCombo` tokens in output.
+
 ## v1.0.4.83 (2026-07-26)
 
 ### Changed
