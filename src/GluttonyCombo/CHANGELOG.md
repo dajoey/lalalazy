@@ -1,3 +1,22 @@
+## v1.0.4.85 (2026-07-28)
+
+### Changed
+- **Synced upstream WrathCombo `b4e7f972f` -> `2072ad38d`** (1 commit, "Fix issue when using items with number of GCDs used" by Taurenkey; upstream csproj stays 1.0.4.18). Fork lineage 1.0.4.84 -> 1.0.4.85.
+- **Action tracking rework** (`Data/ActionWatching.cs`): `CombatActions` changed from `List<uint>` to `List<(uint ActionID, ActionType ActionType)>`. `LastAction` now only updates for `ActionType.Action` (items no longer overwrite it); the use-counter and `NumberOfGcdsUsed` compare on the tuple so item usage no longer inflates the GCDs-since-combat count openers depend on; the Spell/Weaponskill/Ability category switch + timestamp/heal-throttle bookkeeping is gated under `ActionType.Action`. `OutputLog()` is now argument-less and switches on the recorded `ActionType`.
+- **Null-safe attack-type lookup** (`Extensions/UIntExtensions.cs`): `ActionAttackType(this uint)` now uses `ActionSheet.TryGetValue(...)`, returning `0` for unknown IDs instead of indexing (avoids a throw on unmapped action IDs).
+- **Debug tab** (`Window/Tabs/Debug.cs`): `DrawStatuses` is now `unsafe` and prints target status Count / NumValid / StatusCapped diagnostics (developer view only; no gameplay effect).
+
+### Merge method
+- Per-file 3-way (`git merge-file`, RUNBOOK 3.3) vs WrathCombo-namespace base/theirs blobs, LF-normalized, token-protected forward-rename. **3 files, 0 conflicts.** Diff vs current repo == upstream delta exactly.
+
+### Preserved (fork divergences, token-count verified post-merge)
+- `ActionWatching.cs`: PlayerHasActionPenalty 2 (Pyretic/Bomb hard-block), WouldLikeToGroundTarget 2 (WHM ground-heal tank-centering), GluttonyCombo.P 2, WrathOpener 3 - all unchanged; upstream tuple refactor landed with our divergences untouched (they sit clear of the changed regions).
+- `Debug.cs`: "Gluttony IPC" / "Gluttony Leased" branding + WrathIPCCallback intact.
+- BLU engine, SMN Aegis Uptime, WHM raidwide/ground-heal, 15s raidwide gate, Amnesia/Pacification/Silence untouched this range.
+
+### Notes
+- BOM-less LF output (RUNBOOK 9). No `.resx` touched. 0 residual bare-`WrathCombo` tokens in output. Verified `CustomComboFunctions.TargetIsStatusCapped` / `SafeStatusList` / `StatusManager.NumValidStatuses` already present in the fork before merging the new Debug references.
+
 ## v1.0.4.84 (2026-07-27)
 
 ### Changed
