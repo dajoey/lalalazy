@@ -200,7 +200,7 @@ internal abstract partial class CustomComboFunctions
 
     /// <summary> Checks if an action was the last action performed. </summary>
     /// <param name="actionId"> The action ID. </param>
-    public static bool WasLastAction(uint actionId) => CombatActions.Count > 0 && CombatActions.LastOrDefault() == actionId;
+    public static bool WasLastAction(uint actionId) => CombatActions.Count > 0 && CombatActions.LastOrDefault().ActionID == actionId;
 
     /// <summary> Checks if an action was the last weaponskill performed. </summary>
     /// <param name="actionId"> The action ID. </param>
@@ -462,7 +462,7 @@ internal abstract partial class CustomComboFunctions
 
     /// <summary> Gets how many times an action has been used since combat started. </summary>
     /// <param name="actionId"> The action ID. </param>
-    public static int ActionCount(uint actionId) => CombatActions.Count(x => x == OriginalHook(actionId));
+    public static int ActionCount(uint actionId) => CombatActions.Count(x => x.ActionID == OriginalHook(actionId));
 
     /// <summary> Gets how many times multiple actions have been used since combat started. </summary>
     /// <param name="actionIds"> The action IDs. </param>
@@ -487,11 +487,11 @@ internal abstract partial class CustomComboFunctions
         for (int i = CombatActions.Count - 1; i >= 0; i--)
         {
             var action = CombatActions[i];
-            if (action == actionToCheckAgainst)
+            if (action.ActionID == actionToCheckAgainst)
             {
                 return useCount;
             }
-            if (action == actionToCount)
+            if (action.ActionID == actionToCount)
             {
                 useCount++;
             }
@@ -525,8 +525,8 @@ internal abstract partial class CustomComboFunctions
         for (int i = CombatActions.Count - 1; i >= 0; i--)
         {
             var action = CombatActions[i];
-            if (actionsToCheck.Contains(action))
-                return action;
+            if (actionsToCheck.Contains(action.ActionID))
+                return action.ActionID;
         }
 
         return 0;

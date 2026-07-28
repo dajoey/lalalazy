@@ -31,6 +31,7 @@ using GluttonyCombo.Combos.PvE;
 using GluttonyCombo.Combos.PvE.ALL;
 using GluttonyCombo.Core;
 using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.CustomComboNS.Functions;
 using GluttonyCombo.Data;
 using GluttonyCombo.Data.BattleData;
 using GluttonyCombo.Extensions;
@@ -1474,10 +1475,13 @@ internal class Debug : ConfigWindow, IDisposable
         ImGui.Columns(1);
     }
 
-    private static void DrawStatuses(IGameObject? target)
+    private unsafe static void DrawStatuses(IGameObject? target)
     {
         if (target is IBattleChara tar)
         {
+            CustomStyleText($"Count:", $"{target.SafeStatusList?.Count(x => x.StatusId != 0)}");
+            CustomStyleText($"NumValid:", $"{tar.Struct()->StatusManager.NumValidStatuses}");
+            CustomStyleText($"StatusCapped:", $"{CustomComboFunctions.TargetIsStatusCapped(tar)}");
             foreach (Status? status in tar.SafeStatusList)
             {
                 // Set Status
