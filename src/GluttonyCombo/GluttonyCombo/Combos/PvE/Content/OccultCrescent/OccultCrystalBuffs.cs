@@ -3,11 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using Dalamud.Game.ClientState.Objects.Types;
-using ECommons;
 using ECommons.DalamudServices;
 using ECommons.GameHelpers;
 using ECommons.Logging;
-using ECommons.UIHelpers.AddonMasterImplementations;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.Control;
 using FFXIVClientStructs.FFXIV.Client.Game.InstanceContent;
@@ -19,8 +17,8 @@ internal static class OccultCrystalBuffs
 {
     private enum SequenceSubState
     {
-        InteractCrystal,
-        SelectMenuOption,
+        SwitchJob,
+        WaitForJobChange,
         CastBuff,
         WaitDelay
     }
@@ -28,31 +26,19 @@ internal static class OccultCrystalBuffs
     private static bool isRunning = false;
     private static int initialJob = -1;
     private static int currentJobIndex = 0;
-    private static List<int> activeJobs = [];
+    private static List<int> buffingJobs = [];
     private static IGameObject? targetCrystal = null;
     private static DateTime stepStartTime = DateTime.MinValue;
     private static DateTime sequenceStartTime = DateTime.MinValue;
-    private static SequenceSubState subState = SequenceSubState.InteractCrystal;
+    private static SequenceSubState subState = SequenceSubState.SwitchJob;
 
-    // Map each Phantom Job ID to its primary buff/utility action ID
-    private static readonly Dictionary<int, uint> JobBuffActions = new()
+    // Map each key buffing Phantom Job ID to its specific buff action ID and expected status ID
+    private static readonly Dictionary<int, (uint ActionId, uint StatusId)> JobBuffMap = new()
     {
-        { (int)OccultCrescent.JobIDs.Freelancer, OccultCrescent.OccultTreasuresight },
-        { (int)OccultCrescent.JobIDs.Knight, OccultCrescent.PhantomGuard },
-        { (int)OccultCrescent.JobIDs.Berserker, OccultCrescent.Rage },
-        { (int)OccultCrescent.JobIDs.Monk, OccultCrescent.Counterstance },
-        { (int)OccultCrescent.JobIDs.Ranger, OccultCrescent.PhantomAim },
-        { (int)OccultCrescent.JobIDs.Samurai, OccultCrescent.Shirahadori },
-        { (int)OccultCrescent.JobIDs.Bard, OccultCrescent.HerosRime },
-        { (int)OccultCrescent.JobIDs.Geomancer, OccultCrescent.BattleBell },
-        { (int)OccultCrescent.JobIDs.TimeMage, OccultCrescent.OccultQuick },
-        { (int)OccultCrescent.JobIDs.Cannoneer, OccultCrescent.PhantomFire },
-        { (int)OccultCrescent.JobIDs.Chemist, OccultCrescent.OccultPotion },
-        { (int)OccultCrescent.JobIDs.Oracle, OccultCrescent.Predict },
-        { (int)OccultCrescent.JobIDs.Thief, OccultCrescent.Vigilance },
-        { (int)OccultCrescent.JobIDs.MysticKnight, OccultCrescent.MagicShell },
-        { (int)OccultCrescent.JobIDs.Gladiator, OccultCrescent.Defend },
-        { (int)OccultCrescent.JobIDs.Dancer, OccultCrescent.Quickstep },
+        { (int)OccultCrescent.JobIDs.Bard, (41609, 4244) },         // Romeo's Ballad
+        { (int)OccultCrescent.JobIDs.Knight, (41589, 4233) },       // Pray / Enduring Fortitude
+        { (int)OccultCrescent.JobIDs.Monk, (41597, 4239) },         // Counterstance / Fleetfooted
+        { (int)OccultCrescent.JobIDs.Dancer, (46603, 4799) },       // Quickstep / Quicker Step
     };
 
     public static void StartSequence()
@@ -106,36 +92,36 @@ internal static class OccultCrystalBuffs
                 DuoLog.Error("Unable to access Occult Crescent state.");
                 return;
             }
-            // READ ONLY: Save initial job
             initialJob = inst->State.CurrentSupportJob;
         }
 
-        // Build list of active job IDs
-        activeJobs.Clear();
-        foreach (OccultCrescent.JobIDs job in Enum.GetValues(typeof(OccultCrescent.JobIDs)))
+        // Build list of active buffing job IDs
+        buffingJobs.Clear();
+        foreach (var kvp in JobBuffMap)
         {
-            if (job.IsActive() && (int)job >= 0)
+            int jobId = kvp.Key;
+            if (Enum.IsDefined(typeof(OccultCrescent.JobIDs), jobId) && ((OccultCrescent.JobIDs)jobId).IsActive())
             {
-                activeJobs.Add((int)job);
+                buffingJobs.Add(jobId);
             }
         }
 
-        if (activeJobs.Count == 0)
+        if (buffingJobs.Count == 0)
         {
-            DuoLog.Error("No active Phantom Jobs found to cycle.");
+            DuoLog.Error("No active buffing Phantom Jobs found to cycle.");
             return;
         }
 
         isRunning = true;
         currentJobIndex = 0;
-        subState = SequenceSubState.InteractCrystal;
+        subState = SequenceSubState.SwitchJob;
         sequenceStartTime = DateTime.Now;
         stepStartTime = DateTime.Now;
 
-        // Target crystal naturally
+        // Target crystal
         Svc.Targets.Target = targetCrystal;
 
-        DuoLog.Information($"Starting Phantom Job crystal buff cycle across {activeJobs.Count} jobs...");
+        DuoLog.Information($"Starting Phantom Job crystal buff cycle across {buffingJobs.Count} jobs...");
 
         Svc.Framework.Update += OnFrameworkUpdate;
     }
@@ -157,10 +143,10 @@ internal static class OccultCrystalBuffs
     {
         if (!isRunning) return;
 
-        // Timeout guard: 60 seconds max
-        if ((DateTime.Now - sequenceStartTime).TotalSeconds > 60)
+        // Timeout guard: 45 seconds max
+        if ((DateTime.Now - sequenceStartTime).TotalSeconds > 45)
         {
-            StopSequence("Timeout exceeded (60s).");
+            StopSequence("Timeout exceeded (45s).");
             return;
         }
 
@@ -177,87 +163,70 @@ internal static class OccultCrystalBuffs
             return;
         }
 
-        if (currentJobIndex >= activeJobs.Count)
+        var inst = PublicContentOccultCrescent.GetInstance();
+        if (inst == null)
         {
-            StopSequence("");
-            DuoLog.Information("Phantom Job crystal buff cycle complete!");
+            StopSequence("Occult Crescent instance state lost.");
             return;
         }
 
-        int jobId = activeJobs[currentJobIndex];
+        if (currentJobIndex >= buffingJobs.Count)
+        {
+            // Sequence complete: restore initial job natively
+            if (initialJob >= 0 && inst->State.CurrentSupportJob != (byte)initialJob)
+            {
+                PublicContentOccultCrescent.ChangeSupportJob((byte)initialJob);
+            }
+
+            StopSequence("");
+            DuoLog.Information("Phantom Job crystal buff cycle complete! Restored original Phantom Job.");
+            return;
+        }
+
+        int jobId = buffingJobs[currentJobIndex];
 
         switch (subState)
         {
-            case SequenceSubState.InteractCrystal:
-                // Target and interact with crystal natively
-                if (Svc.Targets.Target == null && targetCrystal != null)
+            case SequenceSubState.SwitchJob:
+                // Native C++ function call to change support job at crystal
+                if (inst->State.CurrentSupportJob != (byte)jobId)
                 {
-                    Svc.Targets.Target = targetCrystal;
+                    PublicContentOccultCrescent.ChangeSupportJob((byte)jobId);
                 }
 
-                unsafe
-                {
-                    if (targetCrystal != null && TargetSystem.Instance() != null)
-                    {
-                        TargetSystem.Instance()->InteractWithObject((FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)targetCrystal.Address, false);
-                    }
-                }
-
-                subState = SequenceSubState.SelectMenuOption;
+                subState = SequenceSubState.WaitForJobChange;
                 stepStartTime = DateTime.Now;
                 break;
 
-            case SequenceSubState.SelectMenuOption:
-                // Handle AddonSelectString or AddonSelectIconString if menu opens
-                if (GenericHelpers.TryGetAddonByName<FFXIVClientStructs.FFXIV.Component.GUI.AtkUnitBase>("SelectString", out var selectString) && GenericHelpers.IsAddonReady(selectString))
+            case SequenceSubState.WaitForJobChange:
+                // Check if server confirmed job change
+                if (inst->State.CurrentSupportJob == (byte)jobId)
                 {
-                    var master = new AddonMaster.SelectString(selectString);
-                    if (master.Entries.Length > currentJobIndex)
-                    {
-                        master.Entries[currentJobIndex].Select();
-                    }
-                    subState = SequenceSubState.CastBuff;
-                    stepStartTime = DateTime.Now;
-                    return;
-                }
-                else if (GenericHelpers.TryGetAddonByName<FFXIVClientStructs.FFXIV.Component.GUI.AtkUnitBase>("SelectIconString", out var selectIconString) && GenericHelpers.IsAddonReady(selectIconString))
-                {
-                    var master = new AddonMaster.SelectIconString(selectIconString);
-                    if (master.Entries.Length > currentJobIndex)
-                    {
-                        master.Entries[currentJobIndex].Select();
-                    }
                     subState = SequenceSubState.CastBuff;
                     stepStartTime = DateTime.Now;
                     return;
                 }
 
-                // If no menu opens after 600ms, proceed to cast buff for current active job
-                if ((DateTime.Now - stepStartTime).TotalMilliseconds > 600)
+                // Wait up to 2.5s for server job change confirmation
+                if ((DateTime.Now - stepStartTime).TotalMilliseconds > 2500)
                 {
-                    subState = SequenceSubState.CastBuff;
+                    DuoLog.Warning($"Job change to Phantom Job ID {jobId} did not confirm in time. Skipping to next job.");
+                    currentJobIndex++;
+                    subState = SequenceSubState.SwitchJob;
                     stepStartTime = DateTime.Now;
                 }
                 break;
 
             case SequenceSubState.CastBuff:
-                // Resolve buff action ID for active job
-                uint actionId = 0;
-                if (JobBuffActions.TryGetValue(jobId, out uint defaultActionId))
+                if (JobBuffMap.TryGetValue(jobId, out var buffData))
                 {
-                    actionId = defaultActionId;
-                }
-
-                if (actionId == 0)
-                {
-                    OccultCrescent.TryGetPhantomAction(ref actionId);
-                }
-
-                unsafe
-                {
+                    uint actionId = buffData.ActionId;
                     if (actionId > 0 && ActionManager.Instance() != null)
                     {
-                        ActionManager.Instance()->UseAction(ActionType.Action, actionId);
+                        if (ActionManager.Instance()->GetActionStatus(ActionType.Action, actionId) == 0)
+                        {
+                            ActionManager.Instance()->UseAction(ActionType.Action, actionId);
+                        }
                     }
                 }
 
@@ -266,13 +235,13 @@ internal static class OccultCrystalBuffs
                 break;
 
             case SequenceSubState.WaitDelay:
-                // Wait 1200ms for action animation lock / buff application
+                // Wait 1200ms for action execution / animation lock
                 if ((DateTime.Now - stepStartTime).TotalMilliseconds < 1200)
                     return;
 
-                // Move to next job
+                // Advance to next job
                 currentJobIndex++;
-                subState = SequenceSubState.InteractCrystal;
+                subState = SequenceSubState.SwitchJob;
                 stepStartTime = DateTime.Now;
                 break;
         }
