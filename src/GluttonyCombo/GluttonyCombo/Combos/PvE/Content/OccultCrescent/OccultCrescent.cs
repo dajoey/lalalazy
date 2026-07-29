@@ -9,10 +9,11 @@ namespace GluttonyCombo.Combos.PvE;
 
 internal partial class OccultCrescent
 {
-    /// In Occult Crescent (in the field or a field raid).
-    public static bool IsInOccult =>
-        ContentHelper.Content.TerritoryIntendedUse == IntendedUse.Occult_Crescent &&
-        (ContentCheck.IsInFieldOperations || ContentCheck.IsInFieldRaids);
+    /// In Occult Crescent (in the field or a field raid, including North Horn).
+    public static unsafe bool IsInOccult =>
+        FFXIVClientStructs.FFXIV.Client.Game.InstanceContent.PublicContentOccultCrescent.GetInstance() != null ||
+        (ContentHelper.Content.TerritoryIntendedUse == IntendedUse.Occult_Crescent &&
+        (ContentCheck.IsInFieldOperations || ContentCheck.IsInFieldRaids));
 
     internal static bool TryGetPhantomAction(ref uint actionID)
     {

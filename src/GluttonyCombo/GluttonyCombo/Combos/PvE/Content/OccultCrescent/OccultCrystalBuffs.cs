@@ -69,14 +69,23 @@ internal static class OccultCrystalBuffs
 
         Vector3 playerPos = Player.Object.Position;
 
-        // Search for nearby crystal / node
-        targetCrystal = Svc.Objects.FirstOrDefault(o =>
-            o != null &&
-            Vector3.Distance(playerPos, o.Position) <= 10.0f &&
-            (o.Name.TextValue.Contains("Crystal", StringComparison.OrdinalIgnoreCase) ||
-             o.Name.TextValue.Contains("Node", StringComparison.OrdinalIgnoreCase) ||
-             o.Name.TextValue.Contains("Knowledge", StringComparison.OrdinalIgnoreCase) ||
-             o.ObjectKind == Dalamud.Game.ClientState.Objects.Enums.ObjectKind.EventObj));
+        // If player already targets a crystal/node object nearby, use it directly
+        if (Svc.Targets.Target != null && Vector3.Distance(playerPos, Svc.Targets.Target.Position) <= 10.0f)
+        {
+            targetCrystal = Svc.Targets.Target;
+        }
+        else
+        {
+            // Search for nearby crystal / node
+            targetCrystal = Svc.Objects.FirstOrDefault(o =>
+                o != null &&
+                Vector3.Distance(playerPos, o.Position) <= 10.0f &&
+                (o.Name.TextValue.Contains("Crystal", StringComparison.OrdinalIgnoreCase) ||
+                 o.Name.TextValue.Contains("Node", StringComparison.OrdinalIgnoreCase) ||
+                 o.Name.TextValue.Contains("Knowledge", StringComparison.OrdinalIgnoreCase) ||
+                 o.Name.TextValue.Contains("Aetherial", StringComparison.OrdinalIgnoreCase) ||
+                 o.ObjectKind == Dalamud.Game.ClientState.Objects.Enums.ObjectKind.EventObj));
+        }
 
         if (targetCrystal == null)
         {
