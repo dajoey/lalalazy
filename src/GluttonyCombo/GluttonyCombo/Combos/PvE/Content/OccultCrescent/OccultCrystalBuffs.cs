@@ -219,8 +219,8 @@ internal static class OccultCrystalBuffs
                 // Check if server confirmed job change
                 if (inst->State.CurrentSupportJob == (byte)jobId)
                 {
-                    // 400ms post-change delay before casting action
-                    if ((DateTime.Now - stepStartTime).TotalMilliseconds >= 400)
+                    // 600ms post-change delay so hotbar & stance settle cleanly
+                    if ((DateTime.Now - stepStartTime).TotalMilliseconds >= 600)
                     {
                         subState = SequenceSubState.CastBuff;
                         stepStartTime = DateTime.Now;
@@ -245,7 +245,7 @@ internal static class OccultCrystalBuffs
                     uint actionId = buffData.ActionId;
                     uint statusId = buffData.StatusId;
 
-                    // If player already has expected buff status, advance immediately
+                    // If player already has expected buff status, advance to delay immediately
                     if (HasBuffStatus(statusId))
                     {
                         subState = SequenceSubState.WaitDelay;
@@ -253,16 +253,16 @@ internal static class OccultCrystalBuffs
                         return;
                     }
 
-                    // Cast action directly targeting player every 300ms
-                    if ((DateTime.Now - lastCastTime).TotalMilliseconds >= 300 && ActionManager.Instance() != null)
+                    // Cast action with standard UseAction call every 400ms
+                    if ((DateTime.Now - lastCastTime).TotalMilliseconds >= 400 && ActionManager.Instance() != null)
                     {
-                        ActionManager.Instance()->UseAction(ActionType.Action, actionId, Player.Object.GameObjectId);
+                        ActionManager.Instance()->UseAction(ActionType.Action, actionId);
                         lastCastTime = DateTime.Now;
                     }
                 }
 
-                // Max 1.8s duration in CastBuff state per job
-                if ((DateTime.Now - stepStartTime).TotalMilliseconds >= 1800)
+                // Max 2.0s duration in CastBuff state per job
+                if ((DateTime.Now - stepStartTime).TotalMilliseconds >= 2000)
                 {
                     subState = SequenceSubState.WaitDelay;
                     stepStartTime = DateTime.Now;
@@ -270,25 +270,12 @@ internal static class OccultCrystalBuffs
                 break;
 
             case SequenceSubState.WaitDelay:
-                if (JobBuffMap.TryGetValue(jobId, out var delayData))
+                // Wait 1800ms in WaitDelay so animation lock finishes and buff status settles before job swap
+                if ((DateTime.Now - stepStartTime).TotalMilliseconds >= 1800)
                 {
-                    uint statusId = delayData.StatusId;
-                    // If player has gained the buff status OR 1200ms has elapsed, proceed to next job
-                    if (HasBuffStatus(statusId) || (DateTime.Now - stepStartTime).TotalMilliseconds >= 1200)
-                    {
-                        currentJobIndex++;
-                        subState = SequenceSubState.SwitchJob;
-                        stepStartTime = DateTime.Now;
-                    }
-                }
-                else
-                {
-                    if ((DateTime.Now - stepStartTime).TotalMilliseconds >= 1200)
-                    {
-                        currentJobIndex++;
-                        subState = SequenceSubState.SwitchJob;
-                        stepStartTime = DateTime.Now;
-                    }
+                    currentJobIndex++;
+                    subState = SequenceSubState.SwitchJob;
+                    stepStartTime = DateTime.Now;
                 }
                 break;
         }
