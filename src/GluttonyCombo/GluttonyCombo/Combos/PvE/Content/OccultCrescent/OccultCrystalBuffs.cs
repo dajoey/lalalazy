@@ -30,10 +30,10 @@ internal static class OccultCrystalBuffs
     private static IGameObject? targetCrystal = null;
     private static DateTime stepStartTime = DateTime.MinValue;
     private static DateTime sequenceStartTime = DateTime.MinValue;
+    private static DateTime lastCastTime = DateTime.MinValue;
     private static SequenceSubState subState = SequenceSubState.SwitchJob;
-    private static bool actionUsedThisStep = false;
 
-    // Map each key buffing Phantom Job ID to its specific buff action ID and expected status ID
+    // Map each key buffing Phantom Job ID to its primary buff action ID and expected status ID
     private static readonly Dictionary<int, (uint ActionId, uint StatusId)> JobBuffMap = new()
     {
         { (int)OccultCrescent.JobIDs.Bard, (41609, 4244) },         // Romeo's Ballad
@@ -133,7 +133,7 @@ internal static class OccultCrystalBuffs
         subState = SequenceSubState.SwitchJob;
         sequenceStartTime = DateTime.Now;
         stepStartTime = DateTime.Now;
-        actionUsedThisStep = false;
+        lastCastTime = DateTime.MinValue;
 
         // Target crystal
         Svc.Targets.Target = targetCrystal;
@@ -205,7 +205,6 @@ internal static class OccultCrystalBuffs
         switch (subState)
         {
             case SequenceSubState.SwitchJob:
-                actionUsedThisStep = false;
                 // Native C++ function call to change support job at crystal
                 if (inst->State.CurrentSupportJob != (byte)jobId)
                 {
@@ -220,11 +219,12 @@ internal static class OccultCrystalBuffs
                 // Check if server confirmed job change
                 if (inst->State.CurrentSupportJob == (byte)jobId)
                 {
-                    // Additional 300ms buffer after server confirmation so action hotbar initializes
-                    if ((DateTime.Now - stepStartTime).TotalMilliseconds >= 300)
+                    // 400ms post-change delay before casting action
+                    if ((DateTime.Now - stepStartTime).TotalMilliseconds >= 400)
                     {
                         subState = SequenceSubState.CastBuff;
                         stepStartTime = DateTime.Now;
+                        lastCastTime = DateTime.MinValue;
                     }
                     return;
                 }
@@ -245,7 +245,7 @@ internal static class OccultCrystalBuffs
                     uint actionId = buffData.ActionId;
                     uint statusId = buffData.StatusId;
 
-                    // If player already has expected buff status applied, move to next step immediately
+                    // If player already has expected buff status, advance immediately
                     if (HasBuffStatus(statusId))
                     {
                         subState = SequenceSubState.WaitDelay;
@@ -253,24 +253,17 @@ internal static class OccultCrystalBuffs
                         return;
                     }
 
-                    if (actionId > 0 && ActionManager.Instance() != null)
+                    // Cast action directly targeting player every 300ms
+                    if ((DateTime.Now - lastCastTime).TotalMilliseconds >= 300 && ActionManager.Instance() != null)
                     {
-                        // Check if action status is 0 (ready to use)
-                        if (ActionManager.Instance()->GetActionStatus(ActionType.Action, actionId) == 0)
-                        {
-                            ActionManager.Instance()->UseAction(ActionType.Action, actionId);
-                            actionUsedThisStep = true;
-                            subState = SequenceSubState.WaitDelay;
-                            stepStartTime = DateTime.Now;
-                            return;
-                        }
+                        ActionManager.Instance()->UseAction(ActionType.Action, actionId, Player.Object.GameObjectId);
+                        lastCastTime = DateTime.Now;
                     }
                 }
 
-                // Keep retrying for up to 2.5 seconds if action is on temporary post-swap cooldown
-                if ((DateTime.Now - stepStartTime).TotalMilliseconds > 2500)
+                // Max 1.8s duration in CastBuff state per job
+                if ((DateTime.Now - stepStartTime).TotalMilliseconds >= 1800)
                 {
-                    DuoLog.Warning($"Buff action for job ID {jobId} could not be cast. Moving to next job.");
                     subState = SequenceSubState.WaitDelay;
                     stepStartTime = DateTime.Now;
                 }
@@ -280,8 +273,8 @@ internal static class OccultCrystalBuffs
                 if (JobBuffMap.TryGetValue(jobId, out var delayData))
                 {
                     uint statusId = delayData.StatusId;
-                    // If player has gained the buff status OR 1500ms has elapsed since action use, proceed to next job
-                    if (HasBuffStatus(statusId) || (DateTime.Now - stepStartTime).TotalMilliseconds >= 1500)
+                    // If player has gained the buff status OR 1200ms has elapsed, proceed to next job
+                    if (HasBuffStatus(statusId) || (DateTime.Now - stepStartTime).TotalMilliseconds >= 1200)
                     {
                         currentJobIndex++;
                         subState = SequenceSubState.SwitchJob;
@@ -290,7 +283,7 @@ internal static class OccultCrystalBuffs
                 }
                 else
                 {
-                    if ((DateTime.Now - stepStartTime).TotalMilliseconds >= 1500)
+                    if ((DateTime.Now - stepStartTime).TotalMilliseconds >= 1200)
                     {
                         currentJobIndex++;
                         subState = SequenceSubState.SwitchJob;
