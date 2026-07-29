@@ -33,15 +33,6 @@ internal partial class MNK
                     DrawRadioButton(MNK_SelectedOpener,
                         MNK_Config.BrotherhoodFirstOpener,
                         MNK_Config.BrotherhoodFirstOpenerDesc, 2, descriptionAsTooltip: true);
-
-                    ImGuiEx.TextUnderlined("Countdown Settings");
-                    ImGui.Spacing();
-                    DrawRadioButton(MNK_OpenerCountdown,
-                        Generics.OnlyWithCountdown,
-                        Generics.OnlyUseOpenerWhenCountdownActive, 0, descriptionAsTooltip: true);
-                    DrawRadioButton(MNK_OpenerCountdown,
-                        Generics.Always,
-                        Generics.UseAlways, 1, descriptionAsTooltip: true);
                     break;
 
                 case Preset.MNK_STUseBrotherhood:
@@ -200,7 +191,6 @@ internal partial class MNK
 
             //ST
             MNK_SelectedOpener = new("MNK_SelectedOpener"),
-            MNK_OpenerCountdown = new("MNK_OpenerCountdown"),
             MNK_Balance_Content = new("MNK_Balance_Content", 1),
             MNK_ST_BHHPBossOption = new("MNK_ST_BHHPBossOption"),
             MNK_ST_BHHPOption = new("MNK_ST_BHHPOption", 25),

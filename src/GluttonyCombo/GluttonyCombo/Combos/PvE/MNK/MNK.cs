@@ -76,9 +76,9 @@ internal partial class MNK : Melee
         }
     }
 
-    internal class MNK_AOE_SimpleMode : CustomCombo
+    internal class MNK_AoE_SimpleMode : CustomCombo
     {
-        protected internal override Preset Preset => Preset.MNK_AOE_SimpleMode;
+        protected internal override Preset Preset => Preset.MNK_AoE_SimpleMode;
 
         protected override uint Invoke(uint actionID)
         {
@@ -259,9 +259,9 @@ internal partial class MNK : Melee
         }
     }
 
-    internal class MNK_AOE_AdvancedMode : CustomCombo
+    internal class MNK_AoE_AdvancedMode : CustomCombo
     {
-        protected internal override Preset Preset => Preset.MNK_AOE_AdvancedMode;
+        protected internal override Preset Preset => Preset.MNK_AoE_AdvancedMode;
 
         protected override uint Invoke(uint actionID)
         {

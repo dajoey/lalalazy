@@ -575,10 +575,39 @@ internal partial class MNK
     internal static MNKLvl100SLOpener Lvl100SLOpener = new();
     internal static MNKLvl100BHFirstOpener Lvl100BHFirstOpener = new();
 
-    internal class MNKLvl90LLOpener : WrathOpener
+    internal abstract class MNKOpenerBase : WrathOpener
+    {
+        public override Preset Preset => Preset.MNK_STUseOpener;
+
+        internal override UserData ContentCheckConfig => MNK_Balance_Content;
+        internal override bool IncludePot => MNK_Opener_Potion;
+
+        public override List<(int[] Steps, Func<bool> Condition)> SkipSteps { get; set; } =
+        [
+            ([1], () => Chakra >= 5),
+            ([2], () => JustUsed(FormShift, 30f))
+        ];
+
+        public override List<(int[] Steps, Func<float> HoldDelay)> PrepullDelays { get; set; } =
+        [
+            ([1], () => CountdownRemaining - 8),
+            ([2], () => CountdownRemaining - 5)
+        ];
+
+        public override bool HasCooldowns() =>
+            GetRemainingCharges(PerfectBalance) is 2 &&
+            IsOffCooldown(Brotherhood) &&
+            IsOffCooldown(RiddleOfFire) &&
+            IsOffCooldown(RiddleOfWind) &&
+            NadiFlag is None &&
+            OpoOpoStacks is 0 &&
+            RaptorStacks is 0 &&
+            CoeurlStacks is 0;
+    }
+
+    internal class MNKLvl90LLOpener : MNKOpenerBase
     {
         public override int MinOpenerLevel => 90;
-
         public override int MaxOpenerLevel => 90;
 
         public override List<uint> OpenerActions { get; set; } =
@@ -602,34 +631,11 @@ internal partial class MNK
             ElixirField,
             DragonKick
         ];
-
-        public override Preset Preset => Preset.MNK_STUseOpener;
-
-        internal override UserData ContentCheckConfig => MNK_Balance_Content;
-        internal override bool IncludePot => MNK_Opener_Potion;
-
-        public override List<(int[] Steps, Func<bool> Condition)> SkipSteps { get; set; } =
-        [
-            ([1], () => Chakra >= 5),
-            ([2], () => JustUsed(FormShift, 30f))
-        ];
-
-        public override bool HasCooldowns() =>
-            GetRemainingCharges(PerfectBalance) is 2 &&
-            IsOffCooldown(Brotherhood) &&
-            IsOffCooldown(RiddleOfFire) &&
-            IsOffCooldown(RiddleOfWind) &&
-            (MNK_OpenerCountdown == 1 || CountdownActive) &&
-            NadiFlag is None &&
-            OpoOpoStacks is 0 &&
-            RaptorStacks is 0 &&
-            CoeurlStacks is 0;
     }
 
-    internal class MNKLvl90SLOpener : WrathOpener
+    internal class MNKLvl90SLOpener : MNKOpenerBase
     {
         public override int MinOpenerLevel => 90;
-
         public override int MaxOpenerLevel => 90;
 
         public override List<uint> OpenerActions { get; set; } =
@@ -653,34 +659,11 @@ internal partial class MNK
             RisingPhoenix,
             DragonKick
         ];
-
-        public override Preset Preset => Preset.MNK_STUseOpener;
-
-        internal override UserData ContentCheckConfig => MNK_Balance_Content;
-        internal override bool IncludePot => MNK_Opener_Potion;
-
-        public override List<(int[] Steps, Func<bool> Condition)> SkipSteps { get; set; } =
-        [
-            ([1], () => Chakra >= 5),
-            ([2], () => JustUsed(FormShift, 30f))
-        ];
-
-        public override bool HasCooldowns() =>
-            GetRemainingCharges(PerfectBalance) is 2 &&
-            IsOffCooldown(Brotherhood) &&
-            IsOffCooldown(RiddleOfFire) &&
-            IsOffCooldown(RiddleOfWind) &&
-            (MNK_OpenerCountdown == 1 || CountdownActive) &&
-            NadiFlag is None &&
-            OpoOpoStacks is 0 &&
-            RaptorStacks is 0 &&
-            CoeurlStacks is 0;
     }
 
-    internal class MNKLvl100LLOpener : WrathOpener
+    internal class MNKLvl100LLOpener : MNKOpenerBase
     {
         public override int MinOpenerLevel => 100;
-
         public override int MaxOpenerLevel => 100;
 
         public override List<uint> OpenerActions { get; set; } =
@@ -710,34 +693,17 @@ internal partial class MNK
             LeapingOpo
         ];
 
-        public override Preset Preset => Preset.MNK_STUseOpener;
-
-        internal override UserData ContentCheckConfig => MNK_Balance_Content;
-        internal override bool IncludePot => MNK_Opener_Potion;
-
         public override List<(int[] Steps, Func<bool> Condition)> SkipSteps { get; set; } =
         [
             ([1], () => Chakra >= 5),
             ([2], () => JustUsed(FormShift, 30f)),
             ([11], () => Chakra < 5)
         ];
-
-        public override bool HasCooldowns() =>
-            GetRemainingCharges(PerfectBalance) is 2 &&
-            IsOffCooldown(Brotherhood) &&
-            IsOffCooldown(RiddleOfFire) &&
-            IsOffCooldown(RiddleOfWind) &&
-            (MNK_OpenerCountdown == 1 || CountdownActive) &&
-            NadiFlag is None &&
-            OpoOpoStacks is 0 &&
-            RaptorStacks is 0 &&
-            CoeurlStacks is 0;
     }
 
-    internal class MNKLvl100SLOpener : WrathOpener
+    internal class MNKLvl100SLOpener : MNKOpenerBase
     {
         public override int MinOpenerLevel => 100;
-
         public override int MaxOpenerLevel => 100;
 
         public override List<uint> OpenerActions { get; set; } =
@@ -767,34 +733,17 @@ internal partial class MNK
             LeapingOpo
         ];
 
-        public override Preset Preset => Preset.MNK_STUseOpener;
-
-        internal override UserData ContentCheckConfig => MNK_Balance_Content;
-        internal override bool IncludePot => MNK_Opener_Potion;
-
         public override List<(int[] Steps, Func<bool> Condition)> SkipSteps { get; set; } =
         [
             ([1], () => Chakra >= 5),
             ([2], () => JustUsed(FormShift, 30f)),
             ([11], () => Chakra < 5)
         ];
-
-        public override bool HasCooldowns() =>
-            GetRemainingCharges(PerfectBalance) is 2 &&
-            IsOffCooldown(Brotherhood) &&
-            IsOffCooldown(RiddleOfFire) &&
-            IsOffCooldown(RiddleOfWind) &&
-            (MNK_OpenerCountdown == 1 || CountdownActive) &&
-            NadiFlag is None &&
-            OpoOpoStacks is 0 &&
-            RaptorStacks is 0 &&
-            CoeurlStacks is 0;
     }
 
-    internal class MNKLvl100BHFirstOpener : WrathOpener
+    internal class MNKLvl100BHFirstOpener : MNKOpenerBase
     {
         public override int MinOpenerLevel => 100;
-
         public override int MaxOpenerLevel => 100;
 
         public override List<uint> OpenerActions { get; set; } =
@@ -822,11 +771,6 @@ internal partial class MNK
             ElixirBurst,
             DragonKick
         ];
-
-        public override Preset Preset => Preset.MNK_STUseOpener;
-
-        internal override UserData ContentCheckConfig => MNK_Balance_Content;
-        internal override bool IncludePot => MNK_Opener_Potion;
 
         public override List<(int[] Steps, Func<bool> Condition)> SkipSteps { get; set; } =
         [
@@ -835,16 +779,12 @@ internal partial class MNK
             ([10], () => Chakra < 5)
         ];
 
-        public override bool HasCooldowns() =>
-            GetRemainingCharges(PerfectBalance) is 2 &&
-            IsOffCooldown(Brotherhood) &&
-            IsOffCooldown(RiddleOfFire) &&
-            IsOffCooldown(RiddleOfWind) &&
-            (MNK_OpenerCountdown == 1 || CountdownActive) &&
-            NadiFlag is None &&
-            OpoOpoStacks is 0 &&
-            RaptorStacks is 0 &&
-            CoeurlStacks is 0;
+        public override List<(int[] Steps, Func<float> HoldDelay)> PrepullDelays { get; set; } =
+        [
+            ([1], () => CountdownRemaining - 8),
+            ([2], () => CountdownRemaining - 5),
+            ([3], () => CountdownRemaining - 2)
+        ];
     }
 
     #endregion

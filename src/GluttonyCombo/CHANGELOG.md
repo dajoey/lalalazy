@@ -1,3 +1,18 @@
+## v1.0.4.97 (2026-07-29)
+
+### Changed
+- **Merged upstream Wrath Combo through `1b984ff00` (upstream 1.0.4.19).** Net delta 35 files, +626/-753. Reconciled via per-file 3-way against base `2072ad38d` with the WrathCombo->GluttonyCombo rename transform: 19 pure-rename (took upstream), 14 clean 3-way, 1 new upstream file (`Extensions/ObjectTableExtensions.cs`), 1 conflicted file (`CustomCombo/Functions/Action.cs`).
+- Upstream job-rotation updates across SAM, NIN, MNK, MCH, RPR, DRG, BLM, VPR, SGE, WHM (SAM_Helper/MNK_Helper largest reworks: Throwing Daggers, Fleeting Raiju melee-range gating, opener fixes; BattleData updates).
+
+### Fixed
+- **Action-history refactor absorbed** (`Data/ActionWatching.cs`, `CustomCombo/Functions/Action.cs`): upstream changed `CombatActions` to store `CombatAction` objects; item usage now attributes to the acting player and weave/`ActionCount`/`WasLastAction` read `.ActionID`. Our tree already carried the object form, so the 2 conflicts in `Action.cs` resolved to ours for compile-consistency with the surrounding `action.ActionID` sites; upstream's new `ActionSheet.TryGetValue` null-guard merged in cleanly.
+
+### Preserved (local divergences carried across the merge)
+- Amnesia/Pacification/Silence gating (`AmnesiaStatusIds`/`HasAmnesia`), 15s raidwide-mitigation gate + `RaidwideTimeRemaining()` cast-bar timer, WHM Divine Caress ground-heal targeting, SMN Aegis Uptime, BLU autorotation engine, OccultCrescent phantom-job buff automation.
+
+### Notes
+- Nightly upstream-merge run 2026-07-29; build clean (0 errors). Safe forks (Dagobert, LazyWTMath, PvPSolver) were no-ops this run.
+
 ## v1.0.4.96 (2026-07-28)
 
 ### Fixed

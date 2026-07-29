@@ -3835,10 +3835,10 @@ public enum Preset
 
     [AutoAction(true, false)]
     [ReplaceSkill(MNK.ArmOfTheDestroyer, MNK.ShadowOfTheDestroyer)]
-    [ConflictingCombos(MNK_AOE_AdvancedMode)]
+    [ConflictingCombos(MNK_AoE_AdvancedMode)]
     [JobInfo(Job.MNK)]
     [SimpleCombo]
-    MNK_AOE_SimpleMode = 9003,
+    MNK_AoE_SimpleMode = 9003,
 
     #endregion
 
@@ -3929,24 +3929,24 @@ public enum Preset
 
     [AutoAction(true, false)]
     [ReplaceSkill(MNK.ArmOfTheDestroyer, MNK.ShadowOfTheDestroyer)]
-    [ConflictingCombos(MNK_AOE_SimpleMode)]
+    [ConflictingCombos(MNK_AoE_SimpleMode)]
     [JobInfo(Job.MNK)]
     [AdvancedCombo]
-    MNK_AOE_AdvancedMode = 9027,
+    MNK_AoE_AdvancedMode = 9027,
 
-    [ParentCombo(MNK_AOE_AdvancedMode)]
+    [ParentCombo(MNK_AoE_AdvancedMode)]
     [JobInfo(Job.MNK)]
     MNK_AoEUseMeditation = 9028,
 
-    [ParentCombo(MNK_AOE_AdvancedMode)]
+    [ParentCombo(MNK_AoE_AdvancedMode)]
     [JobInfo(Job.MNK)]
     MNK_AoEUseHowlingFist = 9033,
 
-    [ParentCombo(MNK_AOE_AdvancedMode)]
+    [ParentCombo(MNK_AoE_AdvancedMode)]
     [JobInfo(Job.MNK)]
     MNK_AoEUseFormShift = 9038,
 
-    [ParentCombo(MNK_AOE_AdvancedMode)]
+    [ParentCombo(MNK_AoE_AdvancedMode)]
     [JobInfo(Job.MNK)]
     MNK_AoEUseBuffs = 9029,
 
@@ -3958,7 +3958,7 @@ public enum Preset
     [JobInfo(Job.MNK)]
     MNK_AoEUseROF = 9032,
 
-    [ParentCombo(MNK_AOE_AdvancedMode)]
+    [ParentCombo(MNK_AoE_AdvancedMode)]
     [JobInfo(Job.MNK)]
     MNK_AoEUseFiresReply = 9036,
 
@@ -3966,23 +3966,23 @@ public enum Preset
     [JobInfo(Job.MNK)]
     MNK_AoEUseROW = 9031,
 
-    [ParentCombo(MNK_AOE_AdvancedMode)]
+    [ParentCombo(MNK_AoE_AdvancedMode)]
     [JobInfo(Job.MNK)]
     MNK_AoEUseWindsReply = 9035,
 
-    [ParentCombo(MNK_AOE_AdvancedMode)]
+    [ParentCombo(MNK_AoE_AdvancedMode)]
     [JobInfo(Job.MNK)]
     MNK_AoEUsePerfectBalance = 9034,
 
-    [ParentCombo(MNK_AOE_AdvancedMode)]
+    [ParentCombo(MNK_AoE_AdvancedMode)]
     [JobInfo(Job.MNK)]
     MNK_AoEUseMasterfulBlitz = 9040,
 
-    [ParentCombo(MNK_AOE_AdvancedMode)]
+    [ParentCombo(MNK_AoE_AdvancedMode)]
     [JobInfo(Job.MNK)]
     MNK_AoE_StunInterupt = 9045,
 
-    [ParentCombo(MNK_AOE_AdvancedMode)]
+    [ParentCombo(MNK_AoE_AdvancedMode)]
     [JobInfo(Job.MNK)]
     MNK_AoE_ComboHeals = 9037,
 
