@@ -20,6 +20,7 @@ using GluttonyCombo.Extensions;
 using GluttonyCombo.Services;
 using GluttonyCombo.Window;
 using GluttonyCombo.Window.Tabs;
+using GluttonyCombo.Combos.PvE;
 using static ECommons.ExcelServices.ExcelJobHelper;
 using static GluttonyCombo.Core.Configuration;
 
@@ -209,6 +210,11 @@ public partial class GluttonyCombo
             // ReSharper disable once StringLiteralTypo
             case "ipromiseiwilldomyjobquestslater": // unlisted
                 HandleJobStoneCheckCommand(); break;
+
+            case "buff":
+            case "crystalbuffs":
+            case "cb":
+                OccultCrystalBuffs.StartSequence(); break;
 
             case "opener":
                 OutputOpenerStatus(); break;
