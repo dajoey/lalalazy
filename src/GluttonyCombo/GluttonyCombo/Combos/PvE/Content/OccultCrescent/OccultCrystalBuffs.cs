@@ -31,6 +31,7 @@ internal static class OccultCrystalBuffs
     private static DateTime stepStartTime = DateTime.MinValue;
     private static DateTime sequenceStartTime = DateTime.MinValue;
     private static SequenceSubState subState = SequenceSubState.SwitchJob;
+    private static bool actionUsedThisStep = false;
 
     // Map each key buffing Phantom Job ID to its specific buff action ID and expected status ID
     private static readonly Dictionary<int, (uint ActionId, uint StatusId)> JobBuffMap = new()
@@ -40,6 +41,12 @@ internal static class OccultCrystalBuffs
         { (int)OccultCrescent.JobIDs.Monk, (41597, 4239) },         // Counterstance / Fleetfooted
         { (int)OccultCrescent.JobIDs.Dancer, (46603, 4799) },       // Quickstep / Quicker Step
     };
+
+    // Helper to check if local player has expected buff status
+    private static bool HasBuffStatus(uint statusId)
+    {
+        return Player.Object != null && Player.Object.StatusList.Any(s => s.StatusId == statusId);
+    }
 
     public static void StartSequence()
     {
@@ -126,6 +133,7 @@ internal static class OccultCrystalBuffs
         subState = SequenceSubState.SwitchJob;
         sequenceStartTime = DateTime.Now;
         stepStartTime = DateTime.Now;
+        actionUsedThisStep = false;
 
         // Target crystal
         Svc.Targets.Target = targetCrystal;
@@ -152,10 +160,10 @@ internal static class OccultCrystalBuffs
     {
         if (!isRunning) return;
 
-        // Timeout guard: 45 seconds max
-        if ((DateTime.Now - sequenceStartTime).TotalSeconds > 45)
+        // Timeout guard: 60 seconds max
+        if ((DateTime.Now - sequenceStartTime).TotalSeconds > 60)
         {
-            StopSequence("Timeout exceeded (45s).");
+            StopSequence("Timeout exceeded (60s).");
             return;
         }
 
@@ -197,6 +205,7 @@ internal static class OccultCrystalBuffs
         switch (subState)
         {
             case SequenceSubState.SwitchJob:
+                actionUsedThisStep = false;
                 // Native C++ function call to change support job at crystal
                 if (inst->State.CurrentSupportJob != (byte)jobId)
                 {
@@ -211,13 +220,17 @@ internal static class OccultCrystalBuffs
                 // Check if server confirmed job change
                 if (inst->State.CurrentSupportJob == (byte)jobId)
                 {
-                    subState = SequenceSubState.CastBuff;
-                    stepStartTime = DateTime.Now;
+                    // Additional 300ms buffer after server confirmation so action hotbar initializes
+                    if ((DateTime.Now - stepStartTime).TotalMilliseconds >= 300)
+                    {
+                        subState = SequenceSubState.CastBuff;
+                        stepStartTime = DateTime.Now;
+                    }
                     return;
                 }
 
-                // Wait up to 2.5s for server job change confirmation
-                if ((DateTime.Now - stepStartTime).TotalMilliseconds > 2500)
+                // Wait up to 3.0s for server job change confirmation
+                if ((DateTime.Now - stepStartTime).TotalMilliseconds > 3000)
                 {
                     DuoLog.Warning($"Job change to Phantom Job ID {jobId} did not confirm in time. Skipping to next job.");
                     currentJobIndex++;
@@ -230,28 +243,60 @@ internal static class OccultCrystalBuffs
                 if (JobBuffMap.TryGetValue(jobId, out var buffData))
                 {
                     uint actionId = buffData.ActionId;
+                    uint statusId = buffData.StatusId;
+
+                    // If player already has expected buff status applied, move to next step immediately
+                    if (HasBuffStatus(statusId))
+                    {
+                        subState = SequenceSubState.WaitDelay;
+                        stepStartTime = DateTime.Now;
+                        return;
+                    }
+
                     if (actionId > 0 && ActionManager.Instance() != null)
                     {
+                        // Check if action status is 0 (ready to use)
                         if (ActionManager.Instance()->GetActionStatus(ActionType.Action, actionId) == 0)
                         {
                             ActionManager.Instance()->UseAction(ActionType.Action, actionId);
+                            actionUsedThisStep = true;
+                            subState = SequenceSubState.WaitDelay;
+                            stepStartTime = DateTime.Now;
+                            return;
                         }
                     }
                 }
 
-                subState = SequenceSubState.WaitDelay;
-                stepStartTime = DateTime.Now;
+                // Keep retrying for up to 2.5 seconds if action is on temporary post-swap cooldown
+                if ((DateTime.Now - stepStartTime).TotalMilliseconds > 2500)
+                {
+                    DuoLog.Warning($"Buff action for job ID {jobId} could not be cast. Moving to next job.");
+                    subState = SequenceSubState.WaitDelay;
+                    stepStartTime = DateTime.Now;
+                }
                 break;
 
             case SequenceSubState.WaitDelay:
-                // Wait 1200ms for action execution / animation lock
-                if ((DateTime.Now - stepStartTime).TotalMilliseconds < 1200)
-                    return;
-
-                // Advance to next job
-                currentJobIndex++;
-                subState = SequenceSubState.SwitchJob;
-                stepStartTime = DateTime.Now;
+                if (JobBuffMap.TryGetValue(jobId, out var delayData))
+                {
+                    uint statusId = delayData.StatusId;
+                    // If player has gained the buff status OR 1500ms has elapsed since action use, proceed to next job
+                    if (HasBuffStatus(statusId) || (DateTime.Now - stepStartTime).TotalMilliseconds >= 1500)
+                    {
+                        currentJobIndex++;
+                        subState = SequenceSubState.SwitchJob;
+                        stepStartTime = DateTime.Now;
+                    }
+                }
+                else
+                {
+                    if ((DateTime.Now - stepStartTime).TotalMilliseconds >= 1500)
+                    {
+                        currentJobIndex++;
+                        subState = SequenceSubState.SwitchJob;
+                        stepStartTime = DateTime.Now;
+                    }
+                }
                 break;
         }
     }
