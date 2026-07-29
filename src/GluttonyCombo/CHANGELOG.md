@@ -1,3 +1,17 @@
+## v1.0.4.96 (2026-07-28)
+
+### Fixed
+- **`/gluttony buff` ran its waits but never cast anything** (`Combos/PvE/Content/OccultCrescent/OccultCrystalBuffs.cs`): buff actions were invoked via `ActionManager.UseAction(ActionType.Action, <41xxx Action-sheet ID>)`, which the client silently rejects for phantom job abilities — the state machine waited its delays and moved on with no cast ever firing. Phantom hotbar abilities must be cast via `ActionType.GeneralAction` with per-slot GeneralAction row IDs (31-34), exactly like pressing the phantom hotbar buttons. Slot map: Knight Pray = 32, Monk Counterstance = 33, Bard Romeo's Ballad = 32, Dancer Quickstep = 32. Mechanism verified against BOCCHI's Buff module (github.com/OhKannaDuh/BOCCHI v2.1.2), which performs this same cycle in-game.
+- **Job-change confirmation** (`OccultCrystalBuffs.cs`, `WaitForJobChange`): now waits for the Phantom Job status (PhantomKnight 4358 / PhantomMonk 4360 / PhantomBard 4363 / PhantomDancer 4805) in addition to the `CurrentSupportJob` state byte, matching how the server signals a completed support-job change; 400ms post-change settle retained.
+- **Buff confirmation** (`OccultCrystalBuffs.cs`, `CastBuff`): advancing now requires the buff status present AND freshly applied (`RemainingTime >= 1780` of 1800s). Casts retry every 500ms but only when the GeneralAction is off recast (`GetRecastTime - GetRecastTimeElapsed <= 0`), replacing the blind 400ms re-spam. Per-job DuoLog progress lines added so each applied buff is visible in chat.
+
+### Changed
+- Per-job timing retuned: 5s job-change timeout (was 3s), 10s per-job cast cap (was 2s blind window), 800ms inter-job settle (was 1800ms); overall sequence timeout raised 60s -> 120s to fit worst-case retries across 4 jobs.
+
+### Notes
+- Status IDs unchanged and re-verified against BOCCHI `Data/PlayerStatus.cs`: EnduringFortitude 4233, Fleetfooted 4239, RomeosBallad 4244, QuickerStep 4799.
+- Diagnosis source: Antigravity conversation `84b8c16b-8957-41bc-8137-1eacfa4a5ec1` (brain artifacts + 685-step trajectory) plus decompilation/source review of BOCCHI 2.1.2.
+
 ## v1.0.4.85 (2026-07-28)
 
 ### Changed
