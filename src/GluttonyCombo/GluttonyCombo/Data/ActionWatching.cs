@@ -78,6 +78,7 @@ public static class ActionWatching
 
     public static bool UpdatingActions;
     private static bool _tainted;
+    private static bool _gcdRolling;
 
     static unsafe ActionWatching()
     {
@@ -89,7 +90,15 @@ public static class ActionWatching
         ActorControlPacketHook ??= Svc.Hook.HookFromAddress<PacketDispatcher.Delegates.HandleActorControlPacket>(PacketDispatcher.Addresses.HandleActorControlPacket.Value, ActorControlDetour);
         OnRecievePacketHook ??= Svc.Hook.HookFromAddress<PacketDispatcher.Delegates.OnReceivePacket>((nint)PacketDispatcher.StaticVirtualTablePointer->OnReceivePacket, OnReceivePacketDetour);
         OnCastInterrupted += CancelPendingLastActionUpdate;
+        OnGCDRoll += UpdateWeaves;
+    }
 
+    private static void UpdateWeaves(bool rolling)
+    {
+        if (!rolling)
+            WeaveActions.Clear();
+
+        _gcdRolling = rolling;
     }
 
     private static unsafe void OnReceivePacketDetour(PacketDispatcher* thisPtr, uint targetId, nint packet)
@@ -203,6 +212,7 @@ public static class ActionWatching
         ActorControlPacketHook?.Dispose();
         OnRecievePacketHook?.Dispose();
         OnCastInterrupted -= CancelPendingLastActionUpdate;
+        OnGCDRoll -= UpdateWeaves;
     }
 
     /// <summary> Handles logic when an action causes an effect. </summary>
@@ -221,7 +231,7 @@ public static class ActionWatching
             var partyMembers = GetPartyMembers().ToDictionary(x => x.GameObjectId);
 #if DEBUG
             var debugObjectTable = Svc.Objects;
-            var debugActionName = actionId.ActionName();
+            var debugActionName = actionType == ActionType.Action ? actionId.ActionName() : actionType == ActionType.Item ? actionId.ItemName() : "Unknown";
 #endif
 
             // Process Effects
@@ -257,6 +267,7 @@ public static class ActionWatching
                         $"Value: {effValue} | " +
                         $"Params: [{eff.Param0}, {eff.Param1}, {eff.Param2}, {eff.Param3}, {eff.Param4}] | " +
                         $"Damage HealValue: {eff.DamageHealValue} | " +
+                        $"Caster: {((ulong)casterEntityId).GetObject()?.Name} | " +
                         $"Action: {debugActionName} (ID: {actionId}) → " +
                         $"Target: {debugTargetName} ({targetId}) | " +
                         $"[AtSource: {eff.AtSource}, FromTarget: {eff.FromTarget}] | " +
@@ -336,7 +347,7 @@ public static class ActionWatching
                 }
             }
 
-            if ((actionType == ActionType.Action && casterEntityId == Player.Object.EntityId && ActionSheet.TryGetValue(actionId, out var actionSheet) && actionSheet.TargetArea) || actionType == ActionType.Item)
+            if (casterEntityId == Player.Object.EntityId && (actionType == ActionType.Action && ActionSheet.TryGetValue(actionId, out var actionSheet) && actionSheet.TargetArea) || actionType == ActionType.Item)
             {
                 UpdateLastUsedAction(actionId, actionType, 0, 0);
             }
@@ -375,19 +386,19 @@ public static class ActionWatching
                 {
                     case 2: // Spell
                         LastSpell = actionId;
-                        WeaveActions.Clear();
                         break;
 
                     case 3: // Weaponskill
                         LastWeaponskill = actionId;
-                        WeaveActions.Clear();
                         break;
 
                     case 4: // Ability
                         LastAbility = actionId;
-                        WeaveActions.Add(actionId);
                         break;
                 }
+
+                if (_gcdRolling)
+                    WeaveActions.Add(actionId);
 
                 ActionTimestamps[actionId] = currentTick;
                 UsedOnDict[(actionId, targetObjectId)] = currentTick;
@@ -533,7 +544,7 @@ public static class ActionWatching
             ActionType.Item => lastAct.ActionID.ItemName(),
             _ => "Unknown"
         };
-        DuoLog.Information($"You just used: {name}x {LastActionUseCount}");
+        DuoLog.Information($"You just used: [{name}] x {LastActionUseCount}");
     }
 
 
@@ -569,19 +580,22 @@ public static class ActionWatching
                 var replacedWith = actionManager->GetAdjustedActionId(actionId);
                 var queuedAct = actionManager->GetAdjustedActionId(actionManager->QueuedActionId);
 
-                // If the replaced action is a mudra and we're already in a mudra sequence
-                // where the base mudra matches, ignore the input.
-                if (NIN.MudraSigns.Contains(replacedWith) && NIN.InMudra && NIN.MudraToBase(LastAction) == NIN.MudraToBase(replacedWith))
-                    return false;
-
-                // Determine if the queued action conflicts with the current mudra state.
-                var queuedProblem = (queuedAct > 0 && queuedAct != NIN.Ninjutsu && !NIN.MudraSigns.Contains(queuedAct) && !NIN.NormalJutsus.Contains(queuedAct) && !NIN.TCJJutsus.Contains(queuedAct)) || queuedAct == LastAction;
-                var replacedProgressMudra = !NIN.MudraUsed(replacedWith) && (NIN.MudraSigns.Contains(replacedWith) || NIN.NormalJutsus.Contains(replacedWith) || NIN.TCJJutsus.Contains(replacedWith));
-
-                if (IsEnabled(Preset.NIN_Anti_Rabbit) && NIN.InMudra && (queuedProblem || !replacedProgressMudra))
+                if (IsEnabled(Preset.NIN_Anti_Rabbit))
                 {
-                    actionManager->QueuedActionId = 0;
-                    return false;
+                    // If the replaced action is a mudra and we're already in a mudra sequence
+                    // where the base mudra matches, ignore the input.
+                    if (NIN.MudraSigns.Contains(replacedWith) && NIN.InMudra && NIN.MudraToBase(LastAction) == NIN.MudraToBase(replacedWith))
+                        return false;
+
+                    // Determine if the queued action conflicts with the current mudra state.
+                    var queuedProblem = (queuedAct > 0 && queuedAct != NIN.Ninjutsu && !NIN.MudraSigns.Contains(queuedAct) && !NIN.NormalJutsus.Contains(queuedAct) && !NIN.TCJJutsus.Contains(queuedAct)) || queuedAct == LastAction;
+                    var replacedProgressMudra = !NIN.MudraUsed(replacedWith) && (NIN.MudraSigns.Contains(replacedWith) || NIN.NormalJutsus.Contains(replacedWith) || NIN.TCJJutsus.Contains(replacedWith));
+
+                    if (NIN.InMudra && (queuedProblem || !replacedProgressMudra))
+                    {
+                        actionManager->QueuedActionId = 0;
+                        return false;
+                    }
                 }
 
                 var disablingReplacingTemp = (mode == ActionManager.UseActionMode.Queue || AutoRotationController.AutorotRaidwiding) && actionId < All.SingleTargetDPS;
@@ -619,7 +633,7 @@ public static class ActionWatching
                 if (actionManager->QueuedTargetId.Id != 0)
                     targetId = actionManager->QueuedTargetId.Id;
 
-                var areaTargeted = replacedWith >= 1_000_000 ? false : ActionSheet[replacedWith].TargetArea;
+                var areaTargeted = replacedWith >= 1_000_000 ? false : ActionSheet.TryGetValue(replacedWith, out var s) && s.TargetArea;
 
                 if (areaTargeted && disablingReplacingTemp) //Ground targets don't hit the send method, so it has to be re-enabled here. Could be re-enabled further down the line if it causes output issues.
                     Service.ActionReplacer.EnableActionReplacingIfRequired();

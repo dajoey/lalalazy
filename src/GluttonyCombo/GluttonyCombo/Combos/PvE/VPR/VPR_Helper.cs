@@ -561,12 +561,24 @@ internal partial class VPR
     internal static VPRStandardOpener StandardOpener = new();
     internal static VPREarlyBuffOpener EarlyBuffOpener = new();
 
-    internal class VPRStandardOpener : WrathOpener
+    internal abstract class VPROpenerBase : WrathOpener
     {
         public override int MinOpenerLevel => 100;
-
         public override int MaxOpenerLevel => 109;
 
+        public override Preset Preset => Preset.VPR_ST_Opener;
+
+        internal override UserData ContentCheckConfig => VPR_Balance_Content;
+        internal override bool IncludePot => VPR_Opener_Potion;
+
+        public override bool HasCooldowns() =>
+            IsOriginal(ReavingFangs) &&
+            GetRemainingCharges(Vicewinder) is 2 &&
+            IsOffCooldown(SerpentsIre);
+    }
+
+    internal class VPRStandardOpener : VPROpenerBase
+    {
         public override List<uint> OpenerActions { get; set; } =
         [
             ReavingFangs,
@@ -607,11 +619,6 @@ internal partial class VPR
             TwinfangBite //36
         ];
 
-        public override Preset Preset => Preset.VPR_ST_Opener;
-
-        internal override UserData ContentCheckConfig => VPR_Balance_Content;
-        internal override bool IncludePot => VPR_Opener_Potion;
-
         public override List<(int[], uint, Func<bool>)> SubstitutionSteps { get; set; } =
         [
             ([31], SwiftskinsCoil, OnTargetsRear),
@@ -630,19 +637,10 @@ internal partial class VPR
         ];
 
         public override List<int> DelayedWeaveSteps { get; set; } = [5];
-
-        public override bool HasCooldowns() =>
-            IsOriginal(ReavingFangs) &&
-            GetRemainingCharges(Vicewinder) is 2 &&
-            IsOffCooldown(SerpentsIre);
     }
 
-    internal class VPREarlyBuffOpener : WrathOpener
+    internal class VPREarlyBuffOpener : VPROpenerBase
     {
-        public override int MinOpenerLevel => 100;
-
-        public override int MaxOpenerLevel => 109;
-
         public override List<uint> OpenerActions { get; set; } =
         [
             Vicewinder,
@@ -682,11 +680,6 @@ internal partial class VPR
             UncoiledTwinblood //35
         ];
 
-        public override Preset Preset => Preset.VPR_ST_Opener;
-
-        internal override UserData ContentCheckConfig => VPR_Balance_Content;
-        internal override bool IncludePot => VPR_Opener_Potion;
-
         public override List<(int[], uint, Func<bool>)> SubstitutionSteps { get; set; } =
         [
             ([24], SwiftskinsCoil, OnTargetsRear),
@@ -703,11 +696,6 @@ internal partial class VPR
         ];
 
         public override List<int> DelayedWeaveSteps { get; set; } = [4];
-
-        public override bool HasCooldowns() =>
-            IsOriginal(ReavingFangs) &&
-            GetRemainingCharges(Vicewinder) is 2 &&
-            IsOffCooldown(SerpentsIre);
     }
 
     #endregion

@@ -105,7 +105,10 @@ internal abstract partial class CustomComboFunctions
     public static bool InActionRange(uint actionId, IGameObject? optionalTarget = null)
     {
         optionalTarget ??= CurrentTarget;
-        var actSheet = ActionSheet[actionId];
+        var s =  ActionSheet.TryGetValue(actionId, out var actSheet);
+        if (!s)
+            return false;
+
         var areaTargeted = actSheet.TargetArea;
         var selfUse = actSheet.CanTargetSelf;
         var hostile = actSheet.CanTargetHostile;

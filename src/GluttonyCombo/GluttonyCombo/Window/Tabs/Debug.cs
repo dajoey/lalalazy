@@ -533,6 +533,7 @@ internal class Debug : ConfigWindow, IDisposable
             CustomStyleText("Last Weaponskill:", GetActionName(ActionWatching.LastWeaponskill));
             CustomStyleText("Last Spell:", GetActionName(ActionWatching.LastSpell));
             CustomStyleText("Last Ability:", GetActionName(ActionWatching.LastAbility));
+            CustomStyleText("Weave Actions:", string.Join(", ", ActionWatching.WeaveActions.Select(x => x.ActionName())));
             CustomStyleText("Combo Timer:", $"{ComboTimer:F1}");
             CustomStyleText("Combo Action:",
                 ComboAction == 0

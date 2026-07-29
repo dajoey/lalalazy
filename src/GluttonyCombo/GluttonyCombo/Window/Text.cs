@@ -249,7 +249,11 @@ namespace GluttonyCombo.Window
                 => _statusNameCache.GetOrAdd(statusId, Svc.Data.GetExcelSheet<Status>(LangFromCulture).GetRowOrDefault(statusId)?.Name.ToString() ?? "Unknown Status");
 
             public static string GetItemName(uint itemId)
-                => _itemNameCache.GetOrAdd(itemId, Svc.Data.GetExcelSheet<Item>(LangFromCulture).GetRowOrDefault(itemId)?.Name.ToString() ?? "Unknown Item");
+            {
+                if (itemId > 1_000_000)
+                    itemId -= 1_000_000;
+                return _itemNameCache.GetOrAdd(itemId, Svc.Data.GetExcelSheet<Item>(LangFromCulture).GetRowOrDefault(itemId)?.Name.ToString() ?? "Unknown Item");
+            }
 
             public static void Clear()
             {

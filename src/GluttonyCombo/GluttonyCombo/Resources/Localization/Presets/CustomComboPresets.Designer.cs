@@ -12979,18 +12979,18 @@ namespace GluttonyCombo.Resources.Localization.Presets {
         ///   Looks up a localized string similar to Replaces Arms of the Destroyer with a full one-button AoE rotation.
         ///These features are ideal if you want to customize the rotation..
         /// </summary>
-        internal static string MNK_AOE_AdvancedMode_Desc {
+        internal static string MNK_AoE_AdvancedMode_Desc {
             get {
-                return ResourceManager.GetString("MNK_AOE_AdvancedMode_Desc", resourceCulture);
+                return ResourceManager.GetString("MNK_AoE_AdvancedMode_Desc", resourceCulture);
             }
         }
         
         /// <summary>
         ///   Looks up a localized string similar to Advanced Mode - AoE.
         /// </summary>
-        internal static string MNK_AOE_AdvancedMode_Name {
+        internal static string MNK_AoE_AdvancedMode_Name {
             get {
-                return ResourceManager.GetString("MNK_AOE_AdvancedMode_Name", resourceCulture);
+                return ResourceManager.GetString("MNK_AoE_AdvancedMode_Name", resourceCulture);
             }
         }
         
@@ -13016,18 +13016,18 @@ namespace GluttonyCombo.Resources.Localization.Presets {
         ///   Looks up a localized string similar to Replaces Arms of the Destroyer with a full one-button AoE rotation.
         ///This is the ideal option for newcomers to the job..
         /// </summary>
-        internal static string MNK_AOE_SimpleMode_Desc {
+        internal static string MNK_AoE_SimpleMode_Desc {
             get {
-                return ResourceManager.GetString("MNK_AOE_SimpleMode_Desc", resourceCulture);
+                return ResourceManager.GetString("MNK_AoE_SimpleMode_Desc", resourceCulture);
             }
         }
         
         /// <summary>
         ///   Looks up a localized string similar to Simple Mode - AoE.
         /// </summary>
-        internal static string MNK_AOE_SimpleMode_Name {
+        internal static string MNK_AoE_SimpleMode_Name {
             get {
-                return ResourceManager.GetString("MNK_AOE_SimpleMode_Name", resourceCulture);
+                return ResourceManager.GetString("MNK_AoE_SimpleMode_Name", resourceCulture);
             }
         }
         
