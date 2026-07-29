@@ -2,7 +2,7 @@
     "Author":  "dajoey",
     "Name":  "Gluttony Combo",
     "InternalName":  "GluttonyCombo",
-    "AssemblyVersion":  "1.0.4.79",
+    "AssemblyVersion":  "1.0.4.87",
     "Description":  "Gluttony Combo - lalalazy fork of Gluttony Combo. XIVCombo for very lazy players.",
     "ApplicableVersion":  "any",
     "RepoUrl":  "https://github.com/dajoey/lalalazy",
@@ -25,6 +25,6 @@
     "LoadPriority":  0,
     "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/gluttonycombo-icon.png",
     "Punchline":  "Lalalazy fork of Wrath Combo - XIVCombo for very lazy players.",
-    "Changelog":  "v1.0.4.79 - Synced upstream Wrath Combo autorotperf (PR #1234)\n- Autorotation performance pass: active job preset lists are now cached and only rebuilt when they change, reducing per-frame overhead.\n- NIN: better prevents queueing duplicate mudras on high ping.\n- Opener no longer resets on area / instance transitions - only on job change or first load.\n- Fixed Ghimlyt Dark battle data.\n- Added Vauthry invulnerability handling; Custom Actions window resized.\n- Stability: Custom Actions disposed on framework teardown; guarded action-row lookups.\n- All GluttonyCombo customizations preserved: Amnesia / Pacification / Silence handling, Pyretic / Reflect penalties, 15s raidwide-mitigation gate, WHM ground-heal targeting, SMN Aegis Uptime, BattleData, and IPC controls.",
+    "Changelog":  "v1.0.4.85 - Upstream fix: using items no longer throws off the GCD counter\n- Using an item mid-combat no longer corrupts the \"GCDs used since combat start\" counter that openers and auto-rotation timing rely on - action history now records item vs weaponskill/spell separately.\n- \"Last action used\" and the on-screen action log now correctly tell items and actions apart.\n- Hardened the action-category lookup so an unknown action ID can no longer throw (null-safe).\n- All GluttonyCombo customizations preserved: Amnesia / Pacification / Silence handling, Pyretic / Reflect penalties, 15s raidwide-mitigation gate, WHM ground-heal targeting, SMN Aegis Uptime, BattleData, BLU engine.\n",
     "AcceptsFeedback":  true
 }
