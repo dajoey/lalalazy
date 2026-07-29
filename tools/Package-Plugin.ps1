@@ -170,6 +170,12 @@ if (Test-Path $resDir) {
 if (Test-Path $zipPath) { Remove-Item $zipPath }
 Compress-Archive -Path "$stageDir\*" -DestinationPath $zipPath -Force
 
+# Copy zip to latest.zip in targetDir as well to guarantee zero stale zip mismatches
+$altZipPath = Join-Path $targetDir "latest.zip"
+if ($zipPath -ne $altZipPath) {
+    Copy-Item $zipPath $altZipPath -Force
+}
+
 # Copy manifest to target dir alongside zip
 Copy-Item $stagedManifestPath (Join-Path $targetDir "$PluginName.json") -Force
 
@@ -271,9 +277,9 @@ if (-not $entry) {
     $entry.Tags = $manifest.Tags
     $entry.CategoryTags = $manifest.CategoryTags
     $entry.IconUrl = "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/$($PluginName.ToLower())-icon.png"
-    if ($changelogText) {
-        $entry.Changelog = $changelogText
-    }
+    $entry.DownloadLinkInstall = "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/$PluginName/latest/latest.zip"
+    $entry.DownloadLinkUpdate = "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/$PluginName/latest/latest.zip"
+    $entry.DownloadLinkTesting = "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/$PluginName/testing/testing.zip"
     
     $entry.AssemblyVersion = $version
     if ($Channel -eq 'testing') {
