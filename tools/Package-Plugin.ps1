@@ -275,9 +275,8 @@ if (-not $entry) {
         $entry.Changelog = $changelogText
     }
     
-    if ($Channel -eq 'production') {
-        $entry.AssemblyVersion = $version
-    } else {
+    $entry.AssemblyVersion = $version
+    if ($Channel -eq 'testing') {
         $entry.TestingAssemblyVersion = $version
     }
 }

@@ -14,7 +14,7 @@ All four version locations MUST match in every release commit for any plugin `<P
 - **Read the current version from the `.csproj` file BEFORE setting any version.** Never assume the version from conversation context or from `pluginmaster.json` alone.
 - **If the version you're about to write is LOWER than or EQUAL to what's there, STOP.** That's a regression. Dalamud won't offer downgrades — users get stranded.
 - **After running the packaging script, check the `git diff` of `pluginmaster.json` and verify the version actually increased and did not regress.** Always perform a manual or command-line diff inspection before staging.
-- **After building, verify the manifest inside the zip matches.** Extract `<PluginName>.json` from the zip and confirm `AssemblyVersion`.
+- **For testing builds (`-Channel testing`)**: `AssemblyVersion` in `pluginmaster.json` MUST be updated alongside `TestingAssemblyVersion` to match the exact version inside the zipped package. If `pluginmaster.json` advertises an older `AssemblyVersion` than what's inside the zip payload, Dalamud rejects the installation with `(load failed)`.
 - **Never use `git push --force` or `git commit --amend` on this repo.**
 - **Never touch game files** (XIVLauncher installedPlugins, pluginConfigs, etc.) — only work on the repo and push. The game downloads from GitHub.
 
