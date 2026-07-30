@@ -5,8 +5,8 @@
 All four version locations MUST match in every release commit for any plugin `<PluginName>`:
 
 1. `src/<PluginName>/<PluginName>.csproj` (or `src/<PluginName>/<PluginName>/<PluginName>.csproj`) `<Version>`
-2. `pluginmaster.json` → `<PluginName>` `AssemblyVersion`
-3. `plugins/<PluginName>/latest/<PluginName>.json` `AssemblyVersion` (inside the zip AND the standalone copy)
+2. `pluginmaster.json` → `<PluginName>` `TestingAssemblyVersion` (testing releases) or `AssemblyVersion` (production promotes)
+3. `plugins/<PluginName>/testing/` (testing) or `plugins/<PluginName>/latest/` (production) `<PluginName>.json` `AssemblyVersion` (inside the zip AND the standalone copy)
 4. `src/<PluginName>/CHANGELOG.md`
 
 ### Rules
@@ -14,21 +14,29 @@ All four version locations MUST match in every release commit for any plugin `<P
 - **Read the current version from the `.csproj` file BEFORE setting any version.** Never assume the version from conversation context or from `pluginmaster.json` alone.
 - **If the version you're about to write is LOWER than or EQUAL to what's there, STOP.** That's a regression. Dalamud won't offer downgrades — users get stranded.
 - **After running the packaging script, check the `git diff` of `pluginmaster.json` and verify the version actually increased and did not regress.** Always perform a manual or command-line diff inspection before staging.
-- **For testing builds (`-Channel testing`)**: `AssemblyVersion` in `pluginmaster.json` MUST be updated alongside `TestingAssemblyVersion` to match the exact version inside the zipped package. If `pluginmaster.json` advertises an older `AssemblyVersion` than what's inside the zip payload, Dalamud rejects the installation with `(load failed)`.
+- **Channel separation (2026-07-30 — testing-first workflow):** `-Channel testing` updates ONLY `TestingAssemblyVersion` and `plugins/<Plugin>/testing/*`. The production pointer (`AssemblyVersion`) and `plugins/<Plugin>/latest/*` move ONLY on `-Channel production`. Ship every change as a testing build first; promote to production by re-running the script with `-Channel production` after in-game verification. Dalamud must have "Receive plugin testing versions" enabled for the plugin to be offered the test build.
+- **Retired rule:** the pre-2026-07-30 requirement that testing builds also bump `AssemblyVersion` came from a stale-zip `(load failed)` incident and coupled the two channels (every test build hit production). What actually matters: the testing zip's embedded manifest version must equal `TestingAssemblyVersion` — Package-Plugin.ps1 guarantees this. If a testing install ever shows `(load failed)`, check that pairing first; do NOT touch `AssemblyVersion`.
 - **Never use `git push --force` or `git commit --amend` on this repo.**
 - **Never touch game files** (XIVLauncher installedPlugins, pluginConfigs, etc.) — only work on the repo and push. The game downloads from GitHub.
 
 ### Release Checklist
 
 ```
-1. Read current csproj version
-2. Increment to next version (or verify it matches the planned release version)
-3. Update csproj
-4. Run packaging script (e.g. Package-Plugin.ps1)
-5. ** VERIFY: Run `git diff` of pluginmaster.json and confirm version has increased and did not regress **
-6. ** VERIFY: extract manifest from zip, confirm version matches **
-7. ** VERIFY: all four locations show the same version **
-8. git add, commit, push
+TEST BUILD (default for every change):
+1. Read current csproj version; increment to the next patch version
+2. Update csproj + src/<Plugin>/CHANGELOG.md
+3. tools/Package-Plugin.ps1 -PluginName <Plugin> -Channel testing
+4. ** VERIFY: git diff pluginmaster.json — ONLY TestingAssemblyVersion moved; AssemblyVersion untouched, no regression **
+5. ** VERIFY: extract manifest from plugins/<Plugin>/testing/testing.zip — version == TestingAssemblyVersion **
+6. git add (csproj, CHANGELOG, pluginmaster.json, plugins/<Plugin>/testing/*), commit, push
+7. Verify in-game from the testing channel
+
+PROMOTE TO PRODUCTION (only after in-game verification):
+1. Same csproj version — no new bump
+2. tools/Package-Plugin.ps1 -PluginName <Plugin> -Channel production
+3. ** VERIFY: git diff pluginmaster.json — AssemblyVersion increased to the tested version, no regression **
+4. ** VERIFY: extract manifest from plugins/<Plugin>/latest/latest.zip — version == AssemblyVersion **
+5. git add, commit, push
 ```
 
 ## Build

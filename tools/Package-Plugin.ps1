@@ -55,8 +55,15 @@ if (Test-Path $csprojPath) {
     $targetGroup = $csproj.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1
     $projVersion = if ($targetGroup) { $targetGroup.Version } else { $null }
     
-    if ($projVersion -and $entry -and $Channel -eq 'production' -and -not $VersionOverride) {
-        $lastPublishedVersion = $entry.AssemblyVersion
+    if ($projVersion -and $entry -and -not $VersionOverride) {
+        # Compare against the channel we're publishing to: testing builds bump against
+        # TestingAssemblyVersion so testing users are offered the update, production
+        # builds against AssemblyVersion.
+        $lastPublishedVersion = if ($Channel -eq 'testing' -and $entry.PSObject.Properties['TestingAssemblyVersion'] -and $entry.TestingAssemblyVersion) {
+            $entry.TestingAssemblyVersion
+        } else {
+            $entry.AssemblyVersion
+        }
         if ($projVersion -eq $lastPublishedVersion) {
             $parts = $projVersion.Split('.')
             if ($parts.Count -eq 4) {
@@ -281,9 +288,17 @@ if (-not $entry) {
     $entry.DownloadLinkUpdate = "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/$PluginName/latest/latest.zip"
     $entry.DownloadLinkTesting = "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/$PluginName/testing/testing.zip"
     
-    $entry.AssemblyVersion = $version
+    # Channel separation (2026-07-30): testing builds only move TestingAssemblyVersion;
+    # the production pointer (AssemblyVersion) moves only on -Channel production, so a
+    # test build can never break the production install.
     if ($Channel -eq 'testing') {
-        $entry.TestingAssemblyVersion = $version
+        if ($entry.PSObject.Properties['TestingAssemblyVersion']) {
+            $entry.TestingAssemblyVersion = $version
+        } else {
+            $entry | Add-Member -NotePropertyName TestingAssemblyVersion -NotePropertyValue $version
+        }
+    } else {
+        $entry.AssemblyVersion = $version
     }
 }
 
