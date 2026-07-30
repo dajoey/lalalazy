@@ -59,11 +59,39 @@ $basePath = Join-Path $lalaDir 'kit\assets\canonical-base.png'
 if (-not (Test-Path $lalaDir)) { throw "LalaImages/ not found under $RepoRoot" }
 if (-not (Test-Path $basePath)) { throw "Canonical base not found at $basePath" }
 
-# Venice key
-$key = $env:VENICE_API_KEY
- if (-not $key) { $key = [Environment]::GetEnvironmentVariable('VENICE_API_KEY','User') }
-if (-not $key) { $key = [Environment]::GetEnvironmentVariable('VENICE_API_KEY','Machine') }
-if (-not $key) { throw 'VENICE_API_KEY env var not set. Get one at https://venice.ai/settings/api and: [Environment]::SetEnvironmentVariable("VENICE_API_KEY","<key>","User")' }
+# Venice key - fetched from Infisical at /ai (fleet standard: DIRECT access, no wrapper
+# script, no key stored on disk or in an env var). See wiki APIs/Infisical.
+function Get-InfisicalSecret {
+  param(
+    [Parameter(Mandatory=$true)][string]$Name,
+    [string]$SecretPath = '/ai',
+    [string]$IdentityFile = "$env:USERPROFILE\.credentials\infisical-agents.env"
+  )
+  if (-not (Test-Path $IdentityFile)) {
+    throw "Infisical identity file not found at $IdentityFile. See wiki APIs/Infisical."
+  }
+  $cfg = @{}
+  foreach ($line in Get-Content $IdentityFile) {
+    if ($line -match '^\s*(?:export\s+)?([A-Za-z0-9_]+)\s*=\s*(.*)$') {
+      $cfg[$Matches[1]] = $Matches[2].Trim().Trim("'", '"')
+    }
+  }
+  $env0 = if ($cfg.INFISICAL_ENV) { $cfg.INFISICAL_ENV } else { 'prod' }
+  $login = Invoke-RestMethod -Method Post -TimeoutSec 20 `
+    -Uri "$($cfg.INFISICAL_URL)/api/v1/auth/universal-auth/login" `
+    -ContentType 'application/json' `
+    -Body (@{ clientId = $cfg.INFISICAL_CLIENT_ID; clientSecret = $cfg.INFISICAL_CLIENT_SECRET } | ConvertTo-Json)
+  $enc = [uri]::EscapeDataString($SecretPath)
+  $resp = Invoke-RestMethod -Method Get -TimeoutSec 20 `
+    -Uri "$($cfg.INFISICAL_URL)/api/v3/secrets/raw?workspaceId=$($cfg.INFISICAL_PROJECT_ID)&environment=$env0&secretPath=$enc" `
+    -Headers @{ Authorization = "Bearer $($login.accessToken)" }
+  $hit = $resp.secrets | Where-Object { $_.secretKey -eq $Name } | Select-Object -First 1
+  if (-not $hit) { throw "Secret '$Name' not found at Infisical path '$SecretPath'." }
+  return $hit.secretValue
+}
+
+$key = Get-InfisicalSecret -Name 'VENICE_API_KEY' -SecretPath '/ai'
+if (-not $key) { throw 'Could not retrieve VENICE_API_KEY from Infisical /ai.' }
 $headers = @{ 'Authorization' = "Bearer $key" }
 
 # Build the prompt — KEEP IDENTICAL to LalaImages/kit/prompt-template.txt
