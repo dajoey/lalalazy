@@ -257,15 +257,20 @@ if (-not $entry) {
         Punchline = $manifest.Punchline
         Description = $manifest.Description
         InternalName = $PluginName
-        AssemblyVersion = $version
+        # Channel separation for a BRAND-NEW plugin (fix 2026-07-30b): a first release on
+        # -Channel testing must not stamp the production pointer. Production stays at
+        # 0.0.0.0 until an explicit -Channel production run promotes it, and the entry is
+        # marked testing-exclusive so Dalamud never offers the not-yet-existing latest.zip.
+        AssemblyVersion = $(if ($Channel -eq 'testing') { '0.0.0.0' } else { $version })
+        TestingAssemblyVersion = $(if ($Channel -eq 'testing') { $version } else { $null })
         Changelog = $changelogText
         RepoUrl = "https://github.com/dajoey/lalalazy/tree/main/src/$PluginName"
         ApplicableVersion = "any"
         DalamudApiLevel = $manifest.DalamudApiLevel
         IsHide = $false
-        IsTestingExclusive = $false
-        DownloadLinkInstall = "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/$PluginName/latest/latest.zip"
-        DownloadLinkUpdate = "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/$PluginName/latest/latest.zip"
+        IsTestingExclusive = $(if ($Channel -eq 'testing') { $true } else { $false })
+        DownloadLinkInstall = $(if ($Channel -eq 'testing') { "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/$PluginName/testing/testing.zip" } else { "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/$PluginName/latest/latest.zip" })
+        DownloadLinkUpdate = $(if ($Channel -eq 'testing') { "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/$PluginName/testing/testing.zip" } else { "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/$PluginName/latest/latest.zip" })
         DownloadLinkTesting = "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/$PluginName/testing/testing.zip"
         Tags = $manifest.Tags
         CategoryTags = $manifest.CategoryTags
@@ -299,6 +304,9 @@ if (-not $entry) {
         }
     } else {
         $entry.AssemblyVersion = $version
+        # Promoting to production retires the testing-exclusive flag set by a first
+        # testing-only release, so the plugin becomes visible to everyone.
+        if ($entry.PSObject.Properties['IsTestingExclusive']) { $entry.IsTestingExclusive = $false }
     }
 }
 

@@ -60,7 +60,8 @@ if (-not (Test-Path $lalaDir)) { throw "LalaImages/ not found under $RepoRoot" }
 if (-not (Test-Path $basePath)) { throw "Canonical base not found at $basePath" }
 
 # Venice key
-$key = [Environment]::GetEnvironmentVariable('VENICE_API_KEY','User')
+$key = $env:VENICE_API_KEY
+ if (-not $key) { $key = [Environment]::GetEnvironmentVariable('VENICE_API_KEY','User') }
 if (-not $key) { $key = [Environment]::GetEnvironmentVariable('VENICE_API_KEY','Machine') }
 if (-not $key) { throw 'VENICE_API_KEY env var not set. Get one at https://venice.ai/settings/api and: [Environment]::SetEnvironmentVariable("VENICE_API_KEY","<key>","User")' }
 $headers = @{ 'Authorization' = "Bearer $key" }
