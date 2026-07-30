@@ -67,6 +67,7 @@ cd src/LazyWTMath && dotnet build --configuration Release
 cd src/LazyCurrencySpender && dotnet build --configuration Release
 cd src/LazyFateAutomation && dotnet build --configuration Release
 cd src/LazySkywardTracker && dotnet build --configuration Release
+cd src/LazyGearCollector && dotnet build --configuration Release
 cd src/LazyFoodBuff/LazyFoodBuff && dotnet build --configuration Release
 
 ```

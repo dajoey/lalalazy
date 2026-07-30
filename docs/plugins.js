@@ -110,5 +110,16 @@ const PLUGINS = [
       { t: 'Refresh & warn', d: 'Re-eats before the buff expires and warns you in chat when you are running low on food.' },
     ],
   },
+  {
+    slug: 'lazygearcollector', name: 'Lazy Gear Collector', origin: 'Original', hasWindow: true,
+    short: 'Tracks upgradable gear sets \u2014 what you own, what tier it is, and what it costs to finish.',
+    tag: 'Stop doing gear bookkeeping in your head.',
+    command: '/lazygear', credit: 'Original plugin by dajoey',
+    features: [
+      { t: 'Every role, every slot', d: 'Occult Crescent North Horn\u2019s Phantom Vision sets \u2014 7 roles, 5 slots, 4 tiers \u2014 with per-role progress and click-through detail.' },
+      { t: 'Prices from the game itself', d: 'Reads the shop tables at runtime, so obol and fixative costs are the game\u2019s own numbers and survive patches.' },
+      { t: 'Spots free trade-ups', d: 'Flags Arcanaut\u2019s gear you can exchange straight in, including the two-step route that saves 4,000 obols a piece.' },
+    ],
+  },
 ];
 if (typeof module !== 'undefined') module.exports = PLUGINS;

@@ -1,0 +1,22 @@
+{
+  "Author": "dajoey",
+  "Name": "Lazy Gear Collector",
+  "Punchline": "Track upgradable gear sets and what it costs to finish them",
+  "Description": "Tracks upgradable gear collections piece by piece. Starts with Occult Crescent: North Horn's Phantom Vision sets - all 7 roles, 5 slots, 4 tiers. Shows which pieces you own and at what tier, what the next upgrade costs, and the exact obol/fixative shortfall to finish a role or the whole collection. Every item ID and price is read from the game's own shop data at runtime, so it stays correct across patches. Also flags Arcanaut's gear you can trade up for free. Use /lazygear to open.",
+  "ApplicableVersion": "any",
+  "Tags": [
+    "occult",
+    "crescent",
+    "northhorn",
+    "phantomvision",
+    "gear",
+    "collection",
+    "tracker"
+  ],
+  "CategoryTags": [ "utility" ],
+  "InternalName": "LazyGearCollector",
+  "DalamudApiLevel": 15,
+  "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazygearcollector-icon.png",
+  "ImageUrls": [ "" ],
+  "Changelog": "v0.0.1 - First release. Phantom Vision (North Horn) collection tracking with runtime shop-derived costs and Arcanaut's trade-up detection."
+}

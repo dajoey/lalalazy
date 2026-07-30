@@ -35,6 +35,7 @@ $nameMapping = @{
     "LazyCurrencySpender"  = "Lazy-Currency-Spender.md"
     "LazyFateAutomation"   = "Lazy-Fate-Automation.md"
     "LazySkywardTracker"  = "Lazy-Skyward-Tracker.md"
+    "LazyGearCollector"   = "Lazy-Gear-Collector.md"
     "LazyFoodBuff"         = "LazyFoodBuff.md"
 }
 
