@@ -30,9 +30,7 @@ namespace GluttonyCombo.Combos.PvE;
 ///     UseAction directly and bypasses GluttonyCombo's own UseAction detour (penalty gate,
 ///     retargeting, queue handling) so plugin combat logic can never silently eat the cast —
 ///     the leading candidate cause of the v1.0.4.86-96 "cycles jobs but never casts" failures.
-///     Success is verified by the buff status actually appearing/refreshing, and every attempt
-///     logs GetActionStatus + the UseAction return value to the Dalamud log (/xllog) under
-///     [CrystalBuffs], so any remaining failure is diagnosable from a single run.
+///     Success is verified by the buff status actually appearing/refreshing.
 /// </summary>
 internal static class OccultCrystalBuffs
 {
@@ -220,7 +218,6 @@ internal static class OccultCrystalBuffs
         lastAttemptTime = DateTime.MinValue;
         castAttempts = 0;
         preCastRemaining = GetStatusRemaining(job.BuffStatusId);
-        Svc.Log.Information($"[CrystalBuffs] {job.Label}: job confirmed, starting casts (pre-cast remaining: {(preCastRemaining.HasValue ? $"{preCastRemaining.Value:F0}s" : "none")}).");
     }
 
     private static unsafe void OnFrameworkUpdate(object framework)
@@ -263,7 +260,7 @@ internal static class OccultCrystalBuffs
             if (successCount == buffingJobs.Count)
                 DuoLog.Information($"Phantom Job crystal buff cycle complete: {successCount}/{buffingJobs.Count} buffs applied. Restored original Phantom Job.");
             else
-                DuoLog.Warning($"Phantom Job crystal buff cycle finished with {successCount}/{buffingJobs.Count} buffs applied — check /xllog ([CrystalBuffs]) for the per-attempt action status codes.");
+                DuoLog.Warning($"Phantom Job crystal buff cycle finished with {successCount}/{buffingJobs.Count} buffs applied.");
             return;
         }
 
@@ -340,7 +337,7 @@ internal static class OccultCrystalBuffs
 
                 if ((DateTime.Now - stepStartTime).TotalMilliseconds >= CastTimeoutMs)
                 {
-                    DuoLog.Warning($"{job.Label} did not apply within {CastTimeoutMs / 1000}s ({castAttempts} attempts across both cast paths) — see /xllog ([CrystalBuffs]) for the action status codes.");
+                    DuoLog.Warning($"{job.Label} did not apply within {CastTimeoutMs / 1000}s. Moving on.");
                     subState = Step.Settle;
                     stepStartTime = DateTime.Now;
                     return;
@@ -352,26 +349,18 @@ internal static class OccultCrystalBuffs
                 if ((DateTime.Now - lastAttemptTime).TotalMilliseconds < AttemptIntervalMs)
                     return;
 
-                var am = ActionManager.Instance();
-                if (am == null)
-                    return;
-
                 castAttempts++;
                 lastAttemptTime = DateTime.Now;
 
                 if (castAttempts <= GeneralActionAttempts)
                 {
                     // Path 1: phantom hotbar slot (GeneralAction 31-35), like pressing the button.
-                    uint status = am->GetActionStatus(ActionType.GeneralAction, job.GeneralActionId);
-                    bool used = ActionWatching.UseActionRaw(ActionType.GeneralAction, job.GeneralActionId);
-                    Svc.Log.Information($"[CrystalBuffs] {job.Label}: attempt {castAttempts}/{MaxCastAttempts} via GeneralAction slot {job.GeneralActionId} -> UseAction={used}, GetActionStatus={status}");
+                    ActionWatching.UseActionRaw(ActionType.GeneralAction, job.GeneralActionId);
                 }
                 else
                 {
                     // Path 2: real Action-sheet id, self-targeted (RSR/Wrath-AutoRotation style).
-                    uint status = am->GetActionStatus(ActionType.Action, job.ActionId);
-                    bool used = ActionWatching.UseActionRaw(ActionType.Action, job.ActionId, Player.Object.GameObjectId);
-                    Svc.Log.Information($"[CrystalBuffs] {job.Label}: attempt {castAttempts}/{MaxCastAttempts} via Action {job.ActionId} -> UseAction={used}, GetActionStatus={status}");
+                    ActionWatching.UseActionRaw(ActionType.Action, job.ActionId, Player.Object.GameObjectId);
                 }
                 return;
             }

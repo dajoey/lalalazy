@@ -1,3 +1,8 @@
+## v1.0.4.99 (2026-07-30)
+
+### Changed
+- **`/gluttony buff` promoted to production** (`Combos/PvE/Content/OccultCrescent/OccultCrystalBuffs.cs`): removed the per-attempt `[CrystalBuffs]` Dalamud-log diagnostics (GetActionStatus probes + UseAction return logging) that v1.0.4.98 carried for the cast-path investigation, now that the rework is confirmed working in-game. Behavior is otherwise unchanged: hook-bypassed dual cast path, verified buff application, strict phantom-status job confirm, skip-if-fresh, and the chat progress/summary messages all remain.
+
 ## v1.0.4.98 (2026-07-29)
 
 ### Fixed

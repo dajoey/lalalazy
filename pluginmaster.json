@@ -128,8 +128,8 @@
         "Punchline":  "Lalalazy fork of Wrath Combo - XIVCombo for very lazy players.",
         "Description":  "Gluttony Combo - lalalazy fork of Gluttony Combo. XIVCombo for very lazy players.",
         "InternalName":  "GluttonyCombo",
-        "AssemblyVersion":  "1.0.4.98",
-        "Changelog":  "v1.0.4.98 - /gluttony buff cast path reworked: casts bypass GluttonyCombo's own UseAction hook (new ActionWatching.UseActionRaw), dual cast path (GeneralAction phantom slots 31-34 primary, real Action ids 41589/41597/41609/46603 fallback, 3 attempts each), verified buff application vs pre-cast snapshot, strict phantom-status job confirm, skip already-fresh buffs, per-attempt [CrystalBuffs] diagnostics in /xllog, end-of-cycle N/M summary.\n\nv1.0.4.97 - Merged upstream Wrath Combo 1.0.4.19\n- Upstream job-rotation updates across SAM, NIN, MNK, MCH, RPR, DRG, BLM, VPR, SGE and WHM (Samurai and Ninja got the biggest reworks: Throwing Daggers / Fleeting Raiju handling and opener fixes).\n- Item usage is now attributed to the correct player, and the weave / \"GCDs used\" checks were reworked to read action history more robustly.\n- Action-sheet lookups are hardened so an unknown action ID can no longer throw.\n- All GluttonyCombo customizations preserved: Amnesia / Pacification / Silence handling, 15s raidwide-mitigation gate + raidwide cast-bar timer, WHM ground-heal targeting, SMN Aegis Uptime, BLU autorotation engine, and OccultCrescent phantom-job buffs.\n",
+        "AssemblyVersion":  "1.0.4.99",
+        "Changelog":  "v1.0.4.99 - /gluttony buff promoted to production: removed the per-attempt [CrystalBuffs] diagnostic logging from the v1.0.4.98 cast-path rework (confirmed working in-game); behavior otherwise unchanged.\n\nv1.0.4.98 - /gluttony buff cast path reworked: casts bypass GluttonyCombo\u0027s own UseAction hook (new ActionWatching.UseActionRaw), dual cast path (GeneralAction phantom slots 31-34 primary, real Action ids 41589/41597/41609/46603 fallback, 3 attempts each), verified buff application vs pre-cast snapshot, strict phantom-status job confirm, skip already-fresh buffs, per-attempt [CrystalBuffs] diagnostics in /xllog, end-of-cycle N/M summary.\n\nv1.0.4.97 - Merged upstream Wrath Combo 1.0.4.19\n- Upstream job-rotation updates across SAM, NIN, MNK, MCH, RPR, DRG, BLM, VPR, SGE and WHM (Samurai and Ninja got the biggest reworks: Throwing Daggers / Fleeting Raiju handling and opener fixes).\n- Item usage is now attributed to the correct player, and the weave / \"GCDs used\" checks were reworked to read action history more robustly.\n- Action-sheet lookups are hardened so an unknown action ID can no longer throw.\n- All GluttonyCombo customizations preserved: Amnesia / Pacification / Silence handling, 15s raidwide-mitigation gate + raidwide cast-bar timer, WHM ground-heal targeting, SMN Aegis Uptime, BLU autorotation engine, and OccultCrescent phantom-job buffs.\n",
         "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/GluttonyCombo",
         "ApplicableVersion":  "any",
         "DalamudApiLevel":  15,
@@ -157,7 +157,7 @@
                       ],
         "DownloadCount":  0,
         "LastUpdate":  "1785138374",
-        "TestingAssemblyVersion":  "1.0.4.98",
+        "TestingAssemblyVersion":  "1.0.4.99",
         "TestingDalamudApiLevel":  15
     },
     {
