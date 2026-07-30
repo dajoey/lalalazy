@@ -9,54 +9,91 @@ using ECommons.Logging;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.InstanceContent;
 using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Data;
 
 namespace GluttonyCombo.Combos.PvE;
 
+/// <summary>
+///     "/gluttony buff" — cycles Phantom Jobs at a Knowledge Crystal, applies each job's long
+///     party buff (Pray, Counterstance, Romeo's Ballad, Quickstep), then restores the original job.
+///     <para/>
+///     Cast strategy (v1.0.4.98): two independent, community-verified paths per buff —
+///     <list type="number">
+///         <item>ActionType.GeneralAction phantom slot (rows 31-35 = "Phantom Action I-V" —
+///         verified unchanged on the live 7.5x GeneralAction sheet). Identical to pressing the
+///         phantom hotbar button; this is what BOCCHI's Buff module does.</item>
+///         <item>ActionType.Action with the real Action-sheet id (Pray 41589 etc.), explicit
+///         self-target — the way RotationSolverReborn and Wrath's own AutoRotation cast
+///         phantom actions.</item>
+///     </list>
+///     Both paths go through <see cref="ActionWatching.UseActionRaw"/>, which calls the game's
+///     UseAction directly and bypasses GluttonyCombo's own UseAction detour (penalty gate,
+///     retargeting, queue handling) so plugin combat logic can never silently eat the cast —
+///     the leading candidate cause of the v1.0.4.86-96 "cycles jobs but never casts" failures.
+///     Success is verified by the buff status actually appearing/refreshing, and every attempt
+///     logs GetActionStatus + the UseAction return value to the Dalamud log (/xllog) under
+///     [CrystalBuffs], so any remaining failure is diagnosable from a single run.
+/// </summary>
 internal static class OccultCrystalBuffs
 {
-    private enum SequenceSubState
+    private enum Step
     {
         SwitchJob,
-        WaitForJobChange,
-        CastBuff,
-        WaitDelay
+        ConfirmJob,
+        Cast,
+        Settle,
     }
 
-    // Phantom job abilities are NOT castable via ActionType.Action + the 41xxx Action-sheet IDs —
-    // the client silently rejects those casts (this was the v1.0.4.86-95 "waits but never casts"
-    // bug). The phantom hotbar casts them via ActionType.GeneralAction with per-slot GeneralAction
-    // row IDs (31-34), exactly like pressing the buttons manually.
-    // Reference: BOCCHI Buff module (github.com/OhKannaDuh/BOCCHI), verified working in-game.
-    private sealed record BuffJob(int JobId, uint GeneralActionId, uint BuffStatusId, uint PhantomJobStatusId, string Label);
+    /// <param name="JobId">Support job to switch to (<see cref="OccultCrescent.JobIDs"/>).</param>
+    /// <param name="GeneralActionId">Phantom Action hotbar slot (GeneralAction rows 31-35). Primary cast path.</param>
+    /// <param name="ActionId">Real Action-sheet id. Fallback cast path.</param>
+    /// <param name="BuffStatusId">Long party buff used to verify the cast landed.</param>
+    /// <param name="PhantomJobStatusId">"Phantom &lt;Job&gt;" status the server applies once the job change lands.</param>
+    private sealed record BuffJob(int JobId, uint GeneralActionId, uint ActionId, uint BuffStatusId, uint PhantomJobStatusId, string Label);
 
     private static readonly List<BuffJob> JobBuffMap =
     [
-        new((int)OccultCrescent.JobIDs.Knight, 32, 4233, 4358, "Pray (Enduring Fortitude)"),   // Knight slot 2
-        new((int)OccultCrescent.JobIDs.Monk,   33, 4239, 4360, "Counterstance (Fleetfooted)"), // Monk slot 3
-        new((int)OccultCrescent.JobIDs.Bard,   32, 4244, 4363, "Romeo's Ballad"),              // Bard slot 2
-        new((int)OccultCrescent.JobIDs.Dancer, 32, 4799, 4805, "Quickstep (Quicker Step)"),    // Dancer slot 2
+        new((int)OccultCrescent.JobIDs.Knight, 32, OccultCrescent.Pray, OccultCrescent.Buffs.EnduringFortitude, 4358, "Pray (Enduring Fortitude)"),
+        new((int)OccultCrescent.JobIDs.Monk, 33, OccultCrescent.Counterstance, OccultCrescent.Buffs.Fleetfooted, 4360, "Counterstance (Fleetfooted)"),
+        new((int)OccultCrescent.JobIDs.Bard, 32, OccultCrescent.RomeosBallad, OccultCrescent.Buffs.RomeosBallad, 4363, "Romeo's Ballad"),
+        new((int)OccultCrescent.JobIDs.Dancer, 32, OccultCrescent.Quickstep, 4799 /* Quicker Step */, 4805, "Quickstep (Quicker Step)"),
     ];
 
-    // Buffs last 30 minutes (1800s); a freshly applied one shows >= ~1780s remaining.
-    private const float FreshBuffThresholdSeconds = 1780f;
+    // Skip a job entirely if its buff already has this much time left (buffs run 1800s).
+    private const float FreshSkipSeconds = 1500f;
+
+    // A cast counts as landed when the buff's remaining time exceeds the pre-cast snapshot by this much.
+    private const float CastSuccessMinGainSeconds = 60f;
+
+    private const int JobConfirmTimeoutMs = 6000;   // max wait for the phantom-job status after ChangeSupportJob
+    private const int ByteConfirmFloorMs = 1500;    // state-byte-only confirm must hold at least this long
+    private const int PostConfirmSettleMs = 600;    // settle after confirm so the phantom slots initialize
+    private const int AttemptIntervalMs = 800;      // spacing between cast attempts
+    private const int GeneralActionAttempts = 3;    // attempts 1-3: GeneralAction slot path
+    private const int MaxCastAttempts = 6;          // attempts 4-6: Action-sheet id fallback path
+    private const int CastTimeoutMs = 10000;        // give up on a job's buff after this long in Cast
+    private const int SettleMs = 1000;              // pause between jobs (animation lock etc.)
+    private const int SequenceTimeoutMs = 120000;   // whole-cycle safety net
 
     private static bool isRunning = false;
     private static int initialJob = -1;
     private static int currentJobIndex = 0;
+    private static int successCount = 0;
+    private static int castAttempts = 0;
+    private static float? preCastRemaining = null;
     private static List<BuffJob> buffingJobs = [];
     private static IGameObject? targetCrystal = null;
     private static DateTime stepStartTime = DateTime.MinValue;
     private static DateTime sequenceStartTime = DateTime.MinValue;
-    private static DateTime lastCastTime = DateTime.MinValue;
-    private static SequenceSubState subState = SequenceSubState.SwitchJob;
+    private static DateTime lastAttemptTime = DateTime.MinValue;
+    private static DateTime confirmedAtTime = DateTime.MinValue;
+    private static Step subState = Step.SwitchJob;
 
-    // Helper to check if local player has a given status
     private static bool HasStatus(uint statusId)
     {
         return Player.Object != null && Player.Object.StatusList.Any(s => s.StatusId == statusId);
     }
 
-    // Remaining seconds on a status, or null if not present
     private static float? GetStatusRemaining(uint statusId)
     {
         if (Player.Object == null) return null;
@@ -92,14 +129,15 @@ internal static class OccultCrystalBuffs
 
         Vector3 playerPos = Player.Object.Position;
 
-        // If player already targets a crystal/node object nearby, use it directly
+        // Job changes only work at a Knowledge Crystal / Aetherial Node — require one nearby.
+        // NOTE: deliberately no hard-targeting of the crystal (BOCCHI parity); the buffs are
+        // self/party casts and an EventObj hard target is at best useless to them.
         if (Svc.Targets.Target != null && Vector3.Distance(playerPos, Svc.Targets.Target.Position) <= 10.0f)
         {
             targetCrystal = Svc.Targets.Target;
         }
         else
         {
-            // Search for nearby crystal / node
             targetCrystal = Svc.Objects.FirstOrDefault(o =>
                 o != null &&
                 Vector3.Distance(playerPos, o.Position) <= 10.0f &&
@@ -127,7 +165,6 @@ internal static class OccultCrystalBuffs
             initialJob = inst->State.CurrentSupportJob;
         }
 
-        // Build ordered list of active buffing jobs
         buffingJobs.Clear();
         foreach (var buffJob in JobBuffMap)
         {
@@ -146,13 +183,10 @@ internal static class OccultCrystalBuffs
 
         isRunning = true;
         currentJobIndex = 0;
-        subState = SequenceSubState.SwitchJob;
+        successCount = 0;
+        subState = Step.SwitchJob;
         sequenceStartTime = DateTime.Now;
         stepStartTime = DateTime.Now;
-        lastCastTime = DateTime.MinValue;
-
-        // Target crystal
-        Svc.Targets.Target = targetCrystal;
 
         DuoLog.Information($"Starting Phantom Job crystal buff cycle across {buffingJobs.Count} jobs...");
 
@@ -172,12 +206,28 @@ internal static class OccultCrystalBuffs
         }
     }
 
+    private static void NextJob()
+    {
+        currentJobIndex++;
+        subState = Step.SwitchJob;
+        stepStartTime = DateTime.Now;
+    }
+
+    private static void BeginCast(BuffJob job)
+    {
+        subState = Step.Cast;
+        stepStartTime = DateTime.Now;
+        lastAttemptTime = DateTime.MinValue;
+        castAttempts = 0;
+        preCastRemaining = GetStatusRemaining(job.BuffStatusId);
+        Svc.Log.Information($"[CrystalBuffs] {job.Label}: job confirmed, starting casts (pre-cast remaining: {(preCastRemaining.HasValue ? $"{preCastRemaining.Value:F0}s" : "none")}).");
+    }
+
     private static unsafe void OnFrameworkUpdate(object framework)
     {
         if (!isRunning) return;
 
-        // Timeout guard: 120 seconds max (worst case ~17s per job)
-        if ((DateTime.Now - sequenceStartTime).TotalSeconds > 120)
+        if ((DateTime.Now - sequenceStartTime).TotalMilliseconds > SequenceTimeoutMs)
         {
             StopSequence("Timeout exceeded (120s).");
             return;
@@ -189,7 +239,6 @@ internal static class OccultCrystalBuffs
             return;
         }
 
-        // Distance guard
         if (targetCrystal != null && Vector3.Distance(Player.Object.Position, targetCrystal.Position) > 12.0f)
         {
             StopSequence("Moved too far away from the crystal.");
@@ -205,103 +254,134 @@ internal static class OccultCrystalBuffs
 
         if (currentJobIndex >= buffingJobs.Count)
         {
-            // Sequence complete: restore initial job natively
             if (initialJob >= 0 && inst->State.CurrentSupportJob != (byte)initialJob)
             {
                 PublicContentOccultCrescent.ChangeSupportJob((byte)initialJob);
             }
 
             StopSequence("");
-            DuoLog.Information("Phantom Job crystal buff cycle complete! Restored original Phantom Job.");
+            if (successCount == buffingJobs.Count)
+                DuoLog.Information($"Phantom Job crystal buff cycle complete: {successCount}/{buffingJobs.Count} buffs applied. Restored original Phantom Job.");
+            else
+                DuoLog.Warning($"Phantom Job crystal buff cycle finished with {successCount}/{buffingJobs.Count} buffs applied — check /xllog ([CrystalBuffs]) for the per-attempt action status codes.");
             return;
         }
 
-        var buffJob = buffingJobs[currentJobIndex];
-        int jobId = buffJob.JobId;
+        var job = buffingJobs[currentJobIndex];
 
         switch (subState)
         {
-            case SequenceSubState.SwitchJob:
-                // Native C++ function call to change support job at crystal
-                if (inst->State.CurrentSupportJob != (byte)jobId)
+            case Step.SwitchJob:
+            {
+                // Already fresh? Don't even swap.
+                var existing = GetStatusRemaining(job.BuffStatusId);
+                if (existing.HasValue && existing.Value >= FreshSkipSeconds)
                 {
-                    PublicContentOccultCrescent.ChangeSupportJob((byte)jobId);
-                    DuoLog.Information($"Switching to Phantom {(OccultCrescent.JobIDs)jobId} for {buffJob.Label}...");
-                }
-
-                subState = SequenceSubState.WaitForJobChange;
-                stepStartTime = DateTime.Now;
-                break;
-
-            case SequenceSubState.WaitForJobChange:
-                // Confirm via the Phantom Job status (e.g. Phantom Monk) — this is what the
-                // server applies once the change fully lands; more reliable than the state byte.
-                if (HasStatus(buffJob.PhantomJobStatusId) || inst->State.CurrentSupportJob == (byte)jobId)
-                {
-                    // 400ms post-change settle so the phantom hotbar/equipped actions initialize
-                    if ((DateTime.Now - stepStartTime).TotalMilliseconds >= 400)
-                    {
-                        subState = SequenceSubState.CastBuff;
-                        stepStartTime = DateTime.Now;
-                        lastCastTime = DateTime.MinValue;
-                    }
+                    successCount++;
+                    DuoLog.Information($"{job.Label} already active ({existing.Value:F0}s) — skipping.");
+                    NextJob();
                     return;
                 }
 
-                // Wait up to 5.0s for server job change confirmation
-                if ((DateTime.Now - stepStartTime).TotalMilliseconds > 5000)
+                if (inst->State.CurrentSupportJob != (byte)job.JobId)
                 {
-                    DuoLog.Warning($"Job change to Phantom {(OccultCrescent.JobIDs)jobId} did not confirm in time. Skipping to next job.");
-                    currentJobIndex++;
-                    subState = SequenceSubState.SwitchJob;
+                    PublicContentOccultCrescent.ChangeSupportJob((byte)job.JobId);
+                    DuoLog.Information($"Switching to Phantom {(OccultCrescent.JobIDs)job.JobId} for {job.Label}...");
+                }
+
+                subState = Step.ConfirmJob;
+                stepStartTime = DateTime.Now;
+                confirmedAtTime = DateTime.MinValue;
+                return;
+            }
+
+            case Step.ConfirmJob:
+            {
+                // Primary confirm: the "Phantom <Job>" status — applied by the server once the
+                // support-job change fully lands (BOCCHI parity). Fallback: the state byte,
+                // but only after it has held for a floor period, since it can lead the server.
+                bool statusConfirmed = HasStatus(job.PhantomJobStatusId);
+                bool byteConfirmed = inst->State.CurrentSupportJob == (byte)job.JobId &&
+                                     (DateTime.Now - stepStartTime).TotalMilliseconds >= ByteConfirmFloorMs;
+
+                if (statusConfirmed || byteConfirmed)
+                {
+                    if (confirmedAtTime == DateTime.MinValue)
+                        confirmedAtTime = DateTime.Now;
+
+                    if ((DateTime.Now - confirmedAtTime).TotalMilliseconds >= PostConfirmSettleMs)
+                        BeginCast(job);
+
+                    return;
+                }
+
+                if ((DateTime.Now - stepStartTime).TotalMilliseconds > JobConfirmTimeoutMs)
+                {
+                    DuoLog.Warning($"Job change to Phantom {(OccultCrescent.JobIDs)job.JobId} did not confirm within {JobConfirmTimeoutMs / 1000}s. Skipping {job.Label}.");
+                    NextJob();
+                }
+                return;
+            }
+
+            case Step.Cast:
+            {
+                // Success = the buff is present and meaningfully fresher than before we started.
+                var remaining = GetStatusRemaining(job.BuffStatusId);
+                bool applied = remaining.HasValue &&
+                               (!preCastRemaining.HasValue || remaining.Value > preCastRemaining.Value + CastSuccessMinGainSeconds);
+                if (applied)
+                {
+                    successCount++;
+                    DuoLog.Information($"{job.Label} applied ({remaining!.Value:F0}s remaining).");
+                    subState = Step.Settle;
                     stepStartTime = DateTime.Now;
-                }
-                break;
-
-            case SequenceSubState.CastBuff:
-                {
-                    // Done when the buff is present AND freshly applied (>= ~1780s of 1800s left)
-                    var remaining = GetStatusRemaining(buffJob.BuffStatusId);
-                    if (remaining.HasValue && remaining.Value >= FreshBuffThresholdSeconds)
-                    {
-                        DuoLog.Information($"{buffJob.Label} applied ({remaining.Value:F0}s).");
-                        subState = SequenceSubState.WaitDelay;
-                        stepStartTime = DateTime.Now;
-                        return;
-                    }
-
-                    // Cast via GeneralAction slot when off recast, retrying every 500ms
-                    var am = ActionManager.Instance();
-                    if (am != null && (DateTime.Now - lastCastTime).TotalMilliseconds >= 500)
-                    {
-                        float recast = am->GetRecastTime(ActionType.GeneralAction, buffJob.GeneralActionId);
-                        float elapsed = am->GetRecastTimeElapsed(ActionType.GeneralAction, buffJob.GeneralActionId);
-                        if (recast - elapsed <= 0f)
-                        {
-                            am->UseAction(ActionType.GeneralAction, buffJob.GeneralActionId);
-                            lastCastTime = DateTime.Now;
-                        }
-                    }
-
-                    // Max 10s in CastBuff per job, then move on with a warning
-                    if ((DateTime.Now - stepStartTime).TotalMilliseconds >= 10000)
-                    {
-                        DuoLog.Warning($"{buffJob.Label} did not confirm within 10s. Moving to next job.");
-                        subState = SequenceSubState.WaitDelay;
-                        stepStartTime = DateTime.Now;
-                    }
-                    break;
+                    return;
                 }
 
-            case SequenceSubState.WaitDelay:
-                // 800ms settle so animation lock finishes before the next job swap
-                if ((DateTime.Now - stepStartTime).TotalMilliseconds >= 800)
+                if ((DateTime.Now - stepStartTime).TotalMilliseconds >= CastTimeoutMs)
                 {
-                    currentJobIndex++;
-                    subState = SequenceSubState.SwitchJob;
+                    DuoLog.Warning($"{job.Label} did not apply within {CastTimeoutMs / 1000}s ({castAttempts} attempts across both cast paths) — see /xllog ([CrystalBuffs]) for the action status codes.");
+                    subState = Step.Settle;
                     stepStartTime = DateTime.Now;
+                    return;
                 }
-                break;
+
+                if (castAttempts >= MaxCastAttempts)
+                    return; // out of attempts — wait out the timeout window for a late server ack
+
+                if ((DateTime.Now - lastAttemptTime).TotalMilliseconds < AttemptIntervalMs)
+                    return;
+
+                var am = ActionManager.Instance();
+                if (am == null)
+                    return;
+
+                castAttempts++;
+                lastAttemptTime = DateTime.Now;
+
+                if (castAttempts <= GeneralActionAttempts)
+                {
+                    // Path 1: phantom hotbar slot (GeneralAction 31-35), like pressing the button.
+                    uint status = am->GetActionStatus(ActionType.GeneralAction, job.GeneralActionId);
+                    bool used = ActionWatching.UseActionRaw(ActionType.GeneralAction, job.GeneralActionId);
+                    Svc.Log.Information($"[CrystalBuffs] {job.Label}: attempt {castAttempts}/{MaxCastAttempts} via GeneralAction slot {job.GeneralActionId} -> UseAction={used}, GetActionStatus={status}");
+                }
+                else
+                {
+                    // Path 2: real Action-sheet id, self-targeted (RSR/Wrath-AutoRotation style).
+                    uint status = am->GetActionStatus(ActionType.Action, job.ActionId);
+                    bool used = ActionWatching.UseActionRaw(ActionType.Action, job.ActionId, Player.Object.GameObjectId);
+                    Svc.Log.Information($"[CrystalBuffs] {job.Label}: attempt {castAttempts}/{MaxCastAttempts} via Action {job.ActionId} -> UseAction={used}, GetActionStatus={status}");
+                }
+                return;
+            }
+
+            case Step.Settle:
+            {
+                if ((DateTime.Now - stepStartTime).TotalMilliseconds >= SettleMs)
+                    NextJob();
+                return;
+            }
         }
     }
 }

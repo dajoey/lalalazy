@@ -556,6 +556,32 @@ public static class ActionWatching
     }
 
     /// <summary> Handles logic when an action is used. </summary>
+    /// <summary>
+    ///     Invokes the game's UseAction directly via the hook's original entry point, bypassing
+    ///     GluttonyCombo's own UseAction detour (penalty gate, retargeting, queue handling).
+    ///     Used by out-of-combat automation (e.g. OccultCrystalBuffs) so plugin combat logic can
+    ///     never silently swallow the cast. Falls back to the plain ActionManager call if the
+    ///     hook isn't live.
+    /// </summary>
+    internal static unsafe bool UseActionRaw(ActionType actionType, uint actionId, ulong targetId = 0xE000_0000)
+    {
+        var am = ActionManager.Instance();
+        if (am == null)
+            return false;
+
+        try
+        {
+            if (UseActionHook is { IsDisposed: false } hook)
+                return hook.Original(am, actionType, actionId, targetId, 0, ActionManager.UseActionMode.None, 0, null);
+        }
+        catch (Exception ex)
+        {
+            Svc.Log.Error(ex, "[CrystalBuffs] UseActionRaw via hook.Original failed; falling back to ActionManager.UseAction");
+        }
+
+        return am->UseAction(actionType, actionId, targetId, 0, ActionManager.UseActionMode.None, 0, null);
+    }
+
     private unsafe static bool UseActionDetour(ActionManager* actionManager, ActionType actionType, uint actionId, ulong targetId, uint extraParam, ActionManager.UseActionMode mode, uint comboRouteId, bool* outOptAreaTargeted)
     {
         try
