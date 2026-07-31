@@ -10,7 +10,7 @@ namespace RotationSolver.Basic.Rotations.Duties;
 public partial class DutyRotation : IDisposable
 {
 	#region GCD
-	public virtual bool EmergencyGCD(out IAction? act)
+	public virtual bool EmergencyGCD(IAction? nextGCD, out IAction? act)
 	{
 		act = null; return false;
 	}

@@ -1,5 +1,15 @@
 # Changelog - PvP Solver
 
+## [0.1.0.10] - 2026-07-31
+### Changed
+- Synced upstream RotationSolverReborn commit `2ac940563`: the `EmergencyGCD` hook now takes the queued next GCD as a parameter, bringing it in line with `EmergencyAbility`, interrupts, dispels and the heal hooks, which have all taken it for some time. Applied to the base engine (`PvPSolver.Basic/Rotations/CustomRotation_GCD.cs` declaration + both call sites, `PvPSolver.Basic/Rotations/Duties/DutyRotation.cs` declaration) and to the two rotations that override it (`RebornRotations/PVPRotations/Healer/WHM_Default.PVP.cs`, `RebornRotations/PVPRotations/Ranged/BRD_Default.PVP.cs`).
+
+### Notes
+- **No gameplay change.** The new `nextGCD` parameter is not read by any implementation of the hook — not in this fork, and not anywhere in upstream `641bd792e`. It is plumbing for future upstream use. Purify (stun / heavy / bind / silence / deep freeze / Miracle of Nature), Guard, Recuperate and Standard-issue Elixir priority are unchanged, as are the WHM Aquaveil and BRD The Warden's Paean cleanse paths.
+- `WHM_Default.PVP.cs` and `BRD_Default.PVP.cs` are now byte-identical to upstream `641bd792e` (verified by diff, CR-normalised).
+- First release on the **reinstated testing channel**. The channel was removed 2026-06-07; its previous entry never worked because `TestingDalamudApiLevel` was unset, so Dalamud hid the build. Now set to 15 alongside `TestingAssemblyVersion`. Production remains 0.1.0.9 until this build is verified in-game.
+- Escalated by the nightly upstream-merge on 2026-07-31 under RUNBOOK 3.2 ("never pull base classes"). RUNBOOK amended the same day with a signature-only carve-out so equivalent changes sync unattended.
+
 ## [0.1.0.9] - 2026-07-02
 ### Changed
 - Hidden the three PvE-only config tabs inherited from upstream: Duty Rotation, Duty, and AutoDuty (incl. the AutoDuty helper-plugin installer list). Tabs are `[TabSkip]`-hidden, not deleted, so nightly subtree merges stay clean. (UI/RotationConfigWindowTab.cs)
