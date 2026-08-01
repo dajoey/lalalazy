@@ -1,0 +1,19 @@
+{
+  "modules": {
+    "state_manager": {
+      "config": {
+        "show_debug": {
+          "label": "Afficher l'état",
+          "tooltip": "Affiche l'état actuel dans l'interface utilisateur principale."
+        },
+        "title": "Configuration du Gestionnaire d'État"
+      },
+      "panel": {
+        "state": {
+          "label": "État"
+        },
+        "title": "Gestionnaire d'État"
+      }
+    }
+  }
+}

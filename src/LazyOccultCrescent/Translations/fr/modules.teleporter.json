@@ -1,0 +1,29 @@
+{
+  "modules": {
+    "teleporter": {
+      "config": {
+        "approach_aetheryte": {
+          "label": "S'approcher de l'éthérite après le rapatriement",
+          "tooltip": "Marche jusqu'à l'éthérite après le retour au camp de base.\n* Ne fonctionne que lors du retour via le plugin après un aléa ou une confrontation critique."
+        },
+        "path_to_destination": {
+          "label": "Se diriger vers l'événement après la téléportation",
+          "tooltip": "Utilise vnavmesh pour se diriger vers l'événement suivant après la téléportation via le panel Lazy Occult Crescent."
+        },
+        "return_after_critical_encounter": {
+          "label": "Retourner à la base après une confrontation critique",
+          "tooltip": "Utilise le Demi-rapatriement après avoir terminé une confrontation critique pour retourner au camp de base."
+        },
+        "return_after_fate": {
+          "label": "Retourner à la base après l'aléa",
+          "tooltip": "Utilise le Demi-rapatriement après avoir terminé un aléa pour retourner au camp de base."
+        },
+        "should_mount": {
+          "label": "Monter sur sa monture après la téléportation",
+          "tooltip": "Monte sur votre monture automatiquement après une téléportation."
+        },
+        "title": "Configuration des Téléportations"
+      }
+    }
+  }
+}

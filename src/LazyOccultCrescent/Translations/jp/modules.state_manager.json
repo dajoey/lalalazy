@@ -1,0 +1,19 @@
+{
+  "modules": {
+    "state_manager": {
+      "config": {
+        "title": "状態マネージャー設定",
+        "show_debug": {
+          "label": "状態を表示",
+          "tooltip": "メインUIに現在の状態を表示します。"
+        }
+      },
+      "panel": {
+        "title": "状態マネージャー",
+        "state": {
+          "label": "状態"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lazy Occult Crescent — lalalazy</title>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=Noto+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="nav">
+    <a class="brand" href="../index.html"><img src="https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/repo-icon.png" alt=""><b>lalalazy</b></a>
+    <span class="spacer"></span>
+    <a class="link" href="../index.html#plugins">All plugins</a>
+    <a class="link" href="https://github.com/dajoey/lalalazy">GitHub</a>
+  </nav>
+
+  <header class="mod-hero">
+    <img class="mico" src="https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyoccultcrescent-icon.png" alt="Lazy Occult Crescent icon">
+    <div>
+      <h1>Lazy Occult Crescent</h1>
+      <div class="badges">
+        <span class="pill fork">Fork</span>
+        <span class="pill active">Active</span>
+        <span class="pill window">Config window</span>
+      </div>
+      <p class="tag">Knows the whole Crescent. Both horns.</p>
+    </div>
+  </header>
+
+  <div class="feat">
+    <div class="f"><div class="fi">North Horn, day one</div><div class="ft">FATE and Critical Encounter tables datamined straight from patch 7.55, plus all six North Horn aetheryte shards and every one of the eight new phantom jobs.</div></div>
+    <div class="f"><div class="fi">Learns the zone itself</div><div class="ft">Shard and event positions live in the map layout, not the game’s data sheets — so instead of hand-surveying them, the plugin reads them off the live object table and remembers. A new zone bootstraps over your first lap.</div></div>
+    <div class="f"><div class="fi">Treasure &amp; carrot radar</div><div class="ft">Draws lines to nearby coffers and Fortune Carrots, with a precomputed optimal looting route so you stop backtracking across the map.</div></div>
+    <div class="f"><div class="fi">Live FATE &amp; CE tracking</div><div class="ft">What’s up, how far along it is, when it’ll finish, and what it drops — with one-click teleport and pathing to it.</div></div>
+    <div class="f"><div class="fi">Drives Gluttony Combo</div><div class="ft">Picks up GluttonyCombo for rotations when it’s installed, ahead of Wrath — currently the only provider that implements the 7.55 phantom jobs.</div></div>
+    <div class="f"><div class="fi">Trackers &amp; automation</div><div class="ft">Silver/gold and EXP per hour, phantom job buff automation, and an optional hands-off loop for FATEs, critical encounters and mob farming.</div></div>
+  </div>
+
+  <div class="kv">
+    <div class="row"><span class="k">Access</span><span class="v"><code>/lazyoccult</code> · <code>/lazyoc</code></span></div>
+    <div class="row"><span class="k">Type</span><span class="v">Fork</span></div>
+    <div class="row"><span class="k">Config</span><span class="v">In-game window</span></div>
+    <div class="row"><span class="k">Works with</span><span class="v">vnavmesh · Lifestream · GluttonyCombo (or Wrath Combo) · YesAlready</span></div>
+    <div class="row"><span class="k">Credit</span><span class="v">Fork of <a href="https://github.com/OhKannaDuh/BOCCHI">BOCCHI</a> by OhKannaDuh · AGPLv3</span></div>
+  </div>
+
+  <section class="install">
+    <div class="label">Install — add the repo, then grab Lazy Occult Crescent</div>
+    <div class="urlrow">
+      <code id="repo-url">https://raw.githubusercontent.com/dajoey/lalalazy/main/pluginmaster.json</code>
+      <button class="copybtn" onclick="copyRepo(this)">Copy</button>
+    </div>
+    <div class="steps">
+      <div class="step"><b>1.</b> <span class="mono">/xlsettings</span> → <b>Experimental</b> → paste under Custom Plugin Repositories.</div>
+      <div class="step"><b>2.</b> Save, open <span class="mono">/xlplugins</span>, search <b>Lazy Occult Crescent</b>.</div>
+      <div class="step"><b>3.</b> Install — done.</div>
+    </div>
+  </section>
+
+  <div style="display:flex;justify-content:space-between;gap:12px">
+    <a class="backlink" href="../index.html#plugins">← All plugins</a>
+    <a class="backlink" href="gluttonycombo.html">Gluttony Combo →</a>
+  </div>
+
+  <footer class="foot">
+    Maintained by <a href="https://github.com/dajoey">dajoey</a>. Forked from BOCCHI by OhKannaDuh, licensed AGPL-3.0-or-later.
+    <div class="disc">Not affiliated with Square Enix or goatcorp/Dalamud. FINAL FANTASY XIV is a registered trademark of Square Enix Holdings Co., Ltd.</div>
+  </footer>
+
+</div>
+<script>
+function copyRepo(btn){
+  navigator.clipboard && navigator.clipboard.writeText(document.getElementById('repo-url').textContent);
+  const t = btn.textContent; btn.textContent='Copied!'; setTimeout(()=>btn.textContent=t,1400);
+}
+</script>
+</body>
+</html>

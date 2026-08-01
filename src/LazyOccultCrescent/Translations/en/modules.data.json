@@ -1,0 +1,10 @@
+{
+  "modules": {
+    "data": {
+      "config": {
+        "title": "Crowdsourcing Config",
+        "explanation": "This module crowdsources monster locations so that it can be shared with the community.\n- This is opt in\n- We only send monster name, position and a unique identifier for that monster"
+      }
+    }
+  }
+}

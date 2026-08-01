@@ -1,0 +1,11 @@
+{
+  "hunter": {
+    "distance_shard": "Distance to Aethernet Shard",
+    "elapsed": "Elapsed",
+    "progress": "Progress",
+    "export": {
+      "label": "Export Path to JSON",
+      "tooltip": "Export the current/last path to JSON to your clipboard."
+    }
+  }
+}

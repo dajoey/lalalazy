@@ -1,0 +1,17 @@
+{
+  "modules": {
+    "mount": {
+      "config": {
+        "title": "Mount Config",
+        "mount": {
+          "label": "Mount",
+          "tooltip": "Select the mount to use"
+        },
+        "mount_roulette": {
+          "label": "Use Mount Roulette",
+          "tooltip": "Overrides configured mount and uses roulette instead"
+        }
+      }
+    }
+  }
+}

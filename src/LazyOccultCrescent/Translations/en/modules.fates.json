@@ -1,0 +1,46 @@
+{
+  "modules": {
+    "fates": {
+      "config": {
+        "title": "Fates Config",
+        "log_spawn": {
+          "label": "Print chat message on (de)spawn",
+          "tooltip": "Print an echo message when a Fate spawns and despawns"
+        },
+        "alert_all": {
+          "label": "Alert for all Fates",
+          "tooltip": "Play a sound effect when any fate spawns"
+        },
+        "alert_azurite": {
+          "label": "Alert for Azurite Demiatma Fate",
+          "tooltip": "Play a sound effect when a fate that drops the Azurite Demiatma spawns"
+        },
+        "alert_verdigris": {
+          "label": "Alert for Verdigris Demiatma Fate",
+          "tooltip": "Play a sound effect when a fate that drops the Verdigris Demiatma spawns"
+        },
+        "alert_malachite": {
+          "label": "Alert for Malachite Demiatma Fate",
+          "tooltip": "Play a sound effect when a fate that drops the Malachite Demiatma spawns"
+        },
+        "alert_realgar": {
+          "label": "Alert for Realgar Demiatma Fate",
+          "tooltip": "Play a sound effect when a fate that drops the Realgar Demiatma spawns"
+        },
+        "alert_caput_mortuum": {
+          "label": "Alert for Caput Mortuum Demiatma Fate",
+          "tooltip": "Play a sound effect when a fate that drops the Caput Mortuum Demiatma spawns"
+        },
+        "alert_orpiment": {
+          "label": "Alert for Orpiment Demiatma Fate",
+          "tooltip": "Play a sound effect when a fate that drops the Orpiment Demiatma spawns"
+        }
+      },
+      "panel": {
+        "title": "Fates",
+        "none": "No active fates.",
+        "estimated": "Est."
+      }
+    }
+  }
+}

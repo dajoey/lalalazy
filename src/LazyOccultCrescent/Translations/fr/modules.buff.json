@@ -1,0 +1,31 @@
+{
+  "modules": {
+    "buff": {
+      "config": {
+        "apply_enduring_fortitude": {
+          "label": "Appliquer Prière protectrice",
+          "tooltip": "Applique le Buff du Chevalier Fantôme : Prière protectrice"
+        },
+        "apply_fleetfooted": {
+          "label": "Appliquer Posture athlétique",
+          "tooltip": "Applique le Buff du Moine Fantôme : Posture athlétique"
+        },
+        "apply_romeos_ballad": {
+          "label": "Appliquer Lied arrêté",
+          "tooltip": "Applique le Buff du Barde Fantôme, Lied arrêté"
+        },
+        "reapply_threshold": {
+          "label": "Seuil de réapplication",
+          "tooltip": "Nombre de minutes restantes sur le buff le plus bas avant de les rafraîchir automatiquement."
+        },
+        "title": "Configuration des Buffs"
+      },
+      "panel": {
+        "button": {
+          "tooltip": "Applique l'ensemble des buffs fantôme, puis retourne sur votre job."
+        },
+        "title": "Buffs"
+      }
+    }
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "modules": {
+    "window_manager": {
+      "config": {
+        "title": "Window Manager Config",
+        "open_main_on_start_up": {
+          "label": "Open main UI on load",
+          "tooltip": "Opens the main UI when the plugin is loaded."
+        },
+        "open_main_on_enter": {
+          "label": "Open main UI on enter",
+          "tooltip": "Opens the main UI when you enter an Occult Crescent zone."
+        },
+        "close_main_on_exit": {
+          "label": "Close main UI on exit",
+          "tooltip": "Closes the main UI when you leave an Occult Crescent zone."
+        },
+        "hide_main_in_combat": {
+          "label": "Close main UI in combat",
+          "tooltip": "Close the main UI when you enter combat."
+        },
+        "open_config_on_start_up": {
+          "label": "Open config UI on load",
+          "tooltip": "Opens the config UI when the plugin is loaded."
+        },
+        "open_config_on_enter": {
+          "label": "Open config UI on enter",
+          "tooltip": "Opens the config UI when you enter an Occult Crescent zone."
+        },
+        "close_config_on_exit": {
+          "label": "Close config UI on exit",
+          "tooltip": "Closes the config UI when you leave an Occult Crescent zone."
+        },
+        "hide_config_in_combat": {
+          "label": "Close config UI in combat",
+          "tooltip": "Close the config UI when you enter combat."
+        }
+      }
+    }
+  }
+}

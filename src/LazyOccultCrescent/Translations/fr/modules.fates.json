@@ -1,0 +1,46 @@
+{
+  "modules": {
+    "fates": {
+      "config": {
+        "alert_all": {
+          "label": null,
+          "tooltip": null
+        },
+        "alert_azurite": {
+          "label": null,
+          "tooltip": null
+        },
+        "alert_caput_mortuum": {
+          "label": null,
+          "tooltip": null
+        },
+        "alert_malachite": {
+          "label": null,
+          "tooltip": null
+        },
+        "alert_orpiment": {
+          "label": null,
+          "tooltip": null
+        },
+        "alert_realgar": {
+          "label": null,
+          "tooltip": null
+        },
+        "alert_verdigris": {
+          "label": null,
+          "tooltip": null
+        },
+        "log_spawn": {
+          "label": null,
+          "tooltip": null
+        },
+        "title": "Configuration des Aléas"
+      },
+      "panel": {
+        "estimated": "Estimé",
+        "none": "Pas d'Aléa actifs.",
+        "title": "Aléas"
+      }
+    }
+  }
+}

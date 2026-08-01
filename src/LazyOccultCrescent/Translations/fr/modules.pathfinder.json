@@ -1,0 +1,26 @@
+{
+  "modules": {
+    "pathfinder": {
+      "config": {
+        "detection_range": {
+          "label": null,
+          "tooltip": null
+        },
+        "max_level": {
+          "label": null,
+          "tooltip": null
+        },
+        "return_cost": {
+          "label": null,
+          "tooltip": null
+        },
+        "teleport_cost": {
+          "label": null,
+          "tooltip": null
+        },
+        "text": null,
+        "title": null
+      }
+    }
+  }
+}

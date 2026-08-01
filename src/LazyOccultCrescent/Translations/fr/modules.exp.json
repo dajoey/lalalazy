@@ -1,0 +1,15 @@
+{
+  "modules": {
+    "exp": {
+      "config": {
+        "title": "Configuration de l'Exp"
+      },
+      "panel": {
+        "exp": {
+          "label": "Expérience par heure"
+        },
+        "title": "Expérience"
+      }
+    }
+  }
+}

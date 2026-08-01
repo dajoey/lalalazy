@@ -1,0 +1,41 @@
+{
+  "modules": {
+    "window_manager": {
+      "config": {
+        "title": "ウィンドウマネージャー設定",
+        "open_main_on_start_up": {
+          "label": "ロード時にメインUIを開く",
+          "tooltip": "プラグインがロードされたときにメインUIを開きます。"
+        },
+        "open_main_on_enter": {
+          "label": "ゾーンに入ったときにメインUIを開く",
+          "tooltip": "クレセントアイルゾーンに入ったときにメインUIを開きます。"
+        },
+        "close_main_on_exit": {
+          "label": "ゾーンを離れたときにメインUIを閉じる",
+          "tooltip": "クレセントアイルゾーンを離れたときにメインUIを閉じます。"
+        },
+        "hide_main_in_combat": {
+          "label": "戦闘中にメインUIを閉じる",
+          "tooltip": "戦闘に入ったときにメインUIを閉じます。"
+        },
+        "open_config_on_start_up": {
+          "label": "ロード時に設定UIを開く",
+          "tooltip": "プラグインがロードされたときに設定UIを開きます。"
+        },
+        "open_config_on_enter": {
+          "label": "ゾーンに入ったときに設定UIを開く",
+          "tooltip": "クレセントアイルゾーンに入ったときに設定UIを開きます。"
+        },
+        "close_config_on_exit": {
+          "label": "ゾーンを離れたときに設定UIを閉じる",
+          "tooltip": "クレセントアイルゾーンを離れたときに設定UIを閉じます。"
+        },
+        "hide_config_in_combat": {
+          "label": "戦闘中に設定UIを閉じる",
+          "tooltip": "戦闘に入ったときに設定UIを閉じます。"
+        }
+      }
+    }
+  }
+}

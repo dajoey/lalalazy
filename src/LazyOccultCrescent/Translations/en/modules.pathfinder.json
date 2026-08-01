@@ -1,0 +1,26 @@
+{
+  "modules": {
+    "pathfinder": {
+      "config": {
+        "title": "Pathfinding Config",
+        "text": "This is relevant for the treasure hunting and carrot hunting functionality.\nNote that costs are compared to the total distance of a path in yalms.",
+        "return_cost": {
+          "label": "Return Cost",
+          "tooltip": "The assigned cost of casting return and approaching the Aetheryte."
+        },
+        "teleport_cost": {
+          "label": "Teleport Cost",
+          "tooltip": "The assigned cost of casting teleport from on Aetheryte to another."
+        },
+        "detection_range": {
+          "label": "Object Detection Range",
+          "tooltip": "The distance from a node you have to be to assume it isn't there.\nThis may vary depending on when the server sends the GameObject instance.\nA lower value will be more reliable but will make the hunt take longer."
+        },
+        "max_level": {
+          "label": "Max area level",
+          "tooltip": "The maximum level of mobs near which you are willing to hunt for objects."
+        }
+      }
+    }
+  }
+}

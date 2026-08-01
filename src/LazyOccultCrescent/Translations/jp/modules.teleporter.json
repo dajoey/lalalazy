@@ -1,0 +1,29 @@
+{
+  "modules": {
+    "teleporter": {
+      "config": {
+        "title": "テレポーター設定",
+        "should_mount": {
+          "label": "テレポート後にマウントに乗る",
+          "tooltip": "テレポート後に使用するマウント。"
+        },
+        "path_to_destination": {
+          "label": "テレポート後にイベントへの移動",
+          "tooltip": "LazyOCパネル経由でテレポートした後、vnavmeshを使用して次のイベントに向かいます。"
+        },
+        "return_after_fate": {
+          "label": "F.A.T.E.後にベースキャンプに戻る",
+          "tooltip": "F.A.T.E.終了後、デミデジョンを使用してベースキャンプに戻ります。"
+        },
+        "return_after_critical_encounter": {
+          "label": "クリティカルエンカウント後にベースキャンプに戻る",
+          "tooltip": "クリティカルエンカウント終了後、デミデジョンを使用してベースキャンプに戻ります。"
+        },
+        "approach_aetheryte": {
+          "label": "デミデジョン後、エーテライトに接近",
+          "tooltip": "ベースキャンプに戻った後、エーテライトまで歩きます。\n* F.A.T.E.またはクリティカルエンカウント後にプラグイン経由で戻る場合にのみ機能します。"
+        }
+      }
+    }
+  }
+}

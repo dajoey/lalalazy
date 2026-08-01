@@ -1,0 +1,19 @@
+{
+  "modules": {
+    "state_manager": {
+      "config": {
+        "title": "State Manager Config",
+        "show_debug": {
+          "label": "Show State",
+          "tooltip": "Show the current state in the main UI."
+        }
+      },
+      "panel": {
+        "title": "State Manager",
+        "state": {
+          "label": "State"
+        }
+      }
+    }
+  }
+}

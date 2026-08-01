@@ -1,0 +1,23 @@
+{
+  "Author": "dajoey",
+  "Name": "Lazy Occult Crescent",
+  "Punchline": "Occult Crescent helper with North Horn support",
+  "Description": "Field companion for Occult Crescent, covering both South Horn and North Horn (patch 7.55). Treasure and Fortune Carrot radar with optimal looting routes, live FATE and Critical Encounter tracking with progress and completion estimates, aethernet teleport shortcuts, silver/gold and EXP per hour tracking, phantom job buff automation, and an optional automation loop for FATEs, CEs and mob farming. North Horn zone geometry is learned in-game and cached, so the zone bootstraps itself rather than needing a hand survey. Forked with thanks from OhKannaDuh's BOCCHI (AGPL-3.0). Use /lazyoccult to open.",
+  "ApplicableVersion": "any",
+  "Tags": [
+    "occult",
+    "crescent",
+    "northhorn",
+    "southhorn",
+    "fate",
+    "treasure",
+    "radar",
+    "automation"
+  ],
+  "CategoryTags": [ "utility" ],
+  "InternalName": "LazyOccultCrescent",
+  "DalamudApiLevel": 15,
+  "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyoccultcrescent-icon.png",
+  "ImageUrls": [ "" ],
+  "Changelog": "v0.0.1 - First release. Fork of BOCCHI with North Horn (territory 1346) support: datamined FATE and Critical Encounter tables, six North Horn aetheryte shards, and runtime zone discovery that learns positions in-game instead of requiring a survey. Adds GluttonyCombo as a rotation provider alongside Wrath Combo."
+}

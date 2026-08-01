@@ -173,6 +173,32 @@ if (Test-Path $resDir) {
     }
 }
 
+# Copy content directories emitted by the build (e.g. Data\, Translations\).
+# Plugins that ship runtime content reference it in the csproj as
+# <None Include="..\Data\**"> with CopyToOutputDirectory, which lands it in
+# bin\Release but NOT in this curated staging dir - so without this pass the zip
+# silently ships a plugin whose data files are all missing.
+#
+# Two directories must never be copied: the folder DalamudPackager writes its own
+# output into (named after the plugin), and Resources, staged above.
+Get-ChildItem $releaseDir -Directory -ErrorAction SilentlyContinue | Where-Object {
+    $_.Name -ne $PluginName -and
+    $_.Name -ne "Resources" -and
+    $_.Name -notmatch "^(runtimes|ref|refint)$"
+} | ForEach-Object {
+    Copy-Item $_.FullName "$stageDir\" -Recurse -Force
+}
+
+# Loose non-DLL runtime assets (icon.png and friends). The manifest is staged
+# separately above; *.deps.json and *.pdb are build artifacts.
+Get-ChildItem $releaseDir -File -ErrorAction SilentlyContinue | Where-Object {
+    $_.Extension -notin @(".dll", ".pdb") -and
+    $_.Name -ne "$PluginName.json" -and
+    $_.Name -notlike "*.deps.json"
+} | ForEach-Object {
+    Copy-Item $_.FullName "$stageDir\" -Force
+}
+
 # Zip payload
 if (Test-Path $zipPath) { Remove-Item $zipPath }
 Compress-Archive -Path "$stageDir\*" -DestinationPath $zipPath -Force

@@ -1,0 +1,40 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <Version>0.0.1.0</Version>
+    <Description>Occult Crescent helper for South Horn and North Horn.</Description>
+    <PackageProjectUrl>https://github.com/dajoey/lalalazy</PackageProjectUrl>
+    <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);4014</NoWarn>
+    <PathMap>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)'))=$(MSBuildProjectName)/</PathMap>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <DefineConstants>DEBUG;TRACE;DEBUG_BUILD</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release_CN'">
+    <DefineConstants>RELEASE;TRACE;DALAMUD_CN</DefineConstants>
+  </PropertyGroup>
+  <!-- Files -->
+  <ItemGroup>
+    <Content Include="..\assets\icon.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Visible>false</Visible>
+    </Content>
+    <None Include="..\Translations\**">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <Link>Translations\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </None>
+    <None Include="..\Data\**">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <Link>Data\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </None>
+  </ItemGroup>
+  <!-- Ocelot comes from NuGet in every configuration: the upstream submodule is
+         deliberately not vendored, so there is no ProjectReference fallback. -->
+  <ItemGroup>
+    <PackageReference Include="FFXIVOcelot" Version="[1.1.5,1.2.0)" />
+    <PackageReference Include="Pictomancy" Version="1.0.3" />
+    <PackageReference Include="TextCopy" Version="6.2.1" />
+  </ItemGroup>
+</Project>

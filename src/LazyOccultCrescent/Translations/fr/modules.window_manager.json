@@ -1,0 +1,41 @@
+{
+  "modules": {
+    "window_manager": {
+      "config": {
+        "close_config_on_exit": {
+          "label": "Ouvrir l'interface principale au chargement",
+          "tooltip": "Ouvre l'interface de configuration après le chargement du plugin."
+        },
+        "close_main_on_exit": {
+          "label": "Ouvrir l'interface principale en entrant",
+          "tooltip": "Ouvre l'interface principale lorsque vous entrez dans le Croissant Occulte."
+        },
+        "hide_config_in_combat": {
+          "label": "Fermer l'interface principale en quittant",
+          "tooltip": "Ferme l'interface principale lorsque vous quittez le Croissant Occulte."
+        },
+        "hide_main_in_combat": {
+          "label": "Fermer l'interface principale en combat",
+          "tooltip": "Ferme l'interface principale lorsque vous entrez en combat."
+        },
+        "open_config_on_enter": {
+          "label": "Ouvrir l'interface de configuration au chargement",
+          "tooltip": "Ouvre l'interface de configuration après le chargement du plugin."
+        },
+        "open_config_on_start_up": {
+          "label": "Ouvrir l'interface de configuration en entrant",
+          "tooltip": "Ouvre l'interface de configuration lorsque vous entrez dans le Croissant Occulte."
+        },
+        "open_main_on_enter": {
+          "label": "Fermer l'interface de configuration en quittant",
+          "tooltip": "Ferme l'interface de configuration lorsque vous quittez le Croissant Occulte."
+        },
+        "open_main_on_start_up": {
+          "label": "Fermer l'interface de configuration en combat",
+          "tooltip": "Ferme l'interface de configuration lorsque vous entrez en combat."
+        },
+        "title": "Configuration du Gestionnaire de Fenêtres"
+      }
+    }
+  }
+}

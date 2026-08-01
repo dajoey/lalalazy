@@ -1,0 +1,18 @@
+{
+  "modules": {
+    "currency": {
+      "config": {
+        "title": "Configuration des Pièces"
+      },
+      "panel": {
+        "gold": {
+          "label": "Pièces d'or par heure"
+        },
+        "silver": {
+          "label": "Pièces d'argent par heure"
+        },
+        "title": "Pièces"
+      }
+    }
+  }
+}

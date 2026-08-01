@@ -1,0 +1,21 @@
+{
+  "modules": {
+    "event_drop": {
+      "config": {
+        "title": "イベントドロップ設定",
+        "show_demiatma_drops": {
+          "label": "デミアートマドロップを表示",
+          "tooltip": "アクティブなF.A.T.E./CEリストにデミアートマドロップを表示します。"
+        },
+        "show_note_drops": {
+          "label": "ノートドロップを表示",
+          "tooltip": "アクティブなF.A.T.E./CEリストに探査記録ドロップを表示します。"
+        },
+        "show_soul_shard_drops": {
+          "label": "ソウルシャードドロップを表示",
+          "tooltip": "アクティブなCEリストにソウルシャードドロップを表示します。"
+        }
+      }
+    }
+  }
+}

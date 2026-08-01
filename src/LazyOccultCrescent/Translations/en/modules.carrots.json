@@ -1,0 +1,29 @@
+{
+  "modules": {
+    "carrots": {
+      "panel": {
+        "title": "Carrots",
+        "none": "No nearby carrots.",
+        "label": "Carrot",
+        "hunt": {
+          "title": "Carrot Hunter",
+          "distance_node": "Distance to next carrot"
+        }
+      },
+      "config": {
+        "title": "Carrots Config",
+        "draw_line_to_carrots": {
+          "label": "Draw line to Carrots",
+          "tooltip": "Render a line from your character's position to nearby carrots."
+        },
+        "show_hunt_button": {
+          "label": "Show Carrot Hunt Button"
+        },
+        "repeat_carrot_hunt": {
+          "label": "Repeat",
+          "tooltip": "Start the hunt again after reaching the final node"
+        }
+      }
+    }
+  }
+}

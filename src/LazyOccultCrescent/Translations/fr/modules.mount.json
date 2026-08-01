@@ -1,0 +1,17 @@
+{
+  "modules": {
+    "mount": {
+      "config": {
+        "mount": {
+          "label": "Monture",
+          "tooltip": "Sélectionnez la monture à utiliser"
+        },
+        "mount_roulette": {
+          "label": "Monture aléatoire",
+          "tooltip": "Utilise une monture aléatoire à la place de la monture configurée."
+        },
+        "title": "Configuration de la Monture"
+      }
+    }
+  }
+}

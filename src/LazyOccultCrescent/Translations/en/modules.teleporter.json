@@ -1,0 +1,29 @@
+{
+  "modules": {
+    "teleporter": {
+      "config": {
+        "title": "Teleporter Config",
+        "should_mount": {
+          "label": "Mount after teleporting",
+          "tooltip": "The mount to use after teleporting."
+        },
+        "path_to_destination": {
+          "label": "Path to event after teleporting",
+          "tooltip": "Use vnavmesh to head to the next event after teleporting via the OCH panel."
+        },
+        "return_after_fate": {
+          "label": "Return to base after FATE",
+          "tooltip": "Use Occult Return upon finishing a FATE to return to base camp."
+        },
+        "return_after_critical_encounter": {
+          "label": "Return to base after Critical Encounter",
+          "tooltip": "Use Occult Return upon finishing a Critical Encounter to return to base camp."
+        },
+        "approach_aetheryte": {
+          "label": "Approach aetheryte after returning",
+          "tooltip": "Walk to the aetheryte after returning to base camp.\n* Only works when returning via the plugin after a FATE or Critical Encounter."
+        }
+      }
+    }
+  }
+}

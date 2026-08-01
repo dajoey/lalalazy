@@ -1,0 +1,12 @@
+{
+  "windows": {
+    "main": {
+      "title": "Lazy Occult Crescent",
+      "buttons": {
+        "toggle_config": "設定ウィンドウ 開く/閉じる",
+        "emergency_stop": "緊急停止",
+        "toggle_illegal_mode": "不正モード 有効/無効"
+      }
+    }
+  }
+}

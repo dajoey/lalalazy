@@ -1,0 +1,12 @@
+{
+  "windows": {
+    "main": {
+      "buttons": {
+        "emergency_stop": null,
+        "toggle_config": null,
+        "toggle_illegal_mode": null
+      },
+      "title": "Lazy Occult Crescent"
+    }
+  }
+}

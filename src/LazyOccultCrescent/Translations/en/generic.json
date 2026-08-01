@@ -1,0 +1,13 @@
+{
+  "generic": {
+    "label": {
+      "enabled": "Enabled",
+      "start": "Start",
+      "stop": "Stop",
+      "not_in_zone": "Not in an Occult Crescent zone."
+    },
+    "tooltip": {
+      "illegal_mode_compatible": "This option is compatible with Illegal Mode, It will use it while it runs."
+    }
+  }
+}

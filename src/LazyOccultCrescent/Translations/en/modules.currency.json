@@ -1,0 +1,18 @@
+{
+  "modules": {
+    "currency": {
+      "config": {
+        "title": "Currency Config"
+      },
+      "panel": {
+        "title": "Currency",
+        "silver": {
+          "label": "Silver per hour"
+        },
+        "gold": {
+          "label": "Gold per hour"
+        }
+      }
+    }
+  }
+}

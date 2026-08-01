@@ -1,0 +1,13 @@
+{
+  "generic": {
+    "label": {
+      "enabled": "Activé",
+      "not_in_zone": null,
+      "start": "Démarrer",
+      "stop": "Arrêter"
+    },
+    "tooltip": {
+      "illegal_mode_compatible": "Option compatible avec le mode illégal, elle sera utilisée pendant son exécution."
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "modules": {
+    "carrots": {
+      "config": {
+        "draw_line_to_carrots": {
+          "label": "Tracer une ligne vers les carottes",
+          "tooltip": "Trace une ligne de la position de votre personnage vers les carottes proches."
+        },
+        "repeat_carrot_hunt": {
+          "label": null,
+          "tooltip": null
+        },
+        "show_hunt_button": {
+          "label": null
+        },
+        "title": "Configuration des Carottes"
+      },
+      "panel": {
+        "hunt": {
+          "distance_node": null,
+          "title": null
+        },
+        "label": "Carotte",
+        "none": "Pas de carottes à proximité.",
+        "title": "Carottes"
+      }
+    }
+  }
+}

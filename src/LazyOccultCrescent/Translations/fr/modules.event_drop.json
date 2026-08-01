@@ -1,0 +1,21 @@
+{
+  "modules": {
+    "event_drop": {
+      "config": {
+        "show_demiatma_drops": {
+          "label": "Afficher les drops de Demi-âtma",
+          "tooltip": "Affiche les drops de Demi-âtma dans les Aléas/CC actifs."
+        },
+        "show_note_drops": {
+          "label": "Afficher les drops d'Article",
+          "tooltip": "Affiche les drops d'Article dans les Aléas/CC actifs."
+        },
+        "show_soul_shard_drops": {
+          "label": "Afficher les drops d'Éclat d'âme",
+          "tooltip": "Affiche les drops d'Éclat d'âme dans les confrontations critiques actives."
+        },
+        "title": "Configuration des Drops"
+      }
+    }
+  }
+}

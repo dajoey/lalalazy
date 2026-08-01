@@ -1,0 +1,64 @@
+{
+  "modules": {
+    "critical_encounters": {
+      "config": {
+        "title": "Critical Encounters Config",
+        "track_forked_tower": {
+          "label": "Track Forked Tower",
+          "tooltip": "Track when Forked Tower last ended"
+        },
+        "log_spawn": {
+          "label": "Print chat message on (de)spawn",
+          "tooltip": "Print an echo message when a Critical Encounter spawns and despawns"
+        },
+        "alert_all": {
+          "label": "Alert for all Critical Encounters",
+          "tooltip": "Play a sound effect when any fate spawns"
+        },
+        "alert_azurite": {
+          "label": "Alert for Azurite Demiatma Critical Encounters",
+          "tooltip": "Play a sound effect when a critical encounter that drops the Azurite Demiatma spawns"
+        },
+        "alert_verdigris": {
+          "label": "Alert for Verdigris Demiatma Critical Encounters",
+          "tooltip": "Play a sound effect when a critical encounter that drops the Verdigris Demiatma spawns"
+        },
+        "alert_malachite": {
+          "label": "Alert for Malachite Demiatma Critical Encounters",
+          "tooltip": "Play a sound effect when a critical encounter that drops the Malachite Demiatma spawns"
+        },
+        "alert_realgar": {
+          "label": "Alert for Realgar Demiatma Critical Encounters",
+          "tooltip": "Play a sound effect when a critical encounter that drops the Realgar Demiatma spawns"
+        },
+        "alert_caput_mortuum": {
+          "label": "Alert for Caput Mortuum Demiatma Critical Encounters",
+          "tooltip": "Play a sound effect when a critical encounter that drops the Caput Mortuum Demiatma spawns"
+        },
+        "alert_orpiment": {
+          "label": "Alert for Orpiment Demiatma Critical Encounters",
+          "tooltip": "Play a sound effect when a critical encounter that drops the Orpiment Demiatma spawns"
+        },
+        "alert_oracle": {
+          "label": "Alert for Oracle Soul Shard Critical Encounter",
+          "tooltip": "Play a sound effect when a critical encounter that drops the Oracle Soul Shard spawns"
+        },
+        "alert_berserker": {
+          "label": "Alert for Berserker Soul Shard Critical Encounter",
+          "tooltip": "Play a sound effect when a critical encounter that drops the Berserker Soul Shard spawns"
+        },
+        "alert_ranger": {
+          "label": "Alert for Ranger Soul Shard Critical Encounter",
+          "tooltip": "Play a sound effect when a critical encounter that drops the Ranger Soul Shard spawns"
+        }
+      },
+      "panel": {
+        "title": "Critical Encounters",
+        "none": "No active critical encounters.",
+        "register": "Preparing",
+        "warmup": "Starting",
+        "estimated": "Est."
+      }
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "modules": {
+    "event_drop": {
+      "config": {
+        "title": "Event Drop Config",
+        "show_demiatma_drops": {
+          "label": "Show Demiatma drops",
+          "tooltip": "Show Demiatma drops in the active FATE/CE list."
+        },
+        "show_note_drops": {
+          "label": "Show Notes drops",
+          "tooltip": "Show Notes drops in the active FATE/CE list."
+        },
+        "show_soul_shard_drops": {
+          "label": "Show Soul Shard drops",
+          "tooltip": "Show Soul Shard drops in the active CE list."
+        }
+      }
+    }
+  }
+}

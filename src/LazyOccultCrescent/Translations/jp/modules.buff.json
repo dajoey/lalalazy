@@ -1,0 +1,31 @@
+{
+  "modules": {
+    "buff": {
+      "config": {
+        "title": "バフ設定",
+        "apply_romeos_ballad": {
+          "label": "あいのうたを適用",
+          "tooltip": "サポートジョブ吟遊詩人のバフ「あいのうた」を適用します"
+        },
+        "apply_enduring_fortitude": {
+          "label": "いのりを適用",
+          "tooltip": "サポートジョブナイトのバフ「いのり」を適用します"
+        },
+        "apply_fleetfooted": {
+          "label": "かまえるを適用",
+          "tooltip": "サポートジョブモンクのバフ「かまえる」を適用します"
+        },
+        "reapply_threshold": {
+          "label": "再適用しきい値",
+          "tooltip": "自動実行中にすべてのバフを更新するための、最も低いバフの残り分数。"
+        }
+      },
+      "panel": {
+        "title": "バフ",
+        "button": {
+          "tooltip": "有効になっている各バフのサポートジョブに切り替えてバフスキルを使用し、元のサポートジョブに戻ります。"
+        }
+      }
+    }
+  }
+}

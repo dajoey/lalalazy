@@ -1,0 +1,18 @@
+{
+  "modules": {
+    "currency": {
+      "config": {
+        "title": "通貨設定"
+      },
+      "panel": {
+        "title": "通貨",
+        "silver": {
+          "label": "1時間あたりの銀貨"
+        },
+        "gold": {
+          "label": "1時間あたりの金貨"
+        }
+      }
+    }
+  }
+}

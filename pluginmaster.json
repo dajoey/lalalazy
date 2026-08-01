@@ -364,5 +364,43 @@
                       ],
         "DownloadCount":  0,
         "LastUpdate":  "0"
+    },
+    {
+        "Author":  "dajoey",
+        "Name":  "Lazy Occult Crescent",
+        "Punchline":  "Occult Crescent helper with North Horn support",
+        "Description":  "Field companion for Occult Crescent, covering both South Horn and North Horn (patch 7.55). Treasure and Fortune Carrot radar with optimal looting routes, live FATE and Critical Encounter tracking with progress and completion estimates, aethernet teleport shortcuts, silver/gold and EXP per hour tracking, phantom job buff automation, and an optional automation loop for FATEs, CEs and mob farming. North Horn zone geometry is learned in-game and cached, so the zone bootstraps itself rather than needing a hand survey. Forked with thanks from OhKannaDuh\u0027s BOCCHI (AGPL-3.0). Use /lazyoccult to open.",
+        "InternalName":  "LazyOccultCrescent",
+        "AssemblyVersion":  "0.0.0.0",
+        "TestingAssemblyVersion":  "0.0.1.0",
+        "TestingDalamudApiLevel":  15,
+        "Changelog":  "- **North Horn (territory 1346) support.** Upstream only ever knew about South Horn;\n- **North Horn event tables** (`Data/NorthHornEvents.cs`), datamined from the 7.55\n- 13 FATEs, `Fate` sheet rows 2072-2084. Rows 2072/2073 carry Rule 4 (the pot-fate\n- 15 Critical Encounters plus both towers, `DynamicEvent` rows 49-65. This mirrors\n- `EventData.Fates` / `CriticalEncounters` are now merged views over both zones.\n- **Six North Horn aetheryte shards.** EObj BaseIds 2015429 (`occult aetheryte`) and\n- **Runtime zone discovery** (`Data/ZoneDiscovery.cs` + `Modules/ZoneDiscovery/`).\n- **All eight 7.55 phantom jobs** wired into `JobId`, `PlayerStatus` and `Job`.\n- **GluttonyCombo as a rotation provider** (`Modules/MobFarmer/Gluttony.cs` +\n\n- **Data generators sized their work off the wrong shard count.** `TreasureHuntPanel`\n- **Silent empty generator runs.** A zone whose chests do not match the hardcoded\n- Replaced five obsolete Dalamud API calls in the debug panels\n\n- Renamed throughout: namespace `BOCCHI` -\u003e `LazyOccultCrescent`, commands\n- Ocelot is consumed from the `FFXIVOcelot` NuGet package in every configuration.\n\n- **Not yet verified in game.** Built and reasoned about, not played. Everything\n- Zone data files (`Data/NorthHorn/`) do not exist yet - they are produced by the\n- The PlaceName-to-BaseId pairing order for the six shards is inferred from\n- Demiatma / Soulshard / MonsterNote for North Horn events are deliberately left\n- `Data/Traps/` still describes Forked Tower: Blood. FT:Magic is a different tower",
+        "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/LazyOccultCrescent",
+        "ApplicableVersion":  "any",
+        "DalamudApiLevel":  15,
+        "IsHide":  false,
+        "IsTestingExclusive":  true,
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyOccultCrescent/latest/latest.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyOccultCrescent/latest/latest.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyOccultCrescent/testing/testing.zip",
+        "Tags":  [
+                     "occult",
+                     "crescent",
+                     "northhorn",
+                     "southhorn",
+                     "fate",
+                     "treasure",
+                     "radar",
+                     "automation"
+                 ],
+        "CategoryTags":  [
+                             "utility"
+                         ],
+        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyoccultcrescent-icon.png",
+        "ImageUrls":  [
+                          ""
+                      ],
+        "DownloadCount":  0,
+        "LastUpdate":  "0"
     }
 ]

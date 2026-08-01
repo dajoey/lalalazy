@@ -1,0 +1,414 @@
+{
+  "windows": {
+    "main": {
+      "title": "Lazy Occult Crescent"
+    },
+    "config": {
+      "title": "Lazy Occult Crescent Konfiguration"
+    }
+  },
+  "generic": {
+    "label": {
+      "enabled": "Aktiviert",
+      "start": "Starten",
+      "stop": "Stoppen"
+    },
+    "tooltip": {
+      "illegal_mode_compatible": "Diese Option ist mit dem Illegalen Modus kompatibel. Sie wird verwendet, während er läuft."
+    }
+  },
+  "modules": {
+    "treasure": {
+      "title": "Schatz-Konfiguration",
+      "draw": {
+        "bronze": {
+          "label": "Linien zu Bronzetruhen zeichnen",
+          "tooltip": "Zeichnet eine Linie von deiner Charakterposition zu nahegelegenen Bronzetruhen, wenn du nicht im Kampf bist."
+        },
+        "silver": {
+          "label": "Linien zu Silbertruhen zeichnen",
+          "tooltip": "Zeichnet eine Linie von deiner Charakterposition zu nahegelegenen Silbertruhen, wenn du nicht im Kampf bist."
+        }
+      },
+      "hunt": {
+        "show_button": {
+          "label": "Schatzsuche-Button anzeigen"
+        },
+        "detection": {
+          "label": "Truhen-Erkennungsbereich",
+          "tooltip": "Die Entfernung von einem Knoten, die du haben musst, um anzunehmen, dass er nicht da ist.\nDies kann variieren, je nachdem, wann der Server die GameObject-Instanz sendet.\nEin niedrigerer Wert ist zuverlässiger, aber die Jagd dauert länger."
+        },
+        "max_level": {
+          "label": "Maximales Gebietslevel",
+          "tooltip": "Das maximale Level der Monster in der Nähe, in der du bereit bist, nach Schätzen zu suchen."
+        }
+      },
+      "panel": {
+        "title": "Schatz",
+        "none": "Kein Schatz in der Nähe.",
+        "hunt": {
+          "title": "Schatzjäger",
+          "distance": "Entfernung zum nächsten Knoten",
+          "count": "# der Instanzen",
+          "instance": {
+            "current": "Aktuelle Kette",
+            "progress": "Fortschritt",
+            "queued": "Gereihte Ketten"
+          }
+        }
+      }
+    },
+    "carrots": {
+      "title": "Karotten-Konfiguration",
+      "draw": {
+        "label": "Linie zu Karotten zeichnen",
+        "tooltip": "Zeichnet eine Linie von deiner Charakterposition zu nahegelegenen Karotten."
+      },
+      "panel": {
+        "title": "Karotten",
+        "none": "Keine Karotten in der Nähe.",
+        "label": "Karotte"
+      }
+    },
+    "currency": {
+      "title": "Währungs-Konfiguration",
+      "panel": {
+        "title": "Währung",
+        "silver": {
+          "label": "Silber pro Stunde"
+        },
+        "gold": {
+          "label": "Gold pro Stunde"
+        }
+      }
+    },
+    "event_drop": {
+      "title": "Event-Drop-Konfiguration",
+      "demiatma": {
+        "label": "Demi-Atma-Drops anzeigen",
+        "tooltip": "Zeigt Demi-Atma-Drops in der Liste der aktiven FATE/CE an."
+      },
+      "notes": {
+        "label": "Noten-Drops anzeigen",
+        "tooltip": "Zeigt Noten-Drops in der Liste der aktiven FATE/CE an."
+      },
+      "soulshards": {
+        "label": "Seelenscherben-Drops anzeigen",
+        "tooltip": "Zeigt Seelenscherben-Drops in der Liste der aktiven CE an."
+      }
+    },
+    "fates": {
+      "title": "FATEs Konfiguration",
+      "panel": {
+        "title": "FATEs",
+        "none": "Keine aktiven FATEs.",
+        "estimated": "Geschätzt"
+      }
+    },
+    "critical_encounters": {
+      "title": "Kritische Begegnungen Konfiguration",
+      "panel": {
+        "title": "Kritische Begegnungen",
+        "none": "Keine aktiven kritischen Begegnungen.",
+        "register": "Vorbereitung",
+        "warmup": "Startet",
+        "estimated": "Geschätzt"
+      }
+    },
+    "exp": {
+      "title": "EP-Konfiguration",
+      "panel": {
+        "title": "EP",
+        "exp": {
+          "label": "EP pro Stunde"
+        }
+      }
+    },
+    "teleporter": {
+      "title": "Teleporter-Konfiguration",
+      "should_mount": {
+        "label": "Nach dem Teleportieren aufsitzen",
+        "tooltip": "Das Reittier, das nach dem Teleportieren verwendet werden soll."
+      },
+      "path_to_destination": {
+        "label": "Pfad zum Event nach dem Teleportieren",
+        "tooltip": "Verwendet vnavmesh, um nach dem Teleportieren über das OCH-Panel zum nächsten Event zu gelangen."
+      },
+      "return_after_fate": {
+        "label": "Nach FATE zum Basislager zurückkehren",
+        "tooltip": "Verwendet 'Okkulte Rückkehr' nach Abschluss eines FATEs, um zum Basislager zurückzukehren."
+      },
+      "return_after_critical": {
+        "label": "Nach Kritischer Begegnung zum Basislager zurückkehren",
+        "tooltip": "Verwendet 'Okkulte Rückkehr' nach Abschluss einer Kritischen Begegnung, um zum Basislager zurückzukehren."
+      },
+      "approach_aetheryte": {
+        "label": "Ätheryt nach Rückkehr nähern",
+        "tooltip": "Geht nach der Rückkehr zum Basislager zum Ätheryt.\n* Funktioniert nur bei Rückkehr über das Plugin nach einem FATE oder einer Kritischen Begegnung."
+      }
+    },
+    "window_manager": {
+      "title": "Fenstermanager-Konfiguration",
+      "main_on_load": {
+        "label": "Haupt-UI beim Laden öffnen",
+        "tooltip": "Öffnet die Hauptbenutzeroberfläche, wenn das Plugin geladen wird."
+      },
+      "main_on_enter": {
+        "label": "Haupt-UI beim Betreten öffnen",
+        "tooltip": "Öffnet die Hauptbenutzeroberfläche, wenn du eine Okkulte-Mond-Zone betrittst."
+      },
+      "main_on_exit": {
+        "label": "Haupt-UI beim Verlassen schließen",
+        "tooltip": "Schließt die Hauptbenutzeroberfläche, wenn du eine Okkulte-Mond-Zone verlässt."
+      },
+      "main_in_combat": {
+        "label": "Haupt-UI im Kampf schließen",
+        "tooltip": "Schließt die Hauptbenutzeroberfläche, wenn du in den Kampf eintrittst."
+      },
+      "config_on_load": {
+        "label": "Konfigurations-UI beim Laden öffnen",
+        "tooltip": "Öffnet die Konfigurationsbenutzeroberfläche, wenn das Plugin geladen wird."
+      },
+      "config_on_enter": {
+        "label": "Konfigurations-UI beim Betreten öffnen",
+        "tooltip": "Öffnet die Konfigurationsbenutzeroberfläche, wenn du eine Okkulte-Mond-Zone betrittst."
+      },
+      "config_on_exit": {
+        "label": "Konfigurations-UI beim Verlassen schließen",
+        "tooltip": "Schließt die Konfigurationsbenutzeroberfläche, wenn du eine Okkulte-Mond-Zone verlässt."
+      },
+      "config_in_combat": {
+        "label": "Konfigurations-UI im Kampf schließen",
+        "tooltip": "Schließt die Konfigurationsbenutzeroberfläche, wenn du in den Kampf eintrittst."
+      }
+    },
+    "state_manager": {
+      "title": "Zustandsmanager-Konfiguration",
+      "show_debug": {
+        "label": "Zustand anzeigen",
+        "tooltip": "Zeigt den aktuellen Zustand in der Haupt-UI an."
+      },
+      "panel": {
+        "title": "Zustandsmanager",
+        "state": {
+          "label": "Zustand"
+        }
+      }
+    },
+    "instance_identifier": {
+      "title": "Instanz-Identifikator-Konfiguration",
+      "show": {
+        "label": "Anzeigen",
+        "tooltip": "Dies wird erfasst, wenn die Zone initialisiert wird, und ist unbekannt, wenn das Plugin in der Zone aktiviert oder neu geladen wird."
+      },
+      "panel": {
+        "id": {
+          "label": "Instanz-ID"
+        }
+      }
+    },
+    "automator": {
+      "title": "Illegaler Modus",
+      "enabled": {
+        "tooltip": "Der Illegale Modus ist ein Bot, seine Aktionen werden außerhalb dieses Abschnitts nicht von deiner Konfiguration bestimmt."
+      },
+      "ai_provider": {
+        "label": "KI-Anbieter",
+        "tooltip": "Der Mechanik-KI-Anbieter, den du verwendest"
+      },
+      "toggle_ai_provider": {
+        "label": "KI-Anbieter umschalten",
+        "tooltip": "KI-Anbieter beim Starten von FATE/CE einschalten\nKI-Anbieter beim Navigieren zu FATE/CE ausschalten"
+      },
+      "force_target": {
+        "label": "Ziel erzwingen",
+        "tooltip": "Stelle sicher, dass du in FATEs und Kritischen Begegnungen immer ein Ziel beibehältst."
+      },
+      "force_target_central_enemy": {
+        "label": "Priorisiere den zentralsten Feind",
+        "tooltip": "Versuche, den Feind in der Mitte der Gruppe anzuvisieren."
+      },
+      "engagement_range": {
+        "label": "Kampfdistanz",
+        "tooltip": "Die Entfernung zu einem FATE-Monster, bevor du absteigst und dein Rotations-/KI-Plugin die Kontrolle übernimmt"
+      },
+      "do_critical_encounters": {
+        "label": "Kritische Begegnungen durchführen",
+        "tooltip": "Soll kritische Begegnungen bei der Aktivitätswahl berücksichtigen"
+      },
+      "delay_critical_encounters": {
+        "label": "Verzögerung vor dem Start einer Kritischen Begegnung",
+        "tooltip": "Fügt eine 10-15 Sekunden Verzögerung hinzu, bevor eine Kritische Begegnung gestartet wird"
+      },
+      "ce_scourge_of_the_mind": {
+        "label": "KB: Geißel des Geistes",
+        "tooltip": "Schaltet die Teilnahme an der kritischen Begegnung 'Geißel des Geistes' um."
+      },
+      "ce_the_black_regiment": {
+        "label": "KB: Das Schwarze Regiment",
+        "tooltip": "Schaltet die Teilnahme an der kritischen Begegnung 'Das Schwarze Regiment' um."
+      },
+      "ce_the_unbridled": {
+        "label": "KB: Die Ungezähmten",
+        "tooltip": "Schaltet die Teilnahme an der kritischen Begegnung 'Die Ungezähmten' um."
+      },
+      "ce_crawling_death": {
+        "label": "KB: Kriechender Tod",
+        "tooltip": "Schaltet die Teilnahme an der kritischen Begegnung 'Kriechender Tod' um."
+      },
+      "ce_calamity_bound": {
+        "label": "KB: Unheilgebunden",
+        "tooltip": "Schaltet die Teilnahme an der kritischen Begegnung 'Unheilgebunden' um."
+      },
+      "ce_trial_by_claw": {
+        "label": "KB: Prüfung der Klaue",
+        "tooltip": "Schaltet die Teilnahme an der kritischen Begegnung 'Prüfung der Klaue' um."
+      },
+      "ce_from_times_bygone": {
+        "label": "KB: Aus vergangenen Zeiten",
+        "tooltip": "Schaltet die Teilnahme an der kritischen Begegnung 'Aus vergangenen Zeiten' um."
+      },
+      "ce_company_of_stone": {
+        "label": "KB: Gesellschaft aus Stein",
+        "tooltip": "Schaltet die Teilnahme an der kritischen Begegnung 'Gesellschaft aus Stein' um."
+      },
+      "ce_shark_attack": {
+        "label": "KB: Hai-Angriff",
+        "tooltip": "Schaltet die Teilnahme an der kritischen Begegnung 'Hai-Angriff' um."
+      },
+      "ce_on_the_hunt": {
+        "label": "KB: Auf der Jagd",
+        "tooltip": "Schaltet die Teilnahme an der kritischen Begegnung 'Auf der Jagd' um."
+      },
+      "ce_with_extreme_prejudice": {
+        "label": "KB: Mit äußerster Sorgfalt",
+        "tooltip": "Schaltet die Teilnahme an der kritischen Begegnung 'Mit äußerster Sorgfalt' um."
+      },
+      "ce_noise_complaint": {
+        "label": "KB: Lärmbelästigung",
+        "tooltip": "Schaltet die Teilnahme an der kritischen Begegnung 'Lärmbelästigung' um."
+      },
+      "ce_cursed_concern": {
+        "label": "KB: Verfluchtes Anliegen",
+        "tooltip": "Schaltet die Teilnahme an der kritischen Begegnung 'Verfluchtes Anliegen' um."
+      },
+      "ce_eternal_watch": {
+        "label": "KB: Ewige Wache",
+        "tooltip": "Schaltet die Teilnahme an der kritischen Begegnung 'Ewige Wache' um."
+      },
+      "ce_flame_of_dusk": {
+        "label": "KB: Flamme der Dämmerung",
+        "tooltip": "Schaltet die Teilnahme an der kritischen Begegnung 'Flamme der Dämmerung' um."
+      },
+      "do_fates": {
+        "label": "FATEs durchführen",
+        "tooltip": "Soll FATEs bei der Aktivitätswahl berücksichtigen"
+      },
+      "fate_rough_waters": {
+        "label": "FATE: Raue Gewässer",
+        "tooltip": "Schaltet die Teilnahme am FATE 'Raue Gewässer' um."
+      },
+      "fate_the_golden_guardian": {
+        "label": "FATE: Der Goldene Wächter",
+        "tooltip": "Schaltet die Teilnahme am FATE 'Der Goldene Wächter' um."
+      },
+      "fate_king_of_the_crescent": {
+        "label": "FATE: König des Mondes",
+        "tooltip": "Schaltet die Teilnahme am FATE 'König des Mondes' um."
+      },
+      "fate_the_winged_terror": {
+        "label": "FATE: Der geflügelte Schrecken",
+        "tooltip": "Schaltet die Teilnahme am FATE 'Der geflügelte Schrecken' um."
+      },
+      "fate_an_unending_duty": {
+        "label": "FATE: Eine unendliche Pflicht",
+        "tooltip": "Schaltet die Teilnahme am FATE 'Eine unendliche Pflicht' um."
+      },
+      "fate_brain_drain": {
+        "label": "FATE: Gehirnwäsche",
+        "tooltip": "Schaltet die Teilnahme am FATE 'Gehirnwäsche' um."
+      },
+      "fate_a_delicate_balance": {
+        "label": "FATE: Ein empfindliches Gleichgewicht",
+        "tooltip": "Schaltet die Teilnahme am FATE 'Ein empfindliches Gleichgewicht' um."
+      },
+      "fate_sworn_to_soil": {
+        "label": "FATE: Dem Boden verschworen",
+        "tooltip": "Schaltet die Teilnahme am FATE 'Dem Boden verschworen' um."
+      },
+      "fate_a_prying_eye": {
+        "label": "FATE: Ein neugieriges Auge",
+        "tooltip": "Schaltet die Teilnahme am FATE 'Ein neugieriges Auge' um."
+      },
+      "fate_fatal_allure": {
+        "label": "FATE: Fatale Verlockung",
+        "tooltip": "Schaltet die Teilnahme am FATE 'Fatale Verlockung' um."
+      },
+      "fate_serving_darkness": {
+        "label": "FATE: Der Dunkelheit dienen",
+        "tooltip": "Schaltet die Teilnahme am FATE 'Der Dunkelheit dienen' um."
+      },
+      "fate_persistent_pots": {
+        "label": "FATE: Hartnäckige Töpfe",
+        "tooltip": "Schaltet die Teilnahme am FATE 'Hartnäckige Töpfe' um."
+      },
+      "fate_pleading_pots": {
+        "label": "FATE: Flehende Töpfe",
+        "tooltip": "Schaltet die Teilnahme am FATE 'Flehende Töpfe' um."
+      },
+      "panel": {
+        "title": "Illegaler Modus",
+        "activity": {
+          "label": "Aktivität",
+          "none": "Keine"
+        },
+        "activity_state": {
+          "label": "Aktivitätsstatus",
+          "none": "Warten auf Aktivität"
+        }
+      }
+    },
+    "mount": {
+      "title": "Reittier-Konfiguration",
+      "mount": {
+        "label": "Reittier",
+        "tooltip": "Wähle das zu verwendende Reittier"
+      },
+      "maintain": {
+        "label": "Aufgesessen bleiben, solange nicht im Kampf.",
+        "tooltip": "Im Leerlaufzustand wird dies erzwungen, dass du aufgesessen bist."
+      },
+      "roulette": {
+        "label": "Reittier-Roulette verwenden",
+        "tooltip": "Überschreibt das konfigurierte Reittier und verwendet stattdessen Roulette"
+      }
+    },
+    "buff": {
+      "config": {
+        "title": "Buffs Konfiguration",
+        "romeos_ballad": {
+          "label": "Romeos Ballade anwenden",
+          "tooltip": "Wendet den Phantom-Barden-Buff 'Romeos Ballade' an"
+        },
+        "enduring_fortitude": {
+          "label": "Anhaltende Tapferkeit anwenden",
+          "tooltip": "Wendet den Phantom-Ritter-Buff 'Anhaltende Tapferkeit' an"
+        },
+        "fleetfooted": {
+          "label": "Flüchtigkeit anwenden",
+          "tooltip": "Wendet den Phantom-Mönch-Buff 'Flüchtigkeit' an"
+        },
+        "threshold": {
+          "label": "Schwellenwert für erneute Anwendung",
+          "tooltip": "Die verbleibende Anzahl von Minuten des niedrigsten Buffs, um alle Buffs bei automatischer Ausführung zu aktualisieren."
+        }
+      },
+      "panel": {
+        "title": "Buffs",
+        "button": {
+          "tooltip": "Wechsle zu jedem aktivierten Phantom-Buff-Job und verwende dessen Buff-Fähigkeit, dann wechsle zurück zu deinem ursprünglichen Phantom-Job."
+        }
+      }
+    }
+  }
+}

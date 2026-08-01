@@ -1,0 +1,64 @@
+{
+  "modules": {
+    "critical_encounters": {
+      "config": {
+        "alert_all": {
+          "label": null,
+          "tooltip": null
+        },
+        "alert_azurite": {
+          "label": null,
+          "tooltip": null
+        },
+        "alert_berserker": {
+          "label": null,
+          "tooltip": null
+        },
+        "alert_caput_mortuum": {
+          "label": null,
+          "tooltip": null
+        },
+        "alert_malachite": {
+          "label": null,
+          "tooltip": null
+        },
+        "alert_oracle": {
+          "label": null,
+          "tooltip": null
+        },
+        "alert_orpiment": {
+          "label": null,
+          "tooltip": null
+        },
+        "alert_ranger": {
+          "label": null,
+          "tooltip": null
+        },
+        "alert_realgar": {
+          "label": null,
+          "tooltip": null
+        },
+        "alert_verdigris": {
+          "label": null,
+          "tooltip": null
+        },
+        "log_spawn": {
+          "label": null,
+          "tooltip": null
+        },
+        "title": "Configuration des Confrontations Critiques",
+        "track_forked_tower": {
+          "label": null,
+          "tooltip": null
+        }
+      },
+      "panel": {
+        "estimated": "Estimé",
+        "none": "Pas de confrontations critiques actives.",
+        "register": "Préparation",
+        "title": "Confrontations Critiques",
+        "warmup": "Démarrage"
+      }
+    }
+  }
+}
