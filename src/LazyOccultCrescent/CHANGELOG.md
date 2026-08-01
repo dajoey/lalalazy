@@ -4,6 +4,34 @@ Fork of [OhKannaDuh/BOCCHI](https://github.com/OhKannaDuh/BOCCHI) (AGPL-3.0-or-l
 forked at `ded40a71af051a3aa57d326c512a975e7957daf6`. Upstream copyright and licence
 are preserved in `LICENSE`.
 
+## v0.1.0.4 (2026-08-01) [testing]
+
+### Fixed
+- **Teleport silently skipped, then the plugin walked across the entire zone.**
+  Upstream bug, present since before the fork, and unrelated to the movement-chain
+  work in 0.1.0.x.
+  `TeleportChain.Create()` resolved the departure shard by calling
+  `GetNearbyAethernetShards(3.8y)` - shards within *interaction range of the
+  player* - and returned the chain untouched when it found none. That lookup ran
+  when the chain was **assembled**, not when it ran. In both `WalkTeleportWalk`
+  and `ReturnTeleportWalk` the chain is assembled while the player is still on the
+  far side of the zone, so it was always empty, the entire teleport block was
+  skipped, and the caller fell through to walking the whole way. Nothing was
+  logged, because as far as the chain was concerned there was nothing to do.
+  This is why it showed up specifically when a FATE or CE was already up before
+  returning: the Automator assembles the full chain the moment it picks an
+  activity, which is exactly when the player is furthest from a shard.
+  Rewritten so everything resolves at execution time:
+  - The departure shard comes from the known `AethernetData` table via
+    `GetClosestToPlayer()` rather than the object table, so it does not require
+    the shard to already be in render range.
+  - The approach walk is conditional and re-checked when the step runs.
+  - The teleport itself now waits until genuinely within `AethernetData.DISTANCE`
+    before firing. Firing early is a silent no-op in Lifestream, and the caller
+    then walks to the far side of the zone believing it had teleported.
+  - The bail-out-if-no-shard-nearby early return is gone entirely; it was the
+    mechanism of the bug.
+
 ## v0.1.0.3 (2026-08-01) [testing]
 
 ### Fixed
