@@ -87,7 +87,7 @@ public class ChainHelper
         return () => Chain.Create()
             .ConditionalThen(_ => Player.DistanceTo(destination) > distance, _ =>
                 Chain.Create()
-                    .Then(new PathfindAndMoveToChain(vnav, destination))
+                    .Then(new PathfindAndMoveToChain(vnav, destination, distance))
                     .WaitUntilNear(vnav, destination, distance)
                     .Then(_ => vnav.Stop())
             );

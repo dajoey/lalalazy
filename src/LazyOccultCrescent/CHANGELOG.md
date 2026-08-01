@@ -4,6 +4,33 @@ Fork of [OhKannaDuh/BOCCHI](https://github.com/OhKannaDuh/BOCCHI) (AGPL-3.0-or-l
 forked at `ded40a71af051a3aa57d326c512a975e7957daf6`. Upstream copyright and licence
 are preserved in `LICENSE`.
 
+## v0.1.0.2 (2026-08-01) [testing]
+
+### Fixed
+- **Walk to an aetheryte stopped short of interaction range.** v0.1.0.1 fixed a
+  too-strict 3y arrival gate by making it a flat 5y - an overcorrection in the
+  other direction, since interacting needs 3.8y. Arrival tolerance is now supplied
+  by the caller: aetheryte and shard approaches demand 3.0y, everything else keeps
+  the loose default. When vnavmesh stops short of what the caller needs (its route
+  ends at the navmesh edge nearest a solid object, which can be outside reach) the
+  chain now closes the last stretch directly instead of accepting a bad position.
+  Once only - a second failure means it genuinely cannot get closer.
+- **It never mounted after teleporting.** Upstream bug, not zone-specific.
+  `ShouldMountToPathfindTo()` requires the destination to be more than 20y away,
+  but it was sequenced *after* the `PathfindingChain` that had already walked
+  there - so it always evaluated at roughly 0y and returned false. Mounting now
+  happens before the walk in all four navigation branches, which is the only
+  ordering in which that check means anything.
+- **Approaches came in at an angle.** The aggro-avoidance detour added in v0.1.0.0
+  applied to every route including short final approaches, so a 20y walk to an
+  aetheryte could get a 20y sidestep bolted onto it. Detours are now skipped for
+  routes under 40y: below that the route is an approach to something, not a
+  traversal across open ground.
+- **Upstream data error in the Eldergrowth shard.** Its teleport `Destination` X
+  was -302.3 while the shard itself sits at +306.94 - a landing point 600y from
+  its own aetheryte. The LGB layout confirms the positive value. Sign error,
+  corrected. South Horn only; it has been wrong since before the fork.
+
 ## v0.1.0.1 (2026-08-01) [testing]
 
 ### Fixed

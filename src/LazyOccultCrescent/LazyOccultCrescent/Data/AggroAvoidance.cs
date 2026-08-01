@@ -39,6 +39,9 @@ public static class AggroAvoidance
     // forever and the walk would never start.
     private const int MaxDetours = 6;
 
+    // Below this the route is an approach to something, not a traversal.
+    private const float MinRouteLengthForDetour = 40f;
+
     private sealed record Threat(Vector3 Position, float Radius);
 
     private static List<Threat> Threats(Vector3 destination)
@@ -103,6 +106,14 @@ public static class AggroAvoidance
         if (!enabled || path == null || path.Count < 2)
         {
             return path ?? [];
+        }
+
+        // Short hops are approaches, not journeys. Bending them produces the
+        // sideways drift into an aetheryte rather than a straight walk up to it.
+        var directLength = Vector3.Distance(path[0], path[^1]);
+        if (directLength < MinRouteLengthForDetour)
+        {
+            return path;
         }
 
         var threats = Threats(destination);

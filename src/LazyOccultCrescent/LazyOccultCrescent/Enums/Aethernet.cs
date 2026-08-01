@@ -90,7 +90,10 @@ public class AethernetData
             BaseId = 2014667,
             Territory = ZoneData.SOUTHHORN,
             Position = new Vector3(306.94f, 105.18f, 305.65f),
-            Destination = new Vector3(-302.3f, 103f, 306f),
+            // Upstream had X as -302.3 while the shard itself is at +306.94;
+            // the LGB layout confirms the positive value. A teleport landing
+            // point 600y from its own shard is a sign error, not a survey.
+            Destination = new Vector3(302.3f, 103f, 306f),
             HasSurveyedPosition = true,
         },
         [Aethernet.Stonemarsh] = new AethernetData

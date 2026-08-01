@@ -18,13 +18,19 @@ public class PathfindAndMoveToChain : ChainFactory
 
     private readonly VNavmesh vnav;
 
-    // Completion tolerance. This MUST NOT be tighter than what the next step in
-    // a chain requires: TeleportChain walks here and then needs to be within
-    // AethernetData.DISTANCE (3.8y) to interact, so a 3y gate meant the walk
-    // "never arrived" at a spot that was already close enough to teleport from.
-    // Aetherytes and shards are solid objects - vnavmesh parks at their collision
-    // edge, not their origin - so this is deliberately loose.
-    private const float ArrivalTolerance = 5f;
+    // How close counts as arrived, per caller.
+    //
+    // This has to match what the NEXT step needs, and 5y flat was too loose in
+    // the other direction: interacting with an aetheryte needs 3.8y, so a walk
+    // that "arrived" at 5y left the teleport out of range. Callers that must end
+    // up in interaction range pass their own tolerance; everything else keeps the
+    // loose default, because aetherytes are solid objects and vnavmesh parks at
+    // their collision edge rather than their origin.
+    private readonly float arrivalTolerance;
+
+    // When vnavmesh stops short of a tolerance the caller actually needs, try a
+    // direct approach once before giving up rather than accepting a bad position.
+    private bool nudged;
 
     // Long enough that releasing a key mid-stride does not snatch control back,
     // short enough not to feel unresponsive.
@@ -41,10 +47,11 @@ public class PathfindAndMoveToChain : ChainFactory
 
     private Task<List<Vector3>>? pathTask;
 
-    public PathfindAndMoveToChain(VNavmesh vnav, Vector3 destination, float maxRadius = 1f, float minRadius = 0f)
+    public PathfindAndMoveToChain(VNavmesh vnav, Vector3 destination, float arrivalTolerance = 5f)
     {
         this.vnav = vnav;
         this.destination = destination;
+        this.arrivalTolerance = arrivalTolerance;
     }
 
     public static PathfindAndMoveToChain RandomNearby(
@@ -77,7 +84,7 @@ public class PathfindAndMoveToChain : ChainFactory
             return false;
         }
 
-        if (Player.DistanceTo(destination) <= ArrivalTolerance)
+        if (Player.DistanceTo(destination) <= arrivalTolerance)
         {
             vnav.Stop();
             return true;
@@ -102,6 +109,7 @@ public class PathfindAndMoveToChain : ChainFactory
             pathTask = null;
             issued = false;
             sawRunning = false;
+            nudged = false;
             return false;
         }
 
@@ -111,11 +119,23 @@ public class PathfindAndMoveToChain : ChainFactory
         }
         else if (issued && sawRunning)
         {
-            // vnavmesh ran and then stopped: it either arrived as close as the
-            // geometry allows, or gave up. Either way this is as far as walking
-            // gets us, and the original Ocelot helper completed here too -
-            // holding out for an exact distance is what stalled the chain.
-            Svc.Log.Debug($"[Pathfind] vnavmesh finished {Player.DistanceTo(destination):F1}y from target - accepting");
+            var distance = Player.DistanceTo(destination);
+
+            // vnavmesh stopped short of what the caller needs. Its route ends at
+            // the navmesh edge nearest the target, which for a solid object can
+            // be outside interaction range - so close the last stretch directly
+            // before accepting. Once only; a second failure means it genuinely
+            // cannot get closer and stalling helps nobody.
+            if (distance > arrivalTolerance && !nudged)
+            {
+                Svc.Log.Debug($"[Pathfind] vnavmesh stopped {distance:F1}y out, need {arrivalTolerance:F1}y - closing directly");
+                nudged = true;
+                vnav.FollowPath([destination], false);
+                sawRunning = false;
+                return false;
+            }
+
+            Svc.Log.Debug($"[Pathfind] vnavmesh finished {distance:F1}y from target - accepting");
             return true;
         }
 

@@ -27,7 +27,9 @@ public class TeleportChain(Aethernet aethernet, Lifestream lifestream, Teleporte
         var nearest = nearby.First();
         if (Player.DistanceTo(nearest.Position) >= AethernetData.DISTANCE)
         {
-            chain.Then(new PathfindAndMoveToChain(vnav, nearest.Position));
+            // Must finish inside AethernetData.DISTANCE or the teleport that
+            // follows silently has nothing to interact with.
+            chain.Then(new PathfindAndMoveToChain(vnav, nearest.Position, AethernetData.DISTANCE - 0.8f));
             chain.Then(_ => lifestream.GetActiveCustomAetheryte() != 0 && Player.DistanceTo(nearest.Position) < AethernetData.DISTANCE);
         }
 
