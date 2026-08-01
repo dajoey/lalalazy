@@ -1,4 +1,4 @@
-#region Dependencies
+﻿#region Dependencies
 
 using FFXIVClientStructs.FFXIV.Client.Game.InstanceContent;
 using System;
@@ -160,19 +160,18 @@ internal partial class OccultCrescent
         Gladiator = 14,
         Dancer = 15,
 
-        // (if they follow what they did in 7.4)
-        // Any future jobs should directly follow the ID of the last-active job.
-        // Remove NotYetImplemented from all of them to get icons to show in Debug.
-        [NotYetImplemented] Ninja = 16,
-        [NotYetImplemented] Summoner = 17,
-        [NotYetImplemented] BlackMage = 18,
-        [NotYetImplemented] RedMage = 19,
-        [NotYetImplemented] BlueMage = 20,
-        [NotYetImplemented] WhiteMage = 21,
-        [NotYetImplemented] Dragoon = 22,
-        [NotYetImplemented] BeastMaster = 23,
-        [NotYetImplemented] Necromancer = 24,
-        [NotYetImplemented] Mime = 25,
+        // 7.55 -- order verified against the MKDSupportJob sheet, where row id IS the
+        // SupportJob index (datamined 2026-08-01). The previous guesses were wrong:
+        // White Mage/Dragoon/Summoner/Blue Mage/Red Mage were misordered, and there is
+        // no Phantom Beastmaster or Phantom Mime -- the sheet has exactly 24 rows (0-23).
+        Ninja = 16,
+        WhiteMage = 17,
+        BlackMage = 18,
+        Dragoon = 19,
+        Summoner = 20,
+        BlueMage = 21,
+        RedMage = 22,
+        Necromancer = 23,
 
         // N/A
         N_A = -1

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <root>
   <!-- 
     Microsoft ResX Schema 
@@ -11530,5 +11530,287 @@ Will be used in all 4 main combos.</value>
   </data>
   <data name="NIN_Anti_Rabbit_Desc" xml:space="preserve">
     <value>Makes it incredibly difficult to rabbit your jutsus. May cause clipping if latency is bad.</value>
+  </data>
+  <data name="Phantom_Ninja_Desc" xml:space="preserve">
+    <value>Enables automatic use of Phantom Ninja actions in the Occult Crescent.</value>
+  </data>
+  <data name="Phantom_Ninja_Name" xml:space="preserve">
+    <value>Phantom Ninja</value>
+  </data>
+  <data name="Phantom_Ninja_FumaShuriken_Desc" xml:space="preserve">
+    <value>Adds Fuma Shuriken into the rotation.</value>
+  </data>
+  <data name="Phantom_Ninja_FumaShuriken_Name" xml:space="preserve">
+    <value>Fuma Shuriken</value>
+  </data>
+  <data name="Phantom_Ninja_Smoke_Desc" xml:space="preserve">
+    <value>Adds Smoke into the rotation.</value>
+  </data>
+  <data name="Phantom_Ninja_Smoke_Name" xml:space="preserve">
+    <value>Smoke</value>
+  </data>
+  <data name="Phantom_Ninja_LightningScroll_Desc" xml:space="preserve">
+    <value>Adds Lightning Scroll into the rotation.</value>
+  </data>
+  <data name="Phantom_Ninja_LightningScroll_Name" xml:space="preserve">
+    <value>Lightning Scroll</value>
+  </data>
+  <data name="Phantom_Ninja_FlameScroll_Desc" xml:space="preserve">
+    <value>Adds Flame Scroll into the rotation.</value>
+  </data>
+  <data name="Phantom_Ninja_FlameScroll_Name" xml:space="preserve">
+    <value>Flame Scroll</value>
+  </data>
+  <data name="Phantom_Ninja_Image_Desc" xml:space="preserve">
+    <value>Adds Image into the rotation.</value>
+  </data>
+  <data name="Phantom_Ninja_Image_Name" xml:space="preserve">
+    <value>Image</value>
+  </data>
+  <data name="Phantom_WhiteMage_Desc" xml:space="preserve">
+    <value>Enables automatic use of Phantom White Mage actions in the Occult Crescent.</value>
+  </data>
+  <data name="Phantom_WhiteMage_Name" xml:space="preserve">
+    <value>Phantom White Mage</value>
+  </data>
+  <data name="Phantom_WhiteMage_OccultCureII_Desc" xml:space="preserve">
+    <value>Adds Occult Cure II into the rotation.</value>
+  </data>
+  <data name="Phantom_WhiteMage_OccultCureII_Name" xml:space="preserve">
+    <value>Occult Cure II</value>
+  </data>
+  <data name="Phantom_WhiteMage_OccultCureIII_Desc" xml:space="preserve">
+    <value>Adds Occult Cure III into the rotation.</value>
+  </data>
+  <data name="Phantom_WhiteMage_OccultCureIII_Name" xml:space="preserve">
+    <value>Occult Cure III</value>
+  </data>
+  <data name="Phantom_WhiteMage_OccultBlink_Desc" xml:space="preserve">
+    <value>Adds Occult Blink into the rotation.</value>
+  </data>
+  <data name="Phantom_WhiteMage_OccultBlink_Name" xml:space="preserve">
+    <value>Occult Blink</value>
+  </data>
+  <data name="Phantom_WhiteMage_OccultRaise_Desc" xml:space="preserve">
+    <value>Adds Occult Raise into the rotation.</value>
+  </data>
+  <data name="Phantom_WhiteMage_OccultRaise_Name" xml:space="preserve">
+    <value>Occult Raise</value>
+  </data>
+  <data name="Phantom_WhiteMage_OccultHoly_Desc" xml:space="preserve">
+    <value>Adds Occult Holy into the rotation.</value>
+  </data>
+  <data name="Phantom_WhiteMage_OccultHoly_Name" xml:space="preserve">
+    <value>Occult Holy</value>
+  </data>
+  <data name="Phantom_BlackMage_Desc" xml:space="preserve">
+    <value>Enables automatic use of Phantom Black Mage actions in the Occult Crescent.</value>
+  </data>
+  <data name="Phantom_BlackMage_Name" xml:space="preserve">
+    <value>Phantom Black Mage</value>
+  </data>
+  <data name="Phantom_BlackMage_OccultFireIII_Desc" xml:space="preserve">
+    <value>Adds Occult Fire III into the rotation.</value>
+  </data>
+  <data name="Phantom_BlackMage_OccultFireIII_Name" xml:space="preserve">
+    <value>Occult Fire III</value>
+  </data>
+  <data name="Phantom_BlackMage_OccultBlizzardIII_Desc" xml:space="preserve">
+    <value>Adds Occult Blizzard III into the rotation.</value>
+  </data>
+  <data name="Phantom_BlackMage_OccultBlizzardIII_Name" xml:space="preserve">
+    <value>Occult Blizzard III</value>
+  </data>
+  <data name="Phantom_BlackMage_OccultThunderIII_Desc" xml:space="preserve">
+    <value>Adds Occult Thunder III into the rotation.</value>
+  </data>
+  <data name="Phantom_BlackMage_OccultThunderIII_Name" xml:space="preserve">
+    <value>Occult Thunder III</value>
+  </data>
+  <data name="Phantom_BlackMage_OccultToad_Desc" xml:space="preserve">
+    <value>Adds Occult Toad into the rotation.</value>
+  </data>
+  <data name="Phantom_BlackMage_OccultToad_Name" xml:space="preserve">
+    <value>Occult Toad</value>
+  </data>
+  <data name="Phantom_BlackMage_OccultFlare_Desc" xml:space="preserve">
+    <value>Adds Occult Flare into the rotation.</value>
+  </data>
+  <data name="Phantom_BlackMage_OccultFlare_Name" xml:space="preserve">
+    <value>Occult Flare</value>
+  </data>
+  <data name="Phantom_Dragoon_Desc" xml:space="preserve">
+    <value>Enables automatic use of Phantom Dragoon actions in the Occult Crescent.</value>
+  </data>
+  <data name="Phantom_Dragoon_Name" xml:space="preserve">
+    <value>Phantom Dragoon</value>
+  </data>
+  <data name="Phantom_Dragoon_OccultJump_Desc" xml:space="preserve">
+    <value>Adds Occult Jump into the rotation.</value>
+  </data>
+  <data name="Phantom_Dragoon_OccultJump_Name" xml:space="preserve">
+    <value>Occult Jump</value>
+  </data>
+  <data name="Phantom_Dragoon_StepForth_Desc" xml:space="preserve">
+    <value>Adds Step Forth into the rotation.</value>
+  </data>
+  <data name="Phantom_Dragoon_StepForth_Name" xml:space="preserve">
+    <value>Step Forth</value>
+  </data>
+  <data name="Phantom_Dragoon_Lance_Desc" xml:space="preserve">
+    <value>Adds Lance into the rotation.</value>
+  </data>
+  <data name="Phantom_Dragoon_Lance_Name" xml:space="preserve">
+    <value>Lance</value>
+  </data>
+  <data name="Phantom_Summoner_Desc" xml:space="preserve">
+    <value>Enables automatic use of Phantom Summoner actions in the Occult Crescent.</value>
+  </data>
+  <data name="Phantom_Summoner_Name" xml:space="preserve">
+    <value>Phantom Summoner</value>
+  </data>
+  <data name="Phantom_Summoner_Hellfire_Desc" xml:space="preserve">
+    <value>Adds Hellfire into the rotation.</value>
+  </data>
+  <data name="Phantom_Summoner_Hellfire_Name" xml:space="preserve">
+    <value>Hellfire</value>
+  </data>
+  <data name="Phantom_Summoner_JudgmentBolt_Desc" xml:space="preserve">
+    <value>Adds Judgment Bolt into the rotation.</value>
+  </data>
+  <data name="Phantom_Summoner_JudgmentBolt_Name" xml:space="preserve">
+    <value>Judgment Bolt</value>
+  </data>
+  <data name="Phantom_Summoner_EarthenWall_Desc" xml:space="preserve">
+    <value>Adds Earthen Wall into the rotation.</value>
+  </data>
+  <data name="Phantom_Summoner_EarthenWall_Name" xml:space="preserve">
+    <value>Earthen Wall</value>
+  </data>
+  <data name="Phantom_Summoner_Thunderstorm_Desc" xml:space="preserve">
+    <value>Adds Thunderstorm into the rotation.</value>
+  </data>
+  <data name="Phantom_Summoner_Thunderstorm_Name" xml:space="preserve">
+    <value>Thunderstorm</value>
+  </data>
+  <data name="Phantom_Summoner_Megaflare_Desc" xml:space="preserve">
+    <value>Adds Megaflare into the rotation.</value>
+  </data>
+  <data name="Phantom_Summoner_Megaflare_Name" xml:space="preserve">
+    <value>Megaflare</value>
+  </data>
+  <data name="Phantom_BlueMage_Desc" xml:space="preserve">
+    <value>Enables automatic use of Phantom Blue Mage actions in the Occult Crescent.</value>
+  </data>
+  <data name="Phantom_BlueMage_Name" xml:space="preserve">
+    <value>Phantom Blue Mage</value>
+  </data>
+  <data name="Phantom_BlueMage_OccultAero_Desc" xml:space="preserve">
+    <value>Adds Occult Aero into the rotation.</value>
+  </data>
+  <data name="Phantom_BlueMage_OccultAero_Name" xml:space="preserve">
+    <value>Occult Aero</value>
+  </data>
+  <data name="Phantom_BlueMage_OccultMissile_Desc" xml:space="preserve">
+    <value>Adds Occult Missile into the rotation.</value>
+  </data>
+  <data name="Phantom_BlueMage_OccultMissile_Name" xml:space="preserve">
+    <value>Occult Missile</value>
+  </data>
+  <data name="Phantom_BlueMage_OccultAquaBreath_Desc" xml:space="preserve">
+    <value>Adds Occult Aqua Breath into the rotation.</value>
+  </data>
+  <data name="Phantom_BlueMage_OccultAquaBreath_Name" xml:space="preserve">
+    <value>Occult Aqua Breath</value>
+  </data>
+  <data name="Phantom_BlueMage_OccultMightyGuard_Desc" xml:space="preserve">
+    <value>Adds Occult Mighty Guard into the rotation.</value>
+  </data>
+  <data name="Phantom_BlueMage_OccultMightyGuard_Name" xml:space="preserve">
+    <value>Occult Mighty Guard</value>
+  </data>
+  <data name="Phantom_BlueMage_OccultWhiteWind_Desc" xml:space="preserve">
+    <value>Adds Occult White Wind into the rotation.</value>
+  </data>
+  <data name="Phantom_BlueMage_OccultWhiteWind_Name" xml:space="preserve">
+    <value>Occult White Wind</value>
+  </data>
+  <data name="Phantom_RedMage_Desc" xml:space="preserve">
+    <value>Enables automatic use of Phantom Red Mage actions in the Occult Crescent.</value>
+  </data>
+  <data name="Phantom_RedMage_Name" xml:space="preserve">
+    <value>Phantom Red Mage</value>
+  </data>
+  <data name="Phantom_RedMage_OccultFireII_Desc" xml:space="preserve">
+    <value>Adds Occult Fire II into the rotation.</value>
+  </data>
+  <data name="Phantom_RedMage_OccultFireII_Name" xml:space="preserve">
+    <value>Occult Fire II</value>
+  </data>
+  <data name="Phantom_RedMage_OccultCureII_Desc" xml:space="preserve">
+    <value>Adds Occult Cure II into the rotation.</value>
+  </data>
+  <data name="Phantom_RedMage_OccultCureII_Name" xml:space="preserve">
+    <value>Occult Cure II</value>
+  </data>
+  <data name="Phantom_RedMage_OccultLibra_Desc" xml:space="preserve">
+    <value>Adds Occult Libra into the rotation.</value>
+  </data>
+  <data name="Phantom_RedMage_OccultLibra_Name" xml:space="preserve">
+    <value>Occult Libra</value>
+  </data>
+  <data name="Phantom_RedMage_OccultBlizzardII_Desc" xml:space="preserve">
+    <value>Adds Occult Blizzard II into the rotation.</value>
+  </data>
+  <data name="Phantom_RedMage_OccultBlizzardII_Name" xml:space="preserve">
+    <value>Occult Blizzard II</value>
+  </data>
+  <data name="Phantom_RedMage_OccultThunderII_Desc" xml:space="preserve">
+    <value>Adds Occult Thunder II into the rotation.</value>
+  </data>
+  <data name="Phantom_RedMage_OccultThunderII_Name" xml:space="preserve">
+    <value>Occult Thunder II</value>
+  </data>
+  <data name="Phantom_Necromancer_Desc" xml:space="preserve">
+    <value>Enables automatic use of Phantom Necromancer actions in the Occult Crescent.</value>
+  </data>
+  <data name="Phantom_Necromancer_Name" xml:space="preserve">
+    <value>Phantom Necromancer</value>
+  </data>
+  <data name="Phantom_Necromancer_DrainTouch_Desc" xml:space="preserve">
+    <value>Adds Drain Touch into the rotation.</value>
+  </data>
+  <data name="Phantom_Necromancer_DrainTouch_Name" xml:space="preserve">
+    <value>Drain Touch</value>
+  </data>
+  <data name="Phantom_Necromancer_DeepFreeze_Desc" xml:space="preserve">
+    <value>Adds Deep Freeze into the rotation.</value>
+  </data>
+  <data name="Phantom_Necromancer_DeepFreeze_Name" xml:space="preserve">
+    <value>Deep Freeze</value>
+  </data>
+  <data name="Phantom_Necromancer_HellWind_Desc" xml:space="preserve">
+    <value>Adds Hell Wind into the rotation.</value>
+  </data>
+  <data name="Phantom_Necromancer_HellWind_Name" xml:space="preserve">
+    <value>Hell Wind</value>
+  </data>
+  <data name="Phantom_Necromancer_ChaosDrive_Desc" xml:space="preserve">
+    <value>Adds Chaos Drive into the rotation.</value>
+  </data>
+  <data name="Phantom_Necromancer_ChaosDrive_Name" xml:space="preserve">
+    <value>Chaos Drive</value>
+  </data>
+  <data name="Phantom_Necromancer_Doomsday_Desc" xml:space="preserve">
+    <value>Adds Doomsday into the rotation.</value>
+  </data>
+  <data name="Phantom_Necromancer_Doomsday_Name" xml:space="preserve">
+    <value>Doomsday</value>
+  </data>
+  <data name="Phantom755_RequireWeakness_Desc" xml:space="preserve">
+    <value>Only cast elemental phantom actions when the target is weak to that element. Uses the live weakness debuff if present (e.g. revealed by Occult Libra), otherwise a known-mob table. Turn this off to fire them on cooldown regardless.</value>
+  </data>
+  <data name="Phantom755_RequireWeakness_Name" xml:space="preserve">
+    <value>Require Elemental Weakness</value>
   </data>
 </root>

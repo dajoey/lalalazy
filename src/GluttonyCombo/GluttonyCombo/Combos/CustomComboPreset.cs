@@ -1,4 +1,4 @@
-#region
+﻿#region
 
 using ECommons.ExcelServices;
 using GluttonyCombo.Attributes;
@@ -968,7 +968,238 @@ public enum Preset
     [JobInfo(Job.ADV)]
     Phantom_Gladiator_BladeBlitz = 110089,
 
-    //Last Value = 110089
+
+    #region 7.55 PHANTOM JOBS (stopgap -- delete when upstream Wrath ships these)
+
+    [OccultCrescent(OccultCrescent.JobIDs.Ninja)]
+    [JobInfo(Job.ADV)]
+    Phantom_Ninja = 110090,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_Ninja)]
+    [JobInfo(Job.ADV)]
+    Phantom_Ninja_FumaShuriken = 110091,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_Ninja)]
+    [JobInfo(Job.ADV)]
+    Phantom_Ninja_Smoke = 110092,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_Ninja)]
+    [JobInfo(Job.ADV)]
+    Phantom_Ninja_LightningScroll = 110093,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_Ninja)]
+    [JobInfo(Job.ADV)]
+    Phantom_Ninja_FlameScroll = 110094,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_Ninja)]
+    [JobInfo(Job.ADV)]
+    Phantom_Ninja_Image = 110095,
+
+    [OccultCrescent(OccultCrescent.JobIDs.WhiteMage)]
+    [JobInfo(Job.ADV)]
+    Phantom_WhiteMage = 110096,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_WhiteMage)]
+    [JobInfo(Job.ADV)]
+    Phantom_WhiteMage_OccultCureII = 110097,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_WhiteMage)]
+    [JobInfo(Job.ADV)]
+    Phantom_WhiteMage_OccultCureIII = 110098,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_WhiteMage)]
+    [JobInfo(Job.ADV)]
+    Phantom_WhiteMage_OccultBlink = 110099,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_WhiteMage)]
+    [JobInfo(Job.ADV)]
+    Phantom_WhiteMage_OccultRaise = 110100,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_WhiteMage)]
+    [JobInfo(Job.ADV)]
+    Phantom_WhiteMage_OccultHoly = 110101,
+
+    [OccultCrescent(OccultCrescent.JobIDs.BlackMage)]
+    [JobInfo(Job.ADV)]
+    Phantom_BlackMage = 110102,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_BlackMage)]
+    [JobInfo(Job.ADV)]
+    Phantom_BlackMage_OccultFireIII = 110103,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_BlackMage)]
+    [JobInfo(Job.ADV)]
+    Phantom_BlackMage_OccultBlizzardIII = 110104,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_BlackMage)]
+    [JobInfo(Job.ADV)]
+    Phantom_BlackMage_OccultThunderIII = 110105,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_BlackMage)]
+    [JobInfo(Job.ADV)]
+    Phantom_BlackMage_OccultToad = 110106,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_BlackMage)]
+    [JobInfo(Job.ADV)]
+    Phantom_BlackMage_OccultFlare = 110107,
+
+    [OccultCrescent(OccultCrescent.JobIDs.Dragoon)]
+    [JobInfo(Job.ADV)]
+    Phantom_Dragoon = 110108,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_Dragoon)]
+    [JobInfo(Job.ADV)]
+    Phantom_Dragoon_OccultJump = 110109,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_Dragoon)]
+    [JobInfo(Job.ADV)]
+    Phantom_Dragoon_StepForth = 110110,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_Dragoon)]
+    [JobInfo(Job.ADV)]
+    Phantom_Dragoon_Lance = 110111,
+
+    [OccultCrescent(OccultCrescent.JobIDs.Summoner)]
+    [JobInfo(Job.ADV)]
+    Phantom_Summoner = 110112,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_Summoner)]
+    [JobInfo(Job.ADV)]
+    Phantom_Summoner_Hellfire = 110113,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_Summoner)]
+    [JobInfo(Job.ADV)]
+    Phantom_Summoner_JudgmentBolt = 110114,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_Summoner)]
+    [JobInfo(Job.ADV)]
+    Phantom_Summoner_EarthenWall = 110115,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_Summoner)]
+    [JobInfo(Job.ADV)]
+    Phantom_Summoner_Thunderstorm = 110116,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_Summoner)]
+    [JobInfo(Job.ADV)]
+    Phantom_Summoner_Megaflare = 110117,
+
+    [OccultCrescent(OccultCrescent.JobIDs.BlueMage)]
+    [JobInfo(Job.ADV)]
+    Phantom_BlueMage = 110118,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_BlueMage)]
+    [JobInfo(Job.ADV)]
+    Phantom_BlueMage_OccultAero = 110119,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_BlueMage)]
+    [JobInfo(Job.ADV)]
+    Phantom_BlueMage_OccultMissile = 110120,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_BlueMage)]
+    [JobInfo(Job.ADV)]
+    Phantom_BlueMage_OccultAquaBreath = 110121,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_BlueMage)]
+    [JobInfo(Job.ADV)]
+    Phantom_BlueMage_OccultMightyGuard = 110122,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_BlueMage)]
+    [JobInfo(Job.ADV)]
+    Phantom_BlueMage_OccultWhiteWind = 110123,
+
+    [OccultCrescent(OccultCrescent.JobIDs.RedMage)]
+    [JobInfo(Job.ADV)]
+    Phantom_RedMage = 110124,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_RedMage)]
+    [JobInfo(Job.ADV)]
+    Phantom_RedMage_OccultFireII = 110125,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_RedMage)]
+    [JobInfo(Job.ADV)]
+    Phantom_RedMage_OccultCureII = 110126,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_RedMage)]
+    [JobInfo(Job.ADV)]
+    Phantom_RedMage_OccultLibra = 110127,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_RedMage)]
+    [JobInfo(Job.ADV)]
+    Phantom_RedMage_OccultBlizzardII = 110128,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_RedMage)]
+    [JobInfo(Job.ADV)]
+    Phantom_RedMage_OccultThunderII = 110129,
+
+    [OccultCrescent(OccultCrescent.JobIDs.Necromancer)]
+    [JobInfo(Job.ADV)]
+    Phantom_Necromancer = 110130,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_Necromancer)]
+    [JobInfo(Job.ADV)]
+    Phantom_Necromancer_DrainTouch = 110131,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_Necromancer)]
+    [JobInfo(Job.ADV)]
+    Phantom_Necromancer_DeepFreeze = 110132,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_Necromancer)]
+    [JobInfo(Job.ADV)]
+    Phantom_Necromancer_HellWind = 110133,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_Necromancer)]
+    [JobInfo(Job.ADV)]
+    Phantom_Necromancer_ChaosDrive = 110134,
+
+    [OccultCrescent]
+    [ParentCombo(Phantom_Necromancer)]
+    [JobInfo(Job.ADV)]
+    Phantom_Necromancer_Doomsday = 110135,
+
+    [OccultCrescent]
+    [JobInfo(Job.ADV)]
+    Phantom755_RequireWeakness = 110136,
+
+    #endregion
+
+    //Last Value = 110136
     #endregion
 
     // Jobs

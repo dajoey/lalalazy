@@ -1,0 +1,585 @@
+﻿#region Dependencies
+
+using GluttonyCombo.Data;
+using GluttonyCombo.Extensions;
+using static GluttonyCombo.Combos.PvE.OccultCrescent.Config;
+using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
+
+#endregion
+
+namespace GluttonyCombo.Combos.PvE;
+
+// ============================================================================================
+//  GLUTTONY 7.55 PHANTOM JOB STOPGAP
+//
+//  Upstream Wrath had not implemented the eight phantom jobs added in patch 7.55 as of
+//  2026-08-01. This file fills that gap so Occult Crescent: North Horn is usable. It is
+//  DELIBERATELY SELF-CONTAINED and meant to be deleted wholesale once upstream ships theirs.
+//
+//  RIP-OUT PROCEDURE:
+//    1. Delete this file and OccultCrescent_755_Weakness.cs.
+//    2. Delete the Phantom_* preset range 110090-110139 in CustomComboPreset.cs.
+//    3. Delete the single TryGet755Action() call in OccultCrescent.TryGetPhantomAction().
+//    4. Delete the OccultCrescent_755 slider cases + UserInts in OccultCrescent_Config.cs.
+//    5. Revert the JobIDs enum entries 16-23 to whatever upstream ships.
+//
+//  Action and status IDs were datamined from the live 7.55 sqpack on 2026-08-01
+//  (dumper: C:\temp\phantomdump). They are NOT guesses. Note that action NAMES are not
+//  unique -- "Occult Cure II" is 49067 on White Mage and 49093 on Red Mage -- so everything
+//  here is keyed by explicit ID.
+// ============================================================================================
+internal partial class OccultCrescent
+{
+    #region Action IDs -- contiguous block 49062-49101
+
+    internal static class P755
+    {
+        public const uint
+            // --- Phantom Ninja (job 16, max level 6)
+            NIN_FumaShuriken = 49062,   // lv1  instant, 60s,  single, 30y
+            NIN_Smoke = 49063,          // lv2  instant, 5s,   self
+            NIN_LightningScroll = 49064,// lv3  instant, 60s,  5y aoe   [Lightning weakness]
+            NIN_FlameScroll = 49065,    // lv4  instant, 60s,  5y aoe   [Fire weakness]
+            NIN_Image = 49066,          // lv6  instant, 120s, self
+
+            // --- Phantom White Mage (job 17, max level 5)
+            WHM_OccultCureII = 49067,   // lv1  1.5s, 2.5s, single heal
+            WHM_OccultCureIII = 49068,  // lv2  2.3s, 2.5s, 15y aoe heal
+            WHM_OccultBlink = 49069,    // lv3  instant, 90s
+            WHM_OccultRaise = 49070,    // lv4  instant, 5s, raise
+            WHM_OccultHoly = 49071,     // lv5  2.3s, 60s, 8y aoe damage
+
+            // --- Phantom Black Mage (job 18, max level 5)
+            BLM_OccultFireIII = 49072,  // lv1  1.5s, 40s, 5y aoe  [Fire weakness]
+            BLM_OccultBlizzardIII = 49073, // lv2 1.5s, 40s, 5y aoe [Ice weakness]
+            BLM_OccultThunderIII = 49074,  // lv3 1.5s, 40s, 5y aoe [Lightning weakness]
+            BLM_OccultToad = 49075,     // lv4  1.5s, 2.5s, single -- CC, applies Occult Toad
+            BLM_OccultFlare = 49076,    // lv5  2.3s, 60s, 8y aoe
+
+            // --- Phantom Dragoon (job 19, max level 4)
+            DRG_OccultJump = 49077,     // lv1  instant, 60s, grants Vulnerability Down
+            DRG_StepForth = 49078,      // lv2  instant, 10s, 10y movement
+            DRG_Lance = 49079,          // lv3  instant, 30s, grants Lance
+
+            // --- Phantom Summoner (job 20, max level 5)
+            SMN_Hellfire = 49080,       // lv1  4s, 60s, 12y aoe  [Fire weakness]
+            SMN_JudgmentBolt = 49081,   // lv2  4s, 60s, 12y aoe  [Lightning weakness]
+            SMN_EarthenWall = 49082,    // lv3  2.5s, 120s, 20y self mitigation
+            SMN_Thunderstorm = 49083,   // lv4  4s, 60s, 30y aoe  [WIND weakness -- not lightning]
+            SMN_Megaflare = 49084,      // lv5  6s, 90s, 15y aoe
+
+            // --- Phantom Blue Mage (job 21, max level 3)
+            BLU_OccultAero = 49085,     // lv1  1.5s, 30s, single (upgrades to 49089/49091)
+            BLU_OccultMissile = 49086,  // lv1  1.5s, 30s, single
+            BLU_OccultAquaBreath = 49087, // lv1 1.5s, 60s, 5y aoe
+            BLU_OccultMightyGuard = 49088, // lv2 instant, 120s, 20y self mitigation
+            BLU_OccultWhiteWind = 49090,   // lv3 1.5s, 150s, 15y aoe heal
+
+            // --- Phantom Red Mage (job 22, max level 6)
+            RDM_OccultFireII = 49092,   // lv1  1.5s, 30s, 5y aoe  [Fire weakness]
+            RDM_OccultCureII = 49093,   // lv2  1.5s, 2.5s, single heal
+            RDM_OccultLibra = 49094,    // lv3  instant, 5s -- REVEALS elemental weakness
+            RDM_OccultBlizzardII = 49095,  // lv4 1.5s, 30s, 5y aoe [Ice weakness]
+            RDM_OccultThunderII = 49096,   // lv5 1.5s, 30s, 5y aoe [Lightning weakness]
+
+            // --- Phantom Necromancer (job 23, max level 5)
+            NEC_DrainTouch = 49097,     // lv1  instant, 40s, single
+            NEC_DeepFreeze = 49098,     // lv2  1.5s, 40s, 30y aoe  [Ice weakness]
+            NEC_HellWind = 49099,       // lv3  1.5s, 40s, 30y aoe  [Wind weakness]
+            NEC_ChaosDrive = 49100,     // lv4  1.5s, 40s, 30y aoe  [Lightning weakness]
+            NEC_Doomsday = 49101;       // lv5  1.5s, 120s, 30y aoe
+    }
+
+    #endregion
+
+    #region Status IDs
+
+    internal static class Buffs755
+    {
+        public const ushort
+            Smoke = 5327,
+            Image = 4873,
+            OccultBlink = 5316,
+            VulnerabilityDown = 5318,   // granted by DRG Occult Jump
+            Lance = 5319,
+            EarthenWall = 5320,
+            OccultMightyGuard = 5321,
+            DrainTouch = 5326;
+    }
+
+    internal static class Debuffs755
+    {
+        public const ushort OccultToad = 5317;
+    }
+
+    /// <summary>Phantom Job identity statuses, contiguous 5328-5335.</summary>
+    internal static class JobStatus755
+    {
+        public const ushort
+            Ninja = 5328,
+            WhiteMage = 5329,
+            BlackMage = 5330,
+            Dragoon = 5331,
+            Summoner = 5332,
+            BlueMage = 5333,
+            RedMage = 5334,
+            Necromancer = 5335;
+    }
+
+    #endregion
+
+    /// <summary>
+    ///     Single entry point for every 7.55 phantom job. One call from TryGetPhantomAction()
+    ///     keeps the rip-out surface to a single line.
+    /// </summary>
+    internal static bool TryGet755Action(ref uint actionID)
+    {
+        if (TryGetNinjaAction(ref actionID)) return true;
+        if (TryGetWhiteMageAction(ref actionID)) return true;
+        if (TryGetBlackMageAction(ref actionID)) return true;
+        if (TryGetDragoonAction(ref actionID)) return true;
+        if (TryGetSummonerAction(ref actionID)) return true;
+        if (TryGetBlueMageAction(ref actionID)) return true;
+        if (TryGetRedMageAction(ref actionID)) return true;
+        if (TryGetNecromancerAction(ref actionID)) return true;
+
+        return false;
+    }
+
+    /// <summary>Shared "only act under a damage buff" gate, matching the pre-7.55 jobs.</summary>
+    private static bool BuffGateBlocks =>
+        IsEnabled(Preset.Phantom_RestrictToBuff) && !Bursting.PlayerIsDamageBuffed;
+
+    #region Phantom Ninja
+
+    private static bool TryGetNinjaAction(ref uint actionID)
+    {
+        if (!IsEnabled(Preset.Phantom_Ninja))
+            return false;
+
+        // Everything Ninja has is instant, so it all wants a weave window.
+        if (!CanWeaveNow) return false;
+
+        if (IsEnabledAndUsable(Preset.Phantom_Ninja_Image, P755.NIN_Image) &&
+            !HasStatusEffect(Buffs755.Image) && PlayerHP <= Phantom_Ninja_Image_Health)
+        {
+            actionID = P755.NIN_Image; // decoy / survival
+            return true;
+        }
+
+        if (IsEnabledAndUsable(Preset.Phantom_Ninja_Smoke, P755.NIN_Smoke) &&
+            !HasStatusEffect(Buffs755.Smoke) && InCombatNow)
+        {
+            actionID = P755.NIN_Smoke;
+            return true;
+        }
+
+        if (BuffGateBlocks) return false;
+        if (!HasTargetNow) return false;
+
+        if (IsEnabledAndUsable(Preset.Phantom_Ninja_FlameScroll, P755.NIN_FlameScroll) &&
+            InActionRange(P755.NIN_FlameScroll) && WeaknessGate(Weak755.FireWeakness))
+        {
+            actionID = P755.NIN_FlameScroll;
+            return true;
+        }
+
+        if (IsEnabledAndUsable(Preset.Phantom_Ninja_LightningScroll, P755.NIN_LightningScroll) &&
+            InActionRange(P755.NIN_LightningScroll) && WeaknessGate(Weak755.LightningWeakness))
+        {
+            actionID = P755.NIN_LightningScroll;
+            return true;
+        }
+
+        if (IsEnabledAndUsable(Preset.Phantom_Ninja_FumaShuriken, P755.NIN_FumaShuriken) &&
+            InActionRange(P755.NIN_FumaShuriken))
+        {
+            actionID = P755.NIN_FumaShuriken;
+            return true;
+        }
+
+        return false;
+    }
+
+    #endregion
+
+    #region Phantom White Mage
+
+    private static bool TryGetWhiteMageAction(ref uint actionID)
+    {
+        if (!IsEnabled(Preset.Phantom_WhiteMage))
+            return false;
+
+        // Occult Blink is the only instant worth weaving.
+        if (CanWeaveNow)
+        {
+            if (IsEnabledAndUsable(Preset.Phantom_WhiteMage_OccultBlink, P755.WHM_OccultBlink) &&
+                !HasStatusEffect(Buffs755.OccultBlink) &&
+                PlayerHP <= Phantom_WhiteMage_OccultBlink_Health)
+            {
+                actionID = P755.WHM_OccultBlink;
+                return true;
+            }
+
+            return false;
+        }
+
+        if (IsEnabledAndUsable(Preset.Phantom_WhiteMage_OccultRaise, P755.WHM_OccultRaise) &&
+            CurrentTarget.IfCanUseOn(P755.WHM_OccultRaise).IfDead() is not null)
+        {
+            actionID = P755.WHM_OccultRaise;
+            return true;
+        }
+
+        if (IsEnabledAndUsable(Preset.Phantom_WhiteMage_OccultCureIII, P755.WHM_OccultCureIII) &&
+            IsInParty() && GetPartyAvgHPPercent() <= Phantom_WhiteMage_OccultCureIII_Health)
+        {
+            actionID = P755.WHM_OccultCureIII;
+            return true;
+        }
+
+        if (IsEnabledAndUsable(Preset.Phantom_WhiteMage_OccultCureII, P755.WHM_OccultCureII) &&
+            PlayerHP <= Phantom_WhiteMage_OccultCureII_Health)
+        {
+            actionID = P755.WHM_OccultCureII;
+            return true;
+        }
+
+        if (BuffGateBlocks) return false;
+
+        if (IsEnabledAndUsable(Preset.Phantom_WhiteMage_OccultHoly, P755.WHM_OccultHoly) &&
+            HasTargetNow && InActionRange(P755.WHM_OccultHoly))
+        {
+            actionID = P755.WHM_OccultHoly;
+            return true;
+        }
+
+        return false;
+    }
+
+    #endregion
+
+    #region Phantom Black Mage
+
+    private static bool TryGetBlackMageAction(ref uint actionID)
+    {
+        if (!IsEnabled(Preset.Phantom_BlackMage))
+            return false;
+
+        // Every Black Mage action is a hard cast.
+        if (CanWeaveNow) return false;
+        if (!HasTargetNow) return false;
+
+        // Toad is crowd control, not damage, so it sits ahead of the buff gate.
+        if (IsEnabledAndUsable(Preset.Phantom_BlackMage_OccultToad, P755.BLM_OccultToad) &&
+            !HasStatusEffect(Debuffs755.OccultToad, CurrentTarget, anyOwner: true) &&
+            InActionRange(P755.BLM_OccultToad))
+        {
+            actionID = P755.BLM_OccultToad;
+            return true;
+        }
+
+        if (BuffGateBlocks) return false;
+
+        if (IsEnabledAndUsable(Preset.Phantom_BlackMage_OccultFlare, P755.BLM_OccultFlare) &&
+            InActionRange(P755.BLM_OccultFlare))
+        {
+            actionID = P755.BLM_OccultFlare; // biggest hit, no weakness requirement
+            return true;
+        }
+
+        if (IsEnabledAndUsable(Preset.Phantom_BlackMage_OccultFireIII, P755.BLM_OccultFireIII) &&
+            InActionRange(P755.BLM_OccultFireIII) && WeaknessGate(Weak755.FireWeakness))
+        {
+            actionID = P755.BLM_OccultFireIII;
+            return true;
+        }
+
+        if (IsEnabledAndUsable(Preset.Phantom_BlackMage_OccultBlizzardIII, P755.BLM_OccultBlizzardIII) &&
+            InActionRange(P755.BLM_OccultBlizzardIII) && WeaknessGate(Weak755.IceWeakness))
+        {
+            actionID = P755.BLM_OccultBlizzardIII;
+            return true;
+        }
+
+        if (IsEnabledAndUsable(Preset.Phantom_BlackMage_OccultThunderIII, P755.BLM_OccultThunderIII) &&
+            InActionRange(P755.BLM_OccultThunderIII) && WeaknessGate(Weak755.LightningWeakness))
+        {
+            actionID = P755.BLM_OccultThunderIII;
+            return true;
+        }
+
+        return false;
+    }
+
+    #endregion
+
+    #region Phantom Dragoon
+
+    private static bool TryGetDragoonAction(ref uint actionID)
+    {
+        if (!IsEnabled(Preset.Phantom_Dragoon))
+            return false;
+
+        if (!CanWeaveNow) return false;
+
+        // Step Forth is pure movement -- off by default, it will yank you around otherwise.
+        if (IsEnabledAndUsable(Preset.Phantom_Dragoon_StepForth, P755.DRG_StepForth) &&
+            InCombatNow && HasTargetNow)
+        {
+            actionID = P755.DRG_StepForth;
+            return true;
+        }
+
+        if (BuffGateBlocks) return false;
+        if (!HasTargetNow) return false;
+
+        if (IsEnabledAndUsable(Preset.Phantom_Dragoon_Lance, P755.DRG_Lance) &&
+            !HasStatusEffect(Buffs755.Lance) && InActionRange(P755.DRG_Lance))
+        {
+            actionID = P755.DRG_Lance;
+            return true;
+        }
+
+        if (IsEnabledAndUsable(Preset.Phantom_Dragoon_OccultJump, P755.DRG_OccultJump) &&
+            InActionRange(P755.DRG_OccultJump))
+        {
+            actionID = P755.DRG_OccultJump; // damage + Vulnerability Down on self
+            return true;
+        }
+
+        return false;
+    }
+
+    #endregion
+
+    #region Phantom Summoner
+
+    private static bool TryGetSummonerAction(ref uint actionID)
+    {
+        if (!IsEnabled(Preset.Phantom_Summoner))
+            return false;
+
+        if (CanWeaveNow) return false;
+
+        if (IsEnabledAndUsable(Preset.Phantom_Summoner_EarthenWall, P755.SMN_EarthenWall) &&
+            !HasStatusEffect(Buffs755.EarthenWall) &&
+            PlayerHP <= Phantom_Summoner_EarthenWall_Health)
+        {
+            actionID = P755.SMN_EarthenWall;
+            return true;
+        }
+
+        if (BuffGateBlocks) return false;
+        if (!HasTargetNow) return false;
+
+        if (IsEnabledAndUsable(Preset.Phantom_Summoner_Megaflare, P755.SMN_Megaflare) &&
+            InActionRange(P755.SMN_Megaflare))
+        {
+            actionID = P755.SMN_Megaflare; // 6s cast, no weakness requirement
+            return true;
+        }
+
+        if (IsEnabledAndUsable(Preset.Phantom_Summoner_Hellfire, P755.SMN_Hellfire) &&
+            InActionRange(P755.SMN_Hellfire) && WeaknessGate(Weak755.FireWeakness))
+        {
+            actionID = P755.SMN_Hellfire;
+            return true;
+        }
+
+        if (IsEnabledAndUsable(Preset.Phantom_Summoner_JudgmentBolt, P755.SMN_JudgmentBolt) &&
+            InActionRange(P755.SMN_JudgmentBolt) && WeaknessGate(Weak755.LightningWeakness))
+        {
+            actionID = P755.SMN_JudgmentBolt;
+            return true;
+        }
+
+        // Thunderstorm is a WIND spell despite the name -- upstream RSR shipped this gated on
+        // Lightning and had to hotfix it (731446871, 2026-08-01). Do not "correct" this.
+        if (IsEnabledAndUsable(Preset.Phantom_Summoner_Thunderstorm, P755.SMN_Thunderstorm) &&
+            InActionRange(P755.SMN_Thunderstorm) && WeaknessGate(Weak755.WindWeakness))
+        {
+            actionID = P755.SMN_Thunderstorm;
+            return true;
+        }
+
+        return false;
+    }
+
+    #endregion
+
+    #region Phantom Blue Mage
+
+    private static bool TryGetBlueMageAction(ref uint actionID)
+    {
+        if (!IsEnabled(Preset.Phantom_BlueMage))
+            return false;
+
+        if (CanWeaveNow)
+        {
+            if (IsEnabledAndUsable(Preset.Phantom_BlueMage_OccultMightyGuard, P755.BLU_OccultMightyGuard) &&
+                !HasStatusEffect(Buffs755.OccultMightyGuard) &&
+                PlayerHP <= Phantom_BlueMage_OccultMightyGuard_Health)
+            {
+                actionID = P755.BLU_OccultMightyGuard;
+                return true;
+            }
+
+            return false;
+        }
+
+        if (IsEnabledAndUsable(Preset.Phantom_BlueMage_OccultWhiteWind, P755.BLU_OccultWhiteWind) &&
+            GetPartyAvgHPPercent() <= Phantom_BlueMage_OccultWhiteWind_Health)
+        {
+            actionID = P755.BLU_OccultWhiteWind;
+            return true;
+        }
+
+        if (BuffGateBlocks) return false;
+        if (!HasTargetNow) return false;
+
+        // Blue Mage damage is not weakness-gated.
+        if (IsEnabledAndUsable(Preset.Phantom_BlueMage_OccultAquaBreath, P755.BLU_OccultAquaBreath) &&
+            InActionRange(P755.BLU_OccultAquaBreath))
+        {
+            actionID = P755.BLU_OccultAquaBreath;
+            return true;
+        }
+
+        // Occult Aero auto-upgrades to Aero II (49089) / Aero III (49091) by trait.
+        if (IsEnabledAndUsable(Preset.Phantom_BlueMage_OccultAero, P755.BLU_OccultAero) &&
+            InActionRange(P755.BLU_OccultAero))
+        {
+            actionID = OriginalHook(P755.BLU_OccultAero);
+            return true;
+        }
+
+        if (IsEnabledAndUsable(Preset.Phantom_BlueMage_OccultMissile, P755.BLU_OccultMissile) &&
+            InActionRange(P755.BLU_OccultMissile))
+        {
+            actionID = P755.BLU_OccultMissile;
+            return true;
+        }
+
+        return false;
+    }
+
+    #endregion
+
+    #region Phantom Red Mage
+
+    private static bool TryGetRedMageAction(ref uint actionID)
+    {
+        if (!IsEnabled(Preset.Phantom_RedMage))
+            return false;
+
+        // Libra is instant and reveals the target's elemental weakness, which every other
+        // elemental caster in the zone then benefits from. Weave it early.
+        if (CanWeaveNow)
+        {
+            if (IsEnabledAndUsable(Preset.Phantom_RedMage_OccultLibra, P755.RDM_OccultLibra) &&
+                HasTargetNow && InActionRange(P755.RDM_OccultLibra) &&
+                !TargetWeakTo(Weak755.FireWeakness) && !TargetWeakTo(Weak755.IceWeakness) &&
+                !TargetWeakTo(Weak755.LightningWeakness) && !TargetWeakTo(Weak755.WindWeakness))
+            {
+                actionID = P755.RDM_OccultLibra;
+                return true;
+            }
+
+            return false;
+        }
+
+        if (IsEnabledAndUsable(Preset.Phantom_RedMage_OccultCureII, P755.RDM_OccultCureII) &&
+            PlayerHP <= Phantom_RedMage_OccultCureII_Health)
+        {
+            actionID = P755.RDM_OccultCureII;
+            return true;
+        }
+
+        if (BuffGateBlocks) return false;
+        if (!HasTargetNow) return false;
+
+        if (IsEnabledAndUsable(Preset.Phantom_RedMage_OccultFireII, P755.RDM_OccultFireII) &&
+            InActionRange(P755.RDM_OccultFireII) && WeaknessGate(Weak755.FireWeakness))
+        {
+            actionID = P755.RDM_OccultFireII;
+            return true;
+        }
+
+        if (IsEnabledAndUsable(Preset.Phantom_RedMage_OccultBlizzardII, P755.RDM_OccultBlizzardII) &&
+            InActionRange(P755.RDM_OccultBlizzardII) && WeaknessGate(Weak755.IceWeakness))
+        {
+            actionID = P755.RDM_OccultBlizzardII;
+            return true;
+        }
+
+        if (IsEnabledAndUsable(Preset.Phantom_RedMage_OccultThunderII, P755.RDM_OccultThunderII) &&
+            InActionRange(P755.RDM_OccultThunderII) && WeaknessGate(Weak755.LightningWeakness))
+        {
+            actionID = P755.RDM_OccultThunderII;
+            return true;
+        }
+
+        return false;
+    }
+
+    #endregion
+
+    #region Phantom Necromancer
+
+    private static bool TryGetNecromancerAction(ref uint actionID)
+    {
+        if (!IsEnabled(Preset.Phantom_Necromancer))
+            return false;
+
+        if (CanWeaveNow)
+        {
+            if (BuffGateBlocks) return false;
+
+            if (IsEnabledAndUsable(Preset.Phantom_Necromancer_DrainTouch, P755.NEC_DrainTouch) &&
+                HasTargetNow && InActionRange(P755.NEC_DrainTouch) &&
+                !HasStatusEffect(Buffs755.DrainTouch))
+            {
+                actionID = P755.NEC_DrainTouch;
+                return true;
+            }
+
+            return false;
+        }
+
+        if (BuffGateBlocks) return false;
+        if (!HasTargetNow) return false;
+
+        if (IsEnabledAndUsable(Preset.Phantom_Necromancer_Doomsday, P755.NEC_Doomsday) &&
+            InActionRange(P755.NEC_Doomsday))
+        {
+            actionID = P755.NEC_Doomsday; // unaspected, no weakness requirement
+            return true;
+        }
+
+        if (IsEnabledAndUsable(Preset.Phantom_Necromancer_DeepFreeze, P755.NEC_DeepFreeze) &&
+            InActionRange(P755.NEC_DeepFreeze) && WeaknessGate(Weak755.IceWeakness))
+        {
+            actionID = P755.NEC_DeepFreeze;
+            return true;
+        }
+
+        if (IsEnabledAndUsable(Preset.Phantom_Necromancer_HellWind, P755.NEC_HellWind) &&
+            InActionRange(P755.NEC_HellWind) && WeaknessGate(Weak755.WindWeakness))
+        {
+            actionID = P755.NEC_HellWind;
+            return true;
+        }
+
+        if (IsEnabledAndUsable(Preset.Phantom_Necromancer_ChaosDrive, P755.NEC_ChaosDrive) &&
+            InActionRange(P755.NEC_ChaosDrive) && WeaknessGate(Weak755.LightningWeakness))
+        {
+            actionID = P755.NEC_ChaosDrive;
+            return true;
+        }
+
+        return false;
+    }
+
+    #endregion
+}

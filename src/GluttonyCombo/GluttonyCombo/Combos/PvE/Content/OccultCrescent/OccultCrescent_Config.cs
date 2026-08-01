@@ -1,4 +1,4 @@
-using Dalamud.Interface.Colors;
+﻿using Dalamud.Interface.Colors;
 using ECommons.ImGuiMethods;
 using GluttonyCombo.CustomComboNS.Functions;
 using GluttonyCombo.Extensions;
@@ -129,6 +129,39 @@ internal partial class OccultCrescent
                     }
                     break;
 
+                case Preset.Phantom_Ninja_Image:
+                    DrawSliderInt(1, 100, Phantom_Ninja_Image_Health,
+                        Generics.StopFriendlyHpPercent100, 200);
+                    break;
+                case Preset.Phantom_WhiteMage_OccultBlink:
+                    DrawSliderInt(1, 100, Phantom_WhiteMage_OccultBlink_Health,
+                        Generics.StopFriendlyHpPercent100, 200);
+                    break;
+                case Preset.Phantom_WhiteMage_OccultCureII:
+                    DrawSliderInt(1, 100, Phantom_WhiteMage_OccultCureII_Health,
+                        Generics.StopFriendlyHpPercent100, 200);
+                    break;
+                case Preset.Phantom_WhiteMage_OccultCureIII:
+                    DrawSliderInt(1, 100, Phantom_WhiteMage_OccultCureIII_Health,
+                        Generics.StopFriendlyHpPercent100, 200);
+                    break;
+                case Preset.Phantom_Summoner_EarthenWall:
+                    DrawSliderInt(1, 100, Phantom_Summoner_EarthenWall_Health,
+                        Generics.StopFriendlyHpPercent100, 200);
+                    break;
+                case Preset.Phantom_BlueMage_OccultMightyGuard:
+                    DrawSliderInt(1, 100, Phantom_BlueMage_OccultMightyGuard_Health,
+                        Generics.StopFriendlyHpPercent100, 200);
+                    break;
+                case Preset.Phantom_BlueMage_OccultWhiteWind:
+                    DrawSliderInt(1, 100, Phantom_BlueMage_OccultWhiteWind_Health,
+                        Generics.StopFriendlyHpPercent100, 200);
+                    break;
+                case Preset.Phantom_RedMage_OccultCureII:
+                    DrawSliderInt(1, 100, Phantom_RedMage_OccultCureII_Health,
+                        Generics.StopFriendlyHpPercent100, 200);
+                    break;
+
                 case Preset.Phantom_RestrictToBuff:
                     ImGui.Indent();
                     ImGuiEx.TextWrapped(ImGuiColors.DalamudYellow,
@@ -159,7 +192,15 @@ internal partial class OccultCrescent
             Phantom_Oracle_Starfall_Health = new("Phantom_Oracle_Starfall_Health", 100),
             Phantom_Ranger_OccultUnicorn_Health = new("Phantom_Ranger_OccultUnicorn_Health", 50),
             Phantom_Ranger_PhantomAim_Stop = new("Phantom_Ranger_PhantomAim_Stop", 30),
-            Phantom_Thief_Steal_Health = new("Phantom_Thief_Steal_Health", 10);
+            Phantom_Thief_Steal_Health = new("Phantom_Thief_Steal_Health", 10),
+            Phantom_Ninja_Image_Health = new("Phantom_Ninja_Image_Health", 50),
+            Phantom_WhiteMage_OccultBlink_Health = new("Phantom_WhiteMage_OccultBlink_Health", 60),
+            Phantom_WhiteMage_OccultCureII_Health = new("Phantom_WhiteMage_OccultCureII_Health", 70),
+            Phantom_WhiteMage_OccultCureIII_Health = new("Phantom_WhiteMage_OccultCureIII_Health", 65),
+            Phantom_Summoner_EarthenWall_Health = new("Phantom_Summoner_EarthenWall_Health", 60),
+            Phantom_BlueMage_OccultMightyGuard_Health = new("Phantom_BlueMage_OccultMightyGuard_Health", 60),
+            Phantom_BlueMage_OccultWhiteWind_Health = new("Phantom_BlueMage_OccultWhiteWind_Health", 60),
+            Phantom_RedMage_OccultCureII_Health = new("Phantom_RedMage_OccultCureII_Health", 60);
 
         public static UserBool
             Phantom_Chemist_OccultElixir_RequireParty = new("Phantom_Chemist_OccultElixir_RequireParty", true),

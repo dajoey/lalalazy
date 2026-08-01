@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using GluttonyCombo.Data;
 using GluttonyCombo.Extensions;
 using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
@@ -36,6 +36,9 @@ internal partial class OccultCrescent
         if (TryGetDancerAction(ref actionID)) return true;
         if (TryGetMysticKnightAction(ref actionID)) return true;
         if (TryGetGladiatorAction(ref actionID)) return true;
+
+        // 7.55 phantom jobs (stopgap -- see OccultCrescent_755.cs)
+        if (TryGet755Action(ref actionID)) return true;
 
         return false;
     }

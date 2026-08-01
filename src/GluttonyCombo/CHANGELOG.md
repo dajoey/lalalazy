@@ -1,3 +1,49 @@
+﻿## v1.0.4.100 (2026-08-01) [testing]
+
+### Added
+- **Phantom Job support for all eight jobs added in patch 7.55** — Ninja, White Mage,
+  Black Mage, Dragoon, Summoner, Blue Mage, Red Mage and Necromancer are now driven by
+  autorotation inside Occult Crescent. New files
+  `Combos/PvE/Content/OccultCrescent/OccultCrescent_755.cs` (rotations, action IDs, status
+  IDs) and `OccultCrescent_755_Weakness.cs` (elemental weakness support). 47 new presets
+  in the reserved range 110090-110136.
+- **Elemental weakness gating.** Several 7.55 actions only pay off against a target
+  carrying the matching weakness debuff. `TargetWeakTo()` checks the live debuff first
+  (as revealed by Phantom Red Mage's Occult Libra, action 49094) and falls back to a
+  112-entry mob-nameId table. New `Phantom755_RequireWeakness` preset (default on) lets
+  users disable the gate and fire elemental actions on cooldown instead.
+  The weakness table is adapted from FFXIV-CombatReborn/RotationSolverReborn
+  (`StatusHelper.OccultWeaknessByNameId`, commits `2ac940563`..`443f4e0be`).
+
+### Fixed
+- **`OccultCrescent.JobIDs` enum corrected for 7.55.** The pre-7.55 placeholder ordering
+  was a guess and was wrong. Verified against the game's own `MKDSupportJob` sheet, where
+  the row id *is* the `SupportJob` index: Ninja 16, White Mage 17, Black Mage 18,
+  Dragoon 19, Summoner 20, Blue Mage 21, Red Mage 22, Necromancer 23. Previously the file
+  claimed Summoner 17 / Black Mage 18 / Red Mage 19 / Blue Mage 20 / White Mage 21 /
+  Dragoon 22. Removed `BeastMaster` and `Mime` entirely — the sheet has exactly 24 rows
+  (0-23) and neither job exists. This affected `CurrentJobLevel`, which indexes
+  `State.SupportJobLevels[State.CurrentSupportJob]` through this enum, and the job icons.
+
+### Notes
+- **This is a deliberate stopgap.** Upstream Wrath Combo had shipped no 7.55 phantom job
+  support as of 2026-08-01 (`wrathcombo/main` @ `96feb63e7`). When it does, this work
+  should be dropped and we realign on upstream. Rip-out procedure is documented in the
+  header of `OccultCrescent_755.cs`: delete two files, delete preset range 110090-110136,
+  delete one dispatch call, delete the config sliders, revert the enum.
+- All action and status IDs were datamined from the live 7.55 sqpack on 2026-08-01, not
+  copied from another plugin. Action block is contiguous at 49062-49101; Phantom Job
+  statuses at 5328-5335; elemental weakness statuses at 5322-5325.
+- **Action names are not unique.** `Occult Cure II` is action 49067 on White Mage and
+  49093 on Red Mage. Everything here is keyed by explicit ID; do not refactor to
+  name-based lookup.
+- Phantom Summoner's Thunderstorm is gated on **Wind** weakness, not Lightning, despite
+  the name. RotationSolverReborn shipped it as Lightning and hotfixed it in `731446871`.
+- Necromancer's Deep Freeze is deliberately not wired to status 4150 ("Deep Freeze"),
+  which predates 7.55 and is unrelated. Left unlinked pending in-game confirmation.
+- Blue Mage's Occult Aero (49085) auto-upgrades to Aero II (49089) / Aero III (49091) by
+  trait and is resolved through `OriginalHook`. Neither upgrade is separately equippable.
+
 ## v1.0.4.99 (2026-07-30)
 
 ### Changed
