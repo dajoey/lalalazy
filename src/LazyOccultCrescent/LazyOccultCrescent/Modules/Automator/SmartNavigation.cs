@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using LazyOccultCrescent.Data;
 using LazyOccultCrescent.Enums;
 using ECommons.DalamudServices;
 
@@ -26,7 +27,12 @@ public static class SmartNavigation
         var costToWalkFromEventShardToEvent = Vector3.Distance(closestToDestination.Position, destination);
         var costToWalkToEventDirectly = Vector3.Distance(playerPosition, destination);
 
-        var costToReturnThenWalk = RETURN_BASE_COST + Vector3.Distance(Aethernet.BaseCamp.GetData().Position, destination);
+        // Return takes you to the CURRENT zone's base camp. Using the
+        // Aethernet.BaseCamp literal here priced every North Horn decision
+        // against South Horn's aetheryte at (830.75, 72.98, -695.98) - 1,576
+        // yalms out on Z alone, which is why the choices looked arbitrary.
+        var baseCamp = ZoneData.CurrentBaseCamp.GetData();
+        var costToReturnThenWalk = RETURN_BASE_COST + Vector3.Distance(baseCamp.Position, destination);
         var costToReturnTeleportThenWalk = RETURN_BASE_COST + costToWalkFromEventShardToEvent;
         var costToWalkToShardThenEvent = costToWalkToNearestShard + costToWalkFromEventShardToEvent;
 
@@ -38,6 +44,7 @@ public static class SmartNavigation
             { NavigationType.WalkTeleportWalk, costToWalkToShardThenEvent },
         };
 
+        Svc.Log.Debug($"Zone base camp: {baseCamp.Aethernet.ToFriendlyString()} @ {baseCamp.Position:F1}");
         Svc.Log.Debug("Closest Aethernet: " + closestToDestination.Aethernet.ToFriendlyString());
         foreach (var (type, cost) in costs)
         {

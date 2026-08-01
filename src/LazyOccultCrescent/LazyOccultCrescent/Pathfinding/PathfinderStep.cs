@@ -1,4 +1,5 @@
-﻿using LazyOccultCrescent.Enums;
+using LazyOccultCrescent.Data;
+using LazyOccultCrescent.Enums;
 
 namespace LazyOccultCrescent.Pathfinding;
 
@@ -8,7 +9,9 @@ public class PathfinderStep
 
     public uint NodeId = 0;
 
-    public Aethernet Aethernet = Aethernet.BaseCamp;
+    // Defaulted per-zone rather than to South Horn's literal. Steps are only
+    // ever built while standing in the zone being pathed.
+    public Aethernet Aethernet = ZoneData.CurrentBaseCamp;
 
     public static PathfinderStep WalkToDestination(uint id)
     {
@@ -42,6 +45,7 @@ public class PathfinderStep
         return new PathfinderStep
         {
             Type = PathfinderStepType.ReturnToBaseCamp,
+            Aethernet = ZoneData.CurrentBaseCamp,
         };
     }
 }

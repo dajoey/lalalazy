@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -6,6 +6,7 @@ using System.Numerics;
 using System.Text.Json;
 using System.Threading.Tasks;
 using LazyOccultCrescent.Chains;
+using LazyOccultCrescent.Data;
 using LazyOccultCrescent.Enums;
 using LazyOccultCrescent.Modules;
 using LazyOccultCrescent.Modules.Pathfinder;
@@ -289,7 +290,9 @@ public abstract class Hunter
         // If we are in combat, start running back to the base camp so we can escape combat
         if (inCombat && !vnav.IsRunning())
         {
-            vnav.PathfindAndMoveTo(Aethernet.BaseCamp.GetData().Position, false);
+            // Zone-aware: fleeing toward South Horn's base camp while standing
+            // in North Horn sends the character at a point outside the zone.
+            vnav.PathfindAndMoveTo(ZoneData.CurrentBaseCamp.GetData().Position, false);
             return false;
         }
 

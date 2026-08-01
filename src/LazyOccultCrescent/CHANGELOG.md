@@ -4,6 +4,45 @@ Fork of [OhKannaDuh/BOCCHI](https://github.com/OhKannaDuh/BOCCHI) (AGPL-3.0-or-l
 forked at `ded40a71af051a3aa57d326c512a975e7957daf6`. Upstream copyright and licence
 are preserved in `LICENSE`.
 
+## v0.0.3.0 (2026-08-01) [testing]
+
+### Fixed
+- **Automation made nonsensical teleport choices in North Horn.** Five separate
+  places assumed South Horn's base camp. In rough order of damage:
+  - **`ReturnChain.GetCostToReturn()` threw outright.** It reads
+    `ZoneData.StartingLocations` and throws `"Unable to determine Starting
+    position"` when the territory is missing - and North Horn was missing. So
+    *every* Return-based navigation in North Horn died mid-chain and the
+    Automator fell through to whatever option was left, which is the erratic
+    behaviour you actually see. Added the North Horn entry.
+  - **`SmartNavigation.Decide` priced "Return then walk" against South Horn's
+    aetheryte.** It used the `Aethernet.BaseCamp` literal at
+    (830.75, 72.98, -695.98) while North Horn's is at (880.00, 259.74, 880.06) -
+    1,576 yalms out on Z alone. The cost model was comparing a real option
+    against a fictional one, so the winner was essentially arbitrary. Now uses
+    `ZoneData.CurrentBaseCamp`, and logs which anchor it used.
+  - **`Hunter` fled toward South Horn's base camp.** On dropping combat it called
+    `PathfindAndMoveTo(Aethernet.BaseCamp...)`, aiming the character at a point
+    outside the zone.
+  - **`BasePathfinder`'s base-camp branch never fired in North Horn.** The
+    `aethernet == Aethernet.BaseCamp` comparison is false for
+    `NorthHornBaseCamp`, so the Return-to-base-camp route was silently never
+    considered when building a path. Now matches either horn.
+  - **`PathfinderStep.Aethernet` defaulted to South Horn's base camp**, including
+    on `ReturnToBaseCamp()` steps, which never set it explicitly.
+- Added `ZoneData.CurrentBaseCamp` / `BaseCampFor()` / `IsBaseCamp()` so there is
+  one place to get this right rather than five literals.
+
+### Notes
+- North Horn's starting location is approximated by its aetheryte position. South
+  Horn's surveyed spawn sits ~21y off its aetheryte, so expect Return cost to be
+  understated by roughly that much until the real spawn is observed. That is a
+  small bias in one term, not the wrong-zone error above.
+- North Horn events still have no curated `Aethernet` hint, so the shard chosen
+  for an event is the straight-line nearest rather than a hand-picked one. With
+  correct shard positions this is now reasonable, but terrain can still make it
+  suboptimal on specific events.
+
 ## v0.0.2.0 (2026-08-01) [testing]
 
 ### Fixed

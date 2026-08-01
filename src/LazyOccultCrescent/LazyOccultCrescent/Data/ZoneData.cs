@@ -41,6 +41,13 @@ public static class ZoneData
     public readonly static Dictionary<uint, Vector3> StartingLocations = new()
     {
         { SOUTHHORN, new Vector3(850.33f, 72.99f, -704.07f) },
+        // Return drops you at the aetheryte. South Horn's surveyed spawn sits
+        // ~21y off its aetheryte; without a North Horn survey the aetheryte
+        // itself is the safe approximation. Its ABSENCE was the bug:
+        // ReturnChain.GetCostToReturn() throws outright on a missing entry, so
+        // every Return in North Horn failed and the Automator fell through to
+        // whatever navigation option was left.
+        { NORTHHORN, new Vector3(880.00f, 259.74f, 880.06f) },
     };
 
     public static uint CurrentTerritory
@@ -134,6 +141,24 @@ public static class ZoneData
         Directory.CreateDirectory(directory);
 
         return directory;
+    }
+
+    // The base camp shard for a given zone. Several call sites used the
+    // Aethernet.BaseCamp literal, which is South Horn's - in North Horn that
+    // silently pointed at coordinates ~1,500y outside the zone.
+    public static Aethernet BaseCampFor(uint territory)
+    {
+        return territory == NORTHHORN ? Aethernet.NorthHornBaseCamp : Aethernet.BaseCamp;
+    }
+
+    public static Aethernet CurrentBaseCamp
+    {
+        get => BaseCampFor(CurrentTerritory);
+    }
+
+    public static bool IsBaseCamp(Aethernet aethernet)
+    {
+        return aethernet is Aethernet.BaseCamp or Aethernet.NorthHornBaseCamp;
     }
 
     public static Aethernet GetClosestAethernetShard(Vector3 position)

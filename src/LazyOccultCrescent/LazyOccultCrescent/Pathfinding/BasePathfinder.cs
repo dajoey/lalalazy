@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -94,7 +94,9 @@ public abstract class BasePathfinder(float returnCost = 300f, float teleportCost
             if (cost < bestCost)
             {
                 bestCost = cost;
-                if (aethernet == Aethernet.BaseCamp)
+                // Matches either horn's base camp; the literal comparison
+                // never fired in North Horn.
+                if (ZoneData.IsBaseCamp(aethernet))
                 {
                     bestSteps =
                     [
