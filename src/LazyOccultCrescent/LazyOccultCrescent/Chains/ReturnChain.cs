@@ -8,6 +8,7 @@ using LazyOccultCrescent.Modules.Buff;
 using LazyOccultCrescent.Modules.Buff.Chains;
 using LazyOccultCrescent.Modules.Teleporter;
 using Dalamud.Game.ClientState.Conditions;
+using Dalamud.Game.ClientState.Objects.Types;
 using ECommons.Automation.NeoTaskManager;
 using ECommons.DalamudServices;
 using ECommons.GameHelpers;
@@ -51,20 +52,54 @@ public class ReturnChain(TeleporterModule module, ReturnChainConfig config) : Re
         return chain.Then(_ => complete = true);
     }
 
+    private IGameObject? knowledgeCrystal;
+
+    private DateTime crystalDeadline = DateTime.MinValue;
+
     private Chain ApplyBuffs()
     {
         var vnav = module.GetIPCSubscriber<VNavmesh>();
         var buffs = module.GetModule<BuffModule>();
 
-        var closestKnowledgeCrystal = ZoneData.GetNearbyKnowledgeCrystal(60f).FirstOrDefault();
+        var chain = Chain.Create("Return:ApplyBuffs");
+        chain.BreakIf(() => !buffs.ShouldRefreshBuffs() || !vnav.IsReady());
 
-        var chain = Chain.Create();
-        chain.BreakIf(() => !buffs.ShouldRefreshBuffs() || !vnav.IsReady() || closestKnowledgeCrystal == null);
+        chain.Then(_ =>
+        {
+            knowledgeCrystal = null;
+            crystalDeadline = DateTime.UtcNow.AddSeconds(5);
+        });
+
+        // Poll rather than take one reading. This step runs within a frame or two
+        // of the Return teleport completing, while the object table is still
+        // repopulating, so a single lookup here frequently found nothing and the
+        // whole buff sequence was skipped silently.
+        chain.Then(new TaskManagerTask(() =>
+        {
+            knowledgeCrystal ??= ZoneData.GetNearbyKnowledgeCrystal(60f).FirstOrDefault();
+            return knowledgeCrystal != null || DateTime.UtcNow >= crystalDeadline;
+        }, new TaskManagerConfiguration { TimeLimitMS = 6000 }));
+
+        chain.Then(_ =>
+        {
+            if (knowledgeCrystal == null)
+            {
+                Svc.Log.Info("[Return] no knowledge crystal within 60y - skipping buff refresh");
+            }
+        });
+
+        chain.BreakIf(() => knowledgeCrystal == null);
+
         chain.Then(_ => Actions.TryUnmount());
 
-        chain.PathfindAndMoveTo(vnav, closestKnowledgeCrystal!.Position);
-        chain.WaitUntilNear(vnav, closestKnowledgeCrystal!.Position, AethernetData.DISTANCE);
-        chain.Then(_ => vnav.Stop());
+        // Position read at execution time, from whichever crystal the poll found.
+        // `() =>` binds the Func<Chain> overload so the parent waits for the walk;
+        // with `_ =>` the buff sequence started while still 60y from the crystal.
+        chain.ConditionalThen(
+            _ => knowledgeCrystal != null,
+            () => Chain.Create("Return:ToCrystal")
+                .Then(new PathfindAndMoveToChain(vnav, knowledgeCrystal!.Position, AethernetData.DISTANCE))
+                .Then(_ => vnav.Stop()));
 
         chain.Then(buffs.BuffManager.CreateSequence(buffs));
 

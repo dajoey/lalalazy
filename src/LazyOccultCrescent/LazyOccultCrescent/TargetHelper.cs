@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using Dalamud.Game.ClientState.Objects.Types;
@@ -10,7 +10,9 @@ namespace LazyOccultCrescent;
 
 public static class TargetHelper
 {
-    public static IEnumerable<IBattleNpc> Enemies { get; private set; } = [];
+    // IReadOnlyList, not IEnumerable: the type enforces that this is a snapshot
+    // taken once per frame rather than a query re-executed on every read.
+    public static IReadOnlyList<IBattleNpc> Enemies { get; private set; } = [];
 
     public static void Update()
     {
@@ -20,7 +22,8 @@ public static class TargetHelper
                 IsDead: false,
                 IsTargetable: true,
             }).Where(o => o.IsHostile())
-            .OrderBy(Player.DistanceTo);
+            .OrderBy(Player.DistanceTo)
+            .ToList();
     }
 }
 
@@ -33,7 +36,13 @@ public static class IBattleNpcListEx
 
     public static IBattleNpc? Furthest(this IEnumerable<IBattleNpc> enemies)
     {
-        return enemies.FirstOrDefault();
+        // Was FirstOrDefault(), identical to Closest(), which is plainly wrong for a
+        // method called Furthest - Enemies is ordered nearest-first.
+        //
+        // Correcting an earlier claim of mine: this had NO callers, so it was not
+        // causing a live bug. MobFarmer's stacking step does its own
+        // OrderBy(DistanceTo).LastOrDefault() and always did.
+        return enemies.LastOrDefault();
     }
 
     public static IBattleNpc? Centroid(this IEnumerable<IBattleNpc> enemies)

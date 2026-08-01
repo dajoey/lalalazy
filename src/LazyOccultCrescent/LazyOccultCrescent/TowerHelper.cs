@@ -1,3 +1,4 @@
+using ECommons.Throttlers;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -42,6 +43,41 @@ internal static class TowerHelper
         return IsNearTowerZone(type, Player.Position) || IsInTowerZone(type, Player.Position);
     }
 
+    // Two independent full-table scans, called back to back from the panel every
+    // frame, for two counts a human reads about once a second. One pass, cached.
+    private readonly static Dictionary<TowerType, (int In, int Near)> counts = new();
+
+    private static void RefreshCounts(TowerType type)
+    {
+        if (counts.ContainsKey(type) && !EzThrottler.Throttle($"TowerHelper.Count.{type}", 500))
+        {
+            return;
+        }
+
+        var inZone = 0;
+        var nearZone = 0;
+
+        foreach (var o in Svc.Objects)
+        {
+            if (o.ObjectKind != ObjectKind.Pc)
+            {
+                continue;
+            }
+
+            if (IsInTowerZone(type, o.Position))
+            {
+                inZone++;
+            }
+
+            if (IsNearTowerZone(type, o.Position))
+            {
+                nearZone++;
+            }
+        }
+
+        counts[type] = (inZone, nearZone);
+    }
+
     public static int GetPlayersInTowerZone(TowerType type)
     {
         if (!IsPlayerNearTower(type))
@@ -49,7 +85,8 @@ internal static class TowerHelper
             return -1;
         }
 
-        return Svc.Objects.Count(o => o.ObjectKind == ObjectKind.Pc && IsInTowerZone(type, o.Position));
+        RefreshCounts(type);
+        return counts[type].In;
     }
 
     public static int GetPlayersNearTowerZone(TowerType type)
@@ -59,6 +96,7 @@ internal static class TowerHelper
             return -1;
         }
 
-        return Svc.Objects.Count(o => o.ObjectKind == ObjectKind.Pc && IsNearTowerZone(type, o.Position));
+        RefreshCounts(type);
+        return counts[type].Near;
     }
 }

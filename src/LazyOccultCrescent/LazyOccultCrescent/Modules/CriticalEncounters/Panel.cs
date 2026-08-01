@@ -84,7 +84,11 @@ public class Panel
                     case DynamicEventState.Inactive:
                         break;
                     default:
-                        throw new ArgumentOutOfRangeException();
+                        // ev.State is a raw byte from game memory. A new state in a
+                        // content patch would otherwise throw out of an ImGui draw
+                        // callback every frame the window is open, and there is
+                        // nothing useful to draw for an unknown state anyway.
+                        break;
                 }
 
                 if (ev.State != DynamicEventState.Register)

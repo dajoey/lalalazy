@@ -21,13 +21,17 @@ public class FateTracker
 
         foreach (var (id, data) in currentFates)
         {
-            var fate = new Fate(data);
-            if (!Fates.ContainsKey(id))
+            if (Fates.TryGetValue(id, out _))
             {
-                OnFateSpawned?.Invoke(fate);
+                // Already tracked. Fate wraps IFate by reference so the underlying
+                // data stays live; replacing the wrapper would throw away the
+                // progress samples the ETA is computed from.
+                continue;
             }
 
+            var fate = new Fate(data);
             Fates[id] = fate;
+            OnFateSpawned?.Invoke(fate);
         }
 
         var despawned = Fates.Keys.Except(currentFates.Keys).ToList();

@@ -26,16 +26,22 @@ public class TeleportChain(Aethernet aethernet, Lifestream lifestream, Teleporte
     {
         var vnav = module.GetIPCSubscriber<VNavmesh>();
 
-        // Upstream resolved the departure shard HERE, at assembly time, via
-        // GetNearbyAethernetShards(3.8y) - shards within interaction range of the
-        // player right now - and bailed out of the whole chain when it found
-        // none. In WalkTeleportWalk and ReturnTeleportWalk the chain is assembled
-        // while the player is still on the far side of the zone, so that lookup
-        // was always empty, the entire teleport block was skipped, and the caller
-        // fell through to walking the whole way. Nothing logged, because as far
-        // as the chain was concerned there was simply nothing to do.
+        // Upstream resolved the departure shard via GetNearbyAethernetShards(3.8y)
+        // and bailed out of the whole chain when it found none - silently, because
+        // as far as the chain was concerned there was nothing to do.
         //
-        // Everything below therefore resolves and re-checks at execution time.
+        // The mechanism, corrected: ChainFactory.Create() is LAZY (Factory()
+        // returns a Func<Chain> invoked when the step is reached - verified
+        // against the shipped Ocelot 1.1.5 assembly), so this is not a
+        // build-time-versus-run-time bug. It is a coordinate mismatch. The
+        // approach walk targets the SURVEYED table position and completes via
+        // WaitUntilNear, which also accepts "vnavmesh stopped"; the guard then
+        // measured 3.8y against the LIVE object-table EventObj. vnavmesh parks at
+        // the aetheryte's collision edge, so the walk legitimately finished while
+        // the guard still read empty - and the caller walked the whole way instead.
+        //
+        // Resolving from the known shard table and waiting for real proximity
+        // removes both halves of that mismatch.
         chain.Then(_ => lifestream.Abort());
 
         chain.Then(_ =>
@@ -46,9 +52,12 @@ public class TeleportChain(Aethernet aethernet, Lifestream lifestream, Teleporte
             Svc.Log.Debug($"[Teleport] departing via {departure.Aethernet.ToFriendlyString()}, {Player.DistanceTo(departure.Position):F1}y away");
         });
 
+        // `() =>` so the parent waits for the approach. The InRange gate below
+        // masked this, but relying on a later guard to paper over a step that does
+        // not block is how the original out-of-range teleport happened.
         chain.ConditionalThen(
             _ => !InRange(),
-            _ => Chain.Create("Teleport:Approach")
+            () => Chain.Create("Teleport:Approach")
                 .Then(new PathfindAndMoveToChain(vnav, departure!.Position, AethernetData.DISTANCE - 0.8f)));
 
         chain.Then(_ => vnav.Stop());

@@ -44,8 +44,28 @@ public class Automator
             if (states.GetState() == State.InCriticalEncounter)
             {
                 var critical = module.GetModule<CriticalEncountersModule>();
-                var encounter = critical.CriticalEncounters.Values.Last(ev => ev.State != DynamicEventState.Inactive);
-                var data = EventData.CriticalEncounters[encounter.DynamicEventId];
+
+                // InCriticalEncounterHandler deliberately holds State.InCriticalEncounter
+                // after the encounter ends for as long as the player is still in combat.
+                // In that window every event is Inactive, so .Last(predicate) threw
+                // InvalidOperationException on EVERY FRAME until combat dropped. The raw
+                // indexer on the line below was the same hazard already fixed in
+                // FindCriticalEncounter/FindFate and missed here.
+                var active = critical.CriticalEncounters.Values
+                    .Where(ev => ev.State != DynamicEventState.Inactive)
+                    .ToList();
+
+                if (active.Count == 0)
+                {
+                    return;
+                }
+
+                var encounter = active[^1];
+                if (!EventData.CriticalEncounters.TryGetValue(encounter.DynamicEventId, out var data))
+                {
+                    return;
+                }
+
                 Activity = new CriticalEncounter(data, lifestream, vnav, module, critical);
 
                 if (Activity != null)

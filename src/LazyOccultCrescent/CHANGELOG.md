@@ -4,6 +4,103 @@ Fork of [OhKannaDuh/BOCCHI](https://github.com/OhKannaDuh/BOCCHI) (AGPL-3.0-or-l
 forked at `ded40a71af051a3aa57d326c512a975e7957daf6`. Upstream copyright and licence
 are preserved in `LICENSE`.
 
+## v0.2.0.0 (2026-08-01) [testing]
+
+A general reliability and efficiency pass over the inherited codebase. Everything
+below is upstream unless marked otherwise.
+
+### The big one: a silent chain-overload trap
+
+`Chain` exposes both `Then(Action<ChainContext>)` and `Then(Func<Chain>, ...)`, and
+the same pair for `ConditionalThen`. A lambda written `_ => Chain.Create()...`
+binds to the **Action** overload: the sub-chain is built, self-registers with the
+framework and runs - but **the parent does not wait for it**. Written
+`() => Chain.Create()...` it binds to `Func<Chain>` and the parent blocks properly.
+
+The failure is silent and presents as a race: steps fire in the right order but
+overlap. Verified against the shipped Ocelot 1.1.5 assembly. Five sites were wrong:
+
+- **`ChainHelper.PathfindToAndWait` did not wait.** A helper with "AndWait" in its
+  name. `Activity`'s WalkTeleportWalk branch uses it to walk to the departure shard
+  and then teleports - so the teleport fired while the character was still walking.
+  **This is the actual root cause of the out-of-range teleport bug that v0.1.0.4
+  only masked.**
+- `ChainHelper.MoveToAndWait` - same shape.
+- `ReturnChain.ApplyBuffs` (mine, v0.2.0.0 draft) - buff sequence began while still
+  60y from the knowledge crystal.
+- `TeleportChain` approach (mine, v0.1.0.4) - masked by the later in-range gate.
+- `TreasureSightChain` / `BattleBellChain` (mine, this pass) - job restore fired
+  and continued without waiting, which poisoned `BuffManager.restoreTo` and made
+  the watchdog fight the player back onto Freelancer.
+
+A comment block explaining the trap now sits at the top of `ChainHelper.cs`.
+
+### Crash and correctness
+
+- **`Automator` threw every frame while resuming a critical encounter.**
+  `InCriticalEncounterHandler` deliberately holds `State.InCriticalEncounter` after
+  an encounter ends for as long as the player is in combat. In that window every
+  event is Inactive, so `.Last(predicate)` threw `InvalidOperationException` every
+  frame until combat dropped, and the raw `EventData.CriticalEncounters[...]`
+  indexer on the next line was the same hazard already fixed elsewhere.
+- **One unknown FATE id would have thrown every frame.** `Fate.Data` used a raw
+  dictionary indexer, in a constructor built for every live fate every frame, over
+  a hand-maintained table. A content patch or seasonal event would take down
+  `FatesModule`, `TowerTimer` and the Automator's fate selection together. Unknown
+  ids now degrade to a synthesised entry with no curated metadata.
+- **Unchecked pointer dereference.** `CriticalEncounterTracker` dereferenced
+  `PublicContentOccultCrescent.GetInstance()` with no null check, every frame.
+  Every other call site in the codebase checks. A null here is an
+  `AccessViolationException`, which .NET will not let you catch - it takes the game
+  client down, not the module.
+- **`TreasureTracker` could throw on two chests of the same type.**
+  `ToDictionary(o => o.BaseId, ...)` throws `ArgumentException` on a duplicate key,
+  and `BaseId` identifies the chest *type*. Identity moved to `GameObjectId`;
+  `Treasure.Id` still returns `BaseId` because the precomputed routing JSON is
+  keyed on it.
+- `TrapData.GetGroup` threw for any trap not in the Forked Tower tables - which is
+  every trap in the overworld. Returns null now, and is backed by a prebuilt index.
+- An unknown `DynamicEventState` threw out of an ImGui draw callback.
+
+### The fates ETA was dead code
+
+`FateTracker` replaced every tracked `Fate` object every frame, discarding the
+`EventProgress` history each one carries - so the sample count was permanently 1,
+and `EstimateTimeToCompletion()` returns null below 2 samples. The ETA readout in
+the fates panel could never render. `CriticalEncounterTracker` keeps progress in a
+separate surviving dictionary, which is why its ETA always worked. Fixed by reusing
+the tracked object instead of replacing it, which also removes the per-frame churn.
+
+### Efficiency
+
+- **`Treasure.GetTreasureType()` materialised the entire Treasure Excel sheet and
+  linear-scanned it** to find one row by id - what the sheet's own O(1) indexer does
+  for free. Radar called the chain four times per chest per frame and Panel a fifth,
+  so ~10 visible chests meant 30-50 full sheet materialisations *per frame*. Now an
+  O(1) lookup cached in a static map keyed by `BaseId`.
+- **`TargetHelper.Enemies` and `Scanner.Mobs` were lazy queries published as if
+  they were snapshots.** Every read re-walked the ~600-slot object table and
+  re-sorted it. `OrderBy` is a blocking operator, so even `.Any()` paid for a full
+  scan and sort - and MobFarmer read them six times a frame. Materialised, and the
+  property type is now `IReadOnlyList` so the contract is enforced by the compiler.
+- `ForkedTower` ran an unthrottled object-table scan across the whole overworld:
+  `Render` gated on `IsInForkedTower()`, `Update` did not. Gated and throttled.
+- `CarrotsTracker` rescanned, re-sorted and reallocated every frame for static
+  world objects. Throttled to 5 Hz.
+- `TowerHelper` ran two full table scans back to back, every frame, for two counts
+  a human reads about once a second. One pass, cached 500ms.
+- `Fates/Panel` called `.Last()` on a dictionary value collection inside a loop over
+  that same collection - no `IList` fast path, so O(n^2) per frame.
+
+### Notes
+
+- `TargetHelper.Furthest()` returned `FirstOrDefault()`, identical to `Closest()`.
+  Corrected - but to be accurate, it has no callers, so this was not causing a live
+  bug. MobFarmer's stacking does its own ordering.
+- The audit also corrected a claim in v0.1.0.4's comments: `ChainFactory.Create()`
+  is **lazy**, not eager. The teleport fix was right; the explanation was not, and a
+  wrong comment sends the next reader hunting a bug class that does not exist here.
+
 ## v0.1.1.0 (2026-08-01) [testing]
 
 ### Fixed

@@ -35,7 +35,16 @@ public class CriticalEncounterTracker
 
     public unsafe void Tick(IFramework _)
     {
-        CriticalEncounters = PublicContentOccultCrescent.GetInstance()->DynamicEventContainer.Events
+// Null here is an AccessViolationException, which .NET will not let us
+// catch - it takes the game client down rather than this module. Every
+// other GetInstance() call in the codebase checks; this one did not.
+var content = PublicContentOccultCrescent.GetInstance();
+if (content == null)
+{
+    return;
+}
+
+        CriticalEncounters = content->DynamicEventContainer.Events
             .ToArray()
             .ToDictionary(ev => (uint)ev.DynamicEventId, ev => ev);
 

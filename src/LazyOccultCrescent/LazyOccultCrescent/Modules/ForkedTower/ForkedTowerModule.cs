@@ -1,3 +1,4 @@
+using ECommons.Throttlers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -41,6 +42,18 @@ public class ForkedTowerModule(Plugin plugin, Config config) : Module(plugin, co
 
     public override void Update(UpdateContext context)
     {
+        // Render already gated on this; Update did not, so the trap scan ran
+        // across the entire Occult Crescent overworld where no traps exist.
+        if (!ZoneData.IsInForkedTower())
+        {
+            return;
+        }
+
+        if (!EzThrottler.Throttle("ForkedTower.TrapScan", 250))
+        {
+            return;
+        }
+
         TowerRun.Update(context);
     }
 

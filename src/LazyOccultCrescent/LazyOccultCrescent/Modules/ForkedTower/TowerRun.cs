@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using LazyOccultCrescent.Data.Traps;
 using LazyOccultCrescent.Enums;
@@ -39,7 +39,13 @@ public class TowerRun(string hash)
                 continue;
             }
 
+            // Traps outside the mapped Forked Tower groups are normal, not an error;
+            // GetGroup used to throw for them.
             var group = TrapData.GetGroup(trap);
+            if (group == null)
+            {
+                continue;
+            }
 
             if (!TrackedGroups.TryGetValue(group.GetKey(), out var trackedGroup))
             {

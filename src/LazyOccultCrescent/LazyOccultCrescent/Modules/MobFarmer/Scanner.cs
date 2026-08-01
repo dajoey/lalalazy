@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using LazyOccultCrescent.Data;
 using Dalamud.Game.ClientState.Objects.Types;
@@ -10,7 +10,10 @@ namespace LazyOccultCrescent.Modules.MobFarmer;
 
 public class Scanner(MobFarmerModule module)
 {
-    public IEnumerable<IBattleNpc> Mobs { get; private set; } = [];
+    // Snapshot, not a query - see TargetHelper.Enemies. Deferring this also meant
+    // the unsafe BattleChara* deref below ran at enumeration time against
+    // addresses that may have moved since the tick that produced them.
+    public IReadOnlyList<IBattleNpc> Mobs { get; private set; } = [];
 
     public IEnumerable<IBattleNpc> InCombat
     {
@@ -49,6 +52,6 @@ public class Scanner(MobFarmerModule module)
             }
 
             return false;
-        });
+        }).ToList();
     }
 }

@@ -7,6 +7,7 @@ using LazyOccultCrescent.Enums;
 using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using Dalamud.Game.ClientState.Objects.Enums;
+using Dalamud.Game.ClientState.Objects.Types;
 using ECommons.DalamudServices;
 using ECommons.GameHelpers;
 using FFXIVClientStructs.FFXIV.Component.GUI;
@@ -34,17 +35,25 @@ public class TreasureTracker : IDisposable
 
     public void Tick(Plugin plugin)
     {
-        var treasures = Svc.Objects
-            .Where(o => o is { ObjectKind: ObjectKind.Treasure })
-            .ToDictionary(o => o.BaseId, o => o);
+        // Keyed on GameObjectId, not BaseId: BaseId identifies the chest TYPE, so
+        // two coffers of the same type collided - and ToDictionary throws
+        // ArgumentException on a duplicate key rather than skipping it.
+        var treasures = new Dictionary<ulong, IGameObject>();
+        foreach (var o in Svc.Objects)
+        {
+            if (o is { ObjectKind: ObjectKind.Treasure })
+            {
+                treasures[o.GameObjectId] = o;
+            }
+        }
 
-        var knownIds = Treasures.Select(t => t.Id).ToHashSet();
+        var knownIds = Treasures.Select(t => t.ObjectId).ToHashSet();
 
         // Removed
         for (var i = Treasures.Count - 1; i >= 0; i--)
         {
             var treasure = Treasures[i];
-            if (!treasures.ContainsKey(treasure.Id) || !treasure.IsValid())
+            if (!treasures.ContainsKey(treasure.ObjectId) || !treasure.IsValid())
             {
                 Treasures.RemoveAt(i);
             }

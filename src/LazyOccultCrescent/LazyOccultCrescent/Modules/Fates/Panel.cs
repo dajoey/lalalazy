@@ -20,6 +20,10 @@ public class Panel
                 return;
             }
 
+            // Hoisted: Dictionary.ValueCollection has no IList fast path, so calling
+            // Last() inside the loop fully re-enumerated on every iteration.
+            var lastFate = module.fates.Values.LastOrDefault();
+
             foreach (var fate in module.fates.Values)
             {
                 if (!ZoneData.IsInOccultCrescent())
@@ -53,7 +57,7 @@ public class Panel
 
                 OcelotUi.Indent(() => EventIconRenderer.Drops(fate.Data, module.PluginConfig.EventDropConfig));
 
-                if (!fate.Equals(module.fates.Values.Last()))
+                if (!fate.Equals(lastFate))
                 {
                     OcelotUi.VSpace();
                 }
