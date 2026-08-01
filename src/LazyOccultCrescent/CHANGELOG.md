@@ -4,6 +4,29 @@ Fork of [OhKannaDuh/BOCCHI](https://github.com/OhKannaDuh/BOCCHI) (AGPL-3.0-or-l
 forked at `ded40a71af051a3aa57d326c512a975e7957daf6`. Upstream copyright and licence
 are preserved in `LICENSE`.
 
+## v0.1.0.3 (2026-08-01) [testing]
+
+### Fixed
+- **A FATE ending mid-transit left the plugin pathing to it and returning to base
+  at the same time.** My regression, and a design flaw rather than a typo.
+  The Automator already handles this correctly: when `Activity.IsValid()` goes
+  false it calls `Plugin.Chain.Abort()` and `vnav.Stop()`. But the movement loop I
+  wrote in v0.1.0.0 re-issues movement whenever vnavmesh is not running - that is
+  how it recovers from a failed solve - and it had no way to tell "vnavmesh gave
+  up" apart from "someone deliberately stopped us". So the Automator's `Stop()`
+  read as a stall and got immediately undone, restarting the walk toward a FATE
+  that no longer existed, while the idle timer started a Return alongside it.
+  Two fixes, one specific and one general:
+  - `PathfindAndMoveToChain` now takes an abort predicate checked before anything
+    else each tick. `Activity` passes `() => !IsValid()`, so a route to something
+    that has ceased to exist is abandoned rather than re-driven.
+  - Movement restarts are capped at 4. If the route has been re-issued that many
+    times and still is not sticking, something else is driving and the chain
+    yields instead of fighting it. The abort predicate covers the case we know
+    about; the cap bounds the ones we do not.
+  Yielding to manual control resets the restart budget, since handing over to the
+  player deliberately is not a failed solve.
+
 ## v0.1.0.2 (2026-08-01) [testing]
 
 ### Fixed

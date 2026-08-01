@@ -95,14 +95,14 @@ public abstract class Activity
                 case NavigationType.Walk:
                     chain
                         .ConditionalThen(_ => ShouldMountToPathfindTo(GetPosition()), ChainHelper.MountChain())
-                        .Then(new PathfindingChain(vnav, GetPosition(), data));
+                        .Then(new PathfindingChain(vnav, GetPosition(), data, abortIf: () => !IsValid()));
                     break;
 
                 case NavigationType.ReturnWalk:
                     chain
                         .Then(ChainHelper.ReturnChain())
                         .ConditionalThen(_ => ShouldMountToPathfindTo(GetPosition()), ChainHelper.MountChain())
-                        .Then(new PathfindingChain(vnav, GetPosition(), data));
+                        .Then(new PathfindingChain(vnav, GetPosition(), data, abortIf: () => !IsValid()));
                     break;
 
                 case NavigationType.ReturnTeleportWalk:
@@ -112,7 +112,7 @@ public abstract class Activity
                         .Debug("Waiting for lifestream to not be 'busy'")
                         .Then(new TaskManagerTask(() => !lifestream.IsBusy(), new TaskManagerConfiguration { TimeLimitMS = 30000 }))
                         .ConditionalThen(_ => ShouldMountToPathfindTo(GetPosition()), ChainHelper.MountChain())
-                        .Then(new PathfindingChain(vnav, GetPosition(), data));
+                        .Then(new PathfindingChain(vnav, GetPosition(), data, abortIf: () => !IsValid()));
                     break;
 
                 case NavigationType.WalkTeleportWalk:
@@ -122,7 +122,7 @@ public abstract class Activity
                         .Debug("Waiting for lifestream to not be 'busy'")
                         .Then(new TaskManagerTask(() => !lifestream.IsBusy(), new TaskManagerConfiguration { TimeLimitMS = 30000 }))
                         .ConditionalThen(_ => ShouldMountToPathfindTo(GetPosition()), ChainHelper.MountChain())
-                        .Then(new PathfindingChain(vnav, GetPosition(), data));
+                        .Then(new PathfindingChain(vnav, GetPosition(), data, abortIf: () => !IsValid()));
                     break;
             }
 

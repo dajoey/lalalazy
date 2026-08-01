@@ -1,3 +1,4 @@
+using System;
 using System.Numerics;
 using LazyOccultCrescent.Data;
 using Ocelot.Chain;
@@ -17,23 +18,27 @@ public class PathfindingChain : ChainFactory
 
     private readonly VNavmesh vnav;
 
+    private readonly Func<bool>? abortIf;
+
     public PathfindingChain(
         VNavmesh vnav,
         Vector3 destination,
         EventData data,
         float? maxRadius = null,
-        float? minRadius = null)
+        float? minRadius = null,
+        Func<bool>? abortIf = null)
     {
         this.vnav = vnav;
         this.destination = destination;
         this.data = data;
         this.maxRadius = maxRadius;
         this.minRadius = minRadius;
+        this.abortIf = abortIf;
     }
 
     protected override Chain Create(Chain chain)
     {
         return Chain.Create("Pathfinding")
-            .Then(PathfindAndMoveToChain.RandomNearby(vnav, destination, maxRadius ?? 1f, minRadius ?? 0f));
+            .Then(PathfindAndMoveToChain.RandomNearby(vnav, destination, maxRadius ?? 1f, minRadius ?? 0f, abortIf));
     }
 }

@@ -32,6 +32,24 @@ public class PathfindAndMoveToChain : ChainFactory
     // direct approach once before giving up rather than accepting a bad position.
     private bool nudged;
 
+    // Checked every tick. Without this the chain has no way to learn that what it
+    // is walking to has ceased to exist - and because Drive() re-issues movement
+    // whenever vnavmesh is not running, an external vnav.Stop() (which is exactly
+    // what the Automator does when a FATE ends) reads as a stall and gets
+    // immediately undone. That is how the plugin ended up pathing to a dead FATE
+    // and returning to base at the same time.
+    private readonly Func<bool>? abortIf;
+
+    // Re-issuing on "vnavmesh is not running" is what lets this chain recover
+    // from a failed solve - but it also means anything that stops vnavmesh
+    // externally gets overridden. The abort predicate covers the case we know
+    // about; this cap covers the ones we do not. If movement has been restarted
+    // this many times and still is not sticking, something else is driving and
+    // fighting it is worse than giving up.
+    private const int MaxIssues = 4;
+
+    private int issues;
+
     // Long enough that releasing a key mid-stride does not snatch control back,
     // short enough not to feel unresponsive.
     private readonly static TimeSpan ResumeGrace = TimeSpan.FromSeconds(2);
@@ -47,18 +65,24 @@ public class PathfindAndMoveToChain : ChainFactory
 
     private Task<List<Vector3>>? pathTask;
 
-    public PathfindAndMoveToChain(VNavmesh vnav, Vector3 destination, float arrivalTolerance = 5f)
+    public PathfindAndMoveToChain(
+        VNavmesh vnav,
+        Vector3 destination,
+        float arrivalTolerance = 5f,
+        Func<bool>? abortIf = null)
     {
         this.vnav = vnav;
         this.destination = destination;
         this.arrivalTolerance = arrivalTolerance;
+        this.abortIf = abortIf;
     }
 
     public static PathfindAndMoveToChain RandomNearby(
         VNavmesh vnav,
         Vector3 destination,
         float maxRadius = 1f,
-        float minRadius = 0f)
+        float minRadius = 0f,
+        Func<bool>? abortIf = null)
     {
         var angle = (float)(Random.Shared.NextDouble() * MathF.Tau);
         var distance = minRadius + (float)(Random.Shared.NextDouble() * (maxRadius - minRadius));
@@ -69,7 +93,7 @@ public class PathfindAndMoveToChain : ChainFactory
         destination = new Vector3(destination.X + offsetX, destination.Y, destination.Z + offsetZ);
         destination = vnav.FindPointOnFloor(destination, false, 0.5f) ?? destination;
 
-        return new PathfindAndMoveToChain(vnav, destination);
+        return new PathfindAndMoveToChain(vnav, destination, 5f, abortIf);
     }
 
     protected override Chain Create(Chain chain)
@@ -82,6 +106,14 @@ public class PathfindAndMoveToChain : ChainFactory
         if (Player.Object == null)
         {
             return false;
+        }
+
+        // Bail before anything else can re-issue movement.
+        if (abortIf?.Invoke() == true)
+        {
+            Svc.Log.Debug("[Pathfind] destination no longer valid - abandoning route");
+            vnav.Stop();
+            return true;
         }
 
         if (Player.DistanceTo(destination) <= arrivalTolerance)
@@ -106,10 +138,13 @@ public class PathfindAndMoveToChain : ChainFactory
 
             // Drop any in-flight or completed route: it starts from where the
             // player used to be.
+            // A deliberate hand-off to the player is not a failed solve; reset the
+            // restart budget so resuming does not immediately exhaust it.
             pathTask = null;
             issued = false;
             sawRunning = false;
             nudged = false;
+            issues = 0;
             return false;
         }
 
@@ -186,8 +221,15 @@ public class PathfindAndMoveToChain : ChainFactory
         // Request a route if we have none, or vnavmesh has given up. Throttled
         // because pathfinding is async and IsRunning reads false for a moment
         // after the request goes in.
+        if (issues >= MaxIssues)
+        {
+            Svc.Log.Debug($"[Pathfind] movement restarted {issues}x without sticking - yielding to whatever else is driving");
+            return true;
+        }
+
         if ((!issued || !vnav.IsRunning()) && EzThrottler.Throttle("Pathfind.Issue", 1000))
         {
+            issues++;
             try
             {
                 pathTask = vnav.Pathfind(Player.Position, destination, false);
