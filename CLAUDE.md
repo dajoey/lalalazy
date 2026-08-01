@@ -16,6 +16,13 @@ All four version locations MUST match in every release commit for any plugin `<P
 - **After running the packaging script, check the `git diff` of `pluginmaster.json` and verify the version actually increased and did not regress.** Always perform a manual or command-line diff inspection before staging.
 - **Channel separation (2026-07-30 — testing-first workflow):** `-Channel testing` updates ONLY `TestingAssemblyVersion` and `plugins/<Plugin>/testing/*`. The production pointer (`AssemblyVersion`) and `plugins/<Plugin>/latest/*` move ONLY on `-Channel production`. Ship every change as a testing build first; promote to production by re-running the script with `-Channel production` after in-game verification. Dalamud must have "Receive plugin testing versions" enabled for the plugin to be offered the test build.
 - **Retired rule:** the pre-2026-07-30 requirement that testing builds also bump `AssemblyVersion` came from a stale-zip `(load failed)` incident and coupled the two channels (every test build hit production). What actually matters: the testing zip's embedded manifest version must equal `TestingAssemblyVersion` — Package-Plugin.ps1 guarantees this. If a testing install ever shows `(load failed)`, check that pairing first; do NOT touch `AssemblyVersion`.
+- **`TestingDalamudApiLevel` is mandatory on any entry with a `TestingAssemblyVersion`.**
+  Dalamud discards the testing version outright when it is missing and logs
+  `[WRN] [PluginRepository] ... has a testing version available, but it lacks an associated
+  testing API. The 'TestingDalamudApiLevel' property is required.` — the build is simply never
+  offered in the installer, with no error on the plugin's own row. Package-Plugin.ps1 sets it
+  from the built manifest since 2026-08-01; before that fix every packager-produced testing
+  build was invisible (LazyFoodBuff 0.1.2.0, LazyGearCollector 0.0.1.0).
 - **Never use `git push --force` or `git commit --amend` on this repo.**
 - **Never touch game files** (XIVLauncher installedPlugins, pluginConfigs, etc.) — only work on the repo and push. The game downloads from GitHub.
 
@@ -26,7 +33,7 @@ TEST BUILD (default for every change):
 1. Read current csproj version; increment to the next patch version
 2. Update csproj + src/<Plugin>/CHANGELOG.md
 3. tools/Package-Plugin.ps1 -PluginName <Plugin> -Channel testing
-4. ** VERIFY: git diff pluginmaster.json — ONLY TestingAssemblyVersion moved; AssemblyVersion untouched, no regression **
+4. ** VERIFY: git diff pluginmaster.json — ONLY TestingAssemblyVersion + TestingDalamudApiLevel moved; AssemblyVersion untouched, no regression **
 5. ** VERIFY: extract manifest from plugins/<Plugin>/testing/testing.zip — version == TestingAssemblyVersion **
 6. git add (csproj, CHANGELOG, pluginmaster.json, plugins/<Plugin>/testing/*), commit, push
 7. Verify in-game from the testing channel
