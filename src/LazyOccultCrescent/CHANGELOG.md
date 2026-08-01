@@ -4,6 +4,45 @@ Fork of [OhKannaDuh/BOCCHI](https://github.com/OhKannaDuh/BOCCHI) (AGPL-3.0-or-l
 forked at `ded40a71af051a3aa57d326c512a975e7957daf6`. Upstream copyright and licence
 are preserved in `LICENSE`.
 
+## v0.1.0.0 (2026-08-01) [testing]
+
+First release that improves on BOCCHI's behaviour rather than just reaching parity
+with it in a second zone.
+
+### Added
+- **Automation yields to manual control.** There was no player-input detection
+  anywhere in the codebase. vnavmesh drives by feeding movement input and follows
+  a waypoint list computed once at the start of a chain, so walking away from an
+  automated route left it steering toward a waypoint you had already abandoned -
+  which reads in game as the character turning round and marching back to where
+  you deviated. Now: movement input pauses automation, and on resume the route is
+  **recomputed from where you actually are** rather than continued from where it
+  left off.
+  Detecting input rather than movement is the load-bearing part - the character is
+  always "moving" while vnavmesh drives it, so a position delta cannot tell the two
+  apart. Keyboard is read via `IKeyState`; the gamepad stick is bound by reflection
+  so a Dalamud API rename degrades to "keyboard still works" instead of failing the
+  build. 2s settle before resuming. Toggle: Pathfinder → Yield to manual control.
+- **Aggro-aware routing.** vnavmesh solves for geometry - it will walk a straight
+  line through a pack because the floor is walkable - and it has no avoidance API.
+  Occult Crescent has no flying, so routing over the problem is not an option
+  either. But vnav exposes `Pathfind` (hand back the waypoints) and `FollowPath`
+  (walk a list I give you), so routes are now post-processed: any segment passing
+  within 16y of a hostile gets a detour waypoint inserted perpendicular to the
+  segment, on the side away from the threat, snapped to the navmesh.
+  Deliberately conservative: mobs already targeting you are skipped (the combat
+  handlers own that), anything within 30y of the destination is treated as the
+  objective rather than an obstacle, detours are capped at 6 per route, and if no
+  reachable detour exists it walks the direct line rather than refusing to move.
+  Toggle: Pathfinder → Avoid aggro.
+
+### Notes
+- Aggro radius is a fixed 16y rather than derived per-mob. Real sight aggro varies
+  by enemy and field-operation elites reach further, so this errs wide. If specific
+  pulls still catch you, that number is the thing to raise.
+- The detour is geometric, not tactical: it does not know about patrol paths, so a
+  mob walking toward the detour point can still meet you there.
+
 ## v0.0.3.0 (2026-08-01) [testing]
 
 ### Fixed
