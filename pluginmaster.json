@@ -325,6 +325,7 @@
         "DownloadCount":  0,
         "LastUpdate":  "0",
         "Changelog":  "v0.1.2.0 - Now eats in Occult Crescent. South Horn and North Horn report TerritoryIntendedUse 61, which was missing from the combat-duty allow-list, so with 'Only auto-eat in combat duties' enabled auto-eat silently did nothing in the entire field operation. Same class of bug as the v0.1.1.0 deep-dungeon fix.\nv0.1.1.0 - Low-food warning + deep dungeons. (1) The low-stock alert now triggers on how much food you have left in your bag, not on time remaining on the buff; new count slider (default 3), alerts once and re-arms after you restock. (2) Auto-eat now works in deep dungeons (Palace of the Dead, Heaven-on-High, Eureka Orthos) - they were wrongly excluded.\nv0.1.0.0 - Initial release. Auto-eats food in combat duties; per-job food selection or auto-select by best stats; refresh-before-expiry. Use /lazyfoodbuff.",
+        "TestingDalamudApiLevel":  15,
         "TestingAssemblyVersion":  "0.1.2.0"
     },
     {
@@ -334,6 +335,7 @@
         "Description":  "Tracks upgradable gear collections piece by piece. Starts with Occult Crescent: North Horn\u0027s Phantom Vision sets - all 7 roles, 5 slots, 4 tiers. Shows which pieces you own and at what tier, what the next upgrade costs, and the exact obol/fixative shortfall to finish a role or the whole collection. Every item ID and price is read from the game\u0027s own shop data at runtime, so it stays correct across patches. Also flags Arcanaut\u0027s gear you can trade up for free. Use /lazygear to open.",
         "InternalName":  "LazyGearCollector",
         "AssemblyVersion":  "0.0.0.0",
+        "TestingDalamudApiLevel":  15,
         "TestingAssemblyVersion":  "0.0.1.0",
         "Changelog":  "- **First release.** Tracks upgradable gear collections: which pieces you own, what tier each one\n- **Phantom Vision (Occult Crescent: North Horn, patch 7.55)** as the first collection â€” 7 role sets\n- **Runtime shop-derived pricing.** `ShopGraph.cs` builds a reverse index over the entire\n- **Arcanaut\u0027s trade-up detection** (`Planner.DetectShortcut`). Arcanaut\u0027s +1 and +2 exchange into\n- **Ownership scanning** across bags, armoury chest and equipped gear (live), plus opportunistic\n- Role roster UI with click-through to per-piece detail, a wallet strip, per-role and\n\n- **The glamour dresser cannot be enumerated** at Dalamud API level 15 â€” `MirageManager` exposes\n- `ItemCostsStruct.CostType` is honoured when reading shop costs. `CostType == 0` means the cost\n- Reference data behind this release, including the full item-ID matrix and the shop table, is in\n\n- Release build: 0 warnings, 0 errors.\n- The set-construction and pricing logic was re-implemented independently against a raw Lumina dump",
         "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/LazyGearCollector",

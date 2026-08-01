@@ -263,6 +263,10 @@ if (-not $entry) {
         # marked testing-exclusive so Dalamud never offers the not-yet-existing latest.zip.
         AssemblyVersion = $(if ($Channel -eq 'testing') { '0.0.0.0' } else { $version })
         TestingAssemblyVersion = $(if ($Channel -eq 'testing') { $version } else { $null })
+        # Dalamud DISCARDS a testing version whose TestingDalamudApiLevel is missing
+        # (log: "lacks an associated testing API"), so it must always accompany
+        # TestingAssemblyVersion. Bug found 2026-08-01.
+        TestingDalamudApiLevel = $(if ($Channel -eq 'testing') { $manifest.DalamudApiLevel } else { $null })
         Changelog = $changelogText
         RepoUrl = "https://github.com/dajoey/lalalazy/tree/main/src/$PluginName"
         ApplicableVersion = "any"
@@ -301,6 +305,14 @@ if (-not $entry) {
             $entry.TestingAssemblyVersion = $version
         } else {
             $entry | Add-Member -NotePropertyName TestingAssemblyVersion -NotePropertyValue $version
+        }
+        # Required companion field: without it Dalamud logs "has a testing version
+        # available, but it lacks an associated testing API" and drops the testing
+        # version entirely, so the build is never offered. Bug found 2026-08-01.
+        if ($entry.PSObject.Properties['TestingDalamudApiLevel']) {
+            $entry.TestingDalamudApiLevel = $manifest.DalamudApiLevel
+        } else {
+            $entry | Add-Member -NotePropertyName TestingDalamudApiLevel -NotePropertyValue $manifest.DalamudApiLevel
         }
     } else {
         $entry.AssemblyVersion = $version
