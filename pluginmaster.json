@@ -299,7 +299,7 @@
         "Punchline":  "Never forget to eat your food again.",
         "Description":  "Auto-eats food in combat duties with per-job selection, auto-select based on best stats, and a low-food warning.",
         "InternalName":  "LazyFoodBuff",
-        "AssemblyVersion":  "0.1.1.0",
+        "AssemblyVersion":  "0.1.2.0",
         "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/LazyFoodBuff",
         "ApplicableVersion":  "any",
         "DalamudApiLevel":  15,
@@ -324,7 +324,7 @@
                       ],
         "DownloadCount":  0,
         "LastUpdate":  "0",
-        "Changelog":  "v0.1.2.0 - Now eats in Occult Crescent. South Horn and North Horn report TerritoryIntendedUse 61, which was missing from the combat-duty allow-list, so with 'Only auto-eat in combat duties' enabled auto-eat silently did nothing in the entire field operation. Same class of bug as the v0.1.1.0 deep-dungeon fix.\nv0.1.1.0 - Low-food warning + deep dungeons. (1) The low-stock alert now triggers on how much food you have left in your bag, not on time remaining on the buff; new count slider (default 3), alerts once and re-arms after you restock. (2) Auto-eat now works in deep dungeons (Palace of the Dead, Heaven-on-High, Eureka Orthos) - they were wrongly excluded.\nv0.1.0.0 - Initial release. Auto-eats food in combat duties; per-job food selection or auto-select by best stats; refresh-before-expiry. Use /lazyfoodbuff.",
+        "Changelog":  "v0.1.2.0 - Now eats in Occult Crescent. South Horn and North Horn report TerritoryIntendedUse 61, which was missing from the combat-duty allow-list, so with \u0027Only auto-eat in combat duties\u0027 enabled auto-eat silently did nothing in the entire field operation. Same class of bug as the v0.1.1.0 deep-dungeon fix.\nv0.1.1.0 - Low-food warning + deep dungeons. (1) The low-stock alert now triggers on how much food you have left in your bag, not on time remaining on the buff; new count slider (default 3), alerts once and re-arms after you restock. (2) Auto-eat now works in deep dungeons (Palace of the Dead, Heaven-on-High, Eureka Orthos) - they were wrongly excluded.\nv0.1.0.0 - Initial release. Auto-eats food in combat duties; per-job food selection or auto-select by best stats; refresh-before-expiry. Use /lazyfoodbuff.",
         "TestingDalamudApiLevel":  15,
         "TestingAssemblyVersion":  "0.1.2.0"
     },
