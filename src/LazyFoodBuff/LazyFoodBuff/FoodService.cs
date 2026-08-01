@@ -27,6 +27,7 @@ internal class FoodService
         57,   // Criterion Duty
         58,   // Criterion Savage Duty
         31,   // Deep Dungeon (Palace of the Dead, Heaven-on-High, Eureka Orthos)
+        61,   // Occult Crescent (South Horn, North Horn)
     };
 
     private readonly Plugin _plugin;

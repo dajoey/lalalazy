@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.1.2.0 (2026-08-01)
+
+### Fixed
+- **Now eats in Occult Crescent.** South Horn (territory 1252) and North Horn (1346)
+  both report `TerritoryIntendedUse == 61`, which was missing from
+  `FoodService.CombatDutyIntendedUses`. With the default `OnlyInCombatDuty = true`,
+  `FoodService.Tick` returned at the duty gate, so auto-eat silently did nothing in
+  the entire field operation. Added Occult Crescent to the allow-list. Same class of
+  bug as the v0.1.1.0 deep-dungeon fix — Bozja/Zadnor (52/53) was already allowed,
+  Occult Crescent uses a separate value and was the last combat field operation
+  still excluded.
+
+### Notes
+- Diagnosed 2026-08-01 from a live North Horn session on dajoeybaz: the plugin loaded
+  clean and indexed 894 food items with zero exceptions, but never logged an eat —
+  the signature of an early return. Skip reasons are only observable via
+  `/lazyfoodbuff debug`, never the log.
+
 ## v0.1.1.0 (2026-06-18)
 
 ### Changed

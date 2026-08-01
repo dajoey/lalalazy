@@ -7,7 +7,7 @@
         "InternalName":  "PvPSolver",
         "AssemblyVersion":  "0.1.0.9",
         "TestingAssemblyVersion":  "0.1.0.10",
-        "Changelog":  "v0.1.0.10 (testing) - Upstream EmergencyGCD signature sync\n- Synced upstream RotationSolverReborn 2ac940563: the EmergencyGCD hook now receives the queued next GCD, matching EmergencyAbility and the other rotation hooks.\n- No gameplay change: the new parameter is unread by every implementation of the hook, upstream and in this fork. Purify, Guard, Recuperate, Standard-issue Elixir, WHM Aquaveil and BRD The Warden's Paean behaviour are unchanged.\n- WHM and BRD PvP rotations are now byte-identical to upstream 641bd792e.\n\nv0.1.0.9 - Fork cleanup\n- Hidden the three PvE-only config tabs inherited from upstream: Duty Rotation, Duty, and AutoDuty.\n- Removed upstream Combat Reborn donation/community links (Ko-fi title-bar button, About-tab Ko-fi + Discord banner, Thanks-to-Supporters section and supporter shout-out hints).\n- Easter egg window retitled PvP Solver Lab.\n\nv0.1.0.3 - Wholly Original Rebrand \u0026 PvP Cast Protection\n- Renamed all commands to /pvpsolver and /pvs to prevent collisions with stock RSR.\n- Built protection against autocasting when zero enemies are nearby in PvP zones.",
+        "Changelog":  "v0.1.0.10 (testing) - Upstream EmergencyGCD signature sync\n- Synced upstream RotationSolverReborn 2ac940563: the EmergencyGCD hook now receives the queued next GCD, matching EmergencyAbility and the other rotation hooks.\n- No gameplay change: the new parameter is unread by every implementation of the hook, upstream and in this fork. Purify, Guard, Recuperate, Standard-issue Elixir, WHM Aquaveil and BRD The Warden\u0027s Paean behaviour are unchanged.\n- WHM and BRD PvP rotations are now byte-identical to upstream 641bd792e.\n\nv0.1.0.9 - Fork cleanup\n- Hidden the three PvE-only config tabs inherited from upstream: Duty Rotation, Duty, and AutoDuty.\n- Removed upstream Combat Reborn donation/community links (Ko-fi title-bar button, About-tab Ko-fi + Discord banner, Thanks-to-Supporters section and supporter shout-out hints).\n- Easter egg window retitled PvP Solver Lab.\n\nv0.1.0.3 - Wholly Original Rebrand \u0026 PvP Cast Protection\n- Renamed all commands to /pvpsolver and /pvs to prevent collisions with stock RSR.\n- Built protection against autocasting when zero enemies are nearby in PvP zones.",
         "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/PvPSolver",
         "ApplicableVersion":  "any",
         "DalamudApiLevel":  15,
@@ -297,7 +297,7 @@
         "Author":  "dajoey",
         "Name":  "LazyFoodBuff",
         "Punchline":  "Never forget to eat your food again.",
-        "Description":  "Auto-eats food in combat duties with per-job food selection, auto-select based on best stats, and a low-food warning. Fires in combat duties (dungeons, raids, trials, alliance raids, criterion, variant, deep dungeons). Understands optimal stats for every job and auto-selects the best food from your inventory.",
+        "Description":  "Auto-eats food in combat duties with per-job selection, auto-select based on best stats, and a low-food warning.",
         "InternalName":  "LazyFoodBuff",
         "AssemblyVersion":  "0.1.1.0",
         "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/LazyFoodBuff",
@@ -307,7 +307,7 @@
         "IsTestingExclusive":  false,
         "DownloadLinkInstall":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyFoodBuff/latest/latest.zip",
         "DownloadLinkUpdate":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyFoodBuff/latest/latest.zip",
-        "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyFoodBuff/latest/latest.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyFoodBuff/testing/testing.zip",
         "Tags":  [
                      "auto",
                      "food",
@@ -324,7 +324,8 @@
                       ],
         "DownloadCount":  0,
         "LastUpdate":  "0",
-        "Changelog":  "v0.1.1.0 - Low-food warning + deep dungeons. (1) The low-stock alert now triggers on how much food you have left in your bag, not on time remaining on the buff; new count slider (default 3), alerts once and re-arms after you restock. (2) Auto-eat now works in deep dungeons (Palace of the Dead, Heaven-on-High, Eureka Orthos) - they were wrongly excluded.\nv0.1.0.0 - Initial release. Auto-eats food in combat duties; per-job food selection or auto-select by best stats; refresh-before-expiry. Use /lazyfoodbuff."
+        "Changelog":  "v0.1.2.0 - Now eats in Occult Crescent. South Horn and North Horn report TerritoryIntendedUse 61, which was missing from the combat-duty allow-list, so with 'Only auto-eat in combat duties' enabled auto-eat silently did nothing in the entire field operation. Same class of bug as the v0.1.1.0 deep-dungeon fix.\nv0.1.1.0 - Low-food warning + deep dungeons. (1) The low-stock alert now triggers on how much food you have left in your bag, not on time remaining on the buff; new count slider (default 3), alerts once and re-arms after you restock. (2) Auto-eat now works in deep dungeons (Palace of the Dead, Heaven-on-High, Eureka Orthos) - they were wrongly excluded.\nv0.1.0.0 - Initial release. Auto-eats food in combat duties; per-job food selection or auto-select by best stats; refresh-before-expiry. Use /lazyfoodbuff.",
+        "TestingAssemblyVersion":  "0.1.2.0"
     },
     {
         "Author":  "dajoey",
