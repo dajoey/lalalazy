@@ -4,6 +4,43 @@ Fork of [OhKannaDuh/BOCCHI](https://github.com/OhKannaDuh/BOCCHI) (AGPL-3.0-or-l
 forked at `ded40a71af051a3aa57d326c512a975e7957daf6`. Upstream copyright and licence
 are preserved in `LICENSE`.
 
+## v0.1.1.0 (2026-08-01) [testing]
+
+### Fixed
+- **Buffing gave up partway and left the player on the wrong phantom job.**
+  Upstream, carried over from BOCCHI. Four compounding defects, none random -
+  which is why it "sometimes" worked.
+  - **The time budget could not fit its own contents.** `AllBuffsChain` runs five
+    buff sub-chains and then a restore-job link. Each sub-chain allows 15s, so the
+    contents need 75s before a single job change is counted - but the parent
+    allowed 60s. With one or two buffs due it fit; with four or five due the
+    parent expired *before* the restore link and stranded the player on whichever
+    phantom job buffed last. **This is the whole "sometimes": it was how many
+    buffs happened to need refreshing.** Budget raised to 150s.
+  - **Success was tested against a hardcoded duration.** Each buff waited for
+    `RemainingTime >= 1780` - about 29.7 minutes - as a proxy for "freshly
+    applied". Any buff whose real duration is shorter, or which the server reports
+    a hair under, can never satisfy that, so the chain spun until its 15s limit
+    and took the sequence down with it. Now compares against the buff's remaining
+    time *before* the cast, which asks the actual question: did this refresh it?
+  - **It buffed in combat, where changing phantom job is rejected.** The job
+    change silently failed and `ChangeToChain` spun on a status that would never
+    arrive. Buff steps are now skipped in combat rather than attempted and failed.
+  - **The job restore was a chain link, not a guarantee.** Anything that aborted
+    the sequence skipped it. `BuffManager` now carries an independent restore
+    watchdog: it records the job you were on before buffing and puts you back on
+    it if a sequence ends with you somewhere else. It waits for combat to end,
+    retries up to five times, and then gives up on the assumption you changed job
+    deliberately - it will not fight you.
+- `ReturnChain` built its own buff sequence directly instead of going through
+  `BuffManager`, so that path had no restore tracking at all. Both paths now come
+  through one factory.
+
+### Notes
+- Re-enable buffing to test this. If it still strands you, the log line
+  `[Buff] buff sequence left job as X, restoring to Y` shows the watchdog firing,
+  and `could not restore ... after N attempts` shows it giving up.
+
 ## v0.1.0.4 (2026-08-01) [testing]
 
 ### Fixed

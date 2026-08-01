@@ -66,7 +66,7 @@ public class ReturnChain(TeleporterModule module, ReturnChainConfig config) : Re
         chain.WaitUntilNear(vnav, closestKnowledgeCrystal!.Position, AethernetData.DISTANCE);
         chain.Then(_ => vnav.Stop());
 
-        chain.Then(new AllBuffsChain(buffs));
+        chain.Then(buffs.BuffManager.CreateSequence(buffs));
 
         return chain;
     }
