@@ -18,9 +18,13 @@ public class PathfindAndMoveToChain : ChainFactory
 
     private readonly VNavmesh vnav;
 
-    // vnavmesh parks a little short of the exact point on uneven ground, so an
-    // exact-arrival test can hang the chain forever.
-    private const float ArrivalTolerance = 3f;
+    // Completion tolerance. This MUST NOT be tighter than what the next step in
+    // a chain requires: TeleportChain walks here and then needs to be within
+    // AethernetData.DISTANCE (3.8y) to interact, so a 3y gate meant the walk
+    // "never arrived" at a spot that was already close enough to teleport from.
+    // Aetherytes and shards are solid objects - vnavmesh parks at their collision
+    // edge, not their origin - so this is deliberately loose.
+    private const float ArrivalTolerance = 5f;
 
     // Long enough that releasing a key mid-stride does not snatch control back,
     // short enough not to feel unresponsive.
@@ -29,6 +33,11 @@ public class PathfindAndMoveToChain : ChainFactory
     private bool issued;
 
     private bool yielded;
+
+    // Distinguishes "vnavmesh has not started yet" from "vnavmesh has finished".
+    // IsRunning reads false for a moment after a request goes in, so arrival can
+    // only be inferred from it stopping AFTER it was seen running.
+    private bool sawRunning;
 
     private Task<List<Vector3>>? pathTask;
 
@@ -92,7 +101,22 @@ public class PathfindAndMoveToChain : ChainFactory
             // player used to be.
             pathTask = null;
             issued = false;
+            sawRunning = false;
             return false;
+        }
+
+        if (vnav.IsRunning())
+        {
+            sawRunning = true;
+        }
+        else if (issued && sawRunning)
+        {
+            // vnavmesh ran and then stopped: it either arrived as close as the
+            // geometry allows, or gave up. Either way this is as far as walking
+            // gets us, and the original Ocelot helper completed here too -
+            // holding out for an exact distance is what stalled the chain.
+            Svc.Log.Debug($"[Pathfind] vnavmesh finished {Player.DistanceTo(destination):F1}y from target - accepting");
+            return true;
         }
 
         if (yielded)
@@ -119,6 +143,7 @@ public class PathfindAndMoveToChain : ChainFactory
                 var route = AggroAvoidance.Apply(vnav, task.Result, destination, AggroAvoidance.Enabled);
                 vnav.FollowPath(route, false);
                 issued = true;
+                sawRunning = false;
             }
             else
             {
@@ -127,6 +152,7 @@ public class PathfindAndMoveToChain : ChainFactory
                 Svc.Log.Debug("[Pathfind] explicit pathfind unavailable - falling back to PathfindAndMoveTo");
                 vnav.PathfindAndMoveTo(destination, false);
                 issued = true;
+                sawRunning = false;
             }
 
             return false;
@@ -151,6 +177,7 @@ public class PathfindAndMoveToChain : ChainFactory
                 Svc.Log.Debug($"[Pathfind] Pathfind threw ({ex.Message}) - falling back");
                 vnav.PathfindAndMoveTo(destination, false);
                 issued = true;
+                sawRunning = false;
             }
         }
 

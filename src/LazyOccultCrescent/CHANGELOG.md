@@ -4,6 +4,28 @@ Fork of [OhKannaDuh/BOCCHI](https://github.com/OhKannaDuh/BOCCHI) (AGPL-3.0-or-l
 forked at `ded40a71af051a3aa57d326c512a975e7957daf6`. Upstream copyright and licence
 are preserved in `LICENSE`.
 
+## v0.1.0.1 (2026-08-01) [testing]
+
+### Fixed
+- **Aethernet teleports stopped firing in v0.1.0.0. My regression.** Rewriting
+  `PathfindAndMoveToChain` for manual-control yielding replaced the old
+  "vnavmesh stopped, we're done" completion with a hard `distance <= 3y` test.
+  `TeleportChain` walks to the shard and then needs to be within
+  `AethernetData.DISTANCE` (3.8y) to interact - so the arrival gate was *stricter
+  than the thing it was feeding*. Aetherytes are solid objects and vnavmesh parks
+  at their collision edge, not their origin, so the walk "never arrived" at a spot
+  that was already close enough to teleport from. The chain then sat until its
+  180-second limit and the teleport never happened.
+  Return to base kept working throughout because it casts Return rather than
+  walking, which is exactly why only teleports looked broken.
+  Fix: tolerance raised to 5y, and completion once again accepts "vnavmesh was
+  running and has now stopped" - guarded by a `sawRunning` flag, since `IsRunning`
+  reads false for a moment right after a request goes in and would otherwise
+  report instant arrival.
+- Manual-control detection now takes precedence over arrival inference. Taking
+  over at the moment vnavmesh gave up could otherwise be read as a successful
+  arrival, advancing the chain from the wrong position.
+
 ## v0.1.0.0 (2026-08-01) [testing]
 
 First release that improves on BOCCHI's behaviour rather than just reaching parity
