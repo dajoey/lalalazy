@@ -35,6 +35,7 @@ public static class ZoneData
     public readonly static Dictionary<uint, Vector3> Aetherytes = new()
     {
         { SOUTHHORN, new Vector3(830.75f, 72.98f, -695.98f) },
+        { NORTHHORN, new Vector3(880.00f, 259.74f, 880.06f) },
     };
 
     public readonly static Dictionary<uint, Vector3> StartingLocations = new()

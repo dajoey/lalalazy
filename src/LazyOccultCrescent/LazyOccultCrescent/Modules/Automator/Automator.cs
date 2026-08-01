@@ -167,7 +167,10 @@ public class Automator
 
         foreach (var fate in source.fates.Values)
         {
-            if (!module.Config.FatesMap[fate.Id])
+            // Unknown fate ids must skip, not throw. Before the North Horn
+            // entries existed this indexer raised KeyNotFoundException on
+            // every North Horn fate and took the Automator down with it.
+            if (!module.Config.FatesMap.TryGetValue(fate.Id, out var fateEnabled) || !fateEnabled)
             {
                 continue;
             }

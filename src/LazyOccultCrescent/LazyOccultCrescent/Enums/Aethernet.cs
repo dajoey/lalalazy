@@ -104,42 +104,68 @@ public class AethernetData
         },
 
         // ---- North Horn ----------------------------------------------------
-        // Positions are Zero until ZoneDiscovery sees the shard in the object table.
+        // Positions extracted from bg/ex5/03_ocn_o6/btl/o6b2/level/planmap.lgb
+        // on 2026-08-01, not guessed and not runtime-discovered. Identity was
+        // resolved by fitting the map->world transform against South Horn's five
+        // known shards and matching each MapMarker (icon 60959) to its nearest
+        // layout object; worst fit error 2.1y, the rest under 1.1y.
+        //
+        // Running the same extraction over South Horn reproduces upstream's
+        // hand-surveyed constants to within 0.03y, which is what makes these
+        // trustworthy. ZoneDiscovery remains as a safety net, not the source.
         [Aethernet.NorthHornBaseCamp] = new AethernetData
         {
             Aethernet = Aethernet.NorthHornBaseCamp,
-            BaseId = 2015429, // "occult aetheryte"
+            BaseId = 2015429,
             Territory = ZoneData.NORTHHORN,
+            Position = new Vector3(880.00f, 259.74f, 880.06f),
+            Destination = new Vector3(880.00f, 259.74f, 880.06f),
+            HasSurveyedPosition = true,
         },
         [Aethernet.SinkingSanctuary] = new AethernetData
         {
             Aethernet = Aethernet.SinkingSanctuary,
             BaseId = 2015430,
             Territory = ZoneData.NORTHHORN,
+            Position = new Vector3(357.67f, 45.77f, -554.31f),
+            Destination = new Vector3(357.67f, 45.77f, -554.31f),
+            HasSurveyedPosition = true,
         },
         [Aethernet.SuspendedMasonry] = new AethernetData
         {
             Aethernet = Aethernet.SuspendedMasonry,
             BaseId = 2015431,
             Territory = ZoneData.NORTHHORN,
+            Position = new Vector3(-547.25f, 68.00f, 594.40f),
+            Destination = new Vector3(-547.25f, 68.00f, 594.40f),
+            HasSurveyedPosition = true,
         },
         [Aethernet.MolderingOutskirts] = new AethernetData
         {
             Aethernet = Aethernet.MolderingOutskirts,
             BaseId = 2015432,
             Territory = ZoneData.NORTHHORN,
+            Position = new Vector3(-388.57f, 41.22f, -440.52f),
+            Destination = new Vector3(-388.57f, 41.22f, -440.52f),
+            HasSurveyedPosition = true,
         },
         [Aethernet.UnhallowedHamlet] = new AethernetData
         {
             Aethernet = Aethernet.UnhallowedHamlet,
             BaseId = 2015433,
             Territory = ZoneData.NORTHHORN,
+            Position = new Vector3(-13.36f, 3.14f, -40.51f),
+            Destination = new Vector3(-13.36f, 3.14f, -40.51f),
+            HasSurveyedPosition = true,
         },
         [Aethernet.CrownOfKarnak] = new AethernetData
         {
             Aethernet = Aethernet.CrownOfKarnak,
             BaseId = 2015434,
             Territory = ZoneData.NORTHHORN,
+            Position = new Vector3(451.68f, 70.93f, 528.84f),
+            Destination = new Vector3(451.68f, 70.93f, 528.84f),
+            HasSurveyedPosition = true,
         },
     };
 

@@ -31,6 +31,9 @@ public static class ZoneDiscovery
         public Dictionary<string, float[]> Events { get; set; } = new();
 
         public float[]? Aetheryte { get; set; }
+
+        // event id -> Phantom Dispeller item id, learned by observation.
+        public Dictionary<string, uint> Dispellers { get; set; } = new();
     }
 
     private readonly static Dictionary<uint, Store> Stores = new();
@@ -205,6 +208,49 @@ public static class ZoneDiscovery
         }
 
         return false;
+    }
+
+    // Returns true only the first time a given event is attributed, so callers
+    // can log a discovery without spamming on every subsequent kill.
+    public static bool RecordEventDispeller(uint eventId, Enums.PhantomDispeller dispeller)
+    {
+        var territory = ZoneData.CurrentTerritory;
+        if (!ZoneData.OccultTerritories.Contains(territory))
+        {
+            return false;
+        }
+
+        var store = StoreFor(territory);
+        var key = eventId.ToString();
+
+        if (store.Dispellers.TryGetValue(key, out var existing))
+        {
+            return existing == (uint)dispeller ? false : false;
+        }
+
+        store.Dispellers[key] = (uint)dispeller;
+        dirty = true;
+        Save();
+        return true;
+    }
+
+    public static bool TryGetEventDispeller(uint eventId, out Enums.PhantomDispeller dispeller)
+    {
+        dispeller = default;
+        var store = StoreFor(ZoneData.CurrentTerritory);
+
+        if (store.Dispellers.TryGetValue(eventId.ToString(), out var raw))
+        {
+            dispeller = (Enums.PhantomDispeller)raw;
+            return true;
+        }
+
+        return false;
+    }
+
+    public static int LearnedDispellerCount()
+    {
+        return StoreFor(ZoneData.CurrentTerritory).Dispellers.Count;
     }
 
     public static bool TryGetAetheryte(uint territory, out Vector3 position)

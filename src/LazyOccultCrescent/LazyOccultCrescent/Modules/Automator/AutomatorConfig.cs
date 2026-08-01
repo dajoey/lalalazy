@@ -379,6 +379,323 @@ public class AutomatorConfig : ModuleConfig
         get => IsPropertyEnabled(nameof(DoPleadingPots));
     }
 
+    // ---------------------------------------------------------------------
+    // North Horn (territory 1346). The config UI is driven by reflection over
+    // these properties, so an event with no property here is invisible in
+    // settings and unselectable - which is exactly what happened to every
+    // North Horn event before this block existed.
+    // ---------------------------------------------------------------------
+
+    [Checkbox]
+    [DependsOn(nameof(DoCriticalEncounters))]
+    [Indent]
+
+    public bool DoManyMouthsToFeed { get; set; } = true;
+
+    public bool ShouldDoManyMouthsToFeed
+    {
+        get => IsPropertyEnabled(nameof(DoManyMouthsToFeed));
+    }
+
+    [Checkbox]
+    [DependsOn(nameof(DoCriticalEncounters))]
+    [Indent]
+
+    public bool DoDoubledTrouble { get; set; } = true;
+
+    public bool ShouldDoDoubledTrouble
+    {
+        get => IsPropertyEnabled(nameof(DoDoubledTrouble));
+    }
+
+    [Checkbox]
+    [DependsOn(nameof(DoCriticalEncounters))]
+    [Indent]
+
+    public bool DoQuarriedAway { get; set; } = true;
+
+    public bool ShouldDoQuarriedAway
+    {
+        get => IsPropertyEnabled(nameof(DoQuarriedAway));
+    }
+
+    [Checkbox]
+    [DependsOn(nameof(DoCriticalEncounters))]
+    [Indent]
+
+    public bool DoForbiddenFolios { get; set; } = true;
+
+    public bool ShouldDoForbiddenFolios
+    {
+        get => IsPropertyEnabled(nameof(DoForbiddenFolios));
+    }
+
+    [Checkbox]
+    [DependsOn(nameof(DoCriticalEncounters))]
+    [Indent]
+
+    public bool DoCursedResurgence { get; set; } = true;
+
+    public bool ShouldDoCursedResurgence
+    {
+        get => IsPropertyEnabled(nameof(DoCursedResurgence));
+    }
+
+    [Checkbox]
+    [DependsOn(nameof(DoCriticalEncounters))]
+    [Indent]
+
+    public bool DoImbalancedDiet { get; set; } = true;
+
+    public bool ShouldDoImbalancedDiet
+    {
+        get => IsPropertyEnabled(nameof(DoImbalancedDiet));
+    }
+
+    [Checkbox]
+    [DependsOn(nameof(DoCriticalEncounters))]
+    [Indent]
+
+    public bool DoWebOfTerror { get; set; } = true;
+
+    public bool ShouldDoWebOfTerror
+    {
+        get => IsPropertyEnabled(nameof(DoWebOfTerror));
+    }
+
+    [Checkbox]
+    [DependsOn(nameof(DoCriticalEncounters))]
+    [Indent]
+
+    public bool DoABeastUnleashed { get; set; } = true;
+
+    public bool ShouldDoABeastUnleashed
+    {
+        get => IsPropertyEnabled(nameof(DoABeastUnleashed));
+    }
+
+    [Checkbox]
+    [DependsOn(nameof(DoCriticalEncounters))]
+    [Indent]
+
+    public bool DoDarkArtistry { get; set; } = true;
+
+    public bool ShouldDoDarkArtistry
+    {
+        get => IsPropertyEnabled(nameof(DoDarkArtistry));
+    }
+
+    [Checkbox]
+    [DependsOn(nameof(DoCriticalEncounters))]
+    [Indent]
+
+    public bool DoFamiliarTactics { get; set; } = true;
+
+    public bool ShouldDoFamiliarTactics
+    {
+        get => IsPropertyEnabled(nameof(DoFamiliarTactics));
+    }
+
+    [Checkbox]
+    [DependsOn(nameof(DoCriticalEncounters))]
+    [Indent]
+
+    public bool DoAppallingBehavior { get; set; } = true;
+
+    public bool ShouldDoAppallingBehavior
+    {
+        get => IsPropertyEnabled(nameof(DoAppallingBehavior));
+    }
+
+    [Checkbox]
+    [DependsOn(nameof(DoCriticalEncounters))]
+    [Indent]
+
+    public bool DoTinyTerror { get; set; } = true;
+
+    public bool ShouldDoTinyTerror
+    {
+        get => IsPropertyEnabled(nameof(DoTinyTerror));
+    }
+
+    [Checkbox]
+    [DependsOn(nameof(DoCriticalEncounters))]
+    [Indent]
+
+    public bool DoLostOnTheWind { get; set; } = true;
+
+    public bool ShouldDoLostOnTheWind
+    {
+        get => IsPropertyEnabled(nameof(DoLostOnTheWind));
+    }
+
+    [Checkbox]
+    [DependsOn(nameof(DoCriticalEncounters))]
+    [Indent]
+
+    public bool DoAheadOfTheCompetition { get; set; } = true;
+
+    public bool ShouldDoAheadOfTheCompetition
+    {
+        get => IsPropertyEnabled(nameof(DoAheadOfTheCompetition));
+    }
+
+    [Checkbox]
+    [DependsOn(nameof(DoCriticalEncounters))]
+    [Indent]
+
+    public bool DoAcceptNoImitators { get; set; } = true;
+
+    public bool ShouldDoAcceptNoImitators
+    {
+        get => IsPropertyEnabled(nameof(DoAcceptNoImitators));
+    }
+
+    [Checkbox]
+    [Experimental]
+    [Indent]
+    [DependsOn(nameof(DoFates))]
+
+    public bool DoDaylightPottery { get; set; } = false;
+
+    public bool ShouldDoDaylightPottery
+    {
+        get => IsPropertyEnabled(nameof(DoDaylightPottery));
+    }
+
+    [Checkbox]
+    [Experimental]
+    [Indent]
+    [DependsOn(nameof(DoFates))]
+
+    public bool DoInAPotOfBother { get; set; } = false;
+
+    public bool ShouldDoInAPotOfBother
+    {
+        get => IsPropertyEnabled(nameof(DoInAPotOfBother));
+    }
+
+    [Checkbox]
+    [Indent]
+    [DependsOn(nameof(DoFates))]
+
+    public bool DoRagingThrall { get; set; } = true;
+
+    public bool ShouldDoRagingThrall
+    {
+        get => IsPropertyEnabled(nameof(DoRagingThrall));
+    }
+
+    [Checkbox]
+    [Indent]
+    [DependsOn(nameof(DoFates))]
+
+    public bool DoEyeToEye { get; set; } = true;
+
+    public bool ShouldDoEyeToEye
+    {
+        get => IsPropertyEnabled(nameof(DoEyeToEye));
+    }
+
+    [Checkbox]
+    [Indent]
+    [DependsOn(nameof(DoFates))]
+
+    public bool DoShorelineShowdown { get; set; } = true;
+
+    public bool ShouldDoShorelineShowdown
+    {
+        get => IsPropertyEnabled(nameof(DoShorelineShowdown));
+    }
+
+    [Checkbox]
+    [Indent]
+    [DependsOn(nameof(DoFates))]
+
+    public bool DoWavedAway { get; set; } = true;
+
+    public bool ShouldDoWavedAway
+    {
+        get => IsPropertyEnabled(nameof(DoWavedAway));
+    }
+
+    [Checkbox]
+    [Indent]
+    [DependsOn(nameof(DoFates))]
+
+    public bool DoAllureOfTheOccult { get; set; } = true;
+
+    public bool ShouldDoAllureOfTheOccult
+    {
+        get => IsPropertyEnabled(nameof(DoAllureOfTheOccult));
+    }
+
+    [Checkbox]
+    [Indent]
+    [DependsOn(nameof(DoFates))]
+
+    public bool DoInconstantGardener { get; set; } = true;
+
+    public bool ShouldDoInconstantGardener
+    {
+        get => IsPropertyEnabled(nameof(DoInconstantGardener));
+    }
+
+    [Checkbox]
+    [Indent]
+    [DependsOn(nameof(DoFates))]
+
+    public bool DoTerritorialDispute { get; set; } = true;
+
+    public bool ShouldDoTerritorialDispute
+    {
+        get => IsPropertyEnabled(nameof(DoTerritorialDispute));
+    }
+
+    [Checkbox]
+    [Indent]
+    [DependsOn(nameof(DoFates))]
+
+    public bool DoARottenAffair { get; set; } = true;
+
+    public bool ShouldDoARottenAffair
+    {
+        get => IsPropertyEnabled(nameof(DoARottenAffair));
+    }
+
+    [Checkbox]
+    [Indent]
+    [DependsOn(nameof(DoFates))]
+
+    public bool DoGaleForceEncounter { get; set; } = true;
+
+    public bool ShouldDoGaleForceEncounter
+    {
+        get => IsPropertyEnabled(nameof(DoGaleForceEncounter));
+    }
+
+    [Checkbox]
+    [Indent]
+    [DependsOn(nameof(DoFates))]
+
+    public bool DoScaleModel { get; set; } = true;
+
+    public bool ShouldDoScaleModel
+    {
+        get => IsPropertyEnabled(nameof(DoScaleModel));
+    }
+
+    [Checkbox]
+    [Indent]
+    [DependsOn(nameof(DoFates))]
+
+    public bool DoThunderregnum { get; set; } = true;
+
+    public bool ShouldDoThunderregnum
+    {
+        get => IsPropertyEnabled(nameof(DoThunderregnum));
+    }
+
     public IReadOnlyDictionary<uint, bool> CriticalEncountersMap
     {
         get => new Dictionary<uint, bool>
@@ -398,6 +715,23 @@ public class AutomatorConfig : ModuleConfig
             { 45, ShouldDoCursedConcern },
             { 46, ShouldDoEternalWatch },
             { 47, ShouldDoFlameOfDusk },
+
+            // North Horn
+            { 49, ShouldDoManyMouthsToFeed },
+            { 50, ShouldDoDoubledTrouble },
+            { 51, ShouldDoQuarriedAway },
+            { 52, ShouldDoForbiddenFolios },
+            { 53, ShouldDoCursedResurgence },
+            { 54, ShouldDoImbalancedDiet },
+            { 55, ShouldDoWebOfTerror },
+            { 56, ShouldDoABeastUnleashed },
+            { 57, ShouldDoDarkArtistry },
+            { 58, ShouldDoFamiliarTactics },
+            { 59, ShouldDoAppallingBehavior },
+            { 60, ShouldDoTinyTerror },
+            { 61, ShouldDoLostOnTheWind },
+            { 62, ShouldDoAheadOfTheCompetition },
+            { 63, ShouldDoAcceptNoImitators },
         };
     }
 
@@ -418,6 +752,21 @@ public class AutomatorConfig : ModuleConfig
             { 1972, ShouldDoServingDarkness },
             { 1976, ShouldDoPersistentPots },
             { 1977, ShouldDoPleadingPots },
+
+            // North Horn
+            { 2072, ShouldDoDaylightPottery },
+            { 2073, ShouldDoInAPotOfBother },
+            { 2074, ShouldDoRagingThrall },
+            { 2075, ShouldDoEyeToEye },
+            { 2076, ShouldDoShorelineShowdown },
+            { 2077, ShouldDoWavedAway },
+            { 2078, ShouldDoAllureOfTheOccult },
+            { 2079, ShouldDoInconstantGardener },
+            { 2080, ShouldDoTerritorialDispute },
+            { 2081, ShouldDoARottenAffair },
+            { 2082, ShouldDoGaleForceEncounter },
+            { 2083, ShouldDoScaleModel },
+            { 2084, ShouldDoThunderregnum },
         };
     }
 }

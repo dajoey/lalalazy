@@ -1,7 +1,12 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using LazyOccultCrescent.Modules.CriticalEncounters;
+using LazyOccultCrescent.Modules.Fates;
 using Ocelot.Modules;
 using Ocelot.Windows;
 using Discovery = LazyOccultCrescent.Data.ZoneDiscovery;
+using DispellerObserver = LazyOccultCrescent.Data.DispellerObserver;
 
 namespace LazyOccultCrescent.Modules.ZoneDiscovery;
 
@@ -40,12 +45,35 @@ public class ZoneDiscoveryModule(Plugin plugin, Config config) : Module(plugin, 
 
         nextScan = DateTime.UtcNow + ScanInterval;
         Discovery.Scan();
+        DispellerObserver.Tick(ActiveEventIds());
+    }
+
+    // Every FATE and critical encounter currently running. The observer needs
+    // this to know whether a drop can be attributed unambiguously.
+    private List<uint> ActiveEventIds()
+    {
+        var ids = new List<uint>();
+
+        if (Modules.TryGetModule<FatesModule>(out var fates) && fates != null)
+        {
+            ids.AddRange(fates.fates.Values.Select(f => f.Id));
+        }
+
+        if (Modules.TryGetModule<CriticalEncountersModule>(out var ce) && ce != null)
+        {
+            ids.AddRange(ce.CriticalEncounters.Values
+                .Where(e => e.State != FFXIVClientStructs.FFXIV.Client.Game.InstanceContent.DynamicEventState.Inactive)
+                .Select(e => (uint)e.DynamicEventId));
+        }
+
+        return ids;
     }
 
     public override void OnTerritoryChanged(uint id)
     {
         nextScan = DateTime.MinValue;
         Discovery.Load(id);
+        DispellerObserver.Reset();
     }
 
     public override void Dispose()

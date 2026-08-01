@@ -4,6 +4,52 @@ Fork of [OhKannaDuh/BOCCHI](https://github.com/OhKannaDuh/BOCCHI) (AGPL-3.0-or-l
 forked at `ded40a71af051a3aa57d326c512a975e7957daf6`. Upstream copyright and licence
 are preserved in `LICENSE`.
 
+## v0.0.2.0 (2026-08-01) [testing]
+
+### Fixed
+- **North Horn events were invisible in settings and crashed the Automator.**
+  The config UI is driven by reflection over one hand-written `[Checkbox]`
+  property per event, and only the South Horn set existed - so no North Horn
+  FATE or Critical Encounter could be listed or selected. Worse, `Automator`
+  indexed `FatesMap[fate.Id]` directly, so any live North Horn FATE raised
+  `KeyNotFoundException` and took the loop down. Added all 28 missing properties
+  (15 CEs, 13 FATEs) and made the lookup total. Maps now hold 30 CEs and 26 FATEs.
+  Pot fates 2072/2073 default off and are flagged Experimental, matching how
+  South Horn's Persistent/Pleading Pots are treated.
+
+### Added
+- **Phantom Dispellers replace demiatma for North Horn.** North Horn does not
+  drop demiatma at all - it drops Phantom Dispeller α/β/γ (Item 50974-50976).
+  New `PhantomDispeller` enum and an `EventData.Dispeller` field; the two are
+  mutually exclusive per zone, so a North Horn event carrying a Demiatma value
+  would be wrong by construction.
+- **Real North Horn shard positions**, extracted from
+  `bg/ex5/03_ocn_o6/btl/o6b2/level/planmap.lgb` rather than discovered at runtime.
+  Shard identity was resolved by fitting the map-to-world transform against South
+  Horn's five known shards and matching each MapMarker (icon 60959) to its nearest
+  layout object - worst fit error 2.1 yalms, the rest under 1.1. Running the same
+  extraction over South Horn reproduces upstream's hand-surveyed constants to
+  within 0.03y, which is what makes these trustworthy. The North Horn base camp
+  aetheryte is now a surveyed constant too.
+  Confirmed names: North Horn Base Camp, Sinking Sanctuary, Suspended Masonry,
+  Moldering Outskirts, Unhallowed Hamlet, The Crown of Karnak.
+- **`DispellerObserver`** learns which event yields which dispeller by watching
+  inventory, attributing only when exactly one event is active. This exists
+  because the mapping is *provably* not in the game files: a scan of all 7,912
+  Excel sheets found exactly nine references to dispeller and demiatma item ids
+  in the entire client, and every one was in the Quest sheet - the relic quests
+  that consume them (70855 South Horn, 71039 North Horn). No loot table, nothing
+  on Fate or DynamicEvent. The drop is decided server-side, which is why
+  upstream's South Horn table is hand-observed.
+
+### Notes
+- Correcting v0.0.1.0's claim that treasure and carrot radar are inert without
+  the generated data files: they are not. Both trackers read the live object
+  table, so radar works in North Horn immediately. Only the *optimal route*
+  (`Pathfinder`) needs the precomputed JSON.
+- Demiatma/Soulshard/Note remain unset on North Horn events - now known to be
+  unobtainable from game data rather than merely not found.
+
 ## v0.0.1.0 (2026-08-01) [testing]
 
 ### Added

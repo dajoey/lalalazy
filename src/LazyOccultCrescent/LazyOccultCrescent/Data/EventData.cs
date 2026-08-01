@@ -14,6 +14,11 @@ public struct EventData
 
     public Demiatma? Demiatma;
 
+    // North Horn drops Phantom Dispellers, not demiatma. The two are mutually
+    // exclusive per zone - South Horn events carry Demiatma, North Horn events
+    // carry Dispeller. Never both.
+    public PhantomDispeller? Dispeller;
+
     public SoulShard? Soulshard;
 
     public MonsterNote? Note;
