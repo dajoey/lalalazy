@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Standardized script to build, package, and register any Dalamud plugin in the lalalazy monorepo.
 .DESCRIPTION
@@ -234,7 +234,25 @@ if (Test-Path $changelogPath) {
     
     foreach ($line in $lines) {
         $trimmed = $line.Trim()
-        if ($trimmed.StartsWith("## [")) {
+
+        # Section header. TWO styles live in this repo and both must parse (fix 2026-08-02):
+        #   Keep-a-Changelog:  ## [1.0.4.99] - some description
+        #   dated:             ## v1.0.4.101 (2026-08-02) [testing]
+        # Only the bracket style was recognised before, so every plugin on the dated style
+        # (GluttonyCombo, ArmoireAutoFill, DagobertPriceMatcher, LazyFoodBuff,
+        # LazyGearCollector, LazyOccultCrescent, LazySkywardTracker) published a Changelog
+        # field frozen at whatever it happened to say when the entry was first created.
+        $headerVersion = $null
+        $headerDesc = $null
+        if ($trimmed -match '^##\s+\[([^\]]+)\](?:\s*-\s*(.+))?$') {
+            $headerVersion = $Matches[1]
+            if ($Matches[2]) { $headerDesc = "- $($Matches[2])" }
+        } elseif ($trimmed -match '^##\s+v([0-9][0-9A-Za-z.\-]*)\s*(.*)$') {
+            $headerVersion = $Matches[1]
+            $headerDesc = $Matches[2].Trim()
+        }
+
+        if ($headerVersion) {
             if ($currentEntry.Count -gt 0) {
                 $entryStr = ($currentEntry -join "`n").Trim()
                 if ($entryStr) {
@@ -242,14 +260,10 @@ if (Test-Path $changelogPath) {
                 }
                 $currentEntry.Clear()
             }
-            if ($trimmed -match '^##\s+\[([^\]]+)\](?:\s*-\s*(.+))?') {
-                $ver = $Matches[1]
-                $desc = $Matches[2]
-                if ($desc) {
-                    $currentEntry.Add("v$ver - $desc")
-                } else {
-                    $currentEntry.Add("v$ver")
-                }
+            if ($headerDesc) {
+                $currentEntry.Add("v$headerVersion $headerDesc")
+            } else {
+                $currentEntry.Add("v$headerVersion")
             }
         } elseif ($trimmed -like "###*") {
             continue
@@ -322,6 +336,17 @@ if (-not $entry) {
     $entry.DownloadLinkInstall = "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/$PluginName/latest/latest.zip"
     $entry.DownloadLinkUpdate = "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/$PluginName/latest/latest.zip"
     $entry.DownloadLinkTesting = "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/$PluginName/testing/testing.zip"
+
+    # Changelog was assigned only when creating a brand-new entry, so an existing plugin
+    # kept the text it was first published with forever (fix 2026-08-02). Refresh it here,
+    # but never blank a good field just because the CHANGELOG failed to parse.
+    if ($changelogText) {
+        if ($entry.PSObject.Properties['Changelog']) {
+            $entry.Changelog = $changelogText
+        } else {
+            $entry | Add-Member -NotePropertyName Changelog -NotePropertyValue $changelogText
+        }
+    }
     
     # Channel separation (2026-07-30): testing builds only move TestingAssemblyVersion;
     # the production pointer (AssemblyVersion) moves only on -Channel production, so a

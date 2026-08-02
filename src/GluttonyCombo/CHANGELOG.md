@@ -1,4 +1,35 @@
-﻿## v1.0.4.100 (2026-08-01) [testing]
+﻿## v1.0.4.101 (2026-08-02) [testing]
+
+### Changed
+- **`/gluttony buff` now leads with Phantom Freelancer's Inquiring Mind, collapsing four
+  job changes into one.** Inquiring Mind (Action `46606`, phantom slot 3 =
+  `GeneralAction 33`, unlocks at Phantom Freelancer 15) grants every Knowledge Crystal
+  party buff in a single cast. Coverage is gated per buff on the level of the *granting*
+  job, not on Freelancer - Enduring Fortitude needs Phantom Knight 2+, Fleetfooted
+  Phantom Monk 3+, Romeo's Ballad Phantom Bard 2+, Quicker Step Phantom Dancer 2+ - so
+  `OccultCrystalBuffs.StartSequence` computes the covered set from live
+  `State.SupportJobLevels` instead of assuming all four. Slot, action id and unlock level
+  datamined from `MKDSupportJob` row 0, whose `Action` array is slot-ordered: Occult
+  Resuscitation 41650 (unlock 5), Occult Treasuresight 41651 (10), Inquiring Mind 46606
+  (15), Wisdom on the Winds 49102 (20).
+- **The Knight/Monk/Bard/Dancer steps stay queued behind it as a verified fallback, not a
+  duplicate pass.** Each skips itself through the existing `FreshSkipSeconds` (1500s)
+  check once its buff is genuinely on the player, so the happy path costs one job change
+  instead of four; anything Inquiring Mind did not land - an under-levelled job, or a
+  cast the server quietly dropped - is still applied the long way. Nothing trusts the
+  fast path having worked.
+- Freelancer below 15, or no buffing job levelled enough for Inquiring Mind to grant
+  anything, logs the reason and falls straight through to the old four-job cycle.
+
+### Internal
+- `OccultCrystalBuffs.BuffJob` generalised to `BuffStep`, carrying a `uint[]` of statuses
+  rather than one, so a single step can own several buffs. Freshness-skip and
+  cast-success now require *every* status on the step, which means a partial Inquiring
+  Mind is correctly not counted as applied and the shortfall falls through. The per-job
+  table moved to `CrystalBuff`, which also holds each buff's Inquiring Mind level gate.
+- New `OccultCrescent.InquiringMind = 46606` in `OccultCrescent_Helper.cs`.
+
+## v1.0.4.100 (2026-08-01) [testing]
 
 ### Added
 - **Phantom Job support for all eight jobs added in patch 7.55** — Ninja, White Mage,

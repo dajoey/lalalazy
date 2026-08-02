@@ -16,6 +16,9 @@ internal partial class OccultCrescent
         //Freelancer
         OccultResuscitation = 41650,
         OccultTreasuresight = 41651,
+        // Unlocks at Phantom Freelancer 15; phantom slot 3 (GeneralAction 33). Grants every
+        // Knowledge Crystal party buff in one cast - see OccultCrystalBuffs.
+        InquiringMind = 46606,
 
         //Knight
         PhantomGuard = 41588,
