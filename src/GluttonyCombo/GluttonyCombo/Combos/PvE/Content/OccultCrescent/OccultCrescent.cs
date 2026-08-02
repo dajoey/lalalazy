@@ -116,6 +116,44 @@ internal partial class OccultCrescent
     internal static bool TryGetEmergencyHealAction(ref uint actionID) =>
         IsInOccult && TryGetPhantomHealAction(ref actionID);
 
+    /// <summary>
+    ///     Ally-castable phantom cure, deliberately ignoring the caster's own HP gate.
+    ///     <para/>
+    ///     TryGetPhantomHealAction() only ever fires on the caster's HP, so when a party member
+    ///     was hurt and the caster was healthy nothing was selected at all. The two single-target
+    ///     cures can be cast on anyone; Cure III and White Wind already cover the party because
+    ///     they are AoE centred on the caster. The caller supplies the target and applies
+    ///     <paramref name="hpThreshold"/> - the same slider the self-cast uses, so one number
+    ///     governs both.
+    /// </summary>
+    internal static bool TryGetAllyHealAction(ref uint actionID, out double hpThreshold)
+    {
+        hpThreshold = 0;
+
+        if (!IsInOccult) return false;
+
+        // Both are hard casts; never try to squeeze one into a weave window.
+        if (CanWeaveNow) return false;
+
+        if (IsEnabled(Preset.Phantom_WhiteMage) &&
+            IsEnabledAndUsable(Preset.Phantom_WhiteMage_OccultCureII, P755.WHM_OccultCureII))
+        {
+            actionID = P755.WHM_OccultCureII;
+            hpThreshold = Phantom_WhiteMage_OccultCureII_Health;
+            return true;
+        }
+
+        if (IsEnabled(Preset.Phantom_RedMage) &&
+            IsEnabledAndUsable(Preset.Phantom_RedMage_OccultCureII, P755.RDM_OccultCureII))
+        {
+            actionID = P755.RDM_OccultCureII;
+            hpThreshold = Phantom_RedMage_OccultCureII_Health;
+            return true;
+        }
+
+        return false;
+    }
+
     private static bool TryGetPhantomHealAction(ref uint actionID)
     {
         // oGCD heals first. These cost a weave slot rather than a GCD, so they are strictly

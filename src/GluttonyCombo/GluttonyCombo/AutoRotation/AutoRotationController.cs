@@ -230,8 +230,23 @@ internal unsafe class AutoRotationController
         if (!EzThrottler.Throttle("AutorotPhantomHeal", cfg.Throttler))
             return false;
 
+        // Self first - the caster's own HP gate is the more urgent one. Only if that declines
+        // do we look for a hurt party member, using the same slider as the self-cast.
         uint act = 0;
-        if (!OccultCrescent.TryGetEmergencyHealAction(ref act) || act == 0)
+        IGameObject? healTarget = null;
+
+        if (OccultCrescent.TryGetEmergencyHealAction(ref act) && act != 0)
+        {
+            healTarget = Player.Object;
+        }
+        else
+        {
+            act = 0;
+            if (OccultCrescent.TryGetAllyHealAction(ref act, out var allyThreshold) && act != 0)
+                healTarget = LowestAllyBelow(act, allyThreshold);
+        }
+
+        if (act == 0 || healTarget is null)
             return false;
 
         if (!ActionReady(act))
@@ -245,8 +260,7 @@ internal unsafe class AutoRotationController
         if (attackType is ActionAttackType.Ability && HasAmnesia)
             return false;
 
-        // Must actually be usable on ourselves - this path always self-targets.
-        if (!ActionManager.CanUseActionOnTarget(act, Player.GameObject))
+        if (!ActionManager.CanUseActionOnTarget(act, healTarget.Struct()))
             return false;
 
         // Respect the engine's own timing: oGCDs need the animation lock clear, GCDs need the
@@ -273,11 +287,51 @@ internal unsafe class AutoRotationController
         }
 
         Svc.Log.Information(
-            $"[PhantomHeal] firing {act.ActionName()} ({act}) on self | " +
+            $"[PhantomHeal] firing {act.ActionName()} ({act}) on {healTarget.Name} | " +
             $"inCombat={!NotInCombat} type={attackType} remainingGCD={RemainingGCD} animLock={AnimationLock} " +
             $"timeMoving={TimeMoving.TotalMilliseconds}ms");
 
-        return am->UseAction(ActionType.Action, act, Player.Object.GameObjectId);
+        return am->UseAction(ActionType.Action, act, healTarget.GameObjectId);
+    }
+
+    /// <summary>
+    ///     Lowest-HP party member below <paramref name="threshold"/> that <paramref name="action"/>
+    ///     can actually be cast on right now. Excludes the caster (handled by the self gate),
+    ///     the dead, the untargetable, anyone carrying a do-not-heal status, and anyone out of
+    ///     range or line of sight. Returns null when nobody qualifies.
+    /// </summary>
+    private static unsafe IGameObject? LowestAllyBelow(uint action, double threshold)
+    {
+        IGameObject? best = null;
+        double bestHp = double.MaxValue;
+
+        foreach (var member in GetPartyMembers())
+        {
+            var chara = member.BattleChara;
+            if (chara is null || chara.IsDead || !chara.IsTargetable)
+                continue;
+
+            if (Player.Available && chara.GameObjectId == Player.Object.GameObjectId)
+                continue;
+
+            if (chara.StatusList.Any(st => StatusCache.DoNotHealStatuses.Contains(st.StatusId)))
+                continue;
+
+            var hp = GetTargetHPPercent(chara, cfg.HealerSettings.IncludeShields);
+            if (hp > threshold || hp >= bestHp)
+                continue;
+
+            if (!ActionManager.CanUseActionOnTarget(action, chara.GameObject()))
+                continue;
+
+            if (ActionManager.GetActionInRangeOrLoS(action, Player.GameObject, chara.GameObject()) is not (0 or 565))
+                continue;
+
+            best = chara;
+            bestHp = hp;
+        }
+
+        return best;
     }
 
     private static bool ShouldSkipAutorotation()

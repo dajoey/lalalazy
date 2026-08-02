@@ -1,4 +1,27 @@
-﻿## v1.0.4.111 (2026-08-02) [testing]
+﻿## v1.0.4.112 (2026-08-02) [testing]
+
+### Added
+- **Phantom cures can now be cast on party members.** v1.0.4.111 got emergency healing firing
+  in combat but hardcoded the caster as the target, and the heal pass only ever triggered on
+  the caster's own HP - so a hurt ally selected no action at all. Occult Cure III and Occult
+  White Wind were unaffected, being AoE centred on the caster; the gap was the two
+  single-target cures.
+  `TryEmergencyPhantomHeal()` now resolves a target instead of assuming self: the caster's own
+  HP gate is checked first, and only if it declines does `LowestAllyBelow()` look for the
+  lowest-HP party member under the same threshold. `OccultCrescent.TryGetAllyHealAction()`
+  supplies the ally-castable cure (Phantom WHM Occult Cure II, Phantom RDM Occult Cure II) and
+  the slider governing it, so one number covers both self and ally.
+  Ally selection excludes the caster, the dead, the untargetable, anyone carrying a
+  `StatusCache.DoNotHealStatuses` entry, and anyone out of range or line of sight, and honours
+  `HealerSettings.IncludeShields` when reading HP.
+
+### Notes
+- Self is deliberately prioritised over allies: the caster dying helps nobody, and the existing
+  sliders were authored as self-preservation thresholds.
+- Both self and ally use the same per-cure slider. If those want to diverge they need separate
+  config entries; say so and they can be split.
+
+## v1.0.4.111 (2026-08-02) [testing]
 
 ### Fixed
 - **Phantom healing fired out of combat but never in it.** The cause was scheduling, not
