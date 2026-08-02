@@ -42,6 +42,7 @@ internal unsafe class AutoRotationController
     public static AutoRotationConfigIPCWrapper? cfg;
 
     public static long HealThrottle = 0;
+    private static DateTime _friendlyDiagLast = DateTime.MinValue;
 
     static bool _lockedST = false;
     static bool _lockedAoE = false;
@@ -1581,6 +1582,22 @@ internal unsafe class AutoRotationController
 
             var castTime = ActionManager.GetAdjustedCastTime(ActionType.Action, outAct);
             bool orbwalking = cfg.OrbwalkerIntegration && OrbwalkerIPC.CanOrbwalk;
+
+            // Diagnostic: friendly-only actions (phantom cures) that reach here but never fire.
+            // Prints every gate between this point and UseAction so the blocking one is named
+            // rather than guessed. Throttled; only for friendly resolutions.
+            if (resolvedFriendlyOnly && (DateTime.Now - _friendlyDiagLast).TotalSeconds >= 5)
+            {
+                _friendlyDiagLast = DateTime.Now;
+                Svc.Log.Information(
+                    $"[FriendlyDiag] act={outAct.ActionName()} ({outAct}) inCombat={!NotInCombat} " +
+                    $"castTime={castTime} timeMoving={TimeMoving.TotalMilliseconds}ms leeway={Service.Configuration.MovementLeeway} orbwalk={orbwalking} " +
+                    $"=> movementBail={(TimeMoving.TotalMilliseconds > 0 && castTime > 0 && !orbwalking)} | " +
+                    $"canUse={canUse} inRange={inRange} rangeCheck={acRangeCheck} canUseSelf={canUseSelf} canUseTarget={canUseTarget} " +
+                    $"areaTargeted={areaTargeted} attackType={outAct.ActionAttackType()} animLock={AnimationLock} remainingGCD={RemainingGCD} queueWindow={cfg.QueueWindow} " +
+                    $"queuedActionId={ActionManager.Instance()->QueuedActionId}");
+            }
+
             if (TimeMoving.TotalMilliseconds > 0 && castTime > 0 && !orbwalking)
                 return false;
 

@@ -1,4 +1,29 @@
-﻿## v1.0.4.109 (2026-08-02) [testing]
+﻿## v1.0.4.110 (2026-08-02) [testing]
+
+### Added
+- **Diagnostics for phantom healing that fires out of combat but never in it.** Four fixes
+  shipped today against this on static reading alone and none of them worked, so this build
+  stops guessing and instruments the two layers instead.
+  - `[PhantomDiag]` (`OccultCrescent.LogPhantomHealDiag`) - throttled to 10s, only while below
+    90% HP. Prints the five duty-action slots the plugin can actually see, then every phantom
+    heal candidate with each gating condition: parent preset, child preset, `HasActionEquipped`,
+    `ActionReady`, and the HP threshold. Whichever column reads False is the answer.
+  - `[FriendlyDiag]` (`AutoRotationController.ExecuteST`) - throttled to 5s, only for actions
+    that resolve friendly-only. Prints every gate between resolution and `UseAction`: combat
+    state, cast time, `TimeMoving` vs `MovementLeeway`, orbwalker state, the movement bail,
+    `canUse`, `inRange`, the range/LoS code, attack type, animation lock, remaining GCD, queue
+    window and the queued action id.
+  Both log at Information so they appear in `/xllog` without enabling Verbose.
+
+### Notes
+- Joey: "it casts out of combat, just not in it." Out of combat he is stationary with no
+  hostile targeted; in combat he is moving with one. Two gates key on exactly that difference -
+  the `QueuedActionId != 0` early return at the top of `ExecuteST`, and
+  `TimeMoving > 0 && castTime > 0` with `MovementLeeway` at 0.0, which kills every cast-time
+  action the instant he moves. Every phantom cure has a cast time. The logging above decides
+  between them instead of shipping a fifth speculative fix.
+
+## v1.0.4.109 (2026-08-02) [testing]
 
 ### Fixed
 - **The v1.0.4.108 friendly-target fix only covered the single-target path.** `ExecuteAoE()`

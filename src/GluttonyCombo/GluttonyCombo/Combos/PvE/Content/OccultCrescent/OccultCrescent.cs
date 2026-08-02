@@ -1,6 +1,7 @@
 ﻿using System;
 using GluttonyCombo.Data;
 using GluttonyCombo.Extensions;
+using ECommons.DalamudServices;
 using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
 using static GluttonyCombo.Combos.PvE.OccultCrescent.Config;
 using ContentHelper = ECommons.GameHelpers;
@@ -19,6 +20,8 @@ internal partial class OccultCrescent
     {
         if (!IsInOccult)
             return false;
+
+        if (PlayerHP <= 90) LogPhantomHealDiag();
 
         // Emergency healing outranks every damage button, on every phantom job. See
         // TryGetPhantomHealAction() for why this cannot be left to dispatch order.
@@ -65,6 +68,46 @@ internal partial class OccultCrescent
     ///     it was previously losing. The originals stay in place: once a heal wins here the copy
     ///     downstream is unreachable, and when no heal is due both copies decline identically.
     /// </summary>
+    private static DateTime _phantomDiagLast = DateTime.MinValue;
+
+    /// <summary>
+    ///     Throttled diagnostic for "the phantom heal never fires". Four separate fixes were
+    ///     shipped against this on 2026-08-02 on the strength of static reading alone and none
+    ///     of them worked, so this stops the guessing: it prints the five duty-action slots the
+    ///     plugin can actually see, then every phantom heal candidate with each of the four
+    ///     conditions that gate it. Whichever column reads False is the answer.
+    ///     <para/>
+    ///     Information level so it lands in /xllog without the user enabling Verbose. Throttled
+    ///     to 10s and only while damaged, so it cannot flood the log.
+    /// </summary>
+    private static void LogPhantomHealDiag()
+    {
+        if ((DateTime.Now - _phantomDiagLast).TotalSeconds < 10) return;
+        _phantomDiagLast = DateTime.Now;
+
+        Svc.Log.Information(
+            $"[PhantomDiag] duty slots seen: {Action1} / {Action2} / {Action3} / {Action4} / {Action5} " +
+            $"| HP={PlayerHP} | weaveWindow={CanWeaveNow} | inOccult={IsInOccult}");
+
+        void Row(string label, Preset parent, Preset child, uint act, double threshold)
+        {
+            Svc.Log.Information(
+                $"[PhantomDiag] {label,-22} id={act,-6} parent={IsEnabled(parent),-5} child={IsEnabled(child),-5} " +
+                $"equipped={HasActionEquipped(act),-5} ready={ActionReady(act),-5} hpGate={PlayerHP <= threshold,-5} ({PlayerHP} <= {threshold})");
+        }
+
+        Row("Knight_OccultHeal", Preset.Phantom_Knight, Preset.Phantom_Knight_OccultHeal, OccultHeal, Phantom_Knight_OccultHeal_Health);
+        Row("Monk_OccultChakra", Preset.Phantom_Monk, Preset.Phantom_Monk_OccultChakra, OccultChakra, Phantom_Monk_OccultChakra_Health);
+        Row("Ranger_OccultUnicorn", Preset.Phantom_Ranger, Preset.Phantom_Ranger_OccultUnicorn, OccultUnicorn, Phantom_Ranger_OccultUnicorn_Health);
+        Row("Freelancer_Resusc", Preset.Phantom_Freelancer, Preset.Phantom_Freelancer_OccultResuscitation, OccultResuscitation, Phantom_Freelancer_Resuscitation_Health);
+        Row("Chemist_OccultPotion", Preset.Phantom_Chemist, Preset.Phantom_Chemist_OccultPotion, OccultPotion, Phantom_Chemist_OccultPotion_Health);
+        Row("Geomancer_Sunbath", Preset.Phantom_Geomancer, Preset.Phantom_Geomancer_Sunbath, Sunbath, Phantom_Geomancer_Sunbath_Health);
+        Row("WHM_OccultCureII", Preset.Phantom_WhiteMage, Preset.Phantom_WhiteMage_OccultCureII, P755.WHM_OccultCureII, Phantom_WhiteMage_OccultCureII_Health);
+        Row("WHM_OccultCureIII", Preset.Phantom_WhiteMage, Preset.Phantom_WhiteMage_OccultCureIII, P755.WHM_OccultCureIII, Phantom_WhiteMage_OccultCureIII_Health);
+        Row("RDM_OccultCureII", Preset.Phantom_RedMage, Preset.Phantom_RedMage_OccultCureII, P755.RDM_OccultCureII, Phantom_RedMage_OccultCureII_Health);
+        Row("BLU_OccultWhiteWind", Preset.Phantom_BlueMage, Preset.Phantom_BlueMage_OccultWhiteWind, P755.BLU_OccultWhiteWind, Phantom_BlueMage_OccultWhiteWind_Health);
+    }
+
     private static bool TryGetPhantomHealAction(ref uint actionID)
     {
         // oGCD heals first. These cost a weave slot rather than a GCD, so they are strictly
