@@ -209,11 +209,14 @@ public abstract class WrathOpener
                 if (prevStepSkipping)
                     prevStepSkipping = p.Condition();
 
-                bool delay = PrepullDelays.FindFirst(x => x.Steps.Any(y => y == DelayedStep && y == OpenerStep), out var hold);
-                if ((!delay && !prevStepSkipping && ActionWatching.TimeSinceLastAction.TotalSeconds >= Service.Configuration.OpenerTimeout) || (delay && (DateTime.Now - DelayedAt).TotalSeconds > DelayedSecs + Service.Configuration.OpenerTimeout))
+                if (!prevStepSkipping)
                 {
-                    CurrentState = OpenerState.FailedOpener;
-                    return false;
+                    bool delay = PrepullDelays.FindFirst(x => x.Steps.Any(y => y == DelayedStep && y == OpenerStep), out var hold);
+                    if ((!delay && ActionWatching.TimeSinceLastAction.TotalSeconds >= Service.Configuration.OpenerTimeout) || (delay && (DateTime.Now - DelayedAt).TotalSeconds > DelayedSecs + Service.Configuration.OpenerTimeout))
+                    {
+                        CurrentState = OpenerState.FailedOpener;
+                        return false;
+                    }
                 }
             }
 

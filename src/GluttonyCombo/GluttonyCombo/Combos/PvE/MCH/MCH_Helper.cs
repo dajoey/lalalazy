@@ -664,10 +664,12 @@ internal partial class MCH
         public override List<(int[] Steps, Func<float> HoldDelay)> PrepullDelays { get; set; } =
         [
             ([1], () => CountdownRemaining - 5),
-            ([2], () => CountdownRemaining - 2)
+            ([2], () => CountdownRemaining - 2),
+            ([3], () => CountdownRemaining)
         ];
 
         protected static bool SharedOpenerCooldowns() =>
+            CountdownActive &&
             GetRemainingCharges(Reassemble) is 2 &&
             GetRemainingCharges(OriginalHook(GaussRound)) is 3 &&
             GetRemainingCharges(OriginalHook(Ricochet)) is 3 &&

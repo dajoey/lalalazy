@@ -1,4 +1,17 @@
-﻿## v1.0.4.103 (2026-08-02) [testing]
+﻿## v1.0.4.104 (2026-08-02) [testing]
+
+### Changed
+- Merged upstream Wrath Combo (2 commits, 2026-08-01): Machinist opener gains a third
+  prepull step, and its opener cooldown check now only runs during an active countdown.
+
+### Fixed
+- **Monk openers failing when Form Shift was pressed early.** Step 2 is now skipped when
+  Formless Fist is active or Form Shift was just used, instead of a flat 30-second
+  JustUsed window.
+- **Opener fail spam.** The opener-timeout failure check no longer fires while a step is
+  being skipped.
+
+## v1.0.4.103 (2026-08-02) [testing]
 
 ### Fixed
 - **7.55 phantom spells could eat a Swiftcast, Dualcast, Triplecast or Requiescat the player
