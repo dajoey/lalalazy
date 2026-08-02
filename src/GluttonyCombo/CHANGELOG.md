@@ -1,4 +1,36 @@
-﻿## v1.0.4.110 (2026-08-02) [testing]
+﻿## v1.0.4.111 (2026-08-02) [testing]
+
+### Fixed
+- **Phantom healing fired out of combat but never in it.** The cause was scheduling, not
+  targeting - which is why the four preceding fixes, all of which addressed targeting, changed
+  nothing.
+  A phantom cure is emitted by a DPS combo, so it was scheduled as if it were a damage GCD and
+  lost that race on a caster essentially every time: `Run()` aborts the whole tick whenever
+  `QueuedActionId > 0` and the rotation queues nearly every GCD; `ProcessAutoActions` resolves
+  AoE presets before ST; `canUse` requires `RemainingGCD <= QueueWindow` for a Spell, a ~0.3s
+  sliver per GCD; and the movement bail cancels every cast-time action the moment the player
+  moves, with `MovementLeeway` commonly 0. Out of combat all four conditions vanish at once,
+  and the cure additionally slipped through `InCombatOnly` via the `BypassBuffs` pre-pull
+  branch - it was being allowed through as if it were a self-buff. That is the entire
+  in-combat / out-of-combat difference.
+  New `AutoRotationController.TryEmergencyPhantomHeal()` runs at the top of `Run()`, ahead of
+  `ShouldSkipAutorotation()` and the damage presets, in the same spirit as the existing
+  `HealerRaidwideShieldLock()` intention-lock. It self-targets, displaces a queued damage
+  action, and skips the damage-pacing gates. Safety gates are preserved: action penalty
+  (Pyretic / Acceleration Bomb), dead, occupied, mounted, paused, Silence for spells, Amnesia
+  for abilities, plus the engine's own animation-lock / recast timing, since ignoring that
+  would only make `UseAction` fail.
+  `OccultCrescent.TryGetEmergencyHealAction()` exposes the existing heal pass to the scheduler.
+  The heal pass also no longer returns early out of a weave window, so GCD cures are considered
+  whether or not an oGCD heal happened to apply.
+
+### Notes
+- Joey diagnosed the shape of this himself twice: "RDM has healing logic built in, BLM doesn't"
+  and "it casts out of combat, just not in it." Both were correct and both were argued past.
+- `[PhantomDiag]` / `[FriendlyDiag]` from v1.0.4.110 are retained (throttled, only below 90% HP)
+  and a `[PhantomHeal]` line now records each emergency cast.
+
+## v1.0.4.110 (2026-08-02) [testing]
 
 ### Added
 - **Diagnostics for phantom healing that fires out of combat but never in it.** Four fixes

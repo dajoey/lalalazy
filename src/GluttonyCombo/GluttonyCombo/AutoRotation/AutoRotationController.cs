@@ -198,6 +198,88 @@ internal unsafe class AutoRotationController
     static bool CombatBypass => DPSTargeting.BaseSelection.Any(x => (cfg.BypassQuest && IsQuestMob(x)) || (cfg.BypassFATE && x.Struct()->FateId != 0 && InFATE()));
     static bool NotInCombat => !GetPartyMembers().Any(x => x.BattleChara is not null && x.BattleChara.Struct()->InCombat && !x.IsOutOfPartyNPC) || PartyEngageDuration().TotalSeconds < cfg.CombatDelay;
 
+    /// <summary>
+    ///     Emergency phantom healing, scheduled ahead of the damage rotation.
+    ///     <para/>
+    ///     A phantom cure is emitted by a DPS combo, so it was being scheduled as though it were
+    ///     a damage GCD, and on a caster it lost that race essentially every time: the tick
+    ///     aborts whenever <c>QueuedActionId &gt; 0</c> and the rotation queues nearly every GCD;
+    ///     AoE presets resolve before ST; <c>canUse</c> demands <c>RemainingGCD &lt;= QueueWindow</c>
+    ///     for a Spell, which is a ~0.3s sliver per GCD; and the movement bail cancels every
+    ///     cast-time action the instant the player moves, with MovementLeeway commonly at 0.
+    ///     Out of combat all four vanish at once - which is exactly why healing worked there and
+    ///     nowhere else.
+    ///     <para/>
+    ///     This gives the heal its own path, in the same spirit as HealerRaidwideShieldLock():
+    ///     when one thing matters, do only that. Safety gates are kept (Pyretic/action penalty,
+    ///     dead, occupied, mounted, paused, Silence for spells); the damage-pacing gates are
+    ///     deliberately not applied, and a queued damage action is displaced.
+    /// </summary>
+    private static unsafe bool TryEmergencyPhantomHeal()
+    {
+        if (!cfg.Enabled || !Player.Available || Player.Object.IsDead || Player.Mounted || Paused)
+            return false;
+
+        if (IsOccupied())
+            return false;
+
+        // Never act through Pyretic / Acceleration Bomb - taking an action there is lethal.
+        if (PlayerHasActionPenalty(true))
+            return false;
+
+        if (!EzThrottler.Throttle("AutorotPhantomHeal", cfg.Throttler))
+            return false;
+
+        uint act = 0;
+        if (!OccultCrescent.TryGetEmergencyHealAction(ref act) || act == 0)
+            return false;
+
+        if (!ActionReady(act))
+            return false;
+
+        var attackType = act.ActionAttackType();
+
+        // Silenced casters cannot cast; Amnesia blocks abilities.
+        if (attackType is ActionAttackType.Spell && HasStatusEffect(All.Debuffs.Silence))
+            return false;
+        if (attackType is ActionAttackType.Ability && HasAmnesia)
+            return false;
+
+        // Must actually be usable on ourselves - this path always self-targets.
+        if (!ActionManager.CanUseActionOnTarget(act, Player.GameObject))
+            return false;
+
+        // Respect the engine's own timing: oGCDs need the animation lock clear, GCDs need the
+        // recast almost up. This is the ONE damage-pacing rule that still applies, because
+        // ignoring it would just make UseAction fail.
+        if (attackType is ActionAttackType.Ability)
+        {
+            if (AnimationLock > cfg.QueueWindow)
+                return false;
+        }
+        else if (RemainingGCD > cfg.QueueWindow)
+        {
+            return false;
+        }
+
+        var am = ActionManager.Instance();
+
+        // Displace a queued damage action. Without this the heal can never land: the queue is
+        // refilled by the rotation every GCD and ShouldSkipAutorotation() then skips the tick.
+        if (am->QueuedActionId != 0 && am->QueuedActionId != act)
+        {
+            am->QueuedActionId = 0;
+            am->QueuedTargetId = 0;
+        }
+
+        Svc.Log.Information(
+            $"[PhantomHeal] firing {act.ActionName()} ({act}) on self | " +
+            $"inCombat={!NotInCombat} type={attackType} remainingGCD={RemainingGCD} animLock={AnimationLock} " +
+            $"timeMoving={TimeMoving.TotalMilliseconds}ms");
+
+        return am->UseAction(ActionType.Action, act, Player.Object.GameObjectId);
+    }
+
     private static bool ShouldSkipAutorotation()
     {
         // Gate autorotation while the player has Pyretic / Acceleration Bomb / similar.
@@ -250,6 +332,12 @@ internal unsafe class AutoRotationController
 
         if (!cfg.Enabled)
             OverrideTarget = null;
+
+        // Emergency phantom healing is scheduled BEFORE the damage rotation, and before
+        // ShouldSkipAutorotation(), because that method aborts the whole tick whenever an
+        // action is queued. See TryEmergencyPhantomHeal().
+        if (TryEmergencyPhantomHeal())
+            return;
 
         // Early exit for all conditions that should prevent autorotation
         if (ShouldSkipAutorotation())

@@ -108,6 +108,14 @@ internal partial class OccultCrescent
         Row("BLU_OccultWhiteWind", Preset.Phantom_BlueMage, Preset.Phantom_BlueMage_OccultWhiteWind, P755.BLU_OccultWhiteWind, Phantom_BlueMage_OccultWhiteWind_Health);
     }
 
+    /// <summary>
+    ///     Entry point for the autorotation's emergency scheduler. The damage pipeline reaches
+    ///     the same logic through TryGetPhantomAction(), but that path only runs once a DPS
+    ///     preset has already won a GCD slot, which an emergency heal repeatedly failed to do.
+    /// </summary>
+    internal static bool TryGetEmergencyHealAction(ref uint actionID) =>
+        IsInOccult && TryGetPhantomHealAction(ref actionID);
+
     private static bool TryGetPhantomHealAction(ref uint actionID)
     {
         // oGCD heals first. These cost a weave slot rather than a GCD, so they are strictly
@@ -147,8 +155,6 @@ internal partial class OccultCrescent
                 actionID = Blessing;
                 return true;
             }
-
-            return false;
         }
 
         // GCD heals. Self-targeted emergencies before party-wide ones.
