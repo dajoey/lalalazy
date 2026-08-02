@@ -1,4 +1,40 @@
-﻿## v1.0.4.102 (2026-08-02) [testing]
+﻿## v1.0.4.103 (2026-08-02) [testing]
+
+### Fixed
+- **7.55 phantom spells could eat a Swiftcast, Dualcast, Triplecast or Requiescat the player
+  was holding.** `TryGetPhantomAction` runs from `ContentSpecificActions`, i.e. on the
+  player's own GCD press, so any cast-time phantom spell returned there consumes a held
+  instant-cast proc - the one earmarked for a raise, or for Rainbow Drip, or for whatever the
+  player's actual job was about to do. The pre-7.55 Time Mage handler has tracked all of these
+  since it shipped; `OccultCrescent_755.cs` inherited none of it. New
+  `HoldingInstantCastProc` gate stands the 7.55 jobs down while any of the four is active.
+  Six insertion points: White Mage, Black Mage, Summoner, Blue Mage, Red Mage, Necromancer.
+
+  **The gate guards cast-time actions only**, so every instant is untouched - most importantly
+  Occult Raise, which sits deliberately *above* the White Mage gate. A held Swiftcast must
+  never be the reason a raise does not go out.
+
+  **Why stand down rather than spend, when Time Mage spends?** Cast times. Occult Comet is an
+  8.0s cast and genuinely wants a proc, which is why that handler will even press Swiftcast
+  itself. In the 7.55 set the longest cast is Megaflare at 6.0s - and Megaflare is Phantom
+  Summoner, whose actions all state "Cast and recast timer cannot be affected by status
+  effects or gear attributes", so no proc can touch it. Everything else tops out at 2.3s
+  (Occult Holy, Occult Cure III, Occult Flare) and most is 1.5s. Nothing here is worth a
+  Swiftcast, so the correct behaviour is the opposite of the Time Mage path.
+
+  That Summoner carve-out is also the evidence the interaction is real: a line that specific
+  only needs stating because the default is that procs *do* apply to phantom spells. Verified
+  on the live Action sheet, present on all five Phantom Summoner actions and nowhere else in
+  the set.
+
+### Notes
+- Phantom Ninja and Phantom Dragoon are unchanged - every action they have is instant, so
+  they were never exposed.
+- On Red Mage this does mean phantom damage only fires on the hardcast slot, since Dualcast is
+  up every other GCD. That is the intended trade: a Dualcast held for Verraise is worth more
+  than a 1.5s phantom nuke.
+
+## v1.0.4.102 (2026-08-02) [testing]
 
 ### Fixed
 - **Phantom Necromancer was paying the whole cost of its line spells and collecting none of

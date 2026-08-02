@@ -157,6 +157,34 @@ internal partial class OccultCrescent
     private static bool BuffGateBlocks =>
         IsEnabled(Preset.Phantom_RestrictToBuff) && !Bursting.PlayerIsDamageBuffed;
 
+    /// <summary>
+    ///     Whether the player is holding an instant-cast proc that a phantom spell must not be
+    ///     allowed to eat.
+    ///     <para/>
+    ///     Phantom spells are ordinary spells as far as these procs are concerned - Phantom
+    ///     Summoner is the sole exception, and its actions say so explicitly ("Cast and recast
+    ///     timer cannot be affected by status effects or gear attributes"). A carve-out that
+    ///     specific only exists because the default is the opposite. The pre-7.55 Time Mage
+    ///     handler relies on exactly this: it spends Swiftcast, Occult Quick, Triplecast,
+    ///     Requiescat or Dualcast to make Occult Comet instant.
+    ///     <para/>
+    ///     The 7.55 set inverts that trade, because of the cast times involved. Comet is an 8.0s
+    ///     cast, which is worth a proc. Megaflare is 6.0s but is Summoner, so no proc can touch
+    ///     it. Everything else here tops out at 2.3s (Occult Holy, Occult Cure III, Occult
+    ///     Flare), and most of it is 1.5s. Nothing in 7.55 is worth burning a Swiftcast the
+    ///     player was holding for a raise, or a Dualcast earmarked for Verraise - so instead of
+    ///     spending procs like the Time Mage path, we stand down while one is up and let the
+    ///     player's own job use it.
+    ///     <para/>
+    ///     This gate guards CAST-TIME actions only. The instants are untouched, which is what
+    ///     keeps Occult Raise - the most valuable button in the set - firing regardless.
+    /// </summary>
+    private static bool HoldingInstantCastProc =>
+        HasStatusEffect(RoleActions.Magic.Buffs.Swiftcast) ||
+        HasStatusEffect(RDM.Buffs.Dualcast) ||
+        HasStatusEffect(BLM.Buffs.Triplecast) ||
+        HasStatusEffect(PLD.Buffs.Requiescat);
+
     #region Phantom Ninja
 
     private static bool TryGetNinjaAction(ref uint actionID)
@@ -252,6 +280,10 @@ internal partial class OccultCrescent
             return true;
         }
 
+        // Below here everything has a cast time. Occult Raise above is instant and deliberately
+        // sits ahead of this gate - a held Swiftcast must never stop the raise going out.
+        if (HoldingInstantCastProc) return false;
+
         if (IsEnabledAndUsable(Preset.Phantom_WhiteMage_OccultCureIII, P755.WHM_OccultCureIII) &&
             IsInParty() && GetPartyAvgHPPercent() <= Phantom_WhiteMage_OccultCureIII_Health)
         {
@@ -290,6 +322,7 @@ internal partial class OccultCrescent
         // Every Black Mage action is a hard cast.
         if (CanWeaveNow) return false;
         if (!HasTargetNow) return false;
+        if (HoldingInstantCastProc) return false;
 
         // Toad is crowd control, not damage, so it sits ahead of the buff gate.
         if (IsEnabledAndUsable(Preset.Phantom_BlackMage_OccultToad, P755.BLM_OccultToad) &&
@@ -386,6 +419,7 @@ internal partial class OccultCrescent
             return false;
 
         if (CanWeaveNow) return false;
+        if (HoldingInstantCastProc) return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_Summoner_EarthenWall, P755.SMN_EarthenWall) &&
             !HasStatusEffect(Buffs755.EarthenWall) &&
@@ -452,6 +486,8 @@ internal partial class OccultCrescent
 
             return false;
         }
+
+        if (HoldingInstantCastProc) return false;
 
         // White Wind restores an amount equal to the caster's CURRENT HP, so it is strongest at
         // full and nearly worthless when low - the exact inverse of an emergency button. Gating
@@ -524,6 +560,8 @@ internal partial class OccultCrescent
 
             return false;
         }
+
+        if (HoldingInstantCastProc) return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_RedMage_OccultCureII, P755.RDM_OccultCureII) &&
             PlayerHP <= Phantom_RedMage_OccultCureII_Health)
@@ -613,6 +651,7 @@ internal partial class OccultCrescent
 
         if (BuffGateBlocks) return false;
         if (!HasTargetNow) return false;
+        if (HoldingInstantCastProc) return false;
         if (!NecromancerCostIsAffordable) return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_Necromancer_Doomsday, P755.NEC_Doomsday) &&
