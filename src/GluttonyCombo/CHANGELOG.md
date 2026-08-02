@@ -1,4 +1,24 @@
-﻿## v1.0.4.108 (2026-08-02) [testing]
+﻿## v1.0.4.109 (2026-08-02) [testing]
+
+### Fixed
+- **The v1.0.4.108 friendly-target fix only covered the single-target path.** `ExecuteAoE()`
+  has its own copy of the execution logic, and it was worse: no `IsHeal` check at all before
+
+      if (cfg.DPSSettings.DPSAlwaysHardTarget && OverrideTarget is not null)
+          Svc.Targets.Target = OverrideTarget;
+
+  so a phantom cure resolved through the AoE path had the hard target forced onto the enemy
+  unconditionally. `resolvedFriendlyOnly` (usable on self, not usable on hostiles, not
+  ground-targeted) now guards that retarget and the `ActionChanging` bypass in `ExecuteAoE`
+  exactly as it does in `ExecuteST`. Both execution paths now agree.
+
+### Notes
+- Supersedes v1.0.4.108, which was correct but incomplete. If phantom healing is still dead on
+  1.0.4.109, the friendly-targeting theory is wrong and the next thing to instrument is whether
+  the cure is ever returned by `InvokeCombo` at all - that is a plugin-side log line, not a
+  question about the player's setup.
+
+## v1.0.4.108 (2026-08-02) [testing]
 
 ### Fixed
 - **Phantom healing never landed on jobs with no healing presets of their own.** In

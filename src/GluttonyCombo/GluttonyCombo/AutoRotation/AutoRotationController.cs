@@ -1450,6 +1450,15 @@ internal unsafe class AutoRotationController
 
                 var s = ActionSheet.TryGetValue(outAct, out var sheet);
                 var targetsHostile = s && sheet.CanTargetHostile;
+                var canUseSelf = s && sheet.CanTargetSelf;
+                var areaTargeted = s && sheet.TargetArea;
+
+                // Same defect as ExecuteST, and worse here - this path had no IsHeal check at
+                // all before forcing the hard target onto the enemy. A friendly-only action can
+                // resolve out of a DAMAGE preset, because phantom cures come out of DPS combos.
+                // Derive it from the resolved action: usable on us, not usable on hostiles, not
+                // ground-targeted.
+                var resolvedFriendlyOnly = canUseSelf && !targetsHostile && !areaTargeted;
 
                 bool switched = SwitchOnDChole(attributes, outAct, ref target);
                 var castTime = ActionManager.GetAdjustedCastTime(ActionType.Action, outAct);
@@ -1458,11 +1467,8 @@ internal unsafe class AutoRotationController
                 if (TimeMoving.TotalMilliseconds > 0 && castTime > 0 && !orbwalking)
                     return false;
 
-                if (cfg.DPSSettings.DPSAlwaysHardTarget && OverrideTarget is not null)
+                if (cfg.DPSSettings.DPSAlwaysHardTarget && OverrideTarget is not null && !resolvedFriendlyOnly)
                     Svc.Targets.Target = OverrideTarget;
-
-                var canUseSelf = s && sheet.CanTargetSelf;
-                var areaTargeted = s && sheet.TargetArea;
                 var acRangeCheck = ActionManager.GetActionInRangeOrLoS(outAct, player.GameObject(), OverrideTarget is null ? player.GameObject() : OverrideTarget.Struct());
                 var inRange = acRangeCheck is 0 or 565 || canUseSelf || areaTargeted;
 
@@ -1481,7 +1487,10 @@ internal unsafe class AutoRotationController
                     var targetId = (targetsHostile && OverrideTarget != null) || switched ? OverrideTarget.GameObjectId : canUseSelf ? player.GameObjectId : 0xE000_0000;
                     var changed = CheckForChangedTarget(gameAct, ref targetId, out var replacedWith);
                     WouldLikeToGroundTarget = areaTargeted;
-                    var ret = ActionManager.Instance()->UseAction(ActionType.Action, Service.Configuration.ActionChanging ? gameAct : outAct, targetId);
+                    var actToSend = Service.Configuration.ActionChanging && !resolvedFriendlyOnly
+                        ? gameAct
+                        : outAct;
+                    var ret = ActionManager.Instance()->UseAction(ActionType.Action, actToSend, targetId);
                     WouldLikeToGroundTarget = false;
                     if (NIN.MudraSigns.Contains(outAct))
                         _lockedAoE = true;
