@@ -1,4 +1,37 @@
-﻿## v1.0.4.112 (2026-08-02) [testing]
+﻿## v1.0.4.113 (2026-08-02) [testing]
+
+### Fixed
+- **Phantom healing was unreliable: sometimes it healed, sometimes it kept DPSing with the
+  party under 50%.** Four separate defects, all in how a cure was chosen and scheduled.
+  - *One candidate, hard abort.* The heal pass returned the first matching cure by fixed job
+    order. If that action then failed any gate, the whole attempt aborted - no fallback to
+    another cure.
+  - *Self starved allies.* Ally selection sat in an `else`. Once the caster was below their own
+    threshold the ally branch never ran, so a self-cure blocked on timing meant nobody was
+    healed - exactly the "me and multiple people below 50%" case.
+  - *The race.* On a timing failure the scheduler returned false, `Run()` fell through to the
+    damage rotation, and the rotation queued over the very window the cure needed. The heal
+    landed only when its evaluation happened to fall inside the ~0.3s window first.
+  - *AoE never fired.* `Occult Cure III`, `Occult White Wind` and `Occult Elixir` were checked
+    after the single-target cures and gated on `GetPartyAvgHPPercent()`. Three hurt out of eight
+    barely moves an average, so the party-wide cures were unreachable when most needed.
+
+  `OccultCrescent.EnumerateHealOptions()` now yields every cure that is enabled, slotted and off
+  cooldown, each with its scope (self-only / any ally / party-wide) and slider. The scheduler
+  evaluates them in urgency order - free oGCD self-heals, then party-wide AoE once at least two
+  members are at or below the threshold (counting bodies, not averaging), then targeted cures on
+  whoever is worst off with the caster included in that comparison, then remaining GCD
+  self-heals - and fires the first that passes every gate, falling through on any that does not.
+  When a cure is warranted but blocked purely on engine timing, the damage rotation is now
+  suppressed and any queued damage action cleared until it goes out, rather than handing the GCD
+  back. The hold is never taken for a cast-time cure while moving, and self-releases after 4s.
+
+### Notes
+- The button-press combo path keeps its own `TryGetPhantomHealAction`, rebuilt on the same
+  candidate enumeration so the two paths cannot drift apart.
+- `PhantomHealAoECount` (2) and `PhantomHealHoldSeconds` (4.0) are consts, not config.
+
+## v1.0.4.112 (2026-08-02) [testing]
 
 ### Added
 - **Phantom cures can now be cast on party members.** v1.0.4.111 got emergency healing firing

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using GluttonyCombo.Data;
 using GluttonyCombo.Extensions;
 using ECommons.DalamudServices;
@@ -113,154 +114,138 @@ internal partial class OccultCrescent
     ///     the same logic through TryGetPhantomAction(), but that path only runs once a DPS
     ///     preset has already won a GCD slot, which an emergency heal repeatedly failed to do.
     /// </summary>
-    internal static bool TryGetEmergencyHealAction(ref uint actionID) =>
-        IsInOccult && TryGetPhantomHealAction(ref actionID);
+    /// <summary>Who a phantom cure is able to help.</summary>
+    internal enum PhantomHealScope
+    {
+        /// <summary>Only ever affects the caster (potions, chakra, unicorn, sunbath...).</summary>
+        SelfOnly,
+
+        /// <summary>A targeted cure - castable on the caster or on any party member.</summary>
+        AnyAlly,
+
+        /// <summary>An AoE centred on the caster; the target passed is always the caster.</summary>
+        PartyWide,
+    }
+
+    /// <summary>One usable phantom cure, with the slider that governs it.</summary>
+    internal readonly struct PhantomHealOption
+    {
+        internal readonly uint Action;
+        internal readonly double Threshold;
+        internal readonly PhantomHealScope Scope;
+        internal readonly bool IsWeave;
+
+        internal PhantomHealOption(uint action, double threshold, PhantomHealScope scope, bool isWeave)
+        {
+            Action = action;
+            Threshold = threshold;
+            Scope = scope;
+            IsWeave = isWeave;
+        }
+    }
 
     /// <summary>
-    ///     Ally-castable phantom cure, deliberately ignoring the caster's own HP gate.
+    ///     Every phantom cure that is enabled, slotted and off cooldown right now, with the scope
+    ///     and threshold the scheduler needs to pick a target.
     ///     <para/>
-    ///     TryGetPhantomHealAction() only ever fires on the caster's HP, so when a party member
-    ///     was hurt and the caster was healthy nothing was selected at all. The two single-target
-    ///     cures can be cast on anyone; Cure III and White Wind already cover the party because
-    ///     they are AoE centred on the caster. The caller supplies the target and applies
-    ///     <paramref name="hpThreshold"/> - the same slider the self-cast uses, so one number
-    ///     governs both.
+    ///     This deliberately does NOT apply any HP gate and does NOT stop at the first match. The
+    ///     previous design returned a single cure chosen by a fixed job order and gated on the
+    ///     caster's own HP, which meant: a cure on cooldown aborted the whole attempt instead of
+    ///     falling through to the next; a healthy caster with a dying party selected nothing; and
+    ///     the AoE cures, being checked last and gated on party AVERAGE HP, effectively never
+    ///     fired. Handing the caller the full set lets it choose by urgency and fall back
+    ///     properly. <see cref="IsEnabledAndUsable" /> already covers preset, equipped and
+    ///     ready, so anything on cooldown simply is not yielded.
     /// </summary>
-    internal static bool TryGetAllyHealAction(ref uint actionID, out double hpThreshold)
+    internal static IEnumerable<PhantomHealOption> EnumerateHealOptions()
     {
-        hpThreshold = 0;
+        if (!IsInOccult)
+            yield break;
 
-        if (!IsInOccult) return false;
+        // ---- oGCD self heals: cost a weave slot, never a GCD ----
+        if (IsEnabled(Preset.Phantom_Knight) &&
+            IsEnabledAndUsable(Preset.Phantom_Knight_OccultHeal, OccultHeal) && PlayerMP >= 5000)
+            yield return new PhantomHealOption(OccultHeal, Phantom_Knight_OccultHeal_Health, PhantomHealScope.SelfOnly, true);
 
-        // Both are hard casts; never try to squeeze one into a weave window.
-        if (CanWeaveNow) return false;
+        if (IsEnabled(Preset.Phantom_Monk) &&
+            IsEnabledAndUsable(Preset.Phantom_Monk_OccultChakra, OccultChakra))
+            yield return new PhantomHealOption(OccultChakra, Phantom_Monk_OccultChakra_Health, PhantomHealScope.SelfOnly, true);
 
+        if (IsEnabled(Preset.Phantom_Ranger) &&
+            IsEnabledAndUsable(Preset.Phantom_Ranger_OccultUnicorn, OccultUnicorn) &&
+            !HasStatusEffect(Buffs.OccultUnicorn, anyOwner: true))
+            yield return new PhantomHealOption(OccultUnicorn, Phantom_Ranger_OccultUnicorn_Health, PhantomHealScope.SelfOnly, true);
+
+        if (IsEnabled(Preset.Phantom_Oracle) &&
+            IsEnabledAndUsable(Preset.Phantom_Oracle_Blessing, Blessing) &&
+            HasStatusEffect(Buffs.PredictionOfBlessing))
+            yield return new PhantomHealOption(Blessing, Phantom_Oracle_Blessing_Health, PhantomHealScope.SelfOnly, true);
+
+        // ---- GCD self heals ----
+        if (IsEnabled(Preset.Phantom_Freelancer) &&
+            IsEnabledAndUsable(Preset.Phantom_Freelancer_OccultResuscitation, OccultResuscitation))
+            yield return new PhantomHealOption(OccultResuscitation, Phantom_Freelancer_Resuscitation_Health, PhantomHealScope.SelfOnly, false);
+
+        if (IsEnabled(Preset.Phantom_Chemist) &&
+            IsEnabledAndUsable(Preset.Phantom_Chemist_OccultPotion, OccultPotion))
+            yield return new PhantomHealOption(OccultPotion, Phantom_Chemist_OccultPotion_Health, PhantomHealScope.SelfOnly, false);
+
+        if (IsEnabled(Preset.Phantom_Geomancer) && IsEnabled(Preset.Phantom_Geomancer_Weather) &&
+            IsEnabledAndUsable(Preset.Phantom_Geomancer_Sunbath, Sunbath))
+            yield return new PhantomHealOption(Sunbath, Phantom_Geomancer_Sunbath_Health, PhantomHealScope.SelfOnly, false);
+
+        // ---- targeted cures: caster OR any party member ----
         if (IsEnabled(Preset.Phantom_WhiteMage) &&
             IsEnabledAndUsable(Preset.Phantom_WhiteMage_OccultCureII, P755.WHM_OccultCureII))
-        {
-            actionID = P755.WHM_OccultCureII;
-            hpThreshold = Phantom_WhiteMage_OccultCureII_Health;
-            return true;
-        }
+            yield return new PhantomHealOption(P755.WHM_OccultCureII, Phantom_WhiteMage_OccultCureII_Health, PhantomHealScope.AnyAlly, false);
 
         if (IsEnabled(Preset.Phantom_RedMage) &&
             IsEnabledAndUsable(Preset.Phantom_RedMage_OccultCureII, P755.RDM_OccultCureII))
-        {
-            actionID = P755.RDM_OccultCureII;
-            hpThreshold = Phantom_RedMage_OccultCureII_Health;
-            return true;
-        }
+            yield return new PhantomHealOption(P755.RDM_OccultCureII, Phantom_RedMage_OccultCureII_Health, PhantomHealScope.AnyAlly, false);
 
-        return false;
-    }
+        // ---- party-wide AoE, centred on the caster ----
+        if (IsEnabled(Preset.Phantom_WhiteMage) &&
+            IsEnabledAndUsable(Preset.Phantom_WhiteMage_OccultCureIII, P755.WHM_OccultCureIII) && IsInParty())
+            yield return new PhantomHealOption(P755.WHM_OccultCureIII, Phantom_WhiteMage_OccultCureIII_Health, PhantomHealScope.PartyWide, false);
 
-    private static bool TryGetPhantomHealAction(ref uint actionID)
-    {
-        // oGCD heals first. These cost a weave slot rather than a GCD, so they are strictly
-        // cheaper than anything below and should never lose a GCD to a cast.
-        if (CanWeaveNow)
-        {
-            if (IsEnabled(Preset.Phantom_Knight) &&
-                IsEnabledAndUsable(Preset.Phantom_Knight_OccultHeal, OccultHeal) &&
-                PlayerHP <= Phantom_Knight_OccultHeal_Health && PlayerMP >= 5000)
-            {
-                actionID = OccultHeal;
-                return true;
-            }
-
-            if (IsEnabled(Preset.Phantom_Monk) &&
-                IsEnabledAndUsable(Preset.Phantom_Monk_OccultChakra, OccultChakra) &&
-                PlayerHP <= Phantom_Monk_OccultChakra_Health)
-            {
-                actionID = OccultChakra;
-                return true;
-            }
-
-            if (IsEnabled(Preset.Phantom_Ranger) &&
-                IsEnabledAndUsable(Preset.Phantom_Ranger_OccultUnicorn, OccultUnicorn) &&
-                !HasStatusEffect(Buffs.OccultUnicorn, anyOwner: true) &&
-                PlayerHP <= Phantom_Ranger_OccultUnicorn_Health)
-            {
-                actionID = OccultUnicorn;
-                return true;
-            }
-
-            if (IsEnabled(Preset.Phantom_Oracle) &&
-                IsEnabledAndUsable(Preset.Phantom_Oracle_Blessing, Blessing) &&
-                HasStatusEffect(Buffs.PredictionOfBlessing) &&
-                PlayerHP <= Phantom_Oracle_Blessing_Health)
-            {
-                actionID = Blessing;
-                return true;
-            }
-        }
-
-        // GCD heals. Self-targeted emergencies before party-wide ones.
-        if (IsEnabled(Preset.Phantom_Freelancer) &&
-            IsEnabledAndUsable(Preset.Phantom_Freelancer_OccultResuscitation, OccultResuscitation) &&
-            PlayerHP <= Phantom_Freelancer_Resuscitation_Health)
-        {
-            actionID = OccultResuscitation;
-            return true;
-        }
-
-        if (IsEnabled(Preset.Phantom_Chemist) &&
-            IsEnabledAndUsable(Preset.Phantom_Chemist_OccultPotion, OccultPotion) &&
-            PlayerHP <= Phantom_Chemist_OccultPotion_Health)
-        {
-            actionID = OccultPotion;
-            return true;
-        }
-
-        if (IsEnabled(Preset.Phantom_Geomancer) && IsEnabled(Preset.Phantom_Geomancer_Weather) &&
-            IsEnabledAndUsable(Preset.Phantom_Geomancer_Sunbath, Sunbath) &&
-            PlayerHP <= Phantom_Geomancer_Sunbath_Health)
-        {
-            actionID = Sunbath;
-            return true;
-        }
-
-        if (IsEnabled(Preset.Phantom_WhiteMage))
-        {
-            if (IsEnabledAndUsable(Preset.Phantom_WhiteMage_OccultCureII, P755.WHM_OccultCureII) &&
-                PlayerHP <= Phantom_WhiteMage_OccultCureII_Health)
-            {
-                actionID = P755.WHM_OccultCureII;
-                return true;
-            }
-
-            if (IsEnabledAndUsable(Preset.Phantom_WhiteMage_OccultCureIII, P755.WHM_OccultCureIII) &&
-                IsInParty() && GetPartyAvgHPPercent() <= Phantom_WhiteMage_OccultCureIII_Health)
-            {
-                actionID = P755.WHM_OccultCureIII;
-                return true;
-            }
-        }
-
-        if (IsEnabled(Preset.Phantom_RedMage) &&
-            IsEnabledAndUsable(Preset.Phantom_RedMage_OccultCureII, P755.RDM_OccultCureII) &&
-            PlayerHP <= Phantom_RedMage_OccultCureII_Health)
-        {
-            actionID = P755.RDM_OccultCureII;
-            return true;
-        }
-
+        // White Wind heals for the caster's CURRENT HP, so it is worthless when we are low.
         if (IsEnabled(Preset.Phantom_BlueMage) &&
             IsEnabledAndUsable(Preset.Phantom_BlueMage_OccultWhiteWind, P755.BLU_OccultWhiteWind) &&
-            GetPartyAvgHPPercent() <= Phantom_BlueMage_OccultWhiteWind_Health &&
             PlayerHP >= Phantom_BlueMage_OccultWhiteWind_SelfHealth)
-        {
-            actionID = P755.BLU_OccultWhiteWind;
-            return true;
-        }
+            yield return new PhantomHealOption(P755.BLU_OccultWhiteWind, Phantom_BlueMage_OccultWhiteWind_Health, PhantomHealScope.PartyWide, false);
 
-        // Party-wide elixir last: biggest cooldown in the set and the least reversible.
         if (IsEnabled(Preset.Phantom_Chemist) &&
-            IsEnabledAndUsable(Preset.Phantom_Chemist_OccultElixir, OccultElixir) &&
-            GetPartyAvgHPPercent() <= Phantom_Chemist_OccultElixir_HP && InCombatNow &&
+            IsEnabledAndUsable(Preset.Phantom_Chemist_OccultElixir, OccultElixir) && InCombatNow &&
             (!Phantom_Chemist_OccultElixir_RequireParty || IsInParty()))
+            yield return new PhantomHealOption(OccultElixir, Phantom_Chemist_OccultElixir_HP, PhantomHealScope.PartyWide, false);
+    }
+
+    /// <summary>
+    ///     Combo-path healing, for when the player presses a rotation button rather than running
+    ///     autorotation. The autorotation path does not come through here - it uses
+    ///     <see cref="EnumerateHealOptions" /> directly via the emergency scheduler, which can
+    ///     hold the GCD and pick an ally. This is the button-press equivalent: same candidate
+    ///     set, self-centred, first usable match wins.
+    /// </summary>
+    private static bool TryGetPhantomHealAction(ref uint actionID)
+    {
+        foreach (var option in EnumerateHealOptions())
         {
-            actionID = OccultElixir;
+            // oGCDs only in a weave window; casts only outside one.
+            if (option.IsWeave != CanWeaveNow)
+                continue;
+
+            if (option.Scope == PhantomHealScope.PartyWide)
+            {
+                if (!IsInParty() || GetPartyAvgHPPercent() > option.Threshold)
+                    continue;
+            }
+            else if (PlayerHP > option.Threshold)
+            {
+                continue;
+            }
+
+            actionID = option.Action;
             return true;
         }
 
