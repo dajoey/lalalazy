@@ -31,6 +31,12 @@ public class FateTracker
 
             var fate = new Fate(data);
             Fates[id] = fate;
+
+            // Record where it actually spawned. EventData.StartPosition is hand
+            // authored and absent for every North Horn fate; this builds the real
+            // data from observation so hints can be curated from evidence.
+            LazyOccultCrescent.Data.ZoneDiscovery.RecordEventPosition(id, data.Position);
+
             OnFateSpawned?.Invoke(fate);
         }
 

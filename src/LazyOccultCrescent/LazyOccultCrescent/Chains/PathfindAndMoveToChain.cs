@@ -65,6 +65,10 @@ public class PathfindAndMoveToChain : ChainFactory
 
     private Task<List<Vector3>>? pathTask;
 
+    // Latched on the first tick, not at construction: a chain assembled before a
+    // cancel but started after it should run, not be born already cancelled.
+    private int? generation;
+
     public PathfindAndMoveToChain(
         VNavmesh vnav,
         Vector3 destination,
@@ -106,6 +110,18 @@ public class PathfindAndMoveToChain : ChainFactory
         if (Player.Object == null)
         {
             return false;
+        }
+
+        // Emergency stop and friends. Checked first, and it must complete the task
+        // rather than merely stopping vnavmesh - Drive() re-issues movement whenever
+        // vnavmesh is not running, so a bare Stop() gets undone on the next tick and
+        // the character walks to the destination anyway.
+        generation ??= MovementGate.Generation;
+        if (generation != MovementGate.Generation)
+        {
+            Svc.Log.Debug("[Pathfind] movement cancelled - abandoning route");
+            vnav.Stop();
+            return true;
         }
 
         // Bail before anything else can re-issue movement.

@@ -11,7 +11,12 @@ namespace LazyOccultCrescent.Data;
 //   Crit encounters DynamicEvent rows 49-63, with the two towers at 64/65. This
 //                   mirrors South Horn's 33-47 + 48 one-for-one: 15 CEs and a tower.
 //
-// Demiatma / Soulshard / Note / Aethernet are deliberately NOT guessed. None of them
+// Aethernet hints are added as they are OBSERVED IN GAME, not derived. Straight-line
+// nearest is a decent default but terrain routinely beats it, so a confirmed hint
+// always wins. Confirmed so far:
+//   2075 Eye to Eye -> Sinking Sanctuary (2026-08-01)
+//
+// Demiatma / Soulshard / Note are deliberately NOT guessed. None of them
 // are reachable from Excel - they come out of drop tables and LGB layout - and a wrong
 // mapping is worse than a missing one because the Automator would path to the wrong
 // side of the map. They are null until observed in game; ZoneDiscovery fills the
@@ -26,7 +31,7 @@ public static class NorthHornEvents
 
         // -- Standard FATEs (Rule 1)
         { 2074, new EventData { Id = 2074, Type = EventType.Fate, InternalName = "Raging Thrall" } },
-        { 2075, new EventData { Id = 2075, Type = EventType.Fate, InternalName = "Eye to Eye" } },
+        { 2075, new EventData { Id = 2075, Type = EventType.Fate, InternalName = "Eye to Eye", Aethernet = Aethernet.SinkingSanctuary } },
         { 2076, new EventData { Id = 2076, Type = EventType.Fate, InternalName = "Shoreline Showdown" } },
         { 2077, new EventData { Id = 2077, Type = EventType.Fate, InternalName = "Waved Away" } },
         { 2078, new EventData { Id = 2078, Type = EventType.Fate, InternalName = "Allure of the Occult" } },

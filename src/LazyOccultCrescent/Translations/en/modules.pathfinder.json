@@ -19,6 +19,14 @@
         "max_level": {
           "label": "Max area level",
           "tooltip": "The maximum level of mobs near which you are willing to hunt for objects."
+        },
+        "avoid_aggro": {
+          "label": "Avoid aggro when pathing",
+          "tooltip": "Bend automated routes around hostile mobs instead of walking through them.\nRoutes shorter than 40 yalms are left alone - those are approaches, not journeys."
+        },
+        "yield_to_manual_control": {
+          "label": "Yield to manual control",
+          "tooltip": "Pause automation while you are steering, then recompute the route from where you actually are\nrather than dragging you back to the point you walked away from."
         }
       }
     }

@@ -4,6 +4,46 @@ Fork of [OhKannaDuh/BOCCHI](https://github.com/OhKannaDuh/BOCCHI) (AGPL-3.0-or-l
 forked at `ded40a71af051a3aa57d326c512a975e7957daf6`. Upstream copyright and licence
 are preserved in `LICENSE`.
 
+## v0.2.1.0 (2026-08-01) [testing]
+
+### Fixed
+- **Emergency stop did not stop movement.** It cancelled the current action but the
+  character kept walking to wherever it had been going. Two causes, both mine in
+  origin:
+  - `DisableIllegalMode()` aborted exactly one of the four chain queues. The buff
+    sequence (`LOC##BuffManager`), the mob farmer (`MobFarmer+Farmer`) and the
+    pathfinder's step processors kept running. All are aborted now.
+  - Stopping vnavmesh is not sufficient on its own. `PathfindAndMoveToChain`
+    re-issues movement whenever vnavmesh is idle - that is how it recovers from a
+    failed solve - so an external `Stop()` read as a stall and was undone a tick
+    later. This is the same root cause as the v0.1.0.3 dead-FATE bug, which I fixed
+    narrowly with a per-activity abort predicate instead of properly.
+  Added `MovementGate`: a generation counter, not a sticky "movement disabled"
+  flag. Movement chains latch the current generation on their first tick and
+  abandon if it moves underneath them. Cancelling therefore kills everything in
+  flight without blocking anything started afterwards, so the stop button does not
+  leave the plugin unable to move.
+
+### Fixed (UI)
+- **Every setting I added showed "unknown translation key".** The config UI is
+  driven entirely by I18N lookups keyed off the property name, and I added roughly
+  thirty properties across three releases without a single translation entry - the
+  28 North Horn event toggles in v0.0.2.0, the two pathfinder toggles in v0.1.0.0,
+  and the zone discovery module. All added, plus a check that walks every config
+  class and asserts each property has a key, so this cannot silently recur.
+  English only; other locales will fall back.
+
+### Added
+- **First curated North Horn aethernet hint: Eye to Eye (2075) -> Sinking
+  Sanctuary**, reported from play. Hints are added as observed, never derived -
+  straight-line nearest is a reasonable default but terrain routinely beats it.
+- The fates panel passed the raw nullable hint straight to the teleport button, so
+  every event without a curated entry - which is all of North Horn - handed it
+  null rather than falling back to the nearest shard. Uses the accessor now.
+- `ZoneDiscovery.RecordEventPosition` was written in v0.0.2.0 and never called.
+  Now wired on fate spawn, so real spawn positions accumulate per event id and
+  future hints can be curated from evidence rather than guessed.
+
 ## v0.2.0.0 (2026-08-01) [testing]
 
 A general reliability and efficiency pass over the inherited codebase. Everything

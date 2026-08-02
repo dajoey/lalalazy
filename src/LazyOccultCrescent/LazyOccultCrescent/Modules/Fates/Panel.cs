@@ -52,7 +52,10 @@ public class Panel
 
                 if (module.TryGetModule<TeleporterModule>(out var teleporter) && teleporter!.IsReady())
                 {
-                    teleporter.teleporter.Button(fate.Data.Aethernet, fate.StartPosition, fate.Name, $"fate_{fate.Id}", fate.Data);
+                    // GetAethernet(), not Data.Aethernet: the raw field is null for any event
+                    // without a curated hint, which is all of North Horn. The accessor
+                    // falls back to the nearest shard.
+                    teleporter.teleporter.Button(fate.GetAethernet(), fate.StartPosition, fate.Name, $"fate_{fate.Id}", fate.Data);
                 }
 
                 OcelotUi.Indent(() => EventIconRenderer.Drops(fate.Data, module.PluginConfig.EventDropConfig));

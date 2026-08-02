@@ -149,6 +149,118 @@
         "do_pleading_pots": {
           "label": "Fate: Pleading Pots",
           "tooltip": "Toggle participation in the 'Pleading Pots' fate."
+        },
+        "do_many_mouths_to_feed": {
+          "label": "CE: Many Mouths to Feed",
+          "tooltip": "Toggle participation in the 'Many Mouths to Feed' critical encounter."
+        },
+        "do_doubled_trouble": {
+          "label": "CE: Doubled Trouble",
+          "tooltip": "Toggle participation in the 'Doubled Trouble' critical encounter."
+        },
+        "do_quarried_away": {
+          "label": "CE: Quarried Away",
+          "tooltip": "Toggle participation in the 'Quarried Away' critical encounter."
+        },
+        "do_forbidden_folios": {
+          "label": "CE: Forbidden Folios",
+          "tooltip": "Toggle participation in the 'Forbidden Folios' critical encounter."
+        },
+        "do_cursed_resurgence": {
+          "label": "CE: Cursed Resurgence",
+          "tooltip": "Toggle participation in the 'Cursed Resurgence' critical encounter."
+        },
+        "do_imbalanced_diet": {
+          "label": "CE: Imbalanced Diet",
+          "tooltip": "Toggle participation in the 'Imbalanced Diet' critical encounter."
+        },
+        "do_web_of_terror": {
+          "label": "CE: Web of Terror",
+          "tooltip": "Toggle participation in the 'Web of Terror' critical encounter."
+        },
+        "do_a_beast_unleashed": {
+          "label": "CE: A Beast Unleashed",
+          "tooltip": "Toggle participation in the 'A Beast Unleashed' critical encounter."
+        },
+        "do_dark_artistry": {
+          "label": "CE: Dark Artistry",
+          "tooltip": "Toggle participation in the 'Dark Artistry' critical encounter."
+        },
+        "do_familiar_tactics": {
+          "label": "CE: Familiar Tactics",
+          "tooltip": "Toggle participation in the 'Familiar Tactics' critical encounter."
+        },
+        "do_appalling_behavior": {
+          "label": "CE: Appalling Behavior",
+          "tooltip": "Toggle participation in the 'Appalling Behavior' critical encounter."
+        },
+        "do_tiny_terror": {
+          "label": "CE: Tiny Terror",
+          "tooltip": "Toggle participation in the 'Tiny Terror' critical encounter."
+        },
+        "do_lost_on_the_wind": {
+          "label": "CE: Lost on the Wind",
+          "tooltip": "Toggle participation in the 'Lost on the Wind' critical encounter."
+        },
+        "do_ahead_of_the_competition": {
+          "label": "CE: Ahead of the Competition",
+          "tooltip": "Toggle participation in the 'Ahead of the Competition' critical encounter."
+        },
+        "do_accept_no_imitators": {
+          "label": "CE: Accept No Imitators",
+          "tooltip": "Toggle participation in the 'Accept No Imitators' critical encounter."
+        },
+        "do_daylight_pottery": {
+          "label": "Fate: Daylight Pottery",
+          "tooltip": "Toggle participation in the 'Daylight Pottery' fate."
+        },
+        "do_in_a_pot_of_bother": {
+          "label": "Fate: In a Pot of Bother",
+          "tooltip": "Toggle participation in the 'In a Pot of Bother' fate."
+        },
+        "do_raging_thrall": {
+          "label": "Fate: Raging Thrall",
+          "tooltip": "Toggle participation in the 'Raging Thrall' fate."
+        },
+        "do_eye_to_eye": {
+          "label": "Fate: Eye to Eye",
+          "tooltip": "Toggle participation in the 'Eye to Eye' fate."
+        },
+        "do_shoreline_showdown": {
+          "label": "Fate: Shoreline Showdown",
+          "tooltip": "Toggle participation in the 'Shoreline Showdown' fate."
+        },
+        "do_waved_away": {
+          "label": "Fate: Waved Away",
+          "tooltip": "Toggle participation in the 'Waved Away' fate."
+        },
+        "do_allure_of_the_occult": {
+          "label": "Fate: Allure of the Occult",
+          "tooltip": "Toggle participation in the 'Allure of the Occult' fate."
+        },
+        "do_inconstant_gardener": {
+          "label": "Fate: Inconstant Gardener",
+          "tooltip": "Toggle participation in the 'Inconstant Gardener' fate."
+        },
+        "do_territorial_dispute": {
+          "label": "Fate: Territorial Dispute",
+          "tooltip": "Toggle participation in the 'Territorial Dispute' fate."
+        },
+        "do_a_rotten_affair": {
+          "label": "Fate: A Rotten Affair",
+          "tooltip": "Toggle participation in the 'A Rotten Affair' fate."
+        },
+        "do_gale_force_encounter": {
+          "label": "Fate: Gale-force Encounter",
+          "tooltip": "Toggle participation in the 'Gale-force Encounter' fate."
+        },
+        "do_scale_model": {
+          "label": "Fate: Scale Model",
+          "tooltip": "Toggle participation in the 'Scale Model' fate."
+        },
+        "do_thunderregnum": {
+          "label": "Fate: Thunderregnum",
+          "tooltip": "Toggle participation in the 'Thunderregnum' fate."
         }
       },
       "panel": {
