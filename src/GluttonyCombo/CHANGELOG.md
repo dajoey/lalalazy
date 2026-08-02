@@ -1,4 +1,24 @@
-﻿## v1.0.4.104 (2026-08-02) [testing]
+﻿## v1.0.4.106 (2026-08-02) [testing]
+
+### Fixed
+- **Phantom healing never fired on jobs that hold an instant-cast proc.** v1.0.4.103 added
+  the `HoldingInstantCastProc` gate so 1.5s phantom fillers would stop eating a Swiftcast
+  the player saved for a raise - but it left every phantom cure BELOW the gate. Occult Raise
+  was deliberately placed above it; the cures were overlooked. Worst case is Black Mage,
+  where the plugin manages Triplecast itself and so holds the gate shut almost continuously,
+  meaning phantom healing never fired at all. Red Mage only looked healthy because Dualcast
+  drops every other GCD and left windows.
+  Moved above the gate in `Combos/PvE/Content/OccultCrescent/OccultCrescent_755.cs`:
+  Occult Cure III + Occult Cure II (`TryGetWhiteMageAction`), Occult White Wind
+  (`TryGetBlueMageAction`), and Occult Cure II (`TryGetRedMageAction`). Filler damage stays
+  below the gate, unchanged.
+
+### Notes
+- Reported by Joey: phantom healing worked while playing Red Mage but not Black Mage. The
+  phantom job in use was not the variable - the player's real job was, via the proc list in
+  `HoldingInstantCastProc` (Swiftcast / Dualcast / Triplecast / Requiescat).
+
+## v1.0.4.104 (2026-08-02) [testing]
 
 ### Changed
 - Merged upstream Wrath Combo (2 commits, 2026-08-01): Machinist opener gains a third

@@ -280,10 +280,18 @@ internal partial class OccultCrescent
             return true;
         }
 
-        // Below here everything has a cast time. Occult Raise above is instant and deliberately
-        // sits ahead of this gate - a held Swiftcast must never stop the raise going out.
-        if (HoldingInstantCastProc) return false;
-
+        // Occult Raise above, and the cures immediately below, deliberately sit AHEAD of the
+        // instant-cast-proc gate. That gate exists to stop a 1.5s filler nova eating a Swiftcast
+        // the player was saving for a raise. It must never stop the raise itself, and it must
+        // never stop a cure that only fired because HP crossed the user's own emergency
+        // threshold - by definition the player has already said that HP number is worth a GCD,
+        // and a proc is cheaper than a death.
+        //
+        // Regression fixed in v1.0.4.105: v1.0.4.103 introduced the gate and left the cures
+        // below it. On any job holding a listed proc the cures were suppressed - worst on BLM,
+        // where the plugin manages Triplecast itself and therefore keeps the gate shut almost
+        // continuously, so phantom healing never fired at all. RDM only looked healthy because
+        // Dualcast drops every other GCD and left windows.
         if (IsEnabledAndUsable(Preset.Phantom_WhiteMage_OccultCureIII, P755.WHM_OccultCureIII) &&
             IsInParty() && GetPartyAvgHPPercent() <= Phantom_WhiteMage_OccultCureIII_Health)
         {
@@ -297,6 +305,9 @@ internal partial class OccultCrescent
             actionID = P755.WHM_OccultCureII;
             return true;
         }
+
+        // Everything below here is filler damage, which the gate still applies to.
+        if (HoldingInstantCastProc) return false;
 
         if (BuffGateBlocks) return false;
 
@@ -487,13 +498,13 @@ internal partial class OccultCrescent
             return false;
         }
 
-        if (HoldingInstantCastProc) return false;
-
         // White Wind restores an amount equal to the caster's CURRENT HP, so it is strongest at
         // full and nearly worthless when low - the exact inverse of an emergency button. Gating
         // on party HP alone fired it precisely when it healed least, because whatever hurt the
         // party usually hurt us too. Require the party to need it AND us to still be worth
         // spending.
+        //
+        // Ahead of the instant-cast-proc gate - see the rationale in the White Mage block.
         if (IsEnabledAndUsable(Preset.Phantom_BlueMage_OccultWhiteWind, P755.BLU_OccultWhiteWind) &&
             GetPartyAvgHPPercent() <= Phantom_BlueMage_OccultWhiteWind_Health &&
             PlayerHP >= Phantom_BlueMage_OccultWhiteWind_SelfHealth)
@@ -501,6 +512,8 @@ internal partial class OccultCrescent
             actionID = P755.BLU_OccultWhiteWind;
             return true;
         }
+
+        if (HoldingInstantCastProc) return false;
 
         if (BuffGateBlocks) return false;
         if (!HasTargetNow) return false;
@@ -561,14 +574,15 @@ internal partial class OccultCrescent
             return false;
         }
 
-        if (HoldingInstantCastProc) return false;
-
+        // Cure ahead of the instant-cast-proc gate - see the rationale in the White Mage block.
         if (IsEnabledAndUsable(Preset.Phantom_RedMage_OccultCureII, P755.RDM_OccultCureII) &&
             PlayerHP <= Phantom_RedMage_OccultCureII_Health)
         {
             actionID = P755.RDM_OccultCureII;
             return true;
         }
+
+        if (HoldingInstantCastProc) return false;
 
         if (BuffGateBlocks) return false;
         if (!HasTargetNow) return false;
