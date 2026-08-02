@@ -585,7 +585,7 @@ internal partial class MNK
         public override List<(int[] Steps, Func<bool> Condition)> SkipSteps { get; set; } =
         [
             ([1], () => Chakra >= 5),
-            ([2], () => JustUsed(FormShift, 30f))
+            ([2], () => HasStatusEffect(Buffs.FormlessFist) || JustUsed(FormShift)),
         ];
 
         public override List<(int[] Steps, Func<float> HoldDelay)> PrepullDelays { get; set; } =
@@ -696,7 +696,7 @@ internal partial class MNK
         public override List<(int[] Steps, Func<bool> Condition)> SkipSteps { get; set; } =
         [
             ([1], () => Chakra >= 5),
-            ([2], () => JustUsed(FormShift, 30f)),
+            ([2], () => HasStatusEffect(Buffs.FormlessFist) || JustUsed(FormShift)),
             ([11], () => Chakra < 5)
         ];
     }
@@ -736,7 +736,7 @@ internal partial class MNK
         public override List<(int[] Steps, Func<bool> Condition)> SkipSteps { get; set; } =
         [
             ([1], () => Chakra >= 5),
-            ([2], () => JustUsed(FormShift, 30f)),
+            ([2], () => HasStatusEffect(Buffs.FormlessFist) || JustUsed(FormShift)),
             ([11], () => Chakra < 5)
         ];
     }
@@ -775,7 +775,7 @@ internal partial class MNK
         public override List<(int[] Steps, Func<bool> Condition)> SkipSteps { get; set; } =
         [
             ([1], () => Chakra >= 5),
-            ([2], () => JustUsed(FormShift, 30f)),
+            ([2], () => HasStatusEffect(Buffs.FormlessFist) || JustUsed(FormShift)),
             ([10], () => Chakra < 5)
         ];
 
