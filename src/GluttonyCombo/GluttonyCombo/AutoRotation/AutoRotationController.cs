@@ -1,4 +1,4 @@
-#region
+﻿#region
 
 using Dalamud.Game.ClientState.JobGauge.Types;
 using Dalamud.Game.ClientState.Objects.Types;
@@ -1549,7 +1549,20 @@ internal unsafe class AutoRotationController
             var inRange = acRangeCheck is 0 or 565 || canUseSelf;
 
             var canUse = (canUseSelf || canUseTarget || areaTargeted) && outAct.ActionAttackType() is { } type && ((type is ActionAttackType.Ability && AnimationLock <= cfg.QueueWindow) || (type is not ActionAttackType.Ability && RemainingGCD <= cfg.QueueWindow));
-            var isHeal = attributes.AutoAction!.IsHeal;
+            // A friendly-only action can resolve out of a DAMAGE preset. IsHeal is a property of
+            // the PRESET, not of whatever InvokeCombo actually returned, so a phantom cure fired
+            // from a DPS combo arrived here flagged as damage: the DPS branch below then slammed
+            // the hard target onto the enemy immediately before the cast, and the cure died on an
+            // invalid target. Jobs carrying their own healing presets (RDM, SMN, the healers) have
+            // a heal-flagged path that targets friendly correctly, which is exactly why phantom
+            // healing worked there and never worked on Black Mage or any other pure-DPS job.
+            //
+            // Derive it from the resolved action instead: if the action can be used on us but NOT
+            // on the current (hostile) target, and it is not ground-targeted, it is a friendly
+            // action regardless of which preset emitted it. canUseSelf / canUseTarget /
+            // areaTargeted are all computed above, so this costs nothing extra.
+            var resolvedFriendlyOnly = canUseSelf && !canUseTarget && !areaTargeted;
+            var isHeal = attributes.AutoAction!.IsHeal || resolvedFriendlyOnly;
 
             if (target is not null)
             {
@@ -1567,7 +1580,13 @@ internal unsafe class AutoRotationController
                 var targetId = canUseTarget || areaTargeted ? target.GameObjectId : canUseSelf ? player.GameObjectId : 0xE000_0000;
                 var changed = CheckForChangedTarget(gameAct, ref targetId, out var replacedWith);
                 WouldLikeToGroundTarget = areaTargeted;
-                var ret = ActionManager.Instance()->UseAction(ActionType.Action, Service.Configuration.ActionChanging ? gameAct : outAct, targetId);
+                // Friendly-only resolutions bypass ActionChanging: handing the hook `gameAct`
+                // makes it re-derive the action from the pressed damage button, which cannot be
+                // relied on to reproduce a content-specific replacement like a phantom cure.
+                var actToSend = Service.Configuration.ActionChanging && !resolvedFriendlyOnly
+                    ? gameAct
+                    : outAct;
+                var ret = ActionManager.Instance()->UseAction(ActionType.Action, actToSend, targetId);
                 WouldLikeToGroundTarget = false;
 
                 if (NIN.MudraSigns.Contains(outAct))

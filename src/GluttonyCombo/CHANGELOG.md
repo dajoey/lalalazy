@@ -1,4 +1,31 @@
-﻿## v1.0.4.107 (2026-08-02) [testing]
+﻿## v1.0.4.108 (2026-08-02) [testing]
+
+### Fixed
+- **Phantom healing never landed on jobs with no healing presets of their own.** In
+  `AutoRotationController.ExecuteST()`, `isHeal` was read from the *preset's* `AutoAction`
+  attribute rather than from the action `InvokeCombo()` actually returned. A phantom cure
+  resolves out of a DPS combo, so it arrived flagged as damage and took the DPS branch:
+
+      if (!isHeal && cfg.DPSSettings.DPSAlwaysHardTarget && mode is not DPSRotationMode.Manual)
+          Svc.Targets.Target = target;   // hard target forced onto the enemy
+
+  The hard target was slammed onto the enemy immediately before the cast and the cure died on
+  an invalid target. Jobs that carry their own healing presets (RDM, SMN, the healers) have a
+  heal-flagged path that targets friendly correctly - which is precisely why phantom healing
+  worked on Red Mage and never worked on Black Mage or any other pure-DPS job.
+  `isHeal` is now derived from the resolved action as well as the preset: an action usable on
+  the player but not on the current hostile target, and not ground-targeted, is treated as
+  friendly no matter which preset emitted it. Such casts also bypass `ActionChanging`, which
+  would otherwise re-derive the action from the pressed damage button and cannot reliably
+  reproduce a content-specific replacement.
+
+### Notes
+- Joey identified this in his first report - "RDM has healing logic built in, BLM doesn't".
+  That was correct and it is the actual root cause. v1.0.4.106 (instant-cast-proc gate) and
+  v1.0.4.107 (heal priority vs damage dispatch) are both real bugs found on the way here, but
+  neither was what stopped the cure from going off.
+
+## v1.0.4.107 (2026-08-02) [testing]
 
 ### Fixed
 - **Phantom healing lost to phantom damage on every job, at any HP.** `TryGetPhantomAction()`
