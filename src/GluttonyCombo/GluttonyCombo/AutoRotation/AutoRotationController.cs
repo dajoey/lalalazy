@@ -250,7 +250,7 @@ internal unsafe class AutoRotationController
         }
 
         var self = Player.Object;
-        double selfHp = GetTargetHPPercent(self, cfg.HealerSettings.IncludeShields);
+        double selfHp = PlayerHealthPercentageHp();
 
         bool warranted = false;
 
@@ -325,8 +325,7 @@ internal unsafe class AutoRotationController
     {
         int n = 0;
 
-        if (Player.Available &&
-            GetTargetHPPercent(Player.Object, cfg.HealerSettings.IncludeShields) <= threshold)
+        if (Player.Available && PlayerHealthPercentageHp() <= threshold)
             n++;
 
         foreach (var member in GetPartyMembers())
@@ -334,7 +333,7 @@ internal unsafe class AutoRotationController
             var chara = member.BattleChara;
             if (chara is null || chara.IsDead || !chara.IsTargetable) continue;
             if (Player.Available && chara.GameObjectId == Player.Object.GameObjectId) continue;
-            if (GetTargetHPPercent(chara, cfg.HealerSettings.IncludeShields) <= threshold) n++;
+            if (GetTargetHPPercent(chara) <= threshold) n++;
         }
 
         return n;
@@ -364,7 +363,7 @@ internal unsafe class AutoRotationController
             if (Player.Available && chara.GameObjectId == Player.Object.GameObjectId) continue;
             if (chara.StatusList.Any(st => StatusCache.DoNotHealStatuses.Contains(st.StatusId))) continue;
 
-            double hp = GetTargetHPPercent(chara, cfg.HealerSettings.IncludeShields);
+            double hp = GetTargetHPPercent(chara);
             if (hp > threshold || hp >= bestHp) continue;
             if (!ActionManager.CanUseActionOnTarget(action, chara.GameObject())) continue;
             if (ActionManager.GetActionInRangeOrLoS(action, Player.GameObject, chara.GameObject()) is not (0 or 565)) continue;

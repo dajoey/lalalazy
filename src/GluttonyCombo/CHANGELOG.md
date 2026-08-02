@@ -1,4 +1,28 @@
-﻿## v1.0.4.113 (2026-08-02) [testing]
+﻿## v1.0.4.114 (2026-08-02) [testing]
+
+### Fixed
+- **v1.0.4.113 stopped phantom healing entirely.** Moving the self-HP check out of
+  `OccultCrescent` into the scheduler meant `PlayerHP` was no longer reachable - it is private
+  to that class - and it was replaced with
+  `GetTargetHPPercent(Player.Object, cfg.HealerSettings.IncludeShields)` without checking the
+  two were equivalent. They are not:
+
+      private static float PlayerHP => PlayerHealthPercentageHp();   // raw HP%
+      GetTargetHPPercent(t, includeShield: true)
+          => Math.Clamp(hpPercent + t.ShieldPercentage, 0f, 100f);   // HP% + SHIELD%
+
+  With `IncludeShields` enabled that silently redefined every self gate from "raw HP below the
+  slider" to "HP plus shields below the slider". Any shield inflates the reading past the
+  threshold, so in Occult Crescent - where shields are near-constant - no cure ever triggered.
+  The caster now uses `PlayerHealthPercentageHp()`, exactly what `PlayerHP` wraps, and allies
+  are read with raw `GetTargetHPPercent()`. One definition of HP backs every slider, and the
+  numbers mean what they say again.
+
+### Notes
+- Self-inflicted regression: the substitution was made for convenience and never verified
+  against the function it replaced.
+
+## v1.0.4.113 (2026-08-02) [testing]
 
 ### Fixed
 - **Phantom healing was unreliable: sometimes it healed, sometimes it kept DPSing with the
