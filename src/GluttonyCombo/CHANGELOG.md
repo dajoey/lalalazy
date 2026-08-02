@@ -1,4 +1,39 @@
-﻿## v1.0.4.114 (2026-08-02) [testing]
+﻿## v1.0.4.116 (2026-08-02) [testing]
+
+### Fixed
+- **Emergency healing interrupted a Teleport.** The scheduler cleared the queued action and
+  fired immediately, which out of combat means stomping a 5s Teleport or Return cast - and any
+  navigation plugin relying on that teleport then falls back to walking. The rule is now: only
+  ever clip *our own damage*. A cast in progress is left alone unless its action is
+  hostile-targetable, which also protects Limit Break, raises and deliberate manual casts in
+  combat. Unknown action ids are treated as protected.
+- **The hold's safety release did nothing.** On expiry the timer was cleared and false returned,
+  so the very next tick re-took the hold - a permanent suppression with a one-tick stutter
+  rather than a recovery. A release now blocks re-holding for
+  `PhantomHealHoldCooldownSeconds` (3s).
+- **Multiple cures burned on a single dip.** HP does not update until a cure lands, so the next
+  tick still saw low HP and fired another. The oGCD self-heals are gated only by animation lock,
+  so Occult Heal, Chakra and Unicorn could all go off within about two seconds - and Elixir,
+  the largest cooldown in the set, with them. A cure is no longer issued within
+  `PhantomHealRecastGuardSeconds` (1.5s) of the previous one.
+- **AoE cures fired for people out of range.** `CountHurtBelow` counted the whole party, so
+  Cure III / White Wind / Elixir could trigger with the two hurt members across the zone and
+  outside the radius. Replaced with `CountHurtInRange`, which checks the action's own range and
+  line of sight.
+- **The caster was never checked for do-not-heal statuses**, although allies were. Both paths
+  now use the same check.
+
+- Out of combat the aggressive machinery is disabled entirely: no queue displacement, no GCD
+  hold. There is no damage rotation to race there, so it only ever caused collateral damage.
+
+### Notes
+- Found by audit rather than in testing, after four of these shipped as regressions.
+- Known, deliberate trade-offs: cast-time cures will not fire while moving (`MovementLeeway` is
+  0, so any movement blocks a cast) - the oGCD cures still work; Silence blocks the spells and
+  Amnesia the abilities; Elixir is ordered last among the party-wide cures; and in combat a cure
+  will still clip your own damage cast, which is the trade that makes it reliable.
+
+## v1.0.4.114 (2026-08-02) [testing]
 
 ### Fixed
 - **v1.0.4.113 stopped phantom healing entirely.** Moving the self-HP check out of

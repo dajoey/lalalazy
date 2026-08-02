@@ -199,40 +199,83 @@ internal unsafe class AutoRotationController
     static bool NotInCombat => !GetPartyMembers().Any(x => x.BattleChara is not null && x.BattleChara.Struct()->InCombat && !x.IsOutOfPartyNPC) || PartyEngageDuration().TotalSeconds < cfg.CombatDelay;
 
     private static DateTime? _phantomHealHoldSince;
+    private static DateTime _phantomHealHoldBlockedUntil = DateTime.MinValue;
+    private static DateTime _phantomHealLastFired = DateTime.MinValue;
 
     /// <summary>Safety release for the phantom-heal hold, in seconds.</summary>
     private const double PhantomHealHoldSeconds = 4.0;
+
+    /// <summary>
+    ///     After the hold self-releases, how long before it may be taken again. Without this the
+    ///     release is meaningless - the hold is simply re-taken on the next tick and the rotation
+    ///     stutters instead of recovering.
+    /// </summary>
+    private const double PhantomHealHoldCooldownSeconds = 3.0;
+
+    /// <summary>
+    ///     Quiet period after a cure is issued. HP does not update until the cast lands, so
+    ///     without this the next tick still sees the same low HP and fires another cure - the
+    ///     oGCD self-heals are only gated by animation lock, so several can burn inside a couple
+    ///     of seconds for a single dip, Elixir included.
+    /// </summary>
+    private const double PhantomHealRecastGuardSeconds = 1.5;
 
     /// <summary>Party members counted as hurt before an AoE cure is preferred to a single target.</summary>
     private const int PhantomHealAoECount = 2;
 
     /// <summary>
+    ///     True when the action being cast is one the rotation itself would have fired - i.e.
+    ///     something aimed at an enemy. Anything else is a Teleport, a Return, a raise, a Limit
+    ///     Break or a deliberate manual cast, and clipping it to top up HP is never a good trade.
+    ///     Unknown ids are treated as protected.
+    /// </summary>
+    private static bool IsOwnDamageCast(uint castActionId) =>
+        castActionId != 0 &&
+        ActionSheet.TryGetValue(castActionId, out var sheet) &&
+        sheet.CanTargetHostile;
+
+    /// <summary>Whether the caster may usefully be healed at all.</summary>
+    private static bool SelfHealable() =>
+        Player.Available && Player.Object is IBattleChara me &&
+        !me.StatusList.Any(st => StatusCache.DoNotHealStatuses.Contains(st.StatusId));
+
+    /// <summary>
     ///     Emergency phantom healing, scheduled ahead of the damage rotation.
     ///     <para/>
-    ///     Two things make this reliable rather than occasional.
+    ///     It considers EVERY usable cure against EVERY eligible target rather than the first
+    ///     match, and it HOLDS the GCD when a cure is warranted but blocked purely on recast, so
+    ///     the damage rotation cannot queue over the window the cure needs. Without the hold the
+    ///     heal wins that race only by luck.
     ///     <para/>
-    ///     First, it considers EVERY usable cure against EVERY eligible target instead of taking
-    ///     the first match. Previously one cure was chosen by fixed job order and gated on the
-    ///     caster's HP: a cure on cooldown aborted the attempt outright, a healthy caster with a
-    ///     dying party selected nothing at all, and the AoE cures - checked last and gated on
-    ///     party AVERAGE HP - effectively never fired.
-    ///     <para/>
-    ///     Second, it HOLDS the GCD. Merely attempting the cast was not enough: when a cure was
-    ///     warranted but the recast was not yet up, this returned false, Run() fell through to
-    ///     the damage rotation, and the rotation queued over the exact window the heal needed. It
-    ///     won that race only by luck, which is why healing fired sometimes and the party sat at
-    ///     50% otherwise. Now the damage rotation is suppressed and any queued damage action is
-    ///     cleared until the cure goes out - the same intention-lock idea as
-    ///     HealerRaidwideShieldLock().
-    ///     <para/>
-    ///     The hold cannot become a DPS freeze: it is never taken for a cast-time cure while
-    ///     moving (the cast could not start anyway), and it self-releases after
-    ///     <see cref="PhantomHealHoldSeconds"/>.
+    ///     Guards, each for a failure that actually occurred or was found by audit: the hold is
+    ///     never taken for a cast-time cure while moving, self-releases after
+    ///     <see cref="PhantomHealHoldSeconds"/> and then cannot be re-taken for
+    ///     <see cref="PhantomHealHoldCooldownSeconds"/> (otherwise the release is a no-op and the
+    ///     rotation just stutters); a cure is not issued within
+    ///     <see cref="PhantomHealRecastGuardSeconds"/> of the last one, because HP has not
+    ///     updated yet and a second and third cure would burn for the same dip; and a cast in
+    ///     progress is only ever clipped when it is our own damage.
     /// </summary>
     private static unsafe bool TryEmergencyPhantomHeal()
     {
         if (!cfg.Enabled || !Player.Available || Player.Object.IsDead || Player.Mounted || Paused ||
             IsOccupied() || PlayerHasActionPenalty(true))
+        {
+            _phantomHealHoldSince = null;
+            return false;
+        }
+
+        // Only ever clip our own damage. Teleport and Return are 5s casts, a raise is worth more
+        // than a top-up, and a manual cast is the player's decision.
+        if (Player.Object is IBattleChara { IsCasting: true } casting &&
+            !IsOwnDamageCast(casting.CastActionId))
+        {
+            _phantomHealHoldSince = null;
+            return false;
+        }
+
+        // Let the previous cure land before considering another.
+        if ((DateTime.Now - _phantomHealLastFired).TotalSeconds < PhantomHealRecastGuardSeconds)
         {
             _phantomHealHoldSince = null;
             return false;
@@ -251,46 +294,53 @@ internal unsafe class AutoRotationController
 
         var self = Player.Object;
         double selfHp = PlayerHealthPercentageHp();
+        bool selfOk = SelfHealable();
 
         bool warranted = false;
 
-        // 1. Free oGCD self-heals first - they cost a weave slot, not a GCD.
-        foreach (var o in options)
+        // 1. Free oGCD self-heals first - a weave slot, not a GCD.
+        if (selfOk)
         {
-            if (!o.IsWeave || o.Scope != OccultCrescent.PhantomHealScope.SelfOnly) continue;
-            if (selfHp > o.Threshold) continue;
-            if (TryFirePhantomHeal(o.Action, self, ref warranted)) return ReleaseHold();
+            foreach (var o in options)
+            {
+                if (!o.IsWeave || o.Scope != OccultCrescent.PhantomHealScope.SelfOnly) continue;
+                if (selfHp > o.Threshold) continue;
+                if (TryFirePhantomHeal(o.Action, self, ref warranted)) return ReleaseHold();
+            }
         }
 
-        // 2. Party-wide AoE once enough people are hurt. Counting bodies rather than reading the
-        //    party AVERAGE is the point: three hurt out of eight barely moves an average, so the
-        //    average-gated AoE cures never triggered when they were most needed.
+        // 2. Party-wide AoE once enough people are hurt AND actually inside its radius. Counting
+        //    bodies rather than reading the party AVERAGE is the point - three hurt out of eight
+        //    barely moves an average - but counting people across the zone would waste the
+        //    cooldown just as surely.
         foreach (var o in options)
         {
             if (o.Scope != OccultCrescent.PhantomHealScope.PartyWide) continue;
-            if (CountHurtBelow(o.Threshold) < PhantomHealAoECount) continue;
+            if (CountHurtInRange(o.Action, o.Threshold, selfHp, selfOk) < PhantomHealAoECount) continue;
             if (TryFirePhantomHeal(o.Action, self, ref warranted)) return ReleaseHold();
         }
 
-        // 3. Targeted cures on whoever is worst off - the caster included, so a single code path
-        //    covers "I am dying" and "someone else is dying".
+        // 3. Targeted cures on whoever is worst off, caster included.
         foreach (var o in options)
         {
             if (o.Scope != OccultCrescent.PhantomHealScope.AnyAlly) continue;
-            var worst = WorstHurtBelow(o.Action, o.Threshold, selfHp);
+            var worst = WorstHurtBelow(o.Action, o.Threshold, selfHp, selfOk);
             if (worst is null) continue;
             if (TryFirePhantomHeal(o.Action, worst, ref warranted)) return ReleaseHold();
         }
 
         // 4. Remaining self-only cures on the GCD.
-        foreach (var o in options)
+        if (selfOk)
         {
-            if (o.IsWeave || o.Scope != OccultCrescent.PhantomHealScope.SelfOnly) continue;
-            if (selfHp > o.Threshold) continue;
-            if (TryFirePhantomHeal(o.Action, self, ref warranted)) return ReleaseHold();
+            foreach (var o in options)
+            {
+                if (o.IsWeave || o.Scope != OccultCrescent.PhantomHealScope.SelfOnly) continue;
+                if (selfHp > o.Threshold) continue;
+                if (TryFirePhantomHeal(o.Action, self, ref warranted)) return ReleaseHold();
+            }
         }
 
-        if (!warranted)
+        if (!warranted || NotInCombat || DateTime.Now < _phantomHealHoldBlockedUntil)
         {
             _phantomHealHoldSince = null;
             return false;
@@ -301,6 +351,7 @@ internal unsafe class AutoRotationController
         if ((DateTime.Now - _phantomHealHoldSince.Value).TotalSeconds > PhantomHealHoldSeconds)
         {
             _phantomHealHoldSince = null;
+            _phantomHealHoldBlockedUntil = DateTime.Now.AddSeconds(PhantomHealHoldCooldownSeconds);
             return false;
         }
 
@@ -317,23 +368,29 @@ internal unsafe class AutoRotationController
     private static bool ReleaseHold()
     {
         _phantomHealHoldSince = null;
+        _phantomHealLastFired = DateTime.Now;
         return true;
     }
 
-    /// <summary>Party members (caster included) at or below <paramref name="threshold"/>.</summary>
-    private static int CountHurtBelow(double threshold)
+    /// <summary>
+    ///     Units at or below <paramref name="threshold"/> that an AoE cure centred on the caster
+    ///     would actually reach. Range is checked against the action itself, so a party scattered
+    ///     across the zone cannot trigger it.
+    /// </summary>
+    private static unsafe int CountHurtInRange(uint action, double threshold, double selfHp, bool selfOk)
     {
-        int n = 0;
-
-        if (Player.Available && PlayerHealthPercentageHp() <= threshold)
-            n++;
+        int n = selfOk && selfHp <= threshold ? 1 : 0;
 
         foreach (var member in GetPartyMembers())
         {
             var chara = member.BattleChara;
             if (chara is null || chara.IsDead || !chara.IsTargetable) continue;
             if (Player.Available && chara.GameObjectId == Player.Object.GameObjectId) continue;
-            if (GetTargetHPPercent(chara) <= threshold) n++;
+            if (chara.StatusList.Any(st => StatusCache.DoNotHealStatuses.Contains(st.StatusId))) continue;
+            if (GetTargetHPPercent(chara) > threshold) continue;
+            if (GetTargetDistance(chara) > action.ActionRange()) continue;
+            if (!IsInLineOfSight(chara)) continue;
+            n++;
         }
 
         return n;
@@ -341,16 +398,15 @@ internal unsafe class AutoRotationController
 
     /// <summary>
     ///     Lowest-HP unit at or below <paramref name="threshold"/> that <paramref name="action"/>
-    ///     can actually be cast on right now - the caster included. Excludes the dead, the
-    ///     untargetable, anyone carrying a do-not-heal status, and anyone out of range or line of
-    ///     sight. Returns null when nobody qualifies.
+    ///     can be cast on right now - caster included. Excludes the dead, the untargetable,
+    ///     anyone carrying a do-not-heal status, and anyone out of range or line of sight.
     /// </summary>
-    private static unsafe IGameObject? WorstHurtBelow(uint action, double threshold, double selfHp)
+    private static unsafe IGameObject? WorstHurtBelow(uint action, double threshold, double selfHp, bool selfOk)
     {
         IGameObject? best = null;
         double bestHp = double.MaxValue;
 
-        if (Player.Available && selfHp <= threshold)
+        if (selfOk && selfHp <= threshold)
         {
             best = Player.Object;
             bestHp = selfHp;
@@ -378,8 +434,7 @@ internal unsafe class AutoRotationController
     /// <summary>
     ///     Attempts one cure on one target. Returns true only when the cast was actually issued.
     ///     <paramref name="warranted"/> is set when the cure is usable in principle and the only
-    ///     obstacle is engine timing - that is the signal to hold the GCD rather than hand it
-    ///     back to the damage rotation.
+    ///     obstacle is engine timing - the signal to hold the GCD rather than hand it back.
     /// </summary>
     private static unsafe bool TryFirePhantomHeal(uint act, IGameObject target, ref bool warranted)
     {
@@ -417,8 +472,9 @@ internal unsafe class AutoRotationController
 
         var am = ActionManager.Instance();
 
-        // Displace a queued damage action, otherwise the queue consumes this window.
-        if (am->QueuedActionId != 0 && am->QueuedActionId != act)
+        // Displace a queued damage action, otherwise the queue consumes this window. In combat
+        // only: out of combat whatever is queued is the player's own doing.
+        if (!NotInCombat && am->QueuedActionId != 0 && am->QueuedActionId != act)
         {
             am->QueuedActionId = 0;
             am->QueuedTargetId = 0;
