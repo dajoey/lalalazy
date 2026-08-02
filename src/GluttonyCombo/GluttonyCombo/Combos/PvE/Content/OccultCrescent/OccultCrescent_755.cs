@@ -110,6 +110,13 @@ internal partial class OccultCrescent
     internal static class Debuffs755
     {
         public const ushort OccultToad = 5317;
+
+        // Self-Doom, applied by EVERY HP-cost Necromancer spell. "Certain death when counter
+        // reaches zero. Effect dissipates once fully healed." 5473 is the 7.55 row (verified on
+        // the live Status sheet, sitting next to Cryptic Communications 5472); 1769 is the older
+        // row carrying identical wording and is checked defensively in case the server reuses it.
+        public const ushort NecromancerDoom = 5473,
+                            NecromancerDoomLegacy = 1769;
     }
 
     /// <summary>Phantom Job identity statuses, contiguous 5328-5335.</summary>
@@ -176,6 +183,20 @@ internal partial class OccultCrescent
 
         if (BuffGateBlocks) return false;
         if (!HasTargetNow) return false;
+
+        // Fuma Shuriken is 230 flat; the scrolls are 150, or 195 against a matching weakness.
+        // So Fuma out-damages both scrolls on a single target EVEN when the weakness lands, and
+        // only loses once the scrolls' 5y splash catches a second mob. The old order put the
+        // scrolls first unconditionally.
+        bool scrollsOutDamageFuma = NumberOfEnemiesInRange(P755.NIN_FlameScroll, CurrentTarget) >= 2;
+
+        if (!scrollsOutDamageFuma &&
+            IsEnabledAndUsable(Preset.Phantom_Ninja_FumaShuriken, P755.NIN_FumaShuriken) &&
+            InActionRange(P755.NIN_FumaShuriken))
+        {
+            actionID = P755.NIN_FumaShuriken;
+            return true;
+        }
 
         if (IsEnabledAndUsable(Preset.Phantom_Ninja_FlameScroll, P755.NIN_FlameScroll) &&
             InActionRange(P755.NIN_FlameScroll) && WeaknessGate(Weak755.FireWeakness))
@@ -281,13 +302,10 @@ internal partial class OccultCrescent
 
         if (BuffGateBlocks) return false;
 
-        if (IsEnabledAndUsable(Preset.Phantom_BlackMage_OccultFlare, P755.BLM_OccultFlare) &&
-            InActionRange(P755.BLM_OccultFlare))
-        {
-            actionID = P755.BLM_OccultFlare; // biggest hit, no weakness requirement
-            return true;
-        }
-
+        // The elemental trio goes first: a matched weakness is 520, which beats Flare's 500.
+        // They sit on separate recasts (trio 40s shared, Flare 60s) so nothing is lost by
+        // ordering this way - Flare still fires, just on a later GCD. When no weakness is known
+        // the trio self-skips through WeaknessGate and Flare leads as before.
         if (IsEnabledAndUsable(Preset.Phantom_BlackMage_OccultFireIII, P755.BLM_OccultFireIII) &&
             InActionRange(P755.BLM_OccultFireIII) && WeaknessGate(Weak755.FireWeakness))
         {
@@ -306,6 +324,13 @@ internal partial class OccultCrescent
             InActionRange(P755.BLM_OccultThunderIII) && WeaknessGate(Weak755.LightningWeakness))
         {
             actionID = P755.BLM_OccultThunderIII;
+            return true;
+        }
+
+        if (IsEnabledAndUsable(Preset.Phantom_BlackMage_OccultFlare, P755.BLM_OccultFlare) &&
+            InActionRange(P755.BLM_OccultFlare))
+        {
+            actionID = P755.BLM_OccultFlare; // 500 unaspected, never needs a weakness
             return true;
         }
 
@@ -428,8 +453,14 @@ internal partial class OccultCrescent
             return false;
         }
 
+        // White Wind restores an amount equal to the caster's CURRENT HP, so it is strongest at
+        // full and nearly worthless when low - the exact inverse of an emergency button. Gating
+        // on party HP alone fired it precisely when it healed least, because whatever hurt the
+        // party usually hurt us too. Require the party to need it AND us to still be worth
+        // spending.
         if (IsEnabledAndUsable(Preset.Phantom_BlueMage_OccultWhiteWind, P755.BLU_OccultWhiteWind) &&
-            GetPartyAvgHPPercent() <= Phantom_BlueMage_OccultWhiteWind_Health)
+            GetPartyAvgHPPercent() <= Phantom_BlueMage_OccultWhiteWind_Health &&
+            PlayerHP >= Phantom_BlueMage_OccultWhiteWind_SelfHealth)
         {
             actionID = P755.BLU_OccultWhiteWind;
             return true;
@@ -477,10 +508,15 @@ internal partial class OccultCrescent
         // elemental caster in the zone then benefits from. Weave it early.
         if (CanWeaveNow)
         {
+            // Keyed to the LIVE debuff, not to what the static nameId table happens to know.
+            // Libra's tooltip says it discerns affinity "increasing the potency of elemental
+            // attacks that exploit their weaknesses" - if that +30% is gated on the debuff being
+            // applied, then skipping Libra because the table already knew the answer silently
+            // forfeited 30% for the whole party on every elemental cast. Libra is instant, 5s
+            // recast and weaveable: the cast is nearly free, the forfeit is not.
             if (IsEnabledAndUsable(Preset.Phantom_RedMage_OccultLibra, P755.RDM_OccultLibra) &&
                 HasTargetNow && InActionRange(P755.RDM_OccultLibra) &&
-                !TargetWeakTo(Weak755.FireWeakness) && !TargetWeakTo(Weak755.IceWeakness) &&
-                !TargetWeakTo(Weak755.LightningWeakness) && !TargetWeakTo(Weak755.WindWeakness))
+                !TargetHasAnyWeaknessDebuff())
             {
                 actionID = P755.RDM_OccultLibra;
                 return true;
@@ -527,6 +563,34 @@ internal partial class OccultCrescent
 
     #region Phantom Necromancer
 
+    /// <summary>
+    ///     Whether the four HP-cost line spells (Deep Freeze, Hell Wind, Chaos Drive, Doomsday)
+    ///     are worth what they cost right now.
+    ///     <para/>
+    ///     Read the tooltips carefully: "Consumes 10% of maximum HP when executed" and "Afflicts
+    ///     yourself with Doom / Duration: 10s / Effect is dispelled when HP is restored to full"
+    ///     carry NO "when under the effect of Drain Touch" qualifier. The cost is unconditional.
+    ///     Only the payoff is conditional - Drain Touch raises 300 potency to 400 (350 to 500 on
+    ///     Doomsday) and unlocks the riders that make the job worth playing: the 4s time freeze,
+    ///     the petrify chance, the paralysis, and Doomsday's enemy-buff dispel.
+    ///     <para/>
+    ///     So casting these outside the Drain Touch window is all cost and no payload, and doing
+    ///     it on repeat is how an autorotation kills you: each cast strips another 10% and
+    ///     re-arms a 10-second Doom that only a heal to FULL will clear. Three gates:
+    ///     <list type="number">
+    ///         <item>Drain Touch must be up - otherwise there is no reason to pay at all.</item>
+    ///         <item>HP must be above the user's floor, so there is headroom to heal to full and
+    ///         shed the Doom before the counter lands.</item>
+    ///         <item>Not already Doomed - re-casting refreshes the timer but takes another 10%,
+    ///         which moves full HP further away, not closer.</item>
+    ///     </list>
+    /// </summary>
+    private static bool NecromancerCostIsAffordable =>
+        HasStatusEffect(Buffs755.DrainTouch) &&
+        PlayerHP >= Phantom_Necromancer_HpFloor &&
+        !HasStatusEffect(Debuffs755.NecromancerDoom) &&
+        !HasStatusEffect(Debuffs755.NecromancerDoomLegacy);
+
     private static bool TryGetNecromancerAction(ref uint actionID)
     {
         if (!IsEnabled(Preset.Phantom_Necromancer))
@@ -549,6 +613,7 @@ internal partial class OccultCrescent
 
         if (BuffGateBlocks) return false;
         if (!HasTargetNow) return false;
+        if (!NecromancerCostIsAffordable) return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_Necromancer_Doomsday, P755.NEC_Doomsday) &&
             InActionRange(P755.NEC_Doomsday))

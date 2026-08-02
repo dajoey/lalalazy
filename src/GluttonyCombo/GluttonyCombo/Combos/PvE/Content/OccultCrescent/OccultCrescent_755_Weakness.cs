@@ -1,4 +1,4 @@
-#region Dependencies
+﻿#region Dependencies
 
 using System.Collections.Generic;
 using GluttonyCombo.Extensions;
@@ -92,6 +92,24 @@ internal partial class OccultCrescent
         return flag != 0 &&
                Weak755.ByNameId.TryGetValue(target.GetNameId(), out byte known) &&
                (known & flag) != 0;
+    }
+
+    /// <summary>
+    ///     Whether the target is carrying a LIVE elemental weakness debuff, ignoring the static
+    ///     nameId table entirely. This is deliberately NOT <see cref="TargetWeakTo"/>: that answers
+    ///     "do we believe this mob is weak to X", which is the right question for choosing a spell.
+    ///     This answers "has the weakness actually been revealed on it", which is the right
+    ///     question for deciding whether Occult Libra still has work to do.
+    /// </summary>
+    private static bool TargetHasAnyWeaknessDebuff()
+    {
+        if (CurrentTarget is not { } target)
+            return false;
+
+        return HasStatusEffect(Weak755.FireWeakness, target, anyOwner: true) ||
+               HasStatusEffect(Weak755.IceWeakness, target, anyOwner: true) ||
+               HasStatusEffect(Weak755.LightningWeakness, target, anyOwner: true) ||
+               HasStatusEffect(Weak755.WindWeakness, target, anyOwner: true);
     }
 
     /// <summary>

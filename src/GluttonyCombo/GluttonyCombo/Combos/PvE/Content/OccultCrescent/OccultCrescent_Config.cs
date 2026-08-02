@@ -156,6 +156,17 @@ internal partial class OccultCrescent
                 case Preset.Phantom_BlueMage_OccultWhiteWind:
                     DrawSliderInt(1, 100, Phantom_BlueMage_OccultWhiteWind_Health,
                         Generics.StopFriendlyHpPercent100, 200);
+                    DrawSliderInt(1, 100, Phantom_BlueMage_OccultWhiteWind_SelfHealth,
+                        "Only cast at or above this much of your OWN HP (it heals for your current HP)", 300);
+                    break;
+
+                case Preset.Phantom_Necromancer_DrainTouch:
+                    ImGui.Indent();
+                    ImGuiEx.TextWrapped(ImGuiColors.DalamudYellow,
+                        "Deep Freeze, Hell Wind, Chaos Drive and Doomsday each consume 10% of your maximum HP and inflict Doom on you for 10s, whether or not Drain Touch is active. Doom is only removed by healing to FULL. They are therefore only cast inside the Drain Touch window, where they also gain potency and their rider effects.");
+                    ImGui.Unindent();
+                    DrawSliderInt(1, 100, Phantom_Necromancer_HpFloor,
+                        "Minimum own HP% before spending HP on a Necromancer line spell", 300);
                     break;
                 case Preset.Phantom_RedMage_OccultCureII:
                     DrawSliderInt(1, 100, Phantom_RedMage_OccultCureII_Health,
@@ -200,6 +211,8 @@ internal partial class OccultCrescent
             Phantom_Summoner_EarthenWall_Health = new("Phantom_Summoner_EarthenWall_Health", 60),
             Phantom_BlueMage_OccultMightyGuard_Health = new("Phantom_BlueMage_OccultMightyGuard_Health", 60),
             Phantom_BlueMage_OccultWhiteWind_Health = new("Phantom_BlueMage_OccultWhiteWind_Health", 60),
+            Phantom_BlueMage_OccultWhiteWind_SelfHealth = new("Phantom_BlueMage_OccultWhiteWind_SelfHealth", 85),
+            Phantom_Necromancer_HpFloor = new("Phantom_Necromancer_HpFloor", 50),
             Phantom_RedMage_OccultCureII_Health = new("Phantom_RedMage_OccultCureII_Health", 60);
 
         public static UserBool

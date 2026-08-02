@@ -1,4 +1,56 @@
-﻿## v1.0.4.101 (2026-08-02) [testing]
+﻿## v1.0.4.102 (2026-08-02) [testing]
+
+### Fixed
+- **Phantom Necromancer was paying the whole cost of its line spells and collecting none of
+  the payoff, and could kill you doing it.** Deep Freeze, Hell Wind, Chaos Drive and Doomsday
+  each consume 10% of maximum HP and self-apply Doom for 10s - and those two tooltip lines
+  carry *no* "when under the effect of Drain Touch" qualifier, unlike the riders. Only the
+  reward is conditional: Drain Touch lifts 300 potency to 400 (350 to 500 on Doomsday) and
+  unlocks the 4s time freeze, the petrify chance, the paralysis and Doomsday's enemy-buff
+  dispel. `TryGetNecromancerAction` had no Drain Touch check and no HP floor, so it cast all
+  four on cooldown: 10% of your HP per cast, a 10-second Doom re-armed each time, and Doom
+  clears only on a heal to *full*. New `NecromancerCostIsAffordable` gate requires the Drain
+  Touch buff, an HP floor (new `Phantom_Necromancer_HpFloor` slider, default 50%), and that
+  you are not already Doomed - recasting refreshes the counter but takes another 10%, moving
+  full HP further away rather than closer. Doom status `5473` verified against the live sheet
+  ("Certain death when counter reaches zero. Effect dissipates once fully healed."); legacy
+  row `1769` checked defensively.
+- **Phantom Blue Mage fired Occult White Wind exactly when it healed least.** White Wind
+  restores an amount equal to the caster's *current* HP, so it is strongest at full and close
+  to worthless when low. The gate was party average HP alone - but whatever hurt the party
+  usually hurt the caster too, so it triggered at the bottom of its own scaling curve. Now
+  also requires the caster's own HP to be at or above a new
+  `Phantom_BlueMage_OccultWhiteWind_SelfHealth` slider (default 85%), making it the proactive
+  top-up it is designed to be rather than an emergency button.
+- **Phantom Red Mage skipped Occult Libra whenever the static nameId table already knew the
+  weakness.** Libra's tooltip is "Discern the elemental affinity of enemies, *increasing the
+  potency* of elemental attacks that exploit their weaknesses" - if that +30% is gated on the
+  debuff actually being applied, then trusting table knowledge instead silently forfeited 30%
+  for the entire party on every elemental cast. Libra is instant, 5s recast and weaveable, so
+  the cast is nearly free and the forfeit is not. New `TargetHasAnyWeaknessDebuff()` keys the
+  decision to the live debuff; `TargetWeakTo()` keeps using the table, which is still the
+  right question when *choosing* a spell.
+
+### Changed
+- **Phantom Ninja: Fuma Shuriken now leads on a single target.** Fuma is 230 flat, the scrolls
+  are 150 (195 against a matching weakness), so Fuma wins on one target even when the weakness
+  lands and only loses once the scrolls' 5y splash catches a second mob. Ordering is now
+  decided by `NumberOfEnemiesInRange`; the scrolls still lead at 2+.
+- **Phantom Black Mage: the elemental trio now leads over Occult Flare.** A matched weakness is
+  520 against Flare's 500. The trio (40s shared) and Flare (60s) are on separate recasts, so
+  nothing is lost - Flare still fires, just a GCD later - and with no weakness known the trio
+  self-skips through `WeaknessGate` and Flare leads exactly as before.
+
+### Notes
+- Reviewed against verbatim 7.55 tooltips and confirmed correct, no change needed: Summoner's
+  Thunderstorm-is-wind gate, every shared-recast priority chain, Occult Toad sitting ahead of
+  the damage buff gate, Occult Raise, and the Ninja/White Mage defensive set.
+- Left deliberately as-is: Earthen Wall (10s), Occult Blink and Occult Jump (2s) are all
+  pre-emptive tools used reactively on low HP. They are meant to be pre-planted into a known
+  incoming hit, which an autorotation cannot see coming; reactive use is the honest compromise
+  rather than a bug.
+
+## v1.0.4.101 (2026-08-02) [testing]
 
 ### Changed
 - **`/gluttony buff` now leads with Phantom Freelancer's Inquiring Mind, collapsing four
