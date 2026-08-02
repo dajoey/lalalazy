@@ -1,4 +1,30 @@
-﻿## v1.0.4.106 (2026-08-02) [testing]
+﻿## v1.0.4.107 (2026-08-02) [testing]
+
+### Fixed
+- **Phantom healing lost to phantom damage on every job, at any HP.** `TryGetPhantomAction()`
+  dispatches strictly by job - sixteen pre-7.55 handlers, then the eight 7.55 ones - and the
+  first handler holding an enabled, slotted, ready action wins outright. Nothing below it is
+  evaluated. Priority was therefore a function of job order, not urgency: Phantom Ninja's Fuma
+  Shuriken outranked Phantom Red Mage's Occult Cure II regardless of HP, and all four 7.55
+  cures sat behind all sixteen pre-7.55 handlers, so a single slotted pre-7.55 damage button
+  suppressed 7.55 healing permanently. The HP sliders were always being honoured - the heal
+  never got asked.
+  New `TryGetPhantomHealAction()` runs ahead of all damage dispatch, covering Occult Heal
+  (Knight), Occult Chakra (Monk), Occult Unicorn (Ranger), Blessing (Oracle), Occult
+  Resuscitation (Freelancer), Occult Potion + Occult Elixir (Chemist), Sunbath (Geomancer),
+  Occult Cure II/III (Phantom WHM), Occult Cure II (Phantom RDM) and Occult White Wind
+  (Phantom BLU). oGCD heals are checked in the weave window first, then GCD heals, self before
+  party, with the party-wide elixir last.
+  Every condition is a verbatim copy of the one in its owning job handler - same parent preset,
+  same child preset, same slider, same weave gating - so this cannot fire anything that would
+  not have fired before. It only lets a heal win a race it was previously losing. The originals
+  are left in place and become unreachable once a heal wins here.
+
+### Notes
+- Reported by Joey: damaged, sliders configured, phantom cure never used. Follow-up to the
+  v1.0.4.106 instant-cast-proc fix, which was a real bug but not the one causing this.
+
+## v1.0.4.106 (2026-08-02) [testing]
 
 ### Fixed
 - **Phantom healing never fired on jobs that hold an instant-cast proc.** v1.0.4.103 added

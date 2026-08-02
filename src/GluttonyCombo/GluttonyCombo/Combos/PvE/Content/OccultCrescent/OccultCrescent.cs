@@ -20,6 +20,10 @@ internal partial class OccultCrescent
         if (!IsInOccult)
             return false;
 
+        // Emergency healing outranks every damage button, on every phantom job. See
+        // TryGetPhantomHealAction() for why this cannot be left to dispatch order.
+        if (TryGetPhantomHealAction(ref actionID)) return true;
+
         if (TryGetFreelancerAction(ref actionID)) return true;
         if (TryGetKnightAction(ref actionID)) return true;
         if (TryGetMonkAction(ref actionID)) return true;
@@ -39,6 +43,139 @@ internal partial class OccultCrescent
 
         // 7.55 phantom jobs (stopgap -- see OccultCrescent_755.cs)
         if (TryGet755Action(ref actionID)) return true;
+
+        return false;
+    }
+
+    /// <summary>
+    ///     Healing pass, run BEFORE any phantom damage dispatch.
+    ///     <para/>
+    ///     <see cref="TryGetPhantomAction" /> dispatches strictly by job, in a fixed order:
+    ///     sixteen pre-7.55 handlers and then the eight 7.55 ones. The first handler holding an
+    ///     enabled, slotted, ready action wins outright and nothing below it is ever evaluated.
+    ///     That made priority a function of job order rather than urgency - Phantom Ninja's Fuma
+    ///     Shuriken outranked Phantom Red Mage's Occult Cure II at any HP, and all four 7.55
+    ///     cures sat behind every one of the sixteen pre-7.55 handlers. The user's HP slider was
+    ///     always being honoured; the heal simply never got asked while a damage action upstream
+    ///     kept answering first.
+    ///     <para/>
+    ///     Every condition below is a verbatim copy of the one in its owning job handler - same
+    ///     parent preset, same child preset, same slider, same weave gating - so this pass can
+    ///     never fire something that would not have fired anyway. It only lets a heal win a race
+    ///     it was previously losing. The originals stay in place: once a heal wins here the copy
+    ///     downstream is unreachable, and when no heal is due both copies decline identically.
+    /// </summary>
+    private static bool TryGetPhantomHealAction(ref uint actionID)
+    {
+        // oGCD heals first. These cost a weave slot rather than a GCD, so they are strictly
+        // cheaper than anything below and should never lose a GCD to a cast.
+        if (CanWeaveNow)
+        {
+            if (IsEnabled(Preset.Phantom_Knight) &&
+                IsEnabledAndUsable(Preset.Phantom_Knight_OccultHeal, OccultHeal) &&
+                PlayerHP <= Phantom_Knight_OccultHeal_Health && PlayerMP >= 5000)
+            {
+                actionID = OccultHeal;
+                return true;
+            }
+
+            if (IsEnabled(Preset.Phantom_Monk) &&
+                IsEnabledAndUsable(Preset.Phantom_Monk_OccultChakra, OccultChakra) &&
+                PlayerHP <= Phantom_Monk_OccultChakra_Health)
+            {
+                actionID = OccultChakra;
+                return true;
+            }
+
+            if (IsEnabled(Preset.Phantom_Ranger) &&
+                IsEnabledAndUsable(Preset.Phantom_Ranger_OccultUnicorn, OccultUnicorn) &&
+                !HasStatusEffect(Buffs.OccultUnicorn, anyOwner: true) &&
+                PlayerHP <= Phantom_Ranger_OccultUnicorn_Health)
+            {
+                actionID = OccultUnicorn;
+                return true;
+            }
+
+            if (IsEnabled(Preset.Phantom_Oracle) &&
+                IsEnabledAndUsable(Preset.Phantom_Oracle_Blessing, Blessing) &&
+                HasStatusEffect(Buffs.PredictionOfBlessing) &&
+                PlayerHP <= Phantom_Oracle_Blessing_Health)
+            {
+                actionID = Blessing;
+                return true;
+            }
+
+            return false;
+        }
+
+        // GCD heals. Self-targeted emergencies before party-wide ones.
+        if (IsEnabled(Preset.Phantom_Freelancer) &&
+            IsEnabledAndUsable(Preset.Phantom_Freelancer_OccultResuscitation, OccultResuscitation) &&
+            PlayerHP <= Phantom_Freelancer_Resuscitation_Health)
+        {
+            actionID = OccultResuscitation;
+            return true;
+        }
+
+        if (IsEnabled(Preset.Phantom_Chemist) &&
+            IsEnabledAndUsable(Preset.Phantom_Chemist_OccultPotion, OccultPotion) &&
+            PlayerHP <= Phantom_Chemist_OccultPotion_Health)
+        {
+            actionID = OccultPotion;
+            return true;
+        }
+
+        if (IsEnabled(Preset.Phantom_Geomancer) && IsEnabled(Preset.Phantom_Geomancer_Weather) &&
+            IsEnabledAndUsable(Preset.Phantom_Geomancer_Sunbath, Sunbath) &&
+            PlayerHP <= Phantom_Geomancer_Sunbath_Health)
+        {
+            actionID = Sunbath;
+            return true;
+        }
+
+        if (IsEnabled(Preset.Phantom_WhiteMage))
+        {
+            if (IsEnabledAndUsable(Preset.Phantom_WhiteMage_OccultCureII, P755.WHM_OccultCureII) &&
+                PlayerHP <= Phantom_WhiteMage_OccultCureII_Health)
+            {
+                actionID = P755.WHM_OccultCureII;
+                return true;
+            }
+
+            if (IsEnabledAndUsable(Preset.Phantom_WhiteMage_OccultCureIII, P755.WHM_OccultCureIII) &&
+                IsInParty() && GetPartyAvgHPPercent() <= Phantom_WhiteMage_OccultCureIII_Health)
+            {
+                actionID = P755.WHM_OccultCureIII;
+                return true;
+            }
+        }
+
+        if (IsEnabled(Preset.Phantom_RedMage) &&
+            IsEnabledAndUsable(Preset.Phantom_RedMage_OccultCureII, P755.RDM_OccultCureII) &&
+            PlayerHP <= Phantom_RedMage_OccultCureII_Health)
+        {
+            actionID = P755.RDM_OccultCureII;
+            return true;
+        }
+
+        if (IsEnabled(Preset.Phantom_BlueMage) &&
+            IsEnabledAndUsable(Preset.Phantom_BlueMage_OccultWhiteWind, P755.BLU_OccultWhiteWind) &&
+            GetPartyAvgHPPercent() <= Phantom_BlueMage_OccultWhiteWind_Health &&
+            PlayerHP >= Phantom_BlueMage_OccultWhiteWind_SelfHealth)
+        {
+            actionID = P755.BLU_OccultWhiteWind;
+            return true;
+        }
+
+        // Party-wide elixir last: biggest cooldown in the set and the least reversible.
+        if (IsEnabled(Preset.Phantom_Chemist) &&
+            IsEnabledAndUsable(Preset.Phantom_Chemist_OccultElixir, OccultElixir) &&
+            GetPartyAvgHPPercent() <= Phantom_Chemist_OccultElixir_HP && InCombatNow &&
+            (!Phantom_Chemist_OccultElixir_RequireParty || IsInParty()))
+        {
+            actionID = OccultElixir;
+            return true;
+        }
 
         return false;
     }
