@@ -157,6 +157,42 @@ internal partial class OccultCrescent
     ///     properly. <see cref="IsEnabledAndUsable" /> already covers preset, equipped and
     ///     ready, so anything on cooldown simply is not yielded.
     /// </summary>
+    /// <summary>
+    ///     Per-cure gate breakdown, for when <see cref="EnumerateHealOptions" /> comes back empty
+    ///     while somebody needs healing. Reports each gate separately - preset, slotted, ready -
+    ///     because "no cure available" on its own does not say whether a preset is off, the
+    ///     action is not on the Occult bar, or everything is simply on cooldown.
+    /// </summary>
+    internal static List<string> DescribeHealGates()
+    {
+        var rows = new List<string>
+        {
+            $"inOccult={IsInOccult} hp={PlayerHP:F0}% mp={PlayerMP} weave={CanWeaveNow} " +
+            $"slots=[{Action1},{Action2},{Action3},{Action4},{Action5}]",
+        };
+
+        void Row(string label, Preset parent, Preset child, uint act)
+        {
+            rows.Add($"  {label,-22} id={act,-6} parent={IsEnabled(parent),-5} child={IsEnabled(child),-5} " +
+                     $"slotted={HasActionEquipped(act),-5} ready={ActionReady(act),-5}");
+        }
+
+        Row("Knight_OccultHeal", Preset.Phantom_Knight, Preset.Phantom_Knight_OccultHeal, OccultHeal);
+        Row("Monk_OccultChakra", Preset.Phantom_Monk, Preset.Phantom_Monk_OccultChakra, OccultChakra);
+        Row("Ranger_OccultUnicorn", Preset.Phantom_Ranger, Preset.Phantom_Ranger_OccultUnicorn, OccultUnicorn);
+        Row("Oracle_Blessing", Preset.Phantom_Oracle, Preset.Phantom_Oracle_Blessing, Blessing);
+        Row("Freelancer_Resusc", Preset.Phantom_Freelancer, Preset.Phantom_Freelancer_OccultResuscitation, OccultResuscitation);
+        Row("Chemist_OccultPotion", Preset.Phantom_Chemist, Preset.Phantom_Chemist_OccultPotion, OccultPotion);
+        Row("Geomancer_Sunbath", Preset.Phantom_Geomancer, Preset.Phantom_Geomancer_Sunbath, Sunbath);
+        Row("WHM_OccultCureII", Preset.Phantom_WhiteMage, Preset.Phantom_WhiteMage_OccultCureII, P755.WHM_OccultCureII);
+        Row("WHM_OccultCureIII", Preset.Phantom_WhiteMage, Preset.Phantom_WhiteMage_OccultCureIII, P755.WHM_OccultCureIII);
+        Row("RDM_OccultCureII", Preset.Phantom_RedMage, Preset.Phantom_RedMage_OccultCureII, P755.RDM_OccultCureII);
+        Row("BLU_OccultWhiteWind", Preset.Phantom_BlueMage, Preset.Phantom_BlueMage_OccultWhiteWind, P755.BLU_OccultWhiteWind);
+        Row("Chemist_OccultElixir", Preset.Phantom_Chemist, Preset.Phantom_Chemist_OccultElixir, OccultElixir);
+
+        return rows;
+    }
+
     internal static IEnumerable<PhantomHealOption> EnumerateHealOptions()
     {
         if (!IsInOccult)

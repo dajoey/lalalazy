@@ -265,8 +265,11 @@ internal unsafe class AutoRotationController
     /// </summary>
     private static unsafe bool TryEmergencyPhantomHeal()
     {
-        if (!cfg.Enabled || !Player.Available || Player.Object.IsDead || Player.Mounted || Paused)
-            return BailPhantomHeal("disabled / unavailable / dead / mounted / paused");
+        if (!cfg.Enabled) return BailPhantomHeal("autorotation disabled");
+        if (!Player.Available) return BailPhantomHeal("player unavailable");
+        if (Player.Object.IsDead) return BailPhantomHeal("player dead");
+        if (Player.Mounted) return BailPhantomHeal("mounted");
+        if (Paused) return BailPhantomHeal("paused");
 
         if (IsOccupied())
             return BailPhantomHeal("IsOccupied");
@@ -291,7 +294,7 @@ internal unsafe class AutoRotationController
 
         var options = OccultCrescent.EnumerateHealOptions().ToList();
         if (options.Count == 0)
-            return BailPhantomHeal("no cure is enabled, slotted AND off cooldown right now");
+            return BailPhantomHeal("no cure is enabled, slotted AND off cooldown right now", dumpGates: true);
 
         var self = Player.Object;
         double selfHp = PlayerHealthPercentageHp();
@@ -377,18 +380,30 @@ internal unsafe class AutoRotationController
     ///     early return above it was previously invisible - which is exactly where the misses
     ///     turned out to be hiding.
     /// </summary>
-    private static bool BailPhantomHeal(string reason)
+    private static bool BailPhantomHeal(string reason, bool dumpGates = false)
     {
         _phantomHealHoldSince = null;
 
-        if ((DateTime.Now - _bailDiagLast).TotalSeconds >= 5 && AnyHurtPartyMember())
+        // Report whenever ANYONE needs healing - the caster included. The previous version only
+        // considered other party members, which is exactly backwards when the person going
+        // unhealed is the player.
+        if ((DateTime.Now - _bailDiagLast).TotalSeconds >= 5 && SomeoneNeedsHealing())
         {
             _bailDiagLast = DateTime.Now;
-            Svc.Log.Information($"[AllyHealDiag] BAILED before selection: {reason}");
+            Svc.Log.Information(
+                $"[AllyHealDiag] BAILED before selection: {reason} | selfHp={PlayerHealthPercentageHp():F0}%");
+
+            if (dumpGates)
+                foreach (var row in OccultCrescent.DescribeHealGates())
+                    Svc.Log.Information($"[AllyHealDiag] {row}");
         }
 
         return false;
     }
+
+    /// <summary>Whether the caster or any party member is meaningfully hurt.</summary>
+    private static bool SomeoneNeedsHealing() =>
+        (Player.Available && PlayerHealthPercentageHp() <= 85) || AnyHurtPartyMember();
 
     /// <summary>Whether any party member other than the caster is meaningfully hurt.</summary>
     private static bool AnyHurtPartyMember()
@@ -439,7 +454,7 @@ internal unsafe class AutoRotationController
             $"| warranted={warranted} | holdActive={_phantomHealHoldSince is not null} " +
             $"| holdBlocked={DateTime.Now < _phantomHealHoldBlockedUntil} " +
             $"| remainingGCD={RemainingGCD:F2} animLock={AnimationLock:F2} timeMoving={TimeMoving.TotalMilliseconds:F0}ms " +
-            $"| sinceLastCure={(DateTime.Now - _phantomHealLastFired).TotalSeconds:F1}s");
+            $"| sinceLastCure={(_phantomHealLastFired == DateTime.MinValue ? "never" : $"{(DateTime.Now - _phantomHealLastFired).TotalSeconds:F1}s")}");
 
         uint probe = allyOpts.Count > 0 ? allyOpts[0].Action : 0;
 

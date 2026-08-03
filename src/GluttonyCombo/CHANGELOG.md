@@ -1,4 +1,25 @@
-﻿## v1.0.4.121 (2026-08-02) [testing]
+﻿## v1.0.4.122 (2026-08-02) [testing]
+
+### Added
+- **Per-cure gate breakdown when no cure is available.** Seven consecutive
+  "no cure is enabled, slotted AND off cooldown right now" bails were logged across 30 seconds
+  with somebody needing healing, and the message could not say which gate failed.
+  `OccultCrescent.DescribeHealGates()` now dumps, for all twelve cures, the parent preset, child
+  preset, `HasActionEquipped` and `ActionReady` individually - plus `inOccult`, HP, MP, weave
+  state and the five duty-action slot ids. Note that MP is **not** a gate here (only Knight's
+  Occult Heal checks it), so running dry cannot empty the list; that surfaces later as
+  `CanUseActionOnTarget = false`. The prime suspect is `IsInOccult`, whose fallback clause
+  depends on field-operation allow-lists that have historically excluded North Horn.
+- **Bails now report `selfHp`,** and fire when *anyone* needs healing including the caster. The
+  previous check only looked at other party members - backwards when the person going unhealed
+  is the player.
+- **The five-way compound bail is split** into autorotation disabled / player unavailable /
+  player dead / mounted / paused, which were previously indistinguishable.
+
+### Fixed
+- `sinceLastCure` printed a nonsense value when no cure had fired yet; it now reads `never`.
+
+## v1.0.4.121 (2026-08-02) [testing]
 
 ### Added
 - **`[AllyHealDiag]` now reports early bails.** The ally diagnostic added in v1.0.4.119 sits
