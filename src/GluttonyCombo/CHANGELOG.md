@@ -1,4 +1,27 @@
-﻿## v1.0.4.117 (2026-08-02) [testing]
+﻿## v1.0.4.118 (2026-08-02) [testing]
+
+### Fixed
+- **AoE cures measured the wrong radius.** `CountHurtInRange` filtered party members with
+  `GetTargetDistance(chara) > action.ActionRange()`. For a cure centred on the caster the
+  *targeting* range is 0 - the 15y area is the action's EFFECT range - so every party member was
+  excluded and only the caster could ever be counted. Now uses `GetActionEffectRange()`, and a
+  zero radius is treated as unknown and left unfiltered rather than silently excluding everyone.
+
+### Changed
+- **One critically hurt party member now justifies an AoE cure on its own.** Previously an AoE
+  needed `PhantomHealAoECount` (2) people at or below its threshold, so a single member at 20%
+  fell through to the single-target cures - and if none was slotted, all were on cooldown, or
+  the target was outside Occult Cure II's 30y range, nothing happened at all. An AoE cure now
+  also fires when the worst party member inside its radius is at or below
+  `PhantomHealCriticalHp` (40%).
+
+### Notes
+- Heal targeting remains **party members only**, deliberately. Rez continues to cover anyone.
+- Remaining reasons a hurt party member can still be skipped, all genuine rather than bugs:
+  Occult Cure II is on cooldown or not slotted, they are beyond its 30y range, they are outside
+  the 15y radius of the AoE cures, they hold a do-not-heal status, or line of sight is broken.
+
+## v1.0.4.117 (2026-08-02) [testing]
 
 ### Fixed
 - **The phantom rez never fired.** Occult Raise (Phantom White Mage) existed only in the combo

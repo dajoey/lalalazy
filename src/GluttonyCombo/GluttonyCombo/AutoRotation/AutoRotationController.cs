@@ -223,6 +223,9 @@ internal unsafe class AutoRotationController
     /// <summary>Party members counted as hurt before an AoE cure is preferred to a single target.</summary>
     private const int PhantomHealAoECount = 2;
 
+    /// <summary>HP% at which one person alone justifies spending an AoE cure.</summary>
+    private const double PhantomHealCriticalHp = 40.0;
+
     /// <summary>
     ///     True when the action being cast is one the rotation itself would have fired - i.e.
     ///     something aimed at an enemy. Anything else is a Teleport, a Return, a raise, a Limit
@@ -316,7 +319,14 @@ internal unsafe class AutoRotationController
         foreach (var o in options)
         {
             if (o.Scope != OccultCrescent.PhantomHealScope.PartyWide) continue;
-            if (CountHurtInRange(o.Action, o.Threshold, selfHp, selfOk) < PhantomHealAoECount) continue;
+
+            // Normally an AoE is only worth a GCD once a couple of people need it. But one
+            // person about to die is worth it on its own - and it is the only option that
+            // reaches someone the single-target cures cannot, whether because none is slotted,
+            // one is on cooldown, or they are outside its 30y targeting range.
+            int hurt = CountHurtInRange(o.Action, o.Threshold, selfHp, selfOk, out double worstInRange);
+            if (hurt < PhantomHealAoECount && worstInRange > PhantomHealCriticalHp) continue;
+            if (hurt == 0) continue;
             if (TryFirePhantomHeal(o.Action, self, ref warranted)) return ReleaseHold();
         }
 
@@ -377,9 +387,22 @@ internal unsafe class AutoRotationController
     ///     would actually reach. Range is checked against the action itself, so a party scattered
     ///     across the zone cannot trigger it.
     /// </summary>
-    private static unsafe int CountHurtInRange(uint action, double threshold, double selfHp, bool selfOk)
+    private static unsafe int CountHurtInRange(uint action, double threshold, double selfHp, bool selfOk, out double worstHp)
     {
-        int n = selfOk && selfHp <= threshold ? 1 : 0;
+        // Party-wide cures are AoEs centred on the caster, so the radius that matters is the
+        // action's EFFECT range, not its targeting range - the latter is 0 for a self-centred
+        // AoE and would exclude the entire party. A zero radius is treated as unknown and left
+        // unfiltered rather than silently excluding everyone.
+        float radius = GetActionEffectRange(action);
+
+        worstHp = double.MaxValue;
+        int n = 0;
+
+        if (selfOk && selfHp <= threshold)
+        {
+            n++;
+            worstHp = selfHp;
+        }
 
         foreach (var member in GetPartyMembers())
         {
@@ -387,10 +410,14 @@ internal unsafe class AutoRotationController
             if (chara is null || chara.IsDead || !chara.IsTargetable) continue;
             if (Player.Available && chara.GameObjectId == Player.Object.GameObjectId) continue;
             if (chara.StatusList.Any(st => StatusCache.DoNotHealStatuses.Contains(st.StatusId))) continue;
-            if (GetTargetHPPercent(chara) > threshold) continue;
-            if (GetTargetDistance(chara) > action.ActionRange()) continue;
+
+            double hp = GetTargetHPPercent(chara);
+            if (hp > threshold) continue;
+            if (radius > 0 && GetTargetDistance(chara) > radius) continue;
             if (!IsInLineOfSight(chara)) continue;
+
             n++;
+            if (hp < worstHp) worstHp = hp;
         }
 
         return n;
