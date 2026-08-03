@@ -567,9 +567,6 @@ internal unsafe class AutoRotationController
     /// </summary>
     private static unsafe bool TryFirePhantomHeal(uint act, IGameObject target, ref bool warranted)
     {
-        if (!ActionReady(act))
-            return false;
-
         var attackType = act.ActionAttackType();
 
         if (attackType is ActionAttackType.Spell && HasStatusEffect(All.Debuffs.Silence))
@@ -591,6 +588,12 @@ internal unsafe class AutoRotationController
         // movement costs the damage instants that would otherwise fire while kiting, which is
         // the right trade for a heal, and the hold is still capped and rate-limited.
         warranted = true;
+
+        // Cooldown is a timing block like any other, and for a GCD cure it is THE timing block:
+        // the global cooldown leaves it unready for most of every GCD. Checking it before
+        // registering intent is what stopped the hold from ever engaging.
+        if (!ActionReady(act))
+            return false;
 
         if (attackType is ActionAttackType.Ability)
         {

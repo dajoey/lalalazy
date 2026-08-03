@@ -158,6 +158,23 @@ internal partial class OccultCrescent
     ///     ready, so anything on cooldown simply is not yielded.
     /// </summary>
     /// <summary>
+    ///     Whether an action occupies one of the five Occult action slots, WITHOUT regard to
+    ///     cooldown. <see cref="HasActionEquipped" /> also requires <c>HasCharges</c>, which is
+    ///     false while an action is recharging - and every GCD cure is "recharging" for most of
+    ///     every global cooldown. Using it to decide whether a cure EXISTS made the whole option
+    ///     set vanish between GCDs, so the scheduler bailed before it could register intent and
+    ///     hold the slot. Availability and readiness are separate questions; they are now asked
+    ///     separately.
+    /// </summary>
+    internal static bool IsSlotted(uint action) =>
+        Action1 == action || Action2 == action || Action3 == action ||
+        Action4 == action || Action5 == action;
+
+    /// <summary>Preset enabled and the action present on the Occult bar. Ignores cooldown.</summary>
+    internal static bool IsEnabledAndSlotted(Preset preset, uint action) =>
+        IsEnabled(preset) && IsSlotted(action);
+
+    /// <summary>
     ///     Per-cure gate breakdown, for when <see cref="EnumerateHealOptions" /> comes back empty
     ///     while somebody needs healing. Reports each gate separately - preset, slotted, ready -
     ///     because "no cure available" on its own does not say whether a preset is off, the
@@ -174,7 +191,7 @@ internal partial class OccultCrescent
         void Row(string label, Preset parent, Preset child, uint act)
         {
             rows.Add($"  {label,-22} id={act,-6} parent={IsEnabled(parent),-5} child={IsEnabled(child),-5} " +
-                     $"slotted={HasActionEquipped(act),-5} ready={ActionReady(act),-5}");
+                     $"slotted={IsSlotted(act),-5} ready={ActionReady(act),-5} charges={HasCharges(act),-5}");
         }
 
         Row("Knight_OccultHeal", Preset.Phantom_Knight, Preset.Phantom_Knight_OccultHeal, OccultHeal);
@@ -200,58 +217,58 @@ internal partial class OccultCrescent
 
         // ---- oGCD self heals: cost a weave slot, never a GCD ----
         if (IsEnabled(Preset.Phantom_Knight) &&
-            IsEnabledAndUsable(Preset.Phantom_Knight_OccultHeal, OccultHeal) && PlayerMP >= 5000)
+            IsEnabledAndSlotted(Preset.Phantom_Knight_OccultHeal, OccultHeal) && PlayerMP >= 5000)
             yield return new PhantomHealOption(OccultHeal, Phantom_Knight_OccultHeal_Health, PhantomHealScope.SelfOnly, true);
 
         if (IsEnabled(Preset.Phantom_Monk) &&
-            IsEnabledAndUsable(Preset.Phantom_Monk_OccultChakra, OccultChakra))
+            IsEnabledAndSlotted(Preset.Phantom_Monk_OccultChakra, OccultChakra))
             yield return new PhantomHealOption(OccultChakra, Phantom_Monk_OccultChakra_Health, PhantomHealScope.SelfOnly, true);
 
         if (IsEnabled(Preset.Phantom_Ranger) &&
-            IsEnabledAndUsable(Preset.Phantom_Ranger_OccultUnicorn, OccultUnicorn) &&
+            IsEnabledAndSlotted(Preset.Phantom_Ranger_OccultUnicorn, OccultUnicorn) &&
             !HasStatusEffect(Buffs.OccultUnicorn, anyOwner: true))
             yield return new PhantomHealOption(OccultUnicorn, Phantom_Ranger_OccultUnicorn_Health, PhantomHealScope.SelfOnly, true);
 
         if (IsEnabled(Preset.Phantom_Oracle) &&
-            IsEnabledAndUsable(Preset.Phantom_Oracle_Blessing, Blessing) &&
+            IsEnabledAndSlotted(Preset.Phantom_Oracle_Blessing, Blessing) &&
             HasStatusEffect(Buffs.PredictionOfBlessing))
             yield return new PhantomHealOption(Blessing, Phantom_Oracle_Blessing_Health, PhantomHealScope.SelfOnly, true);
 
         // ---- GCD self heals ----
         if (IsEnabled(Preset.Phantom_Freelancer) &&
-            IsEnabledAndUsable(Preset.Phantom_Freelancer_OccultResuscitation, OccultResuscitation))
+            IsEnabledAndSlotted(Preset.Phantom_Freelancer_OccultResuscitation, OccultResuscitation))
             yield return new PhantomHealOption(OccultResuscitation, Phantom_Freelancer_Resuscitation_Health, PhantomHealScope.SelfOnly, false);
 
         if (IsEnabled(Preset.Phantom_Chemist) &&
-            IsEnabledAndUsable(Preset.Phantom_Chemist_OccultPotion, OccultPotion))
+            IsEnabledAndSlotted(Preset.Phantom_Chemist_OccultPotion, OccultPotion))
             yield return new PhantomHealOption(OccultPotion, Phantom_Chemist_OccultPotion_Health, PhantomHealScope.SelfOnly, false);
 
         if (IsEnabled(Preset.Phantom_Geomancer) && IsEnabled(Preset.Phantom_Geomancer_Weather) &&
-            IsEnabledAndUsable(Preset.Phantom_Geomancer_Sunbath, Sunbath))
+            IsEnabledAndSlotted(Preset.Phantom_Geomancer_Sunbath, Sunbath))
             yield return new PhantomHealOption(Sunbath, Phantom_Geomancer_Sunbath_Health, PhantomHealScope.SelfOnly, false);
 
         // ---- targeted cures: caster OR any party member ----
         if (IsEnabled(Preset.Phantom_WhiteMage) &&
-            IsEnabledAndUsable(Preset.Phantom_WhiteMage_OccultCureII, P755.WHM_OccultCureII))
+            IsEnabledAndSlotted(Preset.Phantom_WhiteMage_OccultCureII, P755.WHM_OccultCureII))
             yield return new PhantomHealOption(P755.WHM_OccultCureII, Phantom_WhiteMage_OccultCureII_Health, PhantomHealScope.AnyAlly, false);
 
         if (IsEnabled(Preset.Phantom_RedMage) &&
-            IsEnabledAndUsable(Preset.Phantom_RedMage_OccultCureII, P755.RDM_OccultCureII))
+            IsEnabledAndSlotted(Preset.Phantom_RedMage_OccultCureII, P755.RDM_OccultCureII))
             yield return new PhantomHealOption(P755.RDM_OccultCureII, Phantom_RedMage_OccultCureII_Health, PhantomHealScope.AnyAlly, false);
 
         // ---- party-wide AoE, centred on the caster ----
         if (IsEnabled(Preset.Phantom_WhiteMage) &&
-            IsEnabledAndUsable(Preset.Phantom_WhiteMage_OccultCureIII, P755.WHM_OccultCureIII) && IsInParty())
+            IsEnabledAndSlotted(Preset.Phantom_WhiteMage_OccultCureIII, P755.WHM_OccultCureIII) && IsInParty())
             yield return new PhantomHealOption(P755.WHM_OccultCureIII, Phantom_WhiteMage_OccultCureIII_Health, PhantomHealScope.PartyWide, false);
 
         // White Wind heals for the caster's CURRENT HP, so it is worthless when we are low.
         if (IsEnabled(Preset.Phantom_BlueMage) &&
-            IsEnabledAndUsable(Preset.Phantom_BlueMage_OccultWhiteWind, P755.BLU_OccultWhiteWind) &&
+            IsEnabledAndSlotted(Preset.Phantom_BlueMage_OccultWhiteWind, P755.BLU_OccultWhiteWind) &&
             PlayerHP >= Phantom_BlueMage_OccultWhiteWind_SelfHealth)
             yield return new PhantomHealOption(P755.BLU_OccultWhiteWind, Phantom_BlueMage_OccultWhiteWind_Health, PhantomHealScope.PartyWide, false);
 
         if (IsEnabled(Preset.Phantom_Chemist) &&
-            IsEnabledAndUsable(Preset.Phantom_Chemist_OccultElixir, OccultElixir) && InCombatNow &&
+            IsEnabledAndSlotted(Preset.Phantom_Chemist_OccultElixir, OccultElixir) && InCombatNow &&
             (!Phantom_Chemist_OccultElixir_RequireParty || IsInParty()))
             yield return new PhantomHealOption(OccultElixir, Phantom_Chemist_OccultElixir_HP, PhantomHealScope.PartyWide, false);
     }
@@ -267,6 +284,11 @@ internal partial class OccultCrescent
     {
         foreach (var option in EnumerateHealOptions())
         {
+            // The enumerator no longer filters on cooldown, so the combo path must: returning
+            // an action that is not ready would just hand the hotbar a dead button.
+            if (!ActionReady(option.Action))
+                continue;
+
             // oGCDs only in a weave window; casts only outside one.
             if (option.IsWeave != CanWeaveNow)
                 continue;

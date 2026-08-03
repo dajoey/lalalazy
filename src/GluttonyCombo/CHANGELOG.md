@@ -1,4 +1,33 @@
-﻿## v1.0.4.122 (2026-08-02) [testing]
+﻿## v1.0.4.123 (2026-08-02) [testing]
+
+### Fixed
+- **The real cause of intermittent healing: cures vanished from consideration for most of every
+  GCD.** `EnumerateHealOptions` decided whether a cure *existed* using `IsEnabledAndUsable`,
+  which calls `HasActionEquipped`, which requires `HasCharges`:
+
+      public static bool HasCharges(uint actionID) => GetCooldown(actionID).RemainingCharges > 0;
+
+  Occult Cure II and the other GCD cures share the global cooldown, so from the moment any
+  rotation spell fires until that GCD ends they report zero charges and are treated as though
+  they were not on the bar at all. The option set came back **empty**, the scheduler bailed
+  before computing `warranted`, and the hold - whose entire job is to reserve the GCD - could
+  never engage, because the cure was invisible during exactly the window it needed to hold
+  through. Healing therefore landed only when a tick happened to fall in the narrow ready
+  window, which is precisely the "sometimes it heals, sometimes it DPSes through you at 20%"
+  behaviour.
+  Availability and readiness are now separate questions. `IsSlotted` / `IsEnabledAndSlotted`
+  answer "is this cure on the bar and enabled" without consulting cooldown, and the enumerator
+  uses those. Readiness is checked at fire time in `TryFirePhantomHeal`, *after* intent is
+  registered, so a cure waiting on the GCD now holds the slot instead of disappearing.
+
+### Notes
+- Ruled out along the way, both by Joey: `IsInOccult` (would fail 100% of the time, not
+  intermittently) and MP (never a gate in the enumerator - only Knight's Occult Heal checks it).
+- The combo/button path now filters on `ActionReady` itself, since the enumerator no longer
+  does; returning an unready action there would only produce a dead hotbar button.
+- The gate dump reports `slotted`, `ready` and `charges` separately now that they differ.
+
+## v1.0.4.122 (2026-08-02) [testing]
 
 ### Added
 - **Per-cure gate breakdown when no cure is available.** Seven consecutive
