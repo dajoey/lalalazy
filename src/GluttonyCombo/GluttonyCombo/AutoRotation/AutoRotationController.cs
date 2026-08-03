@@ -265,28 +265,25 @@ internal unsafe class AutoRotationController
     /// </summary>
     private static unsafe bool TryEmergencyPhantomHeal()
     {
-        if (!cfg.Enabled || !Player.Available || Player.Object.IsDead || Player.Mounted || Paused ||
-            IsOccupied() || PlayerHasActionPenalty(true))
-        {
-            _phantomHealHoldSince = null;
-            return false;
-        }
+        if (!cfg.Enabled || !Player.Available || Player.Object.IsDead || Player.Mounted || Paused)
+            return BailPhantomHeal("disabled / unavailable / dead / mounted / paused");
+
+        if (IsOccupied())
+            return BailPhantomHeal("IsOccupied");
+
+        if (PlayerHasActionPenalty(true))
+            return BailPhantomHeal("action penalty (Pyretic etc)");
 
         // Only ever clip our own damage. Teleport and Return are 5s casts, a raise is worth more
         // than a top-up, and a manual cast is the player's decision.
         if (Player.Object is IBattleChara { IsCasting: true } casting &&
             !IsOwnDamageCast(casting.CastActionId))
-        {
-            _phantomHealHoldSince = null;
-            return false;
-        }
+            return BailPhantomHeal($"casting a non-damage action ({casting.CastActionId.ActionName()})");
 
         // Let the previous cure land before considering another.
         if ((DateTime.Now - _phantomHealLastFired).TotalSeconds < PhantomHealRecastGuardSeconds)
-        {
-            _phantomHealHoldSince = null;
-            return false;
-        }
+            return BailPhantomHeal("recast guard - a cure went out less than " +
+                                   $"{PhantomHealRecastGuardSeconds}s ago");
 
         // Keep holding between throttle ticks, or the rotation slips through the gap.
         if (!EzThrottler.Throttle("AutorotPhantomHeal", cfg.Throttler))
@@ -294,10 +291,7 @@ internal unsafe class AutoRotationController
 
         var options = OccultCrescent.EnumerateHealOptions().ToList();
         if (options.Count == 0)
-        {
-            _phantomHealHoldSince = null;
-            return false;
-        }
+            return BailPhantomHeal("no cure is enabled, slotted AND off cooldown right now");
 
         var self = Player.Object;
         double selfHp = PlayerHealthPercentageHp();
@@ -375,6 +369,41 @@ internal unsafe class AutoRotationController
     }
 
     private static DateTime _allyDiagLast = DateTime.MinValue;
+    private static DateTime _bailDiagLast = DateTime.MinValue;
+
+    /// <summary>
+    ///     Clears the hold and returns false, reporting WHY when there is a hurt party member who
+    ///     went unhealed. The ally diagnostic sits after the four selection passes, so every
+    ///     early return above it was previously invisible - which is exactly where the misses
+    ///     turned out to be hiding.
+    /// </summary>
+    private static bool BailPhantomHeal(string reason)
+    {
+        _phantomHealHoldSince = null;
+
+        if ((DateTime.Now - _bailDiagLast).TotalSeconds >= 5 && AnyHurtPartyMember())
+        {
+            _bailDiagLast = DateTime.Now;
+            Svc.Log.Information($"[AllyHealDiag] BAILED before selection: {reason}");
+        }
+
+        return false;
+    }
+
+    /// <summary>Whether any party member other than the caster is meaningfully hurt.</summary>
+    private static bool AnyHurtPartyMember()
+    {
+        foreach (var m in GetPartyMembers())
+        {
+            var c = m.BattleChara;
+            if (c is null || c.IsDead) continue;
+            if (Player.Available && c.GameObjectId == Player.Object.GameObjectId) continue;
+            if (GetTargetHPPercent(c) <= 85) return true;
+        }
+
+        return false;
+    }
+
 
     /// <summary>
     ///     Explains, once every few seconds, why a hurt party member was not healed. Only speaks

@@ -1,4 +1,22 @@
-﻿## v1.0.4.120 (2026-08-02) [testing]
+﻿## v1.0.4.121 (2026-08-02) [testing]
+
+### Added
+- **`[AllyHealDiag]` now reports early bails.** The ally diagnostic added in v1.0.4.119 sits
+  after the four selection passes, so every early return above it was invisible - and that is
+  where the misses were hiding. Across a full session it produced only three reports, none of
+  them while stationary, despite healing being missed repeatedly.
+  Each early return now reports its reason (throttled to 5s, and only when a party member is
+  actually hurt): disabled / unavailable / dead / mounted / paused, `IsOccupied`, action penalty,
+  casting a non-damage action (with the action named), the recast guard, or - the most
+  interesting one - **no cure is enabled, slotted AND off cooldown right now**, which would
+  explain both the silence and the missing heal at the same time.
+
+### Notes
+- `EnumerateHealOptions` requires preset enabled, action slotted and action off cooldown. The
+  two logged reports showed only 1 and 2 total options available, so the set is thin; if it
+  empties, the scheduler returns before doing anything and previously said nothing about it.
+
+## v1.0.4.120 (2026-08-02) [testing]
 
 ### Fixed
 - **Party members were never healed while the player was moving, and the damage rotation took
