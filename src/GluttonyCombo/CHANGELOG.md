@@ -1,4 +1,30 @@
-﻿## v1.0.4.116 (2026-08-02) [testing]
+﻿## v1.0.4.117 (2026-08-02) [testing]
+
+### Fixed
+- **The phantom rez never fired.** Occult Raise (Phantom White Mage) existed only in the combo
+  path, where it requires the dead player to be the CURRENT TARGET:
+
+      if (IsEnabledAndUsable(Preset.Phantom_WhiteMage_OccultRaise, P755.WHM_OccultRaise) &&
+          CurrentTarget.IfCanUseOn(P755.WHM_OccultRaise).IfDead() is not null)
+
+  Under DPS autorotation the current target is an enemy, so that condition can never hold. It
+  was also absent from `RezParty()`'s spell selection, which falls through a job switch ending
+  in `_ => 0`; on any job without its own raise `resSpell` stayed 0 and `RezParty` returned
+  immediately. And the surrounding gate only ran for healers, SMN/RDM, Chemist Revive or
+  Variant - so on Black Mage the rez block was never entered in the first place.
+  Occult Raise is now first in the rez-spell selection - instant with a 5s recast, it beats
+  Chemist Revive and every job raise, none of which are instant - is cast directly on the dead
+  party member like Revive rather than through the Swiftcast path, and is included in the gate
+  so the rez block runs on any job that has it slotted.
+
+### Notes
+- Same shape as the healing bug: the capability existed but was reachable only through a path
+  that assumes a healer or a friendly current target. Chemist Revive was already wired past that
+  gate; Occult Raise was not.
+- Unchanged: `AutoRez` must be on, rez sickness (status 418) still blocks, and
+  `AutoRezDPSJobsHealersOnly` still filters who gets raised on RDM/SMN.
+
+## v1.0.4.116 (2026-08-02) [testing]
 
 ### Fixed
 - **Emergency healing interrupted a Teleport.** The scheduler cleared the queued action and

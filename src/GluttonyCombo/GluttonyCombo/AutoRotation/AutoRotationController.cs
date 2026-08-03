@@ -642,6 +642,7 @@ internal unsafe class AutoRotationController
         if (isHealer ||
             (Player.Job is Job.SMN or Job.RDM && cfg.HealerSettings.AutoRezDPSJobs) ||
             OccultCrescent.IsEnabledAndUsable(Preset.Phantom_Chemist_Revive, OccultCrescent.Revive) ||
+            OccultCrescent.IsEnabledAndUsable(Preset.Phantom_WhiteMage_OccultRaise, OccultCrescent.P755.WHM_OccultRaise) ||
             Variant.CanRaise())
         {
             if (ActionManager.Instance()->QueuedActionId == RoleActions.Healer.Esuna)
@@ -1342,7 +1343,17 @@ internal unsafe class AutoRotationController
         if (HasStatusEffect(418)) return;
         uint resSpell = 0;
 
-        if (OccultCrescent.IsEnabledAndUsable(Preset.Phantom_Chemist_Revive, OccultCrescent.Revive))
+        // Phantom White Mage's Occult Raise leads: it is instant with a 5s recast, so it beats
+        // Chemist Revive and every job raise, none of which are instant. It was previously
+        // reachable ONLY through the combo path, which requires the dead player to be the
+        // current target - impossible under DPS autorotation, where the target is an enemy. On
+        // any job without its own raise the switch below fell through to 0 and RezParty simply
+        // returned, so the phantom rez never fired.
+        if (OccultCrescent.IsEnabledAndUsable(Preset.Phantom_WhiteMage_OccultRaise, OccultCrescent.P755.WHM_OccultRaise))
+        {
+            resSpell = OccultCrescent.P755.WHM_OccultRaise;
+        }
+        else if (OccultCrescent.IsEnabledAndUsable(Preset.Phantom_Chemist_Revive, OccultCrescent.Revive))
         {
             resSpell = OccultCrescent.Revive;
         }
@@ -1384,7 +1395,7 @@ internal unsafe class AutoRotationController
 
             if (deadPeople.Where(RezQuery).FindFirst(x => x is not null, out var member))
             {
-                if (resSpell == OccultCrescent.Revive)
+                if (resSpell == OccultCrescent.Revive || resSpell == OccultCrescent.P755.WHM_OccultRaise)
                 {
                     ActionManager.Instance()->UseAction(ActionType.Action, resSpell, member.BattleChara.GameObjectId);
                     return;
