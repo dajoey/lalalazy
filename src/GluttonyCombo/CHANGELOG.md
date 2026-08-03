@@ -1,4 +1,29 @@
-﻿## v1.0.4.118 (2026-08-02) [testing]
+﻿## v1.0.4.119 (2026-08-02) [testing]
+
+### Changed
+- **Reverted the "single critical target triggers an AoE cure" behaviour from v1.0.4.118.** One
+  person at 20% is a spot heal, not a reason to spend Occult Cure III. AoE cures once again
+  require `PhantomHealAoECount` (2) party members at or below the threshold. The v1.0.4.118
+  radius correction is kept - `CountHurtInRange` still measures with `GetActionEffectRange()`
+  rather than the targeting range, which is 0 for a cure centred on the caster.
+
+### Added
+- **`[AllyHealDiag]` - names the filter that rejected an ally heal.** Ally spot-healing fails
+  intermittently and static reading cannot distinguish between the possible causes, so the
+  plugin now reports it directly rather than leaving it to be guessed at. Throttled to one
+  report every 5s, and only when a party member is actually hurt and nothing fired.
+  The summary line gives the ally-castable cures currently available with their thresholds
+  (or `NONE` if none is slotted or ready), the total option count, self HP, whether a heal was
+  warranted, hold state, remaining GCD, animation lock, time moving, and time since the last
+  cure. A following line per hurt party member gives their HP and distance and one of: no ally
+  cure available; not targetable; carries a do-not-heal status; above threshold;
+  `CanUseActionOnTarget = false`; out of range / no line of sight with the engine's code; or
+  `ELIGIBLE`, meaning the target was fine and the block is in the timing on the summary line.
+
+### Notes
+- Logged at Information, so it appears in `/xllog` without enabling Verbose.
+
+## v1.0.4.118 (2026-08-02) [testing]
 
 ### Fixed
 - **AoE cures measured the wrong radius.** `CountHurtInRange` filtered party members with

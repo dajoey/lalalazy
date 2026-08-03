@@ -223,8 +223,6 @@ internal unsafe class AutoRotationController
     /// <summary>Party members counted as hurt before an AoE cure is preferred to a single target.</summary>
     private const int PhantomHealAoECount = 2;
 
-    /// <summary>HP% at which one person alone justifies spending an AoE cure.</summary>
-    private const double PhantomHealCriticalHp = 40.0;
 
     /// <summary>
     ///     True when the action being cast is one the rotation itself would have fired - i.e.
@@ -319,14 +317,7 @@ internal unsafe class AutoRotationController
         foreach (var o in options)
         {
             if (o.Scope != OccultCrescent.PhantomHealScope.PartyWide) continue;
-
-            // Normally an AoE is only worth a GCD once a couple of people need it. But one
-            // person about to die is worth it on its own - and it is the only option that
-            // reaches someone the single-target cures cannot, whether because none is slotted,
-            // one is on cooldown, or they are outside its 30y targeting range.
-            int hurt = CountHurtInRange(o.Action, o.Threshold, selfHp, selfOk, out double worstInRange);
-            if (hurt < PhantomHealAoECount && worstInRange > PhantomHealCriticalHp) continue;
-            if (hurt == 0) continue;
+            if (CountHurtInRange(o.Action, o.Threshold, selfOk && selfHp <= o.Threshold) < PhantomHealAoECount) continue;
             if (TryFirePhantomHeal(o.Action, self, ref warranted)) return ReleaseHold();
         }
 
@@ -349,6 +340,8 @@ internal unsafe class AutoRotationController
                 if (TryFirePhantomHeal(o.Action, self, ref warranted)) return ReleaseHold();
             }
         }
+
+        LogAllyHealDiag(options, selfHp, warranted);
 
         if (!warranted || NotInCombat || DateTime.Now < _phantomHealHoldBlockedUntil)
         {
@@ -375,6 +368,73 @@ internal unsafe class AutoRotationController
         return true;
     }
 
+    private static DateTime _allyDiagLast = DateTime.MinValue;
+
+    /// <summary>
+    ///     Explains, once every few seconds, why a hurt party member was not healed. Only speaks
+    ///     when there is actually somebody to heal and nothing fired, and it names the specific
+    ///     filter that rejected each candidate rather than leaving it to be guessed.
+    /// </summary>
+    private static unsafe void LogAllyHealDiag(List<OccultCrescent.PhantomHealOption> options, double selfHp, bool warranted)
+    {
+        if ((DateTime.Now - _allyDiagLast).TotalSeconds < 5) return;
+
+        var allyOpts = options.Where(o => o.Scope == OccultCrescent.PhantomHealScope.AnyAlly).ToList();
+        double maxThreshold = allyOpts.Count > 0 ? allyOpts.Max(o => o.Threshold) : 0;
+
+        var hurt = new List<IBattleChara>();
+        foreach (var m in GetPartyMembers())
+        {
+            var c = m.BattleChara;
+            if (c is null || c.IsDead) continue;
+            if (Player.Available && c.GameObjectId == Player.Object.GameObjectId) continue;
+            if (GetTargetHPPercent(c) <= 85) hurt.Add(c);
+        }
+
+        if (hurt.Count == 0) return;
+
+        _allyDiagLast = DateTime.Now;
+
+        string cures = allyOpts.Count == 0
+            ? "NONE (no ally-castable cure slotted/ready)"
+            : string.Join(", ", allyOpts.Select(o => $"{o.Action.ActionName()}<={o.Threshold}"));
+
+        Svc.Log.Information(
+            $"[AllyHealDiag] allyCures={cures} | totalOptions={options.Count} | selfHp={selfHp:F0} " +
+            $"| warranted={warranted} | holdActive={_phantomHealHoldSince is not null} " +
+            $"| holdBlocked={DateTime.Now < _phantomHealHoldBlockedUntil} " +
+            $"| remainingGCD={RemainingGCD:F2} animLock={AnimationLock:F2} timeMoving={TimeMoving.TotalMilliseconds:F0}ms " +
+            $"| sinceLastCure={(DateTime.Now - _phantomHealLastFired).TotalSeconds:F1}s");
+
+        uint probe = allyOpts.Count > 0 ? allyOpts[0].Action : 0;
+
+        foreach (var c in hurt)
+        {
+            string verdict;
+            double hp = GetTargetHPPercent(c);
+
+            if (probe == 0)
+                verdict = "no ally cure available";
+            else if (!c.IsTargetable)
+                verdict = "not targetable";
+            else if (c.StatusList.Any(st => StatusCache.DoNotHealStatuses.Contains(st.StatusId)))
+                verdict = "carries a do-not-heal status";
+            else if (hp > maxThreshold)
+                verdict = $"above threshold ({maxThreshold})";
+            else if (!ActionManager.CanUseActionOnTarget(probe, c.GameObject()))
+                verdict = "CanUseActionOnTarget = false";
+            else
+            {
+                uint code = ActionManager.GetActionInRangeOrLoS(probe, Player.GameObject, c.GameObject());
+                verdict = code is 0 or 565
+                    ? "ELIGIBLE - rejected downstream, see timing on the line above"
+                    : $"out of range / no line of sight (code {code})";
+            }
+
+            Svc.Log.Information($"[AllyHealDiag]   {c.Name} hp={hp:F0}% dist={GetTargetDistance(c):F1}y -> {verdict}");
+        }
+    }
+
     private static bool ReleaseHold()
     {
         _phantomHealHoldSince = null;
@@ -387,7 +447,7 @@ internal unsafe class AutoRotationController
     ///     would actually reach. Range is checked against the action itself, so a party scattered
     ///     across the zone cannot trigger it.
     /// </summary>
-    private static unsafe int CountHurtInRange(uint action, double threshold, double selfHp, bool selfOk, out double worstHp)
+    private static unsafe int CountHurtInRange(uint action, double threshold, bool selfCounts)
     {
         // Party-wide cures are AoEs centred on the caster, so the radius that matters is the
         // action's EFFECT range, not its targeting range - the latter is 0 for a self-centred
@@ -395,14 +455,7 @@ internal unsafe class AutoRotationController
         // unfiltered rather than silently excluding everyone.
         float radius = GetActionEffectRange(action);
 
-        worstHp = double.MaxValue;
-        int n = 0;
-
-        if (selfOk && selfHp <= threshold)
-        {
-            n++;
-            worstHp = selfHp;
-        }
+        int n = selfCounts ? 1 : 0;
 
         foreach (var member in GetPartyMembers())
         {
@@ -417,7 +470,6 @@ internal unsafe class AutoRotationController
             if (!IsInLineOfSight(chara)) continue;
 
             n++;
-            if (hp < worstHp) worstHp = hp;
         }
 
         return n;
