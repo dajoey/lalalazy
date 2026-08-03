@@ -1,4 +1,31 @@
-﻿## v1.0.4.119 (2026-08-02) [testing]
+﻿## v1.0.4.120 (2026-08-02) [testing]
+
+### Fixed
+- **Party members were never healed while the player was moving, and the damage rotation took
+  the GCD the moment they stopped.** Diagnosed from `[AllyHealDiag]` rather than guessed:
+
+      allyCures=Occult Cure II<=90  selfHp=83  warranted=False
+      remainingGCD=0.00  animLock=0.00  timeMoving=214ms
+      S'kalkaya Vanith hp=83% dist=14.2y -> ELIGIBLE
+
+  The target was eligible and the GCD fully up; the cure was refused solely because the player
+  had been moving for 214ms. Worse, `warranted` was suppressed in that case, so no hold was
+  taken - and the instant the player stood still, the damage rotation claimed the GCD first.
+  Movement now counts as a timing block like any other: the intent is registered, the hold is
+  taken, and the first still moment goes to the cure instead of a damage cast. The cast is still
+  not attempted while moving, since it could only fail. Holding through movement costs the
+  damage instants that would otherwise fire while kiting - the right trade for a heal - and the
+  hold remains capped at `PhantomHealHoldSeconds` with a `PhantomHealHoldCooldownSeconds`
+  cooldown after release.
+- **Instant cures were refused by an animation-lock gate that was too tight.** The check used
+  `cfg.QueueWindow` (0.3s), but a weave window is roughly 0.6s; a 0.38s lock was observed
+  refusing a valid instant self-heal. Now uses `PhantomHealWeaveWindow` (0.6).
+
+### Notes
+- Both defects came from the same second log line, which also showed `animLock=0.38` blocking
+  the instant heals in the same moment the cast-time cure was blocked by movement.
+
+## v1.0.4.119 (2026-08-02) [testing]
 
 ### Changed
 - **Reverted the "single critical target triggers an AoE cure" behaviour from v1.0.4.118.** One

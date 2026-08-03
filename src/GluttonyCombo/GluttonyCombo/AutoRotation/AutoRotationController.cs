@@ -223,6 +223,12 @@ internal unsafe class AutoRotationController
     /// <summary>Party members counted as hurt before an AoE cure is preferred to a single target.</summary>
     private const int PhantomHealAoECount = 2;
 
+    /// <summary>
+    ///     Animation-lock allowance for instant cures. The queue window (0.3s) is not a weave
+    ///     window; a 0.38s lock was observed refusing an otherwise valid instant self-heal.
+    /// </summary>
+    private const double PhantomHealWeaveWindow = 0.6;
+
 
     /// <summary>
     ///     True when the action being cast is one the rotation itself would have fired - i.e.
@@ -530,22 +536,31 @@ internal unsafe class AutoRotationController
         if (!ActionManager.CanUseActionOnTarget(act, target.Struct()))
             return false;
 
-        // A cast cannot begin while moving, so never hold the rotation hostage waiting for one.
         var castTime = ActionManager.GetAdjustedCastTime(ActionType.Action, act);
         bool blockedByMovement = castTime > 0 && TimeMoving.TotalMilliseconds > 0;
 
-        if (!blockedByMovement)
-            warranted = true;
+        // The cure is usable on this target; only engine timing stands in the way. Movement
+        // counts as timing, deliberately. Previously movement suppressed `warranted`, so no hold
+        // was taken - and the instant the player stood still the damage rotation claimed the GCD
+        // before the cure could. Observed 2026-08-02: an eligible party member 14y away, GCD
+        // fully up, refused solely because the player had been moving for 214ms. Holding through
+        // movement costs the damage instants that would otherwise fire while kiting, which is
+        // the right trade for a heal, and the hold is still capped and rate-limited.
+        warranted = true;
 
         if (attackType is ActionAttackType.Ability)
         {
-            if (AnimationLock > cfg.QueueWindow) return false;
+            // A weave window is roughly 0.6s, not the queue window. At QueueWindow (0.3) an
+            // animation lock of 0.38 was enough to refuse an instant self-heal outright.
+            if (AnimationLock > PhantomHealWeaveWindow) return false;
         }
         else if (RemainingGCD > cfg.QueueWindow)
         {
             return false;
         }
 
+        // A cast cannot begin while moving - attempting it would only fail - but we have already
+        // registered the intent above, so the hold keeps the slot until the player stops.
         if (blockedByMovement)
             return false;
 
