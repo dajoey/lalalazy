@@ -616,6 +616,30 @@ internal partial class OccultCrescent
     #region Phantom Necromancer
 
     /// <summary>
+    ///     How much Drain Touch must still be on the clock before a line spell is allowed to
+    ///     start casting.
+    ///     <para/>
+    ///     The line spells are 1.5s casts and the buff is only 6s, so a bare
+    ///     <c>HasStatusEffect</c> is not a safe test - it is still true at 0.1s remaining, which
+    ///     puts the RESOLVE outside the window. That case pays the full price (10% of maximum HP
+    ///     plus a 10s Doom) for an unbuffed 300 potency with no rider and no HP protection: the
+    ///     exact "all cost, no payload" outcome this whole gate exists to prevent.
+    /// </summary>
+    private const float DrainTouchCastHeadroom = 2.0f; // 1.5s cast + latency
+
+    /// <summary>Own HP is above the user's floor.</summary>
+    private static bool NecromancerHpOk => PlayerHP >= Phantom_Necromancer_HpFloorPct;
+
+    /// <summary>
+    ///     Not already carrying the self-Doom. Re-casting refreshes the 10s timer but takes
+    ///     another 10% of maximum HP, which moves full HP - the only thing that clears Doom -
+    ///     further away rather than closer.
+    /// </summary>
+    private static bool NecromancerNotDoomed =>
+        !HasStatusEffect(Debuffs755.NecromancerDoom) &&
+        !HasStatusEffect(Debuffs755.NecromancerDoomLegacy);
+
+    /// <summary>
     ///     Whether the four HP-cost line spells (Deep Freeze, Hell Wind, Chaos Drive, Doomsday)
     ///     are worth what they cost right now.
     ///     <para/>
@@ -623,80 +647,131 @@ internal partial class OccultCrescent
     ///     yourself with Doom / Duration: 10s / Effect is dispelled when HP is restored to full"
     ///     carry NO "when under the effect of Drain Touch" qualifier. The cost is unconditional.
     ///     Only the payoff is conditional - Drain Touch raises 300 potency to 400 (350 to 500 on
-    ///     Doomsday) and unlocks the riders that make the job worth playing: the 4s time freeze,
-    ///     the petrify chance, the paralysis, and Doomsday's enemy-buff dispel.
+    ///     Doomsday), unlocks the riders that make the job worth playing (the 4s time freeze, the
+    ///     petrify chance, the paralysis, and Doomsday's enemy-buff dispel), and - the part that
+    ///     is easy to miss - grants "Most attacks cannot reduce own HP to less than 1" for its 6s
+    ///     duration. Drain Touch is the survival window, not merely a damage buff.
     ///     <para/>
-    ///     So casting these outside the Drain Touch window is all cost and no payload, and doing
-    ///     it on repeat is how an autorotation kills you: each cast strips another 10% and
-    ///     re-arms a 10-second Doom that only a heal to FULL will clear. Three gates:
+    ///     That protection does NOT cover the Doom, because Doom is not an attack. Only a heal
+    ///     to FULL inside 10s clears it. Three gates:
     ///     <list type="number">
-    ///         <item>Drain Touch must be up - otherwise there is no reason to pay at all.</item>
+    ///         <item>Drain Touch must still have <see cref="DrainTouchCastHeadroom"/> left, so
+    ///         the cast resolves inside the window rather than just starting inside it.</item>
     ///         <item>HP must be above the user's floor, so there is headroom to heal to full and
     ///         shed the Doom before the counter lands.</item>
-    ///         <item>Not already Doomed - re-casting refreshes the timer but takes another 10%,
-    ///         which moves full HP further away, not closer.</item>
+    ///         <item>Not already Doomed.</item>
     ///     </list>
     /// </summary>
     private static bool NecromancerCostIsAffordable =>
-        HasStatusEffect(Buffs755.DrainTouch) &&
-        PlayerHP >= Phantom_Necromancer_HpFloor &&
-        !HasStatusEffect(Debuffs755.NecromancerDoom) &&
-        !HasStatusEffect(Debuffs755.NecromancerDoomLegacy);
+        GetStatusEffectRemainingTime(Buffs755.DrainTouch) >= DrainTouchCastHeadroom &&
+        NecromancerHpOk &&
+        NecromancerNotDoomed;
+
+    /// <summary>
+    ///     The single best line spell to spend the current Drain Touch window on, or 0 if there
+    ///     is none.
+    ///     <para/>
+    ///     Only one line spell can be spent per window, because the first cast applies the Doom
+    ///     that <see cref="NecromancerNotDoomed"/> then blocks on - so this is a pick, not a
+    ///     priority queue, and picking wrong forfeits the better option outright.
+    ///     <para/>
+    ///     Deep Freeze, Hell Wind and Chaos Drive share one 40s recast (cooldown group 84), so
+    ///     at most one of the three is ever ready anyway; Doomsday is on its own 120s recast
+    ///     (group 87).
+    /// </summary>
+    private static uint BestNecromancerLineSpell()
+    {
+        // Weakness-matched trio first. Under Drain Touch against a matching weakness these hit
+        // 520, which beats Doomsday's 500 - and taking Doomsday here would also spend the only
+        // enemy-buff dispel in the phantom set on whatever happens to be in front of us.
+        if (TargetWeakTo(Weak755.IceWeakness) &&
+            IsEnabledAndUsable(Preset.Phantom_Necromancer_DeepFreeze, P755.NEC_DeepFreeze) &&
+            InActionRange(P755.NEC_DeepFreeze))
+            return P755.NEC_DeepFreeze;
+
+        if (TargetWeakTo(Weak755.WindWeakness) &&
+            IsEnabledAndUsable(Preset.Phantom_Necromancer_HellWind, P755.NEC_HellWind) &&
+            InActionRange(P755.NEC_HellWind))
+            return P755.NEC_HellWind;
+
+        if (TargetWeakTo(Weak755.LightningWeakness) &&
+            IsEnabledAndUsable(Preset.Phantom_Necromancer_ChaosDrive, P755.NEC_ChaosDrive) &&
+            InActionRange(P755.NEC_ChaosDrive))
+            return P755.NEC_ChaosDrive;
+
+        // Doomsday next: 500 under Drain Touch, unaspected, so no weakness requirement and the
+        // "only when weak" toggle has nothing to say about it.
+        if (IsEnabledAndUsable(Preset.Phantom_Necromancer_Doomsday, P755.NEC_Doomsday) &&
+            InActionRange(P755.NEC_Doomsday))
+            return P755.NEC_Doomsday;
+
+        // Unweakened trio last, at 400. WeaknessGate honours the user's "only when weak"
+        // toggle - with it enabled this tier drops out entirely and the window goes unspent,
+        // which is the point of the toggle.
+        if (IsEnabledAndUsable(Preset.Phantom_Necromancer_DeepFreeze, P755.NEC_DeepFreeze) &&
+            InActionRange(P755.NEC_DeepFreeze) && WeaknessGate(Weak755.IceWeakness))
+            return P755.NEC_DeepFreeze;
+
+        if (IsEnabledAndUsable(Preset.Phantom_Necromancer_HellWind, P755.NEC_HellWind) &&
+            InActionRange(P755.NEC_HellWind) && WeaknessGate(Weak755.WindWeakness))
+            return P755.NEC_HellWind;
+
+        if (IsEnabledAndUsable(Preset.Phantom_Necromancer_ChaosDrive, P755.NEC_ChaosDrive) &&
+            InActionRange(P755.NEC_ChaosDrive) && WeaknessGate(Weak755.LightningWeakness))
+            return P755.NEC_ChaosDrive;
+
+        return 0;
+    }
 
     private static bool TryGetNecromancerAction(ref uint actionID)
     {
         if (!IsEnabled(Preset.Phantom_Necromancer))
             return false;
 
-        if (CanWeaveNow)
-        {
-            if (BuffGateBlocks) return false;
-
-            if (IsEnabledAndUsable(Preset.Phantom_Necromancer_DrainTouch, P755.NEC_DrainTouch) &&
-                HasTargetNow && InActionRange(P755.NEC_DrainTouch) &&
-                !HasStatusEffect(Buffs755.DrainTouch))
-            {
-                actionID = P755.NEC_DrainTouch;
-                return true;
-            }
-
-            return false;
-        }
-
         if (BuffGateBlocks) return false;
         if (!HasTargetNow) return false;
+
+        if (CanWeaveNow)
+        {
+            // Drain Touch is an oGCD - ActionCategory 4, cooldown group 83, 40s recast, instant,
+            // 30y - so it belongs in the weave window. What it must NOT do is fire on cooldown.
+            //
+            // Its buff lasts 6s and its recast is 40s, which is exactly the shared recast of
+            // Deep Freeze / Hell Wind / Chaos Drive. Opening the window with no payoff spell
+            // ready spends the whole 40s on a 150 potency poke; the window then expires empty,
+            // and when a line spell finally does come up Drain Touch has ~34s left, so
+            // NecromancerCostIsAffordable is false and nothing casts. Once those two 40s timers
+            // drift apart nothing pulls them back, and the job quietly does nothing but weave.
+            // So the weave is gated on the payoff, not on the cooldown.
+            if (HasStatusEffect(Buffs755.DrainTouch)) return false;
+
+            if (!IsEnabledAndUsable(Preset.Phantom_Necromancer_DrainTouch, P755.NEC_DrainTouch) ||
+                !InActionRange(P755.NEC_DrainTouch))
+                return false;
+
+            // The same affordability gates the line spell will face, checked up front: there is
+            // no point opening a window we are not allowed to spend.
+            if (!NecromancerHpOk || !NecromancerNotDoomed) return false;
+
+            // And the proc gate too. HoldingInstantCastProc stands the GCD branch down for the
+            // full 6s, so opening a window we have already decided not to use is the same waste
+            // by a different route.
+            if (HoldingInstantCastProc) return false;
+
+            if (BestNecromancerLineSpell() == 0) return false;
+
+            actionID = P755.NEC_DrainTouch;
+            return true;
+        }
+
         if (HoldingInstantCastProc) return false;
         if (!NecromancerCostIsAffordable) return false;
 
-        if (IsEnabledAndUsable(Preset.Phantom_Necromancer_Doomsday, P755.NEC_Doomsday) &&
-            InActionRange(P755.NEC_Doomsday))
-        {
-            actionID = P755.NEC_Doomsday; // unaspected, no weakness requirement
-            return true;
-        }
+        uint lineSpell = BestNecromancerLineSpell();
+        if (lineSpell == 0) return false;
 
-        if (IsEnabledAndUsable(Preset.Phantom_Necromancer_DeepFreeze, P755.NEC_DeepFreeze) &&
-            InActionRange(P755.NEC_DeepFreeze) && WeaknessGate(Weak755.IceWeakness))
-        {
-            actionID = P755.NEC_DeepFreeze;
-            return true;
-        }
-
-        if (IsEnabledAndUsable(Preset.Phantom_Necromancer_HellWind, P755.NEC_HellWind) &&
-            InActionRange(P755.NEC_HellWind) && WeaknessGate(Weak755.WindWeakness))
-        {
-            actionID = P755.NEC_HellWind;
-            return true;
-        }
-
-        if (IsEnabledAndUsable(Preset.Phantom_Necromancer_ChaosDrive, P755.NEC_ChaosDrive) &&
-            InActionRange(P755.NEC_ChaosDrive) && WeaknessGate(Weak755.LightningWeakness))
-        {
-            actionID = P755.NEC_ChaosDrive;
-            return true;
-        }
-
-        return false;
+        actionID = lineSpell;
+        return true;
     }
 
     #endregion

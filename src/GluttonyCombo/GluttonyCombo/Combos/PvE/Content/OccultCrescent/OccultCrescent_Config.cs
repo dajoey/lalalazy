@@ -163,10 +163,10 @@ internal partial class OccultCrescent
                 case Preset.Phantom_Necromancer_DrainTouch:
                     ImGui.Indent();
                     ImGuiEx.TextWrapped(ImGuiColors.DalamudYellow,
-                        "Deep Freeze, Hell Wind, Chaos Drive and Doomsday each consume 10% of your maximum HP and inflict Doom on you for 10s, whether or not Drain Touch is active. Doom is only removed by healing to FULL. They are therefore only cast inside the Drain Touch window, where they also gain potency and their rider effects.");
+                        "Deep Freeze, Hell Wind, Chaos Drive and Doomsday each consume 10% of your maximum HP and inflict Doom on you for 10s, whether or not Drain Touch is active. Doom is only removed by healing to FULL within 10s, and Drain Touch's \"cannot drop below 1 HP\" effect does NOT stop it. They are therefore only cast inside the Drain Touch window, where they also gain potency and their rider effects. Drain Touch itself is held until a line spell is actually ready, so the two 40s timers stay in phase.");
                     ImGui.Unindent();
-                    DrawSliderInt(1, 100, Phantom_Necromancer_HpFloor,
-                        "Minimum own HP% before spending HP on a Necromancer line spell", 300);
+                    DrawSliderInt(1, 100, Phantom_Necromancer_HpFloorPct,
+                        "Minimum own HP% before spending 10% HP + Doom on a line spell (this is a SURVIVAL floor: casting at 50% leaves you at 40% needing a heal to FULL within 10s)", 300);
                     break;
                 case Preset.Phantom_RedMage_OccultCureII:
                     DrawSliderInt(1, 100, Phantom_RedMage_OccultCureII_Health,
@@ -212,7 +212,7 @@ internal partial class OccultCrescent
             Phantom_BlueMage_OccultMightyGuard_Health = new("Phantom_BlueMage_OccultMightyGuard_Health", 60),
             Phantom_BlueMage_OccultWhiteWind_Health = new("Phantom_BlueMage_OccultWhiteWind_Health", 60),
             Phantom_BlueMage_OccultWhiteWind_SelfHealth = new("Phantom_BlueMage_OccultWhiteWind_SelfHealth", 85),
-            Phantom_Necromancer_HpFloor = new("Phantom_Necromancer_HpFloor", 50),
+            Phantom_Necromancer_HpFloorPct = new("Phantom_Necromancer_HpFloorPct", 90),
             Phantom_RedMage_OccultCureII_Health = new("Phantom_RedMage_OccultCureII_Health", 60);
 
         public static UserBool

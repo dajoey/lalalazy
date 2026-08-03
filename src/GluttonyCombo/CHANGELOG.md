@@ -1,4 +1,67 @@
-﻿## v1.0.4.123 (2026-08-02) [testing]
+﻿## v1.0.4.124 (2026-08-02) [testing]
+
+Phantom Necromancer audit. The v1.0.4.102 affordability gate was directionally right but left
+five live issues, three of which could each independently stop the job casting anything or get
+the player killed. All action data below re-verified against the live game sheets (XIVAPI v2
+Action/Status), not the wiki: Drain Touch `49097` is **ActionCategory 4 (Ability/oGCD)**,
+cooldown group 83, 40s, instant, 30y; Deep Freeze `49098` / Hell Wind `49099` / Chaos Drive
+`49100` are Spells sharing **cooldown group 84** at 40s with 1.5s casts; Doomsday `49101` is a
+Spell on its own group 87 at 120s. Status `5326` Drain Touch is 6s and reads *"Most attacks
+cannot reduce own HP to less than 1"* — it is the survival window, not merely a damage buff.
+
+### Fixed
+- **Drain Touch was fired on cooldown with no payoff spell ready, which desynced the job into
+  doing nothing.** The weave branch cast it whenever it was off cooldown and the buff was down.
+  Its buff is 6s; its recast is 40s — exactly the shared recast of the Deep Freeze / Hell Wind /
+  Chaos Drive trio. Any time the two drifted apart (Doom still ticking, HP under the floor, trio
+  still on recast) Drain Touch burned its whole 40s on a 150-potency poke, the window expired
+  empty, and when a line spell finally came up Drain Touch had ~34s left, so
+  `NecromancerCostIsAffordable` was false and nothing cast. Nothing pulled the timers back into
+  phase. The weave is now gated on `BestNecromancerLineSpell() != 0` plus the same HP/Doom/proc
+  gates the line spell will face, so the window is only opened when it can be spent — which also
+  makes the pairing self-correcting on the next weave tick.
+  `AutoRotation`-adjacent: `Combos/PvE/Content/OccultCrescent/OccultCrescent_755.cs`,
+  `TryGetNecromancerAction`.
+- **No remaining-duration check on the Drain Touch buff.** `HasStatusEffect(Buffs755.DrainTouch)`
+  is still true at 0.1s remaining, but the line spells are 1.5s casts, so the cast could *start*
+  inside the window and *resolve* outside it — paying 10% of maximum HP and a 10s Doom for an
+  unbuffed 300 potency with no rider and no HP protection. With a 6s buff against a 2.5s GCD
+  this was a routine window, not an edge case, and it is precisely the "all cost, no payload"
+  outcome v1.0.4.102 was written to prevent. `NecromancerCostIsAffordable` now requires
+  `GetStatusEffectRemainingTime(Buffs755.DrainTouch) >= DrainTouchCastHeadroom` (2.0s = 1.5s cast
+  + latency).
+- **`HoldingInstantCastProc` guarded the GCD branch but not the weave.** Holding Swiftcast,
+  Dualcast, Triplecast or Requiescat stood the line spells down for the full 6s, but Drain Touch
+  still fired and wasted its 40s. The proc check now also gates the weave.
+- **Doomsday was picked ahead of a weakness-matched trio spell.** Under Drain Touch, Doomsday is
+  500 potency unaspected while Deep Freeze / Hell Wind / Chaos Drive reach **520** against a
+  matching elemental weakness. Because the self-Doom permits only one line spell per window,
+  taking Doomsday forfeited the better option outright — and spent the phantom set's only
+  enemy-buff dispel on whatever happened to be targeted. Spell selection moved into
+  `BestNecromancerLineSpell()`, which now tiers: weakness-matched trio → Doomsday → unweakened
+  trio. Doomsday keeps its exemption from the "only when weak" toggle, being unaspected.
+
+### Changed
+- **`Phantom_Necromancer_HpFloor` (default 50%) replaced by `Phantom_Necromancer_HpFloorPct`
+  (default 90%).** The floor gates *survival*, not damage: casting at 50% leaves you at 40%
+  needing a heal to **full** within 10s or the self-Doom kills you, which solo does not happen.
+  Drain Touch's "cannot reduce own HP to less than 1" does not cover it, because Doom is not an
+  attack. The config key was deliberately renamed rather than re-defaulted so an existing saved
+  50 does not silently persist a lethal setting; re-set the slider if you want it lower.
+  `OccultCrescent_Config.cs`.
+- Necromancer config help text now states that Doom is unaffected by the Drain Touch HP floor
+  effect, and that Drain Touch is held until a line spell is ready.
+
+### Notes
+- No behaviour change to any other phantom job. `IsEnabledAndUsable` is still safe for the
+  Necromancer actions specifically — the line spells sit on their own cooldown groups (84/87),
+  not the global cooldown, so the `HasActionEquipped`/`HasCharges` blind spot fixed for the
+  cures in v1.0.4.123 does not apply to them.
+- Levels are unchanged and worth knowing while levelling: Drain Touch 1, Deep Freeze 2, Hell
+  Wind 3, Chaos Drive 4, Doomsday 5. At Necromancer 1 the job has no payoff spell at all, so the
+  handler correctly stays silent rather than weaving Drain Touch for 150 potency every 40s.
+
+## v1.0.4.123 (2026-08-02) [testing]
 
 ### Fixed
 - **The real cause of intermittent healing: cures vanished from consideration for most of every
