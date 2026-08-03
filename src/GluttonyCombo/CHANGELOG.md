@@ -1,4 +1,33 @@
-﻿## v1.0.4.127 (2026-08-03) [testing]
+﻿## v1.0.4.128 (2026-08-03) [testing]
+
+Second attempt at the WHM raise bug, deliberately minimal after v1.0.4.126 stalled the rotation
+and was reverted in v1.0.4.127.
+
+### Fixed
+- **The autorotation spent the raise's Swiftcast on Glare.** `RezParty()` fired Swiftcast and
+  returned `void`, so `Run()` fell straight through to `ProcessAutoActions(...)` in the *same*
+  tick and `AutomateDPS` consumed the buff on an instant Glare. `ShouldSkipAutorotation()` only
+  bails on `QueuedActionId > 0`, and Swiftcast is an instant oGCD that never queues, so nothing
+  caught it. `RezParty()` now returns `bool` and `Run()` ends the tick when it reports that it
+  fired something. Tick N uses Swiftcast and stops; tick N+1 casts the raise. No window for
+  Glare in between.
+
+### Notes
+- **The invariant that makes this safe:** `RezParty()` returns `true` on exactly the seven lines
+  that immediately follow a real `ActionManager...UseAction(...)` call, and `false` everywhere
+  else, including a new explicit `return false` at the end of the method. A tick in which it
+  fires nothing therefore behaves precisely as it did before this change, so it cannot stall the
+  rotation.
+- **What v1.0.4.126 did wrong, for the record.** It returned `true` for *states* rather than
+  actions: `Player.Object.IsCasting()` held the entire tick whenever anyone raiseable was dead,
+  and a `SwiftcastHeldForRaise` flag gated all DPS whenever a Swiftcast buff was up with a body
+  down. With an unraiseable corpse (out of range or line of sight) the rotation locked up
+  completely. Neither of those exists here - there is no new state anywhere in this change.
+- Thin Air is deliberately **not** part of this. The WHM autorotation raise still does not use
+  it (it lives only on the manual combo paths, `ALL_Healer_Raise` and `WHM_Raise`), which remains
+  a real inconsistency, but it is a separate change and should not ride along with this one.
+
+## v1.0.4.127 (2026-08-03) [testing]
 
 ### Removed
 - **Reverted v1.0.4.126 in full.** Joey reported the build was badly broken in live play. The

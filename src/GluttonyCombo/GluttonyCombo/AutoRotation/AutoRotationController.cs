@@ -797,8 +797,17 @@ internal unsafe class AutoRotationController
                 if (cfg.HealerSettings.AutoCleanse && isHealer)
                     CleanseParty();
 
-                if (cfg.HealerSettings.AutoRez)
-                    RezParty();
+                // RezParty() reports whether it actually fired something this tick. When it
+                // did, end the tick - otherwise Run() falls straight through to
+                // ProcessAutoActions below and the damage rotation spends the Swiftcast we
+                // just used for the raise on an instant Glare. Swiftcast never queues, so the
+                // QueuedActionId guard in ShouldSkipAutorotation() cannot catch it.
+                //
+                // It returns true ONLY on the line after a real UseAction - never for a state
+                // like "mid-cast" or "the buff is up". v1.0.4.126 did the latter and stalled
+                // the whole rotation; see CHANGELOG. (Joey 2026-08-03)
+                if (cfg.HealerSettings.AutoRez && RezParty())
+                    return;
             }
         }
 
@@ -1481,9 +1490,9 @@ internal unsafe class AutoRotationController
     }
 
     // Note: Similar to Kardia, because this has its own set of rules but regarding timings I'm not sure if I want to wire this up to retargeting
-    private static void RezParty()
+    private static bool RezParty()
     {
-        if (HasStatusEffect(418)) return;
+        if (HasStatusEffect(418)) return false;
         uint resSpell = 0;
 
         // Phantom White Mage's Occult Raise leads: it is instant with a 5s recast, so it beats
@@ -1518,7 +1527,7 @@ internal unsafe class AutoRotationController
         }
 
         if (resSpell == 0)
-            return;
+            return false;
 
         IEnumerable<WrathPartyMember> deadPeople = DeadPeople;
 
@@ -1534,14 +1543,14 @@ internal unsafe class AutoRotationController
         {
             var timeSinceLastRez = TimeSinceLastSuccessfulCast(resSpell);
             if ((timeSinceLastRez != -1f && timeSinceLastRez < 4f) || Player.Object.IsCasting())
-                return;
+                return false;
 
             if (deadPeople.Where(RezQuery).FindFirst(x => x is not null, out var member))
             {
                 if (resSpell == OccultCrescent.Revive || resSpell == OccultCrescent.P755.WHM_OccultRaise)
                 {
                     ActionManager.Instance()->UseAction(ActionType.Action, resSpell, member.BattleChara.GameObjectId);
-                    return;
+                    return true;
                 }
 
                 if (resSpell is Variant.Raise)
@@ -1554,7 +1563,7 @@ internal unsafe class AutoRotationController
                             if (ActionManager.Instance()->GetActionStatus(ActionType.Action, RoleActions.Magic.Swiftcast) == 0)
                             {
                                 ActionManager.Instance()->UseAction(ActionType.Action, RoleActions.Magic.Swiftcast);
-                                return;
+                                return true;
                             }
                         }
                     }
@@ -1562,7 +1571,7 @@ internal unsafe class AutoRotationController
                     if (HasStatusEffect(RoleActions.Magic.Buffs.Swiftcast) || HasStatusEffect(RDM.Buffs.Dualcast) || !IsMoving())
                     {
                         ActionManager.Instance()->UseAction(ActionType.Action, resSpell, member.BattleChara.GameObjectId);
-                        return;
+                        return true;
                     }
                 }
 
@@ -1571,12 +1580,13 @@ internal unsafe class AutoRotationController
                     if (ActionReady(RoleActions.Magic.Swiftcast) && !HasStatusEffect(RDM.Buffs.Dualcast))
                     {
                         ActionManager.Instance()->UseAction(ActionType.Action, RoleActions.Magic.Swiftcast);
-                        return;
+                        return true;
                     }
 
                     if (ActionManager.GetAdjustedCastTime(ActionType.Action, resSpell) == 0)
                     {
                         ActionManager.Instance()->UseAction(ActionType.Action, resSpell, member.BattleChara.GameObjectId);
+                        return true;
                     }
 
                 }
@@ -1587,7 +1597,7 @@ internal unsafe class AutoRotationController
                         if (ActionManager.Instance()->GetActionStatus(ActionType.Action, RoleActions.Magic.Swiftcast) == 0)
                         {
                             ActionManager.Instance()->UseAction(ActionType.Action, RoleActions.Magic.Swiftcast);
-                            return;
+                            return true;
                         }
                     }
 
@@ -1597,11 +1607,16 @@ internal unsafe class AutoRotationController
                         if ((cfg is not null) && ((cfg.HealerSettings.AutoRezRequireSwift && ActionManager.GetAdjustedCastTime(ActionType.Action, resSpell) == 0) || !cfg.HealerSettings.AutoRezRequireSwift))
                         {
                             ActionManager.Instance()->UseAction(ActionType.Action, resSpell, member.BattleChara.GameObjectId);
+                            return true;
                         }
                     }
                 }
             }
         }
+
+        // Nothing fired this tick. Returning false leaves Run() to carry on exactly as it did
+        // before this change, so RezParty can never stall the rotation.
+        return false;
     }
 
     private static void CleanseParty()
