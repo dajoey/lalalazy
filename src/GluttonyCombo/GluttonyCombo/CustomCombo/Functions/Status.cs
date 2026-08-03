@@ -1,4 +1,4 @@
-using Dalamud.Game.ClientState.Objects.Types;
+﻿using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Game.ClientState.Statuses;
 using ECommons.DalamudServices;
 using ECommons.GameFunctions;
@@ -310,5 +310,44 @@ internal abstract partial class CustomComboFunctions
 
         return StatusCache.HasCleansableDoom(target);
     }
+
+    /// <summary>
+    ///     Whether the target carries any Doom at all, cleansable or not.
+    ///     <para/>
+    ///     Doom is answered exactly one of two ways: cleanse it, or restore the target to FULL
+    ///     HP before the counter reaches zero. Miss both and they die outright, at whatever HP
+    ///     they happened to be on. That is why Doom must never be left to an HP threshold to
+    ///     notice. <see cref="HasCleansableDoom"/> covers only the dispellable subset that Esuna
+    ///     can answer.
+    /// </summary>
+    public static bool HasDoom(IGameObject? target = null)
+    {
+        target ??= CurrentTarget;
+        target ??= LocalPlayer;
+
+        if (target is not IBattleChara)
+            return false;
+
+        return StatusCache.HasDoom(target);
+    }
+
+    /// <summary>
+    ///     Whether this target is carrying Doom and is not yet at full HP.
+    ///     <para/>
+    ///     Doom kills outright when its counter reaches zero, at whatever HP the target is
+    ///     sitting on, and the two "Effect dissipates once fully healed" rows - 1769 and Phantom
+    ///     Necromancer's 5473 - are both CanDispel = false, so Esuna is not an option and
+    ///     restoring them to FULL HP is the only answer. That makes Doom the one case where a
+    ///     healing HP threshold is actively wrong: a Doomed ally at 95% is not healthy, they are
+    ///     seconds from dead, and the threshold filters them out of the candidate list before any
+    ///     heal logic gets to look at them.
+    ///     <para/>
+    ///     Bounded by "not already at 100%" so a scripted raid Doom that no amount of healing
+    ///     clears cannot pin a healer on a full-HP target for the whole duration. Shields are
+    ///     deliberately excluded from the HP read - a shield is not restored HP and will not shed
+    ///     the Doom.
+    /// </summary>
+    public static bool NeedsDoomTopUp(IGameObject? target) =>
+        target is not null && HasDoom(target) && GetTargetHPPercent(target, false) < 100;
 
 }

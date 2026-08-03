@@ -1,4 +1,4 @@
-using Dalamud.Game.ClientState.Objects.Types;
+﻿using Dalamud.Game.ClientState.Objects.Types;
 using ECommons.DalamudServices;
 using System;
 using System.Collections.Concurrent;
@@ -85,6 +85,26 @@ internal class StatusCache
         .ToFrozenSet();
 
     public static bool HasCleansableDoom(IGameObject? target) => HasStatusInCacheList(CleansableDoomStatuses, target);
+
+    /// <summary>
+    ///     Every Doom status in the game, cleansable or not. All of them share icon 215503, so
+    ///     the icon is the reliable discriminator: the name is localised and the rows are
+    ///     scattered across a dozen patches (210, 910, 1738, 1769, 1970, 2516, 2519, 2976, 3364,
+    ///     3482, 4558, 4594, 4683, 5184, 5185, 5187, 5473).
+    ///     <para/>
+    ///     This exists because <see cref="CleansableDoomStatuses"/> only ever sees the
+    ///     dispellable subset. The two rows whose tooltip reads "Effect dissipates once fully
+    ///     healed" - 1769 and 5473, the latter being Phantom Necromancer's self-Doom - are both
+    ///     CanDispel = false, so Esuna can never touch them and the only answer is a heal to
+    ///     full HP.
+    /// </summary>
+    private static readonly FrozenSet<uint> DoomStatuses =
+        StatusSheet
+        .Where(x => x.Value.Icon == 215503)
+        .Select(x => x.Key)
+        .ToFrozenSet();
+
+    public static bool HasDoom(IGameObject? target) => HasStatusInCacheList(DoomStatuses, target);
 
     private static readonly FrozenSet<uint> DamageUpStatuses =
         ENStatusSheet.TryGetValue(61, out var refRow)

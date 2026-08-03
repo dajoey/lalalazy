@@ -1,4 +1,47 @@
-﻿## v1.0.4.124 (2026-08-02) [testing]
+﻿## v1.0.4.125 (2026-08-02) [testing]
+
+Doom was invisible to every healing decision in the plugin. Reported from live play: dying to
+Doom while healing, with the healer never reacting.
+
+### Fixed
+- **A Doomed ally was never even a heal candidate.** `HealerTargeting.HealTargets()` filters the
+  party by `GetTargetHPPercent(...) <= SingleTargetHPP` *before* any heal logic runs, so a player
+  carrying Doom at 95% HP was discarded as healthy and nothing downstream ever saw them. Doom
+  then killed them outright at 95%. Doom is now checked alongside the HP threshold rather than
+  behind it, and Doomed allies sort to the front of the candidate list ahead of the
+  true-invuln de-prioritisation.
+- **The same blind spot in three more places**, all fixed the same way:
+  `HealerTargeting.ManualTarget()` (manual healer rotation mode),
+  `HealerTargeting.CanAoEHeal()` (a Doomed ally now counts toward the AoE candidate threshold at
+  any HP), and `OccultCrescent.TryGetPhantomHealAction()` (the button-press phantom cure path,
+  both the self and party-wide branches).
+- **`SomeoneNeedsHealing()` / `AnyHurtPartyMember()`** now count a Doomed ally as hurt, so the
+  bail diagnostics stop reporting "nobody needs healing" while somebody is about to die.
+
+### Added
+- **`StatusCache.DoomStatuses` + `HasDoom()`** — every Doom row in the game, cleansable or not.
+  All of them share icon `215503`, which is the only stable discriminator: the status name is
+  localised and the rows are scattered across a dozen patches (210, 910, 1738, 1769, 1970, 2516,
+  2519, 2976, 3364, 3482, 4558, 4594, 4683, 5184, 5185, 5187, 5473). Future patches adding new
+  Doom rows are picked up automatically.
+- **`NeedsDoomTopUp(target)`** in `CustomComboFunctions` — one definition, used by all five call
+  sites: target carries Doom and is below 100% HP.
+
+### Notes
+- **Why the existing Doom handling did not cover this.** `StatusCache.CleansableDoomStatuses` is
+  built as `Icon == 215503 && CanDispel`, i.e. the *dispellable* subset only, and feeds the
+  Esuna/cleanse pass. But the two rows whose tooltip reads *"Effect dissipates once fully
+  healed"* — **1769** and **5473** (Phantom Necromancer's self-Doom) — are both
+  `CanDispel = false`. Esuna can never remove them. Healing to full is the only answer, and
+  nothing in the plugin was doing it. Cleanse handling is unchanged; this is the other half.
+- **Bounded deliberately.** `NeedsDoomTopUp` requires the target to be below 100%, so a scripted
+  raid Doom that no amount of healing clears cannot pin the healer on a full-HP target for the
+  whole duration. Shields are excluded from that HP read — a shield is not restored HP and will
+  not shed the Doom.
+- Pairs with v1.0.4.124: a healer running Phantom Necromancer now tops themselves back to full
+  after their own line spell's self-Doom, closing the loop between the two fixes.
+
+## v1.0.4.124 (2026-08-02) [testing]
 
 Phantom Necromancer audit. The v1.0.4.102 affordability gate was directionally right but left
 five live issues, three of which could each independently stop the job casting anything or get

@@ -282,6 +282,18 @@ internal partial class OccultCrescent
     /// </summary>
     private static bool TryGetPhantomHealAction(ref uint actionID)
     {
+        // Computed once: a party-wide cure is worth firing for a Doomed ally even when the
+        // party average is healthy.
+        bool anyPartyDoomed = false;
+        foreach (var m in GetPartyMembers())
+        {
+            if (NeedsDoomTopUp(m.BattleChara))
+            {
+                anyPartyDoomed = true;
+                break;
+            }
+        }
+
         foreach (var option in EnumerateHealOptions())
         {
             // The enumerator no longer filters on cooldown, so the combo path must: returning
@@ -293,12 +305,19 @@ internal partial class OccultCrescent
             if (option.IsWeave != CanWeaveNow)
                 continue;
 
+            // Doom overrides every threshold below it. It kills outright when the counter
+            // lands, and the Occult row (5473) is not dispellable, so a heal to FULL is the only
+            // answer - a Doomed player at 95% must still be cured even though no HP threshold
+            // would ever call them hurt.
             if (option.Scope == PhantomHealScope.PartyWide)
             {
-                if (!IsInParty() || GetPartyAvgHPPercent() > option.Threshold)
+                if (!IsInParty())
+                    continue;
+
+                if (GetPartyAvgHPPercent() > option.Threshold && !anyPartyDoomed)
                     continue;
             }
-            else if (PlayerHP > option.Threshold)
+            else if (PlayerHP > option.Threshold && !NeedsDoomTopUp(LocalPlayer))
             {
                 continue;
             }

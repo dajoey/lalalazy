@@ -403,7 +403,9 @@ internal unsafe class AutoRotationController
 
     /// <summary>Whether the caster or any party member is meaningfully hurt.</summary>
     private static bool SomeoneNeedsHealing() =>
-        (Player.Available && PlayerHealthPercentageHp() <= 85) || AnyHurtPartyMember();
+        (Player.Available &&
+         (PlayerHealthPercentageHp() <= 85 || NeedsDoomTopUp(Player.Object)))
+        || AnyHurtPartyMember();
 
     /// <summary>Whether any party member other than the caster is meaningfully hurt.</summary>
     private static bool AnyHurtPartyMember()
@@ -413,7 +415,7 @@ internal unsafe class AutoRotationController
             var c = m.BattleChara;
             if (c is null || c.IsDead) continue;
             if (Player.Available && c.GameObjectId == Player.Object.GameObjectId) continue;
-            if (GetTargetHPPercent(c) <= 85) return true;
+            if (GetTargetHPPercent(c) <= 85 || NeedsDoomTopUp(c)) return true;
         }
 
         return false;
@@ -2229,10 +2231,11 @@ internal unsafe class AutoRotationController
             var t = Svc.Targets.Target;
             bool goodToHeal = t is IBattleChara &&
                               t.IsFriendly() &&
-                              GetTargetHPPercent(t) <=
-                              (TargetHasExcog(t) ? cfg.HealerSettings.SingleTargetExcogHPP :
-                                  TargetHasRegen(t) ? cfg.HealerSettings.SingleTargetRegenHPP :
-                                  cfg.HealerSettings.SingleTargetHPP);
+                              (NeedsDoomTopUp(t) ||
+                               GetTargetHPPercent(t) <=
+                               (TargetHasExcog(t) ? cfg.HealerSettings.SingleTargetExcogHPP :
+                                   TargetHasRegen(t) ? cfg.HealerSettings.SingleTargetRegenHPP :
+                                   cfg.HealerSettings.SingleTargetHPP));
             if (goodToHeal && !t.IsHostile())
             {
                 return t;
@@ -2259,13 +2262,15 @@ internal unsafe class AutoRotationController
                             GetTargetDistance(x.BattleChara) <= QueryRange &&
                             !TargetHasImmortality(x.BattleChara) &&
                             !x.BattleChara.StatusList.Any(x => StatusCache.DoNotHealStatuses.Contains(x.StatusId)) &&
-                            GetTargetHPPercent(x.BattleChara, cfg.HealerSettings.IncludeShields) <=
-                            (TargetHasExcog(x.BattleChara) ? cfg.HealerSettings.SingleTargetExcogHPP :
-                                TargetHasRegen(x.BattleChara) ? cfg.HealerSettings.SingleTargetRegenHPP :
-                                cfg.HealerSettings.SingleTargetHPP) &&
+                            (NeedsDoomTopUp(x.BattleChara) ||
+                             GetTargetHPPercent(x.BattleChara, cfg.HealerSettings.IncludeShields) <=
+                             (TargetHasExcog(x.BattleChara) ? cfg.HealerSettings.SingleTargetExcogHPP :
+                                 TargetHasRegen(x.BattleChara) ? cfg.HealerSettings.SingleTargetRegenHPP :
+                                 cfg.HealerSettings.SingleTargetHPP)) &&
                             IsInLineOfSight(x.BattleChara))
                 .Select(x => x.BattleChara)
-                .OrderBy(x => TargetHasTrueInvuln(x));
+                .OrderByDescending(x => NeedsDoomTopUp(x))
+                .ThenBy(x => TargetHasTrueInvuln(x));
         }
 
         internal static bool CanAoEHeal(uint outAct = 0)
@@ -2282,7 +2287,8 @@ internal unsafe class AutoRotationController
                                 (outAct == 0
                                     ? GetTargetDistance(x.BattleChara) <= 20f
                                     : InActionRange(outAct, x.BattleChara)) &&
-                                GetTargetHPPercent(x.BattleChara, cfg.HealerSettings.IncludeShields) <= cfg.HealerSettings.AoETargetHPP);
+                                (NeedsDoomTopUp(x.BattleChara) ||
+                                 GetTargetHPPercent(x.BattleChara, cfg.HealerSettings.IncludeShields) <= cfg.HealerSettings.AoETargetHPP));
                 memberCount = members.Count();
             }
             catch { memberCount = 0; }
