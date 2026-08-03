@@ -1,4 +1,18 @@
-# Changelog - PvP Solver
+﻿# Changelog - PvP Solver
+
+## [0.1.0.11] - 2026-08-03
+### Fixed
+- **Per-frame log spam in all PvE content** (issue #3, reported by @TheWalkingDude19). `UpdateCustomRotation` is driven from the framework tick via `MajorUpdater.RSRRotationAndStateUpdate`, and emitted `WRN ... no rotation found for job=<job> combatType=PvE` roughly 50 times per second for as long as the player was outside PvP. PvPSolver is PvP-only and ships no PvE rotations, so the lookup could never succeed; worse, the miss path set `DataCenter.CurrentRotation = null` immediately before logging, which permanently defeated the unchanged-state guard at the top of the method and forced a full re-resolve every tick. (Updaters/RotationUpdater.cs)
+
+### Changed
+- `UpdateCustomRotation` now returns early when `DataCenter.IsPvP` is false, clearing `CurrentRotation`/`CurrentRotationActions` once on the PvP-to-PvE transition instead of every frame. `curCombatType` is consequently always `CombatType.PvP` below that guard.
+- Removed the ungated `PluginLog.Information($"UpdateCustomRotation: job=..., IsPvP=..., groups=...")` call. It ran unconditionally on every invocation, ahead of every early return - invisible to users filtering at Warning+, but hammering `dalamud.log` in PvP and PvE alike.
+- Both remaining "no rotation" warnings (`no rotation found for job=...` and `No valid rotations found for ...`) are now throttled by a `_lastNoRotationLogged` (job, combat type) tuple, so a persistent miss reports once rather than once per frame. Reset in `ChangeRotation` so a later successful load re-arms the warning.
+
+### Notes
+- **Not verified in-game.** Testing-channel build only; production remains 0.1.0.9.
+- Both log lines date to the initial vendored commit `9b3652dae`, so this affected every release to date.
+- No rotation, targeting or combat behavior changes - the end state in PvE is identical (`CurrentRotation == null`), it is just no longer recomputed and re-logged every tick.
 
 ## [0.1.0.10] - 2026-07-31
 ### Changed

@@ -394,6 +394,12 @@ internal static class RotationUpdater
 		}
 	}
 
+	/// <summary>
+	///     Last (job, combat type) pair the "no rotation found" warning was emitted for, so a
+	///     persistent miss is reported once instead of once per frame. Reset on a successful load.
+	/// </summary>
+	private static (Job Job, CombatType Type)? _lastNoRotationLogged;
+
 	private static void UpdateCustomRotation()
 	{
 		if (Player.Object == null || CustomRotations.Length == 0)
@@ -401,10 +407,23 @@ internal static class RotationUpdater
 			return;
 		}
 
-		Job nowJob = Player.Job;
-		CombatType curCombatType = DataCenter.IsPvP ? CombatType.PvP : CombatType.PvE;
+		// PvPSolver is PvP-only and ships no PvE rotations, so outside PvP the lookup below is
+		// guaranteed to miss. The miss path nulls CurrentRotation, which permanently defeats the
+		// unchanged-state guard further down - so this ran, and logged, on every framework tick for
+		// the whole time the player was in PvE content. Bail before doing any of that. (Issue #3)
+		if (!DataCenter.IsPvP)
+		{
+			if (DataCenter.CurrentRotation != null)
+			{
+				DataCenter.CurrentRotation = null;
+				CurrentRotationActions = [];
+			}
 
-		PluginLog.Information($"UpdateCustomRotation: job={nowJob}, combatType={curCombatType}, IsPvP={DataCenter.IsPvP}, groups={CustomRotations.Length}");
+			return;
+		}
+
+		Job nowJob = Player.Job;
+		CombatType curCombatType = CombatType.PvP;
 
 		if (DataCenter.CurrentRotation?.Job == nowJob && DataCenter.CurrentRotation?.GetAttributes()?.Type == curCombatType)
 		{
@@ -420,7 +439,12 @@ internal static class RotationUpdater
 		{
 			if (validCustomRotations.Count == 0) // We successfully got something, but we'll still check if there are any valid rotations
 			{
-				PluginLog.Warning($"No valid rotations found for {nowJob}");
+				if (_lastNoRotationLogged != (nowJob, curCombatType))
+				{
+					_lastNoRotationLogged = (nowJob, curCombatType);
+					PluginLog.Warning($"No valid rotations found for {nowJob}");
+				}
+
 				return;
 			}
 
@@ -452,12 +476,18 @@ internal static class RotationUpdater
 
 		DataCenter.CurrentRotation = null;
 		CurrentRotationActions = [];
-		PluginLog.Warning($"UpdateCustomRotation: no rotation found for job={nowJob} combatType={curCombatType}");
+
+		if (_lastNoRotationLogged != (nowJob, curCombatType))
+		{
+			_lastNoRotationLogged = (nowJob, curCombatType);
+			PluginLog.Warning($"UpdateCustomRotation: no rotation found for job={nowJob} combatType={curCombatType}");
+		}
 	}
 
 	public static void ChangeRotation(ICustomRotation rotation)
 	{
 		rotation.OnTerritoryChanged();
+		_lastNoRotationLogged = null;
 		DataCenter.CurrentRotation = rotation;
 		CurrentRotationActions = DataCenter.CurrentRotation?.AllActions ?? [];
 	}
