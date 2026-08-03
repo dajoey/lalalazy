@@ -42,6 +42,15 @@ internal unsafe class AutoRotationController
     public static AutoRotationConfigIPCWrapper? cfg;
 
     public static long HealThrottle = 0;
+
+    /// <summary>
+    ///     True while a Swiftcast buff is deliberately being held for a raise. Read by
+    ///     <see cref="ProcessAutoActions" /> to keep the damage rotation from spending it.
+    ///     This covers the *manual* raise combos (ALL_Healer_Raise / WHM_Raise), which fire
+    ///     Swiftcast on one button press and the raise on a later press - the autorotation
+    ///     tick lock in <see cref="Run" /> cannot see those. (Joey 2026-08-03)
+    /// </summary>
+    private static bool SwiftcastHeldForRaise;
     private static DateTime _friendlyDiagLast = DateTime.MinValue;
 
     static bool _lockedST = false;
@@ -691,6 +700,8 @@ internal unsafe class AutoRotationController
 
         uint _ = 0;
 
+        SwiftcastHeldForRaise = false;
+
         // Pre-emptive HoT/Shield for healers
         if (cfg.HealerSettings.PreEmptiveHoT && Player.Job is Job.CNJ or Job.WHM or Job.AST)
             PreEmptiveHot();
@@ -797,8 +808,17 @@ internal unsafe class AutoRotationController
                 if (cfg.HealerSettings.AutoCleanse && isHealer)
                     CleanseParty();
 
-                if (cfg.HealerSettings.AutoRez)
-                    RezParty();
+                // Raise intention-lock (Joey 2026-08-03): RezParty() now reports whether it
+                // committed to a raise this tick; when it has, end the tick entirely. Same
+                // shape as HealerRaidwideShieldLock above.
+                //
+                // Previously RezParty fired Swiftcast and returned void, and Run() fell
+                // straight through to ProcessAutoActions below - so the damage rotation spent
+                // the buff on an instant Glare before the raise ever went out. Swiftcast is an
+                // instant oGCD, so nothing ever queues and the QueuedActionId guard in
+                // ShouldSkipAutorotation() never caught it.
+                if (cfg.HealerSettings.AutoRez && RezParty())
+                    return;
             }
         }
 
@@ -825,6 +845,13 @@ internal unsafe class AutoRotationController
             LockedAoE = false;
             LockedST = false;
         }
+
+        // A Swiftcast sitting up while someone is raiseable is almost certainly earmarked
+        // for that raise - either by the block above or by Joey pressing the manual raise
+        // combo himself. Either way, damage must not eat it.
+        SwiftcastHeldForRaise = isHealer &&
+                                HasStatusEffect(RoleActions.Magic.Buffs.Swiftcast) &&
+                                DeadPeople.Where(RezQuery).Any();
 
         ProcessAutoActions(ref _, canHeal, false);
     }
@@ -1363,7 +1390,12 @@ internal unsafe class AutoRotationController
                 continue;
             }
 
-            // DPS logic
+            // DPS logic - never spend a Swiftcast that is earmarked for a raise. Healing
+            // is deliberately NOT gated here; a dead body must not stop the living getting
+            // topped up.
+            if (!action.IsHeal && SwiftcastHeldForRaise)
+                continue;
+
             if (!action.IsHeal && AutomateDPS(entry.Preset, attributes, gameAct))
                 return false;
         }
@@ -1481,9 +1513,13 @@ internal unsafe class AutoRotationController
     }
 
     // Note: Similar to Kardia, because this has its own set of rules but regarding timings I'm not sure if I want to wire this up to retargeting
-    private static void RezParty()
+    //
+    // Returns TRUE when this tick has been committed to raising someone. Run() then ends the
+    // tick, so nothing else - the damage rotation above all - gets to act. Returns FALSE when
+    // there is nothing to raise, or when we bailed without spending anything worth protecting.
+    private static bool RezParty()
     {
-        if (HasStatusEffect(418)) return;
+        if (HasStatusEffect(418)) return false;
         uint resSpell = 0;
 
         // Phantom White Mage's Occult Raise leads: it is instant with a 5s recast, so it beats
@@ -1518,7 +1554,7 @@ internal unsafe class AutoRotationController
         }
 
         if (resSpell == 0)
-            return;
+            return false;
 
         IEnumerable<WrathPartyMember> deadPeople = DeadPeople;
 
@@ -1530,78 +1566,115 @@ internal unsafe class AutoRotationController
         if (ActionManager.Instance()->QueuedActionId == resSpell)
             ActionManager.Instance()->QueuedActionId = 0;
 
-        if (Player.Object.CurrentMp >= GetResourceCost(resSpell) && ActionReady(resSpell))
+        if (Player.Object.CurrentMp < GetResourceCost(resSpell) || !ActionReady(resSpell))
+            return false;
+
+        var timeSinceLastRez = TimeSinceLastSuccessfulCast(resSpell);
+        if (timeSinceLastRez != -1f && timeSinceLastRez < 4f)
+            return false;
+
+        // Confirm there is actually somebody to raise BEFORE taking the tick lock. The
+        // IsCasting() bail used to sit above this check, which is why it could not double as
+        // the lock signal - it would have held the tick whenever the player was casting
+        // anything at all, dead party member or not.
+        if (!deadPeople.Where(RezQuery).FindFirst(x => x is not null, out var member))
+            return false;
+
+        // Mid-cast with a confirmed target: keep holding the tick, start nothing else.
+        if (Player.Object.IsCasting())
+            return true;
+
+        if (resSpell == OccultCrescent.Revive || resSpell == OccultCrescent.P755.WHM_OccultRaise)
         {
-            var timeSinceLastRez = TimeSinceLastSuccessfulCast(resSpell);
-            if ((timeSinceLastRez != -1f && timeSinceLastRez < 4f) || Player.Object.IsCasting())
-                return;
+            ActionManager.Instance()->UseAction(ActionType.Action, resSpell, member.BattleChara.GameObjectId);
+            return true;
+        }
 
-            if (deadPeople.Where(RezQuery).FindFirst(x => x is not null, out var member))
+        if (resSpell is Variant.Raise)
+        {
+            //Try to Swiftcast if Magic DPS
+            if (GetRoleFromJob(Player.Job) is JobRole.MagicalDPS)
             {
-                if (resSpell == OccultCrescent.Revive || resSpell == OccultCrescent.P755.WHM_OccultRaise)
+                if (ActionReady(RoleActions.Magic.Swiftcast) && !HasStatusEffect(RDM.Buffs.Dualcast))
                 {
-                    ActionManager.Instance()->UseAction(ActionType.Action, resSpell, member.BattleChara.GameObjectId);
-                    return;
-                }
-
-                if (resSpell is Variant.Raise)
-                {
-                    //Try to Swiftcast if Magic DPS
-                    if (GetRoleFromJob(Player.Job) is JobRole.MagicalDPS)
-                    {
-                        if (ActionReady(RoleActions.Magic.Swiftcast) && !HasStatusEffect(RDM.Buffs.Dualcast))
-                        {
-                            if (ActionManager.Instance()->GetActionStatus(ActionType.Action, RoleActions.Magic.Swiftcast) == 0)
-                            {
-                                ActionManager.Instance()->UseAction(ActionType.Action, RoleActions.Magic.Swiftcast);
-                                return;
-                            }
-                        }
-                    }
-
-                    if (HasStatusEffect(RoleActions.Magic.Buffs.Swiftcast) || HasStatusEffect(RDM.Buffs.Dualcast) || !IsMoving())
-                    {
-                        ActionManager.Instance()->UseAction(ActionType.Action, resSpell, member.BattleChara.GameObjectId);
-                        return;
-                    }
-                }
-
-                if (Player.Job is Job.RDM)
-                {
-                    if (ActionReady(RoleActions.Magic.Swiftcast) && !HasStatusEffect(RDM.Buffs.Dualcast))
+                    if (ActionManager.Instance()->GetActionStatus(ActionType.Action, RoleActions.Magic.Swiftcast) == 0)
                     {
                         ActionManager.Instance()->UseAction(ActionType.Action, RoleActions.Magic.Swiftcast);
-                        return;
-                    }
-
-                    if (ActionManager.GetAdjustedCastTime(ActionType.Action, resSpell) == 0)
-                    {
-                        ActionManager.Instance()->UseAction(ActionType.Action, resSpell, member.BattleChara.GameObjectId);
-                    }
-
-                }
-                else
-                {
-                    if (ActionReady(RoleActions.Magic.Swiftcast))
-                    {
-                        if (ActionManager.Instance()->GetActionStatus(ActionType.Action, RoleActions.Magic.Swiftcast) == 0)
-                        {
-                            ActionManager.Instance()->UseAction(ActionType.Action, RoleActions.Magic.Swiftcast);
-                            return;
-                        }
-                    }
-
-                    if (!IsMoving() || HasStatusEffect(RoleActions.Magic.Buffs.Swiftcast))
-                    {
-
-                        if ((cfg is not null) && ((cfg.HealerSettings.AutoRezRequireSwift && ActionManager.GetAdjustedCastTime(ActionType.Action, resSpell) == 0) || !cfg.HealerSettings.AutoRezRequireSwift))
-                        {
-                            ActionManager.Instance()->UseAction(ActionType.Action, resSpell, member.BattleChara.GameObjectId);
-                        }
+                        return true;
                     }
                 }
             }
+
+            if (HasStatusEffect(RoleActions.Magic.Buffs.Swiftcast) || HasStatusEffect(RDM.Buffs.Dualcast) || !IsMoving())
+            {
+                ActionManager.Instance()->UseAction(ActionType.Action, resSpell, member.BattleChara.GameObjectId);
+                return true;
+            }
+
+            return HasStatusEffect(RoleActions.Magic.Buffs.Swiftcast);
         }
+
+        if (Player.Job is Job.RDM)
+        {
+            if (ActionReady(RoleActions.Magic.Swiftcast) && !HasStatusEffect(RDM.Buffs.Dualcast))
+            {
+                ActionManager.Instance()->UseAction(ActionType.Action, RoleActions.Magic.Swiftcast);
+                return true;
+            }
+
+            if (ActionManager.GetAdjustedCastTime(ActionType.Action, resSpell) == 0)
+            {
+                ActionManager.Instance()->UseAction(ActionType.Action, resSpell, member.BattleChara.GameObjectId);
+                return true;
+            }
+
+            return HasStatusEffect(RoleActions.Magic.Buffs.Swiftcast) || HasStatusEffect(RDM.Buffs.Dualcast);
+        }
+
+        // --- Healers -------------------------------------------------------------------
+        if (ActionReady(RoleActions.Magic.Swiftcast))
+        {
+            if (ActionManager.Instance()->GetActionStatus(ActionType.Action, RoleActions.Magic.Swiftcast) == 0)
+            {
+                ActionManager.Instance()->UseAction(ActionType.Action, RoleActions.Magic.Swiftcast);
+                return true;
+            }
+        }
+
+        // WHM only: Thin Air makes the raise free. The autorotation never used to do this -
+        // Thin Air lived exclusively on the MANUAL combo paths (ALL_Healer_Raise, WHM_Raise),
+        // so an auto-raise and a hand-pressed raise were two different sequences. Weave it in
+        // here, between Swiftcast and the raise, so both paths finally agree:
+        // Swiftcast -> Thin Air -> Raise. Respects the WHM_ThinAirRaise toggle.
+        //
+        // WasLastAction guards the latency window between using Thin Air and its buff landing;
+        // without it a slow tick could burn the second charge. (Joey 2026-08-03)
+        if (Player.Job is Job.WHM or Job.CNJ &&
+            IsEnabled(Preset.WHM_ThinAirRaise) &&
+            LevelChecked(WHM.ThinAir) &&
+            !HasStatusEffect(WHM.Buffs.ThinAir) &&
+            !WasLastAction(WHM.ThinAir) &&
+            GetRemainingCharges(WHM.ThinAir) > 0 &&
+            ActionManager.Instance()->GetActionStatus(ActionType.Action, WHM.ThinAir) == 0)
+        {
+            ActionManager.Instance()->UseAction(ActionType.Action, WHM.ThinAir);
+            return true;
+        }
+
+        if (!IsMoving() || HasStatusEffect(RoleActions.Magic.Buffs.Swiftcast))
+        {
+            if ((cfg is not null) && ((cfg.HealerSettings.AutoRezRequireSwift && ActionManager.GetAdjustedCastTime(ActionType.Action, resSpell) == 0) || !cfg.HealerSettings.AutoRezRequireSwift))
+            {
+                ActionManager.Instance()->UseAction(ActionType.Action, resSpell, member.BattleChara.GameObjectId);
+                return true;
+            }
+        }
+
+        // Nothing fired - most often AutoRezRequireSwift is on and Swiftcast is still on
+        // cooldown, or we are moving. Hold the tick only if there is actually a Swiftcast
+        // worth protecting; otherwise let the damage rotation carry on exactly as before, so
+        // this can never deadlock the rotation on an unraiseable body.
+        return HasStatusEffect(RoleActions.Magic.Buffs.Swiftcast);
     }
 
     private static void CleanseParty()

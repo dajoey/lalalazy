@@ -1,4 +1,46 @@
-﻿## v1.0.4.125 (2026-08-02) [testing]
+﻿## v1.0.4.126 (2026-08-03) [testing]
+
+Reported from live play (WHM): the autorotation would fire Swiftcast intending to raise, then
+immediately spend it on an instant Glare, and the raise either hard-cast for 8s or never went
+out at all.
+
+### Fixed
+- **The raise had no intention-lock, so damage stole its Swiftcast.**
+  `AutoRotation/AutoRotationController.cs` - `RezParty()` fired Swiftcast and `return`ed, but
+  it returned `void`: `Run()` fell straight through to `ProcessAutoActions(ref _, canHeal,
+  false)` in the *same* tick, and `AutomateDPS` spent the buff on Glare. `ShouldSkipAutorotation()`
+  only bails on `QueuedActionId > 0`, and Swiftcast is an instant oGCD that never queues, so
+  nothing caught it. `RezParty()` now returns `bool` and `Run()` returns the moment it reports a
+  committed raise - the same hard tick-lock shape as `HealerRaidwideShieldLock()`.
+- **Manual raise presses were unprotected too.** The manual combos (`Combos/PvE/ALL/ALL.cs`
+  `ALL_Healer_Raise`, `Combos/PvE/WHM/WHM.cs` `WHM_Raise`) fire Swiftcast on one button press
+  and the raise on a later one; the autorotation tick-lock cannot see that. New
+  `SwiftcastHeldForRaise` flag, set once per tick in `Run()`, makes `ProcessAutoActions` skip
+  DPS entries while a Swiftcast is up and someone is raiseable. Healing is deliberately not
+  gated - a dead body must not stop the living getting topped up.
+- **`IsCasting()` bail moved below the dead-target check.** It previously sat above
+  `FindFirst(RezQuery)`, so it could not double as the lock signal without stalling the rotation
+  any time the player was casting with nobody dead.
+
+### Added
+- **Thin Air is now part of the autorotation raise on WHM.** It previously existed *only* on the
+  manual combo paths, so an auto-raise and a hand-pressed raise were different sequences and the
+  auto one never got the MP discount. `RezParty()` now weaves it between Swiftcast and the raise
+  - Swiftcast -> Thin Air -> Raise - gated on the existing `WHM_ThinAirRaise` toggle,
+  `LevelChecked`, the Thin Air buff, remaining charges, and `WasLastAction` (which covers the
+  latency window between use and the buff landing, so a slow tick cannot burn the second charge).
+
+### Notes
+- WHM was the job this showed up on because its raise is the only **three**-action sequence
+  (Swiftcast -> Thin Air -> Raise) rather than two, which widens the window for the damage
+  rotation to steal the buff. Thin Air itself never consumed Swiftcast - it is an ability, not a
+  spell.
+- Every non-firing path returns `HasStatusEffect(Swiftcast)` rather than a bare `true`, so the
+  lock can only hold the tick when there is actually a buff worth protecting. With
+  `AutoRezRequireSwift` on and Swiftcast on cooldown the rotation carries on exactly as before
+  instead of deadlocking on an unraiseable body.
+
+## v1.0.4.125 (2026-08-02) [testing]
 
 Doom was invisible to every healing decision in the plugin. Reported from live play: dying to
 Doom while healing, with the healer never reacting.
