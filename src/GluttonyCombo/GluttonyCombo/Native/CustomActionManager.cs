@@ -380,6 +380,7 @@ public sealed unsafe class CustomActionSetup : IDisposable
     private readonly CustomAction _singleTargeHeals;
     private readonly CustomAction _aoeHeals;
     private readonly CustomAction _items;
+    private readonly CustomAction _newSavageBlade;
 
     public (int Hotbar, int Slot)? HoveredSlot = null;
 
@@ -416,8 +417,9 @@ public sealed unsafe class CustomActionSetup : IDisposable
         _singleTargeHeals = new(All.SingleTargetHeals, "Single Target Heals", "This is for the Single Target Heal combos.", 1508, customIconPath: Path.Combine(Svc.PluginInterface.AssemblyLocation.DirectoryName!, "Resources/SingleTargetHeals.png"));
         _aoeHeals = new(All.AoeHeals, "AoE Heals", "This is for the AoE Heal combos.", 1510, customIconPath: Path.Combine(Svc.PluginInterface.AssemblyLocation.DirectoryName!, "Resources/AoEHeals.png"));
         _items = new(All.Items, "Item Not Found", "Users shouldn't see this", 1511);
+        _newSavageBlade = new(All.Cease, "Cease!", "God says no! We don't want you to use actions currently.", 1512, customIconPath: Path.Combine(Svc.PluginInterface.AssemblyLocation.DirectoryName!, "Resources/NewSavageBlade.png"));
 
-        Manager.Register(_singleTargetDPS, _aoeDPS, _singleTargeHeals, _aoeHeals, _items);
+        Manager.Register(_singleTargetDPS, _aoeDPS, _singleTargeHeals, _aoeHeals, _items, _newSavageBlade);
     }
     public void Dispose()
     {

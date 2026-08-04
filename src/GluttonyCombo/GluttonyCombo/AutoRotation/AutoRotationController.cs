@@ -1900,7 +1900,7 @@ internal unsafe class AutoRotationController
 
                 OverrideTarget = target ?? OverrideTarget;
                 uint outAct = OriginalHook(InvokeCombo(preset, attributes, ref gameAct, OverrideTarget));
-                if (outAct is All.SavageBlade) return true;
+                if (outAct is All.Cease) return true;
                 if (!ActionReady(outAct))
                     return false;
 

@@ -1,4 +1,30 @@
-﻿## v1.0.4.128 (2026-08-03) [testing]
+﻿## v1.0.4.129 (2026-08-03) [testing]
+
+Upstream WrathCombo merge (3 commits, 2026-08-02): `d84f7cdc0` add savage blade
+replacement, `96739fe31` update savage blade descriptions, `2d2480b88` fix syntax
+and remove the custom error message for Cease.
+
+- **Input blocking no longer borrows Savage Blade.** Savage Blade (action 11) is a
+  removed game action, and upstream had been returning its ID from every "block this
+  input" combo. Blocked slots now return a dedicated plugin-side custom action,
+  `All.Cease` ("Cease!", `Resources/NewSavageBlade.png`), registered in
+  `Native/CustomActionManager.cs`. Affects every block site: the ALL role-action
+  guards (Reprisal / Addle / Feint / True North), NIN mudra protection, DNC partner
+  block, PLD, RDM, GNB, MCH, BRD, SAM, SCH, WAR, VPR, and the PvP combos.
+- **No more spurious "This is a custom action, it does nothing on its own" toast**
+  when an input is blocked.
+- **Descriptions updated.** DNC partner-block now reads "Block Input"; NIN reads
+  "Blocks input while in Mudra".
+- **Fork fix - corrected the Cease action ID.** Upstream shipped
+  `Cease = 1_000_0004`, which is 10,000,004, not the intended 1,000,004 - the
+  underscore is one digit off. `All.Items` is 2,000,000 and three call sites treat
+  `>= All.Items` as "this ID is an item":
+  `AutoRotation/AutoRotationController.cs:1972`, `CustomCombo/WrathOpener.cs:30`
+  and `CustomCombo/WrathOpener.cs:225`. At 10,000,004 a blocked input would have
+  been decoded as item RowId 8,000,004 inside the autorotation and opener paths.
+  Set to `1_000_004` here, with a comment recording the constraint.
+
+## v1.0.4.128 (2026-08-03) [testing]
 
 Second attempt at the WHM raise bug, deliberately minimal after v1.0.4.126 stalled the rotation
 and was reverted in v1.0.4.127.
