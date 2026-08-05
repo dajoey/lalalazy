@@ -6,16 +6,21 @@ using System.Linq;
 using GluttonyCombo.Core;
 using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.Extensions;
+using GluttonyCombo.Services;
 namespace GluttonyCombo.Combos.PvE;
 
 internal partial class All
 {
-    public const uint 
+    public const uint
         SingleTargetDPS = 1_000_000, // These next set are for native actions, if SE ever adds values up to these we would have to adjust but it's unlikely.
         AoEDPS = 1_000_001,
         SingleTargetHeals = 1_000_002,
         AoeHeals = 1_000_003,
         Cease = 1_000_004, // Used as a replacement for Savage Blade blocking. Must stay below Items (2_000_000): several paths treat >= Items as an item id.
+        AutoOn = 1_000_005,
+        AutoOff = 1_000_006,
+
+        AutoToggle = 1_000_007,
         Items = 2_000_000; // Ids on top of this will be for items, created dynamically
 
     public static class Buffs
@@ -303,5 +308,23 @@ internal partial class All
             CanInterruptEnemy() && PhysicalRanged.Role.CanHeadGraze(true)
                 ? RoleActions.PhysRanged.HeadGraze
                 : actionID;
+    }
+
+    internal class AutoRotationButtons : CustomCombo
+    {
+        protected internal override Preset Preset => Preset.AlwaysOn;
+
+        protected override uint Invoke(uint actionID)
+        {
+            if (actionID is AutoToggle)
+            {
+                if (Service.Configuration.RotationConfig.Enabled)
+                    return AutoOff;
+
+                return AutoOn;
+            }
+
+            return actionID;
+        }
     }
 }

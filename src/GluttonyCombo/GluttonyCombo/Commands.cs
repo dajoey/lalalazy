@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using System.Linq;
 using GluttonyCombo.API.Enum;
 using GluttonyCombo.Attributes;
+using GluttonyCombo.AutoRotation;
 using GluttonyCombo.Core;
 using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.Data;
@@ -596,29 +597,7 @@ public partial class GluttonyCombo
             : toggledVal;
 
         if (newVal != Service.Configuration.RotationConfig.Enabled)
-            ToggleAutoRotation(newVal);
-    }
-
-    /// <summary>
-    ///     Toggles the auto-rotation setting.
-    /// </summary>
-    /// <param name="value">
-    ///     Whether to enable or disable auto-rotation.
-    /// </param>
-    private static void ToggleAutoRotation(bool value)
-    {
-        Service.Configuration.RotationConfig.Enabled = value;
-        Service.Configuration.Save();
-
-        var stateControlled =
-            P.UIHelper.AutoRotationStateControlled() is not null;
-
-        if (!Service.Configuration.SuppressAutorotCommand)
-            DuoLog.Information(
-                "Auto-Rotation set to "
-                + (Service.Configuration.RotationConfig.Enabled ? "ON" : "OFF")
-                + (stateControlled ? " " + OptionControlledByIPC : "")
-            );
+            AutoRotationController.ToggleAutoRotation(newVal);
     }
 
     /// <summary>

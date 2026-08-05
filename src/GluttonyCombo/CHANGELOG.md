@@ -1,4 +1,29 @@
-﻿## v1.0.4.129 (2026-08-03) [testing]
+﻿## v1.0.4.130 (2026-08-05) [testing]
+
+Upstream WrathCombo merge (5 commits, 2026-08-03/04): `27e361784` update autorot
+pause, `a151e9aa4` add utility custom buttons, `f73d6549f` switch to 3 columns +
+add name, `f9f805eae` fix divider, `e1a1fd681` update custom actions UI. Upstream
+csproj stays 1.0.4.19.
+
+- **New utility custom actions for auto-rotation.** Three drag-to-hotbar buttons -
+  Auto-Rotation Enable, Auto-Rotation Disable, Auto-Rotation Toggle
+  (`All.AutoOn` / `All.AutoOff` / `All.AutoToggle`, icons `Resources/WrathAuto*.png`) -
+  registered in `Native/CustomActionManager.cs` and driven by a new
+  `AutoRotationButtons` custom combo under the new always-on `Preset.AlwaysOn`.
+- **Auto-rotation pause is visible and self-clearing.** `ToggleAutoRotation` moved
+  to `AutoRotationController` (now shared by the chat command, the DTR-bar click,
+  and the new utility buttons) and clears the paused state on toggle. The DTR-bar
+  text now shows `(Paused)` and `(Locked)` status.
+- **Aetherial Interference pause only fires when auto-rotation is enabled**, and
+  now logs a chat message noting it resumes on leaving combat or toggling.
+- **Custom Actions settings tab reworked.** Split into Rotation Buttons and
+  Utility Buttons sections, 3-column layout with action names, divider fix, and a
+  smaller drag-preview offset.
+- **Upstream adopted the fork's Cease fix.** Upstream corrected
+  `Cease = 1_000_0004` to `1_000_004` (shipped in the fork as v1.0.4.129); the fork
+  converges to upstream, keeping the constraint comment.
+
+## v1.0.4.129 (2026-08-03) [testing]
 
 Upstream WrathCombo merge (3 commits, 2026-08-02): `d84f7cdc0` add savage blade
 replacement, `96739fe31` update savage blade descriptions, `2d2480b88` fix syntax

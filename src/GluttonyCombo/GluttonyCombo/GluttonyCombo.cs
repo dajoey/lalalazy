@@ -11,6 +11,7 @@ using ECommons.Automation.LegacyTaskManager;
 using ECommons.DalamudServices;
 using ECommons.ExcelServices;
 using ECommons.GameHelpers;
+using ECommons.Logging;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using Lumina.Excel.Sheets;
@@ -252,7 +253,7 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         DtrBarEntry ??= Svc.DtrBar.Get("Gluttony Combo");
         DtrBarEntry.OnClick = (_) =>
         {
-            ToggleAutoRotation(!Service.Configuration.RotationConfig.Enabled);
+            AutoRotationController.ToggleAutoRotation(!Service.Configuration.RotationConfig.Enabled);
         };
         DtrBarEntry.Tooltip = new SeString(
         new TextPayload("Click to toggle Gluttony Combo's Auto-Rotation.\n"),
@@ -303,7 +304,13 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         if (Svc.Data.GetExcelSheet<LogMessage>().TryGetFirst(x => x.Text == txt, out var row))
         {
             if (row.RowId == 2288) //Aetherial Interference
-                AutoRotationController.Paused = true;
+            {
+                if (AutoRotationController.cfg.Enabled)
+                {
+                    AutoRotationController.Paused = true;
+                    DuoLog.Information($"Autorotation paused due to Aetherial Interference error. Will resume once party has left combat or autorotation is toggled off/on again.");
+                }
+            }
         }
     }
 
@@ -401,10 +408,15 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
                 text += $" ({P.IPCSearch.ActiveJobPresets} active)";
             var ipcControlledText =
                 P.UIHelper.AutoRotationStateControlled() is not null
-                    ? " (Locked)"
+                    ? "(Locked)"
                     : "";
 
-            var payloadText = new TextPayload(text + ipcControlledText);
+            var pausedText =
+                AutoRotationController.Paused ? "(Paused)" : "";
+
+            var statusText = string.Join(" ", [text, ipcControlledText, pausedText]);
+
+            var payloadText = new TextPayload(statusText);
             DtrBarEntry.Text = new SeString(icon, payloadText);
 
             #endregion

@@ -17,6 +17,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using GluttonyCombo.Attributes;
+using GluttonyCombo.AutoRotation;
 using GluttonyCombo.Combos.PvE;
 using GluttonyCombo.Extensions;
 using GluttonyCombo.Services;
@@ -381,6 +382,9 @@ public sealed unsafe class CustomActionSetup : IDisposable
     private readonly CustomAction _aoeHeals;
     private readonly CustomAction _items;
     private readonly CustomAction _newSavageBlade;
+    private readonly CustomAction _autoOn;
+    private readonly CustomAction _autoOff;
+    private readonly CustomAction _autoToggle;
 
     public (int Hotbar, int Slot)? HoveredSlot = null;
 
@@ -418,8 +422,11 @@ public sealed unsafe class CustomActionSetup : IDisposable
         _aoeHeals = new(All.AoeHeals, "AoE Heals", "This is for the AoE Heal combos.", 1510, customIconPath: Path.Combine(Svc.PluginInterface.AssemblyLocation.DirectoryName!, "Resources/AoEHeals.png"));
         _items = new(All.Items, "Item Not Found", "Users shouldn't see this", 1511);
         _newSavageBlade = new(All.Cease, "Cease!", "God says no! We don't want you to use actions currently.", 1512, customIconPath: Path.Combine(Svc.PluginInterface.AssemblyLocation.DirectoryName!, "Resources/NewSavageBlade.png"));
+        _autoOn = new(All.AutoOn, "Auto-Rotation Enable", "Enables auto-rotation.", 1523, onClick: () => AutoRotationController.ToggleAutoRotation(true), customIconPath: Path.Combine(Svc.PluginInterface.AssemblyLocation.DirectoryName!, "Resources/WrathAutoOn.png"));
+        _autoOff = new(All.AutoOff, "Auto-Rotation Disable", "Disables auto-rotation.", 1526, onClick: () => AutoRotationController.ToggleAutoRotation(false), customIconPath: Path.Combine(Svc.PluginInterface.AssemblyLocation.DirectoryName!, "Resources/WrathAutoOff.png"));
+        _autoToggle = new(All.AutoToggle, "Auto-Rotation Toggle", "Switches between enabled and disabled for auto-rotation", 1527, customIconPath: Path.Combine(Svc.PluginInterface.AssemblyLocation.DirectoryName!, "Resources/WrathAutoToggle.png"));
 
-        Manager.Register(_singleTargetDPS, _aoeDPS, _singleTargeHeals, _aoeHeals, _items, _newSavageBlade);
+        Manager.Register(_singleTargetDPS, _aoeDPS, _singleTargeHeals, _aoeHeals, _items, _newSavageBlade, _autoOn, _autoOff, _autoToggle);
     }
     public void Dispose()
     {
