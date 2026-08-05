@@ -1,4 +1,25 @@
-﻿## v1.0.4.130 (2026-08-05)
+﻿## v1.0.4.131 (2026-08-05)
+
+No source change. Version bump only, recorded per the repo rule that any move of
+`<Version>` / `AssemblyVersion` carries a CHANGELOG entry explaining why.
+
+- **Corrected the shipped changelog's channel marker.** The production build of
+  v1.0.4.130 embedded a manifest whose changelog still led with
+  `v1.0.4.130 (2026-08-05) [testing]`. The in-repo manifest template
+  `src/GluttonyCombo/GluttonyCombo/GluttonyCombo.json` carries its own `Changelog`
+  field, written by the nightly-merge tooling from the CHANGELOG.md headers of the
+  day; `Package-Plugin.ps1` parses CHANGELOG.md only for `pluginmaster.json`, not
+  for the embedded manifest. Production users would have read "[testing]" on a
+  stable release.
+- **Why this is 1.0.4.131 and not a re-cut of 1.0.4.130.** v1.0.4.130 had already
+  been pushed to `main`, so its zip was live at
+  `plugins/GluttonyCombo/latest/latest.zip`. Republishing different bytes under a
+  version Dalamud may already have cached is the stale-zip failure mode; the
+  version moves forward instead.
+- Both channels are pinned to 1.0.4.131 (`-VersionOverride`), so testing and
+  production ship identical builds.
+
+## v1.0.4.130 (2026-08-05)
 
 **Promoted to the production channel.** Production had been pinned at v1.0.4.99
 (2026-07-30) while thirty testing builds accumulated; this release moves
