@@ -1,4 +1,13 @@
-﻿## v1.0.4.130 (2026-08-05) [testing]
+﻿## v1.0.4.130 (2026-08-05)
+
+**Promoted to the production channel.** Production had been pinned at v1.0.4.99
+(2026-07-30) while thirty testing builds accumulated; this release moves
+`AssemblyVersion` 1.0.4.99 -> 1.0.4.130 in a single step, so stable-channel users
+receive everything from v1.0.4.100 through v1.0.4.130 at once. The v1.0.4.100-.129
+sections below are the full narrative for that span. Development on this line is
+ongoing; subsequent builds continue to ship testing-first per the 2026-07-30
+channel rule.
+
 
 Upstream WrathCombo merge (5 commits, 2026-08-03/04): `27e361784` update autorot
 pause, `a151e9aa4` add utility custom buttons, `f73d6549f` switch to 3 columns +
