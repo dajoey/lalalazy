@@ -1,5 +1,14 @@
 ﻿# Changelog - PvP Solver
 
+## [0.1.0.12] - 2026-08-06
+### Changed
+- Synced upstream RotationSolverReborn `35ceb6e82` ("Guard status check for Doom to ensure valid object"): the PvP-rotation portion of that commit is a `GameVersion` attribute bump from `7.5` to `7.55` across all 21 PvP rotations.
+
+### Notes
+- **No gameplay change.** The Doom guard itself lives in `RotationSolver.Basic/Helpers/StatusHelper.cs` and upstream's PvE rotations - base classes this fork intentionally does not track (RUNBOOK 3.2). The fork's PvP rotations contain no Doom status checks, so there is nothing to port.
+- Synced via `tools/sync-upstream-rotations.sh`; all 21 PvP rotation files verified byte-identical to upstream `6c064f910` (CR-normalised).
+- Testing-channel build; production remains 0.1.0.9.
+
 ## [0.1.0.11] - 2026-08-03
 ### Fixed
 - **Per-frame log spam in all PvE content** (issue #3, reported by @TheWalkingDude19). `UpdateCustomRotation` is driven from the framework tick via `MajorUpdater.RSRRotationAndStateUpdate`, and emitted `WRN ... no rotation found for job=<job> combatType=PvE` roughly 50 times per second for as long as the player was outside PvP. PvPSolver is PvP-only and ships no PvE rotations, so the lookup could never succeed; worse, the miss path set `DataCenter.CurrentRotation = null` immediately before logging, which permanently defeated the unchanged-state guard at the top of the method and forced a full re-resolve every tick. (Updaters/RotationUpdater.cs)

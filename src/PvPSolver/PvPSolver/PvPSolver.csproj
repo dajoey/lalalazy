@@ -5,8 +5,9 @@
     <InternalName>PvPSolver</InternalName>
     <Punchline>PvP-only auto-rotation</Punchline>
     <Description>PvP-only auto-rotation for FFXIV. Activates in PvP zones.</Description>
-    <Version>0.1.0.11</Version>
-    <Changelog>Synced upstream RotationSolverReborn 2ac940563: the EmergencyGCD hook now receives the queued next GCD, matching EmergencyAbility and the other rotation hooks. No gameplay change - the new parameter is unread by every implementation of the hook, upstream and in this fork. Purify, Guard, Recuperate, Standard-issue Elixir, WHM Aquaveil and BRD Warden's Paean behaviour are unchanged. WHM and BRD PvP rotations are now byte-identical to upstream 641bd792e.</Changelog>
+    <Version>0.1.0.12</Version>
+    <Changelog>v0.1.0.12 - 2026-08-06: Upstream sync (RotationSolverReborn 35ceb6e82) - all 21 PvP rotations now declare GameVersion 7.55. Metadata-only; no gameplay change. The Doom-guard logic in that commit lives in upstream base classes this fork does not track.
+v0.1.0.11 - 2026-08-03: Fixed per-frame 'no rotation found' log spam outside PvP (issue #3) - UpdateCustomRotation returns early when not in PvP and the remaining no-rotation warnings are throttled.</Changelog>
     <Author>dajoey</Author>
     <IconUrl>https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/pvpsolver-icon.png</IconUrl>
     <DalamudApiLevel>15</DalamudApiLevel>
