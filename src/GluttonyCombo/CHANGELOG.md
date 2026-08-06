@@ -1,4 +1,4 @@
-﻿## v1.0.4.132 (2026-08-05) [testing]
+﻿## v1.0.4.132 (2026-08-05)
 
 Upstream WrathCombo catch-up merge: **36 commits**, `e1a1fd681` -> `215b38658`
 (2026-07-05 .. 2026-08-05), 54 files, +3906/-989. The fork had been current only
@@ -82,8 +82,9 @@ Two fork-only presets were re-homed above upstream's range to avoid collisions:
   `HoldingInstantCastProc`, Necromancer HP floor and not-already-Doomed gates, weakness gate,
   StepForth, phantom-heal rows, dispatcher order, DRK TBN, AutoDuty IPC - all present. All 8
   fork-only presets still defined.
-- **Not yet verified in game.** Testing channel only; production stays 1.0.4.131 until Joey
-  confirms.
+- **Verified in game by Joey (2026-08-05) and promoted to production.** `AssemblyVersion`
+  1.0.4.131 -> 1.0.4.132; both channels ship this build. Packaged with
+  `-VersionOverride 1.0.4.132` so the promote could not auto-bump off the verified build.
 
 ## v1.0.4.131 (2026-08-05)
 
