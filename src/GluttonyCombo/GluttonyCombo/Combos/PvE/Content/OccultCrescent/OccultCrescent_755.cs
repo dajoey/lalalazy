@@ -16,6 +16,15 @@ namespace GluttonyCombo.Combos.PvE;
 //  2026-08-01. This file fills that gap so Occult Crescent: North Horn is usable. It is
 //  DELIBERATELY SELF-CONTAINED and meant to be deleted wholesale once upstream ships theirs.
 //
+//  2026-08-05 UPSTREAM COLLISION NOTE:
+//    Upstream shipped its own phantom-job implementation in the 36-commit sync merged
+//    this day, defining identically-named TryGet<Job>Action methods on this same
+//    partial class. The fork methods are suffixed 755 to coexist, and TryGet755Action
+//    still runs FIRST in TryGetPhantomAction, so fork behaviour is unchanged.
+//    Retiring this file is NOT a straight delete: upstream has no HP floor, no
+//    already-Doomed check and no instant-cast-proc protection, and the P755 constants
+//    feed the fork-only phantom-heal integration in OccultCrescent.cs. See CHANGELOG.
+//
 //  RIP-OUT PROCEDURE:
 //    1. Delete this file and OccultCrescent_755_Weakness.cs.
 //    2. Delete the Phantom_* preset range 110090-110139 in CustomComboPreset.cs.
@@ -141,14 +150,14 @@ internal partial class OccultCrescent
     /// </summary>
     internal static bool TryGet755Action(ref uint actionID)
     {
-        if (TryGetNinjaAction(ref actionID)) return true;
-        if (TryGetWhiteMageAction(ref actionID)) return true;
-        if (TryGetBlackMageAction(ref actionID)) return true;
-        if (TryGetDragoonAction(ref actionID)) return true;
-        if (TryGetSummonerAction(ref actionID)) return true;
-        if (TryGetBlueMageAction(ref actionID)) return true;
-        if (TryGetRedMageAction(ref actionID)) return true;
-        if (TryGetNecromancerAction(ref actionID)) return true;
+        if (TryGetNinjaAction755(ref actionID)) return true;
+        if (TryGetWhiteMageAction755(ref actionID)) return true;
+        if (TryGetBlackMageAction755(ref actionID)) return true;
+        if (TryGetDragoonAction755(ref actionID)) return true;
+        if (TryGetSummonerAction755(ref actionID)) return true;
+        if (TryGetBlueMageAction755(ref actionID)) return true;
+        if (TryGetRedMageAction755(ref actionID)) return true;
+        if (TryGetNecromancerAction755(ref actionID)) return true;
 
         return false;
     }
@@ -187,7 +196,7 @@ internal partial class OccultCrescent
 
     #region Phantom Ninja
 
-    private static bool TryGetNinjaAction(ref uint actionID)
+    private static bool TryGetNinjaAction755(ref uint actionID)
     {
         if (!IsEnabled(Preset.Phantom_Ninja))
             return false;
@@ -254,7 +263,7 @@ internal partial class OccultCrescent
 
     #region Phantom White Mage
 
-    private static bool TryGetWhiteMageAction(ref uint actionID)
+    private static bool TryGetWhiteMageAction755(ref uint actionID)
     {
         if (!IsEnabled(Preset.Phantom_WhiteMage))
             return false;
@@ -325,7 +334,7 @@ internal partial class OccultCrescent
 
     #region Phantom Black Mage
 
-    private static bool TryGetBlackMageAction(ref uint actionID)
+    private static bool TryGetBlackMageAction755(ref uint actionID)
     {
         if (!IsEnabled(Preset.Phantom_BlackMage))
             return false;
@@ -385,7 +394,7 @@ internal partial class OccultCrescent
 
     #region Phantom Dragoon
 
-    private static bool TryGetDragoonAction(ref uint actionID)
+    private static bool TryGetDragoonAction755(ref uint actionID)
     {
         if (!IsEnabled(Preset.Phantom_Dragoon))
             return false;
@@ -424,7 +433,7 @@ internal partial class OccultCrescent
 
     #region Phantom Summoner
 
-    private static bool TryGetSummonerAction(ref uint actionID)
+    private static bool TryGetSummonerAction755(ref uint actionID)
     {
         if (!IsEnabled(Preset.Phantom_Summoner))
             return false;
@@ -480,7 +489,7 @@ internal partial class OccultCrescent
 
     #region Phantom Blue Mage
 
-    private static bool TryGetBlueMageAction(ref uint actionID)
+    private static bool TryGetBlueMageAction755(ref uint actionID)
     {
         if (!IsEnabled(Preset.Phantom_BlueMage))
             return false;
@@ -548,7 +557,7 @@ internal partial class OccultCrescent
 
     #region Phantom Red Mage
 
-    private static bool TryGetRedMageAction(ref uint actionID)
+    private static bool TryGetRedMageAction755(ref uint actionID)
     {
         if (!IsEnabled(Preset.Phantom_RedMage))
             return false;
@@ -723,7 +732,7 @@ internal partial class OccultCrescent
         return 0;
     }
 
-    private static bool TryGetNecromancerAction(ref uint actionID)
+    private static bool TryGetNecromancerAction755(ref uint actionID)
     {
         if (!IsEnabled(Preset.Phantom_Necromancer))
             return false;

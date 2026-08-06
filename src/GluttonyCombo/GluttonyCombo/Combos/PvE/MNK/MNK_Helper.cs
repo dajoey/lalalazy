@@ -585,7 +585,7 @@ internal partial class MNK
         public override List<(int[] Steps, Func<bool> Condition)> SkipSteps { get; set; } =
         [
             ([1], () => Chakra >= 5),
-            ([2], () => HasStatusEffect(Buffs.FormlessFist) || JustUsed(FormShift)),
+            ([2], () => HasStatusEffect(Buffs.FormlessFist) || JustUsed(FormShift))
         ];
 
         public override List<(int[] Steps, Func<float> HoldDelay)> PrepullDelays { get; set; } =

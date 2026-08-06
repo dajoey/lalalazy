@@ -121,7 +121,13 @@ internal static class SimpleTarget
         ///     The Customizable Raise Stack.
         /// </summary>
         public static IGameObject? AllyToRaise =>
-            GetStack(StackOption.RaiseStack);
+            GetStack(StackOption.RaiseStack, target => target.IfCanUseOn(WHM.Raise));
+
+        /// <summary>
+        /// Same as <see cref="AllyToRaise"/> but for the OC raise actions to account for Forked Tower shenanigans.
+        /// </summary>
+        public static IGameObject? AllyToRaiseOccult =>
+            GetStack(StackOption.RaiseStack, target => target.IfCanUseOn(OccultCrescent.Revive));
 
         /// <summary>
         ///     The <see cref="AllyToHeal">Heal Stack</see>, but filtered to
@@ -224,9 +230,7 @@ internal static class SimpleTarget
                 foreach (var name in Service.Configuration.RaiseStack)
                 {
                     var resolved = GetSimpleTargetValueFromName(name);
-                    var target =
-                        CustomLogic(resolved.IfCanUseOn(WHM.Raise).IfTargetable()
-                            .IfDead().IfWithinRange(30));
+                    var target = CustomLogic(resolved.IfTargetable().IfDead().IfWithinRange(30));
 
                     if (logging)
                         PluginLog.Verbose(
@@ -849,4 +853,4 @@ internal static class SimpleTarget
     #endregion
 
     #endregion
-}
+}

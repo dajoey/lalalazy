@@ -3,13 +3,13 @@ using Dalamud.Game.ClientState.Statuses;
 using ECommons.DalamudServices;
 using ECommons.GameFunctions;
 using ECommons.GameHelpers;
-using ECommons.MathHelpers;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using System;
+using System.Collections.Generic;
 using System.Linq;
-using GluttonyCombo.Data.BattleData;
 using GluttonyCombo.Data;
+using GluttonyCombo.Data.BattleData;
 using GluttonyCombo.Extensions;
 using GluttonyCombo.Services;
 
@@ -65,24 +65,39 @@ internal abstract partial class CustomComboFunctions
     }
 
     /// <summary>
-    /// Checks to see if any statuses are on the Player or an optional target
+    /// Checks to see if any or all statuses are on the Player or an optional target
     /// </summary>
-    /// <param name="statusId">List Of StatusIDs</param>
+    /// <param name="statusIds">List Of StatusIDs</param>
     /// <param name="target">Optional Target</param>
     /// <param name="anyOwner">Check if the Player owns/created the statuses, true means anyone owns</param>
+    /// <param name="matchAll">If true, target must have all of the statuses</param>
     /// <seealso cref="HasStatusEffect(ushort statusId, IGameObject? target = null, bool anyOwner = false)"/>
-    public static bool HasAnyStatusEffects(ushort[] status, IGameObject? target = null, bool anyOwner = false) =>
-        status.Any(statusId => HasStatusEffect(statusId, target ?? LocalPlayer, anyOwner));
+    public static bool HasStatusEffects(ushort[] statusIds, IGameObject? target = null, bool anyOwner = false, bool matchAll = false)
+    {
+        target ??= LocalPlayer;
+        if (target is not IBattleChara chara)
+            return false;
 
-    /// <summary>
-    /// Checks to see if all statuses are on the Player or an optional target
-    /// </summary>
-    /// <param name="statusId">List Of StatusIDs</param>
-    /// <param name="target">Optional Target</param>
-    /// <param name="anyOwner">Check if the Player owns/created the statuses, true means anyone owns</param>
-    /// <seealso cref="HasStatusEffect(ushort statusId, IGameObject? target = null, bool anyOwner = false)"/>
-    public static bool HasAllStatusEffects(ushort[] status, IGameObject? target = null, bool anyOwner = false) =>
-        status.All(statusId => HasStatusEffect(statusId, target ?? LocalPlayer, anyOwner));
+        var statuses = chara.SafeStatusList;
+        if (statuses is null)
+            return false;
+
+        ulong? sourceId = !anyOwner ? LocalPlayer.GameObjectId : null;
+        var statusIdSet = new HashSet<uint>(statusIds.Select(s => (uint)s));
+
+        if (matchAll)
+        {
+            // Check that ALL status IDs we're looking for exist on the target
+            return statusIdSet.All(statusId => statuses.Any(s => s.StatusId == statusId &&
+                (!sourceId.HasValue || s.SourceId == 0 || s.SourceId == sourceId)));
+        }
+        else
+        {
+            // Check if ANY status matches
+            return statuses.Any(s => statusIdSet.Contains(s.StatusId) &&
+                (!sourceId.HasValue || s.SourceId == 0 || s.SourceId == sourceId));
+        }
+    }
 
     /// <summary>
     /// Gets remaining time of a Status Effect
@@ -153,6 +168,9 @@ internal abstract partial class CustomComboFunctions
 
         return HasStatusEffect(44, target, true); //Brink of Death = 44
     }
+
+    public static bool TargetHasRaiseInvincibility(IBattleChara? target) => StatusCache.HasRaiseInvincibility(target);
+    public static bool TargetHasRaiseStatus(IBattleChara? target) => StatusCache.HasRaiseStatus(target);
 
     /// <summary>
     /// Checks if the target has a debuff that can be dispelled.
@@ -234,11 +252,8 @@ internal abstract partial class CustomComboFunctions
             BattleData.Invincible.True => true,
             // Are we to bother with checking statuses per Battle Data
             BattleData.Invincible.False => false,
-            // General invincibility check
-            // Due to large size of InvincibleStatuses, best to check process this way
-            BattleData.Invincible.CheckStatuses => StatusCache.CompareLists(
-                                StatusCache.InvincibleStatuses,
-                                targetStatuses),
+            // General invincibility check, not using StatusCache.HasStatusInCacheList because statuses is derived from SafeStatusList
+            BattleData.Invincible.CheckStatuses => statuses.Any(s => StatusCache.InvincibleStatuses.Contains(s.StatusId)),
             _ => false,
         };
     }
@@ -350,4 +365,4 @@ internal abstract partial class CustomComboFunctions
     public static bool NeedsDoomTopUp(IGameObject? target) =>
         target is not null && HasDoom(target) && GetTargetHPPercent(target, false) < 100;
 
-}
+}

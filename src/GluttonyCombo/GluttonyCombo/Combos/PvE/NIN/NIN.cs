@@ -32,7 +32,7 @@ internal partial class NIN : Melee
                 return actionID;
 
             #region Special Content
-            if (ContentSpecificActions.TryGet(out var contentAction) && !MudraPhase)
+            if (ContentSpecificActions.TryGet(ref actionID, out uint contentAction) && !MudraPhase)
                 return contentAction;
             #endregion
 
@@ -150,7 +150,7 @@ internal partial class NIN : Melee
                 return actionID;
 
             #region Special Content
-            if (ContentSpecificActions.TryGet(out var contentAction) && !MudraPhase)
+            if (ContentSpecificActions.TryGet(ref actionID, out uint contentAction) && !MudraPhase)
                 return contentAction;
             #endregion
 
@@ -269,7 +269,7 @@ internal partial class NIN : Melee
                 return actionID;
 
             #region Special Content
-            if (ContentSpecificActions.TryGet(out var contentAction) && !MudraPhase)
+            if (ContentSpecificActions.TryGet(ref actionID, out uint contentAction) && !MudraPhase)
                 return contentAction;
             #endregion
 
@@ -418,7 +418,7 @@ internal partial class NIN : Melee
                 return actionID;
 
             #region Special Content
-            if (ContentSpecificActions.TryGet(out var contentAction) && !MudraPhase)
+            if (ContentSpecificActions.TryGet(ref actionID, out uint contentAction) && !MudraPhase)
                 return contentAction;
             #endregion
 

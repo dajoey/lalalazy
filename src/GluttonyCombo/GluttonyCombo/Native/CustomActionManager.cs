@@ -54,7 +54,7 @@ public sealed unsafe class CustomAction : IDisposable
         CustomActionManager.CustomActionRow* row = (CustomActionManager.CustomActionRow*)ActionRowPtr;
         row->NameOffset = (uint)rowSize;
         row->Icon = (ushort)IconId;
-        row->ActionCategory = 4;
+        row->ActionCategory = 13;
         row->PrimaryCostType = 0;
         row->PrimaryCostValue = 0;
         row->Cast100ms = 0;
@@ -66,6 +66,7 @@ public sealed unsafe class CustomAction : IDisposable
         row->ClassJob = -1;
         row->Range = 0;
         row->CastType = 1;
+        row->TargetBools |= 0x08;
         nameUtf8.CopyTo(new Span<byte>((void*)(ActionRowPtr + (nint)rowSize), nameUtf8.Length));
 
         byte[] descBytes = Encoding.UTF8.GetBytes(Description);
@@ -215,17 +216,6 @@ public sealed unsafe class CustomActionManager : IDisposable
         }
     }
 
-    public void ReRegisterItem(uint itemId, ushort iconId)
-    {
-        var act = _actions[All.Items];
-        if (_texProv.TryGetFromGameIcon(new GameIconLookup() { IconId = iconId, ItemHq = false }, out var tex))
-        {
-            var clone = new CustomAction(act.Id, act.Name, act.Description, iconId, act.OnClick, act.CustomIconPath, itemId, tex);
-            act.Dispose();
-            Register(clone);
-        }
-    }
-
     public void ClearPendingInjects() => _pendingInjects.Clear();
 
     private CustomActionRow* GetActionRowDetour(uint rowId)
@@ -347,6 +337,7 @@ public sealed unsafe class CustomActionManager : IDisposable
         [FieldOffset(0x33)] public byte ClassJobCategory;
         [FieldOffset(0x37)] public sbyte ClassJob;
         [FieldOffset(0x38)] public sbyte Range;
+        [FieldOffset(0x3B)] public byte TargetBools;
     }
 
     private delegate CustomActionRow* GetActionRowDelegate(uint rowId);
@@ -529,4 +520,4 @@ public class CustomActionHelper()
             (false, false) => CustomActionType.SingleTargetDPS,
         };
     }
-}
+}

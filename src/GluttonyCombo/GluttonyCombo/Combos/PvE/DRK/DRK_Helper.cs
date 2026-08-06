@@ -157,10 +157,10 @@ internal partial class DRK
     /// <returns>A valid <see cref="WrathOpener">Opener</see>.</returns>
     internal static WrathOpener Opener()
     {
-        if (Opener1.LevelChecked)
-            return Opener1;
+        if (DRK_SelectedOpener == 1 && OpenerEarlyBuff.LevelChecked)
+            return OpenerEarlyBuff;
 
-        return WrathOpener.Dummy;
+        return Opener1.LevelChecked ? Opener1 : WrathOpener.Dummy;
     }
     
     #region Mitigation
@@ -239,6 +239,7 @@ internal partial class DRK
     }
 
     internal static DRKOpenerMaxLevel1 Opener1 = new();
+    internal static DRKOpenerEarlyBuff OpenerEarlyBuff = new();
 
     internal class DRKOpenerMaxLevel1 : WrathOpener
     {
@@ -322,6 +323,101 @@ internal partial class DRK
         internal override bool IncludePot => DRK_Opener_Potion;
 
         public override bool HasCooldowns() =>
+            LocalPlayer.CurrentMp > 7000 && IsOffCooldown(LivingShadow) &&
+            IsOffCooldown(Delirium) && IsOffCooldown(CarveAndSpit) &&
+            IsOffCooldown(SaltedEarth) &&
+            GetRemainingCharges(Shadowbringer) >= 2 &&
+            (!InCombat() || CombatEngageDuration().TotalSeconds < 3);
+    }
+
+    internal class DRKOpenerEarlyBuff : WrathOpener
+    {
+        public override int MinOpenerLevel => 100;
+
+        public override int MaxOpenerLevel => 109;
+
+        public override List<uint> OpenerActions { get; set; } =
+        [
+            LivingShadow,
+            Unmend,
+            Items.UseItem(Items.GetStrongestPotionRow(Items.PotionType.Strength)),
+            EdgeOfShadow, // Not handled like a procc, since it sets up Darkside
+            HardSlash, // 5
+            Delirium,
+            SaltedEarth,
+            HardSlash,
+            Disesteem,
+            //EdgeOfShadow, // Handled like a procc
+            CarveAndSpit, // 10
+            ScarletDelirium,
+            Shadowbringer,
+            Comeuppance,
+            Shadowbringer,
+            Torcleaver, // 15
+            SaltAndDarkness,
+            SyphonStrike,
+            //EdgeOfShadow, // Handled like a procc
+            Souleater,
+            //EdgeOfShadow, // Handled like a procc
+            Bloodspiller, // 20
+            //EdgeOfShadow, // Handled like a procc
+            HardSlash,
+        ];
+
+        public override List<(int[] Steps, Func<float> HoldDelay)> PrepullDelays
+        {
+            get;
+            set;
+        } =
+        [
+            ([1], () => CountdownRemaining - 3),
+            ([2], () => CountdownRemaining - 1),
+        ];
+
+        public override List<(int[] Steps, uint NewAction, Func<bool> Condition)> SubstitutionSteps
+        {
+            get;
+            set;
+        } =
+        [
+            ([2], Shadowstride, () =>
+                DRK_ST_OpenerAction == (int)PullAction.Shadowstride),
+            ([2], HardSlash, () =>
+                DRK_ST_OpenerAction == (int)PullAction.HardSlash),
+        ];
+
+        public override List<(int[] Steps, Func<bool> Condition)> SkipSteps
+        {
+            get;
+            set;
+        } =
+        [
+            // Skip the duplicate HardSlash, if pulling with HardSlash
+            ([5], () =>
+                DRK_ST_OpenerAction == (int)PullAction.HardSlash),
+            // Skip Salted Earth if on cooldown
+            ([7], () =>
+                IsOnCooldown(SaltedEarth)),
+            // Skip the aligning HardSlash, if pulling with Unmend
+            ([8], () =>
+                DRK_ST_OpenerAction == (int)PullAction.Unmend),
+            // Skip Salt and Darkness when not ready
+            ([16], () =>
+                !ActionReady(SaltAndDarkness)),
+            // Skip Blood spenders when no Blood
+            ([19], () =>
+                Gauge.Blood < 50),
+        ];
+
+        public override Preset Preset => Preset.DRK_ST_BalanceOpener;
+
+        internal override UserData? ContentCheckConfig =>
+            DRK_ST_OpenerDifficulty;
+
+        internal override bool IncludePot => DRK_Opener_Potion;
+
+        public override bool HasCooldowns() =>
+            CountdownActive &&
             LocalPlayer.CurrentMp > 7000 && IsOffCooldown(LivingShadow) &&
             IsOffCooldown(Delirium) && IsOffCooldown(CarveAndSpit) &&
             IsOffCooldown(SaltedEarth) &&

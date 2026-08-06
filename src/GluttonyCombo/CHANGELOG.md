@@ -1,4 +1,91 @@
-﻿## v1.0.4.131 (2026-08-05)
+﻿## v1.0.4.132 (2026-08-05) [testing]
+
+Upstream WrathCombo catch-up merge: **36 commits**, `e1a1fd681` -> `215b38658`
+(2026-07-05 .. 2026-08-05), 54 files, +3906/-989. The fork had been current only
+through 2026-08-04. Merged per-file 3-way against the last-merged upstream blobs
+as the base, since fork and upstream histories are unrelated and the fork lives
+under `src/GluttonyCombo/GluttonyCombo/` with the namespace renamed.
+
+### READ THIS FIRST - Phantom job preset toggles reset
+
+Upstream inserted `Phantom_Dancer_SteadfastStance` at **110090** and shipped its own
+implementation of the 7.55 phantom jobs, renumbering **45 Phantom_* presets by +1..+3**.
+Preset state is persisted by enum value, so **every Phantom job toggle you had set is now
+pointing at the wrong feature.** Re-check the Occult Crescent section of the config after
+updating. Nothing outside the `Phantom_*` range is affected.
+
+Two fork-only presets were re-homed above upstream's range to avoid collisions:
+`Phantom_Dragoon_StepForth` 110110 -> **110139**, `Phantom755_RequireWeakness` 110136 -> **110140**.
+
+### Added (upstream)
+- **Status system rework.** `TargetHasRaiseStatus` / `TargetHasRaiseInvincibility` (SE now ships
+  several rows with the same name), `TargetHasRaiseInvincibility` wired into
+  `ShouldSkipAutorotation`, `DoNotHealStatuses` moved onto `HasStatusInCacheList` /
+  `SafeStatusList`, and `HasAnyStatusEffect` + `HasAllStatusEffects` collapsed into
+  `HasStatusEffects(..., matchAll)`.
+- **AutoRotationController refactor.** `IGameObject` -> `IBattleChara` throughout (`GetBattleCharas`
+  returns only `IBattleChara`), `RezQuery` delegate property -> `CheckRezTarget` method, DPS
+  `BaseSelection` rewritten to one object search (a second only when there are no priority
+  matches), `PreEmptiveHot` / `PreEmptiveShield` / `UpdateKardiaTarget` moved onto
+  `GetBattleCharas`, magic number 418 -> `TranscendantBuff`.
+- **Retargeting fixes.** Autorotation no longer locks when retargeting friendly actions on DPS;
+  retargeting fixed for content actions.
+- **DRK Early Buff Window opener** (+ prepot, countdown pre-pull timing, Hard Slash pull action),
+  `MCH_ST_Opener_BlockEarly`, DRG placeholder update, SMN/BRD/BLM/MNK/RPR/VPR/WAR/DNC/SAM/SCH/SGE/WHM
+  touch-ups, Searing Light option fix, Savage Blade fix, null-target fix.
+- **BattleData:** Containment Bay Z1T9 prioritises Witts; Baelsar's Wall prioritises Restraint
+  Collar and gains an Acceleration Bomb caution; Saint Mocianne's (Hard) gaze check.
+- **Native 7.55 phantom jobs**, incl. `Phantom_Oracle_Recuperation` / `PhantomDoom` /
+  `PhantomRejuvenation` / `Invulnerability`, `Phantom_Dancer_SteadfastStance`,
+  `Phantom_BlueMage_OccultAeroII` / `OccultAeroIII`, and a config-driven Drain Touch
+  (mode / health / emergency-health / spell-during-Drain-Touch).
+- **Custom actions:** category changed to Special, no longer render as out of range.
+
+### Changed (fork)
+- **`OccultCrescent.CanPhantomRaise()` adopted** in place of the fork's inline Chemist-Revive /
+  WHM-Occult-Raise pair; it covers both and adds the `IsInOccult` guard.
+- **Converged on upstream's `OccultCrescent.OccultRaise`.** It is the same action id (49070) as the
+  fork's `P755.WHM_OccultRaise`, so the fork's now-duplicate `else if` branch in `RezParty()` was
+  dead code and is removed. The comment explaining why phantom raise leads is kept.
+- **Phantom heal candidacy** now uses upstream's `StatusCache.HasStatusInCacheList` /
+  `SafeStatusList` for the `DoNotHealStatuses` filter, and `CanAoEHeal` adopts upstream's
+  `Count(...)` form - **with the fork's `NeedsDoomTopUp(...)` disjunction preserved in both**, so
+  a Doomed ally is still a heal candidate at any HP (v1.0.4.125).
+- **Occult Crescent config sliders merged rather than replaced.** The fork's BLU White Wind
+  self-HP slider, the Necromancer HP-floor slider and its Doom warning text now sit alongside
+  upstream's Drain Touch mode radios and thresholds in the same case.
+
+### Notes - what was deliberately NOT taken
+- **The fork's 7.55 phantom implementation stays in charge.** Upstream now defines
+  `TryGet<Job>Action` methods with identical names on the same partial class; the fork's are
+  suffixed `755` and `TryGet755Action` still runs first in `TryGetPhantomAction`, so **phantom
+  behaviour is unchanged by this merge**. Upstream's implementation has **no HP floor, no
+  already-Doomed check and no instant-cast-proc protection** - taking it wholesale would
+  re-introduce exactly the Doom-at-95%-HP death that v1.0.4.125 fixed and would spend a
+  Swiftcast held for a raise on a 1.5s phantom spell. The `P755` constants also feed the
+  fork-only phantom-heal integration (16 references in `OccultCrescent.cs`), so the file's own
+  "RIP-OUT PROCEDURE" is no longer a straight delete. Retiring it means porting
+  `NecromancerHpOk`, `NecromancerNotDoomed`, `DrainTouchCastHeadroom` and
+  `HoldingInstantCastProc` onto upstream's methods and re-validating in game - a deliberate
+  change, not merge collateral. **Left as a follow-up decision.**
+- **Fork guards kept over upstream's removals:** the Amnesia / Pacification / Silence action
+  blocking (incl. the Echo Drops fallback) and the player-side Transcendent (418) guard.
+  Upstream's replacement `TargetHasRaiseInvincibility` is target-side and not equivalent.
+- **v1.0.4.128 raise tick-end intact:** `RezParty()` still returns `bool` and `Run()` still ends
+  the tick on a real fire, so the damage rotation cannot eat the raise Swiftcast.
+- `All.Cease` remains `1_000_004`.
+
+### Verification
+- `dotnet build` Release: **0 errors**, 12 warnings.
+- Automated re-check of every protected divergence after the merge: Cease id, RezParty bool +
+  tick-end, 9 `NeedsDoomTopUp` sites, Pacification / Amnesia / Echo Drops blocking,
+  `HoldingInstantCastProc`, Necromancer HP floor and not-already-Doomed gates, weakness gate,
+  StepForth, phantom-heal rows, dispatcher order, DRK TBN, AutoDuty IPC - all present. All 8
+  fork-only presets still defined.
+- **Not yet verified in game.** Testing channel only; production stays 1.0.4.131 until Joey
+  confirms.
+
+## v1.0.4.131 (2026-08-05)
 
 No source change. Version bump only, recorded per the repo rule that any move of
 `<Version>` / `AssemblyVersion` carries a CHANGELOG entry explaining why.
