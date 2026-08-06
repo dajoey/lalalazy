@@ -369,30 +369,26 @@ internal partial class MCH
         ActionReady(OriginalHook(Ricochet)) &&
         GetRemainingCharges(OriginalHook(Ricochet)) > GetRemainingCharges(OriginalHook(GaussRound));
 
-    private static bool OvercapGaussRicochetProtection(out uint action, bool allowRicochet = true)
+    private static bool OvercapGaussRicochetProtection(ref uint actionID, bool allowRicochet = true)
     {
-        action = 0;
-
         if (OvercapGaussRound)
         {
-            action = OriginalHook(GaussRound);
+            actionID = OriginalHook(GaussRound);
             return true;
         }
 
         if (allowRicochet && OvercapRicochet)
         {
-            action = OriginalHook(Ricochet);
+            actionID = OriginalHook(Ricochet);
             return true;
         }
 
         return false;
     }
 
-    private static bool GaussRicochetWeaves(out uint action, bool onAoE, bool duringHypercharge,
+    private static bool GaussRicochetWeaves(ref uint actionID, bool onAoE, bool duringHypercharge,
         bool enabled = true, int gaussOnlyOrBoth = 0, int chargePool = 0)
     {
-        action = 0;
-
         if (!enabled)
             return false;
 
@@ -410,7 +406,7 @@ internal partial class MCH
         {
             if (HasCharges(GaussRound) && !LevelChecked(DoubleCheck))
             {
-                action = GaussRound;
+                actionID = GaussRound;
                 return true;
             }
 
@@ -421,14 +417,14 @@ internal partial class MCH
             (CanGaussRound || !LevelChecked(Ricochet)) &&
             (duringHypercharge || !JustUsed(OriginalHook(GaussRound), spacing) || !LevelChecked(Ricochet)))
         {
-            action = OriginalHook(GaussRound);
+            actionID = OriginalHook(GaussRound);
             return true;
         }
 
         if (GetRemainingCharges(OriginalHook(Ricochet)) > chargePool &&
             CanRicochet && (duringHypercharge || !JustUsed(OriginalHook(Ricochet), spacing)))
         {
-            action = OriginalHook(Ricochet);
+            actionID = OriginalHook(Ricochet);
             return true;
         }
 
@@ -669,7 +665,7 @@ internal partial class MCH
         ];
 
         protected static bool SharedOpenerCooldowns() =>
-            CountdownActive &&
+            (!IsEnabled(Preset.MCH_ST_Opener_BlockEarly) || CountdownActive) &&
             GetRemainingCharges(Reassemble) is 2 &&
             GetRemainingCharges(OriginalHook(GaussRound)) is 3 &&
             GetRemainingCharges(OriginalHook(Ricochet)) is 3 &&

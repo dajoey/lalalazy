@@ -496,7 +496,7 @@ internal partial class BRD
 
         if (flags.HasFlag(Combo.ST) && troubadourEnabled && ActionReady(Troubadour) && GroupDamageIncoming() && CanWeave() &&
             NumberOfAlliesInRange(Troubadour) >= GetPartyMembers().Count * .75 &&
-            !JustUsed(NaturesMinne) && !HasAnyStatusEffects([Buffs.Troubadour, Buffs.NaturesMinne, DNC.Buffs.ShieldSamba, MCH.Buffs.Tactician], anyOwner: true))
+            !JustUsed(NaturesMinne) && !HasStatusEffects([Buffs.Troubadour, Buffs.NaturesMinne, DNC.Buffs.ShieldSamba, MCH.Buffs.Tactician], anyOwner: true))
         {
             actionID = Troubadour;
             return true;
@@ -504,7 +504,7 @@ internal partial class BRD
 
         if (flags.HasFlag(Combo.ST) && naturesMinneEnabled && ActionReady(NaturesMinne) && GroupDamageIncoming() && CanWeave() &&
             NumberOfAlliesInRange(NaturesMinne) >= GetPartyMembers().Count * .75 &&
-            !JustUsed(Troubadour) && !HasAnyStatusEffects([Buffs.Troubadour, Buffs.NaturesMinne], anyOwner: true))
+            !JustUsed(Troubadour) && !HasStatusEffects([Buffs.Troubadour, Buffs.NaturesMinne], anyOwner: true))
         {
             actionID = NaturesMinne;
             return true;

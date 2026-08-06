@@ -391,24 +391,23 @@ internal partial class SMN
         
         if (SummonerWeave)
         {
-            #region Searing Light
+           #region Searing Light
+
             if (searingLightEnabled && ActionReady(SearingLight) && !HasStatusEffect(Buffs.SearingLight, anyOwner: true))
             {
-                if (SearingLightBurstEnabled && TraitLevelChecked(Traits.EnhancedDreadwyrmTrance)) //Burst window is enabled so you wait for the demi
+                if (!SearingLightBurstEnabled || !TraitLevelChecked(Traits.EnhancedDreadwyrmTrance))
                 {
-                    if (DemiExists)
-                    {
-                        actionID = SearingLight;
-                        return true;
-                    }
+                    actionID = SearingLight;
+                    return true;
                 }
-                else if (!ActionReady(OriginalHook(Aethercharge))) //Burst window is not enabled, won't wait for demi unless demi is already available
+                if (DemiExists)
                 {
                     actionID = SearingLight;
                     return true;
                 }
             }
-            #endregion
+
+#endregion
             
             #region Energy Drain / Energy Siphon
             if (energyDrainEnabled && !Gauge.HasAetherflowStacks && ActionReady(EnergyDrain))

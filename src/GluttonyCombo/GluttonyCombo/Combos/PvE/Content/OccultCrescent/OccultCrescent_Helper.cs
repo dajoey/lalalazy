@@ -4,6 +4,7 @@ using FFXIVClientStructs.FFXIV.Client.Game.InstanceContent;
 using System;
 using System.Reflection;
 using static GluttonyCombo.Combos.PvE.JobIDExtensions;
+using static GluttonyCombo.Combos.PvE.OccultCrescent.Config;
 using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
 
 #endregion
@@ -124,12 +125,86 @@ internal partial class OccultCrescent
         Finisher = 46594,
         Defend = 46595,
         LongReach = 46596,
-        BladeBlitz = 46597;
+        BladeBlitz = 46597,
+
+        //Ninja
+        FumaShuriken = 49062,
+        Smoke = 49063,
+        LightningScroll = 49064,
+        FlameScroll = 49065,
+        Image = 49066,
+
+        //White Mage
+        OccultCureII = 49067,
+        OccultCureIII = 49068,
+        OccultBlink = 49069,
+        OccultRaise = 49070,
+        OccultHoly = 49071,
+
+        //Black Mage
+        OccultFireIII = 49072,
+        OccultBlizzardIII = 49073,
+        OccultThunderIII = 49074,
+        OccultToad = 49075,
+        OccultFlare = 49076,
+
+        //Dragoon
+        OccultJump = 49077,
+        StepForth = 49078,
+        Lance = 49079,
+
+        //Summoner
+        Hellfire = 49080,
+        JudgmentBolt = 49081,
+        EarthenWall = 49082,
+        Thunderstorm = 49083,
+        Megaflare = 49084,
+
+        //Blue Mage
+        OccultAero = 49085,
+        OccultMissile = 49086,
+        OccultAquaBreath = 49087,
+        OccultMightyGuard = 49088,
+        OccultAeroII = 49089,
+        OccultWhiteWind = 49090,
+        OccultAeroIII = 49091,
+
+        //Red Mage
+        OccultFireII = 49092,
+        OccultCureII_RDM = 49093,
+        OccultLibra = 49094,
+        OccultBlizzardII = 49095,
+        OccultThunderII = 49096,
+
+        //Necromancer
+        DrainTouch = 49097,
+        DeepFreeze = 49098,
+        HellWind = 49099,
+        ChaosDrive = 49100,
+        Doomsday = 49101;
 
     internal static unsafe int CurrentJobLevel => (nint)PublicContentOccultCrescent.GetInstance() == nint.Zero ? 0 : PublicContentOccultCrescent.GetInstance()->State.SupportJobLevels[PublicContentOccultCrescent.GetInstance()->State.CurrentSupportJob];
 
 
     internal static bool IsEnabledAndUsable(Preset preset, uint action) => IsEnabled(preset) && HasActionEquipped(action) && ActionReady(action);
+
+    private const int HoldOnlyWhenStationary = 0;
+    private const int HoldOnlyInMeleeRange = 1;
+
+    private static bool CanUseOccultJumpHoldOptions()
+    {
+        if (Phantom_Dragoon_OccultJumpMovingOrInRanged.Count == 0)
+            return true;
+
+        if (Phantom_Dragoon_OccultJumpMovingOrInRanged[HoldOnlyWhenStationary] && IsMoving())
+            return false;
+
+        if (Phantom_Dragoon_OccultJumpMovingOrInRanged.Count > HoldOnlyInMeleeRange &&
+            Phantom_Dragoon_OccultJumpMovingOrInRanged[HoldOnlyInMeleeRange] && !InMeleeRange())
+            return false;
+
+        return true;
+    }
 
     /// <summary>
     ///     Job identifiers and which Icon is their own. <br />
@@ -226,17 +301,34 @@ internal partial class OccultCrescent
             TemptedToTango = 4795,
             Jitterbugged = 4796,
             WillingToWaltz = 4797,
-            Quickstep = 4798;
+            Quickstep = 4798,
+            SteadfastStance = 4800,
+            FinishingFervor = 4793,
+            OccultBlink = 5316,
+            JumpVulnerabilityDown = 5318,
+            Lance = 5319,
+            EarthenWall = 5320,
+            OccultMightyGuard = 5321,
+            DrainTouch = 5326,
+            Smoke = 5327,
+            Dualcast = 5438;
     }
 
     public static class Debuffs
     {
         public static ushort
             Slow = 3493,
+            Blind = 15,
+            Paralysis = 17,
             OccultMageMasher = 4259,
             SilverSickness = 4264,
             FalsePrediction = 4269,
-            WeaponPlifered = 4279;
+            WeaponPlifered = 4279,
+            OccultToad = 5317,
+            FireWeakness = 5322,
+            IceWeakness = 5323,
+            LightningWeakness = 5324,
+            WindWeakness = 5325;
     }
 
     public static class Traits

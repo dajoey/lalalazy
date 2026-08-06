@@ -1,6 +1,7 @@
 #region
 
 using Dalamud.Game.ClientState.JobGauge.Types;
+using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
 using ECommons.DalamudServices;
 using ECommons.ExcelServices;
@@ -8,7 +9,6 @@ using ECommons.GameHelpers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Dalamud.Game.ClientState.Conditions;
 using GluttonyCombo.Combos.PvE.ALL;
 using GluttonyCombo.Core;
 using GluttonyCombo.CustomComboNS;
@@ -17,6 +17,7 @@ using GluttonyCombo.Extensions;
 using GluttonyCombo.Services;
 using static GluttonyCombo.Combos.PvE.DNC.Config;
 using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
+using Dalamud.Game.ClientState.Conditions;
 using EZ = ECommons.Throttlers.EzThrottler;
 using TS = System.TimeSpan;
 
@@ -201,12 +202,15 @@ internal partial class DNC
         {
             if (!EZ.Throttle("dncPartnerDesiredCheck", TS.FromSeconds(2)) &&
                 field is not null)
-                return field;
+            {
+                if (IsDancePartnerReady(field.Value.GetObject()))
+                    return field;
+                // Cached partner no longer ready (cutscene, etc.) — refresh
+            }
             
             if (Player.Object is null ||
                 Player.Job != Job.DNC ||
-                Svc.Condition[ConditionFlag.BetweenAreas] ||
-                Svc.Condition[ConditionFlag.Unconscious] ||
+                IsOccupied() ||
                 !LevelChecked(ClosedPosition))
                 return field = null;
 
@@ -228,12 +232,33 @@ internal partial class DNC
              DesiredDancePartner != CurrentDancePartner)
         );
 
+    /// <summary>
+    ///     True when Closed Position can actually land on the target
+    ///     (not mid-cutscene / loading / otherwise untargetable).
+    /// </summary>
+    internal static bool IsDancePartnerReady(IGameObject? target) =>
+        target is not null &&
+        !target.IsDead &&
+        target.IsTargetable &&
+        // OnlineStatus 15 = Viewing Cutscene
+        target is not IPlayerCharacter { OnlineStatus.RowId: 15 } &&
+        target.CanUseOn(ClosedPosition);
+
     [ActionRetargeting.TargetResolver]
-    internal static IGameObject? DancePartnerResolver () =>
-        DesiredDancePartner.GetObject() ??
-        (!HasStatusEffect(Buffs.ClosedPosition)
-            ? SimpleTarget.AnySelfishDPS ?? SimpleTarget.AnyMeleeDPS ?? SimpleTarget.AnyDPS
-            : null);
+    internal static IGameObject? DancePartnerResolver()
+    {
+        var desired = DesiredDancePartner.GetObject();
+        if (IsDancePartnerReady(desired))
+            return desired;
+
+        if (HasStatusEffect(Buffs.ClosedPosition))
+            return null;
+
+        var fallback = SimpleTarget.AnySelfishDPS ??
+                       SimpleTarget.AnyMeleeDPS ??
+                       SimpleTarget.AnyDPS;
+        return IsDancePartnerReady(fallback) ? fallback : null;
+    }
 
     private static bool TryGetDancePartner (out IGameObject? partner)
     {
@@ -258,11 +283,11 @@ internal partial class DNC
         var focusTarget = SimpleTarget.FocusTarget;
         if (DNC_Partner_FocusOverride &&
             focusTarget is IBattleChara &&
-            !focusTarget.IsDead &&
             focusTarget.IsInParty() &&
             IsInRange(focusTarget, 30) &&
             SicknessFree(focusTarget) &&
-            DamageDownFree(focusTarget))
+            DamageDownFree(focusTarget) &&
+            IsDancePartnerReady(focusTarget))
         {
             partner = focusTarget;
             return true;
@@ -271,10 +296,10 @@ internal partial class DNC
         var party = GetPartyMembers()
             .Where(member => member.GameObject.IsNotThePlayer() &&
                              member.BattleChara is not null &&
-                             !member.BattleChara.IsDead &&
                              member.GameObject.IsWithinRange(30) &&
                              (!HasAnyPartner(member) ||
-                              HasMyPartner(member)))
+                              HasMyPartner(member)) &&
+                             IsDancePartnerReady(member.BattleChara))
             .Select(member => member.BattleChara!)
             .ToList();
 
@@ -289,14 +314,15 @@ internal partial class DNC
         }
 
         // Fallback to companion
-        if (HasCompanionPresent())
+        if (HasCompanionPresent() &&
+            IsDancePartnerReady(SimpleTarget.Chocobo))
         {
             partner = SimpleTarget.Chocobo;
             return true;
         }
 
         // Fallback to first party slot that isn't the player
-        if (party.Count > 1)
+        if (party.Count >= 1)
         {
             partner = party.First();
             return true;

@@ -512,10 +512,10 @@ internal class Debug : ConfigWindow, IDisposable
                 x.RowId is (>= 20701 and <= 20733) or (>= 22344 and <= 22356) or (>= 23908 and <= 23921))
             .OrderBy(x => x.RowId);
 
-        // Occult Actions
+        // Occult Actions (7.25 / 7.4 / 7.55)
         var actionsOccult = actionSheet
             .Where(x =>
-                x.RowId is >= 41588 and <= 41651 &&
+                (x.RowId is (>= 41588 and <= 41651) or (>= 46590 and <= 46620) or (>= 49062 and <= 49102)) &&
                 x.RowId is not (41593 or 41632))
             .OrderBy(x => x.RowId);
 

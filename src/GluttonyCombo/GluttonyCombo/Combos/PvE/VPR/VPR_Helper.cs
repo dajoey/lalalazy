@@ -323,33 +323,29 @@ internal partial class VPR
               : IsDeathRattleWeave && InActionRange(DeathRattle))) ||
          allowLegacy && IsLegacyWeaveReady && InActionRange(FirstLegacy));
 
-    private static bool UsePoisedTwinWeaves(out uint action, bool enabled = true)
+    private static bool UsePoisedTwinWeaves(ref uint actionID, bool enabled = true)
     {
-        action = 0;
-
         if (!enabled)
             return false;
 
         if (HasStatusEffect(Buffs.PoisedForTwinfang) && InActionRange(OriginalHook(Twinfang)))
         {
-            action = OriginalHook(Twinfang);
+            actionID = OriginalHook(Twinfang);
             return true;
         }
 
         if (HasStatusEffect(Buffs.PoisedForTwinblood) && InActionRange(OriginalHook(Twinblood)))
         {
-            action = OriginalHook(Twinblood);
+            actionID = OriginalHook(Twinblood);
             return true;
         }
 
         return false;
     }
 
-    private static bool UseViceTwinWeaves(out uint action, bool onAoE, bool enabled, bool requireMelee = true,
+    private static bool UseViceTwinWeaves(ref uint actionID, bool onAoE, bool enabled, bool requireMelee = true,
         bool ignoreRange = false)
     {
-        action = 0;
-
         if (!enabled || HasStatusEffect(Buffs.Reawakened))
             return false;
 
@@ -358,14 +354,14 @@ internal partial class VPR
             if (HasStatusEffect(Buffs.FellhuntersVenom) &&
                 (ignoreRange || InActionRange(TwinfangThresh)))
             {
-                action = OriginalHook(Twinfang);
+                actionID = OriginalHook(Twinfang);
                 return true;
             }
 
             if (HasStatusEffect(Buffs.FellskinsVenom) &&
                 (ignoreRange || InActionRange(TwinbloodThresh)))
             {
-                action = OriginalHook(Twinblood);
+                actionID = OriginalHook(Twinblood);
                 return true;
             }
 
@@ -375,14 +371,14 @@ internal partial class VPR
         if (HasStatusEffect(Buffs.HuntersVenom) &&
             (!requireMelee || ignoreRange || InActionRange(OriginalHook(Twinfang))))
         {
-            action = OriginalHook(Twinfang);
+            actionID = OriginalHook(Twinfang);
             return true;
         }
 
         if (HasStatusEffect(Buffs.SwiftskinsVenom) &&
             (!requireMelee || ignoreRange || InActionRange(OriginalHook(Twinblood))))
         {
-            action = OriginalHook(Twinblood);
+            actionID = OriginalHook(Twinblood);
             return true;
         }
 

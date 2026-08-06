@@ -18,7 +18,7 @@ internal partial class SAM : Melee
             if (CanPrepullMeikyo())
                 return MeikyoShisui;
 
-            if (ContentSpecificActions.TryGet(out uint contentAction))
+            if (ContentSpecificActions.TryGet(ref actionID, out uint contentAction))
                 return contentAction;
 
             //oGCDs
@@ -108,7 +108,7 @@ internal partial class SAM : Melee
             if (CanPrepullMeikyo())
                 return MeikyoShisui;
 
-            if (ContentSpecificActions.TryGet(out uint contentAction))
+            if (ContentSpecificActions.TryGet(ref actionID, out uint contentAction))
                 return contentAction;
 
             //oGCD feature
@@ -173,7 +173,7 @@ internal partial class SAM : Melee
                 CanPrepullMeikyo(requireNotJustUsed: true))
                 return MeikyoShisui;
 
-            if (ContentSpecificActions.TryGet(out uint contentAction))
+            if (ContentSpecificActions.TryGet(ref actionID, out uint contentAction))
                 return contentAction;
 
             //oGCDs
@@ -315,7 +315,7 @@ internal partial class SAM : Melee
                 CanPrepullMeikyo(requireNotJustUsed: true))
                 return MeikyoShisui;
 
-            if (ContentSpecificActions.TryGet(out uint contentAction))
+            if (ContentSpecificActions.TryGet(ref actionID, out uint contentAction))
                 return contentAction;
 
             //oGCD feature
