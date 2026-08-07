@@ -5,6 +5,7 @@ using Dalamud.Plugin.Services;
 using ECommons;
 using ECommons.DalamudServices;
 using ECommons.EzHookManager;
+using FFXIVClientStructs.FFXIV.Client.Enums;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
@@ -167,6 +168,16 @@ public sealed unsafe class CustomActionManager : IDisposable
     public void Dispose()
     {
         _framework.Update -= OnFrameworkUpdate;
+
+        AgentActionDetail* detailAgent = AgentActionDetail.Instance();
+        if (detailAgent != null && _actions.ContainsKey(detailAgent->ActionId))
+        {
+            detailAgent->Hide();
+            detailAgent->ActionKind = DetailKind.None;
+            detailAgent->ActionId = 0;
+            detailAgent->OriginalId = 0;
+            detailAgent->AdjustedId = 0;
+        }
 
         _getActionRowHook.Dispose();
         _isSlotUsableHook.Dispose();

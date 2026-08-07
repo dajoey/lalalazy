@@ -1,4 +1,17 @@
-﻿## v1.0.4.133 (2026-08-06) [testing]
+﻿## v1.0.4.134 (2026-08-07) [testing]
+
+### Fixed (upstream)
+- **Crash fix for the custom action tooltip** (upstream WrathCombo `215b38658` ->
+  `00823c75f`, 2 commits, PR #1250 by Knightmore). On plugin dispose, if the
+  action-detail tooltip agent (`AgentActionDetail`) is showing one of the fork's custom
+  actions (e.g. Cease!), the agent is now hidden and its ActionId / OriginalId /
+  AdjustedId are reset to 0. Previously the tooltip could outlive the disposed custom
+  action and crash the game. `Native/CustomActionManager.cs` — upstream hunk applied
+  verbatim; the touched regions carry no fork divergence and no standing divergence
+  (WHM ground-heal, 15s raidwide gate, Pacification/Silence/Amnesia, BLU engine, SMN
+  Aegis, case 1346/1248/1363 BattleData) is in this range.
+
+## v1.0.4.133 (2026-08-06) [testing]
 
 ### Added
 - **Forked Tower: Magic — Two-headed Aevis head-buff handling.** New BattleData case for
