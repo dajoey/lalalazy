@@ -1,4 +1,24 @@
-﻿## v1.0.4.132 (2026-08-05)
+﻿## v1.0.4.133 (2026-08-06) [testing]
+
+### Added
+- **Forked Tower: Magic — Two-headed Aevis head-buff handling.** New BattleData case for
+  territory 1346 (Occult Crescent: North Horn; the Normal run and the Extreme duty both
+  use this territory). Heads carrying Epic Villain (5400, or Jeuno-era 4193) or Fated
+  Villain (5401 / 4195) are treated as invincible unless the local player has the matching
+  Epic Hero (4192) / Fated Hero (4194) status — per the status text, damage from anyone
+  not dubbed the matching Hero is nullified. Auto-rotation now skips/retargets off the
+  head your half of the raid cannot damage. Keyed on the villain status rather than head
+  BaseIds (green head 19474/19476, blue head 19475/19477) so later FT:M bosses reusing
+  the duel system are covered automatically; Vaunted pair (4197/4196) included for parity.
+  IDs verified against the live 7.55 sqpack (Status, BNpcName, ContentFinderCondition)
+  and BossModReborn's FTMN1TwoHeadedAevis enums. `Data/BattleData/BattleData_7.0_DT.cs`.
+
+### Notes
+- Hero statuses are duty-applied, so they are checked with `anyOwner: true`. The
+  upstream-synced Jeuno Ark Angels case (territory 1248) checks the same statuses
+  owner-filtered, which may be a latent upstream bug — deliberately left untouched here.
+
+## v1.0.4.132 (2026-08-05)
 
 Upstream WrathCombo catch-up merge: **36 commits**, `e1a1fd681` -> `215b38658`
 (2026-07-05 .. 2026-08-05), 54 files, +3906/-989. The fork had been current only

@@ -184,6 +184,32 @@ namespace GluttonyCombo.Data.BattleData
 
                     break;
 
+                case 1346: // Occult Crescent: North Horn (open zone + Forked Tower: Magic, Normal & Extreme share this territory)
+                           // FT:M boss 1 Two-headed Aevis = 19473 (0x4C11)
+                           // green head = 19474/19476 (0x4C12/0x4C14)
+                           // blue head = 19475/19477 (0x4C13/0x4C15)
+
+                    // Heads gain Epic/Fated Villain; per the status text, damage from anyone
+                    // not dubbed the matching Epic/Fated Hero is nullified. Keyed on the
+                    // villain status rather than head BaseIds so later FT:M bosses reusing
+                    // the duel system are covered too.
+                    _invincibleCheck = (_, _, targetStatuses) =>
+                    {
+                        // Epic Villain (5400; 4193 = same-name Jeuno-era row) needs Epic Hero (4192)
+                        if (targetStatuses.Contains(5400) || targetStatuses.Contains(4193))
+                            return Result(!HasStatusEffect(4192, null, true));
+                        // Fated Villain (5401; 4195 Jeuno-era) needs Fated Hero (4194)
+                        if (targetStatuses.Contains(5401) || targetStatuses.Contains(4195))
+                            return Result(!HasStatusEffect(4194, null, true));
+                        // Vaunted Villain (4197, Jeuno-era) needs Vaunted Hero (4196) — unused by Aevis, kept for parity
+                        if (targetStatuses.Contains(4197))
+                            return Result(!HasStatusEffect(4196, null, true));
+
+                        // Open-world zone: keep the master invincibility status check for everything else
+                        return Invincible.CheckStatuses;
+                    };
+                    break;
+
                 case 1363: // Dancing Mad (Ultimate)
                            // Chaos = 19508
                            // Exdeath = 19509
