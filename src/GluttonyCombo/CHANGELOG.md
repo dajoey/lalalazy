@@ -1,4 +1,41 @@
-﻿## v1.0.4.135 (2026-08-08) [testing]
+﻿## v1.0.4.136 (2026-08-08) [testing]
+
+### Fixed
+- **The whole BattleData encounter system was dead code — `LoadCombatData()` was never
+  called.** `BattleData._invincibleCheck` never left its field initialiser
+  (`(_, _, _) => Invincible.CheckStatuses`), so `IsInvincible()` always fell through to the
+  master invincibility status list and *every* per-encounter case in all six
+  `BattleData_*.cs` files never executed — Two-headed Aevis (1346), Jeuno Ark Angels (1248),
+  Dancing Mad (1363), Cloud of Darkness Chaotic (1241), and the rest. Upstream WrathCombo
+  calls `BattleData.LoadCombatData(Content.TerritoryID)` from the `onTerritoryChange ||
+  firstRun` block of `UpdateCaches` (`WrathCombo.cs:170`); the fork's copy of that block is
+  otherwise identical but lost the call, almost certainly in the `WrathCombo.cs` ->
+  `GluttonyCombo.cs` rename. Restored at `GluttonyCombo.cs:188`, with a comment marking it
+  as merge-fragile, plus the `using GluttonyCombo.Data.BattleData;` the file was missing.
+- **Consequently also restored:** `_pauseActions` (was pinned `() => false`, so
+  `hasActionPenalty` in `Status.cs` never tripped) and the `_tankbusterAIDs` /
+  `_raidwideAIDs` / `_ignoreRaidwideAIDs` frozen sets (all empty, so `IsRaidwide()` and
+  `IsTankbuster()` always returned false and `IgnoreRaidwide()` never suppressed a gaze).
+  Raidwide detection had been running on the generic `CastType is 2 or 5 && EffectRange >=
+  30` heuristic in `Action.cs` alone; the curated per-encounter lists and the gaze-exclusion
+  list contributed nothing.
+
+### Notes
+- Diagnosed from Joey's 2026-08-08 dajoeybaz session: `dalamud.log` confirmed territory
+  1346 for the whole Forked Tower: Magic run with zero GluttonyCombo exceptions, which ruled
+  out a wrong-territory case and a throwing `LoadDT()` and left the call wiring as the only
+  unverified link. The v1.0.4.133 Aevis case itself was correct all along and had simply
+  never run.
+- **Zero-cost verification, no fight required:** the Debug tab already prints `Battle Data
+  Loaded`, `Pausing Actions`, `Tankbusters`, `Raidwides`, `Ignored Raidwides`
+  (`Window/Tabs/Debug.cs:1040-1044`). Before this build they read `False / False / 0 / 0 / 0`
+  in every zone. In any territory with a BattleData case they should now read `True` with
+  non-zero counts where that encounter defines them.
+- Not yet verified in game. Testing channel only; production remains 1.0.4.132.
+- Added to the standing-divergences list in the nightly-merge runbook so a future rename or
+  upstream refactor of `UpdateCaches` cannot silently drop the call again.
+
+## v1.0.4.135 (2026-08-08) [testing]
 
 ### Fixed (upstream)
 - **Custom actions no longer roll the GCD** (upstream WrathCombo `00823c75f` ->

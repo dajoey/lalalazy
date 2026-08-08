@@ -32,6 +32,7 @@ using GluttonyCombo.Core;
 using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.CustomComboNS.Functions;
 using GluttonyCombo.Data;
+using GluttonyCombo.Data.BattleData;
 using GluttonyCombo.Data.Conflicts;
 using GluttonyCombo.Extensions;
 using GluttonyCombo.Native;
@@ -186,6 +187,13 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
                     EnteringInstancedContent = true;
                 else if (Content.InstanceContentRow?.RowId == 0)
                     EnteringInstancedContent = false;
+
+                // Populates the per-encounter invincibility check, pause-actions predicate, and the
+                // tankbuster/raidwide/ignored-raidwide action sets for the territory we just entered.
+                // Without this the whole BattleData system stays at its field initialisers -- every
+                // encounter case is dead code. Lost in the WrathCombo.cs -> GluttonyCombo.cs rename;
+                // upstream calls it here too. Do not drop it on a future merge.
+                BattleData.LoadCombatData(Content.TerritoryID);
             }
 
             return true;
