@@ -1,4 +1,18 @@
-﻿## v1.0.4.134 (2026-08-07) [testing]
+﻿## v1.0.4.135 (2026-08-08) [testing]
+
+### Fixed (upstream)
+- **Custom actions no longer roll the GCD** (upstream WrathCombo `00823c75f` ->
+  `c65d22477`, 2 commits; upstream also stamps its own csproj 1.0.4.20).
+  `CustomActionManager` now sets `CooldownGroup = 0` (was 58) when registering a
+  custom action, so firing one of the fork's custom actions (e.g. Cease!, the
+  auto-rotation utility buttons) no longer shares a cooldown group with the global
+  cooldown. Upstream's second commit is its own csproj version stamp (not taken -
+  version fields stay ours). `Native/CustomActionManager.cs` - pure-rename take:
+  ours == upstream base at the hunk; no fork divergence and no standing divergence
+  (WHM ground-heal, 15s raidwide gate, Pacification/Silence/Amnesia, BLU engine,
+  SMN Aegis, BattleData cases 1346/1248/1363) is in this range.
+
+## v1.0.4.134 (2026-08-07) [testing]
 
 ### Fixed (upstream)
 - **Crash fix for the custom action tooltip** (upstream WrathCombo `215b38658` ->
