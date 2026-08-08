@@ -60,7 +60,7 @@ public sealed unsafe class CustomAction : IDisposable
         row->PrimaryCostValue = 0;
         row->Cast100ms = 0;
         row->Recast100ms = 0;
-        row->CooldownGroup = 58;
+        row->CooldownGroup = 0;
         row->AdditionalRecastGroup = 0;
         row->MaxCharges = 1;
         row->ClassJobCategory = 1;
