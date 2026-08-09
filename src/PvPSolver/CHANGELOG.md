@@ -7,7 +7,7 @@
 ### Notes
 - **No gameplay change.** The Doom guard itself lives in `RotationSolver.Basic/Helpers/StatusHelper.cs` and upstream's PvE rotations - base classes this fork intentionally does not track (RUNBOOK 3.2). The fork's PvP rotations contain no Doom status checks, so there is nothing to port.
 - Synced via `tools/sync-upstream-rotations.sh`; all 21 PvP rotation files verified byte-identical to upstream `6c064f910` (CR-normalised).
-- Testing-channel build; production remains 0.1.0.9.
+- **Promoted to production 2026-08-09.** `AssemblyVersion` 0.1.0.9 -> 0.1.0.12; both channels now ship this build. In-game gate waived by Joey: the 0.1.0.11 fix executes only outside PvP (guard on `DataCenter.IsPvP`) and this sync is attribute-only, so PvP play cannot exercise what changed; the user-facing check is the absence of the PvE `no rotation found` warning in `dalamud.log` (issue #3).
 
 ## [0.1.0.11] - 2026-08-03
 ### Fixed
@@ -19,7 +19,7 @@
 - Both remaining "no rotation" warnings (`no rotation found for job=...` and `No valid rotations found for ...`) are now throttled by a `_lastNoRotationLogged` (job, combat type) tuple, so a persistent miss reports once rather than once per frame. Reset in `ChangeRotation` so a later successful load re-arms the warning.
 
 ### Notes
-- **Not verified in-game.** Testing-channel build only; production remains 0.1.0.9.
+- **Shipped to production with 0.1.0.12 (2026-08-09).** In-game gate waived by Joey: every changed statement executes only when `DataCenter.IsPvP` is false, so in-PvP behavior is provably unchanged; the empirical check is that the PvE `no rotation found` warning stops firing (issue #3).
 - Both log lines date to the initial vendored commit `9b3652dae`, so this affected every release to date.
 - No rotation, targeting or combat behavior changes - the end state in PvE is identical (`CurrentRotation == null`), it is just no longer recomputed and re-logged every tick.
 
