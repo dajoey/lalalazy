@@ -220,7 +220,11 @@ internal partial class OccultCrescent
                     DrawSliderInt(1, 100, Phantom_BlueMage_OccultWhiteWind_SelfHealth,
                         "Only cast at or above this much of your OWN HP (it heals for your current HP)", 300);
                     break;
-
+                case Preset.Phantom_RedMage_OccultCureII_Retarget:
+                    DrawAdditionalBoolChoice(Phantom_RedMage_Retarget_OutOfParty, 
+                        "Retarget to Out of Party Players", 
+                        "Also retargets if anyone outside your party falls below this HP%");
+                    break;
                 case Preset.Phantom_Necromancer_DrainTouch:
                     ImGui.Indent();
                     ImGuiEx.TextWrapped(ImGuiColors.DalamudYellow,
@@ -358,6 +362,7 @@ internal partial class OccultCrescent
             Phantom_Knight_Pledge_SelfOnly = new("Phantom_Knight_Pledge_SelfOnly", false),
             Phantom_Geomancer_Suspend_InCombat = new("Phantom_Geomancer_Suspend_InCombat", false),
             Phantom_Geomancer_Suspend_OutOfCombat = new("Phantom_Geomancer_Suspend_OutOfCombat", false),
+            Phantom_RedMage_Retarget_OutOfParty = new("Phantom_RedMage_Retarget_OutOfParty", false),
             Phantom_BlackMage_OccultToad_RequireAoE = new("Phantom_BlackMage_OccultToad_RequireAoE", true);
 
         public static UserBoolArray

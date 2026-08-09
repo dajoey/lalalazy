@@ -12133,4 +12133,10 @@ Will be used in all 4 main combos.</value>
   <data name="Phantom755_RequireWeakness_Name" xml:space="preserve">
     <value>Require Elemental Weakness</value>
   </data>
+  <data name="Phantom_RedMage_OccultCureII_Retarget_Name" xml:space="preserve">
+    <value>Retarget Phantom Cure II</value>
+  </data>
+  <data name="Phantom_RedMage_OccultCureII_Retarget_Desc" xml:space="preserve">
+    <value>Retargets Phantom Cure II. Retargets if anyone in your party is below the slider above.</value>
+  </data>
 </root>

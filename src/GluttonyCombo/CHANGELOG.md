@@ -1,4 +1,52 @@
-﻿## v1.0.4.136 (2026-08-08) [testing]
+﻿## v1.0.4.137 (2026-08-09) [testing]
+
+### Changed (upstream WrathCombo c65d22477 -> 6bee47e04, 11 commits, upstream 1.0.4.20)
+- **Phantom Red Mage Cure II retargeting.** New preset
+  `Phantom_RedMage_OccultCureII_Retarget` = 110139 with an out-of-party option
+  (`Phantom_RedMage_Retarget_OutOfParty` config), backed by the new
+  `SimpleTarget.LowestHPAllyOutOfParty` resolver (files: `Combos/CustomComboPreset.cs`,
+  `Combos/PvE/Content/OccultCrescent/OccultCrescent_Config.cs`,
+  `CustomCombo/SimpleTarget.cs`).
+- **Occult Libra fixes.** No longer casts Libra on non-targetable enemies; Libra status
+  tracking moved to uint status IDs (file: `Combos/PvE/Content/OccultCrescent/OccultCrescent.cs`).
+- **Duty-action readiness simplified.** Upstream removed the `HasActionEquipped` helper
+  entirely; every duty-action check - Bozja `CanUse`, `OccultQuick`, `Invulnerability`,
+  `IsEnabledAndUsable` - now relies on `ActionReady` alone (files:
+  `CustomCombo/Functions/Cooldown.cs`, `Combos/PvE/Content/Bozja/Bozja.cs`,
+  `Combos/PvE/Content/OccultCrescent/*`).
+- **`All.Cease` excluded from the duty-action slot check** in the custom-action manager
+  (file: `Native/CustomActionManager.cs`).
+- **Status helper API widened `ushort` -> `uint`** for status IDs across `GetStatusEffect` /
+  `HasStatusEffect` / `GetStatusEffectRemainingTime` / `GetStatusEffectStacks` /
+  `CanApplyStatus` (file: `CustomCombo/Functions/Status.cs`).
+- **Raise targeting simplified.** Dead-party-member resolver dropped the OC un-rezzable-status
+  (4263) and party-membership conditions in favor of time-since-death > 2s; raise retargets
+  now route through `CustomLogic` wrappers (files: `Extensions/GameObjectExtensions.cs`,
+  `CustomCombo/SimpleTarget.cs`).
+- **New helpers:** `IfWithinActionRange(actionId)` chaining extension, `StatusName`/`TraitName`
+  localization extensions (files: `Extensions/GameObjectExtensions.cs`,
+  `Extensions/UIntExtensions.cs`).
+- **Debug tab: SimpleTarget inspector.** New "Simple Target Resolvers" stack-data trees and
+  "SimpleTarget Core Targets" dump (file: `Window/Tabs/Debug.cs`, +413 lines).
+- Documentation/annotation pass across 22 job `_Helper.cs` files (no behavior change).
+
+### Fixed (upstream)
+- **MissingHP check compared with integer division.** `battle.CurrentHp / battle.MaxHp * 100
+  <= missingHpp` evaluated in integer math, now routes through `GetTargetHPPercent(battle)`
+  (upstream `6bee47e04`, file: `Extensions/GameObjectExtensions.cs`).
+
+### Notes
+- **Fork follow-up to the `HasActionEquipped` removal:** the fork-only phantom-heal diagnostic
+  row referenced the deleted helper; it now reports duty-slot membership directly
+  (`Action1..Action5 == act`), and the design comment's `<see cref>` was converted to plain
+  text (file: `Combos/PvE/Content/OccultCrescent/OccultCrescent.cs`).
+- Fork divergences preserved and token-verified: `NeedsDoomTopUp` healer-targeting wrap,
+  `Phantom755_RequireWeakness` preset 110140, OC `anyOwner` checks (3), WHM
+  DivineCaress/raidwide handling (5/19), AutoRotation penalty gates (Pyretic 6 / Amnesia 3 /
+  Pacification 2 / Silence 3 / PlayerHasActionPenalty 4), Debug BattleData block (6).
+- Testing channel only; production remains 1.0.4.132. Not yet verified in game.
+
+## v1.0.4.136 (2026-08-08) [testing]
 
 ### Fixed
 - **The whole BattleData encounter system was dead code — `LoadCombatData()` was never

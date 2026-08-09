@@ -1168,6 +1168,12 @@ public enum Preset
     Phantom_RedMage_OccultCureII = 110129,
 
     [OccultCrescent]
+    [ParentCombo(Phantom_RedMage_OccultCureII)]
+    [Retargeted]
+    [JobInfo(Job.ADV)]
+    Phantom_RedMage_OccultCureII_Retarget = 110139,
+
+    [OccultCrescent]
     [ParentCombo(Phantom_RedMage)]
     [JobInfo(Job.ADV)]
     Phantom_RedMage_OccultLibra = 110130,

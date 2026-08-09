@@ -186,7 +186,7 @@ internal partial class OccultCrescent
     internal static unsafe int CurrentJobLevel => (nint)PublicContentOccultCrescent.GetInstance() == nint.Zero ? 0 : PublicContentOccultCrescent.GetInstance()->State.SupportJobLevels[PublicContentOccultCrescent.GetInstance()->State.CurrentSupportJob];
 
 
-    internal static bool IsEnabledAndUsable(Preset preset, uint action) => IsEnabled(preset) && HasActionEquipped(action) && ActionReady(action);
+    internal static bool IsEnabledAndUsable(Preset preset, uint action) => IsEnabled(preset) && ActionReady(action);
 
     private const int HoldOnlyWhenStationary = 0;
     private const int HoldOnlyInMeleeRange = 1;
@@ -257,7 +257,7 @@ internal partial class OccultCrescent
 
     public static class Buffs
     {
-        public static ushort
+        public const uint
             PhantomGuard = 4231,
             Pray = 4232,
             EnduringFortitude = 4233,
@@ -316,7 +316,7 @@ internal partial class OccultCrescent
 
     public static class Debuffs
     {
-        public static ushort
+        public const uint
             Slow = 3493,
             Blind = 15,
             Paralysis = 17,
@@ -333,7 +333,7 @@ internal partial class OccultCrescent
 
     public static class Traits
     {
-        public static ushort
+        public const ushort
             EnhancedPhantomGuard = 0,
             EnhancedPray = 1,
             EnhancedPhantomKick = 2,
@@ -350,7 +350,7 @@ internal partial class OccultCrescent
 
     public static class Items
     {
-        public static ushort
+        public const ushort
             OccultPotion = 47741,
             OccultElixir = 47743;
     }
