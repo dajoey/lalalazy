@@ -1,4 +1,16 @@
-﻿## v1.0.4.137 (2026-08-09) [testing]
+﻿## v1.0.4.138 (2026-08-10) [testing]
+
+### Changed (upstream WrathCombo 6bee47e04 -> 917937cb9, 2 commits, upstream 1.0.4.20)
+- **Auto-rotation weaving fix** (`CustomCombo/Functions/Timer.cs`). `CheckGCD` now
+  early-returns while `RemainingGCD == GCDTotal` (GCD idle at full charge), so the
+  GCD-roll event no longer fires spuriously and mistimes weave windows.
+- **Fresh installs no longer see the major-changes pop-up** (`Core/Configuration.cs`).
+  `HideMajorChangesForVersion` now defaults to the running plugin version (was `0.0.0`).
+- **Debug tab tidy** (`Window/Tabs/Debug.cs`). SimpleTarget inspector block moved inside
+  its parent section; structure/indentation only, no behaviour change. Fork branding
+  (`Gluttony IPC` / `GluttonyCombo.P`) preserved.
+
+## v1.0.4.137 (2026-08-09) [testing]
 
 ### Changed (upstream WrathCombo c65d22477 -> 6bee47e04, 11 commits, upstream 1.0.4.20)
 - **Phantom Red Mage Cure II retargeting.** New preset
