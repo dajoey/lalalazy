@@ -1,27 +1,28 @@
 #region
 
+using Dalamud.Configuration;
+using ECommons.DalamudServices;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
-using Dalamud.Configuration;
-using Newtonsoft.Json;
-using GluttonyCombo.AutoRotation;
-using GluttonyCombo.Window;
+using System.Reflection.Emit;
 using GluttonyCombo.Attributes;
-using GluttonyCombo.Window.Functions;
-using GluttonyCombo.Window.Tabs;
+using GluttonyCombo.AutoRotation;
 using GluttonyCombo.Combos.PvE;
 using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Native;
+using GluttonyCombo.Window;
+using GluttonyCombo.Window.Functions;
+using GluttonyCombo.Window.Tabs;
 using static GluttonyCombo.Attributes.SettingCategory.Category;
 using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
-using Setting = GluttonyCombo.Attributes.Setting;
-using Space = GluttonyCombo.Attributes.SettingUI_Space;
+using static GluttonyCombo.Data.ActionWatching;
 using Or = GluttonyCombo.Attributes.SettingUI_Or;
 using Retarget = GluttonyCombo.Attributes.SettingUI_RetargetIcon;
-using GluttonyCombo.Native;
-using System.Reflection.Emit;
-using static GluttonyCombo.Data.ActionWatching;
+using Setting = GluttonyCombo.Attributes.Setting;
+using Space = GluttonyCombo.Attributes.SettingUI_Space;
 
 #endregion
 
@@ -463,7 +464,7 @@ public partial class Configuration : IPluginConfiguration
     /// </summary>
     /// <seealso cref="MajorChangesWindow" />
     public Version HideMajorChangesForVersion =
-        System.Version.Parse("0.0.0");
+        Svc.PluginInterface.Manifest.AssemblyVersion;
 
     #endregion
 
