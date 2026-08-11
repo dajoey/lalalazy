@@ -365,4 +365,6 @@ internal abstract partial class CustomComboFunctions
     public static bool NeedsDoomTopUp(IGameObject? target) =>
         target is not null && HasDoom(target) && GetTargetHPPercent(target, false) < 100;
 
+    public static bool ImmuneToStatus(IGameObject? target, uint status) => Service.Configuration.StatusBlacklist.Any(x => x.Status == status && x.BaseId == target?.BaseId);
+
 }

@@ -1,4 +1,22 @@
-﻿## v1.0.4.138 (2026-08-10) [testing]
+﻿## v1.0.4.139 (2026-08-11) [testing]
+
+### Changed (upstream WrathCombo 917937cb9 -> e36d39214, 2 commits, upstream 1.0.4.20)
+- **Occult Slowga rewritten as a true AoE check**
+  (`Combos/PvE/Content/OccultCrescent/OccultCrescent.cs`). Was: only evaluated the
+  current target, with a 1.5s ICD re-application window. Now: scans all enemies in
+  range of OccultSlowga and fires if any of them can be debuffed - skipping enemies
+  immune to Slow (new `ImmuneToStatus` helper against the status blacklist) and
+  enemies already carrying Slow, with per-enemy ICD tracking (re-applies only when
+  the enemy's immunity window has expired, or while under 3 applications when the
+  Wait preset is off).
+- **New `ImmuneToStatus(target, status)` helper** (`CustomCombo/Functions/Status.cs`),
+  backed by `Service.Configuration.StatusBlacklist`.
+- **Out-of-party resolvers restricted to players** (`CustomCombo/SimpleTarget.cs`).
+  `LowestHPAllyOutOfParty` / `LowestHPPAllyOutOfParty` (used by Phantom Red Mage's
+  Cure II retarget, v1.0.4.137) now require `IsAPlayer()`, so battle NPCs and
+  companions are no longer rez/heal candidates.
+
+## v1.0.4.138 (2026-08-10) [testing]
 
 ### Changed (upstream WrathCombo 6bee47e04 -> 917937cb9, 2 commits, upstream 1.0.4.20)
 - **Auto-rotation weaving fix** (`CustomCombo/Functions/Timer.cs`). `CheckGCD` now
