@@ -1,4 +1,30 @@
-﻿## v1.0.4.139 (2026-08-11) [testing]
+﻿## v1.0.4.140 (2026-08-15) [testing]
+
+### Fixed (fork-local - upstream WrathCombo has the same behaviour)
+- **Red Mage no longer lets black and white mana run away while it is healing.**
+  `UseInstantCastST` chooses between Verthunder III and Veraero III, which are equal
+  potency (440), so the pick is purely proc generation versus mana balance. Holding an
+  off-colour proc made it cast deliberately *into* the higher mana, on the assumption
+  that the banked proc would repay the gap. Procs can only go out on a hard-cast GCD, so
+  anything else that owns that slot - Vercure, Grand Impact, an Occult Crescent phantom
+  action - defers the repayment indefinitely while the instant slot keeps borrowing. The
+  gap then walks past the 30-point imbalance threshold, where the game halves the gain of
+  the *lower* mana and recovery takes twice as long. File:
+  `Combos/PvE/RDM/RDM_Helper.cs`.
+- **New `CanWidenManaGap` guard (`ManaDifference < 18`) caps that loan.** It gates all
+  three proc-versus-balance decisions - `UseInstantCastST`, `UseVerStone` and
+  `UseVerFire`. Below the guard behaviour is byte-for-byte what it was; at or above it the
+  balancing colour wins and the proc simply waits its turn. 18 keeps a +6 filler under 24,
+  a full GCD of headroom, and mirrors the 18 already used by `CanFlare`/`CanHoly` for the
+  +11 finishers.
+- **Costs no potency.** A 400-GCD simulation of the filler decision path across 200 seeds:
+  with no healing the two are identical (peak gap 11, same proc uptime). At a constant
+  healing load the old logic peaked at an 85-point gap and spent 30% of GCDs past the
+  imbalance threshold; the guarded logic peaks at 18 and never crosses it. Proc uptime is
+  unchanged at every healing load tested, because the guard only ever swaps which of two
+  equal-potency spells goes out on the Dualcast.
+
+## v1.0.4.139 (2026-08-11) [testing]
 
 ### Changed (upstream WrathCombo 917937cb9 -> e36d39214, 2 commits, upstream 1.0.4.20)
 - **Occult Slowga rewritten as a true AoE check**

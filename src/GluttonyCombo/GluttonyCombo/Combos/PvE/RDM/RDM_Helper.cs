@@ -120,6 +120,13 @@ internal partial class RDM
     private static RDMGauge Gauge => GetJobGauge<RDMGauge>();
     internal static bool BlackHigher => Gauge.BlackMana >= Gauge.WhiteMana;
     internal static bool WhiteHigher => Gauge.BlackMana < Gauge.WhiteMana;
+    internal static int ManaDifference => Math.Abs(Gauge.BlackMana - Gauge.WhiteMana);
+    // The imbalance penalty starts at a 30 gap and halves the gain of the LOWER mana, so once the
+    // gap opens it is self-reinforcing and takes twice as long to close. Below this guard the
+    // rotation is allowed to widen the gap on the strength of a banked proc; at or above it,
+    // balance wins and the proc waits its turn. 18 keeps a +6 filler under 24 - a full GCD of
+    // headroom - and mirrors the 18 already used by CanFlare/CanHoly for the +11 finishers.
+    internal static bool CanWidenManaGap => ManaDifference < 18;
     internal static bool HasEnoughManaToStart => Gauge.BlackMana >= ManaLevel() && Gauge.WhiteMana >= ManaLevel();
     internal static bool HasEnoughManaToStartStandalone => Gauge.BlackMana >= ManaLevelStandalone() && Gauge.WhiteMana >= ManaLevelStandalone();
     internal static bool HasEnoughManaForCombo => Gauge is { BlackMana: >= 15, WhiteMana: >= 15 };
@@ -197,9 +204,12 @@ internal partial class RDM
             (CanVerFire && VerFireRemaining < 10 && VerFireRemaining < VerStoneRemaining))
             return false;
 
-        if (BlackHigher || WhiteHigher && !CanVerFire) return true;
+        // Verstone grants White. Black higher means this closes the gap, so it is always correct.
+        if (BlackHigher) return true;
 
-        return false;
+        // White already higher: this widens the gap. Worth +40 potency over Jolt III only while
+        // there is room to spare - otherwise hold the proc and let a Verthunder III catch up.
+        return !CanVerFire && CanWidenManaGap;
     }
     internal static bool UseVerFire()
     {
@@ -207,22 +217,30 @@ internal partial class RDM
             (CanVerStone && VerStoneRemaining < 10 && VerStoneRemaining < VerFireRemaining))
             return false;
 
-        if (WhiteHigher || BlackHigher && !CanVerStone) return true;
+        // Verfire grants Black. White higher means this closes the gap, so it is always correct.
+        if (WhiteHigher) return true;
 
-        return false;
+        // Black already higher: this widens the gap. Same trade as UseVerStone, mirrored.
+        return !CanVerStone && CanWidenManaGap;
     }
     internal static uint UseInstantCastST(uint actionID)
     {
         if (!LevelChecked(Verthunder) && LevelChecked(Veraero)) // Low level Check
             return OriginalHook(Veraero);
 
+        // Verthunder III and Veraero III are equal potency, so this pick is purely proc generation
+        // versus mana balance. Casting into the higher mana is a loan against a banked proc: it is
+        // only repaid if that proc actually gets cast, and procs can only go out on a hard-cast
+        // GCD. Anything else that owns the hard-cast slot - Vercure, Grand Impact, a phantom
+        // action - defers the repayment while this keeps borrowing, and the gap runs away into the
+        // imbalance penalty. CanWidenManaGap caps the loan.
         if (BlackHigher)
-            return CanVerStone ?
+            return CanVerStone && CanWidenManaGap ?
                 OriginalHook(Verthunder) :
                 OriginalHook(Veraero);
 
         if (WhiteHigher)
-            return CanVerFire ?
+            return CanVerFire && CanWidenManaGap ?
                 OriginalHook(Veraero) :
                 OriginalHook(Verthunder);
 
