@@ -36,6 +36,26 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
                 if (!tweak.Running)
                     break;
 
+                // Inside instanced content (dungeon/trial/raid) there are no public events: pause instead of
+                // driving Gluttony/BossMod/vnavmesh. Before 0.0.1.45 the loop kept running here - the Gluttony
+                // lease (DPS hard-target overlay + auto-mode presets) stayed live through the duty and every
+                // out-of-combat iteration cleared the player's target, which sent WHM heals to self (2026-08-17).
+                if (Svc.Condition.IsBoundByDuty() && !PublicEvent.IsFateTerritory) {
+                    if (!_pausedForDuty) {
+                        _pausedForDuty = true;
+                        Log("Entered instanced content - pausing until we are back in a FATE zone.");
+                        PauseForDuty();
+                    }
+                    Status = "Paused (in instance)";
+                    tweak.CurrentState = "Paused";
+                    await NextFrame(60);
+                    continue;
+                }
+                if (_pausedForDuty) {
+                    _pausedForDuty = false;
+                    Log("Back in a FATE zone - resuming.");
+                }
+
                 var state = State;
                 tweak.CurrentState = state.ToString();
 
@@ -82,6 +102,7 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
     private Vector3 _lastEngagePosition;
     private long _lastEngagePositionChangedAt;
     private bool _isCombatStuckMitigationActive;
+    private bool _pausedForDuty;
 
     public IOrderedEnumerable<PublicEvent> AvailableFates => FateToolKit.ApplySortOrder(PublicEvent.Fates.Where(tweak.FateConditions), tweak.Config.SortOrder);
     private bool HasTwistOfFate => Player.Status.Any(status => FateToolKit.TwistOfFateStatusIDs.Contains(status.StatusId));
@@ -540,6 +561,40 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
             NextFate = null;
             if (!Svc.Condition[ConditionFlag.InCombat])
                 DeactivateIntegrations(clearNextFate: false);
+        }
+    }
+
+    /// <summary>
+    /// Entering instanced content: tear down the BossMod preset, stop any navmesh movement and RELEASE the
+    /// Gluttony lease outright (not just Disable) so the FATE config overlay and forced auto-mode presets
+    /// disappear and Auto-Rotation falls back to the user's own settings for the duty. Deliberately does NOT
+    /// touch the player's target. The lease is re-acquired on the next Enable() back in a FATE zone.
+    /// </summary>
+    private void PauseForDuty() {
+        NextFate = null;
+        try { Svc.Navmesh.PathfindCancelAll(); Svc.Navmesh.Stop(); } catch (Exception ex) { Log($"Failed to stop vnavmesh: {ex.Message}"); }
+
+        try {
+            if (Service.BossMod.IsLoaded) {
+                Service.BossMod.ClearTransientPresetStrategies(_presetName);
+                Service.BossMod.ClearActive();
+                Service.BossMod.Deactivate();
+            }
+        } catch (Exception ex) {
+            Log($"Failed to deactivate BossMod for duty: {ex.Message}");
+        }
+
+        try {
+            Service.Gluttony.Release();
+        } catch (Exception ex) {
+            Log($"Failed to release Gluttony Combo lease for duty: {ex.Message}");
+        }
+
+        try {
+            if (Svc.TextAdvance.IsInExternalControl())
+                Svc.TextAdvance.DisableExternalControl(tweak.Name);
+        } catch (Exception ex) {
+            Log($"Failed to call TextAdvance DisableExternalControl IPC: {ex.Message}");
         }
     }
 

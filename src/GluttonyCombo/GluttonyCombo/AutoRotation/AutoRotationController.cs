@@ -414,12 +414,11 @@ internal unsafe class AutoRotationController
         if ((DateTime.Now - _bailDiagLast).TotalSeconds >= 5 && SomeoneNeedsHealing())
         {
             _bailDiagLast = DateTime.Now;
-            Svc.Log.Information(
-                $"[AllyHealDiag] BAILED before selection: {reason} | selfHp={PlayerHealthPercentageHp():F0}%");
+            Svc.Log.Debug($"[AllyHealDiag] BAILED before selection: {reason} | selfHp={PlayerHealthPercentageHp():F0}%");
 
             if (dumpGates)
                 foreach (var row in OccultCrescent.DescribeHealGates())
-                    Svc.Log.Information($"[AllyHealDiag] {row}");
+                    Svc.Log.Debug($"[AllyHealDiag] {row}");
         }
 
         return false;
@@ -475,8 +474,7 @@ internal unsafe class AutoRotationController
             ? "NONE (no ally-castable cure slotted/ready)"
             : string.Join(", ", allyOpts.Select(o => $"{o.Action.ActionName()}<={o.Threshold}"));
 
-        Svc.Log.Information(
-            $"[AllyHealDiag] allyCures={cures} | totalOptions={options.Count} | selfHp={selfHp:F0} " +
+        Svc.Log.Debug($"[AllyHealDiag] allyCures={cures} | totalOptions={options.Count} | selfHp={selfHp:F0} " +
             $"| warranted={warranted} | holdActive={_phantomHealHoldSince is not null} " +
             $"| holdBlocked={DateTime.Now < _phantomHealHoldBlockedUntil} " +
             $"| remainingGCD={RemainingGCD:F2} animLock={AnimationLock:F2} timeMoving={TimeMoving.TotalMilliseconds:F0}ms " +
@@ -507,7 +505,7 @@ internal unsafe class AutoRotationController
                     : $"out of range / no line of sight (code {code})";
             }
 
-            Svc.Log.Information($"[AllyHealDiag]   {c.Name} hp={hp:F0}% dist={GetTargetDistance(c):F1}y -> {verdict}");
+            Svc.Log.Debug($"[AllyHealDiag]   {c.Name} hp={hp:F0}% dist={GetTargetDistance(c):F1}y -> {verdict}");
         }
     }
 
@@ -2070,8 +2068,7 @@ internal unsafe class AutoRotationController
             if (resolvedFriendlyOnly && (DateTime.Now - _friendlyDiagLast).TotalSeconds >= 5)
             {
                 _friendlyDiagLast = DateTime.Now;
-                Svc.Log.Information(
-                    $"[FriendlyDiag] act={outAct.ActionName()} ({outAct}) inCombat={!NotInCombat} " +
+                Svc.Log.Debug($"[FriendlyDiag] act={outAct.ActionName()} ({outAct}) inCombat={!NotInCombat} " +
                     $"castTime={castTime} timeMoving={TimeMoving.TotalMilliseconds}ms leeway={Service.Configuration.MovementLeeway} orbwalk={orbwalking} " +
                     $"=> movementBail={(TimeMoving.TotalMilliseconds > 0 && castTime > 0 && !orbwalking)} | " +
                     $"canUse={canUse} inRange={inRange} rangeCheck={acRangeCheck} canUseSelf={canUseSelf} canUseTarget={canUseTarget} " +

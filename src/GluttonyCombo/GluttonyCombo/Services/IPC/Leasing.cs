@@ -313,8 +313,12 @@ public partial class Leasing
     {
         var registration = Registrations[lease];
 
-        if (registration.AutoRotationConfigsControlled.Count > 0 &&
-            registration.AutoRotationControlled[0] == newState)
+        // Upstream checked AutoRotationConfigsControlled.Count here (a typo), then indexed
+        // AutoRotationControlled[0] unguarded - so any lessee that registered configs BEFORE
+        // its first SetAutoRotationState hit KeyNotFoundException on every call and could
+        // never turn Auto-Rotation on/off (LazyFateAutomation, 2026-08-17).
+        if (registration.AutoRotationControlled.TryGetValue(0, out var currentState) &&
+            currentState == newState)
         {
             if (EZ.Throttle("ipcAutoRotSetLog", TS.FromSeconds(15)))
                 Logging.Log(

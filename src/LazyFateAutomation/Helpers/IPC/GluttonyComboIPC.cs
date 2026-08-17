@@ -51,8 +51,33 @@ public class GluttonyComboIPC : BaseIPC {
     private bool _autoOn;
     private uint _readyJob;
     private long _nextRegisterMs; // throttle so RegisterForLease can never be spammed
+    private long _nextWarnMs;     // throttle warnings - Enable() runs every frame
 
     private static int ToInt(object o) => o is null ? 0 : Convert.ToInt32(o);
+
+    private void Warn(string message) {
+        if (Environment.TickCount64 < _nextWarnMs)
+            return;
+        _nextWarnMs = Environment.TickCount64 + 10_000;
+        Svc.Log.PrintWarning($"Gluttony Combo: {message}");
+    }
+
+    /// <summary>Forget the lease handle (Gluttony has already removed it) so a throttled re-acquire can happen.</summary>
+    private void ForgetLease() {
+        _lease = null;
+        _configured = false;
+        _autoOn = false;
+        _readyJob = 0;
+    }
+
+    /// <summary>True (and forgets the lease) when Gluttony reports our lease is no longer valid.</summary>
+    private bool LeaseInvalid(object result) {
+        if (ToInt(result) != SetResultInvalidLease)
+            return false;
+        // No duplicate risk - an invalid lease is no longer registered on Gluttony's side.
+        ForgetLease();
+        return true;
+    }
 
     private bool EnsureLease() {
         if (!IsLoaded)
@@ -67,12 +92,12 @@ public class GluttonyComboIPC : BaseIPC {
             _lease = RegisterForLease("LazyFateAutomation", Plugin.Name);
         }
         catch (Exception ex) {
-            Svc.Log.PrintWarning($"Gluttony Combo: RegisterForLease failed: {ex.Message}");
+            Warn($"RegisterForLease failed: {ex.Message}");
             _lease = null;
             return false;
         }
         if (_lease is null) {
-            Svc.Log.PrintWarning("Gluttony Combo: RegisterForLease returned null (lease busy, revoked, or IPC disabled).");
+            Warn("RegisterForLease returned null (lease busy, revoked, or IPC disabled).");
             return false;
         }
         _configured = false;
@@ -81,15 +106,23 @@ public class GluttonyComboIPC : BaseIPC {
         return true;
     }
 
-    private void ApplyConfig(Guid lease) {
+    /// <summary>Applies the FATE-grinding config overlay. Returns false if the lease turned out to be invalid.</summary>
+    private bool ApplyConfig(Guid lease) {
         // Gluttony owns combat targeting for FATE grinding; BossMod only moves + dodges.
-        SetAutoRotationConfigState(lease, CfgDPSRotationMode, DpsNearest);  // auto-acquire nearest enemy
-        SetAutoRotationConfigState(lease, CfgFATEPriority, true);           // prefer mobs in the current FATE
-        SetAutoRotationConfigState(lease, CfgDPSAlwaysHardTarget, true);    // hard-target so BossMod movement follows
-        SetAutoRotationConfigState(lease, CfgDPSAoETargets, 3);             // switch to AoE when 3+ are in range
-        SetAutoRotationConfigState(lease, CfgInCombatOnly, false);          // engage FATE mobs before we are in combat
-        SetAutoRotationConfigState(lease, CfgBypassFATE, true);            // bypass the in-combat-only gate inside a FATE
-        SetAutoRotationConfigState(lease, CfgOnlyAttackInCombat, false);
+        (int option, object value)[] overlay = [
+            (CfgDPSRotationMode, DpsNearest),   // auto-acquire nearest enemy
+            (CfgFATEPriority, true),            // prefer mobs in the current FATE
+            (CfgDPSAlwaysHardTarget, true),     // hard-target so BossMod movement follows
+            (CfgDPSAoETargets, 3),              // switch to AoE when 3+ are in range
+            (CfgInCombatOnly, false),           // engage FATE mobs before we are in combat
+            (CfgBypassFATE, true),              // bypass the in-combat-only gate inside a FATE
+            (CfgOnlyAttackInCombat, false),
+        ];
+        foreach (var (option, value) in overlay) {
+            if (LeaseInvalid(SetAutoRotationConfigState(lease, option, value)))
+                return false;
+        }
+        return true;
     }
 
     /// <summary>Enable Gluttony Combo Auto-Rotation for the current job. Safe to call every frame; only state transitions hit IPC.</summary>
@@ -98,34 +131,34 @@ public class GluttonyComboIPC : BaseIPC {
             return;
         var lease = _lease!.Value;
         try {
+            // ORDER MATTERS: turn Auto-Rotation on BEFORE registering any config. Gluttony's
+            // AddRegistrationForAutoRotation (Leasing.cs) checked `AutoRotationConfigsControlled.Count > 0`
+            // and then indexed `AutoRotationControlled[0]` unguarded, so a lease that registered configs
+            // first threw KeyNotFoundException on every SetAutoRotationState call - LFA never actually
+            // controlled Auto-Rotation and logged "Enable failed" every frame (2026-08-17). Fixed in
+            // Gluttony 1.0.4.142; this ordering keeps us working against older builds too.
+            if (!_autoOn) {
+                if (LeaseInvalid(SetAutoRotationState(lease, true)))
+                    return;
+                _autoOn = true;
+            }
+
             if (!_configured) {
-                ApplyConfig(lease);
+                if (!ApplyConfig(lease))
+                    return;
                 _configured = true;
             }
 
             var job = Player.Available ? (uint)Player.Job : 0u;
             if (job != 0 && job != _readyJob) {
-                SetCurrentJobAutoRotationReady(lease);
-                _readyJob = job;
-            }
-
-            if (!_autoOn) {
-                var code = ToInt(SetAutoRotationState(lease, true));
-                if (code == SetResultInvalidLease) {
-                    // Gluttony already dropped this lease; clear our handle so a throttled re-acquire
-                    // can happen. No duplicate risk - an invalid lease is no longer registered.
-                    _lease = null;
-                    _configured = false;
-                    _autoOn = false;
-                    _readyJob = 0;
+                if (LeaseInvalid(SetCurrentJobAutoRotationReady(lease)))
                     return;
-                }
-                _autoOn = true;
+                _readyJob = job;
             }
         }
         catch (Exception ex) {
             // Transient IPC hiccup - KEEP the lease. Re-registering here is what corrupted Gluttony.
-            Svc.Log.PrintWarning($"Gluttony Combo: Enable failed: {ex.Message}");
+            Warn($"Enable failed: {ex.Message}");
         }
     }
 
@@ -137,14 +170,21 @@ public class GluttonyComboIPC : BaseIPC {
         if (!IsLoaded || _lease is not { } lease)
             return;
         try {
-            SetAutoRotationState(lease, false);
+            LeaseInvalid(SetAutoRotationState(lease, false));
         }
         catch (Exception ex) {
-            Svc.Log.PrintWarning($"Gluttony Combo: Disable failed: {ex.Message}");
+            Warn($"Disable failed: {ex.Message}");
         }
     }
 
-    /// <summary>Release our lease entirely (plugin shutdown). Frees the registration on Gluttony's side.</summary>
+    /// <summary>Whether we currently hold a lease handle (config overlay + auto-rotation control may be live).</summary>
+    public bool HasLease => _lease is not null;
+
+    /// <summary>
+    /// Release our lease entirely (plugin shutdown, Stop, or entering a duty). Frees the registration on
+    /// Gluttony's side, which drops the whole config overlay and hands Auto-Rotation control back to the
+    /// user's own settings. The next Enable() re-registers from scratch.
+    /// </summary>
     public void Release() {
         if (_lease is { } lease) {
             try {

@@ -42,6 +42,19 @@ public unsafe class PublicEvent(nint address, FateType fateType, uint id) {
     }
     public static implicit operator PublicEvent(WKSMechaEvent mechaEvent) => new((nint)(&mechaEvent), FateType.MechaEvent, mechaEvent.WKSMechaEventDataRowId);
 
+    /// <summary>
+    /// Whether the current zone can host public events at all (overworld, forays, cosmic exploration).
+    /// False inside dungeons/trials/raids and other instanced content where <see cref="CurrentFate"/> and
+    /// <see cref="Fates"/> are always empty.
+    /// </summary>
+    public static bool IsFateTerritory => Svc.Objects.LocalPlayer?.Territory.Value.TerritoryIntendedUse.Value.StructsEnum switch {
+        TerritoryIntendedUse.Overworld
+            or TerritoryIntendedUse.Bozja
+            or TerritoryIntendedUse.OccultCrescent
+            or TerritoryIntendedUse.CosmicExploration => true,
+        _ => false,
+    };
+
     public static PublicEvent? CurrentFate => Svc.Objects.LocalPlayer.Territory.Value.TerritoryIntendedUse.Value.StructsEnum switch {
         TerritoryIntendedUse.Overworld => GetCurrentFateOverworld(),
         TerritoryIntendedUse.Bozja or TerritoryIntendedUse.OccultCrescent => GetCurrentForayEvent(),

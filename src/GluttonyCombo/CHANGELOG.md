@@ -1,4 +1,18 @@
-﻿## v1.0.4.141 (2026-08-16) [testing]
+﻿## v1.0.4.142 (2026-08-17) [testing]
+
+- **IPC: lessees can now actually turn Auto-Rotation on/off.** `Leasing.AddRegistrationForAutoRotation`
+  guarded its duplicate check with `AutoRotationConfigsControlled.Count > 0` (a typo for
+  `AutoRotationControlled`) and then indexed `AutoRotationControlled[0]` unguarded. Any plugin that
+  registered configs *before* its first `SetAutoRotationState` - LazyFateAutomation does - hit
+  `KeyNotFoundException` on every call, forever, so the lease never controlled the ON/OFF state and
+  the caller saw `Exception has been thrown by the target of an invocation` on every frame. Now uses
+  `TryGetValue`. Bug is present in upstream WrathCombo too (identical code at 9a491ae5c).
+- **Diagnostics demoted to Debug.** `[AllyHealDiag]`, `[PhantomDiag]` and `[FriendlyDiag]` were
+  logging at Information (9.7k lines in one session's dalamud.log, most of them
+  `BAILED before selection: autorotation disabled` outside Occult Crescent). They still fire, but only
+  when Dalamud's log level is raised to Debug.
+
+## v1.0.4.141 (2026-08-16) [testing]
 
 Upstream WrathCombo merge e36d39214 -> 9a491ae5c (76 commits; upstream 1.0.4.20 -> 1.0.4.21).
 

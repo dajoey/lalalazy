@@ -99,14 +99,12 @@ internal partial class OccultCrescent
         if ((DateTime.Now - _phantomDiagLast).TotalSeconds < 10) return;
         _phantomDiagLast = DateTime.Now;
 
-        Svc.Log.Information(
-            $"[PhantomDiag] duty slots seen: {Action1} / {Action2} / {Action3} / {Action4} / {Action5} " +
+        Svc.Log.Debug($"[PhantomDiag] duty slots seen: {Action1} / {Action2} / {Action3} / {Action4} / {Action5} " +
             $"| HP={PlayerHP} | weaveWindow={CanWeaveNow} | inOccult={IsInOccult}");
 
         void Row(string label, Preset parent, Preset child, uint act, double threshold)
         {
-            Svc.Log.Information(
-                $"[PhantomDiag] {label,-22} id={act,-6} parent={IsEnabled(parent),-5} child={IsEnabled(child),-5} " +
+            Svc.Log.Debug($"[PhantomDiag] {label,-22} id={act,-6} parent={IsEnabled(parent),-5} child={IsEnabled(child),-5} " +
                 $"equipped={(Action1 == act || Action2 == act || Action3 == act || Action4 == act || Action5 == act),-5} ready={ActionReady(act),-5} hpGate={PlayerHP <= threshold,-5} ({PlayerHP} <= {threshold})");
         }
 

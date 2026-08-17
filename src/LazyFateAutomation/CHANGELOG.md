@@ -1,5 +1,29 @@
 # Changelog - Lazy Fate Automation
 
+## [0.0.1.45] - 2026-08-17
+### Fixed
+- **Pauses inside instanced content and RELEASES the Gluttony lease.** `FateGrind` had no duty gate: queuing
+  into a dungeon/trial/raid while the grind was running left the Gluttony lease live for the whole duty
+  (FATE config overlay - `DPSAlwaysHardTarget`, `DPSRotationMode=Nearest`, `InCombatOnly=false`,
+  `OnlyAttackInCombat=false` - plus every job combo forced into auto-mode), and every out-of-combat loop
+  iteration cleared the player's target. In an 8-man raid on WHM that snapped the hard target back to the
+  boss on every DPS GCD and every heal fell through the heal stack to Self. The loop now detects
+  `BoundByDuty && !PublicEvent.IsFateTerritory` (forays / Bozja / Occult Crescent / Cosmic still run), tears
+  down the BossMod preset, stops vnavmesh, calls `GluttonyComboIPC.Release()` (Auto-Rotation falls back to
+  the user's own settings for the duty), does NOT touch the target, and idles with status
+  `Paused (in instance)` until back in a FATE zone, where a fresh lease is acquired on the next engage.
+- **Auto-Rotation control actually works now.** `GluttonyComboIPC.Enable()` called `SetAutoRotationConfigState`
+  x7 before the first `SetAutoRotationState`; Gluttony's `AddRegistrationForAutoRotation` (through 1.0.4.141)
+  then threw `KeyNotFoundException` on every `SetAutoRotationState`, so the plugin never turned Auto-Rotation
+  on/off (the user had to toggle it by hand, and it stayed on afterwards) and logged
+  `Gluttony Combo: Enable failed: Exception has been thrown by the target of an invocation` every frame
+  (70 MB LazyFateAutomation.log). `SetAutoRotationState` is now sent first, which works against both the
+  fixed Gluttony 1.0.4.142 and older builds.
+- **`InvalidLease` handled on every IPC call** (`SetAutoRotationState`, `SetAutoRotationConfigState`,
+  `SetCurrentJobAutoRotationReady`), not just the last one - a lease suspended by Gluttony (job change) is
+  forgotten immediately and re-acquired (still throttled to one registration per 10s).
+- IPC warnings are throttled to one per 10s.
+
 ## [0.0.1.44] - 2026-06-27
 ### Fixed
 - **Stop now halts vnavmesh immediately.** Hitting Stop (or `/lazyfate stop`) while the bot was pathfinding/flying to a FATE previously left vnavmesh navigating to the destination on its own - cancelling the plugin's task does not stop vnav's in-flight movement. `FateToolKit` Running=false and the `FateGrind` task teardown now call `Svc.Navmesh.PathfindCancelAll()` + `Svc.Navmesh.Stop()` (cancel any in-progress pathfind AND stop following the current path), so the character stops the moment you hit Stop.
