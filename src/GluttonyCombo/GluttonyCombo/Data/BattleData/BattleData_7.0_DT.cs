@@ -1,4 +1,4 @@
-﻿using ECommons.DalamudServices;
+using ECommons.DalamudServices;
 using ECommons.GameFunctions;
 using ECommons.GameHelpers;
 using ECommons.MathHelpers;

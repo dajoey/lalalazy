@@ -1,4 +1,75 @@
-﻿## v1.0.4.140 (2026-08-15)
+﻿## v1.0.4.141 (2026-08-16) [testing]
+
+Upstream WrathCombo merge e36d39214 -> 9a491ae5c (76 commits; upstream 1.0.4.20 -> 1.0.4.21).
+
+- **Samurai: full upstream rework.** Stripped-to-basic rebuild of iaijutsu/meikyo combo
+  handling, kenki with a proper overcap cap, pre-burst logic and burst alignment,
+  action-range checks on Tsubame and Iaijutsu, True North changes, level 100 pass. The
+  fork has no local SAM divergence (converged upstream at v1.0.4.48), so this is taken
+  wholesale. NOTE: 19 of 34 SAM user-config storage keys were renamed upstream, so SAM
+  sliders (kenki overcap, execute HP thresholds, Second Wind / Bloodbath) revert to
+  their defaults. This affects upstream's users identically and is not recoverable by
+  a version bump - re-set them in the SAM config tab.
+- **Sage: full upstream rework**, with the fork's raidwide gate re-applied on top.
+  Upstream collapsed the three standalone raidwide checks into a single
+  `UseRaidwide(ref actionID)` helper called from four sites. The fork's structure is
+  retired in favour of upstream's, but its behaviour is preserved: the 15s
+  raidwide-mitigation gate still wraps Kerachole and Holos, and the AoE shield still
+  uses its own separate gate with `MarkRaidwideShieldUsed()` firing only once the
+  actual Prognosis goes out, so the Eukrasia -> Prognosis two-step is never cut off
+  mid-sequence. `CanWeave()` moved out of the two mit predicates because upstream's
+  `UseRaidwide` now performs that check at the call site. Without this reconciliation
+  SGE would have become the only one of the four healers with no gate, and its combo
+  path would neither respect nor mark the cooldown the autorotation still reads.
+- **Occult Crescent: elemental weakness caching.** Weaknesses are now learned passively
+  from combat and persisted per mob BaseId in the plugin config, so the phantom nukes
+  pick the correct element even when the weakness is not currently revealed on the
+  target. Twelve call sites move from live-status checks to cache-or-live.
+- **Phantom Red Mage: adopted upstream's weakness guard.** A pre-nuke check now returns
+  early when the target has no known weakness, or a known-but-not-currently-revealed
+  one. This is a deliberate behaviour change: phantom RDM no longer falls through to an
+  unconditional Occult Fire II on a mob nobody has Libra'd, where it previously always
+  cast something. The fork's v1.0.4.137 Occult Cure II retarget is unaffected and still
+  resolves first.
+- **IPC / preset lookup rework.** `PresetData.InternalName` is cached in the
+  constructor, a `PresetsByName` dictionary replaces the old string scan, and Leasing's
+  four combo/option resolution points move off `Enum.Parse`. An unknown preset name
+  passed over IPC now returns `SetResult.InvalidConfiguration` with a logged warning
+  instead of throwing across the IPC boundary. Three Occult Crescent IPC methods added
+  (purely additive). Lease state now also invalidates the preset-state cache on write.
+- **Dragoon: Battle Litany becomes visible to auto-rotation.** Upstream removed a
+  preset filter that excluded any internal name ending in "any" - which was catching
+  `DRG_ST_BattleLitany` and `DRG_AoE_BattleLitany` by accident on the substring
+  "Lit-any". Those two presets now behave like every other option. If you do not want
+  Battle Litany fired automatically, untick it in the DRG config.
+
+**Kept over upstream:**
+
+- `case 1346` in `Data/BattleData/BattleData_7.0_DT.cs`. Upstream added its own
+  Two-headed Aevis invincibility check keyed on BaseIds 14490/14491 with a
+  `return Invincible.False` fallthrough. The fork's version is kept: it keys on the
+  Epic/Fated/Vaunted Villain statuses (5400/4193, 5401/4195, 4197) with `anyOwner`, and
+  falls through to `Invincible.CheckStatuses` so the master invincibility check still
+  applies to the rest of the open zone. Taking upstream's would have blinded that check
+  for every other target in the territory, and its BaseIds sit below every other 7.0-era
+  id in the file. Keeping both was not an option - two `case 1346:` labels in one switch
+  is CS0152.
+- **Upstream's SAM/SGE `ResetFeatures` calls are deliberately NOT applied.** Upstream
+  ships `ResetFeatures("1.0.4.21_SAMRework", 15000..15300)` and
+  `ResetFeatures("1.0.4.21_SGERework", 14000..14099)` to force users to re-opt-in after
+  the reworks. Every renamed preset kept its numeric id and saved state is stored by id,
+  so nothing is mis-mapped by skipping them; applying them would instead have
+  force-disabled 113 currently-enabled presets, including the fork-only
+  `SGE_TankShield` (14088) and `SAM_AoE_Hagakure` (15113), neither of which has an
+  upstream successor. Spot-check SAM and SGE in game rather than re-ticking 113 boxes.
+
+Build: 0 errors. Fork invariants verified post-merge: `LoadCombatData` call intact,
+single `case 1346`, SGE/AST/SCH/WHM raidwide gates all present, `All.Cease = 1_000_004`,
+Amnesia/Pacification blocking intact, LazyFateAutomation untouched (its IPC surface and
+the once-only lease workaround are unchanged - the upstream dedup bug it works around is
+still present byte-for-byte).
+
+## v1.0.4.140 (2026-08-15)
 
 ### Fixed (fork-local - upstream WrathCombo has the same behaviour)
 - **Red Mage no longer lets black and white mana run away while it is healing.**
