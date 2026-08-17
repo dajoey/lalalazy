@@ -1,4 +1,4 @@
-﻿## v1.0.4.140 (2026-08-15) [testing]
+﻿## v1.0.4.140 (2026-08-15)
 
 ### Fixed (fork-local - upstream WrathCombo has the same behaviour)
 - **Red Mage no longer lets black and white mana run away while it is healing.**
