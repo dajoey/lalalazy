@@ -62,8 +62,8 @@ public static partial class WrathIPCWrapper
             RawMethod.IsCurrentJobConfiguredOn.InvokeFunc()) ??
         new Dictionary<ComboTargetTypeKeys, ComboSimplicityLevelKeys?>
         {
-            { ComboTargetTypeKeys.SingleTarget, null },
-            { ComboTargetTypeKeys.MultiTarget, null },
+            { ComboTargetTypeKeys.SingleTargetDPS, null },
+            { ComboTargetTypeKeys.AoEDPS, null },
         };
 
     public static Dictionary<ComboTargetTypeKeys, ComboSimplicityLevelKeys?>
@@ -72,8 +72,8 @@ public static partial class WrathIPCWrapper
             RawMethod.IsCurrentJobAutoModeOn.InvokeFunc()) ??
         new Dictionary<ComboTargetTypeKeys, ComboSimplicityLevelKeys?>
         {
-            { ComboTargetTypeKeys.SingleTarget, null },
-            { ComboTargetTypeKeys.MultiTarget, null },
+            { ComboTargetTypeKeys.SingleTargetDPS, null },
+            { ComboTargetTypeKeys.AoEDPS, null },
         };
 
     #endregion
