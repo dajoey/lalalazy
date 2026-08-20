@@ -107,7 +107,7 @@ internal class Presets : ConfigWindow
         if (ipcControl is not null)
             enabled = ipcControl.Value.enabled;
 
-        if (comboType is (ComboType.Advanced or ComboType.Simple) || (presetData.IsOccultCrescent && presetData.Parent is null))
+        if (comboType is (ComboType.AdvancedDPS or ComboType.SimpleDPS or ComboType.SimpleHealing or ComboType.AdvancedHealing) || (presetData.IsOccultCrescent && presetData.Parent is null))
             if (ipcControl is not null)
                 GluttonyCombo.P.UIHelper.ShowIPCControlledIndicatorIfNeeded(preset);
 

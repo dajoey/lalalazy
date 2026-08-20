@@ -107,16 +107,16 @@ internal static class PresetStorage
                 if (AutoAction.IsHeal)
                 {
                     if (AutoAction.IsAoE)
-                        TargetType = ComboTargetTypeKeys.HealMT;
+                        TargetType = ComboTargetTypeKeys.AoEHeals;
                     else
-                        TargetType = ComboTargetTypeKeys.HealST;
+                        TargetType = ComboTargetTypeKeys.SingleTargetHeals;
                 }
                 else
                 {
                     if (AutoAction.IsAoE)
-                        TargetType = ComboTargetTypeKeys.MultiTarget;
+                        TargetType = ComboTargetTypeKeys.AoEDPS;
                     else
-                        TargetType = ComboTargetTypeKeys.SingleTarget;
+                        TargetType = ComboTargetTypeKeys.SingleTargetDPS;
                 }
             }
             else
@@ -568,22 +568,25 @@ internal static class PresetStorage
 
     internal static ComboType GetComboType(Preset preset)
     {
-        var simple = preset.GetAttribute<SimpleCombo>();
-        var advanced = preset.GetAttribute<AdvancedCombo>();
+        var simpleDps = preset.GetAttribute<SimpleDPSCombo>();
+        var advancedDps = preset.GetAttribute<AdvancedDPSCombo>();
         var basic = preset.GetAttribute<BasicCombo>();
-        var healing = preset.GetAttribute<HealingCombo>();
+        var simplehealing = preset.GetAttribute<SimpleHealingCombo>();
+        var advancedhealing = preset.GetAttribute<AdvancedHealingCombo>();
         var mitigation = preset.GetAttribute<MitigationCombo>();
         var parent = (object?)preset.GetAttribute<ParentComboAttribute>();
 
-        if (simple != null)
-            return ComboType.Simple;
-        if (advanced != null)
-            return ComboType.Advanced;
+        if (simpleDps != null)
+            return ComboType.SimpleDPS;
+        if (advancedDps != null)
+            return ComboType.AdvancedDPS;
         if (basic != null)
             return ComboType.Basic;
 
-        if (healing != null)
-            return ComboType.Healing;
+        if (simplehealing != null)
+            return ComboType.SimpleHealing;
+        if (advancedhealing != null)
+            return ComboType.AdvancedHealing;
         if (mitigation != null)
             return ComboType.Mitigation;
 

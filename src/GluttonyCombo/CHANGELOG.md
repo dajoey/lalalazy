@@ -1,4 +1,23 @@
-﻿## v1.0.4.142 (2026-08-17) [testing]
+﻿## v1.0.4.143 (2026-08-20) [testing]
+
+Upstream WrathCombo merge 9a491ae5c -> c35a28de3 (4 commits; upstream csproj stays 1.0.4.21).
+
+- **IPC auto-rotation interop reworked - typed keys, not strings.** Combo categories over IPC now
+  use typed `ComboTargetTypeKeys` (SingleTargetDPS / AoEDPS / SingleTargetHeals / AoEHeals) and the
+  combo-type attributes split into Simple/Advanced x DPS/Healing. Vendored WrathCombo.API updated
+  0.5.4 -> 0.5.7 to match (enum member renames only). Fork-only `BLU_AutoRotation_DPS` preset
+  migrated `[SimpleCombo]` -> `[SimpleDPSCombo]`.
+- **Non-healers no longer report healer combo categories over IPC.** Configured/auto-mode queries
+  return the DPS categories for non-healers and the full set only for healers (upstream "Fix for
+  non-healers").
+- **AST's advanced healing combo included in the new categorization** (upstream "Forgot AST advanced").
+- Merge notes: per-file 3-way per RUNBOOK 3.3 - 1 pure take, 8 clean 3-ways, 1 hand-resolved conflict
+  (`Services/IPC/Helper.cs`: upstream's compacted `TryGetValue` form kept, with the fork's
+  `GluttonyCombo.P` qualifier). Divergence tokens intact (WrathComboCallback 4, ###WrathCombo 2,
+  "WrathCombo.json" 2); `LoadCombatData` 2 hits; the fork's v1.0.4.142 Leasing IPC fix is outside the
+  merged range and untouched.
+
+## v1.0.4.142 (2026-08-17) [testing]
 
 - **IPC: lessees can now actually turn Auto-Rotation on/off.** `Leasing.AddRegistrationForAutoRotation`
   guarded its duplicate check with `AutoRotationConfigsControlled.Count > 0` (a typo for

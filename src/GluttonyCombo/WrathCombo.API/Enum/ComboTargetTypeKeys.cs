@@ -10,23 +10,23 @@ public enum ComboTargetTypeKeys
     ///     The key for conveying data about the Single-Target portion of a job
     ///     configuration.
     /// </summary>
-    SingleTarget = 0,
+    SingleTargetDPS = 0,
 
     /// <summary>
     ///     The key for conveying data about the Multi-Target portion of a job
     ///     configuration.
     /// </summary>
-    MultiTarget = 1,
+    AoEDPS = 1,
 
     /// <summary>
     ///     The key for conveying data about the Single-Target combo for a healer.
     /// </summary>
-    HealST = 2,
+    SingleTargetHeals = 2,
 
     /// <summary>
     ///     The key for conveying data about the Multi-Target combo for a healer.
     /// </summary>
-    HealMT = 3,
+    AoEHeals = 3,
 
     /// <summary>
     ///     The key for a combo that is not specified as single or multi-target.

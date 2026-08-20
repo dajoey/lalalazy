@@ -1233,21 +1233,21 @@ public enum Preset
     [ReplaceSkill(AST.Malefic, AST.Malefic2, AST.Malefic3, AST.Malefic4, AST.FallMalefic)]
     [ConflictingCombos(AST_ST_DPS)]
     [JobInfo(Job.AST)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     AST_ST_Simple_DPS = 1179,
 
     [AutoAction(true, false)]
     [ReplaceSkill(AST.Gravity, AST.Gravity2)]
     [ConflictingCombos(AST_AOE_DPS)]
     [JobInfo(Job.AST)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     AST_AOE_Simple_DPS = 1180,
 
     [AutoAction(false, true)]
     [ReplaceSkill(AST.Benefic)]
     [ConflictingCombos(AST_ST_Heals, AST_Retargets_Benefic)]
     [JobInfo(Job.AST)]
-    [SimpleCombo]
+    [SimpleHealingCombo]
     [PossiblyRetargeted]
     AST_Simple_ST_Heals = 1196,
 
@@ -1256,7 +1256,7 @@ public enum Preset
     [ReplaceSkill(AST.Helios)]
     [ConflictingCombos(AST_AoE_Heals)]
     [JobInfo(Job.AST)]
-    [SimpleCombo]
+    [SimpleHealingCombo]
     [PossiblyRetargeted]
     AST_Simple_AoE_Heals = 1197,
 
@@ -1269,7 +1269,7 @@ public enum Preset
         AST.Combust3)]
     [ConflictingCombos(AST_ST_Simple_DPS)]
     [JobInfo(Job.AST)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     AST_ST_DPS = 1004,
 
     [ParentCombo(AST_ST_DPS)]
@@ -1347,7 +1347,7 @@ public enum Preset
     [ReplaceSkill(AST.Gravity, AST.Gravity2)]
     [ConflictingCombos(AST_AOE_Simple_DPS)]
     [JobInfo(Job.AST)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     AST_AOE_DPS = 1041,
 
     [ParentCombo(AST_AOE_DPS)]
@@ -1422,7 +1422,7 @@ public enum Preset
     [ConflictingCombos(AST_Simple_ST_Heals, AST_Retargets_Benefic)]
     [JobInfo(Job.AST)]
     [PossiblyRetargeted(AST.Benefic2)]
-    [HealingCombo]
+    [AdvancedHealingCombo]
     AST_ST_Heals = 1023,
 
     [ParentCombo(AST_ST_Heals)]
@@ -1495,6 +1495,7 @@ public enum Preset
     [ReplaceSkill(AST.Helios, AST.AspectedHelios, AST.HeliosConjuction)]
     [ConflictingCombos(AST_Simple_AoE_Heals)]
     [JobInfo(Job.AST)]
+    [AdvancedHealingCombo]
     AST_AoE_Heals = 1010,
 
     [ParentCombo(AST_AoE_Heals)]
@@ -1653,14 +1654,14 @@ public enum Preset
     [ReplaceSkill(BLM.Blizzard)]
     [ConflictingCombos(BLM_ST_AdvancedMode, BLM_Blizzard1and3, BLM_B1toB4)]
     [JobInfo(Job.BLM)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     BLM_ST_SimpleMode = 2001,
 
     [AutoAction(true, false)]
     [ReplaceSkill(BLM.Blizzard2, BLM.HighBlizzard2)]
     [ConflictingCombos(BLM_AoE_AdvancedMode)]
     [JobInfo(Job.BLM)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     BLM_AoE_SimpleMode = 2002,
 
     #endregion
@@ -1671,7 +1672,7 @@ public enum Preset
     [ReplaceSkill(BLM.Blizzard)]
     [ConflictingCombos(BLM_ST_SimpleMode, BLM_Blizzard1and3, BLM_B1toB4)]
     [JobInfo(Job.BLM)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     BLM_ST_AdvancedMode = 2100,
 
     [ParentCombo(BLM_ST_AdvancedMode)]
@@ -1738,7 +1739,7 @@ public enum Preset
     [ReplaceSkill(BLM.Blizzard2, BLM.HighBlizzard2)]
     [ConflictingCombos(BLM_AoE_SimpleMode)]
     [JobInfo(Job.BLM)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     BLM_AoE_AdvancedMode = 2200,
 
     [ParentCombo(BLM_AoE_AdvancedMode)]
@@ -2014,7 +2015,7 @@ public enum Preset
     [AutoAction(false, false)]
     [ReplaceSkill(BLU.SonicBoom)]
     [JobInfo(Job.BLU)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     BLU_AutoRotation_DPS = 70026,
 
     [ReplaceSkill(BLU.WhiteWind)]
@@ -2033,14 +2034,14 @@ public enum Preset
     [ReplaceSkill(BRD.HeavyShot, BRD.BurstShot)]
     [ConflictingCombos(BRD_ST_AdvMode)]
     [JobInfo(Job.BRD)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     BRD_ST_SimpleMode = 3036,
 
     [AutoAction(true, false)]
     [ConflictingCombos(BRD_AoE_AdvMode)]
     [ReplaceSkill(BRD.QuickNock, BRD.Ladonsbite)]
     [JobInfo(Job.BRD)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     BRD_AoE_SimpleMode = 3035,
 
     #endregion
@@ -2051,7 +2052,7 @@ public enum Preset
     [ReplaceSkill(BRD.HeavyShot, BRD.BurstShot)]
     [ConflictingCombos(BRD_ST_SimpleMode)]
     [JobInfo(Job.BRD)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     BRD_ST_AdvMode = 3009,
 
     [ParentCombo(BRD_ST_AdvMode)]
@@ -2118,7 +2119,7 @@ public enum Preset
     [ConflictingCombos(BRD_AoE_SimpleMode)]
     [ReplaceSkill(BRD.QuickNock, BRD.Ladonsbite)]
     [JobInfo(Job.BRD)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     BRD_AoE_AdvMode = 3015,
 
     [ParentCombo(BRD_AoE_AdvMode)]
@@ -2266,14 +2267,14 @@ public enum Preset
     [ReplaceSkill(DNC.Cascade)]
     [ConflictingCombos(DNC_ST_MultiButton, DNC_ST_AdvancedMode)]
     [JobInfo(Job.DNC)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     DNC_ST_SimpleMode = 4001,
 
     [AutoAction(true, false)]
     [ReplaceSkill(DNC.Windmill)]
     [ConflictingCombos(DNC_AoE_MultiButton, DNC_AoE_AdvancedMode)]
     [JobInfo(Job.DNC)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     DNC_AoE_SimpleMode = 4002,
 
     #endregion
@@ -2285,7 +2286,7 @@ public enum Preset
     [ReplaceSkill(DNC.Cascade)]
     [ConflictingCombos(DNC_ST_MultiButton, DNC_ST_SimpleMode)]
     [JobInfo(Job.DNC)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     DNC_ST_AdvancedMode = 4010,
 
     [ParentCombo(DNC_ST_AdvancedMode)]
@@ -2395,7 +2396,7 @@ public enum Preset
     [ReplaceSkill(DNC.Windmill)]
     [ConflictingCombos(DNC_AoE_MultiButton, DNC_AoE_SimpleMode)]
     [JobInfo(Job.DNC)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     DNC_AoE_AdvancedMode = 4040,
 
     [ParentCombo(DNC_AoE_AdvancedMode)]
@@ -2638,14 +2639,14 @@ public enum Preset
     [ReplaceSkill(DRK.HardSlash)]
     [ConflictingCombos(DRK_ST_Adv)]
     [JobInfo(Job.DRK)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     DRK_ST_Simple = 5001,
 
     [AutoAction(true, false)]
     [ReplaceSkill(DRK.Unleash)]
     [ConflictingCombos(DRK_AoE_Adv)]
     [JobInfo(Job.DRK)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     DRK_AoE_Simple = 5002,
 
     #endregion
@@ -2657,7 +2658,7 @@ public enum Preset
     [ReplaceSkill(DRK.HardSlash)]
     [ConflictingCombos(DRK_ST_Simple)]
     [JobInfo(Job.DRK)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     DRK_ST_Adv = 5010,
 
     [ParentCombo(DRK_ST_Adv)]
@@ -2781,7 +2782,7 @@ public enum Preset
     [ReplaceSkill(DRK.Unleash)]
     [ConflictingCombos(DRK_AoE_Simple)]
     [JobInfo(Job.DRK)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     DRK_AoE_Adv = 5050,
 
     #region Cooldowns
@@ -3135,14 +3136,14 @@ public enum Preset
     [ReplaceSkill(DRG.TrueThrust)]
     [ConflictingCombos(DRG_ST_AdvancedMode)]
     [JobInfo(Job.DRG)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     DRG_ST_SimpleMode = 6001,
 
     [AutoAction(true, false)]
     [ReplaceSkill(DRG.DoomSpike)]
     [ConflictingCombos(DRG_AoE_AdvancedMode)]
     [JobInfo(Job.DRG)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     DRG_AoE_SimpleMode = 6200,
 
     #endregion
@@ -3153,7 +3154,7 @@ public enum Preset
     [ReplaceSkill(DRG.TrueThrust)]
     [ConflictingCombos(DRG_ST_SimpleMode)]
     [JobInfo(Job.DRG)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     DRG_ST_AdvancedMode = 6100,
 
     [ParentCombo(DRG_ST_AdvancedMode)]
@@ -3252,7 +3253,7 @@ public enum Preset
     [ReplaceSkill(DRG.DoomSpike)]
     [ConflictingCombos(DRG_AoE_SimpleMode)]
     [JobInfo(Job.DRG)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     DRG_AoE_AdvancedMode = 6201,
 
     #region Buffs AoE
@@ -3367,14 +3368,14 @@ public enum Preset
     [ConflictingCombos(GNB_ST_Advanced)]
     [ReplaceSkill(GNB.KeenEdge)]
     [JobInfo(Job.GNB)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     GNB_ST_Simple = 7001,
 
     [AutoAction(true, false)]
     [ConflictingCombos(GNB_AoE_Advanced)]
     [ReplaceSkill(GNB.DemonSlice)]
     [JobInfo(Job.GNB)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     GNB_AoE_Simple = 7002,
     #endregion
 
@@ -3383,7 +3384,7 @@ public enum Preset
     [ConflictingCombos(GNB_ST_Simple)]
     [ReplaceSkill(GNB.KeenEdge)]
     [JobInfo(Job.GNB)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     GNB_ST_Advanced = 7003,
 
     [ParentCombo(GNB_ST_Advanced)]
@@ -3449,7 +3450,7 @@ public enum Preset
     [ConflictingCombos(GNB_AoE_Simple)]
     [ReplaceSkill(GNB.DemonSlice)]
     [JobInfo(Job.GNB)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     GNB_AoE_Advanced = 7200,
 
     [ConflictingCombos(GNB_NM_Features)]
@@ -3820,14 +3821,14 @@ public enum Preset
     [ReplaceSkill(MCH.SplitShot, MCH.HeatedSplitShot)]
     [ConflictingCombos(MCH_ST_AdvancedMode)]
     [JobInfo(Job.MCH)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     MCH_ST_SimpleMode = 8001,
 
     [AutoAction(true, false)]
     [ReplaceSkill(MCH.SpreadShot, MCH.Scattergun)]
     [ConflictingCombos(MCH_AoE_AdvancedMode)]
     [JobInfo(Job.MCH)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     MCH_AoE_SimpleMode = 8200,
 
     #endregion
@@ -3838,7 +3839,7 @@ public enum Preset
     [ReplaceSkill(MCH.SplitShot, MCH.HeatedSplitShot)]
     [ConflictingCombos(MCH_ST_SimpleMode)]
     [JobInfo(Job.MCH)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     MCH_ST_AdvancedMode = 8100,
 
     [ParentCombo(MCH_ST_AdvancedMode)]
@@ -3945,7 +3946,7 @@ public enum Preset
     [ReplaceSkill(MCH.SpreadShot, MCH.Scattergun)]
     [ConflictingCombos(MCH_AoE_SimpleMode)]
     [JobInfo(Job.MCH)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     MCH_AoE_AdvancedMode = 8300,
 
     [ParentCombo(MCH_AoE_AdvancedMode)]
@@ -4087,14 +4088,14 @@ public enum Preset
     [ReplaceSkill(MNK.Bootshine, MNK.LeapingOpo)]
     [ConflictingCombos(MNK_ST_AdvancedMode)]
     [JobInfo(Job.MNK)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     MNK_ST_SimpleMode = 9004,
 
     [AutoAction(true, false)]
     [ReplaceSkill(MNK.ArmOfTheDestroyer, MNK.ShadowOfTheDestroyer)]
     [ConflictingCombos(MNK_AoE_AdvancedMode)]
     [JobInfo(Job.MNK)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     MNK_AoE_SimpleMode = 9003,
 
     #endregion
@@ -4105,7 +4106,7 @@ public enum Preset
     [ReplaceSkill(MNK.Bootshine, MNK.LeapingOpo)]
     [ConflictingCombos(MNK_ST_SimpleMode)]
     [JobInfo(Job.MNK)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     MNK_ST_AdvancedMode = 9005,
 
     [ParentCombo(MNK_ST_AdvancedMode)]
@@ -4188,7 +4189,7 @@ public enum Preset
     [ReplaceSkill(MNK.ArmOfTheDestroyer, MNK.ShadowOfTheDestroyer)]
     [ConflictingCombos(MNK_AoE_SimpleMode)]
     [JobInfo(Job.MNK)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     MNK_AoE_AdvancedMode = 9027,
 
     [ParentCombo(MNK_AoE_AdvancedMode)]
@@ -4304,14 +4305,14 @@ public enum Preset
     [ReplaceSkill(NIN.SpinningEdge)]
     [ConflictingCombos(NIN_ST_AdvancedMode)]
     [JobInfo(Job.NIN)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     NIN_ST_SimpleMode = 10000,
 
     [AutoAction(true, false)]
     [ReplaceSkill(NIN.DeathBlossom)]
     [ConflictingCombos(NIN_AoE_AdvancedMode)]
     [JobInfo(Job.NIN)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     NIN_AoE_SimpleMode = 10001,
 
     #endregion
@@ -4321,7 +4322,7 @@ public enum Preset
     [ReplaceSkill(NIN.SpinningEdge)]
     [ConflictingCombos(NIN_ST_SimpleMode)]
     [JobInfo(Job.NIN)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     NIN_ST_AdvancedMode = 10002,
 
     [ParentCombo(NIN_ST_AdvancedMode)]
@@ -4419,7 +4420,7 @@ public enum Preset
     [ReplaceSkill(NIN.DeathBlossom)]
     [ConflictingCombos(NIN_AoE_SimpleMode)]
     [JobInfo(Job.NIN)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     NIN_AoE_AdvancedMode = 10003,
 
     [ParentCombo(NIN_AoE_AdvancedMode)]
@@ -4571,14 +4572,14 @@ public enum Preset
     [ReplaceSkill(PCT.FireInRed)]
     [ConflictingCombos(PCT_ST_AdvancedMode)]
     [JobInfo(Job.PCT)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     PCT_ST_SimpleMode = 20000,
 
     [AutoAction(true, false)]
     [ReplaceSkill(PCT.FireIIinRed)]
     [ConflictingCombos(PCT_AoE_AdvancedMode)]
     [JobInfo(Job.PCT)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     PCT_AoE_SimpleMode = 20001,
 
     #endregion
@@ -4589,7 +4590,7 @@ public enum Preset
     [ReplaceSkill(PCT.FireInRed)]
     [ConflictingCombos(PCT_ST_SimpleMode)]
     [JobInfo(Job.PCT)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     PCT_ST_AdvancedMode = 20005,
 
     [ParentCombo(PCT_ST_AdvancedMode)]
@@ -4708,7 +4709,7 @@ public enum Preset
     [ReplaceSkill(PCT.FireIIinRed)]
     [ConflictingCombos(PCT_AoE_SimpleMode)]
     [JobInfo(Job.PCT)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     PCT_AoE_AdvancedMode = 20040,
 
     [ParentCombo(PCT_AoE_AdvancedMode)]
@@ -4837,14 +4838,14 @@ public enum Preset
     [ConflictingCombos(PLD_ST_AdvancedMode)]
     [ReplaceSkill(PLD.FastBlade)]
     [JobInfo(Job.PLD)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     PLD_ST_SimpleMode = 11000,
 
     [AutoAction(true, false)]
     [ConflictingCombos(PLD_AoE_AdvancedMode)]
     [ReplaceSkill(PLD.TotalEclipse)]
     [JobInfo(Job.PLD)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     PLD_AoE_SimpleMode = 11001,
 
     #endregion
@@ -4855,7 +4856,7 @@ public enum Preset
     [ConflictingCombos(PLD_ST_SimpleMode)]
     [ReplaceSkill(PLD.FastBlade)]
     [JobInfo(Job.PLD)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     PLD_ST_AdvancedMode = 11002,
 
     [ParentCombo(PLD_ST_AdvancedMode)]
@@ -4930,7 +4931,7 @@ public enum Preset
     [ConflictingCombos(PLD_AoE_SimpleMode)]
     [ReplaceSkill(PLD.TotalEclipse)]
     [JobInfo(Job.PLD)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     PLD_AoE_AdvancedMode = 11015,
     
     [ParentCombo(PLD_AoE_AdvancedMode)]
@@ -5223,14 +5224,14 @@ public enum Preset
     [ReplaceSkill(RPR.Slice)]
     [ConflictingCombos(RPR_ST_AdvancedMode)]
     [JobInfo(Job.RPR)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     RPR_ST_SimpleMode = 12000,
 
     [AutoAction(true, false)]
     [ReplaceSkill(RPR.SpinningScythe)]
     [ConflictingCombos(RPR_AoE_AdvancedMode)]
     [JobInfo(Job.RPR)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     RPR_AoE_SimpleMode = 12100,
 
     #endregion
@@ -5241,7 +5242,7 @@ public enum Preset
     [ReplaceSkill(RPR.Slice)]
     [ConflictingCombos(RPR_ST_SimpleMode)]
     [JobInfo(Job.RPR)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     RPR_ST_AdvancedMode = 12001,
 
     [ParentCombo(RPR_ST_AdvancedMode)]
@@ -5342,7 +5343,7 @@ public enum Preset
     [ReplaceSkill(RPR.SpinningScythe)]
     [ConflictingCombos(RPR_AoE_SimpleMode)]
     [JobInfo(Job.RPR)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     RPR_AoE_AdvancedMode = 12101,
 
     [ParentCombo(RPR_AoE_AdvancedMode)]
@@ -5533,14 +5534,14 @@ public enum Preset
     [ConflictingCombos(RDM_ST_DPS)]
     [ReplaceSkill(RDM.Jolt, RDM.Jolt2, RDM.Jolt3)]
     [JobInfo(Job.RDM)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     RDM_ST_SimpleMode = 13000,
 
     [AutoAction(true, false)]
     [ReplaceSkill(RDM.Scatter, RDM.Impact)]
     [ConflictingCombos(RDM_AoE_DPS)]
     [JobInfo(Job.RDM)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     RDM_AoE_SimpleMode = 13200,
 
     #endregion
@@ -5551,7 +5552,7 @@ public enum Preset
     [ReplaceSkill(RDM.Jolt, RDM.Jolt2, RDM.Jolt3)]
     [ConflictingCombos(RDM_ST_SimpleMode)]
     [JobInfo(Job.RDM)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     RDM_ST_DPS = 13001,
 
     [ParentCombo(RDM_ST_DPS)]
@@ -5671,7 +5672,7 @@ public enum Preset
     [ReplaceSkill(RDM.Scatter, RDM.Impact)]
     [ConflictingCombos(RDM_AoE_SimpleMode)]
     [JobInfo(Job.RDM)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     RDM_AoE_DPS = 13201,
 
     [ParentCombo(RDM_AoE_DPS)]
@@ -5886,21 +5887,21 @@ public enum Preset
     [ReplaceSkill(SGE.Dosis, SGE.Dosis2, SGE.Dosis3)]
     [ConflictingCombos(SGE_ST_Advanced_DPS)]
     [JobInfo(Job.SGE)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     SGE_ST_Simple_DPS = 14084,
 
     [AutoAction(true, false)]
     [ReplaceSkill(SGE.Dyskrasia, SGE.Dyskrasia2)]
     [ConflictingCombos(SGE_AoE_Advanced_DPS)]
     [JobInfo(Job.SGE)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     SGE_AoE_Simple_DPS = 14085,
 
     [AutoAction(false, true)]
     [ReplaceSkill(SGE.Diagnosis)]
     [ConflictingCombos(SGE_ST_Advanced_Heal, SGE_Retarget_Diagnosis)]
     [JobInfo(Job.SGE)]
-    [SimpleCombo]
+    [SimpleHealingCombo]
     [PossiblyRetargeted]
     SGE_ST_Simple_Heal = 14087,
 
@@ -5909,7 +5910,7 @@ public enum Preset
     [ReplaceSkill(SGE.Prognosis)]
     [ConflictingCombos(SGE_AoE_Advanced_Heal)]
     [JobInfo(Job.SGE)]
-    [SimpleCombo]
+    [SimpleHealingCombo]
     [PossiblyRetargeted]
     SGE_AoE_Simple_Heal = 14086,
 
@@ -5921,7 +5922,7 @@ public enum Preset
     [ReplaceSkill(SGE.Dosis, SGE.Dosis2, SGE.Dosis3)]
     [ConflictingCombos(SGE_ST_Simple_DPS)]
     [JobInfo(Job.SGE)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     SGE_ST_Advanced_DPS = 14001,
 
     [ParentCombo(SGE_ST_Advanced_DPS)]
@@ -5974,7 +5975,7 @@ public enum Preset
     [ReplaceSkill(SGE.Dyskrasia, SGE.Dyskrasia2)]
     [ConflictingCombos(SGE_AoE_Simple_DPS)]
     [JobInfo(Job.SGE)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     SGE_AoE_Advanced_DPS = 14009,
 
     [ParentCombo(SGE_AoE_Advanced_DPS)]
@@ -6023,7 +6024,7 @@ public enum Preset
     [ConflictingCombos(SGE_ST_Simple_Heal, SGE_Retarget_Diagnosis)]
     [JobInfo(Job.SGE)]
     [PossiblyRetargeted(SGE.Diagnosis)]
-    [HealingCombo]
+    [AdvancedHealingCombo]
     SGE_ST_Advanced_Heal = 14014,
 
     [ParentCombo(SGE_ST_Advanced_Heal)]
@@ -6109,7 +6110,7 @@ public enum Preset
     [ReplaceSkill(SGE.Prognosis)]
     [ConflictingCombos(SGE_AoE_Simple_Heal)]
     [JobInfo(Job.SGE)]
-    [HealingCombo]
+    [AdvancedHealingCombo]
     SGE_AoE_Advanced_Heal = 14026,
 
     [ParentCombo(SGE_AoE_Advanced_Heal)]
@@ -6310,14 +6311,14 @@ public enum Preset
     [ReplaceSkill(SAM.Hakaze, SAM.Gyofu)]
     [ConflictingCombos(SAM_ST_AdvancedMode)]
     [JobInfo(Job.SAM)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     SAM_ST_SimpleMode = 15002,
 
     [AutoAction(true, false)]
     [ReplaceSkill(SAM.Fuga, SAM.Fuko)]
     [ConflictingCombos(SAM_AoE_AdvancedMode)]
     [JobInfo(Job.SAM)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     SAM_AoE_SimpleMode = 15102,
 
     #endregion
@@ -6328,7 +6329,7 @@ public enum Preset
     [ReplaceSkill(SAM.Hakaze, SAM.Gyofu)]
     [ConflictingCombos(SAM_ST_SimpleMode)]
     [JobInfo(Job.SAM)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     SAM_ST_AdvancedMode = 15003,
 
     [ParentCombo(SAM_ST_AdvancedMode)]
@@ -6451,7 +6452,7 @@ public enum Preset
     [ReplaceSkill(SAM.Fuga, SAM.Fuko)]
     [ConflictingCombos(SAM_AoE_SimpleMode)]
     [JobInfo(Job.SAM)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     SAM_AoE_AdvancedMode = 15103,
 
     #region Damage Skills
@@ -6675,7 +6676,7 @@ public enum Preset
 
     [AutoAction(false, false)]
     [ReplaceSkill(SCH.Ruin, SCH.Broil, SCH.Broil2, SCH.Broil3, SCH.Broil4)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     [ConflictingCombos(SCH_ST_ADV_DPS)]
     [JobInfo(Job.SCH)]
     SCH_ST_Simple_DPS = 16070,
@@ -6683,7 +6684,7 @@ public enum Preset
 
     [AutoAction(true, false)]
     [ReplaceSkill(SCH.ArtOfWar, SCH.ArtOfWarII)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     [ConflictingCombos(SCH_AoE_ADV_DPS)]
     [JobInfo(Job.SCH)]
     SCH_AoE_Simple_DPS = 16071,
@@ -6692,7 +6693,7 @@ public enum Preset
     [ReplaceSkill(SCH.Physick)]
     [ConflictingCombos(SCH_ST_Heal, SCH_Retarget_Physick)]
     [JobInfo(Job.SCH)]
-    [SimpleCombo]
+    [SimpleHealingCombo]
     [PossiblyRetargeted]
     SCH_Simple_ST_Heal = 16085,
 
@@ -6701,7 +6702,7 @@ public enum Preset
     [ReplaceSkill(SCH.Succor)]
     [ConflictingCombos(SCH_AoE_Heal)]
     [JobInfo(Job.SCH)]
-    [SimpleCombo]
+    [SimpleHealingCombo]
     [PossiblyRetargeted]
     SCH_Simple_AoE_Heal = 16084,
 
@@ -6711,7 +6712,7 @@ public enum Preset
     [AutoAction(false, false)]
     [ReplaceSkill(SCH.Ruin, SCH.Broil, SCH.Broil2, SCH.Broil3, SCH.Broil4, SCH.Bio, SCH.Bio2, SCH.Biolysis)]
     [JobInfo(Job.SCH)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     [ConflictingCombos(SCH_ST_Simple_DPS)]
     SCH_ST_ADV_DPS = 16001,
 
@@ -6759,7 +6760,7 @@ public enum Preset
     [ReplaceSkill(SCH.ArtOfWar, SCH.ArtOfWarII)]
     [ConflictingCombos(SCH_AoE_Simple_DPS)]
     [JobInfo(Job.SCH)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     SCH_AoE_ADV_DPS = 16010,
 
     [ParentCombo(SCH_AoE_ADV_DPS)]
@@ -6799,7 +6800,7 @@ public enum Preset
     [ConflictingCombos(SCH_Simple_ST_Heal, SCH_Retarget_Physick)]
     [JobInfo(Job.SCH)]
     [PossiblyRetargeted(SCH.Physick)]
-    [HealingCombo]
+    [AdvancedHealingCombo]
     SCH_ST_Heal = 16023,
 
     [ParentCombo(SCH_ST_Heal)]
@@ -6878,7 +6879,7 @@ public enum Preset
     [ReplaceSkill(SCH.Succor)]
     [ConflictingCombos(SCH_Simple_AoE_Heal)]
     [JobInfo(Job.SCH)]
-    [HealingCombo]
+    [AdvancedHealingCombo]
     SCH_AoE_Heal = 16018,
 
     [ParentCombo(SCH_AoE_Heal)]
@@ -7080,14 +7081,14 @@ public enum Preset
     [ConflictingCombos(SMN_ST_Advanced_Combo)]
     [ReplaceSkill(SMN.Ruin, SMN.Ruin2, SMN.Ruin3)]
     [JobInfo(Job.SMN)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     SMN_ST_Simple_Combo = 17041,
 
     [AutoAction(true, false)]
     [ConflictingCombos(SMN_AoE_Advanced_Combo)]
     [ReplaceSkill(SMN.Outburst)]
     [JobInfo(Job.SMN)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     SMN_AoE_Simple_Combo = 17066,
 
     #endregion
@@ -7097,7 +7098,7 @@ public enum Preset
     [ReplaceSkill(SMN.Ruin, SMN.Ruin2, SMN.Ruin3)]
     [ConflictingCombos(SMN_ST_Simple_Combo)]
     [JobInfo(Job.SMN)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     SMN_ST_Advanced_Combo = 17000,
 
     [ParentCombo(SMN_ST_Advanced_Combo)]
@@ -7201,7 +7202,7 @@ public enum Preset
     [ReplaceSkill(SMN.Outburst, SMN.Tridisaster)]
     [ConflictingCombos(SMN_AoE_Simple_Combo)]
     [JobInfo(Job.SMN)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     SMN_AoE_Advanced_Combo = 17049,
 
     [ParentCombo(SMN_AoE_Advanced_Combo)]
@@ -7344,14 +7345,14 @@ public enum Preset
     [ReplaceSkill(VPR.SteelFangs)]
     [ConflictingCombos(VPR_ST_AdvancedMode, VPR_SerpentsTail, VPR_Legacies)]
     [JobInfo(Job.VPR)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     VPR_ST_SimpleMode = 30000,
 
     [AutoAction(true, false)]
     [ReplaceSkill(VPR.SteelMaw)]
     [ConflictingCombos(VPR_AoE_AdvancedMode, VPR_SerpentsTail)]
     [JobInfo(Job.VPR)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     VPR_AoE_SimpleMode = 30100,
 
     #endregion
@@ -7362,7 +7363,7 @@ public enum Preset
     [ReplaceSkill(VPR.SteelFangs)]
     [ConflictingCombos(VPR_ST_SimpleMode, VPR_SerpentsTail, VPR_Legacies)]
     [JobInfo(Job.VPR)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     VPR_ST_AdvancedMode = 30001,
 
     [ParentCombo(VPR_ST_AdvancedMode)]
@@ -7437,7 +7438,7 @@ public enum Preset
     [ReplaceSkill(VPR.SteelMaw)]
     [ConflictingCombos(VPR_AoE_SimpleMode, VPR_SerpentsTail)]
     [JobInfo(Job.VPR)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     VPR_AoE_AdvancedMode = 30101,
 
     [ParentCombo(VPR_AoE_AdvancedMode)]
@@ -7571,14 +7572,14 @@ public enum Preset
     [ConflictingCombos(WAR_ST_Advanced)]
     [ReplaceSkill(WAR.HeavySwing)]
     [JobInfo(Job.WAR)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     WAR_ST_Simple = 18000,
 
     [AutoAction(true, false)]
     [ConflictingCombos(WAR_AoE_Advanced)]
     [ReplaceSkill(WAR.Overpower)]
     [JobInfo(Job.WAR)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     WAR_AoE_Simple = 18001,
     #endregion
 
@@ -7587,7 +7588,7 @@ public enum Preset
     [ConflictingCombos(WAR_ST_Simple)]
     [ReplaceSkill(WAR.HeavySwing)]
     [JobInfo(Job.WAR)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     WAR_ST_Advanced = 18002,
 
     [ParentCombo(WAR_ST_Advanced)]
@@ -7649,7 +7650,7 @@ public enum Preset
     [ConflictingCombos(WAR_AoE_Simple)]
     [ReplaceSkill(WAR.Overpower)]
     [JobInfo(Job.WAR)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     WAR_AoE_Advanced = 18016,
 
     [ParentCombo(WAR_AoE_Advanced)]
@@ -7962,21 +7963,21 @@ public enum Preset
     [ReplaceSkill(WHM.Stone1, WHM.Stone2, WHM.Stone3, WHM.Stone4, WHM.Glare1, WHM.Glare3)]
     [ConflictingCombos(WHM_ST_MainCombo)]
     [JobInfo(Job.WHM)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     WHM_ST_Simple_DPS = 19050,
 
     [AutoAction(true, false)]
     [ReplaceSkill(WHM.Holy, WHM.Holy3)]
     [ConflictingCombos(WHM_AoE_DPS)]
     [JobInfo(Job.WHM)]
-    [SimpleCombo]
+    [SimpleDPSCombo]
     WHM_AoE_Simple_DPS = 19051,
 
     [AutoAction(false, true)]
     [ReplaceSkill(WHM.Cure)]
     [ConflictingCombos(WHM_STHeals, WHM_Re_Cure)]
     [JobInfo(Job.WHM)]
-    [SimpleCombo]
+    [SimpleHealingCombo]
     [PossiblyRetargeted]
     WHM_SimpleSTHeals = 19052,
 
@@ -7984,7 +7985,7 @@ public enum Preset
     [ReplaceSkill(WHM.Medica1)]
     [ConflictingCombos(WHM_AoEHeals)]
     [JobInfo(Job.WHM)]
-    [SimpleCombo]
+    [SimpleHealingCombo]
     [PossiblyRetargeted]
     WHM_Simple_AoEHeals = 19054,
 
@@ -7996,7 +7997,7 @@ public enum Preset
     [ReplaceSkill(WHM.Stone1, WHM.Stone2, WHM.Stone3, WHM.Stone4, WHM.Glare1, WHM.Glare3)]
     [ConflictingCombos(WHM_ST_Simple_DPS)]
     [JobInfo(Job.WHM)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     WHM_ST_MainCombo = 19099,
 
     [ParentCombo(WHM_ST_MainCombo)]
@@ -8044,7 +8045,7 @@ public enum Preset
     [ReplaceSkill(WHM.Holy, WHM.Holy3)]
     [ConflictingCombos(WHM_AoE_Simple_DPS)]
     [JobInfo(Job.WHM)]
-    [AdvancedCombo]
+    [AdvancedDPSCombo]
     WHM_AoE_DPS = 19190,
 
     [ParentCombo(WHM_AoE_DPS)]
@@ -8089,7 +8090,7 @@ public enum Preset
     [ConflictingCombos(WHM_SimpleSTHeals, WHM_Re_Cure)]
     [JobInfo(Job.WHM)]
     [PossiblyRetargeted(WHM.Cure)]
-    [HealingCombo]
+    [AdvancedHealingCombo]
     WHM_STHeals = 19300,
 
     [ParentCombo(WHM_STHeals)]
@@ -8157,7 +8158,7 @@ public enum Preset
     [ReplaceSkill(WHM.Medica1)]
     [ConflictingCombos(WHM_Simple_AoEHeals)]
     [JobInfo(Job.WHM)]
-    [HealingCombo]
+    [AdvancedHealingCombo]
     WHM_AoEHeals = 19007,
 
     [ParentCombo(WHM_AoEHeals)]
