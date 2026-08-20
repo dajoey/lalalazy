@@ -8,8 +8,15 @@ internal abstract partial class CustomComboFunctions
     /// </summary>
     public static class OccultInstantCast
     {
-        /// <summary>Occult Quick - Phantom Time Mage, action 41625.</summary>
+        /// <summary>Occult Quick, the status.</summary>
         public const ushort OccultQuick = 4260;
+
+        /// <summary>
+        ///     Occult Quick, the action (Phantom Time Mage). Needed as well as the status
+        ///     because the buff does not exist until the server applies it, and the plugin
+        ///     presses Swiftcast from a different code path in the meantime.
+        /// </summary>
+        public const uint OccultQuickAction = 41625;
 
         /// <summary>
         ///     Occult Crescent's own Dualcast, granted by Phantom Red Mage. This is NOT
@@ -32,9 +39,19 @@ internal abstract partial class CustomComboFunctions
     ///     <para/>
     ///     Outside Occult Crescent this status cannot be present, so every gate that reads it is
     ///     inert there. That is what keeps the blast radius of these checks to the one zone.
+    ///     <para/>
+    ///     The <c>JustUsed</c> half is not belt-and-braces, it is the whole bug. Gluttony
+    ///     presses Occult Quick itself, and the status lands a beat later; for those few ticks
+    ///     the status check alone reads false and the very next thing the rotation does is
+    ///     spend Swiftcast. That is exactly the "Swiftcast immediately after Occult Quick" the
+    ///     v1.0.4.144 gates failed to stop. The pre-7.55 Occult Comet handler has always
+    ///     carried the same pairing (<c>!HasStatusEffect(Buffs.OccultQuick) &amp;&amp;
+    ///     !JustUsed(OccultQuick)</c>) for this reason - v1.0.4.144 copied the status half and
+    ///     not the timing half.
     /// </summary>
     public static bool HasFreeInstantCasts =>
-        HasStatusEffect(OccultInstantCast.OccultQuick);
+        HasStatusEffect(OccultInstantCast.OccultQuick) ||
+        JustUsed(OccultInstantCast.OccultQuickAction);
 
     /// <summary>
     ///     Occult Dualcast is up, so the NEXT spell - one spell - is instant.

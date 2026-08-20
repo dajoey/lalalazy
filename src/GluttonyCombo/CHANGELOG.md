@@ -1,4 +1,30 @@
-﻿## v1.0.4.144 (2026-08-20) [testing]
+﻿## v1.0.4.145 (2026-08-20) [testing]
+
+### Fixed
+- **v1.0.4.144's Occult Quick gates did not stop the thing they were written to stop.** Joey:
+  "immediately cast swiftcast right after occult quick." The gates tested
+  `HasStatusEffect(OccultQuick)` and nothing else - but Gluttony presses Occult Quick *itself*,
+  and the status does not exist until the server applies it. For the ticks in between, the gate
+  reads false and the rotation spends Swiftcast, which is precisely the window the complaint
+  describes. `HasFreeInstantCasts` now also reads `JustUsed(41625)` (3s default variance), so
+  the cast covers the gap until the buff does. The pre-7.55 Occult Comet handler has always
+  paired the two checks (`!HasStatusEffect(Buffs.OccultQuick) && !JustUsed(OccultQuick)`) for
+  exactly this reason - v1.0.4.144 copied the status half and left the timing half behind.
+
+### Notes
+- Occult Dualcast needs no equivalent: it arrives from the Phantom Red Mage trait rather than
+  from a button this plugin presses, so there is no press to race.
+- **Tooling, so this class of release defect stops recurring.** `tools/Package-Plugin.ps1` now
+  (1) writes `Changelog` into the manifest that ships *inside the zip*, parsed from CHANGELOG.md
+  before the payload is staged rather than after - previously only `pluginmaster.json` got it and
+  the in-game changelog carried whatever the in-repo template last said, which is how v1.0.4.130
+  shipped a production build reading "[testing]" and how v1.0.4.144 first packaged with
+  v1.0.4.143's notes; and (2) no longer silently bumps `<Version>` when the csproj version is
+  already registered for the target channel. It throws and names the two real options instead;
+  `-AutoBump` restores the old edit-for-you behaviour and `-Republish` re-cuts the same version.
+  The silent bump had already produced a 1.0.4.145 build with no CHANGELOG section behind my back.
+
+## v1.0.4.144 (2026-08-20) [testing]
 
 ### Fixed
 - **Occult Quick made every cast-time cooldown in the plugin redundant, and nothing knew it

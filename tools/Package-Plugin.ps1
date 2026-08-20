@@ -17,7 +17,13 @@
 param(
   [Parameter(Mandatory=$true)][string]$PluginName,
   [ValidateSet('production', 'testing')][string]$Channel = 'production',
-  [string]$VersionOverride
+  [string]$VersionOverride,
+  # Re-package the SAME version already registered for this channel. Safe only while that
+  # version's zip is unpushed - new bytes under a version Dalamud may have cached is the
+  # stale-zip failure mode (see the v1.0.4.130 entry in GluttonyCombo's CHANGELOG).
+  [switch]$Republish,
+  # Opt in to the old behaviour: bump the csproj patch number and package that.
+  [switch]$AutoBump
 )
 
 $ErrorActionPreference = 'Stop'
@@ -65,18 +71,109 @@ if (Test-Path $csprojPath) {
             $entry.AssemblyVersion
         }
         if ($projVersion -eq $lastPublishedVersion) {
+            # This used to bump the csproj patch number here, silently, and carry on. That is a
+            # trap: a second run of the same release - to correct a manifest, say - rewrote
+            # <Version> underneath you and published a version number with no CHANGELOG.md
+            # section, breaking the repo's hard changelog rule with nothing but a console line
+            # to say so. Nothing gets rewritten unasked now; pick one deliberately.
             $parts = $projVersion.Split('.')
-            if ($parts.Count -eq 4) {
-                $patch = [int]$parts[3] + 1
-                $newVersion = "$($parts[0]).$($parts[1]).$($parts[2]).$patch"
-                Write-Host "WARNING: Version $projVersion is already registered in pluginmaster.json!" -ForegroundColor Yellow
-                Write-Host "Auto-Bumping version in csproj to: $newVersion" -ForegroundColor Green
-                
-                $targetGroup.Version = $newVersion
+            $suggested = if ($parts.Count -eq 4) {
+                "$($parts[0]).$($parts[1]).$($parts[2]).$([int]$parts[3] + 1)"
+            } else { '<next version>' }
+
+            if ($AutoBump) {
+                if ($parts.Count -ne 4) { throw "-AutoBump needs a four-part version; csproj has '$projVersion'." }
+                Write-Host "-AutoBump: $projVersion already published on '$Channel'; csproj -> $suggested." -ForegroundColor Yellow
+                Write-Host "           Add a '## v$suggested (yyyy-MM-dd)' section to CHANGELOG.md before committing." -ForegroundColor Yellow
+                $targetGroup.Version = $suggested
                 $csproj.Save($csprojPath)
+            }
+            elseif ($Republish) {
+                Write-Host "-Republish: re-packaging $projVersion, already registered on '$Channel'." -ForegroundColor Yellow
+                Write-Host "            Only safe while that zip is UNPUSHED." -ForegroundColor Yellow
+            }
+            else {
+                throw @"
+Version $projVersion is already registered as the '$Channel' version in pluginmaster.json.
+Refusing to guess. Pick one:
+  bump     set <Version> to $suggested in $csprojPath, add the matching '## v$suggested'
+           section to CHANGELOG.md, re-run. (-AutoBump edits the csproj for you; the
+           CHANGELOG entry is still yours to write.)
+  re-cut   re-run with -Republish to package $projVersion again. Only if that version's
+           zip has NOT been pushed yet.
+"@
             }
         }
     }
+}
+
+# Parse CHANGELOG.md into the release changelog text.
+# Runs HERE, before the payload is staged, because the SHIPPED manifest inside the zip
+# needs this text too - not just pluginmaster.json. Parsing it down in the
+# pluginmaster step meant the zip could only ever carry whatever the in-repo manifest
+# template happened to say, which is how v1.0.4.130 shipped a production build whose
+# embedded changelog read "[testing]".
+$changelogPath = Join-Path $srcDir "CHANGELOG.md"
+if (-not (Test-Path $changelogPath)) {
+    # check parent dir for nested projects
+    $changelogPath = Join-Path (Split-Path $srcDir) "CHANGELOG.md"
+}
+
+$changelogText = $null
+if (Test-Path $changelogPath) {
+    Write-Host "Parsing CHANGELOG.md for metadata..."
+    $lines = Get-Content $changelogPath
+    $formattedEntries = [System.Collections.Generic.List[string]]::new()
+    $currentEntry = [System.Collections.Generic.List[string]]::new()
+    
+    foreach ($line in $lines) {
+        $trimmed = $line.Trim()
+
+        # Section header. TWO styles live in this repo and both must parse (fix 2026-08-02):
+        #   Keep-a-Changelog:  ## [1.0.4.99] - some description
+        #   dated:             ## v1.0.4.101 (2026-08-02) [testing]
+        # Only the bracket style was recognised before, so every plugin on the dated style
+        # (GluttonyCombo, ArmoireAutoFill, DagobertPriceMatcher, LazyFoodBuff,
+        # LazyGearCollector, LazyOccultCrescent, LazySkywardTracker) published a Changelog
+        # field frozen at whatever it happened to say when the entry was first created.
+        $headerVersion = $null
+        $headerDesc = $null
+        if ($trimmed -match '^##\s+\[([^\]]+)\](?:\s*-\s*(.+))?$') {
+            $headerVersion = $Matches[1]
+            if ($Matches[2]) { $headerDesc = "- $($Matches[2])" }
+        } elseif ($trimmed -match '^##\s+v([0-9][0-9A-Za-z.\-]*)\s*(.*)$') {
+            $headerVersion = $Matches[1]
+            $headerDesc = $Matches[2].Trim()
+        }
+
+        if ($headerVersion) {
+            if ($currentEntry.Count -gt 0) {
+                $entryStr = ($currentEntry -join "`n").Trim()
+                if ($entryStr) {
+                    $formattedEntries.Add($entryStr)
+                }
+                $currentEntry.Clear()
+            }
+            if ($headerDesc) {
+                $currentEntry.Add("v$headerVersion $headerDesc")
+            } else {
+                $currentEntry.Add("v$headerVersion")
+            }
+        } elseif ($trimmed -like "###*") {
+            continue
+        } elseif ($trimmed.StartsWith("-") -or $trimmed.StartsWith("**") -or $trimmed -match '^\d+\.') {
+            $currentEntry.Add($trimmed)
+        } elseif ($trimmed -eq "" -and $currentEntry.Count -gt 0) {
+            $currentEntry.Add("")
+        }
+    }
+    if ($currentEntry.Count -gt 0) {
+        $entryStr = ($currentEntry -join "`n").Trim()
+        if ($entryStr) {
+            $formattedEntries.Add($entryStr)
+        }
+    }
+    $changelogText = ($formattedEntries | Select-Object -First 6) -join "`n`n"
 }
 
 # 1. Clean old outputs
@@ -142,6 +239,50 @@ New-Item -ItemType Directory -Path $stageDir | Out-Null
 # Copy manifest and patch its version (UTF-8 without BOM)
 $stagedManifestPath = Join-Path $stageDir "$PluginName.json"
 $manifest.AssemblyVersion = $version
+
+# The changelog Dalamud shows in-game comes from THIS manifest, not from pluginmaster.json.
+# It used to be whatever the in-repo template happened to say, which went stale the moment a
+# release did not hand-edit it - shipping the previous version's notes, and once shipping
+# "[testing]" on a production build (v1.0.4.130). Write it from CHANGELOG.md, same source the
+# index uses, so the two can no longer disagree.
+if ($changelogText) {
+    if ($manifest.PSObject.Properties['Changelog']) {
+        $manifest.Changelog = $changelogText
+    } else {
+        $manifest | Add-Member -NotePropertyName Changelog -NotePropertyValue $changelogText
+    }
+
+    # Keep the tracked template in sync too, so the next build starts correct and the repo
+    # never disagrees with what shipped. Rewrite the single Changelog line in place rather
+    # than a ConvertFrom/ConvertTo-Json round-trip, which would reformat the whole file and
+    # bury the real diff. Line-scan, not a regex: the JSON string escapes its own newlines so
+    # the value is always exactly one line, and a pattern that has to match escaped quotes is
+    # a backslash-quoting trap in PowerShell (it ate one and threw "Not enough )'s").
+    $srcManifestPath = Join-Path $srcDir "$PluginName.json"
+    if (Test-Path $srcManifestPath) {
+        $srcLines = [System.IO.File]::ReadAllLines($srcManifestPath)
+        $escaped = $changelogText | ConvertTo-Json
+        $found = $false
+        for ($i = 0; $i -lt $srcLines.Count; $i++) {
+            if ($srcLines[$i] -match '^(\s*)"Changelog"\s*:') {
+                $found = $true
+                $indent = $Matches[1]
+                $comma = if ($srcLines[$i].TrimEnd().EndsWith(',')) { ',' } else { '' }
+                $rebuilt = $indent + '"Changelog": ' + $escaped + $comma
+                if ($rebuilt -ne $srcLines[$i]) {
+                    $srcLines[$i] = $rebuilt
+                    [System.IO.File]::WriteAllLines($srcManifestPath, $srcLines)
+                    Write-Host "Synced Changelog into the source manifest ($PluginName.json)."
+                }
+                break
+            }
+        }
+        if (-not $found) {
+            Write-Host "NOTE: $PluginName.json carries no Changelog field; only the shipped copy has one." -ForegroundColor Yellow
+        }
+    }
+}
+
 $manifestJson = $manifest | ConvertTo-Json -Depth 10
 [System.IO.File]::WriteAllText($stagedManifestPath, $manifestJson, [System.Text.UTF8Encoding]::new($false))
 
@@ -218,69 +359,9 @@ Remove-Item -Recurse -Force $stageDir
 # 5. Synchronize pluginmaster.json automatically
 Write-Host "Updating pluginmaster.json index..."
 
-# Parse CHANGELOG.md if present to populate Changelog field in pluginmaster.json
-$changelogPath = Join-Path $srcDir "CHANGELOG.md"
-if (-not (Test-Path $changelogPath)) {
-    # check parent dir for nested projects
-    $changelogPath = Join-Path (Split-Path $srcDir) "CHANGELOG.md"
-}
+# $changelogText was parsed above, before staging, so the zip and the index agree.
 
-$changelogText = $null
-if (Test-Path $changelogPath) {
-    Write-Host "Parsing CHANGELOG.md for metadata..."
-    $lines = Get-Content $changelogPath
-    $formattedEntries = [System.Collections.Generic.List[string]]::new()
-    $currentEntry = [System.Collections.Generic.List[string]]::new()
-    
-    foreach ($line in $lines) {
-        $trimmed = $line.Trim()
 
-        # Section header. TWO styles live in this repo and both must parse (fix 2026-08-02):
-        #   Keep-a-Changelog:  ## [1.0.4.99] - some description
-        #   dated:             ## v1.0.4.101 (2026-08-02) [testing]
-        # Only the bracket style was recognised before, so every plugin on the dated style
-        # (GluttonyCombo, ArmoireAutoFill, DagobertPriceMatcher, LazyFoodBuff,
-        # LazyGearCollector, LazyOccultCrescent, LazySkywardTracker) published a Changelog
-        # field frozen at whatever it happened to say when the entry was first created.
-        $headerVersion = $null
-        $headerDesc = $null
-        if ($trimmed -match '^##\s+\[([^\]]+)\](?:\s*-\s*(.+))?$') {
-            $headerVersion = $Matches[1]
-            if ($Matches[2]) { $headerDesc = "- $($Matches[2])" }
-        } elseif ($trimmed -match '^##\s+v([0-9][0-9A-Za-z.\-]*)\s*(.*)$') {
-            $headerVersion = $Matches[1]
-            $headerDesc = $Matches[2].Trim()
-        }
-
-        if ($headerVersion) {
-            if ($currentEntry.Count -gt 0) {
-                $entryStr = ($currentEntry -join "`n").Trim()
-                if ($entryStr) {
-                    $formattedEntries.Add($entryStr)
-                }
-                $currentEntry.Clear()
-            }
-            if ($headerDesc) {
-                $currentEntry.Add("v$headerVersion $headerDesc")
-            } else {
-                $currentEntry.Add("v$headerVersion")
-            }
-        } elseif ($trimmed -like "###*") {
-            continue
-        } elseif ($trimmed.StartsWith("-") -or $trimmed.StartsWith("**") -or $trimmed -match '^\d+\.') {
-            $currentEntry.Add($trimmed)
-        } elseif ($trimmed -eq "" -and $currentEntry.Count -gt 0) {
-            $currentEntry.Add("")
-        }
-    }
-    if ($currentEntry.Count -gt 0) {
-        $entryStr = ($currentEntry -join "`n").Trim()
-        if ($entryStr) {
-            $formattedEntries.Add($entryStr)
-        }
-    }
-    $changelogText = ($formattedEntries | Select-Object -First 6) -join "`n`n"
-}
 
 # Reload pluginmaster.json in case version was modified on disk during prep
 $masterJsonText = [System.IO.File]::ReadAllText($masterPath, [System.Text.Encoding]::UTF8)
