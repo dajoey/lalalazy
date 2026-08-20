@@ -1,4 +1,49 @@
-﻿## v1.0.4.143 (2026-08-20) [testing]
+﻿## v1.0.4.144 (2026-08-20) [testing]
+
+### Fixed
+- **Occult Quick made every cast-time cooldown in the plugin redundant, and nothing knew it
+  existed.** Occult Quick (Phantom Time Mage) is not a Swiftcast equivalent - its tooltip reads
+  "reduces cast times for spells by 10 seconds. Duration: 20s", so for twenty seconds every spell
+  in the game is instant, it is a window rather than a one-shot proc, and casting does not consume
+  it. Exactly one code path accounted for it: the pre-7.55 Occult Comet handler. Everywhere else
+  the plugin would happily spend a 60s Swiftcast, a Triplecast charge or an Acceleration charge to
+  buy an instant cast it already had for free. Gated at every press site: `ALL_Healer_Raise` and
+  `ALL_Caster_Raise`, all three Swiftcast presses in `AutoRotationController.RezParty`, WHM's
+  SwiftHoly opener, BLM's fire/ice/movement Swiftcast and Triplecast, PCT's swiftcast-a-motif,
+  and - via `RoleActions.Magic.CanSwiftcast` and `RDM_Helper.CanInstantCD` - RDM's Swiftcast and
+  Acceleration and SMN's swiftcast-egi.
+- **Occult Dualcast (status 5438) wasted a Swiftcast on the raise paths, and delayed the raise
+  doing it.** Occult Crescent has its own Dualcast, granted by Phantom Red Mage, and it is a
+  different status from Red Mage's (1249). Unlike RDM's job-restricted variant (1393) it carries
+  no job restriction, so it makes any next spell instant - including a raise. `ALL_Caster_Raise`
+  and `RezParty` both tested 1249 only, so with 5438 up they pressed Swiftcast anyway *and* then
+  sat waiting on a Swiftcast the raise never needed. Both, plus `ALL_Healer_Raise` and
+  `RDM_Helper.CanInstantCD`, now read it.
+- **Two wrong status ids in the Occult Crescent buff table.** `OccultSprint` was 4261 and
+  `OccultSwift` was 4262; live sheets have Occult Swift at 4261 and Occult Sprint at 4276 (4262 is
+  Resurrection Restricted). Both constants are unreferenced, so this was dead data rather than a
+  live defect - corrected before something starts reading them.
+
+### Notes
+- **Occult Dualcast is deliberately NOT treated like Occult Quick.** Quick is a 20s blanket
+  window, so it hard-gates everything. Dualcast is a recurring one-spell proc that returns on its
+  own, so it gates only the raise paths, where the raise is demonstrably the next spell. Putting
+  it on the damage rotations would push tightly-timed cooldowns - BLM's post-Despair Swiftcast in
+  particular - clean out of their windows, losing more than the proc is worth.
+- **Occult Dualcast was also left out of `HoldingInstantCastProc`,** which still lists Swiftcast /
+  RDM Dualcast / Triplecast / Requiescat. That gate protects scarce hand-held resources; a proc
+  that regenerates on its own is not one, and a 1.5s phantom nuke is a perfectly good use of it.
+  Adding it would impose the same phantom-uptime halving recorded for Red Mage in v1.0.4.105 on
+  everyone running Phantom Red Mage. Occult Quick is likewise correctly absent - under it the
+  phantom spells are free, so there is nothing to stand down for.
+- **The whole change is inert outside Occult Crescent.** Both gates resolve to
+  `HasStatusEffect(...)` on statuses that can only exist in the zone, so behaviour anywhere else
+  is byte-for-byte what it was. Blue Mage is untouched: it is a limited job and cannot enter the
+  Crescent.
+- New fork-local file `CustomCombo/Functions/OccultInstantCast.cs` holds both gates as a partial
+  of `CustomComboFunctions`, so the nightly upstream merge never has to resolve it.
+
+## v1.0.4.143 (2026-08-20) [testing]
 
 Upstream WrathCombo merge 9a491ae5c -> c35a28de3 (4 commits; upstream csproj stays 1.0.4.21).
 

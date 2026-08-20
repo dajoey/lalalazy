@@ -147,7 +147,8 @@ internal partial class All
                 actionID is SCH.Resurrection && Player.Job is not Job.SCH)
                 return actionID;
 
-            if (ActionReady(RoleActions.Magic.Swiftcast))
+            if (ActionReady(RoleActions.Magic.Swiftcast) &&
+                !HasFreeInstantCasts && !HasOccultDualcast)
                 return RoleActions.Magic.Swiftcast;
 
             if (actionID is WHM.Raise &&
@@ -239,7 +240,8 @@ internal partial class All
                 return actionID;
 
             if (HasStatusEffect(RoleActions.Magic.Buffs.Swiftcast) ||
-                HasStatusEffect(RDM.Buffs.Dualcast))
+                HasStatusEffect(RDM.Buffs.Dualcast) ||
+                HasFreeInstantCasts || HasOccultDualcast)
 
                 if (IsEnabled(Preset.ALL_Caster_Raise_Retarget))
                     return actionID.Retarget(replacedActions.ToArray(),
@@ -247,7 +249,8 @@ internal partial class All
                 else
                     return actionID;
 
-            if (IsOffCooldown(RoleActions.Magic.Swiftcast))
+            if (IsOffCooldown(RoleActions.Magic.Swiftcast) &&
+                !HasFreeInstantCasts && !HasOccultDualcast)
                 return RoleActions.Magic.Swiftcast;
 
             if (Player.Job is Job.RDM &&

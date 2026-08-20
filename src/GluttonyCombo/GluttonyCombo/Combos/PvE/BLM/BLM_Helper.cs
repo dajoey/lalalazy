@@ -326,7 +326,7 @@ internal partial class BLM
         }
 
         if (useSwiftcast &&
-            ActionReady(Role.Swiftcast) && JustUsed(Despair) &&
+            ActionReady(Role.Swiftcast) && !HasFreeInstantCasts && JustUsed(Despair) &&
             GetCooldownRemainingTime(Manafont) > GCD &&
             !HasStatusEffect(Buffs.Triplecast) &&
             InActionRange(Fire) && HasBattleTarget())
@@ -336,7 +336,7 @@ internal partial class BLM
         }
 
         if (useTriplecast &&
-            ActionReady(Triplecast) && IsOnCooldown(Role.Swiftcast) &&
+            ActionReady(Triplecast) && IsOnCooldown(Role.Swiftcast) && !HasFreeInstantCasts &&
             !HasStatusEffect(Role.Buffs.Swiftcast) && !HasStatusEffect(Buffs.Triplecast) &&
             InActionRange(Fire) && HasBattleTarget() &&
             (triplecastIgnoreLeyLines || !HasStatusEffect(Buffs.LeyLines)) &&
@@ -386,7 +386,7 @@ internal partial class BLM
         if (ActionReady(Blizzard3) && UmbralIceStacks < 3)
         {
             if (useSwiftcast &&
-                ActionReady(Role.Swiftcast) && !HasStatusEffect(Buffs.Triplecast) &&
+                ActionReady(Role.Swiftcast) && !HasFreeInstantCasts && !HasStatusEffect(Buffs.Triplecast) &&
                 HasBattleTarget() && InActionRange(Blizzard))
             {
                 actionID = Role.Swiftcast;
@@ -394,7 +394,7 @@ internal partial class BLM
             }
 
             if (useTriplecast &&
-                ActionReady(Triplecast) && IsOnCooldown(Role.Swiftcast) &&
+                ActionReady(Triplecast) && IsOnCooldown(Role.Swiftcast) && !HasFreeInstantCasts &&
                 HasBattleTarget() && InActionRange(Blizzard) && !JustUsed(Triplecast) &&
                 !HasStatusEffect(Role.Buffs.Swiftcast) && !HasStatusEffect(Buffs.Triplecast) &&
                 (triplecastIgnoreLeyLines || !HasStatusEffect(Buffs.LeyLines)) &&
@@ -481,6 +481,7 @@ internal partial class BLM
         }
 
         if (ActionReady(Triplecast) &&
+            !HasFreeInstantCasts &&
             !HasStatusEffect(Buffs.Triplecast) &&
             !HasStatusEffect(Role.Buffs.Swiftcast) &&
             !HasStatusEffect(Buffs.LeyLines) &&
@@ -502,6 +503,7 @@ internal partial class BLM
         }
 
         if (ActionReady(Role.Swiftcast) &&
+            !HasFreeInstantCasts &&
             !HasStatusEffect(Buffs.Triplecast))
         {
             actionID = Role.Swiftcast;
@@ -752,6 +754,7 @@ internal partial class BLM
         (Role.Swiftcast, Preset.BLM_ST_Movement,
             () => BLM_ST_MovementOption[MovementSwiftcast] &&
                   ActionReady(Role.Swiftcast) &&
+                  !HasFreeInstantCasts &&
                   !HasStatusEffect(Buffs.Triplecast)),
 
         //Xeno

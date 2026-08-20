@@ -1580,7 +1580,8 @@ internal unsafe class AutoRotationController
                     //Try to Swiftcast if Magic DPS
                     if (GetRoleFromJob(Player.Job) is JobRole.MagicalDPS)
                     {
-                        if (ActionReady(RoleActions.Magic.Swiftcast) && !HasStatusEffect(RDM.Buffs.Dualcast))
+                        if (ActionReady(RoleActions.Magic.Swiftcast) && !HasStatusEffect(RDM.Buffs.Dualcast) &&
+                            !HasFreeInstantCasts && !HasOccultDualcast)
                         {
                             if (ActionManager.Instance()->GetActionStatus(ActionType.Action, RoleActions.Magic.Swiftcast) == 0)
                             {
@@ -1590,7 +1591,8 @@ internal unsafe class AutoRotationController
                         }
                     }
 
-                    if (HasStatusEffect(RoleActions.Magic.Buffs.Swiftcast) || HasStatusEffect(RDM.Buffs.Dualcast) || !IsMoving())
+                    if (HasStatusEffect(RoleActions.Magic.Buffs.Swiftcast) || HasStatusEffect(RDM.Buffs.Dualcast) ||
+                        HasFreeInstantCasts || HasOccultDualcast || !IsMoving())
                     {
                         ActionManager.Instance()->UseAction(ActionType.Action, resSpell, member.BattleChara.GameObjectId);
                         return true;
@@ -1599,7 +1601,8 @@ internal unsafe class AutoRotationController
 
                 if (Player.Job is Job.RDM)
                 {
-                    if (ActionReady(RoleActions.Magic.Swiftcast) && !HasStatusEffect(RDM.Buffs.Dualcast))
+                    if (ActionReady(RoleActions.Magic.Swiftcast) && !HasStatusEffect(RDM.Buffs.Dualcast) &&
+                        !HasFreeInstantCasts && !HasOccultDualcast)
                     {
                         ActionManager.Instance()->UseAction(ActionType.Action, RoleActions.Magic.Swiftcast);
                         return true;
@@ -1614,7 +1617,8 @@ internal unsafe class AutoRotationController
                 }
                 else
                 {
-                    if (ActionReady(RoleActions.Magic.Swiftcast))
+                    if (ActionReady(RoleActions.Magic.Swiftcast) &&
+                        !HasFreeInstantCasts && !HasOccultDualcast)
                     {
                         if (ActionManager.Instance()->GetActionStatus(ActionType.Action, RoleActions.Magic.Swiftcast) == 0)
                         {
@@ -1623,7 +1627,8 @@ internal unsafe class AutoRotationController
                         }
                     }
 
-                    if (!IsMoving() || HasStatusEffect(RoleActions.Magic.Buffs.Swiftcast))
+                    if (!IsMoving() || HasStatusEffect(RoleActions.Magic.Buffs.Swiftcast) ||
+                        HasFreeInstantCasts || HasOccultDualcast)
                     {
 
                         if ((cfg is not null) && ((cfg.HealerSettings.AutoRezRequireSwift && ActionManager.GetAdjustedCastTime(ActionType.Action, resSpell) == 0) || !cfg.HealerSettings.AutoRezRequireSwift))

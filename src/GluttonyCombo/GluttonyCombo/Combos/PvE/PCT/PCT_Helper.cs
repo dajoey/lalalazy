@@ -301,7 +301,8 @@ internal partial class PCT
             return true;
         }
 
-        if (swiftcastEnabled && ActionReady(Role.Swiftcast) && !HasStatusEffect(Buffs.StarryMuse) &&
+        if (swiftcastEnabled && ActionReady(Role.Swiftcast) && !HasFreeInstantCasts &&
+            !HasStatusEffect(Buffs.StarryMuse) &&
             (CreatureMotifReady || WeaponMotifReady || LandscapeMotifReady))
         {
             actionID = Role.Swiftcast;

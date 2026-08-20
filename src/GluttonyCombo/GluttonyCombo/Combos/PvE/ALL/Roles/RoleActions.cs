@@ -17,7 +17,7 @@ internal static partial class RoleActions
             (!weave || CanWeave());
 
         public static bool CanSwiftcast(bool weave = true) =>
-            ActionReady(Swiftcast) && (!weave || CanWeave());
+            ActionReady(Swiftcast) && !HasFreeInstantCasts && (!weave || CanWeave());
 
         public static bool CanSurecast() =>
             ActionReady(Surecast);
