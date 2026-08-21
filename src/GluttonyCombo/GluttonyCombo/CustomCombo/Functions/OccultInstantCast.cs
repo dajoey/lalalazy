@@ -1,3 +1,5 @@
+using System;
+
 namespace GluttonyCombo.CustomComboNS.Functions;
 
 internal abstract partial class CustomComboFunctions
@@ -51,7 +53,37 @@ internal abstract partial class CustomComboFunctions
     /// </summary>
     public static bool HasFreeInstantCasts =>
         HasStatusEffect(OccultInstantCast.OccultQuick) ||
+        OccultQuickJustOffered ||
         JustUsed(OccultInstantCast.OccultQuickAction);
+
+    /// <summary>
+    ///     Our own record of Occult Quick going out, because ActionWatching's is written too
+    ///     late to be any use here.
+    ///     <para/>
+    ///     <c>ActionWatching</c> does not stamp <c>ActionTimestamps</c> when an action is used -
+    ///     it schedules the stamp with
+    ///     <c>Svc.Framework.RunOnTick(..., castTime - 480ms)</c>. Occult Quick is a 1500ms cast,
+    ///     so the record does not exist for the first <b>1020ms</b>, and the only immediate
+    ///     stamp path in that file is gated on ground-targeted actions and items. During the
+    ///     window where the next action is chosen and queued, both <c>JustUsed</c> and the
+    ///     status read false - which is why the v1.0.4.145 and .146 gates were no-ops.
+    ///     <para/>
+    ///     Stamped at the moment the plugin OFFERS Occult Quick, which is marginally earlier
+    ///     than it landing: a cast that then fails on range or MP still suppresses Swiftcast for
+    ///     the window. That is the deliberate trade - a short over-suppression beats the
+    ///     cooldown being burned.
+    /// </summary>
+    private static long _occultQuickOfferedTick;
+
+    private const long OccultQuickSpacingMs = 3000;
+
+    public static bool OccultQuickJustOffered =>
+        _occultQuickOfferedTick != 0 &&
+        Environment.TickCount64 - _occultQuickOfferedTick <= OccultQuickSpacingMs;
+
+    /// <summary>Record that Occult Quick is on its way out. See <see cref="OccultQuickJustOffered"/>.</summary>
+    public static void MarkOccultQuickOffered() =>
+        _occultQuickOfferedTick = Environment.TickCount64;
 
     /// <summary>
     ///     Occult Dualcast is up, so the NEXT spell - one spell - is instant.

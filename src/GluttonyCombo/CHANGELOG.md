@@ -1,4 +1,27 @@
-﻿## v1.0.4.146 (2026-08-20) [testing]
+﻿## v1.0.4.147 (2026-08-20) [testing]
+
+### Fixed
+- **The spacing gate was reading a timestamp that does not exist yet.** `ActionWatching` does
+  not stamp `ActionTimestamps` when an action is used - it schedules the stamp with
+  `Svc.Framework.RunOnTick(..., castTime - 480ms)`. Occult Quick is a 1500ms cast, so its record
+  is not written for the first **1020ms**, and the one immediate stamp path in that file is
+  gated on ground-targeted actions and items, which Occult Quick is neither. So during the exact
+  window where the next action is chosen and queued, `JustUsed(41625)` is false *and* the status
+  has not landed - both halves of `HasFreeInstantCasts` read false and the gate stands open.
+  v1.0.4.145 added the `JustUsed` half and .146 moved it to the substitution choke point;
+  neither could ever have worked, because the data they read is written a second too late.
+- **The plugin now records the press itself.** `MarkOccultQuickOffered()` stamps
+  `Environment.TickCount64` in `CustomCombo.TryInvoke` the moment Occult Quick is the resulting
+  action, and `HasFreeInstantCasts` reads that. Immediate, and independent of ActionWatching's
+  scheduling. The status check stays as the long-tail cover once the buff does land.
+
+### Notes
+- The stamp is taken when the plugin *offers* Occult Quick, which is fractionally earlier than
+  it landing: a cast that then fails on range, MP or an interrupt still suppresses a substituted
+  Swiftcast for the 3s window. Deliberate - a brief over-suppression is cheaper than burning the
+  cooldown.
+
+## v1.0.4.146 (2026-08-20) [testing]
 
 ### Fixed
 - **Space Swiftcast away from Occult Quick, at the one place every combo passes through.**

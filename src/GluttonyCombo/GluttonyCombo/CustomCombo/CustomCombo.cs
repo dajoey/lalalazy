@@ -101,6 +101,9 @@ internal abstract partial class CustomCombo : CustomComboFunctions
         // preset emitted the press, which is where the per-site gates kept failing. A
         // Swiftcast the player pressed themselves arrives as actionID == resultingActionID
         // and never reaches this check.
+        if (resultingActionID == OccultInstantCast.OccultQuickAction)
+            MarkOccultQuickOffered();
+
         if (resultingActionID != actionID &&
             HasFreeInstantCasts &&
             (resultingActionID == RoleActions.Magic.Swiftcast ||
