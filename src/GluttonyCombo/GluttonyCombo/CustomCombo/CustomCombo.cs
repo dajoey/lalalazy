@@ -84,6 +84,29 @@ internal abstract partial class CustomCombo : CustomComboFunctions
 
         uint resultingActionID = Invoke(actionID);
 
+        // Occult Crescent: do not SUBSTITUTE a cast-time cooldown while one is already free,
+        // and keep the two spaced apart.
+        //
+        // A gate on the buff alone cannot work - that is what v1.0.4.144/.145 got wrong.
+        // Gluttony casts Occult Quick itself, and the decision about what goes out next is
+        // made while that 1.5s cast is still in flight: the status does not exist yet, so a
+        // HasStatusEffect check reads false and Swiftcast is queued in right behind it.
+        // HasFreeInstantCasts therefore covers the cast as well as the buff (JustUsed, 3s
+        // from cast start - the 1.5s cast plus the moment the server takes to apply the
+        // status). That window IS the spacing.
+        //
+        // It sits here, at the substitution point, on purpose. Every combo passes through
+        // TryInvoke - manual presses via ActionReplacer.GetAdjustedAction, autorotation via
+        // AutoRotationHelper.InvokeCombo - so it does not depend on correctly guessing which
+        // preset emitted the press, which is where the per-site gates kept failing. A
+        // Swiftcast the player pressed themselves arrives as actionID == resultingActionID
+        // and never reaches this check.
+        if (resultingActionID != actionID &&
+            HasFreeInstantCasts &&
+            (resultingActionID == RoleActions.Magic.Swiftcast ||
+             resultingActionID == BLM.Triplecast))
+            return false;
+
         var presetException = _presetsAllowedToReturnUnchanged
             .TryGetValue(Preset, out var actionException);
         var hasException = presetException && resultingActionID == actionException;

@@ -1,4 +1,35 @@
-﻿## v1.0.4.145 (2026-08-20) [testing]
+﻿## v1.0.4.146 (2026-08-20) [testing]
+
+### Fixed
+- **Space Swiftcast away from Occult Quick, at the one place every combo passes through.**
+  Joey, after .144 and .145 both failed to stop it: *"There is a queueing system. Your gate is
+  based on a buff. The buff isn't up before the spell finishes casting."* Exactly right. Occult
+  Quick is a 1.5s cast that Gluttony fires itself, and what goes out next is decided while that
+  cast is still in flight - before the status exists - so a `HasStatusEffect` gate reads false
+  and Swiftcast gets queued in behind it. `HasFreeInstantCasts` covers the cast as well as the
+  buff (`JustUsed(41625)`, 3s from cast start: the 1.5s cast plus buff application), and that
+  window is the spacing.
+- **The gate now sits in `CustomCombo.TryInvoke`, not in each individual press site.** The
+  per-site gates in .144/.145 were bypassed by whatever path was actually emitting the press,
+  and three attempts to identify that path by inspection were all wrong. `TryInvoke` is the
+  single substitution point: every combo reaches it, manual presses through
+  `ActionReplacer.GetAdjustedAction` and auto-rotation through
+  `AutoRotationHelper.InvokeCombo`. A substituted Swiftcast or Triplecast is refused while a
+  free instant is available, whichever preset produced it. A Swiftcast the player presses
+  themselves arrives as `actionID == resultingActionID` and is never touched.
+
+### Changed
+- **Acceleration is no longer gated.** v1.0.4.144 folded it into `RDM_Helper.CanInstantCD`
+  alongside Swiftcast, treating it as a cast-time cooldown. It is not just one - it feeds Grand
+  Impact and the Verfire/Verstone procs - so suppressing it under Occult Quick cost procs for no
+  gain. Swiftcast and Triplecast stay gated; both are purely cast-time.
+
+### Notes
+- The per-site gates from .144/.145 are left in place. They are more surgical than the choke
+  point and they are not wrong, only incomplete. `RezParty` in particular still needs its own -
+  it calls `UseAction` directly rather than going through a combo.
+
+## v1.0.4.145 (2026-08-20) [testing]
 
 ### Fixed
 - **v1.0.4.144's Occult Quick gates did not stop the thing they were written to stop.** Joey:
