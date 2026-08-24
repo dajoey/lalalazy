@@ -1,4 +1,43 @@
-﻿## v1.0.4.154 (2026-08-23) [testing]
+﻿## v1.0.4.155 (2026-08-23) [testing]
+
+### Fixed
+- **Occult Comet is held through RDM's melee chain, because casting it RESETS the combo.** Joey,
+  testing .154: "make it hold comet during the dps combo. it resets the combo." This is a
+  stronger hold than the .153/.154 ones and worth saying why: those trade a cooldown's timing,
+  this one destroys work already done. Comet is a spell, and any GCD that is not the combo's next
+  step breaks the chain - so firing it mid-combo does not delay the melee combo, it forfeits the
+  mana already spent getting that far.
+- **Occult Slowga is held too, and that is what makes the fix real rather than apparent.** Slowga
+  sits directly beneath Comet in the same handler, in the same GCD slot. Gating Comet alone would
+  have handed the slot straight to Slowga, which resets the combo exactly the same way - the fix
+  would have looked applied and changed nothing.
+- **A second door on the v1.0.4.150 mid-combo Occult Quick hold is now shut.** The Comet block
+  has its own Occult Quick press, for the speed prep, which `ShouldHoldOccultQuick()` never
+  covered - it gates the damage-buff press further up the handler. Holding the whole Comet block
+  closes it.
+
+### Changed
+- `RDM.InInstantWeaponskillChain` renamed to `RDM.InMeleeChain`. It now answers two unrelated
+  questions - "is a 20s spell-instant window wasted here" (v1.0.4.150) and "would a spell here
+  break the chain" (this release) - so it is named for the state rather than for either reason.
+  Same test: `InCombo || HasManaStacks`, job-guarded.
+
+### Notes
+- **Occult Dispel is deliberately NOT held.** This file's standing rule is that utility sits ahead
+  of the gate and only filler sits below it - the 7.55 set puts Occult Raise and threshold cures
+  ahead of `HoldingInstantCastProc` for exactly this reason. A dispel is utility. Slowga is
+  filler: a slow that can wait three GCDs.
+- The weave section at the top of the handler is untouched. Occult Mage Masher is an ability, and
+  abilities do not affect combo state.
+- **Not addressed, and it is Joey's call:** the same reset applies to any job with a running
+  weaponskill combo, not just RDM - a melee holding a combo would have it broken by Comet in
+  exactly this way. The generic form of this guard is `ComboTimer > 0`, which the codebase
+  already has. It is not used here because a melee job's combo timer is effectively always
+  running, so that guard would stop Comet firing for melee jobs at all - a much larger change
+  than the one asked for.
+- The .153 mana-overcap and .154 burst-split watch items both still stand.
+
+## v1.0.4.154 (2026-08-23) [testing]
 
 ### Changed
 - **RDM holds Manafication through an Occult Quick window too.** Joey, testing .153: the melee

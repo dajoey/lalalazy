@@ -126,17 +126,26 @@ internal partial class RDM
         ComboAction is EnchantedMoulinet or Moulinet or EnchantedMoulinetDeux;
 
     /// <summary>
-    ///     RDM is inside the melee combo or the finisher chain that follows it - several GCDs of
-    ///     instant weaponskills, which no instant-cast effect can help. Read by the Occult
-    ///     Crescent Time Mage handler to hold Occult Quick rather than open a 20s spell window
-    ///     over twelve seconds of weaponskills.
+    ///     RDM is inside the melee combo or the finisher chain that follows it - Riposte through
+    ///     Redoublement, then Verholy/Verflare, Scorch, Resolution.
+    ///     <para/>
+    ///     The Occult Crescent handlers read this for two different reasons, which is why it is
+    ///     named for the state rather than for either one:
+    ///     <list type="bullet">
+    ///     <item><b>Occult Quick is held over it</b> (v1.0.4.150). The chain is several GCDs of
+    ///     instant weaponskills, so a 20s spell-instant window opened across it is mostly
+    ///     thrown away.</item>
+    ///     <item><b>Occult Comet is held over it</b> (v1.0.4.155). Comet is a spell, and a GCD
+    ///     that is not the combo's next step BREAKS the chain - so firing it mid-combo does not
+    ///     merely delay the combo, it resets it and forfeits the mana already spent.</item>
+    ///     </list>
     ///     <para/>
     ///     Job-guarded for the gauge read: <c>InCombo</c> is self-limiting because action ids are
     ///     unique, but <c>GetJobGauge&lt;RDMGauge&gt;()</c> off-job returns whatever is in that
     ///     memory. <c>Job</c> is qualified rather than imported to keep the using list as
     ///     upstream has it.
     /// </summary>
-    internal static bool InInstantWeaponskillChain =>
+    internal static bool InMeleeChain =>
         Player.Job is ECommons.ExcelServices.Job.RDM && (InCombo || HasManaStacks);
 
     // Gauge Stuff

@@ -633,8 +633,19 @@ internal partial class OccultCrescent
         // Guarding the whole block, not just the speed prep: prepping without casting is the bug,
         // but offering an 8s hard cast at nothing is no better. Side effect worth knowing - Comet
         // is no longer offered pre-pull, so it cannot open a fight any more.
+        // ... and held through RDM's melee chain (v1.0.4.155). Joey: "make it hold comet during
+        // the dps combo. it resets the combo." Comet is a SPELL, and any GCD that is not the
+        // combo's next step breaks the chain - so this does not merely delay the melee combo, it
+        // resets it and forfeits the mana already spent getting that far. That makes it a
+        // stronger hold than the v1.0.4.153/.154 ones: those trade a cooldown's timing, this one
+        // destroys work already done.
+        //
+        // The whole block, so the speed prep goes with it. That prep has its own Occult Quick
+        // press, which ShouldHoldOccultQuick() does NOT cover - it gates the damage-buff press
+        // further up - so until now the v1.0.4.150 mid-combo hold had a second door open here.
         if (IsEnabledAndUsable(Preset.Phantom_TimeMage_OccultComet, OccultComet) &&
-            HasTargetNow && InActionRange(OccultComet) && InCombat())
+            HasTargetNow && InActionRange(OccultComet) && InCombat() &&
+            !RDM.InMeleeChain)
         {
 
             // Skip if no damage buff, and user wants things under buffs
@@ -683,8 +694,14 @@ internal partial class OccultCrescent
         && (ICDTracker.StatusIsExpired(Debuffs.Slow, x.GameObjectId)
         || (ICDTracker.NumberOfTimesApplied(Debuffs.Slow, x.GameObjectId) < 3) && IsNotEnabled(Preset.Phantom_TimeMage_OccultSlowga_Wait)));
 
+        // Held through the melee chain for the same reason Comet is (v1.0.4.155). Slowga is the
+        // action directly beneath Comet in this handler, so gating Comet alone would have handed
+        // it the GCD and reset the combo just the same - the fix would have looked applied and
+        // changed nothing. Occult Dispel, above, is deliberately NOT held: this file's standing
+        // rule is that utility sits ahead of the gate and only filler sits below it, and a
+        // dispel is utility. Slowga is filler - a slow that can wait three GCDs.
         if (IsEnabledAndUsable(Preset.Phantom_TimeMage_OccultSlowga, OccultSlowga) &&
-            canDebuff)
+            canDebuff && !RDM.InMeleeChain)
         {
             actionID = OccultSlowga; // aoe slow
             return true;
@@ -1779,7 +1796,7 @@ internal partial class OccultCrescent
         HasStatusEffect(RDM.Buffs.Embolden) ||
         HasStatusEffect(RDM.Buffs.MagickedSwordPlay) ||
         HasStatusEffect(RDM.Buffs.GrandImpactReady) ||
-        RDM.InInstantWeaponskillChain;
+        RDM.InMeleeChain;
 
     private static bool TryRetargetPhantomRaise(ref uint actionID, uint raiseAction)
     {
