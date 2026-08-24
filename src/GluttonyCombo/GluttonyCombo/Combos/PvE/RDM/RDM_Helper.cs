@@ -116,6 +116,20 @@ internal partial class RDM
     ];
     internal static bool InCombo => ComboActionsList.Contains(ComboAction);
 
+    /// <summary>
+    ///     RDM is inside the melee combo or the finisher chain that follows it - several GCDs of
+    ///     instant weaponskills, which no instant-cast effect can help. Read by the Occult
+    ///     Crescent Time Mage handler to hold Occult Quick rather than open a 20s spell window
+    ///     over twelve seconds of weaponskills.
+    ///     <para/>
+    ///     Job-guarded for the gauge read: <c>InCombo</c> is self-limiting because action ids are
+    ///     unique, but <c>GetJobGauge&lt;RDMGauge&gt;()</c> off-job returns whatever is in that
+    ///     memory. <c>Job</c> is qualified rather than imported to keep the using list as
+    ///     upstream has it.
+    /// </summary>
+    internal static bool InInstantWeaponskillChain =>
+        Player.Job is ECommons.ExcelServices.Job.RDM && (InCombo || HasManaStacks);
+
     // Gauge Stuff
     private static RDMGauge Gauge => GetJobGauge<RDMGauge>();
     internal static bool BlackHigher => Gauge.BlackMana >= Gauge.WhiteMana;
@@ -164,7 +178,26 @@ internal partial class RDM
     internal static bool PoolEngagement => !LevelChecked(Embolden) || HasEmbolden || GetRemainingCharges(Engagement) >= 1 && GetCooldownChargeRemainingTime(Engagement) < 3;
     internal static bool SaveEngagement => GetRemainingCharges(Engagement) >= 2;
     internal static bool CanCorps => LevelChecked(Corpsacorps) && GetRemainingCharges(Corpsacorps) >= 1 && GetCooldownChargeRemainingTime(Corpsacorps) < 1;
-    internal static bool CanInstantCast => HasDualcast || HasAccelerate || HasSwiftcast;
+    /// <summary>
+    ///     An instant-cast effect is live, so the hard-cast slot is free and
+    ///     <see cref="UseInstantCastST"/> should spend it on Verthunder III / Veraero III.
+    ///     <para/>
+    ///     Occult Quick and Occult Dualcast added in v1.0.4.150. Joey: RDM "handles dualcast
+    ///     really well. But it doesn't do well with occult quick... It'll instant cast jolt or
+    ///     verfire when it should be casting one of the long-cast spells (even if there's a proc
+    ///     available b/c it's still the more powerful spell)." That is precisely this flag being
+    ///     false. The rotation below already prefers the long casts whenever an instant effect is
+    ///     up and falls through to Grand Impact / Verstone / Verfire / Jolt when one is not - the
+    ///     Occult Crescent sources simply were not in the test, so a 20s Quick window read as
+    ///     "no instant effect" and RDM spent it on spells that were instant anyway.
+    ///     <para/>
+    ///     Strict <c>HasOccultInstantCast</c>, not the HasOrExpects form: this AFFIRMATIVELY
+    ///     picks a long cast, so it must not act on a proc that has not landed. RDM's own
+    ///     Dualcast is read status-only here and has always behaved well, which is the evidence
+    ///     that the strict read is enough for a selection site.
+    /// </summary>
+    internal static bool CanInstantCast =>
+        HasDualcast || HasAccelerate || HasSwiftcast || HasOccultInstantCast;
     internal static bool CanNotMagickBarrier => !ActionReady(MagickBarrier) || HasStatusEffect(Buffs.MagickBarrier, anyOwner: true);
     #endregion
 
@@ -200,7 +233,8 @@ internal partial class RDM
     }
     internal static bool UseVerStone()
     {
-        if (!CanVerStone || HasDualcast || HasAccelerate || HasSwiftcast || VerStoneRemaining < 2.5 ||
+        if (!CanVerStone || HasDualcast || HasAccelerate || HasSwiftcast || HasOccultInstantCast ||
+            VerStoneRemaining < 2.5 ||
             (CanVerFire && VerFireRemaining < 10 && VerFireRemaining < VerStoneRemaining))
             return false;
 
@@ -213,7 +247,8 @@ internal partial class RDM
     }
     internal static bool UseVerFire()
     {
-        if (!CanVerFire || HasDualcast || HasAccelerate || HasSwiftcast || VerFireRemaining < 2.5 ||
+        if (!CanVerFire || HasDualcast || HasAccelerate || HasSwiftcast || HasOccultInstantCast ||
+            VerFireRemaining < 2.5 ||
             (CanVerStone && VerStoneRemaining < 10 && VerStoneRemaining < VerFireRemaining))
             return false;
 

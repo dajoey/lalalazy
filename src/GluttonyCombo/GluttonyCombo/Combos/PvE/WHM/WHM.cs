@@ -294,7 +294,7 @@ internal partial class WHM : Healer
             #region Swiftcast Opener
 
             if (IsEnabled(Preset.WHM_AoE_DPS_SwiftHoly) &&
-                ActionReady(Role.Swiftcast) && !HasOccultInstantCast &&
+                ActionReady(Role.Swiftcast) && !HasOrExpectsOccultInstantCast &&
                 LevelChecked(Holy) &&
                 AssizeCount == 0 && !IsMoving() && InCombat())
                 return Role.Swiftcast;

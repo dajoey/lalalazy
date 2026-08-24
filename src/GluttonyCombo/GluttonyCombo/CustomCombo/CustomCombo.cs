@@ -108,8 +108,11 @@ internal abstract partial class CustomCombo : CustomComboFunctions
         // is a window the press is redundant inside, Dualcast is a held charge the press pays
         // twice for. Refusing costs a GCD of delay at most - the fallback cast spends the
         // Dualcast, so the next press through here is allowed.
+        //
+        // HasOrExpects, not Has (v1.0.4.150): the slide-cast case decides this input while the
+        // cast that grants the Dualcast is still running, so the status does not exist yet.
         if (resultingActionID != actionID &&
-            HasOccultInstantCast &&
+            HasOrExpectsOccultInstantCast &&
             (resultingActionID == RoleActions.Magic.Swiftcast ||
              resultingActionID == BLM.Triplecast))
             return false;

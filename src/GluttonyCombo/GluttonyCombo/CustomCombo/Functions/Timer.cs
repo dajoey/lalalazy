@@ -66,6 +66,7 @@ internal abstract partial class CustomComboFunctions
         Svc.Framework.Update += CheckInterruptedCasts;
         Svc.Framework.Update += CheckStatuses;
         Svc.Framework.Update += CheckGCD;
+        Svc.Framework.Update += TrackOccultDualcast;
     }
 
     private static void CheckGCD(IFramework framework)

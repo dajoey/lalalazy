@@ -326,7 +326,7 @@ internal partial class BLM
         }
 
         if (useSwiftcast &&
-            ActionReady(Role.Swiftcast) && !HasOccultInstantCast && JustUsed(Despair) &&
+            ActionReady(Role.Swiftcast) && !HasOrExpectsOccultInstantCast && JustUsed(Despair) &&
             GetCooldownRemainingTime(Manafont) > GCD &&
             !HasStatusEffect(Buffs.Triplecast) &&
             InActionRange(Fire) && HasBattleTarget())
@@ -336,7 +336,7 @@ internal partial class BLM
         }
 
         if (useTriplecast &&
-            ActionReady(Triplecast) && IsOnCooldown(Role.Swiftcast) && !HasOccultInstantCast &&
+            ActionReady(Triplecast) && IsOnCooldown(Role.Swiftcast) && !HasOrExpectsOccultInstantCast &&
             !HasStatusEffect(Role.Buffs.Swiftcast) && !HasStatusEffect(Buffs.Triplecast) &&
             InActionRange(Fire) && HasBattleTarget() &&
             (triplecastIgnoreLeyLines || !HasStatusEffect(Buffs.LeyLines)) &&
@@ -386,7 +386,7 @@ internal partial class BLM
         if (ActionReady(Blizzard3) && UmbralIceStacks < 3)
         {
             if (useSwiftcast &&
-                ActionReady(Role.Swiftcast) && !HasOccultInstantCast && !HasStatusEffect(Buffs.Triplecast) &&
+                ActionReady(Role.Swiftcast) && !HasOrExpectsOccultInstantCast && !HasStatusEffect(Buffs.Triplecast) &&
                 HasBattleTarget() && InActionRange(Blizzard))
             {
                 actionID = Role.Swiftcast;
@@ -394,7 +394,7 @@ internal partial class BLM
             }
 
             if (useTriplecast &&
-                ActionReady(Triplecast) && IsOnCooldown(Role.Swiftcast) && !HasOccultInstantCast &&
+                ActionReady(Triplecast) && IsOnCooldown(Role.Swiftcast) && !HasOrExpectsOccultInstantCast &&
                 HasBattleTarget() && InActionRange(Blizzard) && !JustUsed(Triplecast) &&
                 !HasStatusEffect(Role.Buffs.Swiftcast) && !HasStatusEffect(Buffs.Triplecast) &&
                 (triplecastIgnoreLeyLines || !HasStatusEffect(Buffs.LeyLines)) &&
@@ -478,7 +478,11 @@ internal partial class BLM
         // It defers Triplecast by exactly one GCD, it does not cancel it. The fallback cast
         // spends the Dualcast, so on the next GCD this gate is open and a long movement gets
         // its Triplecast then.
-        if (HasOccultDualcast)
+        //
+        // Incoming counts as held (v1.0.4.150). This block only runs while moving, which is
+        // precisely the slide-cast case: the cast that grants the Dualcast is still running when
+        // this input is chosen, so a status-only read is false at the one moment it matters.
+        if (HasOrExpectsOccultDualcast)
             return false;
 
         if (useConfiguredPriority)
@@ -494,7 +498,7 @@ internal partial class BLM
         }
 
         if (ActionReady(Triplecast) &&
-            !HasFreeInstantCasts &&
+            !HasOrExpectsOccultInstantCast &&
             !HasStatusEffect(Buffs.Triplecast) &&
             !HasStatusEffect(Role.Buffs.Swiftcast) &&
             !HasStatusEffect(Buffs.LeyLines) &&
@@ -516,7 +520,7 @@ internal partial class BLM
         }
 
         if (ActionReady(Role.Swiftcast) &&
-            !HasFreeInstantCasts &&
+            !HasOrExpectsOccultInstantCast &&
             !HasStatusEffect(Buffs.Triplecast))
         {
             actionID = Role.Swiftcast;
@@ -548,7 +552,7 @@ internal partial class BLM
               IsMoving() && InCombat() &&
               InActionRange(Fire2) && HasBattleTarget() &&
               ActionReady(Triplecast) &&
-              !HasOccultInstantCast &&
+              !HasOrExpectsOccultInstantCast &&
               !HasStatusEffect(Buffs.Triplecast) &&
               !JustUsed(Triplecast)))
             return false;
@@ -642,7 +646,7 @@ internal partial class BLM
         }
 
         if (useTriplecast &&
-            !HasStatusEffect(Buffs.Triplecast) && ActionReady(Triplecast) && !HasOccultInstantCast &&
+            !HasStatusEffect(Buffs.Triplecast) && ActionReady(Triplecast) && !HasOrExpectsOccultInstantCast &&
             HasBattleTarget() && InActionRange(Fire2) && !JustUsed(Triplecast) &&
             GetRemainingCharges(Triplecast) > triplecastHoldCharges &&
             IsUmbralHeartCapped && GetCooldownRemainingTime(Manafont) > GCD * 3)
@@ -772,7 +776,7 @@ internal partial class BLM
         (Role.Swiftcast, Preset.BLM_ST_Movement,
             () => BLM_ST_MovementOption[MovementSwiftcast] &&
                   ActionReady(Role.Swiftcast) &&
-                  !HasFreeInstantCasts &&
+                  !HasOrExpectsOccultInstantCast &&
                   !HasStatusEffect(Buffs.Triplecast)),
 
         //Xeno

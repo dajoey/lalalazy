@@ -1,4 +1,83 @@
-﻿## v1.0.4.149 (2026-08-23) [testing]
+﻿## v1.0.4.150 (2026-08-23) [testing]
+
+### Fixed
+- **Retraction: Occult Dualcast's proc is not permanent, and v1.0.4.148 said it was.** Joey:
+  *"dualcast's proc is not permanent. The trait that causes it is... The buff acts exactly like
+  swiftcast and has a similar duration. It will expire if you don't use it."* .148 reasoned from
+  status 5438 carrying `IsPermanent` while RDM's Dualcast (1249), Swiftcast (167), Triplecast
+  (1211) and Occult Quick (4260) do not, and concluded the proc had no clock. Wrong inference
+  from a real flag. What is permanent is the **trait**. And the flag is not a duration signal at
+  all: statuses **1378, 1798 and 5438** all carry `IsPermanent` with the identical description
+  "The next spell will be cast immediately" - three untimed Dualcasts is not a thing. Duration
+  lives on whatever applies a status, not on the row.
+- **The gates .148 and .149 shipped still stand; their stated reason does not, and it is
+  corrected in place.** Nothing about "spend it, do not buy another one, do not feed it to a
+  spell that was instant anyway" depended on the proc being untimed - if anything an expiring
+  proc makes spending it promptly more urgent. What is retracted is the claim that standing down
+  "cannot strand a cooldown *because* it never expires". It does not strand one, but the reason
+  is that the fallback cast spends the proc on the very next GCD.
+- **Slide-casting: a Dualcast that is coming now counts as one in hand.** Joey: *"if you're
+  casting something and move at the last moment, you're still going to get that dualcast proc,
+  but you won't detect the buff until after you've queued the next input."* Exactly the failure
+  shape of v1.0.4.145/.146, reached from the other end - there the plugin raced its own Occult
+  Quick press, here it races the player's movement. New `OccultDualcastIncoming`: while Phantom
+  Red Mage is the equipped support job and a cast bar is running, a Dualcast is inbound and every
+  "should I buy an instant cast" gate treats it as held, through the cast and for 1.5s after it
+  to cover the server applying the status.
+  - The tell is the cast bar itself, not the spell id. An instant-cast effect never shows one,
+    and a spell cast under such an effect does not grant a Dualcast either - so while the trait
+    is live, "a cast is running" and "a Dualcast is coming" are the same statement. It therefore
+    covers casts the player started by hand as well as ones the plugin chose.
+  - Tracked from a framework tick (`TimerSetup`), not from a combo evaluation, so it sees casts
+    whether or not a combo happens to be running alongside them.
+  - Armed only after status 5438 has actually been seen once under this support job, rather than
+    on a trait level this code would have to guess at. Costs the first proc of a session its
+    prediction and nothing after.
+- **RDM does not do well with Occult Quick, and the cause was one missing term.** Joey: *"It
+  handles dualcast really well. But it doesn't do well with occult quick... It'll instant cast
+  jolt or verfire when it should be casting one of the long-cast spells (even if there's a proc
+  available b/c it's still the more powerful spell)."* `RDM_Helper.CanInstantCast` was
+  `HasDualcast || HasAccelerate || HasSwiftcast` - and the rotation already does the right thing
+  when it is true, handing the GCD to `UseInstantCastST` for Verthunder III / Veraero III and
+  falling through to Grand Impact / Verstone / Verfire / Jolt only when it is false. Occult Quick
+  and Occult Dualcast were simply not in the test, so a 20s free-instant window read as "no
+  instant effect" and RDM spent it on spells that were already instant. `HasOccultInstantCast`
+  added. `UseVerStone`/`UseVerFire` gained the same term as a backstop.
+- **RDM no longer opens Occult Quick in the middle of the melee combo.** Joey: it *"shouldn't
+  really use it in the middle of the DPS combo."* `ShouldHoldOccultQuick()` already held for
+  Manafication, Embolden, Magicked Swordplay and Grand Impact Ready; it now also holds for
+  `RDM.InCombo` and `RDM.HasManaStacks`. Riposte through Redoublement plus the Verholy/Verflare
+  and Scorch/Resolution finishers is roughly twelve seconds of instant weaponskills - most of a
+  20s window, and Quick does nothing for any of them. Job-guarded, since the handler is
+  job-agnostic and `ComboActionsList` holds RDM actions.
+
+### Changed
+- Two gates now, and the distinction is deliberate. `HasOccultInstantCast` (strict, status only)
+  is for sites that AFFIRMATIVELY pick a long cast because it will come out instant -
+  `RDM.CanInstantCast` is the one. `HasOrExpectsOccultInstantCast` adds the inbound Dualcast and
+  is for every site that SUPPRESSES a press. Wrong-in-the-cheap-direction: a suppressed press
+  that turns out to be unnecessary costs a cooldown briefly held; a press that turns out to be
+  redundant costs the cooldown outright.
+- `RoleActions.Magic.CanSwiftcast` - the shared helper every job's Swiftcast press runs
+  through - now reads the wider gate, so this reaches jobs with no Occult Crescent code of
+  their own.
+
+### Notes
+- The Dualcast proc's exact duration is not encoded anywhere here, deliberately. Joey reports it
+  behaves like Swiftcast with a comparable duration; nothing in the plugin needs the number, and
+  inventing one is how .148 went wrong.
+- An interrupted cast drops the prediction instead of riding out the 1.5s grace. Movement is
+  usually what interrupts a cast, and the movement blocks are what read this, so a dead
+  prediction would suppress the movement Triplecast at the exact moment it is wanted. A cast that
+  stops within 500ms of its due time still counts as finished - the same tolerance
+  `CheckInterruptedCasts` already uses.
+- Not addressed: Acceleration is still not gated on Occult Quick (v1.0.4.146 backed that out
+  because it also feeds Grand Impact and the Ver procs). With RDM now holding its procs through
+  a Quick window, Acceleration generating more of them during one is arguably waste - but that is
+  a rotation call on top of a rotation call, and it wants Joey's eyes rather than another guess.
+- Still untested in the zone.
+
+## v1.0.4.149 (2026-08-23) [testing]
 
 ### Fixed
 - **v1.0.4.148 taught the choke point about Occult Dualcast and left the per-site gates behind,

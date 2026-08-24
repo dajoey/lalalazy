@@ -281,7 +281,7 @@ internal partial class PCT
         // cooldown bought for an instant we have (Swiftcast) or an action that was instant
         // anyway (Rainbow Drip under Rainbow Bright, Hammer Stamp, Star Prism, Comet, Holy) -
         // and a non-ability of any kind, weaponskills included, consumes the Dualcast.
-        if (HasOccultDualcast) return false;
+        if (HasOrExpectsOccultDualcast) return false;
         
         if (rainbowDripEnabled && HasStatusEffect(Buffs.RainbowBright)) //Needs to be here in case you are moving in back half of Burst window
         {
@@ -308,7 +308,7 @@ internal partial class PCT
             return true;
         }
 
-        if (swiftcastEnabled && ActionReady(Role.Swiftcast) && !HasOccultInstantCast &&
+        if (swiftcastEnabled && ActionReady(Role.Swiftcast) && !HasOrExpectsOccultInstantCast &&
             !HasStatusEffect(Buffs.StarryMuse) &&
             (CreatureMotifReady || WeaponMotifReady || LandscapeMotifReady))
         {

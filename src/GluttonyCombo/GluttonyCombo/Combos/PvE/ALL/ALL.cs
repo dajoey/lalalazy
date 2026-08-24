@@ -148,7 +148,7 @@ internal partial class All
                 return actionID;
 
             if (ActionReady(RoleActions.Magic.Swiftcast) &&
-                !HasFreeInstantCasts && !HasOccultDualcast)
+                !HasOrExpectsOccultInstantCast)
                 return RoleActions.Magic.Swiftcast;
 
             if (actionID is WHM.Raise &&
@@ -241,7 +241,7 @@ internal partial class All
 
             if (HasStatusEffect(RoleActions.Magic.Buffs.Swiftcast) ||
                 HasStatusEffect(RDM.Buffs.Dualcast) ||
-                HasFreeInstantCasts || HasOccultDualcast)
+                HasOrExpectsOccultInstantCast)
 
                 if (IsEnabled(Preset.ALL_Caster_Raise_Retarget))
                     return actionID.Retarget(replacedActions.ToArray(),
@@ -250,7 +250,7 @@ internal partial class All
                     return actionID;
 
             if (IsOffCooldown(RoleActions.Magic.Swiftcast) &&
-                !HasFreeInstantCasts && !HasOccultDualcast)
+                !HasOrExpectsOccultInstantCast)
                 return RoleActions.Magic.Swiftcast;
 
             if (Player.Job is Job.RDM &&

@@ -1748,11 +1748,27 @@ internal partial class OccultCrescent
         return false;
     }
 
+    /// <summary>
+    ///     Occult Quick is a 20s window that makes SPELLS instant. Anything that says the next
+    ///     several GCDs are already instant - or are weaponskills, which the window cannot help
+    ///     at all - means opening it now throws most of it away.
+    ///     <para/>
+    ///     v1.0.4.150 adds RDM's melee combo. Joey: it "shouldn't really use it in the middle of
+    ///     the DPS combo just b/c it'll get more value by making long cast spells instant."
+    ///     Riposte through Redoublement, the Verholy/Verflare finisher and Scorch/Resolution are
+    ///     six-odd GCDs of instant weaponskills, roughly twelve seconds - most of the window, and
+    ///     Quick does nothing for a single one of them. <c>RDM.InCombo</c> reads the live combo
+    ///     action and <c>HasManaStacks</c> catches the finisher chain that follows it.
+    ///     <para/>
+    ///     The job guard lives on <c>RDM.InInstantWeaponskillChain</c>, because this handler is
+    ///     job-agnostic and the RDM gauge must not be read off-job.
+    /// </summary>
     private static bool ShouldHoldOccultQuick() =>
         HasStatusEffect(RDM.Buffs.Manafication) ||
         HasStatusEffect(RDM.Buffs.Embolden) ||
         HasStatusEffect(RDM.Buffs.MagickedSwordPlay) ||
-        HasStatusEffect(RDM.Buffs.GrandImpactReady);
+        HasStatusEffect(RDM.Buffs.GrandImpactReady) ||
+        RDM.InInstantWeaponskillChain;
 
     private static bool TryRetargetPhantomRaise(ref uint actionID, uint raiseAction)
     {

@@ -16,8 +16,11 @@ internal static partial class RoleActions
             LocalPlayer.CurrentMp <= MPThreshold &&
             (!weave || CanWeave());
 
+        // Occult Crescent: never buy an instant cast that is already in hand or landing.
+        // HasOrExpects rather than Has - see OccultInstantCast.OccultDualcastIncoming for the
+        // slide-cast case this exists to catch.
         public static bool CanSwiftcast(bool weave = true) =>
-            ActionReady(Swiftcast) && !HasFreeInstantCasts && (!weave || CanWeave());
+            ActionReady(Swiftcast) && !HasOrExpectsOccultInstantCast && (!weave || CanWeave());
 
         public static bool CanSurecast() =>
             ActionReady(Surecast);
