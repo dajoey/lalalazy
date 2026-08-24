@@ -173,7 +173,35 @@ internal partial class RDM
     internal static bool CanAccelerationMovement => LevelChecked(Acceleration) && IsMoving() && HasCharges(Acceleration) && CanInstantCD;
     internal static bool CanSwiftcast => Role.CanSwiftcast() && CanInstantCD && !CanVerFireAndStone && (EmboldenCD > 10 || LevelChecked(Embolden));
     internal static bool CanSwiftcastMovement => Role.CanSwiftcast() && CanInstantCD && IsMoving();
-    internal static bool CanInstantCD => !InCombo && !HasSwiftcast && !CanGrandImpact && !HasEmbolden && !HasDualcast && !HasAccelerate && !InCombo;
+    /// <summary>
+    ///     Clear to spend a cast-time cooldown - Acceleration or Swiftcast. Gate for all four of
+    ///     <see cref="CanAcceleration"/>, <see cref="CanAccelerationMovement"/>,
+    ///     <see cref="CanSwiftcast"/> and <see cref="CanSwiftcastMovement"/>, which is every site
+    ///     in the job that presses one.
+    ///     <para/>
+    ///     <c>!HasFreeInstantCasts</c> restored in v1.0.4.151, at Joey's call: "occult quick
+    ///     doesn't last long. I say hold acceleration until it's over." v1.0.4.144 added it,
+    ///     v1.0.4.146 backed it out on the grounds that Acceleration is not purely a cast-time
+    ///     cooldown - it also feeds Grand Impact and the Verfire/Verstone procs - so suppressing
+    ///     it cost procs for no gain. True as far as it went, but it weighed the proc generation
+    ///     against nothing: from v1.0.4.150 RDM holds its procs through a Quick window and spends
+    ///     the whole of it on Verthunder III / Veraero III, so a charge spent during one buys
+    ///     Grand Impact plus procs the rotation has already decided not to cast yet. The window
+    ///     is short and bounded; the charge keeps.
+    ///     <para/>
+    ///     Occult Quick only, NOT Occult Dualcast. Different objects: Quick is a window during
+    ///     which Acceleration's instant-cast half cannot be worth anything for its whole
+    ///     duration, so the cost of holding is bounded by the window. A Dualcast is one charge
+    ///     the next spell consumes either way, and Joey scoped this call to Quick - it stays out
+    ///     until he says otherwise rather than on a guess about how the two stack.
+    ///     <para/>
+    ///     <c>HasFreeInstantCasts</c> already covers the press as well as the buff, so the
+    ///     v1.0.4.145/.147 race - Gluttony firing Occult Quick itself and deciding the next
+    ///     action before the status lands - is handled without anything extra here.
+    /// </summary>
+    internal static bool CanInstantCD =>
+        !InCombo && !HasSwiftcast && !CanGrandImpact && !HasEmbolden && !HasDualcast &&
+        !HasAccelerate && !HasFreeInstantCasts;
     internal static bool CanEngagement => InMeleeRange() && HasCharges(Engagement) && LevelChecked(Engagement);
     internal static bool PoolEngagement => !LevelChecked(Embolden) || HasEmbolden || GetRemainingCharges(Engagement) >= 1 && GetCooldownChargeRemainingTime(Engagement) < 3;
     internal static bool SaveEngagement => GetRemainingCharges(Engagement) >= 2;

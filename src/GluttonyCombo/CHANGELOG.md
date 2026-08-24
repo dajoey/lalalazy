@@ -1,4 +1,37 @@
-﻿## v1.0.4.150 (2026-08-23) [testing]
+﻿## v1.0.4.151 (2026-08-23) [testing]
+
+### Changed
+- **RDM holds Acceleration through an Occult Quick window.** Joey's call on the open question
+  v1.0.4.150 left him: *"occult quick doesn't last long. I say hold acceleration until it's
+  over."* `!HasFreeInstantCasts` is back in `RDM_Helper.CanInstantCD`, which is the single gate
+  all four Acceleration and Swiftcast press sites run through.
+- **This reverses v1.0.4.146, and the reason it was reversed then no longer applies.** .144 added
+  the gate; .146 removed it because Acceleration is not purely a cast-time cooldown - it also
+  feeds Grand Impact and the Verfire/Verstone procs - so suppressing it "cost procs for no gain".
+  That weighed proc generation against nothing. Since .150 RDM holds its procs through a Quick
+  window and spends the whole of it on Verthunder III / Veraero III, so a charge spent during one
+  buys Grand Impact plus procs the rotation has already decided not to cast yet. The window is
+  short and bounded; the charge keeps.
+- **Occult Quick only, not Occult Dualcast.** Different objects: Quick is a window during which
+  Acceleration's instant-cast half cannot be worth anything for its whole duration, so the cost
+  of holding is bounded by the window. A Dualcast is a single charge the next spell consumes
+  either way. Joey scoped the call to Quick and it stays there rather than being extended on a
+  guess about how the two stack.
+
+### Notes
+- Gated at the press site, not at the `TryInvoke` choke point. Deliberate, and the v1.0.4.149
+  lesson: refusing a substitution discards the combo's whole choice and falls back to the
+  preset's base action, while a press-site gate lets RDM fall through to its next option -
+  Swiftcast, then Addle/Magick Barrier, then the GCD casts. The choke point still does not touch
+  Acceleration.
+- Worth watching in the zone: two charges at ~55s each means a full 20s window held could waste
+  up to a charge's worth of recharge if both were nearly capped going in. The `HasCharges` and
+  per-preset charge-reserve options still apply on the way out, so this should show up as
+  Acceleration firing immediately after the window rather than as a lost charge - if it looks
+  like a lost charge instead, that is worth knowing.
+- Still untested in the zone.
+
+## v1.0.4.150 (2026-08-23) [testing]
 
 ### Fixed
 - **Retraction: Occult Dualcast's proc is not permanent, and v1.0.4.148 said it was.** Joey:
