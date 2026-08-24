@@ -468,6 +468,19 @@ internal partial class BLM
         if (!IsMoving() || !InCombat() || !HasBattleTarget() || !InActionRange(Fire))
             return false;
 
+        // Occult Dualcast is held, so the next spell is already instant and there is nothing
+        // here left to buy. Standing down hands the GCD back to the rotation, which casts its
+        // own next spell - Fire IV, Blizzard III, whatever is actually due - and the proc makes
+        // that instant. Both of the things this block would otherwise have done are waste: a
+        // Triplecast charge or a 60s Swiftcast spent on a cast that was free, and a filler
+        // Xenoglossy or Paradox that was instant anyway destroying the proc for nothing.
+        //
+        // It defers Triplecast by exactly one GCD, it does not cancel it. The fallback cast
+        // spends the Dualcast, so on the next GCD this gate is open and a long movement gets
+        // its Triplecast then.
+        if (HasOccultDualcast)
+            return false;
+
         if (useConfiguredPriority)
         {
             foreach(int priority in BLM_ST_MovementPriority.OrderBy(x => x))
@@ -527,10 +540,15 @@ internal partial class BLM
 
     private static bool TryAoEMovementTriplecast(ref uint actionID, bool useTriplecast = true)
     {
+        // !HasOccultInstantCast covers both Occult Crescent routes. v1.0.4.144 gated the
+        // single-target movement block and left this one out entirely, so the AoE rotation
+        // still bought Triplecast under Occult Quick; the choke point in CustomCombo.TryInvoke
+        // caught it, but only after the combo had already chosen it.
         if (!(useTriplecast &&
               IsMoving() && InCombat() &&
               InActionRange(Fire2) && HasBattleTarget() &&
               ActionReady(Triplecast) &&
+              !HasOccultInstantCast &&
               !HasStatusEffect(Buffs.Triplecast) &&
               !JustUsed(Triplecast)))
             return false;

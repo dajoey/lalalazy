@@ -104,8 +104,12 @@ internal abstract partial class CustomCombo : CustomComboFunctions
         if (resultingActionID == OccultInstantCast.OccultQuickAction)
             MarkOccultQuickOffered();
 
+        // Occult Dualcast (v1.0.4.148) is refused here too. Same waste, different shape: Quick
+        // is a window the press is redundant inside, Dualcast is a held charge the press pays
+        // twice for. Refusing costs a GCD of delay at most - the fallback cast spends the
+        // Dualcast, so the next press through here is allowed.
         if (resultingActionID != actionID &&
-            HasFreeInstantCasts &&
+            HasOccultInstantCast &&
             (resultingActionID == RoleActions.Magic.Swiftcast ||
              resultingActionID == BLM.Triplecast))
             return false;

@@ -1,4 +1,60 @@
-﻿## v1.0.4.147 (2026-08-20) [testing]
+﻿## v1.0.4.148 (2026-08-23) [testing]
+
+### Fixed
+- **Occult Dualcast was worth nothing to the rotation, and the rotation kept destroying it.**
+  Joey: *"BLM uses triplecast or swiftcast when moving even though dualcast is available... and
+  then will cast several instants and sometimes lose the buff before it can be used."* Both
+  halves, and they are the same bug seen from two ends. v1.0.4.144 saw Occult Dualcast, decided
+  it was a timed proc too risky to gate a damage rotation on, and wired it into the raise paths
+  only. That reading was wrong.
+- **The status sheet is what settles it.** Status 5438 is flagged `IsPermanent`. RDM's Dualcast
+  (1249), Swiftcast (167), Triplecast (1211) and Occult Quick (4260) are every one of them
+  flagged timed; this one is not. It has no clock, so it cannot run out - it can only be spent,
+  and FFXIV spends a Dualcast on the execution of any action that is not an ability,
+  already-instant spells included. So "lost the buff before it could be used" was never an
+  expiry. A movement-filler Xenoglossy ate it.
+- **BLM movement stands down while it is held** (`TryStMovementGcd`, single-target, both the
+  fixed order and the configured-priority list). Every branch in that block is now waste while
+  a Dualcast is up: Triplecast and Swiftcast buy an instant already in hand, and Paradox,
+  Xenoglossy, Firestarter Fire III and Scathe are instants that destroy the proc for no gain.
+  Bailing hands the GCD back to the rotation, which casts Fire IV / Blizzard III / whatever is
+  actually due - and the Dualcast makes *that* instant.
+- **The same block for AoE** (`TryAoEMovementTriplecast`), which v1.0.4.144 missed entirely - it
+  had no Occult Quick check either, so the AoE rotation chose Triplecast under Quick and only
+  the TryInvoke choke point stopped it going out.
+- **The same block for Picto** (`TryMovementOption`). Rainbow Drip under Rainbow Bright, Hammer
+  Stamp, Star Prism, Comet in Black and Holy in White are all instants, and a weaponskill spends
+  a Dualcast exactly like a spell does.
+- **The `TryInvoke` choke point refuses a substituted Swiftcast or Triplecast under Occult
+  Dualcast too,** not just under Occult Quick - so any preset that presses one, not only the
+  ones edited above, is covered.
+
+### Changed
+- **v1.0.4.144's "keep it out of the damage rotations" call is reversed, and the reason it was
+  made no longer holds.** That note argued a proc up half the time would push a tightly-timed
+  cooldown - BLM's post-Despair Swiftcast especially - clean out of its window. A timed proc
+  could do that. This one cannot: standing down cannot strand a cooldown, because whatever the
+  rotation casts instead is what spends the Dualcast, so the gate is open again on the very next
+  GCD. The delay is one GCD, and that GCD was free.
+- New `HasOccultInstantCast` (`HasFreeInstantCasts || HasOccultDualcast`) for the sites that
+  mean "something in this zone is already making the next spell instant". `HasOccultDualcast`
+  stays separate for the sites that need the one-charge semantics specifically.
+
+### Notes
+- Triplecast is deferred, never cancelled. Under a long movement the sequence is: instant cast
+  on the Dualcast, proc spent, gate open, Triplecast on the next GCD, three more instants. The
+  old behaviour spent the Triplecast charge first and then fed the Dualcast to a Xenoglossy.
+- Not changed, and deliberately: Phantom Red Mage's own Occult Fire/Blizzard/Thunder II are
+  still allowed to consume the Dualcast (`HoldingInstantCastProc` in the 7.55 set is untouched).
+  They are 1.5s casts, so that is a legitimate spend rather than a waste - but whether the
+  player's own 2.8s Fire IV is the better home for the proc is a tuning question, not a defect,
+  and it is Joey's call rather than one to slip in here.
+- Still inert outside Occult Crescent: status 5438 cannot be present anywhere else, so every
+  gate added here resolves to false and the movement blocks behave exactly as before.
+- Untested against the live proc: the mechanics above come from the status sheet and from
+  FFXIV's Dualcast rule, not from a parse of this build in the zone.
+
+## v1.0.4.147 (2026-08-20) [testing]
 
 ### Fixed
 - **The spacing gate was reading a timestamp that does not exist yet.** `ActionWatching` does

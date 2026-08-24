@@ -275,6 +275,13 @@ internal partial class PCT
         #endregion
 
         if (!movementEnabled || !IsMoving() || !InCombat()) return false; //Quick Bailout
+
+        // Occult Dualcast held: the next spell is instant already, so let the rotation cast its
+        // own motif or Paint filler and spend the proc on that. Every option below is either a
+        // cooldown bought for an instant we have (Swiftcast) or an action that was instant
+        // anyway (Rainbow Drip under Rainbow Bright, Hammer Stamp, Star Prism, Comet, Holy) -
+        // and a non-ability of any kind, weaponskills included, consumes the Dualcast.
+        if (HasOccultDualcast) return false;
         
         if (rainbowDripEnabled && HasStatusEffect(Buffs.RainbowBright)) //Needs to be here in case you are moving in back half of Burst window
         {

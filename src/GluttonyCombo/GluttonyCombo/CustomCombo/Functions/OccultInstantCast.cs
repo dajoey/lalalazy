@@ -88,14 +88,38 @@ internal abstract partial class CustomComboFunctions
     /// <summary>
     ///     Occult Dualcast is up, so the NEXT spell - one spell - is instant.
     ///     <para/>
-    ///     Deliberately NOT treated the same as <see cref="HasFreeInstantCasts"/>. This is a
-    ///     recurring proc that returns on its own, not a 20s blanket window, so it only gates
-    ///     the raise paths, where the raise is demonstrably the next spell and a wasted
-    ///     Swiftcast also delays the rez. It is kept out of the damage rotations on purpose:
-    ///     a proc that may be up half the time would push a tightly-timed cooldown - BLM's
-    ///     post-Despair Swiftcast especially - clean out of its window, losing more than the
-    ///     proc is worth.
+    ///     Still not the same object as <see cref="HasFreeInstantCasts"/>: Occult Quick is a 20s
+    ///     blanket window that casting does not consume, this is a single held charge. But
+    ///     v1.0.4.144's decision to keep it out of the damage rotations was wrong, and the
+    ///     status sheet says why. Status 5438 is flagged <c>IsPermanent</c>. RDM's Dualcast
+    ///     (1249), Swiftcast (167), Triplecast (1211) and Occult Quick (4260) are every one of
+    ///     them flagged timed; this is not. It has no clock, so it cannot be lost to time - it
+    ///     can only be SPENT, and FFXIV spends a Dualcast on the execution of any action that
+    ///     is not an ability, already-instant spells included.
+    ///     <para/>
+    ///     Two wastes fall out of that one fact, and Joey reported both:
+    ///     <list type="bullet">
+    ///     <item>Buying an instant while holding one. A Triplecast charge or a 60s Swiftcast
+    ///     pressed under Dualcast pays for a cast that was already free.</item>
+    ///     <item>Spending it on a spell that was ALREADY instant. This is the "loses the buff
+    ///     before it can be used" half - nothing expired, because nothing can; a movement-filler
+    ///     Xenoglossy or a 1.5s phantom nova ate it for no gain.</item>
+    ///     </list>
+    ///     <para/>
+    ///     Having no clock is also what makes standing down safe. A gate on a timed proc can
+    ///     strand the cooldown it suppressed; this one cannot, because whatever the rotation
+    ///     casts instead is what spends the Dualcast, so the gate is open again on the very
+    ///     next GCD. The .144 note feared this would push BLM's post-Despair Swiftcast "clean
+    ///     out of its window" - the delay is exactly one GCD, and that GCD was free.
     /// </summary>
     public static bool HasOccultDualcast =>
         HasStatusEffect(OccultInstantCast.Dualcast);
+
+    /// <summary>
+    ///     Occult Crescent is already making the next spell instant, by either route - the
+    ///     Occult Quick window or a held Occult Dualcast. The gate for "do not buy an instant
+    ///     cast" and for "do not spend a movement filler that was instant anyway".
+    /// </summary>
+    public static bool HasOccultInstantCast =>
+        HasFreeInstantCasts || HasOccultDualcast;
 }
