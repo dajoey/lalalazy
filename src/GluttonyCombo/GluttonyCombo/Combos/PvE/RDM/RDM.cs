@@ -31,7 +31,8 @@ internal partial class RDM : Caster
             #region OGCDs
             if (CanWeave())
             {
-                if (ActionReady(Manafication) && (EmboldenCD <= 5 || HasEmbolden) && !CanPrefulgence)
+                if (ActionReady(Manafication) && (EmboldenCD <= 5 || HasEmbolden) && !CanPrefulgence &&
+                    !HasFreeInstantCasts)
                     return Manafication;
 
                 if (ActionReady(Embolden) && !HasEmbolden)
@@ -136,7 +137,8 @@ internal partial class RDM : Caster
             #region OGCDs
             if (CanWeave())
             {
-                if (ActionReady(Manafication) && (EmboldenCD <= 5 || HasEmbolden) && !CanPrefulgence)
+                if (ActionReady(Manafication) && (EmboldenCD <= 5 || HasEmbolden) && !CanPrefulgence &&
+                    !HasFreeInstantCasts)
                     return Manafication;
 
                 if (ActionReady(Embolden) && !HasEmbolden)
@@ -251,7 +253,16 @@ internal partial class RDM : Caster
                     (HasEnoughManaToStart || CanMagickedSwordplay))
                     return Corpsacorps;
 
-                if (IsEnabled(Preset.RDM_ST_Manafication) && ActionReady(Manafication) && (EmboldenCD <= 5 || HasEmbolden) && !CanPrefulgence && canUseManafication)
+                // Held under Occult Quick (v1.0.4.154). Manafication's whole payout is the melee
+                // combo, and since v1.0.4.153 that combo is held for the duration of a Quick
+                // window - so spending a 110s cooldown into one buys stacks with nowhere to go.
+                //
+                // Occult Quick only, not Occult Dualcast, and the difference is real rather than
+                // scope: Manafication is an ability, so it does not consume a Dualcast, and the
+                // melee hold a Dualcast causes lasts exactly one GCD - far too short to strand
+                // the stacks. A Quick window is up to twenty seconds, which is not.
+                if (IsEnabled(Preset.RDM_ST_Manafication) && ActionReady(Manafication) && (EmboldenCD <= 5 || HasEmbolden) && !CanPrefulgence && canUseManafication &&
+                    !HasFreeInstantCasts)
                     return Manafication;
 
                 if (IsEnabled(Preset.RDM_ST_Embolden) && ActionReady(Embolden) && !HasEmbolden && canUseEmbolden)
@@ -395,7 +406,8 @@ internal partial class RDM : Caster
                     (HasEnoughManaToStart || CanMagickedSwordplay))
                     return Corpsacorps;
 
-                if (IsEnabled(Preset.RDM_AoE_Manafication) && ActionReady(Manafication) && (EmboldenCD <= 5 || HasEmbolden) && !CanPrefulgence && canUseManafication)
+                if (IsEnabled(Preset.RDM_AoE_Manafication) && ActionReady(Manafication) && (EmboldenCD <= 5 || HasEmbolden) && !CanPrefulgence && canUseManafication &&
+                    !HasFreeInstantCasts)
                     return Manafication;
 
                 if (IsEnabled(Preset.RDM_AoE_Embolden) && ActionReady(Embolden) && !HasEmbolden && canUseEmbolden)

@@ -1,4 +1,36 @@
-﻿## v1.0.4.153 (2026-08-23) [testing]
+﻿## v1.0.4.154 (2026-08-23) [testing]
+
+### Changed
+- **RDM holds Manafication through an Occult Quick window too.** Joey, testing .153: the melee
+  hold works, "but it's still casting manafication during occult quick. it needs to hold that
+  too." Correct, and it is the same waste one step back - Manafication's entire payout is the
+  melee combo, and since v1.0.4.153 that combo is held for the length of a Quick window, so a
+  110s cooldown spent into one buys Magicked Swordplay stacks with nowhere to go.
+- Four sites, all of them the rotation choosing Manafication for itself: `RDM_ST_SimpleMode`,
+  `RDM_AoE_SimpleMode`, `RDM_ST_AdvancedMode` (`RDM_ST_Manafication`) and `RDM_AoE_AdvancedMode`
+  (`RDM_AoE_Manafication`).
+- **Occult Quick only, not Occult Dualcast** - unlike the .153 melee gate, and the difference is
+  real rather than a scoping choice. Manafication is an ability, so it does not consume a
+  Dualcast at all, and the melee hold a Dualcast causes lasts exactly one GCD, far too short to
+  strand the stacks. A Quick window is up to twenty seconds, which is not.
+
+### Notes
+- **`RDM_EmboldenProtection` is deliberately untouched.** Its `RDM_EmboldenManafication` option
+  swaps Manafication onto the Embolden *button* when Embolden is on cooldown - that is the player
+  pressing a key, not the rotation picking a moment. Gating it would leave the button doing
+  nothing at all, since the fall-through is an Embolden that is on cooldown. Joey's report is
+  about the rotation casting it; this stays a manual override.
+- **Watch for the burst splitting.** All four sites carry `(EmboldenCD <= 5 || HasEmbolden)`,
+  which exists to pair Manafication with Embolden. Embolden is not held here - it buffs the
+  party's magic damage, so a Quick window spent casting is exactly where it belongs - which means
+  a Quick window landing over that pairing can now push Manafication out behind Embolden by up to
+  twenty seconds. Holding both would keep the pair together at the cost of delaying a party buff;
+  that is a bigger call than this one and it is Joey's, not a guess to slip in here.
+- The mana-overcap watch item from v1.0.4.153 still stands, and this makes it slightly more
+  likely: Magicked Swordplay is one of the two ways into the melee combo, so holding Manafication
+  removes a route that would have drained mana.
+
+## v1.0.4.153 (2026-08-23) [testing]
 
 ### Changed
 - **RDM holds the melee combo while Occult Quick is up.** Joey's call on the second question
