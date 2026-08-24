@@ -90,6 +90,7 @@ internal partial class RDM : Caster
                     return OriginalHook(Zwerchhau);
 
                 if (ActionReady(EnchantedRiposte) && !HasDualcast && !HasAccelerate && !HasSwiftcast &&
+                    !HasOccultInstantCast &&
                     (HasEnoughManaToStart || CanMagickedSwordplay))
                     return OriginalHook(Riposte);
             }
@@ -177,8 +178,9 @@ internal partial class RDM : Caster
             if (HasManaStacks)
                 return UseHolyFlare(actionID);
 
-            if (ActionReady(OriginalHook(Moulinet)) && 
+            if (ActionReady(OriginalHook(Moulinet)) &&
                 !HasDualcast && !HasAccelerate && !HasSwiftcast &&
+                (!HasOccultInstantCast || InMoulinetChain) &&
                 HasBattleTarget() && InActionRange(OriginalHook(Moulinet)) &&
                 (CanMagickedSwordplay || HasEnoughManaToStart || ComboAction is EnchantedMoulinet or Moulinet or EnchantedMoulinetDeux && HasEnoughManaForCombo))
                 return OriginalHook(Moulinet);
@@ -189,7 +191,8 @@ internal partial class RDM : Caster
                     return OriginalHook(Redoublement);
                 if (ComboAction is Riposte or EnchantedRiposte && LevelChecked(Zwerchhau))
                     return OriginalHook(Zwerchhau);
-                if (ActionReady(EnchantedRiposte) && !HasDualcast && !HasAccelerate && !HasSwiftcast && HasEnoughManaToStart)
+                if (ActionReady(EnchantedRiposte) && !HasDualcast && !HasAccelerate && !HasSwiftcast &&
+                    !HasOccultInstantCast && HasEnoughManaToStart)
                     return OriginalHook(Riposte);
             }
 
@@ -331,6 +334,7 @@ internal partial class RDM : Caster
                 if (IsEnabled(Preset.RDM_ST_MeleeCombo_IncludeRiposte) && ActionReady(EnchantedRiposte) &&
                     (InMeleeRange() || HasManafication) &&
                     !HasDualcast && !HasAccelerate && !HasSwiftcast &&
+                    !HasOccultInstantCast &&
                     (HasEnoughManaToStart || CanMagickedSwordplay))
                     return OriginalHook(Riposte);
             }
@@ -445,6 +449,7 @@ internal partial class RDM : Caster
             {
                 if (ActionReady(OriginalHook(Moulinet)) &&
                     !HasDualcast && !HasAccelerate && !HasSwiftcast &&
+                    (!HasOccultInstantCast || InMoulinetChain) &&
                     (IsNotEnabled(Preset.RDM_AoE_MeleeCombo_Target) && !HasBattleTarget() || HasBattleTarget() && InActionRange(OriginalHook(Moulinet)) &&
                     (CanMagickedSwordplay || HasEnoughManaToStart || ComboAction is EnchantedMoulinet or Moulinet or EnchantedMoulinetDeux && HasEnoughManaForCombo)))
                     return OriginalHook(Moulinet);
@@ -455,7 +460,8 @@ internal partial class RDM : Caster
                         return OriginalHook(Redoublement);
                     if (ComboAction is Riposte or EnchantedRiposte && LevelChecked(Zwerchhau))
                         return OriginalHook(Zwerchhau);
-                    if (ActionReady(EnchantedRiposte) && !HasDualcast && !HasAccelerate && !HasSwiftcast && HasEnoughManaToStart)
+                    if (ActionReady(EnchantedRiposte) && !HasDualcast && !HasAccelerate && !HasSwiftcast &&
+                        !HasOccultInstantCast && HasEnoughManaToStart)
                         return OriginalHook(Riposte);
                 }
             }

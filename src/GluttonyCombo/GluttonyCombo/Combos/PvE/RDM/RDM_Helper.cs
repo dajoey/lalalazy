@@ -117,6 +117,15 @@ internal partial class RDM
     internal static bool InCombo => ComboActionsList.Contains(ComboAction);
 
     /// <summary>
+    ///     An Enchanted Moulinet chain is already underway. The single-target combo gets this for
+    ///     free - its continuation steps are separate, ungated branches - but the AoE entry is one
+    ///     condition covering start AND continuation, so holding it without this exemption would
+    ///     stall a chain mid-way and waste the mana already spent on it.
+    /// </summary>
+    internal static bool InMoulinetChain =>
+        ComboAction is EnchantedMoulinet or Moulinet or EnchantedMoulinetDeux;
+
+    /// <summary>
     ///     RDM is inside the melee combo or the finisher chain that follows it - several GCDs of
     ///     instant weaponskills, which no instant-cast effect can help. Read by the Occult
     ///     Crescent Time Mage handler to hold Occult Quick rather than open a 20s spell window

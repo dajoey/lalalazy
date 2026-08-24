@@ -1,4 +1,38 @@
-﻿## v1.0.4.152 (2026-08-23) [testing]
+﻿## v1.0.4.153 (2026-08-23) [testing]
+
+### Changed
+- **RDM holds the melee combo while Occult Quick is up.** Joey's call on the second question
+  v1.0.4.150 left open: v1.0.4.150 stopped RDM *pressing* Occult Quick mid-combo, but if the
+  window was already running when mana came good, RDM would open the combo anyway and spend most
+  of a 20s spell-instant window on weaponskills it cannot help.
+- **This is the rule that was already in that line, finally complete.** Every melee entry in the
+  job already carried `!HasDualcast && !HasAccelerate && !HasSwiftcast` - do not start the combo
+  while holding an instant-cast effect, spend it on a cast first. Occult Quick and Occult Dualcast
+  simply were not in the list. Occult Dualcast is included deliberately, not as scope creep:
+  the line already refuses to start on a Dualcast, and the Occult one is the same object with a
+  different status id, so leaving it out would have been the arbitrary choice.
+- Six entry points, all of them starters: `RDM_ST_SimpleMode` Riposte, `RDM_AoE_SimpleMode`
+  Moulinet and its sub-Moulinet Riposte, `RDM_ST_AdvancedMode` Riposte
+  (`RDM_ST_MeleeCombo_IncludeRiposte`), `RDM_AoE_AdvancedMode` Moulinet and its sub-Moulinet
+  Riposte.
+
+### Notes
+- **A combo already underway still finishes.** In single target that is free - the continuation
+  steps (`ComboAction is Riposte` -> Zwerchhau, `ComboAction is Zwerchhau` -> Redoublement) are
+  separate branches with no instant-cast gate on them at all. The AoE entry is one condition
+  covering start and continuation together, so it gets an explicit `|| InMoulinetChain` exemption;
+  without it a Moulinet chain would stall mid-way for up to twenty seconds and waste the mana
+  already spent on it.
+- Strict `HasOccultInstantCast`, not the HasOrExpects form. Matches how the same line already
+  treats RDM's own Dualcast - status only, and Joey reports that behaviour is good - and avoids
+  holding the combo on a proc that has not landed.
+- **Worth watching in the zone: mana overcap.** This was flagged before the call and the call was
+  made anyway, so it ships as asked - but the failure mode is real. A 20s hold is roughly eight
+  GCDs, and if black/white were already near 100 going into the window, that is mana gain with
+  nowhere to go. What to look for is capped mana during a Quick window, not merely a delayed
+  melee combo. If it shows up, the fix is an escape on the cap rather than backing the hold out.
+
+## v1.0.4.152 (2026-08-23) [testing]
 
 ### Fixed
 - **Swiftcast fired out of combat for no reason: the Occult Comet block never checked whether
