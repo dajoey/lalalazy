@@ -326,7 +326,7 @@ internal partial class BLM
         }
 
         if (useSwiftcast &&
-            ActionReady(Role.Swiftcast) && !HasFreeInstantCasts && JustUsed(Despair) &&
+            ActionReady(Role.Swiftcast) && !HasOccultInstantCast && JustUsed(Despair) &&
             GetCooldownRemainingTime(Manafont) > GCD &&
             !HasStatusEffect(Buffs.Triplecast) &&
             InActionRange(Fire) && HasBattleTarget())
@@ -336,7 +336,7 @@ internal partial class BLM
         }
 
         if (useTriplecast &&
-            ActionReady(Triplecast) && IsOnCooldown(Role.Swiftcast) && !HasFreeInstantCasts &&
+            ActionReady(Triplecast) && IsOnCooldown(Role.Swiftcast) && !HasOccultInstantCast &&
             !HasStatusEffect(Role.Buffs.Swiftcast) && !HasStatusEffect(Buffs.Triplecast) &&
             InActionRange(Fire) && HasBattleTarget() &&
             (triplecastIgnoreLeyLines || !HasStatusEffect(Buffs.LeyLines)) &&
@@ -386,7 +386,7 @@ internal partial class BLM
         if (ActionReady(Blizzard3) && UmbralIceStacks < 3)
         {
             if (useSwiftcast &&
-                ActionReady(Role.Swiftcast) && !HasFreeInstantCasts && !HasStatusEffect(Buffs.Triplecast) &&
+                ActionReady(Role.Swiftcast) && !HasOccultInstantCast && !HasStatusEffect(Buffs.Triplecast) &&
                 HasBattleTarget() && InActionRange(Blizzard))
             {
                 actionID = Role.Swiftcast;
@@ -394,7 +394,7 @@ internal partial class BLM
             }
 
             if (useTriplecast &&
-                ActionReady(Triplecast) && IsOnCooldown(Role.Swiftcast) && !HasFreeInstantCasts &&
+                ActionReady(Triplecast) && IsOnCooldown(Role.Swiftcast) && !HasOccultInstantCast &&
                 HasBattleTarget() && InActionRange(Blizzard) && !JustUsed(Triplecast) &&
                 !HasStatusEffect(Role.Buffs.Swiftcast) && !HasStatusEffect(Buffs.Triplecast) &&
                 (triplecastIgnoreLeyLines || !HasStatusEffect(Buffs.LeyLines)) &&
@@ -642,7 +642,7 @@ internal partial class BLM
         }
 
         if (useTriplecast &&
-            !HasStatusEffect(Buffs.Triplecast) && ActionReady(Triplecast) &&
+            !HasStatusEffect(Buffs.Triplecast) && ActionReady(Triplecast) && !HasOccultInstantCast &&
             HasBattleTarget() && InActionRange(Fire2) && !JustUsed(Triplecast) &&
             GetRemainingCharges(Triplecast) > triplecastHoldCharges &&
             IsUmbralHeartCapped && GetCooldownRemainingTime(Manafont) > GCD * 3)

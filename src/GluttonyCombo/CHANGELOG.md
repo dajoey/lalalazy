@@ -1,4 +1,32 @@
-﻿## v1.0.4.148 (2026-08-23) [testing]
+﻿## v1.0.4.149 (2026-08-23) [testing]
+
+### Fixed
+- **v1.0.4.148 taught the choke point about Occult Dualcast and left the per-site gates behind,
+  which turns a refused Swiftcast into a dropped Astral Fire.** Found by reading the refusal
+  path rather than in the zone, so it is a defect in .148 before it is a report. When
+  `CustomCombo.TryInvoke` refuses a substitution it returns false, and
+  `AutoRotationHelper.InvokeCombo` then falls back to `attributes.ReplaceSkill.ActionIDs.First()`
+  - for BLM that is `Blizzard`. The combo does not get a second chance to pick something else;
+  the branch it already chose is simply discarded.
+- **That was safe for Occult Quick only because the per-site gates stopped the branch being
+  chosen at all.** v1.0.4.146 kept them for exactly this reason ("more surgical than the choke
+  point... not wrong, only incomplete"). .148 widened the choke point to Occult Dualcast without
+  widening those gates, so in the end-of-fire and ice-phase weaves BLM would still pick
+  Swiftcast or Triplecast under a Dualcast, have it refused, and cast Blizzard I in Astral Fire.
+- **The per-site gates now read `HasOccultInstantCast`** - both Occult Crescent routes - so the
+  branch is skipped and the combo falls through to its own next option, which is the phase GCD
+  it should have cast. `TryEndOfFireWeave` (Swiftcast + Triplecast), `TryIceWeave` (Swiftcast +
+  Triplecast), PCT's movement Swiftcast, WHM's `WHM_AoE_DPS_SwiftHoly` opener.
+- **The AoE fire-phase Triplecast had no instant-cast gate at all** - another v1.0.4.144 miss,
+  alongside `TryAoEMovementTriplecast` in .148. Gated now, which fixes it for Occult Quick too.
+
+### Notes
+- Sites still relying on the choke point alone rather than a gate of their own: BLU, RDM, SMN and
+  the pre-7.55 Occult Comet handler. Unchanged from how they behaved under Occult Quick since
+  v1.0.4.146, and their fallback is a real filler spell rather than a stance-dropping one, so
+  they are left as they are rather than swept up here.
+
+## v1.0.4.148 (2026-08-23) [testing]
 
 ### Fixed
 - **Occult Dualcast was worth nothing to the rotation, and the rotation kept destroying it.**

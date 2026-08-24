@@ -308,7 +308,7 @@ internal partial class PCT
             return true;
         }
 
-        if (swiftcastEnabled && ActionReady(Role.Swiftcast) && !HasFreeInstantCasts &&
+        if (swiftcastEnabled && ActionReady(Role.Swiftcast) && !HasOccultInstantCast &&
             !HasStatusEffect(Buffs.StarryMuse) &&
             (CreatureMotifReady || WeaponMotifReady || LandscapeMotifReady))
         {
