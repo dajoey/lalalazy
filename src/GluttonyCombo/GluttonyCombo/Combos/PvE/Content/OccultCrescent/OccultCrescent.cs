@@ -623,7 +623,18 @@ internal partial class OccultCrescent
             return true;
         }
 
-        if (IsEnabledAndUsable(Preset.Phantom_TimeMage_OccultComet, OccultComet))
+        // The Comet block substitutes Occult Quick or SWIFTCAST onto the DPS button to make the
+        // 8s cast instant. Until v1.0.4.152 it asked only "is Comet off cooldown" - no target, no
+        // range, no combat - so standing about in the zone with Time Mage equipped and the Comet
+        // option on, it would spend a 60s Swiftcast prepping a Comet there was nothing to cast at.
+        // That is Joey's "casting swiftcast outside of combat for no reason". Every sibling
+        // handler in this file already gates on HasTargetNow; this one was the exception.
+        //
+        // Guarding the whole block, not just the speed prep: prepping without casting is the bug,
+        // but offering an 8s hard cast at nothing is no better. Side effect worth knowing - Comet
+        // is no longer offered pre-pull, so it cannot open a fight any more.
+        if (IsEnabledAndUsable(Preset.Phantom_TimeMage_OccultComet, OccultComet) &&
+            HasTargetNow && InActionRange(OccultComet) && InCombat())
         {
 
             // Skip if no damage buff, and user wants things under buffs

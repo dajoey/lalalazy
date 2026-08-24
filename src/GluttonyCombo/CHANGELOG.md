@@ -1,4 +1,36 @@
-﻿## v1.0.4.151 (2026-08-23) [testing]
+﻿## v1.0.4.152 (2026-08-23) [testing]
+
+### Fixed
+- **Swiftcast fired out of combat for no reason: the Occult Comet block never checked whether
+  there was anything to cast at.** Joey, testing .151. The Phantom Time Mage handler substitutes
+  Occult Quick or **Swiftcast** onto the DPS button to make Comet's 8s cast instant, and its only
+  entry condition was `IsEnabledAndUsable(Preset, OccultComet)` - preset enabled and Comet off
+  cooldown. No target, no range, no combat. So standing about in the zone with Time Mage equipped
+  and the Comet option on, holding or auto-running the DPS button, it spends a 60s Swiftcast
+  prepping a Comet there is nothing to cast at, then does it again when Swiftcast comes back.
+  Guarded now on `HasTargetNow && InActionRange(OccultComet) && InCombat()`.
+- Every sibling handler in that file already gates on `HasTargetNow` - Occult Mage Masher, Steal,
+  the whole 7.55 Red Mage block. This one was the exception, not a new pattern.
+
+### Notes
+- **This is not a regression from v1.0.4.148-.151, and the mechanism is checkable rather than
+  asserted.** Every gate those four versions touched is a *negated* instant-cast test that got
+  strictly wider - `!HasFreeInstantCasts` became `!HasOrExpectsOccultInstantCast`, and
+  `HasOrExpects` is a superset. A wider negated gate can only suppress more presses, never
+  produce one. The two places where a test got *more* permissive (`RDM.CanInstantCast`, and the
+  raise blocks' "an instant is available, cast the rez now" branch) return a damage GCD and a
+  rez respectively, and both sit after the Swiftcast press in their own flow. So the bug predates
+  this week's work; .151 is simply when it got noticed.
+- Side effect worth knowing: Comet is no longer offered before a pull, so it cannot open a fight.
+  The block is guarded as a whole rather than only at the speed prep - prepping an instant for a
+  cast that never comes is the reported bug, but offering an 8s hard cast at nothing is no better.
+- Best explanation, not a confirmed repro - this was found by reading the handler, not by
+  reproducing Joey's exact case. It requires Phantom Time Mage equipped with
+  `Phantom_TimeMage_OccultComet` enabled. If Swiftcast still fires out of combat with Time Mage
+  unequipped, the cause is somewhere else and this fix will not have touched it.
+- Still untested in the zone.
+
+## v1.0.4.151 (2026-08-23) [testing]
 
 ### Changed
 - **RDM holds Acceleration through an Occult Quick window.** Joey's call on the open question
