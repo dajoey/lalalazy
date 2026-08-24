@@ -6367,6 +6367,16 @@ Requires Occult Potions in inventory.</value>
   <data name="Phantom_RedMage_OccultThunderII_Name" xml:space="preserve">
     <value>Occult Thunder II</value>
   </data>
+  <data name="Phantom_AlignToBurst_Desc" xml:space="preserve">
+      <value>Lets a big phantom cooldown wait a few seconds so it lands inside your own damage buff window instead of just outside it.
+
+Phantom actions cannot crit or direct hit, so only percentage damage buffs count - Riddle of Fire, No Mercy, Fight or Flight, Searing Light, Embolden and so on. Battle Litany, Battle Voice, Chain Stratagem, Devilment and the Bard songs are ignored, because they genuinely do nothing for phantom damage.
+
+Only 40s+ cooldowns are held, and only up to the delay you set. Heals, mitigation, raises, interrupts, debuff application, the Oracle deck and the Dancer dance are never delayed. If your job has no percentage damage buff of its own (Samurai, Machinist, Black Mage, Viper, Warrior, Dark Knight, White Mage, Scholar, Sage), nothing is held at all.</value>
+  </data>
+  <data name="Phantom_AlignToBurst_Name" xml:space="preserve">
+      <value>Align Phantom Cooldowns to Your Burst Window</value>
+  </data>
   <data name="Phantom_RestrictToBuff_Desc" xml:space="preserve">
       <value>Will restrict damaging Phantom Abilities to when you or your party have damage buffs (including minor ones on yourself, like Paladin's Fight or Flight).
 

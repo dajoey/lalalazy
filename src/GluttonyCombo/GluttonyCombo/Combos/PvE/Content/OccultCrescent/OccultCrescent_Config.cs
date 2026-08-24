@@ -259,6 +259,26 @@ internal partial class OccultCrescent
                         Generics.StopFriendlyHpPercent100, 200);
                     break;
 
+                case Preset.Phantom_AlignToBurst:
+                    ImGui.Indent();
+                    DrawSliderInt(0, 15, Phantom_AlignToBurst_MaxDelay,
+                        "Longest a phantom action may wait for your burst window (seconds, 0 = off)", 250);
+                    ImGuiEx.TextWrapped(ImGuiColors.DalamudGrey,
+                        "Only percentage damage buffs are counted. Phantom actions cannot crit or " +
+                        "direct hit, so Battle Litany, Battle Voice, Chain Stratagem, Devilment and " +
+                        "the Bard songs do nothing for them and are ignored here.");
+                    ImGuiEx.TextWrapped(ImGuiColors.DalamudGrey,
+                        "Only big phantom cooldowns (40s and longer) are held, and only if your own " +
+                        "job has a percentage damage buff to anchor to. Heals, mitigation, raises, " +
+                        "interrupts, debuff application, the Oracle deck and the Dancer dance are " +
+                        "never delayed.");
+                    ImGuiEx.TextWrapped(ImGuiColors.DalamudGrey,
+                        "Phantom Aim is included even though it is not a phantom damage buff: it " +
+                        "raises YOUR crit and direct hit rate by 50% for 30s on a 120s cooldown, " +
+                        "which is a two-minute burst cooldown in everything but name.");
+                    ImGui.Unindent();
+                    break;
+
                 case Preset.Phantom_RestrictToBuff:
                     ImGui.Indent();
                     ImGuiEx.TextWrapped(ImGuiColors.DalamudYellow,
@@ -312,6 +332,7 @@ internal partial class OccultCrescent
         #region Variables
 
         public static UserInt
+            Phantom_AlignToBurst_MaxDelay = new("Phantom_AlignToBurst_MaxDelay", 6),
             Phantom_Freelancer_Resuscitation_Health = new("Phantom_Freelancer_Resuscitation_Health", 50),
             Phantom_Geomancer_Sunbath_Health = new("Phantom_Geomancer_Sunbath_Health", 50),
             Phantom_Knight_PhantomGuard_Health = new("Phantom_Knight_PhantomGuard_Health", 50),

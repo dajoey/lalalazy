@@ -19,8 +19,18 @@ namespace GluttonyCombo.Combos.PvE;
 //  2026-08-05 UPSTREAM COLLISION NOTE:
 //    Upstream shipped its own phantom-job implementation in the 36-commit sync merged
 //    this day, defining identically-named TryGet<Job>Action methods on this same
-//    partial class. The fork methods are suffixed 755 to coexist, and TryGet755Action
-//    still runs FIRST in TryGetPhantomAction, so fork behaviour is unchanged.
+//    partial class. The fork methods are suffixed 755 to coexist.
+//
+//    CORRECTION 2026-08-24: this paragraph used to claim TryGet755Action "still runs FIRST
+//    in TryGetPhantomAction, so fork behaviour is unchanged". It does not, and has not for
+//    some time - read the dispatch list in TryGetPhantomAction(): the sixteen pre-7.55
+//    handlers AND upstream's eight 7.55 ones are all called before it. Both sets bind the
+//    SAME presets (Phantom_Ninja_FumaShuriken, Phantom_Summoner_Megaflare, and so on), so
+//    for every action upstream also implements, upstream answers first and the fork copy
+//    below is unreachable. The fork's extras - the Necromancer HP floor, the already-Doomed
+//    check and HoldingInstantCastProc - therefore are NOT in effect on those paths. This is
+//    recorded, not fixed: reordering the dispatch is a behaviour change of its own and
+//    belongs in its own release.
 //    Retiring this file is NOT a straight delete: upstream has no HP floor, no
 //    already-Doomed check and no instant-cast-proc protection, and the P755 constants
 //    feed the fork-only phantom-heal integration in OccultCrescent.cs. See CHANGELOG.
@@ -164,7 +174,7 @@ internal partial class OccultCrescent
 
     /// <summary>Shared "only act under a damage buff" gate, matching the pre-7.55 jobs.</summary>
     private static bool BuffGateBlocks =>
-        IsEnabled(Preset.Phantom_RestrictToBuff) && !Bursting.PlayerIsDamageBuffed;
+        IsEnabled(Preset.Phantom_RestrictToBuff) && !BurstAlign.PhantomDamageBuffed;
 
     /// <summary>
     ///     Whether the player is holding an instant-cast proc that a phantom spell must not be

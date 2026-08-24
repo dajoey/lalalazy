@@ -1,4 +1,93 @@
-﻿## v1.0.4.155 (2026-08-23) [testing]
+﻿## v1.0.4.156 (2026-08-24) [testing]
+
+### Added
+- **New option: "Align Phantom Cooldowns to Your Burst Window"** (Occult Crescent, top level,
+  alongside Restrict to Buff). Lets a big phantom cooldown wait a bounded number of seconds -
+  default 6, slider 0-15 - so it lands inside your own damage buff window instead of just
+  outside it. Off by default.
+
+  Why it is nearly free: every recast in the aligned set is 40s, 60s, 90s or 120s. 40, 60 and
+  120 all divide the two-minute raid-buff cycle, so once an action lands inside a window it
+  stays inside every later window at no further cost. The alignment is paid for once, and only
+  up to the delay you set. Holding a phantom GCD also does not idle the GCD - the handler
+  declines and your own job rotation takes that slot - so the cost of a hold is the delay and
+  nothing else.
+
+  Aligned: Phantom Aim, Hero's Rime, Aetherial Gain, Zeninage, Iainuki, Bladeblitz, Long Reach,
+  Finisher, Doomsday, Megaflare, Occult Comet, Occult Holy, Occult Flare, Occult Jump, Hellfire,
+  Judgment Bolt, Thunderstorm, Occult Aqua Breath, Fuma Shuriken, Flame Scroll, Lightning
+  Scroll, Occult Fire/Blizzard/Thunder III, Deep Freeze, Hell Wind, Chaos Drive.
+
+  Never aligned: heals, mitigation, raises, interrupts, stuns, dispels, movement, debuff
+  application, everything on a 30s or shorter recast, the Berserker Rage/Deadly Blow pair, the
+  Oracle deck and the Dancer dance. The last two are chains on expiry timers and an expired
+  Oracle prediction inflicts False Prediction - 50,000 potency of damage-over-time on yourself.
+  Shaving seconds off a nuke is not worth a failure mode that kills the player.
+
+  A stall guard releases any hold after your delay plus three seconds. Without it, a Gunbreaker
+  who has No Mercy switched off in their own job settings reads "burst 0s away" forever and
+  every aligned phantom action would stop firing for the whole fight.
+
+### Fixed
+- **The buff gate was reading buffs phantom actions cannot use.** Per the FFXIV wiki's Phantom
+  Job page: "Phantom job actions cannot deal critical or direct hit damage and are unaffected by
+  critical or direct hit rate-increasing buffs such as Battle Litany." Restrict to Buff ran on
+  `Bursting.PlayerIsDamageBuffed`, a general "is anyone bursting" predicate that counts Battle
+  Litany, Battle Voice, Chain Stratagem, Devilment, Wanderer's Minuet, Army's Paeon and Ley
+  Lines. None of those does anything for a phantom action; the gate was opening on nothing.
+  It now runs on a phantom-specific predicate counting only percentage damage increases and
+  target damage-taken increases.
+
+  Surging Tempest, Darkside and Mage's Ballad are deliberately still counted there even though
+  they are effectively permanent, because for that question it is the right answer: a Warrior's
+  phantom damage really is boosted all fight long, so there is never a moment when holding it
+  would gain anything. Alignment uses a second, narrower predicate that drops them - a test
+  that is true all fight long cannot tell you a window has opened.
+
+- **Offensive Aria is no longer held behind the buff gate.** It is +4% party damage for 70s on
+  a 5s cooldown - maintenance, and one of the things that MAKES a damage window. Sitting below
+  the gate meant it could only be applied once somebody else had already opened one, and solo
+  it meant never. It still yields to Hero's Rime, which is strictly better and cannot stack
+  with it.
+- **Pilfer Weapon is no longer held behind the buff gate.** It deals no damage - it is a 60s
+  -10% physical attack debuff, i.e. mitigation. It now matches Occult Mage Masher, which is the
+  same action for magic damage and has always sat above the gate.
+- **Occult Libra is no longer held behind the buff gate.** It deals no damage either. It reveals
+  elemental weakness for 120s, which is what makes every Occult Fire/Blizzard/Thunder II
+  afterwards hit for 390 instead of 300 - gating the enabler behind the thing it enables. It is
+  a 5s oGCD, so it costs a weave slot, not a GCD.
+- **`Phantom_Dragoon_StepForth` and `Phantom_RedMage_OccultCureII_Retarget` were the same enum
+  value (110139), i.e. aliases.** `PresetStorage.AllPresets` is keyed by `Preset`, so one of the
+  pair was silently dropped from the UI and `IsEnabled()` could not tell them apart - ticking
+  the Red Mage cure retarget also switched on Dragoon Step Forth. Step Forth moves to 110142,
+  which resets that one checkbox for existing users; the Red Mage retarget keeps its ID and its
+  saved state.
+
+### Notes
+- **Phantom Aim is in the aligned set even though it is not a phantom damage buff.** It grants
+  +50% critical hit rate and +50% direct hit rate - exactly the two things phantom actions
+  cannot do. Its entire value is to your own job's actions, which makes it a 120s personal raid
+  buff that happens to live on the phantom bar. It belongs in the two-minute window for that
+  reason, not because phantom damage cares about it.
+- **Jobs with no percentage damage buff of their own are never held.** Samurai, Machinist, Black
+  Mage, Viper, White Mage, Scholar and Sage have none at all; Warrior and Dark Knight have only
+  Surging Tempest and Darkside, which are baseline uptime rather than a window. Their party may
+  well be bursting, but nothing readable from the local client says WHEN - other players'
+  cooldowns are not visible - so those jobs keep exactly today's behaviour rather than guessing.
+- **Debuff appliers are deliberately excluded from alignment.** Silver Cannon, Mesmerize,
+  Blazing Spellblade, Occult Libra, Pilfer Weapon and Occult Mage Masher want to go out EARLY so
+  the window opens on top of them. Battle Bell is excluded for the same reason: its stacks build
+  from damage taken over 60s, so it needs lead time, not timing.
+- **A stale comment in OccultCrescent_755.cs is corrected, not acted on.** It claimed
+  `TryGet755Action` "still runs FIRST in TryGetPhantomAction, so fork behaviour is unchanged".
+  It runs last. Both sets bind the same presets, so for every action upstream also implements,
+  upstream answers first and the fork copy is unreachable - which means the fork's Necromancer
+  HP floor, already-Doomed check and `HoldingInstantCastProc` are not in effect on those paths.
+  Reordering the dispatch is a behaviour change of its own and belongs in its own release.
+- Interaction rules in this release are taken from the FFXIV wiki Phantom Job page and phantom
+  action recast/potency figures from the live Action sheet via XIVAPI v2, not from memory.
+
+## v1.0.4.155 (2026-08-23) [testing]
 
 ### Fixed
 - **Occult Comet is held through RDM's melee chain, because casting it RESETS the combo.** Joey,

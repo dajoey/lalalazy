@@ -101,6 +101,7 @@ internal partial class OccultCrescent
 
         Svc.Log.Debug($"[PhantomDiag] duty slots seen: {Action1} / {Action2} / {Action3} / {Action4} / {Action5} " +
             $"| HP={PlayerHP} | weaveWindow={CanWeaveNow} | inOccult={IsInOccult}");
+        Svc.Log.Debug($"[PhantomDiag] {BurstAlign.Describe()}");
 
         void Row(string label, Preset parent, Preset child, uint act, double threshold)
         {
@@ -416,7 +417,7 @@ internal partial class OccultCrescent
 
         // Skip if no damage buff, and user wants things under buffs
         if (IsEnabled(Preset.Phantom_RestrictToBuff) &&
-            !Bursting.PlayerIsDamageBuffed)
+            !BurstAlign.PhantomDamageBuffed)
             return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_Monk_PhantomKick, PhantomKick) &&
@@ -468,17 +469,22 @@ internal partial class OccultCrescent
                 return true;
             }
 
-            // Skip if no damage buff, and user wants things under buffs
-            if (IsEnabled(Preset.Phantom_RestrictToBuff) &&
-                !Bursting.PlayerIsDamageBuffed)
-                return false;
-
+            // Pilfer Weapon deals no damage - it is a 60s -10% physical attack debuff, i.e.
+            // mitigation. Restrict-to-Buff exists to stop damage being spent outside a window;
+            // holding a defensive debuff behind it just delays the mitigation. Above the gate,
+            // matching Occult Mage Masher, which is the same action for magic damage and has
+            // always sat above it.
             if (IsEnabledAndUsable(Preset.Phantom_Thief_PilferWeapon, PilferWeapon) &&
                 !HasStatusEffect(Debuffs.WeaponPlifered, CurrentTarget))
             {
                 actionID = PilferWeapon; // weaken target
                 return true;
             }
+
+            // Skip if no damage buff, and user wants things under buffs
+            if (IsEnabled(Preset.Phantom_RestrictToBuff) &&
+                !BurstAlign.PhantomDamageBuffed)
+                return false;
         }
 
         return false;
@@ -508,7 +514,7 @@ internal partial class OccultCrescent
 
             // Skip if no damage buff, and user wants things under buffs
             if (IsEnabled(Preset.Phantom_RestrictToBuff) &&
-                !Bursting.PlayerIsDamageBuffed)
+                !BurstAlign.PhantomDamageBuffed)
                 return false;
 
             if (IsEnabledAndUsable(Preset.Phantom_Samurai_Zeninage, Zeninage) &&
@@ -538,7 +544,7 @@ internal partial class OccultCrescent
 
         // Skip if no damage buff, and user wants things under buffs
         if (IsEnabled(Preset.Phantom_RestrictToBuff) &&
-            !Bursting.PlayerIsDamageBuffed)
+            !BurstAlign.PhantomDamageBuffed)
             return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_Berserker_Rage, Rage) &&
@@ -579,7 +585,7 @@ internal partial class OccultCrescent
 
         // Skip if no damage buff, and user wants things under buffs
         if (IsEnabled(Preset.Phantom_RestrictToBuff) &&
-            !Bursting.PlayerIsDamageBuffed)
+            !BurstAlign.PhantomDamageBuffed)
             return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_Ranger_PhantomAim, PhantomAim) &&
@@ -650,7 +656,7 @@ internal partial class OccultCrescent
 
             // Skip if no damage buff, and user wants things under buffs
             if (IsEnabled(Preset.Phantom_RestrictToBuff) &&
-                !Bursting.PlayerIsDamageBuffed)
+                !BurstAlign.PhantomDamageBuffed)
                 return false;
 
             // Make the comet fast
@@ -767,21 +773,32 @@ internal partial class OccultCrescent
             return true;
         }
 
+        // Offensive Aria is +4% party damage for 70s on a 5s cooldown. That is maintenance, not
+        // burst - and it is one of the things that MAKES a damage window. Sitting below the
+        // Restrict-to-Buff gate meant it could only be applied once somebody else had already
+        // opened one, which is backwards, and with a solo phantom setup it meant never. It now
+        // sits above the gate for the same reason Occult Mage Masher and Mesmerize already do.
+        //
+        // It still yields to Hero's Rime, which is strictly better (+10% damage and healing,
+        // -10% damage taken) and explicitly cannot stack with it. That test uses ActionReady
+        // rather than IsEnabledAndUsable on purpose: a Hero's Rime being HELD for a burst
+        // window must still block Aria, or Aria would claim the slot and shadow it.
+        if (IsEnabledAndUsable(Preset.Phantom_Bard_OffensiveAria, OffensiveAria) &&
+            !HasStatusEffect(Buffs.OffensiveAria) && !HasStatusEffect(Buffs.HerosRime, anyOwner: true) &&
+            !(IsEnabled(Preset.Phantom_Bard_HerosRime) && ActionReady(HerosRime)))
+        {
+            actionID = OffensiveAria; // off-song
+            return true;
+        }
+
         // Skip if no damage buff, and user wants things under buffs
         if (IsEnabled(Preset.Phantom_RestrictToBuff) &&
-            !Bursting.PlayerIsDamageBuffed)
+            !BurstAlign.PhantomDamageBuffed)
             return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_Bard_HerosRime, HerosRime))
         {
             actionID = HerosRime; // burst song
-            return true;
-        }
-
-        if (IsEnabledAndUsable(Preset.Phantom_Bard_OffensiveAria, OffensiveAria) &&
-            !HasStatusEffect(Buffs.OffensiveAria) && !HasStatusEffect(Buffs.HerosRime, anyOwner: true))
-        {
-            actionID = OffensiveAria; // off-song
             return true;
         }
 
@@ -793,7 +810,7 @@ internal partial class OccultCrescent
         if (!IsEnabled(Preset.Phantom_Oracle))
             return false;
 
-        if (!IsEnabled(Preset.Phantom_RestrictToBuff) || Bursting.PlayerIsDamageBuffed)
+        if (!IsEnabled(Preset.Phantom_RestrictToBuff) || BurstAlign.PhantomDamageBuffed)
         {
             if (IsEnabledAndUsable(Preset.Phantom_Oracle_Predict, Predict) && InCombatNow && !CanWeaveNow &&
                 !HasStatusEffect(Buffs.PredictionOfJudgment) && !HasStatusEffect(Buffs.PredictionOfCleansing) &&
@@ -843,7 +860,7 @@ internal partial class OccultCrescent
 
             if (IsEnabledAndUsable(Preset.Phantom_Oracle_Starfall, Starfall) &&
                 canStarfallSafely &&
-                (!IsEnabled(Preset.Phantom_RestrictToBuff) || Bursting.PlayerIsDamageBuffed ||
+                (!IsEnabled(Preset.Phantom_RestrictToBuff) || BurstAlign.PhantomDamageBuffed ||
                  HasStatusEffect(Buffs.Invulnerability) || lastCard))
             {
                 MarkOracleCardPlayed(Buffs.PredictionOfStarfall);
@@ -919,7 +936,7 @@ internal partial class OccultCrescent
         // Skip if no damage buff, and user wants things under buffs
         if (!lastCard &&
             IsEnabled(Preset.Phantom_RestrictToBuff) &&
-            !Bursting.PlayerIsDamageBuffed)
+            !BurstAlign.PhantomDamageBuffed)
             return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_Oracle_PhantomJudgment, PhantomJudgment) &&
@@ -961,7 +978,7 @@ internal partial class OccultCrescent
 
         // Skip if no damage buff, and user wants things under buffs
         if (IsEnabled(Preset.Phantom_RestrictToBuff) &&
-            !Bursting.PlayerIsDamageBuffed)
+            !BurstAlign.PhantomDamageBuffed)
             return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_Cannoneer_SilverCannon, SilverCannon) &&
@@ -1042,7 +1059,7 @@ internal partial class OccultCrescent
 
             if (IsEnabledAndUsable(Preset.Phantom_Geomancer_AetherialGain, AetherialGain) &&
                 !HasStatusEffect(Buffs.AetherialGain) &&
-                (!IsEnabled(Preset.Phantom_RestrictToBuff) || Bursting.PlayerIsDamageBuffed))
+                (!IsEnabled(Preset.Phantom_RestrictToBuff) || BurstAlign.PhantomDamageBuffed))
             {
                 actionID = AetherialGain; // damage buff
                 return true;
@@ -1123,7 +1140,7 @@ internal partial class OccultCrescent
 
         // Skip if no damage buff, and user wants things under buffs
         if (IsEnabled(Preset.Phantom_RestrictToBuff) &&
-            !Bursting.PlayerIsDamageBuffed)
+            !BurstAlign.PhantomDamageBuffed)
             return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_MysticKnight_BlazingSpellblade, BlazingSpellblade) && !CanWeave() &&
@@ -1158,7 +1175,7 @@ internal partial class OccultCrescent
 
         if (CanWeaveNow)
         {
-            if (!IsEnabled(Preset.Phantom_RestrictToBuff) || Bursting.PlayerIsDamageBuffed)
+            if (!IsEnabled(Preset.Phantom_RestrictToBuff) || BurstAlign.PhantomDamageBuffed)
             {
                 if (IsEnabledAndUsable(Preset.Phantom_Dancer_Dance, Dance))
                 {
@@ -1191,7 +1208,7 @@ internal partial class OccultCrescent
         }
 
         // Skip if no damage buff, and user wants things under buffs
-        if (!IsEnabled(Preset.Phantom_RestrictToBuff) || Bursting.PlayerIsDamageBuffed)
+        if (!IsEnabled(Preset.Phantom_RestrictToBuff) || BurstAlign.PhantomDamageBuffed)
         {
             if (IsEnabled(Preset.Phantom_Dancer_Dance) && HasStatusEffect(Buffs.PoisedToSwordDance))
             {
@@ -1236,7 +1253,7 @@ internal partial class OccultCrescent
             return false;
         }
 
-        if (!IsEnabled(Preset.Phantom_RestrictToBuff) || Bursting.PlayerIsDamageBuffed)
+        if (!IsEnabled(Preset.Phantom_RestrictToBuff) || BurstAlign.PhantomDamageBuffed)
         {
             if (IsEnabledAndUsable(Preset.Phantom_Gladiator_Finisher, Finisher) && HasBattleTarget() && InMeleeRange())
             {
@@ -1246,7 +1263,7 @@ internal partial class OccultCrescent
         }
 
         if (IsEnabled(Preset.Phantom_RestrictToBuff) &&
-            !Bursting.PlayerIsDamageBuffed)
+            !BurstAlign.PhantomDamageBuffed)
             return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_Gladiator_LongReach, LongReach) && HasBattleTarget())
@@ -1283,7 +1300,7 @@ internal partial class OccultCrescent
             return true;
         }
 
-        if (IsEnabled(Preset.Phantom_RestrictToBuff) && !Bursting.PlayerIsDamageBuffed)
+        if (IsEnabled(Preset.Phantom_RestrictToBuff) && !BurstAlign.PhantomDamageBuffed)
             return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_Ninja_FumaShuriken, FumaShuriken) && HasBattleTarget())
@@ -1351,7 +1368,7 @@ internal partial class OccultCrescent
             return true;
         }
 
-        if (IsEnabled(Preset.Phantom_RestrictToBuff) && !Bursting.PlayerIsDamageBuffed)
+        if (IsEnabled(Preset.Phantom_RestrictToBuff) && !BurstAlign.PhantomDamageBuffed)
             return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_WhiteMage_OccultHoly, OccultHoly) && HasBattleTarget())
@@ -1379,7 +1396,7 @@ internal partial class OccultCrescent
             return true;
         }
 
-        if (IsEnabled(Preset.Phantom_RestrictToBuff) && !Bursting.PlayerIsDamageBuffed)
+        if (IsEnabled(Preset.Phantom_RestrictToBuff) && !BurstAlign.PhantomDamageBuffed)
             return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_BlackMage_OccultFlare, OccultFlare) && HasBattleTarget())
@@ -1435,7 +1452,7 @@ internal partial class OccultCrescent
             return false;
         if (CanWeaveNow)
         {
-            if (IsEnabled(Preset.Phantom_RestrictToBuff) && !Bursting.PlayerIsDamageBuffed)
+            if (IsEnabled(Preset.Phantom_RestrictToBuff) && !BurstAlign.PhantomDamageBuffed)
                 return false;
 
             if (IsEnabledAndUsable(Preset.Phantom_Dragoon_Lance, Lance) && HasBattleTarget())
@@ -1447,7 +1464,7 @@ internal partial class OccultCrescent
             return false;
         }
 
-        if (IsEnabled(Preset.Phantom_RestrictToBuff) && !Bursting.PlayerIsDamageBuffed)
+        if (IsEnabled(Preset.Phantom_RestrictToBuff) && !BurstAlign.PhantomDamageBuffed)
             return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_Dragoon_OccultJump, OccultJump) &&
@@ -1474,7 +1491,7 @@ internal partial class OccultCrescent
             return true;
         }
 
-        if (IsEnabled(Preset.Phantom_RestrictToBuff) && !Bursting.PlayerIsDamageBuffed)
+        if (IsEnabled(Preset.Phantom_RestrictToBuff) && !BurstAlign.PhantomDamageBuffed)
             return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_Summoner_Megaflare, Megaflare) && HasBattleTarget())
@@ -1545,7 +1562,7 @@ internal partial class OccultCrescent
             return true;
         }
 
-        if (IsEnabled(Preset.Phantom_RestrictToBuff) && !Bursting.PlayerIsDamageBuffed)
+        if (IsEnabled(Preset.Phantom_RestrictToBuff) && !BurstAlign.PhantomDamageBuffed)
             return false;
         if (IsEnabledAndUsable(Preset.Phantom_BlueMage_OccultMissile, OccultMissile) &&
             HasBattleTarget() && !ContentCheck.IsInFieldRaids)
@@ -1587,8 +1604,12 @@ internal partial class OccultCrescent
             return false;
         if (IsEnabledAndUsable(Preset.Phantom_RedMage_OccultLibra, OccultLibra))
         {
+            // Occult Libra deals no damage. It reveals elemental weakness for 120s, which is
+            // what makes every Occult Fire/Blizzard/Thunder II afterwards hit for 390 instead
+            // of 300. Gating it on "are we already buffed" delayed the enabler behind the thing
+            // it enables - and it is a 5s oGCD, so it costs a weave slot, not a GCD.
             var canDebuff = EnemiesInRange(OccultLibra).Any(x => x.IsInCombat() && x.IsTargetable && !HasLibraWeakness(x) && CanApplyLibraWeakness(x));
-            if (canDebuff && (!IsEnabled(Preset.Phantom_RestrictToBuff) || Bursting.PlayerIsDamageBuffed))
+            if (canDebuff)
             {
                 actionID = OccultLibra;
                 return true;
@@ -1606,7 +1627,7 @@ internal partial class OccultCrescent
                 return true;
             }
 
-            if (IsEnabled(Preset.Phantom_RestrictToBuff) && !Bursting.PlayerIsDamageBuffed)
+            if (IsEnabled(Preset.Phantom_RestrictToBuff) && !BurstAlign.PhantomDamageBuffed)
                 return false;
 
             var weakness = GetElementalWeaknesses(CurrentTarget);
@@ -1690,7 +1711,7 @@ internal partial class OccultCrescent
         if (!CanUseNecromancerSpells())
             return false;
 
-        if (IsEnabled(Preset.Phantom_RestrictToBuff) && !Bursting.PlayerIsDamageBuffed)
+        if (IsEnabled(Preset.Phantom_RestrictToBuff) && !BurstAlign.PhantomDamageBuffed)
             return false;
         if (IsEnabledAndUsable(Preset.Phantom_Necromancer_ChaosDrive, ChaosDrive) && HasBattleTarget() &&
             HasSpecificWeakness(CurrentTarget, Debuffs.LightningWeakness))
@@ -1744,7 +1765,7 @@ internal partial class OccultCrescent
             return PlayerHP <= Phantom_Necromancer_DrainTouch_EmergencyHealth;
 
         // DPS mode
-        return !IsEnabled(Preset.Phantom_RestrictToBuff) || Bursting.PlayerIsDamageBuffed;
+        return !IsEnabled(Preset.Phantom_RestrictToBuff) || BurstAlign.PhantomDamageBuffed;
     }
 
     private static bool TryUsePledge(ref uint actionID)

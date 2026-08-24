@@ -186,7 +186,20 @@ internal partial class OccultCrescent
     internal static unsafe int CurrentJobLevel => (nint)PublicContentOccultCrescent.GetInstance() == nint.Zero ? 0 : PublicContentOccultCrescent.GetInstance()->State.SupportJobLevels[PublicContentOccultCrescent.GetInstance()->State.CurrentSupportJob];
 
 
-    internal static bool IsEnabledAndUsable(Preset preset, uint action) => IsEnabled(preset) && ActionReady(action);
+    /// <summary>
+    ///     Preset on, action off cooldown, and not currently being held for the player's own
+    ///     burst window.
+    ///     <para/>
+    ///     The burst-alignment check lives here rather than at each call site on purpose: every
+    ///     phantom handler in both OccultCrescent.cs and OccultCrescent_755.cs already routes
+    ///     through this one method, so hooking it covers all of them and cannot be forgotten
+    ///     when a new action is added. Blast radius is exactly
+    ///     <c>BurstAlign.AlignableActions</c> - <see cref="BurstAlign.ShouldHold" /> tests set
+    ///     membership before anything else and returns false for every other action, including
+    ///     the cures and raises that also come through here.
+    /// </summary>
+    internal static bool IsEnabledAndUsable(Preset preset, uint action) =>
+        IsEnabled(preset) && ActionReady(action) && !BurstAlign.ShouldHold(action);
 
     private const int HoldOnlyWhenStationary = 0;
     private const int HoldOnlyInMeleeRange = 1;

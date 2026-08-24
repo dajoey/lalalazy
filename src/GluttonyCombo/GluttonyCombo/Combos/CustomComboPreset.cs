@@ -537,6 +537,10 @@ public enum Preset
     [JobInfo(Job.ADV)]
     Phantom_RestrictToBuff = 109999,
 
+    [OccultCrescent]
+    [JobInfo(Job.ADV)]
+    Phantom_AlignToBurst = 110141,
+
     [OccultCrescent(OccultCrescent.JobIDs.Freelancer)]
     [JobInfo(Job.ADV)]
     Phantom_Freelancer = 110000,
@@ -1078,7 +1082,13 @@ public enum Preset
     [OccultCrescent]
     [ParentCombo(Phantom_Dragoon)]
     [JobInfo(Job.ADV)]
-    Phantom_Dragoon_StepForth = 110139,
+    // 110142, not 110139: 110139 was already taken by Phantom_RedMage_OccultCureII_Retarget,
+    // which made these two enum members ALIASES of each other. PresetStorage.AllPresets is keyed
+    // by Preset, so one of the pair was silently dropped from the UI, and IsEnabled() could not
+    // tell them apart - ticking the Red Mage cure retarget also switched on Dragoon Step Forth.
+    // Moving Step Forth resets that one checkbox for existing users; the Red Mage retarget keeps
+    // its ID and its saved state.
+    Phantom_Dragoon_StepForth = 110142,
 
     [OccultCrescent]
     [ParentCombo(Phantom_Dragoon)]
@@ -1221,7 +1231,7 @@ public enum Preset
     [JobInfo(Job.ADV)]
     Phantom755_RequireWeakness = 110140,
 
-    //Last Value = 110140
+    //Last Value = 110142
     #endregion
 
     // Jobs
