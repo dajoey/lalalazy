@@ -1,4 +1,4 @@
-﻿## v1.0.4.157 (2026-08-24) [testing]
+﻿## v1.0.4.157 (2026-08-24)
 
 ### Fixed
 - **Alignment released the hold on OTHER PEOPLE'S buffs, so abilities fired just before your
