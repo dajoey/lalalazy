@@ -950,9 +950,9 @@ internal unsafe class AutoRotationController
             return false;
         return Player.Job switch
         {
-            Job.SGE => IsEnabled(Preset.SGE_Raidwide_EPrognosis) && LevelChecked(SGE.Eukrasia) &&
+            Job.SGE => IsEnabled(Preset.SGE_Raidwide_EPrognosis) && ActionLearned(SGE.Eukrasia) &&
                        GetPartyBuffPercent(SGE.Buffs.EukrasianPrognosis) <= 50,
-            Job.SCH => IsEnabled(Preset.SCH_Raidwide_Succor) && LevelChecked(SCH.Succor) &&
+            Job.SCH => IsEnabled(Preset.SCH_Raidwide_Succor) && ActionLearned(SCH.Succor) &&
                        GetPartyBuffPercent(SCH.Buffs.Galvanize) <= 50,
             _ => false
         };
@@ -997,7 +997,7 @@ internal unsafe class AutoRotationController
         bool wanted = _schShieldPending ||
                       (GroupDamageIncoming() &&
                        IsEnabled(Preset.SCH_Raidwide_Succor) &&
-                       LevelChecked(SCH.Succor) &&
+                       ActionLearned(SCH.Succor) &&
                        !RaidwideShieldOnCooldown);
         if (!wanted)
         {
@@ -1055,7 +1055,7 @@ internal unsafe class AutoRotationController
         bool wanted = _shieldEukrasiaPending ||
                       (GroupDamageIncoming() &&
                        IsEnabled(Preset.SGE_Raidwide_EPrognosis) &&
-                       LevelChecked(SGE.Eukrasia) &&
+                       ActionLearned(SGE.Eukrasia) &&
                        !RaidwideShieldOnCooldown &&
                        GetPartyBuffPercent(SGE.Buffs.EukrasianPrognosis) <= 50);
         if (!wanted)
@@ -1105,11 +1105,11 @@ internal unsafe class AutoRotationController
         }
 
         uint regen = OriginalHook(WHM.Medica2);   // Medica II -> Medica III (85+)
-        ushort hot = LevelChecked(WHM.Medica3) ? WHM.Buffs.Medica3 : WHM.Buffs.Medica2;
+        ushort hot = ActionLearned(WHM.Medica3) ? WHM.Buffs.Medica3 : WHM.Buffs.Medica2;
         float castS = ActionManager.GetAdjustedCastTime(ActionType.Action, regen) / 1000f;
         float? rem = RaidwideTimeRemaining();
         bool gates = IsEnabled(Preset.WHM_Raidwide_Medica) &&
-                     LevelChecked(WHM.Medica2) &&
+                     ActionLearned(WHM.Medica2) &&
                      !RaidwideShieldOnCooldown &&
                      GetPartyBuffPercent(hot) <= 50;
 
@@ -1201,7 +1201,7 @@ internal unsafe class AutoRotationController
             : GetPartyBuffPercent(AST.Buffs.AspectedHelios) <= 50 &&
               GetPartyBuffPercent(AST.Buffs.HeliosConjunction) <= 50;
         bool gates = IsEnabled(Preset.AST_Raidwide_AspectedHelios) &&
-                     LevelChecked(AST.AspectedHelios) &&
+                     ActionLearned(AST.AspectedHelios) &&
                      !RaidwideShieldOnCooldown &&
                      partyNeedsIt;
 
@@ -1378,7 +1378,7 @@ internal unsafe class AutoRotationController
             uint gameAct = attributes.ReplaceSkill!.ActionIDs.First();
             var status = ActionManager.Instance()->GetActionStatus(ActionType.Action, gameAct, checkCastingActive: false, checkRecastActive: false);
 
-            if (!LevelChecked(gameAct) || status == 581)
+            if (!ActionLearned(gameAct) || status == 581)
                 continue;
 
             if (action.IsHeal)
@@ -1665,7 +1665,7 @@ internal unsafe class AutoRotationController
     // it is known if it acts funny with the standalone retarget then that's what causes it.
     private static void UpdateKardiaTarget()
     {
-        if (!LevelChecked(SGE.Kardia)) return;
+        if (!ActionLearned(SGE.Kardia)) return;
         if (CombatEngageDuration().TotalSeconds < 3) return;
 
         foreach (var member in GetPartyMembers().Where(x => !x.BattleChara.IsDead).OrderByDescending(x => x.BattleChara?.GetRole() is CombatRole.Tank))
@@ -1691,7 +1691,7 @@ internal unsafe class AutoRotationController
     private static bool _sgeShieldEukrasiaPending;
     private static void UpdateSgeTankShield()
     {
-        if (!IsEnabled(Preset.SGE_TankShield) || !LevelChecked(SGE.Eukrasia))
+        if (!IsEnabled(Preset.SGE_TankShield) || !ActionLearned(SGE.Eukrasia))
         {
             _sgeShieldEukrasiaPending = false;
             return;
@@ -1924,8 +1924,8 @@ internal unsafe class AutoRotationController
 
                 }
 
-                ulong targetId = target.GameObjectId;
-                var changed = CheckForChangedTarget(gameAct, ref targetId, out var replacedWith) && targetId != target.GameObjectId;
+                ulong targetId = target?.GameObjectId ?? 0;
+                var changed = CheckForChangedTarget(gameAct, ref targetId, out var replacedWith) && targetId != target?.GameObjectId;
                 if (changed) target = targetId.GetObject();
 
                 OverrideTarget = target ?? OverrideTarget;
@@ -2009,7 +2009,7 @@ internal unsafe class AutoRotationController
             if ((target is not { } t || (!t.IsHostile() && !t.IsFriendly())) && cfg.PauseWhenNoTarget) return true;
 
             ulong targetId = target?.GameObjectId ?? 0;
-            var changed = CheckForChangedTarget(gameAct, ref targetId, out var replacedWith) && targetId != target.GameObjectId;
+            var changed = CheckForChangedTarget(gameAct, ref targetId, out var replacedWith) && targetId != target?.GameObjectId;
             if (changed) target = targetId.GetObject();
 
             OverrideTarget = target ?? OverrideTarget;

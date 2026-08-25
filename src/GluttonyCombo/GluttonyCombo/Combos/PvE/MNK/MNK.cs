@@ -364,7 +364,7 @@ internal partial class MNK : Melee
                 return actionID;
 
             if (MNK_BasicCombo_Chakra &&
-                Chakra >= 5 && LevelChecked(SteeledMeditation) && CanWeave() &&
+                Chakra >= 5 && ActionLearned(SteeledMeditation) && CanWeave() &&
                 InActionRange(OriginalHook(SteeledMeditation)))
                 return OriginalHook(SteelPeak);
 
@@ -375,11 +375,11 @@ internal partial class MNK : Melee
                 return OriginalHook(Bootshine);
 
             if (MNK_BasicCombo_MasterfulBlitz &&
-                LevelChecked(MasterfulBlitz) &&
+                ActionLearned(MasterfulBlitz) &&
                 !IsOriginal(MasterfulBlitz))
                 return OriginalHook(MasterfulBlitz);
 
-            if (!LevelChecked(TrueStrike))
+            if (!ActionLearned(TrueStrike))
                 return Bootshine;
 
             if (HasStatusEffect(Buffs.OpoOpoForm) || HasStatusEffect(Buffs.FormlessFist))
@@ -445,7 +445,7 @@ internal partial class MNK : Melee
                 return actionID;
 
             return OriginalHook(MasterfulBlitz) != MasterfulBlitz &&
-                   LevelChecked(MasterfulBlitz)
+                   ActionLearned(MasterfulBlitz)
                 ? OriginalHook(MasterfulBlitz)
                 : actionID;
         }
@@ -479,7 +479,7 @@ internal partial class MNK : Melee
                 return actionID;
 
             return HasStatusEffect(Buffs.PerfectBalance) &&
-                   LevelChecked(PerfectBalance)
+                   ActionLearned(PerfectBalance)
                 ? All.Cease
                 : actionID;
         }

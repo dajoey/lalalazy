@@ -461,7 +461,7 @@ internal partial class MCH : PhysicalRanged
             if (actionID is not Dismantle)
                 return actionID;
 
-            return (IsOnCooldown(Dismantle) || !LevelChecked(Dismantle) || !HasBattleTarget()) &&
+            return (IsOnCooldown(Dismantle) || !ActionLearned(Dismantle) || !HasBattleTarget()) &&
                    ActionReady(Tactician) && !HasStatusEffect(Buffs.Tactician)
                 ? Tactician
                 : actionID;
@@ -560,11 +560,11 @@ internal partial class MCH : PhysicalRanged
 
             return actionID switch
             {
-                HotShot when LevelChecked(Excavator) && HasStatusEffect(Buffs.ExcavatorReady) => CalcBestAction(actionID, Excavator, Chainsaw, AirAnchor, Drill),
-                HotShot when LevelChecked(Chainsaw) => CalcBestAction(actionID, Chainsaw, AirAnchor, Drill),
-                HotShot when LevelChecked(AirAnchor) => CalcBestAction(actionID, AirAnchor, Drill),
-                HotShot when LevelChecked(Drill) => CalcBestAction(actionID, Drill, HotShot),
-                HotShot when !LevelChecked(Drill) => HotShot,
+                HotShot when ActionLearned(Excavator) && HasStatusEffect(Buffs.ExcavatorReady) => CalcBestAction(actionID, Excavator, Chainsaw, AirAnchor, Drill),
+                HotShot when ActionLearned(Chainsaw) => CalcBestAction(actionID, Chainsaw, AirAnchor, Drill),
+                HotShot when ActionLearned(AirAnchor) => CalcBestAction(actionID, AirAnchor, Drill),
+                HotShot when ActionLearned(Drill) => CalcBestAction(actionID, Drill, HotShot),
+                HotShot when !ActionLearned(Drill) => HotShot,
                 var _ => actionID
             };
         }
@@ -581,9 +581,9 @@ internal partial class MCH : PhysicalRanged
 
             return actionID switch
             {
-                GaussRound or DoubleCheck when MCH_GaussRico == 0 && ActionReady(OriginalHook(GaussRound)) && (CanGaussRound || !LevelChecked(Ricochet)) => OriginalHook(GaussRound),
+                GaussRound or DoubleCheck when MCH_GaussRico == 0 && ActionReady(OriginalHook(GaussRound)) && (CanGaussRound || !ActionLearned(Ricochet)) => OriginalHook(GaussRound),
                 GaussRound or DoubleCheck when MCH_GaussRico == 0 && ActionReady(OriginalHook(Ricochet)) && CanRicochet => OriginalHook(Ricochet),
-                Ricochet or CheckMate when MCH_GaussRico == 1 && ActionReady(OriginalHook(GaussRound)) && (CanGaussRound || !LevelChecked(Ricochet)) => OriginalHook(GaussRound),
+                Ricochet or CheckMate when MCH_GaussRico == 1 && ActionReady(OriginalHook(GaussRound)) && (CanGaussRound || !ActionLearned(Ricochet)) => OriginalHook(GaussRound),
                 Ricochet or CheckMate when MCH_GaussRico == 1 && ActionReady(OriginalHook(Ricochet)) && CanRicochet => OriginalHook(Ricochet),
                 var _ => actionID
             };

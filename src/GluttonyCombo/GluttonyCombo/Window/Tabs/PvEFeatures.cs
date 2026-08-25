@@ -182,6 +182,16 @@ internal class PvEFeatures : FeaturesWindow
                                 ImGui.EndTabItem();
                             }
                         }
+
+                        if (groupedPresets[openJob.Value].Any(x => x.IsDeepDungeon))
+                        {
+                            if (ImGui.BeginTabItem(MiscUI.Deep_Dungeon))
+                            {
+                                SetCurrentTab(FeatureTab.DeepDungeon);
+                                DrawDeepDungeonContents(openJob.Value);
+                                ImGui.EndTabItem();
+                            }
+                        }
                     }
 
                     ImGui.EndTabBar();
@@ -273,6 +283,34 @@ internal class PvEFeatures : FeaturesWindow
             SearchMorePresets([.. PresetStorage.AllPresets!
                 .Where(kvp =>
                     kvp.Value.IsOccultCrescent &&
+                    !kvp.Value.ShouldBeHidden &&
+                    kvp.Value.JobInfo.Job == job)
+                .Select(kvp => kvp.Key)],
+                alreadyShown);
+        ShowSearchErrorIfNoResults();
+    }
+
+    private static void DrawDeepDungeonContents(Job job)
+    {
+        List<Preset> alreadyShown = [];
+        foreach (var presetData in groupedPresets[job].Where(x =>
+            x.IsDeepDungeon &&
+            !x.ShouldBeHidden))
+        {
+            if (IsSearching && !PresetMatchesSearch(presetData.Preset))
+                continue;
+            alreadyShown.Add(presetData.Preset);
+
+            InfoBox presetBox = new() { CurveRadius = 8f, ContentsAction = () => { Presets.DrawPreset(presetData.Preset, presetData); } };
+            presetBox.Draw();
+            ImGuiEx.Spacing(new Vector2(0, 12));
+        }
+
+        // Search for children if nothing was found at the root
+        if (IsSearching)
+            SearchMorePresets([.. PresetStorage.AllPresets!
+                .Where(kvp =>
+                    kvp.Value.IsDeepDungeon &&
                     !kvp.Value.ShouldBeHidden &&
                     kvp.Value.JobInfo.Job == job)
                 .Select(kvp => kvp.Key)],

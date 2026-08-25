@@ -14,7 +14,7 @@ internal partial class RPR : Melee
             if (!CustomActionHelper.OneButtonRotationChecker(actionID, CustomActionType.SingleTargetDPS, Slice)) return actionID;
 
             //Soulsow
-            if (LevelChecked(Soulsow) &&
+            if (ActionLearned(Soulsow) &&
                 !HasStatusEffect(Buffs.Soulsow) &&
                 !PartyInCombat())
                 return Soulsow;
@@ -99,7 +99,7 @@ internal partial class RPR : Melee
             if (!CustomActionHelper.OneButtonRotationChecker(actionID, CustomActionType.AoEDPS, SpinningScythe)) return actionID;
 
             //Soulsow
-            if (LevelChecked(Soulsow) &&
+            if (ActionLearned(Soulsow) &&
                 !HasStatusEffect(Buffs.Soulsow) && !PartyInCombat())
                 return Soulsow;
 
@@ -168,7 +168,7 @@ internal partial class RPR : Melee
 
             //Soulsow
             if (IsEnabled(Preset.RPR_ST_SoulSow) &&
-                LevelChecked(Soulsow) &&
+                ActionLearned(Soulsow) &&
                 !HasStatusEffect(Buffs.Soulsow) && !PartyInCombat())
                 return Soulsow;
 
@@ -295,7 +295,7 @@ internal partial class RPR : Melee
 
             //Soulsow
             if (IsEnabled(Preset.RPR_AoE_SoulSow) &&
-                LevelChecked(Soulsow) &&
+                ActionLearned(Soulsow) &&
                 !HasStatusEffect(Buffs.Soulsow) && !PartyInCombat())
                 return Soulsow;
 
@@ -389,10 +389,10 @@ internal partial class RPR : Melee
 
             if (ComboTimer > 0)
             {
-                if (ComboAction is Slice && LevelChecked(WaxingSlice))
+                if (ComboAction is Slice && ActionLearned(WaxingSlice))
                     return WaxingSlice;
 
-                if (ComboAction is WaxingSlice && LevelChecked(InfernalSlice))
+                if (ComboAction is WaxingSlice && ActionLearned(InfernalSlice))
                     return InfernalSlice;
             }
 
@@ -416,7 +416,7 @@ internal partial class RPR : Melee
 
             if (ComboTimer > 0)
             {
-                if (ComboAction is SpinningScythe && LevelChecked(NightmareScythe))
+                if (ComboAction is SpinningScythe && ActionLearned(NightmareScythe))
                     return NightmareScythe;
             }
 
@@ -449,7 +449,7 @@ internal partial class RPR : Melee
                                 return OriginalHook(Gluttony);
 
                             //Lemure's Slice
-                            if (Void >= 2 && LevelChecked(LemuresScythe))
+                            if (Void >= 2 && ActionLearned(LemuresScythe))
                                 return OriginalHook(GrimSwathe);
                         }
                     }
@@ -493,7 +493,7 @@ internal partial class RPR : Melee
                                 return OriginalHook(Gluttony);
 
                             //Lemure's Slice
-                            if (Void >= 2 && LevelChecked(LemuresSlice))
+                            if (Void >= 2 && ActionLearned(LemuresSlice))
                                 return OriginalHook(BloodStalk);
                         }
                     }
@@ -578,7 +578,7 @@ internal partial class RPR : Melee
             if (actionID is not ArcaneCircle)
                 return actionID;
 
-            return HasImmortalSacrificeStacks && LevelChecked(PlentifulHarvest)
+            return HasImmortalSacrificeStacks && ActionLearned(PlentifulHarvest)
                 ? PlentifulHarvest
                 : actionID;
         }
@@ -659,11 +659,11 @@ internal partial class RPR : Melee
             {
                 case Gibbet or Gallows when HasStatusEffect(Buffs.Enshrouded):
                 {
-                    if (Gauge is { LemureShroud: 1, VoidShroud: 0 } && LevelChecked(Communio))
+                    if (Gauge is { LemureShroud: 1, VoidShroud: 0 } && ActionLearned(Communio))
                         return Communio;
 
                     if (IsEnabled(Preset.RPR_LemureOnGGG) &&
-                        Void >= 2 && LevelChecked(LemuresSlice) && CanWeave())
+                        Void >= 2 && ActionLearned(LemuresSlice) && CanWeave())
                         return OriginalHook(BloodStalk);
 
                     break;
@@ -671,11 +671,11 @@ internal partial class RPR : Melee
 
                 case Guillotine when HasStatusEffect(Buffs.Enshrouded):
                 {
-                    if (Gauge is { LemureShroud: 1, VoidShroud: 0 } && LevelChecked(Communio))
+                    if (Gauge is { LemureShroud: 1, VoidShroud: 0 } && ActionLearned(Communio))
                         return Communio;
 
                     if (IsEnabled(Preset.RPR_LemureOnGGG) &&
-                        Void >= 2 && LevelChecked(LemuresScythe) && CanWeave())
+                        Void >= 2 && ActionLearned(LemuresScythe) && CanWeave())
                         return OriginalHook(GrimSwathe);
 
                     break;

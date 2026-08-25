@@ -40,6 +40,7 @@ using GluttonyCombo.Services.ActionRequestIPC;
 using GluttonyCombo.Services.IPC;
 using GluttonyCombo.Services.IPC_Subscriber;
 using GluttonyCombo.Window.Functions;
+using static GluttonyCombo.Combos.PvE.Content.DeepDungeons.DeepDungeons;
 using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
 using Action = Lumina.Excel.Sheets.Action;
 using BattleNpcSubKindCS = FFXIVClientStructs.FFXIV.Client.Game.Object.BattleNpcSubKind;
@@ -187,8 +188,9 @@ internal class Debug : ConfigWindow, IDisposable
                     config = JsonConvert.DeserializeObject<Configuration>(decode);
                 }
                 // Fallback to decoding the non-decompressed data
-                catch (Exception)
+                catch (Exception ex)
                 {
+                    ex.Log();
                     var decode = Encoding.UTF8.GetString(base64);
                     config = JsonConvert.DeserializeObject<Configuration>(decode);
                 }
@@ -576,9 +578,16 @@ internal class Debug : ConfigWindow, IDisposable
                         WrathOpener.CurrentOpener.OpenerStep <
                         WrathOpener.CurrentOpener.OpenerActions.Count)
                     {
-                        CustomStyleText("Next Action:", WrathOpener.CurrentOpener.OpenerActions[WrathOpener.CurrentOpener.OpenerStep].ActionName());
+                        CustomStyleText("Next Action:", WrathOpener.CurrentOpener.OpenerActions[WrathOpener.CurrentOpener.OpenerStep].Invoke().ActionName());
                         CustomStyleText("Is Delayed Weave:", WrathOpener.CurrentOpener.DelayedWeaveSteps.Any(x => x == WrathOpener.CurrentOpener.OpenerStep));
                         CustomStyleText("Can Delayed Weave:", CanDelayedWeave(weaveEnd: 0.1f));
+                    }
+
+                    int stepIndex = 0;
+                    foreach (var action in WrathOpener.CurrentOpener.OpenerActions)
+                    {
+                        stepIndex++;
+                        CustomStyleText($"Opener Action {stepIndex}:", action.Invoke().ActionName());
                     }
                 }
 
@@ -764,6 +773,7 @@ internal class Debug : ConfigWindow, IDisposable
                 CustomStyleText("Max Charges:", $"{_debugSpell.Value.MaxCharges}");
                 CustomStyleText("Charges (Level):", $"{GetCooldown(_debugSpell.Value.RowId).MaxCharges}");
                 CustomStyleText("Charge CD:", $"{GetCooldown(_debugSpell.Value.RowId).ChargeCooldownRemaining}");
+                CustomStyleText("Action Learned", $"{ActionLearned(_debugSpell.Value.RowId)}");
                 CustomStyleText("Range:", $"{GetActionRange(_debugSpell.Value.RowId)}");
                 CustomStyleText("Effect Range:", $"{_debugSpell.Value.EffectRange}");
                 CustomStyleText("In Range:", $"{InActionRange(_debugSpell.Value.RowId)}");
@@ -1458,6 +1468,14 @@ internal class Debug : ConfigWindow, IDisposable
             foreach (var act in P.CustomActions.Manager.Actions)
             {
                 CustomStyleText($"{act.Name}", $"{act.Id}");
+            }
+        }
+
+        if (ImGui.CollapsingHeader("Deep Dungeons"))
+        {
+            foreach (var pomander in Enum.GetValues<Pomanders>())
+            {
+                CustomStyleText($"{pomander}", $"{PomanderCount(pomander)} Usable: {GetDDItemInfo(pomander).IsUsable}");
             }
         }
 

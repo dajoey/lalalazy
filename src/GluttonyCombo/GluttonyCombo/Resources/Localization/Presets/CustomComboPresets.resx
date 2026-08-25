@@ -12149,4 +12149,28 @@ Will be used in all 4 main combos.</value>
   <data name="Phantom_RedMage_OccultCureII_Retarget_Desc" xml:space="preserve">
     <value>Retargets Phantom Cure II. Retargets if anyone in your party is below the slider above.</value>
   </data>
+  <data name="PoTD_SustainingPotion_Name" xml:space="preserve">
+    <value>Palace of the Dead - Sustaining Potion</value>
+  </data>
+  <data name="PoTD_SustainingPotion_Desc" xml:space="preserve">
+    <value>Adds Sustaining Potion to one button rotations</value>
+  </data>
+  <data name="HoH_EmpyreanPotion_Name" xml:space="preserve">
+    <value>Heaven on High - Empyrean Potion</value>
+  </data>
+  <data name="HoH_EmpyreanPotion_Desc" xml:space="preserve">
+    <value>Adds Empyrean Potion to one button rotations</value>
+  </data>
+  <data name="EO_OrthosPotion_Name" xml:space="preserve">
+    <value>Eureka Orthos - Orthos Potion</value>
+  </data>
+  <data name="EO_OrthosPotion_Desc" xml:space="preserve">
+    <value>Adds Orthos Potion to one button rotations</value>
+  </data>
+  <data name="PT_PilgrimsPotion_Name" xml:space="preserve">
+    <value>Pilgrim's Traverse - Pilgrim's Potion</value>
+  </data>
+  <data name="PT_PilgrimsPotion_Desc" xml:space="preserve">
+    <value>Adds Pilgrim's Potion to one button rotations</value>
+  </data>
 </root>

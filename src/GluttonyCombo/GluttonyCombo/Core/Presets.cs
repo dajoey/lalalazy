@@ -72,6 +72,7 @@ internal static class PresetStorage
         public bool IsBozja { get; }
         public bool IsOccultCrescent => OccultCrescentJob != null;
         public OccultCrescentAttribute? OccultCrescentJob;
+        public bool IsDeepDungeon { get; }
         public string? HoverText { get; }
         public ReplaceSkillAttribute? ReplaceSkill;
         public JobInfoAttribute? JobInfo;
@@ -89,6 +90,7 @@ internal static class PresetStorage
             Conflicts = preset.GetAttribute<ConflictingCombosAttribute>()?.ConflictingPresets ?? [];
             Parent = preset.GetAttribute<ParentComboAttribute>()?.ParentPreset;
             BlueInactive = preset.GetAttribute<BlueInactiveAttribute>();
+            IsDeepDungeon = preset.GetAttribute<DeepDungeonAttribute>() != null;
             IsVariant = preset.GetAttribute<VariantAttribute>() != null;
             PossiblyRetargeted = preset.GetAttribute<PossiblyRetargetedAttribute>();
             RetargetedAttribute = preset.GetAttribute<RetargetedAttribute>();

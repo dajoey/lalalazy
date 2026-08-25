@@ -401,7 +401,7 @@ internal partial class BLU
             if (Config.BLU_Use_Bristle && IsSpellActive(Bristle) && !HasStatusEffect(Buffs.Bristle) &&
                 IsOffCooldown(MatraMagic) && Config.BLU_Use_MatraMagic && IsSpellActive(MatraMagic))
                 return Bristle;
-            if (IsOffCooldown(Role.Swiftcast) && LevelChecked(Role.Swiftcast))
+            if (IsOffCooldown(Role.Swiftcast) && ActionLearned(Role.Swiftcast))
                 return Role.Swiftcast;
             if (Config.BLU_Use_Surpanakha && IsSpellActive(Surpanakha) && GetRemainingCharges(Surpanakha) > 0)
                 return Surpanakha;

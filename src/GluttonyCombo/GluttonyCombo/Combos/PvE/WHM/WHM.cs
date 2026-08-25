@@ -66,7 +66,7 @@ internal partial class WHM : Healer
                 ? SimpleTarget.DottableEnemy(dotAction, dotDebuffID, 0, 30, 99) //if moving and dont have other mobile gcds
                 : SimpleTarget.DottableEnemy(dotAction, dotDebuffID, 0, 3, 99); 
             
-            if (target is not null && ActionReady(dotAction) && CanApplyStatus(target, dotDebuffID) && !JustUsedOn(dotAction, target) && LevelChecked(Aero))
+            if (target is not null && ActionReady(dotAction) && CanApplyStatus(target, dotDebuffID) && !JustUsedOn(dotAction, target) && ActionLearned(Aero))
                 return dotAction.Retarget(actionID, target);
             
             // Blood Lily Spend
@@ -251,7 +251,7 @@ internal partial class WHM : Healer
 
             // Lily Heal Overcap
             if (IsEnabled(Preset.WHM_ST_MainCombo_LilyOvercap) && ActionReady(AfflatusRapture) &&
-                LevelChecked(AfflatusMisery) &&  !BloodLilyReady &&
+                ActionLearned(AfflatusMisery) &&  !BloodLilyReady &&
                 (FullLily || gauge.Lily == 2 && 20000 - gauge.LilyTimer <= WHM_STDPS_LilyOvercap * 1000))
                 return AfflatusRapture;
 
@@ -295,13 +295,13 @@ internal partial class WHM : Healer
 
             if (IsEnabled(Preset.WHM_AoE_DPS_SwiftHoly) &&
                 ActionReady(Role.Swiftcast) && !HasOrExpectsOccultInstantCast &&
-                LevelChecked(Holy) &&
+                ActionLearned(Holy) &&
                 AssizeCount == 0 && !IsMoving() && InCombat())
                 return Role.Swiftcast;
 
             if (IsEnabled(Preset.WHM_AoE_DPS_SwiftHoly) &&
                 WasLastAction(Role.Swiftcast) &&
-                LevelChecked(Holy))
+                ActionLearned(Holy))
                 return OriginalHook(Holy);
 
             #endregion
@@ -350,7 +350,7 @@ internal partial class WHM : Healer
                 return OriginalHook(Glare4);
 
             if (IsEnabled(Preset.WHM_AoE_DPS_LilyOvercap) && ActionReady(AfflatusRapture) &&
-                LevelChecked(AfflatusMisery) &&  !BloodLilyReady &&
+                ActionLearned(AfflatusMisery) &&  !BloodLilyReady &&
                 (FullLily || gauge.Lily == 2 && 20000 - gauge.LilyTimer <= WHM_AoEDPS_LilyOvercap * 1000))
                 return AfflatusRapture;
 
@@ -434,7 +434,7 @@ internal partial class WHM : Healer
             if (ActionReady(ThinAir) && GetRemainingCharges(ThinAir) == 2)
                 return ThinAir;
             
-            return LevelChecked(Cure2)
+            return ActionLearned(Cure2)
                 ? Cure2.RetargetIfEnabled(actionID)
                 : Cure.RetargetIfEnabled(actionID);
         }
@@ -466,7 +466,7 @@ internal partial class WHM : Healer
                  HasStatusEffect(Buffs.DivineGrace)))
                 return OriginalHook(Temperance);
             
-            if (LevelChecked(LiturgyOfTheBell) &&
+            if (ActionLearned(LiturgyOfTheBell) &&
                 IsOffCooldown(LiturgyOfTheBell) &&
                 (GetPartyAvgHPPercent() <= 50 ||
                  GroupDamageIncoming()))
@@ -514,7 +514,7 @@ internal partial class WHM : Healer
 
             var healTarget = SimpleTarget.Stack.OneButtonHealLogic;
 
-            var canThinAir = LevelChecked(ThinAir) &&
+            var canThinAir = ActionLearned(ThinAir) &&
                              !HasStatusEffect(Buffs.ThinAir) &&
                              GetRemainingCharges(ThinAir) >
                              WHM_STHeals_ThinAir;
@@ -579,7 +579,7 @@ internal partial class WHM : Healer
                 }
             }
             
-            if (LevelChecked(Cure2))
+            if (ActionLearned(Cure2))
                 return IsEnabled(Preset.WHM_STHeals_ThinAir) && canThinAir
                     ? ThinAir
                     : Cure2.RetargetIfEnabled(actionID);
@@ -598,7 +598,7 @@ internal partial class WHM : Healer
 
             #region Variables
             var healTarget = SimpleTarget.Stack.OneButtonHealLogic;
-            var canThinAir = LevelChecked(ThinAir) &&
+            var canThinAir = ActionLearned(ThinAir) &&
                              !HasStatusEffect(Buffs.ThinAir) &&
                              GetRemainingCharges(ThinAir) >
                              WHM_AoEHeals_ThinAir;
@@ -696,7 +696,7 @@ internal partial class WHM : Healer
             if (actionID is not Cure2)
                 return actionID;
 
-            if (!LevelChecked(Cure2))
+            if (!ActionLearned(Cure2))
                 return IsEnabled(Preset.WHM_Re_Cure)
                     ? Cure.Retarget(Cure2, SimpleTarget.Stack.AllyToHeal)
                     : Cure;

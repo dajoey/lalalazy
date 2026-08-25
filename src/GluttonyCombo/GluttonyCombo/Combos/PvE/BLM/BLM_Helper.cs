@@ -38,7 +38,7 @@ internal partial class BLM
     #region Polyglot
 
     private static uint PolyglotSpell =>
-        LevelChecked(Xenoglossy) ? Xenoglossy : Foul;
+        ActionLearned(Xenoglossy) ? Xenoglossy : Foul;
 
     private static bool OvercapPolyglotProtection =>
         IsPolyglotCapped && PolyglotTimer <= 5;
@@ -65,7 +65,7 @@ internal partial class BLM
     #region Fire Phase
 
     private static bool CanFlareStar() =>
-        LevelChecked(FlareStar) && AstralSoulStacks is 6;
+        ActionLearned(FlareStar) && AstralSoulStacks is 6;
 
     private static float TimeSinceFirestarterBuff =>
         HasStatusEffect(Buffs.Firestarter) ? GetPartyMembers().First().TimeSinceBuffApplied(Buffs.Firestarter) : 0;
@@ -76,14 +76,14 @@ internal partial class BLM
             : Fire;
 
     private static bool CanFire3 =>
-        LevelChecked(Fire3) && HasStatusEffect(Buffs.Firestarter) &&
-        (AstralFireStacks < 3 || !LevelChecked(Fire4) && TimeSinceFirestarterBuff >= GCD * 3);
+        ActionLearned(Fire3) && HasStatusEffect(Buffs.Firestarter) &&
+        (AstralFireStacks < 3 || !ActionLearned(Fire4) && TimeSinceFirestarterBuff >= GCD * 3);
 
     private static bool CanFireParadox =>
         IsParadoxActive && MP.Cur >= MP.FireParadox &&
         (!HasStatusEffect(Buffs.Firestarter) && AstralFireStacks < 3 ||
          JustUsed(FlareStar, GCD * 4) ||
-         !LevelChecked(FlareStar) && ActionReady(Despair));
+         !ActionLearned(FlareStar) && ActionReady(Despair));
 
     private static bool IsEndOfFirePhase =>
         IsInFirePhase && !ActionReady(Despair) && !ActionReady(FireSpam) && !ActionReady(FlareStar);
@@ -139,7 +139,7 @@ internal partial class BLM
     }
 
     private static bool CanAoEThunder(int hpThreshold = 0, float dotRefresh = 3f) =>
-        LevelChecked(OriginalHook(Thunder2)) && HasStatusEffect(Buffs.Thunderhead) &&
+        ActionLearned(OriginalHook(Thunder2)) && HasStatusEffect(Buffs.Thunderhead) &&
         CanApplyStatus(CurrentTarget, ThunderList[OriginalHook(Thunder2)]) &&
         GetTargetHPPercent() > hpThreshold &&
         (!IsInIcePhase || JustUsedFreezeOrBlizzard || IsEndOfIcePhaseAoE || !ActionReady(Freeze)) &&
@@ -187,13 +187,13 @@ internal partial class BLM
         }
 
         if (ActionReady(FireSpam) &&
-            (LevelChecked(Despair) && MP.Cur - MP.FireI >= 800 || !LevelChecked(Despair)))
+            (ActionLearned(Despair) && MP.Cur - MP.FireI >= 800 || !ActionLearned(Despair)))
         {
             actionID = FireSpam;
             return true;
         }
 
-        if (ActionReady(Flare) && !LevelChecked(Fire4) && MP.Cur <= 800)
+        if (ActionReady(Flare) && !ActionLearned(Fire4) && MP.Cur <= 800)
         {
             actionID = Flare;
             return true;
@@ -212,7 +212,7 @@ internal partial class BLM
         }
 
         if (useTranspose && ActionReady(Transpose) &&
-            !LevelChecked(Fire3) && MP.Cur < MP.FireI)
+            !ActionLearned(Fire3) && MP.Cur < MP.FireI)
         {
             actionID = Transpose;
             return true;
@@ -231,7 +231,7 @@ internal partial class BLM
 
         if (MP.Full || JustUsed(Blizzard4))
         {
-            if (LevelChecked(Fire3))
+            if (ActionLearned(Fire3))
             {
                 actionID = Fire3;
                 return true;
@@ -243,7 +243,7 @@ internal partial class BLM
                 return true;
             }
 
-            if (!ActionReady(Transpose) && LevelChecked(Fire))
+            if (!ActionReady(Transpose) && ActionLearned(Fire))
             {
                 actionID = Fire;
                 return true;
@@ -270,13 +270,13 @@ internal partial class BLM
 
     private static bool TryOutOfPhaseGcd(ref uint actionID)
     {
-        if (LevelChecked(Blizzard3))
+        if (ActionLearned(Blizzard3))
         {
             actionID = MP.Cur < 7500 ? Blizzard3 : Fire3;
             return true;
         }
 
-        if (LevelChecked(Fire) && !ActionReady(Transpose) && MP.Cur > MP.FireI)
+        if (ActionLearned(Fire) && !ActionReady(Transpose) && MP.Cur > MP.FireI)
         {
             actionID = Fire;
             return true;
@@ -351,7 +351,7 @@ internal partial class BLM
             ActionReady(Transpose) &&
             (HasStatusEffect(Role.Buffs.Swiftcast) ||
              HasStatusEffect(Buffs.Triplecast) ||
-             transposeIncludeLowMp && !LevelChecked(Fire3) && MP.Cur < MP.FireI))
+             transposeIncludeLowMp && !ActionLearned(Fire3) && MP.Cur < MP.FireI))
         {
             actionID = Transpose;
             return true;
@@ -431,7 +431,7 @@ internal partial class BLM
     #region ST GCD Utilities
 
     private static bool CanStScatheFiller(bool useScathe = true) =>
-        useScathe && IsMoving() && !LevelChecked(Triplecast) && ActionReady(Scathe);
+        useScathe && IsMoving() && !ActionLearned(Triplecast) && ActionReady(Scathe);
 
     private static bool TryStPolyglotOvercap(ref uint actionID, bool usePolyglot = true)
     {
@@ -454,7 +454,7 @@ internal partial class BLM
     private static bool TryStAmplifierXeno(ref uint actionID, bool useAmplifier = true, bool usePolyglot = true)
     {
         if (!(useAmplifier && usePolyglot &&
-              LevelChecked(Amplifier) &&
+              ActionLearned(Amplifier) &&
               GetCooldownRemainingTime(Amplifier) < 5 &&
               IsPolyglotCapped))
             return false;
@@ -508,7 +508,7 @@ internal partial class BLM
             return true;
         }
 
-        if (LevelChecked(Paradox) &&
+        if (ActionLearned(Paradox) &&
             IsInFirePhase && IsParadoxActive &&
             MP.Cur >= MP.FireParadox &&
             !HasStatusEffect(Buffs.Firestarter) &&
@@ -662,7 +662,7 @@ internal partial class BLM
         }
 
         if (useBlizzard2Fallback &&
-            LevelChecked(Blizzard2) &&
+            ActionLearned(Blizzard2) &&
             TraitLevelChecked(Traits.AspectMasteryIII) &&
             !TraitLevelChecked(Traits.UmbralHeart))
         {
@@ -687,9 +687,9 @@ internal partial class BLM
         bool flareTransposeRequiresNoUmbralHeart = false)
     {
         if (IsUmbralHeartCapped ||
-            MP.Cur >= 5000 && LevelChecked(Flare) &&
+            MP.Cur >= 5000 && ActionLearned(Flare) &&
             (!flareTransposeRequiresNoUmbralHeart || !TraitLevelChecked(Traits.UmbralHeart)) ||
-            MP.Full && !LevelChecked(Flare))
+            MP.Full && !ActionLearned(Flare))
         {
             if (useTranspose && ActionReady(Transpose))
             {
@@ -698,7 +698,7 @@ internal partial class BLM
             }
 
             if (useFire2WithoutTranspose &&
-                LevelChecked(Fire2) &&
+                ActionLearned(Fire2) &&
                 TraitLevelChecked(Traits.AspectMasteryIII))
             {
                 actionID = OriginalHook(Fire2);
@@ -716,7 +716,7 @@ internal partial class BLM
             return true;
         }
 
-        if (!ActionReady(Freeze) && LevelChecked(Blizzard2))
+        if (!ActionReady(Freeze) && ActionLearned(Blizzard2))
         {
             actionID = OriginalHook(Blizzard2);
             return true;
@@ -807,7 +807,7 @@ internal partial class BLM
     private static bool TryMovementAction(int index, ref uint actionID)
     {
         uint action = PrioritizedMovement[index].Action;
-        if (!(ActionReady(action) && LevelChecked(action) && PrioritizedMovement[index].Logic()))
+        if (!(ActionReady(action) && ActionLearned(action) && PrioritizedMovement[index].Logic()))
             return false;
 
         actionID = action;
@@ -862,78 +862,78 @@ internal partial class BLM
 
     internal class BLMStandardOpener : BLMOpenerBase
     {
-        public override List<uint> OpenerActions { get; set; } =
+        public override List<Func<uint>> OpenerActions { get; set; } =
         [
-            Fire3, // 1
-            HighThunder, // 2
-            Role.Swiftcast, // 3
-            Amplifier, // 4
-            Fire4, // 5
-            Items.UseItem(Items.GetStrongestPotionRow(Items.PotionType.Int)), // 6
-            LeyLines, // 7
-            Fire4, // 8
-            Fire4, // 9
-            Fire4, // 10
-            Fire4, // 11
-            Xenoglossy, // 12
-            Manafont, // 13
-            Fire4, // 14
-            FlareStar, // 15
-            Fire4, // 16
-            Fire4, // 17
-            HighThunder, // 18
-            Fire4, // 19
-            Fire4, // 20
-            Fire4, // 21
-            Fire4, // 22
-            FlareStar, // 23
-            Despair, // 24
-            Transpose, // 25
-            Triplecast, // 26
-            Blizzard3, // 27
-            Blizzard4, // 28
-            Paradox, // 29
-            Transpose, // 30
-            Paradox, // 31
-            Fire3 // 32
+            () => Fire3, // 1
+            () => HighThunder, // 2
+            () => Role.Swiftcast, // 3
+            () => Amplifier, // 4
+            () => Fire4, // 5
+            () => Items.UseItem(Items.GetStrongestPotionRow(Items.PotionType.Int)), // 6
+            () => LeyLines, // 7
+            () => Fire4, // 8
+            () => Fire4, // 9
+            () => Fire4, // 10
+            () => Fire4, // 11
+            () => Xenoglossy, // 12
+            () => Manafont, // 13
+            () => Fire4, // 14
+            () => FlareStar, // 15
+            () => Fire4, // 16
+            () => Fire4, // 17
+            () => HighThunder, // 18
+            () => Fire4, // 19
+            () => Fire4, // 20
+            () => Fire4, // 21
+            () => Fire4, // 22
+            () => FlareStar, // 23
+            () => Despair, // 24
+            () => Transpose, // 25
+            () => Triplecast, // 26
+            () => Blizzard3, // 27
+            () => Blizzard4, // 28
+            () => Paradox, // 29
+            () => Transpose, // 30
+            () => Paradox, // 31
+            () => Fire3 // 32
         ];
     }
 
     internal class BLMFlareOpener : BLMOpenerBase
     {
-        public override List<uint> OpenerActions { get; set; } =
+        public override List<Func<uint>> OpenerActions { get; set; } =
         [
-            Fire3, // 1
-            HighThunder, // 2
-            Role.Swiftcast, // 3
-            Amplifier, // 4
-            Fire4, // 5
-            Items.UseItem(Items.GetStrongestPotionRow(Items.PotionType.Int)), // 6
-            LeyLines, // 7
-            Fire4, // 8
-            Xenoglossy, // 9
-            Fire4, // 10
-            Fire4, // 11
-            Despair, // 12
-            Manafont, // 13
-            Fire4, // 14
-            Fire4, // 15
-            FlareStar, // 16
-            Fire4, // 17
-            HighThunder, // 18
-            Fire4, // 19
-            Fire4, // 20
-            Fire4, // 21
-            Paradox, // 22
-            Triplecast, // 23
-            Flare, // 24
-            FlareStar, // 25
-            Transpose, // 26
-            Blizzard3, // 27
-            Blizzard4, // 28
-            Paradox, // 29
-            Transpose, // 30
-            Fire3 // 31
+            () => Fire3, // 1
+            () => HighThunder, // 2
+            () => Role.Swiftcast, // 3
+            () => Amplifier, // 4
+            () => Fire4, // 5
+            () => Items.UseItem(Items.GetStrongestPotionRow(Items.PotionType.Int)), // 6
+            () => LeyLines, // 7
+            () => Fire4, // 8
+            () => Xenoglossy, // 9
+            () => Fire4, // 10
+            () => Fire4, // 11
+            () => Despair, // 12
+            () => Manafont, // 13
+            () => Fire4, // 14
+            () => Fire4, // 15
+            () => FlareStar, // 16
+            () => Fire4, // 17
+            () => HighThunder, // 18
+            () => Fire4, // 19
+            () => Fire4, // 20
+            () => Fire4, // 21
+            () => Paradox, // 22
+            () => Triplecast, // 23
+            () => Flare, // 24
+            () => FlareStar, // 25
+            () => Transpose, // 26
+            () => Blizzard3, // 27
+            () => Blizzard4, // 28
+            () => Paradox, // 29
+            () => Transpose, // 30
+            () => Fire3 // 31
         ];
     }
 
@@ -1070,3 +1070,5 @@ internal partial class BLM
 
     #endregion
 }
+
+

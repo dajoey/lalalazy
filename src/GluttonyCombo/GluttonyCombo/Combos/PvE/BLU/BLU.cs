@@ -147,7 +147,7 @@ internal partial class BLU : Caster
                     return Eruption;
                 if (!HasStatusEffect(Buffs.Bristle) && IsOffCooldown(Role.Swiftcast) && IsSpellActive(Bristle))
                     return Bristle;
-                if (IsOffCooldown(Role.Swiftcast) && LevelChecked(Role.Swiftcast))
+                if (IsOffCooldown(Role.Swiftcast) && ActionLearned(Role.Swiftcast))
                     return Role.Swiftcast;
                 if (IsOffCooldown(GlassDance) && IsSpellActive(GlassDance))
                     return GlassDance;
@@ -199,7 +199,7 @@ internal partial class BLU : Caster
                         return ShockStrike;
                 }
 
-                if (IsOffCooldown(Role.Swiftcast) && LevelChecked(Role.Swiftcast))
+                if (IsOffCooldown(Role.Swiftcast) && ActionLearned(Role.Swiftcast))
                     return Role.Swiftcast;
                 if (IsSpellActive(FinalSting))
                     return FinalSting;

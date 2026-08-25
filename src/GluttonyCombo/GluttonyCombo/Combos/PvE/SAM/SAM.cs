@@ -28,7 +28,7 @@ internal partial class SAM : Melee
                 if (UseSenei())
                     return Senei;
 
-                if (!LevelChecked(Senei) && UseGuren())
+                if (!ActionLearned(Senei) && UseGuren())
                     return Guren;
 
                 if (NeedKenkiRoomForIkishoten() && !ActionReady(Senei) && UseShinten())
@@ -158,7 +158,7 @@ internal partial class SAM : Melee
                             return Senei;
 
                         if (SAM_ST_Senei_Guren &&
-                            !LevelChecked(Senei) &&
+                            !ActionLearned(Senei) &&
                             UseGuren())
                             return Guren;
                     }
@@ -384,20 +384,20 @@ internal partial class SAM : Melee
 
             if (HasStatusEffect(Buffs.MeikyoShisui))
             {
-                if (LevelChecked(Yukikaze) && !HasSetsu &&
+                if (ActionLearned(Yukikaze) && !HasSetsu &&
                     (HasGetsu || !SAM_Yukikaze_Gekko) &&
                     (HasKa || !SAM_Yukikaze_Kasha))
                     return Yukikaze;
 
                 if (SAM_Yukikaze_Gekko &&
-                    LevelChecked(Gekko) &&
+                    ActionLearned(Gekko) &&
                     ((OnTargetsRear() || OnTargetsFront()) && !HasGetsu ||
                      OnTargetsFlank() && HasKa ||
                      !HasStatusEffect(Buffs.Fugetsu) && !HasGetsu))
                     return Gekko;
 
                 if (SAM_Yukikaze_Kasha &&
-                    LevelChecked(Kasha) &&
+                    ActionLearned(Kasha) &&
                     ((OnTargetsFlank() || OnTargetsFront()) && !HasKa ||
                      OnTargetsRear() && HasGetsu ||
                      !HasStatusEffect(Buffs.Fuka) && !HasKa))
@@ -408,7 +408,7 @@ internal partial class SAM : Melee
             {
                 if (ComboAction is Hakaze or Gyofu)
                 {
-                    if (LevelChecked(Yukikaze) &&
+                    if (ActionLearned(Yukikaze) &&
                         !HasSetsu &&
                         (SAM_ST_YukikazeCombo_Prio == 0 ||
                          (HasStatusEffect(Buffs.Fugetsu) || !SAM_Yukikaze_Gekko) &&
@@ -416,31 +416,31 @@ internal partial class SAM : Melee
                         return Yukikaze;
 
                     if (SAM_Yukikaze_Gekko &&
-                        LevelChecked(Jinpu) &&
-                        (!LevelChecked(Gekko) ||
-                         !LevelChecked(Kasha) && LevelChecked(Gekko) ||
-                         (OnTargetsRear() || OnTargetsFront()) && !HasGetsu && LevelChecked(Gekko) ||
-                         HasKa && !HasGetsu && LevelChecked(Gekko) ||
+                        ActionLearned(Jinpu) &&
+                        (!ActionLearned(Gekko) ||
+                         !ActionLearned(Kasha) && ActionLearned(Gekko) ||
+                         (OnTargetsRear() || OnTargetsFront()) && !HasGetsu && ActionLearned(Gekko) ||
+                         HasKa && !HasGetsu && ActionLearned(Gekko) ||
                          SAM_ST_YukikazeCombo_Prio == 1 && !HasStatusEffect(Buffs.Fugetsu) ||
                          SenCount is 3 && ShouldRefreshFugetsu))
                         return Jinpu;
 
                     if (SAM_Yukikaze_Kasha &&
-                        LevelChecked(Shifu) &&
-                        ((OnTargetsFlank() || OnTargetsFront()) && !HasKa && LevelChecked(Kasha) ||
-                         HasGetsu && !HasKa && LevelChecked(Kasha) ||
+                        ActionLearned(Shifu) &&
+                        ((OnTargetsFlank() || OnTargetsFront()) && !HasKa && ActionLearned(Kasha) ||
+                         HasGetsu && !HasKa && ActionLearned(Kasha) ||
                          SAM_ST_YukikazeCombo_Prio == 1 && !HasStatusEffect(Buffs.Fuka) ||
                          SenCount is 3 && ShouldRefreshFuka ||
-                         !LevelChecked(Gekko)))
+                         !ActionLearned(Gekko)))
                         return Shifu;
                 }
 
                 if (SAM_Yukikaze_Gekko &&
-                    ComboAction is Jinpu && LevelChecked(Gekko))
+                    ComboAction is Jinpu && ActionLearned(Gekko))
                     return Gekko;
 
                 if (SAM_Yukikaze_Kasha &&
-                    ComboAction is Shifu && LevelChecked(Kasha))
+                    ComboAction is Shifu && ActionLearned(Kasha))
                     return Kasha;
             }
 
@@ -460,15 +460,15 @@ internal partial class SAM : Melee
             if (UseFeatureKenkiOvercap(ref actionID, SAM_Kasha_KenkiOvercap, SAM_Kasha_KenkiOvercapAmount, Shinten))
                 return actionID;
 
-            if (HasStatusEffect(Buffs.MeikyoShisui) && LevelChecked(Kasha))
+            if (HasStatusEffect(Buffs.MeikyoShisui) && ActionLearned(Kasha))
                 return OriginalHook(Kasha);
 
             if (ComboTimer > 0)
             {
-                if (ComboAction == OriginalHook(Hakaze) && LevelChecked(Shifu))
+                if (ComboAction == OriginalHook(Hakaze) && ActionLearned(Shifu))
                     return OriginalHook(Shifu);
 
-                if (ComboAction is Shifu && LevelChecked(Kasha))
+                if (ComboAction is Shifu && ActionLearned(Kasha))
                     return OriginalHook(Kasha);
             }
 
@@ -488,15 +488,15 @@ internal partial class SAM : Melee
             if (UseFeatureKenkiOvercap(ref actionID, SAM_Gekko_KenkiOvercap, SAM_Gekko_KenkiOvercapAmount, Shinten))
                 return actionID;
 
-            if (HasStatusEffect(Buffs.MeikyoShisui) && LevelChecked(Gekko))
+            if (HasStatusEffect(Buffs.MeikyoShisui) && ActionLearned(Gekko))
                 return OriginalHook(Gekko);
 
             if (ComboTimer > 0)
             {
-                if (ComboAction == OriginalHook(Hakaze) && LevelChecked(Jinpu))
+                if (ComboAction == OriginalHook(Hakaze) && ActionLearned(Jinpu))
                     return OriginalHook(Jinpu);
 
-                if (ComboAction is Jinpu && LevelChecked(Gekko))
+                if (ComboAction is Jinpu && ActionLearned(Gekko))
                     return OriginalHook(Gekko);
             }
 
@@ -517,7 +517,7 @@ internal partial class SAM : Melee
                 return actionID;
 
             if (HasStatusEffect(Buffs.MeikyoShisui) ||
-                ComboTimer > 0 && LevelChecked(Oka) &&
+                ComboTimer > 0 && ActionLearned(Oka) &&
                 ComboAction == OriginalHook(Fuko))
                 return Oka;
 
@@ -607,10 +607,10 @@ internal partial class SAM : Melee
 
             if (IsEnabled(Preset.SAM_Iaijutsu_TsubameGaeshi) &&
                 SenCount is not 1 &&
-                (LevelChecked(TsubameGaeshi) &&
+                (ActionLearned(TsubameGaeshi) &&
                  (HasStatusEffect(Buffs.TsubameReady) ||
                   HasStatusEffect(Buffs.KaeshiGokenReady)) ||
-                 LevelChecked(TendoKaeshiSetsugekka) &&
+                 ActionLearned(TendoKaeshiSetsugekka) &&
                  (HasStatusEffect(Buffs.TendoKaeshiSetsugekkaReady) ||
                   HasStatusEffect(Buffs.TendoKaeshiGokenReady))))
                 return OriginalHook(TsubameGaeshi);
@@ -735,7 +735,7 @@ internal partial class SAM : Melee
             if (actionID is not Senei)
                 return actionID;
 
-            return !LevelChecked(Senei)
+            return !ActionLearned(Senei)
                 ? Guren
                 : actionID;
         }
@@ -750,14 +750,14 @@ internal partial class SAM : Melee
             if (actionID is not OgiNamikiri)
                 return actionID;
 
-            if (LevelChecked(Shoha) && MeditationStacks is 3)
+            if (ActionLearned(Shoha) && MeditationStacks is 3)
                 return Shoha;
 
-            if (LevelChecked(OgiNamikiri) &&
+            if (ActionLearned(OgiNamikiri) &&
                 (HasStatusEffect(Buffs.OgiNamikiriReady) || IsNamikiriReady))
                 return OriginalHook(OgiNamikiri);
 
-            if (LevelChecked(Zanshin) &&
+            if (ActionLearned(Zanshin) &&
                 SAM_OgiShohaZanshin && HasStatusEffect(Buffs.ZanshinReady))
                 return Zanshin;
 

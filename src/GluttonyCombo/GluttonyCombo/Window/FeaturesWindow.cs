@@ -29,6 +29,7 @@ internal class FeaturesWindow : ConfigWindow
         Variant,
         Bozja,
         OccultCrescent,
+        DeepDungeon,
     }
 
     private const StringComparison Lower = StringComparison.OrdinalIgnoreCase;
