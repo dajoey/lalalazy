@@ -324,7 +324,7 @@ internal partial class OccultCrescent
             var soonest = float.MaxValue;
             foreach (var anchor in anchors)
             {
-                if (!LevelChecked(anchor.Action))
+                if (!ActionLearned(anchor.Action))
                     continue;
 
                 var remaining = GetCooldownRemainingTime(anchor.Action);
@@ -446,7 +446,7 @@ internal partial class OccultCrescent
             return
                 $"align={IsEnabled(Preset.Phantom_AlignToBurst)} maxDelay={Phantom_AlignToBurst_MaxDelay}s " +
                 $"job={Player.Job} anchors={anchors.Length} " +
-                $"anchorReady={(anchors.Length > 0 ? LevelChecked(anchors[0].Action).ToString() : "n/a")} " +
+                $"anchorReady={(anchors.Length > 0 ? ActionLearned(anchors[0].Action).ToString() : "n/a")} " +
                 $"untilBurst={(wait >= float.MaxValue ? "n/a" : wait.ToString("F1"))} " +
                 $"myBurstActive={(anchors.Length > 0 && MyBurstActive(anchors))} " +
                 $"partyWindowOpen={PhantomWindowOpen} holding={HoldStartedAt.Count}";

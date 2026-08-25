@@ -1,4 +1,60 @@
-﻿## v1.0.4.157 (2026-08-24)
+﻿## v1.0.4.158 (2026-08-25) [testing]
+
+Upstream WrathCombo merge: `c35a28de3..13b821ec7`, 14 commits, 72 files.
+
+### Added
+- **Deep Dungeon support from upstream** - Palace of the Dead, Heaven on High,
+  Eureka Orthos and Pilgrim's Traverse. Four new files (`DeepDungeon.cs`,
+  `_Config.cs`, `_Helper.cs`, `DeepDungeonAttribute.cs`, 275 lines) plus pomander
+  handling and four new one-button potion presets: Sustaining, Empyrean, Orthos
+  and Pilgrim's. Untested in a deep dungeon by us - this is upstream's feature
+  arriving intact, not something the fork has exercised.
+- Upstream reworked openers so opener actions are functions rather than fixed
+  action ids, which lets an opener adjust an item slot dynamically.
+
+### Changed
+- **`LevelChecked(id)` is gone upstream; it is now `ActionLearned(id)` - and this
+  is NOT a pure rename.** The two ask the same question by different means:
+
+      old  LevelChecked  -> LocalPlayer.Level >= GetActionLevel(id) && IsActionUnlocked(id)
+      new  ActionLearned -> ActionManager.GetActionStatus(...) is not 573  // 573 = not yet learned
+
+  Upstream swapped the mechanism across 49 files in one commit (`3826913ec`) and
+  migrated every one of its own call sites. Twelve fork-local call sites were left
+  behind by that (they live in files upstream never touches) and are migrated here:
+  `AutoRotationController.cs` x8, `OccultCrescent_BurstAlign.cs` x2,
+  `WHM_Helper.cs` x1, `BLU_AutoRotation.cs` x1.
+
+  **Worth watching in-game:** anywhere the two answers could differ - level-synced
+  content most obviously, where an action can be learned but currently unusable.
+  Following upstream was chosen over keeping a fork-local `LevelChecked`, because
+  two different answers to "do I have this action" inside one plugin is worse than
+  either answer. `uint.LevelChecked()` still exists as an upstream extension method
+  and now forwards to `ActionLearned`, so that spelling is unaffected.
+- Upstream: preset window rework (`Presets.cs`, +151 lines), custom-action replace
+  attribute update, a config-window tip, nullability and failed-decode logging fixes.
+
+### Notes
+- **Every fork divergence was preserved and checked, not assumed.** The merge ran as
+  a per-file 3-way in the upstream namespace with a transform proven lossless by
+  round-trip assertion (`forward(reverse(ours)) == ours`) on all 67 pre-existing
+  files before a single byte was written. 64 files merged clean, 3 conflicted:
+  - `RDM_Helper.cs` - our Occult Quick holds (`!HasFreeInstantCasts` from .151,
+    `HasOccultInstantCast` from .150) vs their rename. Kept ours, applied their rename.
+  - `WHM.cs` - our `!HasOrExpectsOccultInstantCast` Swiftcast spacing (.146) vs their
+    rename. Same resolution.
+  - `CustomComboPresets.resx` - additive only; kept both sides. `<data>` count went
+    3866 -> 3874, exactly the eight new upstream entries and nothing lost.
+- `BattleData.LoadCombatData` still has its two hits (declaration + call). This is the
+  regression RUNBOOK 3.3 warns about specifically, because a renamed entry file makes a
+  3-way merge read the call's absence as deliberate and silently re-drop it.
+- `case 1346` (North Horn / Forked Tower: Magic head-buff, `anyOwner: true`), the WHM
+  Divine Caress targeting, the SMN Aegis Uptime preset and the BLU autorotation engine
+  are all intact.
+- The fork's `GluttonyCombo.csproj` was not merged - upstream's only change to its own
+  was commenting out a `NoWarn`, and packaging files stay ours per RUNBOOK 3.5.
+
+## v1.0.4.157 (2026-08-24)
 
 ### Fixed
 - **Alignment released the hold on OTHER PEOPLE'S buffs, so abilities fired just before your

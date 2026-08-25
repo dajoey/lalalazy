@@ -18,6 +18,7 @@ using GluttonyCombo.Core;
 using GluttonyCombo.Data.Conflicts;
 using GluttonyCombo.Resources.Localization.UI.MainWindow;
 using GluttonyCombo.Services;
+using GluttonyCombo.Window.Functions;
 using GluttonyCombo.Window.Tabs;
 using static GluttonyCombo.Core.PresetStorage;
 using static GluttonyCombo.CustomComboNS.Functions.Jobs;
@@ -158,6 +159,9 @@ internal class ConfigWindow : Dalamud.Interface.Windowing.Window
         }
 
         DrawCollapseButton();
+
+
+        Presets.DrawDragDrop();
     }
 
     public static void ClearAnySearches()
@@ -275,6 +279,8 @@ internal class ConfigWindow : Dalamud.Interface.Windowing.Window
 
         if (OpenWindow == OpenWindow.None)
             OpenWindow = OpenWindow.PvE;
+
+        ImGui.TextWrapped($"Tip: If a combo replaces an action, you can drag the action directly from this window to your hotbar!"); //Todo Remove this after some time once people are used to it.
 
         switch (OpenWindow)
         {

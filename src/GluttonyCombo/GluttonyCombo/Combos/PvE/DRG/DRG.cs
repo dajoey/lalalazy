@@ -399,27 +399,27 @@ internal partial class DRG : Melee
 
             if (ComboTimer > 0)
             {
-                if (ComboAction is TrueThrust or RaidenThrust && LevelChecked(VorpalThrust))
-                    return DRG_ChaoticCombo && LevelChecked(Disembowel) &&
-                           (LevelChecked(ChaosThrust) && ChaosDebuff is null &&
+                if (ComboAction is TrueThrust or RaidenThrust && ActionLearned(VorpalThrust))
+                    return DRG_ChaoticCombo && ActionLearned(Disembowel) &&
+                           (ActionLearned(ChaosThrust) && ChaosDebuff is null &&
                             CanApplyStatus(CurrentTarget, ChaoticList[OriginalHook(ChaosThrust)]) ||
                             GetStatusEffectRemainingTime(Buffs.PowerSurge) < 15)
                         ? OriginalHook(Disembowel)
                         : OriginalHook(VorpalThrust);
 
-                if (DRG_ChaoticCombo && ComboAction == OriginalHook(Disembowel) && LevelChecked(ChaosThrust))
+                if (DRG_ChaoticCombo && ComboAction == OriginalHook(Disembowel) && ActionLearned(ChaosThrust))
                     return OriginalHook(ChaosThrust);
 
-                if (DRG_ChaoticCombo && ComboAction == OriginalHook(ChaosThrust) && LevelChecked(WheelingThrust))
+                if (DRG_ChaoticCombo && ComboAction == OriginalHook(ChaosThrust) && ActionLearned(WheelingThrust))
                     return WheelingThrust;
 
-                if (ComboAction == OriginalHook(VorpalThrust) && LevelChecked(FullThrust))
+                if (ComboAction == OriginalHook(VorpalThrust) && ActionLearned(FullThrust))
                     return OriginalHook(FullThrust);
 
-                if (ComboAction == OriginalHook(FullThrust) && LevelChecked(FangAndClaw))
+                if (ComboAction == OriginalHook(FullThrust) && ActionLearned(FangAndClaw))
                     return FangAndClaw;
 
-                if (ComboAction is WheelingThrust or FangAndClaw && LevelChecked(Drakesbane))
+                if (ComboAction is WheelingThrust or FangAndClaw && ActionLearned(Drakesbane))
                     return Drakesbane;
             }
 
@@ -438,16 +438,16 @@ internal partial class DRG : Melee
 
             if (ComboTimer > 0)
             {
-                if (ComboAction is TrueThrust or RaidenThrust && LevelChecked(Disembowel))
+                if (ComboAction is TrueThrust or RaidenThrust && ActionLearned(Disembowel))
                     return OriginalHook(Disembowel);
 
-                if (ComboAction == OriginalHook(Disembowel) && LevelChecked(ChaosThrust))
+                if (ComboAction == OriginalHook(Disembowel) && ActionLearned(ChaosThrust))
                     return OriginalHook(ChaosThrust);
 
-                if (ComboAction == OriginalHook(ChaosThrust) && LevelChecked(WheelingThrust))
+                if (ComboAction == OriginalHook(ChaosThrust) && ActionLearned(WheelingThrust))
                     return WheelingThrust;
 
-                if (ComboAction == WheelingThrust && LevelChecked(Drakesbane))
+                if (ComboAction == WheelingThrust && ActionLearned(Drakesbane))
                     return Drakesbane;
             }
 

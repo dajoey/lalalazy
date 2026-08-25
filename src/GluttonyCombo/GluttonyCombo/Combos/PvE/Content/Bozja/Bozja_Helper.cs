@@ -236,3 +236,5 @@ internal static partial class Bozja
             PhysicalAversion = 2369;
     }
 }
+
+

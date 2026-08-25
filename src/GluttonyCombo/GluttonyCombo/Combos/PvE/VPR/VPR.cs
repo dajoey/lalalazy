@@ -282,7 +282,7 @@ internal partial class VPR : Melee
                 return actionID;
 
             if (IsDeathRattleWeave &&
-                LevelChecked(SerpentsTail) && InActionRange(DeathRattle))
+                ActionLearned(SerpentsTail) && InActionRange(DeathRattle))
                 return OriginalHook(SerpentsTail);
 
             return DoBasicCombo();
@@ -399,7 +399,7 @@ internal partial class VPR : Melee
             if (actionID is not SerpentsTail)
                 return actionID;
 
-            if (LevelChecked(SerpentsTail) && OriginalHook(SerpentsTail) is not SerpentsTail)
+            if (ActionLearned(SerpentsTail) && OriginalHook(SerpentsTail) is not SerpentsTail)
                 return OriginalHook(SerpentsTail);
 
             if (HasStatusEffect(Buffs.PoisedForTwinfang) ||
@@ -465,7 +465,7 @@ internal partial class VPR : Melee
 
             return (UsedVicewinder || UsedHuntersCoil || UsedSwiftskinsCoil ||
                     UsedVicepit || UsedHuntersDen || UsedSwiftskinsDen) &&
-                   LevelChecked(Vicewinder)
+                   ActionLearned(Vicewinder)
                 ? All.Cease
                 : actionID;
         }

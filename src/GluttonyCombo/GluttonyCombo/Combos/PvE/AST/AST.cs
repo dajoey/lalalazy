@@ -58,11 +58,11 @@ internal partial class AST : Healer
                     return Role.LucidDreaming;
 
                 //Play Card
-                if (HasDPSCard && LevelChecked(Play1))
+                if (HasDPSCard && ActionLearned(Play1))
                     return OriginalHook(Play1).Retarget(replacedActions, CardResolver);
 
                 //Minor Arcana / Lord of Crowns
-                if (HasLord && HasBattleTarget() && LevelChecked(MinorArcana))
+                if (HasLord && HasBattleTarget() && ActionLearned(MinorArcana))
                     return OriginalHook(MinorArcana);
 
                 //Card Draw
@@ -135,11 +135,11 @@ internal partial class AST : Healer
                     return Role.LucidDreaming;
 
                 //Play Card
-                if (HasDPSCard && LevelChecked(Play1))
+                if (HasDPSCard && ActionLearned(Play1))
                     return OriginalHook(Play1).Retarget(actions, CardResolver);
 
                 //Minor Arcana / Lord of Crowns
-                if (HasLord && HasBattleTarget() && LevelChecked(MinorArcana))
+                if (HasLord && HasBattleTarget() && ActionLearned(MinorArcana))
                     return OriginalHook(MinorArcana);
 
                 //Card Draw
@@ -153,7 +153,7 @@ internal partial class AST : Healer
                     return Divination;
 
                 //Earthly Star
-                if (LevelChecked(EarthlyStar) && IsOffCooldown(EarthlyStar) &&
+                if (ActionLearned(EarthlyStar) && IsOffCooldown(EarthlyStar) &&
                     !HasStatusEffect(Buffs.EarthlyDominance) && StandStill &&
                     (GetTargetHPPercent() >= 10 || InBossEncounter()))
                     return EarthlyStar.Retarget(actions, SimpleTarget.Self);
@@ -266,16 +266,16 @@ internal partial class AST : Healer
                     return Role.LucidDreaming;
 
                 //Play Card
-                if (IsEnabled(Preset.AST_DPS_AutoPlay) && HasDPSCard && LevelChecked(Play1) &&
-                    (HasDivination || !cardPooling || !LevelChecked(Divination)))
+                if (IsEnabled(Preset.AST_DPS_AutoPlay) && HasDPSCard && ActionLearned(Play1) &&
+                    (HasDivination || !cardPooling || !ActionLearned(Divination)))
                     return IsEnabled(Preset.AST_Cards_QuickTargetCards)
                         ? OriginalHook(Play1).Retarget(replacedActions, CardResolver)
                         : OriginalHook(Play1);
 
                 //Minor Arcana / Lord of Crowns
                 if (IsEnabled(Preset.AST_DPS_LazyLord) && HasLord &&
-                    HasBattleTarget() && LevelChecked(MinorArcana) &&
-                    (HasDivination || !lordPooling || !LevelChecked(Divination)))
+                    HasBattleTarget() && ActionLearned(MinorArcana) &&
+                    (HasDivination || !lordPooling || !ActionLearned(Divination)))
                     return OriginalHook(MinorArcana);
 
                 //Card Draw
@@ -298,7 +298,7 @@ internal partial class AST : Healer
 
                 //Earthly Star
                 if (IsEnabled(Preset.AST_ST_DPS_EarthlyStar) && IsOffCooldown(EarthlyStar) &&
-                    LevelChecked(EarthlyStar) && !HasStatusEffect(Buffs.EarthlyDominance) &&
+                    ActionLearned(EarthlyStar) && !HasStatusEffect(Buffs.EarthlyDominance) &&
                     (WaitGCDs || StandStill))
                     return AST_ST_DPS_EarthlyStarSubOption == 1
                         ? EarthlyStar.Retarget(replacedActions, SimpleTarget.Self)
@@ -399,16 +399,16 @@ internal partial class AST : Healer
                     return Role.LucidDreaming;
 
                 //Play Card
-                if (IsEnabled(Preset.AST_AOE_AutoPlay) && HasDPSCard && LevelChecked(Play1) &&
-                    (HasDivination || !cardPooling || !LevelChecked(Divination)))
+                if (IsEnabled(Preset.AST_AOE_AutoPlay) && HasDPSCard && ActionLearned(Play1) &&
+                    (HasDivination || !cardPooling || !ActionLearned(Divination)))
                     return IsEnabled(Preset.AST_Cards_QuickTargetCards)
                         ? OriginalHook(Play1).Retarget(GravityList.ToArray(), CardResolver)
                         : OriginalHook(Play1);
 
                 //Minor Arcana / Lord of Crowns
                 if (IsEnabled(Preset.AST_AOE_LazyLord) && HasLord &&
-                    HasBattleTarget() && LevelChecked(MinorArcana) &&
-                    (HasDivination || !lordPooling || !LevelChecked(Divination)))
+                    HasBattleTarget() && ActionLearned(MinorArcana) &&
+                    (HasDivination || !lordPooling || !ActionLearned(Divination)))
                     return OriginalHook(MinorArcana);
 
                 //Card Draw
@@ -432,7 +432,7 @@ internal partial class AST : Healer
 
                 //Earthly Star
                 if (IsEnabled(Preset.AST_AOE_DPS_EarthlyStar) &&
-                    LevelChecked(EarthlyStar) && IsOffCooldown(EarthlyStar) &&
+                    ActionLearned(EarthlyStar) && IsOffCooldown(EarthlyStar) &&
                     !HasStatusEffect(Buffs.EarthlyDominance) &&
                     (WaitGCDs || StandStill))
                     return AST_AOE_DPS_EarthlyStarSubOption == 1
@@ -517,7 +517,7 @@ internal partial class AST : Healer
                 if (ActionReady(OriginalHook(NeutralSect)))
                     return OriginalHook(NeutralSect);
 
-                if (HasLady && LevelChecked(MinorArcana))
+                if (HasLady && ActionLearned(MinorArcana))
                     return OriginalHook(LadyOfCrown);
 
                 if (ActionReady(OriginalHook(CollectiveUnconscious)))
@@ -542,7 +542,7 @@ internal partial class AST : Healer
             if (ActionReady(EssentialDignity))
                 return EssentialDignity.RetargetIfEnabled(actionID);
 
-            return !LevelChecked(Benefic2)
+            return !ActionLearned(Benefic2)
                 ? Benefic.RetargetIfEnabled(actionID)
                 : Benefic2.RetargetIfEnabled(actionID);
         }
@@ -572,7 +572,7 @@ internal partial class AST : Healer
             if (ActionReady(OriginalHook(CelestialOpposition)))
                 return OriginalHook(CelestialOpposition);
 
-            if (HasLady && LevelChecked(MinorArcana))
+            if (HasLady && ActionLearned(MinorArcana))
                 return OriginalHook(LadyOfCrown);
 
             if (ActionReady(OriginalHook(CollectiveUnconscious)))
@@ -581,17 +581,17 @@ internal partial class AST : Healer
             if (ActionReady(OriginalHook(NeutralSect)))
                 return OriginalHook(NeutralSect);
 
-            if (LevelChecked(Macrocosmos) && IsOffCooldown(Macrocosmos))
+            if (ActionLearned(Macrocosmos) && IsOffCooldown(Macrocosmos))
                 return Macrocosmos;
 
             if (ActionReady(OriginalHook(AspectedHelios)) &&
                 GetPartyBuffPercent(Buffs.AspectedHelios) <= 50 &&
                 GetPartyBuffPercent(Buffs.HeliosConjunction) <= 50)
-                return LevelChecked(Horoscope) && IsOffCooldown(Horoscope)
+                return ActionLearned(Horoscope) && IsOffCooldown(Horoscope)
                     ? Horoscope
                     : OriginalHook(AspectedHelios);
 
-            return LevelChecked(Horoscope) && IsOffCooldown(Horoscope)
+            return ActionLearned(Horoscope) && IsOffCooldown(Horoscope)
                 ? Horoscope
                 : Helios;
         }
@@ -643,7 +643,7 @@ internal partial class AST : Healer
                         return spell.RetargetIfEnabled(actionID);
                 }
             }
-            return !LevelChecked(Benefic2) ?
+            return !ActionLearned(Benefic2) ?
                 Benefic.RetargetIfEnabled(actionID) :
                 Benefic2.RetargetIfEnabled(actionID);
         }
@@ -661,7 +661,7 @@ internal partial class AST : Healer
                 return actionID;
 
             //Level check to return helios immediately below 40
-            if (!LevelChecked(AspectedHelios))
+            if (!ActionLearned(AspectedHelios))
                 return Helios;
 
             #region Healing Helper
@@ -727,7 +727,7 @@ internal partial class AST : Healer
 
             var healStack = SimpleTarget.Stack.AllyToHeal;
 
-            if (!LevelChecked(Benefic2))
+            if (!ActionLearned(Benefic2))
                 return IsEnabled(Preset.AST_Retargets_Benefic) ? Benefic.Retarget(healStack) : Benefic;
 
             return IsEnabled(Preset.AST_Retargets_Benefic) ? Benefic2.Retarget(healStack) : Benefic2;

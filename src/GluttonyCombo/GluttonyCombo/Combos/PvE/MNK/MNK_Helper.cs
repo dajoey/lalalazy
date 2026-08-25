@@ -25,7 +25,7 @@ internal partial class MNK
             // Open Lunar
             if (!LunarNadi || BothNadisOpen || !SolarNadi && !LunarNadi)
             {
-                actionID = LevelChecked(ShadowOfTheDestroyer) ? ShadowOfTheDestroyer : Rockbreaker;
+                actionID = ActionLearned(ShadowOfTheDestroyer) ? ShadowOfTheDestroyer : Rockbreaker;
                 return true;
             }
 
@@ -39,7 +39,7 @@ internal partial class MNK
                 }
 
                 if (Gauge.BeastChakra[1] is BeastChakra.None &&
-                    LevelChecked(FourPointFury))
+                    ActionLearned(FourPointFury))
                 {
                     actionID = FourPointFury;
                     return true;
@@ -92,17 +92,17 @@ internal partial class MNK
     #region Basic Combo
 
     private static uint OpoFormGCD() =>
-        OpoOpoStacks is 0 && LevelChecked(DragonKick)
+        OpoOpoStacks is 0 && ActionLearned(DragonKick)
             ? DragonKick
             : OriginalHook(Bootshine);
 
     private static uint RaptorFormGCD() =>
-        RaptorStacks is 0 && LevelChecked(TwinSnakes)
+        RaptorStacks is 0 && ActionLearned(TwinSnakes)
             ? TwinSnakes
             : OriginalHook(TrueStrike);
 
     private static uint CoeurlFormGCD() =>
-        CoeurlStacks is 0 && LevelChecked(Demolish)
+        CoeurlStacks is 0 && ActionLearned(Demolish)
             ? Demolish
             : OriginalHook(SnapPunch);
 
@@ -115,20 +115,20 @@ internal partial class MNK
 
             if (HasStatusEffect(Buffs.RaptorForm))
             {
-                if (LevelChecked(FourPointFury))
+                if (ActionLearned(FourPointFury))
                     return FourPointFury;
 
-                if (LevelChecked(TwinSnakes))
+                if (ActionLearned(TwinSnakes))
                     return TwinSnakes;
             }
 
-            if (HasStatusEffect(Buffs.CoeurlForm) && LevelChecked(Rockbreaker))
+            if (HasStatusEffect(Buffs.CoeurlForm) && ActionLearned(Rockbreaker))
                 return Rockbreaker;
 
             return OriginalHook(ArmOfTheDestroyer);
         }
 
-        if (!LevelChecked(TrueStrike))
+        if (!ActionLearned(TrueStrike))
             return Bootshine;
 
         if (HasStatusEffect(Buffs.OpoOpoForm) || HasStatusEffect(Buffs.FormlessFist))
@@ -139,7 +139,7 @@ internal partial class MNK
 
         if (HasStatusEffect(Buffs.CoeurlForm))
         {
-            if (CoeurlStacks is 0 && LevelChecked(Demolish))
+            if (CoeurlStacks is 0 && ActionLearned(Demolish))
                 return !OnTargetsRear() &&
                        Role.CanTrueNorth() &&
                        GetRemainingCharges(Role.TrueNorth) > trueNorthCharges &&
@@ -147,7 +147,7 @@ internal partial class MNK
                     ? Role.TrueNorth
                     : Demolish;
 
-            if (LevelChecked(SnapPunch))
+            if (ActionLearned(SnapPunch))
                 return !OnTargetsFlank() &&
                        Role.CanTrueNorth() &&
                        GetRemainingCharges(Role.TrueNorth) > trueNorthCharges &&
@@ -167,7 +167,7 @@ internal partial class MNK
         onAoE
             ? JustUsed(ShadowOfTheDestroyer, window) ||
               JustUsed(OriginalHook(ArmOfTheDestroyer), window) ||
-              !LevelChecked(ShadowOfTheDestroyer) && JustUsed(Rockbreaker, window)
+              !ActionLearned(ShadowOfTheDestroyer) && JustUsed(Rockbreaker, window)
             : JustUsed(OriginalHook(Bootshine), window) ||
               JustUsed(DragonKick, window);
 
@@ -221,7 +221,7 @@ internal partial class MNK
     private static uint ForcedOpoGCD(bool onAoE)
     {
         if (onAoE)
-            return LevelChecked(ShadowOfTheDestroyer)
+            return ActionLearned(ShadowOfTheDestroyer)
                 ? ShadowOfTheDestroyer
                 : Rockbreaker;
 
@@ -230,7 +230,7 @@ internal partial class MNK
 
     private static bool ForceSecondOpo(bool onAoE, bool useFiresReply = true)
     {
-        if (useFiresReply && LevelChecked(FiresReply))
+        if (useFiresReply && ActionLearned(FiresReply))
             return false;
 
         if (!HasStatusEffect(Buffs.Brotherhood) || !HasStatusEffect(Buffs.RiddleOfFire))
@@ -272,7 +272,7 @@ internal partial class MNK
         if (!HasUsedBlitzRecently(GCD * 12))
             return false;
 
-        if (useFiresReply && LevelChecked(FiresReply))
+        if (useFiresReply && ActionLearned(FiresReply))
             return JustUsed(FiresReply, GCD * 6) && !HasStatusEffect(Buffs.FiresRumination);
 
         return HasElapsedSinceBlitz(2.5f);
@@ -351,8 +351,8 @@ internal partial class MNK
         if (ShouldUseSecondPerfectBalance(useFiresReply))
             return true;
 
-        if (!LevelChecked(RiddleOfFire) ||
-            HasStatusEffect(Buffs.RiddleOfFire) && !LevelChecked(Brotherhood))
+        if (!ActionLearned(RiddleOfFire) ||
+            HasStatusEffect(Buffs.RiddleOfFire) && !ActionLearned(Brotherhood))
             return JustUsedOpoGCD(GCD * 3, onAoE);
 
         return onAoE && CanPerfectBalanceMaxChargeAoE();
@@ -425,12 +425,12 @@ internal partial class MNK
         if (HasStatusEffect(Buffs.RiddleOfFire))
             return true;
 
-        return !LevelChecked(RiddleOfFire);
+        return !ActionLearned(RiddleOfFire);
     }
 
     private static bool CanMasterfulBlitz(bool onAoE)
     {
-        if (!LevelChecked(MasterfulBlitz) || !InMasterfulRange() || IsOriginal(MasterfulBlitz))
+        if (!ActionLearned(MasterfulBlitz) || !InMasterfulRange() || IsOriginal(MasterfulBlitz))
             return false;
 
         if (HasStatusEffect(Buffs.PerfectBalance))
@@ -450,7 +450,7 @@ internal partial class MNK
     #region Chakra
 
     private static bool CanFormshift() =>
-        LevelChecked(FormShift) && !InCombat() &&
+        ActionLearned(FormShift) && !InCombat() &&
         !HasStatusEffect(Buffs.FormlessFist) &&
         !HasStatusEffect(Buffs.PerfectBalance) &&
         !HasStatusEffect(Buffs.OpoOpoForm) &&
@@ -462,7 +462,7 @@ internal partial class MNK
         uint meditation = onAoE ? InspiritedMeditation : SteeledMeditation;
         uint rangeCheck = onAoE ? ArmOfTheDestroyer : Bootshine;
 
-        return LevelChecked(meditation) &&
+        return ActionLearned(meditation) &&
                (!InCombat() || NumberOfEnemiesInRange(rangeCheck) < 1) &&
                Chakra < 5 &&
                IsOriginal(MasterfulBlitz) &&
@@ -477,7 +477,7 @@ internal partial class MNK
             return false;
 
         if (!HasStatusEffect(Buffs.Brotherhood) &&
-            ActionReady(RiddleOfFire) && LevelChecked(Brotherhood) &&
+            ActionReady(RiddleOfFire) && ActionLearned(Brotherhood) &&
             GetCooldownRemainingTime(Brotherhood) <= GCD)
             return false;
 
@@ -499,14 +499,14 @@ internal partial class MNK
         ActionReady(RiddleOfFire) &&
         !HasStatusEffect(Buffs.FiresRumination) &&
         !HasStatusEffect(Buffs.RiddleOfFire) &&
-        (!LevelChecked(Brotherhood) ||
+        (!ActionLearned(Brotherhood) ||
          JustUsed(Brotherhood, GCD * 5) ||
          HasStatusEffect(Buffs.Brotherhood) ||
          GetCooldownRemainingTime(Brotherhood) is > 50 and < 65 ||
-         !LevelChecked(Brotherhood));
+         !ActionLearned(Brotherhood));
 
     private static bool CanFiresReply(bool onAoE = false) =>
-        LevelChecked(FiresReply) &&
+        ActionLearned(FiresReply) &&
         HasStatusEffect(Buffs.FiresRumination) &&
         !HasStatusEffect(Buffs.FormlessFist) &&
         IsOriginal(MasterfulBlitz) &&
@@ -610,26 +610,26 @@ internal partial class MNK
         public override int MinOpenerLevel => 90;
         public override int MaxOpenerLevel => 90;
 
-        public override List<uint> OpenerActions { get; set; } =
+        public override List<Func<uint>> OpenerActions { get; set; } =
         [
-            ForbiddenMeditation, // 1
-            FormShift, // 2
-            DragonKick, // 3
-            PerfectBalance, // 4
-            Items.UseItem(Items.GetStrongestPotionRow(Items.PotionType.Strength)), // 5
-            Bootshine, // 6
-            DragonKick, // 7
-            Bootshine, // 8
-            RiddleOfFire, // 9
-            Brotherhood, // 10
-            ElixirField, // 11
-            DragonKick, // 12
-            PerfectBalance, // 13
-            Bootshine, // 14
-            DragonKick, // 15
-            Bootshine, // 16
-            ElixirField, // 17
-            DragonKick // 18
+            () => ForbiddenMeditation, // 1
+            () => FormShift, // 2
+            () => DragonKick, // 3
+            () => PerfectBalance, // 4
+            () => Items.UseItem(Items.GetStrongestPotionRow(Items.PotionType.Strength)), // 5
+            () => Bootshine, // 6
+            () => DragonKick, // 7
+            () => Bootshine, // 8
+            () => RiddleOfFire, // 9
+            () => Brotherhood, // 10
+            () => ElixirField, // 11
+            () => DragonKick, // 12
+            () => PerfectBalance, // 13
+            () => Bootshine, // 14
+            () => DragonKick, // 15
+            () => Bootshine, // 16
+            () => ElixirField, // 17
+            () => DragonKick // 18
         ];
     }
 
@@ -638,26 +638,26 @@ internal partial class MNK
         public override int MinOpenerLevel => 90;
         public override int MaxOpenerLevel => 90;
 
-        public override List<uint> OpenerActions { get; set; } =
+        public override List<Func<uint>> OpenerActions { get; set; } =
         [
-            ForbiddenMeditation, // 1
-            FormShift, // 2
-            DragonKick, // 3
-            PerfectBalance, // 4
-            Items.UseItem(Items.GetStrongestPotionRow(Items.PotionType.Strength)), // 5
-            Bootshine, // 6
-            DragonKick, // 7
-            Bootshine, // 8
-            Brotherhood, // 9
-            RiddleOfFire, // 10
-            ElixirField, // 11
-            DragonKick, // 12
-            PerfectBalance, // 13
-            Bootshine, // 14
-            TwinSnakes, // 15
-            Demolish, // 16
-            RisingPhoenix, // 17
-            DragonKick // 18
+            () => ForbiddenMeditation, // 1
+            () => FormShift, // 2
+            () => DragonKick, // 3
+            () => PerfectBalance, // 4
+            () => Items.UseItem(Items.GetStrongestPotionRow(Items.PotionType.Strength)), // 5
+            () => Bootshine, // 6
+            () => DragonKick, // 7
+            () => Bootshine, // 8
+            () => Brotherhood, // 9
+            () => RiddleOfFire, // 10
+            () => ElixirField, // 11
+            () => DragonKick, // 12
+            () => PerfectBalance, // 13
+            () => Bootshine, // 14
+            () => TwinSnakes, // 15
+            () => Demolish, // 16
+            () => RisingPhoenix, // 17
+            () => DragonKick // 18
         ];
     }
 
@@ -666,31 +666,31 @@ internal partial class MNK
         public override int MinOpenerLevel => 100;
         public override int MaxOpenerLevel => 100;
 
-        public override List<uint> OpenerActions { get; set; } =
+        public override List<Func<uint>> OpenerActions { get; set; } =
         [
-            ForbiddenMeditation, // 1
-            FormShift, // 2
-            DragonKick, // 3
-            PerfectBalance, // 4
-            Items.UseItem(Items.GetStrongestPotionRow(Items.PotionType.Strength)), // 5
-            LeapingOpo, // 6
-            DragonKick, // 7
-            Brotherhood, // 8
-            RiddleOfFire, // 9
-            LeapingOpo, // 10
-            TheForbiddenChakra, // 11
-            RiddleOfWind, // 12
-            ElixirBurst, // 13
-            DragonKick, // 14
-            WindsReply, // 15
-            FiresReply, // 16
-            LeapingOpo, // 17
-            PerfectBalance, // 18
-            DragonKick, // 19
-            LeapingOpo, // 20
-            DragonKick, // 21
-            ElixirBurst, // 22
-            LeapingOpo // 23
+            () => ForbiddenMeditation, // 1
+            () => FormShift, // 2
+            () => DragonKick, // 3
+            () => PerfectBalance, // 4
+            () => Items.UseItem(Items.GetStrongestPotionRow(Items.PotionType.Strength)), // 5
+            () => LeapingOpo, // 6
+            () => DragonKick, // 7
+            () => Brotherhood, // 8
+            () => RiddleOfFire, // 9
+            () => LeapingOpo, // 10
+            () => TheForbiddenChakra, // 11
+            () => RiddleOfWind, // 12
+            () => ElixirBurst, // 13
+            () => DragonKick, // 14
+            () => WindsReply, // 15
+            () => FiresReply, // 16
+            () => LeapingOpo, // 17
+            () => PerfectBalance, // 18
+            () => DragonKick, // 19
+            () => LeapingOpo, // 20
+            () => DragonKick, // 21
+            () => ElixirBurst, // 22
+            () => LeapingOpo // 23
         ];
 
         public override List<(int[] Steps, Func<bool> Condition)> SkipSteps { get; set; } =
@@ -706,31 +706,31 @@ internal partial class MNK
         public override int MinOpenerLevel => 100;
         public override int MaxOpenerLevel => 100;
 
-        public override List<uint> OpenerActions { get; set; } =
+        public override List<Func<uint>> OpenerActions { get; set; } =
         [
-            ForbiddenMeditation, // 1
-            FormShift, // 2
-            DragonKick, // 3
-            PerfectBalance, // 4
-            TwinSnakes, // 5
-            Items.UseItem(Items.GetStrongestPotionRow(Items.PotionType.Strength)), // 6
-            Demolish, // 7
-            Brotherhood, // 8
-            RiddleOfFire, // 9
-            LeapingOpo, // 10
-            TheForbiddenChakra, // 11
-            RiddleOfWind, // 12
-            RisingPhoenix, // 13
-            DragonKick, // 14
-            WindsReply, // 15
-            FiresReply, // 16
-            LeapingOpo, // 17
-            PerfectBalance, // 18
-            DragonKick, // 19
-            LeapingOpo, // 20
-            DragonKick, // 21
-            ElixirBurst, // 22
-            LeapingOpo // 23
+            () => ForbiddenMeditation, // 1
+            () => FormShift, // 2
+            () => DragonKick, // 3
+            () => PerfectBalance, // 4
+            () => TwinSnakes, // 5
+            () => Items.UseItem(Items.GetStrongestPotionRow(Items.PotionType.Strength)), // 6
+            () => Demolish, // 7
+            () => Brotherhood, // 8
+            () => RiddleOfFire, // 9
+            () => LeapingOpo, // 10
+            () => TheForbiddenChakra, // 11
+            () => RiddleOfWind, // 12
+            () => RisingPhoenix, // 13
+            () => DragonKick, // 14
+            () => WindsReply, // 15
+            () => FiresReply, // 16
+            () => LeapingOpo, // 17
+            () => PerfectBalance, // 18
+            () => DragonKick, // 19
+            () => LeapingOpo, // 20
+            () => DragonKick, // 21
+            () => ElixirBurst, // 22
+            () => LeapingOpo // 23
         ];
 
         public override List<(int[] Steps, Func<bool> Condition)> SkipSteps { get; set; } =
@@ -746,30 +746,30 @@ internal partial class MNK
         public override int MinOpenerLevel => 100;
         public override int MaxOpenerLevel => 100;
 
-        public override List<uint> OpenerActions { get; set; } =
+        public override List<Func<uint>> OpenerActions { get; set; } =
         [
-            ForbiddenMeditation, // 1
-            FormShift, // 2
-            RiddleOfWind, // 3
-            DragonKick, // 4
-            Items.UseItem(Items.GetStrongestPotionRow(Items.PotionType.Strength)), // 5
-            Brotherhood, // 6
-            RiddleOfFire, // 7
-            FiresReply, // 8
-            PerfectBalance, // 9
-            TheForbiddenChakra, // 10
-            WindsReply, // 11
-            LeapingOpo, // 12
-            DragonKick, // 13
-            LeapingOpo, // 14
-            ElixirBurst, // 15
-            DragonKick, // 16
-            PerfectBalance, // 17
-            LeapingOpo, // 18
-            DragonKick, // 19
-            LeapingOpo, // 20
-            ElixirBurst, // 21
-            DragonKick // 22
+            () => ForbiddenMeditation, // 1
+            () => FormShift, // 2
+            () => RiddleOfWind, // 3
+            () => DragonKick, // 4
+            () => Items.UseItem(Items.GetStrongestPotionRow(Items.PotionType.Strength)), // 5
+            () => Brotherhood, // 6
+            () => RiddleOfFire, // 7
+            () => FiresReply, // 8
+            () => PerfectBalance, // 9
+            () => TheForbiddenChakra, // 10
+            () => WindsReply, // 11
+            () => LeapingOpo, // 12
+            () => DragonKick, // 13
+            () => LeapingOpo, // 14
+            () => ElixirBurst, // 15
+            () => DragonKick, // 16
+            () => PerfectBalance, // 17
+            () => LeapingOpo, // 18
+            () => DragonKick, // 19
+            () => LeapingOpo, // 20
+            () => ElixirBurst, // 21
+            () => DragonKick // 22
         ];
 
         public override List<(int[] Steps, Func<bool> Condition)> SkipSteps { get; set; } =
@@ -890,3 +890,5 @@ internal static class MNKExtensions
 {
     public const Nadi None = 0;
 }
+
+

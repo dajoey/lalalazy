@@ -156,4 +156,7 @@
   <data name="Raise" xml:space="preserve">
     <value>Raise</value>
   </data>
+  <data name="Deep_Dungeon" xml:space="preserve">
+    <value>Deep Dungeon</value>
+  </data>
 </root>

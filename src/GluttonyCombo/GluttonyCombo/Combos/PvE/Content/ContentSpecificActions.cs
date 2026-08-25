@@ -1,4 +1,5 @@
 using GluttonyCombo.Combos.PvE.Content;
+using GluttonyCombo.Combos.PvE.Content.DeepDungeons;
 
 namespace GluttonyCombo.Combos.PvE;
 
@@ -45,6 +46,9 @@ public static class ContentSpecificActions
             return true;
 
         if (Bozja.TryGetBozjaAction(ref contentAction))
+            return true;
+
+        if (DeepDungeons.TryGetDDAction(ref contentAction))
             return true;
 
         // Deep dungeons next?

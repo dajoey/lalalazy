@@ -76,7 +76,7 @@ internal partial class RDM : Caster
             #endregion
 
             #region Melee Combo and Finishers 
-            if (ComboAction is Scorch && LevelChecked(Resolution) || ComboAction is Verholy or Verflare && LevelChecked(Scorch))
+            if (ComboAction is Scorch && ActionLearned(Resolution) || ComboAction is Verholy or Verflare && ActionLearned(Scorch))
                 return OriginalHook(Jolt);
 
             if (HasManaStacks)
@@ -84,10 +84,10 @@ internal partial class RDM : Caster
 
             if ((InMeleeRange() || HasManafication) && (HasEnoughManaForCombo || CanMagickedSwordplay))
             {
-                if (ComboAction is Zwerchhau or EnchantedZwerchhau && LevelChecked(Redoublement))
+                if (ComboAction is Zwerchhau or EnchantedZwerchhau && ActionLearned(Redoublement))
                     return OriginalHook(Redoublement);
 
-                if (ComboAction is Riposte or EnchantedRiposte && LevelChecked(Zwerchhau))
+                if (ComboAction is Riposte or EnchantedRiposte && ActionLearned(Zwerchhau))
                     return OriginalHook(Zwerchhau);
 
                 if (ActionReady(EnchantedRiposte) && !HasDualcast && !HasAccelerate && !HasSwiftcast &&
@@ -96,7 +96,7 @@ internal partial class RDM : Caster
                     return OriginalHook(Riposte);
             }
 
-            if (LevelChecked(Reprise) && GetTargetDistance() >= 5 && !HasManafication &&
+            if (ActionLearned(Reprise) && GetTargetDistance() >= 5 && !HasManafication &&
                 (ComboAction is Zwerchhau or EnchantedZwerchhau && RedoublementRepriseMana ||
                  ComboAction is Riposte or EnchantedRiposte && ZwerchhauRepriseMana))
                 return EnchantedReprise;
@@ -174,7 +174,7 @@ internal partial class RDM : Caster
             #endregion
 
             #region Melee Combo and Finishers 
-            if (ComboAction is Scorch && LevelChecked(Resolution) || ComboAction is Verholy or Verflare && LevelChecked(Scorch))
+            if (ComboAction is Scorch && ActionLearned(Resolution) || ComboAction is Verholy or Verflare && ActionLearned(Scorch))
                 return OriginalHook(Scatter);
 
             if (HasManaStacks)
@@ -187,11 +187,11 @@ internal partial class RDM : Caster
                 (CanMagickedSwordplay || HasEnoughManaToStart || ComboAction is EnchantedMoulinet or Moulinet or EnchantedMoulinetDeux && HasEnoughManaForCombo))
                 return OriginalHook(Moulinet);
 
-            if (!LevelChecked(Moulinet) && InMeleeRange() && HasEnoughManaForCombo)
+            if (!ActionLearned(Moulinet) && InMeleeRange() && HasEnoughManaForCombo)
             {
-                if (ComboAction is Zwerchhau or EnchantedZwerchhau && LevelChecked(Redoublement))
+                if (ComboAction is Zwerchhau or EnchantedZwerchhau && ActionLearned(Redoublement))
                     return OriginalHook(Redoublement);
-                if (ComboAction is Riposte or EnchantedRiposte && LevelChecked(Zwerchhau))
+                if (ComboAction is Riposte or EnchantedRiposte && ActionLearned(Zwerchhau))
                     return OriginalHook(Zwerchhau);
                 if (ActionReady(EnchantedRiposte) && !HasDualcast && !HasAccelerate && !HasSwiftcast &&
                     !HasOccultInstantCast && HasEnoughManaToStart)
@@ -207,7 +207,7 @@ internal partial class RDM : Caster
             if (!CanInstantCast)
                 return UseThunderAeroAoE(actionID);
 
-            return !LevelChecked(Scatter) ? UseInstantCastST(actionID) : OriginalHook(Scatter);
+            return !ActionLearned(Scatter) ? UseInstantCastST(actionID) : OriginalHook(Scatter);
             #endregion
         }
     }
@@ -318,7 +318,7 @@ internal partial class RDM : Caster
             #endregion
 
             #region Melee Combo and Finishers 
-            if (ComboAction is Scorch && LevelChecked(Resolution) || ComboAction is Verholy or Verflare && LevelChecked(Scorch))
+            if (ComboAction is Scorch && ActionLearned(Resolution) || ComboAction is Verholy or Verflare && ActionLearned(Scorch))
                 return OriginalHook(Jolt);
 
             if (IsEnabled(Preset.RDM_ST_HolyFlare) && HasManaStacks)
@@ -328,7 +328,7 @@ internal partial class RDM : Caster
             {
 
                 if (IsEnabled(Preset.RDM_ST_MeleeCombo_IncludeReprise) &&
-                    LevelChecked(Reprise) && !HasManafication &&
+                    ActionLearned(Reprise) && !HasManafication &&
                     GetTargetDistance() >= RDM_ST_MeleeCombo_IncludeReprise_Distance &&
                     (ComboAction is Zwerchhau or EnchantedZwerchhau && RedoublementRepriseMana ||
                      ComboAction is Riposte or EnchantedRiposte && ZwerchhauRepriseMana))
@@ -336,9 +336,9 @@ internal partial class RDM : Caster
 
                 if ((InMeleeRange() || IsEnabled(Preset.RDM_ST_MeleeCombo_MeleeCheck) || HasManafication) && (HasEnoughManaForCombo || CanMagickedSwordplay))
                 {
-                    if (ComboAction is Zwerchhau or EnchantedZwerchhau && LevelChecked(Redoublement))
+                    if (ComboAction is Zwerchhau or EnchantedZwerchhau && ActionLearned(Redoublement))
                         return OriginalHook(Redoublement);
-                    if (ComboAction is Riposte or EnchantedRiposte && LevelChecked(Zwerchhau))
+                    if (ComboAction is Riposte or EnchantedRiposte && ActionLearned(Zwerchhau))
                         return OriginalHook(Zwerchhau);
                 }
 
@@ -401,7 +401,7 @@ internal partial class RDM : Caster
             if (CanWeave() && HasBattleTarget())
             {
                 if (IsEnabled(Preset.RDM_AoE_MeleeCombo_GapCloser) &&
-                    (LevelChecked(Moulinet) && GetTargetDistance() > 8 || !LevelChecked(Moulinet) && !InMeleeRange()) &&
+                    (ActionLearned(Moulinet) && GetTargetDistance() > 8 || !ActionLearned(Moulinet) && !InMeleeRange()) &&
                     ActionReady(Corpsacorps) && TimeStoodStill >= TimeSpan.FromSeconds(RDM_AoE_GapCloseCorpsacorps_Time) &&
                     (HasEnoughManaToStart || CanMagickedSwordplay))
                     return Corpsacorps;
@@ -451,7 +451,7 @@ internal partial class RDM : Caster
             #endregion
 
             #region Melee Combo and Finishers 
-            if (ComboAction is Scorch && LevelChecked(Resolution) || ComboAction is Verholy or Verflare && LevelChecked(Scorch))
+            if (ComboAction is Scorch && ActionLearned(Resolution) || ComboAction is Verholy or Verflare && ActionLearned(Scorch))
                 return OriginalHook(Scatter);
 
             if (IsEnabled(Preset.RDM_AoE_HolyFlare) && HasManaStacks)
@@ -466,11 +466,11 @@ internal partial class RDM : Caster
                     (CanMagickedSwordplay || HasEnoughManaToStart || ComboAction is EnchantedMoulinet or Moulinet or EnchantedMoulinetDeux && HasEnoughManaForCombo)))
                     return OriginalHook(Moulinet);
 
-                if (!LevelChecked(Moulinet) && InMeleeRange() && HasEnoughManaForCombo)
+                if (!ActionLearned(Moulinet) && InMeleeRange() && HasEnoughManaForCombo)
                 {
-                    if (ComboAction is Zwerchhau or EnchantedZwerchhau && LevelChecked(Redoublement))
+                    if (ComboAction is Zwerchhau or EnchantedZwerchhau && ActionLearned(Redoublement))
                         return OriginalHook(Redoublement);
-                    if (ComboAction is Riposte or EnchantedRiposte && LevelChecked(Zwerchhau))
+                    if (ComboAction is Riposte or EnchantedRiposte && ActionLearned(Zwerchhau))
                         return OriginalHook(Zwerchhau);
                     if (ActionReady(EnchantedRiposte) && !HasDualcast && !HasAccelerate && !HasSwiftcast &&
                         !HasOccultInstantCast && HasEnoughManaToStart)
@@ -491,7 +491,7 @@ internal partial class RDM : Caster
             if (IsEnabled(Preset.RDM_AoE_ThunderAero) && !CanInstantCast)
                 return UseThunderAeroAoE(actionID);
 
-            return !LevelChecked(Scatter) ? UseInstantCastST(actionID) : OriginalHook(Scatter);
+            return !ActionLearned(Scatter) ? UseInstantCastST(actionID) : OriginalHook(Scatter);
             #endregion
         }
     }
@@ -549,7 +549,7 @@ internal partial class RDM : Caster
             if (actionID != Role.Swiftcast)
                 return actionID;
 
-            if (LevelChecked(Verraise))
+            if (ActionLearned(Verraise))
             {
                 bool schwifty = HasStatusEffect(Role.Buffs.Swiftcast);
                 if (schwifty || HasStatusEffect(Buffs.Dualcast))
@@ -748,17 +748,17 @@ internal partial class RDM : Caster
 
             if (IsEnabled(Preset.RDM_Riposte_Finisher))
             {
-                if (ComboAction is Scorch && LevelChecked(Resolution) || ComboAction is Verholy or Verflare && LevelChecked(Scorch))
+                if (ComboAction is Scorch && ActionLearned(Resolution) || ComboAction is Verholy or Verflare && ActionLearned(Scorch))
                     return OriginalHook(Jolt);
 
                 if (HasManaStacks)
                     return UseHolyFlare(actionID);
             }
 
-            if (ComboAction is Zwerchhau or EnchantedZwerchhau && LevelChecked(Redoublement))
+            if (ComboAction is Zwerchhau or EnchantedZwerchhau && ActionLearned(Redoublement))
                 return OriginalHook(Redoublement);
 
-            if (ComboAction is Riposte or EnchantedRiposte && LevelChecked(Zwerchhau))
+            if (ComboAction is Riposte or EnchantedRiposte && ActionLearned(Zwerchhau))
                 return OriginalHook(Zwerchhau);
 
             if (IsEnabled(Preset.RDM_Riposte_NoWaste) && !HasEnoughManaToStartStandalone && !CanMagickedSwordplay)
@@ -802,7 +802,7 @@ internal partial class RDM : Caster
 
             if (IsEnabled(Preset.RDM_Moulinet_Finisher))
             {
-                if (ComboAction is Scorch && LevelChecked(Resolution) || ComboAction is Verholy or Verflare && LevelChecked(Scorch))
+                if (ComboAction is Scorch && ActionLearned(Resolution) || ComboAction is Verholy or Verflare && ActionLearned(Scorch))
                     return OriginalHook(Jolt);
 
                 if (HasManaStacks)
@@ -823,7 +823,7 @@ internal partial class RDM : Caster
 
         protected override uint Invoke(uint actionID) =>
             actionID is Displacement
-            && LevelChecked(Displacement)
+            && ActionLearned(Displacement)
             && HasTarget()
             && GetTargetDistance() >= 5 && InActionRange(Corpsacorps) ? Corpsacorps : actionID;
     }
