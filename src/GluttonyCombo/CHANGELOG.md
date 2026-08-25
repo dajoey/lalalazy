@@ -5,10 +5,28 @@ Upstream WrathCombo merge: `c35a28de3..13b821ec7`, 14 commits, 72 files.
 ### Added
 - **Deep Dungeon support from upstream** - Palace of the Dead, Heaven on High,
   Eureka Orthos and Pilgrim's Traverse. Four new files (`DeepDungeon.cs`,
-  `_Config.cs`, `_Helper.cs`, `DeepDungeonAttribute.cs`, 275 lines) plus pomander
-  handling and four new one-button potion presets: Sustaining, Empyrean, Orthos
-  and Pilgrim's. Untested in a deep dungeon by us - this is upstream's feature
-  arriving intact, not something the fork has exercised.
+  `_Config.cs`, `_Helper.cs`, `DeepDungeonAttribute.cs`, 275 lines) and four new
+  one-button potion presets: Sustaining, Empyrean, Orthos and Pilgrim's. Untested
+  in a deep dungeon by us - this is upstream's feature arriving intact, not
+  something the fork has exercised.
+
+  **There are no pomander settings, and there is no pomander behaviour.** Upstream
+  shipped the scaffolding only: `DeepDungeon.UsePomander()` sets `pomanderId = 0`
+  and returns `false` unconditionally, with its whole body left as commented-out
+  example code (`// Fill this in with pomander features`). The dispatch hook calls
+  it, so the branch exists but is dead. What IS real underneath, and usable by
+  whoever implements it: the full `Pomanders` enum (37 entries, Safety through
+  Purification), a working `PomanderReady()` = `PomanderCount(p) > 0 &&
+  GetDDItemInfo(p).IsUsable`, and an action-id base at `3_000_000` for
+  dynamically-created pomander ids. Zero pomander entries exist in the presets
+  resx, which is why nothing appears in the config window.
+
+  *Correction note:* the v1.0.4.158 build that shipped to the testing channel says
+  "plus pomander handling" here, which overstates it - the four upstream commits
+  are named "Pomander support" / "Add pomander ready" / "Refine pomander ready" /
+  "Update example", and that was read as shipped behaviour rather than intent.
+  Corrected in this file 2026-08-25; the already-published .158 manifest still
+  carries the old wording, and will until the next build regenerates it.
 - Upstream reworked openers so opener actions are functions rather than fixed
   action ids, which lets an opener adjust an item slot dynamically.
 
