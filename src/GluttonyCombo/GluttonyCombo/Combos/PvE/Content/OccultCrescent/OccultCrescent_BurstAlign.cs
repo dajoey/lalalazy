@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using ECommons.DalamudServices;
 using ECommons.ExcelServices;
 using ECommons.GameHelpers;
 using static GluttonyCombo.Combos.PvE.OccultCrescent.Config;
@@ -133,8 +134,29 @@ internal partial class OccultCrescent
         #region Job burst anchors
 
         /// <summary>
+        ///     One anchor: the action on the player's OWN job that opens a phantom-relevant
+        ///     damage window, plus the status that action grants, so we can tell "the window is
+        ///     coming" from "the window is HERE".
+        /// </summary>
+        internal readonly struct Anchor
+        {
+            internal readonly uint Action;
+            internal readonly ushort Buff;
+
+            /// <summary>True for anchors that land on the enemy rather than on the player.</summary>
+            internal readonly bool OnTarget;
+
+            internal Anchor(uint action, ushort buff, bool onTarget = false)
+            {
+                Action = action;
+                Buff = buff;
+                OnTarget = onTarget;
+            }
+        }
+
+        /// <summary>
         ///     The action on the player's OWN job whose cooldown predicts the next window that
-        ///     multiplies phantom damage.
+        ///     multiplies phantom damage, paired with the status it grants.
         ///     <para/>
         ///     Only actions granting a percentage damage increase (or a damage-taken increase on
         ///     the target) qualify, because those are the only ones phantom actions respond to.
@@ -150,22 +172,42 @@ internal partial class OccultCrescent
         ///     WHEN - other players' cooldowns are not visible - so those jobs keep exactly
         ///     today's behaviour rather than guessing.
         /// </summary>
-        private static uint[] AnchorsFor(Job job) => job switch
+        private static Anchor[] AnchorsFor(Job job) => job switch
         {
-            Job.PLD => [PLD.FightOrFlight],           // 60s, +25%
-            Job.GNB => [GNB.NoMercy],                 // 60s, +20%
-            Job.MNK => [MNK.RiddleOfFire],            // 60s, +15% (Brotherhood 120s rides along)
-            Job.DRG => [DRG.LanceCharge],             // 60s, +10%
-            Job.NIN => [NIN.KunaisBane],              // 60s, +10% damage taken on the target
-            Job.RPR => [RPR.ArcaneCircle],            // 120s, +3%
-            Job.BRD => [BRD.RagingStrikes],           // 120s, +15%
-            Job.DNC => [DNC.TechnicalStep],           // 120s, +5% (Devilment is crit/DH: no)
-            Job.SMN => [SMN.SearingLight],            // 120s, +5%
-            Job.RDM => [RDM.Embolden],                // 120s, +5%
-            Job.PCT => [PCT.StarryMuse],              // 120s, +5%
-            Job.AST => [AST.Divination],              // 120s, +6%
+            Job.PLD => [new(PLD.FightOrFlight, PLD.Buffs.FightOrFlight)],   // 60s, +25%
+            Job.GNB => [new(GNB.NoMercy, GNB.Buffs.NoMercy)],               // 60s, +20%
+            Job.MNK => [new(MNK.RiddleOfFire, MNK.Buffs.RiddleOfFire)],     // 60s, +15%
+            Job.DRG => [new(DRG.LanceCharge, DRG.Buffs.LanceCharge)],       // 60s, +10%
+            Job.NIN => [new(NIN.KunaisBane, NIN.Debuffs.KunaisBane, true)], // 60s, +10% taken
+            Job.RPR => [new(RPR.ArcaneCircle, RPR.Buffs.ArcaneCircle)],     // 120s, +3%
+            Job.BRD => [new(BRD.RagingStrikes, BRD.Buffs.RagingStrikes)],   // 120s, +15%
+            Job.DNC => [new(DNC.TechnicalStep, DNC.Buffs.TechnicalFinish)], // 120s, +5%
+            Job.SMN => [new(SMN.SearingLight, SMN.Buffs.SearingLight)],     // 120s, +5%
+            Job.RDM => [new(RDM.Embolden, RDM.Buffs.Embolden)],             // 120s, +5%
+            Job.PCT => [new(PCT.StarryMuse, PCT.Buffs.StarryMuse)],         // 120s, +5%
+            Job.AST => [new(AST.Divination, AST.Buffs.Divination)],         // 120s, +6%
             _ => [],
         };
+
+        /// <summary>
+        ///     Is the player's OWN anchor buff live right now - i.e. is this MY window?
+        ///     <para/>
+        ///     <c>anyOwner: false</c> is the entire point. It restricts the test to the copy the
+        ///     player applied themselves. See <see cref="ShouldHold" /> for the bug this fixes.
+        /// </summary>
+        private static bool MyBurstActive(Anchor[] anchors)
+        {
+            foreach (var a in anchors)
+            {
+                if (a.Buff == 0)
+                    continue;
+
+                if (HasStatusEffect(a.Buff, a.OnTarget ? CurrentTarget : null, anyOwner: false))
+                    return true;
+            }
+
+            return false;
+        }
 
         #endregion
 
@@ -272,27 +314,25 @@ internal partial class OccultCrescent
         ///     would say "burst is 0 seconds away" on every job at once and hold everything
         ///     forever.
         /// </summary>
-        internal static float SecondsUntilBurst
+        internal static float SecondsUntilBurst => SecondsUntil(AnchorsFor(Player.Job));
+
+        private static float SecondsUntil(Anchor[] anchors)
         {
-            get
+            if (anchors.Length == 0)
+                return float.MaxValue;
+
+            var soonest = float.MaxValue;
+            foreach (var anchor in anchors)
             {
-                var anchors = AnchorsFor(Player.Job);
-                if (anchors.Length == 0)
-                    return float.MaxValue;
+                if (!LevelChecked(anchor.Action))
+                    continue;
 
-                var soonest = float.MaxValue;
-                foreach (var anchor in anchors)
-                {
-                    if (!LevelChecked(anchor))
-                        continue;
-
-                    var remaining = GetCooldownRemainingTime(anchor);
-                    if (remaining < soonest)
-                        soonest = remaining;
-                }
-
-                return soonest;
+                var remaining = GetCooldownRemainingTime(anchor.Action);
+                if (remaining < soonest)
+                    soonest = remaining;
             }
+
+            return soonest;
         }
 
         #endregion
@@ -312,6 +352,23 @@ internal partial class OccultCrescent
         /// <summary>
         ///     Whether this phantom action should sit out the current opportunity and wait for
         ///     the player's own burst window.
+        ///     <para/>
+        ///     <b>v1.0.4.157 fix - the release test was asking the wrong question.</b> It used
+        ///     <see cref="PhantomWindowOpen" />, which is party-wide and built on
+        ///     <c>anyOwner: true</c>. In an eight-man Occult party every other member's raid
+        ///     buff lands on you on its own cadence, so that predicate reads true a large part
+        ///     of any fight, and the hold released on a stranger's Searing Light instead of
+        ///     waiting for yours. Worse, it counted phantom-side buffs the plugin applies
+        ///     ITSELF - Aetherial Gain is a 40s cooldown with a 20s duration, so a Geomancer
+        ///     setup opened its own "window" roughly half the time and released every hold into
+        ///     it. Net effect, exactly as reported: the ability fires just before your buff even
+        ///     though both were off cooldown.
+        ///     <para/>
+        ///     The question alignment actually needs is narrower and self-referential: is
+        ///     <em>my own</em> anchor buff up? That is <see cref="MyBurstActive" />, which tests
+        ///     with <c>anyOwner: false</c> so only the copy the player applied counts.
+        ///     <see cref="PhantomWindowOpen" /> keeps its job feeding
+        ///     <see cref="PhantomDamageBuffed" />, where party-wide really is the right scope.
         /// </summary>
         internal static bool ShouldHold(uint action)
         {
@@ -337,14 +394,18 @@ internal partial class OccultCrescent
                 return false;
             }
 
-            // Window already open - this is the moment we were waiting for.
-            if (PhantomWindowOpen)
+            var anchors = AnchorsFor(Player.Job);
+            if (anchors.Length == 0)
+                return false;
+
+            // MY window is open - this is the moment we were waiting for.
+            if (MyBurstActive(anchors))
             {
                 HoldStartedAt.Remove(action);
                 return false;
             }
 
-            var wait = SecondsUntilBurst;
+            var wait = SecondsUntil(anchors);
             if (wait > maxDelay)
             {
                 // Burst is too far off to be worth waiting for. Fire now; because every recast
@@ -378,11 +439,41 @@ internal partial class OccultCrescent
         #region Diagnostics
 
         /// <summary>One-line state dump for the phantom diagnostic log.</summary>
-        internal static string Describe() =>
-            $"align={IsEnabled(Preset.Phantom_AlignToBurst)} maxDelay={Phantom_AlignToBurst_MaxDelay}s " +
-            $"job={Player.Job} anchors={AnchorsFor(Player.Job).Length} " +
-            $"untilBurst={(SecondsUntilBurst >= float.MaxValue ? "n/a" : SecondsUntilBurst.ToString("F1"))} " +
-            $"windowOpen={PhantomWindowOpen} holding={HoldStartedAt.Count}";
+        internal static string Describe()
+        {
+            var anchors = AnchorsFor(Player.Job);
+            var wait = SecondsUntil(anchors);
+            return
+                $"align={IsEnabled(Preset.Phantom_AlignToBurst)} maxDelay={Phantom_AlignToBurst_MaxDelay}s " +
+                $"job={Player.Job} anchors={anchors.Length} " +
+                $"anchorReady={(anchors.Length > 0 ? LevelChecked(anchors[0].Action).ToString() : "n/a")} " +
+                $"untilBurst={(wait >= float.MaxValue ? "n/a" : wait.ToString("F1"))} " +
+                $"myBurstActive={(anchors.Length > 0 && MyBurstActive(anchors))} " +
+                $"partyWindowOpen={PhantomWindowOpen} holding={HoldStartedAt.Count}";
+        }
+
+        private static DateTime _alignDiagLast = DateTime.MinValue;
+
+        /// <summary>
+        ///     Throttled state dump for "alignment is not respecting my buff".
+        ///     <para/>
+        ///     This exists because the first shipped version of alignment was wrong on a static
+        ///     read and only in-zone behaviour caught it. Whichever column below reads
+        ///     unexpectedly is the answer, and it is one line rather than another round of
+        ///     guessing: if <c>anchors=0</c> the job has no anchor and nothing will ever be
+        ///     held; if <c>untilBurst</c> is large the buff is genuinely too far away; if
+        ///     <c>myBurstActive=True</c> while your buff is down, the anchor status id is wrong.
+        ///     Information-level so it lands in /xllog without enabling Verbose, throttled to
+        ///     5s and gated on the option being on, so it cannot flood.
+        /// </summary>
+        internal static void LogDiag()
+        {
+            if (!IsEnabled(Preset.Phantom_AlignToBurst)) return;
+            if ((DateTime.Now - _alignDiagLast).TotalSeconds < 5) return;
+            _alignDiagLast = DateTime.Now;
+
+            Svc.Log.Debug($"[PhantomAlign] {Describe()}");
+        }
 
         #endregion
     }

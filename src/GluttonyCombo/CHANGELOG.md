@@ -1,4 +1,53 @@
-﻿## v1.0.4.156 (2026-08-24) [testing]
+﻿## v1.0.4.157 (2026-08-24) [testing]
+
+### Fixed
+- **Alignment released the hold on OTHER PEOPLE'S buffs, so abilities fired just before your
+  own.** Joey, testing .156: "it'll fire the abilities prior to the buff even when both off
+  cooldown." That is exactly what the code did, and it is my bug, not a tuning problem.
+
+  The release test used `PhantomWindowOpen`, which is party-wide and built on
+  `anyOwner: true` - it answers "is a damage buff on me", not "is MY window open". In an
+  eight-man Occult party every other member's raid buff lands on you on its own cadence, so
+  that predicate reads true for a large part of any fight and the hold released on somebody
+  else's Searing Light instead of waiting for yours.
+
+  Worse, it counted phantom-side buffs **the plugin applies itself**. Aetherial Gain is a 40s
+  cooldown with a 20s duration, so a Geomancer setup opened its own "window" roughly half the
+  time and released every hold straight into it. The feature was, in effect, racing itself.
+
+  The question alignment actually needs is narrower and self-referential: **is my own anchor
+  buff up?** That is the new `MyBurstActive`, which tests with `anyOwner: false` so only the
+  copy the player applied counts, and checks the specific status their anchor grants -
+  Fight or Flight, No Mercy, Riddle of Fire, Lance Charge, Kunai's Bane (on the target),
+  Arcane Circle, Raging Strikes, Technical Finish, Searing Light, Embolden, Starry Muse,
+  Divination. All twelve status IDs were verified against the live game Status sheet before
+  shipping, not read off memory.
+
+  `PhantomWindowOpen` keeps its original job feeding `PhantomDamageBuffed` for Restrict to
+  Buff, where party-wide genuinely is the right scope. The two questions were being answered
+  by one predicate; they are now separate.
+
+### Added
+- **`[PhantomAlign]` diagnostic line in /xllog**, throttled to 5s and only while the option is
+  enabled. Prints job, anchor count, seconds until burst, whether your own burst is active,
+  whether a party window is open, and how many actions are being held.
+
+  This exists because .156 was wrong on a static read and only in-zone behaviour caught it -
+  the same trap `LogPhantomHealDiag` was written for. Whichever column reads unexpectedly is
+  the answer: `anchors=0` means your job has no percentage damage buff and nothing will ever
+  be held; a large `untilBurst` means the buff is genuinely too far away; `myBurstActive=True`
+  while your buff is visibly down would mean an anchor status id is wrong.
+
+### Notes
+- **If your job has no percentage damage buff, nothing is held and that is intended.** Samurai,
+  Machinist, Black Mage, Viper, White Mage, Scholar and Sage have none; Warrior and Dark Knight
+  have only Surging Tempest and Darkside, which are permanent rather than windows. The
+  diagnostic reports `anchors=0` in that case.
+- The stall guard is unchanged: any hold releases after your delay plus three seconds, so an
+  anchor that is off cooldown but never actually pressed cannot freeze a phantom action for the
+  fight.
+
+## v1.0.4.156 (2026-08-24) [testing]
 
 ### Added
 - **New option: "Align Phantom Cooldowns to Your Burst Window"** (Occult Crescent, top level,

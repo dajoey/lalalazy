@@ -27,6 +27,8 @@ internal partial class OccultCrescent
         if (!IsInOccult)
             return false;
 
+        BurstAlign.LogDiag();
+
         if (PlayerHP <= 90) LogPhantomHealDiag();
 
         // Emergency healing outranks every damage button, on every phantom job. See
@@ -101,7 +103,6 @@ internal partial class OccultCrescent
 
         Svc.Log.Debug($"[PhantomDiag] duty slots seen: {Action1} / {Action2} / {Action3} / {Action4} / {Action5} " +
             $"| HP={PlayerHP} | weaveWindow={CanWeaveNow} | inOccult={IsInOccult}");
-        Svc.Log.Debug($"[PhantomDiag] {BurstAlign.Describe()}");
 
         void Row(string label, Preset parent, Preset child, uint act, double threshold)
         {
