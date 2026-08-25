@@ -1554,6 +1554,123 @@ public struct ActionTargetInfo(IBaseAction action)
 	#region TargetFind
 
 	/// <summary>
+	/// Counts how many of your own team are currently targeting <paramref name="target"/>.
+	/// Party and alliance are both counted: in Crystalline Conflict the whole team arrives as
+	/// the party, while in Frontline the rest of your side arrives as alliance members.
+	/// </summary>
+	private static int CountTeamPressure(IBattleChara target)
+	{
+		if (target == null)
+		{
+			return 0;
+		}
+
+		static int CountIn(List<IBattleChara>? members, ulong targetId, ulong playerId)
+		{
+			if (members == null)
+			{
+				return 0;
+			}
+
+			int n = 0;
+			for (int i = 0; i < members.Count; i++)
+			{
+				IBattleChara m = members[i];
+				if (m == null || m.GameObjectId == playerId)
+				{
+					continue;
+				}
+
+				if (m.TargetObject?.GameObjectId == targetId)
+				{
+					n++;
+				}
+			}
+			return n;
+		}
+
+		ulong targetId = target.GameObjectId;
+		ulong playerId = Player.Object?.GameObjectId ?? 0;
+		return CountIn(DataCenter.PartyMembers, targetId, playerId)
+			 + CountIn(DataCenter.AllianceMembers, targetId, playerId);
+	}
+
+	/// <summary>
+	/// Returns the player's current target when it is still a legal candidate for this action
+	/// and is carrying a timed status applied by the player, otherwise <c>null</c>. Keeps the
+	/// auto-target from abandoning an enemy a damage window has just been spent on.
+	/// </summary>
+	private static IBattleChara? FindStickyTarget(List<IBattleChara> filtered)
+	{
+		if (filtered == null || filtered.Count == 0 || !DataCenter.IsPvP)
+		{
+			return null;
+		}
+
+		ulong playerId = Player.Object?.GameObjectId ?? 0;
+		ulong currentId = Svc.Targets.Target?.GameObjectId ?? 0;
+		if (playerId == 0 || currentId == 0 || currentId == playerId)
+		{
+			return null;
+		}
+
+		IBattleChara? current = null;
+		for (int i = 0; i < filtered.Count; i++)
+		{
+			if (filtered[i] != null && filtered[i].GameObjectId == currentId)
+			{
+				current = filtered[i];
+				break;
+			}
+		}
+
+		// Not a legal target for this action any more - let normal selection run.
+		if (current == null)
+		{
+			return null;
+		}
+
+		float maxRemaining = Service.Config.StickyTargetMaxRemaining;
+
+		try
+		{
+			var statusList = current.StatusList;
+			if (statusList == null)
+			{
+				return null;
+			}
+
+			for (int i = 0; i < statusList.Length; i++)
+			{
+				var status = statusList[i];
+				if (status == null || status.StatusId == 0)
+				{
+					continue;
+				}
+
+				if (status.SourceId != playerId && status.SourceObject?.OwnerId != playerId)
+				{
+					continue;
+				}
+
+				// RemainingTime == 0 is this codebase's convention for a permanent status, so only
+				// a genuinely ticking, short-lived one is allowed to hold the target.
+				if (status.RemainingTime > 0f && status.RemainingTime <= maxRemaining)
+				{
+					return current;
+				}
+			}
+		}
+		catch
+		{
+			// StatusList threw - treat as unavailable and fall through to normal selection.
+			return null;
+		}
+
+		return null;
+	}
+
+	/// <summary>
 	/// Finds the target based on the specified type and criteria.
 	/// </summary>IBattleChara battleChara
 	/// <param name="battleChara"></param>
@@ -3344,6 +3461,40 @@ public struct ActionTargetInfo(IBaseAction action)
 						}
 						break;
 					}
+				case TargetingType.PvPHighestPressure:
+					{
+						// Score every candidate up front. A comparator that re-reads live target data
+						// mid-sort can throw "IComparer.Compare() returns inconsistent results" when
+						// someone switches target while the sort is running.
+						int candidateCount = objects.Count;
+						int[] pressure = new int[candidateCount];
+						float[] healthRatio = new float[candidateCount];
+						for (int i = 0; i < candidateCount; i++)
+						{
+							pressure[i] = CountTeamPressure(objects[i]);
+							healthRatio[i] = ObjectHelper.GetHealthRatio(objects[i]);
+						}
+
+						int[] order = new int[candidateCount];
+						for (int i = 0; i < candidateCount; i++)
+						{
+							order[i] = i;
+						}
+
+						Array.Sort(order, (x, y) =>
+						{
+							int cmp = pressure[y].CompareTo(pressure[x]);      // most team pressure first
+							if (cmp != 0) return cmp;
+							return healthRatio[x].CompareTo(healthRatio[y]);   // then closest to dying
+						});
+
+						filtered = new List<IBattleChara>(candidateCount);
+						for (int i = 0; i < candidateCount; i++)
+						{
+							filtered.Add(objects[order[i]]);
+						}
+						break;
+					}
 				default:
 					if (Service.Config.SmallHp)
 					{
@@ -3370,6 +3521,17 @@ public struct ActionTargetInfo(IBaseAction action)
 						});
 					}
 					break;
+			}
+
+			// Hold the current target while our own timed debuff is still running on it instead of
+			// re-picking from scratch on every action (github.com/dajoey/lalalazy issue #4).
+			if (Service.Config.StickyTarget)
+			{
+				IBattleChara? sticky = FindStickyTarget(filtered);
+				if (sticky != null)
+				{
+					return sticky;
+				}
 			}
 
 			foreach (var obj in filtered)

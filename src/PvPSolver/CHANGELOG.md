@@ -1,5 +1,22 @@
 ﻿# Changelog - PvP Solver
 
+## [0.1.0.13] - 2026-08-25
+### Added
+- **`PvPHighestPressure` targeting mode** (issue #4, requested by @Petra105). Selects the hostile the most members of your own side are currently targeting, breaking ties toward the lowest HP percentage. Party and alliance lists are both counted, so it behaves in Frontline (where the rest of your side arrives as alliance members) as well as in Crystalline Conflict. Your own current target is excluded from the count, otherwise the mode would reinforce whatever you were already on. Appended to the end of `TargetingType`, so existing saved `TargetingTypes` indices are unaffected, and it is **not** added to the default list - it is opt-in from Target settings. (`PvPSolver.Basic/Data/TargetType.cs`, `PvPSolver.Basic/Actions/ActionTargetInfo.cs`)
+
+### Fixed
+- **Auto-target abandoned an enemy mid damage-window** (issue #4, same report). `FindHostileRaw` re-ranked every hostile from scratch on each action and returned the top of the list, with no reference to the target already selected; `RSCommands.DoAction` then hard-assigned `Svc.Targets.Target` to it. Under an HP-based targeting mode this flips target the instant another enemy's HP crosses yours, so a just-applied Wildfire is left on someone you have stopped hitting. `FindHostileRaw` now consults `FindStickyTarget` before returning: if the current target is still a legal candidate **for the action being used** and carries at least one status sourced from the player with `0 < RemainingTime <= StickyTargetMaxRemaining`, it is kept. (`PvPSolver.Basic/Actions/ActionTargetInfo.cs`)
+
+### Changed
+- Two new options under Target settings: **`StickyTarget`** (default **on**) and **`StickyTargetMaxRemaining`** (default 30s). The second exists so an effectively permanent aura cannot pin the target forever - `RemainingTime == 0` is this codebase's convention for a permanent status and is already excluded, and the cap covers long ones.
+
+### Notes
+- **Trade-off, by design:** while your debuff is ticking the rotation will stay on that target even if another enemy drops lower. That is the requested behavior, and turning `StickyTarget` off restores the previous snap-to-lowest-HP handling exactly.
+- **Scoped to PvP.** `FindStickyTarget` returns early unless `DataCenter.IsPvP`, so PvE target selection is byte-for-byte unchanged.
+- Sticky selection reads `Svc.Targets.Target`, i.e. the target the previous action settled on, which is what makes this hysteresis rather than a second independent pick.
+- `CountTeamPressure` scores every candidate once before sorting rather than inside the comparator; a comparator that re-reads live target data can throw `IComparer.Compare() returns inconsistent results` if a teammate switches target mid-sort.
+- **Not yet verified in-game** - shipped to the testing channel only.
+
 ## [0.1.0.12] - 2026-08-06
 ### Changed
 - Synced upstream RotationSolverReborn `35ceb6e82` ("Guard status check for Doom to ensure valid object"): the PvP-rotation portion of that commit is a `GameVersion` attribute bump from `7.5` to `7.55` across all 21 PvP rotations.

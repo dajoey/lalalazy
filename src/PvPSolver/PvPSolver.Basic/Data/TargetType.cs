@@ -81,5 +81,13 @@ public enum TargetingType
 	/// PVP: Find the nearest DPS.
 	/// </summary>
 	[Description("Focus DPS in PvP")]
-	PvPDPS
+	PvPDPS,
+
+	/// <summary>
+	/// PVP: Find the hostile your own team is already applying the most pressure to,
+	/// measured as the number of your team members currently targeting it.
+	/// Ties break toward the lowest HP percentage.
+	/// </summary>
+	[Description("Focus your team's pressure target in PvP")]
+	PvPHighestPressure
 }

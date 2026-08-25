@@ -1181,6 +1181,17 @@ internal partial class Configs : IPluginConfiguration
 		Filter = TargetConfig)]
 	private static readonly bool _bigHP = false;
 
+	[ConditionBool, UI("PvP: stay on the current target while your own timed debuff is still ticking on it.",
+		Description = "Stops auto-target from jumping off an enemy you have just committed a timed debuff to (Wildfire and similar) because another enemy briefly scores better under the active targeting mode. Only holds the target while it is still a legal target for the action being used, so it never blocks a switch the action could not make anyway.",
+		Filter = TargetConfig)]
+	private static readonly bool _stickyTarget = true;
+
+	[UI("Ignore self-applied statuses with more remaining time than this when deciding to stay on target",
+		Description = "Guards against being held on a target by a long or effectively permanent aura. Statuses with more time left than this do not hold the target.",
+		Filter = TargetConfig, Parent = nameof(StickyTarget))]
+	[Range(1, 60, ConfigUnitType.Seconds, 0.02f)]
+	public float StickyTargetMaxRemaining { get; set; } = 30f;
+
 	[UI("/pvpsolver Cycle behaviour", Filter = TargetConfig)]
 	public CycleType CycleType { get; set; } = CycleType.CycleNormal;
 
