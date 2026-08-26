@@ -1,4 +1,37 @@
-﻿## v1.0.4.158 (2026-08-25) [testing]
+﻿## v1.0.4.159 (2026-08-26) [testing]
+
+Upstream WrathCombo merge: `13b821ec7..2732defbe`, 2 commits, 2 files. Small,
+mechanical range - both hunks landed by 3-way with no conflicts, and nothing else
+in the fork moved.
+
+### Changed
+- **Actions fired from a macro no longer have their queued target overwritten by
+  retargeting.** Upstream added `mode is not ActionManager.UseActionMode.Macro`
+  to the `willQueue` test in `ActionWatching.UseActionDetour`. That flag guards
+  exactly one block: the one that writes `actionManager->QueuedTargetId =
+  changedTargetId` after a retarget. So a macro line that queues during the GCD
+  now keeps the target the game gave it instead of the target GluttonyCombo
+  picked. Nothing else reads `willQueue`.
+
+### Added
+- **Debug tab shows `Queued Target ID`** next to `Queued Action`, from
+  `ActionManager.Instance()->QueuedTargetId.Id` - the value the change above is
+  about, so it can be watched live.
+
+### Notes
+- Upstream's first commit in this range (`cc1a9c9de`, "Fix weird queue id stuck
+  issue") added `&& actionManager->QueuedActionId > 0` to the queued-target
+  guard, and its own follow-up 22 minutes later took it back out. The net range
+  therefore contains only the two lines above - that revert is upstream's, not a
+  merge loss.
+- Every standing fork divergence in the two touched files was preserved: the
+  `UseActionRaw` hook-original entry point, the `PlayerHasActionPenalty` hard
+  block, and the `GluttonyCombo.P` qualifications in the Debug window. Checked by
+  diffing ours against the forward-renamed base before merging.
+- `BattleData.LoadCombatData` still has its two hits (declaration + call), per the
+  standing check. `GluttonyCombo.cs` was not in this range.
+
+## v1.0.4.158 (2026-08-25) [testing]
 
 Upstream WrathCombo merge: `c35a28de3..13b821ec7`, 14 commits, 72 files.
 
