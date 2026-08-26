@@ -553,6 +553,7 @@ internal class Debug : ConfigWindow, IDisposable
             CustomStyleText("GCD Total:", GCDTotal);
             CustomStyleText("GCD Remaining:", RemainingGCD);
             CustomStyleText("Queued Action:", ActionManager.Instance()->QueuedActionId.ActionName());
+            CustomStyleText("Queued Target ID:", ActionManager.Instance()->QueuedTargetId.Id);
             CustomStyleText("Animation Lock:", $"{ActionManager.Instance()->AnimationLock:F1}");
             CustomStyleText($"Duty Action 1:", $"{Action1.ActionName()}");
             CustomStyleText($"Duty Action 2:", $"{Action2.ActionName()}");

@@ -727,7 +727,7 @@ public static class ActionWatching
                     actionManager->QueuedActionId = Service.ActionReplacer.ActionReplacingEnabled ? actionId : replacedWith;
 
                 // Determine if the action will queue according to user settings
-                bool willQueue = CanQueueCS(replacedWith) && RemainingGCD > 0;
+                bool willQueue = CanQueueCS(replacedWith) && RemainingGCD > 0 && mode is not ActionManager.UseActionMode.Macro;
 
                 // If the action is going to queue, and we've retargeted, update the queued target to match the retargeted target at time of queue
                 if (willQueue && changed)
