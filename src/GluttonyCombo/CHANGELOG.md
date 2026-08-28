@@ -1,4 +1,47 @@
-﻿## v1.0.4.159 (2026-08-26) [testing]
+﻿## v1.0.4.160 (2026-08-28) [testing]
+
+Upstream WrathCombo merge: `2732defbe..7b4501585`, 2 commits, 2 files upstream -
+one file here. The other upstream commit rewrites a `case` block this fork
+deliberately replaced, so it is a no-op for us (see Notes).
+
+### Changed
+- **Meikyo Shisui, single target: Gekko and Kasha are now selected by upstream's
+  simplified test.** Both conditions collapsed to one clause each:
+  `useGekko && ActionLearned(Gekko) && !HasGetsu || !HasStatusEffect(Fugetsu)`
+  and the same shape for Kasha/Ka/Fuka. So Gekko is used when you hold no Getsu
+  sen and Kasha when you hold no Ka sen; the previous positional-aware conditions
+  (`OnTargetsRear()`, `OnTargetsFlank() && HasKa`, the cross-checks against the
+  other action's toggle) are gone. Positional handling itself is untouched -
+  `WithTrueNorth` still wraps both returns.
+- **Yukikaze comes up sooner as a result.** Its guard requires
+  `(!useGekko || !ActionLearned(Gekko) || HasGetsu)` and the Ka equivalent, which
+  the old conditions kept fighting; now that Gekko/Kasha stand down once their sen
+  is held, Yukikaze fills the remaining Meikyo charge. That is the "Yukikaze usage"
+  half of upstream's commit title.
+
+### Notes
+- **Precedence, so it is not a surprise in-game:** `&&` binds tighter than `||`,
+  so each new condition reads `(useGekko && ActionLearned(Gekko) && !HasGetsu) ||
+  !HasStatusEffect(Fugetsu)`. A missing Fugetsu therefore returns Gekko even when
+  Gekko is switched off in the preset, and a missing Fuka returns Kasha the same
+  way. Since Gekko applies Fugetsu and Kasha applies Fuka, the buff-refresh
+  override is the plausible intent; it is upstream's code as written and the fork
+  has no divergence in this file, so it was taken verbatim. The unlearned-action
+  edge of that precedence is unreachable: `DoMeikyoCombo` only runs under the
+  Meikyo Shisui buff (level 50), above both Gekko (30) and Kasha (40).
+- **Forked Tower: Magic head check - kept ours.** Upstream's `5b8cf4a3f` fixes its
+  own `case 1346` to compare `tar?.NameId` instead of the lambda's `targetID`
+  argument against head ids 14490/14491. This fork removed that block in
+  v1.0.4.133 and replaced it with a status-keyed check (Epic/Fated/Vaunted Villain
+  on the target vs the matching Hero dub on the player, `anyOwner: true`), which
+  never reads head ids at all. Per RUNBOOK 3.3 the fork version stands; upstream's
+  fix targets code we do not carry, so `BattleData_7.0_DT.cs` is unchanged here.
+- The merge ran as a per-file 3-way. `SAM_Helper.cs` was byte-identical to the
+  forward-renamed base, so it was a clean take-theirs with no fork divergence to
+  preserve. `BattleData.LoadCombatData` still has its two hits (declaration +
+  call); `GluttonyCombo.cs` was not in this range.
+
+## v1.0.4.159 (2026-08-26) [testing]
 
 Upstream WrathCombo merge: `13b821ec7..2732defbe`, 2 commits, 2 files. Small,
 mechanical range - both hunks landed by 3-way with no conflicts, and nothing else
