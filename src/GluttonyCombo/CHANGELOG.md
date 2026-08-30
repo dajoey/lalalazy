@@ -1,4 +1,28 @@
-﻿## v1.0.4.162 (2026-08-30) [testing]
+﻿## v1.0.4.163 (2026-08-30) [testing]
+
+### Fixed
+- **Phantom Red Mage stopped casting Occult Cure II on full-health targets.** Reported and
+  bisected in-game by Joey: with "Retarget Occult Cure II" on, the cure went out constantly
+  while he and the party were at full HP. Root cause is a v1.0.4.161 upstream-merge landmine
+  with three parts: (1) upstream added a second `IfMissingHP(float)` overload on
+  `IBattleChara?` (`BattleCharaExtensions.cs`) that compares ECommons' `Health` — a **0–1
+  ratio** — against the caller's **0–100 percent** threshold, so any living target passes at
+  any HP; (2) the same merge retyped `SimpleTarget.LowestHPAlly` / `LowestHPAllyOutOfParty`
+  from `IGameObject?` to `IBattleChara?`; (3) that retype silently rebound the Cure II
+  retarget call sites in `TryRetargetPhantomCure` from the old, correct percent-based
+  `IGameObject?` overload to the new broken one. The ally filter therefore always passed and
+  the "lowest HP ally" (usually just the smallest HP pool, at 100%) got cured on cooldown.
+- **The same rebind broke more than the phantom cure** — every `IfMissingHP` call on an
+  `IBattleChara`-typed expression: the SoftTarget/FocusTarget heal-stack checks
+  (`SimpleTarget.cs`), the four `LowestHP*AllyIfMissingHP` convenience targets, and SMN's
+  heal targeting (`SMN.cs`, `SMN_Helper.cs`). All were treating full-HP targets as "missing
+  HP" since v1.0.4.161.
+- **Fix is at the root, not the call sites:** the `IBattleChara?` overload now runs the same
+  percent comparison as the `IGameObject?` original (`GetTargetHPPercent(chara) <=
+  missingHpp`, which also respects the pending-HP prediction setting). Every rebound call
+  site is repaired by the one change. Upstream WrathCombo still carries this bug live.
+
+## v1.0.4.162 (2026-08-30) [testing]
 
 ### Changed
 - **SGE gets its own BossMod/BossModReborn AI distance on job change: 5 yalms** (was

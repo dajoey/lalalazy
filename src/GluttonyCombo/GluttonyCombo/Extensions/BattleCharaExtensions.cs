@@ -56,8 +56,14 @@ internal static class BattleCharaExtensions
         ///     Can be chained onto a <see cref="IGameObject" /> to make it return
         ///     <see langword="null" /> if the target is not below 99% HP.
         /// </summary>
+        /// <remarks>
+        ///     missingHpp is a PERCENT (0-100), like every HP slider that feeds it. Upstream's
+        ///     version compared ECommons' <c>Health</c> - a 0-1 ratio - against that percent,
+        ///     which is true for any living target, so every IfMissingHP filter on an
+        ///     IBattleChara passed at full HP (v1.0.4.163 fix).
+        /// </remarks>
         public IBattleChara? IfMissingHP(float missingHpp = 99) =>
-            chara is not null && chara.Health <= missingHpp
+            chara is not null && CustomComboFunctions.GetTargetHPPercent(chara) <= missingHpp
                 ? chara
                 : null;
     }
