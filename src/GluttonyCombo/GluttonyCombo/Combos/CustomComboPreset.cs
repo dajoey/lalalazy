@@ -2325,23 +2325,9 @@ public enum Preset
     [JobInfo(Job.BLU)]
     BLU_PeatClean = 70023,
 
-<<<<<<< C:/Scripts/nightly-upstream-merge/_scratch-20260830/ours.tmp
-    [AutoAction(false, false)]
-    [ReplaceSkill(BLU.SonicBoom)]
-    [JobInfo(Job.BLU)]
-    [SimpleDPSCombo]
-    BLU_AutoRotation_DPS = 70026,
-
-    [ReplaceSkill(BLU.WhiteWind)]
-    [JobInfo(Job.BLU)]
-    BLU_AutoRotation_Heal = 70027,
-
-    // Last value = 70027
-=======
     #endregion
 
     // Last value = 70076
->>>>>>> C:/Scripts/nightly-upstream-merge/_scratch-20260830/theirs.tmp
 
     #endregion
 

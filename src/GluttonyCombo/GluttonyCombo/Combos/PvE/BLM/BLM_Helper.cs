@@ -516,33 +516,15 @@ internal partial class BLM
 
     #region AoE Weaves
 
-<<<<<<< C:/Scripts/nightly-upstream-merge/_scratch-20260830/ours.tmp
-    private static bool TryAoEMovementTriplecast(ref uint actionID, bool useTriplecast = true)
-    {
-        // !HasOccultInstantCast covers both Occult Crescent routes. v1.0.4.144 gated the
-        // single-target movement block and left this one out entirely, so the AoE rotation
-        // still bought Triplecast under Occult Quick; the choke point in CustomCombo.TryInvoke
-        // caught it, but only after the combo had already chosen it.
-        if (!(useTriplecast &&
-              IsMoving() && InCombat() &&
-              InActionRange(Fire2) && HasBattleTarget() &&
-              ActionReady(Triplecast) &&
-              !HasOrExpectsOccultInstantCast &&
-              !HasStatusEffect(Buffs.Triplecast) &&
-              !JustUsed(Triplecast)))
-            return false;
-
-        actionID = Triplecast;
-        return true;
-    }
-=======
     private static bool UseAoETriplecastMovement() =>
         IsMoving() && InCombat() &&
         InActionRange(Fire2) && HasBattleTarget() &&
         ActionReady(Triplecast) &&
+        // Fork gate (v1.0.4.148): never buy Triplecast while an Occult Crescent instant
+        // cast is up or inbound. Reapplied on top of upstream's predicate refactor.
+        !HasOrExpectsOccultInstantCast &&
         !HasStatusEffect(Buffs.Triplecast) &&
         !JustUsed(Triplecast);
->>>>>>> C:/Scripts/nightly-upstream-merge/_scratch-20260830/theirs.tmp
 
     private static bool UseAoEManafont() =>
         ActionReady(Manafont) && IsEndOfFirePhase;

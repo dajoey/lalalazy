@@ -1,4 +1,57 @@
-﻿## v1.0.4.160 (2026-08-28) [testing]
+﻿## v1.0.4.161 (2026-08-30) [testing]
+
+Upstream WrathCombo merge: `7b4501585..05044558a`, 67 commits, 81 files. This is the
+merge that was held on 2026-08-30 for a decision about Blue Mage, and the decision was
+made: **upstream's Blue Mage implementation replaces this fork's.**
+
+### Changed
+- **The fork's ALPHA BLU auto-rotation engine is gone, replaced by upstream's full Blue
+  Mage suite.** Upstream now ships single-target and AoE DPS, Tank and Heal modes,
+  two openers, and an 803-line `BLU_Helper.cs` - 37 presets where the fork had two.
+  The fork's engine (`BLU_AutoRotation.cs`, its 124 per-ability toggles and its tuning
+  sliders) is deleted, and `BLU_Config.cs` is now upstream's.
+- **If you had the fork's BLU auto-rotation switched on, you now have upstream's BLU DPS
+  switched on instead - check it before you pull.** Presets persist by number, not by
+  name. The fork's `BLU_AutoRotation_DPS` and `_Heal` held 70026 and 70027; upstream's
+  `BLU_ST_DPS` and `BLU_AoE_DPS` now hold those same two numbers, so an existing "on"
+  setting carries straight over to the upstream preset. Nothing else changed hands, and
+  no other preset moved. Turn them off in the preset window if you do not want them.
+- **BLM AoE movement Triplecast follows upstream's new shape, with the fork's Occult
+  Crescent gate reapplied on top.** Upstream turned `TryAoEMovementTriplecast(ref uint,
+  bool)` into the predicate `UseAoETriplecastMovement()`; the v1.0.4.148 rule that
+  Triplecast is never bought while an Occult instant cast is up or inbound
+  (`!HasOrExpectsOccultInstantCast`) is inside the new predicate.
+- **Single-target heal targeting takes upstream's `SimpleTarget.HardTarget` refactor,
+  with Doom handling kept.** A Doomed ally is still a heal candidate at any HP
+  (`NeedsDoomTopUp`), which is the whole point of that divergence - Doom kills outright
+  and a 95% HP Doomed ally is not healthy.
+- **Occult Crescent handlers now call `CanWeave()`, `HasBattleTarget()`, `InCombat()` and
+  `IsMoving()` directly.** Upstream deleted the four `...Now` alias properties and
+  inlined its own call sites; the fork's Occult Crescent handlers are converged to match
+  rather than keeping the aliases alive. Same behaviour, 25 call sites.
+
+### Notes
+- **Forked Tower: Magic head check - kept ours, again.** Upstream added its own
+  `case 1346`, keyed on head NameIds 14490/14491. This fork keeps the status-keyed
+  Epic/Fated/Vaunted Villain check with `anyOwner: true`, which also covers later FT:M
+  bosses reusing the duel system.
+- **Doom and Status kept alongside upstream's edits, not instead of them.** The Doom
+  status set and `NeedsDoomTopUp` survive; upstream's `[Obsolete]` marker on
+  `ImmuneToStatus` and its `private` -> `internal` change on `DamageUpStatuses` are both
+  taken. Both sides were additive.
+- **`BattleData.LoadCombatData` still has its two hits (declaration + call).** The
+  standing check after any merge that touches the entry file.
+- **No config migration ships with this, and none is needed for the retirement itself.**
+  The fork's two BLU preset numbers are not renumbered - they are released to upstream,
+  which is what "retire the fork engine" means. The alternative (keep both, renumber the
+  fork's presets above 70076) was the option that would have required one.
+- **The fork's BLU engine was labelled "CURRENTLY BROKEN - DO NOT USE" in its own preset
+  description**, so the practical blast radius of the swap is small: what replaces it is
+  a working implementation.
+- 9 conflicts were resolved in this merge, 3 of them the BLU decision itself. Build is
+  clean, 0 errors.
+
+## v1.0.4.160 (2026-08-28) [testing]
 
 Upstream WrathCombo merge: `2732defbe..7b4501585`, 2 commits, 2 files upstream -
 one file here. The other upstream commit rewrites a `case` block this fork

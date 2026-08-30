@@ -1,9 +1,5 @@
-<<<<<<< C:/Scripts/nightly-upstream-merge/_scratch-20260830/ours.tmp
-using Dalamud.Game.ClientState.Objects.Types;
-=======
 ﻿using Dalamud.Game.ClientState.Objects.Types;
 using ECommons;
->>>>>>> C:/Scripts/nightly-upstream-merge/_scratch-20260830/theirs.tmp
 using ECommons.GameFunctions;
 using System;
 using System.Linq;

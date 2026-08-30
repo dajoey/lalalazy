@@ -16,11 +16,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-<<<<<<< C:/Scripts/nightly-upstream-merge/_scratch-20260830/ours.tmp
 using GluttonyCombo.Data;
-=======
 using System.Runtime.CompilerServices;
->>>>>>> C:/Scripts/nightly-upstream-merge/_scratch-20260830/theirs.tmp
 using GluttonyCombo.API.Enum;
 using GluttonyCombo.Combos.PvE;
 using GluttonyCombo.Combos.PvE.Enums;
@@ -2339,24 +2336,13 @@ internal unsafe class AutoRotationController
     {
         internal static IBattleChara? ManualTarget()
         {
-<<<<<<< C:/Scripts/nightly-upstream-merge/_scratch-20260830/ours.tmp
-            if (Svc.Targets.Target == null) return null;
-            var t = Svc.Targets.Target;
-            bool goodToHeal = t is IBattleChara &&
-                              t.IsFriendly() &&
+            if (SimpleTarget.HardTarget is not { } t) return null;
+            bool goodToHeal = t.IsFriendly() &&
                               (NeedsDoomTopUp(t) ||
                                GetTargetHPPercent(t) <=
                                (TargetHasExcog(t) ? cfg.HealerSettings.SingleTargetExcogHPP :
-                                   TargetHasRegen(t) ? cfg.HealerSettings.SingleTargetRegenHPP :
-                                   cfg.HealerSettings.SingleTargetHPP));
-=======
-            if (SimpleTarget.HardTarget is not { } t) return null;
-            bool goodToHeal = t.IsFriendly() &&
-                              GetTargetHPPercent(t) <=
-                              (TargetHasExcog(t) ? cfg.HealerSettings.SingleTargetExcogHPP :
-                               TargetHasRegen(t) ? cfg.HealerSettings.SingleTargetRegenHPP :
-                               cfg.HealerSettings.SingleTargetHPP);
->>>>>>> C:/Scripts/nightly-upstream-merge/_scratch-20260830/theirs.tmp
+                                TargetHasRegen(t) ? cfg.HealerSettings.SingleTargetRegenHPP :
+                                cfg.HealerSettings.SingleTargetHPP));
             if (goodToHeal && !t.IsHostile())
             {
                 return t;

@@ -1,11 +1,7 @@
-<<<<<<< C:/Scripts/nightly-upstream-merge/_scratch-20260830/ours.tmp
-using FFXIVClientStructs.FFXIV.Client.Game;
-=======
 ﻿using ECommons.DalamudServices;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using Lumina.Excel.Sheets;
->>>>>>> C:/Scripts/nightly-upstream-merge/_scratch-20260830/theirs.tmp
 using System.Linq;
 namespace GluttonyCombo.Services;
 

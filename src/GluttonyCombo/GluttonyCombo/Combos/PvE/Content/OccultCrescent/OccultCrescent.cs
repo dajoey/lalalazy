@@ -102,7 +102,7 @@ internal partial class OccultCrescent
         _phantomDiagLast = DateTime.Now;
 
         Svc.Log.Debug($"[PhantomDiag] duty slots seen: {Action1} / {Action2} / {Action3} / {Action4} / {Action5} " +
-            $"| HP={PlayerHP} | weaveWindow={CanWeaveNow} | inOccult={IsInOccult}");
+            $"| HP={PlayerHP} | weaveWindow={CanWeave()} | inOccult={IsInOccult}");
 
         void Row(string label, Preset parent, Preset child, uint act, double threshold)
         {
@@ -197,7 +197,7 @@ internal partial class OccultCrescent
     {
         var rows = new List<string>
         {
-            $"inOccult={IsInOccult} hp={PlayerHP:F0}% mp={PlayerMP} weave={CanWeaveNow} " +
+            $"inOccult={IsInOccult} hp={PlayerHP:F0}% mp={PlayerMP} weave={CanWeave()} " +
             $"slots=[{Action1},{Action2},{Action3},{Action4},{Action5}]",
         };
 
@@ -281,7 +281,7 @@ internal partial class OccultCrescent
             yield return new PhantomHealOption(P755.BLU_OccultWhiteWind, Phantom_BlueMage_OccultWhiteWind_Health, PhantomHealScope.PartyWide, false);
 
         if (IsEnabled(Preset.Phantom_Chemist) &&
-            IsEnabledAndSlotted(Preset.Phantom_Chemist_OccultElixir, OccultElixir) && InCombatNow &&
+            IsEnabledAndSlotted(Preset.Phantom_Chemist_OccultElixir, OccultElixir) && InCombat() &&
             (!Phantom_Chemist_OccultElixir_RequireParty || IsInParty()))
             yield return new PhantomHealOption(OccultElixir, Phantom_Chemist_OccultElixir_HP, PhantomHealScope.PartyWide, false);
     }
@@ -315,7 +315,7 @@ internal partial class OccultCrescent
                 continue;
 
             // oGCDs only in a weave window; casts only outside one.
-            if (option.IsWeave != CanWeaveNow)
+            if (option.IsWeave != CanWeave())
                 continue;
 
             // Doom overrides every threshold below it. It kills outright when the counter
@@ -635,7 +635,7 @@ internal partial class OccultCrescent
         // range, no combat - so standing about in the zone with Time Mage equipped and the Comet
         // option on, it would spend a 60s Swiftcast prepping a Comet there was nothing to cast at.
         // That is Joey's "casting swiftcast outside of combat for no reason". Every sibling
-        // handler in this file already gates on HasTargetNow; this one was the exception.
+        // handler in this file already gates on HasBattleTarget(); this one was the exception.
         //
         // Guarding the whole block, not just the speed prep: prepping without casting is the bug,
         // but offering an 8s hard cast at nothing is no better. Side effect worth knowing - Comet
@@ -651,7 +651,7 @@ internal partial class OccultCrescent
         // press, which ShouldHoldOccultQuick() does NOT cover - it gates the damage-buff press
         // further up - so until now the v1.0.4.150 mid-combo hold had a second door open here.
         if (IsEnabledAndUsable(Preset.Phantom_TimeMage_OccultComet, OccultComet) &&
-            HasTargetNow && InActionRange(OccultComet) && InCombat() &&
+            HasBattleTarget() && InActionRange(OccultComet) && InCombat() &&
             !RDM.InMeleeChain)
         {
 

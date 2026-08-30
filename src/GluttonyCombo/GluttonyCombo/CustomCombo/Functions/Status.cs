@@ -343,7 +343,6 @@ internal abstract partial class CustomComboFunctions
         return StatusCache.HasCleansableDoom(target);
     }
 
-<<<<<<< C:/Scripts/nightly-upstream-merge/_scratch-20260830/ours.tmp
     /// <summary>
     ///     Whether the target carries any Doom at all, cleansable or not.
     ///     <para/>
@@ -383,9 +382,7 @@ internal abstract partial class CustomComboFunctions
     public static bool NeedsDoomTopUp(IGameObject? target) =>
         target is not null && HasDoom(target) && GetTargetHPPercent(target, false) < 100;
 
-=======
     [Obsolete("Use the IBattleChara extension .IsImmuneToStatus")]
->>>>>>> C:/Scripts/nightly-upstream-merge/_scratch-20260830/theirs.tmp
     public static bool ImmuneToStatus(IGameObject? target, uint status) => Service.Configuration.StatusBlacklist.Any(x => x.Status == status && x.BaseId == target?.BaseId);
 
 }

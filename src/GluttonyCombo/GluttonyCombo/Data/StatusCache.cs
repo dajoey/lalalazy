@@ -90,7 +90,6 @@ internal class StatusCache
 
     public static bool HasCleansableDoom(IGameObject? target) => HasStatusInCacheList(CleansableDoomStatuses, target);
 
-<<<<<<< C:/Scripts/nightly-upstream-merge/_scratch-20260830/ours.tmp
     /// <summary>
     ///     Every Doom status in the game, cleansable or not. All of them share icon 215503, so
     ///     the icon is the reliable discriminator: the name is localised and the rows are
@@ -111,10 +110,7 @@ internal class StatusCache
 
     public static bool HasDoom(IGameObject? target) => HasStatusInCacheList(DoomStatuses, target);
 
-    private static readonly FrozenSet<uint> DamageUpStatuses =
-=======
     internal static readonly FrozenSet<uint> DamageUpStatuses =
->>>>>>> C:/Scripts/nightly-upstream-merge/_scratch-20260830/theirs.tmp
         ENStatusSheet.TryGetValue(61, out var refRow)
             ? ENStatusSheet
                 .Where(x => x.Value.Name.ToString().Contains(refRow.Name.ToString(), StringComparison.CurrentCultureIgnoreCase))

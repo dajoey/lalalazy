@@ -12155,18 +12155,6 @@ This is the ideal option for newcomers to the job.</value>
   <data name="SMN_AoE_Advanced_Combo_RadiantMaintain_Name" xml:space="preserve">
     <value>Aegis Uptime</value>
   </data>
-  <data name="BLU_AutoRotation_DPS_Name" xml:space="preserve">
-    <value>BLU Auto-Rotation (DPS)</value>
-  </data>
-  <data name="BLU_AutoRotation_DPS_Desc" xml:space="preserve">
-    <value>*** CURRENTLY BROKEN - DO NOT USE *** Mimic-aware Blue Mage auto-rotation. Hosts the per-ability toggles (all 124 spells), burst/filler/DoT/mitigation/tank tuning, and per-mimic BossMod Reborn distance. Cascade logic is wired in a later phase.</value>
-  </data>
-  <data name="BLU_AutoRotation_Heal_Name" xml:space="preserve">
-    <value>BLU Auto-Rotation (Heal)</value>
-  </data>
-  <data name="BLU_AutoRotation_Heal_Desc" xml:space="preserve">
-    <value>*** CURRENTLY BROKEN - DO NOT USE *** Healing lane for the BLU auto-rotation. Hosts the party-HP percent heal thresholds. Fires generously under Healer mimic, emergency-only otherwise.</value>
-  </data>
   <data name="WHM_Raidwide_Medica_Name" xml:space="preserve">
     <value>RaidWide Medica II/III Option</value>
   </data>

@@ -212,7 +212,7 @@ internal partial class OccultCrescent
             return false;
 
         // Everything Ninja has is instant, so it all wants a weave window.
-        if (!CanWeaveNow) return false;
+        if (!CanWeave()) return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_Ninja_Image, P755.NIN_Image) &&
             !HasStatusEffect(Buffs755.Image) && PlayerHP <= Phantom_Ninja_Image_Health)
@@ -222,14 +222,14 @@ internal partial class OccultCrescent
         }
 
         if (IsEnabledAndUsable(Preset.Phantom_Ninja_Smoke, P755.NIN_Smoke) &&
-            !HasStatusEffect(Buffs755.Smoke) && InCombatNow)
+            !HasStatusEffect(Buffs755.Smoke) && InCombat())
         {
             actionID = P755.NIN_Smoke;
             return true;
         }
 
         if (BuffGateBlocks) return false;
-        if (!HasTargetNow) return false;
+        if (!HasBattleTarget()) return false;
 
         // Fuma Shuriken is 230 flat; the scrolls are 150, or 195 against a matching weakness.
         // So Fuma out-damages both scrolls on a single target EVEN when the weakness lands, and
@@ -279,7 +279,7 @@ internal partial class OccultCrescent
             return false;
 
         // Occult Blink is the only instant worth weaving.
-        if (CanWeaveNow)
+        if (CanWeave())
         {
             if (IsEnabledAndUsable(Preset.Phantom_WhiteMage_OccultBlink, P755.WHM_OccultBlink) &&
                 !HasStatusEffect(Buffs755.OccultBlink) &&
@@ -331,7 +331,7 @@ internal partial class OccultCrescent
         if (BuffGateBlocks) return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_WhiteMage_OccultHoly, P755.WHM_OccultHoly) &&
-            HasTargetNow && InActionRange(P755.WHM_OccultHoly))
+            HasBattleTarget() && InActionRange(P755.WHM_OccultHoly))
         {
             actionID = P755.WHM_OccultHoly;
             return true;
@@ -350,8 +350,8 @@ internal partial class OccultCrescent
             return false;
 
         // Every Black Mage action is a hard cast.
-        if (CanWeaveNow) return false;
-        if (!HasTargetNow) return false;
+        if (CanWeave()) return false;
+        if (!HasBattleTarget()) return false;
         if (HoldingInstantCastProc) return false;
 
         // Toad is crowd control, not damage, so it sits ahead of the buff gate.
@@ -409,18 +409,18 @@ internal partial class OccultCrescent
         if (!IsEnabled(Preset.Phantom_Dragoon))
             return false;
 
-        if (!CanWeaveNow) return false;
+        if (!CanWeave()) return false;
 
         // Step Forth is pure movement -- off by default, it will yank you around otherwise.
         if (IsEnabledAndUsable(Preset.Phantom_Dragoon_StepForth, P755.DRG_StepForth) &&
-            InCombatNow && HasTargetNow)
+            InCombat() && HasBattleTarget())
         {
             actionID = P755.DRG_StepForth;
             return true;
         }
 
         if (BuffGateBlocks) return false;
-        if (!HasTargetNow) return false;
+        if (!HasBattleTarget()) return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_Dragoon_Lance, P755.DRG_Lance) &&
             !HasStatusEffect(Buffs755.Lance) && InActionRange(P755.DRG_Lance))
@@ -448,7 +448,7 @@ internal partial class OccultCrescent
         if (!IsEnabled(Preset.Phantom_Summoner))
             return false;
 
-        if (CanWeaveNow) return false;
+        if (CanWeave()) return false;
         if (HoldingInstantCastProc) return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_Summoner_EarthenWall, P755.SMN_EarthenWall) &&
@@ -460,7 +460,7 @@ internal partial class OccultCrescent
         }
 
         if (BuffGateBlocks) return false;
-        if (!HasTargetNow) return false;
+        if (!HasBattleTarget()) return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_Summoner_Megaflare, P755.SMN_Megaflare) &&
             InActionRange(P755.SMN_Megaflare))
@@ -504,7 +504,7 @@ internal partial class OccultCrescent
         if (!IsEnabled(Preset.Phantom_BlueMage))
             return false;
 
-        if (CanWeaveNow)
+        if (CanWeave())
         {
             if (IsEnabledAndUsable(Preset.Phantom_BlueMage_OccultMightyGuard, P755.BLU_OccultMightyGuard) &&
                 !HasStatusEffect(Buffs755.OccultMightyGuard) &&
@@ -535,7 +535,7 @@ internal partial class OccultCrescent
         if (HoldingInstantCastProc) return false;
 
         if (BuffGateBlocks) return false;
-        if (!HasTargetNow) return false;
+        if (!HasBattleTarget()) return false;
 
         // Blue Mage damage is not weakness-gated.
         if (IsEnabledAndUsable(Preset.Phantom_BlueMage_OccultAquaBreath, P755.BLU_OccultAquaBreath) &&
@@ -574,7 +574,7 @@ internal partial class OccultCrescent
 
         // Libra is instant and reveals the target's elemental weakness, which every other
         // elemental caster in the zone then benefits from. Weave it early.
-        if (CanWeaveNow)
+        if (CanWeave())
         {
             // Keyed to the LIVE debuff, not to what the static nameId table happens to know.
             // Libra's tooltip says it discerns affinity "increasing the potency of elemental
@@ -583,7 +583,7 @@ internal partial class OccultCrescent
             // forfeited 30% for the whole party on every elemental cast. Libra is instant, 5s
             // recast and weaveable: the cast is nearly free, the forfeit is not.
             if (IsEnabledAndUsable(Preset.Phantom_RedMage_OccultLibra, P755.RDM_OccultLibra) &&
-                HasTargetNow && InActionRange(P755.RDM_OccultLibra) &&
+                HasBattleTarget() && InActionRange(P755.RDM_OccultLibra) &&
                 !TargetHasAnyWeaknessDebuff())
             {
                 actionID = P755.RDM_OccultLibra;
@@ -604,7 +604,7 @@ internal partial class OccultCrescent
         if (HoldingInstantCastProc) return false;
 
         if (BuffGateBlocks) return false;
-        if (!HasTargetNow) return false;
+        if (!HasBattleTarget()) return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_RedMage_OccultFireII, P755.RDM_OccultFireII) &&
             InActionRange(P755.RDM_OccultFireII) && WeaknessGate(Weak755.FireWeakness))
@@ -748,9 +748,9 @@ internal partial class OccultCrescent
             return false;
 
         if (BuffGateBlocks) return false;
-        if (!HasTargetNow) return false;
+        if (!HasBattleTarget()) return false;
 
-        if (CanWeaveNow)
+        if (CanWeave())
         {
             // Drain Touch is an oGCD - ActionCategory 4, cooldown group 83, 40s recast, instant,
             // 30y - so it belongs in the weave window. What it must NOT do is fire on cooldown.
