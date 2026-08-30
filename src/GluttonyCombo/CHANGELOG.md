@@ -1,4 +1,38 @@
-﻿## v1.0.4.163 (2026-08-30) [testing]
+﻿## v1.0.4.164 (2026-08-30) [testing]
+
+### Changed
+- **Fleet-wide phantom Red Mage Dualcast audit (Occult Crescent), prompted by Joey's report
+  that SGE kept casting instants on the move with Dualcast in hand instead of hard-casting
+  something stronger.** The Occult Dualcast proc makes the next spell of any kind instant,
+  and an instant filler both underperforms the hard cast and destroys the proc (established
+  in v1.0.4.150). Every job that can hard-cast was reviewed, not just SGE. Two gate forms,
+  per the OccultInstantCast design notes: movement fillers stand down on
+  `HasOrExpectsOccultDualcast` (proc consumption; incoming counts, for slide-casting), and
+  instant-window purchases suppress on `HasOrExpectsOccultInstantCast` (Occult Quick too).
+- **SGE** (the report): `UseMovement` stands down under Dualcast in both simple and advanced
+  ST modes - Toxikon / Dyskrasia / Eukrasia give way to a Dosis that comes out instant.
+- **SCH**: both Ruin II movement fillers (simple + advanced ST) stand down - Broil is
+  instant under the proc and stronger.
+- **SMN**: the Ruin IV movement filler stands down (keep the charge for proc-less movement);
+  Garuda Slipstream and the Ifrit-phase Ruby Rite/Ruby Catastrophe gates now treat an Occult
+  instant-cast window like Swiftcast and affirmatively cast on the move (strict
+  `HasOccultInstantCast`, the RDM_Helper precedent for affirmative picks).
+- **WHM**: both DoT-on-move paths (the simple-mode 30s early-refresh loosening and the
+  advanced `Move_DoT` option) stand down under Dualcast - the proc IS a mobile Glare, and a
+  Dia clipped up to 30s early was the worse trade.
+- **AST**: both Combust-on-move paths (simple loosening + advanced `Move_DoT`) stand down
+  under Dualcast, mirroring their existing Lightspeed-buff checks; all four Lightspeed
+  movement presses (simple/advanced, ST/AoE) no longer buy an instant window Occult is
+  already providing (`!HasOrExpectsOccultInstantCast`, the BLM Triplecast precedent).
+- **Reviewed and already covered, no change**: BLM (v1.0.4.150 movement stand-down +
+  Swiftcast/Triplecast gates), PCT (movement stand-down + Swiftcast gate), RDM (native
+  Dualcast interplay, v1.0.4.151), WHM AoE SwiftHoly, and every job pressing Swiftcast via
+  `Role.CanSwiftcast()` (gated in RoleActions since v1.0.4.146). **Reviewed and deliberately
+  untouched**: healer heal-cast `!IsMoving()` gates (enabling heals on the move via the proc
+  is a feature decision, not a waste fix); melee/tank/phys-ranged instants (no stronger
+  hard cast exists to trade up to); BLU (cannot enter Occult Crescent).
+
+## v1.0.4.163 (2026-08-30) [testing]
 
 ### Fixed
 - **Phantom Red Mage stopped casting Occult Cure II on full-health targets.** Reported and

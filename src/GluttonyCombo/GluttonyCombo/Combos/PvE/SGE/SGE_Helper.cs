@@ -259,6 +259,15 @@ internal partial class SGE
         if (!IsMoving())
             return false;
 
+        // Phantom Red Mage's Dualcast (Occult Crescent) makes the next spell instant, and
+        // every filler here both underperforms a Dosis and destroys the proc when cast under
+        // it. Stand down: the fall-through Dosis comes out instant, spends the Dualcast, and
+        // this gate reopens on the very next GCD. Incoming counts as held - slide-casting
+        // grants the proc while the next input is being chosen, before the status exists.
+        // Same shape as the BLM movement block (v1.0.4.150).
+        if (HasOrExpectsOccultDualcast)
+            return false;
+
         if (simpleMode)
         {
             if (ActionReady(OriginalHook(Toxikon)) && HasAddersting)

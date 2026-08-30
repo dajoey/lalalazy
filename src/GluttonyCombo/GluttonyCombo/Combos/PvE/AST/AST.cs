@@ -48,7 +48,8 @@ internal partial class AST : Healer
             #region OGCDs
 
             if (ActionReady(Lightspeed) && InCombat() && IsMoving() &&
-                !HasStatusEffect(Buffs.Lightspeed))
+                !HasStatusEffect(Buffs.Lightspeed) &&
+                !HasOrExpectsOccultInstantCast) //don't buy an instant window Occult already gives
                 return Lightspeed;
 
             if (CanWeave() && InCombat())
@@ -93,6 +94,7 @@ internal partial class AST : Healer
             var dotAction = OriginalHook(Combust);
             CombustList.TryGetValue(dotAction, out var dotDebuffID);
             var target = IsMoving() && !HasStatusEffect(Buffs.Lightspeed)
+                         && !HasOrExpectsOccultDualcast //phantom RDM Dualcast = a mobile Malefic
                 ? SimpleTarget.DottableEnemy(dotAction, dotDebuffID, 0, 30, 99)
                 : SimpleTarget.DottableEnemy(dotAction, dotDebuffID, 0, 3, 99);
             
@@ -125,7 +127,8 @@ internal partial class AST : Healer
 
             #region OGCDs
             if (ActionReady(Lightspeed) && IsMoving() &&
-                !HasStatusEffect(Buffs.Lightspeed))
+                !HasStatusEffect(Buffs.Lightspeed) &&
+                !HasOrExpectsOccultInstantCast) //don't buy an instant window Occult already gives
                 return Lightspeed;
 
             if (InCombat() && CanWeave())
@@ -255,6 +258,7 @@ internal partial class AST : Healer
             #region OGCDs
             if (IsEnabled(Preset.AST_DPS_LightSpeed) && ActionReady(Lightspeed) &&
                 InCombat() && IsMoving() && !HasStatusEffect(Buffs.Lightspeed) &&
+                !HasOrExpectsOccultInstantCast && //don't buy an instant window Occult already gives
                 GetTargetHPPercent() > AST_ST_DPS_LightSpeedOption && //Hp Check
                 (IsNotEnabled(Preset.AST_DPS_LightSpeedHold) || GetRemainingCharges(Lightspeed) >= 2)) //Hold for 2 charges
                 return Lightspeed;
@@ -331,6 +335,7 @@ internal partial class AST : Healer
                     dotAction, dotDebuffID, 0, 30, 99);
                 if (IsEnabled(Preset.AST_ST_DPS_Move_DoT) &&
                     !HasStatusEffect(Buffs.Lightspeed) &&
+                    !HasOrExpectsOccultDualcast && //phantom RDM Dualcast = a mobile Malefic
                     target is not null)
                     return dotAction.Retarget(replacedActions, target);
             }
@@ -388,6 +393,7 @@ internal partial class AST : Healer
             #region OGCDs
             if (IsEnabled(Preset.AST_AOE_LightSpeed) && ActionReady(Lightspeed) &&
                 IsMoving() && InCombat() && !HasStatusEffect(Buffs.Lightspeed) &&
+                !HasOrExpectsOccultInstantCast && //don't buy an instant window Occult already gives
                 GetTargetHPPercent() > AST_AOE_LightSpeedOption &&
                 (IsNotEnabled(Preset.AST_AOE_LightSpeedHold) || GetRemainingCharges(Lightspeed) >= 2))
                 return Lightspeed;

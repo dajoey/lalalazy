@@ -64,8 +64,9 @@ internal partial class SCH : Healer
             if (target is not null && ActionReady(dotAction) && CanApplyStatus(target, dotDebuffID) && !JustUsedOn(dotAction, target) && PartyInCombat())
                 return dotAction.Retarget(BroilList.ToArray(), target);
 
-            //Ruin 2 Movement
-            if (ActionReady(Ruin2) && IsMoving() && InCombat())
+            //Ruin 2 Movement. Phantom RDM Dualcast (Occult) makes the fall-through Broil
+            //instant and stronger; Ruin II would spend the proc for less.
+            if (ActionReady(Ruin2) && IsMoving() && InCombat() && !HasOrExpectsOccultDualcast)
                 return OriginalHook(Ruin2);
 
             return OriginalHook(Broil);
@@ -359,8 +360,9 @@ internal partial class SCH : Healer
                     return dotAction.Retarget(replacedActions, target);
             }
 
-            //Ruin 2 Movement
-            if (IsEnabled(Preset.SCH_ST_ADV_DPS_Ruin2Movement) && ActionReady(Ruin2) && IsMoving() && InCombat())
+            //Ruin 2 Movement. Phantom RDM Dualcast (Occult) makes the fall-through Broil
+            //instant and stronger; Ruin II would spend the proc for less.
+            if (IsEnabled(Preset.SCH_ST_ADV_DPS_Ruin2Movement) && ActionReady(Ruin2) && IsMoving() && InCombat() && !HasOrExpectsOccultDualcast)
                 return OriginalHook(Ruin2);
 
             return OriginalHook(Ruin);

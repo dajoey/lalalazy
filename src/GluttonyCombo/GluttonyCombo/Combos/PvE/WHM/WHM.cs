@@ -63,8 +63,9 @@ internal partial class WHM : Healer
             var dotAction = OriginalHook(Aero);
             AeroList.TryGetValue(dotAction, out var dotDebuffID);
             var target = IsMoving() && !BloodLilyReady && !HasStatusEffect(Buffs.SacredSight) && !FullLily
+                         && !HasOrExpectsOccultDualcast //phantom RDM Dualcast = a mobile Glare
                 ? SimpleTarget.DottableEnemy(dotAction, dotDebuffID, 0, 30, 99) //if moving and dont have other mobile gcds
-                : SimpleTarget.DottableEnemy(dotAction, dotDebuffID, 0, 3, 99); 
+                : SimpleTarget.DottableEnemy(dotAction, dotDebuffID, 0, 3, 99);
             
             if (target is not null && ActionReady(dotAction) && CanApplyStatus(target, dotDebuffID) && !JustUsedOn(dotAction, target) && ActionLearned(Aero))
                 return dotAction.Retarget(actionID, target);
@@ -257,7 +258,7 @@ internal partial class WHM : Healer
 
             #region Movement Options
 
-            if (IsMoving())
+            if (IsMoving() && !HasOrExpectsOccultDualcast) //phantom RDM Dualcast = a mobile Glare
             {
                 var dotAction = OriginalHook(Aero);
                 AeroList.TryGetValue(dotAction, out var dotDebuffID);

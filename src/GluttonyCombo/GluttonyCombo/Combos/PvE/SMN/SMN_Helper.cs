@@ -707,7 +707,9 @@ internal partial class SMN
                     actionID = Role.Swiftcast;
                     return true;
                 }
-                if (!IsMoving() || HasStatusEffect(Role.Buffs.Swiftcast))
+                // HasOccultInstantCast: Occult Quick / phantom RDM Dualcast make Slipstream
+                // castable on the move, same as Swiftcast. Strict form - affirmative pick.
+                if (!IsMoving() || HasStatusEffect(Role.Buffs.Swiftcast) || HasOccultInstantCast)
                 {
                     actionID = OriginalHook(AstralFlow);
                     return true;
@@ -736,7 +738,10 @@ internal partial class SMN
                     return true;
                 }
             }
-            if (ruin4Enabled && HasStatusEffect(Buffs.FurtherRuin) && IsMoving())
+            // Phantom RDM Dualcast (Occult): the fall-through hard cast comes out instant,
+            // so keep the Ruin IV charge for proc-less movement instead of eating the proc.
+            if (ruin4Enabled && HasStatusEffect(Buffs.FurtherRuin) && IsMoving() &&
+                !HasOrExpectsOccultDualcast)
             {
                 actionID = Ruin4;
                 return true;
@@ -760,7 +765,7 @@ internal partial class SMN
                 return true;
             }
 
-            if (egiSummonAttacksEnabled && GemshineReady && (!IsMoving() || HasStatusEffect(Role.Buffs.Swiftcast)))
+            if (egiSummonAttacksEnabled && GemshineReady && (!IsMoving() || HasStatusEffect(Role.Buffs.Swiftcast) || HasOccultInstantCast))
             {
                 if (flags.HasFlag(Combo.ST))
                 {
