@@ -69,10 +69,15 @@ Joey tests on **dajoeybaz** (192.168.10.7, Linux/Wine) — NOT dajoeyrog. dajoey
 
 ## BLU Autorotation
 
-- Source: `src/GluttonyCombo/GluttonyCombo/Combos/PvE/BLU/BLU_Helper.cs`
-- Debug log: writes to `System.IO.Path.GetTempPath()/blu-debug.log`
-- Labeled ALPHA — BLU-specific breakage is acceptable during dev; other jobs must stay untouched
-- Full spell catalog in BLU_Helper.cs — every damaging BLU ability must be represented
+- **Retired 2026-08-30 in v1.0.4.161 - the fork no longer has one.** The ALPHA engine
+  (`Combos/PvE/BLU/BLU_AutoRotation.cs`, presets `BLU_AutoRotation_DPS` / `_Heal` at
+  70026 and 70027, its 124 per-ability toggles and its `blu-debug.log`) was deleted in
+  favour of upstream WrathCombo's own Blue Mage suite. Joey's call, made when upstream's
+  37 new BLU presets claimed those same two enum values.
+- **`BLU.cs`, `BLU_Helper.cs` and `BLU_Config.cs` are all upstream's now and carry no fork
+  divergence** - `BLU_Helper.cs` in particular is upstream's file, NOT the old fork engine
+  it used to name here. Take theirs on every merge unless a divergence is deliberately
+  added and recorded.
 
 ## Landing site (`docs/`) & design system — maintenance rules
 
