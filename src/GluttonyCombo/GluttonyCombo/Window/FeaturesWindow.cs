@@ -29,6 +29,9 @@ internal class FeaturesWindow : ConfigWindow
         Variant,
         Bozja,
         OccultCrescent,
+        BlueDPS,
+        BlueTank,
+        BlueHealer,
         DeepDungeon,
     }
 

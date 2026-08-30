@@ -57,6 +57,10 @@ internal partial class CustomComboCache : IDisposable
 
 internal class StatusCache
 {
+    internal const uint WeaknessStatusId = 43;
+    internal const uint BrinkOfDeathStatusId = 44;
+    internal const uint OCDarkDefensesStatusId = 4355;
+
     /// <summary>
     /// Lumina Status Sheet Dictionary
     /// </summary>
@@ -68,7 +72,7 @@ internal class StatusCache
         Svc.Data.GetExcelSheet<Lumina.Excel.Sheets.Status>(Dalamud.Game.ClientLanguage.English)
             .ToFrozenDictionary(i => i.RowId);
 
-    private static readonly FrozenSet<uint> DamageDownStatuses =
+    internal static readonly FrozenSet<uint> DamageDownStatuses =
         ENStatusSheet.TryGetValue(62, out var refRow)
             ? ENStatusSheet
                 .Where(x => x.Value.Name.ToString().Equals(refRow.Name.ToString(), StringComparison.CurrentCultureIgnoreCase))
@@ -78,7 +82,7 @@ internal class StatusCache
 
     public static bool HasDamageDown(IGameObject? target) => HasStatusInCacheList(DamageDownStatuses, target);
 
-    private static readonly FrozenSet<uint> CleansableDoomStatuses =
+    internal static readonly FrozenSet<uint> CleansableDoomStatuses =
         StatusSheet
         .Where(x => x.Value.Icon == 215503 && x.Value.CanDispel)
         .Select(x => x.Key)
@@ -86,6 +90,7 @@ internal class StatusCache
 
     public static bool HasCleansableDoom(IGameObject? target) => HasStatusInCacheList(CleansableDoomStatuses, target);
 
+<<<<<<< C:/Scripts/nightly-upstream-merge/_scratch-20260830/ours.tmp
     /// <summary>
     ///     Every Doom status in the game, cleansable or not. All of them share icon 215503, so
     ///     the icon is the reliable discriminator: the name is localised and the rows are
@@ -107,6 +112,9 @@ internal class StatusCache
     public static bool HasDoom(IGameObject? target) => HasStatusInCacheList(DoomStatuses, target);
 
     private static readonly FrozenSet<uint> DamageUpStatuses =
+=======
+    internal static readonly FrozenSet<uint> DamageUpStatuses =
+>>>>>>> C:/Scripts/nightly-upstream-merge/_scratch-20260830/theirs.tmp
         ENStatusSheet.TryGetValue(61, out var refRow)
             ? ENStatusSheet
                 .Where(x => x.Value.Name.ToString().Contains(refRow.Name.ToString(), StringComparison.CurrentCultureIgnoreCase))
@@ -116,7 +124,7 @@ internal class StatusCache
 
     public static bool HasDamageUp(IGameObject? target) => HasStatusInCacheList(DamageUpStatuses, target);
 
-    private static readonly FrozenSet<uint> EvasionUpStatuses =
+    internal static readonly FrozenSet<uint> EvasionUpStatuses =
         ENStatusSheet.TryGetValue(31, out var refRow)
             ? ENStatusSheet
                 .Where(x => x.Value.Name.ToString().Contains(refRow.Name.ToString(), StringComparison.CurrentCultureIgnoreCase))
@@ -129,7 +137,7 @@ internal class StatusCache
     /// <summary>
     /// A cached set of dispellable status IDs for quick lookup.
     /// </summary>
-    private static readonly FrozenSet<uint> DispellableStatuses =
+    internal static readonly FrozenSet<uint> DispellableStatuses =
         StatusSheet
             .Where(kvp => kvp.Value.CanDispel)
             .Select(kvp => kvp.Key)
@@ -140,7 +148,7 @@ internal class StatusCache
     /// <summary>
     /// A cached set of beneficial status IDs for quick lookup.
     /// </summary>
-    private static readonly FrozenSet<uint> BeneficialStatuses =
+    internal static readonly FrozenSet<uint> BeneficialStatuses =
         StatusSheet
             .Where(kvp => kvp.Value.StatusCategory == 1)
             .Select(kvp => kvp.Key)
@@ -166,7 +174,7 @@ internal class StatusCache
             })
             .ToFrozenSet();
 
-    private static readonly FrozenSet<uint> RaiseInvincibilityStatuses =
+    internal static readonly FrozenSet<uint> RaiseInvincibilityStatuses =
         StatusSheet
             .Where(row => row.Value.Icon == 215273) // Transcendant statuses, based on Icon
             .Select(row => row.Key)
@@ -174,7 +182,7 @@ internal class StatusCache
 
     public static bool HasRaiseInvincibility(IBattleChara? target) => HasStatusInCacheList(RaiseInvincibilityStatuses, target);
 
-    private static readonly FrozenSet<uint> RaiseStatuses =
+    internal static readonly FrozenSet<uint> RaiseStatuses =
         StatusSheet
             .Where(row => row.Value.Icon == 210406) // Raise statuses, based on Icon
             .Select(row => row.Key)
@@ -236,13 +244,6 @@ internal class StatusCache
     }
 
     /// <summary>
-    /// Looks up the name of a Status by ID in Lumina Sheets
-    /// </summary>
-    /// <param name="id">Status ID</param>
-    /// <returns></returns>
-    public static string GetStatusName(uint id) => StatusSheet.TryGetValue(id, out var status) ? status.Name.ToString() : "Unknown Status";
-
-    /// <summary>
     /// Returns an uint List of Status IDs based on Name.
     /// </summary>
     /// <param name="status"></param>
@@ -273,6 +274,6 @@ internal class StatusCache
         if (statuses is null)
             return false;
 
-         return statuses.Any(s => statusList.Contains(s.StatusId));
+        return statuses.Any(s => statusList.Contains(s.StatusId));
     }
-}
+}

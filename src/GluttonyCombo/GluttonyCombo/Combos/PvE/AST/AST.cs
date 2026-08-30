@@ -500,7 +500,7 @@ internal partial class AST : Healer
                 cleansableTarget)
                 return Role.Esuna.RetargetIfEnabled(actionID);
 
-            if (CanWeave() && Role.CanLucidDream(6500))
+            if (Role.CanLucidDream(6500))
                 return Role.LucidDreaming;
 
             if (ActionReady(EssentialDignity) && GetTargetHPPercent(healTarget) <= 30)
@@ -559,6 +559,9 @@ internal partial class AST : Healer
 
             if (ActionReady(OriginalHook(AstralDraw)) && HasNoDPSCard)
                 return OriginalHook(AstralDraw);
+
+            if (Role.CanLucidDream(6500))
+                return Role.LucidDreaming;
 
             if (OriginalHook(Macrocosmos) == MicroCosmos && GetPartyAvgHPPercent() < 50)
                 return MicroCosmos;
@@ -630,6 +633,10 @@ internal partial class AST : Healer
                 cleansableTarget)
                 return Role.Esuna.RetargetIfEnabled(actionID);
 
+            if (IsEnabled(Preset.AST_ST_Heals_Lucid) &&
+                Role.CanLucidDream(AST_ST_Heals_LucidDreaming))
+                return Role.LucidDreaming;
+
             //Priority List
             for (int i = 0; i < AST_ST_SimpleHeals_Priority.Count; i++)
             {
@@ -684,6 +691,10 @@ internal partial class AST : Healer
             //Check for Suntouched to finish the combo after Neutral sect regardless of priorities
             if (IsEnabled(Preset.AST_AoE_Heals_NeutralSect) && HasStatusEffect(Buffs.Suntouched) && CanWeave())
                 return SunSign;
+
+            if (IsEnabled(Preset.AST_AoE_Heals_Lucid) &&
+                Role.CanLucidDream(AST_AoE_Heals_LucidDreaming))
+                return Role.LucidDreaming;
 
             //Priority List
             float averagePartyHP = GetPartyAvgHPPercent();

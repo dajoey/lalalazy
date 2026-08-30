@@ -1,3 +1,4 @@
+<<<<<<< C:/Scripts/nightly-upstream-merge/_scratch-20260830/ours.tmp
 #region
 using GluttonyCombo.CustomComboNS.Functions;
 using GluttonyCombo.Window.Functions;
@@ -11,6 +12,13 @@ using static GluttonyCombo.Window.Functions.UserConfig;
 // ReSharper disable ClassNeverInstantiated.Global
 #endregion
 
+=======
+using ECommons.ImGuiMethods;
+using GluttonyCombo.CustomComboNS.Functions;
+using GluttonyCombo.Resources.Localization.JobConfigs;
+using static GluttonyCombo.Window.Functions.UserConfig;
+
+>>>>>>> C:/Scripts/nightly-upstream-merge/_scratch-20260830/theirs.tmp
 namespace GluttonyCombo.Combos.PvE;
 
 internal partial class BLU
@@ -32,6 +40,7 @@ internal partial class BLU
     /// </summary>
     internal static class Config
     {
+<<<<<<< C:/Scripts/nightly-upstream-merge/_scratch-20260830/ours.tmp
         #region Per-ability toggles (all 124 spells)
 
         // --- Buffs & Enablers ---
@@ -434,11 +443,19 @@ internal partial class BLU
         }
 
         #endregion
+=======
+        public static UserInt
+            BLU_DoTHP = new("BLU_DoTHP", 2),
+            BLU_DoTTime = new("BLU_DoTTime", 3),
+            BLU_Balance_Content = new("BLU_Balance_Content", 1),
+            BLU_SelectedOpener = new("BLU_SelectedOpener", 0);
+>>>>>>> C:/Scripts/nightly-upstream-merge/_scratch-20260830/theirs.tmp
 
         internal static void Draw(Preset preset)
         {
             switch (preset)
             {
+<<<<<<< C:/Scripts/nightly-upstream-merge/_scratch-20260830/ours.tmp
                 case Preset.BLU_AutoRotation_DPS:
                     DrawAdditionalBoolChoice(BLU_Tank_AutoMightyGuard,
                         "Auto Mighty Guard (Tank mimic)",
@@ -449,6 +466,27 @@ internal partial class BLU
 
                 case Preset.BLU_AutoRotation_Heal:
                     DrawHealTuningSliders();
+=======
+                case Preset.BLU_ST_DPS_Opener:
+                    DrawBossOnlyChoice(BLU_Balance_Content);
+                    ImGuiEx.TextUnderlined("Select Opener");
+                    ImGui.Spacing();
+                    DrawRadioButton(BLU_SelectedOpener,
+                        "Winged Opener",
+                        "Winged Reprobation opener. Standard 2.50 spell speed.", 0, descriptionAsTooltip: true);
+                    DrawRadioButton(BLU_SelectedOpener,
+                        "DoT Opener",
+                        "Mortal Flame or Breath of Magic instead of Winged Reprobation. Requires 2.20 or faster spell speed.",
+                        1, descriptionAsTooltip: true);
+                    break;
+
+                case Preset.BLU_ST_DPS_SongOfTorment:
+                case Preset.BLU_ST_DPS_Breath:
+                case Preset.BLU_ST_DPS_Flame:
+                case Preset.BLU_ST_Tank_SongOfTorment:
+                    DrawSliderInt(0, 100, BLU_DoTHP, Generics.StopEnemyHpPercent);
+                    DrawSliderInt(0, 15, BLU_DoTTime, Generics.StopSeconds);
+>>>>>>> C:/Scripts/nightly-upstream-merge/_scratch-20260830/theirs.tmp
                     break;
             }
         }

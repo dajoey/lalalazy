@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using GluttonyCombo.Combos.PvE.ALL;
 using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.CustomComboNS.Functions;
+using static ECommons.DalamudServices.Svc;
 using static GluttonyCombo.Combos.PvE.MNK.Config;
 using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
 namespace GluttonyCombo.Combos.PvE;
@@ -182,7 +183,8 @@ internal partial class MNK
         IsBrotherhoodInPerfectBalanceWindow();
 
     private static bool IsDoubleLunarOpener(bool useOpenerBalance) =>
-        useOpenerBalance && (MNK_SelectedOpener == 0 || MNK_SelectedOpener == 2);
+        useOpenerBalance &&
+        (MNK_SelectedOpener != 1 || ClientState.TerritoryType == 1363);
 
     private static bool ShouldUsePreRoFPerfectBalance(bool useOpenerBalance)
     {
@@ -313,7 +315,7 @@ internal partial class MNK
         return true;
     }
 
-    private static bool CanPerfectBalance(
+    private static bool UsePerfectBalance(
         bool onAoE,
         bool useOpenerBalance = false,
         bool isBurstHolding = false,
@@ -355,10 +357,10 @@ internal partial class MNK
             HasStatusEffect(Buffs.RiddleOfFire) && !ActionLearned(Brotherhood))
             return JustUsedOpoGCD(GCD * 3, onAoE);
 
-        return onAoE && CanPerfectBalanceMaxChargeAoE();
+        return onAoE && UsePerfectBalanceMaxChargeAoE();
     }
 
-    private static bool CanPerfectBalanceMaxChargeAoE()
+    private static bool UsePerfectBalanceMaxChargeAoE()
     {
         if (GetRemainingCharges(PerfectBalance) != GetMaxCharges(PerfectBalance))
             return false;
@@ -391,18 +393,18 @@ internal partial class MNK
     private static int RiddleOfWindHPThreshold =>
         BossHpThreshold(MNK_ST_RoWHPBossOption, MNK_ST_RoWHPOption, InBossEncounter());
 
-    private static bool CanMantra() =>
+    private static bool UseMantra() =>
         ActionReady(Mantra) &&
         !HasStatusEffect(Buffs.Mantra) &&
         GroupDamageIncoming(3f);
 
-    private static bool CanRoE() =>
+    private static bool UseRoE() =>
         ActionReady(OriginalHook(RiddleOfEarth)) &&
         GroupDamageIncoming(2f) &&
         !HasStatusEffect(Buffs.RiddleOfEarth) &&
         !HasStatusEffect(Buffs.EarthsRumination);
 
-    private static bool CanEarthsReply(int earthsReplyHpThreshold = 25) =>
+    private static bool UseEarthsReply(int earthsReplyHpThreshold = 25) =>
         HasStatusEffect(Buffs.EarthsRumination) &&
         NumberOfAlliesInRange(EarthsReply) >= GetPartyMembers().Count * .75 &&
         GetPartyAvgHPPercent() <= earthsReplyHpThreshold;
@@ -428,7 +430,7 @@ internal partial class MNK
         return !ActionLearned(RiddleOfFire);
     }
 
-    private static bool CanMasterfulBlitz(bool onAoE)
+    private static bool UseMasterfulBlitz(bool onAoE)
     {
         if (!ActionLearned(MasterfulBlitz) || !InMasterfulRange() || IsOriginal(MasterfulBlitz))
             return false;
@@ -449,7 +451,7 @@ internal partial class MNK
 
     #region Chakra
 
-    private static bool CanFormshift() =>
+    private static bool UseFormshift() =>
         ActionLearned(FormShift) && !InCombat() &&
         !HasStatusEffect(Buffs.FormlessFist) &&
         !HasStatusEffect(Buffs.PerfectBalance) &&
@@ -457,7 +459,7 @@ internal partial class MNK
         !HasStatusEffect(Buffs.RaptorForm) &&
         !HasStatusEffect(Buffs.CoeurlForm);
 
-    private static bool CanMeditate(bool onAoE = false)
+    private static bool UseMeditate(bool onAoE = false)
     {
         uint meditation = onAoE ? InspiritedMeditation : SteeledMeditation;
         uint rangeCheck = onAoE ? ArmOfTheDestroyer : Bootshine;
@@ -471,9 +473,9 @@ internal partial class MNK
                !HasStatusEffect(Buffs.FiresRumination);
     }
 
-    private static bool CanUseChakra(bool onAoE = false)
+    private static bool UseChakra(bool onAoE = false)
     {
-        if (CanBrotherhood() || CanRoF())
+        if (UseBrotherhood() || UseRoF())
             return false;
 
         if (!HasStatusEffect(Buffs.Brotherhood) &&
@@ -494,7 +496,7 @@ internal partial class MNK
 
     #region Buffs
 
-    private static bool CanRoF() =>
+    private static bool UseRoF() =>
         !IsBurstHoldReleaseReady() &&
         ActionReady(RiddleOfFire) &&
         !HasStatusEffect(Buffs.FiresRumination) &&
@@ -505,7 +507,7 @@ internal partial class MNK
          GetCooldownRemainingTime(Brotherhood) is > 50 and < 65 ||
          !ActionLearned(Brotherhood));
 
-    private static bool CanFiresReply(bool onAoE = false) =>
+    private static bool UseFiresReply(bool onAoE = false) =>
         ActionLearned(FiresReply) &&
         HasStatusEffect(Buffs.FiresRumination) &&
         !HasStatusEffect(Buffs.FormlessFist) &&
@@ -517,18 +519,18 @@ internal partial class MNK
          GetStatusEffectRemainingTime(Buffs.FiresRumination) < GCD * 2 ||
          !InMeleeRange());
 
-    private static bool CanBrotherhood() =>
+    private static bool UseBrotherhood() =>
         !IsBurstHoldReleaseReady() &&
         ActionReady(Brotherhood) &&
         ActionReady(RiddleOfFire) &&
         !HasStatusEffect(Buffs.Brotherhood) &&
         (InBossEncounter() || TimeStoodStill.Seconds >= 2);
 
-    private static bool CanRoW() =>
+    private static bool UseRoW() =>
         ActionReady(RiddleOfWind) &&
         !HasStatusEffect(Buffs.WindsRumination);
 
-    private static bool CanWindsReply() =>
+    private static bool UseWindsReply() =>
         HasStatusEffect(Buffs.WindsRumination) &&
         InActionRange(WindsReply) &&
         (GetStatusEffectRemainingTime(Buffs.WindsRumination) <= 3f ||
@@ -544,14 +546,9 @@ internal partial class MNK
 
     internal static WrathOpener Opener()
     {
-        if (MNK_SelectedOpener == 0)
-        {
-            if (Lvl100LLOpener.LevelChecked)
-                return Lvl100LLOpener;
-
-            if (Lvl90LLOpener.LevelChecked)
-                return Lvl90LLOpener;
-        }
+        if (DMUOpener.LevelChecked &&
+            ClientState.TerritoryType == 1363)
+            return DMUOpener;
 
         if (MNK_SelectedOpener == 1)
         {
@@ -562,9 +559,11 @@ internal partial class MNK
                 return Lvl90SLOpener;
         }
 
-        if (MNK_SelectedOpener == 2 &&
-            Lvl100BHFirstOpener.LevelChecked)
-            return Lvl100BHFirstOpener;
+        if (Lvl100LLOpener.LevelChecked)
+            return Lvl100LLOpener;
+
+        if (Lvl90LLOpener.LevelChecked)
+            return Lvl90LLOpener;
 
         return WrathOpener.Dummy;
     }
@@ -573,7 +572,7 @@ internal partial class MNK
     internal static MNKLvl100LLOpener Lvl100LLOpener = new();
     internal static MNKLvl90SLOpener Lvl90SLOpener = new();
     internal static MNKLvl100SLOpener Lvl100SLOpener = new();
-    internal static MNKLvl100BHFirstOpener Lvl100BHFirstOpener = new();
+    internal static MNKLvl100DMUOpener DMUOpener = new();
 
     internal abstract class MNKOpenerBase : WrathOpener
     {
@@ -608,7 +607,7 @@ internal partial class MNK
     internal class MNKLvl90LLOpener : MNKOpenerBase
     {
         public override int MinOpenerLevel => 90;
-        public override int MaxOpenerLevel => 90;
+        public override int MaxOpenerLevel => 95;
 
         public override List<Func<uint>> OpenerActions { get; set; } =
         [
@@ -631,12 +630,14 @@ internal partial class MNK
             () => ElixirField, // 17
             () => DragonKick // 18
         ];
+
+        public override List<int> AllowUpgradeSteps { get; set; } = [6, 8, 11, 14, 16, 17];
     }
 
     internal class MNKLvl90SLOpener : MNKOpenerBase
     {
         public override int MinOpenerLevel => 90;
-        public override int MaxOpenerLevel => 90;
+        public override int MaxOpenerLevel => 95;
 
         public override List<Func<uint>> OpenerActions { get; set; } =
         [
@@ -659,6 +660,8 @@ internal partial class MNK
             () => RisingPhoenix, // 17
             () => DragonKick // 18
         ];
+
+        public override List<int> AllowUpgradeSteps { get; set; } = [6, 8, 11, 14];
     }
 
     internal class MNKLvl100LLOpener : MNKOpenerBase
@@ -741,7 +744,7 @@ internal partial class MNK
         ];
     }
 
-    internal class MNKLvl100BHFirstOpener : MNKOpenerBase
+    internal class MNKLvl100DMUOpener : MNKOpenerBase
     {
         public override int MinOpenerLevel => 100;
         public override int MaxOpenerLevel => 100;
@@ -890,5 +893,3 @@ internal static class MNKExtensions
 {
     public const Nadi None = 0;
 }
-
-

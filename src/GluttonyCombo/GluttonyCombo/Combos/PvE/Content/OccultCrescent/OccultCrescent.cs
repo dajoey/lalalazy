@@ -348,7 +348,7 @@ internal partial class OccultCrescent
             return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_Freelancer_OccultResuscitation, OccultResuscitation) &&
-            PlayerHP <= Phantom_Freelancer_Resuscitation_Health && !CanWeaveNow)
+            PlayerHP <= Phantom_Freelancer_Resuscitation_Health && !CanWeave())
         {
             actionID = OccultResuscitation; // self-heal
             return true;
@@ -363,7 +363,7 @@ internal partial class OccultCrescent
             return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_Knight_Pray, Pray) &&
-            !HasStatusEffect(Buffs.Pray) && !CanWeaveNow &&
+            !HasStatusEffect(Buffs.Pray) && !CanWeave() &&
             (Phantom_Knight_Pray_KeepUp || PlayerHP <= Phantom_Knight_Pray_Health))
         {
             actionID = Pray; // regen
@@ -371,7 +371,7 @@ internal partial class OccultCrescent
         }
 
         // Skip things we want to weave, if not in a weave window
-        if (!CanWeaveNow) return false;
+        if (!CanWeave()) return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_Knight_PhantomGuard, PhantomGuard) &&
             PlayerHP <= Phantom_Knight_PhantomGuard_Health)
@@ -400,14 +400,14 @@ internal partial class OccultCrescent
             return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_Monk_Counterstance, Counterstance) &&
-            InCombatNow && !HasStatusEffect(Buffs.Counterstance) && !CanWeaveNow)
+            InCombat() && !HasStatusEffect(Buffs.Counterstance) && !CanWeave())
         {
             actionID = Counterstance; // counterstance
             return true;
         }
 
         // Skip things we want to weave, if not in a weave window
-        if (!CanWeaveNow) return false;
+        if (!CanWeave()) return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_Monk_OccultChakra, OccultChakra) &&
             (PlayerHP <= Phantom_Monk_OccultChakra_Health || PlayerMP <= Phantom_Monk_OccultChakra_MP))
@@ -422,7 +422,7 @@ internal partial class OccultCrescent
             return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_Monk_PhantomKick, PhantomKick) &&
-            !IsMovingNow && InActionRange(PhantomKick) &&
+            !IsMoving() && InActionRange(PhantomKick) &&
             GetTargetDistance() <= Phantom_Monk_PhantomKick_Distance)
         {
             actionID = PhantomKick; // damage buff + dash
@@ -445,23 +445,23 @@ internal partial class OccultCrescent
             return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_Thief_Vigilance, Vigilance) &&
-            !HasStatusEffect(Buffs.Vigilance) && !InCombatNow)
+            !HasStatusEffect(Buffs.Vigilance) && !InCombat())
         {
             actionID = Vigilance; // damage buff out of combat
             return true;
         }
 
         // Skip things we want to weave, if not in a weave window
-        if (!CanWeaveNow) return false;
+        if (!CanWeave()) return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_Thief_OccultSprint, OccultSprint) &&
-            IsMovingNow)
+            IsMoving())
         {
             actionID = OccultSprint; // movement speed
             return true;
         }
 
-        if (HasTargetNow && InActionRange(Steal))
+        if (HasBattleTarget() && InActionRange(Steal))
         {
             if (IsEnabledAndUsable(Preset.Phantom_Thief_Steal, Steal) &&
                 TargetHP <= Phantom_Thief_Steal_Health)
@@ -497,14 +497,14 @@ internal partial class OccultCrescent
             return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_Samurai_Shirahadori, Shirahadori) &&
-            CanWeaveNow && BeingTargetedHostile)
+            CanWeave() && BeingTargetedHostile)
         {
             actionID = Shirahadori; // inv against physical
             return true;
         }
 
         // GCDs
-        if (!CanWeaveNow && HasTargetNow)
+        if (!CanWeave() && HasBattleTarget())
         {
             if (IsEnabledAndUsable(Preset.Phantom_Samurai_Mineuchi, Mineuchi) &&
                 CanInterruptEnemy() && InActionRange(Mineuchi))
@@ -526,7 +526,7 @@ internal partial class OccultCrescent
             }
 
             if (IsEnabledAndUsable(Preset.Phantom_Samurai_Iainuki, Iainuki) &&
-                !IsMovingNow && InActionRange(Iainuki))
+                !IsMoving() && InActionRange(Iainuki))
             {
                 actionID = Iainuki; // cone
                 return true;
@@ -541,7 +541,7 @@ internal partial class OccultCrescent
         if (!IsEnabled(Preset.Phantom_Berserker))
             return false;
 
-        if (!HasTargetNow) return false;
+        if (!HasBattleTarget()) return false;
 
         // Skip if no damage buff, and user wants things under buffs
         if (IsEnabled(Preset.Phantom_RestrictToBuff) &&
@@ -549,14 +549,14 @@ internal partial class OccultCrescent
             return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_Berserker_Rage, Rage) &&
-            InActionRange(Rage) && CanWeaveNow)
+            InActionRange(Rage) && CanWeave())
         {
             actionID = Rage; // buff
             return true;
         }
 
         if (IsEnabledAndUsable(Preset.Phantom_Berserker_DeadlyBlow, DeadlyBlow) &&
-            InActionRange(DeadlyBlow) && !CanWeaveNow &&
+            InActionRange(DeadlyBlow) && !CanWeave() &&
             (CurrentJobLevel < 3 ||
              !IsEnabled(Preset.Phantom_Berserker_Rage) ||
              GetStatusEffectRemainingTime(Buffs.PentupRage) <= 3f && HasStatusEffect(Buffs.PentupRage) ||
@@ -575,7 +575,7 @@ internal partial class OccultCrescent
             return false;
 
         // Skip things we want to weave, if not in a weave window
-        if (!CanWeaveNow) return false;
+        if (!CanWeave()) return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_Ranger_OccultUnicorn, OccultUnicorn) &&
             !HasStatusEffect(Buffs.OccultUnicorn, anyOwner: true) && PlayerHP <= Phantom_Ranger_OccultUnicorn_Health)
@@ -607,13 +607,13 @@ internal partial class OccultCrescent
             return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_TimeMage_OccultMageMasher, OccultMageMasher) &&
-            HasTargetNow && !HasStatusEffect(Debuffs.OccultMageMasher, CurrentTarget) && CanWeaveNow)
+            HasBattleTarget() && !HasStatusEffect(Debuffs.OccultMageMasher, CurrentTarget) && CanWeave())
         {
             actionID = OccultMageMasher; // weaken target's magic attack
             return true;
         }
 
-        if (CanWeaveNow) return false;
+        if (CanWeave()) return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_TimeMage_OccultQuick, OccultQuick) &&
             !HasStatusEffect(Buffs.OccultQuick) && ActionWatching.NumberOfGcdsUsed > 3 &&
@@ -624,7 +624,7 @@ internal partial class OccultCrescent
         }
 
         if (IsEnabledAndUsable(Preset.Phantom_TimeMage_OccultDispel, OccultDispel) &&
-            HasTargetNow && HasPhantomDispelStatus(CurrentTarget))
+            HasBattleTarget() && HasPhantomDispelStatus(CurrentTarget))
         {
             actionID = OccultDispel; // cleanse
             return true;
@@ -722,7 +722,7 @@ internal partial class OccultCrescent
         if (!IsEnabled(Preset.Phantom_Chemist))
             return false;
 
-        if (CanWeaveNow) return false;
+        if (CanWeave()) return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_Chemist_Revive, Revive) &&
             TryRetargetPhantomRaise(ref actionID, Revive))
@@ -743,7 +743,7 @@ internal partial class OccultCrescent
         }
 
         if (IsEnabledAndUsable(Preset.Phantom_Chemist_OccultElixir, OccultElixir) &&
-            GetPartyAvgHPPercent() <= Phantom_Chemist_OccultElixir_HP && InCombatNow &&
+            GetPartyAvgHPPercent() <= Phantom_Chemist_OccultElixir_HP && InCombat() &&
             (!Phantom_Chemist_OccultElixir_RequireParty || IsInParty()))
         {
             actionID = OccultElixir;
@@ -758,7 +758,7 @@ internal partial class OccultCrescent
         if (!IsEnabled(Preset.Phantom_Bard))
             return false;
 
-        if (!CanWeaveNow) return false;
+        if (!CanWeave()) return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_Bard_RomeosBallad, RomeosBallad) &&
             CanInterruptEnemy())
@@ -813,7 +813,7 @@ internal partial class OccultCrescent
 
         if (!IsEnabled(Preset.Phantom_RestrictToBuff) || BurstAlign.PhantomDamageBuffed)
         {
-            if (IsEnabledAndUsable(Preset.Phantom_Oracle_Predict, Predict) && InCombatNow && !CanWeaveNow &&
+            if (IsEnabledAndUsable(Preset.Phantom_Oracle_Predict, Predict) && InCombat() && !CanWeave() &&
                 !HasStatusEffect(Buffs.PredictionOfJudgment) && !HasStatusEffect(Buffs.PredictionOfCleansing) &&
                 !HasStatusEffect(Buffs.PredictionOfBlessing) && !HasStatusEffect(Buffs.PredictionOfStarfall))
             {
@@ -824,7 +824,7 @@ internal partial class OccultCrescent
         }
 
         // Skip things we want to weave, if not in a weave window
-        if (!CanWeaveNow) return false;
+        if (!CanWeave()) return false;
 
         UpdateOracleDeck();
         bool lastCard = OracleRemainingCards.Count <= 1;
@@ -975,7 +975,7 @@ internal partial class OccultCrescent
             return false;
 
         // GCDs
-        if (CanWeaveNow || !HasTargetNow) return false;
+        if (CanWeave() || !HasBattleTarget()) return false;
 
         // Skip if no damage buff, and user wants things under buffs
         if (IsEnabled(Preset.Phantom_RestrictToBuff) &&
@@ -1049,7 +1049,7 @@ internal partial class OccultCrescent
         if (!IsEnabled(Preset.Phantom_Geomancer))
             return false;
 
-        if (IsEnabled(Preset.Phantom_Geomancer_Weather) && !CanWeaveNow)
+        if (IsEnabled(Preset.Phantom_Geomancer_Weather) && !CanWeave())
         {
             if (IsEnabledAndUsable(Preset.Phantom_Geomancer_Sunbath, Sunbath) &&
                 PlayerHP <= Phantom_Geomancer_Sunbath_Health)
@@ -1096,7 +1096,7 @@ internal partial class OccultCrescent
         }
 
         // Skip things we want to weave, if not in a weave window
-        if (!CanWeaveNow) return false;
+        if (!CanWeave()) return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_Geomancer_BattleBell, BattleBell) &&
             !HasStatusEffect(Buffs.BattleBell))
@@ -1114,8 +1114,8 @@ internal partial class OccultCrescent
 
         if (IsEnabledAndUsable(Preset.Phantom_Geomancer_Suspend, Suspend) &&
             !HasStatusEffect(Buffs.Suspend) &&
-            (InCombatNow && Phantom_Geomancer_Suspend_InCombat ||
-             !InCombatNow && Phantom_Geomancer_Suspend_OutOfCombat))
+            (InCombat() && Phantom_Geomancer_Suspend_InCombat ||
+             !InCombat() && Phantom_Geomancer_Suspend_OutOfCombat))
         {
             actionID = Suspend; // float
             return true;
@@ -1137,7 +1137,7 @@ internal partial class OccultCrescent
             return true;
         }
 
-        if (CanWeaveNow) return false;
+        if (CanWeave()) return false;
 
         // Skip if no damage buff, and user wants things under buffs
         if (IsEnabled(Preset.Phantom_RestrictToBuff) &&
@@ -1174,7 +1174,7 @@ internal partial class OccultCrescent
         if (!IsEnabled(Preset.Phantom_Dancer))
             return false;
 
-        if (CanWeaveNow)
+        if (CanWeave())
         {
             if (!IsEnabled(Preset.Phantom_RestrictToBuff) || BurstAlign.PhantomDamageBuffed)
             {
@@ -1241,7 +1241,7 @@ internal partial class OccultCrescent
         if (!IsEnabled(Preset.Phantom_Gladiator))
             return false;
 
-        if (CanWeaveNow)
+        if (CanWeave())
         {
             if (IsEnabledAndUsable(Preset.Phantom_Gladiator_Defend, Defend) && InCombat() &&
                 (!Phantom_Gladiator_DefendOnlyAtMaxFervor ||
@@ -1285,7 +1285,7 @@ internal partial class OccultCrescent
     {
         if (!IsEnabled(Preset.Phantom_Ninja))
             return false;
-        if (!CanWeaveNow)
+        if (!CanWeave())
             return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_Ninja_Smoke, Smoke) && InCombat() &&
@@ -1348,7 +1348,7 @@ internal partial class OccultCrescent
             actionID = OccultBlink;
             return true;
         }
-        if (CanWeaveNow)
+        if (CanWeave())
             return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_WhiteMage_OccultRaise, OccultRaise) &&
@@ -1385,7 +1385,7 @@ internal partial class OccultCrescent
     {
         if (!IsEnabled(Preset.Phantom_BlackMage))
             return false;
-        if (CanWeaveNow)
+        if (CanWeave())
             return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_BlackMage_OccultToad, OccultToad) && InCombat() &&
@@ -1451,7 +1451,7 @@ internal partial class OccultCrescent
     {
         if (!IsEnabled(Preset.Phantom_Dragoon))
             return false;
-        if (CanWeaveNow)
+        if (CanWeave())
         {
             if (IsEnabled(Preset.Phantom_RestrictToBuff) && !BurstAlign.PhantomDamageBuffed)
                 return false;
@@ -1482,11 +1482,11 @@ internal partial class OccultCrescent
     {
         if (!IsEnabled(Preset.Phantom_Summoner))
             return false;
-        if (CanWeaveNow)
+        if (CanWeave())
             return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_Summoner_EarthenWall, EarthenWall) && InCombat() &&
-            !HasStatusEffect(Buffs.EarthenWall))
+            !HasStatusEffect(Buffs.EarthenWall) && GroupDamageIncoming() && !IsMoving())
         {
             actionID = EarthenWall;
             return true;
@@ -1546,7 +1546,7 @@ internal partial class OccultCrescent
     {
         if (!IsEnabled(Preset.Phantom_BlueMage))
             return false;
-        if (CanWeaveNow)
+        if (CanWeave())
             return false;
 
         if (IsEnabledAndUsable(Preset.Phantom_BlueMage_OccultMightyGuard, OccultMightyGuard) && InCombat() &&
@@ -1696,10 +1696,11 @@ internal partial class OccultCrescent
     {
         if (!IsEnabled(Preset.Phantom_Necromancer))
             return false;
-        if (CanWeaveNow)
+        if (CanWeave())
         {
             if (!IsEnabledAndUsable(Preset.Phantom_Necromancer_DrainTouch, DrainTouch) || !HasBattleTarget())
                 return false;
+            
             if (ShouldUseDrainTouch())
             {
                 actionID = DrainTouch;
@@ -2076,10 +2077,6 @@ internal partial class OccultCrescent
 
     #region Shorter variables
 
-    private static bool IsMovingNow => IsMoving();
-    private static bool InCombatNow => InCombat();
-    private static bool CanWeaveNow => CanWeave();
-    private static bool HasTargetNow => HasBattleTarget();
     private static float TargetHP => GetTargetHPPercent();
     private static float PlayerHP => PlayerHealthPercentageHp();
     private static uint PlayerMP => LocalPlayer.CurrentMp;
