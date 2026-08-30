@@ -42,7 +42,7 @@ internal partial class MCH
         return Battery > 90 && ComboAction == OriginalHook(SlugShot);
     }
 
-    private static bool CanQueen(
+    private static bool UseQueen(
         bool onAoE = false,
         int batteryThreshold = 100,
         int hpThreshold = 0,
@@ -89,7 +89,7 @@ internal partial class MCH
 
     #region Hypercharge
 
-    private static bool CanHypercharge(
+    private static bool UseHypercharge(
         bool onAoE,
         bool useAirAnchor = true,
         float toolHoldThreshold = 8f,
@@ -99,8 +99,8 @@ internal partial class MCH
         float wildfireHyperchargeCutoff = 9f,
         int wildfireBossOnlyOption = 1) =>
         onAoE
-            ? CanHyperchargeAoE(useAirAnchor, toolHoldThreshold, hpThreshold)
-            : CanHyperchargeST(hpThreshold, skipExcavatorHold, skipHyperchargeHold, wildfireHyperchargeCutoff,
+            ? UseHyperchargeAoE(useAirAnchor, toolHoldThreshold, hpThreshold)
+            : UseHyperchargeST(hpThreshold, skipExcavatorHold, skipHyperchargeHold, wildfireHyperchargeCutoff,
                 wildfireBossOnlyOption);
 
     private static bool IsHyperchargeReady() =>
@@ -122,7 +122,7 @@ internal partial class MCH
         Heat is 100 && GetCooldownRemainingTime(Wildfire) > 10 ||
         !ActionLearned(Wildfire);
 
-    private static bool CanHyperchargeST(
+    private static bool UseHyperchargeST(
         int hpThreshold = 25,
         bool skipExcavatorHold = false,
         bool skipHyperchargeHold = false,
@@ -147,7 +147,7 @@ internal partial class MCH
     private static bool UsedDrill(float time = 9f) =>
         !ActionLearned(Drill) || IsDrillCD(time);
 
-    private static bool CanHyperchargeAoE(bool useAirAnchor = true, float toolHoldThreshold = 8f, int hpThreshold = 25)
+    private static bool UseHyperchargeAoE(bool useAirAnchor = true, float toolHoldThreshold = 8f, int hpThreshold = 25)
     {
         if (GetTargetHPPercent() <= hpThreshold)
             return false;
@@ -178,7 +178,7 @@ internal partial class MCH
 
     #region Misc
 
-    private static bool CanUseFullMetalField =>
+    private static bool UseFullMetalField() =>
         HasStatusEffect(Buffs.FullMetalMachinist) &&
         !IsOverheated &&
         (ActionReady(Wildfire) ||
@@ -207,7 +207,7 @@ internal partial class MCH
         return OriginalHook(Heatblast);
     }
 
-    private static bool CanBarrelStabilizer(
+    private static bool UseBarrelStabilizer(
         bool onAoE = false,
         int hpThreshold = 0,
         int bossOnlyOption = 1,
@@ -221,7 +221,7 @@ internal partial class MCH
                   GetTargetHPPercent() > hpThreshold || TargetIsBoss()) &&
               GetCooldownRemainingTime(Wildfire) <= 20);
 
-    private static bool CanWildfireWeave(
+    private static bool UseWildfire(
         int hpThreshold = 0,
         int bossOnlyOption = 1,
         bool requireBoss = false,
@@ -244,11 +244,11 @@ internal partial class MCH
     public static bool TwoChargesUnlocked => GetMaxCharges(Reassemble) >= 2;
 
     public static bool ShouldReassemble() =>
-        !TwoChargesUnlocked || UseBothCharges || (ActionReady(Reassemble) && GetCooldownRemainingTime(Reassemble) <= 10);
+        !TwoChargesUnlocked || UseBothCharges || ActionReady(Reassemble) && GetCooldownRemainingTime(Reassemble) <= 10;
 
     private static int ReadyTools()
     {
-        int ready = 0;
+        var ready = 0;
 
         if (ActionReady(Drill))
             ready += (int)GetRemainingCharges(Drill);
@@ -274,7 +274,7 @@ internal partial class MCH
     private static bool HigherToolOnCooldown(uint higherTool) =>
         !ActionLearned(higherTool) || GetCooldownRemainingTime(higherTool) > GCD * 2;
 
-    private static bool CanReassembleCharges(int chargePool, int hpThreshold)
+    private static bool UseReassembleCharges(int chargePool, int hpThreshold)
     {
         if (!ActionReady(Reassemble) || HasStatusEffect(Buffs.Reassembled) ||
             !HasBattleTarget() || GetTargetHPPercent() <= hpThreshold ||
@@ -297,16 +297,16 @@ internal partial class MCH
             return true;
 
         if (onAoE)
-            return CanUseDrill(true) && ActionReady(Drill);
+            return UseDrill(true) && ActionReady(Drill);
 
         return ActionReady(Drill) && HigherToolOnCooldown(AirAnchor)
                || !ActionLearned(Drill) && ComboTimer > 0 && ComboAction is SlugShot && ActionLearned(CleanShot)
                || !ActionLearned(CleanShot) && ActionReady(HotShot);
     }
 
-    private static bool CanReassembleAoE(int chargePool = 0, int hpThreshold = 25)
+    private static bool UseReassembleAoE(int chargePool = 0, int hpThreshold = 25)
     {
-        if (!CanReassembleCharges(chargePool, hpThreshold))
+        if (!UseReassembleCharges(chargePool, hpThreshold))
             return false;
 
         if (HasReassembleToolTarget(onAoE: true))
@@ -325,21 +325,21 @@ internal partial class MCH
         ActionLearned(Scattergun) && InActionRange(OriginalHook(SpreadShot)) ||
         !ActionLearned(Drill) && InActionRange(OriginalHook(SpreadShot));
 
-    private static bool CanReassemble(bool onAoE, int reassembleChoice = 1, int chargePool = 0, int hpThreshold = 25) =>
+    private static bool UseReassemble(bool onAoE, int reassembleChoice = 1, int chargePool = 0, int hpThreshold = 25) =>
         ActionReady(Reassemble) &&
         (onAoE
-            ? CanReassembleAoE(chargePool, hpThreshold)
-            : CanReassembleST(reassembleChoice, chargePool, hpThreshold));
+            ? UseReassembleAoE(chargePool, hpThreshold)
+            : UseReassembleST(reassembleChoice, chargePool, hpThreshold));
 
-    private static bool CanReassembleST(int reassembleChoice = 1, int chargePool = 0, int hpThreshold = 25)
+    private static bool UseReassembleST(int reassembleChoice = 1, int chargePool = 0, int hpThreshold = 25)
     {
-        if (!CanReassembleCharges(chargePool, hpThreshold))
+        if (!UseReassembleCharges(chargePool, hpThreshold))
             return false;
 
         if (reassembleChoice == 0)
             return ShouldReassemble() && ReadyTools() >= GetRemainingCharges(Reassemble);
 
-        return reassembleChoice == 1 && ShouldReassemble() && HasReassembleToolTarget(onAoE: false);
+        return reassembleChoice == 1 && HasReassembleToolTarget(onAoE: false);
     }
 
     #endregion
@@ -361,11 +361,11 @@ internal partial class MCH
     private static bool OvercapRicochet =>
         IsOvercapping(OriginalHook(Ricochet));
 
-    private static bool CanGaussRound =>
+    private static bool UseGaussRound() =>
         ActionReady(OriginalHook(GaussRound)) &&
         GetRemainingCharges(OriginalHook(GaussRound)) >= GetRemainingCharges(OriginalHook(Ricochet));
 
-    private static bool CanRicochet =>
+    private static bool UseRicochet() =>
         ActionReady(OriginalHook(Ricochet)) &&
         GetRemainingCharges(OriginalHook(Ricochet)) > GetRemainingCharges(OriginalHook(GaussRound));
 
@@ -414,7 +414,7 @@ internal partial class MCH
         }
 
         if (GetRemainingCharges(OriginalHook(GaussRound)) > chargePool &&
-            (CanGaussRound || !ActionLearned(Ricochet)) &&
+            (UseGaussRound() || !ActionLearned(Ricochet)) &&
             (duringHypercharge || !JustUsed(OriginalHook(GaussRound), spacing) || !ActionLearned(Ricochet)))
         {
             actionID = OriginalHook(GaussRound);
@@ -422,7 +422,7 @@ internal partial class MCH
         }
 
         if (GetRemainingCharges(OriginalHook(Ricochet)) > chargePool &&
-            CanRicochet && (duringHypercharge || !JustUsed(OriginalHook(Ricochet), spacing)))
+            UseRicochet() && (duringHypercharge || !JustUsed(OriginalHook(Ricochet), spacing)))
         {
             actionID = OriginalHook(Ricochet);
             return true;
@@ -468,7 +468,7 @@ internal partial class MCH
             ? GetCooldownChargeRemainingTime(actionId)
             : GetCooldownRemainingTime(actionId);
 
-    private static bool CanUseDrill(bool onAoE) =>
+    private static bool UseDrill(bool onAoE) =>
         !onAoE || !ActionLearned(BioBlaster);
 
     private static bool IsChargedToolCD(uint actionId, float time = 9f)
@@ -511,12 +511,12 @@ internal partial class MCH
             return false;
 
         if (onAoE)
-            return CanReassemble(true, chargePool: chargePool, hpThreshold: hpThreshold);
+            return UseReassemble(true, chargePool: chargePool, hpThreshold: hpThreshold);
 
-        return CanReassemble(false, reassembleChoice, chargePool, hpThreshold);
+        return UseReassemble(false, reassembleChoice, chargePool, hpThreshold);
     }
 
-    private static bool CanUseTools(
+    private static bool UseTools(
         ref uint actionID,
         bool onAoE,
         bool useAirAnchor = true,
@@ -556,7 +556,7 @@ internal partial class MCH
             return true;
         }
 
-        if (CanUseDrill(onAoE) && ActionReady(Drill))
+        if (UseDrill(onAoE) && ActionReady(Drill))
         {
             actionID = Drill;
             return true;
@@ -608,7 +608,7 @@ internal partial class MCH
 
             if (ComboAction is SlugShot && ActionReady(OriginalHook(CleanShot)))
             {
-                if (allowReassembleOnClean && CanReassemble(false, reassembleChoice, chargePool, hpThreshold))
+                if (allowReassembleOnClean && UseReassemble(false, reassembleChoice, chargePool, hpThreshold))
                     return Reassemble;
 
                 return OriginalHook(CleanShot);
@@ -770,7 +770,7 @@ internal partial class MCH
     internal class MCHLvl90EarlyToolsOpener : MCHOpenerBase
     {
         public override int MinOpenerLevel => 90;
-        public override int MaxOpenerLevel => 90;
+        public override int MaxOpenerLevel => 95;
 
         public override List<Func<uint>> OpenerActions { get; set; } =
         [
@@ -804,6 +804,9 @@ internal partial class MCH
             () => Reassemble, // 28
             () => Drill // 29
         ];
+
+        public override List<int> AllowUpgradeSteps { get; set; } =
+            [4, 5, 9, 10, 12, 13, 20, 22, 24, 26];
 
         public override List<int> DelayedWeaveSteps { get; set; } =
         [
@@ -896,5 +899,3 @@ internal partial class MCH
 
     #endregion
 }
-
-

@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using GluttonyCombo.Combos.PvE.ALL;
 using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.CustomComboNS.Functions;
+using static ECommons.DalamudServices.Svc;
 using static GluttonyCombo.Combos.PvE.DRG.Config;
 using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
 namespace GluttonyCombo.Combos.PvE;
@@ -18,6 +19,7 @@ internal partial class DRG
         GetStatusEffect(ChaoticList[OriginalHook(ChaosThrust)], CurrentTarget);
 
     #endregion
+
     #region Basic Combo
 
     private static uint DoBasicCombo(
@@ -99,7 +101,7 @@ internal partial class DRG
 
     #region Lifesurge
 
-    private static bool CanLifeSurge(bool onAoE = false)
+    private static bool UseLifeSurge(bool onAoE = false)
     {
         if (!ActionReady(LifeSurge) || HasStatusEffect(Buffs.LifeSurge))
             return false;
@@ -179,14 +181,14 @@ internal partial class DRG
 
     #region Burst skills
 
-    private static bool CanBattleLitany(int hpThreshold = 0) =>
+    private static bool UseBattleLitany(int hpThreshold = 0) =>
         ActionReady(BattleLitany) && GetTargetHPPercent() > hpThreshold;
 
-    private static bool CanLanceCharge(int hpThreshold = 0) =>
+    private static bool UseLanceCharge(int hpThreshold = 0) =>
         ActionReady(LanceCharge) && HasBattleTarget() && GetTargetHPPercent() > hpThreshold &&
         (IsOnCooldown(BattleLitany) || !ActionLearned(BattleLitany));
 
-    private static bool CanUseWyrmwind() =>
+    private static bool UseWyrmwind() =>
         ActionReady(WyrmwindThrust) &&
         FirstmindsFocus is 2 &&
         InActionRange(WyrmwindThrust) &&
@@ -195,7 +197,7 @@ internal partial class DRG
          HasStatusEffect(Buffs.RaidenThrustReady) ||
          NumberOfEnemiesInRange(WyrmwindThrust, CurrentTarget) >= 2);
 
-    private static bool CanMirageDive(bool onAoE = false, bool ignoreDoubleMirageHold = false)
+    private static bool UseMirageDive(bool onAoE = false, bool ignoreDoubleMirageHold = false)
     {
         if (!ActionReady(MirageDive) || !HasStatusEffect(Buffs.DiveReady) ||
             OriginalHook(Jump) is not MirageDive || !InActionRange(MirageDive))
@@ -210,7 +212,7 @@ internal partial class DRG
         return diveExpiring || !DRG_ST_DoubleMirage;
     }
 
-    private static bool CanUseGeirskogul(int hpThreshold = 0) =>
+    private static bool UseGeirskogul(int hpThreshold = 0) =>
         ActionReady(Geirskogul) &&
         InActionRange(Geirskogul) &&
         HasBattleTarget() &&
@@ -223,16 +225,16 @@ internal partial class DRG
                 : DRG_ST_GeirskogulBossAddsHPOption
             : DRG_ST_GeirskogulTrashHPOption;
 
-    private static bool CanStarcross() =>
+    private static bool UseStarcross() =>
         ActionReady(Starcross) && HasStatusEffect(Buffs.StarcrossReady) && InActionRange(Starcross);
 
-    private static bool CanRiseOfTheDragon() =>
+    private static bool UseRiseOfTheDragon() =>
         ActionReady(RiseOfTheDragon) && HasStatusEffect(Buffs.DragonsFlight) && InActionRange(RiseOfTheDragon);
 
-    private static bool CanNastrond() =>
+    private static bool UseNastrond() =>
         ActionReady(Nastrond) && HasStatusEffect(Buffs.NastrondReady) && IsLoTDActive && InActionRange(Nastrond);
 
-    private static bool CanHighJump(
+    private static bool UseHighJump(
         bool onAoE = false,
         UserBoolArray? holdOptions = null,
         bool allowDoubleMirageHold = true) =>
@@ -244,7 +246,7 @@ internal partial class DRG
               (allowDoubleMirageHold || !DRG_ST_DoubleMirage ||
                DRG_ST_DoubleMirage && (GetCooldownRemainingTime(Geirskogul) < 13 || IsLoTDTimerActive)));
 
-    private static bool CanDragonfireDive(
+    private static bool UseDragonfireDive(
         UserBoolArray? holdOptions = null,
         int hpThreshold = 0) =>
         ActionReady(DragonfireDive) && !HasStatusEffect(Buffs.DragonsFlight) &&
@@ -252,7 +254,7 @@ internal partial class DRG
         CanUseWithHoldOptions(holdOptions) &&
         (IsLoTDTimerActive || !ActionLearned(Geirskogul));
 
-    private static bool CanStardiver(UserBoolArray? holdOptions = null) =>
+    private static bool UseStardiver(UserBoolArray? holdOptions = null) =>
         ActionReady(Stardiver) && IsLoTDActive && !HasStatusEffect(Buffs.StarcrossReady) &&
         CanUseWithHoldOptions(holdOptions);
 
@@ -311,27 +313,27 @@ internal partial class DRG
         if (options.OnAoE)
         {
             if (options.UseMirage &&
-                CanMirageDive(true, options.IgnoreDoubleMirageHold) && InCombat())
+                UseMirageDive(true, options.IgnoreDoubleMirageHold) && InCombat())
                 return MirageDive;
 
             if (options.UseWyrmwind &&
-                CanUseWyrmwind() && InCombat())
+                UseWyrmwind() && InCombat())
                 return WyrmwindThrust;
 
             if (options.UseStarcross &&
-                CanStarcross() && InCombat())
+                UseStarcross() && InCombat())
                 return Starcross;
 
             if (options.UseRiseOfTheDragon &&
-                CanRiseOfTheDragon() && InCombat())
+                UseRiseOfTheDragon() && InCombat())
                 return RiseOfTheDragon;
 
             if (options.UseGeirskogul &&
-                CanUseGeirskogul(options.GeirskogulHpThreshold) && InCombat())
+                UseGeirskogul(options.GeirskogulHpThreshold) && InCombat())
                 return Geirskogul;
 
             if (options.UseNastrond &&
-                CanNastrond() && InCombat())
+                UseNastrond() && InCombat())
                 return Nastrond;
 
             if (options.UseRangedUptime &&
@@ -342,27 +344,27 @@ internal partial class DRG
         }
 
         if (options.UseMirage &&
-            CanMirageDive(ignoreDoubleMirageHold: options.IgnoreDoubleMirageHold) && InCombat())
+            UseMirageDive(ignoreDoubleMirageHold: options.IgnoreDoubleMirageHold) && InCombat())
             return MirageDive;
 
         if (options.UseWyrmwind &&
-            CanUseWyrmwind() && InCombat())
+            UseWyrmwind() && InCombat())
             return WyrmwindThrust;
 
         if (options.UseStarcross &&
-            CanStarcross() && InCombat())
+            UseStarcross() && InCombat())
             return Starcross;
 
         if (options.UseRiseOfTheDragon &&
-            CanRiseOfTheDragon() && InCombat())
+            UseRiseOfTheDragon() && InCombat())
             return RiseOfTheDragon;
 
         if (options.UseGeirskogul &&
-            CanUseGeirskogul(hpThreshold: options.GeirskogulHpThreshold) && InCombat())
+            UseGeirskogul(hpThreshold: options.GeirskogulHpThreshold) && InCombat())
             return Geirskogul;
 
         if (options.UseNastrond &&
-            CanNastrond() && InCombat())
+            UseNastrond() && InCombat())
             return Nastrond;
 
         if (options.UseRangedUptime &&
@@ -394,6 +396,14 @@ internal partial class DRG
 
     internal static WrathOpener Opener()
     {
+        if (FRUOpener.LevelChecked &&
+            ClientState.TerritoryType == 1283)
+            return FRUOpener;
+
+        if (DMUOpener.LevelChecked &&
+            ClientState.TerritoryType == 1363)
+            return DMUOpener;
+
         if (StandardOpener.LevelChecked &&
             DRG_SelectedOpener == 0)
             return StandardOpener;
@@ -402,25 +412,24 @@ internal partial class DRG
             DRG_SelectedOpener == 1)
             return PiercingTalonOpener;
 
-        if (EarlyBuffOpener.LevelChecked &&
-            DRG_SelectedOpener == 2)
-            return EarlyBuffOpener;
-
         return WrathOpener.Dummy;
     }
 
     internal static DRGStandardOpener StandardOpener = new();
     internal static DRGPiercingTalonOpener PiercingTalonOpener = new();
-    internal static DRGEarlyBuffOpener EarlyBuffOpener = new();
+    internal static DRGFRUOpener FRUOpener = new();
+    internal static DRGEDMUOpener DMUOpener = new();
 
     internal abstract class DRGOpenerBase : WrathOpener
     {
         public override int MinOpenerLevel => 100;
+
         public override int MaxOpenerLevel => 100;
 
         public override Preset Preset => Preset.DRG_ST_Opener;
 
         internal override UserData ContentCheckConfig => DRG_BalanceContent;
+
         internal override bool IncludePot => DRG_Opener_Potion;
 
         public override bool HasCooldowns() => SharedOpenerCooldowns();
@@ -497,7 +506,44 @@ internal partial class DRG
         ];
     }
 
-    internal class DRGEarlyBuffOpener : DRGOpenerBase
+    internal class DRGFRUOpener : DRGOpenerBase
+    {
+        public override List<Func<uint>> OpenerActions { get; set; } =
+        [
+            () => TrueThrust, // 1
+            () => HighJump, // 2
+            () => SpiralBlow, // 3
+            () => Items.UseItem(Items.GetStrongestPotionRow(Items.PotionType.Strength)), // 4
+            () => ChaoticSpring, // 5
+            () => BattleLitany, // 6
+            () => WheelingThrust, // 7
+            () => Drakesbane, // 8
+            () => LanceCharge, // 9
+            () => Geirskogul, // 10
+            () => RaidenThrust, // 11
+            () => DragonfireDive, // 12
+            () => MirageDive, // 13
+            () => LanceBarrage, // 14
+            () => LifeSurge, // 15
+            () => Nastrond, // 16
+            () => HeavensThrust, // 17
+            () => Stardiver, // 18
+            () => FangAndClaw, // 19
+            () => Starcross, // 20
+            () => LifeSurge, // 21
+            () => Drakesbane, // 22
+            () => RiseOfTheDragon, // 23
+            () => RaidenThrust, // 24
+            () => WyrmwindThrust, // 25
+            () => LanceCharge, //26
+            () => HeavensThrust, //27
+            () => HighJump, //28
+            () => MirageDive, //29
+            () => FangAndClaw //30
+        ];
+    }
+
+    internal class DRGEDMUOpener : DRGOpenerBase
     {
         public override List<Func<uint>> OpenerActions { get; set; } =
         [
@@ -624,5 +670,3 @@ internal partial class DRG
 
     #endregion
 }
-
-

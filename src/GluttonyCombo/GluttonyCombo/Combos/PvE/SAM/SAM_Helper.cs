@@ -6,6 +6,7 @@ using GluttonyCombo.Combos.PvE.ALL;
 using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.CustomComboNS.Functions;
 using GluttonyCombo.Data;
+using static ECommons.DalamudServices.Svc;
 using static FFXIVClientStructs.FFXIV.Client.Game.ActionManager;
 using static GluttonyCombo.Combos.PvE.SAM.Config;
 using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
@@ -60,10 +61,10 @@ internal partial class SAM
             return actionID;
         }
 
-        if (useGekko && ActionLearned(Gekko) && (!HasGetsu) || !HasStatusEffect(Buffs.Fugetsu))
+        if (useGekko && ActionLearned(Gekko) && !HasGetsu || !HasStatusEffect(Buffs.Fugetsu))
             return WithTrueNorth(Gekko, OnTargetsRear(), useTrueNorth, trueNorthCharges);
 
-        if (useKasha && ActionLearned(Kasha) && (!HasKa) || !HasStatusEffect(Buffs.Fuka))
+        if (useKasha && ActionLearned(Kasha) && !HasKa || !HasStatusEffect(Buffs.Fuka))
             return WithTrueNorth(Kasha, OnTargetsFlank(), useTrueNorth, trueNorthCharges);
 
         if (useYukikaze &&
@@ -527,6 +528,10 @@ internal partial class SAM
 
     internal static WrathOpener Opener()
     {
+        if (FRUOpener.LevelChecked &&
+            ClientState.TerritoryType == 1283)
+            return FRUOpener;
+
         if (Lvl70.LevelChecked)
             return Lvl70;
 
@@ -546,6 +551,7 @@ internal partial class SAM
     internal static SAMLvl80Opener Lvl80 = new();
     internal static SAMLvl90Opener Lvl90 = new();
     internal static SAMLvl100Opener Lvl100 = new();
+    internal static SAMFRUOpener FRUOpener = new();
 
     internal abstract class SAMOpenerBase : WrathOpener
     {
@@ -640,7 +646,7 @@ internal partial class SAM
     internal class SAMLvl90Opener : SAMOpenerBase
     {
         public override int MinOpenerLevel => 90;
-        public override int MaxOpenerLevel => 90;
+        public override int MaxOpenerLevel => 95;
 
         public override List<Func<uint>> OpenerActions { get; set; } =
         [
@@ -667,6 +673,8 @@ internal partial class SAM
             () => MidareSetsugekka, // 21
             () => KaeshiSetsugekka // 22
         ];
+
+        public override List<int> AllowUpgradeSteps { get; set; } = [19];
 
         public override bool HasCooldowns() =>
             GetRemainingCharges(MeikyoShisui) is 2 &&
@@ -719,6 +727,55 @@ internal partial class SAM
             ([8, 25], () => SenCount is not 3 && !(SenCount is 2 && JustUsed(Yukikaze))),
             ([10, 27], () => !HasStatusEffect(Buffs.TsubameReady) && !JustUsed(TendoSetsugekka)),
             ([14], () => SenCount is not 1 && !(SenCount is 2 && JustUsed(Gekko)))
+        ];
+
+        public override bool HasCooldowns() =>
+            GetRemainingCharges(MeikyoShisui) is 2 &&
+            IsOffCooldown(Senei) &&
+            SharedOpenerCooldowns();
+    }
+
+    internal class SAMFRUOpener : SAMOpenerBase
+    {
+        public override int MinOpenerLevel => 100;
+        public override int MaxOpenerLevel => 100;
+
+        public override List<Func<uint>> OpenerActions { get; set; } =
+        [
+            () => MeikyoShisui, // 1
+            () => Role.TrueNorth, // 2
+            () => Gekko, // 3
+            () => Items.UseItem(Items.GetStrongestPotionRow(Items.PotionType.Strength)), // 4
+            () => Kasha, // 5
+            () => Ikishoten, // 6
+            () => Yukikaze, // 7
+            () => TendoSetsugekka, // 8
+            () => Senei, // 9
+            () => TendoKaeshiSetsugekka, // 10
+            () => Zanshin, // 11
+            () => OgiNamikiri, // 12
+            () => KaeshiNamikiri, // 13
+            () => Gyofu, // 14
+            () => Yukikaze, // 15
+            () => MeikyoShisui, // 16
+            () => Gekko, // 17
+            () => Shinten, // 18
+            () => Kasha, // 19
+            () => Shinten, // 20
+            () => TendoSetsugekka, // 21
+            () => Shoha, // 22
+            () => Yukikaze, // 23
+            () => TendoKaeshiSetsugekka, // 24
+            () => Kasha, // 25
+            () => Gyofu, // 26
+            () => Yukikaze // 27
+        ];
+
+        public override List<(int[] Steps, Func<bool> Condition)> SkipSteps { get; set; } =
+        [
+            ([18, 20], () => !ActionReady(Shinten)),
+            ([8, 21], () => SenCount is not 3 && !(SenCount is 2 && JustUsed(Yukikaze))),
+            ([10, 24], () => !HasStatusEffect(Buffs.TsubameReady) && !JustUsed(TendoSetsugekka))
         ];
 
         public override bool HasCooldowns() =>
@@ -836,5 +893,3 @@ internal partial class SAM
 
     #endregion
 }
-
-

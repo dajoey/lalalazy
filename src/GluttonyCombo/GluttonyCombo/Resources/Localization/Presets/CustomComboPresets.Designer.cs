@@ -758,6 +758,24 @@ namespace GluttonyCombo.Resources.Localization.Presets {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Adds Lucid Dreaming when MP drops below slider value.
+        /// </summary>
+        internal static string AST_AoE_Heals_Lucid_Desc {
+            get {
+                return ResourceManager.GetString("AST_AoE_Heals_Lucid_Desc", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Lucid Dreaming Weave Option.
+        /// </summary>
+        internal static string AST_AoE_Heals_Lucid_Name {
+            get {
+                return ResourceManager.GetString("AST_AoE_Heals_Lucid_Name", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Advanced Healing Mode - AoE.
         /// </summary>
         internal static string AST_AoE_Heals_Name {
@@ -1866,6 +1884,24 @@ namespace GluttonyCombo.Resources.Localization.Presets {
         internal static string AST_ST_Heals_Exaltation_Name {
             get {
                 return ResourceManager.GetString("AST_ST_Heals_Exaltation_Name", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Adds Lucid Dreaming when MP drops below slider value.
+        /// </summary>
+        internal static string AST_ST_Heals_Lucid_Desc {
+            get {
+                return ResourceManager.GetString("AST_ST_Heals_Lucid_Desc", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Lucid Dreaming Weave Option.
+        /// </summary>
+        internal static string AST_ST_Heals_Lucid_Name {
+            get {
+                return ResourceManager.GetString("AST_ST_Heals_Lucid_Name", resourceCulture);
             }
         }
         
@@ -3174,6 +3210,25 @@ namespace GluttonyCombo.Resources.Localization.Presets {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Replaces Electrogenesis with a full one-button AoE rotation.
+        ///Also used with Healer Mimicry when the party does not need healing.
+        /// </summary>
+        internal static string BLU_AoE_DPS_Desc {
+            get {
+                return ResourceManager.GetString("BLU_AoE_DPS_Desc", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to DPS Mode - AoE.
+        /// </summary>
+        internal static string BLU_AoE_DPS_Name {
+            get {
+                return ResourceManager.GetString("BLU_AoE_DPS_Name", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Turns Song of Torment into Bristle so Song of Torment is buffed..
         /// </summary>
         internal static string BLU_BuffedSoT_Desc {
@@ -3593,6 +3648,25 @@ namespace GluttonyCombo.Resources.Localization.Presets {
         internal static string BLU_SoloMode_Name {
             get {
                 return ResourceManager.GetString("BLU_SoloMode_Name", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Replaces Sonic Boom with a full one-button single target rotation.
+        ///Also used with Healer Mimicry when the party does not need healing.
+        /// </summary>
+        internal static string BLU_ST_DPS_Desc {
+            get {
+                return ResourceManager.GetString("BLU_ST_DPS_Desc", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to DPS Mode - Single Target.
+        /// </summary>
+        internal static string BLU_ST_DPS_Name {
+            get {
+                return ResourceManager.GetString("BLU_ST_DPS_Name", resourceCulture);
             }
         }
         
@@ -18568,7 +18642,7 @@ namespace GluttonyCombo.Resources.Localization.Presets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Adds Earthen Wall into the rotation..
+        ///   Looks up a localized string similar to Uses Earthen Wall when a raidwide is incoming..
         /// </summary>
         internal static string Phantom_Summoner_EarthenWall_Desc {
             get {

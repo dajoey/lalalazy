@@ -150,6 +150,8 @@ internal class AutoRotationTab : ConfigWindow
             P.UIHelper.ShowIPCControlledIndicatorIfNeeded("QuestPriority");
             changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
                 AutoRotationUI.Checkbox_QuestPriority, ref cfg.DPSSettings.QuestPriority, "QuestPriority");
+            changed |= ImGui.Checkbox(AutoRotationUI.Checkbox_TreasureHuntPriority, ref cfg.DPSSettings.TreasureHuntPriority);
+            ImGuiComponents.HelpMarker(AutoRotationUI.HelpText_TreasureHuntPriority);
             changed |= ImGui.Checkbox(AutoRotationUI.Checkbox_PreferNonCombat, ref cfg.DPSSettings.PreferNonCombat);
 
             if (cfg.DPSSettings.PreferNonCombat && changed)
@@ -427,4 +429,4 @@ internal class AutoRotationTab : ConfigWindow
             Service.Configuration.Save();
 
     }
-}
+}

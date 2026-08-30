@@ -54,8 +54,6 @@ internal partial class BLM
         if (alwaysSpend)
             return true;
 
-        // Retain manual + movement pools (config enforces sum <= MaxPolyglot).
-        // Spend in rotation only when above both thresholds.
         return PolyglotStacks > polyglotMovementThreshold &&
                PolyglotStacks > polyglotSaveUsage;
     }
@@ -116,7 +114,7 @@ internal partial class BLM
     private static IStatus? ThunderDebuffAoE =>
         GetStatusEffect(ThunderList[OriginalHook(Thunder2)], CurrentTarget);
 
-    internal static bool CanThunder(int hpThreshold = 0, float dotRefresh = 5f)
+    private static bool UseThunder(int hpThreshold = 0, float dotRefresh = 5f)
     {
         uint dotAction = OriginalHook(Thunder);
         ThunderList.TryGetValue(dotAction, out ushort dotDebuffID);
@@ -138,7 +136,7 @@ internal partial class BLM
         return BLM_ST_ThunderTrashHPOption;
     }
 
-    private static bool CanAoEThunder(int hpThreshold = 0, float dotRefresh = 3f) =>
+    private static bool UseAoEThunder(int hpThreshold = 0, float dotRefresh = 3f) =>
         ActionLearned(OriginalHook(Thunder2)) && HasStatusEffect(Buffs.Thunderhead) &&
         CanApplyStatus(CurrentTarget, ThunderList[OriginalHook(Thunder2)]) &&
         GetTargetHPPercent() > hpThreshold &&
@@ -151,7 +149,7 @@ internal partial class BLM
 
     #region Phase GCDs
 
-    private static bool TryFirePhaseGcd(
+    private static bool UseFirePhaseGcd(
         ref uint actionID,
         bool useFlareStar = true,
         bool useDespair = true,
@@ -221,7 +219,7 @@ internal partial class BLM
         return false;
     }
 
-    private static bool TryIcePhaseGcd(ref uint actionID, bool useTranspose = true)
+    private static bool UseIcePhaseGcd(ref uint actionID, bool useTranspose = true)
     {
         if (UmbralHearts is 3 && UmbralIceStacks is 3 && IsParadoxActive)
         {
@@ -268,7 +266,7 @@ internal partial class BLM
         return false;
     }
 
-    private static bool TryOutOfPhaseGcd(ref uint actionID)
+    private static bool UseOutOfPhaseGcd(ref uint actionID)
     {
         if (ActionLearned(Blizzard3))
         {
@@ -289,23 +287,22 @@ internal partial class BLM
 
     #region ST Weaves
 
-    private static bool CanStAmplifierWeave(bool useAmplifier = true) =>
-        useAmplifier && ActionReady(Amplifier) && !IsPolyglotCapped;
+    private static bool UseAmplifier(bool onAoE = false) =>
+        ActionReady(Amplifier) &&
+        (onAoE ? PolyglotTimer >= 20 : !IsPolyglotCapped);
 
-    private static bool CanStLeyLinesWeave(
-        bool useLeyLines = true,
+    private static bool UseLeyLines(
         int minCharges = 1,
         bool allowMoving = true,
         double timeStillSeconds = 2.5,
         int hpThreshold = 0) =>
-        useLeyLines &&
         ActionReady(LeyLines) && !HasStatusEffect(Buffs.LeyLines) &&
         !JustUsed(LeyLines) &&
         GetRemainingCharges(LeyLines) > minCharges &&
         (allowMoving || !IsMoving() && TimeStoodStill > TimeSpan.FromSeconds(timeStillSeconds)) &&
         GetTargetHPPercent() > hpThreshold;
 
-    private static bool TryEndOfFireWeave(
+    private static bool UseEndOfFireWeave(
         ref uint actionID,
         bool useManafont = true,
         bool useSwiftcast = true,
@@ -366,7 +363,7 @@ internal partial class BLM
         return false;
     }
 
-    private static bool TryIceWeave(
+    private static bool UseIceWeave(
         ref uint actionID,
         bool useTranspose = true,
         bool useSwiftcast = true,
@@ -409,61 +406,38 @@ internal partial class BLM
         return false;
     }
 
-    private static bool CanStManaward(
-        bool useManaward = false,
+    private static bool UseManaward(
         int hpThreshold = 60,
         bool simpleLogic = true,
         int triggerMode = 0,
         bool soloOption = false) =>
-        useManaward && ActionReady(Manaward) && !LocalPlayer!.HasShield() &&
+        ActionReady(Manaward) && !LocalPlayer!.HasShield() &&
         (simpleLogic
             ? PlayerHealthPercentageHp() < hpThreshold && !IsInParty() || GroupDamageIncoming()
-            : (triggerMode == 0 && PlayerHealthPercentageHp() <= hpThreshold && GroupDamageIncoming()) ||
-              ((triggerMode == 1 || triggerMode == 0 && soloOption && !IsInParty()) &&
-               PlayerHealthPercentageHp() <= hpThreshold) ||
+            : triggerMode == 0 && PlayerHealthPercentageHp() <= hpThreshold && GroupDamageIncoming() ||
+              (triggerMode == 1 || triggerMode == 0 && soloOption && !IsInParty()) &&
+              PlayerHealthPercentageHp() <= hpThreshold ||
               triggerMode == 2 && GroupDamageIncoming());
 
-    private static bool CanStAddleWeave(bool useAddle = true) =>
-        useAddle && Role.CanAddle() && GroupDamageIncoming();
+    private static bool UseAddle() =>
+        Role.CanAddle() && GroupDamageIncoming();
 
     #endregion
 
     #region ST GCD Utilities
 
-    private static bool CanStScatheFiller(bool useScathe = true) =>
-        useScathe && IsMoving() && !ActionLearned(Triplecast) && ActionReady(Scathe);
+    private static bool UseScathe() =>
+        IsMoving() && !ActionLearned(Triplecast) && ActionReady(Scathe);
 
-    private static bool TryStPolyglotOvercap(ref uint actionID, bool usePolyglot = true)
-    {
-        if (!(usePolyglot && OvercapPolyglotProtection))
-            return false;
+    private static bool UsePolyglotOvercap() =>
+        OvercapPolyglotProtection;
 
-        actionID = PolyglotSpell;
-        return true;
-    }
+    private static bool UseAmplifierXeno() =>
+        ActionLearned(Amplifier) &&
+        GetCooldownRemainingTime(Amplifier) < 5 &&
+        IsPolyglotCapped;
 
-    private static bool TryStThunder(ref uint actionID, bool useThunder = true, int hpThreshold = 0, float dotRefresh = 5f)
-    {
-        if (!(useThunder && CanThunder(hpThreshold, dotRefresh)))
-            return false;
-
-        actionID = OriginalHook(Thunder);
-        return true;
-    }
-
-    private static bool TryStAmplifierXeno(ref uint actionID, bool useAmplifier = true, bool usePolyglot = true)
-    {
-        if (!(useAmplifier && usePolyglot &&
-              ActionLearned(Amplifier) &&
-              GetCooldownRemainingTime(Amplifier) < 5 &&
-              IsPolyglotCapped))
-            return false;
-
-        actionID = Xenoglossy;
-        return true;
-    }
-
-    private static bool TryStMovementGcd(ref uint actionID, bool useConfiguredPriority = false)
+    private static bool UseMovementGcd(ref uint actionID, bool useConfiguredPriority = false)
     {
         if (!IsMoving() || !InCombat() || !HasBattleTarget() || !InActionRange(Fire))
             return false;
@@ -542,91 +516,37 @@ internal partial class BLM
 
     #region AoE Weaves
 
-    private static bool TryAoEMovementTriplecast(ref uint actionID, bool useTriplecast = true)
-    {
-        // !HasOccultInstantCast covers both Occult Crescent routes. v1.0.4.144 gated the
-        // single-target movement block and left this one out entirely, so the AoE rotation
-        // still bought Triplecast under Occult Quick; the choke point in CustomCombo.TryInvoke
-        // caught it, but only after the combo had already chosen it.
-        if (!(useTriplecast &&
-              IsMoving() && InCombat() &&
-              InActionRange(Fire2) && HasBattleTarget() &&
-              ActionReady(Triplecast) &&
-              !HasOrExpectsOccultInstantCast &&
-              !HasStatusEffect(Buffs.Triplecast) &&
-              !JustUsed(Triplecast)))
-            return false;
+    private static bool UseAoETriplecastMovement() =>
+        IsMoving() && InCombat() &&
+        InActionRange(Fire2) && HasBattleTarget() &&
+        ActionReady(Triplecast) &&
+        // Fork gate (v1.0.4.148): never buy Triplecast while an Occult Crescent instant
+        // cast is up or inbound. Reapplied on top of upstream's predicate refactor.
+        !HasOrExpectsOccultInstantCast &&
+        !HasStatusEffect(Buffs.Triplecast) &&
+        !JustUsed(Triplecast);
 
-        actionID = Triplecast;
-        return true;
-    }
+    private static bool UseAoEManafont() =>
+        ActionReady(Manafont) && IsEndOfFirePhase;
 
-    private static bool CanAoEManafontWeave(bool useManafont = true) =>
-        useManafont && ActionReady(Manafont) && IsEndOfFirePhase;
-
-    private static bool CanAoETransposeWeave(bool useTranspose = true) =>
-        useTranspose && ActionReady(Transpose) && (IsEndOfFirePhase || IsEndOfIcePhaseAoE);
-
-    private static bool CanAoEAmplifierWeave(bool useAmplifier = true, int polyglotTimerThreshold = 20) =>
-        useAmplifier && ActionReady(Amplifier) && PolyglotTimer >= polyglotTimerThreshold;
-
-    private static bool CanAoELeyLinesWeave(
-        bool useLeyLines = true,
-        int minCharges = 0,
-        bool allowMoving = true,
-        double timeStillSeconds = 2.5,
-        int hpThreshold = 0) =>
-        useLeyLines &&
-        ActionReady(LeyLines) && !HasStatusEffect(Buffs.LeyLines) &&
-        !JustUsed(LeyLines) &&
-        GetRemainingCharges(LeyLines) > minCharges &&
-        (allowMoving || !IsMoving() && TimeStoodStill > TimeSpan.FromSeconds(timeStillSeconds)) &&
-        GetTargetHPPercent() > hpThreshold;
+    private static bool UseAoETranspose() =>
+        ActionReady(Transpose) && (IsEndOfFirePhase || IsEndOfIcePhaseAoE);
 
     #endregion
 
     #region AoE GCDs
 
-    private static bool TryAoEPolyglotOvercap(ref uint actionID, bool usePolyglot = true)
-    {
-        if (!(usePolyglot && OvercapPolyglotProtection && ActionReady(Foul)))
-            return false;
+    private static bool UseAoEPolyglotOvercap() =>
+        OvercapPolyglotProtection && ActionReady(Foul);
 
-        actionID = Foul;
-        return true;
-    }
+    private static bool UseAoEPolyglot() =>
+        (IsEndOfFirePhase || IsEndOfIcePhaseAoE || IsInIcePhase && JustUsedFreezeOrBlizzard) &&
+        HasPolyglot && ActionReady(Foul);
 
-    private static bool TryAoEPolyglot(ref uint actionID, bool usePolyglot = true)
-    {
-        if (!(usePolyglot &&
-              (IsEndOfFirePhase || IsEndOfIcePhaseAoE || IsInIcePhase && JustUsedFreezeOrBlizzard) &&
-              HasPolyglot && ActionReady(Foul)))
-            return false;
+    private static bool UseAoEParadoxFiller() =>
+        IsParadoxActive && (IsEndOfIcePhaseAoE || IsInIcePhase && JustUsedFreezeOrBlizzard);
 
-        actionID = Foul;
-        return true;
-    }
-
-    private static bool TryAoEThunder(ref uint actionID, bool useThunder = true, int hpThreshold = 0, float dotRefresh = 3f)
-    {
-        if (!(useThunder && CanAoEThunder(hpThreshold, dotRefresh)))
-            return false;
-
-        actionID = OriginalHook(Thunder2);
-        return true;
-    }
-
-    private static bool TryAoEParadoxFiller(ref uint actionID, bool useParadox = true)
-    {
-        if (!(useParadox &&
-              IsParadoxActive && (IsEndOfIcePhaseAoE || IsInIcePhase && JustUsedFreezeOrBlizzard)))
-            return false;
-
-        actionID = OriginalHook(Blizzard);
-        return true;
-    }
-
-    private static bool TryAoEFirePhaseGcd(
+    private static bool UseAoEFirePhaseGcd(
         ref uint actionID,
         bool useTriplecast = true,
         int triplecastHoldCharges = 0,
@@ -679,7 +599,7 @@ internal partial class BLM
         return false;
     }
 
-    private static bool TryAoEIcePhaseGcd(
+    private static bool UseAoEIcePhaseGcd(
         ref uint actionID,
         bool useTranspose = true,
         bool useFire2WithoutTranspose = false,
@@ -741,10 +661,9 @@ internal partial class BLM
         !BLM_ST_MovementOption[MovementDespair] ||
         GetRemainingCharges(Triplecast) > BLM_ST_TriplecastMovementCharges;
 
-    private static (uint Action, Preset Preset, System.Func<bool> Logic)[]
+    private static (uint Action, Preset Preset, Func<bool> Logic)[]
         PrioritizedMovement =>
     [
-        //Despair at lvl 100
         (Despair, Preset.BLM_ST_Movement,
             () => BLM_ST_MovementOption[MovementDespair] &&
                   ActionReady(Despair) &&
@@ -753,7 +672,6 @@ internal partial class BLM
                   !HasStatusEffect(Buffs.Triplecast) &&
                   !HasStatusEffect(Role.Buffs.Swiftcast)),
 
-        //Triplecast
         (Triplecast, Preset.BLM_ST_Movement,
             () => BLM_ST_MovementOption[MovementTriplecast] &&
                   ActionReady(Triplecast) &&
@@ -762,7 +680,6 @@ internal partial class BLM
                   !HasStatusEffect(Buffs.LeyLines) &&
                   !JustUsed(Triplecast)),
 
-        // Paradox
         (OriginalHook(Fire), Preset.BLM_ST_Movement,
             () => BLM_ST_MovementOption[MovementParadox] &&
                   ActionReady(OriginalHook(Paradox)) &&
@@ -772,14 +689,12 @@ internal partial class BLM
                   !HasStatusEffect(Buffs.Triplecast) &&
                   !HasStatusEffect(Role.Buffs.Swiftcast)),
 
-        //Swiftcast
         (Role.Swiftcast, Preset.BLM_ST_Movement,
             () => BLM_ST_MovementOption[MovementSwiftcast] &&
                   ActionReady(Role.Swiftcast) &&
                   !HasOrExpectsOccultInstantCast &&
                   !HasStatusEffect(Buffs.Triplecast)),
 
-        //Xeno
         (Xenoglossy, Preset.BLM_ST_Movement,
             () => BLM_ST_MovementOption[MovementXenoglossy] &&
                   ActionReady(Xenoglossy) &&
@@ -787,7 +702,6 @@ internal partial class BLM
                   !HasStatusEffect(Buffs.Triplecast) &&
                   !HasStatusEffect(Role.Buffs.Swiftcast)),
 
-        // Firestarter
         (Fire3, Preset.BLM_ST_Movement,
             () => BLM_ST_MovementOption[MovementFire3] &&
                   ActionReady(Fire3) &&
@@ -796,7 +710,6 @@ internal partial class BLM
                   !HasStatusEffect(Buffs.Triplecast) &&
                   !HasStatusEffect(Role.Buffs.Swiftcast)),
 
-        //Scathe
         (Scathe, Preset.BLM_ST_Movement,
             () => BLM_ST_MovementOption[MovementScathe] &&
                   ActionReady(Scathe) &&
@@ -1070,5 +983,3 @@ internal partial class BLM
 
     #endregion
 }
-
-
