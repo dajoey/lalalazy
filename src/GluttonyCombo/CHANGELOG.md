@@ -1,4 +1,14 @@
-﻿## v1.0.4.161 (2026-08-30) [testing]
+﻿## v1.0.4.162 (2026-08-30) [testing]
+
+### Changed
+- **SGE gets its own BossMod/BossModReborn AI distance on job change: 5 yalms** (was
+  inheriting the healer default of 15). Keeps the AI navigation parked inside Phlegma
+  range so charges actually get used instead of sitting at max healer distance. Every
+  other job is unchanged: Tank/Melee 3, other Healers 15, Ranged/Caster 20. Same
+  job-change hook in `GluttonyCombo.cs` `UpdateCaches`; still a silent no-op when
+  neither BossMod nor BossModReborn is loaded.
+
+## v1.0.4.161 (2026-08-30) [testing]
 
 Upstream WrathCombo merge: `7b4501585..05044558a`, 67 commits, 81 files. This is the
 merge that was held on 2026-08-30 for a decision about Blue Mage, and the decision was

@@ -167,7 +167,9 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
 
                 var role = global::GluttonyCombo.CustomComboNS.Functions.Jobs.GetRoleFromJob(Player.Job);
                 float? distance = null;
-                if (role is global::GluttonyCombo.CustomComboNS.Functions.Jobs.JobRole.Tank or global::GluttonyCombo.CustomComboNS.Functions.Jobs.JobRole.MeleeDPS)
+                if (Player.Job == Job.SGE) // stay inside Phlegma range
+                    distance = 5f;
+                else if (role is global::GluttonyCombo.CustomComboNS.Functions.Jobs.JobRole.Tank or global::GluttonyCombo.CustomComboNS.Functions.Jobs.JobRole.MeleeDPS)
                     distance = 3f;
                 else if (role is global::GluttonyCombo.CustomComboNS.Functions.Jobs.JobRole.Healer)
                     distance = 15f;
