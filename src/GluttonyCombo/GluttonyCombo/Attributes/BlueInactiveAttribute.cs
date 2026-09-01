@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using GluttonyCombo.Combos.PvE;
 using GluttonyCombo.Services;
 
 namespace GluttonyCombo.Attributes;
@@ -31,9 +32,23 @@ public class BlueInactiveAttribute : Attribute
                 continue;
             }
 
+            // FORK: a preset whose spell is user-selectable (the BLU fillers — see
+            // Combos/PvE/BLU/BLU_Fillers.cs) is satisfied by whatever the user picked,
+            // so don't nag them to slot the stock spell they deliberately replaced.
+            if (SatisfiedByConfig(action))
+            {
+                NoneSet = false;
+                continue;
+            }
+
             Actions.Add(action);
         }
     }
+
+    /// <summary> Whether an unslotted action has been superseded by a user-selected equivalent. </summary>
+    private static bool SatisfiedByConfig(uint action) =>
+        BLU.FillerSlotForDefault(action) is { } slot && BLU.ResolveFiller(slot) != 0;
+
     internal List<uint> Actions { get; set; } = [];
     internal List<uint> MasterActions { get; set; } = [];
     internal bool NoneSet { get; set; } = false;

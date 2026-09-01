@@ -1,4 +1,79 @@
-﻿## v1.0.4.164 (2026-08-30) [testing]
+﻿## v1.0.4.165 (2026-08-31) [testing]
+
+### Added
+- **The BLU one-button rotations no longer hard-code their filler spell — you can now pick
+  any filler, or let the plugin detect the one you actually carry.** A Blue Mage only gets
+  24 active spell slots and there are ~45 viable fillers, so upstream's four fixed choices
+  (Sonic Boom for ST DPS, Electrogenesis for AoE DPS, Goblin Punch for ST tank, Right Round
+  for AoE tank) silently did nothing for anyone who slotted a different one: the combo's
+  `IsSpellActive` fall-through returned the un-replaced action and the button stayed inert.
+  (new file: `Combos/PvE/BLU/BLU_Fillers.cs`)
+- **Filler catalogue** (`BLU_Fillers.cs`, `Fillers`): 45 spells, each carrying its shape
+  (single-target / targeted-AoE / point-blank / ground), range, potency, and whether it is
+  safe to select automatically. Every action ID was verified against XIVAPI v2 (exdschema
+  rev 83e965d0) and cross-checked on Garland Tools; none were taken from memory. Deliberately
+  excluded as traps rather than fillers: 1000 Needles (damage is split between targets),
+  Final Sting / Self-destruct (incapacitate the caster), Wild Rage (costs half your max HP),
+  Missile / Tail Screw / Launcher / Doom / Dimensional Shift (chance-based), and the 30s-recast
+  spells that are cooldowns the Primals option already handles.
+- **Per-rotation "Filler Spell" dropdown** in the Features pane for `BLU_ST_DPS`,
+  `BLU_AoE_DPS`, `BLU_ST_Tank` and `BLU_AoE_Tank` (file: `BLU_Config.cs`, function
+  `DrawFillerPicker`). Defaults to Automatic. Spells you do not currently have slotted are
+  listed but greyed and labelled, tooltips carry potency/range plus any caveat, and the pane
+  warns when your explicit pick is not slotted (naming the substitute) or when no filler is
+  available at all.
+
+### Changed
+- `BLU_ST_DPS`, `BLU_AoE_DPS`, `BLU_ST_Tank`, `BLU_AoE_Tank` now pass a runtime-computed
+  action set to `CustomActionHelper.OneButtonRotationChecker` via `HookedActions(FillerSlot)`
+  instead of a bare constant, so the hooked hotbar button follows your selection (file:
+  `Combos/PvE/BLU/BLU.cs`). This mirrors the established upstream idiom used by WHM
+  (`WHM_ST_MainCombo_Actions`), AST (`AST_ST_DPS_AltMode`), SCH, SGE and SMN. The stock
+  button stays hooked alongside the new one, so nothing regresses for existing users.
+- `DoDPS` and `DoTank` resolve their filler through `ResolveFiller` / `FillerOr` rather than
+  testing `IsSpellActive(SonicBoom)` etc. directly (file: `Combos/PvE/BLU/BLU_Helper.cs`).
+  Fall-through behaviour is preserved exactly: with a stock loadout every path returns the
+  same action it did in v1.0.4.164, and with no filler slotted at all the original action is
+  returned untouched.
+- `DoTank`'s out-of-melee branch now falls back to the best *ranged* filler you have slotted
+  instead of specifically Sonic Boom (file: `BLU_Helper.cs`).
+
+### Fixed
+- **Auto-Mode would have refused to run for anyone using a non-stock filler.**
+  `ProcessAutoActions` gates on `attributes.ReplaceSkill!.ActionIDs.First()` for its
+  `ActionLearned` / `GetActionStatus` check, and `[ReplaceSkill]` is frozen at static-init
+  (`PresetStorage.AllPresets` is a `FrozenDictionary` built once) so it still names the stock
+  spell. Left alone, a user without Sonic Boom slotted would hit `!ActionLearned` and the
+  preset would be skipped every tick with no visible error. The gate now consults
+  `BLU.AutoActionOverride(preset)` first (files: `AutoRotation/AutoRotationController.cs`
+  line ~1400, `BLU_Fillers.cs`).
+- **The "you are missing spells" warning would have falsely fired** on a deliberately
+  replaced filler, because `[BlueInactive]` is likewise compile-time. `GetActions` now treats
+  an unslotted stock filler as satisfied when a replacement is resolved (file:
+  `Attributes/BlueInactiveAttribute.cs`, function `GetActions` / `SatisfiedByConfig`).
+
+### Notes
+- **Auto-detect is deliberately conservative, and only ever picks a spell you have slotted.**
+  It prefers the stock filler when you carry it (so an existing setup never changes
+  behaviour), then the highest-potency pure single-target spell for ST slots. It will not
+  pick, on its own, anything that knocks back, draws in, applies a status, has conditional
+  potency, or splashes an ST slot — those pull extra mobs or step on party mechanics, so they
+  remain one dropdown click away rather than a surprise. The sole exception is a slot's own
+  stock filler (Right Round knocks back, but it IS what upstream picks).
+- A manual pick that is no longer slotted degrades to auto-detect rather than jamming the
+  rotation, so swapping your spellbook cannot leave a dead button.
+- The `[ReplaceSkill]` / `[BlueInactive]` attributes were intentionally left naming only the
+  stock spell. They are frozen at startup and drive just the Features-pane icon row; widening
+  them would have reordered `ActionIDs.First()` and changed which spell the Auto-Mode gate
+  tests. Runtime narrowing is the upstream-sanctioned pattern.
+- Logic verified before shipping with a standalone harness replicating `ResolveFiller` /
+  `HookedActions` against synthetic spell loadouts — 27 checks over stock parity, the
+  reported bug, override precedence, stale config, melee/ranged split, shape rules and empty
+  loadouts. It caught two real bugs pre-flight: auto-detect preferring a splashy AoE over a
+  pure ST filler, and an over-eager hook set that would have made Sonic Boom trigger the tank
+  combo for stock users.
+
+## v1.0.4.164 (2026-08-30) [testing]
 
 ### Changed
 - **Fleet-wide phantom Red Mage Dualcast audit (Occult Crescent), prompted by Joey's report

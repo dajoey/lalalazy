@@ -16,7 +16,7 @@ internal partial class BLU : Caster
 
         protected override uint Invoke(uint actionID)
         {
-            if (!CustomActionHelper.OneButtonRotationChecker(actionID, CustomActionType.SingleTargetDPS, SonicBoom))
+            if (!CustomActionHelper.OneButtonRotationChecker(actionID, CustomActionType.SingleTargetDPS, HookedActions(FillerSlot.StDps)))
                 return actionID;
 
             if (CustomActionHelper.CustomActionEnabled(CustomActionType.SingleTargetDPS) &&
@@ -34,7 +34,7 @@ internal partial class BLU : Caster
 
         protected override uint Invoke(uint actionID)
         {
-            if (!CustomActionHelper.OneButtonRotationChecker(actionID, CustomActionType.AoEDPS, Electrogenesis))
+            if (!CustomActionHelper.OneButtonRotationChecker(actionID, CustomActionType.AoEDPS, HookedActions(FillerSlot.AoeDps)))
                 return actionID;
 
             if (CustomActionHelper.CustomActionEnabled(CustomActionType.AoEDPS) &&
@@ -56,7 +56,7 @@ internal partial class BLU : Caster
 
         protected override uint Invoke(uint actionID)
         {
-            if (!CustomActionHelper.OneButtonRotationChecker(actionID, CustomActionType.SingleTargetDPS, GoblinPunch))
+            if (!CustomActionHelper.OneButtonRotationChecker(actionID, CustomActionType.SingleTargetDPS, HookedActions(FillerSlot.StTank)))
                 return actionID;
 
             if (CustomActionHelper.CustomActionEnabled(CustomActionType.SingleTargetDPS) &&
@@ -74,7 +74,7 @@ internal partial class BLU : Caster
 
         protected override uint Invoke(uint actionID)
         {
-            if (!CustomActionHelper.OneButtonRotationChecker(actionID, CustomActionType.AoEDPS, RightRound))
+            if (!CustomActionHelper.OneButtonRotationChecker(actionID, CustomActionType.AoEDPS, HookedActions(FillerSlot.AoeTank)))
                 return actionID;
 
             if (CustomActionHelper.CustomActionEnabled(CustomActionType.AoEDPS) &&

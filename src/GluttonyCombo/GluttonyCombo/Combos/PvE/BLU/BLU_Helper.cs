@@ -331,15 +331,18 @@ internal partial class BLU
 
         if (onAoE)
         {
-            if (IsSpellActive(Electrogenesis))
-                return Electrogenesis;
+            var aoeFiller = ResolveFiller(FillerSlot.AoeDps);
+            if (aoeFiller != 0)
+                return aoeFiller;
             if (IsEnabled(Preset.BLU_AoE_DPS_HydroPull) && IsSpellActive(HydroPull))
                 return HydroPull;
         }
         else if (IsEnabled(Preset.BLU_ST_DPS_SharpenedKnife) && UseSharpenedKnife())
             return SharpenedKnife;
 
-        return IsSpellActive(SonicBoom) ? SonicBoom : actionID;
+        // AoE falls back to the single-target filler when no AoE filler is slotted,
+        // which is what upstream did by falling through to Sonic Boom here.
+        return FillerOr(actionID, FillerSlot.StDps);
     }
 
     private static uint DoTank(uint actionID, uint retargetFrom, bool onAoE)
@@ -418,19 +421,24 @@ internal partial class BLU
 
         if (onAoE)
         {
-            if (IsSpellActive(RightRound))
-                return RightRound;
-            if (IsSpellActive(Electrogenesis))
-                return Electrogenesis;
+            var aoeFiller = ResolveFiller(FillerSlot.AoeTank);
+            if (aoeFiller != 0)
+                return aoeFiller;
             if (IsEnabled(Preset.BLU_AoE_Tank_HydroPull) && IsSpellActive(HydroPull))
                 return HydroPull;
-            return IsSpellActive(SonicBoom) ? SonicBoom : actionID;
+            // Upstream fell through to Sonic Boom here.
+            return FillerOr(actionID, FillerSlot.StDps);
         }
 
-        if (IsSpellActive(SonicBoom) && !InMeleeRange())
-            return SonicBoom;
+        // Out of melee range: fall back to a ranged filler rather than walking in.
+        if (!InMeleeRange())
+        {
+            var ranged = ResolveFiller(FillerSlot.StTank, rangedOnly: true);
+            if (ranged != 0)
+                return ranged;
+        }
 
-        return IsSpellActive(GoblinPunch) ? GoblinPunch : actionID;
+        return FillerOr(actionID, FillerSlot.StTank);
     }
 
     private static uint DoHeal(uint actionID, bool onAoE)

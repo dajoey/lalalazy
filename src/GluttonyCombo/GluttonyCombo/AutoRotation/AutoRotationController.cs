@@ -1397,6 +1397,14 @@ internal unsafe class AutoRotationController
             }
 
             uint gameAct = attributes.ReplaceSkill!.ActionIDs.First();
+
+            // FORK: BLU's filler is user-selectable (see BLU_Fillers.cs), but the
+            // [ReplaceSkill] attribute is frozen at startup and still names the stock
+            // spell. Gating on it would kill auto-rotation for anyone who does not
+            // have Sonic Boom / Electrogenesis / Goblin Punch / Right Round slotted.
+            if (BLU.AutoActionOverride(entry.Preset) is { } bluAct)
+                gameAct = bluAct;
+
             var status = ActionManager.Instance()->GetActionStatus(ActionType.Action, gameAct, checkCastingActive: false, checkRecastActive: false);
 
             if (!ActionLearned(gameAct) || status == 581)
