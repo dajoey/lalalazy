@@ -202,8 +202,9 @@ internal partial class BLU
     /// </summary>
     /// <param name="slot"> Which filler is being resolved. </param>
     /// <param name="rangedOnly">
-    ///     Skip melee fillers. Used by the tank rotation, which wants a ranged filler
-    ///     while it is out of melee range of its target.
+    ///     Skip fillers the target is currently out of range of. Used by the tank
+    ///     rotation, which wants a ranged filler while it is out of melee range of
+    ///     its target.
     /// </param>
     internal static uint ResolveFiller(FillerSlot slot, bool rangedOnly = false)
     {
@@ -213,7 +214,7 @@ internal partial class BLU
         // config (spell swapped out since) degrades to auto-detect instead of jamming.
         if (configured != 0 &&
             IsSpellActive(configured) &&
-            (!rangedOnly || GetFiller(configured) is not { IsMelee: true }))
+            (!rangedOnly || InActionRange(configured)))
             return configured;
 
         var def = DefaultFiller(slot);
@@ -237,7 +238,7 @@ internal partial class BLU
             if (singleTargetSlot && !isDefault && filler.Shape is not FillerShape.Single)
                 continue;
 
-            if (rangedOnly && filler.IsMelee)
+            if (rangedOnly && !InActionRange(filler.ActionId))
                 continue;
             if (IsSpellActive(filler.ActionId))
                 return filler.ActionId;

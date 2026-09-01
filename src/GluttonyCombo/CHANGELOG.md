@@ -1,4 +1,20 @@
-﻿## v1.0.4.165 (2026-08-31) [testing]
+﻿## v1.0.4.166 (2026-09-01) [testing]
+
+### Fixed
+- BLU ST tank ranged filler fallback no longer returns short-reach cones when the target is
+  beyond their reach. `ResolveFiller(FillerSlot.StTank, rangedOnly: true)` now checks
+  `InActionRange(filler.ActionId)` against the current target instead of the flat
+  `FillerInfo.IsMelee` melee flag, so a manually pinned 6–8 y cone (the Look, Kaltstrahl,
+  Northerlies, Flame Thrower) is skipped when the target is too far and only used when the
+  target is actually inside its reach. (file: `Combos/PvE/BLU/BLU_Fillers.cs`, function:
+  `ResolveFiller`)
+
+### Notes
+- `FillerInfo.Range` in the catalogue still stores reach-to-target (not raw XIVAPI `Range`),
+  so cones retain their effect radius (6–8 y). Only the ranged-only resolution decision now
+  uses the live range check.
+
+## v1.0.4.165 (2026-08-31) [testing]
 
 ### Added
 - **The BLU one-button rotations no longer hard-code their filler spell — you can now pick
