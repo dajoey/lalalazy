@@ -4,6 +4,66 @@
 
 Unreleased development version - not in `pluginmaster.json`; release plumbing is Phase 7.
 
+### Added - Phase 3: adapters - game data, inventory, prices, player (2026-09-03)
+- `Adapters/LuminaGameData.cs` - `IGameData` over the Excel sheets, indexed once in `Load(GameData, log, gbr?)`
+  (~400 ms off-thread) and answered from dictionaries. Recipes from `Recipe` (+`RecipeLevelTable.ClassJobLevel`,
+  job = `CraftType + 8`), gil vendors from `GilShopItem` subrows (+`Item.PriceMid`), special shops from
+  `SpecialShop.Item[].ReceiveItems`, gatherables from `GatheringItem` -> `GatheringPointBase` -> `GatheringPoint` ->
+  `GatheringPointTransient` with GBR's node-type rule (rare-pop table -> Unspoiled, ephemeral window -> Ephemeral,
+  `GatheringPoint.Type == 8` -> Clouded; regular wins when an item sits on both), fish from `FishParameter` +
+  `SpearfishingItem`, ventures from `RetainerTask` (non-random) joined to `RetainerTaskNormal.Quantity[5]` and the
+  matching `RetainerTaskParameter` threshold array (PerceptionDoL / PerceptionFSH / ItemLevelDoW by job category),
+  collectables from `CollectablesShopItem` subrows joined to `CollectablesShopRefine` + `CollectablesShopRewardScrip`
+  (legacy rows pointing at row 0 skipped), marketable = `ItemSearchCategory > 0 && !IsUntradable` until Universalis'
+  list overrides it (`UseMarketableOverride`). Drops and desynth from LuminaSupplemental 4.3.0 embedded CSVs
+  (`MobDrop`, `DungeonDrop`, `DungeonChestItem`, `DungeonBossDrop`, `SubmarineDrop`, `AirshipDrop`; `ItemSupplement`
+  rows with source `Desynth`, `Probability` % and `Min/Max` -> `DesynthResult`), plus combat-venture items as a drop
+  fallback. Live counts on the installed client: 13,892 recipes, 6,743 gil-vendor, 12,886 special-shop, 1,050
+  gatherable, 2,758 fish, 968 ventures, 16,843 marketable, 7,843 drop, 1,508 collectable, 21,997 desynth sources.
+- `Adapters/GbrData.cs` - reflection reader for a loaded GatherBuddyReborn (`GatherBuddy.GameData.Gatherables`
+  -> `NodeType` / `Level` / `GatheringType`), used as an overlay on the sheet node types when GBR is present; any
+  shape mismatch logs once and falls back to the sheets.
+- `Adapters/InventorySource.cs` + `Adapters/AllaganInventory.cs` - `IInventory` over the AllaganTools IPC
+  (`ItemCountOwned(itemId, currentCharOnly, inventoryTypes[])`, `IsInitialized`, `GetCharactersOwnedByActive`,
+  `ItemAdded` / `ItemRemoved` / `Initialized` events). Seven per-source toggles - Bags, ArmouryChest, Saddlebag,
+  Retainers, AltCharacters, FCChest, GlamourDresser - each mapped to CriticalCommonLib `InventoryType` ids;
+  **all on by default except FCChest**. Counts are memoised per item until an inventory event (2 s debounce ->
+  `Changed`). Without AllaganTools: `InventoryManager.GetInventoryItemCount` (NQ+HQ, current character's bags)
+  and `Degraded = true` for the UI banner.
+- `Adapters/UniversalisClient.cs` - `IPriceSource` grown from Dagobert's client: batched
+  `GET aggregated/{scope}/{<=100 ids}` (min/median listing, average sale, daily velocity; NQ and HQ; DC or world
+  block) plus a field-projected `GET {scope}/{ids}?fields=items.listingsCount,...` per batch for listing counts;
+  `marketable` and `tax-rates?world=` cached per session; shared gzip `HttpClient` with
+  `User-Agent: LazyCrafter/{ver} (lalalazy; github.com/dajoey/lalalazy)`; in-memory + `{configDir}/prices.json`
+  cache with a 10-minute TTL (atomic write, at most once a minute); semaphore of 4; exponential backoff on
+  429 / 5xx honouring `Retry-After`. `Get` is cache-only; `PrimeAsync(ids)` fetches only the missing/stale
+  marketable subset the caller passes (visible rows + cart), never the whole list. Missing velocity -> `0`,
+  never NaN (V1 contract). Live smoke: 152 quotes in 8 requests, 0 failures, re-prime within TTL = 0 fetches,
+  disk cache reload restores scope + quotes.
+- `Adapters/PlayerState.cs` - `ICraftingLog` (`QuestManager.IsRecipeComplete`), crafter/gatherer levels via
+  `IPlayerState.GetClassJobLevel` (API 15), home world / data-centre name via `IPlayerState.HomeWorld`, and
+  retainer stats read **read-only** from `pluginConfigs/ARControl.json` (`Characters[].Retainers[]` where
+  `LocalContentId` matches, `Managed != false`) plus that character's `GatheredItems` for the venture log gate;
+  re-read on mtime change (checked every 30 s). `RetainerHint` explains an empty list.
+- `Configuration.cs` v2 - `EnabledSources` keyed by `InventorySource` name (migration fills missing keys),
+  `PriceCacheMinutes` (10), `PriceByWorld` (false).
+- `Plugin.cs` - wires the adapters; game data loads on a background `Task`; on login the price scope is set to the
+  home DC (or world) and the marketable + tax caches warm; `/lcraft debug` logs recipe count, inventory source
+  states, price cache size, DC, retainer count (Phase 3 acceptance); `/lcraft prices` primes a 100-item sample.
+- `tests/LazyCrafter.Probe` - offline console that opens the installed client's sqpack with a bare Lumina
+  `GameData` (no Dalamud), runs `LuminaGameData.Load` + the Core against it (tiering over all 13,892 recipes),
+  and smoke-tests `UniversalisClient` against the live API including the disk-cache round trip. Run:
+  `dotnet build tests\LazyCrafter.Probe -c Release` then `dotnet tests\LazyCrafter.Probe\bin\Release\net10.0-windows7.0\LazyCrafter.Probe.dll`.
+
+### Notes - Phase 3
+- `LuminaGameData` / `UniversalisClient` take a bare `Lumina.GameData` / `Action<string>` logger rather than
+  `IDataManager` / `IPluginLog` so the probe can exercise them without the client; the plugin passes
+  `Data.GameData` and a lambda onto `IPluginLog`.
+- 244 distinct ingredients classify as `Unknown` with the current lookups (Cosmic Container, the airship/submarine
+  "Component Materials", etc.) - those recipes land in `Blocked` (2,986 of 13,892 with an empty inventory). Fine
+  for v1; a `Company Workshop` / cosmic-exploration source is a follow-up if Joey wants them.
+- Not in `pluginmaster.json`; nothing is shipped. Release plumbing is Phase 7.
+
 ### Fixed - V1 verify follow-up (2026-09-03, t_003d108b)
 - `Core/ProfitModel.cs` `UnitCost`: a material listed on the board **only as HQ** (all NQ price columns null,
   e.g. crafted intermediates, fish) was returned as unpriced -> `UnpricedItems`, `CostComplete=false`, and
@@ -86,3 +146,4 @@ Unreleased development version - not in `pluginmaster.json`; release plumbing is
 
 ### Notes
 - Not in `pluginmaster.json` yet; nothing is shipped. Release plumbing is Phase 7.
+

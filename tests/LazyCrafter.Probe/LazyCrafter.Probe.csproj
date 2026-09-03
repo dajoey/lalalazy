@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Offline probe for the Phase 3 LuminaGameData adapter: opens the installed game's sqpack with a
+       bare Lumina GameData (no client, no Dalamud) and prints the same counts /lcraft debug logs.
+       References Lumina straight out of the Dalamud dev folder so it matches the API-15 sheet layout. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows7.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>LazyCrafter.Probe</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <DalamudLibPath>$(APPDATA)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\src\LazyCrafter\Core\**\*.cs" Link="Core\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\..\src\LazyCrafter\Adapters\LuminaGameData.cs" Link="Adapters\LuminaGameData.cs" />
+    <Compile Include="..\..\src\LazyCrafter\Adapters\UniversalisClient.cs" Link="Adapters\UniversalisClient.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="LuminaSupplemental.Excel" Version="4.3.0" />
+    <Reference Include="Lumina"><HintPath>$(DalamudLibPath)Lumina.dll</HintPath><Private>true</Private></Reference>
+    <Reference Include="Lumina.Excel"><HintPath>$(DalamudLibPath)Lumina.Excel.dll</HintPath><Private>true</Private></Reference>
+  </ItemGroup>
+</Project>
