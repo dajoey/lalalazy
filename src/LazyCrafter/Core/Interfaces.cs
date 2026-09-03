@@ -53,7 +53,41 @@ public interface IGameData
     bool IsMarketable(uint itemId);
     /// <summary>Monster drop / voyage / dungeon source known (TeamCraft drop-sources, voyage-sources).</summary>
     bool IsDrop(uint itemId);
+
+    // ---- Phase 2 additions ----
+
+    /// <summary>
+    /// Collectable turn-in data for an item, or <c>null</c> when it is not a collectable:
+    /// <c>CollectablesShopItem</c> joined to <c>CollectablesShopRefine</c> (the three collectability
+    /// breakpoints) and <c>CollectablesShopRewardScrip</c> (currency + reward per tier + XP ratio per tier).
+    /// </summary>
+    CollectableInfo? Collectable(uint itemId);
+
+    /// <summary>
+    /// Desynthesis outcomes for an item (<c>Item.Desynth</c> flag + LuminaSupplemental desynth results),
+    /// or an empty list when the item cannot be desynthesized / nothing is known.
+    /// </summary>
+    IReadOnlyList<DesynthResult> Desynth(uint itemId);
 }
+
+/// <summary>
+/// One collectable's turn-in table. <see cref="Collectability"/> are the low/mid/high breakpoints
+/// (<c>CollectablesShopRefine</c>); <see cref="Reward"/> the scrip paid at each
+/// (<c>CollectablesShopRewardScrip.Low/Mid/HighReward</c>); <see cref="ExpRatio"/> the matching
+/// <c>ExpRatioLow/Mid/High</c>. <see cref="Currency"/> is the scrip item/currency id of the shop.
+/// <see cref="LevelMin"/>/<see cref="LevelMax"/> is the job-level band the shop accepts it in.
+/// </summary>
+public sealed record CollectableInfo(
+    uint ItemId,
+    uint Currency,
+    int LevelMin,
+    int LevelMax,
+    IReadOnlyList<int> Collectability,
+    IReadOnlyList<int> Reward,
+    IReadOnlyList<int> ExpRatio);
+
+/// <summary>One possible desynth output: the item, its drop chance (0..1) and the mean quantity when it drops.</summary>
+public sealed record DesynthResult(uint ItemId, double Chance, double Quantity = 1);
 
 /// <summary>Counts already filtered by the enabled inventory sources.</summary>
 public interface IInventory

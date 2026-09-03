@@ -14,6 +14,8 @@ internal sealed class FakeGameData : IGameData
     private readonly List<VentureRow> _ventures = new();
     private readonly HashSet<uint> _marketable = new();
     private readonly HashSet<uint> _drops = new();
+    private readonly Dictionary<uint, CollectableInfo> _collectables = new();
+    private readonly Dictionary<uint, List<DesynthResult>> _desynth = new();
 
     public FakeGameData Recipe(uint recipeId, uint resultItem, int resultAmount, uint job, int level, params (uint ItemId, int Amount)[] ingredients)
     {
@@ -28,6 +30,13 @@ internal sealed class FakeGameData : IGameData
     public FakeGameData Venture(VentureRow row) { _ventures.Add(row); return this; }
     public FakeGameData Marketable(uint itemId) { _marketable.Add(itemId); return this; }
     public FakeGameData Drop(uint itemId) { _drops.Add(itemId); return this; }
+    public FakeGameData Collectable(CollectableInfo info) { _collectables[info.ItemId] = info; return this; }
+    public FakeGameData Desynth(uint itemId, params DesynthResult[] results)
+    {
+        if (!_desynth.TryGetValue(itemId, out var list)) _desynth[itemId] = list = new List<DesynthResult>();
+        list.AddRange(results);
+        return this;
+    }
 
     public IEnumerable<RecipeRow> Recipes() => _recipes;
     public bool IsGilVendor(uint itemId, out uint gil) => _gilVendor.TryGetValue(itemId, out gil);
@@ -37,6 +46,8 @@ internal sealed class FakeGameData : IGameData
     public IEnumerable<VentureRow> Ventures() => _ventures;
     public bool IsMarketable(uint itemId) => _marketable.Contains(itemId);
     public bool IsDrop(uint itemId) => _drops.Contains(itemId);
+    public CollectableInfo? Collectable(uint itemId) => _collectables.TryGetValue(itemId, out var c) ? c : null;
+    public IReadOnlyList<DesynthResult> Desynth(uint itemId) => _desynth.TryGetValue(itemId, out var l) ? l : Array.Empty<DesynthResult>();
 }
 
 internal sealed class FakeInventory : IInventory
