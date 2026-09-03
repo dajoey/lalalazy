@@ -29,6 +29,8 @@ public sealed class LuminaGameData : IGameData
     private readonly Dictionary<uint, List<DesynthResult>> _desynth = new();
     private readonly Dictionary<uint, string> _names = new();
     private readonly HashSet<uint> _desynthable = new();
+    private readonly HashSet<uint> _canBeHq = new();
+    private readonly Dictionary<uint, string> _jobAbbr = new();
     private readonly Func<uint, GatherInfo?>? _gbr;
     private Func<uint, bool?>? _marketableOverride;
 
@@ -52,6 +54,10 @@ public sealed class LuminaGameData : IGameData
 
     public string ItemName(uint itemId) => _names.TryGetValue(itemId, out var n) ? n : $"#{itemId}";
     public bool IsDesynthable(uint itemId) => _desynthable.Contains(itemId);
+    /// <summary>Whether the item can exist in high quality (<c>Item.CanBeHq</c>) - the UI only evaluates an HQ price row for these.</summary>
+    public bool CanBeHq(uint itemId) => _canBeHq.Contains(itemId);
+    /// <summary>ClassJob abbreviation (CRP, BSM, ...) from the sheet; the row id as text when unknown.</summary>
+    public string JobAbbr(uint classJobId) => _jobAbbr.TryGetValue(classJobId, out var a) ? a : classJobId.ToString();
 
     // ---------------------------------------------------------------- IGameData
 
@@ -108,6 +114,12 @@ public sealed class LuminaGameData : IGameData
             // Same heuristic GBR/Artisan use; Universalis' /marketable list overrides it when loaded.
             if (item.ItemSearchCategory.RowId > 0 && !item.IsUntradable) _marketable.Add(item.RowId);
             if (item.Desynth > 0) _desynthable.Add(item.RowId);
+            if (item.CanBeHq) _canBeHq.Add(item.RowId);
+        }
+        foreach (var job in Sheet<ClassJob>(data))
+        {
+            var abbr = job.Abbreviation.ExtractText();
+            if (!string.IsNullOrEmpty(abbr)) _jobAbbr[job.RowId] = abbr;
         }
     }
 

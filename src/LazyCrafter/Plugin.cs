@@ -5,6 +5,7 @@ using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using ECommons;
 using LazyCrafter.Adapters;
+using LazyCrafter.Catalog;
 using LazyCrafter.UI;
 
 namespace LazyCrafter;
@@ -43,6 +44,9 @@ public sealed class Plugin : IDalamudPlugin
     public LuminaGameData? GameData { get; private set; }
     public Task GameDataLoad { get; }
 
+    // Phase 4: every expensive computation behind the window lives here, on its own worker.
+    public CatalogService Catalog { get; }
+
     private readonly WindowSystem _windows = new("LazyCrafter");
     private readonly MainWindow _mainWindow;
     private readonly CancellationTokenSource _cts = new();
@@ -64,8 +68,7 @@ public sealed class Plugin : IDalamudPlugin
             Ttl = TimeSpan.FromMinutes(Math.Max(1, Config.PriceCacheMinutes)),
         };
 
-        _mainWindow = new MainWindow(this);
-        _windows.AddWindow(_mainWindow);
+        // The catalog worker waits on GameDataLoad, so it can be created before the sheets are indexed.
 
         Pi.UiBuilder.Draw += _windows.Draw;
         Pi.UiBuilder.OpenConfigUi += OpenMain;
@@ -94,6 +97,10 @@ public sealed class Plugin : IDalamudPlugin
             }
         }, _cts.Token);
 
+        Catalog = new CatalogService(this, Framework, Log);
+        _mainWindow = new MainWindow(this);
+        _windows.AddWindow(_mainWindow);
+
         if (ClientState.IsLoggedIn) OnLogin();
 
         Log.Information("LazyCrafter {Version} loaded (core {Core})", Version, Core.CoreInfo.Version);
@@ -104,6 +111,7 @@ public sealed class Plugin : IDalamudPlugin
         Pi.SavePluginConfig(Config);
         Inventory.RefreshSources();
         Prices.Ttl = TimeSpan.FromMinutes(Math.Max(1, Config.PriceCacheMinutes));
+        Catalog?.Invalidate();
     }
 
     private void OpenMain() => _mainWindow.IsOpen = true;
@@ -123,17 +131,20 @@ public sealed class Plugin : IDalamudPlugin
                 await Prices.MarketableAsync(_cts.Token).ConfigureAwait(false);
                 await Prices.TaxRatesAsync(world, _cts.Token).ConfigureAwait(false);
                 Log.Debug("Universalis session caches ready: {Marketable} marketable ids, tax {Tax}", Prices.MarketableCount, Prices.TaxRates is null ? "n/a" : string.Join(",", Prices.TaxRates.Select(kv => $"{kv.Key}={kv.Value}")));
+                // The marketable set and tax rate feed the tiering (Market source) and the profit model: recompute.
+                Catalog?.Invalidate();
             }
             catch (OperationCanceledException) { }
             catch (Exception ex) { Log.Warning(ex, "Universalis session warm-up failed"); }
         }, _cts.Token);
         Inventory.Probe();
+        Catalog?.Invalidate();
     }
 
     private void OnInventoryChanged()
     {
-        // Phase 4 hooks the catalog recompute here. For now just note it.
-        Log.Verbose("Inventory changed (AllaganTools event, debounced)");
+        Log.Verbose("Inventory changed (AllaganTools event, debounced) - recomputing catalog");
+        Catalog?.Invalidate();
     }
 
     private void OnCommand(string command, string args)
@@ -166,6 +177,12 @@ public sealed class Plugin : IDalamudPlugin
             string.Join(",", Player.UnlockedJobs().Select(kv => $"{kv.Key}:{kv.Value}")),
             Player.Retainers.Count,
             Player.RetainerHint is { } h ? $" ({h})" : "");
+        var snap = Catalog.Snapshot;
+        Log.Information("[LazyCrafter debug] catalog: gen={Gen} status={Status} rows={Rows} tiers={Tiers} notCrafted={NotCrafted} priced={Priced} cart={Cart} view={View}/{ViewRows} computedAt={At} in {Ms} ms",
+            snap.Generation, Catalog.Status, snap.Rows.Count,
+            string.Join(",", snap.TierCounts.OrderBy(kv => kv.Key).Select(kv => $"{kv.Key}={kv.Value}")),
+            snap.NotYetCrafted, snap.PricedRows, snap.Cart.Count, Catalog.View.Request.Tab, Catalog.View.Rows.Count,
+            snap.ComputedAt == DateTime.MinValue ? "never" : snap.ComputedAt.ToString("HH:mm:ss"), (int)snap.Duration.TotalMilliseconds);
         foreach (var r in Player.Retainers)
             Log.Information("[LazyCrafter debug]   retainer {Name} lvl={Level} job={Job} ilvl={Ilvl} gathering={Gathering} perception={Perception}",
                 r.Name, r.Level, r.JobId, r.ItemLevel, r.Gathering, r.Perception);
@@ -202,6 +219,7 @@ public sealed class Plugin : IDalamudPlugin
         Pi.UiBuilder.OpenConfigUi -= OpenMain;
         Pi.UiBuilder.OpenMainUi -= OpenMain;
         _windows.RemoveAllWindows();
+        Catalog.Dispose();
         Inventory.Dispose();
         Prices.Dispose();
         ECommonsMain.Dispose();

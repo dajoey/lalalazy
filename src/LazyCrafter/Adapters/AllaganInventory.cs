@@ -168,6 +168,19 @@ public sealed class AllaganInventory : IInventory, IDisposable
         }
     }
 
+    /// <summary>
+    /// Counts for a set of items as a plain dictionary (Phase 4 catalog input). With AllaganTools this is safe to
+    /// call off the framework thread - the IPC is a managed LINQ over its item list - and answers come from the
+    /// memo after the first pass; without it (<see cref="Degraded"/>) the client's <c>InventoryManager</c> is read,
+    /// so call it on the framework thread.
+    /// </summary>
+    public Dictionary<uint, int> Snapshot(IEnumerable<uint> itemIds)
+    {
+        var d = new Dictionary<uint, int>();
+        foreach (var id in itemIds) d[id] = Count(id);
+        return d;
+    }
+
     /// <summary>Force a recompute (e.g. a manual refresh button).</summary>
     public void Invalidate()
     {

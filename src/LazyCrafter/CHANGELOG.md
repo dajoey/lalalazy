@@ -4,6 +4,83 @@
 
 Unreleased development version - not in `pluginmaster.json`; release plumbing is Phase 7.
 
+### Added - Phase 4: ImGui UI - bucket tabs, sortable catalog, ingredient tree, cart, settings (2026-09-03, t_49ca026f)
+- `Core/Tiering.cs` - `AssessCart(lines, inv)` -> `CartAssessment {Tier, Lines, Totals, Missing}`: several recipes
+  walked against **one** consumed-inventory ledger, so an on-hand unit is credited to at most one cart line; per-item
+  totals sum need/have across lines and sub-craft levels. `IngredientLeaf` gained `Depth` (0 = top-level ingredient,
+  +1 per chosen sub-craft); a sub-craft's leaves still precede the ingredient they serve in `Leaves`.
+- `Core/IngredientTree.cs` - `Build(leaves)` rebuilds the nested tree from a walk's flat leaf list using `Depth`;
+  `Flatten(roots)` yields parent-first for drawing.
+- `Core/TeamcraftExport.cs` - `Link(lines)` = `https://ffxivteamcraft.com/import/` + base64 of
+  `itemId,recipeId|null,quantity;...`. Format verified against TeamCraft's `pages/import/import.component.ts`
+  (its test vector `MjA1NDUsbnVsbCwzOzE3OTYyLDMyMzA4LDE7MjAyNDcsbnVsbCwx` round-trips) and Artisan's `Teamcraft.cs`.
+  Harness suite `CartTests` (9 cases) covers all three; harness now 82/82.
+- `Catalog/CatalogRow.cs` - `CatalogRow` (one recipe as the UI sees it: name, job, level, job level, tier, HowMany,
+  leaves, missing summary, NQ + HQ `ProfitEstimate`, marketable, CanBeHq, scrip/craft, desynth EV, log-complete,
+  EXP/craft), `CartLine`, `CatalogSnapshot` (generation, rows, tier counts, jobs, cart, cart totals, flags).
+- `Catalog/CatalogView.cs` - `CatalogTab` (Now / Easy / SomeEffort / RealEffort / Leveling / LogCompletion /
+  Undersupplied), `SortKey` (13 columns + EXP / cost / listings), `ViewRequest` (tab, job, HQ-only, min velocity,
+  hide untradeable, search, sort, leveling job, undersupplied thresholds, show-above-level), and the pure
+  `ViewBuilder.Build` filter+sort. "Real effort" shows tier 3 **and** Blocked (Scope §3.2: they do not vanish);
+  numeric sorts sink nulls regardless of direction; cash cost sorts only when every material was priced.
+- `Catalog/CatalogBuilder.cs` - the row-building pass with no Dalamud types (Core + `LuminaGameData` only) so
+  `tests/LazyCrafter.Probe` runs the exact worker pass offline; `AllItemIds()` = every ingredient any recipe can
+  reach (13,758 ids), `DictInventory` = frozen counts for one pass.
+- `Catalog/CatalogService.cs` - **all computation on one background worker, never in Draw** (Plan §Phase 4 task 6):
+  waits on `Plugin.GameDataLoad`; per pass gathers the framework-thread reads in one `RunOnFrameworkThread` prologue
+  (job levels, `IsRecipeComplete` per recipe, and the client-bag inventory fallback when AllaganTools is absent),
+  snapshots AllaganTools counts for every ingredient id, tiers + prices all 13,892 recipes (~450 ms), builds the
+  cart, and swaps an immutable `CatalogSnapshot` / `CatalogView` atomically. Pokes from the UI thread: `Invalidate`
+  (inventory event, login, settings), `Request(ViewRequest)` (only a *changed* request wakes it), `Pin(recipeId)`,
+  `RefreshPrices`, and the cart mutators (persisted to config). Price priming (`PrimeAndRefineAsync`) fetches only
+  stale quotes for the top `PriceWindow` = 200 rows of the current view + their materials + the selected recipe +
+  the cart (whole craftable set only on the Undersupplied tab), re-evaluates just the rows those quotes touch, and
+  repeats at most `MaxPrimeRounds` = 3 times while the top of the view keeps changing; a 1-minute timer re-checks
+  staleness so quotes older than `PriceCacheMinutes` refresh on their own.
+- `UI/MainWindow.cs` - tab bar with count badges, filter bar (search, job combo - doubles as the job to level on
+  the Leveling tab -, HQ, hide untradeable, min /day, above-level, Refresh, status line), catalog | ingredient tree
+  split, cart panel at the bottom, Settings tab. Selecting a row pins it for pricing. `/lcraft` toggles the window
+  (unchanged since Phase 0).
+- `UI/CatalogTable.cs` - the 13 Plan §Phase 4 columns (item · job · lvl · craftable · margin cash · margin market ·
+  /day · velocity · saturation · scrip · desynth · tier · missing) plus a per-tab extra (EXP / cost / listings);
+  every column sortable (header click -> `SortKey` -> worker sorts; the table never sorts on the draw thread);
+  `ImGuiListClipper` so a 6,000-row bucket draws one screen of widgets; right-click: add 1 / add all craftable /
+  copy name; `<` prefix on costs that are lower bounds. Per-tab table ids keep per-tab sort/widths.
+- `UI/IngredientTree.cs` - header (tier, can-craft, revenue/tax/cash cost/market cost, margins, /day, velocity,
+  listings, unpriced list, scrip), quantity + **Add to cart** + **Copy TeamCraft link**, then the tree table:
+  per leaf have/need (green when covered), source kinds, unit price (cheapest of market / gil vendor), and one
+  fulfil button per channel (Craft / Gather / Venture / Vendor / Buy) - **disabled placeholders that name the
+  Phase 5 hand-off** they will trigger.
+- `UI/CartPanel.cs` - collapsible; lines (recipe, editable crafts, tier, cash cost, remove), aggregated missing
+  list with source + estimated cost, **Dispatch** (disabled until Phase 5), **Export to TeamCraft** (final items,
+  quantity x ResultAmount, link to clipboard + chat line), Clear.
+- `UI/SettingsTab.cs` - the 7 inventory-source toggles (FC chest off), revenue basis, price by world, refresh
+  interval, show-above-level, undersupplied thresholds, retainer status, and the two dispatch toggles
+  **Dagobert list-after-craft** and **vnavmesh walk-to-vendor** - both exist and both default **OFF**. Every change
+  saves and invalidates the catalog.
+- `Configuration.cs` v3 - `RevenueBasis`, `ShowAboveLevel` (false), `UndersuppliedMinVelocity` (3) /
+  `UndersuppliedMaxListings` (2), `DagobertAfterCraft` (false), `VnavWalkToVendor` (false), `Cart`. v2 -> v3 needs
+  no rewrite.
+- `Adapters/LuminaGameData.cs` - `CanBeHq(itemId)` (`Item.CanBeHq`; the HQ price row is only evaluated for these)
+  and `JobAbbr(classJobId)` (`ClassJob.Abbreviation`). `Adapters/AllaganInventory.cs` - `Snapshot(ids)`.
+- `Plugin.cs` - owns the `CatalogService`; `OnInventoryChanged`, `OnLogin`, the Universalis warm-up and
+  `SaveConfig` all `Invalidate()`; `/lcraft debug` also logs the catalog generation/status/tier counts/view.
+- `tests/LazyCrafter.Probe` - now also runs the Phase 4 pass offline: `CatalogBuilder` over all 13,892 recipes
+  with a seeded fake inventory + every crafter at 100 (446 ms; Now 9 / Easy 6,014 / SomeEffort 4,883 / Blocked
+  2,986), `ViewBuilder` for every tab and every sort key, HQ-only, search, job filter, a live Universalis prime of
+  the Now window (13 quotes, 4 requests) with the touched-row re-evaluation (4,526 rows), a two-line cart, the
+  TeamCraft link, and an ingredient tree.
+
+### Notes - Phase 4
+- **Not exercised in-game** (ffxivdev may not launch the client): the ImGui widgets compiled against
+  `Dalamud.Bindings.ImGui` (SDK 15) but their behaviour is verified only by the offline probe of the layer beneath
+  them. P4's acceptance screenshot ("window populated with real data on Joey's install") is the V2 verify card's.
+- Thread model: the draw thread only reads `volatile` snapshot references and calls the poke methods; the worker
+  never touches ImGui; `RecipeGraph` / `Tiering` / `ProfitModel` are worker-private. Game reads happen in the
+  prologue hop. If the AllaganTools IPC ever proves unsafe off-thread, move `Inventory.Snapshot` into the prologue.
+- Fulfil / Dispatch buttons are intentionally disabled placeholders; Phase 5 replaces them with the IPC /
+  reflection hand-offs. The Dagobert and vnavmesh toggles are stored but read by nothing yet.
+
 ### Added - Phase 3: adapters - game data, inventory, prices, player (2026-09-03)
 - `Adapters/LuminaGameData.cs` - `IGameData` over the Excel sheets, indexed once in `Load(GameData, log, gbr?)`
   (~400 ms off-thread) and answered from dictionaries. Recipes from `Recipe` (+`RecipeLevelTable.ClassJobLevel`,

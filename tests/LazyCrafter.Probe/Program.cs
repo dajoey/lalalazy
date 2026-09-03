@@ -1,4 +1,5 @@
 using LazyCrafter.Adapters;
+using LazyCrafter.Catalog;
 using LazyCrafter.Core;
 using LazyCrafter.Core.Model;
 using Lumina;
@@ -77,6 +78,99 @@ using (var uni = new UniversalisClient(cacheDir, "probe", Console.WriteLine) { S
 using (var uni2 = new UniversalisClient(cacheDir, "probe", Console.WriteLine))
 {
     Console.WriteLine($"  disk cache reload: scope={uni2.Scope} size={uni2.CacheSize} 5111={(uni2.Get(5111)?.MinListingNq)}");
+}
+
+// ---- Phase 4: the catalog pass the CatalogService worker runs, end to end, without the client ----
+// Real sheets, live Universalis for the top of the "Now"-ish window, a fake character (every crafter at 100,
+// nothing in the crafting log) and a fake inventory seeded from a handful of common materials so the Now/Easy
+// buckets are populated the way a real bag would populate them.
+{
+    var swAll = System.Diagnostics.Stopwatch.StartNew();
+    var builder = new CatalogBuilder(gd, graph, retainers, null, RevenueBasis.MinListing);
+    var allItems = builder.AllItemIds();
+    var fakeCounts = new Dictionary<uint, int>();
+    foreach (var id in new uint[] { 5111, 5380, 5525, 8, 2, 3, 4, 5, 6, 7, 5333, 5106, 5107, 5432, 5364, 5362, 5322, 5326 }) fakeCounts[id] = 99;   // ores/logs/crystals/shards/yarn
+    var inv2 = new CatalogBuilder.DictInventory(fakeCounts);
+    var jobs = new Dictionary<uint, int>();
+    foreach (var j in new uint[] { 8, 9, 10, 11, 12, 13, 14, 15 }) jobs[j] = 100;
+    var logDone = new HashSet<uint>();
+    Console.WriteLine($"catalog: {allItems.Count} distinct item ids touched by all recipes");
+
+    using var uni = new UniversalisClient(cacheDir, "probe", Console.WriteLine) { Scope = "Aether" };
+    await uni.MarketableAsync();
+    await uni.TaxRatesAsync("Zalera");
+    gd.UseMarketableOverride(uni.IsMarketable);
+    var tax = uni.BestTaxPct;
+
+    var rows = new Dictionary<uint, CatalogRow>();
+    var assessAll = new Dictionary<uint, RecipeAssessment>();
+    var tierCounts = new Dictionary<EffortTier, int>();
+    var swPass = System.Diagnostics.Stopwatch.StartNew();
+    foreach (var id in graph.RecipeIds)
+    {
+        var def = graph.Row(id)!;
+        var a = builder.Tiering.Assess(id, inv2);
+        assessAll[id] = a;
+        rows[id] = builder.BuildRow(def, a, inv2, uni, tax, jobs, logDone);
+        tierCounts[a.Tier] = tierCounts.GetValueOrDefault(a.Tier) + 1;
+    }
+    swPass.Stop();
+    var snap = new CatalogSnapshot(1, rows.Values.ToArray(), rows, tierCounts, rows.Values.Count(r => !r.LogComplete), jobs,
+        Array.Empty<CartLine>(), builder.Tiering.AssessCart([], inv2), true, false, retainers.Length, 0, DateTime.Now, swPass.Elapsed);
+    Console.WriteLine($"catalog pass: {snap.Rows.Count} rows in {swPass.ElapsedMilliseconds} ms; tiers " + string.Join(", ", tierCounts.OrderBy(kv => kv.Key).Select(kv => $"{kv.Key}={kv.Value}")) + $"; realEffortBucket={snap.RealEffortCount}");
+    if (snap.Rows.Count != gd.RecipeCount) { Console.WriteLine($"FAIL: rows {snap.Rows.Count} != recipes {gd.RecipeCount}"); return 1; }
+
+    // Every tab, default sort, then price the top window of the Now tab and re-evaluate like PrimeAndRefine does.
+    ViewRequest Req(CatalogTab tab, bool hq = false) => new(tab, 0, hq, 0, false, "", ViewRequest.DefaultSort(tab), ViewRequest.DefaultDescending(tab), 10, 3, 2, false);
+    foreach (var tab in Enum.GetValues<CatalogTab>())
+    {
+        var swV = System.Diagnostics.Stopwatch.StartNew();
+        var v = ViewBuilder.Build(snap, Req(tab), gd, graph, uni);
+        Console.WriteLine($"  view {tab,-14} {v.Rows.Count,6} rows in {swV.ElapsedMilliseconds,4} ms; top: " + string.Join(" | ", v.Rows.Take(3).Select(r => $"{r.Name} [{r.Job}{r.Level} {r.Tier} can={r.HowMany}]")));
+    }
+
+    var now = ViewBuilder.Build(snap, Req(CatalogTab.Now), gd, graph, uni);
+    var wanted = new HashSet<uint>();
+    foreach (var cr in now.Rows.Take(200)) { wanted.Add(cr.ResultItemId); foreach (var l in cr.Leaves) wanted.Add(l.ItemId); }   // 200 = CatalogService.PriceWindow
+    wanted.RemoveWhere(id => !gd.IsMarketable(id));
+    var swP = System.Diagnostics.Stopwatch.StartNew();
+    var primedNow = await uni.PrimeAsync(wanted);
+    Console.WriteLine($"  priced {primedNow}/{wanted.Count} items for the Now window in {swP.ElapsedMilliseconds} ms ({uni.RequestsMade} requests total, {uni.Failures} failures)");
+    var touched = new HashSet<uint>(wanted);
+    var re = 0;
+    foreach (var cr in snap.Rows)
+    {
+        if (!touched.Contains(cr.ResultItemId) && !cr.Leaves.Any(l => touched.Contains(l.ItemId))) continue;
+        rows[cr.RecipeId] = builder.BuildRow(graph.Row(cr.RecipeId)!, assessAll[cr.RecipeId], inv2, uni, tax, jobs, logDone);
+        re++;
+    }
+    var snap2 = snap with { Generation = 2, Rows = rows.Values.ToArray(), ByRecipe = rows, PricedRows = rows.Values.Count(r => r.Nq is { RevenueKnown: true }) };
+    var now2 = ViewBuilder.Build(snap2, Req(CatalogTab.Now), gd, graph, uni);
+    Console.WriteLine($"  re-evaluated {re} rows; {snap2.PricedRows} rows now have revenue; Now by /day: " + string.Join(" | ", now2.Rows.Take(5).Select(r => $"{r.Name} margin={r.Nq?.MarginCash} /day={r.Nq?.PerDay:F0} vel={r.Nq?.Velocity:F1} sat={r.Nq?.SaturationDays:F1}")));
+    var hqView = ViewBuilder.Build(snap2, Req(CatalogTab.Now, hq: true), gd, graph, uni);
+    Console.WriteLine($"  HQ-only Now: {hqView.Rows.Count} rows (all CanBeHq={hqView.Rows.All(r => r.CanBeHq)}); top: " + string.Join(" | ", hqView.Rows.Take(3).Select(r => $"{r.Name} /day={r.Hq?.PerDay:F0}")));
+
+    // Every sort key on the Now tab must run and keep the row count.
+    foreach (var key in Enum.GetValues<SortKey>())
+    {
+        var v = ViewBuilder.Build(snap2, Req(CatalogTab.Now) with { Sort = key, Descending = true }, gd, graph, uni);
+        if (v.Rows.Count != now2.Rows.Count) { Console.WriteLine($"FAIL: sort {key} changed the row count {v.Rows.Count} != {now2.Rows.Count}"); return 1; }
+    }
+    var search = ViewBuilder.Build(snap2, Req(CatalogTab.Now) with { Search = "ingot" }, gd, graph, uni);
+    Console.WriteLine($"  search 'ingot' on Now: {search.Rows.Count} rows; all match={search.Rows.All(r => r.Name.Contains("ingot", StringComparison.OrdinalIgnoreCase))}");
+    var byJob = ViewBuilder.Build(snap2, Req(CatalogTab.Easy) with { JobFilter = 10 }, gd, graph, uni);
+    Console.WriteLine($"  Easy filtered to BSM: {byJob.Rows.Count} rows; all BSM={byJob.Rows.All(r => r.JobId == 10)}");
+
+    // Cart: two lines sharing materials, TeamCraft link, ingredient tree of the first Easy row.
+    var first = now2.Rows.First();
+    var second = now2.Rows.Skip(1).First();
+    var cart = builder.Tiering.AssessCart([(first.RecipeId, 2), (second.RecipeId, 1)], inv2);
+    var link = TeamcraftExport.Link([new TeamcraftExport.Line(first.ResultItemId, first.RecipeId, 2 * first.ResultAmount), new TeamcraftExport.Line(second.ResultItemId, second.RecipeId, second.ResultAmount)]);
+    Console.WriteLine($"  cart [{first.Name} x2, {second.Name} x1]: tier={cart.Tier} totals={cart.Totals.Count} missing={cart.Missing.Count()} link={link}");
+    var easyRow = ViewBuilder.Build(snap2, Req(CatalogTab.Easy), gd, graph, uni).Rows.First();
+    var tree = LazyCrafter.Core.IngredientTree.Build(easyRow.Leaves);
+    Console.WriteLine($"  tree for {easyRow.Name}: " + string.Join("; ", LazyCrafter.Core.IngredientTree.Flatten(tree).Select(x => new string(' ', x.Depth * 2) + $"{gd.ItemName(x.Node.Leaf.ItemId)} {x.Node.Leaf.Have}/{x.Node.Leaf.Need} [{string.Join(",", x.Node.Leaf.Sources)}]")));
+    Console.WriteLine($"catalog probe done in {swAll.ElapsedMilliseconds} ms");
 }
 Console.WriteLine("OK");
 return 0;
