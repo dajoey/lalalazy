@@ -67,11 +67,11 @@ internal static class World
     public const uint RareOre = 500, Trout = 501, MarketOnly = 502, ScripMat = 503, Mystery = 504;
     public const uint Arrows = 600, Feather = 601;
     public const uint CycleA = 700, CycleB = 701;
-    public const uint Ornament = 800, Trophy = 801, Charm = 802;
+    public const uint Ornament = 800, Trophy = 801, Charm = 802, Pendant = 900;
 
     // Recipes
     public const uint IngotBsm = 10, IngotArm = 11, SwordRecipe = 30, LeatherLtw = 40, ArrowsRecipe = 60;
-    public const uint CycleARecipe = 70, CycleBRecipe = 71, OrnamentRecipe = 80, TrophyRecipe = 81, CharmRecipe = 82;
+    public const uint CycleARecipe = 70, CycleBRecipe = 71, OrnamentRecipe = 80, TrophyRecipe = 81, CharmRecipe = 82, PendantRecipe = 90;
 
     public static FakeGameData Build() => new FakeGameData()
         // Ingot: two recipes for the same result item; same-job preference must pick BSM from a BSM parent.
@@ -85,6 +85,7 @@ internal static class World
         .Recipe(OrnamentRecipe, Ornament, 1, Bsm, 50, (RareOre, 1), (Coal, 1))
         .Recipe(TrophyRecipe, Trophy, 1, Bsm, 50, (Coal, 1), (Hide, 1))
         .Recipe(CharmRecipe, Charm, 1, Bsm, 50, (Mystery, 1))
+        .Recipe(PendantRecipe, Pendant, 1, Bsm, 60, (Ornament, 1), (Coal, 1))
         .GilVendor(Coal, 3)
         .Gatherable(Ore, new GatherInfo(Min, 10, NodeType.Regular, Timed: false, Collectable: false))
         .Gatherable(RareOre, new GatherInfo(Min, 50, NodeType.Unspoiled, Timed: true, Collectable: false))
