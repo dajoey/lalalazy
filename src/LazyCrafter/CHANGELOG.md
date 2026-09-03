@@ -4,6 +4,33 @@
 
 Unreleased development version - not in `pluginmaster.json`; release plumbing is Phase 7.
 
+### Added - Phase 2: Core profit model + scrip / desynth / leveling / undersupplied / log completion (2026-09-03)
+- `Core/ProfitModel.cs` + `Core/Model/ProfitEstimate.cs` - `Evaluate(recipeId, inv, prices, taxPct, hq, crafts)`
+  -> `ProfitEstimate`. Two cost columns always: **cash** (only missing units priced; on-hand stock consumed
+  once, as `Tiering` does) and **market** (every unit at market). A craftable intermediate costs the cheaper
+  of buying and crafting it; a material's unit cost is the cheaper of its market min and gil-vendor price
+  (`UnitCost`). Revenue at the selectable `RevenueBasis` (MinListing default / MedianListing / AvgSale) for
+  NQ or HQ, minus MB tax. `PerDay` = cash margin per unit x min(supply, velocity) where supply is unbounded
+  when every material is purchasable, else `HowMany`; `SaturationDays` = listings / velocity. Materials with
+  no price are listed in `UnpricedItems` (cost = lower bound). `ProfitModel.Rank` is the default sort
+  (PerDay desc, MarginCash desc, id).
+- `Core/ScripValue.cs` - `Evaluate(itemId, jobLevel)` -> `ScripEstimate` (scrip per collectability tier,
+  `ScripPerCraft` at max tier, level-band flag); `ForCollectability(itemId, value)`.
+- `Core/DesynthValue.cs` - `Evaluate(itemId, prices)` -> `DesynthEstimate` (sum of chance x qty x market min
+  over marketable outcomes; unpriced outcomes listed; `IsEstimate` always true); `DesynthPremium` = EV - sell price.
+- `Core/LevelingScore.cs` - `ExpPerCraft(jobLevel, recipeLevel)` = floor(floor(base[rlvl] / 3) x mod[diff] / 100)
+  with the level-difference modifier (0..21) and first-craft EXP (levels 1..100) LUTs embedded (community
+  formula, r/ffxiv 2022-08). `Evaluate` gates on tier <= 1; `Rank(job, level, inv)` best EXP first.
+- `Core/UndersuppliedFinder.cs` - `Find(candidates, prices)` / `FindCraftable(prices)`: marketable items with
+  NQ+HQ velocity >= `MinVelocity` (3) and listings <= `MaxListings` (2), intersected with the craftable set.
+- `Core/CraftingLogFilter.cs` + `ICraftingLog` - `NotYetCrafted(recipeId)`, `Predicate`, `Remaining(job, maxLevel,
+  cost)` cheapest-first, `Progress(job)`.
+- `Core/Interfaces.cs` - `IGameData.Collectable(itemId)` -> `CollectableInfo` (CollectablesShopItem +
+  Refine + RewardScrip) and `IGameData.Desynth(itemId)` -> `DesynthResult[]` (Phase 3 fills these from
+  Lumina / LuminaSupplemental).
+- Harness: `ProfitModelTests.cs`, `ScripDesynthTests.cs`, `ExtrasTests.cs`; `FakeGameData.Collectable()` /
+  `.Desynth()`. 65/65 PASS incl. the acceptance case "40k margin / 0.1 velocity ranks BELOW 2k / 30".
+
 ### Added - Phase 1: Core recipe graph, source classifier, tiering, venture resolver (2026-09-03)
 - `Core/RecipeGraph.cs` - `Expand(recipeId)` builds the `RecipeNode` tree (sub-recipe on the
   parent's job preferred, else lowest id; cycle guard cuts the back edge; memoized per graph),
