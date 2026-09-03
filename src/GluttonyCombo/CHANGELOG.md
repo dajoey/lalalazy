@@ -1,4 +1,17 @@
-﻿## v1.0.4.166 (2026-09-01) [testing]
+﻿## v1.0.4.167 (2026-09-03) [testing]
+
+### Fixed
+- Action-penalty pause timings: the Acceleration Bomb / misc pausing-status checks in
+  `PlayerHasActionPenalty` now read the remaining time off the status already being
+  enumerated (`s.RemainingTimeOrZero(false)`) instead of doing a second, owner-filtered
+  lookup via `Player.Object!.Status(s.StatusId)`. The re-lookup applied a source filter the
+  enumeration did not, so a pausing status that isn't player-sourced resolved to `null` and
+  `RemainingTimeOrZero` returned `0` — which always satisfies `<= userSetting` and tripped
+  the penalty (targets dropped, cast cancelled) the whole time the status was up, not just
+  inside the configured window. (upstream WrathCombo 736597dee, file:
+  `CustomCombo/Functions/Status.cs`, function: `PlayerHasActionPenalty`)
+
+## v1.0.4.166 (2026-09-01) [testing]
 
 ### Fixed
 - BLU ST tank ranged filler fallback no longer returns short-reach cones when the target is
