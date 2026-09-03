@@ -5,6 +5,7 @@ using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using ECommons;
 using LazyCrafter.Adapters;
+using LazyCrafter.Spike;
 using LazyCrafter.UI;
 
 namespace LazyCrafter;
@@ -28,6 +29,8 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
     [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
     [PluginService] internal static IPlayerState PlayerStateSvc { get; private set; } = null!;
+    [PluginService] internal static ITargetManager Targets { get; private set; } = null!;
+    [PluginService] internal static IGameGui GameGui { get; private set; } = null!;
 
     private const string CommandName = "/lcraft";
 
@@ -46,6 +49,8 @@ public sealed class Plugin : IDalamudPlugin
     private readonly WindowSystem _windows = new("LazyCrafter");
     private readonly MainWindow _mainWindow;
     private readonly CancellationTokenSource _cts = new();
+    // P6 spike (t_977b94b4) — throwaway; lives on branch spike/p6-vnav-vendor only.
+    private readonly VendorSpike _spike;
 
     public Plugin(IDalamudPluginInterface pi)
     {
@@ -64,6 +69,7 @@ public sealed class Plugin : IDalamudPlugin
             Ttl = TimeSpan.FromMinutes(Math.Max(1, Config.PriceCacheMinutes)),
         };
 
+        _spike = new VendorSpike(pi, Framework, ClientState, Condition, Objects, Targets, GameGui, ChatGui, Log);
         _mainWindow = new MainWindow(this);
         _windows.AddWindow(_mainWindow);
 
@@ -75,7 +81,7 @@ public sealed class Plugin : IDalamudPlugin
 
         Commands.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Toggle the LazyCrafter window. '/lcraft debug' dumps state to the log; '/lcraft prices' refreshes Universalis.",
+            HelpMessage = "Toggle the LazyCrafter window. '/lcraft debug' dumps state to the log; '/lcraft prices' refreshes Universalis; '/lcraft spike <1-5|all|stop|results>' runs the P6 walk-to-vendor spike.",
         });
 
         // Sheet indexing takes a few hundred ms - never on the framework thread.
@@ -141,6 +147,7 @@ public sealed class Plugin : IDalamudPlugin
         var a = args.Trim();
         if (a.Equals("debug", StringComparison.OrdinalIgnoreCase)) { LogDebugState(); return; }
         if (a.Equals("prices", StringComparison.OrdinalIgnoreCase)) { PrimeSamplePrices(); return; }
+        if (a.StartsWith("spike", StringComparison.OrdinalIgnoreCase)) { _spike.Command(a.Length > 5 ? a[5..] : ""); return; }
         _mainWindow.Toggle();
     }
 
@@ -202,9 +209,11 @@ public sealed class Plugin : IDalamudPlugin
         Pi.UiBuilder.OpenConfigUi -= OpenMain;
         Pi.UiBuilder.OpenMainUi -= OpenMain;
         _windows.RemoveAllWindows();
+        _spike.Dispose();
         Inventory.Dispose();
         Prices.Dispose();
         ECommonsMain.Dispose();
         _cts.Dispose();
     }
 }
+
