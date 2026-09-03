@@ -4,6 +4,21 @@
 
 Unreleased development version - not in `pluginmaster.json`; release plumbing is Phase 7.
 
+### Fixed - V1 verify follow-up (2026-09-03, t_003d108b)
+- `Core/ProfitModel.cs` `UnitCost`: a material listed on the board **only as HQ** (all NQ price columns null,
+  e.g. crafted intermediates, fish) was returned as unpriced -> `UnpricedItems`, `CostComplete=false`, and
+  `PerDay` silently stock-capped instead of velocity-capped. The market price now falls back to the HQ columns
+  (`MinListingHq ?? AvgSaleHq ?? MedianHq`) when no NQ price exists - an HQ unit satisfies an NQ ingredient slot.
+  Decision: the fallback applies ONLY when NQ is absent; an existing NQ price wins even if HQ is cheaper.
+- `Core/ProfitModel.cs` `Evaluate`: a `NaN` (or infinite) velocity from a broken quote passed
+  `Math.Max(0, v)` / `v > 0` (both false for NaN) and made `PerDay = NaN`, leaving `Rank` order undefined.
+  New `ProfitModel.SaneVelocity` (finite and > 0, else 0) is applied before use and is what
+  `ProfitEstimate.Velocity` now reports. `Core/UndersuppliedFinder.cs` uses it too (NaN previously slipped past
+  the `velocity < MinVelocity` gate).
+- `Core/Model/PriceQuote.cs`: invariant doc-note for the Phase 3 UniversalisClient - velocities finite and >= 0
+  (missing `dailySaleVelocity` -> 0, never NaN); price columns null (never 0) when a quality has no listing.
+- Harness: the two V1 probes are now permanent `AdversarialTests` cases (RED 71/73 against 2d9e7428a, GREEN 73/73).
+
 ### Added - Phase 2: Core profit model + scrip / desynth / leveling / undersupplied / log completion (2026-09-03)
 - `Core/ProfitModel.cs` + `Core/Model/ProfitEstimate.cs` - `Evaluate(recipeId, inv, prices, taxPct, hq, crafts)`
   -> `ProfitEstimate`. Two cost columns always: **cash** (only missing units priced; on-hand stock consumed

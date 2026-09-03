@@ -3,12 +3,13 @@ using LazyCrafter.Core.Model;
 namespace LazyCrafter.Core;
 
 /// <summary>
-/// Prices a recipe against inventory and the market (Plan §Phase 2 task 1, Scope §3.3).
+/// Prices a recipe against inventory and the market (Plan Phase 2 task 1, Scope 3.3).
 /// <para>
-/// Two cost columns are always computed (Scope §0):
+/// Two cost columns are always computed (Scope 0):
 /// <b>cash</b> prices only the units you are missing (on-hand stock is free), while
 /// <b>market</b> prices every unit at market - the opportunity cost of consuming what you hold.
-/// A material's unit price is the cheapest of its market quote and its gil-vendor price. A craftable
+/// A material's unit price is the cheapest of its market quote (NQ, falling back to HQ when the item is only
+/// listed HQ - see <see cref="UnitCost"/>) and its gil-vendor price. A craftable
 /// intermediate costs the cheaper of buying it outright and crafting it from its own materials (recursively);
 /// on-hand stock is consumed once as the tree is walked, exactly as <see cref="Tiering"/> does.
 /// Materials with no price and no cover are listed in <see cref="ProfitEstimate.UnpricedItems"/> and the
@@ -66,13 +67,13 @@ public sealed class ProfitModel
         long? marginMarket = revenue is { } rm ? rm - tax - market : null;
 
         var howMany = _graph.HowMany(recipeId, inv);
-        var velocity = quote is null ? 0 : (hq ? quote.VelocityHq : quote.VelocityNq);
+        var velocity = quote is null ? 0 : SaneVelocity(hq ? quote.VelocityHq : quote.VelocityNq);
         var listings = quote?.ListingsCount ?? 0;
 
         var perUnit = marginCash is { } mc ? (double)mc / units : 0;
         // If every material can be bought (market basis priced everything) supply is unbounded; otherwise stock caps it.
         var capacity = marketUnpriced.Count == 0 ? double.PositiveInfinity : howMany;
-        var perDay = marginCash is null ? 0 : perUnit * Math.Min(capacity, Math.Max(0, velocity));
+        var perDay = marginCash is null ? 0 : perUnit * Math.Min(capacity, velocity);
         var saturation = velocity > 0 ? listings / velocity : double.PositiveInfinity;
 
         return new ProfitEstimate(
@@ -80,6 +81,14 @@ public sealed class ProfitModel
             revenueNq, revenueHq, cash, market, tax, marginCash, marginMarket,
             howMany, velocity, listings, perDay, saturation, unpriced.ToArray());
     }
+
+    /// <summary>
+    /// A daily sale velocity fit for arithmetic: finite and non-negative, else 0. NaN and +/-Inf slip through
+    /// <c>Math.Max(0, v)</c> and <c>v &gt; 0</c> (both are false for NaN) and would poison <see cref="ProfitEstimate.PerDay"/>
+    /// and therefore <see cref="Rank"/>; a missing velocity means "no recorded sales", which is 0.
+    /// </summary>
+    public static double SaneVelocity(double velocity) =>
+        double.IsFinite(velocity) && velocity > 0 ? velocity : 0;
 
     /// <summary>Revenue-side unit price for the result at the configured basis.</summary>
     private long? Pick(PriceQuote q, bool hq) => Basis switch
@@ -89,14 +98,22 @@ public sealed class ProfitModel
         _ => hq ? q.MinListingHq : q.MinListingNq,
     };
 
-    /// <summary>Cost-side unit price for a material: cheapest of market (NQ) and gil vendor; <c>null</c> when neither exists.</summary>
+    /// <summary>
+    /// Cost-side unit price for a material: cheapest of market and gil vendor; <c>null</c> when neither exists.
+    /// The market side is the NQ price (min listing, else avg sale, else median). When the item has <b>no</b> NQ
+    /// price at all it falls back to the same HQ columns - an HQ unit satisfies an NQ ingredient slot, and many
+    /// crafted intermediates and fish are only ever listed HQ. The fallback is strictly for a missing NQ price:
+    /// if NQ exists it wins even when HQ happens to be cheaper, because the NQ market is what this column tracks
+    /// (a cheaper HQ listing is a momentary quirk, not a purchasing strategy).
+    /// </summary>
     public long? UnitCost(uint itemId, IPriceSource prices)
     {
         long? best = null;
         var q = prices.Get(itemId);
         if (q is not null)
         {
-            var p = q.MinListingNq ?? q.AvgSaleNq ?? q.MedianNq;
+            var p = q.MinListingNq ?? q.AvgSaleNq ?? q.MedianNq
+                 ?? q.MinListingHq ?? q.AvgSaleHq ?? q.MedianHq;
             if (p is { } mp && mp > 0) best = mp;
         }
         if (_data.IsGilVendor(itemId, out var gil) && gil > 0 && (best is null || gil < best))

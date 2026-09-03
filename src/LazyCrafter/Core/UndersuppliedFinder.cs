@@ -2,7 +2,7 @@ using LazyCrafter.Core.Model;
 
 namespace LazyCrafter.Core;
 
-/// <summary>A marketable item that sells faster than the board restocks it (Plan §Phase 2 task 5).</summary>
+/// <summary>A marketable item that sells faster than the board restocks it (Plan Phase 2 task 5).</summary>
 public sealed record UndersuppliedItem(
     uint ItemId,
     double Velocity,
@@ -13,7 +13,7 @@ public sealed record UndersuppliedItem(
     double SaturationDays);
 
 /// <summary>
-/// Items with real demand and (almost) no supply on the DC right now (Plan §Phase 2 task 5, Scope §5.5):
+/// Items with real demand and (almost) no supply on the DC right now (Plan Phase 2 task 5, Scope 5.5):
 /// <c>velocity &gt;= MinVelocity</c> and <c>listings &lt;= MaxListings</c>, intersected with the craftable set.
 /// Velocity is the NQ+HQ daily sale velocity. Ordered by velocity desc, then fewest listings.
 /// </summary>
@@ -43,7 +43,8 @@ public sealed class UndersuppliedFinder
             if (!_data.IsMarketable(itemId)) continue;
             var q = prices.Get(itemId);
             if (q is null) continue;
-            var velocity = Math.Max(0, q.VelocityNq) + Math.Max(0, q.VelocityHq);
+            // SaneVelocity: NaN/Inf from a broken quote would pass "velocity < MinVelocity" (false for NaN) and be reported.
+            var velocity = ProfitModel.SaneVelocity(q.VelocityNq) + ProfitModel.SaneVelocity(q.VelocityHq);
             if (velocity < MinVelocity || q.ListingsCount > MaxListings) continue;
             var recipe = _graph.RecipeFor(itemId, preferJob)?.RecipeId;
             if (craftableOnly && recipe is null) continue;
@@ -57,3 +58,4 @@ public sealed class UndersuppliedFinder
     public IEnumerable<UndersuppliedItem> FindCraftable(IPriceSource prices, uint? preferJob = null) =>
         Find(_graph.RecipeIds.Select(id => _graph.Row(id)!.ResultItemId), prices, craftableOnly: true, preferJob);
 }
+

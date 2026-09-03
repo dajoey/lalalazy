@@ -154,8 +154,67 @@ internal static class AdversarialTests
             return nqOk && hqOk && rankOk && guard;
         }),
 
-        // Two further probes (HQ-only MATERIAL is unpriced by UnitCost; NaN velocity leaks into PerDay/Rank)
-        // FAILED against Core @ 7d9420bd2 on 2026-09-03 and were handed to the builder as RED tests in a
-        // follow-up card rather than committed red here, so the harness stays a usable gate for Phase 3.
+        // The two probes below FAILED against Core @ 7d9420bd2 on 2026-09-03 (V1 verify) and were fixed in
+        // the follow-up card t_003d108b. They pin the adapter contract: an HQ unit satisfies an NQ ingredient
+        // slot, and a PriceQuote velocity must be a finite non-negative number (missing -> 0, never NaN).
+        ("[probe] HQ-only MATERIAL: a mat listed only HQ (NQ null, HQ 500) is still purchasable -> UnitCost 500, cost complete, per-day velocity-capped; NQ price wins whenever it exists, even if HQ is cheaper", () =>
+        {
+            var (_, _, m, _) = Rig();
+            // MarketOnly (502) is neither craftable nor vendor-sold; the board only ever has HQ listings.
+            var prices = new FakePrices()
+                .Set(Q(HqMatGear, 10_000, velNq: 4, listings: 2))
+                .Set(Q(World.MarketOnly, minNq: null, velNq: 0, minHq: 500, velHq: 2));
+            var unit = m.UnitCost(World.MarketOnly, prices);
+            var e = m.Evaluate(HqMatGearRecipe, new FakeInventory(), prices, 0)!;
+            var hqOnly = unit == 500 && e.CostComplete && e.UnpricedItems.Count == 0
+                && e.CashCost == 503 && e.MarketCost == 503 && e.MarginCash == 9_497
+                && e.HowMany == 0                                          // nothing on hand ...
+                && Math.Abs(e.PerDay - 9_497 * 4) < 1e-6;                  // ... but every mat is purchasable -> velocity-capped, not stock-capped
+
+            // Decision (t_003d108b): the HQ columns are a FALLBACK for a missing NQ price, not a second bidder.
+            // NQ 600 listed alongside HQ 500 -> 600 (the NQ market is what the cost column tracks).
+            var both = new FakePrices().Set(Q(World.MarketOnly, minNq: 600, velNq: 1, minHq: 500, velHq: 1));
+            var nqWins = m.UnitCost(World.MarketOnly, both) == 600;
+
+            // A zero/absent HQ price is not a price either: NQ null + HQ 0 -> still unpriced.
+            var zeroHq = new FakePrices().Set(Q(World.MarketOnly, minNq: null, velNq: 0, minHq: 0, velHq: 0));
+            var stillUnpriced = m.UnitCost(World.MarketOnly, zeroHq) is null;
+
+            return hqOnly && nqWins && stillUnpriced;
+        }),
+
+        ("[probe] NaN velocity from a broken quote never reaches PerDay/Saturation/Rank/Undersupplied (treated as 0)", () =>
+        {
+            var (_, _, m, _) = Rig();
+            var inv = new FakeInventory().Set(World.Coal, 200).Set(World.Hide, 100).Set(World.RareOre, 100);
+            var nan = m.Evaluate(World.TrophyRecipe, inv,
+                new FakePrices().Set(Q(World.Trophy, 1_000, velNq: double.NaN, listings: 2)), 0)!;
+            var perDayOk = !double.IsNaN(nan.PerDay) && nan.PerDay == 0 && nan.Velocity == 0
+                && double.IsPositiveInfinity(nan.SaturationDays) && nan.MarginCash == 1_000;
+
+            // +Inf is equally broken upstream data: nothing sells "infinitely", treat it as unknown -> 0.
+            var inf = m.Evaluate(World.TrophyRecipe, inv,
+                new FakePrices().Set(Q(World.Trophy, 1_000, velNq: double.PositiveInfinity, listings: 2)), 0)!;
+            var infOk = !double.IsNaN(inf.PerDay) && inf.PerDay == 0 && inf.Velocity == 0 && double.IsPositiveInfinity(inf.SaturationDays);
+
+            // Rank: the NaN row (margin 1000, per-day 0) sorts BELOW a real 0.5-velocity row and its position is deterministic.
+            var prices = new FakePrices()
+                .Set(Q(World.Trophy, 1_000, velNq: double.NaN, listings: 2))
+                .Set(Q(World.Ornament, 100, velNq: 0.5, listings: 1));
+            var ranked = ProfitModel.Rank([
+                m.Evaluate(World.TrophyRecipe, inv, prices, 0)!,
+                m.Evaluate(World.OrnamentRecipe, inv, prices, 0)!]).Select(x => x.RecipeId).ToList();
+            var rankOk = ranked.SequenceEqual([World.OrnamentRecipe, World.TrophyRecipe])
+                && ranked.SequenceEqual(ProfitModel.Rank([
+                    m.Evaluate(World.OrnamentRecipe, inv, prices, 0)!,
+                    m.Evaluate(World.TrophyRecipe, inv, prices, 0)!]).Select(x => x.RecipeId));
+
+            // Undersupplied: NaN velocity with 0 listings must not pass the "velocity >= 3" gate through NaN comparisons.
+            var dead = new UndersuppliedFinder(Data(), new RecipeGraph(Data()))
+                .Find([World.Trophy], new FakePrices().Set(Q(World.Trophy, 1_000, velNq: double.NaN, listings: 0)));
+            var notUndersupplied = !dead.Any();
+
+            return perDayOk && infOk && rankOk && notUndersupplied;
+        }),
     };
 }
