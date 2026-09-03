@@ -32,6 +32,7 @@ internal static class Program
         foreach (var t in SourceClassifierTests.Tests) yield return ("classify", t.Name, t.Check);
         foreach (var t in TieringTests.Tests) yield return ("tier", t.Name, t.Check);
         foreach (var t in VentureResolverTests.Tests) yield return ("venture", t.Name, t.Check);
+        foreach (var t in ProfitModelTests.Tests) yield return ("profit", t.Name, t.Check);
     }
 
     private static int Main()
