@@ -1,0 +1,19 @@
+{
+  "Author": "dajoey",
+  "Name": "LazyCrafter",
+  "InternalName": "LazyCrafter",
+  "Description": "Catalogs every recipe you can craft, buckets them by how much effort the missing materials take, prices them with Universalis, and hands the missing-material work to Artisan / GBR / ARC / Lifestream.",
+  "Punchline": "What can I make right now, what's it worth, and what would it take to make the rest?",
+  "ApplicableVersion": "any",
+  "DalamudApiLevel": 15,
+  "Tags": ["crafting", "recipe", "market", "universalis", "artisan", "gatherbuddy", "lazy"],
+  "CategoryTags": ["utility"],
+  "AcceptsFeedback": false,
+  "LoadRequiredState": 0,
+  "LoadSync": false,
+  "CanUnloadAsync": false,
+  "LoadPriority": 0,
+  "IsTestingExclusive": false,
+  "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazycrafter-icon.png",
+  "Changelog": "v0.1.0.0 - Scaffold. Not yet released."
+}
