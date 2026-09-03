@@ -33,6 +33,11 @@ internal static class Program
         foreach (var t in TieringTests.Tests) yield return ("tier", t.Name, t.Check);
         foreach (var t in VentureResolverTests.Tests) yield return ("venture", t.Name, t.Check);
         foreach (var t in ProfitModelTests.Tests) yield return ("profit", t.Name, t.Check);
+        foreach (var t in ScripValueTests.Tests) yield return ("scrip", t.Name, t.Check);
+        foreach (var t in DesynthValueTests.Tests) yield return ("desynth", t.Name, t.Check);
+        foreach (var t in LevelingScoreTests.Tests) yield return ("leveling", t.Name, t.Check);
+        foreach (var t in UndersuppliedFinderTests.Tests) yield return ("undersupplied", t.Name, t.Check);
+        foreach (var t in CraftingLogFilterTests.Tests) yield return ("log", t.Name, t.Check);
     }
 
     private static int Main()
