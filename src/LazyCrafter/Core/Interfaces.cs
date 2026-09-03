@@ -3,7 +3,7 @@ using LazyCrafter.Core.Model;
 namespace LazyCrafter.Core;
 
 // Plain-data contracts the adapters implement (Plan §Phase 1). Nothing in this
-// namespace may reference Dalamud or Lumina - the harness compiles Core alone.
+// namespace may reference game-client or sheet-reader assemblies - the harness compiles Core alone.
 
 public sealed record RecipeRow(
     uint RecipeId,
@@ -64,7 +64,7 @@ public interface IGameData
     CollectableInfo? Collectable(uint itemId);
 
     /// <summary>
-    /// Desynthesis outcomes for an item (<c>Item.Desynth</c> flag + LuminaSupplemental desynth results),
+    /// Desynthesis outcomes for an item (<c>Item.Desynth</c> flag + the supplemental desynth-results table),
     /// or an empty list when the item cannot be desynthesized / nothing is known.
     /// </summary>
     IReadOnlyList<DesynthResult> Desynth(uint itemId);

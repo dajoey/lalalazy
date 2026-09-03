@@ -1,7 +1,7 @@
 namespace LazyCrafter.Core;
 
 /// <summary>
-/// Smoke hook for the harness. Core must stay free of Dalamud/Lumina types;
+/// Smoke hook for the harness. Core must stay free of game-client or sheet-reader types;
 /// <c>tests/LazyCrafter.Harness</c> compiles this folder without either reference.
 /// </summary>
 public static class CoreInfo
