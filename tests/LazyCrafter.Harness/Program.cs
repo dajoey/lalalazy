@@ -39,6 +39,7 @@ internal static class Program
         foreach (var t in UndersuppliedFinderTests.Tests) yield return ("undersupplied", t.Name, t.Check);
         foreach (var t in CraftingLogFilterTests.Tests) yield return ("log", t.Name, t.Check);
         foreach (var t in AdversarialTests.Tests) yield return ("adversarial", t.Name, t.Check);
+        foreach (var t in CartTests.Tests) yield return ("cart", t.Name, t.Check);
     }
 
     private static int Main()

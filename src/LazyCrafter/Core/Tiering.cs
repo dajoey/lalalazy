@@ -12,6 +12,16 @@ public sealed record RecipeAssessment(
     public bool CanCraft => HowMany > 0;
 }
 
+/// <summary>Result of <see cref="Tiering.AssessCart"/>: the cart's worst tier, one assessment per line, and the per-item totals.</summary>
+public sealed record CartAssessment(
+    EffortTier Tier,
+    IReadOnlyList<RecipeAssessment> Lines,
+    IReadOnlyList<IngredientLeaf> Totals)
+{
+    /// <summary>Only the items still short after everything on hand has been credited.</summary>
+    public IEnumerable<IngredientLeaf> Missing => Totals.Where(l => l.Missing > 0);
+}
+
 /// <summary>
 /// Buckets a recipe by the effort its missing materials take (Plan §Phase 1 task 4, Scope §3.2).
 /// <para>
@@ -58,8 +68,48 @@ public sealed class Tiering
         return new RecipeAssessment(recipeId, tier, _graph.HowMany(recipeId, inv), leaves);
     }
 
+    /// <summary>
+    /// Assess several recipes as one shopping cart (Plan §Phase 4 task 4): one consumed-inventory ledger is shared
+    /// across every line, so an on-hand unit is credited to at most one cart line, and the returned leaves are the
+    /// per-item totals over the whole cart (need / have summed, sources and tier from the first occurrence, tier
+    /// worsened if a later occurrence is worse). Lines with an unknown recipe or non-positive crafts are skipped.
+    /// </summary>
+    public CartAssessment AssessCart(IEnumerable<(uint RecipeId, int Crafts)> lines, IInventory inv)
+    {
+        var consumed = new Dictionary<uint, int>();
+        var perLine = new List<RecipeAssessment>();
+        var totals = new Dictionary<uint, IngredientLeaf>();
+        var order = new List<uint>();
+        var worst = EffortTier.Now;
+
+        foreach (var (recipeId, crafts) in lines)
+        {
+            var node = _graph.Expand(recipeId);
+            if (node is null || crafts <= 0) continue;
+            var leaves = new List<IngredientLeaf>();
+            var tier = Walk(node, crafts, inv, consumed, leaves);
+            perLine.Add(new RecipeAssessment(recipeId, tier, _graph.HowMany(recipeId, inv), leaves));
+            if (tier > worst) worst = tier;
+            foreach (var l in leaves)
+            {
+                if (totals.TryGetValue(l.ItemId, out var t))
+                {
+                    totals[l.ItemId] = new IngredientLeaf(l.ItemId, checked(t.Need + l.Need), checked(t.Have + l.Have),
+                        t.Sources, l.Tier > t.Tier ? l.Tier : t.Tier, Math.Min(t.Depth, l.Depth));
+                }
+                else
+                {
+                    totals[l.ItemId] = l;
+                    order.Add(l.ItemId);
+                }
+            }
+        }
+
+        return new CartAssessment(worst, perLine, order.Select(id => totals[id]).ToArray());
+    }
+
     /// <summary>Walks one recipe node for <paramref name="crafts"/> runs; returns the max tier over its ingredients.</summary>
-    private EffortTier Walk(RecipeNode node, int crafts, IInventory inv, Dictionary<uint, int> consumed, List<IngredientLeaf> leaves)
+    private EffortTier Walk(RecipeNode node, int crafts, IInventory inv, Dictionary<uint, int> consumed, List<IngredientLeaf> leaves, int depth = 0)
     {
         var worst = EffortTier.Now;
         foreach (var ing in node.Ingredients)
@@ -84,7 +134,7 @@ public sealed class Tiering
                     {
                         if (ing.SubRecipe is null) continue;   // cycle edge cut by Expand: not actually craftable here
                         var subCrafts = (missing + Math.Max(1, ing.SubRecipe.ResultAmount) - 1) / Math.Max(1, ing.SubRecipe.ResultAmount);
-                        var subTier = Walk(ing.SubRecipe, subCrafts, inv, consumed, leaves);
+                        var subTier = Walk(ing.SubRecipe, subCrafts, inv, consumed, leaves, depth + 1);
                         t = subTier > EffortTier.Easy ? subTier : EffortTier.Easy;
                     }
                     else
@@ -95,7 +145,7 @@ public sealed class Tiering
                 }
             }
 
-            leaves.Add(new IngredientLeaf(ing.ItemId, need, have, sources, best));
+            leaves.Add(new IngredientLeaf(ing.ItemId, need, have, sources, best, depth));
             if (best > worst) worst = best;
         }
         return worst;
