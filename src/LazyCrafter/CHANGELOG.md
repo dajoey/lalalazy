@@ -1,5 +1,50 @@
 # Changelog
 
+## v0.1.0.1 (2026-09-03)
+
+Testing-channel fix build (production pointer stays 0.0.0.0). Repairs a **packaging** defect that made every
+LuminaSupplemental data set dead in the shipped 0.1.0.0 zip while the plugin otherwise looked healthy.
+
+### Fixed
+- `LazyCrafter.csproj` (`PruneOutputDlls` target) - **ship `Sylvan.Data.Csv.dll`**. The prune list kept only
+  `LazyCrafter`, `ECommons` and `LuminaSupplemental.Excel`, but `LuminaSupplemental.Excel 4.3.0`'s
+  `CsvLoader.LoadResource<T>` (`Services/CsvLoader.cs:105`) reads every embedded CSV through
+  `Sylvan.Data.Csv.CsvDataReader`. Dalamud gives each plugin its own `AssemblyLoadContext` and shares nothing
+  with other plugins, and `Hooks\dev` ships no CSV reader, so in-game every load threw
+  `Could not load file or assembly 'Sylvan.Data.Csv, Version=1.4.3.0'`: 6 drop tables
+  (`MobDrop`, `DungeonDrop`, `DungeonChestItem`, `DungeonBossDrop`, `SubmarineDrop`, `AirshipDrop`),
+  `ItemSupplement` (all desynth values), and `VendorLocator`'s `ENpcShop` / `ENpcPlace` NPC placements - which
+  would have made the Lifestream vendor hand-off answer "no placed gil vendor" for every item. Live 0.1.0.0 on
+  omasky logged `168 drop, 0 desynth sources`; the offline reference is 7,843 / 21,997. The offline probes had
+  passed only because `bin\Release\` still held Sylvan next to the DLL.
+  `CsvHelper` and `CSVFile`, LuminaSupplemental's other two csv dependencies, are used only by `ToCsv` and
+  attribute metadata that `LoadResource` never touches, and are deliberately still pruned - `LazyCrafter.ZipProbe`
+  proves the shorter list is sufficient.
+
+### Added
+- `tests/LazyCrafter.ZipProbe` - packaging test that catches this whole class of defect without the game.
+  Extracts `plugins/LazyCrafter/testing/testing.zip`, loads the **shipped** `LazyCrafter.dll` from that directory
+  in an isolated `AssemblyLoadContext` (share only what the host already loaded, else resolve from the plugin
+  folder then `Hooks\dev` - the same rules Dalamud uses), and runs `LuminaGameData.Load` + `VendorLocator`
+  against the real sqpack. Asserts drops >= 7,000, desynth sources >= 20,000 and zero load failures, and runs a
+  **negative control** first (same zip contents with `Sylvan.Data.Csv.dll` deleted) that must reproduce the
+  0.1.0.0 failure - so a pass can only mean the zip itself is sufficient. Also refuses to run if `Hooks\dev`
+  ever starts shipping a CSV reader, which would make the result unattributable.
+- `Adapters/LuminaGameData.cs` - `SupplementalFailures` (one line per resource that failed or came back empty)
+  and a `warn` sink parameter on `Load(...)`; `Plugin.cs` passes `Log.Warning`. Every supplemental failure was
+  previously written through the same information-level `log(...)` as the success summary, which is why a build
+  with **zero** desynth sources passed an in-game verify unnoticed. `Adapters/VendorLocator.cs` gained the same
+  pair (`SupplementalFailures`, `warn`), fed from `DispatchService.Vendors`.
+- `UI/SettingsTab.cs` - data-health line at the top of the tab: red block listing each failed resource when
+  anything failed to load ("this build is broken ... reinstalling will not help"), green
+  `Supplemental data OK - N drop items, N desynth sources` when clean. Reads
+  `DispatchService.VendorsIfBuilt` so the draw thread never forces the ~50 ms locator index build.
+
+### Notes
+- Fixes the defect filed as t_1a91db8f from the V2 verify's read of omasky's `dalamud.log`; Joey reported
+  nothing - the plugin's own log did.
+- Behaviour change for users: none beyond the data actually loading. No config migration.
+
 ## v0.1.0.0 (2026-09-03)
 
 Testing-channel build (`IsTestingExclusive`, production pointer stays 0.0.0.0) published 2026-09-03 so the V2 in-game verify can install it through Dalamud; production release plumbing is Phase 7.

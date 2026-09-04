@@ -88,7 +88,11 @@ public sealed class DispatchService : IDisposable
         return _graph.RecipeFor(itemId, preferJob);
     }
 
-    public VendorLocator Vendors => _vendors ??= new VendorLocator(Plugin.Data.GameData, line => _log.Information("{Line}", line));
+    public VendorLocator Vendors => _vendors ??= new VendorLocator(Plugin.Data.GameData, line => _log.Information("{Line}", line), line => _log.Warning("{Line}", line));
+
+    /// <summary>The locator only if it has already been created - so the Settings tab can report its data health
+    /// without forcing the ~50 ms index build from the draw thread (t_1a91db8f).</summary>
+    public VendorLocator? VendorsIfBuilt => _vendors;
 
     /// <summary>Build the plan for the current cart without executing it (for the cart panel preview / <c>/lcraft plan</c>).</summary>
     public DispatchPlan.Plan? PlanFor(CatalogSnapshot snap)

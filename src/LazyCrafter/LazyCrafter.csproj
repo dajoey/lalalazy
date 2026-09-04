@@ -1,9 +1,9 @@
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
     <Authors>dajoey</Authors>
-    <Version>0.1.0.0</Version>
-    <AssemblyVersion>0.1.0.0</AssemblyVersion>
-    <FileVersion>0.1.0.0</FileVersion>
+    <Version>0.1.0.1</Version>
+    <AssemblyVersion>0.1.0.1</AssemblyVersion>
+    <FileVersion>0.1.0.1</FileVersion>
     <Description>Catalogs every recipe you can craft, buckets them by how much effort the missing materials take, prices them with Universalis, and hands the missing-material work to Artisan / GBR / ARC / Lifestream.</Description>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Platforms>x64</Platforms>
@@ -30,12 +30,23 @@
     <PackageReference Include="LuminaSupplemental.Excel" Version="4.3.0" />
   </ItemGroup>
 
-  <!-- Keep the zip lean: ship only our DLL and the two nuget deps. Drops
-       Microsoft.Windows.SDK.NET.dll (~26 MB) and WinRT.Runtime.dll, which the
-       game host already provides. Same convention as LazyFateAutomation. -->
+  <!-- Keep the zip lean: ship our DLL, the two nuget deps, and the transitive assemblies those deps
+       need at runtime. Drops Microsoft.Windows.SDK.NET.dll (~26 MB) and WinRT.Runtime.dll, which the
+       game host already provides. Same convention as LazyFateAutomation.
+
+       Sylvan.Data.Csv is NOT optional (fix 2026-09-03, t_1a91db8f): LuminaSupplemental's
+       CsvLoader.LoadResource<T> - the only entry point we call, from LuminaGameData.LoadSupplemental
+       and VendorLocator.Build - reads every embedded CSV through Sylvan.Data.Csv.CsvDataReader. Dalamud
+       gives each plugin its own AssemblyLoadContext and does not share other plugins' copies, and
+       Hooks\dev ships no CSV reader, so pruning it made every drop / desynth / ENpcShop / ENpcPlace load
+       throw FileNotFoundException in-game while still passing offline (bin\ had it next to the DLL).
+       LuminaSupplemental's other two csv deps (CsvHelper, CSVFile) are used only by ToCsv / attribute
+       metadata we never touch; tests\LazyCrafter.ZipProbe loads the packaged zip in an isolated context
+       and proves this list is sufficient (and, as a negative control, that without Sylvan it is not). -->
   <Target Name="PruneOutputDlls" AfterTargets="ResolveReferences">
     <ItemGroup>
-      <_KeepDlls Include="@(ReferenceCopyLocalPaths)" Condition="'%(Filename)' == 'LazyCrafter' or '%(Filename)' == 'ECommons' or '%(Filename)' == 'LuminaSupplemental.Excel'" />
+      <_KeepDlls Include="@(ReferenceCopyLocalPaths)" Condition="'%(Filename)' == 'LazyCrafter' or '%(Filename)' == 'ECommons' or '%(Filename)' == 'LuminaSupplemental.Excel' or '%(Filename)' == 'Sylvan.Data.Csv'" />
+
       <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)" />
       <ReferenceCopyLocalPaths Include="@(_KeepDlls)" />
     </ItemGroup>

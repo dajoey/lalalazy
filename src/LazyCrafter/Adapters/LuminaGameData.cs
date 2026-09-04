@@ -47,6 +47,17 @@ public sealed class LuminaGameData : IGameData
     public bool GbrUsed { get; private set; }
     public TimeSpan LoadTime { get; private set; }
 
+    /// <summary>
+    /// Every LuminaSupplemental resource that failed to load, one line each ("<c>MobDrop.csv: ...</c>").
+    /// Empty on a healthy build. A packaging mistake (a pruned transitive dependency - see the
+    /// <c>PruneOutputDlls</c> note in the csproj) makes every one of these throw while the plugin otherwise
+    /// works, which is exactly how 0.1.0.0 shipped with 0 desynth sources and nobody noticed: the failures
+    /// were logged at information level and the summary line looked plausible. They are warnings now, and
+    /// the Settings tab shows them in red.
+    /// </summary>
+    public IReadOnlyList<string> SupplementalFailures => _supplementalFailures;
+    private readonly List<string> _supplementalFailures = new();
+
     private LuminaGameData(Func<uint, GatherInfo?>? gbr) => _gbr = gbr;
 
     /// <summary>When Universalis' marketable list is known, prefer it over the sheet heuristic.</summary>
@@ -77,7 +88,12 @@ public sealed class LuminaGameData : IGameData
     /// <param name="data">Lumina game data (<c>IDataManager.GameData</c> in the plugin).</param>
     /// <param name="log">Where to write the one-line load summary and any warnings.</param>
     /// <param name="gbr">Optional GatherBuddyReborn lookup (<see cref="GbrData.Get"/>) that overrides sheet node types.</param>
-    public static LuminaGameData Load(GameData data, Action<string> log, Func<uint, GatherInfo?>? gbr = null)
+    /// <param name="warn">
+    /// Where to write load FAILURES; defaults to <paramref name="log"/>. The plugin passes a Warning-level
+    /// sink so a build whose LuminaSupplemental data is dead is loud in the Dalamud log instead of blending
+    /// into the information stream (t_1a91db8f).
+    /// </param>
+    public static LuminaGameData Load(GameData data, Action<string> log, Func<uint, GatherInfo?>? gbr = null, Action<string>? warn = null)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
         var g = new LuminaGameData(gbr);
@@ -87,9 +103,11 @@ public sealed class LuminaGameData : IGameData
         g.LoadGathering(data, log);
         g.LoadVentures(data, log);
         g.LoadCollectables(data, log);
-        g.LoadSupplemental(data, log);
+        g.LoadSupplemental(data, log, warn ?? log);
         g.LoadTime = sw.Elapsed;
         log(g.Summary());
+        if (g._supplementalFailures.Count > 0)
+            (warn ?? log)($"LuminaSupplemental: {g._supplementalFailures.Count} resource(s) failed to load - drop classification and desynth values are incomplete or missing. This is a PACKAGING fault, not a game one; see the Settings tab.");
         return g;
     }
 
@@ -359,7 +377,7 @@ public sealed class LuminaGameData : IGameData
     /// <c>Min/Max</c> quantity; ~4% of rows carry no probability and are taken as certain, 1 unit).
     /// Loaded without <c>PopulateData</c> (no RowRefs needed), which keeps it well under 100 ms.
     /// </summary>
-    private void LoadSupplemental(GameData data, Action<string> log)
+    private void LoadSupplemental(GameData data, Action<string> log, Action<string> warn)
     {
         void AddDrops<T>(string resource, Func<T, uint> itemId) where T : ICsv, new()
         {
@@ -367,11 +385,17 @@ public sealed class LuminaGameData : IGameData
             {
                 var rows = CsvLoader.LoadResource<T>(resource, true, out var failed, out var exceptions);
                 foreach (var r in rows) { var id = itemId(r); if (id != 0) _drops.Add(id); }
+                if (rows.Count == 0)
+                {
+                    _supplementalFailures.Add($"{resource}: no rows (resource missing from the package?)");
+                    warn($"LuminaSupplemental {resource}: 0 rows");
+                }
                 if (failed.Count > 0) log($"LuminaSupplemental {resource}: {failed.Count} unparsable lines");
             }
             catch (Exception ex)
             {
-                log($"LuminaSupplemental {resource} failed to load: {ex.Message}");
+                _supplementalFailures.Add($"{resource}: {ex.Message}");
+                warn($"LuminaSupplemental {resource} failed to load: {ex.Message}");
             }
         }
 
@@ -385,6 +409,11 @@ public sealed class LuminaGameData : IGameData
         try
         {
             var rows = CsvLoader.LoadResource<ItemSupplement>(CsvLoader.ItemSupplementResourceName, true, out _, out _);
+            if (rows.Count == 0)
+            {
+                _supplementalFailures.Add($"{CsvLoader.ItemSupplementResourceName}: no rows (resource missing from the package?)");
+                warn($"LuminaSupplemental ItemSupplement: 0 rows; desynth values unavailable");
+            }
             foreach (var r in rows)
             {
                 if (r.ItemSupplementSource != ItemSupplementSource.Desynth || r.SourceItemId == 0 || r.ItemId == 0) continue;
@@ -396,7 +425,8 @@ public sealed class LuminaGameData : IGameData
         }
         catch (Exception ex)
         {
-            log($"LuminaSupplemental ItemSupplement failed to load; desynth values unavailable: {ex.Message}");
+            _supplementalFailures.Add($"{CsvLoader.ItemSupplementResourceName}: {ex.Message}");
+            warn($"LuminaSupplemental ItemSupplement failed to load; desynth values unavailable: {ex.Message}");
         }
     }
 }

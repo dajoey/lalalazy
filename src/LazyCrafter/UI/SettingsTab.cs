@@ -23,6 +23,27 @@ public sealed class SettingsTab
         var cfg = _plugin.Config;
         var changed = false;
 
+        // Data health first: a build whose LuminaSupplemental resources failed to load still works for
+        // everything else, so a silent failure passed an in-game verify once (0.1.0.0 shipped with
+        // Sylvan.Data.Csv pruned out of the zip -> 0 desynth sources, 168 drops, no placed vendors).
+        // Anything wrong here is red, at the top, before the toggles.
+        var supFailures = (_plugin.GameData?.SupplementalFailures ?? []).ToList();
+        if (_plugin.Dispatch.VendorsIfBuilt is { } vl) supFailures.AddRange(vl.SupplementalFailures);
+        if (supFailures.Count > 0)
+        {
+            ImGui.TextColored(ImGuiColors.DalamudRed, $"Supplemental data failed to load ({supFailures.Count} resource(s)) - this build is broken.");
+            ImGui.TextColored(ImGuiColors.DalamudRed, "Drop classification, desynth values and gil-vendor locations are missing or incomplete.");
+            foreach (var f in supFailures.Take(8)) ImGui.TextColored(ImGuiColors.DalamudRed, $"    {f}");
+            if (supFailures.Count > 8) ImGui.TextColored(ImGuiColors.DalamudRed, $"    ... and {supFailures.Count - 8} more");
+            ImGui.TextColored(ImGuiColors.DalamudRed, "Report it: the plugin package is missing a dependency, reinstalling will not help.");
+            ImGui.Separator();
+        }
+        else if (_plugin.GameData is { } okGd)
+        {
+            ImGui.TextColored(ImGuiColors.HealerGreen, $"Supplemental data OK - {okGd.DropCount:N0} drop items, {okGd.DesynthSourceCount:N0} desynth sources.");
+            ImGui.Spacing();
+        }
+
         ImGui.TextColored(ImGuiColors.ParsedGold, "Inventory sources");
         ImGui.SameLine();
         ImGuiComponents.HelpMarker("Where AllaganTools may look when counting what you have. Each source is one toggle; the FC chest is off by default because it is shared property.");

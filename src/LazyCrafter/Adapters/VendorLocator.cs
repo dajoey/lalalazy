@@ -27,8 +27,10 @@ public sealed class VendorLocator
 
     private readonly GameData _data;
     private readonly Action<string> _log;
+    private readonly Action<string> _warn;
     private readonly object _lock = new();
     private bool _built;
+    private readonly List<string> _supplementalFailures = new();
 
     private readonly Dictionary<uint, List<uint>> _shopsByItem = new();          // itemId -> GilShop ids
     private readonly Dictionary<uint, List<uint>> _npcsByShop = new();           // GilShop id -> ENpcBase ids
@@ -37,10 +39,27 @@ public sealed class VendorLocator
     private readonly Dictionary<uint, string> _npcNames = new();
     private readonly Dictionary<uint, string> _territoryNames = new();
 
-    public VendorLocator(GameData data, Action<string> log)
+    /// <param name="warn">
+    /// Where load FAILURES go; defaults to <paramref name="log"/>. Both LuminaSupplemental tables this class
+    /// reads (<c>ENpcShop</c>, <c>ENpcPlace</c>) place the NPCs behind the Lifestream vendor hand-off, so a
+    /// packaging fault silently degrades it to "no placed gil vendor" for every item (t_1a91db8f).
+    /// </param>
+    public VendorLocator(GameData data, Action<string> log, Action<string>? warn = null)
     {
         _data = data;
         _log = log;
+        _warn = warn ?? log;
+    }
+
+    /// <summary>LuminaSupplemental resources that failed to load; empty on a healthy build. Reports only what the
+    /// index build has already seen - it deliberately does NOT force the build, so the Settings tab can read it
+    /// from the draw thread.</summary>
+    public IReadOnlyList<string> SupplementalFailures => _built ? _supplementalFailures : Array.Empty<string>();
+
+    private void Fail(string line)
+    {
+        _supplementalFailures.Add(line);
+        _warn($"LuminaSupplemental {line} - vendor placements are incomplete; the Lifestream vendor hand-off will not find NPCs. This is a PACKAGING fault.");
     }
 
     public int ShopItemCount { get { EnsureBuilt(); return _shopsByItem.Count; } }
@@ -178,26 +197,30 @@ public sealed class VendorLocator
         }
         try
         {
-            foreach (var s in CsvLoader.LoadResource<ENpcShop>(CsvLoader.ENpcShopResourceName, true, out _, out _))
+            var shops = CsvLoader.LoadResource<ENpcShop>(CsvLoader.ENpcShopResourceName, true, out _, out _);
+            if (shops.Count == 0) Fail($"{CsvLoader.ENpcShopResourceName}: no rows (resource missing from the package?)");
+            foreach (var s in shops)
             {
                 if (!gilShopIds.Contains(s.ShopId)) continue;
                 var l = _npcsByShop.TryGetValue(s.ShopId, out var x) ? x : _npcsByShop[s.ShopId] = new List<uint>();
                 if (!l.Contains(s.ENpcResidentId)) l.Add(s.ENpcResidentId);
             }
         }
-        catch (Exception ex) { _log($"LuminaSupplemental ENpcShop failed to load: {ex.Message}"); }
+        catch (Exception ex) { Fail($"{CsvLoader.ENpcShopResourceName}: {ex.Message}"); }
 
         // npc -> placements (map coordinates)
         var shopNpcs = new HashSet<uint>(_npcsByShop.Values.SelectMany(x => x));
         try
         {
-            foreach (var p in CsvLoader.LoadResource<ENpcPlace>(CsvLoader.ENpcPlaceResourceName, true, out _, out _))
+            var places = CsvLoader.LoadResource<ENpcPlace>(CsvLoader.ENpcPlaceResourceName, true, out _, out _);
+            if (places.Count == 0) Fail($"{CsvLoader.ENpcPlaceResourceName}: no rows (resource missing from the package?)");
+            foreach (var p in places)
             {
                 if (!shopNpcs.Contains(p.ENpcResidentId)) continue;
                 (_placesByNpc.TryGetValue(p.ENpcResidentId, out var l) ? l : _placesByNpc[p.ENpcResidentId] = new List<ENpcPlace>()).Add(p);
             }
         }
-        catch (Exception ex) { _log($"LuminaSupplemental ENpcPlace failed to load: {ex.Message}"); }
+        catch (Exception ex) { Fail($"{CsvLoader.ENpcPlaceResourceName}: {ex.Message}"); }
 
         // Level-sheet fallback (Type 8 = ENpc) for shop NPCs the supplemental table does not place; world -> map coords.
         var levels = _data.GetExcelSheet<Level>();

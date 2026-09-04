@@ -91,7 +91,8 @@ public sealed class Plugin : IDalamudPlugin
             try
             {
                 Gbr.Refresh();
-                var gd = LuminaGameData.Load(Data.GameData, line => Log.Information("{Line}", line), Gbr.Available ? Gbr.Get : null);
+                var gd = LuminaGameData.Load(Data.GameData, line => Log.Information("{Line}", line), Gbr.Available ? Gbr.Get : null,
+                    line => Log.Warning("{Line}", line));
                 gd.UseMarketableOverride(Prices.IsMarketable);
                 GameData = gd;
             }
