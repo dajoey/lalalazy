@@ -64,6 +64,16 @@ foreach (var pin in new[] { GbrDispatch.Pin, ArcDispatch.Pin, RetainerFetch.Pin 
         failures++;
     }
 
+    // 0.1.3.0: the list-shaped RestockFromRetainers overload rides on the same pin as an alias (a pin can carry
+    // only one member per key) - verify it here too, so a rename breaks this probe instead of a live bell session.
+    if (pin == RetainerFetch.Pin && failure is null)
+    {
+        var aliasFailure = ReflectionGuardExtensions.VerifyAlias(pin, pluginType, RetainerFetch.BatchOverload, out var aliasMethod);
+        if (aliasFailure is null)
+            Console.WriteLine($"  alias {RetainerFetch.BatchOverload.AsKey}: OK -> {aliasMethod!.ReturnType.Name} {aliasMethod.Name}({string.Join(", ", aliasMethod.GetParameters().Select(p => p.ParameterType.Name))})");
+        else { Console.WriteLine($"  alias {RetainerFetch.BatchOverload.AsKey}: FAIL - {aliasFailure}"); failures++; }
+    }
+
     // Simulated mismatch: the guard's version gate must produce the refusal text, never throw.
     var raised = new Version(99, 0);
     var refusal = asmVersion < raised ? $"{pin.InternalName} {asmVersion} is older than the {raised} this hand-off was verified against - update it, or wait for a LazyCrafter release that supports it." : null;

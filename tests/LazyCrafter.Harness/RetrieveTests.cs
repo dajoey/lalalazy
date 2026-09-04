@@ -12,6 +12,10 @@ namespace LazyCrafter.Harness;
 /// testable - and what actually broke in 0.1.1.0 - is the surrounding decision: does the plan produce a Retrieve,
 /// does the post-fetch re-plan turn the deferral into a craft, and does a partial pull ask for the remainder only.
 /// </para>
+/// <para>
+/// 0.1.3.0 adds the batch fetch (ONE Artisan bell session for the whole cart). Its queue decision - which
+/// recipe rows to feed it - is pure and has its own suite: <see cref="RetainerBatchQueueTests"/>.
+/// </para>
 /// </summary>
 internal static class RetrieveTests
 {

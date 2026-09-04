@@ -8,18 +8,21 @@ using LazyCrafter.Core.Model;
 namespace LazyCrafter.Adapters;
 
 /// <summary>
-/// Runs a <see cref="DispatchPlan.Plan"/> against the live plugins (Plan §Phase 5 task 6):
-/// <b>Retrieve → ARC → GBR → Artisan</b> - stock that is owned but sitting on a retainer is fetched into the bags
-/// first (card t_63b845ad), then retainers are asynchronous so ventures start next, gathering drives the character so
-/// crafting waits for it, then each craft is handed to Artisan in depth-first order, polling <c>Artisan.IsBusy</c>
-/// between recipes. Vendor / market items are printed as shopping lists with map links (the per-leaf buttons do the
-/// teleport; teleporting in the middle of a cart run would fight GBR). Everything happens on
+/// Runs a <see cref="DispatchPlan.Plan"/> against the live plugins (Plan A—Phase 5 task 6):
+/// <b>0.1.3.0:</b> when the plan needs stock fetched out of the retainers, ONE batch Artisan session first -
+/// bell once, every queued recipe's missing materials withdrawn (see <see cref="RetainerFetch.BeginBatch"/>) -
+/// measured against the bags, then the plan re-built, and only then any remainder falls back to the 0.1.2.0
+/// per-item sessions.
+/// Ventures start first (card t_63b845ad), then retainers are asynchronous so ventures start next, gathering drives
+/// the character so crafting waits for it, then each craft is handed to Artisan in depth-first order, polling
+/// <c>Artisan.IsBusy</c> between recipes. Vendor / market items are printed as shopping lists with map links (the
+/// per-leaf buttons do the teleport; teleporting in the middle of a cart run would fight GBR). Everything happens on
 /// <see cref="IFramework.Update"/> in small steps; nothing blocks, nothing runs in Draw. <c>/lcraft stop</c> or the
 /// Stop button aborts (retainer queue aborted, GBR off, Artisan stop request).
 /// </summary>
 public sealed class DispatchService : IDisposable
 {
-    public enum Phase { Idle, Retrieve, WaitRetrieve, Ventures, Gathers, WaitGather, Crafts, WaitCraftStart, WaitCraftEnd, Done, Failed }
+    public enum Phase { Idle, Retrieve, WaitRetrieve, Ventures, Gathers, WaitGather, Crafts, WaitCraftStart, WaitCraftEnd, Done, Failed, BatchRetrieve, BatchWait }
 
     private readonly Plugin _plugin;
     private readonly IFramework _framework;
@@ -56,6 +59,13 @@ public sealed class DispatchService : IDisposable
     private readonly List<(DispatchPlan.Retrieve Item, string Why)> _unfetched = new();
     private readonly Dictionary<uint, int> _fetchTries = new();
     private int _fetchBefore, _fetchedOk, _retrievalsPlanned;
+    // ---- 0.1.3.0: the one batch session that runs before the per-item fallback.
+    /// <summary>Recipe rows queued into the batch <c>RestockFromRetainers(NewCraftingList)</c> session.</summary>
+    private IReadOnlyList<uint> _batchCrafts = Array.Empty<uint>();
+    /// <summary>Bags per demanded item immediately before the batch session, so <see cref="BatchWait"/> measures the delta.</summary>
+    private readonly Dictionary<uint, int> _batchBefore = new();
+    /// <summary>How many materials the batch session actually delivered into the bags (measured, counted like <see cref="_fetchedOk"/>).</summary>
+    private int _batchFetched;
 
     private readonly Stopwatch _phaseClock = new();
     private DateTime _nextPoll = DateTime.MinValue;
@@ -195,7 +205,7 @@ public sealed class DispatchService : IDisposable
     public void Stop(string why = "stopped by user")
     {
         if (!Running && _plan is null) { Say("nothing is running."); return; }
-        if (Current is Phase.Retrieve or Phase.WaitRetrieve) Fetch.Abort();
+        if (Current is Phase.BatchRetrieve or Phase.BatchWait or Phase.Retrieve or Phase.WaitRetrieve) Fetch.Abort();
         if (Current is Phase.WaitGather or Phase.Gathers) Gbr.Stop();
         if (Current is Phase.WaitCraftStart or Phase.WaitCraftEnd or Phase.Crafts) Artisan.Stop();
         Finish(Phase.Failed, why);
@@ -211,9 +221,12 @@ public sealed class DispatchService : IDisposable
         _deferredAtRun.Clear();
         _unfetched.Clear();
         _fetchTries.Clear();
+        _batchBefore.Clear();
         _craftsDone = _craftsFailed = 0;
         _madeBefore = _expected = 0;
         _fetchBefore = _fetchedOk = 0;
+        _batchFetched = 0;
+        _batchCrafts = Array.Empty<uint>();
         _current = null;
         _fetching = null;
         _retrievals = new Queue<DispatchPlan.Retrieve>(plan.Retrievals);
@@ -235,6 +248,13 @@ public sealed class DispatchService : IDisposable
         // Up to 0.1.1.0 this printed "retrieve before crafting: ..." and stopped, which meant pressing Dispatch again
         // produced the identical lecture forever (Joey, V2 run 4). Now we try to actually fetch it; only when we
         // genuinely cannot do we fall back to naming it - once, with the reason and what to do about it.
+        //
+        // 0.1.3.0: the fetch itself is ONE batch session, not one bell trip per material (Joey, live run: four
+        // materials from one retainer became four separate ~5.5 s Artisan sessions). Artisan's batch overload takes
+        // whole recipe rows and re-computes each ingredient's shortfall from the bags itself at session time, so the
+        // queue is primed with the cart's recipes - the queued crafts plus deferred crafts whose blockers include a
+        // retrieval (<see cref="RetainerBatch.Queue"/>; that is the deferred-craft shape whose stock sat on a
+        // retainer). Items with no recipe row, and anything left over afterwards, fall back to the per-item path.
         var fetchBlocker = plan.Retrievals.Count == 0 ? null : WhyNoFetch();
         if (plan.Retrievals.Count > 0 && fetchBlocker is not null)
         {
@@ -243,6 +263,18 @@ public sealed class DispatchService : IDisposable
             Say($"cannot fetch it automatically: {fetchBlocker}.", error: true);
             foreach (var r in plan.Retrievals) _unfetched.Add((r, fetchBlocker));
             _retrievals.Clear();
+        }
+
+        if (_retrievals.Count > 0)
+        {
+            _batchCrafts = RetainerBatch.Queue(plan.Crafts, plan.Deferred, id => _graph?.Row(id) is not null);
+            _plugin.Inventory.Invalidate();
+            foreach (var id in _batchCrafts)
+            {
+                var row = _graph!.Row(id)!;
+                foreach (var (itemId, _) in row.Ingredients)
+                    _batchBefore[itemId] = _plugin.Inventory.CountInBags(itemId);
+            }
         }
 
         // Shopping lists and blockers are informational; print them up front. Deferrals caused purely by a retrieval
@@ -261,17 +293,22 @@ public sealed class DispatchService : IDisposable
             foreach (var d in plan.Deferred) Say($"not crafting {Name(d.ResultItemId)} x{d.Crafts} yet - {Readable(d.Reason)}.", error: true);
 
         if (!plan.HasWork && !willRetrieve) { Finish(Phase.Done, "nothing to hand off"); return; }
-        Enter(willRetrieve ? Phase.Retrieve : Phase.Ventures);
+        Enter(willRetrieve ? (_batchCrafts.Count > 0 ? Phase.BatchRetrieve : Phase.Retrieve) : Phase.Ventures);
     }
 
-    /// <summary>Why we will not even try to fetch, or <c>null</c> when we will. One sentence the player can act on.</summary>
+    /// <summary>
+    /// Why we will not even try to fetch, or <c>null</c> when we will. One sentence the player can act on.
+    /// <para>0.1.3.0 also fixes the config gate: the pre-0.1.3 nested <c>if</c> made
+    /// <c>RetrieveFromRetainers</c> a no-op (switching it off changed an error message but the fetch still ran),
+    /// so the toggle now actually gates every fetch path, batch and per-item alike.</para>
+    /// </summary>
     private string? WhyNoFetch()
     {
         if (!_plugin.Config.RetrieveFromRetainers)
-            return "automatic retrieval is turned off in LazyCrafter's settings (Settings → Dispatch → \"Fetch missing materials from your retainers\")";
+            return "retrieval from retainers is switched off in the settings - turn it on, or move the materials by hand";
         if (!Fetch.Installed)
             return "Artisan is not installed or not loaded, and LazyCrafter drives its retainer withdrawal to do the fetching";
-        return Fetch.Blocker();
+        return Fetch.SessionPreflight();
     }
 
     private void Enter(Phase p)
@@ -288,7 +325,77 @@ public sealed class DispatchService : IDisposable
         {
             switch (Current)
             {
-                // ------------------------------------------------------------------ Retrieve
+                // ------------------------------------------------------ Retrieve: one batch pass, then per-item
+                case Phase.BatchRetrieve:
+                    if (!Poll(400)) break;
+                    if (Fetch.Busy()) { Status = "waiting for Artisan's retainer queue"; break; }
+
+                    // Queue the whole cart's demand as one session. A refusal here (unavailable overload, nothing
+                    // queued) just falls through to the per-item path, which still moves what it can.
+                    var batchErr = Fetch.BeginBatch(_batchCrafts);
+                    if (batchErr is not null)
+                    {
+                        _log.Information("batch retainer fetch not queued: {Why}", batchErr);
+                        Enter(Phase.Retrieve);
+                        break;
+                    }
+                    Say("fetching the cart's materials from your retainers in one pass - stay by the bell.");
+                    Enter(Phase.BatchWait);
+                    break;
+
+                case Phase.BatchWait:
+                    if (!Poll(500)) break;
+                    if (_phaseClock.ElapsedMilliseconds < 1500) break;
+                    if (Fetch.Busy())
+                    {
+                        Status = $"retainers: batch fetch ({_phaseClock.Elapsed:m\\:ss})";
+                        if (_phaseClock.ElapsedMilliseconds > 600_000)
+                        {
+                            Fetch.Abort();
+                            var timeoutWhy = "Artisan's batch retainer session ran for 10 minutes without finishing (a dialogue may be waiting, or the bell was interrupted)";
+                            Say($"gave up the batch fetch: {timeoutWhy}.", error: true);
+                            foreach (var r in _retrievals) _unfetched.Add((r, timeoutWhy));
+                            _retrievals.Clear();
+                            Enter(Phase.Retrieve);
+                        }
+                        break;
+                    }
+
+                    // Artisan going idle is not proof anything moved - count the bags. Artisan withdrew
+                    // "recipe demand minus what the bags held at session time"; the delta per demanded item is
+                    // what actually arrived. Anything still short stays in the per-item queue (trimmed to the
+                    // remainder); demand the plan had not flagged (stock moved between plan and session) is
+                    // appended to it.
+                    _plugin.Inventory.Invalidate();
+                    var batchDemand = new Dictionary<uint, int>();
+                    foreach (var id in _batchCrafts)
+                    {
+                        var row = _graph?.Row(id);
+                        if (row is null) continue;
+                        foreach (var (itemId, amount) in row.Ingredients)
+                            batchDemand[itemId] = batchDemand.GetValueOrDefault(itemId) + amount;
+                    }
+                    foreach (var (itemId, need) in batchDemand)
+                    {
+                        var arrived = Math.Max(0, _plugin.Inventory.CountInBags(itemId) - _batchBefore.GetValueOrDefault(itemId));
+                        if (arrived > 0) _batchFetched++;
+                        var left = need - _plugin.Inventory.CountInBags(itemId);
+                        if (left <= 0) { _retrievals = new Queue<DispatchPlan.Retrieve>(_retrievals.Where(r => r.ItemId != itemId)); continue; }
+                        var planned = _retrievals.FirstOrDefault(r => r.ItemId == itemId);
+                        if (planned is not null)
+                            _retrievals = new Queue<DispatchPlan.Retrieve>(
+                                _retrievals.Where(r => r.ItemId != itemId)
+                                    .Prepend(planned with { Quantity = Math.Min(planned.Quantity, left) }));
+                        else
+                            _retrievals.Enqueue(new DispatchPlan.Retrieve(itemId, left, _plugin.Inventory.StoredWhere(itemId)));
+                    }
+                    _log.Information("batch retainer pass done: {Fetched} material(s) moved, {Left} left for the per-item pass", _batchFetched, _retrievals.Count);
+                    if (_retrievals.Count > 0)
+                        Say($"retainer pass done - {_retrievals.Count} material{(_retrievals.Count == 1 ? "" : "s")} still short, checking the retainers again.");
+                    _batchCrafts = Array.Empty<uint>();
+                    Enter(Phase.Retrieve);
+                    break;
+
                 case Phase.Retrieve:
                     if (_retrievals.Count == 0) { AfterRetrieve(); break; }
                     if (!Poll(400)) break;
@@ -498,7 +605,7 @@ public sealed class DispatchService : IDisposable
     /// </summary>
     private void AfterRetrieve()
     {
-        if (_fetchedOk > 0 && _snap is not null)
+        if (_fetchedOk + _batchFetched > 0 && _snap is not null)
         {
             _plugin.Inventory.Invalidate();
             var fresh = PlanFor(_snap);
@@ -545,7 +652,8 @@ public sealed class DispatchService : IDisposable
 
             // "crafts finished M/N" is measured, not assumed: M counted only the crafts whose result actually
             // appeared in the bags (see WaitCraftEnd), and "retrieved M/N" only the fetches whose material actually
-            // appeared in the bags (see WaitRetrieve). A refusal or a silent no-op lands in the failed counters.
+            // appeared in the bags (see BatchWait / WaitRetrieve). A refusal or a silent no-op lands in the failed
+            // counters.
             var retrieved = _retrievalsPlanned > 0 ? $"retrieved {_fetchedOk}/{_retrievalsPlanned}, " : "";
             var stuck = _unfetched.Count > 0 ? $", {_unfetched.Count} could not be retrieved" : "";
             if (end == Phase.Done)
@@ -562,6 +670,7 @@ public sealed class DispatchService : IDisposable
         _snap = null;
         _crafts.Clear();
         _retrievals.Clear();
+        _batchCrafts = Array.Empty<uint>();
         _plugin.Inventory.Invalidate();
         _plugin.Catalog.Invalidate();
     }

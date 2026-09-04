@@ -42,6 +42,7 @@ internal static class Program
         foreach (var t in CartTests.Tests) yield return ("cart", t.Name, t.Check);
         foreach (var t in DispatchPlanTests.Tests) yield return ("dispatch", t.Name, t.Check);
         foreach (var t in RetrieveTests.Tests) yield return ("retrieve", t.Name, t.Check);
+foreach (var t in RetainerBatchQueueTests.Tests) yield return ("batchqueue", t.Name, t.Check);
     }
 
     private static int Main()

@@ -19,6 +19,7 @@
     <Compile Include="..\..\src\LazyCrafter\Adapters\Dispatch\GbrDispatch.cs" Link="Adapters\Dispatch\GbrDispatch.cs" />
     <Compile Include="..\..\src\LazyCrafter\Adapters\Dispatch\ArcDispatch.cs" Link="Adapters\Dispatch\ArcDispatch.cs" />
     <Compile Include="..\..\src\LazyCrafter\Adapters\Dispatch\RetainerFetch.cs" Link="Adapters\Dispatch\RetainerFetch.cs" />
+    <Compile Include="..\..\src\LazyCrafter\Adapters\ReflectionGuardExtensions.cs" Link="Adapters\ReflectionGuardExtensions.cs" />
   </ItemGroup>
 
   <ItemGroup>
