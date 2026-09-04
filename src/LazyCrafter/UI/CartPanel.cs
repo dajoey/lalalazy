@@ -24,6 +24,9 @@ public sealed class CartPanel
     {
         string N(uint id) => _plugin.GameData?.ItemName(id) ?? $"#{id}";
         var sb = new System.Text.StringBuilder("Dispatch order: ARC -> GBR -> Artisan\n");
+        // Retrieve is first because nothing else can happen until it does, and only the player can do it.
+        if (p.Retrievals.Count > 0)
+            sb.Append("RETRIEVE FIRST (not in your bags): ").AppendJoin(", ", p.Retrievals.Select(r => $"{N(r.ItemId)} x{r.Quantity} from {r.Places}")).Append('\n');
         if (p.Ventures.Count > 0) sb.Append("ARC ventures: ").AppendJoin(", ", p.Ventures.Select(v => $"{N(v.ItemId)} x{v.Quantity} ({v.Match.Retainer.Name})")).Append('\n');
         if (p.Gathers.Count > 0) sb.Append("GBR gather: ").AppendJoin(", ", p.Gathers.Select(g => $"{N(g.ItemId)} x{g.Quantity}")).Append('\n');
         if (p.Crafts.Count > 0) sb.Append("Artisan crafts: ").AppendJoin(", ", p.Crafts.Select(c => $"{N(c.ResultItemId)} x{c.Crafts}{(c.AfterGather ? "*" : "")}")).Append('\n');

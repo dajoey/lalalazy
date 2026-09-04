@@ -50,11 +50,31 @@ internal sealed class FakeGameData : IGameData
     public IReadOnlyList<DesynthResult> Desynth(uint itemId) => _desynth.TryGetValue(itemId, out var l) ? l : Array.Empty<DesynthResult>();
 }
 
+/// <summary>
+/// In-memory <see cref="IInventory"/>. <see cref="Set"/> puts stock in the bags (the common case, so every existing
+/// test keeps its meaning); <see cref="SetElsewhere"/> adds stock that is owned but NOT in the bags, which is what
+/// the dispatcher has to fetch before a craft can run.
+/// </summary>
 internal sealed class FakeInventory : IInventory
 {
-    private readonly Dictionary<uint, int> _counts = new();
-    public FakeInventory Set(uint itemId, int count) { _counts[itemId] = count; return this; }
-    public int Count(uint itemId) => _counts.TryGetValue(itemId, out var c) ? c : 0;
+    private readonly Dictionary<uint, int> _bags = new();
+    private readonly Dictionary<uint, List<StoredElsewhere>> _elsewhere = new();
+
+    /// <summary>Stock in the bags: owned AND reachable by a synthesis.</summary>
+    public FakeInventory Set(uint itemId, int count) { _bags[itemId] = count; return this; }
+
+    /// <summary>Stock owned but sitting somewhere a craft cannot reach (a retainer, the saddlebag, ...).</summary>
+    public FakeInventory SetElsewhere(uint itemId, int count, string where)
+    {
+        if (!_elsewhere.TryGetValue(itemId, out var list)) _elsewhere[itemId] = list = new List<StoredElsewhere>();
+        list.Add(new StoredElsewhere(where, count));
+        return this;
+    }
+
+    public int Count(uint itemId) => CountInBags(itemId) + (_elsewhere.TryGetValue(itemId, out var l) ? l.Sum(e => e.Quantity) : 0);
+    public int CountInBags(uint itemId) => _bags.TryGetValue(itemId, out var c) ? c : 0;
+    public IReadOnlyList<StoredElsewhere> StoredWhere(uint itemId) =>
+        _elsewhere.TryGetValue(itemId, out var l) ? l : Array.Empty<StoredElsewhere>();
 }
 
 internal sealed class FakePrices : IPriceSource

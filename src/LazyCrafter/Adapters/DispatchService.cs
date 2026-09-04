@@ -39,6 +39,10 @@ public sealed class DispatchService : IDisposable
     private Queue<DispatchPlan.Craft> _crafts = new();
     private DispatchPlan.Craft? _current;
     private readonly List<(uint ItemId, int Quantity)> _made = new();
+    /// <summary>Crafts refused at execution time by the bags guard, reported in the summary alongside the plan's own deferrals.</summary>
+    private readonly List<DispatchPlan.Deferral> _deferredAtRun = new();
+    /// <summary>Bag count of the current craft's result immediately before <c>Artisan.CraftItem</c>, and how many units we expect it to add.</summary>
+    private int _madeBefore, _expected;
     private readonly Stopwatch _phaseClock = new();
     private DateTime _nextPoll = DateTime.MinValue;
     private int _craftsDone, _craftsFailed;
@@ -99,7 +103,7 @@ public sealed class DispatchService : IDisposable
     {
         if (!EnsureCore()) return null;
         var lines = snap.Cart.Select(l => new DispatchPlan.Line(l.Assessment, l.Crafts)).ToList();
-        return DispatchPlan.Build(lines, snap.CartTotals.Totals, _graph!, _ventures!, _plugin.Player.Retainers, _plugin.Player.GatheredItems);
+        return DispatchPlan.Build(lines, snap.CartTotals.Totals, _graph!, _ventures!, _plugin.Player.Retainers, _plugin.Player.GatheredItems, _plugin.Inventory);
     }
 
     /// <summary>Dispatch the whole cart. Framework thread (button handler / command).</summary>
@@ -164,9 +168,11 @@ public sealed class DispatchService : IDisposable
         _plan = plan;
         _crafts = new Queue<DispatchPlan.Craft>(plan.Crafts);
         _made.Clear();
+        _deferredAtRun.Clear();
         _craftsDone = _craftsFailed = 0;
+        _madeBefore = _expected = 0;
         _current = null;
-        Say($"dispatching {what}: {plan.Ventures.Count} venture, {plan.Gathers.Count} gather, {plan.Crafts.Count} craft, {plan.Vendor.Count} vendor, {plan.Market.Count} market, {plan.Manual.Count} manual, {plan.Deferred.Count} deferred.");
+        Say($"dispatching {what}: {plan.Ventures.Count} venture, {plan.Gathers.Count} gather, {plan.Crafts.Count} craft, {plan.Vendor.Count} vendor, {plan.Market.Count} market, {plan.Manual.Count} manual, {plan.Deferred.Count} deferred, {plan.Retrievals.Count} to retrieve.");
         _log.Information("dispatch plan for {What}: ventures=[{V}] gathers=[{G}] crafts=[{C}] vendor=[{Ve}] market=[{M}] manual=[{Ma}] deferred=[{D}]", what,
             string.Join(",", plan.Ventures.Select(v => $"{v.ItemId}x{v.Quantity}@{v.Match.Retainer.Name}")),
             string.Join(",", plan.Gathers.Select(g => $"{g.ItemId}x{g.Quantity}")),
@@ -175,8 +181,14 @@ public sealed class DispatchService : IDisposable
             string.Join(",", plan.Market.Select(p => $"{p.ItemId}x{p.Quantity}")),
             string.Join(",", plan.Manual.Select(p => $"{p.ItemId}x{p.Quantity}")),
             string.Join(",", plan.Deferred.Select(d => $"r{d.RecipeId}:{d.Reason}")));
+        if (plan.Retrievals.Count > 0)
+            _log.Information("dispatch retrievals: [{R}]", string.Join(",", plan.Retrievals.Select(r => $"{r.ItemId}x{r.Quantity}@{r.Places}")));
 
-        // Shopping lists and blockers are informational; print them up front.
+        // Shopping lists, retrievals and blockers are informational; print them up front.
+        // Retrieve comes first: it is the step that has to happen before anything else can, and it is the one
+        // LazyCrafter cannot do for you.
+        foreach (var r in plan.Retrievals)
+            Say($"retrieve before crafting: {Name(r.ItemId)} x{r.Quantity} from {r.Places} ({r.Detail}).");
         if (plan.Vendor.Count > 0)
         {
             var groups = Vendors.Plan(plan.Vendor.Select(p => (p.ItemId, p.Quantity)).ToList(), out var unlocated);
@@ -246,6 +258,29 @@ public sealed class DispatchService : IDisposable
                     if (!Poll(500)) break;
                     if (Artisan.IsBusy() == true) { Status = "waiting for Artisan to go idle"; if (_phaseClock.ElapsedMilliseconds > 120_000) Finish(Phase.Failed, "Artisan stayed busy for 2 minutes"); break; }
                     _current = _crafts.Dequeue();
+
+                    // Guard: never hand Artisan a craft whose materials are not physically in the bags. The plan was
+                    // built minutes ago and "owned" counts retainers / saddlebag / armoury; Artisan can only consume
+                    // the bags, and it fails silently - the craft simply never starts and we would have called it done.
+                    _plugin.Inventory.Invalidate();
+                    var recipeRow = _graph?.Row(_current.RecipeId);
+                    if (recipeRow is not null && DispatchPlan.BagsShortfall(recipeRow, _current.Crafts, _plugin.Inventory) is { Count: > 0 } shortfall)
+                    {
+                        _craftsFailed++;
+                        var what = string.Join(", ", shortfall.Select(s => $"{Name(s.ItemId)} x{s.Quantity} is not in your bags ({s.Detail})"));
+                        Say($"Artisan craft of {Name(_current.ResultItemId)} refused: {what}.", error: true);
+                        Say("retrieve before crafting: " + string.Join("; ", shortfall.Select(s => $"{Name(s.ItemId)} x{s.Quantity} from {s.Places}")) + ".", error: true);
+                        _deferredAtRun.Add(new DispatchPlan.Deferral(_current.RecipeId, _current.ResultItemId, _current.Crafts,
+                            "needs " + string.Join(", ", shortfall.Select(s => $"retrieve #{s.ItemId} x{s.Quantity} (from {s.Places})"))));
+                        _current = null;
+                        break;
+                    }
+
+                    // Measure, don't assume: remember what the bags hold now so WaitCraftEnd can tell whether
+                    // anything was actually made.
+                    _madeBefore = _plugin.Inventory.CountInBags(_current.ResultItemId);
+                    _expected = _current.Crafts * Math.Max(1, recipeRow?.ResultAmount ?? 1);
+
                     Status = $"Artisan: {Name(_current.ResultItemId)} x{_current.Crafts}";
                     var err = Artisan.Craft(_current.RecipeId, _current.Crafts);
                     if (err is not null) { _craftsFailed++; Say($"Artisan refused {Name(_current.ResultItemId)}: {err}", error: true); _current = null; break; }
@@ -269,11 +304,23 @@ public sealed class DispatchService : IDisposable
                     if (!Poll(500)) break;
                     if (Artisan.StopRequested()) { Finish(Phase.Failed, "Artisan received a stop request"); return; }
                     if (Artisan.IsBusy() == true) { Status = $"Artisan: {Name(_current!.ResultItemId)} x{_current.Crafts} ({_phaseClock.Elapsed:m\\:ss})"; break; }
-                    _craftsDone++;
-                    var row = _graph?.Row(_current!.RecipeId);
-                    _made.Add((_current!.ResultItemId, _current.Crafts * Math.Max(1, row?.ResultAmount ?? 1)));
-                    _current = null;
+
+                    // Artisan going idle is not proof it made anything. Count the result in the bags and compare.
                     _plugin.Inventory.Invalidate();
+                    var after = _plugin.Inventory.CountInBags(_current!.ResultItemId);
+                    var made = Math.Max(0, after - _madeBefore);
+                    if (made >= _expected)
+                    {
+                        _craftsDone++;
+                        _made.Add((_current.ResultItemId, made));
+                    }
+                    else
+                    {
+                        _craftsFailed++;
+                        Say($"Artisan: {Name(_current.ResultItemId)} - expected {_expected}, made {made}.", error: true);
+                        if (made > 0) _made.Add((_current.ResultItemId, made));
+                    }
+                    _current = null;
                     Enter(Phase.Crafts);
                     break;
             }
@@ -300,10 +347,16 @@ public sealed class DispatchService : IDisposable
         Status = end == Phase.Done ? "done" : $"stopped: {why}";
         if (plan is not null)
         {
+            foreach (var d in _deferredAtRun)
+                Say($"not crafted: {Name(d.ResultItemId)} x{d.Crafts} - {System.Text.RegularExpressions.Regex.Replace(d.Reason, "#(\\d+)", m => Name(uint.Parse(m.Groups[1].Value)))}.", error: true);
+
+            // "crafts finished M/N" is measured, not assumed: M counted only the crafts whose result actually
+            // appeared in the bags (see WaitCraftEnd). A refusal or a silent no-op lands in _craftsFailed.
             if (end == Phase.Done)
-                Say($"done - {plan.Ventures.Count} venture item{(plan.Ventures.Count == 1 ? "" : "s")} to ARC, {plan.Gathers.Count} to GBR, {_craftsDone}/{plan.Crafts.Count} craft{(plan.Crafts.Count == 1 ? "" : "s")} finished{(_craftsFailed > 0 ? $", {_craftsFailed} failed" : "")}.");
+                Say($"done - {plan.Ventures.Count} venture item{(plan.Ventures.Count == 1 ? "" : "s")} to ARC, {plan.Gathers.Count} to GBR, crafts finished {_craftsDone}/{plan.Crafts.Count}{(_craftsFailed > 0 ? $", {_craftsFailed} failed" : "")}{(plan.Retrievals.Count > 0 ? $", {plan.Retrievals.Count} still to retrieve" : "")}.",
+                    error: _craftsFailed > 0);
             else
-                Say($"dispatch stopped: {why} ({_craftsDone}/{plan.Crafts.Count} crafts done).", error: true);
+                Say($"dispatch stopped: {why} (crafts finished {_craftsDone}/{plan.Crafts.Count}).", error: true);
             if (_made.Count > 0 && _plugin.Config.DagobertAfterCraft && _plugin.GameData is { } gd)
                 Dagobert.AfterCraft(_made, Name, gd.IsMarketable);
         }

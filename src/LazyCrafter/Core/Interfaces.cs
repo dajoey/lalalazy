@@ -89,10 +89,38 @@ public sealed record CollectableInfo(
 /// <summary>One possible desynth output: the item, its drop chance (0..1) and the mean quantity when it drops.</summary>
 public sealed record DesynthResult(uint ItemId, double Chance, double Quantity = 1);
 
-/// <summary>Counts already filtered by the enabled inventory sources.</summary>
+/// <summary>
+/// Counts already filtered by the enabled inventory sources.
+/// <para>
+/// <see cref="Count"/> is what the character <b>owns</b> across every enabled source (Scope §0 "Inventory scope =
+/// everything AllaganTools can see") and drives tiering, HowMany and profit. <see cref="CountInBags"/> is the far
+/// narrower question a craft actually asks - <b>is it in the bags right now</b> - because a synthesis can only
+/// consume the four bags plus the crystal pouch. The two differ whenever stock sits on a retainer, in the
+/// saddlebag, the armoury chest, the glamour dresser or on another character; that difference is a Retrieve step,
+/// not free stock, and <see cref="StoredWhere"/> names the places so the plan can print where to fetch it from.
+/// </para>
+/// <para>
+/// A minimal implementation may return <see cref="Count"/> from <see cref="CountInBags"/> and an empty list from
+/// <see cref="StoredWhere"/>; the plan then behaves exactly as it did before this interface grew, i.e. it assumes
+/// everything owned is in the bags. Adapters that can tell the difference should.
+/// </para>
+/// </summary>
 public interface IInventory
 {
+    /// <summary>Units owned across every enabled inventory source.</summary>
     int Count(uint itemId);
+
+    /// <summary>
+    /// Units physically in the character's bags (and crystal pouch) - what a craft can consume without fetching
+    /// anything. Never greater than <see cref="Count"/>.
+    /// </summary>
+    int CountInBags(uint itemId) => Count(itemId);
+
+    /// <summary>
+    /// Where the units that are <b>not</b> in the bags are sitting, most-stocked first. Only places holding at
+    /// least one unit appear. Empty when everything owned is already in the bags (or when the adapter cannot tell).
+    /// </summary>
+    IReadOnlyList<StoredElsewhere> StoredWhere(uint itemId) => Array.Empty<StoredElsewhere>();
 }
 
 public interface IPriceSource

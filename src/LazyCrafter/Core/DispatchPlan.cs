@@ -16,10 +16,20 @@ namespace LazyCrafter.Core;
 /// <item><see cref="SourceKind.GilVendor"/> → <see cref="Vendor"/>; <see cref="SourceKind.Market"/> → <see cref="Market"/> (Lifestream + shopping list).</item>
 /// <item>anything else → <see cref="Manual"/>.</item>
 /// </list>
-/// A craft is only queued when every material below it is on hand or comes from a gather; a craft that needs a venture
-/// result, a purchase, or a manual item is <see cref="Deferred"/> with the reason, because Artisan would just fail on it.
+/// A craft is only queued when every material below it is <b>in the bags</b> or comes from a gather; a craft that needs a
+/// venture result, a purchase, a manual item, or stock that is sitting somewhere other than the bags is
+/// <see cref="Deferred"/> with the reason, because Artisan would just fail on it.
 /// Crafts whose materials come from a gather carry <see cref="Craft.AfterGather"/> so the executor holds them until GBR is idle
 /// (GBR and Artisan both drive the character; they cannot run at once).
+/// </para>
+/// <para>
+/// <b>Owned is not in-bags.</b> The catalog counts everything AllaganTools can see (Scope §0) - retainers, the
+/// saddlebag, the armoury chest, the glamour dresser, alt characters - so a recipe can read as fully stocked while a
+/// synthesis would fail on the spot, because a craft consumes the four bags plus the crystal pouch and nothing else.
+/// Every unit the plan intends to consume is therefore checked against <see cref="IInventory.CountInBags"/>; the
+/// shortfall becomes a <see cref="Retrieve"/> item naming where to fetch it from, and any craft that would consume
+/// it is deferred rather than handed to Artisan. Passing no inventory keeps the old behaviour (everything owned is
+/// assumed to be in the bags).
 /// </para>
 /// </summary>
 public static class DispatchPlan
@@ -32,6 +42,20 @@ public static class DispatchPlan
     public sealed record Deferral(uint RecipeId, uint ResultItemId, int Crafts, string Reason);
     public sealed record ManualItem(uint ItemId, int Quantity, IReadOnlyList<SourceKind> Sources);
 
+    /// <summary>
+    /// Stock the plan wants to consume that is <b>not in the bags</b>: fetch <see cref="Quantity"/> of
+    /// <see cref="ItemId"/> from <see cref="Where"/> (most-stocked place first) before any craft that needs it can run.
+    /// This is a manual step - LazyCrafter never opens a retainer for you.
+    /// </summary>
+    public sealed record Retrieve(uint ItemId, int Quantity, IReadOnlyList<StoredElsewhere> Where)
+    {
+        /// <summary>"retainer Cid, the saddlebag" - the places, most-stocked first, for one chat line.</summary>
+        public string Places => Where.Count == 0 ? "elsewhere" : string.Join(", ", Where.Select(w => w.Where));
+
+        /// <summary>"107 on retainer Cid, 3 in the saddlebag" - the same places with their counts.</summary>
+        public string Detail => Where.Count == 0 ? $"{Quantity} not in your bags" : string.Join(", ", Where.Select(w => w.Phrase));
+    }
+
     public sealed record Plan(
         IReadOnlyList<Venture> Ventures,
         IReadOnlyList<Gather> Gathers,
@@ -39,9 +63,23 @@ public static class DispatchPlan
         IReadOnlyList<Purchase> Vendor,
         IReadOnlyList<Purchase> Market,
         IReadOnlyList<ManualItem> Manual,
-        IReadOnlyList<Deferral> Deferred)
+        IReadOnlyList<Deferral> Deferred,
+        IReadOnlyList<Retrieve> Retrievals)
     {
-        public bool IsEmpty => Ventures.Count == 0 && Gathers.Count == 0 && Crafts.Count == 0 && Vendor.Count == 0 && Market.Count == 0 && Manual.Count == 0 && Deferred.Count == 0;
+        /// <summary>Back-compat ctor for callers that build a single-channel plan (per-leaf fulfil buttons).</summary>
+        public Plan(
+            IReadOnlyList<Venture> ventures,
+            IReadOnlyList<Gather> gathers,
+            IReadOnlyList<Craft> crafts,
+            IReadOnlyList<Purchase> vendor,
+            IReadOnlyList<Purchase> market,
+            IReadOnlyList<ManualItem> manual,
+            IReadOnlyList<Deferral> deferred)
+            : this(ventures, gathers, crafts, vendor, market, manual, deferred, Array.Empty<Retrieve>()) { }
+
+        public bool IsEmpty => Ventures.Count == 0 && Gathers.Count == 0 && Crafts.Count == 0 && Vendor.Count == 0 && Market.Count == 0 && Manual.Count == 0 && Deferred.Count == 0 && Retrievals.Count == 0;
+
+        /// <summary>Work we can hand off. A retrieval is <b>not</b> work - only the player can do it.</summary>
         public bool HasWork => Ventures.Count + Gathers.Count + Crafts.Count > 0;
         public Dictionary<uint, int> GatherDictionary() => Gathers.GroupBy(g => g.ItemId).ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
         public Dictionary<uint, int> VentureDictionary() => Ventures.GroupBy(v => v.ItemId).ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
@@ -53,6 +91,12 @@ public static class DispatchPlan
     /// Build the plan. <paramref name="lines"/> are the cart's per-line assessments (from <see cref="Tiering.AssessCart"/>,
     /// which shares one inventory ledger so a unit is never credited twice); <paramref name="totals"/> is that cart's
     /// per-item total list. <paramref name="retainers"/> / <paramref name="gatheredItems"/> feed the venture resolver.
+    /// <para>
+    /// <paramref name="inv"/> is the same inventory the assessment was made against and is used for one extra question
+    /// the assessment does not ask: of the units we are about to consume from stock, how many are physically in the
+    /// bags? The rest become <see cref="Plan.Retrievals"/> and block every craft that would consume them. Pass
+    /// <c>null</c> to keep the pre-fix behaviour (owned == in bags).
+    /// </para>
     /// </summary>
     public static Plan Build(
         IReadOnlyList<Line> lines,
@@ -60,7 +104,8 @@ public static class DispatchPlan
         RecipeGraph graph,
         VentureResolver ventures,
         IReadOnlyList<RetainerStats> retainers,
-        IReadOnlySet<uint>? gatheredItems = null)
+        IReadOnlySet<uint>? gatheredItems = null,
+        IInventory? inv = null)
     {
         var ventureList = new List<Venture>();
         var gatherList = new List<Gather>();
@@ -69,13 +114,30 @@ public static class DispatchPlan
         var marketList = new List<Purchase>();
         var manualList = new List<ManualItem>();
         var deferred = new List<Deferral>();
+        var retrieveList = new List<Retrieve>();
 
         // Route every item once, from the cart totals, so the ARC/GBR dictionaries carry the whole cart's quantity.
+        // In the same pass, check the stock we plan to consume against the BAGS: `Have` came from every enabled
+        // inventory source, and a synthesis can only reach the four bags + crystals.
         var routeOf = new Dictionary<uint, Route>();
+        var retrieveOf = new Dictionary<uint, Retrieve>();
         foreach (var leaf in totals)
         {
             var (route, match) = RouteFor(leaf, ventures, retainers, gatheredItems);
             routeOf[leaf.ItemId] = route;
+
+            if (inv is not null && leaf.Have > 0)
+            {
+                var inBags = Math.Max(0, Math.Min(leaf.Have, inv.CountInBags(leaf.ItemId)));
+                var shortfall = leaf.Have - inBags;
+                if (shortfall > 0)
+                {
+                    var r = new Retrieve(leaf.ItemId, shortfall, PlacesFor(inv.StoredWhere(leaf.ItemId), shortfall));
+                    retrieveOf[leaf.ItemId] = r;
+                    retrieveList.Add(r);
+                }
+            }
+
             if (leaf.Missing <= 0) continue;
             switch (route)
             {
@@ -97,14 +159,57 @@ public static class DispatchPlan
             var blockers = new List<string>();
             var afterGather = false;
             foreach (var root in roots)
-                VisitIngredient(root, row.JobId, 0, graph, routeOf, craftList, deferred, blockers, ref afterGather);
+                VisitIngredient(root, row.JobId, 0, graph, routeOf, retrieveOf, craftList, deferred, blockers, ref afterGather);
             if (blockers.Count > 0)
                 deferred.Add(new Deferral(row.RecipeId, row.ResultItemId, line.Crafts, "needs " + string.Join(", ", blockers.Distinct())));
             else
                 craftList.Add(new Craft(row.RecipeId, row.ResultItemId, line.Crafts, 0, afterGather));
         }
 
-        return new Plan(ventureList, gatherList, craftList, vendorList, marketList, manualList, deferred);
+        return new Plan(ventureList, gatherList, craftList, vendorList, marketList, manualList, deferred, retrieveList);
+    }
+
+    /// <summary>The places, most-stocked first, that together hold <paramref name="quantity"/> units; the last is clipped.</summary>
+    private static IReadOnlyList<StoredElsewhere> PlacesFor(IReadOnlyList<StoredElsewhere> where, int quantity)
+    {
+        if (where.Count == 0) return Array.Empty<StoredElsewhere>();
+        var taken = new List<StoredElsewhere>();
+        var left = quantity;
+        foreach (var w in where.OrderByDescending(w => w.Quantity))
+        {
+            if (left <= 0) break;
+            var take = Math.Min(left, w.Quantity);
+            if (take <= 0) continue;
+            taken.Add(take == w.Quantity ? w : w with { Quantity = take });
+            left -= take;
+        }
+        return taken.Count > 0 ? taken : where;
+    }
+
+    /// <summary>
+    /// The guard the executor runs <b>immediately before</b> handing one recipe to Artisan (Plan §Phase 5 defect fix, task 3).
+    /// <para>
+    /// A plan is built once and then executed over minutes: gathers land, sub-crafts consume, the player moves stock
+    /// around. This asks the only question that matters at that instant - can the bags pay for
+    /// <paramref name="crafts"/> runs of <paramref name="recipe"/> right now - and returns one
+    /// <see cref="Retrieve"/> per ingredient that is short, naming where the missing units are sitting. An empty
+    /// list means go. Direct ingredients only: sub-crafts are separate queue entries that have already run by then.
+    /// </para>
+    /// </summary>
+    public static IReadOnlyList<Retrieve> BagsShortfall(RecipeRow recipe, int crafts, IInventory inv)
+    {
+        if (crafts <= 0) return Array.Empty<Retrieve>();
+        var short_ = new List<Retrieve>();
+        foreach (var (itemId, amount) in recipe.Ingredients)
+        {
+            var need = checked(amount * crafts);
+            if (need <= 0) continue;
+            var inBags = Math.Max(0, inv.CountInBags(itemId));
+            if (inBags >= need) continue;
+            var missing = need - inBags;
+            short_.Add(new Retrieve(itemId, missing, PlacesFor(inv.StoredWhere(itemId), missing)));
+        }
+        return short_;
     }
 
     /// <summary>
@@ -146,12 +251,16 @@ public static class DispatchPlan
     /// <summary>
     /// Visit one ingredient node. Emits sub-crafts (children first) into <paramref name="crafts"/>; appends to
     /// <paramref name="blockers"/> when something below cannot be made now; sets <paramref name="afterGather"/> when a gather
-    /// feeds this branch.
+    /// feeds this branch. A node whose on-hand stock is sitting outside the bags blocks too, whatever its route -
+    /// Artisan cannot consume a retainer's stack.
     /// </summary>
     private static void VisitIngredient(IngredientTree.Node node, uint parentJob, int depth, RecipeGraph graph,
-        Dictionary<uint, Route> routeOf, List<Craft> crafts, List<Deferral> deferred, List<string> blockers, ref bool afterGather)
+        Dictionary<uint, Route> routeOf, Dictionary<uint, Retrieve> retrieveOf, List<Craft> crafts, List<Deferral> deferred, List<string> blockers, ref bool afterGather)
     {
         var leaf = node.Leaf;
+        // Checked BEFORE the on-hand early-out: a leaf can be fully "have" and still be unreachable.
+        if (retrieveOf.TryGetValue(leaf.ItemId, out var fetch))
+            blockers.Add($"retrieve #{leaf.ItemId} x{fetch.Quantity} (from {fetch.Places})");
         if (leaf.Missing <= 0) return;
         var route = routeOf.TryGetValue(leaf.ItemId, out var r) ? r : Route.Manual;
         switch (route)
@@ -171,7 +280,7 @@ public static class DispatchPlan
                 var subBlockers = new List<string>();
                 var subAfterGather = false;
                 foreach (var c in node.Children)
-                    VisitIngredient(c, sub.JobId, depth + 1, graph, routeOf, crafts, deferred, subBlockers, ref subAfterGather);
+                    VisitIngredient(c, sub.JobId, depth + 1, graph, routeOf, retrieveOf, crafts, deferred, subBlockers, ref subAfterGather);
                 var subCrafts = (leaf.Missing + Math.Max(1, sub.ResultAmount) - 1) / Math.Max(1, sub.ResultAmount);
                 if (subBlockers.Count > 0)
                 {

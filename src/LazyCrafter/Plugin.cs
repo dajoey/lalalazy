@@ -205,6 +205,7 @@ public sealed class Plugin : IDalamudPlugin
         if (plan is null) return;
         string N(uint id) => GameData?.ItemName(id) ?? $"#{id}";
         ChatGui.Print($"[LazyCrafter] plan for {snap.Cart.Count} cart line(s): " +
+            $"retrieve [{string.Join(", ", plan.Retrievals.Select(r => $"{N(r.ItemId)} x{r.Quantity} from {r.Places}"))}] " +
             $"ARC [{string.Join(", ", plan.Ventures.Select(v => $"{N(v.ItemId)} x{v.Quantity} ({v.Match.Retainer.Name})"))}] " +
             $"GBR [{string.Join(", ", plan.Gathers.Select(x => $"{N(x.ItemId)} x{x.Quantity}"))}] " +
             $"Artisan [{string.Join(", ", plan.Crafts.Select(c => $"{N(c.ResultItemId)} x{c.Crafts}{(c.AfterGather ? "*" : "")}"))}] " +
