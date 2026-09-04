@@ -2,7 +2,7 @@
 
 ## v0.1.0.0 (2026-09-03)
 
-Unreleased development version - not in `pluginmaster.json`; release plumbing is Phase 7.
+Testing-channel build (`IsTestingExclusive`, production pointer stays 0.0.0.0) published 2026-09-03 so the V2 in-game verify can install it through Dalamud; production release plumbing is Phase 7.
 
 ### Added - Phase 5: dispatch - Artisan IPC, GBR reflection, ARC reflection, Lifestream, ReflectionGuard (2026-09-03, t_85ac10ed)
 - `Core/DispatchPlan.cs` - `Build(lines, totals, graph, ventures, retainers)` routes an assessed cart to the hand-off
