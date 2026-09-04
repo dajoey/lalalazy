@@ -1,5 +1,69 @@
 # Changelog
 
+## v0.1.1.0 (2026-09-03)
+
+Testing-channel fix build (production pointer stays 0.0.0.0). **"Owned" is not "in your bags."** Fixes the defect
+Joey hit on his first in-game run of 0.1.0.0 — the dispatcher handed Artisan a craft whose materials were sitting on
+a retainer, Artisan could not start, and LazyCrafter reported `1/1 craft finished` 1.25 s later. His verdict, verbatim:
+*"needs to grab stock before attempting craft"*.
+
+### Fixed
+- `Adapters/DispatchService.cs` (`WaitCraftEnd`) — **no more false success.** Artisan going idle was counted as a
+  finished craft (`_craftsDone++` plus `_made += Crafts * ResultAmount`, old line 268-270) without measuring anything,
+  which is how 107 Super-Ethers "finished" in 1.25 s. The result item's bag count is now read immediately before
+  `Artisan.CraftItem` and again after `IsBusy()` drops; a delta below what the recipe should have produced prints
+  `[LazyCrafter] Artisan: <item> - expected N, made M` as an error and counts under `_craftsFailed`. The summary line
+  now reads `crafts finished M/N` and is measured, not assumed.
+- `Adapters/DispatchService.cs` (`Crafts` phase) — **guard-style refusal.** Before every hand-off the bags are
+  re-read (`Inventory.Invalidate()` then `DispatchPlan.BagsShortfall`) and a craft whose materials are not physically
+  in the bags is refused with one red line —
+  `[LazyCrafter] Artisan craft of <item> refused: <mat> xN is not in your bags (N on retainer <name>)` — plus the
+  matching `retrieve before crafting:` line, and goes to the run's deferral list instead of to Artisan. This is
+  checked at execution time, not just at plan time, because a plan is built once and then runs for minutes.
+- `Core/DispatchPlan.cs` — **Retrieve step.** `Build(...)` takes the inventory it was assessed against and splits the
+  stock it intends to consume into "in the bags" versus "somewhere else", emitting `Plan.Retrievals` —
+  `Retrieve {ItemId, Quantity, Where}` naming each place (`retainer Cid`, `the chocobo saddlebag`,
+  `the armoury chest`, `the glamour dresser`, `the FC chest`), most-stocked first and clipped to what is needed.
+  `VisitIngredient` now blocks on a retrievable leaf **before** the `Missing <= 0` early-out — a leaf can be entirely
+  "have" and still be unreachable — so the craft that would consume it is deferred with
+  `retrieve #<item> xN (from <place>)`, exactly like the existing venture deferral. `Plan.HasWork` deliberately
+  excludes retrievals: fetching is the player's job, not a hand-off. Passing no inventory keeps the old behaviour.
+- `Core/Interfaces.cs` — `IInventory` grew `CountInBags(itemId)` and `StoredWhere(itemId)`, both **default interface
+  members** delegating to `Count`, so an adapter that cannot tell the difference behaves exactly as before (covered by
+  a harness case). Core stays Dalamud-free: the split arrives through the interface, the harness fakes it.
+- `Core/Model/StoredElsewhere.cs` (new) — `{Where, Quantity}` with a `Phrase` that reads "107 on retainer Cid" /
+  "3 in the chocobo saddlebag".
+- `Adapters/AllaganInventory.cs` — implements the split. `CountInBags` reads the client's own
+  `InventoryManager` (the four bags + crystal pouch — authoritative, and right even when AllaganTools is stale);
+  `StoredWhere` does one `AllaganTools.ItemCountOwned` per enabled non-bag source and splits the retainer total per
+  retainer via `AllaganTools.ItemCount(item, retainerId, -1)`, named from `RetainerManager` (`GetRetainerBySortedIndex`
+  → `RetainerId` / `NameString`, refreshed on the framework thread every 30 s). Falls back to an unnamed
+  "your retainers" entry when the names are unknown or the per-retainer counts do not add up. Both are memoised
+  alongside the owned count and cleared by the same inventory events, and are only asked for items a cart actually
+  wants — the extra IPC is bounded by the cart, not the catalog. The count scope used by the **catalog** is unchanged
+  (Scope §0: everything AllaganTools can see); this only changes what the **dispatcher** is willing to act on.
+
+### Added
+- `UI/CartPanel.cs` — the Dispatch hover preview leads with
+  `RETRIEVE FIRST (not in your bags): <item> xN from <place>` when the cart needs it.
+- `Plugin.cs` — `/lcraft plan` prints a `retrieve [...]` group alongside ARC / GBR / Artisan.
+- `DispatchService.Start` — prints one `retrieve before crafting: <item> xN from <place> (N on retainer <name>)` chat
+  line per item up front, ahead of the vendor / market / manual lists, and logs them for the verifier.
+- Harness `tests/LazyCrafter.Harness/DispatchPlanTests.cs` — 9 new cases (**103/103**, was 94): material entirely on a
+  retainer → Retrieve + deferred craft; split bags/retainer → Retrieve for the remainder only; several places →
+  most-stocked first, clipped; everything in the bags → no Retrieve and the craft emitted exactly as before; a
+  sub-craft's own material on a retainer defers both levels; a bag-blind `IInventory` behaves as before the fix; and
+  three `BagsShortfall` cases including the 107-craft scaling that reproduces Joey's log line.
+  `FakeInventory` gained `SetElsewhere(item, n, where)`; `Set` still means "in the bags", so every pre-existing case
+  keeps its meaning.
+
+### Notes
+- Automated retrieval (Artisan's retainer-retrieval, AutoRetainer) is deliberately **not** implemented — the plugin
+  tells you what to fetch and refuses to guess. Opening a retainer for you is a separate decision.
+- No config migration. Users who keep everything in their bags see no behaviour change at all.
+- Fixes the defect filed as t_60a1f11c from V2 verify (skeptic t_398d1b66, comment 533) off Joey's 21:29 ET run.
+- Ships together with 0.1.0.1's packaging fix (`Sylvan.Data.Csv`, t_1a91db8f); this build contains both.
+
 ## v0.1.0.1 (2026-09-03)
 
 Testing-channel fix build (production pointer stays 0.0.0.0). Repairs a **packaging** defect that made every
