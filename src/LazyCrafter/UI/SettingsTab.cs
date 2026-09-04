@@ -93,7 +93,7 @@ public sealed class SettingsTab
         ImGui.SameLine();
         ImGuiComponents.HelpMarker("Hand-off behaviour. Both are off by default.");
         var g = _plugin.Dispatch.Guard;
-        foreach (var pin in new[] { Adapters.Dispatch.GbrDispatch.Pin, Adapters.Dispatch.ArcDispatch.Pin })
+        foreach (var pin in new[] { Adapters.Dispatch.GbrDispatch.Pin, Adapters.Dispatch.ArcDispatch.Pin, Adapters.Dispatch.RetainerFetch.Pin })
         {
             var installed = g.InstalledVersion(pin.InternalName, out var loaded);
             var min = g.Overrides.TryGetValue(pin.InternalName, out var o) ? o : pin.MinVersion;
@@ -103,6 +103,11 @@ public sealed class SettingsTab
             if (ImGui.IsItemHovered()) ImGui.SetTooltip($"{pin.Members.Count} member names verified against {pin.VerifiedAgainst}. A mismatch refuses the hand-off with a chat error instead of throwing. Test it with /lcraft guard {pin.InternalName} 99.0");
         }
         ImGui.TextDisabled($"Artisan {(_plugin.Dispatch.Artisan.Installed ? "loaded" : "missing")} · Lifestream {(_plugin.Dispatch.Lifestream.Installed ? "loaded" : "missing")} · Dagobert {(_plugin.Dispatch.Dagobert.Installed ? "loaded" : "missing")} (IPC)");
+        var fetch = cfg.RetrieveFromRetainers;
+        if (ImGui.Checkbox("Fetch missing materials from your retainers before crafting (needs a summoning bell)", ref fetch)) { cfg.RetrieveFromRetainers = fetch; changed = true; }
+        ImGui.SameLine();
+        ImGuiComponents.HelpMarker("On by default. When a craft's materials are owned but sitting on a retainer, Dispatch walks Artisan's retainer withdrawal (bell -> retainer -> Entrust Items -> withdraw) to move them into your bags, then crafts. Needs Artisan and AllaganTools, and you must be standing next to a summoning bell. Off: LazyCrafter only tells you what to fetch by hand.");
+
         var dago = cfg.DagobertAfterCraft;
         if (ImGui.Checkbox("After Artisan finishes a cart, print Dagobert /pricematch instructions for listing the results", ref dago)) { cfg.DagobertAfterCraft = dago; changed = true; }
         ImGui.SameLine();

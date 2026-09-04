@@ -161,6 +161,7 @@ public sealed class Plugin : IDalamudPlugin
         if (a.Equals("stop", StringComparison.OrdinalIgnoreCase)) { Dispatch.Stop(); return; }
         if (a.Equals("dispatch", StringComparison.OrdinalIgnoreCase)) { Dispatch.DispatchCart(Catalog.Snapshot); return; }
         if (a.Equals("plan", StringComparison.OrdinalIgnoreCase)) { PrintPlan(); return; }
+        if (a.Equals("fetch", StringComparison.OrdinalIgnoreCase)) { FetchCommand(); return; }
         if (a.StartsWith("guard", StringComparison.OrdinalIgnoreCase)) { GuardCommand(a[5..].Trim()); return; }
         _mainWindow.Toggle();
     }
@@ -186,7 +187,7 @@ public sealed class Plugin : IDalamudPlugin
             ChatGui.Print($"[LazyCrafter] guard: {parts[0]} now requires >= {v} for this session (installed {g.InstalledVersion(parts[0], out _)?.ToString() ?? "none"}). Dispatch to see the refusal; '/lcraft guard reset' to undo.");
             return;
         }
-        foreach (var pin in new[] { Adapters.Dispatch.GbrDispatch.Pin, Adapters.Dispatch.ArcDispatch.Pin })
+        foreach (var pin in new[] { Adapters.Dispatch.GbrDispatch.Pin, Adapters.Dispatch.ArcDispatch.Pin, Adapters.Dispatch.RetainerFetch.Pin })
         {
             var installed = g.InstalledVersion(pin.InternalName, out var loaded);
             var min = g.Overrides.TryGetValue(pin.InternalName, out var o) ? o : pin.MinVersion;
@@ -195,6 +196,18 @@ public sealed class Plugin : IDalamudPlugin
             if (r is not null) ChatGui.Print($"[LazyCrafter] guard {pin.InternalName}: OK - all {r.Members.Count} members resolved on {r.Version}.");
         }
         ChatGui.Print($"[LazyCrafter] Artisan {(Dispatch.Artisan.Installed ? "loaded" : "missing")}, Lifestream {(Dispatch.Lifestream.Installed ? "loaded" : "missing")}, Dagobert {(Dispatch.Dagobert.Installed ? "loaded" : "missing")} (IPC, no reflection).");
+    }
+
+    /// <summary>
+    /// <c>/lcraft fetch</c>: retrieve the current cart's out-of-bags materials from the retainers and stop there
+    /// (card t_63b845ad) - the same machinery Dispatch runs first, without the crafting.
+    /// </summary>
+    private void FetchCommand()
+    {
+        var plan = Dispatch.PlanFor(Catalog.Snapshot);
+        if (plan is null) return;
+        if (plan.Retrievals.Count == 0) { ChatGui.Print("[LazyCrafter] nothing to fetch - every material the cart needs is already in your bags."); return; }
+        Dispatch.RetrieveOnly(plan.Retrievals);
     }
 
     /// <summary><c>/lcraft plan</c>: what Dispatch would do with the cart, without doing it.</summary>

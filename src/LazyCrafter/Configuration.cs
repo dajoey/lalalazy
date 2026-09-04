@@ -7,7 +7,7 @@ namespace LazyCrafter;
 [Serializable]
 public sealed class Configuration : IPluginConfiguration
 {
-    public const int CurrentVersion = 3;
+    public const int CurrentVersion = 4;
 
     public int Version { get; set; } = CurrentVersion;
 
@@ -40,6 +40,16 @@ public sealed class Configuration : IPluginConfiguration
     public bool DagobertAfterCraft { get; set; } = false;
     public bool VnavWalkToVendor { get; set; } = false;
 
+    // ---- v4 (retrieve from retainers, card t_63b845ad) ----
+
+    /// <summary>
+    /// Fetch materials that are sitting on a retainer into the bags before crafting, by driving Artisan's
+    /// <c>RestockFromRetainers</c> at a summoning bell (Joey: "stock the ingredients in my bag first").
+    /// ON by default: without it a cart whose materials are on a retainer can only be refused, which is the
+    /// nag loop this replaces. Turn it off to go back to being told what to fetch by hand.
+    /// </summary>
+    public bool RetrieveFromRetainers { get; set; } = true;
+
     /// <summary>The cart, so it survives a plugin reload.</summary>
     public List<CartEntry> Cart { get; set; } = new();
 
@@ -63,6 +73,8 @@ public sealed class Configuration : IPluginConfiguration
         foreach (var s in Enum.GetValues<InventorySource>())
             EnabledSources.TryAdd(s.ToString(), InventorySources.DefaultFor(s));
         // v2 -> v3: new fields all have safe defaults (dispatch toggles OFF); nothing to rewrite.
+        // v3 -> v4: RetrieveFromRetainers defaults ON - an existing config that never had the field gets the
+        // new behaviour, which is the fix the user asked for; it is opt-OUT, not opt-in.
         Cart ??= new List<CartEntry>();
         Version = CurrentVersion;
     }

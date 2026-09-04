@@ -105,9 +105,29 @@ public sealed class IngredientTree
     /// <summary>One small button per channel that could fill this leaf; each calls the matching hand-off on the framework thread.</summary>
     private void DrawFulfil(IngredientLeaf leaf, uint parentJob)
     {
-        if (leaf.Missing == 0) return;
         var d = _plugin.Dispatch;
         var busy = d.Running;
+
+        // Owned but not in the bags: a craft cannot consume it until it is fetched (card t_63b845ad).
+        var outside = _plugin.Inventory.StoredWhere(leaf.ItemId);
+        var needed = Math.Max(0, leaf.Need - _plugin.Inventory.CountInBags(leaf.ItemId));
+        var fetchable = Math.Min(needed, outside.Sum(o => o.Quantity));
+        if (fetchable > 0)
+        {
+            if (busy) ImGui.BeginDisabled();
+            if (ImGui.SmallButton("Retrieve"))
+            {
+                var rid = leaf.ItemId;
+                var rqty = fetchable;
+                Plugin.Framework.RunOnFrameworkThread(() => d.RetrieveOne(rid, rqty));
+            }
+            if (busy) ImGui.EndDisabled();
+            if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+                ImGui.SetTooltip(busy ? $"dispatch running: {d.Status}" : $"Fetch {fetchable} from {Places(outside)} into your bags (Artisan retainer withdrawal; stand by a summoning bell).");
+            if (leaf.Missing > 0) ImGui.SameLine();
+        }
+
+        if (leaf.Missing == 0) return;
         var first = true;
         var shown = new HashSet<string>();
         foreach (var s in leaf.Sources)
@@ -151,6 +171,9 @@ public sealed class IngredientTree
             if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) ImGui.SetTooltip(busy && label != "Vendor" && label != "Buy" ? $"dispatch running: {d.Status}" : tip);
         }
     }
+
+    /// <summary>"retainer Hussypants, the saddlebag" - where a leaf's out-of-bags stock is sitting.</summary>
+    private static string Places(IReadOnlyList<StoredElsewhere> where) => string.Join(", ", where.Select(w => w.Where));
 
     private string Name(uint itemId) => _plugin.GameData?.ItemName(itemId) ?? $"#{itemId}";
 }

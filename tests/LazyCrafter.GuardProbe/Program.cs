@@ -19,7 +19,7 @@ AssemblyLoadContext.Default.Resolving += (_, name) =>
     return File.Exists(path) ? AssemblyLoadContext.Default.LoadFromAssemblyPath(path) : null;
 };
 
-foreach (var pin in new[] { GbrDispatch.Pin, ArcDispatch.Pin })
+foreach (var pin in new[] { GbrDispatch.Pin, ArcDispatch.Pin, RetainerFetch.Pin })
 {
     var dir = Path.Combine(installed, pin.InternalName);
     if (!Directory.Exists(dir)) { Console.WriteLine($"{pin.InternalName}: NOT INSTALLED ({dir})"); failures++; continue; }
