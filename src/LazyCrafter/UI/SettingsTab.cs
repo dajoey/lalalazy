@@ -8,9 +8,9 @@ namespace LazyCrafter.UI;
 
 /// <summary>
 /// Settings (Plan §Phase 4 task 5): inventory source toggles, price basis / scope / refresh interval, undersupplied
-/// thresholds, and the dispatch toggles - Dagobert list-after-craft and vnavmesh walk-to-vendor - which exist but
-/// default OFF (the behaviour lands in Phase 5 / after the Phase 6 spike). Every change saves immediately and
-/// invalidates the catalog.
+/// thresholds, the dispatch toggles - Dagobert list-after-craft (Phase 5, read by DispatchService) and vnavmesh
+/// walk-to-vendor (still hidden behind the Phase 6 spike) - and the reflection-guard status of the GBR / ARC
+/// hand-offs. Every change saves immediately and invalidates the catalog.
 /// </summary>
 public sealed class SettingsTab
 {
@@ -70,11 +70,22 @@ public sealed class SettingsTab
 
         ImGui.TextColored(ImGuiColors.ParsedGold, "Dispatch");
         ImGui.SameLine();
-        ImGuiComponents.HelpMarker("Hand-off behaviour. Both are off by default; the hand-offs themselves arrive with the dispatch phase.");
+        ImGuiComponents.HelpMarker("Hand-off behaviour. Both are off by default.");
+        var g = _plugin.Dispatch.Guard;
+        foreach (var pin in new[] { Adapters.Dispatch.GbrDispatch.Pin, Adapters.Dispatch.ArcDispatch.Pin })
+        {
+            var installed = g.InstalledVersion(pin.InternalName, out var loaded);
+            var min = g.Overrides.TryGetValue(pin.InternalName, out var o) ? o : pin.MinVersion;
+            var ok = installed is not null && loaded && installed >= min;
+            ImGui.TextColored(ok ? ImGuiColors.HealerGreen : ImGuiColors.DalamudOrange,
+                $"{pin.InternalName}: {(installed is null ? "not installed" : loaded ? installed.ToString() : installed + " (not loaded)")} - reflection pinned to [{min}, {pin.MaxVerified}){(o is not null ? " [session override]" : "")}");
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip($"{pin.Members.Count} member names verified against {pin.VerifiedAgainst}. A mismatch refuses the hand-off with a chat error instead of throwing. Test it with /lcraft guard {pin.InternalName} 99.0");
+        }
+        ImGui.TextDisabled($"Artisan {(_plugin.Dispatch.Artisan.Installed ? "loaded" : "missing")} · Lifestream {(_plugin.Dispatch.Lifestream.Installed ? "loaded" : "missing")} · Dagobert {(_plugin.Dispatch.Dagobert.Installed ? "loaded" : "missing")} (IPC)");
         var dago = cfg.DagobertAfterCraft;
         if (ImGui.Checkbox("After Artisan finishes a cart, print Dagobert /pricematch instructions for listing the results", ref dago)) { cfg.DagobertAfterCraft = dago; changed = true; }
         ImGui.SameLine();
-        ImGuiComponents.HelpMarker("Optional, never forced (Scope §0 item 6). v1 prints instructions to chat; the sell list itself is not automated.");
+        ImGuiComponents.HelpMarker("Optional, never forced (Scope §0 item 6). Prints what was crafted and the /pricematch instructions to chat when a cart finishes; the sell list itself is not automated (Dagobert has no IPC for it).");
         var vnav = cfg.VnavWalkToVendor;
         if (ImGui.Checkbox("Walk to vendors with vnavmesh after a Lifestream teleport (experimental)", ref vnav)) { cfg.VnavWalkToVendor = vnav; changed = true; }
         ImGui.SameLine();

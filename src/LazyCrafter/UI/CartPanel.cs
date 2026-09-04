@@ -7,15 +7,33 @@ namespace LazyCrafter.UI;
 
 /// <summary>
 /// Bottom panel (Plan §Phase 4 task 4): the cart - recipe x quantity lines with cash cost, the aggregated missing
-/// list across the whole cart (one shared inventory ledger, see <see cref="Tiering.AssessCart"/>), a disabled
-/// <b>Dispatch</b> button that Phase 5 turns on, and <b>Export to TeamCraft</b>.
+/// list across the whole cart (one shared inventory ledger, see <see cref="Tiering.AssessCart"/>), <b>Dispatch</b>
+/// (Phase 5: ARC → GBR → Artisan through <see cref="Adapters.DispatchService"/>, with a Stop while it runs and a
+/// preview tooltip from <see cref="DispatchPlan"/>), and <b>Export to TeamCraft</b>.
 /// </summary>
 public sealed class CartPanel
 {
     private readonly Plugin _plugin;
     private bool _collapsed;
+    private DispatchPlan.Plan? _preview;
+    private int _previewFor = -1;
 
     public CartPanel(Plugin plugin) => _plugin = plugin;
+
+    private string PreviewText(DispatchPlan.Plan p)
+    {
+        string N(uint id) => _plugin.GameData?.ItemName(id) ?? $"#{id}";
+        var sb = new System.Text.StringBuilder("Dispatch order: ARC -> GBR -> Artisan\n");
+        if (p.Ventures.Count > 0) sb.Append("ARC ventures: ").AppendJoin(", ", p.Ventures.Select(v => $"{N(v.ItemId)} x{v.Quantity} ({v.Match.Retainer.Name})")).Append('\n');
+        if (p.Gathers.Count > 0) sb.Append("GBR gather: ").AppendJoin(", ", p.Gathers.Select(g => $"{N(g.ItemId)} x{g.Quantity}")).Append('\n');
+        if (p.Crafts.Count > 0) sb.Append("Artisan crafts: ").AppendJoin(", ", p.Crafts.Select(c => $"{N(c.ResultItemId)} x{c.Crafts}{(c.AfterGather ? "*" : "")}")).Append('\n');
+        if (p.Vendor.Count > 0) sb.Append("Gil vendor (list + map flag): ").AppendJoin(", ", p.Vendor.Select(v => $"{N(v.ItemId)} x{v.Quantity}")).Append('\n');
+        if (p.Market.Count > 0) sb.Append("Market board (list): ").AppendJoin(", ", p.Market.Select(v => $"{N(v.ItemId)} x{v.Quantity}")).Append('\n');
+        if (p.Manual.Count > 0) sb.Append("Manual: ").AppendJoin(", ", p.Manual.Select(v => $"{N(v.ItemId)} x{v.Quantity}")).Append('\n');
+        if (p.Deferred.Count > 0) sb.Append("Not crafted yet (blocked): ").AppendJoin(", ", p.Deferred.Select(d => N(d.ResultItemId))).Append('\n');
+        if (p.Crafts.Any(c => c.AfterGather)) sb.Append("* waits for GBR to finish");
+        return sb.ToString().TrimEnd();
+    }
 
     public float DesiredHeight(CatalogSnapshot snap)
     {
@@ -44,10 +62,23 @@ public sealed class CartPanel
             ImGui.SameLine();
             ImGui.TextDisabled($"cash cost {(complete ? "" : ">")}{Fmt.Gil(cost)}");
             ImGui.SameLine();
-            ImGui.BeginDisabled();
-            ImGui.Button("Dispatch");
-            ImGui.EndDisabled();
-            if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) ImGui.SetTooltip("Phase 5: sends ventures to ARC, gathering to GBR, then crafts with Artisan.");
+            var dispatch = _plugin.Dispatch;
+            if (dispatch.Running)
+            {
+                if (ImGui.Button("Stop")) dispatch.Stop();
+                ImGui.SameLine();
+                ImGui.TextColored(ImGuiColors.DalamudOrange, dispatch.Status);
+            }
+            else
+            {
+                if (ImGui.Button("Dispatch")) dispatch.DispatchCart(snap);
+                if (ImGui.IsItemHovered())
+                {
+                    if (_previewFor != snap.Generation) { _preview = dispatch.PlanFor(snap); _previewFor = snap.Generation; }
+                    ImGui.SetTooltip(_preview is null ? "Sends ventures to ARC, gathering to GBR, then crafts with Artisan (in that order)." : PreviewText(_preview));
+                }
+                if (dispatch.Current is Adapters.DispatchService.Phase.Failed) { ImGui.SameLine(); ImGui.TextColored(ImGuiColors.DalamudRed, dispatch.Status); }
+            }
             ImGui.SameLine();
             if (ImGui.Button("Export to TeamCraft"))
             {

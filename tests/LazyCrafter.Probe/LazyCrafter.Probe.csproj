@@ -17,6 +17,7 @@
     <Compile Include="..\..\src\LazyCrafter\Core\**\*.cs" Link="Core\%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="..\..\src\LazyCrafter\Adapters\LuminaGameData.cs" Link="Adapters\LuminaGameData.cs" />
     <Compile Include="..\..\src\LazyCrafter\Adapters\UniversalisClient.cs" Link="Adapters\UniversalisClient.cs" />
+    <Compile Include="..\..\src\LazyCrafter\Adapters\VendorLocator.cs" Link="Adapters\VendorLocator.cs" />
     <Compile Include="..\..\src\LazyCrafter\Catalog\CatalogRow.cs" Link="Catalog\CatalogRow.cs" />
     <Compile Include="..\..\src\LazyCrafter\Catalog\CatalogView.cs" Link="Catalog\CatalogView.cs" />
     <Compile Include="..\..\src\LazyCrafter\Catalog\CatalogBuilder.cs" Link="Catalog\CatalogBuilder.cs" />

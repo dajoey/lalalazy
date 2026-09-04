@@ -29,6 +29,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
     [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
     [PluginService] internal static IPlayerState PlayerStateSvc { get; private set; } = null!;
+    [PluginService] internal static IGameGui GameGui { get; private set; } = null!;
 
     private const string CommandName = "/lcraft";
 
@@ -46,6 +47,9 @@ public sealed class Plugin : IDalamudPlugin
 
     // Phase 4: every expensive computation behind the window lives here, on its own worker.
     public CatalogService Catalog { get; }
+
+    // Phase 5: the hand-offs (ARC / GBR / Artisan / Lifestream / Dagobert) and the ReflectionGuard behind two of them.
+    public DispatchService Dispatch { get; }
 
     private readonly WindowSystem _windows = new("LazyCrafter");
     private readonly MainWindow _mainWindow;
@@ -78,7 +82,7 @@ public sealed class Plugin : IDalamudPlugin
 
         Commands.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Toggle the LazyCrafter window. '/lcraft debug' dumps state to the log; '/lcraft prices' refreshes Universalis.",
+            HelpMessage = "Toggle the LazyCrafter window. debug | prices | plan | dispatch | stop | guard <plugin> <minVersion> | guard reset",
         });
 
         // Sheet indexing takes a few hundred ms - never on the framework thread.
@@ -98,6 +102,7 @@ public sealed class Plugin : IDalamudPlugin
         }, _cts.Token);
 
         Catalog = new CatalogService(this, Framework, Log);
+        Dispatch = new DispatchService(this, Framework, ChatGui, Log);
         _mainWindow = new MainWindow(this);
         _windows.AddWindow(_mainWindow);
 
@@ -152,7 +157,61 @@ public sealed class Plugin : IDalamudPlugin
         var a = args.Trim();
         if (a.Equals("debug", StringComparison.OrdinalIgnoreCase)) { LogDebugState(); return; }
         if (a.Equals("prices", StringComparison.OrdinalIgnoreCase)) { PrimeSamplePrices(); return; }
+        if (a.Equals("stop", StringComparison.OrdinalIgnoreCase)) { Dispatch.Stop(); return; }
+        if (a.Equals("dispatch", StringComparison.OrdinalIgnoreCase)) { Dispatch.DispatchCart(Catalog.Snapshot); return; }
+        if (a.Equals("plan", StringComparison.OrdinalIgnoreCase)) { PrintPlan(); return; }
+        if (a.StartsWith("guard", StringComparison.OrdinalIgnoreCase)) { GuardCommand(a[5..].Trim()); return; }
         _mainWindow.Toggle();
+    }
+
+    /// <summary>
+    /// <c>/lcraft guard &lt;InternalName&gt; &lt;minVersion&gt;</c> raises a hand-off's minimum version for this session (Plan §Phase 5
+    /// acceptance: "reflection guard demonstrably refuses when version mismatch is simulated"); <c>guard reset</c> clears;
+    /// <c>guard</c> alone shows the pins against what is installed.
+    /// </summary>
+    private void GuardCommand(string args)
+    {
+        var g = Dispatch.Guard;
+        if (args.Equals("reset", StringComparison.OrdinalIgnoreCase))
+        {
+            foreach (var k in g.Overrides.Keys.ToList()) g.OverrideMinVersion(k, null);
+            ChatGui.Print("[LazyCrafter] guard overrides cleared.");
+            return;
+        }
+        var parts = args.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 2 && System.Version.TryParse(parts[1], out var v))
+        {
+            g.OverrideMinVersion(parts[0], v);
+            ChatGui.Print($"[LazyCrafter] guard: {parts[0]} now requires >= {v} for this session (installed {g.InstalledVersion(parts[0], out _)?.ToString() ?? "none"}). Dispatch to see the refusal; '/lcraft guard reset' to undo.");
+            return;
+        }
+        foreach (var pin in new[] { Adapters.Dispatch.GbrDispatch.Pin, Adapters.Dispatch.ArcDispatch.Pin })
+        {
+            var installed = g.InstalledVersion(pin.InternalName, out var loaded);
+            var min = g.Overrides.TryGetValue(pin.InternalName, out var o) ? o : pin.MinVersion;
+            ChatGui.Print($"[LazyCrafter] guard {pin.InternalName}: installed {installed?.ToString() ?? "none"}{(installed is not null && !loaded ? " (not loaded)" : "")}, pinned [{min}, {pin.MaxVerified}) - {pin.Members.Count} members verified against {pin.VerifiedAgainst}{(o is not null ? " [OVERRIDE]" : "")}.");
+            var r = g.Require(pin, pin.InternalName + " check");
+            if (r is not null) ChatGui.Print($"[LazyCrafter] guard {pin.InternalName}: OK - all {r.Members.Count} members resolved on {r.Version}.");
+        }
+        ChatGui.Print($"[LazyCrafter] Artisan {(Dispatch.Artisan.Installed ? "loaded" : "missing")}, Lifestream {(Dispatch.Lifestream.Installed ? "loaded" : "missing")}, Dagobert {(Dispatch.Dagobert.Installed ? "loaded" : "missing")} (IPC, no reflection).");
+    }
+
+    /// <summary><c>/lcraft plan</c>: what Dispatch would do with the cart, without doing it.</summary>
+    private void PrintPlan()
+    {
+        var snap = Catalog.Snapshot;
+        var plan = Dispatch.PlanFor(snap);
+        if (plan is null) return;
+        string N(uint id) => GameData?.ItemName(id) ?? $"#{id}";
+        ChatGui.Print($"[LazyCrafter] plan for {snap.Cart.Count} cart line(s): " +
+            $"ARC [{string.Join(", ", plan.Ventures.Select(v => $"{N(v.ItemId)} x{v.Quantity} ({v.Match.Retainer.Name})"))}] " +
+            $"GBR [{string.Join(", ", plan.Gathers.Select(x => $"{N(x.ItemId)} x{x.Quantity}"))}] " +
+            $"Artisan [{string.Join(", ", plan.Crafts.Select(c => $"{N(c.ResultItemId)} x{c.Crafts}{(c.AfterGather ? "*" : "")}"))}] " +
+            $"vendor [{string.Join(", ", plan.Vendor.Select(x => $"{N(x.ItemId)} x{x.Quantity}"))}] " +
+            $"market [{string.Join(", ", plan.Market.Select(x => $"{N(x.ItemId)} x{x.Quantity}"))}] " +
+            $"manual [{string.Join(", ", plan.Manual.Select(x => $"{N(x.ItemId)} x{x.Quantity}"))}] " +
+            $"deferred [{string.Join(", ", plan.Deferred.Select(d => $"{N(d.ResultItemId)} x{d.Crafts}"))}]" +
+            (plan.Crafts.Any(c => c.AfterGather) ? " (* = after GBR finishes)" : ""));
     }
 
     /// <summary>Phase 3 acceptance: recipe count, inventory source states, price cache size, DC, retainer count.</summary>
@@ -183,6 +242,9 @@ public sealed class Plugin : IDalamudPlugin
             string.Join(",", snap.TierCounts.OrderBy(kv => kv.Key).Select(kv => $"{kv.Key}={kv.Value}")),
             snap.NotYetCrafted, snap.PricedRows, snap.Cart.Count, Catalog.View.Request.Tab, Catalog.View.Rows.Count,
             snap.ComputedAt == DateTime.MinValue ? "never" : snap.ComputedAt.ToString("HH:mm:ss"), (int)snap.Duration.TotalMilliseconds);
+        Log.Information("[LazyCrafter debug] dispatch: phase={Phase} status={Status} artisan={Artisan} gbr={Gbr} arc={Arc} lifestream={Ls} dagobert={Dago} guardOverrides={Ov}",
+            Dispatch.Current, Dispatch.Status, Dispatch.Artisan.Installed, Dispatch.Gbr.Installed, Dispatch.Arc.Installed, Dispatch.Lifestream.Installed, Dispatch.Dagobert.Installed,
+            string.Join(",", Dispatch.Guard.Overrides.Select(kv => $"{kv.Key}>={kv.Value}")));
         foreach (var r in Player.Retainers)
             Log.Information("[LazyCrafter debug]   retainer {Name} lvl={Level} job={Job} ilvl={Ilvl} gathering={Gathering} perception={Perception}",
                 r.Name, r.Level, r.JobId, r.ItemLevel, r.Gathering, r.Perception);
@@ -219,6 +281,7 @@ public sealed class Plugin : IDalamudPlugin
         Pi.UiBuilder.OpenConfigUi -= OpenMain;
         Pi.UiBuilder.OpenMainUi -= OpenMain;
         _windows.RemoveAllWindows();
+        Dispatch.Dispose();
         Catalog.Dispose();
         Inventory.Dispose();
         Prices.Dispose();

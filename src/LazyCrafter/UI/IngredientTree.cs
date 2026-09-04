@@ -1,14 +1,15 @@
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Colors;
 using LazyCrafter.Catalog;
+using LazyCrafter.Core;
 using LazyCrafter.Core.Model;
 
 namespace LazyCrafter.UI;
 
 /// <summary>
 /// Right-hand panel (Plan §Phase 4 task 3): the selected recipe's ingredient tree - per leaf have/need, source
-/// kinds, tier, unit price - plus a fulfil button per available channel. In Phase 4 the buttons are placeholders
-/// that say what Phase 5 will do (Artisan / GBR / ARC / Lifestream) and are disabled; only "Add to cart" acts.
+/// kinds, tier, unit price - plus a fulfil button per available channel (Phase 5): Craft → Artisan, Gather → GBR,
+/// Venture → ARC, Vendor → Lifestream teleport + map flag, Buy → Lifestream /li mb + shopping list.
 /// </summary>
 public sealed class IngredientTree
 {
@@ -64,11 +65,11 @@ public sealed class IngredientTree
         ImGui.TableHeadersRow();
 
         var roots = Core.IngredientTree.Build(row.Leaves);
-        foreach (var node in roots) DrawNode(node, 0);
+        foreach (var node in roots) DrawNode(node, 0, row.JobId);
         ImGui.EndTable();
     }
 
-    private void DrawNode(Core.IngredientTree.Node node, int depth)
+    private void DrawNode(Core.IngredientTree.Node node, int depth, uint parentJob)
     {
         var leaf = node.Leaf;
         ImGui.TableNextRow();
@@ -90,39 +91,64 @@ public sealed class IngredientTree
         var unit = _plugin.Catalog.UnitCost(leaf.ItemId);
         if (unit is { } u) ImGui.TextUnformatted(Fmt.Gil(u)); else ImGui.TextDisabled("-");
         ImGui.TableNextColumn();
-        DrawFulfil(leaf);
+        DrawFulfil(leaf, parentJob);
 
         if (open && node.Children.Count > 0)
         {
-            foreach (var c in node.Children) DrawNode(c, depth + 1);
+            var subJob = _plugin.Dispatch.RecipeFor(leaf.ItemId, parentJob)?.JobId ?? parentJob;
+            foreach (var c in node.Children) DrawNode(c, depth + 1, subJob);
             ImGui.TreePop();
         }
         ImGui.PopID();
     }
 
-    /// <summary>One small button per channel that could fill this leaf. Phase 5 wires them; here they are disabled hints.</summary>
-    private static void DrawFulfil(IngredientLeaf leaf)
+    /// <summary>One small button per channel that could fill this leaf; each calls the matching hand-off on the framework thread.</summary>
+    private void DrawFulfil(IngredientLeaf leaf, uint parentJob)
     {
         if (leaf.Missing == 0) return;
+        var d = _plugin.Dispatch;
+        var busy = d.Running;
         var first = true;
+        var shown = new HashSet<string>();
         foreach (var s in leaf.Sources)
         {
             var (label, tip) = s switch
             {
-                SourceKind.SubCraft => ("Craft", "Artisan.CraftItem - Phase 5"),
-                SourceKind.RegularNode or SourceKind.TimedNode or SourceKind.Fish => ("Gather", "GatherBuddyReborn gather list - Phase 5"),
-                SourceKind.Venture => ("Venture", "ARC venture list - Phase 5"),
-                SourceKind.GilVendor or SourceKind.SpecialShop => ("Vendor", "Lifestream teleport + map flag - Phase 5"),
-                SourceKind.Market => ("Buy", "Lifestream /li mb + shopping list - Phase 5"),
+                SourceKind.SubCraft => ("Craft", $"Artisan: craft {leaf.Missing} with the same-job recipe (Artisan.CraftItem)"),
+                SourceKind.RegularNode or SourceKind.TimedNode or SourceKind.Fish => ("Gather", $"GatherBuddyReborn: put {leaf.Missing} on the 'LazyCrafter' gather list and start auto-gather"),
+                SourceKind.Venture => ("Venture", $"ARC: queue {leaf.Missing} on the 'LazyCrafter' venture list"),
+                SourceKind.GilVendor => ("Vendor", "Lifestream: teleport to the nearest vendor that sells it and flag it on the map"),
+                SourceKind.Market => ("Buy", "Lifestream: /li mb + shopping list in chat"),
                 _ => ("", ""),
             };
-            if (label.Length == 0) continue;
+            if (label.Length == 0 || !shown.Add(label)) continue;
             if (!first) ImGui.SameLine();
             first = false;
-            ImGui.BeginDisabled();
-            ImGui.SmallButton(label);
-            ImGui.EndDisabled();
-            if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) ImGui.SetTooltip(tip);
+            if (busy && label != "Vendor" && label != "Buy") ImGui.BeginDisabled();
+            if (ImGui.SmallButton(label))
+            {
+                var itemId = leaf.ItemId;
+                var qty = leaf.Missing;
+                Plugin.Framework.RunOnFrameworkThread(() =>
+                {
+                    switch (label)
+                    {
+                        case "Craft":
+                        {
+                            var sub = d.RecipeFor(itemId, parentJob);
+                            if (sub is null) { Plugin.ChatGui.PrintError($"[LazyCrafter] no recipe found for {Name(itemId)}."); break; }
+                            d.CraftOne(sub.RecipeId, (qty + Math.Max(1, sub.ResultAmount) - 1) / Math.Max(1, sub.ResultAmount));
+                            break;
+                        }
+                        case "Gather": d.GatherOne(itemId, qty); break;
+                        case "Venture": d.VentureOne(itemId, qty); break;
+                        case "Vendor": d.VendorOne(itemId, qty); break;
+                        case "Buy": d.MarketOne(itemId, qty); break;
+                    }
+                });
+            }
+            if (busy && label != "Vendor" && label != "Buy") ImGui.EndDisabled();
+            if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) ImGui.SetTooltip(busy && label != "Vendor" && label != "Buy" ? $"dispatch running: {d.Status}" : tip);
         }
     }
 

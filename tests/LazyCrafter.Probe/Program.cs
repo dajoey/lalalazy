@@ -172,6 +172,36 @@ using (var uni2 = new UniversalisClient(cacheDir, "probe", Console.WriteLine))
     Console.WriteLine($"  tree for {easyRow.Name}: " + string.Join("; ", LazyCrafter.Core.IngredientTree.Flatten(tree).Select(x => new string(' ', x.Depth * 2) + $"{gd.ItemName(x.Node.Leaf.ItemId)} {x.Node.Leaf.Have}/{x.Node.Leaf.Need} [{string.Join(",", x.Node.Leaf.Sources)}]")));
     Console.WriteLine($"catalog probe done in {swAll.ElapsedMilliseconds} ms");
 }
+// ---- Phase 5: VendorLocator (gil-vendor -> nearest aetheryte) and DispatchPlan over a real cart ----
+{
+    var vl = new VendorLocator(data, Console.WriteLine);
+    // Coal-ish staples every crafter buys: Iron Ore (5111) is gathered, but Alumen (5524), Bomb Ash (5530), Black Alumen (5525), Growth Formula Alpha (5352)? -> use known vendor goods:
+    // 5384 Maple Sap? no. Use: 5525 Black Alumen (vendor), 5530? Query a handful and print whatever resolves.
+    var vendorIds = new uint[] { 5525, 5524, 5527, 5528, 5530, 4551, 5333, 5061, 5333, 8 };
+    var located = 0;
+    foreach (var id in vendorIds.Distinct())
+    {
+        var loc = vl.Find(id);
+        if (loc is null) { Console.WriteLine($"  vendor {id} {gd.ItemName(id)}: none (gilVendor={gd.IsGilVendor(id, out _)})"); continue; }
+        located++;
+        Console.WriteLine($"  vendor {id} {gd.ItemName(id)}: {loc.NpcName} @ {loc.TerritoryName} ({loc.MapCoords.X:0.0}, {loc.MapCoords.Y:0.0}) map {loc.MapId}; aetheryte {loc.AetheryteId} {loc.AetheryteName} ({loc.AetheryteMapCoords.X:0.0}, {loc.AetheryteMapCoords.Y:0.0}) dist {loc.MapDistance:0.0}");
+    }
+    var groups = vl.Plan([(5525u, 3), (5524u, 2), (5527u, 1), (4551u, 5)], out var unlocated);
+    Console.WriteLine($"  vendor plan: {groups.Count} stop(s) - " + string.Join(" | ", groups.Select(g => $"{g.Where.NpcName} @ {g.Where.TerritoryName}: {string.Join(", ", g.Items.Select(i => $"{gd.ItemName(i.ItemId)} x{i.Quantity}"))}")) + $"; unlocated {unlocated.Count}");
+    Console.WriteLine($"  VendorLocator: {vl.ShopItemCount} gil-shop items, {vl.PlacedNpcCount} placed shop NPCs, located {located}/{vendorIds.Distinct().Count()} probes");
+
+    // DispatchPlan over the same two-line cart the P4 probe built (empty-ish inventory): every channel should be exercised.
+    var vres = new VentureResolver(gd);
+    var tier = new Tiering(graph, new SourceClassifier(gd, graph, vres, retainers));
+    var cartIds = graph.RecipeIds.Select(graph.Row).Where(r => r is not null && gd.IsMarketable(r.ResultItemId) && r.Level is >= 20 and <= 40).Take(2).Select(r => r!.RecipeId).ToList();
+    var cartA = tier.AssessCart(cartIds.Select(id => (id, 1)).ToList(), inv);
+    var plan = DispatchPlan.Build(cartA.Lines.Select(a => new DispatchPlan.Line(a, 1)).ToList(), cartA.Totals, graph, vres, retainers);
+    Console.WriteLine($"  dispatch plan for [{string.Join(", ", cartIds.Select(id => gd.ItemName(graph.Row(id)!.ResultItemId)))}]: " +
+        $"ARC {plan.Ventures.Count} [{string.Join(", ", plan.Ventures.Select(v => $"{gd.ItemName(v.ItemId)} x{v.Quantity} via {v.Match.Retainer.Name}"))}] " +
+        $"GBR {plan.Gathers.Count} [{string.Join(", ", plan.Gathers.Select(g => $"{gd.ItemName(g.ItemId)} x{g.Quantity}"))}] " +
+        $"Artisan {plan.Crafts.Count} [{string.Join(", ", plan.Crafts.Select(c => $"{gd.ItemName(c.ResultItemId)} x{c.Crafts} d{c.Depth}{(c.AfterGather ? "*" : "")}"))}] " +
+        $"vendor {plan.Vendor.Count} market {plan.Market.Count} manual {plan.Manual.Count} deferred {plan.Deferred.Count} [{string.Join("; ", plan.Deferred.Select(d => $"{gd.ItemName(d.ResultItemId)}: {d.Reason}"))}]");
+}
 Console.WriteLine("OK");
 return 0;
 

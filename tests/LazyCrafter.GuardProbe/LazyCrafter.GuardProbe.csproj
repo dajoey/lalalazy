@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Offline check of the Phase 5 reflection pins (GbrDispatch.Pin, ArcDispatch.Pin) against the plugin DLLs
+       actually installed under %APPDATA%\XIVLauncher\installedPlugins - no client needed. Loads each plugin
+       assembly in its own AssemblyLoadContext that resolves from the plugin folder and Dalamud's dev hooks,
+       finds the IDalamudPlugin type, and runs ReflectionGuard.Verify exactly as the in-game guard does. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows7.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>LazyCrafter.GuardProbe</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <DalamudLibPath>$(APPDATA)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\src\LazyCrafter\Adapters\ReflectionGuard.cs" Link="Adapters\ReflectionGuard.cs" />
+    <Compile Include="..\..\src\LazyCrafter\Adapters\Dispatch\GbrDispatch.cs" Link="Adapters\Dispatch\GbrDispatch.cs" />
+    <Compile Include="..\..\src\LazyCrafter\Adapters\Dispatch\ArcDispatch.cs" Link="Adapters\Dispatch\ArcDispatch.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ECommons" Version="3.2.0.9" />
+    <Reference Include="Dalamud"><HintPath>$(DalamudLibPath)Dalamud.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Lumina"><HintPath>$(DalamudLibPath)Lumina.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Lumina.Excel"><HintPath>$(DalamudLibPath)Lumina.Excel.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="FFXIVClientStructs"><HintPath>$(DalamudLibPath)FFXIVClientStructs.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Dalamud.Bindings.ImGui"><HintPath>$(DalamudLibPath)Dalamud.Bindings.ImGui.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+</Project>

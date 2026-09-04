@@ -4,6 +4,69 @@
 
 Unreleased development version - not in `pluginmaster.json`; release plumbing is Phase 7.
 
+### Added - Phase 5: dispatch - Artisan IPC, GBR reflection, ARC reflection, Lifestream, ReflectionGuard (2026-09-03, t_85ac10ed)
+- `Core/DispatchPlan.cs` - `Build(lines, totals, graph, ventures, retainers)` routes an assessed cart to the hand-off
+  channels (pure Core): per missing item **gather > venture > sub-craft > gil vendor > market > manual**; crafts are
+  emitted depth-first (intermediates before the recipe that consumes them), flagged `AfterGather` when a gather feeds
+  the branch, and `Deferred` with the named blocker when a venture / purchase / manual item sits below them (Artisan
+  would only fail on those). `RouteLeaf` answers the per-leaf fulfil buttons the same way. Harness suite
+  `DispatchPlanTests` (12 cases); harness 94/94.
+- `Adapters/ReflectionGuard.cs` - the version pin + loud failure behind every reflection hand-off (Scope §0). A `Pin`
+  names the plugin, the `[MinVersion, MaxVerified)` range the member names were verified against, and the members;
+  `Require` checks installed → loaded → version → every member resolves, reports the first failure as one
+  `[LazyCrafter] ... hand-off refused: ...` chat line (+ log) and returns null - it never throws. Above `MaxVerified`
+  it warns and still checks every member. `Verify` is static and Dalamud-free so `tests/LazyCrafter.GuardProbe` can
+  run it against the installed DLLs. Session override for the acceptance test: `/lcraft guard <plugin> <minVersion>`
+  (`/lcraft guard reset`, bare `/lcraft guard` prints both pins against what is installed).
+- `Adapters/Dispatch/GbrDispatch.cs` - reflection: `GatherBuddy.Crafting.CraftingGatherBridge.CreatePersistentGatherList("LazyCrafter",
+  dict)` (public static), then the list is found through the plugin's `AutoGatherListsManager` field → `Lists`, any
+  previous "LazyCrafter" list deleted first (`DeleteList`) so quantities do not stack, `Enabled` set, `SetActiveItems()`
+  + `Save()`, and auto-gather started with the public IPC `GatherBuddyReborn.SetAutoGatherEnabled(true)`; status from
+  `IsAutoGatherEnabled` / `GetAutoGatherStatusText` / `IsAutoGatherWaiting`. 9 members pinned to GBR 7.5.0 source
+  (4d16b9d), verified on installed 7.5.5.
+- `Adapters/Dispatch/ArcDispatch.cs` - reflection into ARC's live object graph (it has no IPC and clobbers on-disk edits):
+  plugin `_configuration.ItemLists` → find/create list "LazyCrafter" (`CollectOneTime`, `InOrder`), append or merge
+  `QueuedItem {ItemId, RemainingQuantity}`, attach the list id to the current character's `ItemListIds` (Standalone)
+  or its group's (PartOfCharacterGroup; NotManaged is refused with a hint), then persist via ARC's own
+  `_pluginInterface.SavePluginConfig` **and** `_configWindow.ShouldSave()`. 25 members pinned to ARC 8.6 source
+  (9964d7f) and re-read at tag 8.5 (identical), verified on installed 8.5.
+- `Adapters/Dispatch/ArtisanDispatch.cs` - IPC `Artisan.CraftItem(ushort,int)`, `Artisan.IsBusy`, `Artisan.SetStopRequest` /
+  `GetStopRequest` (a lingering external stop request is cleared before `CraftItem`).
+- `Adapters/VendorLocator.cs` + `Adapters/Dispatch/LifestreamDispatch.cs` - gil vendor: item → `GilShopItem` shops →
+  `ENpcBase` handlers (+ LuminaSupplemental `ENpcShop`) → placements from LuminaSupplemental `ENpcPlace` (map coords)
+  with a `Level`-sheet (Type 8) fallback → the placement nearest a teleportable aetheryte (positions from the
+  `MapMarker` sheet, DataType 3, converted with GBR's marker formula); `Plan` groups a shopping list by vendor
+  (greedy, most items first). Hand-off: `Lifestream.IsBusy` → `Lifestream.Teleport(aetheryteId, 0)`, map flag +
+  clickable `MapLinkPayload` and the list in chat. Market: `Lifestream.ExecuteCommand("mb")` + priced list.
+  Dalamud-free so `tests/LazyCrafter.Probe` exercises it offline (299 placed shop NPCs, 62 aetheryte territories).
+- `Adapters/Dispatch/DagobertDispatch.cs` - after a cart finishes and `Config.DagobertAfterCraft` is on: prints what was
+  crafted and the `/pricematch` instructions (Dagobert has no sell-list IPC; never forced).
+- `Adapters/DispatchService.cs` - runs a plan on `IFramework.Update` in small polled steps, **ARC → GBR → Artisan**:
+  ventures first (asynchronous), then the gather list and a wait on `IsAutoGatherEnabled` going false, then each
+  craft through `CraftItem` polling `IsBusy` between recipes (15 s start timeout, 2 min busy timeout); vendor / market
+  / manual / deferred items are printed up front. `Stop` (button or `/lcraft stop`) turns GBR off and sends Artisan a
+  stop request. Every line is `[LazyCrafter]`-prefixed. Per-leaf entry points: `CraftOne`, `GatherOne`, `VentureOne`,
+  `VendorOne`, `MarketOne`.
+- `Plugin.cs` - `Dispatch` service, `IGameGui`; `/lcraft plan` (what Dispatch would do), `/lcraft dispatch`,
+  `/lcraft stop`, `/lcraft guard ...`; `/lcraft debug` logs the dispatch phase + which hand-off plugins are loaded.
+- `UI/CartPanel.cs` - **Dispatch** is live (hover = the routed plan), becomes **Stop** + status while running;
+  `UI/IngredientTree.cs` - the per-leaf Craft / Gather / Venture / Vendor / Buy buttons call the hand-offs (on the
+  framework thread; Craft/Gather/Venture disabled while a dispatch runs); `UI/SettingsTab.cs` - guard status lines
+  for GBR and ARC (installed version vs pin) and which IPC plugins are loaded.
+- `tests/LazyCrafter.GuardProbe` - loads the installed `GatherBuddyReborn.dll` / `ARControl.dll` in an
+  `AssemblyLoadContext` (plugin dir + Dalamud dev hooks) and runs `ReflectionGuard.Verify` on both pins; also proves
+  the simulated version mismatch and a renamed member both come back as refusal text, not exceptions. Exit 0 = all
+  34 members resolve on what is installed.
+
+### Notes - Phase 5
+- Not run in-game (ffxivdev may not launch the client). Reflection targets verified against the installed DLLs by
+  `GuardProbe`; IPC names verified against upstream source (Artisan 4.0.5.19, Lifestream 2.5.4.16, GBR 7.5.0).
+  V2 confirms each channel live and the `/lcraft guard GatherBuddyReborn 99.0` refusal in chat.
+- VendorLocator coverage: LuminaSupplemental 4.3.0 `ENpcPlace` + the `Level` sheet place 299 of the 777 gil shops'
+  NPCs; an unplaced vendor is reported as "no placed gil vendor" rather than guessed.
+- Sub-craft routing when the branch needs an ARC venture: the craft is deferred (printed), not queued - retainers take
+  hours, so re-dispatch the cart once the venture returns.
+
 ### Added - Phase 4: ImGui UI - bucket tabs, sortable catalog, ingredient tree, cart, settings (2026-09-03, t_49ca026f)
 - `Core/Tiering.cs` - `AssessCart(lines, inv)` -> `CartAssessment {Tier, Lines, Totals, Missing}`: several recipes
   walked against **one** consumed-inventory ledger, so an on-hand unit is credited to at most one cart line; per-item
