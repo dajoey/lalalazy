@@ -170,8 +170,11 @@ public sealed class Plugin : IDalamudPlugin
 
     private void OnInventoryChanged()
     {
-        Log.Verbose("Inventory changed (AllaganTools event, debounced) - recomputing catalog");
-        Catalog?.Invalidate();
+        Log.Verbose("Inventory changed (AllaganTools event, debounced) - refreshing counts against the cached crafting log");
+        // Counts pass, not a full pass (t_410dee8a): picking up an ore cannot change the crafting log, so the
+        // 13,892-flag sweep (the measured ~145 ms framework hitch) must never run for an inventory event. The
+        // full pass stays on Invalidate(): login, settings changes, and the Refresh button only.
+        Catalog?.InvalidateCounts();
     }
 
     private void OnCommand(string command, string args)

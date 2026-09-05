@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using LazyCrafter.Core;
 using LazyCrafter.Core.Model;
 
@@ -12,15 +13,19 @@ namespace Dalamud.Plugin.Services
         void Debug(string message);
         void Debug(Exception ex, string message);
         void Debug(string template, params object[] values);
+        void Debug(Exception ex, string template, params object[] values);
         void Information(string message);
         void Information(Exception ex, string message);
         void Information(string template, params object[] values);
+        void Information(Exception ex, string template, params object[] values);
         void Warning(string message);
         void Warning(Exception ex, string message);
         void Warning(string template, params object[] values);
+        void Warning(Exception ex, string template, params object[] values);
         void Error(string message);
         void Error(Exception ex, string message);
         void Error(string template, params object[] values);
+        void Error(Exception ex, string template, params object[] values);
     }
 
     public interface IFramework
@@ -38,9 +43,27 @@ namespace LazyCrafter.Adapters
     public sealed class FakeFramework : IFramework
     {
         /// <summary>Runs the body synchronously on the CALLING thread (the offline stand-in for the framework hop).</summary>
-        public Task RunOnFrameworkThread(Action action) { action(); return Task.CompletedTask; }
-        public Task RunOnFrameworkThread(Func<Task> action) => action();
-        public Task<T> RunOnFrameworkThread<T>(Func<T> func) => Task.FromResult(func());
+        public Task RunOnFrameworkThread(Action action) { Measure(action); return Task.CompletedTask; }
+        public Task RunOnFrameworkThread(Func<Task> action) { Measure(() => action()); return Task.CompletedTask; }
+        public Task<T> RunOnFrameworkThread<T>(Func<T> func)
+        {
+            var sw = Stopwatch.StartNew();
+            T t = func();
+            Observe(sw.Elapsed.TotalMilliseconds);
+            return Task.FromResult(t);
+        }
+
+        /// <summary>t_410dee8a: the longest any single framework-hop body took. The gather hitch was ~145 ms;
+        /// the counts-pass hop must be microscopic. In the real client this hop runs with the renderer waiting,
+        /// so its duration IS the stutter the card is about.</summary>
+        public double MaxInFlightFrameworkBodyMs;
+        private void Measure(Action a)
+        {
+            var sw = Stopwatch.StartNew();
+            a();
+            Observe(sw.Elapsed.TotalMilliseconds);
+        }
+        private void Observe(double ms) { if (ms > MaxInFlightFrameworkBodyMs) MaxInFlightFrameworkBodyMs = ms; }
     }
 
     /// <summary>
@@ -52,6 +75,7 @@ namespace LazyCrafter.Adapters
         public FakePlayerState Player = new();
         public FakeAllaganInventory Inventory = new();
         public FakeUniversalis Prices = new();
+        public FakeFramework Framework = new();
         public LuminaGameData? GameData;
         public Task GameDataLoad = Task.CompletedTask;
         public bool SavePluginConfig(Configuration config) { config.Saves++; return true; }
@@ -64,7 +88,9 @@ namespace LazyCrafter.Adapters
         public HashSet<uint> Complete = new();
         public IReadOnlyList<RetainerStats> Retainers = Array.Empty<RetainerStats>();
         public IReadOnlySet<uint>? GatheredItems;
-        public bool IsRecipeComplete(uint id) => Complete.Contains(id);
+        /// <summary>t_410dee8a probe: how many times IsRecipeComplete was asked. One sweep over N recipes = N calls.</summary>
+        public int IsRecipeCompleteCalls;
+        public bool IsRecipeComplete(uint id) { IsRecipeCompleteCalls++; return Complete.Contains(id); }
         public IReadOnlyDictionary<uint, int> UnlockedJobs() => Jobs;
     }
 

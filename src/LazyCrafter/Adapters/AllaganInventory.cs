@@ -13,8 +13,15 @@ namespace LazyCrafter.Adapters;
 /// <para>
 /// One IPC call per distinct item, memoised until the next inventory event; the enabled
 /// <see cref="InventorySource"/> set decides which container ids are summed and whether alt characters
-/// count. <c>AllaganTools.ItemAdded</c> / <c>ItemRemoved</c> drop the memo after a 2 s debounce and
+/// count. <c>AllaganTools.ItemAdded</c> / <c>ItemRemoved</c> drop the memo after a trailing debounce and
 /// raise <see cref="Changed"/> so the catalog can recompute off-thread.
+/// </para>
+/// <para>
+/// The debounce window widens while a LazyCrafter dispatch is running (t_410dee8a): gathering and crafting
+/// move inventory constantly, and at the idle window (2 s) a busy route still queues a catalog counts pass
+/// every few nodes. During a run the trailing deadline slides at <see cref="DispatchDebounce"/> (10 s)
+/// instead - one pass after the route settles, not one per node - and returns to
+/// <see cref="IdleDebounce"/> when the run ends.
 /// </para>
 /// <para>
 /// Without AllaganTools the adapter falls back to the client's <c>InventoryManager</c> (current
@@ -35,7 +42,15 @@ namespace LazyCrafter.Adapters;
 /// </summary>
 public sealed class AllaganInventory : IInventory, IDisposable
 {
-    private static readonly TimeSpan Debounce = TimeSpan.FromSeconds(2);
+    /// <summary>Trailing debounce while idle: the AllaganTools event fires this long after the last item change.</summary>
+    public static readonly TimeSpan IdleDebounce = TimeSpan.FromSeconds(2);
+
+    /// <summary>
+    /// Trailing debounce while a LazyCrafter dispatch is running (t_410dee8a): gathering / crafting routes move
+    /// inventory every few seconds, and at the idle window that is one catalog counts pass per node. 10 s of
+    /// quiet (or the run ending) is what actually clears the memo and raises <see cref="Changed"/>.
+    /// </summary>
+    public static readonly TimeSpan DispatchDebounce = TimeSpan.FromSeconds(10);
 
     private readonly IPluginLog _log;
     private readonly IFramework _framework;
@@ -54,6 +69,7 @@ public sealed class AllaganInventory : IInventory, IDisposable
     private readonly Dictionary<uint, IReadOnlyList<StoredElsewhere>> _whereMemo = new();
     private readonly object _lock = new();
     private DateTime? _invalidateAt;
+    private bool _dispatchRunning;
     private uint[] _types = [];
     private InventorySource[] _sources = [];
     private bool _allCharacters;
@@ -133,6 +149,23 @@ public sealed class AllaganInventory : IInventory, IDisposable
             _log.Debug(ex, "AllaganTools.IsInitialized threw");
         }
         return Available;
+    }
+
+    /// <summary>
+    /// Widen (or restore) the trailing debounce window for a running dispatch (t_410dee8a). Called by
+    /// <c>DispatchService</c> when a run starts and when it ends. When a run ends and the idle window is now
+    /// SHORTER than the pending deadline, the deadline snaps forward so the post-run refresh is not held an
+    /// extra few seconds by a window that was set while gathering.
+    /// </summary>
+    public void SetDispatchRunning(bool running)
+    {
+        lock (_lock)
+        {
+            if (_dispatchRunning == running) return;
+            _dispatchRunning = running;
+            if (!running && _invalidateAt is { } at && at > DateTime.UtcNow + IdleDebounce)
+                _invalidateAt = DateTime.UtcNow + IdleDebounce;
+        }
     }
 
     public int Count(uint itemId)
@@ -381,7 +414,7 @@ public sealed class AllaganInventory : IInventory, IDisposable
 
     private void OnItemEvent((uint ItemId, InventoryItem.ItemFlags Flags, ulong CharacterId, uint Quantity) _)
     {
-        lock (_lock) _invalidateAt = DateTime.UtcNow + Debounce;
+        lock (_lock) _invalidateAt = DateTime.UtcNow + (_dispatchRunning ? DispatchDebounce : IdleDebounce);
     }
 
     private void OnInitialized(bool ready)

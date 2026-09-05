@@ -336,6 +336,10 @@ public sealed class DispatchService : IDisposable
         _loop = null;
         _snap = null;
         Current = Phase.Idle;
+        // Widen the inventory debounce for the whole run (t_410dee8a): gathering/crafting routes move inventory
+        // every few seconds and at the idle 2 s window that is one catalog counts pass per node. The window
+        // returns to 2 s in Finish / FinishBlocked, on every exit path (Stop routes through Finish).
+        _plugin.Inventory.SetDispatchRunning(true);
     }
 
     /// <summary>One wave of the loop: queue the plan's work and enter the retrieve-first channel (0.1.3.0 logic, unchanged).</summary>
@@ -863,6 +867,11 @@ public sealed class DispatchService : IDisposable
                         _waveProgress = true;
                         if (_current.Depth == 0) _loop?.CraftDone(_current.RecipeId, _current.Crafts);
                         TrackStep(StepKind.Craft, _current.ResultItemId, _current.Crafts, StepState.Done, recipeId: _current.RecipeId);
+                        // A first-time craft is exactly when the crafting-log flag flips (t_410dee8a): re-read
+                        // THAT one flag on the framework thread and patch the cached log set in place, so the
+                        // LogComplete column and the not-crafted filter update without a relog and without
+                        // rescanning all 13,892 recipes.
+                        _plugin.Catalog.NoteCraftCompleted(_current.RecipeId);
                     }
                     else
                     {
@@ -997,6 +1006,9 @@ public sealed class DispatchService : IDisposable
         _runClock.Stop();
         _endedUtc = DateTime.UtcNow;
         _plugin.Inventory.DropMemo();
+        // Blocked run over: restore the idle 2 s debounce (t_410dee8a), same as Finish. Blocked does NOT route
+        // through Finish - the player is meant to press Resume - so this exit path restores the window itself.
+        _plugin.Inventory.SetDispatchRunning(false);
         // No forced catalog recompute at run end (t_9f646f4c): the debounced AllaganTools inventory event
         // refreshes the catalog a couple of seconds later without freezing the window. Only the Degraded
         // fallback (no AllaganTools -> no event path at all) still invalidates explicitly.
@@ -1071,6 +1083,9 @@ public sealed class DispatchService : IDisposable
         _runClock.Stop();
         _endedUtc = DateTime.UtcNow;
         _plugin.Inventory.DropMemo();
+        // Run over: restore the idle 2 s debounce (t_410dee8a). SetDispatchRunning also snaps a pending
+        // deadline forward so the post-run refresh is not held an extra few seconds by the 10 s window.
+        _plugin.Inventory.SetDispatchRunning(false);
         // Same as FinishBlocked: let the debounced inventory event refresh the catalog; force it only when the
         // AllaganTools event path does not exist (Degraded).
         if (_plugin.Inventory.Degraded) _plugin.Catalog.Invalidate();

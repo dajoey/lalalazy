@@ -9,10 +9,15 @@ using Dalamud.Plugin.Services;
 namespace LazyCrafter.CartServiceProof;
 
 /// <summary>
-/// t_9f646f4c proof: the REAL CatalogService.cs compiled against fakes. Proves the acceptance contract:
-/// while a full pass (prologue + compute + Universalis refine) is in flight, a cart edit (1) is visible
-/// immediately, (2) is what Dispatch would act on (LiveCart), and (3) a finished run pokes nothing - no
-/// second full pass. Plus a concurrency hammer against an in-place refine.
+/// Proofs for the catalog service (t_9f646f4c + t_410dee8a), against the REAL CatalogService.cs compiled
+/// against fakes. t_410dee8a acceptance, as the card states it:
+/// (1) an inventory event does NOT trigger the crafting-log scan - the 13,892-flag sweep runs once per
+///     invalidated cache (login / settings / Refresh), then never on the counts path;
+/// (2) a counts pass still refreshes rows from fresh inventory numbers;
+/// (3) a first-craft patches the cached log set for that recipe only and the row follows - no relog,
+///     no full pass, no second sweep.
+/// Plus the t_9f646f4c regression set: instant cart edits mid-pass, live-cart dispatch reads, no
+/// post-run recompute, and the concurrent-edit hammer.
 /// </summary>
 internal static class Program
 {
@@ -58,7 +63,7 @@ internal static class Program
             Prices = { Scope = "dc" },
         };
         Plugin.Pi = plugin;
-        var svc = new CatalogService(new Plugin(), new FakeFramework(), new NullLog());
+        var svc = new CatalogService(new Plugin(), plugin.Framework, new NullLog());   // SAME instance the tests measure
         svc.Invalidate();   // what the real plugin does on login (OnLogin) / first window Request - wakes the worker
         return (svc, plugin);
     }
@@ -68,20 +73,24 @@ internal static class Program
         public void Debug(string m) { }
         public void Debug(Exception e, string m) { }
         public void Debug(string t, params object[] v) { }
+        public void Debug(Exception e, string t, params object[] v) { }
         public void Information(string m) { }
         public void Information(Exception e, string m) { }
         public void Information(string t, params object[] v) { }
+        public void Information(Exception e, string t, params object[] v) { }
         public void Warning(string m) => Console.WriteLine("   [wrn] " + m);
         public void Warning(Exception e, string m) => Console.WriteLine("   [wrn] " + e.Message + ": " + m);
         public void Warning(string t, params object[] v) { }
+        public void Warning(Exception e, string t, params object[] v) => Console.WriteLine("   [wrn] " + (e?.Message ?? "") + ": " + t);
         public void Error(string m) => Console.WriteLine("   [err] " + m);
         public void Error(Exception e, string m) => Console.WriteLine("   [err] " + m);
         public void Error(string t, params object[] v) { }
+        public void Error(Exception e, string t, params object[] v) { }
     }
 
     private static void Main()
     {
-        Console.WriteLine("== t_9f646f4c CartServiceProof ==");
+        Console.WriteLine("== LazyCrafter CatalogServiceProof (t_9f646f4c + t_410dee8a) ==");
 
         // ------------------------------------------------------------------ test 1
         Console.WriteLine("\n[1] cart edit is visible IMMEDIATELY while a full pass is in flight (the freeze)");
@@ -174,6 +183,77 @@ internal static class Program
         var last = svc4.LiveCart();
         Check(last.Lines.Count == 20 && last.Totals.Lines.Count == 20, "LiveCart agrees after the race");
         svc4.Dispose();
+
+        // ------------------------------------------------------------------ test 5  (t_410dee8a)
+        Console.WriteLine("\n[5] t_410dee8a: an inventory event does NOT re-trigger the crafting-log scan");
+        var (svc5, plugin5) = Build(300);
+        SpinWait.SpinUntil(() => svc5.Snapshot.Generation > 0, 20_000);
+        var sweeps5 = plugin5.Player.IsRecipeCompleteCalls;
+        Check(sweeps5 > 0, "first full pass performed the log sweep", $"{sweeps5} IsRecipeComplete calls");
+        Check(plugin5.Framework.MaxInFlightFrameworkBodyMs < 50, "no framework body took anywhere near hitch territory during the first pass", $"max {plugin5.Framework.MaxInFlightFrameworkBodyMs:F1} ms");
+
+        // The gather scenario: a burst of inventory changes, one per node, a couple of seconds apart.
+        var stock = 5;
+        for (var i = 0; i < 5; i++)
+        {
+            stock += 3;
+            var s = stock;
+            plugin5.Inventory.Counts = ids => new Dictionary<uint, int> { [MatA] = s, [MatB] = 5 };
+            svc5.InvalidateCounts();       // what the debounced AllaganTools event now calls
+            // deterministically wait for THIS pass to land: HowMany = min(MatA/2, MatB) = s/2
+            SpinWait.SpinUntil(() => svc5.Snapshot.Rows.First(r => r.RecipeId == ResultBase).HowMany >= s / 2, 20_000);
+        }
+        Thread.Sleep(200);   // let any tail work settle before reading the counters
+        var sweepsAfter = plugin5.Player.IsRecipeCompleteCalls;
+        Check(sweepsAfter == sweeps5, "inventory-driven passes performed ZERO crafting-log reads", $"{sweeps5} -> {sweepsAfter}");
+        Check(plugin5.Framework.MaxInFlightFrameworkBodyMs < 50, "every counts-pass framework hop stayed in microseconds", $"max {plugin5.Framework.MaxInFlightFrameworkBodyMs:F1} ms");
+        Check(svc5.Snapshot.Rows.First(r => r.RecipeId == ResultBase).HowMany >= 2, "rows were still rebuilt with the fresh counts", $"HowMany={svc5.Snapshot.Rows.First(r => r.RecipeId == ResultBase).HowMany}");
+
+        // ...but a REAL invalidate (login / settings / Refresh button) does resweep.
+        svc5.Invalidate();
+        SpinWait.SpinUntil(() => !svc5.Busy, 20_000);
+        Check(plugin5.Player.IsRecipeCompleteCalls > sweepsAfter, "a full Invalidate() re-reads the crafting log (Refresh still refreshes)", $"{sweepsAfter} -> {plugin5.Player.IsRecipeCompleteCalls}");
+        svc5.Dispose();
+
+        // ------------------------------------------------------------------ test 6  (t_410dee8a)
+        Console.WriteLine("\n[6] t_410dee8a: a first craft patches the cached log set - row updates, no sweep, no full pass");
+        var (svc6, plugin6) = Build(300);
+        SpinWait.SpinUntil(() => svc6.Snapshot.Generation > 0, 20_000);
+        var firstId = ResultBase + 3;
+        Check(!svc6.Snapshot.ByRecipe[firstId].LogComplete, "recipe starts as not-crafted");
+        var sweeps6 = plugin6.Player.IsRecipeCompleteCalls;
+
+        plugin6.Player.Complete.Add(firstId);      // the game flips the flag
+        svc6.NoteCraftCompleted(firstId);          // what WaitCraftEnd now calls
+        SpinWait.SpinUntil(() => svc6.Snapshot.ByRecipe[firstId].LogComplete, 20_000);
+        Check(svc6.Snapshot.ByRecipe[firstId].LogComplete, "LogComplete updated WITHOUT a relog or manual refresh");
+        Thread.Sleep(300);
+        Check(plugin6.Player.IsRecipeCompleteCalls == sweeps6 + 1, "exactly ONE extra log read for the crafted recipe (no sweep)", $"{sweeps6} -> {plugin6.Player.IsRecipeCompleteCalls}");
+        Check(svc6.Snapshot.NotYetCrafted == 299, "not-yet-crafted counter followed the flip", $"{svc6.Snapshot.NotYetCrafted}");
+        svc6.Dispose();
+
+        // ------------------------------------------------------------------ test 7  (t_410dee8a)
+        Console.WriteLine("\n[7] t_410dee8a: the counts pass publishes even while a full pass hangs elsewhere");
+        var release7 = new ManualResetEventSlim(false);
+        var gate7 = new ManualResetEventSlim(false);
+        var (svc7, plugin7) = Build(300);
+        SpinWait.SpinUntil(() => svc7.Snapshot.Generation > 0, 20_000);
+        // hang a refine
+        plugin7.Prices.PrimeBlock = release7;
+        plugin7.Prices.IsStaleOverride = _ => true;
+        svc7.RefreshPrices();
+        Thread.Sleep(200);
+        plugin7.Inventory.Counts = ids => { gate7.Set(); return new Dictionary<uint, int> { [MatA] = 11, [MatB] = 5 }; };
+        // while the worker is hung in the refine, an inventory event arrives:
+        svc7.InvalidateCounts();
+        // The counts pass queues behind the hung refine (same worker) - it must complete once released,
+        // still without any log reads.
+        var sweeps7 = plugin7.Player.IsRecipeCompleteCalls;
+        release7.Set();
+        SpinWait.SpinUntil(() => !svc7.Busy && svc7.Snapshot.Rows.First(r => r.RecipeId == ResultBase).HowMany >= 5, 20_000);
+        Check(svc7.Snapshot.Rows.First(r => r.RecipeId == ResultBase).HowMany >= 5, "counts pass landed after the hung refine released (HowMany reflects 11 units)", $"HowMany={svc7.Snapshot.Rows.First(r => r.RecipeId == ResultBase).HowMany}");
+        Check(plugin7.Player.IsRecipeCompleteCalls == sweeps7, "still zero log reads on the queued counts pass", $"{sweeps7} -> {plugin7.Player.IsRecipeCompleteCalls}");
+        svc7.Dispose();
 
         Console.WriteLine($"\n{(_failures == 0 ? "OK" : "FAILED")}");
         Environment.ExitCode = _failures == 0 ? 0 : 1;

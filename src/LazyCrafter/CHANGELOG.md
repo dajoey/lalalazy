@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.1.6.0 (2026-09-05)
+
+- Fixed the stutter while LazyCrafter-directed gathering: picking up items used to force a full catalog recompute that froze the game for about a fifth of a second every ~30 seconds - the crafting-log re-read (all 13,892 recipes) now happens once per login instead of on every inventory change (files: `Catalog/CatalogService.cs`, `Plugin.cs`)
+- Inventory changes now refresh only item counts and the rows built from them - gather an item and its row still updates within a couple of seconds, without touching the crafting log at all (file: `Catalog/CatalogService.cs` `RefreshCountsAsync`)
+- While a dispatch is running, the inventory watcher waits 10 seconds of quiet (instead of 2) before refreshing the catalog, so a gathering route no longer queues a refresh per node; it returns to 2 seconds when the run ends (file: `Adapters/AllaganInventory.cs`)
+- Crafting a recipe for the first time still updates its crafting-log status immediately - the completed flag for just that recipe is re-read after each successful craft, so the Log Completion list needs no relog and no full refresh (file: `Adapters/DispatchService.cs`)
+- The Refresh button in the window still does a full recount and re-read of everything, crafting log included - only the automatic background passes got cheaper (file: `UI/MainWindow.cs`)
+
+
+
 ## v0.1.5.1 (2026-09-05)
 
 - Cart edits are now instant: adding an item, changing a quantity or clearing the cart updates the window immediately, even while the full catalog pass is still running - previously an edit stayed invisible until the whole 13,892-recipe pass finished, which after a craft run meant a couple of minutes of what looked like a frozen cart (file: `Catalog/CatalogService.cs`, function: `RepublishCart`)
