@@ -127,7 +127,7 @@ public sealed class DispatchService : IDisposable
         Guard = new ReflectionGuard(Plugin.Pi, chat, log);
         Artisan = new ArtisanDispatch(Plugin.Pi, log);
         Gbr = new GbrDispatch(Plugin.Pi, Guard, chat, log);
-        Arc = new ArcDispatch(Guard, chat, log);
+        Arc = new ArcDispatch(Plugin.Pi, Guard, chat, log);
         Lifestream = new LifestreamDispatch(Plugin.Pi, Plugin.GameGui, chat, log);
         PriceMatch = new PriceMatchDispatch(Plugin.Pi, chat);
         Fetch = new RetainerFetch(Guard, log);

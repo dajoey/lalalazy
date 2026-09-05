@@ -7,7 +7,12 @@ namespace LazyCrafter.Adapters.Dispatch;
 /// <summary>
 /// Hands a gather list to GatherBuddyReborn (Plan §Phase 5 task 2, Scope §3.4 "Gather").
 /// <para>
-/// GBR has no "add item + quantity" IPC, so the list is created by reflection into the loaded plugin:
+/// F1 (card t_f2e5cfd7): prefers GBR's crafting IPC (<c>GatherBuddyReborn.Crafting.AddMaterialsToList</c>, upstream PR #662),
+/// which wraps the same <c>CraftingGatherBridge.CreatePersistentGatherList</c> with replace semantics. The reflection path
+/// below remains as the fallback while installed GBR builds predate the IPC (pinned against GBR 7.5.0 source @ 4d16b9d).
+/// </para>
+/// <para>
+/// The pre-F1 reflection hand-off (kept as fallback) into the loaded plugin:
 /// <c>GatherBuddy.Crafting.CraftingGatherBridge.CreatePersistentGatherList(string, Dictionary&lt;uint,int&gt;)</c>
 /// (public static; builds an <c>AutoGatherList</c> named <paramref name="listName"/>, <c>Enabled = false</c>, resolves each
 /// id through <c>GameData.Gatherables</c> then <c>Fishes</c>, adds it via <c>AutoGatherListsManager.AddList</c>).
@@ -54,12 +59,21 @@ public sealed class GbrDispatch
     private readonly ICallGateSubscriber<bool> _isEnabled;
     private readonly ICallGateSubscriber<string> _statusText;
     private readonly ICallGateSubscriber<bool> _isWaiting;
+    // F1 (card t_f2e5cfd7): GBR's new crafting IPC (PR FFXIV-CombatReborn/GatherBuddyReborn#662). Null until
+    // first probed; once a probe fails (GBR without the PR installed) it stays null for the session and the
+    // reflection path below remains the hand-off.
+    private readonly ICallGateSubscriber<string, Dictionary<uint, int>, bool, int>? _addMaterials;
+    private readonly ICallGateSubscriber<string, int>? _listCount;
 
     public GbrDispatch(IDalamudPluginInterface pi, ReflectionGuard guard, IChatGui chat, IPluginLog log)
     {
         _guard = guard;
         _chat = chat;
         _log = log;
+        try { _addMaterials = pi.GetIpcSubscriber<string, Dictionary<uint, int>, bool, int>($"{InternalName}.Crafting.AddMaterialsToList"); }
+        catch (Exception ex) { _log.Debug("GatherBuddyReborn.Crafting.AddMaterialsToList unavailable: {Msg}", ex.Message); }
+        try { _listCount = pi.GetIpcSubscriber<string, int>($"{InternalName}.Crafting.GetListCount"); }
+        catch (Exception ex) { _log.Debug("GatherBuddyReborn.Crafting.GetListCount unavailable: {Msg}", ex.Message); }
         _setEnabled = pi.GetIpcSubscriber<bool, object>($"{InternalName}.SetAutoGatherEnabled");
         _isEnabled = pi.GetIpcSubscriber<bool>($"{InternalName}.IsAutoGatherEnabled");
         _statusText = pi.GetIpcSubscriber<string>($"{InternalName}.GetAutoGatherStatusText");
@@ -67,6 +81,8 @@ public sealed class GbrDispatch
     }
 
     public bool Installed => _guard.InstalledVersion(InternalName, out var loaded) is not null && loaded;
+
+    private bool HasCraftingIpc => _addMaterials is not null && _listCount is not null;
 
     /// <summary>Auto-gather running (IPC). <c>false</c> when GBR is absent or the call fails.</summary>
     public bool IsAutoGatherEnabled()
@@ -91,10 +107,39 @@ public sealed class GbrDispatch
     /// Create (replacing) the "LazyCrafter" auto-gather list from <paramref name="materials"/> (itemId → quantity) and start
     /// auto-gather. Must run on the framework thread (GBR mutates its list manager unguarded). Returns the number of
     /// items GBR accepted, or -1 after a refused hand-off (already reported to chat).
+    /// <para>F1 (card t_f2e5cfd7): prefers GBR's crafting IPC (<c>Crafting.AddMaterialsToList</c>, PR #662) — the same
+    /// replace-create semantics, no reflection. Falls back to the pinned reflection path while the installed GBR build
+    /// predates the IPC (probe failure ⇒ session-sticky fallback).</para>
     /// </summary>
     public int Dispatch(Dictionary<uint, int> materials, Func<uint, string> itemName)
     {
         if (materials.Count == 0) return 0;
+        if (HasCraftingIpc)
+        {
+            try
+            {
+                var n = _addMaterials!.InvokeFunc(ListName, materials, true);
+                if (n > 0)
+                {
+                    _log.Information("GBR: gather list '{Name}' created via Crafting IPC with {Count} item(s)", ListName, n);
+                    _setEnabled.InvokeAction(true);
+                    _chat.Print($"[LazyCrafter] GBR: gather list '{ListName}' ({n} item{(n == 1 ? "" : "s")}) enabled and auto-gather started.");
+                    return n;
+                }
+                return Refuse("GBR's Crafting.AddMaterialsToList returned 0 - none of " +
+                    string.Join(", ", materials.Keys.Take(5).Select(itemName)) + " is in its gatherable/fish tables");
+            }
+            catch (Exception ipcEx)
+            {
+                _log.Warning(ipcEx, "GBR Crafting IPC call failed; falling back to reflection");
+            }
+        }
+        return DispatchViaReflection(materials, itemName);
+    }
+
+    /// <summary>The pre-F1 reflection hand-off, kept as the fallback for GBR builds without the Crafting IPC.</summary>
+    private int DispatchViaReflection(Dictionary<uint, int> materials, Func<uint, string> itemName)
+    {
         var r = _guard.Require(Pin, "GBR gather");
         if (r is null) return -1;
 

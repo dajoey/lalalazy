@@ -1,14 +1,20 @@
 using Dalamud.Plugin;
+using Dalamud.Plugin.Ipc;
 using Dalamud.Plugin.Services;
 
 namespace LazyCrafter.Adapters.Dispatch;
 
 /// <summary>
-/// Appends venture work to ARC (AutoRetainer Control, InternalName <c>ARControl</c>) by reflection (Plan §Phase 5 task 3,
-/// Scope §3.4 "Retainers"). ARC has no IPC and re-saves its whole config after every venture assignment, so editing
+/// Appends venture work to ARC (AutoRetainer Control, InternalName <c>ARControl</c>) — IPC first (PR #3), reflection fallback (Plan §Phase 5 task 3,
+/// Scope §3.4 "Retainers"). Pre-IPC ARC re-saved its whole config after every venture assignment, so editing
 /// <c>ARControl.json</c> on disk is clobbered - the only live path is its in-memory object graph.
 /// <para>
-/// Shape (all <c>internal</c>, reached by name): plugin instance <c>ARControl.AutoRetainerControlPlugin</c> → private
+/// F1 (card t_f2e5cfd7): ARC gained an IPC surface (upstream PR zbee/ARC#3, <c>ARC.AddItem / GetInProgress / GetListCount</c>),
+/// which this adapter prefers; the reflection graph below stays as the fallback for builds without it (pinned against
+/// ARC 8.6 source @ 9964d7f).
+/// </para>
+/// <para>
+/// Fallback shape (all <c>internal</c>, reached by name): plugin instance <c>ARControl.AutoRetainerControlPlugin</c> → private
 /// field <c>_configuration</c> (<c>ARControl.Configuration</c>) → <c>ItemLists</c> (<c>List&lt;Configuration.ItemList&gt;</c>;
 /// <c>ItemList {Guid Id; string Name; ListType Type; ListPriority Priority; bool CheckRetainerInventory; List&lt;QueuedItem&gt; Items}</c>)
 /// and <c>Characters</c> (<c>List&lt;CharacterConfiguration&gt;</c>; <c>{ulong LocalContentId; CharacterType Type; Guid CharacterGroupId;
@@ -79,23 +85,69 @@ public sealed class ArcDispatch
     private readonly ReflectionGuard _guard;
     private readonly IChatGui _chat;
     private readonly IPluginLog _log;
+    // F1 (card t_f2e5cfd7): ARC's new IPC (PR zbee/ARC#3). Null until first probed; once a probe fails (installed
+    // ARC predates the PR) it stays null for the session and the reflection path below remains the hand-off.
+    private readonly ICallGateSubscriber<uint, int, string, bool>? _addItem;
+    private readonly ICallGateSubscriber<Dictionary<uint, int>>? _inProgress;
 
-    public ArcDispatch(ReflectionGuard guard, IChatGui chat, IPluginLog log)
+    public ArcDispatch(IDalamudPluginInterface pi, ReflectionGuard guard, IChatGui chat, IPluginLog log)
     {
         _guard = guard;
         _chat = chat;
         _log = log;
+        try { _addItem = pi.GetIpcSubscriber<uint, int, string, bool>($"{InternalName}.AddItem"); }
+        catch (Exception ex) { _log.Debug("ARControl.AddItem unavailable: {Msg}", ex.Message); }
+        try { _inProgress = pi.GetIpcSubscriber<Dictionary<uint, int>>($"{InternalName}.GetInProgress"); }
+        catch (Exception ex) { _log.Debug("ARControl.GetInProgress unavailable: {Msg}", ex.Message); }
     }
+
+    private bool HasIpc => _addItem is not null;
 
     public bool Installed => _guard.InstalledVersion(InternalName, out var loaded) is not null && loaded;
 
     /// <summary>
     /// Queue <paramref name="items"/> (itemId → quantity) on the "LazyCrafter" list for the character with
     /// <paramref name="contentId"/>. Framework thread. Returns the number of items queued, or -1 after a refusal (reported).
+    /// <para>F1 (card t_f2e5cfd7): prefers ARC's IPC (<c>ARC.AddItem</c>, upstream PR #3) — one call per item; the IPC
+    /// provider attaches the list to the current character and saves exactly like the config window. Falls back to the
+    /// pinned reflection path while the installed ARC build predates the IPC (probe failure ⇒ session-sticky fallback).
+    /// <paramref name="contentId"/> is only used by the fallback; the IPC acts on the current character.</para>
     /// </summary>
     public int Dispatch(Dictionary<uint, int> items, ulong contentId, Func<uint, string> itemName)
     {
         if (items.Count == 0) return 0;
+        if (HasIpc)
+        {
+            try
+            {
+                var added = 0;
+                foreach (var (itemId, qty) in items)
+                {
+                    if (qty <= 0) continue;
+                    if (_addItem!.InvokeFunc((uint)itemId, qty, ListName)) added++;
+                    else return Refuse($"ARC.AddItem refused {itemName(itemId)} x{qty} (character not managed by ARC, or the call failed)");
+                }
+                if (added > 0)
+                {
+                    _log.Information("ARC: {Added} item(s) queued on '{List}' via IPC: {Items}", added, ListName,
+                        string.Join(", ", items.Select(kv => $"{itemName(kv.Key)} x{kv.Value}")));
+                    _chat.Print($"[LazyCrafter] ARC: {added} item{(added == 1 ? "" : "s")} queued on venture list '{ListName}' via ARC IPC: " +
+                        string.Join(", ", items.Take(6).Select(kv => $"{itemName(kv.Key)} x{kv.Value}")) + (items.Count > 6 ? $"+{items.Count - 6}" : "") +
+                        ". Retainers pick it up on their next venture.");
+                }
+                return added;
+            }
+            catch (Exception ipcEx)
+            {
+                _log.Warning(ipcEx, "ARC IPC call failed; falling back to reflection");
+            }
+        }
+        return DispatchViaReflection(items, contentId, itemName);
+    }
+
+    /// <summary>The pre-F1 reflection hand-off, kept as the fallback for ARC builds without the IPC.</summary>
+    private int DispatchViaReflection(Dictionary<uint, int> items, ulong contentId, Func<uint, string> itemName)
+    {
         var r = _guard.Require(Pin, "ARC venture");
         if (r is null) return -1;
 
