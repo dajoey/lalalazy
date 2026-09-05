@@ -23,7 +23,9 @@ namespace Lalalazy.Changelog;
 /// Decides whether the "What's new" popup should be shown after an update, defers it until the
 /// player is logged in and out of combat, and persists the last-seen version on dismiss.
 /// Rules (settled, t_add3c479):
-///   * LastSeen null/empty (fresh install or first build carrying the feature): record current, do NOT show.
+///   * LastSeen null/empty on a FRESH install (no config file yet): record current, do NOT show.
+///   * LastSeen null/empty on an EXISTING install (config file already there = first build carrying the
+///     feature): show the current version's block once - this IS an update from the player's point of view.
 ///   * current &gt; LastSeen: show once, entries in (LastSeen, current].
 ///   * Never opens while InCombat / BoundByDuty / BetweenAreas / cutscene.
 /// </summary>
@@ -43,6 +45,12 @@ public sealed class ChangelogGate : IDisposable
         public required IChangelogSeenStore SeenStore { get; init; }
         /// <summary>Embedded resource logical name; every csproj embeds CHANGELOG.md under this name.</summary>
         public string ResourceName { get; init; } = "CHANGELOG.md";
+        /// <summary>
+        /// true when the plugin was already installed before this load (pass <c>pi.ConfigFile.Exists</c>, read
+        /// BEFORE the first SavePluginConfig). Distinguishes "updated" from "freshly installed" when no
+        /// LastSeen version has ever been recorded.
+        /// </summary>
+        public bool ExistingInstall { get; init; }
     }
 
     private const string RepoBlobBase = "https://github.com/dajoey/lalalazy/blob/main/";
@@ -71,9 +79,18 @@ public sealed class ChangelogGate : IDisposable
         var seenText = o.SeenStore.Get();
         if (string.IsNullOrWhiteSpace(seenText))
         {
-            // First run with the feature (or a fresh install): record, don't nag.
+            if (o.ExistingInstall)
+            {
+                // Existing install, first build carrying the feature: from the player's side this is an update.
+                _previous = null;
+                _pending = true;
+                o.Log.Information("[LalaChangelog] existing install with no recorded version; v{Cur} release notes queued until logged in and out of combat", _current);
+                o.Framework.Update += OnFrameworkUpdate;
+                return;
+            }
+            // Fresh install: record, don't nag.
             o.SeenStore.Set(_current.ToString());
-            o.Log.Information("[LalaChangelog] first run - recorded v{Version} as seen, popup not shown", _current);
+            o.Log.Information("[LalaChangelog] fresh install - recorded v{Version} as seen, popup not shown", _current);
             return;
         }
 
@@ -115,9 +132,9 @@ public sealed class ChangelogGate : IDisposable
             _o.Framework.Update -= OnFrameworkUpdate;
 
             var entries = ChangelogParser.Between(_all, _previous, _current);
-            if (entries.Count == 0)
+            if (_previous is null || entries.Count == 0)
             {
-                // Nothing to say for this range (e.g. version bump with the entry missing) - fall back to newest.
+                // Unknown previous version, or nothing in range (bump with the entry missing): show the newest block only.
                 entries = ChangelogParser.Between(_all, null, _current);
                 if (entries.Count > 1) entries = entries.GetRange(0, 1);
             }

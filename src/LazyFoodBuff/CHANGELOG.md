@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.1.3.1 (2026-09-05)
+
+### Fixed
+- The "What's new" popup now opens after this very update. 0.1.3.0 stayed silent the first time it ran because it had no record of which version you saw last; the gate now tells an updated plugin (your settings file already exists) apart from a brand-new install (no settings yet) and only the latter stays quiet (`ChangelogGate.Options.ExistingInstall`, read from `pi.ConfigFile.Exists` in `Plugin.cs`).
+
+### Notes
+- Nothing else changed. If you want to see the notes again later: `/lazyfoodbuff changelog`.
+
 ## v0.1.3.0 (2026-09-05)
 
 ### Added

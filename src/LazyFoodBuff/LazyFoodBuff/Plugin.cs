@@ -36,6 +36,8 @@ public sealed class Plugin : IDalamudPlugin
     {
         pi.Inject(this);
 
+        // Read BEFORE anything saves the config: tells the changelog gate "update" from "fresh install".
+        var existingInstall = pi.ConfigFile.Exists;
         Config = pi.GetPluginConfig() as Configuration ?? new Configuration();
         _service = new FoodService(this);
 
@@ -53,6 +55,7 @@ public sealed class Plugin : IDalamudPlugin
             Condition = Condition,
             Log = Log,
             Windows = _windows,
+            ExistingInstall = existingInstall,
             SeenStore = new DelegateSeenStore(
                 () => Config.LastSeenChangelogVersion,
                 v => { Config.LastSeenChangelogVersion = v; SaveConfig(); }),
