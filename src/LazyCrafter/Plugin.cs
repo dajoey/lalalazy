@@ -48,7 +48,7 @@ public sealed class Plugin : IDalamudPlugin
     // Phase 4: every expensive computation behind the window lives here, on its own worker.
     public CatalogService Catalog { get; }
 
-    // Phase 5: the hand-offs (ARC / GBR / Artisan / Lifestream / Dagobert) and the ReflectionGuard behind two of them.
+    // Phase 5: the hand-offs (ARC / GBR / Artisan / Lifestream / price match) and the ReflectionGuard behind two of them.
     public DispatchService Dispatch { get; }
 
     private readonly WindowSystem _windows = new("LazyCrafter");
@@ -196,7 +196,7 @@ public sealed class Plugin : IDalamudPlugin
             var r = g.Require(pin, pin.InternalName + " check");
             if (r is not null) ChatGui.Print($"[LazyCrafter] guard {pin.InternalName}: OK - all {r.Members.Count} members resolved on {r.Version}.");
         }
-        ChatGui.Print($"[LazyCrafter] Artisan {(Dispatch.Artisan.Installed ? "loaded" : "missing")}, Lifestream {(Dispatch.Lifestream.Installed ? "loaded" : "missing")}, Dagobert {(Dispatch.Dagobert.Installed ? "loaded" : "missing")} (IPC, no reflection).");
+        ChatGui.Print($"[LazyCrafter] Artisan {(Dispatch.Artisan.Installed ? "loaded" : "missing")}, Lifestream {(Dispatch.Lifestream.Installed ? "loaded" : "missing")}, price match (Lazy Market Companion) {(Dispatch.PriceMatch.Installed ? "loaded" : "missing")} (IPC, no reflection).");
     }
 
     /// <summary>
@@ -258,8 +258,8 @@ public sealed class Plugin : IDalamudPlugin
             string.Join(",", snap.TierCounts.OrderBy(kv => kv.Key).Select(kv => $"{kv.Key}={kv.Value}")),
             snap.NotYetCrafted, snap.PricedRows, snap.Cart.Count, Catalog.View.Request.Tab, Catalog.View.Rows.Count,
             snap.ComputedAt == DateTime.MinValue ? "never" : snap.ComputedAt.ToString("HH:mm:ss"), (int)snap.Duration.TotalMilliseconds);
-        Log.Information("[LazyCrafter debug] dispatch: phase={Phase} status={Status} artisan={Artisan} gbr={Gbr} arc={Arc} lifestream={Ls} dagobert={Dago} guardOverrides={Ov}",
-            Dispatch.Current, Dispatch.Status, Dispatch.Artisan.Installed, Dispatch.Gbr.Installed, Dispatch.Arc.Installed, Dispatch.Lifestream.Installed, Dispatch.Dagobert.Installed,
+        Log.Information("[LazyCrafter debug] dispatch: phase={Phase} status={Status} artisan={Artisan} gbr={Gbr} arc={Arc} lifestream={Ls} pricematch={Pm} guardOverrides={Ov}",
+            Dispatch.Current, Dispatch.Status, Dispatch.Artisan.Installed, Dispatch.Gbr.Installed, Dispatch.Arc.Installed, Dispatch.Lifestream.Installed, Dispatch.PriceMatch.Installed,
             string.Join(",", Dispatch.Guard.Overrides.Select(kv => $"{kv.Key}>={kv.Value}")));
         foreach (var r in Player.Retainers)
             Log.Information("[LazyCrafter debug]   retainer {Name} lvl={Level} job={Job} ilvl={Ilvl} gathering={Gathering} perception={Perception}",

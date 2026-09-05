@@ -49,7 +49,7 @@ public sealed class DispatchService : IDisposable
     public GbrDispatch Gbr { get; }
     public ArcDispatch Arc { get; }
     public LifestreamDispatch Lifestream { get; }
-    public DagobertDispatch Dagobert { get; }
+    public PriceMatchDispatch PriceMatch { get; }
     public RetainerFetch Fetch { get; }
     public ReflectionGuard Guard { get; }
 
@@ -129,7 +129,7 @@ public sealed class DispatchService : IDisposable
         Gbr = new GbrDispatch(Plugin.Pi, Guard, chat, log);
         Arc = new ArcDispatch(Guard, chat, log);
         Lifestream = new LifestreamDispatch(Plugin.Pi, Plugin.GameGui, chat, log);
-        Dagobert = new DagobertDispatch(Plugin.Pi, chat);
+        PriceMatch = new PriceMatchDispatch(Plugin.Pi, chat);
         Fetch = new RetainerFetch(Guard, log);
         _framework.Update += Tick;
     }
@@ -1048,8 +1048,8 @@ public sealed class DispatchService : IDisposable
                     error: _craftsFailed > 0 || _unfetched.Count > 0);
             else
                 Say($"dispatch stopped: {why} ({retrieved}crafts finished {_craftsDone}/{plan.Crafts.Count}).", error: true);
-            if (_made.Count > 0 && _plugin.Config.DagobertAfterCraft && _plugin.GameData is { } gd)
-                Dagobert.AfterCraft(_made, Name, gd.IsMarketable);
+            if (_made.Count > 0 && _plugin.Config.PriceMatchAfterCraft && _plugin.GameData is { } gd)
+                PriceMatch.AfterCraft(_made, Name, gd.IsMarketable);
         }
         _plan = null;
         _current = null;

@@ -8,7 +8,7 @@ namespace LazyCrafter.UI;
 
 /// <summary>
 /// Settings (Plan §Phase 4 task 5): inventory source toggles, price basis / scope / refresh interval, undersupplied
-/// thresholds, the dispatch toggles - Dagobert list-after-craft (Phase 5, read by DispatchService) and vnavmesh
+/// thresholds, the dispatch toggles - price-match list-after-craft via Lazy Market Companion (Phase 5, read by DispatchService) and vnavmesh
 /// walk-to-vendor (still hidden behind the Phase 6 spike) - and the reflection-guard status of the GBR / ARC
 /// hand-offs. Every change saves immediately and invalidates the catalog.
 /// </summary>
@@ -102,16 +102,16 @@ public sealed class SettingsTab
                 $"{pin.InternalName}: {(installed is null ? "not installed" : loaded ? installed.ToString() : installed + " (not loaded)")} - reflection pinned to [{min}, {pin.MaxVerified}){(o is not null ? " [session override]" : "")}");
             if (ImGui.IsItemHovered()) ImGui.SetTooltip($"{pin.Members.Count} member names verified against {pin.VerifiedAgainst}. A mismatch refuses the hand-off with a chat error instead of throwing. Test it with /lcraft guard {pin.InternalName} 99.0");
         }
-        ImGui.TextDisabled($"Artisan {(_plugin.Dispatch.Artisan.Installed ? "loaded" : "missing")} · Lifestream {(_plugin.Dispatch.Lifestream.Installed ? "loaded" : "missing")} · Dagobert {(_plugin.Dispatch.Dagobert.Installed ? "loaded" : "missing")} (IPC)");
+        ImGui.TextDisabled($"Artisan {(_plugin.Dispatch.Artisan.Installed ? "loaded" : "missing")} · Lifestream {(_plugin.Dispatch.Lifestream.Installed ? "loaded" : "missing")} · Price match (Lazy Market Companion) {(_plugin.Dispatch.PriceMatch.Installed ? "loaded" : "missing")} (IPC)");
         var fetch = cfg.RetrieveFromRetainers;
         if (ImGui.Checkbox("Fetch missing materials from your retainers before crafting (needs a summoning bell)", ref fetch)) { cfg.RetrieveFromRetainers = fetch; changed = true; }
         ImGui.SameLine();
         ImGuiComponents.HelpMarker("On by default. When a craft's materials are owned but sitting on a retainer, Dispatch walks Artisan's retainer withdrawal (bell -> retainer -> Entrust Items -> withdraw) to move them into your bags, then crafts. Needs Artisan and AllaganTools, and you must be standing next to a summoning bell. Off: LazyCrafter only tells you what to fetch by hand.");
 
-        var dago = cfg.DagobertAfterCraft;
-        if (ImGui.Checkbox("After Artisan finishes a cart, print Dagobert /pricematch instructions for listing the results", ref dago)) { cfg.DagobertAfterCraft = dago; changed = true; }
+        var pm = cfg.PriceMatchAfterCraft;
+        if (ImGui.Checkbox("After Artisan finishes a cart, print /pricematch (Lazy Market Companion) instructions for listing the results", ref pm)) { cfg.PriceMatchAfterCraft = pm; changed = true; }
         ImGui.SameLine();
-        ImGuiComponents.HelpMarker("Optional, never forced (Scope §0 item 6). Prints what was crafted and the /pricematch instructions to chat when a cart finishes; the sell list itself is not automated (Dagobert has no IPC for it).");
+        ImGuiComponents.HelpMarker("Optional, never forced (Scope §0 item 6). Prints what was crafted and the /pricematch instructions to chat when a cart finishes; the sell list itself is not automated (Lazy Market Companion has no IPC for it). /pricematch still works - Lazy Market Companion answers it as a legacy alias.");
         var vnav = cfg.VnavWalkToVendor;
         if (ImGui.Checkbox("Walk to vendors with vnavmesh after a Lifestream teleport (experimental)", ref vnav)) { cfg.VnavWalkToVendor = vnav; changed = true; }
         ImGui.SameLine();

@@ -1,13 +1,14 @@
 using Dalamud.Configuration;
 using LazyCrafter.Adapters;
 using LazyCrafter.Core.Model;
+using Newtonsoft.Json;
 
 namespace LazyCrafter;
 
 [Serializable]
 public sealed class Configuration : IPluginConfiguration
 {
-    public const int CurrentVersion = 4;
+    public const int CurrentVersion = 5;
 
     public int Version { get; set; } = CurrentVersion;
 
@@ -36,9 +37,22 @@ public sealed class Configuration : IPluginConfiguration
     public double UndersuppliedMinVelocity { get; set; } = 3;
     public int UndersuppliedMaxListings { get; set; } = 2;
 
-    /// <summary>Dispatch toggles (Plan §Phase 4 task 5). Both OFF by default; Phase 5 / Phase 6 wire the behaviour.</summary>
-    public bool DagobertAfterCraft { get; set; } = false;
+    /// <summary>
+    /// Dispatch toggles (Plan §Phase 4 task 5). Both OFF by default; Phase 5 / Phase 6 wire the behaviour.
+    /// Renamed from <c>DagobertAfterCraft</c> when DagobertPriceMatcher was retired (2026-09-05): the
+    /// price-match hand-off now targets Lazy Market Companion. Existing configs keep their value via the
+    /// legacy shadow property below, copied once in <see cref="MigrateIfNeeded"/>.
+    /// </summary>
+    public bool PriceMatchAfterCraft { get; set; } = false;
     public bool VnavWalkToVendor { get; set; } = false;
+
+    /// <summary>
+    /// Legacy JSON key for <see cref="PriceMatchAfterCraft"/> (it was the property name before the Lazy Market
+    /// Companion rename, card t_89a7ebec). Newtonsoft fills it when an old config is loaded; MigrateIfNeeded
+    /// copies it across once and nulls it, after which saves stop writing the old key (NullValueHandling.Ignore).
+    /// </summary>
+    [JsonProperty("DagobertAfterCraft", NullValueHandling = NullValueHandling.Ignore)]
+    public bool? DagobertAfterCraftLegacy { get; set; }
 
     // ---- v4 (retrieve from retainers, card t_63b845ad) ----
 
@@ -75,6 +89,12 @@ public sealed class Configuration : IPluginConfiguration
         // v2 -> v3: new fields all have safe defaults (dispatch toggles OFF); nothing to rewrite.
         // v3 -> v4: RetrieveFromRetainers defaults ON - an existing config that never had the field gets the
         // new behaviour, which is the fix the user asked for; it is opt-OUT, not opt-in.
+        // v4 -> v5: DagobertAfterCraft -> PriceMatchAfterCraft (DagobertPriceMatcher retired 2026-09-05,
+        // succeeded by Lazy Market Companion). Newtonsoft filled the legacy shadow property above if the old
+        // key was present; copy it across once so nobody loses the setting, then stop writing the old key.
+        if (DagobertAfterCraftLegacy is { } legacyDagobert)
+            PriceMatchAfterCraft = legacyDagobert;
+        DagobertAfterCraftLegacy = null;
         Cart ??= new List<CartEntry>();
         Version = CurrentVersion;
     }
