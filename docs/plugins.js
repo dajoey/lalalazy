@@ -132,6 +132,19 @@ const PLUGINS = [
       { t: 'Treasure & carrot radar', d: 'Draws lines to nearby coffers and Fortune Carrots, with a precomputed optimal looting route.' },
       { t: 'Drives Gluttony Combo', d: 'Uses GluttonyCombo for rotations when installed \u2014 the only provider that implements all eight phantom jobs added in 7.55.' },
     ],
+  },
+  {
+    slug: 'lazycrafter', name: 'LazyCrafter', origin: 'Original', hasWindow: true,
+    short: 'Catalogs every recipe you can craft, prices it with Universalis, and hands the missing materials to Artisan, GatherBuddyReborn, AutoRetainer and Lifestream.',
+    tag: 'What can I make right now \u2014 and what would it take to make the rest?',
+    command: '/lcraft', credit: 'Original plugin by dajoey \u00b7 orchestrates Artisan + GatherBuddyReborn + AutoRetainer + Lifestream',
+    features: [
+      { t: 'Whole-craft catalog', d: 'Every recipe on your crafters, priced with Universalis, with both cost columns \u2014 cash (mats you own are free) and at-market.' },
+      { t: 'Effort buckets', d: 'Missing materials sorted by how much work they take: in bags, on a retainer, vendor, gathering node, market board, or a retainer venture away.' },
+      { t: 'One cart, one button', d: 'Stack crafts into a cart and press Dispatch: the dependency tree is planned and each leg goes to the plugin that already does it best.' },
+      { t: 'Live Run tab', d: 'Every step with state and a plain-English reason. When a leg cannot be automated it stops and tells you exactly what to buy, then resumes.' },
+    ],
+  },
   {
     slug: 'lazyfishsitter', name: 'Lazy Fish Sitter', origin: 'Original', hasWindow: true,
     short: 'Sits you down while you fish. That is it.',
