@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>LazyFishSitter.Harness</RootNamespace>
+    <AssemblyName>LazyFishSitter.Harness</AssemblyName>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <!-- Compiles the REAL policy source. There is no root Directory.Build.props, so a plain
+       Microsoft.NET.Sdk console app does not inherit the Dalamud SDK - if anything under
+       Core/ ever takes a Dalamud or FFXIVClientStructs dependency, this project stops
+       compiling. That is the "Core is Dalamud-free" proof, and it is the point. -->
+  <ItemGroup>
+    <Compile Include="..\..\src\LazyFishSitter\Core\**\*.cs" LinkBase="Core" />
+    <Compile Include="Program.cs" />
+    <Compile Include="Scenarios.cs" />
+  </ItemGroup>
+</Project>
