@@ -1,5 +1,32 @@
 # Changelog
 
+## v0.1.4.0 (2026-09-05)
+
+### Added
+
+- Dispatch is now a LOOP of waves, not one pass: after every wave (retrieve, ventures, gather, crafts) the cart's remaining lines are re-assessed against the LIVE bags and re-planned, and while the fresh plan has work the plugin can do on its own, the next wave runs (files: `Core/DispatchLoop.cs` new, `Adapters/DispatchService.cs` functions `DispatchCart`/`Replan`/`WaveDone`/`TakeDecision`). This is the fix for the Alpine Chandelier run: the ore was gathered and one nugget crafted, then the run ended silently with four crafts never attempted, because deferrals were decided at plan-build time and never revisited
+- New terminal phase `Blocked`, distinct from Done and Failed: when nothing is runnable the run stops and prints ONE red block at the END naming what to buy - market list with est. gil, vendor NPCs flagged on the map, manual sources, venture items still out - then "press Resume (or /lcraft resume) to continue the same cart" (file: `Adapters/DispatchService.cs`, function `FinishBlocked`/`PrintBlockedBlock`)
+- `Resume()` + `/lcraft resume`: re-plans the same cart from the live bags and continues after the player has bought / fetched the blockers; with nothing runnable it prints the same blocked block again, never silence (file: `Adapters/DispatchService.cs`, function `Resume`). A manual Stop is not resumable
+- GBR stall guard: if GBR's status text AND the gathered items' bag counts are unchanged for 10 minutes (while not merely waiting for a timed node window), GBR is stopped and the run goes Blocked with the reason - the gather wait previously looped forever with no timeout (file: `Adapters/DispatchService.cs`, phase `WaitGather`; decision logic `Core/StallGuard.cs` new)
+- Per-craft 10-minute cap: an Artisan craft that never finishes gets a stop request and the run fails with the reason - the craft wait previously had no timeout (file: `Adapters/DispatchService.cs`, phase `WaitCraftEnd`)
+- Heartbeat: while any wait is in flight, one chat line every 3 minutes ("still working: gathering 2/5 (Titanium Ore), 7:12 elapsed") so a long gather never looks dead; deduped, never spam (file: `Adapters/DispatchService.cs`, function `Heartbeat`)
+- `RunSnapshot`: an immutable per-run picture (phase, elapsed, pass, step list with per-step state / reason / external status, blocked shopping list, CanResume) published as `Plugin.Dispatch.Snapshot` for the UI to read per draw without touching game state, plus `/lcraft status`-shaped `Report()` text (file: `Core/RunSnapshot.cs` new; contract v1 with the Run-tab card t_c360953f)
+
+### Changed
+
+- Cart runs are dispatched through the wave loop; the single-item entry points (craft / gather / retrieve one, `/lcraft fetch`) keep their one-wave behaviour (file: `Adapters/DispatchService.cs`, functions `CraftOne`/`GatherOne`/`RetrieveOne`/`RetrieveOnly`)
+- A craft wave's completion line counts root cart lines ("2 cart lines finished, 5 crafts made"), not the one-pass "crafts finished 1/1" that read as done while four crafts were never attempted (file: `Adapters/DispatchService.cs`, function `Finish`)
+- The GBR wait reports how many gathered items actually landed in the bags ("GBR auto-gather finished - 5 of 5 gathered items landed") instead of a bare "finished" (file: `Adapters/DispatchService.cs`, phase `WaitGather`)
+
+### Fixed
+
+- Zero-progress waves can no longer spin: a wave that changes nothing in the bags ends the run as Blocked with "no progress this pass" instead of re-planning forever (file: `Core/DispatchLoop.cs`, function `Advance`); belt-and-braces cap of 12 passes even with progress
+
+### Notes
+
+- Offline proof: `tests/LazyCrafter.Harness` suite `loop` drives the Alpine Chandelier shape end to end - sub-craft + market leaf -> pass 1 crafts the sub-craft, re-plan, Blocked naming the market item and quantity; fake-buy the item, Resume -> remaining crafts run, Done; a never-changing fake ends Blocked with "no progress" and the pass count asserted (no infinite loop); the stall guard fires on a signal that never changes. Suite `snapshot` asserts the `RunSnapshot.Report()` text names every blocked item.
+- Why Core: the loop decision (re-plan, progress, blocked-why) and the snapshot record are pure, so the harness can prove them without Dalamud; `DispatchService` only executes.
+
 ## v0.1.3.1 (2026-09-05)
 
 ### Fixed
