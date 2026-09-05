@@ -40,6 +40,7 @@ public sealed class Plugin : IDalamudPlugin
 #pragma warning restore CS8618
 
   private readonly MarketAutomation _automation;
+  private readonly bool _ownsLegacyCommand;
 
   public readonly WindowSystem WindowSystem = new("LazyMarketCompanion");
   private ConfigWindow ConfigWindow { get; init; }
@@ -57,11 +58,17 @@ public sealed class Plugin : IDalamudPlugin
     {
       HelpMessage = "Open Lazy Market Companion. Subcommands: market (auto-market open retainer), pinch (re-price open retainer), sweep (all retainers), cancel, debug"
     });
-    CommandManager.AddHandler(LegacyCommandName, new CommandInfo(OnCommand)
+    // Only take the old alias if Dagobert is not loaded alongside us; otherwise we'd log an error now
+    // and yank Dagobert's command on our Dispose.
+    _ownsLegacyCommand = !CommandManager.Commands.ContainsKey(LegacyCommandName);
+    if (_ownsLegacyCommand)
     {
-      HelpMessage = "Alias of /lmc (kept from Dagobert Price Matcher)",
-      ShowInHelp = false,
-    });
+      CommandManager.AddHandler(LegacyCommandName, new CommandInfo(OnCommand)
+      {
+        HelpMessage = "Alias of /lmc (kept from Dagobert Price Matcher)",
+        ShowInHelp = false,
+      });
+    }
 
     ConfigLinkPayload = ChatGui.AddChatLinkHandler(0, (id, _) => ToggleConfigUI());
 
@@ -83,7 +90,8 @@ public sealed class Plugin : IDalamudPlugin
     _automation.Dispose();
     AutoRetainerIPC.DisposeInstance();
     CommandManager.RemoveHandler(CommandName);
-    CommandManager.RemoveHandler(LegacyCommandName);
+    if (_ownsLegacyCommand)
+      CommandManager.RemoveHandler(LegacyCommandName);
     ContextMenu.OnMenuOpened -= OnContextMenuOpened;
     PluginInterface.UiBuilder.Draw -= DrawUI;
     PluginInterface.UiBuilder.OpenMainUi -= ToggleConfigUI;

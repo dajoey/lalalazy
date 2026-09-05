@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.1.0.1 (2026-09-05)
+
+### Fixed
+- Plugin failed to load ("A window with this name/ID already exists"): the config window and the retainer-list button overlay were both registered as "Lazy Market Companion" in one WindowSystem; the overlay is now "Lazy Market Companion##overlay" (file: `MarketAutomation.cs`, ctor). Found in omasky dalamud.log at 12:14:27 on the first install attempt.
+- `/pricematch` alias is only registered when no other plugin (Dagobert) already owns it, and only removed on unload if we registered it (file: `Plugin.cs`, `_ownsLegacyCommand`).
+
+### Notes
+- The Dagobert settings import DID run on that first attempt (4 retainers, 0 price limits) and is idempotent, so a reinstall picks up the imported config.
+
 ## v0.1.0.0 (2026-09-05)
 
 ### Added

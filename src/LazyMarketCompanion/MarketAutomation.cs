@@ -60,7 +60,7 @@ internal sealed class MarketAutomation : Window, IDisposable
   public string? ActiveAutoRetainerSession => _arRetainer;
 
   public MarketAutomation()
-    : base("Lazy Market Companion", ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.AlwaysUseWindowPadding | ImGuiWindowFlags.AlwaysAutoResize, true)
+    : base("Lazy Market Companion##overlay", ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.AlwaysUseWindowPadding | ImGuiWindowFlags.AlwaysAutoResize, true)
   {
     _mbHandler = new MarketBoardHandler();
     _mbHandler.NewPriceReceived += MBHandler_NewPriceReceived;
