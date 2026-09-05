@@ -28,7 +28,6 @@ $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
 $nameMapping = @{
     "PvPSolver"            = "PvP-Solver.md"
     "LazyMarketCompanion"  = "Lazy-Market-Companion.md"
-    "DagobertPriceMatcher" = "Dagobert-Price-Matcher.md"
     "AutoPotion"           = "AutoPotion.md"
     "ArmoireAutoFill"      = "Armoire-Auto-Fill.md"
     "GluttonyCombo"        = "Gluttony-Combo.md"

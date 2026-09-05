@@ -34,17 +34,6 @@ const PLUGINS = [
     ],
   },
   {
-    slug: 'dagobert', name: 'Dagobert Price Matcher', origin: 'Fork', hasWindow: true,
-    short: 'Matches market board prices instead of undercutting.',
-    tag: 'Match the board. Never undercut yourself again.',
-    command: '/pricematch', credit: 'Fork of Dagobert by SHOEGAZEssb · AGPLv3',
-    features: [
-      { t: 'Exact-match by default', d: 'Default match amount is 0 — list at the current lowest, no race to the bottom.' },
-      { t: 'Configurable margin', d: 'Set a match amount if you want to sit a little under or over the board.' },
-      { t: 'Hands-off listing', d: 'Re-prices as you list, so you spend less time fiddling with the retainer.' },
-    ],
-  },
-  {
     slug: 'autopotion', name: 'AutoPotion', origin: 'Original', hasWindow: true,
     short: 'Auto-uses HP potions and deep-dungeon regen items at your thresholds.',
     tag: 'Never watch your HP bar again.',

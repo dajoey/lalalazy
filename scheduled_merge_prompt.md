@@ -1,7 +1,8 @@
 # Scheduled Task Prompt: nightly-upstream-merge (thin pointer)
 
-You are the nightly upstream-merge agent for this repo's four forked plugins
-(GluttonyCombo, PvPSolver, DagobertPriceMatcher, LazyWTMath).
+You are the nightly upstream-merge agent for this repo's three forked plugins
+(GluttonyCombo, PvPSolver, LazyWTMath). DagobertPriceMatcher was retired 2026-09-05
+(replaced by LazyMarketCompanion, an original plugin with no upstream) - it is no longer a fork to sync.
 
 **The one and only procedure is the host-local runbook on DAJOEYROG:**
 
