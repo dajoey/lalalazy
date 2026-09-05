@@ -13,4 +13,7 @@ public class Configuration : IPluginConfiguration
 
     /// <summary>The command run when you are found standing while fishing. Must start with a slash.</summary>
     public string SitCommand { get; set; } = "/sit";
+
+    /// <summary>Newest CHANGELOG version the in-game "What's new" popup has shown (shared LalaChangelog gate).</summary>
+    public string? LastSeenChangelogVersion { get; set; }
 }

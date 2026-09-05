@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.1.2.0 (2026-09-05)
+
+- Re-sits after every cast and every catch. The game forces the character to stand on every hooked fish, so 0.1.1.0's one-/sit-per-fishing-session guard meant the first catch stood you up for good; the unit is now a "stand episode" (fishing start, or the fishing state machine passing through Hooking/ReleasingCatch/ConfirmingCollectable), and each episode gets at most ONE /sit (file: `FishSitService.cs`, `Arm` / `TrackTransitions`).
+- Sends only when the game will accept it: reads `EventFramework.Instance()->EventHandlerModule.FishingEventHandler` (FFXIVClientStructs) and requires `State` to be `PoleReady` or `LineInWater` for at least 1 s with `ChangingPosition` false - never mid cast, mid hook, or while already sitting down/standing up (file: `FishSitService.cs`, `Tick`).
+- Proof the sit took: `FishingEventHandler.ChangingPosition` going true within 3 s of our send is logged as `game accepted our sit`, and a 3 s outcome line reports accepted/seatedRead for every send; a second /sit in the same episode is never sent once the game accepted the first, whatever the posture detectors say (a /sit on a seated player STANDS him) (file: `FishSitService.cs`, `TrackTransitions`).
+- No other re-arm path exists: a "not seated" read after our sit never triggers a re-send on its own (that is exactly what yo-yoed 0.1.0.0). If you stand up by hand mid-cast the plugin leaves you standing until the next cast/hook; if the game refused our one /sit (sent too early), that cast is spent standing and the next hook re-arms (file: `FishSitService.cs`, `Tick`).
+- Logs every posture/fishing state CHANGE at Information, rate-limited to 40 lines/min: Fishing flag, FishingState, ChangingPosition, CanFish, Character.Mode/ModeParam, EmoteController.EmoteId, GetPosture(), and the combined SEATED verdict - so whether Mode/GetPosture read seated while sitting-and-fishing can be graded from the Dalamud log / ffxivdb without typing anything in game (file: `FishSitService.cs`, `TrackTransitions`, `LogTransition`).
+- A failing FFXIVClientStructs signature (EventFramework or GetPosture) is now logged once at Warning instead of being swallowed silently every check (file: `FishSitService.cs`, `Read`).
+- Added the shared in-game "What's new" popup (repo standing rule): after an update this changelog opens once; `/lazyfishsitter changelog` reopens it (files: `Plugin.cs`, `Configuration.cs` `LastSeenChangelogVersion`, `LazyFishSitter.csproj` compiles `src/Shared/LalaChangelog`).
+
 ## v0.1.1.0 (2026-09-05)
 
 - Fixed the sit/stand yo-yo: the seated check compared Character.Mode against raw bytes 12/13, which are RaceChocobo/TripleTriad in FFXIVClientStructs, so the player was never seen as seated and /sit was re-sent every check, and /sit while seated makes the character STAND (file: `FishSitService.cs`, `ReadPosture`; was `IsInPostureLoop`). Now compares against the `CharacterModes` enum (`EmoteLoop` = ground /sit, `InPositionLoop` = chair/bench/pose) - no raw bytes.
