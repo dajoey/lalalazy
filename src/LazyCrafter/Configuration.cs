@@ -92,8 +92,8 @@ public sealed class Configuration : IPluginConfiguration
         // v4 -> v5: DagobertAfterCraft -> PriceMatchAfterCraft (DagobertPriceMatcher retired 2026-09-05,
         // succeeded by Lazy Market Companion). Newtonsoft filled the legacy shadow property above if the old
         // key was present; copy it across once so nobody loses the setting, then stop writing the old key.
-        if (DagobertAfterCraftLegacy is { } legacyDagobert)
-            PriceMatchAfterCraft = legacyDagobert;
+        if (DagobertAfterCraftLegacy is { } legacyValue)
+            PriceMatchAfterCraft = legacyValue;
         DagobertAfterCraftLegacy = null;
         Cart ??= new List<CartEntry>();
         Version = CurrentVersion;
