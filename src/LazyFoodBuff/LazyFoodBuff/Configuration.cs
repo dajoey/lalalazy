@@ -33,6 +33,17 @@ public class Configuration : IPluginConfiguration
     public bool WarningSoundEnabled { get; set; } = true;
     public uint WarningSoundId { get; set; } = 23;
 
+    /// <summary>
+    ///     Off-by-default decision tap (v0.1.4.0). When on, FoodService writes one
+    ///     <c>FT|</c> line to the plugin log per settled food decision — the
+    ///     recommendation AND the runner-ups it beat, plus a line when the
+    ///     recommended food is actually eaten. Purely diagnostic; changes no
+    ///     food behaviour. A new defaulted bool needs no config Version bump: an
+    ///     existing v1 save simply deserializes it as false.
+    ///     See <see cref="FoodTelemetryFormat"/> for the wire format.
+    /// </summary>
+    public bool DecisionTelemetry { get; set; } = false;
+
     // Per-job settings
     public JobFoodSettings DefaultJob { get; set; } = new();
     public Dictionary<uint, JobFoodSettings> Jobs { get; set; } = new();

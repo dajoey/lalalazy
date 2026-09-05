@@ -40,6 +40,11 @@ internal class FoodService
 
     private string _lastSkipReason = "(no tick yet)";
 
+    // How the most recent SelectFood() call settled its pick (auto / manual /
+    // fallback) — read by the FT|a applied tap at the eat site, which is one
+    // call after SelectFood in the same tick. Single framework thread.
+    private string _lastSelectMode = FoodTelemetryFormat.ModeAuto;
+
     public IReadOnlyList<Food> AllFoods => _allFoods;
 
     public FoodService(Plugin plugin)
@@ -160,6 +165,10 @@ internal class FoodService
         {
             _lastSkipReason = $"ate food {food.Name}";
             Plugin.Log.Information($"LazyFoodBuff: ate food {food.Name} ({food.Id})");
+            // The applied event is distinct from the recommendation: a pick can be
+            // computed and never used (cooldown, eaten out from under us). The mode
+            // is how SelectFood settled THIS pick, captured at the call above.
+            TapDecision(jobId, _lastSelectMode, FoodTelemetryFormat.EvApplied, food);
             _nextAttempt = DateTime.UtcNow.AddMilliseconds(750);
         }
         else
@@ -172,10 +181,16 @@ internal class FoodService
     /// <summary>
     /// Select food for the current job based on settings.
     /// Priority: Manual food (if in inventory) → AutoSelect fallback → AutoSelect.
+    /// When <see cref="Configuration.DecisionTelemetry"/> is on, every settled
+    /// pick here is reported to the <c>FT|r</c>/<c>FT|n</c> tap (the change gate
+    /// in <see cref="FoodTelemetryFormat"/> decides whether a line is actually
+    /// written — this method is reachable on every 500 ms tick through the
+    /// low-food warning path, so an ungated line would be the PvPSolver flood).
     /// </summary>
     private Food? SelectFood(JobFoodSettings jobSettings, uint jobId)
     {
-        if (jobSettings.Mode == FoodSelectionMode.Manual && jobSettings.ManualFoodItemId != 0)
+        var manualMode = jobSettings.Mode == FoodSelectionMode.Manual && jobSettings.ManualFoodItemId != 0;
+        if (manualMode)
         {
             // Find the manual food.
             var manualFood = _allFoods.FirstOrDefault(f => f.Id == jobSettings.ManualFoodItemId);
@@ -187,21 +202,72 @@ internal class FoodService
                     : manualFood.InventoryCount(false) > 0;
 
                 if (hasInInventory)
+                {
+                    _lastSelectMode = FoodTelemetryFormat.ModeManual;
+                    TapDecision(jobId, FoodTelemetryFormat.ModeManual, FoodTelemetryFormat.EvRecommend, manualFood);
                     return manualFood;
+                }
 
                 // Also check if we have either quality (prefer what's available).
                 if (manualFood.InventoryCount(true) > 0 || manualFood.InventoryCount(false) > 0)
+                {
+                    _lastSelectMode = FoodTelemetryFormat.ModeManual;
+                    TapDecision(jobId, FoodTelemetryFormat.ModeManual, FoodTelemetryFormat.EvRecommend, manualFood);
                     return manualFood;
+                }
             }
 
             // Manual food not in inventory — fall back?
             if (!jobSettings.FallbackToAutoSelect)
+            {
+                _lastSelectMode = FoodTelemetryFormat.ModeManual;
+                TapDecision(jobId, FoodTelemetryFormat.ModeManual, FoodTelemetryFormat.EvNone, null);
                 return null;
+            }
         }
 
-        // AutoSelect: score all foods against job priorities.
-        return FoodRecommender.RecommendBest(_allFoods, jobId);
+        // AutoSelect: score all foods against job priorities (also reached by a
+        // Manual job whose pick was out of stock, with FallbackToAutoSelect on).
+        var auto = FoodRecommender.RecommendBest(_allFoods, jobId);
+        _lastSelectMode = manualMode ? FoodTelemetryFormat.ModeFallback : FoodTelemetryFormat.ModeAuto;
+        TapDecision(
+            jobId,
+            manualMode ? FoodTelemetryFormat.ModeFallback : FoodTelemetryFormat.ModeAuto,
+            auto == null ? FoodTelemetryFormat.EvNone : FoodTelemetryFormat.EvRecommend,
+            auto);
+        return auto;
     }
+
+    /// <summary>
+    /// Feed one settled decision to the telemetry tap. Cost when the flag is
+    /// off is the one bool read at the top; when on but suppressed by the
+    /// gate, it is one winner-score computation and no runner-up pass — the
+    /// runners-up (and their ~900 inventory reads) are only computed when a
+    /// line will actually be written.
+    /// </summary>
+    private void TapDecision(uint jobId, string mode, string ev, Food? chosen)
+    {
+        if (!_plugin.Config.DecisionTelemetry) return;
+        var score = chosen == null ? 0f : FoodRecommender.Score(chosen, jobId);
+        FoodTelemetry.Record(jobId, mode, ev, chosen, score,
+            chosen == null ? null : RunnersUpFactory(jobId, chosen));
+    }
+
+    /// <summary>
+    /// The alternatives the chooser passed over, descending by score — only
+    /// evaluated after the gate has decided a line will be written. Score-0
+    /// foods are dropped: RecommendBest can never pick them (its floor is
+    /// <c>score &gt; 0</c>), so they carry no comparison.
+    /// </summary>
+    private Func<IEnumerable<FoodTelemetryFormat.RunnerUp>?> RunnersUpFactory(uint jobId, Food chosen) => () =>
+        _allFoods
+            .Where(f => !ReferenceEquals(f, chosen))
+            .Where(f => f.InventoryCount(true) > 0 || f.InventoryCount(false) > 0)
+            .Select(f => new FoodTelemetryFormat.RunnerUp(f.Id, FoodRecommender.Score(f, jobId)))
+            .Where(r => r.Score > 0)
+            .OrderByDescending(r => r.Score)
+            .Take(FoodTelemetryFormat.MaxRunnersUp)
+            .ToList();
 
     /// <summary>
     /// Warn once in chat when the food the player is eating runs low in inventory.

@@ -85,6 +85,35 @@ internal class ConfigWindow : Window
             }
         }
 
+        // Advanced / Diagnostics. Collapsed by default: nothing in here changes what the
+        // plugin does, and the one control writes to the log, which deserves a plain warning.
+        ImGui.Spacing();
+        ImGui.Separator();
+        if (ImGui.CollapsingHeader("Advanced / Diagnostics"))
+        {
+            var telemetry = c.DecisionTelemetry;
+            if (ImGui.Checkbox("Log food decisions", ref telemetry))
+            {
+                c.DecisionTelemetry = telemetry;
+                // Match the /lazyfoodbuff telemetry command: a fresh enable reports the
+                // current recommendation instead of deduplicating against a stale one.
+                if (telemetry) FoodTelemetry.Reset();
+                changed = true;
+            }
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip(
+                    "Off by default. When on, LazyFoodBuff writes a diagnostic line to the Dalamud\n" +
+                    "plugin log every time it settles on a food for your job — the food it picked,\n" +
+                    "its score, and the runner-ups it beat. Lines start with \"" + FoodTelemetry.Prefix + "\".\n\n" +
+                    "It changes no food behaviour and sends nothing anywhere — the lines only go\n" +
+                    "to your own local plugin log, so the stat weights behind auto-select can be\n" +
+                    "checked against how the food actually performed.\n\n" +
+                    "Same as /lazyfoodbuff telemetry on|off.");
+            }
+            ImGui.TextDisabled($"Writes \"{FoodTelemetry.Prefix}\" lines to the plugin log. Nothing leaves your PC.");
+        }
+
         ImGui.Separator();
 
         // === Per-Job Settings ===

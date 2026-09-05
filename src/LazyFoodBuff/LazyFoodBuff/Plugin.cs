@@ -69,7 +69,7 @@ public sealed class Plugin : IDalamudPlugin
 
         Commands.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Open the LazyFoodBuff settings window. /lazyfoodbuff changelog shows what's new."
+            HelpMessage = "Open the LazyFoodBuff settings window. /lazyfoodbuff changelog shows what's new, /lazyfoodbuff telemetry toggles the diagnostic log."
         });
     }
 
@@ -85,18 +85,62 @@ public sealed class Plugin : IDalamudPlugin
 
     private void OnCommand(string command, string args)
     {
-        if (args.Trim().Equals("debug", StringComparison.OrdinalIgnoreCase))
+        var arg = args.Trim();
+        if (arg.Equals("debug", StringComparison.OrdinalIgnoreCase))
         {
             _service.LogDebugState();
             return;
         }
-        if (args.Trim().Equals("changelog", StringComparison.OrdinalIgnoreCase) ||
-            args.Trim().Equals("whatsnew", StringComparison.OrdinalIgnoreCase))
+        if (arg.Equals("changelog", StringComparison.OrdinalIgnoreCase) ||
+            arg.Equals("whatsnew", StringComparison.OrdinalIgnoreCase))
         {
             _changelog.ShowNow();
             return;
         }
+        if (arg.StartsWith("telemetry", StringComparison.OrdinalIgnoreCase))
+        {
+            HandleTelemetryCommand(arg["telemetry".Length..].Trim());
+            return;
+        }
         _configWindow.IsOpen = !_configWindow.IsOpen;
+    }
+
+    /// <summary>
+    ///     <c>/lazyfoodbuff telemetry [on|off|toggle|status]</c> — the off-by-default
+    ///     decision tap behind <see cref="Configuration.DecisionTelemetry"/>
+    ///     (mirrors <c>/autopotion telemetry</c> and <c>/gluttony telemetry</c>).
+    /// </summary>
+    private void HandleTelemetryCommand(string sub)
+    {
+        var current = Config.DecisionTelemetry;
+        bool? wanted = sub.ToLowerInvariant() switch
+        {
+            "on" or "enable" or "1" => true,
+            "off" or "disable" or "0" => false,
+            "toggle" => !current,
+            _ => null,
+        };
+
+        if (wanted is null)
+        {
+            if (sub.Length > 0 && !sub.Equals("status", StringComparison.OrdinalIgnoreCase))
+                ChatGui.Print("[LazyFoodBuff] Usage: /lazyfoodbuff telemetry <on|off|toggle|status>");
+            ChatGui.Print($"[LazyFoodBuff] Decision telemetry is {(current ? "ON" : "OFF")} " +
+                          $"(diagnostic lines starting with {FoodTelemetry.Prefix} in the plugin log).");
+            return;
+        }
+
+        if (wanted.Value != current)
+        {
+            Config.DecisionTelemetry = wanted.Value;
+            SaveConfig();
+            // Toggling on forgets the last decision so the current state is reported
+            // immediately instead of being deduplicated against a stale pre-toggle one.
+            if (wanted.Value) FoodTelemetry.Reset();
+        }
+
+        ChatGui.Print($"[LazyFoodBuff] Decision telemetry {(wanted.Value ? "ON" : "OFF")}.");
+        Log.Information($"LazyFoodBuff decision telemetry {(wanted.Value ? "ON" : "OFF")}.");
     }
 
     public void Dispose()
