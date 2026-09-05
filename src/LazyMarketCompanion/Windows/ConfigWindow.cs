@@ -407,6 +407,26 @@ public sealed class ConfigWindow : Window
       ImGui.Separator();
       ImGui.TextColored(Muted, "Settings were imported from Dagobert Price Matcher. You can uninstall that plugin.");
     }
+
+    // Advanced / Diagnostics. Collapsed by default: nothing in here changes what the plugin
+    // does, and the one control writes to the log, which deserves a plain warning.
+    ImGui.Spacing();
+    ImGui.Separator();
+    if (ImGui.CollapsingHeader("Advanced / Diagnostics"))
+    {
+      var telemetry = c.DecisionTelemetry;
+      if (ImGui.Checkbox("Log price decisions", ref telemetry)) { c.DecisionTelemetry = telemetry; c.Save(); }
+      Tip("Off by default. When on, Lazy Market Companion writes a diagnostic line to the Dalamud\n" +
+          "plugin log for every price decision it makes - both the prices it sets and the ones it\n" +
+          "refuses to set because they would undercut by more than your maximum. Each line carries\n" +
+          "the item, quantity, old price, new price, where the price came from and the percentage\n" +
+          "change. Lines start with \"" + MarketTelemetry.Prefix + "\".\n\n" +
+          "It changes no pricing behaviour and sends nothing anywhere - the lines only go to your\n" +
+          "own local plugin log, so you can check afterwards whether matching the board actually\n" +
+          "earned more than the fallback price did.\n\n" +
+          "Same as /lmc telemetry on|off.");
+      ImGui.TextColored(Muted, $"Writes \"{MarketTelemetry.Prefix}\" lines to the plugin log. Nothing leaves your PC.");
+    }
   }
 
   // =====================================================================================

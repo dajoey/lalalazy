@@ -144,6 +144,15 @@ public sealed class Configuration : IPluginConfiguration
 
   public List<ItemPriceLimit> ItemPriceLimits { get; set; } = [];
 
+  /// <summary>
+  /// Off-by-default price-decision tap. When on, every decision SetNewPrice makes - the writes AND
+  /// the writes refused by MaxUndercutPercentage - is written to the plugin log as one
+  /// <c>MT|</c> line. Diagnostic only: it changes no pricing behaviour and sends nothing anywhere.
+  /// A new defaulted bool needs no config Version bump - an existing save simply deserializes it
+  /// as false. See <see cref="MarketTelemetryFormat"/> for the wire format.
+  /// </summary>
+  public bool DecisionTelemetry { get; set; } = false;
+
   public const string ALL_DISABLED_SENTINEL = "__ALL_DISABLED__";
 
   public HashSet<string> EnabledRetainerNames { get; set; } = [];

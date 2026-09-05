@@ -80,7 +80,7 @@ public sealed class Plugin : IDalamudPlugin
 
     CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
     {
-      HelpMessage = "Open Lazy Market Companion. Subcommands: market (auto-market open retainer), pinch (re-price open retainer), sweep (all retainers), cancel, changelog (what's new), debug"
+      HelpMessage = "Open Lazy Market Companion. Subcommands: market (auto-market open retainer), pinch (re-price open retainer), sweep (all retainers), cancel, changelog (what's new), telemetry (log price decisions), debug"
     });
     // Only take the old alias if Dagobert is not loaded alongside us; otherwise we'd log an error now
     // and yank Dagobert's command on our Dispose.
@@ -214,6 +214,14 @@ public sealed class Plugin : IDalamudPlugin
   private void OnCommand(string command, string args)
   {
     var sub = args.Trim().ToLowerInvariant();
+
+    // Handled before the switch because it takes an argument: "telemetry on" / "telemetry off".
+    if (sub.StartsWith("telemetry", StringComparison.Ordinal))
+    {
+      HandleTelemetryCommand(sub["telemetry".Length..].Trim());
+      return;
+    }
+
     switch (sub)
     {
       case "market":
@@ -241,6 +249,41 @@ public sealed class Plugin : IDalamudPlugin
         ToggleConfigUI();
         return;
     }
+  }
+
+  /// <summary>
+  /// <c>/lmc telemetry [on|off|toggle|status]</c> - the off-by-default price-decision tap behind
+  /// <see cref="Configuration.DecisionTelemetry"/> (mirrors GluttonyCombo's <c>/gluttony telemetry</c>
+  /// and AutoPotion's <c>/autopotion telemetry</c>).
+  /// </summary>
+  private void HandleTelemetryCommand(string sub)
+  {
+    var current = Configuration.DecisionTelemetry;
+    bool? wanted = sub switch
+    {
+      "on" or "enable" or "1" => true,
+      "off" or "disable" or "0" => false,
+      "toggle" => !current,
+      _ => null,
+    };
+
+    if (wanted is null)
+    {
+      if (sub.Length > 0 && sub != "status")
+        ChatGui.Print("[LMC] Usage: /lmc telemetry <on|off|toggle|status>");
+      ChatGui.Print($"[LMC] Price-decision telemetry is {(current ? "ON" : "OFF")} " +
+                    $"(diagnostic lines starting with {MarketTelemetry.Prefix} in the plugin log).");
+      return;
+    }
+
+    if (wanted.Value != current)
+    {
+      Configuration.DecisionTelemetry = wanted.Value;
+      Configuration.Save();
+    }
+
+    ChatGui.Print($"[LMC] Price-decision telemetry {(wanted.Value ? "ON" : "OFF")}" +
+                  (wanted.Value ? $" - writing {MarketTelemetry.Prefix} lines to the plugin log." : "."));
   }
 
   private void OnContextMenuOpened(IMenuOpenedArgs args)

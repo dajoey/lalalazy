@@ -34,6 +34,10 @@ internal sealed class MarketAutomation : Window, IDisposable
   private int? _oldPrice;
   private int? _newPrice;
   private bool _newPriceFromUniversalis;
+  // Whether the candidate price came from the per-run cache rather than a fresh lookup. Read only
+  // by the decision tap: _newPriceFromUniversalis records where a price ORIGINATED (a cached price
+  // keeps the origin it was cached with), so it cannot answer "was this a cache hit" on its own.
+  private bool _newPriceFromCache;
   private bool _skipCurrentItem = false;
   private readonly TaskManager _taskManager;
   private Dictionary<string, CachedPrice> _cachedPrices = [];
@@ -922,6 +926,7 @@ internal sealed class MarketAutomation : Window, IDisposable
         Svc.Log.Debug($"[LMC] {itemName}: using cached price");
         _newPrice = cachedPrice.Value;
         _newPriceFromUniversalis = cachedPrice.FromUniversalis;
+        _newPriceFromCache = true;
         return true;
       }
 
@@ -958,6 +963,7 @@ internal sealed class MarketAutomation : Window, IDisposable
         var itemName = GetRetainerSellItemName(retainerSell);
         _oldPrice = retainerSell->AskingPrice->Value;
         var isPlaceholder = _oldPrice.Value == Plugin.Configuration.AutoMarketPlaceholderPrice;
+        var usedDefaultAmount = false;
 
         if (!(_newPrice > 0))
         {
@@ -972,12 +978,17 @@ internal sealed class MarketAutomation : Window, IDisposable
           Svc.Log.Warning("[LMC] SetNewPrice: using default amount");
           _newPrice = Plugin.Configuration.DefaultAmount;
           _newPriceFromUniversalis = false;
+          _newPriceFromCache = false;
+          usedDefaultAmount = true;
           Communicator.PrintUsingDefaultAmountWarning(itemName, _newPrice.Value);
         }
 
         var rawItemName = GetRetainerSellRawItemName(retainerSell);
+        // Kept for the tap: the candidate as it arrived, before any per-item min/max clamp.
+        var rawPrice = _newPrice.Value;
         var limitedPrice = ApplyItemPriceLimits(itemName, rawItemName, _newPrice.Value);
-        if (limitedPrice != _newPrice.Value)
+        var wasLimited = limitedPrice != _newPrice.Value;
+        if (wasLimited)
         {
           Svc.Log.Debug($"[LMC] {itemName}: price limit adjusted {_newPrice.Value} to {limitedPrice}");
           _newPrice = limitedPrice;
@@ -985,7 +996,8 @@ internal sealed class MarketAutomation : Window, IDisposable
 
         var cutPercentage = ((float)_newPrice.Value - _oldPrice.Value) / _oldPrice.Value * 100f;
         // A placeholder listing is always allowed to drop to the real price; the max-cut guard is for real listings.
-        if (isPlaceholder || cutPercentage >= -Plugin.Configuration.MaxUndercutPercentage)
+        var priceAccepted = isPlaceholder || cutPercentage >= -Plugin.Configuration.MaxUndercutPercentage;
+        if (priceAccepted)
         {
           Svc.Log.Debug("[LMC] setting new price");
           _cachedPrices.TryAdd(itemName, new CachedPrice(_newPrice.Value, _newPriceFromUniversalis));
@@ -998,6 +1010,17 @@ internal sealed class MarketAutomation : Window, IDisposable
         else
           Communicator.PrintAboveMaxCutError(itemName);
 
+        // Off-by-default decision tap. The flag is read BEFORE anything is gathered: resolving the
+        // item id is a linear scan of the Item sheet, so "off" must cost exactly this bool read.
+        // Both outcomes are emitted - an abort writes no price and is otherwise almost traceless,
+        // which makes it the single most interesting line in the plugin.
+        if (Plugin.Configuration.DecisionTelemetry)
+          MarketTelemetry.RecordDecision(
+            itemName, rawItemName,
+            _oldPrice.Value, rawPrice, _newPrice.Value,
+            _newPriceFromUniversalis, _newPriceFromCache, usedDefaultAmount,
+            wasLimited, isPlaceholder, aborted: !priceAccepted, cutPercentage);
+
         ECommons.Automation.Callback.Fire(&retainerSell->AtkUnitBase, true, 0); // confirm
         ui->Close(true);
         return true;
@@ -1009,6 +1032,7 @@ internal sealed class MarketAutomation : Window, IDisposable
       _oldPrice = null;
       _newPrice = null;
       _newPriceFromUniversalis = false;
+      _newPriceFromCache = false;
       _skipCurrentItem = false;
     }
   }
@@ -1018,6 +1042,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     Svc.Log.Debug($"[LMC] new price received: {e.NewPrice}");
     _newPrice = e.NewPrice;
     _newPriceFromUniversalis = false;
+    _newPriceFromCache = false;
   }
 
   private static unsafe string GetRetainerSellItemName(AddonRetainerSell* addon) => addon->ItemName->NodeText.GetText();
@@ -1064,6 +1089,7 @@ internal sealed class MarketAutomation : Window, IDisposable
       Svc.Log.Debug($"[LMC] Universalis price received: {price}");
       _newPrice = price;
       _newPriceFromUniversalis = price > 0;
+      _newPriceFromCache = false;
     });
   }
 
@@ -1131,6 +1157,7 @@ internal sealed class MarketAutomation : Window, IDisposable
   {
     _newPrice = null;
     _newPriceFromUniversalis = false;
+    _newPriceFromCache = false;
     _cachedPrices = [];
     _cachedPricesUseUniversalisDataCenterPrices = Plugin.Configuration.UseUniversalisDataCenterPrices;
     _skipCurrentItem = false;

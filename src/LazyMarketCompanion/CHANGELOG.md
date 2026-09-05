@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.1.4.0 (2026-09-05)
+
+### Added
+- New off-by-default price-decision log: when enabled, one diagnostic line is written to the plugin log for every price decision the matcher makes - both the prices it sets and, just as importantly, the writes it REFUSES because they would undercut by more than your maximum, which previously left almost no trace. Each line carries the item, its quantity, the old price, the new price before and after your per-item min/max limits, where the price came from (market board, Universalis, or the default-amount fallback), and the percentage change (file: `MarketTelemetryFormat.cs` + `MarketTelemetry.cs`, new).
+- Turn it on with `/lmc telemetry on` or the "Log price decisions" checkbox under Advanced / Diagnostics in the Price Matching tab. It is off by default, changes no pricing behaviour, and sends nothing anywhere - the lines only go to your own local plugin log (file: `Plugin.cs`, `HandleTelemetryCommand`; `Windows/ConfigWindow.cs`).
+- The line format is designed to be joined against your retainer sale messages ("...have sold for X gil") so you can finally answer, with data, whether matched prices actually earn more than fallback prices and how long listings take to sell (file: `MarketTelemetryFormat.cs`).
+
+### Notes
+- Quantity on a line is 0 (unknown) when the retainer holds two listings of the same item and quality, because the open price dialog does not say which row it is; otherwise it is the listing's stack size (file: `MarketTelemetryFormat.cs`, `ResolveQuantity`).
+- Fixed-price Auto-Market listings do not appear in the log: they are priced when listed and never pass through the matcher (file: `MarketAutomation.cs`).
 ## v0.1.3.0 (2026-09-05)
 
 ### Changed
