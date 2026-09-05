@@ -8,21 +8,37 @@ using LazyCrafter.Core.Model;
 namespace LazyCrafter.Adapters;
 
 /// <summary>
-/// Runs a <see cref="DispatchPlan.Plan"/> against the live plugins (Plan A—Phase 5 task 6):
-/// <b>0.1.3.0:</b> when the plan needs stock fetched out of the retainers, ONE batch Artisan session first -
-/// bell once, every queued recipe's missing materials withdrawn (see <see cref="RetainerFetch.BeginBatch"/>) -
-/// measured against the bags, then the plan re-built, and only then any remainder falls back to the 0.1.2.0
-/// per-item sessions.
-/// Ventures start first (card t_63b845ad), then retainers are asynchronous so ventures start next, gathering drives
-/// the character so crafting waits for it, then each craft is handed to Artisan in depth-first order, polling
-/// <c>Artisan.IsBusy</c> between recipes. Vendor / market items are printed as shopping lists with map links (the
-/// per-leaf buttons do the teleport; teleporting in the middle of a cart run would fight GBR). Everything happens on
-/// <see cref="IFramework.Update"/> in small steps; nothing blocks, nothing runs in Draw. <c>/lcraft stop</c> or the
-/// Stop button aborts (retainer queue aborted, GBR off, Artisan stop request).
+/// Runs a cart's dispatch plan against the live plugins (Plan A-Phase 5 task 6).
+/// <para>
+/// <b>0.1.4.0 (card t_efde145c, Joey's option A):</b> a dispatch is now a LOOP of waves, not one pass. A wave is
+/// retrieve (one batch Artisan bell session first, then per-item) -> ventures (ARC) -> gather (GBR) -> crafts (Artisan,
+/// depth-first). After every wave the cart's remaining lines are re-assessed against the LIVE bags and re-planned
+/// (<see cref="DispatchLoop"/>, decision logic in Core so the harness proves it). While the fresh plan has work the
+/// plugin can do on its own and the last wave moved something, the next wave runs. When nothing is runnable the run
+/// ends <see cref="Phase.Blocked"/> - a terminal state distinct from Done and Failed - with ONE red block naming
+/// exactly what the player has to buy / fetch (market list with est. gil, vendor map flags, manual sources) and the
+/// words "then press Resume". <see cref="Resume"/> re-plans from the bags and continues the same cart. This is the
+/// fix for the Alpine Chandelier run (0.1.3.1): the ore was gathered and one nugget crafted, then the run ended
+/// silently with four crafts never attempted - deferrals were decided at plan-build time and never revisited.
+/// </para>
+/// <para>
+/// Every wait is bounded: GBR stall guard (no change in its status text or the gathered items' bag counts for 10 min
+/// -> stop GBR, Blocked), per-craft 10-min cap (Artisan stop request + Failed with reason), plus the existing 4/10-min
+/// retainer watchdogs. While any wait is in flight a heartbeat chat line fires every 3 minutes ("still working:
+/// gathering 2/5 (Titanium Ore), 7:12 elapsed") so a 16-minute gather never looks dead again.
+/// </para>
+/// <para>
+/// Vendor / market items are printed as shopping lists with map links; the per-leaf buttons do the teleport -
+/// teleporting in the middle of a cart run would fight GBR (and option A says: no teleporting or walking for him
+/// unattended). Everything happens on <see cref="IFramework.Update"/> in small steps; nothing blocks, nothing runs
+/// in Draw. The UI never reads game state from Draw: it reads <see cref="Snapshot"/>, an immutable
+/// <see cref="RunSnapshot"/> replaced on every phase change / status update (contract v1 with card t_c360953f).
+/// <c>/lcraft stop</c> aborts (retainer queue aborted, GBR off, Artisan stop request).
+/// </para>
 /// </summary>
 public sealed class DispatchService : IDisposable
 {
-    public enum Phase { Idle, Retrieve, WaitRetrieve, Ventures, Gathers, WaitGather, Crafts, WaitCraftStart, WaitCraftEnd, Done, Failed, BatchRetrieve, BatchWait }
+    public enum Phase { Idle, Retrieve, WaitRetrieve, Ventures, Gathers, WaitGather, Crafts, WaitCraftStart, WaitCraftEnd, Done, Failed, BatchRetrieve, BatchWait, Blocked }
 
     private readonly Plugin _plugin;
     private readonly IFramework _framework;
@@ -39,6 +55,7 @@ public sealed class DispatchService : IDisposable
 
     private RecipeGraph? _graph;
     private VentureResolver? _ventures;
+    private Tiering? _tiering;
     private VendorLocator? _vendors;
 
     private DispatchPlan.Plan? _plan;
@@ -51,7 +68,7 @@ public sealed class DispatchService : IDisposable
     private int _madeBefore, _expected;
 
     // ---- retrieval state (card t_63b845ad)
-    /// <summary>The cart this run came from, so the plan can be rebuilt once the fetched stock is in the bags.</summary>
+    /// <summary>The cart this run came from, so the loop can re-plan against live bags between waves (null for single-item runs).</summary>
     private CatalogSnapshot? _snap;
     private Queue<DispatchPlan.Retrieve> _retrievals = new();
     private DispatchPlan.Retrieve? _fetching;
@@ -67,13 +84,39 @@ public sealed class DispatchService : IDisposable
     /// <summary>How many materials the batch session actually delivered into the bags (measured, counted like <see cref="_fetchedOk"/>).</summary>
     private int _batchFetched;
 
+    // ---- 0.1.4.0: the wave loop, the stall guards, the heartbeat, the snapshot.
+    private DispatchLoop? _loop;
+    private readonly StallGuard _gatherStall = new(TimeSpan.FromMinutes(10));
+    private readonly StallGuard _craftStall = new(TimeSpan.FromMinutes(10));
+    private readonly Stopwatch _runClock = new();
+    private DateTime _runStartUtc;
+    private DateTime? _endedUtc;
+    private string _what = "";
+    private readonly List<string> _cartNames = new();
+    private readonly List<RunStep> _steps = new();
+    private List<BlockedItem> _blockedItems = new();
+    private string? _stoppedReason;
+    private bool _waveProgress;
+    /// <summary>This wave's gather list (ids + quantities) and the bag counts when GBR started, for the stall signal, the heartbeat and the landed count.</summary>
+    private List<(uint ItemId, int Quantity)> _gatherList = new();
+    private Dictionary<uint, int> _gatherBefore = new();
+    private DateTime _nextHeartbeat = DateTime.MinValue;
+    private string? _lastHeartbeat;
+    private volatile RunSnapshot _snapshot = RunSnapshot.Empty;
+
     private readonly Stopwatch _phaseClock = new();
     private DateTime _nextPoll = DateTime.MinValue;
     private int _craftsDone, _craftsFailed;
 
     public Phase Current { get; private set; } = Phase.Idle;
     public string Status { get; private set; } = "idle";
-    public bool Running => Current is not (Phase.Idle or Phase.Done or Phase.Failed);
+    public bool Running => Current is not (Phase.Idle or Phase.Done or Phase.Failed or Phase.Blocked);
+
+    /// <summary>Immutable picture of the current / last run, replaced on every phase change and status update. Safe to read from Draw.</summary>
+    public RunSnapshot Snapshot => _snapshot;
+
+    /// <summary>Blocked or Failed with the cart still held - <see cref="Resume"/> will re-plan and continue.</summary>
+    public bool CanResume => !Running && _loop is not null && _snap is not null;
 
     public DispatchService(Plugin plugin, IFramework framework, IChatGui chat, IPluginLog log)
     {
@@ -103,8 +146,12 @@ public sealed class DispatchService : IDisposable
     {
         var gd = _plugin.GameData;
         if (gd is null) { Say("game data is still loading; try again in a moment.", error: true); return false; }
-        _graph ??= new RecipeGraph(gd);
-        _ventures ??= new VentureResolver(gd);
+        if (_graph is null)
+        {
+            _graph = new RecipeGraph(gd);
+            _ventures = new VentureResolver(gd);
+            _tiering = new Tiering(_graph, new SourceClassifier(gd, _graph, _ventures, _plugin.Player.Retainers, _plugin.Player.GatheredItems));
+        }
         return true;
     }
 
@@ -131,34 +178,69 @@ public sealed class DispatchService : IDisposable
         return DispatchPlan.Build(lines, snap.CartTotals.Totals, _graph!, _ventures!, _plugin.Player.Retainers, _plugin.Player.GatheredItems, _plugin.Inventory);
     }
 
-    /// <summary>Dispatch the whole cart. Framework thread (button handler / command).</summary>
+    // ------------------------------------------------------------- entry points
+
+    /// <summary>
+    /// Dispatch the whole cart as a wave loop (card t_efde145c): run, re-plan from the live bags, repeat until
+    /// nothing is runnable, then stop-and-report in <see cref="Phase.Blocked"/> for the player to buy / fetch and
+    /// press Resume. Framework thread (button handler / command).
+    /// </summary>
     public void DispatchCart(CatalogSnapshot snap)
     {
         if (Running) { Say($"a dispatch is already running ({Status}); /lcraft stop first.", error: true); return; }
         if (snap.Cart.Count == 0) { Say("the cart is empty.", error: true); return; }
-        var plan = PlanFor(snap);
-        if (plan is null) return;
+        if (!EnsureCore()) return;
+
+        var lines = snap.Cart
+            .Where(l => l.Crafts > 0 && _graph!.Row(l.RecipeId) is not null)
+            .Select(l => new DispatchLoop.CartLine(l.RecipeId, _graph!.Row(l.RecipeId)!.ResultItemId, l.Crafts))
+            .ToList();
+        if (lines.Count == 0) { Say("the cart has no craftable lines.", error: true); return; }
+
+        StartRun("cart", snap.Cart.Where(l => l.Row is not null).Select(l => Name(l.Row!.ResultItemId)).ToList());
         _snap = snap;
-        Start(plan, "cart");
+        _loop = new DispatchLoop(lines, Replan, FingerprintOf);
+        TakeDecision(_loop.Begin());
     }
 
-    /// <summary>One sub-craft from the ingredient tree: Artisan only.</summary>
+    /// <summary>
+    /// Continue a Blocked (or Failed-with-cart) run: re-assess the cart's remaining lines against the live bags and
+    /// carry on where the last plan left off. With nothing runnable it prints the same blocked block again - never
+    /// silence. Returns false when there was nothing to resume.
+    /// </summary>
+    public bool Resume()
+    {
+        if (Running) { Say($"a dispatch is already running ({Status}); /lcraft stop first.", error: true); return false; }
+        if (_loop is null || _snap is null) { Say("nothing to resume - dispatch a cart first.", error: true); return false; }
+        Say("resuming - re-checking your bags.");
+        _endedUtc = null;
+        _stoppedReason = null;
+        _unfetched.Clear();
+        TakeDecision(_loop.Resume());
+        return Current is Phase.Blocked || Running;
+    }
+
+    /// <summary>One sub-craft from the ingredient tree: Artisan only, single wave, no loop.</summary>
     public void CraftOne(uint recipeId, int crafts)
     {
         if (Running) { Say($"a dispatch is already running ({Status}); /lcraft stop first.", error: true); return; }
         if (!EnsureCore()) return;
         var row = _graph!.Row(recipeId);
         if (row is null) { Say($"unknown recipe {recipeId}.", error: true); return; }
+        StartRun(Name(row.ResultItemId), []);
+        _loop = null;
         _snap = null;
-        Start(new DispatchPlan.Plan([], [], [new DispatchPlan.Craft(recipeId, row.ResultItemId, crafts, 0, false)], [], [], [], []), Name(row.ResultItemId));
+        StartWave(new DispatchPlan.Plan([], [], [new DispatchPlan.Craft(recipeId, row.ResultItemId, crafts, 0, false)], [], [], [], []));
     }
 
-    /// <summary>One gather from the ingredient tree: GBR only.</summary>
+    /// <summary>One gather from the ingredient tree: GBR only, single wave, no loop.</summary>
     public void GatherOne(uint itemId, int quantity)
     {
         if (Running) { Say($"a dispatch is already running ({Status}); /lcraft stop first.", error: true); return; }
+        StartRun(Name(itemId), []);
+        _loop = null;
         _snap = null;
-        Start(new DispatchPlan.Plan([], [new DispatchPlan.Gather(itemId, quantity, SourceKind.RegularNode)], [], [], [], [], []), Name(itemId));
+        StartWave(new DispatchPlan.Plan([], [new DispatchPlan.Gather(itemId, quantity, SourceKind.RegularNode)], [], [], [], [], []));
     }
 
     /// <summary>One venture from the ingredient tree: ARC only (no state machine needed - it is synchronous).</summary>
@@ -177,9 +259,11 @@ public sealed class DispatchService : IDisposable
     public void RetrieveOne(uint itemId, int quantity)
     {
         if (Running) { Say($"a dispatch is already running ({Status}); /lcraft stop first.", error: true); return; }
-        var where = _plugin.Inventory.StoredWhere(itemId);
+        StartRun(Name(itemId), []);
+        _loop = null;
         _snap = null;
-        Start(new DispatchPlan.Plan([], [], [], [], [], [], [], [new DispatchPlan.Retrieve(itemId, quantity, where)]), Name(itemId));
+        var where = _plugin.Inventory.StoredWhere(itemId);
+        StartWave(new DispatchPlan.Plan([], [], [], [], [], [], [], [new DispatchPlan.Retrieve(itemId, quantity, where)]));
     }
 
     /// <summary>Fetch a whole set of materials and stop there - no ventures, no gathers, no crafts (<c>/lcraft fetch</c>).</summary>
@@ -187,8 +271,10 @@ public sealed class DispatchService : IDisposable
     {
         if (Running) { Say($"a dispatch is already running ({Status}); /lcraft stop first.", error: true); return; }
         if (retrievals.Count == 0) { Say("nothing to fetch."); return; }
+        StartRun($"{retrievals.Count} material{(retrievals.Count == 1 ? "" : "s")}", []);
+        _loop = null;
         _snap = null;
-        Start(new DispatchPlan.Plan([], [], [], [], [], [], [], retrievals), $"{retrievals.Count} material{(retrievals.Count == 1 ? "" : "s")}");
+        StartWave(new DispatchPlan.Plan([], [], [], [], [], [], [], retrievals));
     }
 
     /// <summary>Teleport to the nearest vendor of the item and flag it (Lifestream).</summary>
@@ -208,20 +294,27 @@ public sealed class DispatchService : IDisposable
         if (Current is Phase.BatchRetrieve or Phase.BatchWait or Phase.Retrieve or Phase.WaitRetrieve) Fetch.Abort();
         if (Current is Phase.WaitGather or Phase.Gathers) Gbr.Stop();
         if (Current is Phase.WaitCraftStart or Phase.WaitCraftEnd or Phase.Crafts) Artisan.Stop();
+        _loop = null;   // a manual stop is not resumable - the player chose to end it
+        _snap = null;
         Finish(Phase.Failed, why);
     }
 
-    // ---------------------------------------------------------------- the run
+    // ------------------------------------------------------------- run / wave plumbing
 
-    private void Start(DispatchPlan.Plan plan, string what)
+    /// <summary>Cross-run reset: timers, counters, step list, snapshot. Called by every entry point.</summary>
+    private void StartRun(string what, IReadOnlyList<string> cartNames)
     {
-        _plan = plan;
-        _crafts = new Queue<DispatchPlan.Craft>(plan.Crafts);
+        _what = what;
+        _cartNames.Clear();
+        _cartNames.AddRange(cartNames);
         _made.Clear();
         _deferredAtRun.Clear();
         _unfetched.Clear();
         _fetchTries.Clear();
         _batchBefore.Clear();
+        _steps.Clear();
+        _blockedItems = new List<BlockedItem>();
+        _stoppedReason = null;
         _craftsDone = _craftsFailed = 0;
         _madeBefore = _expected = 0;
         _fetchBefore = _fetchedOk = 0;
@@ -229,10 +322,36 @@ public sealed class DispatchService : IDisposable
         _batchCrafts = Array.Empty<uint>();
         _current = null;
         _fetching = null;
+        _runClock.Restart();
+        _runStartUtc = DateTime.UtcNow;
+        _endedUtc = null;
+        _nextHeartbeat = DateTime.MinValue;
+        _lastHeartbeat = null;
+        _loop = null;
+        _snap = null;
+        Current = Phase.Idle;
+    }
+
+    /// <summary>One wave of the loop: queue the plan's work and enter the retrieve-first channel (0.1.3.0 logic, unchanged).</summary>
+    private void StartWave(DispatchPlan.Plan plan)
+    {
+        _plan = plan;
+        _crafts = new Queue<DispatchPlan.Craft>(plan.Crafts);
         _retrievals = new Queue<DispatchPlan.Retrieve>(plan.Retrievals);
         _retrievalsPlanned = plan.Retrievals.Count;
-        Say($"dispatching {what}: {plan.Ventures.Count} venture, {plan.Gathers.Count} gather, {plan.Crafts.Count} craft, {plan.Vendor.Count} vendor, {plan.Market.Count} market, {plan.Manual.Count} manual, {plan.Deferred.Count} deferred, {plan.Retrievals.Count} to retrieve.");
-        _log.Information("dispatch plan for {What}: ventures=[{V}] gathers=[{G}] crafts=[{C}] vendor=[{Ve}] market=[{M}] manual=[{Ma}] deferred=[{D}]", what,
+        _batchFetched = 0;
+        _fetchTries.Clear();
+        _waveProgress = false;
+        foreach (var p in plan.Ventures) TrackStep(StepKind.Venture, p.ItemId, p.Quantity, StepState.Pending);
+        foreach (var g in plan.Gathers) TrackStep(StepKind.Gather, g.ItemId, g.Quantity, StepState.Pending);
+        foreach (var c in plan.Crafts) TrackStep(StepKind.Craft, c.ResultItemId, c.Crafts, StepState.Pending, recipeId: c.RecipeId);
+        foreach (var v in plan.Vendor) TrackStep(StepKind.Vendor, v.ItemId, v.Quantity, StepState.Blocked, Readable(ReadableBlocked("buy", v.ItemId, v.Quantity)));
+        foreach (var m in plan.Market) TrackStep(StepKind.Market, m.ItemId, m.Quantity, StepState.Blocked, Readable(ReadableBlocked("market", m.ItemId, m.Quantity)));
+        foreach (var m in plan.Manual) TrackStep(StepKind.Manual, m.ItemId, m.Quantity, StepState.Blocked, Readable(ReadableBlocked("manual", m.ItemId, m.Quantity)));
+        foreach (var r in plan.Retrievals) TrackStep(StepKind.Retrieve, r.ItemId, r.Quantity, StepState.Pending);
+
+        Say($"dispatching {_what}{(_loop is { Pass: > 1 } l ? $" (pass {l.Pass})" : "")}: {plan.Ventures.Count} venture, {plan.Gathers.Count} gather, {plan.Crafts.Count} craft, {plan.Vendor.Count} vendor, {plan.Market.Count} market, {plan.Manual.Count} manual, {plan.Deferred.Count} deferred, {plan.Retrievals.Count} to retrieve.");
+        _log.Information("dispatch plan for {What} pass {Pass}: ventures=[{V}] gathers=[{G}] crafts=[{C}] vendor=[{Ve}] market=[{M}] manual=[{Ma}] deferred=[{D}]", _what, _loop?.Pass ?? 1,
             string.Join(",", plan.Ventures.Select(v => $"{v.ItemId}x{v.Quantity}@{v.Match.Retainer.Name}")),
             string.Join(",", plan.Gathers.Select(g => $"{g.ItemId}x{g.Quantity}")),
             string.Join(",", plan.Crafts.Select(c => $"r{c.RecipeId}x{c.Crafts}d{c.Depth}{(c.AfterGather ? "g" : "")}")),
@@ -252,9 +371,9 @@ public sealed class DispatchService : IDisposable
         // 0.1.3.0: the fetch itself is ONE batch session, not one bell trip per material (Joey, live run: four
         // materials from one retainer became four separate ~5.5 s Artisan sessions). Artisan's batch overload takes
         // whole recipe rows and re-computes each ingredient's shortfall from the bags itself at session time, so the
-        // queue is primed with the cart's recipes - the queued crafts plus deferred crafts whose blockers include a
-        // retrieval (<see cref="RetainerBatch.Queue"/>; that is the deferred-craft shape whose stock sat on a
-        // retainer). Items with no recipe row, and anything left over afterwards, fall back to the per-item path.
+        // queue is primed with the wave's recipes - the queued crafts plus deferred crafts whose blockers include a
+        // retrieval (<see cref="RetainerBatch.Queue"/>). Items with no recipe row, and anything left over afterwards,
+        // fall back to the per-item path.
         var fetchBlocker = plan.Retrievals.Count == 0 ? null : WhyNoFetch();
         if (plan.Retrievals.Count > 0 && fetchBlocker is not null)
         {
@@ -277,9 +396,10 @@ public sealed class DispatchService : IDisposable
             }
         }
 
-        // Shopping lists and blockers are informational; print them up front. Deferrals caused purely by a retrieval
-        // we are about to perform are NOT printed here - Retrieve re-plans afterwards and reports what is still stuck,
-        // so the player is not told a craft is blocked and then told it ran.
+        // Shopping lists and blockers are informational; print them up front so the player can start buying while the
+        // wave runs. Deferrals caused purely by a retrieval we are about to perform are NOT printed here - the loop
+        // re-plans after the wave and reports what is still stuck, so the player is not told a craft is blocked and
+        // then told it ran.
         if (plan.Vendor.Count > 0)
         {
             var groups = Vendors.Plan(plan.Vendor.Select(p => (p.ItemId, p.Quantity)).ToList(), out var unlocated);
@@ -292,7 +412,13 @@ public sealed class DispatchService : IDisposable
         if (!willRetrieve)
             foreach (var d in plan.Deferred) Say($"not crafting {Name(d.ResultItemId)} x{d.Crafts} yet - {Readable(d.Reason)}.", error: true);
 
-        if (!plan.HasWork && !willRetrieve) { Finish(Phase.Done, "nothing to hand off"); return; }
+        if (!plan.HasWork && !willRetrieve)
+        {
+            // A wave with nothing to hand off still reaches here through single-channel entry points (RetrieveOnly
+            // with every fetch refused). Cart runs never do - TakeDecision screened them.
+            Finish(Phase.Done, "nothing to hand off");
+            return;
+        }
         Enter(willRetrieve ? (_batchCrafts.Count > 0 ? Phase.BatchRetrieve : Phase.Retrieve) : Phase.Ventures);
     }
 
@@ -311,11 +437,95 @@ public sealed class DispatchService : IDisposable
         return Fetch.SessionPreflight();
     }
 
+    /// <summary>Re-assess the cart's remaining lines against the LIVE bags and build the next wave's plan. Fresh leaves, fresh totals - never the snapshot's stale ones.</summary>
+    private DispatchPlan.Plan? Replan(IReadOnlyList<DispatchLoop.CartLine> remaining)
+    {
+        if (_snap is null || !EnsureCore()) return null;
+        _plugin.Inventory.Invalidate();
+        var assessed = _tiering!.AssessCart(remaining.Select(l => (l.RecipeId, l.Crafts)), _plugin.Inventory);
+        var lines = assessed.Lines
+            .Select(a => new DispatchPlan.Line(a, remaining.First(r => r.RecipeId == a.RecipeId).Crafts))
+            .ToList();
+        return DispatchPlan.Build(lines, assessed.Totals, _graph!, _ventures!, _plugin.Player.Retainers, _plugin.Player.GatheredItems, _plugin.Inventory);
+    }
+
+    /// <summary>The bag counts of everything this wave could move, folded into one string - "did anything change?".</summary>
+    private string FingerprintOf(IEnumerable<uint> ids)
+    {
+        _plugin.Inventory.Invalidate();
+        return string.Join("|", ids.OrderBy(i => i).Select(i => $"{i}:{_plugin.Inventory.CountInBags(i)}"));
+    }
+
+    /// <summary>Act on a <see cref="DispatchLoop.Decision"/>: run the next wave, finish done, or stop-and-report blocked.</summary>
+    private void TakeDecision(DispatchLoop.Decision dec)
+    {
+        switch (dec.Outcome)
+        {
+            case DispatchLoop.Outcome.Wave:
+                StartWave(dec.Plan);
+                break;
+
+            case DispatchLoop.Outcome.Done:
+                Finish(Phase.Done, null);
+                break;
+
+            case DispatchLoop.Outcome.Blocked:
+                _blockedItems = BuildBlocked(dec.Plan);
+                FinishBlocked(dec.Why ?? "nothing left the plugin can do on its own");
+                break;
+        }
+    }
+
+    /// <summary>The blocked shopping list for the snapshot (names resolved; est. gil for market items; vendor NPC + coords where placed).</summary>
+    private List<BlockedItem> BuildBlocked(DispatchPlan.Plan plan)
+    {
+        var list = new List<BlockedItem>();
+        foreach (var m in plan.Market)
+            list.Add(new BlockedItem(StepKind.Market, m.ItemId, Name(m.ItemId), m.Quantity,
+                _plugin.Catalog.UnitCost(m.ItemId) is { } u ? u * m.Quantity : null, null));
+        foreach (var v in plan.Vendor)
+        {
+            var loc = Vendors.Find(v.ItemId);
+            list.Add(new BlockedItem(StepKind.Vendor, v.ItemId, Name(v.ItemId), v.Quantity, null,
+                loc is null ? null : $"{loc.NpcName} ({loc.TerritoryName} {loc.MapCoords.X:0.0}, {loc.MapCoords.Y:0.0})"));
+        }
+        foreach (var m in plan.Manual)
+            list.Add(new BlockedItem(StepKind.Manual, m.ItemId, Name(m.ItemId), m.Quantity, null,
+                string.Join("/", m.Sources.Where(s => s != SourceKind.OnHand))));
+        foreach (var v in plan.Ventures)
+            list.Add(new BlockedItem(StepKind.Venture, v.ItemId, Name(v.ItemId), v.Quantity, null, v.Match.Retainer.Name));
+        foreach (var r in plan.Retrievals)
+            list.Add(new BlockedItem(StepKind.Retrieve, r.ItemId, Name(r.ItemId), r.Quantity, null, r.Places));
+        return list;
+    }
+
+    private static string ReadableBlocked(string verb, uint itemId, int quantity) => $"needs {verb} #{itemId} x{quantity}";
+
+    // ---------------------------------------------------------------- the run
+
     private void Enter(Phase p)
     {
         Current = p;
         _phaseClock.Restart();
         _nextPoll = DateTime.MinValue;
+        if (p is Phase.WaitGather or Phase.BatchWait or Phase.WaitRetrieve or Phase.WaitCraftEnd or Phase.WaitCraftStart)
+            _nextHeartbeat = DateTime.UtcNow.AddMinutes(3);
+        Snap();
+    }
+
+    private void SetStatus(string status)
+    {
+        Status = status;
+        Snap();
+    }
+
+    /// <summary>One heartbeat line per wait, at most every 3 minutes, deduped - "still working", never silence.</summary>
+    private void Heartbeat(string line)
+    {
+        if (DateTime.UtcNow < _nextHeartbeat || _lastHeartbeat == line) return;
+        _lastHeartbeat = line;
+        _nextHeartbeat = DateTime.UtcNow.AddMinutes(3);
+        Say($"still working: {line}, {RunSnapshot.FormatElapsed(_runClock.Elapsed)} elapsed.");
     }
 
     private void Tick(IFramework _)
@@ -328,9 +538,9 @@ public sealed class DispatchService : IDisposable
                 // ------------------------------------------------------ Retrieve: one batch pass, then per-item
                 case Phase.BatchRetrieve:
                     if (!Poll(400)) break;
-                    if (Fetch.Busy()) { Status = "waiting for Artisan's retainer queue"; break; }
+                    if (Fetch.Busy()) { SetStatus("waiting for Artisan's retainer queue"); break; }
 
-                    // Queue the whole cart's demand as one session. A refusal here (unavailable overload, nothing
+                    // Queue the whole wave's demand as one session. A refusal here (unavailable overload, nothing
                     // queued) just falls through to the per-item path, which still moves what it can.
                     var batchErr = Fetch.BeginBatch(_batchCrafts);
                     if (batchErr is not null)
@@ -348,7 +558,8 @@ public sealed class DispatchService : IDisposable
                     if (_phaseClock.ElapsedMilliseconds < 1500) break;
                     if (Fetch.Busy())
                     {
-                        Status = $"retainers: batch fetch ({_phaseClock.Elapsed:m\\:ss})";
+                        SetStatus($"retainers: batch fetch ({_phaseClock.Elapsed:m\\:ss})");
+                        Heartbeat("retainer session under way - stay by the bell");
                         if (_phaseClock.ElapsedMilliseconds > 600_000)
                         {
                             Fetch.Abort();
@@ -390,6 +601,7 @@ public sealed class DispatchService : IDisposable
                             _retrievals.Enqueue(new DispatchPlan.Retrieve(itemId, left, _plugin.Inventory.StoredWhere(itemId)));
                     }
                     _log.Information("batch retainer pass done: {Fetched} material(s) moved, {Left} left for the per-item pass", _batchFetched, _retrievals.Count);
+                    if (_batchFetched > 0) _waveProgress = true;
                     if (_retrievals.Count > 0)
                         Say($"retainer pass done - {_retrievals.Count} material{(_retrievals.Count == 1 ? "" : "s")} still short, checking the retainers again.");
                     _batchCrafts = Array.Empty<uint>();
@@ -399,7 +611,7 @@ public sealed class DispatchService : IDisposable
                 case Phase.Retrieve:
                     if (_retrievals.Count == 0) { AfterRetrieve(); break; }
                     if (!Poll(400)) break;
-                    if (Fetch.Busy()) { Status = "waiting for Artisan's retainer queue"; break; }
+                    if (Fetch.Busy()) { SetStatus("waiting for Artisan's retainer queue"); break; }
 
                     _fetching = _retrievals.Dequeue();
                     _plugin.Inventory.Invalidate();
@@ -411,6 +623,7 @@ public sealed class DispatchService : IDisposable
                     {
                         var why = $"no retainer is holding any in its bags ({_fetching.Detail}) - a summoning bell cannot reach a market-board listing, the saddlebag, the armoury chest or the glamour dresser";
                         Say($"cannot fetch {Name(_fetching.ItemId)} x{_fetching.Quantity}: {why}.", error: true);
+                        TrackStep(StepKind.Retrieve, _fetching.ItemId, _fetching.Quantity, StepState.Failed, why);
                         _unfetched.Add((_fetching, why));
                         _fetching = null;
                         break;
@@ -422,12 +635,14 @@ public sealed class DispatchService : IDisposable
                     if (ferr is not null)
                     {
                         Say($"could not start the retainer fetch for {Name(_fetching.ItemId)}: {ferr}.", error: true);
+                        TrackStep(StepKind.Retrieve, _fetching.ItemId, _fetching.Quantity, StepState.Failed, ferr);
                         _unfetched.Add((_fetching, ferr));
                         _fetching = null;
                         break;
                     }
                     Say($"fetching {Name(_fetching.ItemId)} x{want} from {_fetching.Places} - stay by the bell.");
-                    Status = $"retainer: {Name(_fetching.ItemId)} x{want}";
+                    TrackStep(StepKind.Retrieve, _fetching.ItemId, want, StepState.Running, ext: "retainer session");
+                    SetStatus($"retainer: {Name(_fetching.ItemId)} x{want}");
                     Enter(Phase.WaitRetrieve);
                     break;
 
@@ -436,12 +651,14 @@ public sealed class DispatchService : IDisposable
                     if (_phaseClock.ElapsedMilliseconds < 1500) break;      // let Artisan's queue spin up before believing !IsBusy
                     if (Fetch.Busy())
                     {
-                        Status = $"retainer: {Name(_fetching!.ItemId)} ({_phaseClock.Elapsed:m\\:ss})";
+                        SetStatus($"retainer: {Name(_fetching!.ItemId)} ({_phaseClock.Elapsed:m\\:ss})");
+                        Heartbeat($"retainer session ({Name(_fetching.ItemId)})");
                         if (_phaseClock.ElapsedMilliseconds > 240_000)
                         {
                             Fetch.Abort();
                             var why = "Artisan's retainer session ran for 4 minutes without finishing (a dialogue may be waiting, or the bell was interrupted)";
                             Say($"gave up fetching {Name(_fetching.ItemId)}: {why}.", error: true);
+                            TrackStep(StepKind.Retrieve, _fetching.ItemId, _fetching.Quantity, StepState.Failed, why);
                             _unfetched.Add((_fetching, why));
                             _fetching = null;
                             Enter(Phase.Retrieve);
@@ -455,7 +672,9 @@ public sealed class DispatchService : IDisposable
                     if (got >= _fetching.Quantity)
                     {
                         _fetchedOk++;
+                        _waveProgress = true;
                         Say($"retrieved {Name(_fetching.ItemId)} x{got} into your bags.");
+                        TrackStep(StepKind.Retrieve, _fetching.ItemId, _fetching.Quantity, StepState.Done);
                     }
                     else
                     {
@@ -466,7 +685,9 @@ public sealed class DispatchService : IDisposable
                         var left = _fetching.Quantity - got;
                         if (got > 0 && tries < 4)
                         {
+                            _waveProgress = true;
                             Say($"retrieved {Name(_fetching.ItemId)} x{got}, {left} still to go - going back to the retainers.");
+                            TrackStep(StepKind.Retrieve, _fetching.ItemId, _fetching.Quantity, StepState.Running);
                             _retrievals.Enqueue(_fetching with { Quantity = left });
                         }
                         else
@@ -475,6 +696,7 @@ public sealed class DispatchService : IDisposable
                                 ? $"only {got} of {_fetching.Quantity} came back after {tries} attempt{(tries == 1 ? "" : "s")} (bag space? the rest may be in {_fetching.Places})"
                                 : $"nothing came back from the retainers (bags full, or the stock is in {_fetching.Places} rather than on a retainer)";
                             Say($"could not fully retrieve {Name(_fetching.ItemId)}: {why}.", error: true);
+                            TrackStep(StepKind.Retrieve, _fetching.ItemId, _fetching.Quantity, StepState.Failed, why);
                             _unfetched.Add((_fetching with { Quantity = left }, why));
                         }
                     }
@@ -486,9 +708,10 @@ public sealed class DispatchService : IDisposable
                 case Phase.Ventures:
                     if (_plan.Ventures.Count > 0)
                     {
-                        Status = "ARC ventures";
+                        SetStatus("ARC ventures");
                         var n = Arc.Dispatch(_plan.VentureDictionary(), _plugin.Player.ContentId, Name);
                         if (n < 0) Say("continuing without the venture hand-off.");
+                        else foreach (var v in _plan.Ventures) TrackStep(StepKind.Venture, v.ItemId, v.Quantity, StepState.Pending, "queued with ARControl (returns in hours)");
                     }
                     Enter(Phase.Gathers);
                     break;
@@ -496,10 +719,20 @@ public sealed class DispatchService : IDisposable
                 case Phase.Gathers:
                     if (_plan.Gathers.Count > 0)
                     {
-                        Status = "GBR gather list";
+                        SetStatus("GBR gather list");
                         var n = Gbr.Dispatch(_plan.GatherDictionary(), Name);
-                        if (n > 0) { Enter(Phase.WaitGather); Status = "waiting for GBR"; break; }
-                        if (n < 0) { Finish(Phase.Failed, "GBR hand-off refused - crafts that needed those materials would fail"); return; }
+                        if (n > 0)
+                        {
+                            _plugin.Inventory.Invalidate();
+                            _gatherList = _plan.Gathers.Select(g => (g.ItemId, g.Quantity)).ToList();
+                            _gatherBefore = _gatherList.ToDictionary(g => g.ItemId, g => _plugin.Inventory.CountInBags(g.ItemId));
+                            foreach (var g in _plan.Gathers) TrackStep(StepKind.Gather, g.ItemId, g.Quantity, StepState.Running);
+                            _gatherStall.Reset();
+                            Enter(Phase.WaitGather);
+                            SetStatus("waiting for GBR");
+                            break;
+                        }
+                        if (n < 0) { foreach (var g in _plan.Gathers) TrackStep(StepKind.Gather, g.ItemId, g.Quantity, StepState.Failed, "GBR hand-off refused"); Finish(Phase.Failed, "GBR hand-off refused - crafts that needed those materials would fail"); return; }
                     }
                     Enter(Phase.Crafts);
                     break;
@@ -510,19 +743,42 @@ public sealed class DispatchService : IDisposable
                     if (Gbr.IsAutoGatherEnabled())
                     {
                         var s = Gbr.StatusText();
-                        Status = "GBR: " + (string.IsNullOrEmpty(s) ? (Gbr.IsWaiting() ? "waiting for a node window" : "gathering") : s);
+                        SetStatus("GBR: " + (string.IsNullOrEmpty(s) ? (Gbr.IsWaiting() ? "waiting for a node window" : "gathering") : s));
+                        // Stall guard (card t_efde145c): GBR's own status text PLUS the gathered items' bag counts,
+                        // unchanged for 10 minutes while not merely waiting for a timed node = stuck. Before this the
+                        // wait looped on IsAutoGatherEnabled() forever with no timeout.
+                        _plugin.Inventory.Invalidate();
+                        var signal = s + "|" + string.Join(",", _gatherList.Select(g => $"{g.ItemId}:{_plugin.Inventory.CountInBags(g.ItemId)}"));
+                        if (_gatherStall.Observe(signal, DateTime.UtcNow, paused: Gbr.IsWaiting()))
+                        {
+                            Gbr.Stop();
+                            var why = $"GBR made no progress for 10 minutes ({(_gatherList.Count == 0 ? "" : "gathering " + Name(_gatherList[0].ItemId) + ", ")}{Gbr.StatusText()})".TrimEnd(' ', ',');
+                            foreach (var g in _gatherList) TrackStep(StepKind.Gather, g.ItemId, g.Quantity, StepState.Failed, "GBR made no progress for 10 min");
+                            FinishBlocked(why, _plan);
+                            return;
+                        }
+                        Heartbeat(GatherHeartbeat());
                         break;
                     }
-                    Say("GBR auto-gather finished.");
+
                     _plugin.Inventory.Invalidate();
+                    var landed = _gatherList.Count(g => _plugin.Inventory.CountInBags(g.ItemId) > _gatherBefore.GetValueOrDefault(g.ItemId));
+                    if (landed > 0) _waveProgress = true;
+                    foreach (var g in _gatherList)
+                        TrackStep(StepKind.Gather, g.ItemId, g.Quantity,
+                            _plugin.Inventory.CountInBags(g.ItemId) > _gatherBefore.GetValueOrDefault(g.ItemId) ? StepState.Done : StepState.Failed,
+                            _plugin.Inventory.CountInBags(g.ItemId) > _gatherBefore.GetValueOrDefault(g.ItemId) ? null : "GBR finished without delivering it (list skipped, node unreachable, or bags full)");
+                    Say(landed == _gatherList.Count
+                        ? $"GBR auto-gather finished - all {_gatherList.Count} item{(_gatherList.Count == 1 ? "" : "s")} landed in your bags."
+                        : $"GBR auto-gather finished - {landed} of {_gatherList.Count} gathered item{(landed == 1 ? "" : "s")} landed in your bags.");
                     Enter(Phase.Crafts);
                     break;
 
                 case Phase.Crafts:
-                    if (_crafts.Count == 0) { Finish(Phase.Done, null); return; }
+                    if (_crafts.Count == 0) { WaveDone(); return; }
                     if (!Artisan.Installed) { Finish(Phase.Failed, "Artisan is not installed or not loaded"); return; }
                     if (!Poll(500)) break;
-                    if (Artisan.IsBusy() == true) { Status = "waiting for Artisan to go idle"; if (_phaseClock.ElapsedMilliseconds > 120_000) Finish(Phase.Failed, "Artisan stayed busy for 2 minutes"); break; }
+                    if (Artisan.IsBusy() == true) { SetStatus("waiting for Artisan to go idle"); if (_phaseClock.ElapsedMilliseconds > 120_000) Finish(Phase.Failed, "Artisan stayed busy for 2 minutes"); break; }
                     _current = _crafts.Dequeue();
 
                     // Guard: never hand Artisan a craft whose materials are not physically in the bags. The plan was
@@ -536,6 +792,7 @@ public sealed class DispatchService : IDisposable
                         var what = string.Join(", ", shortfall.Select(s => $"{Name(s.ItemId)} x{s.Quantity} is not in your bags ({s.Detail})"));
                         Say($"Artisan craft of {Name(_current.ResultItemId)} refused: {what}.", error: true);
                         Say("retrieve before crafting: " + string.Join("; ", shortfall.Select(s => $"{Name(s.ItemId)} x{s.Quantity} from {s.Places}")) + ".", error: true);
+                        TrackStep(StepKind.Craft, _current.ResultItemId, _current.Crafts, StepState.Failed, Readable("needs " + string.Join(", ", shortfall.Select(s => $"retrieve #{s.ItemId} x{s.Quantity} (from {s.Places})"))), recipeId: _current.RecipeId);
                         _deferredAtRun.Add(new DispatchPlan.Deferral(_current.RecipeId, _current.ResultItemId, _current.Crafts,
                             "needs " + string.Join(", ", shortfall.Select(s => $"retrieve #{s.ItemId} x{s.Quantity} (from {s.Places})"))));
                         _current = null;
@@ -547,10 +804,12 @@ public sealed class DispatchService : IDisposable
                     _madeBefore = _plugin.Inventory.CountInBags(_current.ResultItemId);
                     _expected = _current.Crafts * Math.Max(1, recipeRow?.ResultAmount ?? 1);
 
-                    Status = $"Artisan: {Name(_current.ResultItemId)} x{_current.Crafts}";
+                    SetStatus($"Artisan: {Name(_current.ResultItemId)} x{_current.Crafts}");
                     var err = Artisan.Craft(_current.RecipeId, _current.Crafts);
-                    if (err is not null) { _craftsFailed++; Say($"Artisan refused {Name(_current.ResultItemId)}: {err}", error: true); _current = null; break; }
-                    Say($"Artisan: crafting {Name(_current.ResultItemId)} x{_current.Crafts} ({_craftsDone + 1}/{_plan.Crafts.Count}).");
+                    if (err is not null) { _craftsFailed++; Say($"Artisan refused {Name(_current.ResultItemId)}: {err}", error: true); TrackStep(StepKind.Craft, _current.ResultItemId, _current.Crafts, StepState.Failed, err, recipeId: _current.RecipeId); _current = null; break; }
+                    Say($"Artisan: crafting {Name(_current.ResultItemId)} x{_current.Crafts} ({_craftsDone + 1}/{_craftsDone + _craftsFailed + _crafts.Count + 1}).");
+                    TrackStep(StepKind.Craft, _current.ResultItemId, _current.Crafts, StepState.Running, recipeId: _current.RecipeId, ext: "Artisan");
+                    _craftStall.Reset();
                     Enter(Phase.WaitCraftStart);
                     break;
 
@@ -561,6 +820,7 @@ public sealed class DispatchService : IDisposable
                     {
                         _craftsFailed++;
                         Say($"Artisan did not start {Name(_current!.ResultItemId)} within 15 s (crafting log blocked? wrong job gear set?) - skipping.", error: true);
+                        TrackStep(StepKind.Craft, _current.ResultItemId, _current.Crafts, StepState.Failed, "Artisan did not start within 15 s", recipeId: _current.RecipeId);
                         _current = null;
                         Enter(Phase.Crafts);
                     }
@@ -569,7 +829,22 @@ public sealed class DispatchService : IDisposable
                 case Phase.WaitCraftEnd:
                     if (!Poll(500)) break;
                     if (Artisan.StopRequested()) { Finish(Phase.Failed, "Artisan received a stop request"); return; }
-                    if (Artisan.IsBusy() == true) { Status = $"Artisan: {Name(_current!.ResultItemId)} x{_current.Crafts} ({_phaseClock.Elapsed:m\\:ss})"; break; }
+                    if (Artisan.IsBusy() == true)
+                    {
+                        SetStatus($"Artisan: {Name(_current!.ResultItemId)} x{_current.Crafts} ({_phaseClock.Elapsed:m\\:ss})");
+                        Heartbeat($"crafting {Name(_current!.ResultItemId)} x{_current.Crafts} ({_phaseClock.Elapsed:m\\:ss})");
+                        // 10-minute cap per craft (card t_efde145c): before this, an Artisan that never went idle
+                        // held the dispatcher forever with no timeout.
+                        if (_craftStall.Observe("busy", DateTime.UtcNow))
+                        {
+                            Artisan.Stop();
+                            var why = $"Artisan did not finish {Name(_current!.ResultItemId)} within 10 minutes";
+                            Say($"{why} - sending a stop request and stopping the run.", error: true);
+                            TrackStep(StepKind.Craft, _current.ResultItemId, _current.Crafts, StepState.Failed, why, recipeId: _current.RecipeId);
+                            Finish(Phase.Failed, why);
+                        }
+                        break;
+                    }
 
                     // Artisan going idle is not proof it made anything. Count the result in the bags and compare.
                     _plugin.Inventory.Invalidate();
@@ -579,12 +854,20 @@ public sealed class DispatchService : IDisposable
                     {
                         _craftsDone++;
                         _made.Add((_current.ResultItemId, made));
+                        _waveProgress = true;
+                        if (_current.Depth == 0) _loop?.CraftDone(_current.RecipeId, _current.Crafts);
+                        TrackStep(StepKind.Craft, _current.ResultItemId, _current.Crafts, StepState.Done, recipeId: _current.RecipeId);
                     }
                     else
                     {
                         _craftsFailed++;
                         Say($"Artisan: {Name(_current.ResultItemId)} - expected {_expected}, made {made}.", error: true);
-                        if (made > 0) _made.Add((_current.ResultItemId, made));
+                        if (made > 0)
+                        {
+                            _made.Add((_current.ResultItemId, made));
+                            _waveProgress = true;
+                        }
+                        TrackStep(StepKind.Craft, _current.ResultItemId, _current.Crafts, StepState.Failed, $"expected {_expected}, made {made}", recipeId: _current.RecipeId);
                     }
                     _current = null;
                     Enter(Phase.Crafts);
@@ -598,35 +881,33 @@ public sealed class DispatchService : IDisposable
         }
     }
 
-    /// <summary>
-    /// The retrieval queue is empty. If anything actually landed in the bags, rebuild the plan against the new
-    /// inventory: crafts that were deferred purely because their materials sat on a retainer become real crafts,
-    /// which is the whole point of the exercise. Then carry on into the normal channels.
-    /// </summary>
-    private void AfterRetrieve()
+    /// <summary>The gather heartbeat line: how many of the wave's items have landed, and the first one still short.</summary>
+    private string GatherHeartbeat()
     {
-        if (_fetchedOk + _batchFetched > 0 && _snap is not null)
+        var done = 0;
+        uint? current = null;
+        foreach (var (itemId, qty) in _gatherList)
         {
-            _plugin.Inventory.Invalidate();
-            var fresh = PlanFor(_snap);
-            if (fresh is not null)
-            {
-                var was = _plan!.Crafts.Count;
-                _plan = fresh;
-                _crafts = new Queue<DispatchPlan.Craft>(fresh.Crafts);
-                Say(fresh.Crafts.Count == was
-                    ? $"materials retrieved; {fresh.Crafts.Count} craft{(fresh.Crafts.Count == 1 ? "" : "s")} to run."
-                    : $"materials retrieved; {fresh.Crafts.Count} craft{(fresh.Crafts.Count == 1 ? "" : "s")} now ready (was {was}).");
-                foreach (var d in fresh.Deferred) Say($"still not crafting {Name(d.ResultItemId)} x{d.Crafts} - {Readable(d.Reason)}.", error: true);
-            }
+            var have = _plugin.Inventory.CountInBags(itemId);
+            if (have >= _gatherBefore.GetValueOrDefault(itemId) + qty) done++;
+            else if (current is null) current = itemId;
         }
-        else if (_plan!.Deferred.Count > 0)
-        {
-            // Nothing was fetched, so the deferrals we withheld in Start still stand - report them now, once.
-            foreach (var d in _plan.Deferred) Say($"not crafting {Name(d.ResultItemId)} x{d.Crafts} yet - {Readable(d.Reason)}.", error: true);
-        }
-        Enter(Phase.Ventures);
+        return $"gathering {done}/{_gatherList.Count}{(current is { } c ? $" ({Name(c)})" : "")}";
     }
+
+    /// <summary>
+    /// The wave is finished. Single-channel runs end here as Done; cart runs hand the measured progress to the loop,
+    /// which re-plans from the live bags and either runs the next wave or stops-and-reports (card t_efde145c).
+    /// </summary>
+    private void WaveDone()
+    {
+        if (_loop is null || _snap is null) { Finish(Phase.Done, null); return; }
+        var dec = _loop.Next(_waveProgress);
+        TakeDecision(dec);
+    }
+
+    /// <summary>The retrieval queue is empty - straight into the channels; the loop's re-plan at wave end is what picks up deferred-now-runnable crafts.</summary>
+    private void AfterRetrieve() => Enter(Phase.Ventures);
 
     /// <summary>Blocker text with raw <c>#itemId</c> references swapped for item names.</summary>
     private string Readable(string reason) =>
@@ -640,11 +921,111 @@ public sealed class DispatchService : IDisposable
         return true;
     }
 
+    // ---------------------------------------------------------------- steps + snapshot
+
+    /// <summary>Add or update one step row (keyed by kind + item + recipe); Running demotes siblings of the same kind back to Pending.</summary>
+    private void TrackStep(StepKind kind, uint itemId, int quantity, StepState state, string? reason = null, uint recipeId = 0, string? ext = null)
+    {
+        var idx = _steps.FindIndex(s => s.Kind == kind && s.ItemId == itemId && s.RecipeId == recipeId);
+        if (state == StepState.Running)
+            for (var i = 0; i < _steps.Count; i++)
+                if (_steps[i].Kind == kind && _steps[i].State == StepState.Running && i != idx)
+                    _steps[i] = _steps[i] with { State = StepState.Pending, ExternalStatus = null };
+        var step = new RunStep(kind, itemId, Name(itemId), quantity, state, reason, state == StepState.Running ? ext : null, recipeId);
+        if (idx < 0) _steps.Add(step);
+        else _steps[idx] = step;
+    }
+
+    private static string PhaseLabelOf(Phase p) => p switch
+    {
+        Phase.Idle => "Idle",
+        Phase.Retrieve or Phase.WaitRetrieve or Phase.BatchRetrieve or Phase.BatchWait => "Retrieving",
+        Phase.Ventures => "Ventures",
+        Phase.Gathers or Phase.WaitGather => "Gathering",
+        Phase.Crafts or Phase.WaitCraftStart or Phase.WaitCraftEnd => "Crafting",
+        Phase.Done => "Done",
+        Phase.Failed => "Failed",
+        Phase.Blocked => "Blocked",
+        _ => p.ToString(),
+    };
+
+    private void Snap()
+    {
+        var state = Current switch
+        {
+            Phase.Idle => RunState.Idle,
+            Phase.Done => RunState.Done,
+            Phase.Failed => RunState.Failed,
+            Phase.Blocked => RunState.Blocked,
+            _ => RunState.Running,
+        };
+        var elapsed = _runClock.IsRunning ? _runClock.Elapsed : (_endedUtc ?? DateTime.UtcNow) - (_runStartUtc == default ? DateTime.UtcNow : _runStartUtc);
+        _snapshot = new RunSnapshot(
+            state, Current.ToString(), PhaseLabelOf(Current), Status, _what, _cartNames,
+            _runStartUtc, _endedUtc, elapsed, _loop?.Pass == 0 && Current != Phase.Idle ? 1 : _loop?.Pass ?? 0,
+            _steps, _blockedItems, _stoppedReason, CanResume);
+    }
+
+    // ---------------------------------------------------------------- endings
+
+    /// <summary>Stop-and-report (card t_efde145c option A): the run is Blocked, the plan is held for <see cref="Resume"/>, and the red block is printed here, once, at the END of the run.</summary>
+    private void FinishBlocked(string why, DispatchPlan.Plan? blockedPlan = null)
+    {
+        _stoppedReason = Readable(why);
+        foreach (var r in _unfetched)
+            if (!_blockedItems.Any(b => b.Kind == StepKind.Retrieve && b.ItemId == r.Item.ItemId))
+                _blockedItems.Add(new BlockedItem(StepKind.Retrieve, r.Item.ItemId, Name(r.Item.ItemId), r.Item.Quantity, null, r.Item.Places));
+        for (var i = 0; i < _steps.Count; i++)
+            if (_steps[i].State is StepState.Pending or StepState.Running)
+                _steps[i] = _steps[i] with { State = StepState.Blocked, ExternalStatus = null };
+        Current = Phase.Blocked;
+        Status = $"blocked: {Readable(why)}";
+        PrintBlockedBlock(blockedPlan ?? _plan ?? new DispatchPlan.Plan([], [], [], [], [], [], []), why);
+        _plan = null;
+        _current = null;
+        _fetching = null;
+        _crafts.Clear();
+        _retrievals.Clear();
+        _batchCrafts = Array.Empty<uint>();
+        _gatherList.Clear();
+        _runClock.Stop();
+        _endedUtc = DateTime.UtcNow;
+        _plugin.Inventory.Invalidate();
+        _plugin.Catalog.Invalidate();
+        Snap();
+    }
+
+    /// <summary>The one red block at the END of a blocked run (card t_efde145c option A): what to buy, where, then "press Resume". Called from <see cref="FinishBlocked"/> only - never twice.</summary>
+    private void PrintBlockedBlock(DispatchPlan.Plan plan, string why)
+    {
+        Say($"stopped - {Readable(why)} ({Summarise()}).", error: true);
+        if (plan.Market.Count > 0)
+            Lifestream.GoToMarket(plan.Market.Select(p => (p.ItemId, p.Quantity)).ToList(), Name, _plugin.Catalog.UnitCost, teleport: false);
+        if (plan.Vendor.Count > 0)
+        {
+            var groups = Vendors.Plan(plan.Vendor.Select(p => (p.ItemId, p.Quantity)).ToList(), out var unlocated);
+            foreach (var (where, items) in groups) Lifestream.GoToVendor(where, items, Name, teleport: false);
+            if (unlocated.Count > 0) Say("gil-vendor items with no placed vendor: " + string.Join(", ", unlocated.Select(u => $"{Name(u.ItemId)} x{u.Quantity}")), error: true);
+        }
+        if (plan.Manual.Count > 0)
+            Say("needs a manual source: " + string.Join(", ", plan.Manual.Select(m => $"{Name(m.ItemId)} x{m.Quantity} ({string.Join("/", m.Sources.Where(s => s != SourceKind.OnHand).Select(s => s.ToString()))})")), error: true);
+        if (plan.Ventures.Count > 0)
+            Say("still out with a retainer (ventures take hours): " + string.Join(", ", plan.Ventures.Select(v => $"{Name(v.ItemId)} x{v.Quantity} ({v.Match.Retainer.Name})")), error: true);
+        if (plan.Retrievals.Count > 0)
+            foreach (var r in plan.Retrievals) Say($"retrieve by hand: {Name(r.ItemId)} x{r.Quantity} from {r.Places} ({r.Detail}).", error: true);
+        Say("then press Resume (or /lcraft resume) to continue the same cart.", error: true);
+    }
+
+    /// <summary>The wave loop said the cart is finished (or a single-channel run ended on its own).</summary>
     private void Finish(Phase end, string? why)
     {
         var plan = _plan;
+        _stoppedReason = why;
         Current = end;
         Status = end == Phase.Done ? "done" : $"stopped: {why}";
+        for (var i = 0; i < _steps.Count; i++)
+            if (_steps[i].State is StepState.Pending or StepState.Running)
+                _steps[i] = _steps[i] with { State = end == Phase.Done ? StepState.Done : StepState.Failed, ExternalStatus = null };
         if (plan is not null)
         {
             foreach (var d in _deferredAtRun)
@@ -656,7 +1037,13 @@ public sealed class DispatchService : IDisposable
             // counters.
             var retrieved = _retrievalsPlanned > 0 ? $"retrieved {_fetchedOk}/{_retrievalsPlanned}, " : "";
             var stuck = _unfetched.Count > 0 ? $", {_unfetched.Count} could not be retrieved" : "";
-            if (end == Phase.Done)
+            if (end == Phase.Done && _loop is not null)
+            {
+                var lines = _loop.Lines.Count;
+                Say($"done - {lines} cart line{(lines == 1 ? "" : "s")} finished, {plan.Ventures.Count} venture item{(plan.Ventures.Count == 1 ? "" : "s")} to ARC, {plan.Gathers.Count} to GBR, {retrieved}{_craftsDone} craft{( _craftsDone == 1 ? "" : "s")} made{(_craftsFailed > 0 ? $", {_craftsFailed} failed" : "")}{stuck}.",
+                    error: _craftsFailed > 0 || _unfetched.Count > 0);
+            }
+            else if (end == Phase.Done)
                 Say($"done - {plan.Ventures.Count} venture item{(plan.Ventures.Count == 1 ? "" : "s")} to ARC, {plan.Gathers.Count} to GBR, {retrieved}crafts finished {_craftsDone}/{plan.Crafts.Count}{(_craftsFailed > 0 ? $", {_craftsFailed} failed" : "")}{stuck}.",
                     error: _craftsFailed > 0 || _unfetched.Count > 0);
             else
@@ -667,13 +1054,20 @@ public sealed class DispatchService : IDisposable
         _plan = null;
         _current = null;
         _fetching = null;
-        _snap = null;
+        if (end == Phase.Done || _loop is null) { _loop = null; _snap = null; }   // Failed keeps them for Resume
         _crafts.Clear();
         _retrievals.Clear();
         _batchCrafts = Array.Empty<uint>();
+        _gatherList.Clear();
+        _runClock.Stop();
+        _endedUtc = DateTime.UtcNow;
         _plugin.Inventory.Invalidate();
         _plugin.Catalog.Invalidate();
+        Snap();
     }
+
+    private string Summarise() =>
+        $"{_craftsDone} craft{(_craftsDone == 1 ? "" : "s")} made{(_craftsFailed > 0 ? $", {_craftsFailed} failed" : "")}{(_loop is not null ? $", pass {_loop.Pass}" : "")}";
 
     private void Say(string text, bool error = false)
     {

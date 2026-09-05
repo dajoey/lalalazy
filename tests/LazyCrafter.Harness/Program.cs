@@ -43,6 +43,8 @@ internal static class Program
         foreach (var t in DispatchPlanTests.Tests) yield return ("dispatch", t.Name, t.Check);
         foreach (var t in RetrieveTests.Tests) yield return ("retrieve", t.Name, t.Check);
 foreach (var t in RetainerBatchQueueTests.Tests) yield return ("batchqueue", t.Name, t.Check);
+        foreach (var t in LoopTests.Tests) yield return ("loop", t.Name, t.Check);
+        foreach (var t in SnapshotTests.Tests) yield return ("snapshot", t.Name, t.Check);
     }
 
     private static int Main()
@@ -79,10 +81,12 @@ internal static class World
     public const uint Arrows = 600, Feather = 601;
     public const uint CycleA = 700, CycleB = 701;
     public const uint Ornament = 800, Trophy = 801, Charm = 802, Pendant = 900;
+    public const uint Chandelier = 901, Nugget = 902;
 
     // Recipes
     public const uint IngotBsm = 10, IngotArm = 11, SwordRecipe = 30, LeatherLtw = 40, ArrowsRecipe = 60;
     public const uint CycleARecipe = 70, CycleBRecipe = 71, OrnamentRecipe = 80, TrophyRecipe = 81, CharmRecipe = 82, PendantRecipe = 90;
+    public const uint ChandelierRecipe = 91, NuggetRecipe = 92;
 
     public static FakeGameData Build() => new FakeGameData()
         // Ingot: two recipes for the same result item; same-job preference must pick BSM from a BSM parent.
@@ -108,4 +112,14 @@ internal static class World
             QuantityTiers: [10, 15, 20, 25, 30], RewardThresholds: [100, 200, 300, 400]))
         .Venture(new VentureRow(TaskId: 2, ItemId: Hide, Level: 30, JobCategory: 34, RequiredGathering: 0, RequiredItemLevel: 60,
             QuantityTiers: [5, 8, 11, 14, 17], RewardThresholds: [70, 80, 90, 100]));
+
+    /// <summary>
+    /// The shared world PLUS the Alpine Chandelier shape (card t_efde145c): root craft = sub-craft x2 + a
+    /// market-only leaf. LoopTests ONLY - adding these to the shared <see cref="Build"/> graph changed graph
+    /// aggregates (BSM<=20 recipe count, Progress done/total) that the existing leveling/log suites assert on.
+    /// </summary>
+    public static FakeGameData BuildLoop() => Build()
+        .Recipe(ChandelierRecipe, Chandelier, 1, Bsm, 30, (Nugget, 2), (MarketOnly, 1))
+        .Recipe(NuggetRecipe, Nugget, 1, Bsm, 20, (Ore, 2))
+        .Marketable(Hide);   // the Trophy blocked-reasons test premises "Hide: drop-only -> marketable" and there is no retainer known in the loop rig to venture it
 }

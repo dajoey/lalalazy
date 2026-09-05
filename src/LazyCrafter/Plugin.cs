@@ -159,6 +159,7 @@ public sealed class Plugin : IDalamudPlugin
         if (a.Equals("debug", StringComparison.OrdinalIgnoreCase)) { LogDebugState(); return; }
         if (a.Equals("prices", StringComparison.OrdinalIgnoreCase)) { PrimeSamplePrices(); return; }
         if (a.Equals("stop", StringComparison.OrdinalIgnoreCase)) { Dispatch.Stop(); return; }
+        if (a.Equals("resume", StringComparison.OrdinalIgnoreCase)) { if (!Dispatch.Resume()) ChatGui.PrintError("[LazyCrafter] nothing to resume."); return; }
         if (a.Equals("dispatch", StringComparison.OrdinalIgnoreCase)) { Dispatch.DispatchCart(Catalog.Snapshot); return; }
         if (a.Equals("plan", StringComparison.OrdinalIgnoreCase)) { PrintPlan(); return; }
         if (a.Equals("fetch", StringComparison.OrdinalIgnoreCase)) { FetchCommand(); return; }
