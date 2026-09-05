@@ -202,6 +202,46 @@ using (var uni2 = new UniversalisClient(cacheDir, "probe", Console.WriteLine))
         $"Artisan {plan.Crafts.Count} [{string.Join(", ", plan.Crafts.Select(c => $"{gd.ItemName(c.ResultItemId)} x{c.Crafts} d{c.Depth}{(c.AfterGather ? "*" : "")}"))}] " +
         $"vendor {plan.Vendor.Count} market {plan.Market.Count} manual {plan.Manual.Count} deferred {plan.Deferred.Count} [{string.Join("; ", plan.Deferred.Select(d => $"{gd.ItemName(d.ResultItemId)}: {d.Reason}"))}]");
 }
+// ---- Run report (t_c360953f): render a synthetic Blocked run offline and prove every blocked item,
+// every blocker reason, and every blocked channel line makes it into the report the Run tab copies and
+// /lcraft status prints. This is the acceptance probe for the snapshot->report path (no Dalamud, no client).
+{
+    var started = DateTime.UtcNow.AddMinutes(-16).AddSeconds(-42);
+    var blockedRun = new RunSnapshot(
+        RunState.Blocked, "Blocked", "Blocked", "stopped: 4 crafts still blocked", "cart",
+        new[] { "Alpine Chandelier" }, started, DateTime.UtcNow.AddSeconds(-10), TimeSpan.FromMinutes(16.7), 2,
+        new RunStep[]
+        {
+            new(StepKind.Gather, 38957, "Titanium Ore", 15, StepState.Done, null, null),
+            new(StepKind.Craft, 38962, "Hardsilver Nugget", 1, StepState.Done, null, "Artisan busy 0:11", 3762),
+            new(StepKind.Craft, 38966, "Titanium Ingot", 3, StepState.Blocked, "needs market Titanium Ore x15", null, 3788),
+            new(StepKind.Craft, 38963, "Titanium Nugget", 3, StepState.Blocked, "needs market Titanium Ore x15", null, 3787),
+            new(StepKind.Craft, 38965, "Hardsilver Ingot", 1, StepState.Blocked, "needs vendor Tallow Candle x7", null, 3789),
+            new(StepKind.Craft, 12566, "Alpine Chandelier", 1, StepState.Blocked, "needs craft Hardsilver Ingot x1", null, 12566),
+        },
+        new BlockedItem[]
+        {
+            new(StepKind.Market, 38957, "Titanium Ore", 15, 15 * 210, null),
+            new(StepKind.Vendor, 4934, "Tallow Candle", 7, null, "Syrnphe (Old Gridania 8.0, 11.0)"),
+            new(StepKind.Manual, 5352, "Growth Formula Alpha", 2, null, "special shop"),
+        },
+        "4 crafts still blocked - buy the market/vendor items, then resume", true);
+    var report = RunReport.Render(blockedRun);
+    Console.WriteLine("--- run report (Blocked) ---");
+    Console.WriteLine(report);
+    Console.WriteLine("--- end run report ---");
+    var reportFails = new List<string>();
+    foreach (var expect in new[] { "Titanium Ore x15 (~", "Tallow Candle x7", "Growth Formula Alpha x2", "Syrnphe", "buy on the market board", "buy from vendor", "needs a manual source", "est. 3,150 gil", "Press Resume" })
+        if (!report.Contains(expect)) reportFails.Add($"report missing: {expect}");
+    foreach (var st in blockedRun.Steps.Where(st => st.State == StepState.Blocked))
+        if (!report.Contains(st.Name)) reportFails.Add($"blocked step missing from report: {st.Name}");
+    foreach (var b in blockedRun.Blocked)
+        if (!report.Contains($"{b.Name} x{b.Quantity}")) reportFails.Add($"blocked item missing from report: {b.Name}");
+    if (!string.Join("\n", RunReport.ChatLines(blockedRun)).Contains("Titanium Ore x15 (~")) reportFails.Add("chat lines missing the market line");
+    if (RunReport.Render(RunSnapshot.Empty).Contains("x15")) reportFails.Add("Empty run rendered a step list");
+    Console.WriteLine(reportFails.Count == 0 ? "run-report probe: OK" : "run-report probe: FAIL " + string.Join("; ", reportFails));
+    if (reportFails.Count > 0) return 1;
+}
 Console.WriteLine("OK");
 return 0;
 

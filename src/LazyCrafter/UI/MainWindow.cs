@@ -2,6 +2,7 @@ using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Windowing;
 using LazyCrafter.Catalog;
+using LazyCrafter.Core;
 using LazyCrafter.Core.Model;
 
 namespace LazyCrafter.UI;
@@ -19,6 +20,9 @@ public sealed class MainWindow : Window
     private readonly IngredientTree _tree;
     private readonly CartPanel _cart;
     private readonly SettingsTab _settings;
+    private readonly RunTab _run;
+    private bool _selectRunNext;
+    private bool _wasRunActive;
 
     // View state (UI thread only).
     private CatalogTab _tab = CatalogTab.Now;
@@ -40,8 +44,9 @@ public sealed class MainWindow : Window
         _plugin = plugin;
         _table = new CatalogTable(plugin);
         _tree = new IngredientTree(plugin);
-        _cart = new CartPanel(plugin);
+        _cart = new CartPanel(plugin, this);
         _settings = new SettingsTab(plugin);
+        _run = new RunTab(plugin);
         Size = new Vector2(1180, 720);
         SizeCondition = ImGuiCond.FirstUseEver;
         SizeConstraints = new WindowSizeConstraints { MinimumSize = new Vector2(760, 420), MaximumSize = new Vector2(float.MaxValue, float.MaxValue) };
@@ -56,6 +61,20 @@ public sealed class MainWindow : Window
 
         DrawBanner(snap);
         if (!ImGui.BeginTabBar("##lcraft-tabs", ImGuiTabBarFlags.NoCloseWithMiddleMouseButton)) return;
+
+        // Run tab (t_c360953f): always first. When a dispatch switches on (Idle -> Running/Blocked) it grabs
+        // selection ONCE via ImGuiTabItemFlags.SetSelected - same trick LazyMarketCompanion's ConfigWindow uses -
+        // and OpenRunTab() re-arms it from the cart panel. Opening it turns the catalog area off, like Settings.
+        var snapRun = _plugin.Dispatch.Snapshot;
+        var runActive = snapRun.State is RunState.Running or RunState.Blocked;
+        if (runActive && !_wasRunActive) _selectRunNext = true;
+        _wasRunActive = runActive;
+        if (ImGui.BeginTabItem(RunTab.TabLabel(snapRun), _selectRunNext ? ImGuiTabItemFlags.SetSelected : ImGuiTabItemFlags.None))
+        {
+            _selectRunNext = false;
+            _run.Draw();
+            ImGui.EndTabItem();
+        }
         var anyCatalogTab = false;
         foreach (var t in Enum.GetValues<CatalogTab>())
         {
@@ -118,6 +137,9 @@ public sealed class MainWindow : Window
             _sortTab = t;
         }
     }
+
+    /// <summary>Cart panel's "Run tab" button: select the Run tab on the next draw.</summary>
+    internal void OpenRunTab() => _selectRunNext = true;
 
     private void PushRequest(CatalogService svc)
     {

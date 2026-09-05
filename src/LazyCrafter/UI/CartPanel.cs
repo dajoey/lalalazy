@@ -14,11 +14,16 @@ namespace LazyCrafter.UI;
 public sealed class CartPanel
 {
     private readonly Plugin _plugin;
+    private readonly MainWindow _main;
     private bool _collapsed;
     private DispatchPlan.Plan? _preview;
     private int _previewFor = -1;
 
-    public CartPanel(Plugin plugin) => _plugin = plugin;
+    public CartPanel(Plugin plugin, MainWindow main)
+    {
+        _plugin = plugin;
+        _main = main;
+    }
 
     private string PreviewText(DispatchPlan.Plan p)
     {
@@ -69,6 +74,10 @@ public sealed class CartPanel
             if (dispatch.Running)
             {
                 if (ImGui.Button("Stop")) dispatch.Stop();
+                if (ImGui.IsItemHovered()) ImGui.SetTooltip("Abort the run - retainer queue aborted, GBR off, Artisan stop request.");
+                ImGui.SameLine();
+                if (ImGui.SmallButton("Run tab")) _main.OpenRunTab();
+                if (ImGui.IsItemHovered()) ImGui.SetTooltip("Open the Run tab: every step, its reason, and the Resume / Copy report buttons.");
                 ImGui.SameLine();
                 ImGui.TextColored(ImGuiColors.DalamudOrange, dispatch.Status);
             }

@@ -82,7 +82,7 @@ public sealed class Plugin : IDalamudPlugin
 
         Commands.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Toggle the LazyCrafter window. debug | prices | plan | dispatch | stop | guard <plugin> <minVersion> | guard reset",
+            HelpMessage = "Toggle the LazyCrafter window. debug | prices | plan | dispatch | status | stop | resume | guard <plugin> <minVersion> | guard reset",
         });
 
         // Sheet indexing takes a few hundred ms - never on the framework thread.
@@ -160,6 +160,7 @@ public sealed class Plugin : IDalamudPlugin
         if (a.Equals("prices", StringComparison.OrdinalIgnoreCase)) { PrimeSamplePrices(); return; }
         if (a.Equals("stop", StringComparison.OrdinalIgnoreCase)) { Dispatch.Stop(); return; }
         if (a.Equals("resume", StringComparison.OrdinalIgnoreCase)) { if (!Dispatch.Resume()) ChatGui.PrintError("[LazyCrafter] nothing to resume."); return; }
+        if (a.Equals("status", StringComparison.OrdinalIgnoreCase)) { PrintRunStatus(); return; }
         if (a.Equals("dispatch", StringComparison.OrdinalIgnoreCase)) { Dispatch.DispatchCart(Catalog.Snapshot); return; }
         if (a.Equals("plan", StringComparison.OrdinalIgnoreCase)) { PrintPlan(); return; }
         if (a.Equals("fetch", StringComparison.OrdinalIgnoreCase)) { FetchCommand(); return; }
@@ -209,6 +210,19 @@ public sealed class Plugin : IDalamudPlugin
         if (plan is null) return;
         if (plan.Retrievals.Count == 0) { ChatGui.Print("[LazyCrafter] nothing to fetch - every material the cart needs is already in your bags."); return; }
         Dispatch.RetrieveOnly(plan.Retrievals);
+    }
+
+    /// <summary>
+    /// <c>/lcraft status</c> (card t_c360953f): the current / last run as chat lines - headline, status, the steps
+    /// that need attention (running / blocked / failed) plus a done/pending count, the blocked shopping lists, the
+    /// stop reason and the resume hint. Same <see cref="Core.RunReport"/> renderer as the Run tab's Copy report,
+    /// so the Run tab can stay closed.
+    /// </summary>
+    private void PrintRunStatus()
+    {
+        var s = Dispatch.Snapshot;
+        var elapsed = s.State == Core.RunState.Running && s.StartedAt != DateTime.MinValue ? DateTime.UtcNow - s.StartedAt : s.Elapsed;
+        foreach (var line in Core.RunReport.ChatLines(s, elapsed)) ChatGui.Print("[LazyCrafter] " + line);
     }
 
     /// <summary><c>/lcraft plan</c>: what Dispatch would do with the cart, without doing it.</summary>
