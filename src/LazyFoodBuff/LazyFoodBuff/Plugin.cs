@@ -3,6 +3,7 @@ using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using Lalalazy.Changelog;
 
 namespace LazyFoodBuff;
 
@@ -29,6 +30,7 @@ public sealed class Plugin : IDalamudPlugin
     internal readonly FoodService _service;
     private readonly WindowSystem _windows = new("LazyFoodBuff");
     private readonly ConfigWindow _configWindow;
+    private readonly ChangelogGate _changelog;
 
     public Plugin(IDalamudPluginInterface pi)
     {
@@ -40,6 +42,22 @@ public sealed class Plugin : IDalamudPlugin
         _configWindow = new ConfigWindow(this);
         _windows.AddWindow(_configWindow);
 
+        // Shared "What's new" popup: shows this plugin's CHANGELOG once after an update.
+        _changelog = new ChangelogGate(new ChangelogGate.Options
+        {
+            PluginAssembly = typeof(Plugin).Assembly,
+            DisplayName = "LazyFoodBuff",
+            ChangelogPath = "src/LazyFoodBuff/CHANGELOG.md",
+            Framework = Framework,
+            ClientState = ClientState,
+            Condition = Condition,
+            Log = Log,
+            Windows = _windows,
+            SeenStore = new DelegateSeenStore(
+                () => Config.LastSeenChangelogVersion,
+                v => { Config.LastSeenChangelogVersion = v; SaveConfig(); }),
+        });
+
         Pi.UiBuilder.Draw += _windows.Draw;
         Pi.UiBuilder.OpenConfigUi += OpenConfig;
         Pi.UiBuilder.OpenMainUi += OpenConfig;
@@ -48,7 +66,7 @@ public sealed class Plugin : IDalamudPlugin
 
         Commands.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Open the LazyFoodBuff settings window."
+            HelpMessage = "Open the LazyFoodBuff settings window. /lazyfoodbuff changelog shows what's new."
         });
     }
 
@@ -69,6 +87,12 @@ public sealed class Plugin : IDalamudPlugin
             _service.LogDebugState();
             return;
         }
+        if (args.Trim().Equals("changelog", StringComparison.OrdinalIgnoreCase) ||
+            args.Trim().Equals("whatsnew", StringComparison.OrdinalIgnoreCase))
+        {
+            _changelog.ShowNow();
+            return;
+        }
         _configWindow.IsOpen = !_configWindow.IsOpen;
     }
 
@@ -78,6 +102,7 @@ public sealed class Plugin : IDalamudPlugin
         Pi.UiBuilder.Draw -= _windows.Draw;
         Pi.UiBuilder.OpenConfigUi -= OpenConfig;
         Pi.UiBuilder.OpenMainUi -= OpenConfig;
+        _changelog.Dispose();
         _windows.RemoveAllWindows();
         Commands.RemoveHandler(CommandName);
     }

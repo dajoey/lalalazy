@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Plain console app, no Dalamud. Compiles src/Shared/LalaChangelog/Core/** directly:
+       any Dalamud type leaking into Core breaks this build. Run it as a lint:
+         dotnet build tests\LalaChangelog.Harness\LalaChangelog.Harness.csproj -c Release
+         dotnet tests\LalaChangelog.Harness\bin\Release\net10.0\LalaChangelog.Harness.dll [repoRoot]
+       It parses every src/*/CHANGELOG.md and asserts the newest entry equals that plugin's csproj <Version>. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>LalaChangelog.Harness</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\src\Shared\LalaChangelog\Core\**\*.cs" Link="Core\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

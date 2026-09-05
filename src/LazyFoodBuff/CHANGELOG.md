@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.1.3.0 (2026-09-05)
+
+### Added
+- In-game "What's new" popup. After every update, the first time you are logged in and out of combat, LazyFoodBuff opens a window with the release notes for every version since the one you last saw. It appears once per update; press "Got it" (or close it) and it stays quiet until the next update.
+- `/lazyfoodbuff changelog` (or `whatsnew`) reopens the release notes at any time.
+- "Open changelog on GitHub" button in the popup links to the full CHANGELOG for this plugin.
+
+### Notes
+- This is the pilot of a standing rule for every lalalazy plugin: the popup code is shared source under `src/Shared/LalaChangelog/` and each plugin embeds its own `CHANGELOG.md` at build time (`ChangelogGate.cs`, `ChangelogWindow.cs`, `Core/ChangelogParser.cs`). New config field `Configuration.LastSeenChangelogVersion`; on the first build carrying the feature it records the running version silently and does not open.
+- The popup never opens during combat, inside a duty, while zoning, or in a cutscene - it waits until you are free.
+
 ## v0.1.2.0 (2026-08-01)
 
 ### Fixed

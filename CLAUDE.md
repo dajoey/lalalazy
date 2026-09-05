@@ -26,12 +26,25 @@ All four version locations MUST match in every release commit for any plugin `<P
 - **Never use `git push --force` or `git commit --amend` on this repo.**
 - **Never touch game files** (XIVLauncher installedPlugins, pluginConfigs, etc.) — only work on the repo and push. The game downloads from GitHub.
 
+### In-game changelog popup (STANDING RULE, Joey 2026-09-05 — Hermes card `t_add3c479`)
+
+**Every plugin carries the shared changelog popup; never remove it in an upstream merge.** After any update, the plugin shows its own `CHANGELOG.md` once in-game (every version between the last-seen one and the running one), gated until the player is logged in and out of combat/duty. Because the popup renders `CHANGELOG.md` verbatim, **the CHANGELOG entry IS the user-facing release note — write it for the player.**
+
+- Code is **shared SOURCE, never a shared DLL**: `src/Shared/LalaChangelog/` (`ChangelogGate.cs`, `ChangelogWindow.cs`, `ChangelogSeenStore.cs`, `Core/ChangelogParser.cs`, `Core/ChangelogModels.cs`), namespace `Lalalazy.Changelog`. Each plugin lives in its own AssemblyLoadContext and the `PruneOutputDlls` keep-lists would strip a DLL.
+- Each csproj compiles it and embeds its own changelog (path depth differs for inner-folder plugins):
+  `<Compile Include="..\Shared\LalaChangelog\**\*.cs" />` + `<EmbeddedResource Include="CHANGELOG.md" LogicalName="CHANGELOG.md" />`.
+- Wiring in `Plugin.cs`: construct a `ChangelogGate` after the `WindowSystem` exists; `/<cmd> changelog` (alias `whatsnew`) calls `ShowNow()`; `Dispose()` it. Originals persist `LastSeenChangelogVersion` in their `Configuration` via `DelegateSeenStore`; **forks use `SidecarSeenStore`** (`<ConfigDirectory>/lalachangelog.json`) so their upstream-owned config never conflicts in a merge.
+- First build carrying the feature records the running version silently and does not open. Never read the lossy pluginmaster `Changelog` field.
+- **Lint:** `tests/LalaChangelog.Harness` (plain console, no Dalamud) parses every `src/*/CHANGELOG.md` and fails if the newest entry does not equal that plugin's csproj `<Version>`. Run it before any release commit: `dotnet build tests\LalaChangelog.Harness -c Release; dotnet tests\LalaChangelog.Harness\bin\Release\net10.0\LalaChangelog.Harness.dll`.
+- Reference wiring: `src/LazyFoodBuff/LazyFoodBuff/Plugin.cs` (pilot, 0.1.3.0).
+
 ### Release Checklist
 
 ```
 TEST BUILD (default for every change):
 1. Read current csproj version; increment to the next patch version
-2. Update csproj + src/<Plugin>/CHANGELOG.md
+2. Update csproj + src/<Plugin>/CHANGELOG.md (player-facing: the in-game popup renders it verbatim)
+2b. Run tests/LalaChangelog.Harness — every plugin PASS, newest CHANGELOG entry == csproj <Version>
 3. tools/Package-Plugin.ps1 -PluginName <Plugin> -Channel testing
 4. ** VERIFY: git diff pluginmaster.json — ONLY TestingAssemblyVersion + TestingDalamudApiLevel moved; AssemblyVersion untouched, no regression **
 5. ** VERIFY: extract manifest from plugins/<Plugin>/testing/testing.zip — version == TestingAssemblyVersion **

@@ -9,6 +9,12 @@ public class Configuration : IPluginConfiguration
     public bool MasterEnable { get; set; } = true;
 
     /// <summary>
+    /// Last plugin version whose "What's new" popup the player has dismissed (shared LalaChangelog gate).
+    /// null/empty = never recorded: the gate records the running version silently and shows nothing.
+    /// </summary>
+    public string? LastSeenChangelogVersion { get; set; }
+
+    /// <summary>
     /// Only auto-eat inside combat duties (dungeons, raids, trials, alliance raids,
     /// criterion, variant). Excludes Diadem, field operations, deep dungeons,
     /// Gold Saucer, overworld, etc.

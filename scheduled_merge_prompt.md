@@ -19,6 +19,11 @@ Hard rules that have burned us before (the runbook has the full versions):
   Pre-existing dirty paths are Joey's and stay exactly as found.
 - **Never plain-`git merge` an upstream remote.** Each fork has its own method
   (diff-apply / subtree copy / per-file 3-way) — runbook §3.
+- **Never remove the shared changelog popup** (standing rule 2026-09-05, `CLAUDE.md`
+  § In-game changelog popup): every fork keeps its `src/Shared/LalaChangelog` `<Compile>`
+  + `<EmbeddedResource Include="CHANGELOG.md">` csproj block, the `ChangelogGate` wiring
+  in its plugin entry class and the `changelog` subcommand. Upstream will never have
+  these; a merge that drops them is a failed merge — runbook §1.
 - **Hard-require `main == origin/main` before starting and again before landing**
   (the gates enforce this). Never work on, or land onto, a stale `main`.
 - **Verify releases only against the pinned commit-SHA raw URL** — the `/main/`
