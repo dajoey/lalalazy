@@ -74,6 +74,24 @@ foreach (var pin in new[] { GbrDispatch.Pin, ArcDispatch.Pin, RetainerFetch.Pin 
         else { Console.WriteLine($"  alias {RetainerFetch.BatchOverload.AsKey}: FAIL - {aliasFailure}"); failures++; }
     }
 
+    // 0.1.3.1: pins prove members EXIST; this proves the one argument array LazyCrafter builds for an Invoke actually
+    // fits the target. 0.1.2.0 shipped `Invoke(manager, [SetActiveArgs(m)])` - a nested object[] - and every offline
+    // probe passed while the in-game hand-off threw ArgumentException. Positive check + the old shape as a negative control.
+    if (pin == GbrDispatch.Pin && failure is null)
+    {
+        var setActive = (MethodInfo)members[ReflectionGuard.Key(GbrDispatch.ListsManager, "SetActiveItems")];
+        var ps = setActive.GetParameters();
+        var good = GbrDispatch.SetActiveArgs(setActive);
+        var goodError = InvokeShapeError(ps, good);
+        var firstIsBool = ps.Length == 0 || good[0] is bool;
+        Console.WriteLine($"  SetActiveItems args: {good.Length} for {ps.Length} parameter(s) [{string.Join(", ", good.Select(a => a is null ? "null" : a.GetType().Name + "=" + a))}]; args.Length == ps.Length: {good.Length == ps.Length}; args[0] is bool: {firstIsBool} -> {(goodError is null && firstIsBool ? "OK" : "FAIL - " + goodError)}");
+        if (goodError is not null || !firstIsBool) failures++;
+        object?[] nested = [good];   // the 0.1.2.0 shape
+        var nestedError = InvokeShapeError(ps, nested);
+        Console.WriteLine($"  negative control (nested object[]): {(nestedError is not null ? "rejected -> \"" + nestedError + "\"" : "ACCEPTED (unexpected)")}");
+        if (nestedError is null) failures++;
+    }
+
     // Simulated mismatch: the guard's version gate must produce the refusal text, never throw.
     var raised = new Version(99, 0);
     var refusal = asmVersion < raised ? $"{pin.InternalName} {asmVersion} is older than the {raised} this hand-off was verified against - update it, or wait for a LazyCrafter release that supports it." : null;
@@ -91,6 +109,23 @@ foreach (var pin in new[] { GbrDispatch.Pin, ArcDispatch.Pin, RetainerFetch.Pin 
 
 Console.WriteLine(failures == 0 ? "OK" : $"FAILED ({failures})");
 return failures == 0 ? 0 : 1;
+
+/// <summary>The check MethodBase.Invoke makes before calling: one argument per parameter, each an instance of its parameter type.</summary>
+static string? InvokeShapeError(ParameterInfo[] ps, object?[] args)
+{
+    if (args.Length != ps.Length) return $"{args.Length} argument(s) for {ps.Length} parameter(s)";
+    for (var i = 0; i < ps.Length; i++)
+    {
+        var t = ps[i].ParameterType;
+        if (args[i] is null)
+        {
+            if (t.IsValueType && Nullable.GetUnderlyingType(t) is null) return $"argument {i} is null for value-type parameter {t.Name}";
+            continue;
+        }
+        if (!t.IsInstanceOfType(args[i])) return $"Object of type '{args[i]!.GetType().FullName}' cannot be converted to type '{t.FullName}'";
+    }
+    return null;
+}
 
 static IEnumerable<Type> SafeInterfaces(Type t)
 {

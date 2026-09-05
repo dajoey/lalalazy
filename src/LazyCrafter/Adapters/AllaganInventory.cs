@@ -221,7 +221,16 @@ public sealed class AllaganInventory : IInventory, IDisposable
                 if (types.Length == 0) continue;
                 var n = OwnedIn(itemId, types, all);
                 if (n <= 0) continue;
-                if (source == InventorySource.Retainers) places.AddRange(SplitRetainers(itemId, n));
+                if (source == InventorySource.Retainers)
+                {
+                    // A market-board listing sits on the retainer but not in a bag a summoning bell can hand over, and
+                    // Artisan's retainer count rightly says 0 for it. Name it apart so the retrieve line never promises
+                    // a fetch that cannot happen (Star Quartz listed by retainer Bussyqueen, 2026-09-04).
+                    var listed = OwnedIn(itemId, [InventorySources.RetainerMarket], all);
+                    var inBags = n - Math.Clamp(listed, 0, n);
+                    if (inBags > 0) places.AddRange(SplitRetainers(itemId, inBags));
+                    if (listed > 0) places.AddRange(SplitListings(itemId, listed));
+                }
                 else places.Add(new StoredElsewhere(PlaceName(source), n));
             }
         }
@@ -266,13 +275,38 @@ public sealed class AllaganInventory : IInventory, IDisposable
         foreach (var (id, name) in names)
         {
             int n;
-            try { n = (int)Math.Min(int.MaxValue, _itemCount.InvokeFunc(itemId, id, -1)); }
+            try { n = (int)Math.Min(int.MaxValue, _itemCount.InvokeFunc(itemId, id, -1)) - (int)Math.Min(int.MaxValue, _itemCount.InvokeFunc(itemId, id, (int)InventorySources.RetainerMarket)); }
             catch (Exception ex) { _log.Debug("AllaganTools.ItemCount({Item}, {Id}) failed: {Msg}", itemId, id, ex.Message); return [new StoredElsewhere(PlaceName(InventorySource.Retainers), total)]; }
             if (n <= 0) continue;
             split.Add(new StoredElsewhere($"retainer {(string.IsNullOrWhiteSpace(name) ? id.ToString("X") : name)}", n));
             sum += n;
         }
         if (split.Count == 0 || sum != total) return [new StoredElsewhere(PlaceName(InventorySource.Retainers), total)];
+        return split;
+    }
+
+    /// <summary>
+    /// Market-board listings per retainer: "the market board (listed by retainer Cid)". Reads after "on". One unnamed
+    /// entry when the names are unknown or the per-retainer counts do not reconcile.
+    /// </summary>
+    private IEnumerable<StoredElsewhere> SplitListings(uint itemId, int total)
+    {
+        const string unnamed = "the market board (your retainers' listings)";
+        var names = _retainerNames;
+        if (names.Count == 0) return [new StoredElsewhere(unnamed, total)];
+
+        var split = new List<StoredElsewhere>();
+        var sum = 0;
+        foreach (var (id, name) in names)
+        {
+            int n;
+            try { n = (int)Math.Min(int.MaxValue, _itemCount.InvokeFunc(itemId, id, (int)InventorySources.RetainerMarket)); }
+            catch (Exception ex) { _log.Debug("AllaganTools.ItemCount({Item}, {Id}, market) failed: {Msg}", itemId, id, ex.Message); return [new StoredElsewhere(unnamed, total)]; }
+            if (n <= 0) continue;
+            split.Add(new StoredElsewhere($"the market board (listed by retainer {(string.IsNullOrWhiteSpace(name) ? id.ToString("X") : name)})", n));
+            sum += n;
+        }
+        if (split.Count == 0 || sum != total) return [new StoredElsewhere(unnamed, total)];
         return split;
     }
 

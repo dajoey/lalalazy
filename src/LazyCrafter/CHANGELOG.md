@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.1.3.1 (2026-09-05)
+
+### Fixed
+
+- GBR gather hand-off threw `ArgumentException: Object of type 'System.Object[]' cannot be converted to type 'System.Boolean'` on every dispatch that had a gather: `SetActiveArgs` already returns the parameter array and the call wrapped it in a second array (`Invoke(manager, [SetActiveArgs(m)])`), so `SetActiveItems(bool)` received one `object[]` (file: `Adapters/Dispatch/GbrDispatch.cs`, function: `Dispatch`, line 132 at 4ce33b0d4; shipped broken since P5 / 0.1.0.0, first exercised in-game 2026-09-04 on 0.1.2.0)
+- A GBR hand-off that fails after `CreatePersistentGatherList` now deletes the half-created "LazyCrafter" list and saves before reporting, instead of leaving it for the next dispatch to clean up (file: `Adapters/Dispatch/GbrDispatch.cs`, function: `Dispatch`)
+- Retainer stock that is a MARKET-BOARD LISTING (AllaganTools container 12002 `RetainerMarket`) was named "N on retainer X" and queued for a fetch Artisan then refused ("no retainer is holding any") - Artisan's retainer count reads bags 10000-10006 + crystals 12001 only, and a summoning bell cannot hand over a listing. `StoredWhere` now reports it as "N on the market board (listed by retainer X)" and the refusal line names listings as unreachable (files: `Adapters/AllaganInventory.cs` `StoredWhere`/`SplitRetainers`/`SplitListings`, `Adapters/InventorySource.cs` `RetainerMarket`, `Adapters/DispatchService.cs`). Catalog counts (Scope 0) are unchanged - listings still count as owned.
+
+### Notes
+
+- Why no probe caught the GBR bug: `tests/LazyCrafter.GuardProbe` proved members exist and never built an argument array. It now builds the real `SetActiveItems` arguments, asserts `args.Length == parameters.Length` and `args[0] is bool`, checks each argument is an instance of its parameter type (the check `MethodBase.Invoke` makes), and runs the 0.1.2.0 nested-array shape as a negative control that must be rejected.
+- Evidence: omasky FFXIV chat log 00000007.log 2026-09-04 15:02 ET ("GBR gather hand-off refused: ArgumentException ..."); AllaganTools inventories.csv row for Star Quartz (36186): container 12002, retainer Bussyqueen (same character Grandpa Joe, world 95, known to Artisan's RetainerIDs), qty 1, listed at 788 gil.
+
 ## v0.1.3.0 (2026-09-04)
 
 ### Added

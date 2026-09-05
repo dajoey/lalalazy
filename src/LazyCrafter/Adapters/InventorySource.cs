@@ -33,6 +33,11 @@ public static class InventorySources
     public static readonly uint[] SaddlebagTypes = [4000, 4001, 4100, 4101];
     public static readonly uint[] RetainerTypes =
         [10000, 10001, 10002, 10003, 10004, 10005, 10006, 12001, 12002];             // RetainerBag0..6, RetainerCrystal, RetainerMarket
+    /// <summary>
+    /// A retainer's market-board listings. Counted as owned (Scope 0) but NOT fetchable: a summoning bell hands over
+    /// bag/crystal stock only, and Artisan's retainer count reads 10000-10006 + 12001, never this container.
+    /// </summary>
+    public const uint RetainerMarket = 12002;
     public static readonly uint[] FcChestTypes =
         [20000, 20001, 20002, 20003, 20004, 20005, 20006, 20007, 20008, 20009, 20010, 22001];
     public static readonly uint[] GlamourTypes = [2500, 2501];                         // Armoire, GlamourChest

@@ -409,7 +409,7 @@ public sealed class DispatchService : IDisposable
                     var onRetainers = Fetch.Available(_fetching.ItemId);
                     if (onRetainers <= 0)
                     {
-                        var why = $"no retainer is holding any ({_fetching.Detail}) - a summoning bell cannot reach the saddlebag, the armoury chest or the glamour dresser";
+                        var why = $"no retainer is holding any in its bags ({_fetching.Detail}) - a summoning bell cannot reach a market-board listing, the saddlebag, the armoury chest or the glamour dresser";
                         Say($"cannot fetch {Name(_fetching.ItemId)} x{_fetching.Quantity}: {why}.", error: true);
                         _unfetched.Add((_fetching, why));
                         _fetching = null;

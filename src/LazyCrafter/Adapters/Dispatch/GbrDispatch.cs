@@ -26,7 +26,7 @@ public sealed class GbrDispatch
 
     private const string Bridge = "GatherBuddy.Crafting.CraftingGatherBridge";
     private const string PluginType = "";                                    // the plugin instance type (GatherBuddy.GatherBuddy)
-    private const string ListsManager = "GatherBuddy.AutoGather.Lists.AutoGatherListsManager";
+    internal const string ListsManager = "GatherBuddy.AutoGather.Lists.AutoGatherListsManager";
     private const string GatherList = "GatherBuddy.AutoGather.Lists.AutoGatherList";
 
     public static readonly ReflectionGuard.Pin Pin = new(
@@ -128,9 +128,23 @@ public sealed class GbrDispatch
             }
 
             var count = itemsProp.GetValue(created) is System.Collections.ICollection col ? col.Count : 0;
-            enabledProp.SetValue(created, true);
-            setActive.Invoke(manager, [SetActiveArgs(setActive)]);
-            save.Invoke(manager, null);
+            try
+            {
+                enabledProp.SetValue(created, true);
+                // SetActiveArgs already IS the parameter array. 0.1.0.0-0.1.3.0 wrapped it in a second array
+                // (`[SetActiveArgs(setActive)]`), so SetActiveItems(bool) received one object[] and MethodBase.Invoke threw
+                // "Object of type 'System.Object[]' cannot be converted to type 'System.Boolean'" - the first in-game GBR
+                // hand-off (2026-09-04) died here. GuardProbe now checks this argument shape against the installed DLL.
+                setActive.Invoke(manager, SetActiveArgs(setActive));
+                save.Invoke(manager, null);
+            }
+            catch
+            {
+                // Do not leave a half-configured "LazyCrafter" list behind for GBR's own save to persist.
+                try { deleteList.Invoke(manager, [created]); save.Invoke(manager, null); }
+                catch (Exception cleanup) { _log.Warning(cleanup, "GBR: could not remove the half-created '{Name}' list", ListName); }
+                throw;
+            }
 
             var skipped = materials.Count - count;
             _log.Information("GBR: gather list '{Name}' with {Count} item(s){Skipped}", ListName, count, skipped > 0 ? $" ({skipped} not gatherable, skipped)" : "");
@@ -153,7 +167,7 @@ public sealed class GbrDispatch
         catch (Exception ex) { _log.Debug("GatherBuddyReborn.SetAutoGatherEnabled(false) failed: {Msg}", ex.Message); }
     }
 
-    private static object?[] SetActiveArgs(System.Reflection.MethodInfo setActive)
+    internal static object?[] SetActiveArgs(System.Reflection.MethodInfo setActive)
     {
         // SetActiveItems(bool removeCompletedItems = false) - pass the default explicitly; Invoke does not fill optionals.
         var ps = setActive.GetParameters();
