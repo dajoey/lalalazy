@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=Noto+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="nav">
+    <a class="brand" href="../index.html"><img src="https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/repo-icon.png" alt=""><b>lalalazy</b></a>
+    <span class="spacer"></span>
+    <a class="link" href="../index.html#plugins">All plugins</a>
+    <a class="link" href="https://github.com/dajoey/lalalazy">GitHub</a>
+  </nav>
+
+  <header class="mod-hero">
+    <img class="mico" src="https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazymarketcompanion-icon.png" alt="Lazy Market Companion icon">
+    <div>
+      <h1>Lazy Market Companion</h1>
+      <div class="badges">
+        <span class="pill original">Original</span>
+        <span class="pill testing">Testing</span>
+        <span class="pill window">Config window</span>
+      </div>
+      <p class="tag">Your always-sell list, listed and priced while you sleep.</p>
+    </div>
+  </header>
+
+  <div class="feat">
+    <div class="f"><div class="fi">Auto-Market list</div><div class="ft">Items you always sell, each with its own stack size, keep-in-bags reserve and per-retainer cap. Add from your bags with a right-click.</div></div>
+    <div class="f"><div class="fi">Bags and retainer loot</div><div class="ft">Lists from your inventory and from the retainer's own venture haul, in the order you choose.</div></div>
+    <div class="f"><div class="fi">Match, never undercut</div><div class="ft">Every new listing is priced at the current lowest board price (or Universalis). Existing listings get re-priced too.</div></div>
+    <div class="f"><div class="fi">Runs inside AutoRetainer</div><div class="ft">Optionally hooks AutoRetainer's venture cycle so each retainer gets stocked and priced with no clicks from you.</div></div>
+  </div>
+
+  <div class="kv">
+    <div class="row"><span class="k">Access</span><span class="v"><code>/lmc</code> (or the buttons on the retainer list)</span></div>
+    <div class="row"><span class="k">Type</span><span class="v">Original (successor to Dagobert Price Matcher)</span></div>
+    <div class="row"><span class="k">Config</span><span class="v">In-game window</span></div>
+  </div>
+
+  <section class="install">
+    <div class="urlrow">
+      <code id="repo-url">https://raw.githubusercontent.com/dajoey/lalalazy/main/pluginmaster.json</code>
+      <button class="copybtn" onclick="copyRepo(this)">Copy</button>
+    </div>
+    <div class="steps">
+      <div class="step"><b>2.</b> Save, open <span class="mono">/xlplugins</span>, search <b>Lazy Market Companion</b>.</div>
+    </div>
+  </section>
+
+  <div style="display:flex;justify-content:space-between;gap:12px">
+  </div>
+
+  <footer class="foot">
+    <div class="disc">Not affiliated with Square Enix or goatcorp/Dalamud. FINAL FANTASY XIV is a registered trademark of Square Enix Holdings Co., Ltd.</div>
+  </footer>
+
+</div>
+<script>
+function copyRepo(btn){
+  navigator.clipboard && navigator.clipboard.writeText(document.getElementById('repo-url').textContent);
+  const t = btn.textContent; btn.textContent='Copied!'; setTimeout(()=>btn.textContent=t,1400);
+}
+</script>
+</body>
+</html>

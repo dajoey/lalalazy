@@ -10,7 +10,8 @@ A collection of Dalamud plugins for Final Fantasy XIV, maintained by [dajoey](ht
 |--------|-------------|--------|
 | **Gluttony Combo** | XIVCombo for very lazy players. Condenses combos and mutually exclusive abilities onto a single button — and then some. Fork of Wrath Combo. | Active |
 | **PvP Solver** | Auto-rotation for PvP combat. All jobs. Activates automatically in PvP zones. Designed to run alongside Gluttony Combo. | Active |
-| **Dagobert Price Matcher** | Matches market board prices instead of undercutting. Default match amount: 0 (exact match). | Active |
+| **Lazy Market Companion** | Auto-lists your always-sell items through your retainers (bags + retainer inventory, configurable stack size / reserve), matches board prices, optional AutoRetainer hook. Successor to Dagobert Price Matcher. | Testing |
+| **Dagobert Price Matcher** | Matches market board prices instead of undercutting. Default match amount: 0 (exact match). Being retired in favour of Lazy Market Companion. | Active |
 | **AutoPotion** | Auto-uses HP potions and deep dungeon regen potions at configurable HP thresholds. | Active |
 | **Armoire Auto-Fill** | Per-dungeon view of armoire-eligible gear pieces you're still missing. Detects in-armoire, in-inventory, and equipped state. | Active |
 | **Lazy WT Math** | Adds row probabilities to the Wondrous Tails display along with the average probability of what would happen if you shuffled. Fork of EzWondrousTails. | Active |
@@ -45,7 +46,10 @@ Fork of [WrathCombo](https://github.com/PunishXIV/WrathCombo) by Team Wrath / Pu
 ### PvP Solver
 Fork of [RotationSolverReborn](https://github.com/FFXIV-CombatReborn/RotationSolverReborn) by ArchiDog1998 / FFXIV-CombatReborn. Licensed under GPLv3. Rewired for PvP-only operation — PvE rotations stripped, action IDs remapped to PvP equivalents. Designed to run alongside Gluttony Combo for PvE coverage.
 
-### Dagobert Price Matcher
+### Lazy Market Companion
+Original plugin, successor to Dagobert Price Matcher. Carries Dagobert's price-matching engine (AGPLv3, credit SHOEGAZEssb) and adds the Auto-Market list, listing from bags and retainer inventory via InventoryManager.MoveToRetainerMarket, and the AutoRetainer postprocess hook. Planner is Dalamud-free and unit-tested in 	ests/LazyMarketCompanion.Harness.
+
+### Dagobert Price Matcher
 Fork of [Dagobert](https://github.com/SHOEGAZEssb/Dagobert) by SHOEGAZEssb. Licensed under AGPLv3. Changed default price behavior from undercutting to exact matching.
 
 ### AutoPotion
@@ -61,6 +65,7 @@ Each plugin builds with the Dalamud SDK (.NET 10 SDK required). See individual p
 ```bash
 cd src/GluttonyCombo && dotnet build --configuration Release
 cd src/PvPSolver && dotnet build --configuration Release
+cd src/LazyMarketCompanion && dotnet build --configuration Release
 cd src/DagobertPriceMatcher && dotnet build --configuration Release
 cd src/AutoPotion && dotnet build --configuration Release
 cd src/ArmoireAutoFill && dotnet build --configuration Release

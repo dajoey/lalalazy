@@ -22,7 +22,18 @@ const PLUGINS = [
       { t: 'Pairs with Gluttony', d: 'Designed to run alongside Gluttony Combo, which keeps your PvE covered.' },
     ],
   },
-  {
+  {
+    slug: 'lazymarketcompanion', name: 'Lazy Market Companion', origin: 'Original', hasWindow: true,
+    short: 'Auto-lists your always-sell items through your retainers and matches board prices.',
+    tag: 'Your always-sell list, listed and priced while you sleep.',
+    features: [
+      { t: 'Auto-Market list', d: 'Items you always sell, each with stack size, keep-in-bags reserve and per-retainer cap. Right-click an item in your bags to add it.' },
+      { t: 'Bags and retainer loot', d: 'Lists from your inventory and from the retainer\'s own venture haul.' },
+      { t: 'Match, never undercut', d: 'New listings go up at the current lowest price (or Universalis); existing ones get re-priced.' },
+      { t: 'Runs inside AutoRetainer', d: 'Optional hook into the venture cycle so every retainer gets stocked and priced hands-free.' },
+    ],
+  },
+  {
     slug: 'dagobert', name: 'Dagobert Price Matcher', origin: 'Fork', hasWindow: true,
     short: 'Matches market board prices instead of undercutting.',
     tag: 'Match the board. Never undercut yourself again.',

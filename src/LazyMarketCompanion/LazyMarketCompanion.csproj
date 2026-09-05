@@ -1,0 +1,37 @@
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <Authors>dajoey</Authors>
+    <Version>0.1.0.0</Version>
+    <AssemblyVersion>0.1.0.0</AssemblyVersion>
+    <FileVersion>0.1.0.0</FileVersion>
+    <Description>Market board companion: automatically lists your always-sell items through your retainers in the stack sizes you choose, prices them by matching (not undercutting) the board, and can run inside AutoRetainer's venture cycle. Successor to Dagobert Price Matcher.</Description>
+    <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Platforms>x64</Platforms>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <SupportedOSPlatformVersion>8.0</SupportedOSPlatformVersion>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <NoWarn>1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="LazyMarketCompanion.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Same ECommons pin as LazyCrafter / LazyFateAutomation. -->
+    <PackageReference Include="ECommons" Version="3.2.0.9" />
+  </ItemGroup>
+
+  <!-- Ship only our DLL + ECommons. Dalamud provides everything else in the host. -->
+  <Target Name="PruneOutputDlls" AfterTargets="ResolveReferences">
+    <ItemGroup>
+      <_KeepDlls Include="@(ReferenceCopyLocalPaths)" Condition="'%(Filename)' == 'LazyMarketCompanion' or '%(Filename)' == 'ECommons'" />
+      <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)" />
+      <ReferenceCopyLocalPaths Include="@(_KeepDlls)" />
+    </ItemGroup>
+  </Target>
+</Project>
