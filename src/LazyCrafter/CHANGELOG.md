@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.1.5.1 (2026-09-05)
+
+- Cart edits are now instant: adding an item, changing a quantity or clearing the cart updates the window immediately, even while the full catalog pass is still running - previously an edit stayed invisible until the whole 13,892-recipe pass finished, which after a craft run meant a couple of minutes of what looked like a frozen cart (file: `Catalog/CatalogService.cs`, function: `RepublishCart`)
+- Dispatch now always plans against the cart as it is RIGHT NOW: pressing Dispatch (or hovering it for the preview, or `/lcraft plan` / `/lcraft fetch`) reads the live cart, so what runs is what you just typed, never a stale snapshot (files: `Catalog/CatalogService.cs` `LiveCart`, `Adapters/DispatchService.cs` `PlanFor`/`DispatchCart`)
+- Finishing a craft run no longer kicks off a full catalog recompute: the refresh now arrives through the normal debounced inventory update a couple of seconds later instead of freezing the window behind a two-minute pass right after every run (file: `Adapters/DispatchService.cs`, function: `Finish`/`FinishBlocked`; the forced refresh is kept only when AllaganTools is absent)
+- The dispatcher's internal bag-count refreshes no longer force a catalog recompute each time - thirteen per run used to each queue a full pass (files: `Adapters/AllaganInventory.cs` `DropMemo`, `Adapters/DispatchService.cs`)
+- Internal: the cart rebuild reads the published snapshot's immutable row copy instead of the worker's live dictionary, the recipe-expansion memo is concurrency-safe, and the snapshot publish is under a lock - cart edits while a pass runs are now race-free by construction
+
+
+
 ## v0.1.5.0 (2026-09-05)
 
 - Added the in-game "What's new" popup. After LazyCrafter updates, its changelog now opens once inside the game so you can see what changed without going to GitHub. It waits until you are logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/lcraft changelog` any time to reopen it.

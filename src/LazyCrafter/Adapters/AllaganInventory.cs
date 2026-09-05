@@ -362,10 +362,20 @@ public sealed class AllaganInventory : IInventory, IDisposable
         return d;
     }
 
-    /// <summary>Force a recompute (e.g. a manual refresh button).</summary>
-    public void Invalidate()
+    /// <summary>
+    /// Drop the count memos WITHOUT raising <see cref="Changed"/> - the dispatcher's per-guard refresh. Dispatch
+    /// wants fresh bag counts for its own checks, not a catalog recompute: raising here made every dispatch
+    /// phase queue a full 13,892-recipe catalog pass (the post-run freeze, t_9f646f4c).
+    /// </summary>
+    public void DropMemo()
     {
         lock (_lock) { _memo.Clear(); _bagMemo.Clear(); _whereMemo.Clear(); }
+    }
+
+    /// <summary>Force a recompute and notify listeners (a manual refresh button).</summary>
+    public void Invalidate()
+    {
+        DropMemo();
         Changed?.Invoke();
     }
 

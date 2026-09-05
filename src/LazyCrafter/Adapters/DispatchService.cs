@@ -170,12 +170,17 @@ public sealed class DispatchService : IDisposable
     /// without forcing the ~50 ms index build from the draw thread (t_1a91db8f).</summary>
     public VendorLocator? VendorsIfBuilt => _vendors;
 
-    /// <summary>Build the plan for the current cart without executing it (for the cart panel preview / <c>/lcraft plan</c>).</summary>
-    public DispatchPlan.Plan? PlanFor(CatalogSnapshot snap)
+    /// <summary>
+    /// Build the plan for the cart as it is RIGHT NOW, without executing it (cart panel preview /
+    /// <c>/lcraft plan</c>). Deliberately parameterless (t_9f646f4c): it used to take the window's snapshot and
+    /// planned against a cart that could lag a just-made edit by a whole catalog pass.
+    /// </summary>
+    public DispatchPlan.Plan? PlanFor()
     {
         if (!EnsureCore()) return null;
-        var lines = snap.Cart.Select(l => new DispatchPlan.Line(l.Assessment, l.Crafts)).ToList();
-        return DispatchPlan.Build(lines, snap.CartTotals.Totals, _graph!, _ventures!, _plugin.Player.Retainers, _plugin.Player.GatheredItems, _plugin.Inventory);
+        var (cart, totals) = _plugin.Catalog.LiveCart();
+        var lines = cart.Select(l => new DispatchPlan.Line(l.Assessment, l.Crafts)).ToList();
+        return DispatchPlan.Build(lines, totals.Totals, _graph!, _ventures!, _plugin.Player.Retainers, _plugin.Player.GatheredItems, _plugin.Inventory);
     }
 
     // ------------------------------------------------------------- entry points
@@ -185,20 +190,21 @@ public sealed class DispatchService : IDisposable
     /// nothing is runnable, then stop-and-report in <see cref="Phase.Blocked"/> for the player to buy / fetch and
     /// press Resume. Framework thread (button handler / command).
     /// </summary>
-    public void DispatchCart(CatalogSnapshot snap)
+    public void DispatchCart()
     {
         if (Running) { Say($"a dispatch is already running ({Status}); /lcraft stop first.", error: true); return; }
-        if (snap.Cart.Count == 0) { Say("the cart is empty.", error: true); return; }
         if (!EnsureCore()) return;
+        var (cart, _) = _plugin.Catalog.LiveCart();
+        if (cart.Count == 0) { Say("the cart is empty.", error: true); return; }
 
-        var lines = snap.Cart
+        var lines = cart
             .Where(l => l.Crafts > 0 && _graph!.Row(l.RecipeId) is not null)
             .Select(l => new DispatchLoop.CartLine(l.RecipeId, _graph!.Row(l.RecipeId)!.ResultItemId, l.Crafts))
             .ToList();
         if (lines.Count == 0) { Say("the cart has no craftable lines.", error: true); return; }
 
-        StartRun("cart", snap.Cart.Where(l => l.Row is not null).Select(l => Name(l.Row!.ResultItemId)).ToList());
-        _snap = snap;
+        StartRun("cart", cart.Where(l => l.Row is not null).Select(l => Name(l.Row!.ResultItemId)).ToList());
+        _snap = _plugin.Catalog.Snapshot;   // run-liveness token only; the loop re-assesses from the live bags every wave
         _loop = new DispatchLoop(lines, Replan, FingerprintOf);
         TakeDecision(_loop.Begin());
     }
@@ -387,7 +393,7 @@ public sealed class DispatchService : IDisposable
         if (_retrievals.Count > 0)
         {
             _batchCrafts = RetainerBatch.Queue(plan.Crafts, plan.Deferred, id => _graph?.Row(id) is not null);
-            _plugin.Inventory.Invalidate();
+            _plugin.Inventory.DropMemo();
             foreach (var id in _batchCrafts)
             {
                 var row = _graph!.Row(id)!;
@@ -441,7 +447,7 @@ public sealed class DispatchService : IDisposable
     private DispatchPlan.Plan? Replan(IReadOnlyList<DispatchLoop.CartLine> remaining)
     {
         if (_snap is null || !EnsureCore()) return null;
-        _plugin.Inventory.Invalidate();
+        _plugin.Inventory.DropMemo();
         var assessed = _tiering!.AssessCart(remaining.Select(l => (l.RecipeId, l.Crafts)), _plugin.Inventory);
         var lines = assessed.Lines
             .Select(a => new DispatchPlan.Line(a, remaining.First(r => r.RecipeId == a.RecipeId).Crafts))
@@ -452,7 +458,7 @@ public sealed class DispatchService : IDisposable
     /// <summary>The bag counts of everything this wave could move, folded into one string - "did anything change?".</summary>
     private string FingerprintOf(IEnumerable<uint> ids)
     {
-        _plugin.Inventory.Invalidate();
+        _plugin.Inventory.DropMemo();
         return string.Join("|", ids.OrderBy(i => i).Select(i => $"{i}:{_plugin.Inventory.CountInBags(i)}"));
     }
 
@@ -577,7 +583,7 @@ public sealed class DispatchService : IDisposable
                     // what actually arrived. Anything still short stays in the per-item queue (trimmed to the
                     // remainder); demand the plan had not flagged (stock moved between plan and session) is
                     // appended to it.
-                    _plugin.Inventory.Invalidate();
+                    _plugin.Inventory.DropMemo();
                     var batchDemand = new Dictionary<uint, int>();
                     foreach (var id in _batchCrafts)
                     {
@@ -614,7 +620,7 @@ public sealed class DispatchService : IDisposable
                     if (Fetch.Busy()) { SetStatus("waiting for Artisan's retainer queue"); break; }
 
                     _fetching = _retrievals.Dequeue();
-                    _plugin.Inventory.Invalidate();
+                    _plugin.Inventory.DropMemo();
 
                     // Only the retainers are reachable this way: the saddlebag, the armoury and the glamour dresser
                     // are not summoning-bell inventories. Ask Artisan what it can actually see before promising.
@@ -667,7 +673,7 @@ public sealed class DispatchService : IDisposable
                     }
 
                     // Artisan going idle proves nothing (the same lesson as the craft loop): count the bags.
-                    _plugin.Inventory.Invalidate();
+                    _plugin.Inventory.DropMemo();
                     var got = Math.Max(0, _plugin.Inventory.CountInBags(_fetching!.ItemId) - _fetchBefore);
                     if (got >= _fetching.Quantity)
                     {
@@ -723,7 +729,7 @@ public sealed class DispatchService : IDisposable
                         var n = Gbr.Dispatch(_plan.GatherDictionary(), Name);
                         if (n > 0)
                         {
-                            _plugin.Inventory.Invalidate();
+                            _plugin.Inventory.DropMemo();
                             _gatherList = _plan.Gathers.Select(g => (g.ItemId, g.Quantity)).ToList();
                             _gatherBefore = _gatherList.ToDictionary(g => g.ItemId, g => _plugin.Inventory.CountInBags(g.ItemId));
                             foreach (var g in _plan.Gathers) TrackStep(StepKind.Gather, g.ItemId, g.Quantity, StepState.Running);
@@ -747,7 +753,7 @@ public sealed class DispatchService : IDisposable
                         // Stall guard (card t_efde145c): GBR's own status text PLUS the gathered items' bag counts,
                         // unchanged for 10 minutes while not merely waiting for a timed node = stuck. Before this the
                         // wait looped on IsAutoGatherEnabled() forever with no timeout.
-                        _plugin.Inventory.Invalidate();
+                        _plugin.Inventory.DropMemo();
                         var signal = s + "|" + string.Join(",", _gatherList.Select(g => $"{g.ItemId}:{_plugin.Inventory.CountInBags(g.ItemId)}"));
                         if (_gatherStall.Observe(signal, DateTime.UtcNow, paused: Gbr.IsWaiting()))
                         {
@@ -761,7 +767,7 @@ public sealed class DispatchService : IDisposable
                         break;
                     }
 
-                    _plugin.Inventory.Invalidate();
+                    _plugin.Inventory.DropMemo();
                     var landed = _gatherList.Count(g => _plugin.Inventory.CountInBags(g.ItemId) > _gatherBefore.GetValueOrDefault(g.ItemId));
                     if (landed > 0) _waveProgress = true;
                     foreach (var g in _gatherList)
@@ -784,7 +790,7 @@ public sealed class DispatchService : IDisposable
                     // Guard: never hand Artisan a craft whose materials are not physically in the bags. The plan was
                     // built minutes ago and "owned" counts retainers / saddlebag / armoury; Artisan can only consume
                     // the bags, and it fails silently - the craft simply never starts and we would have called it done.
-                    _plugin.Inventory.Invalidate();
+                    _plugin.Inventory.DropMemo();
                     var recipeRow = _graph?.Row(_current.RecipeId);
                     if (recipeRow is not null && DispatchPlan.BagsShortfall(recipeRow, _current.Crafts, _plugin.Inventory) is { Count: > 0 } shortfall)
                     {
@@ -847,7 +853,7 @@ public sealed class DispatchService : IDisposable
                     }
 
                     // Artisan going idle is not proof it made anything. Count the result in the bags and compare.
-                    _plugin.Inventory.Invalidate();
+                    _plugin.Inventory.DropMemo();
                     var after = _plugin.Inventory.CountInBags(_current!.ResultItemId);
                     var made = Math.Max(0, after - _madeBefore);
                     if (made >= _expected)
@@ -990,8 +996,11 @@ public sealed class DispatchService : IDisposable
         _gatherList.Clear();
         _runClock.Stop();
         _endedUtc = DateTime.UtcNow;
-        _plugin.Inventory.Invalidate();
-        _plugin.Catalog.Invalidate();
+        _plugin.Inventory.DropMemo();
+        // No forced catalog recompute at run end (t_9f646f4c): the debounced AllaganTools inventory event
+        // refreshes the catalog a couple of seconds later without freezing the window. Only the Degraded
+        // fallback (no AllaganTools -> no event path at all) still invalidates explicitly.
+        if (_plugin.Inventory.Degraded) _plugin.Catalog.Invalidate();
         Snap();
     }
 
@@ -1061,8 +1070,10 @@ public sealed class DispatchService : IDisposable
         _gatherList.Clear();
         _runClock.Stop();
         _endedUtc = DateTime.UtcNow;
-        _plugin.Inventory.Invalidate();
-        _plugin.Catalog.Invalidate();
+        _plugin.Inventory.DropMemo();
+        // Same as FinishBlocked: let the debounced inventory event refresh the catalog; force it only when the
+        // AllaganTools event path does not exist (Degraded).
+        if (_plugin.Inventory.Degraded) _plugin.Catalog.Invalidate();
         Snap();
     }
 

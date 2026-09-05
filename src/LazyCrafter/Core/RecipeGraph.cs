@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using LazyCrafter.Core.Model;
 
 namespace LazyCrafter.Core;
@@ -22,7 +23,9 @@ public sealed class RecipeGraph
 {
     private readonly Dictionary<uint, RecipeRow> _byRecipe;
     private readonly Dictionary<uint, List<RecipeRow>> _byResult;
-    private readonly Dictionary<uint, RecipeNode?> _expanded = new();
+    // Concurrent on purpose (t_9f646f4c): the catalog worker fills this memo during a full pass while the UI
+    // thread's cart republish expands cart recipes at the same time. A plain Dictionary here is a real race.
+    private readonly ConcurrentDictionary<uint, RecipeNode?> _expanded = new();
 
     public RecipeGraph(IGameData data)
     {
@@ -57,13 +60,7 @@ public sealed class RecipeGraph
     public bool IsCraftable(uint itemId) => _byResult.ContainsKey(itemId);
 
     /// <summary>Expand a recipe into its ingredient tree; <c>null</c> when the id is unknown.</summary>
-    public RecipeNode? Expand(uint recipeId)
-    {
-        if (_expanded.TryGetValue(recipeId, out var cached)) return cached;
-        var node = ExpandInner(recipeId, new HashSet<uint>());
-        _expanded[recipeId] = node;
-        return node;
-    }
+    public RecipeNode? Expand(uint recipeId) => _expanded.GetOrAdd(recipeId, id => ExpandInner(id, new HashSet<uint>()));
 
     private RecipeNode? ExpandInner(uint recipeId, HashSet<uint> path)
     {

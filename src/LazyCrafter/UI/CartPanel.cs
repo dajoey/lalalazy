@@ -83,10 +83,10 @@ public sealed class CartPanel
             }
             else
             {
-                if (ImGui.Button("Dispatch")) dispatch.DispatchCart(snap);
+                if (ImGui.Button("Dispatch")) dispatch.DispatchCart();
                 if (ImGui.IsItemHovered())
                 {
-                    if (_previewFor != snap.Generation) { _preview = dispatch.PlanFor(snap); _previewFor = snap.Generation; }
+                    if (_previewFor != snap.Generation) { _preview = dispatch.PlanFor(); _previewFor = snap.Generation; }
                     ImGui.SetTooltip(_preview is null ? "Sends ventures to ARC, gathering to GBR, then crafts with Artisan (in that order)." : PreviewText(_preview));
                 }
                 if (dispatch.Current is Adapters.DispatchService.Phase.Failed) { ImGui.SameLine(); ImGui.TextColored(ImGuiColors.DalamudRed, dispatch.Status); }

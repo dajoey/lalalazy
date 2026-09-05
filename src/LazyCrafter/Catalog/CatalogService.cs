@@ -35,6 +35,7 @@ public sealed class CatalogService : IDisposable
     private readonly object _lock = new();
     private readonly Task _worker;
     private readonly Timer _priceTimer;
+    private readonly object _publishLock = new();
 
     // Worker-private Core (built once game data is ready; rebuilt when the retainer set / price basis changes).
     private RecipeGraph? _graph;
@@ -128,10 +129,10 @@ public sealed class CatalogService : IDisposable
             var i = _cart.FindIndex(c => c.RecipeId == recipeId);
             if (i >= 0) _cart[i] = (recipeId, checked(_cart[i].Crafts + crafts));
             else _cart.Add((recipeId, crafts));
-            _fullDirty = true;
         }
         PersistCart();
-        Poke();
+        RepublishCart();
+        QueueCartPriceRound();
     }
 
     public void SetCartQuantity(uint recipeId, int crafts)
@@ -141,19 +142,77 @@ public sealed class CatalogService : IDisposable
             var i = _cart.FindIndex(c => c.RecipeId == recipeId);
             if (i < 0) return;
             if (crafts <= 0) _cart.RemoveAt(i); else _cart[i] = (recipeId, crafts);
-            _fullDirty = true;
         }
         PersistCart();
-        Poke();
+        RepublishCart();
+        QueueCartPriceRound();
     }
 
     public void RemoveFromCart(uint recipeId) => SetCartQuantity(recipeId, 0);
 
     public void ClearCart()
     {
-        lock (_lock) { _cart.Clear(); _fullDirty = true; }
+        lock (_lock) _cart.Clear();
         PersistCart();
+        RepublishCart();
+    }
+
+    /// <summary>
+    /// Re-publish the cart immediately on the calling thread (the UI thread) - NOT on the coalescing worker,
+    /// whose turn can be held by a full pass for minutes (t_9f646f4c: the post-run "stuck" cart). A cart edit
+    /// becomes visible in the same frame it is made, even while <see cref="ComputeAllAsync"/> /
+    /// <see cref="PrimeAndRefineAsync"/> is mid-flight. Reads only published-immutable state (the snapshot's
+    /// row copy, the frozen per-pass inventory) plus Core objects that are safe off the worker (the
+    /// <see cref="RecipeGraph"/> expand memo is concurrent; game data and the price cache are read-only /
+    /// locked). Never touches the worker-private <c>_rows</c> / <c>_assess</c>.
+    /// </summary>
+    private void RepublishCart()
+    {
+        try
+        {
+            if (_plugin.GameData is null || _builder is null || _graph is null) return;   // nothing published yet - the first full pass brings the cart
+            var snap = _snapshot;
+            var prices = _plugin.Prices;
+            var cartSnap = BuildCart(_plugin.GameData, _inv, prices, prices.BestTaxPct, snap.ByRecipe);
+            lock (_publishLock)
+            {
+                // Base the swap on whatever is newest right now so a worker publish that landed while we were
+                // building is never reverted; only the cart (and the generation) changes.
+                var cur = _snapshot;
+                _snapshot = cur with { Generation = Interlocked.Increment(ref _generation), Cart = cartSnap.Lines, CartTotals = cartSnap.Totals };
+            }
+        }
+        catch (Exception ex)
+        {
+            // A cart edit must never be lost to a republish failure; the worker reads the live cart at the end
+            // of its pass and the price round queued by the mutators guarantees one more publish.
+            _log.Warning(ex, "LazyCrafter cart republish failed");
+        }
+    }
+
+    /// <summary>
+    /// A cart edit no longer needs the worker for visibility (see <see cref="RepublishCart"/>), but the new
+    /// lines' materials may be unpriced: ask for one cheap price round. Never a full pass. This is also the
+    /// eventual-consistency net: the worker's own publish reads the live cart under <c>_lock</c>, so a round
+    /// that starts after an edit re-publishes it even if a full publish raced the synchronous one.
+    /// </summary>
+    private void QueueCartPriceRound()
+    {
+        lock (_lock) _priceDirty = true;
         Poke();
+    }
+
+    /// <summary>
+    /// The cart as it is RIGHT NOW, re-assessed on the calling thread. Dispatch (and the plan preview) must
+    /// plan against this, never against a snapshot's <c>Cart</c> - that can lag a cart edit by a whole catalog
+    /// pass, and Dispatch would act on what Joey typed seconds ago instead of what he just typed.
+    /// </summary>
+    public (IReadOnlyList<CartLine> Lines, CartAssessment Totals) LiveCart()
+    {
+        var snap = _snapshot;
+        if (_plugin.GameData is null || _builder is null || _graph is null || snap.Generation == 0) return (snap.Cart, snap.CartTotals);
+        var prices = _plugin.Prices;
+        return BuildCart(_plugin.GameData, _inv, prices, prices.BestTaxPct, snap.ByRecipe);
     }
 
     private void PersistCart()
@@ -288,23 +347,32 @@ public sealed class CatalogService : IDisposable
         _assess = assess;
         _rows = rows;
 
-        var cartSnap = BuildCart(gd, inv, prices, tax);
+        var cartSnap = BuildCart(gd, inv, prices, tax, rows);
         Publish(pro.LoggedIn, pro.Jobs, pro.Retainers.Count, tierCounts, notCrafted, priced, cartSnap.Lines, cartSnap.Totals, sw.Elapsed);
     }
 
-    private (IReadOnlyList<CartLine> Lines, CartAssessment Totals) BuildCart(LuminaGameData gd, IInventory inv, IPriceSource prices, double tax)
+    /// <param name="rowSource">
+    /// Where cart-line rows are read from. The worker passes its own live dictionary (it is the only mutator);
+    /// <see cref="RepublishCart"/> / <see cref="LiveCart"/> on the UI thread MUST pass the published snapshot's
+    /// immutable copy instead - the worker refines <c>_rows</c> in place (<c>_rows[id] = ...</c>) and a plain
+    /// <see cref="Dictionary{TKey,TValue}"/> cannot be read while that happens.
+    /// </param>
+    private (IReadOnlyList<CartLine> Lines, CartAssessment Totals) BuildCart(LuminaGameData gd, IInventory inv, IPriceSource prices, double tax, IReadOnlyDictionary<uint, CatalogRow> rowSource)
     {
         List<(uint RecipeId, int Crafts)> cart;
         lock (_lock) cart = _cart.ToList();
-        var totals = _builder!.Tiering.AssessCart(cart, inv);
+        var builder = _builder;
+        var graph = _graph;
+        if (builder is null || graph is null) return (Array.Empty<CartLine>(), new CartAssessment(EffortTier.Blocked, Array.Empty<RecipeAssessment>(), Array.Empty<IngredientLeaf>()));
+        var totals = builder.Tiering.AssessCart(cart, inv);
         var lines = new List<CartLine>(cart.Count);
         var li = 0;
         foreach (var (recipeId, crafts) in cart)
         {
-            if (_graph!.Row(recipeId) is null) continue;
+            if (graph.Row(recipeId) is null) continue;
             var a = totals.Lines[li++];
-            _rows.TryGetValue(recipeId, out var row);
-            var est = row is { Marketable: true } ? _builder.Profit.Evaluate(recipeId, inv, prices, tax, hq: false, crafts: crafts) : null;
+            rowSource.TryGetValue(recipeId, out var row);
+            var est = row is { Marketable: true } ? builder.Profit.Evaluate(recipeId, inv, prices, tax, hq: false, crafts: crafts) : null;
             lines.Add(new CartLine(recipeId, crafts, row, a, est));
         }
         return (lines, totals);
@@ -313,8 +381,13 @@ public sealed class CatalogService : IDisposable
     private void Publish(bool loggedIn, IReadOnlyDictionary<uint, int> jobs, int retainers, Dictionary<EffortTier, int> tierCounts, int notCrafted, int priced, IReadOnlyList<CartLine> cart, CartAssessment totals, TimeSpan duration)
     {
         var list = _rows.Values.ToArray();
-        _snapshot = new CatalogSnapshot(++_generation, list, new Dictionary<uint, CatalogRow>(_rows), tierCounts, notCrafted,
-            jobs, cart, totals, loggedIn, _plugin.Inventory.Degraded, retainers, priced, DateTime.Now, duration);
+        // Under _publishLock with Interlocked: the UI thread republishes the cart concurrently (RepublishCart),
+        // and two unguarded publishers would tear the generation counter.
+        lock (_publishLock)
+        {
+            _snapshot = new CatalogSnapshot(Interlocked.Increment(ref _generation), list, new Dictionary<uint, CatalogRow>(_rows), tierCounts, notCrafted,
+                jobs, cart, totals, loggedIn, _plugin.Inventory.Degraded, retainers, priced, DateTime.Now, duration);
+        }
     }
 
     private void BuildView()
@@ -375,7 +448,7 @@ public sealed class CatalogService : IDisposable
             }
             ct.ThrowIfCancellationRequested();
             var priced = _rows.Values.Count(r => r.Nq is { RevenueKnown: true });
-            var cartSnap = BuildCart(gd, _inv, prices, tax);
+            var cartSnap = BuildCart(gd, _inv, prices, tax, _rows);
             var tierCounts = new Dictionary<EffortTier, int>(snap.TierCounts);
             Publish(snap.LoggedIn, snap.Jobs, snap.RetainerCount, tierCounts, snap.NotYetCrafted, priced, cartSnap.Lines, cartSnap.Totals, snap.Duration);
             var before = _view.Rows.Take(PriceWindow).Select(r => r.RecipeId).ToArray();

@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Offline proof harness for t_9f646f4c: compiles the REAL CatalogService.cs (the exact file that ships)
+       against tiny fakes for its Dalamud-facing collaborators, so the cart-decouple concurrency behaviour
+       (immediate republish while a full pass is in flight, dispatch reading the live cart) is exercised
+       off the game. Everything here is plain net10.0 - no Dalamud, no Lumina. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>LazyCrafter.CartServiceProof</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The real Core + the real Catalog service, verbatim from the plugin tree. -->
+    <Compile Include="..\..\src\LazyCrafter\Core\**\*.cs" Link="Core\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\..\src\LazyCrafter\Catalog\CatalogService.cs" Link="Catalog\CatalogService.cs" />
+    <Compile Include="..\..\src\LazyCrafter\Catalog\CatalogRow.cs" Link="Catalog\CatalogRow.cs" />
+    <Compile Include="..\..\src\LazyCrafter\Catalog\CatalogView.cs" Link="Catalog\CatalogView.cs" />
+    <Compile Include="..\..\src\LazyCrafter\Catalog\CatalogBuilder.cs" Link="Catalog\CatalogBuilder.cs" />
+    <!-- Fakes for everything Dalamud-facing CatalogService touches. The file defines them with the
+         SAME namespaces the real file imports (Dalamud.Plugin.Services, LazyCrafter.Adapters,
+         LazyCrafter, LazyCrafter.Catalog) so CatalogService.cs compiles UNMODIFIED. -->
+    <Compile Include="Fakes.cs" Link="Fakes.cs" />
+    <Compile Include="Program.cs" Link="Program.cs" />
+  </ItemGroup>
+</Project>

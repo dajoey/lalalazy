@@ -182,7 +182,7 @@ public sealed class Plugin : IDalamudPlugin
         if (a.Equals("stop", StringComparison.OrdinalIgnoreCase)) { Dispatch.Stop(); return; }
         if (a.Equals("resume", StringComparison.OrdinalIgnoreCase)) { if (!Dispatch.Resume()) ChatGui.PrintError("[LazyCrafter] nothing to resume."); return; }
         if (a.Equals("status", StringComparison.OrdinalIgnoreCase)) { PrintRunStatus(); return; }
-        if (a.Equals("dispatch", StringComparison.OrdinalIgnoreCase)) { Dispatch.DispatchCart(Catalog.Snapshot); return; }
+        if (a.Equals("dispatch", StringComparison.OrdinalIgnoreCase)) { Dispatch.DispatchCart(); return; }
         if (a.Equals("plan", StringComparison.OrdinalIgnoreCase)) { PrintPlan(); return; }
         if (a.Equals("fetch", StringComparison.OrdinalIgnoreCase)) { FetchCommand(); return; }
         if (a.Equals("changelog", StringComparison.OrdinalIgnoreCase) || a.Equals("whatsnew", StringComparison.OrdinalIgnoreCase)) { _changelog.ShowNow(); return; }
@@ -228,7 +228,7 @@ public sealed class Plugin : IDalamudPlugin
     /// </summary>
     private void FetchCommand()
     {
-        var plan = Dispatch.PlanFor(Catalog.Snapshot);
+        var plan = Dispatch.PlanFor();
         if (plan is null) return;
         if (plan.Retrievals.Count == 0) { ChatGui.Print("[LazyCrafter] nothing to fetch - every material the cart needs is already in your bags."); return; }
         Dispatch.RetrieveOnly(plan.Retrievals);
@@ -250,11 +250,11 @@ public sealed class Plugin : IDalamudPlugin
     /// <summary><c>/lcraft plan</c>: what Dispatch would do with the cart, without doing it.</summary>
     private void PrintPlan()
     {
-        var snap = Catalog.Snapshot;
-        var plan = Dispatch.PlanFor(snap);
+        var (cartLines, _) = Catalog.LiveCart();
+        var plan = Dispatch.PlanFor();
         if (plan is null) return;
         string N(uint id) => GameData?.ItemName(id) ?? $"#{id}";
-        ChatGui.Print($"[LazyCrafter] plan for {snap.Cart.Count} cart line(s): " +
+        ChatGui.Print($"[LazyCrafter] plan for {cartLines.Count} cart line(s): " +
             $"retrieve [{string.Join(", ", plan.Retrievals.Select(r => $"{N(r.ItemId)} x{r.Quantity} from {r.Places}"))}] " +
             $"ARC [{string.Join(", ", plan.Ventures.Select(v => $"{N(v.ItemId)} x{v.Quantity} ({v.Match.Retainer.Name})"))}] " +
             $"GBR [{string.Join(", ", plan.Gathers.Select(x => $"{N(x.ItemId)} x{x.Quantity}"))}] " +
