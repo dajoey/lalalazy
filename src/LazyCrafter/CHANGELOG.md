@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.1.4.2 (2026-09-05)
+
+### Added
+
+- New **Run** tab in the LazyCrafter window: it becomes the first tab and opens automatically whenever a dispatch starts or stops on a blocker, with the phase (Retrieving / Gathering / Crafting / Blocked / Done / Failed) shown in the tab label, plus elapsed time, start time and the cart name in the header (file: `UI/RunTab.cs`, `UI/MainWindow.cs`)
+- Run tab step list: every retrieve / gather / craft / venture / vendor / market step with item, quantity, state (pending / running / done / failed / blocked) and a plain-English **Reason** column ("needs market Titanium Ore x15", "GBR no progress 10 min", "Artisan did not start within 15 s"); the running row is highlighted and carries the external plugin's own status text (GBR status, "Artisan busy 1:12", "retainer session 0:40")
+- Run tab Blocked section (only while a run is stopped on a blocker): the market items with estimated gil and an **Open market board** button, and the vendor items with a **Flag on map** button per NPC - the same lists the end-of-run chat block prints, now clickable
+- Run tab buttons: **Stop**, **Resume** (enabled only when a stopped run can continue) and **Copy report**, which puts a plain-text dump of the whole run on the clipboard for pasting into a note
+- `/lcraft status` prints that same report to chat, so you can check on a run without opening the window (file: `Plugin.cs` `PrintRunStatus`, renderer `Core/RunReport.cs`)
+- Cart panel: while a run is active the one-line status keeps working and gains a **Run tab** button next to Stop (file: `UI/CartPanel.cs`)
+
+### Notes
+
+- The Run tab only reads the dispatcher's immutable `RunSnapshot` (from 0.1.4.0); nothing is computed during draw
+- Offline proof: `tests/LazyCrafter.Probe` renders a synthetic Blocked run and checks the report names every blocked step with its reason, the market total and the vendor NPC location (`run-report probe: OK`)
+
 ## v0.1.4.1 (2026-09-05)
 
 ### Changed
