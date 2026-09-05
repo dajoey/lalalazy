@@ -90,6 +90,21 @@ public static class AutoMarketPlanner
         if (rule.SellFromRetainer) origins.Add(StockOrigin.Retainer);
       }
 
+      if (origins.Count == 0)
+      {
+        notes.Add($"{rule.ItemId}{(rule.HQ ? " HQ" : "")}: no stock source enabled");
+        continue;
+      }
+
+      // A rule whose item is nowhere we may sell from used to fall through silently (sellable <= 0, loop never
+      // entered). Say so, so a container the snapshot does not scan shows up as a note instead of nothing.
+      var available = pool.Where(s => s.ItemId == rule.ItemId && s.HQ == rule.HQ && s.Quantity > 0 && origins.Contains(s.Origin)).Sum(s => s.Quantity);
+      if (available <= 0)
+      {
+        notes.Add($"{rule.ItemId}{(rule.HQ ? " HQ" : "")}: no stock in {DescribeOrigins(origins)}");
+        continue;
+      }
+
       foreach (var origin in origins)
       {
         if (freeBudget <= 0 || capLeft <= 0)
@@ -98,12 +113,18 @@ public static class AutoMarketPlanner
         var keep = origin == StockOrigin.Bags ? rule.KeepInBags : rule.KeepInRetainer;
         var stacks = pool.Where(s => s.Origin == origin && s.ItemId == rule.ItemId && s.HQ == rule.HQ && s.Quantity > 0).ToList();
         var sellable = stacks.Sum(s => s.Quantity) - Math.Max(keep, 0);
+        var listedFromOrigin = 0;
 
         while (sellable > 0 && freeBudget > 0 && capLeft > 0)
         {
           var want = Math.Min(rule.StackSize, sellable);
           if (want < rule.StackSize && !options.ListPartialStacks)
+          {
+            // Only worth a note when nothing at all went out from this origin (a leftover after full listings is normal).
+            if (listedFromOrigin == 0)
+              notes.Add($"{rule.ItemId}{(rule.HQ ? " HQ" : "")}: {sellable} sellable in {origin} is less than one full listing of {rule.StackSize} (partial stacks are off)");
             break;
+          }
 
           // Largest stack first: a single op moves from ONE source slot, so we need one stack that holds the whole listing.
           var source = stacks.Where(s => s.Quantity >= want).OrderByDescending(s => s.Quantity).FirstOrDefault();
@@ -126,11 +147,20 @@ public static class AutoMarketPlanner
           sellable -= want;
           freeBudget--;
           capLeft--;
+          listedFromOrigin++;
         }
       }
     }
 
     return new PlanResult(ops, notes);
+  }
+
+  private static string DescribeOrigins(List<StockOrigin> origins)
+  {
+    var bags = origins.Contains(StockOrigin.Bags);
+    var ret = origins.Contains(StockOrigin.Retainer);
+    if (bags && ret) return "bags or retainer";
+    return bags ? "bags" : "retainer";
   }
 
   private sealed class MutableStack(StockStack s)

@@ -8,7 +8,7 @@ using System.Linq;
 namespace LazyMarketCompanion.AutoMarket;
 
 /// <summary>
-/// Game-side half of auto-market: snapshots bags / retainer pages / the market container,
+/// Game-side half of auto-market: snapshots bags + crystals / retainer pages + retainer crystals / the market container,
 /// asks the planner what to list, and issues the InventoryManager calls. Must run on the
 /// framework thread inside an open retainer session (RetainerSellList or the retainer menu).
 /// </summary>
@@ -16,15 +16,20 @@ internal static unsafe class AutoMarketService
 {
   public const int MarketSlotCount = 20;
 
+  // Shards / crystals / clusters do not live in Inventory1-4: the player's are in Crystals (2001) and the
+  // retainer's in RetainerCrystals (12001). Both are valid MoveToRetainerMarket sources (the vanilla Sell UI's
+  // crystals tab moves from the same containers), so they are part of the stock snapshot.
   private static readonly InventoryType[] BagTypes =
   [
     InventoryType.Inventory1, InventoryType.Inventory2, InventoryType.Inventory3, InventoryType.Inventory4,
+    InventoryType.Crystals,
   ];
 
   private static readonly InventoryType[] RetainerTypes =
   [
     InventoryType.RetainerPage1, InventoryType.RetainerPage2, InventoryType.RetainerPage3, InventoryType.RetainerPage4,
     InventoryType.RetainerPage5, InventoryType.RetainerPage6, InventoryType.RetainerPage7,
+    InventoryType.RetainerCrystals,
   ];
 
   public static bool IsMarketContainerLoaded()

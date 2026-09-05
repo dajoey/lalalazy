@@ -128,5 +128,39 @@ PlannerOptions Opts(int reserve = 0, bool retFirst = true, bool partial = false)
   Check("fixed price on op", r.Ops.Count == 1 && r.Ops[0].FixedPrice == 1234);
 }
 
+// 12. Crystals: stock from the Crystals (2001) / RetainerCrystals (12001) containers flows through to the op's SourceContainer.
+{
+  const uint FireShard = 2;      // stack 9999
+  const int Crystals = 2001, RetCrystals = 12001;
+  var stock = new List<StockStack>
+  {
+    new(StockOrigin.Bags, Crystals, 0, FireShard, false, 2500),
+    new(StockOrigin.Retainer, RetCrystals, 0, FireShard, false, 1200),
+  };
+  var r = AutoMarketPlanner.Plan([Rule(FireShard, 999)], stock, EmptyMarket(), Opts(retFirst: true));
+  Check("crystals: 1 retainer op + 2 bag ops of 999", r.Ops.Count == 3 && r.Ops.All(o => o.Quantity == 999), $"ops={r.Ops.Count}");
+  Check("crystals: source containers are 12001 then 2001", r.Ops.Select(o => o.SourceContainer).SequenceEqual([RetCrystals, Crystals, Crystals]), string.Join(",", r.Ops.Select(o => o.SourceContainer)));
+}
+
+// 13. A rule with no stock anywhere it may sell from says so instead of silently doing nothing.
+{
+  var stock = new List<StockStack> { new(StockOrigin.Retainer, Ret1, 0, Dye, false, 99) };
+  var r = AutoMarketPlanner.Plan([Rule(Ore, 99)], stock, EmptyMarket(), Opts());
+  Check("no stock -> 0 ops + 'no stock in bags or retainer' note", r.Ops.Count == 0 && r.Notes.Count == 1 && r.Notes[0].Contains("no stock in bags or retainer"), string.Join("|", r.Notes));
+  var r2 = AutoMarketPlanner.Plan([Rule(Dye, 5, bags: true, ret: false)], stock, EmptyMarket(), Opts());
+  Check("stock only in a disabled origin -> 'no stock in bags' note", r2.Ops.Count == 0 && r2.Notes.Count == 1 && r2.Notes[0].Contains("no stock in bags") && !r2.Notes[0].Contains("retainer"), string.Join("|", r2.Notes));
+  var r3 = AutoMarketPlanner.Plan([Rule(Dye, 5, bags: false, ret: false)], stock, EmptyMarket(), Opts());
+  Check("both sources off -> 'no stock source enabled' note", r3.Ops.Count == 0 && r3.Notes.Count == 1 && r3.Notes[0].Contains("no stock source enabled"), string.Join("|", r3.Notes));
+}
+
+// 14. Less than one full listing with partials off is a note, not silence; a leftover after full listings is not.
+{
+  var stock = new List<StockStack> { new(StockOrigin.Bags, Bags1, 0, Ore, false, 500) };
+  var r = AutoMarketPlanner.Plan([Rule(Ore, 9999)], stock, EmptyMarket(), Opts());
+  Check("500 of a 9999 listing, no partial -> 0 ops + note", r.Ops.Count == 0 && r.Notes.Count == 1 && r.Notes[0].Contains("less than one full listing of 9999"), string.Join("|", r.Notes));
+  var r2 = AutoMarketPlanner.Plan([Rule(Ore, 99)], stock, EmptyMarket(), Opts());
+  Check("500 in 99s -> 5 ops, leftover 5 is not a note", r2.Ops.Count == 5 && r2.Notes.Count == 0, $"ops={r2.Ops.Count} notes={string.Join("|", r2.Notes)}");
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;

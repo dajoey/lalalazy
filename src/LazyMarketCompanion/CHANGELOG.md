@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.1.1.0 (2026-09-05)
+
+### Fixed
+- Crystals, shards and clusters were never listed by Auto Market: the stock snapshot only scanned Inventory1-4 and RetainerPage1-7, but crystals live in the Crystals (2001) and RetainerCrystals (12001) containers, so every crystal rule saw zero stock and was skipped without a word (file: `AutoMarket/AutoMarketService.cs`, `BagTypes` / `RetainerTypes`; reported by Joey 2026-09-05, Helm t-joey-1788632331833).
+
+### Added
+- Planner note when an enabled rule has no stock in any source it may sell from ("<item>: no stock in bags or retainer"), and when both sources are disabled (file: `AutoMarket/AutoMarketPlanner.cs`, `Plan`).
+- Planner note when a source holds less than one full listing and "list partial stacks" is off ("<item>: N sellable in Bags is less than one full listing of M (partial stacks are off)"), instead of a silent skip. Relevant for crystals: a rule with stack size 0 defaults to the item's max stack, which is 9999 for crystals, so set a stack size on crystal rules or turn partial stacks on (file: `AutoMarket/AutoMarketPlanner.cs`, `Plan`).
+- Harness cases 12-14 cover the crystal containers, the no-stock notes and the below-full-listing note (file: `tests/LazyMarketCompanion.Harness/Program.cs`).
+
 ## v0.1.0.1 (2026-09-05)
 
 ### Fixed
