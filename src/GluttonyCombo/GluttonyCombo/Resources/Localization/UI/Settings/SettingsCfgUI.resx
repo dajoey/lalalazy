@@ -778,4 +778,19 @@ Set to 0 to disable.</value>
   <data name="PenaltyPause_recommendedValue" xml:space="preserve">
     <value>Increase with higher latency to the server</value>
   </data>
+  <data name="ComboTelemetry_Name" xml:space="preserve">
+    <value>Combo Decision Telemetry (debug)</value>
+  </data>
+  <data name="ComboTelemetry_defaultValue" xml:space="preserve">
+    <value>Off</value>
+  </data>
+  <data name="ComboTelemetry_helpMark" xml:space="preserve">
+    <value>Writes one 'CT|...' line to the plugin log every time a combo changes which action it will use for a button: the job, the combo, the button pressed, the action chosen, GCD remaining, weave slot, target HP% and the buffs the combo looked at.
+Used to compare what the combo decided against what the game actually did (ffxivdb). Leave this off unless you are collecting data - the log gets busy.
+
+Also: /gluttony telemetry on|off|toggle|status</value>
+  </data>
+  <data name="ComboTelemetry_recommendedValue" xml:space="preserve">
+    <value>Off</value>
+  </data>
 </root>

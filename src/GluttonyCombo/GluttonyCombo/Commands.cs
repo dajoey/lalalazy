@@ -219,6 +219,10 @@ public partial class GluttonyCombo
 
             case "opener":
                 OutputOpenerStatus(); break;
+
+            case "telemetry": // fork: combo-decision tap (v1.0.4.168)
+            case "ct": // unlisted
+                HandleTelemetryCommand(argumentParts); break;
             default:
                 HandleOpenCommand(argumentParts); break;
         }
@@ -657,6 +661,42 @@ public partial class GluttonyCombo
     ///     The job abbreviation to provide the debug file for (or "all").<br />
     ///     If no argument is provided, the current job is used.
     /// </param>
+    /// <summary>
+    ///     Fork (v1.0.4.168): <c>/gluttony telemetry [on|off|toggle|status]</c>
+    ///     — the combo-decision tap behind <see cref="Configuration.ComboTelemetry"/>.
+    /// </summary>
+    private void HandleTelemetryCommand(string[] argument)
+    {
+        var current = Service.Configuration.ComboTelemetry;
+        var sub = argument.Length > 1 ? argument[1] : "toggle";
+        bool? wanted = sub switch
+        {
+            "on" or "enable" or "1" => true,
+            "off" or "disable" or "0" => false,
+            "toggle" => !current,
+            _ => null,
+        };
+
+        if (wanted is null)
+        {
+            if (sub is not ("status" or ""))
+                DuoLog.Error("Usage: /gluttony telemetry <on|off|toggle|status>");
+            DuoLog.Information($"Combo telemetry is {(current ? "ON" : "OFF")} " +
+                               $"(lines start with `{ComboTelemetry.Prefix}` in the plugin log).");
+            return;
+        }
+
+        if (wanted.Value != current)
+        {
+            Service.Configuration.ComboTelemetry = wanted.Value;
+            Service.Configuration.Save();
+            if (wanted.Value)
+                ComboTelemetry.Reset();
+        }
+
+        DuoLog.Information($"Combo telemetry {(wanted.Value ? "ON" : "OFF")}.");
+    }
+
     private void HandleDebugCommands(string[] argument)
     {
         try

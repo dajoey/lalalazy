@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using GluttonyCombo.Attributes;
 using GluttonyCombo.Combos.PvE;
 using GluttonyCombo.Core;
+using GluttonyCombo.Data;
+using GluttonyCombo.Services;
 using GluttonyCombo.CustomComboNS.Functions;
 using GluttonyCombo.Services.ActionRequestIPC;
 using ECommonsJob = ECommons.ExcelServices.Job;
@@ -120,8 +122,16 @@ internal abstract partial class CustomCombo : CustomComboFunctions
         var presetException = _presetsAllowedToReturnUnchanged
             .TryGetValue(Preset, out var actionException);
         var hasException = presetException && resultingActionID == actionException;
-        if (resultingActionID == 0 ||
-            (actionID == resultingActionID && !hasException))
+        var changed = resultingActionID != 0 &&
+                      (actionID != resultingActionID || hasException);
+
+        // Fork (v1.0.4.168): combo-decision telemetry tap. Sits here, after every
+        // gate above, so the line records the action that will actually go out.
+        // Off by default; when off this is one bool read and nothing more.
+        if (Service.Configuration.ComboTelemetry)
+            ComboTelemetry.Record(Preset, actionID, changed ? resultingActionID : actionID);
+
+        if (!changed)
             return false;
 
         newActionID = resultingActionID;

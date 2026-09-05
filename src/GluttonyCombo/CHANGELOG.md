@@ -1,4 +1,16 @@
-﻿## v1.0.4.167 (2026-09-03) [testing]
+﻿## v1.0.4.168 (2026-09-05) [testing]
+
+### Added
+- Combo Decision Telemetry (debug), OFF by default: Settings → Rotation Behavior → "Combo Decision Telemetry (debug)", or `/gluttony telemetry on|off|toggle|status`. When on, every time a combo changes which action it will use for a button, one `CT|unixms|job|combo|originalActionId|chosenActionId|gcdRemaining|weaveSlot|targetHpPct|keyBuffs` line goes to the plugin log at Information level, so the ffxivdb harvest can join "what the combo decided" against "what the game actually did" (`action_events`). (files: `Data/ComboTelemetry.cs`, `Core/Configuration.cs` `ComboTelemetry`, `Commands.cs` `HandleTelemetryCommand`, `Resources/Localization/UI/Settings/SettingsCfgUI.resx`)
+- The tap sits at the single settle point in `CustomCombo.TryInvoke` (after the Occult Quick/Dualcast gates and the unchanged-action check), so it records the action that will actually go out, for manual presses and autorotation alike; it only writes when the chosen action for that (combo, button) pair changes, never every frame. (file: `CustomCombo/CustomCombo.cs`, function: `TryInvoke`)
+- `keyBuffs` lists the statuses the combos consulted this frame (`id:remaining`, `t<id>:remaining` for a status on the target, `id:-` when consulted but absent), read from the per-frame status cache. (file: `Data/StatusCache.cs`, function: `ConsultedStatuses`)
+- The line format and the "only emit on change" gate live in a Dalamud-free `Data/ComboTelemetryFormat.cs`, asserted offline by `tests/GluttonyCombo.TelemetryHarness` (exact line shape, invariant decimals under de-DE, the 200-character budget with whole-entry truncation, and the de-duplication gate) so the wire format the database join depends on is proven before shipping.
+
+### Notes
+- With the toggle off (the default) the only new work per combo evaluation is one bool read; no combo behaviour changes either way - the tap observes the decision, it never alters it.
+- Lines are Information level, so the harvest keeps them for 7 days. Turn the tap off when you are done collecting; it is chatty in combat.
+
+## v1.0.4.167 (2026-09-03) [testing]
 
 ### Fixed
 - Action-penalty pause timings: the Acceleration Bomb / misc pausing-status checks in

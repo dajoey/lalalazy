@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Plain console app, no Dalamud. Compiles the REAL src/GluttonyCombo/GluttonyCombo/Data/ComboTelemetryFormat.cs
+       (the pure half of the fork's combo-decision telemetry tap, v1.0.4.168) so the emitted line format and the
+       "only on change" gate are asserted offline, against the exact code that ships. Any Dalamud type leaking into
+       that file breaks this build, which is the point.
+         dotnet build tests\GluttonyCombo.TelemetryHarness -c Release
+         dotnet tests\GluttonyCombo.TelemetryHarness\bin\Release\net10.0\GluttonyCombo.TelemetryHarness.dll
+       Prints PASS/FAIL per case, "OK" and exit 0 when every case passes. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>GluttonyCombo.TelemetryHarness</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);CS1574;CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Data\ComboTelemetryFormat.cs" Link="ComboTelemetryFormat.cs" />
+  </ItemGroup>
+</Project>

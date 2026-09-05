@@ -53,6 +53,17 @@ internal partial class CustomComboCache : IDisposable
 
         return statusCache[key] = null;
     }
+
+    /// <summary>
+    ///     Every status lookup made since the last framework tick — i.e. the
+    ///     statuses the combos actually consulted this frame. Fork addition for
+    ///     <see cref="ComboTelemetry"/>; read only when that tap is enabled.
+    /// </summary>
+    internal IEnumerable<(uint StatusID, ulong? TargetID, Status? Status)> ConsultedStatuses()
+    {
+        foreach (var kv in statusCache)
+            yield return (kv.Key.StatusID, kv.Key.TargetID, kv.Value);
+    }
 }
 
 internal class StatusCache

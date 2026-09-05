@@ -296,6 +296,15 @@ public partial class Configuration : IPluginConfiguration
     [Setting(type: Setting.Type.Toggle)]
     public bool UseExperimentalHP = false;
 
+    /// Fork (v1.0.4.168): off-by-default combo-decision telemetry tap.
+    /// When on, each CHANGE of a combo's settled action writes one `CT|...`
+    /// line to the plugin log (Information level) for the ffxivdb harvest.
+    /// Off = a single bool check per TryInvoke, nothing else.
+    /// <seealso cref="Data.ComboTelemetry"/>
+    [SettingCategory(Rotation_Behavior_Options)]
+    [Setting(type: Setting.Type.Toggle)]
+    public bool ComboTelemetry = false;
+
     #endregion
 
     #region Target Settings
