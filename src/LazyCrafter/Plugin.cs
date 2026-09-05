@@ -4,6 +4,7 @@ using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using ECommons;
+using Lalalazy.Changelog;
 using LazyCrafter.Adapters;
 using LazyCrafter.Catalog;
 using LazyCrafter.UI;
@@ -53,6 +54,7 @@ public sealed class Plugin : IDalamudPlugin
 
     private readonly WindowSystem _windows = new("LazyCrafter");
     private readonly MainWindow _mainWindow;
+    private readonly ChangelogGate _changelog;
     private readonly CancellationTokenSource _cts = new();
 
     public Plugin(IDalamudPluginInterface pi)
@@ -61,6 +63,8 @@ public sealed class Plugin : IDalamudPlugin
         // DalamudReflector is needed for the GBR game-data read (Phase 3) and the GBR/ARC dispatch (Phase 5).
         ECommonsMain.Init(pi, this, Module.DalamudReflector);
 
+        // Read BEFORE anything saves the config: tells the changelog gate "update" from "fresh install".
+        var existingInstall = pi.ConfigFile.Exists;
         Config = pi.GetPluginConfig() as Configuration ?? new Configuration();
         Config.MigrateIfNeeded();
 
@@ -82,7 +86,7 @@ public sealed class Plugin : IDalamudPlugin
 
         Commands.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Toggle the LazyCrafter window. debug | prices | plan | dispatch | status | stop | resume | guard <plugin> <minVersion> | guard reset",
+            HelpMessage = "Toggle the LazyCrafter window. debug | prices | plan | dispatch | status | stop | resume | changelog | guard <plugin> <minVersion> | guard reset",
         });
 
         // Sheet indexing takes a few hundred ms - never on the framework thread.
@@ -106,6 +110,23 @@ public sealed class Plugin : IDalamudPlugin
         Dispatch = new DispatchService(this, Framework, ChatGui, Log);
         _mainWindow = new MainWindow(this);
         _windows.AddWindow(_mainWindow);
+
+        // Shared "What's new" popup (repo standing rule): shows this plugin's CHANGELOG once after an update.
+        _changelog = new ChangelogGate(new ChangelogGate.Options
+        {
+            PluginAssembly = typeof(Plugin).Assembly,
+            DisplayName = "LazyCrafter",
+            ChangelogPath = "src/LazyCrafter/CHANGELOG.md",
+            Framework = Framework,
+            ClientState = ClientState,
+            Condition = Condition,
+            Log = Log,
+            Windows = _windows,
+            ExistingInstall = existingInstall,
+            SeenStore = new DelegateSeenStore(
+                () => Config.LastSeenChangelogVersion,
+                v => { Config.LastSeenChangelogVersion = v; Pi.SavePluginConfig(Config); }),
+        });
 
         if (ClientState.IsLoggedIn) OnLogin();
 
@@ -164,6 +185,7 @@ public sealed class Plugin : IDalamudPlugin
         if (a.Equals("dispatch", StringComparison.OrdinalIgnoreCase)) { Dispatch.DispatchCart(Catalog.Snapshot); return; }
         if (a.Equals("plan", StringComparison.OrdinalIgnoreCase)) { PrintPlan(); return; }
         if (a.Equals("fetch", StringComparison.OrdinalIgnoreCase)) { FetchCommand(); return; }
+        if (a.Equals("changelog", StringComparison.OrdinalIgnoreCase) || a.Equals("whatsnew", StringComparison.OrdinalIgnoreCase)) { _changelog.ShowNow(); return; }
         if (a.StartsWith("guard", StringComparison.OrdinalIgnoreCase)) { GuardCommand(a[5..].Trim()); return; }
         _mainWindow.Toggle();
     }
@@ -310,6 +332,7 @@ public sealed class Plugin : IDalamudPlugin
         Pi.UiBuilder.Draw -= _windows.Draw;
         Pi.UiBuilder.OpenConfigUi -= OpenMain;
         Pi.UiBuilder.OpenMainUi -= OpenMain;
+        _changelog.Dispose();
         _windows.RemoveAllWindows();
         Dispatch.Dispose();
         Catalog.Dispose();

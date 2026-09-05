@@ -1,5 +1,10 @@
 # Changelog - Lazy Fate Automation
 
+## v0.0.2.0 (2026-09-05)
+
+- Added the in-game "What's new" popup. After Lazy Fate Automation updates, its changelog now opens once inside the game so you can see what changed without going to GitHub. It waits until you are logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/lazyfate changelog` any time to reopen it.
+- No change to FATE grinding: zone swapping, the duty pause, the Gluttony lease and every sort/blacklist setting are unchanged.
+
 ## [0.0.1.45] - 2026-08-17
 ### Fixed
 - **Pauses inside instanced content and RELEASES the Gluttony lease.** `FateGrind` had no duty gate: queuing

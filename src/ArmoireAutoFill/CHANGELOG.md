@@ -1,5 +1,10 @@
 # Changelog - ArmoireAutoFill
 
+## v0.4.4.0 (2026-09-05)
+
+- Added the in-game "What's new" popup. After Armoire Auto-Fill updates, its changelog now opens once inside the game so you can see what changed without going to GitHub. It waits until you are logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/armoire changelog` any time to reopen it.
+- No change to armoire behaviour: the dungeon checklist, the auto-store on opening the armoire, and the gearset/armoury options are all unchanged.
+
 ## v0.4.3.0 (2026-07-02)
 
 ### Fixed

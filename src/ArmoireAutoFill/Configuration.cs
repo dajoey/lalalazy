@@ -29,6 +29,9 @@ public sealed class Configuration : IPluginConfiguration
     // ItemFinderModule->CabinetItemUnlockBits at startup and on framework polls.
     public List<uint> ArmoireItemIds { get; set; } = [];
 
+    /// <summary>Newest CHANGELOG version the in-game "What's new" popup has shown (shared LalaChangelog gate).</summary>
+    public string? LastSeenChangelogVersion { get; set; }
+
     public void Save()
     {
         Plugin.PluginInterface.SavePluginConfig(this);

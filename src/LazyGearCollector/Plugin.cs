@@ -7,6 +7,7 @@ using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using ECommons;
+using Lalalazy.Changelog;
 
 namespace LazyGearCollector;
 
@@ -20,6 +21,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
     [PluginService] internal static IFramework Framework { get; private set; } = null!;
     [PluginService] internal static IPluginLog PluginLog { get; private set; } = null!;
+    [PluginService] internal static ICondition Condition { get; private set; } = null!;
 
     private const string CommandName = "/lazygear";
 
@@ -31,6 +33,7 @@ public sealed class Plugin : IDalamudPlugin
 
     private readonly WindowSystem _windowSystem = new("LazyGearCollector");
     private readonly CollectorWindow _window;
+    private readonly ChangelogGate _changelog;
     private DateTime _nextSnapshotSweep = DateTime.MinValue;
     private uint[] _trackedItemIds = [];
 
@@ -39,6 +42,8 @@ public sealed class Plugin : IDalamudPlugin
         pi.Inject(this);
         ECommonsMain.Init(pi, this);
 
+        // Read BEFORE anything saves the config: tells the changelog gate "update" from "fresh install".
+        var existingInstall = pi.ConfigFile.Exists;
         Config = pi.GetPluginConfig() as Configuration ?? new Configuration();
 
         Shops = new ShopGraph(DataManager);
@@ -50,6 +55,23 @@ public sealed class Plugin : IDalamudPlugin
         _window = new CollectorWindow(this);
         _windowSystem.AddWindow(_window);
 
+        // Shared "What's new" popup (repo standing rule): shows this plugin's CHANGELOG once after an update.
+        _changelog = new ChangelogGate(new ChangelogGate.Options
+        {
+            PluginAssembly = typeof(Plugin).Assembly,
+            DisplayName = "Lazy Gear Collector",
+            ChangelogPath = "src/LazyGearCollector/CHANGELOG.md",
+            Framework = Framework,
+            ClientState = ClientState,
+            Condition = Condition,
+            Log = PluginLog,
+            Windows = _windowSystem,
+            ExistingInstall = existingInstall,
+            SeenStore = new DelegateSeenStore(
+                () => Config.LastSeenChangelogVersion,
+                v => { Config.LastSeenChangelogVersion = v; Config.Save(); }),
+        });
+
         PluginInterface.UiBuilder.Draw += _windowSystem.Draw;
         PluginInterface.UiBuilder.OpenConfigUi += ToggleWindow;
         PluginInterface.UiBuilder.OpenMainUi += ToggleWindow;
@@ -57,7 +79,7 @@ public sealed class Plugin : IDalamudPlugin
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Open Lazy Gear Collector.",
+            HelpMessage = "Open Lazy Gear Collector. /lazygear changelog shows what's new.",
         });
     }
 
@@ -109,7 +131,16 @@ public sealed class Plugin : IDalamudPlugin
 
     private void ToggleWindow() => _window.IsOpen = !_window.IsOpen;
 
-    private void OnCommand(string command, string args) => ToggleWindow();
+    private void OnCommand(string command, string args)
+    {
+        var a = args.Trim();
+        if (a.Equals("changelog", StringComparison.OrdinalIgnoreCase) || a.Equals("whatsnew", StringComparison.OrdinalIgnoreCase))
+        {
+            _changelog.ShowNow();
+            return;
+        }
+        ToggleWindow();
+    }
 
     public void Dispose()
     {
@@ -117,6 +148,7 @@ public sealed class Plugin : IDalamudPlugin
         PluginInterface.UiBuilder.Draw -= _windowSystem.Draw;
         PluginInterface.UiBuilder.OpenConfigUi -= ToggleWindow;
         PluginInterface.UiBuilder.OpenMainUi -= ToggleWindow;
+        _changelog.Dispose();
         _windowSystem.RemoveAllWindows();
         CommandManager.RemoveHandler(CommandName);
         ECommonsMain.Dispose();

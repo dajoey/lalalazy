@@ -1,10 +1,10 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <!-- Metadata -->
   <PropertyGroup>
     <Authors>dajoey</Authors>
     <Company>-</Company>
-    <Version>1.0.4.168</Version>
+    <Version>1.0.4.169</Version>
     <!-- This is the version that will be used when pushing to the repo.-->
     <Description>Gluttony Combo - lalalazy fork of Gluttony Combo. XIVCombo for very lazy players.</Description>
     <Copyright>Copyleft attick 2021 thanks attick UwU (forked as Gluttony Combo by dajoey)</Copyright>
@@ -33,7 +33,17 @@
     <EmbeddedResource Remove="Native\Icons\**" />
     <None Remove="Native\Icons\**" />
   </ItemGroup>
-  <!-- Styling Rules -->
+  <!-- Shared in-game "What's new" changelog popup (standing rule, 2026-09-05): every lalalazy
+       plugin compiles src/Shared/LalaChangelog as SOURCE (never a shared DLL - each plugin lives in
+       its own AssemblyLoadContext and PruneOutputDlls would strip it) and embeds its own CHANGELOG.md.
+       This is a FORK: the seen-version lives in a sidecar json, never in the upstream-owned
+       Configuration class, so nightly WrathCombo merges stay conflict-free.
+       Do not remove this block in an upstream merge. -->
+  <ItemGroup>
+    <Compile Include="..\..\Shared\LalaChangelog\**\*.cs" Link="LalaChangelog\%(RecursiveDir)%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\CHANGELOG.md" LogicalName="CHANGELOG.md" />
+  </ItemGroup>
+    <!-- Styling Rules -->
   <ItemGroup>
     <None Include="..\.editorconfig" Link=".editorconfig" />
   </ItemGroup>

@@ -64,6 +64,9 @@ public sealed class Configuration : IPluginConfiguration
     /// </summary>
     public bool RetrieveFromRetainers { get; set; } = true;
 
+    /// <summary>Newest CHANGELOG version the in-game "What's new" popup has shown (shared LalaChangelog gate).</summary>
+    public string? LastSeenChangelogVersion { get; set; }
+
     /// <summary>The cart, so it survives a plugin reload.</summary>
     public List<CartEntry> Cart { get; set; } = new();
 

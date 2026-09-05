@@ -1,7 +1,7 @@
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
     <PackageId>LazyWTMath</PackageId>
-    <Version>3.2.2.10</Version>
+    <Version>3.2.3.0</Version>
     <Authors>daemitus, MidoriKami, dajoey</Authors>
     <PackageProjectUrl>https://github.com/dajoey/lalalazy</PackageProjectUrl>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -12,6 +12,17 @@
     <LangVersion>latest</LangVersion>
     <NoWarn>$(NoWarn);MSB3277;1591</NoWarn>
   </PropertyGroup>
+
+  <!-- Shared in-game "What's new" changelog popup (standing rule, 2026-09-05): every lalalazy
+       plugin compiles src/Shared/LalaChangelog as SOURCE (never a shared DLL - each plugin lives in
+       its own AssemblyLoadContext and PruneOutputDlls would strip it) and embeds its own CHANGELOG.md.
+       This is a FORK: the seen-version lives in a sidecar json (this plugin has no Configuration class
+       at all), so upstream EzWondrousTails syncs stay conflict-free.
+       Do not remove this block in an upstream merge. -->
+  <ItemGroup>
+    <Compile Include="..\..\Shared\LalaChangelog\**\*.cs" Link="LalaChangelog\%(RecursiveDir)%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\CHANGELOG.md" LogicalName="CHANGELOG.md" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\KamiToolKit\KamiToolKit.csproj" />

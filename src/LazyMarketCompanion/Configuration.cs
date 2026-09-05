@@ -180,6 +180,9 @@ public sealed class Configuration : IPluginConfiguration
   /// <summary>Set once the Dagobert config import has been attempted, so it never runs twice.</summary>
   public bool ImportedFromDagobert { get; set; } = false;
 
+  /// <summary>Newest CHANGELOG version the in-game "What's new" popup has shown (shared LalaChangelog gate).</summary>
+  public string? LastSeenChangelogVersion { get; set; }
+
   public ItemPriceLimit? GetItemPriceLimit(uint itemId)
   {
     return ItemPriceLimits.FirstOrDefault(limit => limit.ItemId == itemId);

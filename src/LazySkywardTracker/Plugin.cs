@@ -7,6 +7,7 @@ using ECommons;
 using ECommons.DalamudServices;
 using ECommons.EzHookManager;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
+using Lalalazy.Changelog;
 using System;
 using System.Collections.Generic;
 
@@ -21,6 +22,8 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IClientState ClientState { get; private set; } = null!;
     [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
     [PluginService] internal static IPluginLog PluginLog { get; private set; } = null!;
+    [PluginService] internal static IFramework Framework { get; private set; } = null!;
+    [PluginService] internal static ICondition Condition { get; private set; } = null!;
 
     private const string CommandName = "/lazysky";
 
@@ -29,6 +32,7 @@ public sealed class Plugin : IDalamudPlugin
     
     private readonly WindowSystem _windowSystem = new("LazySkywardTracker");
     private readonly TrackerWindow _mainWindow;
+    private readonly ChangelogGate _changelog;
 
     public static readonly uint[] AchievementIds = [2491, 2494, 2497, 2500, 2503, 2506, 2509, 2512, 2515, 2518, 2521];
 
@@ -59,11 +63,30 @@ public sealed class Plugin : IDalamudPlugin
         // Initialize ECommons
         ECommonsMain.Init(pi, this);
 
+        // Read BEFORE anything saves the config: tells the changelog gate "update" from "fresh install".
+        var existingInstall = pi.ConfigFile.Exists;
         Config = pi.GetPluginConfig() as Configuration ?? new Configuration();
         Scanner = new InventoryScanner(DataManager);
         
         _mainWindow = new TrackerWindow(this);
         _windowSystem.AddWindow(_mainWindow);
+
+        // Shared "What's new" popup (repo standing rule): shows this plugin's CHANGELOG once after an update.
+        _changelog = new ChangelogGate(new ChangelogGate.Options
+        {
+            PluginAssembly = typeof(Plugin).Assembly,
+            DisplayName = "Lazy Skyward Tracker",
+            ChangelogPath = "src/LazySkywardTracker/CHANGELOG.md",
+            Framework = Framework,
+            ClientState = ClientState,
+            Condition = Condition,
+            Log = PluginLog,
+            Windows = _windowSystem,
+            ExistingInstall = existingInstall,
+            SeenStore = new DelegateSeenStore(
+                () => Config.LastSeenChangelogVersion,
+                v => { Config.LastSeenChangelogVersion = v; Config.Save(); }),
+        });
 
         PluginInterface.UiBuilder.Draw += _windowSystem.Draw;
         PluginInterface.UiBuilder.OpenConfigUi += ToggleWindow;
@@ -71,7 +94,7 @@ public sealed class Plugin : IDalamudPlugin
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Open the Lazy Skyward Tracker control panel."
+            HelpMessage = "Open the Lazy Skyward Tracker control panel. /lazysky changelog shows what's new."
         });
 
         // Initialize Hook
@@ -164,6 +187,12 @@ public sealed class Plugin : IDalamudPlugin
 
     private void OnCommand(string command, string args)
     {
+        var a = args.Trim();
+        if (a.Equals("changelog", StringComparison.OrdinalIgnoreCase) || a.Equals("whatsnew", StringComparison.OrdinalIgnoreCase))
+        {
+            _changelog.ShowNow();
+            return;
+        }
         ToggleWindow();
     }
 
@@ -175,6 +204,7 @@ public sealed class Plugin : IDalamudPlugin
         PluginInterface.UiBuilder.OpenConfigUi -= ToggleWindow;
         PluginInterface.UiBuilder.OpenMainUi -= ToggleWindow;
         
+        _changelog.Dispose();
         _windowSystem.RemoveAllWindows();
         CommandManager.RemoveHandler(CommandName);
 

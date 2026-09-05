@@ -4,6 +4,11 @@ Fork of [OhKannaDuh/BOCCHI](https://github.com/OhKannaDuh/BOCCHI) (AGPL-3.0-or-l
 forked at `ded40a71af051a3aa57d326c512a975e7957daf6`. Upstream copyright and licence
 are preserved in `LICENSE`.
 
+## v0.2.2.0 (2026-09-05)
+
+- Added the in-game "What's new" popup. After LazyOccultCrescent updates, its changelog now opens once inside the game so you can see what changed without going to GitHub. It waits until you are logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/lazyoccult changelog` any time to reopen it.
+- No change to Occult Crescent behaviour: the pathfinder, FATEs, critical encounters, forked tower, mob farmer and the emergency stop all work exactly as before.
+
 ## v0.2.1.0 (2026-08-01) [testing]
 
 ### Fixed

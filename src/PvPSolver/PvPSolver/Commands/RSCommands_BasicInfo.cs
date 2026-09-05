@@ -1,4 +1,4 @@
-﻿using Dalamud.Game.Command;
+using Dalamud.Game.Command;
 using ECommons.DalamudServices;
 using RotationSolver.Data;
 
@@ -51,6 +51,14 @@ namespace RotationSolver.Commands
 			if (command.Length == 0)
 			{
 				PvPSolverPlugin.OpenConfigWindow();
+				return;
+			}
+
+			// lalalazy shared "What's new" popup (fork addition - not upstream).
+			if (string.Equals(command, "changelog", StringComparison.OrdinalIgnoreCase)
+				|| string.Equals(command, "whatsnew", StringComparison.OrdinalIgnoreCase))
+			{
+				PvPSolverPlugin.ShowChangelog();
 				return;
 			}
 

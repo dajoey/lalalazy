@@ -44,6 +44,7 @@ using GluttonyCombo.Services.IPC_Subscriber;
 using GluttonyCombo.Window;
 using GluttonyCombo.Window.Functions;
 using GluttonyCombo.Window.Tabs;
+using Lalalazy.Changelog;
 using GenericHelpers = ECommons.GenericHelpers;
 
 namespace GluttonyCombo;
@@ -56,7 +57,8 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
     private readonly MajorChangesWindow _majorChangesWindow;
     private readonly TargetHelper TargetHelper;
     internal static GluttonyCombo? P;
-    private readonly WindowSystem ws;
+    private readonly WindowSystem ws;    // Shared lalalazy "What's new" popup - fork wiring, seen-version in a sidecar json (NOT Configuration).
+    internal ChangelogGate? _changelog;
     private static readonly SocketsHttpHandler httpHandler = new()
     {
         AutomaticDecompression = DecompressionMethods.All,
@@ -207,6 +209,8 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
     public GluttonyCombo(IDalamudPluginInterface pluginInterface)
     {
         P = this;
+        // Read BEFORE anything touches/saves the config: tells the changelog gate "update" from "fresh install".
+        var existingInstall = pluginInterface.ConfigFile.Exists;
         pluginInterface.Create<Service>();
         ECommonsMain.Init(pluginInterface, this, Module.All);
         PunishLibMain.Init(pluginInterface, "Gluttony Combo");
@@ -251,6 +255,22 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         ws.AddWindow(ConfigWindow);
         ws.AddWindow(_majorChangesWindow);
         ws.AddWindow(TargetHelper);
+
+        // Shared "What's new" popup (repo standing rule): shows this plugin's CHANGELOG once after an
+        // update. Fork: SidecarSeenStore keeps the seen-version out of the upstream Configuration class.
+        _changelog = new ChangelogGate(new ChangelogGate.Options
+        {
+            PluginAssembly = typeof(GluttonyCombo).Assembly,
+            DisplayName = "Gluttony Combo",
+            ChangelogPath = "src/GluttonyCombo/CHANGELOG.md",
+            Framework = Svc.Framework,
+            ClientState = Svc.ClientState,
+            Condition = Svc.Condition,
+            Log = Svc.Log,
+            Windows = ws,
+            ExistingInstall = existingInstall,
+            SeenStore = new SidecarSeenStore(Svc.PluginInterface, (ex, msg) => Svc.Log.Warning(ex, msg)),
+        });
 
         Configuration.ConfigChanged += DebugFile.LoggingConfigChanges;
 
@@ -526,6 +546,7 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
                 Configuration.ProcessSaveQueue();
             }
 
+        _changelog?.Dispose();
         ws.RemoveAllWindows();
         Svc.DtrBar.Remove("Gluttony Combo");
         Svc.DtrBar.Remove("Gluttony Combo Opener");

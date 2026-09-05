@@ -1,6 +1,6 @@
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
-    <Version>0.0.2.2</Version>
+    <Version>0.0.3.0</Version>
     <AssemblyName>LazySkywardTracker</AssemblyName>
     <Description>Simple tracker plugin for Skyward / Skybuilders' points towards the Pteranodon mount.</Description>
     <IsPackable>false</IsPackable>
@@ -25,6 +25,14 @@
     <LoadPriority>0</LoadPriority>
     <AcceptsFeedback>false</AcceptsFeedback>
   </PropertyGroup>
+  <!-- Shared in-game "What's new" changelog popup (standing rule, 2026-09-05): every lalalazy
+       plugin compiles src/Shared/LalaChangelog as SOURCE (never a shared DLL - each plugin lives in
+       its own AssemblyLoadContext and PruneOutputDlls would strip it) and embeds its own CHANGELOG.md.
+       Do not remove this block in an upstream merge. -->
+  <ItemGroup>
+    <Compile Include="..\Shared\LalaChangelog\**\*.cs" Link="LalaChangelog\%(RecursiveDir)%(Filename)%(Extension)" />
+    <EmbeddedResource Include="CHANGELOG.md" LogicalName="CHANGELOG.md" />
+  </ItemGroup>
   <ItemGroup>
     <Content Include="LazySkywardTracker.json" />
   </ItemGroup>

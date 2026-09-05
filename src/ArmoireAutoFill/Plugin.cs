@@ -7,6 +7,7 @@ using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using ECommons;
+using Lalalazy.Changelog;
 
 namespace ArmoireAutoFill;
 
@@ -16,6 +17,8 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
     [PluginService] internal static IClientState ClientState { get; private set; } = null!;
     [PluginService] internal static IFramework Framework { get; private set; } = null!;
+    [PluginService] internal static ICondition Condition { get; private set; } = null!;
+    [PluginService] internal static IPluginLog Log { get; private set; } = null!;
 
     public static Configuration Configuration { get; private set; } = null!;
 
@@ -25,9 +28,13 @@ public sealed class Plugin : IDalamudPlugin
     private readonly CabinetObserver _cabinetObserver;
     private readonly InventoryScanner _scanner;
     private readonly ArmoireAutoStore _autoStore;
+    private readonly ChangelogGate _changelog;
 
     public Plugin()
     {
+        // Read BEFORE anything saves the config (the v3 migration below does): tells the changelog
+        // gate "update" from "fresh install".
+        var existingInstall = PluginInterface.ConfigFile.Exists;
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         if (Configuration.Version < 3)
         {
@@ -55,9 +62,26 @@ public sealed class Plugin : IDalamudPlugin
         _windowSystem.AddWindow(_mainWindow);
         _windowSystem.AddWindow(_configWindow);
 
+        // Shared "What's new" popup (repo standing rule): shows this plugin's CHANGELOG once after an update.
+        _changelog = new ChangelogGate(new ChangelogGate.Options
+        {
+            PluginAssembly = typeof(Plugin).Assembly,
+            DisplayName = "Armoire Auto-Fill",
+            ChangelogPath = "src/ArmoireAutoFill/CHANGELOG.md",
+            Framework = Framework,
+            ClientState = ClientState,
+            Condition = Condition,
+            Log = Log,
+            Windows = _windowSystem,
+            ExistingInstall = existingInstall,
+            SeenStore = new DelegateSeenStore(
+                () => Configuration.LastSeenChangelogVersion,
+                v => { Configuration.LastSeenChangelogVersion = v; Configuration.Save(); }),
+        });
+
         CommandManager.AddHandler("/armoire", new CommandInfo(OnArmoireCommand)
         {
-            HelpMessage = "Open the Armoire Auto-Fill window"
+            HelpMessage = "Open the Armoire Auto-Fill window. /armoire changelog shows what's new."
         });
 
         PluginInterface.UiBuilder.Draw += DrawUI;
@@ -81,6 +105,7 @@ public sealed class Plugin : IDalamudPlugin
         PluginInterface.UiBuilder.OpenMainUi -= ToggleMainUI;
         PluginInterface.UiBuilder.OpenConfigUi -= ToggleConfigUI;
         CommandManager.RemoveHandler("/armoire");
+        _changelog.Dispose();
         _windowSystem.RemoveAllWindows();
         _cabinetObserver.OnSnapshotChanged -= _scanner.Scan;
         _cabinetObserver.Dispose();
@@ -109,6 +134,12 @@ public sealed class Plugin : IDalamudPlugin
 
     private void OnArmoireCommand(string command, string args)
     {
+        var a = args.Trim();
+        if (a.Equals("changelog", StringComparison.OrdinalIgnoreCase) || a.Equals("whatsnew", StringComparison.OrdinalIgnoreCase))
+        {
+            _changelog.ShowNow();
+            return;
+        }
         ToggleMainUI();
     }
 

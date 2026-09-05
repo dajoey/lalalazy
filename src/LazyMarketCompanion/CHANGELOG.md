@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.1.2.0 (2026-09-05)
+
+- Added the in-game "What's new" popup. After Lazy Market Companion updates, its changelog now opens once inside the game so you can see what changed without going to GitHub. It waits until you are logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/lmc changelog` any time to reopen it.
+- No change to selling: the per-listing cap fix from 0.1.1.1 (99 units, 9999 for crystals/shards/clusters) and every Auto-Market and price-match setting are unchanged.
+
 ## v0.1.1.1 (2026-09-05)
 
 ### Fixed

@@ -2,14 +2,14 @@
   <PropertyGroup>
     <PackageId>LazyCurrencySpender</PackageId>
     <Authors>Blackcatz1911, dajoey</Authors>
-    <Version>1.2.6.1</Version>
+    <Version>1.2.7.0</Version>
     <Description>Lazy Currency Spender — FFXIV Plugin to find the best options to spend your ingame currency. Fork of CurrencySpender by Blackcatz1911.</Description>
     <PackageProjectUrl>https://github.com/dajoey/lalalazy</PackageProjectUrl>
     <RepoUrl>https://github.com/dajoey/lalalazy</RepoUrl>
     <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
     <IsPackable>false</IsPackable>
     <Platforms>x64</Platforms>
-    <AssemblyVersion>1.2.6.1</AssemblyVersion>
+    <AssemblyVersion>1.2.7.0</AssemblyVersion>
     <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
     <SupportedOSPlatformVersion>8.0</SupportedOSPlatformVersion>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
@@ -24,6 +24,17 @@
     </Content>
   </ItemGroup>
   
+  <!-- Shared in-game "What's new" changelog popup (standing rule, 2026-09-05): every lalalazy
+       plugin compiles src/Shared/LalaChangelog as SOURCE (never a shared DLL - each plugin lives in
+       its own AssemblyLoadContext and PruneOutputDlls would strip it) and embeds its own CHANGELOG.md.
+       This is a FORK: the seen-version lives in a sidecar json, never in the upstream-owned Config
+       class, so upstream CurrencySpender syncs stay conflict-free.
+       Do not remove this block in an upstream merge. -->
+  <ItemGroup>
+    <Compile Include="..\Shared\LalaChangelog\**\*.cs" Link="LalaChangelog\%(RecursiveDir)%(Filename)%(Extension)" />
+    <EmbeddedResource Include="CHANGELOG.md" LogicalName="CHANGELOG.md" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="ECommons" Version="3.1.0.5" />
   </ItemGroup>

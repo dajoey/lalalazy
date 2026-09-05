@@ -1,4 +1,9 @@
-﻿## v1.0.4.168 (2026-09-05) [testing]
+## v1.0.4.169 (2026-09-05)
+
+- Added the in-game "What's new" popup. After Gluttony Combo updates, its changelog now opens once inside the game so you can see what changed without going to GitHub. It waits until you are logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/gluttony changelog` any time to reopen it.
+- No change to combos, autorotation or any preset: the seen-version is kept in its own small file next to the settings, so nightly WrathCombo merges are unaffected.
+
+## v1.0.4.168 (2026-09-05) [testing]
 
 ### Added
 - Combo Decision Telemetry (debug), OFF by default: Settings → Rotation Behavior → "Combo Decision Telemetry (debug)", or `/gluttony telemetry on|off|toggle|status`. When on, every time a combo changes which action it will use for a button, one `CT|unixms|job|combo|originalActionId|chosenActionId|gcdRemaining|weaveSlot|targetHpPct|keyBuffs` line goes to the plugin log at Information level, so the ffxivdb harvest can join "what the combo decided" against "what the game actually did" (`action_events`). (files: `Data/ComboTelemetry.cs`, `Core/Configuration.cs` `ComboTelemetry`, `Commands.cs` `HandleTelemetryCommand`, `Resources/Localization/UI/Settings/SettingsCfgUI.resx`)

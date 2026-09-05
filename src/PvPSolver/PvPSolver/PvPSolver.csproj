@@ -1,11 +1,11 @@
-﻿<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
     <AssemblyName>PvPSolver</AssemblyName>
     <Name>PvP Solver</Name>
     <InternalName>PvPSolver</InternalName>
     <Punchline>PvP-only auto-rotation</Punchline>
     <Description>PvP-only auto-rotation for FFXIV. Activates in PvP zones.</Description>
-    <Version>0.1.0.13</Version>
+    <Version>0.1.1.0</Version>
     <Changelog>v0.1.0.13 - 2026-08-25: Adds a "PvPHighestPressure" targeting mode that focuses whichever enemy your own team is already piling onto, and target stickiness so auto-target stops abandoning an enemy while your own timed debuff (Wildfire and similar) is still ticking on it. Both requested in issue #4.
 v0.1.0.12 - 2026-08-06: Upstream sync (RotationSolverReborn 35ceb6e82) - all 21 PvP rotations now declare GameVersion 7.55. Metadata-only; no gameplay change. The Doom-guard logic in that commit lives in upstream base classes this fork does not track.
 v0.1.0.11 - 2026-08-03: Fixed per-frame 'no rotation found' log spam outside PvP (issue #3) - UpdateCustomRotation returns early when not in PvP and the remaining no-rotation warnings are throttled.</Changelog>
@@ -28,6 +28,16 @@ v0.1.0.11 - 2026-08-03: Fixed per-frame 'no rotation found' log spam outside PvP
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <NoWarn>1591</NoWarn>
   </PropertyGroup>
+  <!-- Shared in-game "What's new" changelog popup (standing rule, 2026-09-05): every lalalazy
+       plugin compiles src/Shared/LalaChangelog as SOURCE (never a shared DLL - each plugin lives in
+       its own AssemblyLoadContext and PruneOutputDlls would strip it) and embeds its own CHANGELOG.md.
+       This is a FORK: the seen-version lives in a sidecar json, never in the upstream-owned Configs
+       class, so upstream RotationSolverReborn syncs stay conflict-free.
+       Do not remove this block in an upstream merge. -->
+  <ItemGroup>
+    <Compile Include="..\..\Shared\LalaChangelog\**\*.cs" Link="LalaChangelog\%(RecursiveDir)%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\CHANGELOG.md" LogicalName="CHANGELOG.md" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="ECommons" Version="3.2.0.9" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" PrivateAssets="all" ExcludeAssets="runtime">

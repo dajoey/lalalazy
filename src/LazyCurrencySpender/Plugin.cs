@@ -9,6 +9,7 @@ using CurrencySpender.Data;
 using System.IO;
 using System.Net.Mime;
 using CurrencySpender.Hooks;
+using Lalalazy.Changelog;
 using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using Dalamud.Game.Command;
@@ -39,6 +40,9 @@ public sealed unsafe class Plugin : IDalamudPlugin
     internal ConfigWizardWindow configWizard;
     internal CurrencyOverlay currencyOverlay;
 
+    // Shared lalalazy "What's new" popup - fork wiring, seen-version in a sidecar json (NOT Config).
+    internal ChangelogGate? _changelog;
+
     internal string? changelogPath;
     public string Version;
     public bool Problem = false;
@@ -52,6 +56,12 @@ public sealed unsafe class Plugin : IDalamudPlugin
 
     public Plugin(IDalamudPluginInterface pluginInterface)
     {
+        // Read BEFORE anything saves the config: tells the changelog gate "update" from "fresh install".
+        // This plugin persists through ECommons EzConfig, which writes DefaultConfig.json inside the
+        // plugin's config DIRECTORY - pi.ConfigFile (<InternalName>.json) is never created here, so
+        // checking only that would call every existing install "fresh" and the popup would never open.
+        var existingInstall = pluginInterface.ConfigFile.Exists
+            || File.Exists(Path.Combine(pluginInterface.GetPluginConfigDirectory(), "DefaultConfig.json"));
         pluginInterface.Create<Service>();
         //config = PluginInterface.GetPluginConfig() as Config ?? new Config();
         ECommonsMain.Init(pluginInterface, this, Module.DalamudReflector);
@@ -65,7 +75,7 @@ public sealed unsafe class Plugin : IDalamudPlugin
 
         CommandManager.AddHandler("/currencyspender", new CommandInfo(OnCommand)
         {
-            HelpMessage = "Lazy Currency Spender main command. Arguments: config, c, settings, s"
+            HelpMessage = "Lazy Currency Spender main command. Arguments: changelog, config, c, settings, s"
         });
 
         CommandManager.AddHandler("/lazycur", new CommandInfo(OnCommand)
@@ -91,6 +101,23 @@ public sealed unsafe class Plugin : IDalamudPlugin
             currencyOverlay = new CurrencyOverlay();
             
             PluginInterface.UiBuilder.Draw += ws.Draw;
+
+            // Shared "What's new" popup (repo standing rule): shows this plugin's CHANGELOG once after
+            // an update. Constructed HERE because `ws` only exists inside this TickScheduler delegate.
+            // Fork: SidecarSeenStore keeps the seen-version out of the upstream Config class.
+            _changelog = new ChangelogGate(new ChangelogGate.Options
+            {
+                PluginAssembly = typeof(Plugin).Assembly,
+                DisplayName = "Lazy Currency Spender",
+                ChangelogPath = "src/LazyCurrencySpender/CHANGELOG.md",
+                Framework = Service.Framework,
+                ClientState = Service.ClientState,
+                Condition = Service.Condition,
+                Log = Service.Log,
+                Windows = ws,
+                ExistingInstall = existingInstall,
+                SeenStore = new SidecarSeenStore(PluginInterface, (ex, msg) => Service.Log.Warning(ex, msg)),
+            });
             PluginInterface.UiBuilder.OpenConfigUi += delegate { configTabWindow.IsOpen = true; };
             PluginInterface.UiBuilder.OpenMainUi += delegate { mainTabWindow.IsOpen = true; };
             TaskManager = new() { };
@@ -127,6 +154,7 @@ public sealed unsafe class Plugin : IDalamudPlugin
 
     public void Dispose()
     {
+        _changelog?.Dispose();
         PluginInterface.UiBuilder.Draw -= ws.Draw;
         ECommonsMain.Dispose();
         FontHelper.DisposeFonts();
@@ -138,6 +166,10 @@ public sealed unsafe class Plugin : IDalamudPlugin
         if (args.EqualsIgnoreCase("debug") || args.EqualsIgnoreCase("d"))
         {
             debugTabWindow.IsOpen = true;
+        }
+        else if (args.EqualsIgnoreCase("changelog") || args.EqualsIgnoreCase("whatsnew"))
+        {
+            _changelog?.ShowNow();
         }
         else if (args.EqualsIgnoreCase("config") || args.EqualsIgnoreCase("c")
             || args.EqualsIgnoreCase("settings") || args.EqualsIgnoreCase("s"))

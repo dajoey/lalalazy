@@ -69,6 +69,9 @@ public class Config : IOcelotConfig
     public DataConfig DataConfig { get; set; } = new();
 
 
+    /// <summary>Newest CHANGELOG version the in-game "What's new" popup has shown (shared LalaChangelog gate).</summary>
+    public string? LastSeenChangelogVersion { get; set; }
+
     public void Save()
     {
         Svc.PluginInterface.SavePluginConfig(this);

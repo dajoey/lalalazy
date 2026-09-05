@@ -1,5 +1,10 @@
 # LazyGearCollector — Changelog
 
+## v0.0.2.0 (2026-09-05)
+
+- Added the in-game "What's new" popup. After Lazy Gear Collector updates, its changelog now opens once inside the game so you can see what changed without going to GitHub. It waits until you are logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/lazygear changelog` any time to reopen it.
+- No change to collection tracking: the Phantom Vision set, tier detection, ownership counting and the remaining-cost figures are all unchanged.
+
 ## v0.0.1.0 (2026-07-30)
 
 ### Added

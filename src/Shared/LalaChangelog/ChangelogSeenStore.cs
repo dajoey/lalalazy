@@ -1,7 +1,9 @@
 // Shared source (NOT a shared DLL) - compiled into every lalalazy plugin.
 using System;
 using System.IO;
-using System.Text.Json;
+// using System.Text.Json;  -- deliberately NOT imported: PvPSolver declares a global
+// `using Newtonsoft.Json`, and importing this namespace makes `JsonSerializer` ambiguous
+// (CS0104) in that fork. The two call sites below are fully qualified instead.
 using Dalamud.Plugin;
 
 namespace Lalalazy.Changelog;
@@ -48,7 +50,9 @@ public sealed class SidecarSeenStore : IChangelogSeenStore
         try
         {
             if (!File.Exists(_path)) return null;
-            var s = JsonSerializer.Deserialize<State>(File.ReadAllText(_path));
+            // Fully qualified on purpose: forks (PvPSolver) declare a global `using Newtonsoft.Json`,
+            // which makes the bare name ambiguous (CS0104). Do not shorten this.
+            var s = System.Text.Json.JsonSerializer.Deserialize<State>(File.ReadAllText(_path));
             return s?.LastSeenChangelogVersion;
         }
         catch (Exception ex)
@@ -63,7 +67,7 @@ public sealed class SidecarSeenStore : IChangelogSeenStore
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-            File.WriteAllText(_path, JsonSerializer.Serialize(new State { LastSeenChangelogVersion = version }));
+            File.WriteAllText(_path, System.Text.Json.JsonSerializer.Serialize(new State { LastSeenChangelogVersion = version }));
         }
         catch (Exception ex)
         {

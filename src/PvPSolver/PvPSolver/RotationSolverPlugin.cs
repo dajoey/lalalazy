@@ -6,6 +6,7 @@ using ECommons;
 using ECommons.DalamudServices;
 using ECommons.ImGuiMethods;
 using ECommons.Logging;
+using Lalalazy.Changelog;
 using Lumina.Excel.Sheets;
 using RotationSolver.ActionTimeline;
 using RotationSolver.Basic.Configuration;
@@ -34,6 +35,8 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 	private static OverlayWindow? _overlayWindow;
 	private static EasterEggWindow? _easterEggWindow;
 	private static FirstStartTutorialWindow? _firstStartTutorialWindow;
+	// Shared lalalazy "What's new" popup - fork wiring, seen-version in a sidecar json (NOT Configs).
+	private static ChangelogGate? _changelog;
 
 	private static readonly List<IDisposable> _dis = [];
 	public static string Name => "PvP Solver";
@@ -46,6 +49,8 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 	internal IPCProvider IPCProvider;
 	public PvPSolverPlugin(IDalamudPluginInterface pluginInterface)
 	{
+		// Read BEFORE anything touches/saves the config: tells the changelog gate "update" from "fresh install".
+		var existingInstall = pluginInterface.ConfigFile.Exists;
 		ECommonsMain.Init(pluginInterface, this, ECommons.Module.DalamudReflector, ECommons.Module.ObjectFunctions);
 		PluginLog.Information("PvPSolverPlugin constructor START");
 		_ = Svc.Framework.RunOnTick(() =>
@@ -119,6 +124,22 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 		windowSystem.AddWindow(_overlayWindow);
 		windowSystem.AddWindow(_easterEggWindow);
 		windowSystem.AddWindow(_firstStartTutorialWindow);
+
+		// Shared "What's new" popup (repo standing rule): shows this plugin's CHANGELOG once after an
+		// update. Fork: SidecarSeenStore keeps the seen-version out of the upstream Configs class.
+		_changelog = new ChangelogGate(new ChangelogGate.Options
+		{
+			PluginAssembly = typeof(PvPSolverPlugin).Assembly,
+			DisplayName = "PvP Solver",
+			ChangelogPath = "src/PvPSolver/CHANGELOG.md",
+			Framework = Svc.Framework,
+			ClientState = Svc.ClientState,
+			Condition = Svc.Condition,
+			Log = Svc.Log,
+			Windows = windowSystem,
+			ExistingInstall = existingInstall,
+			SeenStore = new SidecarSeenStore(Svc.PluginInterface, (ex, msg) => Svc.Log.Warning(ex, msg)),
+		});
 
 		//Notify.Success("Overlay Window was added!");
 
@@ -218,6 +239,12 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 		_rotationConfigWindow?.Toggle();
 	}
 
+	/// <summary>`/pvpsolver changelog` - reopen the "What's new" popup on demand.</summary>
+	internal static void ShowChangelog()
+	{
+		_changelog?.ShowNow();
+	}
+
 	internal static void OpenTicTacToe()
 	{
 		_easterEggWindow?.IsOpen = true;
@@ -305,6 +332,8 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 		Service.Config.Save();
 		await OtherConfiguration.Save();
 
+		_changelog?.Dispose();
+		_changelog = null;
 		RSCommands.Disable();
 		Watcher.Disable();
 		ActionQueueManager.Disable();

@@ -11,6 +11,7 @@ using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
 using ECommons;
 using ECommons.DalamudServices;
+using Lalalazy.Changelog;
 using LazyMarketCompanion.Windows;
 using Lumina.Excel.Sheets;
 using Newtonsoft.Json;
@@ -29,6 +30,8 @@ public sealed class Plugin : IDalamudPlugin
   [PluginService] public static IContextMenu ContextMenu { get; private set; } = null!;
   [PluginService] public static IDataManager DataManager { get; private set; } = null!;
   [PluginService] public static IPluginLog Log { get; private set; } = null!;
+  [PluginService] public static IFramework Framework { get; private set; } = null!;
+  [PluginService] public static ICondition Condition { get; private set; } = null!;
 
   public const string LegacyInternalName = "DagobertPriceMatcher";
   private const string CommandName = "/lmc";
@@ -40,6 +43,7 @@ public sealed class Plugin : IDalamudPlugin
 #pragma warning restore CS8618
 
   private readonly MarketAutomation _automation;
+  private readonly ChangelogGate _changelog;
   private readonly bool _ownsLegacyCommand;
 
   public readonly WindowSystem WindowSystem = new("LazyMarketCompanion");
@@ -49,14 +53,34 @@ public sealed class Plugin : IDalamudPlugin
   {
     ECommonsMain.Init(PluginInterface, this);
 
+    // Read BEFORE LoadOrImportConfiguration (which saves on the Dagobert-import path): tells the
+    // changelog gate "update" from "fresh install".
+    var existingInstall = PluginInterface.ConfigFile.Exists;
     Configuration = LoadOrImportConfiguration();
 
     ConfigWindow = new ConfigWindow();
     WindowSystem.AddWindow(ConfigWindow);
 
+    // Shared "What's new" popup (repo standing rule): shows this plugin's CHANGELOG once after an update.
+    _changelog = new ChangelogGate(new ChangelogGate.Options
+    {
+      PluginAssembly = typeof(Plugin).Assembly,
+      DisplayName = "Lazy Market Companion",
+      ChangelogPath = "src/LazyMarketCompanion/CHANGELOG.md",
+      Framework = Framework,
+      ClientState = ClientState,
+      Condition = Condition,
+      Log = Log,
+      Windows = WindowSystem,
+      ExistingInstall = existingInstall,
+      SeenStore = new DelegateSeenStore(
+          () => Configuration.LastSeenChangelogVersion,
+          v => { Configuration.LastSeenChangelogVersion = v; Configuration.Save(); }),
+    });
+
     CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
     {
-      HelpMessage = "Open Lazy Market Companion. Subcommands: market (auto-market open retainer), pinch (re-price open retainer), sweep (all retainers), cancel, debug"
+      HelpMessage = "Open Lazy Market Companion. Subcommands: market (auto-market open retainer), pinch (re-price open retainer), sweep (all retainers), cancel, changelog (what's new), debug"
     });
     // Only take the old alias if Dagobert is not loaded alongside us; otherwise we'd log an error now
     // and yank Dagobert's command on our Dispose.
@@ -86,6 +110,7 @@ public sealed class Plugin : IDalamudPlugin
 
   public void Dispose()
   {
+    _changelog.Dispose();
     WindowSystem.RemoveAllWindows();
     _automation.Dispose();
     AutoRetainerIPC.DisposeInstance();
@@ -168,6 +193,10 @@ public sealed class Plugin : IDalamudPlugin
         return;
       case "cancel":
         _automation.CancelEverything("cancelled by command");
+        return;
+      case "changelog":
+      case "whatsnew":
+        _changelog.ShowNow();
         return;
       case "debug":
         var state = _automation.DebugState();

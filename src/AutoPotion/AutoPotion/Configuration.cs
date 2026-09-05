@@ -26,6 +26,9 @@ public class Configuration : IPluginConfiguration
     // Keyed by ClassJob.RowId. Populated lazily on first edit for a job.
     public Dictionary<uint, JobPotionSettings> Jobs { get; set; } = new();
 
+    /// <summary>Newest CHANGELOG version the in-game "What's new" popup has shown (shared LalaChangelog gate).</summary>
+    public string? LastSeenChangelogVersion { get; set; }
+
     // Live profile to read for `jobId`. Falls back to the default profile when the job has
     // never been edited; callers that want to *write* a per-job change should call
     // GetOrCreateJobSettings instead so the override is persisted.

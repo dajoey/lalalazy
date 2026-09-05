@@ -36,5 +36,8 @@ public class Configuration : IPluginConfiguration {
     // Set true in LazyFateAutomation.json to capture full debug logs for troubleshooting.
     public bool VerboseFileLogging = false;
 
+    /// <summary>Newest CHANGELOG version the in-game "What's new" popup has shown (shared LalaChangelog gate).</summary>
+    public string? LastSeenChangelogVersion { get; set; }
+
     public void Save() => Svc.PluginInterface.SavePluginConfig(this);
 }

@@ -24,6 +24,7 @@ Opens LazyOccultCrescent main ui
  - /lazyoccult : Opens the main ui
  - /lazyoccult config : opens the config ui
  - /lazyoccult cfg : opens the config ui
+ - /lazyoccult changelog : shows what's new in this version
 --------------------------------
 ".Trim();
     }
@@ -53,6 +54,12 @@ Opens LazyOccultCrescent main ui
             return;
         }
 #endif
+
+        if (arguments is "changelog" or "whatsnew")
+        {
+            plugin.ShowChangelog();
+            return;
+        }
 
         if (arguments == "buff")
         {

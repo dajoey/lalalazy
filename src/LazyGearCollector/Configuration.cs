@@ -35,5 +35,8 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>Keyed by container key (e.g. "saddlebag", "retainer:12345").</summary>
     public Dictionary<string, ContainerSnapshot> Snapshots { get; set; } = new();
 
+    /// <summary>Newest CHANGELOG version the in-game "What's new" popup has shown (shared LalaChangelog gate).</summary>
+    public string? LastSeenChangelogVersion { get; set; }
+
     public void Save() => Plugin.PluginInterface.SavePluginConfig(this);
 }

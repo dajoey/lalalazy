@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using LazyOccultCrescent.Chains;
 using LazyOccultCrescent.Data;
 using Dalamud.Game;
@@ -6,6 +6,8 @@ using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Plugin;
 using ECommons;
 using ECommons.DalamudServices;
+using Dalamud.Interface.Windowing;
+using Lalalazy.Changelog;
 using Ocelot;
 using Ocelot.Chain;
 
@@ -20,6 +22,11 @@ public sealed class Plugin : OcelotPlugin
 
     public Config Config { get; }
 
+    // Ocelot's WindowManager owns a private WindowSystem we cannot add to, so the shared changelog
+    // popup gets its own one-window system, drawn from our own UiBuilder.Draw hook.
+    private readonly WindowSystem _changelogWindows = new("LazyOccultCrescent##changelog");
+    private readonly ChangelogGate _changelog;
+
     public override IOcelotConfig OcelotConfig
     {
         get => Config;
@@ -33,13 +40,47 @@ public sealed class Plugin : OcelotPlugin
     public Plugin(IDalamudPluginInterface plugin)
         : base(plugin, Module.DalamudReflector)
     {
+        // Read BEFORE anything saves the config: tells the changelog gate "update" from "fresh install".
+        var existingInstall = plugin.ConfigFile.Exists;
         Config = plugin.GetPluginConfig() as Config ?? new Config();
+
+        // Shared "What's new" popup (repo standing rule): shows this plugin's CHANGELOG once after an update.
+        _changelog = new ChangelogGate(new ChangelogGate.Options
+        {
+            PluginAssembly = typeof(Plugin).Assembly,
+            DisplayName = "LazyOccultCrescent",
+            ChangelogPath = "src/LazyOccultCrescent/CHANGELOG.md",
+            Framework = Svc.Framework,
+            ClientState = Svc.ClientState,
+            Condition = Svc.Condition,
+            Log = Svc.Log,
+            Windows = _changelogWindows,
+            ExistingInstall = existingInstall,
+            SeenStore = new DelegateSeenStore(
+                () => Config.LastSeenChangelogVersion,
+                v => { Config.LastSeenChangelogVersion = v; Config.Save(); }),
+        });
+        Svc.PluginInterface.UiBuilder.Draw += _changelogWindows.Draw;
 
         SetupLanguage(plugin);
 
         OcelotInitialize(OcelotFeature.All);
 
         ChainHelper.Initialize(this);
+    }
+
+    /// <summary>`/lazyoccult changelog` - reopen the "What's new" popup on demand.</summary>
+    public void ShowChangelog()
+    {
+        _changelog.ShowNow();
+    }
+
+    public override void Dispose()
+    {
+        Svc.PluginInterface.UiBuilder.Draw -= _changelogWindows.Draw;
+        _changelog.Dispose();
+        _changelogWindows.RemoveAllWindows();
+        base.Dispose();
     }
 
     private void SetupLanguage(IDalamudPluginInterface plugin)

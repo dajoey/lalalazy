@@ -3,6 +3,7 @@ using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using Lalalazy.Changelog;
 
 namespace AutoPotion;
 
@@ -27,17 +28,37 @@ public sealed class Plugin : IDalamudPlugin
     private readonly PotionService _service;
     private readonly WindowSystem _windows = new("AutoPotion");
     private readonly ConfigWindow _configWindow;
+    private readonly ChangelogGate _changelog;
 
     public Plugin(IDalamudPluginInterface pi)
     {
         pi.Inject(this);
 
+        // Read BEFORE anything saves the config: tells the changelog gate "update" from "fresh install".
+        var existingInstall = pi.ConfigFile.Exists;
         Config = pi.GetPluginConfig() as Configuration ?? new Configuration();
         Config.MigrateIfNeeded();
         _service = new PotionService(this);
 
         _configWindow = new ConfigWindow(this);
         _windows.AddWindow(_configWindow);
+
+        // Shared "What's new" popup (repo standing rule): shows this plugin's CHANGELOG once after an update.
+        _changelog = new ChangelogGate(new ChangelogGate.Options
+        {
+            PluginAssembly = typeof(Plugin).Assembly,
+            DisplayName = "AutoPotion",
+            ChangelogPath = "src/AutoPotion/CHANGELOG.md",
+            Framework = Framework,
+            ClientState = ClientState,
+            Condition = Condition,
+            Log = Log,
+            Windows = _windows,
+            ExistingInstall = existingInstall,
+            SeenStore = new DelegateSeenStore(
+                () => Config.LastSeenChangelogVersion,
+                v => { Config.LastSeenChangelogVersion = v; SaveConfig(); }),
+        });
 
         Pi.UiBuilder.Draw += _windows.Draw;
         Pi.UiBuilder.OpenConfigUi += OpenConfig;
@@ -47,7 +68,7 @@ public sealed class Plugin : IDalamudPlugin
 
         Commands.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Open the AutoPotion settings window."
+            HelpMessage = "Open the AutoPotion settings window. /autopotion changelog shows what's new."
         });
     }
 
@@ -68,6 +89,12 @@ public sealed class Plugin : IDalamudPlugin
             _service.LogDebugState();
             return;
         }
+        if (args.Trim().Equals("changelog", StringComparison.OrdinalIgnoreCase) ||
+            args.Trim().Equals("whatsnew", StringComparison.OrdinalIgnoreCase))
+        {
+            _changelog.ShowNow();
+            return;
+        }
         _configWindow.IsOpen = !_configWindow.IsOpen;
     }
 
@@ -77,6 +104,7 @@ public sealed class Plugin : IDalamudPlugin
         Pi.UiBuilder.Draw -= _windows.Draw;
         Pi.UiBuilder.OpenConfigUi -= OpenConfig;
         Pi.UiBuilder.OpenMainUi -= OpenConfig;
+        _changelog.Dispose();
         _windows.RemoveAllWindows();
         Commands.RemoveHandler(CommandName);
     }

@@ -1,4 +1,9 @@
-﻿# Changelog - PvP Solver
+# Changelog - PvP Solver
+
+## v0.1.1.0 (2026-09-05)
+
+- Added the in-game "What's new" popup. After PvP Solver updates, its changelog now opens once inside the game so you can see what changed without going to GitHub. It waits until you are logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/pvpsolver changelog` (or `/pvs changelog`) any time to reopen it.
+- No change to rotations or targeting: the sticky-target and team-pressure work from 0.1.0.13 is untouched, and the seen-version is stored in its own small file so upstream RotationSolverReborn syncs stay clean.
 
 ## [0.1.0.13] - 2026-08-25
 ### Added

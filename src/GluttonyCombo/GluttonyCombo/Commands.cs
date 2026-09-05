@@ -217,6 +217,10 @@ public partial class GluttonyCombo
             case "cb":
                 OccultCrystalBuffs.StartSequence(); break;
 
+            case "changelog":
+            case "whatsnew": // unlisted
+                _changelog?.ShowNow(); break;
+
             case "opener":
                 OutputOpenerStatus(); break;
 
