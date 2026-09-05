@@ -29,6 +29,16 @@ public class Configuration : IPluginConfiguration
     /// <summary>Newest CHANGELOG version the in-game "What's new" popup has shown (shared LalaChangelog gate).</summary>
     public string? LastSeenChangelogVersion { get; set; }
 
+    /// <summary>
+    ///     Off-by-default decision tap (v0.2.4.0). When on, PotionService writes one
+    ///     <c>PT|</c> line to the plugin log per potion fired, plus a gated line when a
+    ///     threshold was crossed and nothing fired. Purely diagnostic — it changes no
+    ///     potion behaviour. A new defaulted bool needs no config Version bump: an
+    ///     existing v2 save simply deserializes it as false.
+    ///     See <see cref="PotionTelemetryFormat"/> for the wire format.
+    /// </summary>
+    public bool DecisionTelemetry { get; set; } = false;
+
     // Live profile to read for `jobId`. Falls back to the default profile when the job has
     // never been edited; callers that want to *write* a per-job change should call
     // GetOrCreateJobSettings instead so the override is persisted.

@@ -69,6 +69,36 @@ internal class ConfigWindow : Window
         if (DrawJobSlider(jobIcon, "HP threshold (%)##rgthr", ref rgThr))
         { job.RegenPotionThreshold = rgThr; changed = true; }
 
+        // Advanced / Diagnostics. Collapsed by default: nothing in here changes what the
+        // plugin does, and the one control writes to the log, which deserves a plain warning.
+        ImGui.Spacing();
+        ImGui.Separator();
+        if (ImGui.CollapsingHeader("Advanced / Diagnostics"))
+        {
+            var telemetry = c.DecisionTelemetry;
+            if (ImGui.Checkbox("Log potion decisions", ref telemetry))
+            {
+                c.DecisionTelemetry = telemetry;
+                // Match the /autopotion telemetry command: a fresh enable reports the
+                // current state instead of deduplicating against a stale one.
+                if (telemetry) PotionTelemetry.Reset();
+                changed = true;
+            }
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip(
+                    "Off by default. When on, AutoPotion writes a diagnostic line to the Dalamud\n" +
+                    "plugin log every time it uses a potion, and a rate-limited line when a\n" +
+                    "threshold was crossed but nothing fired (no stock, on cooldown, the heal\n" +
+                    "would have been wasted). Lines start with \"" + PotionTelemetry.Prefix + "\".\n\n" +
+                    "It changes no potion behaviour and sends nothing anywhere — the lines only go\n" +
+                    "to your own local plugin log, so you can check whether your thresholds are\n" +
+                    "set where you think they are.\n\n" +
+                    "Same as /autopotion telemetry on|off.");
+            }
+            ImGui.TextDisabled($"Writes \"{PotionTelemetry.Prefix}\" lines to the plugin log. Nothing leaves your PC.");
+        }
+
         if (changed) _plugin.SaveConfig();
     }
 

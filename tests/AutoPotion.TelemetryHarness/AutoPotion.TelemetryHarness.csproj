@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Plain console app, no Dalamud. Compiles the REAL
+       src/AutoPotion/AutoPotion/PotionTelemetryFormat.cs (the pure half of AutoPotion's
+       decision tap, v0.2.4.0) so the emitted line format and the near-miss gate are
+       asserted offline, against the exact code that ships. Any Dalamud type leaking into
+       that file breaks this build, which is the point.
+         dotnet build tests\AutoPotion.TelemetryHarness -c Release
+         dotnet tests\AutoPotion.TelemetryHarness\bin\Release\net10.0\AutoPotion.TelemetryHarness.dll
+       Prints PASS/FAIL per case, "OK" and exit 0 when every case passes. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>AutoPotion.TelemetryHarness</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);CS1574;CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\src\AutoPotion\AutoPotion\PotionTelemetryFormat.cs" Link="PotionTelemetryFormat.cs" />
+    <!-- Real ffxivdb player_samples rows; the replay at the end of Program.cs reads this
+         from AppContext.BaseDirectory to produce a MEASURED line rate. -->
+    <None Include="trace-ffxivdb.csv" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

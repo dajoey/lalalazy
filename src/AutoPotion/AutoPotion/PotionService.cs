@@ -24,11 +24,27 @@ internal class PotionService
     // we'd attempt a use while regen is still ticking.
     private const uint RehabilitationStatusId = 648;
 
+    // LogMessage 583 = "There are no ... available." Potion.GetActionStatus returns it
+    // synthetically when the bags hold neither an HQ nor an NQ copy, which is how we tell
+    // "you're out" apart from "it's on cooldown / blocked by a status" in the tap.
+    private const uint NoItemsStatus = 583;
+
     private enum PickMode
     {
         HpBest,                 // Heal-comparison + overshoot guard (HP potions).
         FirstAvailable,         // First entry that passes status checks (MP potions).
         RegenFirstAvailable,    // Same, plus Rehabilitation lockout (deep dungeon regen).
+    }
+
+    // Why PickBest came back empty. Only populated when the decision tap asks for it
+    // (`diagnose`); the normal path pays one branch and nothing else.
+    private enum PickFail
+    {
+        None,       // A potion was picked.
+        NoStock,    // Not one candidate was in the bags.
+        Blocked,    // In the bags, but every one is on cooldown / duty-restricted / status-blocked.
+        Overshoot,  // HP only: usable candidates existed, but every heal would have been wasted.
+        Rehab,      // Regen only: Rehabilitation (648) is still ticking.
     }
 
     private readonly Plugin _plugin;
@@ -109,16 +125,46 @@ internal class PotionService
 
         var targetId = local.GameObjectId;
 
+        // The decision tap (v0.2.4.0). Cost when off is exactly this bool read: no
+        // snapshot is built, PickBest skips its diagnosis, and nothing is formatted.
+        // Everything above this line is the plugin being switched off or throttled —
+        // not a decision — and is deliberately never reported.
+        var tap = cfg.DecisionTelemetry;
+        var snap = tap
+            ? new PotionSnapshot(
+                local.ClassJob.RowId,
+                hpRatio * 100f,
+                job.HpPotionThreshold,
+                local.MaxMp > 0 ? (float)local.CurrentMp / local.MaxMp * 100f : PotionTelemetryFormat.NoMpPool,
+                job.MpPotionThreshold,
+                Plugin.Condition[ConditionFlag.InCombat],
+                Plugin.Condition[ConditionFlag.BoundByDuty],
+                inDeepDungeon)
+            : default;
+        // First threshold that was crossed and did NOT produce a potion. Null means every
+        // enabled threshold was satisfied, which is the ordinary healthy tick and stays silent.
+        string? nearMiss = null;
+
         if (job.HpPotionEnable && hpRatio <= job.HpPotionThreshold / 100f)
         {
-            var picked = PickBest(_hpPotions, local.MaxHp, hpMissing, targetId, PickMode.HpBest);
+            var picked = PickBest(_hpPotions, local.MaxHp, hpMissing, targetId, PickMode.HpBest, tap, out var why);
             if (picked != null && picked.TryUse(targetId))
             {
                 _nextAttempt = DateTime.UtcNow.AddMilliseconds(750);
                 _lastSkipReason = $"used HP potion {picked.Name}";
                 Plugin.Log.Information($"AutoPotion: used HP potion {picked.Name} ({picked.Id})");
+                if (tap) PotionTelemetry.RecordFire(PotionTelemetryFormat.EvHpFired, picked.Id, picked.Name, snap);
                 return;
             }
+            if (tap)
+                nearMiss = picked != null
+                    ? PotionTelemetryFormat.ReasonHpUseFail
+                    : why switch
+                    {
+                        PickFail.NoStock => PotionTelemetryFormat.ReasonHpNoStock,
+                        PickFail.Overshoot => PotionTelemetryFormat.ReasonHpOver,
+                        _ => PotionTelemetryFormat.ReasonHpBlocked,
+                    };
         }
 
         if (job.MpPotionEnable && local.MaxMp > 0)
@@ -126,27 +172,44 @@ internal class PotionService
             var mpRatio = (float)local.CurrentMp / local.MaxMp;
             if (mpRatio <= job.MpPotionThreshold / 100f)
             {
-                var picked = PickBest(_mpPotions, local.MaxMp, 0, targetId, PickMode.FirstAvailable);
+                var picked = PickBest(_mpPotions, local.MaxMp, 0, targetId, PickMode.FirstAvailable, tap, out var why);
                 if (picked != null && picked.TryUse(targetId))
                 {
                     _nextAttempt = DateTime.UtcNow.AddMilliseconds(750);
                     _lastSkipReason = $"used MP potion {picked.Name}";
                     Plugin.Log.Information($"AutoPotion: used MP potion {picked.Name} ({picked.Id})");
+                    if (tap) PotionTelemetry.RecordFire(PotionTelemetryFormat.EvMpFired, picked.Id, picked.Name, snap);
                     return;
                 }
+                if (tap)
+                    nearMiss ??= picked != null
+                        ? PotionTelemetryFormat.ReasonMpUseFail
+                        : why == PickFail.NoStock
+                            ? PotionTelemetryFormat.ReasonMpNoStock
+                            : PotionTelemetryFormat.ReasonMpBlocked;
             }
         }
 
         if (job.RegenPotionEnable && inDeepDungeon && hpRatio <= job.RegenPotionThreshold / 100f)
         {
-            var picked = PickBest(_regenPotions, local.MaxHp, hpMissing, targetId, PickMode.RegenFirstAvailable);
+            var picked = PickBest(_regenPotions, local.MaxHp, hpMissing, targetId, PickMode.RegenFirstAvailable, tap, out var why);
             if (picked != null && picked.TryUse(targetId))
             {
                 _nextAttempt = DateTime.UtcNow.AddMilliseconds(750);
                 _lastSkipReason = $"used regen potion {picked.Name}";
                 Plugin.Log.Information($"AutoPotion: used regen potion {picked.Name} ({picked.Id})");
+                if (tap) PotionTelemetry.RecordFire(PotionTelemetryFormat.EvRegenFired, picked.Id, picked.Name, snap);
                 return;
             }
+            if (tap)
+                nearMiss ??= picked != null
+                    ? PotionTelemetryFormat.ReasonRgUseFail
+                    : why switch
+                    {
+                        PickFail.Rehab => PotionTelemetryFormat.ReasonRgRehab,
+                        PickFail.NoStock => PotionTelemetryFormat.ReasonRgNoStock,
+                        _ => PotionTelemetryFormat.ReasonRgBlocked,
+                    };
         }
 
         // No threshold crossed (or no candidate passed status checks). Keep last reason
@@ -154,27 +217,55 @@ internal class PotionService
         // of a stale "no tick yet".
         _lastSkipReason = $"no candidate fired (HP={hpRatio:P0}/{job.HpPotionThreshold:F0}%, MP={(local.MaxMp > 0 ? (float)local.CurrentMp / local.MaxMp : 0):P0}/{job.MpPotionThreshold:F0}%, deepDungeon={inDeepDungeon})";
 
+        // A crossed-but-unfired threshold is the interesting half of the tap, and also the
+        // dangerous half: Tick() evaluates ~6.7x/second, so it goes through the change +
+        // rate-limit gate. Everything else resolves the gate silently.
+        if (tap)
+        {
+            if (nearMiss is not null) PotionTelemetry.RecordNearMiss(nearMiss, snap);
+            else PotionTelemetry.NoteResolved();
+        }
+
         // Idle throttle. TryUse pre-checks GetActionStatus and returns false silently when
         // blocked (cooldown, Item Penalty, Silence, between areas, etc.), so polling here
         // never produces in-game feedback.
         _nextAttempt = DateTime.UtcNow.AddMilliseconds(150);
     }
 
-    private static Potion? PickBest(Potion[] potions, uint maxResource, uint missing, ulong targetId, PickMode mode)
+    private static Potion? PickBest(Potion[] potions, uint maxResource, uint missing, ulong targetId, PickMode mode,
+                                    bool diagnose, out PickFail fail)
     {
+        fail = PickFail.None;
+
         // Regen potions: skip entirely while Rehabilitation is up. All deep dungeon
         // medicines share status 648 (Rehabilitation), so this single check covers PotD,
         // HoH, Eureka Orthos, and Variant Dungeons.
-        if (mode == PickMode.RegenFirstAvailable && PlayerHasStatus(RehabilitationStatusId)) return null;
+        if (mode == PickMode.RegenFirstAvailable && PlayerHasStatus(RehabilitationStatusId))
+        {
+            if (diagnose) fail = PickFail.Rehab;
+            return null;
+        }
 
         Potion? best = null;
         uint bestHeal = 0;
+        var sawStock = false;   // at least one candidate was actually in the bags
+        var sawUsable = false;  // at least one candidate passed every status check
+
         foreach (var p in potions)
         {
             // GetActionStatus covers cooldown (582), no-items (583), restricted-to-other-duty
             // (2651), between areas, blocking statuses, etc. in one shot. Pass the player's
             // GameObjectId as target so self-targeted item checks evaluate correctly.
-            if (p.GetActionStatus(targetId) != 0) continue;
+            var status = p.GetActionStatus(targetId);
+            if (status != 0)
+            {
+                // Held-but-unusable is a different story from not-carried, and it is the one
+                // that says "raise the threshold won't help, you were on cooldown".
+                if (diagnose && status != NoItemsStatus) sawStock = true;
+                continue;
+            }
+            sawStock = true;
+            sawUsable = true;
 
             // FirstAvailable / RegenFirstAvailable: deep dungeon and MP potions don't expose
             // a usable percent/cap pair via Potion.MaxHealFor (flat-amount ethers and
@@ -191,6 +282,12 @@ internal class PotionService
                 bestHeal = heal;
             }
         }
+
+        if (diagnose && best == null)
+            fail = sawUsable ? PickFail.Overshoot
+                 : sawStock ? PickFail.Blocked
+                 : PickFail.NoStock;
+
         return best;
     }
 
