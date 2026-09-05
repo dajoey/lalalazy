@@ -317,6 +317,8 @@ public class HealerSettingsIPCWrapper(HealerSettings settings)
 
     public bool HandleTankbusters => settings.HandleTankbusters;
 
+    public bool TankbustersBeyondParty => settings.TankbustersBeyondParty;
+
     public bool IncludeShields => settings.IncludeShields;
     #endregion
 }

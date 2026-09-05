@@ -227,14 +227,18 @@ internal abstract partial class CustomComboFunctions
     /// <param name="target">When this method returns, contains the battle character targeted by the tank buster effect, if found; otherwise,
     /// null. This parameter is passed uninitialized.</param>
     /// <returns>true if a tank buster target is found and assigned to target; otherwise, false.</returns>
-    public static bool TryGetTankBusterTarget(out IBattleChara target)
+    public static bool TryGetTankBusterTarget(out IBattleChara target) =>
+        TryGetTankBusterTarget(out target, includeOutOfParty: false);
+
+    public static bool TryGetTankBusterTarget(out IBattleChara target, bool includeOutOfParty)
     {
         target = null!;
 
         var tankBusterVfx = VfxManager.TrackedEffects
             .FilterToTargeted()
             .FilterToTargetRole(CombatRole.Tank)
-            .Where(x => x.TargetID.GetObject().IsInParty())
+            .Where(x => x.TargetID.GetObject().IsInParty() ||
+                        (includeOutOfParty && x.TargetID.GetObject().IsFriendly()))
             .FirstOrDefault(IsTankBusterEffectPath);
 
         if (tankBusterVfx.VfxID == 0)

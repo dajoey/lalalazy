@@ -409,6 +409,12 @@ internal class AutoRotationTab : ConfigWindow
                 ref cfg.HealerSettings.HandleTankbusters);
             ImGuiComponents.HelpMarker(Text.FormatAndCache(AutoRotationUI.HelpText_HandleTankbusters, SGE.Eukrasia.ActionName()));
 
+            P.UIHelper.ShowIPCControlledIndicatorIfNeeded("TankbustersBeyondParty");
+            changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
+                AutoRotationUI.Checkbox_TankbustersBeyondParty,
+                ref cfg.HealerSettings.TankbustersBeyondParty);
+            ImGuiComponents.HelpMarker(AutoRotationUI.HelpText_TankbustersBeyondParty);
+
         }
 
         ImGuiEx.TextUnderlined(AutoRotationUI.Label_Advanced);

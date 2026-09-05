@@ -771,7 +771,7 @@ internal unsafe class AutoRotationController
 
         if (cfg.HealerSettings.HandleTankbusters)
         {
-            if (isHealer && TryGetTankBusterTarget(out var tbtarget))
+            if (isHealer && TryGetTankBusterTarget(out var tbtarget, cfg.HealerSettings.TankbustersBeyondParty))
             {
                 HandleTankbuster(tbtarget.SafeGameObjectId);
             }

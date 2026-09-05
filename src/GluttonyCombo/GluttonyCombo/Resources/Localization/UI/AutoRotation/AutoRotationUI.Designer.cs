@@ -229,6 +229,15 @@ namespace GluttonyCombo.Resources.Localization.UI.AutoRotation {
                 return ResourceManager.GetString("Checkbox_HandleTankbusters", resourceCulture);
             }
         }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Also shield tankbusters OUTSIDE your party.
+        /// </summary>
+        internal static string Checkbox_TankbustersBeyondParty {
+            get {
+                return ResourceManager.GetString("Checkbox_TankbustersBeyondParty", resourceCulture);
+            }
+        }
         
         /// <summary>
         ///   Looks up a localized string similar to Always Set Hard Target###HealerHardTarget.
@@ -505,6 +514,15 @@ namespace GluttonyCombo.Resources.Localization.UI.AutoRotation {
         internal static string HelpText_HandleTankbusters {
             get {
                 return ResourceManager.GetString("HelpText_HandleTankbusters", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to With Handle Detected Tankbusters on, also target and shield the tankbuster victim even when they are not in your party (alliance members, trusted NPCs).
+        /// </summary>
+        internal static string HelpText_TankbustersBeyondParty {
+            get {
+                return ResourceManager.GetString("HelpText_TankbustersBeyondParty", resourceCulture);
             }
         }
         

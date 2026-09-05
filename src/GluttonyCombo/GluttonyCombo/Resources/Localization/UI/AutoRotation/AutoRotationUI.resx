@@ -368,8 +368,16 @@ Applies to {0}, {1}, {2}, {3}, {4}, and {5} ({6}/{7})</value>
   <data name="Checkbox_HandleTankbusters" xml:space="preserve">
     <value>Handle Detected Tankbusters</value>
   </data>
+
+  <data name="Checkbox_TankbustersBeyondParty" xml:space="preserve">
+    <value>Also shield tankbusters outside your party</value>
+  </data>
   <data name="HelpText_HandleTankbusters" xml:space="preserve">
     <value>Will try to use actions before detected tankbusters to mitigate damage on targeted member. Max 1 action (excluding {0} for setup)</value>
+  </data>
+
+  <data name="HelpText_TankbustersBeyondParty" xml:space="preserve">
+    <value>With Handle Detected Tankbusters on, also target and shield the tankbuster victim even when they are not in your party (alliance members, trusted NPCs).</value>
   </data>
   <data name="Include_Shields" xml:space="preserve">
     <value>Include Shields</value>

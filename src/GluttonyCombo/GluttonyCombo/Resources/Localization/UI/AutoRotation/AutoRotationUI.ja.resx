@@ -362,7 +362,15 @@
   <data name="Checkbox_HandleTankbusters" xml:space="preserve">
     <value>検知したタンク強攻撃に対応</value>
   </data>
+
+  <data name="Checkbox_TankbustersBeyondParty" xml:space="preserve">
+    <value>パーティ外のタンク強攻撃にも対応</value>
+  </data>
   <data name="HelpText_HandleTankbusters" xml:space="preserve">
     <value>検知したタンク強攻撃の前に、対象メンバーへのダメージを軽減するアクションを使おうとします。セットアップ用の {0} を除き、最大1アクションまで使用します。</value>
+  </data>
+
+  <data name="HelpText_TankbustersBeyondParty" xml:space="preserve">
+    <value>「検知したタンク強攻撃に対応」が有効なとき、パーティ外のメンバー（アライアンスやNPC）がタンク強攻撃の対象になっていても、対象に指定してシールドします。</value>
   </data>
 </root>

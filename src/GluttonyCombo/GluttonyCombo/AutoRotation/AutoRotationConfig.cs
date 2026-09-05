@@ -1,4 +1,4 @@
-using GluttonyCombo.API.Enum;
+﻿using GluttonyCombo.API.Enum;
 
 namespace GluttonyCombo.AutoRotation;
 
@@ -61,5 +61,6 @@ public class HealerSettings
     public bool HealerAlwaysHardTarget = false;
     public bool HandleRaidwides = false;
     public bool HandleTankbusters = false;
+    public bool TankbustersBeyondParty = false;
 
 }

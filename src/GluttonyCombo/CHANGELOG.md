@@ -1,3 +1,8 @@
+## v1.0.4.171 (2026-09-05) [testing]
+
+### Added
+- Auto-rotation (healer) "Also shield tankbusters outside your party", OFF by default: when Handle Detected Tankbusters is on, SGE tankbuster shields (Taurochole, Eukrasian Diagnosis and friends) now also target the victim of a detected tankbuster outside your own party - alliance members and trusted NPCs in the Occult Crescent - instead of silently doing nothing because the target is not a party member. Turn it on under Settings -> Auto Rotation -> healer section. (files: `CustomCombo/Functions/VFX.cs` `TryGetTankBusterTarget(out, includeOutOfParty)`, `AutoRotation/AutoRotationConfig.cs` `HealerSettings.TankbustersBeyondParty`, `AutoRotation/AutoRotationController.cs`, `Window/Tabs/AutoRotationTab.cs`, `Resources/Localization/UI/AutoRotation/*`)
+
 ## v1.0.4.170 (2026-09-05) [testing]
 
 ### Changed
