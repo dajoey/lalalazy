@@ -1,30 +1,30 @@
 {
-  "Author": "dajoey",
-  "Name": "Lazy Skyward Tracker",
-  "InternalName": "LazySkywardTracker",
-  "AssemblyVersion": "0.0.2.2",
-  "Description": "Tracks all jobs' Skyward points for the Pteranodon mount achievement. Scans your inventory for Skybuilders turn-in items and projects how many points they'll add, shown as a cyan bar extension on each job's progress bar. Use /lazysky to open.",
-  "ApplicableVersion": "any",
-  "Tags": [
-    "skybuilders",
-    "restoration",
-    "pteranodon",
-    "achievement",
-    "tracker"
-  ],
-  "CategoryTags": [
-    "utility"
-  ],
-  "DalamudApiLevel": 15,
-  "LoadRequiredState": 0,
-  "LoadSync": false,
-  "CanUnloadAsync": false,
-  "LoadPriority": 0,
-  "ImageUrls": [
-    ""
-  ],
-  "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyskywardtracker-icon.png",
-  "Punchline": "Track your Skyward points for all jobs toward the Pteranodon mount",
-  "Changelog": "v0.0.2 - Inventory scanning: shows projected points from items in your bags with a cyan bar overlay. Covers all 8 crafters and 3 gatherers.",
-  "AcceptsFeedback": true
+    "Author":  "dajoey",
+    "Name":  "Lazy Skyward Tracker",
+    "InternalName":  "LazySkywardTracker",
+    "AssemblyVersion":  "0.0.3.0",
+    "Description":  "Tracks all jobs\u0027 Skyward points for the Pteranodon mount achievement. Scans your inventory for Skybuilders turn-in items and projects how many points they\u0027ll add, shown as a cyan bar extension on each job\u0027s progress bar. Use /lazysky to open.",
+    "ApplicableVersion":  "any",
+    "Tags":  [
+                 "skybuilders",
+                 "restoration",
+                 "pteranodon",
+                 "achievement",
+                 "tracker"
+             ],
+    "CategoryTags":  [
+                         "utility"
+                     ],
+    "DalamudApiLevel":  15,
+    "LoadRequiredState":  0,
+    "LoadSync":  false,
+    "CanUnloadAsync":  false,
+    "LoadPriority":  0,
+    "ImageUrls":  [
+                      ""
+                  ],
+    "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyskywardtracker-icon.png",
+    "Punchline":  "Track your Skyward points for all jobs toward the Pteranodon mount",
+    "Changelog":  "v0.0.3.0 (2026-09-05)\n\n- Added the in-game \"What\u0027s new\" popup. After Lazy Skyward Tracker updates, its changelog now opens once inside the game so you can see what changed without going to GitHub. It waits until you are logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/lazysky changelog` any time to reopen it.\n- No change to tracking: Skybuilders\u0027 points per job, the achievement progress read and the Diadem crediting all work exactly as before.\n\nv0.0.2.2 (2026-06-26)\n\n- **Gathered Diadem items are now credited to the correct gathering class.** Miner\n\n- **Class is now read from the game\u0027s own data.** `BuildGathererLookup` derives the\n\n- No change to which items count or their point values. Raw, non-collectable node",
+    "AcceptsFeedback":  true
 }
