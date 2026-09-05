@@ -82,10 +82,6 @@ internal static class MajorUpdater
 			_isValidThisCycle = IsValid;
 			_isActivatedThisCycle = DataCenter.IsActivated();
 			_shouldRunThisCycle = true;
-			if (!_rotationsLoaded)
-			{
-				PluginLog.Information($"MajorUpdater: first valid cycle, IsPvP={DataCenter.IsPvP}, TerritoryId={DataCenter.Territory?.Id}, PlayerAvail={Player.Available}");
-			}
 			if (!Service.Config.TutorialDone)
 			{
 				PvPSolverPlugin.OpenFirstStartTutorial();
@@ -94,6 +90,7 @@ internal static class MajorUpdater
 			// Opportunistically load rotations if not yet loaded
 			if (_isValidThisCycle && !_rotationsLoaded)
 			{
+				PluginLog.Information($"MajorUpdater: first valid cycle, IsPvP={DataCenter.IsPvP}, TerritoryId={DataCenter.Territory?.Id}, PlayerAvail={Player.Available}");
 				PluginLog.Information("MajorUpdater: triggering rotation load...");
 				RotationUpdater.LoadBuiltInRotations();
 				_rotationsLoaded = true;

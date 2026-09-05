@@ -1,5 +1,15 @@
 # Changelog - PvP Solver
 
+## v0.1.1.1 (2026-09-05)
+
+- Fixed a log line that repeated forever instead of once. The startup line "MajorUpdater: first valid cycle" sat behind a check that only asked whether rotations had loaded yet, but the flag that answers that is only ever set when you are actually in a PvP-valid state - so out of PvP it never flipped and the line printed on every single update cycle, including at the title screen with no character logged in. It now sits inside the block that really does load the rotations, so it prints once each time rotations are loaded and describes the state it claims to describe. (`PvPSolver/Updaters/MajorUpdater.cs`, `RSRGateUpdate`)
+- Impact: over one 5.5-hour sample this single line was 55,497 of the 106,116 log lines collected across every installed plugin - 52.3% of the whole log - and 29,152 of those were written at the title screen by a PvP plugin. The same window would now produce 91 of them, a 99.8% reduction, with no loss of information: the line still tells you what state the plugin came up in.
+- No gameplay change. Rotation loading, targeting and the PvP rotations themselves are untouched; the only edit is where the log statement sits.
+
+### Notes
+- The paired "triggering rotation load..." line already fired 91 times in that sample rather than once, because `MajorUpdater.IsValid` resets `_rotationsLoaded` on every zone transition, logout and `Player.Available == false`. That reload behaviour is unchanged here and is tracked separately; it is why the line is "once per rotation load" rather than literally once per session.
+- Second log-spam fix in this plugin (v0.1.0.11 throttled the per-frame "no rotation found" warnings). Every other `PluginLog.Information` under `src/PvPSolver/` was audited this release: the 53 in `PvPSolver.Basic/Helpers/ObjectHelper.cs` are all gated behind `Service.Config.InDebug`, and nothing else logs at Information on a per-cycle path.
+
 ## v0.1.1.0 (2026-09-05)
 
 - Added the in-game "What's new" popup. After PvP Solver updates, its changelog now opens once inside the game so you can see what changed without going to GitHub. It waits until you are logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/pvpsolver changelog` (or `/pvs changelog`) any time to reopen it.
