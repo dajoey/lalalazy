@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.1.4.1 (2026-09-05)
+
+### Changed
+
+- The post-craft price-match hand-off now targets Lazy Market Companion (DagobertPriceMatcher was retired 2026-09-05, card t_138ee175): the `Installed` check reads LMC's InternalName `LazyMarketCompanion` instead of Dagobert's, and the `Adapters/Dispatch/DagobertDispatch.cs` file is renamed `PriceMatchDispatch.cs` (property `Dispatch.Dagobert` -> `Dispatch.PriceMatch`)
+- Config `DagobertAfterCraft` is renamed `PriceMatchAfterCraft` (Configuration v4 -> v5): existing saved configs keep the value - a Newtonsoft `[JsonProperty("DagobertAfterCraft")]` legacy shadow property reads the old key on load and `MigrateIfNeeded()` copies it across exactly once; the resave writes only the new key. `/lcraft debug` and the Settings tab rename with it; `/pricematch` still works (LMC answers it as a legacy alias)
+- Settings tab copy names Lazy Market Companion and notes `/pricematch still works` (file: `UI/SettingsTab.cs`)
+
+### Fixed
+
+- The guard status line (`/lcraft guard`) and the dispatch debug line no longer report a "Dagobert" plugin that no longer exists (files: `Plugin.cs` `GuardCommand`/`LogDebugState`)
+
+### Notes
+
+- New regression proof `tests/LazyCrafter.ConfigMigrate` compiles the real `Configuration.cs` against stubs and asserts a v4 config (old key) round-trips through the rename: 16/16 cases, including a negative control proving the value would be silently lost without the shadow property
+- No in-game behavior change beyond the names: the hand-off still only prints instructions (LMC has no IPC for its sell list)
+
 ## v0.1.4.0 (2026-09-05)
 
 ### Added
