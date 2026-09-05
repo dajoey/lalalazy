@@ -64,7 +64,8 @@ internal static unsafe class AutoMarketService
         entry.MaxListingsPerRetainer,
         source is StockSource.BagsOnly or StockSource.BagsAndRetainer,
         source is StockSource.RetainerOnly or StockSource.BagsAndRetainer,
-        entry.FixedPrice));
+        entry.FixedPrice,
+        maxStack));
     }
 
     var stock = SnapshotStock();
@@ -147,9 +148,24 @@ internal static unsafe class AutoMarketService
       return false;
     }
 
+    // Last line of defence: the server answers an oversize listing by dropping the connection, not with an error
+    // (4854 HQ x297 on 2026-09-05). The planner already clamps; this catches any op that reaches here another way.
+    var cap = MarketListingCap.For(ItemMaxStack(op.ItemId));
+    if (op.Quantity > cap)
+    {
+      Svc.Log.Error($"[LMC] refusing to list {op.ItemId}{(op.HQ ? " HQ" : "")} x{op.Quantity}: the market accepts at most {cap} per listing (would disconnect)");
+      return false;
+    }
+
     Svc.Log.Information($"[LMC] MoveToRetainerMarket {(InventoryType)op.SourceContainer}#{op.SourceSlot} -> market#{op.TargetSlot} item={op.ItemId}{(op.HQ ? " HQ" : "")} qty={op.Quantity} price={unitPrice}");
     manager->MoveToRetainerMarket((InventoryType)op.SourceContainer, (ushort)op.SourceSlot, InventoryType.RetainerMarket, (ushort)op.TargetSlot, (uint)op.Quantity, unitPrice);
     return true;
+  }
+
+  private static int ItemMaxStack(uint itemId)
+  {
+    var items = Svc.Data.GetExcelSheet<Item>();
+    return items.TryGetRow(itemId, out var row) ? (int)Math.Max(row.StackSize, 1u) : 999;
   }
 
   /// <summary>True once the server has populated the target slot with the expected item.</summary>

@@ -18,13 +18,14 @@ public sealed record MarketSlot(int Slot, uint ItemId, bool HQ, int Quantity);
 public sealed record ItemRule(
   uint ItemId,
   bool HQ,
-  int StackSize,           // > 0, already clamped to the item's max stack
+  int StackSize,           // > 0, already clamped to the item's max stack; the planner clamps it again to the market cap
   int KeepInBags,
   int KeepInRetainer,
   int MaxListingsPerRetainer, // 0 = no cap
   bool SellFromBags,
   bool SellFromRetainer,
-  int FixedPrice);         // 0 = match
+  int FixedPrice,          // 0 = match
+  int ItemMaxStack = 999); // the item's bag stack size; decides the market cap (99, or 9999 for crystals)
 
 public sealed record PlannerOptions(
   int MarketSlotCount,      // 20
@@ -36,6 +37,22 @@ public sealed record PlannerOptions(
 public sealed record ListingOp(StockOrigin Origin, int SourceContainer, int SourceSlot, int TargetSlot, uint ItemId, bool HQ, int Quantity, int FixedPrice);
 
 public sealed record PlanResult(IReadOnlyList<ListingOp> Ops, IReadOnlyList<string> Notes);
+
+/// <summary>
+/// The server's per-listing quantity cap. Patch 4.2 raised bag stacks from 99 to 999 but left "the maximum of 99 for
+/// items sold in markets" unchanged (Lodestone 4.2 notes); crystals/shards/clusters (bag stack 9999) list up to 9999.
+/// A MoveToRetainerMarket above the cap is not refused with an error - the server drops the connection
+/// (Joey, 2026-09-05: 4854 HQ x297 -> kicked to title 312 ms later; seven crystal x500 ops the same day were fine).
+/// DailyRoutines' PriceAdjustWorker clamps the same way (TryGetItemUpshelfCountLimit: StackSize == 9999 ? 9999 : 99).
+/// </summary>
+public static class MarketListingCap
+{
+  public const int Standard = 99;
+  public const int Crystal = 9999;
+
+  /// <summary>Max units one market listing may hold, from the item's bag stack size.</summary>
+  public static int For(int itemMaxStack) => itemMaxStack >= Crystal ? Crystal : Standard;
+}
 
 public static class AutoMarketPlanner
 {
@@ -69,6 +86,12 @@ public static class AutoMarketPlanner
         notes.Add($"{rule.ItemId}{(rule.HQ ? " HQ" : "")}: stack size 0, skipped");
         continue;
       }
+
+      // Never send a listing larger than the server accepts: an oversize MoveToRetainerMarket disconnects the client.
+      var cap = MarketListingCap.For(rule.ItemMaxStack);
+      var listingSize = Math.Min(rule.StackSize, cap);
+      if (listingSize < rule.StackSize)
+        notes.Add($"{rule.ItemId}{(rule.HQ ? " HQ" : "")}: stack size {rule.StackSize} clamped to the market's {cap} per listing");
 
       var existing = occupied.Count(m => m.ItemId == rule.ItemId && m.HQ == rule.HQ) + ops.Count(o => o.ItemId == rule.ItemId && o.HQ == rule.HQ);
       var capLeft = rule.MaxListingsPerRetainer > 0 ? rule.MaxListingsPerRetainer - existing : int.MaxValue;
@@ -117,12 +140,12 @@ public static class AutoMarketPlanner
 
         while (sellable > 0 && freeBudget > 0 && capLeft > 0)
         {
-          var want = Math.Min(rule.StackSize, sellable);
-          if (want < rule.StackSize && !options.ListPartialStacks)
+          var want = Math.Min(listingSize, sellable);
+          if (want < listingSize && !options.ListPartialStacks)
           {
             // Only worth a note when nothing at all went out from this origin (a leftover after full listings is normal).
             if (listedFromOrigin == 0)
-              notes.Add($"{rule.ItemId}{(rule.HQ ? " HQ" : "")}: {sellable} sellable in {origin} is less than one full listing of {rule.StackSize} (partial stacks are off)");
+              notes.Add($"{rule.ItemId}{(rule.HQ ? " HQ" : "")}: {sellable} sellable in {origin} is less than one full listing of {listingSize} (partial stacks are off)");
             break;
           }
 

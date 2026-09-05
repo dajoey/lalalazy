@@ -213,8 +213,9 @@ public sealed class ConfigWindow : Window
         ImGui.TableNextColumn();
         ImGui.SetNextItemWidth(-1);
         var stack = entry.StackSize;
-        if (ImGui.InputInt("##stack", ref stack, 0, 0)) { entry.StackSize = Math.Clamp(stack, 0, (int)ItemNameResolver.MaxStack(entry.ItemId)); c.Save(); }
-        if (ImGui.IsItemHovered()) ImGui.SetTooltip("Units per listing. 0 = max stack.");
+        var listingCap = LazyMarketCompanion.AutoMarket.MarketListingCap.For((int)ItemNameResolver.MaxStack(entry.ItemId));
+        if (ImGui.InputInt("##stack", ref stack, 0, 0)) { entry.StackSize = Math.Clamp(stack, 0, listingCap); c.Save(); }
+        if (ImGui.IsItemHovered()) ImGui.SetTooltip($"Units per listing. 0 = the market's maximum ({listingCap}). The market accepts at most {listingCap} of this item per listing; larger values are clamped.");
 
         ImGui.TableNextColumn();
         ImGui.SetNextItemWidth(-1);

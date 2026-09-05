@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.1.1.1 (2026-09-05)
+
+### Fixed
+- Auto Market could disconnect you from the game: a listing larger than the market accepts (99 units for normal items, 9999 for crystals/shards/clusters) is not refused by the server, it drops the connection. On 2026-09-05 15:04 the plugin sent Kukuru Butter HQ x297 in one MoveToRetainerMarket call and the client was kicked to the title screen 312 ms later (omasky dalamud.log; ffxivdb plugin_log_lines). Root cause: the per-listing stack size was only clamped to the item's BAG stack size (999 since patch 4.2), but patch 4.2 left "the maximum of 99 for items sold in markets" unchanged (Lodestone 4.2 notes); DailyRoutines' PriceAdjustWorker applies the same 99 / 9999 rule. Fix: new `MarketListingCap` (file: `AutoMarket/AutoMarketPlanner.cs`) and the planner now clamps every listing to it, so a 999 or "0 = max" stack size lists in 99s (file: `AutoMarket/AutoMarketPlanner.cs`, `Plan`).
+- Pre-flight guard right before the game call: `AutoMarketService.Execute` refuses any op above the cap with an error log instead of sending it (file: `AutoMarket/AutoMarketService.cs`, `Execute` / `ItemMaxStack`).
+- Config window: the per-listing stack input is clamped to the market cap and the tooltip states it (file: `Windows/ConfigWindow.cs`).
+
+### Notes
+- Crystal rules at 500 per listing are unaffected: seven Ice Crystal x500 listings went through on 0.1.1.0 at 15:12 without a disconnect, and the cap for 9999-stack items is 9999.
+- Existing rules with stack size 100-999 (or 0 on a 999-stack item) now produce several 99-unit listings instead of one big one; the plan log says "stack size N clamped to the market's 99 per listing" once per rule.
+- Harness cases 15-17 reproduce the 297 HQ incident, the crystal exception and the stack-0 case (file: `tests/LazyMarketCompanion.Harness/Program.cs`).
+
 ## v0.1.1.0 (2026-09-05)
 
 ### Fixed
