@@ -2,7 +2,7 @@
     "Author":  "daemitus, MidoriKami, dajoey",
     "Name":  "Lazy WT Math",
     "InternalName":  "LazyWTMath",
-    "AssemblyVersion":  "3.2.2.9",
+    "AssemblyVersion":  "3.2.2.10",
     "Description":  "Adds row probabilities to the Wondrous Tails display along with the average probability of what would happen if you shuffled. Upgraded for modern FFXIV.",
     "ApplicableVersion":  "any",
     "Tags":  [
@@ -21,5 +21,6 @@
     "LoadPriority":  0,
     "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazywtmath-icon.png",
     "Punchline":  "FFXIV Wondrous Tails probability calculator.",
-    "AcceptsFeedback":  false
+    "AcceptsFeedback":  false,
+    "Changelog":  "v3.2.2.10 - 2026-09-05\n- **Rebuilt against current FFXIVClientStructs (7.55.1.8875) to stop the WeeklyBingo crash loop.** The 3.2.2.9 binaries (built 2026-07-02) threw `System.TypeLoadException: Could not load type \u0027FFXIVClientStructs.FFXIV.Client.System.Memory.ICreatable\u0027` from `AddonWeeklyBingoController.AddonRefresh` on every WeeklyBingo PostUpdate (3,032 errors in one session on 2026-09-05), because the bundled KamiToolKit.dll was compiled against an older FFXIVClientStructs whose `ICreatable\u003cT\u003e` shape no longer matches the one Dalamud ships. No source changes; clean Release rebuild of LazyWTMath + KamiToolKit against the Dalamud 15.0.3.2 hooks currently loading in the client (files: `KamiToolKit.dll`, `LazyWTMath.dll`).\n\n- Fix for Helm thread t-plugerr-52f9741c16e8 (kanban t_a7838408). If the crash persists after updating, the next step is merging upstream MidoriKami/EzWondrousTails and its current KamiToolKit.\n\nv3.2.2.9 - 2026-07-02\n- **Plugin icon now shows in the Dalamud installer.** Installed copies were built before\n\n- Part of the 2026-07-02 lalalazy repo cleanup pass."
 }
