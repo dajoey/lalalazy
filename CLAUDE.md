@@ -34,9 +34,9 @@ All four version locations MUST match in every release commit for any plugin `<P
 - Each csproj compiles it and embeds its own changelog (path depth differs for inner-folder plugins):
   `<Compile Include="..\Shared\LalaChangelog\**\*.cs" />` + `<EmbeddedResource Include="CHANGELOG.md" LogicalName="CHANGELOG.md" />`.
 - Wiring in `Plugin.cs`: construct a `ChangelogGate` after the `WindowSystem` exists; `/<cmd> changelog` (alias `whatsnew`) calls `ShowNow()`; `Dispose()` it. Originals persist `LastSeenChangelogVersion` in their `Configuration` via `DelegateSeenStore`; **forks use `SidecarSeenStore`** (`<ConfigDirectory>/lalachangelog.json`) so their upstream-owned config never conflicts in a merge.
-- First build carrying the feature records the running version silently and does not open. Never read the lossy pluginmaster `Changelog` field.
+- Pass `ExistingInstall = pi.ConfigFile.Exists` (read BEFORE the first `SavePluginConfig`): an existing install with no recorded version is an update and gets the newest block once; a fresh install records silently and does not open. Never read the lossy pluginmaster `Changelog` field.
 - **Lint:** `tests/LalaChangelog.Harness` (plain console, no Dalamud) parses every `src/*/CHANGELOG.md` and fails if the newest entry does not equal that plugin's csproj `<Version>`. Run it before any release commit: `dotnet build tests\LalaChangelog.Harness -c Release; dotnet tests\LalaChangelog.Harness\bin\Release\net10.0\LalaChangelog.Harness.dll`.
-- Reference wiring: `src/LazyFoodBuff/LazyFoodBuff/Plugin.cs` (pilot, 0.1.3.0).
+- Reference wiring: `src/LazyFoodBuff/LazyFoodBuff/Plugin.cs` (pilot, 0.1.3.1).
 
 ### Release Checklist
 
