@@ -148,6 +148,28 @@ internal partial class RDM
     internal static bool InMeleeChain =>
         Player.Job is ECommons.ExcelServices.Job.RDM && (InCombo || HasManaStacks);
 
+    /// <summary>
+    ///     The full melee combo could start on the very next GCD: the chain is already
+    ///     underway, both mana pools are at the level the rotation itself requires to open
+    ///     it (<see cref="HasEnoughManaToStart"/>, which carries Embolden-phase pooling via
+    ///     <see cref="ManaLevel"/>), or Magicked Swordplay has made the entry free.
+    ///     <para/>
+    ///     The Occult Crescent Time Mage handler reads this to hold Occult Quick
+    ///     (v1.0.4.170). Joey: "add a gate so that occult quick doesn't get cast when you
+    ///     are able to execute the full rdm damage combo." Riposte through Resolution is
+    ///     six-odd GCDs of instant weaponskills, so a 20s spell-instant window opened one
+    ///     GCD before Riposte is thrown away exactly as thoroughly as one opened
+    ///     mid-chain - which <see cref="InMeleeChain"/> alone caught too late. Same
+    ///     predicate, one GCD earlier: "the combo is due now", derived from the
+    ///     rotation's own entry conditions, so it stays true as the thresholds move.
+    ///     <para/>
+    ///     Job-guarded like <see cref="InMeleeChain"/>: the gauge read must not happen
+    ///     off-job.
+    /// </summary>
+    internal static bool MeleeComboImminent =>
+        Player.Job is ECommons.ExcelServices.Job.RDM &&
+        (InMeleeChain || HasEnoughManaToStart || CanMagickedSwordplay);
+
     // Gauge Stuff
     private static RDMGauge Gauge => GetJobGauge<RDMGauge>();
     internal static bool BlackHigher => Gauge.BlackMana >= Gauge.WhiteMana;

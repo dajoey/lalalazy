@@ -1,3 +1,12 @@
+## v1.0.4.170 (2026-09-05) [testing]
+
+### Changed
+- Occult Quick (phantom Time Mage) is now held while the full RDM melee damage combo is executable, not only while it is already running: at combo-entry mana, the window would otherwise open on the GCD before Enchanted Riposte and spend its whole 20s of spell-instants on the six-odd instant weaponskills of Riposte -> Redoublement -> Verholy/Verflare -> Scorch/Resolution. (files: `GluttonyCombo/Combos/PvE/RDM/RDM_Helper.cs`, `GluttonyCombo/Combos/PvE/Content/OccultCrescent/OccultCrescent.cs`, functions: `RDM.MeleeComboImminent` (new), `OccultCrescent.ShouldHoldOccultQuick`)
+- The "combo is imminent" check reuses the rotation's own entry conditions - mana at `RDM.HasEnoughManaToStart` (which carries Embolden-phase pooling via `ManaLevel()`), an existing chain (`RDM.InMeleeChain`), or Magicked Swordplay up - so it tracks whatever the melee-entry thresholds do; AoE Moulinet entry is covered by the same mana gate. Behaviour below combo-entry mana is unchanged: the window still opens there and is spent on instant Verthunder III / Veraero III. (file: `GluttonyCombo/Combos/PvE/RDM/RDM_Helper.cs`)
+
+### Notes
+- Extends the v1.0.4.150 hold by one GCD of lookahead; nothing is removed. Manafication stays held under a live Quick window (v1.0.4.154) unchanged, so Quick-hold and combo-hold compose instead of fighting.
+
 ## v1.0.4.169 (2026-09-05)
 
 - Added the in-game "What's new" popup. After Gluttony Combo updates, its changelog now opens once inside the game so you can see what changed without going to GitHub. It waits until you are logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/gluttony changelog` any time to reopen it.

@@ -1813,13 +1813,25 @@ internal partial class OccultCrescent
     ///     <para/>
     ///     The job guard lives on <c>RDM.InInstantWeaponskillChain</c>, because this handler is
     ///     job-agnostic and the RDM gauge must not be read off-job.
+    ///     <para/>
+    ///     v1.0.4.170 extends the hold to BEFORE the chain starts. Joey: "add a gate so that
+    ///     occult quick doesn't get cast when you are able to execute the full rdm damage
+    ///     combo." At combo-entry mana the next six GCDs are the melee combo either way, so
+    ///     opening the window on the GCD before Riposte still spends it on weaponskills -
+    ///     the old <c>RDM.InMeleeChain</c> term only caught the chain once it had already
+    ///     begun. The lookahead lives on <see cref="RDM.MeleeComboImminent"/>, which
+    ///     derives "the combo is due now" from the rotation's own entry conditions
+    ///     (combo underway, mana at <see cref="RDM.HasEnoughManaToStart"/>, or Magicked
+    ///     Swordplay up) and subsumes the old chain term. The Manafication / Embolden /
+    ///     Grand Impact status holds above stay as-is: they mark the same fact (the combo
+    ///     is about to happen) without needing the gauge read.
     /// </summary>
     private static bool ShouldHoldOccultQuick() =>
         HasStatusEffect(RDM.Buffs.Manafication) ||
         HasStatusEffect(RDM.Buffs.Embolden) ||
         HasStatusEffect(RDM.Buffs.MagickedSwordPlay) ||
         HasStatusEffect(RDM.Buffs.GrandImpactReady) ||
-        RDM.InMeleeChain;
+        RDM.MeleeComboImminent;
 
     private static bool TryRetargetPhantomRaise(ref uint actionID, uint raiseAction)
     {
