@@ -132,6 +132,14 @@ const PLUGINS = [
       { t: 'Treasure & carrot radar', d: 'Draws lines to nearby coffers and Fortune Carrots, with a precomputed optimal looting route.' },
       { t: 'Drives Gluttony Combo', d: 'Uses GluttonyCombo for rotations when installed \u2014 the only provider that implements all eight phantom jobs added in 7.55.' },
     ],
+  {
+    slug: 'lazyfishsitter', name: 'Lazy Fish Sitter', origin: 'Original', hasWindow: true,
+    short: 'Sits you down while you fish. That is it.',
+    tag: 'Fishing is better sitting down.',
+    features: [
+      { t: 'Sit while you cast', d: 'Checks every few seconds while you are fishing and runs /sit if you are standing.' },
+      { t: 'Stays out of the way', d: 'Never re-sits once you are seated (ground sit, chair, or pose) and pauses in cutscenes, events and combat.' },
+    ],
   },
 ];
 if (typeof module !== 'undefined') module.exports = PLUGINS;
