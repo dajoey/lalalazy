@@ -487,5 +487,40 @@
                       ],
         "DownloadCount":  0,
         "LastUpdate":  "0"
+    },
+    {
+        "Author":  "dajoey",
+        "Name":  "LazyRetainerLive",
+        "Punchline":  "Real-time retainer venture countdowns for your dashboard.",
+        "Description":  "Serves the logged-in character\u0027s live retainer and venture state on loopback HTTP (127.0.0.1:10504) so the ffxiv dashboard relay can show real-time venture countdowns instead of AutoRetainer\u0027s occasionally-stale file cache.",
+        "InternalName":  "LazyRetainerLive",
+        "AssemblyVersion":  "0.0.0.0",
+        "TestingAssemblyVersion":  "0.1.0.0",
+        "TestingDalamudApiLevel":  15,
+        "Changelog":  "v0.1.0.0 (2026-09-05)\n\n\n- First release. LazyRetainerLive reads the logged-in character\u0027s LIVE retainer table (the same in-memory data AutoRetainer uses to drive its own countdowns) and serves it as JSON on `http://127.0.0.1:10504/retainers`, so the ffxiv dashboard\u0027s retainer panel can show venture countdowns that update the moment a venture is collected instead of whenever AutoRetainer next saves its config file.\n- When you are not logged in (or the live table has no data yet) the endpoint answers HTTP 503, which tells the dashboard relay to fall back to AutoRetainer\u0027s file. Loopback only - the port is never reachable from other machines.\n\n\n- Companion of AutoRetainer - it reads, it never writes, assigns, or collects anything. Settings: Enabled (default on) and loopback port (default 10504). Commands: `/lazyretainerlive` opens settings, `/lazyretainerlive debug` dumps listener + snapshot state, `/lazyretainerlive changelog` reopens this popup.\n- Why this exists: AutoRetainer\u0027s `DefaultConfig.json` (which feeds the dashboard today) is saved only at AutoRetainer\u0027s own save points, so its venture rows can be tens of minutes stale while ventures are actually completing. The countdown for the character you are logged in as lives in the game\u0027s memory - this plugin is a small read-only window onto it.",
+        "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/LazyRetainerLive",
+        "ApplicableVersion":  "any",
+        "DalamudApiLevel":  15,
+        "IsHide":  false,
+        "IsTestingExclusive":  true,
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyRetainerLive/testing/testing.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyRetainerLive/testing/testing.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyRetainerLive/testing/testing.zip",
+        "Tags":  [
+                     "retainers",
+                     "ventures",
+                     "dashboard",
+                     "http",
+                     "lazy"
+                 ],
+        "CategoryTags":  [
+                             "utility"
+                         ],
+        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyretainerlive-icon.png",
+        "ImageUrls":  [
+                          ""
+                      ],
+        "DownloadCount":  0,
+        "LastUpdate":  "0"
     }
 ]

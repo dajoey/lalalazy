@@ -18,6 +18,7 @@ A collection of Dalamud plugins for Final Fantasy XIV, maintained by [dajoey](ht
 | **Lazy Fate Automation** | Fully automated FATE grinding utilizing vnavmesh, lifestream, and Gluttony Combo. | Active |
 | **Lazy Skyward Tracker** | Track your Skybuilders' (Skyward) points for all jobs toward the Pteranodon mount. | Active |
 | **LazyFoodBuff** | Auto-eats food in combat duties incl. deep dungeons. Per-job food selection, auto-select based on best stats, and a low-food (running-out) warning. | Active |
+| **LazyRetainerLive** | Serves the logged-in character's live retainer/venture table to the ffxiv dashboard over loopback HTTP, so venture countdowns stay current. Read-only AutoRetainer companion. | Testing |
 | **LazyOccultCrescent** | Occult Crescent field companion covering South Horn and North Horn. Treasure and Fortune Carrot radar with optimal routes, live FATE/CE tracking, aethernet teleports, currency and EXP per hour, and an optional FATE/CE/mob farm loop. Fork of BOCCHI (AGPLv3). | Active |
 | **LazyCrafter** | Catalogs every recipe you can craft, prices it with Universalis, and hands the missing materials to Artisan / GatherBuddyReborn / AutoRetainer / Lifestream. | Active |
 | **Lazy Fish Sitter** | Sits you down while you fish. Checks every few seconds while fishing and runs /sit if you are standing. Never re-sits once you are seated (ground, chair, or pose). | Testing |

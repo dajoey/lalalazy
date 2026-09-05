@@ -145,6 +145,17 @@ const PLUGINS = [
       { t: 'Live Run tab', d: 'Every step with state and a plain-English reason. When a leg cannot be automated it stops and tells you exactly what to buy, then resumes.' },
     ],
   },
+{
+    slug: 'lazyretainerlive', name: 'LazyRetainerLive', origin: 'Original', hasWindow: true,
+    short: 'Serves the logged-in character\u2019s live retainer table to the ffxiv dashboard, so venture countdowns update the moment a venture completes.',
+    tag: 'Real-time retainer venture countdowns for your dashboard.',
+    command: '/lazyretainerlive', credit: 'Original plugin by dajoey \u00b7 built on the Dalamud SDK',
+    features: [
+      { t: 'Live venture countdowns', d: 'Reads the in-game retainer table every second \u2014 the same data AutoRetainer\u2019s own timers come from \u2014 instead of the config file that only saves at AutoRetainer\u2019s leisure.' },
+      { t: 'Dashboard-ready JSON', d: 'Serves the exact frame shape the ffxiv dashboard relay already speaks, on loopback only. When you are not logged in it answers 503 and the dashboard quietly falls back to file data.' },
+      { t: 'Read-only companion', d: 'Never writes, assigns, or collects anything. AutoRetainer stays the boss of your retainers; this plugin just lets your dashboard see what it sees.' },
+    ],
+},
   {
     slug: 'lazyfishsitter', name: 'Lazy Fish Sitter', origin: 'Original', hasWindow: true,
     short: 'Sits you down while you fish. That is it.',
