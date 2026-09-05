@@ -27,7 +27,7 @@ $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
 # Mapping of InternalName to Wiki File Name
 $nameMapping = @{
     "PvPSolver"            = "PvP-Solver.md"
-    "LazyMarketCompanion" = "Lazy-Market-Companion.md"
+    "LazyMarketCompanion"  = "Lazy-Market-Companion.md"
     "DagobertPriceMatcher" = "Dagobert-Price-Matcher.md"
     "AutoPotion"           = "AutoPotion.md"
     "ArmoireAutoFill"      = "Armoire-Auto-Fill.md"
