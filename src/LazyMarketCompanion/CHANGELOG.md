@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.1.3.0 (2026-09-05)
+
+### Changed
+- Auto Market now re-prices ONLY the listings it just created, instead of walking the retainer's entire sell inventory. "Pinch everything after listing" is now OFF by default and is the opt-in; re-tick it in `/lmc` settings to get the old behaviour back. On a retainer holding 20 listings where 7 are new, that is roughly 22-45s of price matching instead of 60-125s, because each item priced costs a context menu, a price dialog and the market-board open/price delays (file: `Configuration.cs`, `AutoMarketPinchAllAfter`; requested by Joey 2026-09-05).
+- Existing installs are moved to the new behaviour by a config migration, not just the changed default: a C# field initializer only ever reaches a fresh config, because Newtonsoft deserializes the saved value straight over it. Config schema is now v2 and `Plugin.MigrateIfNeeded` turns the setting off once, logs one line saying so, and saves (file: `Plugin.cs`, `MigrateIfNeeded`; `Configuration.cs`, `CurrentVersion`).
+
+### Fixed
+- "Pinch only the new listings" could leave a brand-new listing stranded at its 999,999,999 gil placeholder price while re-pricing an unrelated listing instead. The path was shipped in 0.1.0.0 but never ran in production (the setting had never been off), and it addressed listings by inferring a sell-list ROW from the market container SLOT, on an assumption the game does not guarantee: that the list shows occupied slots in container order. In placeholder-then-match mode a wrong row is silent - no error, the new listing simply never sells (file: `MarketAutomation.cs`, `InsertAutoMarketThenPinch`; `AutoMarket/AutoMarketService.cs`, `ListIndexOfSlot`).
+- That mapping is now checked three times, and every failure falls back to re-pricing every row rather than pricing the wrong one. Before clicking: the sell list must show exactly one row per occupied market slot, and every slot just listed must map onto a row that holds the item that was listed there. Per row, once the game has the listing open: the item in the price dialog must be the item the mapping promised, or that row is cancelled out of, unpriced. At the end: any new listing that was never reached triggers a full re-price of the retainer, so nothing is left at the placeholder (file: `MarketAutomation.cs`, `InsertPinchForNewListings` / `VerifyPinchRow` / `VerifyNewListingsPriced`).
+- Fixed-price listings are skipped by the new pass, as they were before - they are already at their final price and never need matching.
+
+### Added
+- New `MarketRowMap` (file: `AutoMarket/AutoMarketPlanner.cs` sibling `AutoMarket/MarketRowMap.cs`) holds the row/slot mapping and its guards as Dalamud-free code, so it is covered by the offline harness. Harness cases 18-20 cover the slot-ordered layout including Joey's real 2026-09-05 run shape (7 new listings into slots 3,7,9,10,11,12,15 of a 20/20 retainer), lists with gaps, a list that is NOT in slot order, a row count that disagrees with the occupied count, and a partially-bad batch being refused whole rather than half-applied (file: `tests/LazyMarketCompanion.Harness/Program.cs`).
+- `AutoMarketService.MarketPrice(slot)` reads a market slot's current unit price back from the client (`InventoryManager.GetRetainerMarketPrice`), used to log any new listing still sitting at the placeholder price after a pass.
+
+### Notes
+- If you preferred the old behaviour - re-pricing everything on every Auto Market run - tick "Pinch everything after listing" in `/lmc` settings. Its tooltip now states which way is the default.
+- The fallback is deliberately the SLOW path, never a skip: leaving a listing at 999,999,999 gil means it silently never sells, which is worse than spending the extra time.
+
 ## v0.1.2.0 (2026-09-05)
 
 - Added the in-game "What's new" popup. After Lazy Market Companion updates, its changelog now opens once inside the game so you can see what changed without going to GitHub. It waits until you are logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/lmc changelog` any time to reopen it.

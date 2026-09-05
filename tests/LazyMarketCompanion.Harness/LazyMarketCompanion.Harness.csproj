@@ -10,6 +10,7 @@
   <ItemGroup>
     <!-- Proof that the planner has no Dalamud deps: this project has none. -->
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\AutoMarketPlanner.cs" />
+    <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\MarketRowMap.cs" />
     <Compile Include="Program.cs" />
   </ItemGroup>
 </Project>

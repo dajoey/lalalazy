@@ -47,6 +47,16 @@ internal sealed class MarketAutomation : Window, IDisposable
   private int _listedTotal;
   private int _listingFailures;
 
+  // "Pinch only what I just listed" bookkeeping. The pinch chain addresses listings by UI ROW but
+  // auto-market knows its listings by market SLOT, and the row<-slot mapping rests on an assumption
+  // about the sell list's order that the client does not guarantee. _expectedRowItems records what
+  // each targeted row is supposed to hold so the chain can refuse a row that holds something else;
+  // _newOnlyPendingSlots is every slot still waiting to be priced, and anything left in it when the
+  // pass ends means the mapping failed and we re-price the whole retainer instead.
+  private readonly Dictionary<int, uint> _expectedRowItems = [];
+  private readonly HashSet<int> _newOnlyPendingSlots = [];
+  private int _currentPinchRow = -1;
+
   // Pre-listing Universalis lookups (UniversalisFirst mode)
   private int? _preListPrice;
   private bool _preListDone;
@@ -434,6 +444,8 @@ internal sealed class MarketAutomation : Window, IDisposable
       return false;
 
     _listedThisRetainer.Clear();
+    _expectedRowItems.Clear();
+    _newOnlyPendingSlots.Clear();
     var steps = new List<Step>();
 
     if (Plugin.Configuration.AutoMarketEnabled)
@@ -458,23 +470,113 @@ internal sealed class MarketAutomation : Window, IDisposable
     steps.Add(new Step(() =>
     {
       if (Plugin.Configuration.AutoMarketPinchAllAfter || _listedThisRetainer.Count == 0)
-      {
         EnqueueAllRetainerItems(InsertSingleItem, true);
-      }
       else
-      {
-        // reverse because Insert
-        foreach (var op in _listedThisRetainer.OrderByDescending(o => o.TargetSlot))
-        {
-          if (op.FixedPrice > 0) continue;
-          var row = AutoMarketService.ListIndexOfSlot(op.TargetSlot);
-          InsertSingleItem(row);
-        }
-      }
+        InsertPinchForNewListings();
       return true;
     }, "PinchAfterMarket", DelayAfterMs: 0));
 
     InsertSteps(steps);
+    return true;
+  }
+
+  /// <summary>
+  /// Price ONLY the slots this run just filled, instead of walking the whole retainer.
+  ///
+  /// The pinch chain clicks a RetainerSellList ROW; auto-market knows its listings by market SLOT. The
+  /// only bridge between them is the assumption that the sell list shows occupied slots in ascending
+  /// container order, and the client does not guarantee that (DailyRoutines' equivalent worker carries an
+  /// explicit sort-order concept for the same list). Getting it wrong is silent and expensive rather than
+  /// loud: in placeholder-then-match mode the new listing keeps its 999,999,999 gil placeholder - it never
+  /// sells, and nothing errors - while an unrelated listing is re-priced.
+  ///
+  /// So the mapping is checked three times, and every failure falls back to pricing EVERYTHING (today's
+  /// behaviour, slower but never leaves a listing stranded at the placeholder):
+  ///   1. here, before any click: the sell list must show exactly one row per occupied slot, and every
+  ///      slot we listed must map to a row the snapshot agrees holds that item;
+  ///   2. per row, once the game has the item open (see <see cref="DelayMarketBoard"/>): the item actually
+  ///      in the dialog must be the item the mapping promised, or that row is abandoned unpriced;
+  ///   3. at the end (see <see cref="VerifyNewListingsPriced"/>): any listed slot that never got as far as
+  ///      step 2 means the mapping was wrong, so the whole retainer is re-priced.
+  /// </summary>
+  private void InsertPinchForNewListings()
+  {
+    _expectedRowItems.Clear();
+    _newOnlyPendingSlots.Clear();
+
+    // Fixed-price listings are already at their final price; the match pass has nothing to do for them.
+    var pending = _listedThisRetainer.Where(o => o.FixedPrice <= 0).ToList();
+    if (pending.Count == 0)
+    {
+      Svc.Log.Information("[LMC] pinch new-only: every new listing has a fixed price, nothing to match");
+      return;
+    }
+
+    var market = AutoMarketService.SnapshotMarket();
+    var uiRows = SellListRowCount();
+
+    if (!MarketRowMap.RowCountAgrees(market, uiRows))
+    {
+      Svc.Log.Warning($"[LMC] pinch new-only: sell list shows {uiRows} row(s) but {MarketRowMap.OccupiedCount(market)} market slot(s) are occupied, so a row cannot be trusted to mean a slot; re-pricing the whole retainer instead");
+      EnqueueAllRetainerItems(InsertSingleItem, true);
+      return;
+    }
+
+    var rows = MarketRowMap.RowsForSlots(market, pending.Select(o => (o.TargetSlot, o.ItemId)));
+    if (rows == null)
+    {
+      Svc.Log.Warning($"[LMC] pinch new-only: could not map {string.Join(", ", pending.Select(o => $"slot #{o.TargetSlot} (item {o.ItemId})"))} onto sell-list rows - the list is not in market-slot order; re-pricing the whole retainer instead");
+      EnqueueAllRetainerItems(InsertSingleItem, true);
+      return;
+    }
+
+    foreach (var r in rows)
+    {
+      _expectedRowItems[r.Row] = r.ItemId;
+      _newOnlyPendingSlots.Add(r.Slot);
+    }
+
+    Svc.Log.Information($"[LMC] pinch new-only: pricing {rows.Count} new listing(s) instead of all {uiRows} - {string.Join(", ", rows.Select(r => $"row {r.Row}=slot #{r.Slot} (item {r.ItemId})"))}");
+
+    // Insert pushes to the FRONT of the queue, so the backstop goes in first to come out last, and the
+    // rows go in highest-first so they are priced lowest-row-first.
+    _taskManager.Insert(VerifyNewListingsPriced, "VerifyNewListingsPriced");
+    _taskManager.InsertDelayNext(1000);
+    foreach (var r in rows.OrderByDescending(r => r.Row))
+      InsertSingleItem(r.Row);
+  }
+
+  /// <summary>
+  /// Runs after the new-only pass. Any slot still in <see cref="_newOnlyPendingSlots"/> was never opened
+  /// with the right item in it, which means the row mapping was wrong and that listing is still sitting at
+  /// the placeholder price - so re-price the whole retainer, which needs no mapping at all.
+  /// </summary>
+  private bool? VerifyNewListingsPriced()
+  {
+    var expectedRows = _expectedRowItems.Count;
+    var stranded = _newOnlyPendingSlots.ToList();
+    _expectedRowItems.Clear();
+    _newOnlyPendingSlots.Clear();
+
+    // Diagnostic only: a slot the pass DID handle can still be at the placeholder when no board price was
+    // found, and that is already reported to the user - re-pricing it would fail the same way.
+    var placeholder = (ulong)Math.Max(Plugin.Configuration.AutoMarketPlaceholderPrice, 1);
+    var stillPlaceholder = _listedThisRetainer
+      .Where(o => o.FixedPrice <= 0 && AutoMarketService.MarketPrice(o.TargetSlot) == placeholder)
+      .Select(o => o.TargetSlot)
+      .ToList();
+    if (stillPlaceholder.Count > 0)
+      Svc.Log.Warning($"[LMC] pinch new-only: slot(s) {string.Join(", ", stillPlaceholder.Select(s => "#" + s))} still hold the placeholder price after the pass");
+
+    if (stranded.Count == 0)
+    {
+      Svc.Log.Information($"[LMC] pinch new-only: all {expectedRows} new listing(s) were opened on the expected row");
+      return true;
+    }
+
+    Svc.Log.Error($"[LMC] pinch new-only: {stranded.Count} new listing(s) ({string.Join(", ", stranded.Select(s => "slot #" + s))}) were never reached - the sell list is not in market-slot order, so re-pricing every row to make sure nothing is left at the placeholder price");
+    Communicator.PrintInfo("the sell list was not in the expected order, so every listing is being re-priced (nothing was left at the placeholder price).");
+    EnqueueAllRetainerItems(InsertSingleItem, true);
     return true;
   }
 
@@ -638,26 +740,35 @@ internal sealed class MarketAutomation : Window, IDisposable
   // Pinch chain (inherited from Dagobert Price Matcher)
   // =====================================================================================
 
-  private unsafe bool? EnqueueAllRetainerItems(Action<int> enqueueFunc, bool reverseOrder)
+  /// <summary>Number of rows the open RetainerSellList is showing, or -1 when it is not available.</summary>
+  private static unsafe int SellListRowCount()
   {
     if (GenericHelpers.TryGetAddonByName<AtkUnitBase>("RetainerSellList", out var addon) && GenericHelpers.IsAddonReady(addon))
     {
       var listNode = (AtkComponentNode*)addon->UldManager.NodeList[10];
       var listComponent = (AtkComponentList*)listNode->Component;
-      int num = listComponent->ListLength;
-      if (reverseOrder)
-      {
-        for (int i = num - 1; i >= 0; i--)
-          enqueueFunc(i);
-      }
-      else
-      {
-        for (int i = 0; i < num; i++)
-          enqueueFunc(i);
-      }
-      return true;
+      return listComponent->ListLength;
     }
-    return false;
+    return -1;
+  }
+
+  private bool? EnqueueAllRetainerItems(Action<int> enqueueFunc, bool reverseOrder)
+  {
+    var num = SellListRowCount();
+    if (num < 0)
+      return false;
+
+    if (reverseOrder)
+    {
+      for (int i = num - 1; i >= 0; i--)
+        enqueueFunc(i);
+    }
+    else
+    {
+      for (int i = 0; i < num; i++)
+        enqueueFunc(i);
+    }
+    return true;
   }
 
   private void EnqueueSingleItem(int index)
@@ -685,10 +796,13 @@ internal sealed class MarketAutomation : Window, IDisposable
     _taskManager.Insert(() => OpenItemContextMenu(index), $"OpenItemContextMenu{index}");
   }
 
-  private static unsafe bool? OpenItemContextMenu(int itemIndex)
+  private unsafe bool? OpenItemContextMenu(int itemIndex)
   {
     if (GenericHelpers.TryGetAddonByName<AtkUnitBase>("RetainerSellList", out var addon) && GenericHelpers.IsAddonReady(addon))
     {
+      // Remembered so the price steps can tell WHICH row they are working on; only the new-only pass has
+      // an expectation for a row, the pinch-all pass walks every row and needs no mapping.
+      _currentPinchRow = itemIndex;
       Svc.Log.Debug($"[LMC] clicking item {itemIndex}");
       ECommons.Automation.Callback.Fire(addon, true, 0, itemIndex, 1);
       return true;
@@ -733,6 +847,14 @@ internal sealed class MarketAutomation : Window, IDisposable
     {
       var itemName = GetRetainerSellItemName(addon);
       var rawItemName = GetRetainerSellRawItemName(addon);
+
+      // First moment the game tells us what the row we clicked actually holds. If the new-only pass
+      // predicted a different item, the sell list is not in market-slot order: abandon this row unpriced
+      // rather than re-pricing a listing the user never asked us to touch. The slot stays in
+      // _newOnlyPendingSlots, so VerifyNewListingsPriced re-prices the whole retainer afterwards.
+      if (!VerifyPinchRow(itemName, rawItemName, addon))
+        return true;
+
       if (Plugin.Configuration.UseUniversalisDataCenterPrices && _universalisPriceProvider.CanResolveItem(itemName, rawItemName))
         return true;
 
@@ -744,6 +866,46 @@ internal sealed class MarketAutomation : Window, IDisposable
       return true;
     }
     return false;
+  }
+
+  /// <summary>
+  /// True when this row may be priced. Always true during a pinch-all pass (no row is predicted). During a
+  /// new-only pass, compares the item the game has open against the item the row mapping promised; on a
+  /// mismatch it logs, cancels out of the price dialog and marks the row skipped.
+  /// </summary>
+  private unsafe bool VerifyPinchRow(string itemName, string rawItemName, AddonRetainerSell* addon)
+  {
+    if (!_expectedRowItems.TryGetValue(_currentPinchRow, out var expectedItemId))
+      return true;
+
+    if (!ItemNameResolver.TryGetItemId(itemName, rawItemName, out var actualItemId))
+    {
+      // Cannot identify what is open, so cannot prove it is the right listing. Treat exactly like a
+      // mismatch: skip it here, and let the backstop re-price the retainer.
+      Svc.Log.Error($"[LMC] pinch new-only: row {_currentPinchRow} should hold item {expectedItemId} but the open listing '{itemName}' could not be identified; skipping it rather than risk re-pricing the wrong listing");
+      SkipMismatchedRow(addon);
+      return false;
+    }
+
+    if (actualItemId == expectedItemId)
+    {
+      var slot = MarketRowMap.SlotAtRow(AutoMarketService.SnapshotMarket(), _currentPinchRow);
+      if (slot != MarketRowMap.NoRow)
+        _newOnlyPendingSlots.Remove(slot);
+      return true;
+    }
+
+    Svc.Log.Error($"[LMC] pinch new-only: row {_currentPinchRow} holds item {actualItemId} ('{itemName}') but the new listing there should be item {expectedItemId} - the sell list is not in market-slot order; skipping this row rather than re-pricing someone else's listing");
+    SkipMismatchedRow(addon);
+    return false;
+  }
+
+  /// <summary>Back out of the price dialog without touching the price, and no-op the rest of this row's chain.</summary>
+  private unsafe void SkipMismatchedRow(AddonRetainerSell* addon)
+  {
+    _skipCurrentItem = true;
+    ECommons.Automation.Callback.Fire(&addon->AtkUnitBase, true, 1); // cancel
+    addon->AtkUnitBase.Close(true);
   }
 
   private unsafe bool? ClickComparePrice()
@@ -973,6 +1135,9 @@ internal sealed class MarketAutomation : Window, IDisposable
     _cachedPricesUseUniversalisDataCenterPrices = Plugin.Configuration.UseUniversalisDataCenterPrices;
     _skipCurrentItem = false;
     _listedThisRetainer.Clear();
+    _expectedRowItems.Clear();
+    _newOnlyPendingSlots.Clear();
+    _currentPinchRow = -1;
     _listedTotal = 0;
     _listingFailures = 0;
     _preListPrice = null;

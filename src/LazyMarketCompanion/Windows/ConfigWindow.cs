@@ -130,7 +130,7 @@ public sealed class ConfigWindow : Window
 
     var pinchAll = c.AutoMarketPinchAllAfter;
     if (ImGui.Checkbox("Pinch everything after listing", ref pinchAll)) { c.AutoMarketPinchAllAfter = pinchAll; c.Save(); }
-    Tip("After listing, re-price ALL of this retainer's listings (same as Auto Pinch). Off = only price the new ones.");
+    Tip("Off (the default): after listing, only the new listings are priced - much faster.\nOn: re-price ALL of this retainer's listings as well (same as Auto Pinch), which costs a few seconds per existing listing.");
 
     ImGui.SameLine(0, 20);
     var msgs = c.ShowAutoMarketMessages;

@@ -198,5 +198,82 @@ PlannerOptions Opts(int reserve = 0, bool retFirst = true, bool partial = false)
   Check("below-full-listing note uses the clamped size", AutoMarketPlanner.Plan([Rule(Ore, 999, itemMax: 999)], [new StockStack(StockOrigin.Bags, Bags1, 0, Ore, false, 50)], EmptyMarket(), Opts(partial: false)).Notes.Any(n => n.Contains("less than one full listing of 99")));
 }
 
+// =====================================================================================
+// MarketRowMap - the row <-> slot bridge used by "pinch only what I just listed".
+// The pinch chain clicks a RetainerSellList ROW; auto-market knows its listings by market SLOT.
+// A wrong mapping is silent and expensive: the new listing keeps its 999,999,999 placeholder
+// (never sells, no error) while an unrelated listing is re-priced.
+// =====================================================================================
+
+// Occupied slots in container order, exactly the layout the mapping assumes.
+List<MarketSlot> SlotOrdered(params (int Slot, uint ItemId)[] filled)
+{
+  var m = new List<MarketSlot>();
+  for (var i = 0; i < 20; i++)
+  {
+    var hit = filled.FirstOrDefault(f => f.Slot == i);
+    m.Add(new MarketSlot(i, hit.ItemId, false, hit.ItemId == 0 ? 0 : 1));
+  }
+  return m;
+}
+
+// 18. Slot-ordered list: the mapping is correct, and it is Joey's real 2026-09-05 15:12 shape.
+{
+  // 13 existing listings then 7 new Ice Crystal stacks into slots 3,7,9,10,11,12,15 -> 20/20.
+  const uint IceCrystal = 9, Other = 5111;
+  var filled = new List<(int, uint)>();
+  var newSlots = new[] { 3, 7, 9, 10, 11, 12, 15 };
+  for (var i = 0; i < 20; i++) filled.Add((i, newSlots.Contains(i) ? IceCrystal : Other));
+  var market = SlotOrdered(filled.ToArray());
+
+  Check("rowmap: 20 occupied slots -> rows 0..19 in slot order", Enumerable.Range(0, 20).All(s => MarketRowMap.RowOfSlot(market, s) == s));
+  Check("rowmap: row count agrees with occupied count", MarketRowMap.RowCountAgrees(market, 20) && !MarketRowMap.RowCountAgrees(market, 19));
+  var rows = MarketRowMap.RowsForSlots(market, newSlots.Select(s => (s, IceCrystal)));
+  Check("rowmap: the 7 new crystal slots map to rows 3,7,9,10,11,12,15", rows != null && rows.Select(r => r.Row).SequenceEqual(newSlots), rows == null ? "null" : string.Join(",", rows.Select(r => r.Row)));
+  Check("rowmap: every mapped row is predicted to hold the crystal", rows != null && rows.All(r => MarketRowMap.RowHoldsItem(market, r.Row, IceCrystal)));
+
+  // A gap means later slots sit on EARLIER rows - the case a naive "row == slot" would get wrong.
+  var gapped = SlotOrdered((0, Other), (5, IceCrystal), (9, IceCrystal));
+  Check("rowmap: with gaps, slots 0,5,9 -> rows 0,1,2", MarketRowMap.RowOfSlot(gapped, 0) == 0 && MarketRowMap.RowOfSlot(gapped, 5) == 1 && MarketRowMap.RowOfSlot(gapped, 9) == 2);
+  Check("rowmap: an empty slot has no row", MarketRowMap.RowOfSlot(gapped, 3) == MarketRowMap.NoRow && MarketRowMap.RowOfSlot(gapped, 19) == MarketRowMap.NoRow);
+  Check("rowmap: out-of-range row resolves to nothing", MarketRowMap.ItemIdAtRow(gapped, 3) == 0 && MarketRowMap.SlotAtRow(gapped, 3) == MarketRowMap.NoRow && MarketRowMap.ItemIdAtRow(gapped, -1) == 0);
+}
+
+// 19. A list that is NOT in slot order: the guard must DETECT it, not price the wrong row.
+//     RetainerSellList is the game's list and nothing guarantees container order (DailyRoutines'
+//     equivalent worker carries an explicit sort-order concept for the same list).
+{
+  const uint New = 9, Existing = 5111;
+  // Market: slot 2 holds an existing listing, slot 4 is the one we just listed.
+  var market = SlotOrdered((2, Existing), (4, New));
+
+  // Under the assumption, slot 4 is row 1. If the UI is actually sorted by name/price/whatever, row 1
+  // can be the OTHER listing - which is what the runtime check compares against.
+  Check("rowmap: assumption puts the new slot 4 on row 1", MarketRowMap.RowOfSlot(market, 4) == 1);
+  Check("rowmap: row 1 predicted to hold the new item, not the existing one", MarketRowMap.RowHoldsItem(market, 1, New) && !MarketRowMap.RowHoldsItem(market, 1, Existing));
+  Check("rowmap: a re-sorted list showing the OTHER item at row 1 is refused", !MarketRowMap.RowHoldsItem(market, 1, Existing), "the runtime guard compares the open item against this prediction");
+  Check("rowmap: an unidentifiable item (id 0) never satisfies the guard", !MarketRowMap.RowHoldsItem(market, 1, 0));
+
+  // A row count that disagrees with the occupied count means rows cannot be trusted at all.
+  Check("rowmap: 2 occupied but 5 rows shown -> refuse to map", !MarketRowMap.RowCountAgrees(market, 5));
+  Check("rowmap: 2 occupied but 0 rows shown -> refuse to map", !MarketRowMap.RowCountAgrees(market, 0));
+
+  // If the item we listed is not where we think it is, the whole batch is refused rather than
+  // half-priced: one bad slot means the ordering assumption itself is suspect.
+  Check("rowmap: a slot holding a DIFFERENT item than we listed -> whole batch refused", MarketRowMap.RowsForSlots(market, [(4, Existing)]) == null);
+  Check("rowmap: an EMPTY slot we thought we listed into -> whole batch refused", MarketRowMap.RowsForSlots(market, [(7, New)]) == null);
+  Check("rowmap: one good + one bad slot -> whole batch refused, not partially applied", MarketRowMap.RowsForSlots(market, [(4, New), (7, New)]) == null);
+  Check("rowmap: all-good batch maps", MarketRowMap.RowsForSlots(market, [(4, New)])?.Single().Row == 1);
+  Check("rowmap: empty batch maps to nothing", MarketRowMap.RowsForSlots(market, []) == null);
+}
+
+// 20. An empty market cannot produce a row for anything, and a full one maps every slot.
+{
+  const uint Item = 9;
+  Check("rowmap: empty market -> no rows, no occupied", MarketRowMap.OccupiedCount(EmptyMarket()) == 0 && MarketRowMap.RowOfSlot(EmptyMarket(), 0) == MarketRowMap.NoRow && !MarketRowMap.RowCountAgrees(EmptyMarket(), 0));
+  var full = SlotOrdered(Enumerable.Range(0, 20).Select(i => (i, Item)).ToArray());
+  Check("rowmap: full market -> 20 occupied, row == slot throughout", MarketRowMap.OccupiedCount(full) == 20 && Enumerable.Range(0, 20).All(i => MarketRowMap.SlotAtRow(full, i) == i));
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;

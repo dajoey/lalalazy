@@ -134,7 +134,7 @@ public sealed class Plugin : IDalamudPlugin
   {
     var own = PluginInterface.GetPluginConfig() as Configuration;
     if (own != null)
-      return own;
+      return MigrateIfNeeded(own);
 
     var config = new Configuration();
     try
@@ -149,7 +149,9 @@ public sealed class Plugin : IDalamudPlugin
           if (imported != null)
           {
             config = imported;
-            config.Version = 1;
+            // The imported Dagobert JSON has no Auto-Market fields at all, so those took this build's
+            // defaults - it is already on the current schema and needs no migration.
+            config.Version = Configuration.CurrentVersion;
             config.ImportedFromDagobert = true;
             Log.Information($"[LMC] imported settings from {legacyPath}: {config.ItemPriceLimits.Count} price limit(s), {config.SeenRetainers.Count} seen retainer(s), {config.LastKnownRetainerNames.Count} retainer name(s)");
           }
@@ -164,6 +166,38 @@ public sealed class Plugin : IDalamudPlugin
 
     config.ImportedFromDagobert = config.ImportedFromDagobert || true;
     PluginInterface.SavePluginConfig(config);
+    return config;
+  }
+
+  /// <summary>
+  /// Config schema upgrades, applied once per config and saved immediately.
+  ///
+  /// Changing a C# field initializer only ever affects a FRESH config: Newtonsoft writes every property
+  /// into the JSON, so an existing install deserializes its saved value straight over the new default.
+  /// Anything that must reach existing users needs a step here.
+  ///
+  /// v1 -> v2 (0.1.3.0): "Pinch everything after listing" became opt-in. Auto Market used to re-price the
+  /// retainer's entire sell inventory after listing, which costs several seconds per existing listing and
+  /// was the reason a sweep took minutes; it now re-prices only the listings it just created. Re-tick the
+  /// box in /lmc settings to get the old behaviour back.
+  /// </summary>
+  private static Configuration MigrateIfNeeded(Configuration config)
+  {
+    if (config.Version >= Configuration.CurrentVersion)
+      return config;
+
+    var from = config.Version;
+
+    if (config.Version < 2)
+    {
+      var wasOn = config.AutoMarketPinchAllAfter;
+      config.AutoMarketPinchAllAfter = false;
+      config.Version = 2;
+      Log.Information($"[LMC] config migrated v{from} -> v2: 'Pinch everything after listing' {(wasOn ? "was ON and has been turned OFF" : "was already off")}; Auto Market now re-prices only the listings it just created. Re-tick it in /lmc settings for the old behaviour.");
+    }
+
+    config.Version = Configuration.CurrentVersion;
+    config.Save();
     return config;
   }
 

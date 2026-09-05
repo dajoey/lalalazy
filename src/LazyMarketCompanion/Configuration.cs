@@ -94,7 +94,15 @@ public sealed class AutoMarketItem
 [Serializable]
 public sealed class Configuration : IPluginConfiguration
 {
-  public int Version { get; set; } = 1;
+  /// <summary>
+  /// Config schema version. Bump this AND add a step to Plugin.MigrateIfNeeded whenever an existing
+  /// config needs changing - a C# field initializer only ever reaches a FRESH config, because Newtonsoft
+  /// deserializes the saved value straight over it.
+  /// v1 -> v2 (0.1.3.0): AutoMarketPinchAllAfter became opt-in.
+  /// </summary>
+  public const int CurrentVersion = 2;
+
+  public int Version { get; set; } = CurrentVersion;
 
   // ----- Price matching (inherited from Dagobert Price Matcher, field names kept for import) -----
 
@@ -162,8 +170,12 @@ public sealed class Configuration : IPluginConfiguration
   /// <summary>When stock is short of a full stack, list what's there anyway.</summary>
   public bool AutoMarketListPartialStacks { get; set; } = false;
 
-  /// <summary>After listing, run Auto Pinch over the whole retainer (re-prices old listings too). Off = only the new slots get priced.</summary>
-  public bool AutoMarketPinchAllAfter { get; set; } = true;
+  /// <summary>
+  /// After listing, run Auto Pinch over the whole retainer (re-prices old listings too). Off (the default
+  /// since 0.1.3.0) = only the slots this run just filled get priced, which is the whole point of listing
+  /// and pricing in one pass. Existing configs are moved to false once by the v1 -> v2 migration.
+  /// </summary>
+  public bool AutoMarketPinchAllAfter { get; set; } = false;
 
   /// <summary>The all-retainers "Auto Pinch" sweep also auto-markets each retainer.</summary>
   public bool AutoMarketInPinchAllSweep { get; set; } = true;
