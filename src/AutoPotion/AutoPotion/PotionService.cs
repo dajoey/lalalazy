@@ -29,6 +29,14 @@ internal class PotionService
     // "you're out" apart from "it's on cooldown / blocked by a status" in the tap.
     private const uint NoItemsStatus = 583;
 
+    // The opt-in Silence cure (v0.2.5.0). Echo Drops (item 4566) cure Silence (status 7).
+    // Both IDs are pinned by GluttonyCombo's autorotation silence hand-off
+    // (AutoRotationController.cs uses the same item/status pair), so the two plugins can
+    // never disagree about what "silenced" means. Silence blocks SPELLS only - it never
+    // blocks item use, so the cure never competes with the potion blocks above.
+    private const uint EchoDropsItemId = 4566;
+    private const uint SilenceStatusId = 7;
+
     private enum PickMode
     {
         HpBest,                 // Heal-comparison + overshoot guard (HP potions).
@@ -51,6 +59,7 @@ internal class PotionService
     private readonly Potion[] _hpPotions;
     private readonly Potion[] _mpPotions;
     private readonly Potion[] _regenPotions;
+    private readonly Potion? _echoDrops;
     private DateTime _nextAttempt = DateTime.MinValue;
 
     // Last reason the previous tick didn't fire a potion. Surfaced by /autopotion debug
@@ -93,8 +102,15 @@ internal class PotionService
         _hpPotions = hp.ToArray();
         _mpPotions = mp.ToArray();
         _regenPotions = regen.ToArray();
+
+        // Echo Drops are resolved by ID, not by name suffix: they are a "Drops" medicine,
+        // not a Potion/Ether, and only ever come in one flavour. A missing row (client
+        // version drift) just disables the cure; the setting stays harmless.
+        if (itemSheet != null && itemSheet.TryGetRow(EchoDropsItemId, out var echoItem) && echoItem.ItemAction.RowId != 0)
+            _echoDrops = new Potion(echoItem);
+
         Plugin.Log.Information(
-            $"AutoPotion: indexed {_hpPotions.Length} HP, {_mpPotions.Length} MP, {_regenPotions.Length} regen potions");
+            $"AutoPotion: indexed {_hpPotions.Length} HP, {_mpPotions.Length} MP, {_regenPotions.Length} regen potions, echoDrops={(_echoDrops != null ? _echoDrops.Id.ToString() : "MISSING")}");
         // One-shot dump so /autopotion debug shows exactly what was indexed and lets us
         // catch missed items without another rebuild.
         foreach (var p in _mpPotions)
@@ -212,6 +228,34 @@ internal class PotionService
                     };
         }
 
+        // The opt-in Silence cure (v0.2.5.0). Runs after the potion blocks: survival and
+        // resource thresholds outrank a convenience cure, and a fired potion's 750 ms
+        // throttle simply defers the cure to the next tick. Single-candidate PickBest
+        // reuses the stock/block classification so the tap can tell "no Echo Drops in the
+        // bags" from "on cooldown" - the same distinction every other potion gets.
+        if (job.SilenceEchoDropsEnable && PlayerHasStatus(SilenceStatusId))
+        {
+            var echo = _echoDrops;
+            if (echo != null)
+            {
+                var picked = PickBest(new[] { echo }, local.MaxHp, 0, targetId, PickMode.FirstAvailable, tap, out var echoWhy);
+                if (picked != null && picked.TryUse(targetId))
+                {
+                    _nextAttempt = DateTime.UtcNow.AddMilliseconds(750);
+                    _lastSkipReason = "used Echo Drops (cured Silence)";
+                    Plugin.Log.Information($"AutoPotion: used Echo Drops ({picked.Id}) to cure Silence");
+                    if (tap) PotionTelemetry.RecordFire(PotionTelemetryFormat.EvEchoFired, picked.Id, picked.Name, snap);
+                    return;
+                }
+                if (tap)
+                    nearMiss ??= picked != null
+                        ? PotionTelemetryFormat.ReasonEdUseFail
+                        : echoWhy == PickFail.NoStock
+                            ? PotionTelemetryFormat.ReasonEdNoStock
+                            : PotionTelemetryFormat.ReasonEdBlocked;
+            }
+        }
+
         // No threshold crossed (or no candidate passed status checks). Keep last reason
         // informative so /autopotion debug shows the most recent meaningful state instead
         // of a stale "no tick yet".
@@ -326,6 +370,7 @@ internal class PotionService
         Plugin.Log.Information($"  HpEnable={job.HpPotionEnable} HpThreshold={job.HpPotionThreshold}%");
         Plugin.Log.Information($"  MpEnable={job.MpPotionEnable} MpThreshold={job.MpPotionThreshold}%");
         Plugin.Log.Information($"  RegenEnable={job.RegenPotionEnable} RegenThreshold={job.RegenPotionThreshold}%");
+        Plugin.Log.Information($"  SilenceEchoDropsEnable={job.SilenceEchoDropsEnable} (Silence status {SilenceStatusId}, item {EchoDropsItemId})");
         Plugin.Log.Information($"InCombat={Plugin.Condition[ConditionFlag.InCombat]} BoundByDuty={Plugin.Condition[ConditionFlag.BoundByDuty]}");
         Plugin.Log.Information($"TerritoryId={territoryId} IsInDeepDungeon={IsInDeepDungeon()}");
 

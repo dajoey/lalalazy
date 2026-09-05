@@ -52,6 +52,7 @@ https://raw.githubusercontent.com/dajoey/lalalazy/main/pluginmaster.json
 | **HP Threshold %** | `75%` | Uses your best HP potion when health falls below this percentage. |
 | **MP Threshold %** | `30%` | Uses your best Ether potion when MP falls below this percentage. |
 | **DD Potion Threshold %** | `80%` | Uses a zone-specific deep dungeon regen potion below this percentage. |
+| **Echo Drops on Silence** | `Off` | Per-job opt-in: uses Echo Drops from your bags to cure Silence (status 7). |
 
 ---
 

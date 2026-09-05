@@ -79,6 +79,14 @@ internal static class Program
             rg == "PT|1788636000789|21|r|20309|62.5|80.0|-1.0|30.0|1|1|1|ok|Sustaining Potion", rg);
         Check("a job with no MP pool renders mpPct as the -1.0 sentinel", rg.Split('|')[7] == "-1.0");
 
+        // Echo Drops cured Silence (v0.2.5.0): 'e' event, Echo Drops are item 4566.
+        var ed = PotionTelemetryFormat.BuildLine(
+            1_788_636_001_234, 24, PotionTelemetryFormat.EvEchoFired, 4566,
+            77.7f, 60f, 55.5f, 30f, true, false, false,
+            PotionTelemetryFormat.ReasonOk, "Echo Drops");
+        Check("echo fire: exact line shape",
+            ed == "PT|1788636001234|24|e|4566|77.7|60.0|55.5|30.0|1|0|0|ok|Echo Drops", ed);
+
         // A near-miss: no item, and a short stable reason code rather than English prose.
         var nm = PotionTelemetryFormat.BuildLine(
             1_788_636_001_000, 24, PotionTelemetryFormat.EvNearMiss, 0,
@@ -100,6 +108,8 @@ internal static class Program
             PotionTelemetryFormat.ReasonMpUseFail,
             PotionTelemetryFormat.ReasonRgRehab, PotionTelemetryFormat.ReasonRgBlocked,
             PotionTelemetryFormat.ReasonRgNoStock, PotionTelemetryFormat.ReasonRgUseFail,
+            PotionTelemetryFormat.ReasonEdBlocked, PotionTelemetryFormat.ReasonEdNoStock,
+            PotionTelemetryFormat.ReasonEdUseFail,
         ];
         Check("every reason code is short, lowercase and pipe-free",
             reasons.All(r => r.Length is > 0 and <= 10 && !r.Contains('|') && r == r.ToLowerInvariant()));

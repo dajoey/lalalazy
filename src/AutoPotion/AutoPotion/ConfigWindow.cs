@@ -69,6 +69,12 @@ internal class ConfigWindow : Window
         if (DrawJobSlider(jobIcon, "HP threshold (%)##rgthr", ref rgThr))
         { job.RegenPotionThreshold = rgThr; changed = true; }
 
+        ImGui.Spacing();
+        var silenceCure = job.SilenceEchoDropsEnable;
+        if (DrawJobCheckbox(jobIcon, "Auto-use Echo Drops when silenced##echo", ref silenceCure))
+        { job.SilenceEchoDropsEnable = silenceCure; changed = true; }
+        ImGui.TextDisabled("Uses Echo Drops from your bags to cure Silence (status 7). Off by default.");
+
         // Advanced / Diagnostics. Collapsed by default: nothing in here changes what the
         // plugin does, and the one control writes to the log, which deserves a plain warning.
         ImGui.Spacing();

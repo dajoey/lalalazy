@@ -88,6 +88,15 @@ public class JobPotionSettings
     public bool RegenPotionEnable { get; set; } = true;
     public float RegenPotionThreshold { get; set; } = 80f;
 
+    /// <summary>
+    ///     Opt-in Silence cure (v0.2.5.0): while Silence (status 7) is on the player,
+    ///     use Echo Drops (item 4566) from the bags. Item use is not blocked by Silence,
+    ///     so this adds a cure the potions cannot do without changing any of them.
+    ///     Off by default — curing Silence automatically is a playstyle choice; an
+    ///     existing v2 save simply deserializes this as false, so no config Version bump.
+    /// </summary>
+    public bool SilenceEchoDropsEnable { get; set; } = false;
+
     public JobPotionSettings Clone() => new()
     {
         HpPotionEnable = HpPotionEnable,
@@ -96,5 +105,6 @@ public class JobPotionSettings
         MpPotionThreshold = MpPotionThreshold,
         RegenPotionEnable = RegenPotionEnable,
         RegenPotionThreshold = RegenPotionThreshold,
+        SilenceEchoDropsEnable = SilenceEchoDropsEnable,
     };
 }

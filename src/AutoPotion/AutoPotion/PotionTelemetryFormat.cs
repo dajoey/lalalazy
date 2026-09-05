@@ -39,6 +39,8 @@ internal static class PotionTelemetryFormat
     public const char EvMpFired = 'm';
     /// <summary> A deep dungeon regen potion was used. </summary>
     public const char EvRegenFired = 'r';
+    /// <summary> Echo Drops were used to cure Silence (v0.2.5.0). </summary>
+    public const char EvEchoFired = 'e';
     /// <summary> Nothing fired; the gated near-miss line. </summary>
     public const char EvNearMiss = 'n';
 
@@ -74,6 +76,13 @@ internal static class PotionTelemetryFormat
     public const string ReasonRgNoStock = "rgnostock";
     /// <summary> Regen potion chosen but <c>UseAction</c> refused it. </summary>
     public const string ReasonRgUseFail = "rgusefail";
+
+    /// <summary> Silence cure enabled and Silence (7) up; Echo Drops blocked (cooldown / duty / status). </summary>
+    public const string ReasonEdBlocked = "edblocked";
+    /// <summary> Silence cure enabled and Silence (7) up; no Echo Drops in the bags. </summary>
+    public const string ReasonEdNoStock = "ednostock";
+    /// <summary> Echo Drops chosen but <c>UseAction</c> refused them. </summary>
+    public const string ReasonEdUseFail = "edusefail";
 
     /// <summary>
     ///     Sentinel written into <c>mpPct</c> for a job with no MP pool at all
@@ -157,7 +166,7 @@ internal static class PotionTelemetryFormat
     ///     (14 pipe-separated fields).
     /// </summary>
     /// <param name="job">ClassJob RowId — the same numeric id ffxivdb <c>player_samples.job</c> carries, so the join needs no name table.</param>
-    /// <param name="ev">One of <see cref="EvHpFired"/> / <see cref="EvMpFired"/> / <see cref="EvRegenFired"/> / <see cref="EvNearMiss"/>.</param>
+    /// <param name="ev">One of <see cref="EvHpFired"/> / <see cref="EvMpFired"/> / <see cref="EvRegenFired"/> / <see cref="EvEchoFired"/> / <see cref="EvNearMiss"/>.</param>
     /// <param name="itemId">Item id of the potion used; 0 on a near-miss.</param>
     /// <param name="mpPct"><see cref="NoMpPool"/> when the job has no MP pool.</param>
     /// <param name="item">Potion name; the only variable-length field, and the only one truncation may cut.</param>
