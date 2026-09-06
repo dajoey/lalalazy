@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.1.11.0 (2026-09-06)
+
+### Added
+- **Auto-Market can now decide which items are worth listing.** New setting in the Auto-Market tab: "Only list items worth more than [N] gil, net of fees". When it is on, Auto-Market checks every item on your list against current Universalis prices BEFORE anything is listed, and skips the ones whose total sellable value (current board price x everything it could sell of that item, after the market's 5% fee) is at or under your number. The setting ships OFF and the number ships at 0, so nothing changes until you turn it on (file: `AutoMarket/MarketGate.cs`, new).
+- A held-back item is NOT sold, vendored or destroyed. It stays exactly where it was - your bags or the retainer inventory - and the closing chat line of the run says how many were held back. If that is ever not what you want, the items are still in your hands.
+- Why it holds instead of selling to a vendor: you asked for below-threshold items to be vendored at the retainer. I checked, in the game's own data: the retainer bell menu has no vendor option at all - a retainer sells on the market board and that is all it does - and every shop in the game that buys items is an NPC you have to walk to. So at the retainer, holding an item is the only safe thing this plugin can do with it; selling it for vendor pennies somewhere else would mean walking, which you told me not to build.
+- **A listing order for when the retainer's market is nearly full.** New dropdown in the Auto-Market tab: when there are not enough free market slots for everything on your list, "Fastest selling first" (the default) sends one Universalis request, ranks your items by how many of that item's quality actually sell per day, and gives the scarce slots to what moves. "Cheapest first" and "Most expensive first" rank by current board price from the same request, and "List order" is how it worked before (files: `AutoMarket/MarketGate.cs`; `AutoMarket/AutoMarketService.cs`, `ApplyValueGate`; `MarketAutomation.cs`, `StartGateLookup`).
+- Items Universalis has no fresh data for keep their list position and sort last, and a failed request changes nothing: everything lists, in list order, exactly as before.
+
+### Notes
+- THE SAFETY RULE, because it decides everything: uncertain data always LISTs, never holds. No Universalis data for an item, data older than the freshness window (6 hours by default, same idea as the Auto Pinch pre-flight), no listing of the right quality on the board, or the request failing - in every one of those cases the item is listed as normal. Holding an item on a guess would be the irreversible side; listing an item the gate should have held only costs a market slot until it sells.
+- The value check and the listing order share one Universalis request per retainer, fired before the plan is built, so an item the gate holds back cannot take a market slot another item could have used.
+- The gate asks the same board your price matching uses - your home world unless "Use Universalis data center prices" is on.
+- Universalis' per-item "sales per day" numbers only come back when the request also asks for recent sales; the gate's request does (your Auto Pinch pre-flight request is unchanged, byte for byte).
+- New settings are new fields with defaults, so existing settings are untouched and there is nothing to re-tick after updating.
+- Offline test suite is now at 258 checks, up from 221. The new case pins the gate math (the 5% fee, net-at-the-threshold holds, one gil above lists), the sort fixture (cheapest/fastest/dearest each reorder the same four items, ties and unknowns keep list order), the scarce-slot integration (with 2 free slots, fastest-first gives both to the fast item AND a control proves list order gave them to the first item), the per-quality velocity split, and the full uncertainty battery: stale, no timestamp, no data, no listing of the quality, null quote, gate off, threshold 0 - every one must LIST (file: `tests/LazyMarketCompanion.Harness/Program.cs`, case 36).
+
 ## v0.1.10.0 (2026-09-06)
 
 ### Fixed

@@ -153,6 +153,49 @@ public sealed class ConfigWindow : Window
 
     ImGui.Separator();
 
+    // ---- value gate + listing order (0.1.11.0) ----
+    ImGui.TextUnformatted("Listing order:"); ImGui.SameLine();
+    ImGui.SetNextItemWidth(220);
+    var sortIdx = (int)c.AutoMarketSortMode;
+    if (ImGui.Combo("##sortmode", ref sortIdx, ["List order", "Cheapest first", "Fastest selling first", "Most expensive first"], 4))
+    { c.AutoMarketSortMode = (MarketSortMode)sortIdx; c.Save(); }
+    Tip("When the retainer does not have enough free market slots for everything on your Auto-Market list, this decides which items get the slots first.\r\n"
+        + "Fastest selling first (the default): one Universalis lookup ranks your items by how many sell per day, so the slots go to what actually moves.\r\n"
+        + "Cheapest / most expensive first: same lookup, ranked by current board price.\r\n"
+        + "List order: the order of the table below - how it worked before.\r\n"
+        + "Items Universalis has no fresh data for keep their list position and sort last, and a failed lookup changes nothing.");
+
+    var gate = c.AutoMarketValueGateEnabled;
+    if (ImGui.Checkbox("Only list items worth more than", ref gate)) { c.AutoMarketValueGateEnabled = gate; c.Save(); }
+    ImGui.SameLine();
+    ImGui.SetNextItemWidth(140);
+    var threshold = (int)Math.Min(c.AutoMarketValueGateThresholdGil, int.MaxValue);
+    if (ImGui.InputInt("##gatethreshold", ref threshold, 0, 0)) { c.AutoMarketValueGateThresholdGil = Math.Max(threshold, 0); c.Save(); }
+    ImGui.SameLine();
+    ImGui.TextUnformatted("gil, net of fees");
+    Tip("Before listing, Auto-Market checks every enabled item against current Universalis prices and skips the ones whose total sellable value "
+        + "(current board price x everything it could sell of that item, after the market's 5% fee) is at or under this number.\r\n"
+        + "A skipped item is NOT sold or destroyed - it stays in your bags / the retainer inventory, and the run's closing chat line says how many were held back.\r\n"
+        + "Why not sell them to a vendor instead: the retainer you are standing at has no vendor - it only sells on the market board - and every shop in the game that buys items is an NPC you have to walk to.\r\n"
+        + "Anything Universalis is unsure about is LISTED, never held: no data, data older than the freshness window below, or no listing of the right quality.\r\n"
+        + "0 = the switch does nothing.");
+
+    if (c.AutoMarketValueGateEnabled)
+    {
+      int gateFresh = c.AutoMarketGateFreshnessHours;
+      ImGui.BeginGroup();
+      ImGui.Text("Only trust gate prices newer than");
+      ImGui.SameLine();
+      ImGui.SetNextItemWidth(120);
+      if (ImGui.SliderInt("###sliderGateFreshness", ref gateFresh, 1, 168)) { c.AutoMarketGateFreshnessHours = Math.Clamp(gateFresh, 1, 168); c.Save(); }
+      ImGui.SameLine();
+      ImGui.Text("hours");
+      ImGui.EndGroup();
+      Tip("Universalis is crowd-sourced and lags. Prices older than this never hold an item back - the item is listed normally. Same idea as the Auto Pinch pre-flight freshness window.");
+    }
+
+    ImGui.Separator();
+
     // ---- add item ----
     ImGui.TextUnformatted("Add item:"); ImGui.SameLine();
     ImGui.SetNextItemWidth(260);

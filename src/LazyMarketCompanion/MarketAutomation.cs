@@ -77,6 +77,16 @@ internal sealed class MarketAutomation : Window, IDisposable
   private int _preflightRequestId;
   private CancellationTokenSource? _preflightCts;
 
+  // Auto-Market value gate + listing order lookup (0.1.11.0). One Universalis request per retainer,
+  // fired before the plan is built so the gate can drop below-threshold items and the sort can order
+  // the survivors BEFORE the planner hands out the retainer's scarce free market slots. Same shape as
+  // the pre-flight lookup: fire, wait with a time limit, apply - and a null result means the gate and
+  // the sort both step aside (everything lists, in list order).
+  private Dictionary<uint, ItemQuote>? _gateQuotes;
+  private bool _gateQuotesDone;
+  private int _gateQuotesRequestId;
+  private CancellationTokenSource? _gateQuotesCts;
+
   // Empty-board sale-history fallback (0.1.8.0). The in-game "Compare Prices" path is synchronous and
   // has already failed by the time SetNewPrice runs, so the fallback lookup is fired from there and the
   // step re-runs until it lands. Keyed by item name so one lookup happens per listing, not per retry.
@@ -144,6 +154,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     _taskManager.Abort();
     EndArSession("plugin unloading");
     CancelPreflightLookup();
+    CancelGateLookup();
     CancelUniversalisPriceRequest();
     _universalisPriceProvider.Dispose();
     Svc.AddonLifecycle.UnregisterListener(AddonEvent.PostSetup, RetainerSellPostSetup);
@@ -333,7 +344,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     }
 
     _taskManager.Enqueue(RemoveTalkAddonListeners);
-    _taskManager.Enqueue(() => Communicator.PrintSweepDone(_listedTotal, _listingFailures), "AnnounceSweepDone");
+    _taskManager.Enqueue(() => Communicator.PrintSweepDone(_listedTotal, _listingFailures, AutoMarketService.GateHeldThisRun), "AnnounceSweepDone");
     _taskManager.Enqueue(() => AutoRetainerIPC.Suppressed(false));
   }
 
@@ -365,7 +376,7 @@ internal sealed class MarketAutomation : Window, IDisposable
 
     ClearState();
     _taskManager.Enqueue(() => InsertAutoMarketThenPinch(), "AutoMarketCurrent");
-    _taskManager.Enqueue(() => Communicator.PrintSweepDone(_listedTotal, _listingFailures), "AnnounceDone");
+    _taskManager.Enqueue(() => Communicator.PrintSweepDone(_listedTotal, _listingFailures, AutoMarketService.GateHeldThisRun), "AnnounceDone");
   }
 
   // =====================================================================================
@@ -486,20 +497,15 @@ internal sealed class MarketAutomation : Window, IDisposable
 
     if (Plugin.Configuration.AutoMarketEnabled)
     {
-      var plan = AutoMarketService.BuildPlan();
-      foreach (var note in plan.Notes)
-        Svc.Log.Information($"[LMC] plan: {note}");
-
-      if (plan.Ops.Count == 0)
-      {
-        Communicator.PrintInfo(plan.Notes.Count > 0 ? $"Nothing to list ({plan.Notes[0]})." : "Nothing to list.");
-      }
-      else
-      {
-        Svc.Log.Information($"[LMC] plan: {plan.Ops.Count} listing(s): {string.Join(", ", plan.Ops.Select(o => $"{o.ItemId}{(o.HQ ? "HQ" : "")}x{o.Quantity}->#{o.TargetSlot}"))}");
-        foreach (var op in plan.Ops)
-          AddListingSteps(steps, op);
-      }
+      // 0.1.11.0: when the value gate or a data-backed listing order is on, fetch the quotes FIRST so
+      // BuildPlan can drop below-threshold items and order the survivors before any slot is claimed.
+      // Both steps no-op (done immediately) when neither feature is on, keeping the old byte-for-byte
+      // behaviour for configs that never touch them.
+      var gateNeeded = Plugin.Configuration.AutoMarketValueGateEnabled
+                       || Plugin.Configuration.AutoMarketSortMode != MarketSortMode.ListOrder;
+      steps.Add(new Step(() => { StartGateLookup(gateNeeded); return true; }, "GateLookup"));
+      steps.Add(new Step(() => _gateQuotesDone, "GateWait", TimeLimitMs: 10000));
+      steps.Add(new Step(() => BuildListingStepsNow(steps), "BuildPlan"));
     }
 
     // Pinch afterwards, and how much of the retainer that covers is the ONE decision in
@@ -905,6 +911,79 @@ internal sealed class MarketAutomation : Window, IDisposable
     return true;
   }
 
+  /// <summary>
+  /// Builds the plan with the gate's quotes in hand and front-inserts the listing steps. Runs as a task
+  /// step (after GateWait) so the Universalis fetch never blocks the framework thread; InsertSteps from
+  /// inside a running task places the listing steps ahead of the pinch/close steps already queued.
+  /// </summary>
+  private bool? BuildListingStepsNow(List<Step> steps)
+  {
+    var plan = AutoMarketService.BuildPlan(_gateQuotes);
+    foreach (var note in plan.Notes)
+      Svc.Log.Information($"[LMC] plan: {note}");
+
+    if (plan.Ops.Count == 0)
+    {
+      Communicator.PrintInfo(plan.Notes.Count > 0 ? $"Nothing to list ({plan.Notes[0]})." : "Nothing to list.");
+      return true;
+    }
+
+    Svc.Log.Information($"[LMC] plan: {plan.Ops.Count} listing(s): {string.Join(", ", plan.Ops.Select(o => $"{o.ItemId}{(o.HQ ? "HQ" : "")}x{o.Quantity}->#{o.TargetSlot}"))}");
+    var listing = new List<Step>();
+    foreach (var op in plan.Ops)
+      AddListingSteps(listing, op);
+    InsertSteps(listing);
+    return true;
+  }
+
+  /// <summary>Fires (or skips) the gate's Universalis request; see the field block for why it exists.</summary>
+  private void StartGateLookup(bool needed)
+  {
+    _gateQuotes = null;
+    _gateQuotesDone = false;
+
+    var ids = needed ? AutoMarketService.GateItemIds() : [];
+    if (ids.Count == 0)
+    {
+      _gateQuotesDone = true;
+      return;
+    }
+
+    var requestId = ++_gateQuotesRequestId;
+    _gateQuotesCts?.Cancel();
+    _gateQuotesCts?.Dispose();
+    _gateQuotesCts = new CancellationTokenSource();
+    var token = _gateQuotesCts.Token;
+
+    _ = Task.Run(async () =>
+    {
+      Dictionary<uint, ItemQuote>? quotes = null;
+      try
+      {
+        quotes = await _universalisPriceProvider.GetRuleQuotes(ids, token).ConfigureAwait(false);
+      }
+      catch (OperationCanceledException) { return; }
+      catch (Exception ex) { Svc.Log.Warning(ex, "[LMC] gate lookup failed; every item will list in list order"); }
+
+      await Svc.Framework.RunOnFrameworkThread(() =>
+      {
+        if (_disposed || requestId != _gateQuotesRequestId) return;
+        _gateQuotes = quotes;
+        _gateQuotesDone = true;
+      });
+    }, token);
+  }
+
+  private void CancelGateLookup()
+  {
+    _gateQuotesRequestId++;
+    _gateQuotes = null;
+    _gateQuotesDone = false;
+    _gateQuotesCts?.Cancel();
+    _gateQuotesCts?.Dispose();
+    _gateQuotesCts = null;
+  }
+
   private void AddListingSteps(List<Step> steps, ListingOp op)
   {
     var mode = Plugin.Configuration.AutoMarketPriceMode;
@@ -1012,7 +1091,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     _taskManager.Enqueue(CloseRetainerSellList, "AR.CloseSellList");
     _taskManager.DelayNext(300);
     _taskManager.Enqueue(WaitSelectStringReady, 10000, "AR.WaitMenu");
-    _taskManager.Enqueue(() => Communicator.PrintSweepDone(_listedTotal, _listingFailures), "AR.Announce");
+    _taskManager.Enqueue(() => Communicator.PrintSweepDone(_listedTotal, _listingFailures, AutoMarketService.GateHeldThisRun), "AR.Announce");
     _taskManager.Enqueue(() => EndArSession("done"), "AR.Finish");
   }
 
@@ -1558,9 +1637,11 @@ internal sealed class MarketAutomation : Window, IDisposable
     _currentPinchRow = -1;
     _listedTotal = 0;
     _listingFailures = 0;
+    AutoMarketService.ResetGateHeld();
     _preListPrice = null;
     _preListDone = false;
     CancelPreflightLookup();
+    CancelGateLookup();
     CancelUniversalisPriceRequest();
   }
 

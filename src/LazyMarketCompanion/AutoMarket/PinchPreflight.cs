@@ -15,7 +15,20 @@ public sealed record QuoteListing(long PricePerUnit, bool Hq, bool OwnRetainer);
 /// Universalis' own <c>lastUploadTime</c>, in unix MILLISECONDS (not seconds - it is the one field on that
 /// API that is not in seconds). 0 means it did not tell us, which is treated as stale.
 /// </param>
-public sealed record ItemQuote(uint ItemId, bool HasData, long LastUploadUnixMs, IReadOnlyList<QuoteListing> Listings);
+/// <param name="NqVelocityPerDay">
+/// Universalis <c>nqSaleVelocity</c> - NQ sales per day over its history window. Only populated when the
+/// request asked for <c>entries</c> &gt; 0 (an entries=0 query zeroes every history field, measured
+/// 2026-09-06). Used by the Auto-Market listing order (0.1.11.0); 0 is a legitimate "it does not sell"
+/// reading, not "unknown" - freshness is what marks a quote unusable.
+/// </param>
+/// <param name="HqVelocityPerDay">Same, HQ sales only (<c>hqSaleVelocity</c>).</param>
+public sealed record ItemQuote(
+    uint ItemId,
+    bool HasData,
+    long LastUploadUnixMs,
+    IReadOnlyList<QuoteListing> Listings,
+    double NqVelocityPerDay = 0,
+    double HqVelocityPerDay = 0);
 
 /// <summary>One row of the open sell list, as the pre-flight sees it.</summary>
 /// <param name="CurrentPrice">The asking price the listing carries right now, read off the market container.</param>
@@ -331,6 +344,14 @@ public static class UniversalisQuotes
       }
     }
 
-    return new ItemQuote(itemId, hasData, lastUpload, listings);
+    // Per-quality sale velocity (0.1.11.0 listing order). Optional in the payload: the pre-flight
+    // request asks entries=0 so these come back 0 there, which nothing reads.
+    double nqVelocity = 0, hqVelocity = 0;
+    if (item.TryGetProperty("nqSaleVelocity", out var nqVelocityElement) && nqVelocityElement.ValueKind == JsonValueKind.Number)
+      nqVelocity = nqVelocityElement.GetDouble();
+    if (item.TryGetProperty("hqSaleVelocity", out var hqVelocityElement) && hqVelocityElement.ValueKind == JsonValueKind.Number)
+      hqVelocity = hqVelocityElement.GetDouble();
+
+    return new ItemQuote(itemId, hasData, lastUpload, listings, nqVelocity, hqVelocity);
   }
 }

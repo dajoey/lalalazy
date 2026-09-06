@@ -40,7 +40,31 @@ internal static unsafe class AutoMarketService
     return container != null && container->IsLoaded;
   }
 
-  public static PlanResult BuildPlan()
+  /// <summary>
+  /// Items the value gate held back across this run so far, for the end-of-run chat line. Game-side
+  /// only; the decision itself lives in <see cref="MarketGate"/> and is harness-covered there.
+  /// </summary>
+  internal static int GateHeldThisRun { get; private set; }
+
+  internal static void ResetGateHeld() => GateHeldThisRun = 0;
+
+  /// <summary>
+  /// Every enabled Auto-Market item id - what the gate's one Universalis request asks about. Cheaper
+  /// than building the full rule list (no Item-sheet lookups) and enough for the fetch.
+  /// </summary>
+  public static List<uint> GateItemIds()
+  {
+    var config = Plugin.Configuration;
+    var ids = new List<uint>();
+    foreach (var entry in config.AutoMarketItems)
+    {
+      if (entry.Enabled && !ids.Contains(entry.ItemId))
+        ids.Add(entry.ItemId);
+    }
+    return ids;
+  }
+
+  public static PlanResult BuildPlan(Dictionary<uint, ItemQuote>? gateQuotes = null)
   {
     var config = Plugin.Configuration;
     var items = Svc.Data.GetExcelSheet<Item>();
@@ -70,9 +94,81 @@ internal static unsafe class AutoMarketService
 
     var stock = SnapshotStock();
     var market = SnapshotMarket();
+
+    // 0.1.11.0 value gate + listing order. Both run BEFORE the planner hands out the retainer's free
+    // market slots, so an item the gate holds back cannot consume a slot another item could have used,
+    // and the sort decides which items get the slots when there are not enough for everything. A null
+    // quote map (request failed or neither feature is on) leaves both alone: every item lists, in list
+    // order, exactly as before 0.1.11.0.
+    var gated = ApplyValueGate(rules, stock, gateQuotes);
+    rules = gated;
+
     var options = new PlannerOptions(MarketSlotCount, config.AutoMarketReserveSlots, config.AutoMarketPreferRetainerStockFirst, config.AutoMarketListPartialStacks);
     return AutoMarketPlanner.Plan(rules, stock, market, options);
   }
+
+  /// <summary>
+  /// The gate + sort half of 0.1.11.0 (the rules themselves live in <see cref="MarketGate"/>, where the
+  /// harness covers them). Gate first - a held item is out entirely - then the sort reorders the
+  /// survivors so the scarce free slots go to the items that deserve them. The quote map is fetched by
+  /// the caller's task chain (MarketAutomation.StartGateLookup) so nothing blocks the framework thread.
+  /// </summary>
+  private static List<ItemRule> ApplyValueGate(List<ItemRule> rules, List<StockStack> stock, Dictionary<uint, ItemQuote>? quotes)
+  {
+    var config = Plugin.Configuration;
+    var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+    var freshnessMs = (long)Math.Clamp(config.AutoMarketGateFreshnessHours, 1, 168) * 3_600_000L;
+
+    List<ItemRule> kept = rules;
+    if (config.AutoMarketValueGateEnabled)
+    {
+      var gateOptions = new GateOptions(true, Math.Max(config.AutoMarketValueGateThresholdGil, 0), freshnessMs);
+      kept = new List<ItemRule>(rules.Count);
+      var held = new List<string>();
+
+      foreach (var rule in rules)
+      {
+        ItemQuote? quote = null;
+        quotes?.TryGetValue(rule.ItemId, out quote);
+        var sellable = MarketGate.PotentialSellable(rule, stock, config.AutoMarketListPartialStacks);
+        if (MarketGate.Decide(sellable, quote, rule.HQ, config.HQ, gateOptions, now) == GateVerdict.List)
+        {
+          kept.Add(rule);
+          continue;
+        }
+
+        var unit = MarketGate.CheapestUnitPrice(quote, rule.HQ, config.HQ) ?? 0;
+        held.Add($"{rule.ItemId}{(rule.HQ ? " HQ" : "")} ({sellable} sellable at {unit:N0}, ~{MarketGate.NetRevenue(unit, sellable):N0} net)");
+      }
+
+      if (held.Count > 0)
+      {
+        GateHeldThisRun += held.Count;
+        Svc.Log.Information($"[LMC] gate: holding back {held.Count} item(s) at or under {gateOptions.ThresholdGil:N0} gil net: {string.Join(", ", held)} - they stay in your bags/retainer, nothing is sold or destroyed");
+        if (Plugin.Configuration.ShowAutoMarketMessages)
+          Communicator.PrintInfo($"value gate: holding back {held.Count} item(s) worth at or under {gateOptions.ThresholdGil:N0} gil net - left in place, not listed (nothing is sold to a vendor)");
+      }
+      else
+      {
+        Svc.Log.Information($"[LMC] gate: every item is above the {gateOptions.ThresholdGil:N0} gil net threshold");
+      }
+    }
+
+    // The sort rides on the same fetch whenever a data-backed mode is selected, gate or no gate.
+    var ordered = MarketGate.SortRules(kept, MarketGate.RuleQuotes(kept, quotes, config.HQ, now, freshnessMs), config.AutoMarketSortMode);
+    if (config.AutoMarketSortMode != MarketSortMode.ListOrder && ordered.Count > 1)
+      Svc.Log.Information($"[LMC] gate: listing order ({DescribeSort(config.AutoMarketSortMode)}): {string.Join(", ", ordered.Select(r => $"{r.ItemId}{(r.HQ ? " HQ" : "")}"))}");
+
+    return ordered;
+  }
+
+  private static string DescribeSort(MarketSortMode mode) => mode switch
+  {
+    MarketSortMode.CheapestFirst => "cheapest first",
+    MarketSortMode.MostExpensiveFirst => "most expensive first",
+    MarketSortMode.FastestSellingFirst => "fastest selling first",
+    _ => "list order",
+  };
 
   public static List<StockStack> SnapshotStock()
   {

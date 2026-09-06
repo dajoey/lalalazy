@@ -146,6 +146,44 @@ internal sealed class UniversalisPriceProvider : IDisposable
   }
 
   /// <summary>
+  /// Quotes for the Auto-Market value gate and listing order (0.1.11.0): one request for every enabled
+  /// Auto-Market item, with recent sales requested so the per-item sale-velocity fields are populated
+  /// (an entries=0 query zeroes them - measured 2026-09-06). Same scope rule as
+  /// <see cref="GetQuotes"/>: ask the board the pricing pass reads, i.e. the home world unless the user
+  /// prices from the data centre. Returns null on ANY failure - the gate and the sort then leave every
+  /// item alone, which is exactly the pre-0.1.11.0 behaviour.
+  /// </summary>
+  public async Task<Dictionary<uint, ItemQuote>?> GetRuleQuotes(IReadOnlyList<uint> itemIds, CancellationToken cancellationToken)
+  {
+    if (itemIds.Count == 0)
+      return [];
+
+    var useDataCenter = Plugin.Configuration.UseUniversalisDataCenterPrices;
+    var scopeName = await Svc.Framework.RunOnFrameworkThread(() => useDataCenter
+      ? Svc.Objects.LocalPlayer?.CurrentWorld.ValueNullable?.DataCenter.ValueNullable?.Name.ToString()
+      : Svc.Objects.LocalPlayer?.CurrentWorld.ValueNullable?.Name.ToString()).ConfigureAwait(false);
+
+    if (string.IsNullOrWhiteSpace(scopeName))
+    {
+      Svc.Log.Warning($"[LMC] could not resolve the current {(useDataCenter ? "data center" : "world")} for the Auto-Market gate");
+      return null;
+    }
+
+    Svc.Log.Debug($"[LMC] Auto-Market gate asking Universalis about {itemIds.Count} item(s) on {scopeName}");
+    try
+    {
+      var json = await _client.GetMarketDataJson(itemIds, scopeName, cancellationToken, listings: UniversalisClient.ListingCount, entries: 20).ConfigureAwait(false);
+      return UniversalisQuotes.Parse(json, Plugin.Configuration.SeenRetainers);
+    }
+    catch (OperationCanceledException) { throw; }
+    catch (Exception ex)
+    {
+      Svc.Log.Warning(ex, "[LMC] Auto-Market gate lookup failed; every item will list in list order");
+      return null;
+    }
+  }
+
+  /// <summary>
   /// One board snapshot for many items, for the Auto Pinch pre-flight (0.1.9.0). Unlike
   /// <see cref="GetNewPriceById"/> this does NOT decide a price - it hands the raw listings to
   /// <see cref="PinchPreflight"/>, which predicts what the pricing pass would do with them.

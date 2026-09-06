@@ -61,10 +61,14 @@ internal sealed class UniversalisClient : IDisposable
   /// No hq=true here either: one request covers a mix of HQ and NQ listings, and the quality is chosen
   /// per row afterwards.
   /// </summary>
-  public async Task<string> GetMarketDataJson(IReadOnlyList<uint> itemIds, string worldDcRegion, CancellationToken cancellationToken)
+  public async Task<string> GetMarketDataJson(IReadOnlyList<uint> itemIds, string worldDcRegion, CancellationToken cancellationToken, int listings = -1, int entries = -1)
   {
     var ids = string.Join(",", itemIds);
-    var requestUri = new Uri($"{Uri.EscapeDataString(worldDcRegion)}/{ids}?listings={PreflightListingCount}&entries=0", UriKind.Relative);
+    // listings/entries -1 = the pre-flight defaults, so its request stays byte-for-byte what it has
+    // always been. The Auto-Market gate (0.1.11.0) passes entries > 0 because Universalis computes the
+    // per-item sale-velocity fields from the recent-sales array and returns zeroes for them at entries=0.
+    var listingCount = listings >= 0 ? listings : PreflightListingCount;
+    var requestUri = new Uri($"{Uri.EscapeDataString(worldDcRegion)}/{ids}?listings={listingCount}&entries={Math.Max(entries, 0)}", UriKind.Relative);
     return await _client.GetStringAsync(requestUri, cancellationToken).ConfigureAwait(false);
   }
 

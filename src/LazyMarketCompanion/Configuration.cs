@@ -246,6 +246,33 @@ public sealed class Configuration : IPluginConfiguration
   /// <summary>Placeholder unit price used before the match pass replaces it. Deliberately absurd so a failed match never sells cheap.</summary>
   public int AutoMarketPlaceholderPrice { get; set; } = 999_999_999;
 
+  // ----- Auto-Market value gate + listing order (0.1.11.0) -----
+  // New fields with initializers, so an existing config deserializes these defaults as-is: no Version
+  // bump and no migration (the ladder is only for CHANGING a default existing installs carry). The
+  // gate ships OFF with threshold 0, so updating changes nothing until it is switched on.
+
+  /// <summary>
+  /// When on, Auto-Market checks every enabled item against current Universalis prices BEFORE listing
+  /// and skips the ones whose total sellable value (board price x sellable quantity, net of the 5%
+  /// market fee) is at or under <see cref="AutoMarketValueGateThresholdGil"/>. A held-back item is left
+  /// exactly where it is - in the bags or the retainer inventory; nothing is vendored or destroyed.
+  /// Stale or missing data always lists the item: uncertainty falls on the reversible side.
+  /// </summary>
+  public bool AutoMarketValueGateEnabled { get; set; } = false;
+
+  /// <summary>Minimum NET gil an item must be worth to be listed. 0 = the gate never holds anything.</summary>
+  public long AutoMarketValueGateThresholdGil { get; set; } = 0;
+
+  /// <summary>Universalis data older than this many hours never holds an item back - the item lists. Clamped 1..168.</summary>
+  public int AutoMarketGateFreshnessHours { get; set; } = 6;
+
+  /// <summary>
+  /// Which items get the retainer's free market slots when there are not enough for everything.
+  /// FastestSellingFirst (the default) ranks by Universalis per-item sale velocity of the rule's own
+  /// quality; items with no fresh data keep their list position and sort last.
+  /// </summary>
+  public MarketSortMode AutoMarketSortMode { get; set; } = MarketSortMode.FastestSellingFirst;
+
   // ----- Auto Pinch pre-flight (0.1.9.0) -----
   // These are NEW fields with initializers, which is why there is no CurrentVersion bump: Newtonsoft only
   // overwrites a field an existing save actually contains, so a config written by 0.1.7.0 picks these
