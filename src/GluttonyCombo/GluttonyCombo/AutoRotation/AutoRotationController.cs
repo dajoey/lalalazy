@@ -1541,6 +1541,18 @@ internal unsafe class AutoRotationController
         }
     }
 
+    /// <summary>
+    ///     Whether auto-rez must wait for an instant cast on the job being played.
+    /// </summary>
+    /// <remarks>
+    ///     Reads through the IPC wrapper so a leased value still wins where one exists,
+    ///     and keys on <see cref="Player.Job" /> rather than on the raise spell: SCH and
+    ///     SMN both raise with <c>SCH.Resurrection</c>, so keying on the spell would fuse
+    ///     two jobs into a single setting.
+    /// </remarks>
+    private static bool RequireSwiftForCurrentJob(AutoRotationConfigIPCWrapper config) =>
+        config.HealerSettings.RequireSwiftFor(Player.Job);
+
     // Note: Similar to Kardia, because this has its own set of rules but regarding timings I'm not sure if I want to wire this up to retargeting
     private static bool RezParty()
     {
@@ -1639,7 +1651,17 @@ internal unsafe class AutoRotationController
                         return true;
                     }
 
-                    if (ActionManager.GetAdjustedCastTime(ActionType.Action, resSpell) == 0)
+                    // An instant Verraise (Dualcast/Swiftcast/Occult) always goes out.
+                    // Otherwise, hard-casting is allowed only when the RDM row is
+                    // unticked - and only while standing still. Before this version RDM
+                    // could never hard-cast, so it carried no movement guard; without
+                    // one, a 10s Verraise would be started and instantly cancelled on
+                    // loop while running. Mirrors the non-RDM wrapper below.
+                    var rdmInstant = ActionManager.GetAdjustedCastTime(ActionType.Action, resSpell) == 0;
+                    var rdmMayHardCast = cfg is not null &&
+                                         !RequireSwiftForCurrentJob(cfg) &&
+                                         !IsMoving();
+                    if (rdmInstant || rdmMayHardCast)
                     {
                         ActionManager.Instance()->UseAction(ActionType.Action, resSpell, member.BattleChara.GameObjectId);
                         return true;
@@ -1662,7 +1684,12 @@ internal unsafe class AutoRotationController
                         HasOrExpectsOccultInstantCast)
                     {
 
-                        if ((cfg is not null) && ((cfg.HealerSettings.AutoRezRequireSwift && ActionManager.GetAdjustedCastTime(ActionType.Action, resSpell) == 0) || !cfg.HealerSettings.AutoRezRequireSwift))
+                        // Keyed on Player.Job, never on resSpell: SCH and SMN share
+                        // SCH.Resurrection, so keying on the spell would fuse two jobs
+                        // into one setting that could never be split again.
+                        var requireSwift = cfg is not null &&
+                                           RequireSwiftForCurrentJob(cfg);
+                        if ((cfg is not null) && ((requireSwift && ActionManager.GetAdjustedCastTime(ActionType.Action, resSpell) == 0) || !requireSwift))
                         {
                             ActionManager.Instance()->UseAction(ActionType.Action, resSpell, member.BattleChara.GameObjectId);
                             return true;

@@ -1,10 +1,10 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <!-- Metadata -->
   <PropertyGroup>
     <Authors>dajoey</Authors>
     <Company>-</Company>
-    <Version>1.0.4.173</Version>
+    <Version>1.0.4.174</Version>
     <!-- This is the version that will be used when pushing to the repo.-->
     <Description>Gluttony Combo - lalalazy fork of Gluttony Combo. XIVCombo for very lazy players.</Description>
     <Copyright>Copyleft attick 2021 thanks attick UwU (forked as Gluttony Combo by dajoey)</Copyright>
@@ -43,7 +43,7 @@
     <Compile Include="..\..\Shared\LalaChangelog\**\*.cs" Link="LalaChangelog\%(RecursiveDir)%(Filename)%(Extension)" />
     <EmbeddedResource Include="..\CHANGELOG.md" LogicalName="CHANGELOG.md" />
   </ItemGroup>
-    <!-- Styling Rules -->
+  <!-- Styling Rules -->
   <ItemGroup>
     <None Include="..\.editorconfig" Link=".editorconfig" />
   </ItemGroup>

@@ -1,11 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!-- Plain console app, no Dalamud. Compiles the REAL
-       src/GluttonyCombo/GluttonyCombo/Core/ConfigMigration.cs so the v6->v7 ladder is asserted
-       offline against the exact code that ships (v1.0.4.173). Any Dalamud type leaking into
-       that file breaks this build, which is the point.
+       src/GluttonyCombo/GluttonyCombo/Core/ConfigMigration.cs (the v6->v7->v8 ladder) AND the
+       REAL src/GluttonyCombo/GluttonyCombo/AutoRotation/AutoRotationConfig.cs, so both the
+       migration and the per-job resolver that ships are asserted offline against the exact code
+       in the zip. Any Dalamud type leaking into either file breaks this build, which is the point.
          dotnet build tests\GluttonyCombo.ConfigMigrateHarness -c Release
          dotnet tests\GluttonyCombo.ConfigMigrateHarness\bin\Release\net10.0\GluttonyCombo.ConfigMigrateHarness.dll
-       Prints PASS/FAIL per case, "OK" and exit 0 when every case passes. -->
+       Prints PASS/FAIL per case, "OK" and exit 0 when every case passes.
+
+       Newtonsoft is the REAL package, not a stub: the v8 step turns on a [JsonProperty] legacy
+       shadow, so "does the old key still deserialise, and does it stop being written afterwards"
+       can only be answered by the actual serializer. -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
@@ -19,7 +24,17 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Include="Program.cs" />
+    <Compile Include="Stubs.cs" />
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Core\ConfigMigration.cs" Link="ConfigMigration.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\AutoRotationConfig.cs" Link="AutoRotationConfig.cs" />
+    <!-- Vendored from PunishXIV/WrathCombo.API. Plain enums with no dependencies, so the real
+         files compile here rather than being stubbed. -->
+    <Compile Include="..\..\src\GluttonyCombo\WrathCombo.API\Enum\DPSRotationMode.cs" Link="DPSRotationMode.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\WrathCombo.API\Enum\HealerRotationMode.cs" Link="HealerRotationMode.cs" />
   </ItemGroup>
 </Project>

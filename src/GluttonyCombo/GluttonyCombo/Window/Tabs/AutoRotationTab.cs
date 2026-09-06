@@ -288,19 +288,61 @@ internal class AutoRotationTab : ConfigWindow
                 changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
                     AutoRotationUI.Checkbox_AutoRezOutOfParty, ref cfg.HealerSettings.AutoRezOutOfParty, "AutoRezOutOfParty");
 
+                // Per job, not one global: the old single tick governed six jobs and
+                // could never reach RDM at all. Plain ImGui.Checkbox for all seven -
+                // these are fork-only settings, so they can never be members of the
+                // vendored AutoRotationConfigOption enum, and asking the IPC indicator
+                // about a name it cannot parse throws straight out of Draw() (the
+                // v1.0.4.173 crash). HandleRaidwides/HandleTankbusters draw this way too.
                 ImGuiExtensions.Prefix(false);
-                changed |= ImGui.Checkbox(
+                ImGui.TextUnformatted(
                     Text.FormatAndCache(
-                                AutoRotationUI.Checkbox_AutoRezRequireSwift,
-                                RoleActions.Magic.Swiftcast.ActionName(),
-                                RDM.Buffs.Dualcast.StatusName()),
-                    ref cfg.HealerSettings.AutoRezRequireSwift);
+                        AutoRotationUI.Checkbox_AutoRezRequireSwift,
+                        RoleActions.Magic.Swiftcast.ActionName(),
+                        RDM.Buffs.Dualcast.StatusName()));
                 ImGuiComponents.HelpMarker(
                     Text.FormatAndCache(
                         AutoRotationUI.HelpText_AutoRezRequireSwift,
                         RoleActions.Magic.Swiftcast.ActionName(), Job.RDM.Shorthand(), RDM.Buffs.Dualcast.StatusName()
                     )
                 );
+
+                ImGui.Indent();
+                changed |= ImGui.Checkbox(
+                    Text.FormatAndCache(AutoRotationUI.Checkbox_AutoRezRequireSwiftJob,
+                        Job.WHM.Shorthand(), Job.CNJ.Shorthand()) + "##AutoRezRequireSwiftWHM",
+                    ref cfg.HealerSettings.AutoRezRequireSwiftWHM);
+                changed |= ImGui.Checkbox(
+                    Job.SCH.Shorthand() + "##AutoRezRequireSwiftSCH",
+                    ref cfg.HealerSettings.AutoRezRequireSwiftSCH);
+                changed |= ImGui.Checkbox(
+                    Job.AST.Shorthand() + "##AutoRezRequireSwiftAST",
+                    ref cfg.HealerSettings.AutoRezRequireSwiftAST);
+                changed |= ImGui.Checkbox(
+                    Job.SGE.Shorthand() + "##AutoRezRequireSwiftSGE",
+                    ref cfg.HealerSettings.AutoRezRequireSwiftSGE);
+                changed |= ImGui.Checkbox(
+                    Job.SMN.Shorthand() + "##AutoRezRequireSwiftSMN",
+                    ref cfg.HealerSettings.AutoRezRequireSwiftSMN);
+                changed |= ImGui.Checkbox(
+                    Job.BLU.Shorthand() + "##AutoRezRequireSwiftBLU",
+                    ref cfg.HealerSettings.AutoRezRequireSwiftBLU);
+
+                // RDM is the one row whose OFF state does something new, so it is the one
+                // row that explains itself.
+                changed |= ImGui.Checkbox(
+                    Job.RDM.Shorthand() + "##AutoRezRequireSwiftRDM",
+                    ref cfg.HealerSettings.AutoRezRequireSwiftRDM);
+                ImGuiComponents.HelpMarker(
+                    Text.FormatAndCache(
+                        AutoRotationUI.HelpText_AutoRezRequireSwiftRDM,
+                        Job.RDM.Shorthand(),
+                        RDM.Verraise.ActionName(),
+                        RDM.Buffs.Dualcast.StatusName(),
+                        RoleActions.Magic.Swiftcast.ActionName()
+                    )
+                );
+                ImGui.Unindent();
 
                 ImGuiExtensions.Prefix(true);
                 P.UIHelper.ShowIPCControlledIndicatorIfNeeded("AutoRezDPSJobs");

@@ -1,4 +1,6 @@
-﻿using GluttonyCombo.API.Enum;
+﻿using ECommons.ExcelServices;
+using GluttonyCombo.API.Enum;
+using Newtonsoft.Json;
 
 namespace GluttonyCombo.AutoRotation;
 
@@ -51,7 +53,88 @@ public class HealerSettings
     public bool ManageKardia = false;
     public bool KardiaTanksOnly = false;
     public bool AutoRez = false;
-    public bool AutoRezRequireSwift = false;
+
+    #region Auto-Rez "Require Swiftcast/Dualcast", per job
+
+    /// <summary>
+    ///     Require an instant cast before auto-rezzing, as WHM (and CNJ below level 30).
+    /// </summary>
+    /// <remarks>
+    ///     These seven fields replaced a single global <c>AutoRezRequireSwift</c> in
+    ///     v1.0.4.174. They are keyed by JOB and never by raise spell: SCH and SMN both raise
+    ///     with <c>SCH.Resurrection</c>, so a switch on the spell would fuse two jobs into one
+    ///     setting that could never be split again. CNJ and WHM share <c>WHM.Raise</c> and are
+    ///     deliberately one field - the same job either side of level 30.
+    ///     <para>
+    ///         Resolve them with <see cref="RequireSwiftFor" />, never by hand.
+    ///     </para>
+    /// </remarks>
+    public bool AutoRezRequireSwiftWHM = false;
+
+    /// <summary>Require an instant cast before auto-rezzing, as SCH.</summary>
+    public bool AutoRezRequireSwiftSCH = false;
+
+    /// <summary>Require an instant cast before auto-rezzing, as AST.</summary>
+    public bool AutoRezRequireSwiftAST = false;
+
+    /// <summary>Require an instant cast before auto-rezzing, as SGE.</summary>
+    public bool AutoRezRequireSwiftSGE = false;
+
+    /// <summary>Require an instant cast before auto-rezzing, as SMN.</summary>
+    public bool AutoRezRequireSwiftSMN = false;
+
+    /// <summary>Require an instant cast before auto-rezzing, as BLU.</summary>
+    public bool AutoRezRequireSwiftBLU = false;
+
+    /// <summary>
+    ///     Require an instant cast before auto-rezzing, as RDM. Defaults to <c>true</c>, unlike
+    ///     its six siblings.
+    /// </summary>
+    /// <remarks>
+    ///     Before v1.0.4.174 RDM's requirement was hardcoded ON - the rez branch only fired
+    ///     Verraise once the cast time was already zero, and the old global toggle did not
+    ///     reach it - so <c>true</c> is the value that means "nothing changed" for RDM, on
+    ///     fresh and existing installs alike. Unticking it is the new capability: it lets
+    ///     auto-rotation begin a ~10 second hard-cast Verraise when no Dualcast or Swiftcast is
+    ///     available.
+    /// </remarks>
+    public bool AutoRezRequireSwiftRDM = true;
+
+    /// <summary>
+    ///     The pre-v1.0.4.174 single global toggle, read back off the saved JSON so the
+    ///     migration can carry it onto the six jobs it used to govern.
+    /// </summary>
+    /// <remarks>
+    ///     <see cref="NullValueHandling.Ignore" /> keeps the dead key out of every config
+    ///     written from here on: the migration copies it once, sets this back to null, and the
+    ///     property then stops being serialised entirely. A fresh install never had the key, so
+    ///     this stays null and the per-job defaults above win untouched.
+    /// </remarks>
+    [JsonProperty("AutoRezRequireSwift", NullValueHandling = NullValueHandling.Ignore)]
+    public bool? AutoRezRequireSwiftLegacy { get; set; }
+
+    /// <summary>
+    ///     Resolves the per-job "require an instant cast before rezzing" flag for
+    ///     <paramref name="job" />.
+    /// </summary>
+    /// <remarks>
+    ///     Jobs with no raise of their own answer <c>false</c>: they never reach the rez path,
+    ///     and a bare <c>false</c> is the value that changes nothing if they ever do.
+    /// </remarks>
+    public bool RequireSwiftFor(Job job) => job switch
+    {
+        Job.CNJ or Job.WHM => AutoRezRequireSwiftWHM,
+        Job.SCH => AutoRezRequireSwiftSCH,
+        Job.AST => AutoRezRequireSwiftAST,
+        Job.SGE => AutoRezRequireSwiftSGE,
+        Job.SMN => AutoRezRequireSwiftSMN,
+        Job.BLU => AutoRezRequireSwiftBLU,
+        Job.RDM => AutoRezRequireSwiftRDM,
+        _ => false,
+    };
+
+    #endregion
+
     public bool AutoRezDPSJobs = false;
     public bool AutoRezDPSJobsHealersOnly = false;
     public bool AutoRezOutOfParty = false;

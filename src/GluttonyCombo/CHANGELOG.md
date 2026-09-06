@@ -1,3 +1,20 @@
+## v1.0.4.174 (2026-09-05) [testing]
+
+### Added
+- Auto-rotation (healer) "Require Swiftcast/Dualcast" for auto-resurrect is now one checkbox per raising job instead of a single global toggle: WHM/CNJ, SCH, AST, SGE, SMN, BLU and RDM each get their own row under Settings -> Auto Rotation -> Auto-Resurrect. Your existing setting is carried onto the six jobs it used to govern by a one-time migration, so nothing changes on update. (files: `GluttonyCombo/AutoRotation/AutoRotationConfig.cs` `HealerSettings.AutoRezRequireSwift{WHM,SCH,AST,SGE,SMN,BLU,RDM}` + `RequireSwiftFor(Job)`, `GluttonyCombo/Window/Tabs/AutoRotationTab.cs`, `GluttonyCombo/Core/ConfigMigration.cs`)
+- RDM can now hard-cast Verraise under auto-rotation, which was previously impossible. The new RDM row is ticked by default and that is the old behaviour - RDM only raises instantly, off Dualcast or Swiftcast. Untick it and auto-rotation will start a 10-second hard-cast Verraise when no instant is available; it only begins the cast while you are standing still, and an instant is still always preferred. Before this version RDM's requirement was hardcoded on and the old global tick could not reach it at all. (file: `GluttonyCombo/AutoRotation/AutoRotationController.cs`, function: `RezParty`)
+
+### Changed
+- The per-job setting is resolved from the job you are playing, never from the raise spell. SCH and SMN both raise with Resurrection, so a spell-keyed lookup would have silently fused those two jobs into one setting that could never be separated again; CNJ and WHM deliberately do share one row, being the same job either side of level 30. (file: `GluttonyCombo/AutoRotation/AutoRotationConfig.cs`, function: `RequireSwiftFor`)
+- The RDM raise path gained the same movement guard the other jobs already had. It never needed one before, because it could only ever fire an instant; without it, unticking the new RDM row would have started and instantly cancelled a 10s Verraise on loop while running. (file: `GluttonyCombo/AutoRotation/AutoRotationController.cs`)
+- `AutoRezRequireSwift` on the IPC surface is kept alive and now answers for the job currently being played, so any third-party consumer still compiles and still gets a meaningful answer. It returns false rather than throwing when there is no player. (file: `GluttonyCombo/AutoRotation/AutoRotationConfigIPCWrapper.cs`)
+- All seven checkboxes are drawn with no IPC "controlled by another plugin" indicator, like Handle Raidwides and Handle Detected Tankbusters. These are fork-only settings that no plugin can lease, and asking the indicator about a name it cannot parse is exactly what broke the Auto-Rotation tab in v1.0.4.171. (file: `GluttonyCombo/Window/Tabs/AutoRotationTab.cs`)
+
+### Notes
+- Config schema v8. The migration reads your old saved value through a legacy JSON shadow, copies it onto the six jobs once, then stops writing the dead key - so it can never run twice, and unticking a job afterwards sticks. RDM is asserted ON by the migration rather than inherited from a default, so a future refactor cannot silently start hard-casting Verraise for everyone.
+- `tests/GluttonyCombo.ConfigMigrateHarness` now compiles the real `HealerSettings` and the real migration ladder against the real Newtonsoft serializer and asserts both: 73 cases, including the negative control that an existing user with the tick OFF still gets RDM ON, and a truth table proving SCH and SMN resolve to different fields. It caught a real defect in this release before it shipped.
+- No combo or rotation behaviour changes beyond the auto-rez paths described above.
+
 ## v1.0.4.173 (2026-09-05) [testing]
 
 ### Fixed

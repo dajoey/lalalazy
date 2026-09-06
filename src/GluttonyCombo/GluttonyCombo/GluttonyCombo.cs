@@ -549,16 +549,13 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         try
         {
             var result = ConfigMigration.Migrate(
-                new ConfigMigration.State(
-                    config.Version,
-                    config.RotationConfig.HealerSettings.TankbustersBeyondParty));
+                ConfigMigration.Read(config.Version, config.RotationConfig.HealerSettings));
 
             if (!result.Changed)
                 return;
 
             config.Version = result.State.Version;
-            config.RotationConfig.HealerSettings.TankbustersBeyondParty =
-                result.State.TankbustersBeyondParty;
+            ConfigMigration.Write(result.State, config.RotationConfig.HealerSettings);
 
             foreach (var note in result.Notes)
                 PluginLog.Information("[Config migration] " + note);

@@ -299,6 +299,12 @@ Applies to {0}, {1}, {2}, {3}, {4}, and {5} ({6}/{7})</value>
   <data name="HelpText_AutoRezRequireSwift" xml:space="preserve">
     <value>Requires {0} or {1}'s {2} to be available to resurrect a party member, to avoid hard-casting.</value>
   </data>
+  <data name="Checkbox_AutoRezRequireSwiftJob" xml:space="preserve">
+    <value>{0}/{1}</value>
+  </data>
+  <data name="HelpText_AutoRezRequireSwiftRDM" xml:space="preserve">
+    <value>Unticking this lets auto-rotation start a 10-second hard-cast {1} on {0} when no {2} or {3} is available. It will only begin the cast while you are standing still. Ticked (the default) is the old behaviour: {0} only raises instantly.</value>
+  </data>
   <data name="Checkbox_AutoRezDPSJobs" xml:space="preserve">
     <value>Apply to {0} &amp; {1}</value>
   </data>

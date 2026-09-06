@@ -132,6 +132,15 @@ namespace GluttonyCombo.Resources.Localization.UI.AutoRotation {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to {0}/{1}.
+        /// </summary>
+        internal static string Checkbox_AutoRezRequireSwiftJob {
+            get {
+                return ResourceManager.GetString("Checkbox_AutoRezRequireSwiftJob", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Bypass for FATE Targets.
         /// </summary>
         internal static string Checkbox_BypassFATETargets {
@@ -426,6 +435,15 @@ namespace GluttonyCombo.Resources.Localization.UI.AutoRotation {
         internal static string HelpText_AutoRezRequireSwift {
             get {
                 return ResourceManager.GetString("HelpText_AutoRezRequireSwift", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Unticking this lets auto-rotation start a 10-second hard-cast {1} on {0} when no {2} or {3} is available..
+        /// </summary>
+        internal static string HelpText_AutoRezRequireSwiftRDM {
+            get {
+                return ResourceManager.GetString("HelpText_AutoRezRequireSwiftRDM", resourceCulture);
             }
         }
         

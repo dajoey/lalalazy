@@ -41,7 +41,7 @@ public partial class Configuration : IPluginConfiguration
     ///     deserialises its older number and climbs. See
     ///     <see cref="ConfigMigration.Migrate" /> and tests/GluttonyCombo.ConfigMigrateHarness.
     /// </remarks>
-    public int Version { get; set; } = 7;
+    public int Version { get; set; } = 8;
 
     #region Settings
 

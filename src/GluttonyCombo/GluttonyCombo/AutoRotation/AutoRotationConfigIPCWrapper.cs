@@ -311,7 +311,21 @@ public class HealerSettingsIPCWrapper(HealerSettings settings)
 
     #region Direct Pass-Throughs (no IPC check)
 
-    public bool AutoRezRequireSwift => settings.AutoRezRequireSwift;
+    /// <summary>
+    ///     Whether the raise this job is about to cast is gated on being instant.
+    /// </summary>
+    /// <remarks>
+    ///     Was a single global before v1.0.4.174; it is now one setting per job, so this
+    ///     resolves for the job currently being played to preserve the property's original
+    ///     meaning for any third-party consumer. Falls back to <c>false</c> rather than
+    ///     throwing when there is no player - a pass-through read must never be the thing
+    ///     that kills a caller.
+    /// </remarks>
+    public bool AutoRezRequireSwift =>
+        ECommons.GameHelpers.Player.Available && settings.RequireSwiftFor(ECommons.GameHelpers.Player.Job);
+
+    /// <summary>Resolves the per-job auto-rez instant-cast requirement.</summary>
+    public bool RequireSwiftFor(ECommons.ExcelServices.Job job) => settings.RequireSwiftFor(job);
 
     public int? AoEHealTargetCount => settings.AoEHealTargetCount;
 
