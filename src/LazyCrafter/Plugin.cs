@@ -7,6 +7,7 @@ using ECommons;
 using Lalalazy.Changelog;
 using LazyCrafter.Adapters;
 using LazyCrafter.Catalog;
+using LazyCrafter.Spike;
 using LazyCrafter.UI;
 
 namespace LazyCrafter;
@@ -31,6 +32,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
     [PluginService] internal static IPlayerState PlayerStateSvc { get; private set; } = null!;
     [PluginService] internal static IGameGui GameGui { get; private set; } = null!;
+    [PluginService] internal static ITargetManager Targets { get; private set; } = null!;
 
     private const string CommandName = "/lcraft";
 
@@ -55,6 +57,9 @@ public sealed class Plugin : IDalamudPlugin
     private readonly WindowSystem _windows = new("LazyCrafter");
     private readonly MainWindow _mainWindow;
     private readonly ChangelogGate _changelog;
+    // Phase 6 spike runner (t_933683a5): '/lcraft spike' and nothing else. INERT - no dispatch, cart, Run tab
+    // or vendor hand-off path calls into it, so a normal run behaves identically with and without it.
+    private readonly VendorSpike _spike;
     private readonly CancellationTokenSource _cts = new();
 
     public Plugin(IDalamudPluginInterface pi)
@@ -86,7 +91,7 @@ public sealed class Plugin : IDalamudPlugin
 
         Commands.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Toggle the LazyCrafter window. debug | prices | plan | dispatch | status | stop | resume | changelog | guard <plugin> <minVersion> | guard reset",
+            HelpMessage = "Toggle the LazyCrafter window. debug | prices | plan | dispatch | status | stop | resume | changelog | spike <1-5|all|stop|results> | guard <plugin> <minVersion> | guard reset",
         });
 
         // Sheet indexing takes a few hundred ms - never on the framework thread.
@@ -108,6 +113,7 @@ public sealed class Plugin : IDalamudPlugin
 
         Catalog = new CatalogService(this, Framework, Log);
         Dispatch = new DispatchService(this, Framework, ChatGui, Log);
+        _spike = new VendorSpike(Pi, Framework, ClientState, Condition, Objects, Targets, GameGui, ChatGui, Log, () => Version);
         _mainWindow = new MainWindow(this);
         _windows.AddWindow(_mainWindow);
 
@@ -189,6 +195,7 @@ public sealed class Plugin : IDalamudPlugin
         if (a.Equals("plan", StringComparison.OrdinalIgnoreCase)) { PrintPlan(); return; }
         if (a.Equals("fetch", StringComparison.OrdinalIgnoreCase)) { FetchCommand(); return; }
         if (a.Equals("changelog", StringComparison.OrdinalIgnoreCase) || a.Equals("whatsnew", StringComparison.OrdinalIgnoreCase)) { _changelog.ShowNow(); return; }
+        if (a.StartsWith("spike", StringComparison.OrdinalIgnoreCase)) { _spike.Command(a.Length > 5 ? a[5..] : ""); return; }
         if (a.StartsWith("guard", StringComparison.OrdinalIgnoreCase)) { GuardCommand(a[5..].Trim()); return; }
         _mainWindow.Toggle();
     }
@@ -336,6 +343,7 @@ public sealed class Plugin : IDalamudPlugin
         Pi.UiBuilder.OpenConfigUi -= OpenMain;
         Pi.UiBuilder.OpenMainUi -= OpenMain;
         _changelog.Dispose();
+        _spike.Dispose();
         _windows.RemoveAllWindows();
         Dispatch.Dispose();
         Catalog.Dispose();

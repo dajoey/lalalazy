@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.1.6.5 (2026-09-05)
+
+### Added
+- `/lcraft spike` - a one-off test command that walks you to five gil vendors and reports what happened. It exists so the walk-to-vendor feature can be judged from a real run instead of guessed at: type `/lcraft spike all` anywhere, in any job, with nothing in your cart, and LazyCrafter teleports to Limsa, Ul'dah and Gridania in turn, walks to a named shopkeeper in each, and opens their shop. It takes roughly three to five minutes for all five. Then `/lcraft spike results` prints a short block and copies it to your clipboard - paste that back and it decides whether the real feature gets built (files: `Spike/VendorSpike.cs`, `Core/SpikeReport.cs`)
+- The result block names every vendor separately: pass or fail, how long it took, and on a failure the exact step that broke - the teleport, the zone loading, the navmesh, the walk, the shop menu, or the shop window itself. A bare score with no reasons is no use to anyone (file: `Core/SpikeReport.cs`)
+- `/lcraft spike list` names the five vendors, `/lcraft spike 1`..`5` runs just one, `/lcraft spike stop` aborts the current one
+
+### Notes
+- **Nothing else changed.** The spike command is inert: no cart run, dispatch, shopping list, map flag or vendor hand-off behaves any differently from 0.1.6.4, and LazyCrafter still never teleports or walks you anywhere during a normal run. This build exists only to carry the test command (file: `Plugin.cs`; the two `teleport: false` hand-offs in `Adapters/DispatchService.cs` are untouched)
+- vnavmesh and Lifestream are both required. If either is missing or not answering, the command says so in one plain sentence naming the plugin and stops - it never silently does nothing, and a missing plugin is never counted as a failed vendor (file: `Spike/VendorSpike.cs`, `Preflight`)
+- The shop menu entry is now chosen by its TEXT, using each NPC's own shop names read from the game's data files, instead of by position in the list. The earlier draft picked the first entry, which is wrong for four of these five NPCs - Bango Zango's first entry is a quest, and Rianne has no "Purchase Items" entry at all (file: `Spike/VendorSpike.cs`, `SelectShopEntry`)
+- All five vendor positions were re-verified against the installed game data from two independent sources, which agreed to within 0.1 yalms. Two of them - Bango Zango and Gerulf - are not in the file the first draft read, so those coordinates had never actually been checked
+- The `Walk to vendors with vnavmesh` setting stays absent. It comes back only if all five vendors pass; four out of five is not enough
+- Tests: 12 new offline checks on the result block, including controls proving four-of-five never reads as a pass and that a failure always names its step (file: `tests/LazyCrafter.Harness/SpikeReportTests.cs`; 209/209 passing, was 197/197)
+
 ## v0.1.6.4 (2026-09-05)
 
 - Fixed: a `retrieve` line could send you to the market board for materials that were actually sitting on a retainer. If you had more of an item listed for sale than the retainer was holding, LazyCrafter named the listing as the place to fetch from - so a run said things like `8x from the market board (listed by retainer Hussypants)` when those 8 were on retainer Dojarat and could be pulled at any summoning bell (file: `Core/DispatchPlan.cs`, function: `PlacesFor`)
