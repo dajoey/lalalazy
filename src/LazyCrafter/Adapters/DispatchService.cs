@@ -57,6 +57,7 @@ public sealed class DispatchService : IDisposable
     private VentureResolver? _ventures;
     private Tiering? _tiering;
     private VendorLocator? _vendors;
+    private VendorContextProvider? _vendorCtx;
 
     private DispatchPlan.Plan? _plan;
     private Queue<DispatchPlan.Craft> _crafts = new();
@@ -169,6 +170,14 @@ public sealed class DispatchService : IDisposable
     /// <summary>The locator only if it has already been created - so the Settings tab can report its data health
     /// without forcing the ~50 ms index build from the draw thread (t_1a91db8f).</summary>
     public VendorLocator? VendorsIfBuilt => _vendors;
+
+    /// <summary>
+    /// Where the player is standing and what a teleport costs, for the vendor ranking (card t_731ea0e7).
+    /// EVERY vendor call site passes this, which is what stops the cart-run path and the per-item buttons
+    /// answering differently for the same item; falls back to <see cref="VendorContext.Unknown"/> off-line.
+    /// </summary>
+    public VendorContext Here() =>
+        (_vendorCtx ??= new VendorContextProvider(Plugin.ClientState, Plugin.Objects, Plugin.Data, _log)).Current();
 
     /// <summary>
     /// Build the plan for the cart as it is RIGHT NOW, without executing it (cart panel preview /
@@ -286,7 +295,7 @@ public sealed class DispatchService : IDisposable
     /// <summary>Teleport to the nearest vendor of the item and flag it (Lifestream).</summary>
     public void VendorOne(uint itemId, int quantity)
     {
-        var where = Vendors.Find(itemId);
+        var where = Vendors.Find(itemId, Here());
         if (where is null) { Say($"no placed gil vendor found for {Name(itemId)} (it may be a special-currency or unplaced shop).", error: true); return; }
         Lifestream.GoToVendor(where, [(itemId, quantity)], Name);
     }
@@ -412,7 +421,7 @@ public sealed class DispatchService : IDisposable
         // then told it ran.
         if (plan.Vendor.Count > 0)
         {
-            var groups = Vendors.Plan(plan.Vendor.Select(p => (p.ItemId, p.Quantity)).ToList(), out var unlocated);
+            var groups = Vendors.Plan(plan.Vendor.Select(p => (p.ItemId, p.Quantity)).ToList(), out var unlocated, Here());
             foreach (var (where, items) in groups) Lifestream.GoToVendor(where, items, Name, teleport: false);
             if (unlocated.Count > 0) Say("gil-vendor items with no placed vendor: " + string.Join(", ", unlocated.Select(u => $"{Name(u.ItemId)} x{u.Quantity}")));
         }
@@ -493,11 +502,18 @@ public sealed class DispatchService : IDisposable
         foreach (var m in plan.Market)
             list.Add(new BlockedItem(StepKind.Market, m.ItemId, Name(m.ItemId), m.Quantity,
                 _plugin.Catalog.UnitCost(m.ItemId) is { } u ? u * m.Quantity : null, null));
-        foreach (var v in plan.Vendor)
+        // One grouping for the whole vendor list, shared with the chat block (card t_731ea0e7). Resolving each row
+        // on its own would put a DIFFERENT vendor in the Run tab than the one the chat line and the map flag named,
+        // because grouping trades a little distance for fewer stops - which is exactly the split this card removes.
+        if (plan.Vendor.Count > 0)
         {
-            var loc = Vendors.Find(v.ItemId);
-            list.Add(new BlockedItem(StepKind.Vendor, v.ItemId, Name(v.ItemId), v.Quantity, null,
-                loc is null ? null : $"{loc.NpcName} ({loc.TerritoryName} {loc.MapCoords.X:0.0}, {loc.MapCoords.Y:0.0})"));
+            var whereByItem = new Dictionary<uint, string>();
+            foreach (var (loc, items) in Vendors.Plan(plan.Vendor.Select(p => (p.ItemId, p.Quantity)).ToList(), out _, Here()))
+                foreach (var (itemId, _) in items)
+                    whereByItem[itemId] = $"{loc.NpcName} ({loc.TerritoryName} {loc.MapCoords.X:0.0}, {loc.MapCoords.Y:0.0})";
+            foreach (var v in plan.Vendor)
+                list.Add(new BlockedItem(StepKind.Vendor, v.ItemId, Name(v.ItemId), v.Quantity, null,
+                    whereByItem.GetValueOrDefault(v.ItemId)));
         }
         foreach (var m in plan.Manual)
             list.Add(new BlockedItem(StepKind.Manual, m.ItemId, Name(m.ItemId), m.Quantity, null,
@@ -1024,7 +1040,7 @@ public sealed class DispatchService : IDisposable
             Lifestream.GoToMarket(plan.Market.Select(p => (p.ItemId, p.Quantity)).ToList(), Name, _plugin.Catalog.UnitCost, teleport: false);
         if (plan.Vendor.Count > 0)
         {
-            var groups = Vendors.Plan(plan.Vendor.Select(p => (p.ItemId, p.Quantity)).ToList(), out var unlocated);
+            var groups = Vendors.Plan(plan.Vendor.Select(p => (p.ItemId, p.Quantity)).ToList(), out var unlocated, Here());
             foreach (var (where, items) in groups) Lifestream.GoToVendor(where, items, Name, teleport: false);
             if (unlocated.Count > 0) Say("gil-vendor items with no placed vendor: " + string.Join(", ", unlocated.Select(u => $"{Name(u.ItemId)} x{u.Quantity}")), error: true);
         }

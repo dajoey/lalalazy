@@ -112,10 +112,11 @@ public sealed class SettingsTab
         if (ImGui.Checkbox("After Artisan finishes a cart, print /pricematch (Lazy Market Companion) instructions for listing the results", ref pm)) { cfg.PriceMatchAfterCraft = pm; changed = true; }
         ImGui.SameLine();
         ImGuiComponents.HelpMarker("Optional, never forced (Scope §0 item 6). Prints what was crafted and the /pricematch instructions to chat when a cart finishes; the sell list itself is not automated (Lazy Market Companion has no IPC for it). /pricematch still works - Lazy Market Companion answers it as a legacy alias.");
-        var vnav = cfg.VnavWalkToVendor;
-        if (ImGui.Checkbox("Walk to vendors with vnavmesh after a Lifestream teleport (experimental)", ref vnav)) { cfg.VnavWalkToVendor = vnav; changed = true; }
-        ImGui.SameLine();
-        ImGuiComponents.HelpMarker("Off until the vnavmesh spike passes 5/5 vendors (Plan §Phase 6). Until then the vendor hand-off is teleport + map flag + shopping list in chat.");
+        // The "walk to vendors with vnavmesh" checkbox lived here until 0.1.6.2 (card t_731ea0e7). Nothing ever
+        // read Configuration.VnavWalkToVendor - the Phase 6 vnavmesh spike was closed SKIPPED (t_977b94b4,
+        // "walk-to-vendor stays hidden"), so the toggle was live, tickable, persisted, and wired to nothing while
+        // its own help text claimed it was gated on a spike that never landed. If P6 is revived the checkbox comes
+        // back WITH the code that reads it. The config property is kept (obsolete) so existing configs still load.
         ImGui.Spacing();
 
         ImGui.TextColored(ImGuiColors.ParsedGold, "Retainers");

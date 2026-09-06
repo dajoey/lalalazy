@@ -47,6 +47,7 @@ foreach (var t in RetainerBatchQueueTests.Tests) yield return ("batchqueue", t.N
         foreach (var t in SnapshotTests.Tests) yield return ("snapshot", t.Name, t.Check);
         foreach (var t in MarketListingTests.Tests) yield return ("listing", t.Name, t.Check);
         foreach (var t in CartReplayTests.Tests) yield return ("replay", t.Name, t.Check);
+        foreach (var t in VendorChoiceTests.Tests) yield return ("vendor", t.Name, t.Check);
     }
 
     private static int Main()

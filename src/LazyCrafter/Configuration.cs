@@ -44,6 +44,15 @@ public sealed class Configuration : IPluginConfiguration
     /// legacy shadow property below, copied once in <see cref="MigrateIfNeeded"/>.
     /// </summary>
     public bool PriceMatchAfterCraft { get; set; } = false;
+
+    /// <summary>
+    /// DEAD SETTING, kept only so configs written before 0.1.6.2 still deserialize (card t_731ea0e7).
+    /// No consumer has ever read it: the Phase 6 vnavmesh walk-to-vendor spike was closed SKIPPED (t_977b94b4),
+    /// so there is no walk implementation to gate. Its Settings checkbox was removed in 0.1.6.2 rather than left
+    /// visible and wired to nothing. If Phase 6 is revived, re-introduce the toggle together with the code that
+    /// reads it - do not un-obsolete this in isolation.
+    /// </summary>
+    [Obsolete("Never read; the Phase 6 vnavmesh walk was skipped. Kept for config compatibility only (t_731ea0e7).")]
     public bool VnavWalkToVendor { get; set; } = false;
 
     /// <summary>

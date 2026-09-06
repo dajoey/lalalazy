@@ -1,4 +1,5 @@
 using System.Numerics;
+using LazyCrafter.Core;
 using Lumina;
 using Lumina.Excel;
 using Lumina.Excel.Sheets;
@@ -8,16 +9,22 @@ using LuminaSupplemental.Excel.Services;
 namespace LazyCrafter.Adapters;
 
 /// <summary>
-/// Where to buy a gil-vendor item (Plan §Phase 5 task 4: "nearest aetheryte for the vendor's Level row"). Lumina +
-/// LuminaSupplemental only - no Dalamud - so <c>tests/LazyCrafter.Probe</c> can exercise it offline.
+/// Where to buy a gil-vendor item (Plan §Phase 5 task 4). Lumina + LuminaSupplemental only - no Dalamud - so
+/// <c>tests/LazyCrafter.Probe</c> can exercise it offline.
 /// <para>
 /// Chain: item → <c>GilShopItem</c> parent rows (= <c>GilShop</c> ids) → <c>ENpcBase</c> rows whose <c>ENpcData</c> handlers
 /// name that shop (+ LuminaSupplemental <c>ENpcShop</c> for the handful the sheets miss) → NPC placements from
 /// LuminaSupplemental <c>ENpcPlace</c> (territory, map, <b>map</b> coordinates; the <c>Level</c> sheet only places
-/// quest/event NPCs, see the P6 spike) → the placement in a territory with a teleportable aetheryte
+/// quest/event NPCs, see the P6 spike) → every placement in a territory with a teleportable aetheryte
 /// (<c>Aetheryte.IsAetheryte</c>, position from the <c>MapMarker</c> sheet - DataType 3 - converted with GBR's marker
-/// formula) that is nearest to one,
-/// ties broken by lowest territory id so the answer is stable. Index built lazily on first use (~50 ms).
+/// formula). Index built lazily on first use (~50 ms).
+/// </para>
+/// <para>
+/// <b>This class does not rank anything (0.1.6.2, card t_731ea0e7).</b> It turns the sheets into
+/// <see cref="VendorCandidate"/>s and hands every choice to <see cref="VendorChoice"/>, which is the single
+/// comparer both <see cref="Find"/> and <see cref="Plan"/> go through. Before 0.1.6.2 those two methods had their
+/// own metrics - lowest NPC id vs nearest aetheryte - and returned different vendors for the same item, so whichever
+/// printed last won the map flag.
 /// </para>
 /// </summary>
 public sealed class VendorLocator
@@ -65,95 +72,74 @@ public sealed class VendorLocator
     public int ShopItemCount { get { EnsureBuilt(); return _shopsByItem.Count; } }
     public int PlacedNpcCount { get { EnsureBuilt(); return _placesByNpc.Count; } }
 
-    /// <summary>Best place to buy the item, or <c>null</c> when no placed vendor sells it in a teleportable zone.</summary>
-    public Location? Find(uint itemId)
+    // ------------------------------------------------------------------ the two public selectors
+
+    /// <summary>
+    /// Best place to buy the item, or <c>null</c> when no placed vendor sells it in a teleportable zone.
+    /// <paramref name="context"/> is where the player is standing; <c>null</c> ranks on walk-from-aetheryte alone.
+    /// </summary>
+    public Location? Find(uint itemId, VendorContext? context = null)
     {
         EnsureBuilt();
-        if (!_shopsByItem.TryGetValue(itemId, out var shops)) return null;
-        Location? best = null;
+        var winner = VendorChoice.Find(itemId, CandidatesFor, context);
+        return winner is { } c ? ToLocation(c, itemId) : null;
+    }
+
+    /// <summary>
+    /// Group a shopping list by vendor so one teleport covers several items: the vendor that sells the most of the
+    /// remaining items wins each round (greedy), ties broken by the same ranking <see cref="Find"/> uses.
+    /// </summary>
+    public IReadOnlyList<(Location Where, IReadOnlyList<(uint ItemId, int Quantity)> Items)> Plan(
+        IReadOnlyList<(uint ItemId, int Quantity)> wanted,
+        out IReadOnlyList<(uint ItemId, int Quantity)> unlocated,
+        VendorContext? context = null)
+    {
+        EnsureBuilt();
+        var stops = VendorChoice.Plan(wanted, CandidatesFor, context, out unlocated);
+        return stops
+            .Select(s => (ToLocation(s.Where, s.Items.Count > 0 ? s.Items[0].ItemId : 0), s.Items))
+            .ToList();
+    }
+
+    /// <summary>Every placed, teleportable placement of every NPC selling the item. The only thing the sheets are asked for.</summary>
+    private IReadOnlyList<VendorCandidate> CandidatesFor(uint itemId)
+    {
+        var list = new List<VendorCandidate>();
+        if (!_shopsByItem.TryGetValue(itemId, out var shops)) return list;
+        var seenNpc = new HashSet<uint>();
         foreach (var shop in shops)
         {
             if (!_npcsByShop.TryGetValue(shop, out var npcs)) continue;
             foreach (var npc in npcs)
             {
+                if (!seenNpc.Add(npc)) continue;   // an NPC can front several shops that both sell the item
                 if (!_placesByNpc.TryGetValue(npc, out var places)) continue;
                 foreach (var p in places)
                 {
                     if (!_aetherytesByTerritory.TryGetValue(p.TerritoryTypeId, out var aeths)) continue;
                     foreach (var a in aeths)
-                    {
-                        var d = Vector2.Distance(p.Position, a.Map);
-                        if (best is null || d < best.MapDistance || (Math.Abs(d - best.MapDistance) < 0.01f && p.TerritoryTypeId < best.TerritoryId))
-                            best = new Location(itemId, npc, _npcNames.GetValueOrDefault(npc, $"NPC {npc}"), p.TerritoryTypeId,
-                                _territoryNames.GetValueOrDefault(p.TerritoryTypeId, $"zone {p.TerritoryTypeId}"), p.MapId, p.Position, a.Id, a.Name, a.Map, d);
-                    }
+                        list.Add(new VendorCandidate(npc, p.TerritoryTypeId, p.MapId, p.Position.X, p.Position.Y,
+                            a.Id, a.Map.X, a.Map.Y, Vector2.Distance(p.Position, a.Map)));
                 }
             }
         }
-        return best;
+        return list;
     }
 
-    /// <summary>
-    /// Group a shopping list by vendor so one teleport covers several items: the vendor that sells the most of the
-    /// remaining items wins each round (greedy), then the rest are located individually.
-    /// </summary>
-    public IReadOnlyList<(Location Where, IReadOnlyList<(uint ItemId, int Quantity)> Items)> Plan(IReadOnlyList<(uint ItemId, int Quantity)> wanted, out IReadOnlyList<(uint ItemId, int Quantity)> unlocated)
+    private Location ToLocation(VendorCandidate c, uint itemId) => new(
+        itemId, c.NpcId, _npcNames.GetValueOrDefault(c.NpcId, $"NPC {c.NpcId}"), c.TerritoryId,
+        _territoryNames.GetValueOrDefault(c.TerritoryId, $"zone {c.TerritoryId}"), c.MapId, new Vector2(c.MapX, c.MapY),
+        c.AetheryteId, AetheryteName(c.TerritoryId, c.AetheryteId), new Vector2(c.AetheryteMapX, c.AetheryteMapY), c.AetheryteDistance);
+
+    private string AetheryteName(uint territoryId, uint aetheryteId)
     {
-        EnsureBuilt();
-        var remaining = wanted.Where(w => w.Quantity > 0).ToList();
-        var result = new List<(Location, IReadOnlyList<(uint, int)>)>();
-        var missing = new List<(uint, int)>();
-
-        // itemId -> every npc that sells it (only placed, teleportable ones)
-        var npcOptions = new Dictionary<uint, HashSet<uint>>();
-        foreach (var (itemId, _) in remaining)
-        {
-            var set = new HashSet<uint>();
-            if (_shopsByItem.TryGetValue(itemId, out var shops))
-                foreach (var shop in shops)
-                    if (_npcsByShop.TryGetValue(shop, out var npcs))
-                        foreach (var npc in npcs)
-                            if (_placesByNpc.TryGetValue(npc, out var places) && places.Any(p => _aetherytesByTerritory.ContainsKey(p.TerritoryTypeId)))
-                                set.Add(npc);
-            npcOptions[itemId] = set;
-        }
-
-        while (remaining.Count > 0)
-        {
-            var coverage = new Dictionary<uint, List<(uint, int)>>();
-            foreach (var w in remaining)
-                foreach (var npc in npcOptions[w.ItemId])
-                    (coverage.TryGetValue(npc, out var l) ? l : coverage[npc] = new List<(uint, int)>()).Add(w);
-            if (coverage.Count == 0) { missing.AddRange(remaining); break; }
-            var bestNpc = coverage.OrderByDescending(kv => kv.Value.Count).ThenBy(kv => kv.Key).First();
-            var where = Find(bestNpc.Value[0].Item1);
-            // Find() picks the nearest placement for that item; re-resolve on the chosen npc so the group shares one spot.
-            var loc = LocateNpc(bestNpc.Key, bestNpc.Value[0].Item1) ?? where;
-            if (loc is null) { missing.AddRange(bestNpc.Value); remaining.RemoveAll(bestNpc.Value.Contains); continue; }
-            result.Add((loc, bestNpc.Value));
-            remaining.RemoveAll(bestNpc.Value.Contains);
-        }
-        unlocated = missing;
-        return result;
-    }
-
-    private Location? LocateNpc(uint npc, uint itemId)
-    {
-        if (!_placesByNpc.TryGetValue(npc, out var places)) return null;
-        Location? best = null;
-        foreach (var p in places)
-        {
-            if (!_aetherytesByTerritory.TryGetValue(p.TerritoryTypeId, out var aeths)) continue;
+        if (_aetherytesByTerritory.TryGetValue(territoryId, out var aeths))
             foreach (var a in aeths)
-            {
-                var d = Vector2.Distance(p.Position, a.Map);
-                if (best is null || d < best.MapDistance)
-                    best = new Location(itemId, npc, _npcNames.GetValueOrDefault(npc, $"NPC {npc}"), p.TerritoryTypeId,
-                        _territoryNames.GetValueOrDefault(p.TerritoryTypeId, $"zone {p.TerritoryTypeId}"), p.MapId, p.Position, a.Id, a.Name, a.Map, d);
-            }
-        }
-        return best;
+                if (a.Id == aetheryteId) return a.Name;
+        return $"aetheryte {aetheryteId}";
     }
+
+    // ------------------------------------------------------------------ index
 
     private void EnsureBuilt()
     {

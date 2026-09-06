@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.1.6.3 (2026-09-05)
+
+### Fixed
+- The cart run and the `Flag on map` / `Vendor` buttons could send you to two DIFFERENT vendors for the same item, and whichever printed last won your map flag: on a 2026-09-05 run the chat block said Engerrand in Limsa Lominsa while the map flag landed on a traveling material supplier in The Azim Steppe, both for Tallow Candle. There was one vendor picker for cart runs (which ranked by lowest internal NPC id, so on a single-item list it never looked at distance at all) and a different one for the per-item buttons (which ranked by map distance to the nearest aetheryte). There is now exactly ONE ranking and every button and every chat line goes through it (file: `Core/VendorChoice.cs`, `Adapters/VendorLocator.cs`).
+- Vendor choice now considers where YOU are standing: a vendor in the zone you are already in wins outright, then the cheapest teleport (read from your own attuned aetheryte list, so somewhere you have not attuned never wins), then the shortest walk after you land. Previously `nearest` meant `nearest to some aetheryte`, which happily sent you to Stormblood for a candle you could buy in the city you were standing in (file: `Core/VendorChoice.cs`, `Adapters/VendorContextProvider.cs`).
+- The vendor named in the Run tab's blocked list is now the same vendor the chat line and the map flag name. It was resolved separately per item, so grouping several items onto one stop could leave the tab pointing somewhere else (file: `Adapters/DispatchService.cs`, `BuildBlocked`).
+
+### Removed
+- The Settings checkbox `Walk to vendors with vnavmesh after a Lifestream teleport (experimental)`. Nothing ever read it: the vnavmesh walk-to-vendor spike was skipped, so there was no walking to switch on, and the checkbox has been tickable and inert since it shipped. Its own help text claimed it was gated on that spike passing. If the walk feature is ever built the toggle comes back with it (file: `UI/SettingsTab.cs`; the config field is kept, unused, so existing settings still load).
+
+### Notes
+- Ranking degrades safely: not logged in, or if the teleport list cannot be read, it falls back to the old walk-from-aetheryte order rather than failing the hand-off.
+- Covered by 25 new offline regression tests (`tests/LazyCrafter.Harness`, suite `vendor`), including the exact Tallow Candle fixture from the 2026-09-05 run and two negative controls that fail if the two old rankings are ever reintroduced.
+
 ## v0.1.6.2 (2026-09-05)
 
 - Fixed: putting more than one item in the cart could send materials you can obviously gather or craft to the "needs a manual source" list, and then refuse to craft anything that used them. In the reported run, Iron Ore, Silver Ore, Moko Grass and Adamantite Nugget were all declared manual and 49 recipes were deferred behind them - the exact same items had been gathered normally by a single-item cart thirteen minutes earlier (file: `Core/Tiering.cs`, function: `AssessCart`)

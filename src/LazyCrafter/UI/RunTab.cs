@@ -183,18 +183,28 @@ public sealed class RunTab
         if (s.CanResume) ImGui.TextDisabled("Then press Resume (or /lcraft resume).");
     }
 
-    /// <summary>Map flag + chat line for one vendor group, via the existing no-teleport path. Button handler (framework thread).</summary>
+    /// <summary>
+    /// Map flag + chat line for one vendor group, via the existing no-teleport path. Button handler (framework thread).
+    /// <para>
+    /// Goes through <c>Vendors.Plan</c> - the same ranking the cart run used - rather than re-resolving the first
+    /// item on its own (card t_731ea0e7). The old per-item <c>Find()</c> was the SECOND opinion that made this
+    /// button flag a Stormblood supplier while the chat block above it said Limsa; <c>GoToVendor</c> re-flags the
+    /// map on every call, so whichever printed last won.
+    /// </para>
+    /// </summary>
     private void FlagVendor(List<BlockedItem> items)
     {
-        var vendors = _plugin.Dispatch.Vendors;
-        VendorLocator.Location? where = null;
-        foreach (var b in items)
+        var stops = _plugin.Dispatch.Vendors.Plan(
+            items.Select(b => (b.ItemId, b.Quantity)).ToList(), out var unlocated, _plugin.Dispatch.Here());
+        if (stops.Count == 0)
         {
-            where = vendors.Find(b.ItemId);
-            if (where is not null) break;
+            Plugin.ChatGui.PrintError("[LazyCrafter] no placed gil vendor found for " + string.Join(", ", items.Select(b => b.Name)) + ".");
+            return;
         }
-        if (where is null) { Plugin.ChatGui.PrintError("[LazyCrafter] no placed gil vendor found for " + string.Join(", ", items.Select(b => b.Name)) + "."); return; }
-        _plugin.Dispatch.Lifestream.GoToVendor(where, items.Select(b => (b.ItemId, b.Quantity)).ToList(), Name, teleport: false);
+        foreach (var (where, group) in stops)
+            _plugin.Dispatch.Lifestream.GoToVendor(where, group, Name, teleport: false);
+        if (unlocated.Count > 0)
+            Plugin.ChatGui.PrintError("[LazyCrafter] no placed gil vendor found for " + string.Join(", ", unlocated.Select(u => Name(u.ItemId))) + ".");
     }
 
     private static void DrawSteps(RunSnapshot s)
