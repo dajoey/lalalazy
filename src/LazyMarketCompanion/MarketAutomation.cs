@@ -169,7 +169,7 @@ internal sealed class MarketAutomation : Window, IDisposable
         var oldSize = ImGuiSetup(node);
         DrawButtons(
           ("Auto Pinch", "Re-price every listing on every enabled retainer (match, never undercut).", () => SweepAllRetainers(false)),
-          ("Auto Market", "Auto-Market then Auto Pinch every enabled retainer.\r\nLists your always-sell items, then matches prices.", () => SweepAllRetainers(true)));
+          ("Auto Market", "List your always-sell items on every enabled retainer, then price the new listings.\r\nA retainer nothing could be listed on is left alone - use Auto Pinch to re-price existing listings.\r\n(The 'Pinch everything after listing' setting overrides that and re-prices every retainer.)", () => SweepAllRetainers(true)));
         ImGuiPostSetup(oldSize);
       }
     }
@@ -191,7 +191,7 @@ internal sealed class MarketAutomation : Window, IDisposable
         var oldSize = ImGuiSetup(node);
         DrawButtons(
           ("Auto Pinch", "Re-price every listing of this retainer.", PinchCurrentRetainer),
-          ("Auto Market", "List your always-sell items on this retainer, then match prices.", AutoMarketCurrentRetainer));
+          ("Auto Market", "List your always-sell items on this retainer, then price the new listings.\r\nIf nothing can be listed, nothing is re-priced - use Auto Pinch for that.", AutoMarketCurrentRetainer));
         ImGuiPostSetup(oldSize);
       }
     }
@@ -475,13 +475,25 @@ internal sealed class MarketAutomation : Window, IDisposable
       }
     }
 
-    // Pinch afterwards. "All" reuses the original per-row chain; "new only" prices just the slots we filled.
+    // Pinch afterwards, and how much of the retainer that covers is the ONE decision in
+    // AutoMarket/PinchScope.cs - see its remarks for why it is no longer an inline condition.
+    // "All" reuses the original per-row chain; "new only" prices just the slots we filled; and a retainer
+    // this run listed nothing into is left completely alone (Joey, 2026-09-05: the full retainers "didn't
+    // need auto-market b/c they were full. and so it re-pinched all of their items").
     steps.Add(new Step(() =>
     {
-      if (Plugin.Configuration.AutoMarketPinchAllAfter || _listedThisRetainer.Count == 0)
-        EnqueueAllRetainerItems(InsertSingleItem, true);
-      else
-        InsertPinchForNewListings();
+      switch (PinchScope.Decide(Plugin.Configuration.AutoMarketPinchAllAfter, _listedThisRetainer.Count))
+      {
+        case PinchAfterMarket.FullRePass:
+          EnqueueAllRetainerItems(InsertSingleItem, true);
+          break;
+        case PinchAfterMarket.NewListingsOnly:
+          InsertPinchForNewListings();
+          break;
+        default:
+          Svc.Log.Information("[LMC] pinch: nothing was listed on this retainer, leaving its listings alone");
+          break;
+      }
       return true;
     }, "PinchAfterMarket", DelayAfterMs: 0));
 

@@ -714,5 +714,50 @@ var Catalogue = new (uint Id, string Name)[]
     MarketRowMap.RowCountAgrees(market, rows.Count));
 }
 
+// 31. How much of a retainer an Auto-Market pass may re-price. Joey, 2026-09-05 22:02: "It did the first
+//     retainer correctly. none of the other retainers needed auto-market b/c they were full. and so it
+//     re-pinched all of their items." A retainer this run listed NOTHING into must get nothing priced.
+{
+  // The condition that shipped from 0.1.0.0 (58e882000) through 0.1.6.0, reproduced verbatim so that "the old
+  // code did the wrong thing" is MEASURED here rather than asserted from memory. Without this half, the case
+  // below would pass just as happily on a no-op.
+  static bool OldWouldRePassEverything(bool pinchAllAfter, int listedThisRetainer)
+    => pinchAllAfter || listedThisRetainer == 0;
+
+  Check("scope: OLD - a retainer nothing was listed into got its entire board re-priced (this was the bug)",
+    OldWouldRePassEverything(false, 0));
+  Check("scope: NEW - a retainer nothing was listed into is left completely alone",
+    PinchScope.Decide(false, 0) == PinchAfterMarket.Nothing);
+
+  Check("scope: a retainer that DID receive listings prices only those listings",
+    PinchScope.Decide(false, 3) == PinchAfterMarket.NewListingsOnly);
+  Check("scope: ...which is what the old condition did too, so a retainer that worked is unchanged",
+    !OldWouldRePassEverything(false, 3));
+
+  // NEGATIVE CONTROL. "Pinch everything after listing" is an explicit opt-in and must still mean exactly
+  // that. Without these two, every assertion above is satisfied by a Decide() that always returns Nothing.
+  Check("scope: NEGATIVE CONTROL - 'Pinch everything after listing' ON still re-prices the whole retainer",
+    PinchScope.Decide(true, 0) == PinchAfterMarket.FullRePass);
+  Check("scope: NEGATIVE CONTROL - ...including on a retainer that did receive new listings",
+    PinchScope.Decide(true, 7) == PinchAfterMarket.FullRePass);
+
+  Check("scope: the three outcomes are distinct and nothing falls through to a re-pass by default",
+    Enum.GetValues<PinchAfterMarket>().Length == 3
+      && PinchScope.Decide(false, 0) != PinchAfterMarket.FullRePass
+      && PinchScope.Decide(false, 1) != PinchAfterMarket.FullRePass);
+
+  // Joey's sweep, 22:27:29 -> 22:30:03: 3 listings, board full, 1 listing, board full.
+  var sweep = new[] { 3, 0, 1, 0 };
+  var decided = sweep.Select(n => PinchScope.Decide(false, n)).ToList();
+  Check("sweep replay: 2 of the 4 retainers price their new listings and 2 price nothing at all",
+    decided.Count(d => d == PinchAfterMarket.NewListingsOnly) == 2
+      && decided.Count(d => d == PinchAfterMarket.Nothing) == 2,
+    string.Join(",", decided));
+  Check("sweep replay: not one retainer in that sweep triggers a full re-pass",
+    decided.All(d => d != PinchAfterMarket.FullRePass));
+  Check("sweep replay: the old condition full-re-passed exactly the two full retainers - the 2 he saw",
+    sweep.Count(n => OldWouldRePassEverything(false, n)) == 2);
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;

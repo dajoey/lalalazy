@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.1.7.0 (2026-09-05)
+
+### Fixed
+- Auto Market no longer re-prices a retainer it did not put anything up on. If a retainer's market board is already full there is nothing to list, and until now that made the plugin fall through to re-pricing all 20 of that retainer's existing listings - the exact thing you asked it to stop doing, on the retainers where it had done no work at all (file: `AutoMarket/PinchScope.cs`, new; `MarketAutomation.cs`; reported by Joey 2026-09-05).
+- This was never a new bug: it is how "Auto Market" behaved from the very first release, when the button meant "list, then Auto Pinch everything". The three previous fixes all lived in the code that prices new listings, and a retainer with nothing to list never got that far.
+- On a retainer where nothing was listed, the log now says so ("nothing was listed on this retainer, leaving its listings alone") instead of silently starting a 20-row re-pricing pass.
+
+### Notes
+- Nothing is lost: re-pricing an entire retainer is still available two ways, and both are things you ask for on purpose - the Auto Pinch button, and the "Pinch everything after listing" setting in the Auto Market tab.
+- The "Pinch everything after listing" setting is unchanged and still means exactly what it says, including on a retainer that had nothing to list.
+- Both Auto Market button tooltips were still promising the old behaviour ("Auto-Market then Auto Pinch every enabled retainer") and now describe what actually happens.
+- No settings changed, so there is nothing to migrate and nothing to re-tick after updating.
+- Offline test suite is now at 147 checks, up from 137. The new ones replay your 4-retainer sweep (3 listings, full, 1 listing, full) and assert that 2 retainers price only their new listings, 2 price nothing, and none re-price everything - plus a control that the old condition really did re-pass exactly the 2 full ones, and a control that "Pinch everything after listing" still re-prices the lot (file: `tests/LazyMarketCompanion.Harness/Program.cs`).
+
 ## v0.1.6.0 (2026-09-05)
 
 ### Fixed
