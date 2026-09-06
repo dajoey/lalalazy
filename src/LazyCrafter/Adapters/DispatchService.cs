@@ -75,6 +75,15 @@ public sealed class DispatchService : IDisposable
     private DispatchPlan.Retrieve? _fetching;
     /// <summary>Materials we could not get into the bags, reported once at the end with the reason.</summary>
     private readonly List<(DispatchPlan.Retrieve Item, string Why)> _unfetched = new();
+    /// <summary>
+    /// The last run's blocked-listing answer, kept AFTER the run ends so <c>/lcraft blocked</c> can print the full
+    /// detail on demand (card t_35be7be5). Survives <see cref="Finish"/> / <see cref="FinishBlocked"/> deliberately -
+    /// it is cleared only by the next <see cref="StartRun"/>. Volatile: written on the framework thread, read from
+    /// the command handler.
+    /// </summary>
+    private volatile BlockedListings.Summary _lastBlockedListings = BlockedListings.Summary.Empty;
+    /// <summary>What the last run was ("cart", an item name), kept alongside <see cref="_lastBlockedListings"/> so the detail line reads the same after the run.</summary>
+    private string _lastBlockedWhat = "the cart";
     private readonly Dictionary<uint, int> _fetchTries = new();
     private int _fetchBefore, _fetchedOk, _retrievalsPlanned;
     // ---- 0.1.3.0: the one batch session that runs before the per-item fallback.
@@ -327,6 +336,10 @@ public sealed class DispatchService : IDisposable
         _made.Clear();
         _deferredAtRun.Clear();
         _unfetched.Clear();
+        // The /lcraft blocked stash belongs to the LAST run and is deliberately kept past Finish/FinishBlocked;
+        // a new run is the one thing that invalidates it (card t_35be7be5).
+        _lastBlockedListings = BlockedListings.Summary.Empty;
+        _lastBlockedWhat = string.IsNullOrEmpty(what) ? "the cart" : what;
         _fetchTries.Clear();
         _batchBefore.Clear();
         _steps.Clear();
@@ -650,7 +663,13 @@ public sealed class DispatchService : IDisposable
                     if (onRetainers <= 0)
                     {
                         var why = $"no retainer is holding any in its bags ({_fetching.Detail}) - a summoning bell cannot reach a market-board listing, the saddlebag, the armoury chest or the glamour dresser";
-                        Say($"cannot fetch {Name(_fetching.ItemId)} x{_fetching.Quantity}: {why}.", error: true);
+                        // The twelve-line wall (card t_35be7be5): this used to print the whole multi-clause `why` at
+                        // ERROR level once per short material, so a 12-material cart produced twelve near-identical
+                        // red paragraphs and the actual instruction was nowhere. Now one short line at normal level -
+                        // silence during a long run reads as a hang, so the per-item line stays - and the actionable
+                        // "pull N off retainer X" instruction is printed ONCE at the end by ReportBlockedListings.
+                        // The full `why` is still what lands in _unfetched, so /lcraft blocked and the Run tab keep it.
+                        Say(BlockedListings.RefusalLine(Name(_fetching.ItemId), _fetching));
                         TrackStep(StepKind.Retrieve, _fetching.ItemId, _fetching.Quantity, StepState.Failed, why);
                         _unfetched.Add((_fetching, why));
                         _fetching = null;
@@ -1005,15 +1024,19 @@ public sealed class DispatchService : IDisposable
     private void FinishBlocked(string why, DispatchPlan.Plan? blockedPlan = null)
     {
         _stoppedReason = Readable(why);
-        foreach (var r in _unfetched)
-            if (!_blockedItems.Any(b => b.Kind == StepKind.Retrieve && b.ItemId == r.Item.ItemId))
-                _blockedItems.Add(new BlockedItem(StepKind.Retrieve, r.Item.ItemId, Name(r.Item.ItemId), r.Item.Quantity, null, r.Item.Places));
+        // Defect A (card t_35be7be5): the merge lives in Core now and BOTH endings call it - this path used to
+        // carry its own inline copy while Finish carried none at all.
+        _blockedItems = BlockedListings.MergeIntoBlocked(_blockedItems, _unfetched, Name).ToList();
         for (var i = 0; i < _steps.Count; i++)
             if (_steps[i].State is StepState.Pending or StepState.Running)
                 _steps[i] = _steps[i] with { State = StepState.Blocked, ExternalStatus = null };
         Current = Phase.Blocked;
         Status = $"blocked: {Readable(why)}";
         PrintBlockedBlock(blockedPlan ?? _plan ?? new DispatchPlan.Plan([], [], [], [], [], [], []), why);
+        // Defect A (card t_35be7be5): the SAME actionable summary on both endings. This path already named the
+        // retainers via _blockedItems above; the summary adds the "how many units to pull off sale, grouped by
+        // retainer" instruction and the bell walk, and is the one place either path prints them.
+        ReportBlockedListings();
         _plan = null;
         _current = null;
         _fetching = null;
@@ -1065,6 +1088,12 @@ public sealed class DispatchService : IDisposable
         for (var i = 0; i < _steps.Count; i++)
             if (_steps[i].State is StepState.Pending or StepState.Running)
                 _steps[i] = _steps[i] with { State = end == Phase.Done ? StepState.Done : StepState.Failed, ExternalStatus = null };
+        // Defect A (card t_35be7be5): this path used to render ONLY ", N could not be retrieved" while the retainer
+        // names, item ids and quantities sat in _unfetched and were discarded - Joey's 2026-09-05 22:44 run FINISHED
+        // (0 manual, 20 deferred) and took exactly this branch. Same Core merge FinishBlocked calls, so the two
+        // endings cannot drift apart again; /lcraft status and the Run tab now agree with the chat block. Rendered
+        // under "still outstanding:" rather than "blocked - to continue:" because the run did finish (RunReport).
+        _blockedItems = BlockedListings.MergeIntoBlocked(_blockedItems, _unfetched, Name).ToList();
         if (plan is not null)
         {
             foreach (var d in _deferredAtRun)
@@ -1090,6 +1119,9 @@ public sealed class DispatchService : IDisposable
             if (_made.Count > 0 && _plugin.Config.PriceMatchAfterCraft && _plugin.GameData is { } gd)
                 PriceMatch.AfterCraft(_made, Name, gd.IsMarketable);
         }
+        // Defect A: the actionable summary, same call as FinishBlocked. Outside the `plan is not null` block so a
+        // run that ended without a plan still reports what it could not fetch. Silent when nothing was blocked.
+        ReportBlockedListings();
         _plan = null;
         _current = null;
         _fetching = null;
@@ -1112,6 +1144,81 @@ public sealed class DispatchService : IDisposable
 
     private string Summarise() =>
         $"{_craftsDone} craft{(_craftsDone == 1 ? "" : "s")} made{(_craftsFailed > 0 ? $", {_craftsFailed} failed" : "")}{(_loop is not null ? $", pass {_loop.Pass}" : "")}";
+
+    // ---------------------------------------------------------------- blocked listings (card t_35be7be5, Tier 1)
+
+    /// <summary>
+    /// The last run's blocked-listing summary, for <c>/lcraft blocked</c>. Kept after the run ends.
+    /// </summary>
+    public BlockedListings.Summary LastBlockedListings => _lastBlockedListings;
+
+    /// <summary>What the last run was, for the <c>/lcraft blocked</c> wording.</summary>
+    public string LastBlockedWhat => _lastBlockedWhat;
+
+    /// <summary>
+    /// The one actionable end-of-run block, printed identically by <see cref="Finish"/> and
+    /// <see cref="FinishBlocked"/> (Defect A: the finishing path used to render only a bare count while the retainer
+    /// names sat in <see cref="_unfetched"/> and were discarded). Also stashes the summary for
+    /// <c>/lcraft blocked</c>, and fires the summoning-bell walk when there is actually something to unlist.
+    /// <para>
+    /// Called exactly once per run, on whichever path ends it. Silent on a clean run: no summary, no bell walk.
+    /// </para>
+    /// </summary>
+    private void ReportBlockedListings()
+    {
+        _lastBlockedWhat = string.IsNullOrEmpty(_what) ? "the cart" : _what;
+        var summary = BlockedListings.Summarise(_unfetched, Name);
+        _lastBlockedListings = summary;
+        if (summary.IsEmpty) return;
+
+        // Not an error-channel line: it is the answer, not a failure, and the twelve near-identical red warnings
+        // are exactly what this collapses.
+        foreach (var line in BlockedListings.Lines(summary, _lastBlockedWhat)) Say(line);
+        _log.Information("blocked listings: {Retainers} retainer group(s), {Units} unit(s), {Others} other blocked item(s)",
+            summary.Retainers.Count, summary.TotalUnits, summary.Others.Count);
+
+        WalkToBell(summary);
+    }
+
+    /// <summary>
+    /// Send the player to the nearest summoning bell so the pull can actually happen (card t_35be7be5).
+    /// <para>
+    /// Gated by <see cref="Configuration.WalkToBellWhenBlocked"/> (default ON) and fired ONLY from
+    /// <see cref="ReportBlockedListings"/> - i.e. only when the run has ended AND there is a non-empty
+    /// listing-blocked summary. Never mid-craft, never on a clean run, never when the only trouble was a timeout.
+    /// </para>
+    /// <para>
+    /// It reuses the EXISTING Lifestream path and adds no navigation of its own: <c>Lifestream.ExecuteCommand("mb")</c>
+    /// (= <c>/li mb</c>, "go to market board" - verified in the installed Lifestream 2.5.4.16 command help). Market
+    /// boards and summoning bells share the same aetheryte plaza, so that is the trip. Lifestream exposes no
+    /// bell-specific IPC (checked: no "bell" literal in its assembly at all), and the card is explicit that if no
+    /// suitable existing target call exists we print the destination and skip the walk rather than inventing
+    /// navigation - hence no vnavmesh, and hence the graceful print-only fallback below.
+    /// </para>
+    /// </summary>
+    private void WalkToBell(BlockedListings.Summary summary)
+    {
+        if (!summary.HasListings) return;
+        if (!_plugin.Config.WalkToBellWhenBlocked)
+        {
+            Say("(walk to a summoning bell is switched off in the settings - go to one yourself.)");
+            return;
+        }
+        if (!Lifestream.Installed)
+        {
+            Say("Lifestream is not installed - walk to a summoning bell yourself (they stand with the market boards at any aetheryte plaza).");
+            return;
+        }
+        if (Lifestream.IsBusy() == true)
+        {
+            Say("Lifestream is busy, so no walk - head to a summoning bell yourself (they stand with the market boards).");
+            return;
+        }
+        // Print-and-go through the existing market destination, with no shopping list - just the travel.
+        var err = Lifestream.GoToMarketBoard();
+        if (err is not null) { Say("could not start the walk - head to a summoning bell yourself.", error: true); return; }
+        Say("heading to the nearest market board (the summoning bells stand with it) so you can pull those listings.");
+    }
 
     private void Say(string text, bool error = false)
     {

@@ -314,7 +314,8 @@ public sealed class AllaganInventory : IInventory, IDisposable
             try { n = (int)Math.Min(int.MaxValue, _itemCount.InvokeFunc(itemId, id, -1)) - (int)Math.Min(int.MaxValue, _itemCount.InvokeFunc(itemId, id, (int)InventorySources.RetainerMarket)); }
             catch (Exception ex) { _log.Debug("AllaganTools.ItemCount({Item}, {Id}) failed: {Msg}", itemId, id, ex.Message); return [new StoredElsewhere(PlaceName(InventorySource.Retainers), total)]; }
             if (n <= 0) continue;
-            split.Add(new StoredElsewhere($"retainer {(string.IsNullOrWhiteSpace(name) ? id.ToString("X") : name)}", n));
+            var who = string.IsNullOrWhiteSpace(name) ? id.ToString("X") : name;
+            split.Add(new StoredElsewhere($"retainer {who}", n, Retainer: who));
             sum += n;
         }
         if (split.Count == 0 || sum != total) return [new StoredElsewhere(PlaceName(InventorySource.Retainers), total)];
@@ -344,7 +345,8 @@ public sealed class AllaganInventory : IInventory, IDisposable
             try { n = (int)Math.Min(int.MaxValue, _itemCount.InvokeFunc(itemId, id, (int)InventorySources.RetainerMarket)); }
             catch (Exception ex) { _log.Debug("AllaganTools.ItemCount({Item}, {Id}, market) failed: {Msg}", itemId, id, ex.Message); return [new StoredElsewhere(unnamed, total, Fetchable: false)]; }
             if (n <= 0) continue;
-            split.Add(new StoredElsewhere($"the market board (listed by retainer {(string.IsNullOrWhiteSpace(name) ? id.ToString("X") : name)})", n, Fetchable: false));
+            var who = string.IsNullOrWhiteSpace(name) ? id.ToString("X") : name;
+            split.Add(new StoredElsewhere($"the market board (listed by retainer {who})", n, Fetchable: false, Retainer: who));
             sum += n;
         }
         if (split.Count == 0 || sum != total) return [new StoredElsewhere(unnamed, total, Fetchable: false)];

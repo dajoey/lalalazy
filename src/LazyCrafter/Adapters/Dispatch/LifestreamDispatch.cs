@@ -100,6 +100,18 @@ public sealed class LifestreamDispatch
         }
         _chat.Print($"[LazyCrafter] Market board list ({items.Count} item{(items.Count == 1 ? "" : "s")}, est. {(complete ? "" : ">")}{total:N0} gil): {string.Join(", ", lines)}");
         if (!teleport) return null;
+        return GoToMarketBoard();
+    }
+
+    /// <summary>
+    /// The travel half of <see cref="GoToMarket"/> with no shopping list: <c>/li mb</c>, "go to market board"
+    /// (verified in Lifestream 2.5.4.16's own command help). Split out for the summoning-bell walk (card
+    /// t_35be7be5) - the bells stand with the market boards at every aetheryte plaza, and Lifestream exposes no
+    /// bell-specific IPC, so this existing destination IS the bell trip. Returns an error string (already printed)
+    /// or <c>null</c>.
+    /// </summary>
+    public string? GoToMarketBoard()
+    {
         if (!Installed) return Refuse("Lifestream is not installed - open a market board manually.");
         if (IsBusy() == true) return Refuse("Lifestream is busy.");
         try

@@ -85,7 +85,7 @@ internal sealed class FakeInventory : IInventory
     public FakeInventory SetListed(uint itemId, int count, string retainer = "Hussypants")
     {
         if (!_listed.TryGetValue(itemId, out var list)) _listed[itemId] = list = new List<StoredElsewhere>();
-        list.Add(new StoredElsewhere($"the market board (listed by retainer {retainer})", count, Fetchable: false));
+        list.Add(new StoredElsewhere($"the market board (listed by retainer {retainer})", count, Fetchable: false, Retainer: retainer));
         return this;
     }
 

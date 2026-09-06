@@ -108,6 +108,11 @@ public sealed class SettingsTab
         ImGui.SameLine();
         ImGuiComponents.HelpMarker("On by default. When a craft's materials are owned but sitting on a retainer, Dispatch walks Artisan's retainer withdrawal (bell -> retainer -> Entrust Items -> withdraw) to move them into your bags, then crafts. Needs Artisan and AllaganTools, and you must be standing next to a summoning bell. Off: LazyCrafter only tells you what to fetch by hand.");
 
+        var bell = cfg.WalkToBellWhenBlocked;
+        if (ImGui.Checkbox("When a run ends blocked on your own market listings, walk to the nearest summoning bell", ref bell)) { cfg.WalkToBellWhenBlocked = bell; changed = true; }
+        ImGui.SameLine();
+        ImGuiComponents.HelpMarker("On by default (card t_35be7be5). A material you have listed for sale cannot be withdrawn at a bell, so the run ends naming which retainer to pull how many units off. With this on, LazyCrafter then sends you there via Lifestream's 'go to market board' (/li mb) - the summoning bells stand with the market boards. It fires ONLY when a run has ENDED and something really is listing-blocked: never mid-craft, never on a clean run, and never for materials that were merely slow. Off: you get the summary without the trip. Either way, '/lcraft blocked' reprints the full detail.");
+
         var pm = cfg.PriceMatchAfterCraft;
         if (ImGui.Checkbox("After Artisan finishes a cart, print /pricematch (Lazy Market Companion) instructions for listing the results", ref pm)) { cfg.PriceMatchAfterCraft = pm; changed = true; }
         ImGui.SameLine();

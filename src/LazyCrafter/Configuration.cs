@@ -8,7 +8,7 @@ namespace LazyCrafter;
 [Serializable]
 public sealed class Configuration : IPluginConfiguration
 {
-    public const int CurrentVersion = 5;
+    public const int CurrentVersion = 6;
 
     public int Version { get; set; } = CurrentVersion;
 
@@ -76,6 +76,25 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>Newest CHANGELOG version the in-game "What's new" popup has shown (shared LalaChangelog gate).</summary>
     public string? LastSeenChangelogVersion { get; set; }
 
+    // ---- v6 (Tier 1 blocked-listing summary + bell walk, card t_35be7be5) ----
+
+    /// <summary>
+    /// After a run ends with materials that are blocked ONLY because they are listed for sale on the market board,
+    /// send the character to the nearest market board via Lifestream (<c>/li mb</c>) - the summoning bells stand
+    /// with it - so the listings can be pulled and the cart resumed.
+    /// <para>
+    /// ON by default (card t_35be7be5): being told which retainer to visit and then having to walk there yourself
+    /// is the manual step this removes. It fires ONLY when the run has ENDED (finished or stopped) AND the
+    /// listing-blocked summary is non-empty: never mid-craft, never on a clean run, and never for materials that
+    /// were merely slow. Turn it off to get the summary without the trip.
+    /// </para>
+    /// <para>
+    /// Existing configs get it ON: it is a new field, so it takes the default, and v5 -> v6 deliberately does not
+    /// rewrite it. There is no "off" that predates this setting to preserve.
+    /// </para>
+    /// </summary>
+    public bool WalkToBellWhenBlocked { get; set; } = true;
+
     /// <summary>The cart, so it survives a plugin reload.</summary>
     public List<CartEntry> Cart { get; set; } = new();
 
@@ -107,6 +126,9 @@ public sealed class Configuration : IPluginConfiguration
         if (DagobertAfterCraftLegacy is { } legacyValue)
             PriceMatchAfterCraft = legacyValue;
         DagobertAfterCraftLegacy = null;
+        // v5 -> v6: WalkToBellWhenBlocked is new and defaults ON (card t_35be7be5). A config written before this
+        // version simply has no key for it, so Newtonsoft leaves the property initialiser in place and the user
+        // gets the new behaviour - which is the point. Nothing to rewrite.
         Cart ??= new List<CartEntry>();
         Version = CurrentVersion;
     }

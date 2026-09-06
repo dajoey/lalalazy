@@ -91,7 +91,7 @@ public sealed class Plugin : IDalamudPlugin
 
         Commands.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Toggle the LazyCrafter window. debug | prices | plan | dispatch | status | stop | resume | changelog | spike <1-5|all|stop|results> | guard <plugin> <minVersion> | guard reset",
+            HelpMessage = "Toggle the LazyCrafter window. debug | prices | plan | dispatch | status | blocked | stop | resume | changelog | spike <1-5|all|stop|results> | guard <plugin> <minVersion> | guard reset",
         });
 
         // Sheet indexing takes a few hundred ms - never on the framework thread.
@@ -191,6 +191,7 @@ public sealed class Plugin : IDalamudPlugin
         if (a.Equals("stop", StringComparison.OrdinalIgnoreCase)) { Dispatch.Stop(); return; }
         if (a.Equals("resume", StringComparison.OrdinalIgnoreCase)) { if (!Dispatch.Resume()) ChatGui.PrintError("[LazyCrafter] nothing to resume."); return; }
         if (a.Equals("status", StringComparison.OrdinalIgnoreCase)) { PrintRunStatus(); return; }
+        if (a.Equals("blocked", StringComparison.OrdinalIgnoreCase)) { PrintBlockedListings(); return; }
         if (a.Equals("dispatch", StringComparison.OrdinalIgnoreCase)) { Dispatch.DispatchCart(); return; }
         if (a.Equals("plan", StringComparison.OrdinalIgnoreCase)) { PrintPlan(); return; }
         if (a.Equals("fetch", StringComparison.OrdinalIgnoreCase)) { FetchCommand(); return; }
@@ -255,6 +256,18 @@ public sealed class Plugin : IDalamudPlugin
         var s = Dispatch.Snapshot;
         var elapsed = s.State == Core.RunState.Running && s.StartedAt != DateTime.MinValue ? DateTime.UtcNow - s.StartedAt : s.Elapsed;
         foreach (var line in Core.RunReport.ChatLines(s, elapsed)) ChatGui.Print("[LazyCrafter] " + line);
+    }
+
+    /// <summary>
+    /// <c>/lcraft blocked</c> (card t_35be7be5): the full per-item detail of the LAST run's blocked list - which
+    /// retainer is holding which material, how many units to pull off sale, and the verbatim reason for anything
+    /// blocked for some other cause. The end-of-run chat block is deliberately short; this is where the whole thing
+    /// lives, on demand, and it works after the run has ended (the summary is kept until the next dispatch starts).
+    /// </summary>
+    private void PrintBlockedListings()
+    {
+        foreach (var line in Core.BlockedListings.Detail(Dispatch.LastBlockedListings, Dispatch.LastBlockedWhat))
+            ChatGui.Print("[LazyCrafter] " + line);
     }
 
     /// <summary><c>/lcraft plan</c>: what Dispatch would do with the cart, without doing it.</summary>

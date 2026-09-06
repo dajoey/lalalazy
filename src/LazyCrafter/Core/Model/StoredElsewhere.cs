@@ -24,8 +24,18 @@ namespace LazyCrafter.Core.Model;
 /// from. Consumers that pick "where do I go to get this" must prefer fetchable places (see
 /// <c>DispatchPlan.PlacesFor</c>) - sorting by quantity alone points the player at the board (card t_05e6722b).
 /// </param>
-public sealed record StoredElsewhere(string Where, int Quantity, bool Fetchable = true)
+/// <param name="Retainer">
+/// The retainer this place belongs to, as a bare name, when one is known (card t_35be7be5). Set by the producer -
+/// never parsed back out of <see cref="Where"/>, which is a display string and may be a fallback wording. It is
+/// what lets <see cref="BlockedListings"/> group "pull these off sale" advice by retainer, so one summoning-bell
+/// visit covers one retainer. <c>null</c> when the place is not a retainer's, or when the retainer names could not
+/// be read (the adapter then falls back to one unnamed entry).
+/// </param>
+public sealed record StoredElsewhere(string Where, int Quantity, bool Fetchable = true, string? Retainer = null)
 {
     /// <summary>"107 on retainer Cid" / "3 in the saddlebag" - for the refusal and retrieve lines.</summary>
     public string Phrase => Quantity + (Where.Contains("retainer", StringComparison.OrdinalIgnoreCase) ? " on " : " in ") + Where;
+
+    /// <summary>The grouping key for per-retainer advice: the retainer's name when known, else the place name itself.</summary>
+    public string Owner => string.IsNullOrWhiteSpace(Retainer) ? Where : Retainer!;
 }
