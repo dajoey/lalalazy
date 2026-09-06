@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.1.6.10 (2026-09-06)
+## v0.1.6.11 (2026-09-06)
 
 ### Added
 - **LazyCrafter now tells you when a material is sold by a currency vendor, and can send you there instead of the market board.** A cart short of Emery used to say `needs market Emery` and nothing else; it now says `Emery x1 - or Ixali vendor (North Shroud) for 7 Ixali Oaknots`. Beast-tribe traders, Grand Company quartermasters, scrip and token counters are all read the same way (files: `Core/SpecialShop.cs`, `Adapters/LuminaGameData.cs` `LoadShops`, `Adapters/VendorLocator.cs` `SpecialShopCandidates`)
@@ -13,7 +13,7 @@
 - Prices use the game's own plural, so a cost reads `1,500 Storm Seals` and not `1,500 Storm Seal`. Taken from `Item.Plural` rather than derived with an English rule, which would be wrong for exactly the irregular names a currency list is full of (files: `Adapters/LuminaGameData.cs` `ItemPlural`, `Core/SpecialShop.cs` `SpecialShopCost.Phrase`)
 
 ### Changed
-- The version header of this release's notes is corrected: 0.1.6.9's header carried a doubled date and its notes were labelled one version early in the installer list. Nothing else changed since the 0.1.6.9 build
+- 0.1.6.10's zip embedded the notes under the previous version's heading in the installer list. 0.1.6.11 is the same build with the manifest corrected - nothing in the plugin changed
 - The market and manual shopping lines are now rendered in Core (`PlanReport`) instead of inline in the dispatcher, so the offline harness asserts on the sentence you actually read. Both of the last two defects on this feature were renderer bugs where the right answer sat in memory and was dropped on the way to chat, and a test on the internal value stayed green through both (files: `Core/PlanReport.cs`, `Adapters/DispatchService.cs`, `Adapters/Dispatch/LifestreamDispatch.cs` `GoToMarket`)
 - A currency-shop item counts towards the wave loop's progress check, so a run cannot end early declaring "nothing changed" while you are off fetching one (file: `Core/DispatchLoop.cs` `ItemsOf` / `Describe`)
 - Config version 6 -> 7. Nothing is rewritten; `PreferCurrencyShops` is new and existing configs take its ON default (file: `Configuration.cs` `MigrateIfNeeded`)
@@ -25,11 +25,10 @@
 - **It never opens a shop window or makes a trade for you.** It names the vendor, flags them on your map and prints the price; spending your seals is still your decision, and the plugin has no exchange rate between a currency and gil to make it with.
 - Grand Company quartermasters do not appear for Emery specifically - the sheets list only the Ixali vendor (7 Ixali Oaknots) and Talan (1 Fluorite Lens), and Talan is in no placement table at all, so only the Ixali vendor is offered for it. The quartermaster path exists for the many items where the sheets do carry it.
 - Proved offline before shipping: 290/290 in `tests/LazyCrafter.Harness` (40 new checks for this change, on top of the suites that shipped in 0.1.6.7 and 0.1.6.8 earlier today) that assert on the RENDERED plan and report text rather than on an internal value. Every fix was individually reverted and the matching checks confirmed to fail before being restored to green, including the two that matter most: the naive "reorder" (which reds 14 checks, among them the market-board fallback) and the removal of the affordability gate (10 checks). Verified against the live sheets on the incident's own worked example - Emery 7601, needed x1 for Iolite r30406.
-
 ## v0.1.6.9 (2026-09-06)
 
 
-- Superseded within the hour by 0.1.6.10 - the same build republished with a corrected version header (the 0.1.6.9 header carried a doubled date). Pull requests and fixes from 0.1.6.7/0.1.6.8 remain present. (file: `CHANGELOG.md`)
+- Superseded within the hour by 0.1.6.10, then 0.1.6.11 - the same build republished with corrected version headers (0.1.6.9's header carried a doubled date). All fixes from 0.1.6.7/0.1.6.8 remain present. (file: `CHANGELOG.md`)
 ## v0.1.6.8 (2026-09-06)
 
 ### Added
