@@ -17,7 +17,8 @@ namespace LazyMarketCompanion.AutoMarket;
 /// </param>
 /// <param name="ItemIdFromName">
 /// Item id resolved from the row's visible name, or 0 when the row was not rendered (the list virtualises -
-/// only ~10 of 20 rows have a live renderer at any scroll position) or the name did not resolve.
+/// only ~10 of 20 rows have a live renderer at any scroll position) or the name could not be pinned to
+/// exactly one item. 0 means "unknown", never "wrong": see <see cref="ItemNameMatch"/>.
 /// </param>
 /// <param name="AskingPrice">The row's unit price as displayed, or 0 when it was not readable.</param>
 public sealed record SellListRow(int Row, int Slot, uint ItemIdFromName, long AskingPrice);
@@ -35,21 +36,41 @@ public enum RowMatchSource
 public sealed record RowMatch(int Row, int Slot, uint ItemId, RowMatchSource Source);
 
 /// <summary>
-/// Turns observed RetainerSellList rows into "price THIS row" instructions for the just-listed slots.
+/// Which of the retainer's 20 market slots this run is allowed to price, decided from the CONTAINER, with no
+/// UI text involved at all. See <see cref="SellListRows.ScanPlaceholders"/>.
+/// </summary>
+/// <param name="Targets">Slots this run listed into that are still sitting at the placeholder price.</param>
+/// <param name="AlreadyPriced">Slots this run listed into that already carry a real price - nothing to do.</param>
+/// <param name="Foreign">
+/// Slots at the placeholder price that this run did NOT list into. Never priced, never counted; carried only
+/// so the log can say they were seen and deliberately left alone.
+/// </param>
+public sealed record PlaceholderScan(
+  IReadOnlyList<(int Slot, uint ItemId)> Targets,
+  IReadOnlyList<int> AlreadyPriced,
+  IReadOnlyList<int> Foreign);
+
+/// <summary>
+/// Decides which listings the Auto-Market pass is allowed to re-price, and which UI row each one is on.
 ///
-/// 0.1.3.0 computed the row from the market container instead ("the list shows occupied slots in ascending
-/// container order") and then verified the guess. On Joey's client that guess was wrong on 4 of 4 measured
-/// runs (2026-09-05), the verification correctly refused every time, and the failure path re-priced the whole
-/// retainer - i.e. exactly the behaviour the feature existed to remove. So the row is now READ, never derived:
+/// TWO SEPARATE QUESTIONS, answered by two different sources, deliberately:
 ///
-///   1. <see cref="MatchBySlot"/> - the addon's own row-to-slot pairing. Exact, covers all 20 rows including
-///      the ones that are scrolled out of view, and duplicates of the same item are not a special case.
-///   2. <see cref="MatchByName"/> - fallback for when the slot reading is unavailable: identify the row by the
-///      item name it displays, disambiguating two rows of the same item by asking price (a row still at the
-///      Auto-Market placeholder is by construction one this run just created).
+///   WHICH LISTINGS ARE MINE?  <see cref="ScanPlaceholders"/> - the market CONTAINER. A slot qualifies only
+///   if this run listed into it AND it is still sitting at the Auto-Market placeholder price
+///   (999,999,999 gil by default). No item names, no UI text, no ordering. This is Joey's own instruction
+///   (2026-09-05): "there has to be a way to see what my listings are and select the one with the WILDLY
+///   INFLATED PRICE". A listing someone made by hand is never at that price, so it is not reachable at all.
 ///
-/// Both are observations. Neither is allowed to half-apply: one unmatched op refuses the whole batch, because
-/// a single failure means the reading itself is suspect.
+///   WHICH ROW IS IT ON?  <see cref="MatchBySlot"/> - the addon's own per-row slot reading
+///   (AtkValues[15 + 13n], see <c>SellListReader</c>). Exact, covers all 20 rows including ones scrolled out
+///   of view, and duplicates of the same item are not a special case.
+///
+/// The row's visible NAME is a corroborator on the rows being priced, and nothing more. It may never veto
+/// the batch over an unrelated row: on 2026-09-05 at 20:37:48 the slot reading found the row for the new
+/// listing correctly and the pass was thrown away anyway, because row 0 - a row nobody was pricing - had its
+/// clipped label ("Snow Cotton Ushanka of Scouting" read as "Snow Cotton") disagree with the container.
+///
+/// <see cref="MatchByName"/> remains the fallback for a client that reports no slot for any row.
 /// </summary>
 public static class SellListRows
 {
@@ -58,9 +79,62 @@ public static class SellListRows
     => rows.Any(r => r.Slot != MarketRowMap.NoRow);
 
   /// <summary>
-  /// Match by the slot the addon reports for each row, cross-checked against the market snapshot: where a
-  /// row's name was also readable, it must name the item the container holds in that slot, or the reading is
-  /// not trusted at all. Returns null if any op cannot be matched, or if any cross-check fails.
+  /// Split the slots this run listed into by what the market container says their price is now.
+  ///
+  /// This is the primary identification and the safety guarantee in one step. A slot is a target only when
+  /// BOTH hold: this run listed into it, and it still carries the placeholder price. So a listing that was
+  /// already priced is dropped (there is nothing to fix), and a listing this run did not create can never be
+  /// selected however the sell list is sorted, however its name renders, and whatever else is at 999,999,999.
+  /// </summary>
+  /// <param name="planned">The slot/item pairs this run listed, in the order they should be reported.</param>
+  /// <param name="pricesBySlot">Unit price per market slot as the container reports it; a slot missing from
+  /// the dictionary is treated as unreadable, which is NOT the placeholder and therefore not a target.</param>
+  /// <param name="placeholderPrice">The Auto-Market placeholder price a new listing is born at.</param>
+  public static PlaceholderScan ScanPlaceholders(
+    IEnumerable<(int Slot, uint ItemId)> planned,
+    IReadOnlyDictionary<int, ulong> pricesBySlot,
+    ulong placeholderPrice)
+  {
+    var targets = new List<(int Slot, uint ItemId)>();
+    var alreadyPriced = new List<int>();
+    var plannedSlots = new HashSet<int>();
+
+    foreach (var (slot, itemId) in planned)
+    {
+      plannedSlots.Add(slot);
+      if (pricesBySlot.TryGetValue(slot, out var price) && price == placeholderPrice)
+        targets.Add((slot, itemId));
+      else
+        alreadyPriced.Add(slot);
+    }
+
+    // Diagnostic only. These are listings sitting at the placeholder price that this run did not create -
+    // a previous run that was interrupted, or a price the user typed themselves. They are deliberately NOT
+    // priced: "it was at the placeholder" is not on its own permission to touch a listing.
+    var foreign = pricesBySlot
+      .Where(kv => kv.Value == placeholderPrice && !plannedSlots.Contains(kv.Key))
+      .Select(kv => kv.Key)
+      .OrderBy(s => s)
+      .ToList();
+
+    return new PlaceholderScan(targets, alreadyPriced, foreign);
+  }
+
+  /// <summary>
+  /// Find the UI row for each slot being priced, using the slot each row reports.
+  ///
+  /// Cross-checking is SCOPED to the rows actually being priced. Those are the only rows whose identity can
+  /// cause a wrong write, and a name wobble on any other row says nothing about them - the addon's slot
+  /// reading is per-row and independent (one 13-value block per row). Before 0.1.6.0 this loop ran over every
+  /// row with a readable name and returned null on the first disagreement, so one unrelated misread row threw
+  /// away a batch that had been identified perfectly.
+  ///
+  /// What stays global is the duplicate-slot check: two rows claiming one slot means the layout itself was
+  /// misread, and that does invalidate every reading. It also subsumes "another row claims a slot we are
+  /// pricing", so a second claimant on a target slot can never slip past.
+  ///
+  /// Returns null if any op cannot be matched, or if a row being priced fails its cross-check. Never
+  /// half-applies: one bad op refuses the whole batch.
   /// </summary>
   public static List<RowMatch>? MatchBySlot(
     IReadOnlyList<SellListRow> rows,
@@ -79,18 +153,6 @@ public static class SellListRows
       return null;
     }
 
-    // Every row we could read a NAME for must agree with what the container says is in the slot it claims.
-    // One disagreement and the whole reading is suspect - this is the check that would catch a layout change.
-    foreach (var row in rows.Where(r => r.Slot != MarketRowMap.NoRow && r.ItemIdFromName != 0))
-    {
-      var inSlot = market.FirstOrDefault(m => m.Slot == row.Slot)?.ItemId ?? 0u;
-      if (inSlot != 0 && inSlot != row.ItemIdFromName)
-      {
-        failure = $"row {row.Row} says it is slot #{row.Slot} (item {inSlot}) but it is showing item {row.ItemIdFromName}";
-        return null;
-      }
-    }
-
     var matches = new List<RowMatch>();
     foreach (var (slot, itemId) in listed)
     {
@@ -100,11 +162,24 @@ public static class SellListRows
         failure = $"no sell-list row is showing slot #{slot} (item {itemId})";
         return null;
       }
+
+      // Corroboration, on this row only. A row whose name did not resolve (0) is not evidence of anything -
+      // the list virtualises and labels get clipped - so it is accepted on the slot reading alone. A name
+      // that resolved to a DIFFERENT item is a real disagreement about a row we are about to write to, and
+      // that still refuses the batch.
       if (row.ItemIdFromName != 0 && row.ItemIdFromName != itemId)
       {
         failure = $"row {row.Row} is slot #{slot} but shows item {row.ItemIdFromName}, not the item {itemId} just listed there";
         return null;
       }
+
+      var inSlot = market.FirstOrDefault(m => m.Slot == slot)?.ItemId ?? 0u;
+      if (inSlot != 0 && inSlot != itemId)
+      {
+        failure = $"the market container says slot #{slot} holds item {inSlot}, not the item {itemId} listed there";
+        return null;
+      }
+
       matches.Add(new RowMatch(row.Row, slot, itemId, RowMatchSource.ObservedSlot));
     }
 

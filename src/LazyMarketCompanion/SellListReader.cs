@@ -3,6 +3,7 @@ using ECommons.DalamudServices;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using LazyMarketCompanion.AutoMarket;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace LazyMarketCompanion;
 
@@ -12,7 +13,7 @@ namespace LazyMarketCompanion;
 ///
 /// This exists because 0.1.3.0 did the opposite - it computed a row from the market container on the
 /// assumption that "the list shows occupied slots in ascending container order" and then verified the guess.
-/// The guess was wrong on 4 of 4 measured runs on Joey's client (2026-09-05) and the failure path re-priced
+/// The guess was wrong on 5 of 5 measured runs on Joey's client (2026-09-05) and the failure path re-priced
 /// every listing. Reading is not guessing, so this class replaces the assumption entirely.
 ///
 /// TWO READINGS, deliberately, because they fail in different situations:
@@ -21,11 +22,18 @@ namespace LazyMarketCompanion;
 ///   block per listing starting at index 15, whose first field is the market slot shown at that row
 ///   (AllaganMarket 1.4.0.2 `AtkOrderService.GetCurrentOrder` reads exactly `AtkValues[15 + 13n].Int`, and
 ///   uses it for both its initial load and its post-listing refresh). This covers ALL rows including ones
-///   scrolled out of view, and does not care about duplicate items.
+///   scrolled out of view, and does not care about duplicate items. This is the reading that works; it
+///   identified the right row even on the 20:37:48 run that was then thrown away for other reasons.
 /// * <see cref="ReadRenderedRows"/> - the visible list-item renderers. The list virtualises, so only the
 ///   ~10 on-screen rows have one; that is why this cannot be the primary reading. Text node id 3 is the item
 ///   name and node id 7 the price, per the RetainerSellList.uld ListItem component (id 1011) read out of the
 ///   installed game files, and AllaganMarket reads name from that same node 3.
+///
+/// The name reading is the WEAKEST of the two and is treated that way. The sell list's name column is narrow
+/// enough to clip a long item name, and a clipped name still contains shorter real item names: on 2026-09-05
+/// a row holding "Snow Cotton Ushanka of Scouting" (41878) rendered as text that resolved to "Snow Cotton"
+/// (44024). So every name lookup is given the item the CONTAINER says is in that row's slot, and
+/// <see cref="ItemNameMatch"/> answers 0 - unknown - rather than naming a different item.
 ///
 /// Both readings are combined into one <see cref="SellListRow"/> list; unavailable fields stay explicitly
 /// unknown (slot <see cref="MarketRowMap.NoRow"/>, item 0, price 0) rather than being filled in with a guess.
@@ -47,8 +55,16 @@ internal static unsafe class SellListReader
   /// <summary>AtkValue stride between listing blocks.</summary>
   private const int ListingValueStride = 13;
 
-  /// <summary>Read every row of the open sell list, or an empty list when it is not available.</summary>
-  public static List<SellListRow> Read()
+  /// <summary>
+  /// Read every row of the open sell list, or an empty list when it is not available.
+  /// </summary>
+  /// <param name="market">
+  /// The market container snapshot, when the caller has one. Used ONLY to tell the name resolver what the
+  /// game says is in each row's slot, so a clipped label is recognised as unreadable instead of being
+  /// reported as the shorter item it happens to contain. Passing null simply means names get resolved with
+  /// no ground truth to check against.
+  /// </param>
+  public static List<SellListRow> Read(IReadOnlyList<MarketSlot>? market = null)
   {
     var result = new List<SellListRow>();
     if (!(GenericHelpers.TryGetAddonByName<AtkUnitBase>("RetainerSellList", out var addon) && GenericHelpers.IsAddonReady(addon)))
@@ -59,7 +75,7 @@ internal static unsafe class SellListReader
       return result;
 
     var slots = ReadSlots(addon, rowCount);
-    var rendered = ReadRenderedRows(addon);
+    var rendered = ReadRenderedRows(addon, slots, market);
 
     for (var row = 0; row < rowCount; row++)
     {
@@ -117,9 +133,11 @@ internal static unsafe class SellListReader
 
   /// <summary>
   /// Item id + asking price for the rows that currently have a live renderer. The list virtualises, so this
-  /// is a partial reading by design - absent rows simply do not appear in the dictionary.
+  /// is a partial reading by design - absent rows simply do not appear in the dictionary. A row whose label
+  /// cannot be pinned to exactly one item is recorded as item 0 (unknown), never as a best guess.
   /// </summary>
-  private static Dictionary<int, (uint ItemId, long Price)> ReadRenderedRows(AtkUnitBase* addon)
+  private static Dictionary<int, (uint ItemId, long Price)> ReadRenderedRows(
+    AtkUnitBase* addon, List<int> slots, IReadOnlyList<MarketSlot>? market)
   {
     var seen = new Dictionary<int, (uint ItemId, long Price)>();
     var list = addon->GetComponentListById(ListNodeId);
@@ -142,7 +160,7 @@ internal static unsafe class SellListReader
 
       var display = nameNode->NodeText.GetText();
       var raw = nameNode->NodeText.ToString();
-      if (!ItemNameResolver.TryGetItemId(display, raw, out var itemId))
+      if (!ItemNameResolver.TryGetItemId(display, raw, out var itemId, ExpectedItemAt(row, slots, market)))
         itemId = 0;
 
       long price = 0;
@@ -154,6 +172,21 @@ internal static unsafe class SellListReader
     }
 
     return seen;
+  }
+
+  /// <summary>
+  /// What the market container holds in the slot this row says it is showing, or 0 when either the slot
+  /// reading or the snapshot is unavailable. Ground truth for spotting a clipped label - never used as the
+  /// row's identity on its own.
+  /// </summary>
+  private static uint ExpectedItemAt(int row, List<int> slots, IReadOnlyList<MarketSlot>? market)
+  {
+    if (market == null || row < 0 || row >= slots.Count)
+      return 0;
+    var slot = slots[row];
+    if (slot == MarketRowMap.NoRow)
+      return 0;
+    return market.FirstOrDefault(m => m.Slot == slot)?.ItemId ?? 0u;
   }
 
   /// <summary>

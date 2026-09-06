@@ -394,8 +394,10 @@ List<MarketSlot> MarketOf(params (int Slot, uint ItemId)[] filled)
   const uint A = 9, B = 5111;
   var market = MarketOf((1, A), (2, B));
 
+  // This row IS the row being priced (it claims slot #1 and slot #1 is what we listed into), so it is
+  // still refused in 0.1.6.0 - by the scoped per-target check, which words it differently.
   Check("guard: a row naming an item the container does not have in that slot is refused",
-    SellListRows.MatchBySlot(Rows((1, B, 10L), (2, A, 10L)), market, [(1, A)], out var e1) == null && e1!.Contains("showing item"), e1 ?? "");
+    SellListRows.MatchBySlot(Rows((1, B, 10L), (2, A, 10L)), market, [(1, A)], out var e1) == null && e1!.Contains("shows item"), e1 ?? "");
   Check("guard: two rows claiming the same slot are refused",
     SellListRows.MatchBySlot(Rows((1, A, 10L), (1, A, 10L)), market, [(1, A)], out var e2) == null && e2!.Contains("more than one row"), e2 ?? "");
   Check("guard: a listed slot no row is showing is refused",
@@ -436,6 +438,280 @@ List<MarketSlot> MarketOf(params (int Slot, uint ItemId)[] filled)
     SellListRows.RowsHoldingOwnItems(blind, market, own).Count == 0);
   Check("own-items: nothing on the list -> nothing to re-price",
     SellListRows.RowsHoldingOwnItems(rows, market, []).Count == 0);
+}
+
+
+// =====================================================================================
+// 26-30. LMC 0.1.6.0 - the 2026-09-05 20:37:48 failure, and the price-based identification.
+//
+// What happened: 0.1.5.0 read the row correctly (slot #10 -> its row) and threw the pass away anyway,
+// because the GLOBAL name cross-check found a disagreement on row 0 - a row nobody was pricing. Row 0 held
+// "Snow Cotton Ushanka of Scouting" (41878); its clipped label resolved to "Snow Cotton" (44024), a real,
+// distinct, marketable item whose name is a strict prefix of the other. Two defects in one line:
+// the resolver failing OPEN, and one unrelated row vetoing the batch.
+//
+// Joey's answer to all of it (2026-09-05): "It should figure it out. there has to be a way to see what my
+// listings are and select the one with the WILDLY INFLATED PRICE." So identification is now the market
+// CONTAINER's price, and the name is a corroborator that may never veto a row it is not pricing.
+//
+// Every case below asserts BOTH halves - what the 0.1.5.0 logic did and what the new logic does. A
+// one-sided test passes on a no-op, and this repo has been burned by that twice.
+// =====================================================================================
+
+// The 0.1.5.0 resolver, reproduced exactly (ItemNameResolver.ResolveItemId, lines 50-70 of that release):
+// exact match, else the LONGEST item name contained anywhere in the text. Kept here only so the replays can
+// prove the old behaviour was wrong rather than asserting it.
+uint ResolveLikeV0150(string text, IEnumerable<(uint Id, string Name)> catalogue)
+{
+  var exact = catalogue.Where(c => c.Name.Equals(text, StringComparison.OrdinalIgnoreCase))
+    .Select(c => c.Id).FirstOrDefault();
+  if (exact != 0) return exact;
+  return catalogue
+    .Where(c => c.Name.Length > 0 && text.Contains(c.Name, StringComparison.OrdinalIgnoreCase))
+    .OrderByDescending(c => c.Name.Length)
+    .Select(c => c.Id)
+    .FirstOrDefault();
+}
+
+// The 0.1.5.0 MatchBySlot cross-check, reproduced exactly (SellListRows.cs lines 82-92 of that release):
+// EVERY row with a readable name is compared against the container, and the first disagreement returns null.
+bool V0150CrossCheckVetoes(IReadOnlyList<SellListRow> rows, IReadOnlyList<MarketSlot> market, out string? why)
+{
+  foreach (var row in rows.Where(r => r.Slot != MarketRowMap.NoRow && r.ItemIdFromName != 0))
+  {
+    var inSlot = market.FirstOrDefault(m => m.Slot == row.Slot)?.ItemId ?? 0u;
+    if (inSlot != 0 && inSlot != row.ItemIdFromName)
+    {
+      why = $"row {row.Row} says it is slot #{row.Slot} (item {inSlot}) but it is showing item {row.ItemIdFromName}";
+      return true;
+    }
+  }
+  why = null;
+  return false;
+}
+
+// The three items from the incident, with their real names and ids (XIVAPI v2).
+const uint IronOre = 5111;            // "Iron Ore"
+const uint Ushanka = 41878;           // "Snow Cotton Ushanka of Scouting"
+const uint SnowCotton = 44024;        // "Snow Cotton"
+var Catalogue = new (uint Id, string Name)[]
+{
+  (IronOre, "Iron Ore"),
+  (Ushanka, "Snow Cotton Ushanka of Scouting"),
+  (SnowCotton, "Snow Cotton"),
+  (13747, "Titanium Alloy Ingot"),
+  (9, "Ice Crystal"),
+};
+
+// 26. The resolver must fail CLOSED. A row whose label is clipped names a shorter real item; the container
+//     is the tiebreak, and where there is none the ambiguity itself is enough.
+{
+  // Sanity: the prefix relationship the whole defect rests on is real.
+  Check("resolver: 'Snow Cotton' really is a strict prefix of the Ushanka's name",
+    "Snow Cotton Ushanka of Scouting".StartsWith("Snow Cotton", StringComparison.Ordinal)
+      && "Snow Cotton Ushanka of Scouting" != "Snow Cotton");
+
+  // (a) clipped at a word boundary: the text is an EXACT match for the shorter item, so nothing about the
+  //     text alone can save us - only the container can. This is the 20:37:48 shape.
+  Check("resolver: the 0.1.5.0 logic reports the WRONG item for a row clipped to 'Snow Cotton'",
+    ResolveLikeV0150("Snow Cotton", Catalogue) == SnowCotton);
+  Check("resolver: clipped 'Snow Cotton' on a slot the container says holds 41878 -> unknown, NOT 44024",
+    ItemNameMatch.Resolve("Snow Cotton", "Snow Cotton", Catalogue, expectedItemId: Ushanka) == ItemNameMatch.Unknown);
+
+  // (b) NEGATIVE CONTROL: the same text on a row whose slot really does hold Snow Cotton must still resolve.
+  //     Without this, "always return 0" would pass the case above.
+  Check("resolver: NEGATIVE CONTROL - untruncated 'Snow Cotton' where the container agrees -> 44024",
+    ItemNameMatch.Resolve("Snow Cotton", "Snow Cotton", Catalogue, expectedItemId: SnowCotton) == SnowCotton);
+  Check("resolver: NEGATIVE CONTROL - a normal row still resolves with no container hint at all",
+    ItemNameMatch.Resolve("Iron Ore", "Iron Ore", Catalogue) == IronOre
+      && ItemNameMatch.Resolve("Snow Cotton", "Snow Cotton", Catalogue) == SnowCotton);
+
+  // (c) clipped mid-word: no exact match, and the old substring fallback picks the shorter item. Here the
+  //     ambiguity is visible in the text itself, so it is refused even with no container hint.
+  Check("resolver: the 0.1.5.0 logic reports 44024 for a mid-word clip too",
+    ResolveLikeV0150("Snow Cotton Ushank", Catalogue) == SnowCotton);
+  Check("resolver: a mid-word clip is refused even with no container hint",
+    ItemNameMatch.Resolve("Snow Cotton Ushank", "Snow Cotton Ushank", Catalogue) == ItemNameMatch.Unknown);
+  Check("resolver: ...and refused with the container hint as well",
+    ItemNameMatch.Resolve("Snow Cotton Ushank", "Snow Cotton Ushank", Catalogue, Ushanka) == ItemNameMatch.Unknown);
+
+  // (d) the trailing-space tell from the 0.1.4.0-era log: "Titanium Alloy Ingot " on a 20-char name.
+  Check("resolver: a trailing space does not stop an exact match",
+    ItemNameMatch.Resolve("Titanium Alloy Ingot", "Titanium Alloy Ingot ", Catalogue) == 13747);
+  Check("resolver: the truncation stem ignores trailing space and ellipsis",
+    ItemNameMatch.TruncationStem("Snow Cotton ") == "Snow Cotton"
+      && ItemNameMatch.TruncationStem("Snow Cotton...") == "Snow Cotton"
+      && ItemNameMatch.TruncationStem("Snow Cotton\u2026") == "Snow Cotton");
+
+  // (e) a full, unambiguous name is never refused just because a shorter name sits inside it.
+  Check("resolver: the full Ushanka name resolves to the Ushanka, not to Snow Cotton",
+    ItemNameMatch.Resolve("Snow Cotton Ushanka of Scouting", "Snow Cotton Ushanka of Scouting", Catalogue) == Ushanka);
+  Check("resolver: ...and agrees with the container when asked",
+    ItemNameMatch.Resolve("Snow Cotton Ushanka of Scouting", "Snow Cotton Ushanka of Scouting", Catalogue, Ushanka) == Ushanka);
+
+  // (f) a genuine disagreement is still reported, not swallowed - the container check only forgives a clip.
+  Check("resolver: a row naming a completely different item still reports that item",
+    ItemNameMatch.Resolve("Iron Ore", "Iron Ore", Catalogue, expectedItemId: Ushanka) == IronOre);
+  Check("resolver: empty / unknown text is unknown",
+    ItemNameMatch.Resolve("", "", Catalogue) == ItemNameMatch.Unknown
+      && ItemNameMatch.Resolve("Nonexistent Widget", "Nonexistent Widget", Catalogue) == ItemNameMatch.Unknown);
+}
+
+// 27. The 20:37:48 run, replayed end to end. One listing (Iron Ore x4) into slot #10 of a 20/20 retainer;
+//     row 0 shows slot #5, which holds the Ushanka, and its clipped label reads as Snow Cotton.
+{
+  var filled = new List<(int, uint)>();
+  for (var s = 0; s < 20; s++)
+    filled.Add((s, s == 10 ? IronOre : (s == 5 ? Ushanka : 5594u)));
+  var market = MarketOf(filled.ToArray());
+
+  // The sell list, in a scrambled order: row 0 shows slot #5, row 1 shows slot #10.
+  var order = new List<int> { 5, 10 };
+  for (var s = 0; s < 20; s++) if (s != 5 && s != 10) order.Add(s);
+
+  // Row 0's name is what the client rendered. Under 0.1.5.0's resolver that is 44024.
+  var rowsOld = order.Select((slot, i) => new SellListRow(
+    i, slot,
+    slot == 5 ? ResolveLikeV0150("Snow Cotton", Catalogue) : (slot == 10 ? IronOre : 5594u),
+    slot == 10 ? Placeholder : 500L)).ToList();
+
+  Check("20:37:48 replay: row 0 resolved to 44024 under the old resolver - the log line's own numbers",
+    rowsOld[0].Row == 0 && rowsOld[0].Slot == 5 && rowsOld[0].ItemIdFromName == SnowCotton);
+
+  // HALF ONE: the 0.1.5.0 global cross-check vetoes, and reproduces the logged sentence verbatim.
+  var vetoed = V0150CrossCheckVetoes(rowsOld, market, out var oldWhy);
+  Check("20:37:48 replay: the 0.1.5.0 GLOBAL cross-check vetoes the batch", vetoed);
+  Check("20:37:48 replay: ...with the exact sentence from Joey's log",
+    oldWhy == "row 0 says it is slot #5 (item 41878) but it is showing item 44024", oldWhy ?? "(no veto)");
+
+  // HALF TWO: with the resolver fixed, row 0 reads as unknown, and the scoped cross-check ignores it anyway.
+  var rowsNew = order.Select((slot, i) => new SellListRow(
+    i, slot,
+    slot == 5 ? ItemNameMatch.Resolve("Snow Cotton", "Snow Cotton", Catalogue, Ushanka)
+              : (slot == 10 ? IronOre : 5594u),
+    slot == 10 ? Placeholder : 500L)).ToList();
+
+  Check("20:37:48 replay: row 0 now reads as UNKNOWN instead of as a different item",
+    rowsNew[0].ItemIdFromName == 0);
+  Check("20:37:48 replay: the old cross-check would no longer fire on the fixed reading either",
+    !V0150CrossCheckVetoes(rowsNew, market, out _), "resolver fix alone is enough for THIS row");
+
+  var matched = SellListRows.MatchBySlot(rowsNew, market, [(10, IronOre)], out var newWhy);
+  Check("20:37:48 replay: the new logic prices exactly one listing",
+    matched != null && matched.Count == 1, newWhy ?? "matched");
+  Check("20:37:48 replay: ...and it is slot #10 on the row the addon said, not row 0",
+    matched != null && matched[0].Slot == 10 && matched[0].ItemId == IronOre && matched[0].Row == 1
+      && matched[0].Source == RowMatchSource.ObservedSlot);
+
+  // INDEPENDENCE CONTROL: the scoped cross-check must hold even if the resolver had NOT been fixed. Either
+  // fix alone stops this run failing; that is deliberate, and this pins it rather than leaving it to luck.
+  var stillMatched = SellListRows.MatchBySlot(rowsOld, market, [(10, IronOre)], out var why2);
+  Check("20:37:48 replay: scoping ALONE fixes the run - the old wrong name on row 0 no longer vetoes",
+    stillMatched != null && stillMatched.Count == 1 && stillMatched[0].Slot == 10, why2 ?? "matched");
+}
+
+// 28. The scoped cross-check: a row being PRICED must still agree, an unrelated row is ignored.
+{
+  const uint A = 9, B = 5111, C = 17954;
+  var market = MarketOf((1, A), (2, B), (3, C));
+
+  Check("scope: a wrong name on a row we are NOT pricing is ignored",
+    SellListRows.MatchBySlot(Rows((1, A, 10L), (2, B, 10L), (3, A, 10L)), market, [(1, A)], out _)?.Single().Row == 0);
+  Check("scope: a wrong name on the row we ARE pricing still refuses the batch",
+    SellListRows.MatchBySlot(Rows((1, C, 10L), (2, B, 10L)), market, [(1, A)], out var e1) == null
+      && e1!.Contains("not the item"), e1 ?? "");
+  Check("scope: an unreadable name (0) on the row being priced is accepted on the slot reading",
+    SellListRows.MatchBySlot(Rows((1, 0u, 10L), (2, B, 10L)), market, [(1, A)], out _)?.Single().Row == 0);
+  // Name unreadable (0) so the name check cannot fire: this pins the CONTAINER cross-check specifically.
+  Check("scope: the container disagreeing about a slot we are pricing still refuses",
+    SellListRows.MatchBySlot(Rows((1, 0u, 10L)), market, [(1, C)], out var e2) == null
+      && e2!.Contains("market container says"), e2 ?? "");
+  Check("scope: a readable name disagreeing about that same row refuses too, just earlier",
+    SellListRows.MatchBySlot(Rows((1, A, 10L)), market, [(1, C)], out var e2b) == null
+      && e2b!.Contains("not the item"), e2b ?? "");
+  Check("scope: duplicate-slot detection stays GLOBAL - two rows claiming one slot still refuses",
+    SellListRows.MatchBySlot(Rows((3, A, 10L), (3, A, 10L), (1, A, 10L)), market, [(1, A)], out var e3) == null
+      && e3!.Contains("more than one row"), e3 ?? "");
+  Check("scope: ...including when the duplicate is of the slot we are pricing",
+    SellListRows.MatchBySlot(Rows((1, A, 10L), (1, A, 10L)), market, [(1, A)], out _) == null);
+}
+
+// 29. ScanPlaceholders - "select the one with the WILDLY INFLATED PRICE". This is the anti-regression test
+//     for the original bug and it is the important one: what may NOT be touched.
+{
+  const ulong PH = 999_999_999UL;
+  var prices = new Dictionary<int, ulong>
+  {
+    [3] = PH,      // listed this run, still at the placeholder  -> target
+    [7] = 250UL,   // listed this run, already priced            -> dropped
+    [11] = PH,     // NOT listed this run, at the placeholder    -> NEVER touched
+    [15] = 4200UL, // a stranger's listing                       -> irrelevant
+  };
+
+  var scan = SellListRows.ScanPlaceholders([(3, IronOre), (7, IronOre)], prices, PH);
+  Check("scan: a listed slot still at the placeholder is a target",
+    scan.Targets.Count == 1 && scan.Targets[0].Slot == 3 && scan.Targets[0].ItemId == IronOre,
+    string.Join(",", scan.Targets.Select(t => t.Slot)));
+  Check("scan: a listed slot that already carries a real price is DROPPED, not re-priced",
+    scan.AlreadyPriced.SequenceEqual([7]) && scan.Targets.All(t => t.Slot != 7));
+  Check("scan: a placeholder-priced slot this run did NOT list into is NEVER a target",
+    scan.Targets.All(t => t.Slot != 11) && scan.Foreign.SequenceEqual([11]));
+  Check("scan: a stranger's normally-priced listing is neither target nor foreign",
+    scan.Targets.All(t => t.Slot != 15) && !scan.Foreign.Contains(15));
+
+  // Nothing left to do is NOT a reason to re-price the retainer.
+  var allPriced = SellListRows.ScanPlaceholders([(7, IronOre)], prices, PH);
+  Check("scan: every listing already priced -> no targets at all",
+    allPriced.Targets.Count == 0 && allPriced.AlreadyPriced.SequenceEqual([7]));
+
+  // An unreadable slot is not the placeholder, so it is never selected on a guess.
+  var missing = SellListRows.ScanPlaceholders([(19, IronOre)], prices, PH);
+  Check("scan: a slot whose price could not be read is not a target",
+    missing.Targets.Count == 0 && missing.AlreadyPriced.SequenceEqual([19]));
+
+  // A non-default placeholder is honoured (the price is a setting, not a constant).
+  var custom = SellListRows.ScanPlaceholders([(3, IronOre)], new Dictionary<int, ulong> { [3] = 12345UL }, 12345UL);
+  Check("scan: the placeholder price is whatever the setting says, not a hardcoded 999,999,999",
+    custom.Targets.Count == 1 && custom.Targets[0].Slot == 3);
+  Check("scan: ...and the default no longer matches once it has been changed",
+    SellListRows.ScanPlaceholders([(3, IronOre)], new Dictionary<int, ulong> { [3] = 12345UL }, PH).Targets.Count == 0);
+
+  Check("scan: nothing listed -> nothing to do and nothing foreign-priced is dragged in",
+    SellListRows.ScanPlaceholders([], prices, PH).Targets.Count == 0);
+}
+
+// 30. The two halves together on the 20:37:48 shape: the price scan picks the slot, the row reading finds
+//     its row, and a foreign placeholder listing in the same retainer is left alone throughout.
+{
+  const ulong PH = 999_999_999UL;
+  var filled = new List<(int, uint)>();
+  for (var s = 0; s < 20; s++)
+    filled.Add((s, s == 10 ? IronOre : (s == 5 ? Ushanka : 5594u)));
+  var market = MarketOf(filled.ToArray());
+
+  var prices = new Dictionary<int, ulong>();
+  for (var s = 0; s < 20; s++) prices[s] = s == 10 ? PH : (s == 4 ? PH : 500UL);
+
+  var scan = SellListRows.ScanPlaceholders([(10, IronOre)], prices, PH);
+  Check("end-to-end: the scan picks slot #10 and only slot #10", scan.Targets.Count == 1 && scan.Targets[0].Slot == 10);
+  Check("end-to-end: slot #4 is at the placeholder but was not ours, so it is reported and left",
+    scan.Foreign.SequenceEqual([4]));
+
+  var order = new List<int> { 5, 10 };
+  for (var s = 0; s < 20; s++) if (s != 5 && s != 10) order.Add(s);
+  var rows = order.Select((slot, i) => new SellListRow(
+    i, slot,
+    slot == 5 ? ItemNameMatch.Resolve("Snow Cotton", "Snow Cotton", Catalogue, Ushanka) : (slot == 10 ? IronOre : 5594u),
+    prices[slot] == PH ? Placeholder : 500L)).ToList();
+
+  var matched = SellListRows.MatchBySlot(rows, market, scan.Targets, out var why);
+  Check("end-to-end: exactly one row is queued for pricing", matched?.Count == 1, why ?? "matched");
+  Check("end-to-end: it is row 1 / slot #10 / Iron Ore",
+    matched != null && matched[0].Row == 1 && matched[0].Slot == 10 && matched[0].ItemId == IronOre);
+  Check("end-to-end: the row holding the foreign placeholder listing is never queued",
+    matched != null && matched.All(m => m.Slot != 4));
+  Check("end-to-end: the row count check that guards all of this still passes on a 20/20 retainer",
+    MarketRowMap.RowCountAgrees(market, rows.Count));
 }
 
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");

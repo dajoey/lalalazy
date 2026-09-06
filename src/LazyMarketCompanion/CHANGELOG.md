@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.1.6.0 (2026-09-05)
+
+### Fixed
+- Auto Market was STILL re-pricing your whole retainer, even after 0.1.5.0. It now picks its listings the way you asked for: it reads back what every one of your 20 listings is currently priced at, and the ones it just created are the ones still sitting at the 999,999,999 gil placeholder. That comes from the game's own retainer data, so it does not care what order your sell list is in, whether a row is scrolled off screen, or how an item's name is spelled (files: `AutoMarket/AutoMarketService.cs`, `MarketPricesBySlot`; `AutoMarket/SellListRows.cs`, `ScanPlaceholders`; asked for by Joey 2026-09-05).
+- A listing you priced yourself is never at the placeholder price, so it is now impossible for this pass to re-price one. That is a stronger promise than the name-matching it replaces, because it is a number the game gives us rather than text read off a label.
+- The specific failure on 2026-09-05 at 20:37: one new listing went into market slot 10, the plugin found its row correctly, and then threw the whole thing away and re-priced all 20 anyway - because an unrelated row further up the list disagreed with itself. Rows you are not pricing can no longer cancel the ones you are (file: `AutoMarket/SellListRows.cs`, `MatchBySlot`).
+- That unrelated row disagreed because the plugin misread it. Its item was "Snow Cotton Ushanka of Scouting", the sell list clipped the name to fit the column, and the leftover text was read as a completely different real item called "Snow Cotton". Item names are now only accepted when nothing else fits the text just as well - a clipped name reads as "cannot tell", never as the wrong item (file: `AutoMarket/ItemNameMatch.cs`, new; `ItemNameResolver.cs`).
+- A listing that already carries a real price is left alone instead of being re-priced, and if every listing this run created is already priced the pass now simply finishes rather than falling back to re-pricing everything (file: `MarketAutomation.cs`, `InsertPinchForNewListings`).
+
+### Notes
+- If one of your listings happens to be sitting at 999,999,999 gil and this run did not create it, it is deliberately left untouched and mentioned in the log. Being at the placeholder price is not on its own permission to re-price something.
+- The safety checks from 0.1.3.0 all still run, and the per-listing confirmation just before any price is written is unchanged - it has never once let a wrong listing through (file: `MarketAutomation.cs`, `VerifyPinchRow`).
+- The "If a new listing can't be found" setting added in 0.1.5.0 is unchanged and still defaults to re-pricing everything. It now applies to a much narrower set of situations, and on a normal run it should never come up at all.
+- Offline test suite is now at 137 checks, up from 93. The new ones replay the 20:37 failure with the real item ids from the log and assert both halves: that the old logic vetoed it and that the new logic prices only the one new listing. There is also a check that a placeholder-priced listing this run did not create is never selected (file: `tests/LazyMarketCompanion.Harness/Program.cs`).
 ## v0.1.5.0 (2026-09-05)
 
 ### Fixed

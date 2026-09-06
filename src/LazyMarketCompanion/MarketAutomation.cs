@@ -51,10 +51,11 @@ internal sealed class MarketAutomation : Window, IDisposable
   private int _listedTotal;
   private int _listingFailures;
 
-  // "Pinch only what I just listed" bookkeeping. The pinch chain addresses listings by UI ROW while
-  // auto-market knows its listings by market SLOT. Since 0.1.5.0 that pairing is READ off the open sell
-  // list (SellListReader/SellListRows) instead of inferred from container order - the inference was wrong
-  // on 4 of 4 measured runs and its safety net re-priced everything, which is the bug this replaced.
+  // "Pinch only what I just listed" bookkeeping. Which listings qualify is decided from the market
+  // CONTAINER since 0.1.6.0 - a slot this run listed into that is still at the placeholder price - and the
+  // UI ROW for each is READ off the open sell list (SellListReader/SellListRows). Neither is inferred from
+  // container order; that inference was wrong on 5 of 5 measured runs and its safety net re-priced
+  // everything, which is the bug this replaced.
   // _expectedRowItems records what each targeted row was observed to hold so the chain can still refuse a
   // row that turns out to hold something else; _newOnlyPendingSlots is every slot still waiting to be
   // priced, and anything left in it when the pass ends means the reading was wrong after all, which is
@@ -491,24 +492,35 @@ internal sealed class MarketAutomation : Window, IDisposable
   /// <summary>
   /// Price ONLY the slots this run just filled, instead of walking the whole retainer.
   ///
-  /// The pinch chain clicks a RetainerSellList ROW; auto-market knows its listings by market SLOT. Until
-  /// 0.1.5.0 that bridge was an ASSUMPTION - "the list shows occupied slots in ascending container order" -
-  /// which was checked at three points, each failure falling back to re-pricing everything. On Joey's client
-  /// the assumption was wrong on 4 of 4 measured runs (2026-09-05), so the check fired every time and the
-  /// fallback re-priced all 20 listings: the exact behaviour the feature existed to remove. A guess that is
-  /// always wrong plus a safe fallback is the old behaviour with extra latency.
+  /// TWO QUESTIONS, TWO SOURCES. "Which listings are mine to price?" is answered by the market CONTAINER;
+  /// "which UI row is each one on?" is answered by the addon's own per-row slot reading. Neither answer
+  /// involves the order of the sell list, and the first involves no text at all.
   ///
-  /// So the row is now OBSERVED. <see cref="SellListReader"/> reads the open addon and
-  /// <see cref="SellListRows"/> matches the just-listed slots onto real rows - preferring the slot the addon
-  /// itself reports per row, and falling back to matching by the item name the row displays (with the
-  /// placeholder asking price separating two rows of the same item). No ordering is assumed anywhere.
+  ///   1. <see cref="SellListRows.ScanPlaceholders"/> - a slot qualifies only if this run listed into it AND
+  ///      it is still sitting at the Auto-Market placeholder price (999,999,999 gil by default), read back
+  ///      through <see cref="AutoMarketService.MarketPricesBySlot"/>
+  ///      (<c>InventoryManager.GetRetainerMarketPrice</c>). Joey's own instruction, 2026-09-05: "there has to
+  ///      be a way to see what my listings are and select the one with the WILDLY INFLATED PRICE." A listing
+  ///      he made by hand is never at that price, so it is not reachable by this pass at all - which is a
+  ///      STRONGER guarantee than the name comparison it replaces, because it is a number from the game
+  ///      rather than a string from a UI label.
+  ///   2. <see cref="SellListRows.MatchBySlot"/> - the row for each target slot, from
+  ///      <c>AtkValues[15 + 13n]</c> (see <see cref="SellListReader"/>). This is the part of 0.1.5.0 that
+  ///      worked: on the 20:37:48 run it found the row for the new listing correctly.
   ///
-  /// The three 0.1.3.0 guards stay, because they are correct and they are why a stranger's listing has never
-  /// been re-priced; only the row SOURCE changed:
-  ///   1. here, before any click: every listed slot must be matched to a row, all-or-nothing;
+  /// WHAT WENT WRONG IN 0.1.5.0, and why the name is no longer load-bearing: the cross-check ran over EVERY
+  /// row that had a readable name, and vetoed the whole batch on the first disagreement. At 20:37:48 the
+  /// listing for slot #10 was identified correctly and thrown away anyway, because row 0 - a row nobody was
+  /// pricing - carried a clipped label ("Snow Cotton Ushanka of Scouting" resolving to "Snow Cotton") that
+  /// disagreed with the container. The name is now a corroborator on the rows being priced only, and a name
+  /// that cannot be pinned to exactly one item reads as unknown rather than as a different item
+  /// (see <see cref="ItemNameMatch"/>).
+  ///
+  /// The three 0.1.3.0 guards all stay - they are why a stranger's listing has never been re-priced:
+  ///   1. here, before any click: every target slot must be matched to a row, all-or-nothing;
   ///   2. per row, once the game has the item open (see <see cref="DelayMarketBoard"/>): the item actually in
   ///      the dialog must be the item that row was observed to hold, or that row is abandoned unpriced;
-  ///   3. at the end (see <see cref="VerifyNewListingsPriced"/>): any listed slot that never got as far as
+  ///   3. at the end (see <see cref="VerifyNewListingsPriced"/>): any target slot that never got as far as
   ///      step 2 hands over to <see cref="Configuration.AutoMarketPinchFallback"/>.
   /// </summary>
   private void InsertPinchForNewListings()
@@ -526,13 +538,45 @@ internal sealed class MarketAutomation : Window, IDisposable
     }
 
     var market = AutoMarketService.SnapshotMarket();
-    var sellRows = SellListReader.Read();
-    var listed = pending.Select(o => (o.TargetSlot, o.ItemId)).ToList();
+    var placeholder = (ulong)Math.Max(Plugin.Configuration.AutoMarketPlaceholderPrice, 1);
+
+    // STEP 1 - which of these listings still need a price? Straight off the market container: no item names,
+    // no sell-list order, no UI text of any kind. A slot the user priced themselves is not at the
+    // placeholder, so it is not selectable here however anything else reads.
+    var prices = AutoMarketService.MarketPricesBySlot();
+    if (prices.Count == 0)
+    {
+      Svc.Log.Warning("[LMC] pinch new-only: the market container's prices could not be read");
+      RunFallback(pending, [], market, "the retainer's listing prices could not be read");
+      return;
+    }
+
+    var scan = SellListRows.ScanPlaceholders(pending.Select(o => (o.TargetSlot, o.ItemId)), prices, placeholder);
+
+    if (scan.AlreadyPriced.Count > 0)
+      Svc.Log.Information($"[LMC] pinch new-only: slot(s) {string.Join(", ", scan.AlreadyPriced.Select(s => "#" + s))} already carry a real price; nothing to do for them");
+    if (scan.Foreign.Count > 0)
+      Svc.Log.Information($"[LMC] pinch new-only: slot(s) {string.Join(", ", scan.Foreign.Select(s => "#" + s))} are at the placeholder price but were not listed by this run; leaving them alone");
+
+    if (scan.Targets.Count == 0)
+    {
+      // Every listing this run made is already priced. Nothing to do, and specifically NOT a reason to
+      // re-price the retainer: there is no listing stranded at the placeholder to rescue.
+      Svc.Log.Information($"[LMC] pinch new-only: all {pending.Count} new listing(s) already carry a real price, nothing to re-price");
+      return;
+    }
+
+    var targetOps = pending.Where(o => scan.Targets.Any(t => t.Slot == o.TargetSlot)).ToList();
+    var listed = scan.Targets;
+
+    // STEP 2 - which UI row is each target on? The market snapshot goes into the reader so a clipped row
+    // label is recognised as unreadable instead of being reported as some shorter item it happens to contain.
+    var sellRows = SellListReader.Read(market);
 
     if (sellRows.Count == 0)
     {
       Svc.Log.Warning("[LMC] pinch new-only: the sell list could not be read at all");
-      RunFallback(pending, sellRows, market, "the sell list could not be read");
+      RunFallback(targetOps, sellRows, market, "the sell list could not be read");
       return;
     }
 
@@ -542,7 +586,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     if (!MarketRowMap.RowCountAgrees(market, sellRows.Count))
     {
       Svc.Log.Warning($"[LMC] pinch new-only: sell list shows {sellRows.Count} row(s) but {MarketRowMap.OccupiedCount(market)} market slot(s) are occupied");
-      RunFallback(pending, sellRows, market, $"the sell list shows {sellRows.Count} rows for {MarketRowMap.OccupiedCount(market)} listings");
+      RunFallback(targetOps, sellRows, market, $"the sell list shows {sellRows.Count} rows for {MarketRowMap.OccupiedCount(market)} listings");
       return;
     }
 
@@ -563,8 +607,8 @@ internal sealed class MarketAutomation : Window, IDisposable
 
     if (matches == null)
     {
-      Svc.Log.Warning($"[LMC] pinch new-only: could not identify the row(s) holding {string.Join(", ", pending.Select(o => $"slot #{o.TargetSlot} (item {o.ItemId})"))} - {failure}");
-      RunFallback(pending, sellRows, market, failure ?? "the new listings could not be found on the sell list");
+      Svc.Log.Warning($"[LMC] pinch new-only: could not identify the row(s) holding {string.Join(", ", listed.Select(t => $"slot #{t.Slot} (item {t.ItemId})"))} - {failure}");
+      RunFallback(targetOps, sellRows, market, failure ?? "the new listings could not be found on the sell list");
       return;
     }
 
@@ -657,7 +701,8 @@ internal sealed class MarketAutomation : Window, IDisposable
 
     var strandedOps = _listedThisRetainer.Where(o => o.FixedPrice <= 0 && stranded.Contains(o.TargetSlot)).ToList();
     Svc.Log.Error($"[LMC] pinch new-only: {stranded.Count} new listing(s) ({string.Join(", ", stranded.Select(s => "slot #" + s))}) were never reached - the row we opened did not hold the expected item");
-    RunFallback(strandedOps, SellListReader.Read(), AutoMarketService.SnapshotMarket(),
+    var backstopMarket = AutoMarketService.SnapshotMarket();
+    RunFallback(strandedOps, SellListReader.Read(backstopMarket), backstopMarket,
       $"{stranded.Count} new listing(s) were never reached on the row the sell list pointed at");
     return true;
   }
@@ -951,7 +996,9 @@ internal sealed class MarketAutomation : Window, IDisposable
     if (!_expectedRowItems.TryGetValue(_currentPinchRow, out var expectedItemId))
       return true;
 
-    if (!ItemNameResolver.TryGetItemId(itemName, rawItemName, out var actualItemId))
+    // The expected item is passed in so a CLIPPED label is recognised as unreadable rather than reported as
+    // the shorter item its text happens to contain - the failure that vetoed the 20:37:48 run.
+    if (!ItemNameResolver.TryGetItemId(itemName, rawItemName, out var actualItemId, expectedItemId))
     {
       // Cannot identify what is open, so cannot prove it is the right listing. Treat exactly like a
       // mismatch: skip it here, and let the backstop re-price the retainer.

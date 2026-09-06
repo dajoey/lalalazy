@@ -193,6 +193,34 @@ internal static unsafe class AutoMarketService
     return manager->GetRetainerMarketPrice((short)slot);
   }
 
+  /// <summary>
+  /// Unit price of every occupied market slot, keyed by slot. Empty when the container is not loaded, which
+  /// callers must treat as "cannot tell" rather than as "nothing is at the placeholder price".
+  ///
+  /// This is the primary way Auto-Market recognises its own new listings: they are born at
+  /// <c>AutoMarketPlaceholderPrice</c>, and no listing the user made by hand ever carries that price. It
+  /// reads the container, so it has none of the failure modes of reading the sell list's text - not
+  /// virtualisation, not a clipped label, not the list's sort order.
+  /// </summary>
+  public static Dictionary<int, ulong> MarketPricesBySlot()
+  {
+    var result = new Dictionary<int, ulong>();
+    var manager = InventoryManager.Instance();
+    if (manager == null) return result;
+
+    var container = manager->GetInventoryContainer(InventoryType.RetainerMarket);
+    if (container == null || !container->IsLoaded) return result;
+
+    for (var i = 0; i < Math.Min(container->Size, MarketSlotCount); i++)
+    {
+      var item = container->GetInventorySlot(i);
+      if (item == null || item->ItemId == 0) continue;
+      result[i] = manager->GetRetainerMarketPrice((short)i);
+    }
+
+    return result;
+  }
+
   public static int OccupiedSlotCount() => SnapshotMarket().Count(m => m.ItemId != 0);
 
   public static int RetainerMarketItemCount()
