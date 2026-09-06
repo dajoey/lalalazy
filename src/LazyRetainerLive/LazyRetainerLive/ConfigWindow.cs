@@ -35,8 +35,18 @@ internal class ConfigWindow : Window
 
         ImGui.Spacing();
         ImGui.Separator();
-        var live = _plugin.State?.Current != null;
-        ImGui.TextUnformatted($"Status: {(live ? "serving live snapshot" : "no snapshot (not logged in / waiting)")}");
+        // "Have a snapshot" and "that snapshot is current" are different things:
+        // the service deliberately keeps the last good snapshot published across
+        // logout/zone transitions, so Current != null stays true at the title
+        // screen. Distinguish them from LastTickOk instead of claiming "live".
+        var snap = _plugin.State?.Current;
+        var fresh = _plugin.State?.LastTickOk == true;
+        var status = snap == null
+            ? "no snapshot yet (not logged in since load)"
+            : fresh
+                ? "serving live snapshot"
+                : "serving LAST-KNOWN snapshot (game in transition / logged out)";
+        ImGui.TextUnformatted($"Status: {status}");
         if (_plugin.State != null && !string.IsNullOrEmpty(_plugin.HttpError))
             ImGui.TextDisabled($"Listener error: {_plugin.HttpError}");
 

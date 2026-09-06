@@ -24,6 +24,7 @@ internal sealed unsafe class RetainerLiveService
     private readonly Plugin _plugin;
     private long _nextRebuildTicks;
     private string _lastReason = "(no tick yet)";
+    private volatile bool _lastTickOk;
 
     /// <summary>Lock-free published snapshot: a completed, immutable object.
     /// The HTTP thread swaps in via Interlocked and reads without locking.</summary>
@@ -51,6 +52,7 @@ internal sealed unsafe class RetainerLiveService
             {
                 Interlocked.Exchange(ref _published, snap);
                 _lastReason = "ok";
+                _lastTickOk = true;
             }
             else
             {
@@ -59,20 +61,39 @@ internal sealed unsafe class RetainerLiveService
                 // whatever we serve, so serving the last-known live data beats
                 // flapping to 503 and back. 503 only happens when we never had
                 // data this session (see HttpServer.Serve).
+                //
+                // CONSEQUENCE, and it is deliberate: nothing ever clears
+                // _published, so after any login the endpoint keeps answering
+                // 200 with that last snapshot - including at the title screen.
+                // "Logged out" is NOT observable on this endpoint by design.
+                // Verified 2026-09-05 that the frozen snapshot is still the
+                // BETTER answer: at the moment of measurement it led
+                // AutoRetainer's file by a whole venture cycle, so falling back
+                // to the file would have shown Joey older data, not fresher.
+                // Do not "fix" this with a ClientState.Logout handler unless a
+                // consumer actually needs the distinction - that reintroduces
+                // exactly the flapping this avoids.
                 _lastReason = "no snapshot this tick (not logged in / not ready)";
+                _lastTickOk = false;
             }
         }
         catch (Exception ex)
         {
             _lastReason = "rebuild failed: " + ex.Message;
+            _lastTickOk = false;
             Plugin.Log.Warning(ex, "LazyRetainerLive snapshot rebuild failed");
         }
     }
 
-    /// <summary>Latest completed snapshot, or null if none was ever built.</summary>
+    /// <summary>Latest completed snapshot, or null only if none was EVER built
+    /// this session. Never reverts to null on logout — see Tick's anti-flap note.</summary>
     public CharInfo? Current => Interlocked.CompareExchange(ref _published, null, null);
 
     public string LastReason => _lastReason;
+
+    /// <summary>True when the most recent tick built a fresh snapshot. False means
+    /// what we serve is the frozen last-known one (logged out / mid-transition).</summary>
+    public bool LastTickOk => _lastTickOk;
 
     /// <summary>
     /// Builds one CharInfo from live game memory, or null when the live table
@@ -149,8 +170,9 @@ internal sealed unsafe class RetainerLiveService
         }
         chars.Retainers = list;
 
-        // "Not logged in / no retainer data" -> null -> the HTTP layer answers
-        // 503 (the card's fallback contract). A logged-in character with zero
+        // Null here means "no fresh snapshot this tick". It only reaches the
+        // caller as a 503 if we have never published one (see Tick); otherwise
+        // the last good snapshot stays served. A logged-in character with zero
         // valid rows only ever happens while the table is mid-reload, so treat
         // it the same as not-ready rather than publishing an empty list.
         if (!ready)

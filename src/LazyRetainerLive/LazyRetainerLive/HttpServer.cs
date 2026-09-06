@@ -149,6 +149,11 @@ internal sealed class HttpServer : IDisposable
         var q = path.IndexOf('?');
         if (q >= 0) path = path[..q];
 
+        // This is the SERVE time, and it is what ships as "readAt". It is NOT
+        // the snapshot's age: a frozen last-known snapshot still reports a fresh
+        // readAt on every request (measured 2026-09-05 - identical chars, readAt
+        // advancing with the clock). A consumer that needs to age out stale data
+        // needs a snapshot-time field; readAt cannot do that job.
         var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
         if (!method.Equals("GET", StringComparison.OrdinalIgnoreCase) ||
@@ -161,7 +166,13 @@ internal sealed class HttpServer : IDisposable
         var snap = _service.Current;
         if (snap == null)
         {
-            // Card decision 6: not logged in / no data => 503 + empty chars.
+            // 503 = "this plugin has NEVER built a snapshot this session", NOT
+            // "logged out". The service deliberately keeps the last good snapshot
+            // published across login screens and zone changes (see the anti-flap
+            // comment in RetainerLiveService.Tick), so once any character has
+            // logged in, this branch is unreachable until the plugin reloads.
+            // In practice that means: reached at the title screen before the
+            // first login, or if the retainer table never became readable.
             // The relay treats any non-200 as "fall back to file". Never 200
             // with empty chars — that would read as "zero retainers".
             WriteResponse(stream, 503, Encoding.UTF8.GetString(RetainerWire.WriteUnavailable(now)));

@@ -32,7 +32,7 @@
 
   <div class="feat">
     <div class="f"><div class="fi">Live venture countdowns</div><div class="ft">Reads the in-game retainer table every second &mdash; the same data AutoRetainer&rsquo;s own timers come from &mdash; instead of the config file that only saves at AutoRetainer&rsquo;s leisure.</div></div>
-    <div class="f"><div class="fi">Dashboard-ready JSON</div><div class="ft">Serves the exact frame shape the ffxiv dashboard relay already speaks, on loopback only. When you are not logged in it answers 503 and the dashboard quietly falls back to file data.</div></div>
+    <div class="f"><div class="fi">Dashboard-ready JSON</div><div class="ft">Serves the exact frame shape the ffxiv dashboard relay already speaks, on loopback only. Once you have logged in it keeps serving that character&rsquo;s last known state, so the dashboard never flickers back to stale file data mid-session.</div></div>
     <div class="f"><div class="fi">Read-only companion</div><div class="ft">Never writes, assigns, or collects anything. AutoRetainer stays the boss of your retainers; this plugin just lets your dashboard see what it sees.</div></div>
   </div>
 

@@ -68,9 +68,11 @@ public static class RetainerWire
     }
 
     /// <summary>
-    /// HTTP 503 body when not logged in / no retainer data, exactly as the card
-    /// specifies: {"type":"Retainers","chars":[],"source":"plugin","readAt":N}.
+    /// HTTP 503 body, byte-exact as the card specifies:
+    /// {"type":"Retainers","chars":[],"source":"plugin","readAt":N}.
     /// Any non-200 makes the relay fall back to AutoRetainer's file.
+    /// Served only when NO snapshot was ever built this session (title screen
+    /// before the first login) — NOT on logout; see HttpServer.HandleClient.
     /// </summary>
     public static byte[] WriteUnavailable(long readAt)
     {
