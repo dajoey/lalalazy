@@ -1,0 +1,18 @@
+{
+  "Author": "dajoey",
+  "Name": "LazyFashionReport",
+  "InternalName": "LazyFashionReport",
+  "Punchline": "What to wear, what to dye, and what you'll score - before Masked Rose judges you.",
+  "Description": "Fashion Report assistant for the Gold Saucer: shows the week's hints, the exact +2 dye and +1 shade for each left-side slot, and top candidate items from the crowdsourced database filtered to what you actually own - with a live score predictor as you assemble the outfit.",
+  "ApplicableVersion": "any",
+  "DalamudApiLevel": 15,
+  "Tags": ["fashion report", "gold saucer", "mgp", "glamour", "dye", "lazy"],
+  "CategoryTags": ["utility"],
+  "AcceptsFeedback": false,
+  "LoadRequiredState": 0,
+  "LoadSync": false,
+  "CanUnloadAsync": false,
+  "LoadPriority": 0,
+  "IsTestingExclusive": false,
+  "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyfashionreport-icon.png"
+}
