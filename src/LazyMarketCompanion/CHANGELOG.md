@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.1.5.0 (2026-09-05)
+
+### Fixed
+- Auto Market was still re-pricing your entire retainer on every run. 0.1.3.0 was supposed to price only the listings it had just created, but it worked out which row of your sell list to click by ASSUMING the list is shown in the same order as the retainer's 20 market slots. On your client it is not, and it never was: on all four Auto-Market runs on 2026-09-05 the row it picked held something else entirely (an Ice Crystal, a Heavens' Eye Materia VII, a Zormor Stone Lantern, a Table Orchestrion, a Liquid Glass). The safety check caught it every time - which is why a listing of yours was never mis-priced - but the safety net was "re-price everything", so what you actually saw was the old behaviour with extra waiting (file: `AutoMarket/MarketRowMap.cs`; reported by Joey 2026-09-05).
+- Auto Market now FINDS its new listings by reading your sell list instead of assuming its order, so it stops re-pricing your whole retainer. Each row of the open list is asked which market slot it is showing, and the listings created this run are matched to those rows exactly - so the order of your sell list, and whether you have it sorted at all, no longer matters (files: `SellListReader.cs` and `AutoMarket/SellListRows.cs`, new).
+- If two of your listings are the same item, the new one is identified by its asking price: a listing still sitting at the 999,999,999 gil placeholder is by definition one this run just created (file: `AutoMarket/SellListRows.cs`, `MatchByName`).
+
+### Added
+- New setting, "If a new listing can't be found", under Auto Market (only shown when "Pinch everything after listing" is off). It decides what happens in the case that should now never arise. "Re-price every listing" is what the plugin has always done and stays the default, so this update changes nothing on its own; "Leave it at the placeholder and tell me" touches nothing and says so in chat, at the cost of a listing that will not sell until you price it; "Re-price only my Auto-Market items" re-prices just the listings whose item is on your Auto-Market list, so a listing you made by hand is never touched (files: `Configuration.cs`, `AutoMarketPinchFallback`; `Windows/ConfigWindow.cs`).
+
+### Notes
+- All three of 0.1.3.0's safety checks are unchanged and still run - they are the reason a listing of yours has never been re-priced by mistake. The only thing that changed is where the row comes from: read from the game, not worked out from the slot (file: `MarketAutomation.cs`, `InsertPinchForNewListings`).
+- Your sell list only draws about half its rows at a time, so identifying rows by NAME alone cannot see the ones scrolled off screen. That is why the slot each row reports is the primary reading and the name is a cross-check; a row that reports a slot but names a different item than the game has in that slot causes the whole batch to be refused rather than half-applied (file: `AutoMarket/SellListRows.cs`, `MatchBySlot`).
+- Harness now at 93 checks, including a replay of all five failed row identifications from 2026-09-05: each one asserts that the old order-based guess picks the wrong row AND that reading the rows picks the right one (file: `tests/LazyMarketCompanion.Harness/Program.cs`).
 ## v0.1.4.0 (2026-09-05)
 
 ### Added

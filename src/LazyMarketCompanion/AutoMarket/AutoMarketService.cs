@@ -180,14 +180,6 @@ internal static unsafe class AutoMarketService
   }
 
   /// <summary>
-  /// Row index of a market slot in the RetainerSellList UI under the container-order assumption, or
-  /// <see cref="MarketRowMap.NoRow"/> when the slot is empty. The assumption is NOT guaranteed (the sell
-  /// list order is the game's), so a caller that is about to write a price must verify the mapping -
-  /// see <see cref="MarketRowMap"/> and MarketAutomation.InsertPinchForNewListings.
-  /// </summary>
-  public static int ListIndexOfSlot(int slot) => MarketRowMap.RowOfSlot(SnapshotMarket(), slot);
-
-  /// <summary>
   /// Unit price the client currently holds for one of the retainer's 20 market slots, or 0 when it cannot
   /// be read. Used to prove a freshly listed slot did not stay at the Auto-Market placeholder price.
   /// </summary>

@@ -6,19 +6,20 @@ namespace LazyMarketCompanion.AutoMarket;
 // Dalamud-free. Everything in this file is exercised by tests/LazyMarketCompanion.Harness.
 
 /// <summary>
-/// Maps RetainerSellList UI rows to RetainerMarket container slots, and — the point of this class —
-/// lets the caller CHECK that mapping before it clicks anything.
+/// Row/slot arithmetic under the container-order assumption — "the sell list shows occupied slots in
+/// ascending container order".
 ///
-/// The pinch chain addresses listings by UI row, but Auto-Market knows its new listings by container
-/// slot, so "price only what I just listed" has to translate one into the other. The only translation
-/// available is the assumption that the sell list shows occupied slots in ascending container order.
-/// That assumption is not guaranteed: the list is the game's, DailyRoutines' equivalent worker carries
-/// an explicit sort-order concept for the same list, and nothing in the client tells us the order.
+/// THAT ASSUMPTION IS FALSE and is MEASURED false, so nothing here may be used to decide which row to
+/// price. On Joey's client it was wrong on 4 of 4 Auto-Market runs on 2026-09-05 (row 17 held Ice Crystal,
+/// rows 3/12 held Heavens' Eye Materia VII and Zormor Stone Lantern, row 19 held Table Orchestrion, row 10
+/// held Liquid Glass); 0.1.3.0's guards refused every one and its fallback re-priced the whole retainer,
+/// which is the bug users actually saw. <see cref="SellListRows"/> replaced all of it: the row/slot pairing
+/// is READ off the addon (<c>SellListReader</c>), never derived.
 ///
-/// A wrong translation is silent and expensive rather than loud: in placeholder-then-match mode the new
-/// listing keeps its 999,999,999 gil placeholder (so it never sells and nothing errors) while an
-/// unrelated listing is re-priced. So every mapping produced here is meant to be verified against what
-/// the UI actually shows before a price is written — see <see cref="RowHoldsItem"/>.
+/// What survives here is only what does not depend on the ordering:
+/// <see cref="OccupiedCount"/> and <see cref="RowCountAgrees"/> — a sanity check that the list is showing one
+/// row per occupied slot, which says nothing about their order. The mapping members are kept because the
+/// harness pins the (wrong) behaviour so a future reader cannot quietly resurrect it as a shortcut.
 /// </summary>
 public static class MarketRowMap
 {
@@ -34,9 +35,8 @@ public static class MarketRowMap
     => market.Count(m => m.ItemId != 0);
 
   /// <summary>
-  /// Row index of a market slot under the container-order assumption, or <see cref="NoRow"/> when that
-  /// slot is empty or absent — an empty slot has no row at all, and guessing one is how you re-price a
-  /// stranger's listing.
+  /// Row index of a market slot under the container-order assumption — WRONG on live clients (see the class
+  /// remarks). Do not use it to choose a row to price; read the row instead (<see cref="SellListRows"/>).
   /// </summary>
   public static int RowOfSlot(IReadOnlyList<MarketSlot> market, int slot)
   {
@@ -75,9 +75,9 @@ public static class MarketRowMap
     => actualItemId != 0 && ItemIdAtRow(market, row) == actualItemId;
 
   /// <summary>
-  /// Rows for a set of just-listed slots, in the order they should be priced, or null when any slot fails
-  /// to map — one bad slot means the whole ordering assumption is suspect, so the caller falls back to
-  /// pricing every row rather than pricing some rows wrongly.
+  /// Rows for a set of just-listed slots under the container-order assumption, or null when any slot fails to
+  /// map. SUPERSEDED in 0.1.5.0 by <see cref="SellListRows.MatchBySlot"/>, which reads the pairing instead of
+  /// deriving it; kept only so the harness can keep pinning what this returns.
   /// </summary>
   public static List<(int Row, int Slot, uint ItemId)>? RowsForSlots(IReadOnlyList<MarketSlot> market, IEnumerable<(int Slot, uint ItemId)> listed)
   {

@@ -20,6 +20,31 @@ public enum StockSource
   BagsAndRetainer
 }
 
+/// <summary>
+/// What Auto-Market does when it cannot positively identify the sell-list row holding a listing it just
+/// created. It reads the row from the addon rather than inferring it (see AutoMarket/SellListRows.cs), so
+/// this should not happen - but the whole point of 0.1.5.0 is that a fallback which quietly does the thing
+/// the user asked us to stop doing is worse than no feature at all, so the fallback is a choice.
+/// </summary>
+public enum PinchFallbackMode
+{
+  /// <summary>
+  /// Re-price every listing on the retainer (the 0.1.3.0/0.1.4.0 behaviour). Nothing is ever left stranded at
+  /// the placeholder price, at the cost of re-pricing listings the user never asked us to touch.
+  /// </summary>
+  KeepFullRepass,
+  /// <summary>
+  /// Price nothing, and say so in chat. The new listing stays at its placeholder price (so it will not sell)
+  /// until the user prices it or runs Auto Pinch, and no existing listing is touched.
+  /// </summary>
+  SkipAndTell,
+  /// <summary>
+  /// Re-price only rows holding an item that is on the user's own Auto-Market list. Cannot touch a listing of
+  /// an item they never told us to sell; rows whose item cannot be identified are left alone.
+  /// </summary>
+  OwnItemsOnly,
+}
+
 /// <summary>How a freshly listed item gets its price.</summary>
 public enum NewListingPriceMode
 {
@@ -185,6 +210,14 @@ public sealed class Configuration : IPluginConfiguration
   /// and pricing in one pass. Existing configs are moved to false once by the v1 -> v2 migration.
   /// </summary>
   public bool AutoMarketPinchAllAfter { get; set; } = false;
+
+  /// <summary>
+  /// What to do when a listing this run created cannot be found on a sell-list row (see PinchFallbackMode).
+  /// Ships as KeepFullRepass - the behaviour before 0.1.5.0 - so upgrading changes nothing here on its own.
+  /// A later default change must go through the Version/MigrateIfNeeded ladder: a field initializer only ever
+  /// reaches a FRESH config, because Newtonsoft deserializes the saved value straight over it.
+  /// </summary>
+  public PinchFallbackMode AutoMarketPinchFallback { get; set; } = PinchFallbackMode.KeepFullRepass;
 
   /// <summary>The all-retainers "Auto Pinch" sweep also auto-markets each retainer.</summary>
   public bool AutoMarketInPinchAllSweep { get; set; } = true;

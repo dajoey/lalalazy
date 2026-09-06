@@ -136,6 +136,21 @@ public sealed class ConfigWindow : Window
     var msgs = c.ShowAutoMarketMessages;
     if (ImGui.Checkbox("Chat messages", ref msgs)) { c.ShowAutoMarketMessages = msgs; c.Save(); }
 
+    if (!c.AutoMarketPinchAllAfter)
+    {
+      ImGui.TextUnformatted("If a new listing can't be found:"); ImGui.SameLine();
+      ImGui.SetNextItemWidth(300);
+      var fb = (int)c.AutoMarketPinchFallback;
+      if (ImGui.Combo("##pinchfallback", ref fb,
+            ["Re-price every listing", "Leave it at the placeholder and tell me", "Re-price only my Auto-Market items"], 3))
+      { c.AutoMarketPinchFallback = (PinchFallbackMode)fb; c.Save(); }
+      Tip("Auto Market finds its new listings by reading your sell list, so this should not come up.\n" +
+          "If it ever does:\n" +
+          "Re-price every listing (the default): nothing is left unsellable, but listings you never asked us to touch get re-priced.\n" +
+          "Leave it at the placeholder: nothing else is touched, but the new listing sits at 999,999,999 gil and will not sell until you price it or run Auto Pinch.\n" +
+          "Only my Auto-Market items: re-price just the listings whose item is on the list below, so a listing you made by hand is never touched.");
+    }
+
     ImGui.Separator();
 
     // ---- add item ----

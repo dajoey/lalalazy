@@ -51,13 +51,16 @@ internal sealed class MarketAutomation : Window, IDisposable
   private int _listedTotal;
   private int _listingFailures;
 
-  // "Pinch only what I just listed" bookkeeping. The pinch chain addresses listings by UI ROW but
-  // auto-market knows its listings by market SLOT, and the row<-slot mapping rests on an assumption
-  // about the sell list's order that the client does not guarantee. _expectedRowItems records what
-  // each targeted row is supposed to hold so the chain can refuse a row that holds something else;
-  // _newOnlyPendingSlots is every slot still waiting to be priced, and anything left in it when the
-  // pass ends means the mapping failed and we re-price the whole retainer instead.
+  // "Pinch only what I just listed" bookkeeping. The pinch chain addresses listings by UI ROW while
+  // auto-market knows its listings by market SLOT. Since 0.1.5.0 that pairing is READ off the open sell
+  // list (SellListReader/SellListRows) instead of inferred from container order - the inference was wrong
+  // on 4 of 4 measured runs and its safety net re-priced everything, which is the bug this replaced.
+  // _expectedRowItems records what each targeted row was observed to hold so the chain can still refuse a
+  // row that turns out to hold something else; _newOnlyPendingSlots is every slot still waiting to be
+  // priced, and anything left in it when the pass ends means the reading was wrong after all, which is
+  // when AutoMarketPinchFallback decides what happens.
   private readonly Dictionary<int, uint> _expectedRowItems = [];
+  private readonly Dictionary<int, int> _rowSlots = [];
   private readonly HashSet<int> _newOnlyPendingSlots = [];
   private int _currentPinchRow = -1;
 
@@ -449,6 +452,7 @@ internal sealed class MarketAutomation : Window, IDisposable
 
     _listedThisRetainer.Clear();
     _expectedRowItems.Clear();
+    _rowSlots.Clear();
     _newOnlyPendingSlots.Clear();
     var steps = new List<Step>();
 
@@ -487,25 +491,30 @@ internal sealed class MarketAutomation : Window, IDisposable
   /// <summary>
   /// Price ONLY the slots this run just filled, instead of walking the whole retainer.
   ///
-  /// The pinch chain clicks a RetainerSellList ROW; auto-market knows its listings by market SLOT. The
-  /// only bridge between them is the assumption that the sell list shows occupied slots in ascending
-  /// container order, and the client does not guarantee that (DailyRoutines' equivalent worker carries an
-  /// explicit sort-order concept for the same list). Getting it wrong is silent and expensive rather than
-  /// loud: in placeholder-then-match mode the new listing keeps its 999,999,999 gil placeholder - it never
-  /// sells, and nothing errors - while an unrelated listing is re-priced.
+  /// The pinch chain clicks a RetainerSellList ROW; auto-market knows its listings by market SLOT. Until
+  /// 0.1.5.0 that bridge was an ASSUMPTION - "the list shows occupied slots in ascending container order" -
+  /// which was checked at three points, each failure falling back to re-pricing everything. On Joey's client
+  /// the assumption was wrong on 4 of 4 measured runs (2026-09-05), so the check fired every time and the
+  /// fallback re-priced all 20 listings: the exact behaviour the feature existed to remove. A guess that is
+  /// always wrong plus a safe fallback is the old behaviour with extra latency.
   ///
-  /// So the mapping is checked three times, and every failure falls back to pricing EVERYTHING (today's
-  /// behaviour, slower but never leaves a listing stranded at the placeholder):
-  ///   1. here, before any click: the sell list must show exactly one row per occupied slot, and every
-  ///      slot we listed must map to a row the snapshot agrees holds that item;
-  ///   2. per row, once the game has the item open (see <see cref="DelayMarketBoard"/>): the item actually
-  ///      in the dialog must be the item the mapping promised, or that row is abandoned unpriced;
+  /// So the row is now OBSERVED. <see cref="SellListReader"/> reads the open addon and
+  /// <see cref="SellListRows"/> matches the just-listed slots onto real rows - preferring the slot the addon
+  /// itself reports per row, and falling back to matching by the item name the row displays (with the
+  /// placeholder asking price separating two rows of the same item). No ordering is assumed anywhere.
+  ///
+  /// The three 0.1.3.0 guards stay, because they are correct and they are why a stranger's listing has never
+  /// been re-priced; only the row SOURCE changed:
+  ///   1. here, before any click: every listed slot must be matched to a row, all-or-nothing;
+  ///   2. per row, once the game has the item open (see <see cref="DelayMarketBoard"/>): the item actually in
+  ///      the dialog must be the item that row was observed to hold, or that row is abandoned unpriced;
   ///   3. at the end (see <see cref="VerifyNewListingsPriced"/>): any listed slot that never got as far as
-  ///      step 2 means the mapping was wrong, so the whole retainer is re-priced.
+  ///      step 2 hands over to <see cref="Configuration.AutoMarketPinchFallback"/>.
   /// </summary>
   private void InsertPinchForNewListings()
   {
     _expectedRowItems.Clear();
+    _rowSlots.Clear();
     _newOnlyPendingSlots.Clear();
 
     // Fixed-price listings are already at their final price; the match pass has nothing to do for them.
@@ -517,49 +526,117 @@ internal sealed class MarketAutomation : Window, IDisposable
     }
 
     var market = AutoMarketService.SnapshotMarket();
-    var uiRows = SellListRowCount();
+    var sellRows = SellListReader.Read();
+    var listed = pending.Select(o => (o.TargetSlot, o.ItemId)).ToList();
 
-    if (!MarketRowMap.RowCountAgrees(market, uiRows))
+    if (sellRows.Count == 0)
     {
-      Svc.Log.Warning($"[LMC] pinch new-only: sell list shows {uiRows} row(s) but {MarketRowMap.OccupiedCount(market)} market slot(s) are occupied, so a row cannot be trusted to mean a slot; re-pricing the whole retainer instead");
-      EnqueueAllRetainerItems(InsertSingleItem, true);
+      Svc.Log.Warning("[LMC] pinch new-only: the sell list could not be read at all");
+      RunFallback(pending, sellRows, market, "the sell list could not be read");
       return;
     }
 
-    var rows = MarketRowMap.RowsForSlots(market, pending.Select(o => (o.TargetSlot, o.ItemId)));
-    if (rows == null)
+    // Necessary condition kept from 0.1.3.0: one row per occupied slot. It never caught the ordering bug
+    // (20 rows == 20 slots every time), but a list showing a different number of rows than the container
+    // holds means we are not looking at what we think we are, and nothing below should be trusted.
+    if (!MarketRowMap.RowCountAgrees(market, sellRows.Count))
     {
-      Svc.Log.Warning($"[LMC] pinch new-only: could not map {string.Join(", ", pending.Select(o => $"slot #{o.TargetSlot} (item {o.ItemId})"))} onto sell-list rows - the list is not in market-slot order; re-pricing the whole retainer instead");
-      EnqueueAllRetainerItems(InsertSingleItem, true);
+      Svc.Log.Warning($"[LMC] pinch new-only: sell list shows {sellRows.Count} row(s) but {MarketRowMap.OccupiedCount(market)} market slot(s) are occupied");
+      RunFallback(pending, sellRows, market, $"the sell list shows {sellRows.Count} rows for {MarketRowMap.OccupiedCount(market)} listings");
       return;
     }
 
-    foreach (var r in rows)
+    List<RowMatch>? matches;
+    string? failure;
+    if (SellListRows.HasSlotReadings(sellRows))
     {
-      _expectedRowItems[r.Row] = r.ItemId;
-      _newOnlyPendingSlots.Add(r.Slot);
+      matches = SellListRows.MatchBySlot(sellRows, market, listed, out failure);
+    }
+    else
+    {
+      // No slot reading available: fall back to identifying rows by the name they display. Only rows the
+      // client has actually rendered carry a name (the list virtualises), so this can legitimately fail on a
+      // long list - which is what the fallback policy is for.
+      Svc.Log.Warning("[LMC] pinch new-only: the sell list reported no slot for any row; matching by item name instead");
+      matches = SellListRows.MatchByName(sellRows, listed, Math.Max(Plugin.Configuration.AutoMarketPlaceholderPrice, 1), out failure);
     }
 
-    Svc.Log.Information($"[LMC] pinch new-only: pricing {rows.Count} new listing(s) instead of all {uiRows} - {string.Join(", ", rows.Select(r => $"row {r.Row}=slot #{r.Slot} (item {r.ItemId})"))}");
+    if (matches == null)
+    {
+      Svc.Log.Warning($"[LMC] pinch new-only: could not identify the row(s) holding {string.Join(", ", pending.Select(o => $"slot #{o.TargetSlot} (item {o.ItemId})"))} - {failure}");
+      RunFallback(pending, sellRows, market, failure ?? "the new listings could not be found on the sell list");
+      return;
+    }
+
+    foreach (var m in matches)
+    {
+      _expectedRowItems[m.Row] = m.ItemId;
+      _rowSlots[m.Row] = m.Slot;
+      _newOnlyPendingSlots.Add(m.Slot);
+    }
+
+    Svc.Log.Information($"[LMC] pinch new-only: pricing {matches.Count} new listing(s) instead of all {sellRows.Count} - {string.Join(", ", matches.Select(m => $"row {m.Row}=slot #{m.Slot} (item {m.ItemId}, {(m.Source == RowMatchSource.ObservedSlot ? "read from the list" : "matched by name")})"))}");
 
     // Insert pushes to the FRONT of the queue, so the backstop goes in first to come out last, and the
     // rows go in highest-first so they are priced lowest-row-first.
     _taskManager.Insert(VerifyNewListingsPriced, "VerifyNewListingsPriced");
     _taskManager.InsertDelayNext(1000);
-    foreach (var r in rows.OrderByDescending(r => r.Row))
-      InsertSingleItem(r.Row);
+    foreach (var m in matches.OrderByDescending(m => m.Row))
+      InsertSingleItem(m.Row);
   }
 
   /// <summary>
-  /// Runs after the new-only pass. Any slot still in <see cref="_newOnlyPendingSlots"/> was never opened
-  /// with the right item in it, which means the row mapping was wrong and that listing is still sitting at
-  /// the placeholder price - so re-price the whole retainer, which needs no mapping at all.
+  /// What happens when a listing this run created cannot be tied to a sell-list row. Before 0.1.5.0 this was
+  /// hardcoded to "re-price everything", which is why the feature never once did what it said. It is now the
+  /// user's choice, still SHIPPING as that same behaviour so upgrading changes nothing on its own.
+  /// </summary>
+  private void RunFallback(List<ListingOp> pending, IReadOnlyList<SellListRow> sellRows, IReadOnlyList<MarketSlot> market, string why)
+  {
+    switch (Plugin.Configuration.AutoMarketPinchFallback)
+    {
+      case PinchFallbackMode.SkipAndTell:
+        Svc.Log.Error($"[LMC] pinch new-only: {why}; leaving {pending.Count} new listing(s) at the placeholder price and touching nothing else (fallback: skip and tell)");
+        Communicator.PrintInfo($"couldn't tell which sell-list rows the {pending.Count} new listing(s) landed on, so nothing was re-priced - they are still at the placeholder price. Run Auto Pinch to price them.");
+        return;
+
+      case PinchFallbackMode.OwnItemsOnly:
+      {
+        var own = Plugin.Configuration.AutoMarketItems.Select(i => i.ItemId).ToHashSet();
+        var rows = SellListRows.RowsHoldingOwnItems(sellRows, market, own);
+        if (rows.Count == 0)
+        {
+          Svc.Log.Error($"[LMC] pinch new-only: {why}; no row holds an item from your Auto-Market list, so nothing was re-priced (fallback: own items only)");
+          Communicator.PrintInfo("couldn't tell which sell-list rows the new listing(s) landed on, and no listing is an item on your Auto-Market list, so nothing was re-priced.");
+          return;
+        }
+        Svc.Log.Error($"[LMC] pinch new-only: {why}; re-pricing the {rows.Count} row(s) holding items from your Auto-Market list (fallback: own items only)");
+        Communicator.PrintInfo($"couldn't tell which sell-list rows the new listing(s) landed on, so the {rows.Count} listing(s) of items on your Auto-Market list are being re-priced instead.");
+        _taskManager.InsertDelayNext(1000);
+        foreach (var row in rows.OrderByDescending(r => r))
+          InsertSingleItem(row);
+        return;
+      }
+
+      default:
+        Svc.Log.Error($"[LMC] pinch new-only: {why}; re-pricing every row so nothing is left at the placeholder price (fallback: full re-pass)");
+        Communicator.PrintInfo("couldn't tell which sell-list rows the new listing(s) landed on, so every listing is being re-priced (nothing was left at the placeholder price).");
+        EnqueueAllRetainerItems(InsertSingleItem, true);
+        return;
+    }
+  }
+
+  /// <summary>
+  /// Runs after the new-only pass. Any slot still in <see cref="_newOnlyPendingSlots"/> was never opened with
+  /// the right item in it: the row we READ turned out not to hold what the client said, so that listing is
+  /// still at the placeholder price. What happens then is the user's choice - see
+  /// <see cref="Configuration.AutoMarketPinchFallback"/> and <see cref="RunFallback"/>.
   /// </summary>
   private bool? VerifyNewListingsPriced()
   {
     var expectedRows = _expectedRowItems.Count;
     var stranded = _newOnlyPendingSlots.ToList();
     _expectedRowItems.Clear();
+    _rowSlots.Clear();
     _newOnlyPendingSlots.Clear();
 
     // Diagnostic only: a slot the pass DID handle can still be at the placeholder when no board price was
@@ -578,9 +655,10 @@ internal sealed class MarketAutomation : Window, IDisposable
       return true;
     }
 
-    Svc.Log.Error($"[LMC] pinch new-only: {stranded.Count} new listing(s) ({string.Join(", ", stranded.Select(s => "slot #" + s))}) were never reached - the sell list is not in market-slot order, so re-pricing every row to make sure nothing is left at the placeholder price");
-    Communicator.PrintInfo("the sell list was not in the expected order, so every listing is being re-priced (nothing was left at the placeholder price).");
-    EnqueueAllRetainerItems(InsertSingleItem, true);
+    var strandedOps = _listedThisRetainer.Where(o => o.FixedPrice <= 0 && stranded.Contains(o.TargetSlot)).ToList();
+    Svc.Log.Error($"[LMC] pinch new-only: {stranded.Count} new listing(s) ({string.Join(", ", stranded.Select(s => "slot #" + s))}) were never reached - the row we opened did not hold the expected item");
+    RunFallback(strandedOps, SellListReader.Read(), AutoMarketService.SnapshotMarket(),
+      $"{stranded.Count} new listing(s) were never reached on the row the sell list pointed at");
     return true;
   }
 
@@ -745,16 +823,7 @@ internal sealed class MarketAutomation : Window, IDisposable
   // =====================================================================================
 
   /// <summary>Number of rows the open RetainerSellList is showing, or -1 when it is not available.</summary>
-  private static unsafe int SellListRowCount()
-  {
-    if (GenericHelpers.TryGetAddonByName<AtkUnitBase>("RetainerSellList", out var addon) && GenericHelpers.IsAddonReady(addon))
-    {
-      var listNode = (AtkComponentNode*)addon->UldManager.NodeList[10];
-      var listComponent = (AtkComponentList*)listNode->Component;
-      return listComponent->ListLength;
-    }
-    return -1;
-  }
+  private static int SellListRowCount() => SellListReader.RowCount();
 
   private bool? EnqueueAllRetainerItems(Action<int> enqueueFunc, bool reverseOrder)
   {
@@ -893,8 +962,10 @@ internal sealed class MarketAutomation : Window, IDisposable
 
     if (actualItemId == expectedItemId)
     {
-      var slot = MarketRowMap.SlotAtRow(AutoMarketService.SnapshotMarket(), _currentPinchRow);
-      if (slot != MarketRowMap.NoRow)
+      // Clear the slot this row was OBSERVED to hold. 0.1.3.0 re-derived it here from container order - the
+      // very inference that was wrong 4 of 4 runs - so a correct pass could still leave a slot looking
+      // stranded. The pairing recorded when the row was matched is the only thing trusted now.
+      if (_rowSlots.TryGetValue(_currentPinchRow, out var slot))
         _newOnlyPendingSlots.Remove(slot);
       return true;
     }
@@ -1163,6 +1234,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     _skipCurrentItem = false;
     _listedThisRetainer.Clear();
     _expectedRowItems.Clear();
+    _rowSlots.Clear();
     _newOnlyPendingSlots.Clear();
     _currentPinchRow = -1;
     _listedTotal = 0;

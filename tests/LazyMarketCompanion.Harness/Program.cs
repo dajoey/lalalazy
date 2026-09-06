@@ -275,5 +275,168 @@ List<MarketSlot> SlotOrdered(params (int Slot, uint ItemId)[] filled)
   Check("rowmap: full market -> 20 occupied, row == slot throughout", MarketRowMap.OccupiedCount(full) == 20 && Enumerable.Range(0, 20).All(i => MarketRowMap.SlotAtRow(full, i) == i));
 }
 
+// =====================================================================================
+// SellListRows - the 0.1.5.0 replacement for the row/slot GUESS above.
+// The old mapping assumed "the sell list shows occupied slots in ascending container order". That was
+// measured WRONG on 4 of 4 Auto-Market runs on Joey's client on 2026-09-05, and its safe fallback was
+// "re-price the whole retainer" - i.e. the very behaviour the feature existed to remove. These cases
+// replay those four runs and pin that reading the rows resolves what guessing them could not.
+// =====================================================================================
+
+const long Placeholder = 999_999_999L;
+
+// Build a sell list in an arbitrary (non-container) order. Every row reports the slot it shows, which is
+// what the addon actually gives us (AtkValues[15 + 13n].Int).
+List<SellListRow> Rows(params (int Slot, uint ItemId, long Price)[] inOrder)
+  => inOrder.Select((r, i) => new SellListRow(i, r.Slot, r.ItemId, r.Price)).ToList();
+
+// The matching market container for such a list.
+List<MarketSlot> MarketOf(params (int Slot, uint ItemId)[] filled)
+{
+  var m = new List<MarketSlot>();
+  for (var i = 0; i < 20; i++)
+  {
+    var hit = filled.FirstOrDefault(f => f.Slot == i);
+    m.Add(new MarketSlot(i, hit.ItemId, false, hit.ItemId == 0 ? 0 : 1));
+  }
+  return m;
+}
+
+// 21. The four real 2026-09-05 failures. Each is a 20/20 retainer whose sell list is NOT in slot order -
+//     the run's own log line tells us exactly which item the client had on the row the old code picked, so
+//     each case is built to put that item there. The old mapping must fail and the new one must succeed.
+{
+  var runs = new (string Name, int NewSlot, uint NewItem, uint ItemOnGuessedRow)[]
+  {
+    ("17:44 row 17 held Ice Crystal",              17, 41083u, 9u),
+    ("18:38 row 3 held Heavens' Eye Materia VII",   3, 41768u, 25187u),
+    ("18:38 row 12 held Zormor Stone Lantern",     12, 25198u, 44933u),
+    ("18:40 row 19 held Table Orchestrion",        19,  7008u, 17954u),
+    ("19:30 row 10 held Liquid Glass",             10, 52255u, 39711u),
+  };
+
+  foreach (var (name, newSlot, newItem, decoyItem) in runs)
+  {
+    // 20 occupied slots; the new listing is in newSlot, the decoy somewhere else.
+    var decoySlot = newSlot == 0 ? 1 : 0;
+    var filled = new List<(int, uint)>();
+    for (var s = 0; s < 20; s++)
+      filled.Add((s, s == newSlot ? newItem : (s == decoySlot ? decoyItem : 5111u)));
+    var market = MarketOf(filled.ToArray());
+
+    // The sell list is in SOME other order: the row the old code would have picked (row == newSlot, since
+    // all 20 slots are occupied) is showing the decoy, exactly as the client reported.
+    var order = Enumerable.Range(0, 20).ToList();
+    order[newSlot] = decoySlot;
+    order[decoySlot] = newSlot;
+    var rows = Rows(order.Select(s => (s, s == newSlot ? newItem : (s == decoySlot ? decoyItem : 5111u), 100L)).ToArray());
+
+    // The old guess: row == slot, and the row holds the wrong item. This is what fired 4/4 in production.
+    Check($"replay {name}: the OLD container-order guess picks a row holding the wrong item",
+      MarketRowMap.RowOfSlot(market, newSlot) == newSlot && MarketRowMap.ItemIdAtRow(market, newSlot) == newItem
+        && rows[newSlot].ItemIdFromName == decoyItem);
+    Check($"replay {name}: the old row-count check still PASSES, so no count check could ever catch it",
+      MarketRowMap.RowCountAgrees(market, rows.Count));
+
+    // The new reading: find the row that says it is showing that slot.
+    var matched = SellListRows.MatchBySlot(rows, market, [(newSlot, newItem)], out var why);
+    Check($"replay {name}: reading the rows finds the right one",
+      matched != null && matched.Count == 1 && matched[0].Slot == newSlot && matched[0].ItemId == newItem
+        && matched[0].Source == RowMatchSource.ObservedSlot, why ?? "matched");
+    Check($"replay {name}: and it is NOT the row the old code would have clicked",
+      matched != null && matched[0].Row == decoySlot, matched == null ? "null" : matched[0].Row.ToString());
+  }
+}
+
+// 22. Two listings of the same item: only the placeholder-priced one is new. Slot reading handles it
+//     without needing the price at all; the name fallback needs the price to tell them apart.
+{
+  const uint Same = 5111;
+  var market = MarketOf((4, Same), (9, Same));
+  // List shows slot 9 first, then slot 4 - the new one (slot 4) is still at the placeholder.
+  var rows = Rows((9, Same, 250L), (4, Same, Placeholder));
+
+  var bySlot = SellListRows.MatchBySlot(rows, market, [(4, Same)], out var e1);
+  Check("dupes: slot reading picks the right row of two identical items", bySlot?.Single().Row == 1, e1 ?? "matched");
+
+  var noSlots = rows.Select(r => r with { Slot = MarketRowMap.NoRow }).ToList();
+  var byName = SellListRows.MatchByName(noSlots, [(4, Same)], Placeholder, out var e2);
+  Check("dupes: name fallback uses the placeholder price to pick the NEW one", byName?.Single().Row == 1, e2 ?? "matched");
+  Check("dupes: name fallback reports it matched by name", byName?.Single().Source == RowMatchSource.ObservedName);
+
+  // UniversalisFirst mode: the new listing is born at a real price, so nothing separates the two rows.
+  var bothReal = noSlots.Select(r => r with { AskingPrice = 250L }).ToList();
+  Check("dupes: two identical rows with no placeholder are REFUSED, not guessed",
+    SellListRows.MatchByName(bothReal, [(4, Same)], Placeholder, out var e3) == null && e3!.Contains("cannot be told apart"), e3 ?? "");
+  // ...and two placeholders are equally ambiguous.
+  var bothPlaceholder = noSlots.Select(r => r with { AskingPrice = Placeholder }).ToList();
+  Check("dupes: two placeholder rows of one item are also refused",
+    SellListRows.MatchByName(bothPlaceholder, [(4, Same)], Placeholder, out _) == null);
+}
+
+// 23. A name that does not resolve. The row still carries its slot, so slot matching is unaffected; the
+//     name fallback cannot see it at all and must refuse rather than pick a neighbour.
+{
+  const uint New = 9, Other = 5111;
+  var market = MarketOf((2, Other), (4, New));
+  var rows = Rows((4, 0u, Placeholder), (2, Other, 300L)); // row 0 shows slot 4 but its name did not resolve
+
+  var bySlot = SellListRows.MatchBySlot(rows, market, [(4, New)], out var e1);
+  Check("unresolved name: slot reading still identifies the row", bySlot?.Single().Row == 0, e1 ?? "matched");
+
+  var noSlots = rows.Select(r => r with { Slot = MarketRowMap.NoRow }).ToList();
+  Check("unresolved name: the name fallback refuses instead of picking a neighbour",
+    SellListRows.MatchByName(noSlots, [(4, New)], Placeholder, out var e2) == null && e2!.Contains("no visible sell-list row"), e2 ?? "");
+}
+
+// 24. The reading itself is checked, and one bad row refuses the whole batch.
+{
+  const uint A = 9, B = 5111;
+  var market = MarketOf((1, A), (2, B));
+
+  Check("guard: a row naming an item the container does not have in that slot is refused",
+    SellListRows.MatchBySlot(Rows((1, B, 10L), (2, A, 10L)), market, [(1, A)], out var e1) == null && e1!.Contains("showing item"), e1 ?? "");
+  Check("guard: two rows claiming the same slot are refused",
+    SellListRows.MatchBySlot(Rows((1, A, 10L), (1, A, 10L)), market, [(1, A)], out var e2) == null && e2!.Contains("more than one row"), e2 ?? "");
+  Check("guard: a listed slot no row is showing is refused",
+    SellListRows.MatchBySlot(Rows((1, A, 10L), (2, B, 10L)), market, [(7, A)], out var e3) == null && e3!.Contains("no sell-list row"), e3 ?? "");
+  Check("guard: one good + one bad slot refuses the WHOLE batch, never half-applies",
+    SellListRows.MatchBySlot(Rows((1, A, 10L), (2, B, 10L)), market, [(1, A), (7, A)], out _) == null);
+  Check("guard: an empty batch matches nothing",
+    SellListRows.MatchBySlot(Rows((1, A, 10L)), market, [], out _) == null);
+  Check("guard: a fully-good batch matches",
+    SellListRows.MatchBySlot(Rows((2, B, 10L), (1, A, 10L)), market, [(1, A), (2, B)], out _)?.Count == 2);
+
+  // Rows with no name at all (scrolled out of view - the list virtualises) do not block slot matching.
+  Check("guard: unrendered rows (no name) still match by slot",
+    SellListRows.MatchBySlot(Rows((1, 0u, 0L), (2, 0u, 0L)), market, [(1, A)], out _)?.Single().Row == 0);
+  Check("HasSlotReadings: true when any row reports a slot, false when none do",
+    SellListRows.HasSlotReadings(Rows((1, A, 10L))) &&
+    !SellListRows.HasSlotReadings(Rows((1, A, 10L)).Select(r => r with { Slot = MarketRowMap.NoRow }).ToList()));
+}
+
+// 25. The own-items-only fallback can only ever touch items the user put on their Auto-Market list.
+{
+  const uint Mine = 9, Theirs = 17954;
+  var market = MarketOf((0, Mine), (1, Theirs), (2, Mine));
+  var own = new HashSet<uint> { Mine };
+
+  var rows = Rows((1, Theirs, 500L), (0, Mine, 100L), (2, Mine, Placeholder));
+  var pick = SellListRows.RowsHoldingOwnItems(rows, market, own);
+  Check("own-items: only rows holding a listed item are chosen", pick.SequenceEqual([1, 2]), string.Join(",", pick));
+
+  // A row whose name did not resolve is still identifiable through its slot.
+  var unnamed = Rows((1, Theirs, 500L), (0, 0u, 100L), (2, 0u, 0L));
+  Check("own-items: an unnamed row is resolved via the slot it reports",
+    SellListRows.RowsHoldingOwnItems(unnamed, market, own).SequenceEqual([1, 2]));
+
+  // A row with neither a name nor a slot is left alone - never re-priced on a guess.
+  var blind = Rows((1, Theirs, 500L)).Concat([new SellListRow(1, MarketRowMap.NoRow, 0u, 0L)]).ToList();
+  Check("own-items: a row with no name AND no slot is never touched",
+    SellListRows.RowsHoldingOwnItems(blind, market, own).Count == 0);
+  Check("own-items: nothing on the list -> nothing to re-price",
+    SellListRows.RowsHoldingOwnItems(rows, market, []).Count == 0);
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
