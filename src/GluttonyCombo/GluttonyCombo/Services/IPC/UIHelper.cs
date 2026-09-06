@@ -194,7 +194,17 @@ public class UIHelper(Leasing leasing)
     internal (string controllers, int state)? AutoRotationConfigControlled(
         string configName)
     {
-        var configOption = Enum.Parse<AutoRotationConfigOption>(configName);
+        // A name that is not an AutoRotationConfigOption cannot be under IPC control, so the
+        // honest answer is "not controlled" and the caller renders the normal, editable widget.
+        // This used to be Enum.Parse, which threw: on the checkbox path that was caught and
+        // logged once per rendered frame (4,257 [ERR] lines on 2026-09-05), and on the
+        // indicator path - which has no try/catch - it escaped into WindowSystem.Draw() and
+        // aborted the rest of the tab, including its Configuration.Save(). See t_92991e7c.
+        if (!Enum.TryParse<AutoRotationConfigOption>(configName, out var configOption))
+        {
+            UnknownConfigName(configName);
+            return null;
+        }
 
         if (_autoRotationConfigsUpdated != _leasing.AutoRotationConfigsUpdated)
             AutoRotationConfigsControlled.Clear();
@@ -238,6 +248,29 @@ public class UIHelper(Leasing leasing)
         _autoRotationConfigsUpdated = _search.LastCacheUpdateForAutoRotationConfigs;
 
         return AutoRotationConfigsControlled[configName];
+    }
+
+    /// <summary>
+    ///     Names passed to the IPC-controlled UI helpers that are not
+    ///     <see cref="AutoRotationConfigOption" /> members.
+    /// </summary>
+    /// <remarks>
+    ///     Warned about once each, at Warning level, so a developer typo or a vendored-API
+    ///     drift is still discoverable without the per-frame volume that made this a defect
+    ///     in the first place.
+    /// </remarks>
+    private readonly ConcurrentDictionary<string, bool> _unknownConfigNames = new();
+
+    private void UnknownConfigName(string configName)
+    {
+        if (!_unknownConfigNames.TryAdd(configName, true))
+            return;
+
+        Logging.Warn(
+            $"'{configName}' is not an AutoRotationConfigOption, so it can never be " +
+            "IPC-controlled; drawing the normal control instead. Either add it to " +
+            "WrathCombo.API/Enum/AutoRotationConfigOption.cs (and the " +
+            "GetAutoRotationConfigState switch), or drop the config name from the call site.");
     }
 
     #endregion
@@ -570,7 +603,10 @@ public class UIHelper(Leasing leasing)
         ImGui.PushStyleColor(ImGuiCol.FrameBg, _backgroundColor);
         ImGui.PushStyleColor(ImGuiCol.Text, _textColor);
 
-        var option = Enum.Parse<AutoRotationConfigOption>(forAutoRotationConfig!);
+        // Unreachable unless the name parses, since AutoRotationConfigControlled returned
+        // non-null above; belt-and-braces so this path can never throw out of Draw() either.
+        if (!Enum.TryParse<AutoRotationConfigOption>(forAutoRotationConfig!, out var option))
+            return DefaultUI(label, useDPSVar, ref dpsVar, ref healVar);
         var valueType = option.GetType()
             .GetField(option.ToString())
             .GetCustomAttributes(typeof(ConfigValueTypeAttribute), false)

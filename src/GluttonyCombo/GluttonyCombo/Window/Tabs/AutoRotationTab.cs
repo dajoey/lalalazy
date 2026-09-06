@@ -409,7 +409,10 @@ internal class AutoRotationTab : ConfigWindow
                 ref cfg.HealerSettings.HandleTankbusters);
             ImGuiComponents.HelpMarker(Text.FormatAndCache(AutoRotationUI.HelpText_HandleTankbusters, SGE.Eukrasia.ActionName()));
 
-            P.UIHelper.ShowIPCControlledIndicatorIfNeeded("TankbustersBeyondParty");
+            // No IPC indicator here: TankbustersBeyondParty is a fork-only setting with no
+            // AutoRotationConfigOption member, so asking whether it is leased threw straight
+            // out of Draw() and killed the rest of this tab (t_92991e7c). The neighbouring
+            // HandleRaidwides / HandleTankbusters checkboxes are drawn the same way.
             changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
                 AutoRotationUI.Checkbox_TankbustersBeyondParty,
                 ref cfg.HealerSettings.TankbustersBeyondParty);

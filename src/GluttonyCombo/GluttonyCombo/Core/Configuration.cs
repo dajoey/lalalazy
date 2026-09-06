@@ -35,7 +35,13 @@ namespace GluttonyCombo.Core;
 public partial class Configuration : IPluginConfiguration
 {
     /// <summary> Gets or sets the configuration version. </summary>
-    public int Version { get; set; } = 6;
+    /// <remarks>
+    ///     Must stay equal to <see cref="ConfigMigration.CurrentVersion" />: a fresh install
+    ///     starts at the top of the ladder and skips every step, while an existing install
+    ///     deserialises its older number and climbs. See
+    ///     <see cref="ConfigMigration.Migrate" /> and tests/GluttonyCombo.ConfigMigrateHarness.
+    /// </remarks>
+    public int Version { get; set; } = 7;
 
     #region Settings
 

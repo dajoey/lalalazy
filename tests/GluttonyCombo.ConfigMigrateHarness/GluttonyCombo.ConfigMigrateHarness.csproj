@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Plain console app, no Dalamud. Compiles the REAL
+       src/GluttonyCombo/GluttonyCombo/Core/ConfigMigration.cs so the v6->v7 ladder is asserted
+       offline against the exact code that ships (v1.0.4.173). Any Dalamud type leaking into
+       that file breaks this build, which is the point.
+         dotnet build tests\GluttonyCombo.ConfigMigrateHarness -c Release
+         dotnet tests\GluttonyCombo.ConfigMigrateHarness\bin\Release\net10.0\GluttonyCombo.ConfigMigrateHarness.dll
+       Prints PASS/FAIL per case, "OK" and exit 0 when every case passes. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>GluttonyCombo.ConfigMigrateHarness</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NoWarn>$(NoWarn);CS1574;CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Core\ConfigMigration.cs" Link="ConfigMigration.cs" />
+  </ItemGroup>
+</Project>

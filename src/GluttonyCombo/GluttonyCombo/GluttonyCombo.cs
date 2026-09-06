@@ -219,6 +219,7 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         TM = new();
         RemoveNullAutos();
         Service.Configuration = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+        MigrateConfiguration(pluginInterface, Service.Configuration);
         Service.Address = new AddressResolver();
         Service.Address.Setup(Svc.SigScanner);
         MoveHook = new();
@@ -531,6 +532,47 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
     public string Name => "Gluttony Combo";
 
     /// <inheritdoc/>
+    /// <summary>
+    ///     Applies <see cref="ConfigMigration" /> to a just-loaded configuration and persists
+    ///     the result if anything moved.
+    /// </summary>
+    /// <remarks>
+    ///     Newtonsoft serialises every property, so an existing install deserialises its saved
+    ///     value over a field initialiser: changing a default reaches new installs only. A
+    ///     setting that must change for people who already have the plugin needs this ladder.
+    ///     Each step runs at most once and never re-asserts a value the user has since changed
+    ///     back - proven offline by tests/GluttonyCombo.ConfigMigrateHarness.
+    /// </remarks>
+    private static void MigrateConfiguration
+        (IDalamudPluginInterface pluginInterface, Configuration config)
+    {
+        try
+        {
+            var result = ConfigMigration.Migrate(
+                new ConfigMigration.State(
+                    config.Version,
+                    config.RotationConfig.HealerSettings.TankbustersBeyondParty));
+
+            if (!result.Changed)
+                return;
+
+            config.Version = result.State.Version;
+            config.RotationConfig.HealerSettings.TankbustersBeyondParty =
+                result.State.TankbustersBeyondParty;
+
+            foreach (var note in result.Notes)
+                PluginLog.Information("[Config migration] " + note);
+
+            pluginInterface.SavePluginConfig(config);
+        }
+        catch (Exception ex)
+        {
+            // A failed migration must never stop the plugin loading; worst case the user's
+            // settings simply stay as they were.
+            PluginLog.Error($"Configuration migration failed, leaving settings as-is: {ex}");
+        }
+    }
+
     public void Dispose()
     {
         ActionRetargeting.Dispose();

@@ -188,7 +188,17 @@ public class DPSSettingsIPCWrapper(DPSSettings settings)
 
     public bool AoEIgnoreManual => settings.AoEIgnoreManual;
     
-    public bool UnTargetAndDisableForPenalty => settings.UnTargetAndDisableForPenalty;
+    public bool UnTargetAndDisableForPenalty
+    {
+        get
+        {
+            var checkControlled = GluttonyCombo.P.UIHelper
+                .AutoRotationConfigControlled("UnTargetAndDisableForPenalty");
+            return checkControlled is not null
+                ? checkControlled.Value.state == 1
+                : settings.UnTargetAndDisableForPenalty;
+        }
+    }
 
     public bool AutoPositionals => settings.AutoPositionals;
 
@@ -319,6 +329,16 @@ public class HealerSettingsIPCWrapper(HealerSettings settings)
 
     public bool TankbustersBeyondParty => settings.TankbustersBeyondParty;
 
-    public bool IncludeShields => settings.IncludeShields;
+    public bool IncludeShields
+    {
+        get
+        {
+            var checkControlled =
+                GluttonyCombo.P.UIHelper.AutoRotationConfigControlled("IncludeShields");
+            return checkControlled is not null
+                ? checkControlled.Value.state == 1
+                : settings.IncludeShields;
+        }
+    }
     #endregion
 }

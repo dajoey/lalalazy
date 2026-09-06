@@ -464,20 +464,58 @@ internal static class Logging
         }
     }
 
-    public static void Verbose(string message) =>
-        PluginLog.Verbose(Prefix + PrefixMethod + message);
+    /// <summary>
+    ///     Rate limit for this channel: at most 3 identical lines per 5 minutes.
+    /// </summary>
+    /// <remarks>
+    ///     Several of these call sites sit on ImGui draw paths, which run once per rendered
+    ///     frame. On 2026-09-05 one bad config name wrote 4,257 [ERR] lines in ~26 minutes
+    ///     (peak 3,461 in a single minute) and drowned the log (t_92991e7c). Levels are
+    ///     deliberately unchanged - the lines are wanted, the rate was the bug - and the count
+    ///     of dropped duplicates is appended to the next line that gets through, so the
+    ///     frequency stays visible. Proven offline by tests/GluttonyCombo.IpcLogGateHarness,
+    ///     which replays that exact frame stream: 4,257 lines becomes 18.
+    /// </remarks>
+    private static readonly LogEmitGate Gate =
+        new(TimeSpan.FromMinutes(5), 3);
 
-    public static void Log(string message) =>
-        PluginLog.Debug(Prefix + PrefixMethod + message);
+    private static bool Allowed(string level, string message, out string note)
+    {
+        var emit = Gate.ShouldEmit(level + '\u0001' + message, DateTime.UtcNow, out var dropped);
+        note = emit ? Gate.SuppressedNote(dropped) : string.Empty;
+        return emit;
+    }
 
-    public static void Warn(string message) =>
-        PluginLog.Warning(Prefix + PrefixMethod + message
+    public static void Verbose(string message)
+    {
+        if (Allowed("V", message, out var note))
+            PluginLog.Verbose(Prefix + PrefixMethod + message + note);
+    }
+
+    public static void Log(string message)
+    {
+        if (Allowed("D", message, out var note))
+            PluginLog.Debug(Prefix + PrefixMethod + message + note);
+    }
+
+    public static void Warn(string message)
+    {
+        if (!Allowed("W", message, out var note))
+            return;
+
+        PluginLog.Warning(Prefix + PrefixMethod + message + note
 #if DEBUG
                           + "\n" + (StackTrace)
 #endif
         );
+    }
 
-    public static void Error(string message) =>
-        PluginLog.Error(Prefix + PrefixMethod + message + "\n" + (StackTrace));
+    public static void Error(string message)
+    {
+        // Note the StackTrace is only built for lines that actually get written; it used to be
+        // constructed on every call, which on a per-frame path is thousands of walks a minute.
+        if (Allowed("E", message, out var note))
+            PluginLog.Error(Prefix + PrefixMethod + message + note + "\n" + (StackTrace));
+    }
 }
 

@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Plain console app, no Dalamud. Compiles the REAL
+       src/GluttonyCombo/GluttonyCombo/Services/IPC/LogEmitGate.cs (the pure emit gate behind the
+       IPC log channel, v1.0.4.173) so the rate limit is asserted offline against the exact code
+       that ships, by replaying the measured 2026-09-05 frame stream from ffxivdb. Any Dalamud
+       type leaking into that file breaks this build, which is the point.
+         dotnet build tests\GluttonyCombo.IpcLogGateHarness -c Release
+         dotnet tests\GluttonyCombo.IpcLogGateHarness\bin\Release\net10.0\GluttonyCombo.IpcLogGateHarness.dll
+       Prints PASS/FAIL per case, "OK" and exit 0 when every case passes. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>GluttonyCombo.IpcLogGateHarness</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NoWarn>$(NoWarn);CS1574;CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Services\IPC\LogEmitGate.cs" Link="LogEmitGate.cs" />
+  </ItemGroup>
+</Project>
