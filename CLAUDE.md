@@ -129,6 +129,6 @@ Every shipping plugin should have a `PLUGINS` entry in `docs/plugins.js` and a `
 
 ### Current roster (14 plugins, as of 2026-09-05)
 
-GluttonyCombo, PvPSolver, LazyMarketCompanion, AutoPotion, ArmoireAutoFill, LazyWTMath, LazyCurrencySpender, LazyFateAutomation, LazySkywardTracker, LazyFoodBuff, LazyGearCollector, LazyOccultCrescent, LazyCrafter, LazyFishSitter (testing-only).
+GluttonyCombo, PvPSolver, LazyMarketCompanion, AutoPotion, ArmoireAutoFill, LazyWTMath, LazyCurrencySpender, LazyFateAutomation, LazySkywardTracker, LazyFashionReport, LazyFoodBuff, LazyGearCollector, LazyOccultCrescent, LazyCrafter, LazyFishSitter (testing-only).
 
 **DagobertPriceMatcher was RETIRED on 2026-09-05** (kanban t_138ee175) in favour of LazyMarketCompanion, which carries its price-matching engine (AGPLv3, credit SHOEGAZEssb) and imports its config on first load. Removed from `src/`, `plugins/`, `pluginmaster.json`, `README`, `docs/`, `tools/sync-wiki.ps1`, the nightly upstream-merge runbook/marker and the `dagobert` git remote. `LalaImages/dagobert-icon.png` is kept for history. Do not resurrect it.
