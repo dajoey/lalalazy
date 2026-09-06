@@ -1,3 +1,4 @@
+using LazyMarketCompanion;
 using LazyMarketCompanion.AutoMarket;
 
 // Offline tests for the Auto-Market planner. Prints PASS/FAIL per case, exits non-zero on any FAIL.
@@ -757,6 +758,93 @@ var Catalogue = new (uint Id, string Name)[]
     decided.All(d => d != PinchAfterMarket.FullRePass));
   Check("sweep replay: the old condition full-re-passed exactly the two full retainers - the 2 he saw",
     sweep.Count(n => OldWouldRePassEverything(false, n)) == 2);
+}
+
+// 32. Empty-board fallback: median of the recent data-centre sales, with a staleness guard.
+//     Joey, 2026-09-06 (Helm t-joey-1788708564633, option A "median-with-staleness-guard"):
+//     "When auto-marketing something that has nothing else on the board, it should set the
+//     universalis suggested price." Universalis has no such field, so this is what we build instead.
+//     Every number below is a REAL measurement taken from Universalis on 2026-09-06, not a fixture.
+{
+  const long Now = 1788710000L;            // 2026-09-06, the day these were sampled
+  const long Day = 86400L;
+
+  static SaleHistoryEntry S(long price, long ts, bool hq = true) => new(price, ts, hq);
+
+  // --- item 16644, empty Aether board, the last 10 HQ data-centre sales, verbatim ---
+  var item16644 = new List<SaleHistoryEntry>
+  {
+    S(60000, 1788628902), S(200000, 1788587792), S(50000, 1788539165), S(120000, 1788461842),
+    S(100000, 1788400000), S(40000, 1788300000), S(54100, 1788200000), S(50000, 1788100000),
+    S(53000, 1788000000), S(49999, 1787900000),
+  };
+
+  var r16644 = SaleHistoryPricing.Evaluate(item16644, Now, 30, hqOnly: true);
+  Check("history: item 16644 (traded today) gets a price", r16644.Outcome == SaleHistoryOutcome.Priced, r16644.Outcome.ToString());
+  Check("history: item 16644 prices at the MEDIAN 53,550, not the 1,824,207 Universalis average",
+    r16644.UnitPrice == 53550, $"got {r16644.UnitPrice}");
+  Check("history: ...and the median came from all 10 sales", r16644.SampleCount == 10, $"n={r16644.SampleCount}");
+
+  // NEGATIVE CONTROL. Without this, an Evaluate() that just returned the cheapest sale (40,000) or the
+  // newest (60,000) would pass everything above. The median is a specific number and it is asserted as one.
+  Check("history: NEGATIVE CONTROL - the median is not the newest sale, the cheapest, or the mean",
+    r16644.UnitPrice != 60000 && r16644.UnitPrice != 40000 && r16644.UnitPrice != 77709);
+
+  // --- item 30037, empty board, newest sale JUNE 2022 - must be refused, not priced ---
+  var item30037 = new List<SaleHistoryEntry>
+  {
+    S(300001, 1655615224), S(999999, 1653745228), S(500001, 1651682284), S(300000, 1648061772),
+  };
+  var r30037 = SaleHistoryPricing.Evaluate(item30037, Now, 30, hqOnly: true);
+  Check("history: item 30037 (newest sale 2022) is REFUSED, not priced off a four-year-old sale",
+    r30037.Outcome == SaleHistoryOutcome.Stale && r30037.UnitPrice == 0, $"{r30037.Outcome}/{r30037.UnitPrice}");
+  Check("history: the refusal still reports the newest sale it saw, so the log can say how old it is",
+    r30037.NewestUnixSeconds == 1655615224);
+
+  // --- item 5256: empty board AND no history at any scope. Distinct from stale. ---
+  var rNone = SaleHistoryPricing.Evaluate(new List<SaleHistoryEntry>(), Now, 30, hqOnly: false);
+  Check("history: an item with no sales at all reports NoHistory, not Stale",
+    rNone.Outcome == SaleHistoryOutcome.NoHistory && rNone.UnitPrice == 0);
+  Check("history: a null history is the same as an empty one and never throws",
+    SaleHistoryPricing.Evaluate(null, Now, 30, false).Outcome == SaleHistoryOutcome.NoHistory);
+
+  // --- the boundary itself ---
+  var edge = new List<SaleHistoryEntry> { S(1000, Now - (30 * Day) + 60), S(4000, Now - (200 * Day)) };
+  var rEdge = SaleHistoryPricing.Evaluate(edge, Now, 30, hqOnly: true);
+  Check("history: a sale just inside 30 days counts", rEdge.Outcome == SaleHistoryOutcome.Priced && rEdge.SampleCount == 1, $"{rEdge.Outcome} n={rEdge.SampleCount}");
+  Check("history: ...and the 200-day-old sale is excluded from the median", rEdge.UnitPrice == 1000, $"got {rEdge.UnitPrice}");
+  Check("history: a sale one minute the WRONG side of 30 days is refused",
+    SaleHistoryPricing.Evaluate([S(1000, Now - (30 * Day) - 60)], Now, 30, true).Outcome == SaleHistoryOutcome.Stale);
+
+  // --- HQ/NQ must not be mixed: the listing being priced is one or the other ---
+  var mixed = new List<SaleHistoryEntry> { S(900, Now - Day, hq: true), S(10, Now - Day, hq: false), S(12, Now - Day, hq: false) };
+  Check("history: HQ pricing ignores NQ sales", SaleHistoryPricing.Evaluate(mixed, Now, 30, hqOnly: true).UnitPrice == 900);
+  Check("history: NQ pricing (hqOnly off) uses everything Universalis returned",
+    SaleHistoryPricing.Evaluate(mixed, Now, 30, hqOnly: false).SampleCount == 3);
+
+  // --- arithmetic: even sample, and junk input ---
+  Check("history: an even sample takes the whole-gil floor of the two middle sales",
+    SaleHistoryPricing.Evaluate([S(101, Now - Day), S(102, Now - Day), S(200, Now - Day), S(300, Now - Day)], Now, 30, true).UnitPrice == 151);
+  Check("history: a zero-price sale is not a data point",
+    SaleHistoryPricing.Evaluate([S(0, Now - Day), S(500, Now - Day)], Now, 30, true).SampleCount == 1);
+  Check("history: a sale timestamped in the future is discarded rather than trusted",
+    SaleHistoryPricing.Evaluate([S(500, Now + (10 * Day))], Now, 30, true).Outcome == SaleHistoryOutcome.NoHistory);
+  Check("history: the price is never zero or negative when a sale was priced",
+    SaleHistoryPricing.Evaluate([S(1, Now - Day)], Now, 30, true).UnitPrice == 1);
+
+  // --- the window is clamped, so no config value can switch the guard off ---
+  Check("history: a window of 0 days is clamped to 1, not treated as 'no guard'",
+    SaleHistoryPricing.Evaluate([S(500, Now - (5 * Day))], Now, 0, true).Outcome == SaleHistoryOutcome.Stale);
+  Check("history: a 10-year window is clamped to 365 days, so 2022 sales stay refused",
+    SaleHistoryPricing.Evaluate(item30037, Now, 3650, true).Outcome == SaleHistoryOutcome.Stale);
+  Check("history: a legitimate wide window (365 d) does price an item that sold 100 days ago",
+    SaleHistoryPricing.Evaluate([S(777, Now - (100 * Day))], Now, 365, true).UnitPrice == 777);
+
+  // --- the shipped defaults are the ones Joey chose ---
+  Check("history: the shipped freshness window is the 30 days on the decision card",
+    SaleHistoryPricing.DefaultMaxAgeDays == 30);
+  Check("history: the shipped sample size is 20 recent sales",
+    SaleHistoryPricing.DefaultEntryCount == 20);
 }
 
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");

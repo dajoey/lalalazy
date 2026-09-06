@@ -370,6 +370,30 @@ public sealed class ConfigWindow : Window
     if (ImGui.Checkbox("Use Universalis data center prices", ref useUniversalis)) { c.UseUniversalisDataCenterPrices = useUniversalis; c.Save(); }
     Tip("If checked, price checks use the cheapest listing on your current data center from Universalis instead of the in-game Compare Prices window.");
 
+    var saleHistory = c.UseUniversalisSaleHistoryFallback;
+    if (ImGui.Checkbox("Price from recent sales when nothing is on the board", ref saleHistory)) { c.UseUniversalisSaleHistoryFallback = saleHistory; c.Save(); }
+    Tip("When a price check finds NOTHING listed on your data center, list at the median of the recent sales from Universalis instead of leaving the listing at the placeholder price.\nThe median, not the average: Universalis' own average is skewed by outliers (one item measured 1,824,207 average against a 53,550 median).");
+
+    if (c.UseUniversalisSaleHistoryFallback)
+    {
+      ImGui.Indent();
+      int maxAge = c.SaleHistoryMaxAgeDays;
+      ImGui.BeginGroup();
+      ImGui.Text("Ignore sales older than");
+      ImGui.SameLine();
+      ImGui.SetNextItemWidth(120);
+      if (ImGui.InputInt("##saleHistoryMaxAge", ref maxAge))
+      {
+        c.SaleHistoryMaxAgeDays = Math.Clamp(maxAge, SaleHistoryPricing.MinMaxAgeDays, SaleHistoryPricing.MaxMaxAgeDays);
+        c.Save();
+      }
+      ImGui.SameLine();
+      ImGui.Text("days");
+      ImGui.EndGroup();
+      Tip("If the newest sale is older than this, no price is invented: the listing keeps the placeholder price and you get the usual chat message. Some items last sold years ago.");
+      ImGui.Unindent();
+    }
+
     ImGui.Separator();
 
     int mbDelay = c.GetMBPricesDelayMS;

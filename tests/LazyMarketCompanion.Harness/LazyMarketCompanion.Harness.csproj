@@ -14,6 +14,7 @@
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\ItemNameMatch.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\SellListRows.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\PinchScope.cs" />
+    <Compile Include="..\..\src\LazyMarketCompanion\SaleHistoryPricing.cs" />
     <Compile Include="Program.cs" />
   </ItemGroup>
 </Project>

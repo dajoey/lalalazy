@@ -32,35 +32,115 @@ internal sealed class UniversalisPriceProvider : IDisposable
     return GetNewPriceById(itemId, hqOnly, cancellationToken);
   }
 
+  /// <summary>
+  /// History-only lookup used by the in-game "Compare Prices" path when the board came back empty.
+  /// Asks for no live listings at all - the caller has already established there are none.
+  /// </summary>
+  public async Task<int> GetSaleHistoryPrice(string itemName, string rawItemName, CancellationToken cancellationToken)
+  {
+    if (!TryGetItem(itemName, rawItemName, out var itemId, out var hqOnly))
+    {
+      Svc.Log.Warning($"[LMC] could not resolve item id for sale-history price check: {itemName}");
+      return -1;
+    }
+
+    var dataCenterName = await ResolveDataCenter().ConfigureAwait(false);
+    if (dataCenterName == null)
+      return -1;
+
+    UniversalisMarketDataResponse marketData;
+    try
+    {
+      marketData = await _client.GetMarketData(itemId, dataCenterName, hqOnly, 0, EntryCount, cancellationToken).ConfigureAwait(false);
+    }
+    catch (OperationCanceledException) { throw; }
+    catch (Exception ex)
+    {
+      Svc.Log.Warning(ex, $"[LMC] sale-history lookup failed for item {itemId}");
+      return -1;
+    }
+
+    return PriceFromSaleHistory(itemId, hqOnly, marketData, dataCenterName);
+  }
+
   /// <summary>Id-based lookup used before a fresh auto-market listing.</summary>
   public async Task<int> GetNewPriceById(uint itemId, bool hq, CancellationToken cancellationToken)
   {
     var hqOnly = Plugin.Configuration.HQ && hq;
+    var dataCenterName = await ResolveDataCenter().ConfigureAwait(false);
+    if (dataCenterName == null)
+      return -1;
+
+    // Recent sales ride along in the SAME request when the fallback is on, so an empty board costs
+    // one call, not two. With the fallback off the query is unchanged (entries=0).
+    var wantHistory = Plugin.Configuration.UseUniversalisSaleHistoryFallback;
+    var marketData = await _client.GetMarketData(
+      itemId, dataCenterName, hqOnly, UniversalisClient.ListingCount, wantHistory ? EntryCount : 0, cancellationToken).ConfigureAwait(false);
+
+    var listing = marketData.HasData
+      ? marketData.Listings
+          .Where(listing => listing.PricePerUnit > 0 && (!hqOnly || listing.Hq))
+          .OrderBy(listing => listing.PricePerUnit)
+          .FirstOrDefault()
+      : null;
+
+    if (listing != null)
+    {
+      var ownRetainer = ulong.TryParse(listing.RetainerId, out var retainerId)
+                        && Plugin.Configuration.SeenRetainers.Contains(retainerId);
+      Svc.Log.Debug($"[LMC] Universalis lowest data center price for {itemId}: {listing.PricePerUnit} on {listing.WorldName ?? dataCenterName}");
+      return CalculateNewPrice(listing.PricePerUnit, ownRetainer);
+    }
+
+    // Nothing live to match. Either refuse exactly as before, or fall back to recent sales.
+    return wantHistory ? PriceFromSaleHistory(itemId, hqOnly, marketData, dataCenterName) : -1;
+  }
+
+  /// <summary>How many recent sales to request, bounded so a stray config value cannot ask for thousands.</summary>
+  private static int EntryCount => Math.Clamp(Plugin.Configuration.SaleHistoryEntryCount, 5, 100);
+
+  private static async Task<string?> ResolveDataCenter()
+  {
     var dataCenterName = await Svc.Framework.RunOnFrameworkThread(() =>
       Svc.Objects.LocalPlayer?.CurrentWorld.ValueNullable?.DataCenter.ValueNullable?.Name.ToString()).ConfigureAwait(false);
 
-    if (string.IsNullOrWhiteSpace(dataCenterName))
+    if (!string.IsNullOrWhiteSpace(dataCenterName))
+      return dataCenterName;
+
+    Svc.Log.Warning("[LMC] could not resolve current data center for Universalis price check");
+    return null;
+  }
+
+  /// <summary>
+  /// The empty-board fallback: median of the recent data-centre sales inside the freshness window,
+  /// or -1 (refuse) when there is no history or the newest sale is too old. The undercut/match rule is
+  /// deliberately NOT applied - there is no competing listing to undercut, and the median already IS
+  /// what the item has been clearing at. Per-item min/max limits still apply at the call site.
+  /// </summary>
+  private static int PriceFromSaleHistory(uint itemId, bool hqOnly, UniversalisMarketDataResponse marketData, string dataCenterName)
+  {
+    var entries = marketData.RecentHistory
+      .Select(e => new SaleHistoryEntry(e.PricePerUnit, e.Timestamp, e.Hq))
+      .ToList();
+
+    var maxAgeDays = Plugin.Configuration.SaleHistoryMaxAgeDays;
+    var result = SaleHistoryPricing.Evaluate(entries, DateTimeOffset.UtcNow.ToUnixTimeSeconds(), maxAgeDays, hqOnly);
+
+    switch (result.Outcome)
     {
-      Svc.Log.Warning("[LMC] could not resolve current data center for Universalis price check");
-      return -1;
+      case SaleHistoryOutcome.Priced:
+        Svc.Log.Information($"[LMC] {itemId}: board is empty on {dataCenterName}; pricing from the median of {result.SampleCount} sale(s) in the last {maxAgeDays} day(s): {result.UnitPrice} gil");
+        return (int)Math.Clamp(result.UnitPrice, 1, int.MaxValue);
+
+      case SaleHistoryOutcome.Stale:
+        var ageDays = (DateTimeOffset.UtcNow.ToUnixTimeSeconds() - result.NewestUnixSeconds) / 86400;
+        Svc.Log.Information($"[LMC] {itemId}: board is empty on {dataCenterName} and the newest sale is {ageDays} day(s) old (limit {maxAgeDays}); refusing to price from it");
+        return -1;
+
+      default:
+        Svc.Log.Information($"[LMC] {itemId}: board is empty on {dataCenterName} and there is no sale history to price from");
+        return -1;
     }
-
-    var marketData = await _client.GetMarketData(itemId, dataCenterName, hqOnly, cancellationToken).ConfigureAwait(false);
-    if (!marketData.HasData || marketData.Listings.Count == 0)
-      return -1;
-
-    var listing = marketData.Listings
-      .Where(listing => listing.PricePerUnit > 0 && (!hqOnly || listing.Hq))
-      .OrderBy(listing => listing.PricePerUnit)
-      .FirstOrDefault();
-
-    if (listing == null)
-      return -1;
-
-    var ownRetainer = ulong.TryParse(listing.RetainerId, out var retainerId)
-                      && Plugin.Configuration.SeenRetainers.Contains(retainerId);
-    Svc.Log.Debug($"[LMC] Universalis lowest data center price for {itemId}: {listing.PricePerUnit} on {listing.WorldName ?? dataCenterName}");
-    return CalculateNewPrice(listing.PricePerUnit, ownRetainer);
   }
 
   public void Dispose()

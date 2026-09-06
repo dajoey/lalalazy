@@ -69,6 +69,21 @@ internal sealed class MarketAutomation : Window, IDisposable
   private int? _preListPrice;
   private bool _preListDone;
 
+  // Empty-board sale-history fallback (0.1.8.0). The in-game "Compare Prices" path is synchronous and
+  // has already failed by the time SetNewPrice runs, so the fallback lookup is fired from there and the
+  // step re-runs until it lands. Keyed by item name so one lookup happens per listing, not per retry.
+  private string? _historyRequestItem;
+  private bool _historyRequestDone;
+  private long _historyRequestDeadline;
+
+  /// <summary>
+  /// How long SetNewPrice may spin waiting for the sale-history lookup. Deliberately SHORTER than the
+  /// TaskManager's 10 s per-step limit (AbortOnTimeout is on, so overrunning it kills the whole run) and
+  /// shorter than the HttpClient's 8 s timeout, so a slow Universalis costs one unpriced listing rather
+  /// than the rest of the sweep.
+  /// </summary>
+  private const int SaleHistoryWaitMs = 6000;
+
   // AutoRetainer postprocess session
   private string? _arRetainer;
   private long _arStartedAt;
@@ -985,6 +1000,11 @@ internal sealed class MarketAutomation : Window, IDisposable
       if (!VerifyPinchRow(itemName, rawItemName, addon))
         return true;
 
+      // New row: any sale-history lookup belonging to the previous one is finished with.
+      _historyRequestItem = null;
+      _historyRequestDone = false;
+      _historyRequestDeadline = 0;
+
       if (Plugin.Configuration.UseUniversalisDataCenterPrices && _universalisPriceProvider.CanResolveItem(itemName, rawItemName))
         return true;
 
@@ -1094,6 +1114,38 @@ internal sealed class MarketAutomation : Window, IDisposable
         _oldPrice = retainerSell->AskingPrice->Value;
         var isPlaceholder = _oldPrice.Value == Plugin.Configuration.AutoMarketPlaceholderPrice;
         var usedDefaultAmount = false;
+
+        // Nothing on the board. Before falling through to DefaultAmount (or to giving up), try the
+        // recent-sales median if it is switched on. The Universalis price path already consulted the
+        // sale history in its own request, so this only covers the in-game Compare Prices path.
+        if (!(_newPrice > 0) && Plugin.Configuration.UseUniversalisSaleHistoryFallback)
+        {
+          var historyRawName = GetRetainerSellRawItemName(retainerSell);
+          var universalisAlreadyLooked = Plugin.Configuration.UseUniversalisDataCenterPrices
+                                         && _universalisPriceProvider.CanResolveItem(itemName, historyRawName);
+          if (!universalisAlreadyLooked)
+          {
+            if (!string.Equals(_historyRequestItem, itemName, StringComparison.Ordinal))
+            {
+              Svc.Log.Debug($"[LMC] {itemName}: nothing on the board, requesting the recent-sales price");
+              _historyRequestItem = itemName;
+              _historyRequestDone = false;
+              _historyRequestDeadline = Environment.TickCount64 + SaleHistoryWaitMs;
+              StartSaleHistoryRequest(itemName, historyRawName);
+              return false;
+            }
+
+            if (!_historyRequestDone)
+            {
+              if (Environment.TickCount64 < _historyRequestDeadline)
+                return false;
+
+              Svc.Log.Warning($"[LMC] {itemName}: recent-sales lookup did not answer within {SaleHistoryWaitMs} ms; continuing without it");
+              CancelUniversalisPriceRequest();
+              _historyRequestDone = true;
+            }
+          }
+        }
 
         if (!(_newPrice > 0))
         {
@@ -1221,6 +1273,43 @@ internal sealed class MarketAutomation : Window, IDisposable
       _newPriceFromUniversalis = price > 0;
       _newPriceFromCache = false;
     });
+  }
+
+  /// <summary>
+  /// Fires the empty-board recent-sales lookup. Mirrors <see cref="StartUniversalisPriceRequest"/> - same
+  /// request-id guard, same framework-thread handoff - and lands in the same <c>_newPrice</c>, so a
+  /// history price is written, cached, limited and logged exactly like any other candidate.
+  /// </summary>
+  private void StartSaleHistoryRequest(string itemName, string rawItemName)
+  {
+    CancelUniversalisPriceRequest();
+
+    var requestId = ++_universalisPriceRequestId;
+    _newPriceFromUniversalis = false;
+    _universalisPriceRequestCts = new CancellationTokenSource();
+    var token = _universalisPriceRequestCts.Token;
+
+    _ = Task.Run(async () =>
+    {
+      var price = -1;
+      try
+      {
+        price = await _universalisPriceProvider.GetSaleHistoryPrice(itemName, rawItemName, token).ConfigureAwait(false);
+      }
+      catch (OperationCanceledException) { return; }
+      catch (Exception ex) { Svc.Log.Warning(ex, $"[LMC] failed to fetch the recent-sales price for {itemName}"); }
+
+      await Svc.Framework.RunOnFrameworkThread(() =>
+      {
+        if (_disposed || requestId != _universalisPriceRequestId)
+          return;
+        Svc.Log.Debug($"[LMC] recent-sales price received: {price}");
+        _newPrice = price;
+        _newPriceFromUniversalis = price > 0;
+        _newPriceFromCache = false;
+        _historyRequestDone = true;
+      });
+    }, token);
   }
 
   private void CancelUniversalisPriceRequest()

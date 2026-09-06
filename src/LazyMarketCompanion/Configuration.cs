@@ -159,6 +159,24 @@ public sealed class Configuration : IPluginConfiguration
 
   public bool UseUniversalisDataCenterPrices { get; set; } = false;
 
+  /// <summary>
+  /// When a price check finds NOTHING listed on the board, fall back to the median of the recent
+  /// data-centre SALES from Universalis instead of giving up. Off by default: it prices from history,
+  /// not from a live competitor, so it stays opt-in. See <see cref="SaleHistoryPricing"/>.
+  /// A new defaulted property needs no config Version bump - an existing save deserializes it as false.
+  /// </summary>
+  public bool UseUniversalisSaleHistoryFallback { get; set; } = false;
+
+  /// <summary>
+  /// Freshness guard for the above: if the newest sale is older than this many days, the listing is
+  /// left at the placeholder with the usual "no board price found" message rather than priced off a
+  /// stale data point. (Item 30037's newest data-centre sale is from June 2022.)
+  /// </summary>
+  public int SaleHistoryMaxAgeDays { get; set; } = SaleHistoryPricing.DefaultMaxAgeDays;
+
+  /// <summary>How many recent sales to ask Universalis for when taking that median.</summary>
+  public int SaleHistoryEntryCount { get; set; } = SaleHistoryPricing.DefaultEntryCount;
+
   public bool ShowPriceAdjustmentsMessages { get; set; } = true;
 
   public bool ShowRetainerNames { get; set; } = true;
