@@ -847,5 +847,280 @@ var Catalogue = new (uint Id, string Name)[]
     SaleHistoryPricing.DefaultEntryCount == 20);
 }
 
+// 32. The one price formula, shared by the pricing pass and the Auto Pinch pre-flight (0.1.9.0).
+//     PriceMath.Candidate was lifted verbatim out of UniversalisPriceProvider.CalculateNewPrice. If the two
+//     ever disagreed, the pre-flight would skip a row the pass would in fact have re-priced - a silent wrong
+//     skip, which costs a sale. So the pre-0.1.9.0 formula is reproduced HERE, inline, and the shipped one is
+//     measured against it rather than trusted.
+{
+  static int OldCalculateNewPrice(long pricePerUnit, bool ownRetainer, UndercutMode mode, int undercutAmount, bool undercutSelf)
+  {
+    var price = (int)Math.Min(pricePerUnit, int.MaxValue);
+    if (!undercutSelf && ownRetainer)
+      return price;
+    if (mode == UndercutMode.FixedAmount)
+      return Math.Max(price - undercutAmount, 1);
+    return (int)Math.Max((100L - undercutAmount) * price / 100L, 1);
+  }
+
+  long[] prices = [1L, 2L, 25L, 243L, 400L, 999L, 30971L, 1_500_000L, int.MaxValue, (long)int.MaxValue + 5000L];
+  int[] amounts = [0, 1, 5, 99];
+  var mismatches = new List<string>();
+  var total = 0;
+  foreach (var price in prices)
+    foreach (var mode in Enum.GetValues<UndercutMode>())
+      foreach (var amount in amounts)
+        foreach (var own in new[] { false, true })
+          foreach (var undercutSelf in new[] { false, true })
+          {
+            total++;
+            var expected = OldCalculateNewPrice(price, own, mode, amount, undercutSelf);
+            var actual = PriceMath.Candidate(price, own, mode, amount, undercutSelf);
+            if (expected != actual)
+              mismatches.Add($"{price}/{mode}/{amount}/own={own}/self={undercutSelf}: {expected} != {actual}");
+          }
+
+  Check($"pricemath: shared formula matches the pre-0.1.9.0 inline one over all {total} inputs",
+    mismatches.Count == 0, string.Join("; ", mismatches.Take(5)));
+
+  // NEGATIVE CONTROL: the table above only means something if these inputs actually produce different
+  // answers. A Candidate() that returned a constant would pass a same-vs-same comparison too.
+  Check("pricemath: the table exercises inputs that really do differ",
+    PriceMath.Candidate(1000, false, UndercutMode.FixedAmount, 5, false) == 995
+      && PriceMath.Candidate(1000, false, UndercutMode.Percentage, 5, false) == 950
+      && PriceMath.Candidate(1000, true, UndercutMode.FixedAmount, 5, false) == 1000
+      && PriceMath.Candidate(1000, true, UndercutMode.FixedAmount, 5, true) == 995);
+  Check("pricemath: matching own listing never returns 0 or a negative price",
+    PriceMath.Candidate(1, false, UndercutMode.FixedAmount, 99, false) == 1
+      && PriceMath.Candidate(1, false, UndercutMode.Percentage, 99, false) == 1);
+}
+
+// 33. Auto Pinch pre-flight: replay Joey's 2026-09-06 11:26-11:36 sweep.
+//     55 rows were priced: 16 new listings (placeholder -> real, not this feature's business) and 39 EXISTING
+//     listings re-priced. 17 of those 39 came out at exactly the price they already had, and 3 moved by a
+//     rounding error (243->242, 400->399, 30971->30951). Median 10.5 s per row, so ~3 min of a 9.5-min sweep
+//     bought nothing.
+{
+  const long Now = 1_788_708_000_000L;  // fixed clock: these cases must not depend on when they run
+  const long OneHour = 3_600_000L;
+
+  var options = new PinchPreflightOptions(
+    Enabled: true, FreshnessHours: 6, SkipUnderGil: 0, SkipUnderPercent: 1.0f,
+    PreferHq: true, Mode: UndercutMode.FixedAmount, UndercutAmount: 0, UndercutSelf: false);
+
+  var rows = new List<PinchRow>();
+  var quotes = new Dictionary<uint, ItemQuote>();
+
+  void Existing(uint itemId, long current, long boardLowest, bool boardIsOwn, bool hq = false, long ageMs = OneHour)
+  {
+    var row = rows.Count;
+    rows.Add(new PinchRow(row, row, itemId, hq, current, false));
+    quotes[itemId] = new ItemQuote(itemId, true, Now - ageMs, [new QuoteListing(boardLowest, hq, boardIsOwn)]);
+  }
+
+  // The 17 no-ops: he is the cheapest on the data centre and "Match Self" is off, so the matched price is
+  // the price already on his listing. This is the whole reason the feature exists.
+  long[] alreadyRight = [98L, 243L, 400L, 1_200L, 2_500L, 3_333L, 7_800L, 9_999L, 12_000L, 15_500L,
+                         18_250L, 21_000L, 24_800L, 30_951L, 44_000L, 61_500L, 120_000L];
+  for (var i = 0; i < alreadyRight.Length; i++)
+    Existing((uint)(3000 + i), alreadyRight[i], alreadyRight[i], boardIsOwn: true);
+
+  // The 3 rounding-error moves, from his log. Someone else is 1 gil (or 20 gil) cheaper.
+  Existing(4001, 243L, 242L, boardIsOwn: false);
+  Existing(4002, 400L, 399L, boardIsOwn: false);
+  Existing(4003, 30_971L, 30_951L, boardIsOwn: false);
+
+  // 19 rows genuinely worth walking: a real undercut by somebody else.
+  for (var i = 0; i < 19; i++)
+    Existing((uint)(5000 + i), 10_000L + i * 500L, 8_000L + i * 500L, boardIsOwn: false);
+
+  Check("preflight replay: the fixture is his 39 existing rows", rows.Count == 39, $"rows={rows.Count}");
+
+  var decisions = PinchPreflight.Decide(rows, quotes, options, Now);
+
+  // Re-derived from the fixture rather than trusted from the card: the % move of each rounding row against
+  // the 1% default. 1/243 = 0.41%, 1/400 = 0.25%, 20/30971 = 0.065% - all three under 1%.
+  Check("preflight replay: all three rounding rows really are under the 1% default",
+    100.0 * 1 / 243 < 1.0 && 100.0 * 1 / 400 < 1.0 && 100.0 * 20 / 30_971 < 1.0);
+
+  Check("preflight replay: exactly 17 rows are skipped as already at the right price",
+    decisions.Count(d => d.Verdict == PinchVerdict.SkipAlreadyRight) == 17,
+    $"{decisions.Count(d => d.Verdict == PinchVerdict.SkipAlreadyRight)}");
+  Check("preflight replay: exactly 3 rows are skipped as under the threshold",
+    decisions.Count(d => d.Verdict == PinchVerdict.SkipUnderThreshold) == 3,
+    $"{decisions.Count(d => d.Verdict == PinchVerdict.SkipUnderThreshold)}");
+  Check("preflight replay: exactly 19 rows are still walked",
+    decisions.Count(d => d.Verdict == PinchVerdict.Walk) == 19,
+    $"{decisions.Count(d => d.Verdict == PinchVerdict.Walk)}");
+  Check("preflight replay: the three threshold skips are his three rounding rows",
+    decisions.Where(d => d.Verdict == PinchVerdict.SkipUnderThreshold).Select(d => d.Row.ItemId).OrderBy(i => i).SequenceEqual([4001u, 4002u, 4003u]));
+  Check("preflight replay: every row walked is one where the price would really move",
+    decisions.Where(d => d.Verdict == PinchVerdict.Walk).All(d => d.Candidate != d.Row.CurrentPrice));
+
+  // THE CONTROL. Before 0.1.9.0 there was no pre-flight at all: the pass walked every row of the list. Without
+  // this half, "17 skipped" would pass just as happily against a fixture that never had 39 rows in it.
+  Check("preflight replay: CONTROL - the old pass walked all 39 of these rows",
+    rows.Count == 39 && PinchPreflight.Decide(rows, quotes, options with { Enabled = false }, Now).Count(d => d.Verdict == PinchVerdict.Walk) == 39);
+  Check("preflight replay: 20 of 39 rows saved, at his measured 10.5s per row",
+    decisions.Count(d => d.Verdict != PinchVerdict.Walk) == 20);
+
+  // The log line this feature is graded by, character-for-character.
+  Check("preflight replay: the summary log line names what was skipped and why",
+    PinchPreflight.Summarize(decisions, 6)
+      == "pinch pre-flight: walking 19 of 39 row(s); skipped 17 already at the right price, 3 under the threshold (Universalis data <=6h old)",
+    PinchPreflight.Summarize(decisions, 6));
+  Check("preflight replay: with nothing skipped the line says so instead of listing zero reasons",
+    PinchPreflight.Summarize(PinchPreflight.Decide(rows, quotes, options with { Enabled = false }, Now), 6)
+      == "pinch pre-flight: walking 39 of 39 row(s); skipped nothing (Universalis data <=6h old)");
+}
+
+// 34. Every uncertainty walks the row. These are the cases where a skip would cost a sale, so each one is
+//     asserted against an input whose CANDIDATE MATCHES - i.e. the only thing keeping the row alive is the
+//     rule under test.
+{
+  const long Now = 1_788_708_000_000L;
+  const long OneHour = 3_600_000L;
+  // Placeholder (999_999_999) is the file-level const declared for the new-only pinch cases above.
+
+  var options = new PinchPreflightOptions(true, 6, 0, 1.0f, true, UndercutMode.FixedAmount, 0, false);
+
+  ItemQuote Quote(uint id, long price, bool own = true, long ageMs = OneHour, bool hq = false, bool hasData = true)
+    => new(id, hasData, Now - ageMs, [new QuoteListing(price, hq, own)]);
+
+  PinchVerdict One(PinchRow row, IReadOnlyDictionary<uint, ItemQuote> quotes, PinchPreflightOptions? opts = null)
+    => PinchPreflight.Decide([row], quotes, opts ?? options, Now)[0].Verdict;
+
+  // 1 - a placeholder-priced listing is NEVER skipped, even when its candidate equals its current price.
+  var placeholderRow = new PinchRow(0, 0, 6001, false, Placeholder, true);
+  Check("preflight: a new listing at the placeholder price is never skipped",
+    One(placeholderRow, new Dictionary<uint, ItemQuote> { [6001] = Quote(6001, Placeholder) }) == PinchVerdict.Walk);
+  Check("preflight: ...and the SAME price on a normal listing IS skipped, so the placeholder rule is what saved it",
+    One(placeholderRow with { IsPlaceholder = false }, new Dictionary<uint, ItemQuote> { [6001] = Quote(6001, Placeholder) }) == PinchVerdict.SkipAlreadyRight);
+
+  // 2 - an unreadable row.
+  Check("preflight: a row with no readable item id is walked",
+    One(new PinchRow(0, 0, 0, false, 500, false), new Dictionary<uint, ItemQuote> { [6002] = Quote(6002, 500) }) == PinchVerdict.Walk);
+  Check("preflight: a row with no readable price is walked",
+    One(new PinchRow(0, 0, 6002, false, 0, false), new Dictionary<uint, ItemQuote> { [6002] = Quote(6002, 0) }) == PinchVerdict.Walk);
+
+  // 3 - Universalis has nothing usable.
+  var row6003 = new PinchRow(0, 0, 6003, false, 500, false);
+  Check("preflight: no quote for the item is walked",
+    One(row6003, new Dictionary<uint, ItemQuote>()) == PinchVerdict.Walk);
+  Check("preflight: hasData=false is walked",
+    One(row6003, new Dictionary<uint, ItemQuote> { [6003] = Quote(6003, 500, hasData: false) }) == PinchVerdict.Walk);
+  Check("preflight: a quote with no listings at all is walked",
+    One(row6003, new Dictionary<uint, ItemQuote> { [6003] = new ItemQuote(6003, true, Now - OneHour, []) }) == PinchVerdict.Walk);
+  Check("preflight: an HQ row with only NQ listings on the board is walked",
+    One(row6003 with { HQ = true }, new Dictionary<uint, ItemQuote> { [6003] = Quote(6003, 500, hq: false) }) == PinchVerdict.Walk);
+  Check("preflight: CONTROL - that same HQ row with an HQ listing at its price IS skipped",
+    One(row6003 with { HQ = true }, new Dictionary<uint, ItemQuote> { [6003] = Quote(6003, 500, hq: true) }) == PinchVerdict.SkipAlreadyRight);
+
+  // 4 - stale data. 7h old against a 6h window, with a candidate that matches.
+  Check("preflight: a quote 7h old with the window at 6h is walked even though the candidate matches",
+    One(row6003, new Dictionary<uint, ItemQuote> { [6003] = Quote(6003, 500, ageMs: 7 * OneHour) }) == PinchVerdict.Walk);
+  Check("preflight: CONTROL - the same quote 5h old is skipped, so staleness is what walked it",
+    One(row6003, new Dictionary<uint, ItemQuote> { [6003] = Quote(6003, 500, ageMs: 5 * OneHour) }) == PinchVerdict.SkipAlreadyRight);
+  Check("preflight: a 7h-old quote is skipped once the window is widened to 12h",
+    One(row6003, new Dictionary<uint, ItemQuote> { [6003] = Quote(6003, 500, ageMs: 7 * OneHour) }, options with { FreshnessHours = 12 }) == PinchVerdict.SkipAlreadyRight);
+  Check("preflight: a quote with no lastUploadTime at all is walked",
+    One(row6003, new Dictionary<uint, ItemQuote> { [6003] = new ItemQuote(6003, true, 0, [new QuoteListing(500, false, true)]) }) == PinchVerdict.Walk);
+
+  // 5 - HQ selection: an HQ row prices off the HQ listings, not the cheaper NQ ones.
+  var mixed = new Dictionary<uint, ItemQuote>
+  {
+    [6004] = new ItemQuote(6004, true, Now - OneHour, [new QuoteListing(100, false, false), new QuoteListing(900, true, false)]),
+  };
+  var hqRow = new PinchRow(0, 0, 6004, true, 900, false);
+  Check("preflight: an HQ row with 'Use HQ price' on prices off the HQ listing (900), not the NQ one (100)",
+    One(hqRow, mixed) == PinchVerdict.SkipAlreadyRight);
+  Check("preflight: ...and with 'Use HQ price' OFF the same row prices off the cheapest listing of any quality",
+    PinchPreflight.Decide([hqRow], mixed, options with { PreferHq = false }, Now)[0].Candidate == 100);
+  Check("preflight: an NQ row always prices off the cheapest listing of any quality",
+    PinchPreflight.Decide([hqRow with { HQ = false }], mixed, options, Now)[0].Candidate == 100);
+
+  // 6 - own-retainer lowest with Match Self off, and the negative control with it on. Undercut amount 5 gil,
+  //     because at the exact-match default (0 gil) BOTH settings return the same number and the control would
+  //     prove nothing.
+  var self = options with { UndercutAmount = 5 };
+  var ownQuote = new Dictionary<uint, ItemQuote> { [6005] = Quote(6005, 100, own: true) };
+  var ownRow = new PinchRow(0, 0, 6005, false, 100, false);
+  Check("preflight: own listing lowest with Match Self OFF means the candidate is that same price - skipped",
+    One(ownRow, ownQuote, self) == PinchVerdict.SkipAlreadyRight);
+  Check("preflight: NEGATIVE CONTROL - the identical input with Match Self ON drops the price and is walked",
+    One(ownRow, ownQuote, self with { UndercutSelf = true }) == PinchVerdict.Walk
+      && PinchPreflight.Decide([ownRow], ownQuote, self with { UndercutSelf = true }, Now)[0].Candidate == 95);
+  Check("preflight: a STRANGER at that same price is walked with Match Self off, not skipped",
+    One(ownRow, new Dictionary<uint, ItemQuote> { [6005] = Quote(6005, 100, own: false) }, self) == PinchVerdict.Walk);
+
+  // 7 - thresholds. Both at 0 means the feature is limited to the already-right case.
+  var noThreshold = options with { SkipUnderPercent = 0f, SkipUnderGil = 0 };
+  var nearRow = new PinchRow(0, 0, 6006, false, 400, false);
+  var nearQuote = new Dictionary<uint, ItemQuote> { [6006] = Quote(6006, 399, own: false) };
+  Check("preflight: with both thresholds at 0, a 1-gil move on 400 is walked",
+    One(nearRow, nearQuote, noThreshold) == PinchVerdict.Walk);
+  Check("preflight: with both thresholds at 0, no row is ever skipped for being under a threshold",
+    PinchPreflight.Decide([nearRow], nearQuote, noThreshold, Now).All(d => d.Verdict != PinchVerdict.SkipUnderThreshold));
+  Check("preflight: a gil threshold of 5 skips that same 1-gil move",
+    One(nearRow, nearQuote, noThreshold with { SkipUnderGil = 5 }) == PinchVerdict.SkipUnderThreshold);
+  Check("preflight: a gil threshold of 5 does NOT skip a 5-gil move (the boundary is exclusive)",
+    One(new PinchRow(0, 0, 6006, false, 400, false), new Dictionary<uint, ItemQuote> { [6006] = Quote(6006, 395, own: false) }, noThreshold with { SkipUnderGil = 5 }) == PinchVerdict.Walk);
+  Check("preflight: a 1% threshold skips 1 gil on 400 (0.25%) and walks 20 gil on 400 (5%)",
+    One(nearRow, nearQuote, noThreshold with { SkipUnderPercent = 1.0f }) == PinchVerdict.SkipUnderThreshold
+      && One(nearRow, new Dictionary<uint, ItemQuote> { [6006] = Quote(6006, 380, own: false) }, noThreshold with { SkipUnderPercent = 1.0f }) == PinchVerdict.Walk);
+  Check("preflight: a price INCREASE is measured the same way (nobody is undercutting any more)",
+    One(nearRow, new Dictionary<uint, ItemQuote> { [6006] = Quote(6006, 402, own: false) }, noThreshold with { SkipUnderPercent = 1.0f }) == PinchVerdict.SkipUnderThreshold
+      && One(nearRow, new Dictionary<uint, ItemQuote> { [6006] = Quote(6006, 800, own: false) }, noThreshold with { SkipUnderPercent = 1.0f }) == PinchVerdict.Walk);
+
+  // 8 - the master switch, and the per-item price limit applied before the comparison.
+  Check("preflight: with the feature off, every row is walked whatever the board says",
+    PinchPreflight.Decide([ownRow, nearRow], nearQuote, options with { Enabled = false }, Now).All(d => d.Verdict == PinchVerdict.Walk));
+  Check("preflight: a per-item minimum that clamps the candidate back to the current price makes the row a skip",
+    PinchPreflight.Decide([new PinchRow(0, 0, 6007, false, 500, false)],
+      new Dictionary<uint, ItemQuote> { [6007] = Quote(6007, 300, own: false) }, options, Now,
+      (_, price) => Math.Max(price, 500))[0].Verdict == PinchVerdict.SkipAlreadyRight);
+  Check("preflight: CONTROL - without that limit the same row is walked",
+    One(new PinchRow(0, 0, 6007, false, 500, false), new Dictionary<uint, ItemQuote> { [6007] = Quote(6007, 300, own: false) }) == PinchVerdict.Walk);
+}
+
+// 35. The Universalis payload comes back in TWO shapes from the same endpoint (verified live 2026-09-06):
+//     several ids give {"itemIDs":[..],"items":{"<id>":{..}}}, ONE id gives the flat single-item object with
+//     no "items" key at all. Both bodies below are trimmed captures of real responses. Get this wrong and a
+//     retainer with one listing left silently gets no pre-flight.
+{
+  const string MultiBody = """
+  {"itemIDs":[5111,5594],"items":{"5111":{"itemID":5111,"lastUploadTime":1788710113343,"listings":[{"pricePerUnit":25,"quantity":99,"hq":false,"retainerID":"33777097243891520","worldName":"Cactuar"},{"pricePerUnit":30,"quantity":50,"hq":true,"retainerID":"12345678901234567","worldName":"Jenova"}],"minPrice":25,"minPriceNQ":25,"minPriceHQ":0,"hasData":true},"5594":{"itemID":5594,"lastUploadTime":1788710000000,"listings":[],"minPrice":0,"hasData":false}},"dcName":"Aether","unresolvedItems":[]}
+  """;
+
+  const string SingleBody = """
+  {"itemID":5111,"lastUploadTime":1788708183917,"listings":[{"pricePerUnit":42,"quantity":10,"hq":false,"retainerID":"33777097243891520","worldName":"Cactuar"}],"minPrice":42,"minPriceNQ":42,"minPriceHQ":0,"hasData":true,"dcName":"Aether"}
+  """;
+
+  var own = new List<ulong> { 33777097243891520UL };
+
+  var multi = UniversalisQuotes.Parse(MultiBody, own);
+  Check("universalis: the multi-item shape parses both items", multi.Count == 2, $"count={multi.Count}");
+  Check("universalis: multi - lastUploadTime is kept as unix MILLISECONDS, not seconds",
+    multi[5111].LastUploadUnixMs == 1788710113343L);
+  Check("universalis: multi - listings, quality and price come through",
+    multi[5111].Listings.Count == 2 && multi[5111].Listings[0].PricePerUnit == 25 && !multi[5111].Listings[0].Hq && multi[5111].Listings[1].Hq);
+  Check("universalis: multi - the user's own retainer id is recognised, a stranger's is not",
+    multi[5111].Listings[0].OwnRetainer && !multi[5111].Listings[1].OwnRetainer);
+  Check("universalis: multi - hasData=false survives as false", !multi[5594].HasData && multi[5594].Listings.Count == 0);
+
+  var single = UniversalisQuotes.Parse(SingleBody, own);
+  Check("universalis: THE GOTCHA - the single-item shape has no 'items' key and still parses",
+    single.Count == 1 && single.ContainsKey(5111), $"count={single.Count}");
+  Check("universalis: single - price, timestamp and own-retainer flag all come through",
+    single[5111].HasData && single[5111].LastUploadUnixMs == 1788708183917L
+      && single[5111].Listings.Count == 1 && single[5111].Listings[0].PricePerUnit == 42 && single[5111].Listings[0].OwnRetainer);
+  Check("universalis: with no known retainer ids nothing is claimed as the user's own",
+    UniversalisQuotes.Parse(SingleBody, null)[5111].Listings[0].OwnRetainer == false);
+  Check("universalis: an empty or junk body parses to nothing rather than throwing",
+    UniversalisQuotes.Parse("", own).Count == 0 && UniversalisQuotes.Parse("{}", own).Count == 0 && UniversalisQuotes.Parse("[]", own).Count == 0);
+  Check("universalis: an unresolved-only multi response parses to nothing",
+    UniversalisQuotes.Parse("""{"itemIDs":[1],"items":{},"unresolvedItems":[1]}""", own).Count == 0);
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;

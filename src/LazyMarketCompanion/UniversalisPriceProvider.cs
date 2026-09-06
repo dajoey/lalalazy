@@ -1,6 +1,8 @@
 using ECommons.DalamudServices;
+using LazyMarketCompanion.AutoMarket;
 using Lumina.Excel.Sheets;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -143,6 +145,30 @@ internal sealed class UniversalisPriceProvider : IDisposable
     }
   }
 
+  /// <summary>
+  /// One board snapshot for many items, for the Auto Pinch pre-flight (0.1.9.0). Unlike
+  /// <see cref="GetNewPriceById"/> this does NOT decide a price - it hands the raw listings to
+  /// <see cref="PinchPreflight"/>, which predicts what the pricing pass would do with them.
+  /// Returns an empty map on any failure, and an empty map means every row gets walked.
+  /// </summary>
+  public async Task<Dictionary<uint, ItemQuote>> GetQuotes(IReadOnlyList<uint> itemIds, CancellationToken cancellationToken)
+  {
+    if (itemIds.Count == 0)
+      return [];
+
+    var dataCenterName = await Svc.Framework.RunOnFrameworkThread(() =>
+      Svc.Objects.LocalPlayer?.CurrentWorld.ValueNullable?.DataCenter.ValueNullable?.Name.ToString()).ConfigureAwait(false);
+
+    if (string.IsNullOrWhiteSpace(dataCenterName))
+    {
+      Svc.Log.Warning("[LMC] could not resolve current data center for the Auto Pinch pre-flight");
+      return [];
+    }
+
+    var json = await _client.GetMarketDataJson(itemIds, dataCenterName, cancellationToken).ConfigureAwait(false);
+    return UniversalisQuotes.Parse(json, Plugin.Configuration.SeenRetainers);
+  }
+
   public void Dispose()
   {
     _client.Dispose();
@@ -155,16 +181,16 @@ internal sealed class UniversalisPriceProvider : IDisposable
     return ItemNameResolver.TryGetItemId(itemName, rawItemName, out itemId);
   }
 
+  /// <summary>
+  /// The formula itself lives in <see cref="PriceMath"/> since 0.1.9.0, because the Auto Pinch pre-flight
+  /// has to predict this exact number to decide a row is not worth walking. Two copies of it would drift,
+  /// and a drifted prediction is a SKIPPED row that should have been re-priced - so there is only one.
+  /// </summary>
   private static int CalculateNewPrice(long pricePerUnit, bool ownRetainer)
-  {
-    var price = (int)Math.Min(pricePerUnit, int.MaxValue);
-
-    if (!Plugin.Configuration.UndercutSelf && ownRetainer)
-      return price;
-
-    if (Plugin.Configuration.UndercutMode == UndercutMode.FixedAmount)
-      return Math.Max(price - Plugin.Configuration.UndercutAmount, 1);
-
-    return (int)Math.Max((100L - Plugin.Configuration.UndercutAmount) * price / 100L, 1);
-  }
+    => PriceMath.Candidate(
+      pricePerUnit,
+      ownRetainer,
+      Plugin.Configuration.UndercutMode,
+      Plugin.Configuration.UndercutAmount,
+      Plugin.Configuration.UndercutSelf);
 }

@@ -6,11 +6,8 @@ using System.Linq;
 
 namespace LazyMarketCompanion;
 
-public enum UndercutMode
-{
-  FixedAmount,
-  Percentage
-}
+// UndercutMode moved to AutoMarket/PriceMath.cs in 0.1.9.0 so the Dalamud-free price formula and the
+// offline harness can see it. Same namespace, same member order, so existing configs are unaffected.
 
 /// <summary>Where auto-market may take stock from.</summary>
 public enum StockSource
@@ -248,6 +245,27 @@ public sealed class Configuration : IPluginConfiguration
 
   /// <summary>Placeholder unit price used before the match pass replaces it. Deliberately absurd so a failed match never sells cheap.</summary>
   public int AutoMarketPlaceholderPrice { get; set; } = 999_999_999;
+
+  // ----- Auto Pinch pre-flight (0.1.9.0) -----
+  // These are NEW fields with initializers, which is why there is no CurrentVersion bump: Newtonsoft only
+  // overwrites a field an existing save actually contains, so a config written by 0.1.7.0 picks these
+  // defaults up as-is. The migration ladder is for CHANGING an existing default, which none of these do.
+
+  /// <summary>
+  /// Before a full-row pinch pass opens a single context menu, ask Universalis for the whole retainer's
+  /// items in one request and skip the rows where the pass would write back the price already on them.
+  /// Uncertainty of any kind - no data, stale data, an unreadable row - walks the row as before.
+  /// </summary>
+  public bool AutoPinchPreflightEnabled { get; set; } = true;
+
+  /// <summary>Universalis data older than this many hours never justifies a skip. Clamped to 1..168.</summary>
+  public int AutoPinchPreflightFreshnessHours { get; set; } = 6;
+
+  /// <summary>Skip a row whose price would move by fewer than this many gil. 0 = off.</summary>
+  public int AutoPinchSkipUnderGil { get; set; } = 0;
+
+  /// <summary>Skip a row whose price would move by less than this percent of its current price. 0 = off.</summary>
+  public float AutoPinchSkipUnderPercent { get; set; } = 1.0f;
 
   /// <summary>Set once the Dagobert config import has been attempted, so it never runs twice.</summary>
   public bool ImportedFromDagobert { get; set; } = false;

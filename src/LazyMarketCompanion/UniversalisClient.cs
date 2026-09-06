@@ -11,6 +11,8 @@ namespace LazyMarketCompanion;
 internal sealed class UniversalisClient : IDisposable
 {
   public const int ListingCount = 10;
+  /// <summary>Listings per item on the multi-item pre-flight request - deep enough that the cheapest of the wanted quality is in there.</summary>
+  private const int PreflightListingCount = 20;
   private static readonly JsonSerializerOptions JsonOptions = new()
   {
     PropertyNameCaseInsensitive = true,
@@ -45,6 +47,25 @@ internal sealed class UniversalisClient : IDisposable
     using var stream = await _client.GetStreamAsync(requestUri, cancellationToken).ConfigureAwait(false);
     return await JsonSerializer.DeserializeAsync<UniversalisMarketDataResponse>(stream, JsonOptions, cancellationToken).ConfigureAwait(false)
       ?? throw new InvalidOperationException($"Failed to parse Universalis market data for item {itemId} on {worldDcRegion}.");
+  }
+
+  /// <summary>
+  /// Board data for MANY items in one request - what the Auto Pinch pre-flight runs on.
+  ///
+  /// Returns the body verbatim rather than a typed object on purpose: with several ids Universalis answers
+  /// {"itemIDs":[..],"items":{"&lt;id&gt;":{..}}}, but with exactly ONE id it answers the flat single-item
+  /// object with no "items" key at all. <see cref="AutoMarket.UniversalisQuotes.Parse"/> handles both;
+  /// a typed model for one of the two shapes would silently return nothing for the other, which on a
+  /// one-listing retainer means the pre-flight quietly does nothing.
+  ///
+  /// No hq=true here either: one request covers a mix of HQ and NQ listings, and the quality is chosen
+  /// per row afterwards.
+  /// </summary>
+  public async Task<string> GetMarketDataJson(IReadOnlyList<uint> itemIds, string worldDcRegion, CancellationToken cancellationToken)
+  {
+    var ids = string.Join(",", itemIds);
+    var requestUri = new Uri($"{Uri.EscapeDataString(worldDcRegion)}/{ids}?listings={PreflightListingCount}&entries=0", UriKind.Relative);
+    return await _client.GetStringAsync(requestUri, cancellationToken).ConfigureAwait(false);
   }
 
   public void Dispose()

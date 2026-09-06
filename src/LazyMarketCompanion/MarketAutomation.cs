@@ -69,6 +69,14 @@ internal sealed class MarketAutomation : Window, IDisposable
   private int? _preListPrice;
   private bool _preListDone;
 
+  // Auto Pinch pre-flight (0.1.9.0). One Universalis request per full-row pinch pass decides which rows are
+  // worth opening; see AutoMarket/PinchPreflight.cs. A null decision list - request failed, timed out, or was
+  // superseded - means every row is walked, which is exactly what every version before this one did.
+  private List<PinchDecision>? _preflightDecisions;
+  private bool _preflightDone;
+  private int _preflightRequestId;
+  private CancellationTokenSource? _preflightCts;
+
   // Empty-board sale-history fallback (0.1.8.0). The in-game "Compare Prices" path is synchronous and
   // has already failed by the time SetNewPrice runs, so the fallback lookup is fired from there and the
   // step re-runs until it lands. Keyed by item name so one lookup happens per listing, not per retry.
@@ -135,6 +143,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     }
     _taskManager.Abort();
     EndArSession("plugin unloading");
+    CancelPreflightLookup();
     CancelUniversalisPriceRequest();
     _universalisPriceProvider.Dispose();
     Svc.AddonLifecycle.UnregisterListener(AddonEvent.PostSetup, RetainerSellPostSetup);
@@ -336,7 +345,10 @@ internal sealed class MarketAutomation : Window, IDisposable
       return;
 
     ClearState();
-    EnqueueAllRetainerItems(EnqueueSingleItem, false);
+    // Same execution order as the sweep's InsertSingleItem path: Insert front-pushes, so inserting rows
+    // N-1..0 runs them 0..N-1. Unified onto one helper in 0.1.9.0 so the pre-flight covers all three
+    // full-row entry points instead of two of them.
+    InsertPinchPass();
   }
 
   /// <summary>Auto-market + pinch the retainer whose sell list is open.</summary>
@@ -369,7 +381,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     if (withAutoMarket)
       _taskManager.Enqueue(() => InsertAutoMarketThenPinch(), $"AutoMarket{index}");
     else
-      _taskManager.Enqueue(() => EnqueueAllRetainerItems(InsertSingleItem, true), $"EnqueueAllRetainerItems{index}");
+      _taskManager.Enqueue(InsertPinchPass, $"EnqueueAllRetainerItems{index}");
     _taskManager.DelayNext(500);
     _taskManager.Enqueue(CloseRetainerSellList, $"CloseRetainerSellList{index}");
     _taskManager.DelayNext(100);
@@ -500,7 +512,7 @@ internal sealed class MarketAutomation : Window, IDisposable
       switch (PinchScope.Decide(Plugin.Configuration.AutoMarketPinchAllAfter, _listedThisRetainer.Count))
       {
         case PinchAfterMarket.FullRePass:
-          EnqueueAllRetainerItems(InsertSingleItem, true);
+          InsertPinchPass();
           break;
         case PinchAfterMarket.NewListingsOnly:
           InsertPinchForNewListings();
@@ -514,6 +526,164 @@ internal sealed class MarketAutomation : Window, IDisposable
 
     InsertSteps(steps);
     return true;
+  }
+
+  /// <summary>
+  /// The full-row pinch pass - every row of the open sell list - minus the rows a Universalis pre-flight can
+  /// show do not need pricing. This is Auto Pinch itself, and the "pinch everything after listing" path.
+  ///
+  /// WHY (Joey's sweep, 2026-09-06 11:26-11:36): of 39 existing listings re-priced, 17 came out at EXACTLY
+  /// the price they already had and 3 moved by a rounding error, at a median 10.5 s per row. He is already
+  /// the cheapest on the data centre for those items and "Match Self" is off, so the matched price IS the
+  /// price already on the listing. One multi-item Universalis request can see that before any context menu
+  /// opens.
+  ///
+  /// WHAT THIS IS NOT: it is a prediction of what the pricing pass would do, and the pricing pass reads the
+  /// in-game Compare Prices window, not Universalis. So every uncertainty walks the row - no data, stale
+  /// data, an unreadable row, a request that fails or times out, or the feature being off. A needless walk
+  /// costs ten seconds; a wrong skip leaves a listing overpriced until the next sweep.
+  /// </summary>
+  private bool? InsertPinchPass()
+  {
+    var rowCount = SellListRowCount();
+    if (rowCount < 0)
+      return false;
+
+    if (!Plugin.Configuration.AutoPinchPreflightEnabled)
+      return EnqueueAllRetainerItems(InsertSingleItem, true);
+
+    var rows = BuildPreflightRows();
+    if (rows.Count == 0)
+    {
+      Svc.Log.Information($"[LMC] pinch pre-flight: the sell list or market container could not be read, walking all {rowCount} row(s)");
+      return EnqueueAllRetainerItems(InsertSingleItem, true);
+    }
+
+    // Same three-step shape as the pre-listing lookup: fire the request, wait for it with a time limit,
+    // then insert the rows that survived. The wait step does not abort the run on timeout - the apply step
+    // sees no decisions and walks everything.
+    InsertSteps([
+      new Step(() => { StartPreflightLookup(rows); return true; }, "PinchPreflightLookup"),
+      new Step(() => _preflightDone, "PinchPreflightWait", TimeLimitMs: 10000),
+      new Step(() => { ApplyPreflight(rowCount); return true; }, "PinchPreflightApply"),
+    ]);
+    return true;
+  }
+
+  /// <summary>
+  /// Every sell-list row with what the game says it holds and what it is priced at right now. Both readings
+  /// are the ones the new-only pass already relies on: the row/slot pairing off the addon
+  /// (<see cref="SellListReader"/>) and the price off the market container
+  /// (<see cref="AutoMarketService.MarketPricesBySlot"/>). A row whose slot could not be read comes back
+  /// with item 0 and price 0, which the pre-flight treats as "walk it".
+  /// </summary>
+  private static List<PinchRow> BuildPreflightRows()
+  {
+    var market = AutoMarketService.SnapshotMarket();
+    if (market.Count == 0)
+      return [];
+
+    var prices = AutoMarketService.MarketPricesBySlot();
+    if (prices.Count == 0)
+      return [];
+
+    var sellRows = SellListReader.Read(market);
+    if (sellRows.Count == 0)
+      return [];
+
+    var placeholder = (long)Math.Max(Plugin.Configuration.AutoMarketPlaceholderPrice, 1);
+    var rows = new List<PinchRow>(sellRows.Count);
+
+    foreach (var row in sellRows)
+    {
+      var slotInfo = row.Slot == MarketRowMap.NoRow ? null : market.FirstOrDefault(m => m.Slot == row.Slot);
+      var itemId = slotInfo?.ItemId ?? 0u;
+      var hq = slotInfo?.HQ ?? false;
+      long current = 0;
+      if (row.Slot != MarketRowMap.NoRow && prices.TryGetValue(row.Slot, out var priced))
+        current = (long)Math.Min(priced, long.MaxValue);
+
+      rows.Add(new PinchRow(row.Row, row.Slot, itemId, hq, current, current > 0 && current == placeholder));
+    }
+
+    return rows;
+  }
+
+  private void StartPreflightLookup(IReadOnlyList<PinchRow> rows)
+  {
+    _preflightDecisions = null;
+    _preflightDone = false;
+
+    var itemIds = rows.Where(r => r.ItemId != 0).Select(r => r.ItemId).Distinct().ToList();
+    if (itemIds.Count == 0)
+    {
+      _preflightDone = true;
+      return;
+    }
+
+    var options = new PinchPreflightOptions(
+      Plugin.Configuration.AutoPinchPreflightEnabled,
+      Math.Clamp(Plugin.Configuration.AutoPinchPreflightFreshnessHours, 1, 168),
+      Math.Max(Plugin.Configuration.AutoPinchSkipUnderGil, 0),
+      Math.Clamp(Plugin.Configuration.AutoPinchSkipUnderPercent, 0f, 50f),
+      Plugin.Configuration.HQ,
+      Plugin.Configuration.UndercutMode,
+      Plugin.Configuration.UndercutAmount,
+      Plugin.Configuration.UndercutSelf);
+
+    var snapshot = rows.ToList();
+    var requestId = ++_preflightRequestId;
+    _preflightCts?.Cancel();
+    _preflightCts?.Dispose();
+    _preflightCts = new CancellationTokenSource();
+    var token = _preflightCts.Token;
+
+    _ = Task.Run(async () =>
+    {
+      List<PinchDecision>? decisions = null;
+      try
+      {
+        var quotes = await _universalisPriceProvider.GetQuotes(itemIds, token).ConfigureAwait(false);
+        if (quotes.Count > 0)
+          decisions = PinchPreflight.Decide(snapshot, quotes, options, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), ApplyItemPriceLimitsById);
+      }
+      catch (OperationCanceledException) { return; }
+      catch (Exception ex) { Svc.Log.Warning(ex, "[LMC] pinch pre-flight lookup failed; every row will be walked"); }
+
+      await Svc.Framework.RunOnFrameworkThread(() =>
+      {
+        if (_disposed || requestId != _preflightRequestId) return;
+        _preflightDecisions = decisions;
+        _preflightDone = true;
+      });
+    }, token);
+  }
+
+  /// <summary>
+  /// Queue the rows the pre-flight kept. The INFO line here is deliberately greppable: it is how this
+  /// feature is graded from the client log afterwards, against a pre-fix slice as a control.
+  /// </summary>
+  private void ApplyPreflight(int rowCount)
+  {
+    var decisions = _preflightDecisions;
+    _preflightDecisions = null;
+    _preflightDone = false;
+
+    if (decisions == null || decisions.Count == 0)
+    {
+      Svc.Log.Information($"[LMC] pinch pre-flight: no usable Universalis answer, walking all {rowCount} row(s)");
+      EnqueueAllRetainerItems(InsertSingleItem, true);
+      return;
+    }
+
+    Svc.Log.Information($"[LMC] {PinchPreflight.Summarize(decisions, Math.Clamp(Plugin.Configuration.AutoPinchPreflightFreshnessHours, 1, 168))}");
+
+    foreach (var decision in decisions.Where(d => d.Verdict != PinchVerdict.Walk))
+      Svc.Log.Debug($"[LMC] pinch pre-flight: skipping row {decision.Row.Row} (slot #{decision.Row.Slot}, item {decision.Row.ItemId}) priced {decision.Row.CurrentPrice}, candidate {decision.Candidate} - {decision.Reason}");
+
+    // Insert front-pushes, so the highest row goes in first and the rows are priced lowest-first.
+    foreach (var decision in decisions.Where(d => d.Verdict == PinchVerdict.Walk).OrderByDescending(d => d.Row.Row))
+      InsertSingleItem(decision.Row.Row);
   }
 
   /// <summary>
@@ -1389,7 +1559,18 @@ internal sealed class MarketAutomation : Window, IDisposable
     _listingFailures = 0;
     _preListPrice = null;
     _preListDone = false;
+    CancelPreflightLookup();
     CancelUniversalisPriceRequest();
+  }
+
+  private void CancelPreflightLookup()
+  {
+    _preflightRequestId++;
+    _preflightDecisions = null;
+    _preflightDone = false;
+    _preflightCts?.Cancel();
+    _preflightCts?.Dispose();
+    _preflightCts = null;
   }
 
   private void ClearCachedPricesIfUniversalisSettingChanged()
