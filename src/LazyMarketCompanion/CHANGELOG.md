@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.1.9.0 (2026-09-06)
+
+### Added
+- Auto Pinch can now skip listings that do not need pricing. Before it opens a single listing it asks Universalis about every item on the retainer in one request, works out what price this plugin would set, and walks past the rows where that price is the price the listing already has (files: `AutoMarket/PinchPreflight.cs`, new; `AutoMarket/PriceMath.cs`, new; `MarketAutomation.cs`, `InsertPinchPass`).
+- Measured on your 2026-09-06 11:26-11:36 sweep: of the 39 existing listings it re-priced, 17 came out at exactly the price they already had and 3 moved by a rounding error (243 to 242, 400 to 399, 30,971 to 30,951). That is 20 of 39 rows, about 3 minutes of a 9.5-minute sweep, spent writing numbers back unchanged.
+- The reason those 17 are no-ops is not a bug: you are already the cheapest on the data centre for those items and "Match Self" is off, so the matched price IS your own price. That is exactly the condition this checks for.
+- A "not worth it" threshold, shipping at 1%: a listing whose price would move by less than 1% of what it is priced at is left alone. That covers all three of the rounding-error moves above. There is also a gil threshold, shipping at 0 (off), if you would rather set an absolute floor.
+- Four new settings at the bottom of the Price Matching tab: the on/off switch (on), how fresh Universalis data has to be before it is trusted (6 hours), the gil threshold (0 = off) and the percentage threshold (1%). Nothing needs re-ticking after the update - existing settings are untouched.
+
+### Notes
+- THE HONEST CATCH, because it decides whether you want this on: you do NOT price from Universalis. "Use Universalis data center prices" is off in your config, so the real price comes from the in-game Compare Prices window. This pre-flight uses Universalis regardless, because it has to judge 20 items before opening any of them. So it PREDICTS what the pricing pass would do, and it can be wrong when Universalis and the in-game board disagree.
+- The specific risk in one sentence: someone undercuts you, nobody has uploaded that to Universalis yet, so it still reads as "you are cheapest", and that listing sits at its old price until the next sweep.
+- Everything uncertain walks the row rather than skipping it, deliberately: no Universalis data, data older than the freshness window, an unreadable row, a request that fails or times out, or the whole request coming back empty. A needless walk costs about ten seconds; a wrong skip can cost a sale.
+- A new listing still at the 999,999,999 gil placeholder is never skipped under any circumstances, whatever the board says. That rule is checked first, before anything else is even looked at.
+- The pre-flight only applies to the full-row pinch passes - the Auto Pinch button, the Auto Pinch sweep, and "Pinch everything after listing". The "price only what I just listed" pass from 0.1.6.0 is untouched.
+- One log line per pass says what it did, e.g. "pinch pre-flight: walking 19 of 39 row(s); skipped 17 already at the right price, 3 under the threshold" - so you can check what it actually skipped rather than take my word for it.
+- SAID AGAIN BECAUSE IT MATTERS MORE THAN THIS FEATURE: your "Market Board Price Check Delay" is 5,069 ms and "Market Board Keep Open Time" is 5,041 ms, against defaults of 3,000 and 1,000. Those two ARE the 10.5 seconds per row. Halving them would save more time than this whole feature does. They are yours to change and I have not touched them.
+- The price formula moved into one place (`AutoMarket/PriceMath.cs`) so the pre-flight's prediction and the pricing pass cannot drift apart. If they ever differed, the pre-flight would skip rows the pass would really have re-priced, which is the one failure mode worth caring about here.
+- No settings were changed, so there is nothing to migrate. The four new ones are new fields with defaults, which existing configs pick up as-is.
+- Offline test suite is now at 221 checks, up from 171. The new ones replay your 39-row sweep and assert exactly 17 already-right skips, exactly 3 threshold skips and 19 rows still walked - plus a control that the old behaviour walked all 39, a check that the shared price formula matches the pre-0.1.9.0 one over 320 inputs, and cases proving stale data, missing data, an HQ row, and a placeholder listing all still get walked (file: `tests/LazyMarketCompanion.Harness/Program.cs`).
+
 ## v0.1.8.0 (2026-09-06)
 
 ### Added
