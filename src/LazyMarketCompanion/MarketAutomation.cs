@@ -629,7 +629,8 @@ internal sealed class MarketAutomation : Window, IDisposable
       Plugin.Configuration.HQ,
       Plugin.Configuration.UndercutMode,
       Plugin.Configuration.UndercutAmount,
-      Plugin.Configuration.UndercutSelf);
+      Plugin.Configuration.UndercutSelf,
+      Plugin.Configuration.AutoPinchMirrorOverlay);
 
     var snapshot = rows.ToList();
     var requestId = ++_preflightRequestId;

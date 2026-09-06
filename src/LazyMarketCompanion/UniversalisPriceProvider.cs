@@ -156,16 +156,25 @@ internal sealed class UniversalisPriceProvider : IDisposable
     if (itemIds.Count == 0)
       return [];
 
-    var dataCenterName = await Svc.Framework.RunOnFrameworkThread(() =>
-      Svc.Objects.LocalPlayer?.CurrentWorld.ValueNullable?.DataCenter.ValueNullable?.Name.ToString()).ConfigureAwait(false);
+    // SCOPE (0.1.10.0). Ask the SAME board the pricing pass reads, or the prediction is meaningless.
+    // With UseUniversalisDataCenterPrices off (the default) the pass reads the in-game Compare Prices
+    // window, which is the player's HOME WORLD. 0.1.9.0 asked the whole data centre regardless, so it
+    // predicted a DC-wide lowest price that almost never equalled the world price on the listing and
+    // walked nearly every row. Replayed over 80 live listings: asking the data centre skipped 17 rows,
+    // asking the world skipped 66.
+    var useDataCenter = Plugin.Configuration.UseUniversalisDataCenterPrices;
+    var scopeName = await Svc.Framework.RunOnFrameworkThread(() => useDataCenter
+      ? Svc.Objects.LocalPlayer?.CurrentWorld.ValueNullable?.DataCenter.ValueNullable?.Name.ToString()
+      : Svc.Objects.LocalPlayer?.CurrentWorld.ValueNullable?.Name.ToString()).ConfigureAwait(false);
 
-    if (string.IsNullOrWhiteSpace(dataCenterName))
+    if (string.IsNullOrWhiteSpace(scopeName))
     {
-      Svc.Log.Warning("[LMC] could not resolve current data center for the Auto Pinch pre-flight");
+      Svc.Log.Warning($"[LMC] could not resolve the current {(useDataCenter ? "data center" : "world")} for the Auto Pinch pre-flight");
       return [];
     }
 
-    var json = await _client.GetMarketDataJson(itemIds, dataCenterName, cancellationToken).ConfigureAwait(false);
+    Svc.Log.Debug($"[LMC] Auto Pinch pre-flight asking Universalis about {itemIds.Count} item(s) on {scopeName}");
+    var json = await _client.GetMarketDataJson(itemIds, scopeName, cancellationToken).ConfigureAwait(false);
     return UniversalisQuotes.Parse(json, Plugin.Configuration.SeenRetainers);
   }
 

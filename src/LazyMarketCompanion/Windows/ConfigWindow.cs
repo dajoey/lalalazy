@@ -417,6 +417,10 @@ public sealed class ConfigWindow : Window
     if (ImGui.Checkbox("Skip listings that do not need pricing", ref preflight)) { c.AutoPinchPreflightEnabled = preflight; c.Save(); }
     Tip("Before Auto Pinch opens a single listing, ask Universalis about the whole retainer in one request and skip the rows where this plugin would write back the price the listing already has.\n\nIt uses Universalis even if you price from the in-game Compare Prices window, so it is a prediction of what the pass would do, not the pass itself.\n\nThe risk in one sentence: a fresh undercut nobody has uploaded to Universalis yet reads as 'you are still cheapest', so that listing sits overpriced until the next sweep.");
 
+    var mirrorOverlay = c.AutoPinchMirrorOverlay;
+    if (ImGui.Checkbox("Only skip when nobody else is undercutting you", ref mirrorOverlay)) { c.AutoPinchMirrorOverlay = mirrorOverlay; c.Save(); }
+    Tip("Matches the green/yellow/red overlay you already have on the retainer sell list: your own retainers' listings are ignored when working out the price to beat, and a row nobody else has undercut is left alone.\n\nHas no effect while \"Undercut my own retainers\" is on - that setting means you want your own listings treated as competition.");
+
     int freshness = c.AutoPinchPreflightFreshnessHours;
     ImGui.BeginGroup();
     ImGui.Text("Only trust Universalis data newer than (hours)");

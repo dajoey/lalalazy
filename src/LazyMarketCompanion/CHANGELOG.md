@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.1.10.0 (2026-09-06)
+
+### Fixed
+- Auto Pinch's "skip listings that do not need pricing" check was asking the wrong market board. It asked about your whole data centre while your prices actually come from the in-game Compare Prices window, which is your home world - so the price it predicted almost never matched the price on your listing and it walked nearly every row anyway (file: `UniversalisPriceProvider.cs`, `GetQuotes`).
+- It now asks whatever board your price matching uses: your world normally, or the data centre if you have "Use Universalis data center prices" turned on. Replayed over 80 of your live listings, this alone takes the skip count from 17 to 66.
+
+### Added
+- New setting "Only skip when nobody else is undercutting you", on by default, at the bottom of the Price Matching tab. It makes Auto Pinch judge a listing the same way your green/yellow/red overlay does: your own retainers' listings are ignored when working out the price to beat, and a row nobody else has undercut is left alone (files: `AutoMarket/PinchPreflight.cs`, rule 5a; `Configuration.cs`, `AutoPinchMirrorOverlay`).
+- That covers two cases the scope fix alone does not: a listing whose only cheaper competition is another of your own retainers, and a listing nobody is undercutting at all.
+- The setting does nothing while "Undercut my own retainers" is on. That setting means you want your own listings treated as competition, so ignoring them would make Auto Pinch skip a row it should have re-priced.
+
+### Notes
+- Every uncertainty still walks the row, exactly as before: no Universalis data, data older than your freshness window, an unreadable row, a failed or slow request, and a brand-new listing still at the placeholder price is never skipped under any circumstances.
+- Your "Market Board Price Check Delay" and "Market Board Keep Open Time" are still the biggest single lever on how long a sweep takes. They have not been touched.
+- The log line to look for is "pinch pre-flight: walking N of M row(s)", and it now names not-undercut skips separately.
+
 ## v0.1.9.0 (2026-09-06)
 
 ### Added

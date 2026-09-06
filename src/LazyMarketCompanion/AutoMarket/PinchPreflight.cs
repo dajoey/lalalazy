@@ -31,6 +31,11 @@ public enum PinchVerdict
   SkipAlreadyRight,
   /// <summary>The pricing pass would move the price by less than the user's "worth it" threshold.</summary>
   SkipUnderThreshold,
+  /// <summary>
+  /// Mirror mode only: nobody else's listing is below this one, so it is not undercut. This is
+  /// AllaganMarket's green, computed from the same inputs its overlay uses.
+  /// </summary>
+  SkipNotUndercut,
 }
 
 /// <summary>A row plus the verdict, the price the pass was predicted to write, and why.</summary>
@@ -50,7 +55,8 @@ public sealed record PinchPreflightOptions(
   bool PreferHq,
   UndercutMode Mode,
   int UndercutAmount,
-  bool UndercutSelf);
+  bool UndercutSelf,
+  bool MirrorOverlay = false);
 
 /// <summary>
 /// Decides, BEFORE any context menu is opened, which sell-list rows are worth walking.
@@ -141,16 +147,48 @@ public static class PinchPreflight
       // UniversalisPriceProvider.GetNewPriceById exactly: HQ listings only when the listing is HQ AND the
       // user's "Use HQ price" setting is on, otherwise the cheapest listing of any quality.
       var hqOnly = options.PreferHq && row.HQ;
-      var lowest = quote.Listings
+      var eligible = quote.Listings
         .Where(l => l.PricePerUnit > 0 && (!hqOnly || l.Hq))
         .OrderBy(l => l.PricePerUnit)
-        .FirstOrDefault();
+        .ToList();
 
-      if (lowest == null)
+      if (eligible.Count == 0)
       {
         decisions.Add(new PinchDecision(row, PinchVerdict.Walk, 0, hqOnly ? "no HQ listing on the board" : "no listing on the board"));
         continue;
       }
+
+      // Rule 5a - MIRROR MODE (0.1.10.0). AllaganMarket's overlay colours a row RED only when the cheapest
+      // listing on the WORLD that is NOT one of your own retainers is below your asking price, and GREEN
+      // otherwise (its own-price branch returns your own price unchanged, so an own-lowest listing is never
+      // red). Joey asked for the pre-flight to go by those colours, so with this on the competing price is
+      // taken from other people's listings only. That closes the last large group of rows a world-scoped
+      // pre-flight still walks: rows where the only cheaper listing is another of your own retainers, and
+      // rows where you are simply not undercut.
+      //
+      // Deliberately inert when UndercutSelf is on: that setting means the user WANTS their own retainers
+      // treated as competition, and ignoring them would then mispredict the pass, which is a wrong skip.
+      var mirror = options.MirrorOverlay && !options.UndercutSelf;
+      QuoteListing? cheapestOther = null;
+      if (mirror)
+      {
+        cheapestOther = eligible.FirstOrDefault(l => !l.OwnRetainer);
+        if (cheapestOther == null)
+        {
+          decisions.Add(new PinchDecision(row, PinchVerdict.SkipNotUndercut, row.CurrentPrice,
+            "every listing of this item on the board is one of yours - nothing to undercut"));
+          continue;
+        }
+
+        if (cheapestOther.PricePerUnit >= row.CurrentPrice)
+        {
+          decisions.Add(new PinchDecision(row, PinchVerdict.SkipNotUndercut, row.CurrentPrice,
+            $"not undercut: the cheapest listing that is not yours is {cheapestOther.PricePerUnit}, at or above your {row.CurrentPrice}"));
+          continue;
+        }
+      }
+
+      var lowest = mirror ? cheapestOther! : eligible[0];
 
       var candidate = (long)PriceMath.Candidate(lowest.PricePerUnit, lowest.OwnRetainer, options.Mode, options.UndercutAmount, options.UndercutSelf);
       if (applyItemLimit != null)
@@ -195,10 +233,12 @@ public static class PinchPreflight
     var walked = decisions.Count(d => d.Verdict == PinchVerdict.Walk);
     var alreadyRight = decisions.Count(d => d.Verdict == PinchVerdict.SkipAlreadyRight);
     var underThreshold = decisions.Count(d => d.Verdict == PinchVerdict.SkipUnderThreshold);
+    var notUndercut = decisions.Count(d => d.Verdict == PinchVerdict.SkipNotUndercut);
 
     var reasons = new List<string>();
     if (alreadyRight > 0) reasons.Add($"{alreadyRight} already at the right price");
     if (underThreshold > 0) reasons.Add($"{underThreshold} under the threshold");
+    if (notUndercut > 0) reasons.Add($"{notUndercut} not undercut by anyone else");
 
     var skipped = reasons.Count == 0 ? "skipped nothing" : "skipped " + string.Join(", ", reasons);
     return $"pinch pre-flight: walking {walked} of {total} row(s); {skipped} (Universalis data <={freshnessHours}h old)";

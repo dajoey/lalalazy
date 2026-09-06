@@ -1081,6 +1081,69 @@ var Catalogue = new (uint Id, string Name)[]
       (_, price) => Math.Max(price, 500))[0].Verdict == PinchVerdict.SkipAlreadyRight);
   Check("preflight: CONTROL - without that limit the same row is walked",
     One(new PinchRow(0, 0, 6007, false, 500, false), new Dictionary<uint, ItemQuote> { [6007] = Quote(6007, 300, own: false) }) == PinchVerdict.Walk);
+
+  // 9 - MIRROR MODE (0.1.10.0). AllaganMarket colours a row red only when the cheapest listing that is NOT
+  //     one of your own retainers undercuts you. Every case below is paired with the SAME input under
+  //     mirror OFF, so a pass proves the mirror flag is what changed the verdict and not the fixture.
+  var mirror = options with { MirrorOverlay = true };
+
+  // 9a - the headline case: a stranger sits below one of your own retainers. Without mirror the pre-flight
+  //      predicts undercutting that stranger and walks; with mirror the row is judged against the stranger
+  //      too, so it still walks. Undercut only by YOURSELF is the case that changes.
+  var twoOwn = new Dictionary<uint, ItemQuote>
+  {
+    [6100] = new(6100, true, Now - OneHour, [new QuoteListing(50, false, true), new QuoteListing(90, false, false)]),
+  };
+  var undercutBySelfRow = new PinchRow(0, 0, 6100, false, 80, false);
+  Check("preflight mirror: undercut only by your OWN retainer is skipped as not-undercut",
+    One(undercutBySelfRow, twoOwn, mirror) == PinchVerdict.SkipNotUndercut);
+  Check("preflight mirror: NEGATIVE CONTROL - the identical input with mirror OFF is walked",
+    One(undercutBySelfRow, twoOwn, options) == PinchVerdict.Walk);
+
+  // 9b - a real stranger undercut is still walked under mirror. Mirror must not suppress the case the
+  //      whole feature exists to catch.
+  var strangerBelow = new Dictionary<uint, ItemQuote>
+  {
+    [6101] = new(6101, true, Now - OneHour, [new QuoteListing(60, false, false), new QuoteListing(95, false, true)]),
+  };
+  Check("preflight mirror: a STRANGER below your price is still walked (this is AllaganMarket red)",
+    One(new PinchRow(0, 0, 6101, false, 80, false), strangerBelow, mirror) == PinchVerdict.Walk);
+
+  // 9c - board holds nothing but your own listings: there is nobody to undercut at all.
+  var allOwn = new Dictionary<uint, ItemQuote>
+  {
+    [6102] = new(6102, true, Now - OneHour, [new QuoteListing(70, false, true), new QuoteListing(75, false, true)]),
+  };
+  Check("preflight mirror: a board holding only your own listings is skipped, not walked",
+    One(new PinchRow(0, 0, 6102, false, 80, false), allOwn, mirror) == PinchVerdict.SkipNotUndercut);
+  Check("preflight mirror: NEGATIVE CONTROL - the same all-yours board with mirror OFF is walked",
+    One(new PinchRow(0, 0, 6102, false, 80, false), allOwn, options) == PinchVerdict.Walk);
+
+  // 9d - a stranger AT your price is not an undercut. AllaganMarket compares strictly below.
+  var strangerEqual = new Dictionary<uint, ItemQuote> { [6103] = Quote(6103, 80, own: false) };
+  Check("preflight mirror: a stranger AT your exact price is not an undercut, so the row is skipped",
+    One(new PinchRow(0, 0, 6103, false, 80, false), strangerEqual, mirror) == PinchVerdict.SkipNotUndercut);
+
+  // 9e - mirror is inert when the user asked to undercut their own retainers, because then their own
+  //      listings ARE competition and ignoring them would mispredict the pass - a wrong skip.
+  var selfOn = mirror with { UndercutSelf = true, UndercutAmount = 5 };
+  Check("preflight mirror: with Undercut-my-own-retainers ON, mirror is inert and the row is walked",
+    One(undercutBySelfRow, twoOwn, selfOn) == PinchVerdict.Walk);
+
+  // 9f - every uncertainty rule still outranks mirror. Stale data must not become a not-undercut skip.
+  var staleAllOwn = new Dictionary<uint, ItemQuote>
+  {
+    [6104] = new(6104, true, Now - (7 * OneHour), [new QuoteListing(70, false, true)]),
+  };
+  Check("preflight mirror: stale data still walks the row, mirror does not outrank the freshness gate",
+    One(new PinchRow(0, 0, 6104, false, 80, false), staleAllOwn, mirror) == PinchVerdict.Walk);
+  Check("preflight mirror: a placeholder-priced listing is still never skipped under mirror",
+    One(new PinchRow(0, 0, 6102, false, Placeholder, true), allOwn, mirror) == PinchVerdict.Walk);
+
+  // 9g - the summary line names the new bucket so the feature is gradable from Joey's log.
+  Check("preflight mirror: the summary line reports the not-undercut skips",
+    PinchPreflight.Summarize(PinchPreflight.Decide([undercutBySelfRow], twoOwn, mirror, Now), 6)
+      .Contains("1 not undercut by anyone else"));
 }
 
 // 35. The Universalis payload comes back in TWO shapes from the same endpoint (verified live 2026-09-06):

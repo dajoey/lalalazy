@@ -261,6 +261,14 @@ public sealed class Configuration : IPluginConfiguration
   /// <summary>Universalis data older than this many hours never justifies a skip. Clamped to 1..168.</summary>
   public int AutoPinchPreflightFreshnessHours { get; set; } = 6;
 
+  /// <summary>
+  /// Mirror AllaganMarket's green/yellow/red rule in the pre-flight: ignore your OWN retainers' listings
+  /// when working out the price to beat, and skip a row that nobody else is undercutting. Inert when
+  /// "Undercut my own retainers" is on, because that setting means you want your own listings treated as
+  /// competition. New field with an initializer, so an existing config deserializes it without a migration.
+  /// </summary>
+  public bool AutoPinchMirrorOverlay { get; set; } = true;
+
   /// <summary>Skip a row whose price would move by fewer than this many gil. 0 = off.</summary>
   public int AutoPinchSkipUnderGil { get; set; } = 0;
 
