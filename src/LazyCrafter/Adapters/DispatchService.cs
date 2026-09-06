@@ -38,7 +38,7 @@ namespace LazyCrafter.Adapters;
 /// </summary>
 public sealed class DispatchService : IDisposable
 {
-    public enum Phase { Idle, Retrieve, WaitRetrieve, Ventures, Gathers, WaitGather, Crafts, WaitCraftStart, WaitCraftEnd, Done, Failed, BatchRetrieve, BatchWait, Blocked }
+    public enum Phase { Idle, Retrieve, WaitRetrieve, Ventures, Gathers, WaitGather, Crafts, WaitClientFree, WaitCraftStart, WaitCraftEnd, Done, Failed, BatchRetrieve, BatchWait, Blocked }
 
     private readonly Plugin _plugin;
     private readonly IFramework _framework;
@@ -86,6 +86,8 @@ public sealed class DispatchService : IDisposable
     private readonly CraftDiagnosis.BlockedCrafts _blockedCrafts = new();
     /// <summary>The window that owned the client's input at the instant <c>Artisan.Craft</c> was called, or <c>null</c>. Sampled per craft.</summary>
     private string? _busyAtCraft;
+    /// <summary>The window the craft gate is currently holding the cart for (card t_ee6f7bf5, Phase.WaitClientFree).</summary>
+    private string? _waitingOn;
 
     // ---- retrieval state (card t_63b845ad)
     /// <summary>The cart this run came from, so the loop can re-plan against live bags between waves (null for single-item runs).</summary>
@@ -256,6 +258,18 @@ public sealed class DispatchService : IDisposable
     {
         if (Running) { Say($"a dispatch is already running ({Status}); /lcraft stop first.", error: true); return false; }
         if (_loop is null || _snap is null) { Say("nothing to resume - dispatch a cart first.", error: true); return false; }
+        // Card t_ee6f7bf5: the gate applies to Resume too. His 11:59:11 Resume re-entered the identical
+        // blocked state because nothing re-checked readiness - the cart he was resuming was held by the same
+        // still-open window. If the client is busy at resume time the wave holds in WaitClientFree first,
+        // exactly like a mid-cart block, instead of bouncing crafts off a closed door.
+        if (Readiness.BusyBecause() is { } resumeBlockedBy)
+        {
+            _waitingOn = resumeBlockedBy;
+            Say(ClientWaitPolicy.WaitLine(resumeBlockedBy), error: false);
+            SetStatus(ClientWaitPolicy.WaitStatus(resumeBlockedBy, TimeSpan.Zero));
+            Enter(Phase.WaitClientFree);
+            return true;
+        }
         Say("resuming - re-checking your bags.");
         _endedUtc = null;
         _stoppedReason = null;
@@ -339,7 +353,7 @@ public sealed class DispatchService : IDisposable
         if (!Running && _plan is null) { Say("nothing is running."); return; }
         if (Current is Phase.BatchRetrieve or Phase.BatchWait or Phase.Retrieve or Phase.WaitRetrieve) Fetch.Abort();
         if (Current is Phase.WaitGather or Phase.Gathers) Gbr.Stop();
-        if (Current is Phase.WaitCraftStart or Phase.WaitCraftEnd or Phase.Crafts) Artisan.Stop();
+        if (Current is Phase.WaitClientFree or Phase.WaitCraftStart or Phase.WaitCraftEnd or Phase.Crafts) Artisan.Stop();
         _loop = null;   // a manual stop is not resumable - the player chose to end it
         _snap = null;
         Finish(Phase.Failed, why);
@@ -360,6 +374,7 @@ public sealed class DispatchService : IDisposable
         // not suppress a genuine retrieval in this one.
         _blockedCrafts.Clear();
         _busyAtCraft = null;
+        _waitingOn = null;
         // The /lcraft blocked stash belongs to the LAST run and is deliberately kept past Finish/FinishBlocked;
         // a new run is the one thing that invalidates it (card t_35be7be5).
         _lastBlockedListings = BlockedListings.Summary.Empty;
@@ -573,7 +588,7 @@ public sealed class DispatchService : IDisposable
         Current = p;
         _phaseClock.Restart();
         _nextPoll = DateTime.MinValue;
-        if (p is Phase.WaitGather or Phase.BatchWait or Phase.WaitRetrieve or Phase.WaitCraftEnd or Phase.WaitCraftStart)
+        if (p is Phase.WaitGather or Phase.BatchWait or Phase.WaitRetrieve or Phase.WaitCraftEnd or Phase.WaitCraftStart or Phase.WaitClientFree)
             _nextHeartbeat = DateTime.UtcNow.AddMinutes(3);
         Snap();
     }
@@ -850,6 +865,23 @@ public sealed class DispatchService : IDisposable
                     if (!Artisan.Installed) { Finish(Phase.Failed, "Artisan is not installed or not loaded"); return; }
                     if (!Poll(500)) break;
                     if (Artisan.IsBusy() == true) { SetStatus("waiting for Artisan to go idle"); if (_phaseClock.ElapsedMilliseconds > 120_000) Finish(Phase.Failed, "Artisan stayed busy for 2 minutes"); break; }
+
+                    // Card t_ee6f7bf5 (Joey's wait-and-resume pick): never hand Artisan a craft while a window
+                    // owns the client's input. Artisan.Craft() is fire-and-forget - the game's "Unable to execute
+                    // command while occupied" never comes back to us - and with the market board open it bounces
+                    // in milliseconds and disables its own crafting mode after five tries (his 11:58 run). Ask
+                    // BEFORE the call, hold here, and resume by ourselves when the window is gone. Nothing is
+                    // dequeued yet, so nothing has to be re-queued - the cart survives a shopping trip untouched.
+                    if (Readiness.BusyBecause() is { } blockedBy)
+                    {
+                        _waitingOn = blockedBy;
+                        Say(ClientWaitPolicy.WaitLine(blockedBy), error: false);
+                        SetStatus(ClientWaitPolicy.WaitStatus(blockedBy, TimeSpan.Zero));
+                        _log.Information("craft gate: holding the cart - {Window} is holding the client's input", blockedBy);
+                        Enter(Phase.WaitClientFree);
+                        break;
+                    }
+
                     _current = _crafts.Dequeue();
 
                     // Guard: never hand Artisan a craft whose materials are not physically in the bags. The plan was
@@ -892,6 +924,39 @@ public sealed class DispatchService : IDisposable
                     TrackStep(StepKind.Craft, _current.ResultItemId, _current.Crafts, StepState.Running, recipeId: _current.RecipeId, ext: "Artisan");
                     _craftStall.Reset();
                     Enter(Phase.WaitCraftStart);
+                    break;
+
+                // Card t_ee6f7bf5: the hold. Entered from Phase.Crafts with the fresh BusyBecause() sample in
+                // _waitingOn and the entry line already said. Poll the same question every 500 ms: the moment
+                // nothing is holding the client, resume BY ITSELF - no button, no re-plan - and carry on with
+                // the crafts queue exactly where it was. The one repeated line is the STATUS (with the hold's
+                // age), never a chat line per poll; a DIFFERENT window taking over re-says the close-it line
+                // once (closing the board into a retainer menu must not leave the run silent about what now
+                // holds it). Five minutes and the run stops cleanly: Blocked, cart held, Resume re-plans.
+                case Phase.WaitClientFree:
+                    if (!Poll(500)) break;
+                    var busyNow = Readiness.BusyBecause();
+                    if (busyNow is null)
+                    {
+                        Say(ClientWaitPolicy.ResumedLine(_waitingOn));
+                        _waitingOn = null;
+                        Enter(Phase.Crafts);
+                        break;
+                    }
+                    if (_waitingOn is null || !busyNow.Equals(_waitingOn, StringComparison.Ordinal))
+                    {
+                        _waitingOn = busyNow;
+                        Say(ClientWaitPolicy.WaitLine(busyNow), error: false);
+                    }
+                    SetStatus(ClientWaitPolicy.WaitStatus(busyNow, _phaseClock.Elapsed));
+                    Heartbeat($"waiting - close {busyNow} to continue ({_phaseClock.Elapsed:m\\:ss})");
+                    if (ClientWaitPolicy.TimedOut(_phaseClock.Elapsed))
+                    {
+                        var why = ClientWaitPolicy.TimeoutReason(busyNow, ClientWaitPolicy.WaitCap);
+                        Say(ClientWaitPolicy.TimeoutLine(busyNow, ClientWaitPolicy.WaitCap), error: true);
+                        _waitingOn = null;
+                        FinishBlocked(why, _plan);
+                    }
                     break;
 
                 case Phase.WaitCraftStart:
@@ -1061,7 +1126,7 @@ public sealed class DispatchService : IDisposable
         Phase.Retrieve or Phase.WaitRetrieve or Phase.BatchRetrieve or Phase.BatchWait => "Retrieving",
         Phase.Ventures => "Ventures",
         Phase.Gathers or Phase.WaitGather => "Gathering",
-        Phase.Crafts or Phase.WaitCraftStart or Phase.WaitCraftEnd => "Crafting",
+        Phase.Crafts or Phase.WaitCraftStart or Phase.WaitCraftEnd or Phase.WaitClientFree => "Crafting",
         Phase.Done => "Done",
         Phase.Failed => "Failed",
         Phase.Blocked => "Blocked",
@@ -1109,6 +1174,7 @@ public sealed class DispatchService : IDisposable
         _plan = null;
         _current = null;
         _fetching = null;
+        _waitingOn = null;
         _crafts.Clear();
         _retrievals.Clear();
         _batchCrafts = Array.Empty<uint>();

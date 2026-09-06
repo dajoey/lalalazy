@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.1.6.8 (2026-09-06)
+
+### Added
+- **Before every craft, LazyCrafter now checks whether the game can actually accept a command - and if a window is holding the client, it WAITS for you instead of erroring out.** If you finish a shopping cart at the market board and the board window is still open, the run now says `waiting - close the market board to continue` and holds there, re-checking. The moment you close the window it resumes the cart BY ITSELF - no button, no re-plan, nothing lost. Your cart now survives a shopping trip without you touching anything (file: `Adapters/DispatchService.cs` `Phase.Crafts` craft gate + new `Phase.WaitClientFree`)
+- **If you walk away with a window open, the run stops cleanly after five minutes** with `stopped - the market board blocked crafting for 5 minutes - close it and press Resume (or /lcraft resume) to continue the same cart.` The cart is preserved, so Resume re-plans and continues exactly as before; the hold never outlives the cap (file: `Adapters/DispatchService.cs` `Phase.WaitClientFree` timeout -> `FinishBlocked`, cap in `Core/ClientWaitPolicy.cs`)
+- **The same check now guards Resume.** Pressing Resume with the market board still open used to re-enter the identical broken state (observed in the 2026-09-06 11:58 run: Resume at 11:59:11, still spinning at 12:02). Now the resumed cart holds first and waits for the window, exactly like a mid-cart block (file: `Adapters/DispatchService.cs` `Resume`)
+
+### Changed
+- The client-busy check itself got sharper: the addon half now requires the window to be VISIBLE, not merely loaded (some game windows stay loaded after closing - holding the cart for one would be the exact "walked away" failure the cap bounds), and it recognises more windows by name: the market-board purchase window, the retainer venture prompt and result, desynthesis, repair, materia meld, the bank, quantity input and dialogue boxes (file: `Adapters/ClientReadiness.cs`)
+- The condition-flag half of the check is now Artisan's own refusal set, verbatim: the nine `Occupied*` conditions Artisan itself treats as "the game will not take a craft command", plus trade / cutscene / zone-change. The crafting conditions (`Crafting`, `PreparingToCraft`, `ExecutingCraftingAction`) are deliberately NOT in it - they are what a working craft looks like, and gating on them would deadlock the dispatcher against itself (files: `Core/ClientWaitPolicy.cs`, `Adapters/ClientReadiness.cs`; flag list pinned by tests)
+- While held, the Run tab status counts the hold (`waiting - the market board (1:30)`) and a "still working" heartbeat fires every 3 minutes, so a hold never reads as a hang; the waiting line is printed to chat ONCE on entering the hold (and once more if a DIFFERENT window takes over), not on every poll (file: `Adapters/DispatchService.cs` `Phase.WaitClientFree`)
+
+### Notes
+- **Exactly the behaviour picked: wait-and-resume.** Not stop-immediately, not a setting, not a different cap. The five-minute hold and the exact `waiting - close ... to continue` wording are what was shipped.
+- **Nothing about genuine shortages or the 0.1.6.7 diagnosis changed.** A material that really is missing is still reported exactly as in 0.1.6.7; a refused craft is still never called a missing material. This build adds the hold in front of the craft, it does not touch the reporting behind it.
+- Proved offline before shipping: 264/264 in `tests/LazyCrafter.Harness` (was 250/250), with 14 new checks that drive the hold through a fake clock and assert on the RENDERED chat and status text - entry line, resume line, timeout reason, the never-outlives-the-cap property, and the flag table itself (Artisan's refusal set verbatim, disjoint from the crafting conditions). Two negative controls were run: disabling the craft gate and shrinking the cap to 2 minutes each turned exactly the matching checks red before the code was restored to green (file: `tests/LazyCrafter.Harness/ClientWaitTests.cs`).
+
 ## v0.1.6.7 (2026-09-06)
 
 ### Fixed
