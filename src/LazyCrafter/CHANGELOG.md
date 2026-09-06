@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.1.6.4 (2026-09-05)
+
+- Fixed: a `retrieve` line could send you to the market board for materials that were actually sitting on a retainer. If you had more of an item listed for sale than the retainer was holding, LazyCrafter named the listing as the place to fetch from - so a run said things like `8x from the market board (listed by retainer Hussypants)` when those 8 were on retainer Dojarat and could be pulled at any summoning bell (file: `Core/DispatchPlan.cs`, function: `PlacesFor`)
+- Nothing was miscounted: the amount, the `have` total and the routing were all correct, and no craft was blocked that should not have been. Only the place name was wrong - but it reads exactly like the older bug where listings counted as stock you had, so it cost time to diagnose every time it appeared in a log
+- The cause was that the places were sorted purely by how much each held, with no notion of whether you can go and get it, so a big listing outranked a small retainer stack. Places you can actually fetch from are now always offered first, and a listing is named only when nothing reachable holds the item (file: `Core/DispatchPlan.cs`, function: `PlacesFor`; `Core/Model/StoredElsewhere.cs`, new `Fetchable` flag)
+- Your listings are still shown exactly as before - the fix changes which place is chosen, not what you are told about (file: `Adapters/AllaganInventory.cs`, function: `StoredWhere`)
+- The ingredient tree's Retrieve button no longer counts listed stock towards what it offers to fetch, so it cannot offer a retrieval the run would then refuse; the same correction applies to a single-item Retrieve and to materials re-queued after a retainer pass (files: `UI/IngredientTree.cs`, `Adapters/DispatchService.cs`)
+- Tests: 10 new harness checks, including the reported case, a control at the size where the old code happened to be right, a control proving a listing alone is still never a retrieval, and one proving a listing is still named - so this cannot be `fixed` by hiding listings (file: `tests/LazyCrafter.Harness/MarketListingTests.cs`)
+
 ## v0.1.6.3 (2026-09-05)
 
 ### Fixed
