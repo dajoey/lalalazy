@@ -52,6 +52,7 @@ foreach (var t in RetainerBatchQueueTests.Tests) yield return ("batchqueue", t.N
         foreach (var t in SpikeReportTests.Tests) yield return ("spike", t.Name, t.Check);
         foreach (var t in OccupiedCraftTests.Tests) yield return ("occupied", t.Name, t.Check);
         foreach (var t in ClientWaitTests.Tests) yield return ("clientwait", t.Name, t.Check);
+        foreach (var t in SpecialShopTests.Tests) yield return ("currency", t.Name, t.Check);
     }
 
     private static int Main()

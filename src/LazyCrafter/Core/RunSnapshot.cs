@@ -3,7 +3,11 @@ namespace LazyCrafter.Core;
 /// <summary>Where a run is, coarsely. <see cref="Blocked"/> is terminal-but-resumable: nothing the plugin can hand off is left, the player has to buy / fetch something, then press Resume.</summary>
 public enum RunState { Idle, Running, Blocked, Done, Failed }
 
-public enum StepKind { Retrieve, Venture, Gather, Craft, Vendor, Market, Manual }
+/// <summary>
+/// A run's channels. <see cref="CurrencyShop"/> was added in 0.1.6.7 (card t_b431de3a) and is appended, never
+/// inserted, because these values are persisted in snapshots and compared by name in the renderers.
+/// </summary>
+public enum StepKind { Retrieve, Venture, Gather, Craft, Vendor, Market, Manual, CurrencyShop }
 
 public enum StepState { Pending, Running, Done, Failed, Blocked }
 
@@ -120,6 +124,7 @@ public sealed record RunSnapshot(
         StepKind.Craft => "craft",
         StepKind.Vendor => "vendor",
         StepKind.Market => "market",
+        StepKind.CurrencyShop => "currency shop",
         _ => "manual",
     };
 

@@ -67,6 +67,8 @@ public sealed class AllaganInventory : IInventory, IDisposable
     private readonly Dictionary<uint, int> _memo = new();
     private readonly Dictionary<uint, int> _bagMemo = new();
     private readonly Dictionary<uint, IReadOnlyList<StoredElsewhere>> _whereMemo = new();
+    /// <summary>Currency balances (card t_b431de3a), memoised alongside the others and cleared by the same events.</summary>
+    private readonly Dictionary<uint, int?> _currencyMemo = new();
     private readonly object _lock = new();
     private DateTime? _invalidateAt;
     private bool _dispatchRunning;
@@ -128,7 +130,7 @@ public sealed class AllaganInventory : IInventory, IDisposable
             _allCharacters = _isEnabled(InventorySource.AltCharacters);
             _memo.Clear();
             _bagMemo.Clear();
-            _whereMemo.Clear();
+            _whereMemo.Clear(); _currencyMemo.Clear();
         }
     }
 
@@ -276,6 +278,49 @@ public sealed class AllaganInventory : IInventory, IDisposable
         return result;
     }
 
+    /// <summary>
+    /// Units of a currency item the player holds (card t_b431de3a, decision D2) - Grand Company seals, beast-tribe
+    /// tokens, tomestones, Fluorite Lenses. <c>null</c> when it cannot be read at all.
+    /// <para>
+    /// Read from the client's own <c>InventoryManager</c>, not through AllaganTools, for two reasons. First, these
+    /// live in containers (<c>Currency</c> 2000, <c>KeyItem</c> 2004) that are in no <see cref="InventorySource"/>
+    /// set, so <c>ItemCountOwned</c> over the enabled types would answer 0 for every one of them. Second,
+    /// <c>GetInventoryItemCount</c> already searches the currency and crystal containers for exactly this kind of
+    /// item, and it is the same call <see cref="CountInBags"/> trusts.
+    /// </para>
+    /// <para>
+    /// A read that fails, or a client that is not logged in, returns <c>null</c>, and the affordability gate then
+    /// refuses - which leaves the item on the market board. <b>There is no failure mode here that spends the
+    /// player's currency</b>: the only way to be wrong is to under-report, and under-reporting is the safe
+    /// direction by construction.
+    /// </para>
+    /// </summary>
+    public int? CurrencyBalance(uint currencyItemId)
+    {
+        if (currencyItemId == 0) return null;
+        lock (_lock)
+        {
+            if (_currencyMemo.TryGetValue(currencyItemId, out var cached)) return cached;
+        }
+        int? balance;
+        try { balance = CurrencyViaClient(currencyItemId); }
+        catch (Exception ex)
+        {
+            _log.Debug("currency balance read for {Item} failed: {Msg}", currencyItemId, ex.Message);
+            balance = null;
+        }
+        lock (_lock) _currencyMemo[currencyItemId] = balance;
+        return balance;
+    }
+
+    /// <summary>The client's own count for a currency item, or <c>null</c> when the inventory is not up.</summary>
+    private static unsafe int? CurrencyViaClient(uint currencyItemId)
+    {
+        var im = InventoryManager.Instance();
+        if (im == null) return null;
+        return im->GetInventoryItemCount(currencyItemId, isHq: false);
+    }
+
     /// <summary>Human place name for the refusal / retrieve lines: reads after "from".</summary>
     private static string PlaceName(InventorySource source) => source switch
     {
@@ -412,7 +457,7 @@ public sealed class AllaganInventory : IInventory, IDisposable
     /// </summary>
     public void DropMemo()
     {
-        lock (_lock) { _memo.Clear(); _bagMemo.Clear(); _whereMemo.Clear(); }
+        lock (_lock) { _memo.Clear(); _bagMemo.Clear(); _whereMemo.Clear(); _currencyMemo.Clear(); }
     }
 
     /// <summary>Force a recompute and notify listeners (a manual refresh button).</summary>
@@ -430,7 +475,7 @@ public sealed class AllaganInventory : IInventory, IDisposable
     private void OnInitialized(bool ready)
     {
         Available = ready;
-        lock (_lock) { _memo.Clear(); _bagMemo.Clear(); _whereMemo.Clear(); _invalidateAt = DateTime.UtcNow; }
+        lock (_lock) { _memo.Clear(); _bagMemo.Clear(); _whereMemo.Clear(); _currencyMemo.Clear(); _invalidateAt = DateTime.UtcNow; }
     }
 
     private void OnFrameworkUpdate(IFramework _)
@@ -440,7 +485,7 @@ public sealed class AllaganInventory : IInventory, IDisposable
         lock (_lock)
         {
             fire = _invalidateAt is { } at && DateTime.UtcNow >= at;
-            if (fire) { _invalidateAt = null; _memo.Clear(); _bagMemo.Clear(); _whereMemo.Clear(); }
+            if (fire) { _invalidateAt = null; _memo.Clear(); _bagMemo.Clear(); _whereMemo.Clear(); _currencyMemo.Clear(); }
         }
         if (fire) Changed?.Invoke();
     }

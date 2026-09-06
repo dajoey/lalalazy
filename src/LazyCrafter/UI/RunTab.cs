@@ -174,7 +174,21 @@ public sealed class RunTab
             vi++;
         }
 
-        foreach (var b in s.Blocked.Where(b => b.Kind is not (StepKind.Market or StepKind.Vendor)))
+        // Currency shops get their own bullet with a map-flag button, like the gil vendors above, because the
+        // instruction is "walk to this NPC and trade" - a generic one-liner would tell the player a price they
+        // then have to go and find the counter for (card t_b431de3a).
+        var ci = 0;
+        foreach (var b in s.Blocked.Where(b => b.Kind == StepKind.CurrencyShop))
+        {
+            ImGui.Bullet();
+            ImGui.TextUnformatted($"Trade for {b.Name} x{b.Quantity} at {b.Where}");
+            ImGui.SameLine();
+            if (ImGui.SmallButton($"Flag on map##currency{ci}")) FlagCurrencyShop(b);
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip("Sets the map flag on the currency vendor and prints the price. No teleport, and LazyCrafter never makes the trade for you.");
+            ci++;
+        }
+
+        foreach (var b in s.Blocked.Where(b => b.Kind is not (StepKind.Market or StepKind.Vendor or StepKind.CurrencyShop)))
         {
             ImGui.Bullet();
             ImGui.TextUnformatted($"{RunReport.KindName(b.Kind)}: {b.Name} x{b.Quantity}{(string.IsNullOrEmpty(b.Where) ? "" : $" - {b.Where}")}");
@@ -205,6 +219,33 @@ public sealed class RunTab
             _plugin.Dispatch.Lifestream.GoToVendor(where, group, Name, teleport: false);
         if (unlocated.Count > 0)
             Plugin.ChatGui.PrintError("[LazyCrafter] no placed gil vendor found for " + string.Join(", ", unlocated.Select(u => Name(u.ItemId))) + ".");
+    }
+
+    /// <summary>
+    /// Map flag + price line for one currency-shop item (card t_b431de3a). Button handler (framework thread).
+    /// <para>
+    /// Re-resolves through the SAME <c>Vendors.SpecialShopCandidates</c> + <c>SpecialShopChoice.Best</c> pair the
+    /// plan used, with the plan's own affordability rule, so this button and the chat block cannot name different
+    /// NPCs - the exact drift card t_731ea0e7 fixed for gil vendors. If nothing resolves now (the player spent the
+    /// currency since the run ended, say) it says so rather than flagging a stale coordinate.
+    /// </para>
+    /// </summary>
+    private void FlagCurrencyShop(BlockedItem item)
+    {
+        var gd = _plugin.GameData;
+        var offers = gd is null ? Array.Empty<Core.SpecialShopOffer>() : gd.SpecialShopOffers(item.ItemId);
+        var resolved = offers.Count == 0
+            ? Array.Empty<Core.SpecialShopCandidate>()
+            : _plugin.Dispatch.Vendors.SpecialShopCandidates(item.ItemId, offers);
+        var best = Core.SpecialShopChoice.Best(resolved, item.Quantity, _plugin.Inventory.CurrencyBalance, _plugin.Dispatch.Here())
+                   ?? (resolved.Count > 0 ? Core.SpecialShopChoice.Named(resolved, item.Quantity, 1).FirstOrDefault() : null);
+        if (best is null)
+        {
+            Plugin.ChatGui.PrintError($"[LazyCrafter] no placed currency vendor found for {item.Name} any more.");
+            return;
+        }
+        _plugin.Dispatch.Lifestream.GoToCurrencyShop(best.Where.TerritoryId, best.Where.MapId, best.Where.MapX, best.Where.MapY,
+            $"{best.NpcName} ({best.TerritoryName} {best.Where.MapX:0.0}, {best.Where.MapY:0.0}): {item.Name} x{item.Quantity} for {best.PriceFor(item.Quantity)}");
     }
 
     private static void DrawSteps(RunSnapshot s)

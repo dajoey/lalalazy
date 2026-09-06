@@ -211,6 +211,41 @@ public sealed class DispatchService : IDisposable
         (_vendorCtx ??= new VendorContextProvider(Plugin.ClientState, Plugin.Objects, Plugin.Data, _log)).Current();
 
     /// <summary>
+    /// The special-shop context every plan build passes (card t_b431de3a): resolved currency-vendor offers, the
+    /// player's currency balances, and the user's reroute toggle.
+    /// <para>
+    /// Built fresh per plan because all three inputs move - the player walks, spends seals, and can flip the
+    /// setting between waves. The offer resolution is lazy (the <c>Offers</c> delegate runs only for leaves the
+    /// plan actually classifies as special-shop), so a cart with no currency-shop material pays nothing for it
+    /// beyond the closure.
+    /// </para>
+    /// </summary>
+    private SpecialShopContext Shops()
+    {
+        var gd = _plugin.GameData;
+        if (gd is null) return SpecialShopContext.None;
+        var where = Here();
+        return new SpecialShopContext(
+            itemId => Vendors.SpecialShopCandidates(itemId, gd.SpecialShopOffers(itemId)),
+            _plugin.Inventory.CurrencyBalance,
+            _plugin.Config.PreferCurrencyShops,
+            where);
+    }
+
+    /// <summary>
+    /// The "or buy it from X for Y" clause for one market item, <b>read back off the plan</b> rather than
+    /// recomputed (card t_b431de3a part C).
+    /// <para>
+    /// Reading it back matters. A second resolution here would be a second opinion, and this repo has already paid
+    /// for that once: up to 0.1.6.1 the cart path and the per-item buttons ranked gil vendors by different metrics
+    /// and named different NPCs for the same item minutes apart, so whichever printed last won the map flag (card
+    /// t_731ea0e7). The plan already decided; the renderer's only job is to say what it decided.
+    /// </para>
+    /// </summary>
+    private static string MarketClause(DispatchPlan.Plan plan, uint itemId) =>
+        plan.Market.FirstOrDefault(p => p.ItemId == itemId)?.Where ?? "";
+
+    /// <summary>
     /// Build the plan for the cart as it is RIGHT NOW, without executing it (cart panel preview /
     /// <c>/lcraft plan</c>). Deliberately parameterless (t_9f646f4c): it used to take the window's snapshot and
     /// planned against a cart that could lag a just-made edit by a whole catalog pass.
@@ -220,7 +255,7 @@ public sealed class DispatchService : IDisposable
         if (!EnsureCore()) return null;
         var (cart, totals) = _plugin.Catalog.LiveCart();
         var lines = cart.Select(l => new DispatchPlan.Line(l.Assessment, l.Crafts)).ToList();
-        return DispatchPlan.Build(lines, totals.Totals, _graph!, _ventures!, _plugin.Player.Retainers, _plugin.Player.GatheredItems, _plugin.Inventory);
+        return DispatchPlan.Build(lines, totals.Totals, _graph!, _ventures!, _plugin.Player.Retainers, _plugin.Player.GatheredItems, _plugin.Inventory, Shops());
     }
 
     // ------------------------------------------------------------- entry points
@@ -420,16 +455,18 @@ public sealed class DispatchService : IDisposable
         foreach (var c in plan.Crafts) TrackStep(StepKind.Craft, c.ResultItemId, c.Crafts, StepState.Pending, recipeId: c.RecipeId);
         foreach (var v in plan.Vendor) TrackStep(StepKind.Vendor, v.ItemId, v.Quantity, StepState.Blocked, Readable(ReadableBlocked("buy", v.ItemId, v.Quantity)));
         foreach (var m in plan.Market) TrackStep(StepKind.Market, m.ItemId, m.Quantity, StepState.Blocked, Readable(ReadableBlocked("market", m.ItemId, m.Quantity)));
+        foreach (var c in plan.CurrencyShop) TrackStep(StepKind.CurrencyShop, c.ItemId, c.Quantity, StepState.Blocked, Readable(ReadableBlocked("currency shop", c.ItemId, c.Quantity)));
         foreach (var m in plan.Manual) TrackStep(StepKind.Manual, m.ItemId, m.Quantity, StepState.Blocked, Readable(ReadableBlocked("manual", m.ItemId, m.Quantity)));
         foreach (var r in plan.Retrievals) TrackStep(StepKind.Retrieve, r.ItemId, r.Quantity, StepState.Pending);
 
-        Say($"dispatching {_what}{(_loop is { Pass: > 1 } l ? $" (pass {l.Pass})" : "")}: {plan.Ventures.Count} venture, {plan.Gathers.Count} gather, {plan.Crafts.Count} craft, {plan.Vendor.Count} vendor, {plan.Market.Count} market, {plan.Manual.Count} manual, {plan.Deferred.Count} deferred, {plan.Retrievals.Count} to retrieve.");
-        _log.Information("dispatch plan for {What} pass {Pass}: ventures=[{V}] gathers=[{G}] crafts=[{C}] vendor=[{Ve}] market=[{M}] manual=[{Ma}] deferred=[{D}]", _what, _loop?.Pass ?? 1,
+        Say($"dispatching {_what}{(_loop is { Pass: > 1 } l ? $" (pass {l.Pass})" : "")}: {plan.Ventures.Count} venture, {plan.Gathers.Count} gather, {plan.Crafts.Count} craft, {plan.Vendor.Count} vendor, {plan.Market.Count} market, {plan.CurrencyShop.Count} currency shop, {plan.Manual.Count} manual, {plan.Deferred.Count} deferred, {plan.Retrievals.Count} to retrieve.");
+        _log.Information("dispatch plan for {What} pass {Pass}: ventures=[{V}] gathers=[{G}] crafts=[{C}] vendor=[{Ve}] market=[{M}] currency=[{Cu}] manual=[{Ma}] deferred=[{D}]", _what, _loop?.Pass ?? 1,
             string.Join(",", plan.Ventures.Select(v => $"{v.ItemId}x{v.Quantity}@{v.Match.Retainer.Name}")),
             string.Join(",", plan.Gathers.Select(g => $"{g.ItemId}x{g.Quantity}")),
             string.Join(",", plan.Crafts.Select(c => $"r{c.RecipeId}x{c.Crafts}d{c.Depth}{(c.AfterGather ? "g" : "")}")),
             string.Join(",", plan.Vendor.Select(p => $"{p.ItemId}x{p.Quantity}")),
             string.Join(",", plan.Market.Select(p => $"{p.ItemId}x{p.Quantity}")),
+            string.Join(",", plan.CurrencyShop.Select(p => $"{p.ItemId}x{p.Quantity}@{p.Offer.Where.NpcId}")),
             string.Join(",", plan.Manual.Select(p => $"{p.ItemId}x{p.Quantity}")),
             string.Join(",", plan.Deferred.Select(d => $"r{d.RecipeId}:{d.Reason}")));
         if (plan.Retrievals.Count > 0)
@@ -479,8 +516,17 @@ public sealed class DispatchService : IDisposable
             foreach (var (where, items) in groups) Lifestream.GoToVendor(where, items, Name, teleport: false);
             if (unlocated.Count > 0) Say("gil-vendor items with no placed vendor: " + string.Join(", ", unlocated.Select(u => $"{Name(u.ItemId)} x{u.Quantity}")));
         }
-        if (plan.Market.Count > 0) Lifestream.GoToMarket(plan.Market.Select(p => (p.ItemId, p.Quantity)).ToList(), Name, _plugin.Catalog.UnitCost, teleport: false);
-        if (plan.Manual.Count > 0) Say("needs a manual source: " + string.Join(", ", plan.Manual.Select(m => $"{Name(m.ItemId)} x{m.Quantity} ({string.Join("/", m.Sources.Where(s => s != SourceKind.OnHand).Select(s => s.ToString()))})")));
+        // Currency shops before the market list, because when both are present the currency vendor is the cheaper
+        // stop and the player should hear it first (card t_b431de3a). Flag + chat line only - never the trade.
+        foreach (var c in plan.CurrencyShop)
+            Lifestream.GoToCurrencyShop(c.Offer.Where.TerritoryId, c.Offer.Where.MapId, c.Offer.Where.MapX, c.Offer.Where.MapY,
+                $"{c.Offer.NpcName} ({c.Offer.TerritoryName} {c.Offer.Where.MapX:0.0}, {c.Offer.Where.MapY:0.0}): {Name(c.ItemId)} x{c.Quantity} for {c.Offer.PriceFor(c.Quantity)}");
+        foreach (var line in PlanReport.CurrencyLines(plan, Name)) Say(line);
+        // The market list now NAMES the currency vendors it knows about, even the ones the routing declined to use
+        // (part C). This is the actual complaint from Joey's 11:43 run: "needs market Emery" with no mention that
+        // the Ixali vendor sells it, when the sheets knew all along.
+        if (plan.Market.Count > 0) Lifestream.GoToMarket(plan.Market.Select(p => (p.ItemId, p.Quantity)).ToList(), Name, _plugin.Catalog.UnitCost, teleport: false, also: id => MarketClause(plan, id));
+        if (PlanReport.ManualLine(plan, Name) is { } manualLine) Say(manualLine);
         var willRetrieve = _retrievals.Count > 0;
         if (!willRetrieve)
             foreach (var d in plan.Deferred) Say($"not crafting {Name(d.ResultItemId)} x{d.Crafts} yet - {Readable(d.Reason)}.", error: true);
@@ -519,7 +565,7 @@ public sealed class DispatchService : IDisposable
         var lines = assessed.Lines
             .Select(a => new DispatchPlan.Line(a, remaining.First(r => r.RecipeId == a.RecipeId).Crafts))
             .ToList();
-        return DispatchPlan.Build(lines, assessed.Totals, _graph!, _ventures!, _plugin.Player.Retainers, _plugin.Player.GatheredItems, _plugin.Inventory);
+        return DispatchPlan.Build(lines, assessed.Totals, _graph!, _ventures!, _plugin.Player.Retainers, _plugin.Player.GatheredItems, _plugin.Inventory, Shops());
     }
 
     /// <summary>The bag counts of everything this wave could move, folded into one string - "did anything change?".</summary>
@@ -552,10 +598,10 @@ public sealed class DispatchService : IDisposable
     /// <summary>The blocked shopping list for the snapshot (names resolved; est. gil for market items; vendor NPC + coords where placed).</summary>
     private List<BlockedItem> BuildBlocked(DispatchPlan.Plan plan)
     {
-        var list = new List<BlockedItem>();
-        foreach (var m in plan.Market)
-            list.Add(new BlockedItem(StepKind.Market, m.ItemId, Name(m.ItemId), m.Quantity,
-                _plugin.Catalog.UnitCost(m.ItemId) is { } u ? u * m.Quantity : null, null));
+        // Market, currency shop and manual come from Core (PlanReport) so the SNAPSHOT - the Run tab, /lcraft
+        // status, the Copy report button - carries the same detail as the chat block and the harness can pin it.
+        // A vendor named only in chat is a vendor the player loses the moment the message scrolls.
+        var list = new List<BlockedItem>(PlanReport.BlockedFrom(plan, Name, _plugin.Catalog.UnitCost));
         // One grouping for the whole vendor list, shared with the chat block (card t_731ea0e7). Resolving each row
         // on its own would put a DIFFERENT vendor in the Run tab than the one the chat line and the map flag named,
         // because grouping trades a little distance for fewer stops - which is exactly the split this card removes.
@@ -569,9 +615,6 @@ public sealed class DispatchService : IDisposable
                 list.Add(new BlockedItem(StepKind.Vendor, v.ItemId, Name(v.ItemId), v.Quantity, null,
                     whereByItem.GetValueOrDefault(v.ItemId)));
         }
-        foreach (var m in plan.Manual)
-            list.Add(new BlockedItem(StepKind.Manual, m.ItemId, Name(m.ItemId), m.Quantity, null,
-                string.Join("/", m.Sources.Where(s => s != SourceKind.OnHand))));
         foreach (var v in plan.Ventures)
             list.Add(new BlockedItem(StepKind.Venture, v.ItemId, Name(v.ItemId), v.Quantity, null, v.Match.Retainer.Name));
         foreach (var r in plan.Retrievals)
@@ -1197,15 +1240,17 @@ public sealed class DispatchService : IDisposable
     {
         Say($"stopped - {Readable(why)} ({Summarise()}).", error: true);
         if (plan.Market.Count > 0)
-            Lifestream.GoToMarket(plan.Market.Select(p => (p.ItemId, p.Quantity)).ToList(), Name, _plugin.Catalog.UnitCost, teleport: false);
+            Lifestream.GoToMarket(plan.Market.Select(p => (p.ItemId, p.Quantity)).ToList(), Name, _plugin.Catalog.UnitCost, teleport: false, also: id => MarketClause(plan, id));
+        // Both endings name the currency vendors, for the same reason Defect A of card t_35be7be5 existed: a
+        // detail that only one of two ending paths prints is a detail that gets lost on the path Joey takes.
+        foreach (var line in PlanReport.CurrencyLines(plan, Name)) Say(line, error: true);
         if (plan.Vendor.Count > 0)
         {
             var groups = Vendors.Plan(plan.Vendor.Select(p => (p.ItemId, p.Quantity)).ToList(), out var unlocated, Here());
             foreach (var (where, items) in groups) Lifestream.GoToVendor(where, items, Name, teleport: false);
             if (unlocated.Count > 0) Say("gil-vendor items with no placed vendor: " + string.Join(", ", unlocated.Select(u => $"{Name(u.ItemId)} x{u.Quantity}")), error: true);
         }
-        if (plan.Manual.Count > 0)
-            Say("needs a manual source: " + string.Join(", ", plan.Manual.Select(m => $"{Name(m.ItemId)} x{m.Quantity} ({string.Join("/", m.Sources.Where(s => s != SourceKind.OnHand).Select(s => s.ToString()))})")), error: true);
+        if (PlanReport.ManualLine(plan, Name) is { } manualBlocked) Say(manualBlocked, error: true);
         if (plan.Ventures.Count > 0)
             Say("still out with a retainer (ventures take hours): " + string.Join(", ", plan.Ventures.Select(v => $"{Name(v.ItemId)} x{v.Quantity} ({v.Match.Retainer.Name})")), error: true);
         if (plan.Retrievals.Count > 0)

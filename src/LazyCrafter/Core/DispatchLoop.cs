@@ -130,6 +130,10 @@ public sealed class DispatchLoop
         foreach (var d in plan.Deferred) ids.Add(d.ResultItemId);
         foreach (var p in plan.Vendor) ids.Add(p.ItemId);
         foreach (var p in plan.Market) ids.Add(p.ItemId);
+        // Currency-shop items count for the same reason market items do: the player can go and get one between
+        // waves, and if this set missed them the stall guard would read "nothing changed" and end the run as
+        // blocked while the material was in fact arriving in the bags (card t_b431de3a).
+        foreach (var c in plan.CurrencyShop) ids.Add(c.ItemId);
         foreach (var m in plan.Manual) ids.Add(m.ItemId);
         foreach (var v in plan.Ventures) ids.Add(v.ItemId);
         return ids;
@@ -141,6 +145,7 @@ public sealed class DispatchLoop
         var parts = new List<string>();
         if (plan.Market.Count > 0) parts.Add($"{plan.Market.Count} market-board item{(plan.Market.Count == 1 ? "" : "s")}");
         if (plan.Vendor.Count > 0) parts.Add($"{plan.Vendor.Count} vendor item{(plan.Vendor.Count == 1 ? "" : "s")}");
+        if (plan.CurrencyShop.Count > 0) parts.Add($"{plan.CurrencyShop.Count} currency-shop item{(plan.CurrencyShop.Count == 1 ? "" : "s")}");
         if (plan.Manual.Count > 0) parts.Add($"{plan.Manual.Count} item{(plan.Manual.Count == 1 ? "" : "s")} with no automatic source");
         if (plan.Ventures.Count > 0) parts.Add($"{plan.Ventures.Count} venture item{(plan.Ventures.Count == 1 ? "" : "s")} still out with the retainers");
         var crafts = plan.Deferred.Count;

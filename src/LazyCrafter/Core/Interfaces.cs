@@ -128,6 +128,18 @@ public interface IInventory
     /// </para>
     /// </summary>
     IReadOnlyList<StoredElsewhere> StoredWhere(uint itemId) => Array.Empty<StoredElsewhere>();
+
+    /// <summary>
+    /// Units of a currency item the player holds - Grand Company seals, beast-tribe tokens, tomestones, Fluorite
+    /// Lenses. <c>null</c> when it cannot be read at all (no client, no inventory bridge); 0 means "read it, they
+    /// have none". The currency-shop routing treats both the same way - it refuses - so a partial or failed read
+    /// can only ever move an item BACK to the market board, never spend anything (card t_b431de3a, decision D2).
+    /// <para>
+    /// Defaults to <c>null</c> so an implementation that cannot answer simply does not, and the affordability gate
+    /// closes on its own.
+    /// </para>
+    /// </summary>
+    int? CurrencyBalance(uint currencyItemId) => null;
 }
 
 public interface IPriceSource

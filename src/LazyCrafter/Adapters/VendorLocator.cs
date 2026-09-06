@@ -41,6 +41,13 @@ public sealed class VendorLocator
 
     private readonly Dictionary<uint, List<uint>> _shopsByItem = new();          // itemId -> GilShop ids
     private readonly Dictionary<uint, List<uint>> _npcsByShop = new();           // GilShop id -> ENpcBase ids
+    /// <summary>
+    /// SpecialShop id -&gt; ENpcBase ids, from the same <c>ENpcData</c> pass that builds <see cref="_npcsByShop"/>
+    /// (card t_b431de3a, part B). Kept in its own dictionary rather than merged into the gil map so a gil-vendor
+    /// lookup can never accidentally return a currency vendor, and so the two counts stay separately reportable.
+    /// The id ranges do not overlap (GilShop 262144.., SpecialShop 1769472..), so the classifying pass is exact.
+    /// </summary>
+    private readonly Dictionary<uint, List<uint>> _npcsBySpecialShop = new();
     private readonly Dictionary<uint, List<ENpcPlace>> _placesByNpc = new();     // ENpc id -> placements
     private readonly Dictionary<uint, List<(uint Id, string Name, Vector2 Map)>> _aetherytesByTerritory = new();
     private readonly Dictionary<uint, string> _npcNames = new();
@@ -126,6 +133,46 @@ public sealed class VendorLocator
         return list;
     }
 
+    /// <summary>
+    /// Turn an item's raw <see cref="SpecialShopOffer"/>s into candidates the plan can actually route to
+    /// (card t_b431de3a, part B). One entry per (shop, NPC, placement, aetheryte) that resolves ALL the way:
+    /// a handler NPC exists, it is placed, and the placement's territory has a teleportable aetheryte.
+    /// <para>
+    /// <b>Misses are the normal case and are simply dropped.</b> Measured on the live sheets: 12,886 items are
+    /// receivable from a special shop, 6,364 have any handler NPC, and only 668 have a PLACED one. A quest-gated
+    /// shop, an instance vendor, an unplaced NPC (Talan, who sells Emery for a Fluorite Lens, is in no ENpcPlace
+    /// row at all) - each yields nothing here, and the caller falls back to the market board exactly as it did
+    /// before this method existed. That fallback, not this resolution, is the load-bearing behaviour (decision D1).
+    /// </para>
+    /// </summary>
+    public IReadOnlyList<SpecialShopCandidate> SpecialShopCandidates(uint itemId, IReadOnlyList<SpecialShopOffer> offers)
+    {
+        if (offers.Count == 0) return Array.Empty<SpecialShopCandidate>();
+        EnsureBuilt();
+        var list = new List<SpecialShopCandidate>();
+        foreach (var offer in offers)
+        {
+            if (!_npcsBySpecialShop.TryGetValue(offer.ShopId, out var npcs)) continue;
+            foreach (var npc in npcs)
+            {
+                if (!_placesByNpc.TryGetValue(npc, out var places)) continue;
+                foreach (var p in places)
+                {
+                    if (!_aetherytesByTerritory.TryGetValue(p.TerritoryTypeId, out var aeths)) continue;
+                    foreach (var a in aeths)
+                        list.Add(new SpecialShopCandidate(
+                            itemId, offer.ShopId, offer.ShopName,
+                            _npcNames.GetValueOrDefault(npc, $"NPC {npc}"),
+                            _territoryNames.GetValueOrDefault(p.TerritoryTypeId, $"zone {p.TerritoryTypeId}"),
+                            offer.ReceiveQuantity, offer.Costs,
+                            new VendorCandidate(npc, p.TerritoryTypeId, p.MapId, p.Position.X, p.Position.Y,
+                                a.Id, a.Map.X, a.Map.Y, Vector2.Distance(p.Position, a.Map))));
+                }
+            }
+        }
+        return list;
+    }
+
     private Location ToLocation(VendorCandidate c, uint itemId) => new(
         itemId, c.NpcId, _npcNames.GetValueOrDefault(c.NpcId, $"NPC {c.NpcId}"), c.TerritoryId,
         _territoryNames.GetValueOrDefault(c.TerritoryId, $"zone {c.TerritoryId}"), c.MapId, new Vector2(c.MapX, c.MapY),
@@ -151,7 +198,7 @@ public sealed class VendorLocator
             try { Build(); }
             catch (Exception ex) { _log($"VendorLocator build failed: {ex.Message}"); }
             _built = true;
-            _log($"VendorLocator: {_shopsByItem.Count} gil-shop items, {_npcsByShop.Count} shops with NPCs, {_placesByNpc.Count} placed NPCs, {_aetherytesByTerritory.Count} territories with aetherytes in {sw.ElapsedMilliseconds} ms");
+            _log($"VendorLocator: {_shopsByItem.Count} gil-shop items, {_npcsByShop.Count} shops with NPCs, {_npcsBySpecialShop.Count} special shops with NPCs, {_placesByNpc.Count} placed NPCs, {_aetherytesByTerritory.Count} territories with aetherytes in {sw.ElapsedMilliseconds} ms");
         }
     }
 
@@ -171,14 +218,23 @@ public sealed class VendorLocator
             }
         }
 
-        // shop -> npcs (ENpcBase handlers), plus the supplemental ENpcShop table
+        // shop -> npcs (ENpcBase handlers), plus the supplemental ENpcShop table.
+        // The SAME pass classifies special-shop handlers (card t_b431de3a): an ENpcData handler is just a row id,
+        // and GilShop / SpecialShop ids occupy disjoint ranges, so membership decides which map it belongs in.
         var npcBase = _data.GetExcelSheet<ENpcBase>() ?? throw new InvalidOperationException("ENpcBase sheet missing");
+        var specialShopIds = new HashSet<uint>();
+        var specialShops = _data.GetExcelSheet<SpecialShop>();
+        if (specialShops is not null)
+            foreach (var s in specialShops) specialShopIds.Add(s.RowId);
         foreach (var b in npcBase)
         {
             foreach (var h in b.ENpcData)
             {
-                if (h.RowId == 0 || !gilShopIds.Contains(h.RowId)) continue;
-                (_npcsByShop.TryGetValue(h.RowId, out var l) ? l : _npcsByShop[h.RowId] = new List<uint>()).Add(b.RowId);
+                if (h.RowId == 0) continue;
+                if (gilShopIds.Contains(h.RowId))
+                    (_npcsByShop.TryGetValue(h.RowId, out var l) ? l : _npcsByShop[h.RowId] = new List<uint>()).Add(b.RowId);
+                else if (specialShopIds.Contains(h.RowId))
+                    (_npcsBySpecialShop.TryGetValue(h.RowId, out var sl) ? sl : _npcsBySpecialShop[h.RowId] = new List<uint>()).Add(b.RowId);
             }
         }
         try
@@ -194,8 +250,11 @@ public sealed class VendorLocator
         }
         catch (Exception ex) { Fail($"{CsvLoader.ENpcShopResourceName}: {ex.Message}"); }
 
-        // npc -> placements (map coordinates)
+        // npc -> placements (map coordinates). Special-shop NPCs are in the SAME set: the placement machinery
+        // below (ENpcPlace, the Level fallback, names, aetheryte ranking) does not care what kind of shop the NPC
+        // fronts, so this is a wider set, not a second pass (card t_b431de3a, part B).
         var shopNpcs = new HashSet<uint>(_npcsByShop.Values.SelectMany(x => x));
+        shopNpcs.UnionWith(_npcsBySpecialShop.Values.SelectMany(x => x));
         try
         {
             var places = CsvLoader.LoadResource<ENpcPlace>(CsvLoader.ENpcPlaceResourceName, true, out _, out _);

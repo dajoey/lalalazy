@@ -8,7 +8,7 @@ namespace LazyCrafter;
 [Serializable]
 public sealed class Configuration : IPluginConfiguration
 {
-    public const int CurrentVersion = 6;
+    public const int CurrentVersion = 7;
 
     public int Version { get; set; } = CurrentVersion;
 
@@ -95,6 +95,27 @@ public sealed class Configuration : IPluginConfiguration
     /// </summary>
     public bool WalkToBellWhenBlocked { get; set; } = true;
 
+    // ---- v7 (currency-shop naming + routing, card t_b431de3a) ----
+
+    /// <summary>
+    /// When a missing material is sold at a currency (special) shop by a named, placed NPC, and the player can
+    /// ALREADY pay the price, send them to that vendor instead of the market board.
+    /// <para>
+    /// ON by default. The safety is in the routing, not in this toggle: the vendor is only preferred when the item
+    /// resolves to a real placed NPC in a teleportable zone AND the currency balance is readable AND it already
+    /// covers the cost; on any miss the item falls through to the market board exactly as it did before 0.1.6.7.
+    /// So "on" cannot strand a cart, and cannot spend a currency the player does not have. The cheapest affordable
+    /// offer wins, which is how 7 Ixali Oaknot beats a Grand Company seal price.
+    /// </para>
+    /// <para>
+    /// <b>Turning it off does NOT restore the old silence.</b> Currency vendors are still NAMED on the market and
+    /// manual lines either way - that half was the actual complaint (the plugin sent Joey to the market board for
+    /// Emery without ever mentioning the Ixali vendor). This setting governs only whether the routing PREFERS
+    /// them; off means "tell me, but keep buying on the board".
+    /// </para>
+    /// </summary>
+    public bool PreferCurrencyShops { get; set; } = true;
+
     /// <summary>The cart, so it survives a plugin reload.</summary>
     public List<CartEntry> Cart { get; set; } = new();
 
@@ -129,6 +150,10 @@ public sealed class Configuration : IPluginConfiguration
         // v5 -> v6: WalkToBellWhenBlocked is new and defaults ON (card t_35be7be5). A config written before this
         // version simply has no key for it, so Newtonsoft leaves the property initialiser in place and the user
         // gets the new behaviour - which is the point. Nothing to rewrite.
+        // v6 -> v7: PreferCurrencyShops is new and defaults ON (card t_b431de3a). Same shape as v6: a config
+        // written before this version has no key, so the initialiser stands and existing users get the routing.
+        // That is deliberate and safe - the reroute only fires when the item resolves to a placed vendor the
+        // player can already afford, and falls back to the market board (the pre-0.1.6.7 behaviour) otherwise.
         Cart ??= new List<CartEntry>();
         Version = CurrentVersion;
     }

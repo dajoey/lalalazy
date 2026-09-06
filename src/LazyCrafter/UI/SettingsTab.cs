@@ -113,6 +113,17 @@ public sealed class SettingsTab
         ImGui.SameLine();
         ImGuiComponents.HelpMarker("On by default (card t_35be7be5). A material you have listed for sale cannot be withdrawn at a bell, so the run ends naming which retainer to pull how many units off. With this on, LazyCrafter then sends you there via Lifestream's 'go to market board' (/li mb) - the summoning bells stand with the market boards. It fires ONLY when a run has ENDED and something really is listing-blocked: never mid-craft, never on a clean run, and never for materials that were merely slow. Off: you get the summary without the trip. Either way, '/lcraft blocked' reprints the full detail.");
 
+        var currency = cfg.PreferCurrencyShops;
+        if (ImGui.Checkbox("Prefer a currency shop over the market board when you can already afford it", ref currency)) { cfg.PreferCurrencyShops = currency; changed = true; }
+        ImGui.SameLine();
+        ImGuiComponents.HelpMarker(
+            "On by default (card t_b431de3a). Many materials are sold by currency vendors - beast-tribe traders, Grand Company quartermasters, scrip counters - " +
+            "for seals, tokens or tomestones rather than gil. LazyCrafter now reads those shops and will send you to one INSTEAD of the market board, " +
+            "but only when it resolves to a named NPC standing in a zone you can teleport to AND your balance of that currency already covers the price; " +
+            "the cheapest affordable offer wins. If anything is missing or you cannot afford it, the item stays on the market board exactly as before - " +
+            "it will never make a trade you cannot pay for, and it will never leave a material with no source. " +
+            "Off: currency vendors are still NAMED on the shopping list, you just keep buying on the board.");
+
         var pm = cfg.PriceMatchAfterCraft;
         if (ImGui.Checkbox("After Artisan finishes a cart, print /pricematch (Lazy Market Companion) instructions for listing the results", ref pm)) { cfg.PriceMatchAfterCraft = pm; changed = true; }
         ImGui.SameLine();

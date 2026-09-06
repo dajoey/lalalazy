@@ -26,6 +26,7 @@ public static class RunReport
         StepKind.Vendor => "vendor",
         StepKind.Market => "market",
         StepKind.Manual => "manual",
+        StepKind.CurrencyShop => "currency shop",
         _ => k.ToString().ToLowerInvariant(),
     };
 
@@ -80,8 +81,13 @@ public static class RunReport
             var parts = new List<string>();
             foreach (var b in market)
             {
-                if (b.EstimatedGil is { } g) { total += g; parts.Add($"{b.Name} x{b.Quantity} (~{g:N0} gil)"); }
-                else { complete = false; parts.Add($"{b.Name} x{b.Quantity}"); }
+                // The currency-vendor clause (card t_b431de3a part C) rides in Where and is appended to the item
+                // it belongs to, not to the line, so "or the Ixali vendor" can never be read as applying to a
+                // different material in the same list. Empty for every item with no known currency vendor, which
+                // keeps this line byte-identical to 0.1.6.6 for everything that had no vendor to name.
+                var also = string.IsNullOrEmpty(b.Where) ? "" : $" - {b.Where}";
+                if (b.EstimatedGil is { } g) { total += g; parts.Add($"{b.Name} x{b.Quantity} (~{g:N0} gil){also}"); }
+                else { complete = false; parts.Add($"{b.Name} x{b.Quantity}{also}"); }
             }
             var est = total > 0 || complete ? $" - est. {(complete ? "" : ">")}{total:N0} gil" : "";
             lines.Add($"buy on the market board: {string.Join(", ", parts)}{est}");
@@ -96,8 +102,14 @@ public static class RunReport
         var manual = s.Blocked.Where(b => b.Kind == StepKind.Manual).ToList();
         if (manual.Count > 0)
             lines.Add("needs a manual source: " + string.Join(", ", manual.Select(b => $"{b.Name} x{b.Quantity}{(string.IsNullOrEmpty(b.Where) ? "" : $" ({b.Where})")}")));
+        // Currency shops get their own line, above the generic tail, because the instruction is different in kind:
+        // it names a counter and a price rather than a place to look. Where is always populated here - the routing
+        // only ever sends a fully resolved offer down this channel (DispatchPlan, decision D1).
+        var currency = s.Blocked.Where(b => b.Kind == StepKind.CurrencyShop).ToList();
+        if (currency.Count > 0)
+            lines.Add("trade for at a currency shop: " + string.Join(", ", currency.Select(b => $"{b.Name} x{b.Quantity}{(string.IsNullOrEmpty(b.Where) ? "" : $" - {b.Where}")}")));
 
-        foreach (var b in s.Blocked.Where(b => b.Kind is not (StepKind.Market or StepKind.Vendor or StepKind.Manual)))
+        foreach (var b in s.Blocked.Where(b => b.Kind is not (StepKind.Market or StepKind.Vendor or StepKind.Manual or StepKind.CurrencyShop)))
             lines.Add($"{KindName(b.Kind)}: {b.Name} x{b.Quantity}{(string.IsNullOrEmpty(b.Where) ? "" : $" - {b.Where}")}");
 
         return lines;

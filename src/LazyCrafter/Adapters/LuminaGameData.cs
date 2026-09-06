@@ -20,6 +20,8 @@ public sealed class LuminaGameData : IGameData
     private readonly List<RecipeRow> _recipes = new();
     private readonly Dictionary<uint, uint> _gilVendor = new();        // itemId -> gil (Item.PriceMid)
     private readonly HashSet<uint> _specialShop = new();
+    /// <summary>itemId -&gt; every costed <c>SpecialShop</c> entry that hands it out (card t_b431de3a, part A).</summary>
+    private readonly Dictionary<uint, List<SpecialShopOffer>> _specialShopOffers = new();
     private readonly Dictionary<uint, GatherInfo> _gather = new();
     private readonly HashSet<uint> _fish = new();
     private readonly List<VentureRow> _ventures = new();
@@ -28,6 +30,8 @@ public sealed class LuminaGameData : IGameData
     private readonly Dictionary<uint, CollectableInfo> _collectables = new();
     private readonly Dictionary<uint, List<DesynthResult>> _desynth = new();
     private readonly Dictionary<uint, string> _names = new();
+    /// <summary><c>Item.Plural</c>, kept only where it differs from the singular (card t_b431de3a).</summary>
+    private readonly Dictionary<uint, string> _plurals = new();
     private readonly HashSet<uint> _desynthable = new();
     private readonly HashSet<uint> _canBeHq = new();
     private readonly Dictionary<uint, string> _jobAbbr = new();
@@ -37,6 +41,8 @@ public sealed class LuminaGameData : IGameData
     public int RecipeCount => _recipes.Count;
     public int GilVendorCount => _gilVendor.Count;
     public int SpecialShopCount => _specialShop.Count;
+    /// <summary>Items with at least one COSTED currency-shop offer - a strict subset of <see cref="SpecialShopCount"/>.</summary>
+    public int SpecialShopOfferCount => _specialShopOffers.Count;
     public int GatherableCount => _gather.Count;
     public int FishCount => _fish.Count;
     public int VentureCount => _ventures.Count;
@@ -64,6 +70,8 @@ public sealed class LuminaGameData : IGameData
     public void UseMarketableOverride(Func<uint, bool?> isMarketable) => _marketableOverride = isMarketable;
 
     public string ItemName(uint itemId) => _names.TryGetValue(itemId, out var n) ? n : $"#{itemId}";
+    /// <summary>The game's plural for an item, or its singular when the sheet carries none.</summary>
+    public string ItemPlural(uint itemId) => _plurals.TryGetValue(itemId, out var p) ? p : ItemName(itemId);
     public bool IsDesynthable(uint itemId) => _desynthable.Contains(itemId);
     /// <summary>Whether the item can exist in high quality (<c>Item.CanBeHq</c>) - the UI only evaluates an HQ price row for these.</summary>
     public bool CanBeHq(uint itemId) => _canBeHq.Contains(itemId);
@@ -75,6 +83,19 @@ public sealed class LuminaGameData : IGameData
     public IEnumerable<RecipeRow> Recipes() => _recipes;
     public bool IsGilVendor(uint itemId, out uint gil) => _gilVendor.TryGetValue(itemId, out gil);
     public bool IsSpecialShop(uint itemId) => _specialShop.Contains(itemId);
+    /// <summary>
+    /// Every costed currency-shop offer for an item (card t_b431de3a). Empty for an item no shop hands out, and
+    /// also for one whose only entries are free (quest rewards, achievement unlocks) - those are knowable but are
+    /// not a purchase, so they must not be offered as one.
+    /// <para>
+    /// <see cref="IsSpecialShop"/> is deliberately kept and still answers off the wider <c>HashSet</c>: the source
+    /// CLASSIFICATION ("this item comes from a currency shop") is a strictly larger set than the offers that can
+    /// be priced, and narrowing it here would silently reclassify items whose routing has nothing to do with this
+    /// change.
+    /// </para>
+    /// </summary>
+    public IReadOnlyList<SpecialShopOffer> SpecialShopOffers(uint itemId) =>
+        _specialShopOffers.TryGetValue(itemId, out var l) ? l : Array.Empty<SpecialShopOffer>();
     public GatherInfo? Gather(uint itemId) => _gather.TryGetValue(itemId, out var g) ? g : null;
     public bool IsFish(uint itemId) => _fish.Contains(itemId);
     public IEnumerable<VentureRow> Ventures() => _ventures;
@@ -112,7 +133,7 @@ public sealed class LuminaGameData : IGameData
     }
 
     public string Summary() =>
-        $"LuminaGameData: {RecipeCount} recipes, {GilVendorCount} gil-vendor, {SpecialShopCount} special-shop, {GatherableCount} gatherable ({(GbrUsed ? "via GBR" : "via sheets")}), " +
+        $"LuminaGameData: {RecipeCount} recipes, {GilVendorCount} gil-vendor, {SpecialShopCount} special-shop ({SpecialShopOfferCount} costed), {GatherableCount} gatherable ({(GbrUsed ? "via GBR" : "via sheets")}), " +
         $"{FishCount} fish, {VentureCount} ventures, {MarketableCount} marketable, {DropCount} drop, {CollectableCount} collectable, {DesynthSourceCount} desynth sources in {(int)LoadTime.TotalMilliseconds} ms";
 
     private static ExcelSheet<T> Sheet<T>(GameData data) where T : struct, IExcelRow<T> =>
@@ -129,6 +150,15 @@ public sealed class LuminaGameData : IGameData
             var name = item.Name.ExtractText();
             if (string.IsNullOrEmpty(name)) continue;
             _names[item.RowId] = name;
+            // The game's own plural, for currency prices ("1,500 Storm Seals", not "1,500 Storm Seal").
+            // Only kept when it differs, so the dictionary stays small and a missing plural is falsy.
+            // The sheet stores plurals lower-case ("Ixali oaknots"); the singular carries the display
+            // capitalisation, so the plural is re-cased to match it when it looks like a proper noun.
+            var plural = item.Plural.ExtractText();
+            if (!string.IsNullOrEmpty(plural) && plural != name)
+                _plurals[item.RowId] = char.IsUpper(name[0]) && char.IsLower(plural[0])
+                    ? char.ToUpperInvariant(plural[0]) + plural[1..]
+                    : plural;
             // Same heuristic GBR/Artisan use; Universalis' /marketable list overrides it when loaded.
             if (item.ItemSearchCategory.RowId > 0 && !item.IsUntradable) _marketable.Add(item.RowId);
             if (item.Desynth > 0) _desynthable.Add(item.RowId);
@@ -180,14 +210,49 @@ public sealed class LuminaGameData : IGameData
             }
         }
 
+        // SpecialShop: keep what this loop used to discard (card t_b431de3a).
+        //
+        // Up to 0.1.6.6 this read every SpecialShop row, took the ReceiveItems' item ids into a HashSet, and threw
+        // away the shop id, the receive quantity and the ItemCosts. That HashSet was the plugin's ENTIRE knowledge
+        // of currency vendors: it could say "some special shop gives this out" and nothing else - not which shop,
+        // not which NPC, not where they stand, not what it costs. Which is why an item like Emery was sent to the
+        // market board with no mention that the Ixali vendor sells it for 7 Ixali Oaknot.
+        //
+        // The shop id is the load-bearing part: ENpcBase.ENpcData handlers name SpecialShop rows exactly the way
+        // they name GilShop rows, so keeping it lets VendorLocator reuse the whole gil-vendor placement chain
+        // (shop -> NPC -> ENpcPlace -> map coords -> aetheryte) instead of growing a second one. Verified on the
+        // live sheets: GilShop ids (262144..263299) and SpecialShop ids (1769472..1771039) do not overlap at all,
+        // so one pass over ENpcData can classify a handler by which set it lands in.
+        //
+        // Cost rows with CostType 3 are a "special bucket", not an item, and CurrencyCost 0 rows are padding in a
+        // fixed-size array; both are skipped so an offer never claims to cost nothing.
         foreach (var shop in Sheet<SpecialShop>(data))
         {
+            var shopName = shop.Name.ExtractText();
             foreach (var entry in shop.Item)
             {
+                var costs = new List<SpecialShopCost>(2);
+                foreach (var cost in entry.ItemCosts)
+                {
+                    var costId = cost.ItemCost.RowId;
+                    var qty = (long)cost.CurrencyCost;
+                    if (costId == 0 || qty <= 0 || cost.CostType == 3) continue;
+                    costs.Add(new SpecialShopCost(
+                        costId,
+                        _names.TryGetValue(costId, out var cn) ? cn : $"#{costId}",
+                        (int)Math.Min(int.MaxValue, qty),
+                        _plurals.GetValueOrDefault(costId, "")));
+                }
+
                 foreach (var received in entry.ReceiveItems)
                 {
                     var id = received.Item.RowId;
-                    if (id != 0) _specialShop.Add(id);
+                    if (id == 0) continue;
+                    _specialShop.Add(id);
+                    if (costs.Count == 0) continue;      // free / quest-reward rows: knowable, but not an offer
+                    var recv = (int)Math.Max(1, Math.Min(int.MaxValue, (long)received.ReceiveCount));
+                    (_specialShopOffers.TryGetValue(id, out var l) ? l : _specialShopOffers[id] = new List<SpecialShopOffer>())
+                        .Add(new SpecialShopOffer(shop.RowId, shopName, id, recv, costs));
                 }
             }
         }

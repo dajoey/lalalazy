@@ -85,22 +85,68 @@ public sealed class LifestreamDispatch
         }
     }
 
-    /// <summary>Print the market shopping list and send the character to the nearest market board (<c>/li mb</c>).</summary>
-    public string? GoToMarket(IReadOnlyList<(uint ItemId, int Quantity)> items, Func<uint, string> itemName, Func<uint, long?> unitPrice, bool teleport = true)
+    /// <summary>
+    /// Print the market shopping list and send the character to the nearest market board (<c>/li mb</c>).
+    /// <para>
+    /// <paramref name="also"/> is the optional "or buy it from X for Y" clause per item (card t_b431de3a part C):
+    /// a currency vendor the plugin located but deliberately did not route to, because the player cannot afford it
+    /// or the reroute is switched off. Naming it is the whole point - the complaint that started that card was
+    /// being sent to the market board with no hint that a vendor existed. Omit it and this method behaves exactly
+    /// as it did in 0.1.6.6.
+    /// </para>
+    /// </summary>
+    public string? GoToMarket(IReadOnlyList<(uint ItemId, int Quantity)> items, Func<uint, string> itemName, Func<uint, long?> unitPrice, bool teleport = true, Func<uint, string>? also = null)
     {
         if (items.Count == 0) return null;
-        long total = 0;
-        var complete = true;
-        var lines = new List<string>();
-        foreach (var (id, qty) in items)
-        {
-            var u = unitPrice(id);
-            if (u is { } p) { total += p * qty; lines.Add($"{itemName(id)} x{qty} (~{p * qty:N0})"); }
-            else { complete = false; lines.Add($"{itemName(id)} x{qty}"); }
-        }
-        _chat.Print($"[LazyCrafter] Market board list ({items.Count} item{(items.Count == 1 ? "" : "s")}, est. {(complete ? "" : ">")}{total:N0} gil): {string.Join(", ", lines)}");
+        // The line itself is built in Core (LazyCrafter.Core.PlanReport) so the offline harness asserts on the
+        // sentence the player actually reads rather than on a copy of it - the two most recent defects on this
+        // feature were both renderer bugs that an internal-value test stayed green through.
+        var purchases = items.Select(i => new Core.DispatchPlan.Purchase(i.ItemId, i.Quantity, also?.Invoke(i.ItemId) ?? "")).ToList();
+        var plan = new Core.DispatchPlan.Plan([], [], [], [], purchases, [], []);
+        _chat.Print("[LazyCrafter] " + Core.PlanReport.MarketLine(plan, itemName, unitPrice));
         if (!teleport) return null;
         return GoToMarketBoard();
+    }
+
+    /// <summary>
+    /// Flag a currency (special) shop NPC on the map and print what to trade for there (card t_b431de3a).
+    /// <para>
+    /// Deliberately <b>naming and flagging only</b> - it never opens the shop window and never makes the trade.
+    /// Spending the player's Grand Company seals or beast-tribe tokens for them is explicitly out of scope: the
+    /// plugin has no exchange rate between a currency and gil and no business inventing one. The routing already
+    /// guarantees the player can afford this offer before it reaches here (decision D2); what it does not do is
+    /// decide that they SHOULD, and that judgement stays with them at the counter.
+    /// </para>
+    /// <para>
+    /// Same map-flag and clickable-link mechanics as <see cref="GoToVendor"/>, because a currency vendor is a
+    /// placed NPC like any other; only the printed clause differs (it carries the price in currency, not gil).
+    /// </para>
+    /// </summary>
+    public string? GoToCurrencyShop(uint territoryId, uint mapId, float mapX, float mapY, string what, bool teleport = false, uint aetheryteId = 0, string aetheryteName = "")
+    {
+        try
+        {
+            var payload = new MapLinkPayload(territoryId, mapId, mapX, mapY);
+            _gameGui.OpenMapWithMapLink(payload);
+            var sb = new SeStringBuilder()
+                .AddText("[LazyCrafter] Trade at ")
+                .AddUiForeground(0x0225).AddUiGlow(0x0226).Add(payload)
+                .AddUiForeground(500).AddUiGlow(501).AddText($"{(char)Dalamud.Game.Text.SeIconChar.LinkMarker}").AddUiGlowOff().AddUiForegroundOff()
+                .AddText(what)
+                .Add(RawPayload.LinkTerminator).AddUiGlowOff().AddUiForegroundOff();
+            _chat.Print(sb.Build());
+
+            if (!teleport || aetheryteId == 0) return null;
+            if (!Installed) return Refuse("Lifestream is not installed - the currency vendor is flagged on your map; teleport manually.");
+            if (IsBusy() == true) return Refuse("Lifestream is busy (another teleport / world change in progress).");
+            if (!_teleport.InvokeFunc(aetheryteId, 0)) return Refuse($"Lifestream.Teleport({aetheryteName}) returned false - not attuned, in combat, or occupied.");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _log.Error(ex, "currency shop hand-off failed");
+            return Refuse($"{ex.GetType().Name}: {ex.Message}");
+        }
     }
 
     /// <summary>

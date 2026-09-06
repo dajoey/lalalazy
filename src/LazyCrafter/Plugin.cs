@@ -283,8 +283,9 @@ public sealed class Plugin : IDalamudPlugin
             $"GBR [{string.Join(", ", plan.Gathers.Select(x => $"{N(x.ItemId)} x{x.Quantity}"))}] " +
             $"Artisan [{string.Join(", ", plan.Crafts.Select(c => $"{N(c.ResultItemId)} x{c.Crafts}{(c.AfterGather ? "*" : "")}"))}] " +
             $"vendor [{string.Join(", ", plan.Vendor.Select(x => $"{N(x.ItemId)} x{x.Quantity}"))}] " +
-            $"market [{string.Join(", ", plan.Market.Select(x => $"{N(x.ItemId)} x{x.Quantity}"))}] " +
-            $"manual [{string.Join(", ", plan.Manual.Select(x => $"{N(x.ItemId)} x{x.Quantity}"))}] " +
+            $"market [{string.Join(", ", plan.Market.Select(x => $"{N(x.ItemId)} x{x.Quantity}{(string.IsNullOrEmpty(x.Where) ? "" : $" - {x.Where}")}"))}] " +
+            $"currency shop [{string.Join(", ", plan.CurrencyShop.Select(x => $"{N(x.ItemId)} x{x.Quantity} - {x.Where}"))}] " +
+            $"manual [{string.Join(", ", plan.Manual.Select(x => $"{N(x.ItemId)} x{x.Quantity}{(string.IsNullOrEmpty(x.Where) ? "" : $" - {x.Where}")}"))}] " +
             $"deferred [{string.Join(", ", plan.Deferred.Select(d => $"{N(d.ResultItemId)} x{d.Crafts}"))}]" +
             (plan.Crafts.Any(c => c.AfterGather) ? " (* = after GBR finishes)" : ""));
     }
@@ -295,9 +296,9 @@ public sealed class Plugin : IDalamudPlugin
         var gd = GameData;
         Log.Information("[LazyCrafter debug] version={Version} core={Core} configVersion={Cfg} loggedIn={In}",
             Version, Core.CoreInfo.Version, Config.Version, ClientState.IsLoggedIn);
-        Log.Information("[LazyCrafter debug] game data: {State}; recipes={Recipes} gilVendor={Gil} specialShop={Special} gatherable={Gather} (gbr={Gbr}) fish={Fish} ventures={Ventures} marketable={Market} drops={Drops} collectables={Coll} desynthSources={Desynth} loadMs={Ms}",
+        Log.Information("[LazyCrafter debug] game data: {State}; recipes={Recipes} gilVendor={Gil} specialShop={Special} specialShopCosted={SpecialCosted} gatherable={Gather} (gbr={Gbr}) fish={Fish} ventures={Ventures} marketable={Market} drops={Drops} collectables={Coll} desynthSources={Desynth} loadMs={Ms}",
             gd is null ? (GameDataLoad.IsCompleted ? "FAILED" : "loading") : "ready",
-            gd?.RecipeCount ?? 0, gd?.GilVendorCount ?? 0, gd?.SpecialShopCount ?? 0, gd?.GatherableCount ?? 0, gd?.GbrUsed ?? false,
+            gd?.RecipeCount ?? 0, gd?.GilVendorCount ?? 0, gd?.SpecialShopCount ?? 0, gd?.SpecialShopOfferCount ?? 0, gd?.GatherableCount ?? 0, gd?.GbrUsed ?? false,
             gd?.FishCount ?? 0, gd?.VentureCount ?? 0, gd?.MarketableCount ?? 0, gd?.DropCount ?? 0, gd?.CollectableCount ?? 0,
             gd?.DesynthSourceCount ?? 0, (int)(gd?.LoadTime.TotalMilliseconds ?? 0));
         Log.Information("[LazyCrafter debug] inventory: allaganTools={Avail} degraded={Degraded} sources: {Sources}",

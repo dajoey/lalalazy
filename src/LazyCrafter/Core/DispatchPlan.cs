@@ -13,9 +13,18 @@ namespace LazyCrafter.Core;
 /// so it only wins when nothing can fetch the item this session; the per-leaf buttons still offer it explicitly).</item>
 /// <item><see cref="SourceKind.SubCraft"/> whose sub-tree is itself routable → <see cref="Crafts"/> (Artisan), depth-first so
 /// intermediates are made before the recipe that consumes them.</item>
-/// <item><see cref="SourceKind.GilVendor"/> → <see cref="Vendor"/>; <see cref="SourceKind.Market"/> → <see cref="Market"/> (Lifestream + shopping list).</item>
+/// <item><see cref="SourceKind.GilVendor"/> → <see cref="Vendor"/>; <see cref="SourceKind.SpecialShop"/> that resolves to a
+/// placed, affordable currency vendor → <see cref="Plan.CurrencyShop"/>; <see cref="SourceKind.Market"/> → <see cref="Market"/> (Lifestream + shopping list).</item>
 /// <item>anything else → <see cref="Manual"/>.</item>
 /// </list>
+/// <para>
+/// <b>The currency-shop route is conditional, and that is the point (card t_b431de3a).</b> It is taken only when
+/// the item resolves all the way to a named, placed NPC in a teleportable zone with a cost the player can already
+/// pay. On any miss the item falls through to <see cref="Market"/> exactly as it did before the route existed -
+/// because <see cref="SourceKind.SpecialShop"/> used to map to <see cref="Manual"/>, a dead end, and a market
+/// listing is strictly more actionable than "needs a manual source". Special-shop items are NAMED on the market
+/// and manual lines regardless of whether the reroute fires.
+/// </para>
 /// A craft is only queued when every material below it is <b>in the bags</b> or comes from a gather; a craft that needs a
 /// venture result, a purchase, a manual item, or stock that is sitting somewhere other than the bags is
 /// <see cref="Deferred"/> with the reason, because Artisan would just fail on it.
@@ -38,9 +47,28 @@ public static class DispatchPlan
     public sealed record Venture(uint ItemId, int Quantity, VentureMatch Match);
     public sealed record Gather(uint ItemId, int Quantity, SourceKind Kind);
     public sealed record Craft(uint RecipeId, uint ResultItemId, int Crafts, int Depth, bool AfterGather);
-    public sealed record Purchase(uint ItemId, int Quantity);
+    /// <summary>
+    /// Something to buy. <paramref name="Where"/> is the optional "and here is who else sells it" clause
+    /// (card t_b431de3a part C) - currently the placed currency vendors for a market item, cheapest first.
+    /// Empty when nothing else is known, so every pre-existing caller keeps its exact output.
+    /// </summary>
+    public sealed record Purchase(uint ItemId, int Quantity, string Where = "");
     public sealed record Deferral(uint RecipeId, uint ResultItemId, int Crafts, string Reason);
-    public sealed record ManualItem(uint ItemId, int Quantity, IReadOnlyList<SourceKind> Sources);
+    public sealed record ManualItem(uint ItemId, int Quantity, IReadOnlyList<SourceKind> Sources, string Where = "");
+
+    /// <summary>
+    /// An item to trade for at a currency (special) shop: which NPC, where they stand, and what it costs.
+    /// <para>
+    /// This channel only ever holds items that resolved <b>completely</b> - a named, placed NPC in a teleportable
+    /// zone, with a known cost the player can already pay (<see cref="SpecialShopChoice"/>, decisions D1/D2).
+    /// Anything less never reaches here; it stays on the market board with the vendor merely named.
+    /// </para>
+    /// </summary>
+    public sealed record CurrencyPurchase(uint ItemId, int Quantity, SpecialShopCandidate Offer)
+    {
+        /// <summary>"Ixali vendor (North Shroud) for 7 Ixali Oaknot" - the whole instruction in one clause.</summary>
+        public string Where => Offer.Describe(Quantity);
+    }
 
     /// <summary>
     /// Stock the plan wants to consume that is <b>not in the bags</b>: fetch <see cref="Quantity"/> of
@@ -78,7 +106,16 @@ public static class DispatchPlan
             IReadOnlyList<Deferral> deferred)
             : this(ventures, gathers, crafts, vendor, market, manual, deferred, Array.Empty<Retrieve>()) { }
 
-        public bool IsEmpty => Ventures.Count == 0 && Gathers.Count == 0 && Crafts.Count == 0 && Vendor.Count == 0 && Market.Count == 0 && Manual.Count == 0 && Deferred.Count == 0 && Retrievals.Count == 0;
+        public bool IsEmpty => Ventures.Count == 0 && Gathers.Count == 0 && Crafts.Count == 0 && Vendor.Count == 0 && Market.Count == 0 && Manual.Count == 0 && Deferred.Count == 0 && Retrievals.Count == 0 && CurrencyShop.Count == 0;
+
+        /// <summary>
+        /// Items to trade for at a currency (special) shop (card t_b431de3a). An <c>init</c> property rather than a
+        /// ninth positional parameter on purpose: every existing <c>new Plan(...)</c> call site - the single-channel
+        /// entry points, the harness fixtures, the empty-plan fallback - keeps compiling and keeps meaning exactly
+        /// what it meant, and a plan built without a <see cref="SpecialShopContext"/> is byte-identical to the
+        /// pre-0.1.6.7 one.
+        /// </summary>
+        public IReadOnlyList<CurrencyPurchase> CurrencyShop { get; init; } = Array.Empty<CurrencyPurchase>();
 
         /// <summary>Work we can hand off. A retrieval is <b>not</b> work - only the player can do it.</summary>
         public bool HasWork => Ventures.Count + Gathers.Count + Crafts.Count > 0;
@@ -86,7 +123,7 @@ public static class DispatchPlan
         public Dictionary<uint, int> VentureDictionary() => Ventures.GroupBy(v => v.ItemId).ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
     }
 
-    private enum Route { Have, Venture, Gather, Craft, Vendor, Market, Manual }
+    private enum Route { Have, Venture, Gather, Craft, Vendor, CurrencyShop, Market, Manual }
 
     /// <summary>
     /// Build the plan. <paramref name="lines"/> are the cart's per-line assessments (from <see cref="Tiering.AssessCart"/>,
@@ -99,6 +136,11 @@ public static class DispatchPlan
     /// <c>null</c> to keep the pre-fix behaviour (owned == in bags).
     /// </para>
     /// </summary>
+    /// <param name="shops">
+    /// Optional special-shop context (card t_b431de3a): resolved currency-vendor offers, the player's currency
+    /// balances, and the user's reroute toggle. <c>null</c> - or <see cref="SpecialShopContext.None"/> - reproduces
+    /// the pre-0.1.6.7 routing exactly, which is what every existing caller and every existing test relies on.
+    /// </param>
     public static Plan Build(
         IReadOnlyList<Line> lines,
         IReadOnlyList<IngredientLeaf> totals,
@@ -106,13 +148,15 @@ public static class DispatchPlan
         VentureResolver ventures,
         IReadOnlyList<RetainerStats> retainers,
         IReadOnlySet<uint>? gatheredItems = null,
-        IInventory? inv = null)
+        IInventory? inv = null,
+        SpecialShopContext? shops = null)
     {
         var ventureList = new List<Venture>();
         var gatherList = new List<Gather>();
         var craftList = new List<Craft>();
         var vendorList = new List<Purchase>();
         var marketList = new List<Purchase>();
+        var currencyList = new List<CurrencyPurchase>();
         var manualList = new List<ManualItem>();
         var deferred = new List<Deferral>();
         var retrieveList = new List<Retrieve>();
@@ -124,7 +168,7 @@ public static class DispatchPlan
         var retrieveOf = new Dictionary<uint, Retrieve>();
         foreach (var leaf in totals)
         {
-            var (route, match) = RouteFor(leaf, ventures, retainers, gatheredItems);
+            var (route, match) = RouteFor(leaf, ventures, retainers, gatheredItems, shops);
             routeOf[leaf.ItemId] = route;
 
             if (inv is not null && leaf.Have > 0)
@@ -145,8 +189,13 @@ public static class DispatchPlan
                 case Route.Venture: ventureList.Add(new Venture(leaf.ItemId, leaf.Missing, match!)); break;
                 case Route.Gather: gatherList.Add(new Gather(leaf.ItemId, leaf.Missing, GatherKind(leaf.Sources))); break;
                 case Route.Vendor: vendorList.Add(new Purchase(leaf.ItemId, leaf.Missing)); break;
-                case Route.Market: marketList.Add(new Purchase(leaf.ItemId, leaf.Missing)); break;
-                case Route.Manual: manualList.Add(new ManualItem(leaf.ItemId, leaf.Missing, leaf.Sources)); break;
+                // Same BestOffer call RouteFor used, so the line names the vendor the routing actually chose.
+                case Route.CurrencyShop: currencyList.Add(new CurrencyPurchase(leaf.ItemId, leaf.Missing, BestOffer(leaf, shops)!)); break;
+                // Market and manual now carry the "or buy it from X for Y" clause when a currency vendor is known
+                // (part C). Both channels, because before this card only manual printed sources at all - and it
+                // printed SourceKind enum names, not vendors, which is why an OnHand-only leaf rendered as "()".
+                case Route.Market: marketList.Add(new Purchase(leaf.ItemId, leaf.Missing, NameClauseFor(leaf, shops))); break;
+                case Route.Manual: manualList.Add(new ManualItem(leaf.ItemId, leaf.Missing, leaf.Sources, NameClauseFor(leaf, shops))); break;
             }
         }
 
@@ -167,7 +216,10 @@ public static class DispatchPlan
                 craftList.Add(new Craft(row.RecipeId, row.ResultItemId, line.Crafts, 0, afterGather));
         }
 
-        return new Plan(ventureList, gatherList, craftList, vendorList, marketList, manualList, deferred, retrieveList);
+        return new Plan(ventureList, gatherList, craftList, vendorList, marketList, manualList, deferred, retrieveList)
+        {
+            CurrencyShop = currencyList,
+        };
     }
 
     /// <summary>
@@ -234,31 +286,63 @@ public static class DispatchPlan
     /// Route a single ingredient the way <see cref="Build"/> would, for the per-leaf fulfil buttons.
     /// Returns the channel name the UI should offer first and, for a sub-craft, the recipe to hand Artisan.
     /// </summary>
-    public static (SourceKind Channel, RecipeRow? SubRecipe) RouteLeaf(IngredientLeaf leaf, uint parentJob, RecipeGraph graph, VentureResolver ventures, IReadOnlyList<RetainerStats> retainers, IReadOnlySet<uint>? gatheredItems = null)
+    public static (SourceKind Channel, RecipeRow? SubRecipe) RouteLeaf(IngredientLeaf leaf, uint parentJob, RecipeGraph graph, VentureResolver ventures, IReadOnlyList<RetainerStats> retainers, IReadOnlySet<uint>? gatheredItems = null, SpecialShopContext? shops = null)
     {
-        var (route, _) = RouteFor(leaf, ventures, retainers, gatheredItems);
+        var (route, _) = RouteFor(leaf, ventures, retainers, gatheredItems, shops);
         return route switch
         {
             Route.Venture => (SourceKind.Venture, null),
             Route.Gather => (GatherKind(leaf.Sources), null),
             Route.Craft => (SourceKind.SubCraft, graph.RecipeFor(leaf.ItemId, parentJob)),
             Route.Vendor => (SourceKind.GilVendor, null),
+            Route.CurrencyShop => (SourceKind.SpecialShop, null),
             Route.Market => (SourceKind.Market, null),
             Route.Have => (SourceKind.OnHand, null),
             _ => (leaf.Sources.Count > 0 ? leaf.Sources[0] : SourceKind.Unknown, null),
         };
     }
 
-    private static (Route, VentureMatch?) RouteFor(IngredientLeaf leaf, VentureResolver ventures, IReadOnlyList<RetainerStats> retainers, IReadOnlySet<uint>? gatheredItems)
+    private static (Route, VentureMatch?) RouteFor(IngredientLeaf leaf, VentureResolver ventures, IReadOnlyList<RetainerStats> retainers, IReadOnlySet<uint>? gatheredItems, SpecialShopContext? shops = null)
     {
         if (leaf.Missing <= 0) return (Route.Have, null);
         if (leaf.Sources.Any(s => s is SourceKind.RegularNode or SourceKind.TimedNode or SourceKind.Fish)) return (Route.Gather, null);
         if (leaf.Sources.Contains(SourceKind.Venture) && ventures.ResolveBest(leaf.ItemId, retainers, gatheredItems) is { } m) return (Route.Venture, m);
         if (leaf.Sources.Contains(SourceKind.SubCraft)) return (Route.Craft, null);
         if (leaf.Sources.Contains(SourceKind.GilVendor)) return (Route.Vendor, null);
+        // Currency shop, ABOVE market (card t_b431de3a, decision D-order) - but only when it fully resolved AND
+        // the player can already pay (BestOffer applies D1 and D2). A null answer here is the norm, not an error:
+        // most special-shop items have no placed NPC, and an unaffordable one is deliberately left alone. Either
+        // way the item continues down this list to Market, which is where it went before this change existed.
+        if (leaf.Sources.Contains(SourceKind.SpecialShop) && BestOffer(leaf, shops) is not null) return (Route.CurrencyShop, null);
         if (leaf.Sources.Contains(SourceKind.Market)) return (Route.Market, null);
+        // Unchanged fall-through. A special-shop item that resolved to nothing lands here ONLY if it is also
+        // unmarketable - exactly as it did before, never because of this feature (D1).
         if (leaf.Sources.Contains(SourceKind.SpecialShop)) return (Route.Manual, null);
         return (Route.Manual, null);
+    }
+
+    /// <summary>
+    /// The offer the plan would actually route this leaf to, or <c>null</c> to leave it where it was.
+    /// One function so the routing decision and the emitted line can never disagree about which vendor won.
+    /// </summary>
+    private static SpecialShopCandidate? BestOffer(IngredientLeaf leaf, SpecialShopContext? shops)
+    {
+        if (shops is null || !shops.RerouteEnabled) return null;
+        var offers = shops.For(leaf.ItemId);
+        return offers.Count == 0 ? null : SpecialShopChoice.Best(offers, leaf.Missing, shops.SafeBalance, shops.Where);
+    }
+
+    /// <summary>
+    /// The "or buy it from X for Y" clause for a market / manual line (part C). Independent of
+    /// <see cref="SpecialShopContext.RerouteEnabled"/> and of affordability: <b>naming always ships</b>. The whole
+    /// complaint that started this card was that the plugin sent the player to the market board without ever
+    /// saying a currency vendor existed, and turning the reroute off must not restore that silence.
+    /// </summary>
+    private static string NameClauseFor(IngredientLeaf leaf, SpecialShopContext? shops)
+    {
+        if (shops is null || !leaf.Sources.Contains(SourceKind.SpecialShop)) return "";
+        var offers = shops.For(leaf.ItemId);
+        return offers.Count == 0 ? "" : SpecialShopChoice.NameClause(SpecialShopChoice.Named(offers, leaf.Missing), leaf.Missing);
     }
 
     private static SourceKind GatherKind(IReadOnlyList<SourceKind> sources) =>
@@ -311,6 +395,10 @@ public static class DispatchPlan
                 return;
             }
             case Route.Vendor: blockers.Add($"buy #{leaf.ItemId}"); return;
+            // Distinct verb so the deferral reason says WHY the craft is waiting. "needs currency shop Emery" is
+            // a different instruction from "needs market Emery", and the player has to be told which counter to
+            // walk to. Readable() swaps the #id for the name on the way to chat, same as every other verb here.
+            case Route.CurrencyShop: blockers.Add($"currency shop #{leaf.ItemId}"); return;
             case Route.Market: blockers.Add($"market #{leaf.ItemId}"); return;
             default: blockers.Add($"manual #{leaf.ItemId}"); return;
         }
