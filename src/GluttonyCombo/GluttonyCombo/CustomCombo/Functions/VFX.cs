@@ -11,6 +11,7 @@ using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Linq;
 using System.Speech.Synthesis;
+using GluttonyCombo.Core;
 using GluttonyCombo.Extensions;
 using GluttonyCombo.Resources.Localization.Misc;
 using GluttonyCombo.Services;
@@ -236,9 +237,7 @@ internal abstract partial class CustomComboFunctions
 
         var tankBusterVfx = VfxManager.TrackedEffects
             .FilterToTargeted()
-            .FilterToTargetRole(CombatRole.Tank)
-            .Where(x => x.TargetID.GetObject().IsInParty() ||
-                        (includeOutOfParty && x.TargetID.GetObject().IsFriendly()))
+            .Where(x => InTankbusterScope(x, includeOutOfParty))
             .FirstOrDefault(IsTankBusterEffectPath);
 
         if (tankBusterVfx.VfxID == 0)
@@ -252,13 +251,55 @@ internal abstract partial class CustomComboFunctions
         return true;
     }
 
+    /// <summary>
+    ///     Decides whether a detected tank buster VFX is in scope for this plugin - used by BOTH
+    ///     the auto-rotation shield (<see cref="TryGetTankBusterTarget(out IBattleChara, bool)" />)
+    ///     and the TTS/toast alert (<see cref="PlayTankbusterAlert" />).
+    /// </summary>
+    /// <remarks>
+    ///     Those two used to carry separate copies of this test and had drifted apart, so an
+    ///     out-of-party buster was shielded but never announced. The decision table itself now
+    ///     lives in <see cref="TankbusterScope" />, which has no Dalamud types and is asserted
+    ///     offline by <c>tests/GluttonyCombo.TankbusterScopeHarness</c>; this method is only the
+    ///     game-state gathering in front of it.
+    /// </remarks>
+    private static bool InTankbusterScope(VfxInfo vfx, bool includeOutOfParty)
+    {
+        var target = vfx.TargetID.GetObject();
+
+        if (target is null)
+            return false;
+
+        // ECommons' GetRole reads ICharacter.ClassJob, which is empty for trusted / Occult
+        // Crescent NPCs - that arrives here as Unresolved rather than as a wrong role, which is
+        // the distinction TankbusterScope needs to make.
+        var role = target is ICharacter chara
+            ? chara.GetRole() switch
+            {
+                CombatRole.Tank => TankbusterScope.TargetRole.Tank,
+                CombatRole.NonCombat => TankbusterScope.TargetRole.Unresolved,
+                _ => TankbusterScope.TargetRole.OtherCombatRole,
+            }
+            : TankbusterScope.TargetRole.Unresolved;
+
+        return TankbusterScope.Allows(
+            target.IsInParty(), target.IsFriendly(), role, includeOutOfParty);
+    }
+
     public static void PlayTankbusterAlert()
     {
         if (!EzThrottler.Throttle("TankbusterTTS", 100))
             return;
 
         QuestToastOptions opts = new() { Position = QuestToastPosition.Centre, DisplayCheckmark = false };
-        foreach (var vfx in VfxManager.TrackedEffects.FilterToTargeted().Where(x => IsTankBusterEffectPath(x) && x.TargetID.GetObject().IsInParty()))
+        // Read the same setting the auto-rotation shield reads, so one tick governs both the
+        // action and its announcement. This is the raw config rather than the IPC wrapper on
+        // purpose: TankbustersBeyondParty is fork-only and cannot be leased over IPC (the
+        // wrapper is a bare pass-through), and the alert must work with auto-rotation off.
+        var includeOutOfParty =
+            Service.Configuration.RotationConfig.HealerSettings.TankbustersBeyondParty;
+
+        foreach (var vfx in VfxManager.TrackedEffects.FilterToTargeted().Where(x => IsTankBusterEffectPath(x) && InTankbusterScope(x, includeOutOfParty)))
         {
             if (!HandledVFXIDs.Any(x => x == vfx.VfxID))
                 TTSTankbusters.Add(new TTSData() { VFX = vfx });

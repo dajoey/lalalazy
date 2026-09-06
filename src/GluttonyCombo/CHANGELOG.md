@@ -1,3 +1,18 @@
+## v1.0.4.175 (2026-09-06) [testing]
+
+### Fixed
+- The tankbuster TTS line and on-screen toast now follow "Also shield tankbusters outside your party" like the shield already did. Since v1.0.4.171 the auto-rotation would shield the victim of a tankbuster outside your party while the alert stayed completely silent, because the shield honoured the setting and the alert was hardcoded to party members only - the plugin acted on an event it did not announce. One setting now governs both the action and its announcement. (file: `GluttonyCombo/CustomCombo/Functions/VFX.cs`, function: `PlayTankbusterAlert`)
+- Tankbuster detection outside your party now actually reaches trusted and Occult Crescent NPCs, which is half of what v1.0.4.171 promised and did not deliver. That version filtered every candidate through a role check that reads the target's job off the object table, and an NPC's job is simply not there - this fork already works around the same hole for NPCs in your party by reading the job out of the party info proxy instead. An out-of-party NPC is in neither place, so it resolved as "no combat role" and was silently dropped before the shield ever saw it. Alliance players were unaffected and always worked. (files: `GluttonyCombo/CustomCombo/Functions/VFX.cs`, `GluttonyCombo/Core/TankbusterScope.cs` (new))
+
+### Changed
+- The shield and the alert now share a single scope test instead of carrying a copy each, which is what let them drift apart in the first place. `CustomCombo/Functions/VFX.cs` has one `InTankbusterScope` predicate and both callers use it. (file: `GluttonyCombo/CustomCombo/Functions/VFX.cs`, function: `InTankbusterScope`)
+
+### Notes
+- Party-member behaviour is unchanged in every case, whether the setting is on or off. With the setting off the plugin behaves exactly as before for everyone. An alliance healer or DPS carrying a tankbuster marker is still correctly ignored - roles that do resolve are still respected, and only a target whose role cannot be determined at all now gets the benefit of the doubt.
+- The out-of-party arm is gated on the target being friendly, which the plugin tests by checking whether it could actually land a heal on it. An enemy or an unhealable object is never in scope no matter what marker it carries.
+- The decision itself lives in `GluttonyCombo/Core/TankbusterScope.cs`, deliberately free of every game type so it can be proven offline. `tests/GluttonyCombo.TankbusterScopeHarness` compiles that exact shipping file with no Dalamud and asserts all 24 combinations of in-party, friendly, role and setting - 26 cases including two negative controls, one proving the table is not a constant and one proving the setting actually changes an outcome. All passing.
+- Fork-only file, kept out of the upstream-owned classes, so nightly WrathCombo merges are unaffected.
+
 ## v1.0.4.174 (2026-09-05) [testing]
 
 ### Added

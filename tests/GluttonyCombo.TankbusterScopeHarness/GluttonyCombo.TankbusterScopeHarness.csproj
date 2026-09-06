@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Plain console app, no Dalamud and no ECommons. Compiles the REAL
+       src/GluttonyCombo/GluttonyCombo/Core/TankbusterScope.cs, so the scope decision that ships in
+       the zip is the one asserted here. Any game type leaking into that file breaks this build,
+       which is the point.
+         dotnet build tests\GluttonyCombo.TankbusterScopeHarness -c Release
+         dotnet tests\GluttonyCombo.TankbusterScopeHarness\bin\Release\net10.0\GluttonyCombo.TankbusterScopeHarness.dll
+       Prints PASS/FAIL per case, "OK" and exit 0 when every case passes. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>GluttonyCombo.TankbusterScopeHarness</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NoWarn>$(NoWarn);CS1574;CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Core\TankbusterScope.cs" Link="TankbusterScope.cs" />
+  </ItemGroup>
+</Project>
