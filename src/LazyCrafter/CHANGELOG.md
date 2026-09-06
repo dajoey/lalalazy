@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.1.6.2 (2026-09-05)
+
+- Fixed: putting more than one item in the cart could send materials you can obviously gather or craft to the "needs a manual source" list, and then refuse to craft anything that used them. In the reported run, Iron Ore, Silver Ore, Moko Grass and Adamantite Nugget were all declared manual and 49 recipes were deferred behind them - the exact same items had been gathered normally by a single-item cart thirteen minutes earlier (file: `Core/Tiering.cs`, function: `AssessCart`)
+- The cause was a label being reused, not a quantity being counted twice. When two cart lines need the same material, LazyCrafter merges them into one total. If the first line was fully covered by stock, that line's verdict - "you already have this" - was kept for the merged total even after the second line made it short. Nothing else in the plan knows where to get a material you supposedly already have, so it fell through to manual, and every recipe above it was blocked (file: `Core/Tiering.cs`)
+- Each merged total is now re-checked against the combined amount you need and the combined amount you have, so a material short across the whole cart is sourced the same way it would be in a cart of one (file: `Core/Tiering.cs`, function: `AssessCart`)
+- Single-item carts were never affected - there was nothing to merge - which is why this only showed up when adding several things at once
+- Tests: 4 new harness checks, including a control proving the routing code itself was never wrong, so the fix had to be made where the bad label is produced (file: `tests/LazyCrafter.Harness/CartTests.cs`)
+
 ## v0.1.6.1 (2026-09-05)
 
 - Fixed: an item you had listed for sale on the market board counted as stock you already had, which could stop a whole cart. LazyCrafter saw the listing, decided nothing was missing, and asked you to "retrieve" it from the board - something a summoning bell cannot do - so every craft above that item sat waiting forever. A run for one Alpine Chandelier stalled on a single listed Hardsilver Nugget it could simply have made (file: `Adapters/InventorySource.cs`, `InventorySources.RetainerTypes`)

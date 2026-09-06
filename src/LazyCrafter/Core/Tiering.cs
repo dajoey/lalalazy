@@ -71,8 +71,20 @@ public sealed class Tiering
     /// <summary>
     /// Assess several recipes as one shopping cart (Plan §Phase 4 task 4): one consumed-inventory ledger is shared
     /// across every line, so an on-hand unit is credited to at most one cart line, and the returned leaves are the
-    /// per-item totals over the whole cart (need / have summed, sources and tier from the first occurrence, tier
-    /// worsened if a later occurrence is worse). Lines with an unknown recipe or non-positive crafts are skipped.
+    /// per-item totals over the whole cart (need / have summed; tier worsened if a later occurrence is worse, and
+    /// <see cref="IngredientLeaf.Sources"/> RE-DERIVED from the aggregate need / have). Lines with an unknown
+    /// recipe or non-positive crafts are skipped.
+    /// <para>
+    /// The re-derivation is not cosmetic (card t_060e6992, 2026-09-05). <see cref="SourceClassifier.Classify"/>
+    /// treats <see cref="SourceKind.OnHand"/> as an EXCLUSIVE sentinel: a leaf covered by stock gets
+    /// <c>[OnHand]</c> and no other source is ever computed for it. The merge used to keep the FIRST occurrence's
+    /// list, so an item that cart line 1 covered stayed labelled <c>[OnHand]</c> while line 2 made the total short.
+    /// <c>DispatchPlan.RouteFor</c>'s <c>Route.Have</c> early-out needs <c>Missing == 0</c>, so it did not fire;
+    /// <c>[OnHand]</c> then matched none of Gather / Venture / SubCraft / Vendor / Market and fell through to
+    /// <c>Route.Manual</c>, which made <c>VisitIngredient</c> block every recipe above it (Iron Ore, Silver Ore,
+    /// Moko Grass and Adamantite Nugget all went manual in one run; 49 deferrals against 4 for the same items in a
+    /// single-line cart minutes earlier). Single-line carts never hit it: one occurrence, nothing to merge.
+    /// </para>
     /// </summary>
     public CartAssessment AssessCart(IEnumerable<(uint RecipeId, int Crafts)> lines, IInventory inv)
     {
@@ -105,7 +117,23 @@ public sealed class Tiering
             }
         }
 
-        return new CartAssessment(worst, perLine, order.Select(id => totals[id]).ToArray());
+        // Reclassify each per-item total against its AGGREGATE need / have instead of inheriting the first
+        // occurrence's verdict (card t_060e6992). Unconditional rather than special-cased on [OnHand]: this makes a
+        // merged total answer exactly the question a single-line leaf answers, and Classify already returns
+        // [OnHand] when Have >= Need, so a genuinely covered total comes back unchanged.
+        //
+        // Tier is deliberately NOT recomputed from the new sources. Walk folds a sub-craft's whole sub-tree into
+        // the leaf's tier (a SubCraft whose own materials are blocked is Blocked, not Easy), which
+        // min(TierOf(sources)) cannot reproduce - recomputing would report a blocked sub-craft as Easy. The merged
+        // tier is already consistent with the new sources: an occurrence is tiered Now only when it was covered, so
+        // the max over occurrences is Now only when every one was, which is exactly when Have >= Need and Classify
+        // returns [OnHand].
+        return new CartAssessment(worst, perLine,
+            order.Select(id =>
+            {
+                var t = totals[id];
+                return t with { Sources = _classifier.Classify(t.ItemId, t.Need, t.Have) };
+            }).ToArray());
     }
 
     /// <summary>Walks one recipe node for <paramref name="crafts"/> runs; returns the max tier over its ingredients.</summary>

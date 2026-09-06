@@ -98,5 +98,78 @@ internal static class CartTests
                 && nested[1].Leaf.ItemId == World.Leather && nested[1].Children.Count == 0
                 && IngredientTree.Build([]).Count == 0;
         }),
+
+        // ------------------------------------------------------------------ card t_060e6992
+        // A multi-line cart froze an item's Sources as [OnHand] and routed it to Manual.
+        // SourceClassifier.Classify treats OnHand as an EXCLUSIVE sentinel (Core/SourceClassifier.cs), and
+        // AssessCart's merge used to keep the FIRST occurrence's Sources while summing Need and Have. So an item
+        // that cart line 1 covered from stock stayed labelled [OnHand] while line 2 made the total short;
+        // DispatchPlan.RouteFor's Route.Have early-out needs Missing == 0, so it did not fire, [OnHand] matched no
+        // channel, and the item fell through to Route.Manual - which made VisitIngredient add "manual #<id>" as a
+        // blocker for EVERY recipe consuming it (49 deferrals in the reported run against 4 for the same items in a
+        // single-line cart). Assert on the resulting PLAN, not on the leaf alone: the leaf is only the first hop.
+        ("multi-line cart: a gatherable covered by line 1 and short on line 2 routes to Gather, never Manual", () =>
+        {
+            // IngotBsm needs Ore x2, IngotArm needs Ore x3. Two Ore in the bags cover line 1 exactly; line 2 is 3 short.
+            var p = CartPlan(new FakeInventory().Set(World.Ore, 2).Set(World.Coal, 2), (World.IngotBsm, 1), (World.IngotArm, 1));
+            return p.Gathers.Count == 1
+                && p.Gathers[0] is { ItemId: World.Ore, Quantity: 3, Kind: SourceKind.RegularNode }   // line 2's shortfall, not the whole need
+                && p.Manual.Count == 0
+                && !p.Deferred.Any(d => d.Reason.Contains($"manual #{World.Ore}"))
+                && p.Deferred.Count == 0
+                && p.Crafts.Count == 2;
+        }),
+        ("multi-line cart: a craftable covered by line 1 and short on line 2 routes to Craft, never Manual", () =>
+        {
+            // The Adamantite Nugget shape. Sword x1 as two cart lines: 2 Ingot in the bags cover line 1, line 2's
+            // 2 Ingot have to be sub-crafted from the 4 Ore + 2 Coal on hand.
+            var p = CartPlan(new FakeInventory().Set(World.Ingot, 2).Set(World.Leather, 2).Set(World.Ore, 4).Set(World.Coal, 2),
+                (World.SwordRecipe, 1), (World.SwordRecipe, 1));
+            return p.Manual.Count == 0
+                && !p.Deferred.Any(d => d.Reason.Contains($"manual #{World.Ingot}"))
+                && p.Deferred.Count == 0
+                && p.Crafts.Any(c => c is { RecipeId: World.IngotBsm, Crafts: 2, Depth: 1 })
+                && p.Crafts.Count(c => c.RecipeId == World.SwordRecipe) == 2;
+        }),
+        ("multi-line cart: merged Sources answer the AGGREGATE need/have; a genuinely covered total stays [OnHand]", () =>
+        {
+            var c = T().AssessCart([(World.IngotBsm, 1), (World.IngotArm, 1)], new FakeInventory().Set(World.Ore, 2).Set(World.Coal, 2));
+            var ore = Total(c, World.Ore);
+            var coal = Total(c, World.Coal);
+            return ore is { Need: 5, Have: 2, Missing: 3 }
+                && ore.Sources.Contains(SourceKind.RegularNode) && !ore.Sources.Contains(SourceKind.OnHand)
+                && coal is { Need: 2, Have: 2, Missing: 0 } && coal.Sources.SequenceEqual([SourceKind.OnHand])
+                // Tier is not recomputed, and does not need to be: a total is tiered Now only when every occurrence
+                // was covered, which is exactly when Classify returns OnHand.
+                && c.Totals.All(t => t.Missing <= 0 || t.Tier != EffortTier.Now);
+        }),
+        ("control: the router is unchanged - a stale [OnHand] with Missing > 0 would still land in Manual", () =>
+        {
+            // The negative control for the two plan tests: it is the LABEL that decides, not the router. Feed
+            // DispatchPlan the exact merged total the pre-fix AssessCart produced and it still routes to Manual;
+            // feed it the honestly-classified one and it gathers. Fixing this in RouteFor would have hidden a stale
+            // label instead of not producing one - and RouteFor has no classifier to reclassify with.
+            var data = World.Build();
+            var graph = new RecipeGraph(data);
+            var ventures = new VentureResolver(data);
+            var stale = new IngredientLeaf(World.Ore, 5, 2, [SourceKind.OnHand], EffortTier.Easy);
+            var honest = new IngredientLeaf(World.Ore, 5, 2, [SourceKind.RegularNode, SourceKind.Market], EffortTier.Easy);
+            var stalePlan = DispatchPlan.Build([], [stale], graph, ventures, []);
+            var honestPlan = DispatchPlan.Build([], [honest], graph, ventures, []);
+            return stalePlan.Manual.Count == 1 && stalePlan.Manual[0] is { ItemId: World.Ore, Quantity: 3 } && stalePlan.Gathers.Count == 0
+                && honestPlan.Gathers.Count == 1 && honestPlan.Gathers[0] is { ItemId: World.Ore, Quantity: 3 } && honestPlan.Manual.Count == 0;
+        }),
     };
+
+    /// <summary>Assess a cart and route it, the way DispatchService.PlanFor / Replan do (totals in, plan out).</summary>
+    private static DispatchPlan.Plan CartPlan(IInventory inv, params (uint RecipeId, int Crafts)[] lines)
+    {
+        var data = World.Build();
+        var graph = new RecipeGraph(data);
+        var ventures = new VentureResolver(data);
+        var tiering = new Tiering(graph, new SourceClassifier(data, graph, ventures, []));
+        var cart = tiering.AssessCart(lines, inv);
+        var planLines = cart.Lines.Select((a, i) => new DispatchPlan.Line(a, lines[i].Crafts)).ToList();
+        return DispatchPlan.Build(planLines, cart.Totals, graph, ventures, [], null, inv);
+    }
 }
