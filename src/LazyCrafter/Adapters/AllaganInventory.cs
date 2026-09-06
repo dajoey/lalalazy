@@ -254,18 +254,17 @@ public sealed class AllaganInventory : IInventory, IDisposable
                 if (types.Length == 0) continue;
                 var n = OwnedIn(itemId, types, all);
                 if (n <= 0) continue;
-                if (source == InventorySource.Retainers)
-                {
-                    // A market-board listing sits on the retainer but not in a bag a summoning bell can hand over, and
-                    // Artisan's retainer count rightly says 0 for it. Name it apart so the retrieve line never promises
-                    // a fetch that cannot happen (Star Quartz listed by retainer Bussyqueen, 2026-09-04).
-                    var listed = OwnedIn(itemId, [InventorySources.RetainerMarket], all);
-                    var inBags = n - Math.Clamp(listed, 0, n);
-                    if (inBags > 0) places.AddRange(SplitRetainers(itemId, inBags));
-                    if (listed > 0) places.AddRange(SplitListings(itemId, listed));
-                }
+                // `n` for Retainers is bags + crystals only: 12002 left RetainerTypes when a listing stopped counting
+                // as stock you have (2026-09-05), so nothing here has to be netted off any more.
+                if (source == InventorySource.Retainers) places.AddRange(SplitRetainers(itemId, n));
                 else places.Add(new StoredElsewhere(PlaceName(source), n));
             }
+
+            // Listings are no longer inside ANY enabled source's container set, because they are not owned stock -
+            // but the player still wants to be told "it is sitting on the market board" rather than watch the plan
+            // quietly buy one back. Reported as its own place, never fetchable, never part of Have.
+            var listedOnBoard = OwnedIn(itemId, [InventorySources.RetainerMarket], all);
+            if (listedOnBoard > 0) places.AddRange(SplitListings(itemId, listedOnBoard));
         }
 
         IReadOnlyList<StoredElsewhere> result = places.Count == 0
@@ -308,6 +307,8 @@ public sealed class AllaganInventory : IInventory, IDisposable
         foreach (var (id, name) in names)
         {
             int n;
+            // ItemCount(item, retainer, -1) is every container on that retainer, listings included; the total this
+            // was handed excludes listings, so subtract them or the sums never reconcile and the split is discarded.
             try { n = (int)Math.Min(int.MaxValue, _itemCount.InvokeFunc(itemId, id, -1)) - (int)Math.Min(int.MaxValue, _itemCount.InvokeFunc(itemId, id, (int)InventorySources.RetainerMarket)); }
             catch (Exception ex) { _log.Debug("AllaganTools.ItemCount({Item}, {Id}) failed: {Msg}", itemId, id, ex.Message); return [new StoredElsewhere(PlaceName(InventorySource.Retainers), total)]; }
             if (n <= 0) continue;

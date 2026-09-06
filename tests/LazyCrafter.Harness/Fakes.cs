@@ -59,6 +59,7 @@ internal sealed class FakeInventory : IInventory
 {
     private readonly Dictionary<uint, int> _bags = new();
     private readonly Dictionary<uint, List<StoredElsewhere>> _elsewhere = new();
+    private readonly Dictionary<uint, List<StoredElsewhere>> _listed = new();
 
     /// <summary>Stock in the bags: owned AND reachable by a synthesis.</summary>
     public FakeInventory Set(uint itemId, int count) { _bags[itemId] = count; return this; }
@@ -71,10 +72,28 @@ internal sealed class FakeInventory : IInventory
         return this;
     }
 
+    /// <summary>
+    /// Units you have LISTED FOR SALE on the market board. Mirrors the adapter after the 2026-09-05 fix: named by
+    /// <see cref="StoredWhere"/> so the UI can say where they are, but never part of <see cref="Count"/>, because a
+    /// summoning bell cannot hand a listing over. Use <see cref="SetElsewhere"/> to reproduce the OLD behaviour
+    /// (listing counted as owned) as a negative control.
+    /// </summary>
+    public FakeInventory SetListed(uint itemId, int count, string retainer = "Hussypants")
+    {
+        if (!_listed.TryGetValue(itemId, out var list)) _listed[itemId] = list = new List<StoredElsewhere>();
+        list.Add(new StoredElsewhere($"the market board (listed by retainer {retainer})", count));
+        return this;
+    }
+
     public int Count(uint itemId) => CountInBags(itemId) + (_elsewhere.TryGetValue(itemId, out var l) ? l.Sum(e => e.Quantity) : 0);
     public int CountInBags(uint itemId) => _bags.TryGetValue(itemId, out var c) ? c : 0;
-    public IReadOnlyList<StoredElsewhere> StoredWhere(uint itemId) =>
-        _elsewhere.TryGetValue(itemId, out var l) ? l : Array.Empty<StoredElsewhere>();
+    public IReadOnlyList<StoredElsewhere> StoredWhere(uint itemId)
+    {
+        var here = _elsewhere.TryGetValue(itemId, out var l) ? l : Enumerable.Empty<StoredElsewhere>();
+        var listed = _listed.TryGetValue(itemId, out var m) ? m : Enumerable.Empty<StoredElsewhere>();
+        var all = here.Concat(listed).ToArray();
+        return all.Length == 0 ? Array.Empty<StoredElsewhere>() : all;
+    }
 }
 
 internal sealed class FakePrices : IPriceSource

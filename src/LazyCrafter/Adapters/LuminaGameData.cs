@@ -219,11 +219,50 @@ public sealed class LuminaGameData : IGameData
             itemByGathering[gi.RowId] = (itemId, level);
         }
 
-        // baseRowId -> (type, timed flags) from any of its points' transient rows
+        // pointRowId -> the GatheringItem rows placed at that point. A node's items are NOT fully described by
+        // GatheringPointBase.Item: the base carries at most 8 slots, and everything past that (plus most of the
+        // hidden/level-gated items) is linked through the GatheringItemPoint subrow sheet instead. Reading only the
+        // base slots is what left 79 gatherables - Titanium Ore 12537 and Hardsilver Ore 12535 among them - out of
+        // the map entirely, so they classified as Market and the cart tried to buy ore it could mine (2026-09-05).
+        // GBR reads both sources the same way (GatherBuddy.GameData Node.Base.cs, "Obtain the items ...").
+        var itemsAtPoint = new Dictionary<uint, List<uint>>();
+        foreach (var page in Subrows<GatheringItemPoint>(data))
+        {
+            foreach (var row in page)
+            {
+                var pointId = row.GatheringPoint.RowId;
+                if (pointId == 0 || !itemByGathering.ContainsKey(row.RowId)) continue;
+                if (!itemsAtPoint.TryGetValue(pointId, out var l)) itemsAtPoint[pointId] = l = new List<uint>();
+                if (!l.Contains(row.RowId)) l.Add(row.RowId);
+            }
+        }
+
+        // The two "Oddly Delicate" items are still gathered in the OLD Diadem (territory 901), which is otherwise
+        // excluded below. GBR carries the same exception by name, so mirror it rather than silently dropping them.
+        var oddlyDelicate = new HashSet<uint>();
+        foreach (var gi in gatheringItemSheet)
+            if (gi.Item.RowId is 31767 or 31769) oddlyDelicate.Add(gi.RowId);
+
+        bool BaseHasOddlyDelicate(uint baseRowId)
+        {
+            if (oddlyDelicate.Count == 0 || !baseSheet.TryGetRow(baseRowId, out var b)) return false;
+            foreach (var slot in b.Item)
+                if (slot.RowId != 0 && oddlyDelicate.Contains(slot.RowId)) return true;
+            return false;
+        }
+
+        // baseRowId -> (type, timed flags) from any of its points' transient rows.
+        // Territories 0 and 1 are placeholder/deleted rows; 901 and 929 are the RETIRED instances of The Diadem,
+        // whose Grade 2/3 Skybuilders' items cannot be gathered any more (the current Diadem is a different
+        // territory and is kept). Including them would route ~70 items to a gather GBR itself refuses to run.
+        // Same exclusion list, and the same Oddly Delicate exception, that GBR uses (GameData.cs, tmpGatheringPoints).
         var pointsByBase = new Dictionary<uint, List<uint>>();
         foreach (var p in pointSheet)
         {
-            if (p.GatheringPointBase.RowId == 0 || p.TerritoryType.RowId is 0 or 1) continue;
+            if (p.GatheringPointBase.RowId == 0) continue;
+            var terr = p.TerritoryType.RowId;
+            var retiredDiadem = terr is 901 or 929 && !(terr == 901 && BaseHasOddlyDelicate(p.GatheringPointBase.RowId));
+            if (terr is 0 or 1 || retiredDiadem) continue;
             if (!pointsByBase.TryGetValue(p.GatheringPointBase.RowId, out var list)) pointsByBase[p.GatheringPointBase.RowId] = list = new List<uint>();
             list.Add(p.RowId);
         }
@@ -245,9 +284,19 @@ public sealed class LuminaGameData : IGameData
                 if (nt != NodeType.Regular) { nodeType = nt; break; }
             }
 
+            // Both ways an item reaches this node: the base's own slots, and the GatheringItemPoint rows of any of
+            // its points. Deduplicated, because the majority of items appear in both.
+            var gatheringRows = new List<uint>(b.Item.Count + 4);
             foreach (var slot in b.Item)
+                if (slot.RowId != 0 && !gatheringRows.Contains(slot.RowId)) gatheringRows.Add(slot.RowId);
+            foreach (var pid in pointIds)
+                if (itemsAtPoint.TryGetValue(pid, out var linked))
+                    foreach (var giRow in linked)
+                        if (!gatheringRows.Contains(giRow)) gatheringRows.Add(giRow);
+
+            foreach (var giRow in gatheringRows)
             {
-                if (slot.RowId == 0 || !itemByGathering.TryGetValue(slot.RowId, out var entry)) continue;
+                if (!itemByGathering.TryGetValue(giRow, out var entry)) continue;
                 var (itemId, level) = entry;
                 if (_fish.Contains(itemId)) continue;
                 var collectable = items.TryGetRow(itemId, out var item) && item.IsCollectable;
@@ -429,4 +478,7 @@ public sealed class LuminaGameData : IGameData
             warn($"LuminaSupplemental ItemSupplement failed to load; desynth values unavailable: {ex.Message}");
         }
     }
+
+    /// <summary>Every item id in the gatherable map (diagnostics/probes).</summary>
+    public IEnumerable<uint> GatherIds() => _gather.Keys;
 }

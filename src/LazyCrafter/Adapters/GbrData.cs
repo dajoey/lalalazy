@@ -57,6 +57,7 @@ public sealed class GbrData
             if (gatherablesProp?.GetValue(gameData) is not System.Collections.IEnumerable dict) { Fail("GameData.Gatherables missing"); return; }
 
             var result = new Dictionary<uint, GatherInfo>();
+            var skipped = 0;
             PropertyInfo? nodeTypeProp = null, levelProp = null, gatheringTypeProp = null, itemDataProp = null;
             PropertyInfo? isCollectableProp = null;
             foreach (var kv in dict)
@@ -77,6 +78,12 @@ public sealed class GbrData
                 var nodeType = Convert.ToByte(nodeTypeProp.GetValue(value));
                 var level = Convert.ToInt32(levelProp.GetValue(value));
                 var gatheringType = Convert.ToByte(gatheringTypeProp.GetValue(value));
+
+                // GBR leaves NodeType at Unknown (255) for a gatherable it has no reachable node for - its
+                // AddNodeToItem only runs for nodes in a live territory. Those entries carry no usable node type,
+                // and folding them to Regular would overwrite a correct sheet-derived timed node with a wrong
+                // "regular" one. Skip them; the sheet pass already has the right answer.
+                if (nodeType == 255) { skipped++; continue; }
 
                 var collectable = false;
                 if (itemDataProp?.GetValue(value) is { } itemRow)
@@ -100,7 +107,7 @@ public sealed class GbrData
                     Collectable: collectable);
             }
             _snapshot = result;
-            _log.Information("GatherBuddyReborn game data read via reflection: {Count} gatherables", result.Count);
+            _log.Information("GatherBuddyReborn game data read via reflection: {Count} gatherables with a reachable node ({Skipped} listed but nodeless, ignored)", result.Count, skipped);
         }
         catch (Exception ex)
         {

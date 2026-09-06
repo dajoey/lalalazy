@@ -14,5 +14,8 @@
 
   <ItemGroup>
     <Compile Include="..\..\src\LazyCrafter\Core\**\*.cs" Link="Core\%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- Pure-BCL adapter file (no Dalamud/Lumina types): lets the container-id list itself be asserted,
+         while the "Core has no Dalamud reference" smoke test above still guards the real boundary. -->
+    <Compile Include="..\..\src\LazyCrafter\Adapters\InventorySource.cs" Link="Adapters\InventorySource.cs" />
   </ItemGroup>
 </Project>

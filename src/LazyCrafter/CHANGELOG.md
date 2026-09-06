@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.1.6.1 (2026-09-05)
+
+- Fixed: an item you had listed for sale on the market board counted as stock you already had, which could stop a whole cart. LazyCrafter saw the listing, decided nothing was missing, and asked you to "retrieve" it from the board - something a summoning bell cannot do - so every craft above that item sat waiting forever. A run for one Alpine Chandelier stalled on a single listed Hardsilver Nugget it could simply have made (file: `Adapters/InventorySource.cs`, `InventorySources.RetainerTypes`)
+- Your listings are still shown, just no longer counted: the plan says "on the market board (listed by retainer X)" as information, and the item is treated as one you still need - so it gets crafted, gathered or bought like anything else (file: `Adapters/AllaganInventory.cs`, function: `StoredWhere`)
+- Fixed: many gatherable materials were being sent to the market board instead of to GatherBuddy. Node contents are listed in two places in the game data and LazyCrafter only read one of them, so 79 items - Titanium Ore and Hardsilver Ore among them - looked like they had no node at all. The same Alpine Chandelier run was told to buy 15 Titanium Ore it could have mined (file: `Adapters/LuminaGameData.cs`, function: `LoadGathering`)
+- Materials from the two retired Diadem versions (the Grade 2 and Grade 3 Skybuilders' sets, 70 items) are no longer offered as gathers, matching what GatherBuddy itself will accept; the two Oddly Delicate items that are still gatherable there are kept (file: `Adapters/LuminaGameData.cs`)
+- The startup line about GatherBuddy data now says how many of its entries actually have a reachable node, instead of a raw total that could not be compared with anything (file: `Adapters/GbrData.cs`)
+- Tests: 24 new harness checks covering both fixes, including negative controls that reproduce the original stall and confirm each fix is needed on its own (files: `tests/LazyCrafter.Harness/MarketListingTests.cs`, `tests/LazyCrafter.Harness/CartReplayTests.cs`)
 ## v0.1.6.0 (2026-09-05)
 
 - Fixed the stutter while LazyCrafter-directed gathering: picking up items used to force a full catalog recompute that froze the game for about a fifth of a second every ~30 seconds - the crafting-log re-read (all 13,892 recipes) now happens once per login instead of on every inventory change (files: `Catalog/CatalogService.cs`, `Plugin.cs`)

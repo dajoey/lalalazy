@@ -12,7 +12,7 @@ public enum InventorySource
     ArmouryChest,
     /// <summary>Chocobo saddlebag (both halves, incl. the premium pages).</summary>
     Saddlebag,
-    /// <summary>Retainer bags, crystals and market listings.</summary>
+    /// <summary>Retainer bags and crystals. Market-board listings are NOT counted - see <see cref="InventorySources.RetainerMarket"/>.</summary>
     Retainers,
     /// <summary>Pool every character AllaganTools knows about, not just the one logged in.</summary>
     AltCharacters,
@@ -31,11 +31,24 @@ public static class InventorySources
     public static readonly uint[] ArmouryTypes =
         [1000, 1001, 3200, 3201, 3202, 3203, 3204, 3205, 3206, 3207, 3208, 3209, 3300, 3400, 3500];
     public static readonly uint[] SaddlebagTypes = [4000, 4001, 4100, 4101];
-    public static readonly uint[] RetainerTypes =
-        [10000, 10001, 10002, 10003, 10004, 10005, 10006, 12001, 12002];             // RetainerBag0..6, RetainerCrystal, RetainerMarket
     /// <summary>
-    /// A retainer's market-board listings. Counted as owned (Scope 0) but NOT fetchable: a summoning bell hands over
-    /// bag/crystal stock only, and Artisan's retainer count reads 10000-10006 + 12001, never this container.
+    /// Retainer containers that count as stock you HAVE: bags 10000-10006 plus the retainer crystal pouch 12001.
+    /// <para>
+    /// <see cref="RetainerMarket"/> (12002) is deliberately absent, and that one id used to dead-end a whole cart:
+    /// an item you had listed for sale made <c>Count()</c> report it as owned, so <c>IngredientLeaf.Missing</c> fell
+    /// to 0, <c>DispatchPlan.RouteFor</c> returned <c>Route.Have</c> before classifying it, and the item turned into
+    /// a "retrieve by hand" step no summoning bell can satisfy - which blocked every craft above it (Hardsilver
+    /// Nugget 12520, 2026-09-05). Stock you have listed for sale is stock you do not have: it is Missing, and it
+    /// routes normally - craft, gather or buy.
+    /// </para>
+    /// </summary>
+    public static readonly uint[] RetainerTypes =
+        [10000, 10001, 10002, 10003, 10004, 10005, 10006, 12001];                    // RetainerBag0..6, RetainerCrystal
+    /// <summary>
+    /// A retainer's market-board listings. NOT part of <see cref="RetainerTypes"/> and never counted as owned: a
+    /// summoning bell hands over bag/crystal stock only, and Artisan's retainer count reads 10000-10006 + 12001,
+    /// never this container. <c>AllaganInventory.StoredWhere</c> still queries it explicitly, so a listing can be
+    /// NAMED ("1 on the market board, listed by retainer X") without that count inflating <c>Have</c>.
     /// </summary>
     public const uint RetainerMarket = 12002;
     public static readonly uint[] FcChestTypes =
