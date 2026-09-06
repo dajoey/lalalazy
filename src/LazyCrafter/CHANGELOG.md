@@ -1,6 +1,9 @@
 # Changelog
 
-## v0.1.6.9 (2026-09-06) (2026-09-06)
+## v0.1.6.9 (2026-09-06)
+
+### Changed
+- 0.1.6.10 is the same change republished with a corrected version header - the 0.1.6.9 header carried a doubled date, which the installer's changelog list would have shown. Nothing else changed (file: `CHANGELOG.md`)
 
 ### Added
 - **LazyCrafter now tells you when a material is sold by a currency vendor, and can send you there instead of the market board.** A cart short of Emery used to say `needs market Emery` and nothing else; it now says `Emery x1 - or Ixali vendor (North Shroud) for 7 Ixali Oaknots`. Beast-tribe traders, Grand Company quartermasters, scrip and token counters are all read the same way (files: `Core/SpecialShop.cs`, `Adapters/LuminaGameData.cs` `LoadShops`, `Adapters/VendorLocator.cs` `SpecialShopCandidates`)
