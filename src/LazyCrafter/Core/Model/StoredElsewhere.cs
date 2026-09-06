@@ -9,8 +9,22 @@ namespace LazyCrafter.Core.Model;
 /// </para>
 /// <see cref="Where"/> is a short place name written so it reads after "from": <c>retainer Cid</c>,
 /// <c>the saddlebag</c>, <c>the armoury chest</c>. <see cref="Phrase"/> is the same fact written as a count.
+/// <para>
+/// <see cref="Fetchable"/> separates the two kinds of place that end up in one list. A retainer, the saddlebag,
+/// the armoury chest and the glamour dresser all hold units you can go and get; a market-board listing does not -
+/// it is reported purely so the player is told where the stock went (2026-09-05, t_c69287be). Everything defaults
+/// to <c>true</c>, so a place is only ever unreachable when its producer says so explicitly.
+/// </para>
 /// </summary>
-public sealed record StoredElsewhere(string Where, int Quantity)
+/// <param name="Where">Short place name, written to read after "from".</param>
+/// <param name="Quantity">Units this place is holding.</param>
+/// <param name="Fetchable">
+/// Whether those units can actually be brought into the bags. <c>false</c> only for a market-board listing:
+/// it is named for information, never counted as stock you have, and never a place a retrieval can be satisfied
+/// from. Consumers that pick "where do I go to get this" must prefer fetchable places (see
+/// <c>DispatchPlan.PlacesFor</c>) - sorting by quantity alone points the player at the board (card t_05e6722b).
+/// </param>
+public sealed record StoredElsewhere(string Where, int Quantity, bool Fetchable = true)
 {
     /// <summary>"107 on retainer Cid" / "3 in the saddlebag" - for the refusal and retrieve lines.</summary>
     public string Phrase => Quantity + (Where.Contains("retainer", StringComparison.OrdinalIgnoreCase) ? " on " : " in ") + Where;

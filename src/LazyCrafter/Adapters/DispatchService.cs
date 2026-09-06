@@ -277,7 +277,9 @@ public sealed class DispatchService : IDisposable
         StartRun(Name(itemId), []);
         _loop = null;
         _snap = null;
-        var where = _plugin.Inventory.StoredWhere(itemId);
+        // PlacesFor, not the raw StoredWhere list: it puts reachable places first, so the line names the retainer
+        // holding the stock rather than a bigger market-board listing of the same item (card t_05e6722b).
+        var where = DispatchPlan.PlacesFor(_plugin.Inventory.StoredWhere(itemId), quantity);
         StartWave(new DispatchPlan.Plan([], [], [], [], [], [], [], [new DispatchPlan.Retrieve(itemId, quantity, where)]));
     }
 
@@ -624,7 +626,7 @@ public sealed class DispatchService : IDisposable
                                 _retrievals.Where(r => r.ItemId != itemId)
                                     .Prepend(planned with { Quantity = Math.Min(planned.Quantity, left) }));
                         else
-                            _retrievals.Enqueue(new DispatchPlan.Retrieve(itemId, left, _plugin.Inventory.StoredWhere(itemId)));
+                            _retrievals.Enqueue(new DispatchPlan.Retrieve(itemId, left, DispatchPlan.PlacesFor(_plugin.Inventory.StoredWhere(itemId), left)));
                     }
                     _log.Information("batch retainer pass done: {Fetched} material(s) moved, {Left} left for the per-item pass", _batchFetched, _retrievals.Count);
                     if (_batchFetched > 0) _waveProgress = true;

@@ -109,9 +109,13 @@ public sealed class IngredientTree
         var busy = d.Running;
 
         // Owned but not in the bags: a craft cannot consume it until it is fetched (card t_63b845ad).
+        // Only FETCHABLE places count towards the button (card t_05e6722b): a market-board listing is reported by
+        // StoredWhere so the player is told where the stock went, but a summoning bell cannot hand it back, so
+        // counting it here offered a Retrieve the executor could only refuse - and named the board in the tooltip.
         var outside = _plugin.Inventory.StoredWhere(leaf.ItemId);
+        var reachable = outside.Where(o => o.Fetchable).ToList();
         var needed = Math.Max(0, leaf.Need - _plugin.Inventory.CountInBags(leaf.ItemId));
-        var fetchable = Math.Min(needed, outside.Sum(o => o.Quantity));
+        var fetchable = Math.Min(needed, reachable.Sum(o => o.Quantity));
         if (fetchable > 0)
         {
             if (busy) ImGui.BeginDisabled();
@@ -123,7 +127,7 @@ public sealed class IngredientTree
             }
             if (busy) ImGui.EndDisabled();
             if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
-                ImGui.SetTooltip(busy ? $"dispatch running: {d.Status}" : $"Fetch {fetchable} from {Places(outside)} into your bags (Artisan retainer withdrawal; stand by a summoning bell).");
+                ImGui.SetTooltip(busy ? $"dispatch running: {d.Status}" : $"Fetch {fetchable} from {Places(DispatchPlan.PlacesFor(reachable, fetchable))} into your bags (Artisan retainer withdrawal; stand by a summoning bell).");
             if (leaf.Missing > 0) ImGui.SameLine();
         }
 

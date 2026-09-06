@@ -269,7 +269,9 @@ public sealed class AllaganInventory : IInventory, IDisposable
 
         IReadOnlyList<StoredElsewhere> result = places.Count == 0
             ? Array.Empty<StoredElsewhere>()
-            : places.OrderByDescending(p => p.Quantity).ToArray();
+            // Fetchable places first (card t_05e6722b): a listing is FYI, not a destination, so it must never
+            // outrank a retainer stack just by being bigger. Within each group, most-stocked first as before.
+            : places.OrderByDescending(p => p.Fetchable).ThenByDescending(p => p.Quantity).ToArray();
         lock (_lock) _whereMemo[itemId] = result;
         return result;
     }
@@ -322,12 +324,17 @@ public sealed class AllaganInventory : IInventory, IDisposable
     /// <summary>
     /// Market-board listings per retainer: "the market board (listed by retainer Cid)". Reads after "on". One unnamed
     /// entry when the names are unknown or the per-retainer counts do not reconcile.
+    /// <para>
+    /// Every entry here is built with <c>Fetchable: false</c> - a summoning bell cannot hand a listing over, so
+    /// these places are named for information only and must never be chosen as the destination of a retrieval
+    /// (card t_05e6722b). This is the ONLY producer of unfetchable places.
+    /// </para>
     /// </summary>
     private IEnumerable<StoredElsewhere> SplitListings(uint itemId, int total)
     {
         const string unnamed = "the market board (your retainers' listings)";
         var names = _retainerNames;
-        if (names.Count == 0) return [new StoredElsewhere(unnamed, total)];
+        if (names.Count == 0) return [new StoredElsewhere(unnamed, total, Fetchable: false)];
 
         var split = new List<StoredElsewhere>();
         var sum = 0;
@@ -335,12 +342,12 @@ public sealed class AllaganInventory : IInventory, IDisposable
         {
             int n;
             try { n = (int)Math.Min(int.MaxValue, _itemCount.InvokeFunc(itemId, id, (int)InventorySources.RetainerMarket)); }
-            catch (Exception ex) { _log.Debug("AllaganTools.ItemCount({Item}, {Id}, market) failed: {Msg}", itemId, id, ex.Message); return [new StoredElsewhere(unnamed, total)]; }
+            catch (Exception ex) { _log.Debug("AllaganTools.ItemCount({Item}, {Id}, market) failed: {Msg}", itemId, id, ex.Message); return [new StoredElsewhere(unnamed, total, Fetchable: false)]; }
             if (n <= 0) continue;
-            split.Add(new StoredElsewhere($"the market board (listed by retainer {(string.IsNullOrWhiteSpace(name) ? id.ToString("X") : name)})", n));
+            split.Add(new StoredElsewhere($"the market board (listed by retainer {(string.IsNullOrWhiteSpace(name) ? id.ToString("X") : name)})", n, Fetchable: false));
             sum += n;
         }
-        if (split.Count == 0 || sum != total) return [new StoredElsewhere(unnamed, total)];
+        if (split.Count == 0 || sum != total) return [new StoredElsewhere(unnamed, total, Fetchable: false)];
         return split;
     }
 

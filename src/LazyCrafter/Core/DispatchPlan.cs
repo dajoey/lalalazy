@@ -44,7 +44,8 @@ public static class DispatchPlan
 
     /// <summary>
     /// Stock the plan wants to consume that is <b>not in the bags</b>: fetch <see cref="Quantity"/> of
-    /// <see cref="ItemId"/> from <see cref="Where"/> (most-stocked place first) before any craft that needs it can run.
+    /// <see cref="ItemId"/> from <see cref="Where"/> (fetchable places first, most-stocked first within that)
+    /// before any craft that needs it can run.
     /// This is a manual step - LazyCrafter never opens a retainer for you.
     /// </summary>
     public sealed record Retrieve(uint ItemId, int Quantity, IReadOnlyList<StoredElsewhere> Where)
@@ -169,13 +170,30 @@ public static class DispatchPlan
         return new Plan(ventureList, gatherList, craftList, vendorList, marketList, manualList, deferred, retrieveList);
     }
 
-    /// <summary>The places, most-stocked first, that together hold <paramref name="quantity"/> units; the last is clipped.</summary>
-    private static IReadOnlyList<StoredElsewhere> PlacesFor(IReadOnlyList<StoredElsewhere> where, int quantity)
+    /// <summary>
+    /// The places that together hold <paramref name="quantity"/> units of stock we are about to fetch:
+    /// <b>fetchable places first</b>, each group most-stocked first, and the last one clipped to the remainder.
+    /// <para>
+    /// The ordering is the whole point (card t_05e6722b). <c>StoredWhere</c> returns reachable places AND the
+    /// market-board listing in one list, because the player wants to be told where the stock went. Sorting that
+    /// list by quantity alone made a big listing outrank a small retainer stack, so a retrieval of units sitting
+    /// on a retainer printed "from the market board (listed by retainer X)" and sent the player to a place a
+    /// summoning bell cannot reach. Quantity, <c>Have</c> and routing were all correct - only the place name was
+    /// wrong - but it reads exactly like the listings-counted-as-stock defect that was fixed in 0.1.6.1, so it
+    /// costs diagnosis time every time it shows up in a log.
+    /// </para>
+    /// <para>
+    /// A listing can still be named, and deliberately is: when nothing fetchable holds the units (the whole stack
+    /// is listed for sale), the fallback below returns the places we do know about rather than "elsewhere", so
+    /// the executor's refusal can say where the stock actually is.
+    /// </para>
+    /// </summary>
+    public static IReadOnlyList<StoredElsewhere> PlacesFor(IReadOnlyList<StoredElsewhere> where, int quantity)
     {
         if (where.Count == 0) return Array.Empty<StoredElsewhere>();
         var taken = new List<StoredElsewhere>();
         var left = quantity;
-        foreach (var w in where.OrderByDescending(w => w.Quantity))
+        foreach (var w in where.OrderByDescending(w => w.Fetchable).ThenByDescending(w => w.Quantity))
         {
             if (left <= 0) break;
             var take = Math.Min(left, w.Quantity);

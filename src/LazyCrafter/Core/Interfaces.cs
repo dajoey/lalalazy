@@ -117,8 +117,15 @@ public interface IInventory
     int CountInBags(uint itemId) => Count(itemId);
 
     /// <summary>
-    /// Where the units that are <b>not</b> in the bags are sitting, most-stocked first. Only places holding at
-    /// least one unit appear. Empty when everything owned is already in the bags (or when the adapter cannot tell).
+    /// Where the units that are <b>not</b> in the bags are sitting: reachable places first, most-stocked first
+    /// within each group. Only places holding at least one unit appear. Empty when everything owned is already in
+    /// the bags (or when the adapter cannot tell).
+    /// <para>
+    /// The list may include places you cannot fetch from - a market-board listing is reported so the player is
+    /// told where the stock went, with <see cref="StoredElsewhere.Fetchable"/> false. A consumer choosing where to
+    /// send the player must respect that flag rather than the quantity (card t_05e6722b);
+    /// <c>DispatchPlan.PlacesFor</c> is the shared implementation.
+    /// </para>
     /// </summary>
     IReadOnlyList<StoredElsewhere> StoredWhere(uint itemId) => Array.Empty<StoredElsewhere>();
 }

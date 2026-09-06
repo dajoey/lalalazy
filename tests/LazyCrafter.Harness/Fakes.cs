@@ -77,21 +77,30 @@ internal sealed class FakeInventory : IInventory
     /// <see cref="StoredWhere"/> so the UI can say where they are, but never part of <see cref="Count"/>, because a
     /// summoning bell cannot hand a listing over. Use <see cref="SetElsewhere"/> to reproduce the OLD behaviour
     /// (listing counted as owned) as a negative control.
+    /// <para>
+    /// Built with <c>Fetchable: false</c>, exactly as <c>AllaganInventory.SplitListings</c> does, so the rig can
+    /// prove the place a retrieval NAMES as well as its quantity (card t_05e6722b).
+    /// </para>
     /// </summary>
     public FakeInventory SetListed(uint itemId, int count, string retainer = "Hussypants")
     {
         if (!_listed.TryGetValue(itemId, out var list)) _listed[itemId] = list = new List<StoredElsewhere>();
-        list.Add(new StoredElsewhere($"the market board (listed by retainer {retainer})", count));
+        list.Add(new StoredElsewhere($"the market board (listed by retainer {retainer})", count, Fetchable: false));
         return this;
     }
 
     public int Count(uint itemId) => CountInBags(itemId) + (_elsewhere.TryGetValue(itemId, out var l) ? l.Sum(e => e.Quantity) : 0);
     public int CountInBags(uint itemId) => _bags.TryGetValue(itemId, out var c) ? c : 0;
+
+    /// <summary>
+    /// Fetchable places first, then the listings - the same ordering <c>AllaganInventory.StoredWhere</c> applies
+    /// (card t_05e6722b). Within each group, most-stocked first.
+    /// </summary>
     public IReadOnlyList<StoredElsewhere> StoredWhere(uint itemId)
     {
         var here = _elsewhere.TryGetValue(itemId, out var l) ? l : Enumerable.Empty<StoredElsewhere>();
         var listed = _listed.TryGetValue(itemId, out var m) ? m : Enumerable.Empty<StoredElsewhere>();
-        var all = here.Concat(listed).ToArray();
+        var all = here.Concat(listed).OrderByDescending(e => e.Fetchable).ThenByDescending(e => e.Quantity).ToArray();
         return all.Length == 0 ? Array.Empty<StoredElsewhere>() : all;
     }
 }
