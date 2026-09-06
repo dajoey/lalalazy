@@ -57,7 +57,11 @@ $entry = $masterList | Where-Object { $_.InternalName -eq $PluginName }
 # Check csproj version and perform auto-bump if deploying production with unchanged version
 $csprojPath = Join-Path $srcDir "$PluginName.csproj"
 if (Test-Path $csprojPath) {
-    [xml]$csproj = Get-Content $csprojPath
+    # Explicit UTF-8: Get-Content on Windows PowerShell 5.1 decodes as the ANSI codepage
+    # (Windows-1252 here), so any non-ASCII char in the csproj comes back as mojibake -
+    # and -AutoBump writes the document straight back out with $csproj.Save(). Two csprojs
+    # already carry non-ASCII (LazyCurrencySpender: U+2014, LazyCrafter: U+00A7).
+    [xml]$csproj = [System.IO.File]::ReadAllText($csprojPath, [System.Text.Encoding]::UTF8)
     $targetGroup = $csproj.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1
     $projVersion = if ($targetGroup) { $targetGroup.Version } else { $null }
     
@@ -122,7 +126,18 @@ if (-not (Test-Path $changelogPath)) {
 $changelogText = $null
 if (Test-Path $changelogPath) {
     Write-Host "Parsing CHANGELOG.md for metadata..."
-    $lines = Get-Content $changelogPath
+    # Explicit UTF-8, NOT Get-Content (fix 2026-09-05, t_dd984b1e). Under Windows
+    # PowerShell 5.1 - which is what runs on this host (5.1.26100.9278) - Get-Content
+    # defaults to the ANSI codepage (Windows-1252), so a UTF-8 em dash (U+2014, bytes
+    # E2 80 94) decoded to three chars (U+00E2 U+20AC U+201D) and shipped as mojibake into
+    # BOTH the pluginmaster.json Changelog AND the zip's <Plugin>.json - i.e. every surface
+    # the Dalamud plugin INSTALLER renders. The in-game "What's new" popup is NOT affected:
+    # it reads the EMBEDDED CHANGELOG.md resource via ChangelogGate.ReadEmbedded, whose
+    # `new StreamReader(stream)` defaults to UTF-8 (measured). So one release shipped the
+    # same text correct in the popup and mangled in the installer listing. ReadAllLines
+    # splits CRLF and bare LF alike and consumes a BOM if present; this repo has both line
+    # endings and no BOMs on CHANGELOG.md.
+    $lines = [System.IO.File]::ReadAllLines($changelogPath, [System.Text.Encoding]::UTF8)
     $formattedEntries = [System.Collections.Generic.List[string]]::new()
     $currentEntry = [System.Collections.Generic.List[string]]::new()
     
@@ -260,7 +275,7 @@ if ($changelogText) {
     # a backslash-quoting trap in PowerShell (it ate one and threw "Not enough )'s").
     $srcManifestPath = Join-Path $srcDir "$PluginName.json"
     if (Test-Path $srcManifestPath) {
-        $srcLines = [System.IO.File]::ReadAllLines($srcManifestPath)
+        $srcLines = [System.IO.File]::ReadAllLines($srcManifestPath, [System.Text.Encoding]::UTF8)
         $escaped = $changelogText | ConvertTo-Json
         $found = $false
         for ($i = 0; $i -lt $srcLines.Count; $i++) {
@@ -271,7 +286,7 @@ if ($changelogText) {
                 $rebuilt = $indent + '"Changelog": ' + $escaped + $comma
                 if ($rebuilt -ne $srcLines[$i]) {
                     $srcLines[$i] = $rebuilt
-                    [System.IO.File]::WriteAllLines($srcManifestPath, $srcLines)
+                    [System.IO.File]::WriteAllLines($srcManifestPath, $srcLines, [System.Text.UTF8Encoding]::new($false))
                     Write-Host "Synced Changelog into the source manifest ($PluginName.json)."
                 }
                 break
