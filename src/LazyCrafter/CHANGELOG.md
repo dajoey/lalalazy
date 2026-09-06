@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.1.6.7 (2026-09-06)
+
+### Fixed
+- **A craft the game refused because a window was open is no longer reported as a missing material.** If you finish buying at the market board and press Resume with the board still open, the game refuses every craft command ("Unable to execute command while occupied") and Artisan bounces instantly. LazyCrafter recorded only "expected 98, made 0" - the reason was thrown away - so on the next pass it saw the intermediates were not in your bags, concluded they must be somewhere else, and told you to go and retrieve two materials that had never existed. It then sent you to a summoning bell for them. It now says the true thing instead: the craft was refused, the window that was holding it up is named, and it tells you plainly that nothing is missing from your bags (files: `Core/CraftDiagnosis.cs`, `Adapters/ClientReadiness.cs`, `Adapters/DispatchService.cs` `WaitCraftEnd` / `WaitCraftStart` / `Phase.Crafts`)
+- **A material that only failed to exist because its craft was blocked no longer appears in the "pull these off sale" list.** In the 2026-09-06 11:58 run the only material really listed for sale was Cloud Mica x3 on Hussypants; Adamantite Nugget x98 and Cloud Mica Whetstone x99 were noise the bug generated, and they were named as things to unlist even though no retainer was holding any of them. Only genuinely listed materials reach that list now (files: `Core/CraftDiagnosis.cs` `WithoutPhantoms`, `Adapters/DispatchService.cs` `ReportBlockedListings`)
+- **The walk to the summoning bell no longer fires for a problem that does not exist.** With nothing genuinely listed for sale, the run now ends without moving you. When something really is on the board, the walk still happens exactly as before (file: `Adapters/DispatchService.cs` `ReportBlockedListings` / `WalkToBell`)
+- **A blocked craft no longer opens a retainer bell session on the next pass.** The deferral reason for a refused craft no longer carries the internal `retrieve #` marker, which is what queues an Artisan retainer withdrawal - so the next pass no longer tries to fetch a material that is nowhere (files: `Core/CraftDiagnosis.cs` `DeferralReason`, `Core/RetainerBatch.cs` unchanged and still driven by that marker)
+
+### Added
+- LazyCrafter now checks whether the game can actually accept a command before blaming your bags, and can name what is holding it: the market board, a retainer's inventory, the retainer bell, a shop, a dialogue box, a yes/no prompt, a trade window, a cutscene or a zone change (file: `Adapters/ClientReadiness.cs`)
+
+### Notes
+- **This build does not wait for the window to close, and does not stop the run when it finds one.** It only stops lying about what went wrong. Whether a blocked craft should wait for you to close the window, or stop the run cleanly, is a separate question and is not answered here.
+- **Nothing about a genuine shortage changed.** A material that really is sitting on a retainer, in the saddlebag or on the market board is reported exactly as it was in 0.1.6.6, with the same wording, and is still retrieved, still named and still walked to. Both halves are pinned by tests.
+- Proved offline before shipping: 250/250 in `tests/LazyCrafter.Harness` (was 231/231), with 19 new checks that replay the 11:58 run and assert on the RENDERED chat text rather than on an internal value - the defect is a reporting defect, and a test on the internal shortfall list would have stayed green right through it. Two negative controls were run: reverting the diagnosis turned exactly 5 of those checks red, and "fixing" it by silently dropping the phantom materials instead of explaining them turned 4 red - so the suite cannot be satisfied by suppression (file: `tests/LazyCrafter.Harness/OccupiedCraftTests.cs`).
+
 ## v0.1.6.6 (2026-09-06)
 
 ### Added

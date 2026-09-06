@@ -46,6 +46,11 @@ public sealed class DispatchService : IDisposable
     private readonly IPluginLog _log;
 
     public ArtisanDispatch Artisan { get; }
+    /// <summary>
+    /// "Can the client accept a command right now, and what is holding it?" (card t_0b4d8b2c). Observation only -
+    /// it never waits, retries or stops; whether the craft path should do any of those is Joey's decision.
+    /// </summary>
+    public ClientReadiness Readiness { get; }
     public GbrDispatch Gbr { get; }
     public ArcDispatch Arc { get; }
     public LifestreamDispatch Lifestream { get; }
@@ -67,6 +72,20 @@ public sealed class DispatchService : IDisposable
     private readonly List<DispatchPlan.Deferral> _deferredAtRun = new();
     /// <summary>Bag count of the current craft's result immediately before <c>Artisan.CraftItem</c>, and how many units we expect it to add.</summary>
     private int _madeBefore, _expected;
+    /// <summary>
+    /// Crafts the GAME refused because a UI window owned the client's input, and which window it was
+    /// (card t_0b4d8b2c). Reset per run by <see cref="StartRun"/>.
+    /// <para>
+    /// This is the fact the old code threw away. <c>Artisan.CraftItem</c> is fire-and-forget: with the market board
+    /// open the game answers "Unable to execute command while occupied", Artisan bounces instantly, and the bags
+    /// then show zero made - identical to a genuine shortage. On the next pass <c>BagsShortfall</c> read that hole
+    /// in the bags and correctly emitted "not in your bags, retrieve from elsewhere", which was a lie: the material
+    /// was never made and is not anywhere. Membership here is what lets the two be told apart.
+    /// </para>
+    /// </summary>
+    private readonly CraftDiagnosis.BlockedCrafts _blockedCrafts = new();
+    /// <summary>The window that owned the client's input at the instant <c>Artisan.Craft</c> was called, or <c>null</c>. Sampled per craft.</summary>
+    private string? _busyAtCraft;
 
     // ---- retrieval state (card t_63b845ad)
     /// <summary>The cart this run came from, so the loop can re-plan against live bags between waves (null for single-item runs).</summary>
@@ -136,6 +155,7 @@ public sealed class DispatchService : IDisposable
         _log = log;
         Guard = new ReflectionGuard(Plugin.Pi, chat, log);
         Artisan = new ArtisanDispatch(Plugin.Pi, log);
+        Readiness = new ClientReadiness(Plugin.Condition, Plugin.GameGui, log);
         Gbr = new GbrDispatch(Plugin.Pi, Guard, chat, log);
         Arc = new ArcDispatch(Plugin.Pi, Guard, chat, log);
         Lifestream = new LifestreamDispatch(Plugin.Pi, Plugin.GameGui, chat, log);
@@ -336,6 +356,10 @@ public sealed class DispatchService : IDisposable
         _made.Clear();
         _deferredAtRun.Clear();
         _unfetched.Clear();
+        // Card t_0b4d8b2c: the blocked-craft record is per run. A window that was open during the LAST run must
+        // not suppress a genuine retrieval in this one.
+        _blockedCrafts.Clear();
+        _busyAtCraft = null;
         // The /lcraft blocked stash belongs to the LAST run and is deliberately kept past Finish/FinishBlocked;
         // a new run is the one thing that invalidates it (card t_35be7be5).
         _lastBlockedListings = BlockedListings.Summary.Empty;
@@ -836,12 +860,16 @@ public sealed class DispatchService : IDisposable
                     if (recipeRow is not null && DispatchPlan.BagsShortfall(recipeRow, _current.Crafts, _plugin.Inventory) is { Count: > 0 } shortfall)
                     {
                         _craftsFailed++;
-                        var what = string.Join(", ", shortfall.Select(s => $"{Name(s.ItemId)} x{s.Quantity} is not in your bags ({s.Detail})"));
-                        Say($"Artisan craft of {Name(_current.ResultItemId)} refused: {what}.", error: true);
-                        Say("retrieve before crafting: " + string.Join("; ", shortfall.Select(s => $"{Name(s.ItemId)} x{s.Quantity} from {s.Places}")) + ".", error: true);
-                        TrackStep(StepKind.Craft, _current.ResultItemId, _current.Crafts, StepState.Failed, Readable("needs " + string.Join(", ", shortfall.Select(s => $"retrieve #{s.ItemId} x{s.Quantity} (from {s.Places})"))), recipeId: _current.RecipeId);
-                        _deferredAtRun.Add(new DispatchPlan.Deferral(_current.RecipeId, _current.ResultItemId, _current.Crafts,
-                            "needs " + string.Join(", ", shortfall.Select(s => $"retrieve #{s.ItemId} x{s.Quantity} (from {s.Places})"))));
+                        // Card t_0b4d8b2c: a material that is absent ONLY because a craft of it was refused while the
+                        // client was busy is NOT "elsewhere" and is NOT on the market board. Splitting the shortfall
+                        // here is what keeps a phantom out of the retrieve wording, out of RetainerBatch's bell
+                        // session (it selects deferrals containing "retrieve #"), and out of the unlist path.
+                        var split = CraftDiagnosis.SplitShortfall(shortfall, _blockedCrafts);
+                        foreach (var line in CraftDiagnosis.RefusalLines(Name(_current.ResultItemId), split, Name))
+                            Say(line, error: true);
+                        var reason = CraftDiagnosis.DeferralReason(split);
+                        TrackStep(StepKind.Craft, _current.ResultItemId, _current.Crafts, StepState.Failed, Readable(reason), recipeId: _current.RecipeId);
+                        _deferredAtRun.Add(new DispatchPlan.Deferral(_current.RecipeId, _current.ResultItemId, _current.Crafts, reason));
                         _current = null;
                         break;
                     }
@@ -852,6 +880,12 @@ public sealed class DispatchService : IDisposable
                     _expected = _current.Crafts * Math.Max(1, recipeRow?.ResultAmount ?? 1);
 
                     SetStatus($"Artisan: {Name(_current.ResultItemId)} x{_current.Crafts}");
+                    // Card t_0b4d8b2c: sample WHY the game might refuse this, at the instant we ask for it. Artisan's
+                    // CraftItem is fire-and-forget over IPC - the game's "Unable to execute command while occupied"
+                    // never comes back to us - so if the answer is only read after the fact the window may already be
+                    // closed. Observation only: the craft still fires either way. Whether it should instead WAIT or
+                    // STOP is Joey's decision and is deliberately not taken here.
+                    _busyAtCraft = Readiness.BusyBecause();
                     var err = Artisan.Craft(_current.RecipeId, _current.Crafts);
                     if (err is not null) { _craftsFailed++; Say($"Artisan refused {Name(_current.ResultItemId)}: {err}", error: true); TrackStep(StepKind.Craft, _current.ResultItemId, _current.Crafts, StepState.Failed, err, recipeId: _current.RecipeId); _current = null; break; }
                     Say($"Artisan: crafting {Name(_current.ResultItemId)} x{_current.Crafts} ({_craftsDone + 1}/{_craftsDone + _craftsFailed + _crafts.Count + 1}).");
@@ -866,8 +900,23 @@ public sealed class DispatchService : IDisposable
                     if (_phaseClock.ElapsedMilliseconds > 15_000)
                     {
                         _craftsFailed++;
-                        Say($"Artisan did not start {Name(_current!.ResultItemId)} within 15 s (crafting log blocked? wrong job gear set?) - skipping.", error: true);
-                        TrackStep(StepKind.Craft, _current.ResultItemId, _current.Crafts, StepState.Failed, "Artisan did not start within 15 s", recipeId: _current.RecipeId);
+                        // Card t_0b4d8b2c: "did not start" and "the game would not accept the command" look identical
+                        // from here. Re-sample as well as using the dispatch-time reading - the window may have opened
+                        // after we asked - and record the cause so the NEXT pass does not read the hole in the bags as
+                        // a missing material.
+                        var busyStart = _busyAtCraft ?? Readiness.BusyBecause();
+                        if (busyStart is not null)
+                        {
+                            _blockedCrafts.Note(_current!.ResultItemId, busyStart);
+                            Say(CraftDiagnosis.BusyCraftLine(Name(_current.ResultItemId), _expected, 0, busyStart), error: true);
+                            TrackStep(StepKind.Craft, _current.ResultItemId, _current.Crafts, StepState.Failed,
+                                CraftDiagnosis.StepReason(CraftDiagnosis.Cause.ClientBusy, _expected, 0, busyStart), recipeId: _current.RecipeId);
+                        }
+                        else
+                        {
+                            Say($"Artisan did not start {Name(_current!.ResultItemId)} within 15 s (crafting log blocked? wrong job gear set?) - skipping.", error: true);
+                            TrackStep(StepKind.Craft, _current.ResultItemId, _current.Crafts, StepState.Failed, "Artisan did not start within 15 s", recipeId: _current.RecipeId);
+                        }
                         _current = null;
                         Enter(Phase.Crafts);
                     }
@@ -913,14 +962,32 @@ public sealed class DispatchService : IDisposable
                     else
                     {
                         _craftsFailed++;
-                        Say($"Artisan: {Name(_current.ResultItemId)} - expected {_expected}, made {made}.", error: true);
-                        if (made > 0)
+                        // Card t_0b4d8b2c: a zero-made craft is evidence of a shortage ONLY if the game was accepting
+                        // input. Use the reading taken at dispatch time first (Artisan bounces in milliseconds, and by
+                        // the time we get here the window may be gone); fall back to a fresh sample. Recording the
+                        // cause is the whole fix - the next pass's BagsShortfall reads this to know the material is
+                        // absent because we blocked ourselves, not because it is sitting on a retainer.
+                        var busyEnd = made == 0 ? _busyAtCraft ?? Readiness.BusyBecause() : null;
+                        if (busyEnd is not null)
                         {
-                            _made.Add((_current.ResultItemId, made));
-                            _waveProgress = true;
+                            _blockedCrafts.Note(_current.ResultItemId, busyEnd);
+                            Say(CraftDiagnosis.BusyCraftLine(Name(_current.ResultItemId), _expected, made, busyEnd), error: true);
+                            TrackStep(StepKind.Craft, _current.ResultItemId, _current.Crafts, StepState.Failed,
+                                CraftDiagnosis.StepReason(CraftDiagnosis.Cause.ClientBusy, _expected, made, busyEnd), recipeId: _current.RecipeId);
                         }
-                        TrackStep(StepKind.Craft, _current.ResultItemId, _current.Crafts, StepState.Failed, $"expected {_expected}, made {made}", recipeId: _current.RecipeId);
+                        else
+                        {
+                            Say($"Artisan: {Name(_current.ResultItemId)} - expected {_expected}, made {made}.", error: true);
+                            if (made > 0)
+                            {
+                                _made.Add((_current.ResultItemId, made));
+                                _waveProgress = true;
+                            }
+                            TrackStep(StepKind.Craft, _current.ResultItemId, _current.Crafts, StepState.Failed,
+                                CraftDiagnosis.StepReason(CraftDiagnosis.Cause.Shortfall, _expected, made, null), recipeId: _current.RecipeId);
+                        }
                     }
+                    _busyAtCraft = null;
                     _current = null;
                     Enter(Phase.Crafts);
                     break;
@@ -1026,7 +1093,9 @@ public sealed class DispatchService : IDisposable
         _stoppedReason = Readable(why);
         // Defect A (card t_35be7be5): the merge lives in Core now and BOTH endings call it - this path used to
         // carry its own inline copy while Finish carried none at all.
-        _blockedItems = BlockedListings.MergeIntoBlocked(_blockedItems, _unfetched, Name).ToList();
+        // Card t_0b4d8b2c: phantoms are stripped first, so the Run tab's "needs you:" list cannot name a place
+        // for a material that was never made and is not anywhere.
+        _blockedItems = BlockedListings.MergeIntoBlocked(_blockedItems, CraftDiagnosis.WithoutPhantoms(_unfetched, _blockedCrafts), Name).ToList();
         for (var i = 0; i < _steps.Count; i++)
             if (_steps[i].State is StepState.Pending or StepState.Running)
                 _steps[i] = _steps[i] with { State = StepState.Blocked, ExternalStatus = null };
@@ -1093,7 +1162,8 @@ public sealed class DispatchService : IDisposable
         // (0 manual, 20 deferred) and took exactly this branch. Same Core merge FinishBlocked calls, so the two
         // endings cannot drift apart again; /lcraft status and the Run tab now agree with the chat block. Rendered
         // under "still outstanding:" rather than "blocked - to continue:" because the run did finish (RunReport).
-        _blockedItems = BlockedListings.MergeIntoBlocked(_blockedItems, _unfetched, Name).ToList();
+        // Card t_0b4d8b2c: same phantom strip as FinishBlocked - both endings, one rule.
+        _blockedItems = BlockedListings.MergeIntoBlocked(_blockedItems, CraftDiagnosis.WithoutPhantoms(_unfetched, _blockedCrafts), Name).ToList();
         if (plan is not null)
         {
             foreach (var d in _deferredAtRun)
@@ -1167,8 +1237,21 @@ public sealed class DispatchService : IDisposable
     private void ReportBlockedListings()
     {
         _lastBlockedWhat = string.IsNullOrEmpty(_what) ? "the cart" : _what;
-        var summary = BlockedListings.Summarise(_unfetched, Name);
+        // Card t_0b4d8b2c: strip phantoms - materials that are absent only because a craft of them was refused
+        // while the client was busy - BEFORE summarising. They are not listed for sale by anybody, so naming a
+        // retainer for them would be a factual error, and the bell walk fires off HasListings.
+        var real = CraftDiagnosis.WithoutPhantoms(_unfetched, _blockedCrafts);
+        var summary = BlockedListings.Summarise(real, Name);
         _lastBlockedListings = summary;
+
+        // The truthful replacement for the errand the old code invented. Printed whether or not there is anything
+        // genuine to unlist, because "some crafts never ran and nothing is missing" is the answer he needs.
+        if (CraftDiagnosis.EndOfRunLine(_blockedCrafts) is { } busyLine)
+        {
+            Say(busyLine, error: true);
+            _log.Information("crafts refused by a busy client: {Windows}", string.Join(", ", _blockedCrafts.Windows));
+        }
+
         if (summary.IsEmpty) return;
 
         // Not an error-channel line: it is the answer, not a failure, and the twelve near-identical red warnings
