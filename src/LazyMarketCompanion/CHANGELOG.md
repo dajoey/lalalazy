@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.1.8.0 (2026-09-06)
+
+### Added
+- **Price from recent sales when nothing is on the board.** New tick box in the Price Matching tab, off until you turn it on. When a price check finds NOTHING listed on your data centre, the listing is priced at the **median of the recent data-centre sales** from Universalis instead of being abandoned at the 999,999,999 gil placeholder with "no board price found" (files: `SaleHistoryPricing.cs` new; `UniversalisPriceProvider.cs`, `GetSaleHistoryPrice` / `PriceFromSaleHistory`; `MarketAutomation.cs`, `SetNewPrice` / `StartSaleHistoryRequest`; asked for by Joey 2026-09-06).
+- **A freshness guard, set to 30 days.** If the newest sale is older than that, no price is invented: the listing keeps the placeholder price and you get the same chat message as before. Some items last sold years ago - one measured item's newest data-centre sale is from June 2022 - and pricing off that is a guess, not a price. The window is editable under the tick box (1-365 days).
+
+### Changed
+- Universalis requests now ask for recent sales (`entries`) as well as live listings, but **only while the new tick box is on**. From 0.1.0.0 to 0.1.7.0 every request said `entries=0`, which is why Universalis' own average and sale-velocity numbers always came back as 0 (file: `UniversalisClient.cs`, `GetMarketData`). The sales ride along in the same request as the listings, so an empty board still costs one call, not two.
+
+### Notes
+- **Nothing changes until you tick it.** The setting ships off, the request shape is byte-for-byte what it was while it is off, and an item with a live board is priced exactly as before - matching the cheapest listing, as always.
+- **The median, not the average.** Universalis' `averagePrice` is skewed by outliers: measured on item 16644 (empty board, 2026-09-06) it reported 1,824,207 gil, while the median of the same 10 sales was 53,550. The average is not usable as a listing price, so it is not used.
+- **Your undercut/match setting is not applied to a history price.** There is no competing listing to undercut, and the median already is what the item has been clearing at. Your per-item minimum/maximum price limits DO still apply, and they remain the safety net here - the max-cut percentage guard has never applied to a brand-new listing.
+- An item with an empty board *and* no sale history at all (they exist) is still left at the placeholder. Nothing can price those.
+- If Universalis does not answer within 6 seconds the listing is left unpriced and the sweep carries on, rather than stalling the run.
+- Offline test suite is now at 169 checks, up from 147. The 22 new ones replay real Universalis data pulled on 2026-09-06: item 16644 must price at 53,550, item 30037 (2022 sales) must be refused, an item with no history must be distinguished from a stale one, the 30-day boundary is asserted from both sides, HQ pricing must ignore NQ sales, and a control asserts the number really is the median and not the newest/cheapest/mean sale (file: `tests/LazyMarketCompanion.Harness/Program.cs`).
+
 ## v0.1.7.0 (2026-09-05)
 
 ### Fixed
