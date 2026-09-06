@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.1.6.8 (2026-09-06)
+## v0.1.6.9 (2026-09-06) (2026-09-06)
 
 ### Added
 - **LazyCrafter now tells you when a material is sold by a currency vendor, and can send you there instead of the market board.** A cart short of Emery used to say `needs market Emery` and nothing else; it now says `Emery x1 - or Ixali vendor (North Shroud) for 7 Ixali Oaknots`. Beast-tribe traders, Grand Company quartermasters, scrip and token counters are all read the same way (files: `Core/SpecialShop.cs`, `Adapters/LuminaGameData.cs` `LoadShops`, `Adapters/VendorLocator.cs` `SpecialShopCandidates`)
@@ -23,7 +23,7 @@
 - **This is not the "move SpecialShop above Market" change it was originally described as, and that change would have made things worse.** There was no special-shop route to reorder: `SourceKind.SpecialShop` mapped to `Route.Manual`, the fall-through, so promoting it above Market would have turned an actionable market listing into `needs a manual source: Emery x1`, a dead end. A real route had to be built, with the fallback as its load-bearing behaviour. There is a harness check pinning exactly that regression.
 - **It never opens a shop window or makes a trade for you.** It names the vendor, flags them on your map and prints the price; spending your seals is still your decision, and the plugin has no exchange rate between a currency and gil to make it with.
 - Grand Company quartermasters do not appear for Emery specifically - the sheets list only the Ixali vendor (7 Ixali Oaknots) and Talan (1 Fluorite Lens), and Talan is in no placement table at all, so only the Ixali vendor is offered for it. The quartermaster path exists for the many items where the sheets do carry it.
-- Proved offline before shipping: 290/290 in `tests/LazyCrafter.Harness` (40 new checks for this change, on top of the 19 that shipped in 0.1.6.7 earlier today) that assert on the RENDERED plan and report text rather than on an internal value. Every fix was individually reverted and the matching checks confirmed to fail before being restored to green, including the two that matter most: the naive "reorder" (which reds 14 checks, among them the market-board fallback) and the removal of the affordability gate (10 checks). Verified against the live sheets on the incident's own worked example - Emery 7601, needed x1 for Iolite r30406.
+- Proved offline before shipping: 290/290 in `tests/LazyCrafter.Harness` (40 new checks for this change, on top of the suites that shipped in 0.1.6.7 and 0.1.6.8 earlier today) that assert on the RENDERED plan and report text rather than on an internal value. Every fix was individually reverted and the matching checks confirmed to fail before being restored to green, including the two that matter most: the naive "reorder" (which reds 14 checks, among them the market-board fallback) and the removal of the affordability gate (10 checks). Verified against the live sheets on the incident's own worked example - Emery 7601, needed x1 for Iolite r30406.
 
 ## v0.1.6.8 (2026-09-06)
 
