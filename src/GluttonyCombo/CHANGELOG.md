@@ -1,3 +1,12 @@
+## v1.0.4.172 (2026-09-05) [testing]
+
+### Fixed
+- Occult Quick is now genuinely held when the full RDM melee combo is ready to go. v1.0.4.170 only closed one of the two doors it can come out of: the damage-buff press was moved onto the new `RDM.MeleeComboImminent` lookahead, but the Occult Crescent Comet block - which presses Occult Quick itself, to make its 8s cast instant - was left gated on the older `RDM.InMeleeChain`, which is only true once the chain has already started. At combo-entry mana the buff press was correctly held, execution fell through to the Comet speed-prep, and that fired Occult Quick anyway - so from the outside the v1.0.4.170 hold looked applied and changed nothing. (file: `GluttonyCombo/Combos/PvE/Content/OccultCrescent/OccultCrescent.cs`)
+- Occult Slowga, the filler directly beneath Comet in the same handler, moved onto the same lookahead for the same reason: gating Comet alone would have handed Slowga the GCD one step later. Both gates now move together, which is the invariant that was broken.
+
+### Notes
+- No new options and no behaviour change below combo-entry mana: the Quick window still opens there and is spent on instant Verthunder III / Veraero III as before. Occult Dispel stays deliberately ungated - this file's rule is that utility sits ahead of the gate and only filler sits below it.
+
 ## v1.0.4.171 (2026-09-05) [testing]
 
 ### Added

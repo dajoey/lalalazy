@@ -650,9 +650,18 @@ internal partial class OccultCrescent
         // The whole block, so the speed prep goes with it. That prep has its own Occult Quick
         // press, which ShouldHoldOccultQuick() does NOT cover - it gates the damage-buff press
         // further up - so until now the v1.0.4.150 mid-combo hold had a second door open here.
+        //
+        // v1.0.4.172: that second door was still open one GCD wide. v1.0.4.170 moved the
+        // damage-buff press up top from RDM.InMeleeChain to RDM.MeleeComboImminent, but left
+        // THIS gate on the old term, and the Comet speed-prep below presses Occult Quick itself.
+        // At combo-entry mana with Comet off cooldown, TryGetTimeMageAction reaches the buff
+        // press first, is correctly held by the new gate, falls through to here - where the old
+        // term is still false because the chain has not started - and prepping the Comet fires
+        // Occult Quick anyway. That is Joey's "I just cast it when it could do the full combo".
+        // The two gates must move together or the hold is only ever half applied.
         if (IsEnabledAndUsable(Preset.Phantom_TimeMage_OccultComet, OccultComet) &&
             HasBattleTarget() && InActionRange(OccultComet) && InCombat() &&
-            !RDM.InMeleeChain)
+            !RDM.MeleeComboImminent)
         {
 
             // Skip if no damage buff, and user wants things under buffs
@@ -708,7 +717,7 @@ internal partial class OccultCrescent
         // rule is that utility sits ahead of the gate and only filler sits below it, and a
         // dispel is utility. Slowga is filler - a slow that can wait three GCDs.
         if (IsEnabledAndUsable(Preset.Phantom_TimeMage_OccultSlowga, OccultSlowga) &&
-            canDebuff && !RDM.InMeleeChain)
+            canDebuff && !RDM.MeleeComboImminent)
         {
             actionID = OccultSlowga; // aoe slow
             return true;
