@@ -165,5 +165,15 @@ const PLUGINS = [
       { t: 'Stays out of the way', d: 'Never re-sits once you are seated (ground sit, chair, or pose) and pauses in cutscenes, events and combat.' },
     ],
   },
+  {
+    slug: 'lazyfashionreport', name: 'LazyFashionReport', origin: 'Original', hasWindow: true,
+    short: 'Fashion Report assistant: hints, exact dyes, and a live score predictor.',
+    tag: 'What to wear, what to dye, and what you will score.',
+    features: [
+      { t: 'Weekly hints and exact dyes', d: 'The four weekly hints with the exact +2 dye and +1 shade for every left-side slot.' },
+      { t: 'Owned candidates', d: 'Top crowd-sourced gold items filtered down to what you actually own - bags, glamour dresser and armoire.' },
+      { t: 'Live score predictor', d: 'As you assemble the outfit, see \scores N - needs +X for 80\ per slot and in total.' },
+    ],
+  },
 ];
 if (typeof module !== 'undefined') module.exports = PLUGINS;
