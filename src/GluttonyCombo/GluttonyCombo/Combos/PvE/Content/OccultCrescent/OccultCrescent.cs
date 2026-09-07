@@ -1404,7 +1404,11 @@ internal partial class OccultCrescent
         if (CanWeave())
             return false;
 
-        if (IsEnabledAndUsable(Preset.Phantom_BlackMage_OccultToad, OccultToad) && InCombat() &&
+        // Toad is single-target hard CC: bosses are immune to it, and re-casting
+        // on an already-toaded target wastes the GCD, so both are excluded up front.
+        if (IsEnabledAndUsable(Preset.Phantom_BlackMage_OccultToad, OccultToad) && InCombat() && HasBattleTarget() &&
+            !TargetIsBoss() &&
+            !(CurrentTarget?.HasStatus(Debuffs.OccultToad, anyOwner: true) ?? false) &&
             (!Phantom_BlackMage_OccultToad_RequireAoE ||
              GroupDamageIncoming() ||
              NumberOfEnemiesInRange(OccultToad) >= 2))

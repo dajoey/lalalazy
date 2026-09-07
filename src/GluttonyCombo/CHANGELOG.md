@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.0.4.178 (2026-09-07) [testing]
+
+### Changed
+
+- Phantom Black Mage Occult Toad is now gated to non-boss battle targets that are not already afflicted with Occult Toad: the pre-7.55 gate requires a live battle target, excludes boss-grade targets, and skips re-casting while the debuff is present, instead of firing on anything while in combat. (files: `GluttonyCombo/Combos/PvE/Content/OccultCrescent/OccultCrescent.cs` `TryGetBlackMageAction`, `GluttonyCombo/Combos/PvE/Content/OccultCrescent/OccultCrescent_755.cs` 7.55 mirror gate)
+
 ## v1.0.4.177 (2026-09-07) [testing]
 
 ### Added

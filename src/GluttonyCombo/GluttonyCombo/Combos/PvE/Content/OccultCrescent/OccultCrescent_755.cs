@@ -1,4 +1,4 @@
-﻿#region Dependencies
+#region Dependencies
 
 using GluttonyCombo.Data;
 using GluttonyCombo.Extensions;
@@ -356,6 +356,7 @@ internal partial class OccultCrescent
 
         // Toad is crowd control, not damage, so it sits ahead of the buff gate.
         if (IsEnabledAndUsable(Preset.Phantom_BlackMage_OccultToad, P755.BLM_OccultToad) &&
+            !TargetIsBoss() &&
             !HasStatusEffect(Debuffs755.OccultToad, CurrentTarget, anyOwner: true) &&
             InActionRange(P755.BLM_OccultToad))
         {
