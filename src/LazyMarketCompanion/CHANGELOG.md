@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.1.13.0 (2026-09-06)
+
+### Added
+- A remembered price for the listings the board data cannot answer. When Auto Pinch opens a listing and the price check confirms the price already on it, that verdict is now kept per item and quality for 12 hours (setting: "Remember confirmed prices for (hours, 0 = off)"). While the listing still carries exactly the confirmed price, later passes skip it without opening the price window again (files: `AutoMarket/PinchBoardMemory.cs` new, `Decide`/`ApplyToDecisions`; `MarketAutomation.cs`, the compare-window confirm point; `PinchPreflight.cs`, consult + `SkipBoardMemory` verdict; the pre-flight summary line now counts them as "remembered from the last pass").
+- This closes the long-tail gap: slow items nobody uploads to the crowd-sourced board used to be walked by every pass. Each is now walked once, its price confirmed by the very window the pass opened, and every later pass skips it for as long as nothing changes. The first pass still walks - the memory starts empty and is written from real confirmations, never guessed.
+
+### Notes
+- Every other rule is untouched: new listings at the placeholder price, real undercuts, threshold skips, the overlay mirror, and stale-data walks all behave exactly as before - the memory is only consulted where the board had no usable answer (files: `PinchPreflight.cs`, `CanMemorySettle`).
+- When the price check produces a different price than the one remembered, the memory for that listing is dropped immediately, so a changed market re-prices on the next pass.
+
 ## v0.1.12.0 (2026-09-06)
 
 ### Changed
