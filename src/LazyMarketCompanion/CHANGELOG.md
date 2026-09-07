@@ -1,6 +1,23 @@
 # Changelog
 
-## v0.1.11.0 (2026-09-06)
+## v0.1.12.0 (2026-09-06)
+
+### Changed
+- **CORRECTION of a wrong claim in the 0.1.11.0 notes.** That release said the retainer has no vendor option and held below-threshold items back instead. **That was wrong.** In the retainer's sell-items menu, right-clicking an item offers "Have Retainer Sell Items" - the retainer sells the stack to a vendor at the vendor price, with no market fee, no market slot used, and zero travel. This release actually VENDORS the below-threshold items, as originally asked (files: `AutoMarket/VendorPlanner.cs` new; `AutoMarket/MarketGate.cs`, `Decide`; `AutoMarket/AutoMarketService.cs`, `ExecuteVendor`; `MarketAutomation.cs`, `BuildVendoringSteps`).
+- With the value gate on and the request successful, an item whose total sellable value is at or under the threshold is now VENDORED at the retainer in the same Auto-Market session - the stock moves out of bags and retainer pages through the "Have Retainer Sell Items" action, gil arrives, and no market slot is touched.
+- The per-item estimate uses the vendor price (the number the sell window autofills). The run's closing chat line now reads "done: N new listing(s), M vendored", and the gate's line names every vendored item.
+
+### Fixed
+- The record, not just the code: the 0.1.11.0 note above said the retainer bell has no vendor capability at all. The check that missed it was at the wrong depth: the vendor action is one right-click inside the sell-items menu this plugin already drives.
+
+### Notes
+- THE SAFETY RULE IS UNCHANGED IN DIRECTION ONLY: uncertain data still LISTs, never vendors. No Universalis data, data older than the freshness window, no listing of the wanted quality, or a failed request - the item lists as normal. Vendoring an item on a guess would be irreversible, so the gate NEVER calls the vendor leg without a fresh, definite price. Every one of those cases is pinned by case 37, a mirror of case 36's uncertainty battery for the vendor side (file: `tests/LazyMarketCompanion.Harness/Program.cs`).
+- A slot is re-read immediately before the vendoring call and any mismatch (a different item, less stock, a moved slot) aborts that one op, so a plan built on stale information cannot vendor the wrong thing. Auto-Retainer drives the same game call for its own junk-selling, which is the production proof the leg works headlessly.
+- Vendoring does not consume a market slot and pays no 5% fee, but it earns the vendor price, not the board price - usually far less. That is the value gate's own trade: at-or-under the threshold means the board was not better than the vendor number.
+- No new settings and no defaults changed: the gate switch, the threshold and the freshness window are the same ones. Gate off or threshold 0 behaves exactly as 0.1.11.0.
+- Offline test suite is now at 301 checks, up from 258. The new ones pin the vendor verdict polarity (priced + at/under threshold = VENDOR), the full uncertainty battery for the vendor leg (stale, no data, no listing, null quote, gate off, threshold 0 - every one must LIST, never vendor), the vendor estimate math, and the vendor planner (keeps honoured per origin, no split of a kept stack, unpriced items left alone, disabled origins contributing nothing) (file: `tests/LazyMarketCompanion.Harness/Program.cs`, case 37).
+
+ (2026-09-06)
 
 ### Added
 - **Auto-Market can now decide which items are worth listing.** New setting in the Auto-Market tab: "Only list items worth more than [N] gil, net of fees". When it is on, Auto-Market checks every item on the list against current Universalis prices BEFORE anything is listed, and skips the ones whose total sellable value (current board price x everything it could sell of that item, after the market's 5% fee) is at or under the configured number. The setting ships OFF and the number ships at 0, so nothing changes until it is turned on (file: `AutoMarket/MarketGate.cs`, new).
