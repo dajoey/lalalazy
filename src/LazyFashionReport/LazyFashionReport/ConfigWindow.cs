@@ -39,5 +39,12 @@ internal class ConfigWindow : Window
             _plugin.Service.RequestRefresh();
         ImGui.SameLine();
         ImGui.TextUnformatted($"data: xivstats {(_plugin.Service.XivLoaded ? "loaded" : "MISSING")} | fashionreportxiv {(_plugin.Service.StateLoaded ? "loaded" : "MISSING")}");
+
+        ImGui.Separator();
+        var fetchMissing = c.FetchMissingCraft;
+        if (ImGui.Checkbox("Craft a missing piece via Artisan (fetch missing, off by default)", ref fetchMissing))
+        { c.FetchMissingCraft = fetchMissing; _plugin.SaveConfig(); }
+        ImGui.TextDisabled("Offers one craft for a better crowd candidate not owned. Never spends");
+        ImGui.TextDisabled("without the click. Buys are not wired yet - shop-exchange comes later.");
     }
 }

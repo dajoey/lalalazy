@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.1.2.0 (2026-09-07)
+
+### Added
+- Fetch-missing, step one: a settings toggle (off by default) called "Craft a missing piece via Artisan". When on, the report window gains a "Missing pieces (craftable via Artisan)" section listing the best-voted crowd candidate for each hinted slot that is not owned, with a Craft via Artisan button for each piece that has a recipe (files: `Core/FetchPlan.cs`, `Adapters/RecipeIndex.cs`, `ReportWindow.cs`)
+- The craft action calls Artisan's public IPC (`Artisan.CraftItem(recipeId, 1)`) directly - the same interface LazyCrafter drives - so one click hands one recipe to Artisan and nothing crafts until the button is clicked. Artisan not installed means the buttons stay hidden and the section says so (files: `Adapters/ArtisanCraft.cs`, `FashionService.cs CraftViaArtisan`)
+- A recipe index built once from the game's Recipe sheet maps each crowd item to the recipe that produces it; when several recipes make the same item the highest-level one is picked, since master-book recipes are the ones current crafters know (file: `Adapters/RecipeIndex.cs`)
+- While Artisan is mid-craft the section says "Artisan is busy"; a failed craft request shows the reason in red with a dismiss button instead of failing silently (file: `ReportWindow.cs DrawMissingPieces`)
+
+### Notes
+- Buying is not wired in this version - the shop-exchange leg of fetch-missing comes later. The toggle only ever offers a craft
+- The missing-pieces plan is built from the same owned-items snapshot the candidates filter uses, so the two views always agree (file: `FashionService.cs RebuildPrediction`)
+
 ## v0.1.1.0 (2026-09-07)
 
 ### Fixed

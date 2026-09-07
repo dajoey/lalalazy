@@ -23,4 +23,9 @@ public class Configuration : IPluginConfiguration
 
     /// <summary>Diagnostic decision tap (off by default per the decision-taps reference).</summary>
     public bool DecisionTelemetry { get; set; } = false;
+
+    /// <summary>Auto-dress spec v1 step 4: offer a craft via Artisan's public IPC for a better
+    /// crowd candidate the player does not own. OFF by default per the spec; buying stays out
+    /// of scope for this toggle.</summary>
+    public bool FetchMissingCraft { get; set; } = false;
 }

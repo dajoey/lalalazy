@@ -25,6 +25,9 @@ internal sealed class FashionService : IDisposable
     private readonly SheetAdapter _sheets = new();
     private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(45) };
     private readonly RemoteDataSource _remote;
+    private readonly ArtisanCraft _artisan;
+    private readonly RecipeIndex _recipes;
+    private IReadOnlyList<MissingPiece> _missing = Array.Empty<MissingPiece>();
 
     private RemoteDataSource.XivStatsRoot? _xiv;
     private RemoteDataSource.ReportState? _state;
@@ -44,6 +47,8 @@ internal sealed class FashionService : IDisposable
     {
         _plugin = plugin;
         _remote = new RemoteDataSource(_http, CacheDir(), m => Plugin.Log.Information($"[LFR] {m}"));
+        _artisan = new ArtisanCraft(Plugin.Pi, Plugin.Log);
+        _recipes = RecipeIndex.Load(Plugin.Data, Plugin.Log);
     }
 
     private static string CacheDir() =>
@@ -54,6 +59,7 @@ internal sealed class FashionService : IDisposable
     public FashionWeek? Week => _week;
     public OutfitReport? Outfit => _outfit;
     public HashSet<uint>? OwnedItems => _owned;
+    public IReadOnlyList<MissingPiece> MissingPieces => _missing;
 
     /// <summary>xivstats crowd dataset loaded (candidates + crowd dyes). Honest per-source
     /// status: week 449's "no hint" bug hid behind a combined flag that was true while the
@@ -274,7 +280,26 @@ internal sealed class FashionService : IDisposable
 
         _outfit = Predictor.Build(_week, eqArray, _sheets.StainFamilies, crowd,
             _plugin.Config.FilterOwned ? _owned : null);
+
+        // Auto-dress v1 step 4 (OFF by default): the missing-pieces plan. Built from the same
+        // framework pass as the prediction so both views agree; the plan is only meaningful when
+        // the player opted in, because it is the buy/craft surface.
+        if (_plugin.Config.FetchMissingCraft)
+            _missing = FetchPlan.Build(_week, crowd, _owned, id => _recipes.ForItem(id));
+        else
+            _missing = Array.Empty<MissingPiece>();
     }
+
+    /// <summary>Start one craft via Artisan's public IPC (auto-dress v1 step 4). Framework thread
+    /// only (CraftItem opens the crafting log). Returns null when the request was handed over, or
+    /// the error text to surface in the window.</summary>
+    public string? CraftViaArtisan(uint recipeId) => _artisan.Craft(recipeId);
+
+    /// <summary>True while Artisan is mid-craft (null when Artisan is not installed).</summary>
+    public bool? ArtisanBusy => _artisan.IsBusy();
+
+    /// <summary>Whether Artisan is present - drives whether the craft buttons render at all.</summary>
+    public bool ArtisanInstalled => _artisan.Installed;
 
     private CrowdDataAdapter? EnsureCrowdAdapter()
     {

@@ -154,7 +154,68 @@ internal class ReportWindow : Window
             }
             ImGui.Unindent(16);
         }
+
+        DrawMissingPieces();
     }
+
+    /// <summary>Auto-dress v1 step 4 UI: the missing-pieces plan (visible only when the config
+    /// toggle is on and Artisan is installed). One "Craft via Artisan" button per piece - the
+    /// button acts, nothing auto-crafts.</summary>
+    private void DrawMissingPieces()
+    {
+        var svc = _plugin.Service;
+        if (!_plugin.Config.FetchMissingCraft) return;
+
+        ImGui.Separator();
+        ImGui.TextUnformatted("Missing pieces (craftable via Artisan)");
+        ImGui.SameLine();
+        ImGui.TextDisabled(_plugin.Service.ArtisanInstalled ? "(Artisan detected)" : "(Artisan not installed)");
+        if (!_plugin.Service.ArtisanInstalled) return;
+
+        var pieces = svc.MissingPieces;
+        if (pieces.Count == 0)
+        {
+            ImGui.TextDisabled("Nothing missing (or the plan is still building).");
+            return;
+        }
+        if (svc.ArtisanBusy == true)
+            ImGui.TextColored(ImGuiColors.DalamudYellow, "Artisan is busy - wait for it to finish.");
+
+        var error = _craftError;
+        if (error is not null)
+        {
+            ImGui.TextColored(ImGuiColors.DalamudRed, error);
+            ImGui.SameLine();
+            if (ImGui.SmallButton("Dismiss##lfr-craft-err"))
+                _craftError = null;
+        }
+
+        foreach (var p in pieces)
+        {
+            if (p.Recipe is null) continue;   // not craftable: no button, no noise
+            ImGui.Bullet();
+            ImGui.TextUnformatted($"{p.Item.Name} for {p.Slot.DisplayName()} ({p.Hint}, {p.Item.Votes} votes)");
+            ImGui.SameLine();
+            if (ImGui.SmallButton($"Craft via Artisan##lfr-craft-{p.Item.ItemId}"))
+            {
+                // The click IS the consent: one recipe, one run. CraftItem must run on the
+                // framework thread (it opens the crafting log), so hop through the service.
+                var err = Plugin.Framework.RunOnFrameworkThread(() => svc.CraftViaArtisan(p.Recipe.RecipeId)).Result;
+                if (err is not null)
+                {
+                    _craftError = $"Craft failed: {err}";
+                    Plugin.Log.Warning($"[LFR] craft request for recipe {p.Recipe.RecipeId} failed: {err}");
+                }
+                else
+                {
+                    _craftError = null;
+                    Plugin.Log.Information($"[LFR] craft request handed to Artisan: recipe {p.Recipe.RecipeId} for {p.Item.Name}");
+                }
+            }
+        }
+    }
+
+    private string? _craftError;
 
     private string FilterOwnedNote() => _plugin.Config.FilterOwned
         ? "No owned candidates yet (open the Fashion Report or press Refresh)."
