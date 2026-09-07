@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.1.20.0 (2026-09-07)
+
+### Fixed
+
+- **Release-notes correction, no plugin code changed from 0.1.19.0 - the offline test count in the 0.1.19.0 notes said 372; the shipped suite measures 366 PASS / 0 FAIL.** These notes are what the in-game update popup shows, so the number is corrected and the build republished under a new version number (never a same-version zip overwrite - clients cache by version). The fix itself is unchanged: the value gate no longer goes silently blind (0.1.19.0).
+- The offline test file itself also failed to compile as shipped in 0.1.19.0 - two fixture mistakes in the new blind-gate case (a one-unit stack read as nothing-to-sell with partial listings off, and a sighted-run expectation that ignored the fixture's own two no-stock rules) plus a lowercase helper call. The case now compiles and passes: the suite measures 366 PASS / 0 FAIL with all ten blind-gate checks green, including the controls (a stale quote does not count as judged; a fresh quote without a listing of the needed quality does not judge an HQ rule) (files: `tests/LazyMarketCompanion.Harness/Program.cs`, case 47).
+
 ## v0.1.19.0 (2026-09-07)
 
 ### Fixed

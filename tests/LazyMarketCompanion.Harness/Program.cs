@@ -1887,7 +1887,7 @@ var Catalogue = new (uint Id, string Name)[]
   };
   var stock = new List<StockStack>
   {
-    new(StockOrigin.Bags, Bags1, 3, 19990, false, 1),
+    new(StockOrigin.Bags, Bags1, 3, 19990, false, 99),
     new(StockOrigin.Bags, Bags1, 4, 5111, false, 200),
     // 12593: deliberately no stack. 5594: one stack of 50, keep 50 -> nothing sellable.
     new(StockOrigin.Bags, Bags1, 5, 5594, false, 50),
@@ -1920,8 +1920,8 @@ var Catalogue = new (uint Id, string Name)[]
     [5111] = new ItemQuote(5111, true, Now - 60_000L, [new QuoteListing(950, false, false)]),
   };
   var sighted = MarketGate.CountSight(rules, sightedQuotes, preferHq: true, Now, Fresh);
-  Check("47 blind gate: sighted run judges both stocked items",
-    sighted.Judged == 2 && sighted.Unpriceable == 0, $"judged={sighted.Judged} unpriceable={sighted.Unpriceable}");
+  Check("47 blind gate: sighted run judges both stocked items (no-stock rules read unpriceable)",
+    sighted.Judged == 2 && sighted.Unpriceable == 2, $"judged={sighted.Judged} unpriceable={sighted.Unpriceable}");
   var blind = MarketGate.CountSight(rules, null, preferHq: true, Now, Fresh);
   Check("47 blind gate: null quotes (the 504 shape) read as fully unpriceable",
     blind.Judged == 0 && blind.Unpriceable == 4, $"judged={blind.Judged} unpriceable={blind.Unpriceable}");
@@ -1956,7 +1956,7 @@ var Catalogue = new (uint Id, string Name)[]
   Check("47 blind gate: UsableQuote mirrors CheapestUnitPrice on a fresh quote",
     MarketGate.UsableQuote(sightedQuotes[5111], ruleIsHq: false, preferHq: true, Now, Fresh) == 950);
   Check("47 blind gate: UsableQuote is null on stale data",
-    MarketGate.UsableQuote(stale[19990], rule(19990, 99).HQ, preferHq: true, Now, Fresh) == null);
+    MarketGate.UsableQuote(stale[19990], Rule(19990, 99).HQ, preferHq: true, Now, Fresh) == null);
 }
 
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
