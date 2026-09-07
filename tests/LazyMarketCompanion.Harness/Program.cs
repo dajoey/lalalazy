@@ -895,255 +895,227 @@ var Catalogue = new (uint Id, string Name)[]
       && PriceMath.Candidate(1, false, UndercutMode.Percentage, 99, false) == 1);
 }
 
-// 33. Auto Pinch pre-flight: replay Joey's 2026-09-06 11:26-11:36 sweep.
-//     55 rows were priced: 16 new listings (placeholder -> real, not this feature's business) and 39 EXISTING
-//     listings re-priced. 17 of those 39 came out at exactly the price they already had, and 3 moved by a
-//     rounding error (243->242, 400->399, 30971->30951). Median 10.5 s per row, so ~3 min of a 9.5-min sweep
-//     bought nothing.
+// 33. Auto Pinch pre-flight, flags-only: replay Joey's 2026-09-06 11:26-11:36 sweep THROUGH AllaganMarket's
+//     cache. 55 rows were priced that night: 16 new listings (placeholder -> real, still not this feature's
+//     business) and 39 EXISTING listings re-priced. 17 of those 39 came out at exactly the price they already
+//     had, and 3 moved by a rounding error (243->242, 400->399, 30971->30951). Under the flags-only rule the
+//     verdict comes from AllaganMarket's MarketPriceCache: a row whose cache entry prices BELOW it (or whose
+//     data went stale) walks; a row whose cache entry is its own fresh price is unflagged and is never
+//     touched. The three rounding rows are AllaganMarket RED (cached cheapest 1-20 gil lower) and therefore
+//     STILL walk, even though the old 1% threshold would have skipped them - the flag outranks the retired
+//     threshold, which is the card's verification bar in reverse and just as binding.
 {
-  const long Now = 1_788_708_000_000L;  // fixed clock: these cases must not depend on when they run
-  const long OneHour = 3_600_000L;
+  // Fixed clock, LOCAL wall time: 23:00 on 2026-09-06 in the US Eastern build host's own zone
+  // (= 2026-09-07 03:00 UTC = 1_788_750_000_000 ms). AllaganMarket compares its LOCAL-stamped cache
+  // against DateTime.Now, so the staleness clock here is local too: Decide converts the unix-ms back
+  // through .LocalDateTime, and Parse receives the same local reading - the cases are deterministic
+  // at any run time. Fresh stamps (22:30) are 30 minutes old; stale stamps (12:00) are 11 hours old.
+  const long Now = 1_788_750_000_000L;  // 23:00 EDT local
+  var nowUtc = new DateTime(2026, 9, 6, 23, 0, 0);  // the SAME clock as a DateTime, for the Parse calls
 
-  var options = new PinchPreflightOptions(
-    Enabled: true, FreshnessHours: 6, SkipUnderGil: 0, SkipUnderPercent: 1.0f,
-    PreferHq: true, Mode: UndercutMode.FixedAmount, UndercutAmount: 0, UndercutSelf: false);
+  var options = new PinchPreflightOptions(Enabled: true);
 
   var rows = new List<PinchRow>();
   var quotes = new Dictionary<uint, ItemQuote>();
+  var cacheCsv = new List<string>();
+  const uint World = 95u;
 
-  void Existing(uint itemId, long current, long boardLowest, bool boardIsOwn, bool hq = false, long ageMs = OneHour)
+  void Existing(uint itemId, long current, long cacheUnitCost, bool cacheIsOwn, bool hq = false)
   {
     var row = rows.Count;
     rows.Add(new PinchRow(row, row, itemId, hq, current, false));
-    quotes[itemId] = new ItemQuote(itemId, true, Now - ageMs, [new QuoteListing(boardLowest, hq, boardIsOwn)]);
+    quotes[itemId] = new ItemQuote(itemId, true, Now - 3_600_000L, [new QuoteListing(cacheUnitCost, hq, cacheIsOwn)]);
+    // AllaganMarket's cache row: the newest cheapest listing it saw for this (item, quality), an hour
+    // before Now (fresh against the default 300-minute staleness period).
+    cacheCsv.Add($"{itemId},{(hq ? "Y" : "N")},{World},0,09/06/2026 22:30:00,{cacheUnitCost},{(cacheIsOwn ? "Y" : "N")}");
   }
 
-  // The 17 no-ops: he is the cheapest on the data centre and "Match Self" is off, so the matched price is
-  // the price already on his listing. This is the whole reason the feature exists.
+  // The 17 no-ops: he is the cheapest on the world and "Match Self" is off, so AllaganMarket's cache
+  // holds his OWN price for them (ownPrice=Y) - recommendation == current => NOT undercut, fresh row =>
+  // not stale => unflagged => NEVER WALKED. Under 0.1.15.0 these were 17 prediction-class skips; the
+  // flags rule now skips them with no Universalis answer involved at all.
   long[] alreadyRight = [98L, 243L, 400L, 1_200L, 2_500L, 3_333L, 7_800L, 9_999L, 12_000L, 15_500L,
                          18_250L, 21_000L, 24_800L, 30_951L, 44_000L, 61_500L, 120_000L];
   for (var i = 0; i < alreadyRight.Length; i++)
-    Existing((uint)(3000 + i), alreadyRight[i], alreadyRight[i], boardIsOwn: true);
+    Existing((uint)(3000 + i), alreadyRight[i], alreadyRight[i], cacheIsOwn: true);
 
-  // The 3 rounding-error moves, from his log. Someone else is 1 gil (or 20 gil) cheaper.
-  Existing(4001, 243L, 242L, boardIsOwn: false);
-  Existing(4002, 400L, 399L, boardIsOwn: false);
-  Existing(4003, 30_971L, 30_951L, boardIsOwn: false);
+  // The 3 rounding-error moves, from his log. Someone else is 1 gil (or 20 gil) cheaper, so
+  // AllaganMarket's cache row (not own) prices BELOW the listing: RED. All three walk now - the old
+  // 1%-threshold skip is gone; the flag is the instruction.
+  Existing(4001, 243L, 242L, cacheIsOwn: false);
+  Existing(4002, 400L, 399L, cacheIsOwn: false);
+  Existing(4003, 30_971L, 30_951L, cacheIsOwn: false);
 
-  // 19 rows genuinely worth walking: a real undercut by somebody else.
+  // 19 rows genuinely worth walking: a real undercut by somebody else (cache row not own, cheaper).
   for (var i = 0; i < 19; i++)
-    Existing((uint)(5000 + i), 10_000L + i * 500L, 8_000L + i * 500L, boardIsOwn: false);
+    Existing((uint)(5000 + i), 10_000L + i * 500L, 8_000L + i * 500L, cacheIsOwn: false);
 
-  Check("preflight replay: the fixture is his 39 existing rows", rows.Count == 39, $"rows={rows.Count}");
+  Check("flags replay: the fixture is his 39 existing rows", rows.Count == 39, $"rows={rows.Count}");
 
-  var decisions = PinchPreflight.Decide(rows, quotes, options, Now);
+  var flags = AllaganMarketFlags.Parse(string.Join("\n", cacheCsv), null, World, nowUtc);
+  Check("flags replay: the parsed cache holds all 39 entries", flags.EntryCount == 39, $"entries={flags.EntryCount}");
 
-  // Re-derived from the fixture rather than trusted from the card: the % move of each rounding row against
-  // the 1% default. 1/243 = 0.41%, 1/400 = 0.25%, 20/30971 = 0.065% - all three under 1%.
-  Check("preflight replay: all three rounding rows really are under the 1% default",
-    100.0 * 1 / 243 < 1.0 && 100.0 * 1 / 400 < 1.0 && 100.0 * 20 / 30_971 < 1.0);
+  var decisions = PinchPreflight.Decide(rows, quotes, options, Now, flags);
 
-  Check("preflight replay: exactly 17 rows are skipped as already at the right price",
-    decisions.Count(d => d.Verdict == PinchVerdict.SkipAlreadyRight) == 17,
-    $"{decisions.Count(d => d.Verdict == PinchVerdict.SkipAlreadyRight)}");
-  Check("preflight replay: exactly 3 rows are skipped as under the threshold",
-    decisions.Count(d => d.Verdict == PinchVerdict.SkipUnderThreshold) == 3,
-    $"{decisions.Count(d => d.Verdict == PinchVerdict.SkipUnderThreshold)}");
-  Check("preflight replay: exactly 19 rows are still walked",
-    decisions.Count(d => d.Verdict == PinchVerdict.Walk) == 19,
+  Check("flags replay: exactly 17 rows are skipped as unflagged (his own-lowest)",
+    decisions.Count(d => d.Verdict == PinchVerdict.SkipNotFlagged) == 17,
+    $"{decisions.Count(d => d.Verdict == PinchVerdict.SkipNotFlagged)}");
+  Check("flags replay: exactly 22 rows are walked (3 rounding + 19 real undercuts)",
+    decisions.Count(d => d.Verdict == PinchVerdict.Walk) == 22,
     $"{decisions.Count(d => d.Verdict == PinchVerdict.Walk)}");
-  Check("preflight replay: the three threshold skips are his three rounding rows",
-    decisions.Where(d => d.Verdict == PinchVerdict.SkipUnderThreshold).Select(d => d.Row.ItemId).OrderBy(i => i).SequenceEqual([4001u, 4002u, 4003u]));
-  Check("preflight replay: every row walked is one where the price would really move",
-    decisions.Where(d => d.Verdict == PinchVerdict.Walk).All(d => d.Candidate != d.Row.CurrentPrice));
+  Check("flags replay: the three rounding rows WALK now - the flag outranks the retired 1% threshold",
+    decisions.Where(d => d.Row.ItemId is >= 4001u and <= 4003u).All(d => d.Verdict == PinchVerdict.Walk),
+    string.Join(",", decisions.Where(d => d.Row.ItemId is >= 4001u and <= 4003u).Select(d => d.Verdict)));
+  Check("flags replay: the 17 own-lowest rows are never touched, exactly as AllaganMarket shows them unmarked",
+    decisions.Where(d => d.Row.ItemId is >= 3000u and <= 3016u).All(d => d.Verdict == PinchVerdict.SkipNotFlagged));
 
-  // THE CONTROL. Before 0.1.9.0 there was no pre-flight at all: the pass walked every row of the list. Without
-  // this half, "17 skipped" would pass just as happily against a fixture that never had 39 rows in it.
-  Check("preflight replay: CONTROL - the old pass walked all 39 of these rows",
-    rows.Count == 39 && PinchPreflight.Decide(rows, quotes, options with { Enabled = false }, Now).Count(d => d.Verdict == PinchVerdict.Walk) == 39);
-  Check("preflight replay: 20 of 39 rows saved, at his measured 10.5s per row",
-    decisions.Count(d => d.Verdict != PinchVerdict.Walk) == 20);
+  // THE CONTROL: the master switch keeps its pre-0.1.16.0 meaning - off means walk everything.
+  Check("flags replay: CONTROL - with the pre-flight off, all 39 rows walk",
+    PinchPreflight.Decide(rows, quotes, options with { Enabled = false }, Now, flags)
+      .Count(d => d.Verdict == PinchVerdict.Walk) == 39);
+  // And with NO flag data at all, the flags rule walks nothing but placeholders - the honest failure
+  // mode of a broken/missing AllaganMarket install, which the changelog states plainly.
+  Check("flags replay: with an EMPTY flag set nothing but placeholders is walked",
+    PinchPreflight.Decide(rows, quotes, options, Now, new AllaganFlagSet(World, AllaganSettings.Defaults))
+      .Count(d => d.Verdict == PinchVerdict.SkipNotFlagged) == 39);
 
   // The log line this feature is graded by, character-for-character.
-  Check("preflight replay: the summary log line names what was skipped and why",
-    PinchPreflight.Summarize(decisions, 6)
-      == "pinch pre-flight: walking 19 of 39 row(s); skipped 17 already at the right price, 3 under the threshold (Universalis data <=6h old)",
-    PinchPreflight.Summarize(decisions, 6));
-  Check("preflight replay: with nothing skipped the line says so instead of listing zero reasons",
-    PinchPreflight.Summarize(PinchPreflight.Decide(rows, quotes, options with { Enabled = false }, Now), 6)
-      == "pinch pre-flight: walking 39 of 39 row(s); skipped nothing (Universalis data <=6h old)");
+  Check("flags replay: the summary log line names the not-flagged bucket and the walk breakdown",
+    PinchPreflight.Summarize(decisions)
+      == "pinch pre-flight: walking 22 of 39 row(s); skipped 17 not flagged by AllaganMarket (22 flagged undercut, 0 flagged stale, 0 placeholder)",
+    PinchPreflight.Summarize(decisions));
 }
 
-// 34. Every uncertainty walks the row. These are the cases where a skip would cost a sale, so each one is
-//     asserted against an input whose CANDIDATE MATCHES - i.e. the only thing keeping the row alive is the
-//     rule under test.
+// 34. Flag polarity, end to end. The flags rule has one skip reason (unflagged) and a walk family
+//     (placeholder / red / yellow); every case below is paired against the input that would flip it, so
+//     a pass proves the FLAG decided and not the fixture. AllaganMarket semantics per the 1.4.0.2
+//     decompile: red = cached (item, quality) unitCost minus UndercutBy strictly below the listing price
+//     (own-price rows compare themselves and are never red); yellow = the newest NQ-or-HQ cache row
+//     older than ItemUpdatePeriod (no rows at all is NOT flagged - it renders unmarked); MatchingQuality
+//     reads the listing's own quality.
 {
-  const long Now = 1_788_708_000_000L;
-  const long OneHour = 3_600_000L;
-  // Placeholder (999_999_999) is the file-level const declared for the new-only pinch cases above.
+  const long Now = 1_788_750_000_000L;  // 23:00 EDT local (see case 33 for why)
+  var nowUtc = new DateTime(2026, 9, 6, 23, 0, 0);
+  const uint World = 95u;
+  var options = new PinchPreflightOptions(true);
 
-  var options = new PinchPreflightOptions(true, 6, 0, 1.0f, true, UndercutMode.FixedAmount, 0, false);
+  AllaganFlagSet Flags(params string[] lines) => AllaganMarketFlags.Parse(string.Join("\n", lines), null, World, nowUtc);
 
-  ItemQuote Quote(uint id, long price, bool own = true, long ageMs = OneHour, bool hq = false, bool hasData = true)
-    => new(id, hasData, Now - ageMs, [new QuoteListing(price, hq, own)]);
+  PinchVerdict One(PinchRow row, AllaganFlagSet flags, PinchPreflightOptions? opts = null)
+    => PinchPreflight.Decide([row], new Dictionary<uint, ItemQuote>(), opts ?? options, Now, flags)[0].Verdict;
 
-  PinchVerdict One(PinchRow row, IReadOnlyDictionary<uint, ItemQuote> quotes, PinchPreflightOptions? opts = null)
-    => PinchPreflight.Decide([row], quotes, opts ?? options, Now)[0].Verdict;
+  PinchRow Row(uint id, bool hq, long price) => new(0, 0, id, hq, price, false);
 
-  // 1 - a placeholder-priced listing is NEVER skipped, even when its candidate equals its current price.
-  var placeholderRow = new PinchRow(0, 0, 6001, false, Placeholder, true);
-  Check("preflight: a new listing at the placeholder price is never skipped",
-    One(placeholderRow, new Dictionary<uint, ItemQuote> { [6001] = Quote(6001, Placeholder) }) == PinchVerdict.Walk);
-  Check("preflight: ...and the SAME price on a normal listing IS skipped, so the placeholder rule is what saved it",
-    One(placeholderRow with { IsPlaceholder = false }, new Dictionary<uint, ItemQuote> { [6001] = Quote(6001, Placeholder) }) == PinchVerdict.SkipAlreadyRight);
+  // 1 - RED via a cheaper stranger's cache row.
+  var redFlags = Flags("7001,N,95,0,09/06/2026 22:30:00,90,N");
+  Check("flags: a stranger's cached 90 below the listing's 100 is RED -> walked",
+    One(Row(7001, false, 100), redFlags) == PinchVerdict.Walk);
+  Check("flags: NEGATIVE CONTROL - the same cache price AT the listing price is NOT undercut (AllaganMarket compares strictly below)",
+    One(Row(7001, false, 90), redFlags) == PinchVerdict.SkipNotFlagged);
 
-  // 2 - an unreadable row.
-  Check("preflight: a row with no readable item id is walked",
-    One(new PinchRow(0, 0, 0, false, 500, false), new Dictionary<uint, ItemQuote> { [6002] = Quote(6002, 500) }) == PinchVerdict.Walk);
-  Check("preflight: a row with no readable price is walked",
-    One(new PinchRow(0, 0, 6002, false, 0, false), new Dictionary<uint, ItemQuote> { [6002] = Quote(6002, 0) }) == PinchVerdict.Walk);
+  // 2 - RED via UndercutBy: cached 100, UndercutBy 5, listing 98 -> recommendation 95 < 98.
+  var underBy = AllaganMarketFlags.Parse(
+    "7002,N,95,0,09/06/2026 22:30:00,100,N",
+    """{"IntegerSettings":{"UndercutBy":5}}""", World, nowUtc);
+  Check("flags: UndercutBy=5 turns a cached-equal 100 into a 95 recommendation below the listing's 98 -> RED",
+    One(Row(7002, false, 98), underBy) == PinchVerdict.Walk);
+  Check("flags: the same cache row with UndercutBy=0 (the shipped default) is NOT an undercut at listing 98",
+    One(Row(7002, false, 98), Flags("7002,N,95,0,09/06/2026 22:30:00,100,N")) == PinchVerdict.SkipNotFlagged);
 
-  // 3 - Universalis has nothing usable.
-  var row6003 = new PinchRow(0, 0, 6003, false, 500, false);
-  Check("preflight: no quote for the item is walked",
-    One(row6003, new Dictionary<uint, ItemQuote>()) == PinchVerdict.Walk);
-  Check("preflight: hasData=false is walked",
-    One(row6003, new Dictionary<uint, ItemQuote> { [6003] = Quote(6003, 500, hasData: false) }) == PinchVerdict.Walk);
-  Check("preflight: a quote with no listings at all is walked",
-    One(row6003, new Dictionary<uint, ItemQuote> { [6003] = new ItemQuote(6003, true, Now - OneHour, []) }) == PinchVerdict.Walk);
-  Check("preflight: an HQ row with only NQ listings on the board is walked",
-    One(row6003 with { HQ = true }, new Dictionary<uint, ItemQuote> { [6003] = Quote(6003, 500, hq: false) }) == PinchVerdict.Walk);
-  Check("preflight: CONTROL - that same HQ row with an HQ listing at its price IS skipped",
-    One(row6003 with { HQ = true }, new Dictionary<uint, ItemQuote> { [6003] = Quote(6003, 500, hq: true) }) == PinchVerdict.SkipAlreadyRight);
+  // 3 - an OWN-price cache row is never red: the recommendation IS the listing's own price.
+  var ownFlags = Flags("7003,N,95,0,09/06/2026 22:30:00,100,Y");
+  Check("flags: an own-price cache row at the listing's own price is unflagged, never walked",
+    One(Row(7003, false, 100), ownFlags) == PinchVerdict.SkipNotFlagged);
+  Check("flags: NEGATIVE CONTROL - the same row/value as a NOT-own cache row IS undercut -> walked",
+    One(Row(7003, false, 100), Flags("7003,N,95,0,09/06/2026 22:30:00,90,N")) == PinchVerdict.Walk);
 
-  // 4 - stale data. 7h old against a 6h window, with a candidate that matches.
-  Check("preflight: a quote 7h old with the window at 6h is walked even though the candidate matches",
-    One(row6003, new Dictionary<uint, ItemQuote> { [6003] = Quote(6003, 500, ageMs: 7 * OneHour) }) == PinchVerdict.Walk);
-  Check("preflight: CONTROL - the same quote 5h old is skipped, so staleness is what walked it",
-    One(row6003, new Dictionary<uint, ItemQuote> { [6003] = Quote(6003, 500, ageMs: 5 * OneHour) }) == PinchVerdict.SkipAlreadyRight);
-  Check("preflight: a 7h-old quote is skipped once the window is widened to 12h",
-    One(row6003, new Dictionary<uint, ItemQuote> { [6003] = Quote(6003, 500, ageMs: 7 * OneHour) }, options with { FreshnessHours = 12 }) == PinchVerdict.SkipAlreadyRight);
-  Check("preflight: a quote with no lastUploadTime at all is walked",
-    One(row6003, new Dictionary<uint, ItemQuote> { [6003] = new ItemQuote(6003, true, 0, [new QuoteListing(500, false, true)]) }) == PinchVerdict.Walk);
+  // 4 - YELLOW via an old cache row (ItemUpdatePeriod default 300 min; the row is from 08:00, Now is
+  //     that evening => well past 5h). Stale outranks "would write the same number": the flag is the
+  //     instruction, and the card's bar is that a price-equal-but-flagged row still walks.
+  var staleFlags = Flags("7004,N,95,0,09/06/2026 12:00:00,100,N");
+  Check("flags: a cache row older than the staleness period is YELLOW -> walked even though it prices the listing AT its price",
+    One(Row(7004, false, 100), staleFlags) == PinchVerdict.Walk);
+  Check("flags: NEGATIVE CONTROL - a fresh row at the same values is neither stale nor undercut -> skipped",
+    One(Row(7004, false, 100), Flags("7004,N,95,0,09/06/2026 22:30:00,100,N")) == PinchVerdict.SkipNotFlagged);
+  Check("flags: staleness reads the NEWEST of both qualities - a fresh NQ row un-stales an old HQ row",
+    One(Row(7004, true, 100), Flags(
+      "7004,Y,95,0,09/06/2026 12:00:00,100,N",
+      "7004,N,95,0,09/06/2026 22:30:00,100,N")) == PinchVerdict.SkipNotFlagged);
 
-  // 5 - HQ selection: an HQ row prices off the HQ listings, not the cheaper NQ ones.
-  var mixed = new Dictionary<uint, ItemQuote>
-  {
-    [6004] = new ItemQuote(6004, true, Now - OneHour, [new QuoteListing(100, false, false), new QuoteListing(900, true, false)]),
-  };
-  var hqRow = new PinchRow(0, 0, 6004, true, 900, false);
-  Check("preflight: an HQ row with 'Use HQ price' on prices off the HQ listing (900), not the NQ one (100)",
-    One(hqRow, mixed) == PinchVerdict.SkipAlreadyRight);
-  Check("preflight: ...and with 'Use HQ price' OFF the same row prices off the cheapest listing of any quality",
-    PinchPreflight.Decide([hqRow], mixed, options with { PreferHq = false }, Now)[0].Candidate == 100);
-  Check("preflight: an NQ row always prices off the cheapest listing of any quality",
-    PinchPreflight.Decide([hqRow with { HQ = false }], mixed, options, Now)[0].Candidate == 100);
+  // 5 - NO cache rows at all: NOT flagged. AllaganMarket's NeedsUpdate would call such an item stale,
+  //     but on the live client a listing gets a fresh own-price row the moment it is added, so a
+  //     no-row item is one AllaganMarket has never had an opinion about - it renders UNMARKED, and the
+  //     spec is that unmarked rows are never walked (the card's verification bar names never-checked
+  //     rows explicitly). Pinned here so the polarity cannot silently flip.
+  Check("flags: an item with NO cache rows at all is unflagged -> skipped (the never-checked shape)",
+    One(Row(7005, false, 100), Flags()) == PinchVerdict.SkipNotFlagged);
 
-  // 6 - own-retainer lowest with Match Self off, and the negative control with it on. Undercut amount 5 gil,
-  //     because at the exact-match default (0 gil) BOTH settings return the same number and the control would
-  //     prove nothing.
-  var self = options with { UndercutAmount = 5 };
-  var ownQuote = new Dictionary<uint, ItemQuote> { [6005] = Quote(6005, 100, own: true) };
-  var ownRow = new PinchRow(0, 0, 6005, false, 100, false);
-  Check("preflight: own listing lowest with Match Self OFF means the candidate is that same price - skipped",
-    One(ownRow, ownQuote, self) == PinchVerdict.SkipAlreadyRight);
-  Check("preflight: NEGATIVE CONTROL - the identical input with Match Self ON drops the price and is walked",
-    One(ownRow, ownQuote, self with { UndercutSelf = true }) == PinchVerdict.Walk
-      && PinchPreflight.Decide([ownRow], ownQuote, self with { UndercutSelf = true }, Now)[0].Candidate == 95);
-  Check("preflight: a STRANGER at that same price is walked with Match Self off, not skipped",
-    One(ownRow, new Dictionary<uint, ItemQuote> { [6005] = Quote(6005, 100, own: false) }, self) == PinchVerdict.Walk);
+  // 6 - world scoping: a cache row for ANOTHER world must not answer for this one.
+  var otherWorld = Flags("7006,N,96,0,09/06/2026 22:30:00,50,N");
+  Check("flags: a cache row from another world is ignored - the row reads unflagged -> skipped",
+    One(Row(7006, false, 100), otherWorld) == PinchVerdict.SkipNotFlagged);
+  Check("flags: NEGATIVE CONTROL - the same row on OUR world is a real undercut -> walked",
+    One(Row(7006, false, 100), Flags("7006,N,95,0,09/06/2026 22:30:00,50,N")) == PinchVerdict.Walk);
 
-  // 7 - thresholds. Both at 0 means the feature is limited to the already-right case.
-  var noThreshold = options with { SkipUnderPercent = 0f, SkipUnderGil = 0 };
-  var nearRow = new PinchRow(0, 0, 6006, false, 400, false);
-  var nearQuote = new Dictionary<uint, ItemQuote> { [6006] = Quote(6006, 399, own: false) };
-  Check("preflight: with both thresholds at 0, a 1-gil move on 400 is walked",
-    One(nearRow, nearQuote, noThreshold) == PinchVerdict.Walk);
-  Check("preflight: with both thresholds at 0, no row is ever skipped for being under a threshold",
-    PinchPreflight.Decide([nearRow], nearQuote, noThreshold, Now).All(d => d.Verdict != PinchVerdict.SkipUnderThreshold));
-  Check("preflight: a gil threshold of 5 skips that same 1-gil move",
-    One(nearRow, nearQuote, noThreshold with { SkipUnderGil = 5 }) == PinchVerdict.SkipUnderThreshold);
-  Check("preflight: a gil threshold of 5 does NOT skip a 5-gil move (the boundary is exclusive)",
-    One(new PinchRow(0, 0, 6006, false, 400, false), new Dictionary<uint, ItemQuote> { [6006] = Quote(6006, 395, own: false) }, noThreshold with { SkipUnderGil = 5 }) == PinchVerdict.Walk);
-  Check("preflight: a 1% threshold skips 1 gil on 400 (0.25%) and walks 20 gil on 400 (5%)",
-    One(nearRow, nearQuote, noThreshold with { SkipUnderPercent = 1.0f }) == PinchVerdict.SkipUnderThreshold
-      && One(nearRow, new Dictionary<uint, ItemQuote> { [6006] = Quote(6006, 380, own: false) }, noThreshold with { SkipUnderPercent = 1.0f }) == PinchVerdict.Walk);
-  Check("preflight: a price INCREASE is measured the same way (nobody is undercutting any more)",
-    One(nearRow, new Dictionary<uint, ItemQuote> { [6006] = Quote(6006, 402, own: false) }, noThreshold with { SkipUnderPercent = 1.0f }) == PinchVerdict.SkipUnderThreshold
-      && One(nearRow, new Dictionary<uint, ItemQuote> { [6006] = Quote(6006, 800, own: false) }, noThreshold with { SkipUnderPercent = 1.0f }) == PinchVerdict.Walk);
+  // 7 - quality: MatchingQuality (Joey's setting) reads the listing's own quality for the undercut
+  //     lookup, while staleness looks at BOTH qualities (NeedsUpdate takes the newest of the two).
+  var hqMissing = Flags("7007,N,95,0,09/06/2026 22:30:00,10,N");
+  Check("flags: MatchingQuality - an HQ listing with only a fresh NQ cache row is not undercut (NQ row is not the HQ recommendation)",
+    One(Row(7007, true, 20), hqMissing) == PinchVerdict.SkipNotFlagged);
+  Check("flags: ...and the NQ listing of that item IS undercut by the cached 10 -> walked",
+    One(Row(7007, false, 20), hqMissing) == PinchVerdict.Walk);
 
-  // 8 - the master switch, and the per-item price limit applied before the comparison.
-  Check("preflight: with the feature off, every row is walked whatever the board says",
-    PinchPreflight.Decide([ownRow, nearRow], nearQuote, options with { Enabled = false }, Now).All(d => d.Verdict == PinchVerdict.Walk));
-  Check("preflight: a per-item minimum that clamps the candidate back to the current price makes the row a skip",
-    PinchPreflight.Decide([new PinchRow(0, 0, 6007, false, 500, false)],
-      new Dictionary<uint, ItemQuote> { [6007] = Quote(6007, 300, own: false) }, options, Now,
-      (_, price) => Math.Max(price, 500))[0].Verdict == PinchVerdict.SkipAlreadyRight);
-  Check("preflight: CONTROL - without that limit the same row is walked",
-    One(new PinchRow(0, 0, 6007, false, 500, false), new Dictionary<uint, ItemQuote> { [6007] = Quote(6007, 300, own: false) }) == PinchVerdict.Walk);
+  // 8 - UndercutComparison=NqOnly: every listing reads the NQ cache row.
+  var nqOnly = AllaganMarketFlags.Parse(
+    "7008,N,95,0,09/06/2026 22:30:00,10,N",
+    """{"EnumSettings":{"UndercutComparison":{"Value":"NqOnly"}}}""", World, nowUtc);
+  Check("flags: NqOnly - an HQ listing also prices off the NQ cache row and is undercut -> walked",
+    One(Row(7008, true, 20), nqOnly) == PinchVerdict.Walk);
 
-  // 9 - MIRROR MODE (0.1.10.0). AllaganMarket colours a row red only when the cheapest listing that is NOT
-  //     one of your own retainers undercuts you. Every case below is paired with the SAME input under
-  //     mirror OFF, so a pass proves the mirror flag is what changed the verdict and not the fixture.
-  var mirror = options with { MirrorOverlay = true };
+  // 9 - the placeholder ALWAYS walks, flagged or not; an unreadable row (no item id, no price) cannot
+  //     be flagged, so it is skipped like any unflagged row - except the placeholder, which outranks
+  //     everything.
+  Check("flags: a placeholder-priced listing walks even with no cache entry",
+    One(new PinchRow(0, 0, 7009, false, Placeholder, true), Flags()) == PinchVerdict.Walk);
+  Check("flags: a placeholder-priced listing walks even when its cache row is fresh and own-priced",
+    One(new PinchRow(0, 0, 7003, false, Placeholder, true), ownFlags) == PinchVerdict.Walk);
+  Check("flags: a row with no readable item id is never flagged -> skipped",
+    One(Row(0, false, 500), redFlags) == PinchVerdict.SkipNotFlagged);
+  Check("flags: a row with no readable price is never flagged -> skipped",
+    One(Row(7001, false, 0), redFlags) == PinchVerdict.SkipNotFlagged);
 
-  // 9a - the headline case: a stranger sits below one of your own retainers. Without mirror the pre-flight
-  //      predicts undercutting that stranger and walks; with mirror the row is judged against the stranger
-  //      too, so it still walks. Undercut only by YOURSELF is the case that changes.
-  var twoOwn = new Dictionary<uint, ItemQuote>
-  {
-    [6100] = new(6100, true, Now - OneHour, [new QuoteListing(50, false, true), new QuoteListing(90, false, false)]),
-  };
-  var undercutBySelfRow = new PinchRow(0, 0, 6100, false, 80, false);
-  Check("preflight mirror: undercut only by your OWN retainer is skipped as not-undercut",
-    One(undercutBySelfRow, twoOwn, mirror) == PinchVerdict.SkipNotUndercut);
-  Check("preflight mirror: NEGATIVE CONTROL - the identical input with mirror OFF is walked",
-    One(undercutBySelfRow, twoOwn, options) == PinchVerdict.Walk);
+  // 10 - the master switch still means walk-everything, flags or not.
+  Check("flags: with the pre-flight off, every row walks whatever AllaganMarket says",
+    PinchPreflight.Decide([Row(7001, false, 100), Row(7003, false, 100), new PinchRow(0, 0, 7010, false, 5, false)],
+      new Dictionary<uint, ItemQuote>(), options with { Enabled = false }, Now, redFlags)
+      .All(d => d.Verdict == PinchVerdict.Walk));
 
-  // 9b - a real stranger undercut is still walked under mirror. Mirror must not suppress the case the
-  //      whole feature exists to catch.
-  var strangerBelow = new Dictionary<uint, ItemQuote>
-  {
-    [6101] = new(6101, true, Now - OneHour, [new QuoteListing(60, false, false), new QuoteListing(95, false, true)]),
-  };
-  Check("preflight mirror: a STRANGER below your price is still walked (this is AllaganMarket red)",
-    One(new PinchRow(0, 0, 6101, false, 80, false), strangerBelow, mirror) == PinchVerdict.Walk);
+  // 11 - parse robustness: junk lines are skipped, missing settings fall back to defaults, broken JSON
+  //      reads as defaults, and a missing file (empty strings) reads as an EMPTY flag set.
+  var junk = AllaganMarketFlags.Parse(
+    "not a line\n\n7001,N\n999,Y,95,0,13/45/2026 99:99:99,5,N\n7011,N,95,0,09/06/2026 22:30:00,50,N",
+    null, World, nowUtc);
+  Check("flags: junk cache lines are skipped, good ones kept", junk.EntryCount == 1 && junk.HasEntry(7011, false));
+  Check("flags: a zero itemId row is refused",
+    !AllaganMarketFlags.TryParseLine("0,N,95,0,09/06/2026 22:30:00,50,N", out _));
+  Check("flags: broken settings JSON reads as AllaganMarket's defaults (period 300, undercut 0)",
+    AllaganMarketFlags.ParseSettings("{broken") == AllaganSettings.Defaults
+      && AllaganMarketFlags.ParseSettings(null) == AllaganSettings.Defaults);
+  Check("flags: settings parse - ItemUpdatePeriod, UndercutBy and UndercutComparison all come through",
+    AllaganMarketFlags.ParseSettings("""{"IntegerSettings":{"ItemUpdatePeriod":600,"UndercutBy":3},"EnumSettings":{"UndercutComparison":{"Value":"NqOnly"}}}""")
+      is { ItemUpdatePeriodMinutes: 600, UndercutBy: 3, UndercutComparison: "NqOnly" });
+  Check("flags: an empty cache file is an empty flag set (nothing flagged, only placeholders walk)",
+    AllaganMarketFlags.Parse("", null, World, nowUtc).EntryCount == 0);
 
-  // 9c - board holds nothing but your own listings: there is nobody to undercut at all.
-  var allOwn = new Dictionary<uint, ItemQuote>
-  {
-    [6102] = new(6102, true, Now - OneHour, [new QuoteListing(70, false, true), new QuoteListing(75, false, true)]),
-  };
-  Check("preflight mirror: a board holding only your own listings is skipped, not walked",
-    One(new PinchRow(0, 0, 6102, false, 80, false), allOwn, mirror) == PinchVerdict.SkipNotUndercut);
-  Check("preflight mirror: NEGATIVE CONTROL - the same all-yours board with mirror OFF is walked",
-    One(new PinchRow(0, 0, 6102, false, 80, false), allOwn, options) == PinchVerdict.Walk);
-
-  // 9d - a stranger AT your price is not an undercut. AllaganMarket compares strictly below.
-  var strangerEqual = new Dictionary<uint, ItemQuote> { [6103] = Quote(6103, 80, own: false) };
-  Check("preflight mirror: a stranger AT your exact price is not an undercut, so the row is skipped",
-    One(new PinchRow(0, 0, 6103, false, 80, false), strangerEqual, mirror) == PinchVerdict.SkipNotUndercut);
-
-  // 9e - mirror is inert when the user asked to undercut their own retainers, because then their own
-  //      listings ARE competition and ignoring them would mispredict the pass - a wrong skip.
-  var selfOn = mirror with { UndercutSelf = true, UndercutAmount = 5 };
-  Check("preflight mirror: with Undercut-my-own-retainers ON, mirror is inert and the row is walked",
-    One(undercutBySelfRow, twoOwn, selfOn) == PinchVerdict.Walk);
-
-  // 9f - every uncertainty rule still outranks mirror. Stale data must not become a not-undercut skip.
-  var staleAllOwn = new Dictionary<uint, ItemQuote>
-  {
-    [6104] = new(6104, true, Now - (7 * OneHour), [new QuoteListing(70, false, true)]),
-  };
-  Check("preflight mirror: stale data still walks the row, mirror does not outrank the freshness gate",
-    One(new PinchRow(0, 0, 6104, false, 80, false), staleAllOwn, mirror) == PinchVerdict.Walk);
-  Check("preflight mirror: a placeholder-priced listing is still never skipped under mirror",
-    One(new PinchRow(0, 0, 6102, false, Placeholder, true), allOwn, mirror) == PinchVerdict.Walk);
-
-  // 9g - the summary line names the new bucket so the feature is gradable from Joey's log.
-  Check("preflight mirror: the summary line reports the not-undercut skips",
-    PinchPreflight.Summarize(PinchPreflight.Decide([undercutBySelfRow], twoOwn, mirror, Now), 6)
-      .Contains("1 not undercut by anyone else"));
+  // 12 - red/yellow/green land on the right rows of one mixed flag set.
+  var mixed = Flags(
+    "7020,N,95,0,09/06/2026 22:30:00,50,N",   // fresh, cheaper -> red
+    "7021,N,95,0,09/06/2026 12:00:00,200,N",  // old, equal -> yellow
+    "7022,N,95,0,09/06/2026 22:30:00,100,Y"); // fresh, own -> green
+  Check("flags: red/yellow/green land on the right rows",
+    One(Row(7020, false, 100), mixed) == PinchVerdict.Walk
+      && One(Row(7021, false, 200), mixed) == PinchVerdict.Walk
+      && One(Row(7022, false, 100), mixed) == PinchVerdict.SkipNotFlagged);
 }
 
 // 35. The Universalis payload comes back in TWO shapes from the same endpoint (verified live 2026-09-06):
@@ -1440,235 +1412,138 @@ var Catalogue = new (uint Id, string Name)[]
   Check("vendor: both origins disabled -> no ops at all", VendorPlanner.Plan([R(5111, bags: false, ret: false)], stock, prices, true).Ops.Count == 0);
 }
 
-// 38. THE FIFTH REPORT replay (2026-09-06 21:22-21:26): board-memory skip for rows the pre-flight has no
-//     answer for. 23 manual-pass walks = 14 real undercuts (Universalis HAD data; the pre-flight walked
-//     them because the price would really move) + 9 exact no-ops (Universalis had NOTHING; the pre-flight
-//     walked them on "no Universalis data"). The 9 are what this feature exists for: their compare
-//     windows confirmed the price mid-pass, and every pass after that skips them without opening a
-//     window, while the price stays exactly the confirmed one and the verdict is younger than 12h.
+// 38. THE FIFTH REPORT, replayed under the flags-only rule (2026-09-06 21:22-21:26). The manual Auto
+//     Pinch pass walked 23 rows: 14 real undercuts and 9 exact no-ops on rows AllaganMarket showed NO
+//     verdict for (its overlay rendered them unmarked - no cache row beyond the own-price write that
+//     makes them green-by-own-price). Joey's binding correction: "I never asked the plugin to remember
+//     it. I asked you to go by allagan market's flagged items." So the 0.1.13.0 board memory is GONE
+//     and the rule is: walk iff AllaganMarket's data flags the row. The 14 undercut rows (strangers'
+//     cache rows below them) walk; the 9 no-op rows - freshly own-priced in the cache, never undercut,
+//     never stale - are NEVER walked again, even once. The 0.1.13.0 behaviour (walk once, remember,
+//     skip afterwards) is retired: the first pass does not walk them and no memory is ever written.
+//     Also pinned: Universalis can no longer talk the plugin into touching an unflagged row, and a
+//     flagged row needs no Universalis rescue to walk.
 {
-  const long Now = 1_788_720_000_000L;   // fixed clock, AFTER case 33's - this is the same evening, 21:22
-  const long OneHour = 3_600_000L;
-  const long TwelveHours = 12 * OneHour;
+  const long Now = 1_788_750_000_000L;  // 23:00 EDT local, later the same evening
+  var nowUtc = new DateTime(2026, 9, 6, 23, 0, 0);
+  const uint World = 95u;
 
-  var options = new PinchPreflightOptions(
-    Enabled: true, FreshnessHours: 6, SkipUnderGil: 0, SkipUnderPercent: 1.0f,
-    PreferHq: true, Mode: UndercutMode.FixedAmount, UndercutAmount: 0, UndercutSelf: false,
-    MirrorOverlay: false, BoardMemoryHours: 12);
-
+  var options = new PinchPreflightOptions(Enabled: true);
   var rows = new List<PinchRow>();
   var quotes = new Dictionary<uint, ItemQuote>();
+  var cacheCsv = new List<string>();
 
-  // The 9 exact no-ops, item ids and prices from the report. 30414 was walked TWICE at 40000 (two
-  // retainers held it) - one (item, HQ) verdict must settle both rows.
+  void Row_(uint itemId, bool hq, long current, long cacheUnitCost, bool cacheIsOwn, string updated)
+  {
+    var row = rows.Count;
+    rows.Add(new PinchRow(row, row, itemId, hq, current, false));
+    quotes[itemId] = new ItemQuote(itemId, true, Now - 3_600_000L, [new QuoteListing(cacheUnitCost, hq, cacheIsOwn)]);
+    cacheCsv.Add($"{itemId},{(hq ? "Y" : "N")},{World},0,{updated},{cacheUnitCost},{(cacheIsOwn ? "Y" : "N")}");
+  }
+
+  // The 9 exact no-ops, item ids and prices from the report (30414 twice - two retainers). Their
+  // AllaganMarket state: a fresh OWN-price cache row written when the listing was added, so the
+  // recommendation is their own price - never undercut, never stale, UNFLAGGED.
   (uint Id, bool Hq, long Price)[] noOps =
   [
     (31911, false, 12), (36084, false, 242), (44347, false, 5000),
     (12527, true, 84), (13747, true, 65), (5081, true, 2),
     (15957, false, 857), (30414, false, 40000), (30414, false, 40000),
   ];
-  // The 14 real undercuts: three from the report verbatim, eleven in the same shape. Fresh Universalis
-  // data with somebody else's listing below - the pre-flight walks these for "would move X -> Y".
-  var undercuts = new List<(uint Id, bool Hq, long Current, long Board)>
+  foreach (var n in noOps)
+    Row_(n.Id, n.Hq, n.Price, n.Price, cacheIsOwn: true, "09/06/2026 22:30:00");
+
+  // The 14 real undercuts: three from the report verbatim, eleven in the same shape. Fresh stranger
+  // cache rows below them - AllaganMarket RED.
+  var undercuts = new List<(uint Id, long Current, long Board)>
   {
-    (31001, false, 250, 1), (31002, false, 77, 45), (31003, false, 500, 263),
+    (31001, 250, 1), (31002, 77, 45), (31003, 500, 263),
   };
   for (var i = 4; i <= 14; i++)
-    undercuts.Add(((uint)(31000 + i), false, 1_000L * i, 900L * i));
-
+    undercuts.Add(((uint)(31000 + i), 1_000L * i, 900L * i));
   foreach (var u in undercuts)
+    Row_(u.Id, false, u.Current, u.Board, cacheIsOwn: false, "09/06/2026 22:00:00");
+
+  Check("fifth replay: the fixture is his 23 rows", rows.Count == 23, $"rows={rows.Count}");
+
+  var flags = AllaganMarketFlags.Parse(string.Join("\n", cacheCsv), null, World, nowUtc);
+  var decisions = PinchPreflight.Decide(rows, quotes, options, Now, flags);
+
+  // THE behaviour change: the 9 no-ops are skipped ON THE FIRST PASS - no walk-once-then-remember.
+  Check("fifth replay: exactly the 14 undercut rows walk; the 9 no-ops NEVER walk, not even once",
+    decisions.Count(d => d.Verdict == PinchVerdict.Walk) == 14
+      && decisions.Count(d => d.Verdict == PinchVerdict.SkipNotFlagged) == 9
+      && decisions.Where(d => d.Verdict == PinchVerdict.SkipNotFlagged).Select(d => d.Row.ItemId)
+        .OrderBy(i => i).SequenceEqual(noOps.Select(n => n.Id).OrderBy(i => i)),
+    $"walked={decisions.Count(d => d.Verdict == PinchVerdict.Walk)} skipped={decisions.Count(d => d.Verdict == PinchVerdict.SkipNotFlagged)}");
+  Check("fifth replay: the two 30414 rows both skip off the one shared (item, quality) key",
+    decisions.Count(d => d.Row.ItemId == 30414 && d.Verdict == PinchVerdict.SkipNotFlagged) == 2);
+  Check("fifth replay: every walked row is an AllaganMarket RED",
+    decisions.Where(d => d.Verdict == PinchVerdict.Walk)
+      .All(d => d.Reason == "AllaganMarket flags this listing undercut"));
+
+  // The summary line for Joey's log grading.
+  Check("fifth replay: the summary line reads walked 14, skipped 9 not flagged",
+    PinchPreflight.Summarize(decisions)
+      == "pinch pre-flight: walking 14 of 23 row(s); skipped 9 not flagged by AllaganMarket (14 flagged undercut, 0 flagged stale, 0 placeholder)",
+    PinchPreflight.Summarize(decisions));
+
+  // a) A flagged row with NO Universalis quote at all still walks: the flag alone is the instruction.
+  //    (0.1.13.0's board memory existed precisely because a no-quote row used to walk on uncertainty;
+  //    now it walks on the flag, and no verdict is remembered anywhere.)
+  Check("fifth replay: a flagged row with no Universalis answer still walks (no rescue needed, none allowed)",
+    PinchPreflight.Decide([new PinchRow(0, 0, 31001, false, 250, false)],
+      new Dictionary<uint, ItemQuote>(), options, Now, flags)[0].Verdict == PinchVerdict.Walk);
+
+  // b) THE CONTROL in the other direction: an unflagged row that UNIVERSALIS calls undercut is still
+  //    skipped. Universalis may not overrule the flag - this is the exact failure Joey rejected when
+  //    the pre-flight walked rows AllaganMarket had no opinion on.
+  var unflaggedButUniversalisCheap = new Dictionary<uint, ItemQuote>
   {
-    var row = rows.Count;
-    rows.Add(new PinchRow(row, row, u.Id, u.Hq, u.Current, false));
-    quotes[u.Id] = new ItemQuote(u.Id, true, Now - OneHour, [new QuoteListing(u.Board, u.Hq, false)]);
-  }
-  foreach (var n in noOps)
-  {
-    var row = rows.Count;
-    rows.Add(new PinchRow(row, row, n.Id, n.Hq, n.Price, false));
-    // NO quote for these items - this is exactly why the 21:22 pass walked them.
-  }
+    [31911] = new ItemQuote(31911, true, Now - 3_600_000L, [new QuoteListing(1, false, false)]),
+  };
+  Check("fifth replay: an unflagged row Universalis calls undercut is STILL skipped (Universalis never overrules the flag)",
+    PinchPreflight.Decide([new PinchRow(0, 0, 31911, false, 12, false)],
+      unflaggedButUniversalisCheap, options, Now, flags)[0].Verdict == PinchVerdict.SkipNotFlagged);
 
-  // --- PASS 1: the 0.1.12.0 rule set (memory off). The control: all 23 walk. ---
-  var memory = new PinchBoardMemory(() => Now);
-  var p1 = PinchBoardMemory.ApplyToDecisions(PinchPreflight.Decide(rows, quotes, options, Now), memory, options with { BoardMemoryHours = 0 }, Now);
-  Check("fifth replay: CONTROL - the shipped rule set walks all 23 rows",
-    p1.Count(d => d.Verdict == PinchVerdict.Walk) == 23, $"walked={p1.Count(d => d.Verdict == PinchVerdict.Walk)}");
-  Check("fifth replay: CONTROL - with an empty memory nothing is skipped on memory",
-    p1.Count(d => d.Verdict == PinchVerdict.SkipBoardMemory) == 0);
-  Check("fifth replay: the 9 no-ops walk for lack of Universalis data, the 14 undercuts for real",
-    p1.Count(d => d.Verdict == PinchVerdict.Walk && PinchPreflight.CanMemorySettle(d.Reason)) == 9
-      && p1.Count(d => d.Verdict == PinchVerdict.Walk && !PinchPreflight.CanMemorySettle(d.Reason)) == 14);
-  Check("fifth replay: CONTROL - an empty memory stores nothing, which is why 0.1.12.0 walked them again",
-    memory.Count == 0);
+  // c) The card's verification bar: a price-equal-but-flagged row still walks. Same item, same price,
+  //    but the cache row went stale - YELLOW outranks "would write the same number".
+  var staleButEqual = AllaganMarketFlags.Parse("36084,N,95,0,09/06/2026 12:00:00,242,N", null, World, nowUtc);
+  Check("fifth replay: a price-equal-but-STALE row still walks (the flag is the instruction)",
+    PinchPreflight.Decide([new PinchRow(0, 0, 36084, false, 242, false)],
+      new Dictionary<uint, ItemQuote>(), options, Now, staleButEqual)[0].Verdict == PinchVerdict.Walk);
 
-  // --- THE WRITE STEP, as the pass performs it: a compare window that produced the SAME price as the
-  //     listing already carries records the verdict; one that produced a DIFFERENT price records
-  //     nothing. Exactly the SetNewPrice gate (new == old, board-sourced, not placeholder). ---
-  var confirms = 0;
-  foreach (var n in noOps)
-    if (memory.Remember(n.Id, n.Hq, n.Price))
-      confirms++;
-  Check("fifth replay: 9 confirm windows wrote 8 verdicts - the two 30414 rows share one key",
-    confirms == 9 && memory.Count == 8, $"confirms={confirms} entries={memory.Count}");
-  // The forget half of the write gate: a window that produces a DIFFERENT price calls Forget, not
-  // Remember (the pass decides which; the store only records or drops).
-  Check("fifth replay: a moved price FORGETS its verdict, and forgetting an absent key is a no-op",
-    memory.Remember(31001, false, 1) && memory.Forget(31001, false) && !memory.TryGet(31001, false, out _)
-      && memory.Count == 8 && memory.Forget(999999, false) == false);
-
-  // --- PASS 2: the NEXT sweep, same prices. 9 rows skip on memory, 14 still walk. ---
-  var log = new List<string>();
-  var p2 = PinchBoardMemory.ApplyToDecisions(PinchPreflight.Decide(rows, quotes, options, Now + OneHour), memory, options, Now + OneHour, log);
-  var p2skips = p2.Where(d => d.Verdict == PinchVerdict.SkipBoardMemory).ToList();
-  Check("fifth replay: next sweep - exactly the 9 no-op rows skip on memory",
-    p2skips.Count == 9 && p2.Count(d => d.Verdict == PinchVerdict.Walk) == 14,
-    $"skips={p2skips.Count} walked={p2.Count(d => d.Verdict == PinchVerdict.Walk)}");
-  Check("fifth replay: the two 30414 rows both skip off the one shared verdict",
-    p2skips.Count(d => d.Row.ItemId == 30414) == 2);
-  Check("fifth replay: every memory skip replaces a baseline uncertainty walk - never a rule with an answer",
-    p2skips.All(d => p1.Single(x => x.Row.Row == d.Row.Row).Reason is "no Universalis data" or "no HQ listing on the board" or "no listing on the board"),
-    string.Join(",", p2skips.Select(d => p1.Single(x => x.Row.Row == d.Row.Row).Reason)));
-  Check("fifth replay: each memory skip names the row and the age, in the INFO log",
-    log.Count == 9 && log.All(l => l.StartsWith("pinch board memory: row ") && l.Contains("confirmed") && l.Contains("ago, skipping")),
-    string.Join(" | ", log.Take(2)));
-  Check("fifth replay: the summary line counts them as remembered from the last pass",
-    PinchPreflight.Summarize(p2, 6).Contains("9 remembered from the last pass"),
-    PinchPreflight.Summarize(p2, 6));
-  Check("fifth replay: a memory skip keeps the candidate at the CURRENT price - nothing would be written",
-    p2skips.All(d => d.Candidate == d.Row.CurrentPrice));
-
-  // --- PASS 3: 13h later. Every verdict is past the 12h window: all 23 walk again. ---
-  var p3 = PinchBoardMemory.ApplyToDecisions(PinchPreflight.Decide(rows, quotes, options, Now + ThirteenHours()), memory, options, Now + ThirteenHours());
-  Check("fifth replay: 13h later every verdict is past the window - all 23 walk again",
-    p3.Count(d => d.Verdict == PinchVerdict.SkipBoardMemory) == 0 && p3.Count(d => d.Verdict == PinchVerdict.Walk) == 23);
-  static long ThirteenHours() => 13 * 3_600_000L;
-
-  // --- PASS 4: the world moved on one row - its price changed. THAT row walks; the rest still skip. ---
-  var movedIdx = rows.FindIndex(r => r.ItemId == 31911);
-  rows[movedIdx] = rows[movedIdx] with { CurrentPrice = 11 };
-  var p4 = PinchBoardMemory.ApplyToDecisions(PinchPreflight.Decide(rows, quotes, options, Now + OneHour), memory, options, Now + OneHour);
-  Check("fifth replay: a row whose price moved off the confirmed number walks; the other 8 still skip",
-    p4.Count(d => d.Verdict == PinchVerdict.SkipBoardMemory) == 8
-      && p4.Single(d => d.Row.ItemId == 31911).Verdict == PinchVerdict.Walk);
-  rows[movedIdx] = rows[movedIdx] with { CurrentPrice = 12 };
-
-  // --- Boundaries and polarity. ---
-  var row12527 = rows.First(r => r.ItemId == 12527 && r.HQ);
-  var entry12527 = new PinchMemoryEntry(12527, true, 84, Now + OneHour - TwelveHours);
-  Check("board memory: a verdict exactly 12h old still counts (the window is 'older than')",
-    PinchBoardMemory.Decide(row12527, entry12527, options, Now + OneHour) == PinchVerdict.SkipBoardMemory);
-  Check("board memory: a verdict one millisecond past the window does not",
-    PinchBoardMemory.Decide(row12527, entry12527 with { ConfirmedUnixMs = entry12527.ConfirmedUnixMs - 1 }, options, Now + OneHour) == null);
-  Check("board memory: a different price voids the verdict even inside the window",
-    PinchBoardMemory.Decide(row12527 with { CurrentPrice = 83 }, entry12527, options, Now + OneHour) == null);
-  Check("board memory: quality is part of the key - an NQ verdict never settles an HQ row",
-    PinchBoardMemory.Decide(row12527, new PinchMemoryEntry(12527, false, 84, Now + OneHour), options, Now + OneHour) == null);
-  Check("board memory: hours = 0 means off, whatever the store holds",
-    PinchBoardMemory.Decide(row12527, entry12527, options with { BoardMemoryHours = 0 }, Now + OneHour) == null
-      && PinchBoardMemory.ApplyToDecisions(PinchPreflight.Decide(rows, quotes, options, Now + OneHour), memory, options with { BoardMemoryHours = 0 }, Now + OneHour)
-           .Count(d => d.Verdict == PinchVerdict.SkipBoardMemory) == 0);
-
-  Check("board memory: only the three UNCERTAINTY reasons are settleable",
-    PinchPreflight.CanMemorySettle("no Universalis data")
-      && PinchPreflight.CanMemorySettle("no HQ listing on the board")
-      && PinchPreflight.CanMemorySettle("no listing on the board")
-      && !PinchPreflight.CanMemorySettle("Universalis data is stale")
-      && !PinchPreflight.CanMemorySettle("row could not be read")
-      && !PinchPreflight.CanMemorySettle("new listing at the placeholder price")
-      && !PinchPreflight.CanMemorySettle("already at the price this pass would set")
-      && !PinchPreflight.CanMemorySettle("would move 250 -> 1")
-      && !PinchPreflight.CanMemorySettle("every listing of this item on the board is one of yours - nothing to undercut")
-      && !PinchPreflight.CanMemorySettle("not undercut: the cheapest listing that is not yours is 500, at or above your 500"));
-
-  // --- Store persistence. ---
-  var json = PinchBoardMemory.ToJson(memory.Entries);
-  var round = PinchBoardMemory.FromJson(json);
-  Check("board memory: the store round-trips (8 verdicts, prices and timestamps intact)",
-    round.Count == 8
-      && round.First(e => e.ItemId == 30414) is { Hq: false, Price: 40000 }
-      && round.First(e => e.ItemId == 12527).Hq);
-  Check("board memory: broken JSON reads as an empty memory, never an exception",
-    PinchBoardMemory.FromJson("{\"version\":1,\"entries\":[{broken").Count == 0
-      && PinchBoardMemory.FromJson("not json at all").Count == 0
-      && PinchBoardMemory.FromJson("").Count == 0);
-  Check("board memory: junk entries are skipped, good ones kept",
-    PinchBoardMemory.FromJson("{\"entries\":[{\"itemId\":0,\"hq\":false,\"price\":5,\"confirmedUnixMs\":1},"
-      + "{\"itemId\":7,\"hq\":false,\"price\":0,\"confirmedUnixMs\":1},"
-      + "{\"itemId\":7,\"hq\":false,\"price\":5,\"confirmedUnixMs\":0},"
-      + "{\"itemId\":7,\"hq\":true,\"price\":9,\"confirmedUnixMs\":123}]}").Count == 1);
-  Check("board memory: Remember refuses item 0 and non-positive prices",
-    !memory.Remember(0, false, 100) && !memory.Remember(60000, false, 0) && !memory.Remember(60000, false, -5));
-
-  var big = new PinchBoardMemory(() => Now);
-  for (var i = 1; i <= 501; i++)
-    big.Remember((uint)i, false, 100 + i);
-  Check("board memory: the store trims to 500, dropping the OLDEST verdict",
-    big.Count == 500 && !big.TryGet(1, false, out _) && big.TryGet(501, false, out _));
-
-  var tmpStore = Path.Combine(Path.GetTempPath(), $"lmc-bm-{Guid.NewGuid():N}");
-  try
-  {
-    memory.Save(tmpStore);
-    var reloaded = PinchBoardMemory.Load(tmpStore, () => Now);
-    Check("board memory: Save/Load round-trips through the real file", reloaded.Count == 8 && reloaded.TryGet(5081, true, out _));
-    var empty = PinchBoardMemory.Load(Path.Combine(tmpStore, "does-not-exist"));
-    Check("board memory: a missing store file loads as an empty memory", empty.Count == 0);
-  }
-  finally
-  {
-    if (Directory.Exists(tmpStore)) Directory.Delete(tmpStore, true);
-  }
-
-  // --- NO-INTERFERENCE CONTROL over case 33's fixture: a FULL memory store changes not one verdict there. ---
-  {
-    var mem33 = new PinchBoardMemory(() => 1_788_708_000_000L);
-    foreach (var r in BuildCase33Rows())
-      mem33.Remember(r.ItemId, r.HQ, r.CurrentPrice);
-    Check("fifth replay: the no-interference control really holds a FULL memory (39 verdicts)",
-      mem33.Count == 39, $"mem33.Count={mem33.Count}");
-    var opts33 = new PinchPreflightOptions(
-      Enabled: true, FreshnessHours: 6, SkipUnderGil: 0, SkipUnderPercent: 1.0f,
-      PreferHq: true, Mode: UndercutMode.FixedAmount, UndercutAmount: 0, UndercutSelf: false,
-      MirrorOverlay: false, BoardMemoryHours: 12);
-    var base33 = PinchPreflight.Decide(BuildCase33Rows(), Case33Quotes(), opts33, 1_788_708_000_000L);
-    var memd33 = PinchBoardMemory.ApplyToDecisions(base33, mem33, opts33, 1_788_708_000_000L);
-    Check("fifth replay: NO-INTERFERENCE - a full memory changes not one verdict on case 33's night",
-      base33.Select(d => (d.Row.Row, d.Verdict)).SequenceEqual(memd33.Select(d => (d.Row.Row, d.Verdict))));
-  }
-
-  static List<PinchRow> BuildCase33Rows()
-  {
-    var rows = new List<PinchRow>();
-    long[] alreadyRight = [98L, 243L, 400L, 1_200L, 2_500L, 3_333L, 7_800L, 9_999L, 12_000L, 15_500L,
-                           18_250L, 21_000L, 24_800L, 30_951L, 44_000L, 61_500L, 120_000L];
-    for (var i = 0; i < alreadyRight.Length; i++)
-      rows.Add(new PinchRow(rows.Count, rows.Count, (uint)(3000 + i), false, alreadyRight[i], false));
-    rows.Add(new PinchRow(rows.Count, rows.Count, 4001, false, 243, false));
-    rows.Add(new PinchRow(rows.Count, rows.Count, 4002, false, 400, false));
-    rows.Add(new PinchRow(rows.Count, rows.Count, 4003, false, 30_971, false));
-    for (var i = 0; i < 19; i++)
-      rows.Add(new PinchRow(rows.Count, rows.Count, (uint)(5000 + i), false, 10_000L + i * 500L, false));
-    return rows;
-  }
-
-  static Dictionary<uint, ItemQuote> Case33Quotes()
-  {
-    var quotes = new Dictionary<uint, ItemQuote>();
-    long[] alreadyRight = [98L, 243L, 400L, 1_200L, 2_500L, 3_333L, 7_800L, 9_999L, 12_000L, 15_500L,
-                           18_250L, 21_000L, 24_800L, 30_951L, 44_000L, 61_500L, 120_000L];
-    for (var i = 0; i < alreadyRight.Length; i++)
-      quotes[(uint)(3000 + i)] = new ItemQuote((uint)(3000 + i), true, 1_788_708_000_000L - 3_600_000L, [new QuoteListing(alreadyRight[i], false, true)]);
-    quotes[4001] = new ItemQuote(4001, true, 1_788_708_000_000L - 3_600_000L, [new QuoteListing(242, false, false)]);
-    quotes[4002] = new ItemQuote(4002, true, 1_788_708_000_000L - 3_600_000L, [new QuoteListing(399, false, false)]);
-    quotes[4003] = new ItemQuote(4003, true, 1_788_708_000_000L - 3_600_000L, [new QuoteListing(30_951, false, false)]);
-    for (var i = 0; i < 19; i++)
-      quotes[(uint)(5000 + i)] = new ItemQuote((uint)(5000 + i), true, 1_788_708_000_000L - 3_600_000L, [new QuoteListing(8_000L + i * 500L, false, false)]);
-    return quotes;
-  }
+  // d) The world moved on one row - it now sits above the cached stranger price. Still RED, walks.
+  var movedRows = rows.Select(r => r.ItemId == 31911 ? r with { CurrentPrice = 15 } : r).ToList();
+  var movedFlags = AllaganMarketFlags.Parse("31911,N,95,0,09/06/2026 22:30:00,12,N", null, World, nowUtc);
+  var moved = PinchPreflight.Decide(movedRows, quotes, options, Now, movedFlags);
+  Check("fifth replay: a row whose price moved below the cached competitor is walked (still undercut)",
+    moved.Single(d => d.Row.ItemId == 31911).Verdict == PinchVerdict.Walk);
 }
 
+// 38a. THE RETIREMENT PINS for the 0.1.13.0 board memory: the file is deleted, and nothing in the
+//      pre-flight answer path may depend on remembered verdicts, Universalis freshness, or the
+//      gil/percent thresholds any more. The compile-time fact is pinned by the harness csproj no
+//      longer compiling that file; the behavioural facts are pinned by the cases above.
+//      What remains verifiable offline: the summary line has no "remembered" bucket, and the options
+//      record carries exactly the one switch the rule still honours.
+{
+  var options = new PinchPreflightOptions(Enabled: true);
+  Check("retirement: the pre-flight options carry only the master switch",
+    options.Enabled && options == new PinchPreflightOptions(true));
 
+  var decisions = PinchPreflight.Decide(
+    [new PinchRow(0, 0, 7300, false, 500, false)],
+    new Dictionary<uint, ItemQuote>(),
+    options, 1_788_750_000_000L,
+    AllaganMarketFlags.Parse("7300,N,95,0,09/06/2026 22:30:00,500,Y", null, 95, new DateTime(2026, 9, 6, 23, 0, 0)));
+  Check("retirement: the summary line has no remembered-from-last-pass bucket",
+    !PinchPreflight.Summarize(decisions).Contains("remembered"));
+  Check("retirement: the only skip verdict is SkipNotFlagged",
+    Enum.GetValues<PinchVerdict>().Length == 2
+      && Enum.IsDefined(typeof(PinchVerdict), PinchVerdict.Walk)
+      && Enum.IsDefined(typeof(PinchVerdict), PinchVerdict.SkipNotFlagged));
+}
 // 39. THE VENDOR NO-OP (t_6223b845, 0.1.12.0 shipped defect): VendorOp.Container carried the
 //     StockOrigin enum (Bags=0/Retainer=1) instead of the stack's real game InventoryType, so every
 //     op addressed Inventory1/Inventory2 rather than Inventory1-4/RetainerPage1-7. The pre-call slot

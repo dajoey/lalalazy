@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.1.16.0 (2026-09-07)
+
+### Changed
+- **Auto Pinch now re-prices ONLY the listings AllaganMarket flags - its red (undercut) and yellow (stale pricing) marks on the retainer sell list - and never touches anything else.** Every full Auto Pinch pass reads AllaganMarket's own saved price data for the home world (`AutoMarket/AllaganFlags.cs` new, `AllaganMarketFlags.Parse`/`AllaganFlagSet.IsUndercut`/`IsStale`; `AutoMarket/PinchPreflight.cs`, `Decide`; `MarketAutomation.cs`, `BuildAllaganFlags`), and a row AllaganMarket does not flag - including items it has never checked - is skipped without opening a single window, even once. This replaces the Universalis-prediction rule set of 0.1.9.0-0.1.15.0: the pre-flight checkbox is now "Only re-price listings AllaganMarket has flagged" (still on by default; untick for the old walk-everything pass).
+- Rows AllaganMarket DOES flag always walk, even when the price would come back unchanged - a yellow (stale) mark means "go re-check this", and the pass's own price window is what feeds AllaganMarket fresh data. The old gil/percent "skip when the price would move less than" thresholds, the "Only trust Universalis data newer than" freshness slider and the "Only skip when nobody else is undercutting you" mirror no longer take part in that decision (`Configuration.cs`, `AutoPinchSkipUnderGil`/`AutoPinchSkipUnderPercent`/`AutoPinchPreflightFreshnessHours`/`AutoPinchMirrorOverlay` kept but inert, documented; `Windows/ConfigWindow.cs`, pre-flight section rewritten). The pre-flight also no longer waits on Universalis before walking flagged rows, so passes start pricing immediately.
+
+### Removed
+- **The price memory from 0.1.13.0 is gone, on request.** The "Remember confirmed prices for (hours)" setting, the `AutoMarket/PinchBoardMemory.cs` store and its `LazyMarketCompanion.pinch-memory.json` file were a wrong turn: Auto Pinch now goes strictly by AllaganMarket's flags instead of remembering its own past verdicts. The stored keys and the old store file are simply left behind unread (`AutoMarket/PinchBoardMemory.cs` deleted; `Configuration.cs`, `AutoPinchBoardMemoryHours` removed; `MarketAutomation.cs`, the remember/forget block and row-identity tracking removed with it).
+
+### Notes
+- AllaganMarket has no IPC, so its verdicts are read from its saved price file (`pluginConfigs/AllaganMarket/MarketPriceCache.csv`, with its undercut and staleness settings from `AllaganMarket.json`), world-scoped to the home world exactly like its overlay. This is file coupling: if AllaganMarket changes its save format, this breaks silently. If AllaganMarket is not installed, or has no cached price for an item, that item reads as unflagged: a full Auto Pinch pass then walks nothing but placeholder-priced new listings. That is the point - unflagged means untouched - but it does make Auto Pinch depend on AllaganMarket being installed and having checked prices.
+- The nine exact no-op listings from the 2026-09-06 21:22 report (Twilight Apple, Rock Salt, Cloudsail, HQ Adamantite, HQ Titanium Alloy, HQ Bronze Rings, Tiny Bronco, 2x Paissa Rug) will NOT be walked again until AllaganMarket itself flags them.
+- Offline test suite now at 315 checks. The new ones replay the two measured sweeps through AllaganMarket's cache format (the 39-row night: 17 own-lowest skipped, 3 threshold-class rows that AllaganMarket flags red now walk; the 23-row night: the 9 no-ops never walk, not even once), pin the never-checked-never-walked polarity, the own-price never-red rule, world scoping, the quality comparison setting, and parse robustness against junk or missing data (files: `tests/LazyMarketCompanion.Harness/Program.cs`, cases 33, 34, 38, 38a).
 ## v0.1.15.1 (2026-09-07)
 
 ### Fixed

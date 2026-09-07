@@ -452,46 +452,12 @@ public sealed class ConfigWindow : Window
     ImGui.EndGroup();
     Tip("Time to keep the market board open when fetching prices. Recommended 1000-2000ms.");
 
-    ImGui.Separator();
-    ImGui.Text("Auto Pinch pre-flight");
-
-    var preflight = c.AutoPinchPreflightEnabled;
-    if (ImGui.Checkbox("Skip listings that do not need pricing", ref preflight)) { c.AutoPinchPreflightEnabled = preflight; c.Save(); }
-    Tip("Before Auto Pinch opens a single listing, ask Universalis about the whole retainer in one request and skip the rows where this plugin would write back the price the listing already has.\n\nIt uses Universalis even if you price from the in-game Compare Prices window, so it is a prediction of what the pass would do, not the pass itself.\n\nThe risk in one sentence: a fresh undercut nobody has uploaded to Universalis yet reads as 'you are still cheapest', so that listing sits overpriced until the next sweep.");
-
-    var mirrorOverlay = c.AutoPinchMirrorOverlay;
-    if (ImGui.Checkbox("Only skip when nobody else is undercutting you", ref mirrorOverlay)) { c.AutoPinchMirrorOverlay = mirrorOverlay; c.Save(); }
-    Tip("Matches the green/yellow/red overlay you already have on the retainer sell list: your own retainers' listings are ignored when working out the price to beat, and a row nobody else has undercut is left alone.\n\nHas no effect while \"Undercut my own retainers\" is on - that setting means you want your own listings treated as competition.");
-
-    int freshness = c.AutoPinchPreflightFreshnessHours;
-    ImGui.BeginGroup();
-    ImGui.Text("Only trust Universalis data newer than (hours)");
-    if (ImGui.SliderInt("###sliderPreflightFreshness", ref freshness, 1, 168)) { c.AutoPinchPreflightFreshnessHours = Math.Clamp(freshness, 1, 168); c.Save(); }
-    ImGui.EndGroup();
-    Tip("Universalis is crowd-sourced and lags. If nobody has uploaded this item's board within this window, the listing is priced normally - stale or missing data always means the row is walked, never skipped.");
-
-    int skipGil = c.AutoPinchSkipUnderGil;
-    ImGui.BeginGroup();
-    ImGui.Text("Skip when the price would move less than (gil, 0 = off)");
-    ImGui.SetNextItemWidth(160);
-    if (ImGui.InputInt("##preflightSkipGil", ref skipGil)) { c.AutoPinchSkipUnderGil = Math.Max(skipGil, 0); c.Save(); }
-    ImGui.EndGroup();
-    Tip("A listing worth re-pricing by a couple of gil costs about ten seconds to re-price. 0 turns this off.");
-
-    float skipPct = c.AutoPinchSkipUnderPercent;
-    ImGui.BeginGroup();
-    ImGui.Text("Skip when the price would move less than (%%, 0 = off)");
-    ImGui.SetNextItemWidth(160);
-    if (ImGui.SliderFloat("##preflightSkipPct", ref skipPct, 0f, 50f, "%.2f")) { c.AutoPinchSkipUnderPercent = MathF.Round(Math.Clamp(skipPct, 0f, 50f), 2); c.Save(); }
-    ImGui.EndGroup();
-    Tip("Same idea as the gil threshold, relative to the listing's own price. 1% covers moves like 243 to 242 or 30,971 to 30,951. Stale or missing Universalis data still means the row is priced normally.");
-
-    int boardMemoryHours = c.AutoPinchBoardMemoryHours;
-    ImGui.BeginGroup();
-    ImGui.Text("Remember confirmed prices for (hours, 0 = off)");
-    if (ImGui.SliderInt("###sliderBoardMemory", ref boardMemoryHours, 0, 168)) { c.AutoPinchBoardMemoryHours = Math.Clamp(boardMemoryHours, 0, 168); c.Save(); }
-    ImGui.EndGroup();
-    Tip("When Auto Pinch opens a listing and the price check agrees the current price is already the right one, that verdict is remembered for this long. While the listing still carries exactly that price, later passes skip it without opening the price window again - this covers the slow items the crowd-sourced board has no data for. 0 turns the memory off.");
+    ImGui.Separator();
+    ImGui.Text("Auto Pinch pre-flight");
+
+    var preflight = c.AutoPinchPreflightEnabled;
+    if (ImGui.Checkbox("Only re-price listings AllaganMarket has flagged", ref preflight)) { c.AutoPinchPreflightEnabled = preflight; c.Save(); }
+    Tip("Auto Pinch opens only the listings AllaganMarket marks undercut (red) or stale (yellow) on the retainer sell list, plus any still at the 999,999,999 placeholder price. Everything AllaganMarket does not flag is never touched - including items it has never checked, even once.\n\nThis needs AllaganMarket installed and its own prices working: the plugin reads AllaganMarket's saved price data (no IPC exists), so if AllaganMarket is missing or has nothing cached, nothing but placeholder-priced listings gets re-priced. Untick for the old walk-everything behaviour.");
 
     ImGui.Separator();
 

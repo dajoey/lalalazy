@@ -284,38 +284,27 @@ public sealed class Configuration : IPluginConfiguration
   // defaults up as-is. The migration ladder is for CHANGING an existing default, which none of these do.
 
   /// <summary>
-  /// Before a full-row pinch pass opens a single context menu, ask Universalis for the whole retainer's
-  /// items in one request and skip the rows where the pass would write back the price already on them.
-  /// Uncertainty of any kind - no data, stale data, an unreadable row - walks the row as before.
+  /// The Auto Pinch row gate: ON = a full pass walks only the rows AllaganMarket's own data flags
+  /// undercut or stale (plus placeholder-priced new listings); OFF = every row walks as before.
   /// </summary>
   public bool AutoPinchPreflightEnabled { get; set; } = true;
 
-  /// <summary>Universalis data older than this many hours never justifies a skip. Clamped to 1..168.</summary>
+  /// <summary>RETIRED 0.1.16.0 (the Universalis freshness gate left the walk decision). Kept serialized so an existing config round-trips; nothing reads it.</summary>
   public int AutoPinchPreflightFreshnessHours { get; set; } = 6;
 
   /// <summary>
-  /// Mirror AllaganMarket's green/yellow/red rule in the pre-flight: ignore your OWN retainers' listings
-  /// when working out the price to beat, and skip a row that nobody else is undercutting. Inert when
-  /// "Undercut my own retainers" is on, because that setting means you want your own listings treated as
-  /// competition. New field with an initializer, so an existing config deserializes it without a migration.
+  /// RETIRED 0.1.16.0: the Universalis mirror of AllaganMarket's colours was replaced by AllaganMarket's
+  /// actual flags (Auto Pinch now walks exactly what AllaganMarket flags). Kept serialized so an existing
+  /// config round-trips; nothing reads it.
   /// </summary>
   public bool AutoPinchMirrorOverlay { get; set; } = true;
 
-  /// <summary>Skip a row whose price would move by fewer than this many gil. 0 = off.</summary>
+  /// <summary>RETIRED 0.1.16.0 (the gil threshold left the walk decision with the prediction). Kept serialized so an existing config round-trips; nothing reads it.</summary>
   public int AutoPinchSkipUnderGil { get; set; } = 0;
 
-  /// <summary>Skip a row whose price would move by less than this percent of its current price. 0 = off.</summary>
+  /// <summary>RETIRED 0.1.16.0 (the percent threshold left the walk decision with the prediction). Kept serialized so an existing config round-trips; nothing reads it.</summary>
   public float AutoPinchSkipUnderPercent { get; set; } = 1.0f;
 
-  /// <summary>
-  /// How long (in hours) a price confirmed by a previous Auto Pinch pass's compare window may justify
-  /// skipping the same listing in a later pass, while the listing still carries exactly that price.
-  /// This is what closes the long-tail gap: slow items nobody uploads to Universalis get walked once,
-  /// their compare window confirms the price, and later passes skip them without opening the window
-  /// again. 0 turns the memory off - every row is then priced exactly as before this existed.
-  /// New field with an initializer, so an existing config deserializes it without a migration.
-  /// </summary>
-  public int AutoPinchBoardMemoryHours { get; set; } = 12;
 
   /// <summary>Set once the Dagobert config import has been attempted, so it never runs twice.</summary>
   public bool ImportedFromDagobert { get; set; } = false;
