@@ -1,5 +1,15 @@
 ﻿# Changelog
 
+## v0.1.25.0 (2026-09-07)
+
+### Fixed
+
+- Closed the marker-gate bypass left by v0.1.24.0: the per-binding root-node visibility check ran only while the "InventoryExpansion" parent window resolved and was ready (AutoMarketMarkers.cs Draw), so a frame where that parent could not be resolved drew dots over every resolved grid with no visibility check - the same Key Items & Crystals bleed-through the gate was meant to stop. The check is now unconditional per resolved binding (AutoMarketMarkers.cs Draw gate), with no dependency on the parent unit resolving that frame.
+
+### Notes
+
+- No change to GridMap.cs, dot semantics, the padding fix, or the per-grid marker log line; this release only removes the conditional around the visibility check introduced in v0.1.24.0.
+
 ## v0.1.24.0 (2026-09-07)
 
 ### Fixed
