@@ -20,7 +20,6 @@ A collection of Dalamud plugins for Final Fantasy XIV, maintained by [dajoey](ht
 | **LazyFoodBuff** | Auto-eats food in combat duties incl. deep dungeons. Per-job food selection, auto-select based on best stats, and a low-food (running-out) warning. | Active |
 | **LazyRetainerLive** | Serves the logged-in character's live retainer/venture table to the ffxiv dashboard over loopback HTTP, so venture countdowns stay current. Read-only AutoRetainer companion. | Testing |
 | **LazyFashionReport** | Gold Saucer Fashion Report assistant: weekly hints, exact +2 dyes and +1 shades, owned-item candidates, and a live score predictor. | Testing |
-| **LazyOccultCrescent** | Occult Crescent field companion covering South Horn and North Horn. Treasure and Fortune Carrot radar with optimal routes, live FATE/CE tracking, aethernet teleports, currency and EXP per hour, and an optional FATE/CE/mob farm loop. Fork of BOCCHI (AGPLv3). | Active |
 | **LazyCrafter** | Catalogs every recipe you can craft, prices it with Universalis, and hands the missing materials to Artisan / GatherBuddyReborn / AutoRetainer / Lifestream. | Active |
 | **Lazy Fish Sitter** | Sits you down while you fish. Checks every few seconds while fishing and runs /sit if you are standing. Never re-sits once you are seated (ground, chair, or pose). | Testing |
 
@@ -74,7 +73,6 @@ cd src/LazyFateAutomation && dotnet build --configuration Release
 cd src/LazySkywardTracker && dotnet build --configuration Release
 cd src/LazyGearCollector && dotnet build --configuration Release
 cd src/LazyFoodBuff/LazyFoodBuff && dotnet build --configuration Release
-cd src/LazyOccultCrescent/LazyOccultCrescent && dotnet build --configuration Release
 cd src/LazyCrafter && dotnet build --configuration Release
 cd src/LazyFishSitter && dotnet build --configuration Release
 

@@ -37,7 +37,6 @@ $nameMapping = @{
     "LazySkywardTracker"  = "Lazy-Skyward-Tracker.md"
     "LazyGearCollector"   = "Lazy-Gear-Collector.md"
     "LazyFoodBuff"         = "LazyFoodBuff.md"
-    "LazyOccultCrescent"   = "Lazy-Occult-Crescent.md"
     "LazyFishSitter"       = "Lazy-Fish-Sitter.md"
     "LazyCrafter"          = "LazyCrafter.md"
     "LazyRetainerLive"     = "Lazy-Retainer-Live.md"

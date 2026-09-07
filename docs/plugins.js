@@ -122,18 +122,6 @@ const PLUGINS = [
     ],
   },
   {
-    slug: 'lazyoccultcrescent', name: 'Lazy Occult Crescent', origin: 'Fork', hasWindow: true,
-    short: 'Field companion for Occult Crescent \u2014 South Horn and North Horn. Radar, trackers, and an optional farm loop.',
-    tag: 'Knows the whole Crescent. Both horns.',
-    command: '/lazyoccult \u00b7 /lazyoc', credit: 'Fork of BOCCHI by OhKannaDuh \u00b7 AGPLv3',
-    features: [
-      { t: 'North Horn, day one', d: 'FATE and Critical Encounter tables datamined from 7.55, plus all six North Horn aetheryte shards.' },
-      { t: 'Learns the zone itself', d: 'Shard and event positions are read from the live object table and cached, so a new zone bootstraps over your first lap instead of needing a hand survey.' },
-      { t: 'Treasure & carrot radar', d: 'Draws lines to nearby coffers and Fortune Carrots, with a precomputed optimal looting route.' },
-      { t: 'Drives Gluttony Combo', d: 'Uses GluttonyCombo for rotations when installed \u2014 the only provider that implements all eight phantom jobs added in 7.55.' },
-    ],
-  },
-  {
     slug: 'lazycrafter', name: 'LazyCrafter', origin: 'Original', hasWindow: true,
     short: 'Catalogs every recipe you can craft, prices it with Universalis, and hands the missing materials to Artisan, GatherBuddyReborn, AutoRetainer and Lifestream.',
     tag: 'What can I make right now \u2014 and what would it take to make the rest?',
