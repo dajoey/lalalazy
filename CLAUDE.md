@@ -136,8 +136,10 @@ Every shipping plugin should have a `PLUGINS` entry in `docs/plugins.js` and a `
 
 **Remove a plugin** — reverse all of the above. (Done for **LazySightseeing** on 2026-06-06: removed from `src/`, `plugins/`, `pluginmaster.json`, its `LalaImages` icon, the `README` build line, and `tools/sync-wiki.ps1`.)
 
-### Current roster (14 plugins, as of 2026-09-05)
+### Current roster (14 plugins, as of 2026-09-06)
 
-GluttonyCombo, PvPSolver, LazyMarketCompanion, AutoPotion, ArmoireAutoFill, LazyWTMath, LazyCurrencySpender, LazyFateAutomation, LazySkywardTracker, LazyFashionReport, LazyFoodBuff, LazyGearCollector, LazyOccultCrescent, LazyCrafter, LazyFishSitter (testing-only).
+GluttonyCombo, PvPSolver, LazyMarketCompanion, AutoPotion, ArmoireAutoFill, LazyWTMath, LazyCurrencySpender, LazyFateAutomation, LazySkywardTracker, LazyFashionReport, LazyFoodBuff, LazyGearCollector, LazyCrafter, LazyFishSitter (testing-only).
 
 **DagobertPriceMatcher was RETIRED on 2026-09-05** (kanban t_138ee175) in favour of LazyMarketCompanion, which carries its price-matching engine (AGPLv3, credit SHOEGAZEssb) and imports its config on first load. Removed from `src/`, `plugins/`, `pluginmaster.json`, `README`, `docs/`, `tools/sync-wiki.ps1`, the nightly upstream-merge runbook/marker and the `dagobert` git remote. `LalaImages/dagobert-icon.png` is kept for history. Do not resurrect it.
+
+**LazyOccultCrescent was RETIRED on 2026-09-06** at Joey's direction (Helm t-joey-1788745452210). Removed from `src/`, `plugins/`, `pluginmaster.json`, `README` and `docs/`; the landing-page entry and the `tools/sync-wiki.ps1` mapping went with it. `LalaImages/lazyoccultcrescent-icon.png` is kept for history. Do not resurrect it.
