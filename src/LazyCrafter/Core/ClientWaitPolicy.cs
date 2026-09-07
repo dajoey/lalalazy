@@ -6,6 +6,18 @@ namespace LazyCrafter.Core;
 /// before each craft, if the client cannot accept a command, HOLD - say "waiting - close the market board to
 /// continue", re-check, resume on its own the moment the window is gone, and after five minutes stop cleanly
 /// with the cart intact. Exactly that: not stop-immediately, not configurable, not a different cap.
+/// <para>
+/// 0.1.6.15 (Helm t-joey-1788808881825) adds one PURE classification the fetch hold consumes: when the fetch
+/// is standing by for the summoning bell and a market board is open, the run must be able to tell a board the
+/// WALK ITSELF opened (a legitimate pass-through state - Lifestream's old <c>/li mb</c> bell trip ended by
+/// interacting with the board, and a plaza route can pass one) from a board the player opened on top of the
+/// errand. <see cref="BoardBelongsToFetch"/> is that decision, as data: it requires BOTH the plan has market
+/// shopping to do AND the fetch walk is actually under way. A bell errand on a plan with zero market stops can
+/// never hold on the board line - the 0.1.6.14 run sat 49 s on "close the market board" with an empty
+/// <c>market=[]</c>, which by the plan's own logic could never be right. With the flag off the label renders
+/// <c>null</c>, which the hold reads as "close the board" (the plain 0.1.6.13 line) - so the one-input shape
+/// of the hold is unchanged and the wiring keeps the second input.
+/// </para>
 /// </summary>
 public static class ClientWaitPolicy
 {
@@ -20,8 +32,7 @@ public static class ClientWaitPolicy
     /// <para>
     /// The first nine are <b>Artisan's own refusal set, verbatim</b> (<c>PreCrafting.Occupied()</c> in Artisan's
     /// source): the game raises one of them when it answers Artisan's craft request with the exact error Joey's
-    /// 11:58 run logged five times - "Unable to execute command while occupied". They are the empirical
-    /// definition of "the client will bounce our craft". The remaining five (trade window, two cutscene flags,
+    /// 11:58 run logged five times - "Unable to execute command while occupied". The remaining five (trade window, two cutscene flags,
     /// two zone-change flags) extend the same idea to states where a craft command cannot be issued either.
     /// </para>
     /// </summary>
@@ -57,6 +68,16 @@ public static class ClientWaitPolicy
         "ExecutingCraftingAction",
         "NormalConditions",
     ];
+
+    /// <summary>
+    /// The board label the walk's own board would get - or <c>null</c> when the board in the way can never
+    /// belong to the walk. Both facts are required: a plan with no market shopping has no board of ours
+    /// anywhere (the 0.1.6.14 case - the gate then refuses, the hold says the plain close-it line, and the
+    /// caller's dismissal path closes the board), and a bell walk that is not under way has no reason to own
+    /// one. Pure Core; the dispatcher computes both booleans from its own state.
+    /// </summary>
+    public static string? BoardBelongsToFetch(bool planHasMarketStops, bool fetchWalkUnderWay) =>
+        planHasMarketStops && fetchWalkUnderWay ? "the market board" : null;
 
     /// <summary>True when the hold has reached the cap. Called with the phase clock's elapsed time.</summary>
     public static bool TimedOut(TimeSpan elapsed) => elapsed >= WaitCap;

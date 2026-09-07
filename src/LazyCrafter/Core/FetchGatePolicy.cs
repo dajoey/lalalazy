@@ -29,6 +29,18 @@ namespace LazyCrafter.Core;
 /// Gating on those would deadlock the dispatcher against its own session, the same lesson as the crafting
 /// conditions in <see cref="ClientWaitPolicy"/>.
 /// </para>
+///
+/// <para>
+/// 0.1.6.15 (Helm t-joey-1788808881825): the walk itself now has two sentences. The old single
+/// <see cref="TripStatus"/>/<see cref="TripHeartbeat"/> wording ("walking to a summoning bell ...") was
+/// written when the walk WAS a market-board trip, and the 0.1.6.14 run showed what that ambiguity costs - the
+/// character stood at the board while the status claimed a bell errand. The status now names the destination
+/// ("the inn room"), and the two recovery states the walk can sit in get their own lines: a board the walk
+/// itself opened (<see cref="BoardGateStatus"/>, never said when the plan has no market shopping to do - the
+/// wrong-NPC case) and a board the player opened on top of the errand (<see cref="BoardHeldStatus"/>, the
+/// plain close-it line, unchanged in shape). The bell-miss cap refusal (<see cref="GaveUp"/>) keeps its exact
+/// 0.1.6.12 wording - it was checked against the harness before this card and the pin stays.
+/// </para>
 /// </summary>
 public static class FetchGatePolicy
 {
@@ -86,14 +98,25 @@ public static class FetchGatePolicy
     public static string BatchStallLine(TimeSpan limit) =>
         $"the retainer fetch ran for {(int)limit.TotalMinutes} minutes without moving anything into the bags (a dialogue may be waiting, or the bell was interrupted) - close it and press Resume (or /lcraft resume) to continue the same cart";
 
-    /// <summary>Status while a hold has the cart standing by for the trip or the preflight (0.1.6.12's wording).</summary>
-    public static string TripStatus() => "walking to a summoning bell to fetch your materials";
+    /// <summary>Status while the walk to the bell is under way (0.1.6.15 wording: the destination is the inn room's bell; "the nearest market board" was the old destination and the bug).</summary>
+    public static string TripStatus() => "walking to the summoning bell in the inn room";
 
-    /// <summary>Heartbeat while held for the trip or the preflight (0.1.6.12's wording).</summary>
-    public static string TripHeartbeat() => "walking to a summoning bell so the retainer fetch can run";
+    /// <summary>Heartbeat while held for the walk (0.1.6.15 wording; names the bell, not the board).</summary>
+    public static string TripHeartbeat() => "walking to the summoning bell in the inn room so the retainer fetch can run";
 
-    /// <summary>
-    /// Labels - exactly as <c>ClientReadiness.BusyBecause()</c> renders them - that the fetch phases must NOT
+    /// <summary>Status while the walk is waiting out a market board that the WALK ITSELF opened (0.1.6.15, Helm t-joey-1788808881825). Only valid when the plan has market shopping to do; the wrong-NPC case must never produce this line.</summary>
+    public static string BoardGateStatus() => "waiting - the trip to the bell goes through the market board plaza; close the market board to continue";
+
+    /// <summary>The one normal chat line for the same state.</summary>
+    public static string BoardGateLine() => "waiting - the bell trip passes the market board plaza; close the market board to continue";
+
+    /// <summary>Status while a board the PLAYER opened holds the fetch (the 0.1.6.13 close-the-window hold, unchanged shape).</summary>
+    public static string BoardHeldStatus(TimeSpan held) => $"waiting - the market board ({held:m\\:ss})";
+
+    /// <summary>Status while the walk is waiting out a board the plan has NO shopping for - the wrong-NPC state (0.1.6.15). The run recovers by itself; nothing is asked of the player.</summary>
+    public static string WrongBoardStatus() => "waiting out a market board the run did not plan to open - closing it and carrying on";
+
+    /// <summary>Labels - exactly as <c>ClientReadiness.BusyBecause()</c> renders them - that the fetch phases must NOT
     /// hold on. The first group is what a working retainer session opens or rides on: the session we drive
     /// opens the retainer list, works inside a retainer's inventory, types the quantity and clicks the
     /// dialogues. The last is the zone-change flag the summoning-bell trip itself raises (the trip is held on

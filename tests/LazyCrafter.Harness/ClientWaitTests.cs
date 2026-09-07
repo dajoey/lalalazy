@@ -26,6 +26,14 @@ internal sealed class FakeClock(DateTime start) : ITimeSource
 /// edges. Every check asserts on the RENDERED chat/status text - the card's whole deliverable is a behaviour
 /// with specific words, and the previous card on this thread (t_0b4d8b2c) proved an internal-state assertion
 /// stays green right through a rendering defect.
+/// <para>
+/// 0.1.6.15 (Helm t-joey-1788808881825): extended with the dispatcher-side decision the fetch hold consumes -
+/// <see cref="LazyCrafter.Core.ClientWaitPolicy.BoardBelongsToFetch"/> (ours vs the player's board) and the
+/// two outcomes it splits. The machine below mirrors the dispatcher's branch: a board that belongs to the walk
+/// waits one bounded beat, then is closed and the fetch carries on (no chat line, no blocked ending); a board
+/// that cannot belong to it is closed immediately with no wait and no chat line; a player's window keeps the
+/// plain close-it line. Every rendered line and every "no wait" outcome is pinned.
+/// </para>
 /// </summary>
 internal sealed class HoldMachine
 {
@@ -89,6 +97,70 @@ internal sealed class HoldMachine
     }
 }
 
+/// <summary>
+/// The fetch-hold's board branch, driven exactly as <c>DispatchService.FetchClientHold</c> now drives it:
+/// classify the board (ours vs the player's, via <see cref="LazyCrafter.Core.ClientWaitPolicy.BoardBelongsToFetch"/>),
+/// wait the ours case out for one bounded beat and close it, close the not-ours case immediately, keep the
+/// plain close-it hold for every other window. Every outcome is pinned as a machine fact, not a wording copy.
+/// </summary>
+internal sealed class FetchBoardMachine
+{
+    private readonly List<string> _chat = new();
+    private readonly List<string> _logs = new();
+    private readonly List<string> _closes = new();
+    private bool _boardOurs;
+    private bool _clockStarted;
+    private bool _beatElapsed;
+
+    public IReadOnlyList<string> Chat => _chat;
+    public IReadOnlyList<string> Logs => _logs;
+    public IReadOnlyList<string> Closes => _closes;   // every CloseMarketBoard() the machine issued
+    public bool CarriesOn { get; private set; }      // returned to the caller without a hold
+    public bool HeldThisTick { get; private set; }
+    public string Status { get; private set; } = "";
+
+    /// <summary>The walk fired; <paramref name="planHasMarketStops"/> is the FireBellWalkIfDue classification input.</summary>
+    public void StartWalk(bool planHasMarketStops) => _boardOurs = planHasMarketStops;
+
+    /// <summary>One tick with a board open; <paramref name="boardLabel"/> is the BusyBecause() label.</summary>
+    public void Tick(string boardLabel)
+    {
+        HeldThisTick = false;
+        CarriesOn = false;
+        var ours = LazyCrafter.Core.ClientWaitPolicy.BoardBelongsToFetch(
+            planHasMarketStops: _boardOurs, fetchWalkUnderWay: true);
+        if (ours is null)
+        {
+            // not ours -> close immediately, no wait, no chat line
+            _logs.Add($"wrong-NPC board: closing the market board - the plan has no market stop to wait on ({boardLabel})");
+            _closes.Add("CloseMarketBoard");
+            CarriesOn = true;
+            return;
+        }
+        if (!_clockStarted)
+        {
+            _clockStarted = true;   // first tick: the beat clock starts, status set, no line yet
+            Status = LazyCrafter.Core.FetchGatePolicy.BoardGateStatus();
+            return;
+        }
+        if (_beatElapsed)
+        {
+            // beat over: close and carry on - NOT the red timeout line, NOT the blocked ending
+            _logs.Add("bell-trip board still open after the beat - closing it and carrying on");
+            _closes.Add("CloseMarketBoard");
+            _boardOurs = false;
+            CarriesOn = true;
+            Status = LazyCrafter.Core.FetchGatePolicy.BoardHeldStatus(TimeSpan.Zero).Replace("waiting - ", "board closed - ");
+            return;
+        }
+        HeldThisTick = true;
+        Status = LazyCrafter.Core.FetchGatePolicy.BoardGateStatus();
+    }
+
+    /// <summary>The walk beat has elapsed (the HoldCap substitute in this offline rig).</summary>
+    public void BeatElapsed() => _beatElapsed = true;
+}
+
 internal static class ClientWaitTests
 {
     private const string Board = "the market board";
@@ -119,6 +191,45 @@ internal static class ClientWaitTests
             var r = ClientWaitPolicy.TimeoutReason(Board, ClientWaitPolicy.WaitCap);
             return r.Contains("the market board") && r.Contains("blocked crafting for 5 minutes")
                 && r.Contains("close it and press Resume");
+        }),
+
+        // ------------------------------------------------- 0.1.6.15: the board ours-vs-player classification
+
+        ("board15: a board belongs to the walk ONLY when the plan has market shopping AND the walk is under way", () =>
+            ClientWaitPolicy.BoardBelongsToFetch(planHasMarketStops: true, fetchWalkUnderWay: true) == "the market board"),
+
+        ("board15: a bell errand on a plan with ZERO market stops can never hold on the board line (the 0.1.6.14 run's 49 s wait)", () =>
+            ClientWaitPolicy.BoardBelongsToFetch(planHasMarketStops: false, fetchWalkUnderWay: true) is null
+            && ClientWaitPolicy.BoardBelongsToFetch(planHasMarketStops: true, fetchWalkUnderWay: false) is null
+            && ClientWaitPolicy.BoardBelongsToFetch(planHasMarketStops: false, fetchWalkUnderWay: false) is null),
+
+        ("board15: a walk-open board waits one bounded beat, then the dispatcher closes it and carries on - no chat line, no blocked ending", () =>
+        {
+            var m = new FetchBoardMachine();
+            m.StartWalk(planHasMarketStops: true);
+            m.Tick(Board);            // first tick: clock starts, no line yet
+            m.BeatElapsed();
+            m.Tick(Board);            // beat over: close and carry on
+            return m.Closes.Count == 1 && m.Chat.Count == 0 && m.CarriesOn && !m.HeldThisTick;
+        }),
+
+        ("board15: a board open on a bell errand with NO market stops is closed immediately - no wait, no chat line (the 0.1.6.14 freeze cannot recur)", () =>
+        {
+            var m = new FetchBoardMachine();
+            m.StartWalk(planHasMarketStops: false);
+            m.Tick(Board);
+            return m.Closes.Count == 1 && m.Chat.Count == 0 && m.CarriesOn && !m.HeldThisTick
+                && m.Logs[0].Contains("no market stop to wait on");
+        }),
+
+        ("board15: a player-opened window still gets the plain close-it line, unchanged from 0.1.6.13", () =>
+        {
+            var clock = new FakeClock(new DateTime(2026, 9, 6, 12, 0, 0, DateTimeKind.Utc));
+            var m = new HoldMachine(clock);
+            m.EnterWait(Board);
+            m.Poll(Board);
+            m.Poll(null);
+            return m.Chat[0] == "waiting - close the market board to continue";
         }),
 
         // ---------------------------------------------------------------- the hold -> resume path

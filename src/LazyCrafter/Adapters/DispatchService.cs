@@ -128,6 +128,13 @@ public sealed class DispatchService : IDisposable
     private DateTime _bellWalkAt = DateTime.MinValue;
     private int _bellWalkFails;
 
+    // ---- 0.1.6.15 (Helm t-joey-1788808881825): the board the bell WALK opened is ours; one the player
+    // opened on top of the errand is not. Set true exactly when the walk itself opened a board on a plan
+    // with market shopping - the dismissal path closes it and hands the cart straight to the bell without
+    // a five-minute wait the plan's own logic says is pointless (market=[] can never make the line right).
+    private bool _boardOurs;
+    private string? _lastResumedWindow;
+
     // ---- 0.1.6.13 (card t_3161fa75): the fetch holds ----
 
     /// <summary>Batch-session stall guard (card t_3161fa75): <c>Busy()</c> with zero change in every
@@ -323,9 +330,20 @@ public sealed class DispatchService : IDisposable
         // exactly like a mid-cart block, instead of bouncing crafts off a closed door.
         if (Readiness.BusyBecause() is { } resumeBlockedBy)
         {
-            _waitingOn = resumeBlockedBy;
-            Say(ClientWaitPolicy.WaitLine(resumeBlockedBy), error: false);
-            SetStatus(ClientWaitPolicy.WaitStatus(resumeBlockedBy, TimeSpan.Zero));
+            // 0.1.6.15 (Helm t-joey-1788808881825): do not ask the player to close a window he ALREADY closed.
+            // If this run already held on exactly this window and then reported it closed, the game state
+            // read back here (visibility flags settle a frame behind the close click) is stale - say the
+            // truthful line and go on instead of printing the close-it ask a second time.
+            if (_lastResumedWindow == resumeBlockedBy)
+            {
+                _log.Information("resume: {Window} reads busy again but this run already closed it - carrying on", resumeBlockedBy);
+            }
+            else
+            {
+                _waitingOn = resumeBlockedBy;
+                Say(ClientWaitPolicy.WaitLine(resumeBlockedBy), error: false);
+                SetStatus(ClientWaitPolicy.WaitStatus(resumeBlockedBy, TimeSpan.Zero));
+            }
             Enter(Phase.WaitClientFree);
             return true;
         }
@@ -451,6 +469,8 @@ public sealed class DispatchService : IDisposable
         _batchFetched = 0;
         _batchCrafts = Array.Empty<uint>();
         _bellWalkFails = 0;
+        _boardOurs = false;
+        _lastResumedWindow = null;
         _current = null;
         _fetching = null;
         _runClock.Restart();
@@ -541,19 +561,28 @@ public sealed class DispatchService : IDisposable
         // wave runs. Deferrals caused purely by a retrieval we are about to perform are NOT printed here - the loop
         // re-plans after the wave and reports what is still stuck, so the player is not told a craft is blocked and
         // then told it ran.
+        //
+        // 0.1.6.15 (Helm t-joey-1788808881825): the plan's own sentence is the run's promise. The 0.1.6.14 run
+        // fired the bell walk from the fetch gate and then hit the vendor stop here with the bell errand already
+        // steering - "first trip wins" degenerated into "the bell wins", and the vendor stop was never walked
+        // (no "vendor walk:" line exists in the whole run). Both senders now check the same helper, so the two
+        // navigations CANNOT both fire: whichever sees the character free walks; the other prints its note and
+        // leaves the trip to the next resume. When both need the character (shopping AND a fetch), the vendor
+        // stop goes first - the fetch phase re-fires its walk when it reaches the bell gate.
+        if (plan.Retrievals.Count > 0 && _bellWalkAt == DateTime.MinValue)
+            Say("after the shopping stops, a trip to the summoning bell follows to fetch materials from your retainers.");
         if (plan.Vendor.Count > 0)
         {
             var groups = Vendors.Plan(plan.Vendor.Select(p => (p.ItemId, p.Quantity)).ToList(), out var unlocated, Here());
             // 0.1.6.14 (Helm t-joey-1788793199911, Joey's design): "walk to vendor - stop - wait for resume -
-            // walk to next vendor - stop - wait for resume." A wave with no retrievals and no gathers steers
-            // the character nowhere itself, so it walks to the FIRST vendor group up front (teleport + map
-            // flag + shopping line, one chat line per remaining stop); a wave whose fetch or gather phases
-            // move the character leaves the walking to the Blocked ending, where each stop is walked to in
-            // turn as Resume re-plans - two navigations steering at once is how a run gets lost.
-            if (plan.Retrievals.Count == 0 && plan.Gathers.Count == 0)
-                StartVendorWalk(groups);
-            else
-                foreach (var (where, items) in groups) Lifestream.GoToVendor(where, items, Name, teleport: false);
+            // walk to next vendor - stop - wait for resume." 0.1.6.15 (Helm t-joey-1788808881825): shopping
+            // stops take the character FIRST - the fetch phases walk too, and when both want the character the
+            // one that saw it free goes; the other prints its note and re-fires on the next wave. The old
+            // "wave has no retrievals/gathers" pre-check fired the walk from a state snapshot while the fetch
+            // gate walked from a live one, so both could believe they were first - the 0.1.6.14 run's exact
+            // freeze. Gating both on the same live question (is Lifestream free RIGHT NOW) is what makes
+            // "first trip wins" actually single-winner.
+            StartVendorWalk(groups);
             if (unlocated.Count > 0) Say("gil-vendor items with no placed vendor: " + string.Join(", ", unlocated.Select(u => $"{Name(u.ItemId)} x{u.Quantity}")));
         }
         // Currency shops before the market list, because when both are present the currency vendor is the cheaper
@@ -565,7 +594,14 @@ public sealed class DispatchService : IDisposable
         // The market list now NAMES the currency vendors it knows about, even the ones the routing declined to use
         // (part C). This is the actual complaint from Joey's 11:43 run: "needs market Emery" with no mention that
         // the Ixali vendor sells it, when the sheets knew all along.
-        if (plan.Market.Count > 0) Lifestream.GoToMarket(plan.Market.Select(p => (p.ItemId, p.Quantity)).ToList(), Name, _plugin.Catalog.UnitCost, teleport: false, also: id => MarketClause(plan, id));
+        if (plan.Market.Count > 0)
+        {
+            // The board is OUR destination now: a board already open from a previous stop is closed so the
+            // player is standing in front of a clear counter, not an error about an occupied client (this is
+            // also what re-enables Lifestream's own Player.Interactable gate for any later trip).
+            if (Lifestream.IsMarketBoardOpen()) Lifestream.CloseMarketBoard();
+            Lifestream.GoToMarket(plan.Market.Select(p => (p.ItemId, p.Quantity)).ToList(), Name, _plugin.Catalog.UnitCost, teleport: false, also: id => MarketClause(plan, id));
+        }
         if (PlanReport.ManualLine(plan, Name) is { } manualLine) Say(manualLine);
         var willRetrieve = _retrievals.Count > 0;
         if (!willRetrieve)
@@ -667,6 +703,7 @@ public sealed class DispatchService : IDisposable
                 SetStatus(FetchGatePolicy.TripStatus());
                 Heartbeat(FetchGatePolicy.TripHeartbeat());
                 return BellGate.Hold;
+
             case FetchGatePolicy.FetchVerdict.RefuseNoWalk:
                 RefuseRetrievals($"cannot fetch it automatically: {pre}.", pre);
                 return BellGate.Refused;
@@ -676,14 +713,34 @@ public sealed class DispatchService : IDisposable
         }
     }
 
-    /// <summary>Fire the market-board walk (the bell trip) for a standing-by fetch, at most once every 30 s and at most three refused launches per hold (card t_034884f4). <see cref="LifestreamDispatch.GoToMarketBoard"/> prints its own normal-channel line on success; a refusal is logged, not chatted, so a stuck walk never becomes a red wall.</summary>
+    /// <summary>
+    /// Fire the summoning-bell walk for a standing-by fetch, at most once every 30 s and at most three refused
+    /// launches per hold (card t_034884f4). 0.1.6.15 (Helm t-joey-1788808881825): the destination is the inn
+    /// (<c>/li inn</c>, the bell in the inn room) - NOT the market board. The old destination was the exact
+    /// defect of the 0.1.6.14 run: Lifestream's <c>mb</c> shortcut ends by interacting with the board (its own
+    /// Uldah alias, final command Kind 6), so the "bell" walk OPENED the market board and the fetch then held
+    /// on the player closing it. A board the walk opens on a plan WITH market shopping is ours
+    /// (<see cref="_boardOurs"/>): the hold waits it out for a bounded beat, then the dismissal path closes it
+    /// and hands the cart straight to the bell. A board open on a plan with NO market shopping is a wrong-NPC
+    /// state and is closed immediately with one logged line - the "close the market board" wait the 0.1.6.14
+    /// run sat in for 49 s could never be right by the plan's own logic.
+    /// </summary>
     private void FireBellWalkIfDue()
     {
         if (DateTime.UtcNow < _bellWalkAt.AddSeconds(30) || _bellWalkFails >= 3) return;
         _bellWalkAt = DateTime.UtcNow;
-        var err = Lifestream.GoToMarketBoard();
-        if (err is not null) { _bellWalkFails++; _log.Information("summoning-bell walk did not start: {Why}", err); return; }
+        var err = Lifestream.GoToSummoningBell(closeBoardFirst: true);
+        if (err is not null)
+        {
+            _bellWalkFails++;
+            _log.Information("summoning-bell walk did not start: {Why}", err);
+            return;
+        }
         _bellWalkFails = 0;
+        // Classify the board state the walk now rides on. Only a plan with market shopping can ever have a
+        // board of ours; the inn trip opens nothing, so this flag exists purely to keep the hold's wording
+        // truthful if a board shows up mid-walk on a market stop plan.
+        _boardOurs = _plan is { Market.Count: > 0 };
     }
 
     /// <summary>The once-per-state collapse of the old per-material wall (card t_034884f4): one red line, every still-queued retrieval recorded with the live reason, queue emptied.</summary>
@@ -710,14 +767,66 @@ public sealed class DispatchService : IDisposable
         {
             if (_fetchWaitingOn is not null)
             {
-                Say(ClientWaitPolicy.ResumedLine(_fetchWaitingOn));
+                if (_boardOurs && _fetchWaitingOn is not null && _fetchWaitingOn.Contains("market board", StringComparison.Ordinal))
+                {
+                    // The board the WALK opened is gone (closed by hand or by the auto-close below). No wait
+                    // was ever asked of the player - the 0.1.6.14 run asked for one the plan's own logic
+                    // forbade - so the resume line says the cart carried on by itself, and the next tick
+                    // walks the character the rest of the way to the bell.
+                    Say("the market board from the bell trip is out of the way - the fetch carries on.");
+                }
+                else
+                {
+                    Say(ClientWaitPolicy.ResumedLine(_fetchWaitingOn));
+                }
                 _fetchWaitingOn = null;
                 _fetchHoldSince = null;
+                _boardOurs = false;
                 _phaseClock.Restart();   // the bell-walk cap measures the walk wait, not the window wait
             }
             return false;
         }
         if (!FetchGatePolicy.ShouldHoldFetch(busy)) return false;   // a working session's own windows
+
+        // 0.1.6.15 (Helm t-joey-1788808881825): a market board in the way of the fetch is TWO different
+        // states. A board the WALK itself opened (only possible on a plan with market shopping - the flag
+        // was set by FireBellWalkIfDue) is OUR window: wait it out for one bounded beat, then close it with
+        // the game's own close path and carry on - never a five-minute ask the plan's own logic forbids.
+        // A board with NO market shopping in the plan is the wrong-NPC state the 0.1.6.14 run froze in
+        // ("close the market board" while market=[]): close it immediately with one logged line and carry
+        // on - a wait could never be right there. Any OTHER window the player opened keeps the plain
+        // 0.1.6.13 close-it hold, unchanged.
+        if (busy.Contains("market board", StringComparison.Ordinal))
+        {
+            if (!_boardOurs && (_plan is null || _plan.Market.Count == 0))
+            {
+                _log.Information("wrong-NPC board: closing the market board - the plan has no market stop to wait on ({Why})", busy);
+                Lifestream.CloseMarketBoard();
+                _phaseClock.Restart();   // measure the walk wait from the correction, not from the wrong state
+                return false;            // re-read next tick: the board is gone, the hold was never entered
+            }
+            if (_boardOurs)
+            {
+                _fetchHoldSince ??= DateTime.UtcNow;
+                var oursHeld = DateTime.UtcNow - _fetchHoldSince.Value;
+                SetStatus(FetchGatePolicy.BoardGateStatus());
+                Heartbeat($"waiting out the market board the bell trip passed ({oursHeld:m\\:ss}) - closing it and carrying on shortly");
+                if (oursHeld >= FetchGatePolicy.HoldCap)
+                {
+                    // One bounded beat, then act. Not the red timeout line - nothing here is a dead end:
+                    // close the board with the game's own close path and carry on to the bell.
+                    _log.Information("bell-trip board still open after {Beat} - closing it and carrying on", oursHeld);
+                    Lifestream.CloseMarketBoard();
+                    _boardOurs = false;
+                    _fetchWaitingOn = null;
+                    _fetchHoldSince = null;
+                    _phaseClock.Restart();
+                    return false;
+                }
+                return true;
+            }
+        }
+
         _fetchHoldSince ??= DateTime.UtcNow;
         var held = DateTime.UtcNow - _fetchHoldSince.Value;
         if (_fetchWaitingOn is null || !busy.Equals(_fetchWaitingOn, StringComparison.Ordinal))
@@ -1227,6 +1336,10 @@ public sealed class DispatchService : IDisposable
                     var busyNow = Readiness.BusyBecause();
                     if (busyNow is null)
                     {
+                        // 0.1.6.15: remember what this run already resumed past. A Resume pressed while the
+                        // game still reports the (just-closed) window re-reads this and skips the duplicate
+                        // close-it line - the 0.1.6.14 run's "was closed" then "close it" pair read as a lie.
+                        _lastResumedWindow = _waitingOn;
                         Say(ClientWaitPolicy.ResumedLine(_waitingOn));
                         _waitingOn = null;
                         Enter(Phase.Crafts);
@@ -1234,8 +1347,20 @@ public sealed class DispatchService : IDisposable
                     }
                     if (_waitingOn is null || !busyNow.Equals(_waitingOn, StringComparison.Ordinal))
                     {
-                        _waitingOn = busyNow;
-                        Say(ClientWaitPolicy.WaitLine(busyNow), error: false);
+                        // 0.1.6.15 (Helm t-joey-1788808881825): wording split. A market board while the run is
+                        // WAITING to shop is the run's own errand - the line says so instead of asking the
+                        // player to close the thing the run itself opened. Any other window (or any window
+                        // while the plan has no market shopping) keeps the plain close-it line, whose wording
+                        // is pinned by ClientWaitTests.
+                        if (busyNow.Contains("market board", StringComparison.Ordinal) && _plan is { Market.Count: > 0 })
+                        {
+                            Say("the market board is open for the run's shopping stops - buy the items, then close it to continue.");
+                        }
+                        else
+                        {
+                            _waitingOn = busyNow;
+                            Say(ClientWaitPolicy.WaitLine(busyNow), error: false);
+                        }
                     }
                     SetStatus(ClientWaitPolicy.WaitStatus(busyNow, _phaseClock.Elapsed));
                     Heartbeat($"waiting - close {busyNow} to continue ({_phaseClock.Elapsed:m\\:ss})");
@@ -1631,15 +1756,16 @@ public sealed class DispatchService : IDisposable
     /// <see cref="ReportBlockedListings"/> - only when the run has ended AND there is a non-empty listing-blocked
     /// summary - and, since 0.1.6.12 (card t_034884f4), at fetch-queue time from <see cref="FireBellWalkIfDue"/>
     /// whenever a fetch is standing by for a reachable bell. Never mid-craft, never on a clean run, never when the
-    /// only trouble was a timeout.
+    /// only trouble was a timeout. Since 0.1.6.15 the trip goes to the inn room's bell, not the market board.
     /// </para>
     /// <para>
-    /// It reuses the EXISTING Lifestream path and adds no navigation of its own: <c>Lifestream.ExecuteCommand("mb")</c>
-    /// (= <c>/li mb</c>, "go to market board" - verified in the installed Lifestream 2.5.4.16 command help). Market
-    /// boards and summoning bells share the same aetheryte plaza, so that is the trip. Lifestream exposes no
-    /// bell-specific IPC (checked: no "bell" literal in its assembly at all), and the card is explicit that if no
-    /// suitable existing target call exists we print the destination and skip the walk rather than inventing
-    /// navigation - hence no vnavmesh, and hence the graceful print-only fallback below.
+    /// 0.1.6.15 (Helm t-joey-1788808881825): the destination is <c>Lifestream.ExecuteCommand("inn")</c>
+    /// (= <c>/li inn</c>, "go to inn"), which ends at the inn keeper WITHOUT interacting - and a summoning
+    /// bell stands in every inn room. The old destination, <c>/li mb</c>, was never a bell trip: Lifestream's
+    /// own <c>mb</c> alias ends by interacting with the market board NPC, i.e. by OPENING the board - the
+    /// exact wrong ending for "go and pull your listings off the board" (the 0.1.6.14 run walked the
+    /// character into the board mid-run through this path). Still no vnavmesh: the trip is Lifestream's own,
+    /// and the print-only fallback below survives for a Lifestream without the command.
     /// </para>
     /// </summary>
     private void WalkToBell(BlockedListings.Summary summary)
@@ -1652,18 +1778,22 @@ public sealed class DispatchService : IDisposable
         }
         if (!Lifestream.Installed)
         {
-            Say("Lifestream is not installed - walk to a summoning bell yourself (they stand with the market boards at any aetheryte plaza).");
+            Say("Lifestream is not installed - walk to a summoning bell yourself (they stand in every inn room and at any aetheryte plaza).");
             return;
         }
         if (Lifestream.IsBusy() == true)
         {
-            Say("Lifestream is busy, so no walk - head to a summoning bell yourself (they stand with the market boards).");
+            Say("Lifestream is busy, so no walk - head to a summoning bell yourself (they stand in every inn room).");
             return;
         }
-        // Print-and-go through the existing market destination, with no shopping list - just the travel.
-        var err = Lifestream.GoToMarketBoard();
-        if (err is not null) { Say("could not start the walk - head to a summoning bell yourself.", error: true); return; }
-        Say("heading to the nearest market board (the summoning bells stand with it) so you can pull those listings.");
+        // 0.1.6.15 (Helm t-joey-1788808881825): the bell destination is the INN, not the market board - the
+        // board trip ENDS by opening the board (Lifestream's own mb alias interacts with it), which is the
+        // exact wrong ending for "go and pull your listings off the board". A board left open from the
+        // shopping stops is closed first so the trip can actually start.
+        if (Lifestream.IsMarketBoardOpen()) Lifestream.CloseMarketBoard();
+        var err = Lifestream.GoToSummoningBell(closeBoardFirst: false);
+        if (err is not null) { Say($"{err}", error: true); return; }
+        Say("heading to the summoning bell in the inn room so you can pull those listings.");
     }
 
     /// <summary>

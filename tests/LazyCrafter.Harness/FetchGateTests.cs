@@ -67,6 +67,24 @@ internal static class FetchGateTests
             FetchGatePolicy.Decide(OtherDeadEnd, lifestreamBusy: false, TimeSpan.Zero, walkPossible: false)
                 == FetchGatePolicy.FetchVerdict.Queue),
 
+        // ------------------------------------------------------------ 0.1.6.15: the walk's own sentences
+
+        ("fetchgate15: the walk names the inn room's bell, never the market board (Helm t-joey-1788808881825)", () =>
+            FetchGatePolicy.TripStatus() == "walking to the summoning bell in the inn room"
+            && FetchGatePolicy.TripHeartbeat() == "walking to the summoning bell in the inn room so the retainer fetch can run"
+            && !FetchGatePolicy.TripStatus().Contains("market board")
+            && !FetchGatePolicy.TripHeartbeat().Contains("market board")),
+
+        ("fetchgate15: the walk-passed board has its own wording, distinct from the player-window close-it line", () =>
+            FetchGatePolicy.BoardGateStatus() == "waiting - the trip to the bell goes through the market board plaza; close the market board to continue"
+            && FetchGatePolicy.BoardGateLine() == "waiting - the bell trip passes the market board plaza; close the market board to continue"
+            && FetchGatePolicy.BoardGateStatus() != ClientWaitPolicy.WaitLine("the market board")),
+
+        ("fetchgate15: the player-opened board keeps the plain 0.1.6.13 wording, and the wrong-NPC status names the auto-close", () =>
+            FetchGatePolicy.BoardHeldStatus(TimeSpan.FromSeconds(90)) == "waiting - the market board (1:30)"
+            && FetchGatePolicy.WrongBoardStatus() == "waiting out a market board the run did not plan to open - closing it and carrying on"
+            && FetchGatePolicy.WrongBoardStatus().Contains("closing it and carrying on")),
+
         ("fetchgate: the fetch hold ignores what a working session opens, and holds on the market board", () =>
             FetchGatePolicy.FetchHoldIgnoredLabels.Contains("a retainer's inventory")
             && FetchGatePolicy.FetchHoldIgnoredLabels.Contains("the summoning bell")
