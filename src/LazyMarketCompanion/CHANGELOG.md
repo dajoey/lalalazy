@@ -1,4 +1,16 @@
 # Changelog
+
+## v0.1.19.0 (2026-09-07)
+
+### Fixed
+
+- **The Auto-Market value gate could run BLIND and say nothing about it - below-threshold items were listed at the market price (the 1-gil listings) while the gate announced "every item is above the 100 gil net threshold".** On 2026-09-07 the gate's single Universalis request (which carried every enabled list id - 243 of them) timed out at the gateway on 9 of 10 sweeps; the wait step expired, the plan was built with no price data, and under the gate's uncertainty rule every item LISTED. The same blind run printed the fully-checked announce, so nothing anywhere said the threshold had not actually been judged. Items the gate had itself priced under the threshold hours earlier (item 19990 at ~79 gil net, 12593 at ~23) were listed and sold at 1 gil. The gate now asks only about items that have stock to sell (243 ids down to the ~25 stocked ones), asks in chunks of 50 so one dead request cannot blind the whole gate, waits up to 25 s instead of 10 s, and - when items went unchecked - says so: "value gate: no price data for N of M item(s); they will list unchecked - vendoring still only fires on a confirmed price" (files: `AutoMarket/MarketGate.cs` GateFetchIds/CountSight/UsableQuote new; `UniversalisPriceProvider.cs` GetRuleQuotes chunked; `MarketAutomation.cs` StartGateLookup/GateWait).
+- **A timed-out gate request died in total silence - the designed warning line could never fire.** The HTTP client's own timeout throws a cancellation-shaped exception, which the old lookup code caught with a bare "cancelled - return" arm that also matched it: no warning was logged, the wait step was never told the fetch had failed, and it burned its full limit polling a dead request. The cancel arm now only matches a genuine cancel (a new lookup superseding this one, or the sweep aborting); a timeout is logged as the lookup failure it is and completes the wait with no data - a declared blind gate, never a silent one (files: `MarketAutomation.cs`, StartGateLookup catch filter; `UniversalisPriceProvider.cs`, per-chunk catch).
+
+### Notes
+
+- Vendoring still only fires on a confirmed, fresh, quality-matched price - a blind or partially blind gate lists unchecked items exactly as before, by design (uncertainty lists, never vendors). What changed is that the run now SAYS which items were unchecked, and the fetch is small enough to actually land on days Universalis is struggling.
+- Offline test suite at 372 checks including the new case. The new case pins the blind-gate facts: the fetch list is stocked-only (and agrees with the verdict's own sellable arithmetic, including partial-stack flooring), and the sight count distinguishes a fully-judged run (old announce wording kept) from a partially or fully blind one (the new no-data line). Control cases: a stale quote does not count as judged, and a fresh quote without a listing of the needed quality does not judge an HQ rule (files: `tests/LazyMarketCompanion.Harness/Program.cs`, case 47).
 ## v0.1.18.0 (2026-09-07)
 
 ### Fixed

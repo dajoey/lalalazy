@@ -67,6 +67,72 @@ public sealed record RuleQuote(long UnitPrice, double VelocityPerDay);
 public static class MarketGate
 {
   /// <summary>
+  /// Which item ids the gate's Universalis fetch should actually ask about (0.1.19.0): every rule
+  /// that has stock it could sell from at least one enabled origin, judged with the SAME
+  /// PotentialSellable arithmetic the verdict itself uses (including the partial-stack flooring -
+  /// the fetch list and the verdict can never disagree about what "sellable" means). An id with no
+  /// sellable stock can never be judged below-threshold, so asking about it is pure request weight:
+  /// on the 2026-09-07 install this trims the fetch from 243 configured ids to the ~25 stocked
+  /// ones, which is the difference between a request Universalis answers and the 504 Gateway
+  /// Timeout that blinded every sweep that day.
+  /// </summary>
+  public static List<uint> GateFetchIds(IReadOnlyList<ItemRule> rules, IReadOnlyList<StockStack> stock, bool listPartialStacks)
+  {
+    var ids = new List<uint>();
+    foreach (var rule in rules)
+    {
+      if (ids.Contains(rule.ItemId))
+        continue;
+      if (PotentialSellable(rule, stock, listPartialStacks) <= 0)
+        continue;
+      ids.Add(rule.ItemId);
+    }
+    return ids;
+  }
+
+  /// <summary>The judged/unpriceable split behind the 0.1.19.0 honest gate announce.</summary>
+  public sealed record Sight(int Judged, int Unpriceable);
+
+  /// <summary>
+  /// How many rules the gate actually saw usable price data for (0.1.19.0). A rule is JUDGED only
+  /// with a fresh, quality-matched quote; everything else (no data, stale data, wrong quality, or
+  /// no request at all) is UNPRICEABLE. The gate's old announce - "every item is above the N gil
+  /// net threshold" - printed identically whether every item was judged above or NOTHING was judged
+  /// at all: on the 2026-09-07 runs the request 504'd, every rule read unpriceable, the gate listed
+  /// everything blind, and that same line announced a clean bill of health it never had. The
+  /// announce now names the difference; this record is the Dalamud-free fact it names.
+  /// </summary>
+  public static Sight CountSight(IReadOnlyList<ItemRule> rules, IReadOnlyDictionary<uint, ItemQuote>? quotes, bool preferHq, long nowUnixMs, long freshnessMs)
+  {
+    var judged = 0;
+    foreach (var rule in rules)
+    {
+      ItemQuote? quote = null;
+      quotes?.TryGetValue(rule.ItemId, out quote);
+      if (UsableQuote(quote, rule.HQ, preferHq, nowUnixMs, freshnessMs) != null)
+        judged++;
+    }
+    return new Sight(judged, rules.Count - judged);
+  }
+
+  /// <summary>
+  /// A quote the gate can actually decide on, or null. Shared by CountSight (0.1.19.0) and the
+  /// verdict path so "judged" can never drift from what Decide actually saw: fresh data, and a
+  /// cheapest listing of the quality the pricing pass would use at a positive price.
+  /// </summary>
+  public static long? UsableQuote(ItemQuote? quote, bool ruleIsHq, bool preferHq, long nowUnixMs, long freshnessMs)
+  {
+    if (quote == null || !quote.HasData)
+      return null;
+    if (quote.LastUploadUnixMs <= 0 || nowUnixMs - quote.LastUploadUnixMs > freshnessMs)
+      return null;
+    var unit = CheapestUnitPrice(quote, ruleIsHq, preferHq);
+    if (unit == null || unit <= 0)
+      return null;
+    return unit;
+  }
+
+  /// <summary>
   /// Expected net gil for a quantity at a unit price, after the market's 5% sale fee, floored to whole
   /// gil. This is the number the threshold is compared against, so the threshold means NET gil.
   /// </summary>

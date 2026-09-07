@@ -1862,5 +1862,102 @@ var Catalogue = new (uint Id, string Name)[]
     markersSrc.Contains("\"InventoryRetainer\""));
 }
 
+
+// 47. THE BLIND GATE (0.1.18.0). On 2026-09-07 the gate's one Universalis request 504'd at the
+// gateway on 9 of 10 sweeps; GateWait expired, BuildPlan ran with null quotes, MarketGate.Decide
+// returned List for every rule (uncertainty lists), and the gate printed "every item is above the
+// 100 gil net threshold" - a clean bill of health for a gate that saw NOTHING. Below-threshold
+// stock (19990 at ~79 net, 12593 at ~23 net) listed blind and priced at the real board price: the
+// 1-gil listings. This case pins the three facts that make such a run visible and impossible to
+// misread: the sight count says blind, the fetch list says stocked-only, and the trim's arithmetic
+// is the verdict's own arithmetic.
+{
+  const long Fresh = 6 * 3_600_000L;
+  const long Now = 1_788_800_000_000L;  // 2026-09-07, the blind-gate day
+
+  // Rules: 19990 (stocked, the victim), 5111 (stocked, above threshold), 12593 (NO stock - must
+  // not even be asked about), plus a rule whose stock is entirely eaten by its keep (must not be
+  // asked about either - nothing sellable).
+  var rules = new List<ItemRule>
+  {
+    Rule(19990, 99),
+    Rule(5111, 999),
+    Rule(12593, 99),
+    Rule(5594, 99, keepB: 50),
+  };
+  var stock = new List<StockStack>
+  {
+    new(StockOrigin.Bags, Bags1, 3, 19990, false, 1),
+    new(StockOrigin.Bags, Bags1, 4, 5111, false, 200),
+    // 12593: deliberately no stack. 5594: one stack of 50, keep 50 -> nothing sellable.
+    new(StockOrigin.Bags, Bags1, 5, 5594, false, 50),
+  };
+
+  // (a) The fetch list is stocked-only. 19990 and 5111 are asked about; 12593 (no stock) and 5594
+  // (keep eats the whole stack) are not. The trim uses the verdict's own PotentialSellable.
+  var fetch = MarketGate.GateFetchIds(rules, stock, listPartialStacks: false);
+  Check("47 blind gate: fetch asks about the two stocked items only",
+    fetch.Count == 2 && fetch.Contains(19990u) && fetch.Contains(5111u),
+    "fetch=[" + string.Join(", ", fetch) + "]");
+
+  // (b) Partial-stack flooring agrees between trim and verdict: with partials OFF, 30 units of a
+  // 99-listing item floor to 0 sellable -> not asked about. With partials ON it is asked about.
+  var floored = new List<ItemRule> { Rule(19990, 99) };
+  var flooredStock = new List<StockStack> { new(StockOrigin.Bags, Bags1, 3, 19990, false, 30) };
+  Check("47 blind gate: partials-off flooring drops a sub-listing remainder from the fetch",
+    MarketGate.GateFetchIds(floored, flooredStock, false).Count == 0);
+  Check("47 blind gate: partials-on keeps the sub-listing remainder in the fetch",
+    MarketGate.GateFetchIds(floored, flooredStock, true).Count == 1);
+
+  // (c) THE ANNOUNCE DIFFERENTIATOR. The same rules, two quote maps:
+  //     - sighted: both stocked items have fresh quotes -> Judged 2, Unpriceable 0 -> the announce
+  //       is the old "every item is above" line.
+  //     - blind (null quotes, the 504 shape): Judged 0, Unpriceable 2 -> the announce MUST NOT be
+  //       the old line; the sight record itself is what the log line is built from.
+  var sightedQuotes = new Dictionary<uint, ItemQuote>
+  {
+    [19990] = new ItemQuote(19990, true, Now - 60_000L, [new QuoteListing(84, false, false)]),
+    [5111] = new ItemQuote(5111, true, Now - 60_000L, [new QuoteListing(950, false, false)]),
+  };
+  var sighted = MarketGate.CountSight(rules, sightedQuotes, preferHq: true, Now, Fresh);
+  Check("47 blind gate: sighted run judges both stocked items",
+    sighted.Judged == 2 && sighted.Unpriceable == 0, $"judged={sighted.Judged} unpriceable={sighted.Unpriceable}");
+  var blind = MarketGate.CountSight(rules, null, preferHq: true, Now, Fresh);
+  Check("47 blind gate: null quotes (the 504 shape) read as fully unpriceable",
+    blind.Judged == 0 && blind.Unpriceable == 4, $"judged={blind.Judged} unpriceable={blind.Unpriceable}");
+  var partial = MarketGate.CountSight(rules, new Dictionary<uint, ItemQuote>
+  {
+    [19990] = new ItemQuote(19990, true, Now - 60_000L, [new QuoteListing(84, false, false)]),
+  }, preferHq: true, Now, Fresh);
+  Check("47 blind gate: one fresh quote of four rules reads 1 judged / 3 unpriceable",
+    partial.Judged == 1 && partial.Unpriceable == 3, $"judged={partial.Judged} unpriceable={partial.Unpriceable}");
+
+  // (d) A stale quote is NOT sight: judged only on fresh data, mirroring UsableQuote/Decide.
+  var stale = new Dictionary<uint, ItemQuote>
+  {
+    [19990] = new ItemQuote(19990, true, Now - Fresh - 1, [new QuoteListing(84, false, false)]),
+  };
+  var staleSight = MarketGate.CountSight(new List<ItemRule> { Rule(19990, 99) }, stale, preferHq: true, Now, Fresh);
+  Check("47 blind gate: a stale quote does not count as judged",
+    staleSight.Judged == 0 && staleSight.Unpriceable == 1);
+
+  // (e) CONTROL (negative): a fresh quote with no listing of the needed quality is unpriceable -
+  //     CheapestUnitPrice returns null for an HQ rule with only NQ listings when preferHq is on.
+  var nqOnly = new Dictionary<uint, ItemQuote>
+  {
+    [19990] = new ItemQuote(19990, true, Now - 60_000L, [new QuoteListing(84, false, false)]),
+  };
+  var hqRule = new List<ItemRule> { Rule(19990, 99, hq: true) };
+  var nqSight = MarketGate.CountSight(hqRule, nqOnly, preferHq: true, Now, Fresh);
+  Check("47 blind gate: fresh NQ-only quote does not judge an HQ rule",
+    nqSight.Judged == 0 && nqSight.Unpriceable == 1);
+
+  // (f) UsableQuote is the shared sight test - pin it directly against its parts.
+  Check("47 blind gate: UsableQuote mirrors CheapestUnitPrice on a fresh quote",
+    MarketGate.UsableQuote(sightedQuotes[5111], ruleIsHq: false, preferHq: true, Now, Fresh) == 950);
+  Check("47 blind gate: UsableQuote is null on stale data",
+    MarketGate.UsableQuote(stale[19990], rule(19990, 99).HQ, preferHq: true, Now, Fresh) == null);
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;

@@ -535,7 +535,13 @@ internal sealed class MarketAutomation : Window, IDisposable
       var gateNeeded = Plugin.Configuration.AutoMarketValueGateEnabled
                        || Plugin.Configuration.AutoMarketSortMode != MarketSortMode.ListOrder;
       steps.Add(new Step(() => { StartGateLookup(gateNeeded); return true; }, "GateLookup"));
-      steps.Add(new Step(() => _gateQuotesDone, "GateWait", TimeLimitMs: 10000));
+      // 0.1.19.0: 25 s. The 10 s window assumed Universalis answers the gate's one request in
+      // under 10 s; on 2026-09-07 the (then 243-id) request 504'd at the gateway on 9 of 10
+      // sweeps, GateWait expired, BuildPlan ran with null quotes, and the gate listed
+      // below-threshold stock blind while announcing "every item is above the threshold" - the
+      // 1-gil listings. The fetch is now stocked-only and chunked (GetRuleQuotes), and this wait
+      // covers a slow Universalis day instead of silently blindfolding the gate.
+      steps.Add(new Step(() => _gateQuotesDone, "GateWait", TimeLimitMs: 25000));
       steps.Add(new Step(() => BuildListingStepsNow(steps), "BuildPlan"));
     }
 
@@ -1264,8 +1270,23 @@ internal sealed class MarketAutomation : Window, IDisposable
       {
         quotes = await _universalisPriceProvider.GetRuleQuotes(ids, token).ConfigureAwait(false);
       }
-      catch (OperationCanceledException) { return; }
-      catch (Exception ex) { Svc.Log.Warning(ex, "[LMC] gate lookup failed; every item will list in list order"); }
+      catch (OperationCanceledException) when (token.IsCancellationRequested)
+      {
+        // A REAL cancel (sweep aborted, or the next retainer's lookup superseded this one).
+        // Nothing sets _gateQuotesDone and the step chain is being torn down anyway.
+        return;
+      }
+      catch (Exception ex)
+      {
+        // 0.1.19.0: this arm now also catches the HttpClient's OWN timeout. A timeout throws
+        // TaskCanceledException, which IS an OperationCanceledException - the old bare
+        // `catch (OperationCanceledException) { return; }` swallowed exactly that case SILENTLY:
+        // no warning, _gateQuotesDone never set, GateWait burning its whole limit on a fetch
+        // that had already died, BuildPlan blind. With the `when` filter above, a timeout lands
+        // HERE instead - named, logged, and the wait completes with null quotes: a declared
+        // blind gate (ApplyValueGate announces it), never a silent one.
+        Svc.Log.Warning(ex, "[LMC] gate lookup failed; every item will list in list order");
+      }
 
       await Svc.Framework.RunOnFrameworkThread(() =>
       {

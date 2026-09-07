@@ -14,6 +14,9 @@ internal sealed class UniversalisPriceProvider : IDisposable
   private readonly Lumina.Excel.ExcelSheet<Item> _items;
   private readonly UniversalisClient _client;
 
+  /// <summary>Ids per gate lookup request (0.1.19.0) - the size class Universalis answers reliably.</summary>
+  private const int GateChunkSize = 50;
+
   /// <summary>
   /// Why the most recent sale-history lookup refused to price its item (null when it priced one or
   /// nothing has run yet). Written on the lookup's background thread before the framework-thread
@@ -187,18 +190,36 @@ internal sealed class UniversalisPriceProvider : IDisposable
       return null;
     }
 
-    Svc.Log.Debug($"[LMC] Auto-Market gate asking Universalis about {itemIds.Count} item(s) on {scopeName}");
-    try
+    Svc.Log.Debug($"[LMC] Auto-Market gate asking Universalis about {itemIds.Count} item(s) on {scopeName} in chunks of {GateChunkSize}");
+    // 0.1.19.0: chunked. The old single request carried every enabled id at once (243 on the
+    // live install) and a 243-id body is exactly what Universalis 504s under load - measured
+    // 2026-09-07, the request died at the gateway on 9 of 10 sweeps and the gate ran blind all
+    // day. Chunks of 50 stay in the size class the API answers reliably; one dead chunk logs and
+    // the rest still answer, so a single flaky batch costs a few unpriceable items (announced by
+    // the gate) instead of the whole gate's sight. Every chunk dead returns null: the declared
+    // blind gate, never a silent one.
+    var merged = new Dictionary<uint, ItemQuote>();
+    var answeredIds = 0;
+    for (var i = 0; i < itemIds.Count; i += GateChunkSize)
     {
-      var json = await _client.GetMarketDataJson(itemIds, scopeName, cancellationToken, listings: UniversalisClient.ListingCount, entries: 20).ConfigureAwait(false);
-      return UniversalisQuotes.Parse(json, Plugin.Configuration.SeenRetainers);
+      var chunk = itemIds.Skip(i).Take(GateChunkSize).ToList();
+      try
+      {
+        var json = await _client.GetMarketDataJson(chunk, scopeName, cancellationToken, listings: UniversalisClient.ListingCount, entries: 20).ConfigureAwait(false);
+        foreach (var kv in UniversalisQuotes.Parse(json, Plugin.Configuration.SeenRetainers))
+          merged[kv.Key] = kv.Value;
+        answeredIds += chunk.Count;
+      }
+      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+      {
+        throw;
+      }
+      catch (Exception ex)
+      {
+        Svc.Log.Warning(ex, $"[LMC] Auto-Market gate lookup failed for {chunk.Count} item(s); continuing with the other chunks");
+      }
     }
-    catch (OperationCanceledException) { throw; }
-    catch (Exception ex)
-    {
-      Svc.Log.Warning(ex, "[LMC] Auto-Market gate lookup failed; every item will list in list order");
-      return null;
-    }
+    return answeredIds > 0 ? merged : null;
   }
 
   /// <summary>

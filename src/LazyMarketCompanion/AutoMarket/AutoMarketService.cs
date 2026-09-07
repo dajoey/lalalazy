@@ -68,14 +68,36 @@ internal static unsafe class AutoMarketService
   /// </summary>
   public static List<uint> GateItemIds()
   {
+    // 0.1.19.0: ask only about items with stock Auto-Market could actually sell
+    // (MarketGate.GateFetchIds, judged with the same PotentialSellable arithmetic as the verdict
+    // itself). The old body returned every enabled id - 243 on the live install - and one
+    // 243-id request is exactly the shape Universalis 504s under load (measured 2026-09-07: the
+    // giant request died at the gateway on 9 of 10 sweeps while a 30-id request answered in
+    // 5.8 s). An id with no sellable stock can never be judged below-threshold anyway, so the
+    // trim loses nothing and keeps the request in the size class the API answers reliably.
     var config = Plugin.Configuration;
-    var ids = new List<uint>();
-    foreach (var entry in config.AutoMarketItems)
+    var items = Svc.Data.GetExcelSheet<Item>();
+    var rules = new List<ItemRule>();
+    foreach (var entry in config.AutoMarketItems.Where(x => x.Enabled))
     {
-      if (entry.Enabled && !ids.Contains(entry.ItemId))
-        ids.Add(entry.ItemId);
+      if (!items.TryGetRow(entry.ItemId, out var row))
+        continue;
+      var maxStack = (int)Math.Max(row.StackSize, 1u);
+      var stackSize = entry.StackSize > 0 ? Math.Min(entry.StackSize, maxStack) : maxStack;
+      var source = entry.SourceOverride ?? config.AutoMarketSource;
+      rules.Add(new ItemRule(
+        entry.ItemId,
+        entry.HQ,
+        stackSize,
+        entry.KeepInBags,
+        entry.KeepInRetainer,
+        entry.MaxListingsPerRetainer,
+        source is StockSource.BagsOnly or StockSource.BagsAndRetainer,
+        source is StockSource.RetainerOnly or StockSource.BagsAndRetainer,
+        entry.FixedPrice,
+        maxStack));
     }
-    return ids;
+    return MarketGate.GateFetchIds(rules, SnapshotStock(), config.AutoMarketListPartialStacks);
   }
 
   public static PlanResult BuildPlan(Dictionary<uint, ItemQuote>? gateQuotes = null)
@@ -178,7 +200,21 @@ internal static unsafe class AutoMarketService
       }
       else if (kept.Count > 0)
       {
-        Svc.Log.Information($"[LMC] gate: every item is above the {gateOptions.ThresholdGil:N0} gil net threshold");
+        // 0.1.19.0: the old line printed identically whether every item was JUDGED above the
+        // threshold or NOTHING was judged at all (failed request -> null quotes -> every rule
+        // unpriceable -> every rule lists). On the 2026-09-07 runs the fetch 504'd and this same
+        // line announced a check that never happened while below-threshold stock listed blind.
+        // Fully-judged keeps the old wording; anything less says how many items the threshold
+        // was NOT checked for.
+        var sight = MarketGate.CountSight(rules, quotes, config.HQ, now, freshnessMs);
+        if (sight.Unpriceable == 0)
+          Svc.Log.Information($"[LMC] gate: every item is above the {gateOptions.ThresholdGil:N0} gil net threshold");
+        else
+        {
+          Svc.Log.Warning($"[LMC] gate: no price data for {sight.Unpriceable} of {rules.Count} item(s) - the {gateOptions.ThresholdGil:N0} gil net threshold was NOT checked for those; they list (uncertainty lists, never vendors)");
+          if (Plugin.Configuration.ShowAutoMarketMessages)
+            Communicator.PrintInfo($"value gate: no price data for {sight.Unpriceable} of {rules.Count} item(s); they will list unchecked - vendoring still only fires on a confirmed price");
+        }
       }
     }
 
