@@ -58,6 +58,15 @@ internal sealed class MarketAutomation : Window, IDisposable
   private VendorPlan? _vendorPlan;
   private bool _vendorPlanPlaced;
   private int _vendorPlannedCount;
+  // 0.1.15.2: set by the vendor leg's own failure path (StopOnVendorFailure) and read by
+  // the close steps. A FAILED vendoring leg halts the sweep ON PURPOSE (Joey's pick on Helm
+  // t-joey-1788757755566): a failed vendoring action means an unjudged sale is still possible,
+  // so nothing further runs until a human looks. The halt is CLEAN - the closing chat line and
+  // log line are printed first, then the remaining tasks are discarded without the task
+  // manager's timeout abort, which spews "Clearing N remaining tasks because of timeout" and
+  // reads like a crash. A trigger with no plan (state-change race) returns false WITHOUT
+  // setting this, so a repeat scan of the same retainer does not stop the sweep.
+  private bool _vendorStopRequested;
 
   // "Pinch only what I just listed" bookkeeping. Which listings qualify is decided from the market
   // CONTAINER since 0.1.6.0 - a slot this run listed into that is still at the placeholder price - and the
@@ -1091,7 +1100,11 @@ internal sealed class MarketAutomation : Window, IDisposable
     var placed = _vendorPlanPlaced;
     _vendorPlanPlaced = false;
     if (!placed || plan == null || plan.Ops.Count == 0)
-      return true;
+    {
+      // 0.1.15.2: returning true here would make a retry scan of the same retainer look like a
+      // failed leg (it would stop the sweep). No plan is a state-change race, not a failure.
+      return false;
+    }
 
     // 0.1.15.1: the trigger is INSERTED at the front of the queue, ahead of the session's own
     // CloseRetainerSellList/CloseRetainer steps (Enqueue would place it AFTER every remaining
@@ -1109,16 +1122,20 @@ internal sealed class MarketAutomation : Window, IDisposable
     // AutoRetainer's own precondition sequence (TaskVendorItems.Enqueue -> WaitUntilInventoryLoaded ->
     // SafeSellSlot -> CloseAgentRetainer): the panel is reached through the bell menu's entrust
     // entry, one SelectString click - not through AgentRetainer.Show.
+    // 0.1.15.2: the menu-open step is a WAIT, not a glance (the 0.1.15.1 defect). ClickRetainerEntrust
+    // returns false while the bell menu has not come back yet, so the click retries for up to its
+    // own time limit - on the 01:45 run the first entry scan happened 135 ms after the sell-list
+    // close was queued and the menu had not rendered. Only an exhausted wait or a menu that is
+    // really there but has no entrust entry is a failure, and a failure stops the whole sweep
+    // (stop-on-failure, Joey's pick on Helm t-joey-1788757755566) with a named, human-readable
+    // halt instead of the task manager's timeout abort.
     var steps = new List<Step>();
-    steps.Add(new Step(ClickRetainerEntrust, "Vendor.OpenPanel", DelayAfterMs: 300));
+    steps.Add(new Step(ClickRetainerEntrust, "Vendor.OpenPanel", TimeLimitMs: 10000));
     steps.Add(new Step(() => AutoMarketService.IsRetainerInventoryOpen(), "Vendor.WaitPanel", TimeLimitMs: 10000));
     steps.Add(new Step(() =>
     {
       if (!AutoMarketService.IsRetainerInventoryOpen())
-      {
-        Svc.Log.Error("[LMC] vendor: the retainer inventory panel never opened - the value gate's vendoring leg did not run");
-        return true;
-      }
+        return StopOnVendorFailure("the retainer bell menu never reopened after the sell list closed (waited 10 s) - the vendoring leg could not run");
       var vendorSteps = new List<Step>();
       foreach (var op in plan.Ops)
       {
@@ -1143,31 +1160,66 @@ internal sealed class MarketAutomation : Window, IDisposable
   /// retainer inventory panel - AutoRetainer's RetainerHandlers.SelectEntrustItems, matched by the
   /// sheet text so it survives menu reordering. Returns false (retry) while the menu is not on screen.
   /// </summary>
-  private static unsafe bool? ClickRetainerEntrust()
+  private unsafe bool? ClickRetainerEntrust()
   {
-    // 0.1.15.1: the menu not being on screen YET is the normal case - this step now runs while the
-    // sell list close is still in flight. Wait (retry); the step's own time limit reports the
-    // honest failure if the menu never comes back.
+    // 0.1.15.2: the menu not being on screen YET is the normal case - this step now runs while the
+    // sell-list close is still in flight. Returning false makes the step RETRY until its own time
+    // limit (TaskManager's per-step timeout), so the 0.1.15.1 single 135 ms glance is gone. The
+    // decision table lives in AutoMarket/VendorMenuGate.cs (Dalamud-free, harness case 42); only a
+    // menu that is demonstrably up WITHOUT the entrust entry is a failure, and a failure stops the
+    // sweep on purpose - the wait-for-menu step behind this one never runs then, so its own stop
+    // hook never fires and the message stays the accurate one.
     if (!(GenericHelpers.TryGetAddonByName<AtkUnitBase>("SelectString", out var addon) && GenericHelpers.IsAddonReady(addon)))
       return false;
     var menu = new AddonMaster.SelectString(addon);
     var entries = menu.Entries;
     var wanted = Plugin.AddonText(2378);
+    var found = -1;
     for (var i = 0; i < entries.Length; i++)
     {
       if (!string.IsNullOrEmpty(wanted) && entries[i].Text.StartsWith(wanted, StringComparison.OrdinalIgnoreCase))
       {
-        Svc.Log.Debug($"[LMC] vendor: opening retainer inventory via menu entry '{entries[i].Text}'");
-        entries[i].Select();
-        return true;
+        found = i;
+        break;
       }
     }
-    Svc.Log.Warning($"[LMC] vendor: the retainer menu has no entrust entry (wanted Addon row 2378 text); cannot open the inventory panel");
+    switch (VendorMenuGate.Decide(menuReady: true, sheetTextLoaded: !string.IsNullOrEmpty(wanted), entryFound: found >= 0))
+    {
+      case VendorMenuDecision.WaitForMenu:
+        return false; // retry until the step's own time limit
+      case VendorMenuDecision.OpenPanel:
+        Svc.Log.Debug($"[LMC] vendor: opening retainer inventory via menu entry '{entries[found].Text}'");
+        entries[found].Select();
+        return true;
+      default:
+        StopOnVendorFailure("the retainer bell menu is open but has no 'Entrust or withdraw items' entry - the vendoring leg cannot open the inventory panel");
+        return true;
+    }
+  }
+
+  /// <summary>
+  /// The vendor leg's failure path (0.1.15.2, stop-on-failure). Logs one named ERROR line, says the
+  /// same thing in chat, then STOPS THE WHOLE SWEEP ON PURPOSE: the remaining queued tasks (this
+  /// session's close steps and every other retainer's chain) are discarded so nothing sells or
+  /// re-prices while a vendoring action is unexplained, AutoRetainer's suppression is lifted and
+  /// the AR session is closed. This is the deliberate halt Joey picked on Helm
+  /// t-joey-1788757755566 - a controlled stop with a human-readable reason, never the task
+  /// manager's timeout abort (that one prints "Clearing N remaining tasks because of timeout",
+  /// wipes the queue WITHOUT a reason, and reads like a crash), never silence. Returns true so the
+  /// failing step itself completes cleanly and the abort that follows is ours, not a timeout's.
+  /// </summary>
+  private bool StopOnVendorFailure(string reason)
+  {
+    Svc.Log.Error($"[LMC] vendor: FAILED - {reason}. Stopping the sweep here on purpose (stop-on-failure); no further retainer will be touched.");
+    _vendorStopRequested = true;
+    if (Plugin.Configuration.ShowAutoMarketMessages)
+      Communicator.PrintInfo($"value gate: vendoring stopped the sweep - {reason}");
+    CancelEverything($"vendoring leg failed: {reason}");
     return true;
   }
 
   /// <summary>Closes the retainer inventory panel (both layouts) so the bell menu is the only thing left open.</summary>
-  private static unsafe bool? CloseRetainerInventory()
+  private unsafe bool? CloseRetainerInventory()
   {
     if (GenericHelpers.TryGetAddonByName<AtkUnitBase>("InventoryRetainer", out var a) && GenericHelpers.IsAddonReady(a))
     {
@@ -1316,6 +1368,17 @@ internal sealed class MarketAutomation : Window, IDisposable
 
   private void OnArReadyToPostprocess(string retainer)
   {
+    // 0.1.15.2, stop-on-failure: a vendor-leg failure stopped the sweep on purpose, so further
+    // AutoRetainer postprocess sessions are REFUSED until the user starts something new
+    // (ClearState resets the flag). Releasing immediately keeps AutoRetainer's own cycle moving -
+    // wedging IT would be a different defect - but this plugin touches nothing until then.
+    if (_vendorStopRequested)
+    {
+      Svc.Log.Warning($"[LMC] AR ready for {retainer} but a vendoring leg stopped the sweep on purpose; releasing without touching the retainer");
+      AutoRetainerIPC.Instance?.FinishRetainerPostProcess();
+      return;
+    }
+
     if (_taskManager.IsBusy)
     {
       Svc.Log.Warning($"[LMC] AR ready for {retainer} but we are busy; releasing immediately");
@@ -1912,6 +1975,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     _listingFailures = 0;
     _vendoredThisRun = 0;
     _vendorFailedThisRun = 0;
+    _vendorStopRequested = false;
     AutoMarketService.ResetGateHeld();
     _preListPrice = null;
     _preListDone = false;

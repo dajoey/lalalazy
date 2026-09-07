@@ -1,4 +1,16 @@
 # Changelog
+## v0.1.16.1 (2026-09-07)
+
+### Fixed
+
+- **The vendoring leg's menu-open step glanced at the bell menu ONCE instead of waiting - and when its check failed, the whole retainer sweep died in a cascade of task timeouts.** On the 2026-09-07 01:45 run the plugin closed a retainer's sell list and looked for the bell menu 135 ms later, found it not yet rendered, and treated that as the final answer; the 10-second wait for the inventory panel then expired, the queued close step timed out after it, and the task manager aborted with "Clearing 53 remaining tasks because of timeout" - so the sweep never visited the remaining retainers (files: `MarketAutomation.cs`, `ClickRetainerEntrust`/`RunVendorLegAtSessionEnd`; `AutoMarket/VendorMenuGate.cs` new).
+- The menu-open step now WAITS: while the bell menu has not come back yet it retries until its own 10-second limit, like every other wait in the chain. A menu that is up but has not rendered its entries yet also waits instead of failing - "not yet" can never be treated as a verdict again (files: `MarketAutomation.cs`, `ClickRetainerEntrust`; `AutoMarket/VendorMenuGate.cs`, `Decide`).
+- **When the vendoring leg genuinely cannot run, the sweep now stops ON PURPOSE, cleanly, instead of dying in a timeout cascade.** The leg logs one line naming the exact reason ("the retainer bell menu is open but has no 'Entrust or withdraw items' entry" / "the bell menu never reopened after the sell list closed"), says the same in chat, and then stops the whole sweep deliberately - no further retainer is touched, and AutoRetainer postprocess sessions are refused until the next manual start. A controlled halt with a human-readable reason, as chosen on the report card: an unexplained vendoring failure means an unjudged sale is still possible, so nothing else should happen until it is looked at. The old failure mode - a timeout abort wiping the queue with "Clearing N remaining tasks because of timeout" and no reason - cannot happen from this leg anymore (files: `MarketAutomation.cs`, `StopOnVendorFailure` new / `OnArReadyToPostprocess` / field `_vendorStopRequested`).
+
+### Notes
+
+- When a sweep stops this way, the chat line reads "value gate: vendoring stopped the sweep - <reason>" and the log carries the same reason with "Stopping the sweep here on purpose (stop-on-failure)". Start the sweep again once the cause is clear - a bell menu that did not come back usually just needs the game window focused again.
+- Offline test suite now at 348 checks, up from 334. The new cases pin the menu-open decision table (including the negative control that a real menu with the entrust entry still clicks through) and the stop-on-failure wording, so neither can silently regress (files: `tests/LazyMarketCompanion.Harness/Program.cs`, cases 42-43).
 
 ## v0.1.16.0 (2026-09-07)
 

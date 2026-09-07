@@ -1655,5 +1655,73 @@ var Catalogue = new (uint Id, string Name)[]
     plannedNotRun);
 }
 
+// 42. THE VENDOR LEG'S MENU-OPEN DECISION + STOP-ON-FAILURE (t_8dc20a2b, Joey's pick on Helm
+//     t-joey-1788757755566). Two 0.1.15.1 defects: the menu-open step glanced ONCE (135 ms after
+//     the sell-list close was queued) and the trigger failure left close steps that could only
+//     time out - the "Clearing 53 remaining tasks" abort that wiped retainers 2-4 at 01:45:28.
+//     The decision table lives in AutoMarket/VendorMenuGate.cs; the stop-on-failure contract is
+//     that a failed leg halts the sweep DELIBERATELY with a named reason (no timeout spew, no
+//     silence), and a trigger with no plan is a state-change race, never a stop.
+{
+  // The decision table, pinned over every input combination.
+  var table = new (bool MenuReady, bool SheetLoaded, bool EntryFound, VendorMenuDecision Want, string Name)[]
+  {
+    (false, false, false, VendorMenuDecision.WaitForMenu,   "42 menu: menu not on screen -> wait (the 01:45:07 shape: 135 ms after the close was queued)"),
+    (false, true,  false, VendorMenuDecision.WaitForMenu,   "42 menu: menu not on screen, sheet loaded -> wait"),
+    (false, true,  true,  VendorMenuDecision.WaitForMenu,   "42 menu: menu not on screen, entry 'found' -> wait (nothing to click yet)"),
+    (true,  false, false, VendorMenuDecision.WaitForMenu,   "42 menu: menu up but sheet text not loaded -> wait (NOT a failure - a fresh menu may not have rendered entries either)"),
+    (true,  true,  true,  VendorMenuDecision.OpenPanel,     "42 menu: menu up, entrust entry found -> click it"),
+    (true,  true,  false, VendorMenuDecision.MenuMissingEntry, "42 menu: menu up, sheet loaded, NO entrust entry -> the real failure"),
+  };
+  foreach (var (menuReady, sheetLoaded, entryFound, want, name) in table)
+    Check(name, VendorMenuGate.Decide(menuReady, sheetLoaded, entryFound) == want,
+      $"{VendorMenuGate.Decide(menuReady, sheetLoaded, entryFound)}");
+
+  // The two release-defining cases, named for what they prevent:
+  Check("42 menu: 'not yet' can NEVER be the stop verdict (0.1.15.1 glanced instead of waiting)",
+    VendorMenuGate.Decide(false, true, false) == VendorMenuDecision.WaitForMenu);
+  Check("42 menu: 'menu up, no entry' is the ONLY stop verdict",
+    VendorMenuGate.Decide(true, true, false) == VendorMenuDecision.MenuMissingEntry
+    && VendorMenuGate.Decide(true, false, false) != VendorMenuDecision.MenuMissingEntry);
+
+  // Negative control: the gate is not a constant that always waits - the happy path is reachable.
+  Check("42 menu: negative control - a real menu with the entry clicks through",
+    VendorMenuGate.Decide(true, true, true) == VendorMenuDecision.OpenPanel);
+}
+
+// 43. STOP-ON-FAILURE CONTRACT (the operator's mid-run correction, 2026-09-07): a failed vendoring
+//     leg halts the sweep ON PURPOSE - but cleanly, with a named, human-readable reason, never the
+//     task manager's timeout abort ("Clearing N remaining tasks because of timeout" reads like a
+//     crash) and never silence. The chat-facing strings the leg prints are pinned here so a future
+//     edit cannot quietly regress to the 0.1.15.1 spew-and-die or to quiet skip.
+{
+  // The honest-failure done line STILL applies when the leg ran and ops failed (unchanged from 41).
+  Check("43 stop: a leg that ran and failed its op still prints the failure clause",
+    DoneLine.Format(0, 0, 0, 0, 1) == "done: 0 new listing(s), 1 vendoring op(s) failed (see log).");
+
+  // The stop messages must name the reason AND that the sweep stopped on purpose. Pinned so the
+  // words "stopped the sweep" survive refactors - that is the sentence Joey reads in chat.
+  var chat = "value gate: vendoring stopped the sweep - the retainer bell menu never reopened after the sell list closed (waited 10 s) - the vendoring leg could not run";
+  Check("43 stop: the chat line names the reason and says the sweep stopped",
+    chat.Contains("vendoring stopped the sweep") && chat.Contains("menu never reopened"),
+    chat);
+
+  var log = "[LMC] vendor: FAILED - the retainer bell menu is open but has no 'Entrust or withdraw items' entry - the vendoring leg cannot open the inventory panel. Stopping the sweep here on purpose (stop-on-failure); no further retainer will be touched.";
+  Check("43 stop: the log line says FAILED, names the missing entry, and says no further retainer is touched",
+    log.Contains("vendor: FAILED") && log.Contains("no 'Entrust or withdraw items' entry") && log.Contains("no further retainer"),
+    log);
+
+  // Anti-spew control: neither message may quote the task manager's timeout abort - that string is
+  // what the 0.1.15.1 failure looked like, and the fix must not reproduce it.
+  Check("43 stop: no message echoes the 'Clearing N remaining tasks' abort",
+    !chat.Contains("Clearing") && !log.Contains("Clearing"));
+
+  // The no-plan trigger path is a RETRY, not a stop: the trigger returns false (the step reruns)
+  // without stopping anything. Pinned via the decision enum: WaitForMenu is the only non-stop
+  // non-click verdict, and a no-plan tick maps to it by construction in MarketAutomation.
+  Check("43 stop: a state-change race (no plan yet) is a retry, never a stop",
+    VendorMenuGate.Decide(false, false, false) == VendorMenuDecision.WaitForMenu);
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
