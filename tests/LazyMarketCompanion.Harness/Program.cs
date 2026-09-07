@@ -1739,5 +1739,53 @@ var Catalogue = new (uint Id, string Name)[]
     && VendorMenuGate.Decide(false, false, false) == VendorMenuDecision.WaitForMenu);
 }
 
+
+// 45. AUTO-MARKET BAG MARKERS (Helm t-joey-1788794153572): the marker predicate is the exact
+//     listing predicate - an entry exists AND is Enabled. Anything else (no entry, disabled
+//     entry) is NOT marked, because BuildPlan consumes only Enabled entries and a marker on a
+//     disabled entry would promise a listing that never happens.
+{
+  var entries = new List<MarkerMatch.Entry>
+  {
+    new(Dye, false, true),   // NQ enabled
+    new(Dye, true, false),   // HQ present but DISABLED
+    new(Ore, true, true),    // HQ enabled
+  };
+
+  Check("45 markers: enabled entry marks", MarkerMatch.IsMarked(entries, Dye, hq: false));
+  Check("45 markers: disabled entry does NOT mark", !MarkerMatch.IsMarked(entries, Dye, hq: true));
+  Check("45 markers: missing entry does NOT mark", !MarkerMatch.IsMarked(entries, Ore, hq: false));
+  Check("45 markers: HQ/NQ are independent (HQ-only entry marks HQ only)",
+    MarkerMatch.IsMarked(entries, Ore, hq: true) && !MarkerMatch.IsMarked(entries, Ore, hq: false));
+
+  // Empty list marks nothing.
+  Check("45 markers: empty list marks nothing",
+    MarkerMatch.MarkedStacks([], [new MarkerMatch.Stack(0, Dye, false)]).Count == 0);
+
+  // Stack set -> marked slot set, keyed by slot: NQ dye in slot 3 marks, HQ ore in slot 7 marks,
+  // HQ dye in slot 9 does not.
+  var stacks = new List<MarkerMatch.Stack>
+  {
+    new(3, Dye, false),
+    new(7, Ore, true),
+    new(9, Dye, true),
+    new(11, 9999u, false), // unlisted item
+  };
+  var marked = MarkerMatch.MarkedStacks(entries, stacks);
+  Check("45 markers: exactly the enabled stacks are marked (slots 3 and 7)",
+    marked.Count == 2 && marked.ContainsKey(3) && marked.ContainsKey(7) && !marked.ContainsKey(9) && !marked.ContainsKey(11),
+    string.Join(",", marked.Keys));
+
+  // Duplicate config entries (two entries for the same item+HQ): the FIRST one wins, mirroring
+  // Configuration.GetAutoMarketItem's FirstOrDefault - a duplicate is a config-entry bug, but the
+  // marker must agree with what the listing engine itself would read.
+  var dupes = new List<MarkerMatch.Entry> { new(Dye, false, false), new(Dye, false, true) };
+  Check("45 markers: duplicate entries agree with FirstOrDefault (first wins)",
+    MarkerMatch.IsMarked(dupes, Dye, hq: false) == false);
+  var dupes2 = new List<MarkerMatch.Entry> { new(Dye, false, true), new(Dye, false, false) };
+  Check("45 markers: duplicate entries agree with FirstOrDefault (first-enabled wins)",
+    MarkerMatch.IsMarked(dupes2, Dye, hq: false) == true);
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;

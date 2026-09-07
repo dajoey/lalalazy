@@ -82,6 +82,10 @@ public sealed class ConfigWindow : Window
     if (ImGui.Checkbox("Enable Auto-Market", ref enabled)) { c.AutoMarketEnabled = enabled; c.Save(); }
     Tip("Master switch. When off, the Auto Market buttons and the AutoRetainer hook do nothing.");
 
+    var markers = c.AutoMarketMarkersEnabled;
+    if (ImGui.Checkbox("Show Auto-Market markers in bags", ref markers)) { c.AutoMarketMarkersEnabled = markers; c.Save(); }
+    Tip("Draws a small green dot on every bag stack that is on the Auto-Market list and enabled.\r\nAn item on the list with its tick unticked gets no dot - it would not be listed.");
+
     ImGui.SameLine(0, 30);
     var duringAr = c.AutoMarketDuringAutoRetainer;
     if (!AutoRetainerIPC.Installed) ImGui.BeginDisabled();

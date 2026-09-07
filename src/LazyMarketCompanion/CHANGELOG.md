@@ -1,4 +1,10 @@
 # Changelog
+# Changelog
+## v0.1.17.0 (2026-09-07)
+
+### Added
+
+- **Auto-Market markers in your bags: every stack that is on the Auto-Market list and enabled now wears a small green dot in the corner of its bag slot, so the list is visible at a glance without opening the settings.** HQ and NQ are marked separately (they are separate list entries), an item whose list tick is unticked gets no dot because it would not be listed, and a fully listed item keeps its dot while it is on the list. The markers follow the game's own bag windows, stand down while you are browsing a retainer's inventory (there the grids show the retainer's items, not yours), and can be switched off with "Show Auto-Market markers in bags" on the Auto-Market tab. The dot colour is fixed green for now; tell me if it fights your HUD (files: `AutoMarketMarkers.cs`, `AutoMarket/MarkerMatch.cs`, `Configuration.cs`, `Windows/ConfigWindow.cs`).
 ## v0.1.16.3 (2026-09-07)
 
 ### Fixed

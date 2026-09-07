@@ -239,6 +239,13 @@ public sealed class Configuration : IPluginConfiguration
   /// </summary>
   public PinchFallbackMode AutoMarketPinchFallback { get; set; } = PinchFallbackMode.KeepFullRepass;
 
+  /// <summary>
+  /// At-a-glance Auto-Market markers on the bag windows: a green dot on every stack that has an
+  /// enabled Auto-Market entry. New field with an initializer, so an existing config picks it up
+  /// as-is: no Version bump, no migration (same reasoning as the 0.1.9.0 pre-flight block below).
+  /// </summary>
+  public bool AutoMarketMarkersEnabled { get; set; } = true;
+
   /// <summary>The all-retainers "Auto Pinch" sweep also auto-markets each retainer.</summary>
   public bool AutoMarketInPinchAllSweep { get; set; } = true;
 

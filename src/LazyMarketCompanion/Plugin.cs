@@ -46,6 +46,7 @@ public sealed class Plugin : IDalamudPlugin
 #pragma warning restore CS8618
 
   private readonly MarketAutomation _automation;
+  private readonly AutoMarketMarkers _markers;
   private readonly ChangelogGate _changelog;
   private readonly bool _ownsLegacyCommand;
 
@@ -134,6 +135,8 @@ public sealed class Plugin : IDalamudPlugin
     AutoRetainerIPC.Initialize();
     _automation = new MarketAutomation();
     WindowSystem.AddWindow(_automation);
+    _markers = new AutoMarketMarkers();
+    WindowSystem.AddWindow(_markers);
 
     Log.Information($"[LMC] loaded {PluginInterface.Manifest.AssemblyVersion}; autoMarketItems={Configuration.AutoMarketItems.Count} arInstalled={AutoRetainerIPC.Installed} imported={Configuration.ImportedFromDagobert}");
   }
@@ -145,6 +148,7 @@ public sealed class Plugin : IDalamudPlugin
     _retainerItemCommandHook = null;
     _changelog.Dispose();
     WindowSystem.RemoveAllWindows();
+    _markers.Dispose();
     _automation.Dispose();
     AutoRetainerIPC.DisposeInstance();
     CommandManager.RemoveHandler(CommandName);
