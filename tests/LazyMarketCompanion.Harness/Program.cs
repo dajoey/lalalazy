@@ -1723,5 +1723,21 @@ var Catalogue = new (uint Id, string Name)[]
     VendorMenuGate.Decide(false, false, false) == VendorMenuDecision.WaitForMenu);
 }
 
+// 44. NO-PLAN TRIGGER POLARITY (the 2026-09-07 "cancel button is still there" hang): the session-end
+//     vendor trigger is inserted ahead of every retainer session's own steps. When the value gate
+//     held no vendor items the 0.1.16.2 trigger answered RETRY (false) to the task manager, re-ran
+//     every tick for its full 120 s time limit, and only then dropped - two minutes of dead air per
+//     listing retainer. The no-plan path is NOTHING TO DO, which means complete (true), never wait.
+{
+  Check("44 trigger: a no-plan trigger completes as a no-op (true), never retries",
+    VendorMenuGate.NoPlanTriggerCompletes());
+
+  // Negative control: the polarity helper is wired to the real no-plan branch, so it must NOT be
+  // reachable on a plan-bearing path's stop verdicts - those stay governed by case 42/43 gates.
+  Check("44 trigger: stop-on-failure gate unchanged by the no-op polarity",
+    VendorMenuGate.Decide(true, true, false) == VendorMenuDecision.MenuMissingEntry
+    && VendorMenuGate.Decide(false, false, false) == VendorMenuDecision.WaitForMenu);
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;

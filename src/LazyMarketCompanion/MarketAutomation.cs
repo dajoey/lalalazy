@@ -1017,7 +1017,6 @@ internal sealed class MarketAutomation : Window, IDisposable
     // listing steps - but the retainer inventory panel can only open AFTER the sell list closes and
     // the bell menu is back, so 0.1.15.0 queues a trigger that runs the leg at the end of this
     // retainer's session instead (AutoRetainer's own order: menu -> panel -> sell -> close).
-    EnqueueVendorLegTrigger();
     return true;
   }
 
@@ -1101,9 +1100,14 @@ internal sealed class MarketAutomation : Window, IDisposable
     _vendorPlanPlaced = false;
     if (!placed || plan == null || plan.Ops.Count == 0)
     {
-      // 0.1.15.2: returning true here would make a retry scan of the same retainer look like a
-      // failed leg (it would stop the sweep). No plan is a state-change race, not a failure.
-      return false;
+      // 0.1.16.3: a completed trigger returns true and the task manager just continues the
+      // queue; only StopOnVendorFailure stops the sweep, so a no-op cannot halt anything.
+      // Returning false here was the 0.1.16.2 defect: false means RETRY, so on a retainer whose
+      // gate held no vendor items this dead trigger re-ran every tick for its full 120 s time
+      // limit at the FRONT of the queue, stalling the session's own listing steps - the sweep
+      // looked hung for two minutes per listing retainer (2026-09-07 10:13-10:15 run).
+      // Decision pinned Dalamud-free in VendorMenuGate (harness case 44).
+      return AutoMarket.VendorMenuGate.NoPlanTriggerCompletes();
     }
 
     // 0.1.15.1: the trigger is INSERTED at the front of the queue, ahead of the session's own

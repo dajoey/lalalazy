@@ -4,6 +4,10 @@ namespace LazyMarketCompanion.AutoMarket;
 
 // Dalamud-free. Exercises by tests/LazyMarketCompanion.Harness (case 42).
 //
+// 0.1.16.3: a session-end trigger with NO vendoring plan completes as a no-op (true), never a
+// retry (false) - a false answer re-runs it every tick for its full time limit at the FRONT of the
+// queue, which stalled the sweep two minutes per listing retainer on 2026-09-07 (harness case 44).
+//
 // 0.1.15.2: the vendoring leg's menu-open decision table, lifted out of
 // MarketAutomation.ClickRetainerEntrust so the harness can pin it. Two shipped releases failed on
 // exactly this decision:
@@ -51,4 +55,14 @@ public static class VendorMenuGate
       return VendorMenuDecision.OpenPanel;
     return VendorMenuDecision.MenuMissingEntry;
   }
+
+  /// <summary>
+  /// 0.1.16.3: the completion polarity of the session-end vendor trigger when no vendoring plan
+  /// was placed this retainer. A trigger with no plan is NOTHING TO DO - it completes (true) and
+  /// the task manager continues the queue. It is never a retry (false): a false answer re-runs the
+  /// trigger every tick until its time limit expires, ahead of the session's own listing steps -
+  /// the 0.1.16.2 two-minute-per-retainer stall. Only a genuinely failed leg stops the sweep
+  /// (stop-on-failure); this path emits no stop.
+  /// </summary>
+  public static bool NoPlanTriggerCompletes() => true;
 }

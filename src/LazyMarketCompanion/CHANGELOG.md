@@ -1,4 +1,12 @@
 # Changelog
+## v0.1.16.3 (2026-09-07)
+
+### Fixed
+
+- **Auto-Market stalled for two minutes on the first retainer with new items to list before it listed anything - the sweep looked hung ("the cancel button is still there like it's doing something but it's not") while nothing happened.** The 0.1.16.2 session-end vendoring trigger was inserted on every retainer session, and when the value gate held no vendor items (the common case: everything above the threshold) it answered the task manager "not done" - which means RETRY - so the dead trigger re-ran every tick for its full 120-second time limit at the FRONT of the queue, ahead of the retainer's own listing steps, and only then got dropped ("Task VendorLeg took too long to execute"). Measured on the 2026-09-07 10:13 run: gate decision 10:13:02, first listing step 10:15:02 - exactly 120 s of dead air per listing retainer (files: `MarketAutomation.cs`, `RunVendorLegAtSessionEnd`/`EnqueueVendorLegTrigger`).
+- A trigger with no vendoring plan now completes as a no-op: the task manager continues the queue immediately. Only a genuinely failed vendoring leg stops the sweep (stop-on-failure, unchanged from 0.1.15.2); this path emits no stop. The decision table is pinned Dalamud-free in `VendorMenuGate.NoPlanTriggerCompletes` (files: `MarketAutomation.cs`, `AutoMarket/VendorMenuGate.cs`).
+- The duplicate trigger insert on the listing path is gone: the gated insert at the top of the plan builder already queues the trigger on both the listing and the nothing-to-list path, so the second, ungated insert was pure duplication and double-inserted the trigger on every listing retainer. A retainer whose gate holds no vendor items now inserts no trigger at all; the no-op return remains as the race guard (files: `MarketAutomation.cs`, `BuildListingStepsNow`).
+
 ## v0.1.16.2 (2026-09-07)
 
 ### Fixed
