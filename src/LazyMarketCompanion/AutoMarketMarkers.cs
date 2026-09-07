@@ -7,6 +7,7 @@ using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using LazyMarketCompanion.AutoMarket;
+using Lumina.Excel.Sheets;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
@@ -15,9 +16,20 @@ namespace LazyMarketCompanion;
 
 /// <summary>
 /// At-a-glance Auto-Market markers on the player's bag windows (Helm t-joey-1788794153572): a small
-/// green dot at the top-right corner of every bag slot whose stack has an ENABLED Auto-Market entry.
-/// The marker answers "is this on the list and will the next run list it" - membership, not
-/// "is it being listed this second", so a fully-listed item still shows its marker.
+/// dot at the top-right corner of every bag slot whose stack is market-relevant.
+///
+/// TWO STATES, one per kind of stack (0.1.21.0, per Joey: "if it be put on the marketboard at all
+/// ever, it should have an indicator on it saying whether it's on my automarket list or not"):
+/// - GREEN dot: this stack is on the Auto-Market list (enabled) - the next Auto-Market run would
+///   list it. This is the original 0.1.17.0 marker meaning, unchanged.
+/// - GREY dot: this stack COULD be put on the market board but is NOT on the Auto-Market list.
+/// - NO dot: the item cannot be put on the market board at all (untradable, no search category).
+/// Marketability is the same test the inventory context menu uses
+/// (<c>!item.IsUntradable &amp;&amp; item.ItemSearchCategory.RowId != 0</c>, read once per item id
+/// per draw from the Item sheet). On/off-listing is keyed on item id and HQ flag exactly as the
+/// config stores it, so HQ and NQ of the same item can disagree - correctly.
+/// The marker answers "is this on the list", not "is it being listed this second", so a
+/// fully-listed item still shows its green marker.
 ///
 /// HOW IT DRAWS: the same positioned-ImGui-overlay machinery MarketAutomation uses for its retainer
 /// buttons, applied per grid slot instead of per retainer addon. The bag windows are the
@@ -56,8 +68,11 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
   /// <summary>The tabbed-mode parent window whose TabIndex says which bag the panel shows.</summary>
   private const string ParentInventoryAddon = "Inventory";
 
-  /// <summary>The marker colour, as ImGui's ABGR-packed uint (a readable green).</summary>
-  private const uint MarkerColorPacked = 0xFF3CE63C; // R=0x3C G=0xE6 B=0x3C A=0xFF
+  /// <summary>Green dot: this stack is on the Auto-Market list (ImGui ABGR-packed; a readable green).</summary>
+  private const uint OnListColorPacked = 0xFF3CE63C; // R=0x3C G=0xE6 B=0x3C A=0xFF
+
+  /// <summary>Grey dot: marketable but not on the Auto-Market list (ImGui ABGR-packed; a muted grey).</summary>
+  private const uint MarketableNotListedColorPacked = 0xFF84888C; // R=0x8C G=0x88 B=0x84 A=0xFF
 
   /// <summary>Dot radius and corner inset, in game-scaled pixels.</summary>
   private const float DotRadius = 4.5f;
@@ -67,6 +82,8 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
   // Which (grid addon, container) pairs already emitted their one INFO line this session (the grading signal).
   private readonly HashSet<string> _loggedAddons = [];
   private readonly List<MarkerMatch.Entry> _entriesScratch = [];
+  // Item ids seen stable-market this draw, carried across draws so a stable call is made once per id.
+  private readonly HashSet<uint> _marketableScratch = [];
 
   public AutoMarketMarkers()
     : base("Lazy Market Companion##markers", ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoInputs, true)
@@ -144,6 +161,30 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
     }
   }
 
+  /// <summary>
+  /// Game-side half of the second state: is this item marketable at all? Same test the inventory
+  /// context menu uses (Plugin.cs): not untradable AND it has a market-board search category. The
+  /// Item sheet read is per unique id per container, and only for stacks not already on the list
+  /// (an on-list item is green whatever its tradability - a config-entry bug is shown, not hidden,
+  /// exactly as 0.1.17.0 decided).
+  /// </summary>
+  private void BuildMarketableScratch(IEnumerable<MarkerMatch.Stack> stacks)
+  {
+    _marketableScratch.Clear();
+    var sheet = Plugin.DataManager?.GetExcelSheet<Item>();
+    if (sheet == null)
+      return;
+    foreach (var s in stacks)
+    {
+      if (_marketableScratch.Contains(s.ItemId))
+        continue;
+      if (!sheet.TryGetRow(s.ItemId, out var item))
+        continue;
+      if (!item.IsUntradable && item.ItemSearchCategory.RowId != 0)
+        _marketableScratch.Add(s.ItemId);
+    }
+  }
+
   private unsafe void DrawForGrid(string addonName, AtkUnitBase* addon, InventoryType containerType)
   {
     var container = InventoryManager.Instance()->GetInventoryContainer(containerType);
@@ -153,7 +194,7 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
     var grid = (AddonInventoryGrid*)addon;
     var slotCount = Math.Min(grid->Slots.Length, (int)container->Size);
 
-    // Snapshot the marked-slot set from the CONTAINER first, then draw over the matching slot nodes.
+    // Snapshot the classified-slot set from the CONTAINER first, then draw over the matching slot nodes.
     var stacks = new List<MarkerMatch.Stack>(slotCount);
     for (var i = 0; i < slotCount; i++)
     {
@@ -163,14 +204,19 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
       stacks.Add(new MarkerMatch.Stack(i, item->ItemId, item->Flags.HasFlag(InventoryItem.ItemFlags.HighQuality)));
     }
 
-    var marked = MarkerMatch.MarkedStacks(_entriesScratch, stacks);
-    if (marked.Count == 0)
+    // Marketability feeds the grey state: one sheet read per unique id in this container. An on-list
+    // item is green whether or not the sheet calls it tradable (a config-entry bug is shown, not
+    // hidden - the 0.1.17.0 honesty rule); only the GREY state requires real marketability.
+    BuildMarketableScratch(stacks);
+    var classified = MarkerMatch.Classify(_entriesScratch, stacks, _marketableScratch);
+    if (classified.Count == 0)
       return;
 
-    var drawn = 0;
+    var drawnOnList = 0;
+    var drawnNotListed = 0;
     for (var i = 0; i < slotCount; i++)
     {
-      if (!marked.ContainsKey(i))
+      if (!classified.TryGetValue(i, out var entry))
         continue;
 
       var dragDrop = grid->Slots[i].Value;
@@ -191,6 +237,16 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
       if (size.X <= 0 || size.Y <= 0)
         continue;
 
+      var color = entry.Kind switch
+      {
+        MarkerMatch.MarkKind.OnList => OnListColorPacked,
+        MarkerMatch.MarkKind.MarketableNotListed => MarketableNotListedColorPacked,
+        _ => 0u,
+      };
+      if (color == 0u)
+        continue;
+      if (entry.Kind == MarkerMatch.MarkKind.OnList) drawnOnList++; else drawnNotListed++;
+
       ImGuiHelpers.ForceNextWindowMainViewport();
       ImGuiHelpers.SetNextWindowPosRelativeMainViewport(position + new Vector2(size.X, 0f) - new Vector2(CornerInset, CornerInset));
       ImGui.PushStyleColor(ImGuiCol.WindowBg, 0);
@@ -199,17 +255,17 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
         | ImGuiWindowFlags.NoNavFocus | ImGuiWindowFlags.AlwaysUseWindowPadding);
       var drawList = ImGui.GetWindowDrawList();
       var center = ImGui.GetCursorScreenPos() + new Vector2(DotRadius, DotRadius);
-      drawList.AddCircleFilled(center, DotRadius * scale.X, MarkerColorPacked);
+      drawList.AddCircleFilled(center, DotRadius * scale.X, color);
       ImGui.End();
       ImGui.PopStyleColor();
-      drawn++;
     }
 
     // The one INFO line per (grid addon, container) pairing per session - how the in-game verify
     // is graded from ffxivdb. Naming the container is the point: it proves WHICH bag the dots
-    // were computed from, which is exactly what 0.1.17.0 got wrong.
-    if (drawn > 0 && _loggedAddons.Add($"{addonName}:{containerType}"))
-      Svc.Log.Information($"[LMC] markers: {drawn} marked of {stacks.Count} stacks on {addonName} ({containerType})");
+    // were computed from, which is exactly what 0.1.17.0 got wrong. 0.1.21.0: the line now
+    // separates the two marker colours.
+    if ((drawnOnList > 0 || drawnNotListed > 0) && _loggedAddons.Add($"{addonName}:{containerType}"))
+      Svc.Log.Information($"[LMC] markers: {drawnOnList} on-list (green) + {drawnNotListed} marketable not listed (grey) of {stacks.Count} stacks on {addonName} ({containerType})");
   }
 
   private static unsafe System.Numerics.Vector2 GetNodePosition(AtkResNode* node)

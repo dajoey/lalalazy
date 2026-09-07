@@ -1959,5 +1959,72 @@ var Catalogue = new (uint Id, string Name)[]
     MarketGate.UsableQuote(stale[19990], Rule(19990, 99).HQ, preferHq: true, Now, Fresh) == null);
 }
 
+// 48. THE TWO-STATE BAG MARKER (0.1.21.0). Joey: "if it be put on the marketboard at all ever, it
+// should have an indicator on it saying whether it's on my automarket list or not." The marker now
+// has THREE outcomes per stack: green (on the Auto-Market list, enabled), grey (marketable but NOT
+// on the list), and NO dot (cannot go on the market board at all). The separator logic is pure and
+// lives in MarkerMatch.Classify; the marketability predicate itself is game-side (Item sheet).
+{
+  var entries = new List<MarkerMatch.Entry>
+  {
+    new(99u, false, true),   // Dye-ish marked item, NQ, enabled
+    new(100u, true, true),   // enabled HQ entry
+    new(101u, false, false), // list entry present but DISABLED: not green
+  };
+
+  var stacks = new List<MarkerMatch.Stack>
+  {
+    new(0, 99u, false),   // on list -> green
+    new(1, 100u, true),   // on list (HQ entry) -> green
+    new(2, 100u, false),  // same id NQ, no NQ entry, marketable -> grey
+    new(3, 101u, false),  // disabled entry + marketable -> grey (green is for enabled entries only)
+    new(4, 101u, false),  // same item again, also grey
+    new(5, 200u, false),  // marketable, no entry -> grey
+    new(6, 300u, false),  // NOT marketable, no entry -> no dot
+  };
+
+  var marketable = new HashSet<uint> { 100u, 101u, 200u };
+
+  var cls = MarkerMatch.Classify(entries, stacks, marketable);
+
+  Check("48 twostate: enabled entry is green",
+    cls.TryGetValue(0, out var a) && a.Kind == MarkerMatch.MarkKind.OnList);
+  Check("48 twostate: HQ entry marks the HQ stack green",
+    cls.TryGetValue(1, out var b) && b.Kind == MarkerMatch.MarkKind.OnList);
+  Check("48 twostate: same id without a matching entry, marketable -> grey",
+    cls.TryGetValue(2, out var c) && c.Kind == MarkerMatch.MarkKind.MarketableNotListed);
+  // A DISABLED entry is NOT green - but if the item itself is marketable it is still grey: grey
+  // means "could be listed but is not on the (enabled) list", which is exactly the true state.
+  Check("48 twostate: DISABLED entry is not green (never promised)",
+    !cls.TryGetValue(3, out var x3) || x3.Kind != MarkerMatch.MarkKind.OnList);
+  Check("48 twostate: DISABLED entry on a marketable item still shows grey (the not-configured answer)",
+    cls.TryGetValue(3, out var x3b) && x3b.Kind == MarkerMatch.MarkKind.MarketableNotListed);
+  Check("48 twostate: marketable with no entry at all -> grey",
+    cls.TryGetValue(5, out var d) && d.Kind == MarkerMatch.MarkKind.MarketableNotListed);
+  Check("48 twostate: unmarketable item with no entry -> no dot at all",
+    !cls.ContainsKey(6));
+
+  // (a) An on-list stack stays green EVEN IF not in the marketable set: the config-entry bug is
+  // shown, not hidden (the 0.1.17.0 honesty rule).
+  var bugStacks = new List<MarkerMatch.Stack> { new(7, 99u, false) };
+  var cls2 = MarkerMatch.Classify(entries, bugStacks, new HashSet<uint>());
+  Check("48 twostate: an on-list stack stays green regardless of marketability (honour config bugs)",
+    cls2.TryGetValue(7, out var e) && e.Kind == MarkerMatch.MarkKind.OnList);
+
+  // (b) CONTROL: an empty marketable set yields ONLY green slots - the old single-state behaviour.
+  var clsOnlyOnList = MarkerMatch.Classify(entries, stacks, new HashSet<uint>());
+  Check("48 twostate: control - empty marketable set reproduces the old green-only marker set",
+    clsOnlyOnList.Count == 2
+    && clsOnlyOnList.ContainsKey(0) && clsOnlyOnList.ContainsKey(1)
+    && clsOnlyOnList[0].Kind == MarkerMatch.MarkKind.OnList
+    && clsOnlyOnList[1].Kind == MarkerMatch.MarkKind.OnList);
+
+  // (c) MARKEDSTACKS (the old verdict) is UNCHANGED - the listing engine still consumes only
+  // enabled entries; the grey state is a marker-layer concept, never planner input.
+  var markedOld = MarkerMatch.MarkedStacks(entries, stacks);
+  Check("48 twostate: MarkedStacks still answers only the list-membership question",
+    markedOld.Count == 2 && markedOld.ContainsKey(0) && markedOld.ContainsKey(1));
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;

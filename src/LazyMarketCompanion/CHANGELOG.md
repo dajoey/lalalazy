@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.21.0 (2026-09-07)
+
+### Changed
+
+- **Bag markers now cover EVERY marketable item, not just Auto-Market list items - two-dot system.** A marketable stack with no dot meant "this cannot go on the board", but most stacks in a bag CAN be put on the market board, so most of the bag showed nothing and the feature read as broken. Now every stack in the player's four bags carries exactly one of: a GREEN dot (this stack is on the Auto-Market list, enabled - the meaning from 0.1.17.0, unchanged), a GREY dot (this stack can go on the market board but is not on the Auto-Market list), or no dot at all (the item cannot be listed ever - untradable or no board category). Grey is derived from the same marketability test the inventory right-click menu uses (`!item.IsUntradable && item.ItemSearchCategory.RowId != 0`); an on-list stack stays green even if the item sheet calls it untradable, so a config-entry bug is shown rather than hidden. An entry that is on the list but DISABLED reads as not-on-the-list: grey when the item is marketable, no dot when it is not. The summary line now reports both colours, e.g. "3 on-list (green) + 27 marketable not listed (grey) of 35 stacks on InventoryGrid0E (Inventory1)". The marker still draws only on the player's four bags, never on a retainer's inventory view (files: `AutoMarket/MarkerMatch.cs` MarkKind/Classify new, `AutoMarketMarkers.cs` BuildMarketableScratch/two-colour draw, offline suite case 48).
+
 ## v0.1.20.0 (2026-09-07)
 
 ### Fixed

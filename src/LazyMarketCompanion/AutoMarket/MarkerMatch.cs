@@ -22,6 +22,19 @@ public static class MarkerMatch
   /// <summary>The config side of the predicate: one Auto-Market list entry's key fields.</summary>
   public sealed record Entry(uint ItemId, bool Hq, bool Enabled);
 
+  /// <summary>
+  /// How a bag slot is visually marked. <see cref="None"/> draws nothing;
+  /// <see cref="OnList"/> is the green dot (this stack is on the Auto-Market list and enabled);
+  /// <see cref="MarketableNotListed"/> is the grey dot (this stack CAN go on the market board but
+  /// is not on the Auto-Market list). Untradable items get <see cref="None"/> - no dot at all.
+  /// </summary>
+  public enum MarkKind
+  {
+    None = 0,
+    OnList = 1,
+    MarketableNotListed = 2,
+  }
+
   /// <summary>True when the stack's Auto-Market entry exists and is enabled - the "marked" state.</summary>
   public static bool IsMarked(IReadOnlyList<Entry> entries, uint itemId, bool hq)
   {
@@ -39,5 +52,29 @@ public static class MarkerMatch
       if (IsMarked(entries, s.ItemId, s.Hq))
         marked[s.Slot] = s;
     return marked;
+  }
+
+  /// <summary>
+  /// Classify every stack: keyed by container slot index, each stack's <see cref="MarkKind"/>.
+  /// Recomputed every draw from the live entries and marketability set - no state, no cache.
+  /// </summary>
+  /// <param name="entries">The Auto-Market list entries (config).</param>
+  /// <param name="stacks">The container's stacks.</param>
+  /// <param name="marketableItemIds">Item ids that CAN be put on the market board (game-side computed: tradable per the Item sheet).</param>
+  public static Dictionary<int, (Stack Stack, MarkKind Kind)> Classify(
+    IReadOnlyList<Entry> entries, IEnumerable<Stack> stacks, IReadOnlySet<uint> marketableItemIds)
+  {
+    var result = new Dictionary<int, (Stack, MarkKind)>();
+    foreach (var s in stacks)
+    {
+      var kind = MarkKind.None;
+      if (IsMarked(entries, s.ItemId, s.Hq))
+        kind = MarkKind.OnList;
+      else if (marketableItemIds.Contains(s.ItemId))
+        kind = MarkKind.MarketableNotListed;
+      if (kind != MarkKind.None)
+        result[s.Slot] = (s, kind);
+    }
+    return result;
   }
 }
