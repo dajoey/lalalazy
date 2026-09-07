@@ -1,4 +1,12 @@
 # Changelog
+## v0.1.6.16 (2026-09-07)
+
+### Fixed
+- **The fetch phases now wait out the wave's own navigation before queueing a bell session.** The 18:03 run's pass-2 re-plan announced the vendor stop AND queued the batch fetch in the same second: <c>Lifestream.Teleport</c> returns the moment it is ACCEPTED, so <c>IsBusy()</c> still read false mid-flight, the session answered 1.5 s later with nothing moved, the run printed "0 material(s) moved", pass-3 read that as "no progress this pass", and the vendor stop re-emitted on top - three contradictory sends in one second. A new wave-start gate holds <c>Phase.BatchRetrieve</c> and <c>Phase.Retrieve</c> from the moment any navigation fires (vendor teleport, market trip) until the trip is over AND a 5-second settle beat has passed, capped at 3 minutes; the character standing AT a bell, in a retainer's inventory or at a quantity prompt does NOT hold - those are the fetch phases' own ignored states (files: Core/ShoppingStopGate.cs new, Adapters/DispatchService.cs StartWave, StartVendorWalk, Phase.BatchRetrieve, Phase.Retrieve)
+- **A batch session that ends INSTANTLY with zero materials moved is now a blocked run naming the bell, not "no progress this pass".** The 0.1.6.13 stall guard only catches a HUNG session (2-min zero-change while Busy); an instant zero-move session (Busy false ~1.5 s after the queue, mid-teleport in the field) sailed through it. The run now stops with the bell named and the cart held for Resume, and never re-emits the vendor stop on top of it (files: Core/ShoppingStopGate.cs BatchMovedNothing, Adapters/DispatchService.cs Phase.BatchWait)
+
+- Proved offline before shipping: the gate is pure Core, pinned by 	ests/LazyCrafter.Harness (ShoppingStopGateTests, 16 checks: the just-fired trip holds even while Lifestream still reads idle, the settle beat, the at-the-bell cases do NOT hold, the cap forces Proceed, the zero-move sentence never says "no progress"). The dispatcher wiring is proved by the shipped-DLL artifact scan (as in 0.1.6.8/0.1.6.13). The pre-fix gate (hold on ANY busy state) was mutation-tested: it reds exactly the three at-the-bell checks.
+- Full harness: 342/342 PASS (326 prior + 16 new).
 ## v0.1.6.15 (2026-09-07)
 
 ### Fixed

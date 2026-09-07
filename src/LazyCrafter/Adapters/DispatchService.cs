@@ -134,6 +134,19 @@ public sealed class DispatchService : IDisposable
     // a five-minute wait the plan's own logic says is pointless (market=[] can never make the line right).
     private bool _boardOurs;
     private string? _lastResumedWindow;
+    // ---- 0.1.6.16 (card t_68532446): the wave-start gate ----
+    /// <summary>When StartWave last sent the character somewhere (vendor teleport, market or inn trip) -
+    /// MinValue when this wave has not navigated. Lifestream.Teleport returns the moment it is ACCEPTED, so
+    /// IsBusy() reading false says nothing about whether the character has arrived: the 0.1.6.15 pass-2 run
+    /// queued the batch fetch 0.07 s after the teleport line, mid-flight, and the session then answered
+    /// Busy()==false with nothing moved. Until this timestamp is older than ShoppingStopGate.SettleWindow -
+    /// or Lifestream reports busy - the fetch phases hold.</summary>
+    private DateTime _navFiredUtc = DateTime.MinValue;
+
+    /// <summary>A navigation this wave fired is still plausibly in flight: Lifestream busy, or the trip so
+    /// recent the IsBusy poll cannot have seen it yet. Framework thread.</summary>
+    private bool TripActive() =>
+        Lifestream.IsBusy() == true || DateTime.UtcNow < _navFiredUtc.Add(ShoppingStopGate.SettleWindow);
 
     // ---- 0.1.6.13 (card t_3161fa75): the fetch holds ----
 
@@ -471,6 +484,7 @@ public sealed class DispatchService : IDisposable
         _bellWalkFails = 0;
         _boardOurs = false;
         _lastResumedWindow = null;
+        _navFiredUtc = DateTime.MinValue;   // 0.1.6.16: a new run starts with no navigation in flight (card t_68532446)
         _current = null;
         _fetching = null;
         _runClock.Restart();
@@ -600,7 +614,7 @@ public sealed class DispatchService : IDisposable
             // player is standing in front of a clear counter, not an error about an occupied client (this is
             // also what re-enables Lifestream's own Player.Interactable gate for any later trip).
             if (Lifestream.IsMarketBoardOpen()) Lifestream.CloseMarketBoard();
-            Lifestream.GoToMarket(plan.Market.Select(p => (p.ItemId, p.Quantity)).ToList(), Name, _plugin.Catalog.UnitCost, teleport: false, also: id => MarketClause(plan, id));
+            if (Lifestream.GoToMarket(plan.Market.Select(p => (p.ItemId, p.Quantity)).ToList(), Name, _plugin.Catalog.UnitCost, teleport: false, also: id => MarketClause(plan, id)) is null) _navFiredUtc = DateTime.UtcNow;   // 0.1.6.16: the trip fired - the fetch gate waits it out (t_68532446)
         }
         if (PlanReport.ManualLine(plan, Name) is { } manualLine) Say(manualLine);
         var willRetrieve = _retrievals.Count > 0;
@@ -977,6 +991,20 @@ public sealed class DispatchService : IDisposable
                     // preflight miss holds here while the character is walked to the bell - the preflight itself is
                     // the completion signal, so nothing is assumed about Lifestream's or Artisan's timing - and the
                     // 3-minute cap ends the wait with the refusal the press-time path used to print.
+                    // 0.1.6.16 (card t_68532446): StartWave may have just sent the character to a vendor or the
+                    // market board. Queueing a bell session while that trip is in flight is the 0.1.6.15 collapse:
+                    // three contradictory lines in one second, and a fetch that "moved 0 materials" because it
+                    // never stood at a bell. Hold until the trip is over AND a settle beat has passed; the
+                    // 3-minute cap ends the wait and lets the fetch's own gates answer.
+                    var stopGate = ShoppingStopGate.Decide(
+                        TripActive(), Readiness.BusyBecause(),
+                        DateTime.UtcNow - _navFiredUtc, _phaseClock.Elapsed);
+                    if (stopGate == ShoppingStopGate.Verdict.Hold)
+                    {
+                        SetStatus(ShoppingStopGate.HoldStatus(_phaseClock.Elapsed));
+                        Heartbeat(ShoppingStopGate.HoldHeartbeat());
+                        break;
+                    }
                     var gate = BellGateAtQueue();
                     if (gate == BellGate.Hold) break;
                     if (gate == BellGate.Refused) { _batchCrafts = Array.Empty<uint>(); Enter(Phase.Retrieve); break; }
@@ -1041,6 +1069,22 @@ public sealed class DispatchService : IDisposable
                     // what actually arrived. Anything still short stays in the per-item queue (trimmed to the
                     // remainder); demand the plan had not flagged (stock moved between plan and session) is
                     // appended to it.
+                    // 0.1.6.16 (card t_68532446, defect B): the 0.1.6.13 stall guard only catches a HUNG
+                    // session (2-min zero-change while Busy). A session that ends INSTANTLY with zero
+                    // materials moved - Busy false 1.5 s after the queue, mid-teleport in the field - sailed
+                    // through it, the run read "no progress this pass", and the vendor stop re-emitted on top.
+                    // A batch pass that could not move anything is a dead bell, not a slow one: stop with the
+                    // bell named, cart held, Resume re-plans.
+                    if (_batchFetched == 0 && _retrievals.Count > 0)
+                    {
+                        Fetch.Abort();
+                        var zeroWhy = ShoppingStopGate.BatchMovedNothing(_retrievals.Count);
+                        foreach (var r in _retrievals) _unfetched.Add((r, zeroWhy));
+                        _retrievals.Clear();
+                        _batchCrafts = Array.Empty<uint>();
+                        FinishBlocked(zeroWhy, _plan);
+                        break;
+                    }
                     _plugin.Inventory.DropMemo();
                     var batchDemand = new Dictionary<uint, int>();
                     foreach (var id in _batchCrafts)
@@ -1083,6 +1127,16 @@ public sealed class DispatchService : IDisposable
                     // 0.1.6.12 (card t_034884f4): the same queue-time bell gate as the batch path - the character is
                     // walked to the bell BEFORE anything is dequeued, and a dead end empties the queue (the next
                     // tick falls through to the channels).
+                    // 0.1.6.16 (card t_68532446): the same wave-start gate as the batch path.
+                    var itemStopGate = ShoppingStopGate.Decide(
+                        TripActive(), Readiness.BusyBecause(),
+                        DateTime.UtcNow - _navFiredUtc, _phaseClock.Elapsed);
+                    if (itemStopGate == ShoppingStopGate.Verdict.Hold)
+                    {
+                        SetStatus(ShoppingStopGate.HoldStatus(_phaseClock.Elapsed));
+                        Heartbeat(ShoppingStopGate.HoldHeartbeat());
+                        break;
+                    }
                     var itemGate = BellGateAtQueue();
                     if (itemGate == BellGate.Hold) break;
                     if (itemGate == BellGate.Refused) { Enter(Phase.Retrieve); break; }
@@ -1831,6 +1885,7 @@ public sealed class DispatchService : IDisposable
             var err = Lifestream.GoToVendor(first, firstItems, Name);
             if (err is null)
             {
+                _navFiredUtc = DateTime.UtcNow;   // 0.1.6.16: the teleport was accepted - the fetch gate waits it out (card t_68532446)
                 Say($"vendor stop 1 of {groups.Count}: buy here, then press Resume{(groups.Count > 1 ? $" - {groups.Count - 1} more vendor stop{(groups.Count == 2 ? "" : "s")} after this one" : "")}.");
                 _log.Information("vendor walk: heading to {Npc} ({Territory}) for {Items} item(s); {Left} stop(s) after it", first.NpcName, first.TerritoryName, firstItems.Count, groups.Count - 1);
             }
