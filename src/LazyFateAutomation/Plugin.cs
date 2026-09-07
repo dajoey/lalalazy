@@ -16,6 +16,9 @@ public class Plugin : IDalamudPlugin {
     public static FateToolKit FateToolKit { get; private set; } = null!;
     public static FateToolKitWindow Window { get; private set; } = null!;
     private ChangelogGate _changelog = null!;
+    private readonly FateSnapshotService _fateSnapshot = new();
+    private readonly FateSnapshotServer _fateHttp;
+
 
     public Plugin(IDalamudPluginInterface pluginInterface) {
         P = this;
@@ -35,6 +38,8 @@ public class Plugin : IDalamudPlugin {
 
         FateToolKit = new FateToolKit();
         FateToolKit.Enable();
+        _fateHttp = new FateSnapshotServer(() => _fateSnapshot.Current);
+
 
         Window = new FateToolKitWindow(FateToolKit);
         
@@ -68,6 +73,17 @@ public class Plugin : IDalamudPlugin {
             HelpMessage = "Alias for /lazyfate",
             ShowInHelp = false
         });
+        Svc.Framework.Update += OnFrameworkUpdateSnapshot;
+
+    }
+
+    private void OnFrameworkUpdateSnapshot(Dalamud.Plugin.Services.IFramework framework) {
+        try {
+            _fateSnapshot.Tick();
+            _fateHttp.EnsureStarted();
+        } catch (Exception ex) {
+            Svc.Log.Error(ex, "LazyFateAutomation snapshot tick failed");
+        }
     }
 
     public void Dispose() {
@@ -79,6 +95,9 @@ public class Plugin : IDalamudPlugin {
         Service.Automation.Stop();
         Service.Gluttony?.Release();
 
+        Svc.Framework.Update -= OnFrameworkUpdateSnapshot;
+        _fateHttp?.Dispose();
+
         ECommonsMain.Dispose();
     }
 
@@ -86,6 +105,13 @@ public class Plugin : IDalamudPlugin {
         var a = arguments.Trim();
         if (a.Equals("changelog", StringComparison.OrdinalIgnoreCase) || a.Equals("whatsnew", StringComparison.OrdinalIgnoreCase)) {
             _changelog.ShowNow();
+            return;
+        }
+        if (a.Equals("snapshot", StringComparison.OrdinalIgnoreCase)) {
+            var s = _fateSnapshot.Current;
+            Svc.Log.Information("LazyFateAutomation snapshot: " + (s == null
+                ? "none"
+                : $"{s.Char}@{s.World} zone={s.ZoneId} fates={s.Fates.Count} hunt={(s.HuntTarget ?? "none")} bills={s.BillsUnlocked}/{s.BillKills} cleared={s.Cleared} http='{_fateHttp.LastError}'"));
             return;
         }
         FateToolKit.OnCommand(command, arguments);

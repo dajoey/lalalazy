@@ -1,5 +1,19 @@
 # Changelog - Lazy Fate Automation
 
+## v0.0.3.0 (2026-09-07)
+
+### Added
+
+- Dashboard snapshot endpoint: the plugin now serves a read-only JSON snapshot of FATE and hunt state at http://127.0.0.1:10505/fates on the game host (new FateSnapshot.cs, FateSnapshotServer + FateSnapshotService). Loopback-only, no settings. The home dashboard relay polls it; nothing in the plugin's FATE automation behaviour changes.
+- The snapshot lists each active FATE with progress, seconds remaining, bonus flag, and whether the player is inside it, capped at the 12 most relevant (joined FATE first, soonest to expire next).
+- The snapshot carries a session counter of FATEs completed (a joined FATE that reaches 100% and then ends counts once) and the number of unlocked hunt bills with their total monster kills so far.
+- The snapshot names one live elite hunt mark present in the current zone (the game's own hunt-target check, MobHunt.IsHuntTarget); no name when none is up.
+- New debug command: "/lazyfate snapshot" prints the current snapshot state to the plugin log for troubleshooting.
+
+### Notes
+
+- The snapshot endpoint answers 503 only before the first character loads (title screen); afterwards it always serves the latest snapshot, matching LazyRetainerLive's behaviour.
+
 ## v0.0.2.0 (2026-09-05)
 
 - Added the in-game "What's new" popup. After Lazy Fate Automation updates, its changelog now opens once inside the game so the changes are visible without a trip to GitHub. It waits until the character is logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/lazyfate changelog` any time to reopen it.
