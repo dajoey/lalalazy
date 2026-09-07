@@ -1,5 +1,8 @@
+using ECommons;
 using ECommons.DalamudServices;
 using FFXIVClientStructs.FFXIV.Client.Game;
+using FFXIVClientStructs.FFXIV.Client.UI.Agent;
+using FFXIVClientStructs.FFXIV.Component.GUI;
 using Lumina.Excel.Sheets;
 using System;
 using System.Collections.Generic;
@@ -41,12 +44,23 @@ internal static unsafe class AutoMarketService
   }
 
   /// <summary>
-  /// Items the value gate held back across this run so far, for the end-of-run chat line. Game-side
+  /// Vendored-item count for this run (0.1.12.0: the vendor leg increments it; the done line reports it). Game-side
   /// only; the decision itself lives in <see cref="MarketGate"/> and is harness-covered there.
   /// </summary>
   internal static int GateHeldThisRun { get; private set; }
 
-  internal static void ResetGateHeld() => GateHeldThisRun = 0;
+  /// <summary>
+  /// Rules the gate sent to the retainer-vendor leg this run (0.1.12.0). Used by
+  /// <see cref="MarketAutomation.BuildVendoringSteps"/> to plan the vendor ops and by the end-of-run
+  /// chat line to say how many were vendored vs listed.
+  /// </summary>
+  internal static List<ItemRule> HeldBackRules { get; } = new();
+
+  internal static void ResetGateHeld()
+  {
+    GateHeldThisRun = 0;
+    HeldBackRules.Clear();
+  }
 
   /// <summary>
   /// Every enabled Auto-Market item id - what the gate's one Universalis request asks about. Cheaper
@@ -120,6 +134,7 @@ internal static unsafe class AutoMarketService
     var freshnessMs = (long)Math.Clamp(config.AutoMarketGateFreshnessHours, 1, 168) * 3_600_000L;
 
     List<ItemRule> kept = rules;
+    var vendored = new List<ItemRule>();
     if (config.AutoMarketValueGateEnabled)
     {
       var gateOptions = new GateOptions(true, Math.Max(config.AutoMarketValueGateThresholdGil, 0), freshnessMs);
@@ -131,24 +146,37 @@ internal static unsafe class AutoMarketService
         ItemQuote? quote = null;
         quotes?.TryGetValue(rule.ItemId, out quote);
         var sellable = MarketGate.PotentialSellable(rule, stock, config.AutoMarketListPartialStacks);
-        if (MarketGate.Decide(sellable, quote, rule.HQ, config.HQ, gateOptions, now) == GateVerdict.List)
+        var verdict = MarketGate.Decide(sellable, quote, rule.HQ, config.HQ, gateOptions, now);
+        if (verdict == GateVerdict.List)
         {
           kept.Add(rule);
           continue;
         }
 
-        var unit = MarketGate.CheapestUnitPrice(quote, rule.HQ, config.HQ) ?? 0;
-        held.Add($"{rule.ItemId}{(rule.HQ ? " HQ" : "")} ({sellable} sellable at {unit:N0}, ~{MarketGate.NetRevenue(unit, sellable):N0} net)");
+        // 0.1.12.0: the request SUCCEEDED and priced this item at or under the threshold, so the
+        // below-threshold vendor leg takes it - "Have Retainer Sell Items", no market slot, no fee.
+        // The old 0.1.11.0 "hold it" is gone; only an uncertainty (request failed/null below) still holds.
+        if (verdict == GateVerdict.Vendor)
+        {
+          vendored.Add(rule);
+          continue;
+        }
+
+        // Impossible with the current Decide (uncertainty returns List), kept as the polarity pin:
+        // a HoldBack verdict that reaches the priced gate is a data bug, not a sell decision.
+        kept.Add(rule);
       }
 
-      if (held.Count > 0)
+      if (vendored.Count > 0)
       {
-        GateHeldThisRun += held.Count;
-        Svc.Log.Information($"[LMC] gate: holding back {held.Count} item(s) at or under {gateOptions.ThresholdGil:N0} gil net: {string.Join(", ", held)} - they stay in your bags/retainer, nothing is sold or destroyed");
+        GateHeldThisRun += vendored.Count;
+        HeldBackRules.AddRange(vendored);
+        var names = string.Join(", ", vendored.Select(r => r.ItemId.ToString() + (r.HQ ? " HQ" : "")));
+        Svc.Log.Information($"[LMC] gate: vendoring {vendored.Count} item(s) at the retainer (at or under {gateOptions.ThresholdGil:N0} gil net): {names}");
         if (Plugin.Configuration.ShowAutoMarketMessages)
-          Communicator.PrintInfo($"value gate: holding back {held.Count} item(s) worth at or under {gateOptions.ThresholdGil:N0} gil net - left in place, not listed (nothing is sold to a vendor)");
+          Communicator.PrintInfo($"value gate: vendoring {vendored.Count} item(s) at the retainer (at or under {gateOptions.ThresholdGil:N0} gil net): {names}");
       }
-      else
+      else if (kept.Count > 0)
       {
         Svc.Log.Information($"[LMC] gate: every item is above the {gateOptions.ThresholdGil:N0} gil net threshold");
       }
@@ -325,5 +353,65 @@ internal static unsafe class AutoMarketService
     if (rm == null) return -1;
     var active = rm->GetActiveRetainer();
     return active == null ? -1 : active->MarketItemCount;
+  }
+
+  /// <summary>
+  /// The client's vendor prices for one item, off the Item sheet. These are the numbers the sell UI
+  /// autofills as a new listing's default price, so the vendoring estimate is the client's own
+  /// arithmetic. priceLow is the honest per-unit vendor price; priceMid exists for the estimate line
+  /// on HQ stock with "Use HQ prices" on. Zero when the row is missing (the gate treats that as
+  /// unpriceable and the item stays where it is).
+  /// </summary>
+  public static (uint PriceMid, uint PriceLow) VendorPrices(uint itemId)
+  {
+    var items = Svc.Data.GetExcelSheet<Item>();
+    if (items == null || !items.TryGetRow(itemId, out var row))
+      return (0, 0);
+    return (row.PriceMid, row.PriceLow);
+  }
+
+  /// <summary>
+  /// Vendoring one stack through the retainer (0.1.12.0). The call is FFXIVClientStructs
+  /// AgentRetainerItemCommandModule + RetainerItemCommand.HaveRetainerSellItem, exactly how
+  /// AutoRetainer's InventorySpaceManager.SafeSellSlot drives the retainer's item menu headlessly
+  /// (its own enum member carries the same value, 5 = "Have Retainer Sell Items"); the session
+  /// precondition is the same one Auto-Market already satisfies - AgentRetainer active with the
+  /// retainer inventory loaded. The slot is RE-READ right before the call and every mismatch aborts
+  /// it, so a plan built on a stale snapshot can never vendor the wrong thing.
+  /// </summary>
+  public unsafe static bool ExecuteVendor(VendorOp op)
+  {
+    var agent = AgentModule.Instance()->GetAgentByInternalId(AgentId.Retainer);
+    if (agent == null || !agent->IsAgentActive())
+    {
+      Svc.Log.Warning($"[LMC] vendor: agent retainer is not active, skipping item {op.ItemId} slot {op.Container}:{op.Slot}");
+      return false;
+    }
+
+    var loaded = GenericHelpers.TryGetAddonByName<AtkUnitBase>("InventoryRetainer", out _) ||
+                 GenericHelpers.TryGetAddonByName<AtkUnitBase>("InventoryRetainerLarge", out _);
+    if (!loaded)
+    {
+      Svc.Log.Warning($"[LMC] vendor: retainer inventory panel not open, skipping item {op.ItemId} slot {op.Container}:{op.Slot}");
+      return false;
+    }
+
+    // RE-READ the slot immediately before firing. The plan was built from a snapshot; if anything
+    // about this slot moved since, abort rather than sell something we did not judge.
+    var manager = InventoryManager.Instance();
+    var container = manager == null ? null : manager->GetInventoryContainer((InventoryType)op.Container);
+    var slot = container == null ? null : container->GetInventorySlot(op.Slot);
+    if (slot == null || slot->ItemId != op.ItemId || slot->Quantity < op.Quantity)
+    {
+      var had = slot == null ? 0u : slot->ItemId;
+      var hadQty = slot == null ? 0 : (int)slot->Quantity;
+      Svc.Log.Warning($"[LMC] vendor: slot {op.Container}:{op.Slot} changed since planning (had {had} x{hadQty}, planned {op.ItemId} x{op.Quantity}); skipping");
+      return false;
+    }
+
+    var module = (nint)AgentModule.Instance()->GetAgentByInternalId(AgentId.Retainer) + 40;
+    Plugin.RetainerItemCommand(module, (uint)op.Slot, (InventoryType)op.Container, 0, RetainerItemCommand.HaveRetainerSellItem);
+    Svc.Log.Information($"[LMC] vendored {(InventoryType)op.Container}:{op.Slot} item {op.ItemId}{(op.HQ ? " HQ" : "")} x{op.Quantity} (est {op.EstGil:N0} gil)");
+    return true;
   }
 }

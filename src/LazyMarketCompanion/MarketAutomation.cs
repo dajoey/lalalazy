@@ -9,6 +9,7 @@ using ECommons.DalamudServices;
 using ECommons.ImGuiMethods;
 using ECommons.UIHelpers.AddonMasterImplementations;
 using ECommons.UIHelpers.AtkReaderImplementations;
+using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Common.Math;
 using FFXIVClientStructs.FFXIV.Component.GUI;
@@ -50,6 +51,7 @@ internal sealed class MarketAutomation : Window, IDisposable
   private readonly List<ListingOp> _listedThisRetainer = [];
   private int _listedTotal;
   private int _listingFailures;
+  private int _vendoredThisRun;
 
   // "Pinch only what I just listed" bookkeeping. Which listings qualify is decided from the market
   // CONTAINER since 0.1.6.0 - a slot this run listed into that is still at the placeholder price - and the
@@ -344,7 +346,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     }
 
     _taskManager.Enqueue(RemoveTalkAddonListeners);
-    _taskManager.Enqueue(() => Communicator.PrintSweepDone(_listedTotal, _listingFailures, AutoMarketService.GateHeldThisRun), "AnnounceSweepDone");
+    _taskManager.Enqueue(() => Communicator.PrintSweepDone(_listedTotal, _listingFailures, _vendoredThisRun, 0), "AnnounceSweepDone");
     _taskManager.Enqueue(() => AutoRetainerIPC.Suppressed(false));
   }
 
@@ -376,7 +378,7 @@ internal sealed class MarketAutomation : Window, IDisposable
 
     ClearState();
     _taskManager.Enqueue(() => InsertAutoMarketThenPinch(), "AutoMarketCurrent");
-    _taskManager.Enqueue(() => Communicator.PrintSweepDone(_listedTotal, _listingFailures, AutoMarketService.GateHeldThisRun), "AnnounceDone");
+    _taskManager.Enqueue(() => Communicator.PrintSweepDone(_listedTotal, _listingFailures, _vendoredThisRun, 0), "AnnounceDone");
   }
 
   // =====================================================================================
@@ -933,7 +935,63 @@ internal sealed class MarketAutomation : Window, IDisposable
     foreach (var op in plan.Ops)
       AddListingSteps(listing, op);
     InsertSteps(listing);
+
+    // 0.1.12.0: the gate VENDORED these instead of holding them - plan the vendor ops into the same
+    // queue, right after the listings. Queue order is the "listed first then vendored" ask.
+    BuildVendoringSteps(steps);
     return true;
+  }
+
+  /// <summary>
+  /// The retainer-vendor leg (0.1.12.0). Turns the gate's Vendor-verdict rules into concrete VendorOps
+  /// from the CURRENT stock (same snapshot the plan just used) and inserts one throttled step per op.
+  /// Every op re-verifies its slot inside ExecuteVendor, so a plan built on a stale snapshot fails
+  /// safe item by item. No travel - AgentRetainer is active - and this runs inside the same retainer
+  /// session Auto-Market already drives.
+  /// </summary>
+  private void BuildVendoringSteps(List<Step> steps)
+  {
+    var held = AutoMarketService.HeldBackRules;
+    if (held.Count == 0)
+      return;
+
+    var stock = AutoMarketService.SnapshotStock();
+    var prices = new Dictionary<uint, (uint, uint)>();
+    var preferHq = Plugin.Configuration.HQ;
+    foreach (var rule in held)
+    {
+      if (prices.ContainsKey(rule.ItemId))
+        continue;
+      prices[rule.ItemId] = AutoMarketService.VendorPrices(rule.ItemId);
+    }
+
+    var plan = VendorPlanner.Plan(held, stock, prices, preferHq);
+    if (plan.Ops.Count == 0)
+    {
+      foreach (var note in plan.Notes)
+        Svc.Log.Information($"[LMC] plan: {note}");
+      return;
+    }
+
+    Svc.Log.Information($"[LMC] plan: {plan.Ops.Count} vendor op(s): {string.Join(", ", plan.Ops.Select(o => $"{(InventoryType)o.Container}:{o.Slot} item{o.ItemId}x{o.Quantity}"))}");
+    long est = 0;
+    foreach (var op in plan.Ops)
+      est += op.EstGil;
+    if (Plugin.Configuration.ShowAutoMarketMessages)
+      Communicator.PrintInfo($"value gate: vendoring {plan.Ops.Count} stack(s) through the retainer (est {est:N0} gil)");
+
+    var vendorSteps = new List<Step>();
+    foreach (var op in plan.Ops)
+    {
+      var captured = op;
+      vendorSteps.Add(new Step(() =>
+      {
+        var ok = AutoMarketService.ExecuteVendor(captured);
+        if (ok) { _vendoredThisRun++; }
+        return true;
+      }, $"Vendor{captured.Container}:{captured.Slot}", DelayAfterMs: 250));
+    }
+    InsertSteps(vendorSteps);
   }
 
   /// <summary>Fires (or skips) the gate's Universalis request; see the field block for why it exists.</summary>
@@ -1091,7 +1149,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     _taskManager.Enqueue(CloseRetainerSellList, "AR.CloseSellList");
     _taskManager.DelayNext(300);
     _taskManager.Enqueue(WaitSelectStringReady, 10000, "AR.WaitMenu");
-    _taskManager.Enqueue(() => Communicator.PrintSweepDone(_listedTotal, _listingFailures, AutoMarketService.GateHeldThisRun), "AR.Announce");
+    _taskManager.Enqueue(() => Communicator.PrintSweepDone(_listedTotal, _listingFailures, _vendoredThisRun, 0), "AR.Announce");
     _taskManager.Enqueue(() => EndArSession("done"), "AR.Finish");
   }
 
@@ -1637,6 +1695,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     _currentPinchRow = -1;
     _listedTotal = 0;
     _listingFailures = 0;
+    _vendoredThisRun = 0;
     AutoMarketService.ResetGateHeld();
     _preListPrice = null;
     _preListDone = false;

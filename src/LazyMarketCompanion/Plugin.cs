@@ -9,8 +9,11 @@ using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
+using Dalamud.Hooking;
 using ECommons;
 using ECommons.DalamudServices;
+using FFXIVClientStructs.FFXIV.Client.Game;
+using LazyMarketCompanion.AutoMarket;
 using Lalalazy.Changelog;
 using LazyMarketCompanion.Windows;
 using Lumina.Excel.Sheets;
@@ -49,9 +52,36 @@ public sealed class Plugin : IDalamudPlugin
   public readonly WindowSystem WindowSystem = new("LazyMarketCompanion");
   private ConfigWindow ConfigWindow { get; init; }
 
+  // 0.1.12.0: the retainer-vendor leg drives the retainer item command the same way AutoRetainer
+  // does (its InventorySpaceManager.SafeSellSlot) - signature-hook the game function, and expose one
+  // static entry so AutoMarketService.ExecuteVendor can fire "Have Retainer Sell Items" headlessly.
+  // The detour only logs - the hook exists to CAPTURE the function, the original always runs.
+  private delegate void RetainerItemCommandDelegate(nint agentRetainerItemCommandModule, uint slot, InventoryType inventoryType, uint a4, RetainerItemCommand command);
+  private static Hook<RetainerItemCommandDelegate>? _retainerItemCommandHook;
+
+  internal static void RetainerItemCommand(nint module, uint slot, InventoryType inventoryType, uint a4, RetainerItemCommand command)
+  {
+    if (_retainerItemCommandHook == null || !_retainerItemCommandHook.IsEnabled)
+    {
+      Log.Warning("[LMC] retainer item command hook is not active; vendor op dropped (slot {0}:{1})", slot, inventoryType);
+      return;
+    }
+    _retainerItemCommandHook.Original(module, slot, inventoryType, a4, command);
+  }
+
+  private static void RetainerItemCommandDetour(nint module, uint slot, InventoryType inventoryType, uint a4, RetainerItemCommand command)
+  {
+    Log.Debug($"[LMC] RetainerItemCommand: module={module:X16} slot={slot} type={inventoryType} a4={a4} cmd={command}");
+    _retainerItemCommandHook?.Original(module, slot, inventoryType, a4, command);
+  }
+
   public Plugin()
   {
     ECommonsMain.Init(PluginInterface, this);
+    _retainerItemCommandHook = Svc.Hook.HookFromSignature<RetainerItemCommandDelegate>(
+      "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 57 48 83 EC 30 48 8B 5C 24 ?? 41 8B F0",
+      RetainerItemCommandDetour);
+    _retainerItemCommandHook.Enable();
 
     // Read BEFORE LoadOrImportConfiguration (which saves on the Dagobert-import path): tells the
     // changelog gate "update" from "fresh install".
@@ -110,6 +140,9 @@ public sealed class Plugin : IDalamudPlugin
 
   public void Dispose()
   {
+    _retainerItemCommandHook?.Disable();
+    _retainerItemCommandHook?.Dispose();
+    _retainerItemCommandHook = null;
     _changelog.Dispose();
     WindowSystem.RemoveAllWindows();
     _automation.Dispose();

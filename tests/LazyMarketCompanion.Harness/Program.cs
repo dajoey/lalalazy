@@ -1184,11 +1184,12 @@ var Catalogue = new (uint Id, string Name)[]
   Check("universalis: an unresolved-only multi response parses to nothing",
     UniversalisQuotes.Parse("""{"itemIDs":[1],"items":{},"unresolvedItems":[1]}""", own).Count == 0);
 }
-// 36. The Auto-Market value gate + listing order (0.1.11.0). Two features, one Universalis fetch, one
-//     rule: UNCERTAINTY ALWAYS LISTS. The original ask was to vendor below-threshold stock through the
-//     retainer; live verification found the retainer bell menu has no vendor entry at all (Addon sheet
-//     rows 2376-2383: entrust items, entrust gil, market sell x2, sale history, quit), so the gate
-//     ships as hold-back - the reversible side - and these tests pin that polarity.
+// 36. The Auto-Market value gate + listing order (0.1.11.0; vendor leg corrected in 0.1.12.0). Two
+//     features, one Universalis fetch, one rule: UNCERTAINTY ALWAYS LISTS. 0.1.12.0 corrects 0.1.11.0's
+//     wrong "the retainer cannot vendor" verdict - the retainer sell-items context menu DOES vendor
+//     ("Have Retainer Sell Items", Addon row 5480), so a priced at-or-under-threshold item now
+//     VENDORS instead of holding back (case 37 owns the vendor belt). This case keeps the LIST
+//     polarity: every uncertainty still lists, never vendored, never held.
 {
   const long Now = 1_788_710_000_000L;          // fixed "now" so freshness windows are exact
   const long Fresh = 6 * 3_600_000L;            // 6h in ms
@@ -1242,20 +1243,20 @@ var Catalogue = new (uint Id, string Name)[]
   var noListing = new ItemQuote(5111, true, Now, []);
 
   Check("gate: above threshold lists", MarketGate.Decide(99, pricedDear, false, true, gate, Now) == GateVerdict.List);
-  Check("gate: below threshold is held back", MarketGate.Decide(99, pricedCheap, false, true, gate, Now) == GateVerdict.HoldBack);
+  Check("gate: below threshold is VENDORED (0.1.12.0 - the corrected verdict)", MarketGate.Decide(99, pricedCheap, false, true, gate, Now) == GateVerdict.Vendor);
   Check("gate: zero sellable lists regardless of price",
     MarketGate.Decide(0, new ItemQuote(5111, true, Now, [new(1, false, false)]), false, true, gate, Now) == GateVerdict.List);
   // exact-threshold: unit 1000 x qty 1 -> net 950... build it precisely: want net == 1000 -> unit 1053 x 1 -> 1000 (1053*95/100 = 1000.35 -> 1000)
   var exactThousand = new ItemQuote(5111, true, Now, [new(1053, false, false)]);
-  Check("gate: net exactly equal to the threshold is HELD (strictly more lists)",
-    MarketGate.NetRevenue(1053, 1) == 1000 && MarketGate.Decide(1, exactThousand, false, true, gate, Now) == GateVerdict.HoldBack);
+  Check("gate: net exactly equal to the threshold is VENDORED (strictly more lists)",
+    MarketGate.NetRevenue(1053, 1) == 1000 && MarketGate.Decide(1, exactThousand, false, true, gate, Now) == GateVerdict.Vendor);
   var justAbove = new ItemQuote(5111, true, Now, [new(1054, false, false)]);
   Check("gate: one gil above the threshold lists", MarketGate.Decide(1, justAbove, false, true, gate, Now) == GateVerdict.List);
 
   // THE vendor-polarity cases: uncertain data must LIST, never hold, even at price 1 with threshold 1000
   var oneGil = new ItemQuote(5111, true, Now, [new(1, false, false)]);
   var strictGate = new GateOptions(true, 1_000, Fresh);
-  Check("gate: STALE data lists, never holds (would have vendored for pennies)",
+  Check("gate: STALE data lists, never vendored for pennies, never held back",
     MarketGate.Decide(99, stale, false, true, strictGate, Now) == GateVerdict.List);
   Check("gate: missing lastUploadTime lists", MarketGate.Decide(99, noUploadTs, false, true, strictGate, Now) == GateVerdict.List);
   Check("gate: hasData=false lists", MarketGate.Decide(99, new ItemQuote(5111, false, Now, []), false, true, strictGate, Now) == GateVerdict.List);
@@ -1268,15 +1269,16 @@ var Catalogue = new (uint Id, string Name)[]
 
   // --- RuleQuotes: velocity is per-quality, freshness-gated, and 0-velocity is a READING not unknown ---
   var velocityQuote = new ItemQuote(5594, true, Now,
-    [new(100_000, false, false)], NqVelocityPerDay: 55.0, HqVelocityPerDay: 2.5);
+    [new(100_000, false, false), new(120_000, true, false)], NqVelocityPerDay: 55.0, HqVelocityPerDay: 2.5);
   var staleQuote = new ItemQuote(7, true, Now - 7 * 3_600_000L, [new(50, false, false)], 9.9, 9.9);
   var quotes = new Dictionary<uint, ItemQuote> { [5594] = velocityQuote, [7] = staleQuote };
   var rq = MarketGate.RuleQuotes([R(5594), R(5594, hq: true), R(7)], quotes, true, Now, Fresh);
   Check("gate: an NQ rule's quote carries the NQ velocity", rq[0]!.VelocityPerDay == 55.0 && rq[0]!.UnitPrice == 100_000);
-  Check("gate: an HQ rule's quote carries the HQ velocity, not the NQ one", rq[1]!.VelocityPerDay == 2.5);
+  Check("gate: an HQ rule's quote carries the HQ velocity AND the HQ listing's price, not the NQ ones", rq[1]!.VelocityPerDay == 2.5 && rq[1]!.UnitPrice == 120_000);
   Check("gate: a stale quote is null (unrankable), not zero", rq[2] == null);
+  var noHqListing = new Dictionary<uint, ItemQuote> { [5594] = new(5594, true, Now, [new(100_000, false, false)], 55.0, 0) };
   Check("gate: no HQ listing on the board -> null quote for the HQ rule",
-    MarketGate.RuleQuotes([R(5594, hq: true)], quotes, true, Now, Fresh)[0] == null);
+    MarketGate.RuleQuotes([R(5594, hq: true)], noHqListing, true, Now, Fresh)[0] == null);
   Check("gate: a null quote map ranks nothing (all null)",
     MarketGate.RuleQuotes([R(5111)], null, true, Now, Fresh)[0] == null);
 
@@ -1317,7 +1319,9 @@ var Catalogue = new (uint Id, string Name)[]
     var plenty = new List<StockStack>
     {
       new(StockOrigin.Bags, 0, 0, 1001, false, 99),
-      new(StockOrigin.Bags, 0, 1, 1002, false, 99),
+      new(StockOrigin.Bags, 0, 1, 1001, false, 99),
+      new(StockOrigin.Bags, 0, 2, 1002, false, 99),
+      new(StockOrigin.Bags, 0, 3, 1002, false, 99),
     };
     var sorted = MarketGate.SortRules(rules, byRule, MarketSortMode.FastestSellingFirst);
     var plan = AutoMarketPlanner.Plan(sorted.Where(r => r.ItemId is 1001 or 1002).ToList(), plenty, scarce,
@@ -1345,6 +1349,95 @@ var Catalogue = new (uint Id, string Name)[]
     Check("gate: a payload with no velocity fields parses to 0, not an error",
       UniversalisQuotes.Parse(NoVelocity, null)[5594].NqVelocityPerDay == 0);
   }
+}
+
+
+// 37. Retainer vendoring (0.1.12.0) - the gate's vendor leg + planner, from the corrected verdict.
+//     Mirrors case 36's uncertainty battery for the VENDOR decision, since vendoring is now real.
+//     The wire-side uncertainty is MarketGate.DecideUncertain() which always holds; everything that
+//     ACTUALLY reached the priced gate was fresh + priced, so the Vendor polarity pin is on Decide.
+{
+  const long Now = 1_788_710_000_000L;
+  const long Fresh = 6 * 3_600_000L;
+  var gate = new GateOptions(true, 1_000, Fresh);
+  ItemRule R(uint id, bool hq = false, int stack = 99, int keepB = 0, int keepR = 0, bool bags = true, bool ret = true)
+    => new(id, hq, stack, keepB, keepR, 0, bags, ret, 0, 999);
+
+  // --- DecideUncertain: a request that never produced a verdict holds, deciding nothing ---
+  Check("vendor: an uncertainty reached the gate without a verdict must NOT vendor",
+    MarketGate.DecideUncertain() == GateVerdict.HoldBack);
+
+  // --- the priced Decide returns Vendor, not List, at/under threshold ---
+  var cheap = new ItemQuote(5111, true, Now, [new(5, false, false)]);       // 99 x 5 -> 470 net
+  Check("vendor: below threshold VENDORS (not holds)", MarketGate.Decide(99, cheap, false, true, gate, Now) == GateVerdict.Vendor);
+  Check("vendor: net exactly the threshold vendors", MarketGate.NetRevenue(1053, 1) == 1000
+    && MarketGate.Decide(1, new ItemQuote(5111, true, Now, [new(1053, false, false)]), false, true, gate, Now) == GateVerdict.Vendor);
+  Check("vendor: just above threshold lists", MarketGate.Decide(1, new ItemQuote(5111, true, Now, [new(1054, false, false)]), false, true, gate, Now) == GateVerdict.List);
+
+  // THE vendor-uncertainty battery, mirrored from case 36: every one LISTS (never vendors)
+  Check("vendor: STALE data never vendors", MarketGate.Decide(99, new ItemQuote(5111, true, Now - 7 * 3_600_000L, [new(1, false, false)]), false, true, gate, Now) == GateVerdict.List);
+  Check("vendor: no lastUploadTime never vendors", MarketGate.Decide(99, new ItemQuote(5111, true, 0, [new(1, false, false)]), false, true, gate, Now) == GateVerdict.List);
+  Check("vendor: hasData=false never vendors", MarketGate.Decide(99, new ItemQuote(5111, false, Now, []), false, true, gate, Now) == GateVerdict.List);
+  Check("vendor: no listing of the quality never vendors", MarketGate.Decide(99, new ItemQuote(5111, true, Now, []), false, true, gate, Now) == GateVerdict.List);
+  Check("vendor: null quote never vendors", MarketGate.Decide(99, null, false, true, gate, Now) == GateVerdict.List);
+  Check("vendor: gate off never vendors", MarketGate.Decide(99, cheap, false, true, new GateOptions(false, 1_000, Fresh), Now) == GateVerdict.List);
+  Check("vendor: threshold 0 never vendors", MarketGate.Decide(99, cheap, false, true, new GateOptions(true, 0, Fresh), Now) == GateVerdict.List);
+  Check("vendor: zero sellable never vendors", MarketGate.Decide(0, cheap, false, true, gate, Now) == GateVerdict.List);
+
+  // --- ItemVendorPrice: the estimate math ---
+  Check("vendor: NQ stock prices at priceLow", ItemVendorPrice.UnitFor(false, false, 154, 1, true) == 1);
+  Check("vendor: HQ stock with prefer-HQ prices at priceMid", ItemVendorPrice.UnitFor(true, true, 154, 1, true) == 154);
+  Check("vendor: HQ stock with prefer-HQ off prices at priceLow", ItemVendorPrice.UnitFor(false, true, 154, 1, false) == 1);
+  Check("vendor: no priceLow is 0 (unpriceable)", ItemVendorPrice.UnitFor(false, false, 154, 0, true) == 0);
+  Check("vendor: priceMid=0 with prefer-HQ falls back to priceLow", ItemVendorPrice.UnitFor(false, true, 0, 1, true) == 1);
+  Check("vendor: NQ stock of an HQ rule does not price (quality mismatch)", ItemVendorPrice.UnitFor(true, false, 154, 1, true) == 0);
+  Check("vendor: zero quantities earn nothing", ItemVendorPrice.Total(154, 0) == 0 && ItemVendorPrice.Total(0, 99) == 0);
+
+  // --- VendorPlanner: stacks -> ops, keeps honoured, re-read by ExecuteVendor (game side) ---
+  var stock = new List<StockStack>
+  {
+    new(StockOrigin.Retainer, 10000, 0, 5111, false, 99),
+    new(StockOrigin.Retainer, 10000, 1, 5111, false, 60),
+    new(StockOrigin.Bags, 0, 0, 5111, false, 30),
+    new(StockOrigin.Bags, 0, 1, 5111, false, 12),
+  };
+  var prices = new Dictionary<uint, (uint, uint)> { [5111] = (40, 10) };
+  var rule = R(5111, stack: 99, keepB: 5, keepR: 100);
+
+  // keep 100 retainer: 159 retainer stock - 100 kept = 59 vendored from the 60-stack; bags keep 5 -> 25 + 12
+  var plan = VendorPlanner.Plan([rule], stock, prices, preferHq: true);
+  Check("vendor: retainer keep 100 - 159 retainer units minus 100 kept = 59 vendored",
+    plan.Ops.Where(o => o.Container == (int)StockOrigin.Retainer).Sum(o => o.Quantity) == 59, string.Join(",", plan.Ops));
+  Check("vendor: bags keep 5 -> the 30-stack vendors 25, the 12-stack vendors 12",
+    plan.Ops.Where(o => o.Container == (int)StockOrigin.Bags).Sum(o => o.Quantity) == 25 + 12, string.Join(",", plan.Ops));
+  Check("vendor: the estimate is unit x qty at priceLow with prefer-HQ on for NQ stock",
+    plan.Ops.Sum(o => o.EstGil) == (59 + 25 + 12) * 10);
+
+  // keep bigger than the origin's stock: nothing vendored from that origin
+  var keepAll = VendorPlanner.Plan([R(5111, keepR: 999)], stock, prices, true);
+  Check("vendor: keep >= stock leaves that origin untouched",
+    keepAll.Ops.All(o => o.Container != (int)StockOrigin.Retainer), string.Join(",", keepAll.Ops));
+  Check("vendor: keep >= stock in BOTH origins -> no ops",
+    VendorPlanner.Plan([R(5111, keepB: 999, keepR: 999)], stock, prices, true).Ops.Count == 0);
+
+  // A kept remainder: the 20 units that stay are the stack's remainder - vendoring never splits a
+  // stack (no listing-size floor to respect), so the op is exactly qty 20 from the same slot.
+  var keepExactly = new List<StockStack> { new(StockOrigin.Bags, 0, 0, 5111, false, 30) };
+  var partialPlan = VendorPlanner.Plan([R(5111, keepB: 10)], keepExactly, prices, true);
+  Check("vendor: kept remainder - the 20 units the keep leaves move as ONE op",
+    partialPlan.Ops.Count == 1 && partialPlan.Ops[0].Quantity == 20, string.Join(",", partialPlan.Ops));
+
+  // unpriceable item: no sheet row -> no op, one explanatory note
+  var noPrice = VendorPlanner.Plan([R(9999)], stock, new Dictionary<uint, (uint, uint)>(), true);
+  Check("vendor: an item with no price stays put with a note",
+    noPrice.Ops.Count == 0 && noPrice.Notes.Count == 1, string.Join(",", noPrice.Notes));
+
+  // disabled origins contribute nothing
+  var halfRule = R(5111, bags: false);
+  Check("vendor: SellFromBags=false skips bag stock", VendorPlanner.Plan([halfRule], stock, prices, true).Ops.All(o => o.Container != (int)StockOrigin.Bags));
+  var halfRule2 = R(5111, ret: false);
+  Check("vendor: SellFromRetainer=false skips retainer stock", VendorPlanner.Plan([halfRule2], stock, prices, true).Ops.All(o => o.Container != (int)StockOrigin.Retainer));
+  Check("vendor: both origins disabled -> no ops at all", VendorPlanner.Plan([R(5111, bags: false, ret: false)], stock, prices, true).Ops.Count == 0);
 }
 
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");

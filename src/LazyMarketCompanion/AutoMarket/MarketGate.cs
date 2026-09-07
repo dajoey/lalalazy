@@ -29,11 +29,18 @@ public enum GateVerdict
   /// <summary>List it as normal.</summary>
   List,
   /// <summary>
-  /// Expected net value at or under the threshold: do not list it this pass. The stock stays exactly
-  /// where it is - nothing is sold, vendored or destroyed. (The original 2026-09-06 ask was to vendor
-  /// below-threshold stock through the retainer; the retainer bell menu has no vendor option - a
-  /// retainer sells on the market board only - and every sell-to-vendor path in the game goes through
-  /// an NPC shop, so the reversible hold-back is what ships.)
+  /// Below-threshold value: VENDOR the stock through the retainer instead of holding it (0.1.12.0 -
+  /// corrected verdict; 0.1.11.0 shipped HoldBack). The retainer sell-items context menu offers
+  /// "Have Retainer Sell Items" (Addon sheet row 5480; FCS InventoryContextEvent callbackParam=5):
+  /// the retainer vendors it at the vendor price with NO 5% market fee and no market slot consumed,
+  /// in the same session Auto-Market already automates. Never fires on an uncertainty.
+  /// </summary>
+  Vendor,
+  /// <summary>
+  /// Could not price this item confidently. Keep the stock exactly where it is - not vendored, not
+  /// listed, not destroyed. This is the 0.1.11.0 hold-back polarity: every sell is a one-way door,
+  /// so "cannot tell" (no data, stale data, no listing of the wanted quality, failed request) always
+  /// lands HERE even though vendoring (not listing) would be the reversible side of the vendor call.
   /// </summary>
   HoldBack,
 }
@@ -131,10 +138,11 @@ public static class MarketGate
   }
 
   /// <summary>
-  /// The gate for one item, judged on its total sellable value at the current board price, net of the
-  /// 5% market fee. An item must be worth STRICTLY more than the threshold to list - at exactly the
-  /// threshold it is held. Everything the data cannot answer LISTS: gate off, threshold 0, nothing
-  /// sellable, no quote, hasData=false, stale lastUploadTime, or no listing of the wanted quality.
+  /// The gate for one item AFTER the request has completed successfully: judged on its total sellable
+  /// value at the current board price, net of the 5% market fee. An item must be worth STRICTLY more
+  /// than the threshold to list - at exactly the threshold it is VENDORED (0.1.12.0), every
+  /// "cannot tell" still LISTS. Caller contract: a request that fails, times out or returns no data
+  /// NEVER calls this function - such rules go straight to HoldBack without a verdict-of-record.
   /// </summary>
   public static GateVerdict Decide(long sellableQuantity, ItemQuote? quote, bool ruleIsHq, bool preferHq, GateOptions options, long nowUnixMs)
   {
@@ -153,8 +161,18 @@ public static class MarketGate
 
     return NetRevenue(unit.Value, sellableQuantity) > options.ThresholdGil
       ? GateVerdict.List
-      : GateVerdict.HoldBack;
+      : GateVerdict.Vendor;
   }
+
+  /// <summary>
+  /// The wire-side gate (0.1.12.0 split): decides what to do with a rule whose Universalis request
+  /// FAILED, TIMED OUT, or was superseded before a verdict could be read. The rule never sat in front
+  /// of the priced Decide() in that state - there was no price to judge anything with - so it lands
+  /// flatly on HOLD-BACK rather than guessing. Kept as its own function so the contract "uncertainty
+  /// arrives here without a verdict of record" is visible at the call site, not reconstructed by
+  /// inlining a default. Vendoring stays human.
+  /// </summary>
+  public static GateVerdict DecideUncertain() => GateVerdict.HoldBack;
 
   /// <summary>
   /// Price + velocity for each rule from fresh quotes (see <see cref="RuleQuote"/> for what "not

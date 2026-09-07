@@ -74,14 +74,14 @@ public static class Communicator
         .Build());
   }
 
-  public static void PrintSweepDone(int listed, int failures, int heldBack = 0)
+  public static void PrintSweepDone(int listed, int failures, int vendored = 0, int heldBack = 0)
   {
-    if (!Plugin.Configuration.ShowAutoMarketMessages && listed == 0 && failures == 0 && heldBack == 0)
+    if (!Plugin.Configuration.ShowAutoMarketMessages && listed == 0 && failures == 0 && vendored == 0 && heldBack == 0)
       return;
 
-    var text = listed == 0 && failures == 0 && heldBack == 0
+    var text = listed == 0 && failures == 0 && vendored == 0 && heldBack == 0
       ? "done."
-      : $"done: {listed} new listing(s){(failures > 0 ? $", {failures} skipped (stock moved)" : string.Empty)}{(heldBack > 0 ? $", {heldBack} held back by the value gate" : string.Empty)}.";
+      : $"done: {listed} new listing(s){(failures > 0 ? $", {failures} skipped (stock moved)" : string.Empty)}{(vendored > 0 ? $", {vendored} vendored" : string.Empty)}{(heldBack > 0 ? $", {heldBack} held back by the value gate" : string.Empty)}.";
     Svc.Chat.Print(Prefix + text);
   }
 

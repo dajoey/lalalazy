@@ -173,11 +173,10 @@ public sealed class ConfigWindow : Window
     if (ImGui.InputInt("##gatethreshold", ref threshold, 0, 0)) { c.AutoMarketValueGateThresholdGil = Math.Max(threshold, 0); c.Save(); }
     ImGui.SameLine();
     ImGui.TextUnformatted("gil, net of fees");
-    Tip("Before listing, Auto-Market checks every enabled item against current Universalis prices and skips the ones whose total sellable value "
-        + "(current board price x everything it could sell of that item, after the market's 5% fee) is at or under this number.\r\n"
-        + "A skipped item is NOT sold or destroyed - it stays in your bags / the retainer inventory, and the run's closing chat line says how many were held back.\r\n"
-        + "Why not sell them to a vendor instead: the retainer you are standing at has no vendor - it only sells on the market board - and every shop in the game that buys items is an NPC you have to walk to.\r\n"
-        + "Anything Universalis is unsure about is LISTED, never held: no data, data older than the freshness window below, or no listing of the right quality.\r\n"
+    Tip("Before listing, Auto-Market checks every enabled item against current Universalis prices. Items whose total sellable value "
+        + "(current board price x everything it could sell of that item, after the market's 5% fee) is at or under this number are VENDORED at the retainer instead of listed - the retainer sells them to a vendor for you in the same session, so nothing needs a market slot and there is no 5% fee.\r\n"
+        + "The value they will fetch is the vendor price (the same number the sell window autofills), which is usually far below the market board price - if in doubt, set the threshold lower.\r\n"
+        + "Anything Universalis is unsure about is LISTED, never vendored: no data, data older than the freshness window below, or no listing of the right quality. Vendoring an item on a guess cannot be undone.\r\n"
         + "0 = the switch does nothing.");
 
     if (c.AutoMarketValueGateEnabled)
