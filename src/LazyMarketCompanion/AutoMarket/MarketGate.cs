@@ -94,26 +94,39 @@ public static class MarketGate
   public sealed record Sight(int Judged, int Unpriceable);
 
   /// <summary>
-  /// How many rules the gate actually saw usable price data for (0.1.19.0). A rule is JUDGED only
-  /// with a fresh, quality-matched quote; everything else (no data, stale data, wrong quality, or
-  /// no request at all) is UNPRICEABLE. The gate's old announce - "every item is above the N gil
-  /// net threshold" - printed identically whether every item was judged above or NOTHING was judged
-  /// at all: on the 2026-09-07 runs the request 504'd, every rule read unpriceable, the gate listed
-  /// everything blind, and that same line announced a clean bill of health it never had. The
-  /// announce now names the difference; this record is the Dalamud-free fact it names.
+  /// How many rules the gate actually saw usable price data for (0.1.19.0; STOCKED-ONLY since
+  /// 0.1.23.0). A rule is JUDGED only with a fresh, quality-matched quote; everything else (no
+  /// data, stale data, wrong quality, or no request at all) is UNPRICEABLE. The gate's old
+  /// announce - "every item is above the N gil net threshold" - printed identically whether every
+  /// item was judged above or NOTHING was judged at all: on the 2026-09-07 runs the request 504'd,
+  /// every rule read unpriceable, the gate listed everything blind, and that same line announced a
+  /// clean bill of health it never had. The announce now names the difference; this record is the
+  /// Dalamud-free fact it names.
+  ///
+  /// 0.1.23.0 scope fix: the count now runs over the rules the gate's own fetch asked about -
+  /// the ones with stock to sell (PotentialSellable > 0, the same GateFetchIds arithmetic) - not
+  /// over the whole enabled list. A rule with nothing to sell never gets a quote (the 0.1.19.0
+  /// fetch no longer requests it) and can never be vendored or listed either, so counting it
+  /// "unpriceable" claimed blindness about a decision that never happens. On the live config that
+  /// over-count made every sweep print the no-data warning - even a fully sighted one - and made
+  /// the clean "every item is above the threshold" announce unreachable.
   /// </summary>
-  public static Sight CountSight(IReadOnlyList<ItemRule> rules, IReadOnlyDictionary<uint, ItemQuote>? quotes, bool preferHq, long nowUnixMs, long freshnessMs)
+  public static Sight CountSight(IReadOnlyList<ItemRule> rules, IReadOnlyDictionary<uint, ItemQuote>? quotes, bool preferHq, long nowUnixMs, long freshnessMs, IReadOnlyList<StockStack>? stock = null, bool listPartialStacks = false)
   {
     var judged = 0;
-    foreach (var rule in rules)
+    var scopedRules = rules;
+    if (stock != null)
+      scopedRules = rules.Where(r => PotentialSellable(r, stock, listPartialStacks) > 0).ToList();
+    foreach (var rule in scopedRules)
     {
       ItemQuote? quote = null;
       quotes?.TryGetValue(rule.ItemId, out quote);
       if (UsableQuote(quote, rule.HQ, preferHq, nowUnixMs, freshnessMs) != null)
         judged++;
     }
-    return new Sight(judged, rules.Count - judged);
+    return new Sight(judged, scopedRules.Count - judged);
   }
+
 
   /// <summary>
   /// A quote the gate can actually decide on, or null. Shared by CountSight (0.1.19.0) and the

@@ -65,4 +65,43 @@ public static class VendorMenuGate
   /// (stop-on-failure); this path emits no stop.
   /// </summary>
   public static bool NoPlanTriggerCompletes() => true;
+
+  /// <summary>
+  /// The wait window before a menu WITHOUT the wanted entry is declared a failure (0.1.23.0).
+  /// 0.1.19.0 declared it on the first tick, and on 2026-09-07 15:06 the first tick was 181 ms
+  /// after the sell-list close was queued - mid-transition, the menu not yet back. A real
+  /// wrong-menu failure is static; a transition is not. The step retries through this window
+  /// before the verdict, and the step's own 10 s limit still caps the wait-for-menu side.
+  /// </summary>
+  public const int MenuGraceWindowMs = 2000;
+
+  /// <summary>
+  /// Whether one SelectString entry matches the wanted Addon-sheet text (0.1.23.0). Row 2378's
+  /// template is "Entrust or withdraw items. (Slots filled: 0)" - the number is a live runtime
+  /// payload, so the rendered entry reads "(Slots filled: 20)" on a full retainer. Comparing the
+  /// TEMPLATE against the RENDERED text fails even on a perfect menu; AutoRetainer drives this
+  /// exact entry with the same sheet row and a StartsWith, which is why it never mis-fires here.
+  /// Matching therefore trims the template at the first '(' and compares that stable prefix
+  /// case-insensitively, and the entry side additionally accepts a prefix match before any '('
+  /// (which catches a template drift where the rendered entry carries an older, suffix-free
+  /// text). Empty wanted text never matches - an unresolved sheet row must WAIT (WaitForMenu),
+  /// never fail.
+  /// </summary>
+  public static bool MatchMenuEntry(string? entryText, string? wanted)
+  {
+    if (string.IsNullOrEmpty(wanted) || entryText == null)
+      return false;
+
+    var wantedPrefix = wanted;
+    var wp = wantedPrefix.IndexOf('(');
+    if (wp > 0)
+      wantedPrefix = wantedPrefix[..wp].TrimEnd();
+
+    var entry = entryText.Trim();
+    var ep = entry.IndexOf('(');
+    var entryPrefix = ep > 0 ? entry[..ep].TrimEnd() : entry;
+
+    return entry.StartsWith(wantedPrefix, StringComparison.OrdinalIgnoreCase)
+        || entryPrefix.StartsWith(wantedPrefix, StringComparison.OrdinalIgnoreCase);
+  }
 }

@@ -261,6 +261,23 @@ public sealed class Plugin : IDalamudPlugin
     catch { return string.Empty; }
   }
 
+  /// <summary>
+  /// The STABLE prefix of an Addon-sheet menu text: everything before the first parenthetical
+  /// (0.1.23.0). Some retainer-menu rows carry live numeric payloads as trailing parentheticals -
+  /// row 2378 is "Entrust or withdraw items. (Slots filled: 0)", where the number is a runtime
+  /// count that reads 20 on a full retainer - so a menu matcher must compare the prefix, never
+  /// the whole template. Parenthesis INSIDE the text before the payload (e.g. a bracketed
+  /// qualifier) is not something any currently-matched row uses; if one appears, extend this.
+  /// </summary>
+  public static string MenuText(uint row)
+  {
+    var text = AddonText(row);
+    if (string.IsNullOrEmpty(text))
+      return text;
+    var p = text.IndexOf('(');
+    return p > 0 ? text[..p].TrimEnd() : text;
+  }
+
   private void OnCommand(string command, string args)
   {
     var sub = args.Trim().ToLowerInvariant();

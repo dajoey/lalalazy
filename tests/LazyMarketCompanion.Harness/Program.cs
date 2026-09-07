@@ -2026,5 +2026,89 @@ var Catalogue = new (uint Id, string Name)[]
     markedOld.Count == 2 && markedOld.ContainsKey(0) && markedOld.ContainsKey(1));
 }
 
+// 49. THE BELL-MENU MIS-SCAN + THE SIGHT-ANNOUNCE SCOPE (0.1.23.0, t_b307b5da). Two defects from
+//     the same 15:06:55 sweep: the vendor leg's first-ever sighted plan died 181 ms into the
+//     sell-list close ("the retainer bell menu is open but has no 'Entrust or withdraw items'
+//     entry"), and the honest gate announce printed "no price data for ~230 of 257 item(s)" on a
+//     PERFECTLY SIGHTED sweep because the sight count ran over the whole enabled list instead of
+//     the stocked set the fetch actually asks about.
+{
+  const long Fresh = 6 * 3_600_000L;
+  const long Now = 1_788_800_000_000L;
+
+  // (a) THE MATCH. Row 2378's template ends in a live payload: "Entrust or withdraw items. (Slots
+  //     filled: 0)". The 15:06 retainer's board was FULL - the rendered entry reads
+  //     "(Slots filled: 20)" - so the old whole-template StartsWith compared the template against
+  //     the rendered text and failed on a perfect menu. AutoRetainer drives this exact entry with
+  //     the same sheet row and a StartsWith, which is why it never mis-fires: the comparison is
+  //     the stable prefix.
+  var want = "Entrust or withdraw items. (Slots filled: 0)";   // the sheet template (xivapi v2, verified 2026-09-07)
+  Check("49 menu: rendered full-board entry (Slots filled: 20) matches the template prefix",
+    VendorMenuGate.MatchMenuEntry("Entrust or withdraw items. (Slots filled: 20)", want));
+  Check("49 menu: rendered empty-board entry (Slots filled: 0) matches",
+    VendorMenuGate.MatchMenuEntry("Entrust or withdraw items. (Slots filled: 0)", want));
+  Check("49 menu: bare sheet text (the old client shape) matches",
+    VendorMenuGate.MatchMenuEntry("Entrust or withdraw items.", want));
+  // CONTROL: a genuinely wrong menu must still NOT match - the matcher is not a constant true.
+  Check("49 menu: control - wrong menu entries do not match",
+    !VendorMenuGate.MatchMenuEntry("Entrust or withdraw gil. (Gil: 5000)", want)
+    && !VendorMenuGate.MatchMenuEntry("Open the market board.", want)
+    && !VendorMenuGate.MatchMenuEntry("View retainer information.", want));
+  // CONTROL: an unresolved sheet row (empty/null wanted) never matches - WaitForMenu, never a stop.
+  Check("49 menu: empty or null wanted text never matches (wait, do not fail)",
+    !VendorMenuGate.MatchMenuEntry("Entrust or withdraw items. (Slots filled: 20)", "")
+    && !VendorMenuGate.MatchMenuEntry("Entrust or withdraw items. (Slots filled: 20)", null));
+  // The grace window is a named constant so the wait cannot drift from the docs.
+  Check("49 menu: the mismatch grace window is 2000 ms (the 181 ms transition waits it out)",
+    VendorMenuGate.MenuGraceWindowMs == 2000);
+  // The decision table itself is UNCHANGED - a mismatch that survives the window is still the
+  // stop verdict (the grace wait lives in the step, not the gate).
+  Check("49 menu: the stop verdict is unchanged - a true missing entry still stops",
+    VendorMenuGate.Decide(true, true, false) == VendorMenuDecision.MenuMissingEntry
+    && VendorMenuGate.Decide(false, false, false) == VendorMenuDecision.WaitForMenu);
+
+  // (b) THE SIGHT SCOPE. The 15:06 announce shape, shrunk to 4 rules: two stocked rules with
+  //     fresh quotes (fully sighted), two no-stock rules. Whole-list counting read the no-stock
+  //     pair as unpriceable and printed the no-data warning on EVERY sweep; the stocked count is
+  //     what the fetch actually asked about.
+  var sightRules = new List<ItemRule> { Rule(19990, 99), Rule(5111, 999), Rule(12593, 99), Rule(5594, 99, keepB: 50) };
+  var sightStock = new List<StockStack>
+  {
+    new(StockOrigin.Bags, Bags1, 3, 19990, false, 99),
+    new(StockOrigin.Bags, Bags1, 4, 5111, false, 200),
+    new(StockOrigin.Bags, Bags1, 5, 5594, false, 50),   // keep 50 -> nothing sellable
+  };                                                    // 12593: no stack at all
+  var stockedIds = MarketGate.GateFetchIds(sightRules, sightStock, false);
+  Check("49 sight: the fixture's fetch list is exactly the two stocked rules",
+    stockedIds.Count == 2 && stockedIds.Contains(19990u) && stockedIds.Contains(5111u),
+    "fetch=[" + string.Join(", ", stockedIds) + "]");
+  var allQuoted = new Dictionary<uint, ItemQuote>
+  {
+    [19990] = new ItemQuote(19990, true, Now - 60_000L, [new QuoteListing(84, false, false)]),
+    [5111] = new ItemQuote(5111, true, Now - 60_000L, [new QuoteListing(950, false, false)]),
+  };
+  var sightedScoped = MarketGate.CountSight(sightRules, allQuoted, preferHq: true, Now, Fresh, sightStock, false);
+  Check("49 sight: a fully sighted sweep reads Unpriceable == 0 over the stocked set (the clean line is reachable)",
+    sightedScoped.Judged == 2 && sightedScoped.Unpriceable == 0,
+    $"judged={sightedScoped.Judged} unpriceable={sightedScoped.Unpriceable}");
+  var blindScoped = MarketGate.CountSight(sightRules, null, preferHq: true, Now, Fresh, sightStock, false);
+  Check("49 sight: null quotes still read fully blind over the stocked set (the 504 control)",
+    blindScoped.Judged == 0 && blindScoped.Unpriceable == 2,
+    $"judged={blindScoped.Judged} unpriceable={blindScoped.Unpriceable}");
+  var partialScoped = MarketGate.CountSight(sightRules, new Dictionary<uint, ItemQuote>
+  {
+    [19990] = new ItemQuote(19990, true, Now - 60_000L, [new QuoteListing(84, false, false)]),
+  }, preferHq: true, Now, Fresh, sightStock, false);
+  Check("49 sight: one of two stocked quotes reads 1 judged / 1 unpriceable (partial blindness still named)",
+    partialScoped.Judged == 1 && partialScoped.Unpriceable == 1,
+    $"judged={partialScoped.Judged} unpriceable={partialScoped.Unpriceable}");
+  // CONTROL: without a stock map the count keeps the old whole-list shape - the trim is opt-in
+  // at the call site and case 47's whole-list expectations stay pinned.
+  var legacy = MarketGate.CountSight(sightRules, allQuoted, preferHq: true, Now, Fresh);
+  Check("49 sight: control - no stock map keeps the old whole-list count (case 47 unchanged)",
+    legacy.Judged == 2 && legacy.Unpriceable == 2,
+    $"judged={legacy.Judged} unpriceable={legacy.Unpriceable}");
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;

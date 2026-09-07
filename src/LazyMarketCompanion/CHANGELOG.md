@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.1.23.0 (2026-09-07)
+
+### Fixed
+
+- **A sweep that was about to vendor its first-ever below-threshold items stopped itself 181 ms into the retainer sell-list close: "the retainer bell menu is open but has no 'Entrust or withdraw items' entry".** The vendor leg's menu matcher compared the Addon sheet's TEMPLATE ("Entrust or withdraw items. (Slots filled: 0)") against the RENDERED menu entry with a whole-text StartsWith - and the bracketed number is a live count of the retainer's occupied market slots, so on a full board the entry reads "(Slots filled: 20)" and the comparison fails even though the menu is perfect. The leg now compares the stable prefix before any bracketed payload, so every board state matches (files: `AutoMarket/MarketGate.cs` MatchMenuEntry new; `Plugin.cs` MenuText new; `MarketAutomation.cs` ClickRetainerEntrust/ClickSellItems).
+- **That same failure carried a secondary crash: "Object reference not set to an instance of an object at ECommons.Automation.LegacyTaskManager.TaskManager.Tick", 3 ms after the stop.** The stop-on-failure path tore the whole task queue down from INSIDE the step the task manager was executing; the task manager's next line read its just-nulled current task for a completion log line and threw. The NRE was caught and the abort still landed, so the stop worked - but it logged a crash that was not one. The teardown now runs from the plugin's own per-frame watcher, one frame later, outside any task-manager iteration (files: `MarketAutomation.cs` StopOnVendorFailure/Draw watcher, new deferred-teardown state).
+- **A first-tick "menu is up but has no entry" is now a WAIT, not a verdict.** The 15:06 stop fired 181 ms after the sell-list close was queued - mid menu transition, when the entrust menu may simply not be back yet. A mismatch now waits out a 2-second grace window before the verdict; only a mismatch that survives it stops the sweep, so the named stop line fires on a genuinely wrong menu, never 181 ms into a close (files: `AutoMarket/MarketGate.cs` MenuGraceWindowMs; `MarketAutomation.cs` ClickRetainerEntrust).
+- **The value gate's "no price data" announce was itself miscalibrated: on a fully sighted sweep it warned "no price data for ~230 of 257 item(s)" and the clean "every item is above the threshold" line was unreachable.** The sight count ran over the WHOLE enabled list; the gate's own 0.1.19.0 fetch asks only about items with stock to sell, and an item with nothing to sell can never be listed or vendored, so it is not blindness to have no price for it. The count (and both announce branches) now runs over the stocked set, the log line reports the stocked count explicitly, and no-stock rules can no longer make a good sweep print a warning (files: `AutoMarket/MarketGate.cs` CountSight stocked-only; `AutoMarket/AutoMarketService.cs` ApplyValueGate announce).
+
+### Notes
+
+- The gate's uncertainty polarity is untouched: no price data still LISTS (never vendors), vendoring still fires only on a confirmed, fresh, quality-matched price, and a missing-entrust menu that survives the grace window still stops the sweep on purpose with the same named reason.
+- Offline suite: new case 49 pins the menu matcher (rendered full-board/empty-board/bare-sheet text against the template, with wrong-menu and empty-sheet controls), the 2 s grace window constant, the unchanged decision table, and the stocked-set sight count (fully sighted reads Unpriceable 0, null quotes still read fully blind, partial blindness still named, and the old whole-list shape is pinned as the no-stock-map control).
+
 ## v0.1.22.0 (2026-09-07)
 
 ### Fixed

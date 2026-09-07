@@ -206,14 +206,22 @@ internal static unsafe class AutoMarketService
         // line announced a check that never happened while below-threshold stock listed blind.
         // Fully-judged keeps the old wording; anything less says how many items the threshold
         // was NOT checked for.
-        var sight = MarketGate.CountSight(rules, quotes, config.HQ, now, freshnessMs);
+        // 0.1.23.0: the sight count and both announce branches are judged over the STOCKED set -
+        // the same rules GateFetchIds asked Universalis about - with the fully-stocked count in
+        // the log line so a degenerate "every list entry has nothing to sell" sweep is still
+        // visible and auditable. The 0.1.19.0 whole-list count made every no-stock rule read
+        // unpriceable (no quote is ever fetched for it), so on the live config (~257 entries,
+        // ~25 stocked) the no-data warning printed on EVERY sweep and the clean
+        // "every item is above the threshold" line was unreachable.
+        var stockedRules = rules.Where(r => MarketGate.PotentialSellable(r, stock, config.AutoMarketListPartialStacks) > 0).ToList();
+        var sight = MarketGate.CountSight(rules, quotes, config.HQ, now, freshnessMs, stock, config.AutoMarketListPartialStacks);
         if (sight.Unpriceable == 0)
-          Svc.Log.Information($"[LMC] gate: every item is above the {gateOptions.ThresholdGil:N0} gil net threshold");
+          Svc.Log.Information($"[LMC] gate: every item is above the {gateOptions.ThresholdGil:N0} gil net threshold (checked {sight.Judged} of {rules.Count} enabled item(s), {stockedRules.Count} with stock)");
         else
         {
-          Svc.Log.Warning($"[LMC] gate: no price data for {sight.Unpriceable} of {rules.Count} item(s) - the {gateOptions.ThresholdGil:N0} gil net threshold was NOT checked for those; they list (uncertainty lists, never vendors)");
+          Svc.Log.Warning($"[LMC] gate: no price data for {sight.Unpriceable} of {sight.Judged + sight.Unpriceable} item(s) with stock to sell ({stockedRules.Count} of {rules.Count} enabled item(s) have stock) - the {gateOptions.ThresholdGil:N0} gil net threshold was NOT checked for those; they list (uncertainty lists, never vendors)");
           if (Plugin.Configuration.ShowAutoMarketMessages)
-            Communicator.PrintInfo($"value gate: no price data for {sight.Unpriceable} of {rules.Count} item(s); they will list unchecked - vendoring still only fires on a confirmed price");
+            Communicator.PrintInfo($"value gate: no price data for {sight.Unpriceable} of {sight.Judged + sight.Unpriceable} item(s) with stock; they will list unchecked - vendoring still only fires on a confirmed price");
         }
       }
     }

@@ -67,6 +67,17 @@ internal sealed class MarketAutomation : Window, IDisposable
   // reads like a crash. A trigger with no plan (state-change race) returns false WITHOUT
   // setting this, so a repeat scan of the same retainer does not stop the sweep.
   private bool _vendorStopRequested;
+  private string? _vendorStopReason;
+  // 0.1.23.0, the Tick NRE: ECommons' legacy TaskManager.Tick calls the step's action and then
+  // dereferences CurrentTask for its completion log line. CancelEverything -> _taskManager.Abort()
+  // runs INSIDE that invocation and nulls CurrentTask, so Tick's very next line reads
+  // CurrentTask.Name on null - the "Object reference not set... at TaskManager.Tick" the stop
+  // path logged 3 ms after the 2026-09-07 15:06 halt. The halt therefore does NOT tear the queue
+  // down from inside the step: it records the reason, and the per-frame watcher (Draw) performs
+  // the Abort/EndArSession on a later frame, when no Tick invocation is on the stack. The NRE was
+  // caught by Tick's own catch and the abort still happened - but the fix removes both the
+  // exception and the inside-the-iteration teardown.
+  private bool _deferredAbortRequested;
 
   // "Pinch only what I just listed" bookkeeping. Which listings qualify is decided from the market
   // CONTAINER since 0.1.6.0 - a slot this run listed into that is still at the placeholder price - and the
@@ -203,6 +214,17 @@ internal sealed class MarketAutomation : Window, IDisposable
     try
     {
       ClearCachedPricesIfUniversalisSettingChanged();
+      // 0.1.23.0: the stop-on-failure teardown runs here, OUTSIDE any TaskManager.Tick
+      // invocation (a step can no longer abort the queue from inside its own execution).
+      // Suppression is lifted first so AutoRetainer is never held longer than this frame.
+      if (_deferredAbortRequested)
+      {
+        _deferredAbortRequested = false;
+        _taskManager.Abort();
+        AutoRetainerIPC.Suppressed(false);
+        RemoveTalkAddonListeners();
+        EndArSession($"vendoring leg failed: {_vendorStopReason}");
+      }
       ArSessionWatchdog();
       DrawForRetainerList();
       DrawForRetainerSellList();
@@ -452,7 +474,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     {
       var menu = new AddonMaster.SelectString(addon);
       var entries = menu.Entries;
-      var wanted = Plugin.AddonText(2380);
+      var wanted = Plugin.MenuText(2380);
       var index = -1;
       for (var i = 0; i < entries.Length; i++)
       {
@@ -1170,6 +1192,14 @@ internal sealed class MarketAutomation : Window, IDisposable
   /// retainer inventory panel - AutoRetainer's RetainerHandlers.SelectEntrustItems, matched by the
   /// sheet text so it survives menu reordering. Returns false (retry) while the menu is not on screen.
   /// </summary>
+  // The bell-menu mismatch grace window (0.1.23.0, VendorMenuGate.MenuGraceWindowMs): a
+  // MenuMissingEntry verdict on the FIRST tick of the menu-open step - the 2026-09-07 15:06
+  // failure fired 181 ms after the sell-list close was queued - is treated as a transition, not
+  // a verdict: the step retries through the grace window and only the mismatch that SURVIVES it
+  // stops the sweep. TickCount64 is used instead of a field so a fresh TaskManager (abort/restart
+  // mid-window) restarts the window rather than inheriting a stale one.
+  private long _menuMismatchSince;
+
   private unsafe bool? ClickRetainerEntrust()
   {
     // 0.1.15.2: the menu not being on screen YET is the normal case - this step now runs while the
@@ -1179,29 +1209,42 @@ internal sealed class MarketAutomation : Window, IDisposable
     // menu that is demonstrably up WITHOUT the entrust entry is a failure, and a failure stops the
     // sweep on purpose - the wait-for-menu step behind this one never runs then, so its own stop
     // hook never fires and the message stays the accurate one.
+    // 0.1.23.0: matching goes through VendorMenuGate.MatchMenuEntry (row 2378's "(Slots filled: N)"
+    // tail is a live runtime payload - the template says 0, a full retainer renders 20, so the
+    // old whole-template StartsWith failed on a PERFECT menu and the 15:06 sweep died on a
+    // full-board retainer). And a fresh mismatch waits out MenuGraceWindowMs before the verdict:
+    // a wrong-menu failure is static, the first 181 ms of a menu transition are not.
     if (!(GenericHelpers.TryGetAddonByName<AtkUnitBase>("SelectString", out var addon) && GenericHelpers.IsAddonReady(addon)))
       return false;
     var menu = new AddonMaster.SelectString(addon);
     var entries = menu.Entries;
-    var wanted = Plugin.AddonText(2378);
+    var wanted = Plugin.MenuText(2378);
     var found = -1;
     for (var i = 0; i < entries.Length; i++)
     {
-      if (!string.IsNullOrEmpty(wanted) && entries[i].Text.StartsWith(wanted, StringComparison.OrdinalIgnoreCase))
+      if (VendorMenuGate.MatchMenuEntry(entries[i].Text, wanted))
       {
         found = i;
         break;
       }
     }
-    switch (VendorMenuGate.Decide(menuReady: true, sheetTextLoaded: !string.IsNullOrEmpty(wanted), entryFound: found >= 0))
+    var decision = VendorMenuGate.Decide(menuReady: true, sheetTextLoaded: !string.IsNullOrEmpty(wanted), entryFound: found >= 0);
+    switch (decision)
     {
       case VendorMenuDecision.WaitForMenu:
+        _menuMismatchSince = 0;
         return false; // retry until the step's own time limit
       case VendorMenuDecision.OpenPanel:
+        _menuMismatchSince = 0;
         Svc.Log.Debug($"[LMC] vendor: opening retainer inventory via menu entry '{entries[found].Text}'");
         entries[found].Select();
         return true;
       default:
+        if (_menuMismatchSince == 0)
+          _menuMismatchSince = Environment.TickCount64;
+        if (Environment.TickCount64 - _menuMismatchSince < VendorMenuGate.MenuGraceWindowMs)
+          return false; // a transition, not yet a verdict - retry through the grace window
+        _menuMismatchSince = 0;
         StopOnVendorFailure("the retainer bell menu is open but has no 'Entrust or withdraw items' entry - the vendoring leg cannot open the inventory panel");
         return true;
     }
@@ -1222,9 +1265,16 @@ internal sealed class MarketAutomation : Window, IDisposable
   {
     Svc.Log.Error($"[LMC] vendor: FAILED - {reason}. Stopping the sweep here on purpose (stop-on-failure); no further retainer will be touched.");
     _vendorStopRequested = true;
+    _vendorStopReason = reason;
+    // 0.1.23.0: this runs INSIDE a TaskManager.Tick invocation. Calling CancelEverything from
+    // here aborted the queue mid-iteration and Tick's next line dereferenced the nulled
+    // CurrentTask - the TaskManager.Tick NRE 3 ms after this stop on 2026-09-07 15:06. The
+    // teardown is deferred to the per-frame watcher instead (see _deferredAbortRequested); the
+    // chat line still prints immediately, and _vendorStopRequested already makes every later
+    // AutoRetainer ready-event release without touching the retainer.
+    _deferredAbortRequested = true;
     if (Plugin.Configuration.ShowAutoMarketMessages)
       Communicator.PrintInfo($"value gate: vendoring stopped the sweep - {reason}");
-    CancelEverything($"vendoring leg failed: {reason}");
     return true;
   }
 
@@ -2001,6 +2051,8 @@ internal sealed class MarketAutomation : Window, IDisposable
     _vendoredThisRun = 0;
     _vendorFailedThisRun = 0;
     _vendorStopRequested = false;
+    _vendorStopReason = null;
+    _deferredAbortRequested = false;
     AutoMarketService.ResetGateHeld();
     _preListPrice = null;
     _preListDone = false;
