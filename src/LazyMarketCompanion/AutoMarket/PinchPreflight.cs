@@ -49,6 +49,8 @@ public enum PinchVerdict
   /// AllaganMarket's green, computed from the same inputs its overlay uses.
   /// </summary>
   SkipNotUndercut,
+  /// <summary>AllaganMarket had no verdict and Universalis had no usable answer, but a previous pass's compare window confirmed this exact price, and nothing has changed since.</summary>
+  SkipBoardMemory,
 }
 
 /// <summary>A row plus the verdict, the price the pass was predicted to write, and why.</summary>
@@ -60,6 +62,7 @@ public sealed record PinchDecision(PinchRow Row, PinchVerdict Verdict, long Cand
 /// <param name="SkipUnderGil">Skip a row whose price would move by fewer than this many gil. 0 = off.</param>
 /// <param name="SkipUnderPercent">Skip a row whose price would move by less than this percent of the current price. 0 = off.</param>
 /// <param name="PreferHq">The user's <c>HQ</c> setting: an HQ listing is priced off HQ listings only.</param>
+/// <param name="BoardMemoryHours">How long a remembered compare-window verdict may justify a skip (0 disables the memory entirely).</param>
 public sealed record PinchPreflightOptions(
   bool Enabled,
   int FreshnessHours,
@@ -69,7 +72,8 @@ public sealed record PinchPreflightOptions(
   UndercutMode Mode,
   int UndercutAmount,
   bool UndercutSelf,
-  bool MirrorOverlay = false);
+  bool MirrorOverlay = false,
+  int BoardMemoryHours = 0);
 
 /// <summary>
 /// Decides, BEFORE any context menu is opened, which sell-list rows are worth walking.
@@ -141,7 +145,15 @@ public static class PinchPreflight
         continue;
       }
 
-      // Rule 3 - Universalis has nothing usable for this item.
+      // Rule 2.5 - remembered verdicts (0.1.13.0). Where Universalis has nothing usable, a previous
+      // pass's own compare window may already have answered the question: the same check it ran settled
+      // on this exact price. Trust that verdict only while the listing still carries the confirmed
+      // price and the verdict is younger than the configured window; anything else keeps walking. The
+      // consult itself lives in PinchBoardMemory.ApplyToDecisions, applied to the decision list after
+      // this method returns (see MarketAutomation.StartPreflightLookup) - the reason strings below are
+      // what it matches on, so a new uncertainty reason stays a plain walk until it is added there too.
+      // Consulted LAST of the uncertainty checks on purpose: the mirror rule above must never be
+      // overridden by a stale memory when live board data can answer the question.
       if (!quotes.TryGetValue(row.ItemId, out var quote) || quote == null || !quote.HasData)
       {
         decisions.Add(new PinchDecision(row, PinchVerdict.Walk, 0, "no Universalis data"));
@@ -235,6 +247,19 @@ public static class PinchPreflight
     return decisions;
   }
 
+
+  /// <summary>
+  /// True when a walk's reason is one a remembered verdict may settle - the uncertainty walks ONLY,
+  /// never a rule with a usable answer. Deliberately a NEGATIVE list: a new uncertainty reason added
+  /// to <see cref="Decide"/> keeps walking until it is added here.
+  /// </summary>
+  public static bool CanMemorySettle(string reason)
+  {
+    return reason is "no Universalis data"
+        or "no HQ listing on the board"
+        or "no listing on the board";
+  }
+
   /// <summary>
   /// The one INFO line the pass logs. Kept here (and harness-covered) because it is how this feature gets
   /// graded from Joey's client log afterwards: grep <c>pinch pre-flight:</c> and compare walked-vs-total
@@ -247,11 +272,13 @@ public static class PinchPreflight
     var alreadyRight = decisions.Count(d => d.Verdict == PinchVerdict.SkipAlreadyRight);
     var underThreshold = decisions.Count(d => d.Verdict == PinchVerdict.SkipUnderThreshold);
     var notUndercut = decisions.Count(d => d.Verdict == PinchVerdict.SkipNotUndercut);
+    var boardMemory = decisions.Count(d => d.Verdict == PinchVerdict.SkipBoardMemory);
 
     var reasons = new List<string>();
     if (alreadyRight > 0) reasons.Add($"{alreadyRight} already at the right price");
     if (underThreshold > 0) reasons.Add($"{underThreshold} under the threshold");
     if (notUndercut > 0) reasons.Add($"{notUndercut} not undercut by anyone else");
+    if (boardMemory > 0) reasons.Add($"{boardMemory} remembered from the last pass");
 
     var skipped = reasons.Count == 0 ? "skipped nothing" : "skipped " + string.Join(", ", reasons);
     return $"pinch pre-flight: walking {walked} of {total} row(s); {skipped} (Universalis data <={freshnessHours}h old)";

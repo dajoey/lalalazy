@@ -486,6 +486,13 @@ public sealed class ConfigWindow : Window
     ImGui.EndGroup();
     Tip("Same idea as the gil threshold, relative to the listing's own price. 1% covers moves like 243 to 242 or 30,971 to 30,951. Stale or missing Universalis data still means the row is priced normally.");
 
+    int boardMemoryHours = c.AutoPinchBoardMemoryHours;
+    ImGui.BeginGroup();
+    ImGui.Text("Remember confirmed prices for (hours, 0 = off)");
+    if (ImGui.SliderInt("###sliderBoardMemory", ref boardMemoryHours, 0, 168)) { c.AutoPinchBoardMemoryHours = Math.Clamp(boardMemoryHours, 0, 168); c.Save(); }
+    ImGui.EndGroup();
+    Tip("When Auto Pinch opens a listing and the price check agrees the current price is already the right one, that verdict is remembered for this long. While the listing still carries exactly that price, later passes skip it without opening the price window again - this covers the slow items the crowd-sourced board has no data for. 0 turns the memory off.");
+
     ImGui.Separator();
 
     bool chatErrors = c.ShowErrorsInChat;

@@ -1440,5 +1440,233 @@ var Catalogue = new (uint Id, string Name)[]
   Check("vendor: both origins disabled -> no ops at all", VendorPlanner.Plan([R(5111, bags: false, ret: false)], stock, prices, true).Ops.Count == 0);
 }
 
+// 38. THE FIFTH REPORT replay (2026-09-06 21:22-21:26): board-memory skip for rows the pre-flight has no
+//     answer for. 23 manual-pass walks = 14 real undercuts (Universalis HAD data; the pre-flight walked
+//     them because the price would really move) + 9 exact no-ops (Universalis had NOTHING; the pre-flight
+//     walked them on "no Universalis data"). The 9 are what this feature exists for: their compare
+//     windows confirmed the price mid-pass, and every pass after that skips them without opening a
+//     window, while the price stays exactly the confirmed one and the verdict is younger than 12h.
+{
+  const long Now = 1_788_720_000_000L;   // fixed clock, AFTER case 33's - this is the same evening, 21:22
+  const long OneHour = 3_600_000L;
+  const long TwelveHours = 12 * OneHour;
+
+  var options = new PinchPreflightOptions(
+    Enabled: true, FreshnessHours: 6, SkipUnderGil: 0, SkipUnderPercent: 1.0f,
+    PreferHq: true, Mode: UndercutMode.FixedAmount, UndercutAmount: 0, UndercutSelf: false,
+    MirrorOverlay: false, BoardMemoryHours: 12);
+
+  var rows = new List<PinchRow>();
+  var quotes = new Dictionary<uint, ItemQuote>();
+
+  // The 9 exact no-ops, item ids and prices from the report. 30414 was walked TWICE at 40000 (two
+  // retainers held it) - one (item, HQ) verdict must settle both rows.
+  (uint Id, bool Hq, long Price)[] noOps =
+  [
+    (31911, false, 12), (36084, false, 242), (44347, false, 5000),
+    (12527, true, 84), (13747, true, 65), (5081, true, 2),
+    (15957, false, 857), (30414, false, 40000), (30414, false, 40000),
+  ];
+  // The 14 real undercuts: three from the report verbatim, eleven in the same shape. Fresh Universalis
+  // data with somebody else's listing below - the pre-flight walks these for "would move X -> Y".
+  var undercuts = new List<(uint Id, bool Hq, long Current, long Board)>
+  {
+    (31001, false, 250, 1), (31002, false, 77, 45), (31003, false, 500, 263),
+  };
+  for (var i = 4; i <= 14; i++)
+    undercuts.Add(((uint)(31000 + i), false, 1_000L * i, 900L * i));
+
+  foreach (var u in undercuts)
+  {
+    var row = rows.Count;
+    rows.Add(new PinchRow(row, row, u.Id, u.Hq, u.Current, false));
+    quotes[u.Id] = new ItemQuote(u.Id, true, Now - OneHour, [new QuoteListing(u.Board, u.Hq, false)]);
+  }
+  foreach (var n in noOps)
+  {
+    var row = rows.Count;
+    rows.Add(new PinchRow(row, row, n.Id, n.Hq, n.Price, false));
+    // NO quote for these items - this is exactly why the 21:22 pass walked them.
+  }
+
+  // --- PASS 1: the 0.1.12.0 rule set (memory off). The control: all 23 walk. ---
+  var memory = new PinchBoardMemory(() => Now);
+  var p1 = PinchBoardMemory.ApplyToDecisions(PinchPreflight.Decide(rows, quotes, options, Now), memory, options with { BoardMemoryHours = 0 }, Now);
+  Check("fifth replay: CONTROL - the shipped rule set walks all 23 rows",
+    p1.Count(d => d.Verdict == PinchVerdict.Walk) == 23, $"walked={p1.Count(d => d.Verdict == PinchVerdict.Walk)}");
+  Check("fifth replay: CONTROL - with an empty memory nothing is skipped on memory",
+    p1.Count(d => d.Verdict == PinchVerdict.SkipBoardMemory) == 0);
+  Check("fifth replay: the 9 no-ops walk for lack of Universalis data, the 14 undercuts for real",
+    p1.Count(d => d.Verdict == PinchVerdict.Walk && PinchPreflight.CanMemorySettle(d.Reason)) == 9
+      && p1.Count(d => d.Verdict == PinchVerdict.Walk && !PinchPreflight.CanMemorySettle(d.Reason)) == 14);
+  Check("fifth replay: CONTROL - an empty memory stores nothing, which is why 0.1.12.0 walked them again",
+    memory.Count == 0);
+
+  // --- THE WRITE STEP, as the pass performs it: a compare window that produced the SAME price as the
+  //     listing already carries records the verdict; one that produced a DIFFERENT price records
+  //     nothing. Exactly the SetNewPrice gate (new == old, board-sourced, not placeholder). ---
+  var confirms = 0;
+  foreach (var n in noOps)
+    if (memory.Remember(n.Id, n.Hq, n.Price))
+      confirms++;
+  Check("fifth replay: 9 confirm windows wrote 8 verdicts - the two 30414 rows share one key",
+    confirms == 9 && memory.Count == 8, $"confirms={confirms} entries={memory.Count}");
+  // The forget half of the write gate: a window that produces a DIFFERENT price calls Forget, not
+  // Remember (the pass decides which; the store only records or drops).
+  Check("fifth replay: a moved price FORGETS its verdict, and forgetting an absent key is a no-op",
+    memory.Remember(31001, false, 1) && memory.Forget(31001, false) && !memory.TryGet(31001, false, out _)
+      && memory.Count == 8 && memory.Forget(999999, false) == false);
+
+  // --- PASS 2: the NEXT sweep, same prices. 9 rows skip on memory, 14 still walk. ---
+  var log = new List<string>();
+  var p2 = PinchBoardMemory.ApplyToDecisions(PinchPreflight.Decide(rows, quotes, options, Now + OneHour), memory, options, Now + OneHour, log);
+  var p2skips = p2.Where(d => d.Verdict == PinchVerdict.SkipBoardMemory).ToList();
+  Check("fifth replay: next sweep - exactly the 9 no-op rows skip on memory",
+    p2skips.Count == 9 && p2.Count(d => d.Verdict == PinchVerdict.Walk) == 14,
+    $"skips={p2skips.Count} walked={p2.Count(d => d.Verdict == PinchVerdict.Walk)}");
+  Check("fifth replay: the two 30414 rows both skip off the one shared verdict",
+    p2skips.Count(d => d.Row.ItemId == 30414) == 2);
+  Check("fifth replay: every memory skip replaces a baseline uncertainty walk - never a rule with an answer",
+    p2skips.All(d => p1.Single(x => x.Row.Row == d.Row.Row).Reason is "no Universalis data" or "no HQ listing on the board" or "no listing on the board"),
+    string.Join(",", p2skips.Select(d => p1.Single(x => x.Row.Row == d.Row.Row).Reason)));
+  Check("fifth replay: each memory skip names the row and the age, in the INFO log",
+    log.Count == 9 && log.All(l => l.StartsWith("pinch board memory: row ") && l.Contains("confirmed") && l.Contains("ago, skipping")),
+    string.Join(" | ", log.Take(2)));
+  Check("fifth replay: the summary line counts them as remembered from the last pass",
+    PinchPreflight.Summarize(p2, 6).Contains("9 remembered from the last pass"),
+    PinchPreflight.Summarize(p2, 6));
+  Check("fifth replay: a memory skip keeps the candidate at the CURRENT price - nothing would be written",
+    p2skips.All(d => d.Candidate == d.Row.CurrentPrice));
+
+  // --- PASS 3: 13h later. Every verdict is past the 12h window: all 23 walk again. ---
+  var p3 = PinchBoardMemory.ApplyToDecisions(PinchPreflight.Decide(rows, quotes, options, Now + ThirteenHours()), memory, options, Now + ThirteenHours());
+  Check("fifth replay: 13h later every verdict is past the window - all 23 walk again",
+    p3.Count(d => d.Verdict == PinchVerdict.SkipBoardMemory) == 0 && p3.Count(d => d.Verdict == PinchVerdict.Walk) == 23);
+  static long ThirteenHours() => 13 * 3_600_000L;
+
+  // --- PASS 4: the world moved on one row - its price changed. THAT row walks; the rest still skip. ---
+  var movedIdx = rows.FindIndex(r => r.ItemId == 31911);
+  rows[movedIdx] = rows[movedIdx] with { CurrentPrice = 11 };
+  var p4 = PinchBoardMemory.ApplyToDecisions(PinchPreflight.Decide(rows, quotes, options, Now + OneHour), memory, options, Now + OneHour);
+  Check("fifth replay: a row whose price moved off the confirmed number walks; the other 8 still skip",
+    p4.Count(d => d.Verdict == PinchVerdict.SkipBoardMemory) == 8
+      && p4.Single(d => d.Row.ItemId == 31911).Verdict == PinchVerdict.Walk);
+  rows[movedIdx] = rows[movedIdx] with { CurrentPrice = 12 };
+
+  // --- Boundaries and polarity. ---
+  var row12527 = rows.First(r => r.ItemId == 12527 && r.HQ);
+  var entry12527 = new PinchMemoryEntry(12527, true, 84, Now + OneHour - TwelveHours);
+  Check("board memory: a verdict exactly 12h old still counts (the window is 'older than')",
+    PinchBoardMemory.Decide(row12527, entry12527, options, Now + OneHour) == PinchVerdict.SkipBoardMemory);
+  Check("board memory: a verdict one millisecond past the window does not",
+    PinchBoardMemory.Decide(row12527, entry12527 with { ConfirmedUnixMs = entry12527.ConfirmedUnixMs - 1 }, options, Now + OneHour) == null);
+  Check("board memory: a different price voids the verdict even inside the window",
+    PinchBoardMemory.Decide(row12527 with { CurrentPrice = 83 }, entry12527, options, Now + OneHour) == null);
+  Check("board memory: quality is part of the key - an NQ verdict never settles an HQ row",
+    PinchBoardMemory.Decide(row12527, new PinchMemoryEntry(12527, false, 84, Now + OneHour), options, Now + OneHour) == null);
+  Check("board memory: hours = 0 means off, whatever the store holds",
+    PinchBoardMemory.Decide(row12527, entry12527, options with { BoardMemoryHours = 0 }, Now + OneHour) == null
+      && PinchBoardMemory.ApplyToDecisions(PinchPreflight.Decide(rows, quotes, options, Now + OneHour), memory, options with { BoardMemoryHours = 0 }, Now + OneHour)
+           .Count(d => d.Verdict == PinchVerdict.SkipBoardMemory) == 0);
+
+  Check("board memory: only the three UNCERTAINTY reasons are settleable",
+    PinchPreflight.CanMemorySettle("no Universalis data")
+      && PinchPreflight.CanMemorySettle("no HQ listing on the board")
+      && PinchPreflight.CanMemorySettle("no listing on the board")
+      && !PinchPreflight.CanMemorySettle("Universalis data is stale")
+      && !PinchPreflight.CanMemorySettle("row could not be read")
+      && !PinchPreflight.CanMemorySettle("new listing at the placeholder price")
+      && !PinchPreflight.CanMemorySettle("already at the price this pass would set")
+      && !PinchPreflight.CanMemorySettle("would move 250 -> 1")
+      && !PinchPreflight.CanMemorySettle("every listing of this item on the board is one of yours - nothing to undercut")
+      && !PinchPreflight.CanMemorySettle("not undercut: the cheapest listing that is not yours is 500, at or above your 500"));
+
+  // --- Store persistence. ---
+  var json = PinchBoardMemory.ToJson(memory.Entries);
+  var round = PinchBoardMemory.FromJson(json);
+  Check("board memory: the store round-trips (8 verdicts, prices and timestamps intact)",
+    round.Count == 8
+      && round.First(e => e.ItemId == 30414) is { Hq: false, Price: 40000 }
+      && round.First(e => e.ItemId == 12527).Hq);
+  Check("board memory: broken JSON reads as an empty memory, never an exception",
+    PinchBoardMemory.FromJson("{\"version\":1,\"entries\":[{broken").Count == 0
+      && PinchBoardMemory.FromJson("not json at all").Count == 0
+      && PinchBoardMemory.FromJson("").Count == 0);
+  Check("board memory: junk entries are skipped, good ones kept",
+    PinchBoardMemory.FromJson("{\"entries\":[{\"itemId\":0,\"hq\":false,\"price\":5,\"confirmedUnixMs\":1},"
+      + "{\"itemId\":7,\"hq\":false,\"price\":0,\"confirmedUnixMs\":1},"
+      + "{\"itemId\":7,\"hq\":false,\"price\":5,\"confirmedUnixMs\":0},"
+      + "{\"itemId\":7,\"hq\":true,\"price\":9,\"confirmedUnixMs\":123}]}").Count == 1);
+  Check("board memory: Remember refuses item 0 and non-positive prices",
+    !memory.Remember(0, false, 100) && !memory.Remember(60000, false, 0) && !memory.Remember(60000, false, -5));
+
+  var big = new PinchBoardMemory(() => Now);
+  for (var i = 1; i <= 501; i++)
+    big.Remember((uint)i, false, 100 + i);
+  Check("board memory: the store trims to 500, dropping the OLDEST verdict",
+    big.Count == 500 && !big.TryGet(1, false, out _) && big.TryGet(501, false, out _));
+
+  var tmpStore = Path.Combine(Path.GetTempPath(), $"lmc-bm-{Guid.NewGuid():N}");
+  try
+  {
+    memory.Save(tmpStore);
+    var reloaded = PinchBoardMemory.Load(tmpStore, () => Now);
+    Check("board memory: Save/Load round-trips through the real file", reloaded.Count == 8 && reloaded.TryGet(5081, true, out _));
+    var empty = PinchBoardMemory.Load(Path.Combine(tmpStore, "does-not-exist"));
+    Check("board memory: a missing store file loads as an empty memory", empty.Count == 0);
+  }
+  finally
+  {
+    if (Directory.Exists(tmpStore)) Directory.Delete(tmpStore, true);
+  }
+
+  // --- NO-INTERFERENCE CONTROL over case 33's fixture: a FULL memory store changes not one verdict there. ---
+  {
+    var mem33 = new PinchBoardMemory(() => 1_788_708_000_000L);
+    foreach (var r in BuildCase33Rows())
+      mem33.Remember(r.ItemId, r.HQ, r.CurrentPrice);
+    Check("fifth replay: the no-interference control really holds a FULL memory (39 verdicts)",
+      mem33.Count == 39, $"mem33.Count={mem33.Count}");
+    var opts33 = new PinchPreflightOptions(
+      Enabled: true, FreshnessHours: 6, SkipUnderGil: 0, SkipUnderPercent: 1.0f,
+      PreferHq: true, Mode: UndercutMode.FixedAmount, UndercutAmount: 0, UndercutSelf: false,
+      MirrorOverlay: false, BoardMemoryHours: 12);
+    var base33 = PinchPreflight.Decide(BuildCase33Rows(), Case33Quotes(), opts33, 1_788_708_000_000L);
+    var memd33 = PinchBoardMemory.ApplyToDecisions(base33, mem33, opts33, 1_788_708_000_000L);
+    Check("fifth replay: NO-INTERFERENCE - a full memory changes not one verdict on case 33's night",
+      base33.Select(d => (d.Row.Row, d.Verdict)).SequenceEqual(memd33.Select(d => (d.Row.Row, d.Verdict))));
+  }
+
+  static List<PinchRow> BuildCase33Rows()
+  {
+    var rows = new List<PinchRow>();
+    long[] alreadyRight = [98L, 243L, 400L, 1_200L, 2_500L, 3_333L, 7_800L, 9_999L, 12_000L, 15_500L,
+                           18_250L, 21_000L, 24_800L, 30_951L, 44_000L, 61_500L, 120_000L];
+    for (var i = 0; i < alreadyRight.Length; i++)
+      rows.Add(new PinchRow(rows.Count, rows.Count, (uint)(3000 + i), false, alreadyRight[i], false));
+    rows.Add(new PinchRow(rows.Count, rows.Count, 4001, false, 243, false));
+    rows.Add(new PinchRow(rows.Count, rows.Count, 4002, false, 400, false));
+    rows.Add(new PinchRow(rows.Count, rows.Count, 4003, false, 30_971, false));
+    for (var i = 0; i < 19; i++)
+      rows.Add(new PinchRow(rows.Count, rows.Count, (uint)(5000 + i), false, 10_000L + i * 500L, false));
+    return rows;
+  }
+
+  static Dictionary<uint, ItemQuote> Case33Quotes()
+  {
+    var quotes = new Dictionary<uint, ItemQuote>();
+    long[] alreadyRight = [98L, 243L, 400L, 1_200L, 2_500L, 3_333L, 7_800L, 9_999L, 12_000L, 15_500L,
+                           18_250L, 21_000L, 24_800L, 30_951L, 44_000L, 61_500L, 120_000L];
+    for (var i = 0; i < alreadyRight.Length; i++)
+      quotes[(uint)(3000 + i)] = new ItemQuote((uint)(3000 + i), true, 1_788_708_000_000L - 3_600_000L, [new QuoteListing(alreadyRight[i], false, true)]);
+    quotes[4001] = new ItemQuote(4001, true, 1_788_708_000_000L - 3_600_000L, [new QuoteListing(242, false, false)]);
+    quotes[4002] = new ItemQuote(4002, true, 1_788_708_000_000L - 3_600_000L, [new QuoteListing(399, false, false)]);
+    quotes[4003] = new ItemQuote(4003, true, 1_788_708_000_000L - 3_600_000L, [new QuoteListing(30_951, false, false)]);
+    for (var i = 0; i < 19; i++)
+      quotes[(uint)(5000 + i)] = new ItemQuote((uint)(5000 + i), true, 1_788_708_000_000L - 3_600_000L, [new QuoteListing(8_000L + i * 500L, false, false)]);
+    return quotes;
+  }
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;

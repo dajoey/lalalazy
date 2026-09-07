@@ -302,6 +302,16 @@ public sealed class Configuration : IPluginConfiguration
   /// <summary>Skip a row whose price would move by less than this percent of its current price. 0 = off.</summary>
   public float AutoPinchSkipUnderPercent { get; set; } = 1.0f;
 
+  /// <summary>
+  /// How long (in hours) a price confirmed by a previous Auto Pinch pass's compare window may justify
+  /// skipping the same listing in a later pass, while the listing still carries exactly that price.
+  /// This is what closes the long-tail gap: slow items nobody uploads to Universalis get walked once,
+  /// their compare window confirms the price, and later passes skip them without opening the window
+  /// again. 0 turns the memory off - every row is then priced exactly as before this existed.
+  /// New field with an initializer, so an existing config deserializes it without a migration.
+  /// </summary>
+  public int AutoPinchBoardMemoryHours { get; set; } = 12;
+
   /// <summary>Set once the Dagobert config import has been attempted, so it never runs twice.</summary>
   public bool ImportedFromDagobert { get; set; } = false;
 

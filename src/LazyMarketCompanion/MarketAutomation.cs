@@ -76,8 +76,24 @@ internal sealed class MarketAutomation : Window, IDisposable
   // superseded - means every row is walked, which is exactly what every version before this one did.
   private List<PinchDecision>? _preflightDecisions;
   private bool _preflightDone;
+  private List<string>? _preflightMemoryLog;
   private int _preflightRequestId;
   private CancellationTokenSource? _preflightCts;
+
+  // Board-memory store (0.1.13.0): the compare windows this plugin opens during a full-row pass are the
+  // ONE source with a current answer for slow long-tail items, and their verdicts were discarded after
+  // every pass. What a window settles (the candidate it produced equals the price already on the
+  // listing) is now remembered per (item, quality) and consulted by the next pre-flight where
+  // Universalis has nothing usable - see AutoMarket/PinchBoardMemory.cs. Not plugin configuration: the
+  // window length is, the contents are evidence. Survives restarts in a small JSON file next to the
+  // config, rewritten from live confirmations, never hand-edited.
+  private readonly PinchBoardMemory _boardMemory;
+  // The (item, quality) identity of the row currently being priced, captured in OpenItemContextMenu
+  // from the same pre-flight snapshot that decided the row (never from row text), and cleared with the
+  // rest of the pass state. Null during a pass this instance did not pre-flight (pre-0.1.9.0 shape).
+  private (uint ItemId, bool Hq)? _currentRowIdentity;
+  // Row -> (item, quality) as the pre-flight snapshot saw it, from BuildPreflightRows.
+  private readonly Dictionary<int, (uint ItemId, bool Hq)> _preflightRowIdentities = [];
 
   // Auto-Market value gate + listing order lookup (0.1.11.0). One Universalis request per retainer,
   // fired before the plan is built so the gate can drop below-threshold items and the sort can order
@@ -118,6 +134,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     _mbHandler = new MarketBoardHandler();
     _mbHandler.NewPriceReceived += MBHandler_NewPriceReceived;
     _universalisPriceProvider = new UniversalisPriceProvider();
+    _boardMemory = PinchBoardMemory.Load(Plugin.PluginInterface.ConfigDirectory.FullName);
     _cachedPricesUseUniversalisDataCenterPrices = Plugin.Configuration.UseUniversalisDataCenterPrices;
 
     Position = new System.Numerics.Vector2(0, 0);
@@ -585,7 +602,7 @@ internal sealed class MarketAutomation : Window, IDisposable
   /// (<see cref="AutoMarketService.MarketPricesBySlot"/>). A row whose slot could not be read comes back
   /// with item 0 and price 0, which the pre-flight treats as "walk it".
   /// </summary>
-  private static List<PinchRow> BuildPreflightRows()
+  private List<PinchRow> BuildPreflightRows()
   {
     var market = AutoMarketService.SnapshotMarket();
     if (market.Count == 0)
@@ -612,6 +629,7 @@ internal sealed class MarketAutomation : Window, IDisposable
         current = (long)Math.Min(priced, long.MaxValue);
 
       rows.Add(new PinchRow(row.Row, row.Slot, itemId, hq, current, current > 0 && current == placeholder));
+      _preflightRowIdentities[row.Row] = (itemId, hq);
     }
 
     return rows;
@@ -638,9 +656,11 @@ internal sealed class MarketAutomation : Window, IDisposable
       Plugin.Configuration.UndercutMode,
       Plugin.Configuration.UndercutAmount,
       Plugin.Configuration.UndercutSelf,
-      Plugin.Configuration.AutoPinchMirrorOverlay);
+      Plugin.Configuration.AutoPinchMirrorOverlay,
+      Math.Max(Plugin.Configuration.AutoPinchBoardMemoryHours, 0));
 
     var snapshot = rows.ToList();
+    var memoryLog = _preflightMemoryLog = new List<string>();
     var requestId = ++_preflightRequestId;
     _preflightCts?.Cancel();
     _preflightCts?.Dispose();
@@ -654,7 +674,12 @@ internal sealed class MarketAutomation : Window, IDisposable
       {
         var quotes = await _universalisPriceProvider.GetQuotes(itemIds, token).ConfigureAwait(false);
         if (quotes.Count > 0)
+        {
           decisions = PinchPreflight.Decide(snapshot, quotes, options, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), ApplyItemPriceLimitsById);
+          // Board memory (0.1.13.0): settle the uncertainty walks a remembered compare-window verdict can
+          // answer, BEFORE the list reaches the task queue. Every other verdict passes through unchanged.
+          decisions = PinchBoardMemory.ApplyToDecisions(decisions, _boardMemory, options, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), memoryLog);
+        }
       }
       catch (OperationCanceledException) { return; }
       catch (Exception ex) { Svc.Log.Warning(ex, "[LMC] pinch pre-flight lookup failed; every row will be walked"); }
@@ -663,6 +688,7 @@ internal sealed class MarketAutomation : Window, IDisposable
       {
         if (_disposed || requestId != _preflightRequestId) return;
         _preflightDecisions = decisions;
+        _preflightMemoryLog = memoryLog;
         _preflightDone = true;
       });
     }, token);
@@ -677,6 +703,8 @@ internal sealed class MarketAutomation : Window, IDisposable
     var decisions = _preflightDecisions;
     _preflightDecisions = null;
     _preflightDone = false;
+    var memoryLog = _preflightMemoryLog;
+    _preflightMemoryLog = null;
 
     if (decisions == null || decisions.Count == 0)
     {
@@ -689,6 +717,9 @@ internal sealed class MarketAutomation : Window, IDisposable
 
     foreach (var decision in decisions.Where(d => d.Verdict != PinchVerdict.Walk))
       Svc.Log.Debug($"[LMC] pinch pre-flight: skipping row {decision.Row.Row} (slot #{decision.Row.Slot}, item {decision.Row.ItemId}) priced {decision.Row.CurrentPrice}, candidate {decision.Candidate} - {decision.Reason}");
+
+    foreach (var line in memoryLog ?? [])
+      Svc.Log.Information($"[LMC] {line}");
 
     // Insert front-pushes, so the highest row goes in first and the rows are priced lowest-first.
     foreach (var decision in decisions.Where(d => d.Verdict == PinchVerdict.Walk).OrderByDescending(d => d.Row.Row))
@@ -1256,6 +1287,13 @@ internal sealed class MarketAutomation : Window, IDisposable
       // Remembered so the price steps can tell WHICH row they are working on; only the new-only pass has
       // an expectation for a row, the pinch-all pass walks every row and needs no mapping.
       _currentPinchRow = itemIndex;
+      // Board-memory row identity (0.1.13.0): _currentPinchRow names the ROW; the memory store is keyed
+      // by (item, quality), and the row's item must be the one the pre-flight snapshot read from the
+      // market CONTAINER - not a re-read of row text, which a clipped label reports as the wrong item.
+      if (_preflightRowIdentities.TryGetValue(itemIndex, out var pinchIdentity))
+        _currentRowIdentity = pinchIdentity;
+      else
+        _currentRowIdentity = null;
       Svc.Log.Debug($"[LMC] clicking item {itemIndex}");
       ECommons.Automation.Callback.Fire(addon, true, 0, itemIndex, 1);
       return true;
@@ -1500,6 +1538,31 @@ internal sealed class MarketAutomation : Window, IDisposable
         else
           Communicator.PrintAboveMaxCutError(itemName);
 
+        // Board memory (0.1.13.0): a compare window that CONFIRMS the price already on a listing is
+        // the only current answer that exists for a slow long-tail item, and until now the verdict was
+        // discarded after every pass. Record it - keyed by the (item, quality) identity this row was
+        // snapshotted with before the pass started (see BuildPreflightRows) - then DELETE it the moment
+        // the window produced a different price, which is the world having moved under the memory.
+        // Written only for a real confirm: a price from the per-run name cache or from Universalis is
+        // not the window's answer (a cached name confirms nothing about THIS listing's price), a
+        // default-amount fallback is not a confirm, a placeholder listing has no old verdict to keep,
+        // and a rejected candidate writes no price at all. Then the confirm is persisted.
+        if (Plugin.Configuration.AutoPinchBoardMemoryHours > 0 && priceAccepted && !isPlaceholder)
+        {
+          if (_currentRowIdentity is { } identity)
+          {
+            if (_newPrice.Value == _oldPrice.Value)
+            {
+              _boardMemory.Remember(identity.ItemId, identity.Hq, _newPrice.Value);
+              _boardMemory.Save(Plugin.PluginInterface.ConfigDirectory.FullName);
+              var hqTag = identity.Hq ? " HQ" : "";
+              Svc.Log.Debug($"[LMC] board memory: confirmed item {identity.ItemId}{hqTag} at {_newPrice.Value} - {_boardMemory.Count} entries");
+            }
+            else
+              _boardMemory.Forget(identity.ItemId, identity.Hq);
+          }
+        }
+
         // Off-by-default decision tap. The flag is read BEFORE anything is gathered: resolving the
         // item id is a linear scan of the Item sheet, so "off" must cost exactly this bool read.
         // Both outcomes are emitted - an abort writes no price and is otherwise almost traceless,
@@ -1693,6 +1756,8 @@ internal sealed class MarketAutomation : Window, IDisposable
     _rowSlots.Clear();
     _newOnlyPendingSlots.Clear();
     _currentPinchRow = -1;
+    _currentRowIdentity = null;
+    _preflightRowIdentities.Clear();
     _listedTotal = 0;
     _listingFailures = 0;
     _vendoredThisRun = 0;
