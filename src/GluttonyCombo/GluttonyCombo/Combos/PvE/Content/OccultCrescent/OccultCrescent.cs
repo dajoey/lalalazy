@@ -1067,9 +1067,16 @@ internal partial class OccultCrescent
                 return true;
             }
 
+            // Aetherial Gain is +10% party damage for 20s on a 60s cooldown. Like Offensive
+            // Aria, it is one of the things that MAKES a damage window: gating it behind
+            // RestrictToBuff meant it could only be applied once some OTHER damage buff was
+            // already up, which is backwards - and with a solo phantom setup it meant never,
+            // the chicken-and-egg the Bard handler already fixed (helm
+            // t-planka-1858588054520858468, 2026-09-07). It now sits above the gate like
+            // Aria/Rime/Mesmerize do. The !HasStatusEffect guard still keeps it maintenance,
+            // not a per-window spam.
             if (IsEnabledAndUsable(Preset.Phantom_Geomancer_AetherialGain, AetherialGain) &&
-                !HasStatusEffect(Buffs.AetherialGain) &&
-                (!IsEnabled(Preset.Phantom_RestrictToBuff) || BurstAlign.PhantomDamageBuffed))
+                !HasStatusEffect(Buffs.AetherialGain))
             {
                 actionID = AetherialGain; // damage buff
                 return true;
@@ -1618,7 +1625,18 @@ internal partial class OccultCrescent
             // what makes every Occult Fire/Blizzard/Thunder II afterwards hit for 390 instead
             // of 300. Gating it on "are we already buffed" delayed the enabler behind the thing
             // it enables - and it is a 5s oGCD, so it costs a weave slot, not a GCD.
-            var canDebuff = EnemiesInRange(OccultLibra).Any(x => x.IsInCombat() && x.IsTargetable && !HasLibraWeakness(x) && CanApplyLibraWeakness(x));
+            // INTERNAL 30s COOLDOWN (Joey, helm t-joey-1788653879855, 2026-09-05). The condition
+            // below can stay true indefinitely: on a mob with no elemental weakness to reveal Libra
+            // applies nothing, so HasLibraWeakness stays false and CanApplyLibraWeakness stays true
+            // forever, and this 5s-recast oGCD re-fires for the whole pull. Armed by the ACTUAL cast,
+            // never by merely evaluating this gate - TryGetPhantomAction runs every frame for icon
+            // replacement, so a plain Throttle() here would pass on frame one and then blank the
+            // suggested icon for 30s, changing the button out from under the player mid-press.
+            if (WasLastAction(OccultLibra))
+                LibraSuppressedUntil = Environment.TickCount64 + LibraInternalCooldownMs;
+
+            var canDebuff = Environment.TickCount64 >= LibraSuppressedUntil &&
+                EnemiesInRange(OccultLibra).Any(x => x.IsInCombat() && x.IsTargetable && !HasLibraWeakness(x) && CanApplyLibraWeakness(x));
             if (canDebuff)
             {
                 actionID = OccultLibra;
@@ -1676,6 +1694,12 @@ internal partial class OccultCrescent
 
         return false;
     }
+
+    /// <summary>Internal cooldown for Occult Libra, in milliseconds (Joey, 2026-09-05).</summary>
+    private const long LibraInternalCooldownMs = 30_000;
+
+    /// <summary>Tick before which Occult Libra is not re-suggested. Armed by the cast, not the gate.</summary>
+    private static long LibraSuppressedUntil;
 
     private static bool HasLibraWeakness(IGameObject? tar)
     {

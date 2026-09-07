@@ -1,3 +1,11 @@
+# Changelog
+
+## v1.0.4.176 (2026-09-07) [testing]
+
+### Fixed
+
+- Geomancer's Aetherial Gain (+10% party damage, 20s, 60s cooldown) is no longer blocked by the "Restrict damage actions to burst windows" setting. The buff sat below the same gate the damage actions do, so the plugin could not apply it until some OTHER damage buff was already active - which is backwards, and with a solo phantom setup it never applied at all. It now sits above the gate like the other window-opening buffs (Offensive Aria, Hero's Rime, Mesmerize) already do; the plugin still only applies it while it is not already up, so it stays a maintenance buff rather than a repeat cast. (file: `GluttonyCombo/Combos/PvE/Content/OccultCrescent/OccultCrescent.cs`, function: `TryGetGeomancerAction`)
+- No other Geomancer behaviour changes: Sunbath, Cloudy Caress, Blessed Rain, Misty Mirage, Hasty Mirage, Battle Bell and the damage actions are untouched, and the "Restrict damage actions to burst windows" setting continues to govern everything it did before.
 ## v1.0.4.175 (2026-09-06) [testing]
 
 ### Fixed
