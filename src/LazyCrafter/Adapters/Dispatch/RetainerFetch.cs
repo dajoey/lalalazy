@@ -231,7 +231,10 @@ public sealed class RetainerFetch
         catch (Exception ex)
         {
             _log.Warning(ex, "RetainerFetch.SessionPreflight() threw");
-            return $"could not inspect Artisan's retainer state ({ex.GetType().Name})";
+            // 0.1.6.13 (card t_3161fa75): this string is CLASSIFIED by
+            // LazyCrafter.Core.FetchGatePolicy.PreflightThrewPrefix ("could not inspect") so the queue-time
+            // gate can Hold on a thrown preflight instead of reading it as a green light. Change one, change both.
+            return $"{LazyCrafter.Core.FetchGatePolicy.PreflightThrewPrefix} Artisan's retainer state ({ex.GetType().Name})";
         }
     }
 

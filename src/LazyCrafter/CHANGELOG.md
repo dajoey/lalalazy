@@ -1,4 +1,14 @@
 # Changelog
+## v0.1.6.13 (2026-09-07)
+
+### Fixed
+- **The retainer fetch no longer queues blind mid-teleport and then idles silently.** A run that walks the character to the summoning bell now holds until the trip has actually landed: while Lifestream is mid-trip nothing is queued, and if Artisan's retainer state cannot even be inspected (its own bell scan threw mid-teleport in the 2026-09-07 13:01 run, which then sat at 0/7 until manually stopped) the gate treats that as a hold with the bell walk and a 3-minute cap - never as a green light (files: `Adapters/DispatchService.cs` `BellGateAtQueue`, new `Core/FetchGatePolicy.cs`)
+- **An open window now holds the fetch phases exactly as it holds crafting.** If the market board (or any other window) owns the client when the retainer fetch is about to queue or just after a session ends, the run says `waiting - close the market board to continue`, holds, and resumes by itself the moment the window is gone; five minutes of a still-open window stops the run cleanly with the cart held for Resume (files: `Adapters/DispatchService.cs` `FetchClientHold` across `Phase.BatchRetrieve` / `BatchWait` / `Retrieve` / `WaitRetrieve`)
+- **A batch retainer session that moves nothing now stops with the reason instead of idling.** Two minutes of continuous Artisan busyness with zero change in every demanded material's bag count aborts the session and blocks the run with the reason (cart held, press Resume); a session that is withdrawing normally resets the guard with every change and is untouched, as is the existing 10-minute abort (files: `Adapters/DispatchService.cs` `Phase.BatchWait` stall guard, `Core/FetchGatePolicy.cs` `BatchStallLimit`)
+
+### Notes
+- The fetch hold deliberately ignores the windows and states a working retainer session opens or rides on - the retainer list, a retainer's inventory, the quantity prompt, dialogue clicks, and the zone-change flag of the summoning-bell trip itself - because gating on those would deadlock the dispatcher against its own session. Everything a player opens is named and waited on.
+- Proved offline before shipping: the decision table lives in `Core/FetchGatePolicy.cs` and is pinned by `tests/LazyCrafter.Harness` (FetchGateTests) - preflight-throw holds, Lifestream-busy holds, the 3-minute and 2-minute caps, the refusal wordings, and the ignored-label set - with the cap and wording mutations each turned red before being restored to green. The dispatcher wiring itself is proved by the shipped-DLL artifact scan, as in 0.1.6.8.
 
 ## v0.1.6.12 (2026-09-07)
 

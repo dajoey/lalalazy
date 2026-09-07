@@ -128,6 +128,17 @@ public sealed class DispatchService : IDisposable
     private DateTime _bellWalkAt = DateTime.MinValue;
     private int _bellWalkFails;
 
+    // ---- 0.1.6.13 (card t_3161fa75): the fetch holds ----
+
+    /// <summary>Batch-session stall guard (card t_3161fa75): <c>Busy()</c> with zero change in every
+    /// demanded material's bag count for <see cref="FetchGatePolicy.BatchStallLimit"/> aborts the session
+    /// and stops the run with the reason, instead of idling until the player presses Stop.</summary>
+    private readonly StallGuard _batchStall = new(FetchGatePolicy.BatchStallLimit);
+    /// <summary>The window currently holding the fetch phases (card t_3161fa75) - the fetch twin of <see cref="_waitingOn"/>; the close-it line is said once per distinct window.</summary>
+    private string? _fetchWaitingOn;
+    /// <summary>When the current fetch hold began, so its five-minute cap measures the hold, not the phase.</summary>
+    private DateTime? _fetchHoldSince;
+
     // ---- 0.1.4.0: the wave loop, the stall guards, the heartbeat, the snapshot.
     private DispatchLoop? _loop;
     private readonly StallGuard _gatherStall = new(TimeSpan.FromMinutes(10));
@@ -423,6 +434,8 @@ public sealed class DispatchService : IDisposable
         _blockedCrafts.Clear();
         _busyAtCraft = null;
         _waitingOn = null;
+        _fetchWaitingOn = null;
+        _fetchHoldSince = null;
         // The /lcraft blocked stash belongs to the LAST run and is deliberately kept past Finish/FinishBlocked;
         // a new run is the one thing that invalidates it (card t_35be7be5).
         _lastBlockedListings = BlockedListings.Summary.Empty;
@@ -602,33 +615,56 @@ public sealed class DispatchService : IDisposable
     }
 
     /// <summary>
-    /// The queue-time gate the fetch phases tick against (card t_034884f4). Proceed: a bell is reachable, or the
-    /// blocker is one the queue call itself will surface. Hold: the only blocker is a reachable-bell miss and the
-    /// character is being walked there - <see cref="FireBellWalkIfDue"/> fires the trip at most every 30 s and the
-    /// 3-minute cap (the phase clock, restarted on every entry into the fetch phases) bounds the wait. Refused: the
-    /// wait is over or the walk is impossible - the queue-time refusal has been printed once, red, every
-    /// still-queued retrieval is recorded in <see cref="_unfetched"/> with the live reason, and the caller must
-    /// leave the fetch path. The preflight is the completion signal: nothing is assumed about Lifestream's or
-    /// Artisan's timing. Framework thread.
+    /// The queue-time gate the fetch phases tick against (card t_034884f4; 0.1.6.13 card t_3161fa75).
+    /// Proceed: a bell is reachable, Lifestream is idle and the preflight answered - queue the fetch. Hold:
+    /// Lifestream is mid-trip (queueing before the trip lands is the blind mid-teleport queue that idled the
+    /// 2026-09-07 13:01 run at 0/7), or the preflight threw - an un-inspectable Artisan state is exactly when
+    /// nothing may be queued blind - or the only blocker is a reachable-bell miss. In every hold
+    /// <see cref="FireBellWalkIfDue"/> keeps the walk due (at most one launch per 30 s) and the heartbeat keeps
+    /// the wait visible; the 3-minute cap (the phase clock) ends any hold with one red refusal carrying the real
+    /// reason. Refused: the wait is over or the walk is impossible - the refusal has been printed once, red,
+    /// every still-queued retrieval is recorded in <see cref="_unfetched"/> with the live reason, and the caller
+    /// must leave the fetch path. The decision table itself lives in Core (<c>FetchGatePolicy</c>) so the harness
+    /// can pin it. Framework thread.
     /// </summary>
     private BellGate BellGateAtQueue()
     {
+        var held = _phaseClock.Elapsed;
+        // 0.1.6.13 (defect 2): mid-trip the preflight is not even asked - the trip is what produced its
+        // NRE in the field - and the walk is not re-fired (Lifestream refuses while busy anyway).
+        if (Lifestream.IsBusy() == true)
+        {
+            if (held >= FetchGatePolicy.HoldCap)
+            {
+                var tripWhy = FetchGatePolicy.GaveUpOnTrip(FetchGatePolicy.HoldCap);
+                RefuseRetrievals(tripWhy, tripWhy);
+                return BellGate.Refused;
+            }
+            SetStatus(FetchGatePolicy.TripStatus());
+            Heartbeat(FetchGatePolicy.TripHeartbeat());
+            return BellGate.Hold;
+        }
         var pre = Fetch.SessionPreflight();
-        if (pre is null || !BellOnly(pre)) return BellGate.Proceed;
-        if (!_plugin.Config.WalkToBellWhenBlocked || !Lifestream.Installed)
+        switch (FetchGatePolicy.Decide(pre, lifestreamBusy: false, held, walkPossible: _plugin.Config.WalkToBellWhenBlocked && Lifestream.Installed))
         {
-            RefuseRetrievals($"cannot fetch it automatically: {pre}.", pre);
-            return BellGate.Refused;
+            case FetchGatePolicy.FetchVerdict.Queue:
+                return BellGate.Proceed;
+            case FetchGatePolicy.FetchVerdict.Hold:
+                // 0.1.6.13 (defect 1): a thrown preflight is an un-inspectable Artisan state - exactly when
+                // nothing may be queued blind. Hold with the (throttled) bell walk and the heartbeat; in the
+                // field the throw happened mid-trip, and the walk is what gets the character somewhere the
+                // preflight can answer. The cap below bounds it either way.
+                FireBellWalkIfDue();
+                SetStatus(FetchGatePolicy.TripStatus());
+                Heartbeat(FetchGatePolicy.TripHeartbeat());
+                return BellGate.Hold;
+            case FetchGatePolicy.FetchVerdict.RefuseNoWalk:
+                RefuseRetrievals($"cannot fetch it automatically: {pre}.", pre);
+                return BellGate.Refused;
+            default:   // RefuseCap - the 3-minute cap, refusing with the live preflight reason
+                RefuseRetrievals(FetchGatePolicy.GaveUp(pre, FetchGatePolicy.HoldCap), pre);
+                return BellGate.Refused;
         }
-        if (_phaseClock.ElapsedMilliseconds > 180_000)
-        {
-            RefuseRetrievals($"gave up waiting for a reachable summoning bell after 3 minutes ({pre}).", pre);
-            return BellGate.Refused;
-        }
-        FireBellWalkIfDue();
-        SetStatus("walking to a summoning bell to fetch your materials");
-        Heartbeat("walking to a summoning bell so the retainer fetch can run");
-        return BellGate.Hold;
     }
 
     /// <summary>Fire the market-board walk (the bell trip) for a standing-by fetch, at most once every 30 s and at most three refused launches per hold (card t_034884f4). <see cref="LifestreamDispatch.GoToMarketBoard"/> prints its own normal-channel line on success; a refusal is logged, not chatted, so a stuck walk never becomes a red wall.</summary>
@@ -649,6 +685,51 @@ public sealed class DispatchService : IDisposable
         _retrievals.Clear();
     }
 
+    /// <summary>
+    /// The close-the-window hold for the fetch phases (0.1.6.13, card t_3161fa75): the same hold
+    /// <c>Phase.Crafts</c> takes before a craft, applied at every queue/wait point of the retainer fetch - a
+    /// bell session cannot run while a window owns the client. Says the close-it line once per distinct
+    /// window, resumes BY ITSELF with a line the moment the window is gone, and after the five-minute cap
+    /// stops the run cleanly (cart held, Resume re-plans). Windows and states a WORKING session opens or
+    /// rides on are excluded - gating on them would deadlock the dispatcher against its own session, the
+    /// crafting-flag lesson of card t_ee6f7bf5 applied to the fetch. Framework thread.
+    /// </summary>
+    private bool FetchClientHold()
+    {
+        var busy = Readiness.BusyBecause();
+        if (busy is null)
+        {
+            if (_fetchWaitingOn is not null)
+            {
+                Say(ClientWaitPolicy.ResumedLine(_fetchWaitingOn));
+                _fetchWaitingOn = null;
+                _fetchHoldSince = null;
+                _phaseClock.Restart();   // the bell-walk cap measures the walk wait, not the window wait
+            }
+            return false;
+        }
+        if (!FetchGatePolicy.ShouldHoldFetch(busy)) return false;   // a working session's own windows
+        _fetchHoldSince ??= DateTime.UtcNow;
+        var held = DateTime.UtcNow - _fetchHoldSince.Value;
+        if (_fetchWaitingOn is null || !busy.Equals(_fetchWaitingOn, StringComparison.Ordinal))
+        {
+            _fetchWaitingOn = busy;
+            Say(ClientWaitPolicy.WaitLine(busy), error: false);
+        }
+        SetStatus(ClientWaitPolicy.WaitStatus(busy, held));
+        Heartbeat($"waiting - close {busy} to continue ({held:m\\:ss})");
+        if (ClientWaitPolicy.TimedOut(held))
+        {
+            var why = FetchGatePolicy.FetchTimeoutReason(busy, ClientWaitPolicy.WaitCap);
+            Say(FetchGatePolicy.FetchTimeoutLine(busy, ClientWaitPolicy.WaitCap), error: true);
+            _fetchWaitingOn = null;
+            _fetchHoldSince = null;
+            Fetch.Abort();
+            FinishBlocked(why, _plan);
+        }
+        return true;
+    }
+
     /// <summary>Re-assess the cart's remaining lines against the LIVE bags and build the next wave's plan. Fresh leaves, fresh totals - never the snapshot's stale ones.</summary>
     private DispatchPlan.Plan? Replan(IReadOnlyList<DispatchLoop.CartLine> remaining)
     {
@@ -659,6 +740,20 @@ public sealed class DispatchService : IDisposable
             .Select(a => new DispatchPlan.Line(a, remaining.First(r => r.RecipeId == a.RecipeId).Crafts))
             .ToList();
         return DispatchPlan.Build(lines, assessed.Totals, _graph!, _ventures!, _plugin.Player.Retainers, _plugin.Player.GatheredItems, _plugin.Inventory, Shops());
+    }
+
+    /// <summary>The distinct ingredient ids the queued batch session demands - the stall guard's progress signal.</summary>
+    private IEnumerable<uint> BatchDemandItems()
+    {
+        var ids = new List<uint>();
+        foreach (var id in _batchCrafts)
+        {
+            var row = _graph?.Row(id);
+            if (row is null) continue;
+            foreach (var ing in row.Ingredients)
+                ids.Add(ing.ItemId);
+        }
+        return ids.Distinct().OrderBy(i => i);
     }
 
     /// <summary>The bag counts of everything this wave could move, folded into one string - "did anything change?".</summary>
@@ -756,6 +851,10 @@ public sealed class DispatchService : IDisposable
                     if (!Poll(400)) break;
                     if (Fetch.Busy()) { SetStatus("waiting for Artisan's retainer queue"); break; }
 
+                    // 0.1.6.13 (card t_3161fa75, defect 3): a window owning the client holds the queue exactly
+                    // as the craft path is held - a bell session cannot run under a window.
+                    if (FetchClientHold()) break;
+
                     // 0.1.6.12 (card t_034884f4): the bell gate lives at QUEUE time, not press time. A bell-only
                     // preflight miss holds here while the character is walked to the bell - the preflight itself is
                     // the completion signal, so nothing is assumed about Lifestream's or Artisan's timing - and the
@@ -773,6 +872,7 @@ public sealed class DispatchService : IDisposable
                         Enter(Phase.Retrieve);
                         break;
                     }
+                    _batchStall.Reset();   // 0.1.6.13 (card t_3161fa75): the stall clock starts when the session is accepted
                     Say("fetching the cart's materials from your retainers in one pass - stay by the bell.");
                     Enter(Phase.BatchWait);
                     break;
@@ -784,6 +884,24 @@ public sealed class DispatchService : IDisposable
                     {
                         SetStatus($"retainers: batch fetch ({_phaseClock.Elapsed:m\\:ss})");
                         Heartbeat("retainer session under way - stay by the bell");
+                        // 0.1.6.13 (card t_3161fa75, defect 4): busy but moving nothing. The bag deltas of
+                        // every demanded material are the progress signal; two minutes unchanged while
+                        // Artisan still reports busy is a jammed session (a dialogue it cannot click, an
+                        // interrupted bell) - stop with the reason instead of idling until the player
+                        // presses Stop. A session that IS withdrawing resets the guard with every delta.
+                        _plugin.Inventory.DropMemo();
+                        var batchSignal = string.Join("|", BatchDemandItems()
+                            .Select(i => $"{i}:{Math.Max(0, _plugin.Inventory.CountInBags(i) - _batchBefore.GetValueOrDefault(i))}"));
+                        if (_batchStall.Observe(batchSignal, DateTime.UtcNow))
+                        {
+                            Fetch.Abort();
+                            var stallWhy = FetchGatePolicy.BatchStallLine(FetchGatePolicy.BatchStallLimit);
+                            foreach (var r in _retrievals) _unfetched.Add((r, stallWhy));
+                            _retrievals.Clear();
+                            _batchStall.Reset();
+                            FinishBlocked(stallWhy, _plan);
+                            break;
+                        }
                         if (_phaseClock.ElapsedMilliseconds > 600_000)
                         {
                             Fetch.Abort();
@@ -795,6 +913,10 @@ public sealed class DispatchService : IDisposable
                         }
                         break;
                     }
+
+                    // 0.1.6.13 (card t_3161fa75, defect 3): the session ended but a window owns the client -
+                    // hold with the close-it line before settling the wave against the bags.
+                    if (FetchClientHold()) break;
 
                     // Artisan going idle is not proof anything moved - count the bags. Artisan withdrew
                     // "recipe demand minus what the bags held at session time"; the delta per demanded item is
@@ -836,6 +958,9 @@ public sealed class DispatchService : IDisposable
                     if (_retrievals.Count == 0) { AfterRetrieve(); break; }
                     if (!Poll(400)) break;
                     if (Fetch.Busy()) { SetStatus("waiting for Artisan's retainer queue"); break; }
+
+                    // 0.1.6.13 (card t_3161fa75, defect 3): the same close-the-window hold as the batch path.
+                    if (FetchClientHold()) break;
 
                     // 0.1.6.12 (card t_034884f4): the same queue-time bell gate as the batch path - the character is
                     // walked to the bell BEFORE anything is dequeued, and a dead end empties the queue (the next
@@ -902,6 +1027,10 @@ public sealed class DispatchService : IDisposable
                         }
                         break;
                     }
+
+                    // 0.1.6.13 (card t_3161fa75, defect 3): the session ended but a window owns the client -
+                    // hold before settling, exactly as the batch path does.
+                    if (FetchClientHold()) break;
 
                     // Artisan going idle proves nothing (the same lesson as the craft loop): count the bags.
                     _plugin.Inventory.DropMemo();
