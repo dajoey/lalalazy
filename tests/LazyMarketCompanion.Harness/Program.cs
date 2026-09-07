@@ -1787,5 +1787,80 @@ var Catalogue = new (uint Id, string Name)[]
     MarkerMatch.IsMarked(dupes2, Dye, hq: false) == true);
 }
 
+// 46. GRID-TO-CONTAINER PAIRING (Helm t-joey-1788804058029): 0.1.17.0 paired each grid addon with
+//     a container by a fixed index table - Grid0E was treated as the THIRD bag page - which is
+//     wrong in the expanded view (each E-grid shows its own page by name identity: Grid0E is bag
+//     0) and meaningless in the tabbed view (the single panel follows the parent Inventory
+//     window's selected tab). Ground truth: CriticalCommonLib 1.15.0.12 AtkInventoryExpansion.
+//     SetColors / InventoryGridOverlay.Draw, decompiled from the live install 2026-09-07.
+//     GridMap.Resolve owns the pairing; everything it cannot resolve draws NOTHING.
+{
+  var E0 = "InventoryGrid0E"; var E1 = "InventoryGrid1E"; var E2 = "InventoryGrid2E"; var E3 = "InventoryGrid3E";
+
+  // All four E-grids live (expanded view): fixed name identity, independent of any tab.
+  var all = GridMap.Resolve([E0, E1, E2, E3], null);
+  Check("46 gridmap: expanded mode pairs every E-grid by name identity (bag 0..3)",
+    all.Count == 4
+    && all[0] == new GridMap.GridBinding(E0, 0) && all[1] == new GridMap.GridBinding(E1, 1)
+    && all[2] == new GridMap.GridBinding(E2, 2) && all[3] == new GridMap.GridBinding(E3, 3));
+
+  // Partial expanded view: each live E-grid draws independently; absent ones are not guessed in.
+  var part = GridMap.Resolve([E1, E3], null);
+  Check("46 gridmap: a subset of live E-grids binds only itself (no completion by guess)",
+    part.Count == 2 && part[0] == new GridMap.GridBinding(E1, 1) && part[1] == new GridMap.GridBinding(E3, 3));
+
+  // The exact 0.1.17.0 failure shape (the only line his log ever printed: dots computed from
+  // Inventory3 drawn over Grid0E, which shows Inventory1 - off by two bags).
+  var bug = GridMap.Resolve([E0], null);
+  Check("46 gridmap: Grid0E binds bag 0 (Inventory1) - the 0.1.17.0 table said bag 2",
+    bug.Count == 1 && bug[0].BagIndex == 0);
+
+  // Tabbed mode: the live panel binds the parent tab's bag, for every tab 0..3.
+  var okTabs = true;
+  for (var tab = 0; tab <= 3; tab++)
+  {
+    var r = GridMap.Resolve(["InventoryGrid"], tab);
+    okTabs &= r.Count == 1 && r[0].GridName == "InventoryGrid" && r[0].BagIndex == tab;
+  }
+  Check("46 gridmap: normal mode binds the panel to each tab's bag (tabs 0..3)", okTabs);
+
+  var twoPanels = GridMap.Resolve(["InventoryGrid", "InventoryGrid1"], 2);
+  Check("46 gridmap: every live normal-mode panel binds the SAME tab bag",
+    twoPanels.Count == 2 && twoPanels.All(b => b.BagIndex == 2));
+
+  // Out-of-range or unknown tab: honest absence - nothing draws.
+  Check("46 gridmap: tab outside 0..3 draws nothing",
+    GridMap.Resolve(["InventoryGrid0"], 4).Count == 0 && GridMap.Resolve(["InventoryGrid0"], -1).Count == 0);
+  Check("46 gridmap: unknown tab (parent Inventory window not live) draws nothing",
+    GridMap.Resolve(["InventoryGrid0"], null).Count == 0);
+
+  // Unknown names never contribute; any live E-grid means expanded mode (tab not consulted).
+  Check("46 gridmap: unknown grid names are ignored",
+    GridMap.Resolve(["SomeOtherGrid", E0], null).Count == 1);
+  var mixed = GridMap.Resolve(["InventoryGrid0", E2], 3);
+  Check("46 gridmap: any live E-grid means expanded mode (normal panel not guessed)",
+    mixed.Count == 1 && mixed[0] == new GridMap.GridBinding(E2, 2));
+
+  Check("46 gridmap: IsExpandedGrid classifies the seven registered grid names",
+    GridMap.IsExpandedGrid(E0) && GridMap.IsExpandedGrid(E3)
+    && !GridMap.IsExpandedGrid("InventoryGrid0") && !GridMap.IsExpandedGrid("InventoryGrid"));
+
+  // CONTROL: the shipped source no longer carries the old fixed four-name table, and the
+  // retainer standdown survives untouched. A missing file read FAILS the control (never passes
+  // vacuously): find the source relative to the harness bin dir or the repo root.
+  var srcCandidates = new[]
+  {
+    Path.Combine("..", "..", "..", "..", "..", "src", "LazyMarketCompanion", "AutoMarketMarkers.cs"),
+    Path.Combine("src", "LazyMarketCompanion", "AutoMarketMarkers.cs"),
+  };
+  var markersSrc = srcCandidates.Where(File.Exists).Select(File.ReadAllText).FirstOrDefault() ?? "";
+  Check("46 gridmap: the old hard-coded page-to-addon switch is gone from the shipped source (control)",
+    markersSrc.Length > 0
+    && !markersSrc.Contains("0 => \"InventoryGrid0\"") && !markersSrc.Contains("2 => \"InventoryGrid0E\""),
+    markersSrc.Length == 0 ? "AutoMarketMarkers.cs not found from either candidate path" : "");
+  Check("46 gridmap: retainer standdown still present (InventoryRetainer block untouched)",
+    markersSrc.Contains("\"InventoryRetainer\""));
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;

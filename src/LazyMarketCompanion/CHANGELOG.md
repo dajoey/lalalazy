@@ -1,5 +1,10 @@
 # Changelog
-# Changelog
+## v0.1.18.0 (2026-09-07)
+
+### Fixed
+
+- **Auto-Market bag markers drew over the wrong bag page: dots could land on gear and furnishings that are not on the Auto-Market list while actual Auto-Market items got none.** The markers paired each bag-grid window with an inventory container using a fixed table that was wrong in both display modes: in the expanded (armoire-style) view each expanded grid page was treated as a different bag page than the one it shows, and in the normal tabbed view the single panel was treated as four fixed pages when it actually shows whichever page the inventory tab is on. The pairing now lives in `AutoMarket/GridMap.cs` (new, offline-tested) and follows the display mode: expanded grids pair with their pages by name, the tabbed panel follows the parent Inventory window's selected tab, and a grid that cannot be resolved draws no dot at all rather than guessing. The markers summary line in the log now also names the container it marked (\"... on InventoryGrid0E (Inventory1)\") so the pairing is visible when verifying (files: `AutoMarketMarkers.cs` `Draw`/`DrawForGrid`, `AutoMarket/GridMap.cs` new, offline suite case 46).
+
 ## v0.1.17.0 (2026-09-07)
 
 ### Added

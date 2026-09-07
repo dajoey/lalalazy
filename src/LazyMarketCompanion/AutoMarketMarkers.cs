@@ -21,10 +21,15 @@ namespace LazyMarketCompanion;
 ///
 /// HOW IT DRAWS: the same positioned-ImGui-overlay machinery MarketAutomation uses for its retainer
 /// buttons, applied per grid slot instead of per retainer addon. The bag windows are the
-/// InventoryGrid* addons (one per open bag page, 35 DragDrop slots each, pinned from the client
-/// structs); each slot's DragDrop component gives the node to position over. What to draw is decided
-/// from the game's inventory CONTAINERS (InventoryManager -> Inventory1..4), never from reading
-/// anything out of the grid UI - the grid is only a source of screen positions.
+/// InventoryGrid* addons (35 DragDrop slots each, pinned from the client structs); each slot's
+/// DragDrop component gives the node to position over. What to draw is decided from the game's
+/// inventory CONTAINERS (InventoryManager -> Inventory1..4), never from reading anything out of
+/// the grid UI - the grid is only a source of screen positions.
+///
+/// WHICH container a grid is showing is NOT a property of its name (0.1.17.0 assumed it was):
+/// the expanded view pairs each E-grid with a page by name identity, while the tabbed view's
+/// single panel follows the parent Inventory window's selected tab. GridMap.cs owns that pairing;
+/// anything it cannot resolve draws nothing at all.
 ///
 /// The same grid addons are reused by the game for the retainer's inventory view, where they show the
 /// RETAINER's containers, not the player's bags. A marker there would lie, so the whole feature
@@ -32,14 +37,24 @@ namespace LazyMarketCompanion;
 /// </summary>
 internal sealed class AutoMarketMarkers : Window, IDisposable
 {
-  /// <summary>The player's four base bag pages, in the game's own order.</summary>
+  /// <summary>The player's four base bag pages, in the game's own order; index == GridMap bag index.</summary>
   private static readonly InventoryType[] BagTypes =
   [
     InventoryType.Inventory1, InventoryType.Inventory2, InventoryType.Inventory3, InventoryType.Inventory4,
   ];
 
+  /// <summary>Every bag-grid addon name the client structs register, both display modes.</summary>
+  private static readonly string[] GridNames =
+  [
+    "InventoryGrid", "InventoryGrid0", "InventoryGrid1",
+    "InventoryGrid0E", "InventoryGrid1E", "InventoryGrid2E", "InventoryGrid3E",
+  ];
+
   /// <summary>Grid addons shown while browsing a retainer's inventory - markers lie there, so no draw.</summary>
   private const string RetainerInventoryAddon = "InventoryRetainer";
+
+  /// <summary>The tabbed-mode parent window whose TabIndex says which bag the panel shows.</summary>
+  private const string ParentInventoryAddon = "Inventory";
 
   /// <summary>The marker colour, as ImGui's ABGR-packed uint (a readable green).</summary>
   private const uint MarkerColorPacked = 0xFF3CE63C; // R=0x3C G=0xE6 B=0x3C A=0xFF
@@ -49,7 +64,7 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
   private const float CornerInset = 7f;
 
   private bool _disposed;
-  // Which grid addons already emitted their one INFO line this session (the grading signal).
+  // Which (grid addon, container) pairs already emitted their one INFO line this session (the grading signal).
   private readonly HashSet<string> _loggedAddons = [];
   private readonly List<MarkerMatch.Entry> _entriesScratch = [];
 
@@ -83,22 +98,31 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
 
         BuildEntriesScratch();
 
-        for (var page = 0; page < BagTypes.Length; page++)
+        // Collect the live grids first: which container a grid shows is decided by MODE, not by
+        // name alone (GridMap.cs) - the expanded view pairs E-grids by name identity, the tabbed
+        // view binds every live panel to the parent window's selected tab.
+        var live = new List<string>();
+        foreach (var name in GridNames)
         {
-          var addonName = page switch
-          {
-            0 => "InventoryGrid0",
-            1 => "InventoryGrid1",
-            2 => "InventoryGrid0E",
-            3 => "InventoryGrid1E",
-            _ => null,
-          };
-          if (addonName == null
-              || !GenericHelpers.TryGetAddonByName<AtkUnitBase>(addonName, out var addon)
+          if (GenericHelpers.TryGetAddonByName<AtkUnitBase>(name, out var gridAddon)
+              && GenericHelpers.IsAddonReady(gridAddon))
+            live.Add(name);
+        }
+        if (live.Count == 0)
+          return;
+
+        int? tabIndex = null;
+        if (GenericHelpers.TryGetAddonByName<AtkUnitBase>(ParentInventoryAddon, out var parent)
+            && GenericHelpers.IsAddonReady(parent))
+          tabIndex = ((AddonInventory*)parent)->TabIndex;
+
+        foreach (var binding in GridMap.Resolve(live, tabIndex))
+        {
+          if (!GenericHelpers.TryGetAddonByName<AtkUnitBase>(binding.GridName, out var addon)
               || !GenericHelpers.IsAddonReady(addon))
             continue;
 
-          DrawForGrid(addonName, addon, BagTypes[page]);
+          DrawForGrid(binding.GridName, addon, BagTypes[binding.BagIndex]);
         }
       }
     }
@@ -181,9 +205,11 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
       drawn++;
     }
 
-    // The one INFO line per grid addon per session - how the in-game verify is graded from ffxivdb.
-    if (drawn > 0 && _loggedAddons.Add(addonName))
-      Svc.Log.Information($"[LMC] markers: {drawn} marked of {stacks.Count} stacks on {addonName}");
+    // The one INFO line per (grid addon, container) pairing per session - how the in-game verify
+    // is graded from ffxivdb. Naming the container is the point: it proves WHICH bag the dots
+    // were computed from, which is exactly what 0.1.17.0 got wrong.
+    if (drawn > 0 && _loggedAddons.Add($"{addonName}:{containerType}"))
+      Svc.Log.Information($"[LMC] markers: {drawn} marked of {stacks.Count} stacks on {addonName} ({containerType})");
   }
 
   private static unsafe System.Numerics.Vector2 GetNodePosition(AtkResNode* node)
