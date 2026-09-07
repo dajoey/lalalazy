@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.0.4.177 (2026-09-07) [testing]
+
+### Added
+
+- Vercure gained a second, separate "emergency override" slider under both the single-target and AoE Vercure options, defaulting to 30% health. At or below that percentage the plugin casts Vercure immediately instead of continuing the melee combo, no matter what state the combo is in - until now, a ready melee combo starved the cure at any health, however low. The original health threshold slider keeps its exact old behaviour: same place behind the melee blocks, same "no healer in the party" condition, same 40% default. (files: `GluttonyCombo/Combos/PvE/RDM/RDM.cs` `RDM_ST_DPS` / `RDM_AoE_DPS`, `GluttonyCombo/Combos/PvE/RDM/RDM_Config.cs`)
+- The emergency override deliberately fires even with a healer in the party: at that health percentage the player's own survival outranks both the melee combo and the healer's job. Because it hangs off the Vercure option itself, turning Vercure off closes both doors.
+- Setting the emergency slider to 0 disables the override entirely and leaves only the normal cure check.
+
+### Changed
+
+- Auto-rotation raises no longer interrupt the Red Mage melee combo: while the full combo is due - chain underway, combo-entry mana banked, or Magicked Swordplay active - the Swiftcast press, the instant Verraise and the hard-cast arm all wait for the combo to finish before raising. The raise check re-evaluates every tick, so the delay is one combo, not a stall; Swiftcast mid-chain used to break the combo outright and a hard-cast Verraise locked the player into a 10-second cast. (file: `GluttonyCombo/AutoRotation/AutoRotationController.cs`, function: `RezParty`)
+- Occult Raise, Chemist Revive and Variant Raise keep their own timing and are untouched by the combo wait: those arms are instant and remain preferred regardless of combo state.
+- The movement guard from v1.0.4.174 still applies - a hard-cast Verraise is only started while standing still, and the combo wait composes with it rather than replacing it.
+
 ## v1.0.4.176 (2026-09-07) [testing]
 
 ### Fixed

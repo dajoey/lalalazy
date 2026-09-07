@@ -31,6 +31,7 @@ internal partial class RDM
             RDM_ST_Corpsacorps_Time = new("RDM_ST_Corpsacorps_Time", 0),
             RDM_ST_GapCloseCorpsacorps_Time = new("RDM_ST_GapCloseCorpsacorps_Time", 0),
             RDM_ST_VerCureThreshold = new("RDM_ST_VerCureThreshold", 40),
+            RDM_ST_VerCureEmergencyThreshold = new("RDM_ST_VerCureEmergencyThreshold", 30),
             RDM_ST_MeleeCombo_IncludeReprise_Distance = new("RDM_ST_MeleeCombo_IncludeReprise_Distance", 5),
             RDM_ST_Embolden_Threshold = new("RDM_ST_Embolden_Threshold", 20),
             RDM_ST_Embolden_SubOption = new("RDM_ST_Embolden_SubOption"),
@@ -40,6 +41,7 @@ internal partial class RDM
             RDM_AoE_Corpsacorps_Time = new("RDM_AoE_Corpsacorps_Time", 0),
             RDM_AoE_GapCloseCorpsacorps_Time = new("RDM_AoE_GapCloseCorpsacorps_Time", 0),
             RDM_AoE_VerCureThreshold = new("RDM_AoE_VerCureThreshold", 40),
+            RDM_AoE_VerCureEmergencyThreshold = new("RDM_AoE_VerCureEmergencyThreshold", 30),
             RDM_AoE_Embolden_Threshold = new("RDM_AoE_Embolden_Threshold", 20),
             RDM_AoE_Embolden_SubOption = new("RDM_AoE_Embolden_SubOption"),
             RDM_AoE_Manafication_Threshold = new("RDM_AoE_Manafication_Threshold", 20),
@@ -98,6 +100,7 @@ internal partial class RDM
 
                 case Preset.RDM_ST_VerCure:
                     DrawSliderInt(1, 100, RDM_ST_VerCureThreshold, Generics.PlayerHPLessOrEqual, 200);
+                    DrawSliderInt(0, 100, RDM_ST_VerCureEmergencyThreshold, "Emergency override: cast Vercure regardless of the melee combo at or below this HP", 200);
                     break;
 
                 case Preset.RDM_ST_Embolden:
@@ -193,6 +196,7 @@ internal partial class RDM
 
                 case Preset.RDM_AoE_VerCure:
                     DrawSliderInt(1, 100, RDM_AoE_VerCureThreshold, Generics.PlayerHPLessOrEqual, 200);
+                    DrawSliderInt(0, 100, RDM_AoE_VerCureEmergencyThreshold, "Emergency override: cast Vercure regardless of the melee combo at or below this HP", 200);
                     break;
 
                 case Preset.RDM_ST_Lucid:

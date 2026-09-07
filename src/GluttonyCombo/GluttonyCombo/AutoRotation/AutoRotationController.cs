@@ -1644,6 +1644,18 @@ internal unsafe class AutoRotationController
 
                 if (Player.Job is Job.RDM)
                 {
+                    // When the full melee combo is due - chain underway, combo-entry mana,
+                    // or Magicked Swordplay - every RDM raise press holds for this GCD:
+                    // Swiftcast breaks the chain outright and a hard-cast Verraise locks
+                    // the player into a 10-second cast, both throwing away six-odd GCDs of
+                    // instant weaponskills. RezParty is re-evaluated every tick, so the
+                    // raise goes out the moment the combo is no longer imminent; dead
+                    // players cannot be deader. Same predicate the Occult Quick hold uses.
+                    // Occult Raise, Chemist Revive and Variant Raise are untouched - those
+                    // arms are instant and stay preferred regardless of combo state.
+                    if (RDM.MeleeComboImminent)
+                        return false;
+
                     if (ActionReady(RoleActions.Magic.Swiftcast) && !HasStatusEffect(RDM.Buffs.Dualcast) &&
                         !HasOrExpectsOccultInstantCast)
                     {

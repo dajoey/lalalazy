@@ -317,6 +317,19 @@ internal partial class RDM : Caster
             }
             #endregion
 
+            #region Vercure Emergency Override
+            // Self-preservation door, above everything else in the GCD priority: below
+            // this health percentage Vercure wins the GCD no matter what state the melee
+            // combo is in. The normal cure check further down keeps its no-healer guard
+            // and its place behind the melee blocks; this one deliberately does not -
+            // when the player is this low, an imminent Riposte chain is not worth more
+            // than being alive. Gated on the VerCure feature being enabled so the
+            // emergency door cannot fire when the whole cure feature is off.
+            if (IsEnabled(Preset.RDM_ST_VerCure) && ActionReady(Vercure) &&
+                PlayerHealthPercentageHp() <= RDM_ST_VerCureEmergencyThreshold)
+                return Vercure;
+            #endregion
+
             #region Melee Combo and Finishers 
             if (ComboAction is Scorch && ActionLearned(Resolution) || ComboAction is Verholy or Verflare && ActionLearned(Scorch))
                 return OriginalHook(Jolt);
@@ -448,6 +461,15 @@ internal partial class RDM : Caster
                     (!IsEnabled(Preset.RDM_AoE_SwiftcastMovement) && CanSwiftcast || CanSwiftcastMovement))
                     return Role.Swiftcast;
             }
+            #endregion
+
+            #region Vercure Emergency Override
+            // Same self-preservation door as the single-target rotation, for the AoE
+            // handler: below this health percentage Vercure wins the GCD regardless of
+            // the melee/Moulinet state, and deliberately without the no-healer guard.
+            if (IsEnabled(Preset.RDM_AoE_VerCure) && ActionReady(Vercure) &&
+                PlayerHealthPercentageHp() <= RDM_AoE_VerCureEmergencyThreshold)
+                return Vercure;
             #endregion
 
             #region Melee Combo and Finishers 
