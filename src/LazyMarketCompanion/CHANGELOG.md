@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.22.0 (2026-09-07)
+
+### Fixed
+
+- **Bag-marker dots could land on empty slots: each dot window kept the default ImGui window padding, shifting every dot a full padding-size off its own cell corner onto the neighbour cell.** Each dot is its own borderless overlay window positioned at its cell corner, and unlike the retainer-button overlay (MarketAutomation.cs ImGuiSetup) the marker windows never zeroed WindowPadding/WindowBorderSize, so the drawn circle started down-right of the intended corner - on the neighbouring cell, which in a half-empty bag is an empty slot. The marker windows now pin both to zero around every dot, so each dot lands inside its own cell corner (files: AutoMarketMarkers.cs DrawForGrid style vars).
+
 ## v0.1.21.0 (2026-09-07)
 
 ### Changed

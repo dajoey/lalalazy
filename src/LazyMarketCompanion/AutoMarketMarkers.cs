@@ -250,6 +250,9 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
       ImGuiHelpers.ForceNextWindowMainViewport();
       ImGuiHelpers.SetNextWindowPosRelativeMainViewport(position + new Vector2(size.X, 0f) - new Vector2(CornerInset, CornerInset));
       ImGui.PushStyleColor(ImGuiCol.WindowBg, 0);
+      // 0.1.22.0: zero padding/border like MarketAutomation.ImGuiSetup - the default padding shifted every dot a full padding-size off its cell corner onto the neighbour cell (dots on empty slots in half-empty bags).
+      ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0, 0));
+      ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 0);
       ImGui.Begin($"###LMCMarker{addonName}{i}", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.AlwaysAutoResize
         | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoInputs
         | ImGuiWindowFlags.NoNavFocus | ImGuiWindowFlags.AlwaysUseWindowPadding);
@@ -257,6 +260,7 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
       var center = ImGui.GetCursorScreenPos() + new Vector2(DotRadius, DotRadius);
       drawList.AddCircleFilled(center, DotRadius * scale.X, color);
       ImGui.End();
+      ImGui.PopStyleVar(2);
       ImGui.PopStyleColor();
     }
 
