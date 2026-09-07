@@ -1,5 +1,11 @@
 # Changelog - Lazy WT Math
 
+## v3.2.3.1 (2026-09-07)
+
+- Removed the `/lazywtmath` command introduced in 3.2.3.0. It existed only to reopen the "What's new" popup, and this plugin's only interface is the probability readout inside the Wondrous Tails window itself.
+- The changelog popup itself is unchanged: it still opens once automatically after an update, and it can be reopened any time from the Dalamud plugin installer (the plugin's "Open" button).
+- No math, plugin behaviour or configuration changed.
+
 ## v3.2.3.0 (2026-09-05)
 
 - Added the in-game "What's new" popup. After Lazy WT Math updates, its changelog now opens once inside the game so the changes are visible without a trip to GitHub. It waits until the character is logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read.

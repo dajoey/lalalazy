@@ -1,4 +1,3 @@
-using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
@@ -17,14 +16,11 @@ public sealed class WondrousTailsSolverPlugin : IDalamudPlugin {
     [PluginService] internal static IClientState ClientState { get; private set; } = null!;
     [PluginService] internal static ICondition Condition { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
-    [PluginService] internal static ICommandManager Commands { get; private set; } = null!;
-
-    private const string CommandName = "/lazywtmath";
 
     // Upstream EzWondrousTails has no WindowSystem, no configuration and no command at all - the whole
     // plugin is a native node bolted onto the WeeklyBingo addon. The shared "What's new" popup needs a
-    // WindowSystem to live in, so this fork creates a one-window system of its own and draws it, plus a
-    // command to reopen the popup. Seen-version goes to a sidecar json (SidecarSeenStore), never to a
+    // WindowSystem to live in, so this fork creates a one-window system of its own and draws it. The popup reopens from the
+    // Dalamud installer's Open action; there is deliberately no slash command. Seen-version goes to a sidecar json (SidecarSeenStore), never to a
     // config class, so upstream merges stay clean.
     private readonly WindowSystem _windows = new("LazyWTMath");
     private readonly ChangelogGate _changelog;
@@ -58,17 +54,9 @@ public sealed class WondrousTailsSolverPlugin : IDalamudPlugin {
         pluginInterface.UiBuilder.OpenMainUi += _changelog.ShowNow;
         pluginInterface.UiBuilder.OpenConfigUi += _changelog.ShowNow;
 
-        Commands.AddHandler(CommandName, new CommandInfo(OnCommand) {
-            HelpMessage = "Show what's new in Lazy WT Math (the probabilities themselves appear in the Wondrous Tails window).",
-        });
-    }
-
-    private void OnCommand(string command, string args) {
-        _changelog.ShowNow();
     }
 
     public void Dispose() {
-        Commands.RemoveHandler(CommandName);
         Pi.UiBuilder.Draw -= _windows.Draw;
         Pi.UiBuilder.OpenMainUi -= _changelog.ShowNow;
         Pi.UiBuilder.OpenConfigUi -= _changelog.ShowNow;
