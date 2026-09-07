@@ -156,11 +156,86 @@ Check("empty-slot-0", repSparse.Slots[(int)FashionSlot.Head].Score == 0, "head s
 // Projection: weapon 10 + head 10 + body gold 10 + hands 2 + legs 10 + feet 2 + ears 8 + neck 2 + wrist 8 + rings 8+8 = 78
 Check("achievable-projection-78", repSparse.AchievableIfFilled == 78, $"got {repSparse.AchievableIfFilled}");
 
+// ---- 11. REAL payload binding: week-449 report-state bytes through the actual parser ----
+// Regression for the v0.1.0.0 field bug: the frxiv payload is camelCase, carries "week" as a
+// STRING and parks a numeric "_updatedAt" inside dyeData; the old case-sensitive default
+// binding turned all of that into an all-null ReportState — fetch succeeded, UI showed
+// "no hint" on every slot. Fixture = the exact bytes cached on omasky 2026-09-06 21:42.
+// (Hint/slot-key mapping here mirrors FashionService.ParseSlot / CrowdDataAdapter.SlotKey —
+// the harness cannot reference the game-coupled plugin assembly, so the contract is doubled.)
+var fixture = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "report-state-week449.json"));
+var rs = RemoteDataSource.ParseReportState(fixture);
+Check("rs-parses", rs is not null);
+Check("rs-theme", rs?.LastOptions?.ReportTitle == "Hunter from the Far East", rs?.LastOptions?.ReportTitle ?? "<null>");
+Check("rs-week-int", rs?.LastOptions?.Week == 449, $"{rs?.LastOptions?.Week}");
+var rsHints = rs?.LastOptions?.Hints ?? new List<RemoteDataSource.HintEntry>();
+Check("rs-four-hints", rsHints.Count == 4, $"{rsHints.Count}");
+var rsDyes = rs?.DyeData ?? new Dictionary<string, RemoteDataSource.DyeEntry>();
+Check("rs-six-dye-slots", rsDyes.Count == 6, $"{rsDyes.Count}");
+Check("rs-updatedat-skipped", !rsDyes.ContainsKey("_updatedAt"));
+Check("rs-body-plus2", rsDyes.GetValueOrDefault("body")?.Plus2 == "Metallic Silver", rsDyes.GetValueOrDefault("body")?.Plus2 ?? "<null>");
+Check("rs-feet-plus1", rsDyes.GetValueOrDefault("feet")?.Plus1 == "black", rsDyes.GetValueOrDefault("feet")?.Plus1 ?? "<null>");
+
+var week449 = new FashionWeek
+{
+    Week = rs?.LastOptions?.Week ?? 0,
+    Theme = rs?.LastOptions?.ReportTitle ?? "",
+    Hints = BuildHints(rs),
+    PlusTwoDyes = BuildDyes(rs, plus2: true),
+    PlusOneShades = BuildDyes(rs, plus2: false),
+};
+Check("rs-week-hints-landed", week449.IsHinted(FashionSlot.Body) && week449.IsHinted(FashionSlot.Hands)
+    && week449.IsHinted(FashionSlot.Feet) && week449.IsHinted(FashionSlot.Neck));
+Check("rs-week-base-70", week449.BaseScore == 70, $"got {week449.BaseScore}");
+var week449Rep = Predictor.Build(week449, easy100, stainFamilies, crowd, null);
+Check("rs-predictor-easy100-100", week449Rep.Total == 100, $"got {week449Rep.Total}");
+
 Console.WriteLine();
 Console.WriteLine(failures.Count == 0
     ? $"OK - {passes} checks passed"
     : $"FAILED - {failures.Count}/{passes + failures.Count} checks failed: {string.Join(", ", failures)}");
 return failures.Count == 0 ? 0 : 1;
+
+static string?[] BuildHints(RemoteDataSource.ReportState? rs)
+{
+    var hints = new string?[11];
+    if (rs?.LastOptions?.Hints is { } hs)
+        foreach (var h in hs)
+        {
+            if (SlotKeyToSlot(h.Slot) is { } slot && !string.IsNullOrWhiteSpace(h.Hint))
+                hints[(int)slot] = h.Hint;
+        }
+    return hints;
+}
+
+static Dictionary<FashionSlot, string> BuildDyes(RemoteDataSource.ReportState? rs, bool plus2)
+{
+    var d = new Dictionary<FashionSlot, string>();
+    if (rs?.DyeData is { } dd)
+        foreach (var (key, entry) in dd)
+        {
+            var v = plus2 ? entry.Plus2 : entry.Plus1;
+            if (SlotKeyToSlot(key) is { } slot && !string.IsNullOrWhiteSpace(v))
+                d[slot] = v;
+        }
+    return d;
+}
+
+static FashionSlot? SlotKeyToSlot(string? s) => s?.Trim().ToLowerInvariant() switch
+{
+    "weapon" => FashionSlot.Weapon,
+    "head" => FashionSlot.Head,
+    "body" => FashionSlot.Body,
+    "hands" => FashionSlot.Hands,
+    "legs" => FashionSlot.Legs,
+    "feet" => FashionSlot.Feet,
+    "ears" => FashionSlot.Ears,
+    "neck" => FashionSlot.Neck,
+    "wrist" or "wrists" => FashionSlot.Wrist,
+    "ringl" or "ring left" => FashionSlot.RingL,
+    "ringr" or "ring right" => FashionSlot.RingR,
+    _ => null,
+};
 
 // ---------- helpers ----------
 

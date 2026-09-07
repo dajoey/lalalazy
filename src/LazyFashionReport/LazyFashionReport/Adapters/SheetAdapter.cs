@@ -68,8 +68,17 @@ internal sealed class SheetAdapter
         foreach (var id in itemIds)
         {
             if (_itemNameById.ContainsKey(id) || id == 0) continue;
-            var it = items.GetRow(id);
-            _itemNameById[id] = it.RowId != 0 ? it.Name.ToString() : $"item {id}";
+            // A junk id from the crowd data (e.g. 1010533) must not abort the whole weekly
+            // rebuild: GetRow throws on an out-of-range rowId. Fall back to a raw-id label.
+            try
+            {
+                var it = items.GetRow(id);
+                _itemNameById[id] = it.RowId != 0 ? it.Name.ToString() : $"item {id}";
+            }
+            catch
+            {
+                _itemNameById[id] = $"item {id}";
+            }
         }
     }
 

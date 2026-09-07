@@ -27,10 +27,21 @@ internal class ReportWindow : Window
         var outfit = svc.Outfit;
         var week = svc.Week;
 
+        // Data-source status line: week 449's field report was "just a list of slots and no
+        // hint" because the theme/hint source had silently failed to bind — the window never
+        // said why. Always show which datasets actually loaded.
+        ImGui.TextDisabled($"data: {svc.XivLoaded} | {svc.StateLoaded}");
+
         if (week is null)
         {
-            ImGui.TextUnformatted("Loading week data...");
+            ImGui.TextUnformatted("Loading week data... (if this never fills in, the status line above says why)");
             if (ImGui.Button("Retry now")) svc.RequestRefresh();
+            return;
+        }
+
+        if (outfit is null)
+        {
+            ImGui.TextUnformatted("Building prediction...");
             return;
         }
 
@@ -38,12 +49,6 @@ internal class ReportWindow : Window
         ImGui.TextUnformatted($"Week {week.Week} - {week.Theme}");
         ImGui.SameLine();
         ImGui.TextDisabled($"(base {week.BaseScore})");
-        if (outfit is null)
-        {
-            ImGui.TextUnformatted("No outfit read yet - open the Fashion Report in-game.");
-            return;
-        }
-
         // Total readout.
         var total = outfit.Total;
         ImGui.PushFont(UiBuilder.MonoFont);

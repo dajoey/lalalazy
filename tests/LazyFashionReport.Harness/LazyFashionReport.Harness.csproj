@@ -9,4 +9,9 @@
   <ItemGroup>
     <Compile Include="..\..\src\LazyFashionReport\LazyFashionReport\Core\**\*.cs" Link="Core\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Real cached frxiv report-state bytes (week 449, captured live 2026-09-06):
+         the binding regression test replays these through RemoteDataSource.ParseReportState. -->
+    <None Include="report-state-week449.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

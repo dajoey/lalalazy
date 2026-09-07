@@ -54,7 +54,15 @@ internal sealed class FashionService : IDisposable
     public FashionWeek? Week => _week;
     public OutfitReport? Outfit => _outfit;
     public HashSet<uint>? OwnedItems => _owned;
-    public bool RemoteLoaded => _xiv != null || _state != null;
+
+    /// <summary>xivstats crowd dataset loaded (candidates + crowd dyes). Honest per-source
+    /// status: week 449's "no hint" bug hid behind a combined flag that was true while the
+    /// actual hint source (fashionreportxiv) had failed to bind.</summary>
+    public bool XivLoaded => _xiv != null;
+
+    /// <summary>fashionreportxiv report-state loaded (theme, hints, exact dyes).</summary>
+    public bool StateLoaded => _state != null;
+
     public SheetAdapter Sheets => _sheets;
 
     public void Start()
@@ -101,6 +109,9 @@ internal sealed class FashionService : IDisposable
             }
 
             // While the FashionCheck addon is open, keep the live hints + prediction fresh.
+            // With no addon and no live hints, still keep ONE remote-seeded rebuild alive so
+            // /lfr shows the week's theme + hints before the player opens the game window
+            // (equipped/candidates still need the addon or refresh).
             if (_currentAddon != IntPtr.Zero && now - _lastPredictTick > 2000)
             {
                 var hints = ReadHints();
@@ -114,6 +125,10 @@ internal sealed class FashionService : IDisposable
                     RebuildAll();
                 }
                 _lastPredictTick = now;
+            }
+            else if (_currentAddon == IntPtr.Zero && _liveHints is null && _outfit is null && StateLoaded)
+            {
+                RebuildAll();
             }
         }
         catch (Exception ex)
@@ -277,6 +292,10 @@ internal sealed class FashionService : IDisposable
         {
             var xiv = await _remote.FetchXivStatsAsync(default);
             var state = await _remote.FetchReportStateAsync(default);
+            // Say WHICH source failed: a null here is a parse/binding problem, not just a
+            // network one, and the old combined log line hid the v0.1.0.0 binding bug.
+            if (xiv == null) Plugin.Log.Warning("[LFR] xivstats dataset unavailable (fetch AND cache read failed)");
+            if (state == null) Plugin.Log.Warning("[LFR] fashionreportxiv report-state unavailable (fetch AND cache read failed)");
             _xiv = xiv;
             _state = state;
             _crowd = null;

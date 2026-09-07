@@ -38,6 +38,6 @@ internal class ConfigWindow : Window
         if (ImGui.Button("Refresh data now"))
             _plugin.Service.RequestRefresh();
         ImGui.SameLine();
-        ImGui.TextUnformatted(_plugin.Service.RemoteLoaded ? "data loaded" : "no data yet");
+        ImGui.TextUnformatted($"data: xivstats {(_plugin.Service.XivLoaded ? "loaded" : "MISSING")} | fashionreportxiv {(_plugin.Service.StateLoaded ? "loaded" : "MISSING")}");
     }
 }
