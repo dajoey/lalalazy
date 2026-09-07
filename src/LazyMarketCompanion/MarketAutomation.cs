@@ -113,6 +113,14 @@ internal sealed class MarketAutomation : Window, IDisposable
   private long _historyRequestDeadline;
 
   /// <summary>
+  /// Why Universalis' sale-history fallback last refused to price an item (stale history, no sales,
+  /// request failure - set by <see cref="StartSaleHistoryRequest"/>'s completion handler). Consumed by
+  /// the "no price to set" chat message so that message only ever appears with the actual reason
+  /// Universalis had no answer. Reset with the per-row lookup state.
+  /// </summary>
+  private string? _lastUniversalisRefusalReason;
+
+  /// <summary>
   /// How long SetNewPrice may spin waiting for the sale-history lookup. Deliberately SHORTER than the
   /// TaskManager's 10 s per-step limit (AbortOnTimeout is on, so overrunning it kills the whole run) and
   /// shorter than the HttpClient's 8 s timeout, so a slow Universalis costs one unpriced listing rather
@@ -1350,6 +1358,7 @@ internal sealed class MarketAutomation : Window, IDisposable
       _historyRequestItem = null;
       _historyRequestDone = false;
       _historyRequestDeadline = 0;
+      _lastUniversalisRefusalReason = null;
 
       if (Plugin.Configuration.UseUniversalisDataCenterPrices && _universalisPriceProvider.CanResolveItem(itemName, rawItemName))
         return true;
@@ -1462,8 +1471,12 @@ internal sealed class MarketAutomation : Window, IDisposable
         var usedDefaultAmount = false;
 
         // Nothing on the board. Before falling through to DefaultAmount (or to giving up), try the
-        // recent-sales median if it is switched on. The Universalis price path already consulted the
-        // sale history in its own request, so this only covers the in-game Compare Prices path.
+        // recent-sales median. On by default since 0.1.14.0 (Joey 2026-09-07: the empty-board
+        // "no price to set" message should never appear while Universalis is up; the fallback was
+        // ratified as option A of the 0.1.8.0 decision card and is now the standard behaviour).
+        // The Universalis price path already consulted the sale history in its own request, so this
+        // only covers the in-game Compare Prices path.
+        string? universalisFailureReason = null;
         if (!(_newPrice > 0) && Plugin.Configuration.UseUniversalisSaleHistoryFallback)
         {
           var historyRawName = GetRetainerSellRawItemName(retainerSell);
@@ -1489,6 +1502,7 @@ internal sealed class MarketAutomation : Window, IDisposable
               Svc.Log.Warning($"[LMC] {itemName}: recent-sales lookup did not answer within {SaleHistoryWaitMs} ms; continuing without it");
               CancelUniversalisPriceRequest();
               _historyRequestDone = true;
+              universalisFailureReason = $"Universalis did not answer within {SaleHistoryWaitMs / 1000} s";
             }
           }
         }
@@ -1498,7 +1512,7 @@ internal sealed class MarketAutomation : Window, IDisposable
           if (Plugin.Configuration.DefaultAmount == 0)
           {
             Svc.Log.Warning("[LMC] SetNewPrice: no price to set");
-            Communicator.PrintNoPriceToSetError(itemName, isPlaceholder);
+            Communicator.PrintNoPriceToSetError(itemName, isPlaceholder, universalisFailureReason ?? _lastUniversalisRefusalReason);
             ECommons.Automation.Callback.Fire(&retainerSell->AtkUnitBase, true, 1); // cancel
             ui->Close(true);
             return true;
@@ -1679,6 +1693,8 @@ internal sealed class MarketAutomation : Window, IDisposable
         _newPriceFromUniversalis = price > 0;
         _newPriceFromCache = false;
         _historyRequestDone = true;
+        _lastUniversalisRefusalReason = price > 0 ? null
+          : UniversalisPriceProvider.LastHistoryRefusal ?? "Universalis returned no usable sale history";
       });
     }, token);
   }

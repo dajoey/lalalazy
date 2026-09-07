@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.1.14.0 (2026-09-07)
+
+### Changed
+- **"Price from recent sales when nothing is on the board" is now ON by default, for everyone.** The 0.1.8.0 fallback was opt-in and stayed unticked in existing configs, so empty-board listings kept ending at "no price to set, please set manually" while Universalis was up and answering - the exact case the fallback was built to answer (Joey 2026-09-07: that message should only ever appear when Universalis is effectively down). Existing settings are migrated automatically on first load: the tick box turns on unless it was already on, and can be unticked again in the Price Matching tab (files: `Configuration.cs`, `UseUniversalisSaleHistoryFallback`; `Plugin.cs`, `MigrateIfNeeded` v2 -> v3).
+
+- The "no price to set" and "no board price found" chat messages now name WHY Universalis had no price - "newest sale is N day(s) old (limit 30)", "Universalis has no sale history for it", "the Universalis request failed", or "Universalis did not answer within 6 s" - instead of leaving "set it manually" with no reason attached. These are the only remaining paths to that message: stale or absent history, or Universalis itself failing (files: `Communicator.cs`, `PrintNoPriceToSetError`; `MarketAutomation.cs`, `SetNewPrice`/`StartSaleHistoryRequest`; `UniversalisPriceProvider.cs`, `GetSaleHistoryPrice`/`PriceFromSaleHistory`/`LastHistoryRefusal`).
+
+### Notes
+- What an empty board does now, end to end: the in-game Compare Prices path finds nothing, the plugin asks Universalis for the item's recent data-centre sales, and lists at the median of those sales when the newest is inside the 30-day freshness window - the behaviour ratified on the 0.1.8.0 decision card, now standard. The freshness guard still refuses to price off years-old data, and an item with no usable history at all still gets the message - with the reason in it.
+
 ## v0.1.13.0 (2026-09-06)
 
 ### Added

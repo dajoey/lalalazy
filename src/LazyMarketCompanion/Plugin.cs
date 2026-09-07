@@ -213,6 +213,11 @@ public sealed class Plugin : IDalamudPlugin
   /// retainer's entire sell inventory after listing, which costs several seconds per existing listing and
   /// was the reason a sweep took minutes; it now re-prices only the listings it just created. Re-tick the
   /// box in /lmc settings to get the old behaviour back.
+  ///
+  /// v2 -> v3 (0.1.14.0): "Price from recent sales when nothing is on the board" became the default.
+  /// It shipped opt-in in 0.1.8.0 and stayed off in existing configs, so empty-board listings kept
+  /// hitting "no price to set, please set manually" while Universalis was up. It now prices from the
+  /// median of recent sales (30-day freshness guard) unless unticked in /lmc settings.
   /// </summary>
   private static Configuration MigrateIfNeeded(Configuration config)
   {
@@ -227,6 +232,14 @@ public sealed class Plugin : IDalamudPlugin
       config.AutoMarketPinchAllAfter = false;
       config.Version = 2;
       Log.Information($"[LMC] config migrated v{from} -> v2: 'Pinch everything after listing' {(wasOn ? "was ON and has been turned OFF" : "was already off")}; Auto Market now re-prices only the listings it just created. Re-tick it in /lmc settings for the old behaviour.");
+    }
+
+    if (config.Version < 3)
+    {
+      var wasOn = config.UseUniversalisSaleHistoryFallback;
+      config.UseUniversalisSaleHistoryFallback = true;
+      config.Version = 3;
+      Log.Information($"[LMC] config migrated v{from} -> v3: 'Price from recent sales when nothing is on the board' {(wasOn ? "was already ON" : "was OFF and is now ON")}; an empty board prices from the median of recent Universalis sales (30-day freshness guard) instead of giving up. Untick it in /lmc settings for the old behaviour.");
     }
 
     config.Version = Configuration.CurrentVersion;

@@ -121,8 +121,9 @@ public sealed class Configuration : IPluginConfiguration
   /// config needs changing - a C# field initializer only ever reaches a FRESH config, because Newtonsoft
   /// deserializes the saved value straight over it.
   /// v1 -> v2 (0.1.3.0): AutoMarketPinchAllAfter became opt-in.
+  /// v2 -> v3 (0.1.14.0): UseUniversalisSaleHistoryFallback became the default (was opt-in).
   /// </summary>
-  public const int CurrentVersion = 2;
+  public const int CurrentVersion = 3;
 
   public int Version { get; set; } = CurrentVersion;
 
@@ -158,11 +159,15 @@ public sealed class Configuration : IPluginConfiguration
 
   /// <summary>
   /// When a price check finds NOTHING listed on the board, fall back to the median of the recent
-  /// data-centre SALES from Universalis instead of giving up. Off by default: it prices from history,
-  /// not from a live competitor, so it stays opt-in. See <see cref="SaleHistoryPricing"/>.
-  /// A new defaulted property needs no config Version bump - an existing save deserializes it as false.
+  /// data-centre SALES from Universalis instead of giving up. ON by default since 0.1.14.0 (Joey
+  /// 2026-09-07: "no price to set, please set manually" should never be a message unless Universalis
+  /// is effectively down - the fallback IS the standard empty-board answer now). It prices from
+  /// history, guarded by <see cref="SaleHistoryMaxAgeDays"/>, and can still be turned off in the
+  /// Price Matching tab. See <see cref="SaleHistoryPricing"/>.
+  /// Reaching existing installs needed the v2 -> v3 migration in Plugin.MigrateIfNeeded - the
+  /// initializer alone only reaches a fresh config.
   /// </summary>
-  public bool UseUniversalisSaleHistoryFallback { get; set; } = false;
+  public bool UseUniversalisSaleHistoryFallback { get; set; } = true;
 
   /// <summary>
   /// Freshness guard for the above: if the newest sale is older than this many days, the listing is

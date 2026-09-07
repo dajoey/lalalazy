@@ -153,14 +153,19 @@ public static class Communicator
         .Build());
   }
 
-  public static void PrintNoPriceToSetError(string itemName, bool placeholderListing = false)
+  public static void PrintNoPriceToSetError(string itemName, bool placeholderListing = false, string? universalisFailureReason = null)
   {
     if (!Plugin.Configuration.ShowErrorsInChat)
       return;
 
+    // Universalis normally prices an empty board from its recent sales (0.1.8.0), so reaching this
+    // message means the fallback itself could not answer - say why, so "set it manually" only ever
+    // means Universalis had nothing usable, not that the plugin declined to look.
     var suffix = placeholderListing
       ? ": no board price found - the new listing is still at the placeholder price, set it manually"
       : ": no price to set, please set price manually";
+    if (!string.IsNullOrEmpty(universalisFailureReason))
+      suffix += $" ({universalisFailureReason})";
     var itemPayload = RawItemNameToItemPayload(itemName);
     if (itemPayload != null)
     {

@@ -14,6 +14,13 @@ internal sealed class UniversalisPriceProvider : IDisposable
   private readonly Lumina.Excel.ExcelSheet<Item> _items;
   private readonly UniversalisClient _client;
 
+  /// <summary>
+  /// Why the most recent sale-history lookup refused to price its item (null when it priced one or
+  /// nothing has run yet). Written on the lookup's background thread before the framework-thread
+  /// handoff that reads it, so no lock is needed. Consumed by the "no price to set" chat message.
+  /// </summary>
+  public static string? LastHistoryRefusal { get; private set; }
+
   public UniversalisPriceProvider()
   {
     _items = Svc.Data.GetExcelSheet<Item>();
@@ -43,12 +50,17 @@ internal sealed class UniversalisPriceProvider : IDisposable
     if (!TryGetItem(itemName, rawItemName, out var itemId, out var hqOnly))
     {
       Svc.Log.Warning($"[LMC] could not resolve item id for sale-history price check: {itemName}");
+      LastHistoryRefusal = "could not resolve the item id";
       return -1;
     }
 
+    LastHistoryRefusal = null;
     var dataCenterName = await ResolveDataCenter().ConfigureAwait(false);
     if (dataCenterName == null)
+    {
+      LastHistoryRefusal = "could not resolve the data center";
       return -1;
+    }
 
     UniversalisMarketDataResponse marketData;
     try
@@ -59,6 +71,7 @@ internal sealed class UniversalisPriceProvider : IDisposable
     catch (Exception ex)
     {
       Svc.Log.Warning(ex, $"[LMC] sale-history lookup failed for item {itemId}");
+      LastHistoryRefusal = "the Universalis request failed";
       return -1;
     }
 
@@ -118,6 +131,9 @@ internal sealed class UniversalisPriceProvider : IDisposable
   /// or -1 (refuse) when there is no history or the newest sale is too old. The undercut/match rule is
   /// deliberately NOT applied - there is no competing listing to undercut, and the median already IS
   /// what the item has been clearing at. Per-item min/max limits still apply at the call site.
+  /// A refusal records WHY in <see cref="_lastHistoryRefusal"/> (thread-unsafe by design: every write
+  /// happens before the framework-thread handoff that reads it), so the plugin's chat message can name
+  /// the actual reason instead of a bare "set it manually".
   /// </summary>
   private static int PriceFromSaleHistory(uint itemId, bool hqOnly, UniversalisMarketDataResponse marketData, string dataCenterName)
   {
@@ -137,10 +153,12 @@ internal sealed class UniversalisPriceProvider : IDisposable
       case SaleHistoryOutcome.Stale:
         var ageDays = (DateTimeOffset.UtcNow.ToUnixTimeSeconds() - result.NewestUnixSeconds) / 86400;
         Svc.Log.Information($"[LMC] {itemId}: board is empty on {dataCenterName} and the newest sale is {ageDays} day(s) old (limit {maxAgeDays}); refusing to price from it");
+        LastHistoryRefusal = $"newest sale is {ageDays} day(s) old (limit {maxAgeDays})";
         return -1;
 
       default:
         Svc.Log.Information($"[LMC] {itemId}: board is empty on {dataCenterName} and there is no sale history to price from");
+        LastHistoryRefusal = "Universalis has no sale history for it";
         return -1;
     }
   }
