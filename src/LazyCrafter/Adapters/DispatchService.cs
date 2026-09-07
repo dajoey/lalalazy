@@ -544,7 +544,16 @@ public sealed class DispatchService : IDisposable
         if (plan.Vendor.Count > 0)
         {
             var groups = Vendors.Plan(plan.Vendor.Select(p => (p.ItemId, p.Quantity)).ToList(), out var unlocated, Here());
-            foreach (var (where, items) in groups) Lifestream.GoToVendor(where, items, Name, teleport: false);
+            // 0.1.6.14 (Helm t-joey-1788793199911, Joey's design): "walk to vendor - stop - wait for resume -
+            // walk to next vendor - stop - wait for resume." A wave with no retrievals and no gathers steers
+            // the character nowhere itself, so it walks to the FIRST vendor group up front (teleport + map
+            // flag + shopping line, one chat line per remaining stop); a wave whose fetch or gather phases
+            // move the character leaves the walking to the Blocked ending, where each stop is walked to in
+            // turn as Resume re-plans - two navigations steering at once is how a run gets lost.
+            if (plan.Retrievals.Count == 0 && plan.Gathers.Count == 0)
+                StartVendorWalk(groups);
+            else
+                foreach (var (where, items) in groups) Lifestream.GoToVendor(where, items, Name, teleport: false);
             if (unlocated.Count > 0) Say("gil-vendor items with no placed vendor: " + string.Join(", ", unlocated.Select(u => $"{Name(u.ItemId)} x{u.Quantity}")));
         }
         // Currency shops before the market list, because when both are present the currency vendor is the cheaper
@@ -1484,7 +1493,11 @@ public sealed class DispatchService : IDisposable
         if (plan.Vendor.Count > 0)
         {
             var groups = Vendors.Plan(plan.Vendor.Select(p => (p.ItemId, p.Quantity)).ToList(), out var unlocated, Here());
-            foreach (var (where, items) in groups) Lifestream.GoToVendor(where, items, Name, teleport: false);
+            // The vendor stop-and-resume queue (0.1.6.14, Helm t-joey-1788793199911): this Blocked stop walks
+            // to the first vendor group still short in the bags; the purchase plus the Resume re-plan walks to
+            // the next. When the run is ALSO blocked on the player's own market listings the vendor stop goes
+            // out first and the bell walk below degrades to its busy line - first trip wins, never both.
+            StartVendorWalk(groups);
             if (unlocated.Count > 0) Say("gil-vendor items with no placed vendor: " + string.Join(", ", unlocated.Select(u => $"{Name(u.ItemId)} x{u.Quantity}")), error: true);
         }
         if (PlanReport.ManualLine(plan, Name) is { } manualBlocked) Say(manualBlocked, error: true);
@@ -1651,6 +1664,63 @@ public sealed class DispatchService : IDisposable
         var err = Lifestream.GoToMarketBoard();
         if (err is not null) { Say("could not start the walk - head to a summoning bell yourself.", error: true); return; }
         Say("heading to the nearest market board (the summoning bells stand with it) so you can pull those listings.");
+    }
+
+    /// <summary>
+    /// The cart-run vendor walk (0.1.6.14, Helm t-joey-1788793199911). Joey's cadence: "walk to vendor - stop -
+    /// wait for resume - walk to next vendor - stop - wait for resume." ONE group is walked to per call - the
+    /// first - through the same hand-off the per-item button uses (Lifestream teleport to the aetheryte nearest
+    /// the NPC, map flag, shopping list with a clickable link); every remaining group gets ONE chat line naming
+    /// its NPC and items. The player buys and presses Resume, the re-plan measures the bags, the vendor whose
+    /// items arrived drops out of the plan, and the next call walks to the next NPC - no arrival detection and
+    /// no per-group state, because the bags moving is the signal every other Resume in this file already uses.
+    /// <para>
+    /// Called from <see cref="StartWave"/> (only when the wave has no retrievals and no gathers - those phases
+    /// steer the character themselves, via the bell walk and GBR) and from <see cref="PrintBlockedBlock"/> (the
+    /// main cadence: each Blocked stop walks to the next vendor).
+    /// </para>
+    /// <para>
+    /// Gated by <see cref="Configuration.WalkToVendorsOnCart"/> (default ON). A refused walk (Lifestream missing
+    /// or busy, teleport refused, not attuned) degrades to exactly the pre-0.1.6.14 behaviour for that stop -
+    /// the map flag and the shopping line, which the hand-off prints before it even tries the teleport - so a
+    /// cart is never stranded by the walk. It is a convenience, not a dependency.
+    /// </para>
+    /// </summary>
+    private void StartVendorWalk(IReadOnlyList<(VendorLocator.Location Where, IReadOnlyList<(uint ItemId, int Quantity)> Items)> groups)
+    {
+        if (groups.Count == 0) return;
+        if (!_plugin.Config.WalkToVendorsOnCart)
+        {
+            foreach (var (where, items) in groups) Lifestream.GoToVendor(where, items, Name, teleport: false);
+            Say("vendor walk is switched off in the settings - every vendor is flagged on the map; buy at each, then press Resume.");
+            return;
+        }
+        var (first, firstItems) = groups[0];
+        if (Lifestream.Installed && Lifestream.IsBusy() != true)
+        {
+            var err = Lifestream.GoToVendor(first, firstItems, Name);
+            if (err is null)
+            {
+                Say($"vendor stop 1 of {groups.Count}: buy here, then press Resume{(groups.Count > 1 ? $" - {groups.Count - 1} more vendor stop{(groups.Count == 2 ? "" : "s")} after this one" : "")}.");
+                _log.Information("vendor walk: heading to {Npc} ({Territory}) for {Items} item(s); {Left} stop(s) after it", first.NpcName, first.TerritoryName, firstItems.Count, groups.Count - 1);
+            }
+            else
+            {
+                // Refused: the hand-off already printed the map flag, the shopping line and the refusal itself,
+                // which IS the pre-0.1.6.14 behaviour for this stop - nothing more to do for the first group.
+                _log.Information("vendor walk to {Npc} refused: {Why} - flagging only", first.NpcName, err);
+            }
+        }
+        else
+        {
+            // Lifestream missing or busy: the old behaviour for the first stop too.
+            Lifestream.GoToVendor(first, firstItems, Name, teleport: false);
+        }
+        for (var i = 1; i < groups.Count; i++)
+        {
+            var (where, items) = groups[i];
+            Say($"next vendor stop: {where.NpcName} ({where.TerritoryName} {where.MapCoords.X:0.0}, {where.MapCoords.Y:0.0}): {string.Join(", ", items.Select(it => $"{Name(it.ItemId)} x{it.Quantity}"))}.");
+        }
     }
 
     private void Say(string text, bool error = false)

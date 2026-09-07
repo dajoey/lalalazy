@@ -113,6 +113,11 @@ public sealed class SettingsTab
         ImGui.SameLine();
         ImGuiComponents.HelpMarker("On by default (cards t_35be7be5 and t_034884f4). Two trips share this toggle. (1) When a craft's materials are on the retainers and no summoning bell is reachable, Dispatch queues the work and walks the character to the bell via Lifestream's 'go to market board' (/li mb) instead of refusing at the button - the fetch starts once a bell is actually reachable, and if the bell is still unreachable after 3 minutes the fetch is refused once in red. (2) When a run ENDS blocked on your own market listings, LazyCrafter sends you to the bell the same way so the listings can be pulled. Never mid-craft, never on a clean run. Off: no walking - a fetch without a bell is refused at press time, and a listing-blocked run just prints the summary. Either way, '/lcraft blocked' reprints the full detail.");
 
+        var vendorWalk = cfg.WalkToVendorsOnCart;
+        if (ImGui.Checkbox("Walk to gil vendors during a cart run, one vendor per stop (buy, press Resume, next vendor)", ref vendorWalk)) { cfg.WalkToVendorsOnCart = vendorWalk; changed = true; }
+        ImGui.SameLine();
+        ImGuiComponents.HelpMarker("On by default. When a cart is missing gil-vendor items, the run walks the character to the vendor NPCs - one vendor per stop, exactly like the summoning-bell walk: teleport to the nearest aetheryte, map flag, shopping line. Buy at the NPC, press Resume, and the run re-plans and walks to the next vendor. It never buys anything itself and never fires mid-craft. If Lifestream is missing, busy, or the teleport is refused, the stop falls back to flagging the vendor on the map and naming it in chat - the behaviour before this toggle existed. Off: vendors are flagged on the map only; buy at each and press Resume.");
+
         var currency = cfg.PreferCurrencyShops;
         if (ImGui.Checkbox("Prefer a currency shop over the market board when you can already afford it", ref currency)) { cfg.PreferCurrencyShops = currency; changed = true; }
         ImGui.SameLine();

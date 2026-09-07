@@ -7,7 +7,7 @@ using Dalamud.Plugin.Services;
 namespace LazyCrafter.Adapters.Dispatch;
 
 /// <summary>
-/// Vendor and market hand-offs through Lifestream (Plan §Phase 5 task 4, Scope §3.4 "Vendor" / "Market").
+/// Vendor and market hand-offs through Lifestream (Plan Â§Phase 5 task 4, Scope Â§3.4 "Vendor" / "Market").
 /// <para>
 /// Vendor: <see cref="VendorLocator"/> picks the vendor nearest a teleportable aetheryte; we check
 /// <c>Lifestream.IsBusy()</c>, call <c>Lifestream.Teleport(aetheryteId, 0)</c> (raw <c>Telepo</c> - returns false when not
@@ -15,6 +15,13 @@ namespace LazyCrafter.Adapters.Dispatch;
 /// flag on the NPC with <c>IGameGui.OpenMapWithMapLink</c>, and print the shopping list with a clickable map link.
 /// Market: <c>Lifestream.ExecuteCommand("mb")</c> (= <c>/li mb</c>, nearest market board) and the list in chat.
 /// Names from <c>Lifestream/IPC/IPCProvider.cs</c> (installed 2.5.4.16). vnavmesh walking is Phase 6 (toggle hidden).
+/// </para>
+/// <para>
+/// 0.1.6.14 (Helm t-joey-1788793199911): <see cref="GoToVendor"/> is now also the cart-run vendor walk - one
+/// vendor group per stop, the player buys and presses Resume, the re-plan walks to the next group. The walk
+/// needs the SAME flag, link, list and refusal behaviour as the per-item button, and the summoning-bell walk
+/// already proved Lifestream.Teleport as mid-run travel, so this is called as-is from
+/// <c>DispatchService.StartVendorWalk</c> with <paramref name="teleport"/> left true.
 /// </para>
 /// </summary>
 public sealed class LifestreamDispatch

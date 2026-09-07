@@ -1,4 +1,5 @@
-// Config-migration regression proof for the DagobertAfterCraft -> PriceMatchAfterCraft rename (card t_89a7ebec).
+// Config-migration regression proof for the DagobertAfterCraft -> PriceMatchAfterCraft rename (card t_89a7ebec),
+// extended at v8 (Helm t-joey-1788793199911) to pin the WalkToVendorsOnCart default-on arrival.
 // Compiles the REAL Configuration.cs against the stubs at the bottom of this file and asserts a pre-rename
 // saved config survives the round trip. Exit 0 = all cases pass; any failure prints FAIL and exits 1.
 using LazyCrafter;
@@ -41,7 +42,7 @@ Check("Version field read", cfg.Version == 4, $"got {cfg.Version}");
 Check("old DagobertAfterCraft=true captured by legacy shadow", cfg.DagobertAfterCraftLegacy == true, $"shadow={cfg.DagobertAfterCraftLegacy}");
 
 cfg.MigrateIfNeeded();
-Check("migrated to v5", cfg.Version == Configuration.CurrentVersion && cfg.Version == 5);
+Check("migrated to current version", cfg.Version == Configuration.CurrentVersion);
 Check("value survived rename: PriceMatchAfterCraft=true", cfg.PriceMatchAfterCraft, $"got {cfg.PriceMatchAfterCraft}");
 Check("cart survived migration", cfg.Cart is { Count: 1 } && cfg.Cart[0].RecipeId == 3762 && cfg.Cart[0].Crafts == 2);
 Check("unrelated settings survived migration", cfg.PriceCacheMinutes == 10 && cfg.RetrieveFromRetainers && cfg.Cart.Count == 1);
@@ -51,7 +52,7 @@ Check("unrelated settings survived migration", cfg.PriceCacheMinutes == 10 && cf
     c2.MigrateIfNeeded();
     var before = c2.PriceMatchAfterCraft;
     c2.MigrateIfNeeded();
-    Check("migration idempotent (second call is a no-op)", before == c2.PriceMatchAfterCraft && c2.Version == 5);
+    Check("migration idempotent (second call is a no-op)", before == c2.PriceMatchAfterCraft);
 }
 
 // Round-trip: the save path Dalamud runs (SerializeObject with defaults) must drop the old key (it is null)
@@ -80,13 +81,17 @@ Check("old key false survives too", !cfgFalse.PriceMatchAfterCraft, $"got {cfgFa
 // Case 4: brand-new config (no old key anywhere) - fresh install path.
 var fresh = new Configuration();
 fresh.MigrateIfNeeded();
-Check("fresh config is v5 with default off", fresh.Version == 5 && !fresh.PriceMatchAfterCraft);
+Check("fresh config has the v5-era default off (PriceMatchAfterCraft)", !fresh.PriceMatchAfterCraft);
+// v8 (Helm t-joey-1788793199911): an old config never has the WalkToVendorsOnCart key, so the initialiser
+// stands and existing installs get the vendor walk - opt-out, not opt-in, same shape as v5 -> v6.
+Check("old config arrives at v8 with the vendor walk ON", cfg.Version == 8 && cfg.WalkToVendorsOnCart);
+Check("fresh config is v8 with the vendor walk ON", fresh.Version == 8 && fresh.WalkToVendorsOnCart);
 Check("fresh config serializes with no old key", !JsonConvert.SerializeObject(fresh, Formatting.Indented).Contains("DagobertAfterCraft"));
 
 // Case 5: v5 config saved by the new build reloaded directly (post-migration steady state).
 var v5 = JsonConvert.DeserializeObject<Configuration>(saved)!;
 v5.MigrateIfNeeded();
-Check("steady-state v5 reload keeps value without remigrating", v5.Version == 5 && v5.PriceMatchAfterCraft);
+Check("steady-state reload keeps value without remigrating", v5.Version == Configuration.CurrentVersion && v5.PriceMatchAfterCraft && v5.WalkToVendorsOnCart);
 
 Console.WriteLine(failures == 0 ? "OK - all config migration cases passed" : $"{failures} FAILURE(S)");
 return failures == 0 ? 0 : 1;

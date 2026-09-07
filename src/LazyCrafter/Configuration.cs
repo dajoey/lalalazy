@@ -8,7 +8,7 @@ namespace LazyCrafter;
 [Serializable]
 public sealed class Configuration : IPluginConfiguration
 {
-    public const int CurrentVersion = 7;
+    public const int CurrentVersion = 8;
 
     public int Version { get; set; } = CurrentVersion;
 
@@ -119,6 +119,27 @@ public sealed class Configuration : IPluginConfiguration
     /// </summary>
     public bool PreferCurrencyShops { get; set; } = true;
 
+    // ---- v8 (cart-run vendor walk, Helm t-joey-1788793199911) ----
+
+    /// <summary>
+    /// Walk the character to gil vendors during a cart run, one vendor per stop, instead of only flagging
+    /// them on the map (the pre-0.1.6.14 behaviour). Joey's design: "walk to vendor - stop - wait for resume -
+    /// walk to next vendor - stop - wait for resume."
+    /// <para>
+    /// ON by default: the alternative is being told which vendor to visit and then having to walk there
+    /// yourself, which is the manual step this removes. The walk reuses the per-item vendor hand-off
+    /// (Lifestream teleport to the aetheryte nearest the NPC + map flag + shopping list), fires only at the
+    /// start of a wave that steers the character nowhere itself and when a run ends Blocked - never
+    /// mid-craft - and never buys anything: the player buys at the NPC and presses Resume, which re-plans
+    /// from the bags and walks to the next vendor.
+    /// </para>
+    /// <para>
+    /// When the walk cannot start (Lifestream missing or busy, teleport refused) the stop degrades to exactly
+    /// the pre-0.1.6.14 behaviour: the vendor is flagged on the map and named in chat with what to buy.
+    /// </para>
+    /// </summary>
+    public bool WalkToVendorsOnCart { get; set; } = true;
+
     /// <summary>The cart, so it survives a plugin reload.</summary>
     public List<CartEntry> Cart { get; set; } = new();
 
@@ -157,6 +178,9 @@ public sealed class Configuration : IPluginConfiguration
         // written before this version has no key, so the initialiser stands and existing users get the routing.
         // That is deliberate and safe - the reroute only fires when the item resolves to a placed vendor the
         // player can already afford, and falls back to the market board (the pre-0.1.6.7 behaviour) otherwise.
+        // v7 -> v8: WalkToVendorsOnCart is new and defaults ON (Helm t-joey-1788793199911). Same shape again:
+        // a config written before this version has no key, so the initialiser stands and existing users get
+        // the vendor walk. Off is one checkbox in the settings and degrades to map flags plus chat names.
         Cart ??= new List<CartEntry>();
         Version = CurrentVersion;
     }

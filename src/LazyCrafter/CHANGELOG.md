@@ -1,4 +1,14 @@
 # Changelog
+## v0.1.6.14 (2026-09-07)
+
+### Added
+- **The cart run now walks to gil vendors - one vendor per stop, buy, press Resume, next vendor.** When a cart is missing gil-vendor items the run sends the character to the vendor NPCs itself instead of only flagging them on the map: the first stop is a Lifestream teleport to the aetheryte nearest the NPC plus the map flag and the shopping line, each remaining stop gets its own chat line naming its NPC and items, and the character walks to them one at a time - buy at the NPC, press Resume, the run re-plans from the bags and walks to the next vendor (files: `Adapters/DispatchService.cs` new `StartVendorWalk`, called from `StartWave` and `PrintBlockedBlock`)
+- **New setting "Walk to gil vendors during a cart run" (on by default).** Off restores the previous behaviour exactly: vendors are flagged on the map and named in chat, buying and walking stay manual (files: `Configuration.cs` config v8 `WalkToVendorsOnCart`, `UI/SettingsTab.cs`)
+
+### Notes
+- The walk reuses the per-item vendor hand-off unchanged - same map flag, same clickable shopping list, same refusal behaviour - and never buys anything: the character is brought to the counter, the purchase and the Resume tap stay with the player. A refused walk (Lifestream missing or busy, teleport refused, not attuned) degrades to flag-and-name for that stop, so a cart is never stranded by the walk; it is a convenience, not a dependency.
+- A wave whose fetch or gather phases steer the character themselves (the bell walk, Gatheringway) leaves the vendor walking to the run's Blocked stop, where the stop-and-resume cadence lives - two navigations steering at once is how a run gets lost. When a Blocked run is also blocked on the player's own market listings, the vendor stop goes out first and the bell trip degrades to its busy line: first trip wins, never both.
+
 ## v0.1.6.13 (2026-09-07)
 
 ### Fixed
