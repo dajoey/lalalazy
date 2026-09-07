@@ -190,6 +190,24 @@ Check("rs-week-base-70", week449.BaseScore == 70, $"got {week449.BaseScore}");
 var week449Rep = Predictor.Build(week449, easy100, stainFamilies, crowd, null);
 Check("rs-predictor-easy100-100", week449Rep.Total == 100, $"got {week449Rep.Total}");
 
+// ---- 12. FetchPlan: the missing-pieces planner (v0.1.2.0 fetch-missing step 1) ----
+// Owned = just Brand-new Gloves: for hands the crowd has Hailstorm (90) and Brand-new (85),
+// so exactly Hailstorm is "missing" there; the other hinted slots keep their full lists.
+var planOwned = new HashSet<uint> { BrandNewGloves };
+var plan = FetchPlan.Build(week449, crowd, planOwned,
+    id => id is HailstormGloves ? new RecipeOption(7777, 9, 90) : null);
+Check("fp-hands-missing-hailstorm", plan.Any(p => p.Slot == FashionSlot.Hands && p.Item.ItemId == HailstormGloves),
+    $"hands plan: {string.Join(",", plan.Where(p => p.Slot == FashionSlot.Hands).Select(p => p.Item.ItemId))}");
+Check("fp-skips-owned-brandnew", !plan.Any(p => p.Item.ItemId == BrandNewGloves), "owned item must never be planned");
+Check("fp-recipe-resolved", plan.First(p => p.Item.ItemId == HailstormGloves).Recipe?.RecipeId == 7777,
+    $"recipe: {plan.First(p => p.Item.ItemId == HailstormGloves).Recipe?.RecipeId.ToString() ?? "<null>"}");
+Check("fp-no-recipe-still-planned", plan.First(p => p.Slot == FashionSlot.Body).Recipe is null,
+    "a non-craftable item stays in the plan with Recipe=null (UI hides its button)");
+// No owned snapshot -> no plan at all (missing cannot be judged without ownership).
+Check("fp-null-owned-empty", FetchPlan.Build(week449, crowd, null, _ => null).Count == 0);
+// Max-per-slot cap respected (3 default; hands has 2 crowd items, 1 owned -> 1 missing).
+Check("fp-cap", plan.Count(p => p.Slot == FashionSlot.Hands) == 1, $"{plan.Count(p => p.Slot == FashionSlot.Hands)}");
+
 Console.WriteLine();
 Console.WriteLine(failures.Count == 0
     ? $"OK - {passes} checks passed"
