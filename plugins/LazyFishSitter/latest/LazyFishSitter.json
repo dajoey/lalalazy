@@ -1,0 +1,31 @@
+{
+    "Author":  "dajoey",
+    "Name":  "Lazy Fish Sitter",
+    "InternalName":  "LazyFishSitter",
+    "AssemblyVersion":  "0.1.0.0",
+    "Description":  "Checks every few seconds while you are fishing; if you are not sitting, it runs /sit for you. Leaves you alone once you are seated (ground sit, chair, or pose).",
+    "ApplicableVersion":  "any",
+    "RepoUrl":  "https://github.com/dajoey/lalalazy",
+    "Tags":  [
+                 "fishing",
+                 "lazy",
+                 "sit",
+                 "emote",
+                 "utility"
+             ],
+    "CategoryTags":  [
+                         "utility"
+                     ],
+    "DalamudApiLevel":  15,
+    "LoadRequiredState":  0,
+    "LoadSync":  false,
+    "CanUnloadAsync":  false,
+    "LoadPriority":  0,
+    "ImageUrls":  [
+
+                  ],
+    "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyfishsitter-icon.png",
+    "Punchline":  "Sits you down while you fish. That\u0027s it.",
+    "Changelog":  "v0.1.0.0 (2026-09-05)\n\n- New plugin: while the game\u0027s Fishing condition is active, checks every few seconds (default 2) and runs /sit when the player is not already seated (file: `FishSitService.cs`, `Tick`).\n- Seated detection reads the local Character\u0027s Mode field - 12 (EmoteLoop) covers persistent emotes like /sit, 13 (InPositionLoop) covers chair/bench and pose loops - the same read SimpleHeels\u0027 EmoteIdentifier uses, so the plugin never re-sits someone already seated, on a chair, or holding a pose (file: `FishSitService.cs`, `IsInPostureLoop`).\n- The /sit is sent through the game\u0027s own chat-entry path (UIModule ProcessChatBoxEntry), inlined and trimmed from XivCommon\u0027s MIT Chat.cs - the same code ECommons ships inside this repo (file: `ChatCommand.cs`).\n- Safety valves: never re-sends the sit command more than once per 3 seconds, and skips while between areas, in events, quest events, cutscenes, combat, mid-emote, or jumping (file: `FishSitService.cs`, `Tick`).\n- Config: enabled toggle, check interval 1-10s, and the sit command itself (default /sit, must start with a slash) (files: `Configuration.cs`, `ConfigWindow.cs`).\n- Ships on the TESTING channel first. Use /lazyfishsitter for settings, /lazyfishsitter debug for a state dump in the Dalamud log.",
+    "AcceptsFeedback":  false
+}
