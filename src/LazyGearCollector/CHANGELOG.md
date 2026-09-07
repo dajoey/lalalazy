@@ -2,13 +2,13 @@
 
 ## v0.0.2.0 (2026-09-05)
 
-- Added the in-game "What's new" popup. After Lazy Gear Collector updates, its changelog now opens once inside the game so you can see what changed without going to GitHub. It waits until you are logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/lazygear changelog` any time to reopen it.
+- Added the in-game "What's new" popup. After Lazy Gear Collector updates, its changelog now opens once inside the game so the changes are visible without a trip to GitHub. It waits until the character is logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/lazygear changelog` any time to reopen it.
 - No change to collection tracking: the Phantom Vision set, tier detection, ownership counting and the remaining-cost figures are all unchanged.
 
 ## v0.0.1.0 (2026-07-30)
 
 ### Added
-- **First release.** Tracks upgradable gear collections: which pieces you own, what tier each one
+- **First release.** Tracks upgradable gear collections: which pieces are owned, what tier each one
   is at, and exactly what it costs to finish.
 - **Phantom Vision (Occult Crescent: North Horn, patch 7.55)** as the first collection — 7 role sets
   x 5 armour slots x 4 tiers (base / +1 / +2 / +3), 140 item IDs.

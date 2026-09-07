@@ -2,7 +2,7 @@
 
 ## v0.4.4.0 (2026-09-05)
 
-- Added the in-game "What's new" popup. After Armoire Auto-Fill updates, its changelog now opens once inside the game so you can see what changed without going to GitHub. It waits until you are logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/armoire changelog` any time to reopen it.
+- Added the in-game "What's new" popup. After Armoire Auto-Fill updates, its changelog now opens once inside the game so the changes are visible without a trip to GitHub. It waits until the character is logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/armoire changelog` any time to reopen it.
 - No change to armoire behaviour: the dungeon checklist, the auto-store on opening the armoire, and the gearset/armoury options are all unchanged.
 
 ## v0.4.3.0 (2026-07-02)
@@ -13,7 +13,7 @@
 ## v0.4.2.0 (2026-07-02)
 
 ### Changed
-- **Auto-store is now ON by default** - the plugin finally lives up to its name. Opening the armoire UI at an inn automatically stores eligible gear from your bags. Config migration (v2 -> v3) flips `AutoStoreOnOpen` on for existing installs; it can still be turned off via the checkbox in the main window. Files: `Configuration.cs`, `Plugin.cs`.
+- **Auto-store is now ON by default** - the plugin finally lives up to its name. Opening the armoire UI at an inn automatically stores eligible gear from inventory. Config migration (v2 -> v3) flips `AutoStoreOnOpen` on for existing installs; it can still be turned off via the checkbox in the main window. Files: `Configuration.cs`, `Plugin.cs`.
 - **Auto-store scope narrowed to the regular inventory (bags) by default.** The armoury chest is no longer scanned unless the new "Also store from armoury chest" option (`AutoStoreIncludeArmory`, off by default) is enabled. Gearset protection (`SkipGearsetItems`) remains on by default. Files: `Logic/ArmoireAutoStore.cs`, `Windows/MainWindow.cs`.
 
 ### Fixed
@@ -22,7 +22,7 @@
 ## v0.4.1.0 (2026-06-18)
 
 ### Added
-- **"Skip gear that is in a gearset" option** (on by default). Auto-store now excludes any item that belongs to one of your saved gearsets, so it will not deposit gear you actively use. Built from RaptureGearsetModule (same source as the in-game gearset UI), HQ flag stripped for matching. New `SkipGearsetItems` config + checkbox in the main window; result message reports how many items were kept. Files: `Logic/ArmoireAutoStore.cs`, `Configuration.cs`, `Windows/MainWindow.cs`.
+- **"Skip gear that is in a gearset" option** (on by default). Auto-store now excludes any item that belongs to a saved gearset, so gear in active use is not deposited. Built from RaptureGearsetModule (same source as the in-game gearset UI), HQ flag stripped for matching. New `SkipGearsetItems` config + checkbox in the main window; result message reports how many items were kept. Files: `Logic/ArmoireAutoStore.cs`, `Configuration.cs`, `Windows/MainWindow.cs`.
 
 ## v0.4.0.0 (2026-06-18)
 

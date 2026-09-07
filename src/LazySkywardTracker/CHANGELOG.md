@@ -2,7 +2,7 @@
 
 ## v0.0.3.0 (2026-09-05)
 
-- Added the in-game "What's new" popup. After Lazy Skyward Tracker updates, its changelog now opens once inside the game so you can see what changed without going to GitHub. It waits until you are logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/lazysky changelog` any time to reopen it.
+- Added the in-game "What's new" popup. After Lazy Skyward Tracker updates, its changelog now opens once inside the game so the changes are visible without a trip to GitHub. It waits until the character is logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/lazysky changelog` any time to reopen it.
 - No change to tracking: Skybuilders' points per job, the achievement progress read and the Diadem crediting all work exactly as before.
 
 ## v0.0.2.2 (2026-06-26)

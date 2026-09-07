@@ -26,6 +26,15 @@ All four version locations MUST match in every release commit for any plugin `<P
 - **Never use `git push --force` or `git commit --amend` on this repo.**
 - **Never touch game files** (XIVLauncher installedPlugins, pluginConfigs, etc.) — only work on the repo and push. The game downloads from GitHub.
 
+### Changelog voice: impersonal, never second person (STANDING RULE, Joey 2026-09-06)
+
+**Changelog bullets describe what the plugin does, not what "you" do.** No "you can now", "your bags", "tells you", "sends you there", "your retainers", "when you log out". A changelog is a record of changes to the software, addressed to nobody. Write "inventory" not "your bags", "the character" / "the player" when the distinction matters, "the list" not "your list", "routes to the vendor" not "sends you to the vendor". This applies to `CHANGELOG.md`, the `pluginmaster.json` `Changelog` field, and manifest `Changelog` fields alike (the packager derives all of them from CHANGELOG.md).
+
+Exceptions, kept verbatim:
+- **Quoted UI labels and setting names** (e.g. `"Also shield tankbusters outside your party"`, `"Only skip when nobody else is undercutting you"`) — they name real config strings; paraphrasing them makes the note useless. Renaming the label is a code change, not a changelog fix.
+- Verbatim quotes of a player's report may keep their wording, but prefer indirect speech ("Reported: the proc is not permanent") over pasting "you" statements.
+- The landing site (`docs/`) is marketing copy and MAY address the reader.
+
 ### In-game changelog popup (STANDING RULE, Joey 2026-09-05 — Hermes card `t_add3c479`)
 
 **Every plugin carries the shared changelog popup; never remove it in an upstream merge.** After any update, the plugin shows its own `CHANGELOG.md` once in-game (every version between the last-seen one and the running one), gated until the player is logged in and out of combat/duty. Because the popup renders `CHANGELOG.md` verbatim, **the CHANGELOG entry IS the user-facing release note — write it for the player.**

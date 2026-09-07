@@ -2,7 +2,7 @@
 
 ## v3.2.3.0 (2026-09-05)
 
-- Added the in-game "What's new" popup. After Lazy WT Math updates, its changelog now opens once inside the game so you can see what changed without going to GitHub. It waits until you are logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read.
+- Added the in-game "What's new" popup. After Lazy WT Math updates, its changelog now opens once inside the game so the changes are visible without a trip to GitHub. It waits until the character is logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read.
 - New command `/lazywtmath` reopens that popup. This plugin had no command at all before: the probabilities still appear inside the Wondrous Tails window itself, exactly as before, and nothing about how they are calculated has changed.
 - The rebuild against current FFXIVClientStructs from 3.2.2.10 (which stopped the Wondrous Tails crash loop) is included.
 

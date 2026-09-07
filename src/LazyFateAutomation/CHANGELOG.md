@@ -2,7 +2,7 @@
 
 ## v0.0.2.0 (2026-09-05)
 
-- Added the in-game "What's new" popup. After Lazy Fate Automation updates, its changelog now opens once inside the game so you can see what changed without going to GitHub. It waits until you are logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/lazyfate changelog` any time to reopen it.
+- Added the in-game "What's new" popup. After Lazy Fate Automation updates, its changelog now opens once inside the game so the changes are visible without a trip to GitHub. It waits until the character is logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/lazyfate changelog` any time to reopen it.
 - No change to FATE grinding: zone swapping, the duty pause, the Gluttony lease and every sort/blacklist setting are unchanged.
 
 ## [0.0.1.45] - 2026-08-17
@@ -31,11 +31,11 @@
 
 ## [0.0.1.44] - 2026-06-27
 ### Fixed
-- **Stop now halts vnavmesh immediately.** Hitting Stop (or `/lazyfate stop`) while the bot was pathfinding/flying to a FATE previously left vnavmesh navigating to the destination on its own - cancelling the plugin's task does not stop vnav's in-flight movement. `FateToolKit` Running=false and the `FateGrind` task teardown now call `Svc.Navmesh.PathfindCancelAll()` + `Svc.Navmesh.Stop()` (cancel any in-progress pathfind AND stop following the current path), so the character stops the moment you hit Stop.
+- **Stop now halts vnavmesh immediately.** Hitting Stop (or `/lazyfate stop`) while the bot was pathfinding/flying to a FATE previously left vnavmesh navigating to the destination on its own - cancelling the plugin's task does not stop vnav's in-flight movement. `FateToolKit` Running=false and the `FateGrind` task teardown now call `Svc.Navmesh.PathfindCancelAll()` + `Svc.Navmesh.Stop()` (cancel any in-progress pathfind AND stop following the current path), so the character stops the moment Stop is pressed.
 
 ## [0.0.1.43] - 2026-06-27
 ### Fixed
-- **Stop now fully releases the Gluttony Combo lease** instead of only disabling auto-rotation. Previously, Stop (and `/lazyfate stop`, and auto-complete) left Gluttony "controlled by Lazy Fate Automation" with the lease still held, so your manual/macro control of Gluttony stayed locked out. `FateToolKit` Running=false now calls `GluttonyComboIPC.Release()` (which calls `ReleaseControl`) instead of `Disable()`; a fresh lease is acquired on the next grind start. Between-FATE pauses still use `Disable()` (keep the lease, just stop the rotation).
+- **Stop now fully releases the Gluttony Combo lease** instead of only disabling auto-rotation. Previously, Stop (and `/lazyfate stop`, and auto-complete) left Gluttony "controlled by Lazy Fate Automation" with the lease still held, so manual/macro control of Gluttony stayed locked out. `FateToolKit` Running=false now calls `GluttonyComboIPC.Release()` (which calls `ReleaseControl`) instead of `Disable()`; a fresh lease is acquired on the next grind start. Between-FATE pauses still use `Disable()` (keep the lease, just stop the rotation).
 
 ## [0.0.1.42] - 2026-06-27
 ### Changed

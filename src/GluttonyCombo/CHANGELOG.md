@@ -1,8 +1,8 @@
 ## v1.0.4.175 (2026-09-06) [testing]
 
 ### Fixed
-- The tankbuster TTS line and on-screen toast now follow "Also shield tankbusters outside your party" like the shield already did. Since v1.0.4.171 the auto-rotation would shield the victim of a tankbuster outside your party while the alert stayed completely silent, because the shield honoured the setting and the alert was hardcoded to party members only - the plugin acted on an event it did not announce. One setting now governs both the action and its announcement. (file: `GluttonyCombo/CustomCombo/Functions/VFX.cs`, function: `PlayTankbusterAlert`)
-- Tankbuster detection outside your party now actually reaches trusted and Occult Crescent NPCs, which is half of what v1.0.4.171 promised and did not deliver. That version filtered every candidate through a role check that reads the target's job off the object table, and an NPC's job is simply not there - this fork already works around the same hole for NPCs in your party by reading the job out of the party info proxy instead. An out-of-party NPC is in neither place, so it resolved as "no combat role" and was silently dropped before the shield ever saw it. Alliance players were unaffected and always worked. (files: `GluttonyCombo/CustomCombo/Functions/VFX.cs`, `GluttonyCombo/Core/TankbusterScope.cs` (new))
+- The tankbuster TTS line and on-screen toast now follow "Also shield tankbusters outside your party" like the shield already did. Since v1.0.4.171 the auto-rotation would shield the victim of a tankbuster outside the party while the alert stayed completely silent, because the shield honoured the setting and the alert was hardcoded to party members only - the plugin acted on an event it did not announce. One setting now governs both the action and its announcement. (file: `GluttonyCombo/CustomCombo/Functions/VFX.cs`, function: `PlayTankbusterAlert`)
+- Tankbuster detection outside the party now actually reaches trusted and Occult Crescent NPCs, which is half of what v1.0.4.171 promised and did not deliver. That version filtered every candidate through a role check that reads the target's job off the object table, and an NPC's job is simply not there - this fork already works around the same hole for NPCs in the party by reading the job out of the party info proxy instead. An out-of-party NPC is in neither place, so it resolved as "no combat role" and was silently dropped before the shield ever saw it. Alliance players were unaffected and always worked. (files: `GluttonyCombo/CustomCombo/Functions/VFX.cs`, `GluttonyCombo/Core/TankbusterScope.cs` (new))
 
 ### Changed
 - The shield and the alert now share a single scope test instead of carrying a copy each, which is what let them drift apart in the first place. `CustomCombo/Functions/VFX.cs` has one `InTankbusterScope` predicate and both callers use it. (file: `GluttonyCombo/CustomCombo/Functions/VFX.cs`, function: `InTankbusterScope`)
@@ -16,17 +16,17 @@
 ## v1.0.4.174 (2026-09-05) [testing]
 
 ### Added
-- Auto-rotation (healer) "Require Swiftcast/Dualcast" for auto-resurrect is now one checkbox per raising job instead of a single global toggle: WHM/CNJ, SCH, AST, SGE, SMN, BLU and RDM each get their own row under Settings -> Auto Rotation -> Auto-Resurrect. Your existing setting is carried onto the six jobs it used to govern by a one-time migration, so nothing changes on update. (files: `GluttonyCombo/AutoRotation/AutoRotationConfig.cs` `HealerSettings.AutoRezRequireSwift{WHM,SCH,AST,SGE,SMN,BLU,RDM}` + `RequireSwiftFor(Job)`, `GluttonyCombo/Window/Tabs/AutoRotationTab.cs`, `GluttonyCombo/Core/ConfigMigration.cs`)
-- RDM can now hard-cast Verraise under auto-rotation, which was previously impossible. The new RDM row is ticked by default and that is the old behaviour - RDM only raises instantly, off Dualcast or Swiftcast. Untick it and auto-rotation will start a 10-second hard-cast Verraise when no instant is available; it only begins the cast while you are standing still, and an instant is still always preferred. Before this version RDM's requirement was hardcoded on and the old global tick could not reach it at all. (file: `GluttonyCombo/AutoRotation/AutoRotationController.cs`, function: `RezParty`)
+- Auto-rotation (healer) "Require Swiftcast/Dualcast" for auto-resurrect is now one checkbox per raising job instead of a single global toggle: WHM/CNJ, SCH, AST, SGE, SMN, BLU and RDM each get their own row under Settings -> Auto Rotation -> Auto-Resurrect. The existing setting is carried onto the six jobs it used to govern by a one-time migration, so nothing changes on update. (files: `GluttonyCombo/AutoRotation/AutoRotationConfig.cs` `HealerSettings.AutoRezRequireSwift{WHM,SCH,AST,SGE,SMN,BLU,RDM}` + `RequireSwiftFor(Job)`, `GluttonyCombo/Window/Tabs/AutoRotationTab.cs`, `GluttonyCombo/Core/ConfigMigration.cs`)
+- RDM can now hard-cast Verraise under auto-rotation, which was previously impossible. The new RDM row is ticked by default and that is the old behaviour - RDM only raises instantly, off Dualcast or Swiftcast. Untick it and auto-rotation will start a 10-second hard-cast Verraise when no instant is available; it only begins the cast while standing still, and an instant is still always preferred. Before this version RDM's requirement was hardcoded on and the old global tick could not reach it at all. (file: `GluttonyCombo/AutoRotation/AutoRotationController.cs`, function: `RezParty`)
 
 ### Changed
-- The per-job setting is resolved from the job you are playing, never from the raise spell. SCH and SMN both raise with Resurrection, so a spell-keyed lookup would have silently fused those two jobs into one setting that could never be separated again; CNJ and WHM deliberately do share one row, being the same job either side of level 30. (file: `GluttonyCombo/AutoRotation/AutoRotationConfig.cs`, function: `RequireSwiftFor`)
+- The per-job setting is resolved from the job being played, never from the raise spell. SCH and SMN both raise with Resurrection, so a spell-keyed lookup would have silently fused those two jobs into one setting that could never be separated again; CNJ and WHM deliberately do share one row, being the same job either side of level 30. (file: `GluttonyCombo/AutoRotation/AutoRotationConfig.cs`, function: `RequireSwiftFor`)
 - The RDM raise path gained the same movement guard the other jobs already had. It never needed one before, because it could only ever fire an instant; without it, unticking the new RDM row would have started and instantly cancelled a 10s Verraise on loop while running. (file: `GluttonyCombo/AutoRotation/AutoRotationController.cs`)
 - `AutoRezRequireSwift` on the IPC surface is kept alive and now answers for the job currently being played, so any third-party consumer still compiles and still gets a meaningful answer. It returns false rather than throwing when there is no player. (file: `GluttonyCombo/AutoRotation/AutoRotationConfigIPCWrapper.cs`)
 - All seven checkboxes are drawn with no IPC "controlled by another plugin" indicator, like Handle Raidwides and Handle Detected Tankbusters. These are fork-only settings that no plugin can lease, and asking the indicator about a name it cannot parse is exactly what broke the Auto-Rotation tab in v1.0.4.171. (file: `GluttonyCombo/Window/Tabs/AutoRotationTab.cs`)
 
 ### Notes
-- Config schema v8. The migration reads your old saved value through a legacy JSON shadow, copies it onto the six jobs once, then stops writing the dead key - so it can never run twice, and unticking a job afterwards sticks. RDM is asserted ON by the migration rather than inherited from a default, so a future refactor cannot silently start hard-casting Verraise for everyone.
+- Config schema v8. The migration reads the old saved value through a legacy JSON shadow, copies it onto the six jobs once, then stops writing the dead key - so it can never run twice, and unticking a job afterwards sticks. RDM is asserted ON by the migration rather than inherited from a default, so a future refactor cannot silently start hard-casting Verraise for everyone.
 - `tests/GluttonyCombo.ConfigMigrateHarness` now compiles the real `HealerSettings` and the real migration ladder against the real Newtonsoft serializer and asserts both: 73 cases, including the negative control that an existing user with the tick OFF still gets RDM ON, and a truth table proving SCH and SMN resolve to different fields. It caught a real defect in this release before it shipped.
 - No combo or rotation behaviour changes beyond the auto-rez paths described above.
 
@@ -39,12 +39,12 @@
 - Reading an Auto-Rotation option over IPC no longer fails for `IgnoreRangeInBoss`, `UnTargetAndDisableForPenalty` or `IncludeShields`; all three were missing from the read switch and returned nothing. (file: `GluttonyCombo/Services/IPC/ProvideAutoRotConfig.cs`)
 
 ### Added
-- "Also shield tankbusters outside your party" is now turned ON for existing installs by a one-time settings migration. It shipped OFF in v1.0.4.171, but a changed default only ever reaches brand-new installs - an existing config saves every setting and loads its own saved value back over the new default - so nobody who already had the plugin would have seen it. It is a one-time nudge, not a policy: if you untick it, it stays unticked. (files: `GluttonyCombo/Core/ConfigMigration.cs` (new), `GluttonyCombo/GluttonyCombo.cs`, `GluttonyCombo/Core/Configuration.cs`)
-- Both `IncludeShields` and `UnTargetAndDisableForPenalty` can now actually be driven by another plugin over IPC, matching upstream: the rotation reads the leased value when one is set instead of always reading your local checkbox. (file: `GluttonyCombo/AutoRotation/AutoRotationConfigIPCWrapper.cs`)
+- "Also shield tankbusters outside your party" is now turned ON for existing installs by a one-time settings migration. It shipped OFF in v1.0.4.171, but a changed default only ever reaches brand-new installs - an existing config saves every setting and loads its own saved value back over the new default - so nobody who already had the plugin would have seen it. It is a one-time nudge, not a policy: once unticked, it stays unticked. (files: `GluttonyCombo/Core/ConfigMigration.cs` (new), `GluttonyCombo/GluttonyCombo.cs`, `GluttonyCombo/Core/Configuration.cs`)
+- Both `IncludeShields` and `UnTargetAndDisableForPenalty` can now actually be driven by another plugin over IPC, matching upstream: the rotation reads the leased value when one is set instead of always reading the local checkbox. (file: `GluttonyCombo/AutoRotation/AutoRotationConfigIPCWrapper.cs`)
 - The IPC log channel is rate-limited: at most 3 identical lines per 5 minutes, with the number of dropped duplicates reported on the next line that gets through. Log levels are deliberately unchanged - the lines are wanted, the volume was the bug - and the stack trace attached to an error line is now only built for lines actually written, instead of on every suppressed call. Replaying the real 2026-09-05 frame stream through it turns 4,257 lines into 18. (files: `GluttonyCombo/Services/IPC/LogEmitGate.cs` (new), `GluttonyCombo/Services/IPC/Helper.cs`)
 
 ### Notes
-- No rotation or combat behaviour changes in this release; it is a UI, IPC and logging fix only. If you had the Auto-Rotation tab open on v1.0.4.171 or v1.0.4.172 and a healer setting did not stick, set it again on this version - it will save now.
+- No rotation or combat behaviour changes in this release; it is a UI, IPC and logging fix only. If the Auto-Rotation tab was open on v1.0.4.171 or v1.0.4.172 and a healer setting did not stick, set it again on this version - it will save now.
 - Two new offline test projects, both compiling the real shipping code with no Dalamud: `tests/GluttonyCombo.IpcLogGateHarness` replays the measured incident (26 minutes at 58 fps) and asserts both that the volume collapses and that genuinely different errors still each get their own budget (22 cases); `tests/GluttonyCombo.ConfigMigrateHarness` replays the settings migration and asserts it runs once and never overrides a user who turns the setting back off (19 cases). All 41 passing.
 
 ## v1.0.4.172 (2026-09-05) [testing]
@@ -59,7 +59,7 @@
 ## v1.0.4.171 (2026-09-05) [testing]
 
 ### Added
-- Auto-rotation (healer) "Also shield tankbusters outside your party", OFF by default: when Handle Detected Tankbusters is on, SGE tankbuster shields (Taurochole, Eukrasian Diagnosis and friends) now also target the victim of a detected tankbuster outside your own party - alliance members and trusted NPCs in the Occult Crescent - instead of silently doing nothing because the target is not a party member. Turn it on under Settings -> Auto Rotation -> healer section. (files: `CustomCombo/Functions/VFX.cs` `TryGetTankBusterTarget(out, includeOutOfParty)`, `AutoRotation/AutoRotationConfig.cs` `HealerSettings.TankbustersBeyondParty`, `AutoRotation/AutoRotationController.cs`, `Window/Tabs/AutoRotationTab.cs`, `Resources/Localization/UI/AutoRotation/*`)
+- Auto-rotation (healer) "Also shield tankbusters outside your party", OFF by default: when Handle Detected Tankbusters is on, SGE tankbuster shields (Taurochole, Eukrasian Diagnosis and friends) now also target the victim of a detected tankbuster outside the party - alliance members and trusted NPCs in the Occult Crescent - instead of silently doing nothing because the target is not a party member. Turn it on under Settings -> Auto Rotation -> healer section. (files: `CustomCombo/Functions/VFX.cs` `TryGetTankBusterTarget(out, includeOutOfParty)`, `AutoRotation/AutoRotationConfig.cs` `HealerSettings.TankbustersBeyondParty`, `AutoRotation/AutoRotationController.cs`, `Window/Tabs/AutoRotationTab.cs`, `Resources/Localization/UI/AutoRotation/*`)
 
 ## v1.0.4.170 (2026-09-05) [testing]
 
@@ -72,7 +72,7 @@
 
 ## v1.0.4.169 (2026-09-05)
 
-- Added the in-game "What's new" popup. After Gluttony Combo updates, its changelog now opens once inside the game so you can see what changed without going to GitHub. It waits until you are logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/gluttony changelog` any time to reopen it.
+- Added the in-game "What's new" popup. After Gluttony Combo updates, its changelog now opens once inside the game so the changes are visible without a trip to GitHub. It waits until the character is logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/gluttony changelog` any time to reopen it.
 - No change to combos, autorotation or any preset: the seen-version is kept in its own small file next to the settings, so nightly WrathCombo merges are unaffected.
 
 ## v1.0.4.168 (2026-09-05) [testing]
@@ -85,7 +85,7 @@
 
 ### Notes
 - With the toggle off (the default) the only new work per combo evaluation is one bool read; no combo behaviour changes either way - the tap observes the decision, it never alters it.
-- Lines are Information level, so the harvest keeps them for 7 days. Turn the tap off when you are done collecting; it is chatty in combat.
+- Lines are Information level, so the harvest keeps them for 7 days. Turn the tap off when collection is done; it is chatty in combat.
 
 ## v1.0.4.167 (2026-09-03) [testing]
 
@@ -119,8 +119,8 @@
 ## v1.0.4.165 (2026-08-31) [testing]
 
 ### Added
-- **The BLU one-button rotations no longer hard-code their filler spell — you can now pick
-  any filler, or let the plugin detect the one you actually carry.** A Blue Mage only gets
+- **The BLU one-button rotations no longer hard-code their filler spell — any filler can now be picked
+  or the plugin detects the one actually carried.** A Blue Mage only gets
   24 active spell slots and there are ~45 viable fillers, so upstream's four fixed choices
   (Sonic Boom for ST DPS, Electrogenesis for AoE DPS, Goblin Punch for ST tank, Right Round
   for AoE tank) silently did nothing for anyone who slotted a different one: the combo's
@@ -131,20 +131,20 @@
   safe to select automatically. Every action ID was verified against XIVAPI v2 (exdschema
   rev 83e965d0) and cross-checked on Garland Tools; none were taken from memory. Deliberately
   excluded as traps rather than fillers: 1000 Needles (damage is split between targets),
-  Final Sting / Self-destruct (incapacitate the caster), Wild Rage (costs half your max HP),
+  Final Sting / Self-destruct (incapacitate the caster), Wild Rage (costs half of max HP),
   Missile / Tail Screw / Launcher / Doom / Dimensional Shift (chance-based), and the 30s-recast
   spells that are cooldowns the Primals option already handles.
 - **Per-rotation "Filler Spell" dropdown** in the Features pane for `BLU_ST_DPS`,
   `BLU_AoE_DPS`, `BLU_ST_Tank` and `BLU_AoE_Tank` (file: `BLU_Config.cs`, function
-  `DrawFillerPicker`). Defaults to Automatic. Spells you do not currently have slotted are
+  `DrawFillerPicker`). Defaults to Automatic. Spells not currently slotted are
   listed but greyed and labelled, tooltips carry potency/range plus any caveat, and the pane
-  warns when your explicit pick is not slotted (naming the substitute) or when no filler is
+  warns when an explicit pick is not slotted (naming the substitute) or when no filler is
   available at all.
 
 ### Changed
 - `BLU_ST_DPS`, `BLU_AoE_DPS`, `BLU_ST_Tank`, `BLU_AoE_Tank` now pass a runtime-computed
   action set to `CustomActionHelper.OneButtonRotationChecker` via `HookedActions(FillerSlot)`
-  instead of a bare constant, so the hooked hotbar button follows your selection (file:
+  instead of a bare constant, so the hooked hotbar button follows the selection (file:
   `Combos/PvE/BLU/BLU.cs`). This mirrors the established upstream idiom used by WHM
   (`WHM_ST_MainCombo_Actions`), AST (`AST_ST_DPS_AltMode`), SCH, SGE and SMN. The stock
   button stays hooked alongside the new one, so nothing regresses for existing users.
@@ -153,7 +153,7 @@
   Fall-through behaviour is preserved exactly: with a stock loadout every path returns the
   same action it did in v1.0.4.164, and with no filler slotted at all the original action is
   returned untouched.
-- `DoTank`'s out-of-melee branch now falls back to the best *ranged* filler you have slotted
+- `DoTank`'s out-of-melee branch now falls back to the best *ranged* filler slotted
   instead of specifically Sonic Boom (file: `BLU_Helper.cs`).
 
 ### Fixed
@@ -171,15 +171,15 @@
   `Attributes/BlueInactiveAttribute.cs`, function `GetActions` / `SatisfiedByConfig`).
 
 ### Notes
-- **Auto-detect is deliberately conservative, and only ever picks a spell you have slotted.**
-  It prefers the stock filler when you carry it (so an existing setup never changes
+- **Auto-detect is deliberately conservative, and only ever picks a slotted spell.**
+  It prefers the stock filler when carried (so an existing setup never changes
   behaviour), then the highest-potency pure single-target spell for ST slots. It will not
   pick, on its own, anything that knocks back, draws in, applies a status, has conditional
   potency, or splashes an ST slot — those pull extra mobs or step on party mechanics, so they
   remain one dropdown click away rather than a surprise. The sole exception is a slot's own
   stock filler (Right Round knocks back, but it IS what upstream picks).
 - A manual pick that is no longer slotted degrades to auto-detect rather than jamming the
-  rotation, so swapping your spellbook cannot leave a dead button.
+  rotation, so swapping the spellbook cannot leave a dead button.
 - The `[ReplaceSkill]` / `[BlueInactive]` attributes were intentionally left naming only the
   stock spell. They are frozen at startup and drive just the Features-pane icon row; widening
   them would have reordered `ActionIDs.First()` and changed which spell the Auto-Mode gate
@@ -271,12 +271,12 @@ made: **upstream's Blue Mage implementation replaces this fork's.**
   two openers, and an 803-line `BLU_Helper.cs` - 37 presets where the fork had two.
   The fork's engine (`BLU_AutoRotation.cs`, its 124 per-ability toggles and its tuning
   sliders) is deleted, and `BLU_Config.cs` is now upstream's.
-- **If you had the fork's BLU auto-rotation switched on, you now have upstream's BLU DPS
-  switched on instead - check it before you pull.** Presets persist by number, not by
+- **If the fork's BLU auto-rotation was switched on, upstream's BLU DPS is
+  switched on instead - check it before pulling.** Presets persist by number, not by
   name. The fork's `BLU_AutoRotation_DPS` and `_Heal` held 70026 and 70027; upstream's
   `BLU_ST_DPS` and `BLU_AoE_DPS` now hold those same two numbers, so an existing "on"
   setting carries straight over to the upstream preset. Nothing else changed hands, and
-  no other preset moved. Turn them off in the preset window if you do not want them.
+  no other preset moved. Turn them off in the preset window if they are unwanted.
 - **BLM AoE movement Triplecast follows upstream's new shape, with the fork's Occult
   Crescent gate reapplied on top.** Upstream turned `TryAoEMovementTriplecast(ref uint,
   bool)` into the predicate `UseAoETriplecastMovement()`; the v1.0.4.148 rule that
@@ -322,8 +322,8 @@ deliberately replaced, so it is a no-op for us (see Notes).
 - **Meikyo Shisui, single target: Gekko and Kasha are now selected by upstream's
   simplified test.** Both conditions collapsed to one clause each:
   `useGekko && ActionLearned(Gekko) && !HasGetsu || !HasStatusEffect(Fugetsu)`
-  and the same shape for Kasha/Ka/Fuka. So Gekko is used when you hold no Getsu
-  sen and Kasha when you hold no Ka sen; the previous positional-aware conditions
+  and the same shape for Kasha/Ka/Fuka. So Gekko is used when no Getsu is held
+  sen is held and Kasha when no Ka sen is; the previous positional-aware conditions
   (`OnTargetsRear()`, `OnTargetsFlank() && HasKa`, the cross-checks against the
   other action's toggle) are gone. Positional handling itself is untouched -
   `WithTrueNorth` still wraps both returns.
@@ -465,15 +465,15 @@ Upstream WrathCombo merge: `c35a28de3..13b821ec7`, 14 commits, 72 files.
 ## v1.0.4.157 (2026-08-24)
 
 ### Fixed
-- **Alignment released the hold on OTHER PEOPLE'S buffs, so abilities fired just before your
-  own.** Joey, testing .156: "it'll fire the abilities prior to the buff even when both off
-  cooldown." That is exactly what the code did, and it is my bug, not a tuning problem.
+- **Alignment released the hold on OTHER PEOPLE'S buffs, so abilities fired just before the player's
+  own.** Reported on .156: "it'll fire the abilities prior to the buff even when both off
+  cooldown." That is exactly what the code did - a logic bug in this fork, not a tuning problem.
 
   The release test used `PhantomWindowOpen`, which is party-wide and built on
   `anyOwner: true` - it answers "is a damage buff on me", not "is MY window open". In an
-  eight-man Occult party every other member's raid buff lands on you on its own cadence, so
+  eight-man Occult party every other member's raid buff lands on the player on its own cadence, so
   that predicate reads true for a large part of any fight and the hold released on somebody
-  else's Searing Light instead of waiting for yours.
+  else's Searing Light instead of waiting for the player's own.
 
   Worse, it counted phantom-side buffs **the plugin applies itself**. Aetherial Gain is a 40s
   cooldown with a 20s duration, so a Geomancer setup opened its own "window" roughly half the
@@ -493,21 +493,21 @@ Upstream WrathCombo merge: `c35a28de3..13b821ec7`, 14 commits, 72 files.
 
 ### Added
 - **`[PhantomAlign]` diagnostic line in /xllog**, throttled to 5s and only while the option is
-  enabled. Prints job, anchor count, seconds until burst, whether your own burst is active,
+  enabled. Prints job, anchor count, seconds until burst, whether the player's own burst is active,
   whether a party window is open, and how many actions are being held.
 
   This exists because .156 was wrong on a static read and only in-zone behaviour caught it -
   the same trap `LogPhantomHealDiag` was written for. Whichever column reads unexpectedly is
-  the answer: `anchors=0` means your job has no percentage damage buff and nothing will ever
+  the answer: `anchors=0` means the job has no percentage damage buff and nothing will ever
   be held; a large `untilBurst` means the buff is genuinely too far away; `myBurstActive=True`
-  while your buff is visibly down would mean an anchor status id is wrong.
+  while the buff is visibly down would mean an anchor status id is wrong.
 
 ### Notes
-- **If your job has no percentage damage buff, nothing is held and that is intended.** Samurai,
+- **If a job has no percentage damage buff, nothing is held and that is intended.** Samurai,
   Machinist, Black Mage, Viper, White Mage, Scholar and Sage have none; Warrior and Dark Knight
   have only Surging Tempest and Darkside, which are permanent rather than windows. The
   diagnostic reports `anchors=0` in that case.
-- The stall guard is unchanged: any hold releases after your delay plus three seconds, so an
+- The stall guard is unchanged: any hold releases after the configured delay plus three seconds, so an
   anchor that is off cooldown but never actually pressed cannot freeze a phantom action for the
   fight.
 
@@ -516,14 +516,14 @@ Upstream WrathCombo merge: `c35a28de3..13b821ec7`, 14 commits, 72 files.
 ### Added
 - **New option: "Align Phantom Cooldowns to Your Burst Window"** (Occult Crescent, top level,
   alongside Restrict to Buff). Lets a big phantom cooldown wait a bounded number of seconds -
-  default 6, slider 0-15 - so it lands inside your own damage buff window instead of just
+  default 6, slider 0-15 - so it lands inside the player's own damage buff window instead of just
   outside it. Off by default.
 
   Why it is nearly free: every recast in the aligned set is 40s, 60s, 90s or 120s. 40, 60 and
   120 all divide the two-minute raid-buff cycle, so once an action lands inside a window it
   stays inside every later window at no further cost. The alignment is paid for once, and only
-  up to the delay you set. Holding a phantom GCD also does not idle the GCD - the handler
-  declines and your own job rotation takes that slot - so the cost of a hold is the delay and
+  up to the configured delay. Holding a phantom GCD also does not idle the GCD - the handler
+  declines and the player's own job rotation takes that slot - so the cost of a hold is the delay and
   nothing else.
 
   Aligned: Phantom Aim, Hero's Rime, Aetherial Gain, Zeninage, Iainuki, Bladeblitz, Long Reach,
@@ -534,10 +534,10 @@ Upstream WrathCombo merge: `c35a28de3..13b821ec7`, 14 commits, 72 files.
   Never aligned: heals, mitigation, raises, interrupts, stuns, dispels, movement, debuff
   application, everything on a 30s or shorter recast, the Berserker Rage/Deadly Blow pair, the
   Oracle deck and the Dancer dance. The last two are chains on expiry timers and an expired
-  Oracle prediction inflicts False Prediction - 50,000 potency of damage-over-time on yourself.
+  Oracle prediction inflicts False Prediction - 50,000 potency of damage-over-time on the character.
   Shaving seconds off a nuke is not worth a failure mode that kills the player.
 
-  A stall guard releases any hold after your delay plus three seconds. Without it, a Gunbreaker
+  A stall guard releases any hold after the configured delay plus three seconds. Without it, a Gunbreaker
   who has No Mercy switched off in their own job settings reads "burst 0s away" forever and
   every aligned phantom action would stop firing for the whole fight.
 
@@ -555,7 +555,7 @@ Upstream WrathCombo merge: `c35a28de3..13b821ec7`, 14 commits, 72 files.
   they are effectively permanent, because for that question it is the right answer: a Warrior's
   phantom damage really is boosted all fight long, so there is never a moment when holding it
   would gain anything. Alignment uses a second, narrower predicate that drops them - a test
-  that is true all fight long cannot tell you a window has opened.
+  that is true all fight long cannot signal that a window has opened.
 
 - **Offensive Aria is no longer held behind the buff gate.** It is +4% party damage for 70s on
   a 5s cooldown - maintenance, and one of the things that MAKES a damage window. Sitting below
@@ -579,7 +579,7 @@ Upstream WrathCombo merge: `c35a28de3..13b821ec7`, 14 commits, 72 files.
 ### Notes
 - **Phantom Aim is in the aligned set even though it is not a phantom damage buff.** It grants
   +50% critical hit rate and +50% direct hit rate - exactly the two things phantom actions
-  cannot do. Its entire value is to your own job's actions, which makes it a 120s personal raid
+  cannot do. Its entire value is to the player's own job's actions, which makes it a 120s personal raid
   buff that happens to live on the phantom bar. It belongs in the two-minute window for that
   reason, not because phantom damage cares about it.
 - **Jobs with no percentage damage buff of their own are never held.** Samurai, Machinist, Black
@@ -773,9 +773,9 @@ Upstream WrathCombo merge: `c35a28de3..13b821ec7`, 14 commits, 72 files.
 ## v1.0.4.150 (2026-08-23) [testing]
 
 ### Fixed
-- **Retraction: Occult Dualcast's proc is not permanent, and v1.0.4.148 said it was.** Joey:
-  *"dualcast's proc is not permanent. The trait that causes it is... The buff acts exactly like
-  swiftcast and has a similar duration. It will expire if you don't use it."* .148 reasoned from
+- **Retraction: Occult Dualcast's proc is not permanent, and v1.0.4.148 said it was.** Reported:
+  the proc is not permanent; the trait is what causes it, the buff acts exactly like
+  swiftcast and has a similar duration, and expires if unused. .148 reasoned from
   status 5438 carrying `IsPermanent` while RDM's Dualcast (1249), Swiftcast (167), Triplecast
   (1211) and Occult Quick (4260) do not, and concluded the proc had no clock. Wrong inference
   from a real flag. What is permanent is the **trait**. And the flag is not a duration signal at
@@ -788,9 +788,9 @@ Upstream WrathCombo merge: `c35a28de3..13b821ec7`, 14 commits, 72 files.
   proc makes spending it promptly more urgent. What is retracted is the claim that standing down
   "cannot strand a cooldown *because* it never expires". It does not strand one, but the reason
   is that the fallback cast spends the proc on the very next GCD.
-- **Slide-casting: a Dualcast that is coming now counts as one in hand.** Joey: *"if you're
-  casting something and move at the last moment, you're still going to get that dualcast proc,
-  but you won't detect the buff until after you've queued the next input."* Exactly the failure
+- **Slide-casting: a Dualcast that is coming now counts as one in hand.** Reported: casting and
+  moving at the last moment still grants that dualcast proc,
+  but the buff is not detectable until after the next input is queued. Exactly the failure
   shape of v1.0.4.145/.146, reached from the other end - there the plugin raced its own Occult
   Quick press, here it races the player's movement. New `OccultDualcastIncoming`: while Phantom
   Red Mage is the equipped support job and a cast bar is running, a Dualcast is inbound and every
@@ -960,8 +960,8 @@ Upstream WrathCombo merge: `c35a28de3..13b821ec7`, 14 commits, 72 files.
 
 ### Fixed
 - **Space Swiftcast away from Occult Quick, at the one place every combo passes through.**
-  Joey, after .144 and .145 both failed to stop it: *"There is a queueing system. Your gate is
-  based on a buff. The buff isn't up before the spell finishes casting."* Exactly right. Occult
+  Reported after .144 and .145 both failed to stop it: there is a queueing system; the gate was
+  based on a buff, and the buff is not up before the spell finishes casting. Exactly right. Occult
   Quick is a 1.5s cast that Gluttony fires itself, and what goes out next is decided while that
   cast is still in flight - before the status exists - so a `HasStatusEffect` gate reads false
   and Swiftcast gets queued in behind it. `HasFreeInstantCasts` covers the cast as well as the
@@ -1010,8 +1010,8 @@ Upstream WrathCombo merge: `c35a28de3..13b821ec7`, 14 commits, 72 files.
   shipped a production build reading "[testing]" and how v1.0.4.144 first packaged with
   v1.0.4.143's notes; and (2) no longer silently bumps `<Version>` when the csproj version is
   already registered for the target channel. It throws and names the two real options instead;
-  `-AutoBump` restores the old edit-for-you behaviour and `-Republish` re-cuts the same version.
-  The silent bump had already produced a 1.0.4.145 build with no CHANGELOG section behind my back.
+  `-AutoBump` restores the old automatic-edit behaviour and `-Republish` re-cuts the same version.
+  The silent bump had already produced a 1.0.4.145 build with no CHANGELOG section.
 
 ## v1.0.4.144 (2026-08-20) [testing]
 
@@ -1133,8 +1133,8 @@ Upstream WrathCombo merge e36d39214 -> 9a491ae5c (76 commits; upstream 1.0.4.20 
 - **Dragoon: Battle Litany becomes visible to auto-rotation.** Upstream removed a
   preset filter that excluded any internal name ending in "any" - which was catching
   `DRG_ST_BattleLitany` and `DRG_AoE_BattleLitany` by accident on the substring
-  "Lit-any". Those two presets now behave like every other option. If you do not want
-  Battle Litany fired automatically, untick it in the DRG config.
+  "Lit-any". Those two presets now behave like every other option. To keep
+  Battle Litany manual, untick it in the DRG config.
 
 **Kept over upstream:**
 
@@ -1339,7 +1339,7 @@ still present byte-for-byte).
   Villain (5401 / 4195) are treated as invincible unless the local player has the matching
   Epic Hero (4192) / Fated Hero (4194) status — per the status text, damage from anyone
   not dubbed the matching Hero is nullified. Auto-rotation now skips/retargets off the
-  head your half of the raid cannot damage. Keyed on the villain status rather than head
+  head the player's half of the raid cannot damage. Keyed on the villain status rather than head
   BaseIds (green head 19474/19476, blue head 19475/19477) so later FT:M bosses reusing
   the duel system are covered automatically; Vaunted pair (4197/4196) included for parity.
   IDs verified against the live 7.55 sqpack (Status, BNpcName, ContentFinderCondition)
@@ -1362,7 +1362,7 @@ under `src/GluttonyCombo/GluttonyCombo/` with the namespace renamed.
 
 Upstream inserted `Phantom_Dancer_SteadfastStance` at **110090** and shipped its own
 implementation of the 7.55 phantom jobs, renumbering **45 Phantom_* presets by +1..+3**.
-Preset state is persisted by enum value, so **every Phantom job toggle you had set is now
+Preset state is persisted by enum value, so **every Phantom job toggle that was set is now
 pointing at the wrong feature.** Re-check the Occult Crescent section of the config after
 updating. Nothing outside the `Phantom_*` range is affected.
 
@@ -1656,11 +1656,11 @@ cannot reduce own HP to less than 1"* — it is the survival window, not merely 
 
 ### Changed
 - **`Phantom_Necromancer_HpFloor` (default 50%) replaced by `Phantom_Necromancer_HpFloorPct`
-  (default 90%).** The floor gates *survival*, not damage: casting at 50% leaves you at 40%
-  needing a heal to **full** within 10s or the self-Doom kills you, which solo does not happen.
+  (default 90%).** The floor gates *survival*, not damage: casting at 50% leaves the character at 40%
+  needing a heal to **full** within 10s or the self-Doom kills, which solo does not happen.
   Drain Touch's "cannot reduce own HP to less than 1" does not cover it, because Doom is not an
   attack. The config key was deliberately renamed rather than re-defaulted so an existing saved
-  50 does not silently persist a lethal setting; re-set the slider if you want it lower.
+  50 does not silently persist a lethal setting; re-set the slider for anything lower.
   `OccultCrescent_Config.cs`.
 - Necromancer config help text now states that Doom is unaffected by the Drain Touch HP floor
   effect, and that Drain Touch is held until a line spell is ready.
@@ -1876,7 +1876,7 @@ cannot reduce own HP to less than 1"* — it is the survival window, not merely 
 - Known, deliberate trade-offs: cast-time cures will not fire while moving (`MovementLeeway` is
   0, so any movement blocks a cast) - the oGCD cures still work; Silence blocks the spells and
   Amnesia the abilities; Elixir is ordered last among the party-wide cures; and in combat a cure
-  will still clip your own damage cast, which is the trade that makes it reliable.
+  will still clip the player's own damage cast, which is the trade that makes it reliable.
 
 ## v1.0.4.114 (2026-08-02) [testing]
 
@@ -2161,16 +2161,16 @@ cannot reduce own HP to less than 1"* — it is the survival window, not merely 
 
 ### Fixed
 - **Phantom Necromancer was paying the whole cost of its line spells and collecting none of
-  the payoff, and could kill you doing it.** Deep Freeze, Hell Wind, Chaos Drive and Doomsday
+  the payoff, and could kill the character doing it.** Deep Freeze, Hell Wind, Chaos Drive and Doomsday
   each consume 10% of maximum HP and self-apply Doom for 10s - and those two tooltip lines
   carry *no* "when under the effect of Drain Touch" qualifier, unlike the riders. Only the
   reward is conditional: Drain Touch lifts 300 potency to 400 (350 to 500 on Doomsday) and
   unlocks the 4s time freeze, the petrify chance, the paralysis and Doomsday's enemy-buff
   dispel. `TryGetNecromancerAction` had no Drain Touch check and no HP floor, so it cast all
-  four on cooldown: 10% of your HP per cast, a 10-second Doom re-armed each time, and Doom
+  four on cooldown: 10% of max HP per cast, a 10-second Doom re-armed each time, and Doom
   clears only on a heal to *full*. New `NecromancerCostIsAffordable` gate requires the Drain
   Touch buff, an HP floor (new `Phantom_Necromancer_HpFloor` slider, default 50%), and that
-  you are not already Doomed - recasting refreshes the counter but takes another 10%, moving
+  Doom is not already active - recasting refreshes the counter but takes another 10%, moving
   full HP further away rather than closer. Doom status `5473` verified against the live sheet
   ("Certain death when counter reaches zero. Effect dissipates once fully healed."); legacy
   row `1769` checked defensively.
@@ -2513,13 +2513,13 @@ cannot reduce own HP to less than 1"* — it is the survival window, not merely 
 ## v1.0.4.77 (2026-07-11)
 
 ### Changed
-- **Auto Positionals now skips when your target is targeting you.** When the
+- **Auto Positionals now skips when the target is targeting the player.** When the
   "Auto Positionals (Melee DPS)" option is enabled, `PositionalMover.MoveToPositional`
   now returns early if the current target has the local player as its target
-  (`battleTarget.TargetObjectId == Player.Object.GameObjectId`). A mob focused on you
-  rotates to face you as you reposition, so the flank/rear can never be reached and the
-  mover would otherwise just circle-strafe it. It now holds position and lets you attack
-  from the front. Complements the existing guards (True North, omnidirectional targets,
+  (`battleTarget.TargetObjectId == Player.Object.GameObjectId`). A mob focused on the player
+  rotates to face the player during repositioning, so the flank/rear can never be reached and the
+  mover would otherwise just circle-strafe it. It now holds position and lets attacks
+  continue from the front. Complements the existing guards (True North, omnidirectional targets,
   BossMod AI, active player movement input). `AutoRotation/PositionalMover.cs`.
 
 ## v1.0.4.76 (2026-07-05)
@@ -2727,10 +2727,10 @@ cannot reduce own HP to less than 1"* — it is the survival window, not merely 
 ### Fixed
 - **BLU auto-rotation no longer idles when damage spells are available.** The terminal GCD filler
   was a hand-picked list of specific spells; if none matched it returned nothing. It now iterates
-  your entire slotted spellbook (`ActiveBLUSpells`) and casts the first off-cooldown, in-range
+  the entire slotted spellbook (`ActiveBLUSpells`) and casts the first off-cooldown, in-range
   damage spell. Only an explicit exclusion set is skipped — buffs, heals, mitigation, hard CC,
   knockbacks/draws, suicides/self-damage, instant-KO/%HP gimmicks, and the cooldown-managed damage
-  + DoTs the cascade already handles. Any damage spammable you slot is picked up automatically with
+  + DoTs the cascade already handles. Any slotted damage spammable is picked up automatically with
   no per-spell configuration.
 
 ## v1.0.4.52 (2026-06-18)
@@ -2920,7 +2920,7 @@ cannot reduce own HP to less than 1"* — it is the survival window, not merely 
 
 ### Added
 - **Channels implemented (Phantom Flurry, Apokalypsis), not excluded.** Cast on cooldown when stationary and in range, then HELD with a no-op (All.SavageBlade) so no other action cancels the channel; Phantom Flurry fires its 600 finisher just before expiry. Apokalypsis yields to the instant Being Mortal when both are slotted (shared recast).
-- **Revenge Blast modeled by its synergy** -- valued at 500 only when your HP < 20% (never self-harms to set it up), otherwise treated as the ~50 it is.
+- **Revenge Blast modeled by its synergy** -- valued at 500 only when HP < 20% (never self-harms to set it up), otherwise treated as the ~50 it is.
 - **Debug readout.** Settings -> Debug -> Blue Mage Data -> 'ST Advanced Engine' shows CanWeave, the chosen weave/GCD action, and a per-spell active/ready/charge table for diagnosing what the engine sees.
 
 ### Notes
@@ -2942,7 +2942,7 @@ cannot reduce own HP to less than 1"* — it is the survival window, not merely 
 ## v1.0.4.27 (2026-05-31)
 
 ### Added
-- **Full damaging-spell catalog for the BLU autorotation.** The engine now covers the entire Blue Mage damage kit (single-target AND AoE), not a curated subset, so it casts whatever damaging spells you actually have slotted instead of idling once a few were on cooldown. Added (verified IDs via Garland): Goblin Punch (34563), Mountain Buster (11428), Quasar (18324), Both Ends (23287), Aqua Breath (11390), High Voltage (11387), Glower (11404), Plaincracker (11391), Drill Cannons (11398), 1000 Needles (11397), Stotram (23269), Aetherial Spark (23281), Water Cannon (11385), plus the damaging spells already in constants (Mustard Bomb, Peripheral Synthesis, Ram's Voice, Knight's Tours, Perpetual Ray). AoE oGCDs/GCDs are included because they also hit the primary target and serve as filler. `Combos/PvE/BLU/BLU_Helper.cs`.
+- **Full damaging-spell catalog for the BLU autorotation.** The engine now covers the entire Blue Mage damage kit (single-target AND AoE), not a curated subset, so it casts whatever damaging spells are actually slotted instead of idling once a few were on cooldown. Added (verified IDs via Garland): Goblin Punch (34563), Mountain Buster (11428), Quasar (18324), Both Ends (23287), Aqua Breath (11390), High Voltage (11387), Glower (11404), Plaincracker (11391), Drill Cannons (11398), 1000 Needles (11397), Stotram (23269), Aetherial Spark (23281), Water Cannon (11385), plus the damaging spells already in constants (Mustard Bomb, Peripheral Synthesis, Ram's Voice, Knight's Tours, Perpetual Ray). AoE oGCDs/GCDs are included because they also hit the primary target and serve as filler. `Combos/PvE/BLU/BLU_Helper.cs`.
 
 ### Fixed
 - **DoT re-application while already up.** Mortal Flame is a permanent DoT, so `GetStatusEffectRemainingTime` returns 0, which defeated the old `remaining > 3s` skip and caused constant re-casting. DoTs are now treated as up if the debuff is detected with time left OR we cast it on this exact target within its own duration (per-target wall-clock via `JustUsedOn`), with explicit handling for permanent DoTs. This also hardens Breath of Magic / Song of Torment against status-readback gaps.
@@ -2964,7 +2964,7 @@ cannot reduce own HP to less than 1"* — it is the survival window, not merely 
 - **Anchor corrected.** `BLU_ST_AdvancedMode` now anchors on the verified Sonic Boom action; the previous Water Cannon anchor used an unverified id and has been removed.
 
 ### Notes
-- Still ALPHA / greedy single-target only; no Moon Flute burst window, AoE, heals, or tank/mitigation yet. Spells you have slotted that are outside the catalog are still not auto-cast -- coverage broadens in later phases.
+- Still ALPHA / greedy single-target only; no Moon Flute burst window, AoE, heals, or tank/mitigation yet. Slotted spells outside the catalog are still not auto-cast -- coverage broadens in later phases.
 
 ## v1.0.4.25 (2026-05-31)
 
@@ -3065,7 +3065,7 @@ cannot reduce own HP to less than 1"* — it is the survival window, not merely 
 ## v1.0.4.14 (2026-05-18)
 
 ### Added
-- **Hold to Repeat**: New toggleable option (Main UI Options > Hold to Repeat) that continuously fires your last combo-replaced action while you hold the hotbar button. Automatically respects GCD, animation lock, and casting state. Stops immediately when you release the button.
+- **Hold to Repeat**: New toggleable option (Main UI Options > Hold to Repeat) that continuously fires the last combo-replaced action while the hotbar button is held. Automatically respects GCD, animation lock, and casting state. Stops immediately when the button is released.
 
 ## v1.0.4.13 (2026-05-18)
 

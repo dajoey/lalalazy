@@ -6,7 +6,7 @@ are preserved in `LICENSE`.
 
 ## v0.2.2.0 (2026-09-05)
 
-- Added the in-game "What's new" popup. After LazyOccultCrescent updates, its changelog now opens once inside the game so you can see what changed without going to GitHub. It waits until you are logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/lazyoccult changelog` any time to reopen it.
+- Added the in-game "What's new" popup. After LazyOccultCrescent updates, its changelog now opens once inside the game so the changes are visible without a trip to GitHub. It waits until the character is logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/lazyoccult changelog` any time to reopen it.
 - No change to Occult Crescent behaviour: the pathfinder, FATEs, critical encounters, forked tower, mob farmer and the emergency stop all work exactly as before.
 
 ## v0.2.1.0 (2026-08-01) [testing]
@@ -96,7 +96,7 @@ A comment block explaining the trap now sits at the top of `ChainHelper.cs`.
 - **Unchecked pointer dereference.** `CriticalEncounterTracker` dereferenced
   `PublicContentOccultCrescent.GetInstance()` with no null check, every frame.
   Every other call site in the codebase checks. A null here is an
-  `AccessViolationException`, which .NET will not let you catch - it takes the game
+  `AccessViolationException`, which cannot be caught in .NET - it takes the game
   client down, not the module.
 - **`TreasureTracker` could throw on two chests of the same type.**
   `ToDictionary(o => o.BaseId, ...)` throws `ArgumentException` on a duplicate key,
@@ -170,16 +170,16 @@ the tracked object instead of replacing it, which also removes the per-frame chu
     arrive. Buff steps are now skipped in combat rather than attempted and failed.
   - **The job restore was a chain link, not a guarantee.** Anything that aborted
     the sequence skipped it. `BuffManager` now carries an independent restore
-    watchdog: it records the job you were on before buffing and puts you back on
-    it if a sequence ends with you somewhere else. It waits for combat to end,
-    retries up to five times, and then gives up on the assumption you changed job
-    deliberately - it will not fight you.
+    watchdog: it records the job held before buffing and restores
+    it if a sequence ends elsewhere. It waits for combat to end,
+    retries up to five times, and then gives up on the assumption the job was changed
+    deliberately - it will not fight the player.
 - `ReturnChain` built its own buff sequence directly instead of going through
   `BuffManager`, so that path had no restore tracking at all. Both paths now come
   through one factory.
 
 ### Notes
-- Re-enable buffing to test this. If it still strands you, the log line
+- Re-enable buffing to test this. If the character still gets stranded, the log line
   `[Buff] buff sequence left job as X, restoring to Y` shows the watchdog firing,
   and `could not restore ... after N attempts` shows it giving up.
 
@@ -292,10 +292,10 @@ with it in a second zone.
 - **Automation yields to manual control.** There was no player-input detection
   anywhere in the codebase. vnavmesh drives by feeding movement input and follows
   a waypoint list computed once at the start of a chain, so walking away from an
-  automated route left it steering toward a waypoint you had already abandoned -
+  automated route left it steering toward an already-abandoned waypoint -
   which reads in game as the character turning round and marching back to where
-  you deviated. Now: movement input pauses automation, and on resume the route is
-  **recomputed from where you actually are** rather than continued from where it
+  the player deviated. Now: movement input pauses automation, and on resume the route is
+  **recomputed from the current position** rather than continued from where it
   left off.
   Detecting input rather than movement is the load-bearing part - the character is
   always "moving" while vnavmesh drives it, so a position delta cannot tell the two
@@ -306,10 +306,10 @@ with it in a second zone.
   line through a pack because the floor is walkable - and it has no avoidance API.
   Occult Crescent has no flying, so routing over the problem is not an option
   either. But vnav exposes `Pathfind` (hand back the waypoints) and `FollowPath`
-  (walk a list I give you), so routes are now post-processed: any segment passing
+  (walk a supplied list), so routes are now post-processed: any segment passing
   within 16y of a hostile gets a detour waypoint inserted perpendicular to the
   segment, on the side away from the threat, snapped to the navmesh.
-  Deliberately conservative: mobs already targeting you are skipped (the combat
+  Deliberately conservative: mobs already targeting the player are skipped (the combat
   handlers own that), anything within 30y of the destination is treated as the
   objective rather than an obstacle, detours are capped at 6 per route, and if no
   reachable detour exists it walks the direct line rather than refusing to move.
@@ -318,9 +318,9 @@ with it in a second zone.
 ### Notes
 - Aggro radius is a fixed 16y rather than derived per-mob. Real sight aggro varies
   by enemy and field-operation elites reach further, so this errs wide. If specific
-  pulls still catch you, that number is the thing to raise.
+  pulls still catch the player, that number is the thing to raise.
 - The detour is geometric, not tactical: it does not know about patrol paths, so a
-  mob walking toward the detour point can still meet you there.
+  mob walking toward the detour point can still meet the player there.
 
 ## v0.0.3.0 (2026-08-01) [testing]
 
@@ -332,7 +332,7 @@ with it in a second zone.
     position"` when the territory is missing - and North Horn was missing. So
     *every* Return-based navigation in North Horn died mid-chain and the
     Automator fell through to whatever option was left, which is the erratic
-    behaviour you actually see. Added the North Horn entry.
+    observed behaviour. Added the North Horn entry.
   - **`SmartNavigation.Decide` priced "Return then walk" against South Horn's
     aetheryte.** It used the `Aethernet.BaseCamp` literal at
     (830.75, 72.98, -695.98) while North Horn's is at (880.00, 259.74, 880.06) -
@@ -456,7 +456,7 @@ with it in a second zone.
   same scoped source.
 - **Silent empty generator runs.** A zone whose chests do not match the hardcoded
   SGB filter (1596/1597) produced a structurally valid, completely empty JSON and
-  reported success - indistinguishable from a real run until you are stood in game
+  reported success - indistinguishable from a real run until standing in game
   looking at a blank radar. Both generators now log raw layout instance count against
   post-filter count, refuse to start on an empty node set, and say why in the panel.
 - Replaced five obsolete Dalamud API calls in the debug panels
