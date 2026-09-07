@@ -1,4 +1,4 @@
-using Dalamud.Bindings.ImGui;
+﻿using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
 using ECommons;
@@ -46,6 +46,16 @@ namespace LazyMarketCompanion;
 /// The same grid addons are reused by the game for the retainer's inventory view, where they show the
 /// RETAINER's containers, not the player's bags. A marker there would lie, so the whole feature
 /// stands down while a retainer inventory window is open.
+///
+/// VISIBILITY (0.1.24.0): the 7.x "Inventory" window (AddonInventoryExpansion) owns ALL grids as
+/// child addons - the four E-grids, the key-items "event" grids and a crystal grid - and a page
+/// switch only hides the hidden grids' ROOT NODE. The AtkUnitBase of a hidden grid stays alive,
+/// ready, and even reads IsVisible (AtkUnitBaseVisibilityState.Show), which is why 0.1.18.0-0.1.23.0
+/// still drew the correct per-bag dot SETS over the wrong page. The gate below reads the addon's
+/// RootNode's NodeFlags.Visible via AtkResNode::IsVisible - the same per-node flag CCL's
+/// InventoryExpansion HideIcons/SetColors manage - so a dot is drawn only for a grid whose slots
+/// are actually on screen this frame. Layout-agnostic on purpose: no assumption about how pages
+/// map to bag indexes is needed, and a game-side page/refresh change cannot silently regress it.
 /// </summary>
 internal sealed class AutoMarketMarkers : Window, IDisposable
 {
@@ -67,6 +77,13 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
 
   /// <summary>The tabbed-mode parent window whose TabIndex says which bag the panel shows.</summary>
   private const string ParentInventoryAddon = "Inventory";
+
+  /// <summary>
+  /// The 7.x expanded parent (the window titled "Inventory" with the Items / Key Items &amp; Crystals
+  /// tab headers; AddonInventoryExpansion in ClientStructs). It owns every grid as a child addon and
+  /// hides a hidden page's grids at the NODE level, not the addon level.
+  /// </summary>
+  private const string InventoryExpansionAddon = "InventoryExpansion";
 
   /// <summary>Green dot: this stack is on the Auto-Market list (ImGui ABGR-packed; a readable green).</summary>
   private const uint OnListColorPacked = 0xFF3CE63C; // R=0x3C G=0xE6 B=0x3C A=0xFF
@@ -113,6 +130,15 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
             && GenericHelpers.IsAddonReady(retainerAddon))
           return;
 
+        // 0.1.24.0 visibility gate. The expanded parent owns every grid as a child addon; switching
+        // to the "Key Items & Crystals" page hides the bag grids' ROOT NODE but leaves their addons
+        // live, ready, and (misleadingly) AtkUnitBase-IsVisible. Resolve the bindings as before,
+        // then skip any binding whose grid's root node is not Visible this frame (per-binding gate
+        // in the draw loop below). A frame where the whole parent is gone still resolves normally -
+        // TryGetAddonByName will simply stop finding the child grids once the window is closed.
+        var expansionLive = GenericHelpers.TryGetAddonByName<AtkUnitBase>(InventoryExpansionAddon, out var expansion)
+            && GenericHelpers.IsAddonReady(expansion);
+
         BuildEntriesScratch();
 
         // Collect the live grids first: which container a grid shows is decided by MODE, not by
@@ -137,6 +163,14 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
         {
           if (!GenericHelpers.TryGetAddonByName<AtkUnitBase>(binding.GridName, out var addon)
               || !GenericHelpers.IsAddonReady(addon))
+            continue;
+
+          // THE 0.1.24.0 GATE: a hidden child grid keeps its addon alive and its container loaded,
+          // but its root node's Visible flag is off while the player is on another page. Drawing
+          // over it put the dots on whatever page was actually displayed (the Key Items & Crystals
+          // bleed-through). AtkResNode::IsVisible reads NodeFlags.Visible down the root node -
+          // the same flag the game itself toggles per page.
+          if (expansionLive && !addon->RootNode->IsVisible())
             continue;
 
           DrawForGrid(binding.GridName, addon, BagTypes[binding.BagIndex]);

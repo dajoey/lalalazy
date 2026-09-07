@@ -1,4 +1,10 @@
-# Changelog
+﻿# Changelog
+
+## v0.1.24.0 (2026-09-07)
+
+### Fixed
+
+- **Bag-marker dots bled through onto the "Key Items & Crystals" page of the 7.x inventory window: with that page open, dots for the player's four bags were drawn across the key-item and crystal slots.** The 7.x window owns every grid (all four bags plus the key-item/crystal grids) as CHILD addons, and switching pages only hides the hidden grids' root NODE - the hidden grid's addon itself stays alive, ready, and even reports IsVisible, so the marker pass still found it, still read the right container, and drew its dots at the stale node positions of a grid that was not on screen (which is exactly where the key-item page's cells now sit). Each resolved grid is now gated on its own RootNode's Visible flag (AtkResNode::IsVisible, the same per-node flag the game toggles per page) before any dot is drawn, so a dot only ever appears over a grid that is actually on screen this frame; the "Key Items & Crystals" page carries none, and every visible bag page is unchanged (files: `AutoMarketMarkers.cs` Draw per-binding RootNode gate + InventoryExpansionAddon const, doc comment).
 
 ## v0.1.23.0 (2026-09-07)
 
