@@ -1,4 +1,13 @@
 # Changelog
+## v0.1.16.2 (2026-09-07)
+
+### Fixed
+
+- **The vendoring leg fix, republished with corrected release notes - no plugin code changed from 0.1.16.1.** The 0.1.16.1 notes overclaimed the offline test count (they said 348; the shipped suite measures 334 PASS / 0 FAIL), and these notes are what the in-game popup shows, so the number was corrected and the testing build republished under a new version number.
+
+### Notes
+
+- What 0.1.16.1 fixed (details in its section below): the vendoring leg now WAITS for the retainer bell menu to come back instead of glancing at it once, and when the leg genuinely cannot run the sweep stops ON PURPOSE with a named reason in chat and log instead of dying in a "Clearing N remaining tasks because of timeout" abort.
 ## v0.1.16.1 (2026-09-07)
 
 ### Fixed
@@ -10,7 +19,7 @@
 ### Notes
 
 - When a sweep stops this way, the chat line reads "value gate: vendoring stopped the sweep - <reason>" and the log carries the same reason with "Stopping the sweep here on purpose (stop-on-failure)". Start the sweep again once the cause is clear - a bell menu that did not come back usually just needs the game window focused again.
-- Offline test suite now at 348 checks, up from 334. The new cases pin the menu-open decision table (including the negative control that a real menu with the entrust entry still clicks through) and the stop-on-failure wording, so neither can silently regress (files: `tests/LazyMarketCompanion.Harness/Program.cs`, cases 42-43).
+- Offline test suite at 334 checks including the new cases. The new cases pin the menu-open decision table (including the negative control that a real menu with the entrust entry still clicks through) and the stop-on-failure wording, so neither can silently regress (files: `tests/LazyMarketCompanion.Harness/Program.cs`, cases 42-43).
 
 ## v0.1.16.0 (2026-09-07)
 
