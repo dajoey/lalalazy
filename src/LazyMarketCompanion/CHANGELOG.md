@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.1.15.1 (2026-09-07)
+
+### Fixed
+
+- **The vendoring leg is silent-skipped on a retainer whose market board is FULL - the most common shape for it (the board fills with the items worth listing).** On a full board the Auto-Market plan has zero listings, and the 0.1.15.0 code ended the retainer session on that path BEFORE reaching the vendoring trigger, so the gate announced what it would vendor, listed nothing, vendored nothing, and printed no failure - "planned 1 op, executed 0, said nothing" (files: `MarketAutomation.cs`, `BuildListingStepsNow`/`BuildVendoringSteps`/`EnqueueVendorLegTrigger`/`RunVendorLegAtSessionEnd`).
+- The deeper defect under it: 0.1.15.0 defined the vendor-plan builder (`BuildVendoringSteps`) but never CALLED it - no code path anywhere invoked it, so no retainer ever had a vendor plan to run. The builder is now called on every Auto-Market retainer session, on the nothing-to-list path as well as the listing path, and the session-end trigger is queued on both (files: `MarketAutomation.cs`, `BuildListingStepsNow`/`BuildVendoringSteps`).
+- The trigger also moved: it was queued at the END of the whole sweep queue, after every remaining retainer and after the closing "done" line - the done line would have reported vendored counts before the leg ran. It is now inserted to run at the end of EACH retainer's own session, closing the sell list if that step has not run yet, so the vendored count in the closing line reflects the retainer it just visited (files: `MarketAutomation.cs`, `EnqueueVendorLegTrigger`/`RunVendorLegAtSessionEnd`).
+
+### Notes
+
+- What a full-board retainer does now: the gate prices the items, announces the vendoring, the plan records the stacks, and at the end of that retainer's session the plugin closes the sell list, opens the retainer inventory panel from the bell menu, sells the planned stacks, and closes the panel - all before the next retainer starts. If the leg cannot run (the bell menu never comes back), the closing line still says "0 of N planned stack(s) were vendored" - never silence.
+- The offline test suite is now at 352 checks, up from 346. Case 41 pins the run shape: a full board (0 free slots) still yields a vendor op for held-back stock, the listing planner plans zero ops on it, the pinch scope for "listed nothing" stays "leave it alone", and the done line for a planned-but-unexecuted leg carries the failure clause.
+
+
 ## v0.1.14.0 (2026-09-07)
 
 ### Changed

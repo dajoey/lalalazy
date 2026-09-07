@@ -969,6 +969,15 @@ internal sealed class MarketAutomation : Window, IDisposable
     foreach (var note in plan.Notes)
       Svc.Log.Information($"[LMC] plan: {note}");
 
+    // 0.1.15.1: the vendor plan is built BEFORE the empty-listing early return, and the trigger is
+    // queued on BOTH paths. 0.1.15.0 reached the trigger only past that return, so a retainer with a
+    // full market board (0 free slots, the common shape) ended its session with the gate's vendoring
+    // decision unexecuted and unannounced (t_bbb89c49). BuildVendoringSteps no-ops unless the gate
+    // actually held items back, so runs with no vendor verdicts are byte-for-byte unchanged.
+    BuildVendoringSteps();
+    if (_vendorPlanPlaced || _vendorPlannedCount > 0)
+      EnqueueVendorLegTrigger();
+
     if (plan.Ops.Count == 0)
     {
       Communicator.PrintInfo(plan.Notes.Count > 0 ? $"Nothing to list ({plan.Notes[0]})." : "Nothing to list.");
@@ -990,13 +999,15 @@ internal sealed class MarketAutomation : Window, IDisposable
   }
 
   /// <summary>
-  /// The retainer-vendor leg (0.1.12.0). Turns the gate's Vendor-verdict rules into concrete VendorOps
-  /// from the CURRENT stock (same snapshot the plan just used) and inserts one throttled step per op.
-  /// Every op re-verifies its slot inside ExecuteVendor, so a plan built on a stale snapshot fails
-  /// safe item by item. No travel - AgentRetainer is active - and this runs inside the same retainer
-  /// session Auto-Market already drives.
+  /// The retainer-vendor leg (0.1.12.0, wired 0.1.15.1). Turns the gate's Vendor-verdict rules into
+  /// concrete VendorOps from the CURRENT stock (same snapshot the plan just used). Every op
+  /// re-verifies its slot inside ExecuteVendor, so a plan built on a stale snapshot fails safe item
+  /// by item. No travel - AgentRetainer is active - and the leg runs inside the same retainer
+  /// session Auto-Market already drives. 0.1.15.0 defined this method but never CALLED it: the
+  /// vendor plan existed only as dead code, and the full-board path additionally returned before
+  /// the trigger was queued (t_bbb89c49).
   /// </summary>
-  private void BuildVendoringSteps(List<Step> steps)
+  private void BuildVendoringSteps()
   {
     var held = AutoMarketService.HeldBackRules;
     if (held.Count == 0)
@@ -1032,19 +1043,25 @@ internal sealed class MarketAutomation : Window, IDisposable
   }
 
   /// <summary>
-  /// Queues (or refreshes) the end-of-session trigger that runs the vendor leg. Called from
-  /// BuildListingStepsNow - all three Auto-Market entry points funnel through it - so it works for the
-  /// sweep, the current-retainer button AND the AutoRetainer postprocess session. The trigger sits
-  /// AFTER the queued CloseRetainerSellList/CloseRetainer steps, because the panel the sell call needs
-  /// (InventoryRetainer / InventoryRetainerLarge) can only open once the bell's SelectString menu is
-  /// back; while the sell list is open there is no menu to click and no room on screen. If the session
-  /// ends without the menu returning (the chain died), the trigger sees no menu and says so in the log -
-  /// nothing is vendored, and the done line reports the shortfall honestly.
+  /// Inserts the trigger that runs the vendor leg at the end of this retainer's session. Called from
+  /// BuildListingStepsNow on BOTH the listing and the nothing-to-list path - all three Auto-Market
+  /// entry points (sweep, current-retainer button, AutoRetainer postprocess) funnel through it.
+  /// 0.1.15.1 semantics: the trigger is INSERTED, so it sits at the front of the remaining queue -
+  /// ahead of this session's close steps and ahead of the sweep's other retainers. It closes the
+  /// sell list itself if that step has not run yet, then uses the bell menu (the panel the sell
+  /// call needs - InventoryRetainer / InventoryRetainerLarge - only opens from the menu; while the
+  /// sell list is open there is no menu). If the session ends without the menu returning (the chain
+  /// died), the trigger says so in the log and the done line reports the shortfall honestly.
   /// </summary>
   private void EnqueueVendorLegTrigger()
   {
-    _taskManager.Enqueue(RunVendorLegAtSessionEnd, 120000, "VendorLeg");
-    Svc.Log.Debug("[LMC] vendor leg trigger queued for the end of this retainer session");
+    // 0.1.15.1: INSERT, not Enqueue. Inserting puts the trigger ahead of the steps this session has
+    // already queued (pinch close, sell-list close, bell close) and ahead of the sweep's remaining
+    // retainers - the leg runs at the END OF THIS retainer's session, which is what the done line's
+    // vendored counts assume. Enqueue would have run it after AnnounceRunDone, i.e. after the whole
+    // sweep had already reported.
+    _taskManager.Insert(RunVendorLegAtSessionEnd, 120000, false, "VendorLeg");
+    Svc.Log.Debug("[LMC] vendor leg trigger inserted for the end of this retainer session");
   }
 
   /// <summary>
@@ -1054,13 +1071,23 @@ internal sealed class MarketAutomation : Window, IDisposable
   /// planned op, then closes the panel and the agent. Fails the leg honestly: planned N, executed M,
   /// with per-op reasons in the log.
   /// </summary>
-  private bool? RunVendorLegAtSessionEnd()
+  private unsafe bool? RunVendorLegAtSessionEnd()
   {
     var plan = _vendorPlan;
     var placed = _vendorPlanPlaced;
     _vendorPlanPlaced = false;
     if (!placed || plan == null || plan.Ops.Count == 0)
       return true;
+
+    // 0.1.15.1: the trigger is INSERTED at the front of the queue, ahead of the session's own
+    // CloseRetainerSellList/CloseRetainer steps (Enqueue would place it AFTER every remaining
+    // retainer and after AnnounceRunDone - the done line would report a shortfall before the leg
+    // ever ran). While the sell list is still open the bell menu does not exist yet, so the open
+    // step below waits for it; CloseRetainerSellList becomes a no-op (the addon is gone) and
+    // CloseRetainer leaves the menu open for us. Vendoring therefore happens INSIDE this
+    // retainer's session, before its done line.
+    if (GenericHelpers.TryGetAddonByName<AtkUnitBase>("RetainerSellList", out var sellList) && GenericHelpers.IsAddonReady(sellList))
+      sellList->Close(true);
 
     if (Plugin.Configuration.ShowAutoMarketMessages)
       Communicator.PrintInfo($"value gate: vendoring {plan.Ops.Count} stack(s) at the retainer (est {plan.Ops.Sum(o => o.EstGil):N0} gil)");
@@ -1104,6 +1131,9 @@ internal sealed class MarketAutomation : Window, IDisposable
   /// </summary>
   private static unsafe bool? ClickRetainerEntrust()
   {
+    // 0.1.15.1: the menu not being on screen YET is the normal case - this step now runs while the
+    // sell list close is still in flight. Wait (retry); the step's own time limit reports the
+    // honest failure if the menu never comes back.
     if (!(GenericHelpers.TryGetAddonByName<AtkUnitBase>("SelectString", out var addon) && GenericHelpers.IsAddonReady(addon)))
       return false;
     var menu = new AddonMaster.SelectString(addon);
@@ -1871,6 +1901,9 @@ internal sealed class MarketAutomation : Window, IDisposable
   /// </summary>
   private void AnnounceRunDone()
   {
+    // 0.1.15.1: with the leg running inside each retainer's session, counters at zero here mean the
+    // leg genuinely never executed (chain died before the trigger) - the per-retainer trail is in
+    // the log either way.
     if (_vendorPlannedCount > 0 && _vendoredThisRun == 0 && _vendorFailedThisRun == 0)
     {
       Svc.Log.Error($"[LMC] vendor: planned {_vendorPlannedCount} op(s) but the leg never executed");

@@ -1739,5 +1739,46 @@ var Catalogue = new (uint Id, string Name)[]
     && DoneLine.Format(1, 0, 0, 0, 2).Contains(", 2 vendoring op(s) failed"));
 }
 
+// 41. THE FULL-BOARD VENDOR GAP (t_bbb89c49, 0.1.15.0 shipped defect): on a retainer with a FULL
+//     market board (0 free slots), the gate planned vendoring but the session ended before the
+//     vendor trigger was queued - plan had 0 listing ops, BuildListingStepsNow returned early, and
+//     BuildVendoringSteps (which 0.1.15.0 never called from anywhere) never ran. The run "planned 1
+//     op, executed 0, said nothing" (Joey's 01:05:56 log). The pins here: the vendor decision is
+//     INDEPENDENT of market slots (a full board still yields vendor ops for held-back stock), the
+//     full-board pinch scope is Nothing, and a planned-but-unexecuted leg renders the honest
+//     failure clause in the done line.
+{
+  const uint Item = 19990;                       // the exact item id from the 01:05:56 run
+  var fullBoard = new List<MarketSlot>();        // 20/20 occupied: 0 free slots
+  for (var i = 0; i < 20; i++) fullBoard.Add(new MarketSlot(i, 9999u, false, 1));
+  var stock = new List<StockStack> { new(StockOrigin.Retainer, 10000, 0, Item, false, 12) };
+  var prices = new Dictionary<uint, (uint, uint)> { [Item] = (30, 10) };
+  var heldRule = new ItemRule(Item, false, 99, 0, 0, 0, true, true, 0, 999);
+
+  var vendorPlan = VendorPlanner.Plan([heldRule], stock, prices, preferHq: true);
+  Check("41 full-board: the vendor plan does NOT depend on free market slots (1 op from held-back stock)",
+    vendorPlan.Ops.Count == 1, $"ops={vendorPlan.Ops.Count}");
+  Check("41 full-board: the op addresses the retainer page the item is in",
+    vendorPlan.Ops.Count == 1 && vendorPlan.Ops[0].Container == Ret1 && vendorPlan.Ops[0].Quantity == 12,
+    string.Join(",", vendorPlan.Ops));
+
+  // The listing side of that same retainer: nothing can be planned into a full board.
+  var listingPlan = AutoMarketPlanner.Plan([Rule(Dye, 5)], stock, fullBoard, Opts());
+  Check("41 full-board: the listing planner plans 0 ops (the 0.1.15.0 early-return shape)",
+    listingPlan.Ops.Count == 0, $"ops={listingPlan.Ops.Count}");
+
+  // And the pinch scope for "listed nothing" is Nothing - the session truly had nothing to do
+  // EXCEPT the vendor leg, which is exactly why it must be queued on the empty-plan path too.
+  Check("41 full-board: pinch scope for 0 listed is Nothing (no re-pass)",
+    PinchScope.Decide(false, 0) == PinchAfterMarket.Nothing);
+
+  // The honest-failure contract: the gate ANNOUNCED vendoring (the 01:05:56 chat line) but the leg
+  // never executed, so the run closes with the failure clause - never silence.
+  var plannedNotRun = DoneLine.Format(0, 0, 0, 0, 1);
+  Check("41 full-board: a run that planned 1 and executed 0 prints the failure clause, not silence",
+    plannedNotRun == "done: 0 new listing(s), 1 vendoring op(s) failed (see log).",
+    plannedNotRun);
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
