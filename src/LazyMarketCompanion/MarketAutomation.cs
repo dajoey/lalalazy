@@ -52,6 +52,12 @@ internal sealed class MarketAutomation : Window, IDisposable
   private int _listedTotal;
   private int _listingFailures;
   private int _vendoredThisRun;
+  private int _vendorFailedThisRun;
+  // The vendored leg is DEFERRED to the end of the retainer session (see EnqueueVendorLegTrigger):
+  // the plan is built with the listings and fired after the sell list closes and the bell menu is back.
+  private VendorPlan? _vendorPlan;
+  private bool _vendorPlanPlaced;
+  private int _vendorPlannedCount;
 
   // "Pinch only what I just listed" bookkeeping. Which listings qualify is decided from the market
   // CONTAINER since 0.1.6.0 - a slot this run listed into that is still at the placeholder price - and the
@@ -371,7 +377,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     }
 
     _taskManager.Enqueue(RemoveTalkAddonListeners);
-    _taskManager.Enqueue(() => Communicator.PrintSweepDone(_listedTotal, _listingFailures, _vendoredThisRun, 0), "AnnounceSweepDone");
+    _taskManager.Enqueue(AnnounceRunDone, "AnnounceSweepDone");
     _taskManager.Enqueue(() => AutoRetainerIPC.Suppressed(false));
   }
 
@@ -403,7 +409,7 @@ internal sealed class MarketAutomation : Window, IDisposable
 
     ClearState();
     _taskManager.Enqueue(() => InsertAutoMarketThenPinch(), "AutoMarketCurrent");
-    _taskManager.Enqueue(() => Communicator.PrintSweepDone(_listedTotal, _listingFailures, _vendoredThisRun, 0), "AnnounceDone");
+    _taskManager.Enqueue(AnnounceRunDone, "AnnounceDone");
   }
 
   // =====================================================================================
@@ -975,9 +981,11 @@ internal sealed class MarketAutomation : Window, IDisposable
       AddListingSteps(listing, op);
     InsertSteps(listing);
 
-    // 0.1.12.0: the gate VENDORED these instead of holding them - plan the vendor ops into the same
-    // queue, right after the listings. Queue order is the "listed first then vendored" ask.
-    BuildVendoringSteps(steps);
+    // 0.1.12.0 vendored these instead of holding them, with the vendor steps inserted alongside the
+    // listing steps - but the retainer inventory panel can only open AFTER the sell list closes and
+    // the bell menu is back, so 0.1.15.0 queues a trigger that runs the leg at the end of this
+    // retainer's session instead (AutoRetainer's own order: menu -> panel -> sell -> close).
+    EnqueueVendorLegTrigger();
     return true;
   }
 
@@ -1012,25 +1020,122 @@ internal sealed class MarketAutomation : Window, IDisposable
       return;
     }
 
-    Svc.Log.Information($"[LMC] plan: {plan.Ops.Count} vendor op(s): {string.Join(", ", plan.Ops.Select(o => $"{(InventoryType)o.Container}:{o.Slot} item{o.ItemId}x{o.Quantity}"))}");
+    _vendorPlan = plan;
+    _vendorPlanPlaced = true;
+    Svc.Log.Information($"[LMC] plan: {plan.Ops.Count} vendor op(s): {string.Join(", ", plan.Ops.Select(o => $"{o.ContainerName()}:{o.Slot} item{o.ItemId}x{o.Quantity}"))}");
     long est = 0;
     foreach (var op in plan.Ops)
       est += op.EstGil;
+    _vendorPlannedCount = plan.Ops.Count;
     if (Plugin.Configuration.ShowAutoMarketMessages)
       Communicator.PrintInfo($"value gate: vendoring {plan.Ops.Count} stack(s) through the retainer (est {est:N0} gil)");
+  }
 
-    var vendorSteps = new List<Step>();
-    foreach (var op in plan.Ops)
+  /// <summary>
+  /// Queues (or refreshes) the end-of-session trigger that runs the vendor leg. Called from
+  /// BuildListingStepsNow - all three Auto-Market entry points funnel through it - so it works for the
+  /// sweep, the current-retainer button AND the AutoRetainer postprocess session. The trigger sits
+  /// AFTER the queued CloseRetainerSellList/CloseRetainer steps, because the panel the sell call needs
+  /// (InventoryRetainer / InventoryRetainerLarge) can only open once the bell's SelectString menu is
+  /// back; while the sell list is open there is no menu to click and no room on screen. If the session
+  /// ends without the menu returning (the chain died), the trigger sees no menu and says so in the log -
+  /// nothing is vendored, and the done line reports the shortfall honestly.
+  /// </summary>
+  private void EnqueueVendorLegTrigger()
+  {
+    _taskManager.Enqueue(RunVendorLegAtSessionEnd, 120000, "VendorLeg");
+    Svc.Log.Debug("[LMC] vendor leg trigger queued for the end of this retainer session");
+  }
+
+  /// <summary>
+  /// Runs at the end of a retainer session, once the bell menu is back. Opens the retainer inventory
+  /// panel by selecting the menu's entrust entry (Addon sheet row 2378, the same entry AutoRetainer's
+  /// TaskVendorItems uses to reach this panel), waits for the panel, fires one throttled call per
+  /// planned op, then closes the panel and the agent. Fails the leg honestly: planned N, executed M,
+  /// with per-op reasons in the log.
+  /// </summary>
+  private bool? RunVendorLegAtSessionEnd()
+  {
+    var plan = _vendorPlan;
+    var placed = _vendorPlanPlaced;
+    _vendorPlanPlaced = false;
+    if (!placed || plan == null || plan.Ops.Count == 0)
+      return true;
+
+    if (Plugin.Configuration.ShowAutoMarketMessages)
+      Communicator.PrintInfo($"value gate: vendoring {plan.Ops.Count} stack(s) at the retainer (est {plan.Ops.Sum(o => o.EstGil):N0} gil)");
+
+    // AutoRetainer's own precondition sequence (TaskVendorItems.Enqueue -> WaitUntilInventoryLoaded ->
+    // SafeSellSlot -> CloseAgentRetainer): the panel is reached through the bell menu's entrust
+    // entry, one SelectString click - not through AgentRetainer.Show.
+    var steps = new List<Step>();
+    steps.Add(new Step(ClickRetainerEntrust, "Vendor.OpenPanel", DelayAfterMs: 300));
+    steps.Add(new Step(() => AutoMarketService.IsRetainerInventoryOpen(), "Vendor.WaitPanel", TimeLimitMs: 10000));
+    steps.Add(new Step(() =>
     {
-      var captured = op;
-      vendorSteps.Add(new Step(() =>
+      if (!AutoMarketService.IsRetainerInventoryOpen())
       {
-        var ok = AutoMarketService.ExecuteVendor(captured);
-        if (ok) { _vendoredThisRun++; }
+        Svc.Log.Error("[LMC] vendor: the retainer inventory panel never opened - the value gate's vendoring leg did not run");
         return true;
-      }, $"Vendor{captured.Container}:{captured.Slot}", DelayAfterMs: 250));
+      }
+      var vendorSteps = new List<Step>();
+      foreach (var op in plan.Ops)
+      {
+        var captured = op;
+        vendorSteps.Add(new Step(() =>
+        {
+          var ok = AutoMarketService.ExecuteVendor(captured);
+          if (ok) { _vendoredThisRun++; } else { _vendorFailedThisRun++; }
+          return true;
+        }, $"Vendor{captured.ContainerName()}:{captured.Slot}", DelayAfterMs: 250));
+      }
+      vendorSteps.Add(new Step(CloseRetainerInventory, "Vendor.ClosePanel", DelayAfterMs: 200));
+      InsertSteps(vendorSteps);
+      return true;
+    }, "Vendor.Fire", DelayAfterMs: 100));
+    InsertSteps(steps);
+    return true;
+  }
+
+  /// <summary>
+  /// Selects the bell menu's "Entrust or withdraw items." entry (Addon sheet row 2378) to open the
+  /// retainer inventory panel - AutoRetainer's RetainerHandlers.SelectEntrustItems, matched by the
+  /// sheet text so it survives menu reordering. Returns false (retry) while the menu is not on screen.
+  /// </summary>
+  private static unsafe bool? ClickRetainerEntrust()
+  {
+    if (!(GenericHelpers.TryGetAddonByName<AtkUnitBase>("SelectString", out var addon) && GenericHelpers.IsAddonReady(addon)))
+      return false;
+    var menu = new AddonMaster.SelectString(addon);
+    var entries = menu.Entries;
+    var wanted = Plugin.AddonText(2378);
+    for (var i = 0; i < entries.Length; i++)
+    {
+      if (!string.IsNullOrEmpty(wanted) && entries[i].Text.StartsWith(wanted, StringComparison.OrdinalIgnoreCase))
+      {
+        Svc.Log.Debug($"[LMC] vendor: opening retainer inventory via menu entry '{entries[i].Text}'");
+        entries[i].Select();
+        return true;
+      }
     }
-    InsertSteps(vendorSteps);
+    Svc.Log.Warning($"[LMC] vendor: the retainer menu has no entrust entry (wanted Addon row 2378 text); cannot open the inventory panel");
+    return true;
+  }
+
+  /// <summary>Closes the retainer inventory panel (both layouts) so the bell menu is the only thing left open.</summary>
+  private static unsafe bool? CloseRetainerInventory()
+  {
+    if (GenericHelpers.TryGetAddonByName<AtkUnitBase>("InventoryRetainer", out var a) && GenericHelpers.IsAddonReady(a))
+    {
+      a->Close(true);
+      return true;
+    }
+    if (GenericHelpers.TryGetAddonByName<AtkUnitBase>("InventoryRetainerLarge", out var b) && GenericHelpers.IsAddonReady(b))
+    {
+      b->Close(true);
+      return true;
+    }
+    return false;
   }
 
   /// <summary>Fires (or skips) the gate's Universalis request; see the field block for why it exists.</summary>
@@ -1188,7 +1293,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     _taskManager.Enqueue(CloseRetainerSellList, "AR.CloseSellList");
     _taskManager.DelayNext(300);
     _taskManager.Enqueue(WaitSelectStringReady, 10000, "AR.WaitMenu");
-    _taskManager.Enqueue(() => Communicator.PrintSweepDone(_listedTotal, _listingFailures, _vendoredThisRun, 0), "AR.Announce");
+    _taskManager.Enqueue(AnnounceRunDone, "AR.Announce");
     _taskManager.Enqueue(() => EndArSession("done"), "AR.Finish");
   }
 
@@ -1759,6 +1864,22 @@ internal sealed class MarketAutomation : Window, IDisposable
     return scale;
   }
 
+  /// <summary>
+  /// The run's closing chat line, plus the announce-then-fail guard (0.1.15.0): a run that announced
+  /// vendoring and then executed none of it (the leg never ran - chain died, menu never came back)
+  /// says the shortfall in chat, not just in the log.
+  /// </summary>
+  private void AnnounceRunDone()
+  {
+    if (_vendorPlannedCount > 0 && _vendoredThisRun == 0 && _vendorFailedThisRun == 0)
+    {
+      Svc.Log.Error($"[LMC] vendor: planned {_vendorPlannedCount} op(s) but the leg never executed");
+      if (Plugin.Configuration.ShowAutoMarketMessages)
+        Communicator.PrintInfo($"value gate: 0 of {_vendorPlannedCount} planned stack(s) were vendored - the leg did not run (see log)");
+    }
+    Communicator.PrintSweepDone(_listedTotal, _listingFailures, _vendoredThisRun, 0, _vendorFailedThisRun);
+  }
+
   private void ClearState()
   {
     _newPrice = null;
@@ -1777,6 +1898,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     _listedTotal = 0;
     _listingFailures = 0;
     _vendoredThisRun = 0;
+    _vendorFailedThisRun = 0;
     AutoMarketService.ResetGateHeld();
     _preListPrice = null;
     _preListDone = false;

@@ -371,28 +371,50 @@ internal static unsafe class AutoMarketService
   }
 
   /// <summary>
-  /// Vendoring one stack through the retainer (0.1.12.0). The call is FFXIVClientStructs
+  /// True when the retainer inventory panel (InventoryRetainer or the large variant) is open and ready.
+  /// This panel is a SEPARATE UI from the sell list (RetainerSellList): the Auto-Market flow only opens
+  /// the latter, which is why the 0.1.12.0 vendor leg - gated on this panel - skipped every op.
+  /// </summary>
+  public static bool IsRetainerInventoryOpen()
+  {
+    return (GenericHelpers.TryGetAddonByName<AtkUnitBase>("InventoryRetainer", out var a) && GenericHelpers.IsAddonReady(a))
+        || (GenericHelpers.TryGetAddonByName<AtkUnitBase>("InventoryRetainerLarge", out var b) && GenericHelpers.IsAddonReady(b));
+  }
+
+  /// <summary>
+  /// Vendoring one stack through the retainer (0.1.12.0, reworked 0.1.15.0). The call is FFXIVClientStructs
   /// AgentRetainerItemCommandModule + RetainerItemCommand.HaveRetainerSellItem, exactly how
   /// AutoRetainer's InventorySpaceManager.SafeSellSlot drives the retainer's item menu headlessly
-  /// (its own enum member carries the same value, 5 = "Have Retainer Sell Items"); the session
-  /// precondition is the same one Auto-Market already satisfies - AgentRetainer active with the
-  /// retainer inventory loaded. The slot is RE-READ right before the call and every mismatch aborts
-  /// it, so a plan built on a stale snapshot can never vendor the wrong thing.
+  /// (its own enum member carries the same value, 5 = "Have Retainer Sell Items").
+  ///
+  /// Preconditions, in AutoRetainer's own order (TaskVendorItems.Enqueue -> WaitUntilInventoryLoaded ->
+  /// SafeSellSlot): AgentRetainer active, the retainer inventory PANEL open (InventoryRetainer /
+  /// InventoryRetainerLarge - a different UI from the sell list; the 0.1.12.0 build wrongly assumed the
+  /// sell-list session satisfied this and skipped every op), and the slot re-read. op.Container must be
+  /// a real game InventoryType (0.1.12.0 planned from the StockOrigin enum instead, which addressed the
+  /// wrong containers); the raw value is logged by NAME so this class of defect can never hide behind
+  /// a numeric log line again.
   /// </summary>
   public unsafe static bool ExecuteVendor(VendorOp op)
   {
-    var agent = AgentModule.Instance()->GetAgentByInternalId(AgentId.Retainer);
-    if (agent == null || !agent->IsAgentActive())
+    if (!op.HasKnownContainer)
     {
-      Svc.Log.Warning($"[LMC] vendor: agent retainer is not active, skipping item {op.ItemId} slot {op.Container}:{op.Slot}");
+      Svc.Log.Warning($"[LMC] vendor: op carries unknown container id {op.Container}; refusing (planner bug, item {op.ItemId} slot {op.Slot} untouched)");
       return false;
     }
 
-    var loaded = GenericHelpers.TryGetAddonByName<AtkUnitBase>("InventoryRetainer", out _) ||
-                 GenericHelpers.TryGetAddonByName<AtkUnitBase>("InventoryRetainerLarge", out _);
-    if (!loaded)
+    var agent = AgentModule.Instance()->GetAgentByInternalId(AgentId.Retainer);
+    if (agent == null || !agent->IsAgentActive())
     {
-      Svc.Log.Warning($"[LMC] vendor: retainer inventory panel not open, skipping item {op.ItemId} slot {op.Container}:{op.Slot}");
+      Svc.Log.Warning($"[LMC] vendor: agent retainer is not active, skipping item {op.ItemId} slot {op.ContainerName()}:{op.Slot}");
+      return false;
+    }
+
+    // The panel precondition, now ENFORCED upstream as queued steps (OpenRetainerInventory /
+    // WaitRetainerInventory) - this is the last-line check, not the only line.
+    if (!IsRetainerInventoryOpen())
+    {
+      Svc.Log.Warning($"[LMC] vendor: retainer inventory panel not open, skipping item {op.ItemId} slot {op.ContainerName()}:{op.Slot}");
       return false;
     }
 
@@ -405,7 +427,7 @@ internal static unsafe class AutoMarketService
     {
       var had = slot == null ? 0u : slot->ItemId;
       var hadQty = slot == null ? 0 : (int)slot->Quantity;
-      Svc.Log.Warning($"[LMC] vendor: slot {op.Container}:{op.Slot} changed since planning (had {had} x{hadQty}, planned {op.ItemId} x{op.Quantity}); skipping");
+      Svc.Log.Warning($"[LMC] vendor: slot {op.ContainerName()}:{op.Slot} changed since planning (had {had} x{hadQty}, planned {op.ItemId} x{op.Quantity}); skipping");
       return false;
     }
 

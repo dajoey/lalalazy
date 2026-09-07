@@ -74,16 +74,22 @@ public static class Communicator
         .Build());
   }
 
-  public static void PrintSweepDone(int listed, int failures, int vendored = 0, int heldBack = 0)
+  public static void PrintSweepDone(int listed, int failures, int vendored = 0, int heldBack = 0, int vendorFailures = 0)
   {
-    if (!Plugin.Configuration.ShowAutoMarketMessages && listed == 0 && failures == 0 && vendored == 0 && heldBack == 0)
+    if (!Plugin.Configuration.ShowAutoMarketMessages && listed == 0 && failures == 0 && vendored == 0 && heldBack == 0 && vendorFailures == 0)
       return;
 
-    var text = listed == 0 && failures == 0 && vendored == 0 && heldBack == 0
-      ? "done."
-      : $"done: {listed} new listing(s){(failures > 0 ? $", {failures} skipped (stock moved)" : string.Empty)}{(vendored > 0 ? $", {vendored} vendored" : string.Empty)}{(heldBack > 0 ? $", {heldBack} held back by the value gate" : string.Empty)}.";
-    Svc.Chat.Print(Prefix + text);
+    Svc.Chat.Print(Prefix + FormatDoneLine(listed, failures, vendored, heldBack, vendorFailures));
   }
+
+  /// <summary>
+  /// The Auto-Market run's closing chat line. The format lives in AutoMarket/DoneLine.cs
+  /// (Dalamud-free) so the offline harness can pin it (case 40). 0.1.15.0 adds the vendoring-failure
+  /// clause: the 0.1.12.0 build announced the vendoring plan and then reported nothing when every op
+  /// failed, so a 0/7 run read as success.
+  /// </summary>
+  public static string FormatDoneLine(int listed, int failures, int vendored, int heldBack, int vendorFailures)
+    => AutoMarket.DoneLine.Format(listed, failures, vendored, heldBack, vendorFailures);
 
   private static ItemPayload? RawItemNameToItemPayload(string itemName)
   {

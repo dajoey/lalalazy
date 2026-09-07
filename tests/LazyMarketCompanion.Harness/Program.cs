@@ -1407,16 +1407,16 @@ var Catalogue = new (uint Id, string Name)[]
   // keep 100 retainer: 159 retainer stock - 100 kept = 59 vendored from the 60-stack; bags keep 5 -> 25 + 12
   var plan = VendorPlanner.Plan([rule], stock, prices, preferHq: true);
   Check("vendor: retainer keep 100 - 159 retainer units minus 100 kept = 59 vendored",
-    plan.Ops.Where(o => o.Container == (int)StockOrigin.Retainer).Sum(o => o.Quantity) == 59, string.Join(",", plan.Ops));
+    plan.Ops.Where(o => o.Container == 10000).Sum(o => o.Quantity) == 59, string.Join(",", plan.Ops));
   Check("vendor: bags keep 5 -> the 30-stack vendors 25, the 12-stack vendors 12",
-    plan.Ops.Where(o => o.Container == (int)StockOrigin.Bags).Sum(o => o.Quantity) == 25 + 12, string.Join(",", plan.Ops));
+    plan.Ops.Where(o => o.Container == 0).Sum(o => o.Quantity) == 25 + 12, string.Join(",", plan.Ops));
   Check("vendor: the estimate is unit x qty at priceLow with prefer-HQ on for NQ stock",
     plan.Ops.Sum(o => o.EstGil) == (59 + 25 + 12) * 10);
 
   // keep bigger than the origin's stock: nothing vendored from that origin
   var keepAll = VendorPlanner.Plan([R(5111, keepR: 999)], stock, prices, true);
   Check("vendor: keep >= stock leaves that origin untouched",
-    keepAll.Ops.All(o => o.Container != (int)StockOrigin.Retainer), string.Join(",", keepAll.Ops));
+    keepAll.Ops.All(o => o.Container != 10000), string.Join(",", keepAll.Ops));
   Check("vendor: keep >= stock in BOTH origins -> no ops",
     VendorPlanner.Plan([R(5111, keepB: 999, keepR: 999)], stock, prices, true).Ops.Count == 0);
 
@@ -1434,9 +1434,9 @@ var Catalogue = new (uint Id, string Name)[]
 
   // disabled origins contribute nothing
   var halfRule = R(5111, bags: false);
-  Check("vendor: SellFromBags=false skips bag stock", VendorPlanner.Plan([halfRule], stock, prices, true).Ops.All(o => o.Container != (int)StockOrigin.Bags));
+  Check("vendor: SellFromBags=false skips bag stock", VendorPlanner.Plan([halfRule], stock, prices, true).Ops.All(o => o.Container != 0));
   var halfRule2 = R(5111, ret: false);
-  Check("vendor: SellFromRetainer=false skips retainer stock", VendorPlanner.Plan([halfRule2], stock, prices, true).Ops.All(o => o.Container != (int)StockOrigin.Retainer));
+  Check("vendor: SellFromRetainer=false skips retainer stock", VendorPlanner.Plan([halfRule2], stock, prices, true).Ops.All(o => o.Container != 10000));
   Check("vendor: both origins disabled -> no ops at all", VendorPlanner.Plan([R(5111, bags: false, ret: false)], stock, prices, true).Ops.Count == 0);
 }
 
@@ -1666,6 +1666,77 @@ var Catalogue = new (uint Id, string Name)[]
       quotes[(uint)(5000 + i)] = new ItemQuote((uint)(5000 + i), true, 1_788_708_000_000L - 3_600_000L, [new QuoteListing(8_000L + i * 500L, false, false)]);
     return quotes;
   }
+}
+
+
+// 39. THE VENDOR NO-OP (t_6223b845, 0.1.12.0 shipped defect): VendorOp.Container carried the
+//     StockOrigin enum (Bags=0/Retainer=1) instead of the stack's real game InventoryType, so every
+//     op addressed Inventory1/Inventory2 rather than Inventory1-4/RetainerPage1-7. The pre-call slot
+//     re-read read the WRONG container, found no matching stack, and all 7 ops aborted - Joey's
+//     2026-09-07 23:20 run vendored 0/7. The regression pin: the op's container IS the stock stack's.
+{
+  const uint Item = 5111;
+  var stock = new List<StockStack>
+  {
+    new(StockOrigin.Retainer, 10000, 0, Item, false, 99),   // RetainerPage1
+    new(StockOrigin.Retainer, 10004, 3, Item, false, 50),   // RetainerPage5
+    new(StockOrigin.Bags, 0, 2, Item, false, 30),           // Inventory1
+  };
+  var prices = new Dictionary<uint, (uint, uint)> { [Item] = (40, 10) };
+  var rule = new ItemRule(Item, false, 99, 0, 0, 0, true, true, 0, 999);
+
+  var plan = VendorPlanner.Plan([rule], stock, prices, preferHq: true);
+  Check("39 container: ops exist for every stack", plan.Ops.Count == 3, string.Join(",", plan.Ops));
+  Check("39 container: retainer ops carry the RETAINER PAGE id, not the origin enum (1)",
+    plan.Ops.Where(o => o.Container >= 10000).All(o => o.Container is 10000 or 10004),
+    string.Join(",", plan.Ops.Select(o => o.Container)));
+
+  // THE regression pin, phrased the way the 0.1.12.0 build failed: a raw origin value (0/1) must
+  // never appear as a container id for retainer stock.
+  Check("39 container: no retainer op carries a bag id",
+    plan.Ops.Where(o => o.Container < 10000).All(o => o.Container is >= 0 and <= 3),
+    string.Join(",", plan.Ops.Select(o => o.Container)));
+  Check("39 container: bag op carries Inventory1 (0) and slot 2",
+    plan.Ops.Any(o => o.Container == 0 && o.Slot == 2 && o.Quantity == 30), string.Join(",", plan.Ops));
+  Check("39 container: op from RetainerPage5 keeps slot 3",
+    plan.Ops.Any(o => o.Container == 10004 && o.Slot == 3), string.Join(",", plan.Ops));
+
+  // InventoryType naming: the value the log renders must be the game container, nameable.
+  var op1 = plan.Ops.First(o => o.Container == 10000);
+  Check("39 container: the log name for container 10000 resolves to RetainerPage1", op1.ContainerName() == "RetainerPage1");
+  Check("39 container: the log name for a bag op resolves to Inventory1",
+    plan.Ops.First(o => o.Container == 0).ContainerName() == "Inventory1");
+  Check("39 container: an unknown id renders as Unknown(n), never a fake bag name",
+    new VendorOp(4242, 0, Item, false, 1, 1).ContainerName() == "Unknown(4242)");
+
+  // HasKnownContainer: the executor's fail-safe accepts exactly the sellable containers.
+  var good = new List<int> { 0, 1, 2, 3, 2001, 10000, 10003, 10006, 12001 };
+  Check("39 container: HasKnownContainer accepts every sellable container",
+    good.All(c => new VendorOp(c, 0, Item, false, 1, 1).HasKnownContainer));
+  Check("39 container: HasKnownContainer refuses unknown ids (the 0.1.12.0 shape is caught)",
+    new VendorOp(4, 0, Item, false, 1, 1).HasKnownContainer == false
+    && new VendorOp(-1, 0, Item, false, 1, 1).HasKnownContainer == false
+    && new VendorOp(999, 0, Item, false, 1, 1).HasKnownContainer == false
+    && new VendorOp(19999, 0, Item, false, 1, 1).HasKnownContainer == false);
+}
+
+// 40. HONEST ACCOUNTING (t_6223b845): the done line reports planned-vs-vendored, so a run that
+//     vendors 0 of N says so in chat instead of announcing the plan and going quiet. The format
+//     lives in AutoMarket/DoneLine.cs (Dalamud-free); Communicator.PrintSweepDone delegates to it.
+{
+  // the format contract, pinned character-for-character (the done line renders in chat)
+  Check("40 done-line: all-zero is plain 'done.'", DoneLine.Format(0, 0, 0, 0, 0) == "done.");
+  Check("40 done-line: the 0.1.12.0 7/7 failure renders '0 new listing(s), 7 vendoring op(s) failed'",
+    DoneLine.Format(0, 0, 0, 0, 7) == "done: 0 new listing(s), 7 vendoring op(s) failed (see log).");
+  Check("40 done-line: 3 listed + 2 vendored + 1 failed reads in order",
+    DoneLine.Format(3, 0, 2, 0, 1) == "done: 3 new listing(s), 2 vendored, 1 vendoring op(s) failed (see log).");
+  Check("40 done-line: no failed ops -> exactly the 0.1.12.0 line",
+    DoneLine.Format(3, 1, 2, 0, 0) == "done: 3 new listing(s), 1 skipped (stock moved), 2 vendored.");
+  Check("40 done-line: held-back still renders (0.1.11.0 polarity pin)",
+    DoneLine.Format(0, 0, 0, 4, 0) == "done: 0 new listing(s), 4 held back by the value gate.");
+  Check("40 done-line: failure clause only when nonzero",
+    !DoneLine.Format(1, 0, 0, 0, 0).Contains("failed")
+    && DoneLine.Format(1, 0, 0, 0, 2).Contains(", 2 vendoring op(s) failed"));
 }
 
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");

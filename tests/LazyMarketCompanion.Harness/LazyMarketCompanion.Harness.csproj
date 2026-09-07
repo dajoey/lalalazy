@@ -19,6 +19,7 @@
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\PinchBoardMemory.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\MarketGate.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\VendorPlanner.cs" />
+    <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\DoneLine.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\SaleHistoryPricing.cs" />
     <Compile Include="Program.cs" />
   </ItemGroup>

@@ -9,6 +9,19 @@
 
 ### Notes
 - What an empty board does now, end to end: the in-game Compare Prices path finds nothing, the plugin asks Universalis for the item's recent data-centre sales, and lists at the median of those sales when the newest is inside the 30-day freshness window - the behaviour ratified on the 0.1.8.0 decision card, now standard. The freshness guard still refuses to price off years-old data, and an item with no usable history at all still gets the message - with the reason in it.
+## v0.1.15.0 (2026-09-07)
+
+### Fixed
+
+- **The value gate's "Have Retainer Sell Items" vendoring never ran: it skipped every stack on "retainer inventory panel not open", while chat had already announced the vendoring.** Two defects, both in the 0.1.12.0 build (files: `AutoMarket/VendorPlanner.cs`, `Plan`; `AutoMarket/AutoMarketService.cs`, `ExecuteVendor`; `MarketAutomation.cs`, `BuildVendoringSteps`/`RunVendorLegAtSessionEnd`/`AnnounceRunDone`; `Communicator.cs`, `PrintSweepDone`).
+- The vendoring plan recorded WHICH stack to sell as the planner's own origin tag (bags = 0, retainer = 1) instead of the stack's real inventory id (RetainerPage1-7 = 10000+, Inventory1-4 = 0-3). The pre-call safety re-read then looked in the wrong container, found no matching stack, and every op aborted - the "slot 1:10" in the log was Inventory2, not the retainer page the item lived in. The ops now carry the real container id, the executor refuses any op outside the containers the retainer's sell action can address, and the log names containers ("RetainerPage1", "Inventory1") instead of bare numbers, so this class of defect can never hide behind "slot 1:10" again (files: `AutoMarket/VendorPlanner.cs`, `VendorOp.Container`/`ContainerName`/`HasKnownContainer`; `AutoMarket/AutoMarketService.cs`, `ExecuteVendor`).
+- The vendor call also needs the retainer inventory PANEL open (the window with the retainer's own bags), and the 0.1.12.0 build only ever opened the sell list - a different window - so even a correctly-addressed op would have been skipped. The leg now runs at the end of each retainer's Auto-Market session, after the sell list closes and the bell menu is back: it selects the menu's "Entrust or withdraw items." entry (the same path AutoRetainer uses for its own junk-selling), waits for the panel, sells the planned stacks, and closes the panel - all inside the same bell session, no extra walking (files: `MarketAutomation.cs`, `EnqueueVendorLegTrigger`/`RunVendorLegAtSessionEnd`/`ClickRetainerEntrust`/`CloseRetainerInventory`).
+- **The run now tells the truth about vendoring in chat.** The closing line reports failed vendoring ops ("done: 0 new listing(s), 7 vendoring op(s) failed (see log)") instead of only warning in the log, and a run that announced vendoring and then executed none of it says "0 of N planned stack(s) were vendored - the leg did not run" instead of going quiet (files: `AutoMarket/DoneLine.cs` new; `Communicator.cs`, `PrintSweepDone`; `MarketAutomation.cs`, `AnnounceRunDone`).
+
+### Notes
+
+- What a below-threshold run does now, end to end: the gate prices the items, announces what it will vendor, lists the keepers, then - at the end of that retainer's session - opens the retainer inventory panel and feeds it the planned stacks one at a time, re-reading each slot immediately before the sell call exactly as before. Anything that moved since the plan aborts that one op and is reported in the closing line. The safety polarity is unchanged: uncertain data still LISTs, never vendors.
+- The offline test suite is now at 346 checks, up from 344. The new ones pin the container-id fix (a retainer op must carry 10000+, a bag op 0-3, and the planner may never emit the origin-tag values), the container-name rendering, the executor's unknown-container refusal, and the done-line format including the new failure clause (files: `tests/LazyMarketCompanion.Harness/Program.cs`, cases 39-40).
 
 ## v0.1.13.0 (2026-09-06)
 
