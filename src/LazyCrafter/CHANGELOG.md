@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.1.6.12 (2026-09-07)
+
+### Changed
+- Pressing Dispatch no longer prints a wall of red errors when the only problem is where the character is standing: a cart that needs retainer stock is queued and the character is WALKED to the nearest summoning bell (the same Lifestream market-board trip the end-of-run walk uses), the fetch starts once a bell is actually reachable, and red errors are reserved for real dead ends - retrieval switched off in the settings, Artisan missing, or the bell still unreachable after 3 minutes (files: `Adapters/DispatchService.cs` `StartWave` gate now `BellWalkGate`, fetch phases gate at queue time via `BellGateAtQueue` with `FireBellWalkIfDue` firing the walk)
+- On a cart run, the per-recipe "not crafting X yet" lines at press time are no longer red: the loop re-plans after every wave and the end-of-run report still names whatever is genuinely stuck, once, in red; single-craft commands keep the red line (files: `Adapters/DispatchService.cs` `StartWave` deferral block)
+- The bell-walk setting now covers both trips - fetching materials at the start of a run and pulling the character's own market listings at the end - with a Settings label that says so (files: `Configuration.cs` `WalkToBellWhenBlocked`, `UI/SettingsTab.cs` checkbox label)
+
+### Notes
+- The waiting shows in the run status pane ("walking to a summoning bell to fetch your materials") and as one normal chat line when the walk starts; a walk that cannot even start stops trying after three refused launches, and the 3-minute cap ends the hold with a single red refusal.
+
 ## v0.1.6.11 (2026-09-06)
 
 ### Added

@@ -81,12 +81,15 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>
     /// After a run ends with materials that are blocked ONLY because they are listed for sale on the market board,
     /// send the character to the nearest market board via Lifestream (<c>/li mb</c>) - the summoning bells stand
-    /// with it - so the listings can be pulled and the cart resumed.
+    /// with it - so the listings can be pulled and the cart resumed. Since 0.1.6.12 (card t_034884f4) it also covers
+    /// the START of a fetch: when a cart's materials sit on the retainers and no summoning bell is reachable,
+    /// Dispatch queues the work and walks the character to the bell instead of refusing at press time.
     /// <para>
     /// ON by default (card t_35be7be5): being told which retainer to visit and then having to walk there yourself
-    /// is the manual step this removes. It fires ONLY when the run has ENDED (finished or stopped) AND the
-    /// listing-blocked summary is non-empty: never mid-craft, never on a clean run, and never for materials that
-    /// were merely slow. Turn it off to get the summary without the trip.
+    /// is the manual step this removes. It fires when a run has ENDED (finished or stopped) with a non-empty
+    /// listing-blocked summary, and at fetch-queue time while the walk is what a fetch is waiting for: never
+    /// mid-craft, never on a clean run, and never for materials that were merely slow. Turn it off to get the
+    /// summary without the trip - and the press-time fetch refusal back.
     /// </para>
     /// <para>
     /// Existing configs get it ON: it is a new field, so it takes the default, and v5 -> v6 deliberately does not

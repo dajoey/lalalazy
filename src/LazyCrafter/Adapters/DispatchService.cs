@@ -115,6 +115,19 @@ public sealed class DispatchService : IDisposable
     /// <summary>How many materials the batch session actually delivered into the bags (measured, counted like <see cref="_fetchedOk"/>).</summary>
     private int _batchFetched;
 
+    // ---- 0.1.6.12 (card t_034884f4): the queue-time summoning-bell gate ----
+
+    /// <summary>What <see cref="BellGateAtQueue"/> decided this tick: queue the fetch, hold for the bell walk, or dead-end refusal (already printed).</summary>
+    private enum BellGate { Proceed, Hold, Refused }
+
+    /// <summary>
+    /// Last market-board-walk launch time (queue-time bell gate, card t_034884f4). Persisted across waves so a
+    /// re-plan that still needs a bell does not re-fire the walk every wave: at most one launch per 30 s, and at
+    /// most three refused launches per hold before the walk stops trying (the 3-minute cap still ends the wait).
+    /// </summary>
+    private DateTime _bellWalkAt = DateTime.MinValue;
+    private int _bellWalkFails;
+
     // ---- 0.1.4.0: the wave loop, the stall guards, the heartbeat, the snapshot.
     private DispatchLoop? _loop;
     private readonly StallGuard _gatherStall = new(TimeSpan.FromMinutes(10));
@@ -424,6 +437,7 @@ public sealed class DispatchService : IDisposable
         _fetchBefore = _fetchedOk = 0;
         _batchFetched = 0;
         _batchCrafts = Array.Empty<uint>();
+        _bellWalkFails = 0;
         _current = null;
         _fetching = null;
         _runClock.Restart();
@@ -484,14 +498,18 @@ public sealed class DispatchService : IDisposable
         // queue is primed with the wave's recipes - the queued crafts plus deferred crafts whose blockers include a
         // retrieval (<see cref="RetainerBatch.Queue"/>). Items with no recipe row, and anything left over afterwards,
         // fall back to the per-item path.
-        var fetchBlocker = plan.Retrievals.Count == 0 ? null : WhyNoFetch();
+        //
+        // 0.1.6.12 (card t_034884f4): a press-time preflight only answers "can the fetch start THIS SECOND", and the
+        // bell is walkable - so the bell-only refusal no longer decides anything here (Joey: "there's no point in
+        // telling me that i'm not next to a retainer if the automation is going to put me there"). BellWalkGate
+        // returns null for that one blocker and the fetch phases below walk the character to the bell and retry;
+        // only a dead end (the toggle off, Artisan missing, the AllaganTools gate) still refuses at press time.
+        var fetchBlocker = plan.Retrievals.Count == 0 ? null : BellWalkGate();
         if (plan.Retrievals.Count > 0 && fetchBlocker is not null)
         {
             foreach (var r in plan.Retrievals)
                 Say($"retrieve before crafting: {Name(r.ItemId)} x{r.Quantity} from {r.Places} ({r.Detail}).");
-            Say($"cannot fetch it automatically: {fetchBlocker}.", error: true);
-            foreach (var r in plan.Retrievals) _unfetched.Add((r, fetchBlocker));
-            _retrievals.Clear();
+            RefuseRetrievals($"cannot fetch it automatically: {fetchBlocker}.", fetchBlocker);
         }
 
         if (_retrievals.Count > 0)
@@ -529,7 +547,16 @@ public sealed class DispatchService : IDisposable
         if (PlanReport.ManualLine(plan, Name) is { } manualLine) Say(manualLine);
         var willRetrieve = _retrievals.Count > 0;
         if (!willRetrieve)
-            foreach (var d in plan.Deferred) Say($"not crafting {Name(d.ResultItemId)} x{d.Crafts} yet - {Readable(d.Reason)}.", error: true);
+        {
+            // 0.1.6.12 (card t_034884f4): on a cart run the loop re-plans after every wave and the ending reports
+            // whatever is still stuck, so the press-time copy was a premature duplicate of reporting that happens
+            // anyway - red over a state the very next wave could fix (Joey: "you don't know the instant the button
+            // is pressed that these are problems"). The line stays at normal level and the Run tab still tracks
+            // every deferral; single-channel runs have no re-plan, so they keep the red line.
+            var deferRed = _loop is null;
+            foreach (var d in plan.Deferred)
+                Say($"not crafting {Name(d.ResultItemId)} x{d.Crafts} yet - {Readable(d.Reason)}.", error: deferRed);
+        }
 
         if (!plan.HasWork && !willRetrieve)
         {
@@ -554,6 +581,72 @@ public sealed class DispatchService : IDisposable
         if (!Fetch.Installed)
             return "Artisan is not installed or not loaded, and LazyCrafter drives its retainer withdrawal to do the fetching";
         return Fetch.SessionPreflight();
+    }
+
+    /// <summary>True when a preflight refusal is ONLY the reachable-bell miss - the one blocker the automation can walk off (card t_034884f4).</summary>
+    private static bool BellOnly(string why) => why.Contains("summoning bell", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// The press-time fetch gate (card t_034884f4, 0.1.6.12): the same checks as <see cref="RetainerFetch.SessionPreflight"/>,
+    /// except that when the ONLY blocker is a reachable-bell miss - a state the automation can fix by walking - and
+    /// the walk is enabled, it returns <c>null</c> so <see cref="StartWave"/> queues the wave with its retrievals
+    /// intact and lets the fetch phases walk. Every other refusal is a dead end and returns unchanged: those still
+    /// refuse at press time, red, exactly as before.
+    /// </summary>
+    private string? BellWalkGate()
+    {
+        var why = WhyNoFetch();
+        if (why is null) return null;
+        var walkable = _plugin.Config.WalkToBellWhenBlocked && Lifestream.Installed;
+        return BellOnly(why) && walkable ? null : why;
+    }
+
+    /// <summary>
+    /// The queue-time gate the fetch phases tick against (card t_034884f4). Proceed: a bell is reachable, or the
+    /// blocker is one the queue call itself will surface. Hold: the only blocker is a reachable-bell miss and the
+    /// character is being walked there - <see cref="FireBellWalkIfDue"/> fires the trip at most every 30 s and the
+    /// 3-minute cap (the phase clock, restarted on every entry into the fetch phases) bounds the wait. Refused: the
+    /// wait is over or the walk is impossible - the queue-time refusal has been printed once, red, every
+    /// still-queued retrieval is recorded in <see cref="_unfetched"/> with the live reason, and the caller must
+    /// leave the fetch path. The preflight is the completion signal: nothing is assumed about Lifestream's or
+    /// Artisan's timing. Framework thread.
+    /// </summary>
+    private BellGate BellGateAtQueue()
+    {
+        var pre = Fetch.SessionPreflight();
+        if (pre is null || !BellOnly(pre)) return BellGate.Proceed;
+        if (!_plugin.Config.WalkToBellWhenBlocked || !Lifestream.Installed)
+        {
+            RefuseRetrievals($"cannot fetch it automatically: {pre}.", pre);
+            return BellGate.Refused;
+        }
+        if (_phaseClock.ElapsedMilliseconds > 180_000)
+        {
+            RefuseRetrievals($"gave up waiting for a reachable summoning bell after 3 minutes ({pre}).", pre);
+            return BellGate.Refused;
+        }
+        FireBellWalkIfDue();
+        SetStatus("walking to a summoning bell to fetch your materials");
+        Heartbeat("walking to a summoning bell so the retainer fetch can run");
+        return BellGate.Hold;
+    }
+
+    /// <summary>Fire the market-board walk (the bell trip) for a standing-by fetch, at most once every 30 s and at most three refused launches per hold (card t_034884f4). <see cref="LifestreamDispatch.GoToMarketBoard"/> prints its own normal-channel line on success; a refusal is logged, not chatted, so a stuck walk never becomes a red wall.</summary>
+    private void FireBellWalkIfDue()
+    {
+        if (DateTime.UtcNow < _bellWalkAt.AddSeconds(30) || _bellWalkFails >= 3) return;
+        _bellWalkAt = DateTime.UtcNow;
+        var err = Lifestream.GoToMarketBoard();
+        if (err is not null) { _bellWalkFails++; _log.Information("summoning-bell walk did not start: {Why}", err); return; }
+        _bellWalkFails = 0;
+    }
+
+    /// <summary>The once-per-state collapse of the old per-material wall (card t_034884f4): one red line, every still-queued retrieval recorded with the live reason, queue emptied.</summary>
+    private void RefuseRetrievals(string line, string why)
+    {
+        Say(line, error: true);
+        foreach (var r in _retrievals) _unfetched.Add((r, why));
+        _retrievals.Clear();
     }
 
     /// <summary>Re-assess the cart's remaining lines against the LIVE bags and build the next wave's plan. Fresh leaves, fresh totals - never the snapshot's stale ones.</summary>
@@ -663,6 +756,14 @@ public sealed class DispatchService : IDisposable
                     if (!Poll(400)) break;
                     if (Fetch.Busy()) { SetStatus("waiting for Artisan's retainer queue"); break; }
 
+                    // 0.1.6.12 (card t_034884f4): the bell gate lives at QUEUE time, not press time. A bell-only
+                    // preflight miss holds here while the character is walked to the bell - the preflight itself is
+                    // the completion signal, so nothing is assumed about Lifestream's or Artisan's timing - and the
+                    // 3-minute cap ends the wait with the refusal the press-time path used to print.
+                    var gate = BellGateAtQueue();
+                    if (gate == BellGate.Hold) break;
+                    if (gate == BellGate.Refused) { _batchCrafts = Array.Empty<uint>(); Enter(Phase.Retrieve); break; }
+
                     // Queue the whole wave's demand as one session. A refusal here (unavailable overload, nothing
                     // queued) just falls through to the per-item path, which still moves what it can.
                     var batchErr = Fetch.BeginBatch(_batchCrafts);
@@ -735,6 +836,13 @@ public sealed class DispatchService : IDisposable
                     if (_retrievals.Count == 0) { AfterRetrieve(); break; }
                     if (!Poll(400)) break;
                     if (Fetch.Busy()) { SetStatus("waiting for Artisan's retainer queue"); break; }
+
+                    // 0.1.6.12 (card t_034884f4): the same queue-time bell gate as the batch path - the character is
+                    // walked to the bell BEFORE anything is dequeued, and a dead end empties the queue (the next
+                    // tick falls through to the channels).
+                    var itemGate = BellGateAtQueue();
+                    if (itemGate == BellGate.Hold) break;
+                    if (itemGate == BellGate.Refused) { Enter(Phase.Retrieve); break; }
 
                     _fetching = _retrievals.Dequeue();
                     _plugin.Inventory.DropMemo();
@@ -1377,9 +1485,11 @@ public sealed class DispatchService : IDisposable
     /// <summary>
     /// Send the player to the nearest summoning bell so the pull can actually happen (card t_35be7be5).
     /// <para>
-    /// Gated by <see cref="Configuration.WalkToBellWhenBlocked"/> (default ON) and fired ONLY from
-    /// <see cref="ReportBlockedListings"/> - i.e. only when the run has ended AND there is a non-empty
-    /// listing-blocked summary. Never mid-craft, never on a clean run, never when the only trouble was a timeout.
+    /// Gated by <see cref="Configuration.WalkToBellWhenBlocked"/> (default ON). Fired from
+    /// <see cref="ReportBlockedListings"/> - only when the run has ended AND there is a non-empty listing-blocked
+    /// summary - and, since 0.1.6.12 (card t_034884f4), at fetch-queue time from <see cref="FireBellWalkIfDue"/>
+    /// whenever a fetch is standing by for a reachable bell. Never mid-craft, never on a clean run, never when the
+    /// only trouble was a timeout.
     /// </para>
     /// <para>
     /// It reuses the EXISTING Lifestream path and adds no navigation of its own: <c>Lifestream.ExecuteCommand("mb")</c>
