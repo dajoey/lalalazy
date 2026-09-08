@@ -1,3 +1,13 @@
+## v0.1.27.0 (2026-09-08)
+
+### Changed
+
+- The Auto-Market closing line is now also written to the plugin log (Communicator.cs PrintSweepDone): it was chat-only, so the run summary - including how many stacks were vendored - never reached the harvested plugin logs and could not be checked from them after the fact. The log line carries the "[LMC] Auto-Market run" prefix and is written whenever the run listed, skipped, vendored, or failed at least one operation; a run that did nothing stays silent in both channels.
+
+### Notes
+
+- Chat output is unchanged: same line, same "Show Auto-Market messages" setting. Only the plugin log gains the twin line, which is what makes the vendored count checkable from plugin log history.
+
 ## v0.1.26.0 (2026-09-08)
 
 ### Fixed

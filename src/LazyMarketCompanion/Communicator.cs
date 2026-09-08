@@ -76,7 +76,16 @@ public static class Communicator
 
   public static void PrintSweepDone(int listed, int failures, int vendored = 0, int heldBack = 0, int vendorFailures = 0)
   {
-    if (!Plugin.Configuration.ShowAutoMarketMessages && listed == 0 && failures == 0 && vendored == 0 && heldBack == 0 && vendorFailures == 0)
+    var didAnything = listed != 0 || failures != 0 || vendored != 0 || heldBack != 0 || vendorFailures != 0;
+
+    // 0.1.27.0: the closing line is now written to the plugin log as well - it was chat-only, and
+    // chat lines never reach the harvested plugin logs, so a run's vendored count could not be
+    // verified from them after the fact. Logged whenever the run did anything; a no-op run stays
+    // silent in both channels.
+    if (didAnything)
+      Svc.Log.Information("[LMC] Auto-Market run " + FormatDoneLine(listed, failures, vendored, heldBack, vendorFailures));
+
+    if (!Plugin.Configuration.ShowAutoMarketMessages && !didAnything)
       return;
 
     Svc.Chat.Print(Prefix + FormatDoneLine(listed, failures, vendored, heldBack, vendorFailures));
