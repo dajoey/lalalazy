@@ -591,6 +591,21 @@ internal sealed class MarketAutomation : Window, IDisposable
           Svc.Log.Information("[LMC] pinch: nothing was listed on this retainer, leaving its listings alone");
           break;
       }
+      // 0.1.28.0: the pinch now runs BEFORE the vendoring leg, on the still-open sell list. Until
+      // 0.1.27.0 the leg trigger was inserted from BuildListingStepsNow, ahead of the listing steps,
+      // so a retainer that both listed and vendored closed the sell list on its way to the bell menu
+      // and the pinch that followed read a closed list ("the sell list could not be read at all") -
+      // its new listings were left at the 999,999,999 placeholder and never price-matched that
+      // session (2026-09-07 18:50 and 21:06, five stacks and one). The trigger is now inserted HERE,
+      // after the pinch pass has front-inserted its own steps: everything the pinch queued runs
+      // first with the sell list open, and the leg closes the list itself on its way to the menu
+      // (its own close is unchanged; the session close step treats an absent list as closed since
+      // 0.1.26.0). Inserting at this point still puts the leg ahead of the session's close steps and
+      // the sweep's remaining retainers, so the vendored count in the done line keeps reporting the
+      // retainer it just visited.
+      BuildVendoringSteps();
+      if (_vendorPlanPlaced || _vendorPlannedCount > 0)
+        EnqueueVendorLegTrigger();
       return true;
     }, "PinchAfterMarket", DelayAfterMs: 0));
 
@@ -1025,15 +1040,6 @@ internal sealed class MarketAutomation : Window, IDisposable
     foreach (var note in plan.Notes)
       Svc.Log.Information($"[LMC] plan: {note}");
 
-    // 0.1.15.1: the vendor plan is built BEFORE the empty-listing early return, and the trigger is
-    // queued on BOTH paths. 0.1.15.0 reached the trigger only past that return, so a retainer with a
-    // full market board (0 free slots, the common shape) ended its session with the gate's vendoring
-    // decision unexecuted and unannounced (t_bbb89c49). BuildVendoringSteps no-ops unless the gate
-    // actually held items back, so runs with no vendor verdicts are byte-for-byte unchanged.
-    BuildVendoringSteps();
-    if (_vendorPlanPlaced || _vendorPlannedCount > 0)
-      EnqueueVendorLegTrigger();
-
     if (plan.Ops.Count == 0)
     {
       Communicator.PrintInfo(plan.Notes.Count > 0 ? $"Nothing to list ({plan.Notes[0]})." : "Nothing to list.");
@@ -1046,10 +1052,6 @@ internal sealed class MarketAutomation : Window, IDisposable
       AddListingSteps(listing, op);
     InsertSteps(listing);
 
-    // 0.1.12.0 vendored these instead of holding them, with the vendor steps inserted alongside the
-    // listing steps - but the retainer inventory panel can only open AFTER the sell list closes and
-    // the bell menu is back, so 0.1.15.0 queues a trigger that runs the leg at the end of this
-    // retainer's session instead (AutoRetainer's own order: menu -> panel -> sell -> close).
     return true;
   }
 

@@ -2108,6 +2108,28 @@ var Catalogue = new (uint Id, string Name)[]
   Check("49 sight: control - no stock map keeps the old whole-list count (case 47 unchanged)",
     legacy.Judged == 2 && legacy.Unpriceable == 2,
     $"judged={legacy.Judged} unpriceable={legacy.Unpriceable}");
+
+  // 50. THE VENDOR LEG RUNS AFTER THE PINCH (t_2ecdbbae). Until 0.1.27.0 the leg trigger was
+  //     inserted from BuildListingStepsNow, ahead of the listing steps, so on a retainer that both
+  //     listed and vendored, the leg closed the sell list on its way to the bell menu and the pinch
+  //     that followed read a closed list - the new listings were left at the 999,999,999 placeholder
+  //     and never price-matched that session (2026-09-07 18:50: 5/5 vendored, 2 new listings
+  //     unpriced; 21:06: 1/1 vendored, same). The trigger now inserts from the PinchAfterMarket
+  //     step AFTER the pinch pass has queued its steps. These checks pin the ordering contract on
+  //     the two Dalamud-free facts the fix rests on; the MarketAutomation wiring is verified from
+  //     ffxivdb (acceptance below).
+  Check("50 ordering: the pinch decision reports the vendor leg must wait for it",
+    PinchScope.PinchRunsBeforeVendorLeg == true,
+    "PinchScope.PinchRunsBeforeVendorLeg must be true - the pinch pass reads the open sell list");
+  Check("50 ordering: a retainer that listed N still pinches exactly those N (scope unchanged by the reorder)",
+    PinchScope.Decide(pinchAllAfter: false, listedThisRetainer: 2) == PinchAfterMarket.NewListingsOnly
+      && PinchScope.Decide(pinchAllAfter: false, listedThisRetainer: 0) == PinchAfterMarket.Nothing
+      && PinchScope.Decide(pinchAllAfter: true, listedThisRetainer: 2) == PinchAfterMarket.FullRePass,
+    "the pinch scope decisions are unchanged by the ordering fix");
+  Check("50 ordering: a retainer that vendored without listing still gets Nothing (leg-only path unchanged)",
+    PinchScope.Decide(pinchAllAfter: false, listedThisRetainer: 0) == PinchAfterMarket.Nothing,
+    "a leg-only retainer must not gain a pinch pass it never had");
+
 }
 
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");

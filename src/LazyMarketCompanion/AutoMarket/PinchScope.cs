@@ -38,6 +38,13 @@ public enum PinchAfterMarket
 /// </summary>
 public static class PinchScope
 {
+  /// <summary>
+  /// Whether the vendoring leg may be queued at the moment the pinch decision runs: the pinch pass
+  /// must go first, while the sell list is still open (it reads the list to find the rows this run
+  /// just listed), so the leg trigger is only inserted AFTER the pinch pass has queued its steps.
+  /// Pure bookkeeping order - the gate's vendoring decision itself is unchanged.
+  /// </summary>
+  public static bool PinchRunsBeforeVendorLeg => true;
   /// <param name="pinchAllAfter">The "Pinch everything after listing" setting (<c>AutoMarketPinchAllAfter</c>).</param>
   /// <param name="listedThisRetainer">
   /// How many listings this run actually got onto this retainer's board. Zero covers both "the plan was empty

@@ -1,3 +1,15 @@
+## v0.1.28.0 (2026-09-08)
+
+### Fixed
+
+- **In a session that both lists and vendored, the retainer's new listings were never price-matched: they sat at the 999,999,999 gil placeholder until a later sweep happened to re-price them.** The vendoring leg's trigger was queued ahead of the session's remaining steps, so the leg ran before the pinch pass - and on its way to the bell menu it closes the retainer sell list, which the pinch needs open to find the rows the run just listed. The pinch that followed read a closed list ("the sell list could not be read at all") and left every new listing at the placeholder. On 2026-09-07 a retainer vendored five stacks and left two new listings unpriced (18:50), and another vendored one and left its new listing unpriced (21:06); every non-vendoring session priced its new listings correctly. The vendoring trigger is now inserted from the pinch step itself, AFTER the pinch pass has queued its rows: the pinch runs on the still-open sell list, then the leg closes the list itself and goes to the menu exactly as before (files: `MarketAutomation.cs` `BuildListingStepsNow`/`PinchAfterMarket` step; `AutoMarket/PinchScope.cs` `PinchRunsBeforeVendorLeg`).
+- A session that vendored without listing anything is unchanged, and so is a session that listed without vendoring: the reorder only moves the trigger relative to the pinch pass, and both of those shapes never had a pinch to displace.
+
+### Notes
+
+- Offline suite: new case 50 pins the ordering contract (the pinch decision reports the vendor leg must wait for it, and the three pinch-scope decisions are unchanged by the reorder), so a future edit cannot silently put the leg back in front of the pinch (files: `tests/LazyMarketCompanion.Harness/Program.cs`, case 50).
+- What to look for when verifying from the logs: a vendoring session now shows both its vendored stack lines AND a pinch that read the sell list ("pinch new-only: pricing N new listing(s)..." or "all N new listing(s) were opened on the expected row") - not the "sell list could not be read at all" pair the 2026-09-07 sessions printed.
+
 ## v0.1.27.0 (2026-09-08)
 
 ### Changed
