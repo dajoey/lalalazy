@@ -1,4 +1,11 @@
-﻿# Changelog
+## v0.1.26.0 (2026-09-08)
+
+### Fixed
+
+- The Auto-Market done line now survives a session that vendored (MarketAutomation.cs CloseRetainerSellList): the vendoring leg closes the sell list on its way to the bell menu, so by the time the session's own close step ran the addon was already gone; the step treated the absent addon as not-yet-done, retried into its time limit, and the timeout discarded the session's remaining steps - including the closing line that reports how many stacks were vendored. Both vendoring sessions on 2026-09-07 (five stacks on one retainer, one on another) ended with no done line at all. An absent sell list now counts as closed.
+- A false "the leg did not run" warning after a successful vendoring run (MarketAutomation.cs ClearState): the planned-op count was the one vendoring counter not reset between retainers, so every later retainer's closing line re-tested the first retainer's plan against its own zeroed counters and reported 0 of 5 planned stacks vendored for a run that vendored 5 of 5. The planned count and the plan itself are now cleared with the rest of the per-session state.
+
+# Changelog
 
 ## v0.1.25.0 (2026-09-07)
 

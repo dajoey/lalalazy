@@ -496,12 +496,17 @@ internal sealed class MarketAutomation : Window, IDisposable
 
   private static unsafe bool? CloseRetainerSellList()
   {
+    // 0.1.26.0: absent = already closed. The vendor leg (inserted ahead of this step) closes the
+    // sell list on its way to the bell menu, so the addon is gone by the time this step runs;
+    // returning false retried into the time limit and the timeout discarded the session's remaining
+    // steps (AR.Announce/Finish), killing the done line that reports the vendored count (the
+    // 2026-09-07 18:50 and 21:06 sessions both ended this way after vendoring 5/5 and 1/1).
     if (GenericHelpers.TryGetAddonByName<AtkUnitBase>("RetainerSellList", out var addon) && GenericHelpers.IsAddonReady(addon))
     {
       addon->Close(true);
       return true;
     }
-    return false;
+    return true;
   }
 
   private static unsafe bool? CloseRetainer()
@@ -2050,6 +2055,13 @@ internal sealed class MarketAutomation : Window, IDisposable
     _listingFailures = 0;
     _vendoredThisRun = 0;
     _vendorFailedThisRun = 0;
+    // 0.1.26.0: the planned count is per-run state too. It was the one vendor counter NOT reset
+    // here, so after a retainer planned N ops every later retainer's AnnounceRunDone re-tested
+    // retainer one's count against its own zeroed counters and printed a FALSE "vendor: planned N
+    // op(s) but the leg never executed" ERROR (and the matching chat line) for a run that vendored
+    // N/N - each of the three retainers after the 2026-09-07 18:50 session claimed 0 of 5.
+    _vendorPlannedCount = 0;
+    _vendorPlan = null;
     _vendorStopRequested = false;
     _vendorStopReason = null;
     _deferredAbortRequested = false;
