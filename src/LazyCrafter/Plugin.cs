@@ -1,3 +1,4 @@
+using Dalamud.Bindings.ImGui;
 using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
@@ -84,6 +85,11 @@ public sealed class Plugin : IDalamudPlugin
         // The catalog worker waits on GameDataLoad, so it can be created before the sheets are indexed.
 
         Pi.UiBuilder.Draw += _windows.Draw;
+        // 0.1.7.0 (card t_5191608a): the sequential resume-mode modal. Drawn directly on the UiBuilder
+        // tick - NOT a WindowSystem window - so it can never collide with the main window stack and
+        // opens exactly when a stage needs the player. One "Resume" button, routed into the same
+        // Dispatch.Resume() the Run tab and /lcraft resume already use.
+        Pi.UiBuilder.Draw += DrawStageModal;
         Pi.UiBuilder.OpenConfigUi += OpenMain;
         Pi.UiBuilder.OpenMainUi += OpenMain;
         ClientState.Login += OnLogin;
@@ -148,6 +154,37 @@ public sealed class Plugin : IDalamudPlugin
     }
 
     private void OpenMain() => _mainWindow.IsOpen = true;
+
+    /// <summary>
+    /// The one Resume modal (0.1.7.0, card t_5191608a). A staged run that hit a NeedsUser stage shows
+    /// exactly one popup here - title "LazyCrafter", the stage's message, a single "Resume" button -
+    /// and nothing else. The message is deduped by the controller (one emission per stage
+    /// transition, never per frame); this method only opens the ImGui popup for a message the
+    /// controller has not yet surfaced. Pressing Resume calls <see cref="DispatchService.Resume"/>,
+    /// the same continuation the Run tab button and /lcraft resume use - the run continues from
+    /// recorded state, never a plan restart. Draw thread.
+    /// </summary>
+    private void DrawStageModal()
+    {
+        var popup = Dispatch.StagePopupDue();
+        if (popup is null) return;
+        // Open the popup once per controller message: the controller's one-shot Popup property
+        // returns null the instant the modal has been opened for this message.
+        ImGui.OpenPopup("LazyCrafter");
+        if (ImGui.BeginPopupModal("LazyCrafter"))
+        {
+            ImGui.TextWrapped(popup);
+            ImGui.Spacing();
+            if (ImGui.Button("Resume", new Vector2(160f, 0f)))
+            {
+                ImGui.CloseCurrentPopup();
+                if (!Dispatch.Resume())
+                    ChatGui.PrintError("[LazyCrafter] nothing to resume.");
+                Dispatch.StagePopupAccepted();
+            }
+            ImGui.EndPopup();
+        }
+    }
 
     private void OnLogin()
     {
@@ -354,6 +391,7 @@ public sealed class Plugin : IDalamudPlugin
         ClientState.Login -= OnLogin;
         Inventory.Changed -= OnInventoryChanged;
         Pi.UiBuilder.Draw -= _windows.Draw;
+        Pi.UiBuilder.Draw -= DrawStageModal;
         Pi.UiBuilder.OpenConfigUi -= OpenMain;
         Pi.UiBuilder.OpenMainUi -= OpenMain;
         _changelog.Dispose();

@@ -8,7 +8,7 @@ namespace LazyCrafter;
 [Serializable]
 public sealed class Configuration : IPluginConfiguration
 {
-    public const int CurrentVersion = 8;
+    public const int CurrentVersion = 9;
 
     public int Version { get; set; } = CurrentVersion;
 
@@ -140,6 +140,25 @@ public sealed class Configuration : IPluginConfiguration
     /// </summary>
     public bool WalkToVendorsOnCart { get; set; } = true;
 
+    // ---- v9 (0.1.7.0, card t_5191608a) ----
+
+    /// <summary>
+    /// Sequential resume-mode (0.1.7.0, card t_5191608a): run the user-intervention-requiring parts
+    /// of a cart run FIRST as explicit stages - shopping stops (one modal per stop: buy, press
+    /// Resume), then the gather plan, then the craft queue - and kick into unattended mode (the
+    /// pre-0.1.7.0 run, no popups) once the stage machine believes the rest needs no human. Each
+    /// blocked stage shows ONE modal describing exactly what to do, with a single Resume button;
+    /// error spam is suppressed (one consolidated popup line per blocked stage, never repeated
+    /// per frame).
+    /// <para>
+    /// ON by default: this is the feature's first testing build and Joey asked for the cadence
+    /// ("do this and hit resume... then it kicks into unattended mode"). Turning it off restores
+    /// today's monolithic run exactly - the stage controller is created empty, which reads as
+    /// one unattended run from the first tick - so a bad stage machine cannot brick the plugin.
+    /// </para>
+    /// </summary>
+    public bool SequentialInterventionMode { get; set; } = true;
+
     /// <summary>The cart, so it survives a plugin reload.</summary>
     public List<CartEntry> Cart { get; set; } = new();
 
@@ -181,6 +200,10 @@ public sealed class Configuration : IPluginConfiguration
         // v7 -> v8: WalkToVendorsOnCart is new and defaults ON (Helm t-joey-1788793199911). Same shape again:
         // a config written before this version has no key, so the initialiser stands and existing users get
         // the vendor walk. Off is one checkbox in the settings and degrades to map flags plus chat names.
+        // v8 -> v9: SequentialInterventionMode is new and defaults ON (0.1.7.0, card t_5191608a). Same shape
+        // as v6/v7/v8: a config written before this version has no key for it, so the initialiser stands and
+        // existing users get the staged cadence - which is the point of the release. Off is one checkbox in
+        // the settings and restores the monolithic run.
         Cart ??= new List<CartEntry>();
         Version = CurrentVersion;
     }

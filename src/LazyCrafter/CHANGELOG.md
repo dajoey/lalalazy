@@ -1,4 +1,15 @@
 # Changelog
+## v0.1.7.0 (2026-09-08)
+
+### Added
+- **A cart run now takes its shopping stops first, with one popup per stop: buy, press Resume, then the run goes unattended.** When a cart needs things the player must buy in person (gil vendors, the market board, currency shops, manual sources), the run makes those stops its first order of business: each blocked wave shows exactly ONE modal - title "LazyCrafter", what to buy and where, a single "Resume" button - instead of a wall of chat errors. Pressing Resume re-checks the bags and continues the same cart; when the run believes the rest needs no player it kicks into unattended mode and behaves exactly as before, with no popups. Error spam is suppressed at the source: a blocked stage emits its popup once, at the stage transition, never per frame (files: `Core/RunStage.cs` new `RunStage`/`RunStageController`, `Adapters/DispatchService.cs` `TakeDecision`, `StartWave`, `Resume`, `StagePopupMessage`)
+- **New setting "Run shopping stops first with a popup per stop (buy, press Resume, then unattended)" (on by default).** Off restores the pre-0.1.7.0 run exactly: one continuous wave loop, no stage machine, no popups - so a bad stage machine can never brick the plugin (files: `Configuration.cs` config v9 `SequentialInterventionMode`, `UI/SettingsTab.cs`, `Plugin.cs` `DrawStageModal`)
+
+### Notes
+- The stage machine is pure Core (`Core/RunStage.cs`): it records Done / NeedsUser / Failed per stage and dedupes popup emissions by construction - a blocked stage re-recorded every framework tick still emits exactly one popup. Proved offline by the new `RunStageTests` suite in the harness (16 checks: one emission per blocked stage, no re-emit on 100 re-records, Resume advances without restarting, Done auto-continues, Failed records once, empty order = unattended).
+- The modal's Resume button routes into the same `DispatchService.Resume()` the Run tab button and `/lcraft resume` already use - the run continues from recorded state (re-plan from the live bags), never a plan restart.
+- A wave that blocks with NO shopping work (a fetch dead end, a refused hand-off) does not stage-block: the chat block already names everything, and a popup with nothing to do would be noise.
+
 ## v0.1.6.16 (2026-09-07)
 
 ### Fixed

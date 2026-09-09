@@ -35,6 +35,18 @@ namespace LazyCrafter.Adapters;
 /// <see cref="RunSnapshot"/> replaced on every phase change / status update (contract v1 with card t_c360953f).
 /// <c>/lcraft stop</c> aborts (retainer queue aborted, GBR off, Artisan stop request).
 /// </para>
+/// <para>
+/// <b>0.1.7.0 (card t_5191608a, Joey's Helm thread t-joey-1788719072159):</b> sequential
+/// resume-mode. When <see cref="Configuration.SequentialInterventionMode"/> is on, a cart run
+/// runs the user-intervention-requiring parts FIRST as explicit stages - the shopping stops
+/// (vendors, market board, currency shops, manual sources) - then the gather plan, then the
+/// craft queue, and kicks into unattended mode (this file's pre-0.1.7.0 behavior, no popups)
+/// once the stage controller believes the rest needs no human. Each blocked stage shows ONE
+/// modal (title "LazyCrafter", the what-to-do message, a single Resume button) exactly once -
+/// never one popup per frame. Resume continues from recorded state: the same re-plan-from-bags
+/// path every Resume in this file already uses, never a plan restart. The setting off makes
+/// <see cref="_stages"/> null and every stage call a no-op: the monolithic run, unchanged.
+/// </para>
 /// </summary>
 public sealed class DispatchService : IDisposable
 {
@@ -179,6 +191,15 @@ public sealed class DispatchService : IDisposable
     private string? _lastHeartbeat;
     private volatile RunSnapshot _snapshot = RunSnapshot.Empty;
 
+    // ---- 0.1.7.0 (card t_5191608a): the sequential resume-mode stage machine ----
+    /// <summary>
+    /// The staged-run coordinator, or null when <see cref="Configuration.SequentialInterventionMode"/>
+    /// is off (the pre-0.1.7.0 monolithic run) or the run is a single-channel one (CraftOne, GatherOne,
+    /// RetrieveOne, RetrieveOnly - no cart, no stages). Created by <see cref="DispatchCart"/> on the
+    /// framework thread; read here and from the draw thread (immutable reference, thread-safe).
+    /// </summary>
+    private volatile RunStageController? _stages;
+
     private readonly Stopwatch _phaseClock = new();
     private DateTime _nextPoll = DateTime.MinValue;
     private int _craftsDone, _craftsFailed;
@@ -192,6 +213,53 @@ public sealed class DispatchService : IDisposable
 
     /// <summary>Blocked or Failed with the cart still held - <see cref="Resume"/> will re-plan and continue.</summary>
     public bool CanResume => !Running && _loop is not null && _snap is not null;
+
+    // ---- 0.1.7.0 (card t_5191608a): the stage popup surface the draw thread reads ----
+
+    /// <summary>
+    /// The one-shot popup emission that is due right now, or null. The draw thread
+    /// (<see cref="Plugin.DrawStageModal"/>) reads this every frame; the stage controller arms it
+    /// exactly once per blocked-stage transition, so a blocked run shows ONE modal, never a popup
+    /// per frame. Null when the setting is off, the run is not staged, or nothing is blocked.
+    /// </summary>
+    public string? StagePopupDue() => _stages?.Popup;
+
+    /// <summary>The modal text of the currently blocked stage (or null) - what is on screen, not what is due.</summary>
+    public string? StagePopupShowing() => _stages?.PopupShowing;
+
+    /// <summary>
+    /// The draw thread accepted the popup emission (the modal opened for it). Consumes the
+    /// one-shot; the blocked state itself stays until Resume, so <see cref="StagePopupShowing"/>
+    /// keeps describing it for the Run tab.
+    /// </summary>
+    public void StagePopupAccepted() => _stages?.PopupSurfaced();
+
+    /// <summary>
+    /// The consolidated what-to-do message for a blocked wave's modal (0.1.7.0, card t_5191608a):
+    /// one popup line naming what to buy and where - never the per-item wall. Vendor stops say
+    /// their NPC and items; the market list says the board; currency shops and manual sources say
+    /// their own line. The chat block already printed the full detail; this is the popup's one
+    /// line, built from the same blocked-plan fields so the two can never disagree.
+    /// </summary>
+    private string StagePopupMessage(DispatchPlan.Plan plan)
+    {
+        var parts = new List<string>();
+        if (plan.Vendor.Count > 0)
+        {
+            var groups = Vendors.Plan(plan.Vendor.Select(p => (p.ItemId, p.Quantity)).ToList(), out _, Here());
+            var first = groups.Count > 0 ? groups[0] : default;
+            var npc = first.Where is { } w ? $"{w.NpcName} ({w.TerritoryName})" : "the gil vendor";
+            parts.Add($"buy {plan.Vendor.Count} vendor item(s) at {npc}");
+        }
+        if (plan.Market.Count > 0)
+            parts.Add($"buy {plan.Market.Count} market-board item(s) at the board");
+        if (plan.CurrencyShop.Count > 0)
+            parts.Add($"buy {plan.CurrencyShop.Count} currency-shop item(s)");
+        if (plan.Manual.Count > 0)
+            parts.Add($"fetch {plan.Manual.Count} manual item(s)");
+        var what = parts.Count == 0 ? "the missing materials" : string.Join(" and ", parts);
+        return $"Shopping stop: {what}. Buy what is missing, then press Resume.";
+    }
 
     public DispatchService(Plugin plugin, IFramework framework, IChatGui chat, IPluginLog log)
     {
@@ -325,6 +393,13 @@ public sealed class DispatchService : IDisposable
         StartRun("cart", cart.Where(l => l.Row is not null).Select(l => Name(l.Row!.ResultItemId)).ToList());
         _snap = _plugin.Catalog.Snapshot;   // run-liveness token only; the loop re-assesses from the live bags every wave
         _loop = new DispatchLoop(lines, Replan, FingerprintOf);
+        // 0.1.7.0 (card t_5191608a): the user-intervention-requiring part runs FIRST. ShoppingTrip is
+        // the stage a wave can block on; GatherPlan and CraftQueue are the automation's own stages
+        // (they auto-continue, no popups); Unattended is the tail once the run believes the rest needs
+        // no human. Setting off: no controller, the run is unattended from the first tick.
+        _stages = _plugin.Config.SequentialInterventionMode
+            ? new RunStageController(RunStage.ShoppingTrip, RunStage.GatherPlan, RunStage.CraftQueue, RunStage.Unattended)
+            : null;
         TakeDecision(_loop.Begin());
     }
 
@@ -364,6 +439,11 @@ public sealed class DispatchService : IDisposable
         _endedUtc = null;
         _stoppedReason = null;
         _unfetched.Clear();
+        // 0.1.7.0 (card t_5191608a): the modal's Resume button lands here, same as the Run tab and
+        // /lcraft resume. Advance() moves the stage machine on from the satisfied stop; the
+        // re-plan below decides what is still short - if the player did not buy everything, the
+        // next Blocked wave re-blocks the shopping stage with an honest, NEW message (one popup).
+        _stages?.Advance();
         TakeDecision(_loop.Resume());
         return Current is Phase.Blocked || Running;
     }
@@ -494,6 +574,7 @@ public sealed class DispatchService : IDisposable
         _lastHeartbeat = null;
         _loop = null;
         _snap = null;
+        _stages = null;   // 0.1.7.0: a new run starts with no stage machine; DispatchCart rebuilds it
         Current = Phase.Idle;
         // Widen the inventory debounce for the whole run (t_410dee8a): gathering/crafting routes move inventory
         // every few seconds and at the idle 2 s window that is one catalog counts pass per node. The window
@@ -637,6 +718,18 @@ public sealed class DispatchService : IDisposable
             Finish(Phase.Done, "nothing to hand off");
             return;
         }
+        // 0.1.7.0 (card t_5191608a): the automated stages auto-continue. A wave that reaches the
+        // fetch/gather channels with no shopping work left means the shopping stage is satisfied
+        // (the player bought, or there never was any): record Done - no popup, no human needed.
+        // The gather and craft stages are recorded the moment their channels start, because the
+        // automation owns them from that point on (GBR / ARC / Artisan); the wave end and the
+        // loop's Blocked/Done decision finish the run as before.
+        if (plan.Vendor.Count == 0 && plan.Market.Count == 0 && plan.CurrencyShop.Count == 0 && plan.Manual.Count == 0)
+            _stages?.Record(RunStage.ShoppingTrip, StageOutcome.Done);
+        if (willRetrieve || plan.Ventures.Count > 0 || plan.Gathers.Count > 0)
+            _stages?.Record(RunStage.GatherPlan, StageOutcome.Done);
+        if (plan.Crafts.Count > 0 && !willRetrieve && plan.Ventures.Count == 0 && plan.Gathers.Count == 0)
+            _stages?.Record(RunStage.CraftQueue, StageOutcome.Done);
         Enter(willRetrieve ? (_batchCrafts.Count > 0 ? Phase.BatchRetrieve : Phase.Retrieve) : Phase.Ventures);
     }
 
@@ -910,6 +1003,15 @@ public sealed class DispatchService : IDisposable
 
             case DispatchLoop.Outcome.Blocked:
                 _blockedItems = BuildBlocked(dec.Plan);
+                // 0.1.7.0 (card t_5191608a): a blocked wave is the NeedsUser boundary of the staged
+                // run. The shopping stop's own line was already said in chat (StartVendorWalk /
+                // the market list); the stage controller turns it into ONE modal - the what-to-do
+                // message plus the single Resume button - emitted at this transition and never
+                // per frame. A wave with NO shopping work that blocks anyway (a fetch dead end, a
+                // refused hand-off) does not stage-block: the chat block already says everything,
+                // and a popup naming nothing to do would be noise, not a stop.
+                if (dec.Plan is { } p && (p.Vendor.Count > 0 || p.Market.Count > 0 || p.CurrencyShop.Count > 0 || p.Manual.Count > 0))
+                    _stages?.Record(RunStage.ShoppingTrip, StageOutcome.NeedsUser, StagePopupMessage(p));
                 FinishBlocked(dec.Why ?? "nothing left the plugin can do on its own");
                 break;
         }

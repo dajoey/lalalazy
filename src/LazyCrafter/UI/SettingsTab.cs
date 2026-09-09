@@ -129,6 +129,13 @@ public sealed class SettingsTab
             "it will never make a trade you cannot pay for, and it will never leave a material with no source. " +
             "Off: currency vendors are still NAMED on the shopping list, you just keep buying on the board.");
 
+        // 0.1.7.0 (card t_5191608a): the sequential resume-mode toggle. The feature's first build
+        // ships it ON; off restores the monolithic run exactly (no stage controller, no popups).
+        var seq = cfg.SequentialInterventionMode;
+        if (ImGui.Checkbox("Run shopping stops first with a popup per stop (buy, press Resume, then unattended)", ref seq)) { cfg.SequentialInterventionMode = seq; changed = true; }
+        ImGui.SameLine();
+        ImGuiComponents.HelpMarker("On by default (0.1.7.0). A cart run takes its user-intervention-requiring parts first: each shopping stop (gil vendor, market board, currency shop, manual source) shows ONE popup describing exactly what to buy and where, with a single Resume button - never one popup per frame. When the run believes the rest of the cart needs no player, it goes unattended and behaves exactly as before. Off: the run is one continuous wave loop, identical to every version before 0.1.7.0.");
+
         var pm = cfg.PriceMatchAfterCraft;
         if (ImGui.Checkbox("After Artisan finishes a cart, print /pricematch (Lazy Market Companion) instructions for listing the results", ref pm)) { cfg.PriceMatchAfterCraft = pm; changed = true; }
         ImGui.SameLine();
