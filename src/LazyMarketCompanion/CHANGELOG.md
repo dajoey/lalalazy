@@ -1,3 +1,15 @@
+## v0.1.31.0 (2026-09-09)
+
+### Fixed
+
+- **Bag-marker dots now sit inside the top-right corner of the slot they mark: until this version the dot's center was placed 2.5 pixels above its own cell, so most of the circle hung outside it. In the expanded inventory the four bag grids are stacked, so a dot on a top-row slot visually landed on the bottom row of the grid above it (a different bag); in sparse bags the dot read as attached to whatever item sits in the cell above, which looked like dots on nearby or empty slots.** (files: `AutoMarketMarkers.cs` DrawForGrid, `AutoMarket/MarkerAnchor.cs`).
+- The dot's drawn center is now computed from the cell's own screen position instead of the ImGui cursor position, so the dot lands on the marked cell whatever the window style state is (files: `AutoMarketMarkers.cs` DrawForGrid, `AutoMarket/MarkerAnchor.cs`).
+
+### Notes
+
+- The anchor arithmetic (center CornerInset px in from the cell's right edge and CornerInset px below its top edge, window one radius up-left of the center) lives in `AutoMarket/MarkerAnchor.cs`, a Dalamud-free file the offline suite compiles (files: `AutoMarket/MarkerAnchor.cs`).
+- Offline suite: new case 53 pins the anchor contract - the dot's center is inside the cell, the window is one radius up-left of it, the legacy top-right-corner anchor provably centers the dot above the cell, and a doubled cell rect keeps the circle inside - so the old anchor cannot silently return (files: `tests/LazyMarketCompanion.Harness/Program.cs`, case 53).
+- What to look for when verifying in game: open the bag and look at the dots - each dot should sit inside the top-right corner of the item it marks, green for items on the Auto-Market list, grey for marketable items not on it (files: `AutoMarketMarkers.cs` DrawForGrid).
 ## v0.1.30.0 (2026-09-09)
 
 ### Fixed

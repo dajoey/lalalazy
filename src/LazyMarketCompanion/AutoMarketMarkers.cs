@@ -16,7 +16,9 @@ namespace LazyMarketCompanion;
 
 /// <summary>
 /// At-a-glance Auto-Market markers on the player's bag windows (Helm t-joey-1788794153572): a small
-/// dot at the top-right corner of every bag slot whose stack is market-relevant.
+/// dot inside the top-right corner of every bag slot whose stack is market-relevant. Since 0.1.31.0
+/// the dot's center is anchored INSIDE the slot's cell; until 0.1.30.0 it hung off the cell's
+/// top-right corner and read as a dot on a nearby slot.
 ///
 /// TWO STATES, one per kind of stack (0.1.21.0, per Joey: "if it be put on the marketboard at all
 /// ever, it should have an indicator on it saying whether it's on my automarket list or not"):
@@ -32,7 +34,9 @@ namespace LazyMarketCompanion;
 /// fully-listed item still shows its green marker.
 ///
 /// HOW IT DRAWS: the same positioned-ImGui-overlay machinery MarketAutomation uses for its retainer
-/// buttons, applied per grid slot instead of per retainer addon. The bag windows are the
+/// buttons, applied per grid slot instead of per retainer addon. The dot's anchor is pinned in
+/// MarkerAnchor (0.1.31.0): center CornerInset px in from the cell's right edge and CornerInset px
+/// below its top edge, inside the cell. The bag windows are the
 /// InventoryGrid* addons (35 DragDrop slots each, pinned from the client structs); each slot's
 /// DragDrop component gives the node to position over. What to draw is decided from the game's
 /// inventory CONTAINERS (InventoryManager -> Inventory1..4), never from reading anything out of
@@ -93,9 +97,9 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
   /// <summary>Grey dot: marketable but not on the Auto-Market list (ImGui ABGR-packed; a muted grey).</summary>
   private const uint MarketableNotListedColorPacked = 0xFF84888C; // R=0x8C G=0x88 B=0x84 A=0xFF
 
-  /// <summary>Dot radius and corner inset, in game-scaled pixels.</summary>
-  private const float DotRadius = 4.5f;
-  private const float CornerInset = 7f;
+  /// <summary>Dot radius and corner inset, in game-scaled pixels - the anchor arithmetic lives in MarkerAnchor (0.1.31.0).</summary>
+  private const float DotRadius = MarkerAnchor.Radius;
+  private const float CornerInset = MarkerAnchor.Inset;
 
   private bool _disposed;
   // Which (grid addon, container) pairs already emitted their one INFO line this session (the grading signal).
@@ -318,16 +322,25 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
       if (entry.Kind == MarkerMatch.MarkKind.OnList) drawnOnList++; else drawnNotListed++;
 
       ImGuiHelpers.ForceNextWindowMainViewport();
-      ImGuiHelpers.SetNextWindowPosRelativeMainViewport(position + new Vector2(size.X, 0f) - new Vector2(CornerInset, CornerInset));
+      // 0.1.31.0: the dot is anchored INSIDE the cell - center inset from the right edge and inset
+      // below the top edge (MarkerAnchor.Center). Until 0.1.30.0 the window sat at the cell's
+      // top-right corner minus the inset in BOTH axes (top - inset), so the dot's center was
+      // 2.5 px ABOVE the cell's top edge and most of the circle hung outside the cell - on the
+      // stacked E-grids it read as a dot on the grid above (a different bag), in sparse bags as
+      // a dot on the cell above ("seemingly random locations", Helm t-joey-1788992037468).
+      ImGuiHelpers.SetNextWindowPosRelativeMainViewport(MarkerAnchor.WindowPosition(position, size));
       ImGui.PushStyleColor(ImGuiCol.WindowBg, 0);
-      // 0.1.22.0: zero padding/border like MarketAutomation.ImGuiSetup - the default padding shifted every dot a full padding-size off its cell corner onto the neighbour cell (dots on empty slots in half-empty bags).
+      // 0.1.22.0: zero padding/border like MarketAutomation.ImGuiSetup - the default padding shifted every dot a full padding-size off its cell corner onto the neighbour cell (dots on empty slots in half-empty bags). 0.1.31.0: with the anchor now absolute (MarkerAnchor), zeroed padding is belt-and-braces rather than load-bearing.
       ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0, 0));
       ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 0);
       ImGui.Begin($"###LMCMarker{addonName}{i}", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.AlwaysAutoResize
         | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoInputs
         | ImGuiWindowFlags.NoNavFocus | ImGuiWindowFlags.AlwaysUseWindowPadding);
       var drawList = ImGui.GetWindowDrawList();
-      var center = ImGui.GetCursorScreenPos() + new Vector2(DotRadius, DotRadius);
+      // Absolute anchor, not cursor-relative: the center is exactly MarkerAnchor.Center(position,
+      // size) whatever the ImGui style state is (the 0.1.22.0 padding fix made cursor == window
+      // pos, but that equality is an assumption about style, not a position).
+      var center = MarkerAnchor.Center(position, size);
       drawList.AddCircleFilled(center, DotRadius * scale.X, color);
       ImGui.End();
       ImGui.PopStyleVar(2);

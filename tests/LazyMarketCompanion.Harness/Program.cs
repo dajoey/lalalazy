@@ -2240,7 +2240,61 @@ var Catalogue = new (uint Id, string Name)[]
   var emptySplit = VendorPlanner.SplitVendorable(new List<ItemRule>(), LookupPriceLow);
   Check("52 split: empty below-threshold input returns empty sellable and unvendorable lists",
     emptySplit.Sellable.Count == 0 && emptySplit.Unvendorable.Count == 0,
-    $"sellable={emptySplit.Sellable.Count}, unvendorable={emptySplit.Unvendorable.Count}");
+    $"sellable={emptySplit.Sellable.Count}, unvendorable={emptySplit.Unvendorable.Count}");}
+
+// 53. THE BAG-MARKER DOT'S ANCHOR IS INSIDE THE CELL (0.1.31.0). Until 0.1.30.0 the marker
+//     window was placed at the cell's top-right corner minus the corner inset in BOTH axes
+//     (top - inset), so with the zeroed padding the dot's center sat at (right - 2.5, top - 2.5):
+//     2.5 px ABOVE the cell's top edge, most of the circle outside the cell. On the stacked
+//     expanded-mode E-grids a top-row dot visually landed on the bottom row of the grid above
+//     (a different bag); in sparse bags it read as attached to whatever sits in the cell above
+//     ("dots in seemingly random locations", Helm t-joey-1788992037468, version 0.1.30.0).
+//     Since 0.1.31.0 the center is CornerInset px in from the right edge and CornerInset px
+//     below the top edge - fully inside the cell - and the window is placed one radius up-left
+//     of the center so the circle is exactly inscribed.
+{
+  // 1. The pinned contract: center = position + (size.X - Inset, Inset) - inside the cell.
+  var cellPos = new System.Numerics.Vector2(100f, 200f);
+  var cellSize = new System.Numerics.Vector2(40f, 40f);
+  var center = MarkerAnchor.Center(cellPos, cellSize);
+  Check("53 anchor: dot center is Inset in from the right edge and Inset below the top edge",
+    center == cellPos + new System.Numerics.Vector2(cellSize.X - MarkerAnchor.Inset, MarkerAnchor.Inset),
+    $"center=({center.X},{center.Y})");
+  Check("53 anchor: the circle is fully inside the cell (span y: top+Inset-Radius .. top+Inset+Radius)",
+    center.Y - MarkerAnchor.Radius >= cellPos.Y && center.Y + MarkerAnchor.Radius <= cellPos.Y + cellSize.Y
+      && center.X - MarkerAnchor.Radius >= cellPos.X && center.X + MarkerAnchor.Radius <= cellPos.X + cellSize.X,
+    $"circle spans x {center.X - MarkerAnchor.Radius}..{center.X + MarkerAnchor.Radius}, y {center.Y - MarkerAnchor.Radius}..{center.Y + MarkerAnchor.Radius}, cell x {cellPos.X}..{cellPos.X + cellSize.X}, y {cellPos.Y}..{cellPos.Y + cellSize.Y}");
+
+  // 2. The window is placed one radius up-left of the center, so the inscribed circle fills it.
+  var winPos = MarkerAnchor.WindowPosition(cellPos, cellSize);
+  Check("53 anchor: window top-left is center minus Radius in both axes",
+    winPos == center - new System.Numerics.Vector2(MarkerAnchor.Radius, MarkerAnchor.Radius),
+    $"win=({winPos.X},{winPos.Y}) center=({center.X},{center.Y})");
+  Check("53 anchor: window height is exactly one dot diameter (center inside the cell, not above it)",
+    winPos.Y >= cellPos.Y && winPos.Y + 2 * MarkerAnchor.Radius <= cellPos.Y + cellSize.Y,
+    $"win y {winPos.Y}..{winPos.Y + 2 * MarkerAnchor.Radius}, cell y {cellPos.Y}..{cellPos.Y + cellSize.Y}");
+
+  // 3. The regression: the pre-0.1.31.0 placement (top-right corner minus inset in BOTH axes)
+  //    puts the dot's center ABOVE the cell - the exact shape of the defect.
+  var legacyCenter = cellPos + new System.Numerics.Vector2(cellSize.X, 0f) - new System.Numerics.Vector2(MarkerAnchor.Inset, MarkerAnchor.Inset)
+    + new System.Numerics.Vector2(MarkerAnchor.Radius, MarkerAnchor.Radius);
+  Check("53 anchor: the legacy top-right-corner anchor centers the dot ABOVE the cell (the defect)",
+    legacyCenter.Y < cellPos.Y,
+    $"legacy center y={legacyCenter.Y} < cell top {cellPos.Y} - this is the 0.1.30.0 defect shape, asserted so the old anchor cannot silently return");
+  Check("53 anchor: the legacy anchor would place some or all of the circle outside the cell (the visible symptom)",
+    legacyCenter.Y - MarkerAnchor.Radius < cellPos.Y,
+    $"legacy circle top {legacyCenter.Y - MarkerAnchor.Radius} < cell top {cellPos.Y}");
+
+  // 4. Scale-safety: the center is computed from the cell's own scaled rect, so UI scale moves it with the cell.
+  var scaledPos = cellPos * 2f;
+  var scaledSize = cellSize * 2f;
+  var scaledCenter = MarkerAnchor.Center(scaledPos, scaledSize);
+  Check("53 anchor: a doubled cell rect keeps the center inset doubled and still inside the cell",
+    scaledCenter == cellPos * 2f + new System.Numerics.Vector2(cellSize.X * 2f - MarkerAnchor.Inset, MarkerAnchor.Inset),
+    $"scaledCenter=({scaledCenter.X},{scaledCenter.Y})");
+  Check("53 anchor: a doubled cell still draws the circle fully inside itself",
+    scaledCenter.Y + MarkerAnchor.Radius <= scaledPos.Y + scaledSize.Y,
+    $"circle bottom {scaledCenter.Y + MarkerAnchor.Radius} <= cell bottom {scaledPos.Y + scaledSize.Y}");
 }
 
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");

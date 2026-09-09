@@ -22,6 +22,7 @@
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\VendorMenuGate.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\MarkerMatch.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\GridMap.cs" />
+  <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\MarkerAnchor.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\DoneLine.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\SaleHistoryPricing.cs" />
     <Compile Include="Program.cs" />
