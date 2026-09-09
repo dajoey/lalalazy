@@ -157,11 +157,12 @@ internal static unsafe class AutoMarketService
 
     List<ItemRule> kept = rules;
     var vendored = new List<ItemRule>();
+    var unvendorable = new List<ItemRule>();
     if (config.AutoMarketValueGateEnabled)
     {
       var gateOptions = new GateOptions(true, Math.Max(config.AutoMarketValueGateThresholdGil, 0), freshnessMs);
       kept = new List<ItemRule>(rules.Count);
-      var held = new List<string>();
+      var belowThreshold = new List<ItemRule>();
 
       foreach (var rule in rules)
       {
@@ -180,7 +181,7 @@ internal static unsafe class AutoMarketService
         // The old 0.1.11.0 "hold it" is gone; only an uncertainty (request failed/null below) still holds.
         if (verdict == GateVerdict.Vendor)
         {
-          vendored.Add(rule);
+          belowThreshold.Add(rule);
           continue;
         }
 
@@ -188,6 +189,20 @@ internal static unsafe class AutoMarketService
         // a HoldBack verdict that reaches the priced gate is a data bug, not a sell decision.
         kept.Add(rule);
       }
+
+      // 0.1.30.0: the Item-sheet lookup runs HERE, before the announce. A below-threshold item the
+      // sheet prices at 0 can never be vendored, so announcing it as a vendor target was wrong
+      // before the sweep even started: Ice Crystal (item 9, PriceLow 0) was named by
+      // "gate: vendoring N item(s)" on essentially every sweep and then named-skipped downstream by
+      // VendorPlanner's own guard, and on 2026-09-08 22:25 that is exactly why "vendoring 5" ended
+      // as "4 vendored". The split uses the planner's own predicate (ItemVendorPrice.Vendorable),
+      // so the announced set and the set the leg attempts are the same set by construction. The
+      // unvendorable rules keep the outcome they already had - left in place, never listed (they
+      // are below the threshold) and never vendored - they are only named honestly now, and they
+      // are deliberately NOT added to HeldBackRules, which is the vendor leg's input.
+      var split = VendorPlanner.SplitVendorable(belowThreshold, id => VendorPrices(id).PriceLow);
+      vendored = split.Sellable.ToList();
+      unvendorable = split.Unvendorable.ToList();
 
       if (vendored.Count > 0)
       {
@@ -198,7 +213,20 @@ internal static unsafe class AutoMarketService
         if (Plugin.Configuration.ShowAutoMarketMessages)
           Communicator.PrintInfo($"value gate: vendoring {vendored.Count} item(s) at the retainer (at or under {gateOptions.ThresholdGil:N0} gil net): {names}");
       }
-      else if (kept.Count > 0)
+      if (unvendorable.Count > 0)
+      {
+        var names = string.Join(", ", unvendorable.Select(r => r.ItemId.ToString() + (r.HQ ? " HQ" : "")));
+        Svc.Log.Information($"[LMC] gate: {unvendorable.Count} item(s) below the {gateOptions.ThresholdGil:N0} gil net threshold have no Item-sheet vendor price, so they are not vendor candidates; left in place, not listed: {names}");
+        if (Plugin.Configuration.ShowAutoMarketMessages)
+          Communicator.PrintInfo($"value gate: {unvendorable.Count} item(s) below the threshold cannot be vendored (no vendor price); left in place, not listed: {names}");
+      }
+
+      // The clean / no-data sight announce describes a sweep the gate held NOTHING back on, so it
+      // must stay out of the way of BOTH held sets. Before 0.1.30.0 only the vendored set gated it;
+      // once item 9 moved to the unvendorable set, an unchanged "else" here would have printed
+      // "every item is above the threshold" on a sweep that had just held one back - trading one
+      // honesty wart for another.
+      if (vendored.Count == 0 && unvendorable.Count == 0 && kept.Count > 0)
       {
         // 0.1.19.0: the old line printed identically whether every item was JUDGED above the
         // threshold or NOTHING was judged at all (failed request -> null quotes -> every rule

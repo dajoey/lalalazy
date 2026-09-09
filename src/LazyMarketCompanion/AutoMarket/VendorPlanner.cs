@@ -74,6 +74,21 @@ public static class ItemVendorPrice
     return priceLow;
   }
 
+  /// <summary>
+  /// Whether the retainer vendor leg can sell this item AT ALL: the Item sheet must give it a
+  /// non-zero PriceLow. This is the SAME predicate <see cref="VendorPlanner.Plan"/> guards on,
+  /// and deliberately the only copy of it. Until 0.1.30.0 the value gate announced its vendor
+  /// set from the Universalis board price alone, without ever consulting the sheet, so an item
+  /// the sheet prices at 0 - Ice Crystal, item 9 - was announced as a vendor target on
+  /// essentially every sweep and then named-skipped downstream by Plan's guard ("no Item-sheet
+  /// price for 9, leaving it in place" - six times on 2026-09-08, with zero vendored lines for
+  /// item 9 in the whole log history). The announced count was wrong before the sweep started:
+  /// on 2026-09-08 22:25 "vendoring 5 item(s)" ended as "4 vendored" for exactly this reason.
+  /// The gate now calls <see cref="VendorPlanner.SplitVendorable"/> before it announces, so a
+  /// change here changes both the announce and the plan, or neither.
+  /// </summary>
+  public static bool Vendorable(uint priceLow) => priceLow > 0;
+
   /// <summary>Total estimate for a qty at a unit price; caps at int.MaxValue so a UI number never overflows.</summary>
   public static long Total(long unit, long quantity)
   {
@@ -88,6 +103,16 @@ public static class ItemVendorPrice
 public sealed record VendorPlan(IReadOnlyList<VendorOp> Ops, IReadOnlyList<string> Notes);
 
 /// <summary>
+/// The gate's below-threshold set, split by whether the retainer leg can actually sell each item
+/// (0.1.30.0). <see cref="Sellable"/> is what the gate announces and what the leg attempts;
+/// <see cref="Unvendorable"/> is named once as "not a vendor candidate" and left exactly where it
+/// is - not listed (it is below the threshold, and listing sub-threshold stock is the behaviour
+/// the gate exists to stop) and not vendored (the sheet gives no price to sell it at). Splitting
+/// rather than dropping keeps the honest announce possible: the run still says what it saw.
+/// </summary>
+public sealed record VendorSplit(IReadOnlyList<ItemRule> Sellable, IReadOnlyList<ItemRule> Unvendorable);
+
+/// <summary>
 /// Maps held-back rules onto concrete stock slots. A VendorOp is only built when the slot is
 /// re-read from the game immediately before the call (the caller does that in Execute) - this
 /// planner works from the same snapshot the gate judged, and the executor re-verifies every slot.
@@ -96,6 +121,31 @@ public sealed record VendorPlan(IReadOnlyList<VendorOp> Ops, IReadOnlyList<strin
 /// </summary>
 public static class VendorPlanner
 {
+  /// <summary>
+  /// Split the gate's below-threshold rules into the ones the vendor leg can sell and the ones the
+  /// Item sheet gives no vendor price for (0.1.30.0). The value gate calls this BEFORE it
+  /// announces, so "gate: vendoring N item(s)" names only items the leg will actually attempt and
+  /// N is a number the run can reach. <paramref name="priceLowOf"/> is the caller's Item-sheet
+  /// lookup (AutoMarketService.VendorPrices(id).PriceLow), passed in so this stays Dalamud-free
+  /// and harness-pinned; a missing sheet row must read 0, which is what that lookup already
+  /// returns. The predicate is <see cref="ItemVendorPrice.Vendorable"/> - the same one
+  /// <see cref="Plan"/> guards on - so the announce and the plan cannot drift apart again.
+  /// Order within each list is the caller's order, unchanged.
+  /// </summary>
+  public static VendorSplit SplitVendorable(IReadOnlyList<ItemRule> belowThreshold, Func<uint, uint> priceLowOf)
+  {
+    var sellable = new List<ItemRule>();
+    var unvendorable = new List<ItemRule>();
+    foreach (var rule in belowThreshold)
+    {
+      if (ItemVendorPrice.Vendorable(priceLowOf(rule.ItemId)))
+        sellable.Add(rule);
+      else
+        unvendorable.Add(rule);
+    }
+    return new VendorSplit(sellable, unvendorable);
+  }
+
   public static VendorPlan Plan(IReadOnlyList<ItemRule> heldRules, IReadOnlyList<StockStack> stock,
     Dictionary<uint, (uint PriceMid, uint PriceLow)> prices, bool preferHq)
   {
@@ -104,7 +154,11 @@ public static class VendorPlanner
 
     foreach (var rule in heldRules)
     {
-      if (!prices.TryGetValue(rule.ItemId, out var price) || price.PriceLow == 0)
+      // The gate filters this set with the SAME predicate (SplitVendorable ->
+      // ItemVendorPrice.Vendorable) before it announces, so since 0.1.30.0 this note should never
+      // fire on a normal sweep - it stays as the last line of defence for any other caller that
+      // hands Plan an unpriced rule.
+      if (!prices.TryGetValue(rule.ItemId, out var price) || !ItemVendorPrice.Vendorable(price.PriceLow))
       {
         notes.Add($"vendor: no Item-sheet price for {rule.ItemId}, leaving it in place");
         continue;

@@ -1,3 +1,17 @@
+## v0.1.30.0 (2026-09-09)
+
+### Fixed
+
+- **The Auto-Market value gate announced items for vendoring that the retainer could never vendor: an item the game's own Item sheet gives no vendor price for — Ice Crystal is the one on this install — was named in "gate: vendoring N item(s)..." on essentially every sweep and then silently skipped a moment later with "no Item-sheet price for 9, leaving it in place", making the announced count wrong before the sweep began.** On 2026-09-08 a sweep announced five items and vendored four for exactly this reason. The gate now reads the Item-sheet vendor price before it announces, so the count and the item list name only stacks the retainer can actually sell (files: `AutoMarket/AutoMarketService.cs` `ApplyValueGate`, `AutoMarket/VendorPlanner.cs` `SplitVendorable`).
+- An item below the threshold that has no vendor price is now named once in its own line — "[LMC] gate: N item(s) below the ... threshold have no Item-sheet vendor price, so they are not vendor candidates; left in place, not listed" — instead of appearing in the vendor announce; what happens to the stock is unchanged: it is left exactly where it is, neither listed nor vendored (files: `AutoMarket/AutoMarketService.cs` `ApplyValueGate`).
+- The "every item is above the ... gil net threshold" line now also requires that nothing was held back for the no-vendor-price reason, so it can no longer claim a clean sweep on a run that held an item back (files: `AutoMarket/AutoMarketService.cs` `ApplyValueGate`).
+
+### Notes
+
+- The announce and the vendor plan now share one predicate (`ItemVendorPrice.Vendorable`), so they cannot drift apart again (files: `AutoMarket/VendorPlanner.cs` `ItemVendorPrice.Vendorable`, `VendorPlanner.Plan`).
+- Offline suite: new case 52 pins the split on the real 2026-09-08 22:25 fixture plus an all-priced control, and pins that `VendorPlanner.Plan`'s own guard still refuses an unpriced rule handed to it directly (files: `tests/LazyMarketCompanion.Harness/Program.cs`, case 52).
+- What to look for when verifying from the logs: a sweep's "gate: vendoring N item(s)" line no longer names item 9, no "no Item-sheet price for 9" plan line follows it, and the closing "Auto-Market run done" vendored count equals the announced N (files: `AutoMarket/AutoMarketService.cs` `ApplyValueGate`, `AutoMarket/VendorPlanner.cs` `Plan`).
+
 ## v0.1.29.0 (2026-09-09)
 
 ### Fixed

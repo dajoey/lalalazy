@@ -2146,5 +2146,102 @@ var Catalogue = new (uint Id, string Name)[]
 
 }
 
+// 52. THE VALUE GATE'S VENDOR ANNOUNCE MATCHES THE VENDOR LEG (0.1.30.0). Until 0.1.30.0 the gate
+//     announced its vendor set from the Universalis board price alone, without consulting the Item
+//     sheet's PriceLow. An item with PriceLow 0 (Ice Crystal, item 9) was announced as a vendor
+//     target on essentially every sweep and then named-skipped downstream by VendorPlanner.Plan
+//     ("no Item-sheet price for 9, leaving it in place"). The announced count was wrong before the
+//     sweep started: on 2026-09-08 22:25 "vendoring 5 item(s)" ended as "4 vendored". The gate now
+//     calls VendorPlanner.SplitVendorable before it announces, sharing ItemVendorPrice.Vendorable
+//     with Plan.
+{
+  ItemRule R(uint id, bool hq = false, int stack = 99, int keepB = 0, int keepR = 0, bool bags = true, bool ret = true)
+    => new(id, hq, stack, keepB, keepR, 0, bags, ret, 0, 999);
+
+  // 1. The predicate itself
+  Check("52 vendorable: PriceLow 0 is false, PriceLow 1 is true",
+    !ItemVendorPrice.Vendorable(0) && ItemVendorPrice.Vendorable(1));
+
+  // 2. The regression fixture, item 9 (2026-09-08 22:25: ids 9, 36186, 4850, 5291, 4794)
+  var fixtureIds = new uint[] { 9, 36186, 4850, 5291, 4794 };
+  var fixtureRules = fixtureIds.Select(id => R(id)).ToList();
+  var sheetPriceLow = new Dictionary<uint, uint>
+  {
+    [9] = 0,       // Ice Crystal: PriceLow 0, PriceMid 229
+    [36186] = 2,
+    [4850] = 5,
+    [5291] = 1,
+    [4794] = 3,
+  };
+  uint LookupPriceLow(uint id) => sheetPriceLow.TryGetValue(id, out var pl) ? pl : 0;
+
+  var fixtureSplit = VendorPlanner.SplitVendorable(fixtureRules, LookupPriceLow);
+  var sellableIds = fixtureSplit.Sellable.Select(r => r.ItemId).ToList();
+  var unvendorableIds = fixtureSplit.Unvendorable.Select(r => r.ItemId).ToList();
+
+  Check("52 split: regression fixture item 9 excluded from announce so gate announces 4 matching the 4 vendored",
+    fixtureSplit.Sellable.Count == 4
+      && !sellableIds.Contains(9u)
+      && fixtureSplit.Unvendorable.Count == 1
+      && unvendorableIds.SequenceEqual(new uint[] { 9u }),
+    $"sellable=[{string.Join(",", sellableIds)}], unvendorable=[{string.Join(",", unvendorableIds)}]");
+
+  // 3. The all-sellable control - every id priced, unvendorable empty, sellable count == input count, order preserved
+  var allPricedIds = new uint[] { 36186, 4850, 5291, 4794 };
+  var allPricedRules = allPricedIds.Select(id => R(id)).ToList();
+  var allSellableSplit = VendorPlanner.SplitVendorable(allPricedRules, LookupPriceLow);
+  Check("52 split: all-sellable control preserves input count and order with empty unvendorable",
+    allSellableSplit.Unvendorable.Count == 0
+      && allSellableSplit.Sellable.Count == allPricedRules.Count
+      && allSellableSplit.Sellable.Select(r => r.ItemId).SequenceEqual(allPricedIds),
+    $"sellable=[{string.Join(",", allSellableSplit.Sellable.Select(r => r.ItemId))}], unvendorable={allSellableSplit.Unvendorable.Count}");
+
+  // 4. The all-unvendorable case - every id at PriceLow 0 gives Sellable.Count == 0
+  var allZeroSplit = VendorPlanner.SplitVendorable(fixtureRules, _ => 0u);
+  Check("52 split: all-unvendorable case yields zero sellable rules so gate announces no vendoring",
+    allZeroSplit.Sellable.Count == 0
+      && allZeroSplit.Unvendorable.Count == fixtureRules.Count
+      && allZeroSplit.Unvendorable.Select(r => r.ItemId).SequenceEqual(fixtureIds),
+    $"sellable={allZeroSplit.Sellable.Count}, unvendorable={allZeroSplit.Unvendorable.Count}");
+
+  // 5. Announce == plan: feed SplitVendorable.Sellable into VendorPlanner.Plan with real stock
+  var prices = new Dictionary<uint, (uint PriceMid, uint PriceLow)>
+  {
+    [9] = (229, 0),
+    [36186] = (10, 2),
+    [4850] = (20, 5),
+    [5291] = (5, 1),
+    [4794] = (15, 3),
+  };
+  var stock = new List<StockStack>
+  {
+    new(StockOrigin.Retainer, 10000, 0, 36186, false, 10),
+    new(StockOrigin.Retainer, 10000, 1, 4850, false, 10),
+    new(StockOrigin.Retainer, 10000, 2, 5291, false, 10),
+    new(StockOrigin.Retainer, 10000, 3, 4794, false, 10),
+    new(StockOrigin.Retainer, 10000, 4, 9, false, 99),
+  };
+
+  var sellablePlan = VendorPlanner.Plan(fixtureSplit.Sellable, stock, prices, preferHq: true);
+  Check("52 plan: announce matches plan - sellable rules produce ops with no missing-price note",
+    sellablePlan.Ops.Count == 4
+      && !sellablePlan.Notes.Any(n => n.Contains("no Item-sheet price")),
+    $"ops={sellablePlan.Ops.Count}, notes=[{string.Join(";", sellablePlan.Notes)}]");
+
+  // 6. The last line of defence still works: unvendorable rule fed directly to Plan yields 0 ops and exactly one note
+  var unvendorablePlan = VendorPlanner.Plan(fixtureSplit.Unvendorable, stock, prices, preferHq: true);
+  Check("52 plan: last line of defence - Plan directly called with unvendorable rule yields 0 ops and no-price note for 9",
+    unvendorablePlan.Ops.Count == 0
+      && unvendorablePlan.Notes.Count == 1
+      && unvendorablePlan.Notes[0].Contains("no Item-sheet price for 9"),
+    $"ops={unvendorablePlan.Ops.Count}, notes=[{string.Join(";", unvendorablePlan.Notes)}]");
+
+  // 7. SplitVendorable([], ...) returns two empty lists (the no-op sweep)
+  var emptySplit = VendorPlanner.SplitVendorable(new List<ItemRule>(), LookupPriceLow);
+  Check("52 split: empty below-threshold input returns empty sellable and unvendorable lists",
+    emptySplit.Sellable.Count == 0 && emptySplit.Unvendorable.Count == 0,
+    $"sellable={emptySplit.Sellable.Count}, unvendorable={emptySplit.Unvendorable.Count}");
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
