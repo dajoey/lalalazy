@@ -85,11 +85,6 @@ public sealed class Plugin : IDalamudPlugin
         // The catalog worker waits on GameDataLoad, so it can be created before the sheets are indexed.
 
         Pi.UiBuilder.Draw += _windows.Draw;
-        // 0.1.7.0 (card t_5191608a): the sequential resume-mode modal. Drawn directly on the UiBuilder
-        // tick - NOT a WindowSystem window - so it can never collide with the main window stack and
-        // opens exactly when a stage needs the player. One "Resume" button, routed into the same
-        // Dispatch.Resume() the Run tab and /lcraft resume already use.
-        Pi.UiBuilder.Draw += DrawStageModal;
         Pi.UiBuilder.OpenConfigUi += OpenMain;
         Pi.UiBuilder.OpenMainUi += OpenMain;
         ClientState.Login += OnLogin;
@@ -119,6 +114,10 @@ public sealed class Plugin : IDalamudPlugin
 
         Catalog = new CatalogService(this, Framework, Log);
         Dispatch = new DispatchService(this, Framework, ChatGui, Log);
+        // 0.1.7.1 (t_5191608a): subscribed AFTER the Dispatch construction the modal dereferences -
+        // a draw tick that fires while this constructor is still running (client already logged in,
+        // plugin updated mid-session) used to NRE once in OnBuildUi with Dispatch still null.
+        Pi.UiBuilder.Draw += DrawStageModal;
         _spike = new VendorSpike(Pi, Framework, ClientState, Condition, Objects, Targets, GameGui, ChatGui, Log, () => Version);
         _mainWindow = new MainWindow(this);
         _windows.AddWindow(_mainWindow);

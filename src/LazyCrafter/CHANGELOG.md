@@ -1,4 +1,9 @@
 # Changelog
+## v0.1.7.1 (2026-09-08)
+
+### Fixed
+- **The plugin no longer prints one caught error on the first frame after an update while the client is already running.** The shopping-stop popup (v0.1.7.0) was wired to the UI tick before the dispatch service it reads was built, so an update mid-session could let one draw frame run with the service still null and log a single caught exception - harmless to the run, but exactly the noise this feature was built to remove. The popup is now wired after the service exists (files: `Plugin.cs` the `DrawStageModal` UI subscription moved after the `DispatchService` construction).
+
 ## v0.1.7.0 (2026-09-08)
 
 ### Added
