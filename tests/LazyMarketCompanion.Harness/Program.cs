@@ -2130,6 +2130,20 @@ var Catalogue = new (uint Id, string Name)[]
     PinchScope.Decide(pinchAllAfter: false, listedThisRetainer: 0) == PinchAfterMarket.Nothing,
     "a leg-only retainer must not gain a pinch pass it never had");
 
+  // 51. EXPANDED BAGS PAGE GATE (0.1.29.0). Only a live-and-ready parent expansion window on
+  //     tab 0 (the Items page) admits the four expanded bag grids. Tab 1 ("Key Items & Crystals"),
+  //     any out-of-range tab, and an unresolvable or unready parent all suppress - fail-closed.
+  Check("51 pagegate: live parent on tab 0 admits bag grids",
+    GridMap.ExpandedBagsPageShown(true, 0));
+  Check("51 pagegate: live parent on tab 1 (Key Items & Crystals) suppresses bag grids",
+    !GridMap.ExpandedBagsPageShown(true, 1));
+  Check("51 pagegate: unresolvable or unready parent suppresses bag grids (fail-closed)",
+    !GridMap.ExpandedBagsPageShown(false, 0));
+  Check("51 pagegate: out-of-range tab 2 suppresses bag grids (fail-closed)",
+    !GridMap.ExpandedBagsPageShown(true, 2));
+  Check("51 pagegate: negative tab suppresses bag grids (fail-closed)",
+    !GridMap.ExpandedBagsPageShown(true, -1));
+
 }
 
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");

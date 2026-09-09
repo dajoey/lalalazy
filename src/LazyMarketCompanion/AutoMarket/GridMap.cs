@@ -81,4 +81,15 @@ public static class GridMap
     // Unknown names, no live E-grid, or a tab outside 0..3: nothing. Honest absence, never a guess.
     return result;
   }
+
+	/// <summary>
+	/// Page gate for the expanded view (0.1.29.0). The expansion window tracks its page in its own
+	/// TabIndex field (AddonInventoryExpansion.TabIndex, +0x340; SetTab(tab, force) writes it): tab 0 is
+	/// the Items page whose four child addons are the bag grids; tab 1 is "Key Items &amp; Crystals"
+	/// (SetTab activates child addons [i + tab*4] of the 8-child array - bags 0-3, key items + crystal
+	/// 4-7). A page switch never clears the hidden grids' root-node Visible flag (live SetTab
+	/// disassembly, 2026-09-09), so node visibility cannot tell the pages apart; only this field can.
+	/// Fail-closed: a parent that is not live-and-ready suppresses every E-grid, and only tab 0 admits them.
+	/// </summary>
+	public static bool ExpandedBagsPageShown(bool parentLiveReady, int tabIndex) => parentLiveReady && tabIndex == 0;
 }

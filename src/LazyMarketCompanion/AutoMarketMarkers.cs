@@ -47,18 +47,17 @@ namespace LazyMarketCompanion;
 /// RETAINER's containers, not the player's bags. A marker there would lie, so the whole feature
 /// stands down while a retainer inventory window is open.
 ///
-/// VISIBILITY (0.1.24.0): the 7.x "Inventory" window (AddonInventoryExpansion) owns ALL grids as
-/// child addons - the four E-grids, the key-items "event" grids and a crystal grid - and a page
-/// switch only hides the hidden grids' ROOT NODE. The AtkUnitBase of a hidden grid stays alive,
-/// ready, and even reads IsVisible (AtkUnitBaseVisibilityState.Show), which is why 0.1.18.0-0.1.23.0
-/// still drew the correct per-bag dot SETS over the wrong page. The gate below reads each grid
-/// addon's RootNode's NodeFlags.Visible via AtkResNode::IsVisible - the same per-node flag CCL's
-/// InventoryExpansion HideIcons/SetColors manage - so a dot is drawn only for a grid whose slots
-/// are actually on screen this frame. The check is UNCONDITIONAL per resolved binding: even in a
-/// frame where the InventoryExpansion parent unit itself cannot be resolved or is not ready, a
-/// hidden grid's root node is not Visible, so nothing draws (0.1.24.0 keyed this gate on the
-/// parent being live, which left a bypass arm). Layout-agnostic on purpose: no assumption about
-/// how pages map to bag indexes is needed, and a game-side page/refresh change cannot regress it.
+/// VISIBILITY (0.1.29.0): the 7.x "Inventory" window (AddonInventoryExpansion) owns all grids as
+/// child addons - the four E-grids, key-items "event" grids, and the crystal grid. A page switch
+/// toggles ChildAddonInfo control flags (+0x40/+0x41) and unit bookkeeping bytes, but NEVER clears
+/// the hidden grids' root-node NodeFlags.Visible (live AddonInventoryExpansion.SetTab disassembly,
+/// 2026-09-09). Because of this, node visibility cannot distinguish between pages, causing
+/// 0.1.24.0-0.1.28.0 to draw bag dots over the "Key Items & Crystals" page.
+/// Since 0.1.29.0, the gate reads the page state directly from the parent expansion window's
+/// TabIndex (+0x340; 0 = Items, 1 = Key Items & Crystals). The expanded bag grids are admitted only
+/// when the parent window is live, ready, and on tab 0 (fail-closed: an unresolvable parent or
+/// any other page suppresses all E-grid markers). The root-node Visible check remains only as a
+/// secondary guard.
 /// </summary>
 internal sealed class AutoMarketMarkers : Window, IDisposable
 {
@@ -101,6 +100,8 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
   private bool _disposed;
   // Which (grid addon, container) pairs already emitted their one INFO line this session (the grading signal).
   private readonly HashSet<string> _loggedAddons = [];
+  // Set once per session when the page gate suppresses every E-grid (the Key Items & Crystals grading signal).
+  private readonly HashSet<string> _loggedPageSkip = [];
   private readonly List<MarkerMatch.Entry> _entriesScratch = [];
   // Item ids seen stable-market this draw, carried across draws so a stable call is made once per id.
   private readonly HashSet<uint> _marketableScratch = [];
@@ -162,7 +163,33 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
             && GenericHelpers.IsAddonReady(parent))
           tabIndex = ((AddonInventory*)parent)->TabIndex;
 
-        foreach (var binding in GridMap.Resolve(live, tabIndex))
+        // 0.1.29.0 page gate. The four E-grids are child addons of the expanded "Inventory" window and
+        // exist only on its Items page - but a page switch never clears their root-node Visible flag
+        // (live SetTab disassembly: it flips ChildAddonInfo/unit bookkeeping flags instead), so node
+        // visibility cannot tell the pages apart and 0.1.24.0-0.1.28.0 drew the bag dots over whatever
+        // page was displayed. The window's own TabIndex (+0x340; 0 = Items, 1 = Key Items & Crystals)
+        // is the only reliable page state. Fail-closed: a parent that cannot be resolved or is not
+        // ready while E-grids are live suppresses every E-grid - no page proof, no dots.
+        var bindings = GridMap.Resolve(live, tabIndex);
+        var anyExpanded = false;
+        foreach (var b in bindings)
+          if (GridMap.IsExpandedGrid(b.GridName))
+          {
+            anyExpanded = true;
+            break;
+          }
+
+        var bagsPage = true;
+        if (anyExpanded)
+        {
+          var parentReady = GenericHelpers.TryGetAddonByName<AtkUnitBase>(InventoryExpansionAddon, out var expansion)
+              && GenericHelpers.IsAddonReady(expansion);
+          bagsPage = parentReady && GridMap.ExpandedBagsPageShown(parentReady, ((AddonInventoryExpansion*)expansion)->TabIndex);
+          if (!bagsPage && _loggedPageSkip.Add(InventoryExpansionAddon))
+            Svc.Log.Information("[LMC] markers: expanded inventory not on the Items page - bag-grid markers suppressed");
+        }
+
+        foreach (var binding in bindings)
         {
           if (!GenericHelpers.TryGetAddonByName<AtkUnitBase>(binding.GridName, out var addon)
               || !GenericHelpers.IsAddonReady(addon))
@@ -176,6 +203,10 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
           // 0.1.24.0 keyed this on the InventoryExpansion parent being live, which let a frame with
           // a missing/not-ready parent draw over every resolved grid un-checked.
           if (!addon->RootNode->IsVisible())
+            continue;
+
+          // 0.1.29.0: on any page other than Items, an E-grid wears no dots at all.
+          if (GridMap.IsExpandedGrid(binding.GridName) && !bagsPage)
             continue;
 
           DrawForGrid(binding.GridName, addon, BagTypes[binding.BagIndex]);

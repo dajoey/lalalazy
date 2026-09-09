@@ -1,3 +1,15 @@
+## v0.1.29.0 (2026-09-09)
+
+### Fixed
+
+- **Bag-marker dots were still drawn over the "Key Items & Crystals" page of the expanded inventory window: the 0.1.24.0-0.1.28.0 root-node visibility gate cannot distinguish the pages, because a page switch never clears the hidden bag grids' root-node Visible flag at all.** Live disassembly of the game's AddonInventoryExpansion.SetTab shows a page switch flips child-addon control flags and unit bookkeeping bytes only; the four bag grids keep reporting their root node Visible while another page is displayed, so the gate admitted every grid and the dots landed on whatever occupied those screen positions. The marker gate now reads the page state directly: bag-grid dots draw only while the expanded parent window is live, ready, and on its Items page (its own TabIndex field, 0 = Items, 1 = "Key Items & Crystals"); any other page - or a parent that cannot be resolved while the grids are live - suppresses all bag-grid dots, and the root-node check stays only as a secondary guard (files: `AutoMarketMarkers.cs` Draw page gate, `AutoMarket/GridMap.cs` ExpandedBagsPageShown).
+- The normal tabbed-mode single-panel markers are unchanged: the page gate applies only to the four expanded E-grids, and the retainer-inventory stand-down is untouched.
+
+### Notes
+
+- Offline suite: new case 51 pins the page-gate contract - only a live-and-ready parent on tab 0 admits the bag grids; tab 1 ("Key Items & Crystals"), any out-of-range tab, and an unresolvable parent all suppress (files: `tests/LazyMarketCompanion.Harness/Program.cs`, case 51).
+- What to look for when verifying from the logs: on the "Key Items & Crystals" page the markers log "[LMC] markers: expanded inventory not on the Items page - bag-grid markers suppressed" (once per session) and draw nothing; on the Items page the per-grid marker lines appear exactly as before (files: `AutoMarketMarkers.cs` Draw page-gate skip line).
+
 ## v0.1.28.0 (2026-09-08)
 
 ### Fixed
