@@ -1,3 +1,18 @@
+## v0.1.35.0 (2026-09-10)
+
+### Fixed
+
+- **A retainer's new listing that took the game longer than 6 seconds to confirm was silently dropped: Auto-Market never retried it, never told the player, and the listing could be left sitting unlisted in the retainer's own inventory - never for sale and never accounted for.** The confirmation step waited a flat 6 seconds for the server to reflect a listing before giving up with nothing but a debug-level "took too long to execute" line; a retainer's own value-gate price check and its market listings share the same network path, so the first retainer of a sweep - the one still waiting on that price check - was the one most likely to starve. One confirmed case: three listings on the same retainer all missed the 6-second window while three concurrent price lookups were in flight, and one of those three items turned up almost two hours later still sitting unlisted in the source retainer's own inventory (files: `MarketAutomation.cs` `AddListingSteps`).
+- Listing confirmation now waits up to 15 seconds and retries the listing once, at the 7.5-second mark, if it has not landed yet. A listing that still has not confirmed after the retry is reported loudly - an error in the log and, when chat messages are enabled, a chat line naming the item and slot - instead of disappearing without a trace (files: `MarketAutomation.cs` `AddListingSteps`, new `AutoMarket/ListingConfirmation.cs`).
+- A retainer session whose task chain dies mid-run (a step timing out and the queue clearing itself) used to end completely silently - visible only as a debug line in the Dalamud log. It is now reported the same way any other Auto-Market failure is: an error in the log and, when chat messages are enabled, a chat line warning that retainers still queued for that AutoRetainer cycle may not have run (files: `MarketAutomation.cs` `ArSessionWatchdog`, `EndArSession`).
+- The closing "done" line now reports a listing that never confirmed as its own count, separate from "skipped (stock moved)" - the two are different failures with different causes, and folding one into the other would misname the reason (files: `AutoMarket/DoneLine.cs` `Format`, `Communicator.cs` `PrintSweepDone`/`FormatDoneLine`, `MarketAutomation.cs`).
+
+### Notes
+
+- Not yet verified in game. Grading recipe: replay the two sessions from the original report (2026-09-10 11:45 and 13:37 on ffxivdb `plugin_log_lines`, context `LazyMarketCompanion`) against a fresh sweep under similar Universalis contention - success is either no "took too long to execute" WRN for `Listed{N}`/`OpenItemContextMenu{N}` at all, or a chat/log line naming any listing that still could not be confirmed, and no more silent `AR session end (... timeout/abort)` lines with nothing else in the log or chat.
+- This does not change what happens when the source stock itself changed since planning (`AutoMarketService.Execute` returning false, counted as `failures`/"skipped (stock moved)") - that is a different, already-handled case. It also does not change the vendor-leg stop-on-failure halt, which already announces itself in chat; that path is untouched.
+- Offline suite: new case 59 pins `ListingConfirmation.Unconfirmed` (which planned ops never got the server's confirmation) and `ListingConfirmation.ShouldRetryNow` (fires exactly once, at or after the halfway deadline, never before and never twice); case 40 gains coverage for the new `unconfirmed` clause in the closing line (files: `tests/LazyMarketCompanion.Harness/Program.cs`, cases 40 and 59).
+
 ## v0.1.34.0 (2026-09-10)
 
 ### Added

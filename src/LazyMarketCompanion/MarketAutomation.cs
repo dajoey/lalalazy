@@ -57,6 +57,9 @@ internal sealed class MarketAutomation : Window, IDisposable
   // inventory so the unchanged vendor leg below could sell them. Reset per-run in ClearState like
   // every other counter here.
   private int _pulledThisRun;
+  // t_deb0e274 (2026-09-10): listings whose Listed{slot} confirmation never landed even after one
+  // retry - see AddListingSteps. Reported in the done line so a strand is never silent again.
+  private int _unconfirmedThisRun;
   // The vendored leg is DEFERRED to the end of the retainer session (see EnqueueVendorLegTrigger):
   // the plan is built with the listings and fired after the sell list closes and the bell menu is back.
   private VendorPlan? _vendorPlan;
@@ -1420,6 +1423,17 @@ internal sealed class MarketAutomation : Window, IDisposable
     _gateQuotesCts = null;
   }
 
+  /// <summary>
+  /// t_deb0e274 (2026-09-10): the Listed{slot} confirmation window, and the point at which an
+  /// unconfirmed listing gets ONE retry of the MoveToRetainerMarket call. Was a flat 6000ms with no
+  /// retry: under Universalis-gate contention on the first retainer of a sweep, three concurrent
+  /// value-gate lookups starved three confirmations at 6s each (2026-09-10 11:45:21-59) and every one
+  /// was silently dropped - not a slow read, a real failure: item 44011 turned up unvendored and
+  /// still unlisted in its source retainer almost two hours later. 15s covers the same contention
+  /// with room for a retry in the middle.
+  /// </summary>
+  private const long ListedConfirmTimeoutMs = 15000;
+
   private void AddListingSteps(List<Step> steps, ListingOp op)
   {
     var mode = Plugin.Configuration.AutoMarketPriceMode;
@@ -1431,33 +1445,64 @@ internal sealed class MarketAutomation : Window, IDisposable
       steps.Add(new Step(() => _preListDone, $"UniversalisWait{op.TargetSlot}", TimeLimitMs: 10000));
     }
 
+    // Shared with the confirmation step below so a retry re-issues the SAME price the listing was
+    // meant to go out at, rather than recomputing it (the Universalis pre-list price is consumed and
+    // cleared right after the first attempt, so a naive recompute would silently fall back to the
+    // placeholder on retry).
+    uint chosenPrice = placeholder;
+
     steps.Add(new Step(() =>
     {
-      uint price;
       if (op.FixedPrice > 0)
-        price = (uint)op.FixedPrice;
+        chosenPrice = (uint)op.FixedPrice;
       else if (mode == NewListingPriceMode.UniversalisFirst && _preListPrice is > 0)
-        price = (uint)ApplyItemPriceLimitsById(op.ItemId, _preListPrice.Value);
+        chosenPrice = (uint)ApplyItemPriceLimitsById(op.ItemId, _preListPrice.Value);
       else
-        price = placeholder;
+        chosenPrice = placeholder;
 
-      var ok = AutoMarketService.Execute(op, price);
+      var ok = AutoMarketService.Execute(op, chosenPrice);
       if (!ok) _listingFailures++;
       _preListPrice = null;
       _preListDone = false;
       return true;
     }, $"List{op.TargetSlot}", DelayAfterMs: 250));
 
-    // Wait for the server to reflect the listing; a miss is logged and the run continues.
+    // Wait for the server to reflect the listing. A single retry fires at the halfway point if it
+    // still has not landed; if it STILL has not landed by the deadline, this gives up LOUDLY (ERROR +
+    // chat, naming the item and slot) and returns true so the chain moves on cleanly - never the old
+    // silent drop, and never the raw TaskManager timeout path either (the step's own TimeLimitMs is
+    // padded past our deadline so we always get there first).
+    var retried = false;
+    var retryAtMs = Environment.TickCount64 + ListedConfirmTimeoutMs / 2;
+    var giveUpAtMs = Environment.TickCount64 + ListedConfirmTimeoutMs;
     steps.Add(new Step(() =>
     {
-      if (!AutoMarketService.IsListed(op))
+      if (AutoMarketService.IsListed(op))
+      {
+        _listedThisRetainer.Add(op);
+        _listedTotal++;
+        Communicator.PrintListed(op.ItemId, op.HQ, op.Quantity);
+        return true;
+      }
+
+      var now = Environment.TickCount64;
+      if (ListingConfirmation.ShouldRetryNow(retried, now, retryAtMs))
+      {
+        retried = true;
+        Svc.Log.Warning($"[LMC] listing of {(InventoryType)op.SourceContainer}#{op.SourceSlot} -> market#{op.TargetSlot} item={op.ItemId}{(op.HQ ? " HQ" : "")} x{op.Quantity} has not confirmed after {ListedConfirmTimeoutMs / 2}ms; retrying the listing call once");
+        AutoMarketService.Execute(op, chosenPrice);
         return false;
-      _listedThisRetainer.Add(op);
-      _listedTotal++;
-      Communicator.PrintListed(op.ItemId, op.HQ, op.Quantity);
+      }
+
+      if (now < giveUpAtMs)
+        return false;
+
+      _unconfirmedThisRun++;
+      Svc.Log.Error($"[LMC] listing of {(InventoryType)op.SourceContainer}#{op.SourceSlot} -> market#{op.TargetSlot} item={op.ItemId}{(op.HQ ? " HQ" : "")} x{op.Quantity} never confirmed even after a retry ({ListedConfirmTimeoutMs}ms total) - it may still be sitting unlisted in the source; check the retainer by hand");
+      if (Plugin.Configuration.ShowAutoMarketMessages)
+        Communicator.PrintInfo($"listing of item {op.ItemId}{(op.HQ ? " HQ" : "")} x{op.Quantity} into market slot #{op.TargetSlot} did not confirm even after a retry - check the retainer, it may still be unlisted");
       return true;
-    }, $"Listed{op.TargetSlot}", DelayAfterMs: 300, TimeLimitMs: 6000));
+    }, $"Listed{op.TargetSlot}", DelayAfterMs: 300, TimeLimitMs: (int)ListedConfirmTimeoutMs + 3000));
   }
 
   private void StartPreListLookup(ListingOp op)
@@ -1561,21 +1606,41 @@ internal sealed class MarketAutomation : Window, IDisposable
 
     if (!_taskManager.IsBusy)
     {
-      EndArSession("chain ended without Finish (timeout/abort)");
+      // t_deb0e274 (2026-09-10): this used to be dalamud.log-only - "AR session end: Hussypants
+      // (chain ended without Finish (timeout/abort))" with nothing in chat. Joey saw only the
+      // symptom ("gets stuck in the menu") with no indication anything had gone wrong, and every
+      // retainer AutoRetainer still had queued for this cycle silently never ran. Surface it loudly:
+      // it is exactly the "the whole AR session can silently abort mid-menu" half of this bug.
+      EndArSession("chain ended without Finish (timeout/abort)", surfaceLoudly: true);
       return;
     }
     if (Environment.TickCount64 - _arStartedAt > ArSessionCapMs)
     {
       Svc.Log.Warning($"[LMC] AR session for {_arRetainer} exceeded {ArSessionCapMs / 1000}s; aborting");
       _taskManager.Abort();
-      EndArSession("session cap");
+      EndArSession("session cap", surfaceLoudly: true);
     }
   }
 
-  private void EndArSession(string reason)
+  /// <param name="surfaceLoudly">
+  /// True for an ending the user did not ask for and has not already been told about elsewhere (a
+  /// dead task chain, an exceeded session cap). False for a clean end ("done", plugin unload) and for
+  /// endings a caller already announced through its own chat line (the stop-on-failure vendor halt,
+  /// the Draw() exception handler) - those would otherwise print twice.
+  /// </param>
+  private void EndArSession(string reason, bool surfaceLoudly = false)
   {
     if (_arRetainer == null) return;
-    Svc.Log.Information($"[LMC] AR session end: {_arRetainer} ({reason})");
+    if (surfaceLoudly)
+    {
+      Svc.Log.Error($"[LMC] AR session end: {_arRetainer} ({reason}) - the task chain aborted before finishing; any retainers AutoRetainer still had queued this cycle may not run");
+      if (Plugin.Configuration.ShowErrorsInChat)
+        Svc.Chat.PrintError($"[LMC] Auto-Market stopped mid-retainer on {_arRetainer} ({reason}). Retainers queued after it this cycle may not have run - check the log.");
+    }
+    else
+    {
+      Svc.Log.Information($"[LMC] AR session end: {_arRetainer} ({reason})");
+    }
     _arRetainer = null;
     AutoRetainerIPC.Instance?.FinishRetainerPostProcess();
   }
@@ -2093,7 +2158,7 @@ internal sealed class MarketAutomation : Window, IDisposable
       if (Plugin.Configuration.ShowAutoMarketMessages)
         Communicator.PrintInfo($"value gate: 0 of {_vendorPlannedCount} planned stack(s) were vendored - the leg did not run (see log)");
     }
-    Communicator.PrintSweepDone(_listedTotal, _listingFailures, _vendoredThisRun, 0, _vendorFailedThisRun, _pulledThisRun);
+    Communicator.PrintSweepDone(_listedTotal, _listingFailures, _vendoredThisRun, 0, _vendorFailedThisRun, _pulledThisRun, _unconfirmedThisRun);
   }
 
   private void ClearState()
@@ -2114,6 +2179,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     _vendoredThisRun = 0;
     _vendorFailedThisRun = 0;
     _pulledThisRun = 0;
+    _unconfirmedThisRun = 0;
     // 0.1.26.0: the planned count is per-run state too. It was the one vendor counter NOT reset
     // here, so after a retainer planned N ops every later retainer's AnnounceRunDone re-tested
     // retainer one's count against its own zeroed counters and printed a FALSE "vendor: planned N

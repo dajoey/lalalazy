@@ -1612,6 +1612,10 @@ var Catalogue = new (uint Id, string Name)[]
   Check("40 done-line: failure clause only when nonzero",
     !DoneLine.Format(1, 0, 0, 0, 0).Contains("failed")
     && DoneLine.Format(1, 0, 0, 0, 2).Contains(", 2 vendoring op(s) failed"));
+  Check("40 done-line: unconfirmed (t_deb0e274) renders its own clause, distinct from 'skipped'",
+    DoneLine.Format(3, 0, 0, 0, 0, 0, 1) == "done: 3 new listing(s), 1 unconfirmed (see log).");
+  Check("40 done-line: all-zero including unconfirmed is still plain 'done.'",
+    DoneLine.Format(0, 0, 0, 0, 0, 0, 0) == "done.");
 }
 
 // 41. THE FULL-BOARD VENDOR GAP (t_bbb89c49, 0.1.15.0 shipped defect): on a retainer with a FULL
@@ -2607,6 +2611,42 @@ var Catalogue = new (uint Id, string Name)[]
   Check("58 control: Resolve(pageCount=4) and ResolveForPageCount(..., 4) agree on the player shape",
     SlotOrder.Resolve(RetainerIdentity(4, 35), 35, 2, 35)
       .SequenceEqual(SlotOrder.ResolveForPageCount(RetainerIdentity(4, 35), 35, 2, 35, SlotOrder.BagCount)));
+}
+
+// 59. LISTING CONFIRMATION (t_deb0e274, 2026-09-10): a Listed{slot} confirmation that times out must
+//     not be silently dropped. Root cause was AddListingSteps treating "not listed yet" and "the
+//     server never took the listing" as the same thing at the same 6s deadline, with no way for
+//     PinchScope or the value gate's own accounting to learn the difference between "not listed yet"
+//     and "never listed at all". These are the Dalamud-free pieces of that fix.
+{
+  var op1 = new ListingOp(StockOrigin.Retainer, 10000, 15, 4, 44151, false, 1, 0);
+  var op2 = new ListingOp(StockOrigin.Retainer, 10000, 20, 11, 44011, false, 1, 0);
+  var op3 = new ListingOp(StockOrigin.Bags, 0, 3, 13, 45975, false, 1, 0);
+
+  Check("59 unconfirmed: all three ops dropped when nothing confirmed (the 2026-09-10 11:45 sweep)",
+    ListingConfirmation.Unconfirmed([op1, op2, op3], []).Count == 3);
+  Check("59 unconfirmed: a fully confirmed retainer has nothing unconfirmed",
+    ListingConfirmation.Unconfirmed([op1, op2, op3], [op1, op2, op3]).Count == 0);
+  Check("59 unconfirmed: partial confirmation names exactly the ones that did not land",
+    ListingConfirmation.Unconfirmed([op1, op2, op3], [op2]).SequenceEqual([op1, op3]));
+  Check("59 unconfirmed: no plan at all is not itself unconfirmed anything",
+    ListingConfirmation.Unconfirmed([], []).Count == 0);
+  // A confirmed set naming an op that was never planned is nonsense input, not a defect in this
+  // function - it must not crash and must not invent a negative "unconfirmed" count.
+  Check("59 unconfirmed: a confirmed op absent from the plan is ignored, not miscounted",
+    ListingConfirmation.Unconfirmed([op1], [op1, op2]).Count == 0);
+
+  // The retry-once contract: fires exactly at/after the halfway deadline, never before, and never a
+  // second time once it has already fired - this is what stops the fix from becoming an infinite
+  // hammering loop under sustained contention.
+  Check("59 retry: does not fire before the deadline",
+    ListingConfirmation.ShouldRetryNow(false, 1000, 7500) == false);
+  Check("59 retry: fires exactly at the deadline",
+    ListingConfirmation.ShouldRetryNow(false, 7500, 7500) == true);
+  Check("59 retry: fires after the deadline too (a slow tick does not miss the window)",
+    ListingConfirmation.ShouldRetryNow(false, 9000, 7500) == true);
+  Check("59 retry: never fires twice for the same op",
+    ListingConfirmation.ShouldRetryNow(true, 20000, 7500) == false);
 }
 
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");

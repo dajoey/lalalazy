@@ -15,14 +15,20 @@ public static class DoneLine
 {
   /// <summary>
   /// Renders the closing line. Order is fixed and user-visible: listings, listing skips, vendored,
-  /// vendoring failures, held-back. All-zero renders as the plain "done." the button has always
-  /// printed for a run that did nothing.
+  /// vendoring failures, held-back, unconfirmed. All-zero renders as the plain "done." the button has
+  /// always printed for a run that did nothing.
   /// </summary>
-  public static string Format(int listed, int failures, int vendored, int heldBack, int vendorFailures, int pulled = 0)
+  /// <param name="unconfirmed">
+  /// t_deb0e274 (2026-09-10): listings whose Listed{slot} confirmation never saw the server reflect
+  /// them, even after a retry - a DIFFERENT failure from <paramref name="failures"/> (which means the
+  /// source stock moved before the listing call even fired), so it gets its own honest clause rather
+  /// than being folded into "skipped (stock moved)", which would misname the reason.
+  /// </param>
+  public static string Format(int listed, int failures, int vendored, int heldBack, int vendorFailures, int pulled = 0, int unconfirmed = 0)
   {
-    return listed == 0 && failures == 0 && vendored == 0 && heldBack == 0 && vendorFailures == 0 && pulled == 0
+    return listed == 0 && failures == 0 && vendored == 0 && heldBack == 0 && vendorFailures == 0 && pulled == 0 && unconfirmed == 0
       ? "done."
-      : $"done: {listed} new listing(s){(failures > 0 ? $", {failures} skipped (stock moved)" : string.Empty)}{(pulled > 0 ? $", {pulled} pulled" : string.Empty)}{(vendored > 0 ? $", {vendored} vendored" : string.Empty)}{(vendorFailures > 0 ? $", {vendorFailures} vendoring op(s) failed (see log)" : string.Empty)}{(heldBack > 0 ? $", {heldBack} held back by the value gate" : string.Empty)}.";
+      : $"done: {listed} new listing(s){(failures > 0 ? $", {failures} skipped (stock moved)" : string.Empty)}{(unconfirmed > 0 ? $", {unconfirmed} unconfirmed (see log)" : string.Empty)}{(pulled > 0 ? $", {pulled} pulled" : string.Empty)}{(vendored > 0 ? $", {vendored} vendored" : string.Empty)}{(vendorFailures > 0 ? $", {vendorFailures} vendoring op(s) failed (see log)" : string.Empty)}{(heldBack > 0 ? $", {heldBack} held back by the value gate" : string.Empty)}.";
   }
 }
 
