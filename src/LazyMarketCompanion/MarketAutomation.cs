@@ -53,6 +53,10 @@ internal sealed class MarketAutomation : Window, IDisposable
   private int _listingFailures;
   private int _vendoredThisRun;
   private int _vendorFailedThisRun;
+  // Pull pass (0.1.32.0, t_4d12b8b0): how many below-threshold LISTINGS this run pulled back into
+  // inventory so the unchanged vendor leg below could sell them. Reset per-run in ClearState like
+  // every other counter here.
+  private int _pulledThisRun;
   // The vendored leg is DEFERRED to the end of the retainer session (see EnqueueVendorLegTrigger):
   // the plan is built with the listings and fired after the sell list closes and the bell menu is back.
   private VendorPlan? _vendorPlan;
@@ -1033,8 +1037,60 @@ internal sealed class MarketAutomation : Window, IDisposable
   /// Builds the plan with the gate's quotes in hand and front-inserts the listing steps. Runs as a task
   /// step (after GateWait) so the Universalis fetch never blocks the framework thread; InsertSteps from
   /// inside a running task places the listing steps ahead of the pinch/close steps already queued.
+  ///
+  /// 0.1.32.0: the PULL PASS runs first, at the top of this per-retainer plan build (t_4d12b8b0). Any
+  /// occupied market slot under an ENABLED rule whose gate verdict (judged with the gate's own quotes -
+  /// GateFetchIds already asked Universalis about listed items too, see MarketGate.GateFetchIds) is
+  /// Vendor gets withdrawn back into inventory before the plan below is built, so the SAME unchanged
+  /// snapshot/plan/vendor leg that already exists picks the pulled stock up and vendors it like any
+  /// other below-threshold stock. Uncertainty never pulls (same polarity as everywhere else in the
+  /// gate); a pull failure WARNs and the pass continues (WARN-not-stop) - only running out of
+  /// somewhere for a further stack to land ends the pass early, and even that never stops the sweep.
   /// </summary>
   private bool? BuildListingStepsNow(List<Step> steps)
+  {
+    var pullPlan = AutoMarketService.PlanPulls(_gateQuotes);
+    foreach (var note in pullPlan.Notes)
+      Svc.Log.Information($"[LMC] {note}");
+
+    if (pullPlan.Ops.Count == 0)
+      return BuildAndInsertListingSteps();
+
+    var names = string.Join(", ", pullPlan.Ops.Select(o => o.ItemId.ToString() + (o.HQ ? " HQ" : "")));
+    Svc.Log.Information($"[LMC] gate: pulling {pullPlan.Ops.Count} listing(s) below threshold: {names}");
+    if (Plugin.Configuration.ShowAutoMarketMessages)
+      Communicator.PrintInfo($"value gate: pulling {pullPlan.Ops.Count} listing(s) below threshold: {names}");
+
+    var pullSteps = new List<Step>();
+    foreach (var op in pullPlan.Ops)
+    {
+      var captured = op;
+      pullSteps.Add(new Step(() =>
+      {
+        var destinationHint = captured.Target == PullTarget.PlayerBags ? "player inventory" : "retainer inventory";
+        Svc.Log.Information($"[LMC] pull: market#{captured.Slot} item {captured.ItemId}{(captured.HQ ? " HQ" : "")} x{captured.Quantity} listed at {captured.ListedPrice:N0} gil is under the {Plugin.Configuration.AutoMarketValueGateThresholdGil:N0} gil net threshold; pulling to {destinationHint}");
+        var ok = AutoMarketService.ExecutePull(captured, out var rc, out var destination);
+        if (ok)
+        {
+          _pulledThisRun++;
+          Svc.Log.Information($"[LMC] pulled RetainerMarket:{captured.Slot} item {captured.ItemId}{(captured.HQ ? " HQ" : "")} x{captured.Quantity} -> {destination} (rc={rc})");
+        }
+        else
+        {
+          Svc.Log.Warning($"[LMC] pull: FAILED - market#{captured.Slot} item {captured.ItemId}{(captured.HQ ? " HQ" : "")} x{captured.Quantity}: rc={rc}; leaving the listing on the board");
+        }
+        return true;
+      }, $"Pull{captured.Slot}", DelayAfterMs: 250));
+    }
+
+    // Continuation: the actual listing plan build runs AFTER every pull has executed, against a
+    // fresh stock snapshot that includes what the pass just pulled back.
+    pullSteps.Add(new Step(BuildAndInsertListingSteps, "BuildPlanAfterPull"));
+    InsertSteps(pullSteps);
+    return true;
+  }
+
+  private bool? BuildAndInsertListingSteps()
   {
     var plan = AutoMarketService.BuildPlan(_gateQuotes);
     foreach (var note in plan.Notes)
@@ -2037,7 +2093,7 @@ internal sealed class MarketAutomation : Window, IDisposable
       if (Plugin.Configuration.ShowAutoMarketMessages)
         Communicator.PrintInfo($"value gate: 0 of {_vendorPlannedCount} planned stack(s) were vendored - the leg did not run (see log)");
     }
-    Communicator.PrintSweepDone(_listedTotal, _listingFailures, _vendoredThisRun, 0, _vendorFailedThisRun);
+    Communicator.PrintSweepDone(_listedTotal, _listingFailures, _vendoredThisRun, 0, _vendorFailedThisRun, _pulledThisRun);
   }
 
   private void ClearState()
@@ -2057,6 +2113,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     _listingFailures = 0;
     _vendoredThisRun = 0;
     _vendorFailedThisRun = 0;
+    _pulledThisRun = 0;
     // 0.1.26.0: the planned count is per-run state too. It was the one vendor counter NOT reset
     // here, so after a retainer planned N ops every later retainer's AnnounceRunDone re-tested
     // retainer one's count against its own zeroed counters and printed a FALSE "vendor: planned N
@@ -2103,3 +2160,4 @@ internal sealed class MarketAutomation : Window, IDisposable
 
   private readonly record struct CachedPrice(int Value, bool FromUniversalis);
 }
+

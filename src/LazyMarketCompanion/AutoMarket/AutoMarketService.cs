@@ -75,6 +75,20 @@ internal static unsafe class AutoMarketService
     // giant request died at the gateway on 9 of 10 sweeps while a 30-id request answered in
     // 5.8 s). An id with no sellable stock can never be judged below-threshold anyway, so the
     // trim loses nothing and keeps the request in the size class the API answers reliably.
+    var rules = BuildEnabledRules();
+    // 0.1.32.0: also ask about items currently LISTED under an enabled rule (the pull pass) - see
+    // MarketGate.GateFetchIds' own remarks for why a listed-only item would otherwise never get
+    // a quote at all.
+    return MarketGate.GateFetchIds(rules, SnapshotStock(), Plugin.Configuration.AutoMarketListPartialStacks, SnapshotMarket());
+  }
+
+  /// <summary>
+  /// Builds the resolved ItemRule list from the enabled config entries (Item-sheet stack-size
+  /// lookup, source resolution). Extracted 0.1.32.0 - GateItemIds and BuildPlan each had their own
+  /// copy of this loop; a change to one and not the other was one edit away from happening.
+  /// </summary>
+  internal static List<ItemRule> BuildEnabledRules()
+  {
     var config = Plugin.Configuration;
     var items = Svc.Data.GetExcelSheet<Item>();
     var rules = new List<ItemRule>();
@@ -97,36 +111,13 @@ internal static unsafe class AutoMarketService
         entry.FixedPrice,
         maxStack));
     }
-    return MarketGate.GateFetchIds(rules, SnapshotStock(), config.AutoMarketListPartialStacks);
+    return rules;
   }
 
   public static PlanResult BuildPlan(Dictionary<uint, ItemQuote>? gateQuotes = null)
   {
     var config = Plugin.Configuration;
-    var items = Svc.Data.GetExcelSheet<Item>();
-
-    var rules = new List<ItemRule>();
-    foreach (var entry in config.AutoMarketItems.Where(x => x.Enabled))
-    {
-      if (!items.TryGetRow(entry.ItemId, out var row))
-        continue;
-
-      var maxStack = (int)Math.Max(row.StackSize, 1u);
-      var stackSize = entry.StackSize > 0 ? Math.Min(entry.StackSize, maxStack) : maxStack;
-      var source = entry.SourceOverride ?? config.AutoMarketSource;
-
-      rules.Add(new ItemRule(
-        entry.ItemId,
-        entry.HQ,
-        stackSize,
-        entry.KeepInBags,
-        entry.KeepInRetainer,
-        entry.MaxListingsPerRetainer,
-        source is StockSource.BagsOnly or StockSource.BagsAndRetainer,
-        source is StockSource.RetainerOnly or StockSource.BagsAndRetainer,
-        entry.FixedPrice,
-        maxStack));
-    }
+    var rules = BuildEnabledRules();
 
     var stock = SnapshotStock();
     var market = SnapshotMarket();
@@ -508,4 +499,169 @@ internal static unsafe class AutoMarketService
     Svc.Log.Information($"[LMC] vendored {(InventoryType)op.Container}:{op.Slot} item {op.ItemId}{(op.HQ ? " HQ" : "")} x{op.Quantity} (est {op.EstGil:N0} gil)");
     return true;
   }
+
+  // =====================================================================================
+  // Pull pass (0.1.32.0, t_4d12b8b0): pulling a below-threshold LISTING back into inventory so the
+  // unchanged vendor leg below can sell it. See AutoMarket/MarketPull.cs for the decision table.
+  // =====================================================================================
+
+  /// <summary>
+  /// Builds this retainer's pull plan. Occupied market slots under an enabled rule whose gate
+  /// verdict, judged fresh right now with the SAME MarketGate.Decide the stocked path uses, is
+  /// Vendor. Called from MarketAutomation.BuildListingStepsNow BEFORE the stock snapshot/plan/
+  /// vendor leg, using the gate's own quotes - the fetch already asked about listed items (see
+  /// MarketGate.GateFetchIds). Value-gate-off configs get an empty plan: the pull pass exists only
+  /// to feed the gate, and a config with the gate off has no threshold to judge a listing against.
+  /// </summary>
+  public static PullPlan PlanPulls(Dictionary<uint, ItemQuote>? gateQuotes)
+  {
+    var config = Plugin.Configuration;
+    if (!config.AutoMarketValueGateEnabled)
+      return new PullPlan(new List<PullOp>(), new List<string>(), false);
+
+    var rules = BuildEnabledRules();
+    var market = SnapshotMarket();
+    var prices = MarketPricesBySlot();
+    var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+    var freshnessMs = (long)Math.Clamp(config.AutoMarketGateFreshnessHours, 1, 168) * 3_600_000L;
+    var gateOptions = new GateOptions(true, Math.Max(config.AutoMarketValueGateThresholdGil, 0), freshnessMs);
+
+    return MarketPull.Plan(market, prices, rules, gateQuotes, gateOptions, config.HQ, now,
+      RetainerPageFreeSlot, HasFreeBagSlot);
+  }
+
+  /// <summary>How many empty slots exist across the retainer's 7 inventory pages right now.</summary>
+  public static int RetainerPageFreeSlot()
+  {
+    var manager = InventoryManager.Instance();
+    if (manager == null) return 0;
+    var free = 0;
+    foreach (var type in RetainerPageTypes)
+    {
+      var container = manager->GetInventoryContainer(type);
+      if (container == null || !container->IsLoaded) continue;
+      for (var i = 0; i < container->Size; i++)
+      {
+        var item = container->GetInventorySlot(i);
+        if (item == null || item->ItemId == 0) free++;
+      }
+    }
+    return free;
+  }
+
+  /// <summary>True when the player's own bags (Inventory1-4) have at least one empty slot - the
+  /// one-shot fallback destination for a pull when every retainer page is full.</summary>
+  public static bool HasFreeBagSlot()
+  {
+    var manager = InventoryManager.Instance();
+    if (manager == null) return false;
+    foreach (var type in PlayerBagTypes)
+    {
+      var container = manager->GetInventoryContainer(type);
+      if (container == null || !container->IsLoaded) continue;
+      for (var i = 0; i < container->Size; i++)
+      {
+        var item = container->GetInventorySlot(i);
+        if (item == null || item->ItemId == 0) return true;
+      }
+    }
+    return false;
+  }
+
+  private static readonly InventoryType[] RetainerPageTypes =
+  [
+    InventoryType.RetainerPage1, InventoryType.RetainerPage2, InventoryType.RetainerPage3, InventoryType.RetainerPage4,
+    InventoryType.RetainerPage5, InventoryType.RetainerPage6, InventoryType.RetainerPage7,
+  ];
+
+  private static readonly InventoryType[] PlayerBagTypes =
+  [
+    InventoryType.Inventory1, InventoryType.Inventory2, InventoryType.Inventory3, InventoryType.Inventory4,
+  ];
+
+  /// <summary>Human-readable name for a container type, for the pull log lines.</summary>
+  public static string NameOfContainer(InventoryType type) => type switch
+  {
+    InventoryType.RetainerPage1 => "RetainerPage1",
+    InventoryType.RetainerPage2 => "RetainerPage2",
+    InventoryType.RetainerPage3 => "RetainerPage3",
+    InventoryType.RetainerPage4 => "RetainerPage4",
+    InventoryType.RetainerPage5 => "RetainerPage5",
+    InventoryType.RetainerPage6 => "RetainerPage6",
+    InventoryType.RetainerPage7 => "RetainerPage7",
+    InventoryType.Inventory1 => "Inventory1",
+    InventoryType.Inventory2 => "Inventory2",
+    InventoryType.Inventory3 => "Inventory3",
+    InventoryType.Inventory4 => "Inventory4",
+    _ => type.ToString(),
+  };
+
+  /// <summary>
+  /// Finds the slot a stack of (itemId, hq, quantity) landed on inside the given container types.
+  /// Cosmetic only - used for the proof log line, never for anything that decides behaviour, since
+  /// ExecutePull's own before/after re-read is what actually gates success.
+  /// </summary>
+  private static (InventoryType Container, int Slot)? FindStack(InventoryType[] types, uint itemId, bool hq, int quantity)
+  {
+    var manager = InventoryManager.Instance();
+    if (manager == null) return null;
+    foreach (var type in types)
+    {
+      var container = manager->GetInventoryContainer(type);
+      if (container == null || !container->IsLoaded) continue;
+      for (var i = 0; i < container->Size; i++)
+      {
+        var item = container->GetInventorySlot(i);
+        if (item == null || item->ItemId != itemId) continue;
+        if (item->Flags.HasFlag(InventoryItem.ItemFlags.HighQuality) != hq) continue;
+        if (item->Quantity == quantity)
+          return (type, i);
+      }
+    }
+    return null;
+  }
+
+  /// <summary>
+  /// Executes one pull: withdraws a below-threshold listing back into the retainer's own inventory
+  /// (or, one-shot, the player's bags) via the client's own withdrawal call - verified offline
+  /// against FFXIVClientStructs (RetainerInventory: E8 ?? ?? ?? ?? 45 85 F6 75 22; PlayerBags:
+  /// E8 ?? ?? ?? ?? EB 49 84 C0). RE-READS the market slot immediately before firing (the plan was
+  /// built from a snapshot; the caller's own PlanPulls judged this from that same snapshot). The
+  /// call's int return code is the primary proof of success; the market slot is re-read again
+  /// AFTER the call to confirm it actually emptied - a zero rc with the item still sitting there
+  /// would be a worse silent failure than an honest one. FindStack's result only decides which
+  /// name goes in the log line.
+  /// </summary>
+  public static bool ExecutePull(PullOp op, out int rc, out string destination)
+  {
+    rc = -1;
+    destination = op.Target == PullTarget.PlayerBags ? "player inventory" : "retainer inventory";
+    var manager = InventoryManager.Instance();
+    if (manager == null) return false;
+
+    var market = manager->GetInventoryContainer(InventoryType.RetainerMarket);
+    if (market == null || !market->IsLoaded) return false;
+    var before = market->GetInventorySlot(op.Slot);
+    if (before == null || before->ItemId != op.ItemId || before->Quantity != op.Quantity
+        || before->Flags.HasFlag(InventoryItem.ItemFlags.HighQuality) != op.HQ)
+      return false;
+
+    rc = op.Target == PullTarget.PlayerBags
+      ? manager->MoveFromRetainerMarketToPlayerInventory(InventoryType.RetainerMarket, (ushort)op.Slot, (uint)op.Quantity)
+      : manager->MoveFromRetainerMarketToRetainerInventory(InventoryType.RetainerMarket, (ushort)op.Slot, (uint)op.Quantity);
+    if (rc != 0)
+      return false;
+
+    var after = market->GetInventorySlot(op.Slot);
+    if (after != null && after->ItemId == op.ItemId)
+      return false;
+
+    var landedTypes = op.Target == PullTarget.PlayerBags ? PlayerBagTypes : RetainerPageTypes;
+    var found = FindStack(landedTypes, op.ItemId, op.HQ, op.Quantity);
+    if (found != null)
+      destination = $"{NameOfContainer(found.Value.Container)}:{found.Value.Slot}";
+
+    return true;
+  }
 }
+

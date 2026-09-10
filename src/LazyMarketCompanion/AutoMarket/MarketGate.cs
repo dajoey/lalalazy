@@ -76,7 +76,7 @@ public static class MarketGate
   /// ones, which is the difference between a request Universalis answers and the 504 Gateway
   /// Timeout that blinded every sweep that day.
   /// </summary>
-  public static List<uint> GateFetchIds(IReadOnlyList<ItemRule> rules, IReadOnlyList<StockStack> stock, bool listPartialStacks)
+  public static List<uint> GateFetchIds(IReadOnlyList<ItemRule> rules, IReadOnlyList<StockStack> stock, bool listPartialStacks, IReadOnlyList<MarketSlot>? market = null)
   {
     var ids = new List<uint>();
     foreach (var rule in rules)
@@ -87,6 +87,24 @@ public static class MarketGate
         continue;
       ids.Add(rule.ItemId);
     }
+
+    // 0.1.32.0 (t_4d12b8b0, the pull pass): a listed-only item has PotentialSellable == 0 above (it
+    // has no STOCK left to sell) and would otherwise never get a quote, so its own gate verdict
+    // could never be judged - no quote means uncertainty, and uncertainty never pulls. This ADDS
+    // ids for items currently sitting in an occupied market slot under an enabled rule of the same
+    // quality; it never removes or changes anything the stocked-only fetch above already asked for.
+    if (market != null)
+    {
+      foreach (var slot in market)
+      {
+        if (slot.ItemId == 0 || ids.Contains(slot.ItemId))
+          continue;
+        if (!rules.Any(r => r.ItemId == slot.ItemId && r.HQ == slot.HQ))
+          continue;
+        ids.Add(slot.ItemId);
+      }
+    }
+
     return ids;
   }
 
@@ -310,3 +328,4 @@ public static class MarketGate
     return ordered.ToList();
   }
 }
+

@@ -2297,5 +2297,148 @@ var Catalogue = new (uint Id, string Name)[]
     $"circle bottom {scaledCenter.Y + MarkerAnchor.Radius} <= cell bottom {scaledPos.Y + scaledSize.Y}");
 }
 
+// 54. THE PULL PASS (0.1.32.0, t_4d12b8b0): a below-threshold LISTING is invisible to
+//     MarketGate.PotentialSellable (stock-only), so a hand listing or a pre-gate listing sat on
+//     the board forever. MarketPull.Plan pulls occupied market slots whose ENABLED rule's gate
+//     verdict is Vendor; MarketGate.GateFetchIds now also asks Universalis about listed-only ids
+//     so those verdicts can actually be judged. Uncertainty never pulls (same polarity as the
+//     stocked gate); a rule with SellFromRetainer off is never a pull candidate.
+{
+  const long Now = 1_788_710_000_000L;
+  const long Fresh = 6 * 3_600_000L;
+  var gate = new GateOptions(true, 100, Fresh);
+
+  ItemRule PullRule(uint id, bool ret = true, bool bags = false)
+    => new(id, false, 99, 0, 0, 0, bags, ret, 0, 999);
+
+  var pullRules = new List<ItemRule>
+  {
+    PullRule(5594),           // Dye - enabled, sells from retainer
+    PullRule(5111),           // Ore - enabled, sells from retainer
+    PullRule(19990),          // priced high - will List, not Vendor
+    PullRule(4487, ret: false, bags: true), // enabled but SellFromRetainer=false - never a pull candidate
+  };
+
+  // Market: slot 0 Dye NQ x5 @1g (Vendor verdict expected), slot 1 19990 NQ x99 @84g (nets 7900,
+  // lists), slot 2 Ore NQ x10 @2g (Vendor verdict expected), slot 3 12593 (no rule at all),
+  // slot 4 Dye HQ x5 (rule is NQ - quality mismatch, never matches), slot 5 4487 NQ x9 @1g
+  // (Vendor verdict but SellFromRetainer=false - filtered before the verdict is even asked).
+  var market = new List<MarketSlot>
+  {
+    new(0, 5594, false, 5),
+    new(1, 19990, false, 99),
+    new(2, 5111, false, 10),
+    new(3, 12593, false, 7),
+    new(4, 5594, true, 5),
+    new(5, 4487, false, 9),
+  };
+  var prices = new Dictionary<int, ulong> { [0] = 1, [1] = 84, [2] = 2, [3] = 50, [4] = 1, [5] = 1 };
+
+  var quotes = new Dictionary<uint, ItemQuote>
+  {
+    [5594] = new ItemQuote(5594, true, Now, [new QuoteListing(1, false, false)]),
+    [19990] = new ItemQuote(19990, true, Now, [new QuoteListing(84, false, false)]),
+    [5111] = new ItemQuote(5111, true, Now, [new QuoteListing(2, false, false)]),
+    [4487] = new ItemQuote(4487, true, Now, [new QuoteListing(1, false, false)]),
+  };
+
+  var plan = MarketPull.Plan(market, prices, pullRules, quotes, gate, preferHq: true, nowUnixMs: Now,
+    freeRetainerPageSlots: () => 10, hasFreeBagSlot: () => true);
+  Check("54 pull: exactly slots {0,2} are pulled (Vendor verdicts under enabled retainer-sell rules)",
+    plan.Ops.Select(o => o.Slot).OrderBy(s => s).SequenceEqual(new[] { 0, 2 }),
+    string.Join(",", plan.Ops.Select(o => o.Slot)));
+  Check("54 pull: 19990 (nets 7900 > threshold) is never pulled - it lists",
+    plan.Ops.All(o => o.ItemId != 19990));
+  Check("54 pull: HQ Dye at slot 4 never matches the NQ rule",
+    plan.Ops.All(o => o.Slot != 4));
+  Check("54 pull: slot 3 (no rule at all) is never touched",
+    plan.Ops.All(o => o.Slot != 3));
+  Check("54 pull: slot 5 (Vendor verdict but SellFromRetainer=false) is filtered before the pull",
+    plan.Ops.All(o => o.Slot != 5));
+  Check("54 pull: pulled ops carry the listed price and target RetainerInventory (slots free)",
+    plan.Ops.All(o => o.Target == PullTarget.RetainerInventory)
+      && plan.Ops.First(o => o.Slot == 0).ListedPrice == 1
+      && plan.Ops.First(o => o.Slot == 2).ListedPrice == 2);
+
+  // CONTROL: stale quote (Dye 9h old, freshness 6h) -> zero pulls (uncertainty never pulls)
+  var staleQuotes = new Dictionary<uint, ItemQuote>
+  {
+    [5594] = new ItemQuote(5594, true, Now - 9 * 3_600_000L, [new QuoteListing(1, false, false)]),
+    [5111] = new ItemQuote(5111, true, Now - 9 * 3_600_000L, [new QuoteListing(2, false, false)]),
+  };
+  var stalePlan = MarketPull.Plan(market, prices, pullRules, staleQuotes, gate, true, Now, () => 10, () => true);
+  Check("54 pull CONTROL: stale quotes never pull", stalePlan.Ops.Count == 0, $"ops={stalePlan.Ops.Count}");
+
+  // CONTROL: null quotes -> zero pulls
+  var nullPlan = MarketPull.Plan(market, prices, pullRules, null, gate, true, Now, () => 10, () => true);
+  Check("54 pull CONTROL: null quotes never pull", nullPlan.Ops.Count == 0, $"ops={nullPlan.Ops.Count}");
+
+  // CONTROL: gate disabled -> zero pulls
+  var offGate = new GateOptions(false, 100, Fresh);
+  var offPlan = MarketPull.Plan(market, prices, pullRules, quotes, offGate, true, Now, () => 10, () => true);
+  Check("54 pull CONTROL: gate disabled never pulls", offPlan.Ops.Count == 0, $"ops={offPlan.Ops.Count}");
+
+  // CONTROL: threshold 0 -> zero pulls
+  var zeroGate = new GateOptions(true, 0, Fresh);
+  var zeroPlan = MarketPull.Plan(market, prices, pullRules, quotes, zeroGate, true, Now, () => 10, () => true);
+  Check("54 pull CONTROL: threshold 0 never pulls", zeroPlan.Ops.Count == 0, $"ops={zeroPlan.Ops.Count}");
+
+  // Space exhaustion: no free retainer pages and no free bag slot for a bags-enabled rule -> the
+  // pass stops early with a note, but still pulled whatever fit before that.
+  var tightRules = new List<ItemRule> { PullRule(5594, ret: true, bags: false), PullRule(5111, ret: true, bags: false) };
+  var noSpacePlan = MarketPull.Plan(market, prices, tightRules, quotes, gate, true, Now, () => 0, () => false);
+  Check("54 pull: no retainer space and no bag fallback -> nothing pulled, stopped-for-space set",
+    noSpacePlan.Ops.Count == 0 && noSpacePlan.StoppedForSpace && noSpacePlan.Notes.Count > 0,
+    $"ops={noSpacePlan.Ops.Count}, stopped={noSpacePlan.StoppedForSpace}, notes=[{string.Join(";", noSpacePlan.Notes)}]");
+
+  // One free retainer slot only: the pull that fits succeeds, the pass stops before the second.
+  var oneSlotPlan = MarketPull.Plan(market, prices, pullRules, quotes, gate, true, Now, () => 1, () => false);
+  Check("54 pull: exactly one free retainer slot -> exactly one pull, pass stops for space after",
+    oneSlotPlan.Ops.Count == 1 && oneSlotPlan.StoppedForSpace,
+    $"ops={oneSlotPlan.Ops.Count}, stopped={oneSlotPlan.StoppedForSpace}");
+
+  // Player-bags one-shot fallback: no retainer space, but a bags-enabled rule and a free bag slot.
+  var bagsRules = new List<ItemRule> { PullRule(5594, ret: true, bags: true), PullRule(5111, ret: true, bags: false) };
+  var bagsPlan = MarketPull.Plan(market, prices, bagsRules, quotes, gate, true, Now, () => 0, () => true);
+  Check("54 pull: bags-enabled rule falls back to PlayerBags one-shot when retainer pages are full",
+    bagsPlan.Ops.Count == 1 && bagsPlan.Ops[0].Slot == 0 && bagsPlan.Ops[0].Target == PullTarget.PlayerBags,
+    $"ops={string.Join(",", bagsPlan.Ops.Select(o => $"{o.Slot}:{o.Target}"))}");
+
+  // 55. GateFetchIds' new market parameter (0.1.32.0): a listed-only item (no stock left to sell)
+  //     is invisible to the stocked-only fetch, so its own verdict could never be judged without
+  //     this. Adding the market slots must ADD ids, never remove or duplicate the stocked ones.
+  var stockedRules = new List<ItemRule>
+  {
+    new(36186, false, 5, 0, 0, 0, true, true, 0, 999),    // has stock -> already in the stocked fetch
+    new(4487, false, 99, 0, 0, 0, false, true, 0, 999),   // NO stock, but LISTED under an enabled rule
+  };
+  var stockedStock = new List<StockStack> { new(StockOrigin.Bags, 0, 0, 36186, false, 50) };
+  var noMarketIds = MarketGate.GateFetchIds(stockedRules, stockedStock, false);
+  Check("55 fetch: no market param -> unchanged stocked-only shape (0.1.19.0 control)",
+    noMarketIds.SequenceEqual(new uint[] { 36186 }), string.Join(",", noMarketIds));
+
+  var listedMarket = new List<MarketSlot> { new(0, 4487, false, 9), new(1, 0, false, 0) };
+  var withMarketIds = MarketGate.GateFetchIds(stockedRules, stockedStock, false, listedMarket);
+  Check("55 fetch: market param adds the listed-only id without duplicating the stocked one",
+    withMarketIds.OrderBy(x => x).SequenceEqual(new uint[] { 4487, 36186 }), string.Join(",", withMarketIds));
+
+  var noRuleMarket = new List<MarketSlot> { new(0, 99999, false, 1) };
+  var noRuleIds = MarketGate.GateFetchIds(stockedRules, stockedStock, false, noRuleMarket);
+  Check("55 fetch: a listed item with NO matching enabled rule is never added",
+    noRuleIds.SequenceEqual(new uint[] { 36186 }), string.Join(",", noRuleIds));
+
+  // 56. DoneLine.Format's pulled parameter (0.1.32.0): pulled renders between skips and vendored,
+  //     and participates in the all-zero "done." check.
+  Check("56 done-line: pulled alone renders 'done: 0 new listing(s), N pulled.'",
+    DoneLine.Format(0, 0, 0, 0, 0, 2) == "done: 0 new listing(s), 2 pulled.");
+  Check("56 done-line: listed + pulled + vendored keeps pulled BEFORE vendored (session order)",
+    DoneLine.Format(1, 0, 1, 0, 0, 2) == "done: 1 new listing(s), 2 pulled, 1 vendored.");
+  Check("56 done-line: all-zero including pulled=0 is still the plain 'done.'",
+    DoneLine.Format(0, 0, 0, 0, 0, 0) == "done.");
+  Check("56 done-line: the old five-arg call shape (case 40) is unchanged",
+    DoneLine.Format(3, 1, 2, 0, 0) == "done: 3 new listing(s), 1 skipped (stock moved), 2 vendored.");
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
+

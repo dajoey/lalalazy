@@ -18,10 +18,11 @@ public static class DoneLine
   /// vendoring failures, held-back. All-zero renders as the plain "done." the button has always
   /// printed for a run that did nothing.
   /// </summary>
-  public static string Format(int listed, int failures, int vendored, int heldBack, int vendorFailures)
+  public static string Format(int listed, int failures, int vendored, int heldBack, int vendorFailures, int pulled = 0)
   {
-    return listed == 0 && failures == 0 && vendored == 0 && heldBack == 0 && vendorFailures == 0
+    return listed == 0 && failures == 0 && vendored == 0 && heldBack == 0 && vendorFailures == 0 && pulled == 0
       ? "done."
-      : $"done: {listed} new listing(s){(failures > 0 ? $", {failures} skipped (stock moved)" : string.Empty)}{(vendored > 0 ? $", {vendored} vendored" : string.Empty)}{(vendorFailures > 0 ? $", {vendorFailures} vendoring op(s) failed (see log)" : string.Empty)}{(heldBack > 0 ? $", {heldBack} held back by the value gate" : string.Empty)}.";
+      : $"done: {listed} new listing(s){(failures > 0 ? $", {failures} skipped (stock moved)" : string.Empty)}{(pulled > 0 ? $", {pulled} pulled" : string.Empty)}{(vendored > 0 ? $", {vendored} vendored" : string.Empty)}{(vendorFailures > 0 ? $", {vendorFailures} vendoring op(s) failed (see log)" : string.Empty)}{(heldBack > 0 ? $", {heldBack} held back by the value gate" : string.Empty)}.";
   }
 }
+

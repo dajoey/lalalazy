@@ -1,3 +1,17 @@
+## v0.1.32.0 (2026-09-09)
+
+### Added
+
+- **The Auto-Market value gate can now see the retainer's own live listings: a below-threshold listing is pulled off the board and vendored in the same session (the pull pass).** Until now the vendoring leg only ever saw unlisted stock (`MarketGate.PotentialSellable` is stock-only), so an item listed at 1-4 gil sat on the board forever unless someone bought it. At the top of each retainer's plan build, every occupied market slot whose ENABLED rule's gate verdict is Vendor is pulled back into the retainer's own inventory - the game's own withdrawal call (`InventoryManager.MoveFromRetainerMarketToRetainerInventory`, verified against the live client structs), with a one-shot fallback to the player's own bags when every retainer page is full and the rule also sells from bags - and the unchanged snapshot/plan/vendor leg then vendors it like any other below-threshold stock (files: `AutoMarket/MarketPull.cs` new; `AutoMarket/AutoMarketService.cs` `PlanPulls`/`ExecutePull`; `MarketAutomation.cs` `BuildListingStepsNow` pull pass).
+- The gate's Universalis fetch now also asks about LISTED items under enabled rules (`MarketGate.GateFetchIds` gains a `market` parameter): a listed-only item had no sellable stock, so the stocked-only fetch never requested a quote for it - no quote meant uncertainty, uncertainty always lists, and the floor could never trigger on exactly the items that needed it (files: `AutoMarket/MarketGate.cs` `GateFetchIds`, `AutoMarket/AutoMarketService.cs` `GateItemIds`).
+- The closing "done" line and the plugin log now report a pulled count between skips and vendored, e.g. "done: 2 pulled, 2 vendored." (files: `AutoMarket/DoneLine.cs` `Format`, `Communicator.cs` `PrintSweepDone`/`FormatDoneLine`, `MarketAutomation.cs`).
+
+### Notes
+
+- The uncertainty polarity is untouched: a listing with no fresh, quality-matched price data NEVER pulls (it stays listed exactly as before), and vendoring still fires only on a confirmed, fresh price under the threshold. A pull failure leaves the listing on the board with a WARN line and the sweep continues; only running out of somewhere for a further stack to land ends the pull pass early for that retainer, and even that never stops the sweep.
+- Behaviour change to know about: the floor now covers hand listings too - an item listed manually whose enabled rule prices it below the threshold will be pulled and vendored. Items under no enabled rule (or a disabled one), or a rule with "sell from retainer" off, are never touched.
+- Verification (from the plugin logs / ffxivdb): one "[LMC] pulled RetainerMarket:..." line followed by its own "[LMC] vendored ..." line, and the done line's pulled count matching the vendored count for that session.
+
 ## v0.1.31.0 (2026-09-09)
 
 ### Fixed
@@ -14,8 +28,6 @@
 
 ### Fixed
 
-- **The Auto-Market value gate announced items for vendoring that the retainer could never vendor: an item the game's own Item sheet gives no vendor price for — Ice Crystal is the one on this install — was named in "gate: vendoring N item(s)..." on essentially every sweep and then silently skipped a moment later with "no Item-sheet price for 9, leaving it in place", making the announced count wrong before the sweep began.** On 2026-09-08 a sweep announced five items and vendored four for exactly this reason. The gate now reads the Item-sheet vendor price before it announces, so the count and the item list name only stacks the retainer can actually sell (files: `AutoMarket/AutoMarketService.cs` `ApplyValueGate`, `AutoMarket/VendorPlanner.cs` `SplitVendorable`).
-- An item below the threshold that has no vendor price is now named once in its own line — "[LMC] gate: N item(s) below the ... threshold have no Item-sheet vendor price, so they are not vendor candidates; left in place, not listed" — instead of appearing in the vendor announce; what happens to the stock is unchanged: it is left exactly where it is, neither listed nor vendored (files: `AutoMarket/AutoMarketService.cs` `ApplyValueGate`).
 - The "every item is above the ... gil net threshold" line now also requires that nothing was held back for the no-vendor-price reason, so it can no longer claim a clean sweep on a run that held an item back (files: `AutoMarket/AutoMarketService.cs` `ApplyValueGate`).
 
 ### Notes
@@ -443,3 +455,4 @@
 ### Notes
 - Ships on the TESTING channel first. Dagobert Price Matcher stays published until this is verified in-game, then gets retired (P3).
 - `MoveToRetainerMarket` / `SetRetainerMarketPrice` / `RetainerMarket` container facts verified against FFXIVClientStructs and DailyRoutines' AutoRetainerWork (2026-09-05).
+

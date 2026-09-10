@@ -74,21 +74,21 @@ public static class Communicator
         .Build());
   }
 
-  public static void PrintSweepDone(int listed, int failures, int vendored = 0, int heldBack = 0, int vendorFailures = 0)
+  public static void PrintSweepDone(int listed, int failures, int vendored = 0, int heldBack = 0, int vendorFailures = 0, int pulled = 0)
   {
-    var didAnything = listed != 0 || failures != 0 || vendored != 0 || heldBack != 0 || vendorFailures != 0;
+    var didAnything = listed != 0 || failures != 0 || vendored != 0 || heldBack != 0 || vendorFailures != 0 || pulled != 0;
 
     // 0.1.27.0: the closing line is now written to the plugin log as well - it was chat-only, and
     // chat lines never reach the harvested plugin logs, so a run's vendored count could not be
     // verified from them after the fact. Logged whenever the run did anything; a no-op run stays
     // silent in both channels.
     if (didAnything)
-      Svc.Log.Information("[LMC] Auto-Market run " + FormatDoneLine(listed, failures, vendored, heldBack, vendorFailures));
+      Svc.Log.Information("[LMC] Auto-Market run " + FormatDoneLine(listed, failures, vendored, heldBack, vendorFailures, pulled));
 
     if (!Plugin.Configuration.ShowAutoMarketMessages && !didAnything)
       return;
 
-    Svc.Chat.Print(Prefix + FormatDoneLine(listed, failures, vendored, heldBack, vendorFailures));
+    Svc.Chat.Print(Prefix + FormatDoneLine(listed, failures, vendored, heldBack, vendorFailures, pulled));
   }
 
   /// <summary>
@@ -97,8 +97,8 @@ public static class Communicator
   /// clause: the 0.1.12.0 build announced the vendoring plan and then reported nothing when every op
   /// failed, so a 0/7 run read as success.
   /// </summary>
-  public static string FormatDoneLine(int listed, int failures, int vendored, int heldBack, int vendorFailures)
-    => AutoMarket.DoneLine.Format(listed, failures, vendored, heldBack, vendorFailures);
+  public static string FormatDoneLine(int listed, int failures, int vendored, int heldBack, int vendorFailures, int pulled = 0)
+    => AutoMarket.DoneLine.Format(listed, failures, vendored, heldBack, vendorFailures, pulled);
 
   private static ItemPayload? RawItemNameToItemPayload(string itemName)
   {
@@ -221,3 +221,4 @@ public static class Communicator
         .Build());
   }
 }
+
