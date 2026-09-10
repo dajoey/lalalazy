@@ -59,8 +59,17 @@ namespace LazyMarketCompanion;
 /// is actually drawing in them, and an unreadable order suppresses that grid's dots entirely.
 ///
 /// The same grid addons are reused by the game for the retainer's inventory view, where they show the
-/// RETAINER's containers, not the player's bags. A marker there would lie, so the whole feature
-/// stands down while a retainer inventory window is open.
+/// RETAINER's containers, not the player's bags. Since 0.1.34.0 the feature no longer stands down
+/// there: while InventoryRetainer/InventoryRetainerLarge is open, the SAME two-state marker is drawn
+/// against the active retainer's own stock instead of the player's bags (Helm t-joey-1789056199442:
+/// "now we need to make the dots work on retainer inventory"). RetainerGridMap.cs resolves the live
+/// grid to a retainer PAGE via the retainer addon's TabIndex (0-6, up to 7 pages -
+/// InventoryType.RetainerPage1..7, not the player's fixed 4), and the display order for that page
+/// comes from ItemOrderModule.GetActiveRetainerSorter() - the same per-frame SlotOrder.Resolve
+/// machinery the player path uses, generalised to a 7-page range. Both retainer addons are assumed
+/// single-panel/tabbed (mirroring the player's tabbed "Inventory" shape, not the four-grid expanded
+/// one) per a MetadataLoadContext field probe - unconfirmed in game, so an E-grid addon appearing
+/// live while a retainer window is open resolves to nothing rather than a guessed page.
 ///
 /// VISIBILITY (0.1.29.0): the 7.x "Inventory" window (AddonInventoryExpansion) owns all grids as
 /// child addons - the four E-grids, key-items "event" grids, and the crystal grid. A page switch
@@ -89,8 +98,18 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
     "InventoryGrid0E", "InventoryGrid1E", "InventoryGrid2E", "InventoryGrid3E",
   ];
 
-  /// <summary>Grid addons shown while browsing a retainer's inventory - markers lie there, so no draw.</summary>
+  /// <summary>A retainer's up to seven storage pages, in the game's own order; index == RetainerGridMap page index.</summary>
+  private static readonly InventoryType[] RetainerPageTypes =
+  [
+    InventoryType.RetainerPage1, InventoryType.RetainerPage2, InventoryType.RetainerPage3, InventoryType.RetainerPage4,
+    InventoryType.RetainerPage5, InventoryType.RetainerPage6, InventoryType.RetainerPage7,
+  ];
+
+  /// <summary>Grid addons shown while browsing a retainer's inventory - the RETAINER read path below.</summary>
   private const string RetainerInventoryAddon = "InventoryRetainer";
+
+  /// <summary>The second retainer inventory addon shape (larger capacity); same TabIndex/SetTab shape.</summary>
+  private const string RetainerInventoryLargeAddon = "InventoryRetainerLarge";
 
   /// <summary>The tabbed-mode parent window whose TabIndex says which bag the panel shows.</summary>
   private const string ParentInventoryAddon = "Inventory";
@@ -146,10 +165,22 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
     {
       unsafe
       {
-        // The retainer's inventory view reuses these grid addons for the RETAINER's containers.
-        if (GenericHelpers.TryGetAddonByName<AtkUnitBase>(RetainerInventoryAddon, out var retainerAddon)
-            && GenericHelpers.IsAddonReady(retainerAddon))
+        // The retainer's inventory view reuses these same grid addons for the RETAINER's
+        // containers (0.1.34.0: this is now a BRANCH, not an early-return - see the class remarks
+        // above). InventoryRetainer wins if both are somehow ready; large-capacity retainers use
+        // InventoryRetainerLarge instead of a second concurrent panel, never both at once.
+        var retainerReady = GenericHelpers.TryGetAddonByName<AtkUnitBase>(RetainerInventoryAddon, out var retainerAddon)
+            && GenericHelpers.IsAddonReady(retainerAddon);
+        AtkUnitBase* retainerLargeAddon = null;
+        var retainerLargeReady = !retainerReady
+            && GenericHelpers.TryGetAddonByName<AtkUnitBase>(RetainerInventoryLargeAddon, out retainerLargeAddon)
+            && GenericHelpers.IsAddonReady(retainerLargeAddon);
+
+        if (retainerReady || retainerLargeReady)
+        {
+          DrawRetainerMarkers(retainerReady ? retainerAddon : retainerLargeAddon, retainerReady);
           return;
+        }
 
         // 0.1.25.0 visibility gate. The expanded parent owns every grid as a child addon; switching
         // to the "Key Items & Crystals" page hides the bag grids' ROOT NODE but leaves their addons
@@ -240,6 +271,85 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
       // Markers are pure display and must never take the plugin's automation down with them.
       Svc.Log.Error(ex, "[LMC] markers: draw failed (markers suppressed this frame)");
     }
+  }
+
+  /// <summary>
+  /// The retainer-inventory counterpart of the main Draw() body (0.1.34.0). Both retainer addons
+  /// (InventoryRetainer / InventoryRetainerLarge) share the same field layout up to and including
+  /// TabIndex - confirmed by direct field enumeration, not assumed - so only the cast differs.
+  /// </summary>
+  private unsafe void DrawRetainerMarkers(AtkUnitBase* retainerAddon, bool isNormalRetainer)
+  {
+    var tabIndex = isNormalRetainer
+      ? ((AddonInventoryRetainer*)retainerAddon)->TabIndex
+      : ((AddonInventoryRetainerLarge*)retainerAddon)->TabIndex;
+
+    BuildEntriesScratch();
+
+    // Same per-frame-shared-order idea as the player path (0.1.33.0), against the ACTIVE
+    // RETAINER's own sorter instead of the player's InventorySorter. ItemOrderModule tracks which
+    // retainer is active via ActiveRetainerId and keys RetainerSorter by that id, so this always
+    // reads the sorter for whichever retainer's inventory window is open this frame - never a
+    // stale "last retainer interacted with" value.
+    var orderSnapshot = ReadRetainerSlotOrder();
+
+    var live = new List<string>();
+    foreach (var name in GridNames)
+    {
+      // E-grids are the player's expanded-armoire-chest mode; no known retainer equivalent exists
+      // (both retainer addons expose only a single TabIndex-selected panel, per the field probe in
+      // the class remarks). RetainerGridMap.Resolve below only binds the three normal-mode panel
+      // names, so a stray live E-grid here is simply never bound to anything.
+      if (GenericHelpers.TryGetAddonByName<AtkUnitBase>(name, out var gridAddon)
+          && GenericHelpers.IsAddonReady(gridAddon))
+        live.Add(name);
+    }
+    if (live.Count == 0)
+      return;
+
+    var bindings = RetainerGridMap.Resolve(live, tabIndex);
+    foreach (var binding in bindings)
+    {
+      if (!GenericHelpers.TryGetAddonByName<AtkUnitBase>(binding.GridName, out var addon)
+          || !GenericHelpers.IsAddonReady(addon))
+        continue;
+      if (!addon->RootNode->IsVisible())
+        continue;
+
+      DrawForRetainerGrid(binding.GridName, addon, binding.PageIndex, orderSnapshot);
+    }
+  }
+
+  /// <summary>
+  /// Read the ACTIVE RETAINER's item order (0.1.34.0), mirroring ReadSlotOrder for the player. The
+  /// retainer may have up to seven storage pages (RetainerGridMap.PageCount) rather than the
+  /// player's fixed four - SlotOrder.ResolveForPageCount takes that as an explicit parameter so the
+  /// same fail-closed resolution logic serves both without duplicating it.
+  /// </summary>
+  private static unsafe SlotOrderSnapshot ReadRetainerSlotOrder()
+  {
+    var module = ItemOrderModule.Instance();
+    if (module == null)
+      return new SlotOrderSnapshot(null, 0);
+
+    var sorter = module->GetActiveRetainerSorter();
+    if (sorter == null || sorter->ItemsPerPage <= 0)
+      return new SlotOrderSnapshot(null, 0);
+
+    var count = (int)sorter->Items.LongCount;
+    if (count <= 0)
+      return new SlotOrderSnapshot(null, 0);
+
+    var entries = new List<SlotOrder.SortEntry>(count);
+    for (var i = 0; i < count; i++)
+    {
+      var entry = sorter->Items[i].Value;
+      if (entry == null)
+        return new SlotOrderSnapshot(null, 0);
+      entries.Add(new SlotOrder.SortEntry(entry->Page, entry->Slot));
+    }
+
+    return new SlotOrderSnapshot(entries, sorter->ItemsPerPage);
   }
 
   /// <summary>
@@ -364,6 +474,59 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
       stacks.Add(new MarkerMatch.Stack(kv.Key, item->ItemId, item->Flags.HasFlag(InventoryItem.ItemFlags.HighQuality)));
     }
 
+    RenderDots(addonName, grid, slotCount, stacks, BagTypes[bagIndex].ToString(), SlotOrder.IsIdentity(map, bagIndex));
+  }
+
+  /// <summary>
+  /// The retainer counterpart of <see cref="DrawForGrid"/> (0.1.34.0): same slot-order-resolve then
+  /// classify-then-draw shape, reading the ACTIVE RETAINER's containers
+  /// (InventoryType.RetainerPage1..7) via <see cref="RetainerGridMap"/> / <see cref="SlotOrder.ResolveForPageCount"/>
+  /// instead of the player's four bags. <see cref="MarkerMatch.Classify"/> and the draw loop are
+  /// item-agnostic - they take stacks and Auto-Market list entries, and neither cares which
+  /// container the stack came from - so only the container-read half differs from the player path.
+  /// </summary>
+  private unsafe void DrawForRetainerGrid(string addonName, AtkUnitBase* addon, int pageIndex, SlotOrderSnapshot order)
+  {
+    var grid = (AddonInventoryGrid*)addon;
+    var slotCount = grid->Slots.Length;
+
+    var map = SlotOrder.ResolveForPageCount(order.Entries, order.ItemsPerPage, pageIndex, slotCount, RetainerGridMap.PageCount);
+    if (map.Count == 0)
+    {
+      if (_loggedOrderMissing.Add(addonName))
+        Svc.Log.Information($"[LMC] markers: no item order resolved for {addonName} (retainer page {pageIndex}) - markers suppressed for it");
+      return;
+    }
+
+    var inventory = InventoryManager.Instance();
+    if (inventory == null)
+      return;
+
+    var stacks = new List<MarkerMatch.Stack>(slotCount);
+    foreach (var kv in map)
+    {
+      if (kv.Value.BagIndex < 0 || kv.Value.BagIndex >= RetainerPageTypes.Length)
+        continue;
+      var container = inventory->GetInventoryContainer(RetainerPageTypes[kv.Value.BagIndex]);
+      if (container == null || !container->IsLoaded || kv.Value.ContainerSlot >= (int)container->Size)
+        continue;
+      var item = container->Items + kv.Value.ContainerSlot;
+      if (item == null || item->ItemId == 0 || item->Quantity <= 0)
+        continue;
+      stacks.Add(new MarkerMatch.Stack(kv.Key, item->ItemId, item->Flags.HasFlag(InventoryItem.ItemFlags.HighQuality)));
+    }
+
+    RenderDots(addonName, grid, slotCount, stacks, RetainerPageTypes[pageIndex].ToString(), SlotOrder.IsIdentity(map, pageIndex));
+  }
+
+  /// <summary>
+  /// Classify and draw dots for one grid's already-read stacks (shared by <see cref="DrawForGrid"/>
+  /// and <see cref="DrawForRetainerGrid"/> - the game's grid nodes, the marker anchor math, and the
+  /// classify predicate are identical for a player bag and a retainer page; only which container the
+  /// stacks came from differs, and that has already happened by the time this runs).
+  /// </summary>
+  private unsafe void RenderDots(string addonName, AddonInventoryGrid* grid, int slotCount, List<MarkerMatch.Stack> stacks, string containerLabel, bool orderIsIdentity)
+  {
     // Marketability feeds the grey state: one sheet read per unique id in this container. An on-list
     // item is green whether or not the sheet calls it tradable (a config-entry bug is shown, not
     // hidden - the 0.1.17.0 honesty rule); only the GREY state requires real marketability.
@@ -434,12 +597,12 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
     }
 
     // The one INFO line per (grid addon, container) pairing per session - how the in-game verify
-    // is graded from ffxivdb. Naming the container is the point: it proves WHICH bag the dots
+    // is graded from ffxivdb. Naming the container is the point: it proves WHICH bag/page the dots
     // were computed from, which is exactly what 0.1.17.0 got wrong. 0.1.21.0: the line now
     // separates the two marker colours. 0.1.33.0: it also reports whether this grid's display
     // order was the identity permutation - the assumption that produced dots on empty grids.
-    if ((drawnOnList > 0 || drawnNotListed > 0) && _loggedAddons.Add($"{addonName}:{BagTypes[bagIndex]}"))
-      Svc.Log.Information($"[LMC] markers: {drawnOnList} on-list (green) + {drawnNotListed} marketable not listed (grey) of {stacks.Count} stacks on {addonName} ({BagTypes[bagIndex]}), order={(SlotOrder.IsIdentity(map, bagIndex) ? "identity" : "sorted")}");
+    if ((drawnOnList > 0 || drawnNotListed > 0) && _loggedAddons.Add($"{addonName}:{containerLabel}"))
+      Svc.Log.Information($"[LMC] markers: {drawnOnList} on-list (green) + {drawnNotListed} marketable not listed (grey) of {stacks.Count} stacks on {addonName} ({containerLabel}), order={(orderIsIdentity ? "identity" : "sorted")}");
   }
 
   private static unsafe System.Numerics.Vector2 GetNodePosition(AtkResNode* node)
