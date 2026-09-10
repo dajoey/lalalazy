@@ -1,3 +1,16 @@
+## v0.1.33.0 (2026-09-10)
+
+### Fixed
+
+- **Bag-marker dots are now placed on the slot the game is actually displaying, instead of on the slot of the same number in the underlying bag. Until this version an inventory whose display order differs from its storage order put dots on the wrong cells entirely - including on bag pages that were showing nothing at all, which is the "dots in seemingly random locations" report.** The inventory window draws the four bag pages from the game's own item order, which is free to show any slot of any page at any position on screen; the markers assumed position N on screen was always slot N of that page's storage. When 60 stacks were packed into the first two pages on screen while storage held them as 35/15/7/3 across all four pages, the dots computed for the third and fourth pages were painted onto the third and fourth grids, which were empty (files: `AutoMarket/SlotOrder.cs` new, `AutoMarketMarkers.cs` `DrawForGrid`/`ReadSlotOrder`).
+- The marker overlay now reads the display order once per frame and resolves each grid cell to the bag page and slot behind it, so a sorted, condensed, or manually rearranged inventory marks the correct cells (files: `AutoMarketMarkers.cs` `Draw`, `AutoMarket/SlotOrder.cs` `Resolve`).
+
+### Notes
+
+- The 0.1.31.0 anchor fix is unchanged and was not the cause: every dot was already being drawn correctly inside its own cell - it was simply the wrong cell.
+- Fail-closed, as elsewhere in this feature: if the display order cannot be read, or does not cover a whole page, that grid draws no dots at all rather than falling back to the old assumption. A missing dot is preferable to a dot on the wrong item.
+- Verification (from the plugin logs / ffxivdb): each grid's one marker line now ends with `order=identity` or `order=sorted`, naming whether that page's display order matched its storage order; a grid whose order could not be read logs `no item order resolved`.
+
 ## v0.1.32.0 (2026-09-09)
 
 ### Added

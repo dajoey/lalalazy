@@ -2439,6 +2439,111 @@ var Catalogue = new (uint Id, string Name)[]
     DoneLine.Format(3, 1, 2, 0, 0) == "done: 3 new listing(s), 1 skipped (stock moved), 2 vendored.");
 }
 
+// 57. DISPLAY SLOT vs CONTAINER SLOT (Helm t-joey-1788992037468, card t_b8b79277). 0.1.32.0 and
+//     earlier read container->Items[i] and painted the verdict onto grid->Slots[i], i.e. it assumed
+//     the game's item order is always the identity permutation. It is not: the four bag pages are
+//     drawn from ItemOrderModule's player-inventory sorter, whose entry f addresses container slot
+//     (Page, Slot) while its DISPLAY position is f split by ItemsPerPage. Ground truth, two
+//     independent production consumers: SimpleTweaks EquipFromHotbar.FindAndEquip
+//     (page = i / ItemsPerPage, slot = i % ItemsPerPage, item read from Page/Slot) and
+//     CriticalCommonLib InventoryScanner (buckets by index / 35, reads bag[containerIndex]
+//     .Items[slotIndex]); CCL's InventoryItem.BagLocation then derives the grid cell from the
+//     SORTED index, never the container slot.
+{
+  const int PerPage = 35;
+
+  static List<SlotOrder.SortEntry> Identity()
+  {
+    var e = new List<SlotOrder.SortEntry>();
+    for (var page = 0; page < 4; page++)
+      for (var slot = 0; slot < PerPage; slot++)
+        e.Add(new SlotOrder.SortEntry(page, slot));
+    return e;
+  }
+
+  // The identity order is the one case the old code got right - it must still resolve 1:1.
+  var ident = SlotOrder.Resolve(Identity(), PerPage, 2, PerPage);
+  Check("57 order: identity permutation maps display i -> own bag, container slot i",
+    ident.Count == PerPage && ident[0] == new SlotOrder.Cell(2, 0) && ident[34] == new SlotOrder.Cell(2, 34));
+  Check("57 order: IsIdentity recognises the identity order for its own bag",
+    SlotOrder.IsIdentity(ident, 2));
+
+  // THE REGRESSION CASE, rebuilt from Joey's 19:17 screenshot + the plugin's own 19:16:07 log:
+  // 60 stacks packed contiguously into the first two on-screen blocks, while the CONTAINERS hold
+  // 35/15/7/3 across all four pages. Grid 2 and grid 3 display nothing at all.
+  var packed = new List<SlotOrder.SortEntry>();
+  for (var slot = 0; slot < 35; slot++) packed.Add(new SlotOrder.SortEntry(0, slot)); // display 0-34
+  for (var slot = 0; slot < 15; slot++) packed.Add(new SlotOrder.SortEntry(1, slot)); // display 35-49
+  for (var slot = 0; slot < 7; slot++) packed.Add(new SlotOrder.SortEntry(2, slot));  // display 50-56
+  for (var slot = 0; slot < 3; slot++) packed.Add(new SlotOrder.SortEntry(3, slot));  // display 57-59
+  // Every remaining display cell shows an EMPTY container slot from the back of pages 1-3.
+  for (var slot = 15; slot < PerPage; slot++) packed.Add(new SlotOrder.SortEntry(1, slot));
+  for (var slot = 7; slot < PerPage; slot++) packed.Add(new SlotOrder.SortEntry(2, slot));
+  for (var slot = 3; slot < PerPage; slot++) packed.Add(new SlotOrder.SortEntry(3, slot));
+  Check("57 order: the packed fixture covers all four pages exactly once",
+    packed.Count == 4 * PerPage
+    && packed.Distinct().Count() == 4 * PerPage);
+
+  var g0 = SlotOrder.Resolve(packed, PerPage, 0, PerPage);
+  var g1 = SlotOrder.Resolve(packed, PerPage, 1, PerPage);
+  var g2 = SlotOrder.Resolve(packed, PerPage, 2, PerPage);
+  var g3 = SlotOrder.Resolve(packed, PerPage, 3, PerPage);
+
+  // Grid 1 shows the tail of bag 1 AND all of bags 2 and 3 - the dots the old code put on grids
+  // 2 and 3 belong on THIS grid.
+  Check("57 packed: grid1 display 0-14 show bag1 slots 0-14 (the 15 stacks logged for Inventory2)",
+    Enumerable.Range(0, 15).All(d => g1[d] == new SlotOrder.Cell(1, d)));
+  Check("57 packed: grid1 display 15-21 show BAG 2 slots 0-6 (the 7 stacks logged for Inventory3)",
+    Enumerable.Range(0, 7).All(d => g1[15 + d] == new SlotOrder.Cell(2, d)));
+  Check("57 packed: grid1 display 22-24 show BAG 3 slots 0-2 (the 3 stacks logged for Inventory4)",
+    Enumerable.Range(0, 3).All(d => g1[22 + d] == new SlotOrder.Cell(3, d)));
+
+  // The defect, stated as an assertion: those cells are NOT on grids 2 and 3.
+  Check("57 packed: NO display cell of grid2 or grid3 shows an occupied slot of bags 2-3",
+    g2.Values.Concat(g3.Values).All(c =>
+      (c.BagIndex == 1 && c.ContainerSlot >= 15)
+      || (c.BagIndex == 2 && c.ContainerSlot >= 7)
+      || (c.BagIndex == 3 && c.ContainerSlot >= 3)));
+  Check("57 packed: grid0 is unchanged (bag 0 was already contiguous, which is why it looked right)",
+    g0.Count == PerPage && SlotOrder.IsIdentity(g0, 0));
+  Check("57 packed: a permuted grid is NOT reported as identity (the marker log's order= field)",
+    !SlotOrder.IsIdentity(g1, 1) && !SlotOrder.IsIdentity(g2, 2));
+
+  // A pure within-page reversal: same page, different slots - the old code marked every one wrong.
+  var reversed = Identity();
+  reversed.Reverse();
+  var rev0 = SlotOrder.Resolve(reversed, PerPage, 0, PerPage);
+  Check("57 order: a reversed order maps display 0 to the LAST slot of the LAST page",
+    rev0[0] == new SlotOrder.Cell(3, 34) && rev0[34] == new SlotOrder.Cell(3, 0));
+  Check("57 order: a reversed order is never reported as identity",
+    !SlotOrder.IsIdentity(rev0, 0));
+
+  // FAIL-CLOSED: everything unproven resolves NOTHING, so the caller draws no dot at all rather
+  // than falling back to the identity assumption that caused this defect.
+  Check("57 fail-closed: a null order resolves nothing",
+    SlotOrder.Resolve(null, PerPage, 0, PerPage).Count == 0);
+  Check("57 fail-closed: a non-positive page size resolves nothing",
+    SlotOrder.Resolve(Identity(), 0, 0, PerPage).Count == 0
+    && SlotOrder.Resolve(Identity(), -1, 0, PerPage).Count == 0);
+  Check("57 fail-closed: a bag index outside 0..3 resolves nothing",
+    SlotOrder.Resolve(Identity(), PerPage, 4, PerPage).Count == 0
+    && SlotOrder.Resolve(Identity(), PerPage, -1, PerPage).Count == 0);
+  Check("57 fail-closed: a list too short to cover the whole page resolves nothing (no partial page)",
+    SlotOrder.Resolve(Identity().Take(4 * PerPage - 1).ToList(), PerPage, 3, PerPage).Count == 0);
+  Check("57 fail-closed: an entry naming a page outside 0..3 resolves nothing",
+    SlotOrder.Resolve(
+      Identity().Select((e, i) => i == 7 ? new SlotOrder.SortEntry(9, 0) : e).ToList(),
+      PerPage, 0, PerPage).Count == 0);
+  Check("57 fail-closed: an entry with a negative slot resolves nothing",
+    SlotOrder.Resolve(
+      Identity().Select((e, i) => i == 3 ? new SlotOrder.SortEntry(0, -1) : e).ToList(),
+      PerPage, 0, PerPage).Count == 0);
+  Check("57 order: the result is capped at the grid's own slot-node count",
+    SlotOrder.Resolve(Identity(), PerPage, 0, 10).Count == 10);
+  Check("57 fail-closed: a grid reporting no slot nodes resolves nothing",
+    SlotOrder.Resolve(Identity(), PerPage, 0, 0).Count == 0);
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 

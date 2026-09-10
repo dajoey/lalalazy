@@ -5,6 +5,7 @@ using ECommons;
 using ECommons.DalamudServices;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.UI;
+using FFXIVClientStructs.FFXIV.Client.UI.Misc;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using LazyMarketCompanion.AutoMarket;
 using Lumina.Excel.Sheets;
@@ -46,6 +47,16 @@ namespace LazyMarketCompanion;
 /// the expanded view pairs each E-grid with a page by name identity, while the tabbed view's
 /// single panel follows the parent Inventory window's selected tab. GridMap.cs owns that pairing;
 /// anything it cannot resolve draws nothing at all.
+///
+/// AND WHICH SLOT of that page a grid CELL is showing is not the cell's own index (0.1.32.0 and
+/// earlier assumed it was). The bag UI draws the four pages from the game's own item order
+/// (ItemOrderModule's player-inventory sorter), which may put any container slot of any page at any
+/// display position. Reading container slot i and painting the result on grid cell i therefore
+/// marked the right stacks in the wrong places: with 60 stacks packed into the first two on-screen
+/// blocks, the dots computed for Inventory3/Inventory4 landed on two grids that were displaying
+/// nothing at all - correctly-anchored dots floating on empty cells (Helm t-joey-1788992037468).
+/// Since 0.1.33.0, SlotOrder.cs resolves each grid's display slots to the container slots the game
+/// is actually drawing in them, and an unreadable order suppresses that grid's dots entirely.
 ///
 /// The same grid addons are reused by the game for the retainer's inventory view, where they show the
 /// RETAINER's containers, not the player's bags. A marker there would lie, so the whole feature
@@ -106,6 +117,8 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
   private readonly HashSet<string> _loggedAddons = [];
   // Set once per session when the page gate suppresses every E-grid (the Key Items & Crystals grading signal).
   private readonly HashSet<string> _loggedPageSkip = [];
+  // Set once per grid when its display order could not be resolved (fail-closed grading signal).
+  private readonly HashSet<string> _loggedOrderMissing = [];
   private readonly List<MarkerMatch.Entry> _entriesScratch = [];
   // Item ids seen stable-market this draw, carried across draws so a stable call is made once per id.
   private readonly HashSet<uint> _marketableScratch = [];
@@ -148,6 +161,11 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
         // finding the child grids once the parent is gone.
 
         BuildEntriesScratch();
+
+        // 0.1.33.0: one read of the game's own display order per frame, shared by every grid.
+        // Without it the markers assumed display slot i == container slot i, which put correctly
+        // computed dots on grids that were displaying nothing.
+        var orderSnapshot = ReadSlotOrder();
 
         // Collect the live grids first: which container a grid shows is decided by MODE, not by
         // name alone (GridMap.cs) - the expanded view pairs E-grids by name identity, the tabbed
@@ -213,7 +231,7 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
           if (GridMap.IsExpandedGrid(binding.GridName) && !bagsPage)
             continue;
 
-          DrawForGrid(binding.GridName, addon, BagTypes[binding.BagIndex]);
+          DrawForGrid(binding.GridName, addon, binding.BagIndex, orderSnapshot);
         }
       }
     }
@@ -222,6 +240,56 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
       // Markers are pure display and must never take the plugin's automation down with them.
       Svc.Log.Error(ex, "[LMC] markers: draw failed (markers suppressed this frame)");
     }
+  }
+
+  /// <summary>
+  /// One frame's read of the game's player-inventory item order (0.1.33.0). <see cref="Entries"/> is
+  /// the sorter's flat entry list in DISPLAY order across all four bag pages; <see cref="ItemsPerPage"/>
+  /// is the sorter's own page size. Null entries mean the order could not be read this frame, and
+  /// every grid then draws nothing (fail-closed).
+  /// </summary>
+  private readonly struct SlotOrderSnapshot(List<SlotOrder.SortEntry>? entries, int itemsPerPage)
+  {
+    public List<SlotOrder.SortEntry>? Entries { get; } = entries;
+    public int ItemsPerPage { get; } = itemsPerPage;
+  }
+
+  /// <summary>
+  /// Read the player-inventory sorter into a plain list. The sorter is the game's own display order
+  /// for the four bag pages: entry f addresses container slot (Page, Slot), and its DISPLAY position
+  /// is f split by ItemsPerPage. Two production consumers read it exactly this way - SimpleTweaks'
+  /// EquipFromHotbar (page = i / ItemsPerPage, slot = i % ItemsPerPage) and CriticalCommonLib's
+  /// InventoryScanner (buckets by index / 35, reads bag[containerIndex].Items[slotIndex]).
+  ///
+  /// A sort in progress (SortFunctionIndex != -1 / PercentComplete != 100) is NOT rejected: the
+  /// entry list stays well-formed while the game re-orders it, and rejecting it would blink every
+  /// dot off mid-sort. A missing module or an empty list resolves nothing, and the callers suppress
+  /// their markers rather than falling back to the identity assumption that caused this defect.
+  /// </summary>
+  private static unsafe SlotOrderSnapshot ReadSlotOrder()
+  {
+    var module = ItemOrderModule.Instance();
+    if (module == null)
+      return new SlotOrderSnapshot(null, 0);
+
+    var sorter = module->InventorySorter;
+    if (sorter == null || sorter->ItemsPerPage <= 0)
+      return new SlotOrderSnapshot(null, 0);
+
+    var count = (int)sorter->Items.LongCount;
+    if (count <= 0)
+      return new SlotOrderSnapshot(null, 0);
+
+    var entries = new List<SlotOrder.SortEntry>(count);
+    for (var i = 0; i < count; i++)
+    {
+      var entry = sorter->Items[i].Value;
+      if (entry == null)
+        return new SlotOrderSnapshot(null, 0);
+      entries.Add(new SlotOrder.SortEntry(entry->Page, entry->Slot));
+    }
+
+    return new SlotOrderSnapshot(entries, sorter->ItemsPerPage);
   }
 
   private void BuildEntriesScratch()
@@ -259,23 +327,41 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
     }
   }
 
-  private unsafe void DrawForGrid(string addonName, AtkUnitBase* addon, InventoryType containerType)
+  private unsafe void DrawForGrid(string addonName, AtkUnitBase* addon, int bagIndex, SlotOrderSnapshot order)
   {
-    var container = InventoryManager.Instance()->GetInventoryContainer(containerType);
-    if (container == null || !container->IsLoaded)
+    var grid = (AddonInventoryGrid*)addon;
+    var slotCount = grid->Slots.Length;
+
+    // 0.1.33.0: the grid's DISPLAY slots are resolved to the container slots the game is actually
+    // drawing in them (SlotOrder). Until 0.1.32.0 this read container->Items[i] and painted the
+    // verdict onto grid->Slots[i], which is only right when the item order is the identity
+    // permutation - hence dots on grids that were displaying nothing at all.
+    var map = SlotOrder.Resolve(order.Entries, order.ItemsPerPage, bagIndex, slotCount);
+    if (map.Count == 0)
+    {
+      // Fail-closed, as GridMap does: no proven order, no dots. Logged once so an in-game verify
+      // can tell "the order was unreadable" apart from "there was nothing to mark".
+      if (_loggedOrderMissing.Add(addonName))
+        Svc.Log.Information($"[LMC] markers: no item order resolved for {addonName} (bag {bagIndex}) - markers suppressed for it");
+      return;
+    }
+
+    // Snapshot the classified set from the CONTAINERS, keyed by the DISPLAY slot that shows each
+    // stack - so the dot lands on the cell the player is actually looking at.
+    var inventory = InventoryManager.Instance();
+    if (inventory == null)
       return;
 
-    var grid = (AddonInventoryGrid*)addon;
-    var slotCount = Math.Min(grid->Slots.Length, (int)container->Size);
-
-    // Snapshot the classified-slot set from the CONTAINER first, then draw over the matching slot nodes.
     var stacks = new List<MarkerMatch.Stack>(slotCount);
-    for (var i = 0; i < slotCount; i++)
+    foreach (var kv in map)
     {
-      var item = container->Items + i;
+      var container = inventory->GetInventoryContainer(BagTypes[kv.Value.BagIndex]);
+      if (container == null || !container->IsLoaded || kv.Value.ContainerSlot >= (int)container->Size)
+        continue;
+      var item = container->Items + kv.Value.ContainerSlot;
       if (item == null || item->ItemId == 0 || item->Quantity <= 0)
         continue;
-      stacks.Add(new MarkerMatch.Stack(i, item->ItemId, item->Flags.HasFlag(InventoryItem.ItemFlags.HighQuality)));
+      stacks.Add(new MarkerMatch.Stack(kv.Key, item->ItemId, item->Flags.HasFlag(InventoryItem.ItemFlags.HighQuality)));
     }
 
     // Marketability feeds the grey state: one sheet read per unique id in this container. An on-list
@@ -350,9 +436,10 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
     // The one INFO line per (grid addon, container) pairing per session - how the in-game verify
     // is graded from ffxivdb. Naming the container is the point: it proves WHICH bag the dots
     // were computed from, which is exactly what 0.1.17.0 got wrong. 0.1.21.0: the line now
-    // separates the two marker colours.
-    if ((drawnOnList > 0 || drawnNotListed > 0) && _loggedAddons.Add($"{addonName}:{containerType}"))
-      Svc.Log.Information($"[LMC] markers: {drawnOnList} on-list (green) + {drawnNotListed} marketable not listed (grey) of {stacks.Count} stacks on {addonName} ({containerType})");
+    // separates the two marker colours. 0.1.33.0: it also reports whether this grid's display
+    // order was the identity permutation - the assumption that produced dots on empty grids.
+    if ((drawnOnList > 0 || drawnNotListed > 0) && _loggedAddons.Add($"{addonName}:{BagTypes[bagIndex]}"))
+      Svc.Log.Information($"[LMC] markers: {drawnOnList} on-list (green) + {drawnNotListed} marketable not listed (grey) of {stacks.Count} stacks on {addonName} ({BagTypes[bagIndex]}), order={(SlotOrder.IsIdentity(map, bagIndex) ? "identity" : "sorted")}");
   }
 
   private static unsafe System.Numerics.Vector2 GetNodePosition(AtkResNode* node)
