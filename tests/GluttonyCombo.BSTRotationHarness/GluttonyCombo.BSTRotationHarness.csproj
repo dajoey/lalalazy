@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Plain console app, no Dalamud. Compiles the REAL
+       src/GluttonyCombo/GluttonyCombo/Combos/PvE/BST/BST_RotationLogic.cs and BST_Enums.cs
+       (t_02fe2681, the BST rotation card) so the compass/GCD-chain/familiar-loop selection
+       logic is proven offline against the exact code that ships, per
+       skill lalalazy-ffxiv references/rotation-logic-and-preset-actions.md ("prove selection
+       logic in a throwaway console app with a byte-identical stock case").
+         dotnet build tests\GluttonyCombo.BSTRotationHarness -c Release
+         dotnet tests\GluttonyCombo.BSTRotationHarness\bin\Release\net10.0\GluttonyCombo.BSTRotationHarness.dll
+       Prints PASS/FAIL per case, "OK" and exit 0 when every case passes. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>GluttonyCombo.BSTRotationHarness</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);CS1574;CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\BST\BST_Enums.cs" Link="BST_Enums.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\BST\BST_RotationLogic.cs" Link="BST_RotationLogic.cs" />
+  </ItemGroup>
+</Project>

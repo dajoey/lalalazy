@@ -115,13 +115,14 @@ internal static class Program
             ChainCount: 3, KinshipState: 0x51,
             PetObjectId: 1073741830, PetName: "Cu Sith", PetDataId: 5432,
             AdjustedBeastMode: 44896, AdjustedAvalanche: 44930,
-            Statuses: new ushort[] { 4599, 4601, 4621 });
+            Statuses: new ushort[] { 4599, 4601, 4621 },
+            DecisionActionId: 44887, DecisionReason: "instinctual:compass");
 
         var line = BeastmasterTelemetryFormat.BuildLine(1_788_904_962_577, snap);
 
         Check("BST prefix is the greppable BT|", line.StartsWith("BT|", StringComparison.Ordinal), line);
         Check("BST exact line shape",
-            line == "BT|1788904962577|6484a80207050351|2|5|3|81|pet=1073741830:Cu Sith:5432|bm=44896|av=44930|4599,4601,4621",
+            line == "BT|1788904962577|6484a80207050351|2|5|3|81|pet=1073741830:Cu Sith:5432|bm=44896|av=44930|dec=44887:instinctual:compass|4599,4601,4621",
             line);
         Check("BST gauge hex is 16 chars (8 bytes)",
             line.Split('|')[2].Length == 16, line);
@@ -135,6 +136,12 @@ internal static class Program
             decoded.SequenceEqual(new byte[] { 100, 132, 168, 2, 7, 5, 3, 0x51 }),
             string.Join(",", decoded));
 
+        // No decision recorded (pre-rotation build, or a tick where nothing fired): a stable
+        // dec=0: token, never an empty/malformed field.
+        var noDecision = BeastmasterTelemetryFormat.BuildLine(1_788_904_962_577,
+            snap with { DecisionActionId = 0, DecisionReason = null });
+        Check("BST dec=0: when no decision was recorded", noDecision.Contains("|dec=0:|"), noDecision);
+
         // No familiar out: the pet field must be a stable token, not an empty field.
         var noPet = BeastmasterTelemetryFormat.BuildLine(1_788_904_962_577,
             snap with { PetObjectId = 0, PetName = null, PetDataId = 0 });
@@ -146,6 +153,13 @@ internal static class Program
         Check("BST pet name is sanitised", !nasty.Contains("Cu|Sith"), nasty);
         Check("BST sanitised line keeps its field count",
             nasty.Split('|').Length == line.Split('|').Length, nasty);
+
+        // A decision reason containing the separator must not fabricate a field either.
+        var nastyReason = BeastmasterTelemetryFormat.BuildLine(1_788_904_962_577,
+            snap with { DecisionReason = "battlehorn|slot2,evil" });
+        Check("BST decision reason is sanitised", !nastyReason.Contains("slot2,evil"), nastyReason);
+        Check("BST sanitised-reason line keeps its field count",
+            nastyReason.Split('|').Length == line.Split('|').Length, nastyReason);
 
         // Invariant culture: a de-DE comma decimal would destroy a split_part parse.
         Check("BST line carries no comma decimals",
@@ -159,7 +173,7 @@ internal static class Program
         Check("BST line stays within the 200-char budget",
             longLine.Length <= BeastmasterTelemetryFormat.MaxLineLength, $"len={longLine.Length}");
         Check("BST truncated line is marked with ~", longLine.EndsWith('~'), longLine);
-        Check("BST truncation keeps all 11 fields", longLine.Split('|').Length == 11, longLine);
+        Check("BST truncation keeps all 12 fields", longLine.Split('|').Length == 12, longLine);
 
         // --- the change gate ---------------------------------------------------------
         var gate = new BeastmasterTelemetryFormat.GateState();
@@ -185,6 +199,17 @@ internal static class Program
         Check("BST a status-only change does not emit",
             !BeastmasterTelemetryFormat.ShouldEmit(ref gate, t,
                 snap with { ChainCount = 4, PetObjectId = 99, AdjustedBeastMode = 44900, Statuses = new ushort[] { 4643 } }));
+
+        // A decision change (same gauge/pet/beastmode) must still emit - the rotation's
+        // choice is part of the change key, not an afterthought riding on gauge bytes.
+        t += 1000;
+        Check("BST a decision-only change emits",
+            BeastmasterTelemetryFormat.ShouldEmit(ref gate, t,
+                snap with { ChainCount = 4, PetObjectId = 99, AdjustedBeastMode = 44900, DecisionActionId = 44888, DecisionReason = "instinctual:compass" }));
+        t += 1000;
+        Check("BST the same decision repeated does not emit",
+            !BeastmasterTelemetryFormat.ShouldEmit(ref gate, t,
+                snap with { ChainCount = 4, PetObjectId = 99, AdjustedBeastMode = 44900, DecisionActionId = 44888, DecisionReason = "instinctual:compass" }));
 
         // --- the rate floor ----------------------------------------------------------
         var rlGate = new BeastmasterTelemetryFormat.GateState();

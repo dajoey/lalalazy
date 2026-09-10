@@ -60,7 +60,9 @@ internal static class BeastmasterTelemetryFormat
         uint PetDataId,
         uint AdjustedBeastMode,
         uint AdjustedAvalanche,
-        IReadOnlyList<ushort> Statuses);
+        IReadOnlyList<ushort> Statuses,
+        uint DecisionActionId = 0,
+        string? DecisionReason = null);
 
     /// <summary>
     ///     The identity of a snapshot for change detection: the eight gauge bytes, the pet
@@ -71,7 +73,7 @@ internal static class BeastmasterTelemetryFormat
     ///     and out mid-combo) and would defeat the change gate, and any status transition worth
     ///     seeing moves a gauge byte too.
     /// </remarks>
-    internal static (ulong Gauge, ulong Pet, uint BeastMode) KeyOf(in Snapshot s)
+    internal static (ulong Gauge, ulong Pet, uint BeastMode, uint DecisionActionId, string DecisionReason) KeyOf(in Snapshot s)
     {
         ulong gauge =
             ((ulong)s.TPGauge << 56) |
@@ -83,7 +85,7 @@ internal static class BeastmasterTelemetryFormat
             ((ulong)s.ChainCount << 8) |
             s.KinshipState;
 
-        return (gauge, s.PetObjectId, s.AdjustedBeastMode);
+        return (gauge, s.PetObjectId, s.AdjustedBeastMode, s.DecisionActionId, s.DecisionReason ?? "");
     }
 
     /// <summary>
@@ -119,7 +121,7 @@ internal static class BeastmasterTelemetryFormat
     internal struct GateState
     {
         public bool HasLast;
-        public (ulong Gauge, ulong Pet, uint BeastMode) LastKey;
+        public (ulong Gauge, ulong Pet, uint BeastMode, uint DecisionActionId, string DecisionReason) LastKey;
         public bool HasEmitted;
         public long LastEmitMs;
 
@@ -128,13 +130,17 @@ internal static class BeastmasterTelemetryFormat
 
     /// <summary>
     ///     Builds one collector line:
-    ///     <c>BT|unixms|gaugeHex|battlehorn|affinity|chain|kinship|pet|bm|av|statuses</c>.
+    ///     <c>BT|unixms|gaugeHex|battlehorn|affinity|chain|kinship|pet|bm|av|dec|statuses</c>.
     /// </summary>
     /// <remarks>
     ///     <c>gaugeHex</c> is the eight gauge bytes 0x08..0x0F in order, lower-case hex, no
     ///     separator. <c>pet</c> is <c>&lt;GameObjectId&gt;:&lt;Name&gt;:&lt;BNpcBase&gt;</c>
-    ///     or the literal <c>none</c>. The status list is the only field allowed to be cut
-    ///     short, and truncation is marked with a trailing <c>~</c>.
+    ///     or the literal <c>none</c>. <c>dec</c> is <c>&lt;actionId&gt;:&lt;reason&gt;</c> -
+    ///     the rotation's own record of what it chose and why (t_02fe2681), so the next card
+    ///     can grade chains straight out of <c>plugin_log_lines</c> without re-deriving intent
+    ///     from the gauge bytes alone. Absent a decision (pre-rotation builds, or a tick where
+    ///     nothing fired) it renders as <c>dec=0:</c>. The status list is the only field
+    ///     allowed to be cut short, and truncation is marked with a trailing <c>~</c>.
     /// </remarks>
     internal static string BuildLine(long unixMs, in Snapshot s)
     {
@@ -171,6 +177,8 @@ internal static class BeastmasterTelemetryFormat
 
         sb.Append("|bm=").Append(s.AdjustedBeastMode.ToString(inv))
           .Append("|av=").Append(s.AdjustedAvalanche.ToString(inv))
+          .Append("|dec=").Append(s.DecisionActionId.ToString(inv)).Append(':')
+          .Append(SanitizeReason(s.DecisionReason))
           .Append('|');
 
         // Everything above is fixed-width-ish and always present; only the status list is cut.
@@ -227,6 +235,27 @@ internal static class BeastmasterTelemetryFormat
         {
             var c = name[i];
             buffer[i] = c is '|' or ',' or ':' or '\r' or '\n' ? '_' : c;
+        }
+
+        return new string(buffer);
+    }
+
+    /// <summary>
+    ///     The decision reason is a short internal literal (e.g. <c>gcdchain</c>,
+    ///     <c>battlehorn:slot2</c>) written by this codebase, not player-controlled text - but
+    ///     it still shares the pet-name sanitiser's structural-character rule defensively, and
+    ///     caps length so one reason string cannot dominate the 200-char line budget.
+    /// </summary>
+    private static string SanitizeReason(string? reason)
+    {
+        if (string.IsNullOrEmpty(reason))
+            return "";
+
+        Span<char> buffer = stackalloc char[Math.Min(reason.Length, 40)];
+        for (var i = 0; i < buffer.Length; i++)
+        {
+            var c = reason[i];
+            buffer[i] = c is '|' or ',' or '\r' or '\n' ? '_' : c;
         }
 
         return new string(buffer);

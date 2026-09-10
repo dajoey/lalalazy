@@ -124,6 +124,8 @@ internal static class BeastmasterTelemetry
             petDataId,
             adjustedBeastMode,
             adjustedAvalanche,
-            StatusBuffer);
+            StatusBuffer,
+            BST.LastDecisionActionId,
+            BST.LastDecisionReason);
     }
 }

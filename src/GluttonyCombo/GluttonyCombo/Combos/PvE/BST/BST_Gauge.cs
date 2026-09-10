@@ -18,32 +18,9 @@ namespace GluttonyCombo.Combos.PvE;
 // header, which is why every field offset starts at 0x08 (cf. ViperGauge, ScholarGauge in
 // Gauge/JobGauges.cs). JobGaugeManager.CurrentGauge points at that object, so casting it to
 // this overlay lines the fields up exactly.
-
-/// <summary> Affinity of the most recent instinctual skill (PR #1947 BeastmasterAffinity). </summary>
-public enum BeastmasterAffinity : byte
-{
-    None = 0,
-    Volant = 1,
-    Rampant = 2,
-    Durant = 3,
-    Eldritch = 4,
-    Sunstrider = 5,
-    Moonstalker = 6,
-}
-
-/// <summary> A familiar's kin type; matches Kinship statuses 4602 Beast .. 4609 Ash (PR #1947). </summary>
-public enum BeastmasterKinType : byte
-{
-    None = 0,
-    Beastkin = 1,
-    Vilekin = 2,
-    Cloudkin = 3,
-    Seedkin = 4,
-    Wavekin = 5,
-    Scalekin = 6,
-    Soulkin = 7,
-    Ashkin = 8,
-}
+//
+// BeastmasterAffinity / BeastmasterKinType (t_02fe2681: split into BST_Enums.cs so the
+// rotation logic can compile Dalamud-free into tests/GluttonyCombo.BSTRotationHarness).
 
 /// <summary> Vendored copy of ClientStructs PR #1947's <c>BeastmasterGauge</c>. </summary>
 [StructLayout(LayoutKind.Explicit, Size = 0x10)]
