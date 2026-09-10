@@ -36,6 +36,38 @@ public static class ShoppingStopGateTests
                 () => ShoppingStopGate.Decide(tripActive: false, busyBecause: "the market board", sinceTrip: Settled, held: Settled)
                     == ShoppingStopGate.Verdict.Hold);
 
+            // ---- 0.1.7.2 (card t_37f9fa98): a still-loading zone holds even past the settle window and
+            //      even when Lifestream itself already reads idle - the Kugane field failure (2026-09-10
+            //      14:36:52-58) had TripActive() false AND the 5 s settle window lapsed while the character
+            //      was still mid-load, so the old gate proceeded straight into a stale bell-reachability read. ----
+            yield return ("a zone change holds the fetch even after the settle window has lapsed",
+                () => ShoppingStopGate.Decide(tripActive: false, busyBecause: "a zone change", sinceTrip: Settled, held: Settled)
+                    == ShoppingStopGate.Verdict.Hold);
+
+            yield return ("a zone change holds even when TripActive() itself already reads false (the Kugane failure shape)",
+                () => ShoppingStopGate.Decide(tripActive: false, busyBecause: "a zone change", sinceTrip: TimeSpan.FromSeconds(30), held: TimeSpan.FromSeconds(30))
+                    == ShoppingStopGate.Verdict.Hold);
+
+            yield return ("a zone change is still bounded by the 3-minute cap like every other hold",
+                () => ShoppingStopGate.Decide(tripActive: false, busyBecause: "a zone change", sinceTrip: Settled, held: ShoppingStopGate.WaitCap)
+                    == ShoppingStopGate.Verdict.Proceed);
+
+            // ---- 0.1.7.2 (card t_37f9fa98): a still-loading zone holds even past the settle window and
+            //      even when Lifestream itself already reads idle - the Kugane field failure (2026-09-10
+            //      14:36:52-58) had TripActive() false AND the 5 s settle window lapsed while the character
+            //      was still mid-load, so the old gate proceeded straight into a stale bell-reachability read. ----
+            yield return ("a zone change holds the fetch even after the settle window has lapsed",
+                () => ShoppingStopGate.Decide(tripActive: false, busyBecause: "a zone change", sinceTrip: Settled, held: Settled)
+                    == ShoppingStopGate.Verdict.Hold);
+
+            yield return ("a zone change holds even when TripActive() itself already reads false (the Kugane failure shape)",
+                () => ShoppingStopGate.Decide(tripActive: false, busyBecause: "a zone change", sinceTrip: TimeSpan.FromSeconds(30), held: TimeSpan.FromSeconds(30))
+                    == ShoppingStopGate.Verdict.Hold);
+
+            yield return ("a zone change is still bounded by the 3-minute cap like every other hold",
+                () => ShoppingStopGate.Decide(tripActive: false, busyBecause: "a zone change", sinceTrip: Settled, held: ShoppingStopGate.WaitCap)
+                    == ShoppingStopGate.Verdict.Proceed);
+
             // ---- the at-the-bell cases the fetch phases already ignore - holding on them would stall the
             //      normal path for the whole cap ----
             yield return ("standing at the summoning bell does NOT hold (the session is about to run there)",

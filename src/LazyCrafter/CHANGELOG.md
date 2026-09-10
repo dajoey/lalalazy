@@ -1,4 +1,14 @@
 # Changelog
+
+## v0.1.7.2 (2026-09-10)
+
+### Fixed
+- **After a vendor-stop teleport across zones, the retainer-bell fetch no longer starts while the character is still loading into the new zone.** The wave-start gate that holds the fetch during a shopping-stop trip checked only whether the character was moving (Lifestream.IsBusy()) or a fixed 5-second clock (ShoppingStopGate.SettleWindow) had elapsed - and Lifestream's own teleport call returns the moment it is accepted, well before a cross-zone loading screen finishes. A Kugane vendor stop (2026-09-10) showed both halves failing together: the busy flag read false and the 5-second clock lapsed while still mid-load, so the fetch queued, Artisan's bell scan answered against stale object-table data from the old zone, and the character right-clicked at nothing for 42 seconds before the run was stopped by hand. The gate now also holds on the game's own 'a zone change' state (ConditionFlag.BetweenAreas), independent of the trip flag and the settle clock, until it clears or the existing 3-minute cap ends the wait (files: Core/ShoppingStopGate.cs Decide)
+
+### Notes
+- Proved offline before shipping: two new pins in tests/LazyCrafter.Harness ShoppingStopGateTests assert a zone change holds even after the settle window has lapsed and even when the trip flag itself already reads false - the exact Kugane failure shape - plus the existing cap-forces-Proceed pin now covers a zone-change hold too. Full harness: 364/364 PASS (361 prior + 3 new).
+- This does not change what happens once the character has actually arrived and the zone flag clears - the settle window and every existing at-the-bell exemption (standing at the bell, inside a retainer's inventory, a quantity prompt, a dialogue) are unchanged.
+
 ## v0.1.7.1 (2026-09-08)
 
 ### Fixed

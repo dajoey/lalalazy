@@ -59,6 +59,18 @@ public static class ShoppingStopGate
     {
         if (held >= WaitCap) return Verdict.Proceed;   // the cap forces the issue: queue and let the fetch's own gates answer
         if (tripActive) return Verdict.Hold;
+        // 0.1.7.2 (card t_37f9fa98): the game's own "a loading screen is up" signal - checked BEFORE the
+        // fetch phases' ignore-list, not through it. FetchGatePolicy.FetchHoldIgnoredLabels excuses "a zone
+        // change" for FetchClientHold's window-ownership gate on the assumption Lifestream.IsBusy() already
+        // covers a trip in flight - but LifestreamDispatch's own doc comment says Teleport returns the
+        // moment it is ACCEPTED, so IsBusy() can (and in the field, does) read false while the zone is still
+        // loading. A cross-zone vendor teleport (Kugane, 2026-09-10 14:36:52-58) proved both halves of that
+        // assumption wrong at once: IsBusy() went false and the fixed 5 s SettleWindow lapsed while the
+        // character was still mid-load, and Fetch.SessionPreflight()'s own bell-reachability scan answered
+        // Proceed too - Artisan's GetReachableRetainerBell() reads the object table, which during a zone
+        // transition can still hold stale entries from the OLD zone. Holding on the live condition flag
+        // stops the gate from ever reaching BellGateAtQueue while that stale data could still fool it.
+        if (busyBecause == "a zone change") return Verdict.Hold;
         // The same window rule the fetch phases already live by - and the same IGNORED set: a character
         // standing at a bell ("the summoning bell"), inside a retainer's inventory, at a quantity prompt or
         // in a dialogue is exactly where a session is about to run or just ran; holding on those would stall
