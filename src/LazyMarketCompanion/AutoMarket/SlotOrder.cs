@@ -66,11 +66,23 @@ public static class SlotOrder
   /// </summary>
   public static IReadOnlyDictionary<int, Cell> Resolve(
     IReadOnlyList<SortEntry>? entries, int itemsPerPage, int bagIndex, int gridSlotCount)
+    => ResolveForPageCount(entries, itemsPerPage, bagIndex, gridSlotCount, BagCount);
+
+  /// <summary>
+  /// Same resolution as <see cref="Resolve"/>, generalised to a caller-supplied page count -
+  /// a retainer's sorter (<c>ItemOrderModule.GetActiveRetainerSorter()</c>) carries up to
+  /// <c>RetainerGridMap.PageCount</c> (7) storage pages rather than the player's fixed 4, but the
+  /// entry shape (flat list, one <see cref="SortEntry"/> per display slot, split by
+  /// <paramref name="itemsPerPage"/>) and the fail-closed rules are identical - only the valid page
+  /// range differs. <see cref="Resolve"/> is the player-bag case of this with pageCount fixed at 4.
+  /// </summary>
+  public static IReadOnlyDictionary<int, Cell> ResolveForPageCount(
+    IReadOnlyList<SortEntry>? entries, int itemsPerPage, int bagIndex, int gridSlotCount, int pageCount)
   {
     var empty = new Dictionary<int, Cell>();
-    if (entries == null || itemsPerPage <= 0 || gridSlotCount <= 0)
+    if (entries == null || itemsPerPage <= 0 || gridSlotCount <= 0 || pageCount <= 0)
       return empty;
-    if (bagIndex < 0 || bagIndex >= BagCount)
+    if (bagIndex < 0 || bagIndex >= pageCount)
       return empty;
 
     var start = bagIndex * itemsPerPage;
@@ -86,7 +98,7 @@ public static class SlotOrder
       var e = entries[start + display];
       if (e == null)
         return empty;
-      if (e.Page < 0 || e.Page >= BagCount || e.Slot < 0)
+      if (e.Page < 0 || e.Page >= pageCount || e.Slot < 0)
         return empty;
       result[display] = new Cell(e.Page, e.Slot);
     }

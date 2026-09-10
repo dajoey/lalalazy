@@ -2544,6 +2544,71 @@ var Catalogue = new (uint Id, string Name)[]
     SlotOrder.Resolve(Identity(), PerPage, 0, 0).Count == 0);
 }
 
+// 58. RETAINER MARKERS (0.1.34.0, Helm t-joey-1789056199442: "now we need to make the dots work on
+//     retainer inventory"). RetainerGridMap.Resolve is the retainer counterpart of GridMap.Resolve:
+//     a single TabIndex-selected panel (no known expanded/E-grid mode for a retainer), up to SEVEN
+//     pages instead of the player's fixed four. SlotOrder.ResolveForPageCount is the same fail-closed
+//     display-order machinery generalised to that 7-page range.
+{
+  Check("58 retainergridmap: tab 0..6 all bind every live normal-mode panel to that tab's page",
+    Enumerable.Range(0, RetainerGridMap.PageCount).All(tab =>
+    {
+      var r = RetainerGridMap.Resolve(["InventoryGrid"], tab);
+      return r.Count == 1 && r[0] == new RetainerGridMap.GridBinding("InventoryGrid", tab);
+    }));
+  Check("58 retainergridmap: every live normal-mode panel binds the SAME tab page",
+    RetainerGridMap.Resolve(["InventoryGrid", "InventoryGrid1"], 2)
+      .All(b => b.PageIndex == 2));
+  Check("58 retainergridmap: tab outside 0..6 draws nothing (8-page retainer would be a lie)",
+    RetainerGridMap.Resolve(["InventoryGrid0"], 7).Count == 0
+    && RetainerGridMap.Resolve(["InventoryGrid0"], -1).Count == 0);
+  Check("58 retainergridmap: no tab (retainer addon unresolved) draws nothing",
+    RetainerGridMap.Resolve(["InventoryGrid0"], null).Count == 0);
+  Check("58 retainergridmap: unknown grid names are ignored",
+    RetainerGridMap.Resolve(["SomeOtherGrid", "InventoryGrid0"], 1).Count == 1);
+  Check("58 retainergridmap: an E-grid name is never bound (no known retainer expanded mode)",
+    RetainerGridMap.Resolve(["InventoryGrid0E", "InventoryGrid1E", "InventoryGrid2E", "InventoryGrid3E"], 0).Count == 0);
+  Check("58 retainergridmap: an E-grid alongside a normal panel still binds only the normal panel",
+    RetainerGridMap.Resolve(["InventoryGrid0E", "InventoryGrid0"], 3) is var mixed
+    && mixed.Count == 1 && mixed[0] == new RetainerGridMap.GridBinding("InventoryGrid0", 3));
+
+  // SlotOrder.ResolveForPageCount over a 7-page retainer sorter - same identity/permuted/fail-closed
+  // battery as case 57, generalised to PageCount=7 instead of BagCount=4.
+  const int PerPage = 20; // a retainer market/inventory page is smaller than a player bag page
+  const int Pages = RetainerGridMap.PageCount;
+
+  static List<SlotOrder.SortEntry> RetainerIdentity(int pages, int perPage)
+  {
+    var e = new List<SlotOrder.SortEntry>();
+    for (var page = 0; page < pages; page++)
+      for (var slot = 0; slot < perPage; slot++)
+        e.Add(new SlotOrder.SortEntry(page, slot));
+    return e;
+  }
+
+  var retIdent = RetainerIdentity(Pages, PerPage);
+  var page5 = SlotOrder.ResolveForPageCount(retIdent, PerPage, 5, PerPage, Pages);
+  Check("58 order: identity permutation maps display i -> own page, container slot i (page 5 of 7)",
+    page5.Count == PerPage && page5[0] == new SlotOrder.Cell(5, 0) && page5[19] == new SlotOrder.Cell(5, 19));
+  Check("58 order: IsIdentity recognises the identity order for its own page",
+    SlotOrder.IsIdentity(page5, 5));
+
+  Check("58 fail-closed: page index outside 0..6 resolves nothing (the player's Resolve caps at 4)",
+    SlotOrder.ResolveForPageCount(retIdent, PerPage, 7, PerPage, Pages).Count == 0
+    && SlotOrder.ResolveForPageCount(retIdent, PerPage, -1, PerPage, Pages).Count == 0);
+  Check("58 fail-closed: an entry naming a page outside 0..6 resolves nothing",
+    SlotOrder.ResolveForPageCount(
+      RetainerIdentity(Pages, PerPage).Select((e, i) => i == 3 ? new SlotOrder.SortEntry(9, 0) : e).ToList(),
+      PerPage, 0, PerPage, Pages).Count == 0);
+  Check("58 fail-closed: a list too short to cover 7 pages resolves nothing (no partial page)",
+    SlotOrder.ResolveForPageCount(retIdent.Take(Pages * PerPage - 1).ToList(), PerPage, 6, PerPage, Pages).Count == 0);
+  Check("58 control: Resolve (player, 4 pages) still rejects a page index valid only for a retainer",
+    SlotOrder.Resolve(RetainerIdentity(4, PerPage), PerPage, 4, PerPage).Count == 0);
+  Check("58 control: Resolve(pageCount=4) and ResolveForPageCount(..., 4) agree on the player shape",
+    SlotOrder.Resolve(RetainerIdentity(4, 35), 35, 2, 35)
+      .SequenceEqual(SlotOrder.ResolveForPageCount(RetainerIdentity(4, 35), 35, 2, 35, SlotOrder.BagCount)));
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 

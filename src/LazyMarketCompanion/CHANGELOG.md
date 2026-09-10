@@ -1,3 +1,17 @@
+## v0.1.34.0 (2026-09-10)
+
+### Added
+
+- **Auto-Market bag markers (green/grey dots) now draw while browsing a RETAINER's inventory too, showing which of the retainer's own items are on the Auto-Market list.** Until this version the feature stood down entirely the moment a retainer's inventory window opened, because the retainer view reuses the same grid addons as the player's own bags and painting player-bag data over them would have shown the wrong items. The two-state marker (green = on the Auto-Market list and enabled, grey = marketable but not listed) now reads the ACTIVE retainer's own storage pages instead, using the retainer window's own tab to identify which page is on screen and the game's own item order for that retainer to resolve each on-screen cell to the right stack (files: `AutoMarket/RetainerGridMap.cs` new, `AutoMarket/SlotOrder.cs` `ResolveForPageCount`, `AutoMarketMarkers.cs` `DrawRetainerMarkers`/`DrawForRetainerGrid`/`ReadRetainerSlotOrder`).
+- A retainer's inventory can span up to seven storage pages rather than the player's fixed four bags; the resolver takes the page count as a parameter so the same fail-closed slot-order logic serves both without duplicating it (files: `AutoMarket/SlotOrder.cs` `ResolveForPageCount`, `AutoMarket/RetainerGridMap.cs` `PageCount`).
+
+### Notes
+
+- The retainer's inventory window is assumed to always show one storage page at a time (like the player's own tabbed bag view), never several pages at once side by side. If that assumption turns out to be wrong for some retainer size, the affected grid simply draws no dots rather than a wrong one.
+- Fail-closed throughout, as in the player-bag version of this feature: an unreadable item order, an out-of-range page, or an unresolved retainer window draws nothing for that grid rather than guessing.
+- Offline suite: new case 58 covers the retainer page resolver and the 7-page slot-order generalisation, including that a page index only valid for a retainer is still rejected on the player's own four-page bags (files: `tests/LazyMarketCompanion.Harness/Program.cs`, case 58).
+- What to look for when verifying in game: open a retainer's inventory and look at its items - each marketable item should carry the same green/grey dot the player's own bags show, and switching between the retainer's storage tabs should keep the dots on the right items.
+
 ## v0.1.33.0 (2026-09-10)
 
 ### Fixed
