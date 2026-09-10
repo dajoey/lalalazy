@@ -59,7 +59,8 @@ namespace GluttonyCombo.CustomComboNS.Functions
                     Job.NIN or
                     Job.SAM or
                     Job.VPR or
-                    Job.RPR =>
+                    Job.RPR or
+                    Job.BST =>
                     JobRole.MeleeDPS,
                 Job.BTN or
                     Job.MIN or

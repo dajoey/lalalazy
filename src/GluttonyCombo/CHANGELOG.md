@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.0.4.179 (2026-09-10) [testing]
+
+### Added
+
+- Beastmaster is recognised as a melee job and appears in the job list. There is no rotation yet: the three Beastmaster entries are placeholders that leave every button exactly as it is, so enabling one changes nothing in combat. (files: `GluttonyCombo/Combos/PvE/BST/BST.cs`, `GluttonyCombo/Combos/PvE/BST/BST_Helper.cs`, `GluttonyCombo/Combos/PvE/BST/BST_Config.cs`, `GluttonyCombo/CustomCombo/Functions/Jobs.cs` `GetRoleFromJob`)
+- The Debug tab can show the Beastmaster gauge. The game's shared gauge layout for Beastmaster is not published yet, so the plugin reads it through its own copy of the layout from FFXIVClientStructs pull request 1947, vendored on 2026-09-09 and to be replaced once that lands. (file: `GluttonyCombo/Combos/PvE/BST/BST_Gauge.cs`, `GluttonyCombo/Window/Tabs/Debug.cs`)
+- A debug telemetry line for Beastmaster is emitted only when Combo Decision Telemetry is enabled, and only while playing Beastmaster. It records the gauge, the summoned familiar and the current Beast Mode and Avalanche Axe replacements, so a real rotation can be built from real play; it is off by default, writes only to the plugin log, and nothing leaves the machine. (files: `GluttonyCombo/Data/BeastmasterTelemetry.cs`, `GluttonyCombo/Data/BeastmasterTelemetryFormat.cs`)
+
+### Notes
+
+- The Beastmaster telemetry line is rate limited to at most four lines per second and is written only when the recorded state changes. Replaying 190 minutes of recorded Beastmaster play through the limiter produced 8,314 lines, about 44 per minute, against 1.1 million game frames. (file: `tests/GluttonyCombo.TelemetryHarness/Program.cs`)
+
 ## v1.0.4.178 (2026-09-07) [testing]
 
 ### Changed

@@ -418,6 +418,11 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
 
             AutoRotationController.Run();
 
+            // Fork (BST skeleton): Beastmaster debug collector. Off by default behind the
+            // same "Combo Decision Telemetry" switch as the CT| tap; when off this is one
+            // bool read. Tick() itself returns immediately unless the player is on BST.
+            if (Service.Configuration.ComboTelemetry)
+                BeastmasterTelemetry.Tick();
 
             if (Player.IsDead)
             {

@@ -19,5 +19,13 @@
 
   <ItemGroup>
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Data\ComboTelemetryFormat.cs" Link="ComboTelemetryFormat.cs" />
+    <!-- The pure half of the Beastmaster BT| collector, asserted by the same harness. -->
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Data\BeastmasterTelemetryFormat.cs" Link="BeastmasterTelemetryFormat.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Real Beastmaster play pulled from ffxivdb action_events; the BT| rate limit is
+         MEASURED by replaying it, never reasoned about. -->
+    <None Include="trace-bst-ffxivdb.csv" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

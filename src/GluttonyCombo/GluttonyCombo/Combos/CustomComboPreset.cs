@@ -2331,6 +2331,47 @@ public enum Preset
 
     #endregion
 
+    #region BEASTMASTER
+
+    // Beastmaster (Job.BST = 43) SKELETON - fork-range ordinals (70000+), which upstream
+    // WrathCombo does not use for job presets, so a nightly upstream merge cannot collide.
+    // These three presets are STUBS: their combos in Combos/PvE/BST/BST.cs return the pressed
+    // action unchanged, so enabling one changes no behavior. They exist so Beastmaster appears
+    // in the job list and the plumbing is provably wired ahead of the rotation cards.
+    //
+    // Deliberately NO [AutoAction]: with no rotation logic there is nothing for autorotation
+    // to fire, and registering an auto-action that resolves to the pressed button would put a
+    // no-op into the autorotation candidate list. It gets added with the rotation, not here.
+
+    #region Simple Mode
+
+    [ReplaceSkill(BST.SmashAxe)]
+    [ConflictingCombos(BST_ST_AdvancedMode)]
+    [JobInfo(Job.BST)]
+    [SimpleDPSCombo]
+    BST_ST_SimpleMode = 70100,
+
+    [ReplaceSkill(BST.SmashAxe)]
+    [JobInfo(Job.BST)]
+    [SimpleDPSCombo]
+    BST_AoE_SimpleMode = 70200,
+
+    #endregion
+
+    #region Advanced ST Beastmaster
+
+    [ReplaceSkill(BST.SmashAxe)]
+    [ConflictingCombos(BST_ST_SimpleMode)]
+    [JobInfo(Job.BST)]
+    [AdvancedDPSCombo]
+    BST_ST_AdvancedMode = 70101,
+
+    #endregion
+
+    // Last value = 70200
+
+    #endregion
+
     #region BARD
 
     #region Simple Mode

@@ -768,6 +768,7 @@ public static class DebugFile
                 40 => typeof(SGE.Config),
                 41 => typeof(VPR.Config),
                 42 => typeof(PCT.Config),
+                43 => typeof(BST.Config),
                 _ => throw new NotImplementedException(),
             };
 

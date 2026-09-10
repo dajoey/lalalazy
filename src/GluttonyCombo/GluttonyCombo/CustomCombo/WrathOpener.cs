@@ -353,6 +353,8 @@ public abstract class WrathOpener
             Job.VPR => VPR.Opener(),
             Job.WAR => WAR.Opener(),
             Job.WHM => WHM.Opener(),
+            // BST has no opener yet (skeleton); Dummy is what a job without one gets.
+            Job.BST => Dummy,
             _ => Dummy
         };
         CurrentOpener?.CacheReady = true;

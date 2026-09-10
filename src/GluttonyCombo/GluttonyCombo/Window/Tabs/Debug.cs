@@ -361,6 +361,12 @@ internal class Debug : ConfigWindow, IDisposable
                 case Job.PCT:
                     Util.ShowStruct(&JobGaugeManager.Instance()->Pictomancer);
                     break;
+                case Job.BST:
+                    // ClientStructs has no BeastmasterGauge yet (PR #1947 unmerged), so the
+                    // vendored overlay from Combos/PvE/BST/BST_Gauge.cs is shown instead.
+                    var bstGauge = BST.Gauge;
+                    Util.ShowStruct(&bstGauge);
+                    break;
             }
 
             ImGuiEx.Spacing(new Vector2(0f, SpacingSmall));

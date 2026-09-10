@@ -686,7 +686,8 @@ public partial class GluttonyCombo
             if (sub is not ("status" or ""))
                 DuoLog.Error("Usage: /gluttony telemetry <on|off|toggle|status>");
             DuoLog.Information($"Combo telemetry is {(current ? "ON" : "OFF")} " +
-                               $"(lines start with `{ComboTelemetry.Prefix}` in the plugin log).");
+                               $"(lines start with `{ComboTelemetry.Prefix}`, or " +
+                               $"`{BeastmasterTelemetry.Prefix}` on Beastmaster, in the plugin log).");
             return;
         }
 
@@ -695,7 +696,10 @@ public partial class GluttonyCombo
             Service.Configuration.ComboTelemetry = wanted.Value;
             Service.Configuration.Save();
             if (wanted.Value)
+            {
                 ComboTelemetry.Reset();
+                BeastmasterTelemetry.Reset();
+            }
         }
 
         DuoLog.Information($"Combo telemetry {(wanted.Value ? "ON" : "OFF")}.");
