@@ -1,4 +1,6 @@
-﻿namespace GluttonyCombo.Combos.PvE;
+﻿using System.Collections.Generic;
+
+namespace GluttonyCombo.Combos.PvE;
 
 /// <summary>
 ///     Pure Beastmaster rotation decision logic (t_02fe2681). No Dalamud/game types - only
@@ -194,14 +196,6 @@ internal static class BST_RotationLogic
     ///     left a sub-22 player's familiar loop stuck forever waiting on an ability they
     ///     hadn't learned (Helm: "Not using trick", 2026-09-10).
     /// </param>
-    /// <param name="temperedLearned">
-    ///     Whether Tempered Release (lv18) is unlocked at the player's current level. Same
-    ///     skip-if-not-learned treatment as <paramref name="borrowLearned"/>.
-    /// </param>
-    /// <summary>
-    ///     Whether the familiar loop should hold Parting Blow for Lingering Vantage, or retreat
-    ///     unconditionally the instant Trick spends the familiar's TP.
-    /// </summary>
     /// <remarks>
     ///     Lingering Vantage cannot exist below lv22 - Borrow's own unlock is the floor for any
     ///     Vantage grant (skill lalalazy-ffxiv references/beastmaster-kit-by-level.md, traits
@@ -218,6 +212,141 @@ internal static class BST_RotationLogic
     public static bool ComputeHoldForVantage(bool borrowLearned, bool holdPartingBlowForVantageConfig) =>
         borrowLearned && holdPartingBlowForVantageConfig;
 
+    /// <summary>
+    ///     The familiar-loop steps in the order they should be tried, so the live half can
+    ///     walk DOWN the list when the game refuses the step the loop wants. One offered but
+    ///     uncastable step used to kill the entire familiar subtree for that tick
+    ///     (t_f987910c); an ordered candidate list is the harness-friendly shape of the fix.
+    /// </summary>
+    public static readonly FamiliarStep[] FamiliarStepOrder =
+    [
+        FamiliarStep.Battlehorn,
+        FamiliarStep.Borrow,
+        FamiliarStep.TemperedRelease,
+        FamiliarStep.Trick,
+        FamiliarStep.PartingBlow,
+    ];
+
+    /// <summary>
+    ///     The familiar-loop steps ELIGIBLE right now, best first, with the reason each
+    ///     skipped step was declined. Presumes the familiar IS out (the live half answers
+    ///     the summon question itself - Battlehorn is its own branch there). Every rule
+    ///     contributes its step when satisfied, so the list is CUMULATIVE and the live half
+    ///     can fall through an ActionReady refusal to the next entry. Rules (in order):
+    ///     <list type="number">
+    ///         <item>
+    ///             <see cref="FamiliarStep.Borrow"/> and
+    ///             <see cref="FamiliarStep.TemperedRelease"/> require their Primary cost gate,
+    ///             One with Nature (4601): it is granted by the summon itself
+    ///             (Battlehorn Mastery) and consumed by these casts, so when it is absent the
+    ///             step is skipped, not offered - it can never again stall the loop behind an
+    ///             action the game will refuse.
+    ///         </item>
+    ///         <item>
+    ///             <see cref="FamiliarStep.Trick"/> when familiar TP has banked to at least
+    ///             its 100 floor, and <see cref="FamiliarStep.PartingBlow"/> once Trick has
+    ///             spent it (respecting the hold-for-Vantage config, whose own level floor
+    ///             keeps the hold reachable at every bracket it is offered in).
+    ///         </item>
+    ///     </list>
+    ///     Borrow and Tempered Release are offered together when both are unspent and One
+    ///     with Nature is up: they are independent abilities with separate recasts, and if
+    ///     the game has one of the two on cooldown the live half falls through to the other
+    ///     instead of losing the tick.
+    /// </summary>
+    /// <param name="borrowedThisSummon"> Whether Borrow has already been used since the current summon. </param>
+    /// <param name="temperedReleasedThisSummon"> Whether Tempered Release has already been used since the current summon. </param>
+    /// <param name="familiarTp"> The familiar's TP gauge (0-250). </param>
+    /// <param name="oneWithNatureUp"> Whether status 4601 One with Nature is currently on the player. </param>
+    /// <param name="lingeringVantage"> Whether Lingering Vantage (4614, from Borrow) is currently up. </param>
+    /// <param name="holdPartingBlowForVantage">
+    ///     Config: hold Parting Blow until Lingering Vantage is up (1500 vs 1000 potency),
+    ///     rather than retreating immediately once Trick has spent the familiar's TP.
+    /// </param>
+    /// <param name="borrowLearned">
+    ///     Whether Borrow (lv22) is unlocked at the player's current level. Below lv22 the
+    ///     step is skipped entirely rather than stalling the loop - Trick (lv8) is available
+    ///     long before Borrow.
+    /// </param>
+    /// <param name="temperedLearned">
+    ///     Whether Tempered Release (lv18) is unlocked at the player's current level. Same
+    ///     skip-if-not-learned treatment as <paramref name="borrowLearned"/>.
+    /// </param>
+    /// <returns>
+    ///     Eligible steps (empty Decline) FIRST, in try order; the
+    ///     <see cref="FamiliarStep.None"/> entries carrying WHY a skipped step was
+    ///     skipped follow. Never empty: with nothing eligible the list is
+    ///     [None, ...declines], so the caller always has the decline record to report.
+    /// </returns>
+    public static List<(FamiliarStep Step, string Decline)> ChooseFamiliarCandidates(
+        bool borrowedThisSummon, bool temperedReleasedThisSummon,
+        byte familiarTp, bool oneWithNatureUp, bool lingeringVantage, bool holdPartingBlowForVantage,
+        bool borrowLearned = true, bool temperedLearned = true)
+    {
+        // Eligible steps (empty Decline) collect first - the live half walks them in
+        // order and falls through any ActionReady refusal - and the declines
+        // (Step=None plus the reason) follow, so [0] is always "the step this summon
+        // wants most" while the tail still carries the whole decline picture.
+        var eligible = new List<(FamiliarStep Step, string Decline)>();
+        var declines = new List<(FamiliarStep Step, string Decline)>();
+
+        // Borrow and Tempered Release are independent abilities on separate recasts;
+        // BOTH are offered when eligible so the live half can fall through one the game
+        // refuses (recast not up) to the other. Decline entries carry Step=None so a
+        // caller walking the list for castable steps can filter on the Step alone while
+        // still reading the decline text.
+        if (borrowLearned)
+        {
+            if (borrowedThisSummon)
+                declines.Add((FamiliarStep.None, "borrow:spent"));
+            else if (!oneWithNatureUp)
+                declines.Add((FamiliarStep.None, "borrow:declined-onewithnature"));
+            else
+                eligible.Add((FamiliarStep.Borrow, ""));
+        }
+
+        if (temperedLearned)
+        {
+            if (temperedReleasedThisSummon)
+                declines.Add((FamiliarStep.None, "temperedrelease:spent"));
+            else if (!oneWithNatureUp)
+                declines.Add((FamiliarStep.None, "temperedrelease:declined-onewithnature"));
+            else
+                eligible.Add((FamiliarStep.TemperedRelease, ""));
+        }
+
+        // The tail is exactly one of: Trick (TP banked), Parting Blow (TP spent, not
+        // holding), or a hold - which reports BOTH blockers (Trick's TP floor and the
+        // Parting Blow hold) so a grader can see the whole picture.
+        if (familiarTp >= 100)
+        {
+            eligible.Add((FamiliarStep.Trick, ""));
+        }
+        else if (holdPartingBlowForVantage && !lingeringVantage)
+        {
+            // Nothing eligible - the loop holds. The declines carry BOTH blockers
+        // (Trick's TP floor and the Parting Blow hold) for the telemetry.
+            declines.Add((FamiliarStep.None, "trick:waiting-tp"));
+            declines.Add((FamiliarStep.None, "partingblow:holding-for-vantage"));
+        }
+        else
+        {
+            eligible.Add((FamiliarStep.PartingBlow, ""));
+        }
+
+        var result = new List<(FamiliarStep Step, string Decline)>(eligible.Count + declines.Count);
+        result.AddRange(eligible);
+        result.AddRange(declines);
+        return result;
+    }
+
+    /// <summary>
+    ///     The pre-1.0.4.190 single-step entry point, kept so the shipped case list keeps
+    ///     compiling and a grader can still ask "what is the ONE step this summon wants".
+    ///     New callers should use <see cref="ChooseFamiliarCandidates"/> - the live half no
+    ///     longer dies when the single chosen step is uncastable; it walks down the
+    ///     candidate list instead.
+    /// </summary>
     public static FamiliarStep ChooseFamiliarStep(
         bool petSummoned, bool borrowedThisSummon, bool temperedReleasedThisSummon,
         byte familiarTp, bool lingeringVantage, bool holdPartingBlowForVantage,
@@ -226,19 +355,10 @@ internal static class BST_RotationLogic
         if (!petSummoned)
             return FamiliarStep.Battlehorn;
 
-        if (borrowLearned && !borrowedThisSummon)
-            return FamiliarStep.Borrow;
-
-        if (temperedLearned && !temperedReleasedThisSummon)
-            return FamiliarStep.TemperedRelease;
-
-        if (familiarTp >= 100)
-            return FamiliarStep.Trick;
-
-        if (holdPartingBlowForVantage && !lingeringVantage)
-            return FamiliarStep.None; // Trick already spent; wait for Vantage before retreating
-
-        return FamiliarStep.PartingBlow;
+        return ChooseFamiliarCandidates(
+            borrowedThisSummon, temperedReleasedThisSummon,
+            familiarTp, oneWithNatureUp: true, lingeringVantage, holdPartingBlowForVantage,
+            borrowLearned, temperedLearned)[0].Step;
     }
 
     /// <summary>

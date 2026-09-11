@@ -31,6 +31,7 @@ internal static class Program
         CaseI_QuellingWaveIsGcdRolling();
         CaseJ_BattlehornSlotLevelGate();
         CaseK_ChooseRally();
+        CaseL_FamiliarFallThrough();
         ExtraCoverage();
 
         Console.WriteLine(_fail == 0 ? "OK" : $"FAILED ({_fail} of {_pass + _fail})");
@@ -688,6 +689,128 @@ internal static class Program
             }
         }
         Check("Rally fires exactly at or below the 140 TP headroom line", monotone);
+    }
+
+    // ------------------------------------------------------------------
+    // (l) familiar-loop candidate fall-through (t_f987910c, BST D6): the ordered
+    // candidate list keeps the loop alive when the game refuses the head candidate, and
+    // One with Nature (4601) gates Borrow/Tempered Release at the LOGIC level so a stale
+    // "not used this summon" timestamp can never re-offer them while the status is down.
+    // The live stall: TemperedRelease re-offered ahead of Trick after the timestamp
+    // expired, ActionReady refused it (no 4601), and ONE refusal killed the whole
+    // familiar subtree - familiar TP pegged at 250 for 25+ seconds, zero Trick decisions.
+    // ------------------------------------------------------------------
+    private static void CaseL_FamiliarFallThrough()
+    {
+        Console.WriteLine("-- (l) familiar-loop candidates: fall-through + One-with-Nature gate --");
+
+        // Fresh summon, nothing spent, 4601 up: Borrow first, Tempered second - both
+        // castable, so the live half can fall through Borrow -> Tempered when the game
+        // refuses Borrow (recast / resource).
+        var c = BST_RotationLogic.ChooseFamiliarCandidates(
+            borrowedThisSummon: false, temperedReleasedThisSummon: false,
+            familiarTp: 0, oneWithNatureUp: true, lingeringVantage: false, holdPartingBlowForVantage: true);
+        Check("fresh summon, 4601 up: head candidate is Borrow",
+            c.Count >= 2 && c[0].Step == BST_RotationLogic.FamiliarStep.Borrow && c[0].Decline.Length == 0,
+            string.Join(",", c.Select(x => $"{x.Step}:{x.Decline}")));
+        Check("fresh summon, 4601 up: second candidate is TemperedRelease (the fall-through target)",
+            c.Count >= 2 && c[1].Step == BST_RotationLogic.FamiliarStep.TemperedRelease,
+            string.Join(",", c.Select(x => $"{x.Step}:{x.Decline}")));
+
+        // THE D6 REGRESSION: per-summon timestamps expired (the live half reads them as
+        // "never used this summon") and One with Nature is DOWN. Tempered Release must not
+        // be offered; the loop must reach Trick with the familiar's banked TP.
+        var c2 = BST_RotationLogic.ChooseFamiliarCandidates(
+            borrowedThisSummon: false, temperedReleasedThisSummon: false,
+            familiarTp: 250, oneWithNatureUp: false, lingeringVantage: false, holdPartingBlowForVantage: true);
+        Check("THE D6 STALL: expired timestamps + 4601 down -> head candidate is Trick, never TemperedRelease",
+            c2.Count > 0 && c2[0].Step == BST_RotationLogic.FamiliarStep.Trick,
+            string.Join(",", c2.Select(x => $"{x.Step}:{x.Decline}")));
+        var declines2 = string.Join(",", c2.Select(x => x.Decline).Where(s => s.Length > 0));
+        Check("D6: both 4601 declines are reported for the grader",
+            declines2.Contains("borrow:declined-onewithnature") && declines2.Contains("temperedrelease:declined-onewithnature"),
+            declines2);
+
+        // Same state but 4601 UP: Borrow/Tempered ARE offered (ahead of Trick) - the gate
+        // tracks the status, not the summon age.
+        var c3 = BST_RotationLogic.ChooseFamiliarCandidates(
+            borrowedThisSummon: false, temperedReleasedThisSummon: false,
+            familiarTp: 250, oneWithNatureUp: true, lingeringVantage: false, holdPartingBlowForVantage: true);
+        Check("same expired-timestamp state with 4601 UP -> Borrow is offered again (gate is the status, not summon age)",
+            c3.Count > 0 && c3[0].Step == BST_RotationLogic.FamiliarStep.Borrow,
+            string.Join(",", c3.Select(x => $"{x.Step}:{x.Decline}")));
+
+        // Everything spent, TP spent, holding for Vantage it cannot have: None, with the
+    // hold decline carried for the telemetry.
+        var c4 = BST_RotationLogic.ChooseFamiliarCandidates(
+            borrowedThisSummon: true, temperedReleasedThisSummon: true,
+            familiarTp: 20, oneWithNatureUp: false, lingeringVantage: false, holdPartingBlowForVantage: true);
+        var declines4 = string.Join(",", c4.Select(x => x.Decline).Where(s => s.Length > 0));
+        Check("all spent, TP<100, holding for Vantage -> nothing eligible, declines name every blocker",
+            c4.All(x => x.Step == BST_RotationLogic.FamiliarStep.None && x.Decline.Length > 0)
+                && declines4.Contains("borrow:spent") && declines4.Contains("temperedrelease:spent")
+                && declines4.Contains("trick:waiting-tp") && declines4.Contains("partingblow:holding-for-vantage"),
+            string.Join(",", c4.Select(x => $"{x.Step}:{x.Decline}")));
+
+        // Not holding: Parting Blow retreats as before.
+        var c5 = BST_RotationLogic.ChooseFamiliarCandidates(
+            borrowedThisSummon: true, temperedReleasedThisSummon: true,
+            familiarTp: 20, oneWithNatureUp: false, lingeringVantage: false, holdPartingBlowForVantage: false);
+        Check("all spent, TP<100, not holding -> head is PartingBlow",
+            c5.Count > 0 && c5[0].Step == BST_RotationLogic.FamiliarStep.PartingBlow,
+            string.Join(",", c5.Select(x => $"{x.Step}:{x.Decline}")));
+
+        // Adversarial sweep: across every input combination, the head candidate must never
+        // be an unlearned step, never Borrow/TemperedRelease with 4601 down, never Trick
+        // below 100 TP, never PartingBlow while holding for an absent Vantage - and every
+        // non-head entry must be a Step.None decline with text.
+        var violations = 0;
+        foreach (var borrowed in new[] { true, false })
+        foreach (var tempered in new[] { true, false })
+        foreach (var tp in new byte[] { 0, 50, 99, 100, 250 })
+        foreach (var own in new[] { true, false })
+        foreach (var lingering in new[] { true, false })
+        foreach (var hold in new[] { true, false })
+        foreach (var bLearned in new[] { true, false })
+        foreach (var tLearned in new[] { true, false })
+        {
+            var list = BST_RotationLogic.ChooseFamiliarCandidates(borrowed, tempered, tp, own, lingering, hold, bLearned, tLearned);
+            if (list.Count == 0) { violations++; continue; }
+
+            for (var i = 0; i < list.Count; i++)
+            {
+                var (step, why) = list[i];
+
+                // Every entry is EITHER an eligible step with no decline text OR a
+                // Step.None decline WITH text - never a mix, never a bare None.
+                if (step == BST_RotationLogic.FamiliarStep.None)
+                {
+                    if (why.Length == 0) violations++;
+                }
+                else if (why.Length != 0) violations++;
+
+                // Eligibility rules hold wherever the step appears.
+                if (step == BST_RotationLogic.FamiliarStep.Borrow && (!bLearned || !own)) violations++;
+                if (step == BST_RotationLogic.FamiliarStep.TemperedRelease && (!tLearned || !own)) violations++;
+                if (step == BST_RotationLogic.FamiliarStep.Trick && tp < 100) violations++;
+                if (step == BST_RotationLogic.FamiliarStep.PartingBlow && (tp >= 100 || (hold && !lingering))) violations++;
+            }
+
+            // Eligible steps appear in FamiliarStepOrder, at most one each.
+            var eligible = list.Select(x => x.Step).Where(s => s != BST_RotationLogic.FamiliarStep.None).ToList();
+            var orderMap = new Dictionary<BST_RotationLogic.FamiliarStep, int>
+            {
+                [BST_RotationLogic.FamiliarStep.Borrow] = 0,
+                [BST_RotationLogic.FamiliarStep.TemperedRelease] = 1,
+                [BST_RotationLogic.FamiliarStep.Trick] = 2,
+                [BST_RotationLogic.FamiliarStep.PartingBlow] = 3,
+            };
+            var orders = eligible.Select(s => orderMap[s]).ToList();
+            if (orders.Zip(orders.Skip(1), (a, b) => a < b).Any(pair => !pair)) violations++;
+            if (eligible.Count != eligible.Distinct().Count()) violations++;
+        }
+        Check($"adversarial sweep over all 640 input combinations never offers an ineligible step ({violations} violations)",
+            violations == 0, $"{violations} violations");
     }
 
     private static void ExtraCoverage()

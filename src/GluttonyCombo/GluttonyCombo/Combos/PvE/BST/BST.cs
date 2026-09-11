@@ -2,6 +2,7 @@
 
 using Dalamud.Game.ClientState.Objects.Types;
 using FFXIVClientStructs.FFXIV.Client.Game;
+using System.Collections.Generic;
 using System.Linq;
 using GluttonyCombo.CustomComboNS;
 using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
@@ -168,6 +169,17 @@ internal partial class BST : Melee
     internal static uint LastDecisionActionId;
     internal static string LastDecisionReason = "";
 
+    /// <summary>
+    ///     Why the FAMILIAR LOOP declined to act on the last tick that it declined at all
+    ///     (t_f987910c fix 4). Sampled by <see cref="GluttonyCombo.Data.BeastmasterTelemetry"/>
+    ///     into the BT|fd= field. Carried separately from <see cref="LastDecisionReason"/>
+    ///     because the rotation still decides gcdchain/instinctual on a tick where the
+    ///     familiar subtree is skipped - writing a decline into dec= would be overwritten
+    ///     by the terminal Record() before the collector ever sampled it. Empty when the
+    ///     familiar loop acted or had nothing to say.
+    /// </summary>
+    internal static string FamiliarDeclineReason = "";
+
     #endregion
 
     #region Instinctual (Compass)
@@ -215,9 +227,20 @@ internal partial class BST : Melee
     {
         actionId = 0;
         reason = "";
+        FamiliarDeclineReason = "";
 
         var gauge = Gauge;
-        var petSummoned = gauge.ActiveBattlehorn != 0;
+
+        // Pet presence is TWO signals, not one (t_f987910c): the gauge slot byte AND the live
+        // pet-buddy object (the SCH/SMN idiom). The gauge byte alone reads "summoned" for a
+        // familiar that has died or despawned, which pins the whole loop to steps only a LIVE
+        // familiar can take. The object appears when the summon cast STARTS, so while
+        // HasPetPresent() is true but the slot byte is still 0 the summon is mid-flight -
+        // stay quiet for that gap instead of re-issuing Battlehorn on top of it.
+        var gaugeSummoned = gauge.ActiveBattlehorn != 0;
+        var petPresent = HasPetPresent();
+        var petSummoned = gaugeSummoned && petPresent;
+        var summonInFlight = !gaugeSummoned && petPresent;
 
         // "Used this summon" = used more recently than the most recent Battlehorn press,
         // across all three slots. Both Borrow and Tempered Release are RESET by a fresh
@@ -253,71 +276,132 @@ internal partial class BST : Melee
         var holdForVantage = BST_RotationLogic.ComputeHoldForVantage(borrowLearned, BST_HoldPartingBlowForVantage);
         var lingeringVantage = HasStatusEffect(Buffs.LingeringVantage);
 
-        var step = BST_RotationLogic.ChooseFamiliarStep(
-            petSummoned, borrowedThisSummon, temperedThisSummon,
-            gauge.FamiliarTPGauge, lingeringVantage, holdForVantage,
+        var summonDecline = "";
+        var tried = new List<string>();
+
+        if (summonInFlight)
+        {
+            // A summon cast is already on its way - re-issuing Battlehorn on top of it
+            // would queue a second summon behind it. Report and wait.
+            FamiliarDeclineReason = "battlehorn:summon-in-flight";
+            return false;
+        }
+
+        if (!petSummoned)
+        {
+            var preferredSlot = advanced ? (byte)BST_BattlehornSlotOrder : (byte)0;
+
+            // Second Battlehorn unlocks L10, Third unlocks L20 - a player below L20 whose
+            // rotation state would otherwise land on slot 3 must not be handed a slot they
+            // haven't learned (defect 4, beastmaster-rotation-spec.md §6). maxLearnedSlot
+            // starts at 1 (First Battlehorn, always learned) and steps up as the two later
+            // tiers unlock.
+            byte maxLearnedSlot = 1;
+            if (LocalPlayer.Level >= GetActionLevel(SecondBattlehorn)) maxLearnedSlot = 2;
+            if (LocalPlayer.Level >= GetActionLevel(ThirdBattlehorn)) maxLearnedSlot = 3;
+
+            var nextSlot = BST_RotationLogic.NextBattlehornSlot(gauge.KinshipBattlehorn, preferredSlot, maxLearnedSlot);
+            var battlehornAction = nextSlot switch
+            {
+                2 => SecondBattlehorn,
+                3 => ThirdBattlehorn,
+                _ => FirstBattlehorn,
+            };
+
+            if (!ActionReady(battlehornAction))
+            {
+                // WHY the resummon is not happening is the observable a grader needs
+                // (t_f987910c fix 4): Beast Voice (SecondaryCostType 155) is Battlehorn's
+                // own resource, and in combat the recast only begins once the familiar has
+                // retreated - name which one blocked it.
+                FamiliarDeclineReason = GetCooldownRemainingTime(battlehornAction) > 0
+                    ? $"battlehorn:declined-recast-slot{nextSlot}"
+                    : $"battlehorn:declined-beastvoice-slot{nextSlot}";
+                return false;
+            }
+
+            actionId = battlehornAction;
+            reason = $"battlehorn:slot{nextSlot}";
+            return true;
+        }
+
+        // One with Nature (4601) is the Primary cost gate of BOTH Borrow and Tempered
+        // Release. Reading it from the game (not inferring it) is what keeps a stale
+        // "not used this summon" timestamp from re-offering an ability the game will
+        // refuse - the status vanishes seconds after the cast, while the timestamp that
+        // says "used" ages out of the action-history cache ~30-60 s into a summon
+        // (t_f987910c root cause).
+        var oneWithNatureUp = HasStatusEffect(Buffs.OneWithNature);
+
+        var candidates = BST_RotationLogic.ChooseFamiliarCandidates(
+            borrowedThisSummon, temperedThisSummon,
+            gauge.FamiliarTPGauge, oneWithNatureUp, lingeringVantage, holdForVantage,
             borrowLearned, temperedLearned);
 
-        switch (step)
+        summonDecline = string.Join(",",
+            candidates.Select(c => c.Decline)
+                      .Where(s => !string.IsNullOrEmpty(s)));
+
+        // FALL-THROUGH (t_f987910c fix 1): walk DOWN the candidate list when the game
+        // refuses a step. One uncastable offered step used to return false here and kill
+        // the ENTIRE familiar subtree for the rest of the summon - the D6 stall that left
+        // familiar TP pegged at max for 25+ seconds with zero Trick decisions.
+        foreach (var (step, _) in candidates.Where(c => c.Step != BST_RotationLogic.FamiliarStep.None))
         {
-            case BST_RotationLogic.FamiliarStep.Battlehorn:
-                var preferredSlot = advanced ? (byte)BST_BattlehornSlotOrder : (byte)0;
+            switch (step)
+            {
+                case BST_RotationLogic.FamiliarStep.Borrow:
+                    if (!ActionReady(Borrow))
+                    {
+                        tried.Add("borrow");
+                        continue;
+                    }
+                    actionId = Borrow;
+                    reason = "borrow";
+                    return true;
 
-                // Second Battlehorn unlocks L10, Third unlocks L20 - a player below L20 whose
-                // rotation state would otherwise land on slot 3 must not be handed a slot they
-                // haven't learned (defect 4, beastmaster-rotation-spec.md §6). maxLearnedSlot
-                // starts at 1 (First Battlehorn, always learned) and steps up as the two later
-                // tiers unlock.
-                byte maxLearnedSlot = 1;
-                if (LocalPlayer.Level >= GetActionLevel(SecondBattlehorn)) maxLearnedSlot = 2;
-                if (LocalPlayer.Level >= GetActionLevel(ThirdBattlehorn)) maxLearnedSlot = 3;
+                case BST_RotationLogic.FamiliarStep.TemperedRelease:
+                    if (!ActionReady(TemperedRelease))
+                    {
+                        tried.Add("temperedrelease");
+                        continue;
+                    }
+                    actionId = TemperedRelease;
+                    reason = "temperedrelease";
+                    return true;
 
-                var nextSlot = BST_RotationLogic.NextBattlehornSlot(gauge.KinshipBattlehorn, preferredSlot, maxLearnedSlot);
-                var battlehornAction = nextSlot switch
-                {
-                    2 => SecondBattlehorn,
-                    3 => ThirdBattlehorn,
-                    _ => FirstBattlehorn,
-                };
+                case BST_RotationLogic.FamiliarStep.Trick:
+                    if (!ActionReady(Trick))
+                    {
+                        tried.Add("trick");
+                        continue;
+                    }
+                    actionId = Trick;
+                    reason = "trick";
+                    return true;
 
-                if (!ActionReady(battlehornAction))
-                    return false;
-
-                actionId = battlehornAction;
-                reason = $"battlehorn:slot{nextSlot}";
-                return true;
-
-            case BST_RotationLogic.FamiliarStep.Borrow:
-                if (!ActionReady(Borrow))
-                    return false;
-                actionId = Borrow;
-                reason = "borrow";
-                return true;
-
-            case BST_RotationLogic.FamiliarStep.TemperedRelease:
-                if (!ActionReady(TemperedRelease))
-                    return false;
-                actionId = TemperedRelease;
-                reason = "temperedrelease";
-                return true;
-
-            case BST_RotationLogic.FamiliarStep.Trick:
-                if (!ActionReady(Trick))
-                    return false;
-                actionId = Trick;
-                reason = "trick";
-                return true;
-
-            case BST_RotationLogic.FamiliarStep.PartingBlow:
-                if (!ActionReady(PartingBlow))
-                    return false;
-                actionId = PartingBlow;
-                reason = lingeringVantage ? "partingblow:vantage" : "partingblow:norush";
-                return true;
-
-            default:
-                return false;
+                case BST_RotationLogic.FamiliarStep.PartingBlow:
+                    if (!ActionReady(PartingBlow))
+                    {
+                        tried.Add("partingblow");
+                        continue;
+                    }
+                    actionId = PartingBlow;
+                    reason = lingeringVantage ? "partingblow:vantage" : "partingblow:norush";
+                    return true;
+            }
         }
+
+        // Every candidate the loop offered was refused by the game. Carry the WHY out to
+        // the BT| line (fd=) instead of silently eating the tick: the pure-half declines
+        // (per-summon state / 4601) when there are any, otherwise which steps the game
+        // itself refused (recast / resource).
+        FamiliarDeclineReason = summonDecline.Length > 0
+            ? summonDecline
+            : tried.Count > 0
+                ? "familiarloop:refused-" + string.Join("+", tried)
+                : "familiarloop:no-eligible-step";
+        return false;
     }
 
     #endregion

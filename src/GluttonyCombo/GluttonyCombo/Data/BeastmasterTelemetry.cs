@@ -127,6 +127,7 @@ internal static class BeastmasterTelemetry
             StatusBuffer,
             BST.LastDecisionActionId,
             BST.LastDecisionReason,
+            BST.FamiliarDeclineReason,
             gauge.InstinctStacks);
     }
 }

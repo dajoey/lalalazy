@@ -122,7 +122,7 @@ internal static class Program
 
         Check("BST prefix is the greppable BT|", line.StartsWith("BT|", StringComparison.Ordinal), line);
         Check("BST exact line shape",
-            line == "BT|1788904962577|6484a802070503510a|2|5|3|81|pet=1073741830:Cu Sith:5432|bm=44896|av=44930|dec=44887:instinctual:compass|4599,4601,4621",
+            line == "BT|1788904962577|6484a802070503510a|2|5|3|81|pet=1073741830:Cu Sith:5432|bm=44896|av=44930|dec=44887:instinctual:compass|fd=|4599,4601,4621",
             line);
         Check("BST gauge hex is 18 chars (9 bytes)",
             line.Split('|')[2].Length == 18, line);
@@ -141,6 +141,20 @@ internal static class Program
         var noDecision = BeastmasterTelemetryFormat.BuildLine(1_788_904_962_577,
             snap with { DecisionActionId = 0, DecisionReason = null });
         Check("BST dec=0: when no decision was recorded", noDecision.Contains("|dec=0:|"), noDecision);
+
+        // fd= (t_f987910c fix 4): the familiar-loop decline rides its own field so the
+        // terminal Record() (gcdchain/instinctual) can never overwrite it in dec=.
+        var declined = BeastmasterTelemetryFormat.BuildLine(1_788_904_962_577,
+            snap with { FamiliarDecline = "temperedrelease:declined-onewithnature" });
+        Check("BST fd= carries the familiar-loop decline when present",
+            declined.Contains("|fd=temperedrelease:declined-onewithnature|"), declined);
+        Check("BST fd= is empty (stable fd= token) when the loop had nothing to report",
+            line.Contains("|fd=|"), line);
+        var nastyDecline = BeastmasterTelemetryFormat.BuildLine(1_788_904_962_577,
+            snap with { FamiliarDecline = "battlehorn|declined,evil" });
+        Check("BST fd= is sanitised like every other free-text field",
+            !nastyDecline.Contains("battlehorn|declined") && nastyDecline.Split('|').Length == line.Split('|').Length,
+            nastyDecline);
 
         // No familiar out: the pet field must be a stable token, not an empty field.
         var noPet = BeastmasterTelemetryFormat.BuildLine(1_788_904_962_577,
@@ -173,7 +187,7 @@ internal static class Program
         Check("BST line stays within the 200-char budget",
             longLine.Length <= BeastmasterTelemetryFormat.MaxLineLength, $"len={longLine.Length}");
         Check("BST truncated line is marked with ~", longLine.EndsWith('~'), longLine);
-        Check("BST truncation keeps all 12 fields", longLine.Split('|').Length == 12, longLine);
+        Check("BST truncation keeps all 13 fields", longLine.Split('|').Length == 13, longLine);
 
         // --- the change gate ---------------------------------------------------------
         var gate = new BeastmasterTelemetryFormat.GateState();
@@ -221,6 +235,17 @@ internal static class Program
         Check("BST the same instinct-stack byte repeated does not emit",
             !BeastmasterTelemetryFormat.ShouldEmit(ref gate, t,
                 snap with { ChainCount = 4, PetObjectId = 99, AdjustedBeastMode = 44900, DecisionActionId = 44888, DecisionReason = "instinctual:compass", InstinctStacks = 0x12 }));
+
+        // A changed fd= is part of the change key: resummon suppression state must emit
+        // even while the gauge bytes are still (pet dead, TP capped, etc.).
+        t += 1000;
+        Check("BST a changed familiar-decline emits",
+            BeastmasterTelemetryFormat.ShouldEmit(ref gate, t,
+                snap with { ChainCount = 4, PetObjectId = 99, AdjustedBeastMode = 44900, DecisionActionId = 44888, DecisionReason = "instinctual:compass", InstinctStacks = 0x12, FamiliarDecline = "battlehorn:declined-recast-slot1" }));
+        t += 1000;
+        Check("BST the same familiar-decline repeated does not emit",
+            !BeastmasterTelemetryFormat.ShouldEmit(ref gate, t,
+                snap with { ChainCount = 4, PetObjectId = 99, AdjustedBeastMode = 44900, DecisionActionId = 44888, DecisionReason = "instinctual:compass", InstinctStacks = 0x12, FamiliarDecline = "battlehorn:declined-recast-slot1" }));
 
         // --- the rate floor ----------------------------------------------------------
         var rlGate = new BeastmasterTelemetryFormat.GateState();

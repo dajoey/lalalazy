@@ -63,6 +63,7 @@ internal static class BeastmasterTelemetryFormat
         IReadOnlyList<ushort> Statuses,
         uint DecisionActionId = 0,
         string? DecisionReason = null,
+        string? FamiliarDecline = null,
         byte InstinctStacks = 0);
 
     /// <summary>
@@ -74,7 +75,7 @@ internal static class BeastmasterTelemetryFormat
     ///     and out mid-combo) and would defeat the change gate, and any status transition worth
     ///     seeing moves a gauge byte too.
     /// </remarks>
-    internal static (ulong Gauge, ulong Pet, uint BeastMode, uint DecisionActionId, string DecisionReason, byte InstinctStacks) KeyOf(in Snapshot s)
+    internal static (ulong Gauge, ulong Pet, uint BeastMode, uint DecisionActionId, string DecisionReason, string FamiliarDecline, byte InstinctStacks) KeyOf(in Snapshot s)
     {
         ulong gauge =
             ((ulong)s.TPGauge << 56) |
@@ -86,7 +87,7 @@ internal static class BeastmasterTelemetryFormat
             ((ulong)s.ChainCount << 8) |
             s.KinshipState;
 
-        return (gauge, s.PetObjectId, s.AdjustedBeastMode, s.DecisionActionId, s.DecisionReason ?? "", s.InstinctStacks);
+        return (gauge, s.PetObjectId, s.AdjustedBeastMode, s.DecisionActionId, s.DecisionReason ?? "", s.FamiliarDecline ?? "", s.InstinctStacks);
     }
 
     /// <summary>
@@ -122,7 +123,7 @@ internal static class BeastmasterTelemetryFormat
     internal struct GateState
     {
         public bool HasLast;
-        public (ulong Gauge, ulong Pet, uint BeastMode, uint DecisionActionId, string DecisionReason, byte InstinctStacks) LastKey;
+        public (ulong Gauge, ulong Pet, uint BeastMode, uint DecisionActionId, string DecisionReason, string FamiliarDecline, byte InstinctStacks) LastKey;
         public bool HasEmitted;
         public long LastEmitMs;
 
@@ -131,7 +132,7 @@ internal static class BeastmasterTelemetryFormat
 
     /// <summary>
     ///     Builds one collector line:
-    ///     <c>BT|unixms|gaugeHex|battlehorn|affinity|chain|kinship|pet|bm|av|dec|statuses</c>.
+    ///     <c>BT|unixms|gaugeHex|battlehorn|affinity|chain|kinship|pet|bm|av|dec|fd|statuses</c>.
     /// </summary>
     /// <remarks>
     ///     <c>gaugeHex</c> is the nine gauge bytes 0x08..0x10 in order (byte 0x10 packs the Mastered/Natural instinct-stack nibbles), lower-case hex, no
@@ -139,7 +140,11 @@ internal static class BeastmasterTelemetryFormat
     ///     or the literal <c>none</c>. <c>dec</c> is <c>&lt;actionId&gt;:&lt;reason&gt;</c> -
     ///     the rotation's own record of what it chose and why (t_02fe2681), so the next card
     ///     can grade chains straight out of <c>plugin_log_lines</c> without re-deriving intent
-    ///     from the gauge bytes alone. Absent a decision (pre-rotation builds, or a tick where
+    ///     from the gauge bytes alone. <c>fd</c> is why the FAMILIAR LOOP declined to act on
+    ///     a tick where it declined at all (t_f987910c fix 4) - empty when the loop acted or
+    ///     had nothing to report, so resummon suppression (Beast Voice vs recast vs a summon
+    ///     still in flight) and per-step refusals are gradable without re-deriving them from
+    ///     the gauge bytes. Absent a decision (pre-rotation builds, or a tick where
     ///     nothing fired) it renders as <c>dec=0:</c>. The status list is the only field
     ///     allowed to be cut short, and truncation is marked with a trailing <c>~</c>.
     /// </remarks>
@@ -181,6 +186,7 @@ internal static class BeastmasterTelemetryFormat
           .Append("|av=").Append(s.AdjustedAvalanche.ToString(inv))
           .Append("|dec=").Append(s.DecisionActionId.ToString(inv)).Append(':')
           .Append(SanitizeReason(s.DecisionReason))
+          .Append("|fd=").Append(SanitizeReason(s.FamiliarDecline))
           .Append('|');
 
         // Everything above is fixed-width-ish and always present; only the status list is cut.
