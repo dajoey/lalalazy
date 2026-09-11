@@ -520,5 +520,40 @@
                       ],
         "DownloadCount":  0,
         "LastUpdate":  "0"
+    },
+    {
+        "Author":  "zbee, Liza Carvelli (upstream PR by dajoey)",
+        "Name":  "ARC (PR test - IPC venture work, REAL InternalName)",
+        "Punchline":  "TEST BUILD ONLY - zbee/ARC PR#3 IPC surface, shares your production config",
+        "Description":  "TEMPORARY test build of zbee/ARC PR #3 (ipc-venture-work): adds ARC.AddItem / ARC.GetInProgress / ARC.GetListCount IPC used by LazyCrafter's ArcDispatch. Published under the SAME InternalName as your production ARControl (from puni.sh), so it reuses your existing pluginConfigs/ARControl.json with no re-setup -- but this means if this testing build is ever removed and Dalamud restarts, the version with the HIGHEST AssemblyVersion under installedPlugins/ARControl/ loads, regardless of source. Only install this via the testing toggle; never as a normal install. Not maintained; remove after in-game venture verification is done.",
+        "InternalName":  "ARControl",
+        "AssemblyVersion":  "0.0.0.0",
+        "TestingAssemblyVersion":  "8.8",
+        "TestingDalamudApiLevel":  15,
+        "Changelog":  "v8.8 (2026-09-11)\n\nTest build of zbee/ARC PR#3 (github.com/zbee/ARC/pull/3, branch dajoey/ARC ipc-venture-work), published under the real ARControl InternalName so it reuses your existing configuration and venture setup. Adds an IPC surface (ARC.AddItem, ARC.GetInProgress, ARC.GetListCount) for other plugins to hand off venture work -- LazyCrafter's ArcDispatch uses it when present, falling back to reflection otherwise. Not for general use; install only to verify the PR in-game with your real venture flow before we reply to the maintainer. Remove and reinstall production ARControl from its own repo listing when done testing.",
+        "RepoUrl":  "https://github.com/dajoey/ARC/tree/ipc-venture-work",
+        "ApplicableVersion":  "any",
+        "DalamudApiLevel":  15,
+        "IsHide":  false,
+        "IsTestingExclusive":  true,
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/ARControl/testing/testing.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/ARControl/testing/testing.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/ARControl/testing/testing.zip",
+        "Tags":  [
+                     "arc",
+                     "autoretainer",
+                     "ventures",
+                     "ipc-test",
+                     "temporary"
+                 ],
+        "CategoryTags":  [
+                             "utility"
+                         ],
+        "IconUrl":  "https://raw.githubusercontent.com/zbee/ARC/master/ARControl.png",
+        "ImageUrls":  [
+                          ""
+                      ],
+        "DownloadCount":  0,
+        "LastUpdate":  "0"
     }
 ]
