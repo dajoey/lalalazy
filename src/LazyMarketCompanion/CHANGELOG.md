@@ -1,3 +1,17 @@
+## v0.1.36.0 (2026-09-10)
+
+### Fixed
+
+- **Retainer inventory dots showed the wrong color for many items, and the player's own bag dots disappeared entirely while a retainer's storage window was open.** The 0.1.34.0 retainer-dots feature assumed the retainer storage view reuses the player's own bag grid addon names ("InventoryGrid"/"InventoryGrid0"/"InventoryGrid1"); that assumption was wrong. While a retainer's inventory is open, the game keeps the player's own bag window open alongside it (so items can be dragged between them), and the retainer branch was scanning for and finding the PLAYER's own grid addon under those names - then painting the RETAINER's stock, sorted by the retainer's own item order, onto the PLAYER's bag cells. Whether a given cell's color happened to look right depended entirely on chance overlap between two unrelated inventories' item order - matching the report exactly: colors that did not track automarket status, some items marked and others not, and the player's own bag dots vanishing the moment a retainer's storage was open (files: `AutoMarket/RetainerGridMap.cs`, `AutoMarketMarkers.cs`).
+- The retainer storage grid is now correctly resolved by its own, distinct addon names ("RetainerGrid" for a normal retainer's tabbed storage view, "RetainerGrid0" through "RetainerGrid6" for an expanded retainer's simultaneous multi-page view) rather than the player's bag addon names, so there is no longer any name collision to resolve incorrectly (files: `AutoMarket/RetainerGridMap.cs`).
+- The player's own bag markers and the retainer's own markers now draw independently every frame instead of one standing down whenever the other is active, so opening a retainer's storage no longer hides the dots on the player's own bags (files: `AutoMarketMarkers.cs` `Draw`, `DrawPlayerBagMarkers`, `DrawRetainerMarkersIfOpen`).
+
+### Notes
+
+- Not yet verified in game. What to look for when verifying: open a retainer's storage with the player's own bag window visible alongside it - both windows should show correct, matching-colored dots (green for on the Auto-Market list, grey for marketable but not listed), and switching between retainer storage tabs should keep the retainer's dots on the right items without disturbing the player's own bag dots.
+- Fail-closed throughout, unchanged from 0.1.34.0: an unreadable item order, an out-of-range page, or an unresolved retainer window draws nothing for that grid rather than guessing.
+- Offline suite: case 58 (RetainerGridMap) rewritten to pin the corrected addon names, including a core-fix case asserting the player's own bag addon names ("InventoryGrid"/"InventoryGrid0"/"InventoryGrid1") are never bound as retainer grids, and cases for the expanded retainer view's fixed-name-identity binding across all seven possible storage pages (files: `tests/LazyMarketCompanion.Harness/Program.cs`, case 58).
+
 ## v0.1.35.0 (2026-09-10)
 
 ### Fixed

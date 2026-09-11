@@ -2549,32 +2549,51 @@ var Catalogue = new (uint Id, string Name)[]
 }
 
 // 58. RETAINER MARKERS (0.1.34.0, Helm t-joey-1789056199442: "now we need to make the dots work on
-//     retainer inventory"). RetainerGridMap.Resolve is the retainer counterpart of GridMap.Resolve:
-//     a single TabIndex-selected panel (no known expanded/E-grid mode for a retainer), up to SEVEN
-//     pages instead of the player's fixed four. SlotOrder.ResolveForPageCount is the same fail-closed
+//     retainer inventory"; CORRECTED 0.1.36.0, kanban t_eeb284dd, same Helm thread's follow-up bug
+//     report: the retainer grid uses its OWN distinct addon names ("RetainerGrid" normal,
+//     "RetainerGrid0".."RetainerGrid6" expanded), never a reuse of the player's "InventoryGrid"
+//     names - see RetainerGridMap's class remarks for the corroborating evidence). Up to SEVEN pages
+//     instead of the player's fixed four. SlotOrder.ResolveForPageCount is the same fail-closed
 //     display-order machinery generalised to that 7-page range.
 {
-  Check("58 retainergridmap: tab 0..6 all bind every live normal-mode panel to that tab's page",
+  Check("58 retainergridmap: tab 0..6 all bind the live normal-mode panel to that tab's page",
     Enumerable.Range(0, RetainerGridMap.PageCount).All(tab =>
     {
-      var r = RetainerGridMap.Resolve(["InventoryGrid"], tab);
-      return r.Count == 1 && r[0] == new RetainerGridMap.GridBinding("InventoryGrid", tab);
+      var r = RetainerGridMap.Resolve(["RetainerGrid"], tab);
+      return r.Count == 1 && r[0] == new RetainerGridMap.GridBinding("RetainerGrid", tab);
     }));
-  Check("58 retainergridmap: every live normal-mode panel binds the SAME tab page",
-    RetainerGridMap.Resolve(["InventoryGrid", "InventoryGrid1"], 2)
-      .All(b => b.PageIndex == 2));
   Check("58 retainergridmap: tab outside 0..6 draws nothing (8-page retainer would be a lie)",
-    RetainerGridMap.Resolve(["InventoryGrid0"], 7).Count == 0
-    && RetainerGridMap.Resolve(["InventoryGrid0"], -1).Count == 0);
+    RetainerGridMap.Resolve(["RetainerGrid"], 7).Count == 0
+    && RetainerGridMap.Resolve(["RetainerGrid"], -1).Count == 0);
   Check("58 retainergridmap: no tab (retainer addon unresolved) draws nothing",
-    RetainerGridMap.Resolve(["InventoryGrid0"], null).Count == 0);
+    RetainerGridMap.Resolve(["RetainerGrid"], null).Count == 0);
   Check("58 retainergridmap: unknown grid names are ignored",
-    RetainerGridMap.Resolve(["SomeOtherGrid", "InventoryGrid0"], 1).Count == 1);
-  Check("58 retainergridmap: an E-grid name is never bound (no known retainer expanded mode)",
-    RetainerGridMap.Resolve(["InventoryGrid0E", "InventoryGrid1E", "InventoryGrid2E", "InventoryGrid3E"], 0).Count == 0);
-  Check("58 retainergridmap: an E-grid alongside a normal panel still binds only the normal panel",
-    RetainerGridMap.Resolve(["InventoryGrid0E", "InventoryGrid0"], 3) is var mixed
-    && mixed.Count == 1 && mixed[0] == new RetainerGridMap.GridBinding("InventoryGrid0", 3));
+    RetainerGridMap.Resolve(["SomeOtherGrid", "RetainerGrid"], 1).Count == 1);
+  // THE CORE 0.1.36.0 FIX: the player's own bag addon names must NEVER be treated as retainer grids.
+  // This is the exact defect Joey reported - the old code scanned for "InventoryGrid"/"InventoryGrid0"/
+  // "InventoryGrid1" while a retainer window was open and bound whichever of THOSE it found to a
+  // retainer page, painting the retainer's stock onto the PLAYER's own bag cells.
+  Check("58 retainergridmap CORE FIX: player bag addon names are never bound as retainer grids",
+    RetainerGridMap.Resolve(["InventoryGrid"], 1).Count == 0
+    && RetainerGridMap.Resolve(["InventoryGrid0"], 1).Count == 0
+    && RetainerGridMap.Resolve(["InventoryGrid1"], 1).Count == 0);
+  Check("58 retainergridmap: expanded mode (RetainerGrid0..N live) binds each by fixed name identity",
+    RetainerGridMap.Resolve(["RetainerGrid0", "RetainerGrid1", "RetainerGrid2"], null) is var exp
+    && exp.Count == 3
+    && exp[0] == new RetainerGridMap.GridBinding("RetainerGrid0", 0)
+    && exp[1] == new RetainerGridMap.GridBinding("RetainerGrid1", 1)
+    && exp[2] == new RetainerGridMap.GridBinding("RetainerGrid2", 2));
+  Check("58 retainergridmap: expanded mode reaches all seven pages (a retainer CAN hit RetainerPage6, ffxivdb 2026-09-10)",
+    RetainerGridMap.Resolve(["RetainerGrid5", "RetainerGrid6"], null) is var exp67
+    && exp67.Count == 2
+    && exp67[0] == new RetainerGridMap.GridBinding("RetainerGrid5", 5)
+    && exp67[1] == new RetainerGridMap.GridBinding("RetainerGrid6", 6));
+  Check("58 retainergridmap: expanded mode wins outright over a normal panel also being live",
+    RetainerGridMap.Resolve(["RetainerGrid0", "RetainerGrid"], 3) is var mixed
+    && mixed.Count == 1 && mixed[0] == new RetainerGridMap.GridBinding("RetainerGrid0", 0));
+  Check("58 retainergridmap: IsExpandedGrid classifies RetainerGridN but not the normal panel",
+    RetainerGridMap.IsExpandedGrid("RetainerGrid0") && RetainerGridMap.IsExpandedGrid("RetainerGrid6")
+    && !RetainerGridMap.IsExpandedGrid("RetainerGrid") && !RetainerGridMap.IsExpandedGrid("InventoryGrid0"));
 
   // SlotOrder.ResolveForPageCount over a 7-page retainer sorter - same identity/permuted/fail-closed
   // battery as case 57, generalised to PageCount=7 instead of BagCount=4.

@@ -11,6 +11,7 @@ using LazyMarketCompanion.AutoMarket;
 using Lumina.Excel.Sheets;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 
 namespace LazyMarketCompanion;
@@ -58,18 +59,24 @@ namespace LazyMarketCompanion;
 /// Since 0.1.33.0, SlotOrder.cs resolves each grid's display slots to the container slots the game
 /// is actually drawing in them, and an unreadable order suppresses that grid's dots entirely.
 ///
-/// The same grid addons are reused by the game for the retainer's inventory view, where they show the
-/// RETAINER's containers, not the player's bags. Since 0.1.34.0 the feature no longer stands down
-/// there: while InventoryRetainer/InventoryRetainerLarge is open, the SAME two-state marker is drawn
-/// against the active retainer's own stock instead of the player's bags (Helm t-joey-1789056199442:
-/// "now we need to make the dots work on retainer inventory"). RetainerGridMap.cs resolves the live
-/// grid to a retainer PAGE via the retainer addon's TabIndex (0-6, up to 7 pages -
-/// InventoryType.RetainerPage1..7, not the player's fixed 4), and the display order for that page
-/// comes from ItemOrderModule.GetActiveRetainerSorter() - the same per-frame SlotOrder.Resolve
-/// machinery the player path uses, generalised to a 7-page range. Both retainer addons are assumed
-/// single-panel/tabbed (mirroring the player's tabbed "Inventory" shape, not the four-grid expanded
-/// one) per a MetadataLoadContext field probe - unconfirmed in game, so an E-grid addon appearing
-/// live while a retainer window is open resolves to nothing rather than a guessed page.
+/// The retainer's inventory view uses its OWN distinct grid addon family - "RetainerGrid" (normal,
+/// tabbed) and "RetainerGrid0".."RetainerGrid6" (expanded) - never a reuse of the player's own
+/// "InventoryGrid"/"InventoryGrid0E" etc. names (0.1.36.0 CORRECTION, kanban t_eeb284dd: the 0.1.34.0
+/// "reused addons" assumption below was proven wrong - see RetainerGridMap's class remarks for the
+/// corroborating evidence, principally that CriticalCommonLib, decompiled from InventoryTools
+/// 1.15.0.12 running live on Joey's own client, declares RetainerGrid/RetainerGridN as names distinct
+/// from InventoryGrid/InventoryGridNE). Since 0.1.34.0 the SAME two-state marker is drawn against the
+/// active retainer's own stock while InventoryRetainer/InventoryRetainerLarge is open (Helm
+/// t-joey-1789056199442: "now we need to make the dots work on retainer inventory"); since 0.1.36.0
+/// this runs UNCONDITIONALLY alongside the player-bag pass rather than as an either/or branch, because
+/// there is no longer any addon-name collision to arbitrate between them - the player's own bag dots
+/// now keep showing even while a retainer's storage window is open alongside them (Joey's exact
+/// regression report: "the ones in my own inventory didn't show when my retainer's inventory was up").
+/// RetainerGridMap.cs resolves the live grid to a retainer PAGE via the retainer addon's TabIndex
+/// (0-6, up to 7 pages - InventoryType.RetainerPage1..7, not the player's fixed 4) in normal mode, or
+/// by fixed RetainerGridN name identity in expanded mode; the display order for that page comes from
+/// ItemOrderModule.GetActiveRetainerSorter() - the same per-frame SlotOrder.Resolve machinery the
+/// player path uses, generalised to a 7-page range.
 ///
 /// VISIBILITY (0.1.29.0): the 7.x "Inventory" window (AddonInventoryExpansion) owns all grids as
 /// child addons - the four E-grids, key-items "event" grids, and the crystal grid. A page switch
@@ -97,6 +104,15 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
     "InventoryGrid", "InventoryGrid0", "InventoryGrid1",
     "InventoryGrid0E", "InventoryGrid1E", "InventoryGrid2E", "InventoryGrid3E",
   ];
+
+  /// <summary>
+  /// Every RETAINER storage grid addon name (0.1.36.0 correction) - a DISTINCT family from the
+  /// player's GridNames above, never a reuse of them. "RetainerGrid" is the normal (tabbed) panel;
+  /// "RetainerGrid0".."RetainerGrid6" are the expanded-mode grids (RetainerGridMap.PageCount = 7).
+  /// See RetainerGridMap's class remarks for the corroborating evidence this correction rests on.
+  /// </summary>
+  private static readonly string[] RetainerGridNames =
+    new[] { "RetainerGrid" }.Concat(Enumerable.Range(0, RetainerGridMap.PageCount).Select(i => $"RetainerGrid{i}")).ToArray();
 
   /// <summary>A retainer's up to seven storage pages, in the game's own order; index == RetainerGridMap page index.</summary>
   private static readonly InventoryType[] RetainerPageTypes =
@@ -165,23 +181,29 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
     {
       unsafe
       {
-        // The retainer's inventory view reuses these same grid addons for the RETAINER's
-        // containers (0.1.34.0: this is now a BRANCH, not an early-return - see the class remarks
-        // above). InventoryRetainer wins if both are somehow ready; large-capacity retainers use
-        // InventoryRetainerLarge instead of a second concurrent panel, never both at once.
-        var retainerReady = GenericHelpers.TryGetAddonByName<AtkUnitBase>(RetainerInventoryAddon, out var retainerAddon)
-            && GenericHelpers.IsAddonReady(retainerAddon);
-        AtkUnitBase* retainerLargeAddon = null;
-        var retainerLargeReady = !retainerReady
-            && GenericHelpers.TryGetAddonByName<AtkUnitBase>(RetainerInventoryLargeAddon, out retainerLargeAddon)
-            && GenericHelpers.IsAddonReady(retainerLargeAddon);
+        // 0.1.36.0 CORRECTION (kanban t_eeb284dd, Helm t-joey-1789056199442 follow-up): the retainer
+        // storage grid is now known to be a DISTINCT addon name family ("RetainerGrid"/"RetainerGridN"
+        // - see RetainerGridMap's class remarks for the corroborating evidence), never a reuse of the
+        // player's "InventoryGrid"/"InventoryGrid0"/"InventoryGrid1" names. There is therefore no
+        // longer any name collision between the two branches, and no reason for them to be mutually
+        // exclusive: both run every frame, independently, so the player's own bag dots keep showing
+        // even while a retainer's storage window is open alongside them (Joey: "the ones in my own
+        // inventory didn't show when my retainer's inventory was up").
+        DrawPlayerBagMarkers();
+        DrawRetainerMarkersIfOpen();
+      }
+    }
+    catch (Exception ex)
+    {
+      // Markers are pure display and must never take the plugin's automation down with them.
+      Svc.Log.Error(ex, "[LMC] markers: draw failed (markers suppressed this frame)");
+    }
+  }
 
-        if (retainerReady || retainerLargeReady)
-        {
-          DrawRetainerMarkers(retainerReady ? retainerAddon : retainerLargeAddon, retainerReady);
-          return;
-        }
-
+  /// <summary>The player's own four-bag marker pass - unconditional every frame (0.1.36.0: previously skipped whenever a retainer window was open).</summary>
+  private unsafe void DrawPlayerBagMarkers()
+  {
+    {
         // 0.1.25.0 visibility gate. The expanded parent owns every grid as a child addon; switching
         // to the "Key Items & Crystals" page hides the bag grids' ROOT NODE but leaves their addons
         // live, ready, and (misleadingly) AtkUnitBase-IsVisible. Resolve the bindings as before,
@@ -264,19 +286,35 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
 
           DrawForGrid(binding.GridName, addon, binding.BagIndex, orderSnapshot);
         }
-      }
-    }
-    catch (Exception ex)
-    {
-      // Markers are pure display and must never take the plugin's automation down with them.
-      Svc.Log.Error(ex, "[LMC] markers: draw failed (markers suppressed this frame)");
     }
   }
 
   /// <summary>
-  /// The retainer-inventory counterpart of the main Draw() body (0.1.34.0). Both retainer addons
-  /// (InventoryRetainer / InventoryRetainerLarge) share the same field layout up to and including
-  /// TabIndex - confirmed by direct field enumeration, not assumed - so only the cast differs.
+  /// The retainer branch of Draw() (0.1.36.0: runs unconditionally alongside DrawPlayerBagMarkers,
+  /// no longer an either/or - see the class remarks on the addon-name correction). Resolves whether
+  /// a retainer inventory window is open at all, then hands off to DrawRetainerMarkers.
+  /// </summary>
+  private unsafe void DrawRetainerMarkersIfOpen()
+  {
+    // InventoryRetainer wins if both are somehow ready; large-capacity retainers use
+    // InventoryRetainerLarge instead of a second concurrent panel, never both at once.
+    var retainerReady = GenericHelpers.TryGetAddonByName<AtkUnitBase>(RetainerInventoryAddon, out var retainerAddon)
+        && GenericHelpers.IsAddonReady(retainerAddon);
+    AtkUnitBase* retainerLargeAddon = null;
+    var retainerLargeReady = !retainerReady
+        && GenericHelpers.TryGetAddonByName<AtkUnitBase>(RetainerInventoryLargeAddon, out retainerLargeAddon)
+        && GenericHelpers.IsAddonReady(retainerLargeAddon);
+
+    if (!retainerReady && !retainerLargeReady)
+      return;
+
+    DrawRetainerMarkers(retainerReady ? retainerAddon : retainerLargeAddon, retainerReady);
+  }
+
+  /// <summary>
+  /// Both retainer addons (InventoryRetainer / InventoryRetainerLarge) share the same field layout up
+  /// to and including TabIndex - confirmed by direct field enumeration, not assumed - so only the
+  /// cast differs.
   /// </summary>
   private unsafe void DrawRetainerMarkers(AtkUnitBase* retainerAddon, bool isNormalRetainer)
   {
@@ -293,13 +331,12 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
     // stale "last retainer interacted with" value.
     var orderSnapshot = ReadRetainerSlotOrder();
 
+    // 0.1.36.0: scan for the RETAINER's own grid addon names, never the player's. The two families
+    // are entirely distinct (RetainerGridMap's class remarks), so there is no longer any chance of
+    // this picking up the player's bag panel.
     var live = new List<string>();
-    foreach (var name in GridNames)
+    foreach (var name in RetainerGridNames)
     {
-      // E-grids are the player's expanded-armoire-chest mode; no known retainer equivalent exists
-      // (both retainer addons expose only a single TabIndex-selected panel, per the field probe in
-      // the class remarks). RetainerGridMap.Resolve below only binds the three normal-mode panel
-      // names, so a stray live E-grid here is simply never bound to anything.
       if (GenericHelpers.TryGetAddonByName<AtkUnitBase>(name, out var gridAddon)
           && GenericHelpers.IsAddonReady(gridAddon))
         live.Add(name);
