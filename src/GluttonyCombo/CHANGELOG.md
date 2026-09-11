@@ -11,7 +11,7 @@
 
 ### Notes
 
-- Harness: extended `tests/GluttonyCombo.BSTRotationHarness` with case (l) - fresh-summon candidate ordering, the exact D6 regression (expired per-summon timestamps with One with Nature down must reach Trick at capped familiar TP), the gate re-offering Borrow when the status returns, the hold-for-Vantage None carrying its decline, and an adversarial sweep over all 640 input combinations proving no ineligible step is ever offered. Extended `tests/GluttonyCombo.TelemetryHarness` for the `fd=` field (line shape, sanitisation, 13-field truncation budget, change-gate coverage). BST rotation harness: 114/114 PASS. Telemetry harness: 62/62 PASS.. Full solution build: 0 errors.
+- Harness: extended `tests/GluttonyCombo.BSTRotationHarness` with case (l) - fresh-summon candidate ordering, the exact D6 regression (expired per-summon timestamps with One with Nature down must reach Trick at capped familiar TP), the gate re-offering Borrow when the status returns, the hold-for-Vantage None carrying its decline, and an adversarial sweep over all 640 input combinations proving no ineligible step is ever offered. Extended `tests/GluttonyCombo.TelemetryHarness` for the `fd=` field (line shape, sanitisation, 13-field truncation budget, change-gate coverage). BST rotation harness: 114/114 PASS. Telemetry harness: 62/62 PASS. Full solution build: 0 errors.
 - Not yet graded in-game - grade the next live `BT|` session at L20+ the same way D5 was graded: familiar-loop decisions should no longer go silent while the familiar TP byte sits capped, `fd=` should name the blocker whenever resummons stall, and a stalled summon should now be attributable to a specific declined step rather than silence.
 
 ## v1.0.4.189 (2026-09-11) [testing]
