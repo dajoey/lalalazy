@@ -1,3 +1,16 @@
+## v0.1.38.0 (2026-09-10)
+
+### Fixed
+
+- **A retainer session that both vendored below-threshold items and pinched new listings could hang for 10 seconds and wipe the rest of the run's queued work, leaving the newly-listed items stranded at the 999,999,999 gil placeholder price.** ECommons' `TaskManager.Insert()` always pushes to the front of the task queue (last-in-first-out), so whichever of the pinch pass or the vendoring leg called `Insert()` LAST in the `PinchAfterMarket` step's code ended up running FIRST at runtime - the reverse of what the surrounding code comment assumed. Since 0.1.28.0 the vendoring leg's trigger was inserted after the pinch pass's own steps in source order, which put the vendoring leg first in the actual queue: it closed the retainer sell list on its way to the bell menu before the pinch pass's `OpenItemContextMenu` step ever got to read it. That step then retried against a closed sell list for its full 10-second time limit before the task manager gave up, logged "Clearing N remaining tasks because of timeout", and discarded the rest of the session - including the pinch rows for the items this run had just listed (files: `MarketAutomation.cs` `PinchAfterMarket` step, `AutoMarket/PinchScope.cs`).
+- The vendoring leg's trigger is now queued before the pinch pass's steps in source order, which places it correctly AFTER the pinch pass in the actual run-time queue: the pinch pass now always sees the sell list still open, and the vendoring leg closes it afterward exactly as intended (files: `MarketAutomation.cs` `PinchAfterMarket` step).
+
+### Notes
+
+- Ship testing channel only, pending in-game verification. What to look for: a retainer that both vendors below-threshold items (Auto-Market value gate on) and lists new items to the market board in the same pass should show the pinch pre-flight's log line completing normally, followed by the vendoring leg, with no "Clearing N remaining tasks because of timeout" line and no listing left at the 999,999,999 gil placeholder afterward.
+- Any listing stranded at the placeholder price from a session before this fix is not retroactively corrected; running Auto Pinch (or another Auto-Market pass) on that retainer will price it normally.
+- Offline suite: case 61 (new) reproduces the exact `Insert()` call shape both orderings use and asserts the resulting queue order directly, plus a control proving the pre-fix source order really does put the vendoring leg first - so a future edit that silently reverts the call order trips a test instead of shipping broken again (files: `tests/LazyMarketCompanion.Harness/Program.cs`, case 61).
+
 ## v0.1.37.0 (2026-09-10)
 
 ### Added
