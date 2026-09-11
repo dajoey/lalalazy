@@ -1,4 +1,10 @@
 # Changelog
+## v1.0.4.181 (2026-09-10) [testing]
+
+### Fixed
+
+- Beastmaster's instinctual weaponskills, familiar-loop steps (Battlehorn, Borrow, Tempered Release, Trick, Parting Blow), Beast Mode and Shield Charge were all gated on a raw cooldown-remaining check instead of the actual level/unlock check, so a low-level Beastmaster could be told to press an ability several levels above their current level - reported live as the rotation trying to use a level 22 ability (Borrow/Beast Mode) at level 17. `GetCooldownRemainingTime` reads 0 for an action that has never been used, including one the player has not unlocked yet, so every one of those gates read "ready" regardless of level. All seven gates now call `ActionReady`, which additionally checks the action's real unlock/level status, matching the pattern already used elsewhere in the file for Rally and Rallying Cheer. (file: `GluttonyCombo/Combos/PvE/BST/BST.cs`, functions: `TryInstinctual`, `TryFamiliarStep`, `TryBeastMode`, `TryShieldCharge`)
+
 ## v1.0.4.180 (2026-09-10) [testing]
 
 ### Added

@@ -154,7 +154,13 @@ internal partial class BST : Melee
         if (baseAction == 0)
             return false;
 
-        if (GetCooldownRemainingTime(baseAction) > 0)
+        // ActionReady (not a raw cooldown check) - a not-yet-unlocked action reports
+        // CooldownRemaining == 0 (it has never been used, so it isn't "on cooldown"),
+        // which a bare `GetCooldownRemainingTime(x) > 0` gate reads as ready. ActionReady
+        // additionally checks GetActionStatus, which is the actual level gate. Bug found
+        // 2026-09-10 (Helm: "trying to use a level 22 ability when I'm level 17") - every
+        // gate in this file below used the bare-cooldown pattern instead of ActionReady.
+        if (!ActionReady(baseAction))
             return false;
 
         actionId = AdjustedActionId(baseAction);
@@ -202,43 +208,45 @@ internal partial class BST : Melee
         switch (step)
         {
             case BST_RotationLogic.FamiliarStep.Battlehorn:
-                if (GetCooldownRemainingTime(FirstBattlehorn) > 0 &&
-                    GetCooldownRemainingTime(SecondBattlehorn) > 0 &&
-                    GetCooldownRemainingTime(ThirdBattlehorn) > 0)
-                    return false;
-
                 var preferredSlot = advanced ? (byte)BST_BattlehornSlotOrder : (byte)0;
                 var nextSlot = BST_RotationLogic.NextBattlehornSlot(gauge.KinshipBattlehorn, preferredSlot);
-                actionId = nextSlot switch
+                var battlehornAction = nextSlot switch
                 {
                     2 => SecondBattlehorn,
                     3 => ThirdBattlehorn,
                     _ => FirstBattlehorn,
                 };
+
+                if (!ActionReady(battlehornAction))
+                    return false;
+
+                actionId = battlehornAction;
                 reason = $"battlehorn:slot{nextSlot}";
                 return true;
 
             case BST_RotationLogic.FamiliarStep.Borrow:
-                if (GetCooldownRemainingTime(Borrow) > 0)
+                if (!ActionReady(Borrow))
                     return false;
                 actionId = Borrow;
                 reason = "borrow";
                 return true;
 
             case BST_RotationLogic.FamiliarStep.TemperedRelease:
-                if (GetCooldownRemainingTime(TemperedRelease) > 0)
+                if (!ActionReady(TemperedRelease))
                     return false;
                 actionId = TemperedRelease;
                 reason = "temperedrelease";
                 return true;
 
             case BST_RotationLogic.FamiliarStep.Trick:
+                if (!ActionReady(Trick))
+                    return false;
                 actionId = Trick;
                 reason = "trick";
                 return true;
 
             case BST_RotationLogic.FamiliarStep.PartingBlow:
-                if (GetCooldownRemainingTime(PartingBlow) > 0)
+                if (!ActionReady(PartingBlow))
                     return false;
                 actionId = PartingBlow;
                 reason = lingeringVantage ? "partingblow:vantage" : "partingblow:norush";
@@ -258,7 +266,7 @@ internal partial class BST : Melee
         actionId = 0;
         reason = "";
 
-        if (GetCooldownRemainingTime(BeastMode) > 0)
+        if (!ActionReady(BeastMode))
             return false;
 
         var resolved = AdjustedActionId(BeastMode);
@@ -320,6 +328,9 @@ internal partial class BST : Melee
     private static bool TryShieldCharge(out string reason)
     {
         reason = "";
+
+        if (!ActionReady(ShieldCharge))
+            return false;
 
         if (GetRemainingCharges(ShieldCharge) == 0)
             return false;
