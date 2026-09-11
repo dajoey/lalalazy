@@ -28,6 +28,7 @@ internal static class Program
         CaseF_LevelGateSkipsUnlearnedSteps();
         CaseG_HoldForVantageLevelFloor();
         CaseH_SubLevel16CompassOpenFallback();
+        CaseI_QuellingWaveIsGcdRolling();
         ExtraCoverage();
 
         Console.WriteLine(_fail == 0 ? "OK" : $"FAILED ({_fail} of {_pass + _fail})");
@@ -496,6 +497,44 @@ internal static class Program
         }
         Check($"adversarial sweep over all 8 learned-flag combinations never selects an unlearned axe ({violations} violations)",
             violations == 0, $"{violations} violations");
+    }
+
+    // ------------------------------------------------------------------
+    // (i) Quelling Wave is the ONLY Beast Mode Kinship variant that rolls the player's own
+    // shared GCD (CooldownGroup 58, beastmaster-kit-by-level.md section 1) - the other seven
+    // are independent oGCDs. t_32af951a: gating Quelling Wave the same way as its seven oGCD
+    // siblings (a bare CanWeave() wrapper in ChooseAction) is wrong, because CanWeave() is
+    // true only while there is SLACK before the GCD is next due - roughly the opposite moment
+    // from "the GCD is actually up", which is what a GCD-rolling action needs. This case
+    // proves the pure classifier BST.cs's TryQuellingWave uses to decide which gate applies
+    // is correct for all eight resolved Beast Mode ids.
+    // ------------------------------------------------------------------
+    private static void CaseI_QuellingWaveIsGcdRolling()
+    {
+        Console.WriteLine("-- (i) Quelling Wave is the sole GCD-rolling Beast Mode variant --");
+
+        const uint beastskin = 44896, vileskin = 44897, cloudSkim = 44898, seedsower = 44899;
+        const uint quellingWave = 44900, scaleskin = 44901, soulCrush = 44902, scouringAsh = 44903;
+
+        Check("Quelling Wave classifies as GCD-rolling",
+            BST_RotationLogic.IsGcdRollingBeastMode(quellingWave, quellingWave));
+
+        foreach (var (name, id) in new (string, uint)[]
+                 {
+                     ("Beastskin", beastskin), ("Vileskin", vileskin), ("Cloud Skim", cloudSkim),
+                     ("Seedsower", seedsower), ("Scaleskin", scaleskin), ("Soul Crush", soulCrush),
+                     ("Scouring Ash", scouringAsh),
+                 })
+        {
+            Check($"{name} (independent oGCD) does NOT classify as GCD-rolling",
+                !BST_RotationLogic.IsGcdRollingBeastMode(id, quellingWave));
+        }
+
+        // The unresolved placeholder (no Kinship yet, Beast Mode itself) must never classify
+        // as GCD-rolling either - only the fully-resolved Quelling Wave id does.
+        const uint beastModePlaceholder = 44886;
+        Check("unresolved Beast Mode placeholder does NOT classify as GCD-rolling",
+            !BST_RotationLogic.IsGcdRollingBeastMode(beastModePlaceholder, quellingWave));
     }
 
     // ------------------------------------------------------------------

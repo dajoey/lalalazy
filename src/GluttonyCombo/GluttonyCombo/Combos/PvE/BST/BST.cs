@@ -112,15 +112,39 @@ internal partial class BST : Melee
         if (CanWeave() && TryShieldCharge(out var shieldReason))
             return Record(ShieldCharge, shieldReason);
 
-        // 5) Rally / Rallying Cheer: TP-restoring 90s cooldowns. Mastered Instinct / Natural
-        //    Instinct stack statuses were NOT resolved by the datamine (beastmaster-facts.md);
-        //    gated on the gauge's own TP reading low plus cooldown ready as the best available
-        //    proxy - re-check against the matching stack status once it is identified.
+        // 5) Rally / Rallying Cheer: TP-restoring 90s cooldowns.
+        //    KNOWN PROXY, not settled (t_32af951a; beastmaster-kit-by-level.md section 6 open
+        //    question 2): the real gate should be "Mastered Instinct stack count > 0" /
+        //    "Natural Instinct stack count > 0", but neither stack has a discoverable Status
+        //    id in the datamine (a targeted Status-sheet search for "Instinct" returns no
+        //    BST-relevant rows) - they are very likely internal gauge/trait-tracked counters
+        //    with no player-visible status_events row to key off of. Gated instead on the
+        //    gauge's own TP reading low plus cooldown ready as the best available proxy. This
+        //    is intentionally accepted as shipped (beastmaster-rotation-spec.md section 1 rule
+        //    5 explicitly allows the proxy) - do NOT treat this comment's continued presence in
+        //    a future audit as evidence the question was re-opened; it is still open. Re-check
+        //    against the real stack count once the datamine, an unmapped gauge byte, or
+        //    client-side combo-completion tracking resolves it.
         if (CanWeave() && ActionReady(Rally) && gauge.TPGauge < 100)
             return Record(Rally, "rally:tp-low");
 
         if (CanWeave() && ActionReady(RallyingCheer) && gauge.FamiliarTPGauge < 100 && gauge.ActiveBattlehorn != 0)
             return Record(RallyingCheer, "rallyingcheer:familiartp-low");
+
+        // 5b) Quelling Wave: the sole Beast Mode variant that rolls the player's OWN shared GCD
+        //     (CooldownGroup 58 - the same group Smash Axe/Axeblade Bite/Shieldsplitter share),
+        //     rather than being an independent oGCD like the other seven Kinship variants.
+        //     Deliberately checked here, NOT inside TryBeastMode's CanWeave()-gated call at
+        //     step 1: CanWeave() is true only while there is still slack before the GCD is next
+        //     due, which is roughly the OPPOSITE moment from "the GCD is actually up" that a
+        //     GCD-rolling action needs - gating Quelling Wave the same way as its oGCD siblings
+        //     made it effectively unreachable through auto-rotation (t_32af951a;
+        //     beastmaster-rotation-spec.md section 6 defect 5 follow-up;
+        //     beastmaster-kit-by-level.md section 1's CooldownGroup table). Checked immediately
+        //     ahead of the GCD chain fallback so it pre-empts Smash Axe/Axeblade Bite/
+        //     Shieldsplitter whenever Wave Kinship is active and the shared GCD is ready.
+        if (TryQuellingWave(preferAoEBeastMode, out var quellingAction, out var quellingReason))
+            return Record(quellingAction, quellingReason);
 
         // 6) GCD chain fallback: Smash Axe -> Axeblade Bite -> Shieldsplitter.
         var gcd = BST_RotationLogic.ChooseGcdChain(ComboAction, ComboTimer > 0, SmashAxe, AxebladeBite, Shieldsplitter);
@@ -329,19 +353,50 @@ internal partial class BST : Melee
             return true;
         }
 
+        // Quelling Wave is handled separately by TryQuellingWave (see ChooseAction step 5b) -
+        // it is the sole Kinship variant that rolls the player's own shared GCD rather than
+        // being an independent oGCD, so it must NOT be gated by the same CanWeave() wrapper
+        // this method's caller applies to the other seven variants (t_32af951a;
+        // beastmaster-rotation-spec.md section 6 defect 5 follow-up).
         if (resolved == QuellingWave)
-        {
-            // Seedsower's DoT+damage-down is worth prioritising in the AoE preset; ST prefers
-            // Quelling Wave's TP restore.
-            if (preferAoE && GetCooldownRemainingTime(Seedsower) <= 0)
-                return false;
-
-            actionId = resolved;
-            reason = "beastmode:quellingwave";
-            return true;
-        }
+            return false;
 
         return false;
+    }
+
+    /// <summary>
+    ///     Quelling Wave: the sole Beast Mode Kinship variant that rolls the player's OWN
+    ///     shared GCD (CooldownGroup 58) instead of being an independent oGCD - see
+    ///     <see cref="BST_RotationLogic.IsGcdRollingBeastMode"/> and ChooseAction step 5b for
+    ///     why this must be checked outside a CanWeave() gate. Resolves the Beast Mode
+    ///     placeholder itself (same as TryBeastMode) so this can run standalone regardless of
+    ///     whether TryBeastMode's CanWeave()-gated call already declined this tick.
+    /// </summary>
+    private static bool TryQuellingWave(bool preferAoE, out uint actionId, out string reason)
+    {
+        actionId = 0;
+        reason = "";
+
+        var resolved = AdjustedActionId(BeastMode);
+
+        if (!BST_RotationLogic.IsGcdRollingBeastMode(resolved, QuellingWave))
+            return false;
+
+        // Seedsower's DoT+damage-down is worth prioritising in the AoE preset; ST prefers
+        // Quelling Wave's TP restore.
+        if (preferAoE && GetCooldownRemainingTime(Seedsower) <= 0)
+            return false;
+
+        // GCD readiness, not weave-window readiness: ActionReady on the RESOLVED action id
+        // (a Spell, CooldownGroup 58) checks the shared-GCD cooldown/queue window directly,
+        // which is exactly the gate a GCD-rolling action needs - CanWeave() checks the
+        // opposite thing (slack before the GCD is next due) and must not be used here.
+        if (!ActionReady(QuellingWave))
+            return false;
+
+        actionId = resolved;
+        reason = "beastmode:quellingwave";
+        return true;
     }
 
     #endregion

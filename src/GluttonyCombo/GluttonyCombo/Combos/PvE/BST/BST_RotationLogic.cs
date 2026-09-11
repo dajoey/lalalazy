@@ -248,6 +248,26 @@ internal static class BST_RotationLogic
     /// </summary>
     /// <param name="lastSlot"> The last Battlehorn slot summoned (0 = none yet). </param>
     /// <param name="preferredSlot"> 0 = rotate; 1-3 = always use this slot. </param>
+    // ------------------------------------------------------------------
+    // Beast Mode: which resolved Kinship variant needs its own GCD-chain gate.
+    // ------------------------------------------------------------------
+
+    /// <summary>
+    ///     True when a resolved Beast Mode action id is Quelling Wave - the sole Kinship
+    ///     variant that rolls the player's own shared GCD (CooldownGroup 58, the same group
+    ///     Smash Axe/Axeblade Bite/Shieldsplitter share - beastmaster-kit-by-level.md section 1)
+    ///     rather than being an independent oGCD. The other seven variants sit on their own
+    ///     independent cooldown groups and are safe to gate on CanWeave() (weave-window slack
+    ///     ahead of the next GCD); Quelling Wave is not - CanWeave() is only true while there
+    ///     is still slack left before the GCD is next due, roughly the opposite moment from
+    ///     the GCD itself being actually ready to press, which is what a GCD-rolling action
+    ///     needs. Confirmed (t_32af951a / beastmaster-rotation-spec.md section 6 defect 5
+    ///     follow-up): the caller must gate Quelling Wave on GCD readiness (ActionReady)
+    ///     alone, never on CanWeave().
+    /// </summary>
+    public static bool IsGcdRollingBeastMode(uint resolvedBeastModeActionId, uint quellingWaveActionId) =>
+        resolvedBeastModeActionId == quellingWaveActionId;
+
     public static byte NextBattlehornSlot(byte lastSlot, byte preferredSlot)
     {
         if (preferredSlot is >= 1 and <= 3)
