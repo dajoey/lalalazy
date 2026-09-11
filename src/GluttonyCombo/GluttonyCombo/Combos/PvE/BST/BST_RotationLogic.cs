@@ -1,4 +1,4 @@
-namespace GluttonyCombo.Combos.PvE;
+﻿namespace GluttonyCombo.Combos.PvE;
 
 /// <summary>
 ///     Pure Beastmaster rotation decision logic (t_02fe2681). No Dalamud/game types - only
@@ -242,12 +242,11 @@ internal static class BST_RotationLogic
     }
 
     /// <summary>
-    ///     Next Battlehorn slot to press, rotating 1 -> 2 -> 3 -> 1 so each fresh summon re-arms
-    ///     Tempered Release + Borrow (RULES OF THE JOB), or a fixed preferred slot when
-    ///     <paramref name="preferredSlot"/> is 1-3.
+    ///     Next Battlehorn slot to press, rotating 1 -> 2 -> ... -> <paramref name="maxLearnedSlot"/> -> 1
+    ///     so each fresh summon re-arms Tempered Release + Borrow (RULES OF THE JOB), or a fixed
+    ///     preferred slot when <paramref name="preferredSlot"/> is 1-3 AND that slot is learned.
     /// </summary>
     /// <param name="lastSlot"> The last Battlehorn slot summoned (0 = none yet). </param>
-    /// <param name="preferredSlot"> 0 = rotate; 1-3 = always use this slot. </param>
     // ------------------------------------------------------------------
     // Beast Mode: which resolved Kinship variant needs its own GCD-chain gate.
     // ------------------------------------------------------------------
@@ -268,16 +267,28 @@ internal static class BST_RotationLogic
     public static bool IsGcdRollingBeastMode(uint resolvedBeastModeActionId, uint quellingWaveActionId) =>
         resolvedBeastModeActionId == quellingWaveActionId;
 
-    public static byte NextBattlehornSlot(byte lastSlot, byte preferredSlot)
+    /// <param name="preferredSlot"> 0 = rotate; 1-3 = always use this slot, if learned. </param>
+    /// <param name="maxLearnedSlot">
+    ///     How many Battlehorn slots are unlocked at the player's current level (1-3): Second
+    ///     Battlehorn unlocks L10, Third unlocks L20 (beastmaster-kit-by-level.md Â§1). Defaults to
+    ///     3 (all learned) so existing callers that omit it keep the pre-fix rotate-1-2-3
+    ///     behaviour unchanged for a max-level player. Rotating modulo this count - rather than
+    ///     unconditionally modulo 3 - is the fix for defect 4 (beastmaster-rotation-spec.md Â§6):
+    ///     a sub-20 player must never be handed a slot whose Battlehorn tier isn't learned yet.
+    /// </param>
+    public static byte NextBattlehornSlot(byte lastSlot, byte preferredSlot, byte maxLearnedSlot = 3)
     {
-        if (preferredSlot is >= 1 and <= 3)
+        // A configured preferred slot the player hasn't learned yet falls back to rotation
+        // rather than handing back an unlearned slot (spec Â§1.2a) - e.g. "Always slot 3"
+        // configured pre-L20 must not stall the loop waiting on an action ActionReady will
+        // never report ready.
+        if (preferredSlot is >= 1 and <= 3 && preferredSlot <= maxLearnedSlot)
             return preferredSlot;
 
-        return lastSlot switch
-        {
-            1 => 2,
-            2 => 3,
-            _ => 1,
-        };
+        // Wraps modulo the LEARNED slot count, not modulo 3 unconditionally. Also self-corrects
+        // a lastSlot above maxLearnedSlot (e.g. a delevel via Party Finder, per the kit doc's
+        // "dungeon-via-Party-Finder delevel reality") - the modulo naturally folds it back into
+        // range without needing a separate clamp.
+        return (byte)(lastSlot % maxLearnedSlot + 1);
     }
 }

@@ -1,4 +1,4 @@
-using GluttonyCombo.Combos.PvE;
+﻿using GluttonyCombo.Combos.PvE;
 
 namespace GluttonyCombo.BSTRotationHarness;
 
@@ -29,6 +29,7 @@ internal static class Program
         CaseG_HoldForVantageLevelFloor();
         CaseH_SubLevel16CompassOpenFallback();
         CaseI_QuellingWaveIsGcdRolling();
+        CaseJ_BattlehornSlotLevelGate();
         ExtraCoverage();
 
         Console.WriteLine(_fail == 0 ? "OK" : $"FAILED ({_fail} of {_pass + _fail})");
@@ -536,6 +537,70 @@ internal static class Program
         Check("unresolved Beast Mode placeholder does NOT classify as GCD-rolling",
             !BST_RotationLogic.IsGcdRollingBeastMode(beastModePlaceholder, quellingWave));
     }
+    // only slots 1-2 are learned, costing that tick's familiar-loop opportunity (ActionReady
+    // correctly blocks the cast, but TryFamiliarStep still returns false for the whole tick).
+    // ------------------------------------------------------------------
+    private static void CaseJ_BattlehornSlotLevelGate()
+    {
+        Console.WriteLine("-- (j) Battlehorn slot rotation respects the level-learned gate --");
+
+        // Sub-L10 (only slot 1 learned, maxLearnedSlot=1): every rotation call must stay on
+        // slot 1 - there is nothing else to rotate into.
+        Check("maxLearnedSlot=1: none summoned yet -> slot 1",
+            BST_RotationLogic.NextBattlehornSlot(0, 0, maxLearnedSlot: 1) == 1);
+        Check("maxLearnedSlot=1: last slot 1 -> stays on slot 1 (nothing else learned)",
+            BST_RotationLogic.NextBattlehornSlot(1, 0, maxLearnedSlot: 1) == 1);
+
+        // L10-19 (slots 1-2 learned, maxLearnedSlot=2): rotation must wrap 1->2->1, never 3.
+        Check("maxLearnedSlot=2: none summoned yet -> slot 1",
+            BST_RotationLogic.NextBattlehornSlot(0, 0, maxLearnedSlot: 2) == 1);
+        Check("maxLearnedSlot=2: last slot 1 -> slot 2",
+            BST_RotationLogic.NextBattlehornSlot(1, 0, maxLearnedSlot: 2) == 2);
+        Check("maxLearnedSlot=2: last slot 2 -> wraps to slot 1, NEVER slot 3 (the pre-fix bug)",
+            BST_RotationLogic.NextBattlehornSlot(2, 0, maxLearnedSlot: 2) == 1);
+
+        // L20+ (all three learned, maxLearnedSlot=3): unchanged rotate-1-2-3-1 behaviour.
+        Check("maxLearnedSlot=3: last slot 1 -> slot 2", BST_RotationLogic.NextBattlehornSlot(1, 0, maxLearnedSlot: 3) == 2);
+        Check("maxLearnedSlot=3: last slot 2 -> slot 3", BST_RotationLogic.NextBattlehornSlot(2, 0, maxLearnedSlot: 3) == 3);
+        Check("maxLearnedSlot=3: last slot 3 -> wraps to slot 1", BST_RotationLogic.NextBattlehornSlot(3, 0, maxLearnedSlot: 3) == 1);
+
+        // A preferred slot above what's learned falls back to rotation instead of stalling the
+        // loop on an action ActionReady will never report ready (e.g. "Always slot 3" configured
+        // while sub-L20).
+        Check("preferred slot 3 configured but only maxLearnedSlot=2 -> falls back to rotation, not slot 3",
+            BST_RotationLogic.NextBattlehornSlot(1, preferredSlot: 3, maxLearnedSlot: 2) == 2);
+        Check("preferred slot 2 configured and maxLearnedSlot=2 -> honours the preference (it IS learned)",
+            BST_RotationLogic.NextBattlehornSlot(1, preferredSlot: 2, maxLearnedSlot: 2) == 2);
+
+        // Omitted maxLearnedSlot defaults to 3 (all learned) - existing/L90 callers see no
+        // behaviour change from this fix.
+        Check("omitted maxLearnedSlot defaults to 3 (unchanged rotate-1-2-3 behaviour)",
+            BST_RotationLogic.NextBattlehornSlot(2, 0) == 3);
+
+        // Adversarial sweep across every level bracket (L1-25, mapped to maxLearnedSlot per
+        // beastmaster-kit-by-level.md ┬º1: <L10 -> 1, L10-19 -> 2, L20+ -> 3) and every lastSlot
+        // 0-3: the result must NEVER exceed maxLearnedSlot.
+        var violations = 0;
+        for (var level = 1; level <= 25; level++)
+        {
+            byte maxLearned = level switch { < 10 => 1, < 20 => 2, _ => 3 };
+            for (byte lastSlot = 0; lastSlot <= 3; lastSlot++)
+            {
+                for (byte preferred = 0; preferred <= 3; preferred++)
+                {
+                    var result = BST_RotationLogic.NextBattlehornSlot(lastSlot, preferred, maxLearned);
+                    if (result == 0 || result > maxLearned) violations++;
+                }
+            }
+        }
+        Check($"adversarial sweep L1-25 x every (lastSlot, preferredSlot) never exceeds the learned slot count ({violations} violations)",
+            violations == 0, $"{violations} violations");
+    }
+
+    // ------------------------------------------------------------------
+    // Extra coverage: instinctual-action-for lookup table, and a full walk that never fires
+    // an instinctual outside the two hard rules (TP>=100, state != 7).
+
 
     // ------------------------------------------------------------------
     // Extra coverage: instinctual-action-for lookup table, and a full walk that never fires

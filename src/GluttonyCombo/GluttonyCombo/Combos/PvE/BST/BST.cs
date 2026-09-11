@@ -256,7 +256,17 @@ internal partial class BST : Melee
         {
             case BST_RotationLogic.FamiliarStep.Battlehorn:
                 var preferredSlot = advanced ? (byte)BST_BattlehornSlotOrder : (byte)0;
-                var nextSlot = BST_RotationLogic.NextBattlehornSlot(gauge.KinshipBattlehorn, preferredSlot);
+
+                // Second Battlehorn unlocks L10, Third unlocks L20 - a player below L20 whose
+                // rotation state would otherwise land on slot 3 must not be handed a slot they
+                // haven't learned (defect 4, beastmaster-rotation-spec.md §6). maxLearnedSlot
+                // starts at 1 (First Battlehorn, always learned) and steps up as the two later
+                // tiers unlock.
+                byte maxLearnedSlot = 1;
+                if (LocalPlayer.Level >= GetActionLevel(SecondBattlehorn)) maxLearnedSlot = 2;
+                if (LocalPlayer.Level >= GetActionLevel(ThirdBattlehorn)) maxLearnedSlot = 3;
+
+                var nextSlot = BST_RotationLogic.NextBattlehornSlot(gauge.KinshipBattlehorn, preferredSlot, maxLearnedSlot);
                 var battlehornAction = nextSlot switch
                 {
                     2 => SecondBattlehorn,
