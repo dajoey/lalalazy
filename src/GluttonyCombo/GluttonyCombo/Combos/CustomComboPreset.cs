@@ -2333,24 +2333,33 @@ public enum Preset
 
     #region BEASTMASTER
 
-    // Beastmaster (Job.BST = 43) SKELETON - fork-range ordinals (70000+), which upstream
-    // WrathCombo does not use for job presets, so a nightly upstream merge cannot collide.
-    // These three presets are STUBS: their combos in Combos/PvE/BST/BST.cs return the pressed
-    // action unchanged, so enabling one changes no behavior. They exist so Beastmaster appears
-    // in the job list and the plumbing is provably wired ahead of the rotation cards.
+    // Beastmaster (Job.BST = 43) ROTATION (t_02fe2681) - fork-range ordinals (70000+), which
+    // upstream WrathCombo does not use for job presets, so a nightly upstream merge cannot
+    // collide.
     //
-    // Deliberately NO [AutoAction]: with no rotation logic there is nothing for autorotation
-    // to fire, and registering an auto-action that resolves to the pressed button would put a
-    // no-op into the autorotation candidate list. It gets added with the rotation, not here.
+    // [AutoAction] added here (2026-09-10, Helm "auto isn't working"): the SKELETON stubs
+    // deliberately shipped without it (there was no rotation logic yet, and registering an
+    // auto-action that just resolved to the pressed button would have put a no-op into the
+    // autorotation candidate list) with a note to add it once the rotation existed. The
+    // rotation shipped in v1.0.4.180 but this attribute was never added, so
+    // AutoRotationController.ProcessAutoActions (which filters on
+    // AutoAction: not null, ReplaceSkill: not null) silently skipped Beastmaster entirely -
+    // the AutoRotation tab's BST checkbox did nothing, and the Beast Mode / familiar loop /
+    // instinctual weaponskill / Shield Charge weave decisions inside BST.ChooseAction only ever
+    // ran when the player manually spammed the Smash Axe button fast enough to land in a weave
+    // window themselves, which reads as "only the 3-part GCD combo, none of the other
+    // abilities" - the exact behavior reported.
 
     #region Simple Mode
 
+    [AutoAction(false, false)]
     [ReplaceSkill(BST.SmashAxe)]
     [ConflictingCombos(BST_ST_AdvancedMode)]
     [JobInfo(Job.BST)]
     [SimpleDPSCombo]
     BST_ST_SimpleMode = 70100,
 
+    [AutoAction(true, false)]
     [ReplaceSkill(BST.SmashAxe)]
     [JobInfo(Job.BST)]
     [SimpleDPSCombo]
@@ -2360,6 +2369,7 @@ public enum Preset
 
     #region Advanced ST Beastmaster
 
+    [AutoAction(false, false)]
     [ReplaceSkill(BST.SmashAxe)]
     [ConflictingCombos(BST_ST_SimpleMode)]
     [JobInfo(Job.BST)]

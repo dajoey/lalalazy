@@ -201,9 +201,17 @@ internal partial class BST : Melee
         var holdForVantage = !advanced || BST_HoldPartingBlowForVantage;
         var lingeringVantage = HasStatusEffect(Buffs.LingeringVantage);
 
+        // Borrow (lv22) and Tempered Release (lv18) are learned at different levels than
+        // Trick (lv8) - a sub-22 player's loop must skip straight past whichever of the two
+        // it hasn't unlocked yet, or it stalls forever waiting on an ability ActionReady will
+        // never report ready (Helm: "Not using trick", 2026-09-10).
+        var borrowLearned = LocalPlayer.Level >= GetActionLevel(Borrow);
+        var temperedLearned = LocalPlayer.Level >= GetActionLevel(TemperedRelease);
+
         var step = BST_RotationLogic.ChooseFamiliarStep(
             petSummoned, borrowedThisSummon, temperedThisSummon,
-            gauge.FamiliarTPGauge, lingeringVantage, holdForVantage);
+            gauge.FamiliarTPGauge, lingeringVantage, holdForVantage,
+            borrowLearned, temperedLearned);
 
         switch (step)
         {

@@ -2243,7 +2243,27 @@ This is the ideal option for newcomers to the job.</value>
   <data name="BRD_WideVolleyUpgrade_OGCDs_Name" xml:space="preserve">
     <value>OGCDs option</value>
   </data>
-  <data name="CombinedAetherhues_Desc" xml:space="preserve">
+  <data name="BST_AoE_SimpleMode_Desc" xml:space="preserve">
+    <value>Replaces Smash Axe with a full one-button AoE rotation.
+This is the ideal option for newcomers to the job.</value>
+  </data>
+  <data name="BST_AoE_SimpleMode_Name" xml:space="preserve">
+    <value>Simple Mode - AoE</value>
+  </data>
+  <data name="BST_ST_AdvancedMode_Desc" xml:space="preserve">
+    <value>Replaces Smash Axe with a full one-button single target rotation.
+These features are ideal if you want to customize the rotation.</value>
+  </data>
+  <data name="BST_ST_AdvancedMode_Name" xml:space="preserve">
+    <value>Advanced Mode - Single Target</value>
+  </data>
+  <data name="BST_ST_SimpleMode_Desc" xml:space="preserve">
+    <value>Replaces Smash Axe with a full one-button single target rotation.
+This is the ideal option for newcomers to the job.</value>
+  </data>
+  <data name="BST_ST_SimpleMode_Name" xml:space="preserve">
+    <value>Simple Mode - Single Target</value>
+  </data>  <data name="CombinedAetherhues_Desc" xml:space="preserve">
     <value>Merges aetherhue actions for specific target types into a single button.</value>
   </data>
   <data name="CombinedAetherhues_Name" xml:space="preserve">

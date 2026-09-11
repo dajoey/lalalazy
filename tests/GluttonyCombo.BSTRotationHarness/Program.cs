@@ -25,6 +25,7 @@ internal static class Program
         CaseC_NoInstinctualAtWaveringHeart();
         CaseD_L50FinisherChoice();
         CaseE_FamiliarLoopOrdering();
+        CaseF_LevelGateSkipsUnlearnedSteps();
         ExtraCoverage();
 
         Console.WriteLine(_fail == 0 ? "OK" : $"FAILED ({_fail} of {_pass + _fail})");
@@ -281,6 +282,82 @@ internal static class Program
         Check("slot rotation: 2 -> 3", BST_RotationLogic.NextBattlehornSlot(2, 0) == 3);
         Check("slot rotation: 3 -> 1 (wraps)", BST_RotationLogic.NextBattlehornSlot(3, 0) == 1);
         Check("preferred slot 2 always wins over rotation", BST_RotationLogic.NextBattlehornSlot(3, 2) == 2);
+    }
+
+    // ------------------------------------------------------------------
+    // (f) below-level skip: a player who has not learned Borrow (lv22) and/or Tempered
+    // Release (lv18) yet must skip straight past those steps rather than stalling the loop
+    // forever. Regression case for Helm "Not using trick" (2026-09-10, t-joey-1789087266212):
+    // the old signature had no way to say "not learned", so ChooseFamiliarStep demanded
+    // Borrow every time and Trick (lv8, unlocked well before either) never fired.
+    // ------------------------------------------------------------------
+    private static void CaseF_LevelGateSkipsUnlearnedSteps()
+    {
+        Console.WriteLine("-- (f) level gate skips unlearned familiar-loop steps --");
+
+        // A lv17 player (Trick lv8 learned, Tempered lv18 NOT learned, Borrow lv22 NOT
+        // learned): summon -> skip Borrow -> skip Tempered -> straight to Trick.
+        Check("sub-18 player: freshly summoned skips Borrow (not learned) -> Tempered check",
+            BST_RotationLogic.ChooseFamiliarStep(
+                petSummoned: true, borrowedThisSummon: false, temperedReleasedThisSummon: false,
+                familiarTp: 132, lingeringVantage: false, holdPartingBlowForVantage: true,
+                borrowLearned: false, temperedLearned: false)
+            == BST_RotationLogic.FamiliarStep.Trick);
+
+        // A lv20 player (Tempered lv18 learned, Borrow lv22 NOT learned): summon -> skip
+        // Borrow -> Tempered Release (still gates normally) -> Trick.
+        Check("lv20 player: Borrow skipped (not learned), Tempered still gates",
+            BST_RotationLogic.ChooseFamiliarStep(
+                petSummoned: true, borrowedThisSummon: false, temperedReleasedThisSummon: false,
+                familiarTp: 132, lingeringVantage: false, holdPartingBlowForVantage: true,
+                borrowLearned: false, temperedLearned: true)
+            == BST_RotationLogic.FamiliarStep.TemperedRelease);
+
+        Check("lv20 player: Tempered used -> Trick (Borrow never asked for)",
+            BST_RotationLogic.ChooseFamiliarStep(
+                petSummoned: true, borrowedThisSummon: false, temperedReleasedThisSummon: true,
+                familiarTp: 132, lingeringVantage: false, holdPartingBlowForVantage: true,
+                borrowLearned: false, temperedLearned: true)
+            == BST_RotationLogic.FamiliarStep.Trick);
+
+        // Default parameters (omitted) preserve the pre-fix always-learned behaviour exactly,
+        // so a lv90 (or any level >=22) player sees no behaviour change from this fix.
+        Check("omitted learned flags default to true (lv90 behaviour unchanged)",
+            BST_RotationLogic.ChooseFamiliarStep(
+                petSummoned: true, borrowedThisSummon: false, temperedReleasedThisSummon: false,
+                familiarTp: 132, lingeringVantage: false, holdPartingBlowForVantage: true)
+            == BST_RotationLogic.FamiliarStep.Borrow);
+
+        // A full sub-18 loop walk never asks for Borrow or Tempered Release at all.
+        var order = new List<BST_RotationLogic.FamiliarStep>();
+        bool petSummoned = false;
+        byte familiarTp = 0;
+
+        for (var tick = 0; tick < 4; tick++)
+        {
+            var step = BST_RotationLogic.ChooseFamiliarStep(
+                petSummoned, borrowedThisSummon: false, temperedReleasedThisSummon: false,
+                familiarTp, lingeringVantage: false, holdPartingBlowForVantage: false,
+                borrowLearned: false, temperedLearned: false);
+            order.Add(step);
+            switch (step)
+            {
+                case BST_RotationLogic.FamiliarStep.Battlehorn: petSummoned = true; familiarTp = 132; break;
+                case BST_RotationLogic.FamiliarStep.Trick: familiarTp = 0; break;
+                case BST_RotationLogic.FamiliarStep.PartingBlow: petSummoned = false; break;
+                default: familiarTp = 132; break; // shouldn't happen at sub-18, but keep the loop moving if it does
+            }
+        }
+
+        Check("sub-18 full loop walk is Battlehorn,Trick,PartingBlow,Battlehorn - never Borrow/Tempered",
+            order.SequenceEqual(
+            [
+                BST_RotationLogic.FamiliarStep.Battlehorn,
+                BST_RotationLogic.FamiliarStep.Trick,
+                BST_RotationLogic.FamiliarStep.PartingBlow,
+                BST_RotationLogic.FamiliarStep.Battlehorn,
+            ]),
+            string.Join(",", order));
     }
 
     // ------------------------------------------------------------------

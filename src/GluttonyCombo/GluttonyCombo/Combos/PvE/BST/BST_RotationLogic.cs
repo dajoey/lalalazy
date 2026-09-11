@@ -166,17 +166,29 @@ internal static class BST_RotationLogic
     ///     Config: hold Parting Blow until Lingering Vantage is up (1500 vs 1000 potency),
     ///     rather than retreating immediately once Trick has spent the familiar's TP.
     /// </param>
+    /// <param name="borrowLearned">
+    ///     Whether Borrow (lv22) is unlocked at the player's current level. Below lv22 the
+    ///     step is skipped entirely rather than stalling the loop - Trick (lv8) is available
+    ///     long before Borrow, and the old hardcoded Battlehorn-Borrow-Tempered-Trick order
+    ///     left a sub-22 player's familiar loop stuck forever waiting on an ability they
+    ///     hadn't learned (Helm: "Not using trick", 2026-09-10).
+    /// </param>
+    /// <param name="temperedLearned">
+    ///     Whether Tempered Release (lv18) is unlocked at the player's current level. Same
+    ///     skip-if-not-learned treatment as <paramref name="borrowLearned"/>.
+    /// </param>
     public static FamiliarStep ChooseFamiliarStep(
         bool petSummoned, bool borrowedThisSummon, bool temperedReleasedThisSummon,
-        byte familiarTp, bool lingeringVantage, bool holdPartingBlowForVantage)
+        byte familiarTp, bool lingeringVantage, bool holdPartingBlowForVantage,
+        bool borrowLearned = true, bool temperedLearned = true)
     {
         if (!petSummoned)
             return FamiliarStep.Battlehorn;
 
-        if (!borrowedThisSummon)
+        if (borrowLearned && !borrowedThisSummon)
             return FamiliarStep.Borrow;
 
-        if (!temperedReleasedThisSummon)
+        if (temperedLearned && !temperedReleasedThisSummon)
             return FamiliarStep.TemperedRelease;
 
         if (familiarTp >= 100)

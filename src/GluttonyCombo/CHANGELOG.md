@@ -1,4 +1,21 @@
 # Changelog
+## v1.0.4.183 (2026-09-10) [testing]
+
+### Fixed
+
+- **Beastmaster's autorotation did nothing: enabling the AutoRotation tab checkbox for any of the three BST presets fired only the manual 3-part GCD combo (Smash Axe, Axeblade Bite, Shieldsplitter) and never Beast Mode, the familiar loop, the instinctual weaponskills, or Shield Charge - reported live on Helm as "auto isn't working... it uses the 3 part combo, but it doesn't use the other abilities".** `AutoRotationController.ProcessAutoActions` only fires a preset that carries an `[AutoAction]` attribute (it filters on `AutoAction: not null, ReplaceSkill: not null`). The three BST presets were left over from the original plumbing skeleton (t_f719ab97), which shipped deliberately WITHOUT `[AutoAction]` because there was no rotation logic yet - the skeleton's own comment said the attribute would be added once the rotation existed. The full rotation shipped in v1.0.4.180, but the `[AutoAction]` attribute was never added to the presets, so every decision inside `BST.ChooseAction` (Beast Mode, the familiar loop, instinctual weaponskills, Shield Charge, the GCD chain) only ever ran when the player manually pressed Smash Axe fast enough to land in a weave window themselves - autorotation could not drive any of it. `[AutoAction(false, false)]` (single target), `[AutoAction(true, false)]` (AoE) are now on `BST_ST_SimpleMode`, `BST_AoE_SimpleMode` and `BST_ST_AdvancedMode`, matching every other DPS job's presets. (file: `GluttonyCombo/Combos/CustomComboPreset.cs`)
+- **Beastmaster's preset labels in the Custom Combos / AutoRotation UI showed the raw enum name instead of readable text (e.g. "BST_ST_SimpleMode" rather than "Simple Mode - Single Target").** `PresetLocalization.GetName`/`GetDescription` read a `<PresetName>_Name`/`<PresetName>_Desc` resource key from `CustomComboPresets.resx` for every preset, and no such entries existed yet for the three BST presets, so the resource lookup fell back to the raw key string. Added `Name`/`Desc` resource pairs for `BST_ST_SimpleMode`, `BST_AoE_SimpleMode` and `BST_ST_AdvancedMode`, following the exact wording pattern every other job's Simple/Advanced Mode presets already use (VPR's equivalent presets were used as the template). (file: `GluttonyCombo/Resources/Localization/Presets/CustomComboPresets.resx`)
+
+### Notes
+
+- "Flesh out the abilities" (the third part of the reported bug) needed no code change: the rotation itself already drives Beast Mode, the full Battlehorn->Borrow->Tempered Release->Trick->Parting Blow familiar loop, all four instinctual weaponskills and Shield Charge (shipped in v1.0.4.180, ordering fixed in v1.0.4.181/.182) - it simply could never fire under autorotation because of the missing `[AutoAction]` attribute above. With that attribute now present, autorotation drives the same decision tree a manually-pressed Smash Axe already exercised.
+- Verified: clean Release build, 0 errors, 0 warnings. `tests/GluttonyCombo.BSTRotationHarness` re-run: 50/50 PASS (pure rotation-logic harness; unaffected by this change, included as a regression check since it shares source with `BST.cs`). Not yet verified in game - `[AutoAction]` wiring cannot be exercised by an offline harness, only by enabling the checkbox live.
+## v1.0.4.182 (2026-09-10) [testing]
+
+### Fixed
+
+- Beastmaster's familiar loop (Battlehorn, Borrow, Tempered Release, Trick, Parting Blow) hardcoded the order Borrow before Tempered Release before Trick regardless of the player's level. Borrow unlocks at level 22 and Tempered Release at level 18, both well after Trick (level 8), so a Beastmaster below level 22 had the loop permanently stuck asking for Borrow and never reaching Trick at all - reported live on Helm as "Not using trick". `ChooseFamiliarStep` now takes whether Borrow and Tempered Release are actually learned at the player's current level and skips straight past whichever step is not yet unlocked, so Trick fires as soon as the familiar's TP allows it regardless of level. Behaviour at level 22 and above (both learned) is unchanged. (file: `GluttonyCombo/Combos/PvE/BST/BST_RotationLogic.cs`, function: `ChooseFamiliarStep`; file: `GluttonyCombo/Combos/PvE/BST/BST.cs`, function: `TryFamiliarStep`)
+
 ## v1.0.4.181 (2026-09-10) [testing]
 
 ### Fixed
