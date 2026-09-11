@@ -35,6 +35,15 @@ namespace LazyCrafter.Adapters.Dispatch;
 public sealed class ArcDispatch
 {
     public const string InternalName = "ARControl";
+    // The PR's IPC gates are registered under a FIXED "ARC" prefix (ArcIpc.cs Prefix = "ARC" in
+    // zbee/ARC#3), independent of the loaded plugin's InternalName -- so a test build published
+    // under a different InternalName (e.g. ARControlPRTest, to avoid colliding with the puni.sh
+    // production install) still exposes ARC.AddItem / ARC.GetInProgress, not
+    // "<InternalName>.AddItem". Subscribing on InternalName here previously meant the IPC path
+    // could NEVER resolve even after the PR merged -- silently falling back to reflection forever
+    // (found while preparing the in-game test, t_013582c6). GBR's own IPC (GbrDispatch.cs) is
+    // fine as-is: its prefix genuinely IS its InternalName (EzIPC.Init(this, GatherBuddy.InternalName + ".Crafting")).
+    private const string IpcPrefix = "ARC";
     public const string ListName = "LazyCrafter";
 
     private const string PluginType = "";
@@ -95,10 +104,10 @@ public sealed class ArcDispatch
         _guard = guard;
         _chat = chat;
         _log = log;
-        try { _addItem = pi.GetIpcSubscriber<uint, int, string, bool>($"{InternalName}.AddItem"); }
-        catch (Exception ex) { _log.Debug("ARControl.AddItem unavailable: {Msg}", ex.Message); }
-        try { _inProgress = pi.GetIpcSubscriber<Dictionary<uint, int>>($"{InternalName}.GetInProgress"); }
-        catch (Exception ex) { _log.Debug("ARControl.GetInProgress unavailable: {Msg}", ex.Message); }
+        try { _addItem = pi.GetIpcSubscriber<uint, int, string, bool>($"{IpcPrefix}.AddItem"); }
+        catch (Exception ex) { _log.Debug("ARC.AddItem unavailable: {Msg}", ex.Message); }
+        try { _inProgress = pi.GetIpcSubscriber<Dictionary<uint, int>>($"{IpcPrefix}.GetInProgress"); }
+        catch (Exception ex) { _log.Debug("ARC.GetInProgress unavailable: {Msg}", ex.Message); }
     }
 
     private bool HasIpc => _addItem is not null;
