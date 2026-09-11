@@ -1,3 +1,14 @@
+## v0.1.39.0 (2026-09-11)
+
+### Fixed
+
+- **The Category Routing list in the Auto-Market config window could grow tall enough to push the item table (prices, stack limits, and the other columns) off-screen or squeeze it down to almost nothing, once enough categories were represented on the Auto-Market list** - each category rendered as a full-height row in the same unscrolled column as the item table below it, with no height limit, unlike the search-results list just above it which already caps its own height (file: `Windows/ConfigWindow.cs`, `DrawCategoryRouting`).
+- Category Routing now scrolls inside its own fixed-height box (capped around 200 pixels) no matter how many categories are on the list, so the item table below it always gets the rest of the window (file: `Windows/ConfigWindow.cs`, `DrawCategoryRouting`).
+
+### Notes
+
+- Ship testing channel only, pending in-game verification. What to look for: opening the Auto-Market tab with many categories routed should show Category Routing as a small scrollable box, with the item table (On / Item / Skip routing / Stack / Keep bags / Keep ret. / Max/ret. / Source / Fixed price columns) visible and usable below it, even at the window's minimum size.
+
 ## v0.1.38.0 (2026-09-10)
 
 ### Fixed

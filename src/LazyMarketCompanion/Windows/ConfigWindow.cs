@@ -363,40 +363,44 @@ public sealed class ConfigWindow : Window
     }
 
     var retainerNames = c.LastKnownRetainerNames;
-    foreach (var categoryId in categoryIds)
+    if (ImGui.BeginChild("##categoryRouting", new Vector2(-1, Math.Min(200, 24 * categoryIds.Count + 30)), true))
     {
-      ImGui.PushID((int)categoryId + 900000);
-      ImGui.TextUnformatted(ItemNameResolver.GetSearchCategoryName(categoryId));
-      ImGui.SameLine(220);
-      ImGui.SetNextItemWidth(200);
-
-      var rule = c.GetCategoryRetainerRule(categoryId);
-      var options = new List<string> { "(any retainer)" };
-      options.AddRange(retainerNames);
-      var currentIndex = rule == null ? 0 : Math.Max(0, options.IndexOf(rule.RetainerName));
-
-      if (ImGui.Combo("##catroute", ref currentIndex, [.. options], options.Count))
+      foreach (var categoryId in categoryIds)
       {
-        if (currentIndex == 0)
-        {
-          if (rule != null)
-            c.CategoryRetainerRules.Remove(rule);
-        }
-        else
-        {
-          var chosen = options[currentIndex];
-          if (rule == null)
-            c.CategoryRetainerRules.Add(new CategoryRetainerRule { CategoryId = categoryId, RetainerName = chosen });
-          else
-            rule.RetainerName = chosen;
-        }
-        c.Save();
-      }
-      if (retainerNames.Count == 0)
-        Tip("Open the retainer list in-game to populate retainer names for this combo.");
+        ImGui.PushID((int)categoryId + 900000);
+        ImGui.TextUnformatted(ItemNameResolver.GetSearchCategoryName(categoryId));
+        ImGui.SameLine(220);
+        ImGui.SetNextItemWidth(200);
 
-      ImGui.PopID();
+        var rule = c.GetCategoryRetainerRule(categoryId);
+        var options = new List<string> { "(any retainer)" };
+        options.AddRange(retainerNames);
+        var currentIndex = rule == null ? 0 : Math.Max(0, options.IndexOf(rule.RetainerName));
+
+        if (ImGui.Combo("##catroute", ref currentIndex, [.. options], options.Count))
+        {
+          if (currentIndex == 0)
+          {
+            if (rule != null)
+              c.CategoryRetainerRules.Remove(rule);
+          }
+          else
+          {
+            var chosen = options[currentIndex];
+            if (rule == null)
+              c.CategoryRetainerRules.Add(new CategoryRetainerRule { CategoryId = categoryId, RetainerName = chosen });
+            else
+              rule.RetainerName = chosen;
+          }
+          c.Save();
+        }
+        if (retainerNames.Count == 0)
+          Tip("Open the retainer list in-game to populate retainer names for this combo.");
+
+        ImGui.PopID();
+      }
     }
+    ImGui.EndChild();
   }
 
   private static List<(uint Id, string Name, bool CanHq)> SearchItems(string query)
