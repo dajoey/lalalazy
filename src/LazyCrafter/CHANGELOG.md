@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.1.7.3 (2026-09-10)
+
+### Fixed
+- **The venture hand-off to ARC now actually uses ARC's new IPC surface instead of silently falling back to reflection forever.** The adapter subscribed to IPC callbacks named "ARControl.AddItem" and "ARControl.GetInProgress", but ARC registers them under a fixed "ARC" prefix independent of the plugin's internal name - so the subscription could never resolve, even against an ARC build that has the IPC, and every venture hand-off quietly used the older reflection path with no error anywhere. Found while preparing an in-game test of ARC's pending IPC pull request. The channel names are now decoupled from ARC's internal plugin name (files: Adapters/Dispatch/ArcDispatch.cs).
+
+### Notes
+- No behavior change for players on the current, unmodified ARC release: it has no IPC surface yet, so the reflection path is exercised exactly as before either way. This only changes what happens once ARC ships the IPC PR - the intended, faster hand-off finally engages instead of silently never firing.
+- Full harness: 364/364 PASS (no change in count - this fix touches IPC subscription wiring, not anything the offline harness exercises).
+
 ## v0.1.7.2 (2026-09-10)
 
 ### Fixed
