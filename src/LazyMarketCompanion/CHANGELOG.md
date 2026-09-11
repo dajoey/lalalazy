@@ -1,3 +1,18 @@
+## v0.1.37.0 (2026-09-10)
+
+### Added
+
+- **Category routing: whole item categories can now be assigned to a specific retainer, and Auto-Market routes eligible items there when it lists them.** New "Category routing" section under the Auto-Market tab shows one row per market-board search category (Item.ItemSearchCategory - the market board "section" grouping, not the finer per-item UI category) currently represented on the Auto-Market list, each with a combo defaulting to "(any retainer)" plus every known retainer name (files: `Configuration.cs` new `CategoryRetainerRule`/`CategoryRetainerRules`, `AutoMarket/CategoryRouting.cs` new, `Windows/ConfigWindow.cs` `DrawCategoryRouting`).
+- A new "Skip routing" checkbox sits next to each Auto-Market item's existing on/off toggle: it keeps that one item out of category routing while Auto-Market still sells it normally from wherever it already sits, on every retainer (files: `Configuration.cs` new `AutoMarketItem.ExcludeFromCategoryRouting`, `Windows/ConfigWindow.cs` item table).
+- The routing filter runs on the rule list handed to each retainer's plan, before a free market slot is claimed, so an item routed elsewhere never consumes another retainer's scarce slots; it reliably divides only items still sitting in bags when Auto-Market runs, not items already sitting in the wrong retainer's own inventory (files: `AutoMarket/AutoMarketService.cs` `BuildPlan`, `ApplyCategoryRouting`, `CurrentRetainerName`).
+- Marketability is the same test the two-dot marker system already uses (`!item.IsUntradable && item.ItemSearchCategory.RowId != 0`): a non-marketable item is always eligible on every retainer regardless of any category mapping, and an item whose category could not be resolved from the Item sheet fails open the same way rather than being silently blocked from listing anywhere (files: `AutoMarket/CategoryRouting.cs` `CategoryRouter.EligibleForRetainer`/`FilterForRetainer`).
+
+### Notes
+
+- Not yet verified in game. What to look for when verifying: map a category to one retainer, confirm Auto-Market only lists that category's items there and leaves them untouched (not listed, not vendored) on every other enabled retainer; tick "Skip routing" on one mapped item and confirm it now lists normally everywhere.
+- Scope limit worth knowing: this only divides new listings created from bag stock during an Auto-Market pass. An item of a routed category already sitting in the wrong retainer's own inventory is not moved by this feature and needs a manual transfer first.
+- Offline suite: case 60 pins `CategoryRouter.EligibleForRetainer` and `CategoryRouter.FilterForRetainer` - empty `CategoryRetainerRules` restricts nothing (the required regression guard for every existing install), `ExcludeFromCategoryRouting=true` bypasses an active mapping, a non-marketable item is eligible on every retainer regardless of mapping, and a rule with no matching sheet entry (a sheet miss) fails open rather than being blocked (files: `tests/LazyMarketCompanion.Harness/Program.cs`, case 60).
+
 ## v0.1.36.0 (2026-09-10)
 
 ### Fixed

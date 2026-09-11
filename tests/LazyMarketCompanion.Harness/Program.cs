@@ -2668,6 +2668,69 @@ var Catalogue = new (uint Id, string Name)[]
     ListingConfirmation.ShouldRetryNow(true, 20000, 7500) == false);
 }
 
+// 60. CATEGORY ROUTING (t_1460e386, Joey's "category-routing" choice): the eligibility rule and the
+//     per-retainer rule-list filter. Case (a) empty CategoryRetainerRules = no restriction anywhere
+//     (regression guard for every existing install, per the release checklist). Case (b)
+//     ExcludeFromCategoryRouting=true bypasses an active mapping. Case (c) a non-marketable item is
+//     eligible on every retainer regardless of mapping - Joey's binding note ("only handle marketable
+//     items") must hold even when a category rule exists for its category id.
+{
+  const uint Category1 = 44; // arbitrary "section" id, matches neither real sheet - the rules are id-agnostic
+  var info1Marketable = new ItemCategoryInfo(Dye, false, Category1, true);
+  var info1Unmarketable = new ItemCategoryInfo(Dye, false, Category1, false);
+  var mappedToRetainerA = new List<CategoryRetainerRule> { new() { CategoryId = Category1, RetainerName = "Retainer A" } };
+
+  // (a) empty rules -> eligible everywhere, no exceptions.
+  Check("60a empty rules: marketable item eligible on the mapped-nowhere retainer",
+    CategoryRouter.EligibleForRetainer(info1Marketable, false, [], "Retainer A"));
+  Check("60a empty rules: marketable item eligible on a completely different retainer too",
+    CategoryRouter.EligibleForRetainer(info1Marketable, false, [], "Retainer B"));
+
+  // Mapped category: eligible ONLY on the mapped retainer.
+  Check("60 mapped: eligible on the retainer the category is routed to",
+    CategoryRouter.EligibleForRetainer(info1Marketable, false, mappedToRetainerA, "Retainer A"));
+  Check("60 mapped: NOT eligible on a different retainer",
+    !CategoryRouter.EligibleForRetainer(info1Marketable, false, mappedToRetainerA, "Retainer B"));
+
+  // (b) per-item exclude bypasses an active mapping - eligible everywhere despite the mapping.
+  Check("60b exclude bypasses mapping: eligible on the OTHER retainer with exclude=true",
+    CategoryRouter.EligibleForRetainer(info1Marketable, true, mappedToRetainerA, "Retainer B"));
+  Check("60b exclude still eligible on the mapped retainer too",
+    CategoryRouter.EligibleForRetainer(info1Marketable, true, mappedToRetainerA, "Retainer A"));
+
+  // (c) non-marketable is ALWAYS eligible, mapping or not, exclude or not.
+  Check("60c non-marketable eligible on the OTHER retainer despite a mapping",
+    CategoryRouter.EligibleForRetainer(info1Unmarketable, false, mappedToRetainerA, "Retainer B"));
+  Check("60c non-marketable eligible on the mapped retainer too",
+    CategoryRouter.EligibleForRetainer(info1Unmarketable, false, mappedToRetainerA, "Retainer A"));
+
+  // FilterForRetainer: the per-retainer rule-list filter used by AutoMarketService.BuildPlan.
+  var ruleA = Rule(Dye, 5);           // maps to Category1 via categoryByKey below
+  var ruleB = Rule(Ore, 10);          // no categoryByKey entry at all -> sheet miss, fails open
+  var keyA = $"{ruleA.ItemId}:{(ruleA.HQ ? "hq" : "nq")}";
+  var categoryByKey = new Dictionary<string, ItemCategoryInfo> { [keyA] = new ItemCategoryInfo(Dye, false, Category1, true) };
+  var excludeByKey = new Dictionary<string, bool> { [keyA] = false };
+
+  var filteredA = CategoryRouter.FilterForRetainer([ruleA, ruleB], categoryByKey, excludeByKey, mappedToRetainerA, "Retainer A");
+  Check("60 filter: mapped item + sheet-miss item BOTH pass on the mapped retainer",
+    filteredA.Count == 2, $"count={filteredA.Count}");
+
+  var filteredB = CategoryRouter.FilterForRetainer([ruleA, ruleB], categoryByKey, excludeByKey, mappedToRetainerA, "Retainer B");
+  Check("60 filter: mapped item dropped, sheet-miss item kept (fail open) on the OTHER retainer",
+    filteredB.Count == 1 && filteredB[0].ItemId == Ore, $"count={filteredB.Count}");
+
+  // (a) again at the FilterForRetainer level: empty CategoryRetainerRules -> everything passes everywhere.
+  var filteredNoRules = CategoryRouter.FilterForRetainer([ruleA, ruleB], categoryByKey, excludeByKey, [], "Retainer B");
+  Check("60a filter: empty CategoryRetainerRules -> both rules pass on any retainer",
+    filteredNoRules.Count == 2, $"count={filteredNoRules.Count}");
+
+  // (b) again at the FilterForRetainer level: exclude flips a rule back to always-eligible.
+  var excludeByKeyB = new Dictionary<string, bool> { [keyA] = true };
+  var filteredExcluded = CategoryRouter.FilterForRetainer([ruleA, ruleB], categoryByKey, excludeByKeyB, mappedToRetainerA, "Retainer B");
+  Check("60b filter: exclude=true keeps the mapped item eligible on the OTHER retainer",
+    filteredExcluded.Count == 2, $"count={filteredExcluded.Count}");
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 

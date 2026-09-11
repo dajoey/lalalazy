@@ -58,6 +58,28 @@ internal static class ItemNameResolver
     return $"Unknown item ({itemId})";
   }
 
+  /// <summary>
+  /// The market-board search category (Item.ItemSearchCategory.RowId - the "section" grouping category
+  /// routing works on, NOT the finer ItemUICategory) for an item, or 0 when the item has none (also true
+  /// for every non-marketable item, per <see cref="IsMarketable"/>).
+  /// </summary>
+  public static uint SearchCategoryId(uint itemId)
+  {
+    return Items.Value.TryGetRow(itemId, out var item) ? item.ItemSearchCategory.RowId : 0;
+  }
+
+  public static string GetSearchCategoryName(uint categoryId)
+  {
+    var sheet = Svc.Data.GetExcelSheet<Lumina.Excel.Sheets.ItemSearchCategory>();
+    if (sheet != null && sheet.TryGetRow(categoryId, out var row))
+    {
+      var name = row.Name.ExtractText();
+      if (!string.IsNullOrWhiteSpace(name))
+        return name;
+    }
+    return $"Category {categoryId}";
+  }
+
   public static bool CanBeHq(uint itemId)
   {
     return Items.Value.TryGetRow(itemId, out var item) && item.CanBeHq;

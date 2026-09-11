@@ -199,6 +199,11 @@ public sealed class ConfigWindow : Window
 
     ImGui.Separator();
 
+    // ---- category routing ----
+    DrawCategoryRouting(c);
+
+    ImGui.Separator();
+
     // ---- add item ----
     ImGui.TextUnformatted("Add item:"); ImGui.SameLine();
     ImGui.SetNextItemWidth(260);
@@ -244,11 +249,12 @@ public sealed class ConfigWindow : Window
 
     AutoMarketItem? remove = null;
     var flags = ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.NoSavedSettings | ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.ScrollY;
-    if (ImGui.BeginTable("##autoMarketTable", 9, flags, new Vector2(-1, -1)))
+    if (ImGui.BeginTable("##autoMarketTable", 10, flags, new Vector2(-1, -1)))
     {
       ImGui.TableSetupScrollFreeze(0, 1);
       ImGui.TableSetupColumn("On", ImGuiTableColumnFlags.WidthFixed, 28f);
       ImGui.TableSetupColumn("Item", ImGuiTableColumnFlags.WidthStretch);
+      ImGui.TableSetupColumn("Skip routing", ImGuiTableColumnFlags.WidthFixed, 80f);
       ImGui.TableSetupColumn("Stack", ImGuiTableColumnFlags.WidthFixed, 70f);
       ImGui.TableSetupColumn("Keep bags", ImGuiTableColumnFlags.WidthFixed, 80f);
       ImGui.TableSetupColumn("Keep ret.", ImGuiTableColumnFlags.WidthFixed, 80f);
@@ -270,6 +276,11 @@ public sealed class ConfigWindow : Window
         ImGui.TableNextColumn();
         ImGui.TextUnformatted($"{ItemNameResolver.GetItemName(entry.ItemId)}{(entry.HQ ? " (HQ)" : "")}");
         if (ImGui.IsItemHovered()) ImGui.SetTooltip($"Item ID: {entry.ItemId}  max stack {ItemNameResolver.MaxStack(entry.ItemId)}");
+
+        ImGui.TableNextColumn();
+        var skipRouting = entry.ExcludeFromCategoryRouting;
+        if (ImGui.Checkbox("##skiprouting", ref skipRouting)) { entry.ExcludeFromCategoryRouting = skipRouting; c.Save(); }
+        Tip("Keeps this item out of category routing. It still sells normally, from wherever it sits, on every retainer - unaffected by any category-routing rule above.");
 
         ImGui.TableNextColumn();
         ImGui.SetNextItemWidth(-1);
@@ -325,6 +336,66 @@ public sealed class ConfigWindow : Window
     {
       c.AutoMarketItems.Remove(remove);
       c.Save();
+    }
+  }
+
+  /// <summary>
+  /// One row per ItemSearchCategory currently represented among the Auto-Market list - not every
+  /// category in the game, per the frozen design (Configuration.cs remarks on CategoryRetainerRules).
+  /// Each combo defaults to "(any retainer)" and upserts/removes a CategoryRetainerRule on change.
+  /// </summary>
+  private static void DrawCategoryRouting(Configuration c)
+  {
+    ImGui.TextUnformatted("Category routing:");
+    Tip("Assign a whole market-board category to one retainer. Auto-Market only lists an item of a routed category on the retainer it is assigned to - on every other retainer it is left exactly where it is, never vendored, never touched. Only divides items still sitting in your bags when Auto-Market runs; an item already sitting in the wrong retainer's own inventory needs a manual move first. The 'Skip routing' checkbox in the table below opts one item out entirely - it keeps selling normally, from wherever it sits, on every retainer.");
+
+    var categoryIds = c.AutoMarketItems
+      .Select(e => ItemNameResolver.SearchCategoryId(e.ItemId))
+      .Where(id => id != 0)
+      .Distinct()
+      .OrderBy(id => ItemNameResolver.GetSearchCategoryName(id))
+      .ToList();
+
+    if (categoryIds.Count == 0)
+    {
+      ImGui.TextColored(Muted, "No marketable categories on your Auto-Market list yet.");
+      return;
+    }
+
+    var retainerNames = c.LastKnownRetainerNames;
+    foreach (var categoryId in categoryIds)
+    {
+      ImGui.PushID((int)categoryId + 900000);
+      ImGui.TextUnformatted(ItemNameResolver.GetSearchCategoryName(categoryId));
+      ImGui.SameLine(220);
+      ImGui.SetNextItemWidth(200);
+
+      var rule = c.GetCategoryRetainerRule(categoryId);
+      var options = new List<string> { "(any retainer)" };
+      options.AddRange(retainerNames);
+      var currentIndex = rule == null ? 0 : Math.Max(0, options.IndexOf(rule.RetainerName));
+
+      if (ImGui.Combo("##catroute", ref currentIndex, [.. options], options.Count))
+      {
+        if (currentIndex == 0)
+        {
+          if (rule != null)
+            c.CategoryRetainerRules.Remove(rule);
+        }
+        else
+        {
+          var chosen = options[currentIndex];
+          if (rule == null)
+            c.CategoryRetainerRules.Add(new CategoryRetainerRule { CategoryId = categoryId, RetainerName = chosen });
+          else
+            rule.RetainerName = chosen;
+        }
+        c.Save();
+      }
+      if (retainerNames.Count == 0)
+        Tip("Open the retainer list in-game to populate retainer names for this combo.");
+
+      ImGui.PopID();
     }
   }
 
@@ -456,11 +527,16 @@ public sealed class ConfigWindow : Window
     ImGui.EndGroup();
     Tip("Time to keep the market board open when fetching prices. Recommended 1000-2000ms.");
 
-    ImGui.Separator();
-    ImGui.Text("Auto Pinch pre-flight");
-
-    var preflight = c.AutoPinchPreflightEnabled;
-    if (ImGui.Checkbox("Only re-price listings AllaganMarket has flagged", ref preflight)) { c.AutoPinchPreflightEnabled = preflight; c.Save(); }
+    ImGui.Separator();
+
+    ImGui.Text("Auto Pinch pre-flight");
+
+
+
+    var preflight = c.AutoPinchPreflightEnabled;
+
+    if (ImGui.Checkbox("Only re-price listings AllaganMarket has flagged", ref preflight)) { c.AutoPinchPreflightEnabled = preflight; c.Save(); }
+
     Tip("Auto Pinch opens only the listings AllaganMarket marks undercut (red) or stale (yellow) on the retainer sell list, plus any still at the 999,999,999 placeholder price. Everything AllaganMarket does not flag is never touched - including items it has never checked, even once.\n\nThis needs AllaganMarket installed and its own prices working: the plugin reads AllaganMarket's saved price data (no IPC exists), so if AllaganMarket is missing or has nothing cached, nothing but placeholder-priced listings gets re-priced. Untick for the old walk-everything behaviour.");
 
     ImGui.Separator();

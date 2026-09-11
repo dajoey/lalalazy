@@ -110,6 +110,13 @@ public sealed class AutoMarketItem
   /// <summary>Optional per-item fixed price. 0 = use the normal match price.</summary>
   public int FixedPrice { get; set; } = 0;
 
+  /// <summary>
+  /// Quick-exclude checkbox (separate from <see cref="Enabled"/>): keeps this item out of category
+  /// routing while Auto-Market still sells it normally from wherever it already sits. New field with an
+  /// initializer, so an existing config deserializes this as false (today's behaviour) - no Version bump.
+  /// </summary>
+  public bool ExcludeFromCategoryRouting { get; set; } = false;
+
   public string Key => $"{ItemId}:{(HQ ? "hq" : "nq")}";
 }
 
@@ -318,6 +325,19 @@ public sealed class Configuration : IPluginConfiguration
 
   /// <summary>Newest CHANGELOG version the in-game "What's new" popup has shown (shared LalaChangelog gate).</summary>
   public string? LastSeenChangelogVersion { get; set; }
+
+  /// <summary>
+  /// Category routing: maps a market-board search category (Item.ItemSearchCategory.RowId) to the
+  /// retainer that should carry it. New field with an initializer, so an existing config deserializes
+  /// this as an empty list (today's behaviour, zero routing) - no Version bump. Empty = no restriction
+  /// anywhere, which is the required regression guard for every existing install.
+  /// </summary>
+  public List<CategoryRetainerRule> CategoryRetainerRules { get; set; } = [];
+
+  public CategoryRetainerRule? GetCategoryRetainerRule(uint categoryId)
+  {
+    return CategoryRetainerRules.FirstOrDefault(r => r.CategoryId == categoryId);
+  }
 
   public ItemPriceLimit? GetItemPriceLimit(uint itemId)
   {

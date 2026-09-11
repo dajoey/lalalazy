@@ -119,6 +119,16 @@ internal static unsafe class AutoMarketService
     var config = Plugin.Configuration;
     var rules = BuildEnabledRules();
 
+    // Category routing (0.1.37.0): filter to what THIS retainer is eligible for BEFORE the value gate,
+    // so a routed-elsewhere item is never listed here and never vendored here either - it is left
+    // exactly where it is, same as an item with no stock in an enabled source. Runs before the value
+    // gate deliberately: both listing and vendoring stem from the same filtered rule list. An unreadable
+    // retainer name (not inside a retainer session) makes every mapped rule's RetainerName comparison
+    // false, which routes every category-mapped item away from an unknown retainer - the same fail
+    // direction as routing to the wrong retainer, never a crash.
+    if (config.CategoryRetainerRules.Count > 0)
+      rules = ApplyCategoryRouting(rules, config.CategoryRetainerRules);
+
     var stock = SnapshotStock();
     var market = SnapshotMarket();
 
@@ -132,6 +142,48 @@ internal static unsafe class AutoMarketService
 
     var options = new PlannerOptions(MarketSlotCount, config.AutoMarketReserveSlots, config.AutoMarketPreferRetainerStockFirst, config.AutoMarketListPartialStacks);
     return AutoMarketPlanner.Plan(rules, stock, market, options);
+  }
+
+  /// <summary>
+  /// Name of the retainer whose sell list is currently open (RetainerManager.GetActiveRetainer, the same
+  /// call RetainerMarketItemCount already uses), or "" when no retainer is active. Read fresh at the
+  /// point of use rather than plumbed through as a parameter - every Auto-Market entry point (the sweep,
+  /// the current-retainer button, and the AutoRetainer postprocess hook) already has an open retainer
+  /// session by the time BuildPlan runs, so the game itself is the one source of truth for "which
+  /// retainer is this".
+  /// </summary>
+  public static string CurrentRetainerName()
+  {
+    var rm = RetainerManager.Instance();
+    if (rm == null) return string.Empty;
+    var active = rm->GetActiveRetainer();
+    return active == null ? string.Empty : active->NameString;
+  }
+
+  /// <summary>
+  /// Filters an enabled-rule list down to what the CURRENTLY OPEN retainer is eligible for, per
+  /// CategoryRouter.FilterForRetainer. Builds the per-item category/marketable/exclude lookups the
+  /// Dalamud-free filter needs from the Item sheet and the config, once per call.
+  /// </summary>
+  private static List<ItemRule> ApplyCategoryRouting(List<ItemRule> rules, List<CategoryRetainerRule> categoryRules)
+  {
+    var retainerName = CurrentRetainerName();
+    var items = Svc.Data.GetExcelSheet<Item>();
+    var categoryByKey = new Dictionary<string, ItemCategoryInfo>(rules.Count);
+    var excludeByKey = new Dictionary<string, bool>(rules.Count);
+
+    foreach (var rule in rules)
+    {
+      var key = $"{rule.ItemId}:{(rule.HQ ? "hq" : "nq")}";
+      var entry = Plugin.Configuration.GetAutoMarketItem(rule.ItemId, rule.HQ);
+      excludeByKey[key] = entry?.ExcludeFromCategoryRouting ?? false;
+
+      if (items.TryGetRow(rule.ItemId, out var row))
+        categoryByKey[key] = new ItemCategoryInfo(rule.ItemId, rule.HQ, row.ItemSearchCategory.RowId, row.ItemSearchCategory.RowId != 0 && !row.IsUntradable);
+      // else: no entry, CategoryRouter.FilterForRetainer fails open on the missing key.
+    }
+
+    return CategoryRouter.FilterForRetainer(rules, categoryByKey, excludeByKey, categoryRules, retainerName);
   }
 
   /// <summary>
