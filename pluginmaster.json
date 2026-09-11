@@ -520,5 +520,40 @@
                       ],
         "DownloadCount":  0,
         "LastUpdate":  "0"
+    },
+    {
+        "Author":  "zbee, Liza Carvelli (upstream PR by dajoey)",
+        "Name":  "ARC (PR test - IPC venture work)",
+        "Punchline":  "TEST BUILD ONLY - zbee/ARC PR#3 IPC surface",
+        "Description":  "TEMPORARY test build of zbee/ARC PR #3 (ipc-venture-work): adds ARC.AddItem / ARC.GetInProgress / ARC.GetListCount IPC used by LazyCrafter\u0027s ArcDispatch. Installs alongside your normal production ARControl (different InternalName, no config or IPC collision at rest) for in-game verification only. Not maintained; remove after testing is done.",
+        "InternalName":  "ARControlPRTest",
+        "AssemblyVersion":  "0.0.0.0",
+        "TestingAssemblyVersion":  "8.6.0",
+        "TestingDalamudApiLevel":  15,
+        "Changelog":  "v8.6.0 (2026-09-10)\n\nTest build of zbee/ARC PR#3 (github.com/zbee/ARC/pull/3, branch dajoey/ARC ipc-venture-work). Adds an IPC surface (ARC.AddItem, ARC.GetInProgress, ARC.GetListCount) for other plugins to hand off venture work - LazyCrafter\u0027s ArcDispatch uses it when present, falling back to reflection otherwise. Not for general use; installed alongside production ARControl to verify the PR in-game before replying to the maintainer.",
+        "RepoUrl":  "https://github.com/dajoey/ARC/tree/ipc-venture-work",
+        "ApplicableVersion":  "any",
+        "DalamudApiLevel":  15,
+        "IsHide":  false,
+        "IsTestingExclusive":  true,
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/ARControlPRTest/testing/testing.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/ARControlPRTest/testing/testing.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/ARControlPRTest/testing/testing.zip",
+        "Tags":  [
+                     "arc",
+                     "autoretainer",
+                     "ventures",
+                     "ipc-test",
+                     "temporary"
+                 ],
+        "CategoryTags":  [
+                             "utility"
+                         ],
+        "IconUrl":  "https://raw.githubusercontent.com/zbee/ARC/master/ARControl.png",
+        "ImageUrls":  [
+                          ""
+                      ],
+        "DownloadCount":  0,
+        "LastUpdate":  "0"
     }
 ]
