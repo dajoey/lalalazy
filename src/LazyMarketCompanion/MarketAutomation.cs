@@ -586,6 +586,33 @@ internal sealed class MarketAutomation : Window, IDisposable
     // need auto-market b/c they were full. and so it re-pinched all of their items").
     steps.Add(new Step(() =>
     {
+      // 0.1.38.0 (t_fe0e06f0): TaskManager.Insert() ALWAYS pushes to index 0 of the queue (LIFO) -
+      // ECommons.Automation.LegacyTaskManager.TaskManager@Insert.cs, Tasks.Insert(0, ...) on every
+      // overload. So whichever Insert() call happens LAST in this step's own body ends up running
+      // FIRST at runtime. The 0.1.28.0 fix moved BuildVendoringSteps/EnqueueVendorLegTrigger to AFTER
+      // the pinch switch in the source text, on the belief that "runs after in code" means "runs
+      // after at runtime" for an Insert-based queue - it means the opposite. With the vendor call
+      // LAST, its one Insert("VendorLeg") landed in front of every step the pinch switch had just
+      // queued, so the vendor leg actually ran FIRST. Evidence, 2026-09-10 23:21 (dalamud.log,
+      // LMC 0.1.37.0): 7 vendor ops completed at 23:21:20.362-22.330, and the pinch pre-flight's own
+      // "walking 5 of 20 row(s)" line did not print until 23:21:23.037 - AFTER vendoring, not before.
+      // The vendor leg's RunVendorLegAtSessionEnd closes RetainerSellList on its way to the bell menu
+      // and never reopens it (it only opens the retainer ENTRUST/inventory panel), so the pinch pass's
+      // OpenItemContextMenu then found no RetainerSellList addon, returned false every tick, and
+      // retried for the full 10 s TimeLimitMS before the task manager gave up and cleared all 110
+      // remaining queued tasks ("Clearing 110 remaining tasks because of timeout" /
+      // "Task OpenItemContextMenu1 took too long to execute"). The two placeholder-priced listings
+      // from that session were never reached by the pinch and are stranded until a later sweep.
+      //
+      // Fix: call the vendor block FIRST, so its single Insert() is pushed to the front and then
+      // immediately shoved back by every Insert() the pinch switch makes right after - landing the
+      // pinch pass's steps in front of the vendor leg's, which is what PinchScope.PinchRunsBeforeVendorLeg
+      // (AutoMarket/PinchScope.cs) has always asserted should be true. Text order is now the reverse of
+      // 0.1.28.0's; that reversal IS the fix, not a stylistic change - do not "tidy" it back.
+      BuildVendoringSteps();
+      if (_vendorPlanPlaced || _vendorPlannedCount > 0)
+        EnqueueVendorLegTrigger();
+
       switch (PinchScope.Decide(Plugin.Configuration.AutoMarketPinchAllAfter, _listedThisRetainer.Count))
       {
         case PinchAfterMarket.FullRePass:
@@ -598,21 +625,6 @@ internal sealed class MarketAutomation : Window, IDisposable
           Svc.Log.Information("[LMC] pinch: nothing was listed on this retainer, leaving its listings alone");
           break;
       }
-      // 0.1.28.0: the pinch now runs BEFORE the vendoring leg, on the still-open sell list. Until
-      // 0.1.27.0 the leg trigger was inserted from BuildListingStepsNow, ahead of the listing steps,
-      // so a retainer that both listed and vendored closed the sell list on its way to the bell menu
-      // and the pinch that followed read a closed list ("the sell list could not be read at all") -
-      // its new listings were left at the 999,999,999 placeholder and never price-matched that
-      // session (2026-09-07 18:50 and 21:06, five stacks and one). The trigger is now inserted HERE,
-      // after the pinch pass has front-inserted its own steps: everything the pinch queued runs
-      // first with the sell list open, and the leg closes the list itself on its way to the menu
-      // (its own close is unchanged; the session close step treats an absent list as closed since
-      // 0.1.26.0). Inserting at this point still puts the leg ahead of the session's close steps and
-      // the sweep's remaining retainers, so the vendored count in the done line keeps reporting the
-      // retainer it just visited.
-      BuildVendoringSteps();
-      if (_vendorPlanPlaced || _vendorPlannedCount > 0)
-        EnqueueVendorLegTrigger();
       return true;
     }, "PinchAfterMarket", DelayAfterMs: 0));
 

@@ -41,8 +41,18 @@ public static class PinchScope
   /// <summary>
   /// Whether the vendoring leg may be queued at the moment the pinch decision runs: the pinch pass
   /// must go first, while the sell list is still open (it reads the list to find the rows this run
-  /// just listed), so the leg trigger is only inserted AFTER the pinch pass has queued its steps.
-  /// Pure bookkeeping order - the gate's vendoring decision itself is unchanged.
+  /// just listed). Pure bookkeeping order - the gate's vendoring decision itself is unchanged.
+  ///
+  /// 0.1.38.0 (t_fe0e06f0): the call in MarketAutomation.cs that makes this true is the vendor block
+  /// calling Insert() FIRST, then the pinch switch calling Insert() SECOND - ECommons'
+  /// TaskManager.Insert() always pushes to the FRONT of the queue (LIFO), so the LAST Insert() call in
+  /// a step's body is the FIRST one the task manager runs. 0.1.28.0 through 0.1.37.0 had the vendor
+  /// call textually last, believing that placed it last at runtime too - it placed it first, and every
+  /// vending-then-pinching session in that window ran the vendor leg before the pinch, closing the
+  /// sell list the pinch needed open ("Clearing 110 remaining tasks because of timeout" /
+  /// "OpenItemContextMenu" stuck retrying against a closed addon). If this call order in
+  /// MarketAutomation.cs is ever "tidied" back to vendor-block-last, this constant goes false again
+  /// with no compiler error to catch it - only harness case 50's ordering assertion does.
   /// </summary>
   public static bool PinchRunsBeforeVendorLeg => true;
   /// <param name="pinchAllAfter">The "Pinch everything after listing" setting (<c>AutoMarketPinchAllAfter</c>).</param>

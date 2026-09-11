@@ -2731,6 +2731,55 @@ var Catalogue = new (uint Id, string Name)[]
     filteredExcluded.Count == 2, $"count={filteredExcluded.Count}");
 }
 
+// 61. LIFO INSERT-ORDER REGRESSION (t_fe0e06f0, LMC 0.1.38.0). This is the Dalamud-free contract
+//     case 50 was missing: it pinned PinchScope.PinchRunsBeforeVendorLeg as a static bool, which says
+//     nothing about which order the two Insert()-calling blocks actually run in inside
+//     MarketAutomation's PinchAfterMarket step. ECommons' TaskManager.Insert() always does
+//     Tasks.Insert(0, ...) - a LIFO push to the FRONT of the queue - so the block whose Insert() call
+//     happens LAST in the C# source runs FIRST at runtime. 0.1.28.0 through 0.1.37.0 had the vendor
+//     leg's single Insert("VendorLeg") textually AFTER the pinch switch's several Insert() calls,
+//     which put the vendor leg literally first in the resulting queue - the vendor leg closed
+//     RetainerSellList before the pinch pass's OpenItemContextMenu could read it, hanging the pass
+//     for its full 10 s TimeLimitMS and wiping the remaining queue (dalamud.log 2026-09-10 23:21:33,
+//     "Clearing 110 remaining tasks because of timeout"). This case simulates the SAME LIFO Insert()
+//     shape MarketAutomation.cs's PinchAfterMarket step uses (vendor block first in source, pinch
+//     rows second) and asserts the resulting queue order - not a flag, the actual order - so a future
+//     "tidy this up" reordering trips a test instead of shipping silently broken again.
+{
+  List<string> queue = [];
+  void Insert(string name) => queue.Insert(0, name);
+
+  // Mirrors MarketAutomation.cs's PinchAfterMarket step body, post-fix: vendor block's Insert() runs
+  // FIRST in source ...
+  Insert("VendorLeg");
+  // ... then the pinch switch's Insert() calls run SECOND in source, for however many rows this
+  // pass queues (InsertPinchForNewListings inserts highest-row-first so they execute lowest-first;
+  // two rows is enough to prove the shape without re-deriving the whole planner).
+  Insert("SetNewPrice1"); Insert("ClickComparePrice1"); Insert("DelayMB1");
+  Insert("ClickAdjustPrice1"); Insert("OpenItemContextMenu1");
+  Insert("SetNewPrice0"); Insert("ClickComparePrice0"); Insert("DelayMB0");
+  Insert("ClickAdjustPrice0"); Insert("OpenItemContextMenu0");
+
+  Check("61 lifo: every pinch step for both rows precedes VendorLeg in the resulting queue",
+    queue.IndexOf("VendorLeg") > queue.IndexOf("OpenItemContextMenu1")
+      && queue.IndexOf("VendorLeg") > queue.IndexOf("OpenItemContextMenu0")
+      && queue.IndexOf("VendorLeg") == queue.Count - 1,
+    $"queue=[{string.Join(", ", queue)}]");
+
+  // CONTROL: the pre-0.1.38.0 source order (vendor block called LAST) - if this control does not FAIL,
+  // the harness itself cannot tell the two orderings apart and case 61 above is worthless.
+  List<string> badQueue = [];
+  void BadInsert(string name) => badQueue.Insert(0, name);
+  BadInsert("OpenItemContextMenu0"); BadInsert("ClickAdjustPrice0"); BadInsert("DelayMB0");
+  BadInsert("ClickComparePrice0"); BadInsert("SetNewPrice0");
+  BadInsert("OpenItemContextMenu1"); BadInsert("ClickAdjustPrice1"); BadInsert("DelayMB1");
+  BadInsert("ClickComparePrice1"); BadInsert("SetNewPrice1");
+  BadInsert("VendorLeg");
+  Check("61 lifo control: the pre-fix source order (vendor Insert() called last) puts VendorLeg FIRST",
+    badQueue[0] == "VendorLeg",
+    $"badQueue=[{string.Join(", ", badQueue)}] - if this is not VendorLeg first, the control is broken");
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 
