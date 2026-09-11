@@ -1,3 +1,13 @@
+## v1.0.4.184 (2026-09-10) [testing]
+
+### Fixed
+
+- **Phantom RDM Occult Libra ignored whatever internal cooldown was set and kept re-suggesting/re-firing every weave window for the whole pull, instead of respecting the 30s cooldown Joey set on 2026-09-05 (helm t-joey-1789095497072, "Phantom RDM Libra 15 or 30 second cooldown or whatever we set is not being respected").** The 30s internal cooldown from t-joey-1788653879855 (`LibraInternalCooldownMs` / `LibraSuppressedUntil`) was only ever added to the pre-7.55 RDM path (`TryGetRedMageAction` in `OccultCrescent.cs`). A separate, 7.55-fork copy of the same handler (`TryGetRedMageAction755` in `OccultCrescent_755.cs`) implements Occult Libra independently and never received that gate - it only ever checked the live elemental-weakness debuff (`TargetHasAnyWeaknessDebuff`), which on any target where the debuff was never applied or clears mid-fight (immune adds, a boss with no elemental weakness, a resisted application) stays false indefinitely, so the 5s-recast oGCD re-suggested and re-fired itself on every single weave window regardless of the cooldown setting. `TryGetRedMageAction755` now arms the same `WasLastAction`-gated 30s suppression window (`Libra755InternalCooldownMs` / `Libra755SuppressedUntil`) used by the pre-7.55 copy, armed by the actual cast rather than by merely evaluating the gate (since `TryGetPhantomAction` runs every frame for icon replacement). (file: `GluttonyCombo/Combos/PvE/Content/OccultCrescent/OccultCrescent_755.cs`, function: `TryGetRedMageAction755`)
+
+### Notes
+
+- Root-caused from source review, not from BT| telemetry: the 7.55-fork dispatch only reaches this path when the pre-7.55 sixteen-job pass in `TryGetPhantomAction` does not already answer (see the 2026-08-24 dispatch-order correction at the top of `OccultCrescent_755.cs`) - Phantom Red Mage is one of the sixteen pre-7.55 jobs, so in the common case the pre-7.55 copy (which already had the cooldown) answers first and this fork copy never runs. It is reachable whenever the pre-7.55 RDM handler itself declines (its own Libra branch returns false without falling through to any other pre-7.55 job), which routes control into the 7.55 pass and can hit the un-gated fork copy. Not yet verified in-game with a full play session; the fix mirrors an already-shipped, already-verified pattern (t-joey-1788653879855) applied to the one code path it was never applied to.
+- Clean Release build, 0 errors (1934 pre-existing CS0618/CS0649 obsolete-API warnings elsewhere in the file tree, unrelated to this change).
 # Changelog
 ## v1.0.4.183 (2026-09-10) [testing]
 

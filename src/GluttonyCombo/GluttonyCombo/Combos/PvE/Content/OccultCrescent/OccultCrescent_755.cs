@@ -1,5 +1,6 @@
 #region Dependencies
 
+using System;
 using GluttonyCombo.Data;
 using GluttonyCombo.Extensions;
 using static GluttonyCombo.Combos.PvE.OccultCrescent.Config;
@@ -568,6 +569,25 @@ internal partial class OccultCrescent
 
     #region Phantom Red Mage
 
+    /// <summary>
+    ///     Internal cooldown for the 7.55-fork Occult Libra, mirroring
+    ///     <see cref="LibraInternalCooldownMs"/> in OccultCrescent.cs (Joey, helm
+    ///     t-joey-1788653879855, 2026-09-05). That fix only landed on the pre-7.55 RDM path
+    ///     (<c>TryGetRedMageAction</c>); this 7.55-fork copy (<c>TryGetRedMageAction755</c>)
+    ///     was never given the same gate. On any target the live debuff clears mid-fight
+    ///     (or was never applied - immune adds, a boss with no elemental weakness, a
+    ///     resisted application) <see cref="TargetHasAnyWeaknessDebuff"/> stays false
+    ///     indefinitely and this 5s-recast oGCD re-suggests itself every weave window for
+    ///     the whole pull, which is exactly the "phantom RDM Libra ignores whatever
+    ///     cooldown we set" bug reported on helm t-joey-1789095497072. Armed by the ACTUAL
+    ///     cast (WasLastAction), never by merely evaluating the gate, for the same reason
+    ///     as the pre-7.55 copy: TryGetPhantomAction runs every frame for icon replacement.
+    /// </summary>
+    private const long Libra755InternalCooldownMs = 30_000;
+
+    /// <summary>Tick before which the 7.55 Occult Libra is not re-suggested.</summary>
+    private static long Libra755SuppressedUntil;
+
     private static bool TryGetRedMageAction755(ref uint actionID)
     {
         if (!IsEnabled(Preset.Phantom_RedMage))
@@ -577,6 +597,9 @@ internal partial class OccultCrescent
         // elemental caster in the zone then benefits from. Weave it early.
         if (CanWeave())
         {
+            if (WasLastAction(P755.RDM_OccultLibra))
+                Libra755SuppressedUntil = Environment.TickCount64 + Libra755InternalCooldownMs;
+
             // Keyed to the LIVE debuff, not to what the static nameId table happens to know.
             // Libra's tooltip says it discerns affinity "increasing the potency of elemental
             // attacks that exploit their weaknesses" - if that +30% is gated on the debuff being
@@ -585,6 +608,7 @@ internal partial class OccultCrescent
             // recast and weaveable: the cast is nearly free, the forfeit is not.
             if (IsEnabledAndUsable(Preset.Phantom_RedMage_OccultLibra, P755.RDM_OccultLibra) &&
                 HasBattleTarget() && InActionRange(P755.RDM_OccultLibra) &&
+                Environment.TickCount64 >= Libra755SuppressedUntil &&
                 !TargetHasAnyWeaknessDebuff())
             {
                 actionID = P755.RDM_OccultLibra;
