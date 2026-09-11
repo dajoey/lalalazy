@@ -4,7 +4,7 @@
   <PropertyGroup>
     <Authors>dajoey</Authors>
     <Company>-</Company>
-    <Version>1.0.4.184</Version>
+    <Version>1.0.4.185</Version>
     <!-- This is the version that will be used when pushing to the repo.-->
     <Description>Gluttony Combo - lalalazy fork of Gluttony Combo. XIVCombo for very lazy players.</Description>
     <Copyright>Copyleft attick 2021 thanks attick UwU (forked as Gluttony Combo by dajoey)</Copyright>
@@ -281,6 +281,11 @@
       <AutoGen>True</AutoGen>
       <DependentUpon>VPR_Config.resx</DependentUpon>
     </Compile>
+    <Compile Update="Resources\Localization\JobConfigs\BST_Config.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>BST_Config.resx</DependentUpon>
+    </Compile>
     <Compile Update="Resources\Localization\Content\OccultCrescent.Designer.cs">
       <DesignTime>True</DesignTime>
       <AutoGen>True</AutoGen>
@@ -411,6 +416,10 @@
     <EmbeddedResource Update="Resources\Localization\JobConfigs\VPR_Config.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>VPR_Config.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+    <EmbeddedResource Update="Resources\Localization\JobConfigs\BST_Config.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>BST_Config.Designer.cs</LastGenOutput>
     </EmbeddedResource>
     <EmbeddedResource Update="Resources\Localization\Content\OccultCrescent.resx">
       <Generator>ResXFileCodeGenerator</Generator>

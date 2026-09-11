@@ -26,6 +26,7 @@ internal static class Program
         CaseD_L50FinisherChoice();
         CaseE_FamiliarLoopOrdering();
         CaseF_LevelGateSkipsUnlearnedSteps();
+        CaseG_HoldForVantageLevelFloor();
         ExtraCoverage();
 
         Console.WriteLine(_fail == 0 ? "OK" : $"FAILED ({_fail} of {_pass + _fail})");
@@ -358,6 +359,65 @@ internal static class Program
                 BST_RotationLogic.FamiliarStep.Battlehorn,
             ]),
             string.Join(",", order));
+    }
+
+    // ------------------------------------------------------------------
+    // (g) hold-for-Vantage level floor (t_3d88b4fd, BST.cs:201 defect 1): Lingering Vantage
+    // cannot exist below lv22 (Borrow's own unlock is the floor for any Vantage grant), so
+    // ComputeHoldForVantage must never return true below lv22 regardless of Simple/Advanced
+    // mode or the raw config toggle value - the caller no longer has a way to force the hold
+    // via "!advanced" alone.
+    // ------------------------------------------------------------------
+    private static void CaseG_HoldForVantageLevelFloor()
+    {
+        Console.WriteLine("-- (g) hold-for-Vantage level floor --");
+
+        // (a) sub-22, Simple Mode (config=true - the shipped Simple Mode always-hold intent),
+        // TP spent, no Vantage -> must resolve to PartingBlow, not None.
+        Check("sub-22, config=true (Simple Mode intent): ComputeHoldForVantage is false",
+            BST_RotationLogic.ComputeHoldForVantage(borrowLearned: false, holdPartingBlowForVantageConfig: true) == false);
+        Check("sub-22, config=true: ChooseFamiliarStep resolves PartingBlow, not None",
+            BST_RotationLogic.ChooseFamiliarStep(
+                petSummoned: true, borrowedThisSummon: false, temperedReleasedThisSummon: false,
+                familiarTp: 20, lingeringVantage: false,
+                holdPartingBlowForVantage: BST_RotationLogic.ComputeHoldForVantage(borrowLearned: false, holdPartingBlowForVantageConfig: true),
+                borrowLearned: false, temperedLearned: false)
+            == BST_RotationLogic.FamiliarStep.PartingBlow);
+
+        // (b) sub-22, Advanced Mode, toggle=true, TP spent, no Vantage -> must ALSO resolve to
+        // PartingBlow - the same level floor applies regardless of mode or the toggle value.
+        Check("sub-22, Advanced Mode, toggle=true: ComputeHoldForVantage is still false",
+            BST_RotationLogic.ComputeHoldForVantage(borrowLearned: false, holdPartingBlowForVantageConfig: true) == false);
+        Check("sub-22, Advanced Mode, toggle=true: ChooseFamiliarStep resolves PartingBlow",
+            BST_RotationLogic.ChooseFamiliarStep(
+                petSummoned: true, borrowedThisSummon: false, temperedReleasedThisSummon: false,
+                familiarTp: 20, lingeringVantage: false,
+                holdPartingBlowForVantage: BST_RotationLogic.ComputeHoldForVantage(borrowLearned: false, holdPartingBlowForVantageConfig: true),
+                borrowLearned: false, temperedLearned: false)
+            == BST_RotationLogic.FamiliarStep.PartingBlow);
+
+        // (c) L22+ (borrowLearned=true), toggle=true, TP spent, no Vantage -> still holds
+        // (None) - the hold is legitimate once Borrow's unlock makes Vantage reachable.
+        Check("L22+, toggle=true: ComputeHoldForVantage is true",
+            BST_RotationLogic.ComputeHoldForVantage(borrowLearned: true, holdPartingBlowForVantageConfig: true) == true);
+        Check("L22+, toggle=true, Vantage not up: ChooseFamiliarStep holds (None)",
+            BST_RotationLogic.ChooseFamiliarStep(
+                petSummoned: true, borrowedThisSummon: true, temperedReleasedThisSummon: true,
+                familiarTp: 20, lingeringVantage: false,
+                holdPartingBlowForVantage: BST_RotationLogic.ComputeHoldForVantage(borrowLearned: true, holdPartingBlowForVantageConfig: true),
+                borrowLearned: true, temperedLearned: true)
+            == BST_RotationLogic.FamiliarStep.None);
+
+        // (d) L22+, toggle=false -> PartingBlow immediately (never holds regardless of level).
+        Check("L22+, toggle=false: ComputeHoldForVantage is false",
+            BST_RotationLogic.ComputeHoldForVantage(borrowLearned: true, holdPartingBlowForVantageConfig: false) == false);
+        Check("L22+, toggle=false: ChooseFamiliarStep resolves PartingBlow immediately",
+            BST_RotationLogic.ChooseFamiliarStep(
+                petSummoned: true, borrowedThisSummon: true, temperedReleasedThisSummon: true,
+                familiarTp: 20, lingeringVantage: false,
+                holdPartingBlowForVantage: BST_RotationLogic.ComputeHoldForVantage(borrowLearned: true, holdPartingBlowForVantageConfig: false),
+                borrowLearned: true, temperedLearned: true)
+            == BST_RotationLogic.FamiliarStep.PartingBlow);
     }
 
     // ------------------------------------------------------------------

@@ -177,6 +177,26 @@ internal static class BST_RotationLogic
     ///     Whether Tempered Release (lv18) is unlocked at the player's current level. Same
     ///     skip-if-not-learned treatment as <paramref name="borrowLearned"/>.
     /// </param>
+    /// <summary>
+    ///     Whether the familiar loop should hold Parting Blow for Lingering Vantage, or retreat
+    ///     unconditionally the instant Trick spends the familiar's TP.
+    /// </summary>
+    /// <remarks>
+    ///     Lingering Vantage cannot exist below lv22 - Borrow's own unlock is the floor for any
+    ///     Vantage grant (skill lalalazy-ffxiv references/beastmaster-kit-by-level.md, traits
+    ///     749/750). A player below lv22 can therefore NEVER satisfy a hold-for-Vantage
+    ///     condition, so the hold must be gated on <paramref name="borrowLearned"/>
+    ///     (lv22 unlock) regardless of Simple/Advanced mode - the caller (BST.cs) previously
+    ///     forced this true in Simple Mode unconditionally ("!advanced || config"), which
+    ///     stalled the familiar loop forever for any sub-22 Simple Mode player once Trick
+    ///     spent the familiar's TP (Helm: "still not casting Trick, pet TP just stays at
+    ///     100%", 2026-09-10 / t_4c7923b0 defect 1 / t_3d88b4fd).
+    /// </remarks>
+    /// <param name="borrowLearned"> Whether Borrow (lv22) is unlocked - the floor for Lingering Vantage. </param>
+    /// <param name="holdPartingBlowForVantageConfig"> The raw config toggle value, independent of mode. </param>
+    public static bool ComputeHoldForVantage(bool borrowLearned, bool holdPartingBlowForVantageConfig) =>
+        borrowLearned && holdPartingBlowForVantageConfig;
+
     public static FamiliarStep ChooseFamiliarStep(
         bool petSummoned, bool borrowedThisSummon, bool temperedReleasedThisSummon,
         byte familiarTp, bool lingeringVantage, bool holdPartingBlowForVantage,

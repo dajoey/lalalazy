@@ -9,6 +9,17 @@
 - Root-caused from source review, not from BT| telemetry: the 7.55-fork dispatch only reaches this path when the pre-7.55 sixteen-job pass in `TryGetPhantomAction` does not already answer (see the 2026-08-24 dispatch-order correction at the top of `OccultCrescent_755.cs`) - Phantom Red Mage is one of the sixteen pre-7.55 jobs, so in the common case the pre-7.55 copy (which already had the cooldown) answers first and this fork copy never runs. It is reachable whenever the pre-7.55 RDM handler itself declines (its own Libra branch returns false without falling through to any other pre-7.55 job), which routes control into the 7.55 pass and can hit the un-gated fork copy. Not yet verified in-game with a full play session; the fix mirrors an already-shipped, already-verified pattern (t-joey-1788653879855) applied to the one code path it was never applied to.
 - Clean Release build, 0 errors (1934 pre-existing CS0618/CS0649 obsolete-API warnings elsewhere in the file tree, unrelated to this change).
 # Changelog
+## v1.0.4.185 (2026-09-11) [testing]
+
+### Fixed
+
+- **Beastmaster's familiar loop stalled forever below level 22 in Simple Mode: the pet's TP gauge would cap at 100% and stay there, Trick would fire once and then never again.** `BST.cs:201` computed `holdForVantage = !advanced || BST_HoldPartingBlowForVantage` - in Simple Mode, `!advanced` is always true, forcing the hold regardless of the "Hold Parting Blow for Lingering Vantage" setting's actual value. Lingering Vantage cannot exist before level 22 (Borrow's own unlock is the floor for any Vantage grant), so a Simple Mode player below 22 could never satisfy the hold condition and Parting Blow never fired once Trick spent the familiar's TP - the familiar loop dead-ended every summon cycle and only resumed after an unrelated Battlehorn re-summon. Below level 22, Parting Blow now fires the instant Trick spends the familiar's TP, in both Simple and Advanced Mode, regardless of the toggle; at level 22 and above, the toggle is respected in both modes exactly as before. (file: `GluttonyCombo/Combos/PvE/BST/BST.cs`, function: `TryFamiliarStep`; new pure helper `BST_RotationLogic.ComputeHoldForVantage`)
+
+### Notes
+
+- Confirmed from live telemetry, not just source review: across 374 samples where the familiar's TP gauge was capped and a pet was summoned, the engine never chose Trick or Parting Blow - it fell through to the manual GCD chain instead, exactly matching a stuck `ChooseFamiliarStep` returning no decision. Parting Blow itself never appeared in the decision log at all during that window.
+- Harness coverage added (`tests/GluttonyCombo.BSTRotationHarness`, case g): below level 22 the hold-for-Vantage config is ignored in both modes and Parting Blow always resolves; at level 22 and above the config is honored in both modes exactly as before. Clean Release build, 0 errors.
+
 ## v1.0.4.183 (2026-09-10) [testing]
 
 ### Fixed

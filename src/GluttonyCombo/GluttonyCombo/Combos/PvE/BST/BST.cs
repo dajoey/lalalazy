@@ -198,15 +198,23 @@ internal partial class BST : Melee
         var borrowedThisSummon = petSummoned && sinceBorrow >= 0 && sinceBorrow < sinceBattlehorn;
         var temperedThisSummon = petSummoned && sinceTempered >= 0 && sinceTempered < sinceBattlehorn;
 
-        var holdForVantage = !advanced || BST_HoldPartingBlowForVantage;
-        var lingeringVantage = HasStatusEffect(Buffs.LingeringVantage);
-
         // Borrow (lv22) and Tempered Release (lv18) are learned at different levels than
         // Trick (lv8) - a sub-22 player's loop must skip straight past whichever of the two
         // it hasn't unlocked yet, or it stalls forever waiting on an ability ActionReady will
         // never report ready (Helm: "Not using trick", 2026-09-10).
         var borrowLearned = LocalPlayer.Level >= GetActionLevel(Borrow);
         var temperedLearned = LocalPlayer.Level >= GetActionLevel(TemperedRelease);
+
+        // Lingering Vantage cannot exist below lv22 (Borrow's own unlock is the floor for any
+        // Vantage grant - skill lalalazy-ffxiv references/beastmaster-kit-by-level.md, traits
+        // 749/750), so a pre-22 hold-for-vantage config can never be satisfied and must not be
+        // allowed to stall the familiar loop forever. Below lv22, Parting Blow always fires the
+        // instant Trick spends the familiar's TP, in BOTH modes, regardless of the toggle -
+        // previously "!advanced" alone forced holdForVantage=true in Simple Mode no matter
+        // the toggle's value (Helm: "still not casting Trick, pet TP just stays at 100%",
+        // 2026-09-10 / t_4c7923b0 defect 1 / t_3d88b4fd).
+        var holdForVantage = BST_RotationLogic.ComputeHoldForVantage(borrowLearned, BST_HoldPartingBlowForVantage);
+        var lingeringVantage = HasStatusEffect(Buffs.LingeringVantage);
 
         var step = BST_RotationLogic.ChooseFamiliarStep(
             petSummoned, borrowedThisSummon, temperedThisSummon,
