@@ -27,6 +27,7 @@ internal static class Program
         CaseE_FamiliarLoopOrdering();
         CaseF_LevelGateSkipsUnlearnedSteps();
         CaseG_HoldForVantageLevelFloor();
+        CaseH_SubLevel16CompassOpenFallback();
         ExtraCoverage();
 
         Console.WriteLine(_fail == 0 ? "OK" : $"FAILED ({_fail} of {_pass + _fail})");
@@ -418,6 +419,83 @@ internal static class Program
                 holdPartingBlowForVantage: BST_RotationLogic.ComputeHoldForVantage(borrowLearned: true, holdPartingBlowForVantageConfig: false),
                 borrowLearned: true, temperedLearned: true)
             == BST_RotationLogic.FamiliarStep.PartingBlow);
+    }
+
+    // ------------------------------------------------------------------
+    // (h) sub-16 compass-open fallback (t_f04d4c83, BST D3): a player who has ONLY Rampant
+    // (L4)/Durant (L8)/Eldritch (L14) learned - i.e. below L16, no Gale Axe/Volant yet - must
+    // never have the open-fresh fallback resolve to an unlearned axe. Byte-identical-stock
+    // case: only Rampant/Durant/Eldritch are in the "stock loadout" (durantLearned/
+    // eldritchLearned true, volantLearned false), proving the fallback steps DOWN to the
+    // highest-level LEARNED axe rather than always returning Gale Axe.
+    // ------------------------------------------------------------------
+    private static void CaseH_SubLevel16CompassOpenFallback()
+    {
+        Console.WriteLine("-- (h) sub-16 compass-open fallback never selects an unlearned axe --");
+
+        // Sub-16 stock loadout: Rampant (L4), Durant (L8), Eldritch (L14) learned; Volant (L16) not.
+        // No compass window open (currentAffinity = None), TP >= 100 -> open fresh.
+        Check("sub-16 stock (Rampant/Durant/Eldritch only): open-fresh resolves to Eldritch (highest learned), never Gale Axe",
+            BST_RotationLogic.ChooseInstinctual(150, 0, BeastmasterAffinity.None,
+                AvalancheAxe, MistralAxe, SpinningAxe, GaleAxe,
+                durantLearned: true, eldritchLearned: true, volantLearned: false)
+            == SpinningAxe);
+
+        // Sub-14 stock loadout: Rampant, Durant learned; Eldritch, Volant not.
+        Check("sub-14 stock (Rampant/Durant only): open-fresh resolves to Durant (Mistral Axe), never Eldritch/Volant",
+            BST_RotationLogic.ChooseInstinctual(150, 0, BeastmasterAffinity.None,
+                AvalancheAxe, MistralAxe, SpinningAxe, GaleAxe,
+                durantLearned: true, eldritchLearned: false, volantLearned: false)
+            == MistralAxe);
+
+        // Sub-8 stock loadout: Rampant only learned (L4-7 bracket).
+        Check("sub-8 stock (Rampant only): open-fresh resolves to Rampant (Avalanche Axe), the ultimate fallback",
+            BST_RotationLogic.ChooseInstinctual(150, 0, BeastmasterAffinity.None,
+                AvalancheAxe, MistralAxe, SpinningAxe, GaleAxe,
+                durantLearned: false, eldritchLearned: false, volantLearned: false)
+            == AvalancheAxe);
+
+        // A compass window ALREADY open takes priority over the learned-axe fallback entirely -
+        // the level floor only applies to the "open fresh" branch, never to continuing a chain
+        // the player is already mid-way through (unaffected by learned flags).
+        Check("sub-16 stock, compass window open (Rampant Heart up) -> still continues clockwise to Durant, ignoring learned flags",
+            BST_RotationLogic.ChooseInstinctual(150, 1, BeastmasterAffinity.Rampant,
+                AvalancheAxe, MistralAxe, SpinningAxe, GaleAxe,
+                durantLearned: true, eldritchLearned: true, volantLearned: false)
+            == MistralAxe);
+
+        // Omitted learned flags default to true (lv50+ behaviour unchanged) - regression guard
+        // matching the omitted-defaults pattern already used by CaseF/CaseG.
+        Check("omitted learned flags default to true (lv50+ behaviour unchanged): open-fresh still resolves to Gale Axe",
+            BST_RotationLogic.ChooseInstinctual(150, 0, BeastmasterAffinity.None,
+                AvalancheAxe, MistralAxe, SpinningAxe, GaleAxe)
+            == GaleAxe);
+
+        // Adversarial sweep over every learned-flag combination: the open-fresh fallback must
+        // NEVER return an id for an axe whose "learned" flag is false, at every TP/level
+        // permutation that could reach the fallback branch (compass closed, TP>=100, no lockout).
+        var violations = 0;
+        var learnedFor = new Dictionary<uint, Func<bool, bool, bool, bool>>
+        {
+            [GaleAxe] = (d, e, v) => v,
+            [SpinningAxe] = (d, e, v) => e,
+            [MistralAxe] = (d, e, v) => d,
+            [AvalancheAxe] = (d, e, v) => true, // Rampant never gated - see method doc.
+        };
+        foreach (var durantLearned in new[] { true, false })
+        foreach (var eldritchLearned in new[] { true, false })
+        foreach (var volantLearned in new[] { true, false })
+        {
+            var result = BST_RotationLogic.ChooseInstinctual(150, 0, BeastmasterAffinity.None,
+                AvalancheAxe, MistralAxe, SpinningAxe, GaleAxe,
+                durantLearned, eldritchLearned, volantLearned);
+
+            if (result == 0) { violations++; continue; } // must always resolve something (Rampant floor)
+            if (!learnedFor[result](durantLearned, eldritchLearned, volantLearned))
+                violations++;
+        }
+        Check($"adversarial sweep over all 8 learned-flag combinations never selects an unlearned axe ({violations} violations)",
+            violations == 0, $"{violations} violations");
     }
 
     // ------------------------------------------------------------------

@@ -91,11 +91,25 @@ internal static class BST_RotationLogic
     ///             the chain clockwise rather than opening a new one: ChainCount raises combo
     ///             potency, so continuing beats restarting.
     ///         </item>
-    ///         <item> Otherwise open fresh at Volant, the compass's canonical start point. </item>
+    ///         <item>
+    ///             Otherwise open fresh at the LOWEST-level unlocked axe, not always Volant - a
+    ///             sub-16 player has no Gale Axe/Volant yet (unlock order L4 Rampant &lt; L8
+    ///             Durant &lt; L14 Eldritch &lt; L16 Volant). Fixed t_f04d4c83: the prior
+    ///             "open fresh: Volant" fallback returned <paramref name="galeAxe"/>
+    ///             unconditionally, which is unlearned (<c>ActionReady</c> false, no-op) for
+    ///             every player below L16 - confirmed live via a sub-16 corpus sample (player
+    ///             level 15, TP 196, compass closed) that fell all the way through to the
+    ///             GCD-chain fallback instead of firing an instinctual axe it had actually
+    ///             earned (Rampant, learned since L4).
+    ///         </item>
     ///     </list>
     /// </summary>
+    /// <param name="durantLearned"> Whether Mistral Axe (Durant, lv8) is unlocked. </param>
+    /// <param name="eldritchLearned"> Whether Spinning Axe (Eldritch, lv14) is unlocked. </param>
+    /// <param name="volantLearned"> Whether Gale Axe (Volant, lv16) is unlocked. </param>
     public static uint ChooseInstinctual(byte tp, byte comboState, BeastmasterAffinity currentAffinity,
-        uint avalancheAxe, uint mistralAxe, uint spinningAxe, uint galeAxe)
+        uint avalancheAxe, uint mistralAxe, uint spinningAxe, uint galeAxe,
+        bool durantLearned = true, bool eldritchLearned = true, bool volantLearned = true)
     {
         if (tp < 100)
             return 0;
@@ -110,7 +124,14 @@ internal static class BST_RotationLogic
                 return InstinctualActionFor(next, avalancheAxe, mistralAxe, spinningAxe, galeAxe);
         }
 
-        return galeAxe; // open fresh: Volant
+        // Open fresh at the highest-level (most recently learned) unlocked axe. Rampant
+        // (Avalanche Axe, L4) is the ultimate fallback and never needs its own "learned" flag -
+        // Wild Heart (the trait that turns on TP accumulation at all) is also granted at L4, so
+        // TP cannot reach 100 before Avalanche Axe itself is available.
+        if (volantLearned) return galeAxe; // open fresh: Volant
+        if (eldritchLearned) return spinningAxe; // open fresh: Eldritch
+        if (durantLearned) return mistralAxe; // open fresh: Durant
+        return avalancheAxe; // open fresh: Rampant
     }
 
     // ------------------------------------------------------------------

@@ -1,3 +1,14 @@
+## v1.0.4.186 (2026-09-11) [testing]
+
+### Fixed
+
+- **Beastmaster's compass could dead-end below level 16: a player with an open TP bar and no active compass window would sometimes do nothing but the manual GCD chain, skipping an instinctual weaponskill they had actually learned.** `BST_RotationLogic.ChooseInstinctual`'s "open fresh" fallback (when no compass window is open) unconditionally returned Gale Axe (Volant), which does not unlock until level 16 - below that level `ActionReady` correctly refused the unlearned action and the whole instinctual step silently failed for that tick, even though the player had Avalanche Axe (Rampant, level 4), Mistral Axe (Durant, level 8) or Spinning Axe (Eldritch, level 14) available and ready. Confirmed live: a level 15 sample in the decision log showed TP at 196 (well above the 100 minimum) with no compass window open, and the engine fell through to the ordinary GCD chain instead of firing Rampant. The fallback now opens at the highest-level axe the player has actually learned (Volant if unlocked, else Eldritch, else Durant, else Rampant - Rampant itself never needs a level check, since the trait that turns on TP accumulation at all is also granted at level 4). Continuing an already-open compass chain is unaffected - this only changes what happens when no chain is open yet. (file: `GluttonyCombo/Combos/PvE/BST/BST_RotationLogic.cs`, function: `ChooseInstinctual`; file: `GluttonyCombo/Combos/PvE/BST/BST.cs`, function: `TryInstinctual`)
+
+### Notes
+
+- The familiar-loop TP-hold behavior (never holding TP past 100 for a multi-step chain below level 50, holding for the 250-TP finisher chain at level 50) and the Wavering Heart lockout (`comboState == 7`) were independently re-verified against the shipped `if (tp < 100) return 0;` gate and lockout check this pass - both already match the spec exactly and needed no change.
+- Harness coverage added (`tests/GluttonyCombo.BSTRotationHarness`, case h): byte-identical-stock cases for a sub-16 player (Rampant/Durant/Eldritch learned, Volant not) prove the open-fresh fallback resolves to the highest learned axe; an adversarial sweep over all 8 learned-flag combinations confirms the fallback never selects an unlearned axe at any bracket. Clean Release build, 0 errors.
+
 ## v1.0.4.184 (2026-09-10) [testing]
 
 ### Fixed

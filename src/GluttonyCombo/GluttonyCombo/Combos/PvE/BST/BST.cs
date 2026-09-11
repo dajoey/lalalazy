@@ -147,9 +147,16 @@ internal partial class BST : Melee
         actionId = 0;
         reason = "";
 
+        // Fixed t_f04d4c83: the open-fresh fallback previously hardcoded Volant (Gale
+        // Axe) unconditionally, which is unlearned below lv16 - a sub-16 player with an
+        // open TP bar and no compass window fell through to the GCD chain instead of
+        // firing an axe they had actually earned. Open at the highest-level LEARNED axe.
         var baseAction = BST_RotationLogic.ChooseInstinctual(
             gauge.TPGauge, gauge.InstinctualComboState, gauge.CurrentAffinity,
-            AvalancheAxe, MistralAxe, SpinningAxe, GaleAxe);
+            AvalancheAxe, MistralAxe, SpinningAxe, GaleAxe,
+            durantLearned: LocalPlayer.Level >= GetActionLevel(MistralAxe),
+            eldritchLearned: LocalPlayer.Level >= GetActionLevel(SpinningAxe),
+            volantLearned: LocalPlayer.Level >= GetActionLevel(GaleAxe));
 
         if (baseAction == 0)
             return false;
