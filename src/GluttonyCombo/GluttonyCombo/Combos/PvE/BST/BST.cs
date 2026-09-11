@@ -112,26 +112,32 @@ internal partial class BST : Melee
         if (CanWeave() && TryShieldCharge(out var shieldReason))
             return Record(ShieldCharge, shieldReason);
 
-        // 5) Rally / Rallying Cheer: TP-restoring 90s cooldowns.
-        //    KNOWN PROXY, not settled (t_32af951a; beastmaster-kit-by-level.md section 6 open
-        //    question 2): the real gate should be "Mastered Instinct stack count > 0" /
-        //    "Natural Instinct stack count > 0", but neither stack has a discoverable Status
-        //    id in the datamine (a targeted Status-sheet search for "Instinct" returns no
-        //    BST-relevant rows) - they are very likely internal gauge/trait-tracked counters
-        //    with no player-visible status_events row to key off of. Gated instead on the
-        //    gauge's own TP reading low plus cooldown ready as the best available proxy. This
-        //    is intentionally accepted as shipped (beastmaster-rotation-spec.md section 1 rule
-        //    5 explicitly allows the proxy) - do NOT treat this comment's continued presence in
-        //    a future audit as evidence the question was re-opened; it is still open. Re-check
-        //    against the real stack count once the datamine, an unmapped gauge byte, or
-        //    client-side combo-completion tracking resolves it.
-        if (CanWeave() && ActionReady(Rally) && gauge.TPGauge < 100)
-            return Record(Rally, "rally:tp-low");
+                // 5) Rally / Rallying Cheer: TP-restoring cooldowns that spend ALL accumulated
+        //    Mastered / Natural Instinct stacks (Rally = +40 +70/stack player TP,
+        //    Rallying Cheer = +30 +70/stack familiar TP). Fire when there are stacks to
+        //    spend AND the matching TP pool is low enough to absorb the refund without
+        //    wasting it - burning the banked stacks at (near-)full TP, or spending a 90-120s
+        //    cooldown for the bare 30/40-point floor cast with zero stacks, both leak value.
+        //    Stack counts read from gauge byte 0x10 (MasterInstinct bits 2-3, PetInstinct
+        //    bits 0-1), mapped from WrathCombo's WIP Beastmaster work (mrbeastmaster, read
+        //    2026-09-11) - an independent implementation of the same gauge that also
+        //    re-derives 0x08-0x0F exactly as this overlay does. This REPLACES the old
+        //    TP-only proxy (t_32af951a's documented open question), which never fired once
+        //    across the 1771-line BT| corpus. If live play shows the 0x10 nibbles never
+        //    moving, the proxy question re-opens - grade against the 9th BT| gauge-hex pair (byte 0x10).
+        var rally = BST_RotationLogic.ChooseRally(
+            masterStacks: gauge.MasterInstinct,
+            petStacks: gauge.PetInstinct,
+            playerTp: gauge.TPGauge,
+            familiarTp: gauge.FamiliarTPGauge,
+            familiarOut: gauge.ActiveBattlehorn != 0,
+            rallyLearned: LocalPlayer.Level >= GetActionLevel(Rally),
+            cheeringLearned: LocalPlayer.Level >= GetActionLevel(RallyingCheer));
 
-        if (CanWeave() && ActionReady(RallyingCheer) && gauge.FamiliarTPGauge < 100 && gauge.ActiveBattlehorn != 0)
-            return Record(RallyingCheer, "rallyingcheer:familiartp-low");
+        if (rally != 0 && CanWeave() && ActionReady(rally))
+            return Record(rally, rally == Rally ? "rally:stacks" : "rallyingcheer:stacks");
 
-        // 5b) Quelling Wave: the sole Beast Mode variant that rolls the player's OWN shared GCD
+// 5b) Quelling Wave: the sole Beast Mode variant that rolls the player's OWN shared GCD
         //     (CooldownGroup 58 - the same group Smash Axe/Axeblade Bite/Shieldsplitter share),
         //     rather than being an independent oGCD like the other seven Kinship variants.
         //     Deliberately checked here, NOT inside TryBeastMode's CanWeave()-gated call at

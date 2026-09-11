@@ -1,4 +1,10 @@
-﻿## v1.0.4.188 (2026-09-11) [testing]
+﻿## v1.0.4.189 (2026-09-11) [testing]
+
+### Changed
+
+- Beastmaster's Rally and Rallying Cheer now read the real instinct-stack counts instead of a TP-only guess. The two abilities refund TP by spending ALL banked Mastered / Natural Instinct stacks (+40/+30 base, +70 per stack), but the stack counters had no discoverable Status id in the datamine, so the rotation previously fired them purely on "TP is low" - a proxy that never fired once across 1,771 sampled decision lines, because it ignored whether any stacks were actually banked to spend. An independent upstream implementation of the same Beastmaster gauge (WrathCombo's in-progress Beastmaster work) maps gauge byte 0x10 as the two stack counters: bits 2-3 = Mastered Instinct (player side, spent by Rally), bits 0-1 = Natural Instinct (familiar side, spent by Rallying Cheer). That mapping, cross-checked against this fork's own byte-for-byte-identical read of bytes 0x08-0x0F, is now wired in: Rally fires when Mastered stacks are banked and player TP has headroom for the refund (at most 140 of 250), Rallying Cheer when Natural stacks are banked, a familiar is out, and familiar TP has headroom (at most 150 of 250). Neither fires with zero stacks - a bare 30/40-point floor cast is not worth a 90-120 second cooldown. The debug collector's gauge-hex field now carries the stack byte too (9 bytes instead of 8), so the new gating can be graded against real play; if live samples show the byte never moving, the mapping gets revisited. (files: GluttonyCombo/Combos/PvE/BST/BST_Gauge.cs field InstinctStacks; GluttonyCombo/Combos/PvE/BST/BST_RotationLogic.cs function ChooseRally; GluttonyCombo/Combos/PvE/BST/BST.cs ChooseAction step 5)
+
+## v1.0.4.188 (2026-09-11) [testing]
 
 ### Fixed
 

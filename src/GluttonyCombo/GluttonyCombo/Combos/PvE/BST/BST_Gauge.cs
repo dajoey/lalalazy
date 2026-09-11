@@ -23,7 +23,7 @@ namespace GluttonyCombo.Combos.PvE;
 // rotation logic can compile Dalamud-free into tests/GluttonyCombo.BSTRotationHarness).
 
 /// <summary> Vendored copy of ClientStructs PR #1947's <c>BeastmasterGauge</c>. </summary>
-[StructLayout(LayoutKind.Explicit, Size = 0x10)]
+[StructLayout(LayoutKind.Explicit, Size = 0x11)]
 public struct BeastmasterGaugeOverlay
 {
     /// <summary> Beastmaster's own TP, 0-250. No passive regen; granted by the weaponskill combo. </summary>
@@ -50,9 +50,28 @@ public struct BeastmasterGaugeOverlay
     /// <summary> High nibble = kin type, low nibble = the Battlehorn slot latched when Borrow was used. </summary>
     [FieldOffset(0x0F)] public byte KinshipState;
 
+    /// <summary>
+    ///     Byte 0x10: low 2 bits = Natural Instinct stacks (familiar side, spent by Rallying
+    ///     Cheer), bits 2-3 = Mastered Instinct stacks (player side, spent by Rally).
+    ///     Mapping taken from WrathCombo's WIP Beastmaster work (remote branch
+    ///     mrbeastmaster, TmpBSTGauge in Data/JobGaugeDebugging.cs, read 2026-09-11) -
+    ///     an INDEPENDENT implementation of the same gauge, which also re-derives
+    ///     0x08-0x0F exactly as this overlay does. That branch is unmerged WIP, so treat
+    ///     the two nibbles as provisionally mapped until a live BT| sample confirms
+    ///     stack counts moving with completed instinctual combos (grade against real
+    ///     play before hard-coding behaviour on it).
+    /// </summary>
+    [FieldOffset(0x10)] public byte InstinctStacks;
+
     public BeastmasterKinType KinshipKinType => (BeastmasterKinType)(KinshipState >> 4);
 
     public byte KinshipBattlehorn => (byte)(KinshipState & 0x0F);
+
+    /// <summary> Mastered Instinct stacks (player side, 0-3) - spent by Rally (44905). </summary>
+    public int MasterInstinct => (InstinctStacks & 0xC) >> 2;
+
+    /// <summary> Natural Instinct stacks (familiar side, 0-3) - spent by Rallying Cheer (44904). </summary>
+    public int PetInstinct => InstinctStacks & 0x3;
 }
 
 internal partial class BST

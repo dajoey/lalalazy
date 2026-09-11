@@ -98,6 +98,31 @@ internal partial class BST
             WaveringHeart = 4643;
     }
 
+    /// <summary>
+    ///     Beastmaster trait IDs, cross-checked against WrathCombo's WIP Beastmaster work
+    ///     (remote branch mrbeastmaster, BST_Helper.cs Traits class, read 2026-09-11).
+    ///     Level placement per beastmaster-kit-by-level.md. Unused by rotation logic
+    ///     today; kept so follow-up cards do not re-datamine.
+    /// </summary>
+    public static class Traits
+    {
+        public const uint
+            WildHeart = 690,          // L4
+            WildHeartII = 691,        // L10
+            BattlehornMastery = 692,  // L12
+            WildHeartIII = 694,       // L28
+            WildHeartIV = 693,        // L40
+            TemperedReleaseMastery = 749, // L18
+            EnhancedBorrow = 750,     // L22
+            EnhancedShieldCharge = 751,   // L30
+            Beastmastery = 752,       // L16
+            BattlehornMasteryII = 754,    // L20
+            BattlehornMasteryIII = 755,   // L30
+            EnhancedRally = 756,      // L42
+            EnhancedRallyingCheer = 757, // L48
+            InstinctualMastery = 758; // L50
+    }
+
     /// <summary> Inclusive status-id window that belongs to Beastmaster. </summary>
     /// <remarks>
     ///     Used by the <c>BT|</c> collector to list only BST statuses. Deliberately spans

@@ -42,7 +42,7 @@ internal static class BeastmasterTelemetryFormat
     public const int MaxStatuses = 10;
 
     /// <summary>
-    ///     Everything the collector samples in one framework tick. The eight gauge bytes are
+    ///     Everything the collector samples in one framework tick. The nine gauge bytes (0x08..0x10) are
     ///     carried raw so a follow-up card can re-interpret them without a new release, and the
     ///     decoded fields the PR names are carried alongside for direct SQL.
     /// </summary>
@@ -62,7 +62,8 @@ internal static class BeastmasterTelemetryFormat
         uint AdjustedAvalanche,
         IReadOnlyList<ushort> Statuses,
         uint DecisionActionId = 0,
-        string? DecisionReason = null);
+        string? DecisionReason = null,
+        byte InstinctStacks = 0);
 
     /// <summary>
     ///     The identity of a snapshot for change detection: the eight gauge bytes, the pet
@@ -73,7 +74,7 @@ internal static class BeastmasterTelemetryFormat
     ///     and out mid-combo) and would defeat the change gate, and any status transition worth
     ///     seeing moves a gauge byte too.
     /// </remarks>
-    internal static (ulong Gauge, ulong Pet, uint BeastMode, uint DecisionActionId, string DecisionReason) KeyOf(in Snapshot s)
+    internal static (ulong Gauge, ulong Pet, uint BeastMode, uint DecisionActionId, string DecisionReason, byte InstinctStacks) KeyOf(in Snapshot s)
     {
         ulong gauge =
             ((ulong)s.TPGauge << 56) |
@@ -85,7 +86,7 @@ internal static class BeastmasterTelemetryFormat
             ((ulong)s.ChainCount << 8) |
             s.KinshipState;
 
-        return (gauge, s.PetObjectId, s.AdjustedBeastMode, s.DecisionActionId, s.DecisionReason ?? "");
+        return (gauge, s.PetObjectId, s.AdjustedBeastMode, s.DecisionActionId, s.DecisionReason ?? "", s.InstinctStacks);
     }
 
     /// <summary>
@@ -121,7 +122,7 @@ internal static class BeastmasterTelemetryFormat
     internal struct GateState
     {
         public bool HasLast;
-        public (ulong Gauge, ulong Pet, uint BeastMode, uint DecisionActionId, string DecisionReason) LastKey;
+        public (ulong Gauge, ulong Pet, uint BeastMode, uint DecisionActionId, string DecisionReason, byte InstinctStacks) LastKey;
         public bool HasEmitted;
         public long LastEmitMs;
 
@@ -133,7 +134,7 @@ internal static class BeastmasterTelemetryFormat
     ///     <c>BT|unixms|gaugeHex|battlehorn|affinity|chain|kinship|pet|bm|av|dec|statuses</c>.
     /// </summary>
     /// <remarks>
-    ///     <c>gaugeHex</c> is the eight gauge bytes 0x08..0x0F in order, lower-case hex, no
+    ///     <c>gaugeHex</c> is the nine gauge bytes 0x08..0x10 in order (byte 0x10 packs the Mastered/Natural instinct-stack nibbles), lower-case hex, no
     ///     separator. <c>pet</c> is <c>&lt;GameObjectId&gt;:&lt;Name&gt;:&lt;BNpcBase&gt;</c>
     ///     or the literal <c>none</c>. <c>dec</c> is <c>&lt;actionId&gt;:&lt;reason&gt;</c> -
     ///     the rotation's own record of what it chose and why (t_02fe2681), so the next card
@@ -157,6 +158,7 @@ internal static class BeastmasterTelemetryFormat
         AppendHex(sb, s.CurrentAffinity);
         AppendHex(sb, s.ChainCount);
         AppendHex(sb, s.KinshipState);
+        AppendHex(sb, s.InstinctStacks); // byte 0x10: instinct-stack nibbles (v1.0.4.189)
 
         sb.Append('|').Append(s.ActiveBattlehorn.ToString(inv))
           .Append('|').Append(s.CurrentAffinity.ToString(inv))

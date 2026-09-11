@@ -15,6 +15,9 @@ public enum BeastmasterAffinity : byte
     Eldritch = 4,
     Sunstrider = 5,
     Moonstalker = 6,
+    // Value 7 is not an affinity: both upstream WrathCombo (mrbeastmaster, read
+    // 2026-09-11) and this fork read byte 0x0C == 7 as the Wavering Heart combo lockout.
+    WaveringHeart = 7,
 }
 
 /// <summary> A familiar's kin type; matches Kinship statuses 4602 Beast .. 4609 Ash (PR #1947). </summary>

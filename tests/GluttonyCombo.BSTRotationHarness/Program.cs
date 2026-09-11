@@ -1,4 +1,4 @@
-﻿using GluttonyCombo.Combos.PvE;
+using GluttonyCombo.Combos.PvE;
 
 namespace GluttonyCombo.BSTRotationHarness;
 
@@ -30,6 +30,7 @@ internal static class Program
         CaseH_SubLevel16CompassOpenFallback();
         CaseI_QuellingWaveIsGcdRolling();
         CaseJ_BattlehornSlotLevelGate();
+        CaseK_ChooseRally();
         ExtraCoverage();
 
         Console.WriteLine(_fail == 0 ? "OK" : $"FAILED ({_fail} of {_pass + _fail})");
@@ -606,6 +607,89 @@ internal static class Program
     // Extra coverage: instinctual-action-for lookup table, and a full walk that never fires
     // an instinctual outside the two hard rules (TP>=100, state != 7).
     // ------------------------------------------------------------------
+    // ------------------------------------------------------------------
+    // (k) Rally / Rallying Cheer: real instinct-stack gating (v1.0.4.189).
+    //      Replaces the TP-only proxy; stacks come from gauge byte 0x10.
+    // ------------------------------------------------------------------
+    private static void CaseK_ChooseRally()
+    {
+        Console.WriteLine("-- (k) Rally / Rallying Cheer stack gating --");
+
+        const uint Rally = 44905, RallyingCheer = 44904;
+
+        // Zero stacks banked: neither fires, even at empty TP - a bare 30/40-point
+        // floor cast is not worth a 90-120s cooldown.
+        Check("no stacks -> no Rally",
+            BST_RotationLogic.ChooseRally(0, 0, 0, 0, true) == 0);
+
+        // Mastered stacks banked, player TP low: Rally fires.
+        Check("1 mastered stack + low TP -> Rally",
+            BST_RotationLogic.ChooseRally(1, 0, 20, 0, true) == Rally);
+
+        // Stacks banked but TP near cap: firing would waste the refund to overcap.
+        Check("stacks but player TP near cap -> hold",
+            BST_RotationLogic.ChooseRally(3, 0, 200, 0, true) == 0);
+
+        // Boundary: exactly at the headroom threshold (250 - 110 = 140) fires.
+        Check("player TP exactly 140 (floor + 1 stack headroom) -> Rally",
+            BST_RotationLogic.ChooseRally(1, 0, 140, 0, true) == Rally);
+        Check("player TP 141 -> hold",
+            BST_RotationLogic.ChooseRally(1, 0, 141, 0, true) == 0);
+
+        // Natural stacks banked, familiar out, familiar TP low: Cheer fires.
+        Check("1 natural stack + familiar out + low familiar TP -> Cheer",
+            BST_RotationLogic.ChooseRally(0, 1, 0, 20, true) == RallyingCheer);
+
+        // Natural stacks but NO familiar out: the refund has nowhere to land.
+        Check("natural stacks but no familiar out -> hold",
+            BST_RotationLogic.ChooseRally(0, 1, 0, 20, false) == 0);
+
+        // Familiar TP near cap: hold.
+        Check("natural stacks but familiar TP near cap -> hold",
+            BST_RotationLogic.ChooseRally(0, 2, 0, 200, true) == 0);
+
+        // Both sides eligible: player-side (Rally) wins the tie.
+        Check("both sides eligible -> Rally first",
+            BST_RotationLogic.ChooseRally(1, 1, 20, 20, true) == Rally);
+
+        // Level gating: below lv28/below lv40 neither is legal.
+        Check("below lv28 (Rally unlearned) -> not chosen even with stacks",
+            BST_RotationLogic.ChooseRally(2, 0, 20, 0, true, rallyLearned: false) == 0);
+        Check("below lv40 (Cheer unlearned) -> not chosen even with stacks",
+            BST_RotationLogic.ChooseRally(0, 2, 0, 20, true, cheeringLearned: false) == 0);
+
+        // Adversarial sweep: every stack count x headroom combination stays in {0, Rally, Cheer}.
+        var legal = new HashSet<uint> { 0, Rally, RallyingCheer };
+        var allLegal = true;
+        for (var m = 0; m <= 3; m++)
+        for (var p = 0; p <= 3; p++)
+        for (var pt = 0; pt <= 250; pt += 25)
+        for (var ft = 0; ft <= 250; ft += 25)
+        for (var out_ = 0; out_ <= 1; out_++)
+        {
+            var a = BST_RotationLogic.ChooseRally(m, p, (byte)pt, (byte)ft, out_ == 1);
+            if (!legal.Contains(a)) { allLegal = false; }
+        }
+        Check("adversarial sweep never returns an illegal action id", allLegal);
+
+        // Inversion probe: at fixed stacks, the decision must be monotone in TP -
+        // once headroom is gone it never comes back with RISING TP.
+        var monotone = true;
+        for (var m = 1; m <= 3; m++)
+        {
+            var fired = false;
+            for (var pt = 0; pt <= 250; pt += 5)
+            {
+                var fires = BST_RotationLogic.ChooseRally(m, 0, (byte)pt, 0, true) == Rally;
+                if (fired && pt > 141 && !fires) { } // fires only below threshold; ok
+                if (!fires && pt < 139) { }          // below threshold must fire
+                if (pt <= 140 && !fires) { monotone = false; }
+                if (pt >= 141 && fires) { monotone = false; }
+            }
+        }
+        Check("Rally fires exactly at or below the 140 TP headroom line", monotone);
+    }
+
     private static void ExtraCoverage()
     {
         Console.WriteLine("-- extra: InstinctualActionFor + adversarial gate sweep --");

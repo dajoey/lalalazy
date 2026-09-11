@@ -112,7 +112,7 @@ internal static class Program
         var snap = new BstSnapshot(
             TPGauge: 100, FamiliarTPGauge: 132, FamiliarTPAtLastUse: 168,
             ActiveBattlehorn: 2, InstinctualComboState: 7, CurrentAffinity: 5,
-            ChainCount: 3, KinshipState: 0x51,
+            ChainCount: 3, KinshipState: 0x51, InstinctStacks: 0x0A,
             PetObjectId: 1073741830, PetName: "Cu Sith", PetDataId: 5432,
             AdjustedBeastMode: 44896, AdjustedAvalanche: 44930,
             Statuses: new ushort[] { 4599, 4601, 4621 },
@@ -122,18 +122,18 @@ internal static class Program
 
         Check("BST prefix is the greppable BT|", line.StartsWith("BT|", StringComparison.Ordinal), line);
         Check("BST exact line shape",
-            line == "BT|1788904962577|6484a80207050351|2|5|3|81|pet=1073741830:Cu Sith:5432|bm=44896|av=44930|dec=44887:instinctual:compass|4599,4601,4621",
+            line == "BT|1788904962577|6484a802070503510a|2|5|3|81|pet=1073741830:Cu Sith:5432|bm=44896|av=44930|dec=44887:instinctual:compass|4599,4601,4621",
             line);
-        Check("BST gauge hex is 16 chars (8 bytes)",
-            line.Split('|')[2].Length == 16, line);
+        Check("BST gauge hex is 18 chars (9 bytes)",
+            line.Split('|')[2].Length == 18, line);
         // Decode the hex back to the eight bytes it claims to carry: the follow-up cards
         // read these bytes out of SQL, so a byte-order slip here is a silent data defect.
         var hex = line.Split('|')[2];
-        var decoded = Enumerable.Range(0, 8)
+        var decoded = Enumerable.Range(0, 9)
             .Select(i => Convert.ToByte(hex.Substring(i * 2, 2), 16))
             .ToArray();
-        Check("BST gauge hex decodes to the source bytes in 0x08..0x0F order",
-            decoded.SequenceEqual(new byte[] { 100, 132, 168, 2, 7, 5, 3, 0x51 }),
+        Check("BST gauge hex decodes to the source bytes in 0x08..0x10 order",
+            decoded.SequenceEqual(new byte[] { 100, 132, 168, 2, 7, 5, 3, 0x51, 0x0A }),
             string.Join(",", decoded));
 
         // No decision recorded (pre-rotation build, or a tick where nothing fired): a stable
@@ -210,6 +210,17 @@ internal static class Program
         Check("BST the same decision repeated does not emit",
             !BeastmasterTelemetryFormat.ShouldEmit(ref gate, t,
                 snap with { ChainCount = 4, PetObjectId = 99, AdjustedBeastMode = 44900, DecisionActionId = 44888, DecisionReason = "instinctual:compass" }));
+
+        // The instinct-stack byte (gauge 0x10) is part of the change key: stack banking
+        // must emit so Rally/Rallying Cheer decisions can be graded against real counts.
+        t += 1000;
+        Check("BST a changed instinct-stack byte emits",
+            BeastmasterTelemetryFormat.ShouldEmit(ref gate, t,
+                snap with { ChainCount = 4, PetObjectId = 99, AdjustedBeastMode = 44900, DecisionActionId = 44888, DecisionReason = "instinctual:compass", InstinctStacks = 0x12 }));
+        t += 1000;
+        Check("BST the same instinct-stack byte repeated does not emit",
+            !BeastmasterTelemetryFormat.ShouldEmit(ref gate, t,
+                snap with { ChainCount = 4, PetObjectId = 99, AdjustedBeastMode = 44900, DecisionActionId = 44888, DecisionReason = "instinctual:compass", InstinctStacks = 0x12 }));
 
         // --- the rate floor ----------------------------------------------------------
         var rlGate = new BeastmasterTelemetryFormat.GateState();

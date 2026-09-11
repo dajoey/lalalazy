@@ -251,6 +251,61 @@ internal static class BST_RotationLogic
     // Beast Mode: which resolved Kinship variant needs its own GCD-chain gate.
     // ------------------------------------------------------------------
 
+    // ------------------------------------------------------------------
+    // Rally / Rallying Cheer: spend banked instinct stacks when the matching
+    // TP pool can absorb the refund.
+    // ------------------------------------------------------------------
+
+    /// <summary>
+    ///     Chooses Rally (player TP refund), Rallying Cheer (familiar TP refund) or nothing
+    ///     (0), given the real instinct-stack counts from gauge byte 0x10.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         Rally spends ALL Mastered Instinct stacks for +40 player TP plus +70 per
+    ///         stack; Rallying Cheer spends ALL Natural Instinct stacks for +30 familiar
+    ///         TP plus +70 per stack (beastmaster-kit-by-level.md, action rows 44904/44905).
+    ///         With zero stacks banked the cast is nearly worthless (a bare 30/40-point
+    ///         floor on a 90-120s cooldown), and firing at a TP pool that is already
+    ///         (near-)full wastes the refund to overcap - so the gate is stacks &gt; 0 AND
+    ///         headroom for at least the floor plus one stack's worth of TP.
+    ///     </para>
+    ///     <para>
+    ///         Stack source: gauge byte 0x10 (MasterInstinct = bits 2-3, PetInstinct =
+    ///         bits 0-1), mapped from WrathCombo's WIP Beastmaster work (mrbeastmaster
+    ///         branch, read 2026-09-11) - an independent implementation of the same gauge
+    ///         that also re-derives 0x08-0x0F exactly as the vendored overlay does.
+    ///         Replaces the shipped TP-only proxy that fired Rally on low TP regardless
+    ///         of banked stacks and never actually fired once in the 1771-line BT|
+    ///         decision corpus.
+    ///     </para>
+    /// </remarks>
+    /// <param name="masterStacks"> Mastered Instinct stacks (player side, 0-3). </param>
+    /// <param name="petStacks"> Natural Instinct stacks (familiar side, 0-3). </param>
+    /// <param name="playerTp"> Player TP gauge (0-250). </param>
+    /// <param name="familiarTp"> Familiar TP gauge (0-250). </param>
+    /// <param name="familiarOut"> Whether a familiar is currently summoned. </param>
+    /// <param name="rallyLearned"> Whether Rally (lv28) is unlocked. </param>
+    /// <param name="cheeringLearned"> Whether Rallying Cheer (lv40) is unlocked. </param>
+    /// <param name="rally"> Rally action id. </param>
+    /// <param name="rallyingCheer"> Rallying Cheer action id. </param>
+    /// <returns> The chosen action id, or 0 when neither should fire. </returns>
+    public static uint ChooseRally(
+        int masterStacks, int petStacks, byte playerTp, byte familiarTp, bool familiarOut,
+        bool rallyLearned = true, bool cheeringLearned = true,
+        uint rally = 44905, uint rallyingCheer = 44904)
+    {
+        // Headroom needed before the cast is worth its cooldown: the stack-less floor
+        // plus one stack's worth of refund (110 player / 100 familiar).
+        if (rallyLearned && masterStacks > 0 && playerTp <= 250 - 110)
+            return rally;
+
+        if (cheeringLearned && petStacks > 0 && familiarOut && familiarTp <= 250 - 100)
+            return rallyingCheer;
+
+        return 0;
+    }
+
     /// <summary>
     ///     True when a resolved Beast Mode action id is Quelling Wave - the sole Kinship
     ///     variant that rolls the player's own shared GCD (CooldownGroup 58, the same group
