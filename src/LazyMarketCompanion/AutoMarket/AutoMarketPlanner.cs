@@ -56,6 +56,24 @@ public static class MarketListingCap
 
 public static class AutoMarketPlanner
 {
+
+/// <summary>
+/// 0.1.46.0 gate for the routing mover (Helm t-joey-1789190796770, "it just moves the same stuff
+/// around"): routing moves only run when the open retainer's board can accept a listing this
+/// session. On a completely full board every would-be move produces nothing visible - and because a
+/// deposit into retainer pages can be rolled back while the retainer-switch window is still
+/// closing (an rc=0 success grade only verifies the local view), the identical stacks were pulled
+/// out and re-deposited on every sweep. A board that cannot list leaves all stock exactly where it
+/// is. An unloaded/unreadable snapshot (fewer rows than the board has slots) fails CLOSED - the
+/// mover never runs against a board it cannot see.
+/// </summary>
+public static bool HasListingBudget(IReadOnlyList<MarketSlot> market, int reserveSlots, int slotCount)
+{
+  if (market == null || market.Count < slotCount)
+    return false;
+  var empty = Enumerable.Range(0, slotCount).Count(i => market.All(m => m.Slot != i || m.ItemId == 0));
+  return empty - Math.Max(reserveSlots, 0) > 0;
+}
   public static PlanResult Plan(IEnumerable<ItemRule> rules, IReadOnlyList<StockStack> stock, IReadOnlyList<MarketSlot> market, PlannerOptions options)
   {
     var ops = new List<ListingOp>();

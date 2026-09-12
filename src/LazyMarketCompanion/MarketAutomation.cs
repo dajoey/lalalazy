@@ -558,6 +558,16 @@ internal sealed class MarketAutomation : Window, IDisposable
     if (!(GenericHelpers.TryGetAddonByName<AtkUnitBase>("RetainerSellList", out var addon) && GenericHelpers.IsAddonReady(addon)))
       return false;
 
+    // 0.1.46.0: the deposit-only lap follows the same move-to-list gate - a full board means
+    // the deposit cannot lead to a listing this sweep, and a rolled-back deposit just re-feeds
+    // the shuffle loop. Bags stock lists directly from the bags the session a slot frees, so
+    // skipping strands nothing.
+    if (!AutoMarket.AutoMarketPlanner.HasListingBudget(AutoMarketService.SnapshotMarket(), Plugin.Configuration.AutoMarketReserveSlots, AutoMarketService.MarketSlotCount))
+    {
+      Svc.Log.Information($"[LMC] routing lap: {retainerName}'s market board is full - deposits skipped (stock stays in the bags; it lists from the bags the session a slot frees)");
+      return true;
+    }
+
     var routingPlan = AutoMarketService.PlanRoutingDepositsOnly();
     foreach (var note in routingPlan.Notes)
       Svc.Log.Information($"[LMC] {note}");
@@ -1256,7 +1266,15 @@ internal sealed class MarketAutomation : Window, IDisposable
       if (Plugin.Configuration.ShowAutoMarketMessages)
         Communicator.PrintInfo($"routing: {routingPlan.UnroutedBagsStacks.Count} marked item(s) match no category rule (left in bags; still listed when a slot frees): {unroutedNames}");
     }
-    if (routingPlan.Ops.Count > 0)
+    // 0.1.46.0: the mover only runs when this board can list something this session. On a full
+    // board every would-be move is skipped and the stock stays put - all four boards sat full
+    // all day ("plan: no free market slots" on every session) while ~150 moves per sweep shuffled
+    // the same stacks, because deposits into retainer pages can be rolled back in the switch
+    // window and never converged.
+    var routingBudget = AutoMarket.AutoMarketPlanner.HasListingBudget(AutoMarketService.SnapshotMarket(), Plugin.Configuration.AutoMarketReserveSlots, AutoMarketService.MarketSlotCount);
+    if (routingPlan.Ops.Count > 0 && !routingBudget)
+      Svc.Log.Information($"[LMC] routing: market board full on {AutoMarketService.CurrentRetainerName()} - {routingPlan.Ops.Count} routing move(s) skipped this session (stock stays put; moves resume the moment a slot frees)");
+    if (routingPlan.Ops.Count > 0 && routingBudget)
     {
       Svc.Log.Information($"[LMC] routing move plan: {RoutingMove.Summarize(routingPlan.Ops)}: {string.Join(", ", routingPlan.Ops.Select(o => $"{(o.Leg == MoveLeg.RetainerToBags ? "out" : "in")} {o.ItemId}{(o.HQ ? " HQ" : "")} @{AutoMarket.AutoMarketService.NameOfContainer((InventoryType)o.SrcContainer)}#{o.SrcSlot}"))}");
       var moveSteps = new List<Step>();

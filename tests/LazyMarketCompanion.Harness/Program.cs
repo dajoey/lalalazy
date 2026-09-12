@@ -3130,6 +3130,33 @@ StockStack BagStack(uint id, int slot, int qty, uint cat = CatA, bool marketable
     $"ops={plan.Ops.Count} unrouted={plan.UnroutedBagsStacks.Count}");
 }
 
+// 91. HasListingBudget: a completely full board - the all-day state that made every sweep shuffle
+//     the same stacks - leaves no budget, so the mover is gated off.
+{
+  var full = Enumerable.Range(0, 20).Select(i => new MarketSlot(i, (uint)(100 + i), false, 1)).ToList();
+  Check("91 budget: full board -> no routing moves", !AutoMarketPlanner.HasListingBudget(full, 0, 20), "full board gated");
+}
+
+// 92. HasListingBudget: one empty slot with no reserve is enough for the mover to run.
+{
+  var one = Enumerable.Range(0, 20).Select(i => new MarketSlot(i, i == 7 ? 0u : 100u, false, 1)).ToList();
+  Check("92 budget: one empty slot -> mover may run", AutoMarketPlanner.HasListingBudget(one, 0, 20), "one empty");
+}
+
+// 93. HasListingBudget: reserved slots consume the empties exactly like the listing planner counts them.
+{
+  var one = Enumerable.Range(0, 20).Select(i => new MarketSlot(i, i == 7 ? 0u : 100u, false, 1)).ToList();
+  Check("93 budget: the reserve eats the last empty -> gated", !AutoMarketPlanner.HasListingBudget(one, 1, 20), "reserve eats the empty");
+}
+
+// 94. HasListingBudget: an unloaded/unreadable snapshot (fewer rows than the board has slots) fails
+//     closed - the mover never runs against a board it cannot see.
+{
+  Check("94 budget: empty snapshot -> gated", !AutoMarketPlanner.HasListingBudget(new List<MarketSlot>(), 0, 20), "empty snapshot gated");
+  var partial = Enumerable.Range(0, 5).Select(i => new MarketSlot(i, 0u, false, 0)).ToList();
+  Check("94b budget: short snapshot -> gated", !AutoMarketPlanner.HasListingBudget(partial, 0, 20), "short snapshot gated");
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 

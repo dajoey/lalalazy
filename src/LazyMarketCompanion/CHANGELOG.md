@@ -1,4 +1,16 @@
-﻿## v0.1.45.0 (2026-09-12)
+﻿## v0.1.46.0 (2026-09-12)
+
+### Fixed
+
+- **Auto-Market no longer moves items between retainers when the open retainer's market board cannot accept a listing.** With all four boards full, every sweep planned and executed ~150 routing moves that produced no listing at all - "plan: no free market slots" on every session all day - and because a deposit into retainer pages can be rolled back while the retainer-switch window is still closing (the rc=0 success grade only verifies the local view, and the next sweep found the same stacks back at the same slots), the identical stock was pulled out and re-deposited on every sweep - the "each time I go to automarket it looks like it just moves stuff around, the same stuff" report. The mover now snapshots the open board before planning and, when there is no free slot beyond the configured reserve, skips every move for that session with one log line; stock stays exactly where it is until a slot actually frees, and the move that then runs ends in a real listing in the same session (files: `AutoMarket/AutoMarketPlanner.cs` `AutoMarketPlanner.HasListingBudget`, `MarketAutomation.cs` `BuildListingStepsNow` and `RunLapDepositMover`).
+
+### Notes
+
+- The final deposit lap follows the same gate: a retainer whose board is full receives no deposits this sweep - bags stock lists directly from the bags the session a slot frees, so nothing is stranded by skipping (file: `MarketAutomation.cs` `RunLapDepositMover`).
+- An unreadable board snapshot (the retainer market container not loaded) fails closed - no moves - so a half-open session can never re-open the shuffle loop.
+- Offline suite: cases 91-94 pin the gate - a full board is gated, one empty slot allows moves, the reserve eats the last empty exactly as the listing planner counts it, and unloaded or short snapshots fail closed (files: `tests/LazyMarketCompanion.Harness/Program.cs`, cases 91-94).
+
+## v0.1.45.0 (2026-09-12)
 
 ### Added
 
