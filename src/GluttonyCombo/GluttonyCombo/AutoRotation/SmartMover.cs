@@ -66,6 +66,16 @@ internal static class SmartMover
     private static MovementTelemetryFormat.EmitKey? _lastKey;
     private static long _lastEmitMs;
 
+    // v1.0.4.197 nav-safety state: while vnavmesh's background pathfind task is
+    // running, this mover issues NO new nav IPC and NO PointOnFloor mesh queries
+    // that tick (re-issuing PathfindAndMoveTo underneath a running task is what
+    // logged "Pathfinding task is in progress..." every 250ms; concurrent mesh
+    // queries racing the native task are the prime crash suspect on .196).
+    private static bool _navBusy;
+    private static readonly Dictionary<(int, int), bool> _walkCache = new();
+    private static int _hostileVfxSeen;
+    private static long _lastOmenSilenceMs;
+
     /// <summary> Desired standing range (edge-to-edge) per role - mirrors the fork's BMR push table (GluttonyCombo.cs UpdateCaches). </summary>
     private static float DesiredRangeFor(Job job)
     {
@@ -106,11 +116,30 @@ internal static class SmartMover
                 return;
             }
 
+            _walkCache.Clear();
+            try { _navBusy = NavmeshIPC.PathfindingInProgress; }
+            catch { _navBusy = false; }
+
             var world = BuildWorld(player);
             var decision = SmartMoverCore.Decide(world, Hys);
             Execute(decision, world);
             Emit(world, decision);
             lastReason = decision.Reason;
+
+            // v1.0.4.197 (t_0e5807e1): omen-silence marker - with the omen layer
+            // enabled, in combat, seeing ZERO hostile VFX for 30s means the layer
+            // is deaf, not that the fight has no instants. One Debug line per 30s.
+            if ((AutoRotationController.cfg?.DPSSettings.MovementTelemetry ?? false) &&
+                (AutoRotationController.cfg?.DPSSettings.SmartMoverOmenVfx ?? true) &&
+                world.InCombat && _hostileVfxSeen == 0)
+            {
+                var silenceMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                if (silenceMs - _lastOmenSilenceMs > 30000)
+                {
+                    Svc.Log.Debug("[SmartMover] MVS|omen|vfx=0|ovz=0");
+                    _lastOmenSilenceMs = silenceMs;
+                }
+            }
         }
         catch (Exception e)
         {
@@ -128,6 +157,8 @@ internal static class SmartMover
         Lingering.Clear();
         SeenOmenVfx.Clear();
         lastOmenZoneCount = 0;
+        _walkCache.Clear();
+        _navBusy = false;
     }
 
     internal static void Shutdown()
@@ -313,10 +344,20 @@ internal static class SmartMover
             snapshot = new List<VfxInfo>(VfxManager.TrackedEffects);
 
         var buffer = AutoRotationController.cfg?.DPSSettings.SmartMoverDangerBufferY ?? 1f;
-        var debug = AutoRotationController.cfg?.DPSSettings.SmartMoverOmenDebug ?? false;
+        // v1.0.4.197 (t_0e5807e1): the MVD|/MVU| instruments ride the telemetry
+        // flag the user already has ON - a debug tap behind its own opt-in is an
+        // instrument that does not exist when the layer breaks (ovz=0 on every
+        // MV| line ever logged while SmartMoverOmenDebug sat false).
+        var debug = (AutoRotationController.cfg?.DPSSettings.MovementTelemetry ?? false) ||
+                    (AutoRotationController.cfg?.DPSSettings.SmartMoverOmenDebug ?? false);
+        _hostileVfxSeen = 0;
 
         foreach (var info in snapshot)
         {
+            if (Svc.Objects.SearchById(info.CasterID) is not IBattleChara caster || !caster.IsHostile() || caster.IsDead)
+                continue; // player/party ground effects (Asylum and friends) and unattributable spawns are not danger
+            _hostileVfxSeen++;
+
             if (!OmenVfxModel.IsOmenPath(info.Path))
             {
                 if (debug && SeenOmenVfx.Add(info.VfxID))
@@ -327,9 +368,6 @@ internal static class SmartMover
             var age = info.AgeSeconds;
             if (age < 0f || age >= OmenVfxModel.MaxAgeSec)
                 continue;
-
-            if (Svc.Objects.SearchById(info.CasterID) is not IBattleChara caster || !caster.IsHostile() || caster.IsDead)
-                continue; // player/party ground effects (Asylum and friends) and unattributable spawns are not danger
 
             var kind = OmenVfxModel.Classify(info.Path, out var coneHalfDeg);
 
@@ -412,8 +450,19 @@ internal static class SmartMover
     /// </summary>
     private static bool WalkableAt(Vector2 p)
     {
-        try { return NavmeshIPC.IsPointWalkable(new Vector3(p.X, _playerY, p.Y)); }
-        catch { return true; }
+        // v1.0.4.197: no mesh queries while vnavmesh's pathfind task runs, and at
+        // most ONE query per 0.5y grid cell per tick (the dodge/engage samplers
+        // re-probe near-identical candidates up to hundreds of times per tick).
+        if (_navBusy)
+            return true;
+        var key = ((int)MathF.Round(p.X * 2f), (int)MathF.Round(p.Y * 2f));
+        if (_walkCache.TryGetValue(key, out var cached))
+            return cached;
+        bool ok;
+        try { ok = NavmeshIPC.IsPointWalkable(new Vector3(p.X, _playerY, p.Y)); }
+        catch { ok = true; }
+        _walkCache[key] = ok;
+        return ok;
     }
 
     private static bool SafeIsBmrNavigating()
@@ -457,6 +506,23 @@ internal static class SmartMover
                 break;
 
             case SmartMoverCore.Decision.Move:
+                // v1.0.4.197 crash fix: never stack nav work. Re-issuing
+                // PathfindAndMoveTo while vnavmesh's background task runs logged
+                // "Pathfinding task is in progress..." every 250ms tick; the
+                // process died mid-engage on .196 with no managed exception.
+                if (_navBusy)
+                    break; // let the in-flight pathfind finish; re-evaluate next tick
+
+                // Re-issue gate: nav already RUNNING toward essentially this
+                // destination is not re-primed - vnavmesh keeps walking on its own.
+                try
+                {
+                    if (NavmeshIPC.IsRunningFunc is not null && NavmeshIPC.IsRunningFunc() &&
+                        Hys.HasLastDest && Vector2.Distance(Hys.LastDest, d.Dest) < 1.0f)
+                        break;
+                }
+                catch { /* probe failed - issue the move */ }
+
                 var y = Player.Object?.Position.Y ?? 0f;
                 var dest = new Vector3(d.Dest.X, y, d.Dest.Y);
 

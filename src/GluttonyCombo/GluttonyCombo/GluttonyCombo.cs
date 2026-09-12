@@ -67,6 +67,7 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
     internal readonly HttpClient HTTPClient = new(httpHandler) { Timeout = TimeSpan.FromSeconds(5) };
     private readonly IDtrBarEntry DtrBarEntry;
     public readonly IDtrBarEntry OpenerDtr;
+    internal readonly IDtrBarEntry SmartDtr;
     internal Provider IPC;
     internal Search IPCSearch = null!;
     internal UIHelper UIHelper = null!;
@@ -304,6 +305,19 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         OpenerDtr.Tooltip = new SeString(
         new TextPayload("Click to toggle Opener Preset.\n"),
         new TextPayload("Disable this icon in /xlsettings -> Server Info Bar"));
+        // v1.0.4.197: Smart Movement's own DTR entry - a quick kill switch that
+        // is independent of auto-rotation (Helm t-joey-1789226971574).
+        SmartDtr ??= Svc.DtrBar.Get("Gluttony Smart Movement");
+        SmartDtr.OnClick = (_) =>
+        {
+            var dps = Service.Configuration.RotationConfig.DPSSettings;
+            dps.SmartMover = !dps.SmartMover;
+            Service.Configuration.Save();
+            DuoLog.Information($"Smart Movement: {(dps.SmartMover ? "On" : "Off")}");
+        };
+        SmartDtr.Tooltip = new SeString(
+        new TextPayload("Click to toggle Gluttony Combo's Smart Movement.\n"),
+        new TextPayload("Disable this icon in /xlsettings -> Server Info Bar"));
 
         Svc.ClientState.Login += PrintLoginMessage;
         if (Svc.ClientState.IsLoggedIn) ResetFeatures();
@@ -465,6 +479,14 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
             }
             else
                 OpenerDtr.Shown = false;
+
+            // v1.0.4.197: Smart Movement DTR text (own toggle, independent of
+            // auto-rotation). Reuses the verified sword icons.
+            var smartOn = Service.Configuration.RotationConfig.DPSSettings.SmartMover;
+            var smartIcon = new IconPayload(smartOn
+                ? BitmapFontIcon.SwordUnsheathed
+                : BitmapFontIcon.SwordSheathed);
+            SmartDtr.Text = new SeString(smartIcon, new TextPayload(smartOn ? ": On" : ": Off"));
 
             if (Service.Configuration.TankbusterTTS || Service.Configuration.TankbusterToast)
                 CustomComboFunctions.PlayTankbusterAlert();

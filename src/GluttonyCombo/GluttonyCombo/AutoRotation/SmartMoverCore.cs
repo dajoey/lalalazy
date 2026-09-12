@@ -101,6 +101,7 @@ internal static class SmartMoverCore
         public bool HasLastDest;
         public double HoldUntilSec;
         public bool WasMoving;
+        public bool LastDodge;          // v1.0.4.197: the held dest was chosen by the dodge branch
 
         public void Reset()
         {
@@ -108,6 +109,7 @@ internal static class SmartMoverCore
             HasLastDest = false;
             HoldUntilSec = 0;
             WasMoving = false;
+            LastDodge = false;
         }
     }
 
@@ -142,6 +144,18 @@ internal static class SmartMoverCore
         // ---- DODGE ----
         if (UnsafeAt(w.PlayerPos, w.Zones, 0f) is not null)
         {
+            // v1.0.4.197: dodge-destination continuity. With several overlapping
+            // AoEs the sampler's "nearest" safe point wobbles 1-2y every tick,
+            // and every wobble re-aimed the dodge (the visible "freakout") and
+            // fed vnavmesh a fresh pathfind. While STILL dodging, a held dodge
+            // destination that is still safe and still walkable is kept.
+            if (h.HasLastDest && h.LastDodge &&
+                UnsafeAt(h.LastDest, w.Zones, 0.25f) is null &&
+                Walkable(w.IsPointWalkable, h.LastDest))
+            {
+                return new MoveDecision(Decision.Move, h.LastDest, ReasonDodgeCode);
+            }
+
             var anchor = w.TargetEngaged ? w.TargetPos : w.PlayerPos;
             var clamp = w.TargetEngaged ? MaxDestDistFromTarget : float.MaxValue;
             var dest = FindSafePoint(w.PlayerPos, w.Zones, anchor, clamp, w.IsPointWalkable);
@@ -201,6 +215,7 @@ internal static class SmartMoverCore
         h.HasLastDest = true;
         h.HoldUntilSec = w.NowSec + DestHoldSeconds;
         h.WasMoving = true;
+        h.LastDodge = reason == ReasonDodgeCode;
         return new MoveDecision(Decision.Move, dest, reason);
     }
 

@@ -580,6 +580,31 @@ SmartMoverCore.MoverWorld World(
     Check("arena/distance-clamp-still-applies-with-mesh-allow-all", dClamp.Kind == SmartMoverCore.Decision.None, $"kind={dClamp.Kind} dest={dClamp.Dest}");
 }
 
+
+// ------------------------------------------------- dodge continuity (v1.0.4.197)
+{
+    // Overlapping-AoE stability: while a dodge is already committed, its
+    // destination is KEPT as long as it stays safe - the sampler's "nearest
+    // safe point" wobbles 1-2y per tick under overlap and every wobble used
+    // to re-aim the dodge (the visible freakout).
+    var zones = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -8), 0f, 8f, 0f, 0f, 0f, default, 3f) };
+    var h = new SmartMoverCore.Hysteresis();
+    var d1 = SmartMoverCore.Decide(World(player: new(0, -8), zones: zones) with { NowSec = 300.0 }, h);
+    Check("continuity/first-dodge-moves", d1.Kind == SmartMoverCore.Decision.Move && d1.Reason == SmartZoneDDG(), $"kind={d1.Kind} r={d1.Reason}");
+    var d2 = SmartMoverCore.Decide(World(player: new(0, -7.9f), zones: zones) with { NowSec = 300.25 }, h);
+    Check("continuity/held-dodge-dest-kept", d2.Kind == SmartMoverCore.Decision.Move && d2.Dest == d1.Dest, $"d1={d1.Dest} d2={d2.Dest}");
+
+    // The held destination is released the moment a new zone covers it -
+    // continuity must never pin the player inside fresh danger.
+    var cover = new[] {
+        zones[0],
+        new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, d1.Dest, 0f, 4f, 0f, 0f, 0f, default, 3f),
+    };
+    var d3 = SmartMoverCore.Decide(World(player: new(0, -7.9f), zones: cover) with { NowSec = 300.5 }, h);
+    Check("continuity/covered-held-dest-released", d3.Kind == SmartMoverCore.Decision.Move &&
+        SmartMoverCore.UnsafeAt(d3.Dest, cover, 0.25f) is null && d3.Dest != d1.Dest, $"d3={d3.Dest} d1={d1.Dest}");
+}
+
 // ---------------------------------------------------------------- shape asserts
 {
     Check("shape/zone-carries-remaining", typeof(DangerZoneModel.Zone).GetProperty("RemainingSec") is not null);
