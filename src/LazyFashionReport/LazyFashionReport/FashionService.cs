@@ -80,90 +80,83 @@ internal sealed class FashionService : IDisposable
     /// <summary>P4 planner: the best 80+ outfit from owned pieces + owned dyes (read-only).</summary>
     public OutfitAssembly? Assembly => _assembly;
 
-    /// <summary>P4 executor half (v0.5.0.0): the latest dry-run readout, if one was run.</summary>
-    public ApplyDryRun? LastDryRun => _dryRun;
-    private ApplyDryRun? _dryRun;
+    /// <summary>P4 executor live half (v0.6.0.0): the result of the last real apply, if one ran.
+    /// Its WithdrawPending entries update in place as their continuations resolve.</summary>
+    public ApplyLiveResult? LastApply => _lastApply;
+    private ApplyLiveResult? _lastApply;
+
+    /// <summary>True while a withdraw continuation is still resolving (framework tick).</summary>
+    public bool ApplyBusy => ApplyMover.HasPending;
 
     /// <summary>
-    /// P4 executor half, dry-run release: build the executable apply plan from the CURRENT
-    /// assembly + live snapshot and simulate it - one pass, read-only, no mutations. Every
-    /// step line is logged to the LazyFashionReport context so an in-game verify from ffxivdb
-    /// can grade exactly what the plugin said it would do. The live mover ships only after
-    /// this readout is verified against the character sheet.
+    /// P4 executor live half: build the executable apply plan from the CURRENT assembly + a
+    /// live snapshot and EXECUTE it - one framework-thread pass, every mutation logged to the
+    /// LazyFashionReport context with before/after wording per slot. Dye is never auto-applied
+    /// (no verified dye-apply call in this ClientStructs build): planned dyes come back as
+    /// manual reminders on the result. Withdraw continuations resolve on subsequent ticks via
+    /// <see cref="Tick"/>; when the last one lands the prediction rebuilds so the window shows
+    /// the new worn set.
     /// </summary>
-    public ApplyDryRun? DryRunApply()
+    public ApplyLiveResult? ApplyOutfit()
     {
         if (_assembly is null || _week is null) return null;
         try
         {
-            // ONE framework-thread snapshot: equipped appearance + stains, per-item location,
-            // dye stock (ApplyExecutor is all reads - the dry run must not move anything).
-            var itemIds = _assembly.Pieces.Where(p => p.ItemId != 0).Select(p => p.ItemId).ToList();
-            var plusTwoStains = new Dictionary<FashionSlot, uint>();
-            foreach (var slot in Enum.GetValues<FashionSlot>())
+            // Snapshot + plan + apply in ONE framework-thread pass: no cross-thread state gap
+            // between "where the plan saw the piece" and "where the move looks for it".
+            var result = Plugin.Framework.RunOnFrameworkThread(() =>
             {
-                var s = _crowd?.PreferredStainFor(_week, slot) ?? 0;
-                if (s != 0) plusTwoStains[slot] = s;
-            }
-            var snap = Plugin.Framework.RunOnFrameworkThread(
-                () => ApplyExecutor.Snapshot(itemIds, plusTwoStains.Values)).Result;
+                var itemIds = _assembly.Pieces.Where(p => p.ItemId != 0).Select(p => p.ItemId).ToList();
+                var plusTwoStains = new Dictionary<FashionSlot, uint>();
+                foreach (var slot in Enum.GetValues<FashionSlot>())
+                {
+                    var s = _crowd?.PreferredStainFor(_week, slot) ?? 0;
+                    if (s != 0) plusTwoStains[slot] = s;
+                }
+                var snap = ApplyExecutor.Snapshot(itemIds, plusTwoStains.Values);
+                var steps = ApplyPlanBuilder.Build(
+                    _assembly,
+                    plusTwoStains,
+                    snap.Equipped,
+                    snap.EquippedStain,
+                    id => snap.Locations.TryGetValue(id, out var loc) ? (loc.Storage, loc.Coord, loc.Stain) : null,
+                    stain => ClientReader.StainToDyeItem.GetValueOrDefault(stain),
+                    snap.DyeItemLocations,
+                    id => _sheets.ItemName(id),
+                    _sheets.StainToName);
+                return ApplyMover.Apply(steps, _assembly.Total);
+            }).Result;
 
-            var steps = ApplyPlanBuilder.Build(
-                _assembly,
-                plusTwoStains,
-                snap.Equipped,
-                snap.EquippedStain,
-                id => snap.Locations.TryGetValue(id, out var loc) ? (loc.Storage, loc.Coord, loc.Stain) : null,
-                stain => ClientReader.StainToDyeItem.GetValueOrDefault(stain),
-                snap.DyeItemLocations,
-                id => _sheets.ItemName(id),
-                _sheets.StainToName);
+            _lastApply = result;
+            Plugin.Log.Information($"[LFR] apply: {result.Moved} equipped, {result.Failed} failed, {result.Pending} withdrawing, predicted {result.PredictedTotal}");
+            foreach (var r in result.Steps)
+                Plugin.Log.Information($"[LFR] apply | {r.Line}");
+            foreach (var d in result.DyeReminders)
+                Plugin.Log.Information($"[LFR] apply | {d}");
 
-            var run = ApplySimulator.Run(steps, _assembly.Total);
-
-            // The audit log: one line per step, prefixed for the ffxivdb grading query.
-            Plugin.Log.Information($"[LFR] dry-run apply: {run.Applies} would apply, {run.Dyes} dye(s), {run.Skips} skip(s), predicted {run.PredictedTotal}");
-            foreach (var r in run.Steps)
-                Plugin.Log.Information($"[LFR] dry-run | {r.Line}");
-
-            // Offline proof for the live executor's destination mapping: dump the equip
-            // container layout as seen right now. The live card reads this from ffxivdb to
-            // verify the EquippedItems slot indices before writing any MoveItemSlot call.
-            LogEquippedLayout(snap);
-
-            _dryRun = run;
-            return run;
+            if (result.Pending == 0) RebuildAll();
+            return result;
         }
         catch (Exception ex)
         {
-            Plugin.Log.Warning(ex, "[LFR] dry-run apply failed");
+            Plugin.Log.Warning(ex, "[LFR] apply failed");
             return null;
         }
     }
 
-    /// <summary>Log the equipped container layout (slot index -> container/slot/item) so the
-    /// live executor card can verify the equip-slot mapping from ffxivdb without a debugger.</summary>
-    private void LogEquippedLayout(ApplySnapshot snap)
+    /// <summary>Resolve withdraw continuations (framework tick). Cheap no-op when nothing is pending.</summary>
+    private void PollApplyPending()
     {
-        try
+        if (!ApplyMover.HasPending) return;
+        ApplyMover.PollPending();
+        if (_lastApply is null) return;
+        foreach (var s in _lastApply.Steps)
+            Plugin.Log.Information($"[LFR] apply | {s.Line}");
+        if (!ApplyMover.HasPending)
         {
-            foreach (var (slot, id) in snap.Equipped.OrderBy(kv => (int)kv.Key))
-            {
-                var stain = snap.EquippedStain.GetValueOrDefault(slot, 0u);
-                Plugin.Log.Information(
-                    $"[LFR] equipped-layout | {(int)slot} {slot.DisplayName()} = item {id} stain {stain}");
-            }
-
-            // v0.5.1.0: the RAW container view the live mover will address via MoveItemSlot.
-            // The agent view above is the Fashion Report's judging source; this is the
-            // executor's destination coordinate space. Both, one press, one ffxivdb query.
-            foreach (var row in snap.RawEquipped.OrderBy(r => r.Slot))
-            {
-                Plugin.Log.Information(
-                    $"[LFR] raw-equipped | cont {row.Container} slot {row.Slot} = item {row.ItemId} glam {row.GlamourId} stain {row.Stain0}");
-            }
+            Plugin.Log.Information($"[LFR] apply finished: {_lastApply.Moved} equipped, {_lastApply.Failed} failed");
+            RebuildAll();
         }
-        catch { /* layout log is best-effort */ }
     }
 
 
@@ -274,6 +267,9 @@ internal sealed class FashionService : IDisposable
         try
         {
             var now = Environment.TickCount64;
+
+            // Withdraw continuations from a live apply (bounded, one equip attempt each).
+            PollApplyPending();
 
             if (!_fetchInFlight && (now >= _nextFetchTick || _refreshRequested))
             {

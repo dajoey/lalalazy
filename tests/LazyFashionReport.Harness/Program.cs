@@ -370,10 +370,12 @@ var asm3 = OutfitAssembler.Build(week449, crowd, ownCat, id => $"item {id}",
     plus2StainMap, new HashSet<uint>(), stainNames, stainFamilies);
 Check("oa-no-dye-honest", asm3.Pieces[(int)FashionSlot.Head].DyeNote.Contains("no matching dye owned"), asm3.Pieces[(int)FashionSlot.Head].DyeNote);
 
-// ---- 18. ApplyPlanBuilder + ApplySimulator: the P4 executor dry-run (v0.5.0.0) ----
-// The dry-run release: build the executable plan from the assembly + a live-shaped snapshot,
-// simulate one pass, and prove the safety rails (untouched slots never move, dyes only from
-// located stock, missing pieces skip + report).
+// ---- 18. ApplyPlanBuilder rails + the live-apply outcome (P4 executor, v0.5.0.0 -> v0.6.0.0) ----
+// The plan rails (untouched slots never move, dyes only from located stock, missing pieces
+// skip + report) were proven against the dry-run simulator in v0.5.0.0; the simulator is gone
+// now that the apply is live, so the rails are asserted on the plan itself. The live result
+// (status -> line wording, dye reminders, counts) and the equipped-container destination
+// mapping are pinned here, pure, exactly as the player will read them in the window and log.
 // Stain -> dye item fixtures: 76 (Abyssal Blue) = dye item 10001; 112 (Metallic Silver) = 10002.
 var apStains = new Dictionary<FashionSlot, uint>
 {
@@ -444,17 +446,11 @@ Check("ap-weapon-untouched", steps18.First(s => s.Slot == FashionSlot.Weapon).Me
 Check("ap-ears-untouched", steps18.First(s => s.Slot == FashionSlot.Ears).Method == ObtainMethod.LeaveUntouched);
 Check("ap-ringl-untouched", steps18.First(s => s.Slot == FashionSlot.RingL).Method == ObtainMethod.LeaveUntouched);
 
-// The dry-run readout itself.
-var dry = ApplySimulator.Run(steps18, asm.Total);
-Check("sim-total-carried", dry.PredictedTotal == asm.Total, $"{dry.PredictedTotal} vs {asm.Total}");
-Check("sim-applies-count", dry.Applies == 3, $"{dry.Applies} (body equip, feet withdraw, neck withdraw)");
-Check("sim-dyes-count", dry.Dyes == 0, $"{dry.Dyes} dyes (head would want one but is untouched; body has no stock)");
-Check("sim-skips-zero", dry.Skips == 0, $"{dry.Skips} skips");
-Check("sim-already-count", dry.Already == 1, $"{dry.Already} already-correct (hands)");
-var simBody = dry.Steps.First(s => s.Step.Slot == FashionSlot.Body);
-Check("sim-body-line", simBody.Line.Contains("equip") && simBody.Line.Contains("item 25302"), simBody.Line);
-var simHands = dry.Steps.First(s => s.Step.Slot == FashionSlot.Hands);
-Check("sim-hands-line-dye-note", simHands.Line.Contains("already on"), simHands.Line);
+// The mover's eligibility view of the same plan: exactly 3 executable steps (body equip,
+// feet withdraw, neck withdraw), 1 already-worn, the rest untouched. No simulator needed.
+Check("ap-executable-count", steps18.Count(s => s.Method is ObtainMethod.EquipFromBags or ObtainMethod.WithdrawFromDresser or ObtainMethod.WithdrawFromArmoire) == 3,
+    $"{steps18.Count(s => s.Method is ObtainMethod.EquipFromBags or ObtainMethod.WithdrawFromDresser or ObtainMethod.WithdrawFromArmoire)} executable");
+Check("ap-alreadymethod-count", steps18.Count(s => s.Method == ObtainMethod.AlreadyWorn) == 1);
 
 // Dye-from-stock path: put the player's head into the plan is NOT possible (unhinted), so
 // prove the consumption path on the BODY slot instead: give Metallic Silver stock and the
@@ -472,12 +468,8 @@ var steps18b = ApplyPlanBuilder.Build(asm, apStains, equippedMap, equippedStainM
     stainNames);
 var stBody2 = steps18b.First(s => s.Slot == FashionSlot.Body);
 Check("ap-body-dye-with-stock", stBody2.StainId == 112 && stBody2.StainName == "Metallic Silver", $"{stBody2.StainId} {stBody2.StainName}");
-var dry2 = ApplySimulator.Run(steps18b, asm.Total);
-Check("sim2-dyes-count", dry2.Dyes == 1, $"{dry2.Dyes} dyes");
-var simBody2 = dry2.Steps.First(s => s.Step.Slot == FashionSlot.Body);
-Check("sim2-body-consumes", simBody2.Outcome == StepOutcome.WouldConsumeDye && simBody2.Line.Contains("consumes 1"), simBody2.Line);
 
-// Dye already on the slot AND item not changing: AlreadyWorn + exact stain -> AlreadyCorrect, no consumption.
+// Dye already on the slot AND item not changing: AlreadyWorn + exact stain -> no consumption.
 var equippedStainNoDye = new Dictionary<FashionSlot, uint>
 {
     [FashionSlot.Hands] = 5,   // some other dye on
@@ -492,9 +484,6 @@ var steps18c = ApplyPlanBuilder.Build(asm, apStains, equippedMap, equippedStainN
     stainNames);
 var stHandsC = steps18c.First(s => s.Slot == FashionSlot.Hands);
 Check("ap-hands-wrong-dye-gets-step", stHandsC.StainId == 76 && !stHandsC.StainAlreadyOn, $"stain {stHandsC.StainId}");
-var dry3 = ApplySimulator.Run(steps18c, asm.Total);
-var simHandsC = dry3.Steps.First(s => s.Step.Slot == FashionSlot.Hands);
-Check("sim3-hands-consume", simHandsC.Outcome == StepOutcome.WouldConsumeDye && simHandsC.Line.Contains("apply Abyssal Blue"), simHandsC.Line);
 
 // Pre-dyed bag copy: the equip itself carries the dye - never counted as a consumption.
 var locatePredyed = new Dictionary<uint, (ItemStorage, InventoryCoord?, uint)>
@@ -515,10 +504,6 @@ var stBodyG = steps18g.First(s => s.Slot == FashionSlot.Body);
 Check("ap-predyed-copy-carries", stBodyG.Method == ObtainMethod.EquipFromBags && stBodyG.StainId == 112 && stBodyG.StainAlreadyOn,
     $"{stBodyG.Method} stain {stBodyG.StainId} already={stBodyG.StainAlreadyOn}");
 Check("ap-predyed-action-note", stBodyG.Action.Contains("already on the copy"), stBodyG.Action);
-var dryG = ApplySimulator.Run(steps18g, asm.Total);
-var simBodyG = dryG.Steps.First(s => s.Step.Slot == FashionSlot.Body);
-Check("sim-predyed-not-consumed", simBodyG.Outcome == StepOutcome.WouldApply && dryG.Dyes == 0,
-    $"{simBodyG.Outcome} dyes={dryG.Dyes}");
 
 // Shared stock honesty: two slots wanting the SAME dye with only ONE item in stock ->
 // exactly one gets the dye step (reserved), the other reports none.
@@ -564,9 +549,6 @@ var steps18e = ApplyPlanBuilder.Build(asm, apStains, equippedMap, equippedStainM
     stainNames);
 var stBodyE = steps18e.First(s => s.Slot == FashionSlot.Body);
 Check("ap-missing-reports", stBodyE.Method == ObtainMethod.Missing && stBodyE.Action.Contains("not found"), $"{stBodyE.Method}: {stBodyE.Action}");
-var dryE = ApplySimulator.Run(steps18e, asm.Total);
-Check("sim-missing-skip", dryE.Steps.First(s => s.Step.Slot == FashionSlot.Body).Outcome == StepOutcome.SkippedMissing);
-Check("sim-missing-counted", dryE.Skips == 1, $"{dryE.Skips} skips");
 
 // Empty inputs degrade honestly: no equipped map, no locator, no dye stock -> all planned
 // pieces Missing (except none), no dye steps, no crash.
@@ -574,6 +556,73 @@ var steps18f = ApplyPlanBuilder.Build(asm, apStains, null, null, null, null, nul
 Check("ap-null-snapshot-missing", steps18f.Where(s => s.ItemId != 0).All(s => s.Method == ObtainMethod.Missing),
     string.Join(",", steps18f.Where(s => s.ItemId != 0).Select(s => s.Method)));
 Check("ap-null-snapshot-untouched-intact", steps18f.Where(s => s.ItemId == 0).All(s => s.Method == ObtainMethod.LeaveUntouched));
+
+// ---- 18b. Live-apply outcome: destination mapping, status -> line, dye reminders (v0.6.0.0) ----
+// The FashionSlot -> EquippedItems container slot mapping, in the game's own equipped-gear
+// container order (main, off, head, body, hands, [belt - retired from the game, slot stays
+// empty], legs, feet, ears, neck, wrists, ring1, ring2, soul crystal). A wrong address here
+// would put a ring on someone's head, so every slot is pinned.
+Check("dest-weapon", ApplyDestinations.EquippedDest(FashionSlot.Weapon) == 0);
+Check("dest-head", ApplyDestinations.EquippedDest(FashionSlot.Head) == 2);
+Check("dest-body", ApplyDestinations.EquippedDest(FashionSlot.Body) == 3);
+Check("dest-hands", ApplyDestinations.EquippedDest(FashionSlot.Hands) == 4);
+Check("dest-legs", ApplyDestinations.EquippedDest(FashionSlot.Legs) == 6);
+Check("dest-feet", ApplyDestinations.EquippedDest(FashionSlot.Feet) == 7);
+Check("dest-ears", ApplyDestinations.EquippedDest(FashionSlot.Ears) == 8);
+Check("dest-neck", ApplyDestinations.EquippedDest(FashionSlot.Neck) == 9);
+Check("dest-wrist", ApplyDestinations.EquippedDest(FashionSlot.Wrist) == 10);
+Check("dest-ringl", ApplyDestinations.EquippedDest(FashionSlot.RingL) == 11);
+Check("dest-ringr", ApplyDestinations.EquippedDest(FashionSlot.RingR) == 12);
+var destAll = Enum.GetValues<FashionSlot>().Select(ApplyDestinations.EquippedDest).ToList();
+Check("dest-all-distinct", destAll.Distinct().Count() == destAll.Count, string.Join(",", destAll));
+Check("dest-belt-gap-skipped", destAll.All(d => d != 5), "container slot 5 is the retired belt - nothing may map there");
+Check("dest-soulcrystal-untouched", destAll.All(d => d <= 12), "container slot 13 is the soul crystal - the plugin never equips it");
+Check("dest-invalid", ApplyDestinations.EquippedDest((FashionSlot)99) == -1);
+
+// Status -> line wording, exactly as the window and the log render it.
+var liveEq = ApplyLiveStep.For(stBody, ApplyStepStatus.Equipped);
+Check("live-equipped-line", liveEq.Line == $"Body: equipped item {KasugaHaori}", liveEq.Line);
+var liveWdDresser = ApplyLiveStep.For(stFeet, ApplyStepStatus.WithdrewThenEquipped);
+Check("live-withdrew-dresser-line", liveWdDresser.Line.Contains("withdrew") && liveWdDresser.Line.Contains("glamour dresser") && liveWdDresser.Line.Contains("equipped"),
+    liveWdDresser.Line);
+var liveWdArmoire = ApplyLiveStep.For(stNeck, ApplyStepStatus.WithdrawPending);
+Check("live-pending-armoire-line", liveWdArmoire.Line.Contains("withdrawing") && liveWdArmoire.Line.Contains("armoire"), liveWdArmoire.Line);
+var liveAlready = ApplyLiveStep.For(stHands, ApplyStepStatus.AlreadyWorn);
+Check("live-already-line", liveAlready.Line == $"Hands: already wearing item {HailstormGloves}", liveAlready.Line);
+var liveUntouched = ApplyLiveStep.For(stHead, ApplyStepStatus.Untouched);
+Check("live-untouched-line", liveUntouched.Line.Contains("leave untouched"), liveUntouched.Line);
+var liveMissing = ApplyLiveStep.For(stBodyE, ApplyStepStatus.Missing);
+Check("live-missing-line", liveMissing.Line.StartsWith("Body: SKIP"), liveMissing.Line);
+var liveChanged = ApplyLiveStep.For(stBody, ApplyStepStatus.SkippedChanged);
+Check("live-changed-line", liveChanged.Line.Contains("moved since the plan"), liveChanged.Line);
+var liveFailed = ApplyLiveStep.For(stBody, ApplyStepStatus.Failed, 7);
+Check("live-failed-line", liveFailed.Line.Contains("FAILED") && liveFailed.Line.Contains("code 7"), liveFailed.Line);
+
+// Dye reminders: a planned dye that the executor cannot auto-apply (no verified dye call in
+// this ClientStructs build) must surface as a manual reminder on successful steps only.
+Check("live-dye-reminder-on-equipped", ApplyLiveStep.For(stBody2, ApplyStepStatus.Equipped).DyeReminder == "Body: dye manually - apply Metallic Silver",
+    ApplyLiveStep.For(stBody2, ApplyStepStatus.Equipped).DyeReminder);
+Check("live-dye-reminder-none-when-already-on", ApplyLiveStep.For(stHands, ApplyStepStatus.AlreadyWorn).DyeReminder == "",
+    ApplyLiveStep.For(stHands, ApplyStepStatus.AlreadyWorn).DyeReminder);
+Check("live-dye-reminder-none-when-untouched", ApplyLiveStep.For(stHead, ApplyStepStatus.Untouched).DyeReminder == "");
+Check("live-dye-reminder-none-when-failed", ApplyLiveStep.For(stBody2, ApplyStepStatus.Failed).DyeReminder == "");
+
+// Result aggregation: counts + predicted total carried through.
+var liveResult = new ApplyLiveResult
+{
+    Steps = new List<ApplyLiveStep> { liveEq, liveWdDresser, liveWdArmoire, liveMissing, liveUntouched },
+    PredictedTotal = asm.Total,
+};
+Check("live-moved-count", liveResult.Moved == 2, $"{liveResult.Moved} (equip + withdrew-then-equipped)");
+Check("live-pending-count", liveResult.Pending == 1);
+Check("live-failed-count", liveResult.Failed == 0);
+Check("live-total-carried", liveResult.PredictedTotal == asm.Total, $"{liveResult.PredictedTotal} vs {asm.Total}");
+var reminderSteps = new ApplyLiveResult
+{
+    Steps = new List<ApplyLiveStep> { ApplyLiveStep.For(stBody2, ApplyStepStatus.Equipped), ApplyLiveStep.For(stHands, ApplyStepStatus.AlreadyWorn) },
+    PredictedTotal = asm.Total,
+};
+Check("live-dye-reminders-aggregated", reminderSteps.DyeReminders.Count() == 1, string.Join(" | ", reminderSteps.DyeReminders));
 
 
 Console.WriteLine();

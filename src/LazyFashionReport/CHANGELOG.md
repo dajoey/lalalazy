@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.6.0.0 (2026-09-12)
+
+### Added
+- The "Apply outfit" button under the assembler now dresses the character for real: one press equips every planned piece - items in bags or the armoury chest move straight onto the equipped slots, pieces in the glamour dresser or armoire come out first and then equip, and each slot reports back what actually happened (files: new `Adapters/ApplyMover.cs`, `FashionService.cs ApplyOutfit`, `ReportWindow.cs DrawApply`)
+- The dry-run staging is gone. The button the last two releases asked you to verify was a plan preview that moved nothing; you said you didn't see it and didn't want it, so this release ships the real thing instead - the same plan, executed (file: `ReportWindow.cs DrawApply`)
+- Every move is checked before it happens: a piece that shifted bags since the plan was built is skipped and says so, a game-side rejection names its error code, and nothing is ever equipped into an unhinted "any item" slot (files: `Adapters/ApplyMover.cs`, `Core/ApplyPlan.cs`)
+- Withdrawals from the glamour dresser and armoire resolve themselves: the withdraw is sent, and the moment the piece lands in the bags the plugin equips it - one bounded wait, no retry spam, and an honest timeout line if the server never answers (file: `Adapters/ApplyMover.cs PollPending`)
+- Unhinted slots are still never touched, and dye is still never spent automatically: the result now lists "dye manually - apply X" for each planned dye, because this ClientStructs build has no verified dye-apply call to use (files: `Core/ApplyOutcome.cs`, `Adapters/ApplyMover.cs`)
+
+### Notes
+- The destination mapping (which FashionSlot lands on which equipped-container slot) follows the game's own container order with the retired belt slot skipped; it is pinned exactly by the offline harness and the apply log prints a per-slot before/after line so the first real apply confirms it live (files: `Core/ApplyOutcome.cs ApplyDestinations`, `Adapters/ApplyMover.cs`)
+- Offline harness coverage: every plan rail kept from the dry-run release (untouched slots, missing pieces, dye stock reservation incl. shared-dye and pre-dyed-copy cases) plus the full destination table, the status-to-wording lines, dye reminders, and result counts (file: `tests/LazyFashionReport.Harness/Program.cs` sections 18-18b)
+
 ## v0.5.1.0 (2026-09-12)
 
 ### Added

@@ -47,10 +47,9 @@ public sealed record ApplyStep
 
 /// <summary>
 /// Builds the executable apply plan from the planner's OutfitAssembly plus live snapshots
-/// (P4 executor half, v0.5.0.0). PURE: no game calls, fully offline-harness-tested. The
-/// simulator (ApplySimulator) turns this into the "what WOULD happen" readout; the live
-/// mover (MoveItemSlot / RestorePrismBoxItem / WithdrawCabinetItem) is a later, separately
-/// in-game-verified release.
+/// (P4 executor, v0.5.0.0; live execution since v0.6.0.0). PURE: no game calls, fully
+/// offline-harness-tested. The live mover (Adapters/ApplyMover) executes it one pass and
+/// reports per-slot results; unhinted slots are never touched and dye stays manual.
 ///
 /// Hard rules encoded here:
 /// - An unhinted "any item" slot is NEVER touched (it already scores base; moving gear there
