@@ -44,7 +44,14 @@ public class GluttonyComboIPC : BaseIPC {
     private const int CfgBypassFATE = 22;
 
     // DPSRotationMode values (GluttonyCombo.API.Enum.DPSRotationMode)
+    private const int DpsManual = 0;
     private const int DpsNearest = 6;
+
+    // Whether we've overlaid DPSRotationMode=Manual to force damage onto a Forlorn Maiden/the
+    // Forlorn. In Manual mode Gluttony's autorotation reads Svc.Targets.Target for both single
+    // target and AoE (SimpleTarget.HardTarget) instead of recomputing "nearest" every frame, which
+    // is the only way to make a hard-set target stick under the lease's own targeting loop.
+    private bool _forlornOverrideActive;
 
     private Guid? _lease;
     private bool _configured;
@@ -68,6 +75,7 @@ public class GluttonyComboIPC : BaseIPC {
         _configured = false;
         _autoOn = false;
         _readyJob = 0;
+        _forlornOverrideActive = false;
     }
 
     /// <summary>True (and forgets the lease) when Gluttony reports our lease is no longer valid.</summary>
@@ -162,6 +170,40 @@ public class GluttonyComboIPC : BaseIPC {
         }
     }
 
+    /// <summary>
+    /// Forces damage onto a specific target (a Forlorn Maiden / the Forlorn) by switching the
+    /// overlay's DPSRotationMode to Manual and hard-setting it, or restores DPSRotationMode=Nearest
+    /// when <paramref name="forlorn"/> is null. Manual is the only DPSRotationMode whose target
+    /// resolution (both single-target and AoE - see AutoRotationHelper.GetSingleTarget /
+    /// ExecuteAoE in GluttonyCombo) is SimpleTarget.HardTarget instead of a live re-scan, so it is
+    /// the only mode where setting Svc.Targets.Target from outside actually sticks; Nearest
+    /// recomputes and overwrites the hard target every tick (AutoRotationController.OverrideTarget).
+    /// Safe to call every frame - only flips IPC state on a Forlorn present/absent transition.
+    /// No-op if we don't hold a lease or aren't configured yet.
+    /// </summary>
+    public void SetForlornTarget(Dalamud.Game.ClientState.Objects.Types.IGameObject? forlorn) {
+        if (_lease is not { } lease || !_configured)
+            return;
+
+        if (forlorn is not null) {
+            if (!_forlornOverrideActive) {
+                if (LeaseInvalid(SetAutoRotationConfigState(lease, CfgDPSRotationMode, DpsManual)))
+                    return;
+                _forlornOverrideActive = true;
+            }
+            try {
+                Svc.Targets.Target = forlorn;
+            } catch (Exception ex) {
+                Warn($"Failed to set Forlorn target: {ex.Message}");
+            }
+        }
+        else if (_forlornOverrideActive) {
+            if (LeaseInvalid(SetAutoRotationConfigState(lease, CfgDPSRotationMode, DpsNearest)))
+                return;
+            _forlornOverrideActive = false;
+        }
+    }
+
     /// <summary>Disable Gluttony Combo Auto-Rotation (between FATEs / out of combat). Keeps the lease.</summary>
     public void Disable() {
         if (!_autoOn)
@@ -200,5 +242,6 @@ public class GluttonyComboIPC : BaseIPC {
         _autoOn = false;
         _readyJob = 0;
         _nextRegisterMs = 0;
+        _forlornOverrideActive = false;
     }
 }

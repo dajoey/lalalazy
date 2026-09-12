@@ -215,6 +215,16 @@ public class FateToolKitWindow : MinimisableWindow {
     }
 
     private void DrawSettings() {
+        var prioritizeForlorn = _tweak.Config.PrioritizeForlornMaidens;
+        if (ImGui.Checkbox("Prioritize Forlorn Maidens", ref prioritizeForlorn)) {
+            _tweak.Config.PrioritizeForlornMaidens = prioritizeForlorn;
+            _tweak.Config.Save();
+        }
+        ImGuiComponents.HelpMarker("When a Forlorn Maiden or the Forlorn appears mid-FATE, combat targets it instead of the FATE's normal enemies until it's defeated or disappears.");
+        ImGui.Spacing();
+        ImGui.SpacedSeparator();
+        ImGui.Spacing();
+
         ImGui.TextColored(new Vector4(0.8f, 0.8f, 1f, 1f), "Priority Order Configuration");
         ImGui.Spacing();
         ImGui.TextWrapped("Configure the order in which fates are prioritized. The order shown here is the order used by AvailableFates when selecting which fate to complete next.");

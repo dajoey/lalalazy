@@ -104,6 +104,13 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
     private bool _isCombatStuckMitigationActive;
     private bool _pausedForDuty;
 
+    // Forlorn Maiden (NameId 6737) / the Forlorn (NameId 6738) - rare bonus mobs that spawn mid-FATE
+    // (verified against xivapi BNpcName rows 6737/6738, Stormblood patch) and despawn quickly if not
+    // killed. Ported from PvPSolver's ObjectHelper.IsForlorn / MajorUpdater forlorn-priority retarget
+    // (PvP-only there, so it never ran in fate grind - this is that same idea for FateGrind).
+    private static readonly HashSet<uint> ForlornNameIds = [6737, 6738];
+    private uint? _lastForlornEntityId;
+
     public IOrderedEnumerable<PublicEvent> AvailableFates => FateToolKit.ApplySortOrder(PublicEvent.Fates.Where(tweak.FateConditions), tweak.Config.SortOrder);
     private bool HasTwistOfFate => Player.Status.Any(status => FateToolKit.TwistOfFateStatusIDs.Contains(status.StatusId));
 
@@ -547,6 +554,8 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
                 Log($"Failed to enable Gluttony Combo: {ex.Message}");
             }
 
+            ApplyForlornPriority();
+
             try {
                 if (PublicEvent.CurrentFate is { Rule: PublicEvent.FateRule.Collect } && !Svc.TextAdvance.IsInExternalControl()) {
                     Svc.TextAdvance.EnableExternalControl(tweak.Name, new() { EnableTalkSkip = true, EnableRequestFill = true, EnableRequestHandin = true });
@@ -627,6 +636,13 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
         }
 
         try {
+            Service.Gluttony.SetForlornTarget(null); // restore DPSRotationMode before dropping control
+        } catch (Exception ex) {
+            Log($"Failed to clear Forlorn target override: {ex.Message}");
+        }
+        _lastForlornEntityId = null;
+
+        try {
             Service.Gluttony.Disable();
         } catch (Exception ex) {
             Log($"Failed to disable Gluttony Combo: {ex.Message}");
@@ -639,6 +655,45 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
                 Svc.TextAdvance.DisableExternalControl(tweak.Name);
         } catch (Exception ex) {
             Log($"Failed to call TextAdvance DisableExternalControl IPC: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Hands Gluttony Combo a hard target on a live Forlorn Maiden / the Forlorn (see ForlornNameIds)
+    /// so its autorotation attacks it instead of whatever is nearest, and restores normal targeting
+    /// once none remain in range. Ported from PvPSolver's ObjectHelper.IsForlorn +
+    /// MajorUpdater forlorn-priority retarget (PvP-only there, so it never ran during FATE grinding).
+    /// Runs every frame inside a FATE (called from HandleIntegrations); cheap when no config toggle
+    /// or no Forlorn is present - one object-table scan, no allocation on the common path.
+    /// </summary>
+    private void ApplyForlornPriority() {
+        if (!Plugin.Config.PrioritizeForlornMaidens) {
+            if (_lastForlornEntityId is not null) {
+                Service.Gluttony.SetForlornTarget(null);
+                _lastForlornEntityId = null;
+            }
+            return;
+        }
+
+        IGameObject? forlorn = null;
+        foreach (var obj in Svc.Objects) {
+            if (obj is IBattleChara chara && ForlornNameIds.Contains(chara.NameId) && chara.IsTargetable && !chara.IsDead) {
+                forlorn = chara;
+                break;
+            }
+        }
+
+        if (forlorn is { EntityId: var id }) {
+            if (_lastForlornEntityId != id) {
+                Log($"Forlorn detected (entityId={id}, nameId={((IBattleChara)forlorn).NameId}); prioritizing over normal FATE targets.");
+                _lastForlornEntityId = id;
+            }
+            Service.Gluttony.SetForlornTarget(forlorn);
+        }
+        else if (_lastForlornEntityId is { } previousId) {
+            Log($"Forlorn (entityId={previousId}) no longer present; restoring normal targeting.");
+            Service.Gluttony.SetForlornTarget(null);
+            _lastForlornEntityId = null;
         }
     }
 

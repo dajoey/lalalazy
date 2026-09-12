@@ -30,6 +30,13 @@ public class Plugin : IDalamudPlugin {
 
         // Initialize IPC and helper services
         Svc.Init(pluginInterface);
+
+        // One-time cleanup for configs that grew duplicate SortOrder entries before 0.0.3.1's
+        // [JsonProperty(ObjectCreationHandling.Replace)] fix (see Configuration.cs). Must run
+        // after Svc.Init() - Config.Save() calls Svc.PluginInterface.SavePluginConfig.
+        if (Config.DedupeSortOrder())
+            Config.Save();
+
         Service.BossMod = new BossModIPC();
         Service.Navmesh = Svc.Navmesh; // Use the initialized Navmesh IPC from Svc
         Service.TextAdvance = new TextAdvanceIpc();

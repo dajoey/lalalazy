@@ -1,5 +1,16 @@
 # Changelog - Lazy Fate Automation
 
+## v0.0.3.1 (2026-09-12)
+
+### Added
+
+- Combat now prioritizes a Forlorn Maiden or the Forlorn (the rare bonus mob that can spawn mid-FATE and despawns quickly if not killed) over the FATE's normal targets. When one is present it becomes the automation's hard target until it is defeated or disappears; normal nearest-target behaviour resumes automatically afterward. New setting "Prioritize Forlorn Maidens" (on by default).
+- Debug log line when a Forlorn is detected or clears, for troubleshooting.
+
+### Fixed
+
+- The fate-priority sort order list could grow duplicate entries over repeated updates (harmless to ordering, just clutter in the settings window). Existing installs are cleaned up automatically on the next load.
+
 ## v0.0.3.0 (2026-09-07)
 
 ### Added
