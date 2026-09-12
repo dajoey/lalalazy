@@ -208,6 +208,50 @@ Check("fp-null-owned-empty", FetchPlan.Build(week449, crowd, null, _ => null).Co
 // Max-per-slot cap respected (3 default; hands has 2 crowd items, 1 owned -> 1 missing).
 Check("fp-cap", plan.Count(p => p.Slot == FashionSlot.Hands) == 1, $"{plan.Count(p => p.Slot == FashionSlot.Hands)}");
 
+// ---- 13. SlotPlanner: the flat per-slot view (UI unhide, v0.2.0.0) ----
+// The old UI dropped Recipe==null rows from the missing list and hid everything behind
+// collapsed headers. The planner must yield a plan for EVERY hinted slot, keep every
+// not-owned candidate with a source label, and be honest about unknown ownership.
+var slotPlans = SlotPlanner.Compose(week449, crowd, planOwned,
+    id => id is HailstormGloves ? new RecipeOption(7777, 5, 90) : null, wearFilterOwned: true);
+Check("sp-four-plans", slotPlans.Count == 4, $"{slotPlans.Count} plans (body/hands/feet/neck)");
+Check("sp-every-hinted-slot", slotPlans.Select(p => p.Slot).ToHashSet()
+        .SetEquals(new[] { FashionSlot.Body, FashionSlot.Hands, FashionSlot.Feet, FashionSlot.Neck }),
+    string.Join(",", slotPlans.Select(p => p.Slot)));
+// Hands: Hailstorm (90) not owned -> fetch with recipe; Brand-new owned -> wear.
+var spHands = slotPlans.First(p => p.Slot == FashionSlot.Hands);
+Check("sp-hands-fetch-hailstorm-craftable",
+    spHands.Fetch.Any(f => f.Item.ItemId == HailstormGloves && f.Source == PieceSource.Craftable && f.Recipe?.RecipeId == 7777),
+    $"fetch: {string.Join(",", spHands.Fetch.Select(f => $"{f.Item.ItemId}:{f.Source}"))}");
+Check("sp-hands-wear-brandnew",
+    spHands.Wear.Any(w => w.ItemId == BrandNewGloves) && spHands.WearIsOwnedFiltered,
+    $"wear: {string.Join(",", spHands.Wear.Select(w => w.ItemId))}");
+// Body (Kasuga, no recipe) must STILL appear in fetch with NotCraftable — never silently hidden.
+var spBody = slotPlans.First(p => p.Slot == FashionSlot.Body);
+Check("sp-body-notcraftable-visible",
+    spBody.Fetch.Any(f => f.Item.ItemId == KasugaHaori && f.Source == PieceSource.NotCraftable && f.Recipe is null),
+    "a Recipe==null row must stay visible with NotCraftable, not vanish");
+// Wear filter off: full crowd list (hands shows both candidates, owned flags cleared by filter semantics).
+var spUnfiltered = SlotPlanner.Compose(week449, crowd, planOwned, _ => (RecipeOption?)null, wearFilterOwned: false);
+var spHandsAll = spUnfiltered.First(p => p.Slot == FashionSlot.Hands);
+Check("sp-wear-unfiltered-both", spHandsAll.Wear.Count == 2 && !spHandsAll.WearIsOwnedFiltered,
+    $"{spHandsAll.Wear.Count} wear entries");
+// Unknown ownership: fetch empty + flagged, wear degrades to unfiltered with the flag saying so.
+var spUnknown = SlotPlanner.Compose(week449, crowd, null, _ => (RecipeOption?)null, wearFilterOwned: true);
+Check("sp-unknown-ownership-honest",
+    spUnknown.All(p => p.OwnershipUnknown && p.Fetch.Count == 0 && !p.WearIsOwnedFiltered),
+    "ownership unknown must be flagged, fetch empty, wear NOT claimed as owned-filtered");
+// Fetch cap respected (default 3).
+var manyCrowd = new FakeCrowd(new Dictionary<FashionSlot, List<(uint id, int votes)>>
+{
+    [FashionSlot.Body] = Enumerable.Range(1, 10).Select(i => ((uint)(5000 + i), 10 - i)).ToList(),
+}, nameToStain, plus2);
+var spCap = SlotPlanner.Compose(week449, manyCrowd, new HashSet<uint>(), _ => (RecipeOption?)null, true);
+Check("sp-fetch-cap-3", spCap.First(p => p.Slot == FashionSlot.Body).Fetch.Count == 3,
+    $"{spCap.First(p => p.Slot == FashionSlot.Body).Fetch.Count}");
+// Null crowd -> no plans at all (nothing to render).
+Check("sp-null-crowd-empty", SlotPlanner.Compose(week449, null, planOwned, _ => (RecipeOption?)null, true).Count == 0);
+
 Console.WriteLine();
 Console.WriteLine(failures.Count == 0
     ? $"OK - {passes} checks passed"

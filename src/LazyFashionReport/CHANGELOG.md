@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.2.0.0 (2026-09-12)
+
+### Changed
+- The report window is rebuilt as one flat, readable layout: the scoring table on top, then "The week's pieces" - a block per hinted slot showing Wear (owned candidates) and Missing (every not-owned candidate) side by side, all visible on open with nothing hidden behind collapsed headers. The window's default first-open size widens from 560x640 to 780x700 to fit it (files: `ReportWindow.cs`, new `Core/SlotPlan.cs`)
+- Every missing piece is now listed with its source - "craftable (<job> lv N)" when a recipe exists, "not craftable (vendor/market leg comes later)" when one does not. Previously a missing piece with no recipe was silently dropped from the list entirely, so uncraftable crowd items were invisible (files: `Core/SlotPlan.cs` `SlotPlanner.Compose`, `ReportWindow.cs DrawSlotPlan`)
+- The owned-items snapshot is now always taken when the prediction rebuilds, not only when the owned-only candidate filter is on, so the missing-pieces view exists regardless of the wear filter (file: `FashionService.cs ReadGame / RebuildPrediction`)
+
+### Fixed
+- The missing-pieces list no longer depends on the Artisan section being enabled: the list of what is missing renders for every hinted slot even when crafting is toggled off or Artisan is not installed - the Craft via Artisan button is what stays gated on the "Craft a missing piece via Artisan" setting (files: `ReportWindow.cs DrawSlotPlan / DrawCraftButton`)
+- A hinted slot with an empty Wear or Missing list now says which it is ("nothing owned fits this hint yet", "nothing missing for this hint", "ownership not read yet") instead of rendering nothing (file: `ReportWindow.cs DrawSlotPlan`)
+
+### Notes
+- Regression coverage in the offline harness: a Recipe==null crowd item must stay visible in the plan with a NotCraftable source, every hinted slot must yield a plan, and unknown ownership must be flagged rather than silently treated as an unfiltered list (file: `tests/LazyFashionReport.Harness/Program.cs` §13)
+- The shop/vendor and market-board legs of fetch-missing are still upcoming; "not craftable" labels those pieces honestly in the meantime
+
 ## v0.1.2.0 (2026-09-07)
 
 ### Added

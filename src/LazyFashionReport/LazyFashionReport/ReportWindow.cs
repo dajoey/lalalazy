@@ -7,8 +7,11 @@ using LazyFashionReport.Core;
 namespace LazyFashionReport;
 
 /// <summary>
-/// The main assistant window: week header, per-slot hint/dye/equipped/score rows, a live
-/// total, and the owned-filtered candidate list under each hinted slot.
+/// The main assistant window: week header, per-slot hint/dye/equipped/score table, a live
+/// total, and below it THE WEEK'S PIECES — one flat block per hinted slot showing what to
+/// wear (owned candidates) and what is missing (every not-owned candidate with its source,
+/// never silently hidden for being uncraftable). No collapsing headers: everything visible
+/// on open (UI unhide, v0.2.0.0).
 /// </summary>
 internal class ReportWindow : Window
 {
@@ -17,7 +20,7 @@ internal class ReportWindow : Window
     public ReportWindow(Plugin plugin) : base("LazyFashionReport##lfr")
     {
         _plugin = plugin;
-        Size = new Vector2(560, 640);
+        Size = new Vector2(780, 700);
         SizeCondition = ImGuiCond.FirstUseEver;
     }
 
@@ -63,7 +66,7 @@ internal class ReportWindow : Window
         }
         ImGui.Separator();
 
-        // Per-slot table.
+        // Per-slot scoring table.
         if (ImGui.BeginTable("slots", 4, ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.ScrollY))
         {
             ImGui.TableSetupColumn("Slot", ImGuiTableColumnFlags.WidthFixed, 70);
@@ -124,60 +127,23 @@ internal class ReportWindow : Window
         }
 
         ImGui.Separator();
-        DrawCandidates(outfit);
+        DrawWeekPieces();
     }
 
-    private void DrawCandidates(OutfitReport outfit)
-    {
-        var max = _plugin.Config.MaxCandidatesPerSlot;
-        ImGui.TextUnformatted(_plugin.Config.FilterOwned ? "Candidates you own" : "Top candidates");
-        ImGui.Separator();
-        foreach (var s in outfit.Slots)
-        {
-            if (s.Hint is null) continue;
-            if (!ImGui.CollapsingHeader($"{s.Slot.DisplayName()} - {s.Hint}"))
-                continue;
-            ImGui.Indent(16);
-            if (s.Candidates.Count == 0)
-            {
-                ImGui.TextDisabled(FilterOwnedNote());
-            }
-            else
-            {
-                foreach (var c in s.Candidates.Take(max))
-                {
-                    ImGui.Bullet();
-                    ImGui.TextUnformatted($"{c.Name}  ({c.Votes})");
-                }
-                if (s.Candidates.Count > max)
-                    ImGui.TextDisabled($"... {s.Candidates.Count - max} more");
-            }
-            ImGui.Unindent(16);
-        }
-
-        DrawMissingPieces();
-    }
-
-    /// <summary>Auto-dress v1 step 4 UI: the missing-pieces plan (visible only when the config
-    /// toggle is on and Artisan is installed). One "Craft via Artisan" button per piece - the
-    /// button acts, nothing auto-crafts.</summary>
-    private void DrawMissingPieces()
+    /// <summary>The week's pieces: one flat block per hinted slot — wear list, missing list
+    /// with per-piece source, craft buttons where a recipe exists. Every hinted slot renders
+    /// even with empty lists (an empty list is information).</summary>
+    private void DrawWeekPieces()
     {
         var svc = _plugin.Service;
-        if (!_plugin.Config.FetchMissingCraft) return;
+        var plans = svc.SlotPlans;
 
-        ImGui.Separator();
-        ImGui.TextUnformatted("Missing pieces (craftable via Artisan)");
+        ImGui.TextUnformatted("The week's pieces");
         ImGui.SameLine();
-        ImGui.TextDisabled(_plugin.Service.ArtisanInstalled ? "(Artisan detected)" : "(Artisan not installed)");
-        if (!_plugin.Service.ArtisanInstalled) return;
+        ImGui.TextDisabled(plans.Count > 0
+            ? $"{plans.Count} hinted slot(s) - wear what is owned, fetch what is not"
+            : "no hinted slots loaded yet");
 
-        var pieces = svc.MissingPieces;
-        if (pieces.Count == 0)
-        {
-            ImGui.TextDisabled("Nothing missing (or the plan is still building).");
-            return;
-        }
         if (svc.ArtisanBusy == true)
             ImGui.TextColored(ImGuiColors.DalamudYellow, "Artisan is busy - wait for it to finish.");
 
@@ -190,34 +156,106 @@ internal class ReportWindow : Window
                 _craftError = null;
         }
 
-        foreach (var p in pieces)
+        foreach (var plan in plans)
+            DrawSlotPlan(plan);
+    }
+
+    private void DrawSlotPlan(SlotPlan plan)
+    {
+        var svc = _plugin.Service;
+        ImGui.Spacing();
+        ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudOrange);
+        ImGui.TextUnformatted($"{plan.Slot.DisplayName().ToUpperInvariant()} - \"{plan.Hint}\"");
+        ImGui.PopStyleColor();
+
+        // Wear list.
+        ImGui.TextDisabled("Wear (owned):");
+        ImGui.Indent(16);
+        if (plan.Wear.Count == 0)
         {
-            if (p.Recipe is null) continue;   // not craftable: no button, no noise
-            ImGui.Bullet();
-            ImGui.TextUnformatted($"{p.Item.Name} for {p.Slot.DisplayName()} ({p.Hint}, {p.Item.Votes} votes)");
-            ImGui.SameLine();
-            if (ImGui.SmallButton($"Craft via Artisan##lfr-craft-{p.Item.ItemId}"))
+            ImGui.TextDisabled(plan.OwnershipUnknown || !plan.WearIsOwnedFiltered
+                ? "no crowd data for this hint yet"
+                : "nothing owned fits this hint yet");
+        }
+        else
+        {
+            foreach (var c in plan.Wear)
             {
-                // The click IS the consent: one recipe, one run. CraftItem must run on the
-                // framework thread (it opens the crafting log), so hop through the service.
-                var err = Plugin.Framework.RunOnFrameworkThread(() => svc.CraftViaArtisan(p.Recipe.RecipeId)).Result;
-                if (err is not null)
+                ImGui.Bullet();
+                ImGui.TextUnformatted($"{c.Name}  ({c.Votes})");
+            }
+        }
+        ImGui.Unindent(16);
+
+        // Missing list: EVERY not-owned candidate with a source, never hidden.
+        ImGui.TextDisabled("Missing (not owned):");
+        ImGui.Indent(16);
+        if (plan.OwnershipUnknown)
+        {
+            ImGui.TextDisabled("ownership not read yet - open the Fashion Report window or press Refresh");
+        }
+        else if (plan.Fetch.Count == 0)
+        {
+            ImGui.TextDisabled("nothing missing for this hint");
+        }
+        else
+        {
+            foreach (var piece in plan.Fetch)
+            {
+                ImGui.Bullet();
+                ImGui.TextUnformatted($"{piece.Item.Name}  ({piece.Item.Votes})");
+                ImGui.SameLine();
+                if (piece.Recipe is { } r)
                 {
-                    _craftError = $"Craft failed: {err}";
-                    Plugin.Log.Warning($"[LFR] craft request for recipe {p.Recipe.RecipeId} failed: {err}");
+                    ImGui.TextDisabled($"- craftable ({CraftName(r.CraftTypeId)} lv {r.Level})");
+                    if (_plugin.Config.FetchMissingCraft && svc.ArtisanInstalled)
+                    {
+                        ImGui.SameLine();
+                        DrawCraftButton(piece);
+                    }
                 }
                 else
                 {
-                    _craftError = null;
-                    Plugin.Log.Information($"[LFR] craft request handed to Artisan: recipe {p.Recipe.RecipeId} for {p.Item.Name}");
+                    ImGui.TextDisabled("- not craftable (vendor/market leg comes later)");
                 }
+            }
+        }
+        ImGui.Unindent(16);
+    }
+
+    private static string CraftName(int craftTypeId) => craftTypeId switch
+    {
+        0 => "Carpenter",
+        1 => "Blacksmith",
+        2 => "Armorer",
+        3 => "Goldsmith",
+        4 => "Leatherworker",
+        5 => "Weaver",
+        6 => "Alchemist",
+        7 => "Culinarian",
+        _ => "craft",
+    };
+
+    private void DrawCraftButton(FetchPiece piece)
+    {
+        if (ImGui.SmallButton($"Craft via Artisan##lfr-craft-{piece.Item.ItemId}"))
+        {
+            // The click IS the consent: one recipe, one run. CraftItem must run on the
+            // framework thread (it opens the crafting log), so hop through the service.
+            var err = Plugin.Framework.RunOnFrameworkThread(
+                () => _plugin.Service.CraftViaArtisan(piece.Recipe!.RecipeId)).Result;
+            if (err is not null)
+            {
+                _craftError = $"Craft failed: {err}";
+                Plugin.Log.Warning($"[LFR] craft request for recipe {piece.Recipe!.RecipeId} failed: {err}");
+            }
+            else
+            {
+                _craftError = null;
+                Plugin.Log.Information($"[LFR] craft request handed to Artisan: recipe {piece.Recipe!.RecipeId} for {piece.Item.Name}");
             }
         }
     }
 
     private string? _craftError;
-
-    private string FilterOwnedNote() => _plugin.Config.FilterOwned
-        ? "No owned candidates yet (open the Fashion Report or press Refresh)."
-        : "No crowd data for this hint yet.";
 }

@@ -28,6 +28,7 @@ internal sealed class FashionService : IDisposable
     private readonly ArtisanCraft _artisan;
     private readonly RecipeIndex _recipes;
     private IReadOnlyList<MissingPiece> _missing = Array.Empty<MissingPiece>();
+    private IReadOnlyList<SlotPlan> _slotPlans = Array.Empty<SlotPlan>();
 
     private RemoteDataSource.XivStatsRoot? _xiv;
     private RemoteDataSource.ReportState? _state;
@@ -60,6 +61,7 @@ internal sealed class FashionService : IDisposable
     public OutfitReport? Outfit => _outfit;
     public HashSet<uint>? OwnedItems => _owned;
     public IReadOnlyList<MissingPiece> MissingPieces => _missing;
+    public IReadOnlyList<SlotPlan> SlotPlans => _slotPlans;
 
     /// <summary>xivstats crowd dataset loaded (candidates + crowd dyes). Honest per-source
     /// status: week 449's "no hint" bug hid behind a combined flag that was true while the
@@ -151,11 +153,11 @@ internal sealed class FashionService : IDisposable
         return Adapters.ClientReader.ReadAddonHints((FFXIVClientStructs.FFXIV.Client.UI.AddonFashionCheck*)_currentAddon);
     }
 
-    private unsafe (List<EquippedItem>? eq, HashSet<uint>? owned) ReadGame(CrowdDataAdapter? crowd)
+    private unsafe (List<EquippedItem>? eq, HashSet<uint>? owned) ReadGame(CrowdDataAdapter? crowd, bool alwaysOwned = false)
     {
         var eq = ClientReader.ReadEquipped();
         HashSet<uint>? owned = null;
-        if (_plugin.Config.FilterOwned)
+        if (alwaysOwned || _plugin.Config.FilterOwned)
         {
             var candidates = new HashSet<uint>();
             if (crowd != null && _week != null)
@@ -268,7 +270,9 @@ internal sealed class FashionService : IDisposable
         var crowd = EnsureCrowdAdapter();
 
         // ONE framework-thread prologue for all game reads (LazyCrafter threading pattern).
-        var (eq, owned) = Plugin.Framework.RunOnFrameworkThread(() => ReadGame(crowd)).Result;
+        // The owned snapshot is ALWAYS taken (not only under FilterOwned): the fetch/missing
+        // view needs to know what is missing even when the wear list is unfiltered (UI unhide).
+        var (eq, owned) = Plugin.Framework.RunOnFrameworkThread(() => ReadGame(crowd, alwaysOwned: true)).Result;
 
         var eqArray = new EquippedItem?[11];
         foreach (var e in eq ?? Enumerable.Empty<EquippedItem>())
@@ -281,13 +285,16 @@ internal sealed class FashionService : IDisposable
         _outfit = Predictor.Build(_week, eqArray, _sheets.StainFamilies, crowd,
             _plugin.Config.FilterOwned ? _owned : null);
 
-        // Auto-dress v1 step 4 (OFF by default): the missing-pieces plan. Built from the same
-        // framework pass as the prediction so both views agree; the plan is only meaningful when
-        // the player opted in, because it is the buy/craft surface.
-        if (_plugin.Config.FetchMissingCraft)
-            _missing = FetchPlan.Build(_week, crowd, _owned, id => _recipes.ForItem(id));
-        else
-            _missing = Array.Empty<MissingPiece>();
+        // UI unhide (v0.2.0.0): the flat per-slot plan — wear + fetch with sources, every
+        // hinted slot rendered, nothing dropped for being uncraftable.
+        _slotPlans = SlotPlanner.Compose(_week, crowd, _owned, id => _recipes.ForItem(id),
+            _plugin.Config.FilterOwned);
+
+        // The Artisan craft list (unchanged behavior, FetchMissingCraft toggle): built from
+        // the same crowd + owned snapshot so the two views always agree.
+        _missing = _plugin.Config.FetchMissingCraft
+            ? FetchPlan.Build(_week, crowd, _owned, id => _recipes.ForItem(id))
+            : Array.Empty<MissingPiece>();
     }
 
     /// <summary>Start one craft via Artisan's public IPC (auto-dress v1 step 4). Framework thread
