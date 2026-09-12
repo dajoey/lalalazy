@@ -1,4 +1,15 @@
-﻿## v0.1.42.0 (2026-09-12)
+﻿## v0.1.43.0 (2026-09-12)
+
+### Fixed
+
+- **An Auto-Market-enabled item in the bags whose market-board category has no Category Routing rule is now named instead of passed over in silence.** The mover only relocates stock whose category is assigned to a retainer, so an enabled, marketable, non-excluded bags stack with no matching rule was never moved and never mentioned - the 2026-09-12 sweep deposited 195 stacks "nearly flawlessly" while one Heavy Metal Culverin (Machinist's Arms) sat in the bags, marked for Auto-Market, touched by nothing. Such stacks are still never moved (with no rule there is no destination, and the listing gate keeps them eligible on every retainer, fail-open as always), but the sweep now logs and announces them once by name so the missing rule is visible: "routing: N marked item(s) match no category rule (left in bags, still listed when a slot frees): ..." (files: `AutoMarket/RoutingMove.cs` `RoutingMovePlan.UnroutedBagsStacks`, `MarketAutomation.cs` `BuildListingStepsNow`).
+
+### Notes
+
+- The remedy for a reported item is one row in the Category Routing section: assign its category to a retainer and the next sweep deposits and lists it there like the rest of the routed stock.
+- Offline suite: cases 75-78 pin the report - a marked, marketable, non-excluded bags stack with no category rule is reported and never moved; retainer-side unrouted stock, and excluded, unmarketable, or rule-disabled stacks, are not; and PlanDepositsOnly reports the same gap for the final lap (files: `tests/LazyMarketCompanion.Harness/Program.cs`, cases 75-78).
+
+## v0.1.42.0 (2026-09-12)
 
 ### Fixed
 

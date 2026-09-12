@@ -37,6 +37,12 @@ namespace LazyMarketCompanion.AutoMarket;
 //   - A full destination is a normal state, not an error: the leg stops with a note and the sweep
 //     continues (PullPlan.StoppedForSpace precedent).
 
+// 0.1.43.0: a marked, marketable, non-excluded BAGS stack whose category matches no routing rule
+// is still never moved (there is no destination; fail-open unchanged) but is now REPORTED on the
+// plan (RoutingMovePlan.UnroutedBagsStacks) so the sweep can name it instead of passing over it
+// in silence - Helm t-joey-1789190796770: a Heavy Metal Culverin (Machinist's Arms, cat 77) sat
+// in the bags sweep after sweep, marked for Auto-Market, touched by nothing, said nothing.
+
 /// <summary>Which way a routing move goes. RetainerToBags frees misplaced stock for the assigned
 /// retainer's own session; BagsToRetainer deposits assigned stock into the retainer being visited.</summary>
 public enum MoveLeg { RetainerToBags, BagsToRetainer }
@@ -55,7 +61,15 @@ public sealed record RoutingMovePlan(
   IReadOnlyList<RoutingMoveOp> Ops,
   IReadOnlyList<string> Notes,
   bool StoppedForBags,
-  bool StoppedForRetainer);
+  bool StoppedForRetainer)
+{
+  /// <summary>0.1.43.0: enabled, marketable, non-excluded BAGS stacks whose category matches no
+  /// routing rule. Never moved (fail-open: the gate keeps them eligible on every retainer, so they
+  /// list from the bags whenever a free market slot reaches them) - reported so a marked item the
+  /// rules do not cover can never again pass a whole sweep untouched and unmentioned.</summary>
+  public IReadOnlyList<(uint ItemId, bool HQ)> UnroutedBagsStacks { get; init; } =
+    Array.Empty<(uint ItemId, bool HQ)>();
+}
 
 /// <summary>
 /// Decides which stacks move during THIS retainer's session. Pure function of the stock snapshot,
@@ -167,6 +181,8 @@ public static class RoutingMove
     var stoppedBags = false;
     var stoppedRet = false;
     var skippedCrystals = 0;
+    var unrouted = new List<(uint ItemId, bool HQ)>();
+    var unroutedKeys = new HashSet<string>();
 
     foreach (var stack in stock)
     {
@@ -191,7 +207,15 @@ public static class RoutingMove
 
       var mapped = categoryRules.FirstOrDefault(r => r.CategoryId == info.CategoryId);
       if (mapped == null)
+      {
+        // 0.1.43.0: the stack is marked for Auto-Market and perfectly sellable, but no routing
+        // rule names a retainer for its category, so the mover has no destination for it. It is
+        // NOT moved (fail-open above still applies) - it is REPORTED, once per item, so the gap
+        // between "marked for automarket" and "no rule covers it" is visible in the sweep output.
+        if (stack.Origin != StockOrigin.Retainer && unroutedKeys.Add(key))
+          unrouted.Add((stack.ItemId, stack.HQ));
         continue; // unrouted category: no movement restriction, so no movement duty either
+      }
 
       if (stack.Origin == StockOrigin.Retainer)
       {
@@ -222,7 +246,7 @@ public static class RoutingMove
 
         ops.Add(new RoutingMoveOp(MoveLeg.RetainerToBags, stack.Container, stack.Slot, stack.ItemId, stack.HQ));
         if (earlyExitOnFirstOp)
-          return new RoutingMovePlan(ops, notes, stoppedBags, stoppedRet);
+          return new RoutingMovePlan(ops, notes, stoppedBags, stoppedRet) { UnroutedBagsStacks = unrouted };
         freeBags--;
       }
       else
@@ -247,7 +271,7 @@ public static class RoutingMove
 
         ops.Add(new RoutingMoveOp(MoveLeg.BagsToRetainer, stack.Container, stack.Slot, stack.ItemId, stack.HQ));
         if (earlyExitOnFirstOp)
-          return new RoutingMovePlan(ops, notes, stoppedBags, stoppedRet);
+          return new RoutingMovePlan(ops, notes, stoppedBags, stoppedRet) { UnroutedBagsStacks = unrouted };
         freeRet--;
       }
     }
@@ -259,7 +283,7 @@ public static class RoutingMove
     if (skippedCrystals > 0)
       notes.Add($"routing move: {skippedCrystals} crystal stack(s) were left where they are (crystals move and stack through their own containers; Auto-Market still lists them from there)");
 
-    return new RoutingMovePlan(ops, notes, stoppedBags, stoppedRet);
+    return new RoutingMovePlan(ops, notes, stoppedBags, stoppedRet) { UnroutedBagsStacks = unrouted };
   }
 
   /// <summary>The one-line summary for the log/chat announce: "3 pull-out(s), 2 deposit(s)".</summary>

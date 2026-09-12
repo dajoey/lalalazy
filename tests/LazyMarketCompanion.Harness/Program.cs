@@ -2938,6 +2938,56 @@ StockStack BagStack(uint id, int slot, int qty, uint cat = CatA, bool marketable
   Check("74 HasPendingDeposits: not masked by zero free retainer slots", hasZeroCap);
 }
 
+
+// ===== 0.1.43.0: unrouted marked bags stock is REPORTED, not silent =====
+
+// 75. An enabled, marketable, non-excluded bags stack whose category has no rule is reported in
+// UnroutedBagsStacks and never moved (cat 999/998 are not in routingRules).
+{
+  var rules = new List<ItemRule> { Rule(1006, 99) };
+  var stock = new List<StockStack> { BagStack(1006, 1, 10) };
+  var plan = RoutingMove.Plan(stock, rules, CatInfo(1006, 999), new Dictionary<string, bool>(), routingRules, "R1", () => 10, () => 10);
+  Check("75 unrouted report: marked bags stack with no category rule is reported, not moved",
+    plan.Ops.Count == 0 && plan.UnroutedBagsStacks.Count == 1 && plan.UnroutedBagsStacks[0].ItemId == 1006,
+    $"ops={plan.Ops.Count} unrouted={plan.UnroutedBagsStacks.Count}");
+}
+
+// 76. The same stack sitting in a retainer is NOT reported (it sells from where it sits).
+{
+  var rules = new List<ItemRule> { Rule(1006, 99) };
+  var stock = new List<StockStack> { RetStack(1006, 1, 10) };
+  var plan = RoutingMove.Plan(stock, rules, CatInfo(1006, 999), new Dictionary<string, bool>(), routingRules, "R1", () => 10, () => 10);
+  Check("76 unrouted report: retainer-side unrouted stock is not reported",
+    plan.Ops.Count == 0 && plan.UnroutedBagsStacks.Count == 0, $"unrouted={plan.UnroutedBagsStacks.Count}");
+}
+
+// 77. Excluded, unmarketable, and rule-disabled unrouted bags stacks are not reported.
+{
+  var rules = new List<ItemRule> { Rule(1006, 99), Rule(1007, 99) };
+  var info = CatInfo(1006, 999);
+  info["1007:nq"] = new(1007, false, 998, false);
+  var excl = new Dictionary<string, bool> { ["1006:nq"] = true };
+  var stock = new List<StockStack> { BagStack(1006, 1, 10), BagStack(1007, 2, 10), BagStack(9999, 3, 10) };
+  var plan = RoutingMove.Plan(stock, rules, info, excl, routingRules, "R1", () => 10, () => 10);
+  Check("77 unrouted report: excluded/unmarketable/no-rule stacks are not reported",
+    plan.Ops.Count == 0 && plan.UnroutedBagsStacks.Count == 0, $"unrouted={plan.UnroutedBagsStacks.Count}");
+}
+
+// 78. A routed bags stack still deposits as before (not reported); the final-lap mode reports the
+// same gap.
+{
+  var rules = new List<ItemRule> { Rule(1001, 99), Rule(1006, 99) };
+  var info = CatInfo(1001, CatA);
+  info["1006:nq"] = new(1006, false, 999, true);
+  var stock = new List<StockStack> { BagStack(1001, 1, 10), BagStack(1006, 2, 10) };
+  var plan = RoutingMove.Plan(stock, rules, info, new Dictionary<string, bool>(), routingRules, "R1", () => 10, () => 10);
+  Check("78 unrouted report: routed stack deposits and is not reported; unrouted is",
+    plan.Ops.Count == 1 && plan.Ops[0].ItemId == 1001 && plan.UnroutedBagsStacks.Count == 1 && plan.UnroutedBagsStacks[0].ItemId == 1006,
+    $"ops={plan.Ops.Count} unrouted={plan.UnroutedBagsStacks.Count}");
+  var lap = RoutingMove.PlanDepositsOnly(stock, rules, info, new Dictionary<string, bool>(), routingRules, "R1", () => 10, () => 10);
+  Check("78 unrouted report: PlanDepositsOnly reports the same gap", lap.UnroutedBagsStacks.Count == 1, $"unrouted={lap.UnroutedBagsStacks.Count}");
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 

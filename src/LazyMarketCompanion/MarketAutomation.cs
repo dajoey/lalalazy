@@ -60,6 +60,9 @@ internal sealed class MarketAutomation : Window, IDisposable
   // 0.1.40.0: routing-mover counters for the whole run (all retainers), reported by the done line.
   private int _routingMovedOk;
   private int _routingMovedFail;
+  // 0.1.43.0: set the first time per sweep a plan reports bags stock no category rule covers, so
+  // the line is logged and announced exactly once no matter how many sessions see the same stock.
+  private bool _unroutedBagsAnnounced;
   // t_deb0e274 (2026-09-10): listings whose Listed{slot} confirmation never landed even after one
   // retry - see AddListingSteps. Reported in the done line so a strand is never silent again.
   private int _unconfirmedThisRun;
@@ -1197,6 +1200,19 @@ internal sealed class MarketAutomation : Window, IDisposable
     var routingPlan = AutoMarketService.PlanRoutingMoves();
     foreach (var note in routingPlan.Notes)
       Svc.Log.Information($"[LMC] {note}");
+    // 0.1.43.0: marked bags stock no routing rule covers is never moved (fail-open, see
+    // RoutingMove.cs) - but it is named once per sweep, log and chat, so "marked for automarket
+    // and never touched" cannot pass silently again (Helm t-joey-1789190796770).
+    if (routingPlan.UnroutedBagsStacks.Count > 0 && !_unroutedBagsAnnounced)
+    {
+      _unroutedBagsAnnounced = true;
+      var sheet = Svc.Data.GetExcelSheet<Lumina.Excel.Sheets.Item>();
+      string UnroutedName(uint id) => sheet != null && sheet.TryGetRow(id, out var row) ? row.Name.ToString() : $"item {id}";
+      var unroutedNames = string.Join(", ", routingPlan.UnroutedBagsStacks.Select(s => $"{UnroutedName(s.ItemId)}{(s.HQ ? " (HQ)" : "")}"));
+      Svc.Log.Information($"[LMC] routing: {routingPlan.UnroutedBagsStacks.Count} marked bag stack(s) match no category rule and stay in the bags - the gate still lists them on any retainer when a free market slot reaches them; add a Category Routing rule to divide them onto a retainer: {unroutedNames}");
+      if (Plugin.Configuration.ShowAutoMarketMessages)
+        Communicator.PrintInfo($"routing: {routingPlan.UnroutedBagsStacks.Count} marked item(s) match no category rule (left in bags; still listed when a slot frees): {unroutedNames}");
+    }
     if (routingPlan.Ops.Count > 0)
     {
       Svc.Log.Information($"[LMC] routing move plan: {RoutingMove.Summarize(routingPlan.Ops)}: {string.Join(", ", routingPlan.Ops.Select(o => $"{(o.Leg == MoveLeg.RetainerToBags ? "out" : "in")} {o.ItemId}{(o.HQ ? " HQ" : "")} @{AutoMarket.AutoMarketService.NameOfContainer((InventoryType)o.SrcContainer)}#{o.SrcSlot}"))}");
@@ -2363,6 +2379,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     _pulledThisRun = 0;
     _routingMovedOk = 0;
     _routingMovedFail = 0;
+    _unroutedBagsAnnounced = false;
     _unconfirmedThisRun = 0;
     // 0.1.26.0: the planned count is per-run state too. It was the one vendor counter NOT reset
     // here, so after a retainer planned N ops every later retainer's AnnounceRunDone re-tested
