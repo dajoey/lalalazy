@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.6.1.0 (2026-09-12)
+
+### Fixed
+- The "Apply outfit" button now sits pinned to the top of the report window. Since the button first shipped it rendered at the very bottom, below the per-slot table - past the window's bottom edge with no way to scroll to it, so in game it read as "there's literally no button on the interface" (file: `ReportWindow.cs Draw`, `ReportWindow.cs DrawApply`)
+- The per-slot table no longer scrolls inside the window: a scrolling table expands to fill all remaining window height, which is what pushed the assembler, the gaps and the apply button out of reach. The window itself scrolls instead, so every section stays reachable (file: `ReportWindow.cs Draw`)
+
+### Notes
+- The apply button is disabled with a "- building the outfit plan..." line until the week's plan is built, and still shows "- finishing a withdraw, one moment..." while a withdrawal lands; a press before the plan exists is never silently dropped (file: `ReportWindow.cs DrawApply`)
+
 ## v0.6.0.0 (2026-09-12)
 
 ### Added

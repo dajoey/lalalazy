@@ -48,6 +48,12 @@ internal class ReportWindow : Window
             return;
         }
 
+        // v0.6.1.0: the "Apply outfit" button is pinned to the TOP of the window. Under
+        // the old layout it rendered at the very bottom, below the slots table, pushed
+        // past the window edge with no way to reach it - reported in game as "there's
+        // literally no button on the interface".
+        DrawApply();
+
         // Header: theme, week, base, data freshness.
         ImGui.TextUnformatted($"Week {week.Week} - {week.Theme}");
         ImGui.SameLine();
@@ -74,8 +80,10 @@ internal class ReportWindow : Window
         }
         ImGui.Separator();
 
-        // Per-slot scoring table.
-        if (ImGui.BeginTable("slots", 4, ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.ScrollY))
+        // Per-slot scoring table. v0.6.1.0: no ScrollY here - a scrolling table grows
+        // to fill the rest of the window, which pushed everything after it out of reach;
+        // the window itself scrolls instead.
+        if (ImGui.BeginTable("slots", 4, ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH))
         {
             ImGui.TableSetupColumn("Slot", ImGuiTableColumnFlags.WidthFixed, 70);
             ImGui.TableSetupColumn("Hint / dye", ImGuiTableColumnFlags.WidthFixed, 200);
@@ -197,30 +205,35 @@ internal class ReportWindow : Window
             ImGui.Bullet();
             ImGui.TextDisabled(gap);
         }
-
-        DrawApply();
     }
 
     /// <summary>P4 executor live half (v0.6.0.0): the "Apply outfit" button and its result.
-    /// One press equips the assembled outfit for real - pieces move from bags/armoury onto
-    /// the character, stored pieces come out of the glamour dresser or armoire first. Dye is
-    /// never auto-applied: planned dyes come back as manual reminders, and every move is
-    /// logged line-by-line to the plugin log.</summary>
+    /// v0.6.1.0 pins this block to the TOP of the window - under the old bottom placement
+    /// it rendered below the slots table, past the window edge, unreachable in game
+    /// ("there's literally no button on the interface"). One press equips the assembled
+    /// outfit for real - pieces move from bags/armoury onto the character, stored pieces
+    /// come out of the glamour dresser or armoire first. Dye is never auto-applied: planned
+    /// dyes come back as manual reminders, and every move is logged line-by-line to the
+    /// plugin log.</summary>
     private void DrawApply()
     {
         var svc = _plugin.Service;
         ImGui.Spacing();
-        ImGui.Separator();
 
+        // Disabled with a reason line while the plan builds - ApplyOutfit is a no-op
+        // without an assembly, and a silently dead button is indistinguishable from none.
+        var asm = svc.Assembly;
         var busy = svc.ApplyBusy;
-        if (busy) ImGui.BeginDisabled();
+        if (busy || asm is null) ImGui.BeginDisabled();
         if (ImGui.Button("Apply outfit##lfr-apply"))
             svc.ApplyOutfit();
-        if (busy) ImGui.EndDisabled();
+        if (busy || asm is null) ImGui.EndDisabled();
         ImGui.SameLine();
-        ImGui.TextDisabled(busy
-            ? "- finishing a withdraw, one moment..."
-            : "- one press equips the assembled outfit; dye stays manual");
+        ImGui.TextDisabled(asm is null
+            ? "- building the outfit plan..."
+            : busy
+                ? "- finishing a withdraw, one moment..."
+                : "- one press equips the assembled outfit; dye stays manual");
 
         var run = svc.LastApply;
         if (run is null) return;
