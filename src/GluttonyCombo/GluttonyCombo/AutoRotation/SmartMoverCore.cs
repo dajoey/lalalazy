@@ -45,10 +45,12 @@ internal static class SmartMoverCore
 
     /// <summary>
     ///     Hard ceiling on how far from the engaged target a destination may
-    ///     land (v1.0.4.193). The old sampler took the first safe point within
-    ///     24 yalms in ANY direction, so a dodge could send the character well
-    ///     outside the boss arena; candidates beyond this radius of the target
-    ///     are rejected and the mover holds instead of wandering off.
+    ///     land (v1.0.4.193). Kept as a sanity BACKSTOP even now that real
+    ///     mesh-walkability filtering exists (v1.0.4.196, gap 1): a corridor
+    ///     could be walkable yet still lead the character out of the intended
+    ///     encounter area (e.g. an open hallway back to a previous room), so
+    ///     the distance ceiling and the mesh check are independent, both-must-
+    ///     pass filters, not a replacement for one another.
     /// </summary>
     internal const float MaxDestDistFromTarget = 15f;
     internal const int DodgeDirCount = 16;
@@ -81,7 +83,13 @@ internal static class SmartMoverCore
         bool Enabled,                // SmartMover toggle
         bool InCombat,
         float DeltaSec,              // time since last tick
-        double NowSec);              // absolute seconds clock (hysteresis)
+        double NowSec,               // absolute seconds clock (hysteresis)
+        Func<Vector2, bool>? IsPointWalkable = null); // v1.0.4.196: true arena-geometry bounds via
+                                                       // vnavmesh mesh walkability (Query.Mesh.PointOnFloor).
+                                                       // Null when vnavmesh is absent/not ready - the engine
+                                                       // then degrades to the MaxDestDistFromTarget heuristic
+                                                       // alone (BMR-independent operation is a requirement;
+                                                       // this must never be a BMR-derived input).
 
     /// <summary> One movement verdict. Reason is a byte code; see <see cref="ReasonString"/>. </summary>
     internal readonly record struct MoveDecision(Decision Kind, Vector2 Dest, byte Reason);
@@ -136,7 +144,7 @@ internal static class SmartMoverCore
         {
             var anchor = w.TargetEngaged ? w.TargetPos : w.PlayerPos;
             var clamp = w.TargetEngaged ? MaxDestDistFromTarget : float.MaxValue;
-            var dest = FindSafePoint(w.PlayerPos, w.Zones, anchor, clamp);
+            var dest = FindSafePoint(w.PlayerPos, w.Zones, anchor, clamp, w.IsPointWalkable);
             if (dest is { } d)
                 return Commit(w, h, d, ReasonDodgeCode, overrideHold: true);
             return None(); // no sampled safe point - hold rather than walk blind
@@ -150,13 +158,14 @@ internal static class SmartMoverCore
             return StandDown(h, ReasonSettleCode);
 
         var finalDest = ideal;
-        if (UnsafeAt(ideal, w.Zones, 0.5f) is not null)
+        var idealBlocked = UnsafeAt(ideal, w.Zones, 0.5f) is not null || !Walkable(w.IsPointWalkable, ideal);
+        if (idealBlocked)
         {
-            var alt = FindSafeRingPoint(ideal, w.TargetPos, w.Zones);
+            var alt = FindSafeRingPoint(ideal, w.TargetPos, w.Zones, w.IsPointWalkable);
             if (alt is { } a)
                 finalDest = a;
             else
-                return None(); // whole ring unsafe - hold
+                return None(); // whole ring unsafe/unwalkable - hold
         }
 
         return Commit(w, h, finalDest, ReasonEngageCode, overrideHold: false);
@@ -203,6 +212,14 @@ internal static class SmartMoverCore
                 return zones[i];
         return null;
     }
+
+    /// <summary>
+    ///     True arena-geometry gate (v1.0.4.196): a candidate is walkable when
+    ///     no mesh predicate is supplied (vnavmesh absent/not ready - the
+    ///     BMR-independent, distance-heuristic-only mode required by the
+    ///     card), or when the predicate itself says so.
+    /// </summary>
+    private static bool Walkable(Func<Vector2, bool>? isWalkable, Vector2 p) => isWalkable is null || isWalkable(p);
 
     /// <summary>
     ///     Whether the player already stands in the desired range band and (if
@@ -263,11 +280,16 @@ internal static class SmartMoverCore
 
     /// <summary>
     ///     Samples rings around the player for the nearest point outside every
-    ///     live zone. Zones that already contain the player are being ESCAPED -
-    ///     the exit segment inevitably crosses them, so only OTHER zones block
-    ///     the route (otherwise a player inside a zone could never find a dodge).
+    ///     live zone, within <paramref name="maxDistFromAnchor"/> of
+    ///     <paramref name="anchor"/>, and (v1.0.4.196) on the navmesh when
+    ///     <paramref name="isWalkable"/> is supplied. Zones that already
+    ///     contain the player are being ESCAPED - the exit segment inevitably
+    ///     crosses them, so only OTHER zones block the route (otherwise a
+    ///     player inside a zone could never find a dodge). Mesh-walkability
+    ///     is NOT relaxed for the escaped zone: a candidate off the mesh is
+    ///     never a valid dodge target regardless of which zone it clears.
     /// </summary>
-    internal static Vector2? FindSafePoint(Vector2 playerPos, IReadOnlyList<DangerZoneModel.Zone> zones, Vector2 anchor, float maxDistFromAnchor)
+    internal static Vector2? FindSafePoint(Vector2 playerPos, IReadOnlyList<DangerZoneModel.Zone> zones, Vector2 anchor, float maxDistFromAnchor, Func<Vector2, bool>? isWalkable = null)
     {
         List<DangerZoneModel.Zone>? others = null;
         foreach (var z in zones)
@@ -288,6 +310,8 @@ internal static class SmartMoverCore
                 var p = playerPos + new Vector2(MathF.Cos(ang), MathF.Sin(ang)) * r;
                 if (Vector2.Distance(p, anchor) > maxDistFromAnchor)
                     continue; // outside the arena neighbourhood - hold instead (v1.0.4.193)
+                if (!Walkable(isWalkable, p))
+                    continue; // off the navmesh - real arena bounds (v1.0.4.196)
                 if (UnsafeAt(p, zones, 0.25f) is null && (others is null || !SegmentBlocked(p, playerPos, others)))
                 {
                     var d = Vector2.Distance(playerPos, p);
@@ -300,8 +324,11 @@ internal static class SmartMoverCore
         return null;
     }
 
-    /// <summary> Samples the target ring for a safe variant when the ideal point is covered. </summary>
-    internal static Vector2? FindSafeRingPoint(Vector2 ideal, Vector2 targetPos, IReadOnlyList<DangerZoneModel.Zone> zones)
+    /// <summary>
+    ///     Samples the target ring for a safe, walkable variant when the ideal
+    ///     point is covered by a zone or off the navmesh (v1.0.4.196).
+    /// </summary>
+    internal static Vector2? FindSafeRingPoint(Vector2 ideal, Vector2 targetPos, IReadOnlyList<DangerZoneModel.Zone> zones, Func<Vector2, bool>? isWalkable = null)
     {
         var ringR = Vector2.Distance(ideal, targetPos);
         var idealAngle = MathF.Atan2(ideal.Y - targetPos.Y, ideal.X - targetPos.X);
@@ -313,6 +340,8 @@ internal static class SmartMoverCore
             var ang = i * (2f * MathF.PI / 24);
             var p = targetPos + new Vector2(MathF.Cos(ang), MathF.Sin(ang)) * ringR;
             if (UnsafeAt(p, zones, 0.5f) is not null)
+                continue;
+            if (!Walkable(isWalkable, p))
                 continue;
             var score = MathF.Abs(AngleDiff(ang, idealAngle));
             if (score < bestScore) { bestScore = score; bestAngle = ang; found = true; }

@@ -49,6 +49,11 @@ internal static class SmartMover
     private static readonly DangerZoneModel.LingeringZones Lingering = new();
     private static byte lastReason;
 
+    // v1.0.4.196: player's world Y at BuildWorld time, for mesh-walkability
+    // queries (Vector2 XZ -> Vector3 needs a Y; the ground plane at this Y is
+    // close enough for a PointOnFloor lookup within a few yalms).
+    private static float _playerY;
+
     // v1.0.4.195: omen-telegraph VFX zones. VfxManager (ECommons, hooked
     // since plugin init via Module.All) tracks every live VFX; the ones
     // whose path is an omen and whose caster is a living hostile become
@@ -170,6 +175,8 @@ internal static class SmartMover
 
     private static SmartMoverCore.MoverWorld BuildWorld(IBattleChara player)
     {
+        _playerY = player.Position.Y;
+
         // --- DPS target: the autorotation's own choice, independent of the hard target ---
         IBattleChara? target = null;
         try
@@ -211,7 +218,8 @@ internal static class SmartMover
             Enabled: AutoRotationController.cfg?.DPSSettings.SmartMover ?? false,
             InCombat: InCombat(),
             DeltaSec: SmartMoverCore.TickMs / 1000f,
-            NowSec: nowSec);
+            NowSec: nowSec,
+            IsPointWalkable: WalkableAt);
     }
 
     /// <summary> Collects telegraphed zones from every hostile currently casting, then folds in resolved ground fields that are still dangerous. </summary>
@@ -391,6 +399,21 @@ internal static class SmartMover
                    (MovementHook.Instance->Wishdir_Horizontal != 0 || MovementHook.Instance->Wishdir_Vertical != 0);
         }
         catch { return false; }
+    }
+
+    /// <summary>
+    ///     Mesh-walkability check for a candidate XZ point (v1.0.4.196, BMR-
+    ///     parity gap 1). Reuses the player's current world Y as the query
+    ///     plane - dodge/engage candidates land within a few yalms, well
+    ///     inside vnavmesh's PointOnFloor half-extent tolerance. Fails OPEN
+    ///     (returns true / caller does not filter) on any exception so an
+    ///     IPC hiccup degrades to the pre-existing distance-heuristic-only
+    ///     behaviour rather than freezing the mover.
+    /// </summary>
+    private static bool WalkableAt(Vector2 p)
+    {
+        try { return NavmeshIPC.IsPointWalkable(new Vector3(p.X, _playerY, p.Y)); }
+        catch { return true; }
     }
 
     private static bool SafeIsBmrNavigating()

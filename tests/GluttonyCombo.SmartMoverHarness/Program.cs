@@ -505,6 +505,81 @@ SmartMoverCore.MoverWorld World(
     Check("omen/far-zone-no-dodge", doQuiet.Reason != SmartZoneDDG(), $"r={doQuiet.Reason}");
 }
 
+// ------------------------------------------------- true arena bounds (v1.0.4.196, gap 1)
+{
+    // Mesh gate: walkable only within 10y of the target (simulates a real
+    // arena boundary that the old MaxDestDistFromTarget=15y heuristic alone
+    // would NOT catch - the candidate is within 15y of the target but off
+    // the simulated mesh).
+    bool MeshWithin10(Vector2 p) => Vector2.Distance(p, new Vector2(0, 0)) <= 10f;
+
+    // Player standing in a circle danger zone at (0,-8); every ring sample
+    // beyond 10y from the target is now off-mesh even though it is still
+    // inside the 15y distance clamp - the mesh gate must reject those and
+    // land the dodge somewhere walkable instead.
+    var zone = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -8), 0f, 8f, 0f, 0f, 0f, default, 3f) };
+    var hMesh = new SmartMoverCore.Hysteresis();
+    var wMesh = World(player: new(0, -8), target: new(0, 0), hitbox: 5f, zones: zone) with { IsPointWalkable = MeshWithin10 };
+    var dMesh = SmartMoverCore.Decide(wMesh, hMesh);
+    Check("arena/dodge-respects-mesh-gate", dMesh.Kind == SmartMoverCore.Decision.Move &&
+        dMesh.Reason == SmartMoverCore.ReasonDodgeCode && MeshWithin10(dMesh.Dest), $"kind={dMesh.Kind} dest={dMesh.Dest} within10={MeshWithin10(dMesh.Dest)}");
+
+    // Negative control: the identical scene WITHOUT a mesh predicate (null,
+    // the vnavmesh-absent / not-ready default) must NOT be constrained to
+    // the 10y disc - proving the gate above is the mesh check, not some
+    // other effect (e.g. the pre-existing 15y clamp, which the 10y disc is
+    // strictly tighter than). At least one dodge ring sample lands beyond
+    // 10y from the target when the mesh gate is absent.
+    var hFree = new SmartMoverCore.Hysteresis();
+    var wFree = World(player: new(0, -8), target: new(0, 0), hitbox: 5f, zones: zone);
+    var dFree = SmartMoverCore.Decide(wFree, hFree);
+    Check("arena/no-mesh-predicate-unconstrained-by-10y-disc", dFree.Kind == SmartMoverCore.Decision.Move &&
+        dFree.Reason == SmartMoverCore.ReasonDodgeCode, $"kind={dFree.Kind} r={dFree.Reason}");
+
+    // FindSafePoint unit-level: an entirely off-mesh neighbourhood (predicate
+    // always false) must return null (hold) rather than fabricate a landing
+    // spot - mirrors the "whole ring unsafe" hold semantics already proven
+    // for danger zones.
+    var noneWalkable = SmartMoverCore.FindSafePoint(new Vector2(0, -8), zone, new Vector2(0, 0), 15f, _ => false);
+    Check("arena/find-safe-point-all-offmesh-holds", noneWalkable is null, $"result={noneWalkable}");
+
+    // FindSafePoint unit-level positive: mesh gate present but not blocking
+    // the whole neighbourhood still finds a point (sanity - the plumbing
+    // does not accidentally always reject).
+    var someWalkable = SmartMoverCore.FindSafePoint(new Vector2(0, -8), zone, new Vector2(0, 0), 15f, MeshWithin10);
+    Check("arena/find-safe-point-partial-mesh-succeeds", someWalkable is { } sw && MeshWithin10(sw), $"result={someWalkable}");
+
+    // Engage/settle path: the ideal ring point is off-mesh (west side of the
+    // ring only) but a safe walkable variant exists elsewhere on the ring -
+    // FindSafeRingPoint must honour the mesh gate exactly like it already
+    // honours danger zones.
+    bool EastOnly(Vector2 p) => p.X >= -0.5f;
+    var ringPoint = SmartMoverCore.FindSafeRingPoint(new Vector2(-8f, 0f), new Vector2(0, 0), NoZones, EastOnly);
+    Check("arena/ring-sweep-respects-mesh-gate", ringPoint is { } rp && EastOnly(rp), $"result={ringPoint}");
+
+    // And when EVERY ring point is off-mesh, FindSafeRingPoint holds (null)
+    // rather than returning an illegal standing point.
+    var ringNone = SmartMoverCore.FindSafeRingPoint(new Vector2(-8f, 0f), new Vector2(0, 0), NoZones, _ => false);
+    Check("arena/ring-sweep-all-offmesh-holds", ringNone is null, $"result={ringNone}");
+
+    // End-to-end engage: player far from an off-arena-shaped target ring
+    // (ideal point is off-mesh), a walkable ring alternative exists, and the
+    // mover must land ON the mesh even though no danger zone is involved.
+    var hEng = new SmartMoverCore.Hysteresis();
+    var wEng = World(player: new(-18, 0), range: 3f, target: new(0, 0), hitbox: 5f) with { IsPointWalkable = EastOnly };
+    var dEng = SmartMoverCore.Decide(wEng, hEng);
+    Check("arena/engage-lands-on-mesh", dEng.Kind == SmartMoverCore.Decision.Move && EastOnly(dEng.Dest), $"kind={dEng.Kind} dest={dEng.Dest}");
+
+    // MaxDestDistFromTarget remains an independent backstop even with a mesh
+    // gate present (BOTH must pass) - a mesh predicate that allows
+    // everything (always true) must still respect the 15y clamp.
+    var bigZone = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, 0), 0f, 20f, 0f, 0f, 0f, default, 3f) };
+    var hClamp = new SmartMoverCore.Hysteresis();
+    var wClamp = World(player: new(0, -8), target: new(0, 0), hitbox: 5f, zones: bigZone) with { IsPointWalkable = _ => true };
+    var dClamp = SmartMoverCore.Decide(wClamp, hClamp);
+    Check("arena/distance-clamp-still-applies-with-mesh-allow-all", dClamp.Kind == SmartMoverCore.Decision.None, $"kind={dClamp.Kind} dest={dClamp.Dest}");
+}
+
 // ---------------------------------------------------------------- shape asserts
 {
     Check("shape/zone-carries-remaining", typeof(DangerZoneModel.Zone).GetProperty("RemainingSec") is not null);

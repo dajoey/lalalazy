@@ -36,6 +36,17 @@ internal static class NavmeshIPC
     /// <summary> Follow an explicit waypoint list. </summary>
     [EzIPC("Path.MoveTo", true)]
     public static readonly Action<List<Vector3>, bool> MoveToFunc;
+
+    // --- SmartMover arena-bounds addition (v1.0.4.196, BMR-parity gap 1) ---
+    /// <summary>
+    ///     Real mesh-walkability query: null result = the point is not on the
+    ///     navmesh (unreachable/off-arena). Args are (point, allowUnlandable,
+    ///     halfExtentXZ) per upstream vnavmesh IPCProvider.cs. Used to derive
+    ///     TRUE arena bounds for dodge/engage candidates instead of relying
+    ///     solely on the distance-from-target heuristic.
+    /// </summary>
+    [EzIPC("Query.Mesh.PointOnFloor", true)]
+    public static readonly Func<Vector3, bool, float, Vector3?> PointOnFloorFunc;
 #pragma warning restore CS8618, CS0649
 
     internal static bool IsReady => IsReadyFunc != null && IsReadyFunc();
@@ -45,6 +56,26 @@ internal static class NavmeshIPC
     internal static bool PathfindAndMoveTo(Vector3 dest, bool fly = false)
     {
         return PathfindAndMoveToFunc != null && PathfindAndMoveToFunc(dest, fly);
+    }
+
+    /// <summary>
+    ///     Whether <paramref name="p"/> sits on the navmesh (a legal standing
+    ///     point). FAIL-OPEN on any exception or a missing/not-ready query so
+    ///     an IPC hiccup degrades to the old distance-heuristic-only behaviour
+    ///     instead of freezing the mover in place.
+    /// </summary>
+    internal static bool IsPointWalkable(Vector3 p)
+    {
+        if (PointOnFloorFunc is null)
+            return true;
+        try
+        {
+            return PointOnFloorFunc(p, false, 2f) is not null;
+        }
+        catch
+        {
+            return true;
+        }
     }
 
     internal static void Dispose()
