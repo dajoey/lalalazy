@@ -3,6 +3,7 @@ using ECommons.GameFunctions;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using System;
 using System.Linq;
+using GluttonyCombo.AutoRotation;
 using GluttonyCombo.Combos.PvE.Enums;
 using GluttonyCombo.Core;
 using GluttonyCombo.CustomComboNS;
@@ -250,7 +251,8 @@ internal partial class RDM : Caster
             {
                 if (IsEnabled(Preset.RDM_ST_MeleeCombo_GapCloser) && !InMeleeRange() && !HasManafication &&
                     ActionReady(Corpsacorps) && TimeStoodStill >= TimeSpan.FromSeconds(RDM_ST_GapCloseCorpsacorps_Time) &&
-                    (HasEnoughManaToStart || CanMagickedSwordplay))
+                    (HasEnoughManaToStart || CanMagickedSwordplay) &&
+                    MovementGate.Allowed(Corpsacorps, MovementGate.GapCloserLanding())) //Policy A (t_8d711ea6)
                     return Corpsacorps;
 
                 // Held under Occult Quick (v1.0.4.154). Manafication's whole payout is the melee
@@ -281,7 +283,8 @@ internal partial class RDM : Caster
 
                 if (IsEnabled(Preset.RDM_ST_Corpsacorps) && CanCorps &&
                     GetTargetDistance() <= RDM_ST_Corpsacorps_Distance &&
-                    TimeStoodStill >= TimeSpan.FromSeconds(RDM_ST_Corpsacorps_Time))
+                    TimeStoodStill >= TimeSpan.FromSeconds(RDM_ST_Corpsacorps_Time) &&
+                    MovementGate.Allowed(Corpsacorps, MovementGate.GapCloserLanding())) //Policy A (t_8d711ea6)
                     return Corpsacorps;
 
                 if (IsEnabled(Preset.RDM_ST_Prefulgence) && CanPrefulgence &&

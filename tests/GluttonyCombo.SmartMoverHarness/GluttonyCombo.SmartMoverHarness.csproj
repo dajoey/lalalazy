@@ -20,6 +20,7 @@
   <ItemGroup>
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\DangerZoneModel.cs" Link="DangerZoneModel.cs" />
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\SmartMoverCore.cs" Link="SmartMoverCore.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\MovementGateCore.cs" Link="MovementGateCore.cs" />
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\MovementTelemetryFormat.cs" Link="MovementTelemetryFormat.cs" />
   </ItemGroup>
 </Project>

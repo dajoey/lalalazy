@@ -3,6 +3,7 @@ using Dalamud.Game.ClientState.JobGauge.Types;
 using System;
 using System.Collections.Generic;
 using GluttonyCombo.Combos.PvE.ALL;
+using GluttonyCombo.AutoRotation;
 using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.CustomComboNS.Functions;
 using GluttonyCombo.Data;
@@ -222,6 +223,7 @@ internal partial class WAR : Tank
             }
 
             if (onslaughtEnabled &&
+                MovementGate.Allowed(Onslaught, MovementGate.GapCloserLanding()) && //Policy A (t_8d711ea6)
                 ActionReady(Onslaught) && HasSurgingTempest &&
                 (!innerReleaseEnabled && !poolOnslaughtForManual || IR.Cooldown > 40) && //Buff Window Check
                 GetRemainingCharges(Onslaught) > onslaughtChargeThreshold &&  //Charge Slider Check

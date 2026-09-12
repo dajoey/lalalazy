@@ -396,6 +396,31 @@ SmartMoverCore.MoverWorld World(
     Check("linger/clear-drops-all", lz.AppendTo(cleared, 2000.5) == 0);
 }
 
+// ------------------------------------------------------- movement gate (Policy A)
+{
+    // Real derived zone geometry: point-blank circle on the boss (cast type 5),
+    // radius ~= 8 + 3 (hitbox) + MaxError. The gate's landing check runs through
+    // the same SmartMoverCore.UnsafeAt the Dalamud half uses.
+    var gzone = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
+        5, 8f, 0f, 3f, new(0, 0), new(0, 0), 0, 1, 5f, 60f, 0f));
+    var gzones = (IReadOnlyList<DangerZoneModel.Zone>)new[] { gzone!.Value };
+    bool UnsafeLanding(Vector2 p) => SmartMoverCore.UnsafeAt(p, gzones, 1f) is not null;
+
+    // All clear -> allowed
+    Check("gate/clear-allowed", MovementGateCore.Allowed(true, false, false, UnsafeLanding(new Vector2(0, -20))));
+    // Dodging -> held no matter where the landing is
+    Check("gate/dodge-held", !MovementGateCore.Allowed(true, true, false, UnsafeLanding(new Vector2(0, -20))));
+    // Another dash executing -> held (two dashes in one lock is a dropped input)
+    Check("gate/dash-held", !MovementGateCore.Allowed(true, false, true, UnsafeLanding(new Vector2(0, -20))));
+    // Landing inside the live zone -> refused; well outside -> allowed
+    Check("gate/landing-in-zone-refused", !MovementGateCore.Allowed(true, false, false, UnsafeLanding(new Vector2(10f, 0))));
+    Check("gate/landing-outside-zone-allowed", MovementGateCore.Allowed(true, false, false, UnsafeLanding(new Vector2(14f, 0))));
+    // Buffer: outside the raw radius but inside radius+buffer is still refused
+    Check("gate/buffer-margin-refused", !MovementGateCore.Allowed(true, false, false, UnsafeLanding(new Vector2(11.5f, 0))));
+    // Gate disabled: stock byte-identical - passes even while dodging AND dashing AND unsafe
+    Check("gate/disabled-stock-identical", MovementGateCore.Allowed(false, true, true, true));
+}
+
 // ---------------------------------------------------------------- shape asserts
 {
     Check("shape/zone-carries-remaining", typeof(DangerZoneModel.Zone).GetProperty("RemainingSec") is not null);

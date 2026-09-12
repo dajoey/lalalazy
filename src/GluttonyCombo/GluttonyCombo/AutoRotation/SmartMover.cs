@@ -124,6 +124,28 @@ internal static class SmartMover
         Lingering.Clear();
     }
 
+    /// <summary>
+    ///     Policy A export (t_8d711ea6): whether the mover is actively dodging -
+    ///     its last decision was a dodge and the mover is still enabled. The
+    ///     rotation side must not fire movement abilities mid-dodge: the dodge
+    ///     destination is safety-chosen and a dash would override it.
+    /// </summary>
+    internal static bool IsDodging =>
+        (AutoRotationController.cfg?.DPSSettings.SmartMover ?? false) &&
+        lastReason == SmartMoverCore.ReasonDodgeCode;
+
+    /// <summary>
+    ///     Policy A export (t_8d711ea6): whether <paramref name="point"/> lies
+    ///     inside any live danger zone plus the configured buffer. The zone list
+    ///     only populates while the mover is on; with the mover off every point
+    ///     answers safe.
+    /// </summary>
+    internal static bool ZonesUnsafe(Vector3 point)
+    {
+        var buffer = AutoRotationController.cfg?.DPSSettings.SmartMoverDangerBufferY ?? 1f;
+        return SmartMoverCore.UnsafeAt(new Vector2(point.X, point.Z), Zones, buffer) is not null;
+    }
+
     private static void StopNav()
     {
         try

@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using GluttonyCombo.Combos.PvE.ALL;
+using GluttonyCombo.AutoRotation;
 using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.CustomComboNS.Functions;
 using GluttonyCombo.Data;
@@ -567,7 +568,7 @@ internal partial class PLD
                 return true;
             }
                 
-            if (interveneEnabled && ActionReady(Intervene) && !JustUsed(Intervene, 2f) && 
+            if (interveneEnabled && MovementGate.Allowed(Intervene, MovementGate.GapCloserLanding()) && ActionReady(Intervene) && !JustUsed(Intervene, 2f) && //Policy A (t_8d711ea6)
                 (!fightOrFlightEnabled && !poolInterveneForManual || GetCooldownRemainingTime(FightOrFlight) > 40) && //Buff Window Check
                 GetRemainingCharges(Intervene) > interveneChargeThreshold && //Charge Check
                 GetTargetDistance() <= interveneDistanceThreshold && //Distance Check

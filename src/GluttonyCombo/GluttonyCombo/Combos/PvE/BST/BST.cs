@@ -4,6 +4,7 @@ using Dalamud.Game.ClientState.Objects.Types;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using System.Collections.Generic;
 using System.Linq;
+using GluttonyCombo.AutoRotation;
 using GluttonyCombo.CustomComboNS;
 using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
 using static GluttonyCombo.Combos.PvE.BST.Config;
@@ -511,6 +512,12 @@ internal partial class BST : Melee
             return false;
 
         if (GetRemainingCharges(ShieldCharge) == 0)
+            return false;
+
+        // Policy A (t_8d711ea6): both arms displace - the gap-closer obviously,
+        // and the overcharge arm too, since Shield Charge still dashes to the
+        // target. Pass the shared safety gate before either may fire.
+        if (!MovementGate.Allowed(ShieldCharge, MovementGate.GapCloserLanding()))
             return false;
 
         if (HasBattleTarget() && GetTargetDistance() > 3f)

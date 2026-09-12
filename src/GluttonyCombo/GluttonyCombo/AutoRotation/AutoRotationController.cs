@@ -1977,7 +1977,7 @@ internal unsafe class AutoRotationController
                 {
                     var castTime = ActionManager.GetAdjustedCastTime(ActionType.Action, outAct);
                     bool orbwalking = cfg.OrbwalkerIntegration && OrbwalkerIPC.CanOrbwalk;
-                    if (TimeMoving.TotalMilliseconds > 0 && castTime > 0 && !orbwalking)
+                    if (MovementBlocksCastStart(castTime, orbwalking))
                         return false;
 
                     var targetId = player.GameObjectId;
@@ -2034,7 +2034,7 @@ internal unsafe class AutoRotationController
                 var castTime = ActionManager.GetAdjustedCastTime(ActionType.Action, outAct);
                 bool orbwalking = cfg.OrbwalkerIntegration && OrbwalkerIPC.CanOrbwalk;
 
-                if (TimeMoving.TotalMilliseconds > 0 && castTime > 0 && !orbwalking)
+                if (MovementBlocksCastStart(castTime, orbwalking))
                     return false;
 
                 if (cfg.DPSSettings.DPSAlwaysHardTarget && OverrideTarget is not null && !resolvedFriendlyOnly)
@@ -2161,7 +2161,7 @@ internal unsafe class AutoRotationController
                     $"queuedActionId={ActionManager.Instance()->QueuedActionId}");
             }
 
-            if (TimeMoving.TotalMilliseconds > 0 && castTime > 0 && !orbwalking)
+            if (MovementBlocksCastStart(castTime, orbwalking))
                 return false;
 
             if (canUse && (inRange || areaTargeted))
@@ -2193,6 +2193,28 @@ internal unsafe class AutoRotationController
             }
 
             return false;
+        }
+
+        /// <summary>
+        ///     Whether movement currently blocks STARTING a timed cast - the global
+        ///     cast gate shared by ExecuteST, ExecuteAoE and the heal path. Policy A
+        ///     (t_8d711ea6) adds the slidecast exemption: while the cast in progress
+        ///     has at most <see cref="SmartMoverCore.SlidecastWindowSec"/> remaining,
+        ///     the character is SUPPOSED to be moving, so holding idles the rotation
+        ///     for nothing. The client still refuses a cast start on ground that is
+        ///     physically moving when UseAction executes - the same failure mode as
+        ///     any cast pressed while running.
+        /// </summary>
+        private static bool MovementBlocksCastStart(float castTime, bool orbwalking)
+        {
+            if (castTime <= 0f || TimeMoving.TotalMilliseconds <= 0 || orbwalking)
+                return false;
+
+            if (Player.Object is IBattleChara pc && pc.IsCasting && pc.TotalCastTime > 0f &&
+                pc.TotalCastTime - pc.CurrentCastTime <= SmartMoverCore.SlidecastWindowSec)
+                return false;
+
+            return true;
         }
 
         private static bool SwitchOnDChole(PresetStorage.PresetData attributes, uint outAct, ref IBattleChara? newtarget)

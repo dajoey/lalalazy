@@ -114,7 +114,7 @@ internal partial class BST
             WildHeartIV = 693,        // L40
             TemperedReleaseMastery = 749, // L18
             EnhancedBorrow = 750,     // L22
-            EnhancedShieldCharge = 751,   // L30
+            EnhancedShieldCharge = 751,   // L36 (xivapi Trait/751; was miscalled L30)
             Beastmastery = 752,       // L16
             BattlehornMasteryII = 754,    // L20
             BattlehornMasteryIII = 755,   // L30

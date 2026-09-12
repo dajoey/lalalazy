@@ -211,6 +211,9 @@ public class DPSSettingsIPCWrapper(DPSSettings settings)
     /// <summary>Movement-decision telemetry (MV| lines). Off by default.</summary>
     public bool MovementTelemetry => settings.MovementTelemetry;
 
+    /// <summary>Policy A (v1.0.4.194): auto-fired movement abilities fire only when the safety gate passes.</summary>
+    public bool MovementSafetyGate => settings.MovementSafetyGate;
+
     public bool AoEOnlyWhenTargeting => settings.AoEOnlyWhenTargeting;
 
     #endregion

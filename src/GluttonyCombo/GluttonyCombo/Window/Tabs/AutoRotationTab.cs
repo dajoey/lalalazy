@@ -188,6 +188,9 @@ internal class AutoRotationTab : ConfigWindow
                 ImGuiComponents.HelpMarker("Writes one MV| decision line per movement decision change to the plugin log (nothing leaves the machine). Toggle with /gluttony mvtel.");
             }
 
+            changed |= ImGui.Checkbox("Movement ability safety gate###MovementSafetyGate", ref cfg.DPSSettings.MovementSafetyGate);
+            ImGuiComponents.HelpMarker("Auto-fired movement abilities (gap-closers and dashes) only fire when safe: never during Smart Movement's dodge, never while another dash is executing, and never with the landing point inside a live danger zone. The dodge and zone checks read Smart Movement's state, so they apply when that is enabled; the mid-dash check always applies.");
+
             changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(AutoRotationUI.Checkbox_DPSAlwaysHardTarget, ref cfg.DPSSettings.DPSAlwaysHardTarget, "DPSAlwaysHardTarget");
 
             ImGuiComponents.HelpMarker(AutoRotationUI.HelpText_DPSAlwaysHardTarget);

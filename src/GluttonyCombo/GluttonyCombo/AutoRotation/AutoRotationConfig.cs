@@ -45,6 +45,14 @@ public class DPSSettings
     public float SmartMoverDangerBufferY = 1f;
     /// <summary>Movement-decision telemetry (MV| lines in the plugin log). Off by default.</summary>
     public bool MovementTelemetry = false;
+
+    /// <summary>
+    ///     Fork (v1.0.4.194, Policy A): auto-fired movement abilities (gap-closers,
+    ///     dashes) must pass the safety gate - never mid-dodge, never during another
+    ///     dash, never landing in a live danger zone. New key; default ON is the
+    ///     picked policy and an absent key in an old config deserialises to it.
+    /// </summary>
+    public bool MovementSafetyGate = true;
 }
 
 public class HealerSettings
