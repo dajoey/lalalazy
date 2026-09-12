@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.3.2.0 (2026-09-12)
+
+### Added
+- The judged-week feedback loop: after a Fashion Report judgement, the plugin records what Masked Rose awarded against what the predictor said at submit time, and shows it under the week header - "week 449: awarded 84, predicted 85 (off by -1) | within 1pt: 1/2 of recent weeks". The log carries the same line with an explicit verdict (files: new `Core/JudgedFeedback.cs`, `FashionService.cs HarvestJudged`, `ReportWindow.cs Draw`)
+- The judged history is kept in the plugin config, bounded to the last 26 weeks, and de-duplicated per judged week - reopening the result screen never double-counts a judgement (file: `Core/JudgedFeedback.cs Next/Append`)
+
+### Notes
+- The within-1-point bar is the predictor's acceptance criterion: a judged week where the awarded score differs from the prediction by more than one point is called out, so drift in the scoring rules or the crowd data surfaces instead of hiding behind a total that looks plausible (file: `Core/JudgedFeedback.cs WithinOne`)
+- A judgement is only recorded when a live prediction exists to diff against; with no prediction running the result screen read is skipped rather than recording a 0 (file: `FashionService.cs HarvestJudged`)
+- Offline harness coverage: dedupe, bound, accuracy math, and the summary format (file: `tests/LazyFashionReport.Harness/Program.cs` section 16)
+
 ## v0.3.1.0 (2026-09-12)
 
 ### Added

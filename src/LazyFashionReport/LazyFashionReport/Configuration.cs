@@ -1,4 +1,5 @@
 using Dalamud.Configuration;
+using LazyFashionReport.Core;
 
 namespace LazyFashionReport;
 
@@ -28,4 +29,8 @@ public class Configuration : IPluginConfiguration
     /// crowd candidate the player does not own. OFF by default per the spec; buying stays out
     /// of scope for this toggle.</summary>
     public bool FetchMissingCraft { get; set; } = false;
+
+    /// <summary>P5 feedback loop: the judged-week history (week, predicted, awarded). Bounded;
+    /// one record per judged week.</summary>
+    public List<JudgedRecord> JudgedHistory { get; set; } = new();
 }

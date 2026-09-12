@@ -302,6 +302,28 @@ Check("oc-note-equipped-silent", cat.LocationNote(99003) == "");
 Check("oc-note-unknown-silent", cat.LocationNote(12345) == "");
 Check("oc-storage-flags", cat.StorageFor(RedbillScarf) == (ItemStorage.Dresser | ItemStorage.Armoire));
 
+// ---- 16. JudgedFeedback: the P5 feedback loop (v0.3.2.0) ----
+// One record per judged week (the result screen stays open across ticks), bounded history,
+// within-1pt accuracy bar, and the summary line the window renders.
+var jh = new List<JudgedRecord>();
+var r449 = JudgedFeedback.Next(jh, 449, 85, 84, DateTime.UtcNow);
+Check("jf-first-record", r449 is not null && r449.Diff == -1 && r449.WithinOne, r449?.Diff.ToString() ?? "<null>");
+jh = JudgedFeedback.Append(jh, r449!).ToList();
+Check("jf-dedupe-same-read", JudgedFeedback.Next(jh, 449, 85, 84, DateTime.UtcNow) is null, "re-reading the same result must not double-count");
+var r450 = JudgedFeedback.Next(jh, 450, 80, 84, DateTime.UtcNow);
+Check("jf-new-week-records", r450 is not null && !r450.WithinOne);
+jh = JudgedFeedback.Append(jh, r450).ToList();
+var sum = JudgedFeedback.SummaryLine(jh);
+Check("jf-summary-format", sum == "week 450: awarded 84, predicted 80 (off by +4)", sum);
+var (within, total) = JudgedFeedback.Accuracy(jh);
+Check("jf-accuracy-1of2", within == 1 && total == 2, $"{within}/{total}");
+// Bound: 30 weeks of history trims to 26.
+var big = new List<JudgedRecord>();
+for (var w = 400; w < 430; w++)
+    big = JudgedFeedback.Append(big, new JudgedRecord { Week = w, Predicted = 80, Awarded = 80, JudgedAtUtc = DateTime.UtcNow }).ToList();
+Check("jf-history-bounded-26", big.Count == 26 && big[0].Week == 404 && big[^1].Week == 429, $"{big.Count} first={big[0].Week}");
+Check("jf-empty-summary-empty", JudgedFeedback.SummaryLine(new List<JudgedRecord>()) == "");
+
 Console.WriteLine();
 Console.WriteLine(failures.Count == 0
     ? $"OK - {passes} checks passed"

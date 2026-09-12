@@ -76,6 +76,42 @@ internal sealed class FashionService : IDisposable
     /// piece is in bags/equipped (nothing to say).</summary>
     public string LocationNoteFor(uint itemId) => _ownedCatalog?.LocationNote(itemId) ?? "";
 
+    /// <summary>Last judged-week summary line ("" with no history yet) + accuracy over the
+    /// recent weeks. P5: the predictor is only as good as its measured diff.</summary>
+    public string JudgedSummary =>
+        JudgedFeedback.SummaryLine(_plugin.Config.JudgedHistory) is { Length: > 0 } line
+            ? line + $" | within 1pt: {JudgedFeedback.Accuracy(_plugin.Config.JudgedHistory).Within}/{JudgedFeedback.Accuracy(_plugin.Config.JudgedHistory).Total} of recent weeks"
+            : "";
+
+    /// <summary>
+    /// P5 feedback loop: while the FashionCheck addon is open, read the judged result from
+    /// AgentFashion (the result screen sets OpenType == Result) and record ONE entry per
+    /// judged week - predicted total at submit time vs Masked Rose's awarded score. Runs on
+    /// the framework thread (Tick). Never throws; a missing read is simply no record.
+    /// </summary>
+    private void HarvestJudged()
+    {
+        try
+        {
+            var judged = Adapters.ClientReader.ReadJudgedResult();
+            if (judged is not { } r) return;
+            var predicted = _outfit?.Total;
+            if (predicted is null or 0) return;   // no live prediction: nothing to diff against
+            var record = JudgedFeedback.Next(_plugin.Config.JudgedHistory, r.Week, predicted.Value, r.Score, DateTime.UtcNow);
+            if (record is null) return;
+            _plugin.Config.JudgedHistory = JudgedFeedback.Append(_plugin.Config.JudgedHistory, record).ToList();
+            _plugin.SaveConfig();
+            var note = record.WithinOne
+                ? "within 1 point - the predictor held"
+                : $"OFF BY {record.Diff:+0;-#;0} - predictor needs attention";
+            Plugin.Log.Information($"[LFR] judged week {record.Week}: awarded {record.Awarded}, predicted {record.Predicted} ({note})");
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Debug($"[LFR] judged harvest skipped: {ex.Message}");
+        }
+    }
+
     /// <summary>xivstats crowd dataset loaded (candidates + crowd dyes). Honest per-source
     /// status: week 449's "no hint" bug hid behind a combined flag that was true while the
     /// actual hint source (fashionreportxiv) had failed to bind.</summary>
@@ -172,6 +208,7 @@ internal sealed class FashionService : IDisposable
                 {
                     RebuildAll();
                 }
+                HarvestJudged();
                 _lastPredictTick = now;
             }
             else if (_currentAddon == IntPtr.Zero && _liveHints is null && _outfit is null && StateLoaded)

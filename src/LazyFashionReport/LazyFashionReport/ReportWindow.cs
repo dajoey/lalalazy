@@ -52,6 +52,14 @@ internal class ReportWindow : Window
         ImGui.TextUnformatted($"Week {week.Week} - {week.Theme}");
         ImGui.SameLine();
         ImGui.TextDisabled($"(base {week.BaseScore})");
+        // P5: judged-week feedback under the header when a judged record exists.
+        var judged = svc.JudgedSummary;
+        if (judged.Length > 0)
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.HealerGreen);
+            ImGui.TextUnformatted(judged);
+            ImGui.PopStyleColor();
+        }
         // Total readout.
         var total = outfit.Total;
         ImGui.PushFont(UiBuilder.MonoFont);
