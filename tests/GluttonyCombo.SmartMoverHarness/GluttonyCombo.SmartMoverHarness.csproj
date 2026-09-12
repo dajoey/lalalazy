@@ -22,5 +22,6 @@
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\SmartMoverCore.cs" Link="SmartMoverCore.cs" />
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\MovementGateCore.cs" Link="MovementGateCore.cs" />
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\MovementTelemetryFormat.cs" Link="MovementTelemetryFormat.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\OmenVfxModel.cs" Link="OmenVfxModel.cs" />
   </ItemGroup>
 </Project>

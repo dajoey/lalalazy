@@ -186,6 +186,10 @@ internal class AutoRotationTab : ConfigWindow
                 }
                 changed |= ImGui.Checkbox("Movement telemetry###MovementTelemetry", ref cfg.DPSSettings.MovementTelemetry);
                 ImGuiComponents.HelpMarker("Writes one MV| decision line per movement decision change to the plugin log (nothing leaves the machine). Toggle with /gluttony mvtel.");
+                changed |= ImGui.Checkbox("Omen telegraphs (instant AoEs)###SmartMoverOmenVfx", ref cfg.DPSSettings.SmartMoverOmenVfx);
+                ImGuiComponents.HelpMarker("Derives extra danger zones from enemy omen ground telegraphs - the ground markers the game draws for instant attacks that never show a cast bar. Shapes are conservative; each zone lives exactly as long as its telegraph graphic.");
+                changed |= ImGui.Checkbox("Omen debug log###SmartMoverOmenDebug", ref cfg.DPSSettings.SmartMoverOmenDebug);
+                ImGuiComponents.HelpMarker("Writes MVD| lines (decoded omen telegraphs) and MVU| lines (hostile VFX that did not classify as omens) to the plugin log at Debug level, one line per new VFX. For diagnosing detection coverage; off by default.");
             }
 
             changed |= ImGui.Checkbox("Movement ability safety gate###MovementSafetyGate", ref cfg.DPSSettings.MovementSafetyGate);

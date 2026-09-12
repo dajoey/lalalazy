@@ -49,6 +49,14 @@ internal static class SmartMover
     private static readonly DangerZoneModel.LingeringZones Lingering = new();
     private static byte lastReason;
 
+    // v1.0.4.195: omen-telegraph VFX zones. VfxManager (ECommons, hooked
+    // since plugin init via Module.All) tracks every live VFX; the ones
+    // whose path is an omen and whose caster is a living hostile become
+    // conservative danger zones for instant AoEs that never show a cast
+    // bar. SeenOmenVfx bounds debug logging to one line per VFX.
+    private static readonly HashSet<long> SeenOmenVfx = new();
+    private static int lastOmenZoneCount;
+
     // Telemetry state
     private static MovementTelemetryFormat.EmitKey? _lastKey;
     private static long _lastEmitMs;
@@ -113,6 +121,8 @@ internal static class SmartMover
         Zones.Clear();
         TrackedGroundCasts.Clear();
         Lingering.Clear();
+        SeenOmenVfx.Clear();
+        lastOmenZoneCount = 0;
     }
 
     internal static void Shutdown()
@@ -122,6 +132,8 @@ internal static class SmartMover
         Zones.Clear();
         TrackedGroundCasts.Clear();
         Lingering.Clear();
+        SeenOmenVfx.Clear();
+        lastOmenZoneCount = 0;
     }
 
     /// <summary>
@@ -269,6 +281,105 @@ internal static class SmartMover
 
         Lingering.Sweep(nowSec);
         Lingering.AppendTo(Zones, nowSec);
+
+        // v1.0.4.195: omen-telegraph zones for instant (cast-bar-less) AoEs.
+        lastOmenZoneCount = 0;
+        if (AutoRotationController.cfg?.DPSSettings.SmartMoverOmenVfx ?? true)
+            CollectOmenZones();
+    }
+
+    /// <summary>
+    ///     Omen-telegraph zones (v1.0.4.195). Instant enemy AoEs have no cast
+    ///     bar; the ground omen VFX the game spawns is their only telegraph.
+    ///     ECommons' VfxManager already hooks actor and static VFX creation
+    ///     (Module.All initialises it at plugin start), tracking every live
+    ///     VFX with path, caster, world placement and age - so this costs no
+    ///     new hooks, just a read of the tracked list per tick. A zone lives
+    ///     exactly as long as its VFX: the game's destruction event removes
+    ///     the entry, and the next tick stops seeing the danger.
+    /// </summary>
+    private static void CollectOmenZones()
+    {
+        List<VfxInfo> snapshot;
+        lock (VfxManager.TrackedEffects)
+            snapshot = new List<VfxInfo>(VfxManager.TrackedEffects);
+
+        var buffer = AutoRotationController.cfg?.DPSSettings.SmartMoverDangerBufferY ?? 1f;
+        var debug = AutoRotationController.cfg?.DPSSettings.SmartMoverOmenDebug ?? false;
+
+        foreach (var info in snapshot)
+        {
+            if (!OmenVfxModel.IsOmenPath(info.Path))
+            {
+                if (debug && SeenOmenVfx.Add(info.VfxID))
+                    LogUnmatchedHostileVfx(info);
+                continue;
+            }
+
+            var age = info.AgeSeconds;
+            if (age < 0f || age >= OmenVfxModel.MaxAgeSec)
+                continue;
+
+            if (Svc.Objects.SearchById(info.CasterID) is not IBattleChara caster || !caster.IsHostile() || caster.IsDead)
+                continue; // player/party ground effects (Asylum and friends) and unattributable spawns are not danger
+
+            var kind = OmenVfxModel.Classify(info.Path, out var coneHalfDeg);
+
+            // Cones are caster-anchored and aim from the caster's own facing.
+            // Everything else anchors at the VFX placement (falling back to
+            // the caster's position); rects take their axis from the
+            // placement quaternion when it carries one.
+            var placement = info.Placement;
+            Vector2 pos;
+            float aim = 0f;
+            var haveAim = false;
+            if (kind == OmenVfxModel.OmenKind.Cone)
+            {
+                pos = new Vector2(caster.Position.X, caster.Position.Z);
+                aim = OmenVfxModel.FacingYaw(caster.Rotation);
+                haveAim = true;
+            }
+            else if (placement is not null)
+            {
+                pos = new Vector2(placement.Position.X, placement.Position.Z);
+                if (kind == OmenVfxModel.OmenKind.Rect &&
+                    OmenVfxModel.QuatYaw(placement.Rotation.X, placement.Rotation.Z, placement.Rotation.Y, placement.Rotation.W) is { } qyaw)
+                {
+                    aim = qyaw;
+                    haveAim = true;
+                }
+            }
+            else
+            {
+                pos = new Vector2(caster.Position.X, caster.Position.Z);
+            }
+
+            if (OmenVfxModel.BuildZone(kind, coneHalfDeg, pos, aim, haveAim, caster.HitboxRadius, age, buffer) is { } omenZone)
+            {
+                Zones.Add(omenZone);
+                lastOmenZoneCount++;
+            }
+
+            if (debug && SeenOmenVfx.Add(info.VfxID))
+                Svc.Log.Debug($"[SmartMover] MVD|{info.Path}|k={(byte)kind}|c={info.CasterID}|age={age:F1}|aim={(haveAim ? aim.ToString("F2") : "-")}");
+        }
+    }
+
+    /// <summary>
+    ///     Debug instrument (SmartMoverOmenDebug): logs the first sighting of
+    ///     any VFX cast by a living hostile whose path did NOT classify as an
+    ///     omen - the live check on the "omen" path assumption. If instant
+    ///     enemy telegraphs arrive under a different path prefix, they appear
+    ///     here as MVU| lines.
+    /// </summary>
+    private static void LogUnmatchedHostileVfx(in VfxInfo info)
+    {
+        try
+        {
+            if (Svc.Objects.SearchById(info.CasterID) is IBattleChara c && c.IsHostile() && !c.IsDead)
+                Svc.Log.Debug($"[SmartMover] MVU|{info.Path}|c={info.CasterID}");
+        }
+        catch { /* debug-only instrument; never in the hot path */ }
     }
 
     /// <summary> Manual movement: keyboard wishdir via MovementHook (gamepad included). </summary>
@@ -416,7 +527,7 @@ internal static class SmartMover
 
             var job = (byte)Player.Job;
             var tgtId = w.TargetEngaged ? TargetDataId() : 0u;
-            var line = MovementTelemetryFormat.BuildLine(nowMs, job, reason, tgtId, distPast, w.Zones.Count, dstX, dstZ);
+            var line = MovementTelemetryFormat.BuildLine(nowMs, job, reason, tgtId, distPast, w.Zones.Count, dstX, dstZ, lastOmenZoneCount);
             Svc.Log.Information(line);
             _lastKey = key;
             _lastEmitMs = nowMs;

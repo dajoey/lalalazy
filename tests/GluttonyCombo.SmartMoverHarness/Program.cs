@@ -5,7 +5,7 @@ using GluttonyCombo.AutoRotation;
 
 // Offline harness for the SmartMover decision engine (t_356159a8).
 // Compiles the REAL pure files - DangerZoneModel.cs, SmartMoverCore.cs,
-// MovementTelemetryFormat.cs - no Dalamud. Prints PASS/FAIL per case;
+// MovementTelemetryFormat.cs, OmenVfxModel.cs - no Dalamud. Prints PASS/FAIL per case;
 // exit 0 + "OK" only when every case passes (and at least one ran).
 //   dotnet build tests\GluttonyCombo.SmartMoverHarness -c Release
 //   dotnet tests\GluttonyCombo.SmartMoverHarness\bin\Release\net10.0\GluttonyCombo.SmartMoverHarness.dll
@@ -336,17 +336,20 @@ SmartMoverCore.MoverWorld World(
 
 // ---------------------------------------------------------------- telemetry
 {
-    var line = MovementTelemetryFormat.BuildLine(1694515200123L, 34, "eng", 1234u, 1.4f, 2, 12.3f, -45.6f);
+    var line = MovementTelemetryFormat.BuildLine(1694515200123L, 34, "eng", 1234u, 1.4f, 2, 12.3f, -45.6f, 1);
     var f = MovementTelemetryFormat.Parse(line);
     Check("mv/prefix", f[0] == "MV");
-    Check("mv/8-fields", f.Length == 8, $"n={f.Length}");
+    Check("mv/9-fields", f.Length == 9, $"n={f.Length}");
     Check("mv/job-field", f[2] == "34");
     Check("mv/dec-field", f[3] == "eng");
     Check("mv/dist-invariant", f[5] == "1.4", $"dist={f[5]}");
     Check("mv/nz-field", f[6] == "2");
     Check("mv/dst-rounded", f[7] == "12,-46", $"dst={f[7]}");
+    Check("mv/ovz-field", f[8] == "1", $"ovz={f[8]}");
+    Check("mv/ovz-zero", MovementTelemetryFormat.Parse(
+        MovementTelemetryFormat.BuildLine(1, 1, "stl", 0, 0f, 0, null, null, 0))[8] == "0");
     Check("mv/no-dst-dash", MovementTelemetryFormat.Parse(
-        MovementTelemetryFormat.BuildLine(1, 1, "stl", 0, 0f, 0, null, null))[7] == "-");
+        MovementTelemetryFormat.BuildLine(1, 1, "stl", 0, 0f, 0, null, null, 0))[7] == "-");
 
     // Gate: change + floor; dodge-start bypasses; suppressed not recorded
     var k1 = MovementTelemetryFormat.KeyOf("eng", 1f, 2f);
@@ -375,7 +378,7 @@ SmartMoverCore.MoverWorld World(
     Check("mv/gate-alternation-capped", emitted <= 61, $"emitted={emitted}");
 
     // 200-char budget
-    var longLine = MovementTelemetryFormat.BuildLine(1694515200123L, 34, "eng", 9999999u, 1.4f, 99, 123456f, -654321f);
+    var longLine = MovementTelemetryFormat.BuildLine(1694515200123L, 34, "eng", 9999999u, 1.4f, 99, 123456f, -654321f, 99);
     Check("mv/length-cap", longLine.Length <= 200, $"len={longLine.Length}");
 }
 
@@ -419,6 +422,87 @@ SmartMoverCore.MoverWorld World(
     Check("gate/buffer-margin-refused", !MovementGateCore.Allowed(true, false, false, UnsafeLanding(new Vector2(11.5f, 0))));
     // Gate disabled: stock byte-identical - passes even while dodging AND dashing AND unsafe
     Check("gate/disabled-stock-identical", MovementGateCore.Allowed(false, true, true, true));
+}
+
+// ------------------------------------------------------- omen VFX zones (v1.0.4.195)
+{
+    // Path classification: is it an omen at all?
+    Check("omen/is-path-yes", OmenVfxModel.IsOmenPath("vfx/omen/gl_fan060_1bf/vfx_omen_gl_fan060_1bf.avfx"));
+    Check("omen/is-path-full-sircle", OmenVfxModel.IsOmenPath("vfx/omen/gl_sircle_1907af/vfx_omen_gl_sircle_1907af.avfx"));
+    Check("omen/is-path-bare-fragment-no", !OmenVfxModel.IsOmenPath("gl_sircle_1907af"));
+    Check("omen/is-path-no", !OmenVfxModel.IsOmenPath("vfx/lockon/sk1_o.avfx"));
+    Check("omen/is-path-empty", !OmenVfxModel.IsOmenPath(""));
+
+    // Shape classification (Omen.csv fragments)
+    var kFan = OmenVfxModel.Classify("vfx/omen/gl_fan060_1bf.avfx", out var halfFan);
+    Check("omen/fan-cone", kFan == OmenVfxModel.OmenKind.Cone);
+    Check("omen/fan-half-angle", MathF.Abs(halfFan - 30f) < 0.01f, $"half={halfFan}");
+    var kFanBad = OmenVfxModel.Classify("vfx/omen/gl_fan_1bf.avfx", out var halfBad);
+    Check("omen/fan-unparseable-default",
+        kFanBad == OmenVfxModel.OmenKind.Cone && MathF.Abs(halfBad - OmenVfxModel.DefaultConeHalfDeg) < 0.01f, $"half={halfBad}");
+    Check("omen/donut", OmenVfxModel.Classify("vfx/omen/m0244donut_o0t.avfx", out _) == OmenVfxModel.OmenKind.Donut);
+    Check("omen/line-rect", OmenVfxModel.Classify("vfx/omen/general01_cline0k1.avfx", out _) == OmenVfxModel.OmenKind.Rect);
+    Check("omen/sircle-circle", OmenVfxModel.Classify("vfx/omen/gl_sircle_1907af.avfx", out _) == OmenVfxModel.OmenKind.Circle);
+    Check("omen/general-circle", OmenVfxModel.Classify("vfx/omen/general_1bf.avfx", out _) == OmenVfxModel.OmenKind.Circle);
+    Check("omen/empty-circle", OmenVfxModel.Classify("", out _) == OmenVfxModel.OmenKind.Circle);
+
+    // Zone build: circle conservative radius
+    var oc = OmenVfxModel.BuildZone(OmenVfxModel.OmenKind.Circle, 0f, new(10, -10), 0f, false, 3f, 0.5f, 1f);
+    Check("omen/circle-built", oc is { Kind: DangerZoneModel.ShapeKind.Circle });
+    Check("omen/circle-radius-conservative", oc!.Value.Radius >= OmenVfxModel.CircleRadiusY, $"r={oc.Value.Radius}");
+
+    // Donut: default inner (BossMod's own 3), hole safe, ring danger
+    var od = OmenVfxModel.BuildZone(OmenVfxModel.OmenKind.Donut, 0f, new(0, 0), 0f, false, 0f, 0f, 1f);
+    Check("omen/donut-built", od is { Kind: DangerZoneModel.ShapeKind.Donut });
+    Check("omen/donut-hole-safe", !DangerZoneModel.Contains(od!.Value, new Vector2(0f, 0f), 0f));
+    Check("omen/donut-ring-danger", DangerZoneModel.Contains(od.Value, new Vector2(6f, 0f), 0f));
+
+    // Cone: aimed from the caster facing; the facing convention is the one
+    // the cast path already established (game r=0 faces +Z/north)
+    var on = OmenVfxModel.BuildZone(OmenVfxModel.OmenKind.Cone, 30f, new(0, 0), OmenVfxModel.FacingYaw(0f), true, 3f, 0f, 1f);
+    Check("omen/cone-built", on is { Kind: DangerZoneModel.ShapeKind.Cone });
+    Check("omen/cone-facing-convention", on is { } &&
+        DangerZoneModel.Contains(on.Value, new Vector2(0.5f, 8f), 0f) &&
+        !DangerZoneModel.Contains(on.Value, new Vector2(0f, -8f), 0f),
+        $"yaw={OmenVfxModel.FacingYaw(0f)}");
+
+    // Cone without a usable aim -> conservative circle superset
+    var onf = OmenVfxModel.BuildZone(OmenVfxModel.OmenKind.Cone, 30f, new(0, 0), 0f, false, 0f, 0f, 1f);
+    Check("omen/cone-no-aim-circle", onf is { Kind: DangerZoneModel.ShapeKind.Circle });
+
+    // Rect: symmetric about the placement, axis from the quaternion. A 90-degree
+    // yaw quaternion must give a rect along +X, covering both +/- X and
+    // excluding a far +Z point - invariant to a 180-degree axis error.
+    var yawQ = OmenVfxModel.QuatYaw(0f, 0f, 0.7071f, 0.7071f);
+    Check("omen/quat-90", yawQ is { } q && MathF.Abs(MathF.Abs(q) - MathF.PI / 2f) < 0.01f, $"yaw={yawQ}");
+    var orl = OmenVfxModel.BuildZone(OmenVfxModel.OmenKind.Rect, 0f, new(0, 0), yawQ ?? 0f, yawQ is not null, 0f, 0f, 1f);
+    Check("omen/rect-built", orl is { Kind: DangerZoneModel.ShapeKind.Rect });
+    Check("omen/rect-symmetric", orl is { } &&
+        DangerZoneModel.Contains(orl.Value, new Vector2(4f, 0f), 0f) &&
+        DangerZoneModel.Contains(orl.Value, new Vector2(-4f, 0f), 0f) &&
+        !DangerZoneModel.Contains(orl.Value, new Vector2(0f, 12f), 0f),
+        $"yaw={yawQ} z={orl}");
+
+    // Near-identity and junk quaternions carry no trustworthy axis
+    Check("omen/quat-identity-null", OmenVfxModel.QuatYaw(0f, 0f, 0f, 1f) is null);
+    Check("omen/quat-near-identity-null", OmenVfxModel.QuatYaw(0f, 0f, 0.0262f, 0.9997f) is null);
+    Check("omen/quat-junk-null", OmenVfxModel.QuatYaw(0f, 0f, 0f, 0f) is null);
+
+    // Age window: fresh is live with the full cap remaining, expired is dropped
+    var fresh = OmenVfxModel.BuildZone(OmenVfxModel.OmenKind.Circle, 0f, new(0, 0), 0f, false, 0f, 0f, 1f);
+    Check("omen/age-zero-live", fresh is { } && fresh.Value.RemainingSec > OmenVfxModel.MaxAgeSec - 0.5f, $"rem={fresh?.RemainingSec}");
+    Check("omen/age-expired-null",
+        OmenVfxModel.BuildZone(OmenVfxModel.OmenKind.Circle, 0f, new(0, 0), 0f, false, 0f, OmenVfxModel.MaxAgeSec, 1f) is null);
+
+    // End-to-end: an omen circle on the player's feet dodges; the same zone
+    // far away does not (the negative control for zone plumbing)
+    var oz = OmenVfxModel.BuildZone(OmenVfxModel.OmenKind.Circle, 0f, new(0, -8), 0f, false, 0f, 0f, 1f)!.Value;
+    var ho = new SmartMoverCore.Hysteresis();
+    var doDodge = SmartMoverCore.Decide(World(player: new(0, -8), zones: new[] { oz }), ho);
+    Check("omen/dodge-fires", doDodge.Kind == SmartMoverCore.Decision.Move && doDodge.Reason == SmartZoneDDG(), $"k={doDodge.Kind} r={doDodge.Reason}");
+    var ho2 = new SmartMoverCore.Hysteresis();
+    var doQuiet = SmartMoverCore.Decide(World(player: new(0, -8), zones: new[] { oz with { Origin = new Vector2(40, 40) } }), ho2);
+    Check("omen/far-zone-no-dodge", doQuiet.Reason != SmartZoneDDG(), $"r={doQuiet.Reason}");
 }
 
 // ---------------------------------------------------------------- shape asserts

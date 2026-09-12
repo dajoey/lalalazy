@@ -214,6 +214,12 @@ public class DPSSettingsIPCWrapper(DPSSettings settings)
     /// <summary>Policy A (v1.0.4.194): auto-fired movement abilities fire only when the safety gate passes.</summary>
     public bool MovementSafetyGate => settings.MovementSafetyGate;
 
+    /// <summary>Fork (v1.0.4.195): omen-telegraph VFX zones for instant (cast-bar-less) enemy AoEs.</summary>
+    public bool SmartMoverOmenVfx => settings.SmartMoverOmenVfx;
+
+    /// <summary>Omen debug lines (MVD|/MVU|). Off by default.</summary>
+    public bool SmartMoverOmenDebug => settings.SmartMoverOmenDebug;
+
     public bool AoEOnlyWhenTargeting => settings.AoEOnlyWhenTargeting;
 
     #endregion

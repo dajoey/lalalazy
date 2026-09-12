@@ -45,6 +45,15 @@ public class DPSSettings
     public float SmartMoverDangerBufferY = 1f;
     /// <summary>Movement-decision telemetry (MV| lines in the plugin log). Off by default.</summary>
     public bool MovementTelemetry = false;
+    /// <summary>
+    ///     Fork (v1.0.4.195): derive extra danger zones from omen-telegraph
+    ///     VFX - the ground markers the game spawns for instant enemy AoEs
+    ///     that never show a cast bar. New key; default ON, and an absent
+    ///     key in an old config deserialises to it.
+    /// </summary>
+    public bool SmartMoverOmenVfx = true;
+    /// <summary>Omen debug lines (MVD|/MVU| in the plugin log at Debug level). Off by default.</summary>
+    public bool SmartMoverOmenDebug = false;
 
     /// <summary>
     ///     Fork (v1.0.4.194, Policy A): auto-fired movement abilities (gap-closers,

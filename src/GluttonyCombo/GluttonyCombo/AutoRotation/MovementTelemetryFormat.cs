@@ -11,12 +11,13 @@ namespace GluttonyCombo.AutoRotation;
 /// <summary>
 ///     PURE line format + emit gate for the SmartMover movement-decision tap
 ///     (fork, t_356159a8, v1.0.4.191). Grammar follows the shared tap contract
-///     (decision-taps.md): <c>MV|unixms|job|dec|tgt|dist|nz|dst</c>.
+///     (decision-taps.md): <c>MV|unixms|job|dec|tgt|dist|nz|dst|ovz</c>.
 /// </summary>
 /// <remarks>
 ///     <b>MT| is TAKEN</b> (LazyMarketCompanion) - the movement tap owns MV.
 ///     dist = distance-to-target minus desired-range, 1 decimal, InvariantCulture.
 ///     nz = count of live derived zones. dst = "x,z" rounded to 1y, or "-".
+///     ovz (v1.0.4.195) = count of live omen-telegraph zones among those.
 ///     Gate: emit on change of (dec, dst) plus a 1.0s floor; a dodge START
 ///     (dec=ddg after a non-ddg line) always emits immediately; plugin-off
 ///     states (off/nav/man) are never logged as decisions. 200-char budget,
@@ -29,7 +30,7 @@ internal static class MovementTelemetryFormat
     /// <summary> Rate floor: same key may not emit more often than this. A const, not config. </summary>
     internal const int MinIntervalMs = 1000;
 
-    internal static string BuildLine(long unixMs, byte job, string dec, uint tgtDataId, float distPastBand, int liveZones, float? dstX, float? dstZ)
+    internal static string BuildLine(long unixMs, byte job, string dec, uint tgtDataId, float distPastBand, int liveZones, float? dstX, float? dstZ, int omenZones)
     {
         var inv = CultureInfo.InvariantCulture;
         var dist = distPastBand.ToString("F1", inv);
@@ -39,7 +40,7 @@ internal static class MovementTelemetryFormat
 
         var line = string.Join('|',
             Prefix, unixMs.ToString(inv), job.ToString(inv), dec, tgtDataId.ToString(inv), dist,
-            liveZones.ToString(inv), dst);
+            liveZones.ToString(inv), dst, omenZones.ToString(inv));
 
         if (line.Length > 200)
             line = line[..199] + "~";
