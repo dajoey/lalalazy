@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.5.1.0 (2026-09-12)
+
+### Added
+- The dry-run readout now also logs the character's raw equipped-gear container layout - the exact container and slot numbers the future apply will move gear into - alongside the existing per-slot readout lines, so one in-game session can confirm both the plan and the physical gear addresses it will use (files: `Adapters/ApplyExecutor.cs Snapshot`, `FashionService.cs LogEquippedLayout`)
+
+### Notes
+- Diagnostic release: nothing is moved or consumed, exactly as in v0.5.0.0. The only change is the extra `raw-equipped` log lines under the `equipped-layout` block; they exist so the live apply's gear addresses can be verified against the game's own inventory containers before the apply button exists (file: `FashionService.cs LogEquippedLayout`)
+- Offline harness coverage: unchanged - this release touches only the live-read adapter and the log formatting, which the offline harness does not compile (file: `tests/LazyFashionReport.Harness/Program.cs`)
+
 ## v0.5.0.0 (2026-09-12)
 
 ### Added

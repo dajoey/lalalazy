@@ -34,6 +34,7 @@ internal static unsafe class ApplyExecutor
     {
         var equipped = new Dictionary<FashionSlot, uint>();
         var equippedStain = new Dictionary<FashionSlot, uint>();
+        var rawEquipped = new List<RawContainerRow>();
 
         // Equipped appearance: same source the report reads (glamour wins over physical).
         try
@@ -68,6 +69,19 @@ internal static unsafe class ApplyExecutor
                     var item = cont->GetInventorySlot(i);
                     if (item == null || item->ItemId == 0) continue;
                     if (!wanted.Contains(item->ItemId) && item->GlamourId == 0) continue;
+                    if (type == InventoryType.EquippedItems)
+                    {
+                        // v0.5.1.0: raw container row for the mapping proof. READ-ONLY.
+                        var rStains = item->Stains;
+                        rawEquipped.Add(new RawContainerRow
+                        {
+                            Container = (int)type,
+                            Slot = i,
+                            ItemId = item->ItemId,
+                            GlamourId = item->GlamourId,
+                            Stain0 = rStains.Length > 0 ? rStains[0] : 0u,
+                        });
+                    }
                     var where = type == InventoryType.EquippedItems ? ItemStorage.Equipped : ItemStorage.Bags;
                     // A GlamourId riding on a bag item also provides the look - record the
                     // glamour id as present-in-bags (its carrier is movable to the slot).
@@ -146,6 +160,7 @@ internal static unsafe class ApplyExecutor
 
         return new ApplySnapshot
         {
+            RawEquipped = rawEquipped,
             Equipped = equipped,
             EquippedStain = equippedStain,
             Locations = locations,
@@ -175,9 +190,23 @@ internal static unsafe class ApplyExecutor
     };
 }
 
+/// <summary>One physical row of a game inventory container, as the live executor will address it (v0.5.1.0).</summary>
+public sealed record RawContainerRow
+{
+    public required int Container { get; init; }
+    public required int Slot { get; init; }
+    public required uint ItemId { get; init; }
+    public required uint GlamourId { get; init; }
+    public required uint Stain0 { get; init; }
+}
+
 /// <summary>Immutable one-pass snapshot the builder consumes on any thread.</summary>
 internal sealed record ApplySnapshot
 {
+    /// <summary>Raw container rows for the equipped container (and bag slots holding wanted
+    /// pieces), logged by the dry run so the live mover's MoveItemSlot destination indices
+    /// can be proven offline from ffxivdb without a debugger.</summary>
+    public required IReadOnlyList<RawContainerRow> RawEquipped { get; init; }
     public required IReadOnlyDictionary<FashionSlot, uint> Equipped { get; init; }
     public required IReadOnlyDictionary<FashionSlot, uint> EquippedStain { get; init; }
     public required IReadOnlyDictionary<uint, (ItemStorage Storage, InventoryCoord? Coord, uint Stain)> Locations { get; init; }

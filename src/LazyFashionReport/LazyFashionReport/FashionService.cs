@@ -153,6 +153,15 @@ internal sealed class FashionService : IDisposable
                 Plugin.Log.Information(
                     $"[LFR] equipped-layout | {(int)slot} {slot.DisplayName()} = item {id} stain {stain}");
             }
+
+            // v0.5.1.0: the RAW container view the live mover will address via MoveItemSlot.
+            // The agent view above is the Fashion Report's judging source; this is the
+            // executor's destination coordinate space. Both, one press, one ffxivdb query.
+            foreach (var row in snap.RawEquipped.OrderBy(r => r.Slot))
+            {
+                Plugin.Log.Information(
+                    $"[LFR] raw-equipped | cont {row.Container} slot {row.Slot} = item {row.ItemId} glam {row.GlamourId} stain {row.Stain0}");
+            }
         }
         catch { /* layout log is best-effort */ }
     }
