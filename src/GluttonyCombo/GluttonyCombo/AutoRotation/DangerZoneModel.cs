@@ -1,6 +1,7 @@
 #region
 
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 
 #endregion
@@ -189,6 +190,43 @@ internal static class DangerZoneModel
     /// </summary>
     internal static bool IsPlayerAnchoredUndodgeable(byte castType, ulong castTargetId, ulong playerId) =>
         castTargetId != 0 && castTargetId == playerId && castType is 2 or 10 or 11 or 12;
+
+    /// <summary>
+    ///     Tracks ground-danger zones that keep hurting after the cast bar
+    ///     ends (v1.0.4.193). The Dalamud half feeds every RESOLVED
+    ///     target-anchored zone (ground circles, donuts, crosses, location
+    ///     rects); each stays live as danger for <see cref="LingerSec"/>
+    /// seconds so the dodge branch keeps avoiding the field while it
+    /// persists. PURE - compiled into the offline harness.
+    /// </summary>
+    internal sealed class LingeringZones
+    {
+        /// <summary> How long a resolved ground zone stays dangerous, seconds. </summary>
+        internal const float LingerSec = 3f;
+
+        private readonly List<(Zone Zone, double ExpirySec)> active = new();
+
+        public void Add(in Zone z, double nowSec) => active.Add((z, nowSec + LingerSec));
+
+        public void Clear() => active.Clear();
+
+        public void Sweep(double nowSec) => active.RemoveAll(e => e.ExpirySec <= nowSec);
+
+        /// <summary> Appends still-live lingering zones with their remaining seconds rewritten. </summary>
+        public int AppendTo(List<Zone> dest, double nowSec)
+        {
+            var n = 0;
+            for (var i = 0; i < active.Count; i++)
+            {
+                var rem = (float)(active[i].ExpirySec - nowSec);
+                if (rem <= 0f)
+                    continue;
+                dest.Add(active[i].Zone with { RemainingSec = rem });
+                n++;
+            }
+            return n;
+        }
+    }
 
     private static float AimRot(Vector2 v) => v.LengthSquared() < 0.0001f ? 0f : MathF.Atan2(v.Y, v.X);
 

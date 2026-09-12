@@ -42,6 +42,15 @@ internal static class SmartMoverCore
 
     /// <summary> Rings x directions sampled to find a dodge destination. </summary>
     internal const int DodgeRingCount = 24;
+
+    /// <summary>
+    ///     Hard ceiling on how far from the engaged target a destination may
+    ///     land (v1.0.4.193). The old sampler took the first safe point within
+    ///     24 yalms in ANY direction, so a dodge could send the character well
+    ///     outside the boss arena; candidates beyond this radius of the target
+    ///     are rejected and the mover holds instead of wandering off.
+    /// </summary>
+    internal const float MaxDestDistFromTarget = 15f;
     internal const int DodgeDirCount = 16;
     internal const float DodgeRingStep = 1.0f;
 
@@ -125,7 +134,9 @@ internal static class SmartMoverCore
         // ---- DODGE ----
         if (UnsafeAt(w.PlayerPos, w.Zones, 0f) is not null)
         {
-            var dest = FindSafePoint(w.PlayerPos, w.Zones);
+            var anchor = w.TargetEngaged ? w.TargetPos : w.PlayerPos;
+            var clamp = w.TargetEngaged ? MaxDestDistFromTarget : float.MaxValue;
+            var dest = FindSafePoint(w.PlayerPos, w.Zones, anchor, clamp);
             if (dest is { } d)
                 return Commit(w, h, d, ReasonDodgeCode, overrideHold: true);
             return None(); // no sampled safe point - hold rather than walk blind
@@ -207,7 +218,13 @@ internal static class SmartMoverCore
         var idealAngle = IdealAngle(w, curAngle);
         ideal = w.TargetPos + new Vector2(MathF.Cos(idealAngle), MathF.Sin(idealAngle)) * (ringR + 0.5f);
 
-        var inRange = dist <= ringR + RangeTolerance(w) && dist >= ringR * 0.5f;
+        // v1.0.4.193: only being TOO FAR is a violation. The old test also
+        // demanded the character stand at least half the ring radius away, so a
+        // 20-yalm-range caster at melee distance (mid melee combo) failed it and
+        // the mover backed the character away from the target. Being closer
+        // than the band is always acceptable - the mover never steps away to
+        // widen the gap.
+        var inRange = dist <= ringR + RangeTolerance(w);
         var posOk = !w.PositionalWanted || w.TrueNorth || AtPositional(playerPos, w);
         return inRange && posOk;
     }
@@ -250,7 +267,7 @@ internal static class SmartMoverCore
     ///     the exit segment inevitably crosses them, so only OTHER zones block
     ///     the route (otherwise a player inside a zone could never find a dodge).
     /// </summary>
-    internal static Vector2? FindSafePoint(Vector2 playerPos, IReadOnlyList<DangerZoneModel.Zone> zones)
+    internal static Vector2? FindSafePoint(Vector2 playerPos, IReadOnlyList<DangerZoneModel.Zone> zones, Vector2 anchor, float maxDistFromAnchor)
     {
         List<DangerZoneModel.Zone>? others = null;
         foreach (var z in zones)
@@ -269,6 +286,8 @@ internal static class SmartMoverCore
             {
                 var ang = i * (2f * MathF.PI / DodgeDirCount);
                 var p = playerPos + new Vector2(MathF.Cos(ang), MathF.Sin(ang)) * r;
+                if (Vector2.Distance(p, anchor) > maxDistFromAnchor)
+                    continue; // outside the arena neighbourhood - hold instead (v1.0.4.193)
                 if (UnsafeAt(p, zones, 0.25f) is null && (others is null || !SegmentBlocked(p, playerPos, others)))
                 {
                     var d = Vector2.Distance(playerPos, p);

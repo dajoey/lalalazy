@@ -140,6 +140,18 @@ SmartMoverCore.MoverWorld World(
     var d3 = SmartMoverCore.Decide(World(player: new(0, -24), range: 20f, target: new(0, 0), hitbox: 5f), h3);
     Check("settle/ranged-19y-quiet", d3.Kind is SmartMoverCore.Decision.None or SmartMoverCore.Decision.Stop, $"kind={d3.Kind} r={d3.Reason}");
 
+    // v1.0.4.193: a ranged caster standing at MELEE distance (mid melee
+    // combo) is INSIDE the band - the mover must never back away to widen
+    // the gap (the old half-ring floor walked RDMs out of their combo).
+    var hr = new SmartMoverCore.Hysteresis();
+    var dr = SmartMoverCore.Decide(World(player: new(0, -3), range: 20f, target: new(0, 0), hitbox: 5f), hr);
+    Check("settle/ranged-inside-band-never-backs-away", dr.Kind is SmartMoverCore.Decision.None or SmartMoverCore.Decision.Stop, $"kind={dr.Kind} r={dr.Reason}");
+
+    // Melee closer than the ring is equally fine - no forced retreat
+    var hcl = new SmartMoverCore.Hysteresis();
+    var dcl = SmartMoverCore.Decide(World(player: new(0, -6), range: 3f, target: new(0, 0), hitbox: 5f), hcl);
+    Check("settle/melee-inside-band-never-backs-away", dcl.Kind is SmartMoverCore.Decision.None or SmartMoverCore.Decision.Stop, $"kind={dcl.Kind} r={dcl.Reason}");
+
     // Positional wanted rear, player in front (tRot=0 => facing +Z), target at origin:
     // front = +Z side, rear = -Z side. Player at +Z 7.5 => must move to -Z.
     var h4 = new SmartMoverCore.Hysteresis();
@@ -183,6 +195,20 @@ SmartMoverCore.MoverWorld World(
     var dT = SmartMoverCore.Decide(World(player: new(0, -8), zones: twoZones), hT);
     Check("dodge/escape-avoids-second-zone", dT.Kind == SmartMoverCore.Decision.Move &&
         SmartMoverCore.UnsafeAt(dT.Dest, twoZones, 0.25f) is null, $"kind={dT.Kind} dest={dT.Dest}");
+
+    // v1.0.4.193 arena clamp: a zone so large every escape lands beyond
+    // MaxDestDistFromTarget of the engaged target -> hold position instead
+    // of wandering out of the boss area.
+    var bigZone = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, 0), 0f, 20f, 0f, 0f, 0f, default, 3f) };
+    var hBig = new SmartMoverCore.Hysteresis();
+    var dBig = SmartMoverCore.Decide(World(player: new(0, -8), target: new(0, 0), hitbox: 5f, zones: bigZone), hBig);
+    Check("dodge/arena-clamp-holds", dBig.Kind == SmartMoverCore.Decision.None, $"kind={dBig.Kind} dest={dBig.Dest}");
+
+    // Negative control of the same scene with NO engaged target: the clamp
+    // is off and the escape must fire, landing outside the zone.
+    var hBigFree = new SmartMoverCore.Hysteresis();
+    var dBigFree = SmartMoverCore.Decide(World(player: new(0, -8), engaged: false, zones: bigZone), hBigFree);
+    Check("dodge/arena-clamp-negative-control-moves", dBigFree.Kind == SmartMoverCore.Decision.Move && dBigFree.Reason == SmartZoneDDG(), $"kind={dBigFree.Kind} r={dBigFree.Reason}");
 
     // v1.0.4.192 solo end-to-end: the mob's point-blank circle is aimed AT
     // the player (every solo telegraph) and the dodge must still fire.
@@ -351,6 +377,23 @@ SmartMoverCore.MoverWorld World(
     // 200-char budget
     var longLine = MovementTelemetryFormat.BuildLine(1694515200123L, 34, "eng", 9999999u, 1.4f, 99, 123456f, -654321f);
     Check("mv/length-cap", longLine.Length <= 200, $"len={longLine.Length}");
+}
+
+// ---------------------------------------------------------------- lingering ground danger (v1.0.4.193)
+{
+    var lz = new DangerZoneModel.LingeringZones();
+    var zl = new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(5, 5), 0f, 4f, 0f, 0f, 0f, default, 0f);
+    lz.Add(in zl, 1000.0);
+    var live = new List<DangerZoneModel.Zone>();
+    var n = lz.AppendTo(live, 1001.0);
+    Check("linger/active-with-remaining", n == 1 && live[0].RemainingSec >= 1.5f && live[0].RemainingSec <= 3f, $"n={n} rem={(n > 0 ? live[0].RemainingSec : -1)}");
+    lz.Sweep(1004.1);
+    var dead = new List<DangerZoneModel.Zone>();
+    Check("linger/swept-after-expiry", lz.AppendTo(dead, 1004.1) == 0 && dead.Count == 0);
+    lz.Add(in zl, 2000.0);
+    lz.Clear();
+    var cleared = new List<DangerZoneModel.Zone>();
+    Check("linger/clear-drops-all", lz.AppendTo(cleared, 2000.5) == 0);
 }
 
 // ---------------------------------------------------------------- shape asserts

@@ -39,6 +39,14 @@ internal static class SmartMover
 {
     private static readonly SmartMoverCore.Hysteresis Hys = new();
     private static readonly List<DangerZoneModel.Zone> Zones = new();
+
+    // v1.0.4.193: ground-danger linger. Target-anchored telegraphs (ground
+    // circles, donuts, crosses, location rects) usually leave a damaging
+    // field after the cast resolves; TrackedGroundCasts remembers each such
+    // cast per caster, and when the cast disappears (resolved or cancelled)
+    // a resolved one is handed to Lingering for GroundLingerSec more danger.
+    private static readonly Dictionary<ulong, (DangerZoneModel.Zone Zone, double ResolveAt)> TrackedGroundCasts = new();
+    private static readonly DangerZoneModel.LingeringZones Lingering = new();
     private static byte lastReason;
 
     // Telemetry state
@@ -103,6 +111,8 @@ internal static class SmartMover
             StopNav();
         Hys.Reset();
         Zones.Clear();
+        TrackedGroundCasts.Clear();
+        Lingering.Clear();
     }
 
     internal static void Shutdown()
@@ -110,6 +120,8 @@ internal static class SmartMover
         StopNav();
         Hys.Reset();
         Zones.Clear();
+        TrackedGroundCasts.Clear();
+        Lingering.Clear();
     }
 
     private static void StopNav()
@@ -135,7 +147,8 @@ internal static class SmartMover
 
         // --- danger zones from live enemy casts ---
         Zones.Clear();
-        try { CollectZones(player); }
+        var nowSec = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
+        try { CollectZones(player, nowSec); }
         catch { /* a bad object row must not kill the tick */ }
 
         var casting = player.IsCasting;
@@ -164,13 +177,14 @@ internal static class SmartMover
             Enabled: AutoRotationController.cfg?.DPSSettings.SmartMover ?? false,
             InCombat: InCombat(),
             DeltaSec: SmartMoverCore.TickMs / 1000f,
-            NowSec: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0);
+            NowSec: nowSec);
     }
 
-    /// <summary> Collects telegraphed zones from every hostile currently casting. </summary>
-    private static void CollectZones(IBattleChara player)
+    /// <summary> Collects telegraphed zones from every hostile currently casting, then folds in resolved ground fields that are still dangerous. </summary>
+    private static void CollectZones(IBattleChara player, double nowSec)
     {
         var playerId = player.GameObjectId;
+        var seenGroundCasters = new HashSet<ulong>();
         const float fallbackHalfAngleDeg = 45f; // generous, matching AIHintsBuilder's conservative cone fallback
 
         foreach (var obj in Svc.Objects)
@@ -210,8 +224,29 @@ internal static class SmartMover
                 var buffer = AutoRotationController.cfg?.DPSSettings.SmartMoverDangerBufferY ?? 1f;
                 z = z with { Radius = z.Radius + buffer, InnerRadius = MathF.Max(0f, z.InnerRadius - buffer), HalfWidth = z.HalfWidth + buffer, HalfAngle = z.HalfAngle + (buffer / MathF.Max(z.Radius, 1f)) };
                 Zones.Add(z);
+
+                // Ground-anchored telegraphs leave a field after resolution -
+                // remember them so the linger feed fires when the cast ends.
+                if (sheet.CastType is 2 or 10 or 11 or 12)
+                {
+                    TrackedGroundCasts[bc.GameObjectId] = (z with { RemainingSec = 0f }, nowSec + z.RemainingSec);
+                    seenGroundCasters.Add(bc.GameObjectId);
+                }
             }
         }
+
+        // Casters tracked last tick but no longer casting that ground zone:
+        // resolved ones linger as danger, interrupted ones are dropped.
+        foreach (var key in TrackedGroundCasts.Keys.Except(seenGroundCasters).ToList())
+        {
+            var t = TrackedGroundCasts[key];
+            if (nowSec >= t.ResolveAt - 0.5)
+                Lingering.Add(in t.Zone, nowSec);
+            TrackedGroundCasts.Remove(key);
+        }
+
+        Lingering.Sweep(nowSec);
+        Lingering.AppendTo(Zones, nowSec);
     }
 
     /// <summary> Manual movement: keyboard wishdir via MovementHook (gamepad included). </summary>
