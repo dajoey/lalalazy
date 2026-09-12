@@ -715,5 +715,100 @@ internal static unsafe class AutoMarketService
 
     return true;
   }
+
+  // =====================================================================================
+  // Routing mover (0.1.40.0, Helm t-joey-1789190796770 "build-mover"): the movement half of
+  // category routing. See AutoMarket/RoutingMove.cs for the decision table.
+  // =====================================================================================
+
+  /// <summary>
+  /// Builds this retainer's routing-move plan from a FRESH stock snapshot. Builds the category
+  /// lookups exactly as ApplyCategoryRouting does (same Item-sheet read, same exclude map), so the
+  /// mover and the gate can never disagree about which retainer a category is assigned to. Returns
+  /// an empty plan when no routing rules exist.
+  /// </summary>
+  public static RoutingMovePlan PlanRoutingMoves()
+  {
+    var config = Plugin.Configuration;
+    if (config.CategoryRetainerRules.Count == 0)
+      return new RoutingMovePlan(new List<RoutingMoveOp>(), new List<string>(), false, false);
+
+    var rules = BuildEnabledRules();
+    var stock = SnapshotStock();
+    var items = Svc.Data.GetExcelSheet<Item>();
+    var categoryByKey = new Dictionary<string, ItemCategoryInfo>(rules.Count);
+    var excludeByKey = new Dictionary<string, bool>(rules.Count);
+
+    foreach (var rule in rules)
+    {
+      var key = $"{rule.ItemId}:{(rule.HQ ? "hq" : "nq")}";
+      var entry = config.GetAutoMarketItem(rule.ItemId, rule.HQ);
+      excludeByKey[key] = entry?.ExcludeFromCategoryRouting ?? false;
+
+      if (items.TryGetRow(rule.ItemId, out var row))
+        categoryByKey[key] = new ItemCategoryInfo(rule.ItemId, rule.HQ, row.ItemSearchCategory.RowId, row.ItemSearchCategory.RowId != 0 && !row.IsUntradable);
+    }
+
+    return RoutingMove.Plan(stock, rules, categoryByKey, excludeByKey, config.CategoryRetainerRules,
+      CurrentRetainerName(), CountFreeBagSlots, RetainerPageFreeSlot);
+  }
+
+  /// <summary>Empty slots across Inventory1-4 (NOT crystals - the mover never targets that container).</summary>
+  private static int CountFreeBagSlots()
+  {
+    var manager = InventoryManager.Instance();
+    if (manager == null) return 0;
+    var free = 0;
+    foreach (var type in PlayerBagTypes)
+    {
+      var container = manager->GetInventoryContainer(type);
+      if (container == null || !container->IsLoaded) continue;
+      for (var i = 0; i < container->Size; i++)
+      {
+        var item = container->GetInventorySlot(i);
+        if (item == null || item->ItemId == 0) free++;
+      }
+    }
+    return free;
+  }
+
+  /// <summary>
+  /// Executes one routing move: a whole-stack container-to-container InventoryManager.MoveItemSlot
+  /// call (signature verified against FFXIVClientStructs 15.0.3.1: MoveItemSlot(InventoryType,
+  /// ushort, InventoryType, ushort, bool) -> int, the vanilla swap/merge move the game itself uses
+  /// for bag <-> retainer entrust). RE-READS the source slot immediately before firing - the plan
+  /// was built from a snapshot - and re-reads the DESTINATION-side source slot after the call; rc==0
+  /// with the item still sitting in the source is treated as a failure (ExecutePull precedent: an
+  /// honest failure beats a silent no-op). A destination with no empty slot is resolved by the GAME
+  /// (MoveItemSlot merges into an existing same-item stack or the call fails with a non-zero rc);
+  /// the planner already declined to plan past a full destination.
+  /// </summary>
+  public static bool ExecuteRoutingMove(RoutingMoveOp op, out int rc)
+  {
+    rc = -1;
+    var manager = InventoryManager.Instance();
+    if (manager == null) return false;
+
+    var src = manager->GetInventoryContainer((InventoryType)op.SrcContainer);
+    if (src == null || !src->IsLoaded) return false;
+    var before = src->GetInventorySlot(op.SrcSlot);
+    if (before == null || before->ItemId != op.ItemId
+        || before->Flags.HasFlag(InventoryItem.ItemFlags.HighQuality) != op.HQ)
+      return false;
+
+    var dstType = op.Leg == MoveLeg.RetainerToBags ? InventoryType.Inventory1 : InventoryType.RetainerPage1;
+    rc = manager->MoveItemSlot((InventoryType)op.SrcContainer, (ushort)op.SrcSlot, dstType, 0, false);
+    Svc.Log.Information($"[LMC] routing move: MoveItemSlot {NameOfContainer((InventoryType)op.SrcContainer)}#{op.SrcSlot} item {op.ItemId}{(op.HQ ? " HQ" : "")} -> {(op.Leg == MoveLeg.RetainerToBags ? "bags" : NameOfContainer(dstType))} rc={rc}");
+    if (rc != 0)
+      return false;
+
+    // The container-level view lags the move by a frame or two; re-read and, when the item is still
+    // there, report failure rather than assuming success.
+    var after = src->GetInventorySlot(op.SrcSlot);
+    if (after != null && after->ItemId == op.ItemId)
+      return false;
+
+    return true;
+  }
 }
 

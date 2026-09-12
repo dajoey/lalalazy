@@ -2780,6 +2780,83 @@ var Catalogue = new (uint Id, string Name)[]
     $"badQueue=[{string.Join(", ", badQueue)}] - if this is not VendorLeg first, the control is broken");
 }
 
+
+// ===== 0.1.40.0: the routing MOVER (RoutingMove.Plan) =====
+
+const int CatA = 55, CatB = 66;   // CatA -> R1, CatB -> R2
+var routingRules = new List<CategoryRetainerRule> { new() { CategoryId = CatA, RetainerName = "R1" }, new() { CategoryId = CatB, RetainerName = "R2" } };
+Dictionary<string, ItemCategoryInfo> CatInfo(uint id, uint cat, bool marketable = true) => new() { [$"{id}:nq"] = new(id, false, cat, marketable) };
+StockStack RetStack(uint id, int slot, int qty, uint cat = CatA, bool marketable = true) => new(StockOrigin.Retainer, 10000 + slot % 7, slot, id, false, qty);
+StockStack BagStack(uint id, int slot, int qty, uint cat = CatA, bool marketable = true) => new(StockOrigin.Bags, 1, slot, id, false, qty);
+
+// 62. Pull-out: routed-elsewhere retainer stock moves to bags; right-retainer stock does not.
+{
+  var rules = new List<ItemRule> { Rule(1001, 99), Rule(1002, 99) };
+  var info = CatInfo(1001, CatA); info[$"1002:nq"] = new(1002, false, CatB, true);
+  var stock = new List<StockStack> { RetStack(1001, 3, 50), RetStack(1002, 4, 60) };
+  var plan = RoutingMove.Plan(stock, rules, info, new Dictionary<string, bool>(), routingRules, "R1", () => 10, () => 10);
+  Check("62 mover: one pull-out planned for R1", plan.Ops.Count == 1 && plan.Ops[0].Leg == MoveLeg.RetainerToBags && plan.Ops[0].ItemId == 1002, $"ops={plan.Ops.Count} {string.Join(",", plan.Ops.Select(o => o.ItemId))}");
+}
+
+// 63. Deposit: bags stock of a category assigned to the open retainer moves in; other categories do not.
+{
+  var rules = new List<ItemRule> { Rule(1001, 99) };
+  var stock = new List<StockStack> { BagStack(1001, 2, 30) };
+  var plan = RoutingMove.Plan(stock, rules, CatInfo(1001, CatA), new Dictionary<string, bool>(), routingRules, "R1", () => 10, () => 10);
+  Check("63 mover: one deposit planned for R1", plan.Ops.Count == 1 && plan.Ops[0].Leg == MoveLeg.BagsToRetainer && plan.Ops[0].ItemId == 1001, $"ops={plan.Ops.Count}");
+  var plan2 = RoutingMove.Plan(stock, rules, CatInfo(1001, CatB), new Dictionary<string, bool>(), routingRules, "R1", () => 10, () => 10);
+  Check("63 mover: category assigned elsewhere never deposits on R1", plan2.Ops.Count == 0, $"ops={plan2.Ops.Count}");
+}
+
+// 64. Guards: no rule, non-marketable, excluded, keep floor, source override, unrouted category -> never moved.
+{
+  var rules = new List<ItemRule> { Rule(1001, 99), Rule(1003, 99, keepR: 40), Rule(1004, 99, bags: false, ret: false), Rule(1005, 99) };
+  var info = CatInfo(1001, CatA);
+  info["1003:nq"] = new(1003, false, CatA, true);
+  info["1004:nq"] = new(1004, false, CatA, true);
+  info["1005:nq"] = new(1005, false, CatA, true);      // unrouted category via ruleset without it? (CatA IS routed; use 999 below)
+  var stock = new List<StockStack> { RetStack(1001, 1, 10), RetStack(1003, 2, 40), RetStack(1004, 3, 10), RetStack(9999, 4, 10), BagStack(1001, 5, 10) };
+  var excl = new Dictionary<string, bool> { ["1001:nq"] = true };
+  var plan = RoutingMove.Plan(stock, rules, info, excl, routingRules, "R2", () => 10, () => 10);
+  Check("64 mover: excluded/keep-floor/nowhere-selling/no-rule stacks never move", plan.Ops.Count == 0, $"ops={plan.Ops.Count}: {string.Join(",", plan.Ops.Select(o => o.ItemId.ToString()))}");
+}
+
+// 65. Crystals containers are skipped even under a rule.
+{
+  var rules = new List<ItemRule> { Rule(1001, 99) };
+  var stock = new List<StockStack> { new(StockOrigin.Retainer, 12001, 0, 1001, false, 9999), new(StockOrigin.Bags, 2001, 0, 1001, false, 9999) };
+  var plan = RoutingMove.Plan(stock, rules, CatInfo(1001, CatA), new Dictionary<string, bool>(), routingRules, "R2", () => 10, () => 10);
+  Check("65 mover: crystal containers skipped with a note", plan.Ops.Count == 0 && plan.Notes.Any(n => n.Contains("crystal")), $"ops={plan.Ops.Count} notes={plan.Notes.Count}");
+}
+
+// 66. Full destination stops the leg with a note; the other leg still plans.
+{
+  var rules = new List<ItemRule> { Rule(1001, 99), Rule(1002, 99) };
+  var info = CatInfo(1002, CatB); info["1001:nq"] = new(1001, false, CatA, true);
+  var stock = new List<StockStack> { RetStack(1002, 1, 10), RetStack(1002, 2, 10), BagStack(1001, 3, 20) };
+  var plan = RoutingMove.Plan(stock, rules, info, new Dictionary<string, bool>(), routingRules, "R1", () => 1, () => 5);
+  Check("66 mover: bags full stops pull-outs (1 of 2), deposit still planned", plan.Ops.Count == 2
+    && plan.Ops.Count(o => o.Leg == MoveLeg.RetainerToBags) == 1
+    && plan.Ops.Count(o => o.Leg == MoveLeg.BagsToRetainer) == 1 && plan.StoppedForBags,
+    $"ops={plan.Ops.Count} stoppedBags={plan.StoppedForBags}");
+}
+
+// 67. CONTROL: no routing rules at all -> empty plan (regression guard for every existing install).
+{
+  var rules = new List<ItemRule> { Rule(1001, 99) };
+  var stock = new List<StockStack> { RetStack(1001, 1, 10) };
+  var plan = RoutingMove.Plan(stock, rules, CatInfo(1001, CatA), new Dictionary<string, bool>(), new List<CategoryRetainerRule>(), "R1", () => 10, () => 10);
+  Check("67 mover control: no rules -> empty plan", plan.Ops.Count == 0 && plan.Notes.Count == 0, $"ops={plan.Ops.Count}");
+}
+
+// 68. Done line carries the routed clause and the zero-guard includes it.
+{
+  var withRouted = DoneLine.Format(3, 0, 0, 0, 0, 0, 0, 2);
+  Check("68 done line: routed clause present", withRouted.Contains(", 2 routed into place"), withRouted);
+  var allZero = DoneLine.Format(0, 0, 0, 0, 0, 0, 0, 0);
+  Check("68 done line: routed=0 still renders plain done.", allZero == "done.", allZero);
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 

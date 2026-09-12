@@ -334,6 +334,18 @@ public sealed class Configuration : IPluginConfiguration
   /// </summary>
   public List<CategoryRetainerRule> CategoryRetainerRules { get; set; } = [];
 
+  /// <summary>
+  /// 0.1.40.0: the routing MOVER. When on (the default - this IS the feature asked for on Helm
+  /// t-joey-1789190796770), Auto-Market physically relocates routed stock during each retainer's
+  /// session: items routed to a different retainer are pulled from this retainer's pages into the
+  /// bags, and items routed to THIS retainer are deposited from the bags into its pages, before
+  /// the listing plan is built. Whole stacks only (the game's move call has no quantity split);
+  /// keep floors and per-item routing excludes are always honoured; full bags / full retainer
+  /// pages stop that leg for the session, never the sweep. Off = the 0.1.37.0 gate-only behaviour.
+  /// New field with an initializer, so an existing config deserializes it as on - no Version bump.
+  /// </summary>
+  public bool AutoMarketRoutingMoveEnabled { get; set; } = true;
+
   public CategoryRetainerRule? GetCategoryRetainerRule(uint categoryId)
   {
     return CategoryRetainerRules.FirstOrDefault(r => r.CategoryId == categoryId);

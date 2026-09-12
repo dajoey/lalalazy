@@ -1,3 +1,19 @@
+## v0.1.40.0 (2026-09-12)
+
+### Added
+
+- **Category Routing now MOVES items between retainers, not just gates where they may list.** Since 0.1.37.0 a category assigned to a retainer could only be LISTED on that retainer - an enabled item sitting in a different retainer's inventory was silently skipped there and invisible during the assigned retainer's session, so routed stock in the wrong place never sold anywhere and never said why. During each retainer's Auto-Market session the new mover now pulls routed-elsewhere items out of that retainer's pages into the bags and deposits routed-to-it items from the bags into its pages, before the listing plan is built, so the division the routing rules describe physically happens (file: `AutoMarket/RoutingMove.cs`, new).
+- Every move is logged and counted: one INFO line per move (`routing move:` prefix), a per-session chat summary (`routing: moved N stack(s) as assigned`), and the run's closing line now carries `N routed into place` (files: `MarketAutomation.cs` `BuildListingStepsNow`, `AutoMarket/DoneLine.cs`, `Communicator.cs`).
+
+### Changed
+
+- Movement is whole-stack only, by the game's own inventory-move call: `InventoryManager.MoveItemSlot` moves an entire stack (there is no quantity-split form of that call), so a keep floor that would leave part of a stack behind keeps the whole stack put instead (file: `AutoMarket/RoutingMove.cs` `Plan`).
+- The mover never touches: items without an enabled Auto-Market entry, non-marketable items, items with the per-item "Skip routing" checkbox set, crystal/shard/cluster stacks (they move and stack through their own containers), and stacks whose rule's stock source excludes the destination side - each of these keeps exactly the behaviour it had in 0.1.39.0 (file: `AutoMarket/RoutingMove.cs` `Plan`).
+- Full bags stop the pull-out leg and full retainer pages stop the deposit leg for that session, each announced in the log; neither ever stops the sweep or the listing pass (file: `AutoMarket/RoutingMove.cs` `Plan`).
+
+### Notes
+
+- Ship testing channel only, pending in-game verification. What to look for: with categories assigned and routed stock sitting in the wrong place, the next Auto-Market sweep should log `routing move:` lines pulling those stacks into the bags, and the assigned retainer's session should deposit and list them; the closing line should count them as `routed into place`. A retainer whose pages are full keeps its stock until a later sweep - that is the designed stop, not a failure.
 ## v0.1.39.0 (2026-09-11)
 
 ### Fixed

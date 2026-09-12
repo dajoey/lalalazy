@@ -24,11 +24,11 @@ public static class DoneLine
   /// source stock moved before the listing call even fired), so it gets its own honest clause rather
   /// than being folded into "skipped (stock moved)", which would misname the reason.
   /// </param>
-  public static string Format(int listed, int failures, int vendored, int heldBack, int vendorFailures, int pulled = 0, int unconfirmed = 0)
+  public static string Format(int listed, int failures, int vendored, int heldBack, int vendorFailures, int pulled = 0, int unconfirmed = 0, int routed = 0)
   {
-    return listed == 0 && failures == 0 && vendored == 0 && heldBack == 0 && vendorFailures == 0 && pulled == 0 && unconfirmed == 0
+    return listed == 0 && failures == 0 && vendored == 0 && heldBack == 0 && vendorFailures == 0 && pulled == 0 && unconfirmed == 0 && routed == 0
       ? "done."
-      : $"done: {listed} new listing(s){(failures > 0 ? $", {failures} skipped (stock moved)" : string.Empty)}{(unconfirmed > 0 ? $", {unconfirmed} unconfirmed (see log)" : string.Empty)}{(pulled > 0 ? $", {pulled} pulled" : string.Empty)}{(vendored > 0 ? $", {vendored} vendored" : string.Empty)}{(vendorFailures > 0 ? $", {vendorFailures} vendoring op(s) failed (see log)" : string.Empty)}{(heldBack > 0 ? $", {heldBack} held back by the value gate" : string.Empty)}.";
+      : $"done: {listed} new listing(s){(failures > 0 ? $", {failures} skipped (stock moved)" : string.Empty)}{(unconfirmed > 0 ? $", {unconfirmed} unconfirmed (see log)" : string.Empty)}{(pulled > 0 ? $", {pulled} pulled" : string.Empty)}{(routed > 0 ? $", {routed} routed into place" : string.Empty)}{(vendored > 0 ? $", {vendored} vendored" : string.Empty)}{(vendorFailures > 0 ? $", {vendorFailures} vendoring op(s) failed (see log)" : string.Empty)}{(heldBack > 0 ? $", {heldBack} held back by the value gate" : string.Empty)}.";
   }
 }
 

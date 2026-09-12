@@ -57,6 +57,9 @@ internal sealed class MarketAutomation : Window, IDisposable
   // inventory so the unchanged vendor leg below could sell them. Reset per-run in ClearState like
   // every other counter here.
   private int _pulledThisRun;
+  // 0.1.40.0: routing-mover counters for the whole run (all retainers), reported by the done line.
+  private int _routingMovedOk;
+  private int _routingMovedFail;
   // t_deb0e274 (2026-09-10): listings whose Listed{slot} confirmation never landed even after one
   // retry - see AddListingSteps. Reported in the done line so a strand is never silent again.
   private int _unconfirmedThisRun;
@@ -1064,6 +1067,50 @@ internal sealed class MarketAutomation : Window, IDisposable
   /// </summary>
   private bool? BuildListingStepsNow(List<Step> steps)
   {
+    // 0.1.40.0: the routing mover runs FIRST - before pulls, before the listing plan build, while
+    // this retainer's session is the one open. Moved stock lands in bags (pull-outs) or this
+    // retainer's pages (deposits) BEFORE BuildAndInsertListingSteps takes its fresh snapshot, so a
+    // deposited stack can be listed in THIS session. Whole-container calls, no UI walking; full
+    // bags / full retainer are normal states that stop their own leg and never the sweep.
+    var routingPlan = AutoMarketService.PlanRoutingMoves();
+    foreach (var note in routingPlan.Notes)
+      Svc.Log.Information($"[LMC] {note}");
+    if (routingPlan.Ops.Count > 0)
+    {
+      Svc.Log.Information($"[LMC] routing move plan: {RoutingMove.Summarize(routingPlan.Ops)}: {string.Join(", ", routingPlan.Ops.Select(o => $"{(o.Leg == MoveLeg.RetainerToBags ? "out" : "in")} {o.ItemId}{(o.HQ ? " HQ" : "")} @{AutoMarket.AutoMarketService.NameOfContainer((InventoryType)o.SrcContainer)}#{o.SrcSlot}"))}");
+      var moveSteps = new List<Step>();
+      var movedOk = 0;
+      var movedFail = 0;
+      foreach (var op in routingPlan.Ops)
+      {
+        var captured = op;
+        moveSteps.Add(new Step(() =>
+        {
+          if (AutoMarketService.ExecuteRoutingMove(captured, out var rc))
+          {
+            movedOk++;
+            Svc.Log.Information($"[LMC] routing move: OK {(captured.Leg == MoveLeg.RetainerToBags ? "pulled to bags" : "deposited to retainer")}: item {captured.ItemId}{(captured.HQ ? " HQ" : "")} from container {captured.SrcContainer} slot {captured.SrcSlot}");
+          }
+          else
+          {
+            movedFail++;
+            Svc.Log.Warning($"[LMC] routing move: FAILED item {captured.ItemId}{(captured.HQ ? " HQ" : "")} container {captured.SrcContainer}#{captured.SrcSlot} rc={rc}; leaving the stack where it is");
+          }
+          return true;
+        }, $"RouteMove{captured.SrcSlot}", DelayAfterMs: 250));
+      }
+      // Summary step so the counts land in the log even when every move succeeds quietly.
+      moveSteps.Add(new Step(() =>
+      {
+        _routingMovedOk += movedOk;
+        _routingMovedFail += movedFail;
+        if (Plugin.Configuration.ShowAutoMarketMessages && movedOk + movedFail > 0)
+          Communicator.PrintInfo($"routing: moved {movedOk} stack(s) as assigned" + (movedFail > 0 ? $", {movedFail} could not move (full or busy)" : string.Empty));
+        return true;
+      }, "RouteMoveSummary", DelayAfterMs: 100));
+      InsertSteps(moveSteps);
+    }
+
     var pullPlan = AutoMarketService.PlanPulls(_gateQuotes);
     foreach (var note in pullPlan.Notes)
       Svc.Log.Information($"[LMC] {note}");
@@ -2170,7 +2217,7 @@ internal sealed class MarketAutomation : Window, IDisposable
       if (Plugin.Configuration.ShowAutoMarketMessages)
         Communicator.PrintInfo($"value gate: 0 of {_vendorPlannedCount} planned stack(s) were vendored - the leg did not run (see log)");
     }
-    Communicator.PrintSweepDone(_listedTotal, _listingFailures, _vendoredThisRun, 0, _vendorFailedThisRun, _pulledThisRun, _unconfirmedThisRun);
+    Communicator.PrintSweepDone(_listedTotal, _listingFailures, _vendoredThisRun, 0, _vendorFailedThisRun, _pulledThisRun, _unconfirmedThisRun, _routingMovedOk);
   }
 
   private void ClearState()
@@ -2191,6 +2238,8 @@ internal sealed class MarketAutomation : Window, IDisposable
     _vendoredThisRun = 0;
     _vendorFailedThisRun = 0;
     _pulledThisRun = 0;
+    _routingMovedOk = 0;
+    _routingMovedFail = 0;
     _unconfirmedThisRun = 0;
     // 0.1.26.0: the planned count is per-run state too. It was the one vendor counter NOT reset
     // here, so after a retainer planned N ops every later retainer's AnnounceRunDone re-tested
