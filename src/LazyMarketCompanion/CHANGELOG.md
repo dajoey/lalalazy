@@ -1,3 +1,15 @@
+﻿## v0.1.41.0 (2026-09-12)
+
+### Fixed
+
+- **Category-routing moves now land in a real empty slot instead of swapping through one slot.** The 0.1.40.0 mover fired every move at destination slot 0 of the first destination container, treating it as a hint for the game to resolve. The slot is literal: when slot 0 held a different stack, the game swapped the two, so a run of pull-outs churned a single bag slot and pushed each earlier item back into the retainer, and a deposit could shove a retainer stack into the bags. The executor now resolves a concrete destination at execution time - an existing same-item stack that can absorb the whole move, else the first empty slot - and skips the move (with a log line) when neither exists (file: `AutoMarket/AutoMarketService.cs` `ExecuteRoutingMove`).
+- **A routing move now only counts as a success when its source slot is empty after the move.** 0.1.40.0 accepted "the source slot no longer holds this item", which a swap satisfies because the displaced stack sits there instead - so a chain of swaps graded itself as 45 successful moves. Anything still sitting in the source after the call is now a failure and the stack is left where it is (file: `AutoMarket/AutoMarketService.cs` `ExecuteRoutingMove`).
+
+### Notes
+
+- Items that appeared to shuffle in place during a 0.1.40.0 run were swaps, not losses: every stack is still in a retainer or the bags, and the next sweep with this build re-routes them correctly.
+
+
 ## v0.1.40.0 (2026-09-12)
 
 ### Added

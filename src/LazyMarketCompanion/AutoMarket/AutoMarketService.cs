@@ -776,12 +776,17 @@ internal static unsafe class AutoMarketService
   /// Executes one routing move: a whole-stack container-to-container InventoryManager.MoveItemSlot
   /// call (signature verified against FFXIVClientStructs 15.0.3.1: MoveItemSlot(InventoryType,
   /// ushort, InventoryType, ushort, bool) -> int, the vanilla swap/merge move the game itself uses
-  /// for bag <-> retainer entrust). RE-READS the source slot immediately before firing - the plan
-  /// was built from a snapshot - and re-reads the DESTINATION-side source slot after the call; rc==0
-  /// with the item still sitting in the source is treated as a failure (ExecutePull precedent: an
-  /// honest failure beats a silent no-op). A destination with no empty slot is resolved by the GAME
-  /// (MoveItemSlot merges into an existing same-item stack or the call fails with a non-zero rc);
-  /// the planner already declined to plan past a full destination.
+  /// for bag <-> retainer entrust). The destination slot is LITERAL, not a hint: pointing it at an
+  /// occupied slot swaps the two stacks instead of moving (0.1.40.0 fired every move at slot 0 and
+  /// chained swaps that validated as successes - see the 0.1.41.0 changelog), so the executor now
+  /// resolves a concrete EMPTY destination slot itself, at execution time, fresh for every move:
+  /// an existing same-item stack that can absorb the whole move (merge), else the first empty slot.
+  /// RE-READS the source slot immediately before firing - the plan was built from a snapshot - and
+  /// re-reads it AFTER the call; success requires the source slot to be EMPTY. rc==0 with anything
+  /// still sitting in the source (a swap leaves the displaced stack there) is a failure
+  /// (ExecutePull precedent: an honest failure beats a silent no-op). No empty destination slot and
+  /// no mergeable stack -> the move fails with rc=-2 and the stack stays where it is; the planner's
+  /// free-slot accounting is advisory, and a swap-shaped hole never opens.
   /// </summary>
   public static bool ExecuteRoutingMove(RoutingMoveOp op, out int rc)
   {
@@ -796,16 +801,61 @@ internal static unsafe class AutoMarketService
         || before->Flags.HasFlag(InventoryItem.ItemFlags.HighQuality) != op.HQ)
       return false;
 
-    var dstType = op.Leg == MoveLeg.RetainerToBags ? InventoryType.Inventory1 : InventoryType.RetainerPage1;
-    rc = manager->MoveItemSlot((InventoryType)op.SrcContainer, (ushort)op.SrcSlot, dstType, 0, false);
-    Svc.Log.Information($"[LMC] routing move: MoveItemSlot {NameOfContainer((InventoryType)op.SrcContainer)}#{op.SrcSlot} item {op.ItemId}{(op.HQ ? " HQ" : "")} -> {(op.Leg == MoveLeg.RetainerToBags ? "bags" : NameOfContainer(dstType))} rc={rc}");
+    var dstTypes = op.Leg == MoveLeg.RetainerToBags ? PlayerBagTypes : RetainerPageTypes;
+    var merged = false;
+    var moved = false;
+    InventoryType? dstType = null;
+    var dstSlot = -1;
+    foreach (var type in dstTypes)
+    {
+      var cont = manager->GetInventoryContainer(type);
+      if (cont == null || !cont->IsLoaded) continue;
+      for (var i = 0; i < cont->Size; i++)
+      {
+        var it = cont->GetInventorySlot(i);
+        if (it == null) continue;
+        var hq = it->Flags.HasFlag(InventoryItem.ItemFlags.HighQuality);
+        if (it->ItemId == op.ItemId && hq == op.HQ && it->Quantity + before->Quantity <= 999)
+        {
+          dstType = type; dstSlot = i; merged = true; moved = true; break;
+        }
+      }
+      if (moved) break;
+    }
+    if (!moved)
+    {
+      foreach (var type in dstTypes)
+      {
+        var cont = manager->GetInventoryContainer(type);
+        if (cont == null || !cont->IsLoaded) continue;
+        for (var i = 0; i < cont->Size; i++)
+        {
+          var it = cont->GetInventorySlot(i);
+          if (it == null || it->ItemId == 0)
+          {
+            dstType = type; dstSlot = i; moved = true; break;
+          }
+        }
+        if (moved) break;
+      }
+    }
+    if (!moved)
+    {
+      rc = -2;
+      Svc.Log.Warning($"[LMC] routing move: no empty slot and no mergeable stack for item {op.ItemId}{(op.HQ ? " HQ" : "")} in {(op.Leg == MoveLeg.RetainerToBags ? "the player's bags" : "this retainer's pages")}; leaving the stack in {NameOfContainer((InventoryType)op.SrcContainer)}#{op.SrcSlot}");
+      return false;
+    }
+
+    rc = manager->MoveItemSlot((InventoryType)op.SrcContainer, (ushort)op.SrcSlot, dstType!.Value, (ushort)dstSlot, false);
+    Svc.Log.Information($"[LMC] routing move: MoveItemSlot {NameOfContainer((InventoryType)op.SrcContainer)}#{op.SrcSlot} item {op.ItemId}{(op.HQ ? " HQ" : "")} -> {NameOfContainer(dstType!.Value)}#{dstSlot}{(merged ? " (merged)" : "")} rc={rc}");
     if (rc != 0)
       return false;
 
-    // The container-level view lags the move by a frame or two; re-read and, when the item is still
-    // there, report failure rather than assuming success.
+    // The container-level view lags the move by a frame or two; success requires the source slot
+    // to be EMPTY. 0.1.40.0 accepted "source no longer holds this item" - which a swap satisfies
+    // (the displaced stack sits there instead), so a chain of swaps graded itself as successes.
     var after = src->GetInventorySlot(op.SrcSlot);
-    if (after != null && after->ItemId == op.ItemId)
+    if (after != null && after->ItemId != 0)
       return false;
 
     return true;
