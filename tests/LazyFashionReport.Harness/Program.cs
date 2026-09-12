@@ -276,6 +276,32 @@ Check("br-none", BuyResolver.Resolve(BrandNewGloves, null, null, null, false).So
 Check("br-cost-phrase", new ShopCost(20, "Storm Seal", 1500, "Storm Seals").Phrase == "1,500 Storm Seals",
     new ShopCost(20, "Storm Seal", 1500, "Storm Seals").Phrase);
 
+// ---- 15. OwnedCatalog: the get-to leg (P3, v0.3.1.0) ----
+// Owned != in bags: a dresser/armoire piece needs a trip; the note must say which, and a
+// piece also in bags needs no note at all.
+var cat = new OwnedCatalog
+{
+    ByItem = new Dictionary<uint, ItemStorage>
+    {
+        [KasugaHaori] = ItemStorage.Dresser,
+        [HailstormGloves] = ItemStorage.Armoire,
+        [RedbillScarf] = ItemStorage.Dresser | ItemStorage.Armoire,
+        [BrandNewGloves] = ItemStorage.Bags,
+        [RathalosGreaves] = ItemStorage.Bags | ItemStorage.Dresser,
+        [99003] = ItemStorage.Equipped,
+    },
+};
+Check("oc-contains", cat.Contains(KasugaHaori) && !cat.Contains(99099));
+Check("oc-ids-set", cat.Ids().SetEquals(new HashSet<uint> { KasugaHaori, HailstormGloves, RedbillScarf, BrandNewGloves, RathalosGreaves, 99003 }));
+Check("oc-note-dresser", cat.LocationNote(KasugaHaori) == "(in glamour dresser)", cat.LocationNote(KasugaHaori));
+Check("oc-note-armoire", cat.LocationNote(HailstormGloves) == "(in armoire)", cat.LocationNote(HailstormGloves));
+Check("oc-note-both-stored", cat.LocationNote(RedbillScarf) == "(in dresser or armoire)", cat.LocationNote(RedbillScarf));
+Check("oc-note-bags-silent", cat.LocationNote(BrandNewGloves) == "", "in bags needs no note");
+Check("oc-note-bags-beats-dresser", cat.LocationNote(RathalosGreaves) == "", "bags copy means no trip needed");
+Check("oc-note-equipped-silent", cat.LocationNote(99003) == "");
+Check("oc-note-unknown-silent", cat.LocationNote(12345) == "");
+Check("oc-storage-flags", cat.StorageFor(RedbillScarf) == (ItemStorage.Dresser | ItemStorage.Armoire));
+
 Console.WriteLine();
 Console.WriteLine(failures.Count == 0
     ? $"OK - {passes} checks passed"

@@ -183,6 +183,13 @@ internal class ReportWindow : Window
             {
                 ImGui.Bullet();
                 ImGui.TextUnformatted($"{c.Name}  ({c.Votes})");
+                // P3 get-to: say WHERE an owned-but-stored piece sits (bags need no note).
+                var note = _plugin.Service.LocationNoteFor(c.ItemId);
+                if (note.Length > 0)
+                {
+                    ImGui.SameLine();
+                    ImGui.TextColored(ImGuiColors.DalamudYellow, note);
+                }
             }
         }
         ImGui.Unindent(16);

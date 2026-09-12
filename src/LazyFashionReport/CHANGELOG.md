@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.3.1.0 (2026-09-12)
+
+### Added
+- The get-to leg: an owned candidate that is NOT in the bags now says where it sits - "(in glamour dresser)", "(in armoire)", or "(in dresser or armoire)" - right next to the item in the Wear list, in yellow. A piece that is in the bags or already equipped needs no trip, so it carries no note (files: `Core/SlotPlan.cs` `OwnedCatalog`, `Adapters/ClientReader.cs ReadOwnedCatalog`, `ReportWindow.cs DrawSlotPlan`)
+- The owned-items read now keeps per-location flags (bags / glamour dresser / armoire / equipped) instead of collapsing everything into one id set, while the owned-filter and missing-pieces views consume the same ids as before - no behavior change there, just a richer snapshot underneath (file: `Adapters/ClientReader.cs`)
+
+### Notes
+- "Owned" and "in bags" are different things: a dresser or armoire piece is glamour-usable at the Gold Saucer but requires standing at a glamour dresser first, which is exactly the trip the note is there to name (file: `Core/SlotPlan.cs LocationNote`)
+- Retainer-held pieces stay out of this view - they are not glamour-usable without retrieving them first, and the crowd candidates are gear the character could wear now
+- Offline harness coverage: per-location notes, combined locations, and the bags/equipped cases that must stay silent (file: `tests/LazyFashionReport.Harness/Program.cs` section 15)
+
 ## v0.3.0.0 (2026-09-12)
 
 ### Added

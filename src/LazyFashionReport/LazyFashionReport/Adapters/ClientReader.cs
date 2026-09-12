@@ -3,6 +3,7 @@ using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
+using LazyFashionReport.Core;
 
 namespace LazyFashionReport.Adapters;
 
@@ -102,7 +103,25 @@ internal static unsafe class ClientReader
     /// </summary>
     public static HashSet<uint> ReadOwnedItems(IEnumerable<uint>? candidateIds = null)
     {
-        var owned = new HashSet<uint>();
+        var cat = ReadOwnedCatalog(candidateIds);
+        return new HashSet<uint>(cat.ByItem.Keys);
+    }
+
+    /// <summary>
+    /// The P3 get-to catalog: item id -> EVERY place it was found (bags / dresser / armoire /
+    /// equipped). Same single pass as <see cref="ReadOwnedItems"/>; an item found in several
+    /// places carries all the flags. Retainer-held items are NOT glamour-usable in the Gold
+    /// Saucer, so they are out of scope here (the crowd data only suggests gear the player
+    /// could wear now).
+    /// </summary>
+    public static OwnedCatalog ReadOwnedCatalog(IEnumerable<uint>? candidateIds = null)
+    {
+        var byItem = new Dictionary<uint, ItemStorage>();
+
+        void Add(uint id, ItemStorage where)
+        {
+            byItem[id] = byItem.GetValueOrDefault(id, ItemStorage.None) | where;
+        }
 
         var inv = InventoryManager.Instance();
         if (inv != null)
@@ -110,14 +129,15 @@ internal static unsafe class ClientReader
             foreach (InventoryType type in Enum.GetValues<InventoryType>())
             {
                 if (!IsOwnContainer(type)) continue;
+                var where = type == InventoryType.EquippedItems ? ItemStorage.Equipped : ItemStorage.Bags;
                 var cont = inv->GetInventoryContainer(type);
                 if (cont == null || !cont->IsLoaded) continue;
                 for (var i = 0; i < cont->Size; i++)
                 {
                     var item = cont->GetInventorySlot(i);
                     if (item == null || item->ItemId == 0) continue;
-                    owned.Add(item->ItemId);
-                    if (item->GlamourId != 0) owned.Add(item->GlamourId);
+                    Add(item->ItemId, where);
+                    if (item->GlamourId != 0) Add(item->GlamourId, where);
                 }
             }
         }
@@ -128,7 +148,7 @@ internal static unsafe class ClientReader
         {
             var ids = mirage->PrismBoxItemIds;
             for (var var_i = 0; var_i < ids.Length; var_i++)
-                if (ids[var_i] != 0) owned.Add(ids[var_i]);
+                if (ids[var_i] != 0) Add(ids[var_i], ItemStorage.Dresser);
         }
 
         // Armoire: per-candidate-id query against the loaded cabinet.
@@ -141,13 +161,13 @@ internal static unsafe class ClientReader
                 {
                     foreach (var id in candidateIds)
                         if (ui->Cabinet.IsItemInCabinet(id))
-                            owned.Add(id);
+                            Add(id, ItemStorage.Armoire);
                 }
             }
             catch { }
         }
 
-        return owned;
+        return new OwnedCatalog { ByItem = byItem };
     }
 
     /// <summary>True for containers the player can wear/glamour from at the Gold Saucer.</summary>

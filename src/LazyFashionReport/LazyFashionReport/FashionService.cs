@@ -38,6 +38,7 @@ internal sealed class FashionService : IDisposable
     private FashionWeek? _week;
     private OutfitReport? _outfit;
     private HashSet<uint>? _owned;
+    private OwnedCatalog? _ownedCatalog;
     private string?[]? _liveHints;
     private bool _fetchInFlight;
     private long _nextFetchTick;
@@ -66,8 +67,14 @@ internal sealed class FashionService : IDisposable
     public FashionWeek? Week => _week;
     public OutfitReport? Outfit => _outfit;
     public HashSet<uint>? OwnedItems => _owned;
+    /// <summary>P3 get-to catalog: where each owned piece actually sits (bags/dresser/armoire).</summary>
+    public OwnedCatalog? OwnedCatalog => _ownedCatalog ?? (_owned is null ? null : OwnedCatalog.Empty);
     public IReadOnlyList<MissingPiece> MissingPieces => _missing;
     public IReadOnlyList<SlotPlan> SlotPlans => _slotPlans;
+
+    /// <summary>Location note for a Wear row: "(in glamour dresser)" etc.; empty when the
+    /// piece is in bags/equipped (nothing to say).</summary>
+    public string LocationNoteFor(uint itemId) => _ownedCatalog?.LocationNote(itemId) ?? "";
 
     /// <summary>xivstats crowd dataset loaded (candidates + crowd dyes). Honest per-source
     /// status: week 449's "no hint" bug hid behind a combined flag that was true while the
@@ -200,7 +207,9 @@ internal sealed class FashionService : IDisposable
                     foreach (var c in crowd.CandidatesFor(_week, slot, null))
                         candidates.Add(c.ItemId);
                 }
-            owned = ClientReader.ReadOwnedItems(candidates.Count > 0 ? candidates : null);
+            var catalog = ClientReader.ReadOwnedCatalog(candidates.Count > 0 ? candidates : null);
+            _ownedCatalog = catalog;   // P3: keep the per-location view for the Wear notes
+            owned = catalog.Ids();
         }
         return (eq, owned);
     }
