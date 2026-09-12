@@ -324,6 +324,52 @@ for (var w = 400; w < 430; w++)
 Check("jf-history-bounded-26", big.Count == 26 && big[0].Week == 404 && big[^1].Week == 429, $"{big.Count} first={big[0].Week}");
 Check("jf-empty-summary-empty", JudgedFeedback.SummaryLine(new List<JudgedRecord>()) == "");
 
+// ---- 17. OutfitAssembler: the P4 planner (v0.4.0.0) ----
+// The best 80+ outfit from owned pieces + owned dyes, with per-slot dye instructions that
+// never tell the player to apply a dye they do not own.
+var plus2StainMap = new Dictionary<FashionSlot, uint>
+{
+    [FashionSlot.Head] = 76,   // Abyssal Blue
+    [FashionSlot.Body] = 112,  // Metallic Silver
+};
+var ownedStainSet = new HashSet<uint> { 76, 1 };   // owns Abyssal Blue + Snow White
+var stainNames = new Dictionary<uint, string> { [76] = "Abyssal Blue", [112] = "Metallic Silver", [1] = "Snow White", [68] = "Ink Blue" };
+var ownCat = new OwnedCatalog
+{
+    ByItem = new Dictionary<uint, ItemStorage>
+    {
+        [KasugaHaori] = ItemStorage.Bags,
+        [HailstormGloves] = ItemStorage.Bags,
+        [RathalosGreaves] = ItemStorage.Dresser,
+        [RedbillScarf] = ItemStorage.Bags,
+        [BrandNewGloves] = ItemStorage.Bags,
+    },
+};
+var asm = OutfitAssembler.Build(week449, crowd, ownCat, id => $"item {id}",
+    plus2StainMap, ownedStainSet, stainNames, stainFamilies);
+// week449 hints: body/hands/feet/neck. Owned golds for all four -> each hinted slot 2+8/6, unhinted base.
+// body gold 2+8 + dye owned exact (+2) = 12; hands 2+8=10; feet 2+8=10; neck 2+6=8;
+// weapon/head/legs 10 each; ears/wrist/ringL/ringR 8 each = 12+10+10+8+30+32 = 102? compute:
+var asmTotal = asm.Total;
+Check("oa-reaches-80", asm.Reaches80 && asmTotal == 102, $"total {asmTotal}");
+var oaHead = asm.Pieces[(int)FashionSlot.Head];
+Check("oa-dye-exact-owned", oaHead.DyeNote == "apply Abyssal Blue (+2)" && oaHead.Score == 12, $"{oaHead.DyeNote} / {oaHead.Score}");
+var oaBody = asm.Pieces[(int)FashionSlot.Body];
+// Body wants Metallic Silver (112, white family); player owns Snow White (1, white) -> +1 substitution note.
+Check("oa-dye-substitution", oaBody.DyeNote == "Metallic Silver not owned - Snow White owned (+1)", oaBody.DyeNote);
+var oaFeet = asm.Pieces[(int)FashionSlot.Feet];
+Check("oa-location-note-carried", oaFeet.LocationNote == "(in glamour dresser)" && oaFeet.ItemId == RathalosGreaves, $"{oaFeet.ItemName} {oaFeet.LocationNote}");
+// No owned candidate -> "any item" + gap line.
+var ownEmpty = new OwnedCatalog { ByItem = new Dictionary<uint, ItemStorage>() };
+var asm2 = OutfitAssembler.Build(week449, crowd, ownEmpty, id => $"item {id}",
+    plus2StainMap, ownedStainSet, stainNames, stainFamilies);
+Check("oa-gap-listed", asm2.Gaps.Count == 4, $"{asm2.Gaps.Count} gaps (one per hinted slot with nothing owned)");
+Check("oa-any-item-fallback", asm2.Pieces[(int)FashionSlot.Body].ItemName == "any item");
+// No dye owned at all -> honest "no matching dye owned".
+var asm3 = OutfitAssembler.Build(week449, crowd, ownCat, id => $"item {id}",
+    plus2StainMap, new HashSet<uint>(), stainNames, stainFamilies);
+Check("oa-no-dye-honest", asm3.Pieces[(int)FashionSlot.Head].DyeNote.Contains("no matching dye owned"), asm3.Pieces[(int)FashionSlot.Head].DyeNote);
+
 Console.WriteLine();
 Console.WriteLine(failures.Count == 0
     ? $"OK - {passes} checks passed"

@@ -44,7 +44,11 @@ internal sealed class SheetAdapter
             {
                 var it = items.GetRow(link.RowId);
                 if (it.RowId != 0)
+                {
                     stainToIcon[s.RowId] = it.Icon;
+                    // P4 planner: dye item id -> stain, for the owned-dye check.
+                    Adapters.ClientReader.DyeItemToStain[it.RowId] = s.RowId;
+                }
             }
         }
         _stainFamilies = ShadeMap.BuildStainFamilies(stainToIcon);

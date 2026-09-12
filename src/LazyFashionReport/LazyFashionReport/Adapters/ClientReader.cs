@@ -170,7 +170,41 @@ internal static unsafe class ClientReader
         return new OwnedCatalog { ByItem = byItem };
     }
 
-    /// <summary>True for containers the player can wear/glamour from at the Gold Saucer.</summary>
+    /// <summary>Stain ids the player can apply right now: every bag/armoury slot holding a
+    /// dye-capable item resolves to its stain via the sheet's stain->item links. Framework
+    /// thread. P4 planner half: the dye instruction must never tell the player to apply a
+    /// dye they do not own.</summary>
+    public static HashSet<uint> ReadOwnedStains()
+    {
+        var stains = new HashSet<uint>();
+        var inv = InventoryManager.Instance();
+        if (inv == null) return stains;
+        foreach (InventoryType type in Enum.GetValues<InventoryType>())
+        {
+            if (type is not (InventoryType.Inventory1 or InventoryType.Inventory2
+                or InventoryType.Inventory3 or InventoryType.Inventory4
+                or InventoryType.ArmoryMainHand or InventoryType.ArmoryOffHand
+                or InventoryType.ArmoryHead or InventoryType.ArmoryBody or InventoryType.ArmoryHands
+                or InventoryType.ArmoryLegs or InventoryType.ArmoryFeets
+                or InventoryType.ArmoryEar or InventoryType.ArmoryNeck or InventoryType.ArmoryWrist
+                or InventoryType.ArmoryRings)) continue;
+            var cont = inv->GetInventoryContainer(type);
+            if (cont == null || !cont->IsLoaded) continue;
+            for (var i = 0; i < cont->Size; i++)
+            {
+                var item = cont->GetInventorySlot(i);
+                if (item == null || item->ItemId == 0) continue;
+                if (DyeItemToStain.TryGetValue(item->ItemId, out var stain) && stain != 0)
+                    stains.Add(stain);
+            }
+        }
+        return stains;
+    }
+
+    /// <summary>Dye item id -> stain id it applies, filled by the host from the live Stain
+    /// sheet (each stain row links its Items). Static so the framework-thread read can map
+    /// without holding a sheet reference.</summary>
+    public static Dictionary<uint, uint> DyeItemToStain { get; } = new();
     private static bool IsOwnContainer(InventoryType type) => type switch
     {
         InventoryType.EquippedItems => true,

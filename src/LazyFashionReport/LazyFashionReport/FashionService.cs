@@ -39,6 +39,7 @@ internal sealed class FashionService : IDisposable
     private OutfitReport? _outfit;
     private HashSet<uint>? _owned;
     private OwnedCatalog? _ownedCatalog;
+    private OutfitAssembly? _assembly;
     private string?[]? _liveHints;
     private bool _fetchInFlight;
     private long _nextFetchTick;
@@ -75,6 +76,9 @@ internal sealed class FashionService : IDisposable
     /// <summary>Location note for a Wear row: "(in glamour dresser)" etc.; empty when the
     /// piece is in bags/equipped (nothing to say).</summary>
     public string LocationNoteFor(uint itemId) => _ownedCatalog?.LocationNote(itemId) ?? "";
+
+    /// <summary>P4 planner: the best 80+ outfit from owned pieces + owned dyes (read-only).</summary>
+    public OutfitAssembly? Assembly => _assembly;
 
     /// <summary>Last judged-week summary line ("" with no history yet) + accuracy over the
     /// recent weeks. P5: the predictor is only as good as its measured diff.</summary>
@@ -385,6 +389,18 @@ internal sealed class FashionService : IDisposable
             if (marketIds.Count > 0)
                 _ = _market.PrimeAsync(marketIds);
         }
+
+        // P4 planner half (v0.4.0.0): the best 80+ outfit from owned pieces + owned dyes.
+        // Read-only; the equip/dye executor is a separate, later step.
+        var plusTwoStains = new Dictionary<FashionSlot, uint>();
+        foreach (var slot in Enum.GetValues<FashionSlot>())
+        {
+            var s = crowd?.PreferredStainFor(_week, slot) ?? 0;
+            if (s != 0) plusTwoStains[slot] = s;
+        }
+        _assembly = OutfitAssembler.Build(_week, crowd, _ownedCatalog,
+            id => _sheets.ItemName(id), plusTwoStains,
+            ClientReader.ReadOwnedStains(), _sheets.StainToName, _sheets.StainFamilies);
 
         // The Artisan craft list (unchanged behavior, FetchMissingCraft toggle): built from
         // the same crowd + owned snapshot so the two views always agree.

@@ -135,7 +135,68 @@ internal class ReportWindow : Window
         }
 
         ImGui.Separator();
+        DrawAssembly();
         DrawWeekPieces();
+    }
+
+    /// <summary>P4 planner half: the best 80+ outfit the player can assemble right now from
+    /// owned pieces and owned dyes, with the predicted total and what blocks 80 when it is
+    /// not reachable. Read-only — the physical equip/dye application is a later step.</summary>
+    private void DrawAssembly()
+    {
+        var asm = _plugin.Service.Assembly;
+        if (asm is null) return;
+
+        ImGui.TextUnformatted(asm.Reaches80 ? $"Assemble for 80+ (predicted {asm.Total})" : $"Best from owned pieces (predicted {asm.Total})");
+        ImGui.SameLine();
+        ImGui.TextDisabled(asm.Reaches80 ? "- everything below is owned or in bags" : "- see the gap notes");
+
+        if (ImGui.BeginTable("assembly", 4, ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH))
+        {
+            ImGui.TableSetupColumn("Slot", ImGuiTableColumnFlags.WidthFixed, 70);
+            ImGui.TableSetupColumn("Wear", ImGuiTableColumnFlags.WidthStretch, 240);
+            ImGui.TableSetupColumn("Dye", ImGuiTableColumnFlags.WidthStretch, 200);
+            ImGui.TableSetupColumn("Pts", ImGuiTableColumnFlags.WidthFixed, 36);
+            ImGui.TableHeadersRow();
+            foreach (var p in asm.Pieces)
+            {
+                ImGui.TableNextRow();
+                ImGui.TableNextColumn();
+                ImGui.TextUnformatted(p.Slot.DisplayName());
+                ImGui.TableNextColumn();
+                ImGui.TextUnformatted(p.ItemName);
+                if (p.SatisfiesHint)
+                {
+                    ImGui.SameLine();
+                    ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.HealerGreen);
+                    ImGui.TextUnformatted("(gold)");
+                    ImGui.PopStyleColor();
+                }
+                if (p.LocationNote.Length > 0)
+                {
+                    ImGui.SameLine();
+                    ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudYellow);
+                    ImGui.TextUnformatted(p.LocationNote);
+                    ImGui.PopStyleColor();
+                }
+                ImGui.TableNextColumn();
+                if (p.DyeNote.Length > 0)
+                {
+                    if (p.DyeNote.StartsWith("apply ")) ImGui.TextUnformatted(p.DyeNote);
+                    else ImGui.TextDisabled(p.DyeNote);
+                }
+                else ImGui.TextDisabled("-");
+                ImGui.TableNextColumn();
+                ImGui.TextUnformatted(p.Score.ToString());
+            }
+            ImGui.EndTable();
+        }
+
+        foreach (var gap in asm.Gaps)
+        {
+            ImGui.Bullet();
+            ImGui.TextDisabled(gap);
+        }
     }
 
     /// <summary>The week's pieces: one flat block per hinted slot — wear list, missing list

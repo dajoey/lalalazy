@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.4.0.0 (2026-09-12)
+
+### Added
+- The outfit assembler: a new "Assemble for 80+" section that composes the best outfit the character can field RIGHT NOW from owned pieces and owned dyes - one row per slot with the chosen item, where it sits if not in the bags, the exact dye instruction, and the points it contributes, totalling to the predicted score. When 80 is not reachable, the header says so and each blocking slot gets a note ("no owned candidate for the hint - any item still scores 2") (files: new `Core/OutfitPlan.cs` `OutfitAssembler.Build`, `ReportWindow.cs DrawAssembly`)
+- Dye instructions are ownership-checked against the character's actual dye inventory: "apply Jet Black (+2)" only when that dye is owned; otherwise the best same-shade owned dye is named ("Metallic Silver not owned - Snow White owned (+1)"), and when nothing matches the slot says "no matching dye owned" instead of pretending (files: `Adapters/ClientReader.cs ReadOwnedStains`, `Adapters/SheetAdapter.cs` dye item map, `Core/OutfitPlan.cs`)
+- The assembler respects the get-to notes: a chosen piece sitting in the glamour dresser or the armoire is marked in the plan exactly as in the Wear list (file: `Core/OutfitPlan.cs` `OutfitPiece.LocationNote`)
+
+### Notes
+- This release is the planner half of auto-dress: it says exactly what to wear and dye, and nothing is equipped or consumed automatically. The application half - physically equipping and dyeing - moves real gear and consumes real dye items, and ships only after its executor is verified live in-game
+- Offline harness coverage: full 80+ assembly from the week-449 fixture, exact-dye and substitute-dye instructions, gap notes, and the any-item fallback (file: `tests/LazyFashionReport.Harness/Program.cs` section 17)
+
 ## v0.3.2.0 (2026-09-12)
 
 ### Added
