@@ -1,4 +1,18 @@
-﻿## v0.1.43.0 (2026-09-12)
+﻿## v0.1.44.0 (2026-09-12)
+
+### Fixed
+
+- **Auto-Market's item-moving now waits for a retainer's inventory to finish loading before moving anything, instead of firing on a fixed delay.** The mover planned its moves from whatever retainer pages happened to be loaded when the session started - right after the sweep clicks the next retainer, that is still the PREVIOUS retainer's pages. Moves fired against them appeared to succeed and were rolled back when the game swapped the real inventory in, so the same stacks were pulled out and re-deposited every pass - the "keeps shifting my retainer inventories around" report. Every mover entry point (each retainer's session and the final deposit lap) now waits, up to 10 seconds, until the open retainer's name matches the session and all seven of its inventory pages are loaded and unchanged for a quarter second before planning a single move (file: `MarketAutomation.cs` `BuildListingStepsNow`/`RunLapDepositMover`, `AutoMarket/AutoMarketService.cs` `RetainerSessionSettled`).
+- **Every routing move now re-verifies which retainer is open at the moment it fires.** A move planned during one retainer's session is refused outright if a different retainer is active when it executes - the retainer-switch window where moves landed against the wrong pages - instead of firing and being rolled back (file: `AutoMarket/AutoMarketService.cs` `ExecuteRoutingMove`, rc=-3).
+- **A stack is never pulled out of a retainer more than once per sweep.** Even when a deposit is rolled back mid-switch and a stack reappears where it came from, later passes and the final lap leave it in place for that sweep - the cycle that shuffled the same ~150 stacks forever is broken by construction. The next sweep, with fresh state, retries normally (file: `AutoMarket/RoutingMove.cs` `Plan(movedThisRun)`, `MarketAutomation.cs` `_routingPulledThisRun`).
+
+### Notes
+
+- When the settle window expires without the session stabilising (very slow load), the mover still plans from the live containers and every individual move remains protected by the per-move identity check - the sweep never stops over this.
+- A stack skipped by the once-per-run guard says so in the log ("already pulled to bags once this run"), so a rolled-back deposit is visible instead of silent.
+- Offline suite: cases 79-83 pin the guard - a pulled stack is never re-pulled, deposits are never blocked, skips are explained, the key format is pinned against a wrong-format control, and the session stamp defaults empty (files: `tests/LazyMarketCompanion.Harness/Program.cs`, cases 79-83).
+
+## v0.1.43.0 (2026-09-12)
 
 ### Fixed
 

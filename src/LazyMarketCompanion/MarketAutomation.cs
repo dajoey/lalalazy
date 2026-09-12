@@ -60,6 +60,16 @@ internal sealed class MarketAutomation : Window, IDisposable
   // 0.1.40.0: routing-mover counters for the whole run (all retainers), reported by the done line.
   private int _routingMovedOk;
   private int _routingMovedFail;
+  // 0.1.44.0: once-per-run pull guard (Helm t-joey-1789218500516). Stack keys this run has already
+  // pulled to bags; a stack whose deposit got rolled back mid-switch reappears in a retainer, and
+  // without this set every later pass/lap would pull it again - the endless shuffle. Cleared in
+  // ClearState with the other run-scoped state.
+  private readonly HashSet<string> _routingPulledThisRun = [];
+  // 0.1.44.0: settle-step state. TaskManager steps run on the framework update thread, so the
+  // settle gate is a RETRY STEP (false = retried next tick), never a sleeping loop. The internal
+  // 6s soft deadline always fires before the 10s step TimeLimitMS, so the abort path is
+  // unreachable and a slow load costs one WARN, not the sweep.
+  private long _settleDeadline;
   // 0.1.43.0: set the first time per sweep a plan reports bags stock no category rule covers, so
   // the line is logged and announced exactly once no matter how many sessions see the same stock.
   private bool _unroutedBagsAnnounced;
@@ -406,7 +416,7 @@ internal sealed class MarketAutomation : Window, IDisposable
         Svc.Log.Debug($"[LMC] skipping retainer '{retainerName}' (excluded by configuration)");
         continue;
       }
-      EnqueueSingleRetainer(i, doMarket);
+      EnqueueSingleRetainer(i, doMarket, retainerName);
     }
 
     // 0.1.42.0, final deposit lap (fixes "mostly just filled up my bags", Helm t-joey-1789190796770):
@@ -465,12 +475,16 @@ internal sealed class MarketAutomation : Window, IDisposable
   // Per-retainer chain (sweep)
   // =====================================================================================
 
-  private void EnqueueSingleRetainer(int index, bool withAutoMarket)
+  private void EnqueueSingleRetainer(int index, bool withAutoMarket, string retainerName = "")
   {
     _taskManager.Enqueue(() => ClickRetainer(index), $"ClickRetainer{index}");
     _taskManager.DelayNext(100);
     _taskManager.Enqueue(ClickSellItems, $"ClickSellItems{index}");
     _taskManager.DelayNext(500);
+    // 0.1.44.0: settle before any mover planning - the click that just fired means the pages are
+    // mid-swap exactly now. Retry-step semantics; 6s soft deadline inside.
+    _taskManager.Enqueue(() => WaitRoutingSettled(retainerName), $"RouteSettle{index}");
+    _taskManager.DelayNext(100);
     if (withAutoMarket)
       _taskManager.Enqueue(() => InsertAutoMarketThenPinch(), $"AutoMarket{index}");
     else
@@ -524,6 +538,7 @@ internal sealed class MarketAutomation : Window, IDisposable
         {
           new(() => ClickRetainer(capturedIndex), $"LapClickRetainer_{capturedName}", DelayAfterMs: 100),
           new(ClickSellItems, $"LapClickSellItems_{capturedName}", DelayAfterMs: 500),
+          new(() => WaitRoutingSettled(capturedName), $"LapRouteSettle_{capturedName}", DelayAfterMs: 100),
           new(() => RunLapDepositMover(capturedName), $"LapDepositMover_{capturedName}", DelayAfterMs: 500),
           new(CloseRetainerSellList, $"LapCloseSellList_{capturedName}", DelayAfterMs: 100),
           new(CloseRetainer, $"LapCloseRetainer_{capturedName}", DelayAfterMs: 100),
@@ -687,6 +702,12 @@ internal sealed class MarketAutomation : Window, IDisposable
     _rowSlots.Clear();
     _newOnlyPendingSlots.Clear();
     var steps = new List<Step>();
+
+    // 0.1.44.0: settle gate for the non-sweep entry points (the manual current-retainer button
+    // and the AutoRetainer postprocess hook, which arrive mid-session with the retainer already
+    // active - settled or not). The sweep path settles earlier in its own chain; this is the
+    // belt to that braces for every path that reaches the mover.
+    steps.Add(new Step(() => WaitRoutingSettled(_arRetainer ?? AutoMarketService.CurrentRetainerName()), "RouteSettle"));
 
     if (Plugin.Configuration.AutoMarketEnabled)
     {
@@ -1192,12 +1213,20 @@ internal sealed class MarketAutomation : Window, IDisposable
   /// </summary>
   private bool? BuildListingStepsNow(List<Step> steps)
   {
+    // 0.1.44.0: the settle wait already ran as the RouteSettle step queued ahead of this one
+    // (retry-per-tick, never blocking - TaskManager steps run on the framework update thread, a
+    // sleeping loop here would freeze the client). This runs post-settle, so stamping the session
+    // from the live active retainer is the honest read; the per-move identity check guards the
+    // rest.
+
     // 0.1.40.0: the routing mover runs FIRST - before pulls, before the listing plan build, while
     // this retainer's session is the one open. Moved stock lands in bags (pull-outs) or this
     // retainer's pages (deposits) BEFORE BuildAndInsertListingSteps takes its fresh snapshot, so a
     // deposited stack can be listed in THIS session. Whole-container calls, no UI walking; full
     // bags / full retainer are normal states that stop their own leg and never the sweep.
-    var routingPlan = AutoMarketService.PlanRoutingMoves();
+    // 0.1.44.0: the once-per-run pull guard rides along - stacks already pulled to bags this run
+    // are never re-pulled, whatever a rolled-back deposit left behind.
+    var routingPlan = AutoMarketService.PlanRoutingMoves(_routingPulledThisRun);
     foreach (var note in routingPlan.Notes)
       Svc.Log.Information($"[LMC] {note}");
     // 0.1.43.0: marked bags stock no routing rule covers is never moved (fail-open, see
@@ -1227,6 +1256,8 @@ internal sealed class MarketAutomation : Window, IDisposable
           if (AutoMarketService.ExecuteRoutingMove(captured, out var rc))
           {
             movedOk++;
+            if (captured.Leg == MoveLeg.RetainerToBags)
+              _routingPulledThisRun.Add($"{captured.SrcContainer}:{captured.SrcSlot}:{captured.ItemId}:{(captured.HQ ? "hq" : "nq")}");
             Svc.Log.Information($"[LMC] routing move: OK {(captured.Leg == MoveLeg.RetainerToBags ? "pulled to bags" : "deposited to retainer")}: item {captured.ItemId}{(captured.HQ ? " HQ" : "")} from container {captured.SrcContainer} slot {captured.SrcSlot}");
           }
           else
@@ -2359,6 +2390,30 @@ internal sealed class MarketAutomation : Window, IDisposable
     Communicator.PrintSweepDone(_listedTotal, _listingFailures, _vendoredThisRun, 0, _vendorFailedThisRun, _pulledThisRun, _unconfirmedThisRun, _routingMovedOk);
   }
 
+  /// <summary>
+  /// 0.1.44.0: the settle gate as a retry step. False (retry next framework tick) while the
+  /// session for expectedName is still swapping containers; true once settled OR at the 6s soft
+  /// deadline (proceed with a WARN - per-move identity checks still guard every fire). Must never
+  /// pend past the task manager's 10s per-step limit, hence the internal deadline.
+  /// </summary>
+  private bool? WaitRoutingSettled(string expectedName)
+  {
+    if (_settleDeadline == 0)
+      _settleDeadline = Environment.TickCount64 + 6000;
+    if (AutoMarketService.RetainerSessionSettled(expectedName))
+    {
+      _settleDeadline = 0;
+      return true;
+    }
+    if (Environment.TickCount64 >= _settleDeadline)
+    {
+      _settleDeadline = 0;
+      Svc.Log.Warning($"[LMC] routing move: retainer session for '{expectedName}' did not settle within 6s (pages still loading or switching); proceeding - per-move identity checks still guard every fire");
+      return true;
+    }
+    return false;
+  }
+
   private void ClearState()
   {
     _newPrice = null;
@@ -2379,6 +2434,8 @@ internal sealed class MarketAutomation : Window, IDisposable
     _pulledThisRun = 0;
     _routingMovedOk = 0;
     _routingMovedFail = 0;
+    _routingPulledThisRun.Clear();
+    _settleDeadline = 0;
     _unroutedBagsAnnounced = false;
     _unconfirmedThisRun = 0;
     // 0.1.26.0: the planned count is per-run state too. It was the one vendor counter NOT reset

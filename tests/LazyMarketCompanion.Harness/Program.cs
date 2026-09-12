@@ -2988,6 +2988,71 @@ StockStack BagStack(uint id, int slot, int qty, uint cat = CatA, bool marketable
   Check("78 unrouted report: PlanDepositsOnly reports the same gap", lap.UnroutedBagsStacks.Count == 1, $"unrouted={lap.UnroutedBagsStacks.Count}");
 }
 
+// ===== 0.1.44.0: once-per-run pull guard (RoutingMove.Plan movedThisRun) =====
+
+// 79. A stack whose key is in movedThisRun is never pulled again - the cycle breaker. Control:
+// the same stock without the guard set plans the pull.
+{
+  var rules = new List<ItemRule> { Rule(1001, 99) };
+  var stock = new List<StockStack> { RetStack(1001, 1, 10) };
+  var info = CatInfo(1001, CatA);
+  var guard = new HashSet<string> { "10001:1:1001:nq" }; // container:slot:item:hq as the executor records it
+  var plan = RoutingMove.Plan(stock, rules, info, new Dictionary<string, bool>(), routingRules, "R2", () => 10, () => 10, guard);
+  Check("79 pull guard: stack already pulled this run is not re-pulled",
+    plan.Ops.Count == 0, $"ops={plan.Ops.Count}");
+  var control = RoutingMove.Plan(stock, rules, info, new Dictionary<string, bool>(), routingRules, "R2", () => 10, () => 10);
+  Check("79 pull guard control: without the guard the pull plans as before",
+    control.Ops.Count == 1 && control.Ops[0].Leg == MoveLeg.RetainerToBags, $"ops={control.Ops.Count}");
+}
+
+// 80. The guard does not touch deposits - a stack in the bags still deposits even when a same-key
+// entry exists (after a pull the stack is in the bags, and the lap must be able to deposit it).
+{
+  var rules = new List<ItemRule> { Rule(1001, 99) };
+  var stock = new List<StockStack> { BagStack(1001, 1, 10) };
+  var info = CatInfo(1001, CatA);
+  var guard = new HashSet<string> { "0:1:1001:nq" };
+  var plan = RoutingMove.Plan(stock, rules, info, new Dictionary<string, bool>(), routingRules, "R1", () => 10, () => 10, guard);
+  Check("80 pull guard: deposits are never blocked by the guard",
+    plan.Ops.Count == 1 && plan.Ops[0].Leg == MoveLeg.BagsToRetainer, $"ops={plan.Ops.Count}");
+}
+
+// 81. Guarded skips are reported in the plan notes so the log says why a stack stayed put.
+{
+  var rules = new List<ItemRule> { Rule(1001, 99) };
+  var stock = new List<StockStack> { RetStack(1001, 1, 10) };
+  var info = CatInfo(1001, CatA);
+  var guard = new HashSet<string> { "10001:1:1001:nq" };
+  var plan = RoutingMove.Plan(stock, rules, info, new Dictionary<string, bool>(), routingRules, "R2", () => 10, () => 10, guard);
+  Check("81 pull guard: a guarded skip is explained in the notes",
+    plan.Notes.Any(n => n.Contains("already pulled to bags once this run")), $"notes={plan.Notes.Count}");
+}
+
+// 82. The pull-guard key format is pinned: the executor records "container:slot:item:hq", and the
+// planner must read the same shape or the guard silently never matches (broken-probe insurance).
+{
+  var rules = new List<ItemRule> { Rule(1001, 99) };
+  var stock = new List<StockStack> { RetStack(1001, 1, 10) };
+  var info = CatInfo(1001, CatA);
+  // RetStack(1001, 1, 10) -> RetainerPage1 container. The helper's container must match what the
+  // executor-side key uses; assert via a deliberately WRONG-format key not blocking the pull.
+  var wrongFormat = new HashSet<string> { "1001:nq:10001:1" };
+  var plan = RoutingMove.Plan(stock, rules, info, new Dictionary<string, bool>(), routingRules, "R2", () => 10, () => 10, wrongFormat);
+  Check("82 pull guard: a wrong-format key does not block (format pinned by 79)",
+    plan.Ops.Count == 1, $"ops={plan.Ops.Count}");
+}
+
+// 83. RoutingMovePlan.SessionRetainer defaults to "" and survives the record-with flow; ops built
+// by the (movedThisRun) overload carry no session stamp until the game side stamps the plan.
+{
+  var rules = new List<ItemRule> { Rule(1001, 99) };
+  var stock = new List<StockStack> { RetStack(1001, 1, 10) };
+  var info = CatInfo(1001, CatA);
+  var plan = RoutingMove.Plan(stock, rules, info, new Dictionary<string, bool>(), routingRules, "R2", () => 10, () => 10, null);
+  Check("83 session stamp: default plan carries no session identity (stamped game-side)",
+    plan.SessionRetainer == "" && plan.Ops.Count == 1, $"session='{plan.SessionRetainer}' ops={plan.Ops.Count}");
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 

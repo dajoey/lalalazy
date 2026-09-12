@@ -763,13 +763,15 @@ internal static unsafe class AutoMarketService
   /// mover and the gate can never disagree about which retainer a category is assigned to. Returns
   /// an empty plan when no routing rules exist.
   /// </summary>
-  public static RoutingMovePlan PlanRoutingMoves()
+  public static RoutingMovePlan PlanRoutingMoves(IReadOnlyCollection<string>? movedThisRun = null)
   {
     if (!TryBuildRoutingLookups(out var l))
       return new RoutingMovePlan(new List<RoutingMoveOp>(), new List<string>(), false, false);
 
+    var session = CurrentRetainerName();
     return RoutingMove.Plan(l.Stock, l.Rules, l.CategoryByKey, l.ExcludeByKey, l.CategoryRules,
-      CurrentRetainerName(), CountFreeBagSlots, RetainerPageFreeSlot);
+      session, CountFreeBagSlots, RetainerPageFreeSlot, movedThisRun)
+      with { SessionRetainer = session };
   }
 
   /// <summary>Identical to PlanRoutingMoves but calls RoutingMove.PlanDepositsOnly.</summary>
@@ -778,8 +780,10 @@ internal static unsafe class AutoMarketService
     if (!TryBuildRoutingLookups(out var l))
       return new RoutingMovePlan(new List<RoutingMoveOp>(), new List<string>(), false, false);
 
+    var session = CurrentRetainerName();
     return RoutingMove.PlanDepositsOnly(l.Stock, l.Rules, l.CategoryByKey, l.ExcludeByKey, l.CategoryRules,
-      CurrentRetainerName(), CountFreeBagSlots, RetainerPageFreeSlot);
+      session, CountFreeBagSlots, RetainerPageFreeSlot)
+      with { SessionRetainer = session };
   }
 
   public static bool HasPendingRoutingDeposits()
@@ -803,6 +807,71 @@ internal static unsafe class AutoMarketService
     }
 
     return false;
+  }
+
+  // =====================================================================================
+  // 0.1.44.0: the session settle gate (Helm t-joey-1789218500516, Joey chose "fix-through").
+  // The 0.1.40.0-0.1.43.0 mover fired its moves on fixed delays after the retainer click, so
+  // during the switch window the previous retainer's pages could still be the loaded containers:
+  // moves "succeeded" against them and were rolled back when the server swapped the real pages
+  // in, which is why every pass re-pulled and re-deposited the same ~150 stacks forever.
+  // =====================================================================================
+
+  private static long _retainerPageFingerprint;
+  private static long _retainerPageFingerprintAt;
+
+  /// <summary>A cheap content hash of every retainer page slot the mover reads: ItemId, HQ flag,
+  /// quantity and slot index for each occupied slot across all 7 pages. Used only to detect that
+  /// the pages have STOPPED changing - not for identity, which RetainerSessionSettled checks by
+  /// name. long (not ulong) arithmetic keeps it harness-friendly.</summary>
+  private static long RetainerPageFingerprint()
+  {
+    var manager = InventoryManager.Instance();
+    if (manager == null) return 0;
+    long hash = 17;
+    foreach (var type in RetainerPageTypes)
+    {
+      var container = manager->GetInventoryContainer(type);
+      if (container == null || !container->IsLoaded) continue;
+      for (var i = 0; i < container->Size; i++)
+      {
+        var item = container->GetInventorySlot(i);
+        if (item == null || item->ItemId == 0) continue;
+        hash = hash * 31 + (long)(item->ItemId * (item->Flags.HasFlag(InventoryItem.ItemFlags.HighQuality) ? 2u : 1u)) + item->Quantity + i;
+      }
+    }
+    return hash;
+  }
+
+  /// <summary>
+  /// True when the retainer session is safe to move items in: the ACTIVE retainer's name matches
+  /// expectedName (empty expectedName never settles - the sweep always knows who it clicked), all
+  /// 7 retainer pages report loaded, and the page content fingerprint has held the same value for
+  /// at least StableMs. Called from a task step that retries until its TimeLimitMs, so it polls
+  /// rather than blocks. This is the wait the 0.1.40.0 mover never had.
+  /// </summary>
+  public static unsafe bool RetainerSessionSettled(string expectedName, int stableMs = 250)
+  {
+    if (string.IsNullOrEmpty(expectedName)) return false;
+    if (CurrentRetainerName() != expectedName) return false;
+
+    var manager = InventoryManager.Instance();
+    if (manager == null) return false;
+    foreach (var type in RetainerPageTypes)
+    {
+      var container = manager->GetInventoryContainer(type);
+      if (container == null || !container->IsLoaded) return false;
+    }
+
+    var now = Environment.TickCount64;
+    var fp = RetainerPageFingerprint();
+    if (fp != _retainerPageFingerprint)
+    {
+      _retainerPageFingerprint = fp;
+      _retainerPageFingerprintAt = now;
+      return false;
+    }
+    return now - _retainerPageFingerprintAt >= stableMs;
   }
 
   /// <summary>Empty slots across Inventory1-4 (NOT crystals - the mover never targets that container).</summary>
@@ -845,6 +914,18 @@ internal static unsafe class AutoMarketService
     rc = -1;
     var manager = InventoryManager.Instance();
     if (manager == null) return false;
+
+    // 0.1.44.0: per-move retainer identity re-verify. The plan stamps the retainer whose session
+    // it was built for; if the live active retainer is someone else (the switch window mid-swap,
+    // a session closed early), the containers this move would touch are not the ones it was
+    // planned against, so the move is refused outright rather than fired against the wrong pages
+    // and rolled back by the server (the mechanism behind the endless re-shuffling).
+    if (!string.IsNullOrEmpty(op.SessionRetainer) && CurrentRetainerName() != op.SessionRetainer)
+    {
+      rc = -3;
+      Svc.Log.Warning($"[LMC] routing move: skipped item {op.ItemId}{(op.HQ ? " HQ" : "")} - the open retainer is '{CurrentRetainerName()}' but the move was planned for '{op.SessionRetainer}' (mid-switch or session changed); leaving the stack where it is");
+      return false;
+    }
 
     var src = manager->GetInventoryContainer((InventoryType)op.SrcContainer);
     if (src == null || !src->IsLoaded) return false;

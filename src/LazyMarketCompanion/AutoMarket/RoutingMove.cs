@@ -52,7 +52,15 @@ public enum MoveLeg { RetainerToBags, BagsToRetainer }
 /// deliberately no Quantity: InventoryManager.MoveItemSlot moves the WHOLE stack (with no quantity
 /// argument to split it), so a keep floor cannot be honoured on a move and the planner skips
 /// keep-floored stacks instead of half-honouring one.</summary>
-public sealed record RoutingMoveOp(MoveLeg Leg, int SrcContainer, int SrcSlot, uint ItemId, bool HQ);
+public sealed record RoutingMoveOp(MoveLeg Leg, int SrcContainer, int SrcSlot, uint ItemId, bool HQ)
+{
+  /// <summary>0.1.44.0: the retainer whose session this move was planned for. Stamped by the
+  /// game-side planner; ExecuteRoutingMove refuses to fire when the live active retainer differs
+  /// (the retainer-switch window where moves landed against the previous retainer's pages and were
+  /// rolled back). Empty means "no session identity known" (a hand-built op), which skips the
+  /// check rather than failing it - fail-closed only when identity is actually known.</summary>
+  public string SessionRetainer { get; init; } = "";
+}
 
 /// <summary>The mover's plan. Notes carry the per-retainer summary lines; StoppedForBags /
 /// StoppedForRetainer are true when that leg ended early because its destination filled up - the
@@ -63,6 +71,11 @@ public sealed record RoutingMovePlan(
   bool StoppedForBags,
   bool StoppedForRetainer)
 {
+  /// <summary>0.1.44.0: the retainer whose open session this plan was built against. The executor
+  /// compares it to the live active retainer for every move, so a plan built mid-switch cannot fire
+  /// its moves against the wrong retainer's pages.</summary>
+  public string SessionRetainer { get; init; } = "";
+
   /// <summary>0.1.43.0: enabled, marketable, non-excluded BAGS stacks whose category matches no
   /// routing rule. Never moved (fail-open: the gate keeps them eligible on every retainer, so they
   /// list from the bags whenever a free market slot reaches them) - reported so a marked item the
@@ -95,6 +108,29 @@ public static class RoutingMove
   {
     return PlanCore(stock, rules, categoryByKey, excludeByKey, categoryRules, retainerName,
       freeBagSlots, freeRetainerSlots, depositsOnly: false);
+  }
+
+  /// <summary>
+  /// 0.1.44.0: Plan with the once-per-run pull guard. movedThisRun carries the stack keys this run
+  /// already pulled to bags (filled by the executor as pulls succeed); a stack already pulled this
+  /// run is never pulled again, so a deposit that the server rolls back during a retainer switch
+  /// cannot turn into an endless bags->retainer->bags cycle across subsequent passes and laps.
+  /// Deposits are NOT guarded - depositing an item twice is impossible (after the first deposit the
+  /// stack is no longer in the bags) and the lap exists precisely to retry deposits that stranded.
+  /// </summary>
+  public static RoutingMovePlan Plan(
+    IReadOnlyList<StockStack> stock,
+    IReadOnlyList<ItemRule> rules,
+    IReadOnlyDictionary<string, ItemCategoryInfo> categoryByKey,
+    IReadOnlyDictionary<string, bool> excludeByKey,
+    IReadOnlyList<CategoryRetainerRule> categoryRules,
+    string retainerName,
+    Func<int> freeBagSlots,
+    Func<int> freeRetainerSlots,
+    IReadOnlyCollection<string>? movedThisRun)
+  {
+    return PlanCore(stock, rules, categoryByKey, excludeByKey, categoryRules, retainerName,
+      freeBagSlots, freeRetainerSlots, depositsOnly: false, movedThisRun: movedThisRun);
   }
 
   /// <summary>
@@ -169,7 +205,8 @@ public static class RoutingMove
     Func<int> freeBagSlots,
     Func<int> freeRetainerSlots,
     bool depositsOnly,
-    bool earlyExitOnFirstOp = false)
+    bool earlyExitOnFirstOp = false,
+    IReadOnlyCollection<string>? movedThisRun = null)
   {
     var ops = new List<RoutingMoveOp>();
     var notes = new List<string>();
@@ -181,6 +218,7 @@ public static class RoutingMove
     var stoppedBags = false;
     var stoppedRet = false;
     var skippedCrystals = 0;
+    var alreadyPulledSkip = 0;
     var unrouted = new List<(uint ItemId, bool HQ)>();
     var unroutedKeys = new HashSet<string>();
 
@@ -238,6 +276,17 @@ public static class RoutingMove
         if (stack.Quantity <= rule.KeepInRetainer)
           continue;
 
+        // 0.1.44.0: the once-per-run pull guard. A stack key already pulled to bags this run is
+        // never pulled again - even if a later deposit was rolled back during a retainer switch
+        // and the stack reappeared in the retainer, re-pulling it just restarts the cycle the
+        // guard exists to break. The stack stays put; the NEXT sweep (fresh movedThisRun) retries.
+        var pullKey = $"{stack.Container}:{stack.Slot}:{stack.ItemId}:{(stack.HQ ? "hq" : "nq")}";
+        if (movedThisRun != null && movedThisRun.Contains(pullKey))
+        {
+          alreadyPulledSkip++;
+          continue;
+        }
+
         if (freeBags <= 0)
         {
           stoppedBags = true;
@@ -276,6 +325,8 @@ public static class RoutingMove
       }
     }
 
+    if (alreadyPulledSkip > 0)
+      notes.Add($"routing move: {alreadyPulledSkip} stack(s) were left in place because they were already pulled to bags once this run (a deposit was rolled back mid-switch; the next sweep retries)");
     if (stoppedBags)
       notes.Add("routing move: the player's bags have no free slot for further pull-outs; those items stay in this retainer for now (the sweep continues)");
     if (stoppedRet)
