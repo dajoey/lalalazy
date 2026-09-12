@@ -346,6 +346,18 @@ public sealed class Configuration : IPluginConfiguration
   /// </summary>
   public bool AutoMarketRoutingMoveEnabled { get; set; } = true;
 
+  /// <summary>
+  /// 0.1.45.0: routing auto-fill. On (the default), a sweep that finds marked, marketable bags
+  /// stock whose category has no routing rule assigns the missing category to the sweep-enabled
+  /// retainer carrying the fewest routed categories, persists the row, and deposits and lists the
+  /// stock in the same pass (Helm t-joey-1789190796770: "HOW DOES A WEAPON NOT HAVE A CATEGORY
+  /// I'M NOT DOING THAT MANUALLY"). The added row is an ordinary CategoryRetainerRule afterwards -
+  /// reassign or clear it in the Category Routing list like a hand-made row. New key with an
+  /// initializer: an existing config deserializes it as ON with no Version bump (the same
+  /// reasoning as AutoMarketRoutingMoveEnabled above).
+  /// </summary>
+  public bool AutoAssignUnroutedCategories { get; set; } = true;
+
   public CategoryRetainerRule? GetCategoryRetainerRule(uint categoryId)
   {
     return CategoryRetainerRules.FirstOrDefault(r => r.CategoryId == categoryId);

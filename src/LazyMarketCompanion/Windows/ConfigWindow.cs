@@ -349,6 +349,14 @@ public sealed class ConfigWindow : Window
     ImGui.TextUnformatted("Category routing:");
     Tip("Assign a whole market-board category to one retainer. Auto-Market only lists an item of a routed category on the retainer it is assigned to - on every other retainer it is left exactly where it is, never vendored, never touched. Only divides items still sitting in your bags when Auto-Market runs; an item already sitting in the wrong retainer's own inventory needs a manual move first. The 'Skip routing' checkbox in the table below opts one item out entirely - it keeps selling normally, from wherever it sits, on every retainer.");
 
+    var autoAssign = c.AutoAssignUnroutedCategories;
+    if (ImGui.Checkbox("Auto-assign uncovered categories", ref autoAssign))
+    {
+      c.AutoAssignUnroutedCategories = autoAssign;
+      c.Save();
+    }
+    Tip("When a sweep finds marked Auto-Market stock in the bags whose market-board category has no rule above, it assigns that category to the sweep-enabled retainer carrying the fewest routed categories and moves the stock there in the same pass. The added row is an ordinary row - reassign or clear it above.");
+
     var categoryIds = c.AutoMarketItems
       .Select(e => ItemNameResolver.SearchCategoryId(e.ItemId))
       .Where(id => id != 0)

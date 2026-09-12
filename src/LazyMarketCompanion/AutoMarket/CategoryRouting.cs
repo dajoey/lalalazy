@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using LazyMarketCompanion.AutoMarket;
@@ -29,6 +30,14 @@ namespace LazyMarketCompanion;
 // This only reliably divides items that start out in the BAGS (SellFromBags): the filter runs on the
 // per-retainer rule list handed to AutoMarketPlanner.Plan, before a free market slot is claimed - it
 // does not move an item that is already sitting in the wrong retainer's own inventory.
+
+// 0.1.45.0: routing auto-fill (Helm t-joey-1789190796770, Joey 2026-09-12: "HOW DOES A
+// WEAPON NOT HAVE A CATEGORY I'M NOT DOING THAT MANUALLY"). 0.1.43.0 REPORTED bags stock
+// whose category has no rule and asked for a hand-added row; the answer to that ask is that
+// hand-added rows are not acceptable, so CategoryRouter.UnroutedCategories projects the
+// mover's own uncovered report to the missing categories and CategoryRouter.AutoAssignMissing
+// fills each gap from the sweep-enabled retainer already carrying the fewest routed
+// categories. Both are pure and live here so the harness exercises them.
 
 /// <summary>
 /// Routes a whole market-board search category (Item.ItemSearchCategory's RowId - the market board
@@ -101,5 +110,73 @@ public static class CategoryRouter
         result.Add(rule);
     }
     return result;
+  }
+
+  /// <summary>
+  /// 0.1.45.0: projects the mover's uncovered report to the market-board categories that need a
+  /// rule. The report (RoutingMovePlan.UnroutedBagsStacks) is already limited to enabled,
+  /// marketable, non-excluded, non-crystal BAGS stacks, so this is a pure id projection through
+  /// the same categoryByKey the mover used - auto-fill and the mover can never disagree about
+  /// which category a reported stack belongs to. Distinct, ascending; category 0 (uncategorised)
+  /// and unmarketable entries are excluded: there is nothing sensible to route either to.
+  /// </summary>
+  public static List<uint> UnroutedCategories(IReadOnlyList<(uint ItemId, bool HQ)> unroutedBagsStacks,
+    IReadOnlyDictionary<string, ItemCategoryInfo> categoryByKey)
+  {
+    var cats = new List<uint>();
+    var seen = new HashSet<uint>();
+    foreach (var (itemId, hq) in unroutedBagsStacks)
+    {
+      var key = $"{itemId}:{(hq ? "hq" : "nq")}";
+      if (categoryByKey.TryGetValue(key, out var info) && info.Marketable && info.CategoryId != 0 && seen.Add(info.CategoryId))
+        cats.Add(info.CategoryId);
+    }
+    cats.Sort();
+    return cats;
+  }
+
+  /// <summary>
+  /// 0.1.45.0: fills routing gaps with no manual row entry. For each missing category, ascending
+  /// id order, the candidate retainer already carrying the FEWEST routed categories wins (ordinal
+  /// name order breaks ties, so the fill is deterministic), and the new rule counts toward that
+  /// retainer's load for the rest of the call - several gaps spread evenly instead of stacking on
+  /// one retainer. Pure: reads the inputs, mutates nothing, returns only the additions; the
+  /// caller persists them. An existing rule for a category is never duplicated or moved.
+  /// </summary>
+  public static List<CategoryRetainerRule> AutoAssignMissing(IReadOnlyList<uint> missingCategories,
+    IReadOnlyList<CategoryRetainerRule> existingRules, IReadOnlyList<string> candidateRetainers)
+  {
+    var added = new List<CategoryRetainerRule>();
+    if (missingCategories.Count == 0 || candidateRetainers.Count == 0)
+      return added;
+
+    var covered = new HashSet<uint>(existingRules.Select(r => r.CategoryId));
+    var load = new Dictionary<string, int>();
+    foreach (var rule in existingRules)
+      load[rule.RetainerName] = load.TryGetValue(rule.RetainerName, out var existing) ? existing + 1 : 1;
+
+    foreach (var categoryId in missingCategories.OrderBy(c => c))
+    {
+      if (!covered.Add(categoryId))
+        continue;
+
+      string? target = null;
+      var targetLoad = int.MaxValue;
+      foreach (var name in candidateRetainers.OrderBy(n => n, StringComparer.Ordinal))
+      {
+        var current = load.TryGetValue(name, out var v) ? v : 0;
+        if (current < targetLoad)
+        {
+          targetLoad = current;
+          target = name;
+        }
+      }
+      if (target == null)
+        continue;
+
+      added.Add(new CategoryRetainerRule { CategoryId = categoryId, RetainerName = target });
+      load[target] = targetLoad + 1;
+    }
+    return added;
   }
 }

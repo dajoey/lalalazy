@@ -3053,6 +3053,83 @@ StockStack BagStack(uint id, int slot, int qty, uint cat = CatA, bool marketable
     plan.SessionRetainer == "" && plan.Ops.Count == 1, $"session='{plan.SessionRetainer}' ops={plan.Ops.Count}");
 }
 
+// 84. UnroutedCategories: distinct ascending categories through the mover's categoryByKey;
+//     unmarketable and category-0 entries are excluded (nothing sensible to route either to).
+{
+  var report = new List<(uint ItemId, bool HQ)> { (1001, false), (1002, true), (1003, false), (1004, false) };
+  var info = CatInfo(1001, CatA);
+  info["1002:hq"] = new(1002, true, CatA, true);   // a different item+hq in the SAME category
+  info["1003:nq"] = new(1003, false, CatB, false); // unmarketable - filtered
+  info["1004:nq"] = new(1004, false, 0, true);     // uncategorised - filtered
+  var cats = CategoryRouter.UnroutedCategories(report, info);
+  Check("84 unprojected: distinct ascending marketable categories only",
+    cats.Count == 1 && cats[0] == CatA, $"cats={string.Join(",", cats)}");
+}
+
+// 85. AutoAssignMissing: least-loaded retainer wins, and the new rule counts toward the load so
+//     a second gap lands on the previous runner-up.
+{
+  var existing = new List<CategoryRetainerRule> { new() { CategoryId = CatA, RetainerName = "R1" } };
+  var added = CategoryRouter.AutoAssignMissing([900, 901], existing, ["R1", "R2"]);
+  Check("85 auto-assign: two gaps balance across the least-loaded retainers",
+    added.Count == 2 && added[0].RetainerName == "R2" && added[1].RetainerName == "R1",
+    $"added={string.Join(",", added.Select(a => $"{a.CategoryId}->{a.RetainerName}"))}");
+}
+
+// 86. AutoAssignMissing: ordinal name order breaks load ties deterministically, independent of
+//     the order candidates were listed in.
+{
+  var added = CategoryRouter.AutoAssignMissing([950], [], ["R2", "R10", "R1"]);
+  Check("86 auto-assign: tie broken by ordinal retainer name, not candidate order",
+    added.Count == 1 && added[0].RetainerName == "R1", $"added={(added.Count > 0 ? added[0].RetainerName : "-")}");
+}
+
+// 87. AutoAssignMissing: an existing rule for the category is never duplicated or moved.
+{
+  var existing = new List<CategoryRetainerRule> { new() { CategoryId = CatA, RetainerName = "R1" } };
+  var added = CategoryRouter.AutoAssignMissing([CatA], existing, ["R1", "R2"]);
+  Check("87 auto-assign: existing rule untouched", added.Count == 0, $"added={added.Count}");
+}
+
+// 88. AutoAssignMissing: no candidate retainers means no assignment (fail open - the stock stays
+//     eligible everywhere instead of being stranded on a retainer the sweep never visits).
+{
+  var added = CategoryRouter.AutoAssignMissing([970], [], []);
+  Check("88 auto-assign: empty candidates -> nothing added", added.Count == 0, $"added={added.Count}");
+}
+
+// 89. A rule pointing at a retainer outside the candidate list neither gets picked nor skews the
+//     least-loaded choice among the real candidates.
+{
+  var existing = new List<CategoryRetainerRule>
+  {
+    new() { CategoryId = CatA, RetainerName = "Ghost" },
+    new() { CategoryId = CatB, RetainerName = "R1" },
+  };
+  var added = CategoryRouter.AutoAssignMissing([980], existing, ["R1", "R2"]);
+  Check("89 auto-assign: off-candidate rules do not steal the least-loaded pick",
+    added.Count == 1 && added[0].RetainerName == "R2", $"added={(added.Count > 0 ? added[0].RetainerName : "-")}");
+}
+
+// 90. End-to-end shape of the BuildListingStepsNow sequence: the mover's uncovered report feeds
+//     the projection + auto-fill, and a plan built with the augmented rules deposits the
+//     previously-uncovered stack in the same pass.
+{
+  var rules = new List<ItemRule> { Rule(1006, 99) };
+  var stock = new List<StockStack> { BagStack(1006, 1, 10) };
+  var info = CatInfo(1006, 999);
+  var probe = RoutingMove.Plan(stock, rules, info, new Dictionary<string, bool>(), routingRules, "R1", () => 10, () => 10);
+  Check("90 probe: the culverin-shaped stack is reported uncovered",
+    probe.UnroutedBagsStacks.Count == 1 && probe.UnroutedBagsStacks[0].ItemId == 1006, $"unrouted={probe.UnroutedBagsStacks.Count}");
+  var augmented = new List<CategoryRetainerRule>(routingRules);
+  augmented.AddRange(CategoryRouter.AutoAssignMissing(CategoryRouter.UnroutedCategories(probe.UnroutedBagsStacks, info), routingRules, ["R1", "R2"]));
+  // Loads are tied (R1: CatA, R2: CatB), so the ordinal-first candidate - R1 - takes the gap.
+  var plan = RoutingMove.Plan(stock, rules, info, new Dictionary<string, bool>(), augmented, "R1", () => 10, () => 10);
+  Check("90 plan: the assigned retainer's session deposits the stack the same pass",
+    plan.Ops.Count == 1 && plan.Ops[0].Leg == MoveLeg.BagsToRetainer && plan.UnroutedBagsStacks.Count == 0,
+    $"ops={plan.Ops.Count} unrouted={plan.UnroutedBagsStacks.Count}");
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 

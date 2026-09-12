@@ -1226,6 +1226,20 @@ internal sealed class MarketAutomation : Window, IDisposable
     // bags / full retainer are normal states that stop their own leg and never the sweep.
     // 0.1.44.0: the once-per-run pull guard rides along - stacks already pulled to bags this run
     // are never re-pulled, whatever a rolled-back deposit left behind.
+    // 0.1.45.0: routing auto-fill (Helm t-joey-1789190796770, Joey: "HOW DOES A WEAPON NOT
+    // HAVE A CATEGORY I'M NOT DOING THAT MANUALLY"). Before the routing plan is built, uncovered
+    // categories are assigned to the least-loaded retainer the sweep visits and saved, so the
+    // plan below already sees the new rules and the stock moves in THIS pass - a marked item
+    // never again waits a whole sweep for a hand-added row.
+    var assignedRules = CategoryAutoAssignService.AssignNow();
+    if (assignedRules.Count > 0)
+    {
+      var assignSummary = string.Join(", ", assignedRules.Select(r => $"{ItemNameResolver.GetSearchCategoryName(r.CategoryId)} -> {r.RetainerName}"));
+      Svc.Log.Information($"[LMC] routing auto-assign: {assignedRules.Count} rule(s) added, least-loaded retainer: {assignSummary}");
+      if (Plugin.Configuration.ShowAutoMarketMessages)
+        Communicator.PrintInfo($"routing: auto-assigned {assignSummary}");
+    }
+
     var routingPlan = AutoMarketService.PlanRoutingMoves(_routingPulledThisRun);
     foreach (var note in routingPlan.Notes)
       Svc.Log.Information($"[LMC] {note}");

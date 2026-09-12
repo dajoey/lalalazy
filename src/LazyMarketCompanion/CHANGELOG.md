@@ -1,4 +1,20 @@
-﻿## v0.1.44.0 (2026-09-12)
+﻿## v0.1.45.0 (2026-09-12)
+
+### Added
+
+- **Category Routing now fills its own gaps: an uncovered category is auto-assigned to the least-loaded retainer, no manual rows.** A sweep that finds marked, marketable, non-excluded bags stock whose market-board category has no routing rule no longer stops at naming it - the category is assigned to the sweep-enabled retainer already carrying the fewest routed categories, the rule is saved, and the stock is deposited and listed in the same pass, exactly as if the row had existed all along (files: `AutoMarket/CategoryRouting.cs` `CategoryRouter.AutoAssignMissing` + `CategoryRouter.UnroutedCategories`, `AutoMarket/CategoryAutoAssignService.cs` (new), `MarketAutomation.cs` `BuildListingStepsNow`).
+- **A switch in the Category Routing settings turns the auto-fill off and returns to report-only.** The added row is an ordinary CategoryRetainerRule afterwards - reassign or clear it in the list like a hand-made row. New config key, on by default, no Version bump (files: `Configuration.cs` `AutoAssignUnroutedCategories`, `Windows/ConfigWindow.cs` `DrawCategoryRouting`).
+
+### Fixed
+
+- **Routed stock can never again be stranded by an assignment the sweep cannot reach.** Auto-fill only ever picks a retainer the sweep actually visits: a rule pointed at a disabled or unknown retainer would block the category's stock on every visited retainer while no session ever deposits it - the exact invisible-stock failure category routing was built to end, strictly worse than uncovered (file: `AutoMarket/CategoryAutoAssignService.cs` `EnabledSweepRetainers`).
+
+### Notes
+
+- The mover's 0.1.43.0 uncovered report is the probe: the auto-fill runs before the routing plan is built, so the same pass moves the stock the new rule just assigned (files: `AutoMarket/RoutingMove.cs` report, `MarketAutomation.cs` `BuildListingStepsNow`).
+- Offline suite: cases 84-90 pin the projection, least-loaded gap-fill, the deterministic tie-break, never-duplicating an existing row, no-candidates-means-nothing-added, off-candidate rules not disturbing the pick, and the end-to-end probe-assign-plan deposit (files: `tests/LazyMarketCompanion.Harness/Program.cs`, cases 84-90).
+
+## v0.1.44.0 (2026-09-12)
 
 ### Fixed
 
