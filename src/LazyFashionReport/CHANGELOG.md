@@ -1,3 +1,12 @@
+## v0.6.2.0 (2026-09-12)
+
+### Fixed
+- The apply readout no longer quotes the unhinted base score on a hinted slot: when the planner has no piece for a hint, that slot's row says "no piece for this hint yet" with the real numbers (worn gear scores 2, the right piece adds +8/+6) instead of "leave untouched (any item scores 10)" (files: Core/ApplyPlan.cs ApplyPlanBuilder.Build hinted-aware action wording, FashionService.cs ApplyOutfit passes the hinted predicate).
+- A zero-action apply now says so: when nothing was equipped, failed, or withdrawn, a yellow line in the window explains no owned piece scores for this week's hints yet and points at each slot's missing list - a correct no-op can no longer read as a dead button (files: ReportWindow.cs DrawApply zero-action banner).
+
+### Notes
+- The apply button itself was working: the 2026-09-12 press resolved all 11 slots and predicted 70 with no errors. The empty plan is real - no owned piece scores for this week's hints yet. Pieces in the glamour dresser or armoire count toward "owned" only after that storage has been opened once in the session.
+
 # Changelog
 
 ## v0.6.1.0 (2026-09-12)

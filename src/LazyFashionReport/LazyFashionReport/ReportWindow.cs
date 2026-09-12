@@ -244,6 +244,13 @@ internal class ReportWindow : Window
             : $"after apply: {run.PredictedTotal} - needs +{80 - run.PredictedTotal} for 80");
         ImGui.PopFont();
 
+        if (run.Moved == 0 && run.Failed == 0 && run.Pending == 0)
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudYellow);
+            ImGui.TextUnformatted("nothing was moved - no owned piece scores for this week's hints yet; get the pieces each slot's missing list names, then press Apply again");
+            ImGui.PopStyleColor();
+        }
+
         if (ImGui.BeginTable("apply", 2, ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH))
         {
             ImGui.TableSetupColumn("Slot", ImGuiTableColumnFlags.WidthFixed, 70);

@@ -123,7 +123,8 @@ internal sealed class FashionService : IDisposable
                     stain => ClientReader.StainToDyeItem.GetValueOrDefault(stain),
                     snap.DyeItemLocations,
                     id => _sheets.ItemName(id),
-                    _sheets.StainToName);
+                    _sheets.StainToName,
+                    slot => _week?.IsHinted(slot) ?? false);
                 return ApplyMover.Apply(steps, _assembly.Total);
             }).Result;
 

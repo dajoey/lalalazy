@@ -79,7 +79,8 @@ public static class ApplyPlanBuilder
         Func<uint, uint>? dyeItemForStain,
         IReadOnlyDictionary<uint, IReadOnlyList<InventoryCoord>>? dyeItemLocations,
         Func<uint, string> itemName,
-        IReadOnlyDictionary<uint, string>? stainName)
+        IReadOnlyDictionary<uint, string>? stainName,
+        Func<FashionSlot, bool>? isHinted = null)
     {
         var steps = new List<ApplyStep>(ScoreMath.TotalSlots);
 
@@ -146,7 +147,9 @@ public static class ApplyPlanBuilder
             }
             else
             {
-                action = $"leave untouched (any item scores {ScoreMath.BaseFor(piece.Slot.IsAccessory())})";
+                action = isHinted != null && isHinted(piece.Slot)
+                    ? $"no piece for this hint yet - worn gear scores {ScoreMath.HintedSlotBase}; the right piece adds +8/+6"
+                    : $"leave untouched (any item scores {ScoreMath.BaseFor(piece.Slot.IsAccessory())})";
             }
 
             // Dye leg: left-side slots only, only the planner's exact +2 stain, only when the
