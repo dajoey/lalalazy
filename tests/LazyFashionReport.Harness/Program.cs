@@ -252,6 +252,30 @@ Check("sp-fetch-cap-3", spCap.First(p => p.Slot == FashionSlot.Body).Fetch.Count
 // Null crowd -> no plans at all (nothing to render).
 Check("sp-null-crowd-empty", SlotPlanner.Compose(week449, null, planOwned, _ => (RecipeOption?)null, true).Count == 0);
 
+// ---- 14. BuyResolver: source priority + honest fallbacks (buy leg, v0.3.0.0) ----
+// Priority: craft > placed gil vendor > placed special shop > market > none.
+var brCraft = BuyResolver.Resolve(HailstormGloves, _ => new RecipeOption(1, 0, 90), null, null, true);
+Check("br-craft-wins", brCraft.Source == BuySource.Craft && brCraft.Recipe?.RecipeId == 1, $"{brCraft.Source}");
+var brGil = BuyResolver.Resolve(KasugaHaori, null,
+    _ => ((uint Price, string? Label, uint T, uint M, float X, float Y)?)(1250, "Engerrand (Limsa 8.6, 11.8)", 129u, 123u, 8.6f, 11.8f),
+    null, true);
+Check("br-gil-vendor", brGil.Source == BuySource.GilVendor && brGil.Label.Contains("1,250") && brGil.Label.Contains("Engerrand") && brGil.HasMapFlag, brGil.Label);
+// Unplaced gil vendor: still labelled with its price, no map flag, and NOT dropped to market.
+var brGilUnplaced = BuyResolver.Resolve(KasugaHaori, null,
+    _ => ((uint Price, string? Label, uint T, uint M, float X, float Y)?)(300, null, 0u, 0u, 0f, 0f), null, true);
+Check("br-gil-unplaced-labelled", brGilUnplaced.Source == BuySource.GilVendor && !brGilUnplaced.HasMapFlag && brGilUnplaced.Label.Contains("300"), brGilUnplaced.Label);
+// Special shop offer (adapter hands a fully-resolved BuyOption).
+var brShop = BuyResolver.Resolve(RedbillScarf, null, null,
+    _ => new BuyOption { Source = BuySource.SpecialShop, ShopId = 1769472, Label = "Ixali vendor (North Shroud) - 7 Ixali Oaknots", TerritoryId = 152, MapId = 141, MapX = 25.1f, MapY = 19.9f, Costs = new[] { new ShopCost(21072, "Ixali Oaknot", 7, "Ixali Oaknots") } },
+    true);
+Check("br-special-shop", brShop.Source == BuySource.SpecialShop && brShop.Costs.Count == 1 && brShop.Costs[0].Phrase.Contains("Ixali Oaknots"), brShop.Label);
+// Market fallback + none.
+Check("br-market", BuyResolver.Resolve(BrandNewGloves, null, null, null, true).Source == BuySource.Market);
+Check("br-none", BuyResolver.Resolve(BrandNewGloves, null, null, null, false).Source == BuySource.None);
+// ShopCost plural phrase.
+Check("br-cost-phrase", new ShopCost(20, "Storm Seal", 1500, "Storm Seals").Phrase == "1,500 Storm Seals",
+    new ShopCost(20, "Storm Seal", 1500, "Storm Seals").Phrase);
+
 Console.WriteLine();
 Console.WriteLine(failures.Count == 0
     ? $"OK - {passes} checks passed"

@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.3.0.0 (2026-09-12)
+
+### Added
+- The buy leg of fetch-missing: every missing piece now names where it comes from, in priority order - craftable (with the existing Craft via Artisan button), a gil vendor with its exact gil price and location, a currency shop such as a Grand Company or beast-tribe vendor with its full cost ("1,500 Storm Seals"), or the market board with a recent median price. A piece with no resolvable source says "not craftable (no vendor or market source found)" instead of vanishing (files: new `Core/BuySource.cs` `BuyResolver.Resolve`, `ReportWindow.cs DrawBuySource`)
+- A Shop button next to every placed vendor piece: one click flags that vendor on the map with exact coordinates. The click is the only thing that happens - nothing is bought, no teleport is fired (file: `ReportWindow.cs DrawShopButton`)
+- Gil vendors are resolved through the game's shop sheets plus the ENpcShop/ENpcPlace datasets (same source LazyCrafter uses), with a Level-sheet fallback, and the best vendor is the one nearest a teleportable aetheryte. An unplaced gil vendor still shows its price, it just gets no Shop button (file: new `Adapters/VendorIndex.cs`)
+- Currency-shop offers show the full cost phrase using the game's own plurals ("7 Ixali Oaknots", "1,500 Storm Seals"), and only shops that resolve to a placed, named NPC are shown - an unplaced currency vendor is a dead end, so such pieces fall through to the market board instead (file: `Adapters/VendorIndex.cs SpecialShopFor`)
+- Market-board prices are per-item Universalis lookups on the character's own world: the median of recent sales within 30 days, never the outlier-poisoned average, and no number at all when the board is empty or stale - the label then just says "market board" (file: new `Adapters/MarketQuotes.cs`)
+
+### Changed
+- The "not craftable (vendor/market leg comes later)" label is gone: with the buy leg shipped, a piece that resolves to nothing now says so explicitly (file: `ReportWindow.cs DrawBuySource`)
+- The plugin now carries the LuminaSupplemental.Excel package (plus its CSV reader) inside its own zip, exactly as LazyCrafter ships it - that is where the vendor placements live (file: `LazyFashionReport.csproj`)
+
+### Notes
+- Offline harness coverage for the resolver: craft beats vendors, an unplaced gil vendor keeps its price label without a map flag, a special-shop offer carries its costs and plural phrase, and market/none fallbacks hold (file: `tests/LazyFashionReport.Harness/Program.cs` section 14)
+- Vendor picks are informational: the plugin flags the map and names the price; walking there and buying stays with the player (also why there is no auto-teleport in this release)
+
 ## v0.2.0.0 (2026-09-12)
 
 ### Changed

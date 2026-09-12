@@ -205,22 +205,83 @@ internal class ReportWindow : Window
                 ImGui.Bullet();
                 ImGui.TextUnformatted($"{piece.Item.Name}  ({piece.Item.Votes})");
                 ImGui.SameLine();
-                if (piece.Recipe is { } r)
-                {
-                    ImGui.TextDisabled($"- craftable ({CraftName(r.CraftTypeId)} lv {r.Level})");
-                    if (_plugin.Config.FetchMissingCraft && svc.ArtisanInstalled)
-                    {
-                        ImGui.SameLine();
-                        DrawCraftButton(piece);
-                    }
-                }
-                else
-                {
-                    ImGui.TextDisabled("- not craftable (vendor/market leg comes later)");
-                }
+                DrawBuySource(piece);
             }
         }
         ImGui.Unindent(16);
+    }
+
+    /// <summary>Source label + action for one missing piece (buy leg, v0.3.0.0). Craft keeps
+    /// its Artisan button; placed gil/currency vendors get a Shop button that flags the map;
+    /// market shows the median when a fresh quote exists.</summary>
+    private void DrawBuySource(FetchPiece piece)
+    {
+        var svc = _plugin.Service;
+        var buy = piece.Buy;
+        switch (buy?.Source)
+        {
+            case BuySource.Craft when buy.Recipe is { } r:
+                ImGui.TextDisabled($"- craftable ({CraftName(r.CraftTypeId)} lv {r.Level})");
+                if (_plugin.Config.FetchMissingCraft && svc.ArtisanInstalled)
+                {
+                    ImGui.SameLine();
+                    DrawCraftButton(piece);
+                }
+                break;
+
+            case BuySource.GilVendor:
+                ImGui.TextDisabled($"- {buy.Label}");
+                if (buy.HasMapFlag)
+                {
+                    ImGui.SameLine();
+                    DrawShopButton(buy);
+                }
+                break;
+
+            case BuySource.SpecialShop:
+                ImGui.TextDisabled($"- {buy.Label}");
+                if (buy.HasMapFlag)
+                {
+                    ImGui.SameLine();
+                    DrawShopButton(buy);
+                }
+                break;
+
+            case BuySource.Market:
+                var median = _plugin.Service.MarketMedianFor(piece.Item.ItemId);
+                ImGui.TextDisabled(median is { } m
+                    ? $"- market board (median ~{m:N0} gil)"
+                    : "- market board");
+                break;
+
+            default:
+                // Not craftable and nothing resolved: the honest label, never silence.
+                ImGui.TextDisabled("- not craftable (no vendor or market source found)");
+                break;
+        }
+    }
+
+    /// <summary>Flag the vendor on the map (framework-safe: OpenMapWithMapLink must run on
+    /// the framework thread). The click is the consent; nothing is bought automatically.</summary>
+    private void DrawShopButton(BuyOption buy)
+    {
+        if (ImGui.SmallButton($"Shop##lfr-shop-{buy.ShopId}-{buy.TerritoryId}-{buy.MapX:0.##}-{buy.MapY:0.##}"))
+        {
+            Plugin.Framework.RunOnFrameworkThread(() =>
+            {
+                try
+                {
+                    var payload = new Dalamud.Game.Text.SeStringHandling.Payloads.MapLinkPayload(
+                        buy.TerritoryId, buy.MapId, buy.MapX, buy.MapY);
+                    Plugin.GameGui.OpenMapWithMapLink(payload);
+                    Plugin.Log.Information($"[LFR] map flag set for vendor: {buy.Label}");
+                }
+                catch (Exception ex)
+                {
+                    Plugin.Log.Warning(ex, "[LFR] failed to open map link");
+                }
+            });
+        }
     }
 
     private static string CraftName(int craftTypeId) => craftTypeId switch

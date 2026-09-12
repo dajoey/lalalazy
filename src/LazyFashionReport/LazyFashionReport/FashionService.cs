@@ -27,6 +27,8 @@ internal sealed class FashionService : IDisposable
     private readonly RemoteDataSource _remote;
     private readonly ArtisanCraft _artisan;
     private readonly RecipeIndex _recipes;
+    private readonly VendorIndex _vendors;
+    private readonly MarketQuotes _market;
     private IReadOnlyList<MissingPiece> _missing = Array.Empty<MissingPiece>();
     private IReadOnlyList<SlotPlan> _slotPlans = Array.Empty<SlotPlan>();
 
@@ -50,6 +52,10 @@ internal sealed class FashionService : IDisposable
         _remote = new RemoteDataSource(_http, CacheDir(), m => Plugin.Log.Information($"[LFR] {m}"));
         _artisan = new ArtisanCraft(Plugin.Pi, Plugin.Log);
         _recipes = RecipeIndex.Load(Plugin.Data, Plugin.Log);
+        _vendors = new VendorIndex(Plugin.Data, m => Plugin.Log.Information($"[LFR] {m}"),
+            m => Plugin.Log.Warning($"[LFR] {m}"));
+        _market = new MarketQuotes(CacheDir(), typeof(Plugin).Assembly.GetName().Version?.ToString(3) ?? "dev",
+            m => Plugin.Log.Information($"[LFR] {m}"));
     }
 
     private static string CacheDir() =>
@@ -79,6 +85,33 @@ internal sealed class FashionService : IDisposable
         Plugin.AddonLifecycle.RegisterListener(AddonEvent.PostSetup, "FashionCheck", OnAddonPostSetup);
         Plugin.AddonLifecycle.RegisterListener(AddonEvent.PreClose, "FashionCheck", OnAddonPreClose);
         _ = RefreshRemoteAsync();
+        // Buy leg: warm the vendor index off-thread and set the market scope from the live
+        // world once known. Both degrade silently when the player is not logged in yet.
+        _ = Task.Run(() =>
+        {
+            try { _vendors.EnsureBuiltPublic(); } catch { /* reported inside */ }
+        });
+        Plugin.ClientState.Login += OnLogin;
+        SetMarketScopeFromPlayer();
+    }
+
+    private void OnLogin() => SetMarketScopeFromPlayer();
+
+    /// <summary>Market scope = the current world name. API 15: LocalPlayer hangs off
+    /// IObjectTable (the sibling plugins' proven pattern), not IClientState.</summary>
+    private void SetMarketScopeFromPlayer()
+    {
+        try
+        {
+            var player = Plugin.ObjectTable.LocalPlayer;
+            if (player is null) return;
+            // API 15: CurrentWorld is a non-nullable RowRef<World>; IsValid is the null check.
+            var world = player.CurrentWorld.IsValid
+                ? player.CurrentWorld.ValueNullable?.Name.ToString()
+                : null;
+            if (!string.IsNullOrWhiteSpace(world)) SetMarketScope(world);
+        }
+        catch { /* scope stays empty; market labels simply show no number */ }
     }
 
     private void OnAddonPostSetup(AddonEvent type, AddonArgs args)
@@ -290,12 +323,67 @@ internal sealed class FashionService : IDisposable
         _slotPlans = SlotPlanner.Compose(_week, crowd, _owned, id => _recipes.ForItem(id),
             _plugin.Config.FilterOwned);
 
+        // Buy leg (v0.3.0.0): resolve each missing piece's real source. Built on the same
+        // snapshot so the label and the plan always agree; market medians prime in the
+        // background (they are display-only).
+        if (_owned is { Count: > 0 })
+        {
+            foreach (var plan in _slotPlans)
+                foreach (var piece in plan.Fetch)
+                    piece.Buy = ResolveBuy(piece.Item.ItemId);
+            var marketIds = _slotPlans.SelectMany(p => p.Fetch)
+                .Where(f => f.Buy is { Source: BuySource.Market })
+                .Select(f => f.Item.ItemId)
+                .Distinct()
+                .ToList();
+            if (marketIds.Count > 0)
+                _ = _market.PrimeAsync(marketIds);
+        }
+
         // The Artisan craft list (unchanged behavior, FetchMissingCraft toggle): built from
         // the same crowd + owned snapshot so the two views always agree.
         _missing = _plugin.Config.FetchMissingCraft
             ? FetchPlan.Build(_week, crowd, _owned, id => _recipes.ForItem(id))
             : Array.Empty<MissingPiece>();
     }
+
+    /// <summary>Game-side source resolution for one item (buy leg). Runs wherever the crowd
+    /// data is already materialized; sheet reads are dictionary answers after the one-time
+    /// index build. Craftable check first (the craft leg already ships), then gil vendor,
+    /// then placed special shop, then market.</summary>
+    private BuyOption ResolveBuy(uint itemId)
+    {
+        var marketable = Plugin.Data.GameData?.GetExcelSheet<Lumina.Excel.Sheets.Item>() is { } items
+            && items.TryGetRow(itemId, out var it) && it.ItemSearchCategory.RowId != 0;
+        return BuyResolver.Resolve(
+            itemId,
+            id => _recipes.ForItem(id),
+            id => _vendors.GilVendorFor(id) is { } v
+                ? ((uint, string?, uint, uint, float, float)?)(v.Price,
+                    v.Vendor is { } pv ? $"{pv.NpcName} ({pv.ZoneName} {pv.X:0.0}, {pv.Y:0.0})" : null,
+                    v.Vendor?.TerritoryId ?? 0, v.Vendor?.MapId ?? 0, v.Vendor?.X ?? 0, v.Vendor?.Y ?? 0)
+                : null,
+            id => _vendors.SpecialShopFor(id) is { } ss
+                ? new BuyOption
+                {
+                    Source = BuySource.SpecialShop,
+                    ShopId = ss.Offer.ShopId,
+                    Label = $"{ss.Vendor.NpcName} ({ss.Vendor.ZoneName} {ss.Vendor.X:0.0}, {ss.Vendor.Y:0.0}) - {string.Join(" + ", ss.Offer.Costs.Select(c => c.Phrase))}",
+                    Costs = ss.Offer.Costs,
+                    TerritoryId = ss.Vendor.TerritoryId,
+                    MapId = ss.Vendor.MapId,
+                    MapX = ss.Vendor.X,
+                    MapY = ss.Vendor.Y,
+                }
+                : null,
+            marketable);
+    }
+
+    /// <summary>Median market price for an item, when a quote was fetched (buy leg display).</summary>
+    public uint? MarketMedianFor(uint itemId) => _market.MedianFor(itemId);
+
+    /// <summary>Market scope for Universalis quotes: the player's current world, read live.</summary>
+    public void SetMarketScope(string? world) => _market.SetScope(world);
 
     /// <summary>Start one craft via Artisan's public IPC (auto-dress v1 step 4). Framework thread
     /// only (CraftItem opens the crafting log). Returns null when the request was handed over, or
@@ -345,8 +433,10 @@ internal sealed class FashionService : IDisposable
 
     public void Dispose()
     {
+        Plugin.ClientState.Login -= OnLogin;
         Plugin.AddonLifecycle.UnregisterListener(AddonEvent.PostSetup, "FashionCheck", OnAddonPostSetup);
         Plugin.AddonLifecycle.UnregisterListener(AddonEvent.PreClose, "FashionCheck", OnAddonPreClose);
+        _market.Dispose();
         _http.Dispose();
     }
 }

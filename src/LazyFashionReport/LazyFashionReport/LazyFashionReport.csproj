@@ -1,9 +1,9 @@
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
     <Authors>dajoey</Authors>
-    <Version>0.2.0.0</Version>
-    <AssemblyVersion>0.2.0.0</AssemblyVersion>
-    <FileVersion>0.2.0.0</FileVersion>
+    <Version>0.3.0.0</Version>
+    <AssemblyVersion>0.3.0.0</AssemblyVersion>
+    <FileVersion>0.3.0.0</FileVersion>
     <Description>Gold Saucer Fashion Report assistant: weekly hints, exact dyes, owned-item candidates, and a live outfit scorer.</Description>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Platforms>x64</Platforms>
@@ -29,11 +29,18 @@
     <EmbeddedResource Include="..\CHANGELOG.md" LogicalName="CHANGELOG.md" />
   </ItemGroup>
 
-  <!-- Keep the zip lean: this plugin has no external nuget deps, so ship only
-       our own DLL. Matches the LazyFoodBuff convention. -->
+  <!-- Buy leg (v0.3.0.0): LuminaSupplemental matches LazyCrafter/GBR 4.3.x — ENpcShop + ENpcPlace
+       place the vendors. Sylvan.Data.Csv is NOT optional (LazyCrafter t_1a91db8f lesson):
+       CsvLoader.LoadResource reads every embedded CSV through it, Dalamud ships no CSV reader,
+       and each plugin lives in its own AssemblyLoadContext. -->
+  <ItemGroup>
+    <PackageReference Include="LuminaSupplemental.Excel" Version="4.3.0" />
+  </ItemGroup>
+
+  <!-- Keep the zip lean: ship our DLL plus the buy-leg deps the game host does not provide. -->
   <Target Name="PruneOutputDlls" AfterTargets="ResolveReferences">
     <ItemGroup>
-      <_KeepDlls Include="@(ReferenceCopyLocalPaths)" Condition="'%(Filename)' == 'LazyFashionReport'" />
+      <_KeepDlls Include="@(ReferenceCopyLocalPaths)" Condition="'%(Filename)' == 'LazyFashionReport' or '%(Filename)' == 'LuminaSupplemental.Excel' or '%(Filename)' == 'Sylvan.Data.Csv'" />
       <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)" />
       <ReferenceCopyLocalPaths Include="@(_KeepDlls)" />
     </ItemGroup>

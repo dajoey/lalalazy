@@ -15,6 +15,8 @@ public sealed record FetchPiece
     public required CandidateItem Item { get; init; }
     public RecipeOption? Recipe { get; init; }
     public PieceSource Source => Recipe is null ? PieceSource.NotCraftable : PieceSource.Craftable;
+    /// <summary>Resolved buy source (v0.3.0.0 buy leg); null until the service resolves it.</summary>
+    public BuyOption? Buy { get; set; }
 }
 
 /// <summary>
