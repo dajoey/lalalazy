@@ -370,6 +370,212 @@ var asm3 = OutfitAssembler.Build(week449, crowd, ownCat, id => $"item {id}",
     plus2StainMap, new HashSet<uint>(), stainNames, stainFamilies);
 Check("oa-no-dye-honest", asm3.Pieces[(int)FashionSlot.Head].DyeNote.Contains("no matching dye owned"), asm3.Pieces[(int)FashionSlot.Head].DyeNote);
 
+// ---- 18. ApplyPlanBuilder + ApplySimulator: the P4 executor dry-run (v0.5.0.0) ----
+// The dry-run release: build the executable plan from the assembly + a live-shaped snapshot,
+// simulate one pass, and prove the safety rails (untouched slots never move, dyes only from
+// located stock, missing pieces skip + report).
+// Stain -> dye item fixtures: 76 (Abyssal Blue) = dye item 10001; 112 (Metallic Silver) = 10002.
+var apStains = new Dictionary<FashionSlot, uint>
+{
+    [FashionSlot.Head] = 76,   // Abyssal Blue (head unhinted this week - rail test)
+    [FashionSlot.Body] = 112,  // Metallic Silver
+    [FashionSlot.Hands] = 76,  // Abyssal Blue, already on the worn gold
+};
+var dyeItemForStain = new Dictionary<uint, uint> { [76] = 10001, [112] = 10002 };
+// Bag layout fixture: Kasuga (body gold) in bag slot (Inventory1=1, slot 3); Rathalos (feet
+// gold) ONLY in the dresser; Redbill (neck gold) only in the armoire; Hailstorm (hands gold)
+// already worn with Abyssal Blue on; Brand-new gloves in bags but not planned (hands is gold).
+var locateMap = new Dictionary<uint, (ItemStorage, InventoryCoord?, uint)>
+{
+    [KasugaHaori] = (ItemStorage.Bags, new InventoryCoord { Container = 1, Slot = 3 }, 0u),
+    [RathalosGreaves] = (ItemStorage.Dresser, null, 0u),
+    [RedbillScarf] = (ItemStorage.Armoire, null, 0u),
+    [HailstormGloves] = (ItemStorage.Equipped, null, 0u),
+    [BrandNewGloves] = (ItemStorage.Bags, new InventoryCoord { Container = 1, Slot = 9 }, 0u),
+};
+var equippedMap = new Dictionary<FashionSlot, uint>
+{
+    [FashionSlot.Hands] = HailstormGloves,
+    [FashionSlot.Head] = 555001,
+    [FashionSlot.Body] = 555002,
+};
+var equippedStainMap = new Dictionary<FashionSlot, uint>
+{
+    [FashionSlot.Hands] = 76,   // Abyssal Blue already on the worn gold
+    [FashionSlot.Head] = 0,
+    [FashionSlot.Body] = 0,
+};
+// Two Jet-Black... no: week-449 wants Abyssal Blue on head + Metallic Silver on body.
+// Stock: ONE Abyssal Blue dye item (10001) and NO Metallic Silver (10002 absent).
+var dyeStock = new Dictionary<uint, IReadOnlyList<InventoryCoord>>
+{
+    [10001] = new[] { new InventoryCoord { Container = 1, Slot = 20 } },
+};
+var steps18 = ApplyPlanBuilder.Build(asm, apStains, equippedMap, equippedStainMap,
+    id => locateMap.TryGetValue(id, out var v) ? v : null,
+    st => dyeItemForStain.GetValueOrDefault(st),
+    dyeStock,
+    id => $"item {id}",
+    stainNames);
+// Body: Kasuga from bags (equip) + wants Metallic Silver (112) but no stock -> NO dye step.
+var stBody = steps18.First(s => s.Slot == FashionSlot.Body);
+Check("ap-body-equip-from-bags", stBody.Method == ObtainMethod.EquipFromBags && stBody.Source!.Container == 1 && stBody.Source.Slot == 3,
+    $"{stBody.Method} {stBody.Source?.Container}:{stBody.Source?.Slot}");
+Check("ap-body-no-dye-no-stock", stBody.StainId == 0, $"stain {stBody.StainId} (no Metallic Silver stock -> no dye step)");
+// Feet: Rathalos only in dresser -> withdraw path.
+var stFeet = steps18.First(s => s.Slot == FashionSlot.Feet);
+Check("ap-feet-withdraw-dresser", stFeet.Method == ObtainMethod.WithdrawFromDresser, stFeet.Method.ToString());
+// Neck: Redbill only in armoire -> withdraw path.
+var stNeck = steps18.First(s => s.Slot == FashionSlot.Neck);
+Check("ap-neck-withdraw-armoire", stNeck.Method == ObtainMethod.WithdrawFromArmoire, stNeck.Method.ToString());
+// Hands: Hailstorm already worn WITH the exact dye already on -> AlreadyWorn + StainAlreadyOn, no consumption.
+var stHands = steps18.First(s => s.Slot == FashionSlot.Hands);
+Check("ap-hands-already-worn", stHands.Method == ObtainMethod.AlreadyWorn, stHands.Method.ToString());
+Check("ap-hands-dye-already-on", stHands.StainId == 76 && stHands.StainAlreadyOn, $"stain {stHands.StainId} already={stHands.StainAlreadyOn}");
+// Head: unhinted "any item" -> NEVER touched, even though a dye preference exists for head.
+var stHead = steps18.First(s => s.Slot == FashionSlot.Head);
+Check("ap-head-untouched", stHead.Method == ObtainMethod.LeaveUntouched && stHead.ItemId == 0, stHead.Method.ToString());
+Check("ap-head-untouched-no-dye", stHead.StainId == 0, "an untouched slot must never consume a dye");
+// Legs: unhinted -> untouched (same rail).
+Check("ap-legs-untouched", steps18.First(s => s.Slot == FashionSlot.Legs).Method == ObtainMethod.LeaveUntouched);
+// Weapon: unhinted -> untouched.
+Check("ap-weapon-untouched", steps18.First(s => s.Slot == FashionSlot.Weapon).Method == ObtainMethod.LeaveUntouched);
+// Ears/wrist/rings: unhinted accessories -> untouched.
+Check("ap-ears-untouched", steps18.First(s => s.Slot == FashionSlot.Ears).Method == ObtainMethod.LeaveUntouched);
+Check("ap-ringl-untouched", steps18.First(s => s.Slot == FashionSlot.RingL).Method == ObtainMethod.LeaveUntouched);
+
+// The dry-run readout itself.
+var dry = ApplySimulator.Run(steps18, asm.Total);
+Check("sim-total-carried", dry.PredictedTotal == asm.Total, $"{dry.PredictedTotal} vs {asm.Total}");
+Check("sim-applies-count", dry.Applies == 3, $"{dry.Applies} (body equip, feet withdraw, neck withdraw)");
+Check("sim-dyes-count", dry.Dyes == 0, $"{dry.Dyes} dyes (head would want one but is untouched; body has no stock)");
+Check("sim-skips-zero", dry.Skips == 0, $"{dry.Skips} skips");
+Check("sim-already-count", dry.Already == 1, $"{dry.Already} already-correct (hands)");
+var simBody = dry.Steps.First(s => s.Step.Slot == FashionSlot.Body);
+Check("sim-body-line", simBody.Line.Contains("equip") && simBody.Line.Contains("item 25302"), simBody.Line);
+var simHands = dry.Steps.First(s => s.Step.Slot == FashionSlot.Hands);
+Check("sim-hands-line-dye-note", simHands.Line.Contains("already on"), simHands.Line);
+
+// Dye-from-stock path: put the player's head into the plan is NOT possible (unhinted), so
+// prove the consumption path on the BODY slot instead: give Metallic Silver stock and the
+// worn body slot a different item id (so equipping Kasuga replaces it and then dyes).
+var dyeStock2 = new Dictionary<uint, IReadOnlyList<InventoryCoord>>
+{
+    [10001] = new[] { new InventoryCoord { Container = 1, Slot = 20 } },
+    [10002] = new[] { new InventoryCoord { Container = 2, Slot = 5 }, new InventoryCoord { Container = 2, Slot = 6 } },
+};
+var steps18b = ApplyPlanBuilder.Build(asm, apStains, equippedMap, equippedStainMap,
+    id => locateMap.TryGetValue(id, out var v) ? v : null,
+    st => dyeItemForStain.GetValueOrDefault(st),
+    dyeStock2,
+    id => $"item {id}",
+    stainNames);
+var stBody2 = steps18b.First(s => s.Slot == FashionSlot.Body);
+Check("ap-body-dye-with-stock", stBody2.StainId == 112 && stBody2.StainName == "Metallic Silver", $"{stBody2.StainId} {stBody2.StainName}");
+var dry2 = ApplySimulator.Run(steps18b, asm.Total);
+Check("sim2-dyes-count", dry2.Dyes == 1, $"{dry2.Dyes} dyes");
+var simBody2 = dry2.Steps.First(s => s.Step.Slot == FashionSlot.Body);
+Check("sim2-body-consumes", simBody2.Outcome == StepOutcome.WouldConsumeDye && simBody2.Line.Contains("consumes 1"), simBody2.Line);
+
+// Dye already on the slot AND item not changing: AlreadyWorn + exact stain -> AlreadyCorrect, no consumption.
+var equippedStainNoDye = new Dictionary<FashionSlot, uint>
+{
+    [FashionSlot.Hands] = 5,   // some other dye on
+    [FashionSlot.Head] = 0,
+    [FashionSlot.Body] = 0,
+};
+var steps18c = ApplyPlanBuilder.Build(asm, apStains, equippedMap, equippedStainNoDye,
+    id => locateMap.TryGetValue(id, out var v) ? v : null,
+    st => dyeItemForStain.GetValueOrDefault(st),
+    dyeStock2,
+    id => $"item {id}",
+    stainNames);
+var stHandsC = steps18c.First(s => s.Slot == FashionSlot.Hands);
+Check("ap-hands-wrong-dye-gets-step", stHandsC.StainId == 76 && !stHandsC.StainAlreadyOn, $"stain {stHandsC.StainId}");
+var dry3 = ApplySimulator.Run(steps18c, asm.Total);
+var simHandsC = dry3.Steps.First(s => s.Step.Slot == FashionSlot.Hands);
+Check("sim3-hands-consume", simHandsC.Outcome == StepOutcome.WouldConsumeDye && simHandsC.Line.Contains("apply Abyssal Blue"), simHandsC.Line);
+
+// Pre-dyed bag copy: the equip itself carries the dye - never counted as a consumption.
+var locatePredyed = new Dictionary<uint, (ItemStorage, InventoryCoord?, uint)>
+{
+    [KasugaHaori] = (ItemStorage.Bags, new InventoryCoord { Container = 1, Slot = 3 }, 112u),
+    [RathalosGreaves] = (ItemStorage.Dresser, null, 0u),
+    [RedbillScarf] = (ItemStorage.Armoire, null, 0u),
+    [HailstormGloves] = (ItemStorage.Equipped, null, 0u),
+    [BrandNewGloves] = (ItemStorage.Bags, new InventoryCoord { Container = 1, Slot = 9 }, 0u),
+};
+var steps18g = ApplyPlanBuilder.Build(asm, apStains, equippedMap, equippedStainMap,
+    id => locatePredyed.TryGetValue(id, out var v) ? v : null,
+    st => dyeItemForStain.GetValueOrDefault(st),
+    new Dictionary<uint, IReadOnlyList<InventoryCoord>>(),
+    id => $"item {id}",
+    stainNames);
+var stBodyG = steps18g.First(s => s.Slot == FashionSlot.Body);
+Check("ap-predyed-copy-carries", stBodyG.Method == ObtainMethod.EquipFromBags && stBodyG.StainId == 112 && stBodyG.StainAlreadyOn,
+    $"{stBodyG.Method} stain {stBodyG.StainId} already={stBodyG.StainAlreadyOn}");
+Check("ap-predyed-action-note", stBodyG.Action.Contains("already on the copy"), stBodyG.Action);
+var dryG = ApplySimulator.Run(steps18g, asm.Total);
+var simBodyG = dryG.Steps.First(s => s.Step.Slot == FashionSlot.Body);
+Check("sim-predyed-not-consumed", simBodyG.Outcome == StepOutcome.WouldApply && dryG.Dyes == 0,
+    $"{simBodyG.Outcome} dyes={dryG.Dyes}");
+
+// Shared stock honesty: two slots wanting the SAME dye with only ONE item in stock ->
+// exactly one gets the dye step (reserved), the other reports none.
+var plus2Shared = new Dictionary<FashionSlot, uint>(apStains)
+{
+    [FashionSlot.Body] = 76,   // pretend body also wants Abyssal Blue this week
+    [FashionSlot.Feet] = 76,   // ...and feet too: two genuine consumers, one item in stock
+};
+var steps18d = ApplyPlanBuilder.Build(asm, plus2Shared, equippedMap, equippedStainMap,
+    id => locateMap.TryGetValue(id, out var v) ? v : null,
+    st => dyeItemForStain.GetValueOrDefault(st),
+    new Dictionary<uint, IReadOnlyList<InventoryCoord>>
+    {
+        [10001] = new[] { new InventoryCoord { Container = 1, Slot = 20 } },
+    },
+    id => $"item {id}",
+    stainNames);
+var sharedDyeSteps = steps18d.Count(s => s.StainId == 76 && !s.StainAlreadyOn);
+Check("ap-shared-dye-reserved", sharedDyeSteps == 1, $"{sharedDyeSteps} consuming steps (1 item in stock -> 1 consumer; already-on stains never consume)");
+
+var steps18d2 = ApplyPlanBuilder.Build(asm, plus2Shared, equippedMap, equippedStainMap,
+    id => locateMap.TryGetValue(id, out var v) ? v : null,
+    st => dyeItemForStain.GetValueOrDefault(st),
+    new Dictionary<uint, IReadOnlyList<InventoryCoord>>
+    {
+        [10001] = new[] { new InventoryCoord { Container = 1, Slot = 20 }, new InventoryCoord { Container = 1, Slot = 21 } },
+    },
+    id => $"item {id}",
+    stainNames);
+Check("ap-shared-dye-two-stock-two-consumers", steps18d2.Count(s => s.StainId == 76 && !s.StainAlreadyOn) == 2,
+    $"{steps18d2.Count(s => s.StainId == 76 && !s.StainAlreadyOn)} (2 items in stock -> 2 consumers)");
+
+// Missing piece: planner named it, but it is nowhere now.
+var locateMissing = new Dictionary<uint, (ItemStorage, InventoryCoord?, uint)>(locateMap)
+{
+    [KasugaHaori] = (ItemStorage.None, null, 0u),
+};
+var steps18e = ApplyPlanBuilder.Build(asm, apStains, equippedMap, equippedStainMap,
+    id => locateMissing.TryGetValue(id, out var v) ? (v.Item1 == ItemStorage.None ? null : v) : null,
+    st => dyeItemForStain.GetValueOrDefault(st),
+    dyeStock2,
+    id => $"item {id}",
+    stainNames);
+var stBodyE = steps18e.First(s => s.Slot == FashionSlot.Body);
+Check("ap-missing-reports", stBodyE.Method == ObtainMethod.Missing && stBodyE.Action.Contains("not found"), $"{stBodyE.Method}: {stBodyE.Action}");
+var dryE = ApplySimulator.Run(steps18e, asm.Total);
+Check("sim-missing-skip", dryE.Steps.First(s => s.Step.Slot == FashionSlot.Body).Outcome == StepOutcome.SkippedMissing);
+Check("sim-missing-counted", dryE.Skips == 1, $"{dryE.Skips} skips");
+
+// Empty inputs degrade honestly: no equipped map, no locator, no dye stock -> all planned
+// pieces Missing (except none), no dye steps, no crash.
+var steps18f = ApplyPlanBuilder.Build(asm, apStains, null, null, null, null, null, id => $"item {id}", stainNames);
+Check("ap-null-snapshot-missing", steps18f.Where(s => s.ItemId != 0).All(s => s.Method == ObtainMethod.Missing),
+    string.Join(",", steps18f.Where(s => s.ItemId != 0).Select(s => s.Method)));
+Check("ap-null-snapshot-untouched-intact", steps18f.Where(s => s.ItemId == 0).All(s => s.Method == ObtainMethod.LeaveUntouched));
+
+
 Console.WriteLine();
 Console.WriteLine(failures.Count == 0
     ? $"OK - {passes} checks passed"

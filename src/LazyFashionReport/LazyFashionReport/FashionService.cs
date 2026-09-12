@@ -80,6 +80,84 @@ internal sealed class FashionService : IDisposable
     /// <summary>P4 planner: the best 80+ outfit from owned pieces + owned dyes (read-only).</summary>
     public OutfitAssembly? Assembly => _assembly;
 
+    /// <summary>P4 executor half (v0.5.0.0): the latest dry-run readout, if one was run.</summary>
+    public ApplyDryRun? LastDryRun => _dryRun;
+    private ApplyDryRun? _dryRun;
+
+    /// <summary>
+    /// P4 executor half, dry-run release: build the executable apply plan from the CURRENT
+    /// assembly + live snapshot and simulate it - one pass, read-only, no mutations. Every
+    /// step line is logged to the LazyFashionReport context so an in-game verify from ffxivdb
+    /// can grade exactly what the plugin said it would do. The live mover ships only after
+    /// this readout is verified against the character sheet.
+    /// </summary>
+    public ApplyDryRun? DryRunApply()
+    {
+        if (_assembly is null || _week is null) return null;
+        try
+        {
+            // ONE framework-thread snapshot: equipped appearance + stains, per-item location,
+            // dye stock (ApplyExecutor is all reads - the dry run must not move anything).
+            var itemIds = _assembly.Pieces.Where(p => p.ItemId != 0).Select(p => p.ItemId).ToList();
+            var plusTwoStains = new Dictionary<FashionSlot, uint>();
+            foreach (var slot in Enum.GetValues<FashionSlot>())
+            {
+                var s = _crowd?.PreferredStainFor(_week, slot) ?? 0;
+                if (s != 0) plusTwoStains[slot] = s;
+            }
+            var snap = Plugin.Framework.RunOnFrameworkThread(
+                () => ApplyExecutor.Snapshot(itemIds, plusTwoStains.Values)).Result;
+
+            var steps = ApplyPlanBuilder.Build(
+                _assembly,
+                plusTwoStains,
+                snap.Equipped,
+                snap.EquippedStain,
+                id => snap.Locations.TryGetValue(id, out var loc) ? (loc.Storage, loc.Coord, loc.Stain) : null,
+                stain => ClientReader.StainToDyeItem.GetValueOrDefault(stain),
+                snap.DyeItemLocations,
+                id => _sheets.ItemName(id),
+                _sheets.StainToName);
+
+            var run = ApplySimulator.Run(steps, _assembly.Total);
+
+            // The audit log: one line per step, prefixed for the ffxivdb grading query.
+            Plugin.Log.Information($"[LFR] dry-run apply: {run.Applies} would apply, {run.Dyes} dye(s), {run.Skips} skip(s), predicted {run.PredictedTotal}");
+            foreach (var r in run.Steps)
+                Plugin.Log.Information($"[LFR] dry-run | {r.Line}");
+
+            // Offline proof for the live executor's destination mapping: dump the equip
+            // container layout as seen right now. The live card reads this from ffxivdb to
+            // verify the EquippedItems slot indices before writing any MoveItemSlot call.
+            LogEquippedLayout(snap);
+
+            _dryRun = run;
+            return run;
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Warning(ex, "[LFR] dry-run apply failed");
+            return null;
+        }
+    }
+
+    /// <summary>Log the equipped container layout (slot index -> container/slot/item) so the
+    /// live executor card can verify the equip-slot mapping from ffxivdb without a debugger.</summary>
+    private void LogEquippedLayout(ApplySnapshot snap)
+    {
+        try
+        {
+            foreach (var (slot, id) in snap.Equipped.OrderBy(kv => (int)kv.Key))
+            {
+                var stain = snap.EquippedStain.GetValueOrDefault(slot, 0u);
+                Plugin.Log.Information(
+                    $"[LFR] equipped-layout | {(int)slot} {slot.DisplayName()} = item {id} stain {stain}");
+            }
+        }
+        catch { /* layout log is best-effort */ }
+    }
+
+
     /// <summary>Last judged-week summary line ("" with no history yet) + accuracy over the
     /// recent weeks. P5: the predictor is only as good as its measured diff.</summary>
     public string JudgedSummary =>

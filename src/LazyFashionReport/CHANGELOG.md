@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.5.0.0 (2026-09-12)
+
+### Added
+- A "Dry-run apply" button under the outfit assembler: it turns the assembled plan into a concrete per-slot course of action and shows exactly what applying it WOULD do - which pieces would be equipped from the bags, which would be withdrawn from the glamour dresser or the armoire first, which dyes would be consumed, and which slots stay untouched - one line per slot with the predicted score after the apply (files: new `Core/ApplyPlan.cs` `ApplyPlanBuilder.Build`, new `Core/ApplySimulator.cs` `ApplySimulator.Run`, `ReportWindow.cs DrawApplyDryRun`)
+- Unhinted slots are never touched by an apply: any slot the planner left as "any item" already scores its base points, and the dry run says so explicitly rather than silently planning a gear swap there (file: `Core/ApplyPlan.cs`)
+- A dye is only planned when the dye item is physically present in the character's bags, and one copy is reserved per consuming slot - when two slots want the same dye and only one bottle is owned, exactly one slot gets the dye step and the other is reported honestly. A copy that already carries the wanted dye is equipped as-is and consumes nothing (files: `Core/ApplyPlan.cs`, `Adapters/ApplyExecutor.cs Snapshot`)
+- Every dry run is logged line-by-line to the plugin log, plus the character's current equipped layout, so an in-game verification can compare the readout against the character sheet slot by slot (files: `FashionService.cs DryRunApply`, `FashionService.cs LogEquippedLayout`)
+
+### Notes
+- This release is the executor's dry-run half: the button SIMULATES the apply against the live inventory and moves nothing. The live apply - physically equipping, withdrawing from the dresser and armoire, and consuming dye items - ships only after this readout is verified against the character sheet in game
+- A piece the planner chose that is no longer findable in bags, dresser, or armoire is reported as SKIP for its slot - never guessed at (file: `Core/ApplyPlan.cs Missing`)
+- Offline harness coverage: equip/withdraw/already-worn/missing per-slot plans, untouched-slot rails, dye stock reservation incl. shared-dye and pre-dyed-copy cases, and the full dry-run readout (file: `tests/LazyFashionReport.Harness/Program.cs` section 18)
+
 ## v0.4.0.0 (2026-09-12)
 
 ### Added

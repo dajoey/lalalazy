@@ -48,6 +48,8 @@ internal sealed class SheetAdapter
                     stainToIcon[s.RowId] = it.Icon;
                     // P4 planner: dye item id -> stain, for the owned-dye check.
                     Adapters.ClientReader.DyeItemToStain[it.RowId] = s.RowId;
+                    // P4 executor: reverse map so the apply leg can find the physical dye stock.
+                    Adapters.ClientReader.StainToDyeItem[s.RowId] = it.RowId;
                 }
             }
         }

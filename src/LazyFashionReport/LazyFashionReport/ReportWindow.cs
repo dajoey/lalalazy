@@ -197,6 +197,75 @@ internal class ReportWindow : Window
             ImGui.Bullet();
             ImGui.TextDisabled(gap);
         }
+
+        DrawApplyDryRun();
+    }
+
+    /// <summary>P4 executor half, dry-run release (v0.5.0.0): the "Dry-run apply" button and
+    /// its readout. Nothing here can move gear or consume dye - the button simulates the
+    /// plan against the live inventory and prints exactly what WOULD happen, one line per
+    /// slot, plus the predicted total. The live apply ships only after this readout is
+    /// verified against the character sheet in-game.</summary>
+    private void DrawApplyDryRun()
+    {
+        var svc = _plugin.Service;
+        ImGui.Spacing();
+        ImGui.Separator();
+
+        var run = svc.LastDryRun;
+        if (ImGui.Button("Dry-run apply##lfr-dryrun"))
+        {
+            run = svc.DryRunApply();
+        }
+        ImGui.SameLine();
+        ImGui.TextDisabled(run is { } r
+            ? $"- simulation only, nothing was moved or consumed ({r.Applies} change(s), {r.Dyes} dye(s), {r.Skips} skip(s))"
+            : "- simulate the plan against the current inventory; nothing is moved or consumed");
+
+        if (run is not { } cur) return;
+
+        ImGui.PushFont(UiBuilder.MonoFont);
+        ImGui.TextUnformatted(cur.Reaches80
+            ? $"after apply: {cur.PredictedTotal} - full 50k MGP"
+            : $"after apply: {cur.PredictedTotal} - needs +{80 - cur.PredictedTotal} for 80");
+        ImGui.PopFont();
+
+        if (ImGui.BeginTable("dryrun", 2, ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH))
+        {
+            ImGui.TableSetupColumn("Slot", ImGuiTableColumnFlags.WidthFixed, 70);
+            ImGui.TableSetupColumn("What would happen", ImGuiTableColumnFlags.WidthStretch, 420);
+            ImGui.TableHeadersRow();
+            foreach (var s in cur.Steps)
+            {
+                ImGui.TableNextRow();
+                ImGui.TableNextColumn();
+                ImGui.TextUnformatted(s.Step.Slot.DisplayName());
+                ImGui.TableNextColumn();
+                switch (s.Outcome)
+                {
+                    case StepOutcome.WouldApply:
+                        ImGui.TextUnformatted(s.Line);
+                        break;
+                    case StepOutcome.WouldConsumeDye:
+                        ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudYellow);
+                        ImGui.TextUnformatted(s.Line);
+                        ImGui.PopStyleColor();
+                        break;
+                    case StepOutcome.AlreadyCorrect:
+                        ImGui.TextDisabled(s.Line);
+                        break;
+                    case StepOutcome.SkippedUntouched:
+                        ImGui.TextDisabled(s.Line);
+                        break;
+                    default:
+                        ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudRed);
+                        ImGui.TextUnformatted(s.Line);
+                        ImGui.PopStyleColor();
+                        break;
+                }
+            }
+            ImGui.EndTable();
+        }
     }
 
     /// <summary>The week's pieces: one flat block per hinted slot — wear list, missing list

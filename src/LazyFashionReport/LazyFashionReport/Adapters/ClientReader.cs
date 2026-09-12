@@ -205,6 +205,11 @@ internal static unsafe class ClientReader
     /// sheet (each stain row links its Items). Static so the framework-thread read can map
     /// without holding a sheet reference.</summary>
     public static Dictionary<uint, uint> DyeItemToStain { get; } = new();
+
+    /// <summary>Reverse map, rebuilt by SheetAdapter.Load alongside DyeItemToStain: stain id ->
+    /// the dye item id that applies it (0 when unknown). The executor uses it to locate the
+    /// physical dye stock that an apply would consume.</summary>
+    public static Dictionary<uint, uint> StainToDyeItem { get; } = new();
     private static bool IsOwnContainer(InventoryType type) => type switch
     {
         InventoryType.EquippedItems => true,
