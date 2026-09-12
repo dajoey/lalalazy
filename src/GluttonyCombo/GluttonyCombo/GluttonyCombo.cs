@@ -1,4 +1,4 @@
-using Dalamud.Game.Gui.Dtr;
+﻿using Dalamud.Game.Gui.Dtr;
 using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
@@ -609,6 +609,10 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         MoveHook.Dispose();
         CustomActions.Dispose();
 
+        // SmartMover must stop driving vnavmesh before nav IPC goes away (v1.0.4.191).
+        AutoRotation.SmartMover.Shutdown();
+
+        ConflictingPluginsChecks.Dispose();
         ConflictingPluginsChecks.Dispose();
         AllStaticIPCSubscriptions.Dispose();
         AutoDutyIPC?.Dispose();

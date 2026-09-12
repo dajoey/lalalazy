@@ -1,4 +1,4 @@
-#region
+﻿#region
 
 using Dalamud.Game.ClientState.Objects.Types;
 using ECommons.DalamudServices;
@@ -132,7 +132,7 @@ internal static class PositionalMover
     ///     Determines the desired positional for the current melee job based on
     ///     buff state and combo progression.
     /// </summary>
-    private static DesiredPositional GetDesiredPositional()
+    internal static DesiredPositional GetDesiredPositional()
     {
         var job = Player.Job;
 

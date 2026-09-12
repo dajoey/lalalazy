@@ -39,6 +39,12 @@ public class DPSSettings
     public bool AoEOnlyWhenTargeting = false;
     public bool UnTargetAndDisableForPenalty = false;
     public bool AutoPositionals = false;
+    /// <summary>Fork (v1.0.4.191): SmartMover owns movement when on - move to DPS target range, derived danger-zone dodging, positionals; never stands down for BossMod.</summary>
+    public bool SmartMover = false;
+    /// <summary>Extra safety margin in yalms kept from live danger zones (derived from enemy casts).</summary>
+    public float SmartMoverDangerBufferY = 1f;
+    /// <summary>Movement-decision telemetry (MV| lines in the plugin log). Off by default.</summary>
+    public bool MovementTelemetry = false;
 }
 
 public class HealerSettings

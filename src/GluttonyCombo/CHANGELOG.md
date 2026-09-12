@@ -1,4 +1,13 @@
-﻿## v1.0.4.190 (2026-09-11) [testing]
+﻿## v1.0.4.191 (2026-09-12) [testing]
+### Added
+- **Smart Movement: an optional in-house movement AI** (Auto-Rotation settings, off by default). When enabled, Gluttony Combo moves the character to attack range of the current auto-rotation target - even when that target differs from the hard target, which stays fully under the player's control - walks out of telegraphed enemy danger zones derived live from enemy cast data, and handles melee positionals (rear/flank) as part of the same mover. Movement pauses instantly on manual input (keyboard or gamepad), holds while casting except during the final slidecast window, and pauses while BossMod Reborn's AI is actively steering; it does not stand down merely because BossMod is installed, and works with BossMod entirely absent. Requires vnavmesh; non-tank roles only. (files: new `AutoRotation/SmartMover.cs`, `AutoRotation/SmartMoverCore.cs`, `AutoRotation/DangerZoneModel.cs`, `AutoRotation/MovementTelemetryFormat.cs`, `Services/IPC_Subscriber/BossModHintsIPC.cs`; functions: `SmartMover.Tick`, `SmartMoverCore.Decide`, `DangerZoneModel.BuildZone`)
+- **Danger zone buffer slider (0-3 yalms)** under Smart Movement: movement decisions keep the configured margin from live danger zones. (file: `Window/Tabs/AutoRotationTab.cs`)
+- **Movement telemetry, off by default**: one `MV|` decision line per movement-decision change in the plugin log, for offline grading; toggled with `/gluttony mvtel` or the checkbox under Smart Movement. (file: `AutoRotation/MovementTelemetryFormat.cs`)
+### Notes
+- Smart Movement intentionally replaces Auto Positionals while enabled (the checkbox stands down to avoid double-steering); positional handling is skipped while True North is active or when the target is facing the player. Verified by a new offline harness, `tests/GluttonyCombo.SmartMoverHarness` (70 cases: engage/dodge/positional/coexistence/anti-jitter/telemetry).
+
+
+## v1.0.4.190 (2026-09-11) [testing]
 
 ### Fixed
 

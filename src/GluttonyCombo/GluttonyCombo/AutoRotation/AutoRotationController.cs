@@ -699,6 +699,9 @@ internal unsafe class AutoRotationController
     internal static void Run()
     {
         cfg ??= new AutoRotationConfigIPCWrapper(Service.Configuration.RotationConfig);
+        // SmartMover (v1.0.4.191): movement must not die when every rotation candidate
+        // is gated this tick, so it runs before ProcessAutoActions and its skip gates.
+        SmartMover.Tick();
 
         if (!cfg.Enabled)
             OverrideTarget = null;
@@ -1835,8 +1838,10 @@ internal unsafe class AutoRotationController
         }
         else
         {
-            // Auto positional movement for melee DPS
+            // Auto positional movement for melee DPS. SmartMover (v1.0.4.191) runs its
+            // own positional logic as part of engage - don't double-steer when it owns movement.
             if (cfg.DPSSettings.AutoPositionals &&
+                !cfg.DPSSettings.SmartMover &&
                 Jobs.GetRoleFromJob(Player.Job) is Jobs.JobRole.MeleeDPS)
             {
                 var target = AutoRotationHelper.GetSingleTarget(mode);

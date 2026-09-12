@@ -1,4 +1,4 @@
-#region
+﻿#region
 
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility.Raii;
@@ -171,6 +171,22 @@ internal class AutoRotationTab : ConfigWindow
             changed |= ImGui.Checkbox("Auto Positionals (Melee DPS)###AutoPositionals", ref cfg.DPSSettings.AutoPositionals);
 
             ImGuiComponents.HelpMarker("When enabled, melee DPS jobs will automatically move to the correct positional (flank/rear) using vnavmesh.\nRequires vnavmesh to be installed.\nOnly activates in melee range. Stops immediately on player movement input.\nDoes not activate when BossMod AI is handling movement.");
+
+            ImGui.Separator();
+            changed |= ImGui.Checkbox("Smart Movement###SmartMover", ref cfg.DPSSettings.SmartMover);
+            ImGuiComponents.HelpMarker("When enabled, Gluttony Combo moves the character itself: to attack range of the current auto-rotation target (even when it differs from the hard target), out of telegraphed danger zones derived from enemy casts, and to positionals.\nRequires vnavmesh. Pauses instantly on manual movement input (keyboard or gamepad), while casting (except the slidecast window), and while BossMod Reborn's AI is actively steering.\nDoes not require or stand down for BossMod Reborn.");
+            if (cfg.DPSSettings.SmartMover)
+            {
+                var buf = cfg.DPSSettings.SmartMoverDangerBufferY;
+                ImGui.SliderFloat("Danger zone buffer (yalms)###SmartMoverDangerBuffer", ref buf, 0f, 3f, "%.1f");
+                if (Math.Abs(buf - cfg.DPSSettings.SmartMoverDangerBufferY) > 0.01f)
+                {
+                    cfg.DPSSettings.SmartMoverDangerBufferY = buf;
+                    changed = true;
+                }
+                changed |= ImGui.Checkbox("Movement telemetry###MovementTelemetry", ref cfg.DPSSettings.MovementTelemetry);
+                ImGuiComponents.HelpMarker("Writes one MV| decision line per movement decision change to the plugin log (nothing leaves the machine). Toggle with /gluttony mvtel.");
+            }
 
             changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(AutoRotationUI.Checkbox_DPSAlwaysHardTarget, ref cfg.DPSSettings.DPSAlwaysHardTarget, "DPSAlwaysHardTarget");
 

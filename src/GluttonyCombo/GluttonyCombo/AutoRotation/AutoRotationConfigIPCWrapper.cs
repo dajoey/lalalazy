@@ -1,4 +1,4 @@
-#region
+﻿#region
 
 using System;
 using GluttonyCombo.API.Enum;
@@ -201,6 +201,15 @@ public class DPSSettingsIPCWrapper(DPSSettings settings)
     }
 
     public bool AutoPositionals => settings.AutoPositionals;
+
+    /// <summary>Fork (v1.0.4.191): SmartMover owns movement when on.</summary>
+    public bool SmartMover => settings.SmartMover;
+
+    /// <summary>Extra safety margin kept from live danger zones, in yalms.</summary>
+    public float SmartMoverDangerBufferY => settings.SmartMoverDangerBufferY;
+
+    /// <summary>Movement-decision telemetry (MV| lines). Off by default.</summary>
+    public bool MovementTelemetry => settings.MovementTelemetry;
 
     public bool AoEOnlyWhenTargeting => settings.AoEOnlyWhenTargeting;
 
