@@ -79,8 +79,13 @@ internal static class DangerZoneModel
         if (p.CastType is 2 or 5 && p.EffectRange >= RaidwideSize)
             return null;
 
-        // Cast aimed at the player: undodgeable, and dodging fights the healers.
-        if (p.CastTargetId != 0 && p.CastTargetId == p.PlayerId)
+        // Cast aimed at the player: only shapes anchored to the TARGET's feet
+        // (ground circle, donut, cross, location rect) track the player and
+        // cannot be outrun. Shapes anchored to the CASTER (point-blank circle,
+        // cones, lines, charges) keep their geometry no matter who is aimed at
+        // and must still be dodged - solo, every mob cast targets the player,
+        // and the old blanket skip starved the dodge branch entirely (v1.0.4.192).
+        if (IsPlayerAnchoredUndodgeable(p.CastType, p.CastTargetId, p.PlayerId))
             return null;
 
         var aim = AimRot(p.CastTargetLoc - p.CasterPos);
@@ -176,6 +181,14 @@ internal static class DangerZoneModel
         var lateral = d.X * sin + d.Y * cos; // position across it
         return along >= -MaxError - buffer && along <= length + buffer && MathF.Abs(lateral) <= halfWidth + buffer;
     }
+
+    /// <summary>
+    ///     Whether a cast aimed at the player is anchored to the player's own
+    ///     position (undodgeable - the zone follows the target) rather than to
+    ///     the caster's geometry (dodgeable regardless of aim).
+    /// </summary>
+    internal static bool IsPlayerAnchoredUndodgeable(byte castType, ulong castTargetId, ulong playerId) =>
+        castTargetId != 0 && castTargetId == playerId && castType is 2 or 10 or 11 or 12;
 
     private static float AimRot(Vector2 v) => v.LengthSquared() < 0.0001f ? 0f : MathF.Atan2(v.Y, v.X);
 

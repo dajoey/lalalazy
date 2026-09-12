@@ -166,10 +166,15 @@ internal static class SmartMoverCore
 
         if (!overrideHold && h.HasLastDest && w.NowSec < h.HoldUntilSec)
         {
-            // Keep the held destination unless the new one is materially different.
+            // Keep the held destination unless the new one is materially
+            // different - a quick target switch re-aims immediately instead
+            // of steering at the old target's flank for the rest of the hold
+            // (v1.0.4.192; both branches used to return the held dest).
             if (Vector2.Distance(h.LastDest, dest) < DestChangeYalms)
                 return new MoveDecision(Decision.Move, h.LastDest, reason);
-            return new MoveDecision(Decision.Move, h.LastDest, reason);
+            h.LastDest = dest;
+            h.HoldUntilSec = w.NowSec + DestHoldSeconds;
+            return new MoveDecision(Decision.Move, dest, reason);
         }
 
         h.LastDest = dest;

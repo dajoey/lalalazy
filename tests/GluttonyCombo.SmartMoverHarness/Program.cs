@@ -18,6 +18,7 @@ void Check(string name, bool cond, string detail = "")
 }
 
 var NoZones = (IReadOnlyList<DangerZoneModel.Zone>)Array.Empty<DangerZoneModel.Zone>();
+byte SmartZoneDDG() => SmartMoverCore.ReasonDodgeCode;
 
 SmartMoverCore.MoverWorld World(
     Vector2? player = null, float range = 3f, bool posWanted = false, bool rear = false,
@@ -45,10 +46,39 @@ SmartMoverCore.MoverWorld World(
         5, 30f, 0f, 3f, new(0, 0), new(0, 0), 0, 1, 5f, 60f, 0f));
     Check("zone/raidwide-skipped", rw is null);
 
-    // Cast targets the player -> skipped
+    // v1.0.4.192 solo regression: a TARGET-anchored cast aimed at the player
+    // still tracks the player and is skipped (undodgeable)...
     var pt = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
         2, 6f, 0f, 3f, new(0, 0), new(0, 0), 999, 999, 5f, 60f, 0f));
-    Check("zone/targets-player-skipped", pt is null);
+    Check("zone/targets-player-ground-circle-skipped", pt is null);
+
+    // ...but a CASTER-anchored cast aimed at the player (point-blank circle,
+    // cone, line, charge - every solo mob telegraph) MUST build its zone:
+    // the old blanket skip starved the dodge branch solo (Joey 2026-09-12).
+    var solo5 = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
+        5, 8f, 0f, 3f, new(0, 0), new(0, 0), 999, 999, 5f, 60f, 0f));
+    Check("zone/solo-pb-circle-aimed-at-player-builtin", solo5 is { Kind: DangerZoneModel.ShapeKind.Circle }, $"z={solo5}");
+    var solo3 = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
+        3, 10f, 0f, 3f, new(0, 0), new(0, -8), 999, 999, 5f, 90f, 0f));
+    Check("zone/solo-cone-aimed-at-player-builtin", solo3 is { Kind: DangerZoneModel.ShapeKind.Cone });
+    var solo4 = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
+        4, 20f, 6f, 3f, new(0, 0), new(0, -8), 999, 999, 5f, 60f, 0f));
+    Check("zone/solo-line-aimed-at-player-builtin", solo4 is { Kind: DangerZoneModel.ShapeKind.Rect });
+    var solo8 = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
+        8, 0f, 8f, 3f, new(0, 0), new(0, -20), 999, 999, 5f, 60f, 0f));
+    Check("zone/solo-charge-aimed-at-player-builtin", solo8 is { Kind: DangerZoneModel.ShapeKind.ChargeRect });
+    var solo13 = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
+        13, 10f, 0f, 3f, new(0, 0), new(0, -8), 999, 999, 5f, 90f, 0f));
+    Check("zone/solo-cone13-aimed-at-player-builtin", solo13 is { Kind: DangerZoneModel.ShapeKind.Cone });
+    var solo10 = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
+        10, 12f, 0f, 0f, new(0, 0), new(0, 0), 999, 999, 5f, 60f, 5f));
+    Check("zone/solo-donut-on-player-still-skipped", solo10 is null);
+    var solo11 = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
+        11, 12f, 6f, 0f, new(0, 0), new(0, 0), 999, 999, 5f, 60f, 0f));
+    Check("zone/solo-cross-on-player-still-skipped", solo11 is null);
+    var solo12 = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
+        12, 20f, 6f, 3f, new(0, 0), new(0, -8), 999, 999, 5f, 60f, 0f));
+    Check("zone/solo-loc-rect-on-player-still-skipped", solo12 is null);
 
     // Rect CastType 4 from caster toward target (target at +Z => aim rot = +90deg math convention)
     var rect = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
@@ -154,6 +184,16 @@ SmartMoverCore.MoverWorld World(
     Check("dodge/escape-avoids-second-zone", dT.Kind == SmartMoverCore.Decision.Move &&
         SmartMoverCore.UnsafeAt(dT.Dest, twoZones, 0.25f) is null, $"kind={dT.Kind} dest={dT.Dest}");
 
+    // v1.0.4.192 solo end-to-end: the mob's point-blank circle is aimed AT
+    // the player (every solo telegraph) and the dodge must still fire.
+    var soloZone = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
+        5, 8f, 0f, 3f, new(0, -16), new(0, -16), 999, 999, 5f, 60f, 0f));
+    Check("dodge/solo-zone-built", soloZone is not null);
+    var hs = new SmartMoverCore.Hysteresis();
+    var ws = World(player: new(0, -16), zones: soloZone is null ? NoZones : new[] { soloZone.Value });
+    var ds = SmartMoverCore.Decide(ws, hs);
+    Check("dodge/solo-aimed-at-player-fires", ds.Kind == SmartMoverCore.Decision.Move && ds.Reason == SmartZoneDDG(), $"kind={ds.Kind} r={ds.Reason}");
+
     // Outside every zone -> no dodge
     var h2 = new SmartMoverCore.Hysteresis();
     var d2 = SmartMoverCore.Decide(World(player: new(0, -30), zones: zones), h2);
@@ -247,6 +287,19 @@ SmartMoverCore.MoverWorld World(
     var w3 = w1 with { TargetPos = new Vector2(6f, 0f), NowSec = 102.0 };
     var d3 = SmartMoverCore.Decide(w3, h);
     Check("jitter/after-hold-follows", d3.Kind == SmartMoverCore.Decision.Move && d3.Dest != d1.Dest, $"d3={d3.Dest}");
+
+    // v1.0.4.192: a MATERIALLY different destination inside the hold is
+    // adopted at once (quick target switch), not steered at the old flank
+    // until the hold expires (the dead second branch Joey saw as wonky).
+    var hq = new SmartMoverCore.Hysteresis();
+    var wq1 = World(player: new(0, -18), range: 3f, target: new(0, 0), hitbox: 5f) with { NowSec = 200.0 };
+    var dq1 = SmartMoverCore.Decide(wq1, hq);
+    Check("retarget/first-move", dq1.Kind == SmartMoverCore.Decision.Move);
+    var wq2 = wq1 with { TargetPos = new Vector2(12f, 0f), NowSec = 200.25 };
+    var dq2 = SmartMoverCore.Decide(wq2, hq);
+    var idealNew = Vector2.Distance(dq2.Dest, new Vector2(12f, 0f));
+    var idealOld = Vector2.Distance(dq2.Dest, new Vector2(0, 0));
+    Check("retarget/mid-hold-re-aims", dq2.Kind == SmartMoverCore.Decision.Move && idealNew < idealOld, $"dest={dq2.Dest} dNew={idealNew:F1} dOld={idealOld:F1}");
 
     // Min-move: sub-1y adjustment is not worth a path call
     var h2 = new SmartMoverCore.Hysteresis();
