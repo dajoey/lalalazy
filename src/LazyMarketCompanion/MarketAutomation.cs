@@ -406,6 +406,22 @@ internal sealed class MarketAutomation : Window, IDisposable
       EnqueueSingleRetainer(i, doMarket);
     }
 
+    // 0.1.42.0, final deposit lap (fixes "mostly just filled up my bags", Helm t-joey-1789190796770):
+    // After the last retainer's Auto-Market session, deposit any remaining routed stock stranded in bags.
+    // The candidate list is built here because retainers is an ECommons AddonMaster array whose element
+    // type has no nameable nested type here - var at the call site avoids inventing one.
+    if (doMarket && Plugin.Configuration.CategoryRetainerRules.Count > 0)
+    {
+      var lapRetainers = new List<(int Index, string Name)>();
+      for (var lapI = 0; lapI < num; lapI++)
+      {
+        if (!allEnabled && !Plugin.Configuration.EnabledRetainerNames.Contains(retainers[lapI].Name))
+          continue;
+        lapRetainers.Add((lapI, retainers[lapI].Name));
+      }
+      EnqueueFinalDepositLap(lapRetainers);
+    }
+
     _taskManager.Enqueue(RemoveTalkAddonListeners);
     _taskManager.Enqueue(AnnounceRunDone, "AnnounceSweepDone");
     _taskManager.Enqueue(() => AutoRetainerIPC.Suppressed(false));
@@ -461,6 +477,112 @@ internal sealed class MarketAutomation : Window, IDisposable
     _taskManager.DelayNext(100);
     _taskManager.Enqueue(CloseRetainer, $"CloseRetainer{index}");
     _taskManager.DelayNext(100);
+  }
+
+  /// <summary>
+  /// 0.1.42.0 (Helm t-joey-1789190796770, "It tried a lot harder but mostly just filled up my bags"):
+  /// Runs a final deposit lap after the last retainer's Auto-Market session. The 2026-09-12 02:32 EDT sweep
+  /// pulled 71 stacks to bags but deposited only 16, stranding 55 stacks because stock pulled during later
+  /// sessions had no opportunity to deposit into retainers visited earlier. The lap reopens enabled retainers
+  /// that have assigned bags stock waiting and runs the mover in deposit-only mode. It never pulls, preventing
+  /// newly stranded items and ensuring all routed stock reaches its home retainer in the same sweep.
+  /// </summary>
+  private void EnqueueFinalDepositLap(List<(int Index, string Name)> lapRetainers)
+  {
+    if (lapRetainers.Count == 0)
+      return;
+
+    _taskManager.Enqueue(() => RunFinalLapGate(lapRetainers), "FinalLapGate");
+  }
+
+  private bool? RunFinalLapGate(List<(int Index, string Name)> lapRetainers)
+  {
+    var names = lapRetainers.Select(r => r.Name).ToList();
+    if (!AutoMarketService.HasPendingRoutingDepositsForAny(names))
+    {
+      Svc.Log.Information("[LMC] routing lap: no pending deposits - skipping the lap");
+      return true;
+    }
+
+    var candidateSteps = new List<Step>();
+    foreach (var (index, name) in lapRetainers)
+    {
+      var capturedIndex = index;
+      var capturedName = name;
+      candidateSteps.Add(new Step(() =>
+      {
+        if (!AutoMarketService.HasPendingRoutingDepositsForAny(new[] { capturedName }))
+        {
+          Svc.Log.Information($"[LMC] routing lap: {capturedName} has nothing pending - skipped");
+          return true;
+        }
+
+        var sessionSteps = new List<Step>
+        {
+          new(() => ClickRetainer(capturedIndex), $"LapClickRetainer_{capturedName}", DelayAfterMs: 100),
+          new(ClickSellItems, $"LapClickSellItems_{capturedName}", DelayAfterMs: 500),
+          new(() => RunLapDepositMover(capturedName), $"LapDepositMover_{capturedName}", DelayAfterMs: 500),
+          new(CloseRetainerSellList, $"LapCloseSellList_{capturedName}", DelayAfterMs: 100),
+          new(CloseRetainer, $"LapCloseRetainer_{capturedName}", DelayAfterMs: 100),
+        };
+        // 0.1.42.0: reuses InsertSteps (front-insert, reverse order - LegacyTaskManager semantics).
+        InsertSteps(sessionSteps);
+        return true;
+      }, $"LapCandidate_{capturedName}"));
+    }
+    // 0.1.42.0: reuses InsertSteps (front-insert, reverse order - LegacyTaskManager semantics).
+    InsertSteps(candidateSteps);
+    return true;
+  }
+
+  private unsafe bool? RunLapDepositMover(string retainerName)
+  {
+    if (!(GenericHelpers.TryGetAddonByName<AtkUnitBase>("RetainerSellList", out var addon) && GenericHelpers.IsAddonReady(addon)))
+      return false;
+
+    var routingPlan = AutoMarketService.PlanRoutingDepositsOnly();
+    foreach (var note in routingPlan.Notes)
+      Svc.Log.Information($"[LMC] {note}");
+
+    if (routingPlan.Ops.Count == 0)
+    {
+      Svc.Log.Information($"[LMC] routing lap: {retainerName} plan came back empty (bags/retainer full or state changed) - skipped");
+      return true;
+    }
+
+    Svc.Log.Information($"[LMC] routing move plan: {RoutingMove.Summarize(routingPlan.Ops)}: {string.Join(", ", routingPlan.Ops.Select(o => $"in {o.ItemId}{(o.HQ ? " HQ" : "")} @{AutoMarket.AutoMarketService.NameOfContainer((InventoryType)o.SrcContainer)}#{o.SrcSlot}"))}");
+    var moveSteps = new List<Step>();
+    var movedOk = 0;
+    var movedFail = 0;
+    foreach (var op in routingPlan.Ops)
+    {
+      var captured = op;
+      moveSteps.Add(new Step(() =>
+      {
+        if (AutoMarketService.ExecuteRoutingMove(captured, out var rc))
+        {
+          movedOk++;
+          Svc.Log.Information($"[LMC] routing move: OK deposited to retainer: item {captured.ItemId}{(captured.HQ ? " HQ" : "")} from container {captured.SrcContainer} slot {captured.SrcSlot}");
+        }
+        else
+        {
+          movedFail++;
+          Svc.Log.Warning($"[LMC] routing move: FAILED item {captured.ItemId}{(captured.HQ ? " HQ" : "")} container {captured.SrcContainer}#{captured.SrcSlot} rc={rc}; leaving the stack where it is");
+        }
+        return true;
+      }, $"LapRouteMove{captured.SrcSlot}", DelayAfterMs: 250));
+    }
+    moveSteps.Add(new Step(() =>
+    {
+      _routingMovedOk += movedOk;
+      _routingMovedFail += movedFail;
+      if (Plugin.Configuration.ShowAutoMarketMessages && movedOk + movedFail > 0)
+        Communicator.PrintInfo($"routing lap: deposited {movedOk} stack(s) into {retainerName}" + (movedFail > 0 ? $", {movedFail} could not move (full or busy)" : string.Empty));
+      return true;
+    }, "LapRouteMoveSummary", DelayAfterMs: 100));
+
+    InsertSteps(moveSteps);  // 0.1.42.0: InsertSteps verified identical (front-insert, reverse order)
+    return true;
   }
 
   private static unsafe bool? ClickRetainer(int index)
@@ -1610,6 +1732,7 @@ internal sealed class MarketAutomation : Window, IDisposable
 
   private void OnArReadyToPostprocess(string retainer)
   {
+    // 0.1.42.0: The AR-driven path is unchanged because AutoRetainer itself decides which retainer is "last" and LMC cannot add sessions to AR's cycle.
     // 0.1.15.2, stop-on-failure: a vendor-leg failure stopped the sweep on purpose, so further
     // AutoRetainer postprocess sessions are REFUSED until the user starts something new
     // (ClearState resets the flag). Releasing immediately keeps AutoRetainer's own cycle moving -

@@ -2857,6 +2857,87 @@ StockStack BagStack(uint id, int slot, int qty, uint cat = CatA, bool marketable
   Check("68 done line: routed=0 still renders plain done.", allZero == "done.", allZero);
 }
 
+// ===== 0.1.42.0: final deposit lap =====
+
+// 69. PlanDepositsOnly produces ONLY BagsToRetainer ops for the assigned retainer; pulls are never planned.
+{
+  var rules = new List<ItemRule> { Rule(1001, 99), Rule(1002, 99) };
+  var info = CatInfo(1001, CatA); info["1002:nq"] = new(1002, false, CatB, true);
+  var stock = new List<StockStack> { BagStack(1001, 1, 10), RetStack(1002, 2, 20) };
+  var plan = RoutingMove.PlanDepositsOnly(stock, rules, info, new Dictionary<string, bool>(), routingRules, "R1", () => 10, () => 10);
+  Check("69 PlanDepositsOnly: only bags stock moves into assigned retainer; pulls skipped",
+    plan.Ops.Count == 1 && plan.Ops[0].Leg == MoveLeg.BagsToRetainer && plan.Ops[0].ItemId == 1001,
+    $"ops={plan.Ops.Count} legs={string.Join(",", plan.Ops.Select(o => o.Leg.ToString()))}");
+}
+
+// 70. PlanDepositsOnly honours guards: keep-floor, excluded, unmarketable, sheet-miss never move.
+{
+  var rules = new List<ItemRule>
+  {
+    Rule(1001, 99, keepB: 50),
+    Rule(1002, 99),
+    Rule(1003, 99),
+    Rule(1004, 99),
+  };
+  var info = CatInfo(1001, CatA);
+  info["1002:nq"] = new(1002, false, CatA, true);
+  info["1003:nq"] = new(1003, false, CatA, false);
+  var excl = new Dictionary<string, bool> { ["1002:nq"] = true };
+  var stock = new List<StockStack>
+  {
+    BagStack(1001, 1, 50),
+    BagStack(1002, 2, 10),
+    BagStack(1003, 3, 10),
+    BagStack(1004, 4, 10),
+  };
+  var plan = RoutingMove.PlanDepositsOnly(stock, rules, info, excl, routingRules, "R1", () => 10, () => 10);
+  Check("70 PlanDepositsOnly guards: keep-floor/excluded/unmarketable/sheet-miss never move",
+    plan.Ops.Count == 0, $"ops={plan.Ops.Count}");
+}
+
+// 71. PlanDepositsOnly sets stoppedRet and note when freeRetainerSlots is 0.
+{
+  var rules = new List<ItemRule> { Rule(1001, 99) };
+  var stock = new List<StockStack> { BagStack(1001, 1, 10) };
+  var plan = RoutingMove.PlanDepositsOnly(stock, rules, CatInfo(1001, CatA), new Dictionary<string, bool>(), routingRules, "R1", () => 10, () => 0);
+  Check("71 PlanDepositsOnly: stoppedRet set with note when freeRetainerSlots is 0",
+    plan.Ops.Count == 0 && plan.StoppedForRetainer && plan.Notes.Any(n => n.Contains("pages are full")),
+    $"ops={plan.Ops.Count} stoppedRet={plan.StoppedForRetainer}");
+}
+
+// 72. HasPendingDeposits: true for assigned retainer, false for other retainers.
+{
+  var rules = new List<ItemRule> { Rule(1001, 99) };
+  var stock = new List<StockStack> { BagStack(1001, 1, 10) };
+  var hasR1 = RoutingMove.HasPendingDeposits(stock, rules, CatInfo(1001, CatA), new Dictionary<string, bool>(), routingRules, "R1");
+  var hasR2 = RoutingMove.HasPendingDeposits(stock, rules, CatInfo(1001, CatA), new Dictionary<string, bool>(), routingRules, "R2");
+  Check("72 HasPendingDeposits: true for assigned retainer R1", hasR1);
+  Check("72 HasPendingDeposits: false for other retainer R2", !hasR2);
+}
+
+// 73. HasPendingDeposits: false when item is keep-floored or excluded.
+{
+  var rules = new List<ItemRule> { Rule(1001, 99), Rule(1002, 99, keepB: 50) };
+  var info = CatInfo(1001, CatA);
+  info["1002:nq"] = new(1002, false, CatA, true);
+  var stockFloored = new List<StockStack> { BagStack(1002, 1, 30) };
+  var hasFloored = RoutingMove.HasPendingDeposits(stockFloored, rules, info, new Dictionary<string, bool>(), routingRules, "R1");
+  Check("73 HasPendingDeposits: false when item is keep-floored", !hasFloored);
+
+  var stockExcl = new List<StockStack> { BagStack(1001, 1, 10) };
+  var exclMap = new Dictionary<string, bool> { ["1001:nq"] = true };
+  var hasExcluded = RoutingMove.HasPendingDeposits(stockExcl, rules, info, exclMap, routingRules, "R1");
+  Check("73 HasPendingDeposits: false when item is excluded", !hasExcluded);
+}
+
+// 74. HasPendingDeposits: NOT masked by zero free retainer slots.
+{
+  var rules = new List<ItemRule> { Rule(1001, 99) };
+  var stock = new List<StockStack> { BagStack(1001, 1, 10) };
+  var hasZeroCap = RoutingMove.HasPendingDeposits(stock, rules, CatInfo(1001, CatA), new Dictionary<string, bool>(), routingRules, "R1", () => 0);
+  Check("74 HasPendingDeposits: not masked by zero free retainer slots", hasZeroCap);
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 

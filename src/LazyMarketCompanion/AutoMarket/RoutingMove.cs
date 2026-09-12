@@ -79,12 +79,90 @@ public static class RoutingMove
     Func<int> freeBagSlots,
     Func<int> freeRetainerSlots)
   {
+    return PlanCore(stock, rules, categoryByKey, excludeByKey, categoryRules, retainerName,
+      freeBagSlots, freeRetainerSlots, depositsOnly: false);
+  }
+
+  /// <summary>
+  /// 0.1.42.0: Runs the mover in deposit-only mode for the final deposit lap.
+  /// Skips all RetainerToBags pull moves so stock is only ever deposited.
+  /// </summary>
+  public static RoutingMovePlan PlanDepositsOnly(
+    IReadOnlyList<StockStack> stock,
+    IReadOnlyList<ItemRule> rules,
+    IReadOnlyDictionary<string, ItemCategoryInfo> categoryByKey,
+    IReadOnlyDictionary<string, bool> excludeByKey,
+    IReadOnlyList<CategoryRetainerRule> categoryRules,
+    string retainerName,
+    Func<int> freeBagSlots,
+    Func<int> freeRetainerSlots)
+  {
+    return PlanCore(stock, rules, categoryByKey, excludeByKey, categoryRules, retainerName,
+      freeBagSlots, freeRetainerSlots, depositsOnly: true);
+  }
+
+  /// <summary>
+  /// 0.1.42.0: True when at least one bags stack would generate a deposit op for retainerName under the decision rules.
+  /// </summary>
+  public static bool HasPendingDeposits(
+    IReadOnlyList<StockStack> stock,
+    IReadOnlyList<ItemRule> rules,
+    IReadOnlyDictionary<string, ItemCategoryInfo> categoryByKey,
+    IReadOnlyDictionary<string, bool> excludeByKey,
+    IReadOnlyList<CategoryRetainerRule> categoryRules,
+    string retainerName)
+  {
+    // Capacity is unknowable before the retainer is opened; the lap decides capacity at execution time like every other move.
+    return HasPendingDeposits(stock, rules, categoryByKey, excludeByKey, categoryRules, retainerName, () => 0, () => int.MaxValue);
+  }
+
+  public static bool HasPendingDeposits(
+    IReadOnlyList<StockStack> stock,
+    IReadOnlyList<ItemRule> rules,
+    IReadOnlyDictionary<string, ItemCategoryInfo> categoryByKey,
+    IReadOnlyDictionary<string, bool> excludeByKey,
+    IReadOnlyList<CategoryRetainerRule> categoryRules,
+    string retainerName,
+    Func<int> freeRetainerSlots)
+  {
+    // Capacity is unknowable before the retainer is opened; the lap decides capacity at execution time like every other move.
+    return HasPendingDeposits(stock, rules, categoryByKey, excludeByKey, categoryRules, retainerName, () => 0, freeRetainerSlots);
+  }
+
+  public static bool HasPendingDeposits(
+    IReadOnlyList<StockStack> stock,
+    IReadOnlyList<ItemRule> rules,
+    IReadOnlyDictionary<string, ItemCategoryInfo> categoryByKey,
+    IReadOnlyDictionary<string, bool> excludeByKey,
+    IReadOnlyList<CategoryRetainerRule> categoryRules,
+    string retainerName,
+    Func<int> freeBagSlots,
+    Func<int> freeRetainerSlots)
+  {
+    // Capacity is unknowable before the retainer is opened; the lap decides capacity at execution time like every other move.
+    var plan = PlanCore(stock, rules, categoryByKey, excludeByKey, categoryRules, retainerName,
+      freeBagSlots, () => int.MaxValue, depositsOnly: true, earlyExitOnFirstOp: true);
+    return plan.Ops.Count > 0;
+  }
+
+  private static RoutingMovePlan PlanCore(
+    IReadOnlyList<StockStack> stock,
+    IReadOnlyList<ItemRule> rules,
+    IReadOnlyDictionary<string, ItemCategoryInfo> categoryByKey,
+    IReadOnlyDictionary<string, bool> excludeByKey,
+    IReadOnlyList<CategoryRetainerRule> categoryRules,
+    string retainerName,
+    Func<int> freeBagSlots,
+    Func<int> freeRetainerSlots,
+    bool depositsOnly,
+    bool earlyExitOnFirstOp = false)
+  {
     var ops = new List<RoutingMoveOp>();
     var notes = new List<string>();
     if (categoryRules.Count == 0)
       return new RoutingMovePlan(ops, notes, false, false);
 
-    var freeBags = Math.Max(0, freeBagSlots());
+    var freeBags = depositsOnly ? 0 : Math.Max(0, freeBagSlots());
     var freeRet = Math.Max(0, freeRetainerSlots());
     var stoppedBags = false;
     var stoppedRet = false;
@@ -117,6 +195,9 @@ public static class RoutingMove
 
       if (stack.Origin == StockOrigin.Retainer)
       {
+        if (depositsOnly)
+          continue;
+
         if (mapped.RetainerName == retainerName)
           continue; // already in the right retainer
 
@@ -140,6 +221,8 @@ public static class RoutingMove
         }
 
         ops.Add(new RoutingMoveOp(MoveLeg.RetainerToBags, stack.Container, stack.Slot, stack.ItemId, stack.HQ));
+        if (earlyExitOnFirstOp)
+          return new RoutingMovePlan(ops, notes, stoppedBags, stoppedRet);
         freeBags--;
       }
       else
@@ -163,6 +246,8 @@ public static class RoutingMove
         }
 
         ops.Add(new RoutingMoveOp(MoveLeg.BagsToRetainer, stack.Container, stack.Slot, stack.ItemId, stack.HQ));
+        if (earlyExitOnFirstOp)
+          return new RoutingMovePlan(ops, notes, stoppedBags, stoppedRet);
         freeRet--;
       }
     }

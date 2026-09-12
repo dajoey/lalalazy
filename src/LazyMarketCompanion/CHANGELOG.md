@@ -1,4 +1,16 @@
-﻿## v0.1.41.0 (2026-09-12)
+﻿## v0.1.42.0 (2026-09-12)
+
+### Fixed
+
+- **Routed stock pulled during a later retainer's session no longer strands in the bags until the next sweep.** The mover ran only inside each retainer's own Auto-Market session, but the sweep visits each retainer exactly once: stock pulled out of a later retainer (everything pulled during the last retainer's session, for instance) had no later session to deposit it, so it sat in the bags. The 2026-09-12 02:32 EDT sweep pulled 71 stacks and deposited only 16 while its closing line claimed "87 routed into place" - the count totalled raw moves, not items that reached their assigned retainer. The sweep now ends with a final deposit lap: after the last retainer's session, each retainer with assigned bags stock still waiting is reopened and runs the mover in deposit-only mode, so pulled stock reaches its home in the same sweep (file: `MarketAutomation.cs` `SweepAllRetainers`/`EnqueueFinalDepositLap`, `AutoMarket/AutoMarketService.cs`, `AutoMarket/RoutingMove.cs`).
+
+### Notes
+
+- The lap is deposit-only by design: it never pulls, so it cannot strand anything itself. A retainer whose pages fill up is skipped with a log line, not an error - the stock deposits on a later sweep.
+- The AutoRetainer-driven path is unchanged: AutoRetainer decides which retainer is last in its own cycle, and this plugin cannot append sessions to it.
+
+
+## v0.1.41.0 (2026-09-12)
 
 ### Fixed
 

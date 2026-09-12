@@ -721,20 +721,24 @@ internal static unsafe class AutoMarketService
   // category routing. See AutoMarket/RoutingMove.cs for the decision table.
   // =====================================================================================
 
-  /// <summary>
-  /// Builds this retainer's routing-move plan from a FRESH stock snapshot. Builds the category
-  /// lookups exactly as ApplyCategoryRouting does (same Item-sheet read, same exclude map), so the
-  /// mover and the gate can never disagree about which retainer a category is assigned to. Returns
-  /// an empty plan when no routing rules exist.
-  /// </summary>
-  public static RoutingMovePlan PlanRoutingMoves()
+  private readonly record struct RoutingLookups(
+    IReadOnlyList<StockStack> Stock,
+    IReadOnlyList<ItemRule> Rules,
+    IReadOnlyDictionary<string, ItemCategoryInfo> CategoryByKey,
+    IReadOnlyDictionary<string, bool> ExcludeByKey,
+    IReadOnlyList<CategoryRetainerRule> CategoryRules);
+
+  private static bool TryBuildRoutingLookups(out RoutingLookups lookups)
   {
+    lookups = default;
     var config = Plugin.Configuration;
     if (config.CategoryRetainerRules.Count == 0)
-      return new RoutingMovePlan(new List<RoutingMoveOp>(), new List<string>(), false, false);
+      return false;
 
-    var rules = BuildEnabledRules();
+    // NOTE: SnapshotStock() reads ALL retainer containers, which are only loaded for the OPEN retainer;
+    // that is fine here - the bags half of the snapshot is always live, and the lap only ever deposits bags stock.
     var stock = SnapshotStock();
+    var rules = BuildEnabledRules();
     var items = Svc.Data.GetExcelSheet<Item>();
     var categoryByKey = new Dictionary<string, ItemCategoryInfo>(rules.Count);
     var excludeByKey = new Dictionary<string, bool>(rules.Count);
@@ -749,8 +753,56 @@ internal static unsafe class AutoMarketService
         categoryByKey[key] = new ItemCategoryInfo(rule.ItemId, rule.HQ, row.ItemSearchCategory.RowId, row.ItemSearchCategory.RowId != 0 && !row.IsUntradable);
     }
 
-    return RoutingMove.Plan(stock, rules, categoryByKey, excludeByKey, config.CategoryRetainerRules,
+    lookups = new RoutingLookups(stock, rules, categoryByKey, excludeByKey, config.CategoryRetainerRules);
+    return true;
+  }
+
+  /// <summary>
+  /// Builds this retainer's routing-move plan from a FRESH stock snapshot. Builds the category
+  /// lookups exactly as ApplyCategoryRouting does (same Item-sheet read, same exclude map), so the
+  /// mover and the gate can never disagree about which retainer a category is assigned to. Returns
+  /// an empty plan when no routing rules exist.
+  /// </summary>
+  public static RoutingMovePlan PlanRoutingMoves()
+  {
+    if (!TryBuildRoutingLookups(out var l))
+      return new RoutingMovePlan(new List<RoutingMoveOp>(), new List<string>(), false, false);
+
+    return RoutingMove.Plan(l.Stock, l.Rules, l.CategoryByKey, l.ExcludeByKey, l.CategoryRules,
       CurrentRetainerName(), CountFreeBagSlots, RetainerPageFreeSlot);
+  }
+
+  /// <summary>Identical to PlanRoutingMoves but calls RoutingMove.PlanDepositsOnly.</summary>
+  public static RoutingMovePlan PlanRoutingDepositsOnly()
+  {
+    if (!TryBuildRoutingLookups(out var l))
+      return new RoutingMovePlan(new List<RoutingMoveOp>(), new List<string>(), false, false);
+
+    return RoutingMove.PlanDepositsOnly(l.Stock, l.Rules, l.CategoryByKey, l.ExcludeByKey, l.CategoryRules,
+      CurrentRetainerName(), CountFreeBagSlots, RetainerPageFreeSlot);
+  }
+
+  public static bool HasPendingRoutingDeposits()
+  {
+    if (!TryBuildRoutingLookups(out var l))
+      return false;
+
+    return RoutingMove.HasPendingDeposits(l.Stock, l.Rules, l.CategoryByKey, l.ExcludeByKey, l.CategoryRules,
+      CurrentRetainerName(), CountFreeBagSlots, () => int.MaxValue);
+  }
+
+  public static bool HasPendingRoutingDepositsForAny(IReadOnlyList<string> retainerNames)
+  {
+    if (retainerNames.Count == 0 || !TryBuildRoutingLookups(out var l))
+      return false;
+
+    foreach (var name in retainerNames)
+    {
+      if (RoutingMove.HasPendingDeposits(l.Stock, l.Rules, l.CategoryByKey, l.ExcludeByKey, l.CategoryRules, name))
+        return true;
+    }
+
+    return false;
   }
 
   /// <summary>Empty slots across Inventory1-4 (NOT crystals - the mover never targets that container).</summary>
