@@ -16,8 +16,9 @@ namespace GluttonyCombo.AutoRotation;
 ///     Input is an immutable <see cref="MoverWorld"/> snapshot; output is one
 ///     <see cref="MoveDecision"/> per tick. Hysteresis state lives in the
 ///     caller-owned <see cref="Hysteresis"/> class so the engine stays pure and
-///     replayable. Decision order: off/nav -&gt; manual input -&gt; casting hold
-///     -&gt; BMR navigating pause -&gt; DODGE -&gt; ENGAGE -&gt; SETTLE.
+///     replayable. Decision order: off/nav/ooc -&gt; manual input -&gt; casting hold
+///     -&gt; BMR navigating pause -&gt; DODGE (combat only) -&gt; ENGAGE (pre-combat
+///     only for hostile targets) -&gt; SETTLE.
 ///     Deliberately NEVER consults "is BossMod AI enabled" - the mover does not
 ///     stand down just because BMR is installed (the PositionalMover trap).
 ///     Game rotation convention: FFXIV rotations are radians CCW from +Z/south,
@@ -74,6 +75,8 @@ internal static class SmartMoverCore
         float TargetRotation,        // GAME-convention radians (CCW from +Z)
         float TargetHitboxRadius,
         bool TargetEngaged,          // DPS target exists, targetable, alive
+        bool TargetHostile,          // target reads hostile (nameplate) - the only
+                                     // out-of-combat auto-approach allowed (v1.0.4.200)
         IReadOnlyList<DangerZoneModel.Zone> Zones,
         bool ManualInput,            // WASD / gamepad wishdir non-zero
         bool Casting,                // player is casting
@@ -122,6 +125,7 @@ internal static class SmartMoverCore
     internal const byte ReasonDodgeCode = 6;
     internal const byte ReasonEngageCode = 7;
     internal const byte ReasonSettleCode = 8;
+    internal const byte ReasonOocCode = 9;
 
     /// <summary> Chooses the movement for this tick: Move = go to Dest, Stop = stop pathing, None = no command. </summary>
     internal static MoveDecision Decide(MoverWorld w, Hysteresis h)
@@ -147,11 +151,20 @@ internal static class SmartMoverCore
         if (w.BmrNavigating)
             return StandDown(h, ReasonBmrCode);
 
-        if (!w.InCombat)
-            return StandDown(h, ReasonOffCode);
+        // v1.0.4.200 (tasks-20260915-automove-melee-01): melee move-to-target
+        // never fired before combat (Joey, Shirogane NIN on testing 1.0.4.198:
+        // hostile target acquired out of combat, zero motion, zero MV lines).
+        // The whole mover, engage included, stood down here with ReasonOffCode,
+        // which Emit filters - the approach was invisible by construction. The
+        // mover may now ENGAGE a hostile target before combat starts so melee
+        // can walk into range to pull; anything else out of combat stands down
+        // with its OWN reason (ooc) so the next grading round can see it. Dodge
+        // stays combat-gated by the explicit check on its branch below.
+        if (!w.InCombat && !(w.TargetEngaged && w.TargetHostile))
+            return StandDown(h, ReasonOocCode);
 
-        // ---- DODGE ----
-        if (UnsafeAt(w.PlayerPos, w.Zones, 0f) is not null)
+        // ---- DODGE (combat only - a pre-combat approach uses ENGAGE below) ----
+        if (w.InCombat && UnsafeAt(w.PlayerPos, w.Zones, 0f) is not null)
         {
             // v1.0.4.197: dodge-destination continuity. With several overlapping
             // AoEs the sampler's "nearest" safe point wobbles 1-2y every tick,

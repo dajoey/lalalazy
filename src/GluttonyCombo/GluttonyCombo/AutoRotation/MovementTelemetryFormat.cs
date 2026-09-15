@@ -61,6 +61,7 @@ internal static class MovementTelemetryFormat
         "ddg" => 6,
         "eng" => 7,
         "stl" => 8,
+        "ooc" => 9,
         "man" => 3,
         "cast" => 4,
         "bmr" => 5,

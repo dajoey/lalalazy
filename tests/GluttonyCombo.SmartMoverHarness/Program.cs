@@ -25,9 +25,9 @@ SmartMoverCore.MoverWorld World(
     Vector2? target = null, float tRot = 0f, float hitbox = 5f, bool engaged = true,
     IReadOnlyList<DangerZoneModel.Zone>? zones = null, bool manual = false,
     bool casting = false, float castRem = 0f, bool bmr = false, bool nav = true,
-    bool enabled = true, bool combat = true, float delta = 0.25f, bool tn = false) =>
+    bool enabled = true, bool combat = true, float delta = 0.25f, bool tn = false, bool hostile = true) =>
     new(player ?? new Vector2(0, -8), range, posWanted, rear, tn,
-        target ?? new Vector2(0, 0), tRot, hitbox, engaged, zones ?? NoZones,
+        target ?? new Vector2(0, 0), tRot, hitbox, engaged, hostile, zones ?? NoZones,
         manual, casting, castRem, bmr, nav, enabled, combat, delta, 1000.0);
 
 // ---------------------------------------------------------------- zone model
@@ -269,11 +269,36 @@ SmartMoverCore.MoverWorld World(
     var dd = SmartMoverCore.Decide(World(enabled: false), h5);
     Check("guard/off-none", dd.Kind == SmartMoverCore.Decision.None, $"kind={dd.Kind}");
 
-    // Out of combat -> stand down (pre-seeded)
+    // v1.0.4.200: out-of-combat splits on target hostility. Melee
+    // move-to-target never fired pre-combat on 1.0.4.198 (Shirogane NIN:
+    // hostile target, zero motion, zero MV lines) because the whole mover
+    // stood down here with the toggle-off reason, which Emit filters.
+    // Hostile + out of range -> engage fires pre-combat (pre-seeded first).
     var h6 = new SmartMoverCore.Hysteresis();
     SmartMoverCore.Decide(World(player: new(0, -18), range: 3f, target: new(0, 0), hitbox: 5f), h6);
-    var doc = SmartMoverCore.Decide(World(combat: false, zones: zones) with { PlayerPos = new(0, -17) }, h6);
-    Check("guard/ooc-stops", doc.Kind == SmartMoverCore.Decision.Stop, $"kind={doc.Kind}");
+    var dPre = SmartMoverCore.Decide(World(combat: false, hostile: true) with { PlayerPos = new(0, -17) }, h6);
+    Check("guard/ooc-hostile-engages", dPre.Kind == SmartMoverCore.Decision.Move && dPre.Reason == SmartMoverCore.ReasonEngageCode, $"kind={dPre.Kind} r={dPre.Reason}");
+
+    // Friendly target out of combat -> visible ooc standdown, never off (pre-seeded).
+    var h6b = new SmartMoverCore.Hysteresis();
+    SmartMoverCore.Decide(World(player: new(0, -18), range: 3f, target: new(0, 0), hitbox: 5f), h6b);
+    var dOoc = SmartMoverCore.Decide(World(combat: false, hostile: false, zones: zones) with { PlayerPos = new(0, -17) }, h6b);
+    Check("guard/ooc-friendly-stops", dOoc.Kind == SmartMoverCore.Decision.Stop, $"kind={dOoc.Kind}");
+    Check("guard/ooc-reason-not-off", dOoc.Reason == SmartMoverCore.ReasonOocCode, $"r={dOoc.Reason}");
+    Check("guard/ooc-distinct-from-off", SmartMoverCore.ReasonOocCode != SmartMoverCore.ReasonOffCode);
+
+    // No out-of-combat dodge: player inside a live zone, hostile target, no
+    // combat -> the engage branch answers (dodge is combat-gated), never ddg.
+    var h6c = new SmartMoverCore.Hysteresis();
+    var dOocZ = SmartMoverCore.Decide(World(combat: false, hostile: true, player: new(0, -8), zones: zones), h6c);
+    Check("guard/ooc-no-dodge", dOocZ.Reason != SmartMoverCore.ReasonDodgeCode, $"kind={dOocZ.Kind} r={dOocZ.Reason}");
+
+    // No target out of combat -> quiet ooc none (fresh hysteresis).
+    var h6d = new SmartMoverCore.Hysteresis();
+    var dOocN = SmartMoverCore.Decide(World(combat: false, engaged: false), h6d);
+    // (Fresh hysteresis carries reason 0 on None by design - same as the
+    // off/nav None cases above; the ooc reason rides the Stop verdict.)
+    Check("guard/ooc-no-target-none", dOocN.Kind == SmartMoverCore.Decision.None, $"kind={dOocN.Kind} r={dOocN.Reason}");
 
     // No nav -> stand down
     var h7 = new SmartMoverCore.Hysteresis();
@@ -360,6 +385,7 @@ SmartMoverCore.MoverWorld World(
     Check("mv/gate-changed-emits", MovementTelemetryFormat.ShouldEmit(k1, 900, 2500, k3, false));
     Check("mv/gate-floor-holds", !MovementTelemetryFormat.ShouldEmit(k1, 2000, 2500, k3, false));
     Check("mv/gate-dodge-bypasses", MovementTelemetryFormat.ShouldEmit(k1, 2000, 2001, k3, true));
+    Check("mv/ooc-code", MovementTelemetryFormat.DecisionCode("ooc") == SmartMoverCore.ReasonOocCode);
 
     // Alternation adversary: eng<->stl flip-flop at 4 Hz for a minute
     int emitted = 0;

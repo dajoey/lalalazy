@@ -253,6 +253,7 @@ internal static class SmartMover
             TargetRotation: target?.Rotation ?? 0f,
             TargetHitboxRadius: target?.HitboxRadius ?? 0f,
             TargetEngaged: target is not null && target.IsTargetable && !target.IsDead,
+            TargetHostile: target is not null && target.IsHostile(),
             Zones: Zones,
             ManualInput: ManualMovementInput(),
             Casting: casting,
@@ -615,7 +616,7 @@ internal static class SmartMover
         {
             var reason = ReasonString(d.Reason);
             if (reason is "off")
-                return; // toggle-off is not a decision; nav-not-ready IS (v1.0.4.198)
+                return; // toggle-off is not a decision; nav (v1.0.4.198) and ooc (v1.0.4.200) ARE
 
             var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             float? dstX = d.Kind == SmartMoverCore.Decision.Move ? d.Dest.X : null;
@@ -658,6 +659,7 @@ internal static class SmartMover
     {
         SmartMoverCore.ReasonOffCode => "off",
         SmartMoverCore.ReasonNavCode => "nav",
+        SmartMoverCore.ReasonOocCode => "ooc",
         SmartMoverCore.ReasonManualCode => "man",
         SmartMoverCore.ReasonCastCode => "cast",
         SmartMoverCore.ReasonBmrCode => "bmr",

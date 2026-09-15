@@ -174,7 +174,7 @@ internal class AutoRotationTab : ConfigWindow
 
             ImGui.Separator();
             changed |= ImGui.Checkbox("Smart Movement###SmartMover", ref cfg.DPSSettings.SmartMover);
-            ImGuiComponents.HelpMarker("When enabled, Gluttony Combo moves the character itself: to attack range of the current auto-rotation target (even when it differs from the hard target), out of telegraphed danger zones derived from enemy casts, and to positionals.\nRequires vnavmesh. Pauses instantly on manual movement input (keyboard or gamepad), while casting (except the slidecast window), and while BossMod Reborn's AI is actively steering.\nDoes not require or stand down for BossMod Reborn.");
+            ImGuiComponents.HelpMarker("When enabled, Gluttony Combo moves the character itself: to attack range of the current auto-rotation target (even when it differs from the hard target, and even before combat for hostile targets), out of telegraphed danger zones derived from enemy casts, and to positionals.\nRequires vnavmesh. Pauses instantly on manual movement input (keyboard or gamepad), while casting (except the slidecast window), and while BossMod Reborn's AI is actively steering.\nDoes not require or stand down for BossMod Reborn.");
             if (cfg.DPSSettings.SmartMover)
             {
                 var buf = cfg.DPSSettings.SmartMoverDangerBufferY;
