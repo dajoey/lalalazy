@@ -605,6 +605,23 @@ SmartMoverCore.MoverWorld World(
         SmartMoverCore.UnsafeAt(d3.Dest, cover, 0.25f) is null && d3.Dest != d1.Dest, $"d3={d3.Dest} d1={d1.Dest}");
 }
 
+// ------------------------------------------------- nav standdown visibility (v1.0.4.198)
+{
+    // A dead nav layer must not masquerade as toggle-off: the RDM
+    // Occult-Crescent window (toggle ON, telemetry ON, in combat) emitted
+    // zero MV lines because !NavReady shared ReasonOffCode with !Enabled
+    // and Emit filtered both.
+    var hNav = new SmartMoverCore.Hysteresis();
+    var dMove = SmartMoverCore.Decide(World(player: new(0, -18)), hNav);
+    Check("nav/prime-moves", dMove.Kind == SmartMoverCore.Decision.Move, $"kind={dMove.Kind} r={dMove.Reason}");
+    var dNav = SmartMoverCore.Decide(World(player: new(0, -18), nav: false), hNav);
+    Check("nav/not-ready-reason-nav", dNav.Kind == SmartMoverCore.Decision.Stop && dNav.Reason == SmartMoverCore.ReasonNavCode, $"kind={dNav.Kind} r={dNav.Reason}");
+    var hOff = new SmartMoverCore.Hysteresis();
+    _ = SmartMoverCore.Decide(World(player: new(0, -18)), hOff);
+    var dOff = SmartMoverCore.Decide(World(player: new(0, -18), enabled: false), hOff);
+    Check("nav/toggle-off-stays-off", dOff.Kind == SmartMoverCore.Decision.Stop && dOff.Reason == SmartMoverCore.ReasonOffCode, $"kind={dOff.Kind} r={dOff.Reason}");
+}
+
 // ---------------------------------------------------------------- shape asserts
 {
     Check("shape/zone-carries-remaining", typeof(DangerZoneModel.Zone).GetProperty("RemainingSec") is not null);

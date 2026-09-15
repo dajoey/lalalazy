@@ -75,6 +75,7 @@ internal static class SmartMover
     private static readonly Dictionary<(int, int), bool> _walkCache = new();
     private static int _hostileVfxSeen;
     private static long _lastOmenSilenceMs;
+    private static long _lastTickFailMs;
 
     /// <summary> Desired standing range (edge-to-edge) per role - mirrors the fork's BMR push table (GluttonyCombo.cs UpdateCaches). </summary>
     private static float DesiredRangeFor(Job job)
@@ -136,14 +137,26 @@ internal static class SmartMover
                 var silenceMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
                 if (silenceMs - _lastOmenSilenceMs > 30000)
                 {
-                    Svc.Log.Debug("[SmartMover] MVS|omen|vfx=0|ovz=0");
+                    // v1.0.4.198: Information, not Debug (see MVD above).
+                    Svc.Log.Information("[SmartMover] MVS|omen|vfx=0|ovz=0");
                     _lastOmenSilenceMs = silenceMs;
                 }
             }
         }
         catch (Exception e)
         {
-            Svc.Log.Debug($"[SmartMover] tick failed: {e}");
+            // v1.0.4.198: tick failures used to go to Debug, which never
+            // reaches dalamud.log in production - a throwing tick died
+            // silently every 250ms. Information, telemetry-gated, 60s throttle.
+            if (AutoRotationController.cfg?.DPSSettings.MovementTelemetry ?? false)
+            {
+                var failMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                if (failMs - _lastTickFailMs > 60000)
+                {
+                    _lastTickFailMs = failMs;
+                    Svc.Log.Information($"[SmartMover] tick failed: {e}");
+                }
+            }
         }
     }
 
@@ -407,7 +420,10 @@ internal static class SmartMover
             }
 
             if (debug && SeenOmenVfx.Add(info.VfxID))
-                Svc.Log.Debug($"[SmartMover] MVD|{info.Path}|k={(byte)kind}|c={info.CasterID}|age={age:F1}|aim={(haveAim ? aim.ToString("F2") : "-")}");
+                // v1.0.4.198: Information, not Debug - Debug never reaches
+                // dalamud.log in production, so every MVD| line ever written
+                // was unobservable. Still once-per-VFX (SeenOmenVfx dedupe).
+                Svc.Log.Information($"[SmartMover] MVD|{info.Path}|k={(byte)kind}|c={info.CasterID}|age={age:F1}|aim={(haveAim ? aim.ToString("F2") : "-")}");
         }
     }
 
@@ -423,7 +439,8 @@ internal static class SmartMover
         try
         {
             if (Svc.Objects.SearchById(info.CasterID) is IBattleChara c && c.IsHostile() && !c.IsDead)
-                Svc.Log.Debug($"[SmartMover] MVU|{info.Path}|c={info.CasterID}");
+                // v1.0.4.198: Information, not Debug (see MVD above).
+                Svc.Log.Information($"[SmartMover] MVU|{info.Path}|c={info.CasterID}");
         }
         catch { /* debug-only instrument; never in the hot path */ }
     }
@@ -541,7 +558,10 @@ internal static class SmartMover
                     }
                 }
 
-                NavmeshIPC.PathfindAndMoveTo(dest);
+                // v1.0.4.198: a throwing nav IPC used to kill the tick BEFORE
+                // Emit, hiding the failure (see tick-failed throttle above).
+                try { NavmeshIPC.PathfindAndMoveTo(dest); }
+                catch { /* vnavmesh gone mid-tick - re-evaluate next tick */ }
                 break;
         }
     }
@@ -594,8 +614,8 @@ internal static class SmartMover
         try
         {
             var reason = ReasonString(d.Reason);
-            if (reason is "off" or "nav")
-                return; // plugin-off states are not decisions
+            if (reason is "off")
+                return; // toggle-off is not a decision; nav-not-ready IS (v1.0.4.198)
 
             var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             float? dstX = d.Kind == SmartMoverCore.Decision.Move ? d.Dest.X : null;

@@ -19,9 +19,10 @@ namespace GluttonyCombo.AutoRotation;
 ///     nz = count of live derived zones. dst = "x,z" rounded to 1y, or "-".
 ///     ovz (v1.0.4.195) = count of live omen-telegraph zones among those.
 ///     Gate: emit on change of (dec, dst) plus a 1.0s floor; a dodge START
-///     (dec=ddg after a non-ddg line) always emits immediately; plugin-off
-///     states (off/nav/man) are never logged as decisions. 200-char budget,
-///     truncation marker ~, cut only the last field.
+///     (dec=ddg after a non-ddg line) always emits immediately; toggle-off
+///     is never logged as a decision, but nav-not-ready IS (v1.0.4.198 - a
+///     dead nav layer hiding behind "off" cost a full debug round).
+///     200-char budget, truncation marker ~, cut only the last field.
 /// </remarks>
 internal static class MovementTelemetryFormat
 {

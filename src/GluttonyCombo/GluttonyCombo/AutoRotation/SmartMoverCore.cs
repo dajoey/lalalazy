@@ -126,8 +126,17 @@ internal static class SmartMoverCore
     /// <summary> Chooses the movement for this tick: Move = go to Dest, Stop = stop pathing, None = no command. </summary>
     internal static MoveDecision Decide(MoverWorld w, Hysteresis h)
     {
-        if (!w.Enabled || !w.NavReady)
+        if (!w.Enabled)
             return StandDown(h, ReasonOffCode);
+
+        // v1.0.4.198 (tasks-20260915-automove-nododge-01): nav-not-ready gets
+        // its OWN reason. It used to share ReasonOffCode, so a dead nav layer
+        // (vnavmesh absent or not ready for the zone) was indistinguishable
+        // from the toggle being off - and Emit filtered both. The RDM
+        // Occult-Crescent window (toggle proven ON via DTR DuoLog, telemetry
+        // ON, in combat, zero MV lines) stood down here with no trace.
+        if (!w.NavReady)
+            return StandDown(h, ReasonNavCode);
 
         if (w.ManualInput)
             return StandDown(h, ReasonManualCode);
