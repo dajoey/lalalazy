@@ -2,7 +2,7 @@
     "Author":  "dajoey",
     "Name":  "Lazy Market Companion",
     "InternalName":  "LazyMarketCompanion",
-    "AssemblyVersion":  "0.1.45.0",
+    "AssemblyVersion":  "0.1.46.0",
     "Description":  "Keep an Auto-Market list of items you always sell. The companion lists them through your retainers in the stack size you choose (keeping a reserve in your bags if you want), prices every listing by matching the lowest board price instead of undercutting, and can do all of it inside AutoRetainer\u0027s venture cycle. Also re-prices existing listings (Auto Pinch). Successor to Dagobert Price Matcher; your old settings are imported automatically.",
     "ApplicableVersion":  "any",
     "RepoUrl":  "https://github.com/dajoey/lalalazy",
