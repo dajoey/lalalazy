@@ -272,6 +272,15 @@ internal static class BST_RotationLogic
     ///     Whether Tempered Release (lv18) is unlocked at the player's current level. Same
     ///     skip-if-not-learned treatment as <paramref name="borrowLearned"/>.
     /// </param>
+    /// <param name="trickedThisSummon">
+    ///     Whether Trick has fired since the current summon (the pet has acted). Parting
+    ///     Blow is never offered before the pet acts: a fresh familiar starts at 0 TP and a
+    ///     premature retreat spends Borrow/Tempered for nothing while burning the Battlehorn
+    ///     slot into its recast (Sept-14 in-game defect, Joey 2026-09-14: sacrifice before
+    ///     the pet acts, then no resummon). Defaults to true so pre-fix callers keep the
+    ///     proven Trick-then-retreat behaviour; the live half passes the real timestamp
+    ///     comparison, same idiom as <paramref name="borrowedThisSummon"/>.
+    /// </param>
     /// <returns>
     ///     Eligible steps (empty Decline) FIRST, in try order; the
     ///     <see cref="FamiliarStep.None"/> entries carrying WHY a skipped step was
@@ -281,7 +290,7 @@ internal static class BST_RotationLogic
     public static List<(FamiliarStep Step, string Decline)> ChooseFamiliarCandidates(
         bool borrowedThisSummon, bool temperedReleasedThisSummon,
         byte familiarTp, bool oneWithNatureUp, bool lingeringVantage, bool holdPartingBlowForVantage,
-        bool borrowLearned = true, bool temperedLearned = true)
+        bool borrowLearned = true, bool temperedLearned = true, bool trickedThisSummon = true)
     {
         // Eligible steps (empty Decline) collect first - the live half walks them in
         // order and falls through any ActionReady refusal - and the declines
@@ -315,12 +324,19 @@ internal static class BST_RotationLogic
                 eligible.Add((FamiliarStep.TemperedRelease, ""));
         }
 
-        // The tail is exactly one of: Trick (TP banked), Parting Blow (TP spent, not
-        // holding), or a hold - which reports BOTH blockers (Trick's TP floor and the
-        // Parting Blow hold) so a grader can see the whole picture.
+        // The tail is exactly one of: Trick (TP banked), Parting Blow (TP spent AFTER
+        // the pet has acted this summon, respecting the hold), or a hold - which reports
+        // the blockers so a grader can see the whole picture. Parting Blow is never
+        // offered before Trick has fired once this summon, even when not holding for
+        // Vantage: retreating a pet that never acted is the Sept-14 defect, not a retreat.
         if (familiarTp >= 100)
         {
             eligible.Add((FamiliarStep.Trick, ""));
+        }
+        else if (!trickedThisSummon)
+        {
+            declines.Add((FamiliarStep.None, "trick:waiting-tp"));
+            declines.Add((FamiliarStep.None, "partingblow:waiting-pet-action"));
         }
         else if (holdPartingBlowForVantage && !lingeringVantage)
         {
@@ -350,7 +366,7 @@ internal static class BST_RotationLogic
     public static FamiliarStep ChooseFamiliarStep(
         bool petSummoned, bool borrowedThisSummon, bool temperedReleasedThisSummon,
         byte familiarTp, bool lingeringVantage, bool holdPartingBlowForVantage,
-        bool borrowLearned = true, bool temperedLearned = true)
+        bool borrowLearned = true, bool temperedLearned = true, bool trickedThisSummon = true)
     {
         if (!petSummoned)
             return FamiliarStep.Battlehorn;
@@ -358,7 +374,7 @@ internal static class BST_RotationLogic
         return ChooseFamiliarCandidates(
             borrowedThisSummon, temperedReleasedThisSummon,
             familiarTp, oneWithNatureUp: true, lingeringVantage, holdPartingBlowForVantage,
-            borrowLearned, temperedLearned)[0].Step;
+            borrowLearned, temperedLearned, trickedThisSummon)[0].Step;
     }
 
     /// <summary>

@@ -1,4 +1,11 @@
-﻿## v1.0.4.198 (2026-09-15) [testing]
+﻿## v1.0.4.199 (2026-09-15) [testing]
+### Fixed
+- **Beastmaster familiar loop no longer sacrifices the pet before it acts.** Below 100 familiar TP with the hold-for-Vantage toggle off, Parting Blow was offered even when Trick had never fired this summon: a fresh familiar (0 TP, still building through auto-attacks) was retreated instantly, spending Borrow and Tempered Release for nothing while burning the Battlehorn slot into its recast, which read in game as an instant sacrifice followed by no resummon (Sept-14 in-game report). Parting Blow is now held until Trick has fired once per summon, at every level bracket and under either toggle; the hold reports `partingblow:waiting-pet-action` on the BT| decline tap. The normal Trick-then-retreat cycle is unchanged. (files: `Combos/PvE/BST/BST_RotationLogic.cs` - `ChooseFamiliarCandidates`/`ChooseFamiliarStep` new `trickedThisSummon` gate; `Combos/PvE/BST/BST.cs` - live-half Trick timestamp)
+### Notes
+- Offline BST rotation harness extended from 114 to 121 cases: the premature-sacrifice regression (pre-act hold at any level and toggle, decline taxonomy, pet-acts-then-retreat cycle) plus the candidate sweep widened to 1280 input combinations. (file: `tests/GluttonyCombo.BSTRotationHarness/Program.cs`)
+
+
+## v1.0.4.198 (2026-09-15) [testing]
 ### Fixed
 - **Smart Movement with the toggle ON no longer goes silently blind when the navigation layer is not ready.** A dead nav layer (vnavmesh not ready for the zone, or a failing nav call killing the mover tick before it could report) used to look exactly like the toggle being OFF: no dodge attempts and no telemetry at all. A nav-not-ready standdown now logs its own visible `MV|..|nav` line instead of being filtered as toggle-off, so the mover state can actually be graded from the log. (files: `AutoRotation/SmartMoverCore.cs` - `Decide` returns `ReasonNavCode`; `AutoRotation/SmartMover.cs` - `Emit` filter)
 - **The omen and danger-awareness instruments now reach the log.** Every `MVD|`/`MVU|` omen tap, the `MVS|omen` silence marker and mover tick failures were written with a debug call that never reaches the log file in normal builds, so the whole danger-detection layer was unobservable by construction. They now log at information level behind the existing "Movement Telemetry" setting with the same throttles (once per telegraph, 30-second silence marker, 60-second tick-failure cap). (file: `AutoRotation/SmartMover.cs`)

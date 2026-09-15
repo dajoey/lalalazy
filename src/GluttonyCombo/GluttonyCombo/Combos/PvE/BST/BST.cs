@@ -255,9 +255,17 @@ internal partial class BST : Melee
 
         var sinceBorrow = TimeSinceActionUsed(Borrow);
         var sinceTempered = TimeSinceActionUsed(TemperedRelease);
+        var sinceTrick = TimeSinceActionUsed(Trick);
 
         var borrowedThisSummon = petSummoned && sinceBorrow >= 0 && sinceBorrow < sinceBattlehorn;
         var temperedThisSummon = petSummoned && sinceTempered >= 0 && sinceTempered < sinceBattlehorn;
+
+        // Sept-14 in-game defect (Joey 2026-09-14): the loop retreated the familiar
+        // before it ever acted, then burned through the Battlehorn slots. Trick is the
+        // pet's act - Parting Blow stays unoffered until Trick has fired once this
+        // summon (same timestamp idiom as Borrow/Tempered above; see
+        // BST_RotationLogic.ChooseFamiliarCandidates).
+        var trickedThisSummon = petSummoned && sinceTrick >= 0 && sinceTrick < sinceBattlehorn;
 
         // Borrow (lv22) and Tempered Release (lv18) are learned at different levels than
         // Trick (lv8) - a sub-22 player's loop must skip straight past whichever of the two
@@ -337,7 +345,7 @@ internal partial class BST : Melee
         var candidates = BST_RotationLogic.ChooseFamiliarCandidates(
             borrowedThisSummon, temperedThisSummon,
             gauge.FamiliarTPGauge, oneWithNatureUp, lingeringVantage, holdForVantage,
-            borrowLearned, temperedLearned);
+            borrowLearned, temperedLearned, trickedThisSummon);
 
         summonDecline = string.Join(",",
             candidates.Select(c => c.Decline)

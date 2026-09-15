@@ -32,6 +32,7 @@ internal static class Program
         CaseJ_BattlehornSlotLevelGate();
         CaseK_ChooseRally();
         CaseL_FamiliarFallThrough();
+        CaseM_NoSacrificeBeforePetActs();
         ExtraCoverage();
 
         Console.WriteLine(_fail == 0 ? "OK" : $"FAILED ({_fail} of {_pass + _fail})");
@@ -752,17 +753,21 @@ internal static class Program
                 && declines4.Contains("trick:waiting-tp") && declines4.Contains("partingblow:holding-for-vantage"),
             string.Join(",", c4.Select(x => $"{x.Step}:{x.Decline}")));
 
-        // Not holding: Parting Blow retreats as before.
+        // Not holding: Parting Blow retreats as before - once the pet HAS acted this
+        // summon (trickedThisSummon: true is the post-Trick state; the pre-act hold is
+        // CaseM's territory).
         var c5 = BST_RotationLogic.ChooseFamiliarCandidates(
             borrowedThisSummon: true, temperedReleasedThisSummon: true,
-            familiarTp: 20, oneWithNatureUp: false, lingeringVantage: false, holdPartingBlowForVantage: false);
+            familiarTp: 20, oneWithNatureUp: false, lingeringVantage: false, holdPartingBlowForVantage: false,
+            trickedThisSummon: true);
         Check("all spent, TP<100, not holding -> head is PartingBlow",
             c5.Count > 0 && c5[0].Step == BST_RotationLogic.FamiliarStep.PartingBlow,
             string.Join(",", c5.Select(x => $"{x.Step}:{x.Decline}")));
 
         // Adversarial sweep: across every input combination, the head candidate must never
         // be an unlearned step, never Borrow/TemperedRelease with 4601 down, never Trick
-        // below 100 TP, never PartingBlow while holding for an absent Vantage - and every
+        // below 100 TP, never PartingBlow while holding for an absent Vantage, never
+        // PartingBlow before the pet has acted this summon - and every
         // non-head entry must be a Step.None decline with text.
         var violations = 0;
         foreach (var borrowed in new[] { true, false })
@@ -773,8 +778,9 @@ internal static class Program
         foreach (var hold in new[] { true, false })
         foreach (var bLearned in new[] { true, false })
         foreach (var tLearned in new[] { true, false })
+        foreach (var tricked in new[] { true, false })
         {
-            var list = BST_RotationLogic.ChooseFamiliarCandidates(borrowed, tempered, tp, own, lingering, hold, bLearned, tLearned);
+            var list = BST_RotationLogic.ChooseFamiliarCandidates(borrowed, tempered, tp, own, lingering, hold, bLearned, tLearned, tricked);
             if (list.Count == 0) { violations++; continue; }
 
             for (var i = 0; i < list.Count; i++)
@@ -793,7 +799,7 @@ internal static class Program
                 if (step == BST_RotationLogic.FamiliarStep.Borrow && (!bLearned || !own)) violations++;
                 if (step == BST_RotationLogic.FamiliarStep.TemperedRelease && (!tLearned || !own)) violations++;
                 if (step == BST_RotationLogic.FamiliarStep.Trick && tp < 100) violations++;
-                if (step == BST_RotationLogic.FamiliarStep.PartingBlow && (tp >= 100 || (hold && !lingering))) violations++;
+                if (step == BST_RotationLogic.FamiliarStep.PartingBlow && (tp >= 100 || (hold && !lingering) || !tricked)) violations++;
             }
 
             // Eligible steps appear in FamiliarStepOrder, at most one each.
@@ -809,8 +815,115 @@ internal static class Program
             if (orders.Zip(orders.Skip(1), (a, b) => a < b).Any(pair => !pair)) violations++;
             if (eligible.Count != eligible.Distinct().Count()) violations++;
         }
-        Check($"adversarial sweep over all 640 input combinations never offers an ineligible step ({violations} violations)",
+        Check($"adversarial sweep over all 1280 input combinations never offers an ineligible step ({violations} violations)",
             violations == 0, $"{violations} violations");
+    }
+
+    // ------------------------------------------------------------------
+    // (m) Sept-14 in-game defect (Joey, Telegram 2026-09-14): the testing build
+    // autocast the pet-sacrificing ability before the pet acted, then never summoned
+    // the next pet. Root cause in the pure half: at familiar TP < 100 with the hold
+    // toggle off, Parting Blow was offered even when Trick had never fired this
+    // summon - a fresh familiar (0 TP, building via auto-attacks) was retreated
+    // instantly, spending Borrow/Tempered for nothing and burning the Battlehorn slot
+    // into its recast, which reads in game as "sacrificed instantly, then nothing
+    // re-summons". Regression: no Parting Blow before the pet acts, at any level,
+    // under either toggle; the normal Trick-then-retreat cycle is unchanged.
+    // ------------------------------------------------------------------
+    private static void CaseM_NoSacrificeBeforePetActs()
+    {
+        Console.WriteLine("-- (m) no sacrifice before the pet acts (Sept-14 defect) --");
+
+        // The exact defect shape: everything spent, TP 0, Trick never fired, NOT
+        // holding -> old code offered PartingBlow immediately; must hold instead.
+        Check("all spent, TP<100, Trick never fired, not holding -> holds (None), never PartingBlow",
+            BST_RotationLogic.ChooseFamiliarStep(
+                petSummoned: true, borrowedThisSummon: true, temperedReleasedThisSummon: true,
+                familiarTp: 0, lingeringVantage: false, holdPartingBlowForVantage: false,
+                trickedThisSummon: false)
+            == BST_RotationLogic.FamiliarStep.None);
+
+        // Joey's bracket (sub-22: Borrow/Tempered unlearned, hold unreachable):
+        // fresh summon at 0 TP must wait for the pet, not retreat it.
+        Check("sub-22 fresh summon, TP 0, Trick never fired -> holds (None), never PartingBlow",
+            BST_RotationLogic.ChooseFamiliarStep(
+                petSummoned: true, borrowedThisSummon: false, temperedReleasedThisSummon: false,
+                familiarTp: 0, lingeringVantage: false, holdPartingBlowForVantage: false,
+                borrowLearned: false, temperedLearned: false, trickedThisSummon: false)
+            == BST_RotationLogic.FamiliarStep.None);
+
+        // The hold-for-Vantage toggle does not change the pre-act hold either.
+        Check("TP<100, Trick never fired, holding for absent Vantage -> holds (None)",
+            BST_RotationLogic.ChooseFamiliarStep(
+                petSummoned: true, borrowedThisSummon: true, temperedReleasedThisSummon: true,
+                familiarTp: 20, lingeringVantage: false, holdPartingBlowForVantage: true,
+                trickedThisSummon: false)
+            == BST_RotationLogic.FamiliarStep.None);
+
+        // The decline record names both blockers for the grader.
+        var cm = BST_RotationLogic.ChooseFamiliarCandidates(
+            borrowedThisSummon: true, temperedReleasedThisSummon: true,
+            familiarTp: 0, oneWithNatureUp: false, lingeringVantage: false, holdPartingBlowForVantage: false,
+            trickedThisSummon: false);
+        var declinesM = string.Join(",", cm.Select(x => x.Decline).Where(s => s.Length > 0));
+        Check("pre-act hold declines name trick:waiting-tp + partingblow:waiting-pet-action",
+            cm.All(x => x.Step == BST_RotationLogic.FamiliarStep.None && x.Decline.Length > 0)
+                && declinesM.Contains("trick:waiting-tp") && declinesM.Contains("partingblow:waiting-pet-action"),
+            string.Join(",", cm.Select(x => $"{x.Step}:{x.Decline}")));
+
+        // Once TP banks, the pet gets to act: Trick is offered pre-act.
+        Check("TP>=100, Trick never fired -> Trick (the pet acts)",
+            BST_RotationLogic.ChooseFamiliarStep(
+                petSummoned: true, borrowedThisSummon: true, temperedReleasedThisSummon: true,
+                familiarTp: 132, lingeringVantage: false, holdPartingBlowForVantage: false,
+                trickedThisSummon: false)
+            == BST_RotationLogic.FamiliarStep.Trick);
+
+        // After Trick spends the TP, the normal retreat is restored.
+        Check("TP spent after Trick acted, not holding -> PartingBlow (normal retreat)",
+            BST_RotationLogic.ChooseFamiliarStep(
+                petSummoned: true, borrowedThisSummon: true, temperedReleasedThisSummon: true,
+                familiarTp: 20, lingeringVantage: false, holdPartingBlowForVantage: false,
+                trickedThisSummon: true)
+            == BST_RotationLogic.FamiliarStep.PartingBlow);
+
+        // Full summon-cycle walk WITH pet-action tracking: a fresh pet waits at 0 TP
+        // (None) instead of retreating, acts at banked TP, then retreats.
+        var order = new List<BST_RotationLogic.FamiliarStep>();
+        bool petSummoned = false, borrowed = false, tempered = false, tricked = false;
+        byte familiarTp = 0;
+
+        for (var tick = 0; tick < 7; tick++)
+        {
+            if (tick == 4) familiarTp = 132; // pet auto-attacks bank TP while we hold
+            var step = BST_RotationLogic.ChooseFamiliarStep(
+                petSummoned, borrowed, tempered, familiarTp,
+                lingeringVantage: false, holdPartingBlowForVantage: false,
+                trickedThisSummon: tricked);
+            order.Add(step);
+            switch (step)
+            {
+                case BST_RotationLogic.FamiliarStep.Battlehorn: petSummoned = true; break;
+                case BST_RotationLogic.FamiliarStep.Borrow: borrowed = true; break;
+                case BST_RotationLogic.FamiliarStep.TemperedRelease: tempered = true; break;
+                case BST_RotationLogic.FamiliarStep.Trick: familiarTp = 0; tricked = true; break;
+                case BST_RotationLogic.FamiliarStep.PartingBlow: petSummoned = borrowed = tempered = tricked = false; break;
+                case BST_RotationLogic.FamiliarStep.None: break;
+            }
+        }
+
+        Check("tracked walk is Battlehorn,Borrow,Tempered,None(wait),Trick,PartingBlow,Battlehorn",
+            order.SequenceEqual(
+            [
+                BST_RotationLogic.FamiliarStep.Battlehorn,
+                BST_RotationLogic.FamiliarStep.Borrow,
+                BST_RotationLogic.FamiliarStep.TemperedRelease,
+                BST_RotationLogic.FamiliarStep.None,
+                BST_RotationLogic.FamiliarStep.Trick,
+                BST_RotationLogic.FamiliarStep.PartingBlow,
+                BST_RotationLogic.FamiliarStep.Battlehorn,
+            ]),
+            string.Join(",", order));
     }
 
     private static void ExtraCoverage()
