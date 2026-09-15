@@ -152,6 +152,34 @@ SmartMoverCore.MoverWorld World(
     var dcl = SmartMoverCore.Decide(World(player: new(0, -6), range: 3f, target: new(0, 0), hitbox: 5f), hcl);
     Check("settle/melee-inside-band-never-backs-away", dcl.Kind is SmartMoverCore.Decision.None or SmartMoverCore.Decision.Stop, $"kind={dcl.Kind} r={dcl.Reason}");
 
+    // v1.0.4.201 (tasks-20260915-automove-melee-01): melee parked OUTSIDE
+    // striking distance - the 2.0 (1.0 positional) settle tolerance plus the
+    // 1.0 Commit deadband exceeded the 3y band (Joey, NIN on testing
+    // 1.0.4.200: motion started, then stopped short of the dummy). Melee at
+    // edge 4.0 (dist 9.0 on hitbox 5) must STILL engage, positional or not;
+    // at edge 3.4 it settles; a sub-yalm final approach closes in.
+    var hm1 = new SmartMoverCore.Hysteresis();
+    var dm1 = SmartMoverCore.Decide(World(player: new(0, -9), range: 3f, target: new(0, 0), hitbox: 5f), hm1);
+    Check("engage/melee-4y-outside-still-engages", dm1.Kind == SmartMoverCore.Decision.Move, $"kind={dm1.Kind} r={dm1.Reason}");
+
+    var hm2 = new SmartMoverCore.Hysteresis();
+    var dm2 = SmartMoverCore.Decide(World(player: new(0, -9), range: 3f, posWanted: true, rear: true,
+        target: new(0, 0), tRot: 0f, hitbox: 5f), hm2);
+    Check("engage/melee-4y-outside-positional-still-engages", dm2.Kind == SmartMoverCore.Decision.Move, $"kind={dm2.Kind} r={dm2.Reason}");
+
+    var hm3 = new SmartMoverCore.Hysteresis();
+    var dm3 = SmartMoverCore.Decide(World(player: new(0, -8.4f), range: 3f, target: new(0, 0), hitbox: 5f), hm3);
+    Check("settle/melee-3.4y-quiet", dm3.Kind is SmartMoverCore.Decision.None or SmartMoverCore.Decision.Stop, $"kind={dm3.Kind} r={dm3.Reason}");
+
+    var hm4 = new SmartMoverCore.Hysteresis();
+    var dm4 = SmartMoverCore.Decide(World(player: new(0, -8.6f), range: 3f, target: new(0, 0), hitbox: 5f), hm4);
+    Check("engage/melee-sub-yalm-closes-in", dm4.Kind == SmartMoverCore.Decision.Move, $"kind={dm4.Kind} r={dm4.Reason}");
+
+    // Ranged bands keep the old settle behavior (negative control).
+    var hr2 = new SmartMoverCore.Hysteresis();
+    var dr2 = SmartMoverCore.Decide(World(player: new(0, -26.5f), range: 20f, target: new(0, 0), hitbox: 5f), hr2);
+    Check("settle/ranged-21.5y-quiet", dr2.Kind is SmartMoverCore.Decision.None or SmartMoverCore.Decision.Stop, $"kind={dr2.Kind} r={dr2.Reason}");
+
     // Positional wanted rear, player in front (tRot=0 => facing +Z), target at origin:
     // front = +Z side, rear = -Z side. Player at +Z 7.5 => must move to -Z.
     var h4 = new SmartMoverCore.Hysteresis();
@@ -352,9 +380,12 @@ SmartMoverCore.MoverWorld World(
     var idealOld = Vector2.Distance(dq2.Dest, new Vector2(0, 0));
     Check("retarget/mid-hold-re-aims", dq2.Kind == SmartMoverCore.Decision.Move && idealNew < idealOld, $"dest={dq2.Dest} dNew={idealNew:F1} dOld={idealOld:F1}");
 
-    // Min-move: sub-1y adjustment is not worth a path call
+    // Min-move: a sub-1y adjustment is not worth a path call on a RANGED
+    // band (v1.0.4.201: short bands close in to half a yalm instead - see
+    // engage/melee-sub-yalm-closes-in above - so this negative control runs
+    // on range 20 where the 1.0 deadband still applies).
     var h2 = new SmartMoverCore.Hysteresis();
-    var w4 = World(player: new(0, -8.6f), range: 3f, target: new(0, 0), hitbox: 5f);
+    var w4 = World(player: new(0, -26.4f), range: 20f, target: new(0, 0), hitbox: 5f);
     var d4 = SmartMoverCore.Decide(w4, h2);
     Check("jitter/min-move-ignored", d4.Kind is SmartMoverCore.Decision.None or SmartMoverCore.Decision.Stop, $"kind={d4.Kind}");
 }

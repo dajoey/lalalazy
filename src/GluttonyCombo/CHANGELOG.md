@@ -1,4 +1,11 @@
-﻿## v1.0.4.200 (2026-09-15) [testing]
+﻿## v1.0.4.201 (2026-09-15) [testing]
+### Fixed
+- **Smart Movement on melee now walks all the way into striking distance instead of stopping short.** Testing 1.0.4.200 got melee moving (pre-combat hostile engage) but Joey graded it still broken: motion starts, then stops outside melee range (Shirogane NIN on the dummy). Three short-band numbers each exceeded the 3-yalm band: the settle tolerance (2.0, or 1.0 with a positional wanted) declared "in range" up to 5 yalms edge-to-edge, the ideal standing point sat half a yalm outside the band edge, and the 1.0-yalm Commit deadband cancelled the final approach and stranded the character there. Short bands (melee/tank 3, SGE 5) now settle within half a yalm of the edge, stand ON the edge, and close in to half a yalm; ranged bands are byte-identical. (files: `AutoRotation/SmartMoverCore.cs` - `RangeTolerance`/`IdealOffset`/`MinMoveFor` plus `ShortRangeYalms`)
+### Notes
+- Offline harness now runs 154 cases: melee still engages from 4 yalms edge (positional or not), settles at 3.4, closes in on a sub-yalm final approach, and the ranged settle/min-move negative controls proving the old behavior is unchanged there. (file: `tests/GluttonyCombo.SmartMoverHarness/Program.cs`)
+- In-game grading with Smart Movement ON: melee move-to-target first (walk into striking distance on the Shirogane dummy, `MV|..|eng` settling to `stl` near zero edge-past), then the Occult Crescent dodge grading.
+
+## v1.0.4.200 (2026-09-15) [testing]
 ### Fixed
 - **Smart Movement on melee now walks into range before combat instead of standing down invisibly.** The whole mover, engage included, was gated on the in-combat flag with the toggle-off reason, which telemetry filters: targeting a hostile out of combat produced zero motion and zero log lines, which graded as "Automove does not move me to the target" (Shirogane NIN report on 1.0.4.198). The mover now engages hostile targets out of combat so melee can walk into range to pull; anything else out of combat (no target, friendly target) stands down with its own visible `ooc` reason instead of hiding behind toggle-off, and dodging stays combat-gated. (files: `AutoRotation/SmartMoverCore.cs` - `Decide` ooc gate plus `ReasonOocCode`, `MoverWorld.TargetHostile`; `AutoRotation/SmartMover.cs` - `BuildWorld` hostility, `ReasonString`, `Emit` filter; `AutoRotation/MovementTelemetryFormat.cs` - `DecisionCode`; UI help text)
 ### Notes

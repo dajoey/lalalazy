@@ -217,7 +217,7 @@ internal static class SmartMoverCore
     private static MoveDecision Commit(MoverWorld w, Hysteresis h, Vector2 dest, byte reason, bool overrideHold)
     {
         var travel = Vector2.Distance(w.PlayerPos, dest);
-        if (!overrideHold && travel < MinMoveYalms)
+        if (!overrideHold && travel < MinMoveFor(w))
             return StandDown(h, reason);
 
         if (!overrideHold && h.HasLastDest && w.NowSec < h.HoldUntilSec)
@@ -270,7 +270,7 @@ internal static class SmartMoverCore
 
         var curAngle = dist < 0.01f ? 0f : MathF.Atan2(toward.Y, toward.X);
         var idealAngle = IdealAngle(w, curAngle);
-        ideal = w.TargetPos + new Vector2(MathF.Cos(idealAngle), MathF.Sin(idealAngle)) * (ringR + 0.5f);
+        ideal = w.TargetPos + new Vector2(MathF.Cos(idealAngle), MathF.Sin(idealAngle)) * (ringR + IdealOffset(w));
 
         // v1.0.4.193: only being TOO FAR is a violation. The old test also
         // demanded the character stand at least half the ring radius away, so a
@@ -283,7 +283,32 @@ internal static class SmartMoverCore
         return inRange && posOk;
     }
 
-    private static float RangeTolerance(MoverWorld w) => w.PositionalWanted ? 1.0f : 2.0f;
+    private static float RangeTolerance(MoverWorld w) =>
+        w.DesiredRange <= ShortRangeYalms ? 0.5f : (w.PositionalWanted ? 1.0f : 2.0f);
+
+    /// <summary>
+    ///     Bands at or under this depth hug the target (melee/tank 3, SGE 5);
+    ///     settle tolerance, ideal offset and the Commit deadband all tighten
+    ///     for them (v1.0.4.201).
+    /// </summary>
+    internal const float ShortRangeYalms = 5f;
+
+    /// <summary>
+    ///     How far outside the band edge the ideal standing point sits.
+    ///     v1.0.4.201 (tasks-20260915-automove-melee-01): short bands sit ON
+    ///     the edge - a +0.5 offset plus the old tolerance parked melee at up
+    ///     to 5y edge-to-edge, outside striking distance (Joey, NIN on testing
+    ///     1.0.4.200: motion started, then stopped short of the dummy).
+    /// </summary>
+    private static float IdealOffset(MoverWorld w) => w.DesiredRange <= ShortRangeYalms ? 0f : 0.5f;
+
+    /// <summary>
+    ///     Minimum travel worth issuing. v1.0.4.201: the flat 1.0y deadband
+    ///     cancelled the final melee approach up to a yalm short of the ring
+    ///     and stranded the character there (every later tick stood down the
+    ///     same way). Short bands close in to half a yalm; ranged keeps 1.0.
+    /// </summary>
+    private static float MinMoveFor(MoverWorld w) => w.DesiredRange <= ShortRangeYalms ? 0.5f : MinMoveYalms;
 
     /// <summary> Game-convention positional check: facing dir = (sin rot, cos rot). </summary>
     internal static bool AtPositional(Vector2 playerPos, MoverWorld w)
