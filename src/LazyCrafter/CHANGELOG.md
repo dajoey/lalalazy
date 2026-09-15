@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.1.7.4 (2026-09-15)
+
+### Fixed
+- **The retainer batch fetch no longer calls every session a zero-move without counting the bags.** The 0.1.6.16 early exit for an instantly-dead bell session sat ABOVE the bag-delta measurement with the moved counter still 0 from wave start, so every batch session ended as "the retainer fetch moved nothing into the bags", the cart held for Resume, and the per-item fallback never ran - Joey's 0.1.7.3 runs on 2026-09-11 and 2026-09-14 show exactly this shape (batch queued, retainers scanned, 0 counted). The exit now runs AFTER the measurement: a genuinely empty session still stops with the bell named, a session that moved anything trims the remainder into the per-item pass (files: `Adapters/DispatchService.cs` `Phase.BatchWait`)
+
 ## v0.1.7.3 (2026-09-10)
 
 ### Fixed

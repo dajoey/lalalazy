@@ -1171,22 +1171,6 @@ public sealed class DispatchService : IDisposable
                     // what actually arrived. Anything still short stays in the per-item queue (trimmed to the
                     // remainder); demand the plan had not flagged (stock moved between plan and session) is
                     // appended to it.
-                    // 0.1.6.16 (card t_68532446, defect B): the 0.1.6.13 stall guard only catches a HUNG
-                    // session (2-min zero-change while Busy). A session that ends INSTANTLY with zero
-                    // materials moved - Busy false 1.5 s after the queue, mid-teleport in the field - sailed
-                    // through it, the run read "no progress this pass", and the vendor stop re-emitted on top.
-                    // A batch pass that could not move anything is a dead bell, not a slow one: stop with the
-                    // bell named, cart held, Resume re-plans.
-                    if (_batchFetched == 0 && _retrievals.Count > 0)
-                    {
-                        Fetch.Abort();
-                        var zeroWhy = ShoppingStopGate.BatchMovedNothing(_retrievals.Count);
-                        foreach (var r in _retrievals) _unfetched.Add((r, zeroWhy));
-                        _retrievals.Clear();
-                        _batchCrafts = Array.Empty<uint>();
-                        FinishBlocked(zeroWhy, _plan);
-                        break;
-                    }
                     _plugin.Inventory.DropMemo();
                     var batchDemand = new Dictionary<uint, int>();
                     foreach (var id in _batchCrafts)
@@ -1209,6 +1193,26 @@ public sealed class DispatchService : IDisposable
                                     .Prepend(planned with { Quantity = Math.Min(planned.Quantity, left) }));
                         else
                             _retrievals.Enqueue(new DispatchPlan.Retrieve(itemId, left, DispatchPlan.PlacesFor(_plugin.Inventory.StoredWhere(itemId), left)));
+                    }
+                    // 0.1.7.4: measure FIRST, then judge. The zero-move exit used to sit above the
+                    // bag-delta measurement with _batchFetched still 0 from wave start, so EVERY batch
+                    // session ended as "moved nothing" without counting the bags and the per-item
+                    // fallback never ran (Joey's 0.1.7.3 runs, 2026-09-11 and 2026-09-14).
+                    // 0.1.6.16 (card t_68532446, defect B): the 0.1.6.13 stall guard only catches a HUNG
+                    // session (2-min zero-change while Busy). A session that ends INSTANTLY with zero
+                    // materials moved - Busy false 1.5 s after the queue, mid-teleport in the field - sailed
+                    // through it, the run read "no progress this pass", and the vendor stop re-emitted on top.
+                    // A batch pass that could not move anything is a dead bell, not a slow one: stop with the
+                    // bell named, cart held, Resume re-plans.
+                    if (_batchFetched == 0 && _retrievals.Count > 0)
+                    {
+                        Fetch.Abort();
+                        var zeroWhy = ShoppingStopGate.BatchMovedNothing(_retrievals.Count);
+                        foreach (var r in _retrievals) _unfetched.Add((r, zeroWhy));
+                        _retrievals.Clear();
+                        _batchCrafts = Array.Empty<uint>();
+                        FinishBlocked(zeroWhy, _plan);
+                        break;
                     }
                     _log.Information("batch retainer pass done: {Fetched} material(s) moved, {Left} left for the per-item pass", _batchFetched, _retrievals.Count);
                     if (_batchFetched > 0) _waveProgress = true;
