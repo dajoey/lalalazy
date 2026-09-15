@@ -1,4 +1,12 @@
-﻿## v1.0.4.199 (2026-09-15) [testing]
+﻿## v1.0.4.200 (2026-09-15) [testing]
+### Fixed
+- **Smart Movement on melee now walks into range before combat instead of standing down invisibly.** The whole mover, engage included, was gated on the in-combat flag with the toggle-off reason, which telemetry filters: targeting a hostile out of combat produced zero motion and zero log lines, which graded as "Automove does not move me to the target" (Shirogane NIN report on 1.0.4.198). The mover now engages hostile targets out of combat so melee can walk into range to pull; anything else out of combat (no target, friendly target) stands down with its own visible `ooc` reason instead of hiding behind toggle-off, and dodging stays combat-gated. (files: `AutoRotation/SmartMoverCore.cs` - `Decide` ooc gate plus `ReasonOocCode`, `MoverWorld.TargetHostile`; `AutoRotation/SmartMover.cs` - `BuildWorld` hostility, `ReasonString`, `Emit` filter; `AutoRotation/MovementTelemetryFormat.cs` - `DecisionCode`; UI help text)
+### Notes
+- Offline harness now runs 149 cases: pre-combat hostile engage, friendly and no-target ooc standdown with the reason mapping, no out-of-combat dodge, and the ooc telemetry code. (file: `tests/GluttonyCombo.SmartMoverHarness/Program.cs`)
+- In-game grading with Smart Movement ON: target a hostile out of combat and expect the character to walk into attack range (melee first), `MV|..|ooc` lines when holding with no hostile target, then the Occult Crescent dodge grading.
+
+
+## v1.0.4.199 (2026-09-15) [testing]
 ### Fixed
 - **Beastmaster familiar loop no longer sacrifices the pet before it acts.** Below 100 familiar TP with the hold-for-Vantage toggle off, Parting Blow was offered even when Trick had never fired this summon: a fresh familiar (0 TP, still building through auto-attacks) was retreated instantly, spending Borrow and Tempered Release for nothing while burning the Battlehorn slot into its recast, which read in game as an instant sacrifice followed by no resummon (Sept-14 in-game report). Parting Blow is now held until Trick has fired once per summon, at every level bracket and under either toggle; the hold reports `partingblow:waiting-pet-action` on the BT| decline tap. The normal Trick-then-retreat cycle is unchanged. (files: `Combos/PvE/BST/BST_RotationLogic.cs` - `ChooseFamiliarCandidates`/`ChooseFamiliarStep` new `trickedThisSummon` gate; `Combos/PvE/BST/BST.cs` - live-half Trick timestamp)
 ### Notes
