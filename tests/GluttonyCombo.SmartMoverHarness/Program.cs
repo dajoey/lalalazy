@@ -297,15 +297,16 @@ SmartMoverCore.MoverWorld World(
     var dd = SmartMoverCore.Decide(World(enabled: false), h5);
     Check("guard/off-none", dd.Kind == SmartMoverCore.Decision.None, $"kind={dd.Kind}");
 
-    // v1.0.4.200: out-of-combat splits on target hostility. Melee
-    // move-to-target never fired pre-combat on 1.0.4.198 (Shirogane NIN:
-    // hostile target, zero motion, zero MV lines) because the whole mover
-    // stood down here with the toggle-off reason, which Emit filters.
-    // Hostile + out of range -> engage fires pre-combat (pre-seeded first).
+    // v1.0.4.203 (Joey 2026-09-16 grading of 1.0.4.202: "automovement is
+    // moving me to the target even when i'm out of combat, which is not ok"):
+    // out of combat the mover NEVER approaches a target - the v1.0.4.200
+    // pre-combat hostile engage is reverted. The ooc standdown keeps its OWN
+    // reason code (not toggle-off filtered) so the attempt stays visible.
+    // Hostile + out of range + no combat -> stop, reason ooc (pre-seeded).
     var h6 = new SmartMoverCore.Hysteresis();
     SmartMoverCore.Decide(World(player: new(0, -18), range: 3f, target: new(0, 0), hitbox: 5f), h6);
     var dPre = SmartMoverCore.Decide(World(combat: false, hostile: true) with { PlayerPos = new(0, -17) }, h6);
-    Check("guard/ooc-hostile-engages", dPre.Kind == SmartMoverCore.Decision.Move && dPre.Reason == SmartMoverCore.ReasonEngageCode, $"kind={dPre.Kind} r={dPre.Reason}");
+    Check("guard/ooc-hostile-stops", dPre.Kind == SmartMoverCore.Decision.Stop && dPre.Reason == SmartMoverCore.ReasonOocCode, $"kind={dPre.Kind} r={dPre.Reason}");
 
     // Friendly target out of combat -> visible ooc standdown, never off (pre-seeded).
     var h6b = new SmartMoverCore.Hysteresis();
@@ -316,7 +317,8 @@ SmartMoverCore.MoverWorld World(
     Check("guard/ooc-distinct-from-off", SmartMoverCore.ReasonOocCode != SmartMoverCore.ReasonOffCode);
 
     // No out-of-combat dodge: player inside a live zone, hostile target, no
-    // combat -> the engage branch answers (dodge is combat-gated), never ddg.
+    // combat -> the ooc standdown answers (both dodge AND engage are ooc/
+    // combat-gated), never ddg.
     var h6c = new SmartMoverCore.Hysteresis();
     var dOocZ = SmartMoverCore.Decide(World(combat: false, hostile: true, player: new(0, -8), zones: zones), h6c);
     Check("guard/ooc-no-dodge", dOocZ.Reason != SmartMoverCore.ReasonDodgeCode, $"kind={dOocZ.Kind} r={dOocZ.Reason}");

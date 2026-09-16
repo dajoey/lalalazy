@@ -16,9 +16,9 @@ namespace GluttonyCombo.AutoRotation;
 ///     Input is an immutable <see cref="MoverWorld"/> snapshot; output is one
 ///     <see cref="MoveDecision"/> per tick. Hysteresis state lives in the
 ///     caller-owned <see cref="Hysteresis"/> class so the engine stays pure and
-///     replayable. Decision order: off/nav/ooc -&gt; manual input -&gt; casting hold
-///     -&gt; BMR navigating pause -&gt; DODGE (combat only) -&gt; ENGAGE (pre-combat
-///     only for hostile targets) -&gt; SETTLE.
+    ///     replayable. Decision order: off/nav/ooc -&gt; manual input -&gt; casting hold
+    ///     -&gt; BMR navigating pause -&gt; DODGE (combat only) -&gt; ENGAGE/SETTLE.
+    ///     Out of combat the mover never approaches a target (v1.0.4.203).
 ///     Deliberately NEVER consults "is BossMod AI enabled" - the mover does not
 ///     stand down just because BMR is installed (the PositionalMover trap).
 ///     Game rotation convention: FFXIV rotations are radians CCW from +Z/south,
@@ -75,8 +75,9 @@ internal static class SmartMoverCore
         float TargetRotation,        // GAME-convention radians (CCW from +Z)
         float TargetHitboxRadius,
         bool TargetEngaged,          // DPS target exists, targetable, alive
-        bool TargetHostile,          // target reads hostile (nameplate) - the only
-                                     // out-of-combat auto-approach allowed (v1.0.4.200)
+        bool TargetHostile,          // target reads hostile (nameplate) - no longer
+                                     // gates movement: out of combat always stands
+                                     // down (v1.0.4.203)
         IReadOnlyList<DangerZoneModel.Zone> Zones,
         bool ManualInput,            // WASD / gamepad wishdir non-zero
         bool Casting,                // player is casting
@@ -151,16 +152,16 @@ internal static class SmartMoverCore
         if (w.BmrNavigating)
             return StandDown(h, ReasonBmrCode);
 
-        // v1.0.4.200 (tasks-20260915-automove-melee-01): melee move-to-target
-        // never fired before combat (Joey, Shirogane NIN on testing 1.0.4.198:
-        // hostile target acquired out of combat, zero motion, zero MV lines).
-        // The whole mover, engage included, stood down here with ReasonOffCode,
-        // which Emit filters - the approach was invisible by construction. The
-        // mover may now ENGAGE a hostile target before combat starts so melee
-        // can walk into range to pull; anything else out of combat stands down
-        // with its OWN reason (ooc) so the next grading round can see it. Dodge
-        // stays combat-gated by the explicit check on its branch below.
-        if (!w.InCombat && !(w.TargetEngaged && w.TargetHostile))
+        // v1.0.4.203 (Joey 2026-09-16 grading of 1.0.4.202: "automovement is
+        // moving me to the target even when i'm out of combat, which is not
+        // ok"): moving to a target NEVER happens out of combat. The
+        // v1.0.4.200 pre-combat hostile engage is reverted - its own grading
+        // round proved the approach works but the behaviour itself is not
+        // wanted. The ooc standdown KEEPS its own reason code (not toggle-off
+        // filtered) so a dead approach attempt stays visible in telemetry
+        // (Shirogane NIN 1.0.4.198 zero-MV-lines lesson). Dodge stays
+        // combat-gated below.
+        if (!w.InCombat)
             return StandDown(h, ReasonOocCode);
 
         // ---- DODGE (combat only - a pre-combat approach uses ENGAGE below) ----
