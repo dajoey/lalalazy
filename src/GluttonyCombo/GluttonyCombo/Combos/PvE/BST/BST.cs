@@ -307,7 +307,7 @@ internal partial class BST : Melee
         s.BeastModeResolved = resolvedBeastMode == BeastMode ? 0 : resolvedBeastMode;
         s.ReadyBeastMode = s.BeastModeResolved != 0 && ActionReady(s.BeastModeResolved);
 
-        s.ShieldChargeCharges = GetRemainingCharges(ShieldCharge);
+        s.ShieldChargeCharges = (int)GetRemainingCharges(ShieldCharge);
         s.ShieldChargeMax = GetMaxCharges(ShieldCharge);
         s.ReadyShieldCharge = ActionReady(ShieldCharge) && MovementGate.Allowed(ShieldCharge, MovementGate.GapCloserLanding());
 
