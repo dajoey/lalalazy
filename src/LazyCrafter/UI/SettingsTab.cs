@@ -132,9 +132,9 @@ public sealed class SettingsTab
         // 0.1.7.0 (card t_5191608a): the sequential resume-mode toggle. The feature's first build
         // ships it ON; off restores the monolithic run exactly (no stage controller, no popups).
         var seq = cfg.SequentialInterventionMode;
-        if (ImGui.Checkbox("Run shopping stops first with a popup per stop (buy, press Resume, then unattended)", ref seq)) { cfg.SequentialInterventionMode = seq; changed = true; }
+        if (ImGui.Checkbox("Run shopping stops first (buy, press Resume, then unattended)", ref seq)) { cfg.SequentialInterventionMode = seq; changed = true; }
         ImGui.SameLine();
-        ImGuiComponents.HelpMarker("On by default (0.1.7.0). A cart run takes its user-intervention-requiring parts first: each shopping stop (gil vendor, market board, currency shop, manual source) shows ONE popup describing exactly what to buy and where, with a single Resume button - never one popup per frame. When the run believes the rest of the cart needs no player, it goes unattended and behaves exactly as before. Off: the run is one continuous wave loop, identical to every version before 0.1.7.0.");
+        ImGuiComponents.HelpMarker("On by default (0.1.7.0). A cart run takes its user-intervention-requiring parts first: each shopping stop (gil vendor, market board, currency shop, manual source) is named in chat and on the Run tab exactly once - buy what is named and press Resume (Run tab button, /lcraft resume, or the copied report). When the run believes the rest of the cart needs no player, it goes unattended and behaves exactly as before. Off: the run is one continuous wave loop, identical to every version before 0.1.7.0.");
 
         var pm = cfg.PriceMatchAfterCraft;
         if (ImGui.Checkbox("After Artisan finishes a cart, print /pricematch (Lazy Market Companion) instructions for listing the results", ref pm)) { cfg.PriceMatchAfterCraft = pm; changed = true; }

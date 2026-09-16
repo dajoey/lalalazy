@@ -1,4 +1,8 @@
 # Changelog
+## v0.1.7.5 (2026-09-16)
+
+### Removed
+- **The shopping-stop Resume popup window is gone.** Joey's 0.1.7.4 pass (2026-09-16): the full-screen popup opened at every shopping stop sat over the game and blocked mouse input with the client - his verdict: "just remove the ressume extra window". The window is removed and nothing else changed: a blocked shopping stop still says the what-to-do message in chat and on the Run tab exactly once, and Resume stays on the Run tab button, in chat (/lcraft resume) and the copied report - keyboard-only resume works (files: `Plugin.cs`, `UI/SettingsTab.cs`)
 
 ## v0.1.7.4 (2026-09-15)
 

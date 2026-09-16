@@ -155,34 +155,16 @@ public sealed class Plugin : IDalamudPlugin
     private void OpenMain() => _mainWindow.IsOpen = true;
 
     /// <summary>
-    /// The one Resume modal (0.1.7.0, card t_5191608a). A staged run that hit a NeedsUser stage shows
-    /// exactly one popup here - title "LazyCrafter", the stage's message, a single "Resume" button -
-    /// and nothing else. The message is deduped by the controller (one emission per stage
-    /// transition, never per frame); this method only opens the ImGui popup for a message the
-    /// controller has not yet surfaced. Pressing Resume calls <see cref="DispatchService.Resume"/>,
-    /// the same continuation the Run tab button and /lcraft resume use - the run continues from
-    /// recorded state, never a plan restart. Draw thread.
+    /// 0.1.7.5: the shopping-stop Resume popup window is GONE (Joey 2026-09-16: the popup sat over
+    /// the game and blocked mouse input with the client - "just remove the ressume extra window").
+    /// A stage that hits NeedsUser still says the what-to-do message in chat and on the Run tab,
+    /// exactly once; Resume lives on the Run tab button, in chat (/lcraft resume) and the copied
+    /// report. This method only consumes the controller's one-shot popup emission so the dedupe
+    /// state stays clean. Draw thread.
     /// </summary>
     private void DrawStageModal()
     {
-        var popup = Dispatch.StagePopupDue();
-        if (popup is null) return;
-        // Open the popup once per controller message: the controller's one-shot Popup property
-        // returns null the instant the modal has been opened for this message.
-        ImGui.OpenPopup("LazyCrafter");
-        if (ImGui.BeginPopupModal("LazyCrafter"))
-        {
-            ImGui.TextWrapped(popup);
-            ImGui.Spacing();
-            if (ImGui.Button("Resume", new Vector2(160f, 0f)))
-            {
-                ImGui.CloseCurrentPopup();
-                if (!Dispatch.Resume())
-                    ChatGui.PrintError("[LazyCrafter] nothing to resume.");
-                Dispatch.StagePopupAccepted();
-            }
-            ImGui.EndPopup();
-        }
+        if (Dispatch.StagePopupDue() is not null) Dispatch.StagePopupAccepted();
     }
 
     private void OnLogin()
