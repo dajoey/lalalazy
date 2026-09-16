@@ -199,7 +199,10 @@ internal partial class BST : Melee
             NaturalStacks = gauge.PetInstinct,
 
             GcdReady = RemainingGCD <= BaseActionQueue,
-            CanWeave = CanWeave(),
+            // CanWeave() needs a rolling GCD. Out of melee in combat the GCD sits idle, which would starve
+            // summons and familiar commands (all 25-30 y) while closing in - treat an idle GCD out of melee
+            // with no animation lock as a free window.
+            CanWeave = CanWeave() || (RemainingGCD <= 0f && AnimationLock <= 0.05f && !player.IsCasting && !InMeleeRange()),
             SinceSummon = slot != 0 ? SecondsSince(_familiarArrivedTick) : 0f,
             SinceHornPress = Math.Min(SinceUsed(FirstBattlehorn), Math.Min(SinceUsed(SecondBattlehorn), SinceUsed(ThirdBattlehorn))),
             SinceTrick = SinceUsed(Trick),
