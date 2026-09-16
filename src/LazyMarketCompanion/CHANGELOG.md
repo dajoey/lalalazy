@@ -1,4 +1,15 @@
-﻿## v0.1.47.0 (2026-09-16)
+﻿## v0.1.48.0 (2026-09-16)
+
+### Fixed
+
+- **Auto-Market no longer plans inventory moves for a retainer session that never finished loading.** The routing settle step proceeded to planning after its 6-second soft deadline even when the retainer pages were still swapping, and a plan built from the previous retainer's still-loaded pages pulled stock that was already on the correct retainer - then re-pulled it on every sweep. The per-move identity check could not catch this because it only compares the retainer name, which can already read as the new retainer while the pages are still the previous one's. A session that never settles now moves nothing: the stock stays put and the next sweep retries, while the pull and listing legs run unchanged. The final deposit lap follows the same gate, since depositing into a half-open session is the rollback source that re-fed the shuffle (files: `MarketAutomation.cs` `WaitRoutingSettled`, `BuildListingStepsNow`, `RunLapDepositMover`).
+
+### Notes
+
+- No offline-suite change: the skip is game-side session state; the pure planning functions behave as before. A skipped session is visible in the log as `routing: session ... never settled`.
+- Reverses the 0.1.44.0 "the sweep never stops over this" trade-off for routing moves only: skipping moves for one session is not stopping the sweep, and moving from an unconfirmed view is how correctly-placed stock got re-moved.
+
+## v0.1.47.0 (2026-09-16)
 
 ### Fixed
 

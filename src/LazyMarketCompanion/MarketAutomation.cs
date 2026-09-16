@@ -70,6 +70,14 @@ internal sealed class MarketAutomation : Window, IDisposable
   // 6s soft deadline always fires before the 10s step TimeLimitMS, so the abort path is
   // unreachable and a slow load costs one WARN, not the sweep.
   private long _settleDeadline;
+  // 0.1.48.0: settle OUTCOME for the session whose steps are running now. WaitRoutingSettled sets
+  // it true on a clean settle and false when the 6s soft deadline fires first; the two routing-move
+  // entry points (BuildListingStepsNow, RunLapDepositMover) skip their moves on false. Planning
+  // moves from an unconfirmed page view is how correctly-placed stock got pulled off its retainer
+  // every sweep - the per-move identity check only compares the retainer NAME, which can already
+  // read as the new retainer while its pages are still the previous one's. Default true so a path
+  // that never ran a settle step keeps today's behavior.
+  private bool _routingSessionSettled = true;
   // 0.1.43.0: set the first time per sweep a plan reports bags stock no category rule covers, so
   // the line is logged and announced exactly once no matter how many sessions see the same stock.
   private bool _unroutedBagsAnnounced;
@@ -563,6 +571,14 @@ internal sealed class MarketAutomation : Window, IDisposable
     // itself (held there, listed or not) and needs no free market slot; the listing plan lists
     // it the session a slot frees. Skipping here stranded pulled stock in the bags whenever the
     // boards were full, which is exactly when organizing matters most.
+    // 0.1.48.0: the lap fails closed like the session mover - depositing into a half-open
+    // session is the rollback source that re-feeds the shuffle (the move grades rc=0 against the
+    // local view and the server rolls it back when the real pages swap in).
+    if (!_routingSessionSettled)
+    {
+      Svc.Log.Warning($"[LMC] routing lap: {retainerName} session never settled - deposits skipped (stock stays in the bags; the next sweep retries)");
+      return true;
+    }
     var routingPlan = AutoMarketService.PlanRoutingDepositsOnly();
     foreach (var note in routingPlan.Notes)
       Svc.Log.Information($"[LMC] {note}");
@@ -1266,10 +1282,21 @@ internal sealed class MarketAutomation : Window, IDisposable
     // reaching that state needs no free market slot - pulls free the wrong retainer and deposits
     // fill the assigned one, and the listing plan below still lists only what the board has room
     // for. The 0.1.46.0 board-budget skip is gone: with full boards every sweep was a no-op and
-    // the division the rules describe never happened. The shuffle stays shut by the 0.1.44.0
-    // guards that ride along (settle-before-plan, per-move retainer identity, once-per-run pull
-    // guard), not by refusing to organize.
-    if (routingPlan.Ops.Count > 0)
+    // the division the rules describe never happened.
+    // 0.1.48.0: fail closed when the session never settled (the residual "re-moves
+    // correctly-placed stock every sweep" case). The settle step's 6s soft deadline used to
+    // proceed to planning anyway, and a plan built from the previous retainer's still-loaded
+    // pages pulls stock that is already where it belongs - the per-move identity check cannot
+    // catch it because it only compares the retainer NAME, which can already read as the new
+    // retainer while its pages are still the previous one's. A skipped session moves nothing;
+    // the stock stays put, the next sweep retries, and the pull/listing legs below run unchanged.
+    if (!_routingSessionSettled)
+    {
+      Svc.Log.Warning($"[LMC] routing: session for '{AutoMarketService.CurrentRetainerName()}' never settled - {routingPlan.Ops.Count} routing move(s) skipped this session (stock stays put; the next sweep retries)");
+      if (Plugin.Configuration.ShowAutoMarketMessages)
+        Communicator.PrintInfo("routing: session never settled - moves skipped on this retainer (stock stays put)");
+    }
+    else if (routingPlan.Ops.Count > 0)
     {
       Svc.Log.Information($"[LMC] routing move plan: {RoutingMove.Summarize(routingPlan.Ops)}: {string.Join(", ", routingPlan.Ops.Select(o => $"{(o.Leg == MoveLeg.RetainerToBags ? "out" : "in")} {o.ItemId}{(o.HQ ? " HQ" : "")} @{AutoMarket.AutoMarketService.NameOfContainer((InventoryType)o.SrcContainer)}#{o.SrcSlot}"))}");
       var moveSteps = new List<Step>();
@@ -2422,6 +2449,9 @@ internal sealed class MarketAutomation : Window, IDisposable
   /// session for expectedName is still swapping containers; true once settled OR at the 6s soft
   /// deadline (proceed with a WARN - per-move identity checks still guard every fire). Must never
   /// pend past the task manager's 10s per-step limit, hence the internal deadline.
+  /// 0.1.48.0: records the outcome in _routingSessionSettled - true on a clean settle, false on
+  /// the deadline path. The routing-move entry points fail closed on false (skip moves, stock
+  /// stays put); pulls and listings still proceed.
   /// </summary>
   private bool? WaitRoutingSettled(string expectedName)
   {
@@ -2430,11 +2460,13 @@ internal sealed class MarketAutomation : Window, IDisposable
     if (AutoMarketService.RetainerSessionSettled(expectedName))
     {
       _settleDeadline = 0;
+      _routingSessionSettled = true;
       return true;
     }
     if (Environment.TickCount64 >= _settleDeadline)
     {
       _settleDeadline = 0;
+      _routingSessionSettled = false;
       Svc.Log.Warning($"[LMC] routing move: retainer session for '{expectedName}' did not settle within 6s (pages still loading or switching); proceeding - per-move identity checks still guard every fire");
       return true;
     }
@@ -2463,6 +2495,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     _routingMovedFail = 0;
     _routingPulledThisRun.Clear();
     _settleDeadline = 0;
+    _routingSessionSettled = true;
     _unroutedBagsAnnounced = false;
     _unconfirmedThisRun = 0;
     // 0.1.26.0: the planned count is per-run state too. It was the one vendor counter NOT reset
