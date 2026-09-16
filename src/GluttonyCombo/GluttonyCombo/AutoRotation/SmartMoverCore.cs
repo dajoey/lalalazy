@@ -164,26 +164,36 @@ internal static class SmartMoverCore
             return StandDown(h, ReasonOocCode);
 
         // ---- DODGE (combat only - a pre-combat approach uses ENGAGE below) ----
-        if (w.InCombat && UnsafeAt(w.PlayerPos, w.Zones, 0f) is not null)
+        if (w.InCombat)
         {
-            // v1.0.4.197: dodge-destination continuity. With several overlapping
-            // AoEs the sampler's "nearest" safe point wobbles 1-2y every tick,
-            // and every wobble re-aimed the dodge (the visible "freakout") and
-            // fed vnavmesh a fresh pathfind. While STILL dodging, a held dodge
-            // destination that is still safe and still walkable is kept.
+            // v1.0.4.202: dodge persistence replaces the v1.0.4.197 hold, which
+            // only applied while the player was still unsafe. While a dodge is
+            // in flight the held destination is KEPT until the player arrives
+            // (within the settle deadband) or the point itself becomes
+            // unsafe/unwalkable - even when the player is momentarily clear. A
+            // one-tick zone flicker used to fall through to ENGAGE/SETTLE,
+            // whose StandDown cleared the hysteresis and killed the vnav path
+            // mid-dodge (RDM Occult-Crescent grading on 1.0.4.201: ddg at
+            // 19:43:50.383, stl one tick later at 19:43:51.400, zones still
+            // live at both). With several overlapping AoEs this also keeps the
+            // sampler's nearest-safe-point wobble from re-aiming every tick.
             if (h.HasLastDest && h.LastDodge &&
-                UnsafeAt(h.LastDest, w.Zones, 0.25f) is null &&
-                Walkable(w.IsPointWalkable, h.LastDest))
+                Vector2.Distance(w.PlayerPos, h.LastDest) > MinMoveFor(w))
             {
-                return new MoveDecision(Decision.Move, h.LastDest, ReasonDodgeCode);
+                if (UnsafeAt(h.LastDest, w.Zones, 0.25f) is null &&
+                    Walkable(w.IsPointWalkable, h.LastDest))
+                    return new MoveDecision(Decision.Move, h.LastDest, ReasonDodgeCode);
             }
 
-            var anchor = w.TargetEngaged ? w.TargetPos : w.PlayerPos;
-            var clamp = w.TargetEngaged ? MaxDestDistFromTarget : float.MaxValue;
-            var dest = FindSafePoint(w.PlayerPos, w.Zones, anchor, clamp, w.IsPointWalkable);
-            if (dest is { } d)
-                return Commit(w, h, d, ReasonDodgeCode, overrideHold: true);
-            return None(); // no sampled safe point - hold rather than walk blind
+            if (UnsafeAt(w.PlayerPos, w.Zones, 0f) is not null)
+            {
+                var anchor = w.TargetEngaged ? w.TargetPos : w.PlayerPos;
+                var clamp = w.TargetEngaged ? MaxDestDistFromTarget : float.MaxValue;
+                var dest = FindSafePoint(w.PlayerPos, w.Zones, anchor, clamp, w.IsPointWalkable);
+                if (dest is { } d)
+                    return Commit(w, h, d, ReasonDodgeCode, overrideHold: true);
+                return None(); // no sampled safe point - hold rather than walk blind
+            }
         }
 
         // ---- ENGAGE / SETTLE ----
