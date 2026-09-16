@@ -679,6 +679,44 @@ SmartMoverCore.MoverWorld World(
     Check("nav/toggle-off-stays-off", dOff.Kind == SmartMoverCore.Decision.Stop && dOff.Reason == SmartMoverCore.ReasonOffCode, $"kind={dOff.Kind} r={dOff.Reason}");
 }
 
+// ------------------------------------------------- dodge persistence (v1.0.4.202)
+{
+    // Telemetry-proven defect (RDM Occult-Crescent grading on 1.0.4.201:
+    // ddg 19:43:50.383 then stl 19:43:51.400 with zones still live): a
+    // one-tick zone flicker used to abandon a live dodge - the settle path's
+    // StandDown cleared the hysteresis and the host killed the vnav path.
+    var zone = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -8), 0f, 8f, 0f, 0f, 0f, default, 3f) };
+    var h = new SmartMoverCore.Hysteresis();
+    var d1 = SmartMoverCore.Decide(World(player: new(0, -8), zones: zone) with { NowSec = 200.0 }, h);
+    Check("persist/dodge-commits", d1.Kind == SmartMoverCore.Decision.Move && d1.Reason == SmartZoneDDG(), $"kind={d1.Kind} r={d1.Reason}");
+
+    // Flicker: the next tick sees EMPTY zones (cast/VFX blip) while the
+    // character is still well short of the held destination - the dodge
+    // must KEEP flowing to the held safe point, never fall through to settle.
+    var d2 = SmartMoverCore.Decide(World(player: new(0, -7.9f), zones: NoZones) with { NowSec = 200.25 }, h);
+    Check("persist/flicker-keeps-dodge", d2.Kind == SmartMoverCore.Decision.Move && d2.Dest == d1.Dest, $"kind={d2.Kind} dest={d2.Dest} d1={d1.Dest}");
+    Check("persist/flicker-reason-ddg", d2.Reason == SmartZoneDDG(), $"r={d2.Reason}");
+
+    // Arrival ends the dodge: at the held safe point (within the settle
+    // deadband) the normal settle path answers again, never ddg.
+    var at = d1.Dest;
+    var d3 = SmartMoverCore.Decide(World(player: at, range: 20f, target: new(0, 0), hitbox: 5f, zones: NoZones) with { NowSec = 200.5 }, h);
+    Check("persist/arrived-settles", d3.Kind != SmartMoverCore.Decision.Move || d3.Reason != SmartZoneDDG(), $"kind={d3.Kind} r={d3.Reason}");
+
+    // Combat end mid-flight still stands down immediately.
+    var d4 = SmartMoverCore.Decide(World(player: new(0, -7.9f), combat: false) with { NowSec = 200.75 }, h);
+    Check("persist/combat-end-standdown", d4.Reason != SmartZoneDDG(), $"kind={d4.Kind} r={d4.Reason} dest={d4.Dest}");
+
+    // Resampling still happens: a held dodge destination that becomes
+    // covered by a fresh zone is not followed through the new danger.
+    var h2 = new SmartMoverCore.Hysteresis();
+    var z2 = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -8), 0f, 8f, 0f, 0f, 0f, default, 3f) };
+    var e1 = SmartMoverCore.Decide(World(player: new(0, -8), zones: z2) with { NowSec = 300.0 }, h2);
+    var cover = new[] { z2[0], new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, e1.Dest, 0f, 4f, 0f, 0f, 0f, default, 3f) };
+    var e2 = SmartMoverCore.Decide(World(player: new(0, -7.9f), zones: cover) with { NowSec = 300.25 }, h2);
+    Check("persist/covered-held-dest-resamples", e1.Kind == SmartMoverCore.Decision.Move && e2.Kind == SmartMoverCore.Decision.Move &&
+        SmartMoverCore.UnsafeAt(e2.Dest, cover, 0.25f) is null && e2.Dest != e1.Dest, $"e1={e1.Dest} e2={e2.Dest}");
+}
 // ---------------------------------------------------------------- shape asserts
 {
     Check("shape/zone-carries-remaining", typeof(DangerZoneModel.Zone).GetProperty("RemainingSec") is not null);

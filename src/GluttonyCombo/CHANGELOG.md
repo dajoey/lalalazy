@@ -1,4 +1,10 @@
-﻿## v1.0.4.201 (2026-09-15) [testing]
+## v1.0.4.202 (2026-09-16) [testing]
+### Fixed
+- **Smart Movement dodges are no longer abandoned after one tick.** Telemetry from grading 1.0.4.201 (RDM in Occult Crescent, 19:43:50 ET) showed exactly one `ddg` decision followed one tick later by a settle stand-down (`stl`) while a zone was still live: a brief zone blip (cast end / VFX flicker) dropped the player out of the "unsafe" set mid-dodge, ENGAGE/SETTLE answered, its hysteresis reset killed vnav pathing, and the character never escaped. A dodge is now persistent: while in flight its held destination is kept (still safe and on-mesh) until the player arrives within the settle deadband or the destination itself becomes unsafe. Combat end still stands down immediately, and a destination freshly covered by a new zone resamples. (files: `AutoRotation/SmartMoverCore.cs` - `Decide` dodge branch persistence)
+### Notes
+- Offline harness now runs 160 cases: the flicker-to-settle regression (`ddg` then `stl` with zones live), persistence across the blip, arrival ending the dodge, combat-end stand-down, and covered-destination resampling. (file: `tests/GluttonyCombo.SmartMoverHarness/Program.cs`)
+- In-game grading with Smart Movement ON + Movement Telemetry ON: the Occult Crescent dodge grading (melee move-to-target already confirmed in game on 1.0.4.201). Expect a `ddg` that keeps streaming to the same dest until arrival, then `stl`/`eng`.
+## v1.0.4.201 (2026-09-15) [testing]
 ### Fixed
 - **Smart Movement on melee now walks all the way into striking distance instead of stopping short.** Testing 1.0.4.200 got melee moving (pre-combat hostile engage) but Joey graded it still broken: motion starts, then stops outside melee range (Shirogane NIN on the dummy). Three short-band numbers each exceeded the 3-yalm band: the settle tolerance (2.0, or 1.0 with a positional wanted) declared "in range" up to 5 yalms edge-to-edge, the ideal standing point sat half a yalm outside the band edge, and the 1.0-yalm Commit deadband cancelled the final approach and stranded the character there. Short bands (melee/tank 3, SGE 5) now settle within half a yalm of the edge, stand ON the edge, and close in to half a yalm; ranged bands are byte-identical. (files: `AutoRotation/SmartMoverCore.cs` - `RangeTolerance`/`IdealOffset`/`MinMoveFor` plus `ShortRangeYalms`)
 ### Notes
