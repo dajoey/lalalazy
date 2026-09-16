@@ -122,7 +122,7 @@ internal static class Program
 
         Check("BST prefix is the greppable BT|", line.StartsWith("BT|", StringComparison.Ordinal), line);
         Check("BST exact line shape",
-            line == "BT|1788904962577|6484a802070503510a|2|5|3|81|pet=1073741830:Cu Sith:5432|bm=44896|av=44930|dec=44887:instinctual:compass|fd=|4599,4601,4621",
+            line == "BT|1788904962577|6484a802070503510a|2|5|3|81|pet=1073741830:Cu Sith:5432|bm=44896|av=44930|dec=44887:instinctual:compass|fd=|sl=|lv=0|4599,4601,4621",
             line);
         Check("BST gauge hex is 18 chars (9 bytes)",
             line.Split('|')[2].Length == 18, line);
@@ -184,10 +184,10 @@ internal static class Program
         var manyStatuses = Enumerable.Range(0, 40).Select(i => (ushort)(4595 + i)).ToArray();
         var longLine = BeastmasterTelemetryFormat.BuildLine(1_788_904_962_577,
             snap with { Statuses = manyStatuses });
-        Check("BST line stays within the 200-char budget",
+        Check("BST line stays within the line budget",
             longLine.Length <= BeastmasterTelemetryFormat.MaxLineLength, $"len={longLine.Length}");
         Check("BST truncated line is marked with ~", longLine.EndsWith('~'), longLine);
-        Check("BST truncation keeps all 13 fields", longLine.Split('|').Length == 13, longLine);
+        Check("BST truncation keeps all 15 fields", longLine.Split('|').Length == 15, longLine);
 
         // --- the change gate ---------------------------------------------------------
         var gate = new BeastmasterTelemetryFormat.GateState();

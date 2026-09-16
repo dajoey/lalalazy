@@ -61,119 +61,245 @@ namespace GluttonyCombo.Resources.Localization.JobConfigs {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Always slot 1.
+        ///   Looks up a localized string similar to Allow knockback / draw-in {0}.
         /// </summary>
-        internal static string AlwaysSlot1 {
+        internal static string AllowDisplacingRelease0 {
             get {
-                return ResourceManager.GetString("AlwaysSlot1", resourceCulture);
+                return ResourceManager.GetString("AllowDisplacingRelease0", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Always summons the familiar assigned to the first Battlehorn slot..
+        ///   Looks up a localized string similar to Puk, diremite and treant knock enemies back; gigantoad and rotting goobbue dr....
         /// </summary>
-        internal static string AlwaysSlot1Desc {
+        internal static string AllowDisplacingReleaseDesc {
             get {
-                return ResourceManager.GetString("AlwaysSlot1Desc", resourceCulture);
+                return ResourceManager.GetString("AllowDisplacingReleaseDesc", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Always slot 2.
+        ///   Looks up a localized string similar to Allow cycling into no familiar.
         /// </summary>
-        internal static string AlwaysSlot2 {
+        internal static string AllowPetlessCycling {
             get {
-                return ResourceManager.GetString("AlwaysSlot2", resourceCulture);
+                return ResourceManager.GetString("AllowPetlessCycling", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Always summons the familiar assigned to the second Battlehorn slot..
+        ///   Looks up a localized string similar to Off (recommended): a familiar only retreats when another assigned Battlehorn ....
         /// </summary>
-        internal static string AlwaysSlot2Desc {
+        internal static string AllowPetlessCyclingDesc {
             get {
-                return ResourceManager.GetString("AlwaysSlot2Desc", resourceCulture);
+                return ResourceManager.GetString("AllowPetlessCyclingDesc", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Always slot 3.
+        ///   Looks up a localized string similar to Allow sleep {0} (lamb Lullaby).
         /// </summary>
-        internal static string AlwaysSlot3 {
+        internal static string AllowSleepRelease0 {
             get {
-                return ResourceManager.GetString("AlwaysSlot3", resourceCulture);
+                return ResourceManager.GetString("AllowSleepRelease0", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Always summons the familiar assigned to the third Battlehorn slot..
+        ///   Looks up a localized string similar to Lullaby puts enemies to sleep, which breaks on damage. Off (recommended): lam....
         /// </summary>
-        internal static string AlwaysSlot3Desc {
+        internal static string AllowSleepReleaseDesc {
             get {
-                return ResourceManager.GetString("AlwaysSlot3Desc", resourceCulture);
+                return ResourceManager.GetString("AllowSleepReleaseDesc", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Auto Battlehorn slot order.
+        ///   Looks up a localized string similar to Use {0} while {1} is recasting.
         /// </summary>
-        internal static string AutoBattlehornSlotOrder {
+        internal static string BorrowWhileReleaseRecasts0 {
             get {
-                return ResourceManager.GetString("AutoBattlehornSlotOrder", resourceCulture);
+                return ResourceManager.GetString("BorrowWhileReleaseRecasts0", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Hold {0} for {1}.
+        ///   Looks up a localized string similar to Levels 22-29: summoning does not reset the Tempered Release recast yet. On: a....
         /// </summary>
-        internal static string Hold0For1 {
+        internal static string BorrowWhileReleaseRecastsDesc {
             get {
-                return ResourceManager.GetString("Hold0For1", resourceCulture);
+                return ResourceManager.GetString("BorrowWhileReleaseRecastsDesc", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Waits for {0} (from {1}, 1500 potency {2}) before retreating the familiar, instead of retreating the moment its TP is spent (1000 potency)..
+        ///   Looks up a localized string similar to Use wespe's Final Sting as its exit.
         /// </summary>
-        internal static string Hold0For1Desc {
+        internal static string FinalStingAsExit {
             get {
-                return ResourceManager.GetString("Hold0For1Desc", resourceCulture);
+                return ResourceManager.GetString("FinalStingAsExit", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Include familiar mitigation {0}.
+        ///   Looks up a localized string similar to Wespe's {0} skill (Final Sting) makes it retreat. On: it fires only as the we....
         /// </summary>
-        internal static string IncludeFamiliarMitigation0 {
+        internal static string FinalStingAsExitDesc {
             get {
-                return ResourceManager.GetString("IncludeFamiliarMitigation0", resourceCulture);
+                return ResourceManager.GetString("FinalStingAsExitDesc", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Uses Beastskin/Vileskin/Scaleskin ({0} mitigation variants) automatically when player HP drops to 80% or below. Off by default..
+        ///   Looks up a localized string similar to Minimum seconds a familiar fights before {0}.
         /// </summary>
-        internal static string IncludeFamiliarMitigation0Desc {
+        internal static string MinFamiliarStay0 {
             get {
-                return ResourceManager.GetString("IncludeFamiliarMitigation0Desc", resourceCulture);
+                return ResourceManager.GetString("MinFamiliarStay0", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Rotate 1 -&gt; 2 -&gt; 3.
+        ///   Looks up a localized string similar to Refresh One with Nature between pulls.
         /// </summary>
-        internal static string Rotate123 {
+        internal static string RefreshBetweenPulls {
             get {
-                return ResourceManager.GetString("Rotate123", resourceCulture);
+                return ResourceManager.GetString("RefreshBetweenPulls", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Rotates through all three Battlehorn slots so each fresh summon re-arms {0} and {1}..
+        ///   Looks up a localized string similar to From level 18, out of combat with an enemy targeted: when the current familia....
         /// </summary>
-        internal static string Rotate123Desc {
+        internal static string RefreshBetweenPullsDesc {
             get {
-                return ResourceManager.GetString("Rotate123Desc", resourceCulture);
+                return ResourceManager.GetString("RefreshBetweenPullsDesc", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to {0} (after Borrow, level 22+).
+        /// </summary>
+        internal static string SectionBeastMode0 {
+            get {
+                return ResourceManager.GetString("SectionBeastMode0", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Familiar handling.
+        /// </summary>
+        internal static string SectionFamiliar {
+            get {
+                return ResourceManager.GetString("SectionFamiliar", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Other.
+        /// </summary>
+        internal static string SectionOther {
+            get {
+                return ResourceManager.GetString("SectionOther", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Summon a familiar when a hostile target is selected.
+        /// </summary>
+        internal static string SummonBeforeCombat {
+            get {
+                return ResourceManager.GetString("SummonBeforeCombat", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Out of combat, summoning costs no lockout. Summons the first ready horn when ....
+        /// </summary>
+        internal static string SummonBeforeCombatDesc {
+            get {
+                return ResourceManager.GetString("SummonBeforeCombatDesc", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to In combat, on cooldown: less physical damage taken and higher critical hit ra....
+        /// </summary>
+        internal static string UseBeastskinDesc {
+            get {
+                return ResourceManager.GetString("UseBeastskinDesc", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to It is a GCD spell: only when the target is out of melee range (up to 30 yalms....
+        /// </summary>
+        internal static string UseQuellingWaveRangedDesc {
+            get {
+                return ResourceManager.GetString("UseQuellingWaveRangedDesc", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Use {0} and {1}.
+        /// </summary>
+        internal static string UseRally0And1 {
+            get {
+                return ResourceManager.GetString("UseRally0And1", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Rally at 3 Mastered Instinct right after the axe that granted the third. Rall....
+        /// </summary>
+        internal static string UseRallyDesc {
+            get {
+                return ResourceManager.GetString("UseRallyDesc", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to When an enemy is targeting the character. Off by default: the barrier only pa....
+        /// </summary>
+        internal static string UseScaleskinDesc {
+            get {
+                return ResourceManager.GetString("UseScaleskinDesc", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to When an enemy is within 6 yalms..
+        /// </summary>
+        internal static string UseSeedsowerDesc {
+            get {
+                return ResourceManager.GetString("UseSeedsowerDesc", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to As a gap closer when the target is 4-20 yalms away, and for damage in melee r....
+        /// </summary>
+        internal static string UseShieldChargeDesc {
+            get {
+                return ResourceManager.GetString("UseShieldChargeDesc", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Only to interrupt an interruptible cast in melee range..
+        /// </summary>
+        internal static string UseSoulCrushDesc {
+            get {
+                return ResourceManager.GetString("UseSoulCrushDesc", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to When an enemy is targeting the character..
+        /// </summary>
+        internal static string UseVileskinDesc {
+            get {
+                return ResourceManager.GetString("UseVileskinDesc", resourceCulture);
             }
         }
     }

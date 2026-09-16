@@ -25,7 +25,7 @@ internal static class BeastmasterTelemetryFormat
     public const string Prefix = "BT|";
 
     /// <summary> Hard budget for one emitted line. </summary>
-    public const int MaxLineLength = 200;
+    public const int MaxLineLength = 280;
 
     /// <summary>
     ///     Minimum gap between two emitted lines, in milliseconds - a hard cap of 4 lines/s.
@@ -64,7 +64,9 @@ internal static class BeastmasterTelemetryFormat
         uint DecisionActionId = 0,
         string? DecisionReason = null,
         string? FamiliarDecline = null,
-        byte InstinctStacks = 0);
+        byte InstinctStacks = 0,
+        string? SlotBeasts = null,
+        byte Level = 0);
 
     /// <summary>
     ///     The identity of a snapshot for change detection: the eight gauge bytes, the pet
@@ -75,7 +77,7 @@ internal static class BeastmasterTelemetryFormat
     ///     and out mid-combo) and would defeat the change gate, and any status transition worth
     ///     seeing moves a gauge byte too.
     /// </remarks>
-    internal static (ulong Gauge, ulong Pet, uint BeastMode, uint DecisionActionId, string DecisionReason, string FamiliarDecline, byte InstinctStacks) KeyOf(in Snapshot s)
+    internal static (ulong Gauge, ulong Pet, uint BeastMode, uint DecisionActionId, string DecisionReason, string FamiliarDecline, byte InstinctStacks, string SlotBeasts, byte Level) KeyOf(in Snapshot s)
     {
         ulong gauge =
             ((ulong)s.TPGauge << 56) |
@@ -87,7 +89,7 @@ internal static class BeastmasterTelemetryFormat
             ((ulong)s.ChainCount << 8) |
             s.KinshipState;
 
-        return (gauge, s.PetObjectId, s.AdjustedBeastMode, s.DecisionActionId, s.DecisionReason ?? "", s.FamiliarDecline ?? "", s.InstinctStacks);
+        return (gauge, s.PetObjectId, s.AdjustedBeastMode, s.DecisionActionId, s.DecisionReason ?? "", s.FamiliarDecline ?? "", s.InstinctStacks, s.SlotBeasts ?? "", s.Level);
     }
 
     /// <summary>
@@ -123,7 +125,7 @@ internal static class BeastmasterTelemetryFormat
     internal struct GateState
     {
         public bool HasLast;
-        public (ulong Gauge, ulong Pet, uint BeastMode, uint DecisionActionId, string DecisionReason, string FamiliarDecline, byte InstinctStacks) LastKey;
+        public (ulong Gauge, ulong Pet, uint BeastMode, uint DecisionActionId, string DecisionReason, string FamiliarDecline, byte InstinctStacks, string SlotBeasts, byte Level) LastKey;
         public bool HasEmitted;
         public long LastEmitMs;
 
@@ -186,7 +188,9 @@ internal static class BeastmasterTelemetryFormat
           .Append("|av=").Append(s.AdjustedAvalanche.ToString(inv))
           .Append("|dec=").Append(s.DecisionActionId.ToString(inv)).Append(':')
           .Append(SanitizeReason(s.DecisionReason))
-          .Append("|fd=").Append(SanitizeReason(s.FamiliarDecline))
+          .Append("|fd=").Append(SanitizeReason(s.FamiliarDecline, 90))
+          .Append("|sl=").Append(SanitizeReason(s.SlotBeasts, 12))
+          .Append("|lv=").Append(s.Level.ToString(inv))
           .Append('|');
 
         // Everything above is fixed-width-ish and always present; only the status list is cut.
@@ -254,12 +258,12 @@ internal static class BeastmasterTelemetryFormat
     ///     it still shares the pet-name sanitiser's structural-character rule defensively, and
     ///     caps length so one reason string cannot dominate the 200-char line budget.
     /// </summary>
-    private static string SanitizeReason(string? reason)
+    private static string SanitizeReason(string? reason, int maxLength = 40)
     {
         if (string.IsNullOrEmpty(reason))
             return "";
 
-        Span<char> buffer = stackalloc char[Math.Min(reason.Length, 40)];
+        Span<char> buffer = stackalloc char[Math.Min(reason.Length, maxLength)];
         for (var i = 0; i < buffer.Length; i++)
         {
             var c = reason[i];

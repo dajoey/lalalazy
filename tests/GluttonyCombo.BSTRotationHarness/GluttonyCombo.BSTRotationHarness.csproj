@@ -1,5 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Plain console app, no Dalamud. Compiles the REAL
+  <!-- BST rebuild 2026-09-16: unit cases plus a familiar-lifecycle SIMULATOR that drives the real engine
+       through 300 s fights at every level 1-50 and asserts the safety invariants (Program.cs).
+       Plain console app, no Dalamud. Compiles the REAL
        src/GluttonyCombo/GluttonyCombo/Combos/PvE/BST/BST_RotationLogic.cs and BST_Enums.cs
        (t_02fe2681, the BST rotation card) so the compass/GCD-chain/familiar-loop selection
        logic is proven offline against the exact code that ships, per
@@ -22,5 +24,7 @@
   <ItemGroup>
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\BST\BST_Enums.cs" Link="BST_Enums.cs" />
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\BST\BST_RotationLogic.cs" Link="BST_RotationLogic.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\BST\BST_Beasts.cs" Link="BST_Beasts.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\BST\BST_Helper.cs" Link="BST_Helper.cs" />
   </ItemGroup>
 </Project>

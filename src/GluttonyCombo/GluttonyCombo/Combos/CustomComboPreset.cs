@@ -2350,6 +2350,10 @@ public enum Preset
     // window themselves, which reads as "only the 3-part GCD combo, none of the other
     // abilities" - the exact behavior reported.
 
+    // Rebuild 2026-09-16: the AoE presets replace Axeblade Bite (BST has no AoE weaponskill) so they no
+    // longer share the Smash Axe button with the single-target presets, and AoE Advanced (70201) exists so
+    // IPC's per-job mode check finds an AoE Advanced key like every other job.
+
     #region Simple Mode
 
     [AutoAction(false, false)]
@@ -2360,14 +2364,15 @@ public enum Preset
     BST_ST_SimpleMode = 70100,
 
     [AutoAction(true, false)]
-    [ReplaceSkill(BST.SmashAxe)]
+    [ReplaceSkill(BST.AxebladeBite)]
+    [ConflictingCombos(BST_AoE_AdvancedMode)]
     [JobInfo(Job.BST)]
     [SimpleDPSCombo]
     BST_AoE_SimpleMode = 70200,
 
     #endregion
 
-    #region Advanced ST Beastmaster
+    #region Advanced Beastmaster
 
     [AutoAction(false, false)]
     [ReplaceSkill(BST.SmashAxe)]
@@ -2376,9 +2381,16 @@ public enum Preset
     [AdvancedDPSCombo]
     BST_ST_AdvancedMode = 70101,
 
+    [AutoAction(true, false)]
+    [ReplaceSkill(BST.AxebladeBite)]
+    [ConflictingCombos(BST_AoE_SimpleMode)]
+    [JobInfo(Job.BST)]
+    [AdvancedDPSCombo]
+    BST_AoE_AdvancedMode = 70201,
+
     #endregion
 
-    // Last value = 70200
+    // Last value = 70201
 
     #endregion
 

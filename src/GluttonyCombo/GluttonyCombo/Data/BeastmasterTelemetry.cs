@@ -128,6 +128,8 @@ internal static class BeastmasterTelemetry
             BST.LastDecisionActionId,
             BST.LastDecisionReason,
             BST.FamiliarDeclineReason,
-            gauge.InstinctStacks);
+            gauge.InstinctStacks,
+            BST.LastSlotBeasts,
+            (byte)(Player.Object?.Level ?? 0));
     }
 }

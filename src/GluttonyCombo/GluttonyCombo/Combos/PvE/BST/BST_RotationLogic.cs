@@ -1,48 +1,66 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace GluttonyCombo.Combos.PvE;
 
 /// <summary>
-///     Pure Beastmaster rotation decision logic (t_02fe2681). No Dalamud/game types - only
-///     primitives and the <see cref="BeastmasterAffinity"/>/<see cref="BeastmasterKinType"/>
-///     enums declared alongside the gauge overlay in BST_Gauge.cs (same namespace) - so this
-///     file compiles standalone into <c>tests/GluttonyCombo.BSTRotationHarness</c> and is
-///     proven offline before shipping, per "prove selection logic in a throwaway console app"
-///     (skill lalalazy-ffxiv references/rotation-logic-and-preset-actions.md).
+///     Beastmaster decision engine (BST rebuild, 2026-09-16). PURE: no Dalamud or game types.
+///     <see cref="BST"/> (BST.cs) reads the game into a <see cref="BstState"/> each tick and presses
+///     whatever <see cref="Decide"/> returns. The same file compiles into
+///     tests/GluttonyCombo.BSTRotationHarness, whose simulator runs it at every level 1-50.
 /// </summary>
 /// <remarks>
-///     <see cref="BST"/> (BST.cs) is the live half: it reads the real gauge/pet/status state
-///     and calls into these pure functions to decide what to press - the same "pure half
-///     compiled into the harness, live half reads the game" split
-///     <c>BeastmasterTelemetryFormat</c>/<c>BeastmasterTelemetry</c> already use.
+///     Every rule is grounded in data, not inference (research files named in BST_Beasts.cs):
+///     <list type="bullet">
+///         <item>One with Nature is consumed by Borrow OR Tempered Release: one per summon.</item>
+///         <item>A horn is locked ~90 s in combat after its familiar retreats, so a familiar only
+///               retreats when another assigned, learned horn is ready (never petless).</item>
+///         <item>Familiar TP is shared by all horns and survives retreat and resummon.</item>
+///         <item>Wespe's Tempered Release (Final Sting) retreats the familiar: it is an exit, not an opener.</item>
+///         <item>Lingering Vantage exists only from L44 (Tempered Release) / L46 (Borrow).</item>
+///         <item>Combos are Trick + axe pairs; each axe spends all TP. The pet's Heart lands ~1 s after
+///               Trick (p90 1.7 s, p99 2.5 s over 308 live Tricks), so the follow-up axe waits for it.</item>
+///         <item>Axes are Weaponskills on their own recast: auto-rotation only sends them when the GCD
+///               is ready, so they are offered on GCD-ready ticks, never behind a weave gate.</item>
+///     </list>
 /// </remarks>
 internal static class BST_RotationLogic
 {
-    // ------------------------------------------------------------------
-    // GCD chain: Smash Axe -> Axeblade Bite -> Shieldsplitter. A combo that isn't currently
-    // running (ComboTimer expired, or the last GCD wasn't the expected predecessor) restarts at
-    // Smash Axe and grants no TP - RULES OF THE JOB.
-    // ------------------------------------------------------------------
+    // ------------------------------------------------------------------ level gates (7.56 sheets)
 
-    /// <summary> Chooses the next single-target GCD in the 1-2-3 chain. </summary>
-    public static uint ChooseGcdChain(uint lastComboAction, bool comboTimerActive,
-        uint smashAxe, uint axebladeBite, uint shieldsplitter)
-    {
-        if (comboTimerActive && lastComboAction == smashAxe)
-            return axebladeBite;
+    public const int
+        LvAxebladeBite = 2,
+        LvAvalancheAxe = 4,
+        LvPartingBlow = 6,
+        LvMistralAxe = 8,
+        LvTrick = 8,
+        LvSecondBattlehorn = 10,
+        LvShieldsplitter = 12,
+        LvSpinningAxe = 14,
+        LvGaleAxe = 16,
+        LvTemperedRelease = 18,
+        LvThirdBattlehorn = 20,
+        LvBorrow = 22,
+        LvShieldCharge = 24,
+        LvRally = 28,
+        LvTemperedResetOnSummon = 30,
+        LvBorrowResetOnSummon = 34,
+        LvRallyingCheer = 40,
+        LvVantageFromTempered = 44,
+        LvVantageFromBorrow = 46,
+        LvFinishers = 50;
 
-        if (comboTimerActive && lastComboAction == axebladeBite)
-            return shieldsplitter;
+    /// <summary> Wait this long after a Battlehorn press before believing "no familiar" again. </summary>
+    public const float SummonSettleSeconds = 2.5f;
 
-        return smashAxe;
-    }
+    /// <summary> Give up waiting for the pet's Heart after Trick (live p99 = 2.5 s). </summary>
+    public const float PetHeartTimeoutSeconds = 3.0f;
 
-    // ------------------------------------------------------------------
-    // Compass: clockwise Volant -> Rampant -> Durant -> Eldritch -> Volant.
-    // ------------------------------------------------------------------
+    /// <summary> Instinctual combo window. </summary>
+    public const float ComboWindowSeconds = 7.0f;
 
-    /// <summary> The next affinity clockwise from <paramref name="current"/>. </summary>
-    public static BeastmasterAffinity NextClockwise(BeastmasterAffinity current) => current switch
+    // ------------------------------------------------------------------ compass
+
+    public static BeastmasterAffinity Clockwise(BeastmasterAffinity a) => a switch
     {
         BeastmasterAffinity.Volant => BeastmasterAffinity.Rampant,
         BeastmasterAffinity.Rampant => BeastmasterAffinity.Durant,
@@ -51,435 +69,654 @@ internal static class BST_RotationLogic
         _ => BeastmasterAffinity.None,
     };
 
-    /// <summary> True when <paramref name="second"/> is the clockwise successor of <paramref name="first"/>. </summary>
-    public static bool IsClockwisePair(BeastmasterAffinity first, BeastmasterAffinity second) =>
-        first != BeastmasterAffinity.None && NextClockwise(first) == second;
-
-    /// <summary>
-    ///     Which of Sunstrider / Moonstalker an intentional (clockwise) combo grants, keyed on
-    ///     which affinity the CHAIN STARTED at - Volant/Durant grant Sunstrider,
-    ///     Rampant/Eldritch grant Moonstalker (RULES OF THE JOB).
-    /// </summary>
-    public static BeastmasterAffinity IntentionalComboResult(BeastmasterAffinity chainStart) => chainStart switch
+    public static BeastmasterAffinity CounterClockwise(BeastmasterAffinity a) => a switch
     {
-        BeastmasterAffinity.Volant or BeastmasterAffinity.Durant => BeastmasterAffinity.Sunstrider,
-        BeastmasterAffinity.Rampant or BeastmasterAffinity.Eldritch => BeastmasterAffinity.Moonstalker,
+        BeastmasterAffinity.Rampant => BeastmasterAffinity.Volant,
+        BeastmasterAffinity.Durant => BeastmasterAffinity.Rampant,
+        BeastmasterAffinity.Eldritch => BeastmasterAffinity.Durant,
+        BeastmasterAffinity.Volant => BeastmasterAffinity.Eldritch,
         _ => BeastmasterAffinity.None,
     };
 
-    /// <summary> The base instinctual action id for a given compass affinity, or 0 for a non-compass affinity. </summary>
-    public static uint InstinctualActionFor(BeastmasterAffinity affinity,
-        uint avalancheAxe, uint mistralAxe, uint spinningAxe, uint galeAxe) => affinity switch
+    public static bool IsCompass(BeastmasterAffinity a) =>
+        a is BeastmasterAffinity.Volant or BeastmasterAffinity.Rampant or BeastmasterAffinity.Durant or BeastmasterAffinity.Eldritch;
+
+    /// <summary> The player axe for a compass affinity. </summary>
+    public static uint AxeFor(BeastmasterAffinity a) => a switch
     {
-        BeastmasterAffinity.Rampant => avalancheAxe,
-        BeastmasterAffinity.Durant => mistralAxe,
-        BeastmasterAffinity.Eldritch => spinningAxe,
-        BeastmasterAffinity.Volant => galeAxe,
+        BeastmasterAffinity.Rampant => BST.AvalancheAxe,
+        BeastmasterAffinity.Durant => BST.MistralAxe,
+        BeastmasterAffinity.Eldritch => BST.SpinningAxe,
+        BeastmasterAffinity.Volant => BST.GaleAxe,
         _ => 0,
     };
 
-    /// <summary>
-    ///     Chooses the next instinctual base action to press, or 0 when none should fire this
-    ///     tick. Hard rules, in order:
-    ///     <list type="number">
-    ///         <item> TP must be at least 100 (the skill spends the whole pool). </item>
-    ///         <item>
-    ///             <c>comboState == 7</c> is Wavering Heart - a hard lockout, never fire.
-    ///         </item>
-    ///         <item>
-    ///             If a compass window is open (<paramref name="currentAffinity"/> is not
-    ///             <see cref="BeastmasterAffinity.None"/> - the gauge already clears this ~7s
-    ///             after the last instinctual skill, so it IS the "within 7s" signal), continue
-    ///             the chain clockwise rather than opening a new one: ChainCount raises combo
-    ///             potency, so continuing beats restarting.
-    ///         </item>
-    ///         <item>
-    ///             Otherwise open fresh at the LOWEST-level unlocked axe, not always Volant - a
-    ///             sub-16 player has no Gale Axe/Volant yet (unlock order L4 Rampant &lt; L8
-    ///             Durant &lt; L14 Eldritch &lt; L16 Volant). Fixed t_f04d4c83: the prior
-    ///             "open fresh: Volant" fallback returned <paramref name="galeAxe"/>
-    ///             unconditionally, which is unlearned (<c>ActionReady</c> false, no-op) for
-    ///             every player below L16 - confirmed live via a sub-16 corpus sample (player
-    ///             level 15, TP 196, compass closed) that fell all the way through to the
-    ///             GCD-chain fallback instead of firing an instinctual axe it had actually
-    ///             earned (Rampant, learned since L4).
-    ///         </item>
-    ///     </list>
-    /// </summary>
-    /// <param name="durantLearned"> Whether Mistral Axe (Durant, lv8) is unlocked. </param>
-    /// <param name="eldritchLearned"> Whether Spinning Axe (Eldritch, lv14) is unlocked. </param>
-    /// <param name="volantLearned"> Whether Gale Axe (Volant, lv16) is unlocked. </param>
-    public static uint ChooseInstinctual(byte tp, byte comboState, BeastmasterAffinity currentAffinity,
-        uint avalancheAxe, uint mistralAxe, uint spinningAxe, uint galeAxe,
-        bool durantLearned = true, bool eldritchLearned = true, bool volantLearned = true)
+    public static int AxeLevel(BeastmasterAffinity a) => a switch
     {
-        if (tp < 100)
+        BeastmasterAffinity.Rampant => LvAvalancheAxe,
+        BeastmasterAffinity.Durant => LvMistralAxe,
+        BeastmasterAffinity.Eldritch => LvSpinningAxe,
+        BeastmasterAffinity.Volant => LvGaleAxe,
+        _ => 99,
+    };
+
+    public static bool AxeLearned(BeastmasterAffinity a, int level) => level >= AxeLevel(a);
+
+    /// <summary> Highest-level learned axe (any affinity), for a bare axe. 0 below L4. </summary>
+    public static uint AnyLearnedAxe(int level) =>
+        level >= LvGaleAxe ? BST.GaleAxe
+        : level >= LvSpinningAxe ? BST.SpinningAxe
+        : level >= LvMistralAxe ? BST.MistralAxe
+        : level >= LvAvalancheAxe ? BST.AvalancheAxe
+        : 0;
+
+    /// <summary> Learned Battlehorn slots at a (synced) level: 1 below L10, 2 below L20, else 3. </summary>
+    public static int LearnedHornSlots(int level) =>
+        level >= LvThirdBattlehorn ? 3 : level >= LvSecondBattlehorn ? 2 : 1;
+
+    public static uint HornAction(int slot) => slot switch
+    {
+        2 => BST.SecondBattlehorn,
+        3 => BST.ThirdBattlehorn,
+        _ => BST.FirstBattlehorn,
+    };
+
+    // ------------------------------------------------------------------ release policy
+
+    public enum ReleasePlan
+    {
+        /// <summary> Spend One with Nature on Tempered Release now (safe beast). </summary>
+        Use,
+        /// <summary> Beast's release is its exit (wespe): only fire through the exit gate. </summary>
+        HoldForExit,
+        /// <summary> Release not allowed for this beast by config (sleep / displacement) or beast unknown. </summary>
+        Blocked,
+    }
+
+    public static ReleasePlan PlanRelease(BeastmasterBeast? beast, in BstSettings cfg)
+    {
+        if (beast is not { } b)
+            return ReleasePlan.Blocked;
+
+        if ((b.Release & BeastmasterReleaseTraits.Exit) != 0)
+            return cfg.UseFinalStingAsExit ? ReleasePlan.HoldForExit : ReleasePlan.Blocked;
+
+        if ((b.Release & BeastmasterReleaseTraits.Sleep) != 0 && !cfg.AllowSleepRelease)
+            return ReleasePlan.Blocked;
+
+        if ((b.Release & (BeastmasterReleaseTraits.Knockback | BeastmasterReleaseTraits.DrawIn)) != 0 && !cfg.AllowDisplacingRelease)
+            return ReleasePlan.Blocked;
+
+        return ReleasePlan.Use;
+    }
+
+    // ------------------------------------------------------------------ combo ordering
+
+    public enum ComboOrder { None, TrickFirst, AxeFirst }
+
+    /// <summary>
+    ///     How to pair Trick with an axe for a pet of <paramref name="petAffinity"/>: Trick then the
+    ///     axe clockwise of the pet (intentional, Mastered Instinct from L28), or the axe counter-
+    ///     clockwise of the pet then Trick (intentional, Natural Instinct from L40). Below the level
+    ///     where the preferred intentional axe exists, the other order is used if its axe is learned,
+    ///     else an instinctual Trick-first pair with any learned axe.
+    /// </summary>
+    public static ComboOrder ChooseComboOrder(int level, BeastmasterAffinity petAffinity, int masterStacks, int naturalStacks)
+    {
+        if (!IsCompass(petAffinity) || level < LvTrick)
+            return ComboOrder.None;
+
+        var cwLearned = AxeLearned(Clockwise(petAffinity), level);
+        var ccwLearned = AxeLearned(CounterClockwise(petAffinity), level);
+
+        // L40+: bank one Natural Instinct once Mastered is building (Rallying Cheer / L50 triple).
+        if (level >= LvRallyingCheer && naturalStacks == 0 && masterStacks >= 2 && ccwLearned)
+            return ComboOrder.AxeFirst;
+
+        if (cwLearned)
+            return ComboOrder.TrickFirst;
+
+        if (ccwLearned)
+            return ComboOrder.AxeFirst;
+
+        return AnyLearnedAxe(level) != 0 ? ComboOrder.TrickFirst : ComboOrder.None;
+    }
+
+    // ------------------------------------------------------------------ decision
+
+    /// <summary> Everything the engine needs for one tick. The live half fills it from the game. </summary>
+    public struct BstState
+    {
+        public int Level;
+        public bool InCombat;
+        public bool HasHostileTarget;
+        public float TargetDistance;      // yalms, float.MaxValue when none
+        public float TargetHpPercent;     // 0-100
+        public bool TargetInterruptible;
+        public int EnemiesWithin6y;       // around the player (Seedsower)
+        public bool PlayerTargetedByEnemy;
+        public bool PlayerIsCasting;
+        public bool IsMoving;
+
+        // gauge
+        public int PlayerTp;
+        public int FamiliarTp;
+        public int ActiveSlot;                        // 0 = none
+        public BeastmasterAffinity ComboState;        // 0x0C: 7 = Wavering Heart
+        public BeastmasterAffinity LastAffinity;      // 0x0D: cleared ~7 s after the last instinctual skill
+        public int KinshipSlot;                       // horn Borrow was used from (0 none)
+        public int MasterStacks;
+        public int NaturalStacks;
+
+        // familiar
+        public int Slot1Beast, Slot2Beast, Slot3Beast; // XBMPet rows assigned per horn (0 = empty/unknown)
+        public bool SlotBeastsKnown;                   // false when the slot table could not be read
+        public bool PetObjectPresent;
+        public int PetObjectBeast;                     // XBMPet row from the pet object's BNpcBase (0 unknown)
+
+        // player statuses
+        public bool OneWithNature;
+        public bool LingeringVantage;
+        public bool WaveringHeart;
+        public bool SunOrMoonActive;
+        public BeastmasterAffinity SunMoon;           // Sunstrider / Moonstalker when active
+        public bool KinshipHeld;
+
+        // timing (seconds; float.MaxValue when never)
+        public bool GcdReady;       // RemainingGCD within the queue window: weaponskills/spells may be sent
+        public bool CanWeave;       // enough GCD left for an ability
+        public float SinceSummon;   // since the active familiar arrived (gauge slot became non-zero)
+        public float SinceHornPress;
+        public float SinceTrick;
+        public float SinceTempered;
+        public float SinceBorrow;
+        public float SinceAxe;
+        public float SincePetHeart; // since the gauge last showed the pet's own affinity after a Trick
+        public BeastmasterAffinity LastAxeAffinity; // affinity of the player's most recent axe
+        public float TemperedRecastRemaining;
+
+        // readiness (live half: ActionReady, which also covers level sync and resources)
+        public bool ReadyHorn1, ReadyHorn2, ReadyHorn3;
+        public bool ReadyTrick, ReadyTempered, ReadyBorrow, ReadyParting;
+        public bool ReadyAxe;       // axe recast group free
+        public bool ReadyRally, ReadyCheer;
+        public uint BeastModeResolved; // GetAdjustedActionId(BeastMode), 0/BeastMode when no Kinship
+        public bool ReadyBeastMode;
+        public bool ReadyShieldCharge;
+        public int ShieldChargeCharges, ShieldChargeMax;
+
+        // GCD combo
+        public uint LastComboAction;
+        public bool ComboTimerActive;
+    }
+
+    /// <summary> Config, resolved by the live half (Simple mode = defaults). </summary>
+    public struct BstSettings
+    {
+        public bool AoE;
+        public int MinFamiliarStaySeconds;
+        public bool AllowPetlessCycling;
+        public bool UseFinalStingAsExit;
+        public bool AllowDisplacingRelease;
+        public bool AllowSleepRelease;
+        public bool BorrowWhileReleaseRecasts;
+        public bool SummonBeforeCombat;
+        public bool RefreshBetweenPulls;
+        public bool UseBeastskin, UseVileskin, UseSeedsower, UseScaleskin, UseSoulCrush, UseQuellingWaveRanged;
+        public bool UseShieldCharge;
+        public bool UseRally;
+
+        public static BstSettings Defaults(bool aoe = false) => new()
+        {
+            AoE = aoe,
+            MinFamiliarStaySeconds = 10,
+            AllowPetlessCycling = false,
+            UseFinalStingAsExit = true,
+            AllowDisplacingRelease = false,
+            AllowSleepRelease = false,
+            BorrowWhileReleaseRecasts = true,
+            SummonBeforeCombat = true,
+            RefreshBetweenPulls = true,
+            UseBeastskin = true,
+            UseVileskin = true,
+            UseSeedsower = true,
+            UseScaleskin = false,
+            UseSoulCrush = true,
+            UseQuellingWaveRanged = true,
+            UseShieldCharge = true,
+            UseRally = true,
+        };
+    }
+
+    public readonly record struct BstDecision(uint ActionId, string Reason, string Declines);
+
+    public static int SlotBeast(in BstState s, int slot) => slot switch
+    {
+        1 => s.Slot1Beast,
+        2 => s.Slot2Beast,
+        3 => s.Slot3Beast,
+        _ => 0,
+    };
+
+    public static bool HornReady(in BstState s, int slot) => slot switch
+    {
+        1 => s.ReadyHorn1,
+        2 => s.ReadyHorn2,
+        3 => s.ReadyHorn3,
+        _ => false,
+    };
+
+    /// <summary> A familiar is out, arriving, or leaving: never summon over it. </summary>
+    public static bool FamiliarPresentOrPending(in BstState s) =>
+        s.ActiveSlot != 0 || s.PetObjectPresent || s.SinceHornPress < SummonSettleSeconds;
+
+    /// <summary> The familiar is out and commandable. </summary>
+    public static bool FamiliarOut(in BstState s) => s.ActiveSlot != 0;
+
+    /// <summary> The beast of the active familiar: slot table first, pet object second. </summary>
+    public static BeastmasterBeast? ActiveBeast(in BstState s)
+    {
+        var row = s.ActiveSlot is >= 1 and <= 3 ? SlotBeast(s, s.ActiveSlot) : 0;
+        if (row == 0)
+            row = s.PetObjectBeast;
+        return BST_Beasts.ByRow(row);
+    }
+
+    /// <summary>
+    ///     A horn that can be summoned now: learned at this level, has a beast assigned (when the slot
+    ///     table is readable), ready, and not <paramref name="exceptSlot"/>. Lowest slot first.
+    /// </summary>
+    public static int PickReadyHorn(in BstState s, int exceptSlot, int avoidSlot = 0)
+    {
+        var learned = LearnedHornSlots(s.Level);
+        var fallback = 0;
+        for (var slot = 1; slot <= learned; slot++)
+        {
+            if (slot == exceptSlot || !HornReady(s, slot))
+                continue;
+            if (s.SlotBeastsKnown && SlotBeast(s, slot) == 0)
+                continue;
+            if (slot == avoidSlot)
+            {
+                fallback = fallback == 0 ? slot : fallback;
+                continue;
+            }
+            return slot;
+        }
+        return fallback;
+    }
+
+    /// <summary> The one decision for this tick. Never returns 0: the GCD combo is the floor. </summary>
+    public static BstDecision Decide(in BstState s, in BstSettings cfg)
+    {
+        var declines = new List<string>(4);
+
+        BstDecision Pick(uint id, string reason) => new(id, reason, string.Join("+", declines));
+
+        // ---------------------------------------------------------- out of combat
+        if (!s.InCombat)
+        {
+            if (s.HasHostileTarget && !s.PlayerIsCasting)
+            {
+                if (cfg.SummonBeforeCombat && !FamiliarPresentOrPending(s))
+                {
+                    var slot = PickReadyHorn(s, 0);
+                    if (slot != 0)
+                        return Pick(HornAction(slot), $"prepull:summon-slot{slot}");
+                    declines.Add("prepull:no-horn-ready");
+                }
+
+                // Out of combat a horn swap costs no lockout: trade a spent summon for a fresh One with Nature.
+                if (cfg.RefreshBetweenPulls && s.Level >= LvTemperedRelease && FamiliarOut(s) && !s.OneWithNature
+                    && s.SinceHornPress > SummonSettleSeconds + 1f)
+                {
+                    // Resummoning the horn Borrow came from ends that Kinship early: avoid it.
+                    var slot = PickReadyHorn(s, s.ActiveSlot, s.KinshipHeld ? s.KinshipSlot : 0);
+                    if (slot != 0 && !(s.KinshipHeld && slot == s.KinshipSlot))
+                        return Pick(HornAction(slot), $"prepull:refresh-slot{slot}");
+                }
+            }
+
+            return Pick(GcdChain(s), "ooc:gcdchain");
+        }
+
+        var beast = ActiveBeast(s);
+        var plan = s.Level >= LvTemperedRelease ? PlanRelease(beast, cfg) : ReleasePlan.Blocked;
+        var familiarOut = FamiliarOut(s);
+
+        // ---------------------------------------------------------- 1. summon
+        if (!FamiliarPresentOrPending(s))
+        {
+            if (!s.PlayerIsCasting && (s.CanWeave || !s.GcdReady))
+            {
+                var slot = PickReadyHorn(s, 0);
+                if (slot != 0)
+                    return Pick(HornAction(slot), $"summon:slot{slot}");
+                declines.Add("summon:no-horn-ready");
+            }
+            else
+            {
+                declines.Add("summon:waiting-weave");
+            }
+        }
+        else if (!familiarOut)
+        {
+            declines.Add(s.PetObjectPresent ? "familiar:arriving-or-leaving" : "familiar:summon-settling");
+        }
+
+        // ---------------------------------------------------------- 2. interrupt
+        if (cfg.UseSoulCrush && s.KinshipHeld && s.BeastModeResolved == BST.SoulCrush && s.ReadyBeastMode
+            && s.TargetInterruptible && s.CanWeave && s.TargetDistance <= 3.5f)
+            return Pick(BST.SoulCrush, "beastmode:soulcrush-interrupt");
+
+        // ---------------------------------------------------------- 3. exit (Parting Blow / Final Sting)
+        if (familiarOut && s.CanWeave)
+        {
+            var exit = TryExit(s, cfg, beast, plan, declines);
+            if (exit != 0)
+                return Pick(exit, exit == BST.TemperedRelease ? "exit:finalsting" : "exit:partingblow");
+        }
+
+        // ---------------------------------------------------------- 4. spend One with Nature
+        if (familiarOut && s.OneWithNature && s.Level >= LvTemperedRelease && s.CanWeave && s.SinceSummon >= 0.8f)
+        {
+            switch (plan)
+            {
+                case ReleasePlan.Use:
+                    if (s.ReadyTempered && s.TargetDistance <= 25f)
+                        return Pick(BST.TemperedRelease, "own:tempered");
+                    if (!s.ReadyTempered && cfg.BorrowWhileReleaseRecasts && BorrowAllowed(s) && s.TemperedRecastRemaining > 12f)
+                        return Pick(BST.Borrow, "own:borrow-while-tempered-recasts");
+                    declines.Add(s.ReadyTempered ? "own:tempered-out-of-range" : "own:tempered-recast");
+                    break;
+
+                case ReleasePlan.Blocked:
+                    if (BorrowAllowed(s))
+                        return Pick(BST.Borrow, beast is null ? "own:borrow-unknown-beast" : "own:borrow-release-blocked");
+                    declines.Add(beast is null ? "own:beast-unknown" : "own:release-blocked");
+                    break;
+
+                case ReleasePlan.HoldForExit:
+                    declines.Add("own:held-for-finalsting");
+                    break;
+            }
+        }
+
+        // ---------------------------------------------------------- 5. Rally / Rallying Cheer
+        if (cfg.UseRally && s.CanWeave)
+        {
+            var rally = ChooseRally(s);
+            if (rally != 0)
+                return Pick(rally, rally == BST.Rally ? "rally:stacks" : "rallyingcheer:stacks");
+        }
+
+        // ---------------------------------------------------------- 6. instinctual combos
+        var combo = ChooseInstinctual(s, beast, declines);
+        if (combo.ActionId != 0)
+            return Pick(combo.ActionId, combo.Reason);
+
+        // ---------------------------------------------------------- 7. Beast Mode
+        var beastMode = ChooseBeastMode(s, cfg);
+        if (beastMode.ActionId != 0)
+            return Pick(beastMode.ActionId, beastMode.Reason);
+
+        // ---------------------------------------------------------- 8. Shield Charge
+        if (cfg.UseShieldCharge && s.Level >= LvShieldCharge && s.ReadyShieldCharge && s.CanWeave && s.ShieldChargeCharges > 0
+            && s.TargetDistance <= 20f)
+        {
+            if (s.TargetDistance > 3.5f)
+                return Pick(BST.ShieldCharge, "shieldcharge:gapclose");
+            if (s.ShieldChargeCharges >= s.ShieldChargeMax && !s.IsMoving)
+                return Pick(BST.ShieldCharge, "shieldcharge:max-charges");
+        }
+
+        // ---------------------------------------------------------- 9. GCD
+        return Pick(GcdChain(s), "gcdchain");
+    }
+
+    /// <summary> Smash Axe -> Axeblade Bite (L2) -> Shieldsplitter (L12). </summary>
+    public static uint GcdChain(in BstState s)
+    {
+        if (s.ComboTimerActive && s.LastComboAction == BST.SmashAxe && s.Level >= LvAxebladeBite)
+            return BST.AxebladeBite;
+        if (s.ComboTimerActive && s.LastComboAction == BST.AxebladeBite && s.Level >= LvShieldsplitter)
+            return BST.Shieldsplitter;
+        return BST.SmashAxe;
+    }
+
+    /// <summary> Parting Blow or wespe's Final Sting when the exit gate holds; 0 otherwise (declines recorded). </summary>
+    public static uint TryExit(in BstState s, in BstSettings cfg, BeastmasterBeast? beast, ReleasePlan plan, List<string> declines)
+    {
+        if (s.Level < LvPartingBlow)
             return 0;
 
-        if (comboState == 7) // Wavering Heart lockout
+        var nextHorn = PickReadyHorn(s, s.ActiveSlot);
+        var petlessOk = cfg.AllowPetlessCycling;
+
+        // Pet mid-command: let Trick / Tempered Release resolve before it leaves.
+        var trickPending = s.SinceTrick < PetHeartTimeoutSeconds && s.SincePetHeart > s.SinceTrick;
+        if (trickPending || s.SinceTempered < 2f || s.SinceBorrow < 1f)
+        {
+            declines.Add("exit:pet-busy");
             return 0;
-
-        if (currentAffinity != BeastmasterAffinity.None)
-        {
-            var next = NextClockwise(currentAffinity);
-            if (next != BeastmasterAffinity.None)
-                return InstinctualActionFor(next, avalancheAxe, mistralAxe, spinningAxe, galeAxe);
         }
 
-        // Open fresh at the highest-level (most recently learned) unlocked axe. Rampant
-        // (Avalanche Axe, L4) is the ultimate fallback and never needs its own "learned" flag -
-        // Wild Heart (the trait that turns on TP accumulation at all) is also granted at L4, so
-        // TP cannot reach 100 before Avalanche Axe itself is available.
-        if (volantLearned) return galeAxe; // open fresh: Volant
-        if (eldritchLearned) return spinningAxe; // open fresh: Eldritch
-        if (durantLearned) return mistralAxe; // open fresh: Durant
-        return avalancheAxe; // open fresh: Rampant
-    }
-
-    // ------------------------------------------------------------------
-    // Lv50 finishers. GetAdjustedActionId already resolves 44884/44887/44888/44889 to
-    // 44930-44933 in the live client when TP==250 and the matching prior affinity is up
-    // (Universality = a Sunstrider skill fired under Moonstalker, or vice versa). This function
-    // does not decide the swap - it labels which finisher intent a resolved action id
-    // represents, for the BT| decision tap's "reason" string and for the offline harness.
-    // ------------------------------------------------------------------
-
-    /// <summary> Labels a resolved (post-<c>GetAdjustedActionId</c>) instinctual action id. </summary>
-    public static string FinisherReason(uint adjustedActionId,
-        uint brutalRage, uint hawkishTalons, uint risenFall, uint calamity)
-    {
-        if (adjustedActionId == brutalRage) return "brutalrage:sunstrider";
-        if (adjustedActionId == hawkishTalons) return "hawkishtalons:moonstalker";
-        if (adjustedActionId == risenFall) return "risenfall:sunstrider";
-        if (adjustedActionId == calamity) return "calamity:moonstalker";
-        return "instinctual:precombo";
-    }
-
-    // ------------------------------------------------------------------
-    // Familiar loop: Battlehorn -> Borrow -> Tempered Release -> Trick -> (Lingering Vantage up
-    // and familiar TP spent) Parting Blow -> next Battlehorn. Summoning RESETS Borrow + Tempered
-    // Release, so each fresh summon re-arms both.
-    // ------------------------------------------------------------------
-
-    public enum FamiliarStep
-    {
-        /// <summary> Nothing to do this tick - not this step's turn, or blocked by config. </summary>
-        None,
-        Battlehorn,
-        Borrow,
-        TemperedRelease,
-        Trick,
-        PartingBlow,
-    }
-
-    /// <summary>
-    ///     One step of the familiar loop, given the current summon's state. "This summon" for
-    ///     <paramref name="borrowedThisSummon"/>/<paramref name="temperedReleasedThisSummon"/>
-    ///     is decided by the live half comparing action timestamps against the last Battlehorn
-    ///     press (see <see cref="BST"/>.ChooseFamiliarAction) - both are RESET by a fresh
-    ///     summon (RULES OF THE JOB), so "used more recently than the last summon" is exactly
-    ///     "used this summon".
-    /// </summary>
-    /// <param name="petSummoned"> Whether a familiar is currently out. </param>
-    /// <param name="borrowedThisSummon"> Whether Borrow has already been used since the current summon. </param>
-    /// <param name="temperedReleasedThisSummon"> Whether Tempered Release has already been used since the current summon. </param>
-    /// <param name="familiarTp"> The familiar's TP gauge (0-250). </param>
-    /// <param name="lingeringVantage"> Whether Lingering Vantage (4614, from Borrow) is currently up. </param>
-    /// <param name="holdPartingBlowForVantage">
-    ///     Config: hold Parting Blow until Lingering Vantage is up (1500 vs 1000 potency),
-    ///     rather than retreating immediately once Trick has spent the familiar's TP.
-    /// </param>
-    /// <param name="borrowLearned">
-    ///     Whether Borrow (lv22) is unlocked at the player's current level. Below lv22 the
-    ///     step is skipped entirely rather than stalling the loop - Trick (lv8) is available
-    ///     long before Borrow, and the old hardcoded Battlehorn-Borrow-Tempered-Trick order
-    ///     left a sub-22 player's familiar loop stuck forever waiting on an ability they
-    ///     hadn't learned (Helm: "Not using trick", 2026-09-10).
-    /// </param>
-    /// <remarks>
-    ///     Lingering Vantage cannot exist below lv22 - Borrow's own unlock is the floor for any
-    ///     Vantage grant (skill lalalazy-ffxiv references/beastmaster-kit-by-level.md, traits
-    ///     749/750). A player below lv22 can therefore NEVER satisfy a hold-for-Vantage
-    ///     condition, so the hold must be gated on <paramref name="borrowLearned"/>
-    ///     (lv22 unlock) regardless of Simple/Advanced mode - the caller (BST.cs) previously
-    ///     forced this true in Simple Mode unconditionally ("!advanced || config"), which
-    ///     stalled the familiar loop forever for any sub-22 Simple Mode player once Trick
-    ///     spent the familiar's TP (Helm: "still not casting Trick, pet TP just stays at
-    ///     100%", 2026-09-10 / t_4c7923b0 defect 1 / t_3d88b4fd).
-    /// </remarks>
-    /// <param name="borrowLearned"> Whether Borrow (lv22) is unlocked - the floor for Lingering Vantage. </param>
-    /// <param name="holdPartingBlowForVantageConfig"> The raw config toggle value, independent of mode. </param>
-    public static bool ComputeHoldForVantage(bool borrowLearned, bool holdPartingBlowForVantageConfig) =>
-        borrowLearned && holdPartingBlowForVantageConfig;
-
-    /// <summary>
-    ///     The familiar-loop steps in the order they should be tried, so the live half can
-    ///     walk DOWN the list when the game refuses the step the loop wants. One offered but
-    ///     uncastable step used to kill the entire familiar subtree for that tick
-    ///     (t_f987910c); an ordered candidate list is the harness-friendly shape of the fix.
-    /// </summary>
-    public static readonly FamiliarStep[] FamiliarStepOrder =
-    [
-        FamiliarStep.Battlehorn,
-        FamiliarStep.Borrow,
-        FamiliarStep.TemperedRelease,
-        FamiliarStep.Trick,
-        FamiliarStep.PartingBlow,
-    ];
-
-    /// <summary>
-    ///     The familiar-loop steps ELIGIBLE right now, best first, with the reason each
-    ///     skipped step was declined. Presumes the familiar IS out (the live half answers
-    ///     the summon question itself - Battlehorn is its own branch there). Every rule
-    ///     contributes its step when satisfied, so the list is CUMULATIVE and the live half
-    ///     can fall through an ActionReady refusal to the next entry. Rules (in order):
-    ///     <list type="number">
-    ///         <item>
-    ///             <see cref="FamiliarStep.Borrow"/> and
-    ///             <see cref="FamiliarStep.TemperedRelease"/> require their Primary cost gate,
-    ///             One with Nature (4601): it is granted by the summon itself
-    ///             (Battlehorn Mastery) and consumed by these casts, so when it is absent the
-    ///             step is skipped, not offered - it can never again stall the loop behind an
-    ///             action the game will refuse.
-    ///         </item>
-    ///         <item>
-    ///             <see cref="FamiliarStep.Trick"/> when familiar TP has banked to at least
-    ///             its 100 floor, and <see cref="FamiliarStep.PartingBlow"/> once Trick has
-    ///             spent it (respecting the hold-for-Vantage config, whose own level floor
-    ///             keeps the hold reachable at every bracket it is offered in).
-    ///         </item>
-    ///     </list>
-    ///     Borrow and Tempered Release are offered together when both are unspent and One
-    ///     with Nature is up: they are independent abilities with separate recasts, and if
-    ///     the game has one of the two on cooldown the live half falls through to the other
-    ///     instead of losing the tick.
-    /// </summary>
-    /// <param name="borrowedThisSummon"> Whether Borrow has already been used since the current summon. </param>
-    /// <param name="temperedReleasedThisSummon"> Whether Tempered Release has already been used since the current summon. </param>
-    /// <param name="familiarTp"> The familiar's TP gauge (0-250). </param>
-    /// <param name="oneWithNatureUp"> Whether status 4601 One with Nature is currently on the player. </param>
-    /// <param name="lingeringVantage"> Whether Lingering Vantage (4614, from Borrow) is currently up. </param>
-    /// <param name="holdPartingBlowForVantage">
-    ///     Config: hold Parting Blow until Lingering Vantage is up (1500 vs 1000 potency),
-    ///     rather than retreating immediately once Trick has spent the familiar's TP.
-    /// </param>
-    /// <param name="borrowLearned">
-    ///     Whether Borrow (lv22) is unlocked at the player's current level. Below lv22 the
-    ///     step is skipped entirely rather than stalling the loop - Trick (lv8) is available
-    ///     long before Borrow.
-    /// </param>
-    /// <param name="temperedLearned">
-    ///     Whether Tempered Release (lv18) is unlocked at the player's current level. Same
-    ///     skip-if-not-learned treatment as <paramref name="borrowLearned"/>.
-    /// </param>
-    /// <param name="trickedThisSummon">
-    ///     Whether Trick has fired since the current summon (the pet has acted). Parting
-    ///     Blow is never offered before the pet acts: a fresh familiar starts at 0 TP and a
-    ///     premature retreat spends Borrow/Tempered for nothing while burning the Battlehorn
-    ///     slot into its recast (Sept-14 in-game defect, Joey 2026-09-14: sacrifice before
-    ///     the pet acts, then no resummon). Defaults to true so pre-fix callers keep the
-    ///     proven Trick-then-retreat behaviour; the live half passes the real timestamp
-    ///     comparison, same idiom as <paramref name="borrowedThisSummon"/>.
-    /// </param>
-    /// <returns>
-    ///     Eligible steps (empty Decline) FIRST, in try order; the
-    ///     <see cref="FamiliarStep.None"/> entries carrying WHY a skipped step was
-    ///     skipped follow. Never empty: with nothing eligible the list is
-    ///     [None, ...declines], so the caller always has the decline record to report.
-    /// </returns>
-    public static List<(FamiliarStep Step, string Decline)> ChooseFamiliarCandidates(
-        bool borrowedThisSummon, bool temperedReleasedThisSummon,
-        byte familiarTp, bool oneWithNatureUp, bool lingeringVantage, bool holdPartingBlowForVantage,
-        bool borrowLearned = true, bool temperedLearned = true, bool trickedThisSummon = true)
-    {
-        // Eligible steps (empty Decline) collect first - the live half walks them in
-        // order and falls through any ActionReady refusal - and the declines
-        // (Step=None plus the reason) follow, so [0] is always "the step this summon
-        // wants most" while the tail still carries the whole decline picture.
-        var eligible = new List<(FamiliarStep Step, string Decline)>();
-        var declines = new List<(FamiliarStep Step, string Decline)>();
-
-        // Borrow and Tempered Release are independent abilities on separate recasts;
-        // BOTH are offered when eligible so the live half can fall through one the game
-        // refuses (recast not up) to the other. Decline entries carry Step=None so a
-        // caller walking the list for castable steps can filter on the Step alone while
-        // still reading the decline text.
-        if (borrowLearned)
+        if (s.SinceSummon < cfg.MinFamiliarStaySeconds)
         {
-            if (borrowedThisSummon)
-                declines.Add((FamiliarStep.None, "borrow:spent"));
-            else if (!oneWithNatureUp)
-                declines.Add((FamiliarStep.None, "borrow:declined-onewithnature"));
-            else
-                eligible.Add((FamiliarStep.Borrow, ""));
+            declines.Add("exit:min-stay");
+            return 0;
         }
 
-        if (temperedLearned)
+        // Wespe: Final Sting IS the exit, and it needs the summon's One with Nature.
+        if (plan == ReleasePlan.HoldForExit && s.OneWithNature)
         {
-            if (temperedReleasedThisSummon)
-                declines.Add((FamiliarStep.None, "temperedrelease:spent"));
-            else if (!oneWithNatureUp)
-                declines.Add((FamiliarStep.None, "temperedrelease:declined-onewithnature"));
-            else
-                eligible.Add((FamiliarStep.TemperedRelease, ""));
+            if (!s.ReadyTempered)
+            {
+                declines.Add("exit:finalsting-recast");
+                return 0;
+            }
+            if (nextHorn == 0 && !petlessOk)
+            {
+                declines.Add("exit:no-other-horn-ready");
+                return 0;
+            }
+            return BST.TemperedRelease;
         }
 
-        // The tail is exactly one of: Trick (TP banked), Parting Blow (TP spent AFTER
-        // the pet has acted this summon, respecting the hold), or a hold - which reports
-        // the blockers so a grader can see the whole picture. Parting Blow is never
-        // offered before Trick has fired once this summon, even when not holding for
-        // Vantage: retreating a pet that never acted is the Sept-14 defect, not a retreat.
-        if (familiarTp >= 100)
+        // One with Nature must be spent first (or not exist / blocked for this beast).
+        var ownPending = s.Level >= LvTemperedRelease && s.OneWithNature && plan == ReleasePlan.Use;
+        if (ownPending)
         {
-            eligible.Add((FamiliarStep.Trick, ""));
+            declines.Add("exit:one-with-nature-unspent");
+            return 0;
         }
-        else if (!trickedThisSummon)
+        if (s.Level >= LvTemperedRelease && s.OneWithNature && plan == ReleasePlan.Blocked && BorrowAllowed(s))
         {
-            declines.Add((FamiliarStep.None, "trick:waiting-tp"));
-            declines.Add((FamiliarStep.None, "partingblow:waiting-pet-action"));
-        }
-        else if (holdPartingBlowForVantage && !lingeringVantage)
-        {
-            // Nothing eligible - the loop holds. The declines carry BOTH blockers
-        // (Trick's TP floor and the Parting Blow hold) for the telemetry.
-            declines.Add((FamiliarStep.None, "trick:waiting-tp"));
-            declines.Add((FamiliarStep.None, "partingblow:holding-for-vantage"));
-        }
-        else
-        {
-            eligible.Add((FamiliarStep.PartingBlow, ""));
+            declines.Add("exit:borrow-first");
+            return 0;
         }
 
-        var result = new List<(FamiliarStep Step, string Decline)>(eligible.Count + declines.Count);
-        result.AddRange(eligible);
-        result.AddRange(declines);
-        return result;
+        if (!s.ReadyParting)
+        {
+            declines.Add("exit:partingblow-recast");
+            return 0;
+        }
+
+        if (s.TargetDistance > 25f)
+        {
+            declines.Add("exit:out-of-range");
+            return 0;
+        }
+
+        if (nextHorn == 0 && !petlessOk)
+        {
+            declines.Add("exit:no-other-horn-ready");
+            return 0;
+        }
+
+        // L44+: Tempered Release / Borrow grant Lingering Vantage; exit while it is up.
+        var vantageExpected = (s.Level >= LvVantageFromTempered && s.SinceTempered < 60f)
+                              || (s.Level >= LvVantageFromBorrow && s.SinceBorrow < 60f);
+        if (vantageExpected && !s.LingeringVantage && (s.SinceTempered < 3f || s.SinceBorrow < 3f))
+        {
+            declines.Add("exit:vantage-arriving");
+            return 0;
+        }
+
+        return BST.PartingBlow;
     }
 
     /// <summary>
-    ///     The pre-1.0.4.190 single-step entry point, kept so the shipped case list keeps
-    ///     compiling and a grader can still ask "what is the ONE step this summon wants".
-    ///     New callers should use <see cref="ChooseFamiliarCandidates"/> - the live half no
-    ///     longer dies when the single chosen step is uncastable; it walks down the
-    ///     candidate list instead.
+    ///     Rally when Mastered Instinct is full (3) and TP was just spent; at L50 also mid-chain to
+    ///     reach the 250-TP finisher. Rallying Cheer when Natural Instinct is banked and familiar TP is
+    ///     low (at L50 kept for the Rally + Cheer triple unless full).
     /// </summary>
-    public static FamiliarStep ChooseFamiliarStep(
-        bool petSummoned, bool borrowedThisSummon, bool temperedReleasedThisSummon,
-        byte familiarTp, bool lingeringVantage, bool holdPartingBlowForVantage,
-        bool borrowLearned = true, bool temperedLearned = true, bool trickedThisSummon = true)
+    public static uint ChooseRally(in BstState s)
     {
-        if (!petSummoned)
-            return FamiliarStep.Battlehorn;
+        if (s.Level >= LvRally && s.ReadyRally && s.MasterStacks >= 3 && s.PlayerTp <= 28)
+            return BST.Rally;
 
-        return ChooseFamiliarCandidates(
-            borrowedThisSummon, temperedReleasedThisSummon,
-            familiarTp, oneWithNatureUp: true, lingeringVantage, holdPartingBlowForVantage,
-            borrowLearned, temperedLearned, trickedThisSummon)[0].Step;
-    }
-
-    /// <summary>
-    ///     Next Battlehorn slot to press, rotating 1 -> 2 -> ... -> <paramref name="maxLearnedSlot"/> -> 1
-    ///     so each fresh summon re-arms Tempered Release + Borrow (RULES OF THE JOB), or a fixed
-    ///     preferred slot when <paramref name="preferredSlot"/> is 1-3 AND that slot is learned.
-    /// </summary>
-    /// <param name="lastSlot"> The last Battlehorn slot summoned (0 = none yet). </param>
-    // ------------------------------------------------------------------
-    // Beast Mode: which resolved Kinship variant needs its own GCD-chain gate.
-    // ------------------------------------------------------------------
-
-    // ------------------------------------------------------------------
-    // Rally / Rallying Cheer: spend banked instinct stacks when the matching
-    // TP pool can absorb the refund.
-    // ------------------------------------------------------------------
-
-    /// <summary>
-    ///     Chooses Rally (player TP refund), Rallying Cheer (familiar TP refund) or nothing
-    ///     (0), given the real instinct-stack counts from gauge byte 0x10.
-    /// </summary>
-    /// <remarks>
-    ///     <para>
-    ///         Rally spends ALL Mastered Instinct stacks for +40 player TP plus +70 per
-    ///         stack; Rallying Cheer spends ALL Natural Instinct stacks for +30 familiar
-    ///         TP plus +70 per stack (beastmaster-kit-by-level.md, action rows 44904/44905).
-    ///         With zero stacks banked the cast is nearly worthless (a bare 30/40-point
-    ///         floor on a 90-120s cooldown), and firing at a TP pool that is already
-    ///         (near-)full wastes the refund to overcap - so the gate is stacks &gt; 0 AND
-    ///         headroom for at least the floor plus one stack's worth of TP.
-    ///     </para>
-    ///     <para>
-    ///         Stack source: gauge byte 0x10 (MasterInstinct = bits 2-3, PetInstinct =
-    ///         bits 0-1), mapped from WrathCombo's WIP Beastmaster work (mrbeastmaster
-    ///         branch, read 2026-09-11) - an independent implementation of the same gauge
-    ///         that also re-derives 0x08-0x0F exactly as the vendored overlay does.
-    ///         Replaces the shipped TP-only proxy that fired Rally on low TP regardless
-    ///         of banked stacks and never actually fired once in the 1771-line BT|
-    ///         decision corpus.
-    ///     </para>
-    /// </remarks>
-    /// <param name="masterStacks"> Mastered Instinct stacks (player side, 0-3). </param>
-    /// <param name="petStacks"> Natural Instinct stacks (familiar side, 0-3). </param>
-    /// <param name="playerTp"> Player TP gauge (0-250). </param>
-    /// <param name="familiarTp"> Familiar TP gauge (0-250). </param>
-    /// <param name="familiarOut"> Whether a familiar is currently summoned. </param>
-    /// <param name="rallyLearned"> Whether Rally (lv28) is unlocked. </param>
-    /// <param name="cheeringLearned"> Whether Rallying Cheer (lv40) is unlocked. </param>
-    /// <param name="rally"> Rally action id. </param>
-    /// <param name="rallyingCheer"> Rallying Cheer action id. </param>
-    /// <returns> The chosen action id, or 0 when neither should fire. </returns>
-    public static uint ChooseRally(
-        int masterStacks, int petStacks, byte playerTp, byte familiarTp, bool familiarOut,
-        bool rallyLearned = true, bool cheeringLearned = true,
-        uint rally = 44905, uint rallyingCheer = 44904)
-    {
-        // Headroom needed before the cast is worth its cooldown: the stack-less floor
-        // plus one stack's worth of refund (110 player / 100 familiar).
-        if (rallyLearned && masterStacks > 0 && playerTp <= 250 - 110)
-            return rally;
-
-        if (cheeringLearned && petStacks > 0 && familiarOut && familiarTp <= 250 - 100)
-            return rallyingCheer;
+        if (s.Level >= LvRallyingCheer && s.ReadyCheer && s.ActiveSlot != 0 && s.NaturalStacks > 0 && s.FamiliarTp < 100)
+        {
+            var fullOrPreFinisher = s.Level < LvFinishers ? s.NaturalStacks >= 2 : s.NaturalStacks >= 3;
+            var tripleStep = s.Level >= LvFinishers && s.PlayerTp >= 250 && s.MasterStacks == 0;
+            if (fullOrPreFinisher || tripleStep)
+                return BST.RallyingCheer;
+        }
 
         return 0;
     }
 
-    /// <summary>
-    ///     True when a resolved Beast Mode action id is Quelling Wave - the sole Kinship
-    ///     variant that rolls the player's own shared GCD (CooldownGroup 58, the same group
-    ///     Smash Axe/Axeblade Bite/Shieldsplitter share - beastmaster-kit-by-level.md section 1)
-    ///     rather than being an independent oGCD. The other seven variants sit on their own
-    ///     independent cooldown groups and are safe to gate on CanWeave() (weave-window slack
-    ///     ahead of the next GCD); Quelling Wave is not - CanWeave() is only true while there
-    ///     is still slack left before the GCD is next due, roughly the opposite moment from
-    ///     the GCD itself being actually ready to press, which is what a GCD-rolling action
-    ///     needs. Confirmed (t_32af951a / beastmaster-rotation-spec.md section 6 defect 5
-    ///     follow-up): the caller must gate Quelling Wave on GCD readiness (ActionReady)
-    ///     alone, never on CanWeave().
-    /// </summary>
-    public static bool IsGcdRollingBeastMode(uint resolvedBeastModeActionId, uint quellingWaveActionId) =>
-        resolvedBeastModeActionId == quellingWaveActionId;
+    /// <summary> Borrow is allowed unless the held Kinship already came from this same horn. </summary>
+    public static bool BorrowAllowed(in BstState s) =>
+        s.Level >= LvBorrow && s.ReadyBorrow && !(s.KinshipHeld && s.KinshipSlot == s.ActiveSlot);
 
-    /// <param name="preferredSlot"> 0 = rotate; 1-3 = always use this slot, if learned. </param>
-    /// <param name="maxLearnedSlot">
-    ///     How many Battlehorn slots are unlocked at the player's current level (1-3): Second
-    ///     Battlehorn unlocks L10, Third unlocks L20 (beastmaster-kit-by-level.md Â§1). Defaults to
-    ///     3 (all learned) so existing callers that omit it keep the pre-fix rotate-1-2-3
-    ///     behaviour unchanged for a max-level player. Rotating modulo this count - rather than
-    ///     unconditionally modulo 3 - is the fix for defect 4 (beastmaster-rotation-spec.md Â§6):
-    ///     a sub-20 player must never be handed a slot whose Battlehorn tier isn't learned yet.
-    /// </param>
-    public static byte NextBattlehornSlot(byte lastSlot, byte preferredSlot, byte maxLearnedSlot = 3)
+    /// <summary> Trick / axe pairing, chain follow-ups, L50 finishers, bare-axe and overcap rules. </summary>
+    public static (uint ActionId, string Reason) ChooseInstinctual(in BstState s, BeastmasterBeast? beast, List<string> declines)
     {
-        // A configured preferred slot the player hasn't learned yet falls back to rotation
-        // rather than handing back an unlearned slot (spec Â§1.2a) - e.g. "Always slot 3"
-        // configured pre-L20 must not stall the loop waiting on an action ActionReady will
-        // never report ready.
-        if (preferredSlot is >= 1 and <= 3 && preferredSlot <= maxLearnedSlot)
-            return preferredSlot;
+        if (s.Level < LvAvalancheAxe)
+            return (0, "");
 
-        // Wraps modulo the LEARNED slot count, not modulo 3 unconditionally. Also self-corrects
-        // a lastSlot above maxLearnedSlot (e.g. a delevel via Party Finder, per the kit doc's
-        // "dungeon-via-Party-Finder delevel reality") - the modulo naturally folds it back into
-        // range without needing a separate clamp.
-        return (byte)(lastSlot % maxLearnedSlot + 1);
+        var familiarOut = FamiliarOut(s);
+        var petAffinity = beast?.TrickAffinity ?? BeastmasterAffinity.None;
+        var targetInMelee = s.TargetDistance <= 3.5f;
+        var locked = s.WaveringHeart || s.ComboState == BeastmasterAffinity.WaveringHeart;
+        var window = ComboWindowSeconds - 0.5f;
+
+        // L50 finisher: Sun/Moon active and TP 250 -> the axe whose finisher is the OPPOSITE type (Universality).
+        if (s.Level >= LvFinishers && s.PlayerTp >= 250 && s.ReadyAxe && s.GcdReady && targetInMelee)
+        {
+            if (s.SunMoon == BeastmasterAffinity.Moonstalker)
+                return (BST.SpinningAxe, "finisher:risenfall-universality");
+            if (s.SunMoon == BeastmasterAffinity.Sunstrider)
+                return (BST.MistralAxe, "finisher:hawkishtalons-universality");
+        }
+
+        // Waiting on the pet's Heart after Trick: an axe now would resolve before the pet's skill.
+        if (s.SinceTrick < PetHeartTimeoutSeconds && s.SincePetHeart > s.SinceTrick)
+        {
+            declines.Add("combo:awaiting-pet-heart");
+            return (0, "");
+        }
+
+        var petWasLast = s.SincePetHeart < window && s.SincePetHeart <= s.SinceTrick && s.SincePetHeart < s.SinceAxe;
+        var axeWasLast = s.SinceAxe < window && s.SinceAxe < s.SincePetHeart;
+
+        // Follow-up after the pet's skill: axe clockwise of the pet (intentional). At L50 with the
+        // triple sequence armed (2 Mastered, 1+ Natural, Rally + Cheer ready) the COUNTER-clockwise axe
+        // instead, so the next Trick after Rally + Rallying Cheer is the intentional one.
+        if (petWasLast && s.PlayerTp >= 100 && s.ReadyAxe)
+        {
+            var tripleArmed = s.Level >= LvFinishers && s.MasterStacks == 2 && s.NaturalStacks >= 1 && s.ReadyRally && s.ReadyCheer;
+            var want = tripleArmed ? CounterClockwise(petAffinity) : Clockwise(petAffinity);
+            var axe = AxeLearned(want, s.Level) ? AxeFor(want) : AnyLearnedAxe(s.Level);
+            if (s.GcdReady && targetInMelee)
+                return (axe, tripleArmed ? "combo:axe-ccw-triple" : axe == AxeFor(want) ? "combo:axe-clockwise-after-trick" : "combo:axe-after-trick");
+            declines.Add("combo:axe-waiting-gcd");
+            return (0, "");
+        }
+
+        // Follow-up after the player's axe: Trick continues the chain (familiar TP permitting)...
+        if (axeWasLast && familiarOut && s.FamiliarTp >= 100 && s.ReadyTrick && !locked)
+        {
+            if (s.CanWeave && s.TargetDistance <= 25f)
+                return (BST.Trick, "combo:trick-after-axe");
+            declines.Add("combo:trick-after-axe-waiting");
+            return (0, "");
+        }
+
+        // ...or, after a Rally refill, the axe clockwise of the last axe.
+        if (axeWasLast && s.PlayerTp >= 100 && s.ReadyAxe && IsCompass(s.LastAxeAffinity))
+        {
+            var want = Clockwise(s.LastAxeAffinity);
+            var axe = AxeLearned(want, s.Level) ? AxeFor(want) : AnyLearnedAxe(s.Level);
+            if (s.GcdReady && targetInMelee)
+                return (axe, "combo:axe-after-axe");
+        }
+
+        var order = ChooseComboOrder(s.Level, petAffinity, s.MasterStacks, s.NaturalStacks);
+
+        // Start a pair: both gauges ready, not locked, axe recast free.
+        if (familiarOut && order != ComboOrder.None && !locked && s.PlayerTp >= 100 && s.FamiliarTp >= 100 && s.ReadyAxe)
+        {
+            if (order == ComboOrder.TrickFirst)
+            {
+                if (s.ReadyTrick && s.CanWeave && s.TargetDistance <= 25f)
+                    return (BST.Trick, "combo:trick-first");
+                declines.Add("combo:trick-first-waiting");
+            }
+            else
+            {
+                var ccw = CounterClockwise(petAffinity);
+                if (s.GcdReady && targetInMelee && AxeLearned(ccw, s.Level))
+                    return (AxeFor(ccw), "combo:axe-first");
+                declines.Add("combo:axe-first-waiting");
+            }
+            return (0, "");
+        }
+
+        if (locked)
+            declines.Add("combo:wavering-heart");
+
+        // Bare axe: no familiar possible (below L8, no horn assigned or ready), or TP about to overcap.
+        var familiarPossible = s.Level >= LvTrick && (familiarOut || PickReadyHorn(s, 0) != 0 || s.ActiveSlot != 0);
+        if (s.PlayerTp >= 100 && s.ReadyAxe && s.GcdReady && targetInMelee
+            && (!familiarPossible || s.PlayerTp >= 235))
+        {
+            var axe = AnyLearnedAxe(s.Level);
+            if (axe != 0)
+                return (axe, familiarPossible ? "axe:overcap" : "axe:no-familiar");
+        }
+
+        // Bare Trick: familiar TP about to overcap and the player cannot pair soon.
+        if (familiarOut && s.Level >= LvTrick && s.FamiliarTp >= 238 && s.PlayerTp < 72 && s.ReadyTrick && s.CanWeave && s.TargetDistance <= 25f)
+            return (BST.Trick, "trick:overcap");
+
+        return (0, "");
+    }
+
+    /// <summary> Beast Mode variant for the held Kinship (Soul Crush handled as an interrupt earlier). </summary>
+    public static (uint ActionId, string Reason) ChooseBeastMode(in BstState s, in BstSettings cfg)
+    {
+        if (!s.KinshipHeld || !s.ReadyBeastMode || s.Level < LvBorrow)
+            return (0, "");
+
+        switch (s.BeastModeResolved)
+        {
+            case BST.Beastskin when cfg.UseBeastskin && s.CanWeave:
+                return (BST.Beastskin, "beastmode:beastskin");
+            case BST.Vileskin when cfg.UseVileskin && s.CanWeave && s.PlayerTargetedByEnemy:
+                return (BST.Vileskin, "beastmode:vileskin");
+            case BST.Scaleskin when cfg.UseScaleskin && s.CanWeave && s.PlayerTargetedByEnemy:
+                return (BST.Scaleskin, "beastmode:scaleskin");
+            case BST.Seedsower when cfg.UseSeedsower && s.CanWeave && s.EnemiesWithin6y > 0:
+                return (BST.Seedsower, "beastmode:seedsower");
+            // Quelling Wave rolls the GCD: only out of melee, only in place of combo step 1.
+            case BST.QuellingWave when cfg.UseQuellingWaveRanged && s.GcdReady && !s.ComboTimerActive
+                                       && s.TargetDistance > 3.5f && s.TargetDistance <= 30f:
+                return (BST.QuellingWave, "beastmode:quellingwave-ranged");
+        }
+
+        return (0, "");
     }
 }

@@ -120,43 +120,85 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-  <data name="AlwaysSlot1" xml:space="preserve">
-    <value>Always slot 1</value>
+  <data name="AllowDisplacingRelease0" xml:space="preserve">
+    <value>Allow knockback / draw-in {0}</value>
   </data>
-  <data name="AlwaysSlot1Desc" xml:space="preserve">
-    <value>Always summons the familiar assigned to the first Battlehorn slot.</value>
+  <data name="AllowDisplacingReleaseDesc" xml:space="preserve">
+    <value>Puk, diremite and treant knock enemies back; gigantoad and rotting goobbue draw them in. Off (recommended for melee and dungeons): those familiars spend One with Nature on Borrow instead (from level 22).</value>
   </data>
-  <data name="AlwaysSlot2" xml:space="preserve">
-    <value>Always slot 2</value>
+  <data name="AllowPetlessCycling" xml:space="preserve">
+    <value>Allow cycling into no familiar</value>
   </data>
-  <data name="AlwaysSlot2Desc" xml:space="preserve">
-    <value>Always summons the familiar assigned to the second Battlehorn slot.</value>
+  <data name="AllowPetlessCyclingDesc" xml:space="preserve">
+    <value>Off (recommended): a familiar only retreats when another assigned Battlehorn is ready, so a familiar is always out. A horn is locked for about 90 seconds in combat after its familiar retreats. On: retreats as soon as the other conditions hold, even if that leaves no familiar out.</value>
   </data>
-  <data name="AlwaysSlot3" xml:space="preserve">
-    <value>Always slot 3</value>
+  <data name="AllowSleepRelease0" xml:space="preserve">
+    <value>Allow sleep {0} (lamb Lullaby)</value>
   </data>
-  <data name="AlwaysSlot3Desc" xml:space="preserve">
-    <value>Always summons the familiar assigned to the third Battlehorn slot.</value>
+  <data name="AllowSleepReleaseDesc" xml:space="preserve">
+    <value>Lullaby puts enemies to sleep, which breaks on damage. Off (recommended): lamb spends One with Nature on Borrow instead (from level 22).</value>
   </data>
-  <data name="AutoBattlehornSlotOrder" xml:space="preserve">
-    <value>Auto Battlehorn slot order</value>
+  <data name="BorrowWhileReleaseRecasts0" xml:space="preserve">
+    <value>Use {0} while {1} is recasting</value>
   </data>
-  <data name="Hold0For1" xml:space="preserve">
-    <value>Hold {0} for {1}</value>
+  <data name="BorrowWhileReleaseRecastsDesc" xml:space="preserve">
+    <value>Levels 22-29: summoning does not reset the Tempered Release recast yet. On: a fresh familiar spends One with Nature on Borrow when Tempered Release is more than 12 seconds away. Off: it waits for Tempered Release.</value>
   </data>
-  <data name="Hold0For1Desc" xml:space="preserve">
-    <value>Waits for {0} (from {1}, 1500 potency {2}) before retreating the familiar, instead of retreating the moment its TP is spent (1000 potency).</value>
+  <data name="FinalStingAsExit" xml:space="preserve">
+    <value>Use wespe's Final Sting as its exit</value>
   </data>
-  <data name="IncludeFamiliarMitigation0" xml:space="preserve">
-    <value>Include familiar mitigation {0}</value>
+  <data name="FinalStingAsExitDesc" xml:space="preserve">
+    <value>Wespe's {0} skill (Final Sting) makes it retreat. On: it fires only as the wespe's exit, under the same rules as {1} (minimum time out, another horn ready). Off: {0} is never used on wespe.</value>
   </data>
-  <data name="IncludeFamiliarMitigation0Desc" xml:space="preserve">
-    <value>Uses Beastskin/Vileskin/Scaleskin ({0} mitigation variants) automatically when player HP drops to 80% or below. Off by default.</value>
+  <data name="MinFamiliarStay0" xml:space="preserve">
+    <value>Minimum seconds a familiar fights before {0}</value>
   </data>
-  <data name="Rotate123" xml:space="preserve">
-    <value>Rotate 1 -&gt; 2 -&gt; 3</value>
+  <data name="RefreshBetweenPulls" xml:space="preserve">
+    <value>Refresh One with Nature between pulls</value>
   </data>
-  <data name="Rotate123Desc" xml:space="preserve">
-    <value>Rotates through all three Battlehorn slots so each fresh summon re-arms {0} and {1}.</value>
+  <data name="RefreshBetweenPullsDesc" xml:space="preserve">
+    <value>From level 18, out of combat with an enemy targeted: when the current familiar has already spent One with Nature, swaps to another ready horn (no lockout out of combat) so the next pull opens with a fresh Tempered Release or Borrow. Never swaps away from the horn a held Kinship came from.</value>
+  </data>
+  <data name="SectionBeastMode0" xml:space="preserve">
+    <value>{0} (after Borrow, level 22+)</value>
+  </data>
+  <data name="SectionFamiliar" xml:space="preserve">
+    <value>Familiar handling</value>
+  </data>
+  <data name="SectionOther" xml:space="preserve">
+    <value>Other</value>
+  </data>
+  <data name="SummonBeforeCombat" xml:space="preserve">
+    <value>Summon a familiar when a hostile target is selected</value>
+  </data>
+  <data name="SummonBeforeCombatDesc" xml:space="preserve">
+    <value>Out of combat, summoning costs no lockout. Summons the first ready horn when an enemy is targeted and no familiar is out. Does not move the character.</value>
+  </data>
+  <data name="UseBeastskinDesc" xml:space="preserve">
+    <value>In combat, on cooldown: less physical damage taken and higher critical hit rate.</value>
+  </data>
+  <data name="UseQuellingWaveRangedDesc" xml:space="preserve">
+    <value>It is a GCD spell: only when the target is out of melee range (up to 30 yalms) and never in the middle of the 1-2-3 combo.</value>
+  </data>
+  <data name="UseRally0And1" xml:space="preserve">
+    <value>Use {0} and {1}</value>
+  </data>
+  <data name="UseRallyDesc" xml:space="preserve">
+    <value>Rally at 3 Mastered Instinct right after the axe that granted the third. Rallying Cheer with banked Natural Instinct when familiar TP is low (at 50, held for the Rally + Rallying Cheer finisher sequence).</value>
+  </data>
+  <data name="UseScaleskinDesc" xml:space="preserve">
+    <value>When an enemy is targeting the character. Off by default: the barrier only pays off against magic damage.</value>
+  </data>
+  <data name="UseSeedsowerDesc" xml:space="preserve">
+    <value>When an enemy is within 6 yalms.</value>
+  </data>
+  <data name="UseShieldChargeDesc" xml:space="preserve">
+    <value>As a gap closer when the target is 4-20 yalms away, and for damage in melee range when charges are full and the character is standing still. Respects the movement safety gate.</value>
+  </data>
+  <data name="UseSoulCrushDesc" xml:space="preserve">
+    <value>Only to interrupt an interruptible cast in melee range.</value>
+  </data>
+  <data name="UseVileskinDesc" xml:space="preserve">
+    <value>When an enemy is targeting the character.</value>
   </data>
 </root>
