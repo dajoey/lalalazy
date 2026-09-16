@@ -83,7 +83,7 @@ internal static class BeastmasterTelemetry
         {
             petId = petObject.GameObjectId;
             petName = petObject.Name.TextValue;
-            petDataId = petObject.DataId;
+            petDataId = petObject.BaseId;
         }
 
         // Beast Mode (44886) resolves to the concrete 44896-44903 variant for the active

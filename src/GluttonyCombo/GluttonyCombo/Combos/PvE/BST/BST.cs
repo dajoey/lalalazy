@@ -245,7 +245,7 @@ internal partial class BST : Melee
         var petObject = Svc.Buddies.PetBuddy?.GameObject;
         if (petObject is not null)
         {
-            s.PetObjectBeast = BST_Beasts.RowFromBNpcBase(petObject.DataId);
+            s.PetObjectBeast = BST_Beasts.RowFromBNpcBase(petObject.BaseId);
             s.PetObjectPresent = slot != 0 || s.SinceHornPress < 4f;
         }
 
