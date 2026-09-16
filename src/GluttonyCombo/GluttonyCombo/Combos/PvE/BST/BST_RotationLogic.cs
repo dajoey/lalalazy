@@ -169,7 +169,7 @@ internal static class BST_RotationLogic
         var cwLearned = AxeLearned(Clockwise(petAffinity), level);
         var ccwLearned = AxeLearned(CounterClockwise(petAffinity), level);
 
-        // L40+: bank one Natural Instinct once Mastered is building (Rallying Cheer / L50 triple).
+        // L40+: bank Natural Instinct once Mastered is building (feeds Rallying Cheer -> more Tricks).
         if (level >= LvRallyingCheer && naturalStacks == 0 && masterStacks >= 2 && ccwLearned)
             return ComboOrder.AxeFirst;
 
@@ -567,22 +567,17 @@ internal static class BST_RotationLogic
     }
 
     /// <summary>
-    ///     Rally when Mastered Instinct is full (3) and TP was just spent; at L50 also mid-chain to
-    ///     reach the 250-TP finisher. Rallying Cheer when Natural Instinct is banked and familiar TP is
-    ///     low (at L50 kept for the Rally + Cheer triple unless full).
+    ///     Rally when Mastered Instinct is full (3) and TP was just spent (at L50 that 250 TP turns the
+    ///     axes into finishers inside the Sun/Moon window). Rallying Cheer with 2+ Natural Instinct and
+    ///     low familiar TP.
     /// </summary>
     public static uint ChooseRally(in BstState s)
     {
         if (s.Level >= LvRally && s.ReadyRally && s.MasterStacks >= 3 && s.PlayerTp <= 28)
             return BST.Rally;
 
-        if (s.Level >= LvRallyingCheer && s.ReadyCheer && s.ActiveSlot != 0 && s.NaturalStacks > 0 && s.FamiliarTp < 100)
-        {
-            var fullOrPreFinisher = s.Level < LvFinishers ? s.NaturalStacks >= 2 : s.NaturalStacks >= 3;
-            var tripleStep = s.Level >= LvFinishers && s.PlayerTp >= 250 && s.MasterStacks == 0;
-            if (fullOrPreFinisher || tripleStep)
-                return BST.RallyingCheer;
-        }
+        if (s.Level >= LvRallyingCheer && s.ReadyCheer && s.ActiveSlot != 0 && s.NaturalStacks >= 2 && s.FamiliarTp < 100)
+            return BST.RallyingCheer;
 
         return 0;
     }
@@ -622,16 +617,16 @@ internal static class BST_RotationLogic
         var petWasLast = s.SincePetHeart < window && s.SincePetHeart <= s.SinceTrick && s.SincePetHeart < s.SinceAxe;
         var axeWasLast = s.SinceAxe < window && s.SinceAxe < s.SincePetHeart;
 
-        // Follow-up after the pet's skill: axe clockwise of the pet (intentional). At L50 with the
-        // triple sequence armed (2 Mastered, 1+ Natural, Rally + Cheer ready) the COUNTER-clockwise axe
-        // instead, so the next Trick after Rally + Rallying Cheer is the intentional one.
-        if (petWasLast && s.PlayerTp >= 100 && s.ReadyAxe)
+        // Follow-up after the pet's skill: axe clockwise of the pet (intentional; Mastered Instinct from L28).
+        // Wavering Heart (7 s, applied at EVERY combo completion - 20/20 live samples) blocks further
+        // familiar combos, so chains continue only axe -> axe after a Rally refill, and the L50 finisher
+        // follows the standard Trick -> clockwise axe -> Rally -> opposite finisher sequence.
+        if (petWasLast && s.PlayerTp >= 100 && s.ReadyAxe && !locked)
         {
-            var tripleArmed = s.Level >= LvFinishers && s.MasterStacks == 2 && s.NaturalStacks >= 1 && s.ReadyRally && s.ReadyCheer;
-            var want = tripleArmed ? CounterClockwise(petAffinity) : Clockwise(petAffinity);
+            var want = Clockwise(petAffinity);
             var axe = AxeLearned(want, s.Level) ? AxeFor(want) : AnyLearnedAxe(s.Level);
             if (s.GcdReady && targetInMelee)
-                return (axe, tripleArmed ? "combo:axe-ccw-triple" : axe == AxeFor(want) ? "combo:axe-clockwise-after-trick" : "combo:axe-after-trick");
+                return (axe, axe == AxeFor(want) ? "combo:axe-clockwise-after-trick" : "combo:axe-after-trick");
             declines.Add("combo:axe-waiting-gcd");
             return (0, "");
         }

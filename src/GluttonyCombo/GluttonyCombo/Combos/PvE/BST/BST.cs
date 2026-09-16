@@ -161,7 +161,7 @@ internal partial class BST : Melee
     private static bool HasAnyStatus(ushort from, ushort to)
     {
         for (var id = from; id <= to; id++)
-            if (HasStatusEffect(id))
+            if (HasStatusEffect(id, anyOwner: true))
                 return true;
         return false;
     }
@@ -249,13 +249,14 @@ internal partial class BST : Melee
             s.PetObjectPresent = slot != 0 || s.SinceHornPress < 4f;
         }
 
-        // Player statuses
-        s.OneWithNature = HasStatusEffect(Buffs.OneWithNature);
-        s.LingeringVantage = HasStatusEffect(Buffs.LingeringVantage);
-        s.WaveringHeart = HasStatusEffect(Buffs.WaveringHeart);
-        if (HasStatusEffect(Buffs.Sunstrider))
+        // Player statuses. anyOwner: the Hearts, Wavering Heart and Sun/Moon carry NO source actor in the
+        // network log (source E0000000), so the default player-owned filter would never see them.
+        s.OneWithNature = HasStatusEffect(Buffs.OneWithNature, anyOwner: true);
+        s.LingeringVantage = HasStatusEffect(Buffs.LingeringVantage, anyOwner: true);
+        s.WaveringHeart = HasStatusEffect(Buffs.WaveringHeart, anyOwner: true);
+        if (HasStatusEffect(Buffs.Sunstrider, anyOwner: true))
             s.SunMoon = BeastmasterAffinity.Sunstrider;
-        else if (HasStatusEffect(Buffs.Moonstalker))
+        else if (HasStatusEffect(Buffs.Moonstalker, anyOwner: true))
             s.SunMoon = BeastmasterAffinity.Moonstalker;
         s.SunOrMoonActive = s.SunMoon != BeastmasterAffinity.None;
         s.KinshipHeld = HasAnyStatus(Buffs.BeastKinship, Buffs.AshKinship) || HasAnyStatus(Buffs.BeastKinshipHeld, Buffs.AshKinshipHeld);
@@ -286,7 +287,7 @@ internal partial class BST : Melee
         {
             var trickTick = now - (long)(s.SinceTrick * 1000f);
             var heart = HeartStatusFor(b.TrickAffinity);
-            if (_petHeartTick < trickTick && heart != 0 && GetStatusEffect(heart) is { RemainingTime: > 6.2f })
+            if (_petHeartTick < trickTick && heart != 0 && GetStatusEffect(heart, anyOwner: true) is { RemainingTime: > 6.2f })
                 _petHeartTick = now;
         }
         s.SincePetHeart = SecondsSince(_petHeartTick);

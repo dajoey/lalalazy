@@ -274,13 +274,13 @@ internal static class Program
                     }
 
                     if (verbose || level is 1 or 8 or 18 or 20 or 22 or 30 or 44 or 50 && minStay == 10 && loadout == Loadouts[0])
-                        Console.WriteLine($"   {tag,-52} uptime {sim.UptimePercent,5:0.0}%  PB {sim.Count(BST.PartingBlow),2}  TR {sim.Count(BST.TemperedRelease),2}  Borrow {sim.Count(BST.Borrow),2}  Trick {sim.Count(BST.Trick),3}  axes {sim.AxesUsed,3}  combos {sim.Combos,3} (intentional {sim.IntentionalCombos,3})  Rally {sim.Count(BST.Rally),2}  Cheer {sim.Count(BST.RallyingCheer),2}  universality {sim.Universality}  horns {sim.Summons,2}");
+                        Console.WriteLine($"   {tag,-52} uptime {sim.UptimePercent,5:0.0}%  PB {sim.Count(BST.PartingBlow),2}  TR {sim.Count(BST.TemperedRelease),2}  Borrow {sim.Count(BST.Borrow),2}  Trick {sim.Count(BST.Trick),3}  axes {sim.AxesUsed,3}  combos {sim.Combos,3} (intentional {sim.IntentionalCombos,3})  Rally {sim.Count(BST.Rally),2}  Cheer {sim.Count(BST.RallyingCheer),2}  universality {sim.Universality}  wavering-blocked {sim.BlockedByWavering}  horns {sim.Summons,2}");
                 }
             }
         }
 
         Console.WriteLine($"   worst familiar uptime across all runs: {worstUptime:0.0}% ({worstUptimeRun})");
-        Check("worst familiar uptime >= 85% whenever a familiar is possible", worstUptime >= 85.0, worstUptimeRun);
+        Check("worst familiar uptime >= 92% whenever a familiar is possible", worstUptime >= 92.0, worstUptimeRun);
         if (totals.Count > 0)
             Console.WriteLine("   violation totals: " + string.Join(", ", totals.Select(kv => $"{kv.Key}={kv.Value}")));
     }
@@ -321,6 +321,7 @@ internal static class Program
         private bool _oneWithNature;
         private float _vantageUntil = -1;
         private float _sunMoonUntil = -1;
+        private float _waveringUntil = -1;
         private BeastmasterAffinity _sunMoon;
         private int _kinshipSlot;
         private float _kinshipUntil = -1;
@@ -346,7 +347,7 @@ internal static class Program
         private BeastmasterAffinity _lastAxeAffinity;
 
         // stats
-        public int Combos, IntentionalCombos, AxesUsed, Summons, Universality;
+        public int Combos, IntentionalCombos, AxesUsed, Summons, Universality, BlockedByWavering;
         private float _familiarOutTime, _combatTime, _firstSummonAt = -1;
         private float _lastGcdAt;
 
@@ -498,6 +499,8 @@ internal static class Program
                 PetObjectBeast = _activeSlot != 0 ? _slots[_activeSlot - 1] : 0,
                 OneWithNature = _oneWithNature,
                 LingeringVantage = _t < _vantageUntil,
+                WaveringHeart = _t < _waveringUntil,
+                ComboState = _t < _waveringUntil ? BeastmasterAffinity.WaveringHeart : BeastmasterAffinity.None,
                 SunMoon = _t < _sunMoonUntil ? _sunMoon : BeastmasterAffinity.None,
                 SunOrMoonActive = _t < _sunMoonUntil,
                 KinshipHeld = _t < _kinshipUntil,
@@ -695,7 +698,9 @@ internal static class Program
 
         private void Instinctual(BeastmasterAffinity affinity, bool pet)
         {
-            if (_t - _lastInstinctualAt < 7f && IsCompass(_lastInstinctualAffinity))
+            // Wavering Heart (7 s after every combo, live 20/20): no combo involving the familiar.
+            var familiarInvolved = pet || _lastWasPet;
+            if (_t - _lastInstinctualAt < 7f && IsCompass(_lastInstinctualAffinity) && !(familiarInvolved && _t < _waveringUntil))
             {
                 Combos++;
                 if (Clockwise(_lastInstinctualAffinity) == affinity)
@@ -707,6 +712,11 @@ internal static class Program
                 }
                 if (!pet && _lastWasPet && _level >= 28) _master = Math.Min(3, _master + 1);
                 if (pet && !_lastWasPet && _level >= 40) _natural = Math.Min(3, _natural + 1);
+                _waveringUntil = _t + 7f;
+            }
+            else if (familiarInvolved && _t < _waveringUntil && _t - _lastInstinctualAt < 7f)
+            {
+                BlockedByWavering++;
             }
             _lastInstinctualAt = _t;
             _lastInstinctualAffinity = affinity;
