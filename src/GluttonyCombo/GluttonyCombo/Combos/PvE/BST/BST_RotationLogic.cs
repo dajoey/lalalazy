@@ -306,7 +306,7 @@ internal static class BST_RotationLogic
         _ => false,
     };
 
-    /// <summary> A familiar is out, arriving, or leaving: never summon over it. </summary>
+    /// <summary> A familiar is out or a summon is in flight: never summon over it. </summary>
     public static bool FamiliarPresentOrPending(in BstState s) =>
         s.ActiveSlot != 0 || s.PetObjectPresent || s.SinceHornPress < SummonSettleSeconds;
 
@@ -401,7 +401,7 @@ internal static class BST_RotationLogic
         }
         else if (!familiarOut)
         {
-            declines.Add(s.PetObjectPresent ? "familiar:arriving-or-leaving" : "familiar:summon-settling");
+            declines.Add("familiar:summon-in-flight");
         }
 
         // ---------------------------------------------------------- 2. interrupt

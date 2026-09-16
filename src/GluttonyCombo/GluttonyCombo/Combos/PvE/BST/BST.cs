@@ -138,7 +138,6 @@ internal partial class BST : Melee
 
     private static int _lastSlot;
     private static long _familiarArrivedTick;
-    private static long _familiarLeftTick;
     private static long _petHeartTick;
 
     private static float SecondsSince(long tick) =>
@@ -178,8 +177,6 @@ internal partial class BST : Melee
         {
             if (slot != 0)
                 _familiarArrivedTick = now;
-            else
-                _familiarLeftTick = now;
             _lastSlot = slot;
         }
 
@@ -241,13 +238,15 @@ internal partial class BST : Melee
             s.SlotBeastsKnown = s.Slot1Beast != 0 || s.Slot2Beast != 0 || s.Slot3Beast != 0;
         }
 
-        // Pet object: arriving (just summoned, gauge not set yet) or leaving (retreat animation after the
-        // gauge cleared). Bounded so a lingering object can never block summons for long.
+        // Pet object: counts as present only while the familiar is out or a summon is in flight (object
+        // spawns at cast start, gauge slot ~1 s later). A RETREATING familiar's object lingers ~3.5 s after
+        // the gauge clears; that must not delay the next summon (players resummon ~0.9 s after Parting
+        // Blow, live 2026-09-09 19:08:36.988 -> 19:08:37.879).
         var petObject = Svc.Buddies.PetBuddy?.GameObject;
         if (petObject is not null)
         {
             s.PetObjectBeast = BST_Beasts.RowFromBNpcBase(petObject.DataId);
-            s.PetObjectPresent = slot != 0 || SecondsSince(_familiarLeftTick) < 6f || s.SinceHornPress < 4f;
+            s.PetObjectPresent = slot != 0 || s.SinceHornPress < 4f;
         }
 
         // Player statuses

@@ -178,7 +178,7 @@ internal static class Program
         Check("horn 1 locked, horn 2 ready -> Second Battlehorn", d.ActionId == BST.SecondBattlehorn, $"{d.ActionId}:{d.Reason} [{d.Declines}]");
 
         var arriving = Decide(s with { PetObjectPresent = true }, cfg);
-        Check("pet object arriving/leaving -> no summon on top of it", arriving.ActionId is not (BST.FirstBattlehorn or BST.SecondBattlehorn or BST.ThirdBattlehorn), arriving.Reason);
+        Check("summon in flight (pet object, no gauge slot) -> no summon on top of it", arriving.ActionId is not (BST.FirstBattlehorn or BST.SecondBattlehorn or BST.ThirdBattlehorn), arriving.Reason);
         var justPressed = Decide(s with { SinceHornPress = 1f }, cfg);
         Check("horn pressed 1 s ago -> no second summon", justPressed.ActionId is not (BST.FirstBattlehorn or BST.SecondBattlehorn or BST.ThirdBattlehorn), justPressed.Reason);
     }
@@ -332,7 +332,6 @@ internal static class Program
         private int _activeSlot;
         private float _arrivalAt = -1;    // pending summon arrival
         private int _arrivalSlot;
-        private float _leavingUntil = -1; // retreat animation (pet object lingers)
         private readonly float[] _hornLockedUntil = new float[4];
         private float _nextAuto;
         private float _summonedAt;
@@ -475,7 +474,8 @@ internal static class Program
 
         private BstState BuildState()
         {
-            var petObject = _activeSlot != 0 || _t < _leavingUntil || (_arrivalAt >= 0 && _t >= _arrivalAt - 0.5f);
+            // The live half reports the pet object only while out or while a summon is in flight.
+            var petObject = _activeSlot != 0 || (_arrivalAt >= 0 && _t >= _arrivalAt - 0.5f);
             return new BstState
             {
                 Level = _level,
@@ -743,7 +743,6 @@ internal static class Program
             if (InCombat)
                 _hornLockedUntil[_activeSlot] = _t + 90f;
             _activeSlot = 0;
-            _leavingUntil = _t + 3f;
             _oneWithNature = false;
             _petHeartAt = -1;
         }
