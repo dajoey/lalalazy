@@ -347,7 +347,7 @@ public sealed class ConfigWindow : Window
   private static void DrawCategoryRouting(Configuration c)
   {
     ImGui.TextUnformatted("Category routing:");
-    Tip("Assign a whole market-board category to one retainer. Auto-Market only lists an item of a routed category on the retainer it is assigned to - on every other retainer it is left exactly where it is, never vendored, never touched. Only divides items still sitting in your bags when Auto-Market runs; an item already sitting in the wrong retainer's own inventory needs a manual move first. The 'Skip routing' checkbox in the table below opts one item out entirely - it keeps selling normally, from wherever it sits, on every retainer.");
+    Tip("Assign a whole market-board category to one retainer. Auto-Market only lists an item of a routed category on the retainer it is assigned to - on every other retainer it is left exactly where it is, never vendored, never touched. Each sweep pulls misplaced routed stock out of the open retainer into the bags and deposits assigned bags stock into it, running the final deposit lap so pulled stock reaches its home retainer in the same sweep, boards full or not. The 'Skip routing' checkbox in the table below opts one item out entirely - it keeps selling normally, from wherever it sits, on every retainer.");
 
     var autoAssign = c.AutoAssignUnroutedCategories;
     if (ImGui.Checkbox("Auto-assign uncovered categories", ref autoAssign))

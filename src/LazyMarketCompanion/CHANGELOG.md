@@ -1,4 +1,15 @@
-﻿## v0.1.46.0 (2026-09-12)
+﻿## v0.1.47.0 (2026-09-16)
+
+### Fixed
+
+- **Auto-Market organizes retainer inventory even when the market boards are full.** The 0.1.46.0 board-budget skip stopped every inventory move on a full board, so with all boards full each sweep was a no-op and the assigned division never happened - the "inventory management is not happening" report. Pulling misplaced stock out of the open retainer and depositing assigned stock into its pages needs no free market slot, and a retainer holding every assigned item in its pages counts as satisfied whether or not the board has room to list it. Sweeps now pull, deposit, and run the final deposit lap regardless of board budget; the listing plan still lists only what the board has room for. The shuffle stays shut through the 0.1.44.0 settle-before-plan, per-move retainer identity, and once-per-run pull guards (files: `MarketAutomation.cs` `BuildListingStepsNow` and `RunLapDepositMover`, `AutoMarket/AutoMarketPlanner.cs`).
+
+### Notes
+
+- The Category Routing tooltip no longer claims an item in the wrong retainer needs a manual move first - the mover handles that leg every sweep (file: `Windows/ConfigWindow.cs` `DrawCategoryRouting`).
+- No offline-suite change: the pure planning functions never saw the board, so all existing cases pin the same behavior; the gate function keeps its cases 91-94 for the listing plan.
+
+## v0.1.46.0 (2026-09-12)
 
 ### Fixed
 

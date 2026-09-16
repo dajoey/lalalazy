@@ -58,14 +58,14 @@ public static class AutoMarketPlanner
 {
 
 /// <summary>
-/// 0.1.46.0 gate for the routing mover (Helm t-joey-1789190796770, "it just moves the same stuff
-/// around"): routing moves only run when the open retainer's board can accept a listing this
-/// session. On a completely full board every would-be move produces nothing visible - and because a
-/// deposit into retainer pages can be rolled back while the retainer-switch window is still
-/// closing (an rc=0 success grade only verifies the local view), the identical stacks were pulled
-/// out and re-deposited on every sweep. A board that cannot list leaves all stock exactly where it
-/// is. An unloaded/unreadable snapshot (fewer rows than the board has slots) fails CLOSED - the
-/// mover never runs against a board it cannot see.
+/// Board-budget probe for the LISTING plan (0.1.46.0 gate, Helm t-joey-1789190796770, "it just
+/// moves the same stuff around"): true when the open retainer's board can accept a listing this
+/// session. 0.1.47.0: the routing mover no longer consults this - organizing inventory (pulling
+/// misplaced stock to the bags, depositing assigned stock into the assigned retainer's pages)
+/// needs no free market slot, and skipping it left full boards permanently unorganized. The
+/// shuffle stays shut by the 0.1.44.0 settle/identity/once-per-run guards. An
+/// unloaded/unreadable snapshot (fewer rows than the board has slots) still reads as no budget -
+/// the listing plan never claims slots on a board it cannot see.
 /// </summary>
 public static bool HasListingBudget(IReadOnlyList<MarketSlot> market, int reserveSlots, int slotCount)
 {
