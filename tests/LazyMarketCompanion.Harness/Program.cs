@@ -3302,6 +3302,57 @@ StockStack BagStack(uint id, int slot, int qty, uint cat = CatA, bool marketable
     !RoutingMove.ShouldPruneReconcileEntry(now.AddHours(-2), stillPresent: true, now), "old-present");
 }
 
+// ===== 0.1.52.0: persisted reconciliation ledger (reload-proof quarantine) =====
+
+// 106. Serialize/parse round-trips the ledger exactly: same keys, same stamps.
+{
+  var now = new DateTime(2026, 9, 17, 2, 50, 0, DateTimeKind.Utc);
+  var ledger = new Dictionary<string, DateTime>(StringComparer.Ordinal)
+  {
+    [RoutingMove.ReconcileKey("R1", 10001, 3, 1001, false)] = now.AddMinutes(-10),
+    [RoutingMove.ReconcileKey("R2", 1, 7, 2002, true)] = now.AddMinutes(-70),
+  };
+  var parsed = RoutingMove.ParseReconcileLedger(RoutingMove.SerializeReconcileLedger(ledger), now);
+  Check("106 ledger: round trip preserves every key and stamp",
+    parsed.Count == 2
+      && parsed.TryGetValue(RoutingMove.ReconcileKey("R1", 10001, 3, 1001, false), out var t1) && t1 == now.AddMinutes(-10)
+      && parsed.TryGetValue(RoutingMove.ReconcileKey("R2", 1, 7, 2002, true), out var t2) && t2 == now.AddMinutes(-70),
+    $"count={parsed.Count}");
+}
+
+// 107. Entries older than the max age are dropped on load, so a stale slot-reuse key
+// re-plans once instead of staying skipped forever; fresh entries survive.
+{
+  var now = new DateTime(2026, 9, 17, 2, 50, 0, DateTimeKind.Utc);
+  var text = $"{RoutingMove.ReconcileKey("R1", 10001, 3, 1001, false)}\t{now.AddHours(-25):o}\n"
+    + $"{RoutingMove.ReconcileKey("R1", 10001, 4, 1001, false)}\t{now.AddHours(-23):o}\n";
+  var parsed = RoutingMove.ParseReconcileLedger(text, now);
+  Check("107 ledger: 25-hour-old entry is dropped on load",
+    !parsed.ContainsKey(RoutingMove.ReconcileKey("R1", 10001, 3, 1001, false)), $"count={parsed.Count}");
+  Check("107 ledger: 23-hour-old entry survives the load",
+    parsed.ContainsKey(RoutingMove.ReconcileKey("R1", 10001, 4, 1001, false)), $"count={parsed.Count}");
+}
+
+// 108. Malformed lines never throw and never poison the ledger: missing tab, empty key,
+// unparseable stamp, and duplicate keys (newest stamp wins) all degrade gracefully.
+{
+  var now = new DateTime(2026, 9, 17, 2, 50, 0, DateTimeKind.Utc);
+  var good = RoutingMove.ReconcileKey("R1", 10001, 3, 1001, false);
+  var text = "no-tab-here\n"
+    + "\t2026-09-17T02:40:00.0000000Z\n"
+    + $"{good}\tnot-a-timestamp\n"
+    + $"{good}\t{now.AddMinutes(-20):o}\n"
+    + $"{good}\t{now.AddMinutes(-5):o}\n";
+  var parsed = RoutingMove.ParseReconcileLedger(text, now);
+  Check("108 ledger: malformed lines are skipped, newest duplicate stamp wins",
+    parsed.Count == 1
+      && parsed.TryGetValue(good, out var t) && t == now.AddMinutes(-5),
+    $"count={parsed.Count}");
+  Check("108 ledger: null and empty input parse to an empty ledger",
+    RoutingMove.ParseReconcileLedger(null, now).Count == 0
+      && RoutingMove.ParseReconcileLedger("", now).Count == 0, "null/empty");
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 

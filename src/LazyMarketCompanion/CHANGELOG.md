@@ -1,4 +1,14 @@
-﻿## v0.1.51.0 (2026-09-17)
+﻿## v0.1.52.0 (2026-09-17)
+
+### Fixed
+
+- **Auto-Market reconciliation ledger survives plugin reloads, so a reload no longer re-fires every quarantined move at once.** The game log proved the remaining churn: an earlier sweep moved a full relay of pull-outs with rc=0/OK grades, the in-memory ledger suppressed them on the next sweeps as designed, then a plugin reload wiped the ledger and the following sweep re-planned the identical pull-outs at identical slots - filling the bags to zero free slots mid-run. The ledger now persists to a text file beside the plugin config (same session-qualified keys with last-OK UTC stamps): it loads on startup with a one-line log count, saves on every record and every prune, and drops entries older than 24 hours on load so a stale slot-reuse key re-plans once instead of staying skipped forever. All file IO is best-effort - a missing or half-written file degrades to an empty ledger, never to a failed sweep (files: `MarketAutomation.cs` `LoadReconcileLedger`/`SaveReconcileLedger`, `AutoMarket/RoutingMove.cs` `SerializeReconcileLedger`/`ParseReconcileLedger`/`ReconcileLedgerMaxAge`).
+
+### Notes
+
+- Offline-suite change: new cases 106-108 pin the ledger round trip, the 24-hour max-age drop on load, and malformed-line tolerance with newest-duplicate-wins (file: `tests/LazyMarketCompanion.Harness/Program.cs`).
+
+## v0.1.51.0 (2026-09-17)
 
 ### Fixed
 

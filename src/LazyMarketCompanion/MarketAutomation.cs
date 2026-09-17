@@ -223,6 +223,11 @@ internal sealed class MarketAutomation : Window, IDisposable
 
     Svc.AddonLifecycle.RegisterListener(AddonEvent.PostSetup, RetainerSellPostSetup);
 
+    // 0.1.52.0: the reconciliation ledger survives reloads from disk (see
+    // LoadReconcileLedger) - otherwise the first sweep after a reload re-fires every
+    // quarantined move at once.
+    LoadReconcileLedger();
+
     if (AutoRetainerIPC.Instance != null)
     {
       AutoRetainerIPC.Instance.OnRetainerPostprocessStep += OnArPostprocessStep;
@@ -2504,6 +2509,54 @@ internal sealed class MarketAutomation : Window, IDisposable
   }
 
   /// <summary>
+  /// 0.1.52.0: disk persistence for the reconciliation ledger. The in-memory ledger proved
+  /// insufficient on its own: locally-OK routing moves that never stick server-side are
+  /// skipped only while the entry lives, and a plugin reload wipes every entry - so the
+  /// first sweep after a reload re-planned the identical pull-outs an earlier sweep had
+  /// already moved OK (bags filled to zero free slots mid-run). The file holds the same
+  /// session-qualified keys with last-OK UTC stamps; entries older than
+  /// RoutingMove.ReconcileLedgerMaxAge are dropped on load, and the ordinary per-sweep
+  /// prune keeps dropping landed stock afterwards - so genuinely new misplaced stock still
+  /// routes, and a reload only ever costs the quarantine, never a throw. All IO is
+  /// best-effort: a missing, half-written, or unloadable file degrades to an empty ledger
+  /// (today's behavior), never to a failed sweep.
+  /// </summary>
+  private static string ReconcileLedgerPath()
+    => Path.Combine(Plugin.PluginInterface.ConfigDirectory.FullName, "lmc_routing_reconcile.txt");
+
+  private void LoadReconcileLedger()
+  {
+    try
+    {
+      var path = ReconcileLedgerPath();
+      if (!File.Exists(path))
+        return;
+      var loaded = RoutingMove.ParseReconcileLedger(File.ReadAllText(path), DateTime.UtcNow);
+      foreach (var entry in loaded)
+        if (!_routingReconcileSkip.TryGetValue(entry.Key, out var existing) || entry.Value > existing)
+          _routingReconcileSkip[entry.Key] = entry.Value;
+      if (loaded.Count > 0)
+        Svc.Log.Information($"[LMC] routing reconcile: restored {loaded.Count} previously-moved stack(s) from the saved ledger - stacks a previous session moved OK but found still in place stay put instead of re-moving");
+    }
+    catch (Exception ex)
+    {
+      Svc.Log.Warning($"[LMC] routing reconcile: saved ledger unreadable, starting empty ({ex.Message})");
+    }
+  }
+
+  private void SaveReconcileLedger()
+  {
+    try
+    {
+      File.WriteAllText(ReconcileLedgerPath(), RoutingMove.SerializeReconcileLedger(_routingReconcileSkip));
+    }
+    catch (Exception ex)
+    {
+      Svc.Log.Warning($"[LMC] routing reconcile: saved ledger unwritable, quarantine lasts this session only ({ex.Message})");
+    }
+  }
+
+  /// <summary>
   /// 0.1.50.0: drops this session's reconciliation-ledger entries whose stack no longer appears
   /// in a fresh snapshot (the move landed, or the stock otherwise moved on) so the ledger only
   /// ever skips stacks that are STILL sitting where a previous sweep moved them from. Only keys
@@ -2533,7 +2586,12 @@ internal sealed class MarketAutomation : Window, IDisposable
         if (_routingReconcileSkip.Remove(entry.Key))
           pruned++;
     if (pruned > 0)
+    {
       Svc.Log.Information($"[LMC] routing reconcile: {pruned} previously-moved stack(s) for '{session}' are no longer in place (landed or moved on) - back in the routing plan");
+      // 0.1.52.0: keep the saved ledger consistent with the live one, or a reload would
+      // resurrect entries this sweep already proved landed.
+      SaveReconcileLedger();
+    }
   }
 
   /// <summary>
@@ -2553,6 +2611,9 @@ internal sealed class MarketAutomation : Window, IDisposable
     var now = DateTime.UtcNow;
     foreach (var op in okOps)
       _routingReconcileSkip[RoutingMove.ReconcileKey(op.SessionRetainer, op.SrcContainer, op.SrcSlot, op.ItemId, op.HQ)] = now;
+    // 0.1.52.0: persist the ledger with the new stamps, or a reload before the next sweep
+    // loses the quarantine and re-fires everything at once.
+    SaveReconcileLedger();
     var stuck = AutoMarketService.VerifyRoutingMovesLanded(okOps);
     var landed = okOps.Count - stuck.Count;
     if (stuck.Count == 0)

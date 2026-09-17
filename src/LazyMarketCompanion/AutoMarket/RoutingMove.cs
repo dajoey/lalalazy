@@ -138,6 +138,65 @@ public static class RoutingMove
   public static bool ShouldPruneReconcileEntry(DateTime recordedAtUtc, bool stillPresent, DateTime nowUtc)
     => !stillPresent && (nowUtc - recordedAtUtc) >= ReconcileStickyWindow;
 
+  /// <summary>
+  /// 0.1.52.0: maximum age of a persisted reconciliation-ledger entry on load. The in-memory
+  /// ledger never prunes a stack still sitting in place - but it also never survives a plugin
+  /// reload, so the first sweep after a reload re-fires every quarantined move at once (the
+  /// 22:40 ET run re-planned the identical pull-outs the 21:38 ET run had already moved OK,
+  /// filling the bags to zero free slots). Persisting the ledger closes that hole; the cap
+  /// bounds the slot-reuse alias on the key (a different stack of the same item later sitting
+  /// in the same slot): anything older than this re-plans once and re-records, instead of
+  /// staying skipped forever.
+  /// </summary>
+  public static readonly TimeSpan ReconcileLedgerMaxAge = TimeSpan.FromHours(24);
+
+  /// <summary>
+  /// 0.1.52.0: deterministic text form of the reconciliation ledger for disk persistence -
+  /// one `key\tISO-8601-UTC` line per entry, sorted by key. Dalamud-free so the harness
+  /// pins the round trip (cases 106-108); the game side owns the file itself.
+  /// </summary>
+  public static string SerializeReconcileLedger(IReadOnlyDictionary<string, DateTime> ledger)
+  {
+    var lines = new List<string>(ledger.Count);
+    foreach (var key in ledger.Keys.OrderBy(k => k, StringComparison.Ordinal))
+      lines.Add($"{key}\t{ledger[key].ToUniversalTime():o}");
+    return string.Join("\n", lines);
+  }
+
+  /// <summary>
+  /// 0.1.52.0: tolerant inverse of <see cref="SerializeReconcileLedger"/>. Malformed lines
+  /// (no tab, empty key, unparseable timestamp) are skipped, never fatal - a hand-edited or
+  /// half-written file must degrade to "some quarantine lost", not to a sweep that throws.
+  /// Entries older than <see cref="ReconcileLedgerMaxAge"/> are dropped: a stack the ledger
+  /// has not seen move OK in a full day re-plans once rather than staying skipped on a stale
+  /// key. Duplicate keys keep the newest stamp.
+  /// </summary>
+  public static Dictionary<string, DateTime> ParseReconcileLedger(string? text, DateTime nowUtc)
+  {
+    var ledger = new Dictionary<string, DateTime>(StringComparer.Ordinal);
+    if (string.IsNullOrEmpty(text))
+      return ledger;
+    foreach (var rawLine in text.Split('\n'))
+    {
+      var line = rawLine.TrimEnd('\r');
+      var tab = line.IndexOf('\t');
+      if (tab <= 0 || tab == line.Length - 1)
+        continue;
+      var key = line.Substring(0, tab);
+      if (string.IsNullOrEmpty(key))
+        continue;
+      if (!DateTime.TryParse(line.Substring(tab + 1), null,
+            System.Globalization.DateTimeStyles.RoundtripKind, out var stamp))
+        continue;
+      var utc = stamp.ToUniversalTime();
+      if ((nowUtc - utc) >= ReconcileLedgerMaxAge)
+        continue;
+      if (!ledger.TryGetValue(key, out var existing) || utc > existing)
+        ledger[key] = utc;
+    }
+    return ledger;
+  }
+
   public static RoutingMovePlan Plan(
     IReadOnlyList<StockStack> stock,
     IReadOnlyList<ItemRule> rules,
