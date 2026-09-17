@@ -3373,15 +3373,15 @@ StockStack BagStack(uint id, int slot, int qty, uint cat = CatA, bool marketable
 // 110. The quarantined-list data path round-trips the ledger key: session, container, slot,
 // item, and HQ flag all come back exactly, for both legs (retainer pages and bags).
 {
-  var pull = RoutingMove.ReconcileKey("Dojarat", 10001, 3, 1001, false);
+  var pull = RoutingMove.ReconcileKey("RetainerB", 10001, 3, 1001, false);
   var okPull = RoutingMove.TryParseReconcileKey(pull, out var s1, out var c1, out var sl1, out var id1, out var hq1);
   Check("110 key: pull-out key parses to its components",
-    okPull && s1 == "Dojarat" && c1 == 10001 && sl1 == 3 && id1 == 1001 && !hq1,
+    okPull && s1 == "RetainerB" && c1 == 10001 && sl1 == 3 && id1 == 1001 && !hq1,
     $"'{pull}' -> '{s1}' {c1}:{sl1}:{id1}:{(hq1 ? "hq" : "nq")}");
-  var dep = RoutingMove.ReconcileKey("Bussyqueen", 1, 7, 2002, true);
+  var dep = RoutingMove.ReconcileKey("RetainerA", 1, 7, 2002, true);
   var okDep = RoutingMove.TryParseReconcileKey(dep, out var s2, out var c2, out var sl2, out var id2, out var hq2);
   Check("110 key: deposit key parses to its components, HQ preserved",
-    okDep && s2 == "Bussyqueen" && c2 == 1 && sl2 == 7 && id2 == 2002 && hq2,
+    okDep && s2 == "RetainerA" && c2 == 1 && sl2 == 7 && id2 == 2002 && hq2,
     $"'{dep}' -> '{s2}' {c2}:{sl2}:{id2}:{(hq2 ? "hq" : "nq")}");
 }
 
@@ -3408,17 +3408,17 @@ StockStack BagStack(uint id, int slot, int qty, uint cat = CatA, bool marketable
 {
   var sfx = RoutingMove.ReconcileSlotSuffix(1, 7, 2002, true);
   Check("112 relay: key format still splits into session and slot suffix",
-    RoutingMove.ReconcileKey("Bussyqueen", 1, 7, 2002, true) == "Bussyqueen|" + sfx, sfx);
+    RoutingMove.ReconcileKey("RetainerA", 1, 7, 2002, true) == "RetainerA|" + sfx, sfx);
   Check("112 relay: the same slot matches whichever session recorded it",
-    RoutingMove.ReconcileKeyMatchesSlot(RoutingMove.ReconcileKey("Bussyqueen", 1, 7, 2002, true), sfx)
-      && RoutingMove.ReconcileKeyMatchesSlot(RoutingMove.ReconcileKey("Dojarat", 1, 7, 2002, true), sfx)
+    RoutingMove.ReconcileKeyMatchesSlot(RoutingMove.ReconcileKey("RetainerA", 1, 7, 2002, true), sfx)
+      && RoutingMove.ReconcileKeyMatchesSlot(RoutingMove.ReconcileKey("RetainerB", 1, 7, 2002, true), sfx)
       && RoutingMove.ReconcileKeyMatchesSlot(RoutingMove.ReconcileKey("", 1, 7, 2002, true), sfx), "sessions");
   Check("112 relay: a different slot, item, or quality does not match",
-    !RoutingMove.ReconcileKeyMatchesSlot(RoutingMove.ReconcileKey("Bussyqueen", 1, 8, 2002, true), sfx)
-      && !RoutingMove.ReconcileKeyMatchesSlot(RoutingMove.ReconcileKey("Bussyqueen", 1, 7, 2003, true), sfx)
-      && !RoutingMove.ReconcileKeyMatchesSlot(RoutingMove.ReconcileKey("Bussyqueen", 1, 7, 2002, false), sfx), "mismatch");
+    !RoutingMove.ReconcileKeyMatchesSlot(RoutingMove.ReconcileKey("RetainerA", 1, 8, 2002, true), sfx)
+      && !RoutingMove.ReconcileKeyMatchesSlot(RoutingMove.ReconcileKey("RetainerA", 1, 7, 2003, true), sfx)
+      && !RoutingMove.ReconcileKeyMatchesSlot(RoutingMove.ReconcileKey("RetainerA", 1, 7, 2002, false), sfx), "mismatch");
   Check("112 relay: a container id ending in the same digits does not match",
-    !RoutingMove.ReconcileKeyMatchesSlot(RoutingMove.ReconcileKey("Bussyqueen", 11, 7, 2002, true),
+    !RoutingMove.ReconcileKeyMatchesSlot(RoutingMove.ReconcileKey("RetainerA", 11, 7, 2002, true),
       RoutingMove.ReconcileSlotSuffix(1, 7, 2002, true)), "anchor");
   Check("112 relay: null and empty inputs never match and never throw",
     !RoutingMove.ReconcileKeyMatchesSlot(null, sfx)
@@ -3431,9 +3431,9 @@ StockStack BagStack(uint id, int slot, int qty, uint cat = CatA, bool marketable
 // leaves every other entry alone - the fix for a quarantine that could only ever grow.
 {
   var now = new DateTime(2026, 9, 17, 12, 0, 0, DateTimeKind.Utc);
-  var relayed = RoutingMove.ReconcileKey("Hussypants", 1, 13, 36186, false);   // deposit freed this bag slot
-  var otherSession = RoutingMove.ReconcileKey("Dojarat", 1, 13, 36186, false); // same slot, other session
-  var untouched = RoutingMove.ReconcileKey("Hussypants", 1, 14, 36186, false);
+  var relayed = RoutingMove.ReconcileKey("RetainerC", 1, 13, 36186, false);   // deposit freed this bag slot
+  var otherSession = RoutingMove.ReconcileKey("RetainerB", 1, 13, 36186, false); // same slot, other session
+  var untouched = RoutingMove.ReconcileKey("RetainerC", 1, 14, 36186, false);
   var ledger = new Dictionary<string, DateTime>(StringComparer.Ordinal)
   {
     [relayed] = now, [otherSession] = now, [untouched] = now,
