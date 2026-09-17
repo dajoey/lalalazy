@@ -30,7 +30,7 @@ namespace LazyCrafter.Adapters.Dispatch;
 /// the group's) so ARC's next venture pick sees it. Characters ARC does not manage (<c>NotManaged</c>) are refused with a hint.
 /// </para>
 /// Pinned against ARC 8.6 source (github zbee/ARC @ 9964d7f, 2026-08-24) and re-read at tag 8.5 (identical shape);
-/// installed 8.5 on Joey's client.
+/// installed 8.5 on the test client.
 /// </summary>
 public sealed class ArcDispatch
 {
@@ -61,7 +61,7 @@ public sealed class ArcDispatch
         InternalName,
         MinVersion: new Version(8, 5),
         MaxVerified: new Version(8, 8),
-        VerifiedAgainst: "ARC 8.6 source (9964d7f, 2026-08-24) + tag 8.5; omasky 8.7 build verified member-by-member via GuardProbe 2026-09-04",
+        VerifiedAgainst: "ARC 8.6 source (9964d7f, 2026-08-24) + tag 8.5; 8.7 build verified member-by-member via GuardProbe 2026-09-04",
         Members:
         [
             new(PluginType, "_configuration", ReflectionGuard.MemberKind.Field),

@@ -17,14 +17,14 @@ namespace LazyCrafter.Adapters.Dispatch;
 /// Names from <c>Lifestream/IPC/IPCProvider.cs</c> (installed 2.5.4.16). vnavmesh walking is Phase 6 (toggle hidden).
 /// </para>
 /// <para>
-/// 0.1.6.14 (Helm t-joey-1788793199911): <see cref="GoToVendor"/> is now also the cart-run vendor walk - one
+/// 0.1.6.14 (the related support thread): <see cref="GoToVendor"/> is now also the cart-run vendor walk - one
 /// vendor group per stop, the player buys and presses Resume, the re-plan walks to the next group. The walk
 /// needs the SAME flag, link, list and refusal behaviour as the per-item button, and the summoning-bell walk
 /// already proved Lifestream.Teleport as mid-run travel, so this is called as-is from
 /// <c>DispatchService.StartVendorWalk</c> with <paramref name="teleport"/> left true.
 /// </para>
 /// <para>
-/// 0.1.6.15 (Helm t-joey-1788808881825): the summoning-bell walk has its own destination,
+/// 0.1.6.15 (the related support thread): the summoning-bell walk has its own destination,
 /// <see cref="GoToSummoningBell"/> - <c>Lifestream.ExecuteCommand("inn")</c> (= <c>/li inn</c>, the nearest unlocked
 /// inn room's bell). Lifestream's <c>mb</c> command was never a bell trip: read from its source
 /// (<c>Tasks/Shortcuts/TaskMBShortcut.cs</c>), <c>/li mb</c> is a fixed Uldah alias - teleport to the aetheryte,
@@ -182,7 +182,7 @@ public sealed class LifestreamDispatch
     /// alias (<c>Tasks/Shortcuts/TaskMBShortcut.cs</c> -> <c>Data/StaticAlias.cs</c> <c>UldahMarketboard</c>):
     /// teleport to the aetheryte, walk to the board, Interact (data id 2000442). Since 0.1.6.15 the only
     /// legitimate caller is the shopping trip in <see cref="GoToMarket"/>; every summoning-bell use must call
-    /// <see cref="GoToSummoningBell"/> instead (Helm t-joey-1788808881825 - the 0.1.6.14 run that walked the
+    /// <see cref="GoToSummoningBell"/> instead (the related support thread - the 0.1.6.14 run that walked the
     /// character into the market board mid-run was this method called as a "bell" trip).
     /// </para>
     /// </summary>
@@ -204,7 +204,7 @@ public sealed class LifestreamDispatch
     }
 
     /// <summary>
-    /// The summoning-bell trip (0.1.6.15, Helm t-joey-1788808881825): <c>/li inn</c>, Lifestream's
+    /// The summoning-bell trip (0.1.6.15, the related support thread): <c>/li inn</c>, Lifestream's
     /// "go to inn" shortcut (<c>Tasks/Shortcuts/TaskPropertyShortcut.cs</c>, <c>PropertyType.Inn</c>), which
     /// teleports to the aetheryte, aethernet-hops to the inn aetheryte and walks to the inn keeper - where a
     /// summoning bell stands. It ends at the keeper WITHOUT interacting (the last task stops when the inn NPC

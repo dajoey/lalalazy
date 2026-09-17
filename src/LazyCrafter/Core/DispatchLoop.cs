@@ -1,11 +1,10 @@
 namespace LazyCrafter.Core;
 
 /// <summary>
-/// The run loop's decisions, kept pure so the harness can drive them (card t_efde145c, Joey's option A).
+/// The run loop's decisions, kept pure so the harness can drive them (card t_efde145c, option A).
 /// <para>
 /// Before 0.1.4.0 a dispatch was ONE pass: the plan was built once, deferrals were decided at build time and never
-/// revisited, and the run ended after the last queued craft even when a re-plan would have found more to do (Joey's
-/// Alpine Chandelier: the ore was gathered, one nugget was crafted, and the three ingots + the chandelier that were
+/// revisited, and the run ended after the last queued craft even when a re-plan would have found more to do (the Alpine Chandelier test case: the ore was gathered, one nugget was crafted, and the three ingots + the chandelier that were
 /// deferred only because the nugget did not exist yet were never attempted - and nothing said so).
 /// </para>
 /// <para>

@@ -60,7 +60,7 @@ public sealed class RunStageController
     public RunStage Current => _order.Length == 0 ? RunStage.Unattended : _order[_index];
 
     /// <summary>
-    /// True when the run believes the rest needs no player - Joey's "unattended" mode. The only
+    /// True when the run believes the rest needs no player - the "unattended" mode. The only
     /// stage that can need the user is <see cref="RunStage.ShoppingTrip"/>; GatherPlan and
     /// CraftQueue are the automation's own stages. So the run is unattended once it has moved
     /// past the shopping stage with nothing blocked: a cart with no shopping work is unattended

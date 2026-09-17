@@ -154,7 +154,7 @@ internal static class LoopTests
             rig.PlayWave(loop.Begin().Plan);
             var d2 = loop.Next(progressed: true);
             if (d2.Outcome != DispatchLoop.Outcome.Blocked) return false;
-            rig.Inv.Buy(World.MarketOnly, 1);              // Joey buys, presses Resume
+            rig.Inv.Buy(World.MarketOnly, 1);              // the player buys, presses Resume
             var d3 = loop.Resume();
             if (d3.Outcome != DispatchLoop.Outcome.Wave) return false;
             if (d3.Plan.Crafts.Count != 1 || d3.Plan.Crafts[0].RecipeId != World.ChandelierRecipe) return false;

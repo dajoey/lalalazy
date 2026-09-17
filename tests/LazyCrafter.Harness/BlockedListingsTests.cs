@@ -12,14 +12,14 @@ namespace LazyCrafter.Harness;
 /// the finishing path simply did not print them. A test on the internal list would have been green throughout.
 /// </para>
 /// <para>
-/// The worked example is Joey's 2026-09-05 22:44 run: Silver Ore (7 listed via RetainerC, 3 via RetainerA),
+/// The worked example is the 2026-09-05 22:44 test run: Silver Ore (7 listed via RetainerC, 3 via RetainerA),
 /// Iron Ore x6 and Cloud Mica x3 (RetainerC), plus nine more materials - twelve near-identical red warnings and
 /// then, because the run FINISHED rather than blocked, a bare ", 12 could not be retrieved".
 /// </para>
 /// </summary>
 internal static class BlockedListingsTests
 {
-    // ---- item ids + names for the fixture (the real ones from Joey's run, so a log line can be matched by eye)
+    // ---- item ids + names for the fixture (the real ones from the test run, so a log line can be matched by eye)
     private const uint SilverOre = 5111, IronOre = 5106, CloudMica = 5116, SilverIngot = 5062, TitaniumOre = 200;
 
     private static string Name(uint id) => id switch
@@ -243,7 +243,7 @@ internal static class BlockedListingsTests
 
         ("the twelve-line wall collapses: 12 materials render one grouped block, not 12 warnings", () =>
         {
-            // Joey's run, all twelve, all on RetainerC except the Silver Ore split.
+            // The test run, all twelve, all on RetainerC except the Silver Ore split.
             (uint Id, int Qty)[] wall =
             [
                 (SilverOre, 3), (IronOre, 6), (CloudMica, 3), (SilverIngot, 4), (5063, 8), (5064, 1),

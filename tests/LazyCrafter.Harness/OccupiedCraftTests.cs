@@ -7,8 +7,7 @@ namespace LazyCrafter.Harness;
 /// Mechanism 6 (card t_0b4d8b2c): a game-"occupied" craft failure must never be reported as
 /// "retrieve/unlist these materials".
 ///
-/// <para><b>The run being replayed.</b> Joey, 2026-09-06 11:58, 0.1.6.6. He had just bought the last ingredients
-/// at the market board, so the board window still owned the client's input and Artisan bounced every craft:</para>
+/// <para><b>The run being replayed.</b> The 2026-09-06 11:58 test run, 0.1.6.6. The last ingredients had just been bought at the market board, so the board window still owned the client's input and Artisan bounced every craft:</para>
 /// <code>
 /// 11:58:19 [LazyCrafter] Artisan: crafting Adamantite Nugget x98 (1/2).
 /// 11:58:21 [Artisan]     Error Warnings [4]: Unable to execute command while occupied.
@@ -32,7 +31,7 @@ namespace LazyCrafter.Harness;
 /// the bug. What was wrong was the sentence built from them.</para>
 ///
 /// <para><b>Not tested here, deliberately:</b> anything that waits, retries, polls or auto-stops on the client being
-/// busy. That is Joey's behaviour decision, pending on Helm thread <c>t-joey-1788710417021</c>, and this card does
+/// busy. That is the behaviour decision, pending on the related support thread, and this card does
 /// not implement it.</para>
 /// </summary>
 internal static class OccupiedCraftTests

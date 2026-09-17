@@ -22,7 +22,7 @@ namespace LazyCrafter.Adapters.Dispatch;
 /// (<c>DeleteList</c>) so re-dispatching does not stack quantities.
 /// </para>
 /// Member names pinned in <see cref="Pin"/> against GBR 7.5.0 source (github FFXIV-CombatReborn/GatherBuddyReborn @ 4d16b9d,
-/// 2026-07-29); installed 7.5.5 on Joey's client verified by the guard at run time.
+/// 2026-07-29); installed 7.5.5 on the test client verified by the guard at run time.
 /// </summary>
 public sealed class GbrDispatch
 {

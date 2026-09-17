@@ -11,7 +11,7 @@ namespace LazyCrafter.Core;
 /// reach them. That is exactly the shape of the last two defects on this thread: both were RENDERER bugs that an
 /// internal-value test stayed green through, because the detail existed in memory and was dropped on the way to
 /// the player (<see cref="BlockedListings"/> documents the same lesson for the retainer summary). Putting the
-/// text here means a check can assert the sentence Joey actually reads, and there is exactly one implementation
+/// text here means a check can assert the sentence players actually read, and there is exactly one implementation
 /// of it rather than one per ending path.
 /// </para>
 /// <para>

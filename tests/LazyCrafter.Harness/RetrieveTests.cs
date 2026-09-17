@@ -81,7 +81,7 @@ internal static class RetrieveTests
 
         ("the 0.1.1.0 nag loop: same cart, same inventory, replanned twice -> identical refusal both times", () =>
         {
-            // This is what Joey hit: pressing Dispatch again changed nothing because nothing had moved.
+            // This is what the live run hit: pressing Dispatch again changed nothing because nothing had moved.
             var inv = new MovableInventory().SetElsewhere(World.Ingot, 2, "retainer RetainerC").SetElsewhere(World.Leather, 1, "retainer RetainerC");
             var a = Plan(inv, (World.SwordRecipe, 1));
             var b = Plan(inv, (World.SwordRecipe, 1));
@@ -120,7 +120,7 @@ internal static class RetrieveTests
             var after = DispatchPlan.BagsShortfall(row, 1, inv);
             return before.Count == 1 && before[0].Places == "retainer RetainerC" && after.Count == 0;
         }),
-        ("Joey's cart shape: 107 runs, every material on one retainer -> one Retrieve per material at 107x scale", () =>
+        ("The cart shape: 107 runs, every material on one retainer -> one Retrieve per material at 107x scale", () =>
         {
             // Super-Ether x107 with all four mats on retainer RetainerC. Sword x107 = 214 Ingot + 107 Leather.
             var inv = new MovableInventory()

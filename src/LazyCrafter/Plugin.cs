@@ -155,7 +155,7 @@ public sealed class Plugin : IDalamudPlugin
     private void OpenMain() => _mainWindow.IsOpen = true;
 
     /// <summary>
-    /// 0.1.7.5: the shopping-stop Resume popup window is GONE (Joey 2026-09-16: the popup sat over
+    /// 0.1.7.5: the shopping-stop Resume popup window is GONE (testing 2026-09-16: the popup sat over
     /// the game and blocked mouse input with the client - "just remove the ressume extra window").
     /// A stage that hits NeedsUser still says the what-to-do message in chat and on the Run tab,
     /// exactly once; Resume lives on the Run tab button, in chat (/lcraft resume) and the copied

@@ -30,7 +30,7 @@ namespace LazyCrafter.Adapters;
 /// <b>The flag half is Artisan's own refusal set.</b> The first nine names in
 /// <see cref="LazyCrafter.Core.ClientWaitPolicy.BlockingConditionNames"/> are verbatim from Artisan's
 /// <c>PreCrafting.Occupied()</c> - the states the game is in when it answers a craft request with the exact
-/// error in Joey's 2026-09-06 11:58 log, five times in seven seconds: "Unable to execute command while
+/// error in the 2026-09-06 11:58 test log, five times in seven seconds: "Unable to execute command while
 /// occupied". The names are resolved against the live <see cref="ConditionFlag"/> enum once, at construction;
 /// a name that no longer exists upstream is skipped with a warning rather than crashing - an upstream rename
 /// degrades to "window not named", never a broken dispatcher.

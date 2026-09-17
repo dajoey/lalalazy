@@ -75,7 +75,7 @@ public readonly record struct VendorScore(int Tier, uint TeleportCost, float Wal
 /// disagreed by construction and were used interchangeably:
 /// <c>VendorLocator.Plan()</c> (the cart-run path) ranked by items-covered then <i>lowest NPC id</i>, so for a
 /// single-item list distance was never consulted at all; <c>VendorLocator.Find()</c> (the per-item buttons) ranked by
-/// <i>map distance to the nearest aetheryte</i>. On Joey's 2026-09-05 cart run the same item (Tallow Candle #5998)
+/// <i>map distance to the nearest aetheryte</i>. On the 2026-09-05 test cart run the same item (Tallow Candle #5998)
 /// resolved to Engerrand in Limsa Lominsa from one path and to a traveling material supplier in The Azim Steppe from
 /// the other, minutes apart; <c>GoToVendor</c> re-flags the map on every call, so the LAST print won and his map flag
 /// landed in Stormblood while the chat block said Limsa. Neither metric looked at where the player actually was, so

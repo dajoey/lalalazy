@@ -2,9 +2,9 @@ namespace LazyCrafter.Core;
 
 /// <summary>
 /// One vendor's outcome from the Phase 6 walk-to-vendor spike, and the paste block the player copies back.
-/// Pure: no game types, so <c>tests/LazyCrafter.Harness</c> asserts the exact text Joey is asked to paste.
+/// Pure: no game types, so <c>tests/LazyCrafter.Harness</c> asserts the exact text operators are asked to paste.
 /// <para>
-/// The gate is 5/5 (Joey's rule, card t_933683a5). A verdict that only says "3/5" is useless to the next lane -
+/// The gate is 5/5 (the standing rule, card t_933683a5). A verdict that only says "3/5" is useless to the next lane -
 /// every failing line therefore names the STAGE that broke, from <see cref="SpikeStage"/>, plus the reason.
 /// </para>
 /// </summary>

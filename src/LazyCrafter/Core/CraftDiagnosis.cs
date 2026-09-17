@@ -3,8 +3,7 @@ namespace LazyCrafter.Core;
 /// <summary>
 /// Why a craft that produced nothing produced nothing, and how to say it truthfully (card t_0b4d8b2c).
 ///
-/// <para><b>The defect this exists to prevent.</b> Joey's 2026-09-06 11:58 run, 0.1.6.6. He had just finished a
-/// shopping cart at the market board, so the board window still owned the client's input. Artisan bounced every
+/// <para><b>The defect this exists to prevent.</b> The 2026-09-06 11:58 test run, 0.1.6.6. A shopping cart had just been finished at the market board, so the board window still owned the client's input. Artisan bounced every
 /// craft instantly:</para>
 /// <code>
 /// 11:58:19 [LazyCrafter] Artisan: crafting Adamantite Nugget x98 (1/2).
@@ -15,12 +14,12 @@ namespace LazyCrafter.Core;
 /// <c>WaitCraftEnd</c> filed that as a bare <c>expected 98, made 0</c> - <b>the cause was discarded</b> - so on the
 /// next pass <c>DispatchPlan.BagsShortfall</c> observed the intermediates were simply absent and emitted its
 /// perfectly correct "not in your bags / retrieve from elsewhere" branch. Correct code, poisoned input: the run
-/// told him to go and fetch two materials that had never existed and were never listed for sale, and the bell walk
-/// took him there. The materials were absent because <i>the plugin had blocked itself</i>.
+/// said to go and fetch two materials that had never existed and were never listed for sale, and the bell walk
+/// led there. The materials were absent because <i>the plugin had blocked itself</i>.
 /// </para>
 ///
 /// <para><b>Scope.</b> This fixes the DIAGNOSIS only. Nothing here waits, retries, polls or auto-stops on the
-/// client being busy - that is a behaviour decision that belongs to Joey and is deliberately not taken here. The
+/// client being busy - that is an operator behaviour decision deliberately not taken here. The
 /// craft is still attempted, still fails, still counts as failed; only what we then <i>say and conclude</i> changes.
 /// </para>
 ///
