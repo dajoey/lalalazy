@@ -2,12 +2,12 @@
 ## v0.1.7.5 (2026-09-16)
 
 ### Removed
-- **The shopping-stop Resume popup window is gone.** Joey's 0.1.7.4 pass (2026-09-16): the full-screen popup opened at every shopping stop sat over the game and blocked mouse input with the client - his verdict: "just remove the ressume extra window". The window is removed and nothing else changed: a blocked shopping stop still says the what-to-do message in chat and on the Run tab exactly once, and Resume stays on the Run tab button, in chat (/lcraft resume) and the copied report - keyboard-only resume works (files: `Plugin.cs`, `UI/SettingsTab.cs`)
+- **The shopping-stop Resume popup window is gone.** The 0.1.7.4 test pass (2026-09-16): the full-screen popup opened at every shopping stop sat over the game and blocked mouse input with the client - verdict: remove the resume extra window. The window is removed and nothing else changed: a blocked shopping stop still says the what-to-do message in chat and on the Run tab exactly once, and Resume stays on the Run tab button, in chat (/lcraft resume) and the copied report - keyboard-only resume works (files: `Plugin.cs`, `UI/SettingsTab.cs`)
 
 ## v0.1.7.4 (2026-09-15)
 
 ### Fixed
-- **The retainer batch fetch no longer calls every session a zero-move without counting the bags.** The 0.1.6.16 early exit for an instantly-dead bell session sat ABOVE the bag-delta measurement with the moved counter still 0 from wave start, so every batch session ended as "the retainer fetch moved nothing into the bags", the cart held for Resume, and the per-item fallback never ran - Joey's 0.1.7.3 runs on 2026-09-11 and 2026-09-14 show exactly this shape (batch queued, retainers scanned, 0 counted). The exit now runs AFTER the measurement: a genuinely empty session still stops with the bell named, a session that moved anything trims the remainder into the per-item pass (files: `Adapters/DispatchService.cs` `Phase.BatchWait`)
+- **The retainer batch fetch no longer calls every session a zero-move without counting the bags.** The 0.1.6.16 early exit for an instantly-dead bell session sat ABOVE the bag-delta measurement with the moved counter still 0 from wave start, so every batch session ended as "the retainer fetch moved nothing into the bags", the cart held for Resume, and the per-item fallback never ran - the 0.1.7.3 test runs on 2026-09-11 and 2026-09-14 show exactly this shape (batch queued, retainers scanned, 0 counted). The exit now runs AFTER the measurement: a genuinely empty session still stops with the bell named, a session that moved anything trims the remainder into the per-item pass (files: `Adapters/DispatchService.cs` `Phase.BatchWait`)
 
 ## v0.1.7.3 (2026-09-10)
 
@@ -145,7 +145,7 @@
 
 ### Fixed
 - **A craft the game refused because a window was open is no longer reported as a missing material.** If buying finishes at the market board and Resume is pressed with the board still open, the game refuses every craft command ("Unable to execute command while occupied") and Artisan bounces instantly. LazyCrafter recorded only "expected 98, made 0" - the reason was thrown away - so on the next pass it saw the intermediates were not in inventory, concluded they must be somewhere else, and directed a retrieval of two materials that had never existed, then routed to a summoning bell for them. It now says the true thing instead: the craft was refused, the window that was holding it up is named, and it states plainly that nothing is missing from inventory (files: `Core/CraftDiagnosis.cs`, `Adapters/ClientReadiness.cs`, `Adapters/DispatchService.cs` `WaitCraftEnd` / `WaitCraftStart` / `Phase.Crafts`)
-- **A material that only failed to exist because its craft was blocked no longer appears in the "pull these off sale" list.** In the 2026-09-06 11:58 run the only material really listed for sale was Cloud Mica x3 on Hussypants; Adamantite Nugget x98 and Cloud Mica Whetstone x99 were noise the bug generated, and they were named as things to unlist even though no retainer was holding any of them. Only genuinely listed materials reach that list now (files: `Core/CraftDiagnosis.cs` `WithoutPhantoms`, `Adapters/DispatchService.cs` `ReportBlockedListings`)
+- **A material that only failed to exist because its craft was blocked no longer appears in the "pull these off sale" list.** In the 2026-09-06 11:58 run the only material really listed for sale was Cloud Mica x3 on retainer C; Adamantite Nugget x98 and Cloud Mica Whetstone x99 were noise the bug generated, and they were named as things to unlist even though no retainer was holding any of them. Only genuinely listed materials reach that list now (files: `Core/CraftDiagnosis.cs` `WithoutPhantoms`, `Adapters/DispatchService.cs` `ReportBlockedListings`)
 - **The walk to the summoning bell no longer fires for a problem that does not exist.** With nothing genuinely listed for sale, the run now ends without moving. When something really is on the board, the walk still happens exactly as before (file: `Adapters/DispatchService.cs` `ReportBlockedListings` / `WalkToBell`)
 - **A blocked craft no longer opens a retainer bell session on the next pass.** The deferral reason for a refused craft no longer carries the internal `retrieve #` marker, which is what queues an Artisan retainer withdrawal - so the next pass no longer tries to fetch a material that is nowhere (files: `Core/CraftDiagnosis.cs` `DeferralReason`, `Core/RetainerBatch.cs` unchanged and still driven by that marker)
 
@@ -160,7 +160,7 @@
 ## v0.1.6.6 (2026-09-06)
 
 ### Added
-- **When a cart is blocked because the material is listed for sale, LazyCrafter now names exactly which retainer to visit and how many units to pull off sale.** One line per retainer, so a single summoning-bell trip clears the whole group: `Hussypants: Silver Ore x7, Iron Ore x6, Cloud Mica x3`. Previously only a count was given, leaving it to be worked out which of a dozen materials was actually stuck and where it had gone (files: `Core/BlockedListings.cs`, `Adapters/DispatchService.cs` `ReportBlockedListings`)
+- **When a cart is blocked because the material is listed for sale, LazyCrafter now names exactly which retainer to visit and how many units to pull off sale.** One line per retainer, so a single summoning-bell trip clears the whole group: `Retainer C: Silver Ore x7, Iron Ore x6, Cloud Mica x3`. Previously only a count was given, leaving it to be worked out which of a dozen materials was actually stuck and where it had gone (files: `Core/BlockedListings.cs`, `Adapters/DispatchService.cs` `ReportBlockedListings`)
 - `/lcraft blocked` prints the full per-item detail of the last run's blocked list on demand - every material, its units, the retainer holding it, and the verbatim reason for anything blocked for some other cause. It keeps working after the run has ended, so the end-of-run block can stay short (files: `Plugin.cs` `PrintBlockedListings`, `Core/BlockedListings.cs` `Detail`)
 - **After a run ends blocked on the player's own listings, LazyCrafter walks to the nearest summoning bell** via Lifestream's own "go to market board" (`/li mb`) - the bells stand with the market boards at every aetheryte plaza. New setting, ON by default: *"When a run ends blocked on your own market listings, walk to the nearest summoning bell"*. It fires ONLY when a run has ENDED and something really is listing-blocked - never mid-craft, never on a clean run, never for a material that was merely slow (files: `Configuration.cs` `WalkToBellWhenBlocked`, `UI/SettingsTab.cs`, `Adapters/DispatchService.cs` `WalkToBell`, `Adapters/Dispatch/LifestreamDispatch.cs` `GoToMarketBoard`)
 
@@ -176,7 +176,7 @@
 
 ### Notes
 - **This build takes no game actions and unlists nothing.** It names what to pull and walks to a bell; opening the retainer window and taking the item off sale remains manual. Assisted pulls (Tier 2) and automatic unlisting (Tier 3) were deliberately left out of this build.
-- **HQ vs NQ is not distinguished, and that is a known limitation.** The AllaganTools inventory bridge has no HQ dimension, so the advice reads "pull 7 Silver Ore from Hussypants" and cannot ask for the HQ ones specifically.
+- **HQ vs NQ is not distinguished, and that is a known limitation.** The AllaganTools inventory bridge has no HQ dimension, so the advice reads "pull 7 Silver Ore from retainer C" and cannot ask for the HQ ones specifically.
 - The bell walk adds no navigation of its own. Lifestream exposes no summoning-bell IPC - there is no "bell" string anywhere in its assembly - so this reuses the existing `/li mb` market-board destination, which arrives at the same plaza. No vnavmesh, and if Lifestream is missing or busy the destination is printed and the walk is skipped rather than faked.
 - Proved offline before shipping: 231/231 in `tests/LazyCrafter.Harness` (was 209/209), with 22 new checks that assert on the RENDERED report rather than on an internal value - the defect being fixed was a renderer defect, and a test on the internal list would have stayed green throughout it. Each of the three fixes was individually reverted and exactly the matching checks were confirmed to fail (A: 3 checks, B: 4 checks, C: 4 checks).
 
@@ -197,7 +197,7 @@
 
 ## v0.1.6.4 (2026-09-05)
 
-- Fixed: a `retrieve` line could route to the market board for materials that were actually sitting on a retainer. If more of an item was listed for sale than the retainer was holding, LazyCrafter named the listing as the place to fetch from - so a run said things like `8x from the market board (listed by retainer Hussypants)` when those 8 were on retainer Dojarat and could be pulled at any summoning bell (file: `Core/DispatchPlan.cs`, function: `PlacesFor`)
+- Fixed: a `retrieve` line could route to the market board for materials that were actually sitting on a retainer. If more of an item was listed for sale than the retainer was holding, LazyCrafter named the listing as the place to fetch from - so a run said things like `8x from the market board (listed by retainer C)` when those 8 were on retainer B and could be pulled at any summoning bell (file: `Core/DispatchPlan.cs`, function: `PlacesFor`)
 - Nothing was miscounted: the amount, the `have` total and the routing were all correct, and no craft was blocked that should not have been. Only the place name was wrong - but it reads exactly like the older bug where listings counted as stock held, so it cost time to diagnose every time it appeared in a log
 - The cause was that the places were sorted purely by how much each held, with no notion of whether it can actually be fetched, so a big listing outranked a small retainer stack. Places that can actually be fetched from are now always offered first, and a listing is named only when nothing reachable holds the item (file: `Core/DispatchPlan.cs`, function: `PlacesFor`; `Core/Model/StoredElsewhere.cs`, new `Fetchable` flag)
 - Listings are still shown exactly as before - the fix changes which place is chosen, not what is reported (file: `Adapters/AllaganInventory.cs`, function: `StoredWhere`)
@@ -330,7 +330,7 @@
 ### Notes
 
 - Why no probe caught the GBR bug: `tests/LazyCrafter.GuardProbe` proved members exist and never built an argument array. It now builds the real `SetActiveItems` arguments, asserts `args.Length == parameters.Length` and `args[0] is bool`, checks each argument is an instance of its parameter type (the check `MethodBase.Invoke` makes), and runs the 0.1.2.0 nested-array shape as a negative control that must be rejected.
-- Evidence: omasky FFXIV chat log 00000007.log 2026-09-04 15:02 ET ("GBR gather hand-off refused: ArgumentException ..."); AllaganTools inventories.csv row for Star Quartz (36186): container 12002, retainer Bussyqueen (same character Grandpa Joe, world 95, known to Artisan's RetainerIDs), qty 1, listed at 788 gil.
+- Evidence: an FFXIV chat log 00000007.log 2026-09-04 15:02 ET ("GBR gather hand-off refused: ArgumentException ..."); AllaganTools inventories.csv row for Star Quartz (36186): container 12002, retainer A (same character, world 95, known to Artisan's RetainerIDs), qty 1, listed at 788 gil.
 
 ## v0.1.3.0 (2026-09-04)
 
@@ -346,9 +346,9 @@
 ### Notes
 
 - The batch session is measured, not assumed: bag counts per demanded item are snapshotted at queue time and compared when Artisan goes idle, and anything still short stays in the per-item queue (trimmed to the remainder).
-- Both overloads are proved offline by `tests/LazyCrafter.GuardProbe` (the list overload rides on the pin as an alias - `Adapters/ReflectionGuardExtensions.cs`) against the installed Artisan 4.0.5.19 (SHA-256 of the decompiled DLL matches omasky's installed copy).
+- Both overloads are proved offline by `tests/LazyCrafter.GuardProbe` (the list overload rides on the pin as an alias - `Adapters/ReflectionGuardExtensions.cs`) against the installed Artisan 4.0.5.19 (SHA-256 of the decompiled DLL matches the test machine's installed copy).
 - Queue decision tests: `tests/LazyCrafter.Harness/RetainerBatchQueueTests.cs` (deferred-because-of-retrieval crafts queue their rows; mixed-reason deferrals queue; non-retrieval deferrals stay out; unknown rows are dropped).
-- ARC reflection pin ceiling raised 8.7 -> 8.8: omasky ships ARControl 8.7 and the exclusive ceiling flagged the installed build as unverified even though every pinned member resolves on it (GuardProbe against omasky's installed DLLs, 2026-09-04).
+- ARC reflection pin ceiling raised 8.7 -> 8.8: the test machine ships ARControl 8.7 and the exclusive ceiling flagged the installed build as unverified even though every pinned member resolves on it (GuardProbe against the test machine's installed DLLs, 2026-09-04).
 
 ## v0.1.2.0 (2026-09-03)
 
@@ -367,7 +367,7 @@
 ## v0.1.1.0 (2026-09-03)
 
 Testing-channel fix build (production pointer stays 0.0.0.0). **"Owned" is not "in the bags."** Fixes the defect
-a retainer, Artisan could not start, and LazyCrafter reported `1/1 craft finished` 1.25 s later. His verdict, verbatim:
+a retainer, Artisan could not start, and LazyCrafter reported `1/1 craft finished` 1.25 s later. The test verdict, verbatim:
 *"needs to grab stock before attempting craft"*.
 
 ### Fixed

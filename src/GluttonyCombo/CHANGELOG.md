@@ -12,7 +12,7 @@
 
 ## v1.0.4.203 (2026-09-16) [testing]
 ### Fixed
-- **Smart Movement no longer moves to a target while the player is out of combat.** Joey's grading of 1.0.4.202: "automovement is moving me to the target even when i'm out of combat, which is not ok." The v1.0.4.200 pre-combat hostile-engage rule is reverted - approaching a target now requires combat again. The out-of-combat stand-down keeps its own visible `ooc` telemetry reason (not filtered as toggle-off), so approach attempts stay gradeable from the log. Dodge stays combat-gated; nothing else changed. (files: `AutoRotation/SmartMoverCore.cs` - `Decide` ooc gate; `tests/GluttonyCombo.SmartMoverHarness/Program.cs` - `guard/ooc-hostile-stops` replaces the pre-combat engage case)
+- **Smart Movement no longer moves to a target while the player is out of combat.** Live-test grading of 1.0.4.202: out-of-combat automovement toward the target is not acceptable. The v1.0.4.200 pre-combat hostile-engage rule is reverted - approaching a target now requires combat again. The out-of-combat stand-down keeps its own visible `ooc` telemetry reason (not filtered as toggle-off), so approach attempts stay gradeable from the log. Dodge stays combat-gated; nothing else changed. (files: `AutoRotation/SmartMoverCore.cs` - `Decide` ooc gate; `tests/GluttonyCombo.SmartMoverHarness/Program.cs` - `guard/ooc-hostile-stops` replaces the pre-combat engage case)
 - In-game grading with Smart Movement ON: stand idle targeting a hostile out of combat vs. entering combat. Expect NO movement (`MV|..|ooc` stand-down lines only) before combat, and normal engage/dodge behavior as soon as combat starts.
 
 ## v1.0.4.202 (2026-09-16) [testing]
@@ -23,7 +23,7 @@
 - In-game grading with Smart Movement ON + Movement Telemetry ON: the Occult Crescent dodge grading (melee move-to-target already confirmed in game on 1.0.4.201). Expect a `ddg` that keeps streaming to the same dest until arrival, then `stl`/`eng`.
 ## v1.0.4.201 (2026-09-15) [testing]
 ### Fixed
-- **Smart Movement on melee now walks all the way into striking distance instead of stopping short.** Testing 1.0.4.200 got melee moving (pre-combat hostile engage) but Joey graded it still broken: motion starts, then stops outside melee range (Shirogane NIN on the dummy). Three short-band numbers each exceeded the 3-yalm band: the settle tolerance (2.0, or 1.0 with a positional wanted) declared "in range" up to 5 yalms edge-to-edge, the ideal standing point sat half a yalm outside the band edge, and the 1.0-yalm Commit deadband cancelled the final approach and stranded the character there. Short bands (melee/tank 3, SGE 5) now settle within half a yalm of the edge, stand ON the edge, and close in to half a yalm; ranged bands are byte-identical. (files: `AutoRotation/SmartMoverCore.cs` - `RangeTolerance`/`IdealOffset`/`MinMoveFor` plus `ShortRangeYalms`)
+- **Smart Movement on melee now walks all the way into striking distance instead of stopping short.** Testing 1.0.4.200 got melee moving (pre-combat hostile engage) but live testing still graded it broken: motion starts, then stops outside melee range (Shirogane NIN on the dummy). Three short-band numbers each exceeded the 3-yalm band: the settle tolerance (2.0, or 1.0 with a positional wanted) declared "in range" up to 5 yalms edge-to-edge, the ideal standing point sat half a yalm outside the band edge, and the 1.0-yalm Commit deadband cancelled the final approach and stranded the character there. Short bands (melee/tank 3, SGE 5) now settle within half a yalm of the edge, stand ON the edge, and close in to half a yalm; ranged bands are byte-identical. (files: `AutoRotation/SmartMoverCore.cs` - `RangeTolerance`/`IdealOffset`/`MinMoveFor` plus `ShortRangeYalms`)
 ### Notes
 - Offline harness now runs 154 cases: melee still engages from 4 yalms edge (positional or not), settles at 3.4, closes in on a sub-yalm final approach, and the ranged settle/min-move negative controls proving the old behavior is unchanged there. (file: `tests/GluttonyCombo.SmartMoverHarness/Program.cs`)
 - In-game grading with Smart Movement ON: melee move-to-target first (walk into striking distance on the Shirogane dummy, `MV|..|eng` settling to `stl` near zero edge-past), then the Occult Crescent dodge grading.
@@ -174,11 +174,11 @@
 
 ### Fixed
 
-- **Phantom RDM Occult Libra ignored whatever internal cooldown was set and kept re-suggesting/re-firing every weave window for the whole pull, instead of respecting the 30s cooldown Joey set on 2026-09-05 (helm t-joey-1789095497072, "Phantom RDM Libra 15 or 30 second cooldown or whatever we set is not being respected").** The 30s internal cooldown from t-joey-1788653879855 (`LibraInternalCooldownMs` / `LibraSuppressedUntil`) was only ever added to the pre-7.55 RDM path (`TryGetRedMageAction` in `OccultCrescent.cs`). A separate, 7.55-fork copy of the same handler (`TryGetRedMageAction755` in `OccultCrescent_755.cs`) implements Occult Libra independently and never received that gate - it only ever checked the live elemental-weakness debuff (`TargetHasAnyWeaknessDebuff`), which on any target where the debuff was never applied or clears mid-fight (immune adds, a boss with no elemental weakness, a resisted application) stays false indefinitely, so the 5s-recast oGCD re-suggested and re-fired itself on every single weave window regardless of the cooldown setting. `TryGetRedMageAction755` now arms the same `WasLastAction`-gated 30s suppression window (`Libra755InternalCooldownMs` / `Libra755SuppressedUntil`) used by the pre-7.55 copy, armed by the actual cast rather than by merely evaluating the gate (since `TryGetPhantomAction` runs every frame for icon replacement). (file: `GluttonyCombo/Combos/PvE/Content/OccultCrescent/OccultCrescent_755.cs`, function: `TryGetRedMageAction755`)
+- **Phantom RDM Occult Libra ignored whatever internal cooldown was set and kept re-suggesting/re-firing every weave window for the whole pull, instead of respecting the 30s cooldown configured on 2026-09-05 (the related support thread: "Phantom RDM Libra 15 or 30 second cooldown or whatever we set is not being respected").** The 30s internal cooldown from the earlier support thread (`LibraInternalCooldownMs` / `LibraSuppressedUntil`) was only ever added to the pre-7.55 RDM path (`TryGetRedMageAction` in `OccultCrescent.cs`). A separate, 7.55-fork copy of the same handler (`TryGetRedMageAction755` in `OccultCrescent_755.cs`) implements Occult Libra independently and never received that gate - it only ever checked the live elemental-weakness debuff (`TargetHasAnyWeaknessDebuff`), which on any target where the debuff was never applied or clears mid-fight (immune adds, a boss with no elemental weakness, a resisted application) stays false indefinitely, so the 5s-recast oGCD re-suggested and re-fired itself on every single weave window regardless of the cooldown setting. `TryGetRedMageAction755` now arms the same `WasLastAction`-gated 30s suppression window (`Libra755InternalCooldownMs` / `Libra755SuppressedUntil`) used by the pre-7.55 copy, armed by the actual cast rather than by merely evaluating the gate (since `TryGetPhantomAction` runs every frame for icon replacement). (file: `GluttonyCombo/Combos/PvE/Content/OccultCrescent/OccultCrescent_755.cs`, function: `TryGetRedMageAction755`)
 
 ### Notes
 
-- Root-caused from source review, not from BT| telemetry: the 7.55-fork dispatch only reaches this path when the pre-7.55 sixteen-job pass in `TryGetPhantomAction` does not already answer (see the 2026-08-24 dispatch-order correction at the top of `OccultCrescent_755.cs`) - Phantom Red Mage is one of the sixteen pre-7.55 jobs, so in the common case the pre-7.55 copy (which already had the cooldown) answers first and this fork copy never runs. It is reachable whenever the pre-7.55 RDM handler itself declines (its own Libra branch returns false without falling through to any other pre-7.55 job), which routes control into the 7.55 pass and can hit the un-gated fork copy. Not yet verified in-game with a full play session; the fix mirrors an already-shipped, already-verified pattern (t-joey-1788653879855) applied to the one code path it was never applied to.
+- Root-caused from source review, not from BT| telemetry: the 7.55-fork dispatch only reaches this path when the pre-7.55 sixteen-job pass in `TryGetPhantomAction` does not already answer (see the 2026-08-24 dispatch-order correction at the top of `OccultCrescent_755.cs`) - Phantom Red Mage is one of the sixteen pre-7.55 jobs, so in the common case the pre-7.55 copy (which already had the cooldown) answers first and this fork copy never runs. It is reachable whenever the pre-7.55 RDM handler itself declines (its own Libra branch returns false without falling through to any other pre-7.55 job), which routes control into the 7.55 pass and can hit the un-gated fork copy. Not yet verified in-game with a full play session; the fix mirrors an already-shipped, already-verified pattern (the earlier support thread) applied to the one code path it was never applied to.
 - Clean Release build, 0 errors (1934 pre-existing CS0618/CS0649 obsolete-API warnings elsewhere in the file tree, unrelated to this change).
 # Changelog
 ## v1.0.4.185 (2026-09-11) [testing]
@@ -471,7 +471,7 @@
 ## v1.0.4.164 (2026-08-30) [testing]
 
 ### Changed
-- **Fleet-wide phantom Red Mage Dualcast audit (Occult Crescent), prompted by Joey's report
+- **Fleet-wide phantom Red Mage Dualcast audit (Occult Crescent), prompted by a test report
   that SGE kept casting instants on the move with Dualcast in hand instead of hard-casting
   something stronger.** The Occult Dualcast proc makes the next spell of any kind instant,
   and an instant filler both underperforms the hard cast and destroys the proc (established
@@ -506,8 +506,8 @@
 
 ### Fixed
 - **Phantom Red Mage stopped casting Occult Cure II on full-health targets.** Reported and
-  bisected in-game by Joey: with "Retarget Occult Cure II" on, the cure went out constantly
-  while he and the party were at full HP. Root cause is a v1.0.4.161 upstream-merge landmine
+  bisected in-game during testing: with "Retarget Occult Cure II" on, the cure went out constantly
+  while the party was at full HP. Root cause is a v1.0.4.161 upstream-merge landmine
   with three parts: (1) upstream added a second `IfMissingHP(float)` overload on
   `IBattleChara?` (`BattleCharaExtensions.cs`) that compares ECommons' `Health` ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ a **0├â┬ó├óΓÇÜ┬¼├óΓé¼┼ô1
   ratio** ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ against the caller's **0├â┬ó├óΓÇÜ┬¼├óΓé¼┼ô100 percent** threshold, so any living target passes at
@@ -880,8 +880,7 @@ Upstream WrathCombo merge: `c35a28de3..13b821ec7`, 14 commits, 72 files.
 ## v1.0.4.155 (2026-08-23) [testing]
 
 ### Fixed
-- **Occult Comet is held through RDM's melee chain, because casting it RESETS the combo.** Joey,
-  testing .154: "make it hold comet during the dps combo. it resets the combo." This is a
+- **Occult Comet is held through RDM's melee chain, because casting it RESETS the combo.** A .154 test note: hold Comet during the DPS combo - it resets the combo. This is a
   stronger hold than the .153/.154 ones and worth saying why: those trade a cooldown's timing,
   this one destroys work already done. Comet is a spell, and any GCD that is not the combo's next
   step breaks the chain - so firing it mid-combo does not delay the melee combo, it forfeits the
@@ -908,7 +907,7 @@ Upstream WrathCombo merge: `c35a28de3..13b821ec7`, 14 commits, 72 files.
   filler: a slow that can wait three GCDs.
 - The weave section at the top of the handler is untouched. Occult Mage Masher is an ability, and
   abilities do not affect combo state.
-- **Not addressed, and it is Joey's call:** the same reset applies to any job with a running
+- **Not addressed, and it is an open design decision:** the same reset applies to any job with a running
   weaponskill combo, not just RDM - a melee holding a combo would have it broken by Comet in
   exactly this way. The generic form of this guard is `ComboTimer > 0`, which the codebase
   already has. It is not used here because a melee job's combo timer is effectively always
@@ -919,9 +918,7 @@ Upstream WrathCombo merge: `c35a28de3..13b821ec7`, 14 commits, 72 files.
 ## v1.0.4.154 (2026-08-23) [testing]
 
 ### Changed
-- **RDM holds Manafication through an Occult Quick window too.** Joey, testing .153: the melee
-  hold works, "but it's still casting manafication during occult quick. it needs to hold that
-  too." Correct, and it is the same waste one step back - Manafication's entire payout is the
+- **RDM holds Manafication through an Occult Quick window too.** A .153 test note: the melee hold works, but Manafication is still cast during Occult Quick and needs holding too. Correct, and it is the same waste one step back - Manafication's entire payout is the
   melee combo, and since v1.0.4.153 that combo is held for the length of a Quick window, so a
   110s cooldown spent into one buys Magicked Swordplay stacks with nowhere to go.
 - Four sites, all of them the rotation choosing Manafication for itself: `RDM_ST_SimpleMode`,
@@ -936,14 +933,13 @@ Upstream WrathCombo merge: `c35a28de3..13b821ec7`, 14 commits, 72 files.
 - **`RDM_EmboldenProtection` is deliberately untouched.** Its `RDM_EmboldenManafication` option
   swaps Manafication onto the Embolden *button* when Embolden is on cooldown - that is the player
   pressing a key, not the rotation picking a moment. Gating it would leave the button doing
-  nothing at all, since the fall-through is an Embolden that is on cooldown. Joey's report is
-  about the rotation casting it; this stays a manual override.
+  nothing at all, since the fall-through is an Embolden that is on cooldown. The test report is about the rotation casting it; this stays a manual override.
 - **Watch for the burst splitting.** All four sites carry `(EmboldenCD <= 5 || HasEmbolden)`,
   which exists to pair Manafication with Embolden. Embolden is not held here - it buffs the
   party's magic damage, so a Quick window spent casting is exactly where it belongs - which means
   a Quick window landing over that pairing can now push Manafication out behind Embolden by up to
   twenty seconds. Holding both would keep the pair together at the cost of delaying a party buff;
-  that is a bigger call than this one and it is Joey's, not a guess to slip in here.
+  that is a bigger call than this one and it stays an open decision, not a guess to slip in here.
 - The mana-overcap watch item from v1.0.4.153 still stands, and this makes it slightly more
   likely: Magicked Swordplay is one of the two ways into the melee combo, so holding Manafication
   removes a route that would have drained mana.
@@ -951,8 +947,7 @@ Upstream WrathCombo merge: `c35a28de3..13b821ec7`, 14 commits, 72 files.
 ## v1.0.4.153 (2026-08-23) [testing]
 
 ### Changed
-- **RDM holds the melee combo while Occult Quick is up.** Joey's call on the second question
-  v1.0.4.150 left open: v1.0.4.150 stopped RDM *pressing* Occult Quick mid-combo, but if the
+- **RDM holds the melee combo while Occult Quick is up.** The decision on the second question v1.0.4.150 left open: v1.0.4.150 stopped RDM *pressing* Occult Quick mid-combo, but if the
   window was already running when mana came good, RDM would open the combo anyway and spend most
   of a 20s spell-instant window on weaponskills it cannot help.
 - **This is the rule that was already in that line, finally complete.** Every melee entry in the
@@ -974,7 +969,7 @@ Upstream WrathCombo merge: `c35a28de3..13b821ec7`, 14 commits, 72 files.
   without it a Moulinet chain would stall mid-way for up to twenty seconds and waste the mana
   already spent on it.
 - Strict `HasOccultInstantCast`, not the HasOrExpects form. Matches how the same line already
-  treats RDM's own Dualcast - status only, and Joey reports that behaviour is good - and avoids
+  treats RDM's own Dualcast - status only, and live testing confirms that behaviour is good - and avoids
   holding the combo on a proc that has not landed.
 - **Worth watching in the zone: mana overcap.** This was flagged before the call and the call was
   made anyway, so it ships as asked - but the failure mode is real. A 20s hold is roughly eight
@@ -986,7 +981,7 @@ Upstream WrathCombo merge: `c35a28de3..13b821ec7`, 14 commits, 72 files.
 
 ### Fixed
 - **Swiftcast fired out of combat for no reason: the Occult Comet block never checked whether
-  there was anything to cast at.** Joey, testing .151. The Phantom Time Mage handler substitutes
+  there was anything to cast at.** A .151 test note. The Phantom Time Mage handler substitutes
   Occult Quick or **Swiftcast** onto the DPS button to make Comet's 8s cast instant, and its only
   entry condition was `IsEnabledAndUsable(Preset, OccultComet)` - preset enabled and Comet off
   cooldown. No target, no range, no combat. So standing about in the zone with Time Mage equipped
@@ -1009,7 +1004,7 @@ Upstream WrathCombo merge: `c35a28de3..13b821ec7`, 14 commits, 72 files.
   The block is guarded as a whole rather than only at the speed prep - prepping an instant for a
   cast that never comes is the reported bug, but offering an 8s hard cast at nothing is no better.
 - Best explanation, not a confirmed repro - this was found by reading the handler, not by
-  reproducing Joey's exact case. It requires Phantom Time Mage equipped with
+  reproducing the reported case. It requires Phantom Time Mage equipped with
   `Phantom_TimeMage_OccultComet` enabled. If Swiftcast still fires out of combat with Time Mage
   unequipped, the cause is somewhere else and this fix will not have touched it.
 - Still untested in the zone.
@@ -1017,9 +1012,7 @@ Upstream WrathCombo merge: `c35a28de3..13b821ec7`, 14 commits, 72 files.
 ## v1.0.4.151 (2026-08-23) [testing]
 
 ### Changed
-- **RDM holds Acceleration through an Occult Quick window.** Joey's call on the open question
-  v1.0.4.150 left him: *"occult quick doesn't last long. I say hold acceleration until it's
-  over."* `!HasFreeInstantCasts` is back in `RDM_Helper.CanInstantCD`, which is the single gate
+- **RDM holds Acceleration through an Occult Quick window.** The decision on the open question v1.0.4.150 left: Occult Quick does not last long, so Acceleration stays held until it is over. `!HasFreeInstantCasts` is back in `RDM_Helper.CanInstantCD`, which is the single gate
   all four Acceleration and Swiftcast press sites run through.
 - **This reverses v1.0.4.146, and the reason it was reversed then no longer applies.** .144 added
   the gate; .146 removed it because Acceleration is not purely a cast-time cooldown - it also
@@ -1031,7 +1024,7 @@ Upstream WrathCombo merge: `c35a28de3..13b821ec7`, 14 commits, 72 files.
 - **Occult Quick only, not Occult Dualcast.** Different objects: Quick is a window during which
   Acceleration's instant-cast half cannot be worth anything for its whole duration, so the cost
   of holding is bounded by the window. A Dualcast is a single charge the next spell consumes
-  either way. Joey scoped the call to Quick and it stays there rather than being extended on a
+  either way. The call was scoped to Quick and it stays there rather than being extended on a
   guess about how the two stack.
 
 ### Notes
@@ -1082,18 +1075,14 @@ Upstream WrathCombo merge: `c35a28de3..13b821ec7`, 14 commits, 72 files.
   - Armed only after status 5438 has actually been seen once under this support job, rather than
     on a trait level this code would have to guess at. Costs the first proc of a session its
     prediction and nothing after.
-- **RDM does not do well with Occult Quick, and the cause was one missing term.** Joey: *"It
-  handles dualcast really well. But it doesn't do well with occult quick... It'll instant cast
-  jolt or verfire when it should be casting one of the long-cast spells (even if there's a proc
-  available b/c it's still the more powerful spell)."* `RDM_Helper.CanInstantCast` was
+- **RDM does not do well with Occult Quick, and the cause was one missing term.** Live testing: Dualcast handling is good, but Occult Quick is not - Jolt or Verfire go out instant when a long-cast spell should be cast instead, even with a proc available, since it is still the more powerful spell. `RDM_Helper.CanInstantCast` was
   `HasDualcast || HasAccelerate || HasSwiftcast` - and the rotation already does the right thing
   when it is true, handing the GCD to `UseInstantCastST` for Verthunder III / Veraero III and
   falling through to Grand Impact / Verstone / Verfire / Jolt only when it is false. Occult Quick
   and Occult Dualcast were simply not in the test, so a 20s free-instant window read as "no
   instant effect" and RDM spent it on spells that were already instant. `HasOccultInstantCast`
   added. `UseVerStone`/`UseVerFire` gained the same term as a backstop.
-- **RDM no longer opens Occult Quick in the middle of the melee combo.** Joey: it *"shouldn't
-  really use it in the middle of the DPS combo."* `ShouldHoldOccultQuick()` already held for
+- **RDM no longer opens Occult Quick in the middle of the melee combo.** Live testing: Occult Quick should not be used in the middle of the DPS combo. `ShouldHoldOccultQuick()` already held for
   Manafication, Embolden, Magicked Swordplay and Grand Impact Ready; it now also holds for
   `RDM.InCombo` and `RDM.HasManaStacks`. Riposte through Redoublement plus the Verholy/Verflare
   and Scorch/Resolution finishers is roughly twelve seconds of instant weaponskills - most of a
@@ -1112,8 +1101,7 @@ Upstream WrathCombo merge: `c35a28de3..13b821ec7`, 14 commits, 72 files.
   their own.
 
 ### Notes
-- The Dualcast proc's exact duration is not encoded anywhere here, deliberately. Joey reports it
-  behaves like Swiftcast with a comparable duration; nothing in the plugin needs the number, and
+- The Dualcast proc's exact duration is not encoded anywhere here, deliberately. Live testing shows it behaves like Swiftcast with a comparable duration; nothing in the plugin needs the number, and
   inventing one is how .148 went wrong.
 - An interrupted cast drops the prediction instead of riding out the 1.5s grace. Movement is
   usually what interrupts a cast, and the movement blocks are what read this, so a dead
@@ -1123,7 +1111,7 @@ Upstream WrathCombo merge: `c35a28de3..13b821ec7`, 14 commits, 72 files.
 - Not addressed: Acceleration is still not gated on Occult Quick (v1.0.4.146 backed that out
   because it also feeds Grand Impact and the Ver procs). With RDM now holding its procs through
   a Quick window, Acceleration generating more of them during one is arguably waste - but that is
-  a rotation call on top of a rotation call, and it wants Joey's eyes rather than another guess.
+  a rotation call on top of a rotation call, and it wants review in live play rather than another guess.
 - Still untested in the zone.
 
 ## v1.0.4.149 (2026-08-23) [testing]
@@ -1158,8 +1146,7 @@ Upstream WrathCombo merge: `c35a28de3..13b821ec7`, 14 commits, 72 files.
 
 ### Fixed
 - **Occult Dualcast was worth nothing to the rotation, and the rotation kept destroying it.**
-  Joey: *"BLM uses triplecast or swiftcast when moving even though dualcast is available... and
-  then will cast several instants and sometimes lose the buff before it can be used."* Both
+  Live testing: BLM uses Triplecast or Swiftcast when moving even though Dualcast is available, then casts several instants and sometimes loses the buff before it can be used. Both
   halves, and they are the same bug seen from two ends. v1.0.4.144 saw Occult Dualcast, decided
   it was a timed proc too risky to gate a damage rotation on, and wired it into the raise paths
   only. That reading was wrong.
@@ -1204,7 +1191,7 @@ Upstream WrathCombo merge: `c35a28de3..13b821ec7`, 14 commits, 72 files.
   still allowed to consume the Dualcast (`HoldingInstantCastProc` in the 7.55 set is untouched).
   They are 1.5s casts, so that is a legitimate spend rather than a waste - but whether the
   player's own 2.8s Fire IV is the better home for the proc is a tuning question, not a defect,
-  and it is Joey's call rather than one to slip in here.
+  and it is an open tuning question rather than one to slip in here.
 - Still inert outside Occult Crescent: status 5438 cannot be present anywhere else, so every
   gate added here resolves to false and the movement blocks behave exactly as before.
 - Untested against the live proc: the mechanics above come from the status sheet and from
@@ -1267,8 +1254,7 @@ Upstream WrathCombo merge: `c35a28de3..13b821ec7`, 14 commits, 72 files.
 ## v1.0.4.145 (2026-08-20) [testing]
 
 ### Fixed
-- **v1.0.4.144's Occult Quick gates did not stop the thing they were written to stop.** Joey:
-  "immediately cast swiftcast right after occult quick." The gates tested
+- **v1.0.4.144's Occult Quick gates did not stop the thing they were written to stop.** Live testing: Swiftcast is cast immediately right after Occult Quick. The gates tested
   `HasStatusEffect(OccultQuick)` and nothing else - but Gluttony presses Occult Quick *itself*,
   and the status does not exist until the server applies it. For the ticks in between, the gate
   reads false and the rotation spends Swiftcast, which is precisely the window the complaint
@@ -1566,7 +1552,7 @@ still present byte-for-byte).
   list contributed nothing.
 
 ### Notes
-- Diagnosed from Joey's 2026-08-08 dajoeybaz session: `dalamud.log` confirmed territory
+- Diagnosed from a 2026-08-08 test session: `dalamud.log` confirmed territory
   1346 for the whole Forked Tower: Magic run with zero GluttonyCombo exceptions, which ruled
   out a wrong-territory case and a throwing `LoadDT()` and left the call wiring as the only
   unverified link. The v1.0.4.133 Aevis case itself was correct all along and had simply
@@ -1711,7 +1697,7 @@ Two fork-only presets were re-homed above upstream's range to avoid collisions:
   `HoldingInstantCastProc`, Necromancer HP floor and not-already-Doomed gates, weakness gate,
   StepForth, phantom-heal rows, dispatcher order, DRK TBN, AutoDuty IPC - all present. All 8
   fork-only presets still defined.
-- **Verified in game by Joey (2026-08-05) and promoted to production.** `AssemblyVersion`
+- **Verified in game (2026-08-05) and promoted to production.** `AssemblyVersion`
   1.0.4.131 -> 1.0.4.132; both channels ship this build. Packaged with
   `-VersionOverride 1.0.4.132` so the promote could not auto-bump off the verified build.
 
@@ -1828,7 +1814,7 @@ and was reverted in v1.0.4.127.
 ## v1.0.4.127 (2026-08-03) [testing]
 
 ### Removed
-- **Reverted v1.0.4.126 in full.** Joey reported the build was badly broken in live play. The
+- **Reverted v1.0.4.126 in full.** Live testing reported the build was badly broken. The
   raise intention-lock, the `SwiftcastHeldForRaise` DPS gate, and the WHM Thin Air step in
   `RezParty()` are all backed out; `AutoRotation/AutoRotationController.cs` is byte-identical to
   v1.0.4.125 again (verified by diff against the pre-change commit `9607d1c47`).
@@ -1974,7 +1960,7 @@ cannot reduce own HP to less than 1"* ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥
   registered, so a cure waiting on the GCD now holds the slot instead of disappearing.
 
 ### Notes
-- Ruled out along the way, both by Joey: `IsInOccult` (would fail 100% of the time, not
+- Ruled out along the way, both in live testing: `IsInOccult` (would fail 100% of the time, not
   intermittently) and MP (never a gate in the enumerator - only Knight's Occult Heal checks it).
 - The combo/button path now filters on `ActionReady` itself, since the enumerator no longer
   does; returning an unready action there would only produce a dead hotbar button.
@@ -2262,7 +2248,7 @@ cannot reduce own HP to less than 1"* ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥
   whether or not an oGCD heal happened to apply.
 
 ### Notes
-- Joey diagnosed the shape of this himself twice: "RDM has healing logic built in, BLM doesn't"
+- Live testing diagnosed the shape of this twice: "RDM has healing logic built in, BLM doesn't"
   and "it casts out of combat, just not in it." Both were correct and both were argued past.
 - `[PhantomDiag]` / `[FriendlyDiag]` from v1.0.4.110 are retained (throttled, only below 90% HP)
   and a `[PhantomHeal]` line now records each emergency cast.
@@ -2285,11 +2271,10 @@ cannot reduce own HP to less than 1"* ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥
   Both log at Information so they appear in `/xllog` without enabling Verbose.
 
 ### Notes
-- Joey: "it casts out of combat, just not in it." Out of combat he is stationary with no
-  hostile targeted; in combat he is moving with one. Two gates key on exactly that difference -
+- Reported: "it casts out of combat, just not in it." Out of combat the player is stationary with no hostile targeted; in combat the player is moving with one. Two gates key on exactly that difference -
   the `QueuedActionId != 0` early return at the top of `ExecuteST`, and
   `TimeMoving > 0 && castTime > 0` with `MovementLeeway` at 0.0, which kills every cast-time
-  action the instant he moves. Every phantom cure has a cast time. The logging above decides
+  action the instant the player moves. Every phantom cure has a cast time. The logging above decides
   between them instead of shipping a fifth speculative fix.
 
 ## v1.0.4.109 (2026-08-02) [testing]
@@ -2334,7 +2319,7 @@ cannot reduce own HP to less than 1"* ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥
   reproduce a content-specific replacement.
 
 ### Notes
-- Joey identified this in his first report - "RDM has healing logic built in, BLM doesn't".
+- The first test report identified this - "RDM has healing logic built in, BLM doesn't".
   That was correct and it is the actual root cause. v1.0.4.106 (instant-cast-proc gate) and
   v1.0.4.107 (heal priority vs damage dispatch) are both real bugs found on the way here, but
   neither was what stopped the cure from going off.
@@ -2362,7 +2347,7 @@ cannot reduce own HP to less than 1"* ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥
   are left in place and become unreachable once a heal wins here.
 
 ### Notes
-- Reported by Joey: damaged, sliders configured, phantom cure never used. Follow-up to the
+- Reported in testing: damaged, sliders configured, phantom cure never used. Follow-up to the
   v1.0.4.106 instant-cast-proc fix, which was a real bug but not the one causing this.
 
 ## v1.0.4.106 (2026-08-02) [testing]
@@ -2381,7 +2366,7 @@ cannot reduce own HP to less than 1"* ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥
   below the gate, unchanged.
 
 ### Notes
-- Reported by Joey: phantom healing worked while playing Red Mage but not Black Mage. The
+- Reported in testing: phantom healing worked while playing Red Mage but not Black Mage. The
   phantom job in use was not the variable - the player's real job was, via the proc list in
   `HoldingInstantCastProc` (Swiftcast / Dualcast / Triplecast / Requiescat).
 
@@ -2782,7 +2767,7 @@ cannot reduce own HP to less than 1"* ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥
   SMN "Aegis Uptime" preset, BossMod IPC (`IsAIActive` / `SetMaxDistanceToTarget`), 15s raidwide gate.
 
 ### Notes
-- BLU taken-theirs (unprotected per Joey 2026-07-02; BLU autorotation is known-broken).
+- BLU taken-theirs (unprotected since 2026-07-02; BLU autorotation is known-broken).
 - Build: 0 errors, 11 warnings (all pre-existing). Resolves the 2026-07-15 nightly-upstream-merge
   escalation (upstream BattleData penalty rearchitecture vs. our divergences) ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ merged cleanly with
   every standing divergence intact.
@@ -2870,7 +2855,7 @@ cannot reduce own HP to less than 1"* ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥
 ## v1.0.4.73 (2026-07-01)
 
 ### Changed
-- **STABLE PROMOTION of the healer raidwide rework (testing v1.0.4.55-.72).** Everything validated by Joey in live play: SGE shield-first Eukrasian Prognosis + one mit per raidwide (hard intention-lock, v65), SGE tank-shield upkeep, SCH Succor commit-latch through the hard cast (v68), WHM Medica II/III and AST Aspected Helios timed AoE regens - controller-owned, arm-at-detect + fire-by-clock, aimed to complete ~1.2s after the raidwide cast bar so the heal lands on post-hit HP (v69-72).
+- **STABLE PROMOTION of the healer raidwide rework (testing v1.0.4.55-.72).** Everything validated in live play: SGE shield-first Eukrasian Prognosis + one mit per raidwide (hard intention-lock, v65), SGE tank-shield upkeep, SCH Succor commit-latch through the hard cast (v68), WHM Medica II/III and AST Aspected Helios timed AoE regens - controller-owned, arm-at-detect + fire-by-clock, aimed to complete ~1.2s after the raidwide cast bar so the heal lands on post-hit HP (v69-72).
 
 ### Removed
 - **All `[RWS]` diagnostic logging stripped** (SGE/SCH/WHM/AST locks in `AutoRotationController.cs`, combo-fire log in `SGE_Helper.cs`) - clean production build.
@@ -2878,7 +2863,7 @@ cannot reduce own HP to less than 1"* ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥
 ## v1.0.4.72 (2026-07-01)
 
 ### Fixed
-- **AST timed regen now actually fires: arm-at-detect + fire-by-clock (WHM too).** The dajoeybaz log proved the v71 mechanism worked when it triggered (one perfect `rem=0.27 castS=1.48` Helios) but almost never triggered: the trigger gates were only sampled while `remaining bar <= castS - 1.2s`, a window just ~0.3s wide for AST's 1.5s Helios cast (vs ~1.1s for WHM's 2s Medica - why WHM felt fine and AST didn't). Any mid-GCD moment inside that sliver = total miss. The locks now ARM as soon as the raidwide bar appears (gates evaluated with the whole bar of leeway), schedule an absolute fire time (`bar end + RegenLandDelaySeconds - own cast time`), and fire by the clock. Armed state disarms if the bar vanishes early or the party picks up the HoT another way; movement delays the fire instead of cancelling it. `AutoRotation/AutoRotationController.cs`.
+- **AST timed regen now actually fires: arm-at-detect + fire-by-clock (WHM too).** Test logs proved the v71 mechanism worked when it triggered (one perfect `rem=0.27 castS=1.48` Helios) but almost never triggered: the trigger gates were only sampled while `remaining bar <= castS - 1.2s`, a window just ~0.3s wide for AST's 1.5s Helios cast (vs ~1.1s for WHM's 2s Medica - why WHM felt fine and AST didn't). Any mid-GCD moment inside that sliver = total miss. The locks now ARM as soon as the raidwide bar appears (gates evaluated with the whole bar of leeway), schedule an absolute fire time (`bar end + RegenLandDelaySeconds - own cast time`), and fire by the clock. Armed state disarms if the bar vanishes early or the party picks up the HoT another way; movement delays the fire instead of cancelling it. `AutoRotation/AutoRotationController.cs`.
 - Log also showed rotation-cast Heliae coinciding with a detection window being counted as the raidwide regen (bare `COMPLETE` lines burning the 10s gate); with arming now happening at bar start this dedupe only engages in the actual fire window.
 
 ### Notes
@@ -2892,7 +2877,7 @@ cannot reduce own HP to less than 1"* ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥
 ## v1.0.4.70 (2026-07-01)
 
 ### Fixed
-- **WHM/AST timed regen now completes just AFTER the raidwide hits, not before.** v1.0.4.69 used fixed trigger windows (WHM 2.5s / AST 1.5s) that were wider than the regen's own cast time, so the heal finished ~0.5s before the damage landed (Joey's live test). The trigger window is now computed per-cast: `GetAdjustedCastTime(regen) - RegenLandOffsetSeconds (0.5s)`, i.e. the cast starts late enough that it completes ~0.5s after the boss cast bar resolves, landing the heal + HoT on post-hit HP. Floor of 0.5s (covers Swiftcast/instant edge). `AutoRotation/AutoRotationController.cs`.
+- **WHM/AST timed regen now completes just AFTER the raidwide hits, not before.** v1.0.4.69 used fixed trigger windows (WHM 2.5s / AST 1.5s) that were wider than the regen's own cast time, so the heal finished ~0.5s before the damage landed (live testing). The trigger window is now computed per-cast: `GetAdjustedCastTime(regen) - RegenLandOffsetSeconds (0.5s)`, i.e. the cast starts late enough that it completes ~0.5s after the boss cast bar resolves, landing the heal + HoT on post-hit HP. Floor of 0.5s (covers Swiftcast/instant edge). `AutoRotation/AutoRotationController.cs`.
 
 ## v1.0.4.69 (2026-07-01)
 
@@ -2908,7 +2893,7 @@ cannot reduce own HP to less than 1"* ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥
 ## v1.0.4.68 (2026-06-27)
 
 ### Fixed
-- **SCH raidwide shield: added a commit-latch so the hard cast survives `GroupDamageIncoming()` flipping false.** The dajoeybaz log showed `SchRaidwideShieldLock` issuing Succor once (`cast=True`) then never holding or completing - because `wanted` was gated solely on `GroupDamageIncoming()`, which is only true for a brief detection window. The instant it flipped false the lock released mid-cast, the rotation resumed and cancelled the half-started ~2s Succor. Added `_schShieldPending` (mirrors SGE's `_shieldEukrasiaPending`): once Succor is issued the lock stays engaged until the cast COMPLETES (or a 4s safety expiry), so the rotation can't interrupt it. `AutoRotation/AutoRotationController.cs`.
+- **SCH raidwide shield: added a commit-latch so the hard cast survives `GroupDamageIncoming()` flipping false.** Test logs showed `SchRaidwideShieldLock` issuing Succor once (`cast=True`) then never holding or completing - because `wanted` was gated solely on `GroupDamageIncoming()`, which is only true for a brief detection window. The instant it flipped false the lock released mid-cast, the rotation resumed and cancelled the half-started ~2s Succor. Added `_schShieldPending` (mirrors SGE's `_shieldEukrasiaPending`): once Succor is issued the lock stays engaged until the cast COMPLETES (or a 4s safety expiry), so the rotation can't interrupt it. `AutoRotation/AutoRotationController.cs`.
 
 ## v1.0.4.67 (2026-06-27)
 
@@ -2933,7 +2918,7 @@ cannot reduce own HP to less than 1"* ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥
 ## v1.0.4.63 (2026-06-27)
 
 ### Fixed
-- **SGE/SCH raidwide shield: handed the cast back to the combo path.** The dajoeybaz `[RWS]` trace showed the controller's direct shield cast (added in 1.0.4.57) spamming Eukrasia (rejected ~1s while the GCD rolled, then queued) and the 1.0.4.61 Run-hold STARVING the per-job combo - the path that actually casts Eukrasian Prognosis correctly (via the heal-cast routine, which prioritises the shield over Eukrasian Dosis so the Eukrasia is not stolen). Removed `TryRaidwideShield` and the Run-hold; the shield is cast solely by the combo (`RaidwideEprognosis` / `RaidwideSuccor`) and `RaidwideShieldPending` (preset-gated again) only holds the mitigation until the shield lands. Requires the sub-preset on (SGE: SGE_Raidwide -> Eukrasian Prognosis; SCH: SCH_Raidwide -> Succor). One `[RWS]` combo log kept for verification.
+- **SGE/SCH raidwide shield: handed the cast back to the combo path.** The `[RWS]` trace from testing showed the controller's direct shield cast (added in 1.0.4.57) spamming Eukrasia (rejected ~1s while the GCD rolled, then queued) and the 1.0.4.61 Run-hold STARVING the per-job combo - the path that actually casts Eukrasian Prognosis correctly (via the heal-cast routine, which prioritises the shield over Eukrasian Dosis so the Eukrasia is not stolen). Removed `TryRaidwideShield` and the Run-hold; the shield is cast solely by the combo (`RaidwideEprognosis` / `RaidwideSuccor`) and `RaidwideShieldPending` (preset-gated again) only holds the mitigation until the shield lands. Requires the sub-preset on (SGE: SGE_Raidwide -> Eukrasian Prognosis; SCH: SCH_Raidwide -> Succor). One `[RWS]` combo log kept for verification.
 
 ## v1.0.4.62 (2026-06-27)
 
@@ -3306,7 +3291,7 @@ cannot reduce own HP to less than 1"* ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥
 ## v1.0.4.18 (2026-05-18)
 
 ### Fixed
-- **Gluttony auto mode now works while AutoDuty is running a duty.** The v1.0.4.13 `ShouldYield` gate at `ShouldSkipAutorotation` shut down Gluttony for the entire duration of AutoDuty operations (combat, navigation, all of it), not just during mechanics. Joey hit this in normal play: auto mode did nothing while AutoDuty was active, then resumed the second AutoDuty stopped. Gate removed. Pyretic / Acceleration Bomb safety from v1.0.4.17 remains intact via `NoActStatus` at both `ShouldSkipAutorotation` and `UseActionDetour` - the actual protective mechanism. The AutoDuty yield was a workaround for the same problem with collateral damage; cutting it lets autorotation do its job during normal combat phases.
+- **Gluttony auto mode now works while AutoDuty is running a duty.** The v1.0.4.13 `ShouldYield` gate at `ShouldSkipAutorotation` shut down Gluttony for the entire duration of AutoDuty operations (combat, navigation, all of it), not just during mechanics. Seen in normal play: auto mode did nothing while AutoDuty was active, then resumed the second AutoDuty stopped. Gate removed. Pyretic / Acceleration Bomb safety from v1.0.4.17 remains intact via `NoActStatus` at both `ShouldSkipAutorotation` and `UseActionDetour` - the actual protective mechanism. The AutoDuty yield was a workaround for the same problem with collateral damage; cutting it lets autorotation do its job during normal combat phases.
 
 ### Notes
 - `AutoDuty.cs` IPC subscriber stays instantiated. Cheap to keep around in case we want a finer-grained gate later (e.g., yield only on specific untarget mechanics), without re-introducing the broken blanket yield.
@@ -3314,7 +3299,7 @@ cannot reduce own HP to less than 1"* ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥
 ## v1.0.4.17 (2026-05-18)
 
 ### Fixed
-- **Pyretic / Acceleration Bomb safety (was killing the player).** v1.0.4.13 added an AutoDuty-yield check at `ShouldSkipAutorotation`, but Gluttony was still firing actions during Pyretic via two paths the yield didn't cover: (a) AutoDuty's already-in-flight queued action draining after the status lands, and (b) Gluttony's `UseActionDetour` intercepting and combo-replacing the call. Joey verified by dying on the first boss of the latest dungeon. New `Data/NoActStatus` helper checks for status IDs 960 (Pyretic) and 1387/2127 (Acceleration Bomb), and is now gated at both `AutoRotationController.ShouldSkipAutorotation` (suppresses plugin-driven autorotation) and at the top of `ActionWatching.UseActionDetour` (returns `false` to swallow any UseAction call entirely while the status is active, no matter who queued it).
+- **Pyretic / Acceleration Bomb safety (was killing the player).** v1.0.4.13 added an AutoDuty-yield check at `ShouldSkipAutorotation`, but Gluttony was still firing actions during Pyretic via two paths the yield didn't cover: (a) AutoDuty's already-in-flight queued action draining after the status lands, and (b) Gluttony's `UseActionDetour` intercepting and combo-replacing the call. Verified in live play on the first boss of the latest dungeon. New `Data/NoActStatus` helper checks for status IDs 960 (Pyretic) and 1387/2127 (Acceleration Bomb), and is now gated at both `AutoRotationController.ShouldSkipAutorotation` (suppresses plugin-driven autorotation) and at the top of `ActionWatching.UseActionDetour` (returns `false` to swallow any UseAction call entirely while the status is active, no matter who queued it).
 
 ### Removed
 - **Hold-to-Repeat is gone.** Moved to a standalone plugin (LazyPress, coming separately) so it doesn't ride along with the combo plugin. Removes `Configuration.HoldToRepeatEnabled`, the `OnFrameworkUpdate` block, the `ActionWatching.OnActionSend` subscriber, and the `_holdLastUserPressTickMs` / `_holdSelfFireWindowEndMs` trackers.
