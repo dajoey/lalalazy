@@ -46,11 +46,15 @@ SmartMoverCore.MoverWorld World(
         5, 30f, 0f, 3f, new(0, 0), new(0, 0), 0, 1, 5f, 60f, 0f));
     Check("zone/raidwide-skipped", rw is null);
 
-    // v1.0.4.192 solo regression: a TARGET-anchored cast aimed at the player
-    // still tracks the player and is skipped (undodgeable)...
+    // v1.0.4.207: a TARGET-anchored cast aimed at the player still builds
+    // its zone. The Dalamud half re-derives zones every tick from the live
+    // target position, so a following marker is chased (each tick escapes
+    // the current placement); skipping these left the mover standing inside
+    // visible player-targeted telegraphs with an empty zone list.
     var pt = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
         2, 6f, 0f, 3f, new(0, 0), new(0, 0), 999, 999, 5f, 60f, 0f));
-    Check("zone/targets-player-ground-circle-skipped", pt is null);
+    Check("zone/targets-player-ground-circle-built", pt is { Kind: DangerZoneModel.ShapeKind.Circle });
+    Check("zone/targets-player-ground-circle-contains", pt is not null && DangerZoneModel.Contains(pt.Value, new Vector2(0, 0), 0f));
 
     // ...but a CASTER-anchored cast aimed at the player (point-blank circle,
     // cone, line, charge - every solo mob telegraph) MUST build its zone:
@@ -72,13 +76,13 @@ SmartMoverCore.MoverWorld World(
     Check("zone/solo-cone13-aimed-at-player-builtin", solo13 is { Kind: DangerZoneModel.ShapeKind.Cone });
     var solo10 = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
         10, 12f, 0f, 0f, new(0, 0), new(0, 0), 999, 999, 5f, 60f, 5f));
-    Check("zone/solo-donut-on-player-still-skipped", solo10 is null);
+    Check("zone/solo-donut-on-player-built", solo10 is { Kind: DangerZoneModel.ShapeKind.Donut }, $"z={solo10}");
     var solo11 = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
         11, 12f, 6f, 0f, new(0, 0), new(0, 0), 999, 999, 5f, 60f, 0f));
-    Check("zone/solo-cross-on-player-still-skipped", solo11 is null);
+    Check("zone/solo-cross-on-player-built", solo11 is { Kind: DangerZoneModel.ShapeKind.Cross }, $"z={solo11}");
     var solo12 = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
         12, 20f, 6f, 3f, new(0, 0), new(0, -8), 999, 999, 5f, 60f, 0f));
-    Check("zone/solo-loc-rect-on-player-still-skipped", solo12 is null);
+    Check("zone/solo-loc-rect-on-player-built", solo12 is { Kind: DangerZoneModel.ShapeKind.Rect }, $"z={solo12}");
 
     // Rect CastType 4 from caster toward target (target at +Z => aim rot = +90deg math convention)
     var rect = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
@@ -246,6 +250,35 @@ SmartMoverCore.MoverWorld World(
     var ws = World(player: new(0, -16), zones: soloZone is null ? NoZones : new[] { soloZone.Value });
     var ds = SmartMoverCore.Decide(ws, hs);
     Check("dodge/solo-aimed-at-player-fires", ds.Kind == SmartMoverCore.Decision.Move && ds.Reason == SmartZoneDDG(), $"kind={ds.Kind} r={ds.Reason}");
+
+    // v1.0.4.207 end-to-end: a ground circle targeted AT the player (the mob
+    // cast targets the character) builds its zone at the character's feet and
+    // the dodge fires - standing inside a visible player-targeted telegraph
+    // with an empty zone list was the reported failure.
+    var ownZone = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
+        2, 6f, 0f, 3f, new(0, 8), new(0, -8), 999, 999, 5f, 60f, 0f));
+    Check("dodge/own-targeted-zone-built", ownZone is { Kind: DangerZoneModel.ShapeKind.Circle }, $"z={ownZone}");
+    var ho = new SmartMoverCore.Hysteresis();
+    var wo = World(player: new(0, -8), zones: ownZone is null ? NoZones : new[] { ownZone.Value });
+    var dOwn = SmartMoverCore.Decide(wo, ho);
+    Check("dodge/own-targeted-fires", dOwn.Kind == SmartMoverCore.Decision.Move && dOwn.Reason == SmartZoneDDG(), $"kind={dOwn.Kind} r={dOwn.Reason}");
+    Check("dodge/own-targeted-dest-safe", ownZone is null || SmartMoverCore.UnsafeAt(dOwn.Dest, new[] { ownZone.Value }, 0.25f) is null, $"dest={dOwn.Dest}");
+
+    // Follow-tick: the marker re-anchors to the player's new position (the
+    // Dalamud half rebuilds from the live target each tick) and the dodge
+    // fires again instead of standing down while still inside.
+    var ownZone2 = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
+        2, 6f, 0f, 3f, new(0, 8), dOwn.Dest, 999, 999, 4f, 60f, 0f));
+    var ho2 = new SmartMoverCore.Hysteresis();
+    var wo2 = World(player: dOwn.Dest, zones: ownZone2 is null ? NoZones : new[] { ownZone2.Value });
+    var dOwn2 = SmartMoverCore.Decide(wo2, ho2);
+    Check("dodge/own-targeted-follow-tick-fires", dOwn2.Reason == SmartZoneDDG(), $"kind={dOwn2.Kind} r={dOwn2.Reason}");
+
+    // Negative control: the own-targeted zone exists but the player already
+    // stands clear of it -> no dodge.
+    var hOn = new SmartMoverCore.Hysteresis();
+    var dOn = SmartMoverCore.Decide(World(player: new(0, -30), zones: ownZone is null ? NoZones : new[] { ownZone.Value }), hOn);
+    Check("dodge/own-targeted-clear-no-ddg", dOn.Reason != SmartMoverCore.ReasonDodgeCode, $"r={dOn.Reason}");
 
     // Outside every zone -> no dodge
     var h2 = new SmartMoverCore.Hysteresis();

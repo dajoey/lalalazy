@@ -1,3 +1,10 @@
+## v1.0.4.208 (2026-09-17) [testing]
+### Fixed
+- **Smart Movement now dodges ground telegraphs targeted at the character.** Testing 1.0.4.206 logged engage and hold decisions beside a live zone count without ever issuing a dodge: enemy ground circles, donuts, crosses and location rects aimed at the character were discarded before their shape was considered, on the theory that a marker tracking the character cannot be outrun. Zones are re-derived every tick from live positions, so each tick escapes the current placement, and moving away before the snapshot is how these telegraphs are avoided. Target-anchored casts aimed at the character now build zones like any other, and the resolved ground field keeps lingering as danger after the cast ends.
+### Notes
+- Offline harness coverage for the own-targeted shapes (zone builds at the character's feet, dodge fires with a safe destination, a re-anchored follow tick dodges again, standing clear stays quiet) alongside the unchanged settle-hold, corridor-hold, persistence, and arrival coverage.
+- In-game grading with Smart Movement ON + Movement Telemetry ON: the same content. Expect `ddg` when standing in a telegraph, including one aimed at the character, and `hold` (never `stl`) while the zone count stays above zero.
+
 ## v1.0.4.207 (2026-09-17) [testing]
 ### Added
 - **Beastmaster: Crucible of the Unbroken rules.** On a Crucible board (detected from the territory; the enemies of all five boards are matched by id from the game's own enemy-panel data), the rotation:

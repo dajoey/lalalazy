@@ -67,9 +67,16 @@ internal static class DangerZoneModel
 
     /// <summary>
     ///     Maps one live enemy cast to a danger zone, or null when the cast is
-    ///     not a dodgeable telegraph (single-target, raidwide, or aimed at the
-    ///     player - AIHintsBuilder skips those last because the zone tracks the
-    ///     player and cannot be dodged).
+    ///     not a dodgeable telegraph (single-target, raidwide, or an unknown
+    ///     shape). Target-anchored shapes aimed at the player (ground circle,
+    ///     donut, cross, location rect) DO build zones: the Dalamud half
+    ///     re-derives every zone each tick from the target's live position, so
+    ///     a following marker is chased correctly (each tick escapes the
+    ///     current placement), and when the cast resolves the ground-linger
+    ///     feed keeps the final field dangerous. Skipping them left the mover
+    ///     standing inside visible player-targeted telegraphs with an empty
+    ///     zone list (v1.0.4.207) - and moving away before the snapshot is how
+    ///     these are dodged in game.
     /// </summary>
     internal static Zone? BuildZone(in CastPrimitive p)
     {
@@ -78,15 +85,6 @@ internal static class DangerZoneModel
 
         // Raidwide: CastType 2/5 at raidwide size (AIHintsBuilder "AutomaticConservative").
         if (p.CastType is 2 or 5 && p.EffectRange >= RaidwideSize)
-            return null;
-
-        // Cast aimed at the player: only shapes anchored to the TARGET's feet
-        // (ground circle, donut, cross, location rect) track the player and
-        // cannot be outrun. Shapes anchored to the CASTER (point-blank circle,
-        // cones, lines, charges) keep their geometry no matter who is aimed at
-        // and must still be dodged - solo, every mob cast targets the player,
-        // and the old blanket skip starved the dodge branch entirely (v1.0.4.192).
-        if (IsPlayerAnchoredUndodgeable(p.CastType, p.CastTargetId, p.PlayerId))
             return null;
 
         var aim = AimRot(p.CastTargetLoc - p.CasterPos);
@@ -182,14 +180,6 @@ internal static class DangerZoneModel
         var lateral = d.X * sin + d.Y * cos; // position across it
         return along >= -MaxError - buffer && along <= length + buffer && MathF.Abs(lateral) <= halfWidth + buffer;
     }
-
-    /// <summary>
-    ///     Whether a cast aimed at the player is anchored to the player's own
-    ///     position (undodgeable - the zone follows the target) rather than to
-    ///     the caster's geometry (dodgeable regardless of aim).
-    /// </summary>
-    internal static bool IsPlayerAnchoredUndodgeable(byte castType, ulong castTargetId, ulong playerId) =>
-        castTargetId != 0 && castTargetId == playerId && castType is 2 or 10 or 11 or 12;
 
     /// <summary>
     ///     Tracks ground-danger zones that keep hurting after the cast bar
