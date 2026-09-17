@@ -69,7 +69,7 @@ internal sealed unsafe class RetainerLiveService
                 // Verified 2026-09-05 that the frozen snapshot is still the
                 // BETTER answer: at the moment of measurement it led
                 // AutoRetainer's file by a whole venture cycle, so falling back
-                // to the file would have shown Joey older data, not fresher.
+                // to the file would have shown older data, not fresher.
                 // Do not "fix" this with a ClientState.Logout handler unless a
                 // consumer actually needs the distinction - that reintroduces
                 // exactly the flapping this avoids.
