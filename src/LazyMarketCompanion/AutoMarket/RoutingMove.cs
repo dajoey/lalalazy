@@ -158,7 +158,7 @@ public static class RoutingMove
   public static string SerializeReconcileLedger(IReadOnlyDictionary<string, DateTime> ledger)
   {
     var lines = new List<string>(ledger.Count);
-    foreach (var key in ledger.Keys.OrderBy(k => k, StringComparison.Ordinal))
+    foreach (var key in ledger.Keys.OrderBy(k => k, StringComparer.Ordinal))
       lines.Add($"{key}\t{ledger[key].ToUniversalTime():o}");
     return string.Join("\n", lines);
   }
