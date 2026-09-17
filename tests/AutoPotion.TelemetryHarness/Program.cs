@@ -11,7 +11,7 @@ namespace AutoPotion.TelemetryHarness;
 ///     keeps the plugin log habitable, are both proven before shipping.
 /// </summary>
 /// <remarks>
-///     The last block replays 214 minutes of Joey's actual play (6,175
+///     The last block replays 214 minutes of actual live play (6,175
 ///     <c>player_samples</c> rows pulled from ffxivdb, collapsed to change-points in
 ///     <c>trace-ffxivdb.csv</c>) through the gate at the plugin's real 150 ms tick
 ///     cadence and asserts a measured line rate. "It should be low" is not evidence;
@@ -128,7 +128,7 @@ internal static class Program
     private static void LocaleSafety()
     {
         // A comma decimal separator silently destroys a '|' parse — and would do it
-        // only on Joey's machine, months later, in a table nobody re-checks.
+        // only on the test machine, months later, in a table nobody re-checks.
         var previous = CultureInfo.CurrentCulture;
         try
         {
@@ -265,7 +265,7 @@ internal static class Program
 
     /// <summary>
     ///     Replays real ffxivdb <c>player_samples</c> rows through the gate at the
-    ///     plugin's 150 ms tick cadence, under Joey's shipped defaults
+    ///     plugin's 150 ms tick cadence, under the shipped defaults
     ///     (OnlyInCombat=true, HpPotionThreshold=60), with an empty potion bag so
     ///     every crossing is a near-miss — the worst case for line volume.
     /// </summary>
