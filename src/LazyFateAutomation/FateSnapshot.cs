@@ -11,7 +11,7 @@ using Lumina.Excel.Sheets;
 namespace LazyFateAutomation;
 
 /// <summary>
-/// Read-only loopback snapshot for the home dashboard (Helm t-joey-1788795729247):
+/// Read-only loopback snapshot for the home dashboard (the related support thread):
 /// GET http://127.0.0.1:10505/fates -> latest FATE/hunt snapshot as JSON.
 ///
 /// Same pattern as LazyRetainerLive's HttpServer (proven wine-safe on test-machine):
