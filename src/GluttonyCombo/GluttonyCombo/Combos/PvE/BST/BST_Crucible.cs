@@ -155,6 +155,8 @@ internal partial class BST
 
         s.PartingBlowRecast = GetCooldownRemainingTime(PartingBlow);
         s.ReadySnarl = ActionReady(Snarl);
+        var sinceSnarl = TimeSinceActionUsed(Snarl);
+        s.SinceSnarl = sinceSnarl < 0 ? float.MaxValue : sinceSnarl;
         s.ReadyChallenge = ActionReady(Challenge);
 
         WarnEmptyHorns(s);
@@ -187,6 +189,19 @@ internal partial class BST
 
         Svc.Toasts.ShowError(BST_Config.CrucibleHornWarningMessage);
         Svc.Chat.PrintError(BST_Config.CrucibleHornWarningMessage);
+    }
+
+    /// <summary> Panel battle of the hostile enemies present on the current board, -1 when none. </summary>
+    internal static int CurrentCrucibleBattle()
+    {
+        var board = BST_CrucibleData.BoardOfTerritory(Svc.ClientState.TerritoryType);
+        if (board == 0)
+            return -1;
+        foreach (var obj in Svc.Objects)
+            if (obj is IBattleNpc npc && !npc.IsDead && npc.IsHostile()
+                && BST_CrucibleData.Enemy(npc.NameId) is { } enemy && enemy.Board == board)
+                return enemy.Battle;
+        return -1;
     }
 
     /// <summary> One-line Crucible readout for the options panel. </summary>

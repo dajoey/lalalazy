@@ -2303,6 +2303,10 @@ internal unsafe class AutoRotationController
                 if (cfg.DPSSettings.TreasureHuntPriority)
                     validTargets = RestrictToTreasureHuntKillOrder(validTargets);
 
+                // Fork: Beastmaster in the Crucible of the Unbroken (no eggs / morphos, stances last, priority adds, paired kills).
+                if (Combos.PvE.BST.CrucibleTargetingActive)
+                    validTargets = Combos.PvE.BST.RestrictCrucibleTargets(validTargets);
+
                 return validTargets;
             }
         }

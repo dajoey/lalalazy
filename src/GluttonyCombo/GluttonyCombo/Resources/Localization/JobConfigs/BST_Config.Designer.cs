@@ -464,5 +464,158 @@ namespace GluttonyCombo.Resources.Localization.JobConfigs {
                 return ResourceManager.GetString("CrucibleStatusBattle0And1And2", resourceCulture);
             }
         }
+    
+        /// <summary>
+        ///   Looks up a localized string similar to Crucible auto-targeting.
+        /// </summary>
+        internal static string CrucibleTargeting {
+            get {
+                return ResourceManager.GetString("CrucibleTargeting", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to With Auto-Rotation targeting on a Crucible board: never picks zu eggs or morp....
+        /// </summary>
+        internal static string CrucibleTargetingDesc {
+            get {
+                return ResourceManager.GetString("CrucibleTargetingDesc", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Beast picks.
+        /// </summary>
+        internal static string CrucibleAdvisorHeader {
+            get {
+                return ResourceManager.GetString("CrucibleAdvisorHeader", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Board.
+        /// </summary>
+        internal static string CrucibleAdvisorBoard {
+            get {
+                return ResourceManager.GetString("CrucibleAdvisorBoard", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The captured familiar list has not arrived yet (open the Master's Bestiary on....
+        /// </summary>
+        internal static string CrucibleAdvisorRosterUnknown {
+            get {
+                return ResourceManager.GetString("CrucibleAdvisorRosterUnknown", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Roster (familiars in the most battles' picks, number of battles): {0}.
+        /// </summary>
+        internal static string CrucibleAdvisorRoster0 {
+            get {
+                return ResourceManager.GetString("CrucibleAdvisorRoster0", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to boss.
+        /// </summary>
+        internal static string CrucibleAdvisorBoss {
+            get {
+                return ResourceManager.GetString("CrucibleAdvisorBoss", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to elite.
+        /// </summary>
+        internal static string CrucibleAdvisorElite {
+            get {
+                return ResourceManager.GetString("CrucibleAdvisorElite", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to enemy.
+        /// </summary>
+        internal static string CrucibleAdvisorEnemy {
+            get {
+                return ResourceManager.GetString("CrucibleAdvisorEnemy", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to random space.
+        /// </summary>
+        internal static string CrucibleAdvisorRandom {
+            get {
+                return ResourceManager.GetString("CrucibleAdvisorRandom", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Enemy panel calls for: {0}.
+        /// </summary>
+        internal static string CrucibleAdvisorNeeds0 {
+            get {
+                return ResourceManager.GetString("CrucibleAdvisorNeeds0", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Worth capturing:.
+        /// </summary>
+        internal static string CrucibleAdvisorCapture {
+            get {
+                return ResourceManager.GetString("CrucibleAdvisorCapture", resourceCulture);
+            }
+        }
+    
+        /// <summary>
+        ///   Looks up a localized string similar to Score mode (the character tanks).
+        /// </summary>
+        internal static string CrucibleScoreMode {
+            get {
+                return ResourceManager.GetString("CrucibleScoreMode", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to For high-score runs: Challenge whenever the target turns on the familiar so f....
+        /// </summary>
+        internal static string CrucibleScoreModeDesc {
+            get {
+                return ResourceManager.GetString("CrucibleScoreModeDesc", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Dodge known tankbusters with {0} then {1}.
+        /// </summary>
+        internal static string CrucibleSnarlParting0And1 {
+            get {
+                return ResourceManager.GetString("CrucibleSnarlParting0And1", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Off by default. The familiar takes the aggro with Snarl, then Parting Blow se....
+        /// </summary>
+        internal static string CrucibleSnarlPartingDesc {
+            get {
+                return ResourceManager.GetString("CrucibleSnarlPartingDesc", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Parting Blow this many tenths of a second before the cast ends.
+        /// </summary>
+        internal static string CrucibleSnarlPartingLead {
+            get {
+                return ResourceManager.GetString("CrucibleSnarlPartingLead", resourceCulture);
+            }
+        }
     }
 }

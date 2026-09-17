@@ -95,6 +95,9 @@ internal partial class BST : Melee
         CrucibleFinalStingHp = BST_CrucibleFinalStingHp,
         CrucibleAggro = (CrucibleAggroMode)(int)BST_CrucibleAggro,
         CrucibleAllowDisplacing = BST_CrucibleAllowDisplacing,
+        CrucibleScoreMode = BST_CrucibleScoreMode,
+        CrucibleSnarlParting = BST_CrucibleSnarlParting,
+        CrucibleSnarlPartingLead = BST_CrucibleSnarlPartingLead / 10f,
     };
 
     private static BST_RotationLogic.BstSettings AdvancedSettings(bool aoe) => WithCrucible(new()

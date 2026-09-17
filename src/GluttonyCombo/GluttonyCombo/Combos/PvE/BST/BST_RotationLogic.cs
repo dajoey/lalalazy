@@ -270,6 +270,7 @@ internal static class BST_RotationLogic
         public bool PlayerHasCleansableDebuff;
         public bool EnemyTargetsPet, EnemyTargetsPlayer; // who the current target is attacking
         public bool ReadySnarl, ReadyChallenge;
+        public float SinceSnarl;                  // float.MaxValue when never
     }
 
     /// <summary> Config, resolved by the live half (Simple mode = defaults). </summary>
@@ -294,6 +295,9 @@ internal static class BST_RotationLogic
         public int CrucibleFinalStingHp;
         public CrucibleAggroMode CrucibleAggro;
         public bool CrucibleAllowDisplacing;
+        public bool CrucibleScoreMode;
+        public bool CrucibleSnarlParting;
+        public float CrucibleSnarlPartingLead;
 
         public static BstSettings Defaults(bool aoe = false) => new()
         {
@@ -319,6 +323,9 @@ internal static class BST_RotationLogic
             CrucibleFinalStingHp = 40,
             CrucibleAggro = CrucibleAggroMode.Shadow,
             CrucibleAllowDisplacing = true,
+            CrucibleScoreMode = false,
+            CrucibleSnarlParting = false,
+            CrucibleSnarlPartingLead = 1.5f,
         };
     }
 
@@ -459,9 +466,18 @@ internal static class BST_RotationLogic
         // ---------------------------------------------------------- 1b. Crucible: pet-save, stances, protected enemies
         if (crucible)
         {
-            var aggro = BST_CrucibleLogic.ChooseAggro(s);
+            var aggro = BST_CrucibleLogic.ChooseAggro(s, cfg);
             if (aggro.ActionId != 0 && cfg.CrucibleAggro == CrucibleAggroMode.Shadow)
                 shadow = aggro.Reason;
+
+            // Snarl -> Parting Blow: the familiar covers the character, then leaves just before the tankbuster lands.
+            if (familiarOut && s.CanWeave && cfg.CrucibleSnarlParting && BST_CrucibleLogic.SnarlPartingNow(s, cfg))
+            {
+                if (cfg.CrucibleAggro == CrucibleAggroMode.On)
+                    return Pick(BST.PartingBlow, "crucible:snarl-parting");
+                if (cfg.CrucibleAggro == CrucibleAggroMode.Shadow)
+                    shadow = "crucible:snarl-parting";
+            }
 
             if (familiarOut && s.CanWeave)
             {

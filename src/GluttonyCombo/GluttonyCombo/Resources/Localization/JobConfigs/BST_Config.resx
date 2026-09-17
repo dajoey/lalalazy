@@ -255,4 +255,55 @@
   <data name="CrucibleStatusBattle0And1And2" xml:space="preserve">
     <value>{0}: battle with {1} (panel needs: {2}).</value>
   </data>
+  <data name="CrucibleTargeting" xml:space="preserve">
+    <value>Crucible auto-targeting</value>
+  </data>
+  <data name="CrucibleTargetingDesc" xml:space="preserve">
+    <value>With Auto-Rotation targeting on a Crucible board: never picks zu eggs or morphos, picks enemies in a counter stance only when nothing else is up, takes priority adds first, and keeps pairs that must die together within 10% HP of each other.</value>
+  </data>
+  <data name="CrucibleAdvisorHeader" xml:space="preserve">
+    <value>Beast picks</value>
+  </data>
+  <data name="CrucibleAdvisorBoard" xml:space="preserve">
+    <value>Board</value>
+  </data>
+  <data name="CrucibleAdvisorRosterUnknown" xml:space="preserve">
+    <value>The captured familiar list has not arrived yet (open the Master's Bestiary once); picks assume every familiar is captured.</value>
+  </data>
+  <data name="CrucibleAdvisorRoster0" xml:space="preserve">
+    <value>Roster (familiars in the most battles' picks, number of battles): {0}</value>
+  </data>
+  <data name="CrucibleAdvisorBoss" xml:space="preserve">
+    <value>boss</value>
+  </data>
+  <data name="CrucibleAdvisorElite" xml:space="preserve">
+    <value>elite</value>
+  </data>
+  <data name="CrucibleAdvisorEnemy" xml:space="preserve">
+    <value>enemy</value>
+  </data>
+  <data name="CrucibleAdvisorRandom" xml:space="preserve">
+    <value>random space</value>
+  </data>
+  <data name="CrucibleAdvisorNeeds0" xml:space="preserve">
+    <value>Enemy panel calls for: {0}</value>
+  </data>
+  <data name="CrucibleAdvisorCapture" xml:space="preserve">
+    <value>Worth capturing:</value>
+  </data>
+  <data name="CrucibleScoreMode" xml:space="preserve">
+    <value>Score mode (the character tanks)</value>
+  </data>
+  <data name="CrucibleScoreModeDesc" xml:space="preserve">
+    <value>For high-score runs: Challenge whenever the target turns on the familiar so familiars finish at full HP; Snarl only to set up the tankbuster dodge below. Uses the Snarl / Challenge setting (Log only records, Use presses).</value>
+  </data>
+  <data name="CrucibleSnarlParting0And1" xml:space="preserve">
+    <value>Dodge known tankbusters with {0} then {1}</value>
+  </data>
+  <data name="CrucibleSnarlPartingDesc" xml:space="preserve">
+    <value>Off by default. The familiar takes the aggro with Snarl, then Parting Blow sends it away just before the tankbuster lands so the hit finds nobody. Timing depends on latency; players expect a patch. Uses the Snarl / Challenge setting.</value>
+  </data>
+  <data name="CrucibleSnarlPartingLead" xml:space="preserve">
+    <value>Parting Blow this many tenths of a second before the cast ends</value>
+  </data>
 </root>

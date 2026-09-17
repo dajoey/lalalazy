@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using static GluttonyCombo.Combos.PvE.BST_RotationLogic;
 
@@ -246,16 +247,30 @@ internal static class BST_CrucibleLogic
     ///     Snarl for Directional Parry, known single-target hits and a low character; Challenge when the parry
     ///     drops or the familiar runs low.
     /// </summary>
-    public static (uint ActionId, string Reason) ChooseAggro(in BstState s)
+    public static (uint ActionId, string Reason) ChooseAggro(in BstState s, in BstSettings cfg)
     {
         if (!s.HasHostileTarget || !FamiliarOut(s) || s.TargetDoNotAttack)
             return (0, "");
+
+        var tankbuster = s.TargetCastId != 0 && BST_CrucibleData.Tankbusters.Contains(s.TargetCastId);
+
+        // Score mode: the character tanks so every familiar ends at full HP (Selfless). Snarl only to set up the
+        // tankbuster whiff; Challenge back whenever the target turns on the familiar.
+        if (cfg.CrucibleScoreMode)
+        {
+            if (cfg.CrucibleSnarlParting && tankbuster && s.ReadySnarl && !s.EnemyTargetsPet && s.TargetCastRemaining > cfg.CrucibleSnarlPartingLead + 1f
+                && s.ReadyParting)
+                return (BST.Snarl, "aggro:snarl-tankbuster");
+            if (s.ReadyChallenge && s.EnemyTargetsPet && !(tankbuster && s.SinceSnarl < 45f))
+                return (BST.Challenge, "aggro:challenge-score");
+            return (0, "");
+        }
 
         if (s.ReadySnarl && !s.EnemyTargetsPet)
         {
             if (s.TargetHasParry && s.EnemyTargetsPlayer)
                 return (BST.Snarl, "aggro:snarl-parry");
-            if (s.TargetCastId != 0 && s.TargetCastRemaining > 0.8f && BST_CrucibleData.SnarlHits.Contains(s.TargetCastId)
+            if (s.TargetCastId != 0 && s.TargetCastRemaining > 0.8f && (tankbuster || BST_CrucibleData.SnarlHits.Contains(s.TargetCastId))
                 && s.EnemyTargetsPlayer && s.PetHpPercent >= 50f)
                 return (BST.Snarl, "aggro:snarl-hardhit");
             if (s.PlayerHpPercent is > 0f and <= 40f && s.PetHpPercent >= 60f && s.EnemyTargetsPlayer)
@@ -272,6 +287,60 @@ internal static class BST_CrucibleLogic
 
         return (0, "");
     }
+
+    // ------------------------------------------------------------------ auto-targeting
+
+    /// <summary> One enemy auto-targeting could pick. </summary>
+    public readonly record struct TargetCandidate(uint NameId, float HpPercent, bool InStance);
+
+    /// <summary> Paired enemies further apart than this (HP %) get balanced: the lower one is left alone. </summary>
+    public const float PairHpGap = 10f;
+
+    /// <summary>
+    ///     Which candidates auto-targeting may pick on a Crucible board: never eggs / morphos; enemies in a
+    ///     counter stance only when nothing else is up; priority adds first; of a pair that must die together,
+    ///     the healthier one while they are more than <see cref="PairHpGap"/> apart.
+    /// </summary>
+    public static List<int> AllowedTargets(IReadOnlyList<TargetCandidate> candidates)
+    {
+        var allowed = new List<int>(candidates.Count);
+        for (var i = 0; i < candidates.Count; i++)
+            if (!BST_CrucibleData.DoNotAttack.ContainsKey(candidates[i].NameId))
+                allowed.Add(i);
+
+        var calm = allowed.FindAll(i => !candidates[i].InStance);
+        if (calm.Count > 0)
+            allowed = calm;
+
+        var priority = allowed.FindAll(i => BST_CrucibleData.PriorityAdds.Contains(candidates[i].NameId));
+        if (priority.Count > 0)
+            allowed = priority;
+
+        foreach (var (a, b) in BST_CrucibleData.Pairs)
+        {
+            var ia = allowed.FindIndex(i => candidates[i].NameId == a);
+            var ib = allowed.FindIndex(i => candidates[i].NameId == b);
+            if (ia < 0 || ib < 0)
+                continue;
+            var hpA = candidates[allowed[ia]].HpPercent;
+            var hpB = candidates[allowed[ib]].HpPercent;
+            if (Math.Abs(hpA - hpB) > PairHpGap)
+                allowed.RemoveAt(hpA < hpB ? ia : ib);
+        }
+
+        return allowed;
+    }
+
+    /// <summary>
+    ///     Snarl -> Parting Blow: a known tankbuster is about to land (within the lead time), the familiar took the
+    ///     aggro with Snarl in the last 45 s (Cover), and Parting Blow is ready. Guides press it 1-2 s before the cast
+    ///     ends: earlier and the hit lands on the character, later and the familiar eats it.
+    /// </summary>
+    public static bool SnarlPartingNow(in BstState s, in BstSettings cfg) =>
+        s.HasHostileTarget && FamiliarOut(s) && s.ReadyParting && !s.TargetDoNotAttack && !s.ProtectedNearTarget
+        && s.TargetCastId != 0 && BST_CrucibleData.Tankbusters.Contains(s.TargetCastId)
+        && s.TargetCastRemaining > 0.2f && s.TargetCastRemaining <= cfg.CrucibleSnarlPartingLead
+        && s.SinceSnarl < 45f && s.TargetDistance <= 25f;
 
     /// <summary> Final Sting as an execute: target at or below the threshold (halved with 2+ enemies). </summary>
     public static bool FinalStingExecuteHp(in BstState s, in BstSettings cfg) =>

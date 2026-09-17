@@ -72,6 +72,7 @@ internal static class BeastmasterTelemetry
                 var crucible = SampleCrucible();
                 if (CrucibleTelemetryFormat.ShouldEmit(ref _crucibleGate, now, crucible))
                     Svc.Log.Information(CrucibleTelemetryFormat.BuildLine(now, crucible));
+                BST.CaptureCrucibleUi(now);
             }
         }
         catch (Exception ex)

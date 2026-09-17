@@ -29,5 +29,6 @@
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\BST\BST_CrucibleData.cs" Link="BST_CrucibleData.cs" />
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\BST\BST_CrucibleData.Generated.cs" Link="BST_CrucibleData.Generated.cs" />
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\BST\BST_CrucibleLogic.cs" Link="BST_CrucibleLogic.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\BST\BST_CrucibleAdvisor.cs" Link="BST_CrucibleAdvisor.cs" />
   </ItemGroup>
 </Project>

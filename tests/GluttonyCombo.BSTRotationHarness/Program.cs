@@ -30,6 +30,7 @@ internal static class Program
         OutOfCombat();
         CrucibleDataChecks();
         CrucibleRules();
+        CrucibleTargetingAndAdvisor();
 
         SimulateAllLevels(verbose);
         SimulateCrucible(verbose);
@@ -257,6 +258,58 @@ internal static class Program
         Check("Deadly Thrust 46906 is a Snarl hit", BST_CrucibleData.SnarlHits.Contains(46906));
     }
 
+    private static void CrucibleTargetingAndAdvisor()
+    {
+        Console.WriteLine("-- crucible auto-targeting and beast picks --");
+        List<int> Allowed(params BST_CrucibleLogic.TargetCandidate[] c) => BST_CrucibleLogic.AllowedTargets(c);
+        BST_CrucibleLogic.TargetCandidate C(uint nameId, float hp, bool stance) => new(nameId, hp, stance);
+
+        Check("zu egg never allowed", Allowed(C(14575, 100f, false), C(14572, 100f, false)).SequenceEqual(new[] { 1 }));
+        Check("only eggs up: nothing to target", Allowed(C(14575, 100f, false), C(14576, 100f, false)).Count == 0);
+        Check("spikes stance skipped while another enemy is up", Allowed(C(14571, 100f, true), C(14570, 90f, false)).SequenceEqual(new[] { 1 }));
+        Check("everything in a stance: still targetable", Allowed(C(14571, 100f, true)).SequenceEqual(new[] { 0 }));
+        Check("tablitaurs 80% / 50%: only the healthier", Allowed(C(14555, 80f, false), C(14556, 50f, false)).SequenceEqual(new[] { 0 }));
+        Check("tablitaurs 60% / 55%: both", Allowed(C(14555, 60f, false), C(14556, 55f, false)).Count == 2);
+        Check("Loosefrox 30% / Chewchum 70%: Chewchum", Allowed(C(14561, 30f, false), C(14562, 70f, false)).SequenceEqual(new[] { 1 }));
+
+        Check("51 beast profiles, row-indexed", BST_CrucibleData.BeastProfiles.Length == 51 && Enumerable.Range(1, 50).All(r => BST_CrucibleData.BeastProfiles[r].Row == r));
+        Check("lamb inflicts sleep (bit 7); coblyn auto is lightning magic",
+            (BST_CrucibleData.BeastProfiles[3].Inflicts & (1 << 7)) != 0 && BST_CrucibleData.BeastProfiles[7] is { AutoElement: CrucibleWeakness.Lightning, AutoMagic: true });
+        Check("Cu Sith STR grows from rank 5 to 25", BST_CrucibleData.BeastProfiles[1].StatAtBoard(1, CrucibleBeastProfile.Str) < BST_CrucibleData.BeastProfiles[1].StatAtBoard(5, CrucibleBeastProfile.Str));
+        Check("Pas de Seul stars 2/5/3/5/5", BST_CrucibleData.Enemy(14541) is { StarStr: 2, StarInt: 5, StarPhysRes: 3, StarMagRes: 5, StarCon: 5 });
+        Check("every battle has a role row", BST_CrucibleData.Battles.Length == 45 && BST_CrucibleData.Battles.Count(b => b.Role == CrucibleRole.Boss) == 5);
+
+        bool All(int row) => true;
+        var bone = BST_CrucibleAdvisor.Pick(1, 1, All);
+        Check("bone knight battle: 3 picks", bone.Count == 3, string.Join(" | ", bone.Select(p => $"{BST_Beasts.All[p.Row].Name} {p.Score} {p.Why}")));
+        Check("bone knight battle: a Soulkin for Ossify", bone.Any(p => BST_Beasts.All[p.Row].Kin == BeastmasterKinType.Soulkin), string.Join(",", bone.Select(p => BST_Beasts.All[p.Row].Name)));
+        Check("bone knight battle: at least one blunt pick and two of the three needs answered",
+            bone.Any(p => BST_CrucibleData.BeastProfiles[p.Row].AutoElement == CrucibleWeakness.Blunt)
+            && System.Numerics.BitOperations.PopCount((uint)bone.Aggregate(CrucibleNeeds.None, (n, p) => n | BST_CrucibleAdvisor.Answers(p.Row))) >= 2,
+            string.Join(",", bone.Select(p => BST_Beasts.All[p.Row].Name)));
+        var allNeeds = CrucibleNeeds.Interrupt | CrucibleNeeds.Dispel | CrucibleNeeds.Cleanse;
+        Check("blunt opo-opo outscores piercing Cu Sith against bone knights", BST_CrucibleAdvisor.Score(1, 1, 5, allNeeds) > BST_CrucibleAdvisor.Score(1, 1, 1, allNeeds));
+        var wespeWhy = new List<string>();
+        BST_CrucibleAdvisor.Score(1, 0, 10, allNeeds, wespeWhy);
+        Check("Pas de Seul: wespe credited for piercing and Final Sting", wespeWhy.Contains("Final Sting") && wespeWhy.Contains("piercing"), string.Join(",", wespeWhy));
+
+        var owned = new HashSet<int> { 1, 10, 6 };
+        var mine = BST_CrucibleAdvisor.Pick(1, 1, r => owned.Contains(r));
+        Check("only Cu Sith / wespe / dodo captured: those three", mine.Select(p => p.Row).OrderBy(r => r).SequenceEqual(new[] { 1, 6, 10 }));
+        var capture = BST_CrucibleAdvisor.WorthCapturing(1, 1, r => owned.Contains(r), mine);
+        Check("worth capturing: something capturable by L30 that answers the fight",
+            capture.Count > 0 && capture.All(c => BST_Beasts.All[c.Row].CaptureLevel <= 30 && !owned.Contains(c.Row)),
+            string.Join(" | ", capture.Select(c => $"{BST_Beasts.All[c.Row].Name} {c.Score} {c.Why}")));
+        var roster = BST_CrucibleAdvisor.BoardRoster(1, All);
+        Check("board 1 roster fits the 10-beast limit", roster.Count is > 0 and <= 10, string.Join(",", roster.Select(r => $"{BST_Beasts.All[r.Row].Name}:{r.Battles}")));
+        foreach (var board in new[] { 1, 2 })
+            foreach (var x in BST_CrucibleData.Battles.Where(x => x.Board == board))
+                Console.WriteLine($"   B{board} {BST_CrucibleData.BattleLabel(board, x.Battle),-24} {string.Join(" | ", BST_CrucibleAdvisor.Pick(board, x.Battle, All).Select(p => $"{BST_Beasts.All[p.Row].Name} ({p.Why})"))}");
+        Console.WriteLine($"   B1 roster: {string.Join(", ", roster.Select(r => $"{BST_Beasts.All[r.Row].Name}:{r.Battles}"))}");
+        foreach (var b in BST_CrucibleData.Boards)
+            Check($"board {b.Board}: every battle gets 3 picks", BST_CrucibleData.Battles.Where(x => x.Board == b.Board).All(x => BST_CrucibleAdvisor.Pick(b.Board, x.Battle, All).Count == 3));
+    }
+
     /// <summary> In combat on the First Board, L30, Cu Sith out (One with Nature spent), horns 2 and 3 ready. </summary>
     private static BstState CrucibleState(int level = 30)
     {
@@ -366,6 +419,26 @@ internal static class Program
             Decide(CrucibleState() with { TargetCastId = 46906, TargetCastRemaining = 3f, ReadySnarl = true, ReadyParting = false }, on).Reason == "aggro:snarl-hardhit");
         Check("familiar low while holding aggro, On: Challenge",
             Decide(CrucibleState() with { PetHpPercent = 30f, EnemyTargetsPet = true, EnemyTargetsPlayer = false, ReadyChallenge = true, ReadyParting = false }, on).Reason == "aggro:challenge-pet-low");
+
+        // Score mode and Snarl -> Parting Blow (a stand-in tankbuster id for these cases)
+        const uint tb = 999_001;
+        BST_CrucibleData.Tankbusters.Add(tb);
+        var scoreCfg = on with { CrucibleScoreMode = true };
+        Check("score mode: target on the familiar -> Challenge",
+            Decide(CrucibleState() with { EnemyTargetsPet = true, EnemyTargetsPlayer = false, ReadyChallenge = true, ReadyParting = false }, scoreCfg).Reason == "aggro:challenge-score");
+        Check("score mode: a low character does not Snarl", Decide(CrucibleState() with { PlayerHpPercent = 20f, ReadySnarl = true, ReadyParting = false }, scoreCfg).ActionId != BST.Snarl);
+        var spCfg = on with { CrucibleSnarlParting = true };
+        var castStart = CrucibleState() with { TargetCastId = tb, TargetCastRemaining = 4f, ReadySnarl = true, SinceSnarl = float.MaxValue };
+        Check("tankbuster cast starts: Snarl", Decide(castStart, spCfg).ActionId == BST.Snarl);
+        var landing = CrucibleState() with { TargetCastId = tb, TargetCastRemaining = 1.2f, SinceSnarl = 3f, EnemyTargetsPet = true, EnemyTargetsPlayer = false };
+        Check("1.2 s before it lands with Snarl up: Parting Blow", Decide(landing, spCfg) is { ActionId: BST.PartingBlow, Reason: "crucible:snarl-parting" });
+        Check("3 s before it lands: not yet", Decide(landing with { TargetCastRemaining = 3f }, spCfg).Reason != "crucible:snarl-parting");
+        Check("no Snarl in the last 45 s: no whiff", Decide(landing with { SinceSnarl = 60f }, spCfg).Reason != "crucible:snarl-parting");
+        Check("snarl-parting is off by default", Decide(landing, on).Reason != "crucible:snarl-parting");
+        Check("snarl-parting in log-only mode: logged, not pressed",
+            Decide(landing, cfg with { CrucibleSnarlParting = true }) is { Shadow: "crucible:snarl-parting" } logged && logged.Reason != "crucible:snarl-parting");
+        Check("score mode with snarl-parting: Snarl for the tankbuster", Decide(castStart, scoreCfg with { CrucibleSnarlParting = true }).ActionId == BST.Snarl);
+        BST_CrucibleData.Tankbusters.Remove(tb);
 
         // Low familiars are not summoned back into danger
         var none = CrucibleState() with { ActiveSlot = 0, PetObjectPresent = false, SinceHornPress = 30f, ReadyHorn1 = true, ReadyHorn2 = true, ReadyHorn3 = false, Slot1PetHp = 12f, Slot2PetHp = 90f };

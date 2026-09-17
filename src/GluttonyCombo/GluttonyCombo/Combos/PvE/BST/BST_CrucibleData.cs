@@ -45,6 +45,30 @@ public enum CrucibleAggroMode : byte
     On = 2,
 }
 
+/// <summary> Board space type of a battle (XBMContentStageEvent). </summary>
+public enum CrucibleRole : byte
+{
+    Enemy = 0,
+    EliteEnemy = 1,
+    Boss = 2,
+}
+
+/// <summary> One battle (XBMContentBattle row = board, subrow = battle; battle 0 is the boss). </summary>
+public readonly record struct CrucibleBattleInfo(byte Board, byte Battle, CrucibleRole Role, bool RandomOnly);
+
+/// <summary>
+///     A familiar's Crucible profile (XBMPet). <see cref="Stats"/> is STR, INT, PHY R, MAG R, CON at beast ranks
+///     5, 10, 15, 20, 25, flattened rank-first (25 values).
+/// </summary>
+public readonly record struct CrucibleBeastProfile(byte Row, CrucibleWeakness AutoElement, bool AutoMagic, ushort Inflicts, ushort[] Stats)
+{
+    public const int Str = 0, Int = 1, PhysRes = 2, MagRes = 3, Con = 4;
+
+    /// <summary> A stat at the rank sync of board 1-5 (ranks 5/10/15/20/25). </summary>
+    public int StatAtBoard(int board, int stat) =>
+        Stats is null || board is < 1 or > 5 ? 0 : Stats[(board - 1) * 5 + stat];
+}
+
 /// <summary> One Crucible board (XBMContent row). </summary>
 public readonly record struct CrucibleBoard(
     byte Board,
@@ -60,7 +84,8 @@ public readonly record struct CrucibleBoard(
 /// <summary>
 ///     One enemy from a Crucible panel (XBMBattleDetail). <see cref="Vulnerable"/> bit i set = the enemy is
 ///     vulnerable to: 0 Slow, 1 Petrify, 2 Paralysis, 3 Interrupt, 4 Blind, 5 Poison, 6 Stun, 7 Sleep,
-///     8 Bind, 9 Heavy, 10 Doom.
+///     8 Bind, 9 Heavy, 10 Doom. <see cref="Stars"/> packs the panel's 1-5 star ratings, 3 bits each:
+///     STR, INT, PHY R, MAG R, CON (high to low bits).
 /// </summary>
 public readonly record struct CrucibleEnemy(
     uint NameId,
@@ -70,7 +95,15 @@ public readonly record struct CrucibleEnemy(
     CrucibleWeakness Weakness,
     ushort Vulnerable,
     CrucibleNeeds Needs,
-    string Name);
+    ushort Stars,
+    string Name)
+{
+    public int StarStr => (Stars >> 12) & 7;
+    public int StarInt => (Stars >> 9) & 7;
+    public int StarPhysRes => (Stars >> 6) & 7;
+    public int StarMagRes => (Stars >> 3) & 7;
+    public int StarCon => Stars & 7;
+}
 
 internal static partial class BST_CrucibleData
 {
@@ -116,6 +149,18 @@ internal static partial class BST_CrucibleData
         [14576] = 10f,
         [14656] = float.MaxValue,
     };
+
+    /// <summary>
+    ///     Pairs that must die together (killing one first enrages the other): elder / younger tablitaur (Second
+    ///     Board elite), Loosefrox Inkyjots / Chewchum Popoto (Second Board boss).
+    /// </summary>
+    public static readonly (uint A, uint B)[] Pairs = [(14555, 14556), (14561, 14562)];
+
+    /// <summary> Single-target hard hits worth dodging with Snarl -> Parting Blow (cast ids; castbar actions). </summary>
+    public static readonly HashSet<uint> Tankbusters = [];
+
+    /// <summary> Enemies auto-targeting should take first whenever they are up (adds the guides kill on sight). </summary>
+    public static readonly HashSet<uint> PriorityAdds = [];
 
     /// <summary> Single-target hits the familiar should take (Snarl) when it is healthy. </summary>
     public static HashSet<uint> SnarlHits => _snarlHits ??= [.. PanelSingleTargetHits];
