@@ -3472,6 +3472,49 @@ StockStack BagStack(uint id, int slot, int qty, uint cat = CatA, bool marketable
         .StartsWith(RoutingMove.LedgerFormatMarker + "\n", StringComparison.Ordinal), "marker");
 }
 
+// ===== 0.1.56.0: quarantine holds only refused moves, and names what it holds =====
+
+// 115. A ledger written by the previous build is discarded whole. That file carried one entry per
+// move that LANDED, not per move the server refused, so carrying it forward would keep skipping
+// stacks that were never stuck - the same dead end the earlier marker was introduced to clear.
+{
+  var now = new DateTime(2026, 9, 17, 12, 0, 0, DateTimeKind.Utc);
+  var key = RoutingMove.ReconcileKey("R1", 10001, 3, 1001, false);
+  var body = $"{key}\t{now.AddMinutes(-5):o}\n";
+  Check("115 ledger: a file with the previous format marker is discarded whole",
+    RoutingMove.ParseReconcileLedger("#lmc-reconcile-2\n" + body, now).Count == 0, "previous marker");
+  Check("115 ledger: the current marker is not the previous one",
+    RoutingMove.LedgerFormatMarker != "#lmc-reconcile-2", RoutingMove.LedgerFormatMarker);
+  Check("115 ledger: a file with the current marker still loads",
+    RoutingMove.ParseReconcileLedger($"{RoutingMove.LedgerFormatMarker}\n" + body, now).Count == 1,
+    "current marker");
+}
+
+// 116. The skip note names the held stacks, on both legs. A bare count cannot tell a quarantine
+// holding one genuine failure apart from one holding the whole inventory.
+{
+  var rules = new List<ItemRule> { Rule(1001, 99) };
+  var info = CatInfo(1001, CatA);
+
+  var pullStock = new List<StockStack> { RetStack(1001, 1, 10) };
+  var pullSkip = new HashSet<string> { RoutingMove.ReconcileKey("R2", 10001, 1, 1001, false) };
+  var pullPlan = RoutingMove.Plan(pullStock, rules, info, new Dictionary<string, bool>(), routingRules, "R2", () => 10, () => 10, null, pullSkip);
+  Check("116 reconcile: the pull-out skip note names the held stack",
+    pullPlan.Notes.Any(n => n.Contains("did not stick") && n.Contains(RoutingMove.ReconcileSlotSuffix(10001, 1, 1001, false))),
+    string.Join(" | ", pullPlan.Notes));
+
+  var depStock = new List<StockStack> { BagStack(1001, 2, 30) };
+  var depSkip = new HashSet<string> { RoutingMove.ReconcileKey("R1", 1, 2, 1001, false) };
+  var depPlan = RoutingMove.PlanDepositsOnly(depStock, rules, info, new Dictionary<string, bool>(), routingRules, "R1", () => 10, () => 10, depSkip);
+  Check("116 reconcile: the deposit skip note names the held stack",
+    depPlan.Notes.Any(n => n.Contains("did not stick") && n.Contains(RoutingMove.ReconcileSlotSuffix(1, 2, 1001, false))),
+    string.Join(" | ", depPlan.Notes));
+
+  var control = RoutingMove.Plan(pullStock, rules, info, new Dictionary<string, bool>(), routingRules, "R2", () => 10, () => 10);
+  Check("116 reconcile control: nothing held means no skip note at all",
+    !control.Notes.Any(n => n.Contains("did not stick")), string.Join(" | ", control.Notes));
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 

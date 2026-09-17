@@ -1,4 +1,17 @@
-﻿## v0.1.55.0 (2026-09-17)
+﻿## v0.1.56.0 (2026-09-17)
+
+### Fixed
+
+- **Auto-Market only holds back a stack when a move was actually refused, so marked stock stops piling up in the inventory.** The reconciliation ledger was recording every routing move that reported OK, not only the ones that failed to stick, and the planner skipped any stack matching one of those entries for the next half hour. Because the mover relays stock through the inventory, the same item legitimately lands back in a slot an earlier move emptied, which made those entries fire against work that was perfectly fine. One set of sweeps recorded 179 entries, graded all 179 as landed, and then skipped 96 stacks on them - the inventory simply stopped draining. Only a move graded still-in-place on the re-read now enters the ledger; a move that landed leaves no trace behind it.
+- **A ledger saved by the previous build is discarded once on load.** Those files hold one entry per move that landed, and a landed move cannot be told from a refused one after the fact, so the file is dropped and rewritten rather than carried forward. Every stack it held re-plans on the next sweep. Older builds still read the newer file - they skip the marker line as malformed.
+- **The routing log names every held stack instead of counting them.** A bare count read the same whether one stack was held or a hundred, which is how a quarantine covering most of the inventory stayed invisible in the log. Each skipped stack is now written out with its container slot and item alongside the note, on both the pull-out and the deposit leg.
+
+### Notes
+
+- Auto-Market's Quarantined moves list, the 24-hour expiry with one visible retry, and the settled-placement rule are unchanged. With the ledger narrowed to refused moves the list is expected to be empty on a healthy sweep.
+- Offline-suite change: new cases 115-116 pin that a ledger file from the previous format is discarded whole while the current format still loads, and that the skip note names the held stack on both legs and is absent when nothing is held.
+
+## v0.1.55.0 (2026-09-17)
 
 ### Fixed
 

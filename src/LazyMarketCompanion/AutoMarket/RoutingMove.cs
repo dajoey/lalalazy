@@ -227,8 +227,11 @@ public static class RoutingMove
   /// the mover's own relay misread as refused moves - it is discarded once rather than migrated,
   /// and every stack it held re-plans. Older builds skip the line as malformed (it has no tab) and
   /// still read the rest of the file, so a downgrade keeps working.
+  /// 0.1.56.0: bumped again. A ledger written by 0.1.55.0 carries one entry per move that LANDED,
+  /// which is the state that made the next sweep skip 96 stacks; those entries cannot be told from
+  /// real quarantine after the fact, so such a file is discarded once too.
   /// </summary>
-  public const string LedgerFormatMarker = "#lmc-reconcile-2";
+  public const string LedgerFormatMarker = "#lmc-reconcile-3";
 
   /// <summary>
   /// 0.1.52.0: tolerant inverse of <see cref="SerializeReconcileLedger"/>. Malformed lines
@@ -451,6 +454,7 @@ public static class RoutingMove
     var skippedCrystals = 0;
     var alreadyPulledSkip = 0;
     var reconciledSkipCount = 0;
+    var reconciledSkipStacks = new List<string>();
     var unrouted = new List<(uint ItemId, bool HQ)>();
     var unroutedKeys = new HashSet<string>();
 
@@ -529,6 +533,7 @@ public static class RoutingMove
         if (reconciledSkip != null && reconciledSkip.Contains(ReconcileKey(retainerName, stack.Container, stack.Slot, stack.ItemId, stack.HQ)))
         {
           reconciledSkipCount++;
+          reconciledSkipStacks.Add(ReconcileSlotSuffix(stack.Container, stack.Slot, stack.ItemId, stack.HQ));
           continue;
         }
 
@@ -554,6 +559,7 @@ public static class RoutingMove
         if (reconciledSkip != null && reconciledSkip.Contains(ReconcileKey(retainerName, stack.Container, stack.Slot, stack.ItemId, stack.HQ)))
         {
           reconciledSkipCount++;
+          reconciledSkipStacks.Add(ReconcileSlotSuffix(stack.Container, stack.Slot, stack.ItemId, stack.HQ));
           continue;
         }
 
@@ -582,8 +588,11 @@ public static class RoutingMove
 
     if (alreadyPulledSkip > 0)
       notes.Add($"routing move: {alreadyPulledSkip} stack(s) were left in place because they were already pulled to bags once this run (a deposit was rolled back mid-switch; the next sweep retries)");
+    // 0.1.56.0: name the held stacks. The count alone made a quarantine that held nearly a
+    // hundred stacks indistinguishable in the log from one holding a genuine failure, so the
+    // slot and stack of every skipped item is written out with the note.
     if (reconciledSkipCount > 0)
-      notes.Add($"routing move: {reconciledSkipCount} stack(s) skipped - an earlier sweep moved them OK but they are still in place (the move did not stick server-side); leaving them put instead of re-moving every sweep");
+      notes.Add($"routing move: {reconciledSkipCount} stack(s) skipped - an earlier sweep moved them OK but they are still in place (the move did not stick server-side); leaving them put instead of re-moving every sweep: {string.Join(", ", reconciledSkipStacks)}");
     if (stoppedBags)
       notes.Add("routing move: the player's bags have no free slot for further pull-outs; those items stay in this retainer for now (the sweep continues)");
     if (stoppedRet)

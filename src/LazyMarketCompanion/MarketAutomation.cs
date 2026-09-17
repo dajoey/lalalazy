@@ -2538,10 +2538,12 @@ internal sealed class MarketAutomation : Window, IDisposable
       // as a move the server refused, so the file mostly holds stacks that were never stuck (173
       // of 179 entries on the 2026-09-16 sweeps) and, because a present entry is never pruned,
       // held them permanently. The reset happens once: the file is rewritten with the marker.
+      // 0.1.56.0: the marker moved on again, because a ledger written by 0.1.55.0 still holds one
+      // entry per move that landed - the state that made the following sweep skip 96 stacks.
       if (!string.IsNullOrWhiteSpace(text)
           && !text.StartsWith(RoutingMove.LedgerFormatMarker, StringComparison.Ordinal))
       {
-        Svc.Log.Information("[LMC] routing reconcile: the saved ledger predates the relay-reuse fix and is discarded once - every stack it held re-plans normally from now on");
+        Svc.Log.Information("[LMC] routing reconcile: the saved ledger was written before quarantine was narrowed to refused moves and is discarded once - every stack it held re-plans normally from now on");
         SaveReconcileLedger();
         return;
       }
@@ -2652,15 +2654,17 @@ internal sealed class MarketAutomation : Window, IDisposable
   /// since a present entry is never pruned. Every slot this execution filled is now excluded from
   /// the stuck grade AND released from the ledger whichever session recorded it, so only a slot
   /// nothing here touched can stand as evidence that the server refused a move.
+  /// 0.1.56.0: the ledger holds ONLY the moves graded stuck. Recording every OK move as well made
+  /// the skip list a "moved recently" list: the 18:26-18:48 ET sweeps recorded 179 entries, graded
+  /// all 179 landed, and the next sweep skipped 96 stacks on them, which is what "nothing moves"
+  /// looked like in the inventory. See the recording block below for why the sticky window on a
+  /// landed move cannot be told apart from the mover's own relay.
   /// </summary>
   private void RecordRoutingReconciled(List<RoutingMoveOp> okOps)
   {
     if (okOps.Count == 0)
       return;
-    // 0.1.51.0: refresh the last-OK stamp (sticky window runs from the most recent OK).
     var now = DateTime.UtcNow;
-    foreach (var op in okOps)
-      _routingReconcileSkip[RoutingMove.ReconcileKey(op.SessionRetainer, op.SrcContainer, op.SrcSlot, op.ItemId, op.HQ)] = now;
     // 0.1.55.0: the slots this execution filled itself. Anything sitting in one of them is there
     // because the mover put it there, never because the server refused an earlier move.
     var relaySlots = okOps.Where(o => o.DstSlot >= 0)
@@ -2676,6 +2680,17 @@ internal sealed class MarketAutomation : Window, IDisposable
       stuck = stuck.Where(k => !relayReused.Contains(k)).ToList();
       Svc.Log.Information($"[LMC] routing reconcile: {relayReused.Count} move(s) read still-in-place only because this sweep relayed the same item back into the source slot - graded landed, not quarantined: {string.Join(", ", relayReused.Select(k => k.Substring(k.IndexOf('|') + 1)))}");
     }
+    // 0.1.56.0: only a move graded stuck goes into the quarantine ledger. Until now every move
+    // that reported OK was recorded and the planner skipped any stack matching one of those keys
+    // for the sticky window, so the ledger was a "moved recently" list rather than a quarantine:
+    // the 18:26-18:48 ET sweeps recorded 179 entries, graded every one of them landed, and the
+    // next sweep skipped 96 stacks on them. The sticky window was there to catch a move the
+    // server rolled back after the re-read, but the same key is what the mover's own relay
+    // rebuilds legitimately (a deposit frees a slot, a later pull-out of that item takes it), so
+    // it produced false holds only. A stack that really comes back is caught by the re-read on
+    // the sweep that moves it again, which is the one piece of evidence that a move did not stick.
+    foreach (var key in stuck)
+      _routingReconcileSkip[key] = now;
     // 0.1.55.0: release every quarantine entry naming a slot this execution filled, whichever
     // session recorded it (see RoutingMove.DropReconcileKeysAtSlots for the evidence). This is
     // what stops the quarantine growing until the sweep appears to move nothing at all.
