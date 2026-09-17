@@ -56,6 +56,12 @@ internal static class SmartMover
     // close enough for a PointOnFloor lookup within a few yalms).
     private static float _playerY;
 
+    // v1.0.4.211: the engaged target's world Y. Engage candidates ring the
+    // TARGET, which on open-world terrain sits yalms above or below the
+    // player's own floor - probing them on the player's plane alone reported
+    // the whole ring off-mesh (see WalkableAt).
+    private static float _targetY;
+
     // v1.0.4.195: omen-telegraph VFX zones. VfxManager (ECommons, hooked
     // since plugin init via Module.All) tracks every live VFX; the ones
     // whose path is an omen and whose caster is a living hostile become
@@ -248,6 +254,8 @@ internal static class SmartMover
         var castRemaining = casting && player.TotalCastTime > 0f
             ? MathF.Max(0f, player.TotalCastTime - player.CurrentCastTime)
             : 0f;
+
+        _targetY = target?.Position.Y ?? _playerY;
 
         var (posWanted, isRear) = PositionalWant(player, target);
 
@@ -501,12 +509,13 @@ internal static class SmartMover
 
     /// <summary>
     ///     Mesh-walkability check for a candidate XZ point (v1.0.4.196, BMR-
-    ///     parity gap 1). Reuses the player's current world Y as the query
-    ///     plane - dodge/engage candidates land within a few yalms, well
-    ///     inside vnavmesh's PointOnFloor half-extent tolerance. Fails OPEN
-    ///     (returns true / caller does not filter) on any exception so an
-    ///     IPC hiccup degrades to the pre-existing distance-heuristic-only
-    ///     behaviour rather than freezing the mover.
+    ///     parity gap 1). Queries the player's world Y plane, and (v1.0.4.211)
+    ///     the engaged target's plane on a miss: dodge candidates ring the
+    ///     player, but engage candidates ring the TARGET, and the single
+    ///     player plane read off-mesh for every one of them on sloped ground.
+    ///     Fails OPEN (returns true / caller does not filter) on any exception
+    ///     so an IPC hiccup degrades to the pre-existing distance-heuristic-
+    ///     only behaviour rather than freezing the mover.
     /// </summary>
     private static bool WalkableAt(Vector2 p)
     {
@@ -519,7 +528,17 @@ internal static class SmartMover
         if (_walkCache.TryGetValue(key, out var cached))
             return cached;
         bool ok;
-        try { ok = NavmeshIPC.IsPointWalkable(new Vector3(p.X, _playerY, p.Y)); }
+        try
+        {
+            ok = NavmeshIPC.IsPointWalkable(new Vector3(p.X, _playerY, p.Y));
+            // v1.0.4.211: a miss is re-probed on the engaged target's own
+            // plane before the point is called off-mesh. The probe carries the
+            // player's Y, and the engage ring sits around the target up to
+            // ~20y away; one slope between the two answered "off-mesh" for
+            // every candidate and the approach never started.
+            if (!ok && MathF.Abs(_targetY - _playerY) > 0.5f)
+                ok = NavmeshIPC.IsPointWalkable(new Vector3(p.X, _targetY, p.Y));
+        }
         catch { ok = true; }
         _walkCache[key] = ok;
         return ok;

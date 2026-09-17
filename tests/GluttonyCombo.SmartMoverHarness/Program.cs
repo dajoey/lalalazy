@@ -938,6 +938,69 @@ SmartMoverCore.MoverWorld World(
     // Emit key carries the live-zone count so zones appearing mid-hold re-emit.
     Check("mv/key-includes-zone-count", MovementTelemetryFormat.KeyOf("hold", null, null, 0) != MovementTelemetryFormat.KeyOf("hold", null, null, 3));
 }
+// -------------------------------------- approach vs the mesh probe (v1.0.4.211)
+{
+    // Grading 1.0.4.210 in open-world levelling (Smart Movement ON, Movement
+    // Telemetry ON, ZERO live zones on every line): 24 approach decisions
+    // answered "hold" against 15 that moved, with the target 1.0-17.2 yalms
+    // past the standing band. An off-mesh standing point whose whole ring
+    // also read off-mesh was the ONLY path to a no-command hold with no zones
+    // live, so the approach never started and the distance was closed by hand.
+    bool NoMesh(Vector2 _) => false;
+    bool EastOnly(Vector2 p) => p.X >= -0.5f;
+
+    var hOff = new SmartMoverCore.Hysteresis();
+    var wOff = World(player: new(0, -25), range: 3f, target: new(0, 0), hitbox: 5f) with { IsPointWalkable = NoMesh };
+    var dOff = SmartMoverCore.Decide(wOff, hOff);
+    Check("approach/offmesh-ring-still-moves", dOff.Kind == SmartMoverCore.Decision.Move &&
+        dOff.Reason == SmartMoverCore.ReasonEngageCode, $"kind={dOff.Kind} r={dOff.Reason}");
+    Check("approach/offmesh-move-lands-on-the-band",
+        dOff.Kind == SmartMoverCore.Decision.Move &&
+        MathF.Abs(Vector2.Distance(dOff.Dest, new Vector2(0, 0)) - 8f) < 0.01f,
+        $"dest={dOff.Dest}");
+
+    // Replay of the 1.9y-past-the-band hold from the same session (a melee
+    // band, target a few yalms out, no zones): 1.0.4.210 held, this moves.
+    var hNear = new SmartMoverCore.Hysteresis();
+    var wNear = World(player: new(0, -9.9f), range: 3f, target: new(0, 0), hitbox: 5f) with { IsPointWalkable = NoMesh };
+    var dNear = SmartMoverCore.Decide(wNear, hNear);
+    Check("approach/incident-210-near-hold-now-moves", dNear.Kind == SmartMoverCore.Decision.Move &&
+        dNear.Reason == SmartMoverCore.ReasonEngageCode, $"kind={dNear.Kind} r={dNear.Reason}");
+
+    // The mesh gate itself is NOT abandoned: while part of the ring answers,
+    // the walkable variant is still the one chosen (v1.0.4.196 behaviour).
+    var hPref = new SmartMoverCore.Hysteresis();
+    var wPref = World(player: new(-18, 0), range: 3f, target: new(0, 0), hitbox: 5f) with { IsPointWalkable = EastOnly };
+    var dPref = SmartMoverCore.Decide(wPref, hPref);
+    Check("approach/still-prefers-walkable-ring-point", dPref.Kind == SmartMoverCore.Decision.Move &&
+        EastOnly(dPref.Dest), $"kind={dPref.Kind} dest={dPref.Dest}");
+
+    // DANGER still holds: a standing ring wholly covered by a live zone is a
+    // hold, exactly as v1.0.4.205/206 ship it - only the mesh-only rejection
+    // changed.
+    var ringZone = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, 0), 0f, 12f, 0f, 0f, 0f, default, 3f) };
+    var hDanger = new SmartMoverCore.Hysteresis();
+    var wDanger = World(player: new(0, -25), range: 3f, target: new(0, 0), hitbox: 5f, zones: ringZone) with { IsPointWalkable = _ => true };
+    var dDanger = SmartMoverCore.Decide(wDanger, hDanger);
+    Check("approach/danger-covered-ring-still-holds", dDanger.Kind == SmartMoverCore.Decision.None &&
+        dDanger.Reason == 0, $"kind={dDanger.Kind} r={dDanger.Reason}");
+
+    // Telemetry contract this fix buys: with no zones live the engine can no
+    // longer answer with a no-command hold at ANY approach distance or mesh
+    // verdict, so an MV|..|hold line carrying nz=0 is now a defect by itself.
+    var holdsWithNoZones = 0;
+    foreach (var mesh in new Func<Vector2, bool>[] { NoMesh, EastOnly, _ => true })
+        for (var gap = 1; gap <= 30; gap++)
+        {
+            var hs = new SmartMoverCore.Hysteresis();
+            var dec = SmartMoverCore.Decide(
+                World(player: new(0, -gap), range: 3f, target: new(0, 0), hitbox: 5f) with { IsPointWalkable = mesh }, hs);
+            if (dec.Kind == SmartMoverCore.Decision.None && dec.Reason == 0)
+                holdsWithNoZones++;
+        }
+    Check("approach/no-zones-never-holds", holdsWithNoZones == 0, $"holds={holdsWithNoZones}");
+}
+
 // ---------------------------------------------------------------- shape asserts
 {
     Check("shape/zone-carries-remaining", typeof(DangerZoneModel.Zone).GetProperty("RemainingSec") is not null);

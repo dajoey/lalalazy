@@ -225,14 +225,24 @@ internal static class SmartMoverCore
             return ZonesLive(w) ? None() : StandDown(h, ReasonSettleCode);
 
         var finalDest = ideal;
-        var idealBlocked = UnsafeAt(ideal, w.Zones, 0.5f) is not null || !Walkable(w.IsPointWalkable, ideal);
+        var idealUnsafe = UnsafeAt(ideal, w.Zones, 0.5f) is not null;
+        var idealBlocked = idealUnsafe || !Walkable(w.IsPointWalkable, ideal);
         if (idealBlocked)
         {
             var alt = FindSafeRingPoint(ideal, w.TargetPos, w.Zones, w.IsPointWalkable);
             if (alt is { } a)
                 finalDest = a;
-            else
-                return None(); // whole ring unsafe/unwalkable - hold
+            else if (idealUnsafe)
+                return None(); // whole ring covered by live danger - wait in safety
+            // v1.0.4.211: a ring rejected ONLY by the mesh probe no longer
+            // holds. Grading 1.0.4.210 logged 24 approach decisions answered
+            // "hold" with ZERO live zones against 15 that moved (targets 1-17y
+            // past the band, open-world terrain): the standing point and all 24
+            // ring samples read off-mesh, so the mover never approached and the
+            // character had to walk there by hand. The probe is one plane
+            // through sloped ground, not the authority on reachability -
+            // vnavmesh's own pathfinder is, and it either routes or does
+            // nothing. Danger still holds (above); this point is zone-safe.
         }
 
         // v1.0.4.206: while telegraphs are live, the mover never walks the
