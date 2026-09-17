@@ -189,12 +189,61 @@ public static class RoutingMove
             System.Globalization.DateTimeStyles.RoundtripKind, out var stamp))
         continue;
       var utc = stamp.ToUniversalTime();
-      if ((nowUtc - utc) >= ReconcileLedgerMaxAge)
+      if (IsReconcileEntryExpired(utc, nowUtc))
         continue;
       if (!ledger.TryGetValue(key, out var existing) || utc > existing)
         ledger[key] = utc;
     }
     return ledger;
+  }
+
+  /// <summary>
+  /// 0.1.53.0: live-expiry predicate for a reconciliation-ledger entry. The 0.1.52.0 cap
+  /// only applied on load, so a stack that kept sitting in place stayed quarantined forever
+  /// and the sweep silently moved nothing. An entry at or past <see cref="ReconcileLedgerMaxAge"/>
+  /// is now dropped even when the stack is still in place: the next sweep re-plans it exactly
+  /// once (one visible re-attempt in the routing move plan line), and a re-attempt that reports
+  /// OK yet still does not stick re-records with a fresh stamp - so a permanently failing move
+  /// retries at most once per 24-hour window, never every sweep. The persistence format is
+  /// unchanged (same key + last-OK stamp lines), so older and newer builds read the same file.
+  /// </summary>
+  public static bool IsReconcileEntryExpired(DateTime recordedAtUtc, DateTime nowUtc)
+    => (nowUtc - recordedAtUtc.ToUniversalTime()) >= ReconcileLedgerMaxAge;
+
+  /// <summary>
+  /// 0.1.53.0: Dalamud-free inverse of <see cref="ReconcileKey"/> for the quarantined-list UI
+  /// data path (and the harness that pins it). Parses `session|container:slot:itemId:hq|nq`
+  /// back into its components; anything malformed returns false and the UI shows the raw key
+  /// rather than guessing. The session keeps its stored (trimmed) form.
+  /// </summary>
+  public static bool TryParseReconcileKey(string? key, out string session, out int container,
+    out int slot, out uint itemId, out bool hq)
+  {
+    session = string.Empty;
+    container = 0;
+    slot = 0;
+    itemId = 0;
+    hq = false;
+    if (string.IsNullOrEmpty(key))
+      return false;
+    var pipe = key.IndexOf('|');
+    if (pipe <= 0 || pipe == key.Length - 1)
+      return false;
+    session = key.Substring(0, pipe);
+    var rest = key.Substring(pipe + 1).Split(':');
+    if (rest.Length != 4)
+      return false;
+    if (!int.TryParse(rest[0], out container) || !int.TryParse(rest[1], out slot))
+      return false;
+    if (!uint.TryParse(rest[2], out itemId))
+      return false;
+    if (rest[3] == "hq")
+      hq = true;
+    else if (rest[3] == "nq")
+      hq = false;
+    else
+      return false;
+    return true;
   }
 
   public static RoutingMovePlan Plan(

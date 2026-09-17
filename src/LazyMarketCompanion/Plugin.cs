@@ -134,6 +134,8 @@ public sealed class Plugin : IDalamudPlugin
 
     AutoRetainerIPC.Initialize();
     _automation = new MarketAutomation();
+    // 0.1.53.0: feed the live reconcile ledger to the quarantined-moves list in the config UI.
+    ConfigWindow.ReconcileLedgerSource = _automation.GetReconcileLedgerSnapshot;
     WindowSystem.AddWindow(_automation);
     _markers = new AutoMarketMarkers();
     WindowSystem.AddWindow(_markers);

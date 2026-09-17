@@ -4,7 +4,9 @@ using Dalamud.Bindings.ImGui;
 using ECommons.DalamudServices;
 using ECommons.UIHelpers.AddonMasterImplementations;
 using static ECommons.GenericHelpers;
+using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Component.GUI;
+using LazyMarketCompanion.AutoMarket;
 using Lumina.Excel.Sheets;
 using System;
 using System.Collections.Generic;
@@ -27,6 +29,13 @@ public sealed class ConfigWindow : Window
   private List<(uint Id, string Name, bool CanHq)> _searchResults = [];
   private string _lastSearch = string.Empty;
   private bool _searchHq;
+
+  /// <summary>
+  /// 0.1.53.0: read-only feed for the quarantined-moves list below (wired in Plugin.cs to the
+  /// live reconciliation ledger). A Func, not a reference, so the window never owns automation
+  /// state - it renders whatever the ledger holds at draw time.
+  /// </summary>
+  internal Func<IReadOnlyList<(string Key, DateTime RecordedAtUtc)>>? ReconcileLedgerSource { get; set; }
 
   public ConfigWindow()
     : base("Lazy Market Companion")
@@ -201,6 +210,11 @@ public sealed class ConfigWindow : Window
 
     // ---- category routing ----
     DrawCategoryRouting(c);
+
+    ImGui.Separator();
+
+    // ---- quarantined moves (0.1.53.0) ----
+    DrawQuarantinedMoves();
 
     ImGui.Separator();
 
@@ -406,6 +420,47 @@ public sealed class ConfigWindow : Window
           Tip("Open the retainer list in-game to populate retainer names for this combo.");
 
         ImGui.PopID();
+      }
+    }
+    ImGui.EndChild();
+  }
+
+  /// <summary>
+  /// 0.1.53.0: the reconcile-ledger quarantine, visible. A stack an earlier sweep moved OK that
+  /// was still sitting in place afterwards stays put instead of re-moving every sweep; this list
+  /// shows what is held, since when, and why, plus the retry policy. Read-only - entries leave on
+  /// their own when the stack lands or moves on, and each held stack re-plans once 24 hours after
+  /// its last move (a retry that still does not stick goes back in with a fresh stamp).
+  /// </summary>
+  private void DrawQuarantinedMoves()
+  {
+    ImGui.TextUnformatted("Quarantined moves (did not stick):");
+    Tip("Stacks an earlier sweep moved successfully that were still sitting in the same slot afterwards - the move did not stick server-side, so each sweep leaves them put instead of re-moving them. They retry automatically, once, 24 hours after the last move.");
+
+    var snapshot = ReconcileLedgerSource?.Invoke() ?? [];
+    if (snapshot.Count == 0)
+    {
+      ImGui.TextColored(Muted, "Nothing quarantined. A move the server silently refuses appears here instead of re-firing every sweep.");
+      return;
+    }
+
+    var now = DateTime.UtcNow;
+    ImGui.TextUnformatted($"{snapshot.Count} stack(s) held - each retries once 24 hours after its last move:");
+    if (ImGui.BeginChild("##quarantinedMoves", new Vector2(-1, Math.Min(200, 24 * snapshot.Count + 30)), true))
+    {
+      foreach (var (key, recordedAt) in snapshot)
+      {
+        var age = now - recordedAt.ToUniversalTime();
+        if (age < TimeSpan.Zero)
+          age = TimeSpan.Zero;
+        var ageText = age.TotalHours >= 1 ? $"{(int)age.TotalHours}h ago" : $"{(int)age.TotalMinutes}m ago";
+        if (!RoutingMove.TryParseReconcileKey(key, out var session, out var container, out var slot, out var itemId, out var hq))
+        {
+          ImGui.TextUnformatted($"{key} - held since {recordedAt:u} ({ageText})");
+          continue;
+        }
+        var place = $"{AutoMarketService.NameOfContainer((InventoryType)container)}#{slot}";
+        ImGui.TextUnformatted($"{ItemNameResolver.GetItemName(itemId)}{(hq ? " (HQ)" : "")} - {session} {place} - held since {recordedAt:u} ({ageText})");
       }
     }
     ImGui.EndChild();

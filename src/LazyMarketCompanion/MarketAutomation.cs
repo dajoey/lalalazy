@@ -79,6 +79,11 @@ internal sealed class MarketAutomation : Window, IDisposable
   // rollback keeps hitting a live entry; genuinely new misplaced stock still routes after the
   // window lapses. Bounded by stuck stacks plus the window, never growing with runs.
   private readonly Dictionary<string, DateTime> _routingReconcileSkip = [];
+  // 0.1.53.0: session-qualified ledger keys dropped by the live 24-hour expiry (see
+  // PruneReconcileSkip) whose re-attempt has not yet reported back. Lets RecordRoutingReconciled
+  // name the retry outcome in the log - a retried move that lands vs one that still does not
+  // stick - which is the remaining evidence for the server-side non-stick residual.
+  private readonly HashSet<string> _retriedReconcileKeys = new(StringComparer.Ordinal);
   // 0.1.44.0: settle-step state. TaskManager steps run on the framework update thread, so the
   // settle gate is a RETRY STEP (false = retried next tick), never a sleeping loop. The internal
   // 6s soft deadline always fires before the 10s step TimeLimitMS, so the abort path is
@@ -2568,16 +2573,38 @@ internal sealed class MarketAutomation : Window, IDisposable
   /// An absent entry is pruned only once it is older than ReconcileStickyWindow; present entries
   /// are still never pruned (see RoutingMove.ShouldPruneReconcileEntry, pinned by harness
   /// cases 103-105).
+  /// 0.1.53.0: live 24-hour expiry - entries at or past RoutingMove.ReconcileLedgerMaxAge are
+  /// dropped ledger-wide even when the stack is still in place, so a quarantined stack gets one
+  /// visible re-attempt per window instead of sitting skipped forever (the 0.1.52.0 cap only ran
+  /// on load). A re-attempt that still does not stick re-records with a fresh stamp, bounding a
+  /// permanently failing move to one retry per window, never every sweep. Dropped keys are
+  /// remembered in _retriedReconcileKeys so the post-execution reconcile line can report the
+  /// retry outcome (landed vs still stuck).
   /// </summary>
   private void PruneReconcileSkip(string session)
   {
     if (_routingReconcileSkip.Count == 0)
       return;
+    var now = DateTime.UtcNow;
+    var expired = _routingReconcileSkip.Where(k => RoutingMove.IsReconcileEntryExpired(k.Value, now)).ToList();
+    if (expired.Count > 0)
+    {
+      var retried = 0;
+      foreach (var entry in expired)
+        if (_routingReconcileSkip.Remove(entry.Key))
+        {
+          _retriedReconcileKeys.Add(entry.Key);
+          retried++;
+        }
+      Svc.Log.Information($"[LMC] routing reconcile: {retried} quarantined stack(s) reached the 24-hour retry age - re-planning them once this sweep (the retry outcome lands in the reconcile line after execution): {string.Join(", ", expired.Select(e => e.Key.Substring(e.Key.IndexOf('|') + 1)))}");
+      SaveReconcileLedger();
+      if (_routingReconcileSkip.Count == 0)
+        return;
+    }
     var prefix = (session?.Trim() ?? string.Empty) + "|";
     var mine = _routingReconcileSkip.Where(k => k.Key.StartsWith(prefix, StringComparison.Ordinal)).ToList();
     if (mine.Count == 0)
       return;
-    var now = DateTime.UtcNow;
     var present = new HashSet<string>(AutoMarketService.SnapshotStock()
       .Select(s => $"{s.Container}:{s.Slot}:{s.ItemId}:{(s.HQ ? "hq" : "nq")}"));
     var pruned = 0;
@@ -2593,6 +2620,15 @@ internal sealed class MarketAutomation : Window, IDisposable
       SaveReconcileLedger();
     }
   }
+
+  /// <summary>
+  /// 0.1.53.0: sorted snapshot of the live reconciliation ledger for the quarantined-moves list
+  /// in the config UI (wired in Plugin.cs). Key order matches the ledger file, so the in-game
+  /// list and the on-disk file read the same way.
+  /// </summary>
+  internal IReadOnlyList<(string Key, DateTime RecordedAtUtc)> GetReconcileLedgerSnapshot()
+    => _routingReconcileSkip.OrderBy(k => k.Key, StringComparer.Ordinal)
+      .Select(k => (k.Key, k.Value)).ToList();
 
   /// <summary>
   /// 0.1.50.0: records every routing move that reported OK in the cross-sweep reconciliation
@@ -2616,12 +2652,22 @@ internal sealed class MarketAutomation : Window, IDisposable
     SaveReconcileLedger();
     var stuck = AutoMarketService.VerifyRoutingMovesLanded(okOps);
     var landed = okOps.Count - stuck.Count;
+    // 0.1.53.0: retry-outcome evidence - of this execution's moves, which ones were 24-hour
+    // retries, and whether each retry landed or is back in quarantine with a fresh stamp.
+    var opKeys = okOps.Select(o => RoutingMove.ReconcileKey(o.SessionRetainer, o.SrcContainer, o.SrcSlot, o.ItemId, o.HQ)).ToList();
+    var retriedLanded = opKeys.Count(k => _retriedReconcileKeys.Contains(k) && !stuck.Contains(k));
+    var retriedStuck = stuck.Where(k => _retriedReconcileKeys.Contains(k)).ToList();
+    foreach (var k in opKeys)
+      _retriedReconcileKeys.Remove(k);
+    var retryNote = (retriedLanded > 0 || retriedStuck.Count > 0)
+      ? $" (24-hour retry outcome: {retriedLanded} landed, {retriedStuck.Count} still stuck and back in quarantine)"
+      : string.Empty;
     if (stuck.Count == 0)
     {
-      Svc.Log.Information($"[LMC] routing reconcile: {landed}/{okOps.Count} move(s) verified landed (source slots empty on re-read)");
+      Svc.Log.Information($"[LMC] routing reconcile: {landed}/{okOps.Count} move(s) verified landed (source slots empty on re-read){retryNote}");
       return;
     }
-    Svc.Log.Warning($"[LMC] routing reconcile: {landed}/{okOps.Count} move(s) landed - {stuck.Count} still in place (the move did not stick server-side; those stacks stay put next sweep instead of re-moving): {string.Join(", ", stuck.Select(k => k.Substring(k.IndexOf('|') + 1)))}");
+    Svc.Log.Warning($"[LMC] routing reconcile: {landed}/{okOps.Count} move(s) landed - {stuck.Count} still in place (the move did not stick server-side; those stacks stay put next sweep instead of re-moving){retryNote}: {string.Join(", ", stuck.Select(k => k.Substring(k.IndexOf('|') + 1)))}");
   }
 
   private void ClearState()

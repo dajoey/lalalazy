@@ -3353,6 +3353,54 @@ StockStack BagStack(uint id, int slot, int qty, uint cat = CatA, bool marketable
       && RoutingMove.ParseReconcileLedger("", now).Count == 0, "null/empty");
 }
 
+// ===== 0.1.53.0: quarantine expiry with one visible retry + quarantined-list data path =====
+
+// 109. Live-expiry boundaries: a young entry is not expired (stays quarantined), an entry
+// exactly at the 24-hour max age is expired (re-plans once), and anything older is expired.
+// A future stamp (clock skew) is never expired.
+{
+  var now = new DateTime(2026, 9, 17, 12, 0, 0, DateTimeKind.Utc);
+  Check("109 expiry: 23-hour-old entry is not expired",
+    !RoutingMove.IsReconcileEntryExpired(now.AddHours(-23), now), "23h");
+  Check("109 expiry: entry exactly at the 24-hour max age is expired",
+    RoutingMove.IsReconcileEntryExpired(now - RoutingMove.ReconcileLedgerMaxAge, now), "boundary");
+  Check("109 expiry: 25-hour-old entry is expired",
+    RoutingMove.IsReconcileEntryExpired(now.AddHours(-25), now), "25h");
+  Check("109 expiry: future stamp is not expired",
+    !RoutingMove.IsReconcileEntryExpired(now.AddMinutes(5), now), "future");
+}
+
+// 110. The quarantined-list data path round-trips the ledger key: session, container, slot,
+// item, and HQ flag all come back exactly, for both legs (retainer pages and bags).
+{
+  var pull = RoutingMove.ReconcileKey("Dojarat", 10001, 3, 1001, false);
+  var okPull = RoutingMove.TryParseReconcileKey(pull, out var s1, out var c1, out var sl1, out var id1, out var hq1);
+  Check("110 key: pull-out key parses to its components",
+    okPull && s1 == "Dojarat" && c1 == 10001 && sl1 == 3 && id1 == 1001 && !hq1,
+    $"'{pull}' -> '{s1}' {c1}:{sl1}:{id1}:{(hq1 ? "hq" : "nq")}");
+  var dep = RoutingMove.ReconcileKey("Bussyqueen", 1, 7, 2002, true);
+  var okDep = RoutingMove.TryParseReconcileKey(dep, out var s2, out var c2, out var sl2, out var id2, out var hq2);
+  Check("110 key: deposit key parses to its components, HQ preserved",
+    okDep && s2 == "Bussyqueen" && c2 == 1 && sl2 == 7 && id2 == 2002 && hq2,
+    $"'{dep}' -> '{s2}' {c2}:{sl2}:{id2}:{(hq2 ? "hq" : "nq")}");
+}
+
+// 111. Malformed keys never parse and never throw: the UI shows the raw key instead of a
+// guessed breakdown. Missing pipe, wrong part count, non-numeric fields, and a bad HQ
+// token all return false.
+{
+  Check("111 key: null, empty, and pipe-less keys do not parse",
+    !RoutingMove.TryParseReconcileKey(null, out _, out _, out _, out _, out _)
+      && !RoutingMove.TryParseReconcileKey("", out _, out _, out _, out _, out _)
+      && !RoutingMove.TryParseReconcileKey("no-pipe-here", out _, out _, out _, out _, out _), "null/empty/nopipe");
+  Check("111 key: bad container/slot/item and bad hq token do not parse",
+    !RoutingMove.TryParseReconcileKey("R1|x:3:1001:nq", out _, out _, out _, out _, out _)
+      && !RoutingMove.TryParseReconcileKey("R1|10001:x:1001:nq", out _, out _, out _, out _, out _)
+      && !RoutingMove.TryParseReconcileKey("R1|10001:3:x:nq", out _, out _, out _, out _, out _)
+      && !RoutingMove.TryParseReconcileKey("R1|10001:3:1001:maybe", out _, out _, out _, out _, out _)
+      && !RoutingMove.TryParseReconcileKey("R1|10001:3:1001", out _, out _, out _, out _, out _), "badfields");
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 
