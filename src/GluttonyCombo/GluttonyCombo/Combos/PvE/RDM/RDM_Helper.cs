@@ -155,7 +155,7 @@ internal partial class RDM
     ///     <see cref="ManaLevel"/>), or Magicked Swordplay has made the entry free.
     ///     <para/>
     ///     The Occult Crescent Time Mage handler reads this to hold Occult Quick
-    ///     (v1.0.4.170). Joey: "add a gate so that occult quick doesn't get cast when you
+    ///     (v1.0.4.170). Testing notes: "add a gate so that occult quick doesn't get cast when you
     ///     are able to execute the full rdm damage combo." Riposte through Resolution is
     ///     six-odd GCDs of instant weaponskills, so a 20s spell-instant window opened one
     ///     GCD before Riposte is thrown away exactly as thoroughly as one opened
@@ -219,7 +219,7 @@ internal partial class RDM
     ///     <see cref="CanSwiftcast"/> and <see cref="CanSwiftcastMovement"/>, which is every site
     ///     in the job that presses one.
     ///     <para/>
-    ///     <c>!HasFreeInstantCasts</c> restored in v1.0.4.151, at Joey's call: "occult quick
+    ///     <c>!HasFreeInstantCasts</c> restored in v1.0.4.151, by design decision: "occult quick
     ///     doesn't last long. I say hold acceleration until it's over." v1.0.4.144 added it,
     ///     v1.0.4.146 backed it out on the grounds that Acceleration is not purely a cast-time
     ///     cooldown - it also feeds Grand Impact and the Verfire/Verstone procs - so suppressing
@@ -232,7 +232,7 @@ internal partial class RDM
     ///     Occult Quick only, NOT Occult Dualcast. Different objects: Quick is a window during
     ///     which Acceleration's instant-cast half cannot be worth anything for its whole
     ///     duration, so the cost of holding is bounded by the window. A Dualcast is one charge
-    ///     the next spell consumes either way, and Joey scoped this call to Quick - it stays out
+    ///     the next spell consumes either way, and this call was scoped to Quick - it stays out
     ///     until he says otherwise rather than on a guess about how the two stack.
     ///     <para/>
     ///     <c>HasFreeInstantCasts</c> already covers the press as well as the buff, so the
@@ -250,7 +250,7 @@ internal partial class RDM
     ///     An instant-cast effect is live, so the hard-cast slot is free and
     ///     <see cref="UseInstantCastST"/> should spend it on Verthunder III / Veraero III.
     ///     <para/>
-    ///     Occult Quick and Occult Dualcast added in v1.0.4.150. Joey: RDM "handles dualcast
+    ///     Occult Quick and Occult Dualcast added in v1.0.4.150. Testing notes on RDM: "handles dualcast
     ///     really well. But it doesn't do well with occult quick... It'll instant cast jolt or
     ///     verfire when it should be casting one of the long-cast spells (even if there's a proc
     ///     available b/c it's still the more powerful spell)." That is precisely this flag being

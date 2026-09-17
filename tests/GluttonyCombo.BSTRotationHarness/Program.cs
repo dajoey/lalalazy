@@ -5,7 +5,7 @@ namespace GluttonyCombo.BSTRotationHarness;
 
 /// <summary>
 ///     Offline proof for the rebuilt Beastmaster engine (BST_RotationLogic, 2026-09-16).
-///     Part 1: unit cases on the pure rules, including a replay of Joey's 2026-09-16 17:48 failure.
+///     Part 1: unit cases on the pure rules, including a replay of the 2026-09-16 17:48 test-session failure.
 ///     Part 2: a familiar-lifecycle SIMULATOR (<see cref="Sim"/>) built from the live-proven mechanics
 ///     (research/bst-live-evidence.md) that runs the real engine through 300 s fights at every level
 ///     1-50 with several loadouts, and asserts the safety invariants on every run.
@@ -135,7 +135,7 @@ internal static class Program
     }
 
     /// <summary>
-    ///     Joey 2026-09-16 17:48: L18-21, wespe in horn 1, crab in horn 2. Old build: summon -> Tempered
+    ///     2026-09-16 17:48 test session: L18-21, wespe in horn 1, crab in horn 2. Old build: summon -> Tempered
     ///     Release 0.6 s later -> Final Sting -> familiar gone -> horn 1 locked -> never resummoned.
     /// </summary>
     private static void Replay_2026_09_16_1748()
@@ -395,7 +395,7 @@ internal static class Program
     private static readonly Loadout[] Loadouts =
     [
         new("CuSith/Raptor/Buffalo", [1, 34, 26]),
-        new("Wespe/Crab/empty (Joey 09-16)", [10, 15, 0]),
+        new("Wespe/Crab/empty (09-16 test session)", [10, 15, 0]),
         new("Wespe/Mantis/Dullahan", [10, 16, 18]),
         new("Lamb/Puk/Diremite (all releases blocked)", [3, 14, 8]),
         new("CuSith only", [1, 0, 0]),

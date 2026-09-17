@@ -20,7 +20,7 @@ namespace GluttonyCombo.Combos.PvE;
 // harness (tests/GluttonyCombo.BSTRotationHarness) runs through a familiar-lifecycle simulator at
 // every level 1-50. Keep game reads here and rules there.
 //
-// Root causes this rebuild fixes, proven from Joey's 2026-09-16 17:48 and 18:01 sessions:
+// Root causes this rebuild fixes, proven from the 2026-09-16 17:48 and 18:01 test sessions:
 //  1. The old loop pressed Tempered Release the moment a familiar arrived. On wespe that is Final Sting,
 //     which retreats the familiar ("sacrificing the pet moments after summoning it").
 //  2. The next horn was picked from the Borrow-latched gauge nibble (always 0 below L22), so it kept

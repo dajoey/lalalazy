@@ -74,7 +74,7 @@ internal unsafe class AutoRotationController
 
     // --- Raidwide AoE SHIELD gate (SGE Eukrasian Prognosis / SCH Succor) ---
     // Tracked separately from the mit gate so a healer fires ONE shield and then
-    // immediately follows it with ONE mitigation on the same raidwide. (Joey 2026-06-27)
+    // immediately follows it with ONE mitigation on the same raidwide. (testing 2026-06-27)
     internal static DateTime LastRaidwideShieldTime = DateTime.MinValue;
     internal const double RaidwideShieldCooldownSeconds = 10.0;
     internal static bool RaidwideShieldOnCooldown =>
@@ -82,18 +82,18 @@ internal unsafe class AutoRotationController
     internal static void MarkRaidwideShieldUsed() => LastRaidwideShieldTime = DateTime.UtcNow;
 
     // SGE raidwide shield intention-lock: once we cast Eukrasia FOR the shield, NOTHING else
-    // casts until Eukrasian Prognosis is out. (Joey 2026-06-27)
+    // casts until Eukrasian Prognosis is out. (testing 2026-06-27)
     private static bool _shieldEukrasiaPending;
     private static DateTime _shieldLockExpiry = DateTime.MinValue;
-    // SCH raidwide shield is a HARD cast (Joey 2026-06-27): hold the lock through the whole cast
+    // SCH raidwide shield is a HARD cast (testing 2026-06-27): hold the lock through the whole cast
     // and mark the shield done only when the cast COMPLETES. _schSawShieldCast = we watched it cast.
     private static bool _schSawShieldCast;
     // Commit latch (mirrors SGE's _shieldEukrasiaPending): once we start the Succor cast, keep the
-    // lock engaged until it completes even after GroupDamageIncoming() flips false. (Joey 2026-06-27)
+    // lock engaged until it completes even after GroupDamageIncoming() flips false. (testing 2026-06-27)
     private static bool _schShieldPending;
     private static DateTime _schShieldExpiry = DateTime.MinValue;
 
-    // --- WHM/AST timed AoE regen commit-latches (Joey 2026-07-01) ---
+    // --- WHM/AST timed AoE regen commit-latches (testing 2026-07-01) ---
     // Medica II/III and Aspected Helios / Helios Conjunction are HARD casts. Same pattern as the
     // SCH shield: once the cast is issued, hold the lock through the WHOLE cast and mark the gate
     // only on COMPLETION, so the rotation can never cancel a half-started cast.
@@ -106,7 +106,7 @@ internal unsafe class AutoRotationController
     // How long AFTER the boss cast bar resolves the timed regen should FINISH casting. Raidwide
     // damage never applies at the bar - the effect packet lands ~0.6-1.5s later, and that delay is
     // per-spell and NOT available in the game sheets, so it has to be a tuned constant. 1.2s aims
-    // the heal at/just after the typical application. (Joey 2026-07-01: 0.5s landed pre-hit.)
+    // the heal at/just after the typical application. (testing 2026-07-01: 0.5s landed pre-hit.)
     private const float RegenLandDelaySeconds = 1.2f;
     // Arm-at-detect state: the fire time is scheduled the moment the raidwide bar is first seen,
     // so the gates get the whole bar of leeway instead of a fraction-of-a-second sample window.
@@ -744,7 +744,7 @@ internal unsafe class AutoRotationController
         bool isHealer = Player.Object?.Role is CombatRole.Healer ||
                         (Player.Job is Job.BLU && BLU.HasHealerMimicry);
 
-        // SGE raidwide AoE shield - HARD intention-lock (Joey 2026-06-27): once we cast Eukrasia
+        // SGE raidwide AoE shield - HARD intention-lock (testing 2026-06-27): once we cast Eukrasia
         // for the shield, do ONLY Eukrasian Prognosis (nothing else casts) until it is out.
         if (isHealer && HealerRaidwideShieldLock())
             return;
@@ -833,7 +833,7 @@ internal unsafe class AutoRotationController
                 //
                 // It returns true ONLY on the line after a real UseAction - never for a state
                 // like "mid-cast" or "the buff is up". v1.0.4.126 did the latter and stalled
-                // the whole rotation; see CHANGELOG. (Joey 2026-08-03)
+                // the whole rotation; see CHANGELOG. (testing 2026-08-03)
                 if (cfg.HealerSettings.AutoRez && RezParty())
                     return;
             }
@@ -949,7 +949,7 @@ internal unsafe class AutoRotationController
     /// <summary>SGE/SCH still owe the party an AoE shield this raidwide (not on its short
     /// cooldown, party not already shielded). Auto-rotation owns the shield directly here -
     /// preset-INDEPENDENT, exactly like the mit list - so it fires as reliably as the
-    /// mitigations instead of depending on the per-job combo path. (Joey 2026-06-27)</summary>
+    /// mitigations instead of depending on the per-job combo path. (testing 2026-06-27)</summary>
     private static bool RaidwideShieldPending()
     {
         if (RaidwideShieldOnCooldown)
@@ -969,7 +969,7 @@ internal unsafe class AutoRotationController
     /// the shield, nothing else fires until Eukrasian Prognosis is out. SCH: claim the next GCD for
     /// Succor/Concitation and lock until the shield lands. WHM/AST: timed AoE regen hard casts
     /// on the same commit-latch, started so the HoT lands right as/after the raidwide hits.
-    /// (Joey 2026-06-27 / 2026-07-01)</summary>
+    /// (testing 2026-06-27 / 2026-07-01)</summary>
     private static bool HealerRaidwideShieldLock()
     {
         if (!cfg.HealerSettings.HandleRaidwides || Player.Job is not (Job.SGE or Job.SCH or Job.WHM or Job.AST))
@@ -988,10 +988,10 @@ internal unsafe class AutoRotationController
     }
 
     /// <summary>SCH shield lock: Succor/Concitation is a single hard cast (no 2-step), so just
-    /// claim the next GCD for it and lock until the Galvanize shield is up. (Joey 2026-06-27)</summary>
+    /// claim the next GCD for it and lock until the Galvanize shield is up. (testing 2026-06-27)</summary>
     private static bool SchRaidwideShieldLock()
     {
-        // No Galvanize gate (Joey 2026-06-27): a Galvanize already on the party - e.g. a lingering
+        // No Galvanize gate (testing 2026-06-27): a Galvanize already on the party - e.g. a lingering
         // Adloquium shield on the tank - must NOT stop the raidwide Succor from going out.
         // Commit-latch safety: never lock forever if the cast somehow never lands.
         if (_schShieldPending && DateTime.UtcNow > _schShieldExpiry)
@@ -1051,7 +1051,7 @@ internal unsafe class AutoRotationController
     }
 
     /// <summary>SGE raidwide AoE shield HARD intention-lock (2-step Eukrasia -> Eukrasian
-    /// Prognosis). Only reached for SGE via HealerRaidwideShieldLock. (Joey 2026-06-27)</summary>
+    /// Prognosis). Only reached for SGE via HealerRaidwideShieldLock. (testing 2026-06-27)</summary>
     private static bool SgeRaidwideShieldLock()
     {
         // Safety: never lock forever if the 2-step somehow stalls.
@@ -1100,7 +1100,7 @@ internal unsafe class AutoRotationController
     /// gates only inside the final castS-minus-delay sliver of the bar, which for short casts
     /// like AST's 1.5s Helios was ~0.3s wide and missed almost every time.) Same commit-latch as
     /// the SCH shield: hold through the whole cast, mark the gate only on COMPLETION.
-    /// (Joey 2026-07-01)</summary>
+    /// (testing 2026-07-01)</summary>
     private static bool WhmRaidwideRegenLock()
     {
         // Commit-latch safety: never lock forever if the cast somehow never lands.
@@ -1187,7 +1187,7 @@ internal unsafe class AutoRotationController
 
     /// <summary>AST timed AoE regen lock. Aspected Helios / Helios Conjunction is a ~1.5s HARD
     /// cast; same arm-at-detect + fire-by-clock + commit-latch as WHM. Fires with or without
-    /// Neutral Sect (under Neutral Sect it also grants the party shield). (Joey 2026-07-01)</summary>
+    /// Neutral Sect (under Neutral Sect it also grants the party shield). (testing 2026-07-01)</summary>
     private static bool AstRaidwideRegenLock()
     {
         // Commit-latch safety: never lock forever if the cast somehow never lands.
@@ -1760,7 +1760,7 @@ internal unsafe class AutoRotationController
 
     }
 
-    // SGE tank-shield upkeep (Joey 2026-06-27). When MORE THAN 2 enemies are on a tank, keep
+    // SGE tank-shield upkeep (testing 2026-06-27). When MORE THAN 2 enemies are on a tank, keep
     // Eukrasian Diagnosis up on that tank; and when Addersting is capped, spend it with Toxikon
     // so the gauge the breaking shields generate isn't wasted. Gated by the SGE_TankShield preset.
     // The pending flag drives the Eukrasia -> Eukrasian Diagnosis two-step WITHOUT hijacking an

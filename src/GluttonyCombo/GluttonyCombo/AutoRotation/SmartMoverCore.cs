@@ -152,7 +152,7 @@ internal static class SmartMoverCore
         if (w.BmrNavigating)
             return StandDown(h, ReasonBmrCode);
 
-        // v1.0.4.203 (Joey 2026-09-16 grading of 1.0.4.202: "automovement is
+        // v1.0.4.203 (testing 2026-09-16 grading of 1.0.4.202: "automovement is
         // moving me to the target even when i'm out of combat, which is not
         // ok"): moving to a target NEVER happens out of combat. The
         // v1.0.4.200 pre-combat hostile engage is reverted - its own grading
@@ -333,8 +333,7 @@ internal static class SmartMoverCore
     ///     How far outside the band edge the ideal standing point sits.
     ///     v1.0.4.201 (tasks-20260915-automove-melee-01): short bands sit ON
     ///     the edge - a +0.5 offset plus the old tolerance parked melee at up
-    ///     to 5y edge-to-edge, outside striking distance (Joey, NIN on testing
-    ///     1.0.4.200: motion started, then stopped short of the dummy).
+    ///     to 5y edge-to-edge, outside striking distance (NIN testing on 1.0.4.200: motion started, then stopped short of the dummy).
     /// </summary>
     private static float IdealOffset(MoverWorld w) => w.DesiredRange <= ShortRangeYalms ? 0f : 0.5f;
 

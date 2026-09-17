@@ -54,7 +54,7 @@ SmartMoverCore.MoverWorld World(
 
     // ...but a CASTER-anchored cast aimed at the player (point-blank circle,
     // cone, line, charge - every solo mob telegraph) MUST build its zone:
-    // the old blanket skip starved the dodge branch solo (Joey 2026-09-12).
+    // the old blanket skip starved the dodge branch solo (testing 2026-09-12).
     var solo5 = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
         5, 8f, 0f, 3f, new(0, 0), new(0, 0), 999, 999, 5f, 60f, 0f));
     Check("zone/solo-pb-circle-aimed-at-player-builtin", solo5 is { Kind: DangerZoneModel.ShapeKind.Circle }, $"z={solo5}");
@@ -154,8 +154,7 @@ SmartMoverCore.MoverWorld World(
 
     // v1.0.4.201 (tasks-20260915-automove-melee-01): melee parked OUTSIDE
     // striking distance - the 2.0 (1.0 positional) settle tolerance plus the
-    // 1.0 Commit deadband exceeded the 3y band (Joey, NIN on testing
-    // 1.0.4.200: motion started, then stopped short of the dummy). Melee at
+    // 1.0 Commit deadband exceeded the 3y band (NIN testing on 1.0.4.200: motion started, then stopped short of the dummy). Melee at
     // edge 4.0 (dist 9.0 on hitbox 5) must STILL engage, positional or not;
     // at edge 3.4 it settles; a sub-yalm final approach closes in.
     var hm1 = new SmartMoverCore.Hysteresis();
@@ -297,7 +296,7 @@ SmartMoverCore.MoverWorld World(
     var dd = SmartMoverCore.Decide(World(enabled: false), h5);
     Check("guard/off-none", dd.Kind == SmartMoverCore.Decision.None, $"kind={dd.Kind}");
 
-    // v1.0.4.203 (Joey 2026-09-16 grading of 1.0.4.202: "automovement is
+    // v1.0.4.203 (testing 2026-09-16 grading of 1.0.4.202: "automovement is
     // moving me to the target even when i'm out of combat, which is not ok"):
     // out of combat the mover NEVER approaches a target - the v1.0.4.200
     // pre-combat hostile engage is reverted. The ooc standdown keeps its OWN
@@ -371,7 +370,7 @@ SmartMoverCore.MoverWorld World(
 
     // v1.0.4.192: a MATERIALLY different destination inside the hold is
     // adopted at once (quick target switch), not steered at the old flank
-    // until the hold expires (the dead second branch Joey saw as wonky).
+    // until the hold expires (the dead second branch seen as wonky in testing).
     var hq = new SmartMoverCore.Hysteresis();
     var wq1 = World(player: new(0, -18), range: 3f, target: new(0, 0), hitbox: 5f) with { NowSec = 200.0 };
     var dq1 = SmartMoverCore.Decide(wq1, hq);

@@ -571,15 +571,14 @@ internal partial class OccultCrescent
 
     /// <summary>
     ///     Internal cooldown for the 7.55-fork Occult Libra, mirroring
-    ///     <see cref="LibraInternalCooldownMs"/> in OccultCrescent.cs (Joey, helm
-    ///     t-joey-1788653879855, 2026-09-05). That fix only landed on the pre-7.55 RDM path
+    ///     <see cref="LibraInternalCooldownMs"/> in OccultCrescent.cs (design decision documented 2026-09-05 in the related support thread). That fix only landed on the pre-7.55 RDM path
     ///     (<c>TryGetRedMageAction</c>); this 7.55-fork copy (<c>TryGetRedMageAction755</c>)
     ///     was never given the same gate. On any target the live debuff clears mid-fight
     ///     (or was never applied - immune adds, a boss with no elemental weakness, a
     ///     resisted application) <see cref="TargetHasAnyWeaknessDebuff"/> stays false
     ///     indefinitely and this 5s-recast oGCD re-suggests itself every weave window for
     ///     the whole pull, which is exactly the "phantom RDM Libra ignores whatever
-    ///     cooldown we set" bug reported on helm t-joey-1789095497072. Armed by the ACTUAL
+    ///     cooldown we set" bug reported on the related support thread. Armed by the ACTUAL
     ///     cast (WasLastAction), never by merely evaluating the gate, for the same reason
     ///     as the pre-7.55 copy: TryGetPhantomAction runs every frame for icon replacement.
     /// </summary>

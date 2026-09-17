@@ -636,13 +636,13 @@ internal partial class OccultCrescent
         // 8s cast instant. Until v1.0.4.152 it asked only "is Comet off cooldown" - no target, no
         // range, no combat - so standing about in the zone with Time Mage equipped and the Comet
         // option on, it would spend a 60s Swiftcast prepping a Comet there was nothing to cast at.
-        // That is Joey's "casting swiftcast outside of combat for no reason". Every sibling
+        // That matches the report "casting swiftcast outside of combat for no reason". Every sibling
         // handler in this file already gates on HasBattleTarget(); this one was the exception.
         //
         // Guarding the whole block, not just the speed prep: prepping without casting is the bug,
         // but offering an 8s hard cast at nothing is no better. Side effect worth knowing - Comet
         // is no longer offered pre-pull, so it cannot open a fight any more.
-        // ... and held through RDM's melee chain (v1.0.4.155). Joey: "make it hold comet during
+        // ... and held through RDM's melee chain (v1.0.4.155). Testing notes: "make it hold comet during
         // the dps combo. it resets the combo." Comet is a SPELL, and any GCD that is not the
         // combo's next step breaks the chain - so this does not merely delay the melee combo, it
         // resets it and forfeits the mana already spent getting that far. That makes it a
@@ -659,7 +659,7 @@ internal partial class OccultCrescent
         // At combo-entry mana with Comet off cooldown, TryGetTimeMageAction reaches the buff
         // press first, is correctly held by the new gate, falls through to here - where the old
         // term is still false because the chain has not started - and prepping the Comet fires
-        // Occult Quick anyway. That is Joey's "I just cast it when it could do the full combo".
+        // Occult Quick anyway. That matches the report "I just cast it when it could do the full combo".
         // The two gates must move together or the hold is only ever half applied.
         if (IsEnabledAndUsable(Preset.Phantom_TimeMage_OccultComet, OccultComet) &&
             HasBattleTarget() && InActionRange(OccultComet) && InCombat() &&
@@ -1631,7 +1631,7 @@ internal partial class OccultCrescent
             // what makes every Occult Fire/Blizzard/Thunder II afterwards hit for 390 instead
             // of 300. Gating it on "are we already buffed" delayed the enabler behind the thing
             // it enables - and it is a 5s oGCD, so it costs a weave slot, not a GCD.
-            // INTERNAL 30s COOLDOWN (Joey, helm t-joey-1788653879855, 2026-09-05). The condition
+            // INTERNAL 30s COOLDOWN (design decision documented 2026-09-05 in the related support thread). The condition
             // below can stay true indefinitely: on a mob with no elemental weakness to reveal Libra
             // applies nothing, so HasLibraWeakness stays false and CanApplyLibraWeakness stays true
             // forever, and this 5s-recast oGCD re-fires for the whole pull. Armed by the ACTUAL cast,
@@ -1701,7 +1701,7 @@ internal partial class OccultCrescent
         return false;
     }
 
-    /// <summary>Internal cooldown for Occult Libra, in milliseconds (Joey, 2026-09-05).</summary>
+    /// <summary>Internal cooldown for Occult Libra, in milliseconds (Testing, 2026-09-05).</summary>
     private const long LibraInternalCooldownMs = 30_000;
 
     /// <summary>Tick before which Occult Libra is not re-suggested. Armed by the cast, not the gate.</summary>
@@ -1843,7 +1843,7 @@ internal partial class OccultCrescent
     ///     several GCDs are already instant - or are weaponskills, which the window cannot help
     ///     at all - means opening it now throws most of it away.
     ///     <para/>
-    ///     v1.0.4.150 adds RDM's melee combo. Joey: it "shouldn't really use it in the middle of
+    ///     v1.0.4.150 adds RDM's melee combo. Testing notes: it "shouldn't really use it in the middle of
     ///     the DPS combo just b/c it'll get more value by making long cast spells instant."
     ///     Riposte through Redoublement, the Verholy/Verflare finisher and Scorch/Resolution are
     ///     six-odd GCDs of instant weaponskills, roughly twelve seconds - most of the window, and
@@ -1853,7 +1853,7 @@ internal partial class OccultCrescent
     ///     The job guard lives on <c>RDM.InInstantWeaponskillChain</c>, because this handler is
     ///     job-agnostic and the RDM gauge must not be read off-job.
     ///     <para/>
-    ///     v1.0.4.170 extends the hold to BEFORE the chain starts. Joey: "add a gate so that
+    ///     v1.0.4.170 extends the hold to BEFORE the chain starts. Testing notes: "add a gate so that
     ///     occult quick doesn't get cast when you are able to execute the full rdm damage
     ///     combo." At combo-entry mana the next six GCDs are the melee combo either way, so
     ///     opening the window on the GCD before Riposte still spends it on weaponskills -

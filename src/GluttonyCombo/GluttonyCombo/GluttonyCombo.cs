@@ -306,7 +306,7 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         new TextPayload("Click to toggle Opener Preset.\n"),
         new TextPayload("Disable this icon in /xlsettings -> Server Info Bar"));
         // v1.0.4.197: Smart Movement's own DTR entry - a quick kill switch that
-        // is independent of auto-rotation (Helm t-joey-1789226971574).
+        // is independent of auto-rotation (the related support thread).
         SmartDtr ??= Svc.DtrBar.Get("Gluttony Smart Movement");
         SmartDtr.OnClick = (_) =>
         {
