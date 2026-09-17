@@ -3268,6 +3268,40 @@ StockStack BagStack(uint id, int slot, int qty, uint cat = CatA, bool marketable
     plan.Ops.Count == 1 && plan.Ops[0].Leg == MoveLeg.RetainerToBags, $"ops={plan.Ops.Count}");
 }
 
+// ===== 0.1.51.0: sticky reconciliation window (slow server rollbacks) =====
+
+// 103. An entry whose stack is absent but young is KEPT: the 0.1.50.0 log showed moves
+// verifying empty seconds after firing, pruned as landed mid-run, then back in the same
+// slot on the next sweep two minutes later and re-fired - absence within the window means
+// "rollback may still be propagating", not "landed".
+{
+  var now = new DateTime(2026, 9, 17, 1, 30, 0, DateTimeKind.Utc);
+  Check("103 sticky: absent 5-min-old entry is not pruned",
+    !RoutingMove.ShouldPruneReconcileEntry(now.AddMinutes(-5), stillPresent: false, now), "young-absent");
+  Check("103 sticky: absent 29-min-old entry is not pruned",
+    !RoutingMove.ShouldPruneReconcileEntry(now.AddMinutes(-29), stillPresent: false, now), "window-edge");
+}
+
+// 104. An absent entry past the window IS pruned, so genuinely new misplaced stock routes
+// again instead of staying skipped forever.
+{
+  var now = new DateTime(2026, 9, 17, 1, 30, 0, DateTimeKind.Utc);
+  Check("104 sticky: absent 31-min-old entry is pruned",
+    RoutingMove.ShouldPruneReconcileEntry(now.AddMinutes(-31), stillPresent: false, now), "old-absent");
+  Check("104 sticky: absent entry exactly at the window is pruned",
+    RoutingMove.ShouldPruneReconcileEntry(now - RoutingMove.ReconcileStickyWindow, stillPresent: false, now), "boundary");
+}
+
+// 105. A stack still sitting in place is never pruned, whatever its age (unchanged 0.1.50.0
+// behavior - the planner keeps skipping it with the did-not-stick note).
+{
+  var now = new DateTime(2026, 9, 17, 1, 30, 0, DateTimeKind.Utc);
+  Check("105 sticky: present young entry is not pruned",
+    !RoutingMove.ShouldPruneReconcileEntry(now.AddMinutes(-5), stillPresent: true, now), "young-present");
+  Check("105 sticky: present 2-hour-old entry is still not pruned",
+    !RoutingMove.ShouldPruneReconcileEntry(now.AddHours(-2), stillPresent: true, now), "old-present");
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 

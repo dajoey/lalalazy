@@ -122,6 +122,22 @@ public static class RoutingMove
   public static string ReconcileKey(string session, int container, int slot, uint itemId, bool hq)
     => $"{session?.Trim() ?? string.Empty}|{container}:{slot}:{itemId}:{(hq ? "hq" : "nq")}";
 
+  /// <summary>
+  /// 0.1.51.0: sticky reconciliation window. The 0.1.50.0 log proved prune-on-absence is racy:
+  /// a move can verify empty seconds after firing (source slot empty on re-read, entry pruned
+  /// at the next lap as "landed") yet be back in the same slot on the next sweep - the server
+  /// rollback propagates slower than the prune, so the next sweep re-fires a move it already
+  /// made. A ledger entry therefore survives absence for this window after its last OK: a stack
+  /// still misplaced when the window lapses re-plans (genuinely new work retries), while a
+  /// slow rollback keeps hitting a live entry and stays skipped with the did-not-stick note.
+  /// Entries for stacks still sitting in place are never pruned (unchanged 0.1.50.0 behavior).
+  /// Pure function of timestamps so the harness pins the boundaries (cases 103-105).
+  /// </summary>
+  public static readonly TimeSpan ReconcileStickyWindow = TimeSpan.FromMinutes(30);
+
+  public static bool ShouldPruneReconcileEntry(DateTime recordedAtUtc, bool stillPresent, DateTime nowUtc)
+    => !stillPresent && (nowUtc - recordedAtUtc) >= ReconcileStickyWindow;
+
   public static RoutingMovePlan Plan(
     IReadOnlyList<StockStack> stock,
     IReadOnlyList<ItemRule> rules,

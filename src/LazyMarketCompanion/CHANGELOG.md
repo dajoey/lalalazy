@@ -1,4 +1,14 @@
-﻿## v0.1.50.0 (2026-09-17)
+﻿## v0.1.51.0 (2026-09-17)
+
+### Fixed
+
+- **Auto-Market reconciliation entries survive absence for 30 minutes, so a slow server rollback stops re-firing the move it just made.** The 0.1.50.0 log proved prune-on-absence racy: five Hussypants pulls (items 44933, 15926, 14068, 28132, 44877) verified empty seconds after firing, were pruned mid-run as landed, then sat back in the same retainer slots on the next sweep two minutes later and re-fired - joined by six Dojarat pulls the same way, 21 re-moves on a run Joey had already graded delivered. The ledger now stamps every OK with its UTC time and prunes an absent entry only after a 30-minute sticky window; entries for stacks still sitting in place are still never pruned, and genuinely new misplaced stock still routes once the window lapses (files: `MarketAutomation.cs` `PruneReconcileSkip`/`RecordRoutingReconciled`, `AutoMarket/RoutingMove.cs` `ShouldPruneReconcileEntry`/`ReconcileStickyWindow`).
+
+### Notes
+
+- Offline-suite change: new cases 103-105 pin the sticky-window boundaries (young-absent kept, old-absent pruned, present never pruned) (file: `tests/LazyMarketCompanion.Harness/Program.cs`).
+
+## v0.1.50.0 (2026-09-17)
 
 ### Fixed
 

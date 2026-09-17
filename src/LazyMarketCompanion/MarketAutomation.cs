@@ -71,9 +71,14 @@ internal sealed class MarketAutomation : Window, IDisposable
   // server-side, and the per-run guard above forgets by the next sweep - which is exactly why
   // the same 16/51 pull-outs re-fired. A plan op whose key is already here means the stack is
   // back where a previous sweep moved it from, so the planner skips it instead of re-moving
-  // every sweep. Entries leave in PruneReconcileSkip when a fresh snapshot no longer shows the
-  // stack in that slot (it landed or moved on) - bounded by stuck stacks, never growing with runs.
-  private readonly HashSet<string> _routingReconcileSkip = [];
+  // every sweep.
+  // 0.1.51.0: the value is the last-OK UTC. Prune-on-absence proved racy on the 0.1.50.0 log -
+  // five Hussypants pulls verified empty seconds after firing (ledger pruned mid-run as
+  // "landed") yet sat back in the same slots on the next sweep two minutes later and re-fired.
+  // Entries now survive absence for RoutingMove.ReconcileStickyWindow (30 min) so a slow server
+  // rollback keeps hitting a live entry; genuinely new misplaced stock still routes after the
+  // window lapses. Bounded by stuck stacks plus the window, never growing with runs.
+  private readonly Dictionary<string, DateTime> _routingReconcileSkip = [];
   // 0.1.44.0: settle-step state. TaskManager steps run on the framework update thread, so the
   // settle gate is a RETRY STEP (false = retried next tick), never a sleeping loop. The internal
   // 6s soft deadline always fires before the 10s step TimeLimitMS, so the abort path is
@@ -592,7 +597,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     // no longer shows (landed or moved on) and skips stacks an earlier sweep moved OK that are
     // still sitting in place (the move did not stick) instead of re-moving them every sweep.
     PruneReconcileSkip(retainerName);
-    var routingPlan = AutoMarketService.PlanRoutingDepositsOnly(_routingReconcileSkip);
+    var routingPlan = AutoMarketService.PlanRoutingDepositsOnly(_routingReconcileSkip.Keys);
     foreach (var note in routingPlan.Notes)
       Svc.Log.Information($"[LMC] {note}");
 
@@ -1279,7 +1284,7 @@ internal sealed class MarketAutomation : Window, IDisposable
 
     // 0.1.50.0: reconcile before planning - same ledger as the deposit lap below.
     PruneReconcileSkip(AutoMarketService.CurrentRetainerName());
-    var routingPlan = AutoMarketService.PlanRoutingMoves(_routingPulledThisRun, _routingReconcileSkip);
+    var routingPlan = AutoMarketService.PlanRoutingMoves(_routingPulledThisRun, _routingReconcileSkip.Keys);
     foreach (var note in routingPlan.Notes)
       Svc.Log.Information($"[LMC] {note}");
     // 0.1.49.0: session identity on every planning pass - the live RetainerManager name the
@@ -2505,21 +2510,27 @@ internal sealed class MarketAutomation : Window, IDisposable
   /// for this session are considered - retainer page containers are the same InventoryType
   /// values for every retainer, so another session's snapshot cannot speak for this one's slots.
   /// Called before every routing plan; the planner itself does the skipping from the ledger.
+  /// 0.1.51.0: absence alone no longer prunes - the 0.1.50.0 log showed rollbacks propagating
+  /// slower than the prune (verified empty, pruned as landed, back two minutes later, re-fired).
+  /// An absent entry is pruned only once it is older than ReconcileStickyWindow; present entries
+  /// are still never pruned (see RoutingMove.ShouldPruneReconcileEntry, pinned by harness
+  /// cases 103-105).
   /// </summary>
   private void PruneReconcileSkip(string session)
   {
     if (_routingReconcileSkip.Count == 0)
       return;
     var prefix = (session?.Trim() ?? string.Empty) + "|";
-    var mine = _routingReconcileSkip.Where(k => k.StartsWith(prefix, StringComparison.Ordinal)).ToList();
+    var mine = _routingReconcileSkip.Where(k => k.Key.StartsWith(prefix, StringComparison.Ordinal)).ToList();
     if (mine.Count == 0)
       return;
+    var now = DateTime.UtcNow;
     var present = new HashSet<string>(AutoMarketService.SnapshotStock()
       .Select(s => $"{s.Container}:{s.Slot}:{s.ItemId}:{(s.HQ ? "hq" : "nq")}"));
     var pruned = 0;
-    foreach (var key in mine)
-      if (!present.Contains(key.Substring(prefix.Length)))
-        if (_routingReconcileSkip.Remove(key))
+    foreach (var entry in mine)
+      if (RoutingMove.ShouldPruneReconcileEntry(entry.Value, present.Contains(entry.Key.Substring(prefix.Length)), now))
+        if (_routingReconcileSkip.Remove(entry.Key))
           pruned++;
     if (pruned > 0)
       Svc.Log.Information($"[LMC] routing reconcile: {pruned} previously-moved stack(s) for '{session}' are no longer in place (landed or moved on) - back in the routing plan");
@@ -2538,8 +2549,10 @@ internal sealed class MarketAutomation : Window, IDisposable
   {
     if (okOps.Count == 0)
       return;
+    // 0.1.51.0: refresh the last-OK stamp (sticky window runs from the most recent OK).
+    var now = DateTime.UtcNow;
     foreach (var op in okOps)
-      _routingReconcileSkip.Add(RoutingMove.ReconcileKey(op.SessionRetainer, op.SrcContainer, op.SrcSlot, op.ItemId, op.HQ));
+      _routingReconcileSkip[RoutingMove.ReconcileKey(op.SessionRetainer, op.SrcContainer, op.SrcSlot, op.ItemId, op.HQ)] = now;
     var stuck = AutoMarketService.VerifyRoutingMovesLanded(okOps);
     var landed = okOps.Count - stuck.Count;
     if (stuck.Count == 0)
