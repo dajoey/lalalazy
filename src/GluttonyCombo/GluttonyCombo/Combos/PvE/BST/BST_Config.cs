@@ -16,7 +16,10 @@ internal partial class BST
     internal static class Config
     {
         public static UserInt
-            BST_MinFamiliarStay = new("BST_MinFamiliarStay", 10);
+            BST_MinFamiliarStay = new("BST_MinFamiliarStay", 10),
+            BST_CruciblePetSaveHp = new("BST_CruciblePetSaveHp", 15),
+            BST_CrucibleFinalStingHp = new("BST_CrucibleFinalStingHp", 40),
+            BST_CrucibleAggro = new("BST_CrucibleAggro", (int)CrucibleAggroMode.Shadow);
 
         public static UserBool
             BST_AllowPetlessCycling = new("BST_AllowPetlessCycling", false),
@@ -33,12 +36,20 @@ internal partial class BST
             BST_UseSoulCrush = new("BST_UseSoulCrush", true),
             BST_UseQuellingWaveRanged = new("BST_UseQuellingWaveRanged", true),
             BST_UseShieldCharge = new("BST_UseShieldCharge", true),
-            BST_UseRally = new("BST_UseRally", true);
+            BST_UseRally = new("BST_UseRally", true),
+            BST_Crucible = new("BST_Crucible", true),
+            BST_CrucibleAllowDisplacing = new("BST_CrucibleAllowDisplacing", true),
+            BST_CrucibleHornWarning = new("BST_CrucibleHornWarning", true);
 
         internal static void Draw(Preset preset)
         {
             switch (preset)
             {
+                case Preset.BST_ST_SimpleMode:
+                case Preset.BST_AoE_SimpleMode:
+                    DrawCrucible();
+                    break;
+
                 case Preset.BST_ST_AdvancedMode:
                 case Preset.BST_AoE_AdvancedMode:
                     ImGuiEx.TextUnderlined(BST_Config.SectionFamiliar);
@@ -94,11 +105,42 @@ internal partial class BST
                     DrawAdditionalBoolChoice(BST_UseRally,
                         FormatAndCache(BST_Config.UseRally0And1, Rally.ActionName(), RallyingCheer.ActionName()),
                         BST_Config.UseRallyDesc);
+
+                    DrawCrucible();
                     break;
 
                 default:
                     break;
             }
+        }
+
+        private static void DrawCrucible()
+        {
+            ImGui.Spacing();
+            ImGuiEx.TextUnderlined(BST_Config.SectionCrucible);
+            ImGui.TextWrapped(CrucibleStatusText());
+            ImGui.Spacing();
+
+            DrawAdditionalBoolChoice(BST_Crucible, BST_Config.Crucible, BST_Config.CrucibleDesc);
+            if (!BST_Crucible)
+                return;
+
+            DrawSliderInt(0, 50, BST_CruciblePetSaveHp,
+                FormatAndCache(BST_Config.CruciblePetSaveHp0, PartingBlow.ActionName()));
+
+            DrawSliderInt(5, 100, BST_CrucibleFinalStingHp,
+                FormatAndCache(BST_Config.CrucibleFinalStingHp0, TemperedRelease.ActionName()));
+
+            ImGui.TextUnformatted(FormatAndCache(BST_Config.CrucibleAggro0And1, Snarl.ActionName(), Challenge.ActionName()));
+            DrawHorizontalRadioButton(BST_CrucibleAggro, BST_Config.CrucibleAggroOff, BST_Config.CrucibleAggroDesc, (int)CrucibleAggroMode.Off);
+            DrawHorizontalRadioButton(BST_CrucibleAggro, BST_Config.CrucibleAggroShadow, BST_Config.CrucibleAggroDesc, (int)CrucibleAggroMode.Shadow);
+            DrawHorizontalRadioButton(BST_CrucibleAggro, BST_Config.CrucibleAggroOn, BST_Config.CrucibleAggroDesc, (int)CrucibleAggroMode.On);
+
+            DrawAdditionalBoolChoice(BST_CrucibleAllowDisplacing,
+                FormatAndCache(BST_Config.CrucibleAllowDisplacing0, TemperedRelease.ActionName()),
+                BST_Config.CrucibleAllowDisplacingDesc);
+
+            DrawAdditionalBoolChoice(BST_CrucibleHornWarning, BST_Config.CrucibleHornWarning, BST_Config.CrucibleHornWarningDesc);
         }
     }
 }

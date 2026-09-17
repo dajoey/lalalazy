@@ -21,6 +21,7 @@
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Data\ComboTelemetryFormat.cs" Link="ComboTelemetryFormat.cs" />
     <!-- The pure half of the Beastmaster BT| collector, asserted by the same harness. -->
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Data\BeastmasterTelemetryFormat.cs" Link="BeastmasterTelemetryFormat.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Data\CrucibleTelemetryFormat.cs" Link="CrucibleTelemetryFormat.cs" />
   </ItemGroup>
 
   <ItemGroup>

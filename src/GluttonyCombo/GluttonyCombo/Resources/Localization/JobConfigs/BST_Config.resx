@@ -201,4 +201,58 @@
   <data name="UseVileskinDesc" xml:space="preserve">
     <value>When an enemy is targeting the character.</value>
   </data>
+  <data name="SectionCrucible" xml:space="preserve">
+    <value>Crucible of the Unbroken</value>
+  </data>
+  <data name="Crucible" xml:space="preserve">
+    <value>Crucible rules</value>
+  </data>
+  <data name="CrucibleDesc" xml:space="preserve">
+    <value>Only on a Crucible board. Sends a familiar away with Parting Blow before it is knocked out, skips the Parting Blow exit as a round ends, borrows the Kinship the enemy panel calls for before the pull (interrupt, dispel, cleanse), dispels enemy buffs, cleanses debuffs, stops attacking enemies in a counter stance, never attacks zu eggs or morphos, and saves wespe's Final Sting as an execute.</value>
+  </data>
+  <data name="CruciblePetSaveHp0" xml:space="preserve">
+    <value>Send the familiar away with {0} at or below this HP %</value>
+  </data>
+  <data name="CrucibleFinalStingHp0" xml:space="preserve">
+    <value>Wespe's {0} (Final Sting) only at or below this target HP % (half with 2+ enemies)</value>
+  </data>
+  <data name="CrucibleAggro0And1" xml:space="preserve">
+    <value>{0} / {1}</value>
+  </data>
+  <data name="CrucibleAggroOff" xml:space="preserve">
+    <value>Off</value>
+  </data>
+  <data name="CrucibleAggroShadow" xml:space="preserve">
+    <value>Log only</value>
+  </data>
+  <data name="CrucibleAggroOn" xml:space="preserve">
+    <value>Use</value>
+  </data>
+  <data name="CrucibleAggroDesc" xml:space="preserve">
+    <value>Snarl on Directional Parry, on known single-target hits, or when the character is low; Challenge back when the parry drops or the familiar is low. Log only records the choice in the Beastmaster collector (CR| lines) without pressing anything.</value>
+  </data>
+  <data name="CrucibleAllowDisplacing0" xml:space="preserve">
+    <value>Allow knockback / draw-in {0} in the Crucible</value>
+  </data>
+  <data name="CrucibleAllowDisplacingDesc" xml:space="preserve">
+    <value>Solo content: moving the enemy costs nothing there. Overrides the general setting on Crucible boards only.</value>
+  </data>
+  <data name="CrucibleHornWarning" xml:space="preserve">
+    <value>Warn when no beasts are assigned</value>
+  </data>
+  <data name="CrucibleHornWarningDesc" xml:space="preserve">
+    <value>Horns deselect after every Crucible encounter. Out of combat, with the next battle's enemies present and all three horns empty, shows one warning.</value>
+  </data>
+  <data name="CrucibleHornWarningMessage" xml:space="preserve">
+    <value>Crucible: no beasts are assigned to the Battlehorns.</value>
+  </data>
+  <data name="CrucibleStatusOutside" xml:space="preserve">
+    <value>Not on a Crucible board.</value>
+  </data>
+  <data name="CrucibleStatusBoard0" xml:space="preserve">
+    <value>{0}: no panel enemy in sight.</value>
+  </data>
+  <data name="CrucibleStatusBattle0And1And2" xml:space="preserve">
+    <value>{0}: battle with {1} (panel needs: {2}).</value>
+  </data>
 </root>

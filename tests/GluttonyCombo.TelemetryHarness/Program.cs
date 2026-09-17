@@ -96,6 +96,7 @@ internal static class Program
             !ComboTelemetryFormat.ShouldEmit(seen, 3, 16457, 16457));
 
         BeastmasterCases();
+        CrucibleCases();
 
         Console.WriteLine(_fail == 0 ? "OK" : $"FAILED ({_fail} of {_pass + _fail})");
         return _fail == 0 ? 0 : 1;
@@ -330,6 +331,40 @@ internal static class Program
             lines <= changeTimes.Length, $"{lines} lines vs {changeTimes.Length} changes");
         Check("BST replay never exceeded 4 lines/s on average",
             lines <= activeMs / 250 + 1, $"{lines} lines over {activeMs}ms");
+    }
+
+    /// <summary> The Crucible of the Unbroken collector (CR|): line shape, flags, the change gate and rate floor. </summary>
+    private static void CrucibleCases()
+    {
+        Console.WriteLine("-- BST Crucible collector (CR|) --");
+        var f = CrucibleTelemetryFormat.Flags.TargetStance | CrucibleTelemetryFormat.Flags.TargetOnPlayer
+                | CrucibleTelemetryFormat.Flags.SnarlReady | CrucibleTelemetryFormat.Flags.Interruptible;
+        var snap = new CrucibleTelemetryFormat.Snapshot(
+            Board: 1, Battle: 1, Needs: 3, Enemies: 2, HighestEnemyHp: 87,
+            TargetNameId: 14531, TargetHp: 64, CastId: 46871, CastRemaining: 3.2f, Observed: f,
+            PlayerHp: 92, PetHp: 40, SlotPetHp: "40.0.0",
+            DecisionActionId: 1_000_004, DecisionReason: "crucible:hold-stance", Shadow: "aggro:snarl-parry");
+
+        var line = CrucibleTelemetryFormat.BuildLine(1_788_904_962_577, snap);
+        Check("CR| exact line shape",
+            line == "CR|1788904962577|b=1|bt=1|nd=ID|ne=2|hi=87|t=14531:64|c=46871:3.2|f=Sysi|hp=92|pet=40|sl=40.0.0|dec=1000004:crucible:hold-stance|sh=aggro:snarl-parry",
+            line);
+        Check("CR| no panel battle renders bt=-1", CrucibleTelemetryFormat.BuildLine(1, snap with { Battle = -1, Needs = 0 }).Contains("|bt=-1|nd=|"));
+        Check("CR| all flag letters in order",
+            CrucibleTelemetryFormat.BuildLine(1, snap with { Observed = (CrucibleTelemetryFormat.Flags)0x0FFF }).Contains("|f=DSXNPJCpysci|"));
+        var nasty = CrucibleTelemetryFormat.BuildLine(1, snap with { DecisionReason = "a|b\nc" + new string('x', 200), Shadow = "s|h" });
+        Check("CR| reasons cannot fabricate fields", nasty.Split('|').Length == line.Split('|').Length, nasty);
+        Check("CR| stays within the line budget", nasty.Length <= CrucibleTelemetryFormat.MaxLineLength, $"len={nasty.Length}");
+
+        var gate = new CrucibleTelemetryFormat.GateState();
+        long t = 1_000;
+        Check("CR| first snapshot emits", CrucibleTelemetryFormat.ShouldEmit(ref gate, t, snap));
+        t += 1_000;
+        Check("CR| unchanged snapshot does not emit", !CrucibleTelemetryFormat.ShouldEmit(ref gate, t, snap));
+        Check("CR| HP moving inside a 5% bucket does not emit", !CrucibleTelemetryFormat.ShouldEmit(ref gate, t, snap with { PlayerHp = 94, CastRemaining = 1f }));
+        Check("CR| a new cast emits", CrucibleTelemetryFormat.ShouldEmit(ref gate, t, snap with { CastId = 46866 }));
+        Check("CR| a change inside 250 ms is held back", !CrucibleTelemetryFormat.ShouldEmit(ref gate, t + 100, snap with { CastId = 0 }));
+        Check("CR| and emits once the window passes", CrucibleTelemetryFormat.ShouldEmit(ref gate, t + 260, snap with { CastId = 0 }));
     }
 
     private static void Check(string what, bool ok, string? detail = null)

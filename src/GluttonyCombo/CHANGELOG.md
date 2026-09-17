@@ -1,3 +1,21 @@
+## v1.0.4.207 (2026-09-17) [testing]
+### Added
+- **Beastmaster: Crucible of the Unbroken rules.** On a Crucible board (detected from the territory; the enemies of all five boards are matched by id from the game's own enemy-panel data), the rotation:
+  - sends a familiar away with Parting Blow (wespe with Final Sting) at 15% HP or lower, before it is knocked out, and does not bring a familiar last seen that low back out while Parting Blow is recasting;
+  - skips the normal Parting Blow exit once every enemy is below 10%, because a Parting Blow as a round ends can block summoning in the next round;
+  - borrows the Kinship the fight's enemy panel calls for before the pull (Soul Crush for an interruptible cast, Quelling Wave for a dispellable buff unless a vulture is on a horn, Scouring Ash for a cleansable debuff), then swaps to another horn;
+  - dispels enemy buffs with the vulture's Bloodcurdling Caw or Quelling Wave, and cleanses debuffs with Scouring Ash;
+  - stops attacking an enemy in Paralyzing Spikes or Needles Out (Ice Spikes and Blaze Spikes are dispelled when a dispel is available), never attacks zu eggs or morphos, and keeps Parting Blow, area Tempered Releases, Trick, Seedsower and Shield Charge away from them;
+  - holds wespe's Final Sting as an execute (target at 40% or lower, 20% with two or more enemies) and brings wespe out after the other horns;
+  - allows knockback and draw-in Tempered Releases.
+  (files: `Combos/PvE/BST/BST_CrucibleLogic.cs`, `Combos/PvE/BST/BST_Crucible.cs`, `Combos/PvE/BST/BST_CrucibleData.cs`, `Combos/PvE/BST/BST_CrucibleData.Generated.cs`, `Combos/PvE/BST/BST_RotationLogic.cs`)
+- **Snarl and Challenge decisions, logged only by default.** Snarl on Directional Parry, on single-target hits listed on the enemy panel, or when the character is low; Challenge when the parry drops or the familiar is low. "Log only" records the choice in the Beastmaster collector without pressing it; "Use" presses it.
+- **Crucible options for the Simple and Advanced Beastmaster presets:** Crucible rules on/off, pet-save HP, Final Sting HP, Snarl / Challenge (Off / Log only / Use), knockback and draw-in releases, and a warning when a battle's enemies are present with no beasts assigned to the Battlehorns. A status line names the board, the battle, and what its enemy panel calls for. (files: `Combos/PvE/BST/BST_Config.cs`, `Resources/Localization/JobConfigs/BST_Config.resx`)
+### Notes
+- With the Beastmaster collector on, a `CR|` line is written while on a Crucible board: board, battle, panel needs, enemy count and HP, target cast, observed statuses, character and familiar HP, the decision, and the logged-only Snarl / Challenge. (files: `Data/CrucibleTelemetryFormat.cs`, `Data/BeastmasterTelemetry.cs`)
+- Outside the Crucible every decision is unchanged. The offline BST harness now runs 761 checks: the existing 661, Crucible data integrity, every Crucible rule including the logged-only modes, and a Crucible simulator on boards 1-3 with familiar HP drain (no missed pet-save, no Parting Blow as a round ends, no familiar knocked out below the stress drain rate). (files: `tests/GluttonyCombo.BSTRotationHarness/Program.cs`, `tests/GluttonyCombo.TelemetryHarness/Program.cs`, `tools/bst-crucible/`)
+- Not yet verified in game: the first real run is the First Board of the Unbroken.
+
 ## v1.0.4.206 (2026-09-17) [testing]
 ### Fixed
 - **Smart Movement no longer walks through live telegraphs to reach the target.** Grading 1.0.4.205 logged an engage Move committed while 8 zones were live: the engage destination was zone-checked, but the path was not, so the character walked the straight corridor through live danger. While any zone is live and the straight corridor of a direct approach crosses one, the mover now holds position (no command, dodge memory kept) until the zones resolve; the dodge still fires first whenever the character is unsafe, a ring-swept sidestep around a covered destination still moves, and engaging with no zones live is unchanged. (files: `AutoRotation/SmartMoverCore.cs` - `Decide` engage corridor hold)
