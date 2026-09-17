@@ -6,7 +6,7 @@ namespace LazyMarketCompanion.AutoMarket;
 
 // Dalamud-free. Everything in this file is exercised by tests/LazyMarketCompanion.Harness.
 //
-// 0.1.40.0: the routing MOVER (Helm t-joey-1789190796770, Joey chose "build-mover"). Category routing
+// 0.1.40.0: the routing MOVER (the related support thread, the design decision was "build-mover"). Category routing
 // as shipped in 0.1.37.0 is a GATE - CategoryRouter.FilterForRetainer decides "may this item list on
 // THIS retainer" and an item sitting in the wrong retainer's inventory is skipped there, invisible
 // during the right retainer's session, so it never lists anywhere and never says why. That silence is
@@ -40,7 +40,7 @@ namespace LazyMarketCompanion.AutoMarket;
 // 0.1.43.0: a marked, marketable, non-excluded BAGS stack whose category matches no routing rule
 // is still never moved (there is no destination; fail-open unchanged) but is now REPORTED on the
 // plan (RoutingMovePlan.UnroutedBagsStacks) so the sweep can name it instead of passing over it
-// in silence - Helm t-joey-1789190796770: a Heavy Metal Culverin (Machinist's Arms, cat 77) sat
+// in silence: a Heavy Metal Culverin (Machinist's Arms, cat 77) sat
 // in the bags sweep after sweep, marked for Auto-Market, touched by nothing, said nothing.
 
 /// <summary>Which way a routing move goes. RetainerToBags frees misplaced stock for the assigned

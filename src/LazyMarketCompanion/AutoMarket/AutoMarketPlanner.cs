@@ -42,7 +42,7 @@ public sealed record PlanResult(IReadOnlyList<ListingOp> Ops, IReadOnlyList<stri
 /// The server's per-listing quantity cap. Patch 4.2 raised bag stacks from 99 to 999 but left "the maximum of 99 for
 /// items sold in markets" unchanged (Lodestone 4.2 notes); crystals/shards/clusters (bag stack 9999) list up to 9999.
 /// A MoveToRetainerMarket above the cap is not refused with an error - the server drops the connection
-/// (Joey, 2026-09-05: 4854 HQ x297 -> kicked to title 312 ms later; seven crystal x500 ops the same day were fine).
+/// (Testing, 2026-09-05: 4854 HQ x297 -> kicked to title 312 ms later; seven crystal x500 ops the same day were fine).
 /// DailyRoutines' PriceAdjustWorker clamps the same way (TryGetItemUpshelfCountLimit: StackSize == 9999 ? 9999 : 99).
 /// </summary>
 public static class MarketListingCap
@@ -58,7 +58,7 @@ public static class AutoMarketPlanner
 {
 
 /// <summary>
-/// Board-budget probe for the LISTING plan (0.1.46.0 gate, Helm t-joey-1789190796770, "it just
+/// Board-budget probe for the LISTING plan (0.1.46.0 gate, the related support thread, "it just
 /// moves the same stuff around"): true when the open retainer's board can accept a listing this
 /// session. 0.1.47.0: the routing mover no longer consults this - organizing inventory (pulling
 /// misplaced stock to the bags, depositing assigned stock into the assigned retainer's pages)

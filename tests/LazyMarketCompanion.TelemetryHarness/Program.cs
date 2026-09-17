@@ -15,7 +15,7 @@ namespace LazyMarketCompanion.TelemetryHarness;
 ///     shipping.
 /// </summary>
 /// <remarks>
-///     The last block replays every sale line Joey's retainers actually produced on
+///     The last block replays every sale line the retainers actually produced on
 ///     2026-09-05 (16 rows, ffxivdb chat_lines channel='retainer') through the join
 ///     shape the tap exists to serve: parse the MT| side, parse the sale side, match on
 ///     item id, and assert the join produces realised gil per listing. A tap whose join
@@ -205,7 +205,7 @@ internal static class Program
 
     private static void QuantityResolution()
     {
-        // Joey's real 2026-09-05 retainer shape: 7 ice-crystal listings, all NQ, plus other items.
+        // The real 2026-09-05 retainer shape from testing: 7 ice-crystal listings, all NQ, plus other items.
         var market = Market(
             (0, 7, false, 500), (1, 7, false, 500), (2, 7, false, 500), (3, 7, false, 455),
             (4, 2001763, false, 5), (5, 5106, false, 99), (6, 38957, true, 1));
@@ -244,7 +244,7 @@ internal static class Program
 
     private static void JoinShape()
     {
-        // Every sale line Joey's retainers produced on 2026-09-05 (ffxivdb chat_lines,
+        // Every sale line the retainers produced on 2026-09-05 (ffxivdb chat_lines,
         // channel='retainer'), verbatim. The join has to survive the REAL text: pluralised
         // collective nouns ("chunks of iron ore"), singular "has sold", commas in the gil.
         var sales = new (long UnixMs, string Text)[]

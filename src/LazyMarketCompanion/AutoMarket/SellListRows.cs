@@ -57,8 +57,7 @@ public sealed record PlaceholderScan(
 ///
 ///   WHICH LISTINGS ARE MINE?  <see cref="ScanPlaceholders"/> - the market CONTAINER. A slot qualifies only
 ///   if this run listed into it AND it is still sitting at the Auto-Market placeholder price
-///   (999,999,999 gil by default). No item names, no UI text, no ordering. This is Joey's own instruction
-///   (2026-09-05): "there has to be a way to see what my listings are and select the one with the WILDLY
+///   (999,999,999 gil by default). No item names, no UI text, no ordering. This is the standing instruction from testing (2026-09-05): "there has to be a way to see what my listings are and select the one with the WILDLY
 ///   INFLATED PRICE". A listing someone made by hand is never at that price, so it is not reachable at all.
 ///
 ///   WHICH ROW IS IT ON?  <see cref="MatchBySlot"/> - the addon's own per-row slot reading

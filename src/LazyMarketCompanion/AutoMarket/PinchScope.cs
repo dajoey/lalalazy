@@ -23,7 +23,7 @@ public enum PinchAfterMarket
 ///
 /// <code>if (Plugin.Configuration.AutoMarketPinchAllAfter || _listedThisRetainer.Count == 0)</code>
 ///
-/// The second half of that <c>||</c> is what Joey reported on 2026-09-05: "It did the first retainer
+/// The second half of that <c>||</c> is what was reported in testing on 2026-09-05: "It did the first retainer
 /// correctly. none of the other retainers needed auto-market b/c they were full. and so it re-pinched all of
 /// their items." A retainer whose market board is full plans zero listings, so <c>_listedThisRetainer</c> is
 /// empty, so the clause fired and the run did a full 20-row re-pass on a retainer it had not touched at all.

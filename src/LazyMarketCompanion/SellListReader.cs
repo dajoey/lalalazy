@@ -13,7 +13,7 @@ namespace LazyMarketCompanion;
 ///
 /// This exists because 0.1.3.0 did the opposite - it computed a row from the market container on the
 /// assumption that "the list shows occupied slots in ascending container order" and then verified the guess.
-/// The guess was wrong on 5 of 5 measured runs on Joey's client (2026-09-05) and the failure path re-priced
+/// The guess was wrong on 5 of 5 measured runs on the test client (2026-09-05) and the failure path re-priced
 /// every listing. Reading is not guessing, so this class replaces the assumption entirely.
 ///
 /// TWO READINGS, deliberately, because they fail in different situations:

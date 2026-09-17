@@ -23,7 +23,7 @@ namespace LazyMarketCompanion.AutoMarket;
 //                                here would stop a sweep that was about to succeed)
 //   * entrust entry found     -> OpenPanel (one SelectString click)
 //   * menu ready, no entry    -> MenuMissingEntry - a REAL failure: the sweep stops on purpose
-//                                (stop-on-failure, Joey's pick on Helm t-joey-1788757755566)
+//                                (stop-on-failure, the design decision in the related support thread)
 
 /// <summary>What the vendoring leg's menu-open step should do on this tick.</summary>
 public enum VendorMenuDecision

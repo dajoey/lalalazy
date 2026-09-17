@@ -179,7 +179,7 @@ PlannerOptions Opts(int reserve = 0, bool retFirst = true, bool partial = false)
   Check("MarketListingCap.For: 999 -> 99, 99 -> 99, 1 -> 99, 9999 -> 9999", MarketListingCap.For(999) == 99 && MarketListingCap.For(99) == 99 && MarketListingCap.For(1) == 99 && MarketListingCap.For(9999) == 9999);
 }
 
-// 16. Crystals are the exception: bag stack 9999, market accepts 9999 -> Joey's x500 crystal rules go out untouched
+// 16. Crystals are the exception: bag stack 9999, market accepts 9999 -> the x500 crystal rules go out untouched
 //     (seven x500 Ice Crystal ops listed fine on 2026-09-05 15:12).
 {
   const uint IceCrystal = 9;
@@ -191,7 +191,7 @@ PlannerOptions Opts(int reserve = 0, bool retFirst = true, bool partial = false)
 }
 
 // 17. "Stack size 0 = item max" resolves to 999 for ore at the service layer; the planner must still cap it at 99.
-//     (Joey has ~40 rules at StackSize 0 on 999-stack items; 12539 x15 succeeded only because he held 15.)
+//     (the test profile has ~40 rules at StackSize 0 on 999-stack items; 12539 x15 succeeded only because 15 were held.)
 {
   var stock = new List<StockStack> { new(StockOrigin.Bags, Bags1, 0, Ore, false, 999) };
   var r = AutoMarketPlanner.Plan([Rule(Ore, 999, itemMax: 999)], stock, EmptyMarket(), Opts(partial: false));
@@ -218,7 +218,7 @@ List<MarketSlot> SlotOrdered(params (int Slot, uint ItemId)[] filled)
   return m;
 }
 
-// 18. Slot-ordered list: the mapping is correct, and it is Joey's real 2026-09-05 15:12 shape.
+// 18. Slot-ordered list: the mapping is correct, and it is the real 2026-09-05 15:12 shape from testing.
 {
   // 13 existing listings then 7 new Ice Crystal stacks into slots 3,7,9,10,11,12,15 -> 20/20.
   const uint IceCrystal = 9, Other = 5111;
@@ -279,7 +279,7 @@ List<MarketSlot> SlotOrdered(params (int Slot, uint ItemId)[] filled)
 // =====================================================================================
 // SellListRows - the 0.1.5.0 replacement for the row/slot GUESS above.
 // The old mapping assumed "the sell list shows occupied slots in ascending container order". That was
-// measured WRONG on 4 of 4 Auto-Market runs on Joey's client on 2026-09-05, and its safe fallback was
+// measured WRONG on 4 of 4 Auto-Market runs on the test client on 2026-09-05, and its safe fallback was
 // "re-price the whole retainer" - i.e. the very behaviour the feature existed to remove. These cases
 // replay those four runs and pin that reading the rows resolves what guessing them could not.
 // =====================================================================================
@@ -451,7 +451,7 @@ List<MarketSlot> MarketOf(params (int Slot, uint ItemId)[] filled)
 // distinct, marketable item whose name is a strict prefix of the other. Two defects in one line:
 // the resolver failing OPEN, and one unrelated row vetoing the batch.
 //
-// Joey's answer to all of it (2026-09-05): "It should figure it out. there has to be a way to see what my
+// The answer from testing (2026-09-05): "It should figure it out. there has to be a way to see what my
 // listings are and select the one with the WILDLY INFLATED PRICE." So identification is now the market
 // CONTAINER's price, and the name is a corroborator that may never veto a row it is not pricing.
 //
@@ -582,7 +582,7 @@ var Catalogue = new (uint Id, string Name)[]
   // HALF ONE: the 0.1.5.0 global cross-check vetoes, and reproduces the logged sentence verbatim.
   var vetoed = V0150CrossCheckVetoes(rowsOld, market, out var oldWhy);
   Check("20:37:48 replay: the 0.1.5.0 GLOBAL cross-check vetoes the batch", vetoed);
-  Check("20:37:48 replay: ...with the exact sentence from Joey's log",
+  Check("20:37:48 replay: ...with the exact sentence from the test log",
     oldWhy == "row 0 says it is slot #5 (item 41878) but it is showing item 44024", oldWhy ?? "(no veto)");
 
   // HALF TWO: with the resolver fixed, row 0 reads as unknown, and the scoped cross-check ignores it anyway.
@@ -715,7 +715,7 @@ var Catalogue = new (uint Id, string Name)[]
     MarketRowMap.RowCountAgrees(market, rows.Count));
 }
 
-// 31. How much of a retainer an Auto-Market pass may re-price. Joey, 2026-09-05 22:02: "It did the first
+// 31. How much of a retainer an Auto-Market pass may re-price. Testing, 2026-09-05 22:02: "It did the first
 //     retainer correctly. none of the other retainers needed auto-market b/c they were full. and so it
 //     re-pinched all of their items." A retainer this run listed NOTHING into must get nothing priced.
 {
@@ -747,7 +747,7 @@ var Catalogue = new (uint Id, string Name)[]
       && PinchScope.Decide(false, 0) != PinchAfterMarket.FullRePass
       && PinchScope.Decide(false, 1) != PinchAfterMarket.FullRePass);
 
-  // Joey's sweep, 22:27:29 -> 22:30:03: 3 listings, board full, 1 listing, board full.
+  // The test sweep, 22:27:29 -> 22:30:03: 3 listings, board full, 1 listing, board full.
   var sweep = new[] { 3, 0, 1, 0 };
   var decided = sweep.Select(n => PinchScope.Decide(false, n)).ToList();
   Check("sweep replay: 2 of the 4 retainers price their new listings and 2 price nothing at all",
@@ -761,7 +761,7 @@ var Catalogue = new (uint Id, string Name)[]
 }
 
 // 32. Empty-board fallback: median of the recent data-centre sales, with a staleness guard.
-//     Joey, 2026-09-06 (Helm t-joey-1788708564633, option A "median-with-staleness-guard"):
+//     Testing, 2026-09-06 (the related support thread, option A "median-with-staleness-guard"):
 //     "When auto-marketing something that has nothing else on the board, it should set the
 //     universalis suggested price." Universalis has no such field, so this is what we build instead.
 //     Every number below is a REAL measurement taken from Universalis on 2026-09-06, not a fixture.
@@ -840,7 +840,7 @@ var Catalogue = new (uint Id, string Name)[]
   Check("history: a legitimate wide window (365 d) does price an item that sold 100 days ago",
     SaleHistoryPricing.Evaluate([S(777, Now - (100 * Day))], Now, 365, true).UnitPrice == 777);
 
-  // --- the shipped defaults are the ones Joey chose ---
+  // --- the shipped defaults are the ones chosen in testing ---
   Check("history: the shipped freshness window is the 30 days on the decision card",
     SaleHistoryPricing.DefaultMaxAgeDays == 30);
   Check("history: the shipped sample size is 20 recent sales",
@@ -895,7 +895,7 @@ var Catalogue = new (uint Id, string Name)[]
       && PriceMath.Candidate(1, false, UndercutMode.Percentage, 99, false) == 1);
 }
 
-// 33. Auto Pinch pre-flight, flags-only: replay Joey's 2026-09-06 11:26-11:36 sweep THROUGH AllaganMarket's
+// 33. Auto Pinch pre-flight, flags-only: replay the 2026-09-06 11:26-11:36 test sweep THROUGH AllaganMarket's
 //     cache. 55 rows were priced that night: 16 new listings (placeholder -> real, still not this feature's
 //     business) and 39 EXISTING listings re-priced. 17 of those 39 came out at exactly the price they already
 //     had, and 3 moved by a rounding error (243->242, 400->399, 30971->30951). Under the flags-only rule the
@@ -1057,7 +1057,7 @@ var Catalogue = new (uint Id, string Name)[]
   Check("flags: NEGATIVE CONTROL - the same row on OUR world is a real undercut -> walked",
     One(Row(7006, false, 100), Flags("7006,N,95,0,09/06/2026 22:30:00,50,N")) == PinchVerdict.Walk);
 
-  // 7 - quality: MatchingQuality (Joey's setting) reads the listing's own quality for the undercut
+  // 7 - quality: MatchingQuality (the default setting) reads the listing's own quality for the undercut
   //     lookup, while staleness looks at BOTH qualities (NeedsUpdate takes the newest of the two).
   var hqMissing = Flags("7007,N,95,0,09/06/2026 22:30:00,10,N");
   Check("flags: MatchingQuality - an HQ listing with only a fresh NQ cache row is not undercut (NQ row is not the HQ recommendation)",
@@ -1415,7 +1415,7 @@ var Catalogue = new (uint Id, string Name)[]
 // 38. THE FIFTH REPORT, replayed under the flags-only rule (2026-09-06 21:22-21:26). The manual Auto
 //     Pinch pass walked 23 rows: 14 real undercuts and 9 exact no-ops on rows AllaganMarket showed NO
 //     verdict for (its overlay rendered them unmarked - no cache row beyond the own-price write that
-//     makes them green-by-own-price). Joey's binding correction: "I never asked the plugin to remember
+//     makes them green-by-own-price). The binding correction from testing: "I never asked the plugin to remember
 //     it. I asked you to go by allagan market's flagged items." So the 0.1.13.0 board memory is GONE
 //     and the rule is: walk iff AllaganMarket's data flags the row. The 14 undercut rows (strangers'
 //     cache rows below them) walk; the 9 no-op rows - freshly own-priced in the cache, never undercut,
@@ -1482,7 +1482,7 @@ var Catalogue = new (uint Id, string Name)[]
     decisions.Where(d => d.Verdict == PinchVerdict.Walk)
       .All(d => d.Reason == "AllaganMarket flags this listing undercut"));
 
-  // The summary line for Joey's log grading.
+  // The summary line for test-log grading.
   Check("fifth replay: the summary line reads walked 14, skipped 9 not flagged",
     PinchPreflight.Summarize(decisions)
       == "pinch pre-flight: walking 14 of 23 row(s); skipped 9 not flagged by AllaganMarket (14 flagged undercut, 0 flagged stale, 0 placeholder)",
@@ -1496,7 +1496,7 @@ var Catalogue = new (uint Id, string Name)[]
       new Dictionary<uint, ItemQuote>(), options, Now, flags)[0].Verdict == PinchVerdict.Walk);
 
   // b) THE CONTROL in the other direction: an unflagged row that UNIVERSALIS calls undercut is still
-  //    skipped. Universalis may not overrule the flag - this is the exact failure Joey rejected when
+  //    skipped. Universalis may not overrule the flag - this is the exact failure rejected in testing when
   //    the pre-flight walked rows AllaganMarket had no opinion on.
   var unflaggedButUniversalisCheap = new Dictionary<uint, ItemQuote>
   {
@@ -1547,8 +1547,7 @@ var Catalogue = new (uint Id, string Name)[]
 // 39. THE VENDOR NO-OP (t_6223b845, 0.1.12.0 shipped defect): VendorOp.Container carried the
 //     StockOrigin enum (Bags=0/Retainer=1) instead of the stack's real game InventoryType, so every
 //     op addressed Inventory1/Inventory2 rather than Inventory1-4/RetainerPage1-7. The pre-call slot
-//     re-read read the WRONG container, found no matching stack, and all 7 ops aborted - Joey's
-//     2026-09-07 23:20 run vendored 0/7. The regression pin: the op's container IS the stock stack's.
+//     re-read read the WRONG container, found no matching stack, and all 7 ops aborted - the 2026-09-07 23:20 test run vendored 0/7. The regression pin: the op's container IS the stock stack's.
 {
   const uint Item = 5111;
   var stock = new List<StockStack>
@@ -1622,7 +1621,7 @@ var Catalogue = new (uint Id, string Name)[]
 //     market board (0 free slots), the gate planned vendoring but the session ended before the
 //     vendor trigger was queued - plan had 0 listing ops, BuildListingStepsNow returned early, and
 //     BuildVendoringSteps (which 0.1.15.0 never called from anywhere) never ran. The run "planned 1
-//     op, executed 0, said nothing" (Joey's 01:05:56 log). The pins here: the vendor decision is
+//     op, executed 0, said nothing" (the 01:05:56 test log). The pins here: the vendor decision is
 //     INDEPENDENT of market slots (a full board still yields vendor ops for held-back stock), the
 //     full-board pinch scope is Nothing, and a planned-but-unexecuted leg renders the honest
 //     failure clause in the done line.
@@ -1659,8 +1658,7 @@ var Catalogue = new (uint Id, string Name)[]
     plannedNotRun);
 }
 
-// 42. THE VENDOR LEG'S MENU-OPEN DECISION + STOP-ON-FAILURE (t_8dc20a2b, Joey's pick on Helm
-//     t-joey-1788757755566). Two 0.1.15.1 defects: the menu-open step glanced ONCE (135 ms after
+// 42. THE VENDOR LEG'S MENU-OPEN DECISION + STOP-ON-FAILURE (t_8dc20a2b, the design decision in the related support thread). Two 0.1.15.1 defects: the menu-open step glanced ONCE (135 ms after
 //     the sell-list close was queued) and the trigger failure left close steps that could only
 //     time out - the "Clearing 53 remaining tasks" abort that wiped retainers 2-4 at 01:45:28.
 //     The decision table lives in AutoMarket/VendorMenuGate.cs; the stop-on-failure contract is
@@ -1704,7 +1702,7 @@ var Catalogue = new (uint Id, string Name)[]
     DoneLine.Format(0, 0, 0, 0, 1) == "done: 0 new listing(s), 1 vendoring op(s) failed (see log).");
 
   // The stop messages must name the reason AND that the sweep stopped on purpose. Pinned so the
-  // words "stopped the sweep" survive refactors - that is the sentence Joey reads in chat.
+  // words "stopped the sweep" survive refactors - the sentence players read in chat.
   var chat = "value gate: vendoring stopped the sweep - the retainer bell menu never reopened after the sell list closed (waited 10 s) - the vendoring leg could not run";
   Check("43 stop: the chat line names the reason and says the sweep stopped",
     chat.Contains("vendoring stopped the sweep") && chat.Contains("menu never reopened"),
@@ -1744,7 +1742,7 @@ var Catalogue = new (uint Id, string Name)[]
 }
 
 
-// 45. AUTO-MARKET BAG MARKERS (Helm t-joey-1788794153572): the marker predicate is the exact
+// 45. AUTO-MARKET BAG MARKERS (the related support thread): the marker predicate is the exact
 //     listing predicate - an entry exists AND is Enabled. Anything else (no entry, disabled
 //     entry) is NOT marked, because BuildPlan consumes only Enabled entries and a marker on a
 //     disabled entry would promise a listing that never happens.
@@ -1791,7 +1789,7 @@ var Catalogue = new (uint Id, string Name)[]
     MarkerMatch.IsMarked(dupes2, Dye, hq: false) == true);
 }
 
-// 46. GRID-TO-CONTAINER PAIRING (Helm t-joey-1788804058029): 0.1.17.0 paired each grid addon with
+// 46. GRID-TO-CONTAINER PAIRING (the related support thread): 0.1.17.0 paired each grid addon with
 //     a container by a fixed index table - Grid0E was treated as the THIRD bag page - which is
 //     wrong in the expanded view (each E-grid shows its own page by name identity: Grid0E is bag
 //     0) and meaningless in the tabbed view (the single panel follows the parent Inventory
@@ -1963,7 +1961,7 @@ var Catalogue = new (uint Id, string Name)[]
     MarketGate.UsableQuote(stale[19990], Rule(19990, 99).HQ, preferHq: true, Now, Fresh) == null);
 }
 
-// 48. THE TWO-STATE BAG MARKER (0.1.21.0). Joey: "if it be put on the marketboard at all ever, it
+// 48. THE TWO-STATE BAG MARKER (0.1.21.0). Testing notes: "if it be put on the marketboard at all ever, it
 // should have an indicator on it saying whether it's on my automarket list or not." The marker now
 // has THREE outcomes per stack: green (on the Auto-Market list, enabled), grey (marketable but NOT
 // on the list), and NO dot (cannot go on the market board at all). The separator logic is pure and
@@ -2252,7 +2250,7 @@ var Catalogue = new (uint Id, string Name)[]
 //     2.5 px ABOVE the cell's top edge, most of the circle outside the cell. On the stacked
 //     expanded-mode E-grids a top-row dot visually landed on the bottom row of the grid above
 //     (a different bag); in sparse bags it read as attached to whatever sits in the cell above
-//     ("dots in seemingly random locations", Helm t-joey-1788992037468, version 0.1.30.0).
+//     ("dots in seemingly random locations", the related support thread, version 0.1.30.0).
 //     Since 0.1.31.0 the center is CornerInset px in from the right edge and CornerInset px
 //     below the top edge - fully inside the cell - and the window is placed one radius up-left
 //     of the center so the circle is exactly inscribed.
@@ -2443,7 +2441,7 @@ var Catalogue = new (uint Id, string Name)[]
     DoneLine.Format(3, 1, 2, 0, 0) == "done: 3 new listing(s), 1 skipped (stock moved), 2 vendored.");
 }
 
-// 57. DISPLAY SLOT vs CONTAINER SLOT (Helm t-joey-1788992037468, card t_b8b79277). 0.1.32.0 and
+// 57. DISPLAY SLOT vs CONTAINER SLOT (the related support thread, card t_b8b79277). 0.1.32.0 and
 //     earlier read container->Items[i] and painted the verdict onto grid->Slots[i], i.e. it assumed
 //     the game's item order is always the identity permutation. It is not: the four bag pages are
 //     drawn from ItemOrderModule's player-inventory sorter, whose entry f addresses container slot
@@ -2472,7 +2470,7 @@ var Catalogue = new (uint Id, string Name)[]
   Check("57 order: IsIdentity recognises the identity order for its own bag",
     SlotOrder.IsIdentity(ident, 2));
 
-  // THE REGRESSION CASE, rebuilt from Joey's 19:17 screenshot + the plugin's own 19:16:07 log:
+  // THE REGRESSION CASE, rebuilt from the 19:17 test screenshot + the plugin's own 19:16:07 log:
   // 60 stacks packed contiguously into the first two on-screen blocks, while the CONTAINERS hold
   // 35/15/7/3 across all four pages. Grid 2 and grid 3 display nothing at all.
   var packed = new List<SlotOrder.SortEntry>();
@@ -2548,7 +2546,7 @@ var Catalogue = new (uint Id, string Name)[]
     SlotOrder.Resolve(Identity(), PerPage, 0, 0).Count == 0);
 }
 
-// 58. RETAINER MARKERS (0.1.34.0, Helm t-joey-1789056199442: "now we need to make the dots work on
+// 58. RETAINER MARKERS (0.1.34.0, the related support thread: "now we need to make the dots work on
 //     retainer inventory"; CORRECTED 0.1.36.0, kanban t_eeb284dd, same Helm thread's follow-up bug
 //     report: the retainer grid uses its OWN distinct addon names ("RetainerGrid" normal,
 //     "RetainerGrid0".."RetainerGrid6" expanded), never a reuse of the player's "InventoryGrid"
@@ -2570,7 +2568,7 @@ var Catalogue = new (uint Id, string Name)[]
   Check("58 retainergridmap: unknown grid names are ignored",
     RetainerGridMap.Resolve(["SomeOtherGrid", "RetainerGrid"], 1).Count == 1);
   // THE CORE 0.1.36.0 FIX: the player's own bag addon names must NEVER be treated as retainer grids.
-  // This is the exact defect Joey reported - the old code scanned for "InventoryGrid"/"InventoryGrid0"/
+  // This is the exact defect reported in testing - the old code scanned for "InventoryGrid"/"InventoryGrid0"/
   // "InventoryGrid1" while a retainer window was open and bound whichever of THOSE it found to a
   // retainer page, painting the retainer's stock onto the PLAYER's own bag cells.
   Check("58 retainergridmap CORE FIX: player bag addon names are never bound as retainer grids",
@@ -2668,11 +2666,11 @@ var Catalogue = new (uint Id, string Name)[]
     ListingConfirmation.ShouldRetryNow(true, 20000, 7500) == false);
 }
 
-// 60. CATEGORY ROUTING (t_1460e386, Joey's "category-routing" choice): the eligibility rule and the
+// 60. CATEGORY ROUTING (t_1460e386, the "category-routing" decision): the eligibility rule and the
 //     per-retainer rule-list filter. Case (a) empty CategoryRetainerRules = no restriction anywhere
 //     (regression guard for every existing install, per the release checklist). Case (b)
 //     ExcludeFromCategoryRouting=true bypasses an active mapping. Case (c) a non-marketable item is
-//     eligible on every retainer regardless of mapping - Joey's binding note ("only handle marketable
+//     eligible on every retainer regardless of mapping - the binding note from testing ("only handle marketable
 //     items") must hold even when a category rule exists for its category id.
 {
   const uint Category1 = 44; // arbitrary "section" id, matches neither real sheet - the rules are id-agnostic

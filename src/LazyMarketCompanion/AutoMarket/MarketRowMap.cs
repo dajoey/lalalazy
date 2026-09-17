@@ -10,7 +10,7 @@ namespace LazyMarketCompanion.AutoMarket;
 /// ascending container order".
 ///
 /// THAT ASSUMPTION IS FALSE and is MEASURED false, so nothing here may be used to decide which row to
-/// price. On Joey's client it was wrong on 4 of 4 Auto-Market runs on 2026-09-05 (row 17 held Ice Crystal,
+/// price. On the test client it was wrong on 4 of 4 Auto-Market runs on 2026-09-05 (row 17 held Ice Crystal,
 /// rows 3/12 held Heavens' Eye Materia VII and Zormor Stone Lantern, row 19 held Table Orchestrion, row 10
 /// held Liquid Glass); 0.1.3.0's guards refused every one and its fallback re-priced the whole retainer,
 /// which is the bug users actually saw. <see cref="SellListRows"/> replaced all of it: the row/slot pairing

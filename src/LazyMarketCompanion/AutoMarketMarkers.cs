@@ -17,12 +17,12 @@ using System.Numerics;
 namespace LazyMarketCompanion;
 
 /// <summary>
-/// At-a-glance Auto-Market markers on the player's bag windows (Helm t-joey-1788794153572): a small
+/// At-a-glance Auto-Market markers on the player's bag windows (the related support thread): a small
 /// dot inside the top-right corner of every bag slot whose stack is market-relevant. Since 0.1.31.0
 /// the dot's center is anchored INSIDE the slot's cell; until 0.1.30.0 it hung off the cell's
 /// top-right corner and read as a dot on a nearby slot.
 ///
-/// TWO STATES, one per kind of stack (0.1.21.0, per Joey: "if it be put on the marketboard at all
+/// TWO STATES, one per kind of stack (0.1.21.0, per testing notes: "if it be put on the marketboard at all
 /// ever, it should have an indicator on it saying whether it's on my automarket list or not"):
 /// - GREEN dot: this stack is on the Auto-Market list (enabled) - the next Auto-Market run would
 ///   list it. This is the original 0.1.17.0 marker meaning, unchanged.
@@ -55,7 +55,7 @@ namespace LazyMarketCompanion;
 /// display position. Reading container slot i and painting the result on grid cell i therefore
 /// marked the right stacks in the wrong places: with 60 stacks packed into the first two on-screen
 /// blocks, the dots computed for Inventory3/Inventory4 landed on two grids that were displaying
-/// nothing at all - correctly-anchored dots floating on empty cells (Helm t-joey-1788992037468).
+/// nothing at all - correctly-anchored dots floating on empty cells (the related support thread).
 /// Since 0.1.33.0, SlotOrder.cs resolves each grid's display slots to the container slots the game
 /// is actually drawing in them, and an unreadable order suppresses that grid's dots entirely.
 ///
@@ -64,14 +64,12 @@ namespace LazyMarketCompanion;
 /// "InventoryGrid"/"InventoryGrid0E" etc. names (0.1.36.0 CORRECTION, kanban t_eeb284dd: the 0.1.34.0
 /// "reused addons" assumption below was proven wrong - see RetainerGridMap's class remarks for the
 /// corroborating evidence, principally that CriticalCommonLib, decompiled from InventoryTools
-/// 1.15.0.12 running live on Joey's own client, declares RetainerGrid/RetainerGridN as names distinct
+/// 1.15.0.12 running live on the test client, declares RetainerGrid/RetainerGridN as names distinct
 /// from InventoryGrid/InventoryGridNE). Since 0.1.34.0 the SAME two-state marker is drawn against the
-/// active retainer's own stock while InventoryRetainer/InventoryRetainerLarge is open (Helm
-/// t-joey-1789056199442: "now we need to make the dots work on retainer inventory"); since 0.1.36.0
+/// active retainer's own stock while InventoryRetainer/InventoryRetainerLarge is open (the related support thread: "now we need to make the dots work on retainer inventory"); since 0.1.36.0
 /// this runs UNCONDITIONALLY alongside the player-bag pass rather than as an either/or branch, because
 /// there is no longer any addon-name collision to arbitrate between them - the player's own bag dots
-/// now keep showing even while a retainer's storage window is open alongside them (Joey's exact
-/// regression report: "the ones in my own inventory didn't show when my retainer's inventory was up").
+/// now keep showing even while a retainer's storage window is open alongside them (the exact regression report from testing: "the ones in the player's own inventory didn't show when my retainer's inventory was up").
 /// RetainerGridMap.cs resolves the live grid to a retainer PAGE via the retainer addon's TabIndex
 /// (0-6, up to 7 pages - InventoryType.RetainerPage1..7, not the player's fixed 4) in normal mode, or
 /// by fixed RetainerGridN name identity in expanded mode; the display order for that page comes from
@@ -181,13 +179,13 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
     {
       unsafe
       {
-        // 0.1.36.0 CORRECTION (kanban t_eeb284dd, Helm t-joey-1789056199442 follow-up): the retainer
+        // 0.1.36.0 CORRECTION (kanban t_eeb284dd, the related support thread follow-up): the retainer
         // storage grid is now known to be a DISTINCT addon name family ("RetainerGrid"/"RetainerGridN"
         // - see RetainerGridMap's class remarks for the corroborating evidence), never a reuse of the
         // player's "InventoryGrid"/"InventoryGrid0"/"InventoryGrid1" names. There is therefore no
         // longer any name collision between the two branches, and no reason for them to be mutually
         // exclusive: both run every frame, independently, so the player's own bag dots keep showing
-        // even while a retainer's storage window is open alongside them (Joey: "the ones in my own
+        // even while a retainer's storage window is open alongside them (Testing notes: "the ones in the player's own
         // inventory didn't show when my retainer's inventory was up").
         DrawPlayerBagMarkers();
         DrawRetainerMarkersIfOpen();
@@ -613,7 +611,7 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
       // top-right corner minus the inset in BOTH axes (top - inset), so the dot's center was
       // 2.5 px ABOVE the cell's top edge and most of the circle hung outside the cell - on the
       // stacked E-grids it read as a dot on the grid above (a different bag), in sparse bags as
-      // a dot on the cell above ("seemingly random locations", Helm t-joey-1788992037468).
+      // a dot on the cell above ("seemingly random locations", the related support thread).
       ImGuiHelpers.SetNextWindowPosRelativeMainViewport(MarkerAnchor.WindowPosition(position, size));
       ImGui.PushStyleColor(ImGuiCol.WindowBg, 0);
       // 0.1.22.0: zero padding/border like MarketAutomation.ImGuiSetup - the default padding shifted every dot a full padding-size off its cell corner onto the neighbour cell (dots on empty slots in half-empty bags). 0.1.31.0: with the anchor now absolute (MarkerAnchor), zeroed padding is belt-and-braces rather than load-bearing.

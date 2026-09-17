@@ -13,14 +13,14 @@ namespace LazyMarketCompanion;
 // so keeping it in the parent namespace means Configuration.cs needs no new using directive, and the
 // AutoMarket namespace still sees everything here because C# searches enclosing namespaces.
 //
-// Category routing (Helm thread t-joey-1789092103262, Joey chose "category-routing"): a whole
+// Category routing (the related support thread, the design decision was "category-routing"): a whole
 // market-board search category (Item.ItemSearchCategory.RowId - the market board "section" grouping,
 // NOT the finer ItemUICategory) can be assigned to one retainer; Auto-Market then only lists an item of
 // that category on the retainer it is assigned to. A per-item "skip routing" checkbox
 // (AutoMarketItem.ExcludeFromCategoryRouting) opts an item out entirely - it sells normally from
 // wherever it already sits, on every retainer, exactly like before this feature existed.
 //
-// BINDING NOTE FROM JOEY (must hold): "Make sure to only handle marketable items." A non-marketable
+// BINDING NOTE (must hold): "Make sure to only handle marketable items." A non-marketable
 // item is ALWAYS eligible everywhere - routing is a no-op for it, the exact same test the two-dot
 // marker system already uses (ItemNameResolver.IsMarketable: !item.IsUntradable &&
 // item.ItemSearchCategory.RowId != 0). It could never have listed anyway, but the routing filter must
@@ -31,7 +31,7 @@ namespace LazyMarketCompanion;
 // per-retainer rule list handed to AutoMarketPlanner.Plan, before a free market slot is claimed - it
 // does not move an item that is already sitting in the wrong retainer's own inventory.
 
-// 0.1.45.0: routing auto-fill (Helm t-joey-1789190796770, Joey 2026-09-12: "HOW DOES A
+// 0.1.45.0: routing auto-fill (the related support thread, testing 2026-09-12: "HOW DOES A
 // WEAPON NOT HAVE A CATEGORY I'M NOT DOING THAT MANUALLY"). 0.1.43.0 REPORTED bags stock
 // whose category has no rule and asked for a hand-added row; the answer to that ask is that
 // hand-added rows are not acceptable, so CategoryRouter.UnroutedCategories projects the

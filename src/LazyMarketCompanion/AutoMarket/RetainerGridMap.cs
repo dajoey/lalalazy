@@ -10,7 +10,7 @@ namespace LazyMarketCompanion.AutoMarket;
 /// duration a retainer's inventory window (InventoryRetainer / InventoryRetainerLarge) is open.
 /// Parallel to GridMap.cs, which does the same job for the player's own four bags.
 ///
-/// GROUND TRUTH CORRECTED (2026-09-10, kanban t_eeb284dd, Helm t-joey-1789056199442 follow-up): the
+/// GROUND TRUTH CORRECTED (2026-09-10, kanban t_eeb284dd, the related support thread follow-up): the
 /// 0.1.34.0 "GROUND TRUTH" below this comment was WRONG. It assumed the retainer storage view reuses
 /// the player's own grid addon NAMES ("InventoryGrid"/"InventoryGrid0"/"InventoryGrid1"). It does not.
 ///
@@ -36,7 +36,7 @@ namespace LazyMarketCompanion.AutoMarket;
 ///   mirroring GridMap.cs's ExpandedGrids design for the player's own "open all" mode - never via the
 ///   parent's TabIndex.
 ///
-/// This also explains Joey's exact symptom report better than the superseded "two same-named live
+/// This also explains the exact symptom report from testing better than the superseded "two same-named live
 /// instances, ambiguous ownership" theory: there was never a collision. The retainer branch was
 /// scanning for "InventoryGrid"/"InventoryGrid0"/"InventoryGrid1" - names that, while a retainer
 /// window is open, belong ONLY to the PLAYER's own bag (which the game keeps open alongside a

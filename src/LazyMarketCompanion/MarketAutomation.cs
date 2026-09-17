@@ -60,7 +60,7 @@ internal sealed class MarketAutomation : Window, IDisposable
   // 0.1.40.0: routing-mover counters for the whole run (all retainers), reported by the done line.
   private int _routingMovedOk;
   private int _routingMovedFail;
-  // 0.1.44.0: once-per-run pull guard (Helm t-joey-1789218500516). Stack keys this run has already
+  // 0.1.44.0: once-per-run pull guard (the related support thread). Stack keys this run has already
   // pulled to bags; a stack whose deposit got rolled back mid-switch reappears in a retainer, and
   // without this set every later pass/lap would pull it again - the endless shuffle. Cleared in
   // ClearState with the other run-scoped state.
@@ -104,8 +104,7 @@ internal sealed class MarketAutomation : Window, IDisposable
   private bool _vendorPlanPlaced;
   private int _vendorPlannedCount;
   // 0.1.15.2: set by the vendor leg's own failure path (StopOnVendorFailure) and read by
-  // the close steps. A FAILED vendoring leg halts the sweep ON PURPOSE (Joey's pick on Helm
-  // t-joey-1788757755566): a failed vendoring action means an unjudged sale is still possible,
+  // the close steps. A FAILED vendoring leg halts the sweep ON PURPOSE (the design decision in the related support thread): a failed vendoring action means an unjudged sale is still possible,
   // so nothing further runs until a human looks. The halt is CLEAN - the closing chat line and
   // log line are printed first, then the remaining tasks are discarded without the task
   // manager's timeout abort, which spews "Clearing N remaining tasks because of timeout" and
@@ -446,7 +445,7 @@ internal sealed class MarketAutomation : Window, IDisposable
       EnqueueSingleRetainer(i, doMarket, retainerName);
     }
 
-    // 0.1.42.0, final deposit lap (fixes "mostly just filled up my bags", Helm t-joey-1789190796770):
+    // 0.1.42.0, final deposit lap (fixes "mostly just filled up my bags", the related support thread):
     // After the last retainer's Auto-Market session, deposit any remaining routed stock stranded in bags.
     // The candidate list is built here because retainers is an ECommons AddonMaster array whose element
     // type has no nameable nested type here - var at the call site avoids inventing one.
@@ -524,7 +523,7 @@ internal sealed class MarketAutomation : Window, IDisposable
   }
 
   /// <summary>
-  /// 0.1.42.0 (Helm t-joey-1789190796770, "It tried a lot harder but mostly just filled up my bags"):
+  /// 0.1.42.0 (the related support thread, "It tried a lot harder but mostly just filled up my bags"):
   /// Runs a final deposit lap after the last retainer's Auto-Market session. The 2026-09-12 02:32 EDT sweep
   /// pulled 71 stacks to bags but deposited only 16, stranding 55 stacks because stock pulled during later
   /// sessions had no opportunity to deposit into retainers visited earlier. The lap reopens enabled retainers
@@ -778,7 +777,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     // Pinch afterwards, and how much of the retainer that covers is the ONE decision in
     // AutoMarket/PinchScope.cs - see its remarks for why it is no longer an inline condition.
     // "All" reuses the original per-row chain; "new only" prices just the slots we filled; and a retainer
-    // this run listed nothing into is left completely alone (Joey, 2026-09-05: the full retainers "didn't
+    // this run listed nothing into is left completely alone (Testing, 2026-09-05: the full retainers "didn't
     // need auto-market b/c they were full. and so it re-pinched all of their items").
     steps.Add(new Step(() =>
     {
@@ -832,9 +831,8 @@ internal sealed class MarketAutomation : Window, IDisposable
   /// The full-row pinch pass - every row of the open sell list - minus the rows a Universalis pre-flight can
   /// show do not need pricing. This is Auto Pinch itself, and the "pinch everything after listing" path.
   ///
-  /// WHY (Joey's sweep, 2026-09-06 11:26-11:36): of 39 existing listings re-priced, 17 came out at EXACTLY
-  /// the price they already had and 3 moved by a rounding error, at a median 10.5 s per row. He is already
-  /// the cheapest on the data centre for those items and "Match Self" is off, so the matched price IS the
+  /// WHY (the 2026-09-06 11:26-11:36 test sweep): of 39 existing listings re-priced, 17 came out at EXACTLY
+  /// the price they already had and 3 moved by a rounding error, at a median 10.5 s per row. Those listings are already the cheapest on the data centre for those items and "Match Self" is off, so the matched price IS the
   /// price already on the listing. One multi-item Universalis request can see that before any context menu
   /// opens.
   ///
@@ -1036,9 +1034,8 @@ internal sealed class MarketAutomation : Window, IDisposable
   ///   1. <see cref="SellListRows.ScanPlaceholders"/> - a slot qualifies only if this run listed into it AND
   ///      it is still sitting at the Auto-Market placeholder price (999,999,999 gil by default), read back
   ///      through <see cref="AutoMarketService.MarketPricesBySlot"/>
-  ///      (<c>InventoryManager.GetRetainerMarketPrice</c>). Joey's own instruction, 2026-09-05: "there has to
-  ///      be a way to see what my listings are and select the one with the WILDLY INFLATED PRICE." A listing
-  ///      he made by hand is never at that price, so it is not reachable by this pass at all - which is a
+  ///      (<c>InventoryManager.GetRetainerMarketPrice</c>). The standing instruction from testing, 2026-09-05: "there has to
+  ///      be a way to see what my listings are and select the one with the WILDLY INFLATED PRICE." A listing made by hand is never at that price, so it is not reachable by this pass at all - which is a
   ///      STRONGER guarantee than the name comparison it replaces, because it is a number from the game
   ///      rather than a string from a UI label.
   ///   2. <see cref="SellListRows.MatchBySlot"/> - the row for each target slot, from
@@ -1273,7 +1270,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     // bags / full retainer are normal states that stop their own leg and never the sweep.
     // 0.1.44.0: the once-per-run pull guard rides along - stacks already pulled to bags this run
     // are never re-pulled, whatever a rolled-back deposit left behind.
-    // 0.1.45.0: routing auto-fill (Helm t-joey-1789190796770, Joey: "HOW DOES A WEAPON NOT
+    // 0.1.45.0: routing auto-fill (the related support thread, testing notes: "HOW DOES A WEAPON NOT
     // HAVE A CATEGORY I'M NOT DOING THAT MANUALLY"). Before the routing plan is built, uncovered
     // categories are assigned to the least-loaded retainer the sweep visits and saved, so the
     // plan below already sees the new rules and the stock moves in THIS pass - a marked item
@@ -1298,7 +1295,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     Svc.Log.Information($"[LMC] routing session: live='{AutoMarketService.CurrentRetainerName()}' plan-session='{routingPlan.SessionRetainer}' settled={_routingSessionSettled}");
     // 0.1.43.0: marked bags stock no routing rule covers is never moved (fail-open, see
     // RoutingMove.cs) - but it is named once per sweep, log and chat, so "marked for automarket
-    // and never touched" cannot pass silently again (Helm t-joey-1789190796770).
+    // and never touched" cannot pass silently again (the related support thread).
     if (routingPlan.UnroutedBagsStacks.Count > 0 && !_unroutedBagsAnnounced)
     {
       _unroutedBagsAnnounced = true;
@@ -1542,7 +1539,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     // own time limit - on the 01:45 run the first entry scan happened 135 ms after the sell-list
     // close was queued and the menu had not rendered. Only an exhausted wait or a menu that is
     // really there but has no entrust entry is a failure, and a failure stops the whole sweep
-    // (stop-on-failure, Joey's pick on Helm t-joey-1788757755566) with a named, human-readable
+    // (stop-on-failure, the design decision in the related support thread) with a named, human-readable
     // halt instead of the task manager's timeout abort.
     var steps = new List<Step>();
     steps.Add(new Step(ClickRetainerEntrust, "Vendor.OpenPanel", TimeLimitMs: 10000));
@@ -1638,8 +1635,7 @@ internal sealed class MarketAutomation : Window, IDisposable
   /// same thing in chat, then STOPS THE WHOLE SWEEP ON PURPOSE: the remaining queued tasks (this
   /// session's close steps and every other retainer's chain) are discarded so nothing sells or
   /// re-prices while a vendoring action is unexplained, AutoRetainer's suppression is lifted and
-  /// the AR session is closed. This is the deliberate halt Joey picked on Helm
-  /// t-joey-1788757755566 - a controlled stop with a human-readable reason, never the task
+  /// the AR session is closed. This is the deliberate halt chosen in the related support thread - a controlled stop with a human-readable reason, never the task
   /// manager's timeout abort (that one prints "Clearing N remaining tasks because of timeout",
   /// wipes the queue WITHOUT a reason, and reads like a crash), never silence. Returns true so the
   /// failing step itself completes cleanly and the abort that follows is ours, not a timeout's.
@@ -1925,7 +1921,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     if (!_taskManager.IsBusy)
     {
       // t_deb0e274 (2026-09-10): this used to be dalamud.log-only - "AR session end: RetainerC
-      // (chain ended without Finish (timeout/abort))" with nothing in chat. Joey saw only the
+      // (chain ended without Finish (timeout/abort))" with nothing in chat. The run showed only the
       // symptom ("gets stuck in the menu") with no indication anything had gone wrong, and every
       // retainer AutoRetainer still had queued for this cycle silently never ran. Surface it loudly:
       // it is exactly the "the whole AR session can silently abort mid-menu" half of this bug.
@@ -2197,7 +2193,7 @@ internal sealed class MarketAutomation : Window, IDisposable
         var usedDefaultAmount = false;
 
         // Nothing on the board. Before falling through to DefaultAmount (or to giving up), try the
-        // recent-sales median. On by default since 0.1.14.0 (Joey 2026-09-07: the empty-board
+        // recent-sales median. On by default since 0.1.14.0 (testing 2026-09-07: the empty-board
         // "no price to set" message should never appear while Universalis is up; the fallback was
         // ratified as option A of the 0.1.8.0 decision card and is now the standard behaviour).
         // The Universalis price path already consulted the sale history in its own request, so this

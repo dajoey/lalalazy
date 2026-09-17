@@ -166,8 +166,7 @@ public sealed class Configuration : IPluginConfiguration
 
   /// <summary>
   /// When a price check finds NOTHING listed on the board, fall back to the median of the recent
-  /// data-centre SALES from Universalis instead of giving up. ON by default since 0.1.14.0 (Joey
-  /// 2026-09-07: "no price to set, please set manually" should never be a message unless Universalis
+  /// data-centre SALES from Universalis instead of giving up. ON by default since 0.1.14.0 (testing 2026-09-07: "no price to set, please set manually" should never be a message unless Universalis
   /// is effectively down - the fallback IS the standard empty-board answer now). It prices from
   /// history, guarded by <see cref="SaleHistoryMaxAgeDays"/>, and can still be turned off in the
   /// Price Matching tab. See <see cref="SaleHistoryPricing"/>.
@@ -336,7 +335,7 @@ public sealed class Configuration : IPluginConfiguration
 
   /// <summary>
   /// 0.1.40.0: the routing MOVER. When on (the default - this IS the feature asked for on Helm
-  /// t-joey-1789190796770), Auto-Market physically relocates routed stock during each retainer's
+  /// the related support thread), Auto-Market physically relocates routed stock during each retainer's
   /// session: items routed to a different retainer are pulled from this retainer's pages into the
   /// bags, and items routed to THIS retainer are deposited from the bags into its pages, before
   /// the listing plan is built. Whole stacks only (the game's move call has no quantity split);
@@ -350,7 +349,7 @@ public sealed class Configuration : IPluginConfiguration
   /// 0.1.45.0: routing auto-fill. On (the default), a sweep that finds marked, marketable bags
   /// stock whose category has no routing rule assigns the missing category to the sweep-enabled
   /// retainer carrying the fewest routed categories, persists the row, and deposits and lists the
-  /// stock in the same pass (Helm t-joey-1789190796770: "HOW DOES A WEAPON NOT HAVE A CATEGORY
+  /// stock in the same pass (the related support thread: "HOW DOES A WEAPON NOT HAVE A CATEGORY
   /// I'M NOT DOING THAT MANUALLY"). The added row is an ordinary CategoryRetainerRule afterwards -
   /// reassign or clear it in the Category Routing list like a hand-made row. New key with an
   /// initializer: an existing config deserializes it as ON with no Version bump (the same

@@ -15,7 +15,7 @@ namespace LazyMarketCompanion.AutoMarket;
 /// separate structure (ItemOrderModule's InventorySorter) that is free to place any container slot
 /// of any page at any display position.
 ///
-/// The visible symptom (Helm t-joey-1788992037468): with 60 stacks packed into the first two
+/// The visible symptom (the related support thread): with 60 stacks packed into the first two
 /// on-screen blocks, the plugin still computed 7 stacks for Inventory3 and 3 for Inventory4 - which
 /// is exactly what those CONTAINERS hold - and painted their dots on grids 3 and 4, which were
 /// displaying nothing at all. Correctly-anchored dots floating on empty cells. The 0.1.31.0 anchor
