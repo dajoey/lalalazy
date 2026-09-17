@@ -166,7 +166,7 @@ internal static class LoopTests
         ("a wave that changes nothing ends Blocked with 'no progress' - never an infinite loop (pass count bounded)", () =>
         {
             var rig = new Rig();
-            rig.Inv.SetElsewhere(World.Ore, 10, "retainer Hussypants");
+            rig.Inv.SetElsewhere(World.Ore, 10, "retainer RetainerC");
             var loop = rig.Loop((World.IngotBsm, 2));
             var d1 = loop.Begin();
             if (d1.Outcome != DispatchLoop.Outcome.Wave || d1.Plan.Retrievals.Count != 1) return false;
@@ -272,7 +272,7 @@ internal static class LoopTests
         ("retrieve wave: stock on a retainer plans a fetch; after it lands the craft runs in the SAME run", () =>
         {
             var rig = new Rig();
-            rig.Inv.SetElsewhere(World.Ore, 4, "retainer Hussypants").Set(World.Coal, 2);
+            rig.Inv.SetElsewhere(World.Ore, 4, "retainer RetainerC").Set(World.Coal, 2);
             var loop = rig.Loop((World.IngotBsm, 2));
             var d1 = loop.Begin();
             if (d1.Outcome != DispatchLoop.Outcome.Wave || d1.Plan.Retrievals.Count != 1) return false;

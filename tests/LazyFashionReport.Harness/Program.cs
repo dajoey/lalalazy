@@ -160,7 +160,7 @@ Check("achievable-projection-78", repSparse.AchievableIfFilled == 78, $"got {rep
 // Regression for the v0.1.0.0 field bug: the frxiv payload is camelCase, carries "week" as a
 // STRING and parks a numeric "_updatedAt" inside dyeData; the old case-sensitive default
 // binding turned all of that into an all-null ReportState — fetch succeeded, UI showed
-// "no hint" on every slot. Fixture = the exact bytes cached on omasky 2026-09-06 21:42.
+// "no hint" on every slot. Fixture = the exact bytes cached on test-machine 2026-09-06 21:42.
 // (Hint/slot-key mapping here mirrors FashionService.ParseSlot / CrowdDataAdapter.SlotKey —
 // the harness cannot reference the game-coupled plugin assembly, so the contract is doubled.)
 var fixture = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "report-state-week449.json"));

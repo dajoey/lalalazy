@@ -7,7 +7,7 @@ namespace LazyFashionReport.Adapters;
 /// <summary>
 /// The live executor (P4 executor live half, v0.6.0.0). Everything here runs on the framework
 /// thread and MUTATES: gear moves onto equipped slots, pieces come out of the glamour dresser
-/// and the armoire. Member pins were enumerated from omasky's INSTALLED FFXIVClientStructs
+/// and the armoire. Member pins were enumerated from test-machine's INSTALLED FFXIVClientStructs
 /// (Hooks/15.0.3.4, 2026-09-12, dnfile probe with a negative control) BEFORE this file was
 /// written:
 /// - InventoryManager: i32 MoveItemSlot(InventoryType, u16, InventoryType, u16, bool) - the

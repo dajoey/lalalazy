@@ -73,7 +73,7 @@ internal sealed class MarketAutomation : Window, IDisposable
   // back where a previous sweep moved it from, so the planner skips it instead of re-moving
   // every sweep.
   // 0.1.51.0: the value is the last-OK UTC. Prune-on-absence proved racy on the 0.1.50.0 log -
-  // five Hussypants pulls verified empty seconds after firing (ledger pruned mid-run as
+  // five RetainerC pulls verified empty seconds after firing (ledger pruned mid-run as
   // "landed") yet sat back in the same slots on the next sweep two minutes later and re-fired.
   // Entries now survive absence for RoutingMove.ReconcileStickyWindow (30 min) so a slow server
   // rollback keeps hitting a live entry; genuinely new misplaced stock still routes after the
@@ -1919,7 +1919,7 @@ internal sealed class MarketAutomation : Window, IDisposable
 
     if (!_taskManager.IsBusy)
     {
-      // t_deb0e274 (2026-09-10): this used to be dalamud.log-only - "AR session end: Hussypants
+      // t_deb0e274 (2026-09-10): this used to be dalamud.log-only - "AR session end: RetainerC
       // (chain ended without Finish (timeout/abort))" with nothing in chat. Joey saw only the
       // symptom ("gets stuck in the menu") with no indication anything had gone wrong, and every
       // retainer AutoRetainer still had queued for this cycle silently never ran. Surface it loudly:

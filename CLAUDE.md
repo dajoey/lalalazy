@@ -87,7 +87,7 @@ This file has a **UTF-8 BOM**. When writing it:
 
 ## Test Machine
 
-Joey tests on **dajoeybaz** (192.168.10.7, Linux/Wine) — NOT dajoeyrog. dajoeyrog is the build/repo host only.
+Testing runs on **test-machine** (Linux/Wine) — NOT dajoeyrog. dajoeyrog is the build/repo host only.
 
 ## BLU Autorotation
 

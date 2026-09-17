@@ -8,7 +8,7 @@ namespace LazyFashionReport.Adapters;
 /// <summary>
 /// Executor-side live reads. Everything here is READ-ONLY: the snapshot feeds the plan
 /// builder, and the mutations live in ApplyMover (v0.6.0.0). The member pins were enumerated
-/// from omasky's INSTALLED FFXIVClientStructs (Hooks/15.0.3.4, 2026-09-12, dnfile probe with a
+/// from test-machine's INSTALLED FFXIVClientStructs (Hooks/15.0.3.4, 2026-09-12, dnfile probe with a
 /// negative control) BEFORE this file was written:
 /// - InventoryManager: i32 MoveItemSlot(InventoryType, u16, InventoryType, u16, bool),
 ///   bool CanEquip(u32,u8,u8,u16,u8,u8,u8,f64), GetInventoryContainer/GetInventorySlot,

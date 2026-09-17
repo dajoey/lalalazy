@@ -92,7 +92,7 @@ internal static class MarketListingTests
             () =>
             {
                 var inv = new FakeInventory().Set(World.Ore, 99).Set(World.Coal, 99).Set(World.Hide, 99)
-                                             .SetElsewhere(World.Ingot, 2, "retainer Hussypants");
+                                             .SetElsewhere(World.Ingot, 2, "retainer RetainerC");
                 var data = World.Build();
                 var graph = new RecipeGraph(data);
                 var tiering = new Tiering(graph, new SourceClassifier(data, graph, new VentureResolver(data), NoRetainers));
@@ -112,7 +112,7 @@ internal static class MarketListingTests
             () =>
             {
                 var inv = new FakeInventory().Set(World.Ore, 99).Set(World.Coal, 99).Set(World.Hide, 99)
-                                             .SetElsewhere(World.Ingot, 2, "retainer Hussypants");
+                                             .SetElsewhere(World.Ingot, 2, "retainer RetainerC");
                 return PlanSword(inv).Retrievals.Any(r => r.ItemId == World.Ingot && r.Quantity == 2);
             }),
 
@@ -133,7 +133,7 @@ internal static class MarketListingTests
             () =>
             {
                 var inv = new FakeInventory().Set(World.Ore, 99).Set(World.Coal, 99).Set(World.Hide, 99)
-                                             .SetElsewhere(World.Ingot, 2, "the market board (listed by retainer Hussypants)");
+                                             .SetElsewhere(World.Ingot, 2, "the market board (listed by retainer RetainerC)");
                 var p = PlanSword(inv);
                 // This is precisely the 2026-09-05 stall: the sword is NOT queued, an impossible retrieval is,
                 // and the sword is deferred behind it. (The unrelated Leather sub-craft still runs - its own
@@ -146,11 +146,11 @@ internal static class MarketListingTests
         ("a listing is still NAMED so the player is told where the stock went",
             () =>
             {
-                var inv = new FakeInventory().SetListed(World.Ingot, 2, "Hussypants");
+                var inv = new FakeInventory().SetListed(World.Ingot, 2, "RetainerC");
                 var where = inv.StoredWhere(World.Ingot);
                 return where.Count == 1
-                    && where[0].Where == "the market board (listed by retainer Hussypants)"
-                    && where[0].Phrase == "2 on the market board (listed by retainer Hussypants)";
+                    && where[0].Where == "the market board (listed by retainer RetainerC)"
+                    && where[0].Phrase == "2 on the market board (listed by retainer RetainerC)";
             }),
 
         ("a listing does not block a craft that has everything else in the bags",
@@ -177,12 +177,12 @@ internal static class MarketListingTests
                 // Have is 8 (the listing is not stock), so the shortfall is 8 - and those 8 are on the retainer.
                 var inv = new FakeInventory()
                     .Set(World.Leather, 4)
-                    .SetElsewhere(World.Ingot, 8, "retainer Dojarat")
-                    .SetListed(World.Ingot, 20, "Hussypants");
+                    .SetElsewhere(World.Ingot, 8, "retainer RetainerB")
+                    .SetListed(World.Ingot, 20, "RetainerC");
                 var r = PlanSword(inv, 4).Retrievals.Single(x => x.ItemId == World.Ingot);
                 return r.Quantity == 8
-                    && r.Places == "retainer Dojarat"
-                    && r.Detail == "8 on retainer Dojarat"
+                    && r.Places == "retainer RetainerB"
+                    && r.Detail == "8 on retainer RetainerB"
                     && r.Where.All(w => w.Fetchable);
             }),
 
@@ -194,10 +194,10 @@ internal static class MarketListingTests
                 // it was not supposed to.
                 var inv = new FakeInventory()
                     .Set(World.Leather, 4)
-                    .SetElsewhere(World.Ingot, 8, "retainer Dojarat")
-                    .SetListed(World.Ingot, 2, "Hussypants");
+                    .SetElsewhere(World.Ingot, 8, "retainer RetainerB")
+                    .SetListed(World.Ingot, 2, "RetainerC");
                 var r = PlanSword(inv, 4).Retrievals.Single(x => x.ItemId == World.Ingot);
-                return r.Quantity == 8 && r.Places == "retainer Dojarat" && r.Detail == "8 on retainer Dojarat";
+                return r.Quantity == 8 && r.Places == "retainer RetainerB" && r.Detail == "8 on retainer RetainerB";
             }),
 
         ("CASE C CONTROL: a stack that is ONLY listed is not a retrieval at all, at any scale",
@@ -206,7 +206,7 @@ internal static class MarketListingTests
                 // The decisive case for the 0.1.6.1 fix, re-run at case A's scale: a listing alone leaves Have at 0
                 // and the item routes to its real source instead of becoming an impossible fetch.
                 var inv = new FakeInventory().Set(World.Ore, 99).Set(World.Coal, 99).Set(World.Leather, 4)
-                                             .SetListed(World.Ingot, 20, "Hussypants");
+                                             .SetListed(World.Ingot, 20, "RetainerC");
                 var p = PlanSword(inv, 4);
                 return p.Retrievals.All(r => r.ItemId != World.Ingot)
                     && p.Crafts.Any(c => c.ResultItemId == World.Ingot && c.Crafts == 8)
@@ -219,12 +219,12 @@ internal static class MarketListingTests
                 // If a future "fix" drops listings out of StoredWhere, case A would pass for the wrong reason.
                 // 0.1.6.1 deliberately keeps naming them so the player is told where the stock went.
                 var inv = new FakeInventory()
-                    .SetElsewhere(World.Ingot, 8, "retainer Dojarat")
-                    .SetListed(World.Ingot, 20, "Hussypants");
+                    .SetElsewhere(World.Ingot, 8, "retainer RetainerB")
+                    .SetListed(World.Ingot, 20, "RetainerC");
                 var where = inv.StoredWhere(World.Ingot);
                 return where.Count == 2
-                    && where.Any(w => w.Where == "the market board (listed by retainer Hussypants)" && w.Quantity == 20 && !w.Fetchable)
-                    && where.Any(w => w.Where == "retainer Dojarat" && w.Quantity == 8 && w.Fetchable);
+                    && where.Any(w => w.Where == "the market board (listed by retainer RetainerC)" && w.Quantity == 20 && !w.Fetchable)
+                    && where.Any(w => w.Where == "retainer RetainerB" && w.Quantity == 8 && w.Fetchable);
             }),
 
         // ---- PlacesFor directly, so the ordering is proved independently of what StoredWhere happens to return.
@@ -236,11 +236,11 @@ internal static class MarketListingTests
                 // producer's order nor the quantity may decide this.
                 IReadOnlyList<StoredElsewhere> where =
                 [
-                    new StoredElsewhere("the market board (listed by retainer Hussypants)", 20, Fetchable: false),
-                    new StoredElsewhere("retainer Dojarat", 8),
+                    new StoredElsewhere("the market board (listed by retainer RetainerC)", 20, Fetchable: false),
+                    new StoredElsewhere("retainer RetainerB", 8),
                 ];
                 var taken = DispatchPlan.PlacesFor(where, 8);
-                return taken.Count == 1 && taken[0].Where == "retainer Dojarat" && taken[0].Quantity == 8;
+                return taken.Count == 1 && taken[0].Where == "retainer RetainerB" && taken[0].Quantity == 8;
             }),
 
         ("PlacesFor still names a listing when NOTHING fetchable holds the units",
@@ -250,11 +250,11 @@ internal static class MarketListingTests
                 // discarded unfetchable places would return "elsewhere" here and fail this check.
                 IReadOnlyList<StoredElsewhere> where =
                 [
-                    new StoredElsewhere("the market board (listed by retainer Hussypants)", 20, Fetchable: false),
+                    new StoredElsewhere("the market board (listed by retainer RetainerC)", 20, Fetchable: false),
                 ];
                 var taken = DispatchPlan.PlacesFor(where, 8);
                 return taken.Count == 1
-                    && taken[0].Where == "the market board (listed by retainer Hussypants)"
+                    && taken[0].Where == "the market board (listed by retainer RetainerC)"
                     && taken[0].Quantity == 8
                     && !taken[0].Fetchable;
             }),
@@ -265,13 +265,13 @@ internal static class MarketListingTests
                 // 8 needed, 3 reachable: name the retainer for the 3 and the board for the rest, in that order.
                 IReadOnlyList<StoredElsewhere> where =
                 [
-                    new StoredElsewhere("the market board (listed by retainer Hussypants)", 20, Fetchable: false),
-                    new StoredElsewhere("retainer Dojarat", 3),
+                    new StoredElsewhere("the market board (listed by retainer RetainerC)", 20, Fetchable: false),
+                    new StoredElsewhere("retainer RetainerB", 3),
                 ];
                 var taken = DispatchPlan.PlacesFor(where, 8);
                 return taken.Count == 2
-                    && taken[0].Where == "retainer Dojarat" && taken[0].Quantity == 3
-                    && taken[1].Where == "the market board (listed by retainer Hussypants)" && taken[1].Quantity == 5;
+                    && taken[0].Where == "retainer RetainerB" && taken[0].Quantity == 3
+                    && taken[1].Where == "the market board (listed by retainer RetainerC)" && taken[1].Quantity == 5;
             }),
 
         ("PlacesFor keeps most-stocked-first WITHIN the fetchable places",
@@ -280,17 +280,17 @@ internal static class MarketListingTests
                 // The pre-existing behaviour the fix must not lose: fewest places to visit.
                 IReadOnlyList<StoredElsewhere> where =
                 [
-                    new StoredElsewhere("retainer Dojarat", 2),
+                    new StoredElsewhere("retainer RetainerB", 2),
                     new StoredElsewhere("the chocobo saddlebag", 9),
-                    new StoredElsewhere("the market board (listed by retainer Hussypants)", 99, Fetchable: false),
+                    new StoredElsewhere("the market board (listed by retainer RetainerC)", 99, Fetchable: false),
                 ];
                 var taken = DispatchPlan.PlacesFor(where, 8);
                 return taken.Count == 1 && taken[0].Where == "the chocobo saddlebag" && taken[0].Quantity == 8;
             }),
 
         ("StoredElsewhere defaults to fetchable, so only a listing is ever unreachable",
-            () => new StoredElsewhere("retainer Dojarat", 8).Fetchable
-                  && new FakeInventory().SetElsewhere(World.Ingot, 8, "retainer Dojarat")
+            () => new StoredElsewhere("retainer RetainerB", 8).Fetchable
+                  && new FakeInventory().SetElsewhere(World.Ingot, 8, "retainer RetainerB")
                         .StoredWhere(World.Ingot).Single().Fetchable),
 
         ("the one-item retrieve shape (Retrieve button, /lcraft fetch) names the retainer too",
@@ -300,10 +300,10 @@ internal static class MarketListingTests
                 // rather than through the planner, so they carried the same wrong-place naming. They now route
                 // through PlacesFor; this is that composition, which is the whole pure part of those call sites.
                 var inv = new FakeInventory()
-                    .SetElsewhere(World.Ingot, 8, "retainer Dojarat")
-                    .SetListed(World.Ingot, 20, "Hussypants");
+                    .SetElsewhere(World.Ingot, 8, "retainer RetainerB")
+                    .SetListed(World.Ingot, 20, "RetainerC");
                 var r = new DispatchPlan.Retrieve(World.Ingot, 8, DispatchPlan.PlacesFor(inv.StoredWhere(World.Ingot), 8));
-                return r.Places == "retainer Dojarat" && r.Detail == "8 on retainer Dojarat";
+                return r.Places == "retainer RetainerB" && r.Detail == "8 on retainer RetainerB";
             }),
     };
 }

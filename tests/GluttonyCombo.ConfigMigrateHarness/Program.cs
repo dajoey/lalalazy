@@ -38,7 +38,7 @@ internal static class Program
     {
         Section("v6 -> v7 (TankbustersBeyondParty)");
 
-        // Joey's real config as read live from omasky on 2026-09-05 (before 1.0.4.173):
+        // Live config as read from test-machine on 2026-09-05 (before 1.0.4.173):
         // Version 6, TankbustersBeyondParty = false and serialized, which is exactly why a
         // default flip alone would have been a silent no-op for him.
         var live = new State(Version: 6, TankbustersBeyondParty: false);

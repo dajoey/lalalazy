@@ -53,9 +53,9 @@ internal static class RetainerBatchQueueTests
             // root on craft #100 + retrieve #400. Both deferrals mention a retrieval, so both rows queue.
             var (graph, _, _) = Core();
             var inv = new FakeInventory()
-                .SetElsewhere(World.Ore, 4, "retainer Hussypants")
-                .SetElsewhere(World.Coal, 2, "retainer Hussypants")
-                .SetElsewhere(World.Leather, 1, "retainer Hussypants");
+                .SetElsewhere(World.Ore, 4, "retainer RetainerC")
+                .SetElsewhere(World.Coal, 2, "retainer RetainerC")
+                .SetElsewhere(World.Leather, 1, "retainer RetainerC");
             var p = Plan(inv, (World.SwordRecipe, 1));
             if (p.Crafts.Count != 0 || p.Deferred.Count != 2) return false;
             if (!p.Deferred.All(d => d.Reason.Contains("retrieve #"))) return false;
@@ -68,8 +68,8 @@ internal static class RetainerBatchQueueTests
             // and the batch session still fetches the retainer share.
             var (graph, _, _) = Core();
             var inv = new FakeInventory()
-                .SetElsewhere(World.Ore, 4, "retainer Hussypants")
-                .SetElsewhere(World.Leather, 1, "retainer Hussypants");
+                .SetElsewhere(World.Ore, 4, "retainer RetainerC")
+                .SetElsewhere(World.Leather, 1, "retainer RetainerC");
             var p = Plan(inv, (World.SwordRecipe, 1));
             var mixed = p.Deferred.SingleOrDefault(d => d.RecipeId == World.IngotBsm);
             if (mixed is null || !mixed.Reason.Contains("retrieve #") || !mixed.Reason.Contains("buy #")) return false;

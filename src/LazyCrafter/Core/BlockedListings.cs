@@ -45,7 +45,7 @@ namespace LazyCrafter.Core;
 /// <para>
 /// <b>Accepted limitation (decided before the build, do not "fix" it here):</b> the AllaganTools bridge
 /// (<c>ItemCount</c> / <c>ItemCountOwned</c>) has no HQ dimension, so the advice reads "pull 7 Silver Ore from
-/// Hussypants" and cannot say "pull the HQ ones".
+/// RetainerC" and cannot say "pull the HQ ones".
 /// </para>
 /// </summary>
 public static class BlockedListings

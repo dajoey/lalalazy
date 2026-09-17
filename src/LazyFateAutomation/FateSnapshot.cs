@@ -14,7 +14,7 @@ namespace LazyFateAutomation;
 /// Read-only loopback snapshot for the home dashboard (Helm t-joey-1788795729247):
 /// GET http://127.0.0.1:10505/fates -> latest FATE/hunt snapshot as JSON.
 ///
-/// Same pattern as LazyRetainerLive's HttpServer (proven wine-safe on omasky):
+/// Same pattern as LazyRetainerLive's HttpServer (proven wine-safe on test-machine):
 /// raw TcpListener, NOT HttpListener (http.sys does not exist under wine);
 /// bind 127.0.0.1 ONLY (no auth; must never leave the host); the serve thread
 /// never touches game memory - it only serializes the immutable snapshot the

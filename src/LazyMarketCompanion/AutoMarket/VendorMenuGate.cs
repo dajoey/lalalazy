@@ -13,7 +13,7 @@ namespace LazyMarketCompanion.AutoMarket;
 // exactly this decision:
 //   - 0.1.15.1 glanced ONCE at the bell menu 135 ms after the sell-list close was queued, saw no
 //     SelectString, and treated "not yet" as a verdict - the panel never opened and the session's
-//     close steps timed out (the "Clearing 53 remaining tasks" abort, omasky 01:45:28).
+//     close steps timed out (the "Clearing 53 remaining tasks" abort, test-machine 01:45:28).
 //   - Treating "menu present but no entrust entry" as "skip quietly" would vendor nothing while
 //     the run reported done.
 //

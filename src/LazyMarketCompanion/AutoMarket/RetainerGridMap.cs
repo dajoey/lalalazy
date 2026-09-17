@@ -16,7 +16,7 @@ namespace LazyMarketCompanion.AutoMarket;
 ///
 /// Independent, multiply-corroborated evidence the retainer grid is a DISTINCT addon family:
 /// - CriticalCommonLib (a mature, actively-maintained inventory library; decompiled from
-///   InventoryTools 1.15.0.12, which is INSTALLED AND ACTIVE on omasky - Joey's own live client)
+///   InventoryTools 1.15.0.12, which is INSTALLED AND ACTIVE on test-machine - the live client)
 ///   declares <c>WindowName.RetainerGrid</c> ("For normal retainer inventory") as a name distinct
 ///   from <c>WindowName.InventoryGrid</c> ("For normal inventory"), and
 ///   <c>WindowName.RetainerGrid0..RetainerGrid4</c> ("For expanded retainer inventory") distinct from
@@ -56,7 +56,7 @@ namespace LazyMarketCompanion.AutoMarket;
 /// closed (no name found -> no binding -> no dots) exactly as an unresolvable page always has here.
 ///
 /// SUPERSEDED (0.1.34.0 GROUND TRUTH, kept for history - do not rely on this any more):
-/// "MetadataLoadContext probe against omasky's live FFXIVClientStructs.dll ... AddonInventoryRetainer
+/// "MetadataLoadContext probe against test-machine's live FFXIVClientStructs.dll ... AddonInventoryRetainer
 /// (...) and AddonInventoryRetainerLarge (...) both expose only AtkAddonControl AddonControl, int
 /// TabIndex and a SetTab(int) member function beyond the standard AtkUnitBase fields - the same
 /// single-panel TABBED shape the player's own 'Inventory' addon has in GridMap's NORMAL mode ... There

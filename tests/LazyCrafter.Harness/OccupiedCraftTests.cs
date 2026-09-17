@@ -17,11 +17,11 @@ namespace LazyCrafter.Harness;
 ///                        (98 not in your bags), Cloud Mica Whetstone x99 is not in your bags...
 /// 11:58:26 [LazyCrafter] retrieve before crafting: Adamantite Nugget x98 from elsewhere; ...
 /// 11:58:26 [LazyCrafter] to unblock cart you have to pull 1 material off sale (3 units across 1 retainer):
-/// 11:58:26 [LazyCrafter]   Hussypants: Cloud Mica x3
+/// 11:58:26 [LazyCrafter]   RetainerC: Cloud Mica x3
 /// 11:58:26 [LazyCrafter] heading to the nearest market board ...
 /// </code>
 /// <para>
-/// Only <b>Cloud Mica x3 / Hussypants</b> was a real blocker. The nugget and the whetstone were never "elsewhere"
+/// Only <b>Cloud Mica x3 / RetainerC</b> was a real blocker. The nugget and the whetstone were never "elsewhere"
 /// and were never listed for sale - they did not exist because the crafts that would have made them were refused.
 /// The plugin invented a summoning-bell errand and Lifestream physically walked him there.
 /// </para>
@@ -76,9 +76,9 @@ internal static class OccupiedCraftTests
         return blocked;
     }
 
-    /// <summary>The genuine listing blocker: Cloud Mica x3, all of it on sale via Hussypants.</summary>
+    /// <summary>The genuine listing blocker: Cloud Mica x3, all of it on sale via RetainerC.</summary>
     private static DispatchPlan.Retrieve GenuineListing() =>
-        new(CloudMica, 3, [new StoredElsewhere("the market board (listed by retainer Hussypants)", 3, Fetchable: false, Retainer: "Hussypants")]);
+        new(CloudMica, 3, [new StoredElsewhere("the market board (listed by retainer RetainerC)", 3, Fetchable: false, Retainer: "RetainerC")]);
 
     /// <summary>The chat block the bags guard prints, as chat would show it.</summary>
     private static string RenderRefusal(CraftDiagnosis.BlockedCrafts blocked) =>
@@ -159,14 +159,14 @@ internal static class OccupiedCraftTests
         {
             // Negative control for suppression: the whetstone is genuinely on a retainer, the nugget is a phantom.
             // If the fix worked by simply dropping everything, this check goes red.
-            var inv = new FakeInventory().SetElsewhere(CloudMicaWhetstone, 99, "retainer Dojarat");
+            var inv = new FakeInventory().SetElsewhere(CloudMicaWhetstone, 99, "retainer RetainerB");
             var jig = new RecipeRow(JigRecipe, BladedSteelJig, 1, World.Bsm, 60,
                 [(AdamantiteNugget, 98), (CloudMicaWhetstone, 99)]);
             var split = CraftDiagnosis.SplitShortfall(DispatchPlan.BagsShortfall(jig, 1, inv), Refused());
             var r = string.Join("\n", CraftDiagnosis.RefusalLines(Name(BladedSteelJig), split, Name));
             return r.Contains("retrieve before crafting")
                 && r.Contains("Cloud Mica Whetstone x99")
-                && r.Contains("retainer Dojarat")
+                && r.Contains("retainer RetainerB")
                 && r.Contains("Adamantite Nugget x98 was never made")
                 && !r.Contains("Adamantite Nugget x98 from");
         }),
@@ -193,7 +193,7 @@ internal static class OccupiedCraftTests
 
         ("busy: a genuine shortfall's deferral DOES still carry 'retrieve #' (the batch queue must keep working)", () =>
         {
-            var inv = new FakeInventory().SetElsewhere(AdamantiteNugget, 98, "retainer Dojarat");
+            var inv = new FakeInventory().SetElsewhere(AdamantiteNugget, 98, "retainer RetainerB");
             var jig = new RecipeRow(JigRecipe, BladedSteelJig, 1, World.Bsm, 60, [(AdamantiteNugget, 98)]);
             var reason = CraftDiagnosis.DeferralReason(
                 CraftDiagnosis.SplitShortfall(DispatchPlan.BagsShortfall(jig, 1, inv), Refused()));
@@ -206,10 +206,10 @@ internal static class OccupiedCraftTests
 
         // ---------------------------------------------------------------- 3. the unlist advice and the bell walk
 
-        ("11:58 REPLAY: the unlist block names ONLY Cloud Mica x3 / Hussypants", () =>
+        ("11:58 REPLAY: the unlist block names ONLY Cloud Mica x3 / RetainerC", () =>
         {
             var r = RenderEndOfRun(Refused());
-            return r.Contains("Hussypants: Cloud Mica x3")
+            return r.Contains("RetainerC: Cloud Mica x3")
                 && r.Contains("pull 1 material off sale")
                 && r.Contains("3 units across 1 retainer")
                 // the two phantoms must appear nowhere in the pull advice
@@ -270,7 +270,7 @@ internal static class OccupiedCraftTests
         {
             // Both conditions are required. A refused craft alone must not suppress a retrieval that is real -
             // that would trade one wrong answer for another.
-            var inv = new FakeInventory().SetElsewhere(AdamantiteNugget, 98, "retainer Dojarat");
+            var inv = new FakeInventory().SetElsewhere(AdamantiteNugget, 98, "retainer RetainerB");
             var jig = new RecipeRow(JigRecipe, BladedSteelJig, 1, World.Bsm, 60, [(AdamantiteNugget, 98)]);
             var split = CraftDiagnosis.SplitShortfall(DispatchPlan.BagsShortfall(jig, 1, inv), Refused());
             return split.Genuine.Count == 1 && split.Phantom.Count == 0;

@@ -55,7 +55,7 @@ namespace LazyCrafter.Adapters.Dispatch;
 /// the bell and quit for nothing.</para>
 ///
 /// Pinned against Artisan 4.0.5.19 - the build installed on the client - decompiled 2026-09-03 (SHA-256 of the
-/// decompiled DLL matches omasky's installed copy: d7760c20...), batch members added 2026-09-04.
+/// decompiled DLL matches test-machine's installed copy: d7760c20...), batch members added 2026-09-04.
 /// </summary>
 public sealed class RetainerFetch
 {

@@ -82,7 +82,7 @@ internal sealed class FakeInventory : IInventory
     /// prove the place a retrieval NAMES as well as its quantity (card t_05e6722b).
     /// </para>
     /// </summary>
-    public FakeInventory SetListed(uint itemId, int count, string retainer = "Hussypants")
+    public FakeInventory SetListed(uint itemId, int count, string retainer = "RetainerC")
     {
         if (!_listed.TryGetValue(itemId, out var list)) _listed[itemId] = list = new List<StoredElsewhere>();
         list.Add(new StoredElsewhere($"the market board (listed by retainer {retainer})", count, Fetchable: false, Retainer: retainer));

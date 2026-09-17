@@ -1006,7 +1006,7 @@ internal static unsafe class AutoMarketService
   /// 0.1.50.0: post-move reconciliation probe. Re-reads the source slot of every routing move
   /// that reported OK and returns the ReconcileKeys of the ones still holding the same stack -
   /// the move graded rc=0 locally but the server did not keep it (the 20:34-20:39 ET
-  /// double-sweep re-move loop: 16 identical Bussyqueen pull-outs and 51 Dojarat pull-outs
+  /// double-sweep re-move loop: 16 identical RetainerA pull-outs and 51 RetainerB pull-outs
   /// re-planned with rc=0/OK executions in between). The caller records the keys in its
   /// cross-sweep ledger so the next sweep skips those stacks instead of re-moving them, and
   /// logs the landed/stuck counts as the per-session reconciliation evidence. One immediate

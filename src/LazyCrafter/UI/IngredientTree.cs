@@ -176,7 +176,7 @@ public sealed class IngredientTree
         }
     }
 
-    /// <summary>"retainer Hussypants, the saddlebag" - where a leaf's out-of-bags stock is sitting.</summary>
+    /// <summary>"retainer RetainerC, the saddlebag" - where a leaf's out-of-bags stock is sitting.</summary>
     private static string Places(IReadOnlyList<StoredElsewhere> where) => string.Join(", ", where.Select(w => w.Where));
 
     private string Name(uint itemId) => _plugin.GameData?.ItemName(itemId) ?? $"#{itemId}";

@@ -12,8 +12,8 @@ namespace LazyCrafter.Harness;
 /// the finishing path simply did not print them. A test on the internal list would have been green throughout.
 /// </para>
 /// <para>
-/// The worked example is Joey's 2026-09-05 22:44 run: Silver Ore (7 listed via Hussypants, 3 via Bussyqueen),
-/// Iron Ore x6 and Cloud Mica x3 (Hussypants), plus nine more materials - twelve near-identical red warnings and
+/// The worked example is Joey's 2026-09-05 22:44 run: Silver Ore (7 listed via RetainerC, 3 via RetainerA),
+/// Iron Ore x6 and Cloud Mica x3 (RetainerC), plus nine more materials - twelve near-identical red warnings and
 /// then, because the run FINISHED rather than blocked, a bare ", 12 could not be retrieved".
 /// </para>
 /// </summary>
@@ -39,7 +39,7 @@ internal static class BlockedListingsTests
             .ToList());
 
     /// <summary>A retrieval whose stock IS reachable (a retainer's bags) - the negative control for Defect B.</summary>
-    private static DispatchPlan.Retrieve Reachable(uint itemId, int quantity, string retainer = "Hussypants") =>
+    private static DispatchPlan.Retrieve Reachable(uint itemId, int quantity, string retainer = "RetainerC") =>
         new(itemId, quantity, [new StoredElsewhere($"retainer {retainer}", quantity, Retainer: retainer)]);
 
     private const string Timeout = "Artisan's retainer session ran for 4 minutes without finishing (a dialogue may be waiting, or the bell was interrupted)";
@@ -63,8 +63,8 @@ internal static class BlockedListingsTests
 
         ("A: a listing-blocked material renders the retainer name and the unit count, not a bare count", () =>
         {
-            var r = Render((Listed(SilverOre, 10, ("Hussypants", 7), ("Bussyqueen", 3)), NoRetainer));
-            return r.Contains("Hussypants") && r.Contains("Bussyqueen")
+            var r = Render((Listed(SilverOre, 10, ("RetainerC", 7), ("RetainerA", 3)), NoRetainer));
+            return r.Contains("RetainerC") && r.Contains("RetainerA")
                 && r.Contains("Silver Ore x7") && r.Contains("Silver Ore x3")
                 // the bare-count rendering the DONE path used to emit must not be all we get
                 && !r.Contains("could not be retrieved,")
@@ -78,8 +78,8 @@ internal static class BlockedListingsTests
             // stayed empty, so `done` below had no "needs you:" section and this check goes red on a revert.
             (DispatchPlan.Retrieve, string)[] unfetched =
             [
-                (Listed(SilverOre, 10, ("Hussypants", 7), ("Bussyqueen", 3)), NoRetainer),
-                (Listed(IronOre, 6, ("Hussypants", 6)), NoRetainer),
+                (Listed(SilverOre, 10, ("RetainerC", 7), ("RetainerA", 3)), NoRetainer),
+                (Listed(IronOre, 6, ("RetainerC", 6)), NoRetainer),
             ];
             var merged = BlockedListings.MergeIntoBlocked(Array.Empty<BlockedItem>(), unfetched, Name);
 
@@ -90,7 +90,7 @@ internal static class BlockedListingsTests
 
             var done = Snap(RunState.Done).Report();
             var stopped = Snap(RunState.Blocked).Report();
-            bool Names(string r) => r.Contains("Silver Ore x10") && r.Contains("Iron Ore x6") && r.Contains("Hussypants");
+            bool Names(string r) => r.Contains("Silver Ore x10") && r.Contains("Iron Ore x6") && r.Contains("RetainerC");
             // Identical blocked content on both endings - that is the whole acceptance line of the card.
             return Names(done) && Names(stopped);
         }),
@@ -98,12 +98,12 @@ internal static class BlockedListingsTests
         ("A: the merge is the single implementation both endings share, and it de-duplicates", () =>
         {
             // A retrieval the plan already named must not be added twice, and a partial remainder must fold (C).
-            BlockedItem[] fromPlan = [new(StepKind.Retrieve, SilverOre, "Silver Ore", 10, null, "the market board (listed by retainer Hussypants)")];
+            BlockedItem[] fromPlan = [new(StepKind.Retrieve, SilverOre, "Silver Ore", 10, null, "the market board (listed by retainer RetainerC)")];
             var merged = BlockedListings.MergeIntoBlocked(fromPlan, new[]
             {
-                (Listed(SilverOre, 10, ("Hussypants", 10)), NoRetainer),
-                (Listed(SilverOre, 4, ("Hussypants", 10)), "partial remainder"),
-                (Listed(IronOre, 6, ("Hussypants", 6)), NoRetainer),
+                (Listed(SilverOre, 10, ("RetainerC", 10)), NoRetainer),
+                (Listed(SilverOre, 4, ("RetainerC", 10)), "partial remainder"),
+                (Listed(IronOre, 6, ("RetainerC", 6)), NoRetainer),
             }, Name);
             return merged.Count == 2
                 && merged.Count(b => b.ItemId == SilverOre) == 1
@@ -114,8 +114,8 @@ internal static class BlockedListingsTests
         {
             var merged = BlockedListings.MergeIntoBlocked(Array.Empty<BlockedItem>(), new[]
             {
-                (Listed(SilverOre, 10, ("Hussypants", 10)), NoRetainer),
-                (Listed(SilverOre, 4, ("Hussypants", 10)), "partial remainder"),
+                (Listed(SilverOre, 10, ("RetainerC", 10)), NoRetainer),
+                (Listed(SilverOre, 4, ("RetainerC", 10)), "partial remainder"),
             }, Name);
             return merged.Count == 1 && merged[0].Quantity == 10;
         }),
@@ -126,10 +126,10 @@ internal static class BlockedListingsTests
                 RunState.Done, "Done", "Done", "done", "cart", ["Alpine Chandelier"],
                 new DateTime(2026, 9, 5, 22, 44, 0), new DateTime(2026, 9, 5, 23, 1, 0), TimeSpan.FromMinutes(17), 2,
                 Array.Empty<RunStep>(),
-                [new BlockedItem(StepKind.Retrieve, IronOre, "Iron Ore", 6, null, "the market board (listed by retainer Hussypants)")],
+                [new BlockedItem(StepKind.Retrieve, IronOre, "Iron Ore", 6, null, "the market board (listed by retainer RetainerC)")],
                 null, false);
             var lines = string.Join("\n", RunReport.ChatLines(snap));
-            return lines.Contains("Iron Ore x6") && lines.Contains("Hussypants");
+            return lines.Contains("Iron Ore x6") && lines.Contains("RetainerC");
         }),
 
         // ------------------------------------------------------------------ DEFECT B: six causes, one meaning
@@ -141,7 +141,7 @@ internal static class BlockedListingsTests
         ("B: a timeout-blocked material never appears in the pull-off-sale instruction", () =>
         {
             var r = Render(
-                (Listed(SilverOre, 7, ("Hussypants", 7)), NoRetainer),
+                (Listed(SilverOre, 7, ("RetainerC", 7)), NoRetainer),
                 (Reachable(TitaniumOre, 15), Timeout));
             var pull = r.Split('\n').TakeWhile(l => !l.Contains("other reasons")).ToList();
             return string.Join("\n", pull).Contains("Silver Ore x7")
@@ -155,12 +155,12 @@ internal static class BlockedListingsTests
         {
             var s = BlockedListings.Summarise(new[]
             {
-                (Listed(SilverOre, 7, ("Hussypants", 7)), NoRetainer),
-                (Listed(IronOre, 6, ("Hussypants", 6)), NoRetainer),
+                (Listed(SilverOre, 7, ("RetainerC", 7)), NoRetainer),
+                (Listed(IronOre, 6, ("RetainerC", 6)), NoRetainer),
                 (Reachable(TitaniumOre, 15), Timeout),
                 (Reachable(SilverIngot, 4), "could not start the retainer fetch"),
             }, Name);
-            return s.Retainers.Count == 1 && s.Retainers[0].Retainer == "Hussypants"
+            return s.Retainers.Count == 1 && s.Retainers[0].Retainer == "RetainerC"
                 && s.ItemCount == 2 && s.TotalUnits == 13
                 && s.Others.Count == 2
                 && s.Others.All(o => o.ItemId is TitaniumOre or SilverIngot);
@@ -168,7 +168,7 @@ internal static class BlockedListingsTests
 
         ("B: the discriminator is Fetchable, not the wording of the reason", () =>
             // Same reason text on both; only the reachability of the place differs.
-            BlockedListings.IsListingBlocked(Listed(SilverOre, 3, ("Hussypants", 3)))
+            BlockedListings.IsListingBlocked(Listed(SilverOre, 3, ("RetainerC", 3)))
             && !BlockedListings.IsListingBlocked(Reachable(SilverOre, 3))),
 
         ("B: negative control - a material with NO known place is not called a listing", () =>
@@ -193,8 +193,8 @@ internal static class BlockedListingsTests
         ("C: a partial-pull remainder appears ONCE, with the combined figure", () =>
         {
             var r = Render(
-                (Listed(SilverOre, 10, ("Hussypants", 10)), NoRetainer),
-                (Listed(SilverOre, 4, ("Hussypants", 10)), "only 6 of 10 came back after 4 attempts"));
+                (Listed(SilverOre, 10, ("RetainerC", 10)), NoRetainer),
+                (Listed(SilverOre, 4, ("RetainerC", 10)), "only 6 of 10 came back after 4 attempts"));
             var occurrences = r.Split('\n').Count(l => l.Contains("Silver Ore"));
             return occurrences == 1 && r.Contains("Silver Ore x10") && !r.Contains("Silver Ore x4");
         }),
@@ -203,9 +203,9 @@ internal static class BlockedListingsTests
         {
             var s = BlockedListings.Summarise(new[]
             {
-                (Listed(SilverOre, 10, ("Hussypants", 10)), NoRetainer),
-                (Listed(SilverOre, 4, ("Hussypants", 10)), "partial"),
-                (Listed(IronOre, 6, ("Hussypants", 6)), NoRetainer),
+                (Listed(SilverOre, 10, ("RetainerC", 10)), NoRetainer),
+                (Listed(SilverOre, 4, ("RetainerC", 10)), "partial"),
+                (Listed(IronOre, 6, ("RetainerC", 6)), NoRetainer),
             }, Name);
             return s.ItemCount == 2 && s.TotalUnits == 16 && s.Retainers.Count == 1
                 && s.Retainers[0].Items.Count == 2;
@@ -214,10 +214,10 @@ internal static class BlockedListingsTests
         ("C: the same item on two retainers is ONE material but two bell-visit rows", () =>
         {
             var s = BlockedListings.Summarise(
-                new[] { (Listed(SilverOre, 10, ("Hussypants", 7), ("Bussyqueen", 3)), NoRetainer) }, Name);
+                new[] { (Listed(SilverOre, 10, ("RetainerC", 7), ("RetainerA", 3)), NoRetainer) }, Name);
             return s.ItemCount == 1 && s.TotalUnits == 10 && s.Retainers.Count == 2
-                && s.Retainers.Single(r => r.Retainer == "Hussypants").Items.Single().Units == 7
-                && s.Retainers.Single(r => r.Retainer == "Bussyqueen").Items.Single().Units == 3;
+                && s.Retainers.Single(r => r.Retainer == "RetainerC").Items.Single().Units == 7
+                && s.Retainers.Single(r => r.Retainer == "RetainerA").Items.Single().Units == 3;
         }),
 
         // ------------------------------------------------------------------ the clean run: silence
@@ -243,25 +243,25 @@ internal static class BlockedListingsTests
 
         ("the twelve-line wall collapses: 12 materials render one grouped block, not 12 warnings", () =>
         {
-            // Joey's run, all twelve, all on Hussypants except the Silver Ore split.
+            // Joey's run, all twelve, all on RetainerC except the Silver Ore split.
             (uint Id, int Qty)[] wall =
             [
                 (SilverOre, 3), (IronOre, 6), (CloudMica, 3), (SilverIngot, 4), (5063, 8), (5064, 1),
                 (5065, 5), (5066, 1), (5067, 1), (5068, 2), (5069, 2), (5070, 2),
             ];
-            var r = Render(wall.Select(w => (Listed(w.Id, w.Qty, ("Hussypants", w.Qty)), NoRetainer)).ToArray());
+            var r = Render(wall.Select(w => (Listed(w.Id, w.Qty, ("RetainerC", w.Qty)), NoRetainer)).ToArray());
             var lines = r.Split('\n');
             // One headline + one line per retainer + one hint + one "/lcraft blocked" pointer = 4, not 12+.
             return lines.Length == 4
-                && lines[1].StartsWith("  Hussypants:")
+                && lines[1].StartsWith("  RetainerC:")
                 && lines[1].Contains("Silver Ore x3") && lines[1].Contains("Iron Ore x6")
                 && r.Contains("/lcraft blocked");
         }),
 
         ("the refusal line is one short line and names the retainer holding the listing", () =>
         {
-            var line = BlockedListings.RefusalLine("Silver Ore", Listed(SilverOre, 7, ("Hussypants", 7)));
-            return line.Contains("Silver Ore x7") && line.Contains("Hussypants")
+            var line = BlockedListings.RefusalLine("Silver Ore", Listed(SilverOre, 7, ("RetainerC", 7)));
+            return line.Contains("Silver Ore x7") && line.Contains("RetainerC")
                 && line.Contains("listed for sale") && !line.Contains('\n')
                 && line.Length < 160;
         }),
@@ -276,10 +276,10 @@ internal static class BlockedListingsTests
         ("/lcraft blocked prints the full per-item detail including the verbatim reason", () =>
         {
             var d = RenderDetail(
-                (Listed(SilverOre, 10, ("Hussypants", 7), ("Bussyqueen", 3)), NoRetainer),
+                (Listed(SilverOre, 10, ("RetainerC", 7), ("RetainerA", 3)), NoRetainer),
                 (Reachable(TitaniumOre, 15), Timeout));
-            return d.Contains("retainer Hussypants") && d.Contains("Silver Ore x7")
-                && d.Contains("retainer Bussyqueen") && d.Contains("Silver Ore x3")
+            return d.Contains("retainer RetainerC") && d.Contains("Silver Ore x7")
+                && d.Contains("retainer RetainerA") && d.Contains("Silver Ore x3")
                 && d.Contains("Titanium Ore x15") && d.Contains(Timeout)
                 && d.Contains("do NOT unlist anything for these");
         }),
@@ -294,10 +294,10 @@ internal static class BlockedListingsTests
 
         ("StoredElsewhere carries the retainer name for grouping, and it is not parsed out of the display text", () =>
         {
-            var listing = new StoredElsewhere("the market board (listed by retainer Hussypants)", 7, Fetchable: false, Retainer: "Hussypants");
+            var listing = new StoredElsewhere("the market board (listed by retainer RetainerC)", 7, Fetchable: false, Retainer: "RetainerC");
             var unnamed = new StoredElsewhere("the market board (your retainers' listings)", 7, Fetchable: false);
             // Owner falls back to the place name when the producer could not name a retainer - never a bad parse.
-            return listing.Owner == "Hussypants" && unnamed.Owner == "the market board (your retainers' listings)";
+            return listing.Owner == "RetainerC" && unnamed.Owner == "the market board (your retainers' listings)";
         }),
 
         ("an unnamed listing still groups and still renders, under the fallback place name", () =>

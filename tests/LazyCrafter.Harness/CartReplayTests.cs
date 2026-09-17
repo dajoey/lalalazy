@@ -4,7 +4,7 @@ using LazyCrafter.Core.Model;
 namespace LazyCrafter.Harness;
 
 /// <summary>
-/// Replay of the run that stalled: Alpine Chandelier, recipe 2861, omasky 2026-09-05 19:32:03-19:34:35
+/// Replay of the run that stalled: Alpine Chandelier, recipe 2861, test-machine 2026-09-05 19:32:03-19:34:35
 /// (LazyCrafter 0.1.6.0, card t_c69287be). Real recipe ids, real item ids and the real ingredient amounts,
 /// read out of the game's own sheets with <c>tests/LazyCrafter.Probe</c>, so this is the actual cart rather
 /// than a shape that resembles it.
@@ -13,7 +13,7 @@ namespace LazyCrafter.Harness;
 /// <code>
 /// gathers=[12539x12,5111x3,5526x3] crafts=[] vendor=[5998x7] market=[12537x15,12535x4]
 /// deferred=[r2332:needs market #12537, r2333:needs craft #12524,
-///           r2529:needs market #12535, retrieve #12520 x1 (from the market board (listed by retainer Hussypants)),
+///           r2529:needs market #12535, retrieve #12520 x1 (from the market board (listed by retainer RetainerC)),
 ///           r2861:needs craft #12525, craft #12521, buy #5998]
 /// </code>
 /// Two independent defects produced that: (1) the single Hardsilver Nugget listed for sale counted as owned, so it
@@ -132,7 +132,7 @@ internal static class CartReplayTests
             () =>
             {
                 var p = Replay(oresGatherable: true,
-                    NightBags().SetElsewhere(HardsilverNugget, 1, "the market board (listed by retainer Hussypants)"));
+                    NightBags().SetElsewhere(HardsilverNugget, 1, "the market board (listed by retainer RetainerC)"));
                 return p.Retrievals.Any(r => r.ItemId == HardsilverNugget && r.Quantity == 1
                                           && r.Places.Contains("market board"));
             }),
@@ -149,7 +149,7 @@ internal static class CartReplayTests
             () =>
             {
                 var p = Replay(oresGatherable: true,
-                    NightBags().SetElsewhere(HardsilverNugget, 1, "the market board (listed by retainer Hussypants)"));
+                    NightBags().SetElsewhere(HardsilverNugget, 1, "the market board (listed by retainer RetainerC)"));
                 return !p.Crafts.Any(c => c.ResultItemId == HardsilverIngot)
                     && p.Deferred.Any(d => d.RecipeId == RHardsilverIngot
                                         && d.Reason.Contains($"retrieve #{HardsilverNugget}"));
@@ -169,7 +169,7 @@ internal static class CartReplayTests
             () =>
             {
                 var p = Replay(oresGatherable: false,
-                    NightBags().SetElsewhere(HardsilverNugget, 1, "the market board (listed by retainer Hussypants)"));
+                    NightBags().SetElsewhere(HardsilverNugget, 1, "the market board (listed by retainer RetainerC)"));
                 // The 19:32 line verbatim: crafts=[], the two ores on the market list, and every recipe in the
                 // tree deferred - including r2529 behind the impossible retrieval of the listed nugget.
                 // (HasWork is still true: three gathers were queued. The cart made no PROGRESS, which is why the
@@ -200,7 +200,7 @@ internal static class CartReplayTests
             () =>
             {
                 var p = Replay(oresGatherable: true,
-                    NightBags().SetElsewhere(HardsilverNugget, 1, "the market board (listed by retainer Hussypants)"));
+                    NightBags().SetElsewhere(HardsilverNugget, 1, "the market board (listed by retainer RetainerC)"));
                 // Both ores now gather and the Titanium branch runs, but the Hardsilver branch is still blocked
                 // behind the retrieval no bell can satisfy - so the chandelier never runs.
                 return p.Crafts.Any(c => c.ResultItemId == TitaniumIngot)

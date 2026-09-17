@@ -11,7 +11,7 @@ namespace LazyRetainerLive;
 /// Loopback-only HTTP surface: GET /retainers -> the latest snapshot as JSON.
 ///
 /// Deliberately a raw TcpListener, NOT System.Net.HttpListener: HttpListener is
-/// http.sys-based and the game host (omasky) runs the client under wine, which
+/// http.sys-based and the game host (test-machine) runs the client under wine, which
 /// does not implement http.sys. Plain sockets are what the proven precedent
 /// (IINACT on 127.0.0.1:10501) uses on this same host.
 ///

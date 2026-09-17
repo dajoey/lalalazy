@@ -12,7 +12,7 @@ internal static class Program
 
         var c = new CharInfo
         {
-            Char = "Grandpa Joe",
+            Char = "TestCharacter",
             World = "Hyperion",
             Gil = 29279279,
             Ventures = 5065,
@@ -20,10 +20,10 @@ internal static class Program
             Inventory = 42,
             Retainers =
             [
-                new RetainerInfo { Name = "Hussypants", Job = 25, Level = 100, HasVenture = true, EndsAt = 1788647220, Gil = 0, VentureId = 939, Mb = 20 },
-                new RetainerInfo { Name = "Sofondapeters", Job = 17, Level = 100, HasVenture = true, EndsAt = 1788648041, Gil = 123, VentureId = 395, Mb = 3 },
-                new RetainerInfo { Name = "Bussyqueen", Job = 16, Level = 100, HasVenture = false, EndsAt = 0, Gil = 0, VentureId = 0, Mb = 0 },
-                new RetainerInfo { Name = "Dojarat", Job = 18, Level = 100, HasVenture = true, EndsAt = 1788648278, Gil = 999, VentureId = 395, Mb = 20 },
+                new RetainerInfo { Name = "RetainerC", Job = 25, Level = 100, HasVenture = true, EndsAt = 1788647220, Gil = 0, VentureId = 939, Mb = 20 },
+                new RetainerInfo { Name = "RetainerD", Job = 17, Level = 100, HasVenture = true, EndsAt = 1788648041, Gil = 123, VentureId = 395, Mb = 3 },
+                new RetainerInfo { Name = "RetainerA", Job = 16, Level = 100, HasVenture = false, EndsAt = 0, Gil = 0, VentureId = 0, Mb = 0 },
+                new RetainerInfo { Name = "RetainerB", Job = 18, Level = 100, HasVenture = true, EndsAt = 1788648278, Gil = 999, VentureId = 395, Mb = 20 },
             ],
         };
 
@@ -52,7 +52,7 @@ internal static class Program
         Check(failures, charKeys.SequenceEqual(["char", "world", "gil", "ventures", "seals", "inventory", "retainers"]),
             $"char key order = [{string.Join(",", charKeys)}]");
 
-        Check(failures, ch.GetProperty("char").GetString() == "Grandpa Joe", "char value");
+        Check(failures, ch.GetProperty("char").GetString() == "TestCharacter", "char value");
         Check(failures, ch.GetProperty("world").GetString() == "Hyperion", "world value");
         Check(failures, ch.GetProperty("gil").GetInt64() == 29279279, "gil value");
         Check(failures, ch.GetProperty("ventures").GetInt64() == 5065, "ventures value");
@@ -65,7 +65,7 @@ internal static class Program
         Check(failures, retKeys.SequenceEqual(["name", "job", "level", "hasVenture", "endsAt", "gil", "ventureId", "mb"]),
             $"retainer key order = [{string.Join(",", retKeys)}]");
 
-        Check(failures, r0.GetProperty("name").GetString() == "Hussypants", "retainer name");
+        Check(failures, r0.GetProperty("name").GetString() == "RetainerC", "retainer name");
         Check(failures, r0.GetProperty("job").GetInt32() == 25, "job value");
         Check(failures, r0.GetProperty("level").GetInt32() == 100, "level value");
         Check(failures, r0.GetProperty("hasVenture").GetBoolean() == true, "hasVenture value");

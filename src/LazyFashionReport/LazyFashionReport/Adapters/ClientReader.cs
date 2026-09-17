@@ -8,7 +8,7 @@ using LazyFashionReport.Core;
 namespace LazyFashionReport.Adapters;
 
 /// <summary>
-/// Live client reads. Every member used here was enumerated from omasky's INSTALLED
+/// Live client reads. Every member used here was enumerated from test-machine's INSTALLED
 /// FFXIVClientStructs (Hooks/15.0.3.2, 2026-09-06) before this file was written:
 /// - AgentFashion{static Instance(), OpenType, FashionCheckData{WeeklyTheme,Score,ItemThemes,ItemEvaluations}, Items}
 ///   (Items = FashionCheckItemDataStruct rows with ItemId/Stain0Id/Stain1Id — what AvantGarde

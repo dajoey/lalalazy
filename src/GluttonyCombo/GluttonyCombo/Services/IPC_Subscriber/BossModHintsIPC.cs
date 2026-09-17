@@ -16,7 +16,7 @@ namespace GluttonyCombo.Services.IPC_Subscriber;
 ///     derived-zones-only mode.
 /// </summary>
 /// <remarks>
-///     Verified against the INSTALLED BMR 7.5.6.4 on omasky (UTF-16 strings in
+///     Verified against the INSTALLED BMR 7.5.6.4 on test-machine (UTF-16 strings in
 ///     BossModReborn.dll). Upstream awgil BossMod does NOT expose the Hints.*
 ///     set - the wrapper degrades to nulls there, which is correct.
 /// </remarks>
