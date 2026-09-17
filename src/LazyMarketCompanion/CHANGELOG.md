@@ -1,12 +1,18 @@
-﻿## v0.1.53.0 (2026-09-17)
-
-### Fixed
-
-- **Auto-Market quarantine now expires with a visible retry, and the held stacks are listed in-game.** The reconciliation ledger previously held a stack forever once its move reported OK without sticking server-side, silently, with no re-attempt - so a fully quarantined inventory read as "nothing is moving". Ledger entries now drop 24 hours after the last move even when the stack is still in place, and the next sweep re-plans each held stack exactly once in the routing move plan line. A retry that reports OK yet still does not stick goes back into quarantine with a fresh stamp, bounding a permanently failing move to one retry per 24-hour window instead of one attempt every sweep. The reconcile log line now reports the retry outcome (how many 24-hour retries landed vs went back into quarantine), which is the remaining evidence on the moves-pass-locally-but-do-not-stick residual. The Auto-Market tab carries a Quarantined moves section naming every held stack with its retainer, slot, held-since stamp, and age, so this state is never silent again. The ledger file format is unchanged - the same key and last-move stamp lines load in older and newer builds alike (files: `AutoMarket/RoutingMove.cs` `IsReconcileEntryExpired`/`TryParseReconcileKey`, `MarketAutomation.cs` `PruneReconcileSkip`/`RecordRoutingReconciled`/`GetReconcileLedgerSnapshot`, `Windows/ConfigWindow.cs` `DrawQuarantinedMoves`, `Plugin.cs` ledger feed).
+﻿## v0.1.54.0 (2026-09-17)
 
 ### Notes
 
-- Offline-suite change: new cases 109-111 pin the 24-hour expiry boundaries, the ledger-key parse round trip for both move legs, and malformed-key rejection for the quarantined-list data path (file: `tests/LazyMarketCompanion.Harness/Program.cs`).
+- Reissued the 0.1.53.0 release notes without source-file path lists in the changelog text. Quarantine expiry, the one visible retry, and the in-game Quarantined moves list are unchanged from 0.1.53.0.
+
+## v0.1.53.0 (2026-09-17)
+
+### Fixed
+
+- **Auto-Market quarantine now expires with a visible retry, and the held stacks are listed in-game.** The reconciliation ledger previously held a stack forever once its move reported OK without sticking server-side, silently, with no re-attempt - so a fully quarantined inventory looked like Auto-Market had stopped moving stock. Ledger entries now drop 24 hours after the last move even when the stack is still in place, and the next sweep re-plans each held stack exactly once in the routing move plan line. A retry that reports OK yet still does not stick goes back into quarantine with a fresh stamp, bounding a permanently failing move to one retry per 24-hour window instead of one attempt every sweep. The reconcile log line now reports the retry outcome (how many 24-hour retries landed vs went back into quarantine), which is the remaining evidence on the moves-pass-locally-but-do-not-stick residual. The Auto-Market tab carries a Quarantined moves section naming every held stack with its retainer, slot, held-since stamp, and age, so this state is never silent again. The ledger file format is unchanged - the same key and last-move stamp lines load in older and newer builds alike.
+
+### Notes
+
+- Offline-suite change: new cases 109-111 pin the 24-hour expiry boundaries, the ledger-key parse round trip for both move legs, and malformed-key rejection for the quarantined-list data path.
 
 ## v0.1.52.0 (2026-09-17)
 
