@@ -77,6 +77,12 @@ internal static class SmartMover
     private static long _lastOmenSilenceMs;
     private static long _lastTickFailMs;
 
+    // v1.0.4.206 nav-skip visibility: a commanded Move that never reaches nav
+    // is otherwise invisible (telemetry logs the ddg/eng while the character
+    // stands still). Last skip throttle state for NoteNavSkip below.
+    private static long _lastNavSkipMs;
+    private static string _lastNavSkipWhy = "";
+
     /// <summary> Desired standing range (edge-to-edge) per role - mirrors the fork's BMR push table (GluttonyCombo.cs UpdateCaches). </summary>
     private static float DesiredRangeFor(Job job)
     {
@@ -515,6 +521,25 @@ internal static class SmartMover
         };
     }
 
+    /// <summary>
+    ///     v1.0.4.206: a commanded Move that never reaches nav is otherwise
+    ///     invisible (telemetry logs the ddg/eng while the character stands
+    ///     still). Telemetry-gated, one Information line per 5s per skip kind.
+    ///     MVX| never collides with the MV| tap grammar grading views parse.
+    /// </summary>
+    private static void NoteNavSkip(string why, Vector2 dest)
+    {
+        if (!(AutoRotationController.cfg?.DPSSettings.MovementTelemetry ?? false))
+            return;
+        var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        if (why == _lastNavSkipWhy && nowMs - _lastNavSkipMs < 5000)
+            return;
+        _lastNavSkipWhy = why;
+        _lastNavSkipMs = nowMs;
+        try { Svc.Log.Information($"[SmartMover] MVX|skip={why}|dst={MathF.Round(dest.X)},{MathF.Round(dest.Y)}"); }
+        catch { /* never break the tick */ }
+    }
+
     private static void Execute(SmartMoverCore.MoveDecision d, SmartMoverCore.MoverWorld w)
     {
         switch (d.Kind)
@@ -529,7 +554,10 @@ internal static class SmartMover
                 // "Pathfinding task is in progress..." every 250ms tick; the
                 // process died mid-engage on .196 with no managed exception.
                 if (_navBusy)
+                {
+                    NoteNavSkip("busy", d.Dest);
                     break; // let the in-flight pathfind finish; re-evaluate next tick
+                }
 
                 // Re-issue gate: nav already RUNNING toward essentially this
                 // destination is not re-primed - vnavmesh keeps walking on its own.
@@ -562,7 +590,7 @@ internal static class SmartMover
                 // v1.0.4.198: a throwing nav IPC used to kill the tick BEFORE
                 // Emit, hiding the failure (see tick-failed throttle above).
                 try { NavmeshIPC.PathfindAndMoveTo(dest); }
-                catch { /* vnavmesh gone mid-tick - re-evaluate next tick */ }
+                catch { NoteNavSkip("throw", d.Dest); /* vnavmesh gone mid-tick - re-evaluate next tick */ }
                 break;
         }
     }
@@ -666,6 +694,10 @@ internal static class SmartMover
         SmartMoverCore.ReasonDodgeCode => "ddg",
         SmartMoverCore.ReasonEngageCode => "eng",
         SmartMoverCore.ReasonSettleCode => "stl",
+        // v1.0.4.206: the engage/settle HOLD (no command, reason 0) used to
+        // alias as "stl", so a hold while zones were live was indistinguishable
+        // from a stand-down Stop in telemetry. Holds log as "hold" now.
+        0 => "hold",
         _ => "stl",
     };
 

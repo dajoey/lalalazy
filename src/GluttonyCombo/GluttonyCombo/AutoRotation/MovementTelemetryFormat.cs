@@ -65,6 +65,9 @@ internal static class MovementTelemetryFormat
         "man" => 3,
         "cast" => 4,
         "bmr" => 5,
+        "hold" => 10, // v1.0.4.206: the no-command hold while zones are live.
+                      // Its own key so a hold/stop transition always emits -
+                      // sharing "stl" hid holds behind stops (and vice versa).
         _ => 0,
     };
 

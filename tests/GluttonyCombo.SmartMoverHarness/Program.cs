@@ -762,6 +762,51 @@ SmartMoverCore.MoverWorld World(
     var r2 = SmartMoverCore.Decide(World(player: new(0, -7.9f), zones: NoZones) with { NowSec = 500.25 }, hR);
     Check("settlehold/replay-flicker-keeps-dodge", r2.Kind == SmartMoverCore.Decision.Move && r2.Dest == r1.Dest, $"r2={r2.Dest} r1={r1.Dest}");
 }
+// ---------------------------------------------------------------- engage corridor hold (v1.0.4.206)
+{
+    // Grading 1.0.4.205 logged an engage Move committed with 8 live zones:
+    // the engage DESTINATION was zone-checked, but the PATH was not, so the
+    // character walked the straight corridor through live danger. While zones
+    // are live and the straight player->dest corridor crosses one, engage now
+    // holds (no command, hysteresis kept) instead of walking through; the
+    // dodge branch still fires first whenever the player is unsafe, and with
+    // no zones live the answer is byte-identical.
+    var between = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -14), 0f, 2f, 0f, 0f, 0f, default, 3f) };
+
+    // Player safe at (0,-20), ideal (0,-8) safe, corridor through (0,-14) r2 -> HOLD.
+    var hCor = new SmartMoverCore.Hysteresis { LastDest = new Vector2(0, -8), HasLastDest = true };
+    var dCor = SmartMoverCore.Decide(World(player: new(0, -20), zones: between) with { NowSec = 600.0 }, hCor);
+    Check("corridor/blocked-holds", dCor.Kind == SmartMoverCore.Decision.None, $"kind={dCor.Kind} r={dCor.Reason}");
+    Check("corridor/blocked-keeps-hysteresis", hCor.HasLastDest, $"held={hCor.HasLastDest}");
+
+    // Same geometry with the zone OFF the corridor -> engage Move (selectivity).
+    var aside = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(10, -14), 0f, 2f, 0f, 0f, 0f, default, 3f) };
+    var hAside = new SmartMoverCore.Hysteresis();
+    var dAside = SmartMoverCore.Decide(World(player: new(0, -20), zones: aside) with { NowSec = 600.0 }, hAside);
+    Check("corridor/clear-moves", dAside.Kind == SmartMoverCore.Decision.Move && dAside.Reason == SmartMoverCore.ReasonEngageCode, $"kind={dAside.Kind} r={dAside.Reason}");
+
+    // No zones at all -> classic engage Move (byte-identical negative control).
+    var hFree = new SmartMoverCore.Hysteresis();
+    var dFree = SmartMoverCore.Decide(World(player: new(0, -20), zones: NoZones) with { NowSec = 600.0 }, hFree);
+    Check("corridor/no-zones-moves", dFree.Kind == SmartMoverCore.Decision.Move && dFree.Reason == SmartMoverCore.ReasonEngageCode, $"kind={dFree.Kind} r={dFree.Reason}");
+
+    // Unsafe player still dodges first even when the engage corridor is blocked.
+    var hUn = new SmartMoverCore.Hysteresis();
+    var hot = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -14), 0f, 3f, 0f, 0f, 0f, default, 3f) };
+    var dUn = SmartMoverCore.Decide(World(player: new(0, -14), target: new(0, 0), zones: hot) with { NowSec = 600.0 }, hUn);
+    Check("corridor/unsafe-dodges-first", dUn.Kind == SmartMoverCore.Decision.Move && dUn.Reason == SmartZoneDDG(), $"kind={dUn.Kind} r={dUn.Reason}");
+
+    // Covered ideal + blocked corridor to the ring variant -> the sidestep
+    // still moves (the variant IS the avoidance maneuver, not a walk-through).
+    var hSide = new SmartMoverCore.Hysteresis();
+    var cover = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -8.5f), 0f, 6f, 0f, 0f, 0f, default, 5f) };
+    var dSide = SmartMoverCore.Decide(World(player: new(0, -18), range: 3f, target: new(0, 0), hitbox: 5f, zones: cover) with { NowSec = 600.0 }, hSide);
+    Check("corridor/sidestep-still-moves", dSide.Kind == SmartMoverCore.Decision.Move && dSide.Reason == SmartMoverCore.ReasonEngageCode, $"kind={dSide.Kind} r={dSide.Reason}");
+    // Hold telemetry: "hold" keys must differ from "stl" keys, or hold/stop
+    // transitions vanish behind the emit gate (the 1.0.4.205 grading blind spot).
+    Check("hold/key-distinct-from-stl", MovementTelemetryFormat.KeyOf("hold", null, null) != MovementTelemetryFormat.KeyOf("stl", null, null));
+    Check("hold/code-distinct-from-stl", MovementTelemetryFormat.DecisionCode("hold") != MovementTelemetryFormat.DecisionCode("stl"));
+}
 // ---------------------------------------------------------------- shape asserts
 {
     Check("shape/zone-carries-remaining", typeof(DangerZoneModel.Zone).GetProperty("RemainingSec") is not null);

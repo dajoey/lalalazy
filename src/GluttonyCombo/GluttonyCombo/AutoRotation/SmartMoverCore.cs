@@ -224,6 +224,19 @@ internal static class SmartMoverCore
                 return None(); // whole ring unsafe/unwalkable - hold
         }
 
+        // v1.0.4.206: while telegraphs are live, the mover never walks the
+        // straight corridor THROUGH a live zone on a DIRECT approach. The
+        // destination itself is zone-checked above, but the PATH was not -
+        // grading 1.0.4.205 logged an engage Move committed with 8 live zones
+        // (walk-through toward the target, then a hit). A blocked direct
+        // corridor holds position (no command, hysteresis kept) until the
+        // zones resolve; the dodge branch above still fires first whenever the
+        // player is unsafe, and a ring-swept sidestep (ideal itself covered)
+        // still moves as before - that sidestep IS the avoidance maneuver.
+        // With no zones live this is byte-identical.
+        if (!idealBlocked && ZonesLive(w) && SegmentBlocked(finalDest, w.PlayerPos, w.Zones))
+            return None(); // direct corridor crosses live danger - wait in safety
+
         return Commit(w, h, finalDest, ReasonEngageCode, overrideHold: false);
     }
 
