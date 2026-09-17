@@ -3207,6 +3207,67 @@ StockStack BagStack(uint id, int slot, int qty, uint cat = CatA, bool marketable
     added.Count == 1 && added[0].RetainerName == "R2", $"added={(added.Count > 0 ? added[0].RetainerName : "-")}");
 }
 
+// ===== 0.1.50.0: post-move reconciliation (ReconcileKey ledger + reconciledSkip) =====
+
+// 99. The reconcile key format is pinned: session-qualified so identical container:slot keys
+// from different retainer sessions cannot collide; the session trims like the identity check.
+{
+  Check("99 reconcile: key is session-qualified container:slot:item:hq",
+    RoutingMove.ReconcileKey("R2", 10001, 1, 1001, false) == "R2|10001:1:1001:nq",
+    "format");
+  Check("99 reconcile: padded session trims to the same key",
+    RoutingMove.ReconcileKey(" R2 ", 10001, 1, 1001, false) == "R2|10001:1:1001:nq",
+    "trimmed");
+  Check("99 reconcile: hq flag distinguished",
+    RoutingMove.ReconcileKey("R2", 10001, 1, 1001, true) == "R2|10001:1:1001:hq",
+    "hq");
+}
+
+// 100. A pull-out whose reconcile key is in the ledger is skipped with a "did not stick" note;
+// control without the ledger plans it as before.
+{
+  var rules = new List<ItemRule> { Rule(1001, 99) };
+  var stock = new List<StockStack> { RetStack(1001, 1, 10) };
+  var info = CatInfo(1001, CatA);
+  // CatA -> R1, so session R2 would pull this out; the key uses the planning session.
+  var skip = new HashSet<string> { RoutingMove.ReconcileKey("R2", 10001, 1, 1001, false) };
+  var plan = RoutingMove.Plan(stock, rules, info, new Dictionary<string, bool>(), routingRules, "R2", () => 10, () => 10, null, skip);
+  Check("100 reconcile: previously-moved pull-out still in place is not re-planned",
+    plan.Ops.Count == 0, $"ops={plan.Ops.Count}");
+  Check("100 reconcile: the skip is explained in the notes",
+    plan.Notes.Any(n => n.Contains("did not stick")), $"notes={plan.Notes.Count}");
+  var control = RoutingMove.Plan(stock, rules, info, new Dictionary<string, bool>(), routingRules, "R2", () => 10, () => 10);
+  Check("100 reconcile control: without the ledger the pull plans as before",
+    control.Ops.Count == 1 && control.Ops[0].Leg == MoveLeg.RetainerToBags, $"ops={control.Ops.Count}");
+}
+
+// 101. The deposit leg respects the ledger too; PlanDepositsOnly threads it through.
+{
+  var rules = new List<ItemRule> { Rule(1001, 99) };
+  var stock = new List<StockStack> { BagStack(1001, 2, 30) };
+  var info = CatInfo(1001, CatA);
+  var skip = new HashSet<string> { RoutingMove.ReconcileKey("R1", 1, 2, 1001, false) };
+  var plan = RoutingMove.PlanDepositsOnly(stock, rules, info, new Dictionary<string, bool>(), routingRules, "R1", () => 10, () => 10, skip);
+  Check("101 reconcile: rolled-back deposit reappearing in bags is not re-planned",
+    plan.Ops.Count == 0, $"ops={plan.Ops.Count}");
+  var control = RoutingMove.PlanDepositsOnly(stock, rules, info, new Dictionary<string, bool>(), routingRules, "R1", () => 10, () => 10);
+  Check("101 reconcile control: without the ledger the deposit plans as before",
+    control.Ops.Count == 1 && control.Ops[0].Leg == MoveLeg.BagsToRetainer, $"ops={control.Ops.Count}");
+}
+
+// 102. Session qualification: the same container:slot:item under a DIFFERENT session is not
+// skipped - retainer pages share InventoryType values across sessions, so a bare key would
+// wrongly suppress an unrelated retainer's identical slot.
+{
+  var rules = new List<ItemRule> { Rule(1001, 99) };
+  var stock = new List<StockStack> { RetStack(1001, 1, 10) };
+  var info = CatInfo(1001, CatA);
+  var skip = new HashSet<string> { RoutingMove.ReconcileKey("R1", 10001, 1, 1001, false) };
+  var plan = RoutingMove.Plan(stock, rules, info, new Dictionary<string, bool>(), routingRules, "R2", () => 10, () => 10, null, skip);
+  Check("102 reconcile: another session's ledger key does not block this session's pull",
+    plan.Ops.Count == 1 && plan.Ops[0].Leg == MoveLeg.RetainerToBags, $"ops={plan.Ops.Count}");
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 

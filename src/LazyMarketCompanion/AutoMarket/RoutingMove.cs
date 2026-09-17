@@ -108,6 +108,20 @@ public static class RoutingMove
   private const int CrystalsContainer = 2001;
   private const int RetainerCrystalsContainer = 12001;
 
+  /// <summary>
+  /// 0.1.50.0: session-qualified key for the post-move reconciliation ledger. The game side
+  /// records this key for every routing move that reports OK and drops any later plan op with
+  /// the same key: a stack that was moved OK yet is back in the same source slot did not stick
+  /// server-side (the 20:34-20:39 ET double-sweep re-move loop), so re-firing it every sweep is
+  /// never progress. Session-qualified because retainer page containers are the same
+  /// InventoryType values for every retainer - the open retainer's pages - so a bare
+  /// container:slot key would collide across sessions. The session is trimmed (see
+  /// CategoryRouter.RetainerNamesEqual) so a whitespace-variant read of the same retainer
+  /// still matches. Format pinned by harness case 99.
+  /// </summary>
+  public static string ReconcileKey(string session, int container, int slot, uint itemId, bool hq)
+    => $"{session?.Trim() ?? string.Empty}|{container}:{slot}:{itemId}:{(hq ? "hq" : "nq")}";
+
   public static RoutingMovePlan Plan(
     IReadOnlyList<StockStack> stock,
     IReadOnlyList<ItemRule> rules,
@@ -129,6 +143,10 @@ public static class RoutingMove
   /// cannot turn into an endless bags->retainer->bags cycle across subsequent passes and laps.
   /// Deposits are NOT guarded - depositing an item twice is impossible (after the first deposit the
   /// stack is no longer in the bags) and the lap exists precisely to retry deposits that stranded.
+  /// 0.1.50.0: reconciledSkip carries the session-qualified ReconcileKeys of moves that reported
+  /// OK on an earlier sweep (filled by the executor, pruned when the stack leaves its slot). A
+  /// plan op with the same key means the stack is back where a previous sweep moved it from -
+  /// the move did not stick - so it is skipped on BOTH legs instead of re-fired every sweep.
   /// </summary>
   public static RoutingMovePlan Plan(
     IReadOnlyList<StockStack> stock,
@@ -139,15 +157,18 @@ public static class RoutingMove
     string retainerName,
     Func<int> freeBagSlots,
     Func<int> freeRetainerSlots,
-    IReadOnlyCollection<string>? movedThisRun)
+    IReadOnlyCollection<string>? movedThisRun,
+    IReadOnlyCollection<string>? reconciledSkip = null)
   {
     return PlanCore(stock, rules, categoryByKey, excludeByKey, categoryRules, retainerName,
-      freeBagSlots, freeRetainerSlots, depositsOnly: false, movedThisRun: movedThisRun);
+      freeBagSlots, freeRetainerSlots, depositsOnly: false, movedThisRun: movedThisRun, reconciledSkip: reconciledSkip);
   }
 
   /// <summary>
   /// 0.1.42.0: Runs the mover in deposit-only mode for the final deposit lap.
   /// Skips all RetainerToBags pull moves so stock is only ever deposited.
+  /// 0.1.50.0: reconciledSkip threaded through (see Plan) - a rolled-back deposit reappearing
+  /// in the bags is skipped the same way a rolled-back pull-out is.
   /// </summary>
   public static RoutingMovePlan PlanDepositsOnly(
     IReadOnlyList<StockStack> stock,
@@ -157,10 +178,11 @@ public static class RoutingMove
     IReadOnlyList<CategoryRetainerRule> categoryRules,
     string retainerName,
     Func<int> freeBagSlots,
-    Func<int> freeRetainerSlots)
+    Func<int> freeRetainerSlots,
+    IReadOnlyCollection<string>? reconciledSkip = null)
   {
     return PlanCore(stock, rules, categoryByKey, excludeByKey, categoryRules, retainerName,
-      freeBagSlots, freeRetainerSlots, depositsOnly: true);
+      freeBagSlots, freeRetainerSlots, depositsOnly: true, reconciledSkip: reconciledSkip);
   }
 
   /// <summary>
@@ -218,7 +240,8 @@ public static class RoutingMove
     Func<int> freeRetainerSlots,
     bool depositsOnly,
     bool earlyExitOnFirstOp = false,
-    IReadOnlyCollection<string>? movedThisRun = null)
+    IReadOnlyCollection<string>? movedThisRun = null,
+    IReadOnlyCollection<string>? reconciledSkip = null)
   {
     var ops = new List<RoutingMoveOp>();
     var notes = new List<string>();
@@ -231,6 +254,7 @@ public static class RoutingMove
     var stoppedRet = false;
     var skippedCrystals = 0;
     var alreadyPulledSkip = 0;
+    var reconciledSkipCount = 0;
     var unrouted = new List<(uint ItemId, bool HQ)>();
     var unroutedKeys = new HashSet<string>();
 
@@ -302,6 +326,16 @@ public static class RoutingMove
           continue;
         }
 
+        // 0.1.50.0: post-move reconciliation. A stack back in the exact slot an earlier sweep
+        // moved OK did not stick server-side (the 20:34-20:39 ET double-sweep re-move loop) -
+        // re-firing it every sweep is never progress, so it stays put until it leaves the slot
+        // (the game side prunes the ledger then) instead of shuffling forever.
+        if (reconciledSkip != null && reconciledSkip.Contains(ReconcileKey(retainerName, stack.Container, stack.Slot, stack.ItemId, stack.HQ)))
+        {
+          reconciledSkipCount++;
+          continue;
+        }
+
         if (freeBags <= 0)
         {
           stoppedBags = true;
@@ -318,6 +352,14 @@ public static class RoutingMove
       {
         if (!CategoryRouter.RetainerNamesEqual(mapped.RetainerName, retainerName))
           continue; // belongs to a different retainer's session - that retainer takes it in
+
+        // 0.1.50.0: reconciliation on the deposit leg too (see the pull-out branch) - a deposit
+        // the server rolled back reappears in the bags and must not be re-fired every sweep.
+        if (reconciledSkip != null && reconciledSkip.Contains(ReconcileKey(retainerName, stack.Container, stack.Slot, stack.ItemId, stack.HQ)))
+        {
+          reconciledSkipCount++;
+          continue;
+        }
 
         // Same stranding guard, deposit side: a RetainerOnly rule lists deposited stock fine, but a
         // bags-only rule's deposit would be pointless (it lists from bags, not the retainer) - and
@@ -344,6 +386,8 @@ public static class RoutingMove
 
     if (alreadyPulledSkip > 0)
       notes.Add($"routing move: {alreadyPulledSkip} stack(s) were left in place because they were already pulled to bags once this run (a deposit was rolled back mid-switch; the next sweep retries)");
+    if (reconciledSkipCount > 0)
+      notes.Add($"routing move: {reconciledSkipCount} stack(s) skipped - an earlier sweep moved them OK but they are still in place (the move did not stick server-side); leaving them put instead of re-moving every sweep");
     if (stoppedBags)
       notes.Add("routing move: the player's bags have no free slot for further pull-outs; those items stay in this retainer for now (the sweep continues)");
     if (stoppedRet)

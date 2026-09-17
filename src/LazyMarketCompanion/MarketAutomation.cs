@@ -65,6 +65,15 @@ internal sealed class MarketAutomation : Window, IDisposable
   // without this set every later pass/lap would pull it again - the endless shuffle. Cleared in
   // ClearState with the other run-scoped state.
   private readonly HashSet<string> _routingPulledThisRun = [];
+  // 0.1.50.0: post-move reconciliation ledger - session-qualified ReconcileKeys of every routing
+  // move that reported OK (both legs, both entry points below). NOT cleared in ClearState on
+  // purpose: the 20:34-20:39 ET double sweep proved locally-OK moves can silently not stick
+  // server-side, and the per-run guard above forgets by the next sweep - which is exactly why
+  // the same 16/51 pull-outs re-fired. A plan op whose key is already here means the stack is
+  // back where a previous sweep moved it from, so the planner skips it instead of re-moving
+  // every sweep. Entries leave in PruneReconcileSkip when a fresh snapshot no longer shows the
+  // stack in that slot (it landed or moved on) - bounded by stuck stacks, never growing with runs.
+  private readonly HashSet<string> _routingReconcileSkip = [];
   // 0.1.44.0: settle-step state. TaskManager steps run on the framework update thread, so the
   // settle gate is a RETRY STEP (false = retried next tick), never a sleeping loop. The internal
   // 6s soft deadline always fires before the 10s step TimeLimitMS, so the abort path is
@@ -579,7 +588,11 @@ internal sealed class MarketAutomation : Window, IDisposable
       Svc.Log.Warning($"[LMC] routing lap: {retainerName} session never settled - deposits skipped (stock stays in the bags; the next sweep retries)");
       return true;
     }
-    var routingPlan = AutoMarketService.PlanRoutingDepositsOnly();
+    // 0.1.50.0: reconcile before planning - drops ledger entries this session's fresh snapshot
+    // no longer shows (landed or moved on) and skips stacks an earlier sweep moved OK that are
+    // still sitting in place (the move did not stick) instead of re-moving them every sweep.
+    PruneReconcileSkip(retainerName);
+    var routingPlan = AutoMarketService.PlanRoutingDepositsOnly(_routingReconcileSkip);
     foreach (var note in routingPlan.Notes)
       Svc.Log.Information($"[LMC] {note}");
 
@@ -593,6 +606,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     var moveSteps = new List<Step>();
     var movedOk = 0;
     var movedFail = 0;
+    var okOps = new List<RoutingMoveOp>();
     foreach (var op in routingPlan.Ops)
     {
       var captured = op;
@@ -601,6 +615,7 @@ internal sealed class MarketAutomation : Window, IDisposable
         if (AutoMarketService.ExecuteRoutingMove(captured, out var rc))
         {
           movedOk++;
+          okOps.Add(captured);
           Svc.Log.Information($"[LMC] routing move: OK deposited to retainer: item {captured.ItemId}{(captured.HQ ? " HQ" : "")} from container {captured.SrcContainer} slot {captured.SrcSlot}");
         }
         else
@@ -615,6 +630,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     {
       _routingMovedOk += movedOk;
       _routingMovedFail += movedFail;
+      RecordRoutingReconciled(okOps);
       if (Plugin.Configuration.ShowAutoMarketMessages && movedOk + movedFail > 0)
         Communicator.PrintInfo($"routing lap: deposited {movedOk} stack(s) into {retainerName}" + (movedFail > 0 ? $", {movedFail} could not move (full or busy)" : string.Empty));
       return true;
@@ -1261,7 +1277,9 @@ internal sealed class MarketAutomation : Window, IDisposable
         Communicator.PrintInfo($"routing: auto-assigned {assignSummary}");
     }
 
-    var routingPlan = AutoMarketService.PlanRoutingMoves(_routingPulledThisRun);
+    // 0.1.50.0: reconcile before planning - same ledger as the deposit lap below.
+    PruneReconcileSkip(AutoMarketService.CurrentRetainerName());
+    var routingPlan = AutoMarketService.PlanRoutingMoves(_routingPulledThisRun, _routingReconcileSkip);
     foreach (var note in routingPlan.Notes)
       Svc.Log.Information($"[LMC] {note}");
     // 0.1.49.0: session identity on every planning pass - the live RetainerManager name the
@@ -1306,6 +1324,7 @@ internal sealed class MarketAutomation : Window, IDisposable
       var moveSteps = new List<Step>();
       var movedOk = 0;
       var movedFail = 0;
+      var okOps = new List<RoutingMoveOp>();
       foreach (var op in routingPlan.Ops)
       {
         var captured = op;
@@ -1314,6 +1333,7 @@ internal sealed class MarketAutomation : Window, IDisposable
           if (AutoMarketService.ExecuteRoutingMove(captured, out var rc))
           {
             movedOk++;
+            okOps.Add(captured);
             if (captured.Leg == MoveLeg.RetainerToBags)
               _routingPulledThisRun.Add($"{captured.SrcContainer}:{captured.SrcSlot}:{captured.ItemId}:{(captured.HQ ? "hq" : "nq")}");
             Svc.Log.Information($"[LMC] routing move: OK {(captured.Leg == MoveLeg.RetainerToBags ? "pulled to bags" : "deposited to retainer")}: item {captured.ItemId}{(captured.HQ ? " HQ" : "")} from container {captured.SrcContainer} slot {captured.SrcSlot}");
@@ -1331,6 +1351,7 @@ internal sealed class MarketAutomation : Window, IDisposable
       {
         _routingMovedOk += movedOk;
         _routingMovedFail += movedFail;
+        RecordRoutingReconciled(okOps);
         if (Plugin.Configuration.ShowAutoMarketMessages && movedOk + movedFail > 0)
           Communicator.PrintInfo($"routing: moved {movedOk} stack(s) as assigned" + (movedFail > 0 ? $", {movedFail} could not move (full or busy)" : string.Empty));
         return true;
@@ -2475,6 +2496,58 @@ internal sealed class MarketAutomation : Window, IDisposable
       return true;
     }
     return false;
+  }
+
+  /// <summary>
+  /// 0.1.50.0: drops this session's reconciliation-ledger entries whose stack no longer appears
+  /// in a fresh snapshot (the move landed, or the stock otherwise moved on) so the ledger only
+  /// ever skips stacks that are STILL sitting where a previous sweep moved them from. Only keys
+  /// for this session are considered - retainer page containers are the same InventoryType
+  /// values for every retainer, so another session's snapshot cannot speak for this one's slots.
+  /// Called before every routing plan; the planner itself does the skipping from the ledger.
+  /// </summary>
+  private void PruneReconcileSkip(string session)
+  {
+    if (_routingReconcileSkip.Count == 0)
+      return;
+    var prefix = (session?.Trim() ?? string.Empty) + "|";
+    var mine = _routingReconcileSkip.Where(k => k.StartsWith(prefix, StringComparison.Ordinal)).ToList();
+    if (mine.Count == 0)
+      return;
+    var present = new HashSet<string>(AutoMarketService.SnapshotStock()
+      .Select(s => $"{s.Container}:{s.Slot}:{s.ItemId}:{(s.HQ ? "hq" : "nq")}"));
+    var pruned = 0;
+    foreach (var key in mine)
+      if (!present.Contains(key.Substring(prefix.Length)))
+        if (_routingReconcileSkip.Remove(key))
+          pruned++;
+    if (pruned > 0)
+      Svc.Log.Information($"[LMC] routing reconcile: {pruned} previously-moved stack(s) for '{session}' are no longer in place (landed or moved on) - back in the routing plan");
+  }
+
+  /// <summary>
+  /// 0.1.50.0: records every routing move that reported OK in the cross-sweep reconciliation
+  /// ledger, then re-reads their source slots once (VerifyRoutingMovesLanded) for the
+  /// per-session landed/stuck evidence. A move whose stack is still in place did not stick
+  /// server-side despite rc=0 - the ledger entry makes the next sweep skip it instead of
+  /// re-moving it, and the WARN names the stacks so the log alone shows what the server
+  /// refused to keep. Runs inside the existing RouteMoveSummary steps: no new step, no added
+  /// sweep latency, one synchronous container re-read.
+  /// </summary>
+  private void RecordRoutingReconciled(List<RoutingMoveOp> okOps)
+  {
+    if (okOps.Count == 0)
+      return;
+    foreach (var op in okOps)
+      _routingReconcileSkip.Add(RoutingMove.ReconcileKey(op.SessionRetainer, op.SrcContainer, op.SrcSlot, op.ItemId, op.HQ));
+    var stuck = AutoMarketService.VerifyRoutingMovesLanded(okOps);
+    var landed = okOps.Count - stuck.Count;
+    if (stuck.Count == 0)
+    {
+      Svc.Log.Information($"[LMC] routing reconcile: {landed}/{okOps.Count} move(s) verified landed (source slots empty on re-read)");
+      return;
+    }
+    Svc.Log.Warning($"[LMC] routing reconcile: {landed}/{okOps.Count} move(s) landed - {stuck.Count} still in place (the move did not stick server-side; those stacks stay put next sweep instead of re-moving): {string.Join(", ", stuck.Select(k => k.Substring(k.IndexOf('|') + 1)))}");
   }
 
   private void ClearState()

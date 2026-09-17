@@ -763,26 +763,26 @@ internal static unsafe class AutoMarketService
   /// mover and the gate can never disagree about which retainer a category is assigned to. Returns
   /// an empty plan when no routing rules exist.
   /// </summary>
-  public static RoutingMovePlan PlanRoutingMoves(IReadOnlyCollection<string>? movedThisRun = null)
+  public static RoutingMovePlan PlanRoutingMoves(IReadOnlyCollection<string>? movedThisRun = null, IReadOnlyCollection<string>? reconciledSkip = null)
   {
     if (!TryBuildRoutingLookups(out var l))
       return new RoutingMovePlan(new List<RoutingMoveOp>(), new List<string>(), false, false);
 
     var session = CurrentRetainerName();
     return RoutingMove.Plan(l.Stock, l.Rules, l.CategoryByKey, l.ExcludeByKey, l.CategoryRules,
-      session, CountFreeBagSlots, RetainerPageFreeSlot, movedThisRun)
+      session, CountFreeBagSlots, RetainerPageFreeSlot, movedThisRun, reconciledSkip)
       with { SessionRetainer = session };
   }
 
   /// <summary>Identical to PlanRoutingMoves but calls RoutingMove.PlanDepositsOnly.</summary>
-  public static RoutingMovePlan PlanRoutingDepositsOnly()
+  public static RoutingMovePlan PlanRoutingDepositsOnly(IReadOnlyCollection<string>? reconciledSkip = null)
   {
     if (!TryBuildRoutingLookups(out var l))
       return new RoutingMovePlan(new List<RoutingMoveOp>(), new List<string>(), false, false);
 
     var session = CurrentRetainerName();
     return RoutingMove.PlanDepositsOnly(l.Stock, l.Rules, l.CategoryByKey, l.ExcludeByKey, l.CategoryRules,
-      session, CountFreeBagSlots, RetainerPageFreeSlot)
+      session, CountFreeBagSlots, RetainerPageFreeSlot, reconciledSkip)
       with { SessionRetainer = session };
   }
 
@@ -1000,6 +1000,33 @@ internal static unsafe class AutoMarketService
       return false;
 
     return true;
+  }
+
+  /// <summary>
+  /// 0.1.50.0: post-move reconciliation probe. Re-reads the source slot of every routing move
+  /// that reported OK and returns the ReconcileKeys of the ones still holding the same stack -
+  /// the move graded rc=0 locally but the server did not keep it (the 20:34-20:39 ET
+  /// double-sweep re-move loop: 16 identical Bussyqueen pull-outs and 51 Dojarat pull-outs
+  /// re-planned with rc=0/OK executions in between). The caller records the keys in its
+  /// cross-sweep ledger so the next sweep skips those stacks instead of re-moving them, and
+  /// logs the landed/stuck counts as the per-session reconciliation evidence. One immediate
+  /// pass only - a rollback that has not propagated yet is still caught on the next sweep,
+  /// when the stack is back in place and the ledger skips it.
+  /// </summary>
+  public static List<string> VerifyRoutingMovesLanded(IReadOnlyList<RoutingMoveOp> okOps)
+  {
+    var stuck = new List<string>();
+    var manager = InventoryManager.Instance();
+    if (manager == null) return stuck;
+    foreach (var op in okOps)
+    {
+      var src = manager->GetInventoryContainer((InventoryType)op.SrcContainer);
+      var slot = src == null || !src->IsLoaded ? null : src->GetInventorySlot(op.SrcSlot);
+      if (slot != null && slot->ItemId == op.ItemId
+          && slot->Flags.HasFlag(InventoryItem.ItemFlags.HighQuality) == op.HQ)
+        stuck.Add(RoutingMove.ReconcileKey(op.SessionRetainer, op.SrcContainer, op.SrcSlot, op.ItemId, op.HQ));
+    }
+    return stuck;
   }
 }
 

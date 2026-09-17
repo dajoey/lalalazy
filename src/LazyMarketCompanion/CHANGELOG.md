@@ -1,4 +1,14 @@
-﻿## v0.1.49.0 (2026-09-17)
+﻿## v0.1.50.0 (2026-09-17)
+
+### Fixed
+
+- **Auto-Market reconciles routing moves after executing them, so a move the server silently refuses stops re-firing every sweep.** The 0.1.49.0 log proved the remaining loop: Bussyqueen planned the identical 16 pull-outs at identical slots twice, and Dojarat 52 then 51 differing by one slot, with rc=0/OK executions in between - while every `routing session:` line read clean (live==plan-session, settled, zero guard skips). The 0.1.48.0 unsettled-session and 0.1.49.0 wrong-identity mechanisms did not occur; locally-OK moves simply do not stick server-side and no pass ever re-checks. Every move that reports OK is now recorded in a cross-sweep ledger and its source slot re-read once for the per-session `routing reconcile:` landed/stuck evidence; a stack back in the same slot on the next sweep is skipped on both legs instead of re-moved, and ledger entries leave as soon as a fresh snapshot no longer shows the stack (it landed or moved on), so genuinely new stock still routes (files: `MarketAutomation.cs` `PruneReconcileSkip`/`RecordRoutingReconciled`, `AutoMarket/RoutingMove.cs` `ReconcileKey`, `AutoMarket/AutoMarketService.cs` `VerifyRoutingMovesLanded`).
+
+### Notes
+
+- Offline-suite change: new cases 99-102 pin the reconcile key format, pull-out and deposit skips with the `did not stick` note, and session qualification across shared page containers (file: `tests/LazyMarketCompanion.Harness/Program.cs`).
+
+## v0.1.49.0 (2026-09-17)
 
 ### Fixed
 
