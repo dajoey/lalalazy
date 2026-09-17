@@ -1,3 +1,10 @@
+## v1.0.4.205 (2026-09-17) [testing]
+### Fixed
+- **Smart Movement no longer stops mid-dodge while telegraphs are still live.** Grading 1.0.4.204 showed a repeating `ddg` -> `stl` -> `ddg` -> `stl` cycle with a new destination on almost every dodge while up to a dozen zones stayed live: a one-tick safe flicker (zone churn in a saturated arena) fell through to engage/settle, whose stand-down cleared the dodge memory and cancelled pathing, so the character stuttered instead of escaping. While any zone is live, the settle answer is now a hold (no command, dodge memory kept) instead of a stop; the stand-down returns once no zones are live. Move-to-target is unchanged: engaging toward the target while zones burn elsewhere still issues the move. (files: `AutoRotation/SmartMoverCore.cs` - `Decide` engage/settle hold plus `Commit` deadband)
+### Notes
+- Offline harness now runs 169 cases: settle-holds-while-live (hold keeps dodge memory, empty-zones stop negative control, no-target hold, engage-still-moves, incident replay) alongside the unchanged flicker-persistence and arrival coverage. (file: `tests/GluttonyCombo.SmartMoverHarness/Program.cs`)
+- In-game grading with Smart Movement ON + Movement Telemetry ON: the same heavy-AoE content. Expect one `ddg` holding to the same dest until arrival, then quiet - never `ddg` followed by `stl` while the zone count stays above zero.
+
 ## v1.0.4.204 (2026-09-16) [testing]
 ### Fixed
 - **Beastmaster no longer sacrifices a familiar right after summoning it, and always brings the next one out.** Two root causes were proven from the 2026-09-16 play logs. Wespe's Tempered Release is Final Sting, which makes the familiar retreat, and the rotation fired Tempered Release the moment any familiar arrived. The next Battlehorn was then picked from the Borrow-latched gauge slot (always slot 1 below level 22) while slot 1 sat in its roughly 90-second in-combat lockout, so no familiar came back. (files: `Combos/PvE/BST/BST.cs`, `Combos/PvE/BST/BST_RotationLogic.cs`)

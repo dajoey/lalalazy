@@ -719,6 +719,49 @@ SmartMoverCore.MoverWorld World(
     Check("persist/covered-held-dest-resamples", e1.Kind == SmartMoverCore.Decision.Move && e2.Kind == SmartMoverCore.Decision.Move &&
         SmartMoverCore.UnsafeAt(e2.Dest, cover, 0.25f) is null && e2.Dest != e1.Dest, $"e1={e1.Dest} e2={e2.Dest}");
 }
+// ---------------------------------------------------------------- settle hold while live (v1.0.4.205)
+{
+    // Live-telegraph grading on 1.0.4.204: ddg -> stl -> ddg -> stl with a
+    // new destination every dodge while up to a dozen zones stayed live. A
+    // one-tick safe flicker fell through to ENGAGE/SETTLE, whose StandDown
+    // reset the hysteresis and killed the vnav path mid-dodge. While any
+    // zone is live the settle answer is now a HOLD (no command, hysteresis
+    // kept); with no zones live it stands down exactly as before.
+    var far = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, 40), 0f, 5f, 0f, 0f, 0f, default, 3f) };
+
+    // Arrived hold (held dest == player pos), safe and in position, zones
+    // live -> HOLD, never Stop.
+    var hHold = new SmartMoverCore.Hysteresis { LastDest = new Vector2(0, -8), HasLastDest = true, LastDodge = true };
+    var dHold = SmartMoverCore.Decide(World(player: new(0, -8), zones: far) with { NowSec = 400.0 }, hHold);
+    Check("settlehold/live-zones-hold", dHold.Kind == SmartMoverCore.Decision.None, $"kind={dHold.Kind} r={dHold.Reason}");
+    Check("settlehold/live-zones-keeps-hysteresis", hHold.HasLastDest && hHold.LastDodge, $"held={hHold.HasLastDest} dodge={hHold.LastDodge}");
+
+    // Same situation with EMPTY zones -> classic settle Stop, hysteresis cleared.
+    var hEmpty = new SmartMoverCore.Hysteresis { LastDest = new Vector2(0, -8), HasLastDest = true, LastDodge = true };
+    var dEmpty = SmartMoverCore.Decide(World(player: new(0, -8), zones: NoZones) with { NowSec = 400.0 }, hEmpty);
+    Check("settlehold/no-zones-stops", dEmpty.Kind == SmartMoverCore.Decision.Stop, $"kind={dEmpty.Kind} r={dEmpty.Reason}");
+    Check("settlehold/no-zones-clears-hysteresis", !hEmpty.HasLastDest, $"held={hEmpty.HasLastDest}");
+
+    // No target + live zones -> HOLD as well (was Stop).
+    var hNt = new SmartMoverCore.Hysteresis { LastDest = new Vector2(0, -8), HasLastDest = true, LastDodge = true };
+    var dNt = SmartMoverCore.Decide(World(player: new(0, -8), zones: far, engaged: false) with { NowSec = 400.0 }, hNt);
+    Check("settlehold/no-target-live-zones-hold", dNt.Kind == SmartMoverCore.Decision.None, $"kind={dNt.Kind} r={dNt.Reason}");
+    Check("settlehold/no-target-keeps-hysteresis", hNt.HasLastDest, $"held={hNt.HasLastDest}");
+
+    // Move-to-target is untouched: safe, OUT of position, zones live elsewhere -> engage Move.
+    var hEng = new SmartMoverCore.Hysteresis();
+    var dEng = SmartMoverCore.Decide(World(player: new(0, -20), zones: far) with { NowSec = 400.0 }, hEng);
+    Check("settlehold/engage-still-moves", dEng.Kind == SmartMoverCore.Decision.Move && dEng.Reason == SmartMoverCore.ReasonEngageCode, $"kind={dEng.Kind} r={dEng.Reason}");
+
+    // Incident replay: dodge commits, then a safe flicker while zones stay
+    // live holds instead of stopping.
+    var hR = new SmartMoverCore.Hysteresis();
+    var hot = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -8), 0f, 3f, 0f, 0f, 0f, default, 3f) };
+    var r1 = SmartMoverCore.Decide(World(player: new(0, -8), zones: hot) with { NowSec = 500.0 }, hR);
+    Check("settlehold/replay-dodge-commits", r1.Kind == SmartMoverCore.Decision.Move && r1.Reason == SmartZoneDDG(), $"kind={r1.Kind} r={r1.Reason}");
+    var r2 = SmartMoverCore.Decide(World(player: new(0, -7.9f), zones: NoZones) with { NowSec = 500.25 }, hR);
+    Check("settlehold/replay-flicker-keeps-dodge", r2.Kind == SmartMoverCore.Decision.Move && r2.Dest == r1.Dest, $"r2={r2.Dest} r1={r1.Dest}");
+}
 // ---------------------------------------------------------------- shape asserts
 {
     Check("shape/zone-carries-remaining", typeof(DangerZoneModel.Zone).GetProperty("RemainingSec") is not null);

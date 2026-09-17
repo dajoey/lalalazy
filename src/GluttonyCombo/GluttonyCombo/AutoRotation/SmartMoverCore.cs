@@ -198,11 +198,20 @@ internal static class SmartMoverCore
         }
 
         // ---- ENGAGE / SETTLE ----
+        // v1.0.4.205: while any telegraph is live a settle answer is a HOLD
+        // (no command, hysteresis kept), never a stand-down. The pre-205
+        // settle StandDown reset the hysteresis and killed the vnav path, so
+        // a one-tick safe flicker mid-dodge (zone churn in a saturated arena)
+        // stopped the character and the next unsafe tick re-sampled a fresh
+        // spot: the logged ddg -> stl -> ddg -> stl oscillation with a new
+        // destination every dodge while up to a dozen zones stayed live.
+        // Holding keeps the committed dodge destination across the flicker;
+        // with no zones live the answer is byte-identical to before.
         if (!w.TargetEngaged)
-            return StandDown(h, ReasonSettleCode);
+            return ZonesLive(w) ? None() : StandDown(h, ReasonSettleCode);
 
         if (PositionOk(w.PlayerPos, w, out var ideal))
-            return StandDown(h, ReasonSettleCode);
+            return ZonesLive(w) ? None() : StandDown(h, ReasonSettleCode);
 
         var finalDest = ideal;
         var idealBlocked = UnsafeAt(ideal, w.Zones, 0.5f) is not null || !Walkable(w.IsPointWalkable, ideal);
@@ -229,7 +238,7 @@ internal static class SmartMoverCore
     {
         var travel = Vector2.Distance(w.PlayerPos, dest);
         if (!overrideHold && travel < MinMoveFor(w))
-            return StandDown(h, reason);
+            return ZonesLive(w) ? None() : StandDown(h, reason);
 
         if (!overrideHold && h.HasLastDest && w.NowSec < h.HoldUntilSec)
         {
@@ -251,6 +260,9 @@ internal static class SmartMoverCore
         h.LastDodge = reason == ReasonDodgeCode;
         return new MoveDecision(Decision.Move, dest, reason);
     }
+
+    /// <summary> Whether any telegraphed zone is currently live (cast, linger, or omen derived). </summary>
+    internal static bool ZonesLive(MoverWorld w) => w.Zones.Count > 0;
 
     /// <summary> Whether the player's position is inside any live zone dilated by <paramref name="buffer"/>. </summary>
     internal static DangerZoneModel.Zone? UnsafeAt(Vector2 p, IReadOnlyList<DangerZoneModel.Zone> zones, float buffer)
