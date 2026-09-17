@@ -193,6 +193,64 @@ internal static class OmenVfxModel
         return yaw;
     }
 
+    /// <summary>
+    ///     Cone half-angle for a CAST (v1.0.4.209), read from the action's omen
+    ///     path exactly like BossMod's DetermineConeAngle: the three digits
+    ///     after "fan" are the full angle ("gl_fan060_1bf" = 60 degrees). No
+    ///     omen or no readable fan falls back to BossMod's 180-degree cone.
+    /// </summary>
+    internal static float CastConeHalfDeg(string? omenPath)
+    {
+        if (string.IsNullOrEmpty(omenPath))
+            return DefaultConeHalfDeg;
+        var fan = omenPath.IndexOf("fan", StringComparison.Ordinal);
+        return fan >= 0 && TryReadThreeDigits(omenPath, fan + 3, out var full) && full > 0f
+            ? full * 0.5f
+            : DefaultConeHalfDeg;
+    }
+
+    /// <summary>
+    ///     Donut inner radius for a CAST (v1.0.4.209), ported from BossMod's
+    ///     GuessDonutInner: after "sircle_" / "sicle_" / "circle_" / "circle"
+    ///     come two digits of outer and two of inner radius
+    ///     ("gl_sircle_3020bf" = 30 outer, 20 inner), scaled when the action's
+    ///     EffectRange differs from the drawn outer. 0 = unknown, which the
+    ///     zone model treats as a full circle.
+    /// </summary>
+    internal static float CastDonutInner(string? omenPath, float effectRange)
+    {
+        if (string.IsNullOrEmpty(omenPath))
+            return 0f;
+        foreach (var tag in DonutTags)
+        {
+            var pos = omenPath.IndexOf(tag, StringComparison.Ordinal);
+            if (pos < 0 || pos + tag.Length + 4 > omenPath.Length)
+                continue;
+            if (!TryReadTwoDigits(omenPath, pos + tag.Length, out var outer) ||
+                !TryReadTwoDigits(omenPath, pos + tag.Length + 2, out var inner))
+                continue;
+            if (outer > 0f && effectRange > 0f && MathF.Abs(effectRange / outer - 1f) > float.Epsilon)
+                inner = (int)(inner * (effectRange / outer));
+            return inner;
+        }
+        return 0f;
+    }
+
+    private static readonly string[] DonutTags = ["sircle_", "sicle_", "circle_", "circle"];
+
+    private static bool TryReadTwoDigits(string s, int start, out float value)
+    {
+        value = 0f;
+        if (start < 0 || start + 2 > s.Length)
+            return false;
+        var d0 = s[start] - '0';
+        var d1 = s[start + 1] - '0';
+        if (d0 is < 0 or > 9 || d1 is < 0 or > 9)
+            return false;
+        value = d0 * 10 + d1;
+        return true;
+    }
+
     private static bool TryReadThreeDigits(string s, int start, out float value)
     {
         value = 0f;

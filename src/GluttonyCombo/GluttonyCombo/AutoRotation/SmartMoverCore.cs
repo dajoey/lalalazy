@@ -16,8 +16,9 @@ namespace GluttonyCombo.AutoRotation;
 ///     Input is an immutable <see cref="MoverWorld"/> snapshot; output is one
 ///     <see cref="MoveDecision"/> per tick. Hysteresis state lives in the
 ///     caller-owned <see cref="Hysteresis"/> class so the engine stays pure and
-    ///     replayable. Decision order: off/nav/ooc -&gt; manual input -&gt; casting hold
-    ///     -&gt; BMR navigating pause -&gt; DODGE (combat only) -&gt; ENGAGE/SETTLE.
+    ///     replayable. Decision order: off/nav -&gt; manual input -&gt; casting hold
+    ///     (skipped while a dodge is needed, v1.0.4.209) -&gt; BMR navigating pause
+    ///     -&gt; ooc -&gt; DODGE -&gt; ENGAGE/SETTLE.
     ///     Out of combat the mover never approaches a target (v1.0.4.203).
 ///     Deliberately NEVER consults "is BossMod AI enabled" - the mover does not
 ///     stand down just because BMR is installed (the PositionalMover trap).
@@ -146,7 +147,12 @@ internal static class SmartMoverCore
         if (w.ManualInput)
             return StandDown(h, ReasonManualCode);
 
-        if (w.Casting && w.CastRemainingSec > SlidecastWindowSec)
+        // v1.0.4.209: a hardcast never pins the character inside a live
+        // telegraph. The cast stand-down used to run before the dodge branch,
+        // so a caster whose rotation keeps a cast bar up stood in every AoE
+        // that landed during a cast, and a cast starting mid-dodge stopped
+        // the escape. Movement cancels the cast; that is the right trade.
+        if (w.Casting && w.CastRemainingSec > SlidecastWindowSec && !MustDodge(w, h))
             return StandDown(h, ReasonCastCode);
 
         if (w.BmrNavigating)
@@ -189,7 +195,12 @@ internal static class SmartMoverCore
             if (UnsafeAt(w.PlayerPos, w.Zones, 0f) is not null)
             {
                 var anchor = w.TargetEngaged ? w.TargetPos : w.PlayerPos;
-                var clamp = w.TargetEngaged ? MaxDestDistFromTarget : float.MaxValue;
+                // v1.0.4.209: the backstop never sits inside the job's own
+                // standing band - a ranged job at 20y had every escape point
+                // past the flat 15y ceiling and held in place instead.
+                var clamp = w.TargetEngaged
+                    ? MathF.Max(MaxDestDistFromTarget, w.TargetHitboxRadius + w.DesiredRange + RangeTolerance(w))
+                    : float.MaxValue;
                 var dest = FindSafePoint(w.PlayerPos, w.Zones, anchor, clamp, w.IsPointWalkable);
                 if (dest is { } d)
                     return Commit(w, h, d, ReasonDodgeCode, overrideHold: true);
@@ -244,7 +255,28 @@ internal static class SmartMoverCore
     {
         var was = h.HasLastDest;
         h.Reset();
-        return was ? new MoveDecision(Decision.Stop, default, reason) : None();
+        // v1.0.4.209: a stand-down with nothing to stop keeps its reason. It
+        // used to return reason 0, so cast/manual/bmr/ooc/nav stand-downs
+        // logged as "hold" (the zones-live hold) and were read as holds.
+        return new MoveDecision(was ? Decision.Stop : Decision.None, default, reason);
+    }
+
+    /// <summary>
+    ///     Whether the dodge branch has to act this tick (v1.0.4.209): in combat,
+    ///     either standing inside a live zone, or an in-flight dodge whose held
+    ///     destination is still safe, walkable and not yet reached (exactly the
+    ///     persistence condition the dodge branch honours).
+    /// </summary>
+    internal static bool MustDodge(MoverWorld w, Hysteresis h)
+    {
+        if (!w.InCombat || w.Zones.Count == 0)
+            return false;
+        if (UnsafeAt(w.PlayerPos, w.Zones, 0f) is not null)
+            return true;
+        return h.HasLastDest && h.LastDodge &&
+               Vector2.Distance(w.PlayerPos, h.LastDest) > MinMoveFor(w) &&
+               UnsafeAt(h.LastDest, w.Zones, 0.25f) is null &&
+               Walkable(w.IsPointWalkable, h.LastDest);
     }
 
     private static MoveDecision Commit(MoverWorld w, Hysteresis h, Vector2 dest, byte reason, bool overrideHold)

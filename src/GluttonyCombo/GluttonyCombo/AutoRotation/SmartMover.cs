@@ -1,5 +1,6 @@
 #region
 
+using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.ClientState.Objects.Types;
 using ECommons.DalamudServices;
 using ECommons.ExcelServices;
@@ -16,6 +17,7 @@ using GluttonyCombo.CustomComboNS.Functions;
 using GluttonyCombo.Data;
 using GluttonyCombo.Services.IPC_Subscriber;
 using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
+using NativeBattleChara = FFXIVClientStructs.FFXIV.Client.Game.Character.BattleChara;
 
 #endregion
 
@@ -273,30 +275,43 @@ internal static class SmartMover
             IsPointWalkable: WalkableAt);
     }
 
-    /// <summary> Collects telegraphed zones from every hostile currently casting, then folds in resolved ground fields that are still dangerous. </summary>
-    private static void CollectZones(IBattleChara player, double nowSec)
+    /// <summary> Collects telegraphed zones from every enemy currently casting, then folds in resolved ground fields that are still dangerous. </summary>
+    private static unsafe void CollectZones(IBattleChara player, double nowSec)
     {
         var playerId = player.GameObjectId;
         var seenGroundCasters = new HashSet<ulong>();
-        const float fallbackHalfAngleDeg = 45f; // generous, matching AIHintsBuilder's conservative cone fallback
 
         foreach (var obj in Svc.Objects)
         {
-            if (obj is not IBattleChara bc || !bc.IsHostile() || bc.IsDead || !bc.IsCasting)
+            if (obj is not IBattleChara bc || bc.IsDead || !bc.IsCasting || !IsDangerCaster(bc))
                 continue;
 
             var actionId = bc.CastActionId;
             if (actionId == 0 || !ActionWatching.ActionSheet.TryGetValue(actionId, out var sheet))
                 continue;
 
-            // Cast target: the resolved object if any, else the caster's own position.
+            // v1.0.4.209: read the cast's OWN snapshot, as BossMod does - the
+            // target location recorded when the cast started (where the game
+            // drew the telegraph) and the cast rotation. A helper casting at a
+            // ground point used to be drawn on the helper, and a self-targeted
+            // cone or line aimed along the zero caster-to-self vector (+X).
+            var native = (NativeBattleChara*)bc.Address;
+            var castInfo = native->GetCastInfo();
             var targetId = bc.CastTargetObjectId;
-            IGameObject? tgtObj = null;
-            if (targetId != 0)
-                tgtObj = Svc.Objects.FirstOrDefault(x => x.GameObjectId == targetId);
-            var castLoc = tgtObj is not null
-                ? new Vector2(tgtObj.Position.X, tgtObj.Position.Z)
-                : new Vector2(bc.Position.X, bc.Position.Z);
+            var snap = castInfo->TargetLocation;
+            Vector2 castLoc;
+            if (snap.X != 0f || snap.Y != 0f || snap.Z != 0f)
+                castLoc = new Vector2(snap.X, snap.Z);
+            else
+            {
+                // No recorded location: the resolved target object if any, else the caster.
+                IGameObject? tgtObj = targetId != 0 ? Svc.Objects.FirstOrDefault(x => x.GameObjectId == targetId) : null;
+                castLoc = tgtObj is not null
+                    ? new Vector2(tgtObj.Position.X, tgtObj.Position.Z)
+                    : new Vector2(bc.Position.X, bc.Position.Z);
+            }
+
+            var omenPath = sheet.Omen.ValueNullable?.Path.ToString();
 
             var prim = new DangerZoneModel.CastPrimitive(
                 CastType: (byte)sheet.CastType,
@@ -308,8 +323,9 @@ internal static class SmartMover
                 CastTargetId: targetId,
                 PlayerId: playerId,
                 RemainingSec: bc.TotalCastTime > 0f ? MathF.Max(0f, bc.TotalCastTime - bc.CurrentCastTime) : 0.5f,
-                ConeFallbackDeg: fallbackHalfAngleDeg,
-                DonutInnerYalms: 0f); // unknown inner radius -> conservative full circle
+                ConeHalfAngleDeg: OmenVfxModel.CastConeHalfDeg(omenPath),
+                DonutInnerYalms: OmenVfxModel.CastDonutInner(omenPath, sheet.EffectRange),
+                AimRotation: DangerZoneModel.GameRotationToMath(native->CastRotation));
 
             if (DangerZoneModel.BuildZone(prim) is { } z && z.RemainingSec > 0.25f)
             {
@@ -345,6 +361,26 @@ internal static class SmartMover
         lastOmenZoneCount = 0;
         if (AutoRotationController.cfg?.DPSSettings.SmartMoverOmenVfx ?? true)
             CollectOmenZones();
+    }
+
+    /// <summary>
+    ///     Whether a casting object's telegraphs are danger (v1.0.4.209). Battle
+    ///     NPCs follow BossMod's rule - enemies (sub kind 5) and the invisible
+    ///     helper actors (sub kind 11) that cast most boss and critical-engagement
+    ///     telegraphs. A targetable one must read hostile (guards and allied
+    ///     soldiers do not); an untargetable one has no nameplate to read, which
+    ///     is why the nameplate-only check dropped every helper cast. Pets,
+    ///     chocobos and party NPCs never count. Other objects (PvP players)
+    ///     keep the nameplate rule.
+    /// </summary>
+    private static unsafe bool IsDangerCaster(IBattleChara bc)
+    {
+        if (bc.ObjectKind != ObjectKind.BattleNpc)
+            return bc.IsHostile();
+        var subKind = ((NativeBattleChara*)bc.Address)->SubKind;
+        if (subKind is not (5 or 11))
+            return false;
+        return !bc.IsTargetable || bc.IsHostile();
     }
 
     /// <summary>
@@ -657,7 +693,7 @@ internal static class SmartMover
                 distPast = dist - w.DesiredRange;
             }
 
-            var key = MovementTelemetryFormat.KeyOf(reason, dstX, dstZ);
+            var key = MovementTelemetryFormat.KeyOf(reason, dstX, dstZ, w.Zones.Count);
             var isDodgeStart = reason == "ddg" && ReasonString(lastReason) != "ddg";
 
             if (!MovementTelemetryFormat.ShouldEmit(_lastKey, _lastEmitMs, nowMs, key, isDodgeStart))

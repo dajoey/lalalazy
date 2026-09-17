@@ -1,3 +1,19 @@
+## v1.0.4.209 (2026-09-17) [testing]
+### Fixed
+- **Smart Movement draws danger zones where the game draws the telegraphs.** Zones are now built the way BossMod's auto-hints build them, from the cast's own snapshot:
+  - Cones and lines aim along the cast's own rotation. A cone or line the caster targets on itself (most boss and critical-engagement mechanics) used to point due east whatever way the caster faced.
+  - Ground circles, donuts, crosses and location rects sit at the cast's recorded target location. A helper casting at a ground point used to have the circle drawn on the helper, often 10-30 yalms from the real puddle, and a telegraph placed under the character no longer follows the character around.
+  - Cone width comes from the action's omen (a 60-degree fan is 60 degrees). Every cone used to be modelled 45 degrees wide.
+  - Donut holes come from the omen, so standing in the safe centre is no longer treated as danger.
+  - Casts by the invisible helper actors that place most boss and critical-engagement telegraphs now count. Only casters with a hostile nameplate counted before, and helpers have no nameplate.
+- **A cast no longer keeps the character standing in an AoE.** While the character is inside a live telegraph, or still moving to a dodge destination, the dodge runs even during a hardcast; movement cancels the cast. A cast that starts while the character is safe is left alone.
+- **Ranged jobs dodge from their own range.** Dodge destinations were capped at 15 yalms from the target, so a ranged job standing at 20 yalms either could not find an escape or was pulled in toward the target. The cap now covers the job's own range band.
+- **Game updates no longer need a game restart.** The Smart Movement server info bar entry was left registered when the plugin unloaded, so the updated version failed to load ("An entry with the same title already exists") until the game was restarted. Every entry is now removed on unload, and an entry that is still held can no longer fail the plugin load.
+### Changed
+- Movement telemetry: a stand-down with nothing to stop keeps its reason (`cast`, `man`, `bmr`, `ooc`, `nav`) instead of logging as `hold`, and a change in the live zone count re-emits the line (still at most once per second).
+### Notes
+- The update from 1.0.4.208 or earlier, taken while logged in, still leaves the older version's Smart Movement icon in the server info bar until the next game restart (the older version is the one that fails to remove it). The plugin itself loads. That leftover icon belongs to the unloaded version, so leave it unclicked; toggle Smart Movement from the plugin window until the restart.
+
 ## v1.0.4.208 (2026-09-17) [testing]
 ### Fixed
 - **Smart Movement now dodges ground telegraphs targeted at the character.** Testing 1.0.4.206 logged engage and hold decisions beside a live zone count without ever issuing a dodge: enemy ground circles, donuts, crosses and location rects aimed at the character were discarded before their shape was considered, on the theory that a marker tracking the character cannot be outrun. Zones are re-derived every tick from live positions, so each tick escapes the current placement, and moving away before the snapshot is how these telegraphs are avoided. Target-anchored casts aimed at the character now build zones like any other, and the resolved ground field keeps lingering as danger after the cast ends.
