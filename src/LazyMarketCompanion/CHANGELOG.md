@@ -1,4 +1,16 @@
-﻿## v0.1.48.0 (2026-09-16)
+﻿## v0.1.49.0 (2026-09-17)
+
+### Fixed
+
+- **Auto-Market stamps every routing move with its planning session, so the per-move retainer identity guard finally fires.** The 0.1.44.0 guard was built to refuse moves planned against the wrong retainer's pages, but the planner only ever stamped the plan - the ops it checked carried an empty session and the check always skipped, so a plan built while the session name was stale still fired blind. Every op now carries the planning session from the pure planner itself, and the executor refuses a move whose stamp no longer matches the live retainer (rc=-3, stock stays put). Retainer-name identity is also normalized (trimmed, still case-sensitive) across the mover, the routing gate, the settle check, and the auto-assign load count: rule names persisted from the RetainerList UI and the live name from RetainerManager are two different game sources for the same name, and a stray-whitespace mismatch re-pulled correctly-placed stock on every sweep (files: `AutoMarket/RoutingMove.cs`, `AutoMarket/CategoryRouting.cs`, `AutoMarket/AutoMarketService.cs` `RetainerSessionSettled`/`ExecuteRoutingMove`).
+- **Inventory-read audit (Joey: "are we using any illegal methods to pull the inventory? look there first").** Audited every retainer-inventory read in the plugin: all of them are session-scoped `InventoryManager.GetInventoryContainer` calls over RetainerPage1-7 / RetainerCrystals / RetainerMarket plus `RetainerManager.GetActiveRetainer` for the session name - the same calls the listing path and the vanilla sell UI use. No code path addresses another retainer's inventory; the client only ever exposes the open retainer's pages, so "pulling from one retainer while on another" is always a plan built under the wrong session identity, never a cross-retainer read. No illegal method exists to remove.
+
+### Notes
+
+- Extended move logging (Joey: "build in extended logging"): every routing plan line and every `MoveItemSlot` line now carries what moved, from/to whom, and which rule authorized it (`session`, `mapped`, `cat`), plus a per-session `routing session: live=... settled=...` identity line before planning - the next "it moved what it shouldn't" report pins the authorizing rule from the log alone (files: `MarketAutomation.cs` `BuildListingStepsNow`/`RunLapDepositMover`, `AutoMarket/AutoMarketService.cs` `ExecuteRoutingMove`).
+- Offline-suite change: case 83 now pins the op session stamp (previously pinned its absence); new cases 95-98 pin name normalization, padded-session planning, padded-rule eligibility, and normalized auto-assign load (file: `tests/LazyMarketCompanion.Harness/Program.cs`).
+
+## v0.1.48.0 (2026-09-16)
 
 ### Fixed
 

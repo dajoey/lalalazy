@@ -58,8 +58,20 @@ public sealed record RoutingMoveOp(MoveLeg Leg, int SrcContainer, int SrcSlot, u
   /// game-side planner; ExecuteRoutingMove refuses to fire when the live active retainer differs
   /// (the retainer-switch window where moves landed against the previous retainer's pages and were
   /// rolled back). Empty means "no session identity known" (a hand-built op), which skips the
-  /// check rather than failing it - fail-closed only when identity is actually known.</summary>
+  /// check rather than failing it - fail-closed only when identity is actually known.
+  /// 0.1.49.0: stamped for every planned op inside PlanCore (the planning session name), not
+  /// left for the game side - the 0.1.44.0-0.1.48.0 planner never stamped the ops, only the plan,
+  /// so this guard never fired.</summary>
   public string SessionRetainer { get; init; } = "";
+
+  /// <summary>0.1.49.0: the retainer the item's category is assigned to (the rule that authorized
+  /// this move), and the market-board search category that matched. Log/audit only - the executor
+  /// never decides from these - so the next "what moved, from/to whom, which rule authorized it"
+  /// report is evidenced, not guessed.</summary>
+  public string MappedRetainer { get; init; } = "";
+
+  /// <summary>0.1.49.0: market-board search category id that authorized this move. See <see cref="MappedRetainer"/>.</summary>
+  public uint CategoryId { get; init; }
 }
 
 /// <summary>The mover's plan. Notes carry the per-retainer summary lines; StoppedForBags /
@@ -260,7 +272,10 @@ public static class RoutingMove
         if (depositsOnly)
           continue;
 
-        if (mapped.RetainerName == retainerName)
+        // 0.1.49.0: normalized identity (CategoryRouter.RetainerNamesEqual) - the rule name is
+        // persisted from the RetainerList UI while the session name comes from RetainerManager,
+        // so a stray-whitespace mismatch here re-pulled correctly-placed stock on every sweep.
+        if (CategoryRouter.RetainerNamesEqual(mapped.RetainerName, retainerName))
           continue; // already in the right retainer
 
         // MarketPull precedent: never strand a stack. A rule that never sells from bags would leave
@@ -293,14 +308,15 @@ public static class RoutingMove
           continue; // deposits may still be possible - do not break the whole pass
         }
 
-        ops.Add(new RoutingMoveOp(MoveLeg.RetainerToBags, stack.Container, stack.Slot, stack.ItemId, stack.HQ));
+        ops.Add(new RoutingMoveOp(MoveLeg.RetainerToBags, stack.Container, stack.Slot, stack.ItemId, stack.HQ)
+          with { SessionRetainer = retainerName, MappedRetainer = mapped.RetainerName, CategoryId = info.CategoryId });
         if (earlyExitOnFirstOp)
           return new RoutingMovePlan(ops, notes, stoppedBags, stoppedRet) { UnroutedBagsStacks = unrouted };
         freeBags--;
       }
       else
       {
-        if (mapped.RetainerName != retainerName)
+        if (!CategoryRouter.RetainerNamesEqual(mapped.RetainerName, retainerName))
           continue; // belongs to a different retainer's session - that retainer takes it in
 
         // Same stranding guard, deposit side: a RetainerOnly rule lists deposited stock fine, but a
@@ -318,7 +334,8 @@ public static class RoutingMove
           continue;
         }
 
-        ops.Add(new RoutingMoveOp(MoveLeg.BagsToRetainer, stack.Container, stack.Slot, stack.ItemId, stack.HQ));
+        ops.Add(new RoutingMoveOp(MoveLeg.BagsToRetainer, stack.Container, stack.Slot, stack.ItemId, stack.HQ)
+          with { SessionRetainer = retainerName, MappedRetainer = mapped.RetainerName, CategoryId = info.CategoryId });
         if (earlyExitOnFirstOp)
           return new RoutingMovePlan(ops, notes, stoppedBags, stoppedRet) { UnroutedBagsStacks = unrouted };
         freeRet--;

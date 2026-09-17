@@ -3042,15 +3042,17 @@ StockStack BagStack(uint id, int slot, int qty, uint cat = CatA, bool marketable
     plan.Ops.Count == 1, $"ops={plan.Ops.Count}");
 }
 
-// 83. RoutingMovePlan.SessionRetainer defaults to "" and survives the record-with flow; ops built
-// by the (movedThisRun) overload carry no session stamp until the game side stamps the plan.
+// 83. RoutingMoveOp carries the planning session stamp plus the authorizing rule (mapped
+// retainer + category) for the log lines; the PLAN-level stamp stays game-side via `with`.
 {
   var rules = new List<ItemRule> { Rule(1001, 99) };
   var stock = new List<StockStack> { RetStack(1001, 1, 10) };
   var info = CatInfo(1001, CatA);
   var plan = RoutingMove.Plan(stock, rules, info, new Dictionary<string, bool>(), routingRules, "R2", () => 10, () => 10, null);
-  Check("83 session stamp: default plan carries no session identity (stamped game-side)",
-    plan.SessionRetainer == "" && plan.Ops.Count == 1, $"session='{plan.SessionRetainer}' ops={plan.Ops.Count}");
+  Check("83 session stamp: plan unstamped game-side, op stamped with session + authorizing rule",
+    plan.SessionRetainer == "" && plan.Ops.Count == 1
+      && plan.Ops[0].SessionRetainer == "R2" && plan.Ops[0].MappedRetainer == "R1" && plan.Ops[0].CategoryId == (uint)CatA,
+    $"session='{plan.SessionRetainer}' ops={plan.Ops.Count} opSession='{plan.Ops[0].SessionRetainer}' mapped='{plan.Ops[0].MappedRetainer}' cat={plan.Ops[0].CategoryId}");
 }
 
 // 84. UnroutedCategories: distinct ascending categories through the mover's categoryByKey;
@@ -3155,6 +3157,54 @@ StockStack BagStack(uint id, int slot, int qty, uint cat = CatA, bool marketable
   Check("94 budget: empty snapshot -> gated", !AutoMarketPlanner.HasListingBudget(new List<MarketSlot>(), 0, 20), "empty snapshot gated");
   var partial = Enumerable.Range(0, 5).Select(i => new MarketSlot(i, 0u, false, 0)).ToList();
   Check("94b budget: short snapshot -> gated", !AutoMarketPlanner.HasListingBudget(partial, 0, 20), "short snapshot gated");
+}
+
+// ===== 0.1.49.0: inventory-read audit (normalized retainer identity + op authorization) =====
+
+// 95. RetainerNamesEqual: surrounding whitespace never distinguishes; case still does;
+//     null-safe on both sides.
+{
+  Check("95 names: padded rule name matches the live session",
+    CategoryRouter.RetainerNamesEqual("R1 ", "R1") && CategoryRouter.RetainerNamesEqual("R1", "  R1  "),
+    "trim-insensitive");
+  Check("95 names: case still distinguishes",
+    !CategoryRouter.RetainerNamesEqual("r1", "R1"), "case-sensitive");
+  Check("95 names: null-safe",
+    !CategoryRouter.RetainerNamesEqual(null!, "R1") && CategoryRouter.RetainerNamesEqual(null!, null!),
+    "null-safe");
+}
+
+// 96. A padded session name (RetainerManager) still matches its rule (RetainerList UI):
+//     correctly-placed stock stays put instead of re-pulling every sweep.
+{
+  var rules = new List<ItemRule> { Rule(1001, 99) };
+  var stock = new List<StockStack> { RetStack(1001, 1, 10) };
+  var plan = RoutingMove.Plan(stock, rules, CatInfo(1001, CatA), new Dictionary<string, bool>(), routingRules, " R1 ", () => 10, () => 10);
+  Check("96 mover: padded session matches its rule - no pull-out", plan.Ops.Count == 0, $"ops={plan.Ops.Count}");
+  var bags = new List<StockStack> { BagStack(1001, 2, 30) };
+  var dep = RoutingMove.Plan(bags, rules, CatInfo(1001, CatA), new Dictionary<string, bool>(), routingRules, " R1 ", () => 10, () => 10);
+  Check("96 mover: padded session still deposits its assigned bags stock",
+    dep.Ops.Count == 1 && dep.Ops[0].Leg == MoveLeg.BagsToRetainer, $"ops={dep.Ops.Count}");
+}
+
+// 97. Eligibility uses the same normalized identity: a padded rule name restricts to the
+//     live session instead of routing the category away from it.
+{
+  var info = new ItemCategoryInfo(1001, false, CatA, true);
+  var padded = new List<CategoryRetainerRule> { new() { CategoryId = CatA, RetainerName = "R1 " } };
+  Check("97 gate: padded rule name keeps the session eligible",
+    CategoryRouter.EligibleForRetainer(info, false, padded, "R1"), "eligible");
+  Check("97 gate: another retainer stays ineligible",
+    !CategoryRouter.EligibleForRetainer(info, false, padded, "R2"), "ineligible");
+}
+
+// 98. Auto-assign load counts a padded existing rule toward its retainer, so the gap fill
+//     still lands on the genuinely least-loaded candidate.
+{
+  var existing = new List<CategoryRetainerRule> { new() { CategoryId = CatA, RetainerName = "R1 " } };
+  var added = CategoryRouter.AutoAssignMissing([900], existing, ["R1", "R2"]);
+  Check("98 auto-assign: padded existing rule counts toward R1 load",
+    added.Count == 1 && added[0].RetainerName == "R2", $"added={(added.Count > 0 ? added[0].RetainerName : "-")}");
 }
 
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");

@@ -589,7 +589,7 @@ internal sealed class MarketAutomation : Window, IDisposable
       return true;
     }
 
-    Svc.Log.Information($"[LMC] routing move plan: {RoutingMove.Summarize(routingPlan.Ops)}: {string.Join(", ", routingPlan.Ops.Select(o => $"in {o.ItemId}{(o.HQ ? " HQ" : "")} @{AutoMarket.AutoMarketService.NameOfContainer((InventoryType)o.SrcContainer)}#{o.SrcSlot}"))}");
+    Svc.Log.Information($"[LMC] routing move plan: {RoutingMove.Summarize(routingPlan.Ops)}: {string.Join(", ", routingPlan.Ops.Select(o => $"in {o.ItemId}{(o.HQ ? " HQ" : "")} @{AutoMarket.AutoMarketService.NameOfContainer((InventoryType)o.SrcContainer)}#{o.SrcSlot} session='{o.SessionRetainer}' mapped='{o.MappedRetainer}' cat={o.CategoryId}"))}");
     var moveSteps = new List<Step>();
     var movedOk = 0;
     var movedFail = 0;
@@ -1264,6 +1264,10 @@ internal sealed class MarketAutomation : Window, IDisposable
     var routingPlan = AutoMarketService.PlanRoutingMoves(_routingPulledThisRun);
     foreach (var note in routingPlan.Notes)
       Svc.Log.Information($"[LMC] {note}");
+    // 0.1.49.0: session identity on every planning pass - the live RetainerManager name the
+    // stock snapshot was read under, the plan's stamped session, and the settle outcome - so a
+    // plan built from the wrong retainer's pages is visible in the log before a single move fires.
+    Svc.Log.Information($"[LMC] routing session: live='{AutoMarketService.CurrentRetainerName()}' plan-session='{routingPlan.SessionRetainer}' settled={_routingSessionSettled}");
     // 0.1.43.0: marked bags stock no routing rule covers is never moved (fail-open, see
     // RoutingMove.cs) - but it is named once per sweep, log and chat, so "marked for automarket
     // and never touched" cannot pass silently again (Helm t-joey-1789190796770).
@@ -1298,7 +1302,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     }
     else if (routingPlan.Ops.Count > 0)
     {
-      Svc.Log.Information($"[LMC] routing move plan: {RoutingMove.Summarize(routingPlan.Ops)}: {string.Join(", ", routingPlan.Ops.Select(o => $"{(o.Leg == MoveLeg.RetainerToBags ? "out" : "in")} {o.ItemId}{(o.HQ ? " HQ" : "")} @{AutoMarket.AutoMarketService.NameOfContainer((InventoryType)o.SrcContainer)}#{o.SrcSlot}"))}");
+      Svc.Log.Information($"[LMC] routing move plan: {RoutingMove.Summarize(routingPlan.Ops)}: {string.Join(", ", routingPlan.Ops.Select(o => $"{(o.Leg == MoveLeg.RetainerToBags ? "out" : "in")} {o.ItemId}{(o.HQ ? " HQ" : "")} @{AutoMarket.AutoMarketService.NameOfContainer((InventoryType)o.SrcContainer)}#{o.SrcSlot} session='{o.SessionRetainer}' mapped='{o.MappedRetainer}' cat={o.CategoryId}"))}");
       var moveSteps = new List<Step>();
       var movedOk = 0;
       var movedFail = 0;

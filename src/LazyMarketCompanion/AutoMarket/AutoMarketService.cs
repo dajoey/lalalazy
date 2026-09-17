@@ -853,7 +853,9 @@ internal static unsafe class AutoMarketService
   public static unsafe bool RetainerSessionSettled(string expectedName, int stableMs = 250)
   {
     if (string.IsNullOrEmpty(expectedName)) return false;
-    if (CurrentRetainerName() != expectedName) return false;
+    // 0.1.49.0: normalized identity - the expected name comes from the RetainerList UI addon
+    // while the live name comes from RetainerManager (see RetainerNamesEqual remarks).
+    if (!CategoryRouter.RetainerNamesEqual(CurrentRetainerName(), expectedName)) return false;
 
     var manager = InventoryManager.Instance();
     if (manager == null) return false;
@@ -920,7 +922,10 @@ internal static unsafe class AutoMarketService
     // a session closed early), the containers this move would touch are not the ones it was
     // planned against, so the move is refused outright rather than fired against the wrong pages
     // and rolled back by the server (the mechanism behind the endless re-shuffling).
-    if (!string.IsNullOrEmpty(op.SessionRetainer) && CurrentRetainerName() != op.SessionRetainer)
+    // 0.1.49.0: the stamp finally reaches the ops (PlanCore stamps every op with the planning
+    // session; before this the ops carried "" and this check always skipped), compared
+    // normalized (UI-addon vs RetainerManager name sources).
+    if (!string.IsNullOrEmpty(op.SessionRetainer) && !CategoryRouter.RetainerNamesEqual(CurrentRetainerName(), op.SessionRetainer))
     {
       rc = -3;
       Svc.Log.Warning($"[LMC] routing move: skipped item {op.ItemId}{(op.HQ ? " HQ" : "")} - the open retainer is '{CurrentRetainerName()}' but the move was planned for '{op.SessionRetainer}' (mid-switch or session changed); leaving the stack where it is");
@@ -980,7 +985,10 @@ internal static unsafe class AutoMarketService
     }
 
     rc = manager->MoveItemSlot((InventoryType)op.SrcContainer, (ushort)op.SrcSlot, dstType!.Value, (ushort)dstSlot, false);
-    Svc.Log.Information($"[LMC] routing move: MoveItemSlot {NameOfContainer((InventoryType)op.SrcContainer)}#{op.SrcSlot} item {op.ItemId}{(op.HQ ? " HQ" : "")} -> {NameOfContainer(dstType!.Value)}#{dstSlot}{(merged ? " (merged)" : "")} rc={rc}");
+    // 0.1.49.0: full authorization on the move line - session (whose pages were read), mapped
+    // (whose rule authorized it), and the market-board category that matched - so the next
+    // "it moved what it shouldn't" report pins the authorizing rule from the log alone.
+    Svc.Log.Information($"[LMC] routing move: MoveItemSlot {NameOfContainer((InventoryType)op.SrcContainer)}#{op.SrcSlot} item {op.ItemId}{(op.HQ ? " HQ" : "")} -> {NameOfContainer(dstType!.Value)}#{dstSlot}{(merged ? " (merged)" : "")} rc={rc} session='{op.SessionRetainer}' mapped='{op.MappedRetainer}' cat={op.CategoryId}");
     if (rc != 0)
       return false;
 

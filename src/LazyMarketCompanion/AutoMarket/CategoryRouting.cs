@@ -62,6 +62,17 @@ public sealed record ItemCategoryInfo(uint ItemId, bool HQ, uint CategoryId, boo
 public static class CategoryRouter
 {
   /// <summary>
+  /// 0.1.49.0: retainer-name identity in one place. Rule names are persisted from the
+  /// RetainerList UI addon while the live session name comes from RetainerManager's active
+  /// retainer - two different game sources for the same name. Compare trimmed with ordinal
+  /// case-sensitivity: surrounding whitespace is never significant in a retainer name, while
+  /// case still distinguishes (fail-open direction preserved - a genuine mismatch keeps the
+  /// old restrictive behavior, never newly permits).
+  /// </summary>
+  public static bool RetainerNamesEqual(string a, string b)
+    => string.Equals(a?.Trim(), b?.Trim(), StringComparison.Ordinal);
+
+  /// <summary>
   /// True when this item may list on the retainer currently being processed. Exclusion (either the
   /// per-item checkbox or "not marketable") always wins; a categoryRules entry for the item's category
   /// restricts it to exactly the one retainer named there, and having no mapped rule at all means no
@@ -74,7 +85,7 @@ public static class CategoryRouter
       return true;
 
     var mapped = categoryRules.FirstOrDefault(r => r.CategoryId == info.CategoryId);
-    return mapped == null || mapped.RetainerName == retainerName;
+    return mapped == null || RetainerNamesEqual(mapped.RetainerName, retainerName);
   }
 
   /// <summary>
@@ -151,9 +162,15 @@ public static class CategoryRouter
       return added;
 
     var covered = new HashSet<uint>(existingRules.Select(r => r.CategoryId));
-    var load = new Dictionary<string, int>();
+    // 0.1.49.0: load counts by normalized name (see RetainerNamesEqual) so a rule persisted
+    // with stray whitespace still counts toward its retainer instead of hiding a second load
+    // entry that skews the least-loaded pick.
+    var load = new Dictionary<string, int>(StringComparer.Ordinal);
     foreach (var rule in existingRules)
-      load[rule.RetainerName] = load.TryGetValue(rule.RetainerName, out var existing) ? existing + 1 : 1;
+    {
+      var key = rule.RetainerName?.Trim() ?? string.Empty;
+      load[key] = load.TryGetValue(key, out var existing) ? existing + 1 : 1;
+    }
 
     foreach (var categoryId in missingCategories.OrderBy(c => c))
     {
@@ -164,7 +181,7 @@ public static class CategoryRouter
       var targetLoad = int.MaxValue;
       foreach (var name in candidateRetainers.OrderBy(n => n, StringComparer.Ordinal))
       {
-        var current = load.TryGetValue(name, out var v) ? v : 0;
+        var current = load.TryGetValue(name?.Trim() ?? string.Empty, out var v) ? v : 0;
         if (current < targetLoad)
         {
           targetLoad = current;
