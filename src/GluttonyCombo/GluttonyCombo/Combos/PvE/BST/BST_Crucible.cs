@@ -18,11 +18,13 @@ namespace GluttonyCombo.Combos.PvE;
 // statuses, familiar and character HP into BstState. The rules are in BST_CrucibleLogic.cs (pure, harness-tested).
 internal partial class BST
 {
-    /// <summary> Last HP % seen per familiar (XBMPet row) on this board. Familiars do not regenerate. </summary>
+    /// <summary>
+    ///     Last HP % seen per familiar (XBMPet row) this run. Familiars do not regenerate and HP carries from node to node;
+    ///     only a campsite rest restores it (the party agent read below catches that once it is verified).
+    /// </summary>
     private static readonly Dictionary<int, float> CruciblePetHp = [];
 
     private static uint _crucibleTerritory;
-    private static int _petHpBattle = -1;
     private static ulong _parryTargetId;
     private static long _parryEndedTick;
     private static string _hornWarningKey = "";
@@ -42,7 +44,9 @@ internal partial class BST
             _crucibleTerritory = territory;
             _hornWarningKey = "";
             _parryTargetId = 0;
-            _petHpBattle = -1;
+            PartyHpVerified = false;
+            PlayerHpSamples.Clear();
+            TargetHpSamples.Clear();
         }
 
         s.CrucibleBoard = BST_CrucibleData.BoardOfTerritory(territory);
@@ -83,30 +87,33 @@ internal partial class BST
         }
 
         if (s.CrucibleBattle >= 0)
-        {
             s.CrucibleNeeds = BattleNeedsCached(s.CrucibleBoard, s.CrucibleBattle);
 
-            // Campsites heal between battles and an unsummoned familiar's HP cannot be read: start each battle fresh.
-            if (s.CrucibleBattle != _petHpBattle)
-            {
-                CruciblePetHp.Clear();
-                _petHpBattle = s.CrucibleBattle;
-            }
-        }
-
         s.PlayerHpPercent = player.MaxHp == 0 ? 0f : 100f * player.CurrentHp / player.MaxHp;
+        s.PlayerIntakePerSecond = TrackIntake(now, player.CurrentHp);
         s.PlayerHasCleansableDebuff = player.HasCleansableDebuff;
 
         // Familiar HP, remembered per beast so a low familiar is not summoned straight back into danger.
+        var party = ReadPartyHp();
         if (s.ActiveSlot != 0 && Svc.Buddies.PetBuddy?.GameObject is IBattleChara pet && pet.MaxHp > 0)
         {
             s.PetHpPercent = 100f * pet.CurrentHp / pet.MaxHp;
+            s.PetHp = pet.CurrentHp;
             var row = BST_RotationLogic.SlotBeast(s, s.ActiveSlot);
             if (row == 0)
                 row = s.PetObjectBeast;
             if (row != 0)
+            {
                 CruciblePetHp[row] = Math.Max(s.PetHpPercent, 0.5f);
+                // The party agent read is trusted only after it agrees with a summoned familiar's live HP.
+                if (party.TryGetValue(row, out var agentHp) && Math.Abs(agentHp - s.PetHpPercent) <= 3f && s.PetHpPercent < 99.5f)
+                    PartyHpVerified = true;
+            }
         }
+        if (PartyHpVerified)
+            foreach (var (row, hp) in party)
+                if (row != BST_RotationLogic.SlotBeast(s, s.ActiveSlot))
+                    CruciblePetHp[row] = Math.Max(hp, 0.5f);
         s.Slot1PetHp = CruciblePetHp.GetValueOrDefault(s.Slot1Beast);
         s.Slot2PetHp = CruciblePetHp.GetValueOrDefault(s.Slot2Beast);
         s.Slot3PetHp = CruciblePetHp.GetValueOrDefault(s.Slot3Beast);
@@ -124,9 +131,19 @@ internal partial class BST
                     s.TargetInStance = true;
                 if (BST_CrucibleData.DispellableBuffs.Contains(id))
                     s.TargetHasDispellableBuff = true;
-                if (BST_CrucibleData.ParryStatuses.Contains(id))
+                if (BST_CrucibleData.ParryStatuses.Contains(id)
+                    || (id == BST_CrucibleData.BoneKnightParryStatus && BST_CrucibleData.BoneKnightNameIds.Contains(target.NameId)))
                     s.TargetHasParry = true;
+                if (id == BST_CrucibleData.PhysicalVulnerabilityUp)
+                    s.TargetVulnerabilityRemaining = Math.Max(s.TargetVulnerabilityRemaining, status.RemainingTime);
+                if (BST_CrucibleData.InvulnerableStatuses.Contains(id))
+                    s.TargetInvulnerable = true;
             }
+
+            if (target.IsInvincible)
+                s.TargetInvulnerable = true;
+
+            s.TargetTimeToDeath = TrackTimeToDeath(now, target.GameObjectId, s.TargetHpPercent);
 
             if (target.IsCasting)
             {
@@ -187,8 +204,18 @@ internal partial class BST
             return;
         _hornWarningKey = key;
 
+        var picks = BST_CrucibleAdvisor.Pick(s.CrucibleBoard, s.CrucibleBattle, CrucibleBeastCaptured);
+        var names = string.Join(", ", picks.ConvertAll(p =>
+        {
+            var name = BST_Beasts.All[p.Row].Name;
+            return name.Length == 0 ? "?" : char.ToUpperInvariant(name[0]) + name[1..];
+        }));
+        var message = picks.Count == 0
+            ? BST_Config.CrucibleHornWarningMessage
+            : string.Format(BST_Config.CrucibleHornWarningPicks0And1, BST_CrucibleData.BattleLabel(s.CrucibleBoard, s.CrucibleBattle), names);
+
         Svc.Toasts.ShowError(BST_Config.CrucibleHornWarningMessage);
-        Svc.Chat.PrintError(BST_Config.CrucibleHornWarningMessage);
+        Svc.Chat.PrintError(message);
     }
 
     /// <summary> Panel battle of the hostile enemies present on the current board, -1 when none. </summary>

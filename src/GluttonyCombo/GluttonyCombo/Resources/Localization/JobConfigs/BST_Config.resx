@@ -208,10 +208,10 @@
     <value>Crucible rules</value>
   </data>
   <data name="CrucibleDesc" xml:space="preserve">
-    <value>Only on a Crucible board. Sends a familiar away with Parting Blow before it is knocked out, skips the Parting Blow exit as a round ends, borrows the Kinship the enemy panel calls for before the pull (interrupt, dispel, cleanse), dispels enemy buffs, cleanses debuffs, stops attacking enemies in a counter stance, never attacks zu eggs or morphos, and saves wespe's Final Sting as an execute.</value>
+    <value>Only on a Crucible board. Keeps familiars alive (a healthier familiar is blown in over a hurt one; Parting Blow only when it is critical), remembers familiar HP across nodes, blows no horn out of combat, borrows the Kinship the enemy panel calls for (interrupt, dispel, cleanse), dispels and cleanses, holds damage on enemies in a counter stance or an invulnerable phase, never attacks zu eggs or morphos, and saves wespe's Final Sting for the execute or the end of a vulnerability window.</value>
   </data>
-  <data name="CruciblePetSaveHp0" xml:space="preserve">
-    <value>Send the familiar away with {0} at or below this HP %</value>
+  <data name="CruciblePetSwapHp0" xml:space="preserve">
+    <value>Swap in a healthier familiar at or below this HP % ({0} at half of it)</value>
   </data>
   <data name="CrucibleFinalStingHp0" xml:space="preserve">
     <value>Wespe's {0} (Final Sting) only at or below this target HP % (half with 2+ enemies)</value>
@@ -305,5 +305,20 @@
   </data>
   <data name="CrucibleSnarlPartingLead" xml:space="preserve">
     <value>Parting Blow this many tenths of a second before the cast ends</value>
+  </data>
+  <data name="CrucibleHornWarningPicks0And1" xml:space="preserve">
+    <value>Crucible: no beasts are assigned to the Battlehorns. Suggested for {0}: {1}.</value>
+  </data>
+  <data name="CrucibleCycleForDamage0" xml:space="preserve">
+    <value>Cycle familiars with {0} for damage in the Crucible</value>
+  </data>
+  <data name="CrucibleCycleForDamageDesc" xml:space="preserve">
+    <value>Off by default: in the Crucible a familiar leaves only when its HP calls for it, because every exit locks a horn for 90 seconds and the roster is finite per node. On: the normal Parting Blow cycling applies (never as a round ends).</value>
+  </data>
+  <data name="CruciblePrepullHorns" xml:space="preserve">
+    <value>Allow Battlehorns out of combat in the Crucible</value>
+  </data>
+  <data name="CruciblePrepullHornsDesc" xml:space="preserve">
+    <value>Off by default: other automation linked out-of-combat horn presses on a board to client crashes, and summons are blocked on the board. On: pre-pull summon, pre-pull Borrow for the fight's Kinship, and the between-pulls refresh apply.</value>
   </data>
 </root>

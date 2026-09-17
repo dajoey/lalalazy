@@ -132,8 +132,33 @@ internal static partial class BST_CrucibleData
 
     private static HashSet<uint>? _dispellableBuffs;
 
-    /// <summary> Directional Parry on the First Board bone knight (Forward Guard): 2552, plus the generic 680. </summary>
-    public static readonly HashSet<uint> ParryStatuses = [2552, 680];
+    /// <summary>
+    ///     Crucible damage-immune states on enemies, on top of the plugin's general invulnerability check (BossmodReborn
+    ///     Crucible modules + MagitekRoutine): 4175 Burning Ward (First Board ogre), 4410 Invincibility (First Master's
+    ///     progenitrix), 2198 Vulnerability Down (Third Board ymir, Second Master's sphinx), 2413 Covered (an enemy the
+    ///     guardia covers: hit the guardia first).
+    /// </summary>
+    public static readonly HashSet<uint> InvulnerableStatuses = [4175, 4410, 2198, 2413, 616];
+
+    /// <summary> Directional Parry (Forward Guard). 680 is the named status everywhere. </summary>
+    public static readonly HashSet<uint> ParryStatuses = [680];
+
+    /// <summary>
+    ///     2552 is an unnamed permanent status the First Board bone knight carries during Forward Guard, but Guttler and the
+    ///     ice dragon carry it too: count it as a parry only on the bone knight.
+    /// </summary>
+    public const uint BoneKnightParryStatus = 2552;
+
+    public static readonly HashSet<uint> BoneKnightNameIds = [14531, 14566];
+
+    /// <summary> Physical Vulnerability Up from the mantis's Eerie Soundwave: Final Sting lands inside this window. </summary>
+    public const uint PhysicalVulnerabilityUp = 5180;
+
+    /// <summary> Familiars whose Tempered Release sets up burst (vulnerability up / resistance down): summoned before the others. </summary>
+    public static readonly HashSet<int> SetUpBeasts = [16, 20, 41, 9, 23, 33, 34, 38, 46];
+
+    /// <summary> Bat: Ultrasonics removes a detrimental effect from nearby party members. </summary>
+    public const int BatRow = 19;
 
     // ------------------------------------------------------------------ objects
 
@@ -156,16 +181,34 @@ internal static partial class BST_CrucibleData
     /// </summary>
     public static readonly (uint A, uint B)[] Pairs = [(14555, 14556), (14561, 14562)];
 
-    /// <summary> Single-target hard hits worth dodging with Snarl -> Parting Blow (cast ids; castbar actions). </summary>
-    public static readonly HashSet<uint> Tankbusters = [];
+    /// <summary>
+    ///     Hard hits on the character (or the highest-enmity target) worth dodging with Snarl -> Parting Blow: castbar
+    ///     action ids bound from BossmodReborn's Crucible modules and the guides (two sources, or one real log), 2026-09-17.
+    /// </summary>
+    public static readonly HashSet<uint> Tankbusters =
+    [
+        46935, 46934, 46872, 46906, 46920,        // First Board: Cold Caress, Blood Sword, Skullsplinter, Deadly Thrust, Straight Punch
+        48138, 48204, 48247,                      // Second Board: Deadly Hold, 100-tonze Slash, Void Paralyze
+        48620, 48471, 48489, 50465, 48563,        // Third Board: Thunderbolt, Crushing Blade, Caustic Vomit, Flying Frenzy, Song of Torment
+        48809, 48689, 48730,                      // First Master's: Toxic Vomit, Final Sting, Grim Fate
+        49470, 49188, 49205, 49254,               // Second Master's: Thunderbolt, Erratic Blaster, Void Thunder III, Mangling Fang
+    ];
 
-    /// <summary> Enemies auto-targeting should take first whenever they are up (adds the guides kill on sight). </summary>
-    public static readonly HashSet<uint> PriorityAdds = [];
+    /// <summary> Seconds from the end of the castbar to the hit landing, where the hit is a later helper action. </summary>
+    public static float TankbusterHitDelay(uint castId) => castId switch
+    {
+        49188 => 1.0f, // Erratic Blaster: 6.0 s castbar, hit 49189 at 7.0 s
+        48809 => 1.5f, // Toxic Vomit: 3.5 s castbar, hit 1.5 s later
+        _ => 0f,
+    };
 
-    /// <summary> Single-target hits the familiar should take (Snarl) when it is healthy. </summary>
-    public static HashSet<uint> SnarlHits => _snarlHits ??= [.. PanelSingleTargetHits];
+    /// <summary>
+    ///     Enemies auto-targeting takes first whenever they are up: the adds the guides kill on sight (succubi, wisps before
+    ///     they reach the centre, ahriman after the gaze, zombies, a woken Thanatos, the guardia that covers its allies) and
+    ///     the bone bishop before the bone knight.
+    /// </summary>
+    public static readonly HashSet<uint> PriorityAdds = [14542, 14543, 14539, 14748, 14532, 14548, 14553, 14595, 14699, 14591];
 
-    private static HashSet<uint>? _snarlHits;
 
     // ------------------------------------------------------------------ lookups
 

@@ -347,8 +347,10 @@ internal static class Program
 
         var line = CrucibleTelemetryFormat.BuildLine(1_788_904_962_577, snap);
         Check("CR| exact line shape",
-            line == "CR|1788904962577|b=1|bt=1|nd=ID|ne=2|hi=87|t=14531:64|c=46871:3.2|f=Sysi|hp=92|pet=40|sl=40.0.0|dec=1000004:crucible:hold-stance|sh=aggro:snarl-parry",
+            line == "CR|1788904962577|b=1|bt=1|nd=ID|ne=2|hi=87|t=14531:64|c=46871:3.2|f=Sysi|hp=92|pet=40|sl=40.0.0|dec=1000004:crucible:hold-stance|sh=aggro:snarl-parry|ttd=0|in=0|vul=0|xp=0",
             line);
+        Check("CR| trend fields render", CrucibleTelemetryFormat.BuildLine(1, snap with { TimeToDeath = 12.4f, IntakePerSecond = 350, VulnerabilityRemaining = 8.6f, PartyHpVerified = true })
+            .EndsWith("|ttd=12|in=350|vul=9|xp=1"));
         Check("CR| no panel battle renders bt=-1", CrucibleTelemetryFormat.BuildLine(1, snap with { Battle = -1, Needs = 0 }).Contains("|bt=-1|nd=|"));
         Check("CR| all flag letters in order",
             CrucibleTelemetryFormat.BuildLine(1, snap with { Observed = (CrucibleTelemetryFormat.Flags)0x0FFF }).Contains("|f=DSXNPJCpysci|"));

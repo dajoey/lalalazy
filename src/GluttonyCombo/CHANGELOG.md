@@ -1,3 +1,21 @@
+## v1.0.4.210 (2026-09-17) [testing]
+### Changed
+- **Beastmaster in the Crucible of the Unbroken: familiars are kept alive the way graded runs showed works.** Below 55% HP (setting) a healthier familiar is blown in over the hurt one (1 s horn cast, HP kept, never while moving, not within 8 s of its summon); at half that line Parting Blow (wespe: Final Sting) is the fallback when no horn can land. A Parting Blow at low HP was not enough: the familiar keeps taking hits while it performs the blow. (files: `Combos/PvE/BST/BST_CrucibleLogic.cs`, `Combos/PvE/BST/BST_RotationLogic.cs`)
+- **Familiar HP is remembered across the whole run**, since it carries from node to node and only a campsite rest restores it; the familiar party screen's values are used once they match a summoned familiar's live HP. Low familiars are not brought back while Parting Blow is recasting. (files: `Combos/PvE/BST/BST_Crucible.cs`, `Combos/PvE/BST/BST_CrucibleLive.cs`)
+- **No Battlehorn out of combat on a board by default** (linked to client crashes; summons are blocked on the board), and **no Parting Blow cycling for damage by default**: a familiar leaves when its HP calls for it. Both have options. The fight's Kinship (interrupt, dispel, cleanse) is borrowed in combat from the familiar that has it.
+- **Directional Parry is status 680**; the unnamed 2552 counts only on the First Board bone knight, since later bosses carry it too.
+- **Snarl no longer covers hard hits** (the familiar lost about three times what the character saved). Snarl is for a character at 40% or lower when the familiar can carry 15 s of the recent damage and is not a wespe about to Final Sting (at 25% only the familiar's HP matters); Challenge takes the aggro back at 30% familiar HP. Still "Log only" by default.
+- **Final Sting**: at 30% target HP (15% with two or more enemies) or in the last 10 s of Physical Vulnerability Up; skipped when the target dies within 3 s anyway or while the wespe is covering; a wespe on a spare horn is blown in over a familiar that has spent its One with Nature when the execute is due.
+### Added
+- **Beast picks** in the Beastmaster options: per board and battle, the best three captured familiars for the enemies' weakness, star ratings, crowd-control openings and interrupt / dispel / cleanse needs, a board roster, and familiars worth capturing. Usable before reaching a board. (file: `Combos/PvE/BST/BST_CrucibleAdvisor.cs`)
+- **Crucible auto-targeting** with Auto-Rotation targeting on: never zu eggs or morphos, enemies in a counter stance or an invulnerable phase last, the adds guides kill on sight first (succubi, wisps, ahriman, zombies, a woken Thanatos, the guardia, the bone bishop before the knight), and pairs that must die together kept within 10% HP. (files: `Combos/PvE/BST/BST_CrucibleLive.cs`, `AutoRotation/AutoRotationController.cs`)
+- **Invulnerable phases are held**: Burning Ward, Invincibility, the ymir and sphinx shells, an enemy covered by the guardia, and the general invulnerability check.
+- **Score mode** (the character tanks with Challenge so familiars finish at full HP) and an opt-in **Snarl then Parting Blow tankbuster dodge** keyed to 22 tankbuster casts, timed to when each hit lands.
+- The bat's Ultrasonics cleanses the character; the empty-horn warning names the suggested familiars for that battle.
+### Notes
+- The `CR|` collector line adds `ttd=` (target seconds to death), `in=` (character HP loss per second), `vul=` (vulnerability window left) and `xp=` (familiar party HP verified). With the collector on, the Crucible screens' values are also written once per change as `XB|` / `XP|` lines, to map the board and familiar party screens.
+- Offline: the BST harness runs 854 checks, including the rewritten Crucible rule cases and a Crucible simulator (boards 1-3, familiar HP drain, cycling off and on) with no missed familiar save, no horn out of combat, and no familiar knocked out. Not yet verified in game.
+
 ## v1.0.4.209 (2026-09-17) [testing]
 ### Fixed
 - **Smart Movement draws danger zones where the game draws the telegraphs.** Zones are now built the way BossMod's auto-hints build them, from the cast's own snapshot:

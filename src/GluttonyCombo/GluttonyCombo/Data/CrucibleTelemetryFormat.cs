@@ -16,8 +16,8 @@ internal static class CrucibleTelemetryFormat
     /// <summary> Fixed, greppable line prefix: <c>message LIKE 'CR|%'</c>. </summary>
     public const string Prefix = "CR|";
 
-    /// <summary> Hard budget for one emitted line. </summary>
-    public const int MaxLineLength = 280;
+    /// <summary> Hard budget for one emitted line (room for the longest reason and shadow plus the trend fields). </summary>
+    public const int MaxLineLength = 360;
 
     /// <inheritdoc cref="BeastmasterTelemetryFormat.MinIntervalMs"/>
     public const int MinIntervalMs = BeastmasterTelemetryFormat.MinIntervalMs;
@@ -75,7 +75,11 @@ internal static class CrucibleTelemetryFormat
         string? SlotPetHp,
         uint DecisionActionId,
         string? DecisionReason,
-        string? Shadow);
+        string? Shadow,
+        float TimeToDeath = 0f,
+        int IntakePerSecond = 0,
+        float VulnerabilityRemaining = 0f,
+        bool PartyHpVerified = false);
 
     internal static (byte, sbyte, byte, byte, int, uint, int, uint, Flags, int, int, string, uint, string, string) KeyOf(in Snapshot s) =>
         (s.Board, s.Battle, s.Needs, s.Enemies, s.HighestEnemyHp / HpBucket, s.TargetNameId, s.TargetHp / HpBucket, s.CastId, s.Observed,
@@ -110,7 +114,10 @@ internal static class CrucibleTelemetryFormat
     }
 
     /// <summary>
-    ///     <c>CR|unixms|b=board|bt=battle|nd=needs|ne=enemies|hi=highestHp|t=nameId:hp|c=castId:remaining|f=flags|hp=player|pet=familiar|sl=h1.h2.h3|dec=id:reason|sh=shadow</c>.
+    ///     <c>CR|unixms|b=board|bt=battle|nd=needs|ne=enemies|hi=highestHp|t=nameId:hp|c=castId:remaining|f=flags|hp=player|pet=familiar|sl=h1.h2.h3|dec=id:reason|sh=shadow|ttd=s|in=hp/s|vul=s|xp=0/1</c>.
+    ///     <c>ttd</c> is the target's estimated seconds to death (0 unknown), <c>in</c> the character's HP loss per second
+    ///     over 10 s, <c>vul</c> the target's Physical Vulnerability Up left, <c>xp</c> whether the familiar party HP read
+    ///     has been verified against a live familiar.
     ///     <c>bt</c> is -1 when no panel enemy is present; <c>c=0:0.0</c> when the target is not casting.
     /// </summary>
     internal static string BuildLine(long unixMs, in Snapshot s)
@@ -139,7 +146,11 @@ internal static class CrucibleTelemetryFormat
           .Append("|pet=").Append(s.PetHp.ToString(inv))
           .Append("|sl=").Append(Clean(s.SlotPetHp, 14))
           .Append("|dec=").Append(s.DecisionActionId.ToString(inv)).Append(':').Append(Clean(s.DecisionReason, 40))
-          .Append("|sh=").Append(Clean(s.Shadow, 30));
+          .Append("|sh=").Append(Clean(s.Shadow, 30))
+          .Append("|ttd=").Append(Math.Min(999f, Math.Max(0f, s.TimeToDeath)).ToString("0", inv))
+          .Append("|in=").Append(Math.Max(0, s.IntakePerSecond).ToString(inv))
+          .Append("|vul=").Append(Math.Max(0f, s.VulnerabilityRemaining).ToString("0", inv))
+          .Append("|xp=").Append(s.PartyHpVerified ? '1' : '0');
 
         if (sb.Length > MaxLineLength)
             sb.Length = MaxLineLength;

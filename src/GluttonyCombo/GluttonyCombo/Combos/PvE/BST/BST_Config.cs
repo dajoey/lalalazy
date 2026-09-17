@@ -19,8 +19,8 @@ internal partial class BST
     {
         public static UserInt
             BST_MinFamiliarStay = new("BST_MinFamiliarStay", 10),
-            BST_CruciblePetSaveHp = new("BST_CruciblePetSaveHp", 15),
-            BST_CrucibleFinalStingHp = new("BST_CrucibleFinalStingHp", 40),
+            BST_CruciblePetSwapHp = new("BST_CruciblePetSwapHp", 55),
+            BST_CrucibleFinalStingHp = new("BST_CrucibleFinalStingHp", 30),
             BST_CrucibleAggro = new("BST_CrucibleAggro", (int)CrucibleAggroMode.Shadow),
             BST_CrucibleSnarlPartingLead = new("BST_CrucibleSnarlPartingLead", 15);
 
@@ -45,7 +45,9 @@ internal partial class BST
             BST_CrucibleHornWarning = new("BST_CrucibleHornWarning", true),
             BST_CrucibleTargeting = new("BST_CrucibleTargeting", true),
             BST_CrucibleScoreMode = new("BST_CrucibleScoreMode", false),
-            BST_CrucibleSnarlParting = new("BST_CrucibleSnarlParting", false);
+            BST_CrucibleSnarlParting = new("BST_CrucibleSnarlParting", false),
+            BST_CrucibleCycleForDamage = new("BST_CrucibleCycleForDamage", false),
+            BST_CruciblePrepullHorns = new("BST_CruciblePrepullHorns", false);
 
         internal static void Draw(Preset preset)
         {
@@ -132,8 +134,8 @@ internal partial class BST
             if (!BST_Crucible)
                 return;
 
-            DrawSliderInt(0, 50, BST_CruciblePetSaveHp,
-                FormatAndCache(BST_Config.CruciblePetSaveHp0, PartingBlow.ActionName()));
+            DrawSliderInt(20, 90, BST_CruciblePetSwapHp,
+                FormatAndCache(BST_Config.CruciblePetSwapHp0, PartingBlow.ActionName()));
 
             DrawSliderInt(5, 100, BST_CrucibleFinalStingHp,
                 FormatAndCache(BST_Config.CrucibleFinalStingHp0, TemperedRelease.ActionName()));
@@ -158,6 +160,12 @@ internal partial class BST
             DrawAdditionalBoolChoice(BST_CrucibleHornWarning, BST_Config.CrucibleHornWarning, BST_Config.CrucibleHornWarningDesc);
 
             DrawAdditionalBoolChoice(BST_CrucibleTargeting, BST_Config.CrucibleTargeting, BST_Config.CrucibleTargetingDesc);
+
+            DrawAdditionalBoolChoice(BST_CrucibleCycleForDamage,
+                FormatAndCache(BST_Config.CrucibleCycleForDamage0, PartingBlow.ActionName()),
+                BST_Config.CrucibleCycleForDamageDesc);
+
+            DrawAdditionalBoolChoice(BST_CruciblePrepullHorns, BST_Config.CruciblePrepullHorns, BST_Config.CruciblePrepullHornsDesc);
         }
 
         private static int _advisorBoard;

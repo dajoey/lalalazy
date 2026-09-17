@@ -257,11 +257,16 @@ internal static class BST_RotationLogic
         public float HighestEnemyHpPercent;       // across those enemies
         public float PlayerHpPercent;
         public float PetHpPercent;                // the summoned familiar (100 when none)
+        public float PetHp;                       // the summoned familiar's HP (absolute)
+        public float PlayerIntakePerSecond;       // HP the character lost per second over the last 10 s
+        public float TargetVulnerabilityRemaining; // Physical Vulnerability Up (5180) left on the target, 0 = none
+        public float TargetTimeToDeath;           // seconds, from the target's recent HP trend; 0 = unknown
         public float Slot1PetHp, Slot2PetHp, Slot3PetHp; // last HP seen per horn's familiar this battle, 0 = unknown
         public float PartingBlowRecast;           // seconds left on Parting Blow (readable with no familiar out)
         public bool TargetHasDispellableBuff;
         public bool TargetInStance;               // spikes / needles: attacking it hurts
         public bool TargetDoNotAttack;            // eggs, morphos
+        public bool TargetInvulnerable;           // damage-immune phase (e.g. Burning Ward)
         public bool ProtectedNearTarget;          // a do-not-attack enemy within AoE reach of the target
         public bool TargetHasParry;               // Directional Parry (bone knight Forward Guard)
         public bool ParryJustEnded;               // the target lost Directional Parry within the last few seconds
@@ -291,11 +296,13 @@ internal static class BST_RotationLogic
 
         // Crucible of the Unbroken
         public bool Crucible;
-        public int CruciblePetSaveHp;
+        public int CruciblePetSwapHp;
         public int CrucibleFinalStingHp;
         public CrucibleAggroMode CrucibleAggro;
         public bool CrucibleAllowDisplacing;
         public bool CrucibleScoreMode;
+        public bool CrucibleCycleForDamage;
+        public bool CruciblePrepullHorns;
         public bool CrucibleSnarlParting;
         public float CrucibleSnarlPartingLead;
 
@@ -319,11 +326,13 @@ internal static class BST_RotationLogic
             UseShieldCharge = true,
             UseRally = true,
             Crucible = true,
-            CruciblePetSaveHp = 15,
-            CrucibleFinalStingHp = 40,
+            CruciblePetSwapHp = 55,
+            CrucibleFinalStingHp = 30,
             CrucibleAggro = CrucibleAggroMode.Shadow,
             CrucibleAllowDisplacing = true,
             CrucibleScoreMode = false,
+            CrucibleCycleForDamage = false,
+            CruciblePrepullHorns = false,
             CrucibleSnarlParting = false,
             CrucibleSnarlPartingLead = 1.5f,
         };
@@ -403,7 +412,11 @@ internal static class BST_RotationLogic
         // ---------------------------------------------------------- out of combat
         if (!s.InCombat)
         {
-            if (s.HasHostileTarget && !s.PlayerIsCasting)
+            // Crucible: no horn out of combat unless allowed (crash reports; summons are blocked on the board).
+            if (crucible && !cfg.CruciblePrepullHorns && s.HasHostileTarget)
+                declines.Add("crucible:no-horns-out-of-combat");
+
+            if (s.HasHostileTarget && !s.PlayerIsCasting && (!crucible || cfg.CruciblePrepullHorns))
             {
                 if (crucible)
                 {
@@ -446,7 +459,11 @@ internal static class BST_RotationLogic
         // ---------------------------------------------------------- 1. summon
         if (!FamiliarPresentOrPending(s))
         {
-            if (!s.PlayerIsCasting && (s.CanWeave || !s.GcdReady))
+            if (crucible && s.IsMoving)
+            {
+                declines.Add("crucible:summon-moving");
+            }
+            else if (!s.PlayerIsCasting && (s.CanWeave || !s.GcdReady))
             {
                 var slot = crucible ? BST_CrucibleLogic.PickHorn(s, cfg, 0) : PickReadyHorn(s, 0);
                 if (slot != 0)
@@ -479,26 +496,32 @@ internal static class BST_RotationLogic
                     shadow = "crucible:snarl-parting";
             }
 
-            if (familiarOut && s.CanWeave)
+            if (familiarOut)
             {
                 var save = BST_CrucibleLogic.TryPetSave(s, cfg, beast, declines);
-                if (save != 0)
-                    return Pick(save, save == BST.TemperedRelease ? "crucible:petsave-finalsting" : "crucible:petsave-partingblow");
+                if (save.ActionId != 0)
+                    return Pick(save.ActionId, save.Reason);
+
+                var sting = BST_CrucibleLogic.TryFinalStingSwap(s, cfg, beast, declines);
+                if (sting.ActionId != 0)
+                    return Pick(sting.ActionId, sting.Reason);
             }
 
             var dispel = BST_CrucibleLogic.TryDispel(s, beast, declines);
             if (dispel.ActionId != 0 && s.TargetInStance)
                 return Pick(dispel.ActionId, dispel.Reason);
 
-            // Spikes / needles up (and not dispelled above), or an egg / morpho targeted: nothing that damages it.
-            if (s.HasHostileTarget && (s.TargetDoNotAttack || s.TargetInStance))
+            // Spikes / needles up (and not dispelled above), an egg / morpho targeted, or an invulnerable phase:
+            // nothing that damages it.
+            if (s.HasHostileTarget && (s.TargetDoNotAttack || s.TargetInStance || s.TargetInvulnerable))
             {
                 if (aggro.ActionId != 0 && cfg.CrucibleAggro == CrucibleAggroMode.On && s.CanWeave)
                     return Pick(aggro.ActionId, aggro.Reason);
-                var cleanse = BST_CrucibleLogic.TryCleanse(s);
+                var cleanse = BST_CrucibleLogic.TryCleanse(s, beast);
                 if (cleanse.ActionId != 0)
                     return Pick(cleanse.ActionId, cleanse.Reason);
-                return Pick(BST_CrucibleLogic.Hold, s.TargetDoNotAttack ? "crucible:hold-do-not-attack" : "crucible:hold-stance");
+                return Pick(BST_CrucibleLogic.Hold, s.TargetDoNotAttack ? "crucible:hold-do-not-attack"
+                    : s.TargetInStance ? "crucible:hold-stance" : "crucible:hold-invulnerable");
             }
 
             if (aggro.ActionId != 0 && cfg.CrucibleAggro == CrucibleAggroMode.On && s.CanWeave)
@@ -507,7 +530,7 @@ internal static class BST_RotationLogic
             if (dispel.ActionId != 0)
                 return Pick(dispel.ActionId, dispel.Reason);
 
-            var cleanseNow = BST_CrucibleLogic.TryCleanse(s);
+            var cleanseNow = BST_CrucibleLogic.TryCleanse(s, beast);
             if (cleanseNow.ActionId != 0)
                 return Pick(cleanseNow.ActionId, cleanseNow.Reason);
         }
@@ -528,6 +551,10 @@ internal static class BST_RotationLogic
         // ---------------------------------------------------------- 4. spend One with Nature
         if (familiarOut && s.OneWithNature && s.Level >= LvTemperedRelease && s.CanWeave && s.SinceSummon >= 0.8f)
         {
+            // Crucible: this familiar's Kinship answers the fight's panel (interrupt / dispel / cleanse) - Borrow it.
+            if (crucible && BST_CrucibleLogic.ShouldBorrowForFight(s, beast))
+                return Pick(BST.Borrow, $"crucible:borrow-{beast!.Value.Kin.ToString().ToLowerInvariant()}");
+
             switch (plan)
             {
                 case ReleasePlan.Use:
@@ -618,14 +645,24 @@ internal static class BST_RotationLogic
         var crucible = cfg.Crucible && s.CrucibleBoard != 0;
         if (crucible && plan == ReleasePlan.HoldForExit && s.OneWithNature)
         {
-            if (s.TargetDoNotAttack || s.TargetInStance)
+            if (s.TargetDoNotAttack || s.TargetInStance || s.TargetInvulnerable)
             {
                 declines.Add("crucible:finalsting-target-unsafe");
                 return 0;
             }
-            if (!BST_CrucibleLogic.FinalStingExecuteHp(s, cfg))
+            if (!BST_CrucibleLogic.FinalStingDue(s, cfg))
             {
                 declines.Add("crucible:finalsting-hold-hp");
+                return 0;
+            }
+            if (BST_CrucibleLogic.FinalStingWasted(s))
+            {
+                declines.Add("crucible:finalsting-target-dying");
+                return 0;
+            }
+            if (BST_CrucibleLogic.Covering(s))
+            {
+                declines.Add("crucible:finalsting-covering");
                 return 0;
             }
             if (!s.ReadyTempered)
@@ -634,6 +671,14 @@ internal static class BST_RotationLogic
                 return 0;
             }
             return BST.TemperedRelease;
+        }
+
+        // Crucible: a familiar leaves when its HP says so (BST_CrucibleLogic.TryPetSave), not to cycle damage,
+        // unless cycling is allowed: every exit locks a horn for 90 s and the roster is finite per node.
+        if (crucible && !cfg.CrucibleCycleForDamage)
+        {
+            declines.Add("crucible:exit-hold");
+            return 0;
         }
 
         if (s.SinceSummon < cfg.MinFamiliarStaySeconds)
@@ -706,7 +751,7 @@ internal static class BST_RotationLogic
                 declines.Add("crucible:exit-round-ending");
                 return 0;
             }
-            if (s.TargetDoNotAttack || s.TargetInStance || s.ProtectedNearTarget)
+            if (s.TargetDoNotAttack || s.TargetInStance || s.TargetInvulnerable || s.ProtectedNearTarget)
             {
                 declines.Add("crucible:exit-target-unsafe");
                 return 0;

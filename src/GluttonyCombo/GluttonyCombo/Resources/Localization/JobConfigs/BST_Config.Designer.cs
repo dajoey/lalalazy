@@ -333,9 +333,9 @@ namespace GluttonyCombo.Resources.Localization.JobConfigs {
         /// <summary>
         ///   Looks up a localized string similar to Send the familiar away with {0} at or below this HP %.
         /// </summary>
-        internal static string CruciblePetSaveHp0 {
+        internal static string CruciblePetSwapHp0 {
             get {
-                return ResourceManager.GetString("CruciblePetSaveHp0", resourceCulture);
+                return ResourceManager.GetString("CruciblePetSwapHp0", resourceCulture);
             }
         }
         
@@ -615,6 +615,51 @@ namespace GluttonyCombo.Resources.Localization.JobConfigs {
         internal static string CrucibleSnarlPartingLead {
             get {
                 return ResourceManager.GetString("CrucibleSnarlPartingLead", resourceCulture);
+            }
+        }
+    
+        /// <summary>
+        ///   Looks up a localized string similar to Crucible: no beasts are assigned to the Battlehorns. Suggested for {0}: {1}..
+        /// </summary>
+        internal static string CrucibleHornWarningPicks0And1 {
+            get {
+                return ResourceManager.GetString("CrucibleHornWarningPicks0And1", resourceCulture);
+            }
+        }
+    
+        /// <summary>
+        ///   Looks up a localized string similar to Cycle familiars with {0} for damage in the Crucible.
+        /// </summary>
+        internal static string CrucibleCycleForDamage0 {
+            get {
+                return ResourceManager.GetString("CrucibleCycleForDamage0", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Off by default: in the Crucible a familiar leaves only when its HP calls for ....
+        /// </summary>
+        internal static string CrucibleCycleForDamageDesc {
+            get {
+                return ResourceManager.GetString("CrucibleCycleForDamageDesc", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Allow Battlehorns out of combat in the Crucible.
+        /// </summary>
+        internal static string CruciblePrepullHorns {
+            get {
+                return ResourceManager.GetString("CruciblePrepullHorns", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Off by default: other automation linked out-of-combat horn presses on a board....
+        /// </summary>
+        internal static string CruciblePrepullHornsDesc {
+            get {
+                return ResourceManager.GetString("CruciblePrepullHornsDesc", resourceCulture);
             }
         }
     }

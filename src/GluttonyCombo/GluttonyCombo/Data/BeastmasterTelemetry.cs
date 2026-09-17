@@ -118,7 +118,11 @@ internal static class BeastmasterTelemetry
             $"{Pct(s.Slot1PetHp)}.{Pct(s.Slot2PetHp)}.{Pct(s.Slot3PetHp)}",
             BST.LastDecisionActionId,
             BST.LastDecisionReason,
-            BST.LastShadow);
+            BST.LastShadow,
+            s.TargetTimeToDeath,
+            (int)s.PlayerIntakePerSecond,
+            s.TargetVulnerabilityRemaining,
+            BST.PartyHpVerified);
     }
 
     private static unsafe BeastmasterTelemetryFormat.Snapshot Sample()

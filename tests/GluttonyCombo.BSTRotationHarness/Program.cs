@@ -231,7 +231,7 @@ internal static class Program
 
     private static void CrucibleDataChecks()
     {
-        Console.WriteLine("-- crucible data (7.56 sheets) --");
+        Console.WriteLine("-- crucible data (7.56 sheets + graded upstream runs) --");
         Check("territory 1339-1343 -> boards 1-5", Enumerable.Range(0, 5).All(i => BST_CrucibleData.BoardOfTerritory((uint)(1339 + i)) == i + 1));
         Check("other territories -> 0", BST_CrucibleData.BoardOfTerritory(1338) == 0 && BST_CrucibleData.BoardOfTerritory(1344) == 0 && BST_CrucibleData.BoardOfTerritory(0) == 0);
         Check("5 boards, each row's territory maps back to it",
@@ -255,22 +255,29 @@ internal static class Program
             && BST_CrucibleData.StanceStatuses.SetEquals(new uint[] { 5434, 2528, 5465, 5145 }));
         Check("do-not-attack: zu eggs 14575/14576, morpho 14656",
             BST_CrucibleData.DoNotAttack.ContainsKey(14575) && BST_CrucibleData.DoNotAttack.ContainsKey(14576) && BST_CrucibleData.DoNotAttack.ContainsKey(14656));
-        Check("Deadly Thrust 46906 is a Snarl hit", BST_CrucibleData.SnarlHits.Contains(46906));
+        Check("Directional Parry is 680; 2552 only on the bone knight", BST_CrucibleData.ParryStatuses.SetEquals(new uint[] { 680 })
+            && BST_CrucibleData.BoneKnightParryStatus == 2552 && BST_CrucibleData.BoneKnightNameIds.Contains(14531));
+        Check("invulnerable: Burning Ward 4175 on the ogre", BST_CrucibleData.InvulnerableStatuses.Contains(4175));
+        Check("tankbusters: Deadly Thrust 46906; Erratic Blaster castbar 49188 lands 1 s after it",
+            BST_CrucibleData.Tankbusters.Contains(46906) && BST_CrucibleData.Tankbusters.Contains(49188) && BST_CrucibleData.TankbusterHitDelay(49188) == 1f);
     }
 
     private static void CrucibleTargetingAndAdvisor()
     {
         Console.WriteLine("-- crucible auto-targeting and beast picks --");
         List<int> Allowed(params BST_CrucibleLogic.TargetCandidate[] c) => BST_CrucibleLogic.AllowedTargets(c);
-        BST_CrucibleLogic.TargetCandidate C(uint nameId, float hp, bool stance) => new(nameId, hp, stance);
+        BST_CrucibleLogic.TargetCandidate C(uint nameId, float hp, bool avoid) => new(nameId, hp, avoid);
 
         Check("zu egg never allowed", Allowed(C(14575, 100f, false), C(14572, 100f, false)).SequenceEqual(new[] { 1 }));
         Check("only eggs up: nothing to target", Allowed(C(14575, 100f, false), C(14576, 100f, false)).Count == 0);
-        Check("spikes stance skipped while another enemy is up", Allowed(C(14571, 100f, true), C(14570, 90f, false)).SequenceEqual(new[] { 1 }));
-        Check("everything in a stance: still targetable", Allowed(C(14571, 100f, true)).SequenceEqual(new[] { 0 }));
+        Check("stance / invulnerable skipped while another enemy is up", Allowed(C(14571, 100f, true), C(14570, 90f, false)).SequenceEqual(new[] { 1 }));
+        Check("everything to avoid: still targetable", Allowed(C(14571, 100f, true)).SequenceEqual(new[] { 0 }));
         Check("tablitaurs 80% / 50%: only the healthier", Allowed(C(14555, 80f, false), C(14556, 50f, false)).SequenceEqual(new[] { 0 }));
         Check("tablitaurs 60% / 55%: both", Allowed(C(14555, 60f, false), C(14556, 55f, false)).Count == 2);
         Check("Loosefrox 30% / Chewchum 70%: Chewchum", Allowed(C(14561, 30f, false), C(14562, 70f, false)).SequenceEqual(new[] { 1 }));
+        Check("Pas de Seul + succubus mage: the add first", Allowed(C(14541, 90f, false), C(14542, 100f, false)).SequenceEqual(new[] { 1 }));
+        Check("bone knight + bone bishop: the bishop first", Allowed(C(14531, 100f, false), C(14532, 100f, false)).SequenceEqual(new[] { 1 }));
+        Check("ogre in Burning Ward + wisp: the wisp", Allowed(C(14538, 100f, true), C(14539, 100f, false)).SequenceEqual(new[] { 1 }));
 
         Check("51 beast profiles, row-indexed", BST_CrucibleData.BeastProfiles.Length == 51 && Enumerable.Range(1, 50).All(r => BST_CrucibleData.BeastProfiles[r].Row == r));
         Check("lamb inflicts sleep (bit 7); coblyn auto is lightning magic",
@@ -292,6 +299,9 @@ internal static class Program
         var wespeWhy = new List<string>();
         BST_CrucibleAdvisor.Score(1, 0, 10, allNeeds, wespeWhy);
         Check("Pas de Seul: wespe credited for piercing and Final Sting", wespeWhy.Contains("Final Sting") && wespeWhy.Contains("piercing"), string.Join(",", wespeWhy));
+        Check("ogre: a Wavekin among the picks (Quelling Wave for the wisps)",
+            BST_CrucibleAdvisor.Pick(1, 5, All).Any(p => BST_Beasts.All[p.Row].Kin == BeastmasterKinType.Wavekin),
+            string.Join(",", BST_CrucibleAdvisor.Pick(1, 5, All).Select(p => BST_Beasts.All[p.Row].Name)));
 
         var owned = new HashSet<int> { 1, 10, 6 };
         var mine = BST_CrucibleAdvisor.Pick(1, 1, r => owned.Contains(r));
@@ -310,17 +320,18 @@ internal static class Program
             Check($"board {b.Board}: every battle gets 3 picks", BST_CrucibleData.Battles.Where(x => x.Board == b.Board).All(x => BST_CrucibleAdvisor.Pick(b.Board, x.Battle, All).Count == 3));
     }
 
-    /// <summary> In combat on the First Board, L30, Cu Sith out (One with Nature spent), horns 2 and 3 ready. </summary>
+    /// <summary> In combat on the First Board, L30, Cu Sith out (One with Nature spent), raptor / buffalo on ready horns 2 and 3. </summary>
     private static BstState CrucibleState(int level = 30)
     {
         var s = BaseState(level);
         s.CrucibleBoard = 1; s.CrucibleBattle = 1; s.EnemyCount = 1;
-        s.HighestEnemyHpPercent = 100f; s.PlayerHpPercent = 100f; s.PetHpPercent = 100f;
+        s.HighestEnemyHpPercent = 100f; s.PlayerHpPercent = 100f; s.PetHpPercent = 100f; s.PetHp = 20000f;
         s.Slot1Beast = 1; s.Slot2Beast = 34; s.Slot3Beast = 26; s.SlotBeastsKnown = true;
         s.ActiveSlot = 1; s.PetObjectPresent = true; s.PetObjectBeast = 1;
         s.OneWithNature = false; s.ReadyParting = true; s.SinceSummon = 20f; s.SinceHornPress = 21f;
         s.ReadyHorn2 = true; s.ReadyHorn3 = true;
         s.EnemyTargetsPlayer = true;
+        s.SinceSnarl = float.MaxValue;
         return s;
     }
 
@@ -329,60 +340,89 @@ internal static class Program
         Console.WriteLine("-- crucible rules --");
         var cfg = BstSettings.Defaults();
         var on = cfg with { CrucibleAggro = CrucibleAggroMode.On };
+        var cycle = cfg with { CrucibleCycleForDamage = true };
+        var prepull = cfg with { CruciblePrepullHorns = true };
+        bool IsHorn(uint id) => id is BST.FirstBattlehorn or BST.SecondBattlehorn or BST.ThirdBattlehorn;
 
         // Outside the Crucible (or with the rules off) the Crucible fields change nothing.
-        var messy = CrucibleState() with { PetHpPercent = 5f, TargetInStance = true, TargetDoNotAttack = true, ProtectedNearTarget = true, TargetHasDispellableBuff = true, TargetHasParry = true, ReadySnarl = true };
+        var messy = CrucibleState() with
+        {
+            PetHpPercent = 5f, TargetInStance = true, TargetDoNotAttack = true, ProtectedNearTarget = true, TargetHasDispellableBuff = true,
+            TargetHasParry = true, ReadySnarl = true, TargetInvulnerable = true, TargetVulnerabilityRemaining = 5f, IsMoving = true,
+        };
         var plain = CrucibleState() with { CrucibleBoard = 0 };
         var outside = Decide(messy with { CrucibleBoard = 0 }, cfg);
-        Check("board 0: Crucible fields ignored", outside == Decide(plain, cfg), $"{outside.Reason} vs {Decide(plain, cfg).Reason}");
-        Check("Crucible rules off: same as outside", Decide(messy, cfg with { Crucible = false }) == Decide(plain, cfg));
+        Check("board 0: Crucible fields ignored", outside == Decide(plain with { IsMoving = true }, cfg), $"{outside.Reason} vs {Decide(plain, cfg).Reason}");
+        Check("Crucible rules off: same as outside", Decide(messy, cfg with { Crucible = false }) == Decide(plain with { IsMoving = true }, cfg));
 
-        // Pet-save
-        var low = CrucibleState() with { PetHpPercent = 12f, OneWithNature = true, ReadyTempered = true, SinceSummon = 2f, ReadyHorn2 = false, ReadyHorn3 = false };
-        var d = Decide(low, cfg);
-        Check("familiar at 12%: Parting Blow now (ignores min stay, unspent One with Nature, no other horn)", d is { ActionId: BST.PartingBlow, Reason: "crucible:petsave-partingblow" }, $"{d.Reason} [{d.Declines}]");
-        Check("familiar at 16%: no pet-save", !Decide(low with { PetHpPercent = 16f }, cfg).Reason.StartsWith("crucible:petsave"));
-        Check("wespe at 12% with One with Nature: Final Sting", Decide(low with { Slot1Beast = 10, PetObjectBeast = 10 }, cfg) is { ActionId: BST.TemperedRelease, Reason: "crucible:petsave-finalsting" });
-        Check("last enemy at 2%: no pet-save", Decide(low with { TargetHpPercent = 2f, HighestEnemyHpPercent = 2f }, cfg).ActionId != BST.PartingBlow);
-        Check("threshold follows the setting", Decide(low with { PetHpPercent = 25f }, cfg with { CruciblePetSaveHp = 30 }).Reason == "crucible:petsave-partingblow");
-        Check("Parting Blow recasting: pet-save declined, logged", Decide(low with { ReadyParting = false }, cfg).Declines.Contains("crucible:petsave-partingblow-recast"));
-        Check("egg near the target: no pet-save Parting Blow", Decide(low with { ProtectedNearTarget = true }, cfg).ActionId != BST.PartingBlow);
+        // Keeping familiars alive: a healthier familiar blown in over a hurt one; Parting Blow only when critical.
+        var hurt = CrucibleState() with { PetHpPercent = 50f };
+        var swap = Decide(hurt, cfg);
+        Check("familiar at 50%, healthy horn ready: blow it in over the familiar", swap is { ActionId: BST.SecondBattlehorn, Reason: "crucible:petsave-swap" }, $"{swap.Reason} [{swap.Declines}]");
+        Check("familiar at 60%: no swap", !Decide(hurt with { PetHpPercent = 60f }, cfg).Reason.StartsWith("crucible:petsave"));
+        Check("summoned 5 s ago: grace, no swap", !IsHorn(Decide(hurt with { SinceSummon = 5f }, cfg).ActionId));
+        Check("next familiars no healthier: no swap", !IsHorn(Decide(hurt with { Slot2PetHp = 45f, Slot3PetHp = 52f }, cfg).ActionId));
+        Check("moving: the 1 s horn cast waits", !IsHorn(Decide(hurt with { IsMoving = true }, cfg).ActionId));
+        Check("swap line follows the setting", Decide(hurt with { PetHpPercent = 65f }, cfg with { CruciblePetSwapHp = 70 }).Reason == "crucible:petsave-swap");
+        var crit = CrucibleState() with { PetHpPercent = 20f, ReadyHorn2 = false, ReadyHorn3 = false, SinceSummon = 2f, OneWithNature = true, ReadyTempered = true };
+        Check("critical 20%, no horn ready: Parting Blow", Decide(crit, cfg) is { ActionId: BST.PartingBlow, Reason: "crucible:petsave-partingblow" }, Decide(crit, cfg).Reason);
+        Check("critical 20%, a horn ready with a 40% familiar: swap even inside the grace",
+            Decide(crit with { ReadyHorn2 = true, Slot2PetHp = 40f }, cfg) is { ActionId: BST.SecondBattlehorn, Reason: "crucible:petsave-swap-critical" });
+        Check("critical, a horn blown 1 s ago: give it time, no Parting Blow", Decide(crit with { SinceHornPress = 1f }, cfg).ActionId != BST.PartingBlow);
+        Check("critical wespe with One with Nature: Final Sting", Decide(crit with { Slot1Beast = 10, PetObjectBeast = 10 }, cfg) is { ActionId: BST.TemperedRelease, Reason: "crucible:petsave-finalsting" });
+        Check("last enemy at 2%: no save", !Decide(crit with { TargetHpPercent = 2f, HighestEnemyHpPercent = 2f }, cfg).Reason.StartsWith("crucible:petsave"));
+        Check("Parting Blow recasting: declined, logged", Decide(crit with { ReadyParting = false }, cfg).Declines.Contains("crucible:petsave-partingblow-recast"));
+        Check("egg near the target: no save Parting Blow", Decide(crit with { ProtectedNearTarget = true }, cfg).ActionId != BST.PartingBlow);
+        var covering = hurt with { SinceSnarl = 5f, EnemyTargetsPet = true, EnemyTargetsPlayer = false };
+        Check("covering familiar at 50%: stays", !IsHorn(Decide(covering, cfg).ActionId));
+        Check("covering familiar at 20%: saved", Decide(covering with { PetHpPercent = 20f }, cfg).Reason.StartsWith("crucible:petsave"));
 
-        // End of round
-        var exit = CrucibleState();
-        Check("normal exit at 60%: Parting Blow", Decide(exit with { TargetHpPercent = 60f, HighestEnemyHpPercent = 60f }, cfg).ActionId == BST.PartingBlow);
-        var ending = Decide(exit with { TargetHpPercent = 8f, HighestEnemyHpPercent = 8f }, cfg);
-        Check("every enemy under 10%: no Parting Blow exit", ending.ActionId != BST.PartingBlow && ending.Declines.Contains("crucible:exit-round-ending"), $"{ending.Reason} [{ending.Declines}]");
-        Check("target under 10% but another enemy at 50%: exit allowed", Decide(exit with { TargetHpPercent = 8f, HighestEnemyHpPercent = 50f, EnemyCount = 2 }, cfg).ActionId == BST.PartingBlow);
+        // No damage cycling by default; the round-ending guard when it is on.
+        Check("default: no Parting Blow exit to cycle damage", Decide(CrucibleState(), cfg) is { ActionId: not BST.PartingBlow } hold && hold.Declines.Contains("crucible:exit-hold"));
+        Check("cycling on, 60%: Parting Blow", Decide(CrucibleState() with { TargetHpPercent = 60f, HighestEnemyHpPercent = 60f }, cycle).ActionId == BST.PartingBlow);
+        var ending = Decide(CrucibleState() with { TargetHpPercent = 8f, HighestEnemyHpPercent = 8f }, cycle);
+        Check("cycling on, every enemy under 10%: no exit", ending.ActionId != BST.PartingBlow && ending.Declines.Contains("crucible:exit-round-ending"), $"{ending.Reason} [{ending.Declines}]");
+        Check("cycling on, another enemy at 50%: exit allowed", Decide(CrucibleState() with { TargetHpPercent = 8f, HighestEnemyHpPercent = 50f, EnemyCount = 2 }, cycle).ActionId == BST.PartingBlow);
 
-        // Final Sting as the execute
+        // Final Sting
         var fs = CrucibleState() with { Slot1Beast = 10, PetObjectBeast = 10, OneWithNature = true, ReadyTempered = true, SinceSummon = 1.5f, ReadyHorn2 = false, ReadyHorn3 = false };
-        Check("wespe, target 80%: Final Sting held", Decide(fs with { TargetHpPercent = 80f }, cfg).ActionId != BST.TemperedRelease);
-        var exec = Decide(fs with { TargetHpPercent = 35f }, cfg);
-        Check("wespe, target 35%: Final Sting (ignores min stay and other horns)", exec is { ActionId: BST.TemperedRelease, Reason: "exit:finalsting" }, $"{exec.Reason} [{exec.Declines}]");
-        Check("wespe, 2 enemies, target 35%: held (threshold halves)", Decide(fs with { TargetHpPercent = 35f, EnemyCount = 2 }, cfg).ActionId != BST.TemperedRelease);
-        Check("wespe, 2 enemies, target 15%: Final Sting", Decide(fs with { TargetHpPercent = 15f, EnemyCount = 2 }, cfg).ActionId == BST.TemperedRelease);
-        Check("wespe outside the Crucible: unchanged min-stay rule", Decide(fs with { TargetHpPercent = 35f, CrucibleBoard = 0 }, cfg).ActionId != BST.TemperedRelease);
+        Check("wespe, target 80%: held", Decide(fs with { TargetHpPercent = 80f }, cfg).ActionId != BST.TemperedRelease);
+        Check("wespe, target 35%: held (execute line 30%)", Decide(fs with { TargetHpPercent = 35f }, cfg).ActionId != BST.TemperedRelease);
+        var exec = Decide(fs with { TargetHpPercent = 25f }, cfg);
+        Check("wespe, target 25%: Final Sting (ignores min stay and other horns)", exec is { ActionId: BST.TemperedRelease, Reason: "exit:finalsting" }, $"{exec.Reason} [{exec.Declines}]");
+        Check("wespe, 2 enemies, target 25%: held (line halves)", Decide(fs with { TargetHpPercent = 25f, EnemyCount = 2 }, cfg).ActionId != BST.TemperedRelease);
+        Check("wespe, 2 enemies, target 12%: Final Sting", Decide(fs with { TargetHpPercent = 12f, EnemyCount = 2 }, cfg).ActionId == BST.TemperedRelease);
+        Check("target 80% but Physical Vulnerability Up has 8 s left: Final Sting", Decide(fs with { TargetHpPercent = 80f, TargetVulnerabilityRemaining = 8f }, cfg).ActionId == BST.TemperedRelease);
+        Check("vulnerability with 20 s left: not yet", Decide(fs with { TargetHpPercent = 80f, TargetVulnerabilityRemaining = 20f }, cfg).ActionId != BST.TemperedRelease);
+        Check("target dying within 2 s anyway: Final Sting saved", Decide(fs with { TargetHpPercent = 25f, TargetTimeToDeath = 2f }, cfg).ActionId != BST.TemperedRelease);
+        Check("wespe covering the character: Final Sting waits", Decide(fs with { TargetHpPercent = 25f, SinceSnarl = 5f, EnemyTargetsPet = true, EnemyTargetsPlayer = false }, cfg).ActionId != BST.TemperedRelease);
+        Check("outside the Crucible: unchanged min-stay rule", Decide(fs with { TargetHpPercent = 25f, CrucibleBoard = 0 }, cfg).ActionId != BST.TemperedRelease);
+        var mantisOut = CrucibleState() with { Slot1Beast = 16, PetObjectBeast = 16, Slot2Beast = 10, Slot3Beast = 18, TargetHpPercent = 25f, ReadyParting = false };
+        Check("mantis out (One with Nature spent), wespe ready, target 25%: blow the wespe in", Decide(mantisOut, cfg) is { ActionId: BST.SecondBattlehorn, Reason: "crucible:finalsting-swap" }, Decide(mantisOut, cfg).Reason);
+        Check("vulnerability closing at 80%: wespe in", Decide(mantisOut with { TargetHpPercent = 80f, TargetVulnerabilityRemaining = 6f }, cfg).Reason == "crucible:finalsting-swap");
+        Check("mantis still holds One with Nature: wait", Decide(mantisOut with { OneWithNature = true, ReadyTempered = true }, cfg).Reason != "crucible:finalsting-swap");
+        Check("target healthy, no window: no swap", Decide(mantisOut with { TargetHpPercent = 80f }, cfg).Reason != "crucible:finalsting-swap");
 
-        // Stances and do-not-attack
+        // Stances, invulnerable phases, do-not-attack
         var spikes = CrucibleState() with { TargetInStance = true, PlayerTp = 150, FamiliarTp = 150, ReadyTrick = true, ReadyAxe = true, GcdReady = true };
         Check("spikes up (not dispellable): hold", Decide(spikes, cfg) is { ActionId: BST_CrucibleLogic.Hold, Reason: "crucible:hold-stance" });
-        Check("spikes up, no familiar: still summons",
-            Decide(spikes with { ActiveSlot = 0, PetObjectPresent = false, SinceHornPress = 30f, ReadyHorn1 = true }, cfg).ActionId == BST.FirstBattlehorn);
+        Check("spikes up, no familiar: still summons (set-up raptor first)",
+            Decide(spikes with { ActiveSlot = 0, PetObjectPresent = false, SinceHornPress = 30f, ReadyHorn1 = true }, cfg).ActionId == BST.SecondBattlehorn);
         Check("Ice Spikes with Quelling Wave borrowed: dispel it",
             Decide(spikes with { TargetHasDispellableBuff = true, KinshipHeld = true, BeastModeResolved = BST.QuellingWave, ReadyBeastMode = true }, cfg) is { ActionId: BST.QuellingWave, Reason: "crucible:dispel-quellingwave" });
         Check("holding still cleanses",
             Decide(spikes with { PlayerHasCleansableDebuff = true, KinshipHeld = true, BeastModeResolved = BST.ScouringAsh, ReadyBeastMode = true }, cfg).ActionId == BST.ScouringAsh);
+        Check("invulnerable target: hold", Decide(CrucibleState() with { TargetInvulnerable = true, GcdReady = true }, cfg) is { ActionId: BST_CrucibleLogic.Hold, Reason: "crucible:hold-invulnerable" });
         Check("egg targeted: hold", Decide(CrucibleState() with { TargetDoNotAttack = true, GcdReady = true }, cfg) is { ActionId: BST_CrucibleLogic.Hold, Reason: "crucible:hold-do-not-attack" });
 
         // Protected enemy near the target
-        Check("egg near target: no Parting Blow exit", Decide(CrucibleState() with { ProtectedNearTarget = true }, cfg).ActionId != BST.PartingBlow);
+        Check("egg near target, cycling on: no Parting Blow exit", Decide(CrucibleState() with { ProtectedNearTarget = true }, cycle).ActionId != BST.PartingBlow);
         var aoe = Decide(CrucibleState() with { ProtectedNearTarget = true, Slot1Beast = 34, PetObjectBeast = 34, OneWithNature = true, ReadyTempered = true, ReadyBorrow = true }, cfg);
         Check("egg near target: AoE release (raptor) -> Borrow instead", aoe.ActionId == BST.Borrow, $"{aoe.Reason} [{aoe.Declines}]");
         Check("egg near target: no Trick",
             Decide(CrucibleState() with { ProtectedNearTarget = true, FamiliarTp = 150, PlayerTp = 150, ReadyTrick = true, ReadyAxe = true, ReadyParting = false }, cfg).ActionId != BST.Trick);
 
-        // Dispel / cleanse
+        // Dispel / cleanse / Kinship for the fight
         Check("vulture out, buff on target: Bloodcurdling Caw",
             Decide(CrucibleState() with { Slot1Beast = 11, PetObjectBeast = 11, OneWithNature = true, ReadyTempered = true, TargetHasDispellableBuff = true, SinceSummon = 2f }, cfg) is { ActionId: BST.TemperedRelease, Reason: "crucible:dispel-caw" });
         Check("Wavekin held, buff on target: Quelling Wave even mid-combo",
@@ -391,45 +431,59 @@ internal static class Program
             Decide(CrucibleState() with { TargetHasDispellableBuff = true, ReadyParting = false, GcdReady = true }, cfg).ActionId == BST.SmashAxe);
         Check("cleansable debuff with Ashkin held: Scouring Ash",
             Decide(CrucibleState() with { PlayerHasCleansableDebuff = true, KinshipHeld = true, BeastModeResolved = BST.ScouringAsh, ReadyBeastMode = true }, cfg).ActionId == BST.ScouringAsh);
+        Check("cleansable debuff, bat out with One with Nature: Ultrasonics",
+            Decide(CrucibleState() with { PlayerHasCleansableDebuff = true, Slot1Beast = 19, PetObjectBeast = 19, OneWithNature = true, ReadyTempered = true }, cfg) is { ActionId: BST.TemperedRelease, Reason: "crucible:cleanse-ultrasonics" });
+        var coblynFight = CrucibleState() with { Slot1Beast = 7, PetObjectBeast = 7, OneWithNature = true, ReadyTempered = true, ReadyBorrow = true, CrucibleNeeds = CrucibleNeeds.Interrupt, ReadyParting = false };
+        Check("coblyn out, fight needs an interrupt: Borrow Soulkin", Decide(coblynFight, cfg) is { ActionId: BST.Borrow, Reason: "crucible:borrow-soulkin" });
+        Check("Soul Kinship already held: Tempered Release", Decide(coblynFight with { KinshipHeld = true, BeastModeResolved = BST.SoulCrush, KinshipSlot = 2 }, cfg).ActionId == BST.TemperedRelease);
 
-        // Pre-pull Kinship
+        // Out of combat: no horns unless allowed
         var pre = CrucibleState() with
         {
             InCombat = false, ActiveSlot = 0, PetObjectPresent = false, SinceHornPress = 30f,
             ReadyHorn1 = true, ReadyHorn2 = true, ReadyHorn3 = true,
             Slot1Beast = 1, Slot2Beast = 7, Slot3Beast = 4, CrucibleNeeds = CrucibleNeeds.Interrupt | CrucibleNeeds.Dispel,
         };
-        Check("pre-pull, battle needs an interrupt, coblyn on horn 2: summon horn 2", Decide(pre, cfg) is { ActionId: BST.SecondBattlehorn, Reason: "crucible:prepull-soulkin-slot2" });
+        var noHorn = Decide(pre, cfg);
+        Check("out of combat on a board: no horn by default", !IsHorn(noHorn.ActionId) && noHorn.Declines.Contains("crucible:no-horns-out-of-combat"), $"{noHorn.Reason} [{noHorn.Declines}]");
+        Check("allowed: pre-pull, fight needs an interrupt, coblyn on horn 2: summon horn 2", Decide(pre, prepull) is { ActionId: BST.SecondBattlehorn, Reason: "crucible:prepull-soulkin-slot2" });
         var coblyn = pre with { ActiveSlot = 2, PetObjectPresent = true, PetObjectBeast = 7, OneWithNature = true, ReadyBorrow = true, SinceHornPress = 3f };
-        Check("coblyn out: Borrow", Decide(coblyn, cfg) is { ActionId: BST.Borrow, Reason: "crucible:prepull-borrow-soulkin" });
-        var held = Decide(coblyn with { OneWithNature = false, KinshipHeld = true, KinshipSlot = 2, BeastModeResolved = BST.SoulCrush, SinceHornPress = 6f }, cfg);
-        Check("Soul Kinship held: swap to horn 1 for the opener", held.ActionId == BST.FirstBattlehorn, $"{held.Reason} [{held.Declines}]");
-        Check("no Soulkin, pugil on horn 3: borrow Wavekin", Decide(pre with { Slot2Beast = 26 }, cfg).Reason == "crucible:prepull-wavekin-slot3");
-        Check("vulture on a horn answers the dispel: no Wavekin prep", !Decide(pre with { Slot2Beast = 11, CrucibleNeeds = CrucibleNeeds.Dispel }, cfg).Reason.StartsWith("crucible:prepull"));
+        Check("allowed: coblyn out, Borrow", Decide(coblyn, prepull) is { ActionId: BST.Borrow, Reason: "crucible:prepull-borrow-soulkin" });
+        var held = Decide(coblyn with { OneWithNature = false, KinshipHeld = true, KinshipSlot = 2, BeastModeResolved = BST.SoulCrush, SinceHornPress = 6f }, prepull);
+        Check("allowed: Soul Kinship held, swap to horn 1", held.ActionId == BST.FirstBattlehorn, $"{held.Reason} [{held.Declines}]");
+        Check("allowed: no Soulkin, pugil on horn 3, Wavekin", Decide(pre with { Slot2Beast = 26 }, prepull).Reason == "crucible:prepull-wavekin-slot3");
+        Check("in combat, no familiar, moving: no horn", Decide(CrucibleState() with { ActiveSlot = 0, PetObjectPresent = false, SinceHornPress = 30f, ReadyHorn1 = true, IsMoving = true }, cfg) is { } mv
+            && !IsHorn(mv.ActionId) && mv.Declines.Contains("crucible:summon-moving"));
 
-        // Snarl / Challenge
+        // Snarl / Challenge (default: logged only)
         var parry = CrucibleState() with { TargetHasParry = true, ReadySnarl = true, ReadyParting = false };
         var shadowed = Decide(parry, cfg);
         Check("parry, shadow mode (default): Snarl logged, not pressed", shadowed.ActionId != BST.Snarl && shadowed.Shadow == "aggro:snarl-parry", $"{shadowed.ActionId} {shadowed.Shadow}");
         Check("parry, On: Snarl", Decide(parry, on).ActionId == BST.Snarl);
         Check("parry, Off: nothing", Decide(parry, cfg with { CrucibleAggro = CrucibleAggroMode.Off }) is { Shadow: "" } off && off.ActionId != BST.Snarl);
-        Check("parry just ended with the pet holding aggro, On: Challenge",
+        Check("parry just ended with the familiar holding aggro, On: Challenge",
             Decide(CrucibleState() with { ParryJustEnded = true, ReadyChallenge = true, EnemyTargetsPet = true, EnemyTargetsPlayer = false, ReadyParting = false }, on).ActionId == BST.Challenge);
-        Check("Deadly Thrust casting at the character, On: Snarl",
-            Decide(CrucibleState() with { TargetCastId = 46906, TargetCastRemaining = 3f, ReadySnarl = true, ReadyParting = false }, on).Reason == "aggro:snarl-hardhit");
-        Check("familiar low while holding aggro, On: Challenge",
-            Decide(CrucibleState() with { PetHpPercent = 30f, EnemyTargetsPet = true, EnemyTargetsPlayer = false, ReadyChallenge = true, ReadyParting = false }, on).Reason == "aggro:challenge-pet-low");
+        Check("hard hit on the character: no Snarl (the familiar would lose ~3x what the character saves)",
+            Decide(CrucibleState() with { TargetCastId = 46906, TargetCastRemaining = 3f, ReadySnarl = true, ReadyParting = false }, on).ActionId != BST.Snarl);
+        var lowChar = CrucibleState() with { PlayerHpPercent = 35f, PetHpPercent = 80f, PetHp = 20000f, PlayerIntakePerSecond = 500f, ReadySnarl = true, ReadyParting = false };
+        Check("character 35%, familiar can carry 15 s of intake: Snarl", Decide(lowChar, on).Reason == "aggro:snarl-player-low", Decide(lowChar, on).Reason);
+        Check("character 35%, familiar cannot carry it: no Snarl", Decide(lowChar with { PlayerIntakePerSecond = 2000f }, on).ActionId != BST.Snarl);
+        Check("character 20%: last-resort Snarl", Decide(lowChar with { PlayerHpPercent = 20f, PlayerIntakePerSecond = 2000f }, on).Reason == "aggro:snarl-last-resort");
+        Check("wespe about to Final Sting: no Snarl",
+            Decide(lowChar with { Slot1Beast = 10, PetObjectBeast = 10, TargetHpPercent = 25f }, cfg).Shadow != "aggro:snarl-player-low");
+        Check("familiar 25% holding aggro, character 80%, On: Challenge",
+            Decide(CrucibleState() with { PetHpPercent = 25f, ReadyHorn2 = false, ReadyHorn3 = false, ReadyParting = false, EnemyTargetsPet = true, EnemyTargetsPlayer = false, ReadyChallenge = true }, on).Reason == "aggro:challenge-pet-low");
 
-        // Score mode and Snarl -> Parting Blow (a stand-in tankbuster id for these cases)
+        // Score mode and Snarl -> Parting Blow (a stand-in tankbuster id, then a real one)
         const uint tb = 999_001;
         BST_CrucibleData.Tankbusters.Add(tb);
         var scoreCfg = on with { CrucibleScoreMode = true };
         Check("score mode: target on the familiar -> Challenge",
             Decide(CrucibleState() with { EnemyTargetsPet = true, EnemyTargetsPlayer = false, ReadyChallenge = true, ReadyParting = false }, scoreCfg).Reason == "aggro:challenge-score");
-        Check("score mode: a low character does not Snarl", Decide(CrucibleState() with { PlayerHpPercent = 20f, ReadySnarl = true, ReadyParting = false }, scoreCfg).ActionId != BST.Snarl);
+        Check("score mode: a low character does not Snarl", Decide(lowChar, scoreCfg).ActionId != BST.Snarl);
         var spCfg = on with { CrucibleSnarlParting = true };
-        var castStart = CrucibleState() with { TargetCastId = tb, TargetCastRemaining = 4f, ReadySnarl = true, SinceSnarl = float.MaxValue };
-        Check("tankbuster cast starts: Snarl", Decide(castStart, spCfg).ActionId == BST.Snarl);
+        var castStart = CrucibleState() with { TargetCastId = tb, TargetCastRemaining = 4f, ReadySnarl = true };
+        Check("tankbuster cast starts: Snarl", Decide(castStart, spCfg).Reason == "aggro:snarl-tankbuster", Decide(castStart, spCfg).Reason);
         var landing = CrucibleState() with { TargetCastId = tb, TargetCastRemaining = 1.2f, SinceSnarl = 3f, EnemyTargetsPet = true, EnemyTargetsPlayer = false };
         Check("1.2 s before it lands with Snarl up: Parting Blow", Decide(landing, spCfg) is { ActionId: BST.PartingBlow, Reason: "crucible:snarl-parting" });
         Check("3 s before it lands: not yet", Decide(landing with { TargetCastRemaining = 3f }, spCfg).Reason != "crucible:snarl-parting");
@@ -439,21 +493,21 @@ internal static class Program
             Decide(landing, cfg with { CrucibleSnarlParting = true }) is { Shadow: "crucible:snarl-parting" } logged && logged.Reason != "crucible:snarl-parting");
         Check("score mode with snarl-parting: Snarl for the tankbuster", Decide(castStart, scoreCfg with { CrucibleSnarlParting = true }).ActionId == BST.Snarl);
         BST_CrucibleData.Tankbusters.Remove(tb);
+        Check("Erratic Blaster castbar 0.8 s left (lands in 1.8 s): not yet", Decide(landing with { TargetCastId = 49188, TargetCastRemaining = 0.8f }, spCfg).Reason != "crucible:snarl-parting");
+        Check("Erratic Blaster castbar 0.4 s left (lands in 1.4 s): Parting Blow", Decide(landing with { TargetCastId = 49188, TargetCastRemaining = 0.4f }, spCfg).Reason == "crucible:snarl-parting");
 
-        // Low familiars are not summoned back into danger
+        // Summon order: healthy first, set-up beasts before the rest, wespe last unless its Final Sting is due
         var none = CrucibleState() with { ActiveSlot = 0, PetObjectPresent = false, SinceHornPress = 30f, ReadyHorn1 = true, ReadyHorn2 = true, ReadyHorn3 = false, Slot1PetHp = 12f, Slot2PetHp = 90f };
         Check("horn 1 familiar last seen at 12%: summon horn 2", Decide(none, cfg).ActionId == BST.SecondBattlehorn);
-        Check("every ready familiar low, Parting Blow recasting: wait",
+        Check("every ready familiar critical, Parting Blow recasting: wait",
             Decide(none with { ReadyHorn3 = true, Slot2PetHp = 10f, Slot3PetHp = 8f, PartingBlowRecast = 7f }, cfg).ActionId is not (BST.FirstBattlehorn or BST.SecondBattlehorn or BST.ThirdBattlehorn));
         Check("every ready familiar low, Parting Blow ready: the healthiest",
             Decide(none with { ReadyHorn3 = true, Slot2PetHp = 10f, Slot3PetHp = 14f, PartingBlowRecast = 0f }, cfg).ActionId == BST.ThirdBattlehorn);
-
-        // Wespe last
-        var opener = CrucibleState() with { ActiveSlot = 0, PetObjectPresent = false, SinceHornPress = 30f, ReadyHorn1 = true, Slot1Beast = 10, Slot2Beast = 16, Slot3Beast = 18 };
-        Check("wespe on horn 1, target healthy: open with horn 2", Decide(opener, cfg).ActionId == BST.SecondBattlehorn);
-        Check("wespe on horn 1, target at 30%: wespe now", Decide(opener with { TargetHpPercent = 30f }, cfg).ActionId == BST.FirstBattlehorn);
+        var opener = CrucibleState() with { ActiveSlot = 0, PetObjectPresent = false, SinceHornPress = 30f, ReadyHorn1 = true, Slot1Beast = 10, Slot2Beast = 18, Slot3Beast = 16 };
+        Check("wespe / dullahan / mantis: set-up mantis first", Decide(opener, cfg).ActionId == BST.ThirdBattlehorn);
+        Check("wespe on horn 1, target at 25%: wespe now", Decide(opener with { TargetHpPercent = 25f }, cfg).ActionId == BST.FirstBattlehorn);
         Check("wespe the only ready horn: wespe", Decide(opener with { ReadyHorn2 = false, ReadyHorn3 = false }, cfg).ActionId == BST.FirstBattlehorn);
-        Check("pre-pull: wespe on horn 1 is not the opener", Decide(opener with { InCombat = false }, cfg).ActionId == BST.SecondBattlehorn);
+        Check("allowed pre-pull: wespe on horn 1 is not the opener", Decide(opener with { InCombat = false }, prepull).ActionId == BST.ThirdBattlehorn);
 
         // Knockback / draw-in releases are fine solo
         var toad = CrucibleState() with { Slot1Beast = 31, PetObjectBeast = 31, OneWithNature = true, ReadyTempered = true, ReadyParting = false };
@@ -527,7 +581,7 @@ internal static class Program
 
     private static void SimulateCrucible(bool verbose)
     {
-        Console.WriteLine("-- crucible simulator: boards 1-3 (L30/40/50), familiar HP drain, target 100% -> 0% over 180 s --");
+        Console.WriteLine("-- crucible simulator: boards 1-3 (L30/40/50), familiar HP drain, target 100% -> 0% over 180 s, cycling off/on --");
         Loadout[] loadouts =
         [
             new("CuSith/Coblyn/Pugil", [1, 7, 4]),
@@ -540,11 +594,11 @@ internal static class Program
         {
             foreach (var loadout in loadouts)
             {
-                foreach (var drain in new[] { 0f, 1.5f, 3f })
+                foreach (var (drain, cycling) in new[] { (0f, false), (1.5f, false), (3f, false), (0f, true), (1.5f, true) })
                 {
-                    var sim = new Sim(level, loadout.Slots, BstSettings.Defaults(), board, drain);
+                    var sim = new Sim(level, loadout.Slots, BstSettings.Defaults() with { CrucibleCycleForDamage = cycling }, board, drain);
                     sim.Run(180f);
-                    var tag = $"Crucible B{board} L{level} {loadout.Name} drain {drain}%/s";
+                    var tag = $"Crucible B{board} L{level} {loadout.Name} drain {drain}%/s{(cycling ? " cycling" : "")}";
 
                     // 3%/s is a stress run: a knocked-out familiar is reported, not failed.
                     var violations = sim.Violations.Where(v => !(drain >= 3f && v.Kind == "familiar-ko")).ToList();
@@ -558,8 +612,8 @@ internal static class Program
                         _pass++;
                     }
 
-                    if (verbose || drain > 0f && loadout == loadouts[0] || drain == 0f && loadout == loadouts[1])
-                        Console.WriteLine($"   {tag,-58} uptime {sim.UptimePercent,5:0.0}%  PB {sim.Count(BST.PartingBlow),2} (pet-save {sim.PetSaves})  TR {sim.Count(BST.TemperedRelease),2}  KO {sim.Kos}  horns {sim.Summons,2}");
+                    if (verbose || board == 1 && (loadout == loadouts[0] || loadout == loadouts[1]))
+                        Console.WriteLine($"   {tag,-66} uptime {sim.UptimePercent,5:0.0}%  PB {sim.Count(BST.PartingBlow),2}  saves {sim.PetSaves} (swaps {sim.Swaps})  TR {sim.Count(BST.TemperedRelease),2}  KO {sim.Kos}  horns {sim.Summons,2}  lowest {sim.LowestPetHp:0}%");
                 }
             }
         }
@@ -588,7 +642,8 @@ internal static class Program
         private readonly float[] _petHp = [100f, 100f, 100f, 100f];
         private readonly bool[] _petSeen = new bool[4];
         private float _fightLength = 300f;
-        public int Kos, PetSaves;
+        public int Kos, PetSaves, Swaps;
+        public float LowestPetHp = 100f;
         private bool Crucible => _board != 0;
         private float TargetHp => Crucible ? Math.Max(0f, 100f - 100f * (_t - _combatStart) / _fightLength) : 100f;
 
@@ -750,6 +805,7 @@ internal static class Program
             {
                 _petSeen[_activeSlot] = true;
                 _petHp[_activeSlot] -= _petDrain * Dt;
+                LowestPetHp = Math.Min(LowestPetHp, Math.Max(0f, _petHp[_activeSlot]));
                 if (_petHp[_activeSlot] <= 0f)
                 {
                     Kos++;
@@ -777,8 +833,11 @@ internal static class Program
             var state = BuildState();
             var d = Decide(state, _cfg);
 
-            if (Crucible && _activeSlot != 0 && InCombat && _petHp[_activeSlot] <= _cfg.CruciblePetSaveHp && state.ReadyParting && state.CanWeave
-                && TargetHp > BST_CrucibleLogic.EnemyDyingHp && !d.Reason.StartsWith("crucible:petsave"))
+            // A critical familiar must be saved whenever Parting Blow or a healthier horn could do it.
+            if (Crucible && _activeSlot != 0 && InCombat && _petHp[_activeSlot] <= BST_CrucibleLogic.CriticalHp(_cfg) && state.CanWeave
+                && TargetHp > BST_CrucibleLogic.EnemyDyingHp && _t - _lastHornAt >= 2.5f && _arrivalAt < 0
+                && (state.ReadyParting || Enumerable.Range(1, LearnedSlots).Any(i => i != _activeSlot && HornReadyNow(i) && (_petSeen[i] ? _petHp[i] : 100f) >= _petHp[_activeSlot] + BST_CrucibleLogic.SwapMinGain))
+                && !d.Reason.StartsWith("crucible:petsave"))
                 Fail("petsave-missed", $"{d.Reason} familiar {_petHp[_activeSlot]:0}%");
 
             Execute(d, state);
@@ -849,6 +908,8 @@ internal static class Program
                 HighestEnemyHpPercent = TargetHp,
                 PlayerHpPercent = 100f,
                 PetHpPercent = _activeSlot != 0 ? _petHp[_activeSlot] : 100f,
+                PetHp = _activeSlot != 0 ? 200f * _petHp[_activeSlot] : 0f,
+                SinceSnarl = float.MaxValue,
                 Slot1PetHp = _petSeen[1] ? _petHp[1] : 0f,
                 Slot2PetHp = _petSeen[2] ? _petHp[2] : 0f,
                 Slot3PetHp = _petSeen[3] ? _petHp[3] : 0f,
@@ -1064,19 +1125,33 @@ internal static class Program
             if (_t < _hornLockedUntil[slot]) { Fail("horn-locked", $"slot{slot} {_hornLockedUntil[slot] - _t:0} s left ({d.Reason})"); return; }
             if (_t - _lastHornAt < 2f) { Fail("horn-spam", $"slot{slot}"); return; }
 
-            if (Crucible && InCombat)
+            var petSaveSwap = d.Reason.StartsWith("crucible:petsave-swap") || d.Reason == "crucible:finalsting-swap";
+            if (Crucible && InCombat && !petSaveSwap)
             {
                 var hp = _petSeen[slot] ? _petHp[slot] : 100f;
-                if (hp <= _cfg.CruciblePetSaveHp && _partingCd > 2f)
+                if (hp <= BST_CrucibleLogic.CriticalHp(_cfg) && _partingCd > 2f)
                     Fail("low-familiar-summoned-while-partingblow-recasts", $"slot{slot} {hp:0}%");
-                var healthier = Enumerable.Range(1, LearnedSlots).Any(i => i != slot && HornReadyNow(i) && (_petSeen[i] ? _petHp[i] : 100f) > _cfg.CruciblePetSaveHp + 10);
-                if (hp <= _cfg.CruciblePetSaveHp + 10 && healthier)
+                var healthier = Enumerable.Range(1, LearnedSlots).Any(i => i != slot && HornReadyNow(i) && (_petSeen[i] ? _petHp[i] : 100f) > _cfg.CruciblePetSwapHp);
+                if (hp <= _cfg.CruciblePetSwapHp && healthier)
                     Fail("low-familiar-over-healthy", $"slot{slot} {hp:0}%");
             }
+            if (Crucible && !InCombat && !_cfg.CruciblePrepullHorns)
+                Fail("horn-out-of-combat-in-crucible", d.Reason);
 
             if (_activeSlot != 0)
             {
-                if (InCombat)
+                if (InCombat && petSaveSwap)
+                {
+                    // A horn blown over the familiar: it retreats with its HP kept; its horn locks for 90 s.
+                    Swaps++;
+                    if (d.Reason != "crucible:finalsting-swap")
+                        PetSaves++;
+                    _hornLockedUntil[_activeSlot] = _t + 90f;
+                    _activeSlot = 0;
+                    _oneWithNature = false;
+                    _petHeartAt = -1;
+                }
+                else if (InCombat)
                     Fail("in-combat-swap", $"slot{_activeSlot} -> slot{slot} ({d.Reason})");
                 else
                     _activeSlot = 0; // out of combat swap: no lockout

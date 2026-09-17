@@ -116,6 +116,13 @@ internal static class BST_CrucibleAdvisor
         score += (int)Math.Round(3.0 * profile.StatAtBoard(board, stat) / MaxStat(board, stat));
         score += (int)Math.Round(2.0 * profile.StatAtBoard(board, CrucibleBeastProfile.Con) / MaxStat(board, CrucibleBeastProfile.Con));
 
+        if (battle == 5 && board == 1 && beast.Kin == BeastmasterKinType.Wavekin)
+        {
+            // Ogre: Quelling Wave one-shots the lesser wisps during Burning Ward (a MagitekRoutine user's rule).
+            score += 4;
+            why?.Add("Quelling Wave for wisps");
+        }
+
         if (boss && (beast.Release & BeastmasterReleaseTraits.Exit) != 0)
         {
             score += 1;

@@ -91,11 +91,13 @@ internal partial class BST : Melee
     private static BST_RotationLogic.BstSettings WithCrucible(BST_RotationLogic.BstSettings cfg) => cfg with
     {
         Crucible = BST_Crucible,
-        CruciblePetSaveHp = BST_CruciblePetSaveHp,
+        CruciblePetSwapHp = BST_CruciblePetSwapHp,
         CrucibleFinalStingHp = BST_CrucibleFinalStingHp,
         CrucibleAggro = (CrucibleAggroMode)(int)BST_CrucibleAggro,
         CrucibleAllowDisplacing = BST_CrucibleAllowDisplacing,
         CrucibleScoreMode = BST_CrucibleScoreMode,
+        CrucibleCycleForDamage = BST_CrucibleCycleForDamage,
+        CruciblePrepullHorns = BST_CruciblePrepullHorns,
         CrucibleSnarlParting = BST_CrucibleSnarlParting,
         CrucibleSnarlPartingLead = BST_CrucibleSnarlPartingLead / 10f,
     };
