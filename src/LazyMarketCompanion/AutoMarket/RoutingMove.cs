@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -72,6 +72,18 @@ public sealed record RoutingMoveOp(MoveLeg Leg, int SrcContainer, int SrcSlot, u
 
   /// <summary>0.1.49.0: market-board search category id that authorized this move. See <see cref="MappedRetainer"/>.</summary>
   public uint CategoryId { get; init; }
+
+  /// <summary>
+  /// 0.1.55.0: the destination container and slot the executor actually resolved, stamped back on
+  /// the op once the move succeeded (-1 while unknown). The destination is chosen at execution
+  /// time, not at planning time, so this is the only record of which slot this plugin just filled
+  /// - and that is what tells a quarantined slot apart from a slot the mover's own relay re-used
+  /// (see <see cref="RoutingMove.DropReconcileKeysAtSlots"/>).
+  /// </summary>
+  public int DstContainer { get; set; } = -1;
+
+  /// <summary>0.1.55.0: see <see cref="DstContainer"/>.</summary>
+  public int DstSlot { get; set; } = -1;
 }
 
 /// <summary>The mover's plan. Notes carry the per-retainer summary lines; StoppedForBags /
@@ -120,7 +132,53 @@ public static class RoutingMove
   /// still matches. Format pinned by harness case 99.
   /// </summary>
   public static string ReconcileKey(string session, int container, int slot, uint itemId, bool hq)
-    => $"{session?.Trim() ?? string.Empty}|{container}:{slot}:{itemId}:{(hq ? "hq" : "nq")}";
+    => $"{session?.Trim() ?? string.Empty}|{ReconcileSlotSuffix(container, slot, itemId, hq)}";
+
+  /// <summary>
+  /// 0.1.55.0: the session-independent half of a <see cref="ReconcileKey"/> - the slot and the
+  /// stack that sits in it. The mover needs it to name a slot it just filled itself, without
+  /// knowing which session's key (if any) quarantined that slot.
+  /// </summary>
+  public static string ReconcileSlotSuffix(int container, int slot, uint itemId, bool hq)
+    => $"{container}:{slot}:{itemId}:{(hq ? "hq" : "nq")}";
+
+  /// <summary>
+  /// 0.1.55.0: does this ledger key describe the given slot-and-stack, whatever session recorded
+  /// it? Anchored on the key's single '|' separator, so a longer container id ending in the same
+  /// digits ("110001:3:..." vs "10001:3:...") never matches.
+  /// </summary>
+  public static bool ReconcileKeyMatchesSlot(string? key, string? slotSuffix)
+    => !string.IsNullOrEmpty(key) && !string.IsNullOrEmpty(slotSuffix)
+       && key!.EndsWith("|" + slotSuffix, StringComparison.Ordinal);
+
+  /// <summary>
+  /// 0.1.55.0: THE FIX for the quarantine that held stock forever. The ledger key aliases on the
+  /// slot (session + container:slot:item:hq), and the mover's own relay re-fills the very slots it
+  /// just emptied: a deposit frees a bag slot, then a pull-out of the same item from another
+  /// retainer takes the first empty slot - the one just freed - and the next sweep reads the
+  /// deposit's own ledger key as "still in place", i.e. as a move the server refused. The game log
+  /// of the 2026-09-16 sweeps carries 173 such collisions against a ledger of 179 entries, so the
+  /// quarantine was almost entirely self-inflicted and, because a present entry is never pruned,
+  /// permanent. A slot this plugin filled itself is therefore no longer evidence of a refused move:
+  /// every ledger entry naming one of those slots is dropped, whichever session recorded it, and
+  /// the stack re-plans normally. Pure and Dalamud-free so the harness pins it (cases 112-113).
+  /// </summary>
+  public static List<string> DropReconcileKeysAtSlots(
+    Dictionary<string, DateTime> ledger, IEnumerable<string>? slotSuffixes)
+  {
+    var dropped = new List<string>();
+    if (ledger == null || ledger.Count == 0 || slotSuffixes == null)
+      return dropped;
+    foreach (var suffix in slotSuffixes)
+    {
+      if (string.IsNullOrEmpty(suffix))
+        continue;
+      foreach (var key in ledger.Keys.Where(k => ReconcileKeyMatchesSlot(k, suffix)).ToList())
+        if (ledger.Remove(key))
+          dropped.Add(key);
+    }
+    return dropped;
+  }
 
   /// <summary>
   /// 0.1.51.0: sticky reconciliation window. The 0.1.50.0 log proved prune-on-absence is racy:
@@ -157,11 +215,20 @@ public static class RoutingMove
   /// </summary>
   public static string SerializeReconcileLedger(IReadOnlyDictionary<string, DateTime> ledger)
   {
-    var lines = new List<string>(ledger.Count);
+    var lines = new List<string>(ledger.Count + 1) { LedgerFormatMarker };
     foreach (var key in ledger.Keys.OrderBy(k => k, StringComparer.Ordinal))
       lines.Add($"{key}\t{ledger[key].ToUniversalTime():o}");
     return string.Join("\n", lines);
   }
+
+  /// <summary>
+  /// 0.1.55.0: first line of a ledger file written by this build or later. A file without it was
+  /// accumulated before <see cref="DropReconcileKeysAtSlots"/> existed, so its entries are mostly
+  /// the mover's own relay misread as refused moves - it is discarded once rather than migrated,
+  /// and every stack it held re-plans. Older builds skip the line as malformed (it has no tab) and
+  /// still read the rest of the file, so a downgrade keeps working.
+  /// </summary>
+  public const string LedgerFormatMarker = "#lmc-reconcile-2";
 
   /// <summary>
   /// 0.1.52.0: tolerant inverse of <see cref="SerializeReconcileLedger"/>. Malformed lines
@@ -176,7 +243,12 @@ public static class RoutingMove
     var ledger = new Dictionary<string, DateTime>(StringComparer.Ordinal);
     if (string.IsNullOrEmpty(text))
       return ledger;
-    foreach (var rawLine in text.Split('\n'))
+    var rawLines = text.Split('\n');
+    // 0.1.55.0: a file without the format marker predates the relay-reuse fix (see
+    // LedgerFormatMarker) and is dropped whole, not line by line.
+    if (rawLines[0].TrimEnd('\r') != LedgerFormatMarker)
+      return ledger;
+    foreach (var rawLine in rawLines.Skip(1))
     {
       var line = rawLine.TrimEnd('\r');
       var tab = line.IndexOf('\t');

@@ -1,4 +1,4 @@
-using Dalamud.Game.Addon.Lifecycle;
+﻿using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
@@ -2532,7 +2532,20 @@ internal sealed class MarketAutomation : Window, IDisposable
       var path = ReconcileLedgerPath();
       if (!File.Exists(path))
         return;
-      var loaded = RoutingMove.ParseReconcileLedger(File.ReadAllText(path), DateTime.UtcNow);
+      var text = File.ReadAllText(path);
+      // 0.1.55.0: a ledger written before the relay-reuse fix is discarded once instead of
+      // migrated. Its entries were recorded when a slot the mover itself re-filled still counted
+      // as a move the server refused, so the file mostly holds stacks that were never stuck (173
+      // of 179 entries on the 2026-09-16 sweeps) and, because a present entry is never pruned,
+      // held them permanently. The reset happens once: the file is rewritten with the marker.
+      if (!string.IsNullOrWhiteSpace(text)
+          && !text.StartsWith(RoutingMove.LedgerFormatMarker, StringComparison.Ordinal))
+      {
+        Svc.Log.Information("[LMC] routing reconcile: the saved ledger predates the relay-reuse fix and is discarded once - every stack it held re-plans normally from now on");
+        SaveReconcileLedger();
+        return;
+      }
+      var loaded = RoutingMove.ParseReconcileLedger(text, DateTime.UtcNow);
       foreach (var entry in loaded)
         if (!_routingReconcileSkip.TryGetValue(entry.Key, out var existing) || entry.Value > existing)
           _routingReconcileSkip[entry.Key] = entry.Value;
@@ -2634,6 +2647,11 @@ internal sealed class MarketAutomation : Window, IDisposable
   /// re-moving it, and the WARN names the stacks so the log alone shows what the server
   /// refused to keep. Runs inside the existing RouteMoveSummary steps: no new step, no added
   /// sweep latency, one synchronous container re-read.
+  /// 0.1.55.0: the ledger key aliases on the slot, and the mover's own relay re-fills slots it
+  /// just emptied, so "still in place" was being read off this plugin's own moves - permanently,
+  /// since a present entry is never pruned. Every slot this execution filled is now excluded from
+  /// the stuck grade AND released from the ledger whichever session recorded it, so only a slot
+  /// nothing here touched can stand as evidence that the server refused a move.
   /// </summary>
   private void RecordRoutingReconciled(List<RoutingMoveOp> okOps)
   {
@@ -2643,10 +2661,30 @@ internal sealed class MarketAutomation : Window, IDisposable
     var now = DateTime.UtcNow;
     foreach (var op in okOps)
       _routingReconcileSkip[RoutingMove.ReconcileKey(op.SessionRetainer, op.SrcContainer, op.SrcSlot, op.ItemId, op.HQ)] = now;
+    // 0.1.55.0: the slots this execution filled itself. Anything sitting in one of them is there
+    // because the mover put it there, never because the server refused an earlier move.
+    var relaySlots = okOps.Where(o => o.DstSlot >= 0)
+      .Select(o => RoutingMove.ReconcileSlotSuffix(o.DstContainer, o.DstSlot, o.ItemId, o.HQ))
+      .Distinct(StringComparer.Ordinal)
+      .ToList();
+    var stuck = AutoMarketService.VerifyRoutingMovesLanded(okOps);
+    // 0.1.55.0: a source slot that reads occupied because a LATER move in this same batch relayed
+    // the same item back into it landed fine - it must not be graded as a refused move.
+    var relayReused = stuck.Where(k => relaySlots.Any(sfx => RoutingMove.ReconcileKeyMatchesSlot(k, sfx))).ToList();
+    if (relayReused.Count > 0)
+    {
+      stuck = stuck.Where(k => !relayReused.Contains(k)).ToList();
+      Svc.Log.Information($"[LMC] routing reconcile: {relayReused.Count} move(s) read still-in-place only because this sweep relayed the same item back into the source slot - graded landed, not quarantined: {string.Join(", ", relayReused.Select(k => k.Substring(k.IndexOf('|') + 1)))}");
+    }
+    // 0.1.55.0: release every quarantine entry naming a slot this execution filled, whichever
+    // session recorded it (see RoutingMove.DropReconcileKeysAtSlots for the evidence). This is
+    // what stops the quarantine growing until the sweep appears to move nothing at all.
+    var released = RoutingMove.DropReconcileKeysAtSlots(_routingReconcileSkip, relaySlots);
+    if (released.Count > 0)
+      Svc.Log.Information($"[LMC] routing reconcile: {released.Count} quarantine entry(ies) released - this sweep's own moves filled those slots, so they were never refused moves: {string.Join(", ", released.Select(k => k.Substring(k.IndexOf('|') + 1)))}");
     // 0.1.52.0: persist the ledger with the new stamps, or a reload before the next sweep
     // loses the quarantine and re-fires everything at once.
     SaveReconcileLedger();
-    var stuck = AutoMarketService.VerifyRoutingMovesLanded(okOps);
     var landed = okOps.Count - stuck.Count;
     // 0.1.53.0: retry-outcome evidence - of this execution's moves, which ones were 24-hour
     // retries, and whether each retry landed or is back in quarantine with a fresh stamp.

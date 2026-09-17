@@ -1,4 +1,15 @@
-﻿## v0.1.54.0 (2026-09-17)
+﻿## v0.1.55.0 (2026-09-17)
+
+### Fixed
+
+- **Auto-Market no longer quarantines stock because of its own relaying, which was why marked items sat in the inventory sweep after sweep.** The reconciliation ledger identifies a stack by the slot it was moved out of, and the mover fills the first empty slot at the destination - so a deposit that frees an inventory slot, followed by a pull-out of the same item from another retainer, puts that item straight back into the slot the deposit had just emptied. The next sweep then read the deposit's own ledger entry as a stack still sitting in place, graded it a move the server had refused, and held it; because an entry whose stack is present is never pruned, that hold was permanent. The game log shows this accounting for nearly every entry in a fully quarantined ledger. A slot Auto-Market filled itself is no longer evidence of a refused move: every ledger entry naming such a slot is released whichever retainer session recorded it, and a source slot that reads occupied only because a later move in the same batch relayed the same item back into it is graded as landed. Both releases are named in the reconcile log line. Only a slot Auto-Market did not touch can now put a stack into quarantine.
+- **A ledger saved by an earlier build is discarded once on load instead of carried forward.** Those entries were recorded while the plugin's own relaying still counted as a refused move, so a saved ledger mostly held stacks that were never stuck - and held them for good. The file now carries a format marker; a file without one is dropped and rewritten, every stack it held re-plans normally on the next sweep, and older builds still read the newer file (they skip the marker line as malformed).
+
+### Notes
+
+- Offline-suite change: new cases 112-114 pin slot matching across retainer sessions (including the separator anchor that keeps a longer container id from matching), the release of every session's entry for a refilled slot, and the ledger format marker - a file without it discarded, a marked file loaded, and the marker always written.
+
+## v0.1.54.0 (2026-09-17)
 
 ### Notes
 

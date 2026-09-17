@@ -1,4 +1,4 @@
-using Dalamud.Game.ClientState.Keys;
+﻿using Dalamud.Game.ClientState.Keys;
 using Dalamud.Interface.Windowing;
 using Dalamud.Bindings.ImGui;
 using ECommons.DalamudServices;
@@ -431,11 +431,13 @@ public sealed class ConfigWindow : Window
   /// shows what is held, since when, and why, plus the retry policy. Read-only - entries leave on
   /// their own when the stack lands or moves on, and each held stack re-plans once 24 hours after
   /// its last move (a retry that still does not stick goes back in with a fresh stamp).
+  /// 0.1.55.0: the list is far shorter in practice - a slot the mover refilled itself is released
+  /// instead of held, which was the source of almost every entry this list used to show.
   /// </summary>
   private void DrawQuarantinedMoves()
   {
     ImGui.TextUnformatted("Quarantined moves (did not stick):");
-    Tip("Stacks an earlier sweep moved successfully that were still sitting in the same slot afterwards - the move did not stick server-side, so each sweep leaves them put instead of re-moving them. They retry automatically, once, 24 hours after the last move.");
+    Tip("Stacks an earlier sweep moved successfully that were still sitting in the same slot afterwards - the move did not stick server-side, so each sweep leaves them put instead of re-moving them. A slot Auto-Market refilled itself no longer counts as a refused move, so a stack relayed through the same slot is never held here. Anything that is held retries automatically, once, 24 hours after the last move.");
 
     var snapshot = ReconcileLedgerSource?.Invoke() ?? [];
     if (snapshot.Count == 0)

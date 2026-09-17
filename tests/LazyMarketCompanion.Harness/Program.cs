@@ -1,4 +1,4 @@
-using LazyMarketCompanion;
+﻿using LazyMarketCompanion;
 using LazyMarketCompanion.AutoMarket;
 
 // Offline tests for the Auto-Market planner. Prints PASS/FAIL per case, exits non-zero on any FAIL.
@@ -3322,7 +3322,8 @@ StockStack BagStack(uint id, int slot, int qty, uint cat = CatA, bool marketable
 // re-plans once instead of staying skipped forever; fresh entries survive.
 {
   var now = new DateTime(2026, 9, 17, 2, 50, 0, DateTimeKind.Utc);
-  var text = $"{RoutingMove.ReconcileKey("R1", 10001, 3, 1001, false)}\t{now.AddHours(-25):o}\n"
+  var text = $"{RoutingMove.LedgerFormatMarker}\n"
+    + $"{RoutingMove.ReconcileKey("R1", 10001, 3, 1001, false)}\t{now.AddHours(-25):o}\n"
     + $"{RoutingMove.ReconcileKey("R1", 10001, 4, 1001, false)}\t{now.AddHours(-23):o}\n";
   var parsed = RoutingMove.ParseReconcileLedger(text, now);
   Check("107 ledger: 25-hour-old entry is dropped on load",
@@ -3336,7 +3337,8 @@ StockStack BagStack(uint id, int slot, int qty, uint cat = CatA, bool marketable
 {
   var now = new DateTime(2026, 9, 17, 2, 50, 0, DateTimeKind.Utc);
   var good = RoutingMove.ReconcileKey("R1", 10001, 3, 1001, false);
-  var text = "no-tab-here\n"
+  var text = $"{RoutingMove.LedgerFormatMarker}\n"
+    + "no-tab-here\n"
     + "\t2026-09-17T02:40:00.0000000Z\n"
     + $"{good}\tnot-a-timestamp\n"
     + $"{good}\t{now.AddMinutes(-20):o}\n"
@@ -3397,6 +3399,77 @@ StockStack BagStack(uint id, int slot, int qty, uint cat = CatA, bool marketable
       && !RoutingMove.TryParseReconcileKey("R1|10001:3:x:nq", out _, out _, out _, out _, out _)
       && !RoutingMove.TryParseReconcileKey("R1|10001:3:1001:maybe", out _, out _, out _, out _, out _)
       && !RoutingMove.TryParseReconcileKey("R1|10001:3:1001", out _, out _, out _, out _, out _), "badfields");
+}
+
+// ===== 0.1.55.0: relay reuse is not a refused move (the quarantine that held stock forever) =====
+
+// 112. A ledger key is recognised by the slot-and-stack it names, whatever session recorded it,
+// and the '|' anchor keeps a longer container id ending in the same digits from matching.
+{
+  var sfx = RoutingMove.ReconcileSlotSuffix(1, 7, 2002, true);
+  Check("112 relay: key format still splits into session and slot suffix",
+    RoutingMove.ReconcileKey("Bussyqueen", 1, 7, 2002, true) == "Bussyqueen|" + sfx, sfx);
+  Check("112 relay: the same slot matches whichever session recorded it",
+    RoutingMove.ReconcileKeyMatchesSlot(RoutingMove.ReconcileKey("Bussyqueen", 1, 7, 2002, true), sfx)
+      && RoutingMove.ReconcileKeyMatchesSlot(RoutingMove.ReconcileKey("Dojarat", 1, 7, 2002, true), sfx)
+      && RoutingMove.ReconcileKeyMatchesSlot(RoutingMove.ReconcileKey("", 1, 7, 2002, true), sfx), "sessions");
+  Check("112 relay: a different slot, item, or quality does not match",
+    !RoutingMove.ReconcileKeyMatchesSlot(RoutingMove.ReconcileKey("Bussyqueen", 1, 8, 2002, true), sfx)
+      && !RoutingMove.ReconcileKeyMatchesSlot(RoutingMove.ReconcileKey("Bussyqueen", 1, 7, 2003, true), sfx)
+      && !RoutingMove.ReconcileKeyMatchesSlot(RoutingMove.ReconcileKey("Bussyqueen", 1, 7, 2002, false), sfx), "mismatch");
+  Check("112 relay: a container id ending in the same digits does not match",
+    !RoutingMove.ReconcileKeyMatchesSlot(RoutingMove.ReconcileKey("Bussyqueen", 11, 7, 2002, true),
+      RoutingMove.ReconcileSlotSuffix(1, 7, 2002, true)), "anchor");
+  Check("112 relay: null and empty inputs never match and never throw",
+    !RoutingMove.ReconcileKeyMatchesSlot(null, sfx)
+      && !RoutingMove.ReconcileKeyMatchesSlot("", sfx)
+      && !RoutingMove.ReconcileKeyMatchesSlot(RoutingMove.ReconcileKey("R1", 1, 7, 2002, true), null)
+      && !RoutingMove.ReconcileKeyMatchesSlot(RoutingMove.ReconcileKey("R1", 1, 7, 2002, true), ""), "null");
+}
+
+// 113. Releasing the slots a sweep filled itself drops every session's entry for those slots and
+// leaves every other entry alone - the fix for a quarantine that could only ever grow.
+{
+  var now = new DateTime(2026, 9, 17, 12, 0, 0, DateTimeKind.Utc);
+  var relayed = RoutingMove.ReconcileKey("Hussypants", 1, 13, 36186, false);   // deposit freed this bag slot
+  var otherSession = RoutingMove.ReconcileKey("Dojarat", 1, 13, 36186, false); // same slot, other session
+  var untouched = RoutingMove.ReconcileKey("Hussypants", 1, 14, 36186, false);
+  var ledger = new Dictionary<string, DateTime>(StringComparer.Ordinal)
+  {
+    [relayed] = now, [otherSession] = now, [untouched] = now,
+  };
+  var dropped = RoutingMove.DropReconcileKeysAtSlots(ledger,
+    [RoutingMove.ReconcileSlotSuffix(1, 13, 36186, false)]);
+  Check("113 relay: both sessions' entries for the refilled slot are released",
+    dropped.Count == 2 && dropped.Contains(relayed) && dropped.Contains(otherSession),
+    $"dropped={dropped.Count}");
+  Check("113 relay: an entry for a slot the sweep did not fill is kept",
+    ledger.Count == 1 && ledger.ContainsKey(untouched), $"left={ledger.Count}");
+  Check("113 relay: no slots and no entries release nothing and throw nothing",
+    RoutingMove.DropReconcileKeysAtSlots(ledger, []).Count == 0
+      && RoutingMove.DropReconcileKeysAtSlots(ledger, null).Count == 0
+      && RoutingMove.DropReconcileKeysAtSlots([], [RoutingMove.ReconcileSlotSuffix(1, 13, 36186, false)]).Count == 0,
+    "empty");
+}
+
+// 114. The ledger file carries a format marker: a file written before the relay-reuse fix is
+// discarded whole (its entries were the mover's own relay, held forever), a marked file loads
+// normally, and an empty ledger still writes the marker so the reset happens exactly once.
+{
+  var now = new DateTime(2026, 9, 17, 12, 0, 0, DateTimeKind.Utc);
+  var key = RoutingMove.ReconcileKey("R1", 10001, 3, 1001, false);
+  var preFix = $"{key}\t{now.AddMinutes(-5):o}\n";
+  Check("114 ledger: a file without the format marker is discarded whole",
+    RoutingMove.ParseReconcileLedger(preFix, now).Count == 0, "pre-fix file");
+  Check("114 ledger: the marked form of the same file loads normally",
+    RoutingMove.ParseReconcileLedger($"{RoutingMove.LedgerFormatMarker}\n" + preFix, now).Count == 1,
+    "marked file");
+  Check("114 ledger: serialize always emits the marker first, even for an empty ledger",
+    RoutingMove.SerializeReconcileLedger(new Dictionary<string, DateTime>(StringComparer.Ordinal))
+        == RoutingMove.LedgerFormatMarker
+      && RoutingMove.SerializeReconcileLedger(
+          new Dictionary<string, DateTime>(StringComparer.Ordinal) { [key] = now })
+        .StartsWith(RoutingMove.LedgerFormatMarker + "\n", StringComparison.Ordinal), "marker");
 }
 
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");

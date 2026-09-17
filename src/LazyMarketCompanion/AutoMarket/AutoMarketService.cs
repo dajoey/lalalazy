@@ -1,4 +1,4 @@
-using ECommons;
+﻿using ECommons;
 using ECommons.DalamudServices;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
@@ -999,6 +999,13 @@ internal static unsafe class AutoMarketService
     if (after != null && after->ItemId != 0)
       return false;
 
+    // 0.1.55.0: remember which slot this move actually filled. The reconciliation ledger keys on
+    // the SOURCE slot, and the mover's own relay re-fills slots it just emptied (a deposit frees a
+    // bag slot; a pull-out of the same item then takes the first empty slot, which is that one) -
+    // without this stamp the next sweep reads its own relay as a move the server refused and
+    // quarantines the stack forever. See RoutingMove.DropReconcileKeysAtSlots.
+    op.DstContainer = (int)dstType!.Value;
+    op.DstSlot = dstSlot;
     return true;
   }
 
