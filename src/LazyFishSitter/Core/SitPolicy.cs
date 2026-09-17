@@ -5,7 +5,7 @@ namespace LazyFishSitter.Core;
 /// against scripted fishing sessions (tests/LazyFishSitter.Harness). Three releases in a row
 /// shipped a policy bug that only showed up in game; this type exists so the next one does not.
 ///
-/// THE GAME BEHAVIOUR THIS IS BUILT ON (Joey, 2026-09-05 - and it is the opposite of what
+/// THE GAME BEHAVIOUR THIS IS BUILT ON (Testing, 2026-09-05 - and it is the opposite of what
 /// v0.1.2.0's notes claimed): if the character is SEATED when the line goes out, the game keeps
 /// them seated for the whole fishing loop. A hook or catch may stand them for a moment, but the
 /// game puts them back down by itself. There is no such thing as needing a /sit per cast.

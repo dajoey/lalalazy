@@ -68,8 +68,7 @@ internal sealed class Session
 
     /// <summary>
     /// One full cast that catches a fish. If <paramref name="gameStandsYou"/>, the character reads
-    /// as standing for a moment around the hook and the game re-seats them afterwards - Joey's
-    /// model of the real behaviour, and the case that must NOT produce a send.
+    /// as standing for a moment around the hook and the game re-seats them afterwards - the tested model of the real behaviour, and the case that must NOT produce a send.
     /// </summary>
     public Session CastAndCatch(double lineSeconds = 8, bool gameStandsYou = true)
     {
