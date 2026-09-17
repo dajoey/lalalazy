@@ -37,11 +37,17 @@ internal static class BeastmasterTelemetry
 
     private static BeastmasterTelemetryFormat.GateState _gate;
 
+    private static CrucibleTelemetryFormat.GateState _crucibleGate;
+
     /// <summary> Reusable status buffer; the collector runs on the framework thread only. </summary>
     private static readonly List<ushort> StatusBuffer = [];
 
     /// <summary> Forgets the remembered snapshot, so the current state re-emits immediately. </summary>
-    public static void Reset() => _gate.Reset();
+    public static void Reset()
+    {
+        _gate.Reset();
+        _crucibleGate.Reset();
+    }
 
     /// <summary>
     ///     Samples Beastmaster state once. Called from the framework tick; emits at most one
@@ -57,16 +63,66 @@ internal static class BeastmasterTelemetry
             var snapshot = Sample();
             var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
-            if (!BeastmasterTelemetryFormat.ShouldEmit(ref _gate, now, snapshot))
-                return;
+            if (BeastmasterTelemetryFormat.ShouldEmit(ref _gate, now, snapshot))
+                Svc.Log.Information(BeastmasterTelemetryFormat.BuildLine(now, snapshot));
 
-            Svc.Log.Information(BeastmasterTelemetryFormat.BuildLine(now, snapshot));
+            // Crucible of the Unbroken: a second line (CR|) only while standing on a board.
+            if (BST_CrucibleData.BoardOfTerritory(Svc.ClientState.TerritoryType) != 0 && Player.Object is not null)
+            {
+                var crucible = SampleCrucible();
+                if (CrucibleTelemetryFormat.ShouldEmit(ref _crucibleGate, now, crucible))
+                    Svc.Log.Information(CrucibleTelemetryFormat.BuildLine(now, crucible));
+                BST.CaptureCrucibleUi(now);
+            }
         }
         catch (Exception ex)
         {
             // A collector must never be able to break the framework tick.
             Svc.Log.Debug(ex, "[BeastmasterTelemetry] failed to emit a collector line");
         }
+    }
+
+    /// <summary> The rotation's own view of the Crucible (BST.ReadState), sampled even when the rotation is idle. </summary>
+    private static CrucibleTelemetryFormat.Snapshot SampleCrucible()
+    {
+        var s = BST.ReadState();
+        var flags = CrucibleTelemetryFormat.Flags.None;
+        if (s.TargetHasDispellableBuff) flags |= CrucibleTelemetryFormat.Flags.TargetDispellable;
+        if (s.TargetInStance) flags |= CrucibleTelemetryFormat.Flags.TargetStance;
+        if (s.TargetDoNotAttack) flags |= CrucibleTelemetryFormat.Flags.TargetDoNotAttack;
+        if (s.ProtectedNearTarget) flags |= CrucibleTelemetryFormat.Flags.ProtectedNear;
+        if (s.TargetHasParry) flags |= CrucibleTelemetryFormat.Flags.TargetParry;
+        if (s.ParryJustEnded) flags |= CrucibleTelemetryFormat.Flags.ParryEnded;
+        if (s.PlayerHasCleansableDebuff) flags |= CrucibleTelemetryFormat.Flags.PlayerCleansable;
+        if (s.EnemyTargetsPet) flags |= CrucibleTelemetryFormat.Flags.TargetOnPet;
+        if (s.EnemyTargetsPlayer) flags |= CrucibleTelemetryFormat.Flags.TargetOnPlayer;
+        if (s.ReadySnarl) flags |= CrucibleTelemetryFormat.Flags.SnarlReady;
+        if (s.ReadyChallenge) flags |= CrucibleTelemetryFormat.Flags.ChallengeReady;
+        if (s.TargetInterruptible) flags |= CrucibleTelemetryFormat.Flags.Interruptible;
+
+        static byte Pct(float v) => (byte)Math.Clamp((int)MathF.Round(v), 0, 100);
+
+        return new CrucibleTelemetryFormat.Snapshot(
+            (byte)s.CrucibleBoard,
+            (sbyte)Math.Clamp(s.CrucibleBattle, -1, 100),
+            (byte)s.CrucibleNeeds,
+            (byte)Math.Clamp(s.EnemyCount, 0, 255),
+            Pct(s.HighestEnemyHpPercent),
+            s.HasHostileTarget ? BST.LastCrucibleTargetNameId : 0,
+            s.HasHostileTarget ? Pct(s.TargetHpPercent) : (byte)0,
+            s.TargetCastId,
+            s.TargetCastRemaining,
+            flags,
+            Pct(s.PlayerHpPercent),
+            s.ActiveSlot != 0 ? Pct(s.PetHpPercent) : (byte)0,
+            $"{Pct(s.Slot1PetHp)}.{Pct(s.Slot2PetHp)}.{Pct(s.Slot3PetHp)}",
+            BST.LastDecisionActionId,
+            BST.LastDecisionReason,
+            BST.LastShadow,
+            s.TargetTimeToDeath,
+            (int)s.PlayerIntakePerSecond,
+            s.TargetVulnerabilityRemaining,
+            BST.PartyHpVerified);
     }
 
     private static unsafe BeastmasterTelemetryFormat.Snapshot Sample()

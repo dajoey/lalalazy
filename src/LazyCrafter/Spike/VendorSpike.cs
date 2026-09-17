@@ -19,7 +19,7 @@ namespace LazyCrafter.Spike;
 /// <summary>
 /// P6 SPIKE (t_977b94b4, revived as t_933683a5). Answers one question in-game: after
 /// <c>Lifestream.Teleport</c>, can <c>vnavmesh.SimpleMove.PathfindAndMoveTo</c> reach a gil-vendor NPC and can we
-/// open its shop, reliably, across 5 vendors in 3 zones? Joey's rule: the walk-to-vendor toggle ships only on 5/5.
+/// open its shop, reliably, across 5 vendors in 3 zones? The standing rule: the walk-to-vendor toggle ships only on 5/5.
 ///
 /// <para><b>This class is INERT.</b> It is a slash command and nothing else - nothing here is wired into dispatch,
 /// the cart, the Run tab or the vendor hand-off, and a normal cart run behaves identically with and without it.
@@ -209,7 +209,7 @@ public sealed unsafe class VendorSpike : IDisposable
     }
 
     /// <summary>
-    /// <c>/lcraft spike results</c>: the one block Joey copies back (card t_933683a5 decision 7). Printed to chat
+    /// <c>/lcraft spike results</c>: the one block copied back (card t_933683a5 decision 7). Printed to chat
     /// AND put on the clipboard in a single action, the same way the Run tab's Copy report does it.
     /// </summary>
     private void PrintResults()

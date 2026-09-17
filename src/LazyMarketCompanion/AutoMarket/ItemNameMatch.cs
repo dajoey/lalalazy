@@ -12,7 +12,7 @@ namespace LazyMarketCompanion.AutoMarket;
 /// WHY IT EXISTS. Until 0.1.6.0 this logic lived inline in <c>ItemNameResolver</c> and failed OPEN: after an
 /// exact match missed, it returned the LONGEST item name contained anywhere in the row's text. On a row whose
 /// text is clipped by a narrow column that is catastrophic, because a clipped name still contains a shorter
-/// real item name. On Joey's client on 2026-09-05 at 20:37:48 a row holding
+/// real item name. On the test client on 2026-09-05 at 20:37:48 a row holding
 /// <c>Snow Cotton Ushanka of Scouting</c> (41878) was read as <c>Snow Cotton</c> (44024) - both real,
 /// distinct, marketable items, one a strict prefix of the other - and that phantom identification vetoed an
 /// Auto-Market pass that had otherwise identified its listing correctly.

@@ -32,8 +32,7 @@ internal readonly record struct SaleHistoryResult(
     SaleHistoryOutcome Outcome, long UnitPrice, int SampleCount, long NewestUnixSeconds);
 
 /// <summary>
-///     The pure half of the "nothing else is on the board" price fallback (v0.1.8.0, asked for by
-///     Joey 2026-09-06, option A of the Helm decision card): given Universalis' recent SALES for an
+///     The pure half of the "nothing else is on the board" price fallback (v0.1.8.0, requested in testing 2026-09-06, option A of the Helm decision card): given Universalis' recent SALES for an
 ///     item, decide what to list at, or refuse.
 /// </summary>
 /// <remarks>

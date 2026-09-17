@@ -115,7 +115,7 @@ internal abstract partial class CustomComboFunctions
     ///     the status, not on the row. Do not re-derive timing from this field.
     ///     <para/>
     ///     The behaviour built on the wrong reason still holds, for a better one. Two wastes,
-    ///     both of which Joey reported:
+    ///     both of which were reported in testing:
     ///     <list type="bullet">
     ///     <item>Buying an instant while holding one. A Triplecast charge or a 60s Swiftcast
     ///     pressed under Dualcast pays for a cast that was already free.</item>
@@ -187,7 +187,7 @@ internal abstract partial class CustomComboFunctions
     /// <summary>
     ///     A Dualcast is on its way but has not landed, so treat it as held.
     ///     <para/>
-    ///     Joey named the case: slide-casting. Move at the tail of a cast and the proc still
+    ///     The case is known in testing as slide-casting. Move at the tail of a cast and the proc still
     ///     comes, but the input for the NEXT GCD is chosen and queued while that cast is still
     ///     running - before the status exists. A gate reading only the buff is open at exactly
     ///     the moment it matters, and out goes a Swiftcast or a Triplecast for an instant already

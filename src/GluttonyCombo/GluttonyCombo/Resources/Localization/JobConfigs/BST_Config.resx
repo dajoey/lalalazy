@@ -201,4 +201,124 @@
   <data name="UseVileskinDesc" xml:space="preserve">
     <value>When an enemy is targeting the character.</value>
   </data>
+  <data name="SectionCrucible" xml:space="preserve">
+    <value>Crucible of the Unbroken</value>
+  </data>
+  <data name="Crucible" xml:space="preserve">
+    <value>Crucible rules</value>
+  </data>
+  <data name="CrucibleDesc" xml:space="preserve">
+    <value>Only on a Crucible board. Keeps familiars alive (a healthier familiar is blown in over a hurt one; Parting Blow only when it is critical), remembers familiar HP across nodes, blows no horn out of combat, borrows the Kinship the enemy panel calls for (interrupt, dispel, cleanse), dispels and cleanses, holds damage on enemies in a counter stance or an invulnerable phase, never attacks zu eggs or morphos, and saves wespe's Final Sting for the execute or the end of a vulnerability window.</value>
+  </data>
+  <data name="CruciblePetSwapHp0" xml:space="preserve">
+    <value>Swap in a healthier familiar at or below this HP % ({0} at half of it)</value>
+  </data>
+  <data name="CrucibleFinalStingHp0" xml:space="preserve">
+    <value>Wespe's {0} (Final Sting) only at or below this target HP % (half with 2+ enemies)</value>
+  </data>
+  <data name="CrucibleAggro0And1" xml:space="preserve">
+    <value>{0} / {1}</value>
+  </data>
+  <data name="CrucibleAggroOff" xml:space="preserve">
+    <value>Off</value>
+  </data>
+  <data name="CrucibleAggroShadow" xml:space="preserve">
+    <value>Log only</value>
+  </data>
+  <data name="CrucibleAggroOn" xml:space="preserve">
+    <value>Use</value>
+  </data>
+  <data name="CrucibleAggroDesc" xml:space="preserve">
+    <value>Snarl on Directional Parry, on known single-target hits, or when the character is low; Challenge back when the parry drops or the familiar is low. Log only records the choice in the Beastmaster collector (CR| lines) without pressing anything.</value>
+  </data>
+  <data name="CrucibleAllowDisplacing0" xml:space="preserve">
+    <value>Allow knockback / draw-in {0} in the Crucible</value>
+  </data>
+  <data name="CrucibleAllowDisplacingDesc" xml:space="preserve">
+    <value>Solo content: moving the enemy costs nothing there. Overrides the general setting on Crucible boards only.</value>
+  </data>
+  <data name="CrucibleHornWarning" xml:space="preserve">
+    <value>Warn when no beasts are assigned</value>
+  </data>
+  <data name="CrucibleHornWarningDesc" xml:space="preserve">
+    <value>Horns deselect after every Crucible encounter. Out of combat, with the next battle's enemies present and all three horns empty, shows one warning.</value>
+  </data>
+  <data name="CrucibleHornWarningMessage" xml:space="preserve">
+    <value>Crucible: no beasts are assigned to the Battlehorns.</value>
+  </data>
+  <data name="CrucibleStatusOutside" xml:space="preserve">
+    <value>Not on a Crucible board.</value>
+  </data>
+  <data name="CrucibleStatusBoard0" xml:space="preserve">
+    <value>{0}: no panel enemy in sight.</value>
+  </data>
+  <data name="CrucibleStatusBattle0And1And2" xml:space="preserve">
+    <value>{0}: battle with {1} (panel needs: {2}).</value>
+  </data>
+  <data name="CrucibleTargeting" xml:space="preserve">
+    <value>Crucible auto-targeting</value>
+  </data>
+  <data name="CrucibleTargetingDesc" xml:space="preserve">
+    <value>With Auto-Rotation targeting on a Crucible board: never picks zu eggs or morphos, picks enemies in a counter stance only when nothing else is up, takes priority adds first, and keeps pairs that must die together within 10% HP of each other.</value>
+  </data>
+  <data name="CrucibleAdvisorHeader" xml:space="preserve">
+    <value>Beast picks</value>
+  </data>
+  <data name="CrucibleAdvisorBoard" xml:space="preserve">
+    <value>Board</value>
+  </data>
+  <data name="CrucibleAdvisorRosterUnknown" xml:space="preserve">
+    <value>The captured familiar list has not arrived yet (open the Master's Bestiary once); picks assume every familiar is captured.</value>
+  </data>
+  <data name="CrucibleAdvisorRoster0" xml:space="preserve">
+    <value>Roster (familiars in the most battles' picks, number of battles): {0}</value>
+  </data>
+  <data name="CrucibleAdvisorBoss" xml:space="preserve">
+    <value>boss</value>
+  </data>
+  <data name="CrucibleAdvisorElite" xml:space="preserve">
+    <value>elite</value>
+  </data>
+  <data name="CrucibleAdvisorEnemy" xml:space="preserve">
+    <value>enemy</value>
+  </data>
+  <data name="CrucibleAdvisorRandom" xml:space="preserve">
+    <value>random space</value>
+  </data>
+  <data name="CrucibleAdvisorNeeds0" xml:space="preserve">
+    <value>Enemy panel calls for: {0}</value>
+  </data>
+  <data name="CrucibleAdvisorCapture" xml:space="preserve">
+    <value>Worth capturing:</value>
+  </data>
+  <data name="CrucibleScoreMode" xml:space="preserve">
+    <value>Score mode (the character tanks)</value>
+  </data>
+  <data name="CrucibleScoreModeDesc" xml:space="preserve">
+    <value>For high-score runs: Challenge whenever the target turns on the familiar so familiars finish at full HP; Snarl only to set up the tankbuster dodge below. Uses the Snarl / Challenge setting (Log only records, Use presses).</value>
+  </data>
+  <data name="CrucibleSnarlParting0And1" xml:space="preserve">
+    <value>Dodge known tankbusters with {0} then {1}</value>
+  </data>
+  <data name="CrucibleSnarlPartingDesc" xml:space="preserve">
+    <value>Off by default. The familiar takes the aggro with Snarl, then Parting Blow sends it away just before the tankbuster lands so the hit finds nobody. Timing depends on latency; players expect a patch. Uses the Snarl / Challenge setting.</value>
+  </data>
+  <data name="CrucibleSnarlPartingLead" xml:space="preserve">
+    <value>Parting Blow this many tenths of a second before the cast ends</value>
+  </data>
+  <data name="CrucibleHornWarningPicks0And1" xml:space="preserve">
+    <value>Crucible: no beasts are assigned to the Battlehorns. Suggested for {0}: {1}.</value>
+  </data>
+  <data name="CrucibleCycleForDamage0" xml:space="preserve">
+    <value>Cycle familiars with {0} for damage in the Crucible</value>
+  </data>
+  <data name="CrucibleCycleForDamageDesc" xml:space="preserve">
+    <value>Off by default: in the Crucible a familiar leaves only when its HP calls for it, because every exit locks a horn for 90 seconds and the roster is finite per node. On: the normal Parting Blow cycling applies (never as a round ends).</value>
+  </data>
+  <data name="CruciblePrepullHorns" xml:space="preserve">
+    <value>Allow Battlehorns out of combat in the Crucible</value>
+  </data>
+  <data name="CruciblePrepullHornsDesc" xml:space="preserve">
+    <value>Off by default: other automation linked out-of-combat horn presses on a board to client crashes, and summons are blocked on the board. On: pre-pull summon, pre-pull Borrow for the fight's Kinship, and the between-pulls refresh apply.</value>
+  </data>
 </root>

@@ -299,7 +299,7 @@ internal partial class WHM
 
     internal static bool RaidwideMedica()
     {
-        // Timed AoE regen (Joey 2026-06-27): Medica II / Medica III is a ~2s hard cast, so
+        // Timed AoE regen (testing 2026-06-27): Medica II / Medica III is a ~2s hard cast, so
         // start it once the incoming raidwide/stack is ~2.5s from landing - it finishes around
         // impact and the HoT then recovers the hit. Skip if the party already has the HoT.
         if (!(IsEnabled(Preset.WHM_Raidwide_Medica) && ActionReady(OriginalHook(Medica2)) && !IsMoving()))

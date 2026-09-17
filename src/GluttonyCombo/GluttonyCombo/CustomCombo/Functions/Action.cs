@@ -441,7 +441,7 @@ internal abstract partial class CustomComboFunctions
 
     /// <summary>Seconds left on the soonest-to-resolve hostile raidwide CAST BAR, or null when
     /// no raidwide cast bar is up (e.g. the raidwide was detected via VFX/stack markers only).
-    /// Same filter as RaidwideCasting: CastType 2/5, EffectRange >= 30. (Joey 2026-07-01)</summary>
+    /// Same filter as RaidwideCasting: CastType 2/5, EffectRange >= 30. (testing 2026-07-01)</summary>
     public static float? RaidwideTimeRemaining()
     {
         float? rem = null;

@@ -1,13 +1,13 @@
 namespace LazyCrafter.Core;
 
 /// <summary>
-/// The wait-and-resume behaviour Joey picked on Helm thread <c>t-joey-1788710417021</c> (card t_ee6f7bf5), as
+/// The wait-and-resume behaviour chosen in the related support thread (card t_ee6f7bf5), as
 /// data and sentences rather than phase-machine plumbing, so the harness can prove the behaviour itself:
 /// before each craft, if the client cannot accept a command, HOLD - say "waiting - close the market board to
 /// continue", re-check, resume on its own the moment the window is gone, and after five minutes stop cleanly
 /// with the cart intact. Exactly that: not stop-immediately, not configurable, not a different cap.
 /// <para>
-/// 0.1.6.15 (Helm t-joey-1788808881825) adds one PURE classification the fetch hold consumes: when the fetch
+/// 0.1.6.15 (the related support thread) adds one PURE classification the fetch hold consumes: when the fetch
 /// is standing by for the summoning bell and a market board is open, the run must be able to tell a board the
 /// WALK ITSELF opened (a legitimate pass-through state - Lifestream's old <c>/li mb</c> bell trip ended by
 /// interacting with the board, and a plaza route can pass one) from a board the player opened on top of the
@@ -31,8 +31,7 @@ public static class ClientWaitPolicy
     /// that no longer parse - an upstream rename degrades to "window not named", never a crash.
     /// <para>
     /// The first nine are <b>Artisan's own refusal set, verbatim</b> (<c>PreCrafting.Occupied()</c> in Artisan's
-    /// source): the game raises one of them when it answers Artisan's craft request with the exact error Joey's
-    /// 11:58 run logged five times - "Unable to execute command while occupied". The remaining five (trade window, two cutscene flags,
+    /// source): the game raises one of them when it answers Artisan's craft request with the exact error the 11:58 test run logged five times - "Unable to execute command while occupied". The remaining five (trade window, two cutscene flags,
     /// two zone-change flags) extend the same idea to states where a craft command cannot be issued either.
     /// </para>
     /// </summary>

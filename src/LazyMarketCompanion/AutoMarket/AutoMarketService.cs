@@ -717,7 +717,7 @@ internal static unsafe class AutoMarketService
   }
 
   // =====================================================================================
-  // Routing mover (0.1.40.0, Helm t-joey-1789190796770 "build-mover"): the movement half of
+  // Routing mover (0.1.40.0, the "build-mover" decision in the related support thread): the movement half of
   // category routing. See AutoMarket/RoutingMove.cs for the decision table.
   // =====================================================================================
 
@@ -810,7 +810,7 @@ internal static unsafe class AutoMarketService
   }
 
   // =====================================================================================
-  // 0.1.44.0: the session settle gate (Helm t-joey-1789218500516, Joey chose "fix-through").
+  // 0.1.44.0: the session settle gate (the related support thread, the design decision was "fix-through").
   // The 0.1.40.0-0.1.43.0 mover fired its moves on fixed delays after the retainer click, so
   // during the switch window the previous retainer's pages could still be the loaded containers:
   // moves "succeeded" against them and were rolled back when the server swapped the real pages

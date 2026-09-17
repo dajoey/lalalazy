@@ -5,7 +5,7 @@ using System.Linq;
 
 namespace LazyMarketCompanion.AutoMarket;
 
-// 0.1.45.0: routing auto-fill (Helm t-joey-1789190796770, Joey 2026-09-12: "HOW DOES A WEAPON NOT
+// 0.1.45.0: routing auto-fill (the related support thread, testing 2026-09-12: "HOW DOES A WEAPON NOT
 // HAVE A CATEGORY I'M NOT DOING THAT MANUALLY"). The 0.1.43.0 uncovered report named the Heavy
 // Metal Culverin's category (Machinist's Arms) and offered hand-added rows; the answer to that ask
 // is that hand-added rows are not acceptable, so the sweep fills the gap itself. Runs BEFORE the

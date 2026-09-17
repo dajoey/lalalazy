@@ -3,7 +3,7 @@ using LazyCrafter.Core;
 namespace LazyCrafter.Harness;
 
 /// <summary>
-/// The vendor ranking (card t_731ea0e7). The headline case is Joey's 2026-09-05 cart run: the SAME item resolved to
+/// The vendor ranking (card t_731ea0e7). The headline case is the 2026-09-05 test cart run: the SAME item resolved to
 /// two different vendors minutes apart because <c>Plan()</c> ranked on lowest NPC id while <c>Find()</c> ranked on
 /// distance to the nearest aetheryte. Every fixture below is built so those two old metrics DISAGREE, so a
 /// re-introduction of either one fails here rather than in game.
@@ -38,7 +38,7 @@ internal static class VendorChoiceTests
     public static IEnumerable<(string Name, Func<bool> Check)> Tests => new (string, Func<bool>)[]
     {
         // ---------------------------------------------------------------- the regression that was shipped
-        ("t_731ea0e7: Plan() and Find() agree on a single-item list (Joey's Tallow Candle run)", () =>
+        ("t_731ea0e7: Plan() and Find() agree on a single-item list (the Tallow Candle test run)", () =>
         {
             var ctx = At(LimsaTerritory, NormalFares);
             var find = VendorChoice.Find(TallowCandle, Only(Candles().ToArray()), ctx);

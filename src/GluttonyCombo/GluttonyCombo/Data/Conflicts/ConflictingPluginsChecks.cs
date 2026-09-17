@@ -582,7 +582,7 @@ public static class ConflictingPluginsChecks
             if (!ThrottlePassed(forceRefresh: forceRefresh))
                 return;
 
-            OpenerDTRDisabled = GluttonyCombo.P.OpenerDtr.UserHidden && Service.Configuration.ShowOpenerDtr;
+            OpenerDTRDisabled = GluttonyCombo.P.OpenerDtr?.UserHidden == true && Service.Configuration.ShowOpenerDtr;
 
             if (OpenerDTRDisabled)
                 MarkConflict();

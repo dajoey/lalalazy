@@ -108,7 +108,7 @@ internal partial class AST
     {
         // Aspected Helios / Helios Conjunction is a reactive AoE regen, not a pre-cast
         // mitigation, so it is NOT gated by the raidwide mit cooldown.
-        // Timing (Joey 2026-06-27): fire only once the incoming damage is about to land
+        // Timing (testing 2026-06-27): fire only once the incoming damage is about to land
         // (<= 1.5s left on the cast, or a stack about to pop) so the instant HoT lands right
         // as/after the hit and recovers it.
         if (!IsEnabled(Preset.AST_Raidwide_AspectedHelios) || !ActionReady(OriginalHook(AspectedHelios)) ||

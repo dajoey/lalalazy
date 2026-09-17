@@ -5,7 +5,7 @@ namespace LazyCrafter.Adapters.Dispatch;
 
 /// <summary>
 /// Fetches materials out of the character's retainers and into the bags, so a craft that only lacked stock
-/// <i>location</i> can actually run (card t_63b845ad; Joey twice: "stock the ingredients in my bag first").
+/// <i>location</i> can actually run (card t_63b845ad; Requested twice in testing: "stock the ingredients in the bag first").
 ///
 /// <para><b>Why this drives Artisan and not AutoRetainer.</b> The card's first choice was AutoRetainer. Read from the
 /// installed <c>AutoRetainer.dll</c> 4.6.1.34 (ILSpy 11.0.0.9375, not from strings): its 27 IPC names are all
@@ -34,7 +34,7 @@ namespace LazyCrafter.Adapters.Dispatch;
 /// for us - but it can also stop early after a partial pull. <see cref="DispatchService"/> therefore never trusts the
 /// call: it measures the bag-count delta and comes back for the remainder.</para>
 ///
-/// <para><b>0.1.3.0 - one bell trip, not one per item.</b> Joey, on 0.1.2.0's live run: four materials from one
+/// <para><b>0.1.3.0 - one bell trip, not one per item.</b> On 0.1.2.0's live run: four materials from one
 /// retainer became four full Artisan sessions (bell, select, entrust, quit - ~5.5 s each), back to back. The decompile
 /// shows why: the per-item overload enqueues the whole bell cycle <i>per call</i>. It also shows the batch twin of that
 /// method, <c>RestockFromRetainers(NewCraftingList)</c>: <b>one</b> <c>TM.EnqueueBell()</c>, then per retainer x per

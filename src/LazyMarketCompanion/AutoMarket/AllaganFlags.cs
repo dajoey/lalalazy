@@ -104,7 +104,7 @@ public sealed class AllaganFlagSet
   /// such an item, but on the live client that state does not survive first sight: the moment a
   /// listing is added, AllaganMarket writes a fresh own-price cache row for it
   /// (LocalRetainerMarketItemAdded), so a no-row item is one AllaganMarket has never had any opinion
-  /// about - it renders unmarked in the overlay, and Joey's spec is that unmarked rows are never
+  /// about - it renders unmarked in the overlay, and the spec is that unmarked rows are never
   /// walked. The nine no-op rows of the 2026-09-06 21:22 pass are exactly this shape once their
   /// own-price rows exist; items with genuinely no rows are the never-checked ones the card pins as
   /// never-walked.

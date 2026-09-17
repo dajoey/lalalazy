@@ -67,7 +67,7 @@ public sealed class Configuration : IPluginConfiguration
 
     /// <summary>
     /// Fetch materials that are sitting on a retainer into the bags before crafting, by driving Artisan's
-    /// <c>RestockFromRetainers</c> at a summoning bell (Joey: "stock the ingredients in my bag first").
+    /// <c>RestockFromRetainers</c> at a summoning bell (testing request: "stock the ingredients in the bag first").
     /// ON by default: without it a cart whose materials are on a retainer can only be refused, which is the
     /// nag loop this replaces. Turn it off to go back to being told what to fetch by hand.
     /// </summary>
@@ -112,18 +112,18 @@ public sealed class Configuration : IPluginConfiguration
     /// </para>
     /// <para>
     /// <b>Turning it off does NOT restore the old silence.</b> Currency vendors are still NAMED on the market and
-    /// manual lines either way - that half was the actual complaint (the plugin sent Joey to the market board for
+    /// manual lines either way - that half was the actual complaint (the plugin sent the player to the market board for
     /// Emery without ever mentioning the Ixali vendor). This setting governs only whether the routing PREFERS
     /// them; off means "tell me, but keep buying on the board".
     /// </para>
     /// </summary>
     public bool PreferCurrencyShops { get; set; } = true;
 
-    // ---- v8 (cart-run vendor walk, Helm t-joey-1788793199911) ----
+    // ---- v8 (cart-run vendor walk, the related support thread) ----
 
     /// <summary>
     /// Walk the character to gil vendors during a cart run, one vendor per stop, instead of only flagging
-    /// them on the map (the pre-0.1.6.14 behaviour). Joey's design: "walk to vendor - stop - wait for resume -
+    /// them on the map (the pre-0.1.6.14 behaviour). The design: "walk to vendor - stop - wait for resume -
     /// walk to next vendor - stop - wait for resume."
     /// <para>
     /// ON by default: the alternative is being told which vendor to visit and then having to walk there
@@ -151,7 +151,7 @@ public sealed class Configuration : IPluginConfiguration
     /// error spam is suppressed (one consolidated popup line per blocked stage, never repeated
     /// per frame).
     /// <para>
-    /// ON by default: this is the feature's first testing build and Joey asked for the cadence
+    /// ON by default: this is the feature's first testing build and the cadence was requested for testing
     /// ("do this and hit resume... then it kicks into unattended mode"). Turning it off restores
     /// today's monolithic run exactly - the stage controller is created empty, which reads as
     /// one unattended run from the first tick - so a bad stage machine cannot brick the plugin.
@@ -197,7 +197,7 @@ public sealed class Configuration : IPluginConfiguration
         // written before this version has no key, so the initialiser stands and existing users get the routing.
         // That is deliberate and safe - the reroute only fires when the item resolves to a placed vendor the
         // player can already afford, and falls back to the market board (the pre-0.1.6.7 behaviour) otherwise.
-        // v7 -> v8: WalkToVendorsOnCart is new and defaults ON (Helm t-joey-1788793199911). Same shape again:
+        // v7 -> v8: WalkToVendorsOnCart is new and defaults ON (the related support thread). Same shape again:
         // a config written before this version has no key, so the initialiser stands and existing users get
         // the vendor walk. Off is one checkbox in the settings and degrades to map flags plus chat names.
         // v8 -> v9: SequentialInterventionMode is new and defaults ON (0.1.7.0, card t_5191608a). Same shape

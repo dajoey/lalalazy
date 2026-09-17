@@ -3,8 +3,7 @@ using LazyCrafter.Core.Model;
 namespace LazyCrafter.Core;
 
 /// <summary>
-/// Turns the dispatcher's raw "could not get this into the bags" list into the one actionable instruction Joey
-/// asked for: <b>which retainer, which item, how many units to pull off sale</b> (card t_35be7be5, Tier 1).
+/// Turns the dispatcher's raw "could not get this into the bags" list into the one actionable instruction requested in testing: <b>which retainer, which item, how many units to pull off sale</b> (card t_35be7be5, Tier 1).
 /// <para>
 /// Pure Core so the offline harness can assert on the RENDERED text, which is the whole point - the detail already
 /// existed in memory before this class and was thrown away by the renderer, so a test that asserts on an internal
@@ -16,7 +15,7 @@ namespace LazyCrafter.Core;
 /// <item>
 /// <b>A - the finishing path threw the detail away.</b> <c>DispatchService._unfetched</c> is written at six sites
 /// and was read at two that disagreed: <c>FinishBlocked</c> rendered retainer names, <c>Finish</c> rendered only
-/// <c>", N could not be retrieved"</c>. Joey's run FINISHED, so he got a bare count while the retainer names, item
+/// <c>", N could not be retrieved"</c>. The test run FINISHED with a bare count while the retainer names, item
 /// ids and quantities sat in memory. Both paths now call <see cref="Summarise"/> and print <see cref="Lines"/>.
 /// </item>
 /// <item>
@@ -242,7 +241,7 @@ public static class BlockedListings
     /// paths</b> (Defect A, card t_35be7be5).
     /// <para>
     /// This is the seam the defect lived in. <c>FinishBlocked</c> had this loop inline; <c>Finish</c> - the DONE
-    /// path Joey's 2026-09-05 22:44 run actually took - had nothing, and rendered only a bare count. Both endings
+    /// path the 2026-09-05 22:44 test run actually took - had nothing, and rendered only a bare count. Both endings
     /// now call this one function, so there is exactly one implementation to keep correct and a harness check can
     /// pin it without loading any Dalamud type.
     /// </para>

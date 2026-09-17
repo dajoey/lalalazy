@@ -3,7 +3,7 @@
 # Columns: tMs (relative to trace start), job (ClassJob RowId), hp, maxHp, mp, maxMp, inCombat(0/1).
 # The replay holds each row's values until the next one, and steps Tick() every 150 ms
 # exactly as PotionService's idle throttle does, so the emitted line count is a measured
-# rate against Joey's own play, not an estimate.
+# rate against actual live play, not an estimate.
 0,11,2646,2646,0,0,0
 1604462,17,2646,43671,0,0,0
 1606545,17,7013,43671,0,0,0

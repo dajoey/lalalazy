@@ -46,15 +46,18 @@ SmartMoverCore.MoverWorld World(
         5, 30f, 0f, 3f, new(0, 0), new(0, 0), 0, 1, 5f, 60f, 0f));
     Check("zone/raidwide-skipped", rw is null);
 
-    // v1.0.4.192 solo regression: a TARGET-anchored cast aimed at the player
-    // still tracks the player and is skipped (undodgeable)...
+    // v1.0.4.208: a TARGET-anchored cast aimed at the player still builds
+    // its zone. Since v1.0.4.209 the Dalamud half anchors it at the cast's
+    // snapshotted target location (where the telegraph was drawn), so it
+    // does not follow the character.
     var pt = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
         2, 6f, 0f, 3f, new(0, 0), new(0, 0), 999, 999, 5f, 60f, 0f));
-    Check("zone/targets-player-ground-circle-skipped", pt is null);
+    Check("zone/targets-player-ground-circle-built", pt is { Kind: DangerZoneModel.ShapeKind.Circle });
+    Check("zone/targets-player-ground-circle-contains", pt is not null && DangerZoneModel.Contains(pt.Value, new Vector2(0, 0), 0f));
 
     // ...but a CASTER-anchored cast aimed at the player (point-blank circle,
     // cone, line, charge - every solo mob telegraph) MUST build its zone:
-    // the old blanket skip starved the dodge branch solo (Joey 2026-09-12).
+    // the old blanket skip starved the dodge branch solo (testing 2026-09-12).
     var solo5 = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
         5, 8f, 0f, 3f, new(0, 0), new(0, 0), 999, 999, 5f, 60f, 0f));
     Check("zone/solo-pb-circle-aimed-at-player-builtin", solo5 is { Kind: DangerZoneModel.ShapeKind.Circle }, $"z={solo5}");
@@ -72,13 +75,13 @@ SmartMoverCore.MoverWorld World(
     Check("zone/solo-cone13-aimed-at-player-builtin", solo13 is { Kind: DangerZoneModel.ShapeKind.Cone });
     var solo10 = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
         10, 12f, 0f, 0f, new(0, 0), new(0, 0), 999, 999, 5f, 60f, 5f));
-    Check("zone/solo-donut-on-player-still-skipped", solo10 is null);
+    Check("zone/solo-donut-on-player-built", solo10 is { Kind: DangerZoneModel.ShapeKind.Donut }, $"z={solo10}");
     var solo11 = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
         11, 12f, 6f, 0f, new(0, 0), new(0, 0), 999, 999, 5f, 60f, 0f));
-    Check("zone/solo-cross-on-player-still-skipped", solo11 is null);
+    Check("zone/solo-cross-on-player-built", solo11 is { Kind: DangerZoneModel.ShapeKind.Cross }, $"z={solo11}");
     var solo12 = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
         12, 20f, 6f, 3f, new(0, 0), new(0, -8), 999, 999, 5f, 60f, 0f));
-    Check("zone/solo-loc-rect-on-player-still-skipped", solo12 is null);
+    Check("zone/solo-loc-rect-on-player-built", solo12 is { Kind: DangerZoneModel.ShapeKind.Rect }, $"z={solo12}");
 
     // Rect CastType 4 from caster toward target (target at +Z => aim rot = +90deg math convention)
     var rect = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
@@ -154,8 +157,7 @@ SmartMoverCore.MoverWorld World(
 
     // v1.0.4.201 (tasks-20260915-automove-melee-01): melee parked OUTSIDE
     // striking distance - the 2.0 (1.0 positional) settle tolerance plus the
-    // 1.0 Commit deadband exceeded the 3y band (Joey, NIN on testing
-    // 1.0.4.200: motion started, then stopped short of the dummy). Melee at
+    // 1.0 Commit deadband exceeded the 3y band (NIN testing on 1.0.4.200: motion started, then stopped short of the dummy). Melee at
     // edge 4.0 (dist 9.0 on hitbox 5) must STILL engage, positional or not;
     // at edge 3.4 it settles; a sub-yalm final approach closes in.
     var hm1 = new SmartMoverCore.Hysteresis();
@@ -248,6 +250,34 @@ SmartMoverCore.MoverWorld World(
     var ds = SmartMoverCore.Decide(ws, hs);
     Check("dodge/solo-aimed-at-player-fires", ds.Kind == SmartMoverCore.Decision.Move && ds.Reason == SmartZoneDDG(), $"kind={ds.Kind} r={ds.Reason}");
 
+    // v1.0.4.207 end-to-end: a ground circle targeted AT the player (the mob
+    // cast targets the character) builds its zone at the character's feet and
+    // the dodge fires - standing inside a visible player-targeted telegraph
+    // with an empty zone list was the reported failure.
+    var ownZone = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
+        2, 6f, 0f, 3f, new(0, 8), new(0, -8), 999, 999, 5f, 60f, 0f));
+    Check("dodge/own-targeted-zone-built", ownZone is { Kind: DangerZoneModel.ShapeKind.Circle }, $"z={ownZone}");
+    var ho = new SmartMoverCore.Hysteresis();
+    var wo = World(player: new(0, -8), zones: ownZone is null ? NoZones : new[] { ownZone.Value });
+    var dOwn = SmartMoverCore.Decide(wo, ho);
+    Check("dodge/own-targeted-fires", dOwn.Kind == SmartMoverCore.Decision.Move && dOwn.Reason == SmartZoneDDG(), $"kind={dOwn.Kind} r={dOwn.Reason}");
+    Check("dodge/own-targeted-dest-safe", ownZone is null || SmartMoverCore.UnsafeAt(dOwn.Dest, new[] { ownZone.Value }, 0.25f) is null, $"dest={dOwn.Dest}");
+
+    // A second telegraph drawn at the character's new spot: the dodge fires
+    // again instead of standing down while inside it.
+    var ownZone2 = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
+        2, 6f, 0f, 3f, new(0, 8), dOwn.Dest, 999, 999, 4f, 60f, 0f));
+    var ho2 = new SmartMoverCore.Hysteresis();
+    var wo2 = World(player: dOwn.Dest, zones: ownZone2 is null ? NoZones : new[] { ownZone2.Value });
+    var dOwn2 = SmartMoverCore.Decide(wo2, ho2);
+    Check("dodge/own-targeted-follow-tick-fires", dOwn2.Reason == SmartZoneDDG(), $"kind={dOwn2.Kind} r={dOwn2.Reason}");
+
+    // Negative control: the own-targeted zone exists but the player already
+    // stands clear of it -> no dodge.
+    var hOn = new SmartMoverCore.Hysteresis();
+    var dOn = SmartMoverCore.Decide(World(player: new(0, -30), zones: ownZone is null ? NoZones : new[] { ownZone.Value }), hOn);
+    Check("dodge/own-targeted-clear-no-ddg", dOn.Reason != SmartMoverCore.ReasonDodgeCode, $"r={dOn.Reason}");
+
     // Outside every zone -> no dodge
     var h2 = new SmartMoverCore.Hysteresis();
     var d2 = SmartMoverCore.Decide(World(player: new(0, -30), zones: zones), h2);
@@ -297,7 +327,7 @@ SmartMoverCore.MoverWorld World(
     var dd = SmartMoverCore.Decide(World(enabled: false), h5);
     Check("guard/off-none", dd.Kind == SmartMoverCore.Decision.None, $"kind={dd.Kind}");
 
-    // v1.0.4.203 (Joey 2026-09-16 grading of 1.0.4.202: "automovement is
+    // v1.0.4.203 (testing 2026-09-16 grading of 1.0.4.202: "automovement is
     // moving me to the target even when i'm out of combat, which is not ok"):
     // out of combat the mover NEVER approaches a target - the v1.0.4.200
     // pre-combat hostile engage is reverted. The ooc standdown keeps its OWN
@@ -371,7 +401,7 @@ SmartMoverCore.MoverWorld World(
 
     // v1.0.4.192: a MATERIALLY different destination inside the hold is
     // adopted at once (quick target switch), not steered at the old flank
-    // until the hold expires (the dead second branch Joey saw as wonky).
+    // until the hold expires (the dead second branch seen as wonky in testing).
     var hq = new SmartMoverCore.Hysteresis();
     var wq1 = World(player: new(0, -18), range: 3f, target: new(0, 0), hitbox: 5f) with { NowSec = 200.0 };
     var dq1 = SmartMoverCore.Decide(wq1, hq);
@@ -806,6 +836,107 @@ SmartMoverCore.MoverWorld World(
     // transitions vanish behind the emit gate (the 1.0.4.205 grading blind spot).
     Check("hold/key-distinct-from-stl", MovementTelemetryFormat.KeyOf("hold", null, null) != MovementTelemetryFormat.KeyOf("stl", null, null));
     Check("hold/code-distinct-from-stl", MovementTelemetryFormat.DecisionCode("hold") != MovementTelemetryFormat.DecisionCode("stl"));
+}
+// ---------------------------------------------------------------- v1.0.4.209 cast geometry (BossMod parity)
+{
+    // Game rotation -> math convention: game r=0 faces +Z, r=pi/2 faces +X.
+    Check("geom/rot0-faces-plus-z", MathF.Abs(DangerZoneModel.GameRotationToMath(0f) - MathF.PI / 2f) < 0.001f, $"a={DangerZoneModel.GameRotationToMath(0f)}");
+    Check("geom/rot-halfpi-faces-plus-x", MathF.Abs(DangerZoneModel.GameRotationToMath(MathF.PI / 2f)) < 0.001f, $"a={DangerZoneModel.GameRotationToMath(MathF.PI / 2f)}");
+
+    // Omen parsing, BossMod's rules.
+    Check("omen/fan060-half30", OmenVfxModel.CastConeHalfDeg("gl_fan060_1bf") == 30f);
+    Check("omen/fan120-half60", OmenVfxModel.CastConeHalfDeg("gl_fan120_1bf") == 60f);
+    Check("omen/er-fan090-half45", OmenVfxModel.CastConeHalfDeg("er_gl_fan090_1bf") == 45f);
+    Check("omen/no-omen-half90", OmenVfxModel.CastConeHalfDeg(null) == 90f && OmenVfxModel.CastConeHalfDeg("general_1bf") == 90f);
+    Check("omen/sircle3020-inner20", OmenVfxModel.CastDonutInner("gl_sircle_3020bf", 30f) == 20f, $"i={OmenVfxModel.CastDonutInner("gl_sircle_3020bf", 30f)}");
+    Check("omen/sircle3020-scaled-inner10", OmenVfxModel.CastDonutInner("gl_sircle_3020bf", 15f) == 10f, $"i={OmenVfxModel.CastDonutInner("gl_sircle_3020bf", 15f)}");
+    Check("omen/no-donut-inner0", OmenVfxModel.CastDonutInner("general_1bf", 10f) == 0f && OmenVfxModel.CastDonutInner(null, 10f) == 0f);
+
+    // The cone field is a HALF-angle and is used as-is (it used to be halved
+    // again: every cone was a quarter of its drawn width). 60-degree cone
+    // (half 30) facing +Z: 20 degrees off axis is inside, 40 is outside.
+    var c60 = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
+        13, 60f, 0f, 3f, new(0, 0), new(0, 0), 5, 1, 5f, OmenVfxModel.CastConeHalfDeg("gl_fan060_1bf"), 0f, DangerZoneModel.GameRotationToMath(0f)));
+    Vector2 AtDeg(float offAxisDeg, float r) => new(MathF.Sin(offAxisDeg * MathF.PI / 180f) * r, MathF.Cos(offAxisDeg * MathF.PI / 180f) * r);
+    Check("cone/half30-20deg-inside", c60 is not null && DangerZoneModel.Contains(c60.Value, AtDeg(20f, 20f), 0f));
+    Check("cone/half30-40deg-outside", c60 is not null && !DangerZoneModel.Contains(c60.Value, AtDeg(40f, 20f), 0f));
+
+    // Self-targeted cone: caster location == target location, so the old
+    // caster->target aim was the zero vector (always +X). The cast rotation
+    // is used now. Facing +Z: a point north is inside, a point east is not.
+    var self = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
+        13, 30f, 0f, 0f, new(0, 0), new(0, 0), 5, 1, 5f, 45f, 0f, DangerZoneModel.GameRotationToMath(0f)));
+    Check("cone/self-targeted-uses-cast-rotation", self is not null && DangerZoneModel.Contains(self.Value, new Vector2(0, 10), 0f), $"z={self}");
+    Check("cone/self-targeted-not-plus-x", self is not null && !DangerZoneModel.Contains(self.Value, new Vector2(10, 0), 0f), $"z={self}");
+
+    // Live replay (Occult Crescent, a four-helper Cursed Sight set, cast type
+    // 13, range 60, omen gl_fan060_1bf): helper at (-650,-43) with game
+    // heading pi faces -Z. The point 10y south of it is in the cone; the
+    // point 10y north is behind it. The old +X aim got both wrong.
+    var cs = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
+        13, 60f, 0f, 1f, new(-650f, -43f), new(-650f, -43f), 7, 1, 5f, OmenVfxModel.CastConeHalfDeg("gl_fan060_1bf"), 0f, DangerZoneModel.GameRotationToMath(3.14f)));
+    Check("replay/cursed-sight-south-inside", cs is not null && DangerZoneModel.Contains(cs.Value, new Vector2(-650f, -53f), 0f), $"z={cs}");
+    Check("replay/cursed-sight-north-outside", cs is not null && !DangerZoneModel.Contains(cs.Value, new Vector2(-650f, -33f), 0f), $"z={cs}");
+    Check("replay/cursed-sight-east-outside", cs is not null && !DangerZoneModel.Contains(cs.Value, new Vector2(-640f, -43f), 0f), $"z={cs}");
+
+    // Live replay: a centre helper at (-661,-54) cast Dark (cast type 2,
+    // range 6) at the ground point (-671.9,-56.0), 11y away. The zone sits on
+    // the point, not on the helper.
+    var dark = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
+        2, 6f, 0f, 1f, new(-661f, -54f), new(-671.9f, -56f), 0xE0000000, 1, 3f, 90f, 0f, DangerZoneModel.GameRotationToMath(0f)));
+    Check("replay/dark-at-ground-point", dark is not null && DangerZoneModel.Contains(dark.Value, new Vector2(-671f, -56f), 0f), $"z={dark}");
+    Check("replay/dark-not-on-helper", dark is not null && !DangerZoneModel.Contains(dark.Value, new Vector2(-661f, -54f), 0f), $"z={dark}");
+
+    // Donut from the omen: Focused Tremor (cast type 10, range 30, omen
+    // gl_sircle_3020bf) - the 20y hole is safe, the ring is not.
+    var ft = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
+        10, 30f, 0f, 0f, new(0, 0), new(0, 0), 5, 1, 5f, 90f, OmenVfxModel.CastDonutInner("gl_sircle_3020bf", 30f)));
+    Check("replay/focused-tremor-hole-safe", ft is { Kind: DangerZoneModel.ShapeKind.Donut } && !DangerZoneModel.Contains(ft.Value, new Vector2(0, 10), 0f), $"z={ft}");
+    Check("replay/focused-tremor-ring-danger", ft is not null && DangerZoneModel.Contains(ft.Value, new Vector2(0, 25), 0f), $"z={ft}");
+}
+
+// ---------------------------------------------------------------- v1.0.4.209 cast vs dodge, stand-down reasons, ranged clamp
+{
+    var onPlayer = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -8), 0f, 5f, 0f, 0f, 0f, default, 3f) };
+
+    // A hardcast no longer pins the character inside a live telegraph.
+    var hc = new SmartMoverCore.Hysteresis();
+    var dc = SmartMoverCore.Decide(World(player: new(0, -8), casting: true, castRem: 1.5f, zones: onPlayer), hc);
+    Check("cast/unsafe-dodges-through-cast", dc.Kind == SmartMoverCore.Decision.Move && dc.Reason == SmartZoneDDG(), $"kind={dc.Kind} r={dc.Reason}");
+    Check("cast/unsafe-dest-safe", SmartMoverCore.UnsafeAt(dc.Dest, onPlayer, 0.25f) is null, $"dest={dc.Dest}");
+
+    // A cast starting mid-dodge does not stop the escape: next tick the player
+    // is already clear but short of the held destination -> keep moving.
+    var clearButShort = dc.Dest + Vector2.Normalize(new Vector2(0, -8) - dc.Dest) * 0.9f;
+    var dc2 = SmartMoverCore.Decide(World(player: clearButShort, casting: true, castRem: 1.5f, zones: onPlayer) with { NowSec = 1000.25 }, hc);
+    Check("cast/inflight-dodge-survives-cast", dc2.Kind == SmartMoverCore.Decision.Move && dc2.Reason == SmartZoneDDG() && dc2.Dest == dc.Dest,
+        $"kind={dc2.Kind} r={dc2.Reason} dest={dc2.Dest} held={dc.Dest} at={clearButShort}");
+
+    // Safe and casting still stands down (the cast is not interrupted for nothing).
+    var hs = new SmartMoverCore.Hysteresis();
+    var ds = SmartMoverCore.Decide(World(player: new(0, -30), casting: true, castRem: 1.5f, zones: onPlayer), hs);
+    Check("cast/safe-cast-not-interrupted", ds.Kind != SmartMoverCore.Decision.Move && ds.Reason == SmartMoverCore.ReasonCastCode, $"kind={ds.Kind} r={ds.Reason}");
+
+    // Stand-down with nothing held keeps its reason (it used to log as "hold").
+    Check("standdown/no-dest-keeps-cast-reason", ds.Kind == SmartMoverCore.Decision.None && ds.Reason == SmartMoverCore.ReasonCastCode, $"kind={ds.Kind} r={ds.Reason}");
+    var hm = new SmartMoverCore.Hysteresis();
+    var dmn = SmartMoverCore.Decide(World(manual: true), hm);
+    Check("standdown/no-dest-keeps-manual-reason", dmn.Kind == SmartMoverCore.Decision.None && dmn.Reason == SmartMoverCore.ReasonManualCode, $"kind={dmn.Kind} r={dmn.Reason}");
+    var ho = new SmartMoverCore.Hysteresis();
+    var dooc = SmartMoverCore.Decide(World(combat: false), ho);
+    Check("standdown/no-dest-keeps-ooc-reason", dooc.Kind == SmartMoverCore.Decision.None && dooc.Reason == SmartMoverCore.ReasonOocCode, $"kind={dooc.Kind} r={dooc.Reason}");
+
+    // Ranged job standing at its own range (24y from a 5y-hitbox target, band 20):
+    // the nearest escape wins instead of being dragged inside the old flat 15y ceiling.
+    var rz = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -24), 0f, 4f, 0f, 0f, 0f, default, 3f) };
+    var hr = new SmartMoverCore.Hysteresis();
+    var dr = SmartMoverCore.Decide(World(player: new(0, -24), range: 20f, target: new(0, 0), hitbox: 5f, zones: rz), hr);
+    Check("ranged/escape-fires", dr.Kind == SmartMoverCore.Decision.Move && dr.Reason == SmartZoneDDG(), $"kind={dr.Kind} r={dr.Reason}");
+    Check("ranged/nearest-escape-not-dragged-in", Vector2.Distance(dr.Dest, new Vector2(0, -24)) < 6f, $"dest={dr.Dest}");
+    Check("ranged/escape-still-bounded", Vector2.Distance(dr.Dest, new Vector2(0, 0)) <= 5f + 20f + 2f + 0.01f, $"dest={dr.Dest}");
+
+    // Emit key carries the live-zone count so zones appearing mid-hold re-emit.
+    Check("mv/key-includes-zone-count", MovementTelemetryFormat.KeyOf("hold", null, null, 0) != MovementTelemetryFormat.KeyOf("hold", null, null, 3));
 }
 // ---------------------------------------------------------------- shape asserts
 {

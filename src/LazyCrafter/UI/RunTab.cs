@@ -8,7 +8,7 @@ namespace LazyCrafter.UI;
 /// <summary>
 /// The <b>Run</b> tab (card t_c360953f): where a dispatch can be watched, stopped, resumed and copied out.
 /// <para>
-/// Joey, 2026-09-05: "it would be nice if I had a place to view the status and could stop it if it was stuck... or
+/// Testing, 2026-09-05: "it would be nice if I had a place to view the status and could stop it if it was stuck... or
 /// potentially even try to fix it if I can see what it's trying to do." Until now the only in-window signal during a
 /// run was one orange status line at the bottom of the cart, and the "not crafting X yet - needs ..." reasons had
 /// scrolled off chat within seconds of a 16-minute gather.

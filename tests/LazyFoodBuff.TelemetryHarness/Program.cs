@@ -15,7 +15,7 @@ namespace LazyFoodBuff.TelemetryHarness;
 ///     <para>FoodRecommender's stat-weight table is reasoned-out, not measured;
 ///     the <c>FT|</c> tap records the winner AND its runners-up so the eventual
 ///     answer can be graded against weeks of encounter data. The harness also
-///     replays 278.6 minutes of Joey's actual play (8,163 ffxivdb
+///     replays 278.6 minutes of actual live play (8,163 ffxivdb
 ///     <c>player_samples</c> rows pulled from ffxivdb, collapsed to change-points
 ///     in <c>trace-ffxivdb.csv</c>) through the recommendation gate at the
 ///     plugin's real 500 ms cadence and asserts a measured line rate. "It should
@@ -107,7 +107,7 @@ internal static class Program
     private static void LocaleSafety()
     {
         // A comma decimal separator silently destroys a '|' parse — and would do
-        // it only on Joey's machine, months later, in a table nobody re-checks.
+        // it only on the test machine, months later, in a table nobody re-checks.
         var previous = CultureInfo.CurrentCulture;
         try
         {

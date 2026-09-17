@@ -31,7 +31,7 @@ namespace LazyCrafter.Core;
 /// </para>
 ///
 /// <para>
-/// 0.1.6.15 (Helm t-joey-1788808881825): the walk itself now has two sentences. The old single
+/// 0.1.6.15 (the related support thread): the walk itself now has two sentences. The old single
 /// <see cref="TripStatus"/>/<see cref="TripHeartbeat"/> wording ("walking to a summoning bell ...") was
 /// written when the walk WAS a market-board trip, and the 0.1.6.14 run showed what that ambiguity costs - the
 /// character stood at the board while the status claimed a bell errand. The status now names the destination
@@ -104,7 +104,7 @@ public static class FetchGatePolicy
     /// <summary>Heartbeat while held for the walk (0.1.6.15 wording; names the bell, not the board).</summary>
     public static string TripHeartbeat() => "walking to the summoning bell in the inn room so the retainer fetch can run";
 
-    /// <summary>Status while the walk is waiting out a market board that the WALK ITSELF opened (0.1.6.15, Helm t-joey-1788808881825). Only valid when the plan has market shopping to do; the wrong-NPC case must never produce this line.</summary>
+    /// <summary>Status while the walk is waiting out a market board that the WALK ITSELF opened (0.1.6.15, the related support thread). Only valid when the plan has market shopping to do; the wrong-NPC case must never produce this line.</summary>
     public static string BoardGateStatus() => "waiting - the trip to the bell goes through the market board plaza; close the market board to continue";
 
     /// <summary>The one normal chat line for the same state.</summary>

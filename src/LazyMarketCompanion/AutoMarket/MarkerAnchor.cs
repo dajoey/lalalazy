@@ -14,7 +14,7 @@ namespace LazyMarketCompanion.AutoMarket;
 /// with most of the circle outside the cell. In the expanded inventory the four E-grids are
 /// stacked, so a top-row dot visually landed on the bottom row of the grid above it (a different
 /// bag) or on the window header, and in sparse bags the dot read as attached to whatever item
-/// sits in the cell above - "seemingly random locations" (Helm t-joey-1788992037468).
+/// sits in the cell above - "seemingly random locations" (the related support thread).
 ///
 /// Since 0.1.31.0 the dot is anchored INSIDE the cell: the center sits Inset px in from the
 /// cell's right edge and Inset px below its top edge, and the window is placed one radius

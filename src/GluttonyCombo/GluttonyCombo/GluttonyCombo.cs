@@ -65,9 +65,11 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         ConnectCallback = new HappyEyeballsCallback().ConnectCallback,
     };
     internal readonly HttpClient HTTPClient = new(httpHandler) { Timeout = TimeSpan.FromSeconds(5) };
-    private readonly IDtrBarEntry DtrBarEntry;
-    public readonly IDtrBarEntry OpenerDtr;
-    internal readonly IDtrBarEntry SmartDtr;
+    // v1.0.4.209: nullable. A title still held by a previous load (see
+    // TryGetDtr) leaves its entry null instead of failing the whole load.
+    private readonly IDtrBarEntry? DtrBarEntry;
+    public readonly IDtrBarEntry? OpenerDtr;
+    internal readonly IDtrBarEntry? SmartDtr;
     internal Provider IPC;
     internal Search IPCSearch = null!;
     internal UIHelper UIHelper = null!;
@@ -282,42 +284,50 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
 
         RegisterCommands();
 
-        DtrBarEntry ??= Svc.DtrBar.Get("Gluttony Combo");
-        DtrBarEntry.OnClick = (_) =>
+        DtrBarEntry ??= TryGetDtr("Gluttony Combo");
+        if (DtrBarEntry is not null)
         {
-            AutoRotationController.ToggleAutoRotation(!Service.Configuration.RotationConfig.Enabled);
-        };
-        DtrBarEntry.Tooltip = new SeString(
-        new TextPayload("Click to toggle Gluttony Combo's Auto-Rotation.\n"),
-        new TextPayload("Disable this icon in /xlsettings -> Server Info Bar"));
+            DtrBarEntry.OnClick = (_) =>
+            {
+                AutoRotationController.ToggleAutoRotation(!Service.Configuration.RotationConfig.Enabled);
+            };
+            DtrBarEntry.Tooltip = new SeString(
+            new TextPayload("Click to toggle Gluttony Combo's Auto-Rotation.\n"),
+            new TextPayload("Disable this icon in /xlsettings -> Server Info Bar"));
+        }
 
-        OpenerDtr ??= Svc.DtrBar.Get("Gluttony Combo Opener");
-
-        OpenerDtr.OnClick += (_) =>
+        OpenerDtr ??= TryGetDtr("Gluttony Combo Opener");
+        if (OpenerDtr is not null)
         {
-            var preset = WrathOpener.CurrentOpener?.Preset;
-            if (preset is not { } pre)
-                return;
+            OpenerDtr.OnClick += (_) =>
+            {
+                var preset = WrathOpener.CurrentOpener?.Preset;
+                if (preset is not { } pre)
+                    return;
 
-            PresetStorage.TogglePreset(pre);
-        };
+                PresetStorage.TogglePreset(pre);
+            };
 
-        OpenerDtr.Tooltip = new SeString(
-        new TextPayload("Click to toggle Opener Preset.\n"),
-        new TextPayload("Disable this icon in /xlsettings -> Server Info Bar"));
+            OpenerDtr.Tooltip = new SeString(
+            new TextPayload("Click to toggle Opener Preset.\n"),
+            new TextPayload("Disable this icon in /xlsettings -> Server Info Bar"));
+        }
         // v1.0.4.197: Smart Movement's own DTR entry - a quick kill switch that
-        // is independent of auto-rotation (Helm t-joey-1789226971574).
-        SmartDtr ??= Svc.DtrBar.Get("Gluttony Smart Movement");
-        SmartDtr.OnClick = (_) =>
+        // is independent of auto-rotation (the related support thread).
+        SmartDtr ??= TryGetDtr("Gluttony Smart Movement");
+        if (SmartDtr is not null)
         {
-            var dps = Service.Configuration.RotationConfig.DPSSettings;
-            dps.SmartMover = !dps.SmartMover;
-            Service.Configuration.Save();
-            DuoLog.Information($"Smart Movement: {(dps.SmartMover ? "On" : "Off")}");
-        };
-        SmartDtr.Tooltip = new SeString(
-        new TextPayload("Click to toggle Gluttony Combo's Smart Movement.\n"),
-        new TextPayload("Disable this icon in /xlsettings -> Server Info Bar"));
+            SmartDtr.OnClick = (_) =>
+            {
+                var dps = Service.Configuration.RotationConfig.DPSSettings;
+                dps.SmartMover = !dps.SmartMover;
+                Service.Configuration.Save();
+                DuoLog.Information($"Smart Movement: {(dps.SmartMover ? "On" : "Off")}");
+            };
+            SmartDtr.Tooltip = new SeString(
+            new TextPayload("Click to toggle Gluttony Combo's Smart Movement.\n"),
+            new TextPayload("Disable this icon in /xlsettings -> Server Info Bar"));
+        }
 
         Svc.ClientState.Login += PrintLoginMessage;
         if (Svc.ClientState.IsLoggedIn) ResetFeatures();
@@ -467,18 +477,22 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
             var statusText = string.Join(" ", [text, ipcControlledText, pausedText]);
 
             var payloadText = new TextPayload(statusText);
-            DtrBarEntry.Text = new SeString(icon, payloadText);
+            if (DtrBarEntry is not null)
+                DtrBarEntry.Text = new SeString(icon, payloadText);
 
             #endregion
 
-            if (Service.Configuration.ShowOpenerDtr)
+            if (OpenerDtr is not null)
             {
-                var status = new TextPayload(WrathOpener.OpenerStatus());
-                OpenerDtr.Text = new SeString(status);
-                OpenerDtr.Shown = true;
+                if (Service.Configuration.ShowOpenerDtr)
+                {
+                    var status = new TextPayload(WrathOpener.OpenerStatus());
+                    OpenerDtr.Text = new SeString(status);
+                    OpenerDtr.Shown = true;
+                }
+                else
+                    OpenerDtr.Shown = false;
             }
-            else
-                OpenerDtr.Shown = false;
 
             // v1.0.4.197: Smart Movement DTR text (own toggle, independent of
             // auto-rotation). Reuses the verified sword icons.
@@ -486,7 +500,8 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
             var smartIcon = new IconPayload(smartOn
                 ? BitmapFontIcon.SwordUnsheathed
                 : BitmapFontIcon.SwordSheathed);
-            SmartDtr.Text = new SeString(smartIcon, new TextPayload(smartOn ? ": On" : ": Off"));
+            if (SmartDtr is not null)
+                SmartDtr.Text = new SeString(smartIcon, new TextPayload(smartOn ? ": On" : ": Off"));
 
             if (Service.Configuration.TankbusterTTS || Service.Configuration.TankbusterToast)
                 CustomComboFunctions.PlayTankbusterAlert();
@@ -597,6 +612,25 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         }
     }
 
+    /// <summary>
+    ///     Server info bar entry, or null when the title is still held by a
+    ///     previous load of this plugin (v1.0.4.209). A missing icon must never
+    ///     fail the whole plugin load - that left 23 hooks leaked and the game
+    ///     needing a restart. The entry returns on the next clean load.
+    /// </summary>
+    private static IDtrBarEntry? TryGetDtr(string title)
+    {
+        try
+        {
+            return Svc.DtrBar.Get(title);
+        }
+        catch (ArgumentException ex)
+        {
+            PluginLog.Warning($"Server info bar entry \"{title}\" is still held by a previous load; it is skipped until the next clean load. ({ex.Message})");
+            return null;
+        }
+    }
+
     public void Dispose()
     {
         ActionRetargeting.Dispose();
@@ -614,8 +648,15 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
 
         _changelog?.Dispose();
         ws.RemoveAllWindows();
-        Svc.DtrBar.Remove("Gluttony Combo");
-        Svc.DtrBar.Remove("Gluttony Combo Opener");
+        // v1.0.4.209: remove EVERY server info bar entry this load owns. The
+        // Smart Movement entry (v1.0.4.197) was never removed, and Dalamud's
+        // own per-plugin cleanup stops after the first entry it finds, so the
+        // entry outlived the unload and the next load's Get() threw "An entry
+        // with the same title already exists" - every in-game update failed
+        // until a game restart.
+        DtrBarEntry?.Remove();
+        OpenerDtr?.Remove();
+        SmartDtr?.Remove();
         Configuration.ConfigChanged -= DebugFile.LoggingConfigChanges;
         Svc.Framework.Update -= OnFrameworkUpdate;
         Svc.ClientState.TerritoryChanged -= ClientState_TerritoryChanged;

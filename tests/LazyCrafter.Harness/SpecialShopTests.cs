@@ -7,7 +7,7 @@ namespace LazyCrafter.Harness;
 /// Currency (special) shop naming and routing - card t_b431de3a.
 ///
 /// <para>
-/// <b>The incident, and what it costs to reproduce.</b> Joey's 11:43:33 run on 0.1.6.6:
+/// <b>The incident, and what it costs to reproduce.</b> The 11:43:33 test run on 0.1.6.6:
 /// <code>
 /// dispatch plan for cart pass 1: gathers=[5150x1] market=[7601x1] deferred=[r30406:needs market #7601]
 /// [LazyCrafter] not crafting Iolite x1 yet - needs market Emery.

@@ -17,7 +17,7 @@ namespace LazyMarketCompanion.AutoMarket;
 // = 0-3), not the planner's StockOrigin. The 0.1.12.0 build assigned `(int)origin` here - a value of 0
 // or 1 - which ExecuteVendor then cast to (InventoryType): Retainer stock addressed Inventory2 (1) and
 // bag stock Inventory1 (0). The pre-call slot re-read read the WRONG container, found no matching
-// stack, and every op aborted safely - the 0/7 no-op Joey's 2026-09-07 23:20 run hit. The StockStack
+// stack, and every op aborted safely - the 0/7 no-op from the 2026-09-07 23:20 test run. The StockStack
 // already carries the real container id (`(int)type` in AutoMarketService.Snapshot); the op now gets it.
 
 /// <summary>One stacks worth of vendoring: a source container slot confirmed to still hold the item.</summary>

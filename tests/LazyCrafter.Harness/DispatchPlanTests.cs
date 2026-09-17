@@ -131,7 +131,7 @@ internal static class DispatchPlanTests
             return p.IsEmpty && !p.HasWork;
         }),
 
-        // ---- "owned" is not "in the bags" (V2 defect, Joey 2026-09-03: "needs to grab stock before attempting craft").
+        // ---- "owned" is not "in the bags" (V2 defect, testing 2026-09-03: "needs to grab stock before attempting craft").
         // The catalog counts retainers / saddlebag / armoury as on-hand by design (Scope §0), but a synthesis can only
         // consume the four bags + crystals - so the plan has to name a Retrieve step and refuse the craft until it happens.
 
@@ -218,7 +218,7 @@ internal static class DispatchPlanTests
         }),
         ("BagsShortfall: stock moved to a retainer after the plan was built -> refuse, naming item, count and place", () =>
         {
-            // This is Joey's 21:29 log line: the plan said craft, the mats were never in the bags.
+            // This is the 21:29 test log line: the plan said craft, the mats were never in the bags.
             var (graph, _, _) = Core([]);
             var row = graph.Row(World.SwordRecipe)!;
             var inv = new FakeInventory().SetElsewhere(World.Ingot, 2, "retainer Cid").Set(World.Leather, 1);

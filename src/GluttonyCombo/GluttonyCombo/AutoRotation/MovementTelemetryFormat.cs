@@ -18,7 +18,7 @@ namespace GluttonyCombo.AutoRotation;
 ///     dist = distance-to-target minus desired-range, 1 decimal, InvariantCulture.
 ///     nz = count of live derived zones. dst = "x,z" rounded to 1y, or "-".
 ///     ovz (v1.0.4.195) = count of live omen-telegraph zones among those.
-///     Gate: emit on change of (dec, dst) plus a 1.0s floor; a dodge START
+///     Gate: emit on change of (dec, dst, nz) plus a 1.0s floor; a dodge START
 ///     (dec=ddg after a non-ddg line) always emits immediately; toggle-off
 ///     is never logged as a decision, but nav-not-ready IS (v1.0.4.198 - a
 ///     dead nav layer hiding behind "off" cost a full debug round).
@@ -49,12 +49,19 @@ internal static class MovementTelemetryFormat
     }
 
     /// <summary> Gate key: the tuple that identifies the situation. </summary>
-    internal readonly record struct EmitKey(byte Decision, int DstX, int DstZ);
+    /// <remarks>
+    ///     v1.0.4.209: the live-zone count is part of the key. Without it a
+    ///     long hold or settle never re-emitted while telegraphs came and went,
+    ///     so a window with several casts live read as nz=0 from the last line.
+    ///     The 1s floor still bounds the rate.
+    /// </remarks>
+    internal readonly record struct EmitKey(byte Decision, int DstX, int DstZ, int Zones = 0);
 
-    internal static EmitKey KeyOf(string dec, float? dstX, float? dstZ) => new(
+    internal static EmitKey KeyOf(string dec, float? dstX, float? dstZ, int liveZones = 0) => new(
         DecisionCode(dec),
         dstX is { } x ? (int)MathF.Round(x) : int.MinValue,
-        dstZ is { } z ? (int)MathF.Round(z) : int.MinValue);
+        dstZ is { } z ? (int)MathF.Round(z) : int.MinValue,
+        liveZones);
 
     internal static byte DecisionCode(string dec) => dec switch
     {

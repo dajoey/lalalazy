@@ -1,3 +1,62 @@
+## v1.0.4.210 (2026-09-17) [testing]
+### Changed
+- **Beastmaster in the Crucible of the Unbroken: familiars are kept alive the way graded runs showed works.** Below 55% HP (setting) a healthier familiar is blown in over the hurt one (1 s horn cast, HP kept, never while moving, not within 8 s of its summon); at half that line Parting Blow (wespe: Final Sting) is the fallback when no horn can land. A Parting Blow at low HP was not enough: the familiar keeps taking hits while it performs the blow. (files: `Combos/PvE/BST/BST_CrucibleLogic.cs`, `Combos/PvE/BST/BST_RotationLogic.cs`)
+- **Familiar HP is remembered across the whole run**, since it carries from node to node and only a campsite rest restores it; the familiar party screen's values are used once they match a summoned familiar's live HP. Low familiars are not brought back while Parting Blow is recasting. (files: `Combos/PvE/BST/BST_Crucible.cs`, `Combos/PvE/BST/BST_CrucibleLive.cs`)
+- **No Battlehorn out of combat on a board by default** (linked to client crashes; summons are blocked on the board), and **no Parting Blow cycling for damage by default**: a familiar leaves when its HP calls for it. Both have options. The fight's Kinship (interrupt, dispel, cleanse) is borrowed in combat from the familiar that has it.
+- **Directional Parry is status 680**; the unnamed 2552 counts only on the First Board bone knight, since later bosses carry it too.
+- **Snarl no longer covers hard hits** (the familiar lost about three times what the character saved). Snarl is for a character at 40% or lower when the familiar can carry 15 s of the recent damage and is not a wespe about to Final Sting (at 25% only the familiar's HP matters); Challenge takes the aggro back at 30% familiar HP. Still "Log only" by default.
+- **Final Sting**: at 30% target HP (15% with two or more enemies) or in the last 10 s of Physical Vulnerability Up; skipped when the target dies within 3 s anyway or while the wespe is covering; a wespe on a spare horn is blown in over a familiar that has spent its One with Nature when the execute is due.
+### Added
+- **Beast picks** in the Beastmaster options: per board and battle, the best three captured familiars for the enemies' weakness, star ratings, crowd-control openings and interrupt / dispel / cleanse needs, a board roster, and familiars worth capturing. Usable before reaching a board. (file: `Combos/PvE/BST/BST_CrucibleAdvisor.cs`)
+- **Crucible auto-targeting** with Auto-Rotation targeting on: never zu eggs or morphos, enemies in a counter stance or an invulnerable phase last, the adds guides kill on sight first (succubi, wisps, ahriman, zombies, a woken Thanatos, the guardia, the bone bishop before the knight), and pairs that must die together kept within 10% HP. (files: `Combos/PvE/BST/BST_CrucibleLive.cs`, `AutoRotation/AutoRotationController.cs`)
+- **Invulnerable phases are held**: Burning Ward, Invincibility, the ymir and sphinx shells, an enemy covered by the guardia, and the general invulnerability check.
+- **Score mode** (the character tanks with Challenge so familiars finish at full HP) and an opt-in **Snarl then Parting Blow tankbuster dodge** keyed to 22 tankbuster casts, timed to when each hit lands.
+- The bat's Ultrasonics cleanses the character; the empty-horn warning names the suggested familiars for that battle.
+### Notes
+- The `CR|` collector line adds `ttd=` (target seconds to death), `in=` (character HP loss per second), `vul=` (vulnerability window left) and `xp=` (familiar party HP verified). With the collector on, the Crucible screens' values are also written once per change as `XB|` / `XP|` lines, to map the board and familiar party screens.
+- Offline: the BST harness runs 854 checks, including the rewritten Crucible rule cases and a Crucible simulator (boards 1-3, familiar HP drain, cycling off and on) with no missed familiar save, no horn out of combat, and no familiar knocked out. Not yet verified in game.
+
+## v1.0.4.209 (2026-09-17) [testing]
+### Fixed
+- **Smart Movement draws danger zones where the game draws the telegraphs.** Zones are now built the way BossMod's auto-hints build them, from the cast's own snapshot:
+  - Cones and lines aim along the cast's own rotation. A cone or line the caster targets on itself (most boss and critical-engagement mechanics) used to point due east whatever way the caster faced.
+  - Ground circles, donuts, crosses and location rects sit at the cast's recorded target location. A helper casting at a ground point used to have the circle drawn on the helper, often 10-30 yalms from the real puddle, and a telegraph placed under the character no longer follows the character around.
+  - Cone width comes from the action's omen (a 60-degree fan is 60 degrees). Every cone used to be modelled 45 degrees wide.
+  - Donut holes come from the omen, so standing in the safe centre is no longer treated as danger.
+  - Casts by the invisible helper actors that place most boss and critical-engagement telegraphs now count. Only casters with a hostile nameplate counted before, and helpers have no nameplate.
+- **A cast no longer keeps the character standing in an AoE.** While the character is inside a live telegraph, or still moving to a dodge destination, the dodge runs even during a hardcast; movement cancels the cast. A cast that starts while the character is safe is left alone.
+- **Ranged jobs dodge from their own range.** Dodge destinations were capped at 15 yalms from the target, so a ranged job standing at 20 yalms either could not find an escape or was pulled in toward the target. The cap now covers the job's own range band.
+- **Game updates no longer need a game restart.** The Smart Movement server info bar entry was left registered when the plugin unloaded, so the updated version failed to load ("An entry with the same title already exists") until the game was restarted. Every entry is now removed on unload, and an entry that is still held can no longer fail the plugin load.
+### Changed
+- Movement telemetry: a stand-down with nothing to stop keeps its reason (`cast`, `man`, `bmr`, `ooc`, `nav`) instead of logging as `hold`, and a change in the live zone count re-emits the line (still at most once per second).
+### Notes
+- The update from 1.0.4.208 or earlier, taken while logged in, still leaves the older version's Smart Movement icon in the server info bar until the next game restart (the older version is the one that fails to remove it). The plugin itself loads. That leftover icon belongs to the unloaded version, so leave it unclicked; toggle Smart Movement from the plugin window until the restart.
+
+## v1.0.4.208 (2026-09-17) [testing]
+### Fixed
+- **Smart Movement now dodges ground telegraphs targeted at the character.** Testing 1.0.4.206 logged engage and hold decisions beside a live zone count without ever issuing a dodge: enemy ground circles, donuts, crosses and location rects aimed at the character were discarded before their shape was considered, on the theory that a marker tracking the character cannot be outrun. Zones are re-derived every tick from live positions, so each tick escapes the current placement, and moving away before the snapshot is how these telegraphs are avoided. Target-anchored casts aimed at the character now build zones like any other, and the resolved ground field keeps lingering as danger after the cast ends.
+### Notes
+- Offline harness coverage for the own-targeted shapes (zone builds at the character's feet, dodge fires with a safe destination, a re-anchored follow tick dodges again, standing clear stays quiet) alongside the unchanged settle-hold, corridor-hold, persistence, and arrival coverage.
+- In-game grading with Smart Movement ON + Movement Telemetry ON: the same content. Expect `ddg` when standing in a telegraph, including one aimed at the character, and `hold` (never `stl`) while the zone count stays above zero.
+
+## v1.0.4.207 (2026-09-17) [testing]
+### Added
+- **Beastmaster: Crucible of the Unbroken rules.** On a Crucible board (detected from the territory; the enemies of all five boards are matched by id from the game's own enemy-panel data), the rotation:
+  - sends a familiar away with Parting Blow (wespe with Final Sting) at 15% HP or lower, before it is knocked out, and does not bring a familiar last seen that low back out while Parting Blow is recasting;
+  - skips the normal Parting Blow exit once every enemy is below 10%, because a Parting Blow as a round ends can block summoning in the next round;
+  - borrows the Kinship the fight's enemy panel calls for before the pull (Soul Crush for an interruptible cast, Quelling Wave for a dispellable buff unless a vulture is on a horn, Scouring Ash for a cleansable debuff), then swaps to another horn;
+  - dispels enemy buffs with the vulture's Bloodcurdling Caw or Quelling Wave, and cleanses debuffs with Scouring Ash;
+  - stops attacking an enemy in Paralyzing Spikes or Needles Out (Ice Spikes and Blaze Spikes are dispelled when a dispel is available), never attacks zu eggs or morphos, and keeps Parting Blow, area Tempered Releases, Trick, Seedsower and Shield Charge away from them;
+  - holds wespe's Final Sting as an execute (target at 40% or lower, 20% with two or more enemies) and brings wespe out after the other horns;
+  - allows knockback and draw-in Tempered Releases.
+  (files: `Combos/PvE/BST/BST_CrucibleLogic.cs`, `Combos/PvE/BST/BST_Crucible.cs`, `Combos/PvE/BST/BST_CrucibleData.cs`, `Combos/PvE/BST/BST_CrucibleData.Generated.cs`, `Combos/PvE/BST/BST_RotationLogic.cs`)
+- **Snarl and Challenge decisions, logged only by default.** Snarl on Directional Parry, on single-target hits listed on the enemy panel, or when the character is low; Challenge when the parry drops or the familiar is low. "Log only" records the choice in the Beastmaster collector without pressing it; "Use" presses it.
+- **Crucible options for the Simple and Advanced Beastmaster presets:** Crucible rules on/off, pet-save HP, Final Sting HP, Snarl / Challenge (Off / Log only / Use), knockback and draw-in releases, and a warning when a battle's enemies are present with no beasts assigned to the Battlehorns. A status line names the board, the battle, and what its enemy panel calls for. (files: `Combos/PvE/BST/BST_Config.cs`, `Resources/Localization/JobConfigs/BST_Config.resx`)
+### Notes
+- With the Beastmaster collector on, a `CR|` line is written while on a Crucible board: board, battle, panel needs, enemy count and HP, target cast, observed statuses, character and familiar HP, the decision, and the logged-only Snarl / Challenge. (files: `Data/CrucibleTelemetryFormat.cs`, `Data/BeastmasterTelemetry.cs`)
+- Outside the Crucible every decision is unchanged. The offline BST harness now runs 761 checks: the existing 661, Crucible data integrity, every Crucible rule including the logged-only modes, and a Crucible simulator on boards 1-3 with familiar HP drain (no missed pet-save, no Parting Blow as a round ends, no familiar knocked out below the stress drain rate). (files: `tests/GluttonyCombo.BSTRotationHarness/Program.cs`, `tests/GluttonyCombo.TelemetryHarness/Program.cs`, `tools/bst-crucible/`)
+- Not yet verified in game: the first real run is the First Board of the Unbroken.
+
 ## v1.0.4.206 (2026-09-17) [testing]
 ### Fixed
 - **Smart Movement no longer walks through live telegraphs to reach the target.** Grading 1.0.4.205 logged an engage Move committed while 8 zones were live: the engage destination was zone-checked, but the path was not, so the character walked the straight corridor through live danger. While any zone is live and the straight corridor of a direct approach crosses one, the mover now holds position (no command, dodge memory kept) until the zones resolve; the dodge still fires first whenever the character is unsafe, a ring-swept sidestep around a covered destination still moves, and engaging with no zones live is unchanged. (files: `AutoRotation/SmartMoverCore.cs` - `Decide` engage corridor hold)

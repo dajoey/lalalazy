@@ -1,0 +1,3463 @@
+{
+ "source": "FFXIV 7.56 game sheets via xivapi v2 (version f5af21155b99a524): XBMContent, XBMContentBattle, XBMBattleDetail, XBMBattleDetailAction, BNpcName, BNpcResist, Action, Status. Decoded 2026-09-16.",
+ "boards": [
+  {
+   "board": 1,
+   "name": "First Board of the Unbroken",
+   "territory": 1339,
+   "cfc": 1088,
+   "level": 30,
+   "item_level": 0,
+   "beast_rank": 5,
+   "roster": 10,
+   "battles": [
+    {
+     "battle": 0,
+     "role": "Boss",
+     "enemies": [
+      {
+       "name_id": 14541,
+       "name": "Pas de Seul",
+       "sub": 0,
+       "weakness": 8,
+       "resist_bits": "11111111111",
+       "actions": [
+        {
+         "action": 46924,
+         "name": "Blood Rain",
+         "cast_s": 6.0,
+         "target": "Self",
+         "area": "Circle/Ring",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 46935,
+         "name": "Cold Caress",
+         "cast_s": 5.0,
+         "target": "Highest Enmity",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": {
+          "id": 5140,
+          "name": "Poison",
+          "category": "detrimental",
+          "cleansable": true,
+          "dispellable": false
+         }
+        }
+       ]
+      },
+      {
+       "name_id": 14542,
+       "name": "succubus mage",
+       "sub": 1,
+       "weakness": 1,
+       "resist_bits": "01101111110",
+       "actions": [
+        {
+         "action": 46928,
+         "name": "Fanaticism",
+         "cast_s": 6.0,
+         "target": "Allies",
+         "area": "Single Target",
+         "interruptible": true,
+         "status": {
+          "id": 1225,
+          "name": "Damage Up",
+          "category": "beneficial",
+          "cleansable": false,
+          "dispellable": true
+         }
+        },
+        {
+         "action": 46929,
+         "name": "Void Fire II",
+         "cast_s": 4.0,
+         "target": "Ground",
+         "area": "Circle",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14543,
+       "name": "succubus knight",
+       "sub": 2,
+       "weakness": 1,
+       "resist_bits": "00011100110",
+       "actions": [
+        {
+         "action": 46930,
+         "name": "Sweet Steel",
+         "cast_s": 4.0,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 1,
+     "role": "Enemy",
+     "enemies": [
+      {
+       "name_id": 14531,
+       "name": "bone knight",
+       "sub": 0,
+       "weakness": 7,
+       "resist_bits": "01101111111",
+       "actions": [
+        {
+         "action": 46866,
+         "name": "Tumulus",
+         "cast_s": 5.0,
+         "target": "Self",
+         "area": "Circle",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 46871,
+         "name": "Ossify",
+         "cast_s": 8.0,
+         "target": "Self",
+         "area": "Single Target",
+         "interruptible": true,
+         "status": {
+          "id": 2074,
+          "name": "Physical Damage Up",
+          "category": "beneficial",
+          "cleansable": false,
+          "dispellable": true
+         }
+        }
+       ]
+      },
+      {
+       "name_id": 14532,
+       "name": "bone bishop",
+       "sub": 1,
+       "weakness": 7,
+       "resist_bits": "11111111101",
+       "actions": [
+        {
+         "action": 46868,
+         "name": "Death Spiral",
+         "cast_s": 6.0,
+         "target": "Self",
+         "area": "Ring",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 46870,
+         "name": "Ancient Aero",
+         "cast_s": 5.7,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": {
+          "id": 4880,
+          "name": "Windburn",
+          "category": "detrimental",
+          "cleansable": true,
+          "dispellable": false
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 2,
+     "role": "Enemy",
+     "enemies": [
+      {
+       "name_id": 14533,
+       "name": "arch demon piece",
+       "sub": 0,
+       "weakness": 4,
+       "resist_bits": "11111011111",
+       "actions": [
+        {
+         "action": 46886,
+         "name": "Abyssal Swing",
+         "cast_s": 5.7,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 3,
+     "role": "Enemy",
+     "enemies": [
+      {
+       "name_id": 14535,
+       "name": "piscodemon piece",
+       "sub": 0,
+       "weakness": 9,
+       "resist_bits": "11111011101",
+       "actions": [
+        {
+         "action": 46898,
+         "name": "Clear Mind",
+         "cast_s": 4.0,
+         "target": "Self",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": {
+          "id": 1225,
+          "name": "Damage Up",
+          "category": "beneficial",
+          "cleansable": false,
+          "dispellable": true
+         }
+        },
+        {
+         "action": 46892,
+         "name": "Void Thunder III",
+         "cast_s": 5.0,
+         "target": "Ground",
+         "area": "Cross",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 4,
+     "role": "Enemy",
+     "enemies": [
+      {
+       "name_id": 14536,
+       "name": "banemite piece",
+       "sub": 0,
+       "weakness": 5,
+       "resist_bits": "11110111111",
+       "actions": [
+        {
+         "action": 46906,
+         "name": "Deadly Thrust",
+         "cast_s": 5.0,
+         "target": "Player",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": {
+          "id": 5140,
+          "name": "Poison",
+          "category": "detrimental",
+          "cleansable": true,
+          "dispellable": false
+         }
+        }
+       ]
+      },
+      {
+       "name_id": 14537,
+       "name": "miteling piece",
+       "sub": 1,
+       "weakness": 5,
+       "resist_bits": "00010100000",
+       "actions": [
+        {
+         "action": 46909,
+         "name": "Silkscreen",
+         "cast_s": 5.0,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": {
+          "id": 5356,
+          "name": "Heavy",
+          "category": "detrimental",
+          "cleansable": false,
+          "dispellable": false
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 5,
+     "role": "Elite Enemy",
+     "enemies": [
+      {
+       "name_id": 14538,
+       "name": "ogre piece",
+       "sub": 0,
+       "weakness": 2,
+       "resist_bits": "11110011111",
+       "actions": [
+        {
+         "action": 46912,
+         "name": "Scorching Smite",
+         "cast_s": 6.0,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 46920,
+         "name": "Straight Punch",
+         "cast_s": 5.0,
+         "target": "Player",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14539,
+       "name": "wisp piece",
+       "sub": 1,
+       "weakness": 6,
+       "resist_bits": "11111111001",
+       "actions": [
+        {
+         "action": 46919,
+         "name": "Scorched Earth",
+         "cast_s": 0.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14748,
+       "name": "great wisp piece",
+       "sub": 2,
+       "weakness": 6,
+       "resist_bits": "11111111001",
+       "actions": [
+        {
+         "action": 46919,
+         "name": "Scorched Earth",
+         "cast_s": 0.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "board": 2,
+   "name": "Second Board of the Unbroken",
+   "territory": 1340,
+   "cfc": 1089,
+   "level": 40,
+   "item_level": 0,
+   "beast_rank": 10,
+   "roster": 12,
+   "battles": [
+    {
+     "battle": 0,
+     "role": "Boss",
+     "enemies": [
+      {
+       "name_id": 14561,
+       "name": "Loosefrox Inkyjots",
+       "sub": 0,
+       "weakness": 7,
+       "resist_bits": "11110011111",
+       "actions": [
+        {
+         "action": 48242,
+         "name": "Kinborrow",
+         "cast_s": 4.0,
+         "target": "Self",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": {
+          "id": 5423,
+          "name": "Popoto Skin",
+          "category": "beneficial",
+          "cleansable": false,
+          "dispellable": true
+         }
+        },
+        {
+         "action": 48229,
+         "name": "Gobspin Headlops",
+         "cast_s": 6.0,
+         "target": "Self",
+         "area": "Circle/Ring",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14562,
+       "name": "Chewchum Popoto",
+       "sub": 1,
+       "weakness": 6,
+       "resist_bits": "11111111111",
+       "actions": [
+        {
+         "action": 48227,
+         "name": "Sand Breath",
+         "cast_s": 9.0,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": {
+          "id": 5381,
+          "name": "Blind",
+          "category": "detrimental",
+          "cleansable": true,
+          "dispellable": false
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 1,
+     "role": "Enemy",
+     "enemies": [
+      {
+       "name_id": 14545,
+       "name": "manticore piece",
+       "sub": 0,
+       "weakness": 2,
+       "resist_bits": "11111011111",
+       "actions": [
+        {
+         "action": 48137,
+         "name": "Hammerleap",
+         "cast_s": 8.1,
+         "target": "Ground",
+         "area": "Circle",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 48138,
+         "name": "Deadly Hold",
+         "cast_s": 5.0,
+         "target": "Player",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 2,
+     "role": "Elite Enemy",
+     "enemies": [
+      {
+       "name_id": 14546,
+       "name": "taurus piece",
+       "sub": 0,
+       "weakness": 8,
+       "resist_bits": "11111111111",
+       "actions": [
+        {
+         "action": 48143,
+         "name": "Mortal Ray",
+         "cast_s": 5.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": {
+          "id": 5421,
+          "name": "Doom",
+          "category": "detrimental",
+          "cleansable": false,
+          "dispellable": false
+         }
+        },
+        {
+         "action": 48155,
+         "name": "Ruinous Locus",
+         "cast_s": 6.0,
+         "target": "Self",
+         "area": "Circle",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14548,
+       "name": "ahriman piece",
+       "sub": 1,
+       "weakness": 5,
+       "resist_bits": "01010100111",
+       "actions": [
+        {
+         "action": 48153,
+         "name": "Mortal Gaze",
+         "cast_s": 5.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": {
+          "id": 5421,
+          "name": "Doom",
+          "category": "detrimental",
+          "cleansable": false,
+          "dispellable": false
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 3,
+     "role": "Enemy",
+     "enemies": [
+      {
+       "name_id": 14549,
+       "name": "wyvern piece",
+       "sub": 0,
+       "weakness": 4,
+       "resist_bits": "11110011111",
+       "actions": [
+        {
+         "action": 48175,
+         "name": "Blazing Trail",
+         "cast_s": 8.0,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 48168,
+         "name": "Typhoon",
+         "cast_s": 3.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 4,
+     "role": "Enemy",
+     "enemies": [
+      {
+       "name_id": 14552,
+       "name": "voidmancer piece",
+       "sub": 0,
+       "weakness": 3,
+       "resist_bits": "11111111111",
+       "actions": [
+        {
+         "action": 50793,
+         "name": "Water",
+         "cast_s": 0.0,
+         "target": "Highest Enmity",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 48186,
+         "name": "Dark Orb",
+         "cast_s": 8.0,
+         "target": "Self",
+         "area": "Circle",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14553,
+       "name": "zombie piece",
+       "sub": 1,
+       "weakness": 5,
+       "resist_bits": "00111111000",
+       "actions": []
+      }
+     ]
+    },
+    {
+     "battle": 5,
+     "role": "Elite Enemy",
+     "enemies": [
+      {
+       "name_id": 14555,
+       "name": "elder tablitaur piece",
+       "sub": 0,
+       "weakness": 1,
+       "resist_bits": "11111111111",
+       "actions": [
+        {
+         "action": 48189,
+         "name": "1000-tonze Swipe",
+         "cast_s": 6.5,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 48193,
+         "name": "1111-tonze Swing",
+         "cast_s": 7.0,
+         "target": "Self",
+         "area": "Circle",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14556,
+       "name": "younger tablitaur piece",
+       "sub": 1,
+       "weakness": 1,
+       "resist_bits": "11100011101",
+       "actions": [
+        {
+         "action": 48203,
+         "name": "Rallying Cheer",
+         "cast_s": 7.0,
+         "target": "Allies",
+         "area": "Single Target",
+         "interruptible": true,
+         "status": {
+          "id": 1225,
+          "name": "Damage Up",
+          "category": "beneficial",
+          "cleansable": false,
+          "dispellable": true
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 6,
+     "role": "Enemy",
+     "enemies": [
+      {
+       "name_id": 14557,
+       "name": "demon piece",
+       "sub": 0,
+       "weakness": 9,
+       "resist_bits": "00011100000",
+       "actions": [
+        {
+         "action": 48247,
+         "name": "Void Paralyze",
+         "cast_s": 5.0,
+         "target": "Highest Enmity",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": {
+          "id": 5382,
+          "name": "Paralysis",
+          "category": "detrimental",
+          "cleansable": true,
+          "dispellable": false
+         }
+        },
+        {
+         "action": 48223,
+         "name": "Condemnation",
+         "cast_s": 3.0,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14558,
+       "name": "evil weapon piece",
+       "sub": 1,
+       "weakness": 5,
+       "resist_bits": "00011100000",
+       "actions": [
+        {
+         "action": 48218,
+         "name": "Smite of Excessive Rage",
+         "cast_s": 7.0,
+         "target": "",
+         "area": "Front/Rear",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 48219,
+         "name": "Smite of Excessive Rage",
+         "cast_s": 7.0,
+         "target": "Self",
+         "area": "Ring",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14559,
+       "name": "devilet piece",
+       "sub": 2,
+       "weakness": 3,
+       "resist_bits": "01011101110",
+       "actions": [
+        {
+         "action": 48222,
+         "name": "Void Fire III",
+         "cast_s": 10.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "board": 3,
+   "name": "Third Board of the Unbroken",
+   "territory": 1341,
+   "cfc": 1090,
+   "level": 50,
+   "item_level": 100,
+   "beast_rank": 15,
+   "roster": 14,
+   "battles": [
+    {
+     "battle": 0,
+     "role": "Boss",
+     "enemies": [
+      {
+       "name_id": 14592,
+       "name": "Guttler the Gutter",
+       "sub": 0,
+       "weakness": 0,
+       "resist_bits": "11111011111",
+       "actions": [
+        {
+         "action": 48607,
+         "name": "Beastly Aura",
+         "cast_s": 7.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 48620,
+         "name": "Thunderbolt",
+         "cast_s": 5.0,
+         "target": "Player",
+         "area": "Front",
+         "interruptible": false,
+         "status": {
+          "id": 5388,
+          "name": "Paralysis",
+          "category": "detrimental",
+          "cleansable": false,
+          "dispellable": false
+         }
+        }
+       ]
+      },
+      {
+       "name_id": 14595,
+       "name": "Thanatos piece",
+       "sub": 1,
+       "weakness": 4,
+       "resist_bits": "00111101111",
+       "actions": [
+        {
+         "action": 50540,
+         "name": "Infernal Pain",
+         "cast_s": 8.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 1,
+     "role": "Enemy",
+     "enemies": [
+      {
+       "name_id": 14564,
+       "name": "cavalier piece",
+       "sub": 0,
+       "weakness": 1,
+       "resist_bits": "11111011111",
+       "actions": [
+        {
+         "action": 48473,
+         "name": "Steelripper",
+         "cast_s": 7.0,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14567,
+       "name": "bone bishop",
+       "sub": 1,
+       "weakness": 7,
+       "resist_bits": "00011101011",
+       "actions": [
+        {
+         "action": 48621,
+         "name": "Blizzard",
+         "cast_s": 0.0,
+         "target": "Highest Enmity",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 50693,
+         "name": "Soul Douse",
+         "cast_s": 5.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 2,
+     "role": "Enemy",
+     "enemies": [
+      {
+       "name_id": 14569,
+       "name": "ymir piece",
+       "sub": 0,
+       "weakness": 5,
+       "resist_bits": "11111001011",
+       "actions": [
+        {
+         "action": 48477,
+         "name": "Head Snatch",
+         "cast_s": 0.0,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 48479,
+         "name": "Blanket Thunder",
+         "cast_s": 5.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14571,
+       "name": "Sahagin piece",
+       "sub": 1,
+       "weakness": 7,
+       "resist_bits": "11100111111",
+       "actions": [
+        {
+         "action": 48485,
+         "name": "Dreadwash",
+         "cast_s": 8.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": true,
+         "status": {
+          "id": 296,
+          "name": "Hysteria",
+          "category": "detrimental",
+          "cleansable": false,
+          "dispellable": false
+         }
+        },
+        {
+         "action": 50532,
+         "name": "Paralyzing Spikes",
+         "cast_s": 3.0,
+         "target": "Self",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": {
+          "id": 5434,
+          "name": "Paralyzing Spikes",
+          "category": "beneficial",
+          "cleansable": false,
+          "dispellable": false
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 3,
+     "role": "Elite Enemy",
+     "enemies": [
+      {
+       "name_id": 14572,
+       "name": "zu piece",
+       "sub": 0,
+       "weakness": 3,
+       "resist_bits": "11110011111",
+       "actions": [
+        {
+         "action": 48497,
+         "name": "Fore Carve",
+         "cast_s": 1.0,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 48499,
+         "name": "Rear Carve",
+         "cast_s": 1.0,
+         "target": "",
+         "area": "Rear",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14573,
+       "name": "cockerel piece",
+       "sub": 1,
+       "weakness": 7,
+       "resist_bits": "00010000000",
+       "actions": []
+      },
+      {
+       "name_id": 14574,
+       "name": "pullet piece",
+       "sub": 2,
+       "weakness": 7,
+       "resist_bits": "00100000110",
+       "actions": [
+        {
+         "action": 48489,
+         "name": "Caustic Vomit",
+         "cast_s": 13.0,
+         "target": "Highest Enmity",
+         "area": "Single Target",
+         "interruptible": true,
+         "status": {
+          "id": 5356,
+          "name": "Heavy",
+          "category": "detrimental",
+          "cleansable": false,
+          "dispellable": false
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 4,
+     "role": "Enemy",
+     "enemies": [
+      {
+       "name_id": 14577,
+       "name": "catoblepas piece",
+       "sub": 0,
+       "weakness": 2,
+       "resist_bits": "11111011111",
+       "actions": [
+        {
+         "action": 48510,
+         "name": "False Demon Eye",
+         "cast_s": 0.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": {
+          "id": 4891,
+          "name": "Petrification",
+          "category": "detrimental",
+          "cleansable": false,
+          "dispellable": false
+         }
+        },
+        {
+         "action": 48512,
+         "name": "Sinister Gleam",
+         "cast_s": 6.5,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 5,
+     "role": "Enemy",
+     "enemies": [
+      {
+       "name_id": 14580,
+       "name": "Lakhamu piece",
+       "sub": 0,
+       "weakness": 6,
+       "resist_bits": "11111111111",
+       "actions": [
+        {
+         "action": 48556,
+         "name": "Landslip",
+         "cast_s": 8.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 48561,
+         "name": "Sand Tempest",
+         "cast_s": 5.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": {
+          "id": 5389,
+          "name": "Blind",
+          "category": "detrimental",
+          "cleansable": false,
+          "dispellable": false
+         }
+        }
+       ]
+      },
+      {
+       "name_id": 14581,
+       "name": "golem piece",
+       "sub": 1,
+       "weakness": 6,
+       "resist_bits": "01111100110",
+       "actions": [
+        {
+         "action": 48555,
+         "name": "Rockslide",
+         "cast_s": 7.0,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 48221,
+         "name": "Might",
+         "cast_s": 5.0,
+         "target": "Self",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": {
+          "id": 1572,
+          "name": "Damage Up",
+          "category": "beneficial",
+          "cleansable": false,
+          "dispellable": false
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 6,
+     "role": "Elite Enemy",
+     "enemies": [
+      {
+       "name_id": 14583,
+       "name": "siren piece",
+       "sub": 0,
+       "weakness": 8,
+       "resist_bits": "11111011111",
+       "actions": [
+        {
+         "action": 48563,
+         "name": "Song of Torment",
+         "cast_s": 5.0,
+         "target": "Player",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 48575,
+         "name": "Dead Man's Dirge",
+         "cast_s": 7.0,
+         "target": "Self",
+         "area": "Circle/Ring",
+         "interruptible": false,
+         "status": {
+          "id": 5424,
+          "name": "Wit's End",
+          "category": "detrimental",
+          "cleansable": false,
+          "dispellable": false
+         }
+        }
+       ]
+      },
+      {
+       "name_id": 14585,
+       "name": "shambling piece",
+       "sub": 1,
+       "weakness": 1,
+       "resist_bits": "01011111001",
+       "actions": [
+        {
+         "action": 50662,
+         "name": "Wallop",
+         "cast_s": 2.5,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14586,
+       "name": "crawling piece",
+       "sub": 2,
+       "weakness": 1,
+       "resist_bits": "11111111111",
+       "actions": [
+        {
+         "action": 48568,
+         "name": "Death Throes",
+         "cast_s": 0.0,
+         "target": "Player",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": {
+          "id": 3134,
+          "name": "Bind",
+          "category": "detrimental",
+          "cleansable": false,
+          "dispellable": false
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 7,
+     "role": "Enemy",
+     "enemies": [
+      {
+       "name_id": 14587,
+       "name": "campeador piece",
+       "sub": 0,
+       "weakness": 4,
+       "resist_bits": "11111111101",
+       "actions": [
+        {
+         "action": 48588,
+         "name": "Seeding Needles",
+         "cast_s": 6.0,
+         "target": "Self",
+         "area": "Circle/Ring",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 48589,
+         "name": "Seeding Needles",
+         "cast_s": 5.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14588,
+       "name": "sabotender piece",
+       "sub": 1,
+       "weakness": 4,
+       "resist_bits": "00011111000",
+       "actions": []
+      },
+      {
+       "name_id": 14589,
+       "name": "flowertender piece",
+       "sub": 2,
+       "weakness": 4,
+       "resist_bits": "00011111000",
+       "actions": [
+        {
+         "action": 48579,
+         "name": "Healing Water",
+         "cast_s": 3.0,
+         "target": "Allies",
+         "area": "Circle",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14590,
+       "name": "soldado piece",
+       "sub": 3,
+       "weakness": 4,
+       "resist_bits": "00011111000",
+       "actions": [
+        {
+         "action": 48581,
+         "name": "??? Needles",
+         "cast_s": 8.0,
+         "target": "Self",
+         "area": "Circle",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14591,
+       "name": "guardia piece",
+       "sub": 4,
+       "weakness": 5,
+       "resist_bits": "11111111111",
+       "actions": [
+        {
+         "action": 48582,
+         "name": "Cactguard",
+         "cast_s": 0.0,
+         "target": "Allies",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": {
+          "id": 2413,
+          "name": "Covered",
+          "category": "beneficial",
+          "cleansable": false,
+          "dispellable": false
+         }
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "board": 4,
+   "name": "First Master's Board",
+   "territory": 1342,
+   "cfc": 1091,
+   "level": 50,
+   "item_level": 120,
+   "beast_rank": 20,
+   "roster": 12,
+   "battles": [
+    {
+     "battle": 0,
+     "role": "Boss",
+     "enemies": [
+      {
+       "name_id": 14628,
+       "name": "Borgny the Venomous",
+       "sub": 0,
+       "weakness": 3,
+       "resist_bits": "11111111111",
+       "actions": [
+        {
+         "action": 48810,
+         "name": "Toxic Vomit",
+         "cast_s": 0.0,
+         "target": "Player",
+         "area": "Circle",
+         "interruptible": false,
+         "status": {
+          "id": 5183,
+          "name": "Toxicosis",
+          "category": "detrimental",
+          "cleansable": false,
+          "dispellable": false
+         }
+        },
+        {
+         "action": 48814,
+         "name": "Cauterize",
+         "cast_s": 6.0,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": {
+          "id": 5183,
+          "name": "Toxicosis",
+          "category": "detrimental",
+          "cleansable": false,
+          "dispellable": false
+         }
+        }
+       ]
+      },
+      {
+       "name_id": 14629,
+       "name": "toxic mass",
+       "sub": 1,
+       "weakness": 6,
+       "resist_bits": "01111101000",
+       "actions": [
+        {
+         "action": 48821,
+         "name": "Noxious Explosion",
+         "cast_s": 0.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": {
+          "id": 5183,
+          "name": "Toxicosis",
+          "category": "detrimental",
+          "cleansable": false,
+          "dispellable": false
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 1,
+     "role": "Enemy",
+     "enemies": [
+      {
+       "name_id": 14596,
+       "name": "Strix piece",
+       "sub": 0,
+       "weakness": 8,
+       "resist_bits": "11111011101",
+       "actions": [
+        {
+         "action": 48668,
+         "name": "Ultimate Focus",
+         "cast_s": 3.0,
+         "target": "Self",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": {
+          "id": 5020,
+          "name": "Magic Damage Up",
+          "category": "beneficial",
+          "cleansable": false,
+          "dispellable": true
+         }
+        },
+        {
+         "action": 48657,
+         "name": "On the Properties of Quakes",
+         "cast_s": 8.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 2,
+     "role": "Enemy",
+     "enemies": [
+      {
+       "name_id": 14599,
+       "name": "morbol piece",
+       "sub": 0,
+       "weakness": 9,
+       "resist_bits": "11111111111",
+       "actions": [
+        {
+         "action": 48673,
+         "name": "Extremely Bad Breath",
+         "cast_s": 5.0,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": {
+          "id": 5382,
+          "name": "Paralysis",
+          "category": "detrimental",
+          "cleansable": true,
+          "dispellable": false
+         }
+        },
+        {
+         "action": 50758,
+         "name": "Tremblor",
+         "cast_s": 5.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14600,
+       "name": "seedling piece",
+       "sub": 1,
+       "weakness": 9,
+       "resist_bits": "00111100001",
+       "actions": [
+        {
+         "action": 50750,
+         "name": "attack",
+         "cast_s": 0.0,
+         "target": "Player",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": {
+          "id": 5141,
+          "name": "Poison",
+          "category": "detrimental",
+          "cleansable": true,
+          "dispellable": false
+         }
+        }
+       ]
+      },
+      {
+       "name_id": 14601,
+       "name": "ochu piece",
+       "sub": 2,
+       "weakness": 9,
+       "resist_bits": "01111101110",
+       "actions": [
+        {
+         "action": 48679,
+         "name": "Acid Mist",
+         "cast_s": 4.0,
+         "target": "Self",
+         "area": "Circle",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14602,
+       "name": "carrion broth",
+       "sub": 3,
+       "weakness": 5,
+       "resist_bits": "11111111101",
+       "actions": [
+        {
+         "action": 50544,
+         "name": "attack",
+         "cast_s": 0.0,
+         "target": "Player",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": {
+          "id": 5382,
+          "name": "Paralysis",
+          "category": "detrimental",
+          "cleansable": true,
+          "dispellable": false
+         }
+        },
+        {
+         "action": 48680,
+         "name": "Sticky Spit",
+         "cast_s": 2.0,
+         "target": "Player",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": {
+          "id": 2551,
+          "name": "Heavy",
+          "category": "detrimental",
+          "cleansable": false,
+          "dispellable": false
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 3,
+     "role": "Enemy",
+     "enemies": [
+      {
+       "name_id": 14603,
+       "name": "corpse flower piece",
+       "sub": 0,
+       "weakness": 2,
+       "resist_bits": "11110111111",
+       "actions": [
+        {
+         "action": 48691,
+         "name": "Rotten Stench",
+         "cast_s": 0.0,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 48685,
+         "name": "Devour",
+         "cast_s": 0.0,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": {
+          "id": 421,
+          "name": "Devoured",
+          "category": "detrimental",
+          "cleansable": false,
+          "dispellable": false
+         }
+        }
+       ]
+      },
+      {
+       "name_id": 14605,
+       "name": "queen hawk piece",
+       "sub": 1,
+       "weakness": 7,
+       "resist_bits": "01010100110",
+       "actions": [
+        {
+         "action": 48689,
+         "name": "Final Sting",
+         "cast_s": 5.0,
+         "target": "Highest Enmity",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 4,
+     "role": "Enemy",
+     "enemies": [
+      {
+       "name_id": 14606,
+       "name": "ice dragon piece",
+       "sub": 0,
+       "weakness": 1,
+       "resist_bits": "11110011111",
+       "actions": [
+        {
+         "action": 48704,
+         "name": "Cauterize",
+         "cast_s": 1.0,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 48708,
+         "name": "Withering Eternity",
+         "cast_s": 5.0,
+         "target": "Ground",
+         "area": "Circle",
+         "interruptible": false,
+         "status": {
+          "id": 5177,
+          "name": "Freezing",
+          "category": "detrimental",
+          "cleansable": false,
+          "dispellable": false
+         }
+        }
+       ]
+      },
+      {
+       "name_id": 14607,
+       "name": "ice sprite",
+       "sub": 1,
+       "weakness": 1,
+       "resist_bits": "01111101111",
+       "actions": [
+        {
+         "action": 48621,
+         "name": "Blizzard",
+         "cast_s": 0.0,
+         "target": "Highest Enmity",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 5,
+     "role": "Elite Enemy",
+     "enemies": [
+      {
+       "name_id": 14608,
+       "name": "gargoyle piece",
+       "sub": 0,
+       "weakness": 0,
+       "resist_bits": "11111111111",
+       "actions": [
+        {
+         "action": 48720,
+         "name": "Rippling Evisceration",
+         "cast_s": 6.0,
+         "target": "Self",
+         "area": "Circle/Ring",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 48727,
+         "name": "Desolation",
+         "cast_s": 3.5,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": {
+          "id": 5178,
+          "name": "Growing Dread",
+          "category": "detrimental",
+          "cleansable": false,
+          "dispellable": false
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 6,
+     "role": "Enemy",
+     "enemies": [
+      {
+       "name_id": 14610,
+       "name": "administrator piece",
+       "sub": 0,
+       "weakness": 4,
+       "resist_bits": "11101111111",
+       "actions": [
+        {
+         "action": 48740,
+         "name": "Confound",
+         "cast_s": 8.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": true,
+         "status": {
+          "id": 1283,
+          "name": "Confused",
+          "category": "detrimental",
+          "cleansable": false,
+          "dispellable": false
+         }
+        },
+        {
+         "action": 48747,
+         "name": "Flame Thrower",
+         "cast_s": 7.0,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14611,
+       "name": "bug piece",
+       "sub": 1,
+       "weakness": 4,
+       "resist_bits": "11111101001",
+       "actions": []
+      },
+      {
+       "name_id": 14612,
+       "name": "footman piece",
+       "sub": 2,
+       "weakness": 4,
+       "resist_bits": "01111101001",
+       "actions": [
+        {
+         "action": 48736,
+         "name": "Headspin",
+         "cast_s": 1.5,
+         "target": "Self",
+         "area": "Circle",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14613,
+       "name": "dreadnaught piece",
+       "sub": 3,
+       "weakness": 4,
+       "resist_bits": "01111101001",
+       "actions": [
+        {
+         "action": 48742,
+         "name": "Incinerate",
+         "cast_s": 0.0,
+         "target": "Self",
+         "area": "Front",
+         "interruptible": false,
+         "status": {
+          "id": 5336,
+          "name": "Fire Resistance Down",
+          "category": "detrimental",
+          "cleansable": false,
+          "dispellable": false
+         }
+        }
+       ]
+      },
+      {
+       "name_id": 14614,
+       "name": "drone piece",
+       "sub": 4,
+       "weakness": 4,
+       "resist_bits": "01111101001",
+       "actions": [
+        {
+         "action": 48735,
+         "name": "Auto-cannons",
+         "cast_s": 3.5,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14616,
+       "name": "cobra piece",
+       "sub": 5,
+       "weakness": 8,
+       "resist_bits": "01111101001",
+       "actions": [
+        {
+         "action": 48738,
+         "name": "Noxious Nova",
+         "cast_s": 8.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": {
+          "id": 5140,
+          "name": "Poison",
+          "category": "detrimental",
+          "cleansable": true,
+          "dispellable": false
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 7,
+     "role": "Elite Enemy",
+     "enemies": [
+      {
+       "name_id": 14617,
+       "name": "golem piece",
+       "sub": 0,
+       "weakness": 6,
+       "resist_bits": "11111111111",
+       "actions": [
+        {
+         "action": 48757,
+         "name": "Stoneshower",
+         "cast_s": 1.0,
+         "target": "Self",
+         "area": "Circle/Ring",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 48768,
+         "name": "Outcrop",
+         "cast_s": 5.0,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 8,
+     "role": "Enemy",
+     "enemies": [
+      {
+       "name_id": 14618,
+       "name": "treant piece",
+       "sub": 0,
+       "weakness": 7,
+       "resist_bits": "11110011101",
+       "actions": [
+        {
+         "action": 48781,
+         "name": "Acorn Bomb",
+         "cast_s": 0.0,
+         "target": "Player",
+         "area": "Circle",
+         "interruptible": false,
+         "status": {
+          "id": 5383,
+          "name": "Nightmare",
+          "category": "detrimental",
+          "cleansable": false,
+          "dispellable": false
+         }
+        }
+       ]
+      },
+      {
+       "name_id": 14619,
+       "name": "slug piece",
+       "sub": 1,
+       "weakness": 7,
+       "resist_bits": "00010000000",
+       "actions": [
+        {
+         "action": 48783,
+         "name": "Aqueous Discharge",
+         "cast_s": 2.5,
+         "target": "Self",
+         "area": "Circle",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14620,
+       "name": "sapling piece",
+       "sub": 2,
+       "weakness": 7,
+       "resist_bits": "01110011110",
+       "actions": [
+        {
+         "action": 48786,
+         "name": "Grab and Grow",
+         "cast_s": 0.0,
+         "target": "Allies",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": {
+          "id": 390,
+          "name": "Growing",
+          "category": "beneficial",
+          "cleansable": false,
+          "dispellable": false
+         }
+        }
+       ]
+      },
+      {
+       "name_id": 14621,
+       "name": "diremite piece",
+       "sub": 3,
+       "weakness": 5,
+       "resist_bits": "00010100000",
+       "actions": [
+        {
+         "action": 48785,
+         "name": "Silkscreen",
+         "cast_s": 3.5,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": {
+          "id": 5356,
+          "name": "Heavy",
+          "category": "detrimental",
+          "cleansable": false,
+          "dispellable": false
+         }
+        }
+       ]
+      },
+      {
+       "name_id": 14622,
+       "name": "biloko piece",
+       "sub": 4,
+       "weakness": 5,
+       "resist_bits": "01101011110",
+       "actions": [
+        {
+         "action": 48782,
+         "name": "Natural Nurture",
+         "cast_s": 9.0,
+         "target": "Allies",
+         "area": "Single Target",
+         "interruptible": true,
+         "status": null
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 9,
+     "role": "Enemy",
+     "enemies": [
+      {
+       "name_id": 14623,
+       "name": "Progenitrix piece",
+       "sub": 0,
+       "weakness": 2,
+       "resist_bits": "11101111111",
+       "actions": [
+        {
+         "action": 48802,
+         "name": "Massive Explosion",
+         "cast_s": 7.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": true,
+         "status": null
+        },
+        {
+         "action": 48801,
+         "name": "Meltdown",
+         "cast_s": 0.0,
+         "target": "Player",
+         "area": "Front",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14624,
+       "name": "grenade piece",
+       "sub": 1,
+       "weakness": 2,
+       "resist_bits": "01111101110",
+       "actions": [
+        {
+         "action": 48790,
+         "name": "Massive Explosion",
+         "cast_s": 4.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14625,
+       "name": "bomb piece",
+       "sub": 2,
+       "weakness": 2,
+       "resist_bits": "01111101110",
+       "actions": [
+        {
+         "action": 48791,
+         "name": "Fire II",
+         "cast_s": 4.0,
+         "target": "Ground",
+         "area": "Circle",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 48792,
+         "name": "Self-destruct",
+         "cast_s": 0.0,
+         "target": "Self",
+         "area": "Circle",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14626,
+       "name": "snoll piece",
+       "sub": 3,
+       "weakness": 1,
+       "resist_bits": "01111101110",
+       "actions": [
+        {
+         "action": 48793,
+         "name": "Ice Spikes",
+         "cast_s": 3.0,
+         "target": "Self",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": {
+          "id": 2528,
+          "name": "Ice Spikes",
+          "category": "beneficial",
+          "cleansable": false,
+          "dispellable": true
+         }
+        },
+        {
+         "action": 48794,
+         "name": "Hypothermal Combustion",
+         "cast_s": 0.0,
+         "target": "Self",
+         "area": "Circle",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14627,
+       "name": "pyrobolus piece",
+       "sub": 4,
+       "weakness": 6,
+       "resist_bits": "11111111110",
+       "actions": [
+        {
+         "action": 48796,
+         "name": "Toxic Fumes",
+         "cast_s": 4.0,
+         "target": "Self",
+         "area": "???",
+         "interruptible": false,
+         "status": {
+          "id": 5141,
+          "name": "Poison",
+          "category": "detrimental",
+          "cleansable": true,
+          "dispellable": false
+         }
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "board": 5,
+   "name": "Second Master's Board",
+   "territory": 1343,
+   "cfc": 1092,
+   "level": 50,
+   "item_level": 135,
+   "beast_rank": 25,
+   "roster": 15,
+   "battles": [
+    {
+     "battle": 0,
+     "role": "Boss",
+     "enemies": [
+      {
+       "name_id": 14693,
+       "name": "Lauda the Spellcleaver",
+       "sub": 0,
+       "weakness": 0,
+       "resist_bits": "11111011111",
+       "actions": [
+        {
+         "action": 49453,
+         "name": "Beastly Aura",
+         "cast_s": 7.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 49470,
+         "name": "Thunderbolt",
+         "cast_s": 5.0,
+         "target": "Player",
+         "area": "Front",
+         "interruptible": false,
+         "status": {
+          "id": 5388,
+          "name": "Paralysis",
+          "category": "detrimental",
+          "cleansable": false,
+          "dispellable": false
+         }
+        }
+       ]
+      },
+      {
+       "name_id": 14699,
+       "name": "Thanatos piece",
+       "sub": 1,
+       "weakness": 4,
+       "resist_bits": "00111101111",
+       "actions": [
+        {
+         "action": 50541,
+         "name": "Infernal Pain",
+         "cast_s": 8.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 1,
+     "role": "Enemy",
+     "enemies": [
+      {
+       "name_id": 14631,
+       "name": "Flauros piece",
+       "sub": 0,
+       "weakness": 3,
+       "resist_bits": "11111011101",
+       "actions": [
+        {
+         "action": 49193,
+         "name": "Charged Lightning",
+         "cast_s": 5.8,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 49189,
+         "name": "Erratic Blaster",
+         "cast_s": 7.0,
+         "target": "Player",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": {
+          "id": 5382,
+          "name": "Paralysis",
+          "category": "detrimental",
+          "cleansable": true,
+          "dispellable": false
+         }
+        }
+       ]
+      },
+      {
+       "name_id": 14632,
+       "name": "lightning sprite",
+       "sub": 1,
+       "weakness": 3,
+       "resist_bits": "01111111111",
+       "actions": [
+        {
+         "action": 49194,
+         "name": "Line Voltage",
+         "cast_s": 2.0,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 2,
+     "role": "Elite Enemy",
+     "enemies": [
+      {
+       "name_id": 14633,
+       "name": "mindflayer piece",
+       "sub": 0,
+       "weakness": 9,
+       "resist_bits": "11111011101",
+       "actions": [
+        {
+         "action": 49200,
+         "name": "Void Water III",
+         "cast_s": 0.0,
+         "target": "Player",
+         "area": "Circle",
+         "interruptible": false,
+         "status": {
+          "id": 5021,
+          "name": "Water Resistance Down",
+          "category": "detrimental",
+          "cleansable": false,
+          "dispellable": false
+         }
+        },
+        {
+         "action": 49208,
+         "name": "Void Paralyze III",
+         "cast_s": 7.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": {
+          "id": 5382,
+          "name": "Paralysis",
+          "category": "detrimental",
+          "cleansable": true,
+          "dispellable": false
+         }
+        }
+       ]
+      },
+      {
+       "name_id": 14634,
+       "name": "myconid piece",
+       "sub": 1,
+       "weakness": 6,
+       "resist_bits": "01110011000",
+       "actions": [
+        {
+         "action": 49196,
+         "name": "Spore Spill",
+         "cast_s": 1.0,
+         "target": "Self",
+         "area": "Circle",
+         "interruptible": false,
+         "status": {
+          "id": 5140,
+          "name": "Poison",
+          "category": "detrimental",
+          "cleansable": true,
+          "dispellable": false
+         }
+        },
+        {
+         "action": 49198,
+         "name": "Big Burst",
+         "cast_s": 0.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": {
+          "id": 5140,
+          "name": "Poison",
+          "category": "detrimental",
+          "cleansable": true,
+          "dispellable": false
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 3,
+     "role": "Enemy",
+     "enemies": [
+      {
+       "name_id": 14638,
+       "name": "boogyman piece",
+       "sub": 0,
+       "weakness": 5,
+       "resist_bits": "11111011101",
+       "actions": [
+        {
+         "action": 49231,
+         "name": "Ripples of Gloom",
+         "cast_s": 5.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": {
+          "id": 5389,
+          "name": "Blind",
+          "category": "detrimental",
+          "cleansable": false,
+          "dispellable": false
+         }
+        },
+        {
+         "action": 49209,
+         "name": "Veil of Darkness",
+         "cast_s": 4.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": {
+          "id": 616,
+          "name": "Invisible",
+          "category": "beneficial",
+          "cleansable": false,
+          "dispellable": false
+         }
+        }
+       ]
+      },
+      {
+       "name_id": 14639,
+       "name": "deepeye piece",
+       "sub": 1,
+       "weakness": 2,
+       "resist_bits": "01010000000",
+       "actions": [
+        {
+         "action": 49214,
+         "name": "Oogle",
+         "cast_s": 10.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": {
+          "id": 4891,
+          "name": "Petrification",
+          "category": "detrimental",
+          "cleansable": false,
+          "dispellable": false
+         }
+        }
+       ]
+      },
+      {
+       "name_id": 14640,
+       "name": "bomb piece",
+       "sub": 2,
+       "weakness": 2,
+       "resist_bits": "11111101110",
+       "actions": [
+        {
+         "action": 49211,
+         "name": "Self-destruct",
+         "cast_s": 8.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 49210,
+         "name": "Explosion",
+         "cast_s": 5.0,
+         "target": "Self",
+         "area": "Circle",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14641,
+       "name": "light sprite",
+       "sub": 3,
+       "weakness": 0,
+       "resist_bits": "01111111111",
+       "actions": [
+        {
+         "action": 49213,
+         "name": "Banish",
+         "cast_s": 1.5,
+         "target": "Highest Enmity",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 49212,
+         "name": "Diffuse Light",
+         "cast_s": 1.5,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 4,
+     "role": "Enemy",
+     "enemies": [
+      {
+       "name_id": 14642,
+       "name": "Atomos piece",
+       "sub": 0,
+       "weakness": 7,
+       "resist_bits": "11111111111",
+       "actions": [
+        {
+         "action": 49238,
+         "name": "Shockwave",
+         "cast_s": 6.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 49240,
+         "name": "Dark II",
+         "cast_s": 7.0,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14643,
+       "name": "red gremlin piece",
+       "sub": 1,
+       "weakness": 8,
+       "resist_bits": "00010000000",
+       "actions": [
+        {
+         "action": 49241,
+         "name": "Bad-mouth",
+         "cast_s": 3.0,
+         "target": "Player",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": {
+          "id": 126,
+          "name": "Physical Vulnerability Up",
+          "category": "detrimental",
+          "cleansable": false,
+          "dispellable": false
+         }
+        }
+       ]
+      },
+      {
+       "name_id": 14644,
+       "name": "gremlin piece",
+       "sub": 2,
+       "weakness": 8,
+       "resist_bits": "00010000000",
+       "actions": []
+      },
+      {
+       "name_id": 14645,
+       "name": "pudding piece",
+       "sub": 3,
+       "weakness": 2,
+       "resist_bits": "11111011110",
+       "actions": [
+        {
+         "action": 49243,
+         "name": "Fire III",
+         "cast_s": 8.0,
+         "target": "Player",
+         "area": "Circle",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14646,
+       "name": "bavarois piece",
+       "sub": 4,
+       "weakness": 4,
+       "resist_bits": "11111011110",
+       "actions": [
+        {
+         "action": 49242,
+         "name": "Water III",
+         "cast_s": 2.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14647,
+       "name": "flan piece",
+       "sub": 5,
+       "weakness": 3,
+       "resist_bits": "11111011110",
+       "actions": [
+        {
+         "action": 49246,
+         "name": "Thunder III",
+         "cast_s": 0.0,
+         "target": "Player",
+         "area": "Circle",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14648,
+       "name": "vodoriga piece",
+       "sub": 6,
+       "weakness": 8,
+       "resist_bits": "00011111000",
+       "actions": [
+        {
+         "action": 49247,
+         "name": "Terror Eye",
+         "cast_s": 3.0,
+         "target": "Ground",
+         "area": "Circle",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14649,
+       "name": "menacing dahak piece",
+       "sub": 7,
+       "weakness": 5,
+       "resist_bits": "11111011111",
+       "actions": [
+        {
+         "action": 49248,
+         "name": "Rotten Breath",
+         "cast_s": 5.0,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 49249,
+         "name": "Tail Drive",
+         "cast_s": 5.0,
+         "target": "",
+         "area": "Rear",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 5,
+     "role": "Enemy",
+     "enemies": [
+      {
+       "name_id": 14651,
+       "name": "drake piece",
+       "sub": 0,
+       "weakness": 2,
+       "resist_bits": "11110011111",
+       "actions": [
+        {
+         "action": 49253,
+         "name": "Blaze Spikes",
+         "cast_s": 3.0,
+         "target": "Self",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": {
+          "id": 5465,
+          "name": "Blaze Spikes",
+          "category": "beneficial",
+          "cleansable": false,
+          "dispellable": true
+         }
+        },
+        {
+         "action": 49254,
+         "name": "Mangling Fang",
+         "cast_s": 5.0,
+         "target": "Player",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14653,
+       "name": "barbmole piece",
+       "sub": 1,
+       "weakness": 1,
+       "resist_bits": "01110011000",
+       "actions": [
+        {
+         "action": 49250,
+         "name": "Needles Out",
+         "cast_s": 3.0,
+         "target": "Self",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": {
+          "id": 5145,
+          "name": "Needles Out",
+          "category": "beneficial",
+          "cleansable": false,
+          "dispellable": false
+         }
+        },
+        {
+         "action": 49252,
+         "name": "Seeding Needles",
+         "cast_s": 5.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14655,
+       "name": "abaddon piece",
+       "sub": 2,
+       "weakness": 6,
+       "resist_bits": "11110011110",
+       "actions": []
+      },
+      {
+       "name_id": 14656,
+       "name": "morpho piece",
+       "sub": 3,
+       "weakness": 7,
+       "resist_bits": "01111111111",
+       "actions": [
+        {
+         "action": 49260,
+         "name": "Unwitting Wings",
+         "cast_s": 4.0,
+         "target": "Player",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": {
+          "id": 5146,
+          "name": "Wit's End",
+          "category": "detrimental",
+          "cleansable": false,
+          "dispellable": false
+         }
+        },
+        {
+         "action": 49261,
+         "name": "Delusion Dust",
+         "cast_s": 0.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": {
+          "id": 1283,
+          "name": "Confused",
+          "category": "detrimental",
+          "cleansable": false,
+          "dispellable": false
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 6,
+     "role": "Elite Enemy",
+     "enemies": [
+      {
+       "name_id": 14657,
+       "name": "Durga piece",
+       "sub": 0,
+       "weakness": 1,
+       "resist_bits": "11110111111",
+       "actions": [
+        {
+         "action": 49272,
+         "name": "Atomic Ray",
+         "cast_s": 13.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 49265,
+         "name": "Grounding Jolt",
+         "cast_s": 5.2,
+         "target": "Ground",
+         "area": "Circle",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14659,
+       "name": "spinner-rook piece",
+       "sub": 1,
+       "weakness": 7,
+       "resist_bits": "01111101111",
+       "actions": [
+        {
+         "action": 49271,
+         "name": "Aether Charge",
+         "cast_s": 3.0,
+         "target": "Allies",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 7,
+     "role": "Elite Enemy",
+     "enemies": [
+      {
+       "name_id": 14660,
+       "name": "medusa piece",
+       "sub": 0,
+       "weakness": 8,
+       "resist_bits": "11111111111",
+       "actions": [
+        {
+         "action": 49278,
+         "name": "Petrifying Regard",
+         "cast_s": 3.0,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": {
+          "id": 437,
+          "name": "Stone Curse",
+          "category": "detrimental",
+          "cleansable": false,
+          "dispellable": false
+         }
+        },
+        {
+         "action": 49298,
+         "name": "Impassion",
+         "cast_s": 8.0,
+         "target": "Self",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": {
+          "id": 3129,
+          "name": "Damage Up",
+          "category": "beneficial",
+          "cleansable": false,
+          "dispellable": false
+         }
+        }
+       ]
+      },
+      {
+       "name_id": 14661,
+       "name": "lamia piece",
+       "sub": 1,
+       "weakness": 8,
+       "resist_bits": "11001011110",
+       "actions": [
+        {
+         "action": 49286,
+         "name": "Terrorizing Miasma",
+         "cast_s": 4.0,
+         "target": "Self",
+         "area": "Circle",
+         "interruptible": false,
+         "status": {
+          "id": 4167,
+          "name": "Hysteria",
+          "category": "detrimental",
+          "cleansable": false,
+          "dispellable": false
+         }
+        },
+        {
+         "action": 49287,
+         "name": "Raise",
+         "cast_s": 10.0,
+         "target": "Allies",
+         "area": "Single Target",
+         "interruptible": true,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14662,
+       "name": "cyclops piece",
+       "sub": 2,
+       "weakness": 0,
+       "resist_bits": "10110011110",
+       "actions": [
+        {
+         "action": 49297,
+         "name": "1000-tonze Swing",
+         "cast_s": 10.0,
+         "target": "Self",
+         "area": "Circle",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 49370,
+         "name": "Glower",
+         "cast_s": 4.0,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": {
+          "id": 5382,
+          "name": "Paralysis",
+          "category": "detrimental",
+          "cleansable": true,
+          "dispellable": false
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 8,
+     "role": "Elite Enemy",
+     "enemies": [
+      {
+       "name_id": 14663,
+       "name": "chimera piece",
+       "sub": 0,
+       "weakness": 6,
+       "resist_bits": "11111111111",
+       "actions": [
+        {
+         "action": 49315,
+         "name": "the Ram's Roar",
+         "cast_s": 7.0,
+         "target": "Self",
+         "area": "Circle",
+         "interruptible": false,
+         "status": {
+          "id": 5500,
+          "name": "Frostbite",
+          "category": "detrimental",
+          "cleansable": true,
+          "dispellable": false
+         }
+        },
+        {
+         "action": 49316,
+         "name": "the Dragon's Roar",
+         "cast_s": 7.0,
+         "target": "Self",
+         "area": "Ring",
+         "interruptible": false,
+         "status": {
+          "id": 5498,
+          "name": "Electrocution",
+          "category": "detrimental",
+          "cleansable": true,
+          "dispellable": false
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 9,
+     "role": "Enemy",
+     "enemies": [
+      {
+       "name_id": 14665,
+       "name": "sphinx piece",
+       "sub": 0,
+       "weakness": 9,
+       "resist_bits": "11111111111",
+       "actions": [
+        {
+         "action": 49344,
+         "name": "Mnemonic Riddle",
+         "cast_s": 5.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 49353,
+         "name": "Numeric Riddle",
+         "cast_s": 5.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 10,
+     "role": "Enemy",
+     "enemies": [
+      {
+       "name_id": 14670,
+       "name": "gigantis piece",
+       "sub": 0,
+       "weakness": 0,
+       "resist_bits": "11110011101",
+       "actions": [
+        {
+         "action": 49378,
+         "name": "Smashing Stamp",
+         "cast_s": 3.0,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": {
+          "id": 3908,
+          "name": "Down for the Count",
+          "category": "detrimental",
+          "cleansable": false,
+          "dispellable": false
+         }
+        },
+        {
+         "action": 49359,
+         "name": "Gigantic Rage",
+         "cast_s": 6.0,
+         "target": "Self",
+         "area": "???",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14671,
+       "name": "cyclops piece",
+       "sub": 1,
+       "weakness": 0,
+       "resist_bits": "10100011100",
+       "actions": [
+        {
+         "action": 49367,
+         "name": "Glower",
+         "cast_s": 4.0,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": {
+          "id": 5382,
+          "name": "Paralysis",
+          "category": "detrimental",
+          "cleansable": true,
+          "dispellable": false
+         }
+        },
+        {
+         "action": 49368,
+         "name": "Camaraderie",
+         "cast_s": 8.0,
+         "target": "Allies",
+         "area": "Single Target",
+         "interruptible": true,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14672,
+       "name": "congealed lightning",
+       "sub": 2,
+       "weakness": 3,
+       "resist_bits": "11101011111",
+       "actions": [
+        {
+         "action": 49373,
+         "name": "Rupture",
+         "cast_s": 7.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": true,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14673,
+       "name": "congealed kindling",
+       "sub": 3,
+       "weakness": 2,
+       "resist_bits": "11101011111",
+       "actions": [
+        {
+         "action": 49375,
+         "name": "Rupture",
+         "cast_s": 7.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": true,
+         "status": null
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 11,
+     "role": "Enemy",
+     "enemies": [
+      {
+       "name_id": 14674,
+       "name": "swordsmog piece",
+       "sub": 0,
+       "weakness": 4,
+       "resist_bits": "00010010110",
+       "actions": []
+      },
+      {
+       "name_id": 14675,
+       "name": "mogbreaker piece",
+       "sub": 1,
+       "weakness": 4,
+       "resist_bits": "11110011111",
+       "actions": [
+        {
+         "action": 49381,
+         "name": "100-kuponze Swipe",
+         "cast_s": 8.0,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 49383,
+         "name": "Moogle Tempest",
+         "cast_s": 8.0,
+         "target": "Self",
+         "area": "Circle",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14676,
+       "name": "kinged kupocurer",
+       "sub": 2,
+       "weakness": 7,
+       "resist_bits": "01111001111",
+       "actions": [
+        {
+         "action": 49385,
+         "name": "Pom Flood",
+         "cast_s": 10.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": {
+          "id": 5337,
+          "name": "Water Resistance Down",
+          "category": "detrimental",
+          "cleansable": false,
+          "dispellable": false
+         }
+        }
+       ]
+      },
+      {
+       "name_id": 14677,
+       "name": "kinged kupocaster",
+       "sub": 3,
+       "weakness": 7,
+       "resist_bits": "01111001111",
+       "actions": [
+        {
+         "action": 49384,
+         "name": "Pom Flare",
+         "cast_s": 10.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": {
+          "id": 5336,
+          "name": "Fire Resistance Down",
+          "category": "detrimental",
+          "cleansable": false,
+          "dispellable": false
+         }
+        }
+       ]
+      },
+      {
+       "name_id": 14678,
+       "name": "kupocurer piece",
+       "sub": 4,
+       "weakness": 7,
+       "resist_bits": "01111001111",
+       "actions": [
+        {
+         "action": 49387,
+         "name": "Pom Holy",
+         "cast_s": 9.0,
+         "target": "",
+         "area": "???",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 48626,
+         "name": "Water",
+         "cast_s": 0.0,
+         "target": "Highest Enmity",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14679,
+       "name": "kupocaster piece",
+       "sub": 5,
+       "weakness": 7,
+       "resist_bits": "01111001111",
+       "actions": [
+        {
+         "action": 50943,
+         "name": "Pom Meteorain",
+         "cast_s": 7.5,
+         "target": "Ground",
+         "area": "Circle",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 48621,
+         "name": "Blizzard",
+         "cast_s": 0.0,
+         "target": "Highest Enmity",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14680,
+       "name": "kinged swordsmog",
+       "sub": 6,
+       "weakness": 4,
+       "resist_bits": "00010000001",
+       "actions": [
+        {
+         "action": 49395,
+         "name": "Mogshield Swipe",
+         "cast_s": 0.0,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 49394,
+         "name": "Spirit of Pompetition",
+         "cast_s": 3.0,
+         "target": "Self",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": {
+          "id": 1225,
+          "name": "Damage Up",
+          "category": "beneficial",
+          "cleansable": false,
+          "dispellable": true
+         }
+        }
+       ]
+      },
+      {
+       "name_id": 14681,
+       "name": "melomog piece",
+       "sub": 7,
+       "weakness": 6,
+       "resist_bits": "11111011110",
+       "actions": [
+        {
+         "action": 49397,
+         "name": "Moghemian Rhapsody",
+         "cast_s": 0.0,
+         "target": "Allies",
+         "area": "Circle",
+         "interruptible": false,
+         "status": {
+          "id": 2550,
+          "name": "Damage Up",
+          "category": "beneficial",
+          "cleansable": false,
+          "dispellable": false
+         }
+        }
+       ]
+      },
+      {
+       "name_id": 14683,
+       "name": "mogmugger piece",
+       "sub": 8,
+       "weakness": 6,
+       "resist_bits": "11111011110",
+       "actions": [
+        {
+         "action": 49399,
+         "name": "Daylight Pommery",
+         "cast_s": 0.0,
+         "target": "Player",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 49400,
+         "name": "Kupo and Good Night",
+         "cast_s": 10.0,
+         "target": "",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 12,
+     "role": "Elite Enemy",
+     "enemies": [
+      {
+       "name_id": 14684,
+       "name": "behemoth piece",
+       "sub": 0,
+       "weakness": 3,
+       "resist_bits": "11111011111",
+       "actions": [
+        {
+         "action": 49410,
+         "name": "Ecliptic Meteor",
+         "cast_s": 11.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 49415,
+         "name": "Charybdis",
+         "cast_s": 6.0,
+         "target": "Self",
+         "area": "Circle/Ring",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14685,
+       "name": "giant piece",
+       "sub": 1,
+       "weakness": 4,
+       "resist_bits": "01111101001",
+       "actions": [
+        {
+         "action": 49408,
+         "name": "Grand Sword",
+         "cast_s": 4.0,
+         "target": "",
+         "area": "Front",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14686,
+       "name": "lightning sprite",
+       "sub": 2,
+       "weakness": 3,
+       "resist_bits": "01111111111",
+       "actions": [
+        {
+         "action": 49411,
+         "name": "Cross Charge",
+         "cast_s": 4.0,
+         "target": "Self",
+         "area": "Cross",
+         "interruptible": false,
+         "status": {
+          "id": 5382,
+          "name": "Paralysis",
+          "category": "detrimental",
+          "cleansable": true,
+          "dispellable": false
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "battle": 13,
+     "role": "Elite Enemy",
+     "enemies": [
+      {
+       "name_id": 14688,
+       "name": "king ahriman piece",
+       "sub": 0,
+       "weakness": 5,
+       "resist_bits": "11111111111",
+       "actions": [
+        {
+         "action": 49418,
+         "name": "Roulette",
+         "cast_s": 5.0,
+         "target": "",
+         "area": "???",
+         "interruptible": false,
+         "status": null
+        },
+        {
+         "action": 49429,
+         "name": "Curtains for Rank 5",
+         "cast_s": 6.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      },
+      {
+       "name_id": 14691,
+       "name": "hapalit piece",
+       "sub": 1,
+       "weakness": 2,
+       "resist_bits": "11110011001",
+       "actions": [
+        {
+         "action": 49435,
+         "name": "Straight Punch",
+         "cast_s": 0.0,
+         "target": "Highest Enmity",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": {
+          "id": 5495,
+          "name": "Burns",
+          "category": "detrimental",
+          "cleansable": true,
+          "dispellable": false
+         }
+        }
+       ]
+      },
+      {
+       "name_id": 14692,
+       "name": "dirty eye piece",
+       "sub": 2,
+       "weakness": 5,
+       "resist_bits": "01111100110",
+       "actions": [
+        {
+         "action": 49434,
+         "name": "Mortal Gaze",
+         "cast_s": 4.0,
+         "target": "",
+         "area": "Universal",
+         "interruptible": false,
+         "status": {
+          "id": 5421,
+          "name": "Doom",
+          "category": "detrimental",
+          "cleansable": false,
+          "dispellable": false
+         }
+        },
+        {
+         "action": 50747,
+         "name": "Stone",
+         "cast_s": 0.0,
+         "target": "Highest Enmity",
+         "area": "Single Target",
+         "interruptible": false,
+         "status": null
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -69,7 +69,7 @@ internal static class FetchGateTests
 
         // ------------------------------------------------------------ 0.1.6.15: the walk's own sentences
 
-        ("fetchgate15: the walk names the inn room's bell, never the market board (Helm t-joey-1788808881825)", () =>
+        ("fetchgate15: the walk names the inn room's bell, never the market board (the related support thread)", () =>
             FetchGatePolicy.TripStatus() == "walking to the summoning bell in the inn room"
             && FetchGatePolicy.TripHeartbeat() == "walking to the summoning bell in the inn room so the retainer fetch can run"
             && !FetchGatePolicy.TripStatus().Contains("market board")

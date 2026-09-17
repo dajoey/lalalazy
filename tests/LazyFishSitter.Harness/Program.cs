@@ -102,7 +102,7 @@ internal static class Program
     }
 
     // ---------------------------------------------------------------------------------
-    // 4. v0.1.2.0's defect: it re-sat after every catch. Joey: the game does that for you.
+    // 4. v0.1.2.0's defect: it re-sat after every catch. Testing notes: the game does that for you.
     // ---------------------------------------------------------------------------------
     private static void Case04_NoResitAfterEveryCatch()
     {
@@ -144,7 +144,7 @@ internal static class Program
     // ---------------------------------------------------------------------------------
     private static void Case07_HookTransientStandIsIgnored()
     {
-        // Seated the whole time except a 2 s stand across the hook, exactly as Joey describes.
+        // Seated the whole time except a 2 s stand across the hook, exactly as observed in testing.
         var s = new Session().Set(x => x.Seated = true).ArriveAtHole().PoleReady(10)
             .Set(x => { x.Fishing = true; x.State = FishState.LineInWater; }).Hold(8)
             .Set(x => x.State = FishState.Bite).Hold(0.5)

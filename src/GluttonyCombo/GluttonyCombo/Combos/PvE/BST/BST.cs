@@ -20,7 +20,7 @@ namespace GluttonyCombo.Combos.PvE;
 // harness (tests/GluttonyCombo.BSTRotationHarness) runs through a familiar-lifecycle simulator at
 // every level 1-50. Keep game reads here and rules there.
 //
-// Root causes this rebuild fixes, proven from Joey's 2026-09-16 17:48 and 18:01 sessions:
+// Root causes this rebuild fixes, proven from the 2026-09-16 17:48 and 18:01 test sessions:
 //  1. The old loop pressed Tempered Release the moment a familiar arrived. On wespe that is Final Sting,
 //     which retreats the familiar ("sacrificing the pet moments after summoning it").
 //  2. The next horn was picked from the Borrow-latched gauge nibble (always 0 below L22), so it kept
@@ -38,7 +38,7 @@ internal partial class BST : Melee
             if (!CustomActionHelper.OneButtonRotationChecker(actionID, CustomActionType.SingleTargetDPS, SmashAxe))
                 return actionID;
 
-            return Run(BST_RotationLogic.BstSettings.Defaults(aoe: false));
+            return Run(SimpleSettings(aoe: false));
         }
     }
 
@@ -64,7 +64,7 @@ internal partial class BST : Melee
             if (!CustomActionHelper.OneButtonRotationChecker(actionID, CustomActionType.AoEDPS, AxebladeBite))
                 return actionID;
 
-            return Run(BST_RotationLogic.BstSettings.Defaults(aoe: true));
+            return Run(SimpleSettings(aoe: true));
         }
     }
 
@@ -85,7 +85,24 @@ internal partial class BST : Melee
 
     #region Run
 
-    private static BST_RotationLogic.BstSettings AdvancedSettings(bool aoe) => new()
+    /// <summary> Simple Mode: engine defaults, plus the Crucible options (the only ones Simple Mode shows). </summary>
+    private static BST_RotationLogic.BstSettings SimpleSettings(bool aoe) => WithCrucible(BST_RotationLogic.BstSettings.Defaults(aoe));
+
+    private static BST_RotationLogic.BstSettings WithCrucible(BST_RotationLogic.BstSettings cfg) => cfg with
+    {
+        Crucible = BST_Crucible,
+        CruciblePetSwapHp = BST_CruciblePetSwapHp,
+        CrucibleFinalStingHp = BST_CrucibleFinalStingHp,
+        CrucibleAggro = (CrucibleAggroMode)(int)BST_CrucibleAggro,
+        CrucibleAllowDisplacing = BST_CrucibleAllowDisplacing,
+        CrucibleScoreMode = BST_CrucibleScoreMode,
+        CrucibleCycleForDamage = BST_CrucibleCycleForDamage,
+        CruciblePrepullHorns = BST_CruciblePrepullHorns,
+        CrucibleSnarlParting = BST_CrucibleSnarlParting,
+        CrucibleSnarlPartingLead = BST_CrucibleSnarlPartingLead / 10f,
+    };
+
+    private static BST_RotationLogic.BstSettings AdvancedSettings(bool aoe) => WithCrucible(new()
     {
         AoE = aoe,
         MinFamiliarStaySeconds = BST_MinFamiliarStay,
@@ -104,7 +121,7 @@ internal partial class BST : Melee
         UseQuellingWaveRanged = BST_UseQuellingWaveRanged,
         UseShieldCharge = BST_UseShieldCharge,
         UseRally = BST_UseRally,
-    };
+    });
 
     private static uint Run(in BST_RotationLogic.BstSettings cfg)
     {
@@ -118,6 +135,7 @@ internal partial class BST : Melee
         LastDecisionReason = decision.Reason;
         FamiliarDeclineReason = decision.Declines;
         LastSlotBeasts = $"{state.Slot1Beast}.{state.Slot2Beast}.{state.Slot3Beast}";
+        LastShadow = decision.Shadow;
 
         return decision.ActionId;
     }
@@ -131,6 +149,9 @@ internal partial class BST : Melee
 
     /// <summary> XBMPet rows assigned to horns 1.2.3 on the last tick (BT|sl=). </summary>
     internal static string LastSlotBeasts = "";
+
+    /// <summary> Crucible Snarl / Challenge chosen in shadow mode on the last tick (CR|sh=). </summary>
+    internal static string LastShadow = "";
 
     #endregion
 
@@ -314,6 +335,8 @@ internal partial class BST : Melee
         s.ShieldChargeCharges = (int)GetRemainingCharges(ShieldCharge);
         s.ShieldChargeMax = GetMaxCharges(ShieldCharge);
         s.ReadyShieldCharge = ActionReady(ShieldCharge) && MovementGate.Allowed(ShieldCharge, MovementGate.GapCloserLanding());
+
+        ReadCrucible(ref s);
 
         return s;
     }

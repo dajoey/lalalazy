@@ -10,7 +10,7 @@ namespace LazyCrafter.Adapters;
 /// <summary>
 /// Runs a cart's dispatch plan against the live plugins (Plan A-Phase 5 task 6).
 /// <para>
-/// <b>0.1.4.0 (card t_efde145c, Joey's option A):</b> a dispatch is now a LOOP of waves, not one pass. A wave is
+/// <b>0.1.4.0 (card t_efde145c, option A):</b> a dispatch is now a LOOP of waves, not one pass. A wave is
 /// retrieve (one batch Artisan bell session first, then per-item) -> ventures (ARC) -> gather (GBR) -> crafts (Artisan,
 /// depth-first). After every wave the cart's remaining lines are re-assessed against the LIVE bags and re-planned
 /// (<see cref="DispatchLoop"/>, decision logic in Core so the harness proves it). While the fresh plan has work the
@@ -36,7 +36,7 @@ namespace LazyCrafter.Adapters;
 /// <c>/lcraft stop</c> aborts (retainer queue aborted, GBR off, Artisan stop request).
 /// </para>
 /// <para>
-/// <b>0.1.7.0 (card t_5191608a, Joey's Helm thread t-joey-1788719072159):</b> sequential
+/// <b>0.1.7.0 (card t_5191608a, the related support thread):</b> sequential
 /// resume-mode. When <see cref="Configuration.SequentialInterventionMode"/> is on, a cart run
 /// runs the user-intervention-requiring parts FIRST as explicit stages - the shopping stops
 /// (vendors, market board, currency shops, manual sources) - then the gather plan, then the
@@ -60,7 +60,7 @@ public sealed class DispatchService : IDisposable
     public ArtisanDispatch Artisan { get; }
     /// <summary>
     /// "Can the client accept a command right now, and what is holding it?" (card t_0b4d8b2c). Observation only -
-    /// it never waits, retries or stops; whether the craft path should do any of those is Joey's decision.
+    /// it never waits, retries or stops; whether the craft path should do any of those is a design decision.
     /// </summary>
     public ClientReadiness Readiness { get; }
     public GbrDispatch Gbr { get; }
@@ -140,7 +140,7 @@ public sealed class DispatchService : IDisposable
     private DateTime _bellWalkAt = DateTime.MinValue;
     private int _bellWalkFails;
 
-    // ---- 0.1.6.15 (Helm t-joey-1788808881825): the board the bell WALK opened is ours; one the player
+    // ---- 0.1.6.15 (the related support thread): the board the bell WALK opened is ours; one the player
     // opened on top of the errand is not. Set true exactly when the walk itself opened a board on a plan
     // with market shopping - the dismissal path closes it and hands the cart straight to the bell without
     // a five-minute wait the plan's own logic says is pointless (market=[] can never make the line right).
@@ -418,7 +418,7 @@ public sealed class DispatchService : IDisposable
         // exactly like a mid-cart block, instead of bouncing crafts off a closed door.
         if (Readiness.BusyBecause() is { } resumeBlockedBy)
         {
-            // 0.1.6.15 (Helm t-joey-1788808881825): do not ask the player to close a window he ALREADY closed.
+            // 0.1.6.15 (the related support thread): do not ask the player to close a window he ALREADY closed.
             // If this run already held on exactly this window and then reported it closed, the game state
             // read back here (visibility flags settle a frame behind the close click) is stale - say the
             // truthful line and go on instead of printing the close-it ask a second time.
@@ -617,10 +617,10 @@ public sealed class DispatchService : IDisposable
         // ---- Retrieve: the step that has to happen before anything else can.
         //
         // Up to 0.1.1.0 this printed "retrieve before crafting: ..." and stopped, which meant pressing Dispatch again
-        // produced the identical lecture forever (Joey, V2 run 4). Now we try to actually fetch it; only when we
+        // produced the identical lecture forever (V2 run 4 in testing). Now we try to actually fetch it; only when we
         // genuinely cannot do we fall back to naming it - once, with the reason and what to do about it.
         //
-        // 0.1.3.0: the fetch itself is ONE batch session, not one bell trip per material (Joey, live run: four
+        // 0.1.3.0: the fetch itself is ONE batch session, not one bell trip per material (the live test run: four
         // materials from one retainer became four separate ~5.5 s Artisan sessions). Artisan's batch overload takes
         // whole recipe rows and re-computes each ingredient's shortfall from the bags itself at session time, so the
         // queue is primed with the wave's recipes - the queued crafts plus deferred crafts whose blockers include a
@@ -628,7 +628,7 @@ public sealed class DispatchService : IDisposable
         // fall back to the per-item path.
         //
         // 0.1.6.12 (card t_034884f4): a press-time preflight only answers "can the fetch start THIS SECOND", and the
-        // bell is walkable - so the bell-only refusal no longer decides anything here (Joey: "there's no point in
+        // bell is walkable - so the bell-only refusal no longer decides anything here (Testing notes: "there's no point in
         // telling me that i'm not next to a retainer if the automation is going to put me there"). BellWalkGate
         // returns null for that one blocker and the fetch phases below walk the character to the bell and retry;
         // only a dead end (the toggle off, Artisan missing, the AllaganTools gate) still refuses at press time.
@@ -657,7 +657,7 @@ public sealed class DispatchService : IDisposable
         // re-plans after the wave and reports what is still stuck, so the player is not told a craft is blocked and
         // then told it ran.
         //
-        // 0.1.6.15 (Helm t-joey-1788808881825): the plan's own sentence is the run's promise. The 0.1.6.14 run
+        // 0.1.6.15 (the related support thread): the plan's own sentence is the run's promise. The 0.1.6.14 run
         // fired the bell walk from the fetch gate and then hit the vendor stop here with the bell errand already
         // steering - "first trip wins" degenerated into "the bell wins", and the vendor stop was never walked
         // (no "vendor walk:" line exists in the whole run). Both senders now check the same helper, so the two
@@ -669,8 +669,8 @@ public sealed class DispatchService : IDisposable
         if (plan.Vendor.Count > 0)
         {
             var groups = Vendors.Plan(plan.Vendor.Select(p => (p.ItemId, p.Quantity)).ToList(), out var unlocated, Here());
-            // 0.1.6.14 (Helm t-joey-1788793199911, Joey's design): "walk to vendor - stop - wait for resume -
-            // walk to next vendor - stop - wait for resume." 0.1.6.15 (Helm t-joey-1788808881825): shopping
+            // 0.1.6.14 (the related support thread, the design): "walk to vendor - stop - wait for resume -
+            // walk to next vendor - stop - wait for resume." 0.1.6.15 (the related support thread): shopping
             // stops take the character FIRST - the fetch phases walk too, and when both want the character the
             // one that saw it free goes; the other prints its note and re-fires on the next wave. The old
             // "wave has no retrievals/gathers" pre-check fired the walk from a state snapshot while the fetch
@@ -687,7 +687,7 @@ public sealed class DispatchService : IDisposable
                 $"{c.Offer.NpcName} ({c.Offer.TerritoryName} {c.Offer.Where.MapX:0.0}, {c.Offer.Where.MapY:0.0}): {Name(c.ItemId)} x{c.Quantity} for {c.Offer.PriceFor(c.Quantity)}");
         foreach (var line in PlanReport.CurrencyLines(plan, Name)) Say(line);
         // The market list now NAMES the currency vendors it knows about, even the ones the routing declined to use
-        // (part C). This is the actual complaint from Joey's 11:43 run: "needs market Emery" with no mention that
+        // (part C). This is the actual complaint from the 11:43 test run: "needs market Emery" with no mention that
         // the Ixali vendor sells it, when the sheets knew all along.
         if (plan.Market.Count > 0)
         {
@@ -703,7 +703,7 @@ public sealed class DispatchService : IDisposable
         {
             // 0.1.6.12 (card t_034884f4): on a cart run the loop re-plans after every wave and the ending reports
             // whatever is still stuck, so the press-time copy was a premature duplicate of reporting that happens
-            // anyway - red over a state the very next wave could fix (Joey: "you don't know the instant the button
+            // anyway - red over a state the very next wave could fix (Testing notes: "you don't know the instant the button
             // is pressed that these are problems"). The line stays at normal level and the Run tab still tracks
             // every deferral; single-channel runs have no re-plan, so they keep the red line.
             var deferRed = _loop is null;
@@ -822,7 +822,7 @@ public sealed class DispatchService : IDisposable
 
     /// <summary>
     /// Fire the summoning-bell walk for a standing-by fetch, at most once every 30 s and at most three refused
-    /// launches per hold (card t_034884f4). 0.1.6.15 (Helm t-joey-1788808881825): the destination is the inn
+    /// launches per hold (card t_034884f4). 0.1.6.15 (the related support thread): the destination is the inn
     /// (<c>/li inn</c>, the bell in the inn room) - NOT the market board. The old destination was the exact
     /// defect of the 0.1.6.14 run: Lifestream's <c>mb</c> shortcut ends by interacting with the board (its own
     /// Uldah alias, final command Kind 6), so the "bell" walk OPENED the market board and the fetch then held
@@ -895,7 +895,7 @@ public sealed class DispatchService : IDisposable
         }
         if (!FetchGatePolicy.ShouldHoldFetch(busy)) return false;   // a working session's own windows
 
-        // 0.1.6.15 (Helm t-joey-1788808881825): a market board in the way of the fetch is TWO different
+        // 0.1.6.15 (the related support thread): a market board in the way of the fetch is TWO different
         // states. A board the WALK itself opened (only possible on a plan with market shopping - the flag
         // was set by FireBellWalkIfDue) is OUR window: wait it out for one bounded beat, then close it with
         // the game's own close path and carry on - never a five-minute ask the plan's own logic forbids.
@@ -1197,7 +1197,7 @@ public sealed class DispatchService : IDisposable
                     // 0.1.7.4: measure FIRST, then judge. The zero-move exit used to sit above the
                     // bag-delta measurement with _batchFetched still 0 from wave start, so EVERY batch
                     // session ended as "moved nothing" without counting the bags and the per-item
-                    // fallback never ran (Joey's 0.1.7.3 runs, 2026-09-11 and 2026-09-14).
+                    // fallback never ran (the 0.1.7.3 test runs, 2026-09-11 and 2026-09-14).
                     // 0.1.6.16 (card t_68532446, defect B): the 0.1.6.13 stall guard only catches a HUNG
                     // session (2-min zero-change while Busy). A session that ends INSTANTLY with zero
                     // materials moved - Busy false 1.5 s after the queue, mid-teleport in the field - sailed
@@ -1424,7 +1424,7 @@ public sealed class DispatchService : IDisposable
                     if (!Poll(500)) break;
                     if (Artisan.IsBusy() == true) { SetStatus("waiting for Artisan to go idle"); if (_phaseClock.ElapsedMilliseconds > 120_000) Finish(Phase.Failed, "Artisan stayed busy for 2 minutes"); break; }
 
-                    // Card t_ee6f7bf5 (Joey's wait-and-resume pick): never hand Artisan a craft while a window
+                    // Card t_ee6f7bf5 (the wait-and-resume decision): never hand Artisan a craft while a window
                     // owns the client's input. Artisan.Craft() is fire-and-forget - the game's "Unable to execute
                     // command while occupied" never comes back to us - and with the market board open it bounces
                     // in milliseconds and disables its own crafting mode after five tries (his 11:58 run). Ask
@@ -1474,7 +1474,7 @@ public sealed class DispatchService : IDisposable
                     // CraftItem is fire-and-forget over IPC - the game's "Unable to execute command while occupied"
                     // never comes back to us - so if the answer is only read after the fact the window may already be
                     // closed. Observation only: the craft still fires either way. Whether it should instead WAIT or
-                    // STOP is Joey's decision and is deliberately not taken here.
+                    // STOP is a design decision deliberately not taken here.
                     _busyAtCraft = Readiness.BusyBecause();
                     var err = Artisan.Craft(_current.RecipeId, _current.Crafts);
                     if (err is not null) { _craftsFailed++; Say($"Artisan refused {Name(_current.ResultItemId)}: {err}", error: true); TrackStep(StepKind.Craft, _current.ResultItemId, _current.Crafts, StepState.Failed, err, recipeId: _current.RecipeId); _current = null; break; }
@@ -1507,7 +1507,7 @@ public sealed class DispatchService : IDisposable
                     }
                     if (_waitingOn is null || !busyNow.Equals(_waitingOn, StringComparison.Ordinal))
                     {
-                        // 0.1.6.15 (Helm t-joey-1788808881825): wording split. A market board while the run is
+                        // 0.1.6.15 (the related support thread): wording split. A market board while the run is
                         // WAITING to shop is the run's own errand - the line says so instead of asking the
                         // player to close the thing the run itself opened. Any other window (or any window
                         // while the plan has no market shopping) keeps the plain close-it line, whose wording
@@ -1773,12 +1773,12 @@ public sealed class DispatchService : IDisposable
         if (plan.Market.Count > 0)
             Lifestream.GoToMarket(plan.Market.Select(p => (p.ItemId, p.Quantity)).ToList(), Name, _plugin.Catalog.UnitCost, teleport: false, also: id => MarketClause(plan, id));
         // Both endings name the currency vendors, for the same reason Defect A of card t_35be7be5 existed: a
-        // detail that only one of two ending paths prints is a detail that gets lost on the path Joey takes.
+        // detail that only one of two ending paths prints is a detail that gets lost on the path the run actually takes.
         foreach (var line in PlanReport.CurrencyLines(plan, Name)) Say(line, error: true);
         if (plan.Vendor.Count > 0)
         {
             var groups = Vendors.Plan(plan.Vendor.Select(p => (p.ItemId, p.Quantity)).ToList(), out var unlocated, Here());
-            // The vendor stop-and-resume queue (0.1.6.14, Helm t-joey-1788793199911): this Blocked stop walks
+            // The vendor stop-and-resume queue (0.1.6.14, the related support thread): this Blocked stop walks
             // to the first vendor group still short in the bags; the purchase plus the Resume re-plan walks to
             // the next. When the run is ALSO blocked on the player's own market listings the vendor stop goes
             // out first and the bell walk below degrades to its busy line - first trip wins, never both.
@@ -1804,7 +1804,7 @@ public sealed class DispatchService : IDisposable
             if (_steps[i].State is StepState.Pending or StepState.Running)
                 _steps[i] = _steps[i] with { State = end == Phase.Done ? StepState.Done : StepState.Failed, ExternalStatus = null };
         // Defect A (card t_35be7be5): this path used to render ONLY ", N could not be retrieved" while the retainer
-        // names, item ids and quantities sat in _unfetched and were discarded - Joey's 2026-09-05 22:44 run FINISHED
+        // names, item ids and quantities sat in _unfetched and were discarded - the 2026-09-05 22:44 test run FINISHED
         // (0 manual, 20 deferred) and took exactly this branch. Same Core merge FinishBlocked calls, so the two
         // endings cannot drift apart again; /lcraft status and the Run tab now agree with the chat block. Rendered
         // under "still outstanding:" rather than "blocked - to continue:" because the run did finish (RunReport).
@@ -1919,7 +1919,7 @@ public sealed class DispatchService : IDisposable
     /// only trouble was a timeout. Since 0.1.6.15 the trip goes to the inn room's bell, not the market board.
     /// </para>
     /// <para>
-    /// 0.1.6.15 (Helm t-joey-1788808881825): the destination is <c>Lifestream.ExecuteCommand("inn")</c>
+    /// 0.1.6.15 (the related support thread): the destination is <c>Lifestream.ExecuteCommand("inn")</c>
     /// (= <c>/li inn</c>, "go to inn"), which ends at the inn keeper WITHOUT interacting - and a summoning
     /// bell stands in every inn room. The old destination, <c>/li mb</c>, was never a bell trip: Lifestream's
     /// own <c>mb</c> alias ends by interacting with the market board NPC, i.e. by OPENING the board - the
@@ -1946,7 +1946,7 @@ public sealed class DispatchService : IDisposable
             Say("Lifestream is busy, so no walk - head to a summoning bell yourself (they stand in every inn room).");
             return;
         }
-        // 0.1.6.15 (Helm t-joey-1788808881825): the bell destination is the INN, not the market board - the
+        // 0.1.6.15 (the related support thread): the bell destination is the INN, not the market board - the
         // board trip ENDS by opening the board (Lifestream's own mb alias interacts with it), which is the
         // exact wrong ending for "go and pull your listings off the board". A board left open from the
         // shopping stops is closed first so the trip can actually start.
@@ -1957,7 +1957,7 @@ public sealed class DispatchService : IDisposable
     }
 
     /// <summary>
-    /// The cart-run vendor walk (0.1.6.14, Helm t-joey-1788793199911). Joey's cadence: "walk to vendor - stop -
+    /// The cart-run vendor walk (0.1.6.14, the related support thread). The designed cadence: "walk to vendor - stop -
     /// wait for resume - walk to next vendor - stop - wait for resume." ONE group is walked to per call - the
     /// first - through the same hand-off the per-item button uses (Lifestream teleport to the aetheryte nearest
     /// the NPC, map flag, shopping list with a clickable link); every remaining group gets ONE chat line naming

@@ -1,5 +1,5 @@
 // Config-migration regression proof for the DagobertAfterCraft -> PriceMatchAfterCraft rename (card t_89a7ebec),
-// extended at v8 (Helm t-joey-1788793199911) to pin the WalkToVendorsOnCart default-on arrival.
+// extended at v8 (the related support thread) to pin the WalkToVendorsOnCart default-on arrival.
 // Compiles the REAL Configuration.cs against the stubs at the bottom of this file and asserts a pre-rename
 // saved config survives the round trip. Exit 0 = all cases pass; any failure prints FAIL and exits 1.
 using LazyCrafter;
@@ -82,7 +82,7 @@ Check("old key false survives too", !cfgFalse.PriceMatchAfterCraft, $"got {cfgFa
 var fresh = new Configuration();
 fresh.MigrateIfNeeded();
 Check("fresh config has the v5-era default off (PriceMatchAfterCraft)", !fresh.PriceMatchAfterCraft);
-// v8 (Helm t-joey-1788793199911): an old config never has the WalkToVendorsOnCart key, so the initialiser
+// v8 (the related support thread): an old config never has the WalkToVendorsOnCart key, so the initialiser
 // stands and existing installs get the vendor walk - opt-out, not opt-in, same shape as v5 -> v6.
 Check("old config arrives at v8 with the vendor walk ON", cfg.Version == 8 && cfg.WalkToVendorsOnCart);
 Check("fresh config is v8 with the vendor walk ON", fresh.Version == 8 && fresh.WalkToVendorsOnCart);

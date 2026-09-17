@@ -268,7 +268,7 @@ public sealed class CatalogService : IDisposable
     /// <summary>
     /// The cart as it is RIGHT NOW, re-assessed on the calling thread. Dispatch (and the plan preview) must
     /// plan against this, never against a snapshot's <c>Cart</c> - that can lag a cart edit by a whole catalog
-    /// pass, and Dispatch would act on what Joey typed seconds ago instead of what he just typed.
+    /// pass, and Dispatch would act on what was typed seconds ago instead of what was just typed.
     /// </summary>
     public (IReadOnlyList<CartLine> Lines, CartAssessment Totals) LiveCart()
     {

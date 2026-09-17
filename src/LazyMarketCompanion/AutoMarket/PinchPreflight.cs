@@ -54,7 +54,7 @@ public sealed record PinchPreflightOptions(bool Enabled);
 /// <summary>
 /// Decides, BEFORE any context menu is opened, which sell-list rows are worth walking.
 ///
-/// THE RULE (Joey, binding, 2026-09-07): Auto Pinch goes strictly by AllaganMarket's flags. A row is
+/// THE RULE (binding decision, 2026-09-07): Auto Pinch goes strictly by AllaganMarket's flags. A row is
 /// walked iff AllaganMarket's data flags it stale or undercut; a row with NO AllaganMarket verdict is
 /// NEVER walked - no Universalis rescue, no remembered verdict, no walking-to-check. The known and
 /// wanted consequence: items AllaganMarket has never opened a market window for render unmarked and
@@ -72,7 +72,7 @@ public sealed record PinchPreflightOptions(bool Enabled);
 /// to write, but the answer NEVER changes the verdict: the flag is the instruction. The old
 /// Universalis-prediction skips (already-right, under-threshold, not-undercut, board memory) are gone:
 /// a flagged row walks even when the predicted candidate equals the current price, because AllaganMarket
-/// is the authority and its flags are what Joey asked the plugin to follow.
+/// is the authority and its flags are what the plugin was asked to follow.
 /// </summary>
 public static class PinchPreflight
 {
@@ -126,7 +126,7 @@ public static class PinchPreflight
       }
 
       // Rule 5 - unflagged: no AllaganMarket verdict, so the row is never touched - even once, even to
-      // check. This is the behaviour Joey asked for by name.
+      // check. This is the requested behaviour.
       decisions.Add(new PinchDecision(row, PinchVerdict.SkipNotFlagged, 0, "not flagged by AllaganMarket"));
     }
 
@@ -163,7 +163,7 @@ public static class PinchPreflight
 
   /// <summary>
   /// The one INFO line the pass logs. Kept here (and harness-covered) because it is how this feature gets
-  /// graded from Joey's client log afterwards: grep <c>pinch pre-flight:</c> and compare walked-vs-total.
+  /// graded from the test client log afterwards: grep <c>pinch pre-flight:</c> and compare walked-vs-total.
   /// </summary>
   public static string Summarize(IReadOnlyList<PinchDecision> decisions)
   {

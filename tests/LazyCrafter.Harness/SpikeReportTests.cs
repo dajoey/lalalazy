@@ -3,7 +3,7 @@ using LazyCrafter.Core;
 namespace LazyCrafter.Harness;
 
 /// <summary>
-/// The paste block Joey copies back from <c>/lcraft spike results</c> (card t_933683a5 decision 7). The gate is
+/// The paste block copied back from <c>/lcraft spike results</c> (card t_933683a5 decision 7). The gate is
 /// 5/5 and a failing line must name the STAGE that broke - "3/5" with no per-vendor reason is a failed deliverable,
 /// so these tests assert the text itself, not just the arithmetic.
 /// </summary>
@@ -31,7 +31,7 @@ public static class SpikeReportTests
             yield return ("5/5 renders PASS - gate met", () =>
                 SpikeReport.Render(V, AllFive).Contains("RESULT: 5/5 PASS - gate met"));
 
-            // The gate is Joey's, unchanged: 4/5 does not ship. Not "mostly works", not averaged.
+            // The gate is unchanged: 4/5 does not ship. Not "mostly works", not averaged.
             yield return ("4/5 renders FAIL - gate not met", () =>
             {
                 var four = AllFive.Take(4).Append(Fail(5, SpikeStage.Pathfind, "the walk ended 9.4y from the NPC")).ToList();

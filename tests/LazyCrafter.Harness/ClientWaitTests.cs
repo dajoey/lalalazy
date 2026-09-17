@@ -27,7 +27,7 @@ internal sealed class FakeClock(DateTime start) : ITimeSource
 /// with specific words, and the previous card on this thread (t_0b4d8b2c) proved an internal-state assertion
 /// stays green right through a rendering defect.
 /// <para>
-/// 0.1.6.15 (Helm t-joey-1788808881825): extended with the dispatcher-side decision the fetch hold consumes -
+/// 0.1.6.15 (the related support thread): extended with the dispatcher-side decision the fetch hold consumes -
 /// <see cref="LazyCrafter.Core.ClientWaitPolicy.BoardBelongsToFetch"/> (ours vs the player's board) and the
 /// two outcomes it splits. The machine below mirrors the dispatcher's branch: a board that belongs to the walk
 /// waits one bounded beat, then is closed and the fetch carries on (no chat line, no blocked ending); a board
@@ -283,7 +283,7 @@ internal static class ClientWaitTests
         {
             // The first nine names are Artisan's own Occupied() gate, verbatim from its source: the game raises
             // one of them when it refuses a craft command ("Unable to execute command while occupied" - the
-            // exact error in Joey's 11:58 log). The crafting conditions are what Artisan is IN while working:
+            // exact error in the 11:58 test log). The crafting conditions are what Artisan is IN while working:
             // blocking on them would deadlock the dispatcher against its own craft.
             var b = ClientWaitPolicy.BlockingConditionNames;
             return b.Length == 14

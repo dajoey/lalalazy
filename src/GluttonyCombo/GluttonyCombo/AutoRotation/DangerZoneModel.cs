@@ -58,19 +58,30 @@ internal static class DangerZoneModel
         float XAxisModifier,
         float HitboxRadius,     // caster's hitbox
         Vector2 CasterPos,
-        Vector2 CastTargetLoc,  // resolved target object position, else caster position
+        Vector2 CastTargetLoc,  // the cast's own target location, snapshotted when the cast started
         ulong CastTargetId,     // 0 = ground/none
         ulong PlayerId,
         float RemainingSec,
-        float ConeFallbackDeg,  // HALF-angle fallback when the omen has no fan angle
-        float DonutInnerYalms); // 0 = unknown -> treated as a plain circle (conservative)
+        float ConeHalfAngleDeg, // cone HALF-angle in degrees, read from the action's omen (fan fragment)
+        float DonutInnerYalms,  // 0 = unknown -> treated as a plain circle (conservative)
+        float? AimRotation = null); // v1.0.4.209: the cast's own rotation, math convention (atan2(z, x));
+                                    // null only when the caller has none, then the caster->location vector
 
     /// <summary>
     ///     Maps one live enemy cast to a danger zone, or null when the cast is
-    ///     not a dodgeable telegraph (single-target, raidwide, or aimed at the
-    ///     player - AIHintsBuilder skips those last because the zone tracks the
-    ///     player and cannot be dodged).
+    ///     not a dodgeable telegraph (single-target, raidwide, or an unknown
+    ///     shape). Target-anchored shapes aimed at the player (ground circle,
+    ///     donut, cross, location rect) build zones like any other.
     /// </summary>
+    /// <remarks>
+    ///     v1.0.4.209: geometry follows BossMod's auto-hints exactly. The
+    ///     anchor for location shapes is the cast's snapshotted target
+    ///     location (a telegraph placed under the character stays where it
+    ///     was drawn), and every directional shape aims along the cast's own
+    ///     rotation. Self-targeted cones and lines used to aim along the
+    ///     zero caster-to-self vector (always +X), and helper casts at a ground
+    ///     point were drawn on the helper instead of the point.
+    /// </remarks>
     internal static Zone? BuildZone(in CastPrimitive p)
     {
         if (p.CastType is 1 or 6 or 7 or 9 or 14 or 15)
@@ -80,16 +91,7 @@ internal static class DangerZoneModel
         if (p.CastType is 2 or 5 && p.EffectRange >= RaidwideSize)
             return null;
 
-        // Cast aimed at the player: only shapes anchored to the TARGET's feet
-        // (ground circle, donut, cross, location rect) track the player and
-        // cannot be outrun. Shapes anchored to the CASTER (point-blank circle,
-        // cones, lines, charges) keep their geometry no matter who is aimed at
-        // and must still be dodged - solo, every mob cast targets the player,
-        // and the old blanket skip starved the dodge branch entirely (v1.0.4.192).
-        if (IsPlayerAnchoredUndodgeable(p.CastType, p.CastTargetId, p.PlayerId))
-            return null;
-
-        var aim = AimRot(p.CastTargetLoc - p.CasterPos);
+        var aim = p.AimRotation ?? AimRot(p.CastTargetLoc - p.CasterPos);
 
         switch (p.CastType)
         {
@@ -101,11 +103,11 @@ internal static class DangerZoneModel
 
             case 3: // cone from the caster toward the target
                 return new Zone(ShapeKind.Cone, p.CasterPos, aim, p.EffectRange + p.HitboxRadius, 0f, 0f,
-                    p.ConeFallbackDeg * 0.5f * MathF.PI / 180f, default, p.RemainingSec);
+                    p.ConeHalfAngleDeg * MathF.PI / 180f, default, p.RemainingSec);
 
             case 13: // cone without hitbox padding
                 return new Zone(ShapeKind.Cone, p.CasterPos, aim, p.EffectRange, 0f, 0f,
-                    p.ConeFallbackDeg * 0.5f * MathF.PI / 180f, default, p.RemainingSec);
+                    p.ConeHalfAngleDeg * MathF.PI / 180f, default, p.RemainingSec);
 
             case 4: // rect from the caster toward the target
                 return new Zone(ShapeKind.Rect, p.CasterPos, aim, p.EffectRange + p.HitboxRadius + MaxError, 0f,
@@ -184,14 +186,6 @@ internal static class DangerZoneModel
     }
 
     /// <summary>
-    ///     Whether a cast aimed at the player is anchored to the player's own
-    ///     position (undodgeable - the zone follows the target) rather than to
-    ///     the caster's geometry (dodgeable regardless of aim).
-    /// </summary>
-    internal static bool IsPlayerAnchoredUndodgeable(byte castType, ulong castTargetId, ulong playerId) =>
-        castTargetId != 0 && castTargetId == playerId && castType is 2 or 10 or 11 or 12;
-
-    /// <summary>
     ///     Tracks ground-danger zones that keep hurting after the cast bar
     ///     ends (v1.0.4.193). The Dalamud half feeds every RESOLVED
     ///     target-anchored zone (ground circles, donuts, crosses, location
@@ -227,6 +221,13 @@ internal static class DangerZoneModel
             return n;
         }
     }
+
+    /// <summary>
+    ///     Game rotation (radians, facing = (sin r, cos r) in the XZ plane) to
+    ///     the math-convention angle atan2(z, x) the zones use (v1.0.4.209).
+    /// </summary>
+    internal static float GameRotationToMath(float gameRotation) =>
+        MathF.Atan2(MathF.Cos(gameRotation), MathF.Sin(gameRotation));
 
     private static float AimRot(Vector2 v) => v.LengthSquared() < 0.0001f ? 0f : MathF.Atan2(v.Y, v.X);
 
