@@ -26,7 +26,7 @@ All four version locations MUST match in every release commit for any plugin `<P
 - **Never use `git push --force` or `git commit --amend` on this repo.**
 - **Never touch game files** (XIVLauncher installedPlugins, pluginConfigs, etc.) — only work on the repo and push. The game downloads from GitHub.
 
-### Changelog voice: impersonal, never second person (STANDING RULE, Joey 2026-09-06)
+### Changelog voice: impersonal, never second person (STANDING RULE, decided 2026-09-06)
 
 **Changelog bullets describe what the plugin does, not what "you" do.** No "you can now", "your bags", "tells you", "sends you there", "your retainers", "when you log out". A changelog is a record of changes to the software, addressed to nobody. Write "inventory" not "your bags", "the character" / "the player" when the distinction matters, "the list" not "your list", "routes to the vendor" not "sends you to the vendor". This applies to `CHANGELOG.md`, the `pluginmaster.json` `Changelog` field, and manifest `Changelog` fields alike (the packager derives all of them from CHANGELOG.md).
 
@@ -35,7 +35,7 @@ Exceptions, kept verbatim:
 - Verbatim quotes of a player's report may keep their wording, but prefer indirect speech ("Reported: the proc is not permanent") over pasting "you" statements.
 - The landing site (`docs/`) is marketing copy and MAY address the reader.
 
-### In-game changelog popup (STANDING RULE, Joey 2026-09-05 — Hermes card `t_add3c479`)
+### In-game changelog popup (STANDING RULE, decided 2026-09-05 — Hermes card `t_add3c479`)
 
 **Every plugin carries the shared changelog popup; never remove it in an upstream merge.** After any update, the plugin shows its own `CHANGELOG.md` once in-game (every version between the last-seen one and the running one), gated until the player is logged in and out of combat/duty. Because the popup renders `CHANGELOG.md` verbatim, **the CHANGELOG entry IS the user-facing release note — write it for the player.**
 
@@ -94,7 +94,7 @@ Testing runs on **test-machine** (Linux/Wine) — NOT dajoeyrog. dajoeyrog is th
 - **Retired 2026-08-30 in v1.0.4.161 - the fork no longer has one.** The ALPHA engine
   (`Combos/PvE/BLU/BLU_AutoRotation.cs`, presets `BLU_AutoRotation_DPS` / `_Heal` at
   70026 and 70027, its 124 per-ability toggles and its `blu-debug.log`) was deleted in
-  favour of upstream WrathCombo's own Blue Mage suite. Joey's call, made when upstream's
+  favour of upstream WrathCombo's own Blue Mage suite. A design decision, made when upstream's
   37 new BLU presets claimed those same two enum values.
 - **`BLU.cs`, `BLU_Helper.cs` and `BLU_Config.cs` are all upstream's now and carry no fork
   divergence** - `BLU_Helper.cs` in particular is upstream's file, NOT the old fork engine
@@ -142,4 +142,4 @@ GluttonyCombo, PvPSolver, LazyMarketCompanion, AutoPotion, ArmoireAutoFill, Lazy
 
 **DagobertPriceMatcher was RETIRED on 2026-09-05** (kanban t_138ee175) in favour of LazyMarketCompanion, which carries its price-matching engine (AGPLv3, credit SHOEGAZEssb) and imports its config on first load. Removed from `src/`, `plugins/`, `pluginmaster.json`, `README`, `docs/`, `tools/sync-wiki.ps1`, the nightly upstream-merge runbook/marker and the `dagobert` git remote. `LalaImages/dagobert-icon.png` is kept for history. Do not resurrect it.
 
-**LazyOccultCrescent was RETIRED on 2026-09-06** at Joey's direction (Helm t-joey-1788745452210). Removed from `src/`, `plugins/`, `pluginmaster.json`, `README` and `docs/`; the landing-page entry and the `tools/sync-wiki.ps1` mapping went with it. `LalaImages/lazyoccultcrescent-icon.png` is kept for history. Do not resurrect it.
+**LazyOccultCrescent was RETIRED on 2026-09-06** by design decision (the related support thread). Removed from `src/`, `plugins/`, `pluginmaster.json`, `README` and `docs/`; the landing-page entry and the `tools/sync-wiki.ps1` mapping went with it. `LalaImages/lazyoccultcrescent-icon.png` is kept for history. Do not resurrect it.

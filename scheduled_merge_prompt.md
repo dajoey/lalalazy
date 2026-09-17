@@ -16,7 +16,7 @@ build/package/verify, escalation rules, and the MANDATORY hard gates
 Hard rules that have burned us before (the runbook has the full versions):
 
 - **Never `git stash`, discard, or touch uncommitted work you did not create.**
-  Pre-existing dirty paths are Joey's and stay exactly as found.
+  Pre-existing dirty paths are the operator's and stay exactly as found.
 - **Never plain-`git merge` an upstream remote.** Each fork has its own method
   (diff-apply / subtree copy / per-file 3-way) — runbook §3.
 - **Never remove the shared changelog popup** (standing rule 2026-09-05, `CLAUDE.md`
