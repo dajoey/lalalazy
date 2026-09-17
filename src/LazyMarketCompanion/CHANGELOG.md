@@ -1,4 +1,17 @@
-﻿## v0.1.56.0 (2026-09-17)
+﻿## v0.1.57.0 (2026-09-17)
+
+### Fixed
+
+- **Auto-Market's stock routing no longer shuffles the same stacks out of the retainers and back every run.** A routing move was graded a second after it fired, while the client still showed the plugin's own view of it, so every move was recorded as successful. It was not: the game log of one run shows the second pass depositing into the exact page slots the first pass had filled fifty-five seconds earlier, and a run an hour later re-issuing all fifty of the previous run's withdrawals from the identical page slots. Nothing the mover moved was being kept, and because each run started from the same inventory it repeated the same work forever - which is what "stock goes in and out of the bags every time" was. A move is now judged only once the retainer's session has closed and the game has sent that retainer's pages again, by re-reading the retainer side of the move: the page slot a deposit filled must still hold the stack, and the page slot a withdrawal emptied must not hold it again.
+- **The item transfer itself is now sent the way the game's own inventory move sends it.** The move call had been made with its final argument left at the library default; it is passed the way the working item-move paths elsewhere in this plugin family pass it. If that turns out not to be why the transfers were dropped, the new check above catches it on the very next retainer session instead of hiding it for another release.
+- **A move the game did not keep is held once and named, instead of being re-issued every run.** It goes into the same hold list the planner already respects, so the stack stops shuttling, appears in Auto-Market's Quarantined moves list with the time it was held, gets its one retry per 24-hour window, and is written out with its page slot and item in the log. A chat line reports it once per run.
+
+### Notes
+
+- The settled-placement rule is unchanged: a stack already on the retainer its category is assigned to is never taken out, and no move path was added or widened.
+- Offline-suite change: new cases 117-118 pin the persistence verdict for both legs (including high quality as part of stack identity and an empty slot never reading as a match), that a rejected move is skipped by the next plan on both legs, and that its hold survives a ledger save and load.
+
+## v0.1.56.0 (2026-09-17)
 
 ### Fixed
 

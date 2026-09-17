@@ -84,6 +84,15 @@ internal sealed class MarketAutomation : Window, IDisposable
   // name the retry outcome in the log - a retried move that lands vs one that still does not
   // stick - which is the remaining evidence for the server-side non-stick residual.
   private readonly HashSet<string> _retriedReconcileKeys = new(StringComparer.Ordinal);
+  // 0.1.57.0: moves executed in a retainer's session that no probe has been able to grade yet.
+  // They are graded on that retainer's NEXT session, when the game has re-sent its pages - the
+  // only moment a routing move can be told apart from the client's own optimistic view of it.
+  // Naturally bounded: every entry for a retainer is consumed the next time that retainer opens,
+  // which every sweep does.
+  private readonly List<RoutingMovePending> _routingPendingVerify = [];
+  // 0.1.57.0: one chat line per run about moves the game did not keep; the log always carries the
+  // full list.
+  private bool _routingPersistenceAnnounced;
   // 0.1.44.0: settle-step state. TaskManager steps run on the framework update thread, so the
   // settle gate is a RETRY STEP (false = retried next tick), never a sleeping loop. The internal
   // 6s soft deadline always fires before the 10s step TimeLimitMS, so the abort path is
@@ -605,6 +614,9 @@ internal sealed class MarketAutomation : Window, IDisposable
     // 0.1.50.0: reconcile before planning - drops ledger entries this session's fresh snapshot
     // no longer shows (landed or moved on) and skips stacks an earlier sweep moved OK that are
     // still sitting in place (the move did not stick) instead of re-moving them every sweep.
+    // 0.1.57.0: grade the previous session's moves for this retainer BEFORE planning, so a move
+    // the game did not keep is already quarantined when this lap's plan is built.
+    VerifyRoutingPersistence(retainerName);
     PruneReconcileSkip(retainerName);
     var routingPlan = AutoMarketService.PlanRoutingDepositsOnly(_routingReconcileSkip.Keys);
     foreach (var note in routingPlan.Notes)
@@ -1290,6 +1302,9 @@ internal sealed class MarketAutomation : Window, IDisposable
     }
 
     // 0.1.50.0: reconcile before planning - same ledger as the deposit lap below.
+    // 0.1.57.0: see VerifyRoutingPersistence - the previous session's moves are graded here,
+    // before this session's plan is built.
+    VerifyRoutingPersistence(AutoMarketService.CurrentRetainerName());
     PruneReconcileSkip(AutoMarketService.CurrentRetainerName());
     var routingPlan = AutoMarketService.PlanRoutingMoves(_routingPulledThisRun, _routingReconcileSkip.Keys);
     foreach (var note in routingPlan.Notes)
@@ -2592,6 +2607,47 @@ internal sealed class MarketAutomation : Window, IDisposable
   /// remembered in _retriedReconcileKeys so the post-execution reconcile line can report the
   /// retry outcome (landed vs still stuck).
   /// </summary>
+  /// <summary>
+  /// 0.1.57.0: grades the previous session's routing moves for this retainer, now that the
+  /// session has closed and the game has re-sent its pages. Every earlier probe read the move
+  /// within a second of firing, while the client still showed its own optimistic result, so every
+  /// move graded landed and the ledger stayed empty - which is what made the mover re-fire the
+  /// same pull-outs and deposits sweep after sweep with nothing ever staying put. A move that did
+  /// not survive the session boundary is quarantined under the same ledger key the planner
+  /// already skips on, so the stack stops shuttling, shows up in the in-game Quarantined moves
+  /// list, and gets its one bounded retry per 24-hour window like any other held stack.
+  /// Runs only on a settled session: on an unsettled one the loaded pages can still be the
+  /// previous retainer's, and grading against those would quarantine correctly-placed stock.
+  /// </summary>
+  private void VerifyRoutingPersistence(string session)
+  {
+    var name = session?.Trim() ?? string.Empty;
+    if (name.Length == 0 || _routingPendingVerify.Count == 0 || !_routingSessionSettled)
+      return;
+    var mine = _routingPendingVerify
+      .Where(p => CategoryRouter.RetainerNamesEqual(p.SessionRetainer, name))
+      .ToList();
+    if (mine.Count == 0)
+      return;
+    _routingPendingVerify.RemoveAll(p => CategoryRouter.RetainerNamesEqual(p.SessionRetainer, name));
+    var lost = AutoMarketService.GradeRoutingMovePersistence(mine);
+    if (lost.Count == 0)
+    {
+      Svc.Log.Information($"[LMC] routing persistence: all {mine.Count} move(s) from the previous '{name}' session are still in place now that its pages have been sent again");
+      return;
+    }
+    var now = DateTime.UtcNow;
+    foreach (var key in lost)
+      _routingReconcileSkip[key] = now;
+    SaveReconcileLedger();
+    Svc.Log.Warning($"[LMC] routing persistence: {lost.Count} of {mine.Count} move(s) made in the previous '{name}' session did NOT survive that session closing - the game did not keep them. Those stacks are quarantined (visible in the Quarantined moves list) instead of being moved again every sweep: {string.Join(", ", lost.Select(k => k.Substring(k.IndexOf('|') + 1)))}");
+    if (Plugin.Configuration.ShowAutoMarketMessages && !_routingPersistenceAnnounced)
+    {
+      _routingPersistenceAnnounced = true;
+      Communicator.PrintInfo($"routing: {lost.Count} move(s) did not stay on {name} once the session closed - held, and listed under Quarantined moves");
+    }
+  }
+
   private void PruneReconcileSkip(string session)
   {
     if (_routingReconcileSkip.Count == 0)
@@ -2691,6 +2747,21 @@ internal sealed class MarketAutomation : Window, IDisposable
     // the sweep that moves it again, which is the one piece of evidence that a move did not stick.
     foreach (var key in stuck)
       _routingReconcileSkip[key] = now;
+    // 0.1.57.0: every move that got past the immediate probe is only PROVISIONALLY landed - the
+    // client cannot yet tell its own optimistic view apart from a move the game kept. Queue the
+    // retainer side of each one for the deferred probe on this retainer's next session.
+    foreach (var op in okOps)
+    {
+      var pendKey = RoutingMove.ReconcileKey(op.SessionRetainer, op.SrcContainer, op.SrcSlot, op.ItemId, op.HQ);
+      if (stuck.Contains(pendKey))
+        continue;
+      var retContainer = op.Leg == MoveLeg.BagsToRetainer ? op.DstContainer : op.SrcContainer;
+      var retSlot = op.Leg == MoveLeg.BagsToRetainer ? op.DstSlot : op.SrcSlot;
+      if (retContainer < 0 || retSlot < 0)
+        continue;
+      _routingPendingVerify.RemoveAll(p => string.Equals(p.Key, pendKey, StringComparison.Ordinal));
+      _routingPendingVerify.Add(new RoutingMovePending(pendKey, op.Leg, op.SessionRetainer, retContainer, retSlot, op.ItemId, op.HQ));
+    }
     // 0.1.55.0: release every quarantine entry naming a slot this execution filled, whichever
     // session recorded it (see RoutingMove.DropReconcileKeysAtSlots for the evidence). This is
     // what stops the quarantine growing until the sweep appears to move nothing at all.
@@ -2713,7 +2784,7 @@ internal sealed class MarketAutomation : Window, IDisposable
       : string.Empty;
     if (stuck.Count == 0)
     {
-      Svc.Log.Information($"[LMC] routing reconcile: {landed}/{okOps.Count} move(s) verified landed (source slots empty on re-read){retryNote}");
+      Svc.Log.Information($"[LMC] routing reconcile: {landed}/{okOps.Count} move(s) reported OK and their source slots read empty - whether the game KEPT them is graded on this retainer's next session (0.1.57.0 persistence probe){retryNote}");
       return;
     }
     Svc.Log.Warning($"[LMC] routing reconcile: {landed}/{okOps.Count} move(s) landed - {stuck.Count} still in place (the move did not stick server-side; those stacks stay put next sweep instead of re-moving){retryNote}: {string.Join(", ", stuck.Select(k => k.Substring(k.IndexOf('|') + 1)))}");
@@ -2743,6 +2814,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     _settleDeadline = 0;
     _routingSessionSettled = true;
     _unroutedBagsAnnounced = false;
+    _routingPersistenceAnnounced = false;
     _unconfirmedThisRun = 0;
     // 0.1.26.0: the planned count is per-run state too. It was the one vendor counter NOT reset
     // here, so after a retainer planned N ops every later retainer's AnnounceRunDone re-tested

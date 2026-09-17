@@ -86,6 +86,22 @@ public sealed record RoutingMoveOp(MoveLeg Leg, int SrcContainer, int SrcSlot, u
   public int DstSlot { get; set; } = -1;
 }
 
+/// <summary>
+/// 0.1.57.0: one executed routing move waiting for the persistence probe. Key is the ledger key
+/// the planner already skips on; RetainerContainer/RetainerSlot name the RETAINER side of the
+/// move - a deposit's destination page slot, a pull-out's source page slot - which is the only
+/// side the game re-sends when the retainer's session re-opens. See
+/// <see cref="RoutingMove.MoveDidNotPersist"/>.
+/// </summary>
+public sealed record RoutingMovePending(
+  string Key,
+  MoveLeg Leg,
+  string SessionRetainer,
+  int RetainerContainer,
+  int RetainerSlot,
+  uint ItemId,
+  bool HQ);
+
 /// <summary>The mover's plan. Notes carry the per-retainer summary lines; StoppedForBags /
 /// StoppedForRetainer are true when that leg ended early because its destination filled up - the
 /// sweep itself is never stopped by either.</summary>
@@ -178,6 +194,28 @@ public static class RoutingMove
           dropped.Add(key);
     }
     return dropped;
+  }
+
+  /// <summary>
+  /// 0.1.57.0: the only probe that can prove a routing move stuck. Both earlier probes read the
+  /// move seconds after firing, while the client still shows its own optimistic result, so every
+  /// move graded landed. The game log of the 19:28-19:29 ET run settles it: the eight deposits
+  /// the second lap made into one retainer went into the exact eight page slots the first lap of
+  /// the SAME run had filled fifty-five seconds earlier, and an hour later a sweep re-fired all
+  /// fifty pull-outs of the previous sweep from the identical page slots. A routing move is
+  /// therefore only real once the retainer's session has closed and re-opened and the game has
+  /// sent that retainer's pages again - so the probe reads the RETAINER side of the move (the
+  /// page slot a deposit filled, or the page slot a pull-out emptied) on the retainer's NEXT
+  /// session. The player's bags are no good for this: the mover's own relay legitimately reuses
+  /// bag slots within a run, which is the alias 0.1.55.0 had to work around.
+  /// </summary>
+  public static bool MoveDidNotPersist(MoveLeg leg, uint itemId, bool hq, uint observedItemId, bool observedHQ)
+  {
+    var sameStack = observedItemId != 0 && observedItemId == itemId && observedHQ == hq;
+    // A deposit is real only while its page slot still holds the stack (a merge leaves the same
+    // item there, which reads as the same stack). A pull-out is real only while its page slot no
+    // longer holds it - the stack being back is exactly the refusal this ledger exists for.
+    return leg == MoveLeg.BagsToRetainer ? !sameStack : sameStack;
   }
 
   /// <summary>

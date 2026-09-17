@@ -984,7 +984,17 @@ internal static unsafe class AutoMarketService
       return false;
     }
 
-    rc = manager->MoveItemSlot((InventoryType)op.SrcContainer, (ushort)op.SrcSlot, dstType!.Value, (ushort)dstSlot, false);
+    // 0.1.57.0: the sixth argument is passed TRUE. With it left at the FFXIVClientStructs default
+    // of false every routing move reported rc=0, emptied its source slot in the client's own view,
+    // and was gone again the moment that retainer's session closed and re-opened: in the
+    // 19:28-19:29 ET run the second lap's eight deposits landed in the exact eight page slots the
+    // first lap had filled fifty-five seconds earlier, and the next sweep an hour later re-fired
+    // all fifty pull-outs from the identical page slots. Nothing this mover moved had ever been
+    // kept. The vanilla move path in the sibling plugins of this repo that DO move items for real
+    // passes true here. If it turns out not to be the flag that commits the move, the 0.1.57.0
+    // persistence probe (RoutingMove.MoveDidNotPersist) now catches it on the retainer's next
+    // session and quarantines the stack instead of re-moving it every sweep.
+    rc = manager->MoveItemSlot((InventoryType)op.SrcContainer, (ushort)op.SrcSlot, dstType!.Value, (ushort)dstSlot, true);
     // 0.1.49.0: full authorization on the move line - session (whose pages were read), mapped
     // (whose rule authorized it), and the market-board category that matched - so the next
     // "it moved what it shouldn't" report pins the authorizing rule from the log alone.
@@ -1034,6 +1044,33 @@ internal static unsafe class AutoMarketService
         stuck.Add(RoutingMove.ReconcileKey(op.SessionRetainer, op.SrcContainer, op.SrcSlot, op.ItemId, op.HQ));
     }
     return stuck;
+  }
+
+  /// <summary>
+  /// 0.1.57.0: the deferred persistence probe. Re-reads the RETAINER side of every move made in
+  /// this retainer's PREVIOUS session, now that the session has closed and the game has sent the
+  /// retainer's pages again, and returns the ledger keys of the moves that did not survive it.
+  /// A page container that is not loaded yields no verdict at all - an unverifiable move is left
+  /// alone rather than guessed at. The decision itself is pure (RoutingMove.MoveDidNotPersist);
+  /// only the slot read lives here.
+  /// </summary>
+  public static List<string> GradeRoutingMovePersistence(IReadOnlyList<RoutingMovePending> pending)
+  {
+    var lost = new List<string>();
+    var manager = InventoryManager.Instance();
+    if (manager == null) return lost;
+    foreach (var p in pending)
+    {
+      var cont = manager->GetInventoryContainer((InventoryType)p.RetainerContainer);
+      if (cont == null || !cont->IsLoaded || p.RetainerSlot < 0 || p.RetainerSlot >= cont->Size)
+        continue;
+      var slot = cont->GetInventorySlot(p.RetainerSlot);
+      var observedId = slot == null ? 0u : slot->ItemId;
+      var observedHq = slot != null && slot->Flags.HasFlag(InventoryItem.ItemFlags.HighQuality);
+      if (RoutingMove.MoveDidNotPersist(p.Leg, p.ItemId, p.HQ, observedId, observedHq))
+        lost.Add(p.Key);
+    }
+    return lost;
   }
 }
 

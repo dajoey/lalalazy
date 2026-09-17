@@ -3515,6 +3515,68 @@ StockStack BagStack(uint id, int slot, int qty, uint cat = CatA, bool marketable
     !control.Notes.Any(n => n.Contains("did not stick")), string.Join(" | ", control.Notes));
 }
 
+// ===== 0.1.57.0: a move counts as real only after the retainer's session re-opens =====
+
+// 117. The deferred persistence verdict. A deposit is real while its page slot still holds the
+// stack; a pull-out is real while its page slot no longer holds it. Every earlier probe read the
+// move a second after firing, when the client still showed its own optimistic result, so the
+// ledger never recorded anything and the same moves re-fired sweep after sweep.
+{
+  // Deposit leg: the retainer page slot the deposit filled.
+  Check("117 persistence: a deposit whose page slot still holds the stack persisted",
+    !RoutingMove.MoveDidNotPersist(MoveLeg.BagsToRetainer, 1001, false, 1001, false), "deposit kept");
+  Check("117 persistence: a deposit whose page slot is empty again did not persist",
+    RoutingMove.MoveDidNotPersist(MoveLeg.BagsToRetainer, 1001, false, 0, false), "deposit gone");
+  Check("117 persistence: a deposit whose page slot holds a different item did not persist",
+    RoutingMove.MoveDidNotPersist(MoveLeg.BagsToRetainer, 1001, false, 1002, false), "deposit replaced");
+  Check("117 persistence: HQ is part of the stack identity on the deposit leg",
+    RoutingMove.MoveDidNotPersist(MoveLeg.BagsToRetainer, 1001, true, 1001, false), "deposit hq/nq");
+  Check("117 persistence: an HQ deposit whose page slot holds the HQ stack persisted",
+    !RoutingMove.MoveDidNotPersist(MoveLeg.BagsToRetainer, 1001, true, 1001, true), "deposit hq kept");
+
+  // Pull-out leg: the retainer page slot the pull-out emptied.
+  Check("117 persistence: a pull-out whose page slot is empty persisted",
+    !RoutingMove.MoveDidNotPersist(MoveLeg.RetainerToBags, 1001, false, 0, false), "pull-out kept");
+  Check("117 persistence: a pull-out whose page slot holds the same stack again did not persist",
+    RoutingMove.MoveDidNotPersist(MoveLeg.RetainerToBags, 1001, false, 1001, false), "pull-out back");
+  Check("117 persistence: a pull-out whose page slot holds a different item persisted",
+    !RoutingMove.MoveDidNotPersist(MoveLeg.RetainerToBags, 1001, false, 1002, false), "pull-out reused");
+  Check("117 persistence: an NQ pull-out is not graded stuck by an HQ stack in the slot",
+    !RoutingMove.MoveDidNotPersist(MoveLeg.RetainerToBags, 1001, false, 1001, true), "pull-out hq/nq");
+  // An empty slot never reads as "the same stack", whatever item id zero would compare against.
+  Check("117 persistence control: item id zero is an empty slot, never a match",
+    !RoutingMove.MoveDidNotPersist(MoveLeg.RetainerToBags, 0, false, 0, false), "empty slot");
+}
+
+// 118. A move the persistence probe rejects is quarantined under the SAME ledger key the planner
+// skips on, so the stack stops shuttling and shows up in the in-game Quarantined moves list.
+{
+  var rules = new List<ItemRule> { Rule(1001, 99) };
+  var info = CatInfo(1001, CatA);
+  // A pull-out that came back: the probe records ReconcileKey(session, page slot, item) and the
+  // planner must then leave that stack alone.
+  var lostPullKey = RoutingMove.ReconcileKey("R2", 10001, 1, 1001, false);
+  var pullStock = new List<StockStack> { RetStack(1001, 1, 10) };
+  var heldPlan = RoutingMove.Plan(pullStock, rules, info, new Dictionary<string, bool>(), routingRules, "R2", () => 10, () => 10, null, new HashSet<string> { lostPullKey });
+  Check("118 persistence: a pull-out the probe rejected is skipped by the next plan",
+    heldPlan.Ops.Count == 0, $"{heldPlan.Ops.Count} op(s)");
+  // A deposit that came back sits in the bags again, at the bag slot its ledger key names.
+  var lostDepKey = RoutingMove.ReconcileKey("R1", 1, 2, 1001, false);
+  var depStock = new List<StockStack> { BagStack(1001, 2, 30) };
+  var heldDep = RoutingMove.PlanDepositsOnly(depStock, rules, info, new Dictionary<string, bool>(), routingRules, "R1", () => 10, () => 10, new HashSet<string> { lostDepKey });
+  Check("118 persistence: a deposit the probe rejected is skipped by the next plan",
+    heldDep.Ops.Count == 0, $"{heldDep.Ops.Count} op(s)");
+  // Same ledger, same key shape: the quarantined-moves list parses it into a readable row.
+  Check("118 persistence: the recorded key still parses for the Quarantined moves list",
+    RoutingMove.TryParseReconcileKey(lostPullKey, out var pSession, out var pContainer, out var pSlot, out var pItem, out var pHq)
+      && pSession == "R2" && pContainer == 10001 && pSlot == 1 && pItem == 1001 && !pHq, lostPullKey);
+  // And it survives a ledger save/load round trip under the current format marker.
+  var stamp = new DateTime(2026, 9, 17, 23, 0, 0, DateTimeKind.Utc);
+  var saved = RoutingMove.SerializeReconcileLedger(new Dictionary<string, DateTime>(StringComparer.Ordinal) { [lostPullKey] = stamp });
+  Check("118 persistence: the quarantine survives a ledger round trip",
+    RoutingMove.ParseReconcileLedger(saved, stamp).TryGetValue(lostPullKey, out var back) && back == stamp, saved);
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 
