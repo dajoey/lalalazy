@@ -1,4 +1,4 @@
-using Dalamud.Game.ClientState.Objects.Types;
+﻿using Dalamud.Game.ClientState.Objects.Types;
 using ECommons.DalamudServices;
 using System;
 using System.Collections.Generic;
@@ -424,8 +424,7 @@ internal partial class OccultCrescent
 
         if (IsEnabledAndUsable(Preset.Phantom_Monk_PhantomKick, PhantomKick) &&
             !IsMoving() && InActionRange(PhantomKick) &&
-            GetTargetDistance() <= Phantom_Monk_PhantomKick_Distance &&
-            MovementGate.Allowed(PhantomKick, MovementGate.GapCloserLanding())) //Policy A (t_8d711ea6)
+            GetTargetDistance() <= Phantom_Monk_PhantomKick_Distance)
         {
             actionID = PhantomKick; // damage buff + dash
             return true;

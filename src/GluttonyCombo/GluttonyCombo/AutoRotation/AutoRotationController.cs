@@ -699,9 +699,6 @@ internal unsafe class AutoRotationController
     internal static void Run()
     {
         cfg ??= new AutoRotationConfigIPCWrapper(Service.Configuration.RotationConfig);
-        // SmartMover (v1.0.4.191): movement must not die when every rotation candidate
-        // is gated this tick, so it runs before ProcessAutoActions and its skip gates.
-        SmartMover.Tick();
 
         if (!cfg.Enabled)
             OverrideTarget = null;
@@ -1845,16 +1842,6 @@ internal unsafe class AutoRotationController
         }
         else
         {
-            // Auto positional movement for melee DPS. SmartMover (v1.0.4.191) runs its
-            // own positional logic as part of engage - don't double-steer when it owns movement.
-            if (cfg.DPSSettings.AutoPositionals &&
-                !cfg.DPSSettings.SmartMover &&
-                Jobs.GetRoleFromJob(Player.Job) is Jobs.JobRole.MeleeDPS)
-            {
-                var target = AutoRotationHelper.GetSingleTarget(mode);
-                PositionalMover.MoveToPositional(target);
-            }
-
             return AutoRotationHelper.ExecuteST(mode, preset, attributes, gameAct);
         }
     }
@@ -2202,35 +2189,9 @@ internal unsafe class AutoRotationController
             return false;
         }
 
-        /// <summary>
-        ///     Whether movement currently blocks STARTING a timed cast - the global
-        ///     cast gate shared by ExecuteST, ExecuteAoE and the heal path. Policy A
-        ///     (t_8d711ea6) adds the slidecast exemption: while the cast in progress
-        ///     has at most <see cref="SmartMoverCore.SlidecastWindowSec"/> remaining,
-        ///     the character is SUPPOSED to be moving, so holding idles the rotation
-        ///     for nothing. The client still refuses a cast start on ground that is
-        ///     physically moving when UseAction executes - the same failure mode as
-        ///     any cast pressed while running.
-        /// </summary>
-        private static bool MovementBlocksCastStart(float castTime, bool orbwalking)
-        {
-            if (castTime <= 0f)
-                return false;
-
-            // Smart Movement v2: never start a cast the planner would have to cut.
-            // MaxCastTime is the path leeway in seconds (float.MaxValue when nothing threatens).
-            if (castTime / 1000f > SmartMover.MaxCastTime)
-                return true;
-
-            if (TimeMoving.TotalMilliseconds <= 0 || orbwalking)
-                return false;
-
-            if (Player.Object is IBattleChara pc && pc.IsCasting && pc.TotalCastTime > 0f &&
-                pc.TotalCastTime - pc.CurrentCastTime <= SmartMoverCore.SlidecastWindowSec)
-                return false;
-
-            return true;
-        }
+        /// <summary> Shared cast gate for ExecuteST, ExecuteAoE and the heal path: a cast cannot start while the character is moving (unless orbwalking). </summary>
+        private static bool MovementBlocksCastStart(float castTime, bool orbwalking) =>
+            castTime > 0f && TimeMoving.TotalMilliseconds > 0 && !orbwalking;
 
         private static bool SwitchOnDChole(PresetStorage.PresetData attributes, uint outAct, ref IBattleChara? newtarget)
         {

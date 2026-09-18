@@ -1,4 +1,4 @@
-#region
+﻿#region
 
 using ECommons;
 using ECommons.DalamudServices;
@@ -223,9 +223,6 @@ public partial class GluttonyCombo
 
             case "opener":
                 OutputOpenerStatus(); break;
-
-            case "mvtel": // fork: movement-decision tap (v1.0.4.191)
-                HandleMovementTelemetryCommand(argumentParts); break;
 
             case "telemetry": // fork: combo-decision tap (v1.0.4.168)
             case "ct": // unlisted
@@ -708,37 +705,6 @@ public partial class GluttonyCombo
         DuoLog.Information($"Combo telemetry {(wanted.Value ? "ON" : "OFF")}.");
     }
 
-    private void HandleMovementTelemetryCommand(string[] argument)
-    {
-        var current = Service.Configuration.RotationConfig.DPSSettings.MovementTelemetry;
-        var sub = argument.Length > 1 ? argument[1] : "toggle";
-        bool? wanted = sub switch
-        {
-            "on" or "enable" or "1" => true,
-            "off" or "disable" or "0" => false,
-            "toggle" => !current,
-            _ => null,
-        };
-
-        if (wanted is null)
-        {
-            if (sub is not ("status" or ""))
-                DuoLog.Error("Usage: /gluttony mvtel <on|off|toggle|status>");
-            DuoLog.Information($"Movement telemetry is {(current ? "ON" : "OFF")} " +
-                               $"(lines start with `MV|` in the plugin log).");
-            return;
-        }
-
-        if (wanted.Value != current)
-        {
-            Service.Configuration.RotationConfig.DPSSettings.MovementTelemetry = wanted.Value;
-            Service.Configuration.Save();
-            if (wanted.Value)
-                global::GluttonyCombo.AutoRotation.SmartMover.ResetTelemetry();
-        }
-
-        DuoLog.Information($"Movement telemetry {(wanted.Value ? "ON" : "OFF")}.");
-    }
 
 
     private void HandleDebugCommands(string[] argument)

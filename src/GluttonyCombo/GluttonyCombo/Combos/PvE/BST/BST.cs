@@ -1,4 +1,4 @@
-#region Dependencies
+﻿#region Dependencies
 
 using ECommons.DalamudServices;
 using FFXIVClientStructs.FFXIV.Client.Game;
@@ -334,7 +334,7 @@ internal partial class BST : Melee
 
         s.ShieldChargeCharges = (int)GetRemainingCharges(ShieldCharge);
         s.ShieldChargeMax = GetMaxCharges(ShieldCharge);
-        s.ReadyShieldCharge = ActionReady(ShieldCharge) && MovementGate.Allowed(ShieldCharge, MovementGate.GapCloserLanding());
+        s.ReadyShieldCharge = ActionReady(ShieldCharge);
 
         ReadCrucible(ref s);
 

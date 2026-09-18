@@ -1,4 +1,4 @@
-using Dalamud.Game.ClientState.Objects.Types;
+﻿using Dalamud.Game.ClientState.Objects.Types;
 using ECommons.GameFunctions;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using System;
@@ -251,8 +251,7 @@ internal partial class RDM : Caster
             {
                 if (IsEnabled(Preset.RDM_ST_MeleeCombo_GapCloser) && !InMeleeRange() && !HasManafication &&
                     ActionReady(Corpsacorps) && TimeStoodStill >= TimeSpan.FromSeconds(RDM_ST_GapCloseCorpsacorps_Time) &&
-                    (HasEnoughManaToStart || CanMagickedSwordplay) &&
-                    MovementGate.Allowed(Corpsacorps, MovementGate.GapCloserLanding())) //Policy A (t_8d711ea6)
+                    (HasEnoughManaToStart || CanMagickedSwordplay))
                     return Corpsacorps;
 
                 // Held under Occult Quick (v1.0.4.154). Manafication's whole payout is the melee
@@ -283,8 +282,7 @@ internal partial class RDM : Caster
 
                 if (IsEnabled(Preset.RDM_ST_Corpsacorps) && CanCorps &&
                     GetTargetDistance() <= RDM_ST_Corpsacorps_Distance &&
-                    TimeStoodStill >= TimeSpan.FromSeconds(RDM_ST_Corpsacorps_Time) &&
-                    MovementGate.Allowed(Corpsacorps, MovementGate.GapCloserLanding())) //Policy A (t_8d711ea6)
+                    TimeStoodStill >= TimeSpan.FromSeconds(RDM_ST_Corpsacorps_Time))
                     return Corpsacorps;
 
                 if (IsEnabled(Preset.RDM_ST_Prefulgence) && CanPrefulgence &&

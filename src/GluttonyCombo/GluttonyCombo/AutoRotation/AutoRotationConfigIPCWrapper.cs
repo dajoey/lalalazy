@@ -200,27 +200,12 @@ public class DPSSettingsIPCWrapper(DPSSettings settings)
         }
     }
 
-    public bool AutoPositionals => settings.AutoPositionals;
 
-    /// <summary>Fork (v1.0.4.191): SmartMover owns movement when on.</summary>
-    public bool SmartMover => settings.SmartMover;
 
-    /// <summary>Extra safety margin kept from live danger zones, in yalms.</summary>
-    public float SmartMoverDangerBufferY => settings.SmartMoverDangerBufferY;
 
-    /// <summary>Movement-decision telemetry (MV| lines). Off by default.</summary>
-    public bool MovementTelemetry => settings.MovementTelemetry;
 
-    /// <summary>Policy A (v1.0.4.194): auto-fired movement abilities fire only when the safety gate passes.</summary>
-    public bool MovementSafetyGate => settings.MovementSafetyGate;
 
-    /// <summary>Fork (v1.0.4.195): omen-telegraph VFX zones for instant (cast-bar-less) enemy AoEs.</summary>
-    public bool SmartMoverOmenVfx => settings.SmartMoverOmenVfx;
 
-    /// <summary>Omen debug lines (MVD|/MVU|). Off by default.</summary>
-    public bool SmartMoverOmenDebug => settings.SmartMoverOmenDebug;
-    public float SmartMoverCushionSec => settings.SmartMoverCushionSec;
-    public int SmartMoverEscapeHatch => settings.SmartMoverEscapeHatch;
 
     public bool AoEOnlyWhenTargeting => settings.AoEOnlyWhenTargeting;
 

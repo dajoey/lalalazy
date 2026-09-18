@@ -38,34 +38,6 @@ public class DPSSettings
     public bool AoEIgnoreManual = false;
     public bool AoEOnlyWhenTargeting = false;
     public bool UnTargetAndDisableForPenalty = false;
-    public bool AutoPositionals = false;
-    /// <summary>Fork (v1.0.4.191): SmartMover owns movement when on - move to DPS target range, derived danger-zone dodging, positionals; never stands down for BossMod.</summary>
-    public bool SmartMover = false;
-    /// <summary>Extra safety margin in yalms kept from live danger zones (derived from enemy casts).</summary>
-    public float SmartMoverDangerBufferY = 1f;
-    /// <summary>Movement-decision telemetry (MV| lines in the plugin log). Off by default.</summary>
-    public bool MovementTelemetry = false;
-    /// <summary>
-    ///     Fork (v1.0.4.195): derive extra danger zones from omen-telegraph
-    ///     VFX - the ground markers the game spawns for instant enemy AoEs
-    ///     that never show a cast bar. New key; default ON, and an absent
-    ///     key in an old config deserialises to it.
-    /// </summary>
-    public bool SmartMoverOmenVfx = true;
-    /// <summary>Omen debug lines (MVD|/MVU| in the plugin log at Debug level). Off by default.</summary>
-    public bool SmartMoverOmenDebug = false;
-    /// <summary>Smart Movement v2: seconds before a telegraph's reported end the character must be out (BossMod default 1.0). Higher = earlier, safer, less uptime.</summary>
-    public float SmartMoverCushionSec = 1.0f;
-    /// <summary>Smart Movement v2: modifier key that suspends steering while held (0 none, 1 Ctrl, 2 Alt, 3 Shift).</summary>
-    public int SmartMoverEscapeHatch = 0;
-
-    /// <summary>
-    ///     Fork (v1.0.4.194, Policy A): auto-fired movement abilities (gap-closers,
-    ///     dashes) must pass the safety gate - never mid-dodge, never during another
-    ///     dash, never landing in a live danger zone. New key; default ON is the
-    ///     picked policy and an absent key in an old config deserialises to it.
-    /// </summary>
-    public bool MovementSafetyGate = true;
 }
 
 public class HealerSettings

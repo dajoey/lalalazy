@@ -1,4 +1,4 @@
-using Dalamud.Game.ClientState.JobGauge.Types;
+﻿using Dalamud.Game.ClientState.JobGauge.Types;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -568,7 +568,7 @@ internal partial class PLD
                 return true;
             }
                 
-            if (interveneEnabled && MovementGate.Allowed(Intervene, MovementGate.GapCloserLanding()) && ActionReady(Intervene) && !JustUsed(Intervene, 2f) && //Policy A (t_8d711ea6)
+            if (interveneEnabled && ActionReady(Intervene) && !JustUsed(Intervene, 2f) &&
                 (!fightOrFlightEnabled && !poolInterveneForManual || GetCooldownRemainingTime(FightOrFlight) > 40) && //Buff Window Check
                 GetRemainingCharges(Intervene) > interveneChargeThreshold && //Charge Check
                 GetTargetDistance() <= interveneDistanceThreshold && //Distance Check

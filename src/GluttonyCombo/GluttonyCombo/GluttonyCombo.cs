@@ -69,7 +69,6 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
     // TryGetDtr) leaves its entry null instead of failing the whole load.
     private readonly IDtrBarEntry? DtrBarEntry;
     public readonly IDtrBarEntry? OpenerDtr;
-    internal readonly IDtrBarEntry? SmartDtr;
     internal Provider IPC;
     internal Search IPCSearch = null!;
     internal UIHelper UIHelper = null!;
@@ -314,23 +313,6 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
             new TextPayload("Click to toggle Opener Preset.\n"),
             new TextPayload("Disable this icon in /xlsettings -> Server Info Bar"));
         }
-        // v1.0.4.197: Smart Movement's own DTR entry - a quick kill switch that
-        // is independent of auto-rotation (the related support thread).
-        SmartDtr ??= TryGetDtr("Gluttony Smart Movement");
-        if (SmartDtr is not null)
-        {
-            SmartDtr.OnClick = (_) =>
-            {
-                var dps = Service.Configuration.RotationConfig.DPSSettings;
-                dps.SmartMover = !dps.SmartMover;
-                Service.Configuration.Save();
-                DuoLog.Information($"Smart Movement: {(dps.SmartMover ? "On" : "Off")}");
-            };
-            SmartDtr.Tooltip = new SeString(
-            new TextPayload("Click to toggle Gluttony Combo's Smart Movement.\n"),
-            new TextPayload("Disable this icon in /xlsettings -> Server Info Bar"));
-        }
-
         Svc.ClientState.Login += PrintLoginMessage;
         if (Svc.ClientState.IsLoggedIn) ResetFeatures();
 
@@ -498,13 +480,6 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
 
             // v1.0.4.197: Smart Movement DTR text (own toggle, independent of
             // auto-rotation). Reuses the verified sword icons.
-            var smartOn = Service.Configuration.RotationConfig.DPSSettings.SmartMover;
-            var smartIcon = new IconPayload(smartOn
-                ? BitmapFontIcon.SwordUnsheathed
-                : BitmapFontIcon.SwordSheathed);
-            if (SmartDtr is not null)
-                SmartDtr.Text = new SeString(smartIcon, new TextPayload(smartOn ? ": On" : ": Off"));
-
             if (Service.Configuration.TankbusterTTS || Service.Configuration.TankbusterToast)
                 CustomComboFunctions.PlayTankbusterAlert();
 
@@ -658,7 +633,6 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         // until a game restart.
         DtrBarEntry?.Remove();
         OpenerDtr?.Remove();
-        SmartDtr?.Remove();
         Configuration.ConfigChanged -= DebugFile.LoggingConfigChanges;
         Svc.Framework.Update -= OnFrameworkUpdate;
         Svc.ClientState.TerritoryChanged -= ClientState_TerritoryChanged;
@@ -674,8 +648,6 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         MoveHook.Dispose();
         CustomActions.Dispose();
 
-        // SmartMover must stop driving vnavmesh before nav IPC goes away (v1.0.4.191).
-        AutoRotation.SmartMover.Shutdown();
 
         ConflictingPluginsChecks.Dispose();
         ConflictingPluginsChecks.Dispose();

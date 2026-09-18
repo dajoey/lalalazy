@@ -168,44 +168,6 @@ internal class AutoRotationTab : ConfigWindow
 
             ImGuiComponents.HelpMarker(AutoRotationUI.HelpText_UnTargetAndDisableForPenalty);
 
-            changed |= ImGui.Checkbox("Auto Positionals (Melee DPS)###AutoPositionals", ref cfg.DPSSettings.AutoPositionals);
-
-            ImGuiComponents.HelpMarker("When enabled, melee DPS jobs will automatically move to the correct positional (flank/rear) using vnavmesh.\nRequires vnavmesh to be installed.\nOnly activates in melee range. Stops immediately on player movement input.\nDoes not activate when BossMod AI is handling movement.");
-
-            ImGui.Separator();
-            changed |= ImGui.Checkbox("Smart Movement###SmartMover", ref cfg.DPSSettings.SmartMover);
-            ImGuiComponents.HelpMarker("When enabled, Gluttony Combo moves the character itself: to attack range of the current auto-rotation target (even when it differs from the hard target), out of telegraphed danger zones derived from enemy casts, and to positionals.\nMovement is steered directly (no navmesh needed for dodges); vnavmesh is used only to approach a target more than 24 yalms away. The planner knows WHEN each telegraph resolves and plans a path in seconds, so it can wait out a long cast in place, cross a zone that resolves before you arrive, and tell the rotation how long a cast may be.\nYour own movement input always wins. Stands down while BossMod Reborn's AI or another vnavmesh path is steering, while mounted or flying, and out of combat.");
-            if (cfg.DPSSettings.SmartMover)
-            {
-                var buf = cfg.DPSSettings.SmartMoverDangerBufferY;
-                ImGui.SliderFloat("Danger zone margin (yalms)###SmartMoverDangerBuffer", ref buf, 0f, 3f, "%.1f");
-                if (Math.Abs(buf - cfg.DPSSettings.SmartMoverDangerBufferY) > 0.01f)
-                {
-                    cfg.DPSSettings.SmartMoverDangerBufferY = buf;
-                    changed = true;
-                }
-                ImGuiComponents.HelpMarker("Every telegraph is grown by this much before planning. 1.0 covers position quantisation and your own hitbox.");
-                var cushion = cfg.DPSSettings.SmartMoverCushionSec;
-                ImGui.SliderFloat("Leave telegraphs this early (seconds)###SmartMoverCushion", ref cushion, 0.3f, 3f, "%.1f");
-                if (Math.Abs(cushion - cfg.DPSSettings.SmartMoverCushionSec) > 0.01f)
-                {
-                    cfg.DPSSettings.SmartMoverCushionSec = cushion;
-                    changed = true;
-                }
-                ImGuiComponents.HelpMarker("The character is out of a telegraph this many seconds before its cast bar ends (the game resolves NPC casts about 0.3 s after the bar). 1.0 is BossMod's default; raise it on high ping, lower it for more uptime.");
-                var hatch = cfg.DPSSettings.SmartMoverEscapeHatch;
-                if (ImGui.Combo("Suspend steering while holding###SmartMoverEscapeHatch", ref hatch, new[] { "Nothing", "Ctrl", "Alt", "Shift" }, 4))
-                {
-                    cfg.DPSSettings.SmartMoverEscapeHatch = hatch;
-                    changed = true;
-                }
-                changed |= ImGui.Checkbox("Movement telemetry###MovementTelemetry", ref cfg.DPSSettings.MovementTelemetry);
-                ImGuiComponents.HelpMarker("Writes MV| decision lines and MZ| telegraph lines to the plugin log (nothing leaves the machine). Toggle with /gluttony mvtel.");
-            }
-
-            changed |= ImGui.Checkbox("Movement ability safety gate###MovementSafetyGate", ref cfg.DPSSettings.MovementSafetyGate);
-            ImGuiComponents.HelpMarker("Auto-fired movement abilities (gap-closers and dashes) only fire when safe: never during Smart Movement's dodge, never while another dash is executing, and never with the landing point inside a live danger zone. The dodge and zone checks read Smart Movement's state, so they apply when that is enabled; the mid-dash check always applies.");
-
             changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(AutoRotationUI.Checkbox_DPSAlwaysHardTarget, ref cfg.DPSSettings.DPSAlwaysHardTarget, "DPSAlwaysHardTarget");
 
             ImGuiComponents.HelpMarker(AutoRotationUI.HelpText_DPSAlwaysHardTarget);

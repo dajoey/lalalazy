@@ -1,4 +1,4 @@
-#region Dependencies
+﻿#region Dependencies
 using Dalamud.Game.ClientState.JobGauge.Types;
 using System;
 using System.Collections.Generic;
@@ -223,7 +223,6 @@ internal partial class WAR : Tank
             }
 
             if (onslaughtEnabled &&
-                MovementGate.Allowed(Onslaught, MovementGate.GapCloserLanding()) && //Policy A (t_8d711ea6)
                 ActionReady(Onslaught) && HasSurgingTempest &&
                 (!innerReleaseEnabled && !poolOnslaughtForManual || IR.Cooldown > 40) && //Buff Window Check
                 GetRemainingCharges(Onslaught) > onslaughtChargeThreshold &&  //Charge Slider Check
