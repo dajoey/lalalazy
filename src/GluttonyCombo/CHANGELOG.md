@@ -1,3 +1,7 @@
+## v1.0.4.215 (2026-09-17) [testing]
+### Fixed
+- **Updating the plugin no longer requires a game restart.** When an update loaded while a character was logged in, the auto-rotation controller's static raidwide-mitigation list registered its retargets before the retarget registry existed, threw once, and that single failure was cached by the runtime: every auto-rotation tick from then on failed ("Pls no crash game ty" in the log, more than 30,000 lines in three minutes) until the game was restarted. A fresh game start never hit it because the list was first touched after login. The list is now built on first use, the retarget registry is created before anything else in the plugin, and a retarget requested before the registry exists returns the action unchanged instead of throwing.
+
 ## v1.0.4.214 (2026-09-17) [testing]
 ### Fixed
 - **Room-wide telegraphs no longer send the character to the arena edge.** A rectangle at least 30 yalms long and 30 wide (Abductor's Buffet: 60 by 60 from the edge of the ring, hitting everyone with a knockback) and a cone of 360 degrees are treated as raidwides, like circles of 30 yalms or more already were. Nothing can be dodged by position there; planning around them ran the character up to 28 yalms toward the ring's edge, twice per cast.

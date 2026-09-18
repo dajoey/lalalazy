@@ -1,4 +1,4 @@
-#region
+﻿#region
 
 using System;
 using System.Collections.Generic;
@@ -609,4 +609,4 @@ internal static class UIntExtensions
             GluttonyCombo.P.ActionRetargeting.Register(action, replaced,
                 target.CheckForAttribute());
     }
-}
+}

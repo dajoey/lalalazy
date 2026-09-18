@@ -216,6 +216,9 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         var existingInstall = pluginInterface.ConfigFile.Exists;
         pluginInterface.Create<Service>();
         ECommonsMain.Init(pluginInterface, this, Module.All);
+        // The Retarget registry is created FIRST: static initialisers elsewhere
+        // (AutoRotationController) call (uint).Retarget(), which needs it.
+        ActionRetargeting = new ActionRetargeting();
         PunishLibMain.Init(pluginInterface, "Gluttony Combo");
         ActionRequestIPCProvider.Initialize();
 
@@ -233,7 +236,6 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         Service.ComboCache = new CustomComboCache();
         Service.ActionReplacer = new ActionReplacer();
         Service.AutoRotationController = new AutoRotationController();
-        ActionRetargeting = new ActionRetargeting();
         ActionWatching.Enable();
         IPC = Provider.Init();
         PingPluginIPC.Init();

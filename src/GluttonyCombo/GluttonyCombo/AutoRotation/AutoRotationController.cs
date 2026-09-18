@@ -912,7 +912,14 @@ internal unsafe class AutoRotationController
         return ActionReady(spell) && (safeGameObjectId != null ? !JustUsedOn(spell, safeGameObjectId.GetObject(), 5) : !JustUsed(spell, 10)) && LocalPlayer.CastActionId != spell && (!IsMoving(true) || ActionManager.GetAdjustedCastTime(ActionType.Action, spell) == 0);
     }
 
-    public static IEnumerable<(uint Action, bool MultiHitOnly)> RaidwideActions =
+    // Built on first use, not at type initialisation: the Retarget calls need the
+    // plugin's ActionRetargeting registry, which does not exist yet while the
+    // plugin constructor is still running. When an in-place update loaded the
+    // plugin with a character logged in, the static initialiser ran too early,
+    // threw, and the cached TypeInitializationException killed every
+    // AutoRotationController.Run() until the game was restarted.
+    private static IEnumerable<(uint Action, bool MultiHitOnly)>? _raidwideActions;
+    public static IEnumerable<(uint Action, bool MultiHitOnly)> RaidwideActions => _raidwideActions ??=
     [
         (WHM.LiturgyOfTheBell.Retarget(SimpleTarget.Self), true),
         (WHM.PlenaryIndulgence, false),
