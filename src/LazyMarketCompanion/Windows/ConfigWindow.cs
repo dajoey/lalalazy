@@ -37,6 +37,18 @@ public sealed class ConfigWindow : Window
   /// </summary>
   internal Func<IReadOnlyList<(string Key, DateTime RecordedAtUtc)>>? ReconcileLedgerSource { get; set; }
 
+  /// <summary>
+  /// 0.1.58.0: the quarantined-moves list is no longer read-only. A hold left over from a
+  /// transient condition would otherwise sit out its whole 24-hour retry window while the stack
+  /// stays put, which reads in the inventory as an item that simply will not move. These release
+  /// one entry, or all of them; the stack itself is not touched, it just becomes plannable again
+  /// on the next sweep. Funcs, not references, so the window never owns automation state.
+  /// </summary>
+  internal Func<string, bool>? ReconcileLedgerRelease { get; set; }
+
+  /// <summary>0.1.58.0: see <see cref="ReconcileLedgerRelease"/>.</summary>
+  internal Func<int>? ReconcileLedgerReleaseAll { get; set; }
+
   public ConfigWindow()
     : base("Lazy Market Companion")
   {
@@ -433,6 +445,10 @@ public sealed class ConfigWindow : Window
   /// its last move (a retry that still does not stick goes back in with a fresh stamp).
   /// 0.1.55.0: the list is far shorter in practice - a slot the mover refilled itself is released
   /// instead of held, which was the source of almost every entry this list used to show.
+  /// 0.1.58.0: each row, and the list as a whole, can be released by hand. A hold whose cause was
+  /// transient would otherwise sit out its full 24-hour window with the stack visibly not moving.
+  /// Releasing drops the skip entry only - nothing is moved from here, and a stack the game
+  /// refuses again is back in this list after the next sweep.
   /// </summary>
   private void DrawQuarantinedMoves()
   {
@@ -448,6 +464,13 @@ public sealed class ConfigWindow : Window
 
     var now = DateTime.UtcNow;
     ImGui.TextUnformatted($"{snapshot.Count} stack(s) held - each retries once 24 hours after its last move:");
+    // 0.1.58.0: releasing is deferred to after the list is drawn - removing an entry mid-frame
+    // would resize the child window the rows are being drawn into.
+    string? release = null;
+    var releaseAll = false;
+    if (ImGui.Button("Retry all now##quarantinedRetryAll"))
+      releaseAll = true;
+    Tip("Drops every hold so the next Auto-Market sweep plans those stacks again. Nothing is moved here - a move the game refuses again goes straight back into this list.");
     if (ImGui.BeginChild("##quarantinedMoves", new Vector2(-1, Math.Min(200, 24 * snapshot.Count + 30)), true))
     {
       foreach (var (key, recordedAt) in snapshot)
@@ -456,6 +479,9 @@ public sealed class ConfigWindow : Window
         if (age < TimeSpan.Zero)
           age = TimeSpan.Zero;
         var ageText = age.TotalHours >= 1 ? $"{(int)age.TotalHours}h ago" : $"{(int)age.TotalMinutes}m ago";
+        if (ImGui.SmallButton($"Retry now##quarantinedRetry{key}"))
+          release = key;
+        ImGui.SameLine();
         if (!RoutingMove.TryParseReconcileKey(key, out var session, out var container, out var slot, out var itemId, out var hq))
         {
           ImGui.TextUnformatted($"{key} - held since {recordedAt:u} ({ageText})");
@@ -466,6 +492,10 @@ public sealed class ConfigWindow : Window
       }
     }
     ImGui.EndChild();
+    if (releaseAll)
+      ReconcileLedgerReleaseAll?.Invoke();
+    else if (release != null)
+      ReconcileLedgerRelease?.Invoke(release);
   }
 
   private static List<(uint Id, string Name, bool CanHq)> SearchItems(string query)

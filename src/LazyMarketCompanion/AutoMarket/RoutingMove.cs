@@ -219,6 +219,29 @@ public static class RoutingMove
   }
 
   /// <summary>
+  /// 0.1.58.0: cancels the deferred persistence probe for a retainer page slot this plugin emptied
+  /// on purpose. A deposit is graded by whether its page slot still holds the stack, so a stack the
+  /// value gate vendors at the retainer - or a listing moves onto the market board - reads on the
+  /// next session as a move the game refused, and the bag slot it came from is quarantined with a
+  /// warning for a move that in fact landed. The 20:36 ET run is the proof: the four stacks the
+  /// gate vendored had been deposited into RetainerPage3#6, RetainerPage3#15, RetainerPage5#11 and
+  /// RetainerPage1#9 seconds earlier, and the next session's probe held exactly those four bag
+  /// slots. A page slot is only evidence about the move that filled it while nothing here has
+  /// deliberately taken the stack out of it again. Pure so the harness pins it (case 119).
+  /// </summary>
+  public static List<string> DropPendingVerifyAtRetainerSlot(
+    List<RoutingMovePending> pending, int container, int slot)
+  {
+    var dropped = new List<string>();
+    if (pending == null || pending.Count == 0 || container < 0 || slot < 0)
+      return dropped;
+    foreach (var entry in pending.Where(p => p.RetainerContainer == container && p.RetainerSlot == slot).ToList())
+      if (pending.Remove(entry))
+        dropped.Add(entry.Key);
+    return dropped;
+  }
+
+  /// <summary>
   /// 0.1.51.0: sticky reconciliation window. The 0.1.50.0 log proved prune-on-absence is racy:
   /// a move can verify empty seconds after firing (source slot empty on re-read, entry pruned
   /// at the next lap as "landed") yet be back in the same slot on the next sweep - the server

@@ -3577,6 +3577,48 @@ StockStack BagStack(uint id, int slot, int qty, uint cat = CatA, bool marketable
     RoutingMove.ParseReconcileLedger(saved, stamp).TryGetValue(lostPullKey, out var back) && back == stamp, saved);
 }
 
+// ===== 0.1.58.0: a page slot this run emptied on purpose is not evidence of a refused move =====
+
+// 119. The deferred probe grades a deposit by whether its retainer page slot still holds the
+// stack. The value gate vendors held-back stock at the retainer AFTER it was deposited, and a
+// listing moves stock onto the market board, so those page slots are legitimately empty by the
+// next session - and the bag slots they came from were being quarantined with a warning for
+// moves that had landed. The 20:36 ET run held exactly the four stacks the gate had vendored.
+{
+  var pending = new List<RoutingMovePending>
+  {
+    // The four vendored stacks of that run, deposited into the page slots the vendor ops name.
+    new(RoutingMove.ReconcileKey("R1", 1, 1, 5550, false), MoveLeg.BagsToRetainer, "R1", 10002, 6, 5550, false),
+    new(RoutingMove.ReconcileKey("R1", 1, 8, 4760, false), MoveLeg.BagsToRetainer, "R1", 10002, 15, 4760, false),
+    // A deposit into a slot nothing touches afterwards - it must still be graded.
+    new(RoutingMove.ReconcileKey("R1", 2, 3, 1001, false), MoveLeg.BagsToRetainer, "R1", 10002, 7, 1001, false),
+  };
+
+  var dropped = RoutingMove.DropPendingVerifyAtRetainerSlot(pending, 10002, 6);
+  Check("119 persistence: the probe for a page slot this run vendored out of is cancelled",
+    dropped.Count == 1 && dropped[0] == RoutingMove.ReconcileKey("R1", 1, 1, 5550, false), string.Join(", ", dropped));
+  Check("119 persistence: cancelling one probe leaves the others queued",
+    pending.Count == 2, $"{pending.Count} pending");
+
+  var listed = RoutingMove.DropPendingVerifyAtRetainerSlot(pending, 10002, 15);
+  Check("119 persistence: the probe for a page slot a listing emptied is cancelled too",
+    listed.Count == 1 && pending.Count == 1, $"{listed.Count} dropped, {pending.Count} pending");
+
+  // The untouched deposit is still there and still graded the same way.
+  Check("119 persistence: a page slot nothing here emptied is still graded",
+    pending.Count == 1 && RoutingMove.MoveDidNotPersist(pending[0].Leg, pending[0].ItemId, pending[0].HQ, 0, false),
+    $"{pending.Count} pending");
+
+  // Controls: a slot that matches nothing, and the guards against a negative container or slot
+  // (the executor stamps -1 until it has resolved a destination).
+  Check("119 persistence control: an unrelated page slot cancels nothing",
+    RoutingMove.DropPendingVerifyAtRetainerSlot(pending, 10003, 7).Count == 0 && pending.Count == 1, $"{pending.Count} pending");
+  Check("119 persistence control: an unresolved destination cancels nothing",
+    RoutingMove.DropPendingVerifyAtRetainerSlot(pending, -1, -1).Count == 0 && pending.Count == 1, $"{pending.Count} pending");
+  Check("119 persistence control: an empty queue is handled",
+    RoutingMove.DropPendingVerifyAtRetainerSlot(new List<RoutingMovePending>(), 10002, 6).Count == 0, "empty");
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 

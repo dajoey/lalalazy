@@ -1575,7 +1575,7 @@ internal sealed class MarketAutomation : Window, IDisposable
         vendorSteps.Add(new Step(() =>
         {
           var ok = AutoMarketService.ExecuteVendor(captured);
-          if (ok) { _vendoredThisRun++; } else { _vendorFailedThisRun++; }
+          if (ok) { _vendoredThisRun++; ReleasePendingVerifyAt(captured.Container, captured.Slot, "vendored"); } else { _vendorFailedThisRun++; }
           return true;
         }, $"Vendor{captured.ContainerName()}:{captured.Slot}", DelayAfterMs: 250));
       }
@@ -1814,6 +1814,7 @@ internal sealed class MarketAutomation : Window, IDisposable
       {
         _listedThisRetainer.Add(op);
         _listedTotal++;
+        ReleasePendingVerifyAt(op.SourceContainer, op.SourceSlot, "listed on the market board");
         Communicator.PrintListed(op.ItemId, op.HQ, op.Quantity);
         return true;
       }
@@ -2696,6 +2697,54 @@ internal sealed class MarketAutomation : Window, IDisposable
   internal IReadOnlyList<(string Key, DateTime RecordedAtUtc)> GetReconcileLedgerSnapshot()
     => _routingReconcileSkip.OrderBy(k => k.Key, StringComparer.Ordinal)
       .Select(k => (k.Key, k.Value)).ToList();
+
+  /// <summary>
+  /// 0.1.58.0: releases one quarantined stack from the in-game Quarantined moves list, so a hold
+  /// left over from a transient condition does not have to sit out its whole 24-hour window before
+  /// it is tried again. Only the skip entry goes; nothing is moved here. The released key is put
+  /// into the retry set, so the next sweep's reconcile line reports whether the re-attempt landed
+  /// or went straight back into quarantine, exactly as a 24-hour retry does.
+  /// </summary>
+  internal bool ReleaseReconcileEntry(string key)
+  {
+    if (string.IsNullOrEmpty(key) || !_routingReconcileSkip.Remove(key))
+      return false;
+    _retriedReconcileKeys.Add(key);
+    SaveReconcileLedger();
+    Svc.Log.Information($"[LMC] routing reconcile: 1 quarantined stack released from the config window - it re-plans on the next sweep: {key.Substring(key.IndexOf('|') + 1)}");
+    return true;
+  }
+
+  /// <summary>0.1.58.0: releases every quarantined stack at once. See <see cref="ReleaseReconcileEntry"/>.</summary>
+  internal int ReleaseAllReconcileEntries()
+  {
+    if (_routingReconcileSkip.Count == 0)
+      return 0;
+    var keys = _routingReconcileSkip.Keys.ToList();
+    foreach (var key in keys)
+      _retriedReconcileKeys.Add(key);
+    _routingReconcileSkip.Clear();
+    SaveReconcileLedger();
+    Svc.Log.Information($"[LMC] routing reconcile: {keys.Count} quarantined stack(s) released from the config window - they re-plan on the next sweep: {string.Join(", ", keys.Select(k => k.Substring(k.IndexOf('|') + 1)))}");
+    return keys.Count;
+  }
+
+  /// <summary>
+  /// 0.1.58.0: a retainer page slot this run emptied on purpose stops being evidence about the
+  /// move that filled it. The deferred probe grades a deposit by whether its page slot still holds
+  /// the stack, so a stack the value gate vendors at the retainer, or a listing moves onto the
+  /// market board, read on the next session as moves the game refused - and their bag slots were
+  /// quarantined with a warning although the transfer had landed. Decision is pure
+  /// (RoutingMove.DropPendingVerifyAtRetainerSlot, harness case 119); this only logs it.
+  /// </summary>
+  private void ReleasePendingVerifyAt(int container, int slot, string why)
+  {
+    var dropped = RoutingMove.DropPendingVerifyAtRetainerSlot(_routingPendingVerify, container, slot);
+    if (dropped.Count == 0)
+      return;
+    var place = $"{AutoMarketService.NameOfContainer((InventoryType)container)}#{slot}";
+    Svc.Log.Information($"[LMC] routing persistence: {dropped.Count} move(s) into {place} will not be graded on the next session - this run {why} that stack itself, so the page slot being empty is no evidence the game refused the move: {string.Join(", ", dropped.Select(k => k.Substring(k.IndexOf('|') + 1)))}");
+  }
 
   /// <summary>
   /// 0.1.50.0: records every routing move that reported OK in the cross-sweep reconciliation

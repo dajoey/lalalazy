@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using Dalamud.Game.Command;
@@ -136,6 +136,10 @@ public sealed class Plugin : IDalamudPlugin
     _automation = new MarketAutomation();
     // 0.1.53.0: feed the live reconcile ledger to the quarantined-moves list in the config UI.
     ConfigWindow.ReconcileLedgerSource = _automation.GetReconcileLedgerSnapshot;
+    // 0.1.58.0: and let that list release a hold, so a stack held by a transient condition does
+    // not have to sit out its whole 24-hour retry window before it is planned again.
+    ConfigWindow.ReconcileLedgerRelease = _automation.ReleaseReconcileEntry;
+    ConfigWindow.ReconcileLedgerReleaseAll = _automation.ReleaseAllReconcileEntries;
     WindowSystem.AddWindow(_automation);
     _markers = new AutoMarketMarkers();
     WindowSystem.AddWindow(_markers);

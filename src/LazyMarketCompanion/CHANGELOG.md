@@ -1,8 +1,23 @@
-﻿## v0.1.57.0 (2026-09-17)
+﻿## v0.1.58.0 (2026-09-17)
 
 ### Fixed
 
-- **Auto-Market's stock routing no longer shuffles the same stacks out of the retainers and back every run.** A routing move was graded a second after it fired, while the client still showed the plugin's own view of it, so every move was recorded as successful. It was not: the game log of one run shows the second pass depositing into the exact page slots the first pass had filled fifty-five seconds earlier, and a run an hour later re-issuing all fifty of the previous run's withdrawals from the identical page slots. Nothing the mover moved was being kept, and because each run started from the same inventory it repeated the same work forever - which is what "stock goes in and out of the bags every time" was. A move is now judged only once the retainer's session has closed and the game has sent that retainer's pages again, by re-reading the retainer side of the move: the page slot a deposit filled must still hold the stack, and the page slot a withdrawal emptied must not hold it again.
+- **Stock the value gate vendors at the retainer, or a listing moves onto the market board, is no longer recorded as a transfer the game refused.** A deposit is judged on the retainer's next session by whether its page slot still holds the stack. The vendoring leg runs at the end of that same session and sells stacks that were deposited into those pages seconds earlier, and a listing takes its stack out of a page the same way, so those page slots are legitimately empty by the time the check runs - and the inventory slots they came from were put on hold, with a warning and a chat line, for transfers that had in fact landed. In one run every stack the gate vendored was held this way. A page slot Auto-Market itself emptied on purpose is no longer evidence about the transfer that filled it.
+
+### Added
+
+- **Held stacks can be released from the Quarantined moves list.** Every row carries a retry button and the list carries one for all of them. A hold whose cause was momentary would otherwise sit out its full 24-hour retry window while the stack visibly stays put. Releasing removes the hold only - nothing is moved from the window - and the stack is planned again on the next Auto-Market run, with the result reported in the log the way a 24-hour retry is.
+
+### Notes
+
+- The settled-placement rule, the hold list the planner respects and the 24-hour retry are otherwise unchanged, and no move path was added or widened.
+- Offline-suite change: new case 119 pins that the pending check for a page slot this run vendored or listed out of is cancelled, that the other queued checks are left alone, that a page slot nothing here emptied is still judged, and the guards for an unrelated slot, an unresolved destination and an empty queue.
+
+## v0.1.57.0 (2026-09-17)
+
+### Fixed
+
+- **Auto-Market's stock routing no longer shuffles the same stacks out of the retainers and back every run.** A routing move was graded a second after it fired, while the client still showed the plugin's own view of it, so every move was recorded as successful. It was not: the game log of one run shows the second pass depositing into the exact page slots the first pass had filled fifty-five seconds earlier, and a run an hour later re-issuing all fifty of the previous run's withdrawals from the identical page slots. Nothing the mover moved was being kept,, and because each run started from the same inventory it repeated the same work forever - stock leaving the inventory and being back in it on the next run. A move is now judged only once the retainer's session has closed and the game has sent that retainer's pages again, by re-reading the retainer side of the move: the page slot a deposit filled must still hold the stack, and the page slot a withdrawal emptied must not hold it again.
 - **The item transfer itself is now sent the way the game's own inventory move sends it.** The move call had been made with its final argument left at the library default; it is passed the way the working item-move paths elsewhere in this plugin family pass it. If that turns out not to be why the transfers were dropped, the new check above catches it on the very next retainer session instead of hiding it for another release.
 - **A move the game did not keep is held once and named, instead of being re-issued every run.** It goes into the same hold list the planner already respects, so the stack stops shuttling, appears in Auto-Market's Quarantined moves list with the time it was held, gets its one retry per 24-hour window, and is written out with its page slot and item in the log. A chat line reports it once per run.
 
