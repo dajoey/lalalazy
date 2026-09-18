@@ -67,6 +67,13 @@ internal static class SmartMoverCore
     /// <summary> Bands at or under this depth hug the target (melee/tank 3, SGE 5). </summary>
     internal const float ShortRangeYalms = 5f;
 
+    /// <summary>
+    ///     v2 r2: an escape the character cannot possibly reach before the cell
+    ///     it stands in resolves is not run. Allowance (yalms) added to the
+    ///     reachable distance before an escape counts as hopeless.
+    /// </summary>
+    internal const float HopelessAllowanceYalms = 3f;
+
     /// <summary> Coarse floor-mask cell (yalms); one vnavmesh probe per cell per map placement. </summary>
     internal const float WalkCellYalms = 2f;
 
@@ -320,6 +327,20 @@ internal static class SmartMoverCore
 
         var target = nav.Destination.Value;
         var dodging = forbidden.Count > 0 && (nav.StartUnsafe || leeway < float.MaxValue);
+
+        // v2 r2: standing in a zone whose exit is beyond reach is a hit either way;
+        // running 25 y toward the arena edge for it only makes things worse
+        // (Abductor's Buffet before it was filtered; Tendon Ripper stars from the
+        // centre). Hold, log "stuck", and let the rotation keep casting.
+        if (nav.StartUnsafe && leeway <= 0f)
+        {
+            var reachable = w.Speed * MathF.Max(0f, nav.StartMaxG) + HopelessAllowanceYalms;
+            if (Vector2.Distance(w.PlayerPos, target) > reachable)
+            {
+                s.Waypoint = null;
+                return new MoveDecision(StopIfNav(s), default, ReasonStuckCode, leeway, true, nav.StartMaxG);
+            }
+        }
 
         // ---- cast rule: finish the cast when the path can wait for it ----
         if (w.Casting && w.CastRemainingSec > SlidecastWindowSec && leeway > w.CastRemainingSec - SlidecastWindowSec)

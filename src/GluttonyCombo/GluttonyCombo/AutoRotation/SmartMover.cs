@@ -42,7 +42,6 @@ internal static class SmartMover
 {
     private static readonly SmartMoverCore.MoverState State = new();
     private static readonly List<DangerZoneModel.Zone> Zones = new();
-    private static readonly DangerZoneModel.LingeringZones Lingering = new();
 
     // cast tracking: actor id -> (zone, zone id, resolve time) for ground-shape linger and MZ add/del lines
     private static readonly Dictionary<ulong, (DangerZoneModel.Zone Zone, ulong ZoneId, double ResolveAt, bool Ground)> Tracked = new();
@@ -158,7 +157,6 @@ internal static class SmartMover
         State.Reset();
         Zones.Clear();
         Tracked.Clear();
-        Lingering.Clear();
         LoggedZoneIds.Clear();
         MaxCastTime = float.MaxValue;
     }
@@ -361,20 +359,17 @@ internal static class SmartMover
             Tracked[bc.GameObjectId] = (z, zoneId, activation, ground);
         }
 
-        // casts that ended: resolved ground shapes linger 1 s; interrupted ones are dropped
+        // casts that ended are gone. v2 r2: no linger - a resolved zone kept as
+        // "lethal now" re-ran the escape after the hit had already landed (the
+        // room-wide Buffet sent the character 28 y toward the edge a second time).
         foreach (var key in Tracked.Keys.Except(seen).ToList())
         {
             var t = Tracked[key];
             var resolved = nowSec >= t.ResolveAt - NpcFinishDelaySec - 0.5;
-            if (resolved && t.Ground)
-                Lingering.Add(t.Zone with { ActivationSec = 0, RemainingSec = 0f }, nowSec);
             if (telemetry)
                 LogZoneDel(nowMs, t.ZoneId, resolved ? "end" : "cancel");
             Tracked.Remove(key);
         }
-
-        Lingering.Sweep(nowSec);
-        Lingering.AppendTo(Zones, nowSec);
     }
 
     /// <summary>

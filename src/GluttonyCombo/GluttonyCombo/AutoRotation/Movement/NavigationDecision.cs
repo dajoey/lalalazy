@@ -98,8 +98,15 @@ internal struct NavigationDecision
         };
     }
 
-    public static float ActivationToG(double activationSec, double nowSec, float cushionSec) =>
-        MathF.Max(0f, (float)(activationSec - nowSec) - cushionSec);
+    /// <summary> The cushion never takes more than this fraction of the remaining window (short casts keep a usable g). </summary>
+    public const float MaxCushionFraction = 0.4f;
+
+    public static float ActivationToG(double activationSec, double nowSec, float cushionSec)
+    {
+        var rem = (float)(activationSec - nowSec);
+        var cushion = MathF.Min(cushionSec, MaxCushionFraction * rem);
+        return MathF.Max(0f, rem - cushion);
+    }
 
     /// <summary>
     ///     Corner-based rasterisation: a pixel's max-g is the minimum over its four

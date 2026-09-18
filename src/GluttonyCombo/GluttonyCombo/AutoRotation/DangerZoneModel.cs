@@ -94,6 +94,15 @@ internal static class DangerZoneModel
         if (p.CastType is 2 or 5 && p.EffectRange >= RaidwideSize)
             return null;
 
+        // v2 r2: a rect at least RaidwideSize long AND wide is the whole room, not a
+        // line (Abductor's Buffet: CastType 12, 60 x 60 from the arena edge, hit all
+        // 19 players and knocked back). A cone of 360 degrees is a circle. Neither
+        // can be dodged by position; building them sent the character to the edge.
+        if (p.CastType is 4 or 12 && p.EffectRange >= RaidwideSize && p.XAxisModifier >= RaidwideSize)
+            return null;
+        if (p.CastType is 3 or 13 && p.EffectRange >= RaidwideSize && p.ConeHalfAngleDeg >= 180f)
+            return null;
+
         var aim = p.AimRotation ?? AimRot(p.CastTargetLoc - p.CasterPos);
 
         switch (p.CastType)

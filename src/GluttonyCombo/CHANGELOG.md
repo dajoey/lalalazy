@@ -1,3 +1,13 @@
+## v1.0.4.214 (2026-09-17) [testing]
+### Fixed
+- **Room-wide telegraphs no longer send the character to the arena edge.** A rectangle at least 30 yalms long and 30 wide (Abductor's Buffet: 60 by 60 from the edge of the ring, hitting everyone with a knockback) and a cone of 360 degrees are treated as raidwides, like circles of 30 yalms or more already were. Nothing can be dodged by position there; planning around them ran the character up to 28 yalms toward the ring's edge, twice per cast.
+- **A resolved telegraph is gone at once.** The one-second linger after a ground telegraph resolved re-ran the escape after the hit had already landed; that is what sent the character to the edge a second time.
+- **Short casts keep a usable window.** The "leave this early" cushion is capped at 40% of the remaining cast, so a 0.7 s telegraph is still answered with a real move instead of being treated as already resolved.
+- **Unreachable exits are not run.** When the character stands in a telegraph whose nearest exit is farther than it can run before the telegraph resolves (plus 3 yalms), the mover holds, logs `stuck`, and lets the rotation keep casting instead of sprinting toward the edge for nothing. Eight-spoke stars from their own centre and 0.7 s circles at 2 yalms are hits either way.
+### Notes
+- From the first graded session of 1.0.4.213 (Abductor critical engagement): the 180-degree Wind Blade, the 5..60 Cyclonic Ring, the four Splinter circles and the 15-yalm Skydive were all dodged; Buffet and Hurricane hit all 19 players (undodgeable), and Tendon Ripper's eight spokes leave no gap within 13 yalms of their centre in 0.7 s.
+- Offline harness: 114 cases, adding Abductor replays (Wind Blade, Cyclonic Ring, Splinter, Tendon Ripper from a gap and from the centre, Buffet filtered), the capped cushion and the room-wide filters.
+
 ## v1.0.4.213 (2026-09-17) [testing]
 ### Changed
 - **Smart Movement rebuilt as a time-aware planner with direct steering.** Every enemy telegraph is now placed on a half-yalm grid together with the moment it resolves, and a path is planned in seconds (Theta* over "time until this cell is lethal", ported from BossMod, BSD-3 attribution in `AutoRotation/Movement/THIRD_PARTY_NOTICES.md`). The character can cross a zone that resolves after it has passed, wait out a long cast in place, and always leaves a telegraph a configurable second before its cast bar ends (NPC casts resolve about 0.3 s after the bar; that offset is included).

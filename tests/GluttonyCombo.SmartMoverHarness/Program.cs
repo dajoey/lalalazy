@@ -298,8 +298,43 @@ SmartMoverCore.MoverWorld World(
     var arm = new[] { Cast(2, 10f, 0f, 0f, fire, fire, 0.7f, 0.0, src: 70, action: 0xB74A) };
     var s = new SmartMoverCore.MoverState();
     var dA = SmartMoverCore.Decide(World(new Vector2(1.8f, 0), 0.3, arm, engaged: false), s);
-    Check("scene/arm-of-purgatory-answers", dA.Kind == SmartMoverCore.Decision.Steer && (dA.Reason == SmartMoverCore.ReasonEscapeCode || dA.Reason == SmartMoverCore.ReasonDodgeCode), $"{dA}");
+    // v2 r2: an exit beyond reach is not run - the engine holds and reports "stuck" (a hit either way, no dash to the edge)
+    Check("scene/arm-of-purgatory-holds-as-stuck", dA.Kind == SmartMoverCore.Decision.None && dA.Reason == SmartMoverCore.ReasonStuckCode, $"{dA}");
     Check("scene/arm-of-purgatory-no-leeway", dA.LeewaySec <= 0f, $"lee={dA.LeewaySec}");
+}
+
+// ---------------------------------------------------------------- Abductor (2026-09-17 22:11-22:13 grading of 1.0.4.213)
+{
+    var boss = new Vector2(-150.0f, -860.0f);
+    // Tendon Ripper: two helper crosses (length 60, half-width 4) at the same point, rotations -135 and -90 deg (math), 0.7 s cast.
+    // Eight spokes of half-width 4 leave no gap within ~13 y of the centre. The character at 11 y in the
+    // -67.5 degree gap (4.2 y from both spoke lines; outside the real 4 y, inside the 1 y margin): steps outward, survives.
+    DangerZoneModel.Zone Star(float rotDeg, ulong src) => Cast(11, 60f, 8f, 0f, new(-148.1f, -840.2f), new(-148.1f, -840.2f), 0.7f, 0.0, aimGameRot: null, src: src, action: 0xB94F) with { Rotation = rotDeg * MathF.PI / 180f };
+    var star = new[] { Star(-135f, 1), Star(-90f, 2) };
+    var gapStart = new Vector2(-148.1f, -840.2f) + new Vector2(MathF.Cos(-67.5f * MathF.PI / 180f), MathF.Sin(-67.5f * MathF.PI / 180f)) * 11f;
+    var simS = Simulate((t, p) => World(p, t, star, target: new(-148.1f, -840.2f), range: 20f, hitbox: 5f), star, gapStart, 0.0, 1.5, dt: 0.05f);
+    Check("abductor/tendon-ripper-off-centre-survives", simS.ok, simS.detail);
+    // from the exact centre every spoke overlaps: nothing within reach - hold as "stuck", never a long run
+    var sC = new SmartMoverCore.MoverState();
+    var dC = SmartMoverCore.Decide(World(new Vector2(-148.1f, -840.2f), 0.1, star, target: new(-148.1f, -840.2f), range: 20f, hitbox: 5f), sC);
+    Check("abductor/tendon-ripper-centre-no-hopeless-run", dC.Kind != SmartMoverCore.Decision.Steer || Vector2.Distance(dC.Dest, new Vector2(-148.1f, -840.2f)) < 9f, $"{dC}");
+    // Buffet is filtered at the zone model (above); with it gone the character standing at 18 y from the boss settles
+    var dB = SmartMoverCore.Decide(World(new Vector2(-144.8f, -859.3f), 0.0, target: boss, range: 20f, hitbox: 5f), new SmartMoverCore.MoverState());
+    Check("abductor/no-buffet-zone-settles", dB.Kind == SmartMoverCore.Decision.None && dB.Reason == SmartMoverCore.ReasonSettleCode, $"{dB}");
+    // Wind Blade: 180-degree cone of 60 from the boss facing +Z (game heading ~1.57 -> math 88.5 deg); character 18 y in front: goes behind, survives
+    var wind = new[] { Cast(13, 60f, 0f, 5f, new(-149.8f, -862.2f), new(-149.8f, -862.2f), 4.95f, 0.0, coneHalfDeg: 90f, aimGameRot: 1.57f, src: 5, action: 0xB951) };
+    var simW = Simulate((t, p) => World(p, t, wind, target: new(-149.8f, -862.2f), range: 20f, hitbox: 5f), wind, new Vector2(-149.9f, -844.2f), 0.0, 5.5);
+    Check("abductor/wind-blade-survives", simW.ok, simW.detail);
+    // Cyclonic Ring: donut 5..60 on the boss; character 5.4 y away steps into the hole
+    var ring = new[] { Cast(10, 60f, 0f, 5f, new(-145.3f, -862.8f), new(-145.3f, -862.8f), 5.2f, 0.0, donutInner: 5f, src: 6, action: 0xB959) };
+    var simR2 = Simulate((t, p) => World(p, t, ring, target: new(-145.3f, -862.8f), range: 20f, hitbox: 5f), ring, new Vector2(-143.8f, -868.1f), 0.0, 6.0);
+    Check("abductor/cyclonic-ring-survives", simR2.ok, simR2.detail);
+    Check("abductor/cyclonic-ring-in-hole", Vector2.Distance(simR2.end, new Vector2(-145.3f, -862.8f)) < 5f, $"d={Vector2.Distance(simR2.end, new Vector2(-145.3f, -862.8f)):F2}");
+    // Splinter: four r13 circles from plumes; the character between them holds a safe spot
+    var plumes = new[] { new Vector2(-158, -846.1f), new(-134, -860), new(-158, -873.9f), new(-142, -873.9f) };
+    var spl = plumes.Select((p, i) => Cast(2, 13f, 0f, 0f, p, p, 4.2f, 0.0, src: (ulong)(10 + i), action: 0xB953)).ToArray();
+    var simP = Simulate((t, p) => World(p, t, spl, target: boss, range: 20f, hitbox: 5f), spl, new Vector2(-144.1f, -865.9f), 0.0, 5.0);
+    Check("abductor/splinter-survives", simP.ok, simP.detail);
 }
 
 // ---------------------------------------------------------------- walkability probe
@@ -360,7 +395,14 @@ SmartMoverCore.MoverWorld World(
     Check("zone/donut-hole", donut is { Kind: DangerZoneModel.ShapeKind.Donut } && !DangerZoneModel.Contains(donut.Value, new(2, 0), 0f) && DangerZoneModel.Contains(donut.Value, new(10, 0), 0f));
     Check("zone/omen-fan", MathF.Abs(OmenVfxModel.CastConeHalfDeg("gl_fan090_1bf") - 45f) < 0.01f);
     Check("zone/omen-donut", MathF.Abs(OmenVfxModel.CastDonutInner("gl_sircle_4004bp1", 40f) - 4f) < 0.01f);
-    Check("zone/linger-1s", DangerZoneModel.LingeringZones.LingerSec == 1f);
+    // v2 r2: room-wide rects and 360-degree cones are raidwides (Abductor's Buffet 60x60 from the edge)
+    Check("zone/roomwide-rect-skipped", DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(12, 60f, 60f, 5f, new(-120.5f, -860), new(-120.5f, -860), 0, 1, 4f, 60f, 0f, MathF.PI)) is null);
+    Check("zone/line-rect-kept", DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(12, 60f, 8f, 5f, new(0, 0), new(0, 0), 0, 1, 4f, 60f, 0f, 0f)) is not null);
+    Check("zone/full-cone-skipped", DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(13, 60f, 0f, 5f, new(0, 0), new(0, 0), 0, 1, 4f, 180f, 0f, 0f)) is null);
+    Check("zone/half-cone-kept", DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(13, 60f, 0f, 5f, new(0, 0), new(0, 0), 0, 1, 4f, 90f, 0f, 0f)) is not null);
+    // cushion never eats a short window
+    Check("time/cushion-capped-short-cast", NavigationDecision.ActivationToG(101.0, 100.0, 1.0f) > 0.55f && NavigationDecision.ActivationToG(101.0, 100.0, 1.0f) < 0.65f, $"{NavigationDecision.ActivationToG(101.0, 100.0, 1.0f)}");
+    Check("time/cushion-full-long-cast", MathF.Abs(NavigationDecision.ActivationToG(105.0, 100.0, 1.0f) - 4.0f) < 0.01f);
     var zz = Cast(5, 8f, 0f, 3f, new(0, 0), new(0, 0), 4f, 100.0, src: 7, action: 9);
     Check("zone/activation-fields", MathF.Abs((float)(zz.ActivationSec - 104.3)) < 0.001f && zz.Source == 7 && zz.ActionId == 9);
 }
