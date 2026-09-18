@@ -625,12 +625,16 @@ SmartMoverCore.MoverWorld World(
     Check("arena/no-mesh-predicate-unconstrained-by-10y-disc", dFree.Kind == SmartMoverCore.Decision.Move &&
         dFree.Reason == SmartMoverCore.ReasonDodgeCode, $"kind={dFree.Kind} r={dFree.Reason}");
 
-    // FindSafePoint unit-level: an entirely off-mesh neighbourhood (predicate
-    // always false) must return null (hold) rather than fabricate a landing
-    // spot - mirrors the "whole ring unsafe" hold semantics already proven
-    // for danger zones.
+    // v1.0.4.212 supersedes the v1.0.4.196 contract here: an entirely
+    // off-mesh neighbourhood no longer holds the character INSIDE a live
+    // telegraph. The probe is one plane through sloped ground and is known
+    // to reject good ground (the 1.0.4.210 grading, which is why an approach
+    // stopped honouring it in 1.0.4.211); a hold inside a zone is a certain
+    // hit, while a destination the pathfinder cannot route to costs nothing.
     var noneWalkable = SmartMoverCore.FindSafePoint(new Vector2(0, -8), zone, new Vector2(0, 0), 15f, _ => false);
-    Check("arena/find-safe-point-all-offmesh-holds", noneWalkable is null, $"result={noneWalkable}");
+    Check("arena/all-offmesh-still-escapes", noneWalkable is not null, $"result={noneWalkable}");
+    Check("arena/all-offmesh-escape-is-zone-safe",
+        noneWalkable is { } nw && SmartMoverCore.UnsafeAt(nw, zone, 0.25f) is null, $"result={noneWalkable}");
 
     // FindSafePoint unit-level positive: mesh gate present but not blocking
     // the whole neighbourhood still finds a point (sanity - the plumbing
@@ -807,6 +811,7 @@ SmartMoverCore.MoverWorld World(
     var hCor = new SmartMoverCore.Hysteresis { LastDest = new Vector2(0, -8), HasLastDest = true };
     var dCor = SmartMoverCore.Decide(World(player: new(0, -20), zones: between) with { NowSec = 600.0 }, hCor);
     Check("corridor/blocked-holds", dCor.Kind == SmartMoverCore.Decision.None, $"kind={dCor.Kind} r={dCor.Reason}");
+    Check("corridor/blocked-reason-path", dCor.Reason == SmartMoverCore.ReasonPathHoldCode, $"r={dCor.Reason}");
     Check("corridor/blocked-keeps-hysteresis", hCor.HasLastDest, $"held={hCor.HasLastDest}");
 
     // Same geometry with the zone OFF the corridor -> engage Move (selectivity).
@@ -983,7 +988,7 @@ SmartMoverCore.MoverWorld World(
     var wDanger = World(player: new(0, -25), range: 3f, target: new(0, 0), hitbox: 5f, zones: ringZone) with { IsPointWalkable = _ => true };
     var dDanger = SmartMoverCore.Decide(wDanger, hDanger);
     Check("approach/danger-covered-ring-still-holds", dDanger.Kind == SmartMoverCore.Decision.None &&
-        dDanger.Reason == 0, $"kind={dDanger.Kind} r={dDanger.Reason}");
+        dDanger.Reason == SmartMoverCore.ReasonRingHoldCode, $"kind={dDanger.Kind} r={dDanger.Reason}");
 
     // Telemetry contract this fix buys: with no zones live the engine can no
     // longer answer with a no-command hold at ANY approach distance or mesh
@@ -995,10 +1000,160 @@ SmartMoverCore.MoverWorld World(
             var hs = new SmartMoverCore.Hysteresis();
             var dec = SmartMoverCore.Decide(
                 World(player: new(0, -gap), range: 3f, target: new(0, 0), hitbox: 5f) with { IsPointWalkable = mesh }, hs);
-            if (dec.Kind == SmartMoverCore.Decision.None && dec.Reason == 0)
+            if (dec.Kind == SmartMoverCore.Decision.None && dec.Reason is 0
+                or SmartMoverCore.ReasonNoEscapeCode
+                or SmartMoverCore.ReasonRingHoldCode
+                or SmartMoverCore.ReasonPathHoldCode)
                 holdsWithNoZones++;
         }
     Check("approach/no-zones-never-holds", holdsWithNoZones == 0, $"holds={holdsWithNoZones}");
+}
+
+// ------------------------------- escape that can still attack (v1.0.4.212)
+{
+    // Grading 1.0.4.211: "moves to target. moves out of some aoe, not all.
+    // doesn't move smartly in terms of.. boss has rectangular frontal aoe. it
+    // moved out of melee range instead of to the side or behind him where it
+    // could keep attacking."
+    //
+    // The sampler took the first safe sample on the first escapable ring.
+    // Every candidate on a ring is the same distance from the character, so
+    // the escape direction was decided by sample index and nothing asked
+    // whether the target was still reachable from there.
+    var target = new Vector2(0, 0);
+    const float hitbox = 5f, range = 3f;
+    const float band = hitbox + range + 0.5f; // the settle branch's "in range" test
+
+    // A 60-degree frontal cone from the boss, aimed at a melee character
+    // standing at the ideal spot.
+    var coneZone = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
+        3, 30f, 0f, hitbox, target, new Vector2(0, -8), 0, 1, 5f, 30f, 0f));
+    Check("escape/cone-zone-built", coneZone is { Kind: DangerZoneModel.ShapeKind.Cone }, $"z={coneZone}");
+    var cone = coneZone is null ? NoZones : new[] { coneZone.Value };
+
+    var hCone = new SmartMoverCore.Hysteresis();
+    var wCone = World(player: new(0, -8), range: range, target: target, hitbox: hitbox, zones: cone);
+    var dCone = SmartMoverCore.Decide(wCone, hCone);
+    Check("escape/cone-dodges", dCone.Kind == SmartMoverCore.Decision.Move &&
+        dCone.Reason == SmartMoverCore.ReasonDodgeCode, $"kind={dCone.Kind} r={dCone.Reason}");
+    Check("escape/cone-dest-safe", SmartMoverCore.UnsafeAt(dCone.Dest, cone, 0.25f) is null, $"dest={dCone.Dest}");
+    Check("escape/cone-keeps-target-in-range", Vector2.Distance(dCone.Dest, target) <= band,
+        $"dest={dCone.Dest} fromTarget={Vector2.Distance(dCone.Dest, target)} band={band}");
+
+    // Negative control: the pre-212 rule, replayed inline - first safe sample
+    // on the first escapable ring - leaves the same scene OUT of range, which
+    // is the graded complaint.
+    Vector2? legacy = null;
+    for (var ring = 1; ring <= SmartMoverCore.DodgeRingCount && legacy is null; ring++)
+        for (var i = 0; i < SmartMoverCore.DodgeDirCount && legacy is null; i++)
+        {
+            var ang = i * (2f * MathF.PI / SmartMoverCore.DodgeDirCount);
+            var p = new Vector2(0, -8) + new Vector2(MathF.Cos(ang), MathF.Sin(ang)) * (ring * SmartMoverCore.DodgeRingStep);
+            if (SmartMoverCore.UnsafeAt(p, cone, 0.25f) is null)
+                legacy = p;
+        }
+    Check("escape/legacy-sample-order-left-range",
+        legacy is { } lg && Vector2.Distance(lg, target) > band,
+        $"legacy={legacy} fromTarget={(legacy is { } l2 ? Vector2.Distance(l2, target) : 0f)}");
+
+    // A bounded extra reach buys an in-range escape one ring further out: the
+    // first escapable ring has no in-range sample, the next one does.
+    var pushed = new[]
+    {
+        new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -8), 0f, 4f, 0f, 0f, 0f, default, 3f),
+        new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -2), 0f, 6f, 0f, 0f, 0f, default, 3f),
+    };
+    var stepOut = SmartMoverCore.FindSafePoint(new Vector2(0, -8), pushed, target, 15f, null, band, new Vector2(0, -8));
+    Check("escape/extra-ring-finds-in-range",
+        stepOut is { } so && Vector2.Distance(so, target) <= band && SmartMoverCore.UnsafeAt(so, pushed, 0.25f) is null,
+        $"dest={stepOut}");
+    // In-test negative control: the SAME scene with the attack band switched
+    // off answers with the nearest escape, out of range - so the in-range
+    // preference, not some other effect, is what buys the step above.
+    var noBand = SmartMoverCore.FindSafePoint(new Vector2(0, -8), pushed, target, 15f, null, 0f, new Vector2(0, -8));
+    Check("escape/without-band-preference-leaves-range",
+        noBand is { } nb && Vector2.Distance(nb, target) > band,
+        $"dest={noBand} fromTarget={(noBand is { } nb2 ? Vector2.Distance(nb2, target) : 0f)}");
+    Check("escape/extra-ring-stays-bounded",
+        stepOut is { } so2 && Vector2.Distance(new Vector2(0, -8), so2) <= 5f + SmartMoverCore.DodgeInBandExtraRings + 0.01f,
+        $"travel={(stepOut is { } so3 ? Vector2.Distance(new Vector2(0, -8), so3) : 0f)}");
+
+    // ...and the reach is a bound, not a licence: when the only in-range spot
+    // is far past it, the nearest escape is still the answer.
+    var farBand = new[]
+    {
+        new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -8), 0f, 4f, 0f, 0f, 0f, default, 3f),
+        new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -2), 0f, 9f, 0f, 0f, 0f, default, 3f),
+    };
+    var nearOut = SmartMoverCore.FindSafePoint(new Vector2(0, -8), farBand, target, 15f, null, band, new Vector2(0, -8));
+    Check("escape/far-in-range-spot-not-chased",
+        nearOut is { } no && MathF.Abs(Vector2.Distance(new Vector2(0, -8), no) - 5f) < 0.01f,
+        $"dest={nearOut} travel={(nearOut is { } no2 ? Vector2.Distance(new Vector2(0, -8), no2) : 0f)}");
+
+    // No engaged target -> no band preference, and the nearest escape on the
+    // first escapable ring is still the answer (pre-212 behaviour).
+    var plainZone = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -8), 0f, 4f, 0f, 0f, 0f, default, 3f) };
+    var plain = SmartMoverCore.FindSafePoint(new Vector2(0, -8), plainZone, new Vector2(0, -8), float.MaxValue);
+    Check("escape/no-target-nearest-ring", plain is { } pl && MathF.Abs(Vector2.Distance(new Vector2(0, -8), pl) - 5f) < 0.01f,
+        $"dest={plain}");
+}
+
+// ----------------------- escaping is not vetoed by the mesh probe (v1.0.4.212)
+{
+    // Replay of the graded incident: a donut telegraph (40 outer, 4 inner from
+    // the action's omen, dilated by the 1-yalm danger buffer) centred on the
+    // boss, the character standing 4.15 yalms out - inside the ring, 0.2
+    // yalms outside the safe hole. The escape is two yalms INWARD. On
+    // 1.0.4.211 the sampler answered nothing and the character stood in the
+    // telegraph for the whole cast; the only filter that can reject that
+    // candidate is the mesh probe.
+    var donut = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
+        10, 40f, 0f, 3.95f, new Vector2(0, 0), new Vector2(0, 0), 0, 1, 5f, 60f, 4f));
+    Check("escape/donut-zone-built", donut is { Kind: DangerZoneModel.ShapeKind.Donut }, $"z={donut}");
+    var dil = donut!.Value with { Radius = donut.Value.Radius + 1f, InnerRadius = MathF.Max(0f, donut.Value.InnerRadius - 1f) };
+    var donutZones = new[] { dil };
+    var stand = new Vector2(4.15f, 0);
+    Check("escape/donut-player-is-unsafe", SmartMoverCore.UnsafeAt(stand, donutZones, 0f) is not null, $"inner={dil.InnerRadius}");
+
+    var hD = new SmartMoverCore.Hysteresis();
+    var wD = World(player: stand, range: 3f, target: new Vector2(0, 0), hitbox: 3.95f, zones: donutZones)
+        with { IsPointWalkable = _ => false };
+    var dD = SmartMoverCore.Decide(wD, hD);
+    Check("escape/donut-offmesh-still-moves", dD.Kind == SmartMoverCore.Decision.Move &&
+        dD.Reason == SmartMoverCore.ReasonDodgeCode, $"kind={dD.Kind} r={dD.Reason}");
+    Check("escape/donut-dest-is-the-hole", dD.Kind == SmartMoverCore.Decision.Move &&
+        SmartMoverCore.UnsafeAt(dD.Dest, donutZones, 0.25f) is null, $"dest={dD.Dest}");
+
+    // The probe is still a preference: while part of the neighbourhood
+    // answers, the escape lands on the mesh (v1.0.4.196 behaviour intact).
+    bool WestOnly(Vector2 p) => p.X <= 0.5f;
+    var escapeZone = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -8), 0f, 4f, 0f, 0f, 0f, default, 3f) };
+    var onMesh = SmartMoverCore.FindSafePoint(new Vector2(0, -8), escapeZone, new Vector2(0, 0), 15f, WestOnly);
+    Check("escape/prefers-walkable-when-some-answer", onMesh is { } om && WestOnly(om), $"dest={onMesh}");
+
+    // Danger still vetoes: no probe involved, nothing safe inside the clamp,
+    // and the answer is a hold that NAMES itself in telemetry.
+    var swamped = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, 0), 0f, 20f, 0f, 0f, 0f, default, 3f) };
+    var hStuck = new SmartMoverCore.Hysteresis();
+    var dStuck = SmartMoverCore.Decide(World(player: new(0, -8), target: new(0, 0), hitbox: 5f, zones: swamped), hStuck);
+    Check("escape/no-escape-anywhere-holds", dStuck.Kind == SmartMoverCore.Decision.None, $"kind={dStuck.Kind}");
+    Check("escape/no-escape-reason-is-stuck", dStuck.Reason == SmartMoverCore.ReasonNoEscapeCode, $"r={dStuck.Reason}");
+
+    // Telemetry: the three named holds must not share a key with each other
+    // or with "hold", or the emit gate hides a transition between them.
+    Check("escape/stuck-code-distinct", MovementTelemetryFormat.DecisionCode("stuck") != MovementTelemetryFormat.DecisionCode("hold"));
+    Check("escape/ring-code-distinct", MovementTelemetryFormat.DecisionCode("ring") != MovementTelemetryFormat.DecisionCode("hold"));
+    Check("escape/path-code-distinct", MovementTelemetryFormat.DecisionCode("path") != MovementTelemetryFormat.DecisionCode("stuck"));
+    Check("escape/named-holds-all-distinct",
+        MovementTelemetryFormat.DecisionCode("stuck") != MovementTelemetryFormat.DecisionCode("ring") &&
+        MovementTelemetryFormat.DecisionCode("ring") != MovementTelemetryFormat.DecisionCode("path"));
+
+    // A settled character waiting out a live telegraph keeps the plain "hold".
+    var aside = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(30, 30), 0f, 6f, 0f, 0f, 0f, default, 3f) };
+    var hSettle = new SmartMoverCore.Hysteresis();
+    var dSettle = SmartMoverCore.Decide(World(player: new(0, -8), range: 3f, target: new(0, 0), hitbox: 5f, zones: aside), hSettle);
+    Check("escape/settled-hold-keeps-plain-reason", dSettle.Kind == SmartMoverCore.Decision.None && dSettle.Reason == 0,
+        $"kind={dSettle.Kind} r={dSettle.Reason}");
 }
 
 // ---------------------------------------------------------------- shape asserts

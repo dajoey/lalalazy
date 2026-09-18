@@ -58,6 +58,20 @@ internal static class SmartMoverCore
     internal const int DodgeDirCount = 16;
     internal const float DodgeRingStep = 1.0f;
 
+    /// <summary>
+    ///     How many rings past the first escapable one the dodge sampler keeps
+    ///     looking for a destination that still has the engaged target in
+    ///     attack range (v1.0.4.212). Grading 1.0.4.211: "boss has rectangular
+    ///     frontal aoe - it moved out of melee range instead of to the side or
+    ///     behind him where it could keep attacking." The sampler took the
+    ///     nearest safe point and never asked whether the character could still
+    ///     reach the target from it; every ring candidate is the same distance
+    ///     from the character, so the escape direction was decided by sample
+    ///     index. A bounded extra reach (yalms, one per ring) buys a sidestep
+    ///     that keeps attacking instead of a retreat that does not.
+    /// </summary>
+    internal const int DodgeInBandExtraRings = 3;
+
     internal enum Decision : byte
     {
         None,
@@ -128,6 +142,16 @@ internal static class SmartMoverCore
     internal const byte ReasonEngageCode = 7;
     internal const byte ReasonSettleCode = 8;
     internal const byte ReasonOocCode = 9;
+
+    // v1.0.4.212: the no-command answers used to share reason 0 ("hold"), so
+    // five different states read the same in telemetry. Grading 1.0.4.211 hit
+    // exactly that wall: an 8.5-second "hold" with one telegraph live could be
+    // either "settled, waiting for the zone to pass" (safe) or "standing IN the
+    // zone with nowhere sampled to go" (a hit), and the log could not say which.
+    // Each no-command answer now carries its own code.
+    internal const byte ReasonNoEscapeCode = 11;   // inside a live zone, no escape point sampled
+    internal const byte ReasonRingHoldCode = 12;   // approach: the whole standing ring is covered
+    internal const byte ReasonPathHoldCode = 13;   // approach: the direct corridor crosses live danger
 
     /// <summary> Chooses the movement for this tick: Move = go to Dest, Stop = stop pathing, None = no command. </summary>
     internal static MoveDecision Decide(MoverWorld w, Hysteresis h)
@@ -201,10 +225,26 @@ internal static class SmartMoverCore
                 var clamp = w.TargetEngaged
                     ? MathF.Max(MaxDestDistFromTarget, w.TargetHitboxRadius + w.DesiredRange + RangeTolerance(w))
                     : float.MaxValue;
-                var dest = FindSafePoint(w.PlayerPos, w.Zones, anchor, clamp, w.IsPointWalkable);
+                // v1.0.4.212: escape to a point the character can still fight
+                // from when one exists. The band is the same "in range" test
+                // the settle branch uses, and the preferred point is where the
+                // mover would want to stand anyway (the current angle around
+                // the target, or the wanted positional) - so a frontal cone or
+                // line is answered with a step to the flank or the rear rather
+                // than a retreat out of range.
+                var band = 0f;
+                Vector2? prefer = null;
+                if (w.TargetEngaged)
+                {
+                    band = w.TargetHitboxRadius + w.DesiredRange + RangeTolerance(w);
+                    PositionOk(w.PlayerPos, w, out var stand);
+                    prefer = stand;
+                }
+
+                var dest = FindSafePoint(w.PlayerPos, w.Zones, anchor, clamp, w.IsPointWalkable, band, prefer);
                 if (dest is { } d)
                     return Commit(w, h, d, ReasonDodgeCode, overrideHold: true);
-                return None(); // no sampled safe point - hold rather than walk blind
+                return None(ReasonNoEscapeCode); // nothing sampled anywhere - hold rather than walk blind
             }
         }
 
@@ -233,7 +273,7 @@ internal static class SmartMoverCore
             if (alt is { } a)
                 finalDest = a;
             else if (idealUnsafe)
-                return None(); // whole ring covered by live danger - wait in safety
+                return None(ReasonRingHoldCode); // whole ring covered by live danger - wait in safety
             // v1.0.4.211: a ring rejected ONLY by the mesh probe no longer
             // holds. Grading 1.0.4.210 logged 24 approach decisions answered
             // "hold" with ZERO live zones against 15 that moved (targets 1-17y
@@ -256,7 +296,7 @@ internal static class SmartMoverCore
         // still moves as before - that sidestep IS the avoidance maneuver.
         // With no zones live this is byte-identical.
         if (!idealBlocked && ZonesLive(w) && SegmentBlocked(finalDest, w.PlayerPos, w.Zones))
-            return None(); // direct corridor crosses live danger - wait in safety
+            return None(ReasonPathHoldCode); // direct corridor crosses live danger - wait in safety
 
         return Commit(w, h, finalDest, ReasonEngageCode, overrideHold: false);
     }
@@ -418,17 +458,56 @@ internal static class SmartMoverCore
     }
 
     /// <summary>
-    ///     Samples rings around the player for the nearest point outside every
-    ///     live zone, within <paramref name="maxDistFromAnchor"/> of
+    ///     Samples rings around the player for an escape from every live zone,
+    ///     within <paramref name="maxDistFromAnchor"/> of
     ///     <paramref name="anchor"/>, and (v1.0.4.196) on the navmesh when
     ///     <paramref name="isWalkable"/> is supplied. Zones that already
     ///     contain the player are being ESCAPED - the exit segment inevitably
     ///     crosses them, so only OTHER zones block the route (otherwise a
-    ///     player inside a zone could never find a dodge). Mesh-walkability
-    ///     is NOT relaxed for the escaped zone: a candidate off the mesh is
-    ///     never a valid dodge target regardless of which zone it clears.
+    ///     player inside a zone could never find a dodge).
     /// </summary>
-    internal static Vector2? FindSafePoint(Vector2 playerPos, IReadOnlyList<DangerZoneModel.Zone> zones, Vector2 anchor, float maxDistFromAnchor, Func<Vector2, bool>? isWalkable = null)
+    /// <param name="attackBandRadius">
+    ///     Distance from <paramref name="anchor"/> within which the engaged
+    ///     target is still attackable; 0 disables the preference (v1.0.4.212).
+    /// </param>
+    /// <param name="preferPoint">
+    ///     Where the mover would rather stand (the ideal standing point). Ring
+    ///     candidates are ordered by distance to it, so equally-distant escapes
+    ///     are no longer decided by sample index (v1.0.4.212).
+    /// </param>
+    /// <remarks>
+    ///     v1.0.4.212: the mesh probe is a PREFERENCE, not a veto. A scan that
+    ///     finds nothing is retried with the probe off, because the probe is
+    ///     one plane through sloped ground and is known to answer "off-mesh"
+    ///     for perfectly good ground (the 1.0.4.210 grading, which is why an
+    ///     approach stopped honouring it in 1.0.4.211). Standing inside a live
+    ///     telegraph is a certain hit; a destination the pathfinder cannot
+    ///     route to costs nothing, since it never walks off the mesh.
+    /// </remarks>
+    internal static Vector2? FindSafePoint(
+        Vector2 playerPos,
+        IReadOnlyList<DangerZoneModel.Zone> zones,
+        Vector2 anchor,
+        float maxDistFromAnchor,
+        Func<Vector2, bool>? isWalkable = null,
+        float attackBandRadius = 0f,
+        Vector2? preferPoint = null)
+    {
+        var onMesh = ScanForSafePoint(playerPos, zones, anchor, maxDistFromAnchor, isWalkable, attackBandRadius, preferPoint);
+        if (onMesh is not null || isWalkable is null)
+            return onMesh;
+        return ScanForSafePoint(playerPos, zones, anchor, maxDistFromAnchor, null, attackBandRadius, preferPoint);
+    }
+
+    /// <summary> One ring sweep of <see cref="FindSafePoint"/> under a fixed walkability rule. </summary>
+    private static Vector2? ScanForSafePoint(
+        Vector2 playerPos,
+        IReadOnlyList<DangerZoneModel.Zone> zones,
+        Vector2 anchor,
+        float maxDistFromAnchor,
+        Func<Vector2, bool>? isWalkable,
+        float attackBandRadius,
+        Vector2? preferPoint)
     {
         List<DangerZoneModel.Zone>? others = null;
         foreach (var z in zones)
@@ -438,29 +517,61 @@ internal static class SmartMoverCore
             (others ??= new List<DangerZoneModel.Zone>(zones.Count)).Add(z);
         }
 
+        // Nearest escape found so far, and the ring it sat on. Kept while the
+        // sweep reaches a few rings further for one that can still attack.
+        Vector2? nearest = null;
+        var nearestRing = 0;
+
         for (var ring = 1; ring <= DodgeRingCount; ring++)
         {
+            if (nearest is not null && ring > nearestRing + DodgeInBandExtraRings)
+                break;
+
             var r = ring * DodgeRingStep;
-            Vector2? best = null;
-            var bestDist = float.MaxValue;
+            Vector2? bestInBand = null;
+            var bestInBandScore = (float.MaxValue, float.MaxValue);
+            Vector2? bestAny = null;
+            var bestAnyScore = (float.MaxValue, float.MaxValue);
+
             for (var i = 0; i < DodgeDirCount; i++)
             {
                 var ang = i * (2f * MathF.PI / DodgeDirCount);
                 var p = playerPos + new Vector2(MathF.Cos(ang), MathF.Sin(ang)) * r;
-                if (Vector2.Distance(p, anchor) > maxDistFromAnchor)
+                var fromAnchor = Vector2.Distance(p, anchor);
+                if (fromAnchor > maxDistFromAnchor)
                     continue; // outside the arena neighbourhood - hold instead (v1.0.4.193)
                 if (!Walkable(isWalkable, p))
                     continue; // off the navmesh - real arena bounds (v1.0.4.196)
-                if (UnsafeAt(p, zones, 0.25f) is null && (others is null || !SegmentBlocked(p, playerPos, others)))
-                {
-                    var d = Vector2.Distance(playerPos, p);
-                    if (d < bestDist) { bestDist = d; best = p; }
-                }
+                if (UnsafeAt(p, zones, 0.25f) is not null)
+                    continue;
+                if (others is not null && SegmentBlocked(p, playerPos, others))
+                    continue;
+
+                // Every candidate on a ring is the same distance from the
+                // character, so the ordering is what standing there is worth,
+                // not how far it is (v1.0.4.212): closest to where the mover
+                // wants to stand, then closest to the target. Without a
+                // preferred point the ordering is distance to the anchor,
+                // which for an unengaged dodge is the character itself - a
+                // flat tie, exactly the pre-212 sample order.
+                var score = (
+                    MathF.Round(preferPoint is { } pref ? Vector2.Distance(p, pref) : fromAnchor, 2),
+                    MathF.Round(fromAnchor, 2));
+                if (Better(score, bestAnyScore)) { bestAnyScore = score; bestAny = p; }
+                if (attackBandRadius > 0f && fromAnchor <= attackBandRadius && Better(score, bestInBandScore))
+                { bestInBandScore = score; bestInBand = p; }
             }
-            if (best is { } found)
-                return found;
+
+            if (bestInBand is { } inBand)
+                return inBand;
+            if (nearest is null && bestAny is { } any)
+            {
+                nearest = any;
+                nearestRing = ring;
+            }
         }
-        return null;
+
+        return nearest;
     }
 
     /// <summary>
@@ -488,6 +599,10 @@ internal static class SmartMoverCore
         return found ? targetPos + new Vector2(MathF.Cos(bestAngle), MathF.Sin(bestAngle)) * ringR : null;
     }
 
+    /// <summary> Ring-candidate ordering: preferred-point distance first, target distance as the tie-break. </summary>
+    private static bool Better((float Primary, float Secondary) a, (float Primary, float Secondary) b) =>
+        a.Primary < b.Primary || (a.Primary == b.Primary && a.Secondary < b.Secondary);
+
     private static bool SegmentBlocked(Vector2 p, Vector2 from, IReadOnlyList<DangerZoneModel.Zone> zones)
     {
         var len = Vector2.Distance(from, p);
@@ -509,5 +624,5 @@ internal static class SmartMoverCore
         return d;
     }
 
-    private static MoveDecision None() => new(Decision.None, default, 0);
+    private static MoveDecision None(byte reason = 0) => new(Decision.None, default, reason);
 }

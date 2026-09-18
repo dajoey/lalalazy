@@ -75,6 +75,12 @@ internal static class MovementTelemetryFormat
         "hold" => 10, // v1.0.4.206: the no-command hold while zones are live.
                       // Its own key so a hold/stop transition always emits -
                       // sharing "stl" hid holds behind stops (and vice versa).
+        // v1.0.4.212: the three no-command answers that used to hide inside
+        // "hold". "stuck" is the one that costs health - the character is
+        // INSIDE a live telegraph and the sampler found nowhere to go.
+        "stuck" => 11,
+        "ring" => 12,
+        "path" => 13,
         _ => 0,
     };
 

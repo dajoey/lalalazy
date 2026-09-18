@@ -752,6 +752,13 @@ internal static class SmartMover
         // v1.0.4.206: the engage/settle HOLD (no command, reason 0) used to
         // alias as "stl", so a hold while zones were live was indistinguishable
         // from a stand-down Stop in telemetry. Holds log as "hold" now.
+        // v1.0.4.212: the three holds that are NOT "settled and waiting" get
+        // their own names - one 8.5-second "hold" line covered a character
+        // standing inside a donut with nowhere sampled to go, and the log
+        // could not tell that from a safe wait.
+        SmartMoverCore.ReasonNoEscapeCode => "stuck",
+        SmartMoverCore.ReasonRingHoldCode => "ring",
+        SmartMoverCore.ReasonPathHoldCode => "path",
         0 => "hold",
         _ => "stl",
     };
