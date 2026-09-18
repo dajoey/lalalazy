@@ -3619,6 +3619,95 @@ StockStack BagStack(uint id, int slot, int qty, uint cat = CatA, bool marketable
     RoutingMove.DropPendingVerifyAtRetainerSlot(new List<RoutingMovePending>(), 10002, 6).Count == 0, "empty");
 }
 
+// ===== 0.1.59.0: a hold must name the stack the move took, and a deposit that moved on the
+// retainer's own pages is not a refused move =====
+
+// 120. The deferred probe records its verdict under the move's SOURCE slot but does not grade
+// until the retainer's next session, and the mover refills bag slots all run long. The
+// 20:35-20:37 ET run: a deposit emptied bag slots 0:22 (item 40403) and 1:1 (item 15924), later
+// sessions used and freed both, at 20:37:32 another stack of those same two items was pulled into
+// those exact slots, and the grading fourteen seconds later quarantined both - two live stacks
+// frozen for a day. A slot this sweep filled itself now cancels the probe that named it.
+{
+  var depA = RoutingMove.ReconcileKey("R1", 0, 22, 40403, false);
+  var depB = RoutingMove.ReconcileKey("R1", 1, 1, 15924, false);
+  var other = RoutingMove.ReconcileKey("R1", 0, 16, 1001, false);
+  var pending = new List<RoutingMovePending>
+  {
+    new(depA, MoveLeg.BagsToRetainer, "R1", 10003, 7, 40403, false),
+    new(depB, MoveLeg.BagsToRetainer, "R1", 10003, 8, 15924, false),
+    new(other, MoveLeg.BagsToRetainer, "R1", 10002, 6, 1001, false),
+  };
+
+  // The sweep pulls another stack of the same two items back into the same bag slots.
+  var relay = new List<string>
+  {
+    RoutingMove.ReconcileSlotSuffix(0, 22, 40403, false),
+    RoutingMove.ReconcileSlotSuffix(1, 1, 15924, false),
+  };
+  var dropped = RoutingMove.DropPendingVerifyAtSlots(pending, relay);
+  Check("120 persistence: a probe whose ledger slot this sweep refilled with the same item is cancelled",
+    dropped.Count == 2 && dropped.Contains(depA) && dropped.Contains(depB), string.Join(", ", dropped));
+  Check("120 persistence: the probe for an untouched slot stays queued",
+    pending.Count == 1 && pending[0].Key == other, $"{pending.Count} pending");
+
+  // A slot refilled with different stock is not ambiguous: the key carries item and quality too.
+  var otherItem = RoutingMove.DropPendingVerifyAtSlots(pending,
+    new List<string> { RoutingMove.ReconcileSlotSuffix(0, 16, 2002, false) });
+  Check("120 persistence control: a slot refilled with a different item cancels nothing",
+    otherItem.Count == 0 && pending.Count == 1, $"{pending.Count} pending");
+  var otherQuality = RoutingMove.DropPendingVerifyAtSlots(pending,
+    new List<string> { RoutingMove.ReconcileSlotSuffix(0, 16, 1001, true) });
+  Check("120 persistence control: a slot refilled with the HQ stack of the same item cancels nothing",
+    otherQuality.Count == 0 && pending.Count == 1, $"{pending.Count} pending");
+  Check("120 persistence control: no relay slots and an empty queue are handled",
+    RoutingMove.DropPendingVerifyAtSlots(pending, null).Count == 0
+      && RoutingMove.DropPendingVerifyAtSlots(pending, new List<string> { "" }).Count == 0
+      && RoutingMove.DropPendingVerifyAtSlots(new List<RoutingMovePending>(), relay).Count == 0
+      && pending.Count == 1, $"{pending.Count} pending");
+
+  // A pull-out's key names a RETAINER page slot, which no bag-slot relay suffix can match.
+  var pullPending = new List<RoutingMovePending>
+  {
+    new(RoutingMove.ReconcileKey("R1", 10001, 3, 40403, false), MoveLeg.RetainerToBags, "R1", 10001, 3, 40403, false),
+  };
+  Check("120 persistence control: a bag-slot relay never cancels a pull-out's probe",
+    RoutingMove.DropPendingVerifyAtSlots(pullPending, relay).Count == 0 && pullPending.Count == 1,
+    $"{pullPending.Count} pending");
+
+  // The same run also proves the deposit test itself was too narrow: all four deposits into one
+  // retainer graded lost on the exact page slot, yet none came back to the bags. A deposit the
+  // retainer still holds somewhere on its pages is kept, not quarantined.
+  Check("120 persistence: a deposit whose page slot moved is kept while the retainer holds the stack",
+    !RoutingMove.MoveDidNotPersist(MoveLeg.BagsToRetainer, 40403, false, 0, false, true), "held elsewhere");
+  Check("120 persistence: a deposit the retainer does not hold anywhere is still lost",
+    RoutingMove.MoveDidNotPersist(MoveLeg.BagsToRetainer, 40403, false, 0, false, false), "not held");
+  Check("120 persistence: a deposit still in its own page slot is kept either way",
+    !RoutingMove.MoveDidNotPersist(MoveLeg.BagsToRetainer, 40403, false, 40403, false, false), "same slot");
+  Check("120 persistence control: the pull-out leg ignores the retainer-wide read",
+    RoutingMove.MoveDidNotPersist(MoveLeg.RetainerToBags, 40403, false, 40403, false, true)
+      && !RoutingMove.MoveDidNotPersist(MoveLeg.RetainerToBags, 40403, false, 0, false, true), "pull-out");
+  Check("120 persistence control: the five-argument form still reads the page slot alone",
+    RoutingMove.MoveDidNotPersist(MoveLeg.BagsToRetainer, 40403, false, 0, false)
+      && !RoutingMove.MoveDidNotPersist(MoveLeg.BagsToRetainer, 40403, false, 40403, false), "legacy overload");
+}
+
+// 121. A ledger written by 0.1.57.0/0.1.58.0 can hold entries that name the wrong stack, so the
+// load path discards such a file whole and every stack it held re-plans once.
+{
+  var stamp = new DateTime(2026, 9, 18, 0, 37, 46, DateTimeKind.Utc);
+  var key = RoutingMove.ReconcileKey("R1", 0, 22, 40403, false);
+  var previous = "#lmc-reconcile-3\n" + key + "\t" + stamp.ToString("o");
+  Check("121 ledger: a file carrying the previous format marker is discarded whole",
+    RoutingMove.ParseReconcileLedger(previous, stamp).Count == 0, "previous marker");
+  Check("121 ledger: the current marker differs from the previous one",
+    RoutingMove.LedgerFormatMarker == "#lmc-reconcile-4", RoutingMove.LedgerFormatMarker);
+  var current = RoutingMove.SerializeReconcileLedger(
+    new Dictionary<string, DateTime>(StringComparer.Ordinal) { [key] = stamp });
+  Check("121 ledger: a file this build wrote still loads",
+    RoutingMove.ParseReconcileLedger(current, stamp).TryGetValue(key, out var kept) && kept == stamp, current);
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 

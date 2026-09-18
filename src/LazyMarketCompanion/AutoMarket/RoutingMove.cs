@@ -210,12 +210,30 @@ public static class RoutingMove
   /// bag slots within a run, which is the alias 0.1.55.0 had to work around.
   /// </summary>
   public static bool MoveDidNotPersist(MoveLeg leg, uint itemId, bool hq, uint observedItemId, bool observedHQ)
+    => MoveDidNotPersist(leg, itemId, hq, observedItemId, observedHQ, false);
+
+  /// <summary>
+  /// 0.1.59.0: a deposit counts as kept once the retainer holds the stack ANYWHERE in its pages,
+  /// not only in the page slot the client wrote it to. The exact-slot test reads a refused move
+  /// and a page slot that simply moved as the same thing, and the 20:35 ET run shows the game
+  /// doing the latter: all four deposits into one retainer graded lost on the next session, yet
+  /// none of the four stacks came back to the bags - the bag slots they had left were free for
+  /// other stock seconds later and stayed free, and the retainer never planned those items again,
+  /// so all four had landed and only their page slots had shifted after the same session emptied
+  /// fifty-six slots around them. Widening the deposit test to the whole page set errs toward not
+  /// quarantining: a retainer that already holds another stack of the item reads as kept, which
+  /// costs one re-planned move on the next sweep instead of a day-long hold on live stock. The
+  /// pull-out leg is unchanged - its page slot holding the stack again is the refusal itself.
+  /// </summary>
+  public static bool MoveDidNotPersist(MoveLeg leg, uint itemId, bool hq, uint observedItemId,
+    bool observedHQ, bool retainerHoldsStackAnywhere)
   {
     var sameStack = observedItemId != 0 && observedItemId == itemId && observedHQ == hq;
-    // A deposit is real only while its page slot still holds the stack (a merge leaves the same
-    // item there, which reads as the same stack). A pull-out is real only while its page slot no
-    // longer holds it - the stack being back is exactly the refusal this ledger exists for.
-    return leg == MoveLeg.BagsToRetainer ? !sameStack : sameStack;
+    // A deposit is real while its page slot still holds the stack (a merge leaves the same item
+    // there, which reads as the same stack) or the retainer holds it somewhere else. A pull-out is
+    // real only while its page slot no longer holds it - the stack being back is exactly the
+    // refusal this ledger exists for.
+    return leg == MoveLeg.BagsToRetainer ? !sameStack && !retainerHoldsStackAnywhere : sameStack;
   }
 
   /// <summary>
@@ -238,6 +256,40 @@ public static class RoutingMove
     foreach (var entry in pending.Where(p => p.RetainerContainer == container && p.RetainerSlot == slot).ToList())
       if (pending.Remove(entry))
         dropped.Add(entry.Key);
+    return dropped;
+  }
+
+  /// <summary>
+  /// 0.1.59.0: a bag slot this plugin has refilled itself can no longer name the stack a pending
+  /// probe took out of it. The probe grades a move a session or more after it fired, but it
+  /// records its verdict under the move's SOURCE slot, and between those two moments the mover
+  /// legitimately empties and refills bag slots all run long. When the stack that lands back in
+  /// that slot is another stack of the SAME item at the same quality, the quarantine written for
+  /// the old move falls on the new stack and the planner leaves it in the bags for a full day.
+  /// The 20:35-20:37 ET run is the proof: a deposit left bag slots 0:22 and 1:1 at 20:35:23, two
+  /// later sessions filled both slots with other stock and emptied them again, at 20:37:32 a
+  /// different stack of the very same two items was pulled into those exact slots, and the
+  /// grading fourteen seconds later quarantined both of them - two live stacks that had never
+  /// been moved, frozen for twenty-four hours. A refilled source slot therefore cancels the
+  /// probe outright: without a slot that still names the stack, no verdict can be recorded
+  /// against the right one, and an unrecorded move is simply planned again. The suffix carries
+  /// the item and quality as well as the slot, so a slot refilled with different stock is not
+  /// ambiguous and is left alone. Pure so the harness pins it (case 120).
+  /// </summary>
+  public static List<string> DropPendingVerifyAtSlots(
+    List<RoutingMovePending> pending, IEnumerable<string>? slotSuffixes)
+  {
+    var dropped = new List<string>();
+    if (pending == null || pending.Count == 0 || slotSuffixes == null)
+      return dropped;
+    foreach (var suffix in slotSuffixes)
+    {
+      if (string.IsNullOrEmpty(suffix))
+        continue;
+      foreach (var entry in pending.Where(p => ReconcileKeyMatchesSlot(p.Key, suffix)).ToList())
+        if (pending.Remove(entry))
+          dropped.Add(entry.Key);
+    }
     return dropped;
   }
 
@@ -291,8 +343,14 @@ public static class RoutingMove
   /// 0.1.56.0: bumped again. A ledger written by 0.1.55.0 carries one entry per move that LANDED,
   /// which is the state that made the next sweep skip 96 stacks; those entries cannot be told from
   /// real quarantine after the fact, so such a file is discarded once too.
+  /// 0.1.59.0: bumped again. Every entry a 0.1.57.0/0.1.58.0 ledger holds was written under the
+  /// move's source bag slot by a probe that graded a session or more later, so an entry can name
+  /// a stack the mover pulled into that slot in the meantime rather than the one the move took
+  /// out of it - the two stacks left sitting in the bags were exactly that. Those cannot be told
+  /// apart from real quarantine after the fact, so such a file is discarded once and every stack
+  /// it held re-plans on the next sweep.
   /// </summary>
-  public const string LedgerFormatMarker = "#lmc-reconcile-3";
+  public const string LedgerFormatMarker = "#lmc-reconcile-4";
 
   /// <summary>
   /// 0.1.52.0: tolerant inverse of <see cref="SerializeReconcileLedger"/>. Malformed lines

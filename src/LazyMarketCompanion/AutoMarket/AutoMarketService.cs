@@ -1059,6 +1059,10 @@ internal static unsafe class AutoMarketService
     var lost = new List<string>();
     var manager = InventoryManager.Instance();
     if (manager == null) return lost;
+    // 0.1.59.0: one pass over the retainer's pages, so a deposit whose page slot moved is still
+    // graded kept (see RoutingMove.MoveDidNotPersist). Built once per grading, not per move.
+    var onPages = RetainerPageStacks();
+    var movedWithin = new List<string>();
     foreach (var p in pending)
     {
       var cont = manager->GetInventoryContainer((InventoryType)p.RetainerContainer);
@@ -1067,10 +1071,42 @@ internal static unsafe class AutoMarketService
       var slot = cont->GetInventorySlot(p.RetainerSlot);
       var observedId = slot == null ? 0u : slot->ItemId;
       var observedHq = slot != null && slot->Flags.HasFlag(InventoryItem.ItemFlags.HighQuality);
-      if (RoutingMove.MoveDidNotPersist(p.Leg, p.ItemId, p.HQ, observedId, observedHq))
-        lost.Add(p.Key);
+      var elsewhere = p.Leg == MoveLeg.BagsToRetainer && onPages.Contains((p.ItemId, p.HQ));
+      if (!RoutingMove.MoveDidNotPersist(p.Leg, p.ItemId, p.HQ, observedId, observedHq, elsewhere))
+      {
+        if (elsewhere && RoutingMove.MoveDidNotPersist(p.Leg, p.ItemId, p.HQ, observedId, observedHq))
+          movedWithin.Add(p.Key);
+        continue;
+      }
+      lost.Add(p.Key);
     }
+    if (movedWithin.Count > 0)
+      Svc.Log.Information($"[LMC] routing persistence: {movedWithin.Count} deposit(s) are no longer in the page slot they were written to, but this retainer still holds the stack - graded landed, not quarantined: {string.Join(", ", movedWithin.Select(k => k.Substring(k.IndexOf('|') + 1)))}");
     return lost;
+  }
+
+  /// <summary>
+  /// 0.1.59.0: every (item, quality) the open retainer's seven pages currently hold. A page
+  /// container that is not loaded contributes nothing, so a half-sent retainer can only make the
+  /// deposit test stricter, never invent a stack that is not there.
+  /// </summary>
+  private static HashSet<(uint ItemId, bool HQ)> RetainerPageStacks()
+  {
+    var held = new HashSet<(uint, bool)>();
+    var manager = InventoryManager.Instance();
+    if (manager == null) return held;
+    foreach (var type in RetainerPageTypes)
+    {
+      var cont = manager->GetInventoryContainer(type);
+      if (cont == null || !cont->IsLoaded) continue;
+      for (var i = 0; i < cont->Size; i++)
+      {
+        var slot = cont->GetInventorySlot(i);
+        if (slot == null || slot->ItemId == 0) continue;
+        held.Add((slot->ItemId, slot->Flags.HasFlag(InventoryItem.ItemFlags.HighQuality)));
+      }
+    }
+    return held;
   }
 }
 

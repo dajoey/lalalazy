@@ -2811,6 +2811,16 @@ internal sealed class MarketAutomation : Window, IDisposable
       _routingPendingVerify.RemoveAll(p => string.Equals(p.Key, pendKey, StringComparison.Ordinal));
       _routingPendingVerify.Add(new RoutingMovePending(pendKey, op.Leg, op.SessionRetainer, retContainer, retSlot, op.ItemId, op.HQ));
     }
+    // 0.1.59.0: THE FIX for the two live stacks that sat in the bags for a day. A pending probe
+    // records its verdict under the move's SOURCE slot, but it does not grade until the retainer's
+    // next session, and by then the mover has refilled that slot several times over. When the
+    // stack sitting there is another stack of the same item at the same quality, the quarantine
+    // falls on stock that was never moved. A slot this sweep filled itself therefore cancels the
+    // probe that named it, exactly as DropReconcileKeysAtSlots already releases the ledger entry
+    // (decision is pure: RoutingMove.DropPendingVerifyAtSlots, harness case 120).
+    var aliased = RoutingMove.DropPendingVerifyAtSlots(_routingPendingVerify, relaySlots);
+    if (aliased.Count > 0)
+      Svc.Log.Information($"[LMC] routing persistence: {aliased.Count} move(s) will not be graded on the next session - this sweep pulled another stack of the same item into the slot their ledger key names, so a hold recorded there would stop the new stack instead: {string.Join(", ", aliased.Select(k => k.Substring(k.IndexOf('|') + 1)))}");
     // 0.1.55.0: release every quarantine entry naming a slot this execution filled, whichever
     // session recorded it (see RoutingMove.DropReconcileKeysAtSlots for the evidence). This is
     // what stops the quarantine growing until the sweep appears to move nothing at all.
