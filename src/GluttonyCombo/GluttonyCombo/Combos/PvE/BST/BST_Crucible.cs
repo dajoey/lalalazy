@@ -24,13 +24,27 @@ internal partial class BST
     /// </summary>
     private static readonly Dictionary<int, float> CruciblePetHp = [];
 
+    /// <summary>
+    ///     Tick when a familiar left combat below <see cref="BST_CrucibleLogic.PartyHpLow"/> (Parting Blow / horn-swap).
+    ///     Party-agent full-heal samples for that row are ignored until this ages past
+    ///     <see cref="PartyHpLagGraceMs"/> (agent lag after a leave).
+    /// </summary>
+    private static readonly Dictionary<int, long> CruciblePetLeftLowAt = [];
+
     private static uint _crucibleTerritory;
     private static ulong _parryTargetId;
     private static long _parryEndedTick;
     private static string _hornWarningKey = "";
+    private static int _lastLivePetRow;
 
     /// <summary> Seconds a lost Directional Parry still counts as "just ended" (Challenge back). </summary>
     private const long ParryEndedWindowMs = 6000;
+
+    /// <summary>
+    ///     How long after a low leave the party agent may still report 100 for that familiar (first-board run:
+    ///     ~48 s of lag). Camp restores after this window still raise remembered HP.
+    /// </summary>
+    private const long PartyHpLagGraceMs = 90_000;
 
     /// <summary> BNpcName of the current target, sampled for the CR| collector. </summary>
     internal static uint LastCrucibleTargetNameId;
@@ -41,9 +55,11 @@ internal partial class BST
         if (territory != _crucibleTerritory)
         {
             CruciblePetHp.Clear();
+            CruciblePetLeftLowAt.Clear();
             _crucibleTerritory = territory;
             _hornWarningKey = "";
             _parryTargetId = 0;
+            _lastLivePetRow = 0;
             PartyHpVerified = false;
             PlayerHpSamples.Clear();
             TargetHpSamples.Clear();
@@ -95,25 +111,42 @@ internal partial class BST
 
         // Familiar HP, remembered per beast so a low familiar is not summoned straight back into danger.
         var party = ReadPartyHp();
+        var activeRow = 0;
         if (s.ActiveSlot != 0 && Svc.Buddies.PetBuddy?.GameObject is IBattleChara pet && pet.MaxHp > 0)
         {
             s.PetHpPercent = 100f * pet.CurrentHp / pet.MaxHp;
             s.PetHp = pet.CurrentHp;
-            var row = BST_RotationLogic.SlotBeast(s, s.ActiveSlot);
-            if (row == 0)
-                row = s.PetObjectBeast;
-            if (row != 0)
+            activeRow = BST_RotationLogic.SlotBeast(s, s.ActiveSlot);
+            if (activeRow == 0)
+                activeRow = s.PetObjectBeast;
+            if (activeRow != 0)
             {
-                CruciblePetHp[row] = Math.Max(s.PetHpPercent, 0.5f);
+                CruciblePetHp[activeRow] = Math.Max(s.PetHpPercent, 0.5f);
+                _lastLivePetRow = activeRow;
                 // The party agent read is trusted only after it agrees with a summoned familiar's live HP.
-                if (party.TryGetValue(row, out var agentHp) && Math.Abs(agentHp - s.PetHpPercent) <= 3f && s.PetHpPercent < 99.5f)
+                if (party.TryGetValue(activeRow, out var agentHp) && Math.Abs(agentHp - s.PetHpPercent) <= 3f && s.PetHpPercent < 99.5f)
                     PartyHpVerified = true;
             }
         }
+        else if (_lastLivePetRow != 0)
+        {
+            // Familiar just left (Parting Blow / horn-swap / end of fight). Remember the leave so a lagged
+            // party-agent 100 cannot wipe the live HP we already stored.
+            if (CruciblePetHp.TryGetValue(_lastLivePetRow, out var leftHp) && leftHp < BST_CrucibleLogic.PartyHpLow)
+                CruciblePetLeftLowAt[_lastLivePetRow] = now;
+            _lastLivePetRow = 0;
+        }
         if (PartyHpVerified)
+        {
             foreach (var (row, hp) in party)
-                if (row != BST_RotationLogic.SlotBeast(s, s.ActiveSlot))
-                    CruciblePetHp[row] = Math.Max(hp, 0.5f);
+            {
+                if (row == activeRow)
+                    continue;
+                var recentlyLeftLow = CruciblePetLeftLowAt.TryGetValue(row, out var leftAt)
+                    && now - leftAt < PartyHpLagGraceMs;
+                BST_CrucibleLogic.ApplyPartyHpSample(CruciblePetHp, row, hp, recentlyLeftLow);
+            }
+        }
         s.Slot1PetHp = CruciblePetHp.GetValueOrDefault(s.Slot1Beast);
         s.Slot2PetHp = CruciblePetHp.GetValueOrDefault(s.Slot2Beast);
         s.Slot3PetHp = CruciblePetHp.GetValueOrDefault(s.Slot3Beast);

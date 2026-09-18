@@ -481,4 +481,39 @@ internal static class BST_CrucibleLogic
 
         return allowed;
     }
+
+    // ------------------------------------------------------------------ familiar HP memory (party agent)
+
+    /// <summary>
+    ///     How the run-scoped familiar HP dictionary accepts a sample from AgentXBMPetParty for a beast that is
+    ///     not currently summoned. The party agent briefly reports 100 after Parting Blow / a horn-swap while the
+    ///     familiar is still hurt (first-board run 2026-09-17: live 19% → agent 100 for ~48 s, then 19 again).
+    ///     Never raise a remembered low value to a near-full party reading while that leave is still recent; lower
+    ///     readings, partial heals, and camp restores after the grace window still apply.
+    /// </summary>
+    public const float PartyHpRaiseEpsilon = 3f;
+
+    /// <summary> Party readings at or above this count as "full" for the lag filter. </summary>
+    public const float PartyHpFull = 99f;
+
+    /// <summary> Remembered HP below this is "low" for the lag filter. </summary>
+    public const float PartyHpLow = 95f;
+
+    /// <summary>
+    ///     Apply one party-agent HP sample for a non-active beast row. Returns whether <paramref name="remembered"/>
+    ///     was written.
+    /// </summary>
+    public static bool ApplyPartyHpSample(Dictionary<int, float> remembered, int row, float partyHp, bool recentlyLeftLow)
+    {
+        if (row == 0)
+            return false;
+        if (remembered.TryGetValue(row, out var prev)
+            && partyHp > prev + PartyHpRaiseEpsilon
+            && partyHp >= PartyHpFull
+            && prev < PartyHpLow
+            && recentlyLeftLow)
+            return false;
+        remembered[row] = Math.Max(partyHp, 0.5f);
+        return true;
+    }
 }

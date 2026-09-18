@@ -1,3 +1,9 @@
+## v1.0.4.217 (2026-09-18) [testing]
+### Fixed
+- **Crucible familiar HP memory no longer forgets a hurt familiar after Parting Blow or a horn-swap.** The familiar party screen briefly reports full HP for a familiar that just left combat while it is still hurt. That lag used to overwrite the live HP the plugin had just recorded, so the remembered value jumped to 100 until the party screen caught up. Party readings that raise a remembered low familiar all the way to full are ignored for 90 seconds after that leave; lower readings, partial heals, and camp restores after the grace window still apply. (files: `Combos/PvE/BST/BST_CrucibleLogic.cs`, `Combos/PvE/BST/BST_Crucible.cs`)
+### Notes
+- Offline harness: 858 checks (+4 for the party-HP lag filter). TelemetryHarness OK. Graded from the first First Board run's `CR|` / `XP|` lines.
+
 ## v1.0.4.216 (2026-09-17) [testing]
 ### Removed
 - **Smart Movement, Auto Positionals and the movement ability safety gate are removed.** The whole in-plugin movement system is gone: the telegraph-dodging mover and its planner, the melee auto-positional mover, the gap-closer landing gate, the "Gluttony Smart Movement" server-bar icon, the `/gluttony mvtel` command, the movement telemetry, and the vnavmesh and BossMod Reborn hint subscriptions that only they used. The corresponding settings are gone from the Auto-Rotation tab; saved values are ignored. Gap-closers (Shield Charge, Intervene, Onslaught, Corps-a-corps, Phantom Kick) fire on their previous conditions alone, and a cast simply waits until the character stops moving, as before the movement work. Movement is left to the player or to a dedicated movement plugin.

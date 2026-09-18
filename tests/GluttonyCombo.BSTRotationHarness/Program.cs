@@ -373,6 +373,19 @@ internal static class Program
         Check("last enemy at 2%: no save", !Decide(crit with { TargetHpPercent = 2f, HighestEnemyHpPercent = 2f }, cfg).Reason.StartsWith("crucible:petsave"));
         Check("Parting Blow recasting: declined, logged", Decide(crit with { ReadyParting = false }, cfg).Declines.Contains("crucible:petsave-partingblow-recast"));
         Check("egg near the target: no save Parting Blow", Decide(crit with { ProtectedNearTarget = true }, cfg).ActionId != BST.PartingBlow);
+
+        // Party-agent HP lag after Parting Blow / horn-swap (first-board run 2026-09-17: live 19% → agent 100 for ~48 s)
+        var mem = new Dictionary<int, float> { [20] = 19f };
+        Check("party agent 100 after a low leave: keep 19",
+            !BST_CrucibleLogic.ApplyPartyHpSample(mem, 20, 100f, recentlyLeftLow: true) && mem[20] == 19f);
+        Check("party agent 49 after a low leave: accept the partial heal",
+            BST_CrucibleLogic.ApplyPartyHpSample(mem, 20, 49f, recentlyLeftLow: true) && mem[20] == 49f);
+        mem[20] = 19f;
+        Check("party agent 100 after grace: accept the camp restore",
+            BST_CrucibleLogic.ApplyPartyHpSample(mem, 20, 100f, recentlyLeftLow: false) && mem[20] == 100f);
+        Check("party agent 76 while remembered 100: accept the drop",
+            BST_CrucibleLogic.ApplyPartyHpSample(mem, 20, 76f, recentlyLeftLow: false) && mem[20] == 76f);
+
         var covering = hurt with { SinceSnarl = 5f, EnemyTargetsPet = true, EnemyTargetsPlayer = false };
         Check("covering familiar at 50%: stays", !IsHorn(Decide(covering, cfg).ActionId));
         Check("covering familiar at 20%: saved", Decide(covering with { PetHpPercent = 20f }, cfg).Reason.StartsWith("crucible:petsave"));
