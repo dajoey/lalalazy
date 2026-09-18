@@ -3,363 +3,393 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using GluttonyCombo.AutoRotation.Movement;
 
 #endregion
 
 namespace GluttonyCombo.AutoRotation;
 
 /// <summary>
-///     PURE movement decision engine for SmartMover (fork, t_356159a8, v1.0.4.191).
+///     PURE movement decision engine for Smart Movement v2 (2026-09 rebuild).
 ///     No Dalamud types; compiled into <c>tests/GluttonyCombo.SmartMoverHarness</c>.
 /// </summary>
 /// <remarks>
-///     Input is an immutable <see cref="MoverWorld"/> snapshot; output is one
-///     <see cref="MoveDecision"/> per tick. Hysteresis state lives in the
-///     caller-owned <see cref="Hysteresis"/> class so the engine stays pure and
-    ///     replayable. Decision order: off/nav -&gt; manual input -&gt; casting hold
-    ///     (skipped while a dodge is needed, v1.0.4.209) -&gt; BMR navigating pause
-    ///     -&gt; ooc -&gt; DODGE -&gt; ENGAGE/SETTLE.
-    ///     Out of combat the mover never approaches a target (v1.0.4.203).
-///     Deliberately NEVER consults "is BossMod AI enabled" - the mover does not
-///     stand down just because BMR is installed (the PositionalMover trap).
-///     Game rotation convention: FFXIV rotations are radians CCW from +Z/south,
-///     i.e. facing dir = (sin(rot), cos(rot)) in an XZ plane mapped to (x= X, y= Z).
+///     v2 replaces the v1 ring sampler with a time-aware planner: every live
+///     telegraph is rasterised into a grid as "seconds until this cell is
+///     lethal", goals (attack band, positional) as priorities, and a Theta*
+///     search in seconds picks the next waypoint. The output is a STEERING
+///     direction the Dalamud half writes into the game's movement input every
+///     frame (no vnavmesh for dodges); vnavmesh is only used for a long
+///     approach to a target outside the planning grid.
+///     Decision order: off -&gt; mounted/knockback -&gt; manual input -&gt; external
+///     mover (vnavmesh path we did not issue, BossMod AI) -&gt; out of combat -&gt;
+///     plan -&gt; cast rule -&gt; steer / long approach / hold.
+///     Game rotation convention: facing dir = (sin r, cos r) over (X, Z); the
+///     zone and planner math uses atan2(z, x) angles (see DangerZoneModel).
 /// </remarks>
 internal static class SmartMoverCore
 {
-    /// <summary> Decision cadence. A const, not a config knob (a tunable spam limit is a tunable footgun). </summary>
-    internal const int TickMs = 250;
+    /// <summary> Planning cadence (ms). Steering between plans keeps the last waypoint. </summary>
+    internal const int TickMs = 100;
 
-    /// <summary> Minimum travel before a move is worth issuing (anti-jitter). </summary>
-    internal const float MinMoveYalms = 1.0f;
+    /// <summary> Grid resolution (yalms). </summary>
+    internal const float MapResolution = 0.5f;
 
-    /// <summary> A new destination must differ from the held one by at least this, during the hold. </summary>
-    internal const float DestChangeYalms = 1.0f;
+    /// <summary> Half-width of the planning square (yalms). </summary>
+    internal const float MapHalfWidth = 30f;
 
-    /// <summary> How long a chosen destination is kept once movement started (anti-flap). </summary>
-    internal const float DestHoldSeconds = 1.0f;
+    /// <summary> Map centre is the player position rounded to this, re-centred past <see cref="MapRecenterYalms"/>. </summary>
+    internal const float MapQuantum = 5f;
+    internal const float MapRecenterYalms = 2.5f;
 
-    /// <summary> Remaining cast time at/below which slidecasting movement is allowed. </summary>
+    /// <summary> Targets farther than this from the player are approached with vnavmesh, not the grid. </summary>
+    internal const float LongApproachYalms = 24f;
+
+    /// <summary> Default seconds subtracted from every activation (BossMod release default 1.0). Config overrides. </summary>
+    internal const float DefaultActivationCushionSec = 1.0f;
+
+    /// <summary> Yalms next to danger that are de-prioritised so the character over-dodges slightly. </summary>
+    internal const float OverdodgeCushionYalms = 0.5f;
+
+    /// <summary> Remaining cast time at/below which movement no longer cancels the cast (slidecast). </summary>
     internal const float SlidecastWindowSec = 0.5f;
 
-    /// <summary> Rings x directions sampled to find a dodge destination. </summary>
-    internal const int DodgeRingCount = 24;
+    /// <summary> Run speed assumptions (yalms/s). </summary>
+    internal const float RunSpeed = 6.0f;
+    internal const float SprintSpeed = 7.8f;
 
-    /// <summary>
-    ///     Hard ceiling on how far from the engaged target a destination may
-    ///     land (v1.0.4.193). Kept as a sanity BACKSTOP even now that real
-    ///     mesh-walkability filtering exists (v1.0.4.196, gap 1): a corridor
-    ///     could be walkable yet still lead the character out of the intended
-    ///     encounter area (e.g. an open hallway back to a previous room), so
-    ///     the distance ceiling and the mesh check are independent, both-must-
-    ///     pass filters, not a replacement for one another.
-    /// </summary>
-    internal const float MaxDestDistFromTarget = 15f;
-    internal const int DodgeDirCount = 16;
-    internal const float DodgeRingStep = 1.0f;
+    /// <summary> A waypoint closer than this is considered reached. </summary>
+    internal const float ArriveYalms = 0.15f;
 
-    /// <summary>
-    ///     How many rings past the first escapable one the dodge sampler keeps
-    ///     looking for a destination that still has the engaged target in
-    ///     attack range (v1.0.4.212). Grading 1.0.4.211: "boss has rectangular
-    ///     frontal aoe - it moved out of melee range instead of to the side or
-    ///     behind him where it could keep attacking." The sampler took the
-    ///     nearest safe point and never asked whether the character could still
-    ///     reach the target from it; every ring candidate is the same distance
-    ///     from the character, so the escape direction was decided by sample
-    ///     index. A bounded extra reach (yalms, one per ring) buys a sidestep
-    ///     that keeps attacking instead of a retreat that does not.
-    /// </summary>
-    internal const int DodgeInBandExtraRings = 3;
+    /// <summary> Bound on search steps per plan (a 120x120 grid has 14400 cells). </summary>
+    internal const int MaxPlanSteps = 40000;
+
+    /// <summary> Bands at or under this depth hug the target (melee/tank 3, SGE 5). </summary>
+    internal const float ShortRangeYalms = 5f;
+
+    /// <summary> Coarse floor-mask cell (yalms); one vnavmesh probe per cell per map placement. </summary>
+    internal const float WalkCellYalms = 2f;
+
+    /// <summary> Floor mask is rebuilt after this many seconds even if the map did not move. </summary>
+    internal const float WalkMaskMaxAgeSec = 10f;
+
+    /// <summary> A mask with more than this fraction blocked is a broken probe, not a wall: ignored (fail open). </summary>
+    internal const float WalkMaskMaxBlockedFraction = 0.6f;
 
     internal enum Decision : byte
     {
-        None,
-        Stop,
-        Move,
+        None,   // no command; keep whatever state (steering cleared by the caller when Reason says so)
+        Stop,   // stop steering and any own vnavmesh path
+        Steer,  // walk straight toward Dest (input override)
+        NavTo,  // long approach: ask vnavmesh to path to Dest once
     }
 
     /// <summary> Everything the engine needs for one tick. Positions are world XZ (Vector2 = X, Z). </summary>
     internal readonly record struct MoverWorld(
         Vector2 PlayerPos,
-        float DesiredRange,          // attack range band centre, edge-to-edge
+        float DesiredRange,          // attack band, edge-to-edge
         bool PositionalWanted,       // melee positional phase active
         bool PositionalIsRear,       // rear vs flank
-        bool TrueNorth,              // positionals disabled by True North
+        bool TrueNorth,
         Vector2 TargetPos,
-        float TargetRotation,        // GAME-convention radians (CCW from +Z)
+        float TargetRotation,        // GAME-convention radians
         float TargetHitboxRadius,
         bool TargetEngaged,          // DPS target exists, targetable, alive
-        bool TargetHostile,          // target reads hostile (nameplate) - no longer
-                                     // gates movement: out of combat always stands
-                                     // down (v1.0.4.203)
         IReadOnlyList<DangerZoneModel.Zone> Zones,
-        bool ManualInput,            // WASD / gamepad wishdir non-zero
-        bool Casting,                // player is casting
-        float CastRemainingSec,      // &gt;0 while casting
-        bool BmrNavigating,          // BMR's AI controller is actively steering right now
-        bool NavReady,               // vnavmesh ready
-        bool Enabled,                // SmartMover toggle
+        bool ManualInput,            // WASD / gamepad wishdir non-zero this frame
+        bool Casting,
+        float CastRemainingSec,
+        bool ExternalMover,          // vnavmesh path we did not issue, or BossMod AI steering
+        bool NavReady,               // vnavmesh available (long approach only)
+        bool Enabled,
         bool InCombat,
-        float DeltaSec,              // time since last tick
-        double NowSec,               // absolute seconds clock (hysteresis)
-        Func<Vector2, bool>? IsPointWalkable = null); // v1.0.4.196: true arena-geometry bounds via
-                                                       // vnavmesh mesh walkability (Query.Mesh.PointOnFloor).
-                                                       // Null when vnavmesh is absent/not ready - the engine
-                                                       // then degrades to the MaxDestDistFromTarget heuristic
-                                                       // alone (BMR-independent operation is a requirement;
-                                                       // this must never be a BMR-derived input).
+        double NowSec,               // absolute clock (same as Zone.ActivationSec)
+        float Speed = RunSpeed,
+        bool Mounted = false,
+        bool KnockbackPending = false,
+        float ActivationCushionSec = DefaultActivationCushionSec,
+        Func<Vector2, bool>? IsPointWalkable = null, // optional vnavmesh floor probe for the coarse floor mask
+        bool SteeringUnavailable = false);           // the input hook could not be armed: never plan, report it
 
-    /// <summary> One movement verdict. Reason is a byte code; see <see cref="ReasonString"/>. </summary>
-    internal readonly record struct MoveDecision(Decision Kind, Vector2 Dest, byte Reason);
+    /// <summary> One movement verdict. </summary>
+    internal readonly record struct MoveDecision(
+        Decision Kind,
+        Vector2 Dest,
+        byte Reason,
+        float LeewaySec,   // how long the chosen path can wait; float.MaxValue when nothing threatens
+        bool StartUnsafe,  // the character's cell activates at some point
+        float StartMaxG)   // seconds the current cell stays safe
+    {
+        /// <summary> Longest cast the rotation may start now (exported as MaxCastTime). </summary>
+        public float MaxCastTime => LeewaySec;
+    }
 
     /// <summary> Caller-owned state so the engine stays pure. </summary>
-    internal sealed class Hysteresis
+    internal sealed class MoverState
     {
-        public Vector2 LastDest;
-        public bool HasLastDest;
-        public double HoldUntilSec;
-        public bool WasMoving;
-        public bool LastDodge;          // v1.0.4.197: the held dest was chosen by the dodge branch
+        public readonly NavigationDecision.Context Ctx = new();
+        public Vector2 MapCenter;
+        public bool HasMapCenter;
+        public Vector2? Waypoint;     // current steering target
+        public Vector2? NextWaypoint;
+        public bool OwnNavActive;     // we issued a vnavmesh long approach that may still be running
+        public Vector2 OwnNavDest;
+        public byte LastReason;
+        public int LastPlanSteps;
+        public float LastPlanMs;
+        public bool[]? WalkMask;      // coarse floor mask over the map (WalkCellYalms blocks), null = unknown
+        public Vector2 WalkMaskCenter;
+        public double WalkMaskBuiltSec = double.MinValue;
+        public int WalkMaskBlocked;
 
         public void Reset()
         {
-            LastDest = default;
-            HasLastDest = false;
-            HoldUntilSec = 0;
-            WasMoving = false;
-            LastDodge = false;
+            Waypoint = null;
+            NextWaypoint = null;
+            OwnNavActive = false;
+            OwnNavDest = default;
+            LastReason = 0;
+            HasMapCenter = false;
+            WalkMask = null;
+            WalkMaskBuiltSec = double.MinValue;
         }
     }
 
-    // Reason codes (bytes for the decision record; strings in ReasonString for telemetry).
+    // Reason codes (bytes for the decision record; strings via ReasonString).
     internal const byte ReasonOffCode = 1;
-    internal const byte ReasonNavCode = 2;
+    internal const byte ReasonNavCode = 2;      // long approach wanted, vnavmesh not ready
     internal const byte ReasonManualCode = 3;
-    internal const byte ReasonCastCode = 4;
-    internal const byte ReasonBmrCode = 5;
-    internal const byte ReasonDodgeCode = 6;
-    internal const byte ReasonEngageCode = 7;
-    internal const byte ReasonSettleCode = 8;
+    internal const byte ReasonCastCode = 4;     // finishing a cast; the path can wait
+    internal const byte ReasonExternalCode = 5; // someone else is steering (vnavmesh path, BossMod AI)
+    internal const byte ReasonDodgeCode = 6;    // steering because a telegraph threatens the path
+    internal const byte ReasonEngageCode = 7;   // steering toward the attack band / positional
+    internal const byte ReasonSettleCode = 8;   // in place, nothing to do, no zones
     internal const byte ReasonOocCode = 9;
+    internal const byte ReasonHoldCode = 10;    // in place, zones live but the cell is safe
+    internal const byte ReasonStuckCode = 11;   // cell unsafe and no better cell reachable
+    internal const byte ReasonEscapeCode = 12;  // dodge with no leeway left (late)
+    internal const byte ReasonMountedCode = 14;
+    internal const byte ReasonKnockbackCode = 15;
+    internal const byte ReasonApproachCode = 16; // vnavmesh long approach issued / running
+    internal const byte ReasonHookCode = 17;     // steering hook unavailable (signatures missing) - nothing can move
 
-    // v1.0.4.212: the no-command answers used to share reason 0 ("hold"), so
-    // five different states read the same in telemetry. Grading 1.0.4.211 hit
-    // exactly that wall: an 8.5-second "hold" with one telegraph live could be
-    // either "settled, waiting for the zone to pass" (safe) or "standing IN the
-    // zone with nowhere sampled to go" (a hit), and the log could not say which.
-    // Each no-command answer now carries its own code.
-    internal const byte ReasonNoEscapeCode = 11;   // inside a live zone, no escape point sampled
-    internal const byte ReasonRingHoldCode = 12;   // approach: the whole standing ring is covered
-    internal const byte ReasonPathHoldCode = 13;   // approach: the direct corridor crosses live danger
+    internal static string ReasonString(byte code) => code switch
+    {
+        ReasonOffCode => "off",
+        ReasonNavCode => "nav",
+        ReasonManualCode => "man",
+        ReasonCastCode => "cast",
+        ReasonExternalCode => "ext",
+        ReasonDodgeCode => "ddg",
+        ReasonEngageCode => "eng",
+        ReasonSettleCode => "stl",
+        ReasonOocCode => "ooc",
+        ReasonHoldCode => "hold",
+        ReasonStuckCode => "stuck",
+        ReasonEscapeCode => "esc",
+        ReasonMountedCode => "mnt",
+        ReasonKnockbackCode => "kb",
+        ReasonApproachCode => "appr",
+        ReasonHookCode => "hook",
+        _ => "hold",
+    };
 
-    /// <summary> Chooses the movement for this tick: Move = go to Dest, Stop = stop pathing, None = no command. </summary>
-    internal static MoveDecision Decide(MoverWorld w, Hysteresis h)
+    /// <summary> Chooses the movement for this tick. </summary>
+    internal static MoveDecision Decide(MoverWorld w, MoverState s)
+    {
+        var d = DecideInner(w, s);
+        s.LastReason = d.Reason;
+        return d;
+    }
+
+    private static MoveDecision DecideInner(MoverWorld w, MoverState s)
     {
         if (!w.Enabled)
-            return StandDown(h, ReasonOffCode);
-
-        // v1.0.4.198 (tasks-20260915-automove-nododge-01): nav-not-ready gets
-        // its OWN reason. It used to share ReasonOffCode, so a dead nav layer
-        // (vnavmesh absent or not ready for the zone) was indistinguishable
-        // from the toggle being off - and Emit filtered both. The RDM
-        // Occult-Crescent window (toggle proven ON via DTR DuoLog, telemetry
-        // ON, in combat, zero MV lines) stood down here with no trace.
-        if (!w.NavReady)
-            return StandDown(h, ReasonNavCode);
-
+            return StandDown(s, ReasonOffCode);
+        if (w.SteeringUnavailable)
+            return StandDown(s, ReasonHookCode);
+        if (w.Mounted)
+            return StandDown(s, ReasonMountedCode);
+        if (w.KnockbackPending)
+            return Hold(s, ReasonKnockbackCode); // positions snapshot at resolve: do not re-plan mid-knockback
         if (w.ManualInput)
-            return StandDown(h, ReasonManualCode);
-
-        // v1.0.4.209: a hardcast never pins the character inside a live
-        // telegraph. The cast stand-down used to run before the dodge branch,
-        // so a caster whose rotation keeps a cast bar up stood in every AoE
-        // that landed during a cast, and a cast starting mid-dodge stopped
-        // the escape. Movement cancels the cast; that is the right trade.
-        if (w.Casting && w.CastRemainingSec > SlidecastWindowSec && !MustDodge(w, h))
-            return StandDown(h, ReasonCastCode);
-
-        if (w.BmrNavigating)
-            return StandDown(h, ReasonBmrCode);
-
-        // v1.0.4.203 (testing 2026-09-16 grading of 1.0.4.202: "automovement is
-        // moving me to the target even when i'm out of combat, which is not
-        // ok"): moving to a target NEVER happens out of combat. The
-        // v1.0.4.200 pre-combat hostile engage is reverted - its own grading
-        // round proved the approach works but the behaviour itself is not
-        // wanted. The ooc standdown KEEPS its own reason code (not toggle-off
-        // filtered) so a dead approach attempt stays visible in telemetry
-        // (Shirogane NIN 1.0.4.198 zero-MV-lines lesson). Dodge stays
-        // combat-gated below.
+            return StandDown(s, ReasonManualCode);
+        if (w.ExternalMover)
+            return StandDown(s, ReasonExternalCode);
         if (!w.InCombat)
-            return StandDown(h, ReasonOocCode);
+            return StandDown(s, ReasonOocCode);
 
-        // ---- DODGE (combat only - a pre-combat approach uses ENGAGE below) ----
-        if (w.InCombat)
+        // ---- map placement (quantised, with hysteresis) ----
+        if (!s.HasMapCenter || Vector2.Distance(w.PlayerPos, s.MapCenter) > MapRecenterYalms + MapQuantum)
         {
-            // v1.0.4.202: dodge persistence replaces the v1.0.4.197 hold, which
-            // only applied while the player was still unsafe. While a dodge is
-            // in flight the held destination is KEPT until the player arrives
-            // (within the settle deadband) or the point itself becomes
-            // unsafe/unwalkable - even when the player is momentarily clear. A
-            // one-tick zone flicker used to fall through to ENGAGE/SETTLE,
-            // whose StandDown cleared the hysteresis and killed the vnav path
-            // mid-dodge (RDM Occult-Crescent grading on 1.0.4.201: ddg at
-            // 19:43:50.383, stl one tick later at 19:43:51.400, zones still
-            // live at both). With several overlapping AoEs this also keeps the
-            // sampler's nearest-safe-point wobble from re-aiming every tick.
-            if (h.HasLastDest && h.LastDodge &&
-                Vector2.Distance(w.PlayerPos, h.LastDest) > MinMoveFor(w))
+            s.MapCenter = new Vector2(MathF.Round(w.PlayerPos.X / MapQuantum) * MapQuantum, MathF.Round(w.PlayerPos.Y / MapQuantum) * MapQuantum);
+            s.HasMapCenter = true;
+        }
+        else if (Vector2.Distance(w.PlayerPos, s.MapCenter) > MapRecenterYalms)
+        {
+            s.MapCenter = new Vector2(MathF.Round(w.PlayerPos.X / MapQuantum) * MapQuantum, MathF.Round(w.PlayerPos.Y / MapQuantum) * MapQuantum);
+        }
+
+        // ---- forbidden zones ----
+        var forbidden = new List<NavigationDecision.Forbidden>(w.Zones.Count);
+        for (var i = 0; i < w.Zones.Count; i++)
+        {
+            var z = w.Zones[i];
+            var activation = z.ActivationSec > 0 ? z.ActivationSec : w.NowSec + z.RemainingSec;
+            var (bmin, bmax) = DangerZoneModel.Bounds(in z);
+            forbidden.Add(new NavigationDecision.Forbidden(DangerZoneModel.Sdf(in z), activation, z.Source, bmin, bmax));
+        }
+
+        // ---- goals ----
+        var goals = new List<Func<Vector2, float>>(1);
+        var targetInMap = w.TargetEngaged && Vector2.Distance(w.PlayerPos, w.TargetPos) <= LongApproachYalms;
+        if (targetInMap)
+            goals.Add(GoalAttackBand(w));
+
+        // ---- floor mask: the map IS the obstacle map (one probe per 2x2 block per placement) ----
+        var map = s.Ctx.Map;
+        map.Init(MapResolution, s.MapCenter, MapHalfWidth, MapHalfWidth);
+        if (w.IsPointWalkable is not null)
+        {
+            var blocks = (int)MathF.Ceiling(2 * MapHalfWidth / WalkCellYalms);
+            if (s.WalkMask is null || s.WalkMaskCenter != s.MapCenter || w.NowSec - s.WalkMaskBuiltSec > WalkMaskMaxAgeSec)
             {
-                if (UnsafeAt(h.LastDest, w.Zones, 0.25f) is null &&
-                    Walkable(w.IsPointWalkable, h.LastDest))
-                    return new MoveDecision(Decision.Move, h.LastDest, ReasonDodgeCode);
+                var mask = s.WalkMask is { } m && m.Length == blocks * blocks ? m : new bool[blocks * blocks];
+                var blocked = 0;
+                for (var by = 0; by < blocks; by++)
+                    for (var bx = 0; bx < blocks; bx++)
+                    {
+                        var c = s.MapCenter + new Vector2((bx + 0.5f) * WalkCellYalms - MapHalfWidth, (by + 0.5f) * WalkCellYalms - MapHalfWidth);
+                        var ok = w.IsPointWalkable(c);
+                        mask[by * blocks + bx] = ok;
+                        if (!ok) blocked++;
+                    }
+                s.WalkMask = mask;
+                s.WalkMaskCenter = s.MapCenter;
+                s.WalkMaskBuiltSec = w.NowSec;
+                s.WalkMaskBlocked = blocked;
             }
-
-            if (UnsafeAt(w.PlayerPos, w.Zones, 0f) is not null)
+            if (s.WalkMask is { } wm && s.WalkMaskBlocked > 0 && s.WalkMaskBlocked < blocks * blocks * WalkMaskMaxBlockedFraction)
             {
-                var anchor = w.TargetEngaged ? w.TargetPos : w.PlayerPos;
-                // v1.0.4.209: the backstop never sits inside the job's own
-                // standing band - a ranged job at 20y had every escape point
-                // past the flat 15y ceiling and held in place instead.
-                var clamp = w.TargetEngaged
-                    ? MathF.Max(MaxDestDistFromTarget, w.TargetHitboxRadius + w.DesiredRange + RangeTolerance(w))
-                    : float.MaxValue;
-                // v1.0.4.212: escape to a point the character can still fight
-                // from when one exists. The band is the same "in range" test
-                // the settle branch uses, and the preferred point is where the
-                // mover would want to stand anyway (the current angle around
-                // the target, or the wanted positional) - so a frontal cone or
-                // line is answered with a step to the flank or the rear rather
-                // than a retreat out of range.
-                var band = 0f;
-                Vector2? prefer = null;
-                if (w.TargetEngaged)
-                {
-                    band = w.TargetHitboxRadius + w.DesiredRange + RangeTolerance(w);
-                    PositionOk(w.PlayerPos, w, out var stand);
-                    prefer = stand;
-                }
-
-                var dest = FindSafePoint(w.PlayerPos, w.Zones, anchor, clamp, w.IsPointWalkable, band, prefer);
-                if (dest is { } d)
-                    return Commit(w, h, d, ReasonDodgeCode, overrideHold: true);
-                return None(ReasonNoEscapeCode); // nothing sampled anywhere - hold rather than walk blind
+                var per = (int)MathF.Round(WalkCellYalms / MapResolution);
+                var playerCell = map.ClampToGrid(map.WorldToGrid(w.PlayerPos));
+                for (var by = 0; by < blocks; by++)
+                    for (var bx = 0; bx < blocks; bx++)
+                    {
+                        if (wm[by * blocks + bx]) continue;
+                        for (var y = by * per; y < (by + 1) * per && y < map.Height; y++)
+                            for (var x = bx * per; x < (bx + 1) * per && x < map.Width; x++)
+                                if (x != playerCell.x || y != playerCell.y) // never block the cell the character stands in
+                                    map.BlockPixel(map.GridToIndex(x, y));
+                    }
             }
         }
 
-        // ---- ENGAGE / SETTLE ----
-        // v1.0.4.205: while any telegraph is live a settle answer is a HOLD
-        // (no command, hysteresis kept), never a stand-down. The pre-205
-        // settle StandDown reset the hysteresis and killed the vnav path, so
-        // a one-tick safe flicker mid-dodge (zone churn in a saturated arena)
-        // stopped the character and the next unsafe tick re-sampled a fresh
-        // spot: the logged ddg -> stl -> ddg -> stl oscillation with a new
-        // destination every dodge while up to a dozen zones stayed live.
-        // Holding keeps the committed dodge destination across the flicker;
-        // with no zones live the answer is byte-identical to before.
-        if (!w.TargetEngaged)
-            return ZonesLive(w) ? None() : StandDown(h, ReasonSettleCode);
+        // ---- plan ----
+        var nav = NavigationDecision.Build(s.Ctx, w.NowSec, map, forbidden, goals, goals.Count > 0, w.PlayerPos, w.Speed,
+            w.ActivationCushionSec, OverdodgeCushionYalms, MaxPlanSteps);
+        s.LastPlanSteps = nav.Steps;
 
-        if (PositionOk(w.PlayerPos, w, out var ideal))
-            return ZonesLive(w) ? None() : StandDown(h, ReasonSettleCode);
+        var leeway = forbidden.Count == 0 ? float.MaxValue : nav.LeewaySeconds;
 
-        var finalDest = ideal;
-        var idealUnsafe = UnsafeAt(ideal, w.Zones, 0.5f) is not null;
-        var idealBlocked = idealUnsafe || !Walkable(w.IsPointWalkable, ideal);
-        if (idealBlocked)
+        // ---- long approach (target beyond the grid), only while nothing threatens ----
+        if (w.TargetEngaged && !targetInMap && !nav.StartUnsafe && nav.Destination is null)
         {
-            var alt = FindSafeRingPoint(ideal, w.TargetPos, w.Zones, w.IsPointWalkable);
-            if (alt is { } a)
-                finalDest = a;
-            else if (idealUnsafe)
-                return None(ReasonRingHoldCode); // whole ring covered by live danger - wait in safety
-            // v1.0.4.211: a ring rejected ONLY by the mesh probe no longer
-            // holds. Grading 1.0.4.210 logged 24 approach decisions answered
-            // "hold" with ZERO live zones against 15 that moved (targets 1-17y
-            // past the band, open-world terrain): the standing point and all 24
-            // ring samples read off-mesh, so the mover never approached and the
-            // character had to walk there by hand. The probe is one plane
-            // through sloped ground, not the authority on reachability -
-            // vnavmesh's own pathfinder is, and it either routes or does
-            // nothing. Danger still holds (above); this point is zone-safe.
+            if (!w.NavReady)
+                return Hold(s, ReasonNavCode, leeway, nav);
+            var ring = w.TargetHitboxRadius + w.DesiredRange;
+            var toPlayer = w.PlayerPos - w.TargetPos;
+            var dir = toPlayer.LengthSquared() < 0.01f ? new Vector2(1, 0) : Vector2.Normalize(toPlayer);
+            var dest = w.TargetPos + dir * ring;
+            s.Waypoint = null;
+            if (s.OwnNavActive && Vector2.Distance(s.OwnNavDest, dest) < 3f)
+                return new MoveDecision(Decision.None, s.OwnNavDest, ReasonApproachCode, leeway, false, nav.StartMaxG);
+            s.OwnNavActive = true;
+            s.OwnNavDest = dest;
+            return new MoveDecision(Decision.NavTo, dest, ReasonApproachCode, leeway, false, nav.StartMaxG);
         }
 
-        // v1.0.4.206: while telegraphs are live, the mover never walks the
-        // straight corridor THROUGH a live zone on a DIRECT approach. The
-        // destination itself is zone-checked above, but the PATH was not -
-        // grading 1.0.4.205 logged an engage Move committed with 8 live zones
-        // (walk-through toward the target, then a hit). A blocked direct
-        // corridor holds position (no command, hysteresis kept) until the
-        // zones resolve; the dodge branch above still fires first whenever the
-        // player is unsafe, and a ring-swept sidestep (ideal itself covered)
-        // still moves as before - that sidestep IS the avoidance maneuver.
-        // With no zones live this is byte-identical.
-        if (!idealBlocked && ZonesLive(w) && SegmentBlocked(finalDest, w.PlayerPos, w.Zones))
-            return None(ReasonPathHoldCode); // direct corridor crosses live danger - wait in safety
+        // ---- nothing better to reach ----
+        if (nav.Destination is null)
+        {
+            s.Waypoint = null;
+            if (nav.StartUnsafe)
+                return new MoveDecision(StopIfNav(s), default, ReasonStuckCode, leeway, true, nav.StartMaxG);
+            return new MoveDecision(StopIfNav(s), default, forbidden.Count > 0 ? ReasonHoldCode : ReasonSettleCode, leeway, false, nav.StartMaxG);
+        }
 
-        return Commit(w, h, finalDest, ReasonEngageCode, overrideHold: false);
+        var target = nav.Destination.Value;
+        var dodging = forbidden.Count > 0 && (nav.StartUnsafe || leeway < float.MaxValue);
+
+        // ---- cast rule: finish the cast when the path can wait for it ----
+        if (w.Casting && w.CastRemainingSec > SlidecastWindowSec && leeway > w.CastRemainingSec - SlidecastWindowSec)
+        {
+            s.Waypoint = null; // do not steer (movement would cancel the cast); re-evaluated next tick
+            return new MoveDecision(StopIfNav(s), target, ReasonCastCode, leeway, nav.StartUnsafe, nav.StartMaxG);
+        }
+
+        // ---- steer ----
+        if (s.OwnNavActive)
+            s.OwnNavActive = false; // own long approach is superseded by grid steering; the caller stops the path
+        s.Waypoint = target;
+        s.NextWaypoint = nav.NextWaypoint;
+        var reason = !dodging ? ReasonEngageCode : leeway <= 0f ? ReasonEscapeCode : ReasonDodgeCode;
+        return new MoveDecision(Decision.Steer, target, reason, leeway, nav.StartUnsafe, nav.StartMaxG);
     }
 
-    private static MoveDecision StandDown(Hysteresis h, byte reason)
+    private static Decision StopIfNav(MoverState s)
     {
-        var was = h.HasLastDest;
-        h.Reset();
-        // v1.0.4.209: a stand-down with nothing to stop keeps its reason. It
-        // used to return reason 0, so cast/manual/bmr/ooc/nav stand-downs
-        // logged as "hold" (the zones-live hold) and were read as holds.
-        return new MoveDecision(was ? Decision.Stop : Decision.None, default, reason);
+        if (!s.OwnNavActive)
+            return Decision.None;
+        s.OwnNavActive = false;
+        return Decision.Stop;
+    }
+
+    private static MoveDecision StandDown(MoverState s, byte reason)
+    {
+        var hadNav = s.OwnNavActive;
+        var hadWp = s.Waypoint is not null;
+        s.Waypoint = null;
+        s.NextWaypoint = null;
+        s.OwnNavActive = false;
+        return new MoveDecision(hadNav || hadWp ? Decision.Stop : Decision.None, default, reason, float.MaxValue, false, float.MaxValue);
+    }
+
+    private static MoveDecision Hold(MoverState s, byte reason, float leeway = float.MaxValue, NavigationDecision nav = default)
+    {
+        s.Waypoint = null;
+        return new MoveDecision(Decision.None, default, reason, leeway, nav.StartUnsafe, nav.StartMaxG == 0 && !nav.StartUnsafe ? float.MaxValue : nav.StartMaxG);
     }
 
     /// <summary>
-    ///     Whether the dodge branch has to act this tick (v1.0.4.209): in combat,
-    ///     either standing inside a live zone, or an in-flight dodge whose held
-    ///     destination is still safe, walkable and not yet reached (exactly the
-    ///     persistence condition the dodge branch honours).
+    ///     Goal: 1 inside the attack band (hitbox + range + 0.5, edge-to-edge as
+    ///     the game measures it), 2 if additionally at the wanted positional.
+    ///     Ported from BossMod AIHints.GoalSingleTarget.
     /// </summary>
-    internal static bool MustDodge(MoverWorld w, Hysteresis h)
+    internal static Func<Vector2, float> GoalAttackBand(MoverWorld w)
     {
-        if (!w.InCombat || w.Zones.Count == 0)
-            return false;
-        if (UnsafeAt(w.PlayerPos, w.Zones, 0f) is not null)
-            return true;
-        return h.HasLastDest && h.LastDodge &&
-               Vector2.Distance(w.PlayerPos, h.LastDest) > MinMoveFor(w) &&
-               UnsafeAt(h.LastDest, w.Zones, 0.25f) is null &&
-               Walkable(w.IsPointWalkable, h.LastDest);
-    }
+        var radius = w.TargetHitboxRadius + w.DesiredRange + 0.5f;
+        var rsq = radius * radius;
+        var target = w.TargetPos;
+        if (!w.PositionalWanted || w.TrueNorth)
+            return p => (p - target).LengthSquared() <= rsq ? 1f : 0f;
 
-    private static MoveDecision Commit(MoverWorld w, Hysteresis h, Vector2 dest, byte reason, bool overrideHold)
-    {
-        var travel = Vector2.Distance(w.PlayerPos, dest);
-        if (!overrideHold && travel < MinMoveFor(w))
-            return ZonesLive(w) ? None() : StandDown(h, reason);
-
-        if (!overrideHold && h.HasLastDest && w.NowSec < h.HoldUntilSec)
+        var facing = new Vector2(MathF.Sin(w.TargetRotation), MathF.Cos(w.TargetRotation));
+        var side = new Vector2(-facing.Y, facing.X);
+        var rear = w.PositionalIsRear;
+        return p =>
         {
-            // Keep the held destination unless the new one is materially
-            // different - a quick target switch re-aims immediately instead
-            // of steering at the old target's flank for the rest of the hold
-            // (v1.0.4.192; both branches used to return the held dest).
-            if (Vector2.Distance(h.LastDest, dest) < DestChangeYalms)
-                return new MoveDecision(Decision.Move, h.LastDest, reason);
-            h.LastDest = dest;
-            h.HoldUntilSec = w.NowSec + DestHoldSeconds;
-            return new MoveDecision(Decision.Move, dest, reason);
-        }
-
-        h.LastDest = dest;
-        h.HasLastDest = true;
-        h.HoldUntilSec = w.NowSec + DestHoldSeconds;
-        h.WasMoving = true;
-        h.LastDodge = reason == ReasonDodgeCode;
-        return new MoveDecision(Decision.Move, dest, reason);
+            var off = p - target;
+            if (off.LengthSquared() > rsq)
+                return 0f;
+            var front = Vector2.Dot(facing, off);
+            var lat = MathF.Abs(Vector2.Dot(side, off));
+            var inPos = rear ? -front - lat > 0f : lat - MathF.Abs(front) > 0f;
+            return inPos ? 2f : 1f;
+        };
     }
 
-    /// <summary> Whether any telegraphed zone is currently live (cast, linger, or omen derived). </summary>
-    internal static bool ZonesLive(MoverWorld w) => w.Zones.Count > 0;
-
-    /// <summary> Whether the player's position is inside any live zone dilated by <paramref name="buffer"/>. </summary>
+    /// <summary> Whether the player's position is inside any live zone dilated by <paramref name="buffer"/> (gate / telemetry helper). </summary>
     internal static DangerZoneModel.Zone? UnsafeAt(Vector2 p, IReadOnlyList<DangerZoneModel.Zone> zones, float buffer)
     {
         for (var i = 0; i < zones.Count; i++)
@@ -369,63 +399,22 @@ internal static class SmartMoverCore
     }
 
     /// <summary>
-    ///     True arena-geometry gate (v1.0.4.196): a candidate is walkable when
-    ///     no mesh predicate is supplied (vnavmesh absent/not ready - the
-    ///     BMR-independent, distance-heuristic-only mode required by the
-    ///     card), or when the predicate itself says so.
+    ///     Whether a point is unsafe for an arrival <paramref name="arriveInSec"/>
+    ///     from now: inside a zone whose activation (minus cushion) is not later than the arrival.
     /// </summary>
-    private static bool Walkable(Func<Vector2, bool>? isWalkable, Vector2 p) => isWalkable is null || isWalkable(p);
-
-    /// <summary>
-    ///     Whether the player already stands in the desired range band and (if
-    ///     wanted) the correct positional. Also outputs the ideal standing point.
-    /// </summary>
-    internal static bool PositionOk(Vector2 playerPos, MoverWorld w, out Vector2 ideal)
+    internal static bool UnsafeAtTime(Vector2 p, IReadOnlyList<DangerZoneModel.Zone> zones, float buffer, double nowSec, float arriveInSec, float cushionSec)
     {
-        var toward = playerPos - w.TargetPos;
-        var dist = toward.Length();
-        var ringR = w.TargetHitboxRadius + w.DesiredRange;
-
-        var curAngle = dist < 0.01f ? 0f : MathF.Atan2(toward.Y, toward.X);
-        var idealAngle = IdealAngle(w, curAngle);
-        ideal = w.TargetPos + new Vector2(MathF.Cos(idealAngle), MathF.Sin(idealAngle)) * (ringR + IdealOffset(w));
-
-        // v1.0.4.193: only being TOO FAR is a violation. The old test also
-        // demanded the character stand at least half the ring radius away, so a
-        // 20-yalm-range caster at melee distance (mid melee combo) failed it and
-        // the mover backed the character away from the target. Being closer
-        // than the band is always acceptable - the mover never steps away to
-        // widen the gap.
-        var inRange = dist <= ringR + RangeTolerance(w);
-        var posOk = !w.PositionalWanted || w.TrueNorth || AtPositional(playerPos, w);
-        return inRange && posOk;
+        for (var i = 0; i < zones.Count; i++)
+        {
+            var z = zones[i];
+            if (!DangerZoneModel.Contains(z, p, buffer))
+                continue;
+            var activation = z.ActivationSec > 0 ? z.ActivationSec : nowSec + z.RemainingSec;
+            if (activation - cushionSec <= nowSec + arriveInSec)
+                return true;
+        }
+        return false;
     }
-
-    private static float RangeTolerance(MoverWorld w) =>
-        w.DesiredRange <= ShortRangeYalms ? 0.5f : (w.PositionalWanted ? 1.0f : 2.0f);
-
-    /// <summary>
-    ///     Bands at or under this depth hug the target (melee/tank 3, SGE 5);
-    ///     settle tolerance, ideal offset and the Commit deadband all tighten
-    ///     for them (v1.0.4.201).
-    /// </summary>
-    internal const float ShortRangeYalms = 5f;
-
-    /// <summary>
-    ///     How far outside the band edge the ideal standing point sits.
-    ///     v1.0.4.201 (tasks-20260915-automove-melee-01): short bands sit ON
-    ///     the edge - a +0.5 offset plus the old tolerance parked melee at up
-    ///     to 5y edge-to-edge, outside striking distance (NIN testing on 1.0.4.200: motion started, then stopped short of the dummy).
-    /// </summary>
-    private static float IdealOffset(MoverWorld w) => w.DesiredRange <= ShortRangeYalms ? 0f : 0.5f;
-
-    /// <summary>
-    ///     Minimum travel worth issuing. v1.0.4.201: the flat 1.0y deadband
-    ///     cancelled the final melee approach up to a yalm short of the ring
-    ///     and stranded the character there (every later tick stood down the
-    ///     same way). Short bands close in to half a yalm; ranged keeps 1.0.
-    /// </summary>
-    private static float MinMoveFor(MoverWorld w) => w.DesiredRange <= ShortRangeYalms ? 0.5f : MinMoveYalms;
 
     /// <summary> Game-convention positional check: facing dir = (sin rot, cos rot). </summary>
     internal static bool AtPositional(Vector2 playerPos, MoverWorld w)
@@ -438,191 +427,17 @@ internal static class SmartMoverCore
         return w.PositionalIsRear ? cos < -0.5f : MathF.Abs(cos) < 0.5f;
     }
 
-    /// <summary> The math-convention approach angle satisfying the positional want. </summary>
-    private static float IdealAngle(MoverWorld w, float currentAngle)
+    /// <summary> Steering direction for this frame toward the held waypoint, or null when arrived / none. </summary>
+    internal static Vector2? SteerDirection(MoverState s, Vector2 playerPos)
     {
-        if (!w.PositionalWanted || w.TrueNorth)
-            return currentAngle;
-
-        var facing = w.TargetRotation; // game convention
-        // rear = opposite the facing dir; flanks = perpendicular
-        var rearDir = new Vector2(MathF.Sin(facing + MathF.PI), MathF.Cos(facing + MathF.PI));
-        var rear = MathF.Atan2(rearDir.Y, rearDir.X);
-        var flankA = rear + MathF.PI / 2f;
-        var flankB = rear - MathF.PI / 2f;
-
-        if (w.PositionalIsRear)
-            return rear;
-
-        return MathF.Abs(AngleDiff(currentAngle, flankA)) <= MathF.Abs(AngleDiff(currentAngle, flankB)) ? flankA : flankB;
-    }
-
-    /// <summary>
-    ///     Samples rings around the player for an escape from every live zone,
-    ///     within <paramref name="maxDistFromAnchor"/> of
-    ///     <paramref name="anchor"/>, and (v1.0.4.196) on the navmesh when
-    ///     <paramref name="isWalkable"/> is supplied. Zones that already
-    ///     contain the player are being ESCAPED - the exit segment inevitably
-    ///     crosses them, so only OTHER zones block the route (otherwise a
-    ///     player inside a zone could never find a dodge).
-    /// </summary>
-    /// <param name="attackBandRadius">
-    ///     Distance from <paramref name="anchor"/> within which the engaged
-    ///     target is still attackable; 0 disables the preference (v1.0.4.212).
-    /// </param>
-    /// <param name="preferPoint">
-    ///     Where the mover would rather stand (the ideal standing point). Ring
-    ///     candidates are ordered by distance to it, so equally-distant escapes
-    ///     are no longer decided by sample index (v1.0.4.212).
-    /// </param>
-    /// <remarks>
-    ///     v1.0.4.212: the mesh probe is a PREFERENCE, not a veto. A scan that
-    ///     finds nothing is retried with the probe off, because the probe is
-    ///     one plane through sloped ground and is known to answer "off-mesh"
-    ///     for perfectly good ground (the 1.0.4.210 grading, which is why an
-    ///     approach stopped honouring it in 1.0.4.211). Standing inside a live
-    ///     telegraph is a certain hit; a destination the pathfinder cannot
-    ///     route to costs nothing, since it never walks off the mesh.
-    /// </remarks>
-    internal static Vector2? FindSafePoint(
-        Vector2 playerPos,
-        IReadOnlyList<DangerZoneModel.Zone> zones,
-        Vector2 anchor,
-        float maxDistFromAnchor,
-        Func<Vector2, bool>? isWalkable = null,
-        float attackBandRadius = 0f,
-        Vector2? preferPoint = null)
-    {
-        var onMesh = ScanForSafePoint(playerPos, zones, anchor, maxDistFromAnchor, isWalkable, attackBandRadius, preferPoint);
-        if (onMesh is not null || isWalkable is null)
-            return onMesh;
-        return ScanForSafePoint(playerPos, zones, anchor, maxDistFromAnchor, null, attackBandRadius, preferPoint);
-    }
-
-    /// <summary> One ring sweep of <see cref="FindSafePoint"/> under a fixed walkability rule. </summary>
-    private static Vector2? ScanForSafePoint(
-        Vector2 playerPos,
-        IReadOnlyList<DangerZoneModel.Zone> zones,
-        Vector2 anchor,
-        float maxDistFromAnchor,
-        Func<Vector2, bool>? isWalkable,
-        float attackBandRadius,
-        Vector2? preferPoint)
-    {
-        List<DangerZoneModel.Zone>? others = null;
-        foreach (var z in zones)
+        if (s.Waypoint is not { } wp)
+            return null;
+        var d = wp - playerPos;
+        if (d.Length() < ArriveYalms)
         {
-            if (DangerZoneModel.Contains(z, playerPos, 0f))
-                continue;
-            (others ??= new List<DangerZoneModel.Zone>(zones.Count)).Add(z);
+            s.Waypoint = null;
+            return null;
         }
-
-        // Nearest escape found so far, and the ring it sat on. Kept while the
-        // sweep reaches a few rings further for one that can still attack.
-        Vector2? nearest = null;
-        var nearestRing = 0;
-
-        for (var ring = 1; ring <= DodgeRingCount; ring++)
-        {
-            if (nearest is not null && ring > nearestRing + DodgeInBandExtraRings)
-                break;
-
-            var r = ring * DodgeRingStep;
-            Vector2? bestInBand = null;
-            var bestInBandScore = (float.MaxValue, float.MaxValue);
-            Vector2? bestAny = null;
-            var bestAnyScore = (float.MaxValue, float.MaxValue);
-
-            for (var i = 0; i < DodgeDirCount; i++)
-            {
-                var ang = i * (2f * MathF.PI / DodgeDirCount);
-                var p = playerPos + new Vector2(MathF.Cos(ang), MathF.Sin(ang)) * r;
-                var fromAnchor = Vector2.Distance(p, anchor);
-                if (fromAnchor > maxDistFromAnchor)
-                    continue; // outside the arena neighbourhood - hold instead (v1.0.4.193)
-                if (!Walkable(isWalkable, p))
-                    continue; // off the navmesh - real arena bounds (v1.0.4.196)
-                if (UnsafeAt(p, zones, 0.25f) is not null)
-                    continue;
-                if (others is not null && SegmentBlocked(p, playerPos, others))
-                    continue;
-
-                // Every candidate on a ring is the same distance from the
-                // character, so the ordering is what standing there is worth,
-                // not how far it is (v1.0.4.212): closest to where the mover
-                // wants to stand, then closest to the target. Without a
-                // preferred point the ordering is distance to the anchor,
-                // which for an unengaged dodge is the character itself - a
-                // flat tie, exactly the pre-212 sample order.
-                var score = (
-                    MathF.Round(preferPoint is { } pref ? Vector2.Distance(p, pref) : fromAnchor, 2),
-                    MathF.Round(fromAnchor, 2));
-                if (Better(score, bestAnyScore)) { bestAnyScore = score; bestAny = p; }
-                if (attackBandRadius > 0f && fromAnchor <= attackBandRadius && Better(score, bestInBandScore))
-                { bestInBandScore = score; bestInBand = p; }
-            }
-
-            if (bestInBand is { } inBand)
-                return inBand;
-            if (nearest is null && bestAny is { } any)
-            {
-                nearest = any;
-                nearestRing = ring;
-            }
-        }
-
-        return nearest;
+        return Vector2.Normalize(d);
     }
-
-    /// <summary>
-    ///     Samples the target ring for a safe, walkable variant when the ideal
-    ///     point is covered by a zone or off the navmesh (v1.0.4.196).
-    /// </summary>
-    internal static Vector2? FindSafeRingPoint(Vector2 ideal, Vector2 targetPos, IReadOnlyList<DangerZoneModel.Zone> zones, Func<Vector2, bool>? isWalkable = null)
-    {
-        var ringR = Vector2.Distance(ideal, targetPos);
-        var idealAngle = MathF.Atan2(ideal.Y - targetPos.Y, ideal.X - targetPos.X);
-        var bestAngle = 0f;
-        var bestScore = float.MaxValue;
-        var found = false;
-        for (var i = 0; i < 24; i++)
-        {
-            var ang = i * (2f * MathF.PI / 24);
-            var p = targetPos + new Vector2(MathF.Cos(ang), MathF.Sin(ang)) * ringR;
-            if (UnsafeAt(p, zones, 0.5f) is not null)
-                continue;
-            if (!Walkable(isWalkable, p))
-                continue;
-            var score = MathF.Abs(AngleDiff(ang, idealAngle));
-            if (score < bestScore) { bestScore = score; bestAngle = ang; found = true; }
-        }
-        return found ? targetPos + new Vector2(MathF.Cos(bestAngle), MathF.Sin(bestAngle)) * ringR : null;
-    }
-
-    /// <summary> Ring-candidate ordering: preferred-point distance first, target distance as the tie-break. </summary>
-    private static bool Better((float Primary, float Secondary) a, (float Primary, float Secondary) b) =>
-        a.Primary < b.Primary || (a.Primary == b.Primary && a.Secondary < b.Secondary);
-
-    private static bool SegmentBlocked(Vector2 p, Vector2 from, IReadOnlyList<DangerZoneModel.Zone> zones)
-    {
-        var len = Vector2.Distance(from, p);
-        var steps = Math.Max(1, (int)(len / 0.5f));
-        for (var s = 1; s < steps; s++)
-        {
-            var q = from + (p - from) * (s / (float)steps);
-            if (UnsafeAt(q, zones, 0f) is not null)
-                return true;
-        }
-        return false;
-    }
-
-    private static float AngleDiff(float a, float b)
-    {
-        var d = a - b;
-        while (d > MathF.PI) d -= 2f * MathF.PI;
-        while (d < -MathF.PI) d += 2f * MathF.PI;
-        return d;
-    }
-
-    private static MoveDecision None(byte reason = 0) => new(Decision.None, default, reason);
 }

@@ -1,5 +1,6 @@
 #region
 
+using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.ClientState.Objects.Types;
 using ECommons.DalamudServices;
@@ -7,9 +8,9 @@ using ECommons.ExcelServices;
 using ECommons.GameFunctions;
 using ECommons.GameHelpers;
 using ECommons.Throttlers;
-using System.Linq;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using GluttonyCombo.API.Enum;
 using GluttonyCombo.Combos.PvE;
@@ -24,74 +25,53 @@ using NativeBattleChara = FFXIVClientStructs.FFXIV.Client.Game.Character.BattleC
 namespace GluttonyCombo.AutoRotation;
 
 /// <summary>
-///     Dalamud half of SmartMover (fork, t_356159a8, v1.0.4.191): builds the
-///     <see cref="SmartMoverCore.MoverWorld"/> snapshot from live game state,
-///     hands it to the pure engine, and drives vnavmesh with the verdict.
+///     Dalamud half of Smart Movement v2 (2026-09 rebuild): builds the
+///     <see cref="SmartMoverCore.MoverWorld"/> snapshot from live game state
+///     every <see cref="SmartMoverCore.TickMs"/>, hands it to the pure planner,
+///     and exposes the steering direction the <see cref="MovementHook"/> writes
+///     into the game's movement input every frame. vnavmesh is used only for a
+///     long approach (target outside the planning grid).
 /// </summary>
 /// <remarks>
 ///     Danger zones are DERIVED from enemy cast data (see <see cref="DangerZoneModel"/>);
-///     BMR is never required. When BMR is present its live navigation flag is an
-///     input only. The mover never stands down because BMR is installed or its
-///     AI is on - the only BMR-driven pause is an ACTIVE navigation in progress,
-///     which resolves in seconds and is telemetry-visible as dec=bmr.
-///     Ticked from <c>AutoRotationController.Run()</c> BEFORE ProcessAutoActions
-///     so movement survives rotation-gated ticks.
+///     BossMod is never required. When BossMod Reborn's AI is actively steering,
+///     or vnavmesh is following a path this mover did not issue, the mover stands
+///     down (dec=ext). Ticked from <c>AutoRotationController.Run()</c>.
 /// </remarks>
 internal static class SmartMover
 {
-    private static readonly SmartMoverCore.Hysteresis Hys = new();
+    private static readonly SmartMoverCore.MoverState State = new();
     private static readonly List<DangerZoneModel.Zone> Zones = new();
-
-    // v1.0.4.193: ground-danger linger. Target-anchored telegraphs (ground
-    // circles, donuts, crosses, location rects) usually leave a damaging
-    // field after the cast resolves; TrackedGroundCasts remembers each such
-    // cast per caster, and when the cast disappears (resolved or cancelled)
-    // a resolved one is handed to Lingering for GroundLingerSec more danger.
-    private static readonly Dictionary<ulong, (DangerZoneModel.Zone Zone, double ResolveAt)> TrackedGroundCasts = new();
     private static readonly DangerZoneModel.LingeringZones Lingering = new();
-    private static byte lastReason;
 
-    // v1.0.4.196: player's world Y at BuildWorld time, for mesh-walkability
-    // queries (Vector2 XZ -> Vector3 needs a Y; the ground plane at this Y is
-    // close enough for a PointOnFloor lookup within a few yalms).
-    private static float _playerY;
+    // cast tracking: actor id -> (zone, zone id, resolve time) for ground-shape linger and MZ add/del lines
+    private static readonly Dictionary<ulong, (DangerZoneModel.Zone Zone, ulong ZoneId, double ResolveAt, bool Ground)> Tracked = new();
+    private static readonly HashSet<ulong> LoggedZoneIds = new();
 
-    // v1.0.4.211: the engaged target's world Y. Engage candidates ring the
-    // TARGET, which on open-world terrain sits yalms above or below the
-    // player's own floor - probing them on the player's plane alone reported
-    // the whole ring off-mesh (see WalkableAt).
-    private static float _targetY;
-
-    // v1.0.4.195: omen-telegraph VFX zones. VfxManager (ECommons, hooked
-    // since plugin init via Module.All) tracks every live VFX; the ones
-    // whose path is an omen and whose caster is a living hostile become
-    // conservative danger zones for instant AoEs that never show a cast
-    // bar. SeenOmenVfx bounds debug logging to one line per VFX.
-    private static readonly HashSet<long> SeenOmenVfx = new();
-    private static int lastOmenZoneCount;
-
-    // Telemetry state
+    private static byte _lastReason;
     private static MovementTelemetryFormat.EmitKey? _lastKey;
     private static long _lastEmitMs;
-
-    // v1.0.4.197 nav-safety state: while vnavmesh's background pathfind task is
-    // running, this mover issues NO new nav IPC and NO PointOnFloor mesh queries
-    // that tick (re-issuing PathfindAndMoveTo underneath a running task is what
-    // logged "Pathfinding task is in progress..." every 250ms; concurrent mesh
-    // queries racing the native task are the prime crash suspect on .196).
-    private static bool _navBusy;
-    private static readonly Dictionary<(int, int), bool> _walkCache = new();
-    private static int _hostileVfxSeen;
-    private static long _lastOmenSilenceMs;
     private static long _lastTickFailMs;
+    private static bool _headerLogged;
+    private static bool _ownNavIssued;
+    private static bool _legacyMode;
+    private static long _legacyCheckedMs;
+    private static float _playerY;
+    private static float _targetY;
 
-    // v1.0.4.206 nav-skip visibility: a commanded Move that never reaches nav
-    // is otherwise invisible (telemetry logs the ddg/eng while the character
-    // stands still). Last skip throttle state for NoteNavSkip below.
-    private static long _lastNavSkipMs;
-    private static string _lastNavSkipWhy = "";
+    /// <summary> NPC casts resolve about this much later than the reported cast time (BossMod measurement). </summary>
+    internal const float NpcFinishDelaySec = 0.3f;
 
-    /// <summary> Desired standing range (edge-to-edge) per role - mirrors the fork's BMR push table (GluttonyCombo.cs UpdateCaches). </summary>
+    /// <summary> Longest cast the rotation may start right now (seconds); float.MaxValue when nothing threatens or the mover is off. </summary>
+    internal static float MaxCastTime { get; private set; } = float.MaxValue;
+
+    /// <summary>
+    ///     Per-action shape overrides for casts whose sheet row cannot be
+    ///     trusted (CastType 6 custom shapes, wrong ranges). Empty until a cast
+    ///     has been measured from its hit positions. Key: action id.
+    /// </summary>
+    internal static readonly Dictionary<uint, (byte CastType, float EffectRange, float XAxisModifier)> Overrides = new();
+
     private static float DesiredRangeFor(Job job)
     {
         var role = Jobs.GetRoleFromJob(job);
@@ -107,7 +87,7 @@ internal static class SmartMover
         };
     }
 
-    /// <summary> Called every framework tick (self-throttled to SmartMoverCore.TickMs). </summary>
+    /// <summary> Called every framework tick; plans every <see cref="SmartMoverCore.TickMs"/>. </summary>
     internal static void Tick()
     {
         try
@@ -116,52 +96,35 @@ internal static class SmartMover
                 return;
 
             var cfgOn = AutoRotationController.cfg?.DPSSettings.SmartMover ?? false;
-
             IBattleChara? player = Player.Available ? Player.Object as IBattleChara : null;
-            if (!cfgOn || player is null)
+            if (!cfgOn || player is null || player.GetRole() is CombatRole.Tank)
             {
                 Reset();
                 return;
             }
 
-            // Tanks position bosses - the mover is for the other roles.
-            if (player.GetRole() is CombatRole.Tank)
+            var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            if (nowMs - _legacyCheckedMs > 1000)
             {
-                Reset();
-                return;
+                _legacyCheckedMs = nowMs;
+                _legacyMode = MovementHook.ReadLegacyMode();
+            }
+            if (!_headerLogged && (AutoRotationController.cfg?.DPSSettings.MovementTelemetry ?? false))
+            {
+                _headerLogged = true;
+                var build = typeof(SmartMover).Assembly.GetName().Version?.ToString() ?? "?";
+                Svc.Log.Information(MovementTelemetryFormat.BuildHeader(nowMs, build, CushionSec(), SmartMoverCore.RunSpeed));
             }
 
-            _walkCache.Clear();
-            try { _navBusy = NavmeshIPC.PathfindingInProgress; }
-            catch { _navBusy = false; }
-
-            var world = BuildWorld(player);
-            var decision = SmartMoverCore.Decide(world, Hys);
-            Execute(decision, world);
-            Emit(world, decision);
-            lastReason = decision.Reason;
-
-            // v1.0.4.197 (t_0e5807e1): omen-silence marker - with the omen layer
-            // enabled, in combat, seeing ZERO hostile VFX for 30s means the layer
-            // is deaf, not that the fight has no instants. One Debug line per 30s.
-            if ((AutoRotationController.cfg?.DPSSettings.MovementTelemetry ?? false) &&
-                (AutoRotationController.cfg?.DPSSettings.SmartMoverOmenVfx ?? true) &&
-                world.InCombat && _hostileVfxSeen == 0)
-            {
-                var silenceMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                if (silenceMs - _lastOmenSilenceMs > 30000)
-                {
-                    // v1.0.4.198: Information, not Debug (see MVD above).
-                    Svc.Log.Information("[SmartMover] MVS|omen|vfx=0|ovz=0");
-                    _lastOmenSilenceMs = silenceMs;
-                }
-            }
+            var world = BuildWorld(player, nowMs);
+            var decision = SmartMoverCore.Decide(world, State);
+            MaxCastTime = world.Enabled && world.InCombat ? decision.MaxCastTime : float.MaxValue;
+            Execute(decision);
+            Emit(world, decision, nowMs);
+            _lastReason = decision.Reason;
         }
         catch (Exception e)
         {
-            // v1.0.4.198: tick failures used to go to Debug, which never
-            // reaches dalamud.log in production - a throwing tick died
-            // silently every 250ms. Information, telemetry-gated, 60s throttle.
             if (AutoRotationController.cfg?.DPSSettings.MovementTelemetry ?? false)
             {
                 var failMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
@@ -174,51 +137,59 @@ internal static class SmartMover
         }
     }
 
+    /// <summary> Per-frame steering direction (world XZ unit vector) for the movement hook, or null. </summary>
+    internal static Vector2? CurrentSteer()
+    {
+        if (!(AutoRotationController.cfg?.DPSSettings.SmartMover ?? false))
+            return null;
+        if (!Player.Available)
+            return null;
+        var p = Player.Position;
+        return SmartMoverCore.SteerDirection(State, new Vector2(p.X, p.Z));
+    }
+
+    internal static bool LegacyMode => _legacyMode;
+
     private static void Reset()
     {
-        if (Hys.HasLastDest)
+        if (_ownNavIssued)
             StopNav();
-        Hys.Reset();
+        _ownNavIssued = false;
+        State.Reset();
         Zones.Clear();
-        TrackedGroundCasts.Clear();
+        Tracked.Clear();
         Lingering.Clear();
-        SeenOmenVfx.Clear();
-        lastOmenZoneCount = 0;
-        _walkCache.Clear();
-        _navBusy = false;
+        LoggedZoneIds.Clear();
+        MaxCastTime = float.MaxValue;
     }
 
     internal static void Shutdown()
     {
-        StopNav();
-        Hys.Reset();
-        Zones.Clear();
-        TrackedGroundCasts.Clear();
-        Lingering.Clear();
-        SeenOmenVfx.Clear();
-        lastOmenZoneCount = 0;
+        Reset();
+        _headerLogged = false;
     }
 
-    /// <summary>
-    ///     Policy A export (t_8d711ea6): whether the mover is actively dodging -
-    ///     its last decision was a dodge and the mover is still enabled. The
-    ///     rotation side must not fire movement abilities mid-dodge: the dodge
-    ///     destination is safety-chosen and a dash would override it.
-    /// </summary>
+    /// <summary> Whether the mover is actively dodging (its last decision was a dodge) - dash gate input. </summary>
     internal static bool IsDodging =>
         (AutoRotationController.cfg?.DPSSettings.SmartMover ?? false) &&
-        lastReason == SmartMoverCore.ReasonDodgeCode;
+        _lastReason is SmartMoverCore.ReasonDodgeCode or SmartMoverCore.ReasonEscapeCode;
 
     /// <summary>
-    ///     Policy A export (t_8d711ea6): whether <paramref name="point"/> lies
-    ///     inside any live danger zone plus the configured buffer. The zone list
-    ///     only populates while the mover is on; with the mover off every point
-    ///     answers safe.
+    ///     Whether a dash landing at <paramref name="point"/> about half a
+    ///     second from now lands in a telegraph that will have resolved by then
+    ///     (time-aware, v2). With the mover off every point answers safe.
     /// </summary>
     internal static bool ZonesUnsafe(Vector3 point)
     {
         var buffer = AutoRotationController.cfg?.DPSSettings.SmartMoverDangerBufferY ?? 1f;
-        return SmartMoverCore.UnsafeAt(new Vector2(point.X, point.Z), Zones, buffer) is not null;
+        var nowSec = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
+        return SmartMoverCore.UnsafeAtTime(new Vector2(point.X, point.Z), Zones, buffer, nowSec, 0.5f, CushionSec());
+    }
+
+    private static float CushionSec()
+    {
+        var c = AutoRotationController.cfg?.DPSSettings.SmartMoverCushionSec ?? SmartMoverCore.DefaultActivationCushionSec;
+        return Math.Clamp(c, 0.3f, 3f);
     }
 
     private static void StopNav()
@@ -231,11 +202,17 @@ internal static class SmartMover
         catch { /* vnavmesh gone - nothing to stop */ }
     }
 
-    private static SmartMoverCore.MoverWorld BuildWorld(IBattleChara player)
+    private static bool VnavRunning()
+    {
+        try { return NavmeshIPC.IsRunningFunc is not null && NavmeshIPC.IsRunningFunc(); }
+        catch { return false; }
+    }
+
+    private static SmartMoverCore.MoverWorld BuildWorld(IBattleChara player, long nowMs)
     {
         _playerY = player.Position.Y;
+        var nowSec = nowMs / 1000.0;
 
-        // --- DPS target: the autorotation's own choice, independent of the hard target ---
         IBattleChara? target = null;
         try
         {
@@ -243,21 +220,24 @@ internal static class SmartMover
             target = AutoRotationController.AutoRotationHelper.GetSingleTarget(mode);
         }
         catch { /* targeting helpers can throw mid-zone-change */ }
+        _targetY = target?.Position.Y ?? _playerY;
 
-        // --- danger zones from live enemy casts ---
         Zones.Clear();
-        var nowSec = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
-        try { CollectZones(player, nowSec); }
+        try { CollectZones(player, nowSec, nowMs); }
         catch { /* a bad object row must not kill the tick */ }
 
         var casting = player.IsCasting;
-        var castRemaining = casting && player.TotalCastTime > 0f
-            ? MathF.Max(0f, player.TotalCastTime - player.CurrentCastTime)
-            : 0f;
-
-        _targetY = target?.Position.Y ?? _playerY;
-
+        var castRemaining = casting && player.TotalCastTime > 0f ? MathF.Max(0f, player.TotalCastTime - player.CurrentCastTime) : 0f;
         var (posWanted, isRear) = PositionalWant(player, target);
+
+        var vnavRunning = VnavRunning();
+        if (_ownNavIssued && !vnavRunning)
+            _ownNavIssued = false; // our approach finished or was cancelled
+        var external = (vnavRunning && !_ownNavIssued) || SafeIsBmrNavigating();
+
+        var mounted = Svc.Condition[ConditionFlag.Mounted] || Svc.Condition[ConditionFlag.InFlight] || Svc.Condition[ConditionFlag.Diving]
+                      || Svc.Condition[ConditionFlag.BetweenAreas] || Svc.Condition[ConditionFlag.OccupiedInCutSceneEvent];
+        var speed = HasStatusEffect(50) ? SmartMoverCore.SprintSpeed : SmartMoverCore.RunSpeed; // 50 = Sprint
 
         return new SmartMoverCore.MoverWorld(
             PlayerPos: new Vector2(player.Position.X, player.Position.Z),
@@ -269,25 +249,34 @@ internal static class SmartMover
             TargetRotation: target?.Rotation ?? 0f,
             TargetHitboxRadius: target?.HitboxRadius ?? 0f,
             TargetEngaged: target is not null && target.IsTargetable && !target.IsDead,
-            TargetHostile: target is not null && target.IsHostile(),
             Zones: Zones,
-            ManualInput: ManualMovementInput(),
+            ManualInput: MovementHook.UserMoving,
             Casting: casting,
             CastRemainingSec: castRemaining,
-            BmrNavigating: SafeIsBmrNavigating(),
+            ExternalMover: external,
             NavReady: NavmeshIPC.CanPathfind,
-            Enabled: AutoRotationController.cfg?.DPSSettings.SmartMover ?? false,
+            Enabled: true,
             InCombat: InCombat(),
-            DeltaSec: SmartMoverCore.TickMs / 1000f,
             NowSec: nowSec,
-            IsPointWalkable: WalkableAt);
+            Speed: speed,
+            Mounted: mounted,
+            KnockbackPending: false,
+            ActivationCushionSec: CushionSec(),
+            IsPointWalkable: NavmeshIPC.CanPathfind ? WalkableAt : null,
+            SteeringUnavailable: !MovementHook.SteeringAvailable);
     }
 
-    /// <summary> Collects telegraphed zones from every enemy currently casting, then folds in resolved ground fields that are still dangerous. </summary>
-    private static unsafe void CollectZones(IBattleChara player, double nowSec)
+    /// <summary>
+    ///     Collects telegraphed zones from every enemy currently casting (with
+    ///     activation = now + remaining + NPC finish delay), then folds in
+    ///     resolved ground fields that linger for one second.
+    /// </summary>
+    private static unsafe void CollectZones(IBattleChara player, double nowSec, long nowMs)
     {
         var playerId = player.GameObjectId;
-        var seenGroundCasters = new HashSet<ulong>();
+        var seen = new HashSet<ulong>();
+        var buffer = AutoRotationController.cfg?.DPSSettings.SmartMoverDangerBufferY ?? 1f;
+        var telemetry = AutoRotationController.cfg?.DPSSettings.MovementTelemetry ?? false;
 
         foreach (var obj in Svc.Objects)
         {
@@ -298,88 +287,100 @@ internal static class SmartMover
             if (actionId == 0 || !ActionWatching.ActionSheet.TryGetValue(actionId, out var sheet))
                 continue;
 
-            // v1.0.4.209: read the cast's OWN snapshot, as BossMod does - the
-            // target location recorded when the cast started (where the game
-            // drew the telegraph) and the cast rotation. A helper casting at a
-            // ground point used to be drawn on the helper, and a self-targeted
-            // cone or line aimed along the zero caster-to-self vector (+X).
+            var castType = (byte)sheet.CastType;
+            var effectRange = (float)sheet.EffectRange;
+            var xAxis = (float)sheet.XAxisModifier;
+            if (Overrides.TryGetValue(actionId, out var ov))
+                (castType, effectRange, xAxis) = ov;
+
             var native = (NativeBattleChara*)bc.Address;
             var castInfo = native->GetCastInfo();
             var targetId = bc.CastTargetObjectId;
             var snap = castInfo->TargetLocation;
+
+            // anchor: a target-anchored cast on an ACTOR lands on that actor (live position);
+            // a location cast uses the snapshot; otherwise the caster.
+            IGameObject? tgtObj = targetId != 0 && targetId != bc.GameObjectId ? Svc.Objects.FirstOrDefault(x => x.GameObjectId == targetId) : null;
             Vector2 castLoc;
-            if (snap.X != 0f || snap.Y != 0f || snap.Z != 0f)
+            if (castType is 2 or 10 or 11 or 12 && tgtObj is not null)
+                castLoc = new Vector2(tgtObj.Position.X, tgtObj.Position.Z);
+            else if (snap.X != 0f || snap.Y != 0f || snap.Z != 0f)
                 castLoc = new Vector2(snap.X, snap.Z);
+            else if (tgtObj is not null)
+                castLoc = new Vector2(tgtObj.Position.X, tgtObj.Position.Z);
             else
-            {
-                // No recorded location: the resolved target object if any, else the caster.
-                IGameObject? tgtObj = targetId != 0 ? Svc.Objects.FirstOrDefault(x => x.GameObjectId == targetId) : null;
-                castLoc = tgtObj is not null
-                    ? new Vector2(tgtObj.Position.X, tgtObj.Position.Z)
-                    : new Vector2(bc.Position.X, bc.Position.Z);
-            }
+                castLoc = new Vector2(bc.Position.X, bc.Position.Z);
+
+            // a charge aimed at the player cannot be dodged by pathing (BossMod rule)
+            if (castType == 8 && targetId == playerId)
+                continue;
 
             var omenPath = sheet.Omen.ValueNullable?.Path.ToString();
-
+            var remaining = bc.TotalCastTime > 0f ? MathF.Max(0f, bc.TotalCastTime - bc.CurrentCastTime) : 0.5f;
             var prim = new DangerZoneModel.CastPrimitive(
-                CastType: (byte)sheet.CastType,
-                EffectRange: sheet.EffectRange,
-                XAxisModifier: sheet.XAxisModifier,
+                CastType: castType,
+                EffectRange: effectRange,
+                XAxisModifier: xAxis,
                 HitboxRadius: bc.HitboxRadius,
                 CasterPos: new Vector2(bc.Position.X, bc.Position.Z),
                 CastTargetLoc: castLoc,
                 CastTargetId: targetId,
                 PlayerId: playerId,
-                RemainingSec: bc.TotalCastTime > 0f ? MathF.Max(0f, bc.TotalCastTime - bc.CurrentCastTime) : 0.5f,
+                RemainingSec: remaining,
                 ConeHalfAngleDeg: OmenVfxModel.CastConeHalfDeg(omenPath),
-                DonutInnerYalms: OmenVfxModel.CastDonutInner(omenPath, sheet.EffectRange),
+                DonutInnerYalms: OmenVfxModel.CastDonutInner(omenPath, effectRange),
                 AimRotation: DangerZoneModel.GameRotationToMath(native->CastRotation));
 
-            if (DangerZoneModel.BuildZone(prim) is { } z && z.RemainingSec > 0.25f)
-            {
-                // Dilate by the configured danger buffer so the kept margin is real.
-                var buffer = AutoRotationController.cfg?.DPSSettings.SmartMoverDangerBufferY ?? 1f;
-                z = z with { Radius = z.Radius + buffer, InnerRadius = MathF.Max(0f, z.InnerRadius - buffer), HalfWidth = z.HalfWidth + buffer, HalfAngle = z.HalfAngle + (buffer / MathF.Max(z.Radius, 1f)) };
-                Zones.Add(z);
+            if (DangerZoneModel.BuildZone(prim) is not { } z)
+                continue;
 
-                // Ground-anchored telegraphs leave a field after resolution -
-                // remember them so the linger feed fires when the cast ends.
-                if (sheet.CastType is 2 or 10 or 11 or 12)
-                {
-                    TrackedGroundCasts[bc.GameObjectId] = (z with { RemainingSec = 0f }, nowSec + z.RemainingSec);
-                    seenGroundCasters.Add(bc.GameObjectId);
-                }
+            var activation = nowSec + remaining + NpcFinishDelaySec;
+            var castStartMs = nowMs - (long)(bc.CurrentCastTime * 1000);
+            var zoneId = (bc.GameObjectId & 0xFFFFFFFF) ^ ((ulong)actionId << 32) ^ ((ulong)(castStartMs / 500) << 48);
+            z = z with
+            {
+                Radius = z.Radius + buffer,
+                InnerRadius = MathF.Max(0f, z.InnerRadius - buffer),
+                HalfWidth = z.HalfWidth + buffer,
+                HalfAngle = z.HalfAngle + (buffer / MathF.Max(z.Radius, 1f)),
+                ActivationSec = activation,
+                Source = bc.GameObjectId,
+                ActionId = actionId,
+            };
+            Zones.Add(z);
+            seen.Add(bc.GameObjectId);
+
+            var ground = castType is 2 or 10 or 11 or 12;
+            if (!Tracked.TryGetValue(bc.GameObjectId, out var prev) || prev.ZoneId != zoneId)
+            {
+                if (prev.ZoneId != 0 && telemetry)
+                    LogZoneDel(nowMs, prev.ZoneId, "recast");
+                if (telemetry)
+                    LogZoneAdd(nowMs, zoneId, z, (long)(activation * 1000));
             }
+            Tracked[bc.GameObjectId] = (z, zoneId, activation, ground);
         }
 
-        // Casters tracked last tick but no longer casting that ground zone:
-        // resolved ones linger as danger, interrupted ones are dropped.
-        foreach (var key in TrackedGroundCasts.Keys.Except(seenGroundCasters).ToList())
+        // casts that ended: resolved ground shapes linger 1 s; interrupted ones are dropped
+        foreach (var key in Tracked.Keys.Except(seen).ToList())
         {
-            var t = TrackedGroundCasts[key];
-            if (nowSec >= t.ResolveAt - 0.5)
-                Lingering.Add(in t.Zone, nowSec);
-            TrackedGroundCasts.Remove(key);
+            var t = Tracked[key];
+            var resolved = nowSec >= t.ResolveAt - NpcFinishDelaySec - 0.5;
+            if (resolved && t.Ground)
+                Lingering.Add(t.Zone with { ActivationSec = 0, RemainingSec = 0f }, nowSec);
+            if (telemetry)
+                LogZoneDel(nowMs, t.ZoneId, resolved ? "end" : "cancel");
+            Tracked.Remove(key);
         }
 
         Lingering.Sweep(nowSec);
         Lingering.AppendTo(Zones, nowSec);
-
-        // v1.0.4.195: omen-telegraph zones for instant (cast-bar-less) AoEs.
-        lastOmenZoneCount = 0;
-        if (AutoRotationController.cfg?.DPSSettings.SmartMoverOmenVfx ?? true)
-            CollectOmenZones();
     }
 
     /// <summary>
-    ///     Whether a casting object's telegraphs are danger (v1.0.4.209). Battle
-    ///     NPCs follow BossMod's rule - enemies (sub kind 5) and the invisible
-    ///     helper actors (sub kind 11) that cast most boss and critical-engagement
-    ///     telegraphs. A targetable one must read hostile (guards and allied
-    ///     soldiers do not); an untargetable one has no nameplate to read, which
-    ///     is why the nameplate-only check dropped every helper cast. Pets,
-    ///     chocobos and party NPCs never count. Other objects (PvP players)
-    ///     keep the nameplate rule.
+    ///     Whether a casting object's telegraphs are danger: battle NPCs of sub
+    ///     kind 5 (enemy) or 11 (helper), untargetable or hostile. Pets, party
+    ///     NPCs and friendly soldiers never count.
     /// </summary>
     private static unsafe bool IsDangerCaster(IBattleChara bc)
     {
@@ -392,156 +393,21 @@ internal static class SmartMover
     }
 
     /// <summary>
-    ///     Omen-telegraph zones (v1.0.4.195). Instant enemy AoEs have no cast
-    ///     bar; the ground omen VFX the game spawns is their only telegraph.
-    ///     ECommons' VfxManager already hooks actor and static VFX creation
-    ///     (Module.All initialises it at plugin start), tracking every live
-    ///     VFX with path, caster, world placement and age - so this costs no
-    ///     new hooks, just a read of the tracked list per tick. A zone lives
-    ///     exactly as long as its VFX: the game's destruction event removes
-    ///     the entry, and the next tick stops seeing the danger.
-    /// </summary>
-    private static void CollectOmenZones()
-    {
-        List<VfxInfo> snapshot;
-        lock (VfxManager.TrackedEffects)
-            snapshot = new List<VfxInfo>(VfxManager.TrackedEffects);
-
-        var buffer = AutoRotationController.cfg?.DPSSettings.SmartMoverDangerBufferY ?? 1f;
-        // v1.0.4.197 (t_0e5807e1): the MVD|/MVU| instruments ride the telemetry
-        // flag the user already has ON - a debug tap behind its own opt-in is an
-        // instrument that does not exist when the layer breaks (ovz=0 on every
-        // MV| line ever logged while SmartMoverOmenDebug sat false).
-        var debug = (AutoRotationController.cfg?.DPSSettings.MovementTelemetry ?? false) ||
-                    (AutoRotationController.cfg?.DPSSettings.SmartMoverOmenDebug ?? false);
-        _hostileVfxSeen = 0;
-
-        foreach (var info in snapshot)
-        {
-            if (Svc.Objects.SearchById(info.CasterID) is not IBattleChara caster || !caster.IsHostile() || caster.IsDead)
-                continue; // player/party ground effects (Asylum and friends) and unattributable spawns are not danger
-            _hostileVfxSeen++;
-
-            if (!OmenVfxModel.IsOmenPath(info.Path))
-            {
-                if (debug && SeenOmenVfx.Add(info.VfxID))
-                    LogUnmatchedHostileVfx(info);
-                continue;
-            }
-
-            var age = info.AgeSeconds;
-            if (age < 0f || age >= OmenVfxModel.MaxAgeSec)
-                continue;
-
-            var kind = OmenVfxModel.Classify(info.Path, out var coneHalfDeg);
-
-            // Cones are caster-anchored and aim from the caster's own facing.
-            // Everything else anchors at the VFX placement (falling back to
-            // the caster's position); rects take their axis from the
-            // placement quaternion when it carries one.
-            var placement = info.Placement;
-            Vector2 pos;
-            float aim = 0f;
-            var haveAim = false;
-            if (kind == OmenVfxModel.OmenKind.Cone)
-            {
-                pos = new Vector2(caster.Position.X, caster.Position.Z);
-                aim = OmenVfxModel.FacingYaw(caster.Rotation);
-                haveAim = true;
-            }
-            else if (placement is not null)
-            {
-                pos = new Vector2(placement.Position.X, placement.Position.Z);
-                if (kind == OmenVfxModel.OmenKind.Rect &&
-                    OmenVfxModel.QuatYaw(placement.Rotation.X, placement.Rotation.Z, placement.Rotation.Y, placement.Rotation.W) is { } qyaw)
-                {
-                    aim = qyaw;
-                    haveAim = true;
-                }
-            }
-            else
-            {
-                pos = new Vector2(caster.Position.X, caster.Position.Z);
-            }
-
-            if (OmenVfxModel.BuildZone(kind, coneHalfDeg, pos, aim, haveAim, caster.HitboxRadius, age, buffer) is { } omenZone)
-            {
-                Zones.Add(omenZone);
-                lastOmenZoneCount++;
-            }
-
-            if (debug && SeenOmenVfx.Add(info.VfxID))
-                // v1.0.4.198: Information, not Debug - Debug never reaches
-                // dalamud.log in production, so every MVD| line ever written
-                // was unobservable. Still once-per-VFX (SeenOmenVfx dedupe).
-                Svc.Log.Information($"[SmartMover] MVD|{info.Path}|k={(byte)kind}|c={info.CasterID}|age={age:F1}|aim={(haveAim ? aim.ToString("F2") : "-")}");
-        }
-    }
-
-    /// <summary>
-    ///     Debug instrument (SmartMoverOmenDebug): logs the first sighting of
-    ///     any VFX cast by a living hostile whose path did NOT classify as an
-    ///     omen - the live check on the "omen" path assumption. If instant
-    ///     enemy telegraphs arrive under a different path prefix, they appear
-    ///     here as MVU| lines.
-    /// </summary>
-    private static void LogUnmatchedHostileVfx(in VfxInfo info)
-    {
-        try
-        {
-            if (Svc.Objects.SearchById(info.CasterID) is IBattleChara c && c.IsHostile() && !c.IsDead)
-                // v1.0.4.198: Information, not Debug (see MVD above).
-                Svc.Log.Information($"[SmartMover] MVU|{info.Path}|c={info.CasterID}");
-        }
-        catch { /* debug-only instrument; never in the hot path */ }
-    }
-
-    /// <summary> Manual movement: keyboard wishdir via MovementHook (gamepad included). </summary>
-    private static unsafe bool ManualMovementInput()
-    {
-        try
-        {
-            return MovementHook.Instance != null &&
-                   (MovementHook.Instance->Wishdir_Horizontal != 0 || MovementHook.Instance->Wishdir_Vertical != 0);
-        }
-        catch { return false; }
-    }
-
-    /// <summary>
-    ///     Mesh-walkability check for a candidate XZ point (v1.0.4.196, BMR-
-    ///     parity gap 1). Queries the player's world Y plane, and (v1.0.4.211)
-    ///     the engaged target's plane on a miss: dodge candidates ring the
-    ///     player, but engage candidates ring the TARGET, and the single
-    ///     player plane read off-mesh for every one of them on sloped ground.
-    ///     Fails OPEN (returns true / caller does not filter) on any exception
-    ///     so an IPC hiccup degrades to the pre-existing distance-heuristic-
-    ///     only behaviour rather than freezing the mover.
+    ///     Floor probe for the planner's coarse mask: vnavmesh PointOnFloor
+    ///     asked from well ABOVE the ground so uphill terrain within the map is
+    ///     found (the v1 probe at the player's own height read whole slopes as
+    ///     off-mesh). Fails open.
     /// </summary>
     private static bool WalkableAt(Vector2 p)
     {
-        // v1.0.4.197: no mesh queries while vnavmesh's pathfind task runs, and at
-        // most ONE query per 0.5y grid cell per tick (the dodge/engage samplers
-        // re-probe near-identical candidates up to hundreds of times per tick).
-        if (_navBusy)
-            return true;
-        var key = ((int)MathF.Round(p.X * 2f), (int)MathF.Round(p.Y * 2f));
-        if (_walkCache.TryGetValue(key, out var cached))
-            return cached;
-        bool ok;
         try
         {
-            ok = NavmeshIPC.IsPointWalkable(new Vector3(p.X, _playerY, p.Y));
-            // v1.0.4.211: a miss is re-probed on the engaged target's own
-            // plane before the point is called off-mesh. The probe carries the
-            // player's Y, and the engage ring sits around the target up to
-            // ~20y away; one slope between the two answered "off-mesh" for
-            // every candidate and the approach never started.
-            if (!ok && MathF.Abs(_targetY - _playerY) > 0.5f)
-                ok = NavmeshIPC.IsPointWalkable(new Vector3(p.X, _targetY, p.Y));
+            if (NavmeshIPC.PointOnFloorFunc is null)
+                return true;
+            var y = MathF.Max(_playerY, _targetY) + 8f;
+            return NavmeshIPC.PointOnFloorFunc(new Vector3(p.X, y, p.Y), false, 1f) is not null;
         }
-        catch { ok = true; }
-        _walkCache[key] = ok;
-        return ok;
+        catch { return true; }
     }
 
     private static bool SafeIsBmrNavigating()
@@ -554,19 +420,14 @@ internal static class SmartMover
         catch { return false; }
     }
 
-    /// <summary>
-    ///     Positional want, reusing PositionalMover's per-job phase logic.
-    ///     True North suppression is handled by the engine (TrueNorth flag).
-    /// </summary>
+    /// <summary> Positional want, reusing PositionalMover's per-job phase logic. </summary>
     private static (bool wanted, bool isRear) PositionalWant(IBattleChara player, IBattleChara? target)
     {
         if (target is null || Jobs.GetRoleFromJob(Player.Job) is not Jobs.JobRole.MeleeDPS)
             return (false, false);
-
-        // Same condition as PositionalMover: don't fight a target that faces us.
-        if (target.TargetObjectId == player.GameObjectId)
+        // a target facing us turns with us; positionals are only worth chasing while it is busy (BossMod rule)
+        if (target.TargetObjectId == player.GameObjectId && !target.IsCasting)
             return (false, false);
-
         var desired = PositionalMover.GetDesiredPositional();
         return desired switch
         {
@@ -576,151 +437,91 @@ internal static class SmartMover
         };
     }
 
-    /// <summary>
-    ///     v1.0.4.206: a commanded Move that never reaches nav is otherwise
-    ///     invisible (telemetry logs the ddg/eng while the character stands
-    ///     still). Telemetry-gated, one Information line per 5s per skip kind.
-    ///     MVX| never collides with the MV| tap grammar grading views parse.
-    /// </summary>
-    private static void NoteNavSkip(string why, Vector2 dest)
-    {
-        if (!(AutoRotationController.cfg?.DPSSettings.MovementTelemetry ?? false))
-            return;
-        var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        if (why == _lastNavSkipWhy && nowMs - _lastNavSkipMs < 5000)
-            return;
-        _lastNavSkipWhy = why;
-        _lastNavSkipMs = nowMs;
-        try { Svc.Log.Information($"[SmartMover] MVX|skip={why}|dst={MathF.Round(dest.X)},{MathF.Round(dest.Y)}"); }
-        catch { /* never break the tick */ }
-    }
-
-    private static void Execute(SmartMoverCore.MoveDecision d, SmartMoverCore.MoverWorld w)
+    private static void Execute(SmartMoverCore.MoveDecision d)
     {
         switch (d.Kind)
         {
             case SmartMoverCore.Decision.Stop:
-                StopNav();
+                if (_ownNavIssued)
+                {
+                    StopNav();
+                    _ownNavIssued = false;
+                }
                 break;
 
-            case SmartMoverCore.Decision.Move:
-                // v1.0.4.197 crash fix: never stack nav work. Re-issuing
-                // PathfindAndMoveTo while vnavmesh's background task runs logged
-                // "Pathfinding task is in progress..." every 250ms tick; the
-                // process died mid-engage on .196 with no managed exception.
-                if (_navBusy)
-                {
-                    NoteNavSkip("busy", d.Dest);
-                    break; // let the in-flight pathfind finish; re-evaluate next tick
-                }
-
-                // Re-issue gate: nav already RUNNING toward essentially this
-                // destination is not re-primed - vnavmesh keeps walking on its own.
+            case SmartMoverCore.Decision.NavTo:
                 try
                 {
-                    if (NavmeshIPC.IsRunningFunc is not null && NavmeshIPC.IsRunningFunc() &&
-                        Hys.HasLastDest && Vector2.Distance(Hys.LastDest, d.Dest) < 1.0f)
-                        break;
-                }
-                catch { /* probe failed - issue the move */ }
-
-                var y = Player.Object?.Position.Y ?? 0f;
-                var dest = new Vector3(d.Dest.X, y, d.Dest.Y);
-
-                // Danger-aware routing when a live zone sits near the straight line.
-                if (AvoidCircleFor(dest, w) is { } ac && NavmeshIPC.PathfindAvoidFunc is not null)
-                {
-                    var from = new Vector3(w.PlayerPos.X, y, w.PlayerPos.Y);
-                    List<Vector3>? path = null;
-                    try { path = NavmeshIPC.PathfindAvoidFunc(from, dest, false, ac.Center, ac.Radius); }
-                    catch { /* fall back to simple move */ }
-                    if (path is { Count: > 0 })
+                    if (NavmeshIPC.PathfindingInProgress)
                     {
-                        try { NavmeshIPC.MoveToFunc?.Invoke(path, false); }
-                        catch { /* fall back to simple move */ }
-                        return;
+                        State.OwnNavActive = false; // retry next tick
+                        break;
                     }
+                    var dest = new Vector3(d.Dest.X, _targetY, d.Dest.Y);
+                    if (NavmeshIPC.PathfindAndMoveTo(dest))
+                        _ownNavIssued = true;
+                    else
+                        State.OwnNavActive = false;
                 }
+                catch { State.OwnNavActive = false; }
+                break;
 
-                // v1.0.4.198: a throwing nav IPC used to kill the tick BEFORE
-                // Emit, hiding the failure (see tick-failed throttle above).
-                try { NavmeshIPC.PathfindAndMoveTo(dest); }
-                catch { NoteNavSkip("throw", d.Dest); /* vnavmesh gone mid-tick - re-evaluate next tick */ }
+            case SmartMoverCore.Decision.Steer:
+                if (_ownNavIssued)
+                {
+                    StopNav();
+                    _ownNavIssued = false;
+                }
                 break;
         }
     }
 
-    /// <summary> The live zone nearest the straight player->dest corridor, as an avoid circle. </summary>
-    private static (Vector3 Center, float Radius)? AvoidCircleFor(Vector3 dest, SmartMoverCore.MoverWorld w)
+    private static void LogZoneAdd(long nowMs, ulong zoneId, DangerZoneModel.Zone z, long activationMs)
     {
-        if (w.Zones.Count == 0)
-            return null;
-
-        var y = dest.Y;
-        var from = new Vector3(w.PlayerPos.X, 0f, w.PlayerPos.Y);
-        var dir = dest - from;
-        var len = dir.Length();
-        if (len < 0.01f) return null;
-        dir /= len;
-
-        (Vector3, float)? best = null;
-        var bestDist = float.MaxValue;
-        foreach (var z in w.Zones)
+        try
         {
-            var c = new Vector3(z.Origin.X, 0f, z.Origin.Y);
-            var to = c - from;
-            var along = Vector3.Dot(to, dir);
-            if (along < -2f || along > len + 2f) continue;
-            var lateral = (to - dir * along).Length();
-            var radius = ZoneRadius(z);
-            if (lateral > radius + 4f) continue;
-            if (lateral < bestDist) { bestDist = lateral; best = (new Vector3(c.X, y, c.Z), radius + 1f); }
+            if (!LoggedZoneIds.Add(zoneId))
+                return;
+            Svc.Log.Information(MovementTelemetryFormat.BuildZoneAdd(nowMs, zoneId, z.Source, z.ActionId, z.Kind.ToString().ToLowerInvariant(),
+                z.Origin.X, z.Origin.Y, z.Radius, z.InnerRadius, z.HalfWidth, z.HalfAngle * 180f / MathF.PI, z.Rotation * 180f / MathF.PI, activationMs));
         }
-        return best;
+        catch { /* never break the tick */ }
     }
 
-    private static float ZoneRadius(DangerZoneModel.Zone z) => z.Kind switch
+    private static void LogZoneDel(long nowMs, ulong zoneId, string why)
     {
-        DangerZoneModel.ShapeKind.Circle => z.Radius,
-        DangerZoneModel.ShapeKind.Donut => z.Radius,
-        DangerZoneModel.ShapeKind.Rect => MathF.Max(z.Radius, z.HalfWidth),
-        DangerZoneModel.ShapeKind.ChargeRect => z.HalfWidth,
-        DangerZoneModel.ShapeKind.Cone => z.Radius,
-        DangerZoneModel.ShapeKind.Cross => MathF.Max(z.Radius, z.HalfWidth),
-        _ => 3f,
-    };
+        try
+        {
+            LoggedZoneIds.Remove(zoneId);
+            Svc.Log.Information(MovementTelemetryFormat.BuildZoneDel(nowMs, zoneId, why));
+        }
+        catch { /* never break the tick */ }
+    }
 
-    private static void Emit(SmartMoverCore.MoverWorld w, SmartMoverCore.MoveDecision d)
+    private static void Emit(SmartMoverCore.MoverWorld w, SmartMoverCore.MoveDecision d, long nowMs)
     {
         if (!(AutoRotationController.cfg?.DPSSettings.MovementTelemetry ?? false))
             return;
-
         try
         {
-            var reason = ReasonString(d.Reason);
+            var reason = SmartMoverCore.ReasonString(d.Reason);
             if (reason is "off")
-                return; // toggle-off is not a decision; nav (v1.0.4.198) and ooc (v1.0.4.200) ARE
-
-            var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            float? dstX = d.Kind == SmartMoverCore.Decision.Move ? d.Dest.X : null;
-            float? dstZ = d.Kind == SmartMoverCore.Decision.Move ? d.Dest.Y : null;
-
-            var distPast = 0f;
-            if (w.TargetEngaged)
-            {
-                var dist = Vector2.Distance(w.PlayerPos, w.TargetPos) - w.TargetHitboxRadius;
-                distPast = dist - w.DesiredRange;
-            }
-
-            var key = MovementTelemetryFormat.KeyOf(reason, dstX, dstZ, w.Zones.Count);
-            var isDodgeStart = reason == "ddg" && ReasonString(lastReason) != "ddg";
-
-            if (!MovementTelemetryFormat.ShouldEmit(_lastKey, _lastEmitMs, nowMs, key, isDodgeStart))
                 return;
 
-            var job = (byte)Player.Job;
-            var tgtId = w.TargetEngaged ? TargetDataId() : 0u;
-            var line = MovementTelemetryFormat.BuildLine(nowMs, job, reason, tgtId, distPast, w.Zones.Count, dstX, dstZ, lastOmenZoneCount);
+            float? dstX = d.Kind is SmartMoverCore.Decision.Steer or SmartMoverCore.Decision.NavTo ? d.Dest.X : null;
+            float? dstZ = d.Kind is SmartMoverCore.Decision.Steer or SmartMoverCore.Decision.NavTo ? d.Dest.Y : null;
+            var distPast = 0f;
+            if (w.TargetEngaged)
+                distPast = Vector2.Distance(w.PlayerPos, w.TargetPos) - w.TargetHitboxRadius - w.DesiredRange;
+
+            var key = MovementTelemetryFormat.KeyOf(reason, dstX, dstZ, w.Zones.Count);
+            var isDodgeStart = d.Reason is SmartMoverCore.ReasonDodgeCode or SmartMoverCore.ReasonEscapeCode &&
+                               _lastReason is not (SmartMoverCore.ReasonDodgeCode or SmartMoverCore.ReasonEscapeCode);
+            if (!MovementTelemetryFormat.ShouldEmit(_lastKey, _lastEmitMs, nowMs, key, isDodgeStart, w.Zones.Count > 0))
+                return;
+
+            var line = MovementTelemetryFormat.BuildLine(nowMs, (byte)Player.Job, reason, w.TargetEngaged ? TargetDataId() : 0u, distPast,
+                w.Zones.Count, dstX, dstZ, w.PlayerPos.X, w.PlayerPos.Y, w.Speed, d.LeewaySec, d.StartMaxG, State.LastPlanSteps);
             Svc.Log.Information(line);
             _lastKey = key;
             _lastEmitMs = nowMs;
@@ -738,35 +539,14 @@ internal static class SmartMover
         catch { return 0u; }
     }
 
-    internal static string ReasonString(byte code) => code switch
-    {
-        SmartMoverCore.ReasonOffCode => "off",
-        SmartMoverCore.ReasonNavCode => "nav",
-        SmartMoverCore.ReasonOocCode => "ooc",
-        SmartMoverCore.ReasonManualCode => "man",
-        SmartMoverCore.ReasonCastCode => "cast",
-        SmartMoverCore.ReasonBmrCode => "bmr",
-        SmartMoverCore.ReasonDodgeCode => "ddg",
-        SmartMoverCore.ReasonEngageCode => "eng",
-        SmartMoverCore.ReasonSettleCode => "stl",
-        // v1.0.4.206: the engage/settle HOLD (no command, reason 0) used to
-        // alias as "stl", so a hold while zones were live was indistinguishable
-        // from a stand-down Stop in telemetry. Holds log as "hold" now.
-        // v1.0.4.212: the three holds that are NOT "settled and waiting" get
-        // their own names - one 8.5-second "hold" line covered a character
-        // standing inside a donut with nowhere sampled to go, and the log
-        // could not tell that from a safe wait.
-        SmartMoverCore.ReasonNoEscapeCode => "stuck",
-        SmartMoverCore.ReasonRingHoldCode => "ring",
-        SmartMoverCore.ReasonPathHoldCode => "path",
-        0 => "hold",
-        _ => "stl",
-    };
+    internal static string ReasonString(byte code) => SmartMoverCore.ReasonString(code);
 
     /// <summary> Telemetry reset (toggle-on) so the current state reports immediately. </summary>
     internal static void ResetTelemetry()
     {
         _lastKey = null;
         _lastEmitMs = 0;
+        _headerLogged = false;
+        LoggedZoneIds.Clear();
     }
 }

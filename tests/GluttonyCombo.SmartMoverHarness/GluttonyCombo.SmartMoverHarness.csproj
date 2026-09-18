@@ -23,5 +23,9 @@
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\MovementGateCore.cs" Link="MovementGateCore.cs" />
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\MovementTelemetryFormat.cs" Link="MovementTelemetryFormat.cs" />
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\OmenVfxModel.cs" Link="OmenVfxModel.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\Movement\NavMap.cs" Link="Movement\NavMap.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\Movement\ThetaStar.cs" Link="Movement\ThetaStar.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\Movement\NavigationDecision.cs" Link="Movement\NavigationDecision.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\Movement\ShapeDistance.cs" Link="Movement\ShapeDistance.cs" />
   </ItemGroup>
 </Project>

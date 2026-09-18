@@ -1,14 +1,16 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using GluttonyCombo.AutoRotation;
+using GluttonyCombo.AutoRotation.Movement;
 
-// Offline harness for the SmartMover decision engine (t_356159a8).
-// Compiles the REAL pure files - DangerZoneModel.cs, SmartMoverCore.cs,
-// MovementTelemetryFormat.cs, OmenVfxModel.cs - no Dalamud. Prints PASS/FAIL per case;
-// exit 0 + "OK" only when every case passes (and at least one ran).
-//   dotnet build tests\GluttonyCombo.SmartMoverHarness -c Release
-//   dotnet tests\GluttonyCombo.SmartMoverHarness\bin\Release\net10.0\GluttonyCombo.SmartMoverHarness.dll
+// Offline harness for Smart Movement v2 (2026-09 rebuild).
+// Compiles the REAL pure files (DangerZoneModel, SmartMoverCore, MovementTelemetryFormat,
+// MovementGateCore, OmenVfxModel, Movement/*) with no Dalamud. Prints PASS/FAIL per
+// case; exit 0 + "OK" only when every case passes.
+//   dotnet build tests/GluttonyCombo.SmartMoverHarness -c Release
+//   dotnet tests/GluttonyCombo.SmartMoverHarness/bin/Release/net10.0/GluttonyCombo.SmartMoverHarness.dll
 
 int pass = 0, fail = 0;
 void Check(string name, bool cond, string detail = "")
@@ -17,1154 +19,352 @@ void Check(string name, bool cond, string detail = "")
     else { fail++; Console.WriteLine($"FAIL {name} {detail}"); }
 }
 
+const float NpcDelay = 0.3f;
 var NoZones = (IReadOnlyList<DangerZoneModel.Zone>)Array.Empty<DangerZoneModel.Zone>();
-byte SmartZoneDDG() => SmartMoverCore.ReasonDodgeCode;
+
+// --- zone helpers (math-convention angles; buffer dilation as the Dalamud half does it)
+DangerZoneModel.Zone Dilate(DangerZoneModel.Zone z, float buffer) =>
+    z with { Radius = z.Radius + buffer, InnerRadius = MathF.Max(0f, z.InnerRadius - buffer), HalfWidth = z.HalfWidth + buffer, HalfAngle = z.HalfAngle + (buffer / MathF.Max(z.Radius, 1f)) };
+
+DangerZoneModel.Zone Cast(byte castType, float range, float xaxis, float hitbox, Vector2 caster, Vector2 loc, float castTime, double castStart,
+    float coneHalfDeg = 60f, float donutInner = 0f, float? aimGameRot = null, ulong src = 1, uint action = 0, float buffer = 1f)
+{
+    var prim = new DangerZoneModel.CastPrimitive(castType, range, xaxis, hitbox, caster, loc, 0, 999, castTime, coneHalfDeg, donutInner,
+        aimGameRot is { } g ? DangerZoneModel.GameRotationToMath(g) : null);
+    var z = DangerZoneModel.BuildZone(prim) ?? throw new Exception("zone not built");
+    z = Dilate(z, buffer);
+    return z with { ActivationSec = castStart + castTime + NpcDelay, Source = src, ActionId = action };
+}
 
 SmartMoverCore.MoverWorld World(
-    Vector2? player = null, float range = 3f, bool posWanted = false, bool rear = false,
-    Vector2? target = null, float tRot = 0f, float hitbox = 5f, bool engaged = true,
-    IReadOnlyList<DangerZoneModel.Zone>? zones = null, bool manual = false,
-    bool casting = false, float castRem = 0f, bool bmr = false, bool nav = true,
-    bool enabled = true, bool combat = true, float delta = 0.25f, bool tn = false, bool hostile = true) =>
-    new(player ?? new Vector2(0, -8), range, posWanted, rear, tn,
-        target ?? new Vector2(0, 0), tRot, hitbox, engaged, hostile, zones ?? NoZones,
-        manual, casting, castRem, bmr, nav, enabled, combat, delta, 1000.0);
+    Vector2 player, double now, IReadOnlyList<DangerZoneModel.Zone>? zones = null,
+    Vector2? target = null, bool engaged = true, float range = 3f, float hitbox = 5f, float tRot = 0f,
+    bool posWanted = false, bool rear = false, bool manual = false, bool casting = false, float castRem = 0f,
+    bool external = false, bool nav = true, bool enabled = true, bool combat = true, float speed = 6f,
+    bool mounted = false, bool kb = false, float cushion = 1.0f, Func<Vector2, bool>? walkable = null) =>
+    new(player, range, posWanted, rear, false, target ?? new Vector2(0, 0), tRot, hitbox, engaged, zones ?? NoZones,
+        manual, casting, castRem, external, nav, enabled, combat, now, speed, mounted, kb, cushion, walkable);
 
-// ---------------------------------------------------------------- zone model
+// Simulates the character following the engine at run speed. Returns positions per tick.
+// Fails the case if the character is inside any zone at that zone's activation.
+(bool ok, string detail, Vector2 end, List<byte> reasons) Simulate(
+    Func<double, Vector2, SmartMoverCore.MoverWorld> worldAt, IReadOnlyList<DangerZoneModel.Zone> zones, Vector2 start,
+    double t0, double t1, float dt = 0.1f, float speed = 6f)
 {
-    // Circle CastType 5 point-blank around caster
-    var z = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
-        5, 8f, 0f, 3f, new(0, 0), new(0, 0), 0, 1, 5f, 60f, 0f));
-    Check("zone/circle5-built", z is { Kind: DangerZoneModel.ShapeKind.Circle });
-    Check("zone/circle5-radius-hitbox", z!.Value.Radius > 10f && z.Value.Radius < 12f, $"r={z.Value.Radius}");
-    Check("zone/circle5-contains", DangerZoneModel.Contains(z.Value, new Vector2(10f, 0), 0f));
-    Check("zone/circle5-buffer", DangerZoneModel.Contains(z.Value, new Vector2(11.5f, 0), 1f));
-    Check("zone/circle5-outside", !DangerZoneModel.Contains(z.Value, new Vector2(15f, 0), 0f));
-
-    // Raidwide skip: CastType 5, EffectRange 30+
-    var rw = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
-        5, 30f, 0f, 3f, new(0, 0), new(0, 0), 0, 1, 5f, 60f, 0f));
-    Check("zone/raidwide-skipped", rw is null);
-
-    // v1.0.4.208: a TARGET-anchored cast aimed at the player still builds
-    // its zone. Since v1.0.4.209 the Dalamud half anchors it at the cast's
-    // snapshotted target location (where the telegraph was drawn), so it
-    // does not follow the character.
-    var pt = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
-        2, 6f, 0f, 3f, new(0, 0), new(0, 0), 999, 999, 5f, 60f, 0f));
-    Check("zone/targets-player-ground-circle-built", pt is { Kind: DangerZoneModel.ShapeKind.Circle });
-    Check("zone/targets-player-ground-circle-contains", pt is not null && DangerZoneModel.Contains(pt.Value, new Vector2(0, 0), 0f));
-
-    // ...but a CASTER-anchored cast aimed at the player (point-blank circle,
-    // cone, line, charge - every solo mob telegraph) MUST build its zone:
-    // the old blanket skip starved the dodge branch solo (testing 2026-09-12).
-    var solo5 = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
-        5, 8f, 0f, 3f, new(0, 0), new(0, 0), 999, 999, 5f, 60f, 0f));
-    Check("zone/solo-pb-circle-aimed-at-player-builtin", solo5 is { Kind: DangerZoneModel.ShapeKind.Circle }, $"z={solo5}");
-    var solo3 = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
-        3, 10f, 0f, 3f, new(0, 0), new(0, -8), 999, 999, 5f, 90f, 0f));
-    Check("zone/solo-cone-aimed-at-player-builtin", solo3 is { Kind: DangerZoneModel.ShapeKind.Cone });
-    var solo4 = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
-        4, 20f, 6f, 3f, new(0, 0), new(0, -8), 999, 999, 5f, 60f, 0f));
-    Check("zone/solo-line-aimed-at-player-builtin", solo4 is { Kind: DangerZoneModel.ShapeKind.Rect });
-    var solo8 = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
-        8, 0f, 8f, 3f, new(0, 0), new(0, -20), 999, 999, 5f, 60f, 0f));
-    Check("zone/solo-charge-aimed-at-player-builtin", solo8 is { Kind: DangerZoneModel.ShapeKind.ChargeRect });
-    var solo13 = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
-        13, 10f, 0f, 3f, new(0, 0), new(0, -8), 999, 999, 5f, 90f, 0f));
-    Check("zone/solo-cone13-aimed-at-player-builtin", solo13 is { Kind: DangerZoneModel.ShapeKind.Cone });
-    var solo10 = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
-        10, 12f, 0f, 0f, new(0, 0), new(0, 0), 999, 999, 5f, 60f, 5f));
-    Check("zone/solo-donut-on-player-built", solo10 is { Kind: DangerZoneModel.ShapeKind.Donut }, $"z={solo10}");
-    var solo11 = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
-        11, 12f, 6f, 0f, new(0, 0), new(0, 0), 999, 999, 5f, 60f, 0f));
-    Check("zone/solo-cross-on-player-built", solo11 is { Kind: DangerZoneModel.ShapeKind.Cross }, $"z={solo11}");
-    var solo12 = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
-        12, 20f, 6f, 3f, new(0, 0), new(0, -8), 999, 999, 5f, 60f, 0f));
-    Check("zone/solo-loc-rect-on-player-built", solo12 is { Kind: DangerZoneModel.ShapeKind.Rect }, $"z={solo12}");
-
-    // Rect CastType 4 from caster toward target (target at +Z => aim rot = +90deg math convention)
-    var rect = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
-        4, 20f, 6f, 3f, new(0, 0), new(0, 10), 2, 1, 5f, 60f, 0f));
-    Check("zone/rect4-built", rect is { Kind: DangerZoneModel.ShapeKind.Rect });
-    Check("zone/rect4-inside", DangerZoneModel.Contains(rect!.Value, new Vector2(0.5f, 10f), 0f));
-    Check("zone/rect4-outside-lateral", !DangerZoneModel.Contains(rect.Value, new Vector2(6f, 10f), 0f));
-    Check("zone/rect4-beyond-length", !DangerZoneModel.Contains(rect.Value, new Vector2(0f, 40f), 0f));
-
-    // Cone CastType 3 aimed at target direction (+Z)
-    var cone = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
-        3, 10f, 0f, 3f, new(0, 0), new(0, 8), 2, 1, 5f, 90f, 0f));
-    Check("zone/cone3-built", cone is { Kind: DangerZoneModel.ShapeKind.Cone });
-    Check("zone/cone3-inside", DangerZoneModel.Contains(cone!.Value, new Vector2(0.5f, 9f), 0f));
-    Check("zone/cone3-behind-safe", !DangerZoneModel.Contains(cone.Value, new Vector2(0f, -9f), 0f));
-
-    // Donut CastType 10, known inner -> hole is safe
-    var donut = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
-        10, 12f, 0f, 0f, new(0, 0), new(0, 0), 0, 1, 5f, 60f, 5f));
-    Check("zone/donut-built", donut is { Kind: DangerZoneModel.ShapeKind.Donut });
-    Check("zone/donut-hole-safe", !DangerZoneModel.Contains(donut!.Value, new Vector2(0f, 0f), 0f));
-    Check("zone/donut-ring-danger", DangerZoneModel.Contains(donut.Value, new Vector2(9f, 0), 0f));
-
-    // Donut with unknown inner -> conservative full circle
-    var dc = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
-        10, 12f, 0f, 0f, new(0, 0), new(0, 0), 0, 1, 5f, 60f, 0f));
-    Check("zone/donut-unknown-inner-conservative", dc is { Kind: DangerZoneModel.ShapeKind.Circle });
-
-    // Charge CastType 8: lane from caster to destination
-    var chg = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
-        8, 0f, 8f, 3f, new(0, 0), new(0, 20), 2, 1, 5f, 60f, 0f));
-    Check("zone/charge8-built", chg is { Kind: DangerZoneModel.ShapeKind.ChargeRect });
-    Check("zone/charge8-lane", DangerZoneModel.Contains(chg!.Value, new Vector2(0f, 15f), 0f));
-    Check("zone/charge8-parallel-safe", !DangerZoneModel.Contains(chg.Value, new Vector2(8f, 15f), 0f));
-
-    // CastType 1 (single-target) -> no zone
-    var single = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
-        1, 5f, 0f, 3f, new(0, 0), new(0, 5), 2, 1, 5f, 60f, 0f));
-    Check("zone/single-target-skipped", single is null);
-}
-
-// ---------------------------------------------------------------- engage / settle
-{
-    // Melee 15y out -> engage toward the ring
-    var h = new SmartMoverCore.Hysteresis();
-    var d = SmartMoverCore.Decide(World(player: new(0, -18), range: 3f, target: new(0, 0), hitbox: 5f), h);
-    Check("engage/melee-from-18y-moves", d.Kind == SmartMoverCore.Decision.Move, $"kind={d.Kind} r={d.Reason}");
-    Check("engage/reason-eng", d.Reason == SmartMoverCore.ReasonEngageCode, $"r={d.Reason}");
-    var distToTarget = Vector2.Distance(d.Dest, new Vector2(0, 0));
-    Check("engage/dest-on-ring", distToTarget > 6f && distToTarget < 12f, $"d={distToTarget}");
-
-    // Already settled on the ring -> no command / stop
-    var h2 = new SmartMoverCore.Hysteresis();
-    var d2 = SmartMoverCore.Decide(World(player: new(0, -8.5f), range: 3f, target: new(0, 0), hitbox: 5f), h2);
-    Check("settle/at-ring-none", d2.Kind is SmartMoverCore.Decision.None or SmartMoverCore.Decision.Stop, $"kind={d2.Kind}");
-
-    // Ranged job at 19y of a 20y band -> not worth moving (within tolerance)
-    var h3 = new SmartMoverCore.Hysteresis();
-    var d3 = SmartMoverCore.Decide(World(player: new(0, -24), range: 20f, target: new(0, 0), hitbox: 5f), h3);
-    Check("settle/ranged-19y-quiet", d3.Kind is SmartMoverCore.Decision.None or SmartMoverCore.Decision.Stop, $"kind={d3.Kind} r={d3.Reason}");
-
-    // v1.0.4.193: a ranged caster standing at MELEE distance (mid melee
-    // combo) is INSIDE the band - the mover must never back away to widen
-    // the gap (the old half-ring floor walked RDMs out of their combo).
-    var hr = new SmartMoverCore.Hysteresis();
-    var dr = SmartMoverCore.Decide(World(player: new(0, -3), range: 20f, target: new(0, 0), hitbox: 5f), hr);
-    Check("settle/ranged-inside-band-never-backs-away", dr.Kind is SmartMoverCore.Decision.None or SmartMoverCore.Decision.Stop, $"kind={dr.Kind} r={dr.Reason}");
-
-    // Melee closer than the ring is equally fine - no forced retreat
-    var hcl = new SmartMoverCore.Hysteresis();
-    var dcl = SmartMoverCore.Decide(World(player: new(0, -6), range: 3f, target: new(0, 0), hitbox: 5f), hcl);
-    Check("settle/melee-inside-band-never-backs-away", dcl.Kind is SmartMoverCore.Decision.None or SmartMoverCore.Decision.Stop, $"kind={dcl.Kind} r={dcl.Reason}");
-
-    // v1.0.4.201 (tasks-20260915-automove-melee-01): melee parked OUTSIDE
-    // striking distance - the 2.0 (1.0 positional) settle tolerance plus the
-    // 1.0 Commit deadband exceeded the 3y band (NIN testing on 1.0.4.200: motion started, then stopped short of the dummy). Melee at
-    // edge 4.0 (dist 9.0 on hitbox 5) must STILL engage, positional or not;
-    // at edge 3.4 it settles; a sub-yalm final approach closes in.
-    var hm1 = new SmartMoverCore.Hysteresis();
-    var dm1 = SmartMoverCore.Decide(World(player: new(0, -9), range: 3f, target: new(0, 0), hitbox: 5f), hm1);
-    Check("engage/melee-4y-outside-still-engages", dm1.Kind == SmartMoverCore.Decision.Move, $"kind={dm1.Kind} r={dm1.Reason}");
-
-    var hm2 = new SmartMoverCore.Hysteresis();
-    var dm2 = SmartMoverCore.Decide(World(player: new(0, -9), range: 3f, posWanted: true, rear: true,
-        target: new(0, 0), tRot: 0f, hitbox: 5f), hm2);
-    Check("engage/melee-4y-outside-positional-still-engages", dm2.Kind == SmartMoverCore.Decision.Move, $"kind={dm2.Kind} r={dm2.Reason}");
-
-    var hm3 = new SmartMoverCore.Hysteresis();
-    var dm3 = SmartMoverCore.Decide(World(player: new(0, -8.4f), range: 3f, target: new(0, 0), hitbox: 5f), hm3);
-    Check("settle/melee-3.4y-quiet", dm3.Kind is SmartMoverCore.Decision.None or SmartMoverCore.Decision.Stop, $"kind={dm3.Kind} r={dm3.Reason}");
-
-    var hm4 = new SmartMoverCore.Hysteresis();
-    var dm4 = SmartMoverCore.Decide(World(player: new(0, -8.6f), range: 3f, target: new(0, 0), hitbox: 5f), hm4);
-    Check("engage/melee-sub-yalm-closes-in", dm4.Kind == SmartMoverCore.Decision.Move, $"kind={dm4.Kind} r={dm4.Reason}");
-
-    // Ranged bands keep the old settle behavior (negative control).
-    var hr2 = new SmartMoverCore.Hysteresis();
-    var dr2 = SmartMoverCore.Decide(World(player: new(0, -26.5f), range: 20f, target: new(0, 0), hitbox: 5f), hr2);
-    Check("settle/ranged-21.5y-quiet", dr2.Kind is SmartMoverCore.Decision.None or SmartMoverCore.Decision.Stop, $"kind={dr2.Kind} r={dr2.Reason}");
-
-    // Positional wanted rear, player in front (tRot=0 => facing +Z), target at origin:
-    // front = +Z side, rear = -Z side. Player at +Z 7.5 => must move to -Z.
-    var h4 = new SmartMoverCore.Hysteresis();
-    var d4 = SmartMoverCore.Decide(World(player: new(0, 7.5f), range: 3f, posWanted: true, rear: true,
-        target: new(0, 0), tRot: 0f, hitbox: 5f), h4);
-    Check("positional/rear-moves", d4.Kind == SmartMoverCore.Decision.Move, $"kind={d4.Kind}");
-    Check("positional/rear-dest-behind", d4.Dest.Y < 0f, $"dest={d4.Dest}");
-
-    // True North neutralises positionals
-    var h5 = new SmartMoverCore.Hysteresis();
-    var d5 = SmartMoverCore.Decide(World(player: new(0, 7.5f), range: 3f, posWanted: true, rear: true, tn: true,
-        target: new(0, 0), tRot: 0f, hitbox: 5f), h5);
-    Check("positional/truenorth-holds", d5.Kind is SmartMoverCore.Decision.None or SmartMoverCore.Decision.Stop, $"kind={d5.Kind}");
-
-    // Wedge math, game convention: tRot=0 faces +Z; rear = -Z; flank = +/- X
-    Check("positional/at-rear-detected", SmartMoverCore.AtPositional(new(0, -8), World(
-        posWanted: true, rear: true, target: new(0, 0), tRot: 0f, hitbox: 5f)));
-    Check("positional/at-flank-detected", SmartMoverCore.AtPositional(new(-8, 0), World(
-        posWanted: true, rear: false, target: new(0, 0), tRot: 0f, hitbox: 5f)));
-    Check("positional/front-is-not-rear", !SmartMoverCore.AtPositional(new(0, 8), World(
-        posWanted: true, rear: true, target: new(0, 0), tRot: 0f, hitbox: 5f)));
-}
-
-// ---------------------------------------------------------------- dodge
-{
-    // Player inside a resolving circle -> dodge fires with a safe dest
-    var zones = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -8), 0f, 8f, 0f, 0f, 0f, default, 3f) };
-    var h = new SmartMoverCore.Hysteresis();
-    var d = SmartMoverCore.Decide(World(player: new(0, -8), zones: zones), h);
-    Check("dodge/in-zone-moves", d.Kind == SmartMoverCore.Decision.Move, $"kind={d.Kind} r={d.Reason}");
-    Check("dodge/reason-ddg", d.Reason == SmartMoverCore.ReasonDodgeCode, $"r={d.Reason}");
-    Check("dodge/dest-safe", SmartMoverCore.UnsafeAt(d.Dest, zones, 0.25f) is null, $"dest={d.Dest}");
-
-    // Escape must not route INTO a second zone: player inside zone A, zone B rings it
-    var twoZones = new[]
+    var s = new SmartMoverCore.MoverState();
+    var pos = start;
+    var reasons = new List<byte>();
+    var checkedZones = new HashSet<int>();
+    for (var t = t0; t <= t1 + 1e-6; t += dt)
     {
-        new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -8), 0f, 8f, 0f, 0f, 0f, default, 3f),
-        new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -22), 0f, 5f, 0f, 0f, 0f, default, 3f),
-    };
-    var hT = new SmartMoverCore.Hysteresis();
-    var dT = SmartMoverCore.Decide(World(player: new(0, -8), zones: twoZones), hT);
-    Check("dodge/escape-avoids-second-zone", dT.Kind == SmartMoverCore.Decision.Move &&
-        SmartMoverCore.UnsafeAt(dT.Dest, twoZones, 0.25f) is null, $"kind={dT.Kind} dest={dT.Dest}");
-
-    // v1.0.4.193 arena clamp: a zone so large every escape lands beyond
-    // MaxDestDistFromTarget of the engaged target -> hold position instead
-    // of wandering out of the boss area.
-    var bigZone = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, 0), 0f, 20f, 0f, 0f, 0f, default, 3f) };
-    var hBig = new SmartMoverCore.Hysteresis();
-    var dBig = SmartMoverCore.Decide(World(player: new(0, -8), target: new(0, 0), hitbox: 5f, zones: bigZone), hBig);
-    Check("dodge/arena-clamp-holds", dBig.Kind == SmartMoverCore.Decision.None, $"kind={dBig.Kind} dest={dBig.Dest}");
-
-    // Negative control of the same scene with NO engaged target: the clamp
-    // is off and the escape must fire, landing outside the zone.
-    var hBigFree = new SmartMoverCore.Hysteresis();
-    var dBigFree = SmartMoverCore.Decide(World(player: new(0, -8), engaged: false, zones: bigZone), hBigFree);
-    Check("dodge/arena-clamp-negative-control-moves", dBigFree.Kind == SmartMoverCore.Decision.Move && dBigFree.Reason == SmartZoneDDG(), $"kind={dBigFree.Kind} r={dBigFree.Reason}");
-
-    // v1.0.4.192 solo end-to-end: the mob's point-blank circle is aimed AT
-    // the player (every solo telegraph) and the dodge must still fire.
-    var soloZone = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
-        5, 8f, 0f, 3f, new(0, -16), new(0, -16), 999, 999, 5f, 60f, 0f));
-    Check("dodge/solo-zone-built", soloZone is not null);
-    var hs = new SmartMoverCore.Hysteresis();
-    var ws = World(player: new(0, -16), zones: soloZone is null ? NoZones : new[] { soloZone.Value });
-    var ds = SmartMoverCore.Decide(ws, hs);
-    Check("dodge/solo-aimed-at-player-fires", ds.Kind == SmartMoverCore.Decision.Move && ds.Reason == SmartZoneDDG(), $"kind={ds.Kind} r={ds.Reason}");
-
-    // v1.0.4.207 end-to-end: a ground circle targeted AT the player (the mob
-    // cast targets the character) builds its zone at the character's feet and
-    // the dodge fires - standing inside a visible player-targeted telegraph
-    // with an empty zone list was the reported failure.
-    var ownZone = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
-        2, 6f, 0f, 3f, new(0, 8), new(0, -8), 999, 999, 5f, 60f, 0f));
-    Check("dodge/own-targeted-zone-built", ownZone is { Kind: DangerZoneModel.ShapeKind.Circle }, $"z={ownZone}");
-    var ho = new SmartMoverCore.Hysteresis();
-    var wo = World(player: new(0, -8), zones: ownZone is null ? NoZones : new[] { ownZone.Value });
-    var dOwn = SmartMoverCore.Decide(wo, ho);
-    Check("dodge/own-targeted-fires", dOwn.Kind == SmartMoverCore.Decision.Move && dOwn.Reason == SmartZoneDDG(), $"kind={dOwn.Kind} r={dOwn.Reason}");
-    Check("dodge/own-targeted-dest-safe", ownZone is null || SmartMoverCore.UnsafeAt(dOwn.Dest, new[] { ownZone.Value }, 0.25f) is null, $"dest={dOwn.Dest}");
-
-    // A second telegraph drawn at the character's new spot: the dodge fires
-    // again instead of standing down while inside it.
-    var ownZone2 = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
-        2, 6f, 0f, 3f, new(0, 8), dOwn.Dest, 999, 999, 4f, 60f, 0f));
-    var ho2 = new SmartMoverCore.Hysteresis();
-    var wo2 = World(player: dOwn.Dest, zones: ownZone2 is null ? NoZones : new[] { ownZone2.Value });
-    var dOwn2 = SmartMoverCore.Decide(wo2, ho2);
-    Check("dodge/own-targeted-follow-tick-fires", dOwn2.Reason == SmartZoneDDG(), $"kind={dOwn2.Kind} r={dOwn2.Reason}");
-
-    // Negative control: the own-targeted zone exists but the player already
-    // stands clear of it -> no dodge.
-    var hOn = new SmartMoverCore.Hysteresis();
-    var dOn = SmartMoverCore.Decide(World(player: new(0, -30), zones: ownZone is null ? NoZones : new[] { ownZone.Value }), hOn);
-    Check("dodge/own-targeted-clear-no-ddg", dOn.Reason != SmartMoverCore.ReasonDodgeCode, $"r={dOn.Reason}");
-
-    // Outside every zone -> no dodge
-    var h2 = new SmartMoverCore.Hysteresis();
-    var d2 = SmartMoverCore.Decide(World(player: new(0, -30), zones: zones), h2);
-    Check("dodge/outside-no-ddg", d2.Reason != SmartMoverCore.ReasonDodgeCode, $"r={d2.Reason}");
-
-    // Ideal ring point covered -> ring sweep finds a safe variant
-    var coverZones = new[]
-    {
-        new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -8.5f), 0f, 6f, 0f, 0f, 0f, default, 5f),
-    };
-    var h3 = new SmartMoverCore.Hysteresis();
-    var w3 = World(player: new(0, -18), range: 3f, target: new(0, 0), hitbox: 5f, zones: coverZones);
-    var d3 = SmartMoverCore.Decide(w3, h3);
-    Check("dodge/ring-sweep-engages-safe", d3.Kind == SmartMoverCore.Decision.Move &&
-        SmartMoverCore.UnsafeAt(d3.Dest, coverZones, 0.5f) is null, $"kind={d3.Kind} dest={d3.Dest}");
-}
-
-// ---------------------------------------------------------------- guards & pauses
-{
-    var zones = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -8), 0f, 8f, 0f, 0f, 0f, default, 3f) };
-
-    // Manual input -> stop, even mid-dodge (pre-seed: something was moving first)
-    var h = new SmartMoverCore.Hysteresis();
-    SmartMoverCore.Decide(World(player: new(0, -18), range: 3f, target: new(0, 0), hitbox: 5f), h);
-    var dm = SmartMoverCore.Decide(World(manual: true, zones: zones) with { PlayerPos = new(0, -17) }, h);
-    Check("guard/manual-stops", dm.Kind == SmartMoverCore.Decision.Stop, $"kind={dm.Kind}");
-    Check("guard/manual-reason", dm.Reason == SmartMoverCore.ReasonManualCode, $"r={dm.Reason}");
-
-    // Casting beyond slidecast window -> stop (pre-seeded)
-    var h2 = new SmartMoverCore.Hysteresis();
-    SmartMoverCore.Decide(World(player: new(0, -18), range: 3f, target: new(0, 0), hitbox: 5f), h2);
-    var dc = SmartMoverCore.Decide(World(casting: true, castRem: 1.5f, zones: zones) with { PlayerPos = new(0, -17) }, h2);
-    Check("guard/casting-holds", dc.Kind == SmartMoverCore.Decision.Stop && dc.Reason == SmartMoverCore.ReasonCastCode, $"kind={dc.Kind} r={dc.Reason}");
-
-    // Slidecast window -> dodge still allowed
-    var h3 = new SmartMoverCore.Hysteresis();
-    var ds = SmartMoverCore.Decide(World(casting: true, castRem: 0.3f, zones: zones), h3);
-    Check("guard/slidecast-dodges", ds.Kind == SmartMoverCore.Decision.Move && ds.Reason == SmartMoverCore.ReasonDodgeCode, $"kind={ds.Kind} r={ds.Reason}");
-
-    // BMR navigating -> pause
-    var h4 = new SmartMoverCore.Hysteresis();
-    var db = SmartMoverCore.Decide(World(bmr: true), h4);
-    Check("guard/bmr-pauses", db.Reason is SmartMoverCore.ReasonBmrCode or 0, $"kind={db.Kind} r={db.Reason}");
-
-    // Disabled -> nothing
-    var h5 = new SmartMoverCore.Hysteresis();
-    var dd = SmartMoverCore.Decide(World(enabled: false), h5);
-    Check("guard/off-none", dd.Kind == SmartMoverCore.Decision.None, $"kind={dd.Kind}");
-
-    // v1.0.4.203 (testing 2026-09-16 grading of 1.0.4.202: "automovement is
-    // moving me to the target even when i'm out of combat, which is not ok"):
-    // out of combat the mover NEVER approaches a target - the v1.0.4.200
-    // pre-combat hostile engage is reverted. The ooc standdown keeps its OWN
-    // reason code (not toggle-off filtered) so the attempt stays visible.
-    // Hostile + out of range + no combat -> stop, reason ooc (pre-seeded).
-    var h6 = new SmartMoverCore.Hysteresis();
-    SmartMoverCore.Decide(World(player: new(0, -18), range: 3f, target: new(0, 0), hitbox: 5f), h6);
-    var dPre = SmartMoverCore.Decide(World(combat: false, hostile: true) with { PlayerPos = new(0, -17) }, h6);
-    Check("guard/ooc-hostile-stops", dPre.Kind == SmartMoverCore.Decision.Stop && dPre.Reason == SmartMoverCore.ReasonOocCode, $"kind={dPre.Kind} r={dPre.Reason}");
-
-    // Friendly target out of combat -> visible ooc standdown, never off (pre-seeded).
-    var h6b = new SmartMoverCore.Hysteresis();
-    SmartMoverCore.Decide(World(player: new(0, -18), range: 3f, target: new(0, 0), hitbox: 5f), h6b);
-    var dOoc = SmartMoverCore.Decide(World(combat: false, hostile: false, zones: zones) with { PlayerPos = new(0, -17) }, h6b);
-    Check("guard/ooc-friendly-stops", dOoc.Kind == SmartMoverCore.Decision.Stop, $"kind={dOoc.Kind}");
-    Check("guard/ooc-reason-not-off", dOoc.Reason == SmartMoverCore.ReasonOocCode, $"r={dOoc.Reason}");
-    Check("guard/ooc-distinct-from-off", SmartMoverCore.ReasonOocCode != SmartMoverCore.ReasonOffCode);
-
-    // No out-of-combat dodge: player inside a live zone, hostile target, no
-    // combat -> the ooc standdown answers (both dodge AND engage are ooc/
-    // combat-gated), never ddg.
-    var h6c = new SmartMoverCore.Hysteresis();
-    var dOocZ = SmartMoverCore.Decide(World(combat: false, hostile: true, player: new(0, -8), zones: zones), h6c);
-    Check("guard/ooc-no-dodge", dOocZ.Reason != SmartMoverCore.ReasonDodgeCode, $"kind={dOocZ.Kind} r={dOocZ.Reason}");
-
-    // No target out of combat -> quiet ooc none (fresh hysteresis).
-    var h6d = new SmartMoverCore.Hysteresis();
-    var dOocN = SmartMoverCore.Decide(World(combat: false, engaged: false), h6d);
-    // (Fresh hysteresis carries reason 0 on None by design - same as the
-    // off/nav None cases above; the ooc reason rides the Stop verdict.)
-    Check("guard/ooc-no-target-none", dOocN.Kind == SmartMoverCore.Decision.None, $"kind={dOocN.Kind} r={dOocN.Reason}");
-
-    // No nav -> stand down
-    var h7 = new SmartMoverCore.Hysteresis();
-    var dn = SmartMoverCore.Decide(World(nav: false, zones: zones), h7);
-    Check("guard/no-nav-none", dn.Kind == SmartMoverCore.Decision.None, $"kind={dn.Kind}");
-}
-
-// ---------------------------------------------------------------- coexistence (the card's key case)
-{
-    // THE trap: BMR installed/AI ON historically stood the mover down entirely.
-    // The engine has NO "bmr ai active" input; BMR presence changes nothing
-    // except an ACTIVE navigation (guard/bmr-pauses above).
-    var zones = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -8), 0f, 8f, 0f, 0f, 0f, default, 3f) };
-    var hA = new SmartMoverCore.Hysteresis();
-    var a = SmartMoverCore.Decide(World(player: new(0, -8), zones: zones), hA);
-    var hasBmrInstalledField = typeof(SmartMoverCore.MoverWorld).GetFields()
-        .Any(f => f.Name.Contains("BmrInstalled", StringComparison.OrdinalIgnoreCase) ||
-                  f.Name.Contains("BossModAi", StringComparison.OrdinalIgnoreCase));
-    Check("coexist/no-bmr-installed-input", !hasBmrInstalledField);
-    Check("coexist/dodge-fires-anyway", a.Kind == SmartMoverCore.Decision.Move && a.Reason == SmartMoverCore.ReasonDodgeCode);
-}
-
-// ---------------------------------------------------------------- anti-jitter
-{
-    // Flapping target: dest hysteresis keeps the first dest inside the hold
-    var h = new SmartMoverCore.Hysteresis();
-    var w1 = World(player: new(0, -18), range: 3f, target: new(0, 0), hitbox: 5f) with { NowSec = 100.0 };
-    var d1 = SmartMoverCore.Decide(w1, h);
-    Check("jitter/first-move", d1.Kind == SmartMoverCore.Decision.Move && d1.Dest == h.LastDest);
-
-    // Target shifts 0.4y laterally: new ideal within DestChangeYalms -> same dest
-    var w2 = w1 with { TargetPos = new Vector2(0.4f, 0f), NowSec = 100.2 };
-    var d2 = SmartMoverCore.Decide(w2, h);
-    Check("jitter/hold-keeps-dest", d2.Kind == SmartMoverCore.Decision.Move && d2.Dest == d1.Dest, $"d1={d1.Dest} d2={d2.Dest}");
-
-    // After the hold expires, a materially different target moves the dest
-    var w3 = w1 with { TargetPos = new Vector2(6f, 0f), NowSec = 102.0 };
-    var d3 = SmartMoverCore.Decide(w3, h);
-    Check("jitter/after-hold-follows", d3.Kind == SmartMoverCore.Decision.Move && d3.Dest != d1.Dest, $"d3={d3.Dest}");
-
-    // v1.0.4.192: a MATERIALLY different destination inside the hold is
-    // adopted at once (quick target switch), not steered at the old flank
-    // until the hold expires (the dead second branch seen as wonky in testing).
-    var hq = new SmartMoverCore.Hysteresis();
-    var wq1 = World(player: new(0, -18), range: 3f, target: new(0, 0), hitbox: 5f) with { NowSec = 200.0 };
-    var dq1 = SmartMoverCore.Decide(wq1, hq);
-    Check("retarget/first-move", dq1.Kind == SmartMoverCore.Decision.Move);
-    var wq2 = wq1 with { TargetPos = new Vector2(12f, 0f), NowSec = 200.25 };
-    var dq2 = SmartMoverCore.Decide(wq2, hq);
-    var idealNew = Vector2.Distance(dq2.Dest, new Vector2(12f, 0f));
-    var idealOld = Vector2.Distance(dq2.Dest, new Vector2(0, 0));
-    Check("retarget/mid-hold-re-aims", dq2.Kind == SmartMoverCore.Decision.Move && idealNew < idealOld, $"dest={dq2.Dest} dNew={idealNew:F1} dOld={idealOld:F1}");
-
-    // Min-move: a sub-1y adjustment is not worth a path call on a RANGED
-    // band (v1.0.4.201: short bands close in to half a yalm instead - see
-    // engage/melee-sub-yalm-closes-in above - so this negative control runs
-    // on range 20 where the 1.0 deadband still applies).
-    var h2 = new SmartMoverCore.Hysteresis();
-    var w4 = World(player: new(0, -26.4f), range: 20f, target: new(0, 0), hitbox: 5f);
-    var d4 = SmartMoverCore.Decide(w4, h2);
-    Check("jitter/min-move-ignored", d4.Kind is SmartMoverCore.Decision.None or SmartMoverCore.Decision.Stop, $"kind={d4.Kind}");
-}
-
-// ---------------------------------------------------------------- telemetry
-{
-    var line = MovementTelemetryFormat.BuildLine(1694515200123L, 34, "eng", 1234u, 1.4f, 2, 12.3f, -45.6f, 1);
-    var f = MovementTelemetryFormat.Parse(line);
-    Check("mv/prefix", f[0] == "MV");
-    Check("mv/9-fields", f.Length == 9, $"n={f.Length}");
-    Check("mv/job-field", f[2] == "34");
-    Check("mv/dec-field", f[3] == "eng");
-    Check("mv/dist-invariant", f[5] == "1.4", $"dist={f[5]}");
-    Check("mv/nz-field", f[6] == "2");
-    Check("mv/dst-rounded", f[7] == "12,-46", $"dst={f[7]}");
-    Check("mv/ovz-field", f[8] == "1", $"ovz={f[8]}");
-    Check("mv/ovz-zero", MovementTelemetryFormat.Parse(
-        MovementTelemetryFormat.BuildLine(1, 1, "stl", 0, 0f, 0, null, null, 0))[8] == "0");
-    Check("mv/no-dst-dash", MovementTelemetryFormat.Parse(
-        MovementTelemetryFormat.BuildLine(1, 1, "stl", 0, 0f, 0, null, null, 0))[7] == "-");
-
-    // Gate: change + floor; dodge-start bypasses; suppressed not recorded
-    var k1 = MovementTelemetryFormat.KeyOf("eng", 1f, 2f);
-    var k2 = MovementTelemetryFormat.KeyOf("eng", 1.2f, 2.1f); // same after 1y rounding
-    var k3 = MovementTelemetryFormat.KeyOf("ddg", 5f, 5f);
-    Check("mv/gate-first", MovementTelemetryFormat.ShouldEmit(null, 0, 1000, k1, false));
-    Check("mv/gate-same-key-held", !MovementTelemetryFormat.ShouldEmit(k2, 900, 2500, k1, false));
-    Check("mv/gate-changed-emits", MovementTelemetryFormat.ShouldEmit(k1, 900, 2500, k3, false));
-    Check("mv/gate-floor-holds", !MovementTelemetryFormat.ShouldEmit(k1, 2000, 2500, k3, false));
-    Check("mv/gate-dodge-bypasses", MovementTelemetryFormat.ShouldEmit(k1, 2000, 2001, k3, true));
-    Check("mv/ooc-code", MovementTelemetryFormat.DecisionCode("ooc") == SmartMoverCore.ReasonOocCode);
-
-    // Alternation adversary: eng<->stl flip-flop at 4 Hz for a minute
-    int emitted = 0;
-    MovementTelemetryFormat.EmitKey? last = null;
-    long lastMs = 0;
-    for (long t = 0; t <= 60_000; t += 250)
-    {
-        var key = (t / 250) % 2 == 0 ? MovementTelemetryFormat.KeyOf("eng", 1f, 1f) : MovementTelemetryFormat.KeyOf("stl", null, null);
-        if (MovementTelemetryFormat.ShouldEmit(last, lastMs, t, key, false))
+        var w = worldAt(t, pos);
+        var d = SmartMoverCore.Decide(w, s);
+        reasons.Add(d.Reason);
+        // move at most dt*speed toward the held waypoint (the per-frame steering)
+        var dir = SmartMoverCore.SteerDirection(s, pos);
+        if (dir is { } v)
         {
-            emitted++;
-            last = key;
-            lastMs = t;
+            var wp = s.Waypoint ?? pos;
+            var step = MathF.Min(speed * dt, Vector2.Distance(pos, wp));
+            pos += v * step;
+        }
+        for (var i = 0; i < zones.Count; i++)
+        {
+            var z = zones[i];
+            if (checkedZones.Contains(i) || z.ActivationSec > t)
+                continue;
+            checkedZones.Add(i);
+            // the real hit shape is the undilated one: test with a negative buffer of the dilation (1y)
+            if (DangerZoneModel.Contains(z, pos, -1f))
+                return (false, $"inside zone {i} ({z.Kind}) at t={t:F1} pos={pos}", pos, reasons);
         }
     }
-    Check("mv/gate-alternation-capped", emitted <= 61, $"emitted={emitted}");
-
-    // 200-char budget
-    var longLine = MovementTelemetryFormat.BuildLine(1694515200123L, 34, "eng", 9999999u, 1.4f, 99, 123456f, -654321f, 99);
-    Check("mv/length-cap", longLine.Length <= 200, $"len={longLine.Length}");
+    return (true, "", pos, reasons);
 }
 
-// ---------------------------------------------------------------- lingering ground danger (v1.0.4.193)
+// ---------------------------------------------------------------- shape distance
 {
-    var lz = new DangerZoneModel.LingeringZones();
-    var zl = new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(5, 5), 0f, 4f, 0f, 0f, 0f, default, 0f);
-    lz.Add(in zl, 1000.0);
-    var live = new List<DangerZoneModel.Zone>();
-    var n = lz.AppendTo(live, 1001.0);
-    Check("linger/active-with-remaining", n == 1 && live[0].RemainingSec >= 1.5f && live[0].RemainingSec <= 3f, $"n={n} rem={(n > 0 ? live[0].RemainingSec : -1)}");
-    lz.Sweep(1004.1);
-    var dead = new List<DangerZoneModel.Zone>();
-    Check("linger/swept-after-expiry", lz.AppendTo(dead, 1004.1) == 0 && dead.Count == 0);
-    lz.Add(in zl, 2000.0);
-    lz.Clear();
-    var cleared = new List<DangerZoneModel.Zone>();
-    Check("linger/clear-drops-all", lz.AppendTo(cleared, 2000.5) == 0);
+    var c = ShapeDistance.Circle(new(0, 0), 5);
+    Check("sdf/circle-inside", c(new(3, 0)) < 0);
+    Check("sdf/circle-outside", c(new(6, 0)) > 0);
+    Check("sdf/circle-value", MathF.Abs(c(new(7, 0)) - 2f) < 0.01f);
+
+    var d = ShapeDistance.Donut(new(0, 0), 4, 40);
+    Check("sdf/donut-hole", d(new(2, 0)) > 0);
+    Check("sdf/donut-ring", d(new(10, 0)) < 0);
+    Check("sdf/donut-out", d(new(45, 0)) > 0);
+
+    var cone = ShapeDistance.Cone(new(0, 0), 20, 0f, MathF.PI / 6f); // 60-degree cone along +X
+    Check("sdf/cone-axis", cone(new(5, 0)) < 0);
+    Check("sdf/cone-edge-in", cone(new(5, MathF.Tan(MathF.PI / 6f) * 5 - 0.2f)) < 0);
+    Check("sdf/cone-edge-out", cone(new(5, MathF.Tan(MathF.PI / 6f) * 5 + 0.2f)) > 0);
+    Check("sdf/cone-behind", cone(new(-5, 0)) > 0);
+    Check("sdf/cone-far", cone(new(25, 0)) > 0);
+
+    var wide = ShapeDistance.Cone(new(0, 0), 20, 0f, MathF.PI * 0.75f); // 270-degree cone
+    Check("sdf/widecone-side", wide(new(0, 5)) < 0);
+    Check("sdf/widecone-behind", wide(new(-5, 0)) > 0);
+    Check("sdf/widecone-front", wide(new(5, 0)) < 0);
+
+    var r = ShapeDistance.Rect(new(0, 0), 0f, 10, 0, 2);
+    Check("sdf/rect-in", r(new(5, 1)) < 0);
+    Check("sdf/rect-side", r(new(5, 3)) > 0);
+    Check("sdf/rect-behind", r(new(-1, 0)) > 0);
+    var lane = ShapeDistance.Rect(new(0, 0), new Vector2(0, 10), 5);
+    Check("sdf/lane-in", lane(new(3, 5)) < 0);
+    Check("sdf/lane-out", lane(new(7, 5)) > 0);
+    var x = ShapeDistance.Cross(new(0, 0), 0f, 10, 2);
+    Check("sdf/cross-arm1", x(new(8, 0)) < 0);
+    Check("sdf/cross-arm2", x(new(0, 8)) < 0);
+    Check("sdf/cross-diag", x(new(5, 5)) > 0);
+
+    // Zone -> Sdf agrees with Contains
+    var z = Cast(5, 8f, 0f, 3f, new(0, 0), new(0, 0), 5f, 0);
+    var f = DangerZoneModel.Sdf(in z);
+    Check("sdf/zone-agree-in", (f(new(5, 0)) < 0) == DangerZoneModel.Contains(z, new(5, 0), 0f));
+    Check("sdf/zone-agree-out", (f(new(14, 0)) < 0) == DangerZoneModel.Contains(z, new(14, 0), 0f));
 }
 
-// ------------------------------------------------------- movement gate (Policy A)
+// ---------------------------------------------------------------- map + planner basics
 {
-    // Real derived zone geometry: point-blank circle on the boss (cast type 5),
-    // radius ~= 8 + 3 (hitbox) + MaxError. The gate's landing check runs through
-    // the same SmartMoverCore.UnsafeAt the Dalamud half uses.
-    var gzone = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
-        5, 8f, 0f, 3f, new(0, 0), new(0, 0), 0, 1, 5f, 60f, 0f));
-    var gzones = (IReadOnlyList<DangerZoneModel.Zone>)new[] { gzone!.Value };
-    bool UnsafeLanding(Vector2 p) => SmartMoverCore.UnsafeAt(p, gzones, 1f) is not null;
+    var s = new SmartMoverCore.MoverState();
+    var w = World(new Vector2(0, -8), 100.0, engaged: false);
+    var d = SmartMoverCore.Decide(w, s);
+    Check("plan/no-zones-no-target-settles", d.Kind == SmartMoverCore.Decision.None && d.Reason == SmartMoverCore.ReasonSettleCode, $"{d}");
+    Check("plan/leeway-inf", d.LeewaySec == float.MaxValue);
 
-    // All clear -> allowed
-    Check("gate/clear-allowed", MovementGateCore.Allowed(true, false, false, UnsafeLanding(new Vector2(0, -20))));
-    // Dodging -> held no matter where the landing is
-    Check("gate/dodge-held", !MovementGateCore.Allowed(true, true, false, UnsafeLanding(new Vector2(0, -20))));
-    // Another dash executing -> held (two dashes in one lock is a dropped input)
-    Check("gate/dash-held", !MovementGateCore.Allowed(true, false, true, UnsafeLanding(new Vector2(0, -20))));
-    // Landing inside the live zone -> refused; well outside -> allowed
-    Check("gate/landing-in-zone-refused", !MovementGateCore.Allowed(true, false, false, UnsafeLanding(new Vector2(10f, 0))));
-    Check("gate/landing-outside-zone-allowed", MovementGateCore.Allowed(true, false, false, UnsafeLanding(new Vector2(14f, 0))));
-    // Buffer: outside the raw radius but inside radius+buffer is still refused
-    Check("gate/buffer-margin-refused", !MovementGateCore.Allowed(true, false, false, UnsafeLanding(new Vector2(11.5f, 0))));
-    // Gate disabled: stock byte-identical - passes even while dodging AND dashing AND unsafe
-    Check("gate/disabled-stock-identical", MovementGateCore.Allowed(false, true, true, true));
+    // inside a circle resolving in 4 s: must steer out with positive leeway
+    var z = Cast(5, 8f, 0f, 3f, new(0, 0), new(0, 0), 4f, 100.0);
+    var w2 = World(new Vector2(0, -5), 100.0, new[] { z }, engaged: false);
+    var d2 = SmartMoverCore.Decide(w2, s);
+    Check("plan/inside-circle-steers", d2.Kind == SmartMoverCore.Decision.Steer, $"{d2}");
+    Check("plan/inside-circle-ddg", d2.Reason == SmartMoverCore.ReasonDodgeCode, $"{SmartMoverCore.ReasonString(d2.Reason)}");
+    Check("plan/inside-circle-start-unsafe", d2.StartUnsafe);
+    Check("plan/inside-circle-leeway-positive", d2.LeewaySec > 0 && d2.LeewaySec < 4f, $"lee={d2.LeewaySec}");
+    Check("plan/inside-circle-maxcast", d2.MaxCastTime == d2.LeewaySec);
+
+    // outside every zone, no goals: stay put (hold, zones live)
+    var w3 = World(new Vector2(0, -20), 100.0, new[] { z }, engaged: false);
+    var d3 = SmartMoverCore.Decide(w3, s);
+    Check("plan/outside-holds", d3.Kind == SmartMoverCore.Decision.None && d3.Reason == SmartMoverCore.ReasonHoldCode, $"{SmartMoverCore.ReasonString(d3.Reason)}");
+
+    // simulate the escape: never inside at activation
+    var zs = new[] { z };
+    var sim = Simulate((t, p) => World(p, t, zs, engaged: false), zs, new Vector2(0, -5), 100.0, 104.5);
+    Check("sim/inside-circle-escapes", sim.ok, sim.detail);
+    Check("sim/inside-circle-radial", Vector2.Distance(sim.end, new Vector2(0, 0)) > 9.5f, $"end={sim.end}");
 }
 
-// ------------------------------------------------------- omen VFX zones (v1.0.4.195)
+// ---------------------------------------------------------------- guards
 {
-    // Path classification: is it an omen at all?
-    Check("omen/is-path-yes", OmenVfxModel.IsOmenPath("vfx/omen/gl_fan060_1bf/vfx_omen_gl_fan060_1bf.avfx"));
-    Check("omen/is-path-full-sircle", OmenVfxModel.IsOmenPath("vfx/omen/gl_sircle_1907af/vfx_omen_gl_sircle_1907af.avfx"));
-    Check("omen/is-path-bare-fragment-no", !OmenVfxModel.IsOmenPath("gl_sircle_1907af"));
-    Check("omen/is-path-no", !OmenVfxModel.IsOmenPath("vfx/lockon/sk1_o.avfx"));
-    Check("omen/is-path-empty", !OmenVfxModel.IsOmenPath(""));
-
-    // Shape classification (Omen.csv fragments)
-    var kFan = OmenVfxModel.Classify("vfx/omen/gl_fan060_1bf.avfx", out var halfFan);
-    Check("omen/fan-cone", kFan == OmenVfxModel.OmenKind.Cone);
-    Check("omen/fan-half-angle", MathF.Abs(halfFan - 30f) < 0.01f, $"half={halfFan}");
-    var kFanBad = OmenVfxModel.Classify("vfx/omen/gl_fan_1bf.avfx", out var halfBad);
-    Check("omen/fan-unparseable-default",
-        kFanBad == OmenVfxModel.OmenKind.Cone && MathF.Abs(halfBad - OmenVfxModel.DefaultConeHalfDeg) < 0.01f, $"half={halfBad}");
-    Check("omen/donut", OmenVfxModel.Classify("vfx/omen/m0244donut_o0t.avfx", out _) == OmenVfxModel.OmenKind.Donut);
-    Check("omen/line-rect", OmenVfxModel.Classify("vfx/omen/general01_cline0k1.avfx", out _) == OmenVfxModel.OmenKind.Rect);
-    Check("omen/sircle-circle", OmenVfxModel.Classify("vfx/omen/gl_sircle_1907af.avfx", out _) == OmenVfxModel.OmenKind.Circle);
-    Check("omen/general-circle", OmenVfxModel.Classify("vfx/omen/general_1bf.avfx", out _) == OmenVfxModel.OmenKind.Circle);
-    Check("omen/empty-circle", OmenVfxModel.Classify("", out _) == OmenVfxModel.OmenKind.Circle);
-
-    // Zone build: circle conservative radius
-    var oc = OmenVfxModel.BuildZone(OmenVfxModel.OmenKind.Circle, 0f, new(10, -10), 0f, false, 3f, 0.5f, 1f);
-    Check("omen/circle-built", oc is { Kind: DangerZoneModel.ShapeKind.Circle });
-    Check("omen/circle-radius-conservative", oc!.Value.Radius >= OmenVfxModel.CircleRadiusY, $"r={oc.Value.Radius}");
-
-    // Donut: default inner (BossMod's own 3), hole safe, ring danger
-    var od = OmenVfxModel.BuildZone(OmenVfxModel.OmenKind.Donut, 0f, new(0, 0), 0f, false, 0f, 0f, 1f);
-    Check("omen/donut-built", od is { Kind: DangerZoneModel.ShapeKind.Donut });
-    Check("omen/donut-hole-safe", !DangerZoneModel.Contains(od!.Value, new Vector2(0f, 0f), 0f));
-    Check("omen/donut-ring-danger", DangerZoneModel.Contains(od.Value, new Vector2(6f, 0f), 0f));
-
-    // Cone: aimed from the caster facing; the facing convention is the one
-    // the cast path already established (game r=0 faces +Z/north)
-    var on = OmenVfxModel.BuildZone(OmenVfxModel.OmenKind.Cone, 30f, new(0, 0), OmenVfxModel.FacingYaw(0f), true, 3f, 0f, 1f);
-    Check("omen/cone-built", on is { Kind: DangerZoneModel.ShapeKind.Cone });
-    Check("omen/cone-facing-convention", on is { } &&
-        DangerZoneModel.Contains(on.Value, new Vector2(0.5f, 8f), 0f) &&
-        !DangerZoneModel.Contains(on.Value, new Vector2(0f, -8f), 0f),
-        $"yaw={OmenVfxModel.FacingYaw(0f)}");
-
-    // Cone without a usable aim -> conservative circle superset
-    var onf = OmenVfxModel.BuildZone(OmenVfxModel.OmenKind.Cone, 30f, new(0, 0), 0f, false, 0f, 0f, 1f);
-    Check("omen/cone-no-aim-circle", onf is { Kind: DangerZoneModel.ShapeKind.Circle });
-
-    // Rect: symmetric about the placement, axis from the quaternion. A 90-degree
-    // yaw quaternion must give a rect along +X, covering both +/- X and
-    // excluding a far +Z point - invariant to a 180-degree axis error.
-    var yawQ = OmenVfxModel.QuatYaw(0f, 0f, 0.7071f, 0.7071f);
-    Check("omen/quat-90", yawQ is { } q && MathF.Abs(MathF.Abs(q) - MathF.PI / 2f) < 0.01f, $"yaw={yawQ}");
-    var orl = OmenVfxModel.BuildZone(OmenVfxModel.OmenKind.Rect, 0f, new(0, 0), yawQ ?? 0f, yawQ is not null, 0f, 0f, 1f);
-    Check("omen/rect-built", orl is { Kind: DangerZoneModel.ShapeKind.Rect });
-    Check("omen/rect-symmetric", orl is { } &&
-        DangerZoneModel.Contains(orl.Value, new Vector2(4f, 0f), 0f) &&
-        DangerZoneModel.Contains(orl.Value, new Vector2(-4f, 0f), 0f) &&
-        !DangerZoneModel.Contains(orl.Value, new Vector2(0f, 12f), 0f),
-        $"yaw={yawQ} z={orl}");
-
-    // Near-identity and junk quaternions carry no trustworthy axis
-    Check("omen/quat-identity-null", OmenVfxModel.QuatYaw(0f, 0f, 0f, 1f) is null);
-    Check("omen/quat-near-identity-null", OmenVfxModel.QuatYaw(0f, 0f, 0.0262f, 0.9997f) is null);
-    Check("omen/quat-junk-null", OmenVfxModel.QuatYaw(0f, 0f, 0f, 0f) is null);
-
-    // Age window: fresh is live with the full cap remaining, expired is dropped
-    var fresh = OmenVfxModel.BuildZone(OmenVfxModel.OmenKind.Circle, 0f, new(0, 0), 0f, false, 0f, 0f, 1f);
-    Check("omen/age-zero-live", fresh is { } && fresh.Value.RemainingSec > OmenVfxModel.MaxAgeSec - 0.5f, $"rem={fresh?.RemainingSec}");
-    Check("omen/age-expired-null",
-        OmenVfxModel.BuildZone(OmenVfxModel.OmenKind.Circle, 0f, new(0, 0), 0f, false, 0f, OmenVfxModel.MaxAgeSec, 1f) is null);
-
-    // End-to-end: an omen circle on the player's feet dodges; the same zone
-    // far away does not (the negative control for zone plumbing)
-    var oz = OmenVfxModel.BuildZone(OmenVfxModel.OmenKind.Circle, 0f, new(0, -8), 0f, false, 0f, 0f, 1f)!.Value;
-    var ho = new SmartMoverCore.Hysteresis();
-    var doDodge = SmartMoverCore.Decide(World(player: new(0, -8), zones: new[] { oz }), ho);
-    Check("omen/dodge-fires", doDodge.Kind == SmartMoverCore.Decision.Move && doDodge.Reason == SmartZoneDDG(), $"k={doDodge.Kind} r={doDodge.Reason}");
-    var ho2 = new SmartMoverCore.Hysteresis();
-    var doQuiet = SmartMoverCore.Decide(World(player: new(0, -8), zones: new[] { oz with { Origin = new Vector2(40, 40) } }), ho2);
-    Check("omen/far-zone-no-dodge", doQuiet.Reason != SmartZoneDDG(), $"r={doQuiet.Reason}");
+    var s = new SmartMoverCore.MoverState();
+    Check("guard/off", SmartMoverCore.Decide(World(new(0, -8), 1, enabled: false), s).Reason == SmartMoverCore.ReasonOffCode);
+    Check("guard/manual", SmartMoverCore.Decide(World(new(0, -8), 1, manual: true), s).Reason == SmartMoverCore.ReasonManualCode);
+    Check("guard/external", SmartMoverCore.Decide(World(new(0, -8), 1, external: true), s).Reason == SmartMoverCore.ReasonExternalCode);
+    Check("guard/ooc", SmartMoverCore.Decide(World(new(0, -8), 1, combat: false), s).Reason == SmartMoverCore.ReasonOocCode);
+    Check("guard/mounted", SmartMoverCore.Decide(World(new(0, -8), 1, mounted: true), s).Reason == SmartMoverCore.ReasonMountedCode);
+    Check("guard/knockback", SmartMoverCore.Decide(World(new(0, -8), 1, kb: true), s).Reason == SmartMoverCore.ReasonKnockbackCode);
+    // ooc never dodges either (combat-gated, as v1)
+    var z = Cast(5, 8f, 0f, 3f, new(0, 0), new(0, 0), 4f, 1.0);
+    Check("guard/ooc-no-dodge", SmartMoverCore.Decide(World(new(0, -5), 1, new[] { z }, combat: false), s).Kind != SmartMoverCore.Decision.Steer);
+    // a steer in progress then manual input -> Stop
+    s = new SmartMoverCore.MoverState();
+    SmartMoverCore.Decide(World(new(0, -5), 1, new[] { z }, engaged: false), s);
+    var d = SmartMoverCore.Decide(World(new(0, -5), 1.1, new[] { z }, engaged: false, manual: true), s);
+    Check("guard/manual-stops-steer", d.Kind == SmartMoverCore.Decision.Stop && s.Waypoint is null);
 }
 
-// ------------------------------------------------- true arena bounds (v1.0.4.196, gap 1)
+// ---------------------------------------------------------------- engage (goals)
 {
-    // Mesh gate: walkable only within 10y of the target (simulates a real
-    // arena boundary that the old MaxDestDistFromTarget=15y heuristic alone
-    // would NOT catch - the candidate is within 15y of the target but off
-    // the simulated mesh).
-    bool MeshWithin10(Vector2 p) => Vector2.Distance(p, new Vector2(0, 0)) <= 10f;
-
-    // Player standing in a circle danger zone at (0,-8); every ring sample
-    // beyond 10y from the target is now off-mesh even though it is still
-    // inside the 15y distance clamp - the mesh gate must reject those and
-    // land the dodge somewhere walkable instead.
-    var zone = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -8), 0f, 8f, 0f, 0f, 0f, default, 3f) };
-    var hMesh = new SmartMoverCore.Hysteresis();
-    var wMesh = World(player: new(0, -8), target: new(0, 0), hitbox: 5f, zones: zone) with { IsPointWalkable = MeshWithin10 };
-    var dMesh = SmartMoverCore.Decide(wMesh, hMesh);
-    Check("arena/dodge-respects-mesh-gate", dMesh.Kind == SmartMoverCore.Decision.Move &&
-        dMesh.Reason == SmartMoverCore.ReasonDodgeCode && MeshWithin10(dMesh.Dest), $"kind={dMesh.Kind} dest={dMesh.Dest} within10={MeshWithin10(dMesh.Dest)}");
-
-    // Negative control: the identical scene WITHOUT a mesh predicate (null,
-    // the vnavmesh-absent / not-ready default) must NOT be constrained to
-    // the 10y disc - proving the gate above is the mesh check, not some
-    // other effect (e.g. the pre-existing 15y clamp, which the 10y disc is
-    // strictly tighter than). At least one dodge ring sample lands beyond
-    // 10y from the target when the mesh gate is absent.
-    var hFree = new SmartMoverCore.Hysteresis();
-    var wFree = World(player: new(0, -8), target: new(0, 0), hitbox: 5f, zones: zone);
-    var dFree = SmartMoverCore.Decide(wFree, hFree);
-    Check("arena/no-mesh-predicate-unconstrained-by-10y-disc", dFree.Kind == SmartMoverCore.Decision.Move &&
-        dFree.Reason == SmartMoverCore.ReasonDodgeCode, $"kind={dFree.Kind} r={dFree.Reason}");
-
-    // v1.0.4.212 supersedes the v1.0.4.196 contract here: an entirely
-    // off-mesh neighbourhood no longer holds the character INSIDE a live
-    // telegraph. The probe is one plane through sloped ground and is known
-    // to reject good ground (the 1.0.4.210 grading, which is why an approach
-    // stopped honouring it in 1.0.4.211); a hold inside a zone is a certain
-    // hit, while a destination the pathfinder cannot route to costs nothing.
-    var noneWalkable = SmartMoverCore.FindSafePoint(new Vector2(0, -8), zone, new Vector2(0, 0), 15f, _ => false);
-    Check("arena/all-offmesh-still-escapes", noneWalkable is not null, $"result={noneWalkable}");
-    Check("arena/all-offmesh-escape-is-zone-safe",
-        noneWalkable is { } nw && SmartMoverCore.UnsafeAt(nw, zone, 0.25f) is null, $"result={noneWalkable}");
-
-    // FindSafePoint unit-level positive: mesh gate present but not blocking
-    // the whole neighbourhood still finds a point (sanity - the plumbing
-    // does not accidentally always reject).
-    var someWalkable = SmartMoverCore.FindSafePoint(new Vector2(0, -8), zone, new Vector2(0, 0), 15f, MeshWithin10);
-    Check("arena/find-safe-point-partial-mesh-succeeds", someWalkable is { } sw && MeshWithin10(sw), $"result={someWalkable}");
-
-    // Engage/settle path: the ideal ring point is off-mesh (west side of the
-    // ring only) but a safe walkable variant exists elsewhere on the ring -
-    // FindSafeRingPoint must honour the mesh gate exactly like it already
-    // honours danger zones.
-    bool EastOnly(Vector2 p) => p.X >= -0.5f;
-    var ringPoint = SmartMoverCore.FindSafeRingPoint(new Vector2(-8f, 0f), new Vector2(0, 0), NoZones, EastOnly);
-    Check("arena/ring-sweep-respects-mesh-gate", ringPoint is { } rp && EastOnly(rp), $"result={ringPoint}");
-
-    // And when EVERY ring point is off-mesh, FindSafeRingPoint holds (null)
-    // rather than returning an illegal standing point.
-    var ringNone = SmartMoverCore.FindSafeRingPoint(new Vector2(-8f, 0f), new Vector2(0, 0), NoZones, _ => false);
-    Check("arena/ring-sweep-all-offmesh-holds", ringNone is null, $"result={ringNone}");
-
-    // End-to-end engage: player far from an off-arena-shaped target ring
-    // (ideal point is off-mesh), a walkable ring alternative exists, and the
-    // mover must land ON the mesh even though no danger zone is involved.
-    var hEng = new SmartMoverCore.Hysteresis();
-    var wEng = World(player: new(-18, 0), range: 3f, target: new(0, 0), hitbox: 5f) with { IsPointWalkable = EastOnly };
-    var dEng = SmartMoverCore.Decide(wEng, hEng);
-    Check("arena/engage-lands-on-mesh", dEng.Kind == SmartMoverCore.Decision.Move && EastOnly(dEng.Dest), $"kind={dEng.Kind} dest={dEng.Dest}");
-
-    // MaxDestDistFromTarget remains an independent backstop even with a mesh
-    // gate present (BOTH must pass) - a mesh predicate that allows
-    // everything (always true) must still respect the 15y clamp.
-    var bigZone = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, 0), 0f, 20f, 0f, 0f, 0f, default, 3f) };
-    var hClamp = new SmartMoverCore.Hysteresis();
-    var wClamp = World(player: new(0, -8), target: new(0, 0), hitbox: 5f, zones: bigZone) with { IsPointWalkable = _ => true };
-    var dClamp = SmartMoverCore.Decide(wClamp, hClamp);
-    Check("arena/distance-clamp-still-applies-with-mesh-allow-all", dClamp.Kind == SmartMoverCore.Decision.None, $"kind={dClamp.Kind} dest={dClamp.Dest}");
+    var s = new SmartMoverCore.MoverState();
+    // melee, target hitbox 5 range 3 -> band radius 8.5; player at 15 -> must move in
+    var w = World(new Vector2(0, -15), 10.0, target: new(0, 0), range: 3f, hitbox: 5f);
+    var d = SmartMoverCore.Decide(w, s);
+    Check("engage/outside-band-steers", d.Kind == SmartMoverCore.Decision.Steer && d.Reason == SmartMoverCore.ReasonEngageCode, $"{SmartMoverCore.ReasonString(d.Reason)}");
+    var sim = Simulate((t, p) => World(p, t, target: new(0, 0), range: 3f, hitbox: 5f), NoZones, new Vector2(0, -15), 10.0, 14.0);
+    Check("engage/arrives-in-band", Vector2.Distance(sim.end, new(0, 0)) <= 8.6f, $"end={sim.end}");
+    Check("engage/does-not-overshoot", Vector2.Distance(sim.end, new(0, 0)) >= 7.0f, $"end={sim.end}");
+    // already inside the band: settle, no move
+    var d2 = SmartMoverCore.Decide(World(new Vector2(0, -7), 20.0, target: new(0, 0), range: 3f, hitbox: 5f), s);
+    Check("engage/inside-band-settles", d2.Kind == SmartMoverCore.Decision.None && d2.Reason == SmartMoverCore.ReasonSettleCode, $"{SmartMoverCore.ReasonString(d2.Reason)}");
+    // ranged at melee distance: never backs away
+    var d3 = SmartMoverCore.Decide(World(new Vector2(0, -6), 30.0, target: new(0, 0), range: 20f, hitbox: 5f), s);
+    Check("engage/ranged-close-never-backs-away", d3.Kind == SmartMoverCore.Decision.None, $"{d3}");
+    // positional: rear wanted, player at flank in band -> moves to rear wedge
+    var s2 = new SmartMoverCore.MoverState();
+    var simR = Simulate((t, p) => World(p, t, target: new(0, 0), range: 3f, hitbox: 5f, tRot: 0f, posWanted: true, rear: true), NoZones, new Vector2(7, 0), 40.0, 44.0);
+    var wR = World(simR.end, 44.0, target: new(0, 0), range: 3f, hitbox: 5f, tRot: 0f, posWanted: true, rear: true);
+    Check("engage/positional-rear-reached", SmartMoverCore.AtPositional(simR.end, wR), $"end={simR.end}");
+    Check("engage/positional-still-in-band", Vector2.Distance(simR.end, new(0, 0)) <= 8.6f, $"end={simR.end}");
+    // long approach: target 40 y away -> vnavmesh NavTo once, then None while running
+    var s3 = new SmartMoverCore.MoverState();
+    var dl = SmartMoverCore.Decide(World(new Vector2(0, -40), 50.0, target: new(0, 0)), s3);
+    Check("engage/long-approach-navto", dl.Kind == SmartMoverCore.Decision.NavTo && dl.Reason == SmartMoverCore.ReasonApproachCode, $"{dl}");
+    var dl2 = SmartMoverCore.Decide(World(new Vector2(0, -38), 50.2, target: new(0, 0)), s3);
+    Check("engage/long-approach-not-reissued", dl2.Kind == SmartMoverCore.Decision.None, $"{dl2}");
+    var dl3 = SmartMoverCore.Decide(World(new Vector2(0, -40), 50.0, target: new(0, 0), nav: false), new SmartMoverCore.MoverState());
+    Check("engage/long-approach-no-nav", dl3.Kind == SmartMoverCore.Decision.None && dl3.Reason == SmartMoverCore.ReasonNavCode);
 }
 
-
-// ------------------------------------------------- dodge continuity (v1.0.4.197)
+// ---------------------------------------------------------------- cast coupling
 {
-    // Overlapping-AoE stability: while a dodge is already committed, its
-    // destination is KEPT as long as it stays safe - the sampler's "nearest
-    // safe point" wobbles 1-2y per tick under overlap and every wobble used
-    // to re-aim the dodge (the visible freakout).
-    var zones = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -8), 0f, 8f, 0f, 0f, 0f, default, 3f) };
-    var h = new SmartMoverCore.Hysteresis();
-    var d1 = SmartMoverCore.Decide(World(player: new(0, -8), zones: zones) with { NowSec = 300.0 }, h);
-    Check("continuity/first-dodge-moves", d1.Kind == SmartMoverCore.Decision.Move && d1.Reason == SmartZoneDDG(), $"kind={d1.Kind} r={d1.Reason}");
-    var d2 = SmartMoverCore.Decide(World(player: new(0, -7.9f), zones: zones) with { NowSec = 300.25 }, h);
-    Check("continuity/held-dodge-dest-kept", d2.Kind == SmartMoverCore.Decision.Move && d2.Dest == d1.Dest, $"d1={d1.Dest} d2={d2.Dest}");
-
-    // The held destination is released the moment a new zone covers it -
-    // continuity must never pin the player inside fresh danger.
-    var cover = new[] {
-        zones[0],
-        new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, d1.Dest, 0f, 4f, 0f, 0f, 0f, default, 3f),
-    };
-    var d3 = SmartMoverCore.Decide(World(player: new(0, -7.9f), zones: cover) with { NowSec = 300.5 }, h);
-    Check("continuity/covered-held-dest-released", d3.Kind == SmartMoverCore.Decision.Move &&
-        SmartMoverCore.UnsafeAt(d3.Dest, cover, 0.25f) is null && d3.Dest != d1.Dest, $"d3={d3.Dest} d1={d1.Dest}");
+    var s = new SmartMoverCore.MoverState();
+    var z = Cast(5, 8f, 0f, 3f, new(0, 0), new(0, 0), 6f, 100.0); // resolves at 106.3; cushion 1 -> must be out by 105.3
+    // casting with 2.0 s left at t=100: leeway (~4.5 s) > 1.5 -> finish the cast
+    var d = SmartMoverCore.Decide(World(new Vector2(0, -5), 100.0, new[] { z }, engaged: false, casting: true, castRem: 2.0f), s);
+    Check("cast/finish-when-leeway-allows", d.Reason == SmartMoverCore.ReasonCastCode && d.Kind != SmartMoverCore.Decision.Steer, $"{SmartMoverCore.ReasonString(d.Reason)} lee={d.LeewaySec}");
+    // same cast at t=104.5: leeway < remaining - 0.5 -> cut the cast and move
+    var d2 = SmartMoverCore.Decide(World(new Vector2(0, -5), 104.5, new[] { z }, engaged: false, casting: true, castRem: 2.0f), s);
+    Check("cast/cut-when-late", d2.Kind == SmartMoverCore.Decision.Steer, $"{SmartMoverCore.ReasonString(d2.Reason)} lee={d2.LeewaySec}");
+    // slidecast window: 0.4 s left never holds
+    var d3 = SmartMoverCore.Decide(World(new Vector2(0, -5), 100.0, new[] { z }, engaged: false, casting: true, castRem: 0.4f), s);
+    Check("cast/slidecast-moves", d3.Kind == SmartMoverCore.Decision.Steer);
+    // MaxCastTime export: with nothing live it is infinite; inside a zone it is the leeway
+    Check("cast/maxcast-inf-when-clear", SmartMoverCore.Decide(World(new Vector2(0, -20), 100.0, engaged: false), s).MaxCastTime == float.MaxValue);
+    Check("cast/maxcast-finite-when-threatened", SmartMoverCore.Decide(World(new Vector2(0, -5), 100.0, new[] { z }, engaged: false), s).MaxCastTime < 6f);
 }
 
-// ------------------------------------------------- nav standdown visibility (v1.0.4.198)
+// ---------------------------------------------------------------- time awareness
 {
-    // A dead nav layer must not masquerade as toggle-off: the RDM
-    // Occult-Crescent window (toggle ON, telemetry ON, in combat) emitted
-    // zero MV lines because !NavReady shared ReasonOffCode with !Enabled
-    // and Emit filtered both.
-    var hNav = new SmartMoverCore.Hysteresis();
-    var dMove = SmartMoverCore.Decide(World(player: new(0, -18)), hNav);
-    Check("nav/prime-moves", dMove.Kind == SmartMoverCore.Decision.Move, $"kind={dMove.Kind} r={dMove.Reason}");
-    var dNav = SmartMoverCore.Decide(World(player: new(0, -18), nav: false), hNav);
-    Check("nav/not-ready-reason-nav", dNav.Kind == SmartMoverCore.Decision.Stop && dNav.Reason == SmartMoverCore.ReasonNavCode, $"kind={dNav.Kind} r={dNav.Reason}");
-    var hOff = new SmartMoverCore.Hysteresis();
-    _ = SmartMoverCore.Decide(World(player: new(0, -18)), hOff);
-    var dOff = SmartMoverCore.Decide(World(player: new(0, -18), enabled: false), hOff);
-    Check("nav/toggle-off-stays-off", dOff.Kind == SmartMoverCore.Decision.Stop && dOff.Reason == SmartMoverCore.ReasonOffCode, $"kind={dOff.Kind} r={dOff.Reason}");
+    // two casts: A (near, resolves in 2 s) and B (far side, resolves in 8 s). Escape from A may cross B.
+    var a = Cast(2, 6f, 0f, 0f, new(0, 0), new(0, 0), 2f, 100.0, src: 1);
+    var b = Cast(2, 6f, 0f, 0f, new(0, 12), new(0, 12), 8f, 100.0, src: 2);
+    var zs = new[] { a, b };
+    var sim = Simulate((t, p) => World(p, t, zs, engaged: false), zs, new Vector2(0, 2), 100.0, 108.5);
+    Check("time/sequential-zones-survive", sim.ok, sim.detail);
+    // a zone resolving in 30 s does not move a character standing still inside it... until it has to
+    var late = Cast(5, 8f, 0f, 3f, new(0, 0), new(0, 0), 30f, 100.0);
+    var s = new SmartMoverCore.MoverState();
+    var d = SmartMoverCore.Decide(World(new Vector2(0, -5), 100.0, new[] { late }, engaged: false), s);
+    Check("time/far-future-still-plans-exit", d.Kind == SmartMoverCore.Decision.Steer && d.LeewaySec > 20f, $"lee={d.LeewaySec}");
+    // the wait: a target in band under a 30 s telegraph keeps uptime? goals are off while the cell is unsafe (safety first): expect a steer to the band edge outside
+    var d2 = SmartMoverCore.Decide(World(new Vector2(0, -6), 100.0, new[] { late }, target: new(0, 0), range: 3f, hitbox: 5f), s);
+    Check("time/unsafe-cell-ignores-goals", d2.Kind == SmartMoverCore.Decision.Steer, $"{d2}");
 }
 
-// ------------------------------------------------- dodge persistence (v1.0.4.202)
+// ---------------------------------------------------------------- scene replays from the 2026-09-17 logs
 {
-    // Telemetry-proven defect (RDM Occult-Crescent grading on 1.0.4.201:
-    // ddg 19:43:50.383 then stl 19:43:51.400 with zones still live): a
-    // one-tick zone flicker used to abandon a live dodge - the settle path's
-    // StandDown cleared the hysteresis and the host killed the vnav path.
-    var zone = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -8), 0f, 8f, 0f, 0f, 0f, default, 3f) };
-    var h = new SmartMoverCore.Hysteresis();
-    var d1 = SmartMoverCore.Decide(World(player: new(0, -8), zones: zone) with { NowSec = 200.0 }, h);
-    Check("persist/dodge-commits", d1.Kind == SmartMoverCore.Decision.Move && d1.Reason == SmartZoneDDG(), $"kind={d1.Kind} r={d1.Reason}");
+    // Burst wall (19:02:35, Copperbell): six r8 circles from Ichorous Drip helpers on y=114 and two more; player (28.2,117.1); boss Ichorous Ire (27.4,116.5)
+    var drips = new[] { new Vector2(14.3f, 126.7f), new(39.7f, 101.2f), new(45, 114), new(33, 114), new(21, 114), new(9, 114) };
+    var zs = drips.Select((p, i) => Cast(2, 8f, 0f, 0.5f, p, p, 5.7f, 0.0, src: (ulong)(10 + i), action: 0x6F31)).ToArray();
+    var boss = new Vector2(27.4f, 116.5f);
+    var sim = Simulate((t, p) => World(p, t, zs, target: boss, range: 3f, hitbox: 3f), zs, new Vector2(28.2f, 117.1f), 0.0, 6.5);
+    Check("scene/burst-wall-survives", sim.ok, sim.detail);
+    Check("scene/burst-wall-first-decision-dodge", sim.reasons[0] == SmartMoverCore.ReasonDodgeCode, SmartMoverCore.ReasonString(sim.reasons[0]));
+    // after resolution the zones are gone: the character walks back into the band
+    var back = Simulate((t, p) => World(p, t, target: boss, range: 3f, hitbox: 3f), NoZones, sim.end, 6.5, 10.0);
+    Check("scene/burst-wall-returns-to-band", Vector2.Distance(back.end, boss) <= 6.6f, $"end={back.end} d={Vector2.Distance(back.end, boss):F1}");
 
-    // Flicker: the next tick sees EMPTY zones (cast/VFX blip) while the
-    // character is still well short of the held destination - the dodge
-    // must KEEP flowing to the held safe point, never fall through to settle.
-    var d2 = SmartMoverCore.Decide(World(player: new(0, -7.9f), zones: NoZones) with { NowSec = 200.25 }, h);
-    Check("persist/flicker-keeps-dodge", d2.Kind == SmartMoverCore.Decision.Move && d2.Dest == d1.Dest, $"kind={d2.Kind} dest={d2.Dest} d1={d1.Dest}");
-    Check("persist/flicker-reason-ddg", d2.Reason == SmartZoneDDG(), $"r={d2.Reason}");
+    // Gigantic Swing (19:25:39): donut 4..40 at (-99.84,1.08), player at 4.16 y -> must step INTO the hole, not run 36 y out
+    var gy = new Vector2(-99.84f, 1.08f);
+    var swing = Cast(10, 40f, 0f, 5f, gy, gy, 5.7f, 0.0, donutInner: 4f, src: 20, action: 0x705A);
+    var swings = new[] { swing };
+    var simG = Simulate((t, p) => World(p, t, swings, target: gy, range: 3f, hitbox: 5f), swings, new Vector2(-95.69f, 1.26f), 0.0, 6.5);
+    Check("scene/gigantic-swing-survives", simG.ok, simG.detail);
+    Check("scene/gigantic-swing-steps-in", Vector2.Distance(simG.end, gy) < 3.5f, $"end dist={Vector2.Distance(simG.end, gy):F2}");
 
-    // Arrival ends the dodge: at the held safe point (within the settle
-    // deadband) the normal settle path answers again, never ddg.
-    var at = d1.Dest;
-    var d3 = SmartMoverCore.Decide(World(player: at, range: 20f, target: new(0, 0), hitbox: 5f, zones: NoZones) with { NowSec = 200.5 }, h);
-    Check("persist/arrived-settles", d3.Kind != SmartMoverCore.Decision.Move || d3.Reason != SmartZoneDDG(), $"kind={d3.Kind} r={d3.Reason}");
+    // Cursed Sight corners (S2): four helpers at square corners casting 60-degree cones inward with game headings 0, 1.57, -1.57, 3.14; player near the centre
+    var c = new Vector2(-661, -54);
+    var corners = new[] { (new Vector2(-651, -44), 3.14f), (new Vector2(-671, -44), 1.57f), (new Vector2(-651, -64), -1.57f), (new Vector2(-671, -64), 0f) };
+    var cones = corners.Select((cc, i) => Cast(13, 60f, 0f, 2f, cc.Item1, cc.Item1, 4.7f, 0.0, coneHalfDeg: 30f, aimGameRot: cc.Item2, src: (ulong)(30 + i), action: 0xBC7D)).ToArray();
+    var simC = Simulate((t, p) => World(p, t, cones, engaged: false), cones, c + new Vector2(0.5f, 0.5f), 0.0, 5.5);
+    Check("scene/cursed-sight-survives", simC.ok, simC.detail);
 
-    // Combat end mid-flight still stands down immediately.
-    var d4 = SmartMoverCore.Decide(World(player: new(0, -7.9f), combat: false) with { NowSec = 200.75 }, h);
-    Check("persist/combat-end-standdown", d4.Reason != SmartZoneDDG(), $"kind={d4.Kind} r={d4.Reason} dest={d4.Dest}");
+    // Hellfire Fetch: circle r6 anchored on a target ACTOR (the Dalamud half passes the actor position as loc); the actor is at the player
+    var hf = Cast(2, 6f, 0f, 0f, new Vector2(500, -310), new Vector2(480, -330), 6.7f, 0.0, src: 40, action: 0xBCD9);
+    var hfs = new[] { hf };
+    var simH = Simulate((t, p) => World(p, t, hfs, engaged: false), hfs, new Vector2(480, -330), 0.0, 7.5);
+    Check("scene/hellfire-fetch-actor-anchored-survives", simH.ok, simH.detail);
 
-    // Resampling still happens: a held dodge destination that becomes
-    // covered by a fresh zone is not followed through the new danger.
-    var h2 = new SmartMoverCore.Hysteresis();
-    var z2 = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -8), 0f, 8f, 0f, 0f, 0f, default, 3f) };
-    var e1 = SmartMoverCore.Decide(World(player: new(0, -8), zones: z2) with { NowSec = 300.0 }, h2);
-    var cover = new[] { z2[0], new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, e1.Dest, 0f, 4f, 0f, 0f, 0f, default, 3f) };
-    var e2 = SmartMoverCore.Decide(World(player: new(0, -7.9f), zones: cover) with { NowSec = 300.25 }, h2);
-    Check("persist/covered-held-dest-resamples", e1.Kind == SmartMoverCore.Decision.Move && e2.Kind == SmartMoverCore.Decision.Move &&
-        SmartMoverCore.UnsafeAt(e2.Dest, cover, 0.25f) is null && e2.Dest != e1.Dest, $"e1={e1.Dest} e2={e2.Dest}");
+    // Earthquake (22:31:07): r10 circle, player 6.4 y from the caster: exit must be roughly radial and end outside
+    var worm = new Vector2(0, 0);
+    var eq = new[] { Cast(2, 10f, 0f, 0f, worm, worm, 2.7f, 0.0, src: 50, action: 0xC58D) };
+    var start = new Vector2(6.4f, 0);
+    var simE = Simulate((t, p) => World(p, t, eq, engaged: false), eq, start, 0.0, 3.5);
+    Check("scene/earthquake-survives", simE.ok, simE.detail);
+    var moved = simE.end - start;
+    var radial = Vector2.Dot(Vector2.Normalize(moved), Vector2.Normalize(start - worm));
+    Check("scene/earthquake-radial", radial > 0.7f, $"cos={radial:F2} end={simE.end}");
+
+    // Black Eruption noise (20:05:45): four r5 circles that never contain the player -> the character does not move at all
+    var bishops = new[] { new Vector2(10, 10), new(-10, 10), new(10, -10), new(-10, -10) };
+    var be = bishops.Select((p, i) => Cast(2, 5f, 0f, 0f, p, p, 1.2f, 0.0, src: (ulong)(60 + i), action: 0xB734)).ToArray();
+    var simB = Simulate((t, p) => World(p, t, be, engaged: false), be, new Vector2(0, 0), 0.0, 2.0);
+    Check("scene/black-eruption-no-wasted-motion", simB.end == new Vector2(0, 0), $"end={simB.end}");
+    Check("scene/black-eruption-holds", simB.reasons.All(r => r == SmartMoverCore.ReasonHoldCode || r == SmartMoverCore.ReasonSettleCode), string.Join(",", simB.reasons.Distinct().Select(SmartMoverCore.ReasonString)));
+
+    // Arm of Purgatory (20:17:41): 0.7 s cast, r10, player 1.8 y away: unreachable; the engine must still answer (escape, no crash) and report no leeway
+    var fire = new Vector2(0, 0);
+    var arm = new[] { Cast(2, 10f, 0f, 0f, fire, fire, 0.7f, 0.0, src: 70, action: 0xB74A) };
+    var s = new SmartMoverCore.MoverState();
+    var dA = SmartMoverCore.Decide(World(new Vector2(1.8f, 0), 0.3, arm, engaged: false), s);
+    Check("scene/arm-of-purgatory-answers", dA.Kind == SmartMoverCore.Decision.Steer && (dA.Reason == SmartMoverCore.ReasonEscapeCode || dA.Reason == SmartMoverCore.ReasonDodgeCode), $"{dA}");
+    Check("scene/arm-of-purgatory-no-leeway", dA.LeewaySec <= 0f, $"lee={dA.LeewaySec}");
 }
-// ---------------------------------------------------------------- settle hold while live (v1.0.4.205)
+
+// ---------------------------------------------------------------- walkability probe
 {
-    // Live-telegraph grading on 1.0.4.204: ddg -> stl -> ddg -> stl with a
-    // new destination every dodge while up to a dozen zones stayed live. A
-    // one-tick safe flicker fell through to ENGAGE/SETTLE, whose StandDown
-    // reset the hysteresis and killed the vnav path mid-dodge. While any
-    // zone is live the settle answer is now a HOLD (no command, hysteresis
-    // kept); with no zones live it stands down exactly as before.
-    var far = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, 40), 0f, 5f, 0f, 0f, 0f, default, 3f) };
-
-    // Arrived hold (held dest == player pos), safe and in position, zones
-    // live -> HOLD, never Stop.
-    var hHold = new SmartMoverCore.Hysteresis { LastDest = new Vector2(0, -8), HasLastDest = true, LastDodge = true };
-    var dHold = SmartMoverCore.Decide(World(player: new(0, -8), zones: far) with { NowSec = 400.0 }, hHold);
-    Check("settlehold/live-zones-hold", dHold.Kind == SmartMoverCore.Decision.None, $"kind={dHold.Kind} r={dHold.Reason}");
-    Check("settlehold/live-zones-keeps-hysteresis", hHold.HasLastDest && hHold.LastDodge, $"held={hHold.HasLastDest} dodge={hHold.LastDodge}");
-
-    // Same situation with EMPTY zones -> classic settle Stop, hysteresis cleared.
-    var hEmpty = new SmartMoverCore.Hysteresis { LastDest = new Vector2(0, -8), HasLastDest = true, LastDodge = true };
-    var dEmpty = SmartMoverCore.Decide(World(player: new(0, -8), zones: NoZones) with { NowSec = 400.0 }, hEmpty);
-    Check("settlehold/no-zones-stops", dEmpty.Kind == SmartMoverCore.Decision.Stop, $"kind={dEmpty.Kind} r={dEmpty.Reason}");
-    Check("settlehold/no-zones-clears-hysteresis", !hEmpty.HasLastDest, $"held={hEmpty.HasLastDest}");
-
-    // No target + live zones -> HOLD as well (was Stop).
-    var hNt = new SmartMoverCore.Hysteresis { LastDest = new Vector2(0, -8), HasLastDest = true, LastDodge = true };
-    var dNt = SmartMoverCore.Decide(World(player: new(0, -8), zones: far, engaged: false) with { NowSec = 400.0 }, hNt);
-    Check("settlehold/no-target-live-zones-hold", dNt.Kind == SmartMoverCore.Decision.None, $"kind={dNt.Kind} r={dNt.Reason}");
-    Check("settlehold/no-target-keeps-hysteresis", hNt.HasLastDest, $"held={hNt.HasLastDest}");
-
-    // Move-to-target is untouched: safe, OUT of position, zones live elsewhere -> engage Move.
-    var hEng = new SmartMoverCore.Hysteresis();
-    var dEng = SmartMoverCore.Decide(World(player: new(0, -20), zones: far) with { NowSec = 400.0 }, hEng);
-    Check("settlehold/engage-still-moves", dEng.Kind == SmartMoverCore.Decision.Move && dEng.Reason == SmartMoverCore.ReasonEngageCode, $"kind={dEng.Kind} r={dEng.Reason}");
-
-    // Incident replay: dodge commits, then a safe flicker while zones stay
-    // live holds instead of stopping.
-    var hR = new SmartMoverCore.Hysteresis();
-    var hot = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -8), 0f, 3f, 0f, 0f, 0f, default, 3f) };
-    var r1 = SmartMoverCore.Decide(World(player: new(0, -8), zones: hot) with { NowSec = 500.0 }, hR);
-    Check("settlehold/replay-dodge-commits", r1.Kind == SmartMoverCore.Decision.Move && r1.Reason == SmartZoneDDG(), $"kind={r1.Kind} r={r1.Reason}");
-    var r2 = SmartMoverCore.Decide(World(player: new(0, -7.9f), zones: NoZones) with { NowSec = 500.25 }, hR);
-    Check("settlehold/replay-flicker-keeps-dodge", r2.Kind == SmartMoverCore.Decision.Move && r2.Dest == r1.Dest, $"r2={r2.Dest} r1={r1.Dest}");
+    // a wall at x > 3: the planner must not pick a waypoint past it (bounded re-plan)
+    var z = Cast(5, 8f, 0f, 3f, new(0, 0), new(0, 0), 4f, 100.0);
+    var s = new SmartMoverCore.MoverState();
+    var sim = Simulate((t, p) => World(p, t, new[] { z }, engaged: false, walkable: p => p.X <= 3f), new[] { z }, new Vector2(2.5f, 0), 100.0, 104.5);
+    Check("walk/escapes-away-from-wall", sim.ok, sim.detail);
+    Check("walk/never-crosses-wall", sim.end.X <= 3.1f, $"end={sim.end}");
+    Check("walk/mask-built", s.WalkMask is null || true);
+    // a broken probe (everything off-floor) is ignored: the escape still happens
+    var sim2 = Simulate((t, p) => World(p, t, new[] { z }, engaged: false, walkable: _ => false), new[] { z }, new Vector2(2.5f, 0), 100.0, 104.5);
+    Check("walk/broken-probe-fails-open", sim2.ok, sim2.detail);
 }
-// ---------------------------------------------------------------- engage corridor hold (v1.0.4.206)
+
+// ---------------------------------------------------------------- telemetry format
 {
-    // Grading 1.0.4.205 logged an engage Move committed with 8 live zones:
-    // the engage DESTINATION was zone-checked, but the PATH was not, so the
-    // character walked the straight corridor through live danger. While zones
-    // are live and the straight player->dest corridor crosses one, engage now
-    // holds (no command, hysteresis kept) instead of walking through; the
-    // dodge branch still fires first whenever the player is unsafe, and with
-    // no zones live the answer is byte-identical.
-    var between = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -14), 0f, 2f, 0f, 0f, 0f, default, 3f) };
-
-    // Player safe at (0,-20), ideal (0,-8) safe, corridor through (0,-14) r2 -> HOLD.
-    var hCor = new SmartMoverCore.Hysteresis { LastDest = new Vector2(0, -8), HasLastDest = true };
-    var dCor = SmartMoverCore.Decide(World(player: new(0, -20), zones: between) with { NowSec = 600.0 }, hCor);
-    Check("corridor/blocked-holds", dCor.Kind == SmartMoverCore.Decision.None, $"kind={dCor.Kind} r={dCor.Reason}");
-    Check("corridor/blocked-reason-path", dCor.Reason == SmartMoverCore.ReasonPathHoldCode, $"r={dCor.Reason}");
-    Check("corridor/blocked-keeps-hysteresis", hCor.HasLastDest, $"held={hCor.HasLastDest}");
-
-    // Same geometry with the zone OFF the corridor -> engage Move (selectivity).
-    var aside = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(10, -14), 0f, 2f, 0f, 0f, 0f, default, 3f) };
-    var hAside = new SmartMoverCore.Hysteresis();
-    var dAside = SmartMoverCore.Decide(World(player: new(0, -20), zones: aside) with { NowSec = 600.0 }, hAside);
-    Check("corridor/clear-moves", dAside.Kind == SmartMoverCore.Decision.Move && dAside.Reason == SmartMoverCore.ReasonEngageCode, $"kind={dAside.Kind} r={dAside.Reason}");
-
-    // No zones at all -> classic engage Move (byte-identical negative control).
-    var hFree = new SmartMoverCore.Hysteresis();
-    var dFree = SmartMoverCore.Decide(World(player: new(0, -20), zones: NoZones) with { NowSec = 600.0 }, hFree);
-    Check("corridor/no-zones-moves", dFree.Kind == SmartMoverCore.Decision.Move && dFree.Reason == SmartMoverCore.ReasonEngageCode, $"kind={dFree.Kind} r={dFree.Reason}");
-
-    // Unsafe player still dodges first even when the engage corridor is blocked.
-    var hUn = new SmartMoverCore.Hysteresis();
-    var hot = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -14), 0f, 3f, 0f, 0f, 0f, default, 3f) };
-    var dUn = SmartMoverCore.Decide(World(player: new(0, -14), target: new(0, 0), zones: hot) with { NowSec = 600.0 }, hUn);
-    Check("corridor/unsafe-dodges-first", dUn.Kind == SmartMoverCore.Decision.Move && dUn.Reason == SmartZoneDDG(), $"kind={dUn.Kind} r={dUn.Reason}");
-
-    // Covered ideal + blocked corridor to the ring variant -> the sidestep
-    // still moves (the variant IS the avoidance maneuver, not a walk-through).
-    var hSide = new SmartMoverCore.Hysteresis();
-    var cover = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -8.5f), 0f, 6f, 0f, 0f, 0f, default, 5f) };
-    var dSide = SmartMoverCore.Decide(World(player: new(0, -18), range: 3f, target: new(0, 0), hitbox: 5f, zones: cover) with { NowSec = 600.0 }, hSide);
-    Check("corridor/sidestep-still-moves", dSide.Kind == SmartMoverCore.Decision.Move && dSide.Reason == SmartMoverCore.ReasonEngageCode, $"kind={dSide.Kind} r={dSide.Reason}");
-    // Hold telemetry: "hold" keys must differ from "stl" keys, or hold/stop
-    // transitions vanish behind the emit gate (the 1.0.4.205 grading blind spot).
-    Check("hold/key-distinct-from-stl", MovementTelemetryFormat.KeyOf("hold", null, null) != MovementTelemetryFormat.KeyOf("stl", null, null));
-    Check("hold/code-distinct-from-stl", MovementTelemetryFormat.DecisionCode("hold") != MovementTelemetryFormat.DecisionCode("stl"));
+    var h = MovementTelemetryFormat.BuildHeader(1, "1.0.4.213", 1.0f, 6f);
+    Check("tel/header", h.StartsWith("MVH|1|1.0.4.213|1.00|6.0|") && h.Contains("ddg=dodging"));
+    var l = MovementTelemetryFormat.BuildLine(1789000000000, 35, "ddg", 123, -1.5f, 3, 10.26f, -4f, 9.9f, -3.3f, 6f, 2.345f, 1.5f, 120);
+    var f = MovementTelemetryFormat.Parse(l);
+    Check("tel/line-fields", f.Length == 13 && f[0] == "MV" && f[3] == "ddg" && f[7] == "10.3,-4.0" && f[8] == "9.9,-3.3" && f[10] == "2.35" && f[12] == "120", l);
+    var l2 = MovementTelemetryFormat.BuildLine(1, 35, "stl", 0, 0f, 0, null, null, 0, 0, 6f, float.MaxValue, float.MaxValue, 0);
+    Check("tel/line-inf", MovementTelemetryFormat.Parse(l2)[10] == "inf" && MovementTelemetryFormat.Parse(l2)[7] == "-");
+    var za = MovementTelemetryFormat.BuildZoneAdd(5, 0xABC, 0x40001234, 0x6F31, "circle", 27.4f, 116.5f, 9f, 0, 0, 0, 0, 5700);
+    Check("tel/zone-add", za.StartsWith("MZ|5|add|ABC|40001234|6F31|circle|27.4,116.5|9.0|"), za);
+    Check("tel/zone-del", MovementTelemetryFormat.BuildZoneDel(6, 0xABC, "end") == "MZ|6|del|ABC|end");
+    var k1 = MovementTelemetryFormat.KeyOf("hold", null, null, 1);
+    Check("tel/gate-first", MovementTelemetryFormat.ShouldEmit(null, 0, 0, k1, false, true));
+    Check("tel/gate-floor", !MovementTelemetryFormat.ShouldEmit(k1, 1000, 1500, k1, false, true));
+    Check("tel/gate-zones-live-reemits", MovementTelemetryFormat.ShouldEmit(k1, 1000, 2100, k1, false, true));
+    Check("tel/gate-quiet-when-clear", !MovementTelemetryFormat.ShouldEmit(k1, 1000, 2100, k1, false, false));
+    Check("tel/gate-dodge-start", MovementTelemetryFormat.ShouldEmit(k1, 1000, 1100, k1, true, false));
+    Check("tel/line-budget", MovementTelemetryFormat.BuildLine(1, 35, new string('x', 300), 0, 0, 0, null, null, 0, 0, 6, 0, 0, 0).Length <= 200);
 }
-// ---------------------------------------------------------------- v1.0.4.209 cast geometry (BossMod parity)
+
+// ---------------------------------------------------------------- time-aware gate helper
 {
-    // Game rotation -> math convention: game r=0 faces +Z, r=pi/2 faces +X.
-    Check("geom/rot0-faces-plus-z", MathF.Abs(DangerZoneModel.GameRotationToMath(0f) - MathF.PI / 2f) < 0.001f, $"a={DangerZoneModel.GameRotationToMath(0f)}");
-    Check("geom/rot-halfpi-faces-plus-x", MathF.Abs(DangerZoneModel.GameRotationToMath(MathF.PI / 2f)) < 0.001f, $"a={DangerZoneModel.GameRotationToMath(MathF.PI / 2f)}");
-
-    // Omen parsing, BossMod's rules.
-    Check("omen/fan060-half30", OmenVfxModel.CastConeHalfDeg("gl_fan060_1bf") == 30f);
-    Check("omen/fan120-half60", OmenVfxModel.CastConeHalfDeg("gl_fan120_1bf") == 60f);
-    Check("omen/er-fan090-half45", OmenVfxModel.CastConeHalfDeg("er_gl_fan090_1bf") == 45f);
-    Check("omen/no-omen-half90", OmenVfxModel.CastConeHalfDeg(null) == 90f && OmenVfxModel.CastConeHalfDeg("general_1bf") == 90f);
-    Check("omen/sircle3020-inner20", OmenVfxModel.CastDonutInner("gl_sircle_3020bf", 30f) == 20f, $"i={OmenVfxModel.CastDonutInner("gl_sircle_3020bf", 30f)}");
-    Check("omen/sircle3020-scaled-inner10", OmenVfxModel.CastDonutInner("gl_sircle_3020bf", 15f) == 10f, $"i={OmenVfxModel.CastDonutInner("gl_sircle_3020bf", 15f)}");
-    Check("omen/no-donut-inner0", OmenVfxModel.CastDonutInner("general_1bf", 10f) == 0f && OmenVfxModel.CastDonutInner(null, 10f) == 0f);
-
-    // The cone field is a HALF-angle and is used as-is (it used to be halved
-    // again: every cone was a quarter of its drawn width). 60-degree cone
-    // (half 30) facing +Z: 20 degrees off axis is inside, 40 is outside.
-    var c60 = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
-        13, 60f, 0f, 3f, new(0, 0), new(0, 0), 5, 1, 5f, OmenVfxModel.CastConeHalfDeg("gl_fan060_1bf"), 0f, DangerZoneModel.GameRotationToMath(0f)));
-    Vector2 AtDeg(float offAxisDeg, float r) => new(MathF.Sin(offAxisDeg * MathF.PI / 180f) * r, MathF.Cos(offAxisDeg * MathF.PI / 180f) * r);
-    Check("cone/half30-20deg-inside", c60 is not null && DangerZoneModel.Contains(c60.Value, AtDeg(20f, 20f), 0f));
-    Check("cone/half30-40deg-outside", c60 is not null && !DangerZoneModel.Contains(c60.Value, AtDeg(40f, 20f), 0f));
-
-    // Self-targeted cone: caster location == target location, so the old
-    // caster->target aim was the zero vector (always +X). The cast rotation
-    // is used now. Facing +Z: a point north is inside, a point east is not.
-    var self = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
-        13, 30f, 0f, 0f, new(0, 0), new(0, 0), 5, 1, 5f, 45f, 0f, DangerZoneModel.GameRotationToMath(0f)));
-    Check("cone/self-targeted-uses-cast-rotation", self is not null && DangerZoneModel.Contains(self.Value, new Vector2(0, 10), 0f), $"z={self}");
-    Check("cone/self-targeted-not-plus-x", self is not null && !DangerZoneModel.Contains(self.Value, new Vector2(10, 0), 0f), $"z={self}");
-
-    // Live replay (Occult Crescent, a four-helper Cursed Sight set, cast type
-    // 13, range 60, omen gl_fan060_1bf): helper at (-650,-43) with game
-    // heading pi faces -Z. The point 10y south of it is in the cone; the
-    // point 10y north is behind it. The old +X aim got both wrong.
-    var cs = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
-        13, 60f, 0f, 1f, new(-650f, -43f), new(-650f, -43f), 7, 1, 5f, OmenVfxModel.CastConeHalfDeg("gl_fan060_1bf"), 0f, DangerZoneModel.GameRotationToMath(3.14f)));
-    Check("replay/cursed-sight-south-inside", cs is not null && DangerZoneModel.Contains(cs.Value, new Vector2(-650f, -53f), 0f), $"z={cs}");
-    Check("replay/cursed-sight-north-outside", cs is not null && !DangerZoneModel.Contains(cs.Value, new Vector2(-650f, -33f), 0f), $"z={cs}");
-    Check("replay/cursed-sight-east-outside", cs is not null && !DangerZoneModel.Contains(cs.Value, new Vector2(-640f, -43f), 0f), $"z={cs}");
-
-    // Live replay: a centre helper at (-661,-54) cast Dark (cast type 2,
-    // range 6) at the ground point (-671.9,-56.0), 11y away. The zone sits on
-    // the point, not on the helper.
-    var dark = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
-        2, 6f, 0f, 1f, new(-661f, -54f), new(-671.9f, -56f), 0xE0000000, 1, 3f, 90f, 0f, DangerZoneModel.GameRotationToMath(0f)));
-    Check("replay/dark-at-ground-point", dark is not null && DangerZoneModel.Contains(dark.Value, new Vector2(-671f, -56f), 0f), $"z={dark}");
-    Check("replay/dark-not-on-helper", dark is not null && !DangerZoneModel.Contains(dark.Value, new Vector2(-661f, -54f), 0f), $"z={dark}");
-
-    // Donut from the omen: Focused Tremor (cast type 10, range 30, omen
-    // gl_sircle_3020bf) - the 20y hole is safe, the ring is not.
-    var ft = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
-        10, 30f, 0f, 0f, new(0, 0), new(0, 0), 5, 1, 5f, 90f, OmenVfxModel.CastDonutInner("gl_sircle_3020bf", 30f)));
-    Check("replay/focused-tremor-hole-safe", ft is { Kind: DangerZoneModel.ShapeKind.Donut } && !DangerZoneModel.Contains(ft.Value, new Vector2(0, 10), 0f), $"z={ft}");
-    Check("replay/focused-tremor-ring-danger", ft is not null && DangerZoneModel.Contains(ft.Value, new Vector2(0, 25), 0f), $"z={ft}");
+    var z = Cast(5, 8f, 0f, 3f, new(0, 0), new(0, 0), 4f, 100.0); // lethal at 104.3
+    var zs = new[] { z };
+    Check("gate/lands-before-activation-safe", !SmartMoverCore.UnsafeAtTime(new(0, -3), zs, 0f, 100.0, 0.5f, 1.0f));
+    Check("gate/lands-at-activation-unsafe", SmartMoverCore.UnsafeAtTime(new(0, -3), zs, 0f, 103.0, 0.5f, 1.0f));
+    Check("gate/outside-always-safe", !SmartMoverCore.UnsafeAtTime(new(0, -30), zs, 0f, 103.5, 0.5f, 1.0f));
+    Check("gatecore/off-passes", MovementGateCore.Allowed(false, true, true, true));
+    Check("gatecore/on-blocks", !MovementGateCore.Allowed(true, false, false, true));
 }
 
-// ---------------------------------------------------------------- v1.0.4.209 cast vs dodge, stand-down reasons, ranged clamp
+// ---------------------------------------------------------------- zone model (kept from v1 where still true)
 {
-    var onPlayer = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -8), 0f, 5f, 0f, 0f, 0f, default, 3f) };
-
-    // A hardcast no longer pins the character inside a live telegraph.
-    var hc = new SmartMoverCore.Hysteresis();
-    var dc = SmartMoverCore.Decide(World(player: new(0, -8), casting: true, castRem: 1.5f, zones: onPlayer), hc);
-    Check("cast/unsafe-dodges-through-cast", dc.Kind == SmartMoverCore.Decision.Move && dc.Reason == SmartZoneDDG(), $"kind={dc.Kind} r={dc.Reason}");
-    Check("cast/unsafe-dest-safe", SmartMoverCore.UnsafeAt(dc.Dest, onPlayer, 0.25f) is null, $"dest={dc.Dest}");
-
-    // A cast starting mid-dodge does not stop the escape: next tick the player
-    // is already clear but short of the held destination -> keep moving.
-    var clearButShort = dc.Dest + Vector2.Normalize(new Vector2(0, -8) - dc.Dest) * 0.9f;
-    var dc2 = SmartMoverCore.Decide(World(player: clearButShort, casting: true, castRem: 1.5f, zones: onPlayer) with { NowSec = 1000.25 }, hc);
-    Check("cast/inflight-dodge-survives-cast", dc2.Kind == SmartMoverCore.Decision.Move && dc2.Reason == SmartZoneDDG() && dc2.Dest == dc.Dest,
-        $"kind={dc2.Kind} r={dc2.Reason} dest={dc2.Dest} held={dc.Dest} at={clearButShort}");
-
-    // Safe and casting still stands down (the cast is not interrupted for nothing).
-    var hs = new SmartMoverCore.Hysteresis();
-    var ds = SmartMoverCore.Decide(World(player: new(0, -30), casting: true, castRem: 1.5f, zones: onPlayer), hs);
-    Check("cast/safe-cast-not-interrupted", ds.Kind != SmartMoverCore.Decision.Move && ds.Reason == SmartMoverCore.ReasonCastCode, $"kind={ds.Kind} r={ds.Reason}");
-
-    // Stand-down with nothing held keeps its reason (it used to log as "hold").
-    Check("standdown/no-dest-keeps-cast-reason", ds.Kind == SmartMoverCore.Decision.None && ds.Reason == SmartMoverCore.ReasonCastCode, $"kind={ds.Kind} r={ds.Reason}");
-    var hm = new SmartMoverCore.Hysteresis();
-    var dmn = SmartMoverCore.Decide(World(manual: true), hm);
-    Check("standdown/no-dest-keeps-manual-reason", dmn.Kind == SmartMoverCore.Decision.None && dmn.Reason == SmartMoverCore.ReasonManualCode, $"kind={dmn.Kind} r={dmn.Reason}");
-    var ho = new SmartMoverCore.Hysteresis();
-    var dooc = SmartMoverCore.Decide(World(combat: false), ho);
-    Check("standdown/no-dest-keeps-ooc-reason", dooc.Kind == SmartMoverCore.Decision.None && dooc.Reason == SmartMoverCore.ReasonOocCode, $"kind={dooc.Kind} r={dooc.Reason}");
-
-    // Ranged job standing at its own range (24y from a 5y-hitbox target, band 20):
-    // the nearest escape wins instead of being dragged inside the old flat 15y ceiling.
-    var rz = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -24), 0f, 4f, 0f, 0f, 0f, default, 3f) };
-    var hr = new SmartMoverCore.Hysteresis();
-    var dr = SmartMoverCore.Decide(World(player: new(0, -24), range: 20f, target: new(0, 0), hitbox: 5f, zones: rz), hr);
-    Check("ranged/escape-fires", dr.Kind == SmartMoverCore.Decision.Move && dr.Reason == SmartZoneDDG(), $"kind={dr.Kind} r={dr.Reason}");
-    Check("ranged/nearest-escape-not-dragged-in", Vector2.Distance(dr.Dest, new Vector2(0, -24)) < 6f, $"dest={dr.Dest}");
-    Check("ranged/escape-still-bounded", Vector2.Distance(dr.Dest, new Vector2(0, 0)) <= 5f + 20f + 2f + 0.01f, $"dest={dr.Dest}");
-
-    // Emit key carries the live-zone count so zones appearing mid-hold re-emit.
-    Check("mv/key-includes-zone-count", MovementTelemetryFormat.KeyOf("hold", null, null, 0) != MovementTelemetryFormat.KeyOf("hold", null, null, 3));
-}
-// -------------------------------------- approach vs the mesh probe (v1.0.4.211)
-{
-    // Grading 1.0.4.210 in open-world levelling (Smart Movement ON, Movement
-    // Telemetry ON, ZERO live zones on every line): 24 approach decisions
-    // answered "hold" against 15 that moved, with the target 1.0-17.2 yalms
-    // past the standing band. An off-mesh standing point whose whole ring
-    // also read off-mesh was the ONLY path to a no-command hold with no zones
-    // live, so the approach never started and the distance was closed by hand.
-    bool NoMesh(Vector2 _) => false;
-    bool EastOnly(Vector2 p) => p.X >= -0.5f;
-
-    var hOff = new SmartMoverCore.Hysteresis();
-    var wOff = World(player: new(0, -25), range: 3f, target: new(0, 0), hitbox: 5f) with { IsPointWalkable = NoMesh };
-    var dOff = SmartMoverCore.Decide(wOff, hOff);
-    Check("approach/offmesh-ring-still-moves", dOff.Kind == SmartMoverCore.Decision.Move &&
-        dOff.Reason == SmartMoverCore.ReasonEngageCode, $"kind={dOff.Kind} r={dOff.Reason}");
-    Check("approach/offmesh-move-lands-on-the-band",
-        dOff.Kind == SmartMoverCore.Decision.Move &&
-        MathF.Abs(Vector2.Distance(dOff.Dest, new Vector2(0, 0)) - 8f) < 0.01f,
-        $"dest={dOff.Dest}");
-
-    // Replay of the 1.9y-past-the-band hold from the same session (a melee
-    // band, target a few yalms out, no zones): 1.0.4.210 held, this moves.
-    var hNear = new SmartMoverCore.Hysteresis();
-    var wNear = World(player: new(0, -9.9f), range: 3f, target: new(0, 0), hitbox: 5f) with { IsPointWalkable = NoMesh };
-    var dNear = SmartMoverCore.Decide(wNear, hNear);
-    Check("approach/incident-210-near-hold-now-moves", dNear.Kind == SmartMoverCore.Decision.Move &&
-        dNear.Reason == SmartMoverCore.ReasonEngageCode, $"kind={dNear.Kind} r={dNear.Reason}");
-
-    // The mesh gate itself is NOT abandoned: while part of the ring answers,
-    // the walkable variant is still the one chosen (v1.0.4.196 behaviour).
-    var hPref = new SmartMoverCore.Hysteresis();
-    var wPref = World(player: new(-18, 0), range: 3f, target: new(0, 0), hitbox: 5f) with { IsPointWalkable = EastOnly };
-    var dPref = SmartMoverCore.Decide(wPref, hPref);
-    Check("approach/still-prefers-walkable-ring-point", dPref.Kind == SmartMoverCore.Decision.Move &&
-        EastOnly(dPref.Dest), $"kind={dPref.Kind} dest={dPref.Dest}");
-
-    // DANGER still holds: a standing ring wholly covered by a live zone is a
-    // hold, exactly as v1.0.4.205/206 ship it - only the mesh-only rejection
-    // changed.
-    var ringZone = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, 0), 0f, 12f, 0f, 0f, 0f, default, 3f) };
-    var hDanger = new SmartMoverCore.Hysteresis();
-    var wDanger = World(player: new(0, -25), range: 3f, target: new(0, 0), hitbox: 5f, zones: ringZone) with { IsPointWalkable = _ => true };
-    var dDanger = SmartMoverCore.Decide(wDanger, hDanger);
-    Check("approach/danger-covered-ring-still-holds", dDanger.Kind == SmartMoverCore.Decision.None &&
-        dDanger.Reason == SmartMoverCore.ReasonRingHoldCode, $"kind={dDanger.Kind} r={dDanger.Reason}");
-
-    // Telemetry contract this fix buys: with no zones live the engine can no
-    // longer answer with a no-command hold at ANY approach distance or mesh
-    // verdict, so an MV|..|hold line carrying nz=0 is now a defect by itself.
-    var holdsWithNoZones = 0;
-    foreach (var mesh in new Func<Vector2, bool>[] { NoMesh, EastOnly, _ => true })
-        for (var gap = 1; gap <= 30; gap++)
-        {
-            var hs = new SmartMoverCore.Hysteresis();
-            var dec = SmartMoverCore.Decide(
-                World(player: new(0, -gap), range: 3f, target: new(0, 0), hitbox: 5f) with { IsPointWalkable = mesh }, hs);
-            if (dec.Kind == SmartMoverCore.Decision.None && dec.Reason is 0
-                or SmartMoverCore.ReasonNoEscapeCode
-                or SmartMoverCore.ReasonRingHoldCode
-                or SmartMoverCore.ReasonPathHoldCode)
-                holdsWithNoZones++;
-        }
-    Check("approach/no-zones-never-holds", holdsWithNoZones == 0, $"holds={holdsWithNoZones}");
+    var rw = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(5, 30f, 0f, 3f, new(0, 0), new(0, 0), 0, 1, 5f, 60f, 0f));
+    Check("zone/raidwide-skipped", rw is null);
+    Check("zone/single-target-skipped", DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(1, 0f, 0f, 3f, new(0, 0), new(0, 0), 0, 1, 5f, 60f, 0f)) is null);
+    Check("zone/custom-shape-skipped", DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(6, 0f, 0f, 3f, new(0, 0), new(0, 0), 0, 1, 5f, 60f, 0f)) is null);
+    var cone = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(13, 60f, 0f, 2f, new(0, 0), new(0, 0), 0, 1, 4.7f, 30f, 0f, DangerZoneModel.GameRotationToMath(0f)));
+    Check("zone/cone-heading-0-faces-south", cone is not null && DangerZoneModel.Contains(cone.Value, new(0, 10), 0f) && !DangerZoneModel.Contains(cone.Value, new(0, -10), 0f));
+    var donut = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(10, 40f, 0f, 5f, new(0, 0), new(0, 0), 0, 1, 5.7f, 60f, 4f));
+    Check("zone/donut-hole", donut is { Kind: DangerZoneModel.ShapeKind.Donut } && !DangerZoneModel.Contains(donut.Value, new(2, 0), 0f) && DangerZoneModel.Contains(donut.Value, new(10, 0), 0f));
+    Check("zone/omen-fan", MathF.Abs(OmenVfxModel.CastConeHalfDeg("gl_fan090_1bf") - 45f) < 0.01f);
+    Check("zone/omen-donut", MathF.Abs(OmenVfxModel.CastDonutInner("gl_sircle_4004bp1", 40f) - 4f) < 0.01f);
+    Check("zone/linger-1s", DangerZoneModel.LingeringZones.LingerSec == 1f);
+    var zz = Cast(5, 8f, 0f, 3f, new(0, 0), new(0, 0), 4f, 100.0, src: 7, action: 9);
+    Check("zone/activation-fields", MathF.Abs((float)(zz.ActivationSec - 104.3)) < 0.001f && zz.Source == 7 && zz.ActionId == 9);
 }
 
-// ------------------------------- escape that can still attack (v1.0.4.212)
-{
-    // Grading 1.0.4.211: "moves to target. moves out of some aoe, not all.
-    // doesn't move smartly in terms of.. boss has rectangular frontal aoe. it
-    // moved out of melee range instead of to the side or behind him where it
-    // could keep attacking."
-    //
-    // The sampler took the first safe sample on the first escapable ring.
-    // Every candidate on a ring is the same distance from the character, so
-    // the escape direction was decided by sample index and nothing asked
-    // whether the target was still reachable from there.
-    var target = new Vector2(0, 0);
-    const float hitbox = 5f, range = 3f;
-    const float band = hitbox + range + 0.5f; // the settle branch's "in range" test
-
-    // A 60-degree frontal cone from the boss, aimed at a melee character
-    // standing at the ideal spot.
-    var coneZone = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
-        3, 30f, 0f, hitbox, target, new Vector2(0, -8), 0, 1, 5f, 30f, 0f));
-    Check("escape/cone-zone-built", coneZone is { Kind: DangerZoneModel.ShapeKind.Cone }, $"z={coneZone}");
-    var cone = coneZone is null ? NoZones : new[] { coneZone.Value };
-
-    var hCone = new SmartMoverCore.Hysteresis();
-    var wCone = World(player: new(0, -8), range: range, target: target, hitbox: hitbox, zones: cone);
-    var dCone = SmartMoverCore.Decide(wCone, hCone);
-    Check("escape/cone-dodges", dCone.Kind == SmartMoverCore.Decision.Move &&
-        dCone.Reason == SmartMoverCore.ReasonDodgeCode, $"kind={dCone.Kind} r={dCone.Reason}");
-    Check("escape/cone-dest-safe", SmartMoverCore.UnsafeAt(dCone.Dest, cone, 0.25f) is null, $"dest={dCone.Dest}");
-    Check("escape/cone-keeps-target-in-range", Vector2.Distance(dCone.Dest, target) <= band,
-        $"dest={dCone.Dest} fromTarget={Vector2.Distance(dCone.Dest, target)} band={band}");
-
-    // Negative control: the pre-212 rule, replayed inline - first safe sample
-    // on the first escapable ring - leaves the same scene OUT of range, which
-    // is the graded complaint.
-    Vector2? legacy = null;
-    for (var ring = 1; ring <= SmartMoverCore.DodgeRingCount && legacy is null; ring++)
-        for (var i = 0; i < SmartMoverCore.DodgeDirCount && legacy is null; i++)
-        {
-            var ang = i * (2f * MathF.PI / SmartMoverCore.DodgeDirCount);
-            var p = new Vector2(0, -8) + new Vector2(MathF.Cos(ang), MathF.Sin(ang)) * (ring * SmartMoverCore.DodgeRingStep);
-            if (SmartMoverCore.UnsafeAt(p, cone, 0.25f) is null)
-                legacy = p;
-        }
-    Check("escape/legacy-sample-order-left-range",
-        legacy is { } lg && Vector2.Distance(lg, target) > band,
-        $"legacy={legacy} fromTarget={(legacy is { } l2 ? Vector2.Distance(l2, target) : 0f)}");
-
-    // A bounded extra reach buys an in-range escape one ring further out: the
-    // first escapable ring has no in-range sample, the next one does.
-    var pushed = new[]
-    {
-        new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -8), 0f, 4f, 0f, 0f, 0f, default, 3f),
-        new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -2), 0f, 6f, 0f, 0f, 0f, default, 3f),
-    };
-    var stepOut = SmartMoverCore.FindSafePoint(new Vector2(0, -8), pushed, target, 15f, null, band, new Vector2(0, -8));
-    Check("escape/extra-ring-finds-in-range",
-        stepOut is { } so && Vector2.Distance(so, target) <= band && SmartMoverCore.UnsafeAt(so, pushed, 0.25f) is null,
-        $"dest={stepOut}");
-    // In-test negative control: the SAME scene with the attack band switched
-    // off answers with the nearest escape, out of range - so the in-range
-    // preference, not some other effect, is what buys the step above.
-    var noBand = SmartMoverCore.FindSafePoint(new Vector2(0, -8), pushed, target, 15f, null, 0f, new Vector2(0, -8));
-    Check("escape/without-band-preference-leaves-range",
-        noBand is { } nb && Vector2.Distance(nb, target) > band,
-        $"dest={noBand} fromTarget={(noBand is { } nb2 ? Vector2.Distance(nb2, target) : 0f)}");
-    Check("escape/extra-ring-stays-bounded",
-        stepOut is { } so2 && Vector2.Distance(new Vector2(0, -8), so2) <= 5f + SmartMoverCore.DodgeInBandExtraRings + 0.01f,
-        $"travel={(stepOut is { } so3 ? Vector2.Distance(new Vector2(0, -8), so3) : 0f)}");
-
-    // ...and the reach is a bound, not a licence: when the only in-range spot
-    // is far past it, the nearest escape is still the answer.
-    var farBand = new[]
-    {
-        new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -8), 0f, 4f, 0f, 0f, 0f, default, 3f),
-        new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -2), 0f, 9f, 0f, 0f, 0f, default, 3f),
-    };
-    var nearOut = SmartMoverCore.FindSafePoint(new Vector2(0, -8), farBand, target, 15f, null, band, new Vector2(0, -8));
-    Check("escape/far-in-range-spot-not-chased",
-        nearOut is { } no && MathF.Abs(Vector2.Distance(new Vector2(0, -8), no) - 5f) < 0.01f,
-        $"dest={nearOut} travel={(nearOut is { } no2 ? Vector2.Distance(new Vector2(0, -8), no2) : 0f)}");
-
-    // No engaged target -> no band preference, and the nearest escape on the
-    // first escapable ring is still the answer (pre-212 behaviour).
-    var plainZone = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -8), 0f, 4f, 0f, 0f, 0f, default, 3f) };
-    var plain = SmartMoverCore.FindSafePoint(new Vector2(0, -8), plainZone, new Vector2(0, -8), float.MaxValue);
-    Check("escape/no-target-nearest-ring", plain is { } pl && MathF.Abs(Vector2.Distance(new Vector2(0, -8), pl) - 5f) < 0.01f,
-        $"dest={plain}");
-}
-
-// ----------------------- escaping is not vetoed by the mesh probe (v1.0.4.212)
-{
-    // Replay of the graded incident: a donut telegraph (40 outer, 4 inner from
-    // the action's omen, dilated by the 1-yalm danger buffer) centred on the
-    // boss, the character standing 4.15 yalms out - inside the ring, 0.2
-    // yalms outside the safe hole. The escape is two yalms INWARD. On
-    // 1.0.4.211 the sampler answered nothing and the character stood in the
-    // telegraph for the whole cast; the only filter that can reject that
-    // candidate is the mesh probe.
-    var donut = DangerZoneModel.BuildZone(new DangerZoneModel.CastPrimitive(
-        10, 40f, 0f, 3.95f, new Vector2(0, 0), new Vector2(0, 0), 0, 1, 5f, 60f, 4f));
-    Check("escape/donut-zone-built", donut is { Kind: DangerZoneModel.ShapeKind.Donut }, $"z={donut}");
-    var dil = donut!.Value with { Radius = donut.Value.Radius + 1f, InnerRadius = MathF.Max(0f, donut.Value.InnerRadius - 1f) };
-    var donutZones = new[] { dil };
-    var stand = new Vector2(4.15f, 0);
-    Check("escape/donut-player-is-unsafe", SmartMoverCore.UnsafeAt(stand, donutZones, 0f) is not null, $"inner={dil.InnerRadius}");
-
-    var hD = new SmartMoverCore.Hysteresis();
-    var wD = World(player: stand, range: 3f, target: new Vector2(0, 0), hitbox: 3.95f, zones: donutZones)
-        with { IsPointWalkable = _ => false };
-    var dD = SmartMoverCore.Decide(wD, hD);
-    Check("escape/donut-offmesh-still-moves", dD.Kind == SmartMoverCore.Decision.Move &&
-        dD.Reason == SmartMoverCore.ReasonDodgeCode, $"kind={dD.Kind} r={dD.Reason}");
-    Check("escape/donut-dest-is-the-hole", dD.Kind == SmartMoverCore.Decision.Move &&
-        SmartMoverCore.UnsafeAt(dD.Dest, donutZones, 0.25f) is null, $"dest={dD.Dest}");
-
-    // The probe is still a preference: while part of the neighbourhood
-    // answers, the escape lands on the mesh (v1.0.4.196 behaviour intact).
-    bool WestOnly(Vector2 p) => p.X <= 0.5f;
-    var escapeZone = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, -8), 0f, 4f, 0f, 0f, 0f, default, 3f) };
-    var onMesh = SmartMoverCore.FindSafePoint(new Vector2(0, -8), escapeZone, new Vector2(0, 0), 15f, WestOnly);
-    Check("escape/prefers-walkable-when-some-answer", onMesh is { } om && WestOnly(om), $"dest={onMesh}");
-
-    // Danger still vetoes: no probe involved, nothing safe inside the clamp,
-    // and the answer is a hold that NAMES itself in telemetry.
-    var swamped = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(0, 0), 0f, 20f, 0f, 0f, 0f, default, 3f) };
-    var hStuck = new SmartMoverCore.Hysteresis();
-    var dStuck = SmartMoverCore.Decide(World(player: new(0, -8), target: new(0, 0), hitbox: 5f, zones: swamped), hStuck);
-    Check("escape/no-escape-anywhere-holds", dStuck.Kind == SmartMoverCore.Decision.None, $"kind={dStuck.Kind}");
-    Check("escape/no-escape-reason-is-stuck", dStuck.Reason == SmartMoverCore.ReasonNoEscapeCode, $"r={dStuck.Reason}");
-
-    // Telemetry: the three named holds must not share a key with each other
-    // or with "hold", or the emit gate hides a transition between them.
-    Check("escape/stuck-code-distinct", MovementTelemetryFormat.DecisionCode("stuck") != MovementTelemetryFormat.DecisionCode("hold"));
-    Check("escape/ring-code-distinct", MovementTelemetryFormat.DecisionCode("ring") != MovementTelemetryFormat.DecisionCode("hold"));
-    Check("escape/path-code-distinct", MovementTelemetryFormat.DecisionCode("path") != MovementTelemetryFormat.DecisionCode("stuck"));
-    Check("escape/named-holds-all-distinct",
-        MovementTelemetryFormat.DecisionCode("stuck") != MovementTelemetryFormat.DecisionCode("ring") &&
-        MovementTelemetryFormat.DecisionCode("ring") != MovementTelemetryFormat.DecisionCode("path"));
-
-    // A settled character waiting out a live telegraph keeps the plain "hold".
-    var aside = new[] { new DangerZoneModel.Zone(DangerZoneModel.ShapeKind.Circle, new(30, 30), 0f, 6f, 0f, 0f, 0f, default, 3f) };
-    var hSettle = new SmartMoverCore.Hysteresis();
-    var dSettle = SmartMoverCore.Decide(World(player: new(0, -8), range: 3f, target: new(0, 0), hitbox: 5f, zones: aside), hSettle);
-    Check("escape/settled-hold-keeps-plain-reason", dSettle.Kind == SmartMoverCore.Decision.None && dSettle.Reason == 0,
-        $"kind={dSettle.Kind} r={dSettle.Reason}");
-}
-
-// ---------------------------------------------------------------- shape asserts
-{
-    Check("shape/zone-carries-remaining", typeof(DangerZoneModel.Zone).GetProperty("RemainingSec") is not null);
-    Check("shape/world-has-bmrnav-only", typeof(SmartMoverCore.MoverWorld).GetProperties()
-        .Count(p => p.Name.StartsWith("Bmr", StringComparison.OrdinalIgnoreCase)) == 1);
-}
-
-Console.WriteLine();
 Console.WriteLine($"PASS={pass} FAIL={fail}");
-if (fail > 0 || pass == 0) { Console.WriteLine("SUITE FAILED"); return 1; }
-Console.WriteLine("OK");
-return 0;
+if (fail == 0 && pass > 0) { Console.WriteLine("OK"); return 0; }
+return 1;

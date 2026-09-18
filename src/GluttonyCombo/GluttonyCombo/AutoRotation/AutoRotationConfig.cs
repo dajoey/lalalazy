@@ -54,6 +54,10 @@ public class DPSSettings
     public bool SmartMoverOmenVfx = true;
     /// <summary>Omen debug lines (MVD|/MVU| in the plugin log at Debug level). Off by default.</summary>
     public bool SmartMoverOmenDebug = false;
+    /// <summary>Smart Movement v2: seconds before a telegraph's reported end the character must be out (BossMod default 1.0). Higher = earlier, safer, less uptime.</summary>
+    public float SmartMoverCushionSec = 1.0f;
+    /// <summary>Smart Movement v2: modifier key that suspends steering while held (0 none, 1 Ctrl, 2 Alt, 3 Shift).</summary>
+    public int SmartMoverEscapeHatch = 0;
 
     /// <summary>
     ///     Fork (v1.0.4.194, Policy A): auto-fired movement abilities (gap-closers,

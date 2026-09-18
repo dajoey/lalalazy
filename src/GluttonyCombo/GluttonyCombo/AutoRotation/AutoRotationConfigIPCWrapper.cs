@@ -219,6 +219,8 @@ public class DPSSettingsIPCWrapper(DPSSettings settings)
 
     /// <summary>Omen debug lines (MVD|/MVU|). Off by default.</summary>
     public bool SmartMoverOmenDebug => settings.SmartMoverOmenDebug;
+    public float SmartMoverCushionSec => settings.SmartMoverCushionSec;
+    public int SmartMoverEscapeHatch => settings.SmartMoverEscapeHatch;
 
     public bool AoEOnlyWhenTargeting => settings.AoEOnlyWhenTargeting;
 

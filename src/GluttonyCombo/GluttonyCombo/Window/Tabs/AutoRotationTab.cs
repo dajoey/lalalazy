@@ -174,22 +174,33 @@ internal class AutoRotationTab : ConfigWindow
 
             ImGui.Separator();
             changed |= ImGui.Checkbox("Smart Movement###SmartMover", ref cfg.DPSSettings.SmartMover);
-            ImGuiComponents.HelpMarker("When enabled, Gluttony Combo moves the character itself: to attack range of the current auto-rotation target (even when it differs from the hard target, and even before combat for hostile targets), out of telegraphed danger zones derived from enemy casts, and to positionals.\nRequires vnavmesh. Pauses instantly on manual movement input (keyboard or gamepad), while casting (except the slidecast window), and while BossMod Reborn's AI is actively steering.\nDoes not require or stand down for BossMod Reborn.");
+            ImGuiComponents.HelpMarker("When enabled, Gluttony Combo moves the character itself: to attack range of the current auto-rotation target (even when it differs from the hard target), out of telegraphed danger zones derived from enemy casts, and to positionals.\nMovement is steered directly (no navmesh needed for dodges); vnavmesh is used only to approach a target more than 24 yalms away. The planner knows WHEN each telegraph resolves and plans a path in seconds, so it can wait out a long cast in place, cross a zone that resolves before you arrive, and tell the rotation how long a cast may be.\nYour own movement input always wins. Stands down while BossMod Reborn's AI or another vnavmesh path is steering, while mounted or flying, and out of combat.");
             if (cfg.DPSSettings.SmartMover)
             {
                 var buf = cfg.DPSSettings.SmartMoverDangerBufferY;
-                ImGui.SliderFloat("Danger zone buffer (yalms)###SmartMoverDangerBuffer", ref buf, 0f, 3f, "%.1f");
+                ImGui.SliderFloat("Danger zone margin (yalms)###SmartMoverDangerBuffer", ref buf, 0f, 3f, "%.1f");
                 if (Math.Abs(buf - cfg.DPSSettings.SmartMoverDangerBufferY) > 0.01f)
                 {
                     cfg.DPSSettings.SmartMoverDangerBufferY = buf;
                     changed = true;
                 }
+                ImGuiComponents.HelpMarker("Every telegraph is grown by this much before planning. 1.0 covers position quantisation and your own hitbox.");
+                var cushion = cfg.DPSSettings.SmartMoverCushionSec;
+                ImGui.SliderFloat("Leave telegraphs this early (seconds)###SmartMoverCushion", ref cushion, 0.3f, 3f, "%.1f");
+                if (Math.Abs(cushion - cfg.DPSSettings.SmartMoverCushionSec) > 0.01f)
+                {
+                    cfg.DPSSettings.SmartMoverCushionSec = cushion;
+                    changed = true;
+                }
+                ImGuiComponents.HelpMarker("The character is out of a telegraph this many seconds before its cast bar ends (the game resolves NPC casts about 0.3 s after the bar). 1.0 is BossMod's default; raise it on high ping, lower it for more uptime.");
+                var hatch = cfg.DPSSettings.SmartMoverEscapeHatch;
+                if (ImGui.Combo("Suspend steering while holding###SmartMoverEscapeHatch", ref hatch, new[] { "Nothing", "Ctrl", "Alt", "Shift" }, 4))
+                {
+                    cfg.DPSSettings.SmartMoverEscapeHatch = hatch;
+                    changed = true;
+                }
                 changed |= ImGui.Checkbox("Movement telemetry###MovementTelemetry", ref cfg.DPSSettings.MovementTelemetry);
-                ImGuiComponents.HelpMarker("Writes one MV| decision line per movement decision change to the plugin log (nothing leaves the machine). Toggle with /gluttony mvtel.");
-                changed |= ImGui.Checkbox("Omen telegraphs (instant AoEs)###SmartMoverOmenVfx", ref cfg.DPSSettings.SmartMoverOmenVfx);
-                ImGuiComponents.HelpMarker("Derives extra danger zones from enemy omen ground telegraphs - the ground markers the game draws for instant attacks that never show a cast bar. Shapes are conservative; each zone lives exactly as long as its telegraph graphic.");
-                changed |= ImGui.Checkbox("Omen debug log###SmartMoverOmenDebug", ref cfg.DPSSettings.SmartMoverOmenDebug);
-                ImGuiComponents.HelpMarker("Writes MVD| lines (decoded omen telegraphs) and MVU| lines (hostile VFX that did not classify as omens) to the plugin log at Debug level, one line per new VFX. For diagnosing detection coverage; off by default.");
+                ImGuiComponents.HelpMarker("Writes MV| decision lines and MZ| telegraph lines to the plugin log (nothing leaves the machine). Toggle with /gluttony mvtel.");
             }
 
             changed |= ImGui.Checkbox("Movement ability safety gate###MovementSafetyGate", ref cfg.DPSSettings.MovementSafetyGate);

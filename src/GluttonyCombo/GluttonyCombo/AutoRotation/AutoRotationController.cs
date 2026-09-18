@@ -2207,7 +2207,15 @@ internal unsafe class AutoRotationController
         /// </summary>
         private static bool MovementBlocksCastStart(float castTime, bool orbwalking)
         {
-            if (castTime <= 0f || TimeMoving.TotalMilliseconds <= 0 || orbwalking)
+            if (castTime <= 0f)
+                return false;
+
+            // Smart Movement v2: never start a cast the planner would have to cut.
+            // MaxCastTime is the path leeway in seconds (float.MaxValue when nothing threatens).
+            if (castTime / 1000f > SmartMover.MaxCastTime)
+                return true;
+
+            if (TimeMoving.TotalMilliseconds <= 0 || orbwalking)
                 return false;
 
             if (Player.Object is IBattleChara pc && pc.IsCasting && pc.TotalCastTime > 0f &&

@@ -1,4 +1,4 @@
-#region
+﻿#region
 
 using System;
 using System.Collections.Generic;
@@ -49,7 +49,10 @@ internal static class DangerZoneModel
         float HalfWidth,     // rect/cross/charge half-width
         float HalfAngle,     // cone half-angle, radians
         Vector2 End,         // charge rect: destination point
-        float RemainingSec); // seconds until the cast resolves
+        float RemainingSec,  // seconds until the cast resolves (as reported by the cast bar)
+        double ActivationSec = 0, // v2: absolute second (MoverWorld.NowSec clock) the zone becomes lethal; 0 = now
+        ulong Source = 0,    // v2: casting actor id (0 = unknown / lingering field)
+        uint ActionId = 0);  // v2: action id for telemetry
 
     /// <summary> Raw per-cast data the Dalamud half extracts; omen-derived values are passed in pre-parsed. </summary>
     internal readonly record struct CastPrimitive(
@@ -196,7 +199,7 @@ internal static class DangerZoneModel
     internal sealed class LingeringZones
     {
         /// <summary> How long a resolved ground zone stays dangerous, seconds. </summary>
-        internal const float LingerSec = 3f;
+        internal const float LingerSec = 1f; // v2: was 3 s - stale re-dodges 1-2 s after resolution (Live Evidence)
 
         private readonly List<(Zone Zone, double ExpirySec)> active = new();
 
@@ -226,6 +229,54 @@ internal static class DangerZoneModel
     ///     Game rotation (radians, facing = (sin r, cos r) in the XZ plane) to
     ///     the math-convention angle atan2(z, x) the zones use (v1.0.4.209).
     /// </summary>
+    /// <summary>
+    ///     v2: signed distance function of a zone (negative inside), for the
+    ///     time-aware planner. The buffer already dilated into the zone at
+    ///     collection time is included; the planner adds its own over-dodge cushion.
+    /// </summary>
+    internal static Func<Vector2, float> Sdf(in Zone z)
+    {
+        switch (z.Kind)
+        {
+            case ShapeKind.Circle:
+                return Movement.ShapeDistance.Circle(z.Origin, z.Radius);
+            case ShapeKind.Donut:
+                return Movement.ShapeDistance.Donut(z.Origin, z.InnerRadius, z.Radius);
+            case ShapeKind.Rect:
+                return Movement.ShapeDistance.Rect(z.Origin, z.Rotation, z.Radius, MaxError, z.HalfWidth);
+            case ShapeKind.ChargeRect:
+                return Movement.ShapeDistance.Rect(z.Origin, z.End, z.HalfWidth);
+            case ShapeKind.Cone:
+                return Movement.ShapeDistance.Cone(z.Origin, z.Radius, z.Rotation, z.HalfAngle);
+            case ShapeKind.Cross:
+                return Movement.ShapeDistance.Cross(z.Origin, z.Rotation, z.Radius, z.HalfWidth);
+            default:
+                return _ => float.MaxValue;
+        }
+    }
+
+    /// <summary> Axis-aligned bounding box of a zone (conservative), for rasterisation culling. </summary>
+    internal static (Vector2 Min, Vector2 Max) Bounds(in Zone z)
+    {
+        switch (z.Kind)
+        {
+            case ShapeKind.ChargeRect:
+            {
+                var min = Vector2.Min(z.Origin, z.End) - new Vector2(z.HalfWidth + MaxError);
+                var max = Vector2.Max(z.Origin, z.End) + new Vector2(z.HalfWidth + MaxError);
+                return (min, max);
+            }
+            case ShapeKind.Rect:
+            case ShapeKind.Cross:
+            {
+                var r = z.Radius + z.HalfWidth + MaxError;
+                return (z.Origin - new Vector2(r), z.Origin + new Vector2(r));
+            }
+            default:
+                return (z.Origin - new Vector2(z.Radius), z.Origin + new Vector2(z.Radius));
+        }
+    }
+
     internal static float GameRotationToMath(float gameRotation) =>
         MathF.Atan2(MathF.Cos(gameRotation), MathF.Sin(gameRotation));
 

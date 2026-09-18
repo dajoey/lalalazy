@@ -1,7 +1,6 @@
 #region
 
 using System;
-using System.Collections.Generic;
 using System.Globalization;
 
 #endregion
@@ -9,98 +8,96 @@ using System.Globalization;
 namespace GluttonyCombo.AutoRotation;
 
 /// <summary>
-///     PURE line format + emit gate for the SmartMover movement-decision tap
-///     (fork, t_356159a8, v1.0.4.191). Grammar follows the shared tap contract
-///     (decision-taps.md): <c>MV|unixms|job|dec|tgt|dist|nz|dst|ovz</c>.
+///     PURE line formats + emit gate for the Smart Movement telemetry tap (v2).
+///     Grammar (shared tap contract, decision-taps.md; <b>MT| is TAKEN</b> by LazyMarketCompanion):
+///     <list type="bullet">
+///     <item><c>MVH|unixms|build|cushion|speed|legend</c> once per plugin load.</item>
+///     <item><c>MV|unixms|job|dec|tgt|dist|nz|dst|px,pz|spd|lee|maxg|plan</c> on every decision change and at least every 1.0 s while any zone is live.</item>
+///     <item><c>MZ|unixms|add|zoneId|actor|action|shape|cx,cz|r|inner|hw|hang|rot|act_ms</c> / <c>MZ|unixms|del|zoneId|why</c> on every zone change.</item>
+///     </list>
+///     dist = distance-to-target minus desired range (1 decimal). nz = live zones.
+///     dst = steering waypoint "x,z" (1 decimal) or "-". spd = assumed speed. lee = path
+///     leeway seconds ("inf" when nothing threatens). maxg = seconds the current cell stays safe
+///     ("inf" when safe). plan = planner steps. All InvariantCulture; 200-char budget, cut with ~.
 /// </summary>
-/// <remarks>
-///     <b>MT| is TAKEN</b> (LazyMarketCompanion) - the movement tap owns MV.
-///     dist = distance-to-target minus desired-range, 1 decimal, InvariantCulture.
-///     nz = count of live derived zones. dst = "x,z" rounded to 1y, or "-".
-///     ovz (v1.0.4.195) = count of live omen-telegraph zones among those.
-///     Gate: emit on change of (dec, dst, nz) plus a 1.0s floor; a dodge START
-///     (dec=ddg after a non-ddg line) always emits immediately; toggle-off
-///     is never logged as a decision, but nav-not-ready IS (v1.0.4.198 - a
-///     dead nav layer hiding behind "off" cost a full debug round).
-///     200-char budget, truncation marker ~, cut only the last field.
-/// </remarks>
 internal static class MovementTelemetryFormat
 {
     internal const string Prefix = "MV";
+    internal const string ZonePrefix = "MZ";
+    internal const string HeaderPrefix = "MVH";
 
-    /// <summary> Rate floor: same key may not emit more often than this. A const, not config. </summary>
+    /// <summary> Rate floor for an unchanged key. </summary>
     internal const int MinIntervalMs = 1000;
 
-    internal static string BuildLine(long unixMs, byte job, string dec, uint tgtDataId, float distPastBand, int liveZones, float? dstX, float? dstZ, int omenZones)
+    internal const string Legend = "off=disabled nav=vnavmesh-not-ready man=manual-input cast=finishing-cast ext=external-mover ddg=dodging eng=to-band stl=settled ooc=out-of-combat hold=safe-cell-zones-live stuck=unsafe-no-exit esc=dodge-no-leeway mnt=mounted kb=knockback appr=vnavmesh-approach hook=steering-hook-unavailable";
+
+    private static string F1(float v) => v.ToString("F1", CultureInfo.InvariantCulture);
+    private static string Sec(float v) => v >= float.MaxValue / 2 ? "inf" : v.ToString("F2", CultureInfo.InvariantCulture);
+
+    internal static string BuildHeader(long unixMs, string build, float cushionSec, float speed)
     {
         var inv = CultureInfo.InvariantCulture;
-        var dist = distPastBand.ToString("F1", inv);
-        var dst = dstX is { } x && dstZ is { } z
-            ? MathF.Round(x).ToString(inv) + "," + MathF.Round(z).ToString(inv)
-            : "-";
-
-        var line = string.Join('|',
-            Prefix, unixMs.ToString(inv), job.ToString(inv), dec, tgtDataId.ToString(inv), dist,
-            liveZones.ToString(inv), dst, omenZones.ToString(inv));
-
-        if (line.Length > 200)
-            line = line[..199] + "~";
-        return line;
+        return string.Join('|', HeaderPrefix, unixMs.ToString(inv), build, cushionSec.ToString("F2", inv), F1(speed), Legend);
     }
 
-    /// <summary> Gate key: the tuple that identifies the situation. </summary>
-    /// <remarks>
-    ///     v1.0.4.209: the live-zone count is part of the key. Without it a
-    ///     long hold or settle never re-emitted while telegraphs came and went,
-    ///     so a window with several casts live read as nz=0 from the last line.
-    ///     The 1s floor still bounds the rate.
-    /// </remarks>
-    internal readonly record struct EmitKey(byte Decision, int DstX, int DstZ, int Zones = 0);
+    internal static string BuildLine(long unixMs, byte job, string dec, uint tgtDataId, float distPastBand, int liveZones,
+        float? dstX, float? dstZ, float px, float pz, float speed, float leewaySec, float startMaxG, int planSteps)
+    {
+        var inv = CultureInfo.InvariantCulture;
+        var dst = dstX is { } x && dstZ is { } z ? F1(x) + "," + F1(z) : "-";
+        var line = string.Join('|',
+            Prefix, unixMs.ToString(inv), job.ToString(inv), dec, tgtDataId.ToString(inv), F1(distPastBand),
+            liveZones.ToString(inv), dst, F1(px) + "," + F1(pz), F1(speed), Sec(leewaySec), Sec(startMaxG), planSteps.ToString(inv));
+        return Clip(line);
+    }
 
-    internal static EmitKey KeyOf(string dec, float? dstX, float? dstZ, int liveZones = 0) => new(
+    internal static string BuildZoneAdd(long unixMs, ulong zoneId, ulong actor, uint action, string shape, float cx, float cz,
+        float radius, float inner, float halfWidth, float halfAngleDeg, float rotDeg, long activationMs)
+    {
+        var inv = CultureInfo.InvariantCulture;
+        var line = string.Join('|',
+            ZonePrefix, unixMs.ToString(inv), "add", zoneId.ToString("X", inv), actor.ToString("X", inv), action.ToString("X", inv), shape,
+            F1(cx) + "," + F1(cz), F1(radius), F1(inner), F1(halfWidth), F1(halfAngleDeg), F1(rotDeg), activationMs.ToString(inv));
+        return Clip(line);
+    }
+
+    internal static string BuildZoneDel(long unixMs, ulong zoneId, string why)
+    {
+        var inv = CultureInfo.InvariantCulture;
+        return Clip(string.Join('|', ZonePrefix, unixMs.ToString(inv), "del", zoneId.ToString("X", inv), why));
+    }
+
+    private static string Clip(string line) => line.Length > 200 ? line[..199] + "~" : line;
+
+    /// <summary> Gate key: the tuple that identifies the situation. </summary>
+    internal readonly record struct EmitKey(byte Decision, int DstX, int DstZ, int Zones);
+
+    internal static EmitKey KeyOf(string dec, float? dstX, float? dstZ, int liveZones) => new(
         DecisionCode(dec),
-        dstX is { } x ? (int)MathF.Round(x) : int.MinValue,
-        dstZ is { } z ? (int)MathF.Round(z) : int.MinValue,
+        dstX is { } x ? (int)MathF.Round(x * 2) : int.MinValue,
+        dstZ is { } z ? (int)MathF.Round(z * 2) : int.MinValue,
         liveZones);
 
     internal static byte DecisionCode(string dec) => dec switch
     {
-        "ddg" => 6,
-        "eng" => 7,
-        "stl" => 8,
-        "ooc" => 9,
-        "man" => 3,
-        "cast" => 4,
-        "bmr" => 5,
-        "hold" => 10, // v1.0.4.206: the no-command hold while zones are live.
-                      // Its own key so a hold/stop transition always emits -
-                      // sharing "stl" hid holds behind stops (and vice versa).
-        // v1.0.4.212: the three no-command answers that used to hide inside
-        // "hold". "stuck" is the one that costs health - the character is
-        // INSIDE a live telegraph and the sampler found nowhere to go.
-        "stuck" => 11,
-        "ring" => 12,
-        "path" => 13,
+        "off" => 1, "nav" => 2, "man" => 3, "cast" => 4, "ext" => 5, "ddg" => 6, "eng" => 7, "stl" => 8, "ooc" => 9,
+        "hold" => 10, "stuck" => 11, "esc" => 12, "mnt" => 14, "kb" => 15, "appr" => 16, "hook" => 17,
         _ => 0,
     };
 
     /// <summary>
-    ///     Whether to emit, given the last emitted key/time and the current
-    ///     candidate. Dodge-starts bypass the floor (rare events always emit);
-    ///     everything else needs a key change AND the floor elapsed. Suppressed
-    ///     states are not recorded, so the first tick past the window still emits.
+    ///     Emit on a key change once the rate floor has elapsed; a dodge start
+    ///     always emits; while any zone is live, the state re-emits every
+    ///     <see cref="MinIntervalMs"/> even if unchanged (no more silent holds).
     /// </summary>
-    internal static bool ShouldEmit(EmitKey? lastKey, long lastMs, long nowMs, EmitKey candidate, bool isDodgeStart)
+    internal static bool ShouldEmit(EmitKey? lastKey, long lastMs, long nowMs, EmitKey candidate, bool isDodgeStart, bool zonesLive)
     {
-        if (isDodgeStart)
-            return true;
-        if (lastKey is null)
+        if (isDodgeStart || lastKey is null)
             return true;
         if (nowMs - lastMs < MinIntervalMs)
             return false;
-        return lastKey.Value != candidate;
+        return zonesLive || lastKey.Value != candidate;
     }
 
-    /// <summary> Splits a line back into fields (1-based including prefix) - used by the harness and grading views. </summary>
     internal static string[] Parse(string line) => line.Split('|');
 }
