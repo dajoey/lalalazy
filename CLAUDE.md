@@ -85,6 +85,10 @@ This file has a **UTF-8 BOM**. When writing it:
 - Direct string replacement (not regex) is more reliable than regex for this file
 - Always do a post-write verification read
 
+## Push host — `git push` runs from DAJOEYROG (standing rule, added 2026-09-18)
+
+**Pushes run from DAJOEYROG, like builds.** The remote is HTTPS and only the build host has credentials: on other hosts (jobunthree has no credential helper and no `gh`) `git push` fails with `fatal: could not read Username for 'https://github.com': No such device or address`. Edit anywhere, but commit and push from the canonical checkout at `C:\Users\dajoey\lalalazy` — or, safer while release agents are using that checkout, a throwaway `git worktree add --detach` off it. **This applies to text-only commits too**: a CHANGELOG or docs change still cannot be pushed from a non-credentialed host; don't burn a cycle rediscovering that.
+
 ## Test Machine
 
 Testing runs on **test-machine** (Linux/Wine) — NOT dajoeyrog. dajoeyrog is the build/repo host only.
