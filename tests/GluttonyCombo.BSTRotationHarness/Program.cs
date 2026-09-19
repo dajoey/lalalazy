@@ -318,6 +318,64 @@ internal static class Program
         Console.WriteLine($"   B1 roster: {string.Join(", ", roster.Select(r => $"{BST_Beasts.All[r.Row].Name}:{r.Battles}"))}");
         foreach (var b in BST_CrucibleData.Boards)
             Check($"board {b.Board}: every battle gets 3 picks", BST_CrucibleData.Battles.Where(x => x.Board == b.Board).All(x => BST_CrucibleAdvisor.Pick(b.Board, x.Battle, All).Count == 3));
+
+        // --- PickSlots: run-state ranking (candidate roster + HP) ---
+        var allRows = Enumerable.Range(1, BST_Beasts.Count).ToList();
+        var fullHp = new Dictionary<int, int>();
+        var emptyHp = new Dictionary<int, int>();
+        var today = BST_CrucibleAdvisor.Pick(1, 1, All);
+        var slotsFull = BST_CrucibleAdvisor.PickSlots(1, 1, allRows, fullHp);
+        Check("PickSlots full-HP empty map: same rows as Pick (empty-horn regression)",
+            slotsFull.Select(p => p.Row).SequenceEqual(today.Select(p => p.Row)),
+            $"Pick=[{string.Join(",", today.Select(p => p.Row))}] Slots=[{string.Join(",", slotsFull.Select(p => p.Row))}]");
+        Check("PickSlots HpFactor at 100% is 1 and at DangerHpPercent is 0.32",
+            Math.Abs(BST_CrucibleAdvisor.HpFactor(100) - 1.0) < 1e-9
+            && Math.Abs(BST_CrucibleAdvisor.HpFactor(BST_CrucibleAdvisor.DangerHpPercent) - 0.32) < 1e-9);
+        Check("PickSlots: 0% HP never picked",
+            BST_CrucibleAdvisor.PickSlots(1, 1, allRows, new Dictionary<int, int> { [today[0].Row] = 0 })
+                .All(p => p.Row != today[0].Row));
+        Check("PickSlots: row absent from candidates never picked",
+            BST_CrucibleAdvisor.PickSlots(1, 1, allRows.Where(r => r != today[0].Row).ToList(), emptyHp)
+                .All(p => p.Row != today[0].Row));
+
+        // Low-HP top pick loses to a healthy similar second; still beats a healthy zero-fit.
+        var top = today[0].Row;
+        var second = today[1].Row;
+        var zeroFit = Enumerable.Range(1, BST_Beasts.Count)
+            .Where(r => r != top && r != second)
+            .OrderBy(r => BST_CrucibleAdvisor.Score(1, 1, r, CrucibleNeeds.None))
+            .First();
+        var lowTop = BST_CrucibleAdvisor.PickSlots(1, 1, new[] { top, second },
+            new Dictionary<int, int> { [top] = BST_CrucibleAdvisor.DangerHpPercent, [second] = 100 });
+        Check("PickSlots: at DangerHpPercent the top battle fit loses to a healthy similar second",
+            lowTop.Count >= 1 && lowTop[0].Row == second,
+            string.Join(" | ", lowTop.Select(p => $"{p.Row}@{p.Score} {p.Why}")));
+        var lowVsNothing = BST_CrucibleAdvisor.PickSlots(1, 1, new[] { top, zeroFit },
+            new Dictionary<int, int> { [top] = BST_CrucibleAdvisor.DangerHpPercent, [zeroFit] = 100 });
+        Check("PickSlots: DangerHpPercent top still beats a healthy familiar that answers nothing",
+            lowVsNothing.Count >= 1 && lowVsNothing[0].Row == top,
+            $"zeroFit={zeroFit} score={BST_CrucibleAdvisor.Score(1, 1, zeroFit, CrucibleNeeds.None)}; "
+            + string.Join(" | ", lowVsNothing.Select(p => $"{p.Row}@{p.Score} {p.Why}")));
+
+        var unknownHp = BST_CrucibleAdvisor.PickSlots(1, 1, new[] { top }, emptyHp);
+        Check("PickSlots: unknown HP treated as full and said in Why",
+            unknownHp.Count == 1 && unknownHp[0].Row == top && unknownHp[0].Why.Contains("HP assumed full"));
+
+        // Coverage: after a Soulkin fills interrupt, a second Soulkin is not credited for Soul Crush.
+        var soulkin = Enumerable.Range(1, BST_Beasts.Count).First(r => BST_Beasts.All[r].Kin == BeastmasterKinType.Soulkin);
+        var otherSoulkin = Enumerable.Range(1, BST_Beasts.Count).First(r => r != soulkin && BST_Beasts.All[r].Kin == BeastmasterKinType.Soulkin);
+        var coverPicks = BST_CrucibleAdvisor.PickSlots(1, 1, new[] { soulkin, otherSoulkin },
+            new Dictionary<int, int> { [soulkin] = 100, [otherSoulkin] = 100 }, slots: 2);
+        Check("PickSlots: needs coverage — second Soulkin Why has no Soul Crush once interrupt is covered",
+            coverPicks.Count == 2
+            && coverPicks[0].Why.Contains("Soul Crush")
+            && !coverPicks[1].Why.Contains("Soul Crush"),
+            string.Join(" | ", coverPicks.Select(p => $"{BST_Beasts.All[p.Row].Name} {p.Why}")));
+
+        var once = BST_CrucibleAdvisor.PickSlots(1, 1, allRows, new Dictionary<int, int> { [top] = 40, [second] = 70 });
+        var twice = BST_CrucibleAdvisor.PickSlots(1, 1, allRows, new Dictionary<int, int> { [top] = 40, [second] = 70 });
+        Check("PickSlots: deterministic — same inputs same order",
+            once.Select(p => p.Row).SequenceEqual(twice.Select(p => p.Row)));
     }
 
     /// <summary> In combat on the First Board, L30, Cu Sith out (One with Nature spent), raptor / buffalo on ready horns 2 and 3. </summary>

@@ -18,6 +18,23 @@ internal static class BST_CrucibleAdvisor
     public const int VultureRow = 11;
     public const int BatRow = 19;
 
+    /// <summary>
+    ///     Run-state danger line for horn ranking (Crucible Plan A1 / pet-save intent): at or below this HP% a
+    ///     familiar loses to a healthy alternative of similar battle fit. Live pet-save now swaps below
+    ///     <c>CruciblePetSwapHp</c> and Parting-Blows at half that (default 27.5%); this constant stays at the
+    ///     plan's 15% so ranking does not put a nearly-dead familiar on a horn. Distinct from
+    ///     <c>BST_CrucibleLogic.PartyHpLow</c> (95%, party-agent lag filter only).
+    /// </summary>
+    public const int DangerHpPercent = 15;
+
+    /// <summary>
+    ///     Floor of the HP multiplier at the brink of KO (exclusive of 0%, which is never picked).
+    ///     With <see cref="HpFactor"/> = floor + (1-floor)*(hp/100), at <see cref="DangerHpPercent"/> the
+    ///     factor is 0.32 — a top battle score loses to a healthy similar second pick but still beats a
+    ///     healthy familiar that answers nothing the battle needs.
+    /// </summary>
+    public const double HpFactorFloor = 0.20;
+
     /// <summary> Vulnerability bit 3 is "interrupt": answered by the Soulkin need, not counted as crowd control. </summary>
     private const ushort CrowdControlBits = 0x7FF & ~(1 << 3);
 
@@ -147,8 +164,112 @@ internal static class BST_CrucibleAdvisor
     }
 
     /// <summary>
+    ///     Multiplier on battle <see cref="Score"/> from remembered run HP. Missing map entries are treated as
+    ///     full (100) by the caller. At 100% → 1.0; at <see cref="DangerHpPercent"/> → 0.32; approaches
+    ///     <see cref="HpFactorFloor"/> as HP nears 0. Shape is linear so the harness can pin exact effective scores.
+    /// </summary>
+    public static double HpFactor(int hpPercent)
+    {
+        if (hpPercent >= 100)
+            return 1.0;
+        if (hpPercent <= 0)
+            return 0.0;
+        return HpFactorFloor + (1.0 - HpFactorFloor) * (hpPercent / 100.0);
+    }
+
+    /// <summary> Battle score after the run-state HP multiplier. 0% HP yields <see cref="int.MinValue"/>. </summary>
+    public static int EffectiveScore(int battleScore, int hpPercent)
+    {
+        if (hpPercent <= 0 || battleScore == int.MinValue)
+            return int.MinValue;
+        return (int)Math.Floor(battleScore * HpFactor(hpPercent));
+    }
+
+    /// <summary>
+    ///     Best horn fills for one battle from an explicit candidate roster and per-familiar HP%. PURE: never
+    ///     reads the game. 0% HP or rows absent from <paramref name="candidateRows"/> are never picked; HP missing
+    ///     from the map is treated as full and noted in <c>Why</c>. Greedy coverage and weakness saturation match
+    ///     <see cref="Pick"/>. Tie-break: higher effective score, then higher HP, then lower row (deterministic).
+    /// </summary>
+    public static List<CrucibleBeastPick> PickSlots(
+        int board,
+        int battle,
+        IReadOnlyList<int> candidateRows,
+        IReadOnlyDictionary<int, int> hpPercentByRow,
+        int slots = 3)
+    {
+        var picks = new List<CrucibleBeastPick>(slots);
+        var covered = CrucibleNeeds.None;
+        var taken = new HashSet<int>();
+        var weaknessPicks = 0;
+        var candidates = new List<int>(candidateRows.Count);
+        var seen = new HashSet<int>();
+        foreach (var row in candidateRows)
+        {
+            if (row is < 1 or > BST_Beasts.Count || !seen.Add(row))
+                continue;
+            candidates.Add(row);
+        }
+
+        for (var n = 0; n < slots; n++)
+        {
+            var bestRow = 0;
+            var bestEff = int.MinValue;
+            var bestHp = -1;
+            var bestHpKnown = true;
+
+            foreach (var row in candidates)
+            {
+                if (taken.Contains(row))
+                    continue;
+
+                var hpKnown = hpPercentByRow.TryGetValue(row, out var hp);
+                if (!hpKnown)
+                    hp = 100;
+                if (hp <= 0)
+                    continue;
+
+                var raw = Score(board, battle, row, covered, null, weaknessPicks);
+                if (raw == int.MinValue)
+                    continue;
+                var eff = EffectiveScore(raw, hp);
+
+                var better = eff > bestEff
+                             || (eff == bestEff && hp > bestHp)
+                             || (eff == bestEff && hp == bestHp && (bestRow == 0 || row < bestRow));
+                if (!better)
+                    continue;
+
+                bestEff = eff;
+                bestRow = row;
+                bestHp = hp;
+                bestHpKnown = hpKnown;
+            }
+
+            if (bestRow == 0)
+                break;
+
+            var why = new List<string>(5);
+            Score(board, battle, bestRow, covered, why, weaknessPicks);
+            if (!bestHpKnown)
+                why.Add("HP assumed full");
+            else if (bestHp < 100)
+                why.Add($"HP {bestHp}%");
+
+            picks.Add(new(bestRow, bestEff, true, string.Join(", ", why)));
+            taken.Add(bestRow);
+            covered |= Answers(bestRow);
+            if (HitsWeakness(board, battle, bestRow))
+                weaknessPicks++;
+        }
+
+        return picks;
+    }
+
+    /// <summary>
     ///     The best <paramref name="count"/> captured familiars for a battle, chosen greedily so a later pick is not
-    ///     credited for a need an earlier pick already answers.
+    ///     credited for a need an earlier pick already answers. Full-HP view of the unlocked roster (empty-horn
+    ///     warning); run-state ranking for autograb is <see cref="PickSlots"/>.
     /// </summary>
     public static List<CrucibleBeastPick> Pick(int board, int battle, Func<int, bool> captured, int count = 3)
     {
