@@ -279,7 +279,7 @@
 
 ### Changed
 
-- The post-craft price-match hand-off now targets Lazy Market Companion (DagobertPriceMatcher was retired, card t_138ee175): the `Installed` check reads LMC's InternalName `LazyMarketCompanion` instead of Dagobert's, and the file is renamed (property `Dispatch.Dagobert` -> `Dispatch.PriceMatch`)
+- The post-craft price-match hand-off now targets Lazy Market Companion (DagobertPriceMatcher was retired): the `Installed` check reads LMC's InternalName `LazyMarketCompanion` instead of Dagobert's, and the file is renamed (property `Dispatch.Dagobert` -> `Dispatch.PriceMatch`)
 - Config `DagobertAfterCraft` is renamed `PriceMatchAfterCraft` (Configuration v4 -> v5): existing saved configs keep the value - a Newtonsoft `[JsonProperty("DagobertAfterCraft")]` legacy shadow property reads the old key on load and `MigrateIfNeeded` copies it across exactly once; the resave writes only the new key. `/lcraft debug` and the Settings tab rename with it; `/pricematch` still works (LMC answers it as a legacy alias)
 - Settings tab copy names Lazy Market Companion and notes `/pricematch still works`
 
