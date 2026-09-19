@@ -3801,6 +3801,47 @@ StockStack BagStack(uint id, int slot, int qty, uint cat = CatA, bool marketable
     string.Join(",", tiePlan.Ops.Select(o => $"slot{o.Slot}x{o.Quantity}")));
 }
 
+// 124. The board-budget guard is WIRED to the listing plan, not merely present. Cases 91-94 pin
+// HasListingBudget itself, but nothing had called it since 0.1.47.0 and Plan derived its own
+// empty-slot count inline - and AutoMarketService.SnapshotMarket returns an EMPTY list for a market
+// container that is null or not yet loaded, against which every slot index reads as empty. So a
+// board the plugin could not see was planned as twenty free slots. 0.1.60.0 pointed Plan at the
+// guard; this case pins the wiring, which is the half that was missing, not the arithmetic.
+{
+  // Two stacks, as case 1 uses: enough dye to fill all 20 slots at a stack size of 5, so the
+  // readable-board control below is "the whole board gets used" rather than a count to explain.
+  var stock = new List<StockStack>
+  {
+    new(StockOrigin.Bags, Bags1, 3, Dye, false, 99),
+    new(StockOrigin.Bags, Bags1, 4, Dye, false, 99),
+  };
+
+  var unread = AutoMarketPlanner.Plan([Rule(Dye, 5)], stock, new List<MarketSlot>(), Opts());
+  Check("124 board guard: an empty snapshot (container not loaded) plans nothing",
+    unread.Ops.Count == 0, $"ops={unread.Ops.Count}");
+  Check("124 board guard: and says the board could not be read, not 'no free slots'",
+    unread.Notes.Count == 1 && unread.Notes[0].Contains("could not be read"),
+    string.Join(" | ", unread.Notes));
+
+  // A partially-read board is the same failure: fewer rows than the board has slots means the
+  // read is incomplete, and the missing indexes must not be handed out as empty slots.
+  var partial = Enumerable.Range(0, 5).Select(i => new MarketSlot(i, 0u, false, 0)).ToList();
+  var short_ = AutoMarketPlanner.Plan([Rule(Dye, 5)], stock, partial, Opts());
+  Check("124 board guard: a short snapshot plans nothing either",
+    short_.Ops.Count == 0 && short_.Notes.Count == 1 && short_.Notes[0].Contains("could not be read"),
+    $"ops={short_.Ops.Count} notes={string.Join(" | ", short_.Notes)}");
+
+  // Controls: a fully-read board still plans, and a fully-read FULL board still reports the
+  // ordinary no-free-slots note - the guard must not have swallowed that path.
+  var readable = AutoMarketPlanner.Plan([Rule(Dye, 5)], stock, EmptyMarket(), Opts());
+  Check("124 board guard control: a board that reads fully still plans",
+    readable.Ops.Count == 20, $"ops={readable.Ops.Count}");
+  var full = AutoMarketPlanner.Plan([Rule(Dye, 5)], stock, EmptyMarket(occupied: 20), Opts());
+  Check("124 board guard control: a full board still says no free slots, not unreadable",
+    full.Ops.Count == 0 && full.Notes.Count == 1 && full.Notes[0].Contains("no free market slots"),
+    string.Join(" | ", full.Notes));
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 
