@@ -57,6 +57,7 @@ internal static unsafe class BST_CruciblePetSelect
     private static bool _sigsOk;
 
     private static Hook<ReceiveEventDelegate>? _receiveEventHook;
+    private static Hook<ReceiveEventDelegate>? _receiveEventWithResultHook;
     private static bool _probeWanted;
 
     private static bool _inFormation;
@@ -64,6 +65,7 @@ internal static unsafe class BST_CruciblePetSelect
     private static bool _abortThisPhase;
     private static bool _loggedAggroThisRun;
     private static int _lastBoard;
+    private static uint _lastLoggedMode = uint.MaxValue;
 
     /// <summary> Framework tick: probe lifecycle + one autograb pass per formation phase. </summary>
     internal static void Tick()
@@ -124,6 +126,7 @@ internal static unsafe class BST_CruciblePetSelect
         _abortThisPhase = false;
         _loggedAggroThisRun = false;
         _lastBoard = 0;
+        _lastLoggedMode = uint.MaxValue;
     }
 
     private static void RunFormationPass(int territoryBoard)
@@ -134,6 +137,12 @@ internal static unsafe class BST_CruciblePetSelect
             return;
 
         var mode = *(uint*)(stage + StageMode);
+        if (mode != _lastLoggedMode)
+        {
+            _lastLoggedMode = mode;
+            LogModeGate(pet, territoryBoard, mode);
+        }
+
         if (mode != 0)
         {
             _inFormation = false;
@@ -184,7 +193,6 @@ internal static unsafe class BST_CruciblePetSelect
         var currentHorns = ReadPetIds(pet, PartySelectedPetIds);
         var changes = BST_CrucibleAdvisor.PlanHornChanges(currentHorns, picks);
 
-        var inv = CultureInfo.InvariantCulture;
         var candStr = string.Join(",", hpPets.ConvertAll(p =>
             $"{p.Row}:{(p.Max == 0 || p.Current == 0 ? 0 : (int)Math.Round(100.0 * p.Current / p.Max))}"));
         var pickStr = string.Join(",", picks.ConvertAll(p => $"{p.Row}:{Clean(p.Why, 40)}"));
@@ -324,10 +332,6 @@ internal static unsafe class BST_CruciblePetSelect
         {
             var entry = stage + StageEntries + i * StageEntrySize;
             var type = *(uint*)(entry + StageEntryType);
-            if (type == 0 && i > 0 && seen.Count > 0)
-            {
-                // Sparse trailing empties are common; keep scanning a bit, but stop after a long empty run.
-            }
             if (type != 3)
                 continue;
 
@@ -446,21 +450,36 @@ internal static unsafe class BST_CruciblePetSelect
     private static void EnsureProbe()
     {
         _probeWanted = true;
-        if (_receiveEventHook is not null)
+        if (_receiveEventHook is not null || _receiveEventWithResultHook is not null)
             return;
         try
         {
-            var agent = GetAgent(AgentId.XBMPetParty);
-            if (agent == 0)
+            var agent = (AgentInterface*)GetAgent(AgentId.XBMPetParty);
+            if (agent is null)
                 return;
-            var vt = *(nint*)agent;
-            // AgentInterface.VirtualTable->ReceiveEvent — first function after the common AtkEventInterface layout.
-            // Index matches ClientStructs AgentInterface / AtkEventInterface ReceiveEvent slot (used by DailyRoutines HookVFuncFromName).
-            var receiveEvent = *(nint*)(vt + IntPtr.Size * ReceiveEventVTableIndex());
-            if (receiveEvent == 0)
+            var vt = agent->VirtualTable;
+            if (vt is null)
                 return;
-            _receiveEventHook = Svc.Hook.HookFromAddress<ReceiveEventDelegate>(receiveEvent, ReceiveEventDetour);
-            _receiveEventHook.Enable();
+
+            // Resolved by NAME through the generated ClientStructs vtable struct, never by a hardcoded index:
+            // AgentInterfaceVirtualTable is ReceiveEvent (slot 0), ReceiveEventWithResult (slot 1), Dtor (slot 2).
+            // A literal index here previously landed on Dtor. Both entries share one signature, so one delegate covers both.
+            var receiveEvent = (nint)vt->ReceiveEvent;
+            if (receiveEvent != 0)
+            {
+                _receiveEventHook = Svc.Hook.HookFromAddress<ReceiveEventDelegate>(receiveEvent, ReceiveEventDetour);
+                _receiveEventHook.Enable();
+            }
+
+            // The pet-party agent may dispatch its slot clicks through either entry; the probe is read-only, so
+            // cover both rather than lose the G2 capture to the wrong one. Skip if the agent does not override it.
+            var receiveEventWithResult = (nint)vt->ReceiveEventWithResult;
+            if (receiveEventWithResult != 0 && receiveEventWithResult != receiveEvent)
+            {
+                _receiveEventWithResultHook =
+                    Svc.Hook.HookFromAddress<ReceiveEventDelegate>(receiveEventWithResult, ReceiveEventWithResultDetour);
+                _receiveEventWithResultHook.Enable();
+            }
         }
         catch (Exception ex)
         {
@@ -471,66 +490,100 @@ internal static unsafe class BST_CruciblePetSelect
     private static void TeardownProbe()
     {
         _probeWanted = false;
-        if (_receiveEventHook is null)
+        DisposeHook(ref _receiveEventHook);
+        DisposeHook(ref _receiveEventWithResultHook);
+    }
+
+    private static void DisposeHook(ref Hook<ReceiveEventDelegate>? hook)
+    {
+        if (hook is null)
             return;
         try
         {
-            _receiveEventHook.Disable();
-            _receiveEventHook.Dispose();
+            hook.Disable();
+            hook.Dispose();
         }
         catch { /* ignore */ }
-        _receiveEventHook = null;
+        hook = null;
     }
-
-    /// <summary>
-    ///     VTable index for ReceiveEvent on AgentInterface. Verified against FFXIVClientStructs AtkEventInterface
-    ///     (ReceiveEvent is the primary event entry). If the probe never fires, the live-grade round still has
-    ///     manual-click absence as negative evidence — do not guess a different index without a capture.
-    /// </summary>
-    private static int ReceiveEventVTableIndex() => 2;
 
     private static AtkValue* ReceiveEventDetour(
         AgentInterface* agent, AtkValue* returnValues, AtkValue* values, uint valueCount, ulong eventKind)
     {
+        LogProbe("re", values, valueCount, eventKind);
+        return _receiveEventHook!.Original(agent, returnValues, values, valueCount, eventKind);
+    }
+
+    private static AtkValue* ReceiveEventWithResultDetour(
+        AgentInterface* agent, AtkValue* returnValues, AtkValue* values, uint valueCount, ulong eventKind)
+    {
+        LogProbe("rewr", values, valueCount, eventKind);
+        return _receiveEventWithResultHook!.Original(agent, returnValues, values, valueCount, eventKind);
+    }
+
+    /// <summary> Read-only PSP| record of one pet-party agent event. Never alters arguments or the return value. </summary>
+    private static void LogProbe(string via, AtkValue* values, uint valueCount, ulong eventKind)
+    {
         try
         {
-            if (_probeWanted && BST_CrucibleData.BoardOfTerritory(Svc.ClientState.TerritoryType) != 0)
+            if (!_probeWanted || BST_CrucibleData.BoardOfTerritory(Svc.ClientState.TerritoryType) == 0)
+                return;
+
+            var inv = CultureInfo.InvariantCulture;
+            var sb = new StringBuilder(128);
+            sb.Append("PSP|").Append(UnixMs().ToString(inv))
+              .Append("|via=").Append(via)
+              .Append("|kind=").Append(eventKind.ToString(inv))
+              .Append("|n=").Append(valueCount.ToString(inv));
+            var n = values is null ? 0u : Math.Min(valueCount, 8u);
+            for (var i = 0u; i < n; i++)
             {
-                var inv = CultureInfo.InvariantCulture;
-                var sb = new StringBuilder(128);
-                sb.Append("PSP|").Append(UnixMs().ToString(inv))
-                  .Append("|kind=").Append(eventKind.ToString(inv))
-                  .Append("|n=").Append(valueCount.ToString(inv));
-                var n = Math.Min(valueCount, 8u);
-                for (var i = 0u; i < n; i++)
+                var v = values[i];
+                sb.Append('|').Append(i.ToString(inv)).Append(':');
+                switch (v.Type)
                 {
-                    var v = values[i];
-                    sb.Append('|').Append(i.ToString(inv)).Append(':');
-                    switch (v.Type)
-                    {
-                        case AtkValueType.Int:
-                            sb.Append('i').Append(v.Int.ToString(inv));
-                            break;
-                        case AtkValueType.UInt:
-                            sb.Append('u').Append(v.UInt.ToString(inv));
-                            break;
-                        case AtkValueType.Bool:
-                            sb.Append('b').Append(v.Byte != 0 ? '1' : '0');
-                            break;
-                        default:
-                            sb.Append('t').Append(((int)v.Type).ToString(inv));
-                            break;
-                    }
+                    case AtkValueType.Int:
+                        sb.Append('i').Append(v.Int.ToString(inv));
+                        break;
+                    case AtkValueType.UInt:
+                        sb.Append('u').Append(v.UInt.ToString(inv));
+                        break;
+                    case AtkValueType.Bool:
+                        sb.Append('b').Append(v.Byte != 0 ? '1' : '0');
+                        break;
+                    default:
+                        sb.Append('t').Append(((int)v.Type).ToString(inv));
+                        break;
                 }
-                Svc.Log.Information(sb.ToString());
             }
+            Svc.Log.Information(sb.ToString());
         }
         catch (Exception ex)
         {
             Svc.Log.Debug(ex, "[BST_CruciblePetSelect] PSP log failed");
         }
+    }
 
-        return _receiveEventHook!.Original(agent, returnValues, values, valueCount, eventKind);
+    /// <summary>
+    ///     One line per change of the stage agent's Mode, carrying the pet-party counts that distinguish the
+    ///     competing readings of that field (formation adjust vs. stage list vs. battle start). The pass itself
+    ///     still runs only at Mode 0; this makes a gate that never opened visible instead of silent. No calls fired.
+    /// </summary>
+    private static void LogModeGate(nint pet, int territoryBoard, uint mode)
+    {
+        try
+        {
+            var party = ReadPetIds(pet, PartySelectedPets);
+            var flutes = ReadPetIds(pet, PartySelectedPetIds);
+            var optOn = (bool)BST.Config.BST_CrucibleAutoGrab;
+            LogPs($"PS|{UnixMs()}|gate=mode|mode={mode}|pass={(mode == 0 ? 1 : 0)}|opt={(optOn ? 1 : 0)}"
+                + $"|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}"
+                + $"|party={party.Count}|flutes={flutes.Count}|sl={string.Join(".", flutes)}|calls=0");
+        }
+        catch (Exception ex)
+        {
+            Svc.Log.Debug(ex, "[BST_CruciblePetSelect] mode gate log failed");
+        }
     }
 
     private static long UnixMs() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();

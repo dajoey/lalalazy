@@ -1,3 +1,11 @@
+## v1.0.4.219 (2026-09-19) [testing]
+### Fixed
+- **The read-only `PSP|` pet-party log now records what it was built to record.** It was attached to the wrong function on the familiar party screen's agent — the teardown entry rather than the interface-event entry — so no event from that screen could ever reach it. The entry is now looked up by name from the client structure definitions instead of by a fixed slot number, and both interface-event entries are covered, so a manual Battlehorn assignment is logged again.
+### Changed
+- **Crucible pet-selection telemetry records the familiar party screen's stage value.** One line per change of that value, carrying the run-roster and Battlehorn slot counts read at that moment, so a screen the Auto-fill pass never opened on is visible in the log rather than silent.
+### Notes
+- Auto-fill Battlehorn slots is unchanged: still off by default, still one assignment pass per formation phase, still never starts the fight. Offline harness unchanged at 871 checks.
+
 ## v1.0.4.218 (2026-09-19) [testing]
 ### Added
 - **Crucible pet-selection Auto-fill Battlehorn slots** (off by default). On the familiar party screen, once at run start and again before each fight, fills empty or mismatched Battlehorn slots with the best-fit familiars from the run roster (HP-aware ranking). Never starts the fight; if an assignment write cannot be confirmed, the pass stops and leaves the screen alone.
