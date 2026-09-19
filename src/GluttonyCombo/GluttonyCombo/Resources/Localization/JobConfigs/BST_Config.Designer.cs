@@ -428,6 +428,24 @@ namespace GluttonyCombo.Resources.Localization.JobConfigs {
                 return ResourceManager.GetString("CrucibleHornWarningDesc", resourceCulture);
             }
         }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Auto-fill Battlehorn slots.
+        /// </summary>
+        internal static string CrucibleAutoGrab {
+            get {
+                return ResourceManager.GetString("CrucibleAutoGrab", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Off by default. On the pet-selection screen, once at run start and again befo....
+        /// </summary>
+        internal static string CrucibleAutoGrabDesc {
+            get {
+                return ResourceManager.GetString("CrucibleAutoGrabDesc", resourceCulture);
+            }
+        }
         
         /// <summary>
         ///   Looks up a localized string similar to Crucible: no beasts are assigned to the Battlehorns..

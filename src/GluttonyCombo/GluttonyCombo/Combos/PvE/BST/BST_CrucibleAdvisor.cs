@@ -266,6 +266,54 @@ internal static class BST_CrucibleAdvisor
         return picks;
     }
 
+    /// <summary> One planned Battlehorn rewrite: slot index 0..2, previous row (0 = empty), desired row. </summary>
+    public readonly record struct HornSlotChange(int Slot, int FromRow, int ToRow);
+
+    /// <summary>
+    ///     Which horn slots actually need a write given the current <c>SelectedPetIds</c> order and a
+    ///     <see cref="PickSlots"/> result. PURE: no game types. Slots already matching are omitted so a
+    ///     second pass does not oscillate. Empty desired slots (fewer than 3 picks) are left alone.
+    /// </summary>
+    public static List<HornSlotChange> PlanHornChanges(
+        IReadOnlyList<int> currentSelectedPetIds,
+        IReadOnlyList<CrucibleBeastPick> picks)
+    {
+        var changes = new List<HornSlotChange>(3);
+        for (var slot = 0; slot < 3; slot++)
+        {
+            var want = slot < picks.Count ? picks[slot].Row : 0;
+            if (want == 0)
+                continue;
+            var have = slot < currentSelectedPetIds.Count ? currentSelectedPetIds[slot] : 0;
+            if (have != want)
+                changes.Add(new(slot, have, want));
+        }
+        return changes;
+    }
+
+    /// <summary>
+    ///     Convert AgentXBMPetParty HP uint arrays into the percent map <see cref="PickSlots"/> takes.
+    ///     PURE. <c>cur == 0</c> or <c>max == 0</c> → 0% (dead); invalid rows are skipped (absent = assumed full).
+    /// </summary>
+    public static Dictionary<int, int> HpPercentByRow(IReadOnlyList<(int Row, uint Current, uint Max)> pets)
+    {
+        var map = new Dictionary<int, int>(pets.Count);
+        foreach (var (row, cur, max) in pets)
+        {
+            if (row is < 1 or > BST_Beasts.Count)
+                continue;
+            if (max == 0 || cur == 0)
+            {
+                map[row] = 0;
+                continue;
+            }
+            if (cur > max)
+                continue;
+            map[row] = (int)Math.Clamp(Math.Round(100.0 * cur / max), 0, 100);
+        }
+        return map;
+    }
+
     /// <summary>
     ///     The best <paramref name="count"/> captured familiars for a battle, chosen greedily so a later pick is not
     ///     credited for a need an earlier pick already answers. Full-HP view of the unlocked roster (empty-horn

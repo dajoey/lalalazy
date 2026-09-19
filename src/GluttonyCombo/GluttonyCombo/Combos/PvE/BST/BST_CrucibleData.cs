@@ -212,6 +212,73 @@ internal static partial class BST_CrucibleData
 
     // ------------------------------------------------------------------ lookups
 
+    /// <summary>
+    ///     XBMContentBattle.BattleDetail → (board, battle). Sheet-derived (7.56); battle 0 is the boss.
+    ///     AgentXBMStageDetailList EntryType-3 rows carry this id as BattleDetailId.
+    /// </summary>
+    private static readonly Dictionary<uint, (byte Board, byte Battle)> BattleByDetailId = new()
+    {
+        [1] = (1, 1),
+        [2] = (1, 2),
+        [3] = (1, 3),
+        [4] = (1, 4),
+        [5] = (1, 5),
+        [6] = (1, 0),
+        [7] = (2, 1),
+        [8] = (2, 2),
+        [9] = (2, 3),
+        [10] = (2, 4),
+        [11] = (2, 5),
+        [12] = (2, 6),
+        [13] = (2, 0),
+        [14] = (3, 1),
+        [15] = (3, 2),
+        [16] = (3, 3),
+        [17] = (3, 4),
+        [18] = (3, 5),
+        [19] = (3, 6),
+        [20] = (3, 7),
+        [21] = (3, 0),
+        [22] = (4, 1),
+        [23] = (4, 2),
+        [24] = (4, 3),
+        [25] = (4, 4),
+        [26] = (4, 5),
+        [27] = (4, 6),
+        [28] = (4, 7),
+        [29] = (4, 8),
+        [30] = (4, 9),
+        [31] = (4, 0),
+        [32] = (5, 1),
+        [33] = (5, 2),
+        [34] = (5, 3),
+        [35] = (5, 4),
+        [36] = (5, 5),
+        [37] = (5, 6),
+        [38] = (5, 7),
+        [39] = (5, 8),
+        [40] = (5, 9),
+        [41] = (5, 10),
+        [42] = (5, 11),
+        [43] = (5, 12),
+        [44] = (5, 13),
+        [45] = (5, 0),
+    };
+
+    /// <summary> Resolve an XBMBattleDetail row id to (board, battle). False when unknown. </summary>
+    public static bool TryBattleOfDetail(uint battleDetailId, out int board, out int battle)
+    {
+        if (BattleByDetailId.TryGetValue(battleDetailId, out var pair))
+        {
+            board = pair.Board;
+            battle = pair.Battle;
+            return true;
+        }
+        board = 0;
+        battle = -1;
+        return false;
+    }
+
     private static Dictionary<uint, CrucibleEnemy>? _byNameId;
 
     /// <summary> The panel enemy for a BNpcName id, or null. Match by id, never by name: six names are reused. </summary>

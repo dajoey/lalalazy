@@ -28,6 +28,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using GluttonyCombo.API.Enum;
 using GluttonyCombo.AutoRotation;
+using GluttonyCombo.Combos.PvE;
 using GluttonyCombo.Core;
 using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.CustomComboNS.Functions;
@@ -432,6 +433,10 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
             if (Service.Configuration.ComboTelemetry)
                 BeastmasterTelemetry.Tick();
 
+            // Crucible pet-selection autograb + read-only PSP| probe. Self-gates on BST +
+            // Crucible territory; option-off still emits one PS| line per formation phase.
+            BST_CruciblePetSelect.Tick();
+
             if (Player.IsDead)
             {
                 ActionRetargeting.Retargets.Clear();
@@ -638,6 +643,8 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         Svc.ClientState.TerritoryChanged -= ClientState_TerritoryChanged;
         Svc.PluginInterface.UiBuilder.OpenConfigUi -= OnOpenConfigUi;
         Svc.PluginInterface.UiBuilder.Draw -= DrawUI;
+
+        BST_CruciblePetSelect.Dispose();
 
         Service.ActionReplacer.Dispose();
         Service.ComboCache.Dispose();

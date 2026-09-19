@@ -1,3 +1,12 @@
+## v1.0.4.218 (2026-09-19) [testing]
+### Added
+- **Crucible pet-selection Auto-fill Battlehorn slots** (off by default). On the familiar party screen, once at run start and again before each fight, fills empty or mismatched Battlehorn slots with the best-fit familiars from the run roster (HP-aware ranking). Never starts the fight; if an assignment write cannot be confirmed, the pass stops and leaves the screen alone.
+- Read-only `PSP|` probe logs pet-party UI events while in a Crucible territory so a manual click still pins the assign call even with Auto-fill off.
+### Changed
+- **Crucible Guard/Challenge default is On** (was Shadow). A config that already stored a value keeps it; only a never-set config picks up the new default.
+### Notes
+- Offline harness: 867 baseline PickSlots checks plus PlanHornChanges / HpPercentByRow cases. Residual assumption: horn writes use the unmerged ClientStructs pet-party TogglePet / ApplyPetSelection route with SelectedPetIds read-back abort.
+
 ## v1.0.4.217 (2026-09-18) [testing]
 ### Fixed
 - **Crucible familiar HP memory no longer forgets a hurt familiar after Parting Blow or a horn-swap.** The familiar party screen briefly reports full HP for a familiar that just left combat while it is still hurt. That lag used to overwrite the live HP the plugin had just recorded, so the remembered value jumped to 100 until the party screen caught up. Party readings that raise a remembered low familiar all the way to full are ignored for 90 seconds after that leave; lower readings, partial heals, and camp restores after the grace window still apply.

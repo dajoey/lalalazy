@@ -21,7 +21,7 @@ internal partial class BST
             BST_MinFamiliarStay = new("BST_MinFamiliarStay", 10),
             BST_CruciblePetSwapHp = new("BST_CruciblePetSwapHp", 55),
             BST_CrucibleFinalStingHp = new("BST_CrucibleFinalStingHp", 30),
-            BST_CrucibleAggro = new("BST_CrucibleAggro", (int)CrucibleAggroMode.Shadow),
+            BST_CrucibleAggro = new("BST_CrucibleAggro", (int)CrucibleAggroMode.On),
             BST_CrucibleSnarlPartingLead = new("BST_CrucibleSnarlPartingLead", 15);
 
         public static UserBool
@@ -43,6 +43,7 @@ internal partial class BST
             BST_Crucible = new("BST_Crucible", true),
             BST_CrucibleAllowDisplacing = new("BST_CrucibleAllowDisplacing", true),
             BST_CrucibleHornWarning = new("BST_CrucibleHornWarning", true),
+            BST_CrucibleAutoGrab = new("BST_CrucibleAutoGrab", false),
             BST_CrucibleTargeting = new("BST_CrucibleTargeting", true),
             BST_CrucibleScoreMode = new("BST_CrucibleScoreMode", false),
             BST_CrucibleSnarlParting = new("BST_CrucibleSnarlParting", false),
@@ -158,6 +159,8 @@ internal partial class BST
                 BST_Config.CrucibleAllowDisplacingDesc);
 
             DrawAdditionalBoolChoice(BST_CrucibleHornWarning, BST_Config.CrucibleHornWarning, BST_Config.CrucibleHornWarningDesc);
+
+            DrawAdditionalBoolChoice(BST_CrucibleAutoGrab, BST_Config.CrucibleAutoGrab, BST_Config.CrucibleAutoGrabDesc);
 
             DrawAdditionalBoolChoice(BST_CrucibleTargeting, BST_Config.CrucibleTargeting, BST_Config.CrucibleTargetingDesc);
 

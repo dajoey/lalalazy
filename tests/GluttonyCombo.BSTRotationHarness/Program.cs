@@ -376,6 +376,42 @@ internal static class Program
         var twice = BST_CrucibleAdvisor.PickSlots(1, 1, allRows, new Dictionary<int, int> { [top] = 40, [second] = 70 });
         Check("PickSlots: deterministic — same inputs same order",
             once.Select(p => p.Row).SequenceEqual(twice.Select(p => p.Row)));
+
+        // --- PlanHornChanges + HpPercentByRow (autograb assignment planning) ---
+        var planWant = slotsFull.Select(p => p.Row).ToList();
+        Check("PlanHornChanges: all slots already correct → no calls",
+            BST_CrucibleAdvisor.PlanHornChanges(planWant, slotsFull).Count == 0);
+        if (planWant.Count >= 2)
+        {
+            var oneWrong = new List<int>(planWant) { [0] = planWant[1] };
+            var changes = BST_CrucibleAdvisor.PlanHornChanges(oneWrong, slotsFull);
+            Check("PlanHornChanges: one slot wrong → exactly that slot changes",
+                changes.Count == 1 && changes[0].Slot == 0 && changes[0].FromRow == planWant[1]
+                && changes[0].ToRow == planWant[0],
+                string.Join(",", changes.Select(c => $"{c.Slot}:{c.FromRow}->{c.ToRow}")));
+        }
+        if (planWant.Count >= 1)
+        {
+            var knocked = new List<int>(planWant) { [0] = 0 };
+            var replace = BST_CrucibleAdvisor.PlanHornChanges(knocked, slotsFull);
+            Check("PlanHornChanges: knocked-out slot occupant is replaced",
+                replace.Count == 1 && replace[0].Slot == 0 && replace[0].FromRow == 0
+                && replace[0].ToRow == planWant[0],
+                string.Join(",", replace.Select(c => $"{c.Slot}:{c.FromRow}->{c.ToRow}")));
+        }
+
+        var hpMap = BST_CrucibleAdvisor.HpPercentByRow(
+        [
+            (top, 50u, 100u),
+            (second, 0u, 100u),  // dead
+            (zeroFit, 10u, 0u),  // max 0 → dead
+            (9999, 1u, 1u),      // invalid row skipped
+        ]);
+        Check("HpPercentByRow: live percent, 0=dead, max0=dead, invalid skipped",
+            hpMap.TryGetValue(top, out var pct) && pct == 50
+            && hpMap.TryGetValue(second, out var dead) && dead == 0
+            && hpMap.TryGetValue(zeroFit, out var deadMax) && deadMax == 0
+            && !hpMap.ContainsKey(9999));
     }
 
     /// <summary> In combat on the First Board, L30, Cu Sith out (One with Nature spent), raptor / buffalo on ready horns 2 and 3. </summary>

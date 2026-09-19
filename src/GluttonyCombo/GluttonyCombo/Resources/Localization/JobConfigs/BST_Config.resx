@@ -243,6 +243,12 @@
   <data name="CrucibleHornWarningDesc" xml:space="preserve">
     <value>Horns deselect after every Crucible encounter. Out of combat, with the next battle's enemies present and all three horns empty, shows one warning.</value>
   </data>
+  <data name="CrucibleAutoGrab" xml:space="preserve">
+    <value>Auto-fill Battlehorn slots</value>
+  </data>
+  <data name="CrucibleAutoGrabDesc" xml:space="preserve">
+    <value>Off by default. On the pet-selection screen, once at run start and again before each fight, fills empty or mismatched Battlehorn slots with the best-fit familiars from the run roster (HP-aware). Never starts the fight.</value>
+  </data>
   <data name="CrucibleHornWarningMessage" xml:space="preserve">
     <value>Crucible: no beasts are assigned to the Battlehorns.</value>
   </data>
