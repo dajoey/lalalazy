@@ -114,6 +114,31 @@ internal static unsafe class AutoMarketService
     return rules;
   }
 
+  /// <summary>
+  /// Item ids from the given snapshot that CAN go on the market board - the exact test the bag
+  /// markers use for the grey state (AutoMarketMarkers.BuildMarketableScratch): not untradable
+  /// AND it has a market-board search category. One sheet read per unique id. Fail-closed: a
+  /// null sheet yields an empty set, so the review sweep (its only caller so far) moves nothing
+  /// rather than guessing marketability.
+  /// </summary>
+  internal static HashSet<uint> MarketableItemIds(IEnumerable<StockStack> stock)
+  {
+    var result = new HashSet<uint>();
+    var sheet = Svc.Data.GetExcelSheet<Item>();
+    if (sheet == null)
+      return result;
+    foreach (var s in stock)
+    {
+      if (result.Contains(s.ItemId))
+        continue;
+      if (!sheet.TryGetRow(s.ItemId, out var item))
+        continue;
+      if (!item.IsUntradable && item.ItemSearchCategory.RowId != 0)
+        result.Add(s.ItemId);
+    }
+    return result;
+  }
+
   public static PlanResult BuildPlan(Dictionary<uint, ItemQuote>? gateQuotes = null)
   {
     var config = Plugin.Configuration;

@@ -65,6 +65,7 @@ internal sealed class MarketAutomation : Window, IDisposable
   private int _reviewMovedOk;
   private int _reviewMovedFail;
   private int _reviewLeftForSpace;
+  private int _reviewSkippedEnrolled;
   private int _reviewSkippedIneligible;
   private readonly List<string> _reviewMovedLines = [];
   private bool _reviewBagsFull;
@@ -329,7 +330,7 @@ internal sealed class MarketAutomation : Window, IDisposable
         DrawButtons(
           ("Auto Pinch", "Re-price every listing on every enabled retainer (match, never undercut).", () => SweepAllRetainers(false)),
           ("Auto Market", "List your always-sell items on every enabled retainer, then price the new listings.\r\nA retainer nothing could be listed on is left alone - use Auto Pinch to re-price existing listings.\r\n(The 'Pinch everything after listing' setting overrides that and re-prices every retainer.)", () => SweepAllRetainers(true)),
-          ("Sweep to Bags", "Move Auto-Market-list items sitting in retainer inventory (not already listed on the board) into the character's bags for manual review.\r\nListed and ineligible items are never touched. Stops cleanly when bags are full.\r\nNever runs on its own - only when this button is pressed.", SweepEligibleToBags));
+          ("Sweep to Bags", "Move MARKETABLE items that are NOT on the Auto-Market list (the grey marker ones) from retainer inventory into the character's bags for manual review.\r\nItems on the Auto-Market list and unmarketable items are never touched. Stops cleanly when bags are full.\r\nNever runs on its own - only when this button is pressed.", SweepEligibleToBags));
         ImGuiPostSetup(oldSize);
       }
     }
@@ -490,9 +491,13 @@ internal sealed class MarketAutomation : Window, IDisposable
   }
 
   /// <summary>
-  /// 0.1.62.0: manual-only button. Walk every enabled retainer and move Auto-Market-list items
-  /// sitting in retainer inventory into the character's bags for review. Never scheduled, never
-  /// hooked to AutoRetainer, never started by anything other than the RetainerList overlay button.
+  /// 0.1.62.0: manual-only button. Walk every enabled retainer and move marketable items that
+  /// are NOT on the Auto-Market list (the markers' grey state - nothing automated looks after
+  /// them) into the character's bags for review. Never scheduled, never hooked to AutoRetainer,
+  /// never started by anything other than the RetainerList overlay button.
+  /// 0.1.63.0: the target set is corrected. 0.1.62.0 pulled enrolled Auto-Market stock instead;
+  /// with a full market board that is the entire sell backlog, and the routing mover deposited
+  /// every bit of it straight back on the next session.
   /// </summary>
   public unsafe void SweepEligibleToBags()
   {
@@ -558,9 +563,11 @@ internal sealed class MarketAutomation : Window, IDisposable
   }
 
   /// <summary>
-  /// Plan and execute one retainer's review-sweep moves. Eligible = enabled Auto-Market list
-  /// entries (BuildEnabledRules). Market-board listings are never candidates because the snapshot
-  /// only covers retainer pages. Stops scheduling further moves once bags report no free slots.
+  /// Plan and execute one retainer's review-sweep moves. Eligible = marketable (Item-sheet test,
+  /// same as the markers' grey state) AND not an enabled Auto-Market entry for that item+quality.
+  /// Enrolled stock and market-board listings are never candidates - listings live in the
+  /// RetainerMarket container, which the snapshot never reads. Stops scheduling further moves
+  /// once bags report no free slots.
   /// </summary>
   private unsafe bool? RunReviewSweepMover(string retainerName)
   {
@@ -573,17 +580,18 @@ internal sealed class MarketAutomation : Window, IDisposable
       return true;
     }
 
-    var eligible = AutoMarketService.BuildEnabledRules()
+    var enrolled = AutoMarketService.BuildEnabledRules()
       .Select(r => (r.ItemId, r.HQ))
       .ToList();
     var freeBags = AutoMarketService.CountFreeBagSlots();
     var stock = AutoMarketService.SnapshotStock();
-    var plan = ReviewSweep.Plan(stock, eligible, freeBags, retainerName);
+    var plan = ReviewSweep.Plan(stock, enrolled, AutoMarketService.MarketableItemIds(stock), freeBags, retainerName);
 
     foreach (var note in plan.Notes)
       Svc.Log.Information($"[LMC] {note}");
 
-    _reviewSkippedIneligible += plan.Skipped.Count(s => s.Reason == "not on Auto-Market list");
+    _reviewSkippedEnrolled += plan.Skipped.Count(s => s.Reason == "on Auto-Market list");
+    _reviewSkippedIneligible += plan.Skipped.Count(s => s.Reason == "not marketable");
     _reviewLeftForSpace += plan.Skipped.Count(s => s.Reason == "bags full");
     if (plan.StoppedForSpace)
       _reviewBagsFull = true;
@@ -624,13 +632,14 @@ internal sealed class MarketAutomation : Window, IDisposable
   {
     var moved = _reviewMovedOk;
     var left = _reviewLeftForSpace;
+    var enrolled = _reviewSkippedEnrolled;
     var ineligible = _reviewSkippedIneligible;
     var fail = _reviewMovedFail;
-    var spaceNote = _reviewBagsFull ? " Bags were full - remaining eligible stacks left in place." : "";
+    var spaceNote = _reviewBagsFull ? " Bags were full - remaining marketable stacks left in place." : "";
     var detail = moved > 0 && _reviewMovedLines.Count > 0
       ? " " + string.Join("; ", _reviewMovedLines.Take(12)) + (_reviewMovedLines.Count > 12 ? $" (+{_reviewMovedLines.Count - 12} more)" : "")
       : "";
-    var line = $"review sweep: moved {moved} stack(s) to bags, left for space {left}, skipped ineligible {ineligible}, failed {fail}.{spaceNote}{detail}";
+    var line = $"review sweep: moved {moved} marketable stack(s) to bags (not on the Auto-Market list), left for space {left}, stayed on the Auto-Market list {enrolled}, not marketable {ineligible}, failed {fail}.{spaceNote}{detail}";
     Svc.Log.Information($"[LMC] {line}");
     Communicator.PrintInfo(line);
   }
@@ -3041,6 +3050,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     _reviewMovedOk = 0;
     _reviewMovedFail = 0;
     _reviewLeftForSpace = 0;
+    _reviewSkippedEnrolled = 0;
     _reviewSkippedIneligible = 0;
     _reviewMovedLines.Clear();
     _reviewBagsFull = false;

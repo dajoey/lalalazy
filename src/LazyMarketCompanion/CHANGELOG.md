@@ -1,4 +1,16 @@
-﻿## v0.1.62.0 (2026-09-19)
+﻿## v0.1.63.0 (2026-09-19)
+
+### Fixed
+
+- **"Sweep to Bags" now sweeps the right stock: marketable items that are NOT on the Auto-Market list.** The button's first release pulled the opposite set - enrolled Auto-Market stock sitting in retainer inventory - and with a full market board that meant one press dragged the entire sell backlog into the character's bags, where the next automatic run routed all of it straight back to the retainers. The pass now targets exactly the stacks the bag markers shade grey: items that CAN be sold on the market board but have no enabled Auto-Market entry - stock nothing automated will ever look after. That is what manual review is for.
+- **Enrolled Auto-Market stock is an explicit never-touch rail for the sweep.** Anything the enabled Auto-Market list names (item and quality) stays exactly where it is, whether or not it is currently listed. Items already on the market board remain structurally out of reach as before - the pass only reads retainer pages.
+- The completion line now reports both sides: how many marketable stacks moved, how many stayed because they are on the Auto-Market list, how many were not marketable, how many were left because bags were full, and any failures. Stops cleanly at full bags, same as before. Still manual-only: nothing but the button starts it.
+
+### Notes
+
+- Offline suite: case 126 now pins the corrected target - a marketable unenrolled stack moves; an enrolled stack, an unmarketable stack, crystal-container stock and character-bags stock never move; a one-slot or empty bag budget leaves the remainder in place; and quality is part of enrollment (not marketability), so an HQ stack whose item has only an NQ entry still sweeps.
+
+## v0.1.62.0 (2026-09-19)
 
 ### Added
 
