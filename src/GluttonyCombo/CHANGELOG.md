@@ -498,7 +498,7 @@
 ## v1.0.4.168 (2026-09-05) [testing]
 
 ### Added
-- Combo Decision Telemetry (debug), OFF by default: Settings ├â┬ó├óΓé¼┬á├óΓé¼Γäó Rotation Behavior ├â┬ó├óΓé¼┬á├óΓé¼Γäó "Combo Decision Telemetry (debug)", or `/gluttony telemetry on|off|toggle|status`. When on, every time a combo changes which action it will use for a button, one `CT|unixms|job|combo|originalActionId|chosenActionId|gcdRemaining|weaveSlot|targetHpPct|keyBuffs` line goes to the plugin log at Information level, so the ffxivdb harvest can join "what the combo decided" against "what the game actually did" (`action_events`).
+- Combo Decision Telemetry (debug), OFF by default: Settings → Rotation Behavior → "Combo Decision Telemetry (debug)", or `/gluttony telemetry on|off|toggle|status`. When on, every time a combo changes which action it will use for a button, one `CT|unixms|job|combo|originalActionId|chosenActionId|gcdRemaining|weaveSlot|targetHpPct|keyBuffs` line goes to the plugin log at Information level, so the ffxivdb harvest can join "what the combo decided" against "what the game actually did" (`action_events`).
 - The tap sits at the single settle point in `CustomCombo.TryInvoke` (after the Occult Quick/Dualcast gates and the unchanged-action check), so it records the action that will actually go out, for manual presses and autorotation alike; it only writes when the chosen action for that (combo, button) pair changes, never every frame.
 - `keyBuffs` lists the statuses the combos consulted this frame (`id:remaining`, `t<id>:remaining` for a status on the target, `id:-` when consulted but absent), read from the per-frame status cache.
 - The line format and the "only emit on change" gate live in a Dalamud-free, asserted offline by (exact line shape, invariant decimals under de-DE, the 200-character budget with whole-entry truncation, and the de-duplication gate) so the wire format the database join depends on is proven before shipping.
@@ -515,7 +515,7 @@
  enumerated (`s.RemainingTimeOrZero(false)`) instead of doing a second, owner-filtered
  lookup via `Player.Object!.Status(s.StatusId)`. The re-lookup applied a source filter the
  enumeration did not, so a pausing status that isn't player-sourced resolved to `null` and
- `RemainingTimeOrZero` returned `0` ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ which always satisfies `<= userSetting` and tripped
+ `RemainingTimeOrZero` returned `0` — which always satisfies `<= userSetting` and tripped
  the penalty (targets dropped, cast cancelled) the whole time the status was up, not just
  inside the configured window. (upstream WrathCombo 736597dee, file:
 , function: `PlayerHasActionPenalty`)
@@ -526,20 +526,20 @@
 - BLU ST tank ranged filler fallback no longer returns short-reach cones when the target is
  beyond their reach. `ResolveFiller(FillerSlot.StTank, rangedOnly: true)` now checks
  `InActionRange(filler.ActionId)` against the current target instead of the flat
- `FillerInfo.IsMelee` melee flag, so a manually pinned 6├â┬ó├óΓÇÜ┬¼├óΓé¼┼ô8 y cone (the Look, Kaltstrahl,
+ `FillerInfo.IsMelee` melee flag, so a manually pinned 6–8 y cone (the Look, Kaltstrahl,
  Northerlies, Flame Thrower) is skipped when the target is too far and only used when the
  target is actually inside its reach.
  `ResolveFiller`)
 
 ### Notes
 - `FillerInfo.Range` in the catalogue still stores reach-to-target (not raw XIVAPI `Range`),
- so cones retain their effect radius (6├â┬ó├óΓÇÜ┬¼├óΓé¼┼ô8 y). Only the ranged-only resolution decision now
+ so cones retain their effect radius (6–8 y). Only the ranged-only resolution decision now
  uses the live range check.
 
 ## v1.0.4.165 (2026-08-31) [testing]
 
 ### Added
-- **The BLU one-button rotations no longer hard-code their filler spell ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ any filler can now be picked
+- **The BLU one-button rotations no longer hard-code their filler spell — any filler can now be picked
  or the plugin detects the one actually carried.** A Blue Mage only gets
  24 active spell slots and there are ~45 viable fillers, so upstream's four fixed choices
  (Sonic Boom for ST DPS, Electrogenesis for AoE DPS, Goblin Punch for ST tank, Right Round
@@ -594,7 +594,7 @@
  It prefers the stock filler when carried (so an existing setup never changes
  behaviour), then the highest-potency pure single-target spell for ST slots. It will not
  pick, on its own, anything that knocks back, draws in, applies a status, has conditional
- potency, or splashes an ST slot ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ those pull extra mobs or step on party mechanics, so they
+ potency, or splashes an ST slot — those pull extra mobs or step on party mechanics, so they
  remain one dropdown click away rather than a surprise. The sole exception is a slot's own
  stock filler (Right Round knocks back, but it IS what upstream picks).
 - A manual pick that is no longer slotted degrades to auto-detect rather than jamming the
@@ -604,7 +604,7 @@
  them would have reordered `ActionIDs.First` and changed which spell the Auto-Mode gate
  tests. Runtime narrowing is the upstream-sanctioned pattern.
 - Logic verified before shipping with a standalone harness replicating `ResolveFiller` /
- `HookedActions` against synthetic spell loadouts ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ 27 checks over stock parity, the
+ `HookedActions` against synthetic spell loadouts — 27 checks over stock parity, the
  reported bug, override precedence, stale config, melee/ranged split, shape rules and empty
  loadouts. It caught two real bugs pre-flight: auto-detect preferring a splashy AoE over a
  pure ST filler, and an over-eager hook set that would have made Sonic Boom trigger the tank
@@ -651,14 +651,14 @@
  bisected in-game during testing: with "Retarget Occult Cure II" on, the cure went out constantly
  while the party was at full HP. Root cause is a v1.0.4.161 upstream-merge landmine
  with three parts: (1) upstream added a second `IfMissingHP(float)` overload on
- `IBattleChara?` that compares ECommons' `Health` ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ a **0├â┬ó├óΓÇÜ┬¼├óΓé¼┼ô1
- ratio** ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ against the caller's **0├â┬ó├óΓÇÜ┬¼├óΓé¼┼ô100 percent** threshold, so any living target passes at
+ `IBattleChara?` that compares ECommons' `Health` — a **0–1
+ ratio** — against the caller's **0–100 percent** threshold, so any living target passes at
  any HP; (2) the same merge retyped `SimpleTarget.LowestHPAlly` / `LowestHPAllyOutOfParty`
  from `IGameObject?` to `IBattleChara?`; (3) that retype silently rebound the Cure II
  retarget call sites in `TryRetargetPhantomCure` from the old, correct percent-based
  `IGameObject?` overload to the new broken one. The ally filter therefore always passed and
  the "lowest HP ally" (usually just the smallest HP pool, at 100%) got cured on cooldown.
-- **The same rebind broke more than the phantom cure** ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ every `IfMissingHP` call on an
+- **The same rebind broke more than the phantom cure** — every `IfMissingHP` call on an
  `IBattleChara`-typed expression: the SoftTarget/FocusTarget heal-stack checks
 , the four `LowestHP*AllyIfMissingHP` convenience targets, and SMN's
  heal targeting. All were treating full-HP targets as "missing
@@ -1667,11 +1667,11 @@ still present byte-for-byte).
 ## v1.0.4.136 (2026-08-08) [testing]
 
 ### Fixed
-- **The whole BattleData encounter system was dead code ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ `LoadCombatData` was never
+- **The whole BattleData encounter system was dead code — `LoadCombatData` was never
  called.** `BattleData._invincibleCheck` never left its field initialiser
  (`(_, _, _) => Invincible.CheckStatuses`), so `IsInvincible` always fell through to the
  master invincibility status list and *every* per-encounter case in all six
- the BattleData encounter files never executed ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ Two-headed Aevis (1346), Jeuno Ark Angels (1248),
+ the BattleData encounter files never executed — Two-headed Aevis (1346), Jeuno Ark Angels (1248),
  Dancing Mad (1363), Cloud of Darkness Chaotic (1241), and the rest. Upstream WrathCombo
  calls `BattleData.LoadCombatData(Content.TerritoryID)` from the `onTerritoryChange ||
  firstRun` block of `UpdateCaches`; the fork's copy of that block is
@@ -1723,7 +1723,7 @@ still present byte-for-byte).
  action-detail tooltip agent (`AgentActionDetail`) is showing one of the fork's custom
  actions (e.g. Cease!), the agent is now hidden and its ActionId / OriginalId /
  AdjustedId are reset to 0. Previously the tooltip could outlive the disposed custom
- action and crash the game. ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ upstream hunk applied
+ action and crash the game. — upstream hunk applied
  verbatim; the touched regions carry no fork divergence and no standing divergence
  (WHM ground-heal, 15s raidwide gate, Pacification/Silence/Amnesia, BLU engine, SMN
  Aegis, case 1346/1248/1363 BattleData) is in this range.
@@ -1731,11 +1731,11 @@ still present byte-for-byte).
 ## v1.0.4.133 (2026-08-06) [testing]
 
 ### Added
-- **Forked Tower: Magic ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ Two-headed Aevis head-buff handling.** New BattleData case for
+- **Forked Tower: Magic — Two-headed Aevis head-buff handling.** New BattleData case for
  territory 1346 (Occult Crescent: North Horn; the Normal run and the Extreme duty both
  use this territory). Heads carrying Epic Villain (5400, or Jeuno-era 4193) or Fated
  Villain (5401 / 4195) are treated as invincible unless the local player has the matching
- Epic Hero (4192) / Fated Hero (4194) status ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ per the status text, damage from anyone
+ Epic Hero (4192) / Fated Hero (4194) status — per the status text, damage from anyone
  not dubbed the matching Hero is nullified. Auto-rotation now skips/retargets off the
  head the player's half of the raid cannot damage. Keyed on the villain status rather than head
  BaseIds (green head 19474/19476, blue head 19475/19477) so later FT:M bosses reusing
@@ -1746,7 +1746,7 @@ still present byte-for-byte).
 ### Notes
 - Hero statuses are duty-applied, so they are checked with `anyOwner: true`. The
  upstream-synced Jeuno Ark Angels case (territory 1248) checks the same statuses
- owner-filtered, which may be a latent upstream bug ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ deliberately left untouched here.
+ owner-filtered, which may be a latent upstream bug — deliberately left untouched here.
 
 ## v1.0.4.132 (2026-08-05)
 
@@ -1955,7 +1955,7 @@ and was reverted in v1.0.4.127.
 
 ### Notes
 - Shipped as a version *bump* rather than a rollback because Dalamud will not downgrade an
- installed plugin ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ 1.0.4.127 carries 1.0.4.125's code so existing testing users move forward
+ installed plugin — 1.0.4.127 carries 1.0.4.125's code so existing testing users move forward
  onto working behaviour instead of having to reinstall by hand.
 - The underlying bug from v1.0.4.126's notes is still real and still unfixed: `RezParty` fires
  Swiftcast and returns `void`, `Run` falls through to `ProcessAutoActions` in the same tick,
@@ -1986,24 +1986,24 @@ Doom while healing, with the healer never reacting.
  bail diagnostics stop reporting "nobody needs healing" while somebody is about to die.
 
 ### Added
-- **`StatusCache.DoomStatuses` + `HasDoom`** ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ every Doom row in the game, cleansable or not.
+- **`StatusCache.DoomStatuses` + `HasDoom`** — every Doom row in the game, cleansable or not.
  All of them share icon `215503`, which is the only stable discriminator: the status name is
  localised and the rows are scattered across a dozen patches (210, 910, 1738, 1769, 1970, 2516,
  2519, 2976, 3364, 3482, 4558, 4594, 4683, 5184, 5185, 5187, 5473). Future patches adding new
  Doom rows are picked up automatically.
-- **`NeedsDoomTopUp(target)`** in `CustomComboFunctions` ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ one definition, used by all five call
+- **`NeedsDoomTopUp(target)`** in `CustomComboFunctions` — one definition, used by all five call
  sites: target carries Doom and is below 100% HP.
 
 ### Notes
 - **Why the existing Doom handling did not cover this.** `StatusCache.CleansableDoomStatuses` is
  built as `Icon == 215503 && CanDispel`, i.e. the *dispellable* subset only, and feeds the
  Esuna/cleanse pass. But the two rows whose tooltip reads *"Effect dissipates once fully
- healed"* ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ **1769** and **5473** (Phantom Necromancer's self-Doom) ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ are both
+ healed"* — **1769** and **5473** (Phantom Necromancer's self-Doom) — are both
  `CanDispel = false`. Esuna can never remove them. Healing to full is the only answer, and
  nothing in the plugin was doing it. Cleanse handling is unchanged; this is the other half.
 - **Bounded deliberately.** `NeedsDoomTopUp` requires the target to be below 100%, so a scripted
  raid Doom that no amount of healing clears cannot pin the healer on a full-HP target for the
- whole duration. Shields are excluded from that HP read ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ a shield is not restored HP and will
+ whole duration. Shields are excluded from that HP read — a shield is not restored HP and will
  not shed the Doom.
 - Pairs with v1.0.4.124: a healer running Phantom Necromancer now tops themselves back to full
  after their own line spell's self-Doom, closing the loop between the two fixes.
@@ -2017,24 +2017,24 @@ Action/Status), not the wiki: Drain Touch `49097` is **ActionCategory 4 (Ability
 cooldown group 83, 40s, instant, 30y; Deep Freeze `49098` / Hell Wind `49099` / Chaos Drive
 `49100` are Spells sharing **cooldown group 84** at 40s with 1.5s casts; Doomsday `49101` is a
 Spell on its own group 87 at 120s. Status `5326` Drain Touch is 6s and reads *"Most attacks
-cannot reduce own HP to less than 1"* ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ it is the survival window, not merely a damage buff.
+cannot reduce own HP to less than 1"* — it is the survival window, not merely a damage buff.
 
 ### Fixed
 - **Drain Touch was fired on cooldown with no payoff spell ready, which desynced the job into
  doing nothing.** The weave branch cast it whenever it was off cooldown and the buff was down.
- Its buff is 6s; its recast is 40s ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ exactly the shared recast of the Deep Freeze / Hell Wind /
+ Its buff is 6s; its recast is 40s — exactly the shared recast of the Deep Freeze / Hell Wind /
  Chaos Drive trio. Any time the two drifted apart (Doom still ticking, HP under the floor, trio
  still on recast) Drain Touch burned its whole 40s on a 150-potency poke, the window expired
  empty, and when a line spell finally came up Drain Touch had ~34s left, so
  `NecromancerCostIsAffordable` was false and nothing cast. Nothing pulled the timers back into
  phase. The weave is now gated on `BestNecromancerLineSpell != 0` plus the same HP/Doom/proc
- gates the line spell will face, so the window is only opened when it can be spent ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ which also
+ gates the line spell will face, so the window is only opened when it can be spent — which also
  makes the pairing self-correcting on the next weave tick.
  `AutoRotation`-adjacent:,
  `TryGetNecromancerAction`.
 - **No remaining-duration check on the Drain Touch buff.** `HasStatusEffect(Buffs755.DrainTouch)`
  is still true at 0.1s remaining, but the line spells are 1.5s casts, so the cast could *start*
- inside the window and *resolve* outside it ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ paying 10% of maximum HP and a 10s Doom for an
+ inside the window and *resolve* outside it — paying 10% of maximum HP and a 10s Doom for an
  unbuffed 300 potency with no rider and no HP protection. With a 6s buff against a 2.5s GCD
  this was a routine window, not an edge case, and it is precisely the "all cost, no payload"
  outcome v1.0.4.102 was written to prevent. `NecromancerCostIsAffordable` now requires
@@ -2046,9 +2046,9 @@ cannot reduce own HP to less than 1"* ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥
 - **Doomsday was picked ahead of a weakness-matched trio spell.** Under Drain Touch, Doomsday is
  500 potency unaspected while Deep Freeze / Hell Wind / Chaos Drive reach **520** against a
  matching elemental weakness. Because the self-Doom permits only one line spell per window,
- taking Doomsday forfeited the better option outright ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ and spent the phantom set's only
+ taking Doomsday forfeited the better option outright — and spent the phantom set's only
  enemy-buff dispel on whatever happened to be targeted. Spell selection moved into
- `BestNecromancerLineSpell`, which now tiers: weakness-matched trio ├â┬ó├óΓé¼┬á├óΓé¼Γäó Doomsday ├â┬ó├óΓé¼┬á├óΓé¼Γäó unweakened
+ `BestNecromancerLineSpell`, which now tiers: weakness-matched trio → Doomsday → unweakened
  trio. Doomsday keeps its exemption from the "only when weak" toggle, being unaspected.
 
 ### Changed
@@ -2063,7 +2063,7 @@ cannot reduce own HP to less than 1"* ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥
 
 ### Notes
 - No behaviour change to any other phantom job. `IsEnabledAndUsable` is still safe for the
- Necromancer actions specifically ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ the line spells sit on their own cooldown groups (84/87),
+ Necromancer actions specifically — the line spells sit on their own cooldown groups (84/87),
  not the global cooldown, so the `HasActionEquipped`/`HasCharges` blind spot fixed for the
  cures in v1.0.4.123 does not apply to them.
 - Levels are unchanged and worth knowing while levelling: Drain Touch 1, Deep Freeze 2, Hell
@@ -2638,7 +2638,7 @@ cannot reduce own HP to less than 1"* ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥
 ## v1.0.4.100 (2026-08-01) [testing]
 
 ### Added
-- **Phantom Job support for all eight jobs added in patch 7.55** ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ Ninja, White Mage,
+- **Phantom Job support for all eight jobs added in patch 7.55** — Ninja, White Mage,
  Black Mage, Dragoon, Summoner, Blue Mage, Red Mage and Necromancer are now driven by
  autorotation inside Occult Crescent. New files
  (rotations, action IDs, status
@@ -2658,7 +2658,7 @@ cannot reduce own HP to less than 1"* ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥
  the row id *is* the `SupportJob` index: Ninja 16, White Mage 17, Black Mage 18,
  Dragoon 19, Summoner 20, Blue Mage 21, Red Mage 22, Necromancer 23. Previously the file
  claimed Summoner 17 / Black Mage 18 / Red Mage 19 / Blue Mage 20 / White Mage 21 /
- Dragoon 22. Removed `BeastMaster` and `Mime` entirely ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ the sheet has exactly 24 rows
+ Dragoon 22. Removed `BeastMaster` and `Mime` entirely — the sheet has exactly 24 rows
  (0-23) and neither job exists. This affected `CurrentJobLevel`, which indexes
  `State.SupportJobLevels[State.CurrentSupportJob]` through this enum, and the job icons.
 
@@ -2689,16 +2689,16 @@ cannot reduce own HP to less than 1"* ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥
 ## v1.0.4.98 (2026-07-29)
 
 ### Fixed
-- **`/gluttony buff` cast path fully reworked** ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ v1.0.4.86-96 could cycle all four Phantom Jobs and restore the original without a single buff landing. Root-cause hardening, in order of suspicion:
- - **Casts now bypass GluttonyCombo's own `UseAction` detour.** New `ActionWatching.UseActionRaw` invokes the game's `UseAction` via `UseActionHook.Original`, so the plugin's combat gating (`PlayerHasActionPenalty` hard-block, retargeting, queue handling in `UseActionDetour`) can never silently swallow the out-of-combat crystal casts. `ChangeSupportJob` is a native call that never passed through the hook ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ which is exactly why jobs kept switching while casts died.
- - **Dual cast path per buff.** Primary: `ActionType.GeneralAction` phantom slot (Knight/Pray 32, Monk/Counterstance 33, Bard/Romeo's Ballad 32, Dancer/Quickstep 32) ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ verified against BOCCHI's working Buff module and the live 7.5x GeneralAction sheet (rows 31-35 remain "Phantom Action I-V"). Fallback: `ActionType.Action` with the real Action-sheet ids (Pray 41589, Counterstance 41597, Romeo's Ballad 41609, Quickstep 46603), explicit self-target ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ how RotationSolverReborn and our own AutoRotation cast phantom actions. 3 attempts each, 800ms apart, 10s per-job cap.
+- **`/gluttony buff` cast path fully reworked** — v1.0.4.86-96 could cycle all four Phantom Jobs and restore the original without a single buff landing. Root-cause hardening, in order of suspicion:
+ - **Casts now bypass GluttonyCombo's own `UseAction` detour.** New `ActionWatching.UseActionRaw` invokes the game's `UseAction` via `UseActionHook.Original`, so the plugin's combat gating (`PlayerHasActionPenalty` hard-block, retargeting, queue handling in `UseActionDetour`) can never silently swallow the out-of-combat crystal casts. `ChangeSupportJob` is a native call that never passed through the hook — which is exactly why jobs kept switching while casts died.
+ - **Dual cast path per buff.** Primary: `ActionType.GeneralAction` phantom slot (Knight/Pray 32, Monk/Counterstance 33, Bard/Romeo's Ballad 32, Dancer/Quickstep 32) — verified against BOCCHI's working Buff module and the live 7.5x GeneralAction sheet (rows 31-35 remain "Phantom Action I-V"). Fallback: `ActionType.Action` with the real Action-sheet ids (Pray 41589, Counterstance 41597, Romeo's Ballad 41609, Quickstep 46603), explicit self-target — how RotationSolverReborn and our own AutoRotation cast phantom actions. 3 attempts each, 800ms apart, 10s per-job cap.
  - **Success is verified, not assumed.** A cast counts only when the buff status appears/refreshes past the pre-cast snapshot (+60s), replacing the brittle ">=1780s fresh" check. Removed the `GetRecastTime - Elapsed <= 0` gate that could suppress every attempt; the client rejects unusable actions itself and the retry ladder handles it.
  - **Strict job-change confirm.** Phantom-job status first (PhantomKnight 4358 / Monk 4360 / Bard 4363 / Dancer 4805); the `CurrentSupportJob` state byte only counts after holding 1.5s (it can lead the server). 600ms post-confirm settle before casting.
  - **No more force-targeting the crystal** (BOCCHI parity; buffs are self/party casts and an EventObj hard target is at best useless). Jobs whose buff already has >=25min left are skipped without swapping. End-of-cycle summary reports N/M buffs applied.
- - **Full diagnostics.** Every attempt logs `GetActionStatus` + the `UseAction` return to the Dalamud log under `[CrystalBuffs]` ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ if a cast still fails, `/xllog` now states the client's exact rejection code instead of requiring another blind test cycle.
+ - **Full diagnostics.** Every attempt logs `GetActionStatus` + the `UseAction` return to the Dalamud log under `[CrystalBuffs]` — if a cast still fails, `/xllog` now states the client's exact rejection code instead of requiring another blind test cycle.
 
 ### Notes
-- The v1.0.4.96 claim that `ActionType.Action` 41xxx phantom casts are "silently rejected by the client" did not survive source review ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ RotationSolverReborn and Wrath AutoRotation cast phantom actions that way in-game. Both mechanisms are retained; whichever lands first wins.
+- The v1.0.4.96 claim that `ActionType.Action` 41xxx phantom casts are "silently rejected by the client" did not survive source review — RotationSolverReborn and Wrath AutoRotation cast phantom actions that way in-game. Both mechanisms are retained; whichever lands first wins.
 
 ## v1.0.4.97 (2026-07-29)
 
@@ -2718,7 +2718,7 @@ cannot reduce own HP to less than 1"* ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥
 ## v1.0.4.96 (2026-07-28)
 
 ### Fixed
-- **`/gluttony buff` ran its waits but never cast anything** : buff actions were invoked via `ActionManager.UseAction(ActionType.Action, <41xxx Action-sheet ID>)`, which the client silently rejects for phantom job abilities ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ the state machine waited its delays and moved on with no cast ever firing. Phantom hotbar abilities must be cast via `ActionType.GeneralAction` with per-slot GeneralAction row IDs (31-34), exactly like pressing the phantom hotbar buttons. Slot map: Knight Pray = 32, Monk Counterstance = 33, Bard Romeo's Ballad = 32, Dancer Quickstep = 32. Mechanism verified against BOCCHI's Buff module (github.com/OhKannaDuh/BOCCHI v2.1.2), which performs this same cycle in-game.
+- **`/gluttony buff` ran its waits but never cast anything** : buff actions were invoked via `ActionManager.UseAction(ActionType.Action, <41xxx Action-sheet ID>)`, which the client silently rejects for phantom job abilities — the state machine waited its delays and moved on with no cast ever firing. Phantom hotbar abilities must be cast via `ActionType.GeneralAction` with per-slot GeneralAction row IDs (31-34), exactly like pressing the phantom hotbar buttons. Slot map: Knight Pray = 32, Monk Counterstance = 33, Bard Romeo's Ballad = 32, Dancer Quickstep = 32. Mechanism verified against BOCCHI's Buff module (github.com/OhKannaDuh/BOCCHI v2.1.2), which performs this same cycle in-game.
 - **Job-change confirmation** ( `WaitForJobChange`): now waits for the Phantom Job status (PhantomKnight 4358 / PhantomMonk 4360 / PhantomBard 4363 / PhantomDancer 4805) in addition to the `CurrentSupportJob` state byte, matching how the server signals a completed support-job change; 400ms post-change settle retained.
 - **Buff confirmation** ( `CastBuff`): advancing now requires the buff status present AND freshly applied (`RemainingTime >= 1780` of 1800s). Casts retry every 500ms but only when the GeneralAction is off recast (`GetRecastTime - GetRecastTimeElapsed <= 0`), replacing the blind 400ms re-spam. Per-job DuoLog progress lines added so each applied buff is visible in chat.
 
@@ -2867,7 +2867,7 @@ cannot reduce own HP to less than 1"* ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥
 - Amnesia / Pacification / Silence handling, Pyretic / Reflect penalties (`EnemyHasReflectPenalty`), 15s raidwide-mitigation gate, `IsRaidwide` / `IgnoreRaidwide`, WHM Divine Caress ground-heal targeting, SMN "Aegis Uptime" preset, BattleData subsystem, BossMod IPC (`SetMaxDistanceToTarget` / `SuspendLeases`), `EnteringInstancedContent` tracking. BLU autorotation engine untouched this merge (upstream has none).
 
 ### Notes
-- Build: 0 errors, 11 pre-existing warnings, 12.6s. LF output per RUNBOOK ├âΓÇÜ├é┬º9. `"WrathCombo.json"` config literal preserved via token-protected rename.
+- Build: 0 errors, 11 pre-existing warnings, 12.6s. LF output per RUNBOOK §9. `"WrathCombo.json"` config literal preserved via token-protected rename.
 
 ## v1.0.4.78 (2026-07-17)
 
@@ -2879,7 +2879,7 @@ cannot reduce own HP to less than 1"* ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥
  Loaded on territory change.
 
 ### Changed
-- **Synced upstream WrathCombo 1.0.4.13 (`efe5d828b`) to 1.0.4.14 (`93559998d`)** ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ 68 commits,
+- **Synced upstream WrathCombo 1.0.4.13 (`efe5d828b`) to 1.0.4.14 (`93559998d`)** — 68 commits,
  61 files, +2794/-1942. Method: per-file 3-way in WrathCombo namespace + forward Wrath->Gluttony
  rename (RUNBOOK 3.3). git merge-file reported 0 conflicts; the two escalation-flagged files
  converged cleanly (see Notes).
@@ -2902,7 +2902,7 @@ cannot reduce own HP to less than 1"* ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥
 ### Notes
 - BLU taken-theirs (unprotected since; BLU autorotation is known-broken).
 - Build: 0 errors, 11 warnings (all pre-existing). Resolves the nightly-upstream-merge
- escalation (upstream BattleData penalty rearchitecture vs. our divergences) ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ merged cleanly with
+ escalation (upstream BattleData penalty rearchitecture vs. our divergences) — merged cleanly with
  every standing divergence intact.
 
 ## v1.0.4.77 (2026-07-11)
@@ -2920,7 +2920,7 @@ cannot reduce own HP to less than 1"* ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥
 ## v1.0.4.76 (2026-07-05)
 
 ### Added
-- **Amnesia handling (statuses 5, 1092, 4210 ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ "unable to use abilities").** Eureka Orthos /
+- **Amnesia handling (statuses 5, 1092, 4210 — "unable to use abilities").** Eureka Orthos /
  deep-dungeon floor enchantments and traps apply Amnesia (1092), disabling all oGCD
  abilities; both rotation modes previously kept trying to use them and stalled.
  - Auto-rotation: `ProcessAutoActions` skips `ActionAttackType.Ability` actions while any
@@ -3114,7 +3114,7 @@ cannot reduce own HP to less than 1"* ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥
 - Preserved fork divergences: 15s raidwide-mit gate, Pyretic/`PlayerHasActionPenalty` + enemy-reflect gating, Pacification/Silence handling, WHM Divine Caress ground-heal, BLU autorotation engine, SMN Aegis Uptime.
 - Removed unused `using ECommons.DalamudServices.Legacy;` per upstream.
 
-# Gluttony Combo ├â╞Æ├é┬ó├â┬ó├óΓé¼┼í├é┬¼├â┬ó├óΓÇÜ┬¼├é┬¥ Changelog
+# Gluttony Combo — Changelog
 
 ## v1.0.4.53 (2026-06-18)
 
@@ -3122,7 +3122,7 @@ cannot reduce own HP to less than 1"* ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥
 - **BLU auto-rotation no longer idles when damage spells are available.** The terminal GCD filler
  was a hand-picked list of specific spells; if none matched it returned nothing. It now iterates
  the entire slotted spellbook (`ActiveBLUSpells`) and casts the first off-cooldown, in-range
- damage spell. Only an explicit exclusion set is skipped ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ buffs, heals, mitigation, hard CC,
+ damage spell. Only an explicit exclusion set is skipped — buffs, heals, mitigation, hard CC,
  knockbacks/draws, suicides/self-damage, instant-KO/%HP gimmicks, and the cooldown-managed damage
  + DoTs the cascade already handles. Any slotted damage spammable is picked up automatically with
  no per-spell configuration.
@@ -3192,32 +3192,32 @@ cannot reduce own HP to less than 1"* ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥
 ## v1.0.4.48 (2026-06-17)
 
 ### Changed
-- **Upstream sync ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ WrathCombo `main` 1.0.4.8 ├â┬ó├óΓé¼┬á├óΓé¼Γäó 1.0.4.9 (~44 commits, 30 files).** Merged the upstream range `0e6e5a9e├â┬ó├óΓÇÜ┬¼├é┬ª06877cca6` across job rotations, autorotation, and UI, preserving all Gluttony fork divergences.
+- **Upstream sync — WrathCombo `main` 1.0.4.8 → 1.0.4.9 (~44 commits, 30 files).** Merged the upstream range `0e6e5a9e…06877cca6` across job rotations, autorotation, and UI, preserving all Gluttony fork divergences.
  - **MCH:** fixed AoE tools firing incorrectly; Reassemble/Hypercharge handling; helper refactors.
- - **SAM:** adopted upstream's completed ST/AoE rotation rebalance (Getsu/Ka + Fugetsu/Fuka refresh guards on Mangetsu/Oka/Gekko/Kasha). Our fork carried an earlier, incomplete form of the same logic ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ converged to upstream to reduce future merge friction.
+ - **SAM:** adopted upstream's completed ST/AoE rotation rebalance (Getsu/Ka + Fugetsu/Fuka refresh guards on Mangetsu/Oka/Gekko/Kasha). Our fork carried an earlier, incomplete form of the same logic — converged to upstream to reduce future merge friction.
  - **SGE:** AoE simple-heal oGCD spread rebalance; autorotation shield check now optional.
  - **BLM:** fixed level-90 Ice phase. **VPR:** early-buff opener. **WAR:** Fell Cleave cleanup + helper tidy. **MNK PvP** update.
 
 ### Added
-- **Encounter safety / Action Penalty Gaze & Motion handling.** New plus content-specific action checks ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ Windurst Motion/Gaze VFX checks, content-specific fallbacks, Clytemnestra motion-scanner range check.
+- **Encounter safety / Action Penalty Gaze & Motion handling.** New plus content-specific action checks — Windurst Motion/Gaze VFX checks, content-specific fallbacks, Clytemnestra motion-scanner range check.
 - **p3 invincible status** added to status handling and Pyretic check moved to post-pre-pull.
 - **Healer "Include Shields" autorotation setting** and **DTR bar updates while hidden** (`AutoRotation/*`).
 - **Opener DTR bar is now click-to-toggle** the current opener preset.
 
 ### Notes
-- Upstream WrathCombo `.csproj` advanced 1.0.4.8 ├â┬ó├óΓé¼┬á├óΓé¼Γäó 1.0.4.9; merge base advanced `0e6e5a9e` ├â┬ó├óΓé¼┬á├óΓé¼Γäó `06877cca6`.
+- Upstream WrathCombo `.csproj` advanced 1.0.4.8 → 1.0.4.9; merge base advanced `0e6e5a9e` → `06877cca6`.
 - **Fork divergences preserved:** AutoRotation tab keeps the `UnTargetAndDisableForPenalty` plain-checkbox variant + the Auto Positionals (Melee DPS) feature at their existing location; upstream relocated that checkbox to the top of DPS settings, so the relocated duplicate was dropped to avoid a doubled control. Pacification/Silence handling, WHM Divine Caress ground-heal targeting, 15s raidwide-mit gate, HP-scaled raidwide `numberOfCasts`, SMN "Aegis Uptime", and the manual BLU combos all live in files outside this upstream range and are untouched.
 - Build clean (0 errors, 9 pre-existing warnings).
 
 ## v1.0.4.44 (2026-06-08)
 
 ### Changed
-- **Upstream sync ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ Auto-Rotation tab UI.** Merged WrathCombo `main` commits `27fcf666` (Update autorot UI) and `0e6e5a9e` (More rewords) into and `Resources/Localization/UI/AutoRotation/AutoRotationUI.{resx,}`.
- - Label rewords: `Checkbox_OnlyInCombat` "Only in Combat" ├â┬ó├óΓé¼┬á├óΓé¼Γäó "Restrict to Combat Only"; `Checkbox_BypassFATETargets`/`Checkbox_BypassQuestTargets` "Bypass Only in Combat for ├â┬ó├óΓÇÜ┬¼├é┬ª" ├â┬ó├óΓé¼┬á├óΓé¼Γäó "Bypass for ├â┬ó├óΓÇÜ┬¼├é┬ª"; matching `HelpText_PreEmptiveHoT` update.
+- **Upstream sync — Auto-Rotation tab UI.** Merged WrathCombo `main` commits `27fcf666` (Update autorot UI) and `0e6e5a9e` (More rewords) into and `Resources/Localization/UI/AutoRotation/AutoRotationUI.{resx,}`.
+ - Label rewords: `Checkbox_OnlyInCombat` "Only in Combat" → "Restrict to Combat Only"; `Checkbox_BypassFATETargets`/`Checkbox_BypassQuestTargets` "Bypass Only in Combat for …" → "Bypass for …"; matching `HelpText_PreEmptiveHoT` update.
  - Tab reorganized: added "Combat Settings" and "Automatic Activation Settings" `ImGuiEx.TextUnderlined` headers; combat settings (InCombatOnly, bypass options, delay) render unconditionally instead of being gated behind `P.IPC.GetAutoRotationState`.
 
 ### Notes
-- Upstream WrathCombo `.csproj` is still 1.0.4.8 ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥ these were UI-only commits with no upstream version bump. Merge base advanced cab2ae9e ├â┬ó├óΓé¼┬á├óΓé¼Γäó 0e6e5a9e.
+- Upstream WrathCombo `.csproj` is still 1.0.4.8 — these were UI-only commits with no upstream version bump. Merge base advanced cab2ae9e → 0e6e5a9e.
 - Preserved fork divergences: `UnTargetAndDisableForPenalty` plain-checkbox variant and the `/gluttony ignore` command string. The tab's `GluttonyCombo.P.`-qualified `UIHelper`/`IPC` calls were collapsed to bare `P.` to converge with upstream (functionally identical; `P` resolves to `GluttonyCombo.P`, as already used in /).
 - No autorotation engine, combo, ActionID, or StatusID changes.
 
@@ -3465,8 +3465,8 @@ cannot reduce own HP to less than 1"* ├â┬ó├óΓÇÜ┬¼├óΓé¼┬¥
 ### Fixed
 - **AutoDuty IPC Integration**: Added AutoDuty IPC subscriber to detect when AutoDuty has paused for mechanics (Pyretic, Untarget, etc.). Gluttony now yields autorotation and target acquisition when AutoDuty is in control, preventing the targeting loop where AutoDuty clears the target and Gluttony immediately retargets.
  - New file:
- - Patched: ├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├óΓé¼┬á├â┬ó├óΓÇÜ┬¼├óΓÇ₧┬ó├â╞Æ├åΓÇÖ├â┬ó├óΓÇÜ┬¼├é┬á├â╞Æ├é┬ó├â┬ó├óΓé¼┼í├é┬¼├â┬ó├óΓé¼┼╛├é┬ó├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├é┬ó├â┬ó├óΓé¼┼í├é┬¼├âΓÇÜ├é┬á├â╞Æ├åΓÇÖ├âΓÇÜ├é┬ó├â╞Æ├é┬ó├â┬ó├óΓÇÜ┬¼├à┬í├âΓÇÜ├é┬¼├â╞Æ├é┬ó├â┬ó├óΓÇÜ┬¼├à┬╛├âΓÇÜ├é┬ó├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├óΓé¼┬á├â┬ó├óΓÇÜ┬¼├óΓÇ₧┬ó├â╞Æ├åΓÇÖ├âΓÇÜ├é┬ó├â╞Æ├é┬ó├â┬ó├óΓÇÜ┬¼├à┬í├âΓÇÜ├é┬¼├â╞Æ├óΓé¼┬ª├âΓÇÜ├é┬í├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├é┬ó├â┬ó├óΓé¼┼í├é┬¼├âΓÇª├é┬í├â╞Æ├åΓÇÖ├â┬ó├óΓÇÜ┬¼├à┬í├â╞Æ├óΓé¼┼í├âΓÇÜ├é┬ó├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├óΓé¼┬á├â┬ó├óΓÇÜ┬¼├óΓÇ₧┬ó├â╞Æ├åΓÇÖ├â┬ó├óΓÇÜ┬¼├é┬á├â╞Æ├é┬ó├â┬ó├óΓé¼┼í├é┬¼├â┬ó├óΓé¼┼╛├é┬ó├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├é┬ó├â┬ó├óΓé¼┼í├é┬¼├âΓÇª├é┬í├â╞Æ├åΓÇÖ├â┬ó├óΓÇÜ┬¼├à┬í├â╞Æ├óΓé¼┼í├âΓÇÜ├é┬ó├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├óΓé¼┬á├â┬ó├óΓÇÜ┬¼├óΓÇ₧┬ó├â╞Æ├åΓÇÖ├â┬ó├óΓÇÜ┬¼├à┬í├â╞Æ├óΓé¼┼í├âΓÇÜ├é┬ó├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├óΓé¼┼í├âΓÇÜ├é┬ó├â╞Æ├åΓÇÖ├âΓÇÜ├é┬ó├â╞Æ├é┬ó├â┬ó├óΓÇÜ┬¼├à┬í├âΓÇÜ├é┬¼├â╞Æ├óΓé¼┬ª├âΓÇÜ├é┬í├â╞Æ├åΓÇÖ├â┬ó├óΓÇÜ┬¼├à┬í├â╞Æ├óΓé¼┼í├âΓÇÜ├é┬¼├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├é┬ó├â┬ó├óΓé¼┼í├é┬¼├âΓÇÜ├é┬ª├â╞Æ├åΓÇÖ├â┬ó├óΓÇÜ┬¼├à┬í├â╞Æ├óΓé¼┼í├âΓÇÜ├é┬í├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├óΓé¼┬á├â┬ó├óΓÇÜ┬¼├óΓÇ₧┬ó├â╞Æ├åΓÇÖ├âΓÇÜ├é┬ó├â╞Æ├é┬ó├â┬ó├óΓÇÜ┬¼├à┬í├âΓÇÜ├é┬¼├â╞Æ├óΓé¼┬ª├âΓÇÜ├é┬í├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├é┬ó├â┬ó├óΓé¼┼í├é┬¼├âΓÇª├é┬í├â╞Æ├åΓÇÖ├â┬ó├óΓÇÜ┬¼├à┬í├â╞Æ├óΓé¼┼í├âΓÇÜ├é┬¼├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├óΓé¼┬á├â┬ó├óΓÇÜ┬¼├óΓÇ₧┬ó├â╞Æ├åΓÇÖ├â┬ó├óΓÇÜ┬¼├é┬á├â╞Æ├é┬ó├â┬ó├óΓé¼┼í├é┬¼├â┬ó├óΓé¼┼╛├é┬ó├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├é┬ó├â┬ó├óΓé¼┼í├é┬¼├âΓÇª├é┬í├â╞Æ├åΓÇÖ├â┬ó├óΓÇÜ┬¼├à┬í├â╞Æ├óΓé¼┼í├âΓÇÜ├é┬ó├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├óΓé¼┬á├â┬ó├óΓÇÜ┬¼├óΓÇ₧┬ó├â╞Æ├åΓÇÖ├â┬ó├óΓÇÜ┬¼├à┬í├â╞Æ├óΓé¼┼í├âΓÇÜ├é┬ó├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├óΓé¼┼í├âΓÇÜ├é┬ó├â╞Æ├åΓÇÖ├âΓÇÜ├é┬ó├â╞Æ├é┬ó├â┬ó├óΓé¼┼í├é┬¼├âΓÇª├é┬í├â╞Æ├óΓé¼┼í├âΓÇÜ├é┬¼├â╞Æ├åΓÇÖ├â┬ó├óΓÇÜ┬¼├é┬ª├â╞Æ├óΓé¼┼í├âΓÇÜ├é┬í├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├é┬ó├â┬ó├óΓé¼┼í├é┬¼├âΓÇª├é┬í├â╞Æ├åΓÇÖ├â┬ó├óΓÇÜ┬¼├à┬í├â╞Æ├óΓé¼┼í├âΓÇÜ├é┬¼├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├óΓé¼┬á├â┬ó├óΓÇÜ┬¼├óΓÇ₧┬ó├â╞Æ├åΓÇÖ├âΓÇÜ├é┬ó├â╞Æ├é┬ó├â┬ó├óΓÇÜ┬¼├à┬í├âΓÇÜ├é┬¼├â╞Æ├óΓé¼┬ª├âΓÇÜ├é┬í├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├é┬ó├â┬ó├óΓé¼┼í├é┬¼├âΓÇª├é┬í├â╞Æ├åΓÇÖ├â┬ó├óΓÇÜ┬¼├à┬í├â╞Æ├óΓé¼┼í├âΓÇÜ├é┬¥ initializes and disposes AutoDuty IPC
- - Patched: ├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├óΓé¼┬á├â┬ó├óΓÇÜ┬¼├óΓÇ₧┬ó├â╞Æ├åΓÇÖ├â┬ó├óΓÇÜ┬¼├é┬á├â╞Æ├é┬ó├â┬ó├óΓé¼┼í├é┬¼├â┬ó├óΓé¼┼╛├é┬ó├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├é┬ó├â┬ó├óΓé¼┼í├é┬¼├âΓÇÜ├é┬á├â╞Æ├åΓÇÖ├âΓÇÜ├é┬ó├â╞Æ├é┬ó├â┬ó├óΓÇÜ┬¼├à┬í├âΓÇÜ├é┬¼├â╞Æ├é┬ó├â┬ó├óΓÇÜ┬¼├à┬╛├âΓÇÜ├é┬ó├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├óΓé¼┬á├â┬ó├óΓÇÜ┬¼├óΓÇ₧┬ó├â╞Æ├åΓÇÖ├âΓÇÜ├é┬ó├â╞Æ├é┬ó├â┬ó├óΓÇÜ┬¼├à┬í├âΓÇÜ├é┬¼├â╞Æ├óΓé¼┬ª├âΓÇÜ├é┬í├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├é┬ó├â┬ó├óΓé¼┼í├é┬¼├âΓÇª├é┬í├â╞Æ├åΓÇÖ├â┬ó├óΓÇÜ┬¼├à┬í├â╞Æ├óΓé¼┼í├âΓÇÜ├é┬ó├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├óΓé¼┬á├â┬ó├óΓÇÜ┬¼├óΓÇ₧┬ó├â╞Æ├åΓÇÖ├â┬ó├óΓÇÜ┬¼├é┬á├â╞Æ├é┬ó├â┬ó├óΓé¼┼í├é┬¼├â┬ó├óΓé¼┼╛├é┬ó├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├é┬ó├â┬ó├óΓé¼┼í├é┬¼├âΓÇª├é┬í├â╞Æ├åΓÇÖ├â┬ó├óΓÇÜ┬¼├à┬í├â╞Æ├óΓé¼┼í├âΓÇÜ├é┬ó├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├óΓé¼┬á├â┬ó├óΓÇÜ┬¼├óΓÇ₧┬ó├â╞Æ├åΓÇÖ├â┬ó├óΓÇÜ┬¼├à┬í├â╞Æ├óΓé¼┼í├âΓÇÜ├é┬ó├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├óΓé¼┼í├âΓÇÜ├é┬ó├â╞Æ├åΓÇÖ├âΓÇÜ├é┬ó├â╞Æ├é┬ó├â┬ó├óΓÇÜ┬¼├à┬í├âΓÇÜ├é┬¼├â╞Æ├óΓé¼┬ª├âΓÇÜ├é┬í├â╞Æ├åΓÇÖ├â┬ó├óΓÇÜ┬¼├à┬í├â╞Æ├óΓé¼┼í├âΓÇÜ├é┬¼├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├é┬ó├â┬ó├óΓé¼┼í├é┬¼├âΓÇÜ├é┬ª├â╞Æ├åΓÇÖ├â┬ó├óΓÇÜ┬¼├à┬í├â╞Æ├óΓé¼┼í├âΓÇÜ├é┬í├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├óΓé¼┬á├â┬ó├óΓÇÜ┬¼├óΓÇ₧┬ó├â╞Æ├åΓÇÖ├âΓÇÜ├é┬ó├â╞Æ├é┬ó├â┬ó├óΓÇÜ┬¼├à┬í├âΓÇÜ├é┬¼├â╞Æ├óΓé¼┬ª├âΓÇÜ├é┬í├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├é┬ó├â┬ó├óΓé¼┼í├é┬¼├âΓÇª├é┬í├â╞Æ├åΓÇÖ├â┬ó├óΓÇÜ┬¼├à┬í├â╞Æ├óΓé¼┼í├âΓÇÜ├é┬¼├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├óΓé¼┬á├â┬ó├óΓÇÜ┬¼├óΓÇ₧┬ó├â╞Æ├åΓÇÖ├â┬ó├óΓÇÜ┬¼├é┬á├â╞Æ├é┬ó├â┬ó├óΓé¼┼í├é┬¼├â┬ó├óΓé¼┼╛├é┬ó├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├é┬ó├â┬ó├óΓé¼┼í├é┬¼├âΓÇª├é┬í├â╞Æ├åΓÇÖ├â┬ó├óΓÇÜ┬¼├à┬í├â╞Æ├óΓé¼┼í├âΓÇÜ├é┬ó├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├óΓé¼┬á├â┬ó├óΓÇÜ┬¼├óΓÇ₧┬ó├â╞Æ├åΓÇÖ├â┬ó├óΓÇÜ┬¼├à┬í├â╞Æ├óΓé¼┼í├âΓÇÜ├é┬ó├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├óΓé¼┼í├âΓÇÜ├é┬ó├â╞Æ├åΓÇÖ├âΓÇÜ├é┬ó├â╞Æ├é┬ó├â┬ó├óΓé¼┼í├é┬¼├âΓÇª├é┬í├â╞Æ├óΓé¼┼í├âΓÇÜ├é┬¼├â╞Æ├åΓÇÖ├â┬ó├óΓÇÜ┬¼├é┬ª├â╞Æ├óΓé¼┼í├âΓÇÜ├é┬í├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├é┬ó├â┬ó├óΓé¼┼í├é┬¼├âΓÇª├é┬í├â╞Æ├åΓÇÖ├â┬ó├óΓÇÜ┬¼├à┬í├â╞Æ├óΓé¼┼í├âΓÇÜ├é┬¼├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├óΓé¼┬á├â┬ó├óΓÇÜ┬¼├óΓÇ₧┬ó├â╞Æ├åΓÇÖ├âΓÇÜ├é┬ó├â╞Æ├é┬ó├â┬ó├óΓÇÜ┬¼├à┬í├âΓÇÜ├é┬¼├â╞Æ├óΓé¼┬ª├âΓÇÜ├é┬í├â╞Æ├åΓÇÖ├âΓÇá├óΓé¼Γäó├â╞Æ├é┬ó├â┬ó├óΓé¼┼í├é┬¼├âΓÇª├é┬í├â╞Æ├åΓÇÖ├â┬ó├óΓÇÜ┬¼├à┬í├â╞Æ├óΓé¼┼í├âΓÇÜ├é┬¥ checks `AutoDutyIPC.ShouldYield` in `ShouldSkipAutorotation`
+ - Patched: — initializes and disposes AutoDuty IPC
+ - Patched: — checks `AutoDutyIPC.ShouldYield` in `ShouldSkipAutorotation`
 
 ---
 *Previous versions: see release tags on GitHub.*
