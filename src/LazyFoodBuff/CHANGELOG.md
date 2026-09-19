@@ -12,7 +12,7 @@
 ## v0.1.3.1 (2026-09-05)
 
 ### Fixed
-- The "What's new" popup now opens after this very update. 0.1.3.0 stayed silent the first time it ran because it had no record of the last version shown; the gate now tells an updated plugin (settings file already present) apart from a brand-new install (none yet) and only the latter stays quiet (`ChangelogGate.Options.ExistingInstall`, read from `pi.ConfigFile.Exists` in `Plugin.cs`).
+- The "What's new" popup now opens after this very update. 0.1.3.0 stayed silent the first time it ran because it had no record of the last version shown; the gate now tells an updated plugin (settings file already present) apart from a brand-new install (none yet) and only the latter stays quiet (`ChangelogGate.Options.ExistingInstall`, read from `pi.ConfigFile.Exists`.
 
 ### Notes
 - Nothing else changed. The notes can be reopened later with `/lazyfoodbuff changelog`.
@@ -25,6 +25,6 @@
 - "Open changelog on GitHub" button in the popup links to the full CHANGELOG for this plugin.
 
 ### Notes
-- This is the pilot of a standing rule for every lalalazy plugin: the popup code is shared source under `src/Shared/LalaChangelog/` and each plugin embeds its own `CHANGELOG.md` at build time (`ChangelogGate.cs`, `ChangelogWindow.cs`, `Core/ChangelogParser.cs`). New config field `Configuration.LastSeenChangelogVersion`; on the first build carrying the feature it records the running version silently and does not open.
+- This is the pilot of a standing rule for every lalalazy plugin: the popup code is shared across plugins and each plugin embeds its own release notes at build time. New config field `Configuration.LastSeenChangelogVersion`; on the first build carrying the feature it records the running version silently and does not open.
 - The popup never opens during combat, inside a duty, while zoning, or in a cutscene - it waits until the character is free.
 - `/lazyfoodbuff` with no argument still opens these settings.

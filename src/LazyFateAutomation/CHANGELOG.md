@@ -15,7 +15,7 @@
 
 ### Added
 
-- Dashboard snapshot endpoint: the plugin now serves a read-only JSON snapshot of FATE and hunt state at http://127.0.0.1:10505/fates on the game host (new FateSnapshot.cs, FateSnapshotServer + FateSnapshotService). Loopback-only, no settings. The home dashboard relay polls it; nothing in the plugin's FATE automation behaviour changes.
+- Dashboard snapshot endpoint: the plugin now serves a read-only JSON snapshot of FATE and hunt state at http://127.0.0.1:10505/fates on the game host (new FateSnapshot service types). Loopback-only, no settings. The home dashboard relay polls it; nothing in the plugin's FATE automation behaviour changes.
 - The snapshot lists each active FATE with progress, seconds remaining, bonus flag, and whether the player is inside it, capped at the 12 most relevant (joined FATE first, soonest to expire next).
 - The snapshot carries a session counter of FATEs completed (a joined FATE that reaches 100% and then ends counts once) and the number of unlocked hunt bills with their total monster kills so far.
 - The snapshot names one live elite hunt mark present in the current zone (the game's own hunt-target check, MobHunt.IsHuntTarget); no name when none is up.
@@ -33,34 +33,34 @@
 ## [0.0.1.45] - 2026-08-17
 ### Fixed
 - **Pauses inside instanced content and RELEASES the Gluttony lease.** `FateGrind` had no duty gate: queuing
-  into a dungeon/trial/raid while the grind was running left the Gluttony lease live for the whole duty
-  (FATE config overlay - `DPSAlwaysHardTarget`, `DPSRotationMode=Nearest`, `InCombatOnly=false`,
-  `OnlyAttackInCombat=false` - plus every job combo forced into auto-mode), and every out-of-combat loop
-  iteration cleared the player's target. In an 8-man raid on WHM that snapped the hard target back to the
-  boss on every DPS GCD and every heal fell through the heal stack to Self. The loop now detects
-  `BoundByDuty && !PublicEvent.IsFateTerritory` (forays / Bozja / Occult Crescent / Cosmic still run), tears
-  down the BossMod preset, stops vnavmesh, calls `GluttonyComboIPC.Release()` (Auto-Rotation falls back to
-  the user's own settings for the duty), does NOT touch the target, and idles with status
-  `Paused (in instance)` until back in a FATE zone, where a fresh lease is acquired on the next engage.
-- **Auto-Rotation control actually works now.** `GluttonyComboIPC.Enable()` called `SetAutoRotationConfigState`
-  x7 before the first `SetAutoRotationState`; Gluttony's `AddRegistrationForAutoRotation` (through 1.0.4.141)
-  then threw `KeyNotFoundException` on every `SetAutoRotationState`, so the plugin never turned Auto-Rotation
-  on/off (the user had to toggle it by hand, and it stayed on afterwards) and logged
-  `Gluttony Combo: Enable failed: Exception has been thrown by the target of an invocation` every frame
-  (70 MB LazyFateAutomation.log). `SetAutoRotationState` is now sent first, which works against both the
-  fixed Gluttony 1.0.4.142 and older builds.
+ into a dungeon/trial/raid while the grind was running left the Gluttony lease live for the whole duty
+ (FATE config overlay - `DPSAlwaysHardTarget`, `DPSRotationMode=Nearest`, `InCombatOnly=false`,
+ `OnlyAttackInCombat=false` - plus every job combo forced into auto-mode), and every out-of-combat loop
+ iteration cleared the player's target. In an 8-man raid on WHM that snapped the hard target back to the
+ boss on every DPS GCD and every heal fell through the heal stack to Self. The loop now detects
+ `BoundByDuty && !PublicEvent.IsFateTerritory` (forays / Bozja / Occult Crescent / Cosmic still run), tears
+ down the BossMod preset, stops vnavmesh, calls `GluttonyComboIPC.Release` (Auto-Rotation falls back to
+ the user's own settings for the duty), does NOT touch the target, and idles with status
+ `Paused (in instance)` until back in a FATE zone, where a fresh lease is acquired on the next engage.
+- **Auto-Rotation control actually works now.** `GluttonyComboIPC.Enable` called `SetAutoRotationConfigState`
+ x7 before the first `SetAutoRotationState`; Gluttony's `AddRegistrationForAutoRotation` (through 1.0.4.141)
+ then threw `KeyNotFoundException` on every `SetAutoRotationState`, so the plugin never turned Auto-Rotation
+ on/off (the user had to toggle it by hand, and it stayed on afterwards) and logged
+ `Gluttony Combo: Enable failed: Exception has been thrown by the target of an invocation` every frame
+ (70 MB LazyFateAutomation.log). `SetAutoRotationState` is now sent first, which works against both the
+ fixed Gluttony 1.0.4.142 and older builds.
 - **`InvalidLease` handled on every IPC call** (`SetAutoRotationState`, `SetAutoRotationConfigState`,
-  `SetCurrentJobAutoRotationReady`), not just the last one - a lease suspended by Gluttony (job change) is
-  forgotten immediately and re-acquired (still throttled to one registration per 10s).
+ `SetCurrentJobAutoRotationReady`), not just the last one - a lease suspended by Gluttony (job change) is
+ forgotten immediately and re-acquired (still throttled to one registration per 10s).
 - IPC warnings are throttled to one per 10s.
 
 ## [0.0.1.44] - 2026-06-27
 ### Fixed
-- **Stop now halts vnavmesh immediately.** Hitting Stop (or `/lazyfate stop`) while the bot was pathfinding/flying to a FATE previously left vnavmesh navigating to the destination on its own - cancelling the plugin's task does not stop vnav's in-flight movement. `FateToolKit` Running=false and the `FateGrind` task teardown now call `Svc.Navmesh.PathfindCancelAll()` + `Svc.Navmesh.Stop()` (cancel any in-progress pathfind AND stop following the current path), so the character stops the moment Stop is pressed.
+- **Stop now halts vnavmesh immediately.** Hitting Stop (or `/lazyfate stop`) while the bot was pathfinding/flying to a FATE previously left vnavmesh navigating to the destination on its own - cancelling the plugin's task does not stop vnav's in-flight movement. `FateToolKit` Running=false and the `FateGrind` task teardown now call `Svc.Navmesh.PathfindCancelAll` + `Svc.Navmesh.Stop` (cancel any in-progress pathfind AND stop following the current path), so the character stops the moment Stop is pressed.
 
 ## [0.0.1.43] - 2026-06-27
 ### Fixed
-- **Stop now fully releases the Gluttony Combo lease** instead of only disabling auto-rotation. Previously, Stop (and `/lazyfate stop`, and auto-complete) left Gluttony "controlled by Lazy Fate Automation" with the lease still held, so manual/macro control of Gluttony stayed locked out. `FateToolKit` Running=false now calls `GluttonyComboIPC.Release()` (which calls `ReleaseControl`) instead of `Disable()`; a fresh lease is acquired on the next grind start. Between-FATE pauses still use `Disable()` (keep the lease, just stop the rotation).
+- **Stop now fully releases the Gluttony Combo lease** instead of only disabling auto-rotation. Previously, Stop (and `/lazyfate stop`, and auto-complete) left Gluttony "controlled by Lazy Fate Automation" with the lease still held, so manual/macro control of Gluttony stayed locked out. `FateToolKit` Running=false now calls `GluttonyComboIPC.Release` (which calls `ReleaseControl`) instead of `Disable`; a fresh lease is acquired on the next grind start. Between-FATE pauses still use `Disable` (keep the lease, just stop the rotation).
 
 ## [0.0.1.42] - 2026-06-27
 ### Changed
@@ -81,7 +81,7 @@
 - BossMod `MiscAI.AutoTarget` now yields target authority to Gluttony: `Retarget=NoTarget` (only auto-targets when the player has nothing targeted) plus `FATE=Enabled` for the bootstrap case. The `MaxTargets` pull cap is retained.
 - `FateGrind.DeactivateIntegrations` and the run-stop path disable Gluttony Combo Auto-Rotation so it never fires while travelling between FATEs.
 ### Added
-- `Helpers/IPC/GluttonyComboIPC.cs` - IPC subscriber for Gluttony Combo's lease-based Auto-Rotation (prefix `GluttonyCombo`) with lease lifecycle (register/enable/disable/release) and FATE-grinding config. Modeled on GluttonyCombo/docs/IPCExample.cs.
+- IPC subscriber for Gluttony Combo's lease-based Auto-Rotation (prefix `GluttonyCombo`) with lease lifecycle (register/enable/disable/release) and FATE-grinding config.
 - `Ipc.GluttonyCombo` flag; `Service.Gluttony` instance wired into plugin start/dispose.
 ### Notes
 - Requires Gluttony Combo installed; the current job's Single-Target + AoE combos are enabled in Auto-Mode automatically. If Gluttony Combo is not loaded, the IsLoaded guard skips the integration and combat falls back to BossMod's prior behavior.
@@ -104,25 +104,25 @@
 ## [0.0.1.33] - 2026-06-07
 ### Added
 - Only dismount before teleporting if the player is flying (`Player.InFlight` is true). If the player is mounted on the ground, they will now remain mounted while teleporting, which makes travels faster and more natural.
-- Added robust mounting verification and retry loops inside `MoveTo()`. If the player is in combat, the bot stands still and waits for combat to end before attempting to mount.
-- Added mid-travel dismount checking inside `MoveTo()` pathfinding loops. If the player is dismounted mid-travel (e.g. from getting aggroed/hit), the bot halts movement, waits for combat to end, mounts up, and resumes pathfinding rather than walking on foot.
-- Rewrote combat/engage stuck detection in `HandleCombatStuckDetection()`. Instead of depending on `InCombat` (which is false when running between FATE mobs) or `IsMoving` (which returns false when stuck against a wall), it now tracks position changes relative to the current target and activates `vnavmesh` pathing fallback if progress towards a distant target stops for 1.5 seconds.
-- Added explicit landing and dismounting calls at the beginning of `TeleportTo()`, and wait for `!Player.IsBusy` to prevent teleport casts from immediately failing when mounted/flying.
+- Added robust mounting verification and retry loops inside `MoveTo`. If the player is in combat, the bot stands still and waits for combat to end before attempting to mount.
+- Added mid-travel dismount checking inside `MoveTo` pathfinding loops. If the player is dismounted mid-travel (e.g. from getting aggroed/hit), the bot halts movement, waits for combat to end, mounts up, and resumes pathfinding rather than walking on foot.
+- Rewrote combat/engage stuck detection in `HandleCombatStuckDetection`. Instead of depending on `InCombat` (which is false when running between FATE mobs) or `IsMoving` (which returns false when stuck against a wall), it now tracks position changes relative to the current target and activates `vnavmesh` pathing fallback if progress towards a distant target stops for 1.5 seconds.
+- Added explicit landing and dismounting calls at the beginning of `TeleportTo`, and wait for `!Player.IsBusy` to prevent teleport casts from immediately failing when mounted/flying.
 ### Fixed
-- Fixed task crashing on teleport failures by replacing `ErrorIf(!ActionManager.Teleport())` with a robust 3-attempt retry loop that falls back to the `/return` recovery gracefully.
+- Fixed task crashing on teleport failures by replacing `ErrorIf(!ActionManager.Teleport)` with a robust 3-attempt retry loop that falls back to the `/return` recovery gracefully.
 
 ## [0.0.1.26] - 2026-06-07
 ### Added
-- Added combat stuck detection and mitigation in `HandleCombatStuckDetection()`. If BossMod's straight-line movement gets the player stuck on trees/obstacles in combat for 1.5 seconds, the bot disables BossMod movement and uses `vnavmesh` to pathfind around the obstacle to the target.
-- Added auto-skipping for NPC dialogue SelectString option lists in `TaskBase.WaitUntilSkipping()`.
+- Added combat stuck detection and mitigation in `HandleCombatStuckDetection`. If BossMod's straight-line movement gets the player stuck on trees/obstacles in combat for 1.5 seconds, the bot disables BossMod movement and uses `vnavmesh` to pathfind around the obstacle to the target.
+- Added auto-skipping for NPC dialogue SelectString option lists in `TaskBase.WaitUntilSkipping`.
 ### Fixed
-- Gated teleporting and mounting on `!Svc.Condition[ConditionFlag.InCombat]` in `TaskBase.cs` to prevent getting stuck in combat.
+- Gated teleporting and mounting on `!Svc.Condition[ConditionFlag.InCombat]` in to prevent getting stuck in combat.
 - Prevented rapid mounting and dismounting loops during chain FATEs while waiting for the next FATE to spawn.
 
 ## [0.0.1.23] - 2026-06-06
 ### Changed
-- File logging now suppresses DBG/TRC scope tracing by default; only WRN/ERR are written to LazyFateAutomation.log. Set VerboseFileLogging to true in the plugin config (LazyFateAutomation.json) to restore full debug logging for troubleshooting. (Svc.cs LogToFile gate, Configuration.cs flag.)
-- Fixes ~28 MB log growth observed 2026-06-06 from FATE-grind DebugContext scope enter/exit tracing.
+- File logging now suppresses DBG/TRC scope tracing by default; only WRN/ERR are written to the plugin log file. Set VerboseFileLogging to true in the plugin config (LazyFateAutomation.json) to restore full debug logging for troubleshooting.
+- Fixes ~28 MB log growth observed from FATE-grind DebugContext scope enter/exit tracing.
 
 ## [0.0.1.19] - 2026-05-31
 ### Added

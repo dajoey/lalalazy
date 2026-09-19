@@ -4,8 +4,8 @@
 
 ### Fixed
 
-- Corrected a wrong claim in the v0.1.0.0 notes below (and on the mod's web page): **the endpoint does not answer 503 on logout.** Once logged in, it keeps serving that character's last known retainer state - including at the title screen - and only ever answers 503 if it has never read the retainer table at all since the plugin loaded (i.e. it started at the title screen and no login has happened yet). That freeze is deliberate and is the better behaviour: measured on 2026-09-05 the frozen live snapshot was still *newer* than AutoRetainer's file, so falling back to the file on logout would have shown the dashboard **older** data, not fresher. No behaviour was changed here - only the description was wrong (file: `HttpServer.cs`, `RetainerLiveService.cs`, `RetainerState.cs`).
-- The settings window no longer reports "serving live snapshot" while logged out. It now distinguishes three states: no snapshot yet, serving a live snapshot, or serving the last-known snapshot while the game is in transition (file: `ConfigWindow.cs`, new `RetainerLiveService.LastTickOk`).
+- Corrected a wrong claim in the v0.1.0.0 notes below (and on the mod's web page): **the endpoint does not answer 503 on logout.** Once logged in, it keeps serving that character's last known retainer state - including at the title screen - and only ever answers 503 if it has never read the retainer table at all since the plugin loaded (i.e. it started at the title screen and no login has happened yet). That freeze is deliberate and is the better behaviour: measured previously the frozen live snapshot was still *newer* than AutoRetainer's file, so falling back to the file on logout would have shown the dashboard **older** data, not fresher. No behaviour was changed here - only the description was wrong.
+- The settings window no longer reports "serving live snapshot" while logged out. It now distinguishes three states: no snapshot yet, serving a live snapshot, or serving the last-known snapshot while the game is in transition.
 
 ### Notes
 
