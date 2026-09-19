@@ -3900,6 +3900,68 @@ StockStack BagStack(uint id, int slot, int qty, uint cat = CatA, bool marketable
     RoutingMove.ChooseMoveDestination([D(0, Pot, 1)], Pot, false, 1, maxStack: 0) == null, "maxStack 0");
 }
 
+// 126. Manual "Sweep to Bags" planner (0.1.62.0). Eligible = enabled Auto-Market list identity
+// (item+quality). Retainer-page stacks of those items move; ineligible stacks, crystals, and
+// anything already past the free-bag budget stay put. Market-board listings are never in the
+// retainer-page snapshot, so the "never touch listed" rail is structural. No timer path exists
+// in this file - the only caller is the RetainerList overlay button.
+{
+  const uint Crystal = 9;
+  const int RetCrystals = 12001;
+  var eligible = new List<(uint, bool)> { (Dye, false), (Ore, false) };
+
+  // Eligible dye + ineligible junk + bags stock (ignored) + crystal of an eligible id.
+  var stock = new List<StockStack>
+  {
+    new(StockOrigin.Retainer, Ret1, 0, Dye, false, 99),
+    new(StockOrigin.Retainer, Ret1, 1, 99999, false, 1), // not on list
+    new(StockOrigin.Bags, Bags1, 0, Dye, false, 10),     // character bags - never a candidate
+    new(StockOrigin.Retainer, RetCrystals, 0, Crystal, false, 99),
+  };
+  // Crystal is eligible by id only when listed; include it so the crystal-container skip fires.
+  var withCrystal = new List<(uint, bool)> { (Dye, false), (Ore, false), (Crystal, false) };
+  var plan = ReviewSweep.Plan(stock, withCrystal, freeBagSlots: 10, "R1");
+  Check("126 review sweep: eligible retainer stack is moved",
+    plan.Ops.Count == 1 && plan.Ops[0].ItemId == Dye && plan.Ops[0].SrcSlot == 0,
+    string.Join(",", plan.Ops.Select(o => $"{o.ItemId}@{o.SrcSlot}")));
+  Check("126 review sweep: ineligible retainer stack is skipped, not moved",
+    plan.Skipped.Any(s => s.ItemId == 99999 && s.Reason == "not on Auto-Market list") && plan.Ops.All(o => o.ItemId != 99999),
+    string.Join(",", plan.Skipped.Select(s => $"{s.ItemId}:{s.Reason}")));
+  Check("126 review sweep: bags stock is never a candidate",
+    plan.Ops.All(o => o.SrcContainer != Bags1),
+    string.Join(",", plan.Ops.Select(o => $"{o.ItemId}@{o.SrcContainer}")));
+  Check("126 review sweep: crystal container stock is skipped even when list-eligible",
+    plan.Skipped.Any(s => s.ItemId == Crystal && s.Reason == "crystal container") && plan.Ops.All(o => o.ItemId != Crystal),
+    string.Join(",", plan.Skipped.Select(s => $"{s.ItemId}:{s.Reason}")));
+
+  // Full bags: first eligible moves until budget runs out; the rest are left with bags-full reason.
+  var many = new List<StockStack>
+  {
+    new(StockOrigin.Retainer, Ret1, 0, Dye, false, 1),
+    new(StockOrigin.Retainer, Ret1, 1, Dye, false, 1),
+    new(StockOrigin.Retainer, Ret1, 2, Ore, false, 1),
+  };
+  var full = ReviewSweep.Plan(many, eligible, freeBagSlots: 1, "R1");
+  Check("126 review sweep: with one free bag slot only the first eligible stack moves",
+    full.Ops.Count == 1 && full.Ops[0].SrcSlot == 0, $"ops={full.Ops.Count}");
+  Check("126 review sweep: remaining eligible stacks are left for space, never dropped",
+    full.StoppedForSpace && full.Skipped.Count(s => s.Reason == "bags full") == 2,
+    $"stopped={full.StoppedForSpace} left={full.Skipped.Count(s => s.Reason == "bags full")}");
+
+  // HQ is part of identity: an NQ-only list does not pull the HQ stack.
+  var hqStock = new List<StockStack> { new(StockOrigin.Retainer, Ret1, 0, Dye, true, 5) };
+  var nqOnly = ReviewSweep.Plan(hqStock, [(Dye, false)], freeBagSlots: 5, "R1");
+  Check("126 review sweep: quality is part of eligibility - HQ stack ignored by NQ list entry",
+    nqOnly.Ops.Count == 0 && nqOnly.Skipped.Any(s => s.HQ && s.Reason == "not on Auto-Market list"),
+    string.Join(",", nqOnly.Skipped.Select(s => $"{s.ItemId}:{(s.HQ?"hq":"nq")}:{s.Reason}")));
+
+  // Zero free slots: nothing moves, everything eligible is left for space.
+  var zero = ReviewSweep.Plan(many, eligible, freeBagSlots: 0, "R1");
+  Check("126 review sweep: zero free bag slots moves nothing",
+    zero.Ops.Count == 0 && zero.StoppedForSpace && zero.Skipped.Count(s => s.Reason == "bags full") == 3,
+    $"ops={zero.Ops.Count} left={zero.Skipped.Count(s => s.Reason == "bags full")}");
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 

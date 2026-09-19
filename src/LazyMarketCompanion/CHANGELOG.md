@@ -1,4 +1,14 @@
-﻿## v0.1.61.0 (2026-09-19)
+﻿## v0.1.62.0 (2026-09-19)
+
+### Added
+
+- **A "Sweep to Bags" button on the retainer list moves Auto-Market-list items that are sitting in retainer inventory into the character's bags for manual review.** Listed items on the market board are never touched - the pass only reads retainer pages. Items that are not on the enabled Auto-Market list are never touched. When bags are full, the pass stops cleanly, leaves the remaining stacks where they are, and reports what moved and what was left. The button is the only way this runs: no schedule, no idle loop, and no AutoRetainer hook starts it.
+
+### Notes
+
+- Offline suite: new case 126 pins eligibility (item and quality), the skip of ineligible and crystal-container stock, that bags stock is never a candidate, and that a full or empty bag budget leaves remaining stacks in place rather than dropping them.
+
+## v0.1.61.0 (2026-09-19)
 
 ### Changed
 

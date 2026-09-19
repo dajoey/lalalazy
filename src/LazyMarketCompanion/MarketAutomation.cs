@@ -60,6 +60,14 @@ internal sealed class MarketAutomation : Window, IDisposable
   // 0.1.40.0: routing-mover counters for the whole run (all retainers), reported by the done line.
   private int _routingMovedOk;
   private int _routingMovedFail;
+  // 0.1.62.0: manual "Sweep to Bags" run bookkeeping. Only the RetainerList button starts this;
+  // nothing else increments these. Cleared in ClearState with the other run-scoped counters.
+  private int _reviewMovedOk;
+  private int _reviewMovedFail;
+  private int _reviewLeftForSpace;
+  private int _reviewSkippedIneligible;
+  private readonly List<string> _reviewMovedLines = [];
+  private bool _reviewBagsFull;
   // 0.1.44.0: once-per-run pull guard (the related support thread). Stack keys this run has already
   // pulled to bags; a stack whose deposit got rolled back mid-switch reappears in a retainer, and
   // without this set every later pass/lap would pull it again - the endless shuffle. Cleared in
@@ -320,7 +328,8 @@ internal sealed class MarketAutomation : Window, IDisposable
         var oldSize = ImGuiSetup(node);
         DrawButtons(
           ("Auto Pinch", "Re-price every listing on every enabled retainer (match, never undercut).", () => SweepAllRetainers(false)),
-          ("Auto Market", "List your always-sell items on every enabled retainer, then price the new listings.\r\nA retainer nothing could be listed on is left alone - use Auto Pinch to re-price existing listings.\r\n(The 'Pinch everything after listing' setting overrides that and re-prices every retainer.)", () => SweepAllRetainers(true)));
+          ("Auto Market", "List your always-sell items on every enabled retainer, then price the new listings.\r\nA retainer nothing could be listed on is left alone - use Auto Pinch to re-price existing listings.\r\n(The 'Pinch everything after listing' setting overrides that and re-prices every retainer.)", () => SweepAllRetainers(true)),
+          ("Sweep to Bags", "Move Auto-Market-list items sitting in retainer inventory (not already listed on the board) into the character's bags for manual review.\r\nListed and ineligible items are never touched. Stops cleanly when bags are full.\r\nNever runs on its own - only when this button is pressed.", SweepEligibleToBags));
         ImGuiPostSetup(oldSize);
       }
     }
@@ -478,6 +487,152 @@ internal sealed class MarketAutomation : Window, IDisposable
     _taskManager.Enqueue(RemoveTalkAddonListeners);
     _taskManager.Enqueue(AnnounceRunDone, "AnnounceSweepDone");
     _taskManager.Enqueue(() => AutoRetainerIPC.Suppressed(false));
+  }
+
+  /// <summary>
+  /// 0.1.62.0: manual-only button. Walk every enabled retainer and move Auto-Market-list items
+  /// sitting in retainer inventory into the character's bags for review. Never scheduled, never
+  /// hooked to AutoRetainer, never started by anything other than the RetainerList overlay button.
+  /// </summary>
+  public unsafe void SweepEligibleToBags()
+  {
+    if (_taskManager.IsBusy)
+      return;
+
+    ClearState();
+    if (!(GenericHelpers.TryGetAddonByName<AtkUnitBase>("RetainerList", out var addon) && GenericHelpers.IsAddonReady(addon)))
+      return;
+
+    AutoRetainerIPC.Suppressed(true);
+    Svc.AddonLifecycle.RegisterListener(AddonEvent.PostSetup, "Talk", SkipRetainerDialog);
+    Svc.AddonLifecycle.RegisterListener(AddonEvent.PostUpdate, "Talk", SkipRetainerDialog);
+
+    var retainerList = new AddonMaster.RetainerList(addon);
+    var retainers = retainerList.Retainers;
+    var num = retainers.Length;
+
+    if (Plugin.Configuration.EnabledRetainerNames.Contains(Configuration.ALL_DISABLED_SENTINEL))
+    {
+      Communicator.PrintAllRetainersDisabled();
+      AutoRetainerIPC.Suppressed(false);
+      RemoveTalkAddonListeners();
+      return;
+    }
+
+    var allEnabled = Plugin.Configuration.EnabledRetainerNames.Count == 0;
+    var visited = 0;
+    for (var i = 0; i < num; i++)
+    {
+      var retainerName = retainers[i].Name;
+      if (!allEnabled && !Plugin.Configuration.EnabledRetainerNames.Contains(retainerName))
+      {
+        Svc.Log.Debug($"[LMC] review sweep: skipping retainer '{retainerName}' (excluded by configuration)");
+        continue;
+      }
+      EnqueueSingleReviewRetainer(i, retainerName);
+      visited++;
+    }
+
+    if (visited == 0)
+      Communicator.PrintInfo("review sweep: no enabled retainers to visit");
+
+    _taskManager.Enqueue(RemoveTalkAddonListeners);
+    _taskManager.Enqueue(AnnounceReviewSweepDone, "AnnounceReviewSweepDone");
+    _taskManager.Enqueue(() => AutoRetainerIPC.Suppressed(false));
+  }
+
+  private void EnqueueSingleReviewRetainer(int index, string retainerName)
+  {
+    _taskManager.Enqueue(() => ClickRetainer(index), $"ReviewClickRetainer{index}");
+    _taskManager.DelayNext(100);
+    _taskManager.Enqueue(ClickSellItems, $"ReviewClickSellItems{index}");
+    _taskManager.DelayNext(500);
+    _taskManager.Enqueue(() => WaitRoutingSettled(retainerName), $"ReviewSettle{index}");
+    _taskManager.DelayNext(100);
+    _taskManager.Enqueue(() => RunReviewSweepMover(retainerName), $"ReviewMover{index}");
+    _taskManager.DelayNext(500);
+    _taskManager.Enqueue(CloseRetainerSellList, $"ReviewCloseSellList{index}");
+    _taskManager.DelayNext(100);
+    _taskManager.Enqueue(CloseRetainer, $"ReviewCloseRetainer{index}");
+    _taskManager.DelayNext(100);
+  }
+
+  /// <summary>
+  /// Plan and execute one retainer's review-sweep moves. Eligible = enabled Auto-Market list
+  /// entries (BuildEnabledRules). Market-board listings are never candidates because the snapshot
+  /// only covers retainer pages. Stops scheduling further moves once bags report no free slots.
+  /// </summary>
+  private unsafe bool? RunReviewSweepMover(string retainerName)
+  {
+    if (!(GenericHelpers.TryGetAddonByName<AtkUnitBase>("RetainerSellList", out var addon) && GenericHelpers.IsAddonReady(addon)))
+      return false;
+
+    if (!_routingSessionSettled)
+    {
+      Svc.Log.Warning($"[LMC] review sweep: {retainerName} session never settled - moves skipped");
+      return true;
+    }
+
+    var eligible = AutoMarketService.BuildEnabledRules()
+      .Select(r => (r.ItemId, r.HQ))
+      .ToList();
+    var freeBags = AutoMarketService.CountFreeBagSlots();
+    var stock = AutoMarketService.SnapshotStock();
+    var plan = ReviewSweep.Plan(stock, eligible, freeBags, retainerName);
+
+    foreach (var note in plan.Notes)
+      Svc.Log.Information($"[LMC] {note}");
+
+    _reviewSkippedIneligible += plan.Skipped.Count(s => s.Reason == "not on Auto-Market list");
+    _reviewLeftForSpace += plan.Skipped.Count(s => s.Reason == "bags full");
+    if (plan.StoppedForSpace)
+      _reviewBagsFull = true;
+
+    Svc.Log.Information($"[LMC] review sweep plan on {retainerName}: {ReviewSweep.Summarize(plan)} (free bags={freeBags})");
+
+    foreach (var op in plan.Ops)
+    {
+      var move = new RoutingMoveOp(MoveLeg.RetainerToBags, op.SrcContainer, op.SrcSlot, op.ItemId, op.HQ)
+      {
+        SessionRetainer = retainerName,
+        MappedRetainer = retainerName,
+        CategoryId = 0,
+      };
+      if (AutoMarketService.ExecuteRoutingMove(move, out var rc))
+      {
+        _reviewMovedOk++;
+        var name = ItemNameResolver.GetItemName(op.ItemId) + (op.HQ ? " (HQ)" : "");
+        _reviewMovedLines.Add($"{retainerName}: {name} x{op.Quantity}");
+        Svc.Log.Information($"[LMC] review sweep: OK pulled to bags: {name} x{op.Quantity} from {AutoMarketService.NameOfContainer((InventoryType)op.SrcContainer)}#{op.SrcSlot} on {retainerName}");
+      }
+      else
+      {
+        _reviewMovedFail++;
+        if (rc == -2)
+        {
+          _reviewBagsFull = true;
+          _reviewLeftForSpace++;
+        }
+        Svc.Log.Warning($"[LMC] review sweep: FAILED item {op.ItemId}{(op.HQ ? " HQ" : "")} on {retainerName} rc={rc}");
+      }
+    }
+
+    return true;
+  }
+
+  private void AnnounceReviewSweepDone()
+  {
+    var moved = _reviewMovedOk;
+    var left = _reviewLeftForSpace;
+    var ineligible = _reviewSkippedIneligible;
+    var fail = _reviewMovedFail;
+    var spaceNote = _reviewBagsFull ? " Bags were full - remaining eligible stacks left in place." : "";
+    var detail = moved > 0 && _reviewMovedLines.Count > 0
+      ? " " + string.Join("; ", _reviewMovedLines.Take(12)) + (_reviewMovedLines.Count > 12 ? $" (+{_reviewMovedLines.Count - 12} more)" : "")
+      : "";
+    var line = $"review sweep: moved {moved} stack(s) to bags, left for space {left}, skipped ineligible {ineligible}, failed {fail}.{spaceNote}{detail}";
+    Svc.Log.Information($"[LMC] {line}");
+    Communicator.PrintInfo(line);
   }
 
   /// <summary>Pinch the retainer whose sell list is open.</summary>
@@ -2883,6 +3038,12 @@ internal sealed class MarketAutomation : Window, IDisposable
     _pulledThisRun = 0;
     _routingMovedOk = 0;
     _routingMovedFail = 0;
+    _reviewMovedOk = 0;
+    _reviewMovedFail = 0;
+    _reviewLeftForSpace = 0;
+    _reviewSkippedIneligible = 0;
+    _reviewMovedLines.Clear();
+    _reviewBagsFull = false;
     _routingPulledThisRun.Clear();
     _settleDeadline = 0;
     _routingSessionSettled = true;

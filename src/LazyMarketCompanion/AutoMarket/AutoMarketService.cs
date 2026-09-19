@@ -893,7 +893,7 @@ internal static unsafe class AutoMarketService
   }
 
   /// <summary>Empty slots across Inventory1-4 (NOT crystals - the mover never targets that container).</summary>
-  private static int CountFreeBagSlots()
+  public static int CountFreeBagSlots()
   {
     var manager = InventoryManager.Instance();
     if (manager == null) return 0;
