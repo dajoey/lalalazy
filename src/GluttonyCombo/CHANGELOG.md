@@ -1,3 +1,12 @@
+## v1.0.4.220 (2026-09-19) [testing]
+### Fixed
+- **Crucible Auto-fill Battlehorn slots now runs while the familiar party screen is open.** The pass no longer waits on a stage-mode value that never appears during assignment. It keys off Crucible territory, a non-empty run roster, and the `XBMActivePet` screen being visible; stage mode stays in the log only.
+- **Every decision path emits a line.** Option-off, battle unidentified, no assign route, already-correct, read-back mismatch, and success each log once per formation phase. A phase line records stage mode, both screen-open candidates, roster and horn counts, option state, and whether the pass is armed, so a quiet run still says which condition refused.
+### Changed
+- **Horn assignment tries the observed pet-party event toggle first**, and keeps the signature-scanned TogglePet / ApplyPetSelection route as a fallback. Telemetry records which route made the calls and whether signatures resolved. Apply runs only when toggles alone leave the horns mismatched. Still never starts the fight.
+### Notes
+- Offline harness adds formation re-arm cases (screen open, same-battle latch, battle change, reopen, abort-until-close). Auto-fill remains off by default.
+
 ## v1.0.4.219 (2026-09-19) [testing]
 ### Fixed
 - **The read-only `PSP|` pet-party log now records what it was built to record.** It was attached to the wrong function on the familiar party screen's agent — the teardown entry rather than the interface-event entry — so no event from that screen could ever reach it. The entry is now looked up by name from the client structure definitions instead of by a fixed slot number, and both interface-event entries are covered, so a manual Battlehorn assignment is logged again.

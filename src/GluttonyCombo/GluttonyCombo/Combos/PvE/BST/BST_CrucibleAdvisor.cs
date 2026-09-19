@@ -266,6 +266,42 @@ internal static class BST_CrucibleAdvisor
         return picks;
     }
 
+    /// <summary>
+    ///     Latch for one Crucible formation-phase autograb pass. PURE: the live layer feeds screen-open and
+    ///     identified-battle signals; this type never reads game memory. <see cref="Aborted"/> stays set until
+    ///     the screen closes (re-arm on battle change does not clear an abort).
+    /// </summary>
+    public readonly record struct FormationArmState(bool ScreenOpen, int BattleKey, bool PassDone, bool Aborted);
+
+    /// <summary>
+    ///     Advance the formation-phase latch. Screen close clears everything. Screen open after close, or a
+    ///     battle-key change while the screen stays open and the phase was not aborted, re-arms the pass.
+    ///     PURE.
+    /// </summary>
+    public static FormationArmState NextFormationArm(FormationArmState prev, bool screenOpen, int battleKey)
+    {
+        if (!screenOpen)
+            return new(false, 0, false, false);
+
+        if (!prev.ScreenOpen)
+            return new(true, battleKey, false, false);
+
+        if (battleKey != prev.BattleKey && !prev.Aborted)
+            return new(true, battleKey, false, false);
+
+        return new(true, battleKey, prev.PassDone, prev.Aborted);
+    }
+
+    /// <summary> Whether the assign pass may run under the current latch. PURE. </summary>
+    public static bool IsFormationArmed(in FormationArmState s) => s.ScreenOpen && !s.PassDone && !s.Aborted;
+
+    /// <summary> Mark a completed (including soft) pass for this phase. PURE. </summary>
+    public static FormationArmState MarkFormationPassDone(in FormationArmState s) => s with { PassDone = true };
+
+    /// <summary> Mark a hard abort; stays closed until the screen drops. PURE. </summary>
+    public static FormationArmState MarkFormationAborted(in FormationArmState s) =>
+        s with { PassDone = true, Aborted = true };
+
     /// <summary> One planned Battlehorn rewrite: slot index 0..2, previous row (0 = empty), desired row. </summary>
     public readonly record struct HornSlotChange(int Slot, int FromRow, int ToRow);
 

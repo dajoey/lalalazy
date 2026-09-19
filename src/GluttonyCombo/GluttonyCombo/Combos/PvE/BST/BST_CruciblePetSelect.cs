@@ -4,6 +4,8 @@ using Dalamud.Hooking;
 using ECommons.DalamudServices;
 using ECommons.ExcelServices;
 using ECommons.GameHelpers;
+using static ECommons.GenericHelpers;
+using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using System;
@@ -11,21 +13,22 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
+using static GluttonyCombo.Combos.PvE.BST_CrucibleAdvisor;
 
 #endregion
 
 namespace GluttonyCombo.Combos.PvE;
 
 /// <summary>
-///     Crucible pet-selection autograb (live). Reads AgentXBMPetParty / AgentXBMStageDetailList, ranks via
-///     <see cref="BST_CrucibleAdvisor.PickSlots"/>, and drives horn assignment through the unmerged PR #1952
-///     member functions (TogglePet / ApplyPetSelection) with a SelectedPetIds read-back abort. Default-off.
-///     Residual assumption (G2): those member functions are the assign route; if signatures miss or read-back
-///     fails, the pass degrades to doing nothing — never a retry loop, never the Int-8 start-battle confirm.
+///     Crucible pet-selection autograb (live). Gates on Crucible territory, a non-empty run roster, and a
+///     screen-open signal (XBMActivePet visible) — never on StageMode. Ranks via <see cref="PickSlots"/> and
+///     assigns through the proven ReceiveEvent toggle route and/or PR #1952 TogglePet/ApplyPetSelection, with
+///     SelectedPetIds read-back abort. StageMode is telemetry only. Default-off.
 /// </summary>
 internal static unsafe class BST_CruciblePetSelect
 {
     // AgentXBMPetParty offsets (PR #1952 / DailyRoutines production).
+    private const int PartyPetListAddonId = 0x60;
     private const int PartySelectedPets = 0x78;
     private const int PartySelectedPetIds = 0x90;
     private const int PartyCandidatePets = 0xA8;
@@ -53,6 +56,7 @@ internal static unsafe class BST_CruciblePetSelect
 
     private static TogglePetDelegate? _togglePet;
     private static ApplyPetSelectionDelegate? _applyPetSelection;
+    private static ReceiveEventDelegate? _receiveEvent;
     private static bool _sigsResolved;
     private static bool _sigsOk;
 
@@ -60,12 +64,11 @@ internal static unsafe class BST_CruciblePetSelect
     private static Hook<ReceiveEventDelegate>? _receiveEventWithResultHook;
     private static bool _probeWanted;
 
-    private static bool _inFormation;
-    private static bool _passDoneThisPhase;
-    private static bool _abortThisPhase;
+    private static FormationArmState _arm;
     private static bool _loggedAggroThisRun;
+    private static bool _loggedOffThisPhase;
     private static int _lastBoard;
-    private static uint _lastLoggedMode = uint.MaxValue;
+    private static string _lastPhaseSig = "";
 
     /// <summary> Framework tick: probe lifecycle + one autograb pass per formation phase. </summary>
     internal static void Tick()
@@ -117,117 +120,142 @@ internal static unsafe class BST_CruciblePetSelect
         _sigsOk = false;
         _togglePet = null;
         _applyPetSelection = null;
+        _receiveEvent = null;
     }
 
     private static void ResetRun()
     {
-        _inFormation = false;
-        _passDoneThisPhase = false;
-        _abortThisPhase = false;
+        _arm = default;
         _loggedAggroThisRun = false;
+        _loggedOffThisPhase = false;
         _lastBoard = 0;
-        _lastLoggedMode = uint.MaxValue;
+        _lastPhaseSig = "";
     }
 
     private static void RunFormationPass(int territoryBoard)
     {
         var stage = GetAgent(AgentId.XBMStageDetailList);
         var pet = GetAgent(AgentId.XBMPetParty);
-        if (stage == 0 || pet == 0)
+        if (pet == 0)
             return;
 
-        var mode = *(uint*)(stage + StageMode);
-        if (mode != _lastLoggedMode)
-        {
-            _lastLoggedMode = mode;
-            LogModeGate(pet, territoryBoard, mode);
-        }
+        var mode = stage != 0 ? *(uint*)(stage + StageMode) : uint.MaxValue;
+        var activePetOpen = IsAddonVisible("XBMActivePet");
+        var petListOpen = IsPetListAddonVisible(pet);
+        var partyAddonShown = IsAgentAddonShown(pet);
+        // Chosen gate signal: XBMActivePet presence+visibility (G5). Pet-list / agent-addon are logged only.
+        var screenOpen = activePetOpen;
 
-        if (mode != 0)
-        {
-            _inFormation = false;
-            _passDoneThisPhase = false;
-            _abortThisPhase = false;
-            return;
-        }
-
-        if (!_inFormation)
-        {
-            _inFormation = true;
-            _passDoneThisPhase = false;
-            _abortThisPhase = false;
-        }
-
-        if (_passDoneThisPhase || _abortThisPhase)
-            return;
-
-        // Pet-party agent must carry data (SelectedPets non-empty).
         if (!TryReadPetVector(pet, PartySelectedPets, out var partyRows) || partyRows.Count == 0)
+        {
+            // No roster yet — keep StageMode telemetry out of decisions; still emit phase when signals move.
+            MaybeLogPhase(pet, territoryBoard, mode, activePetOpen, petListOpen, partyAddonShown, screenOpen, armed: false, partyCount: 0);
+            if (!screenOpen)
+            {
+                _arm = NextFormationArm(_arm, false, 0);
+                _loggedOffThisPhase = false;
+            }
+            return;
+        }
+
+        var battleKey = 0;
+        if (stage != 0 && TryIdentifyBattle(stage, territoryBoard, out _, out var battle, out var detailId, out _))
+            battleKey = (int)detailId != 0 ? (int)detailId : battle + 1;
+
+        var prevOpen = _arm.ScreenOpen;
+        _arm = NextFormationArm(_arm, screenOpen, battleKey);
+        if (!prevOpen && _arm.ScreenOpen)
+            _loggedOffThisPhase = false;
+        if (!_arm.ScreenOpen)
+            _loggedOffThisPhase = false;
+
+        var armed = IsFormationArmed(in _arm);
+        MaybeLogPhase(pet, territoryBoard, mode, activePetOpen, petListOpen, partyAddonShown, screenOpen, armed, partyRows.Count);
+
+        if (!screenOpen)
             return;
 
         var now = UnixMs();
         var optOn = (bool)BST.Config.BST_CrucibleAutoGrab;
 
+        // Off-state line ABOVE every suppressing condition (battle id, sigs, assign route).
         if (!optOn)
         {
-            LogPs($"PS|{now}|opt=0|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|calls=0|note=off");
-            _passDoneThisPhase = true;
+            if (!_loggedOffThisPhase)
+            {
+                LogPs($"PS|{now}|opt=0|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|mode={mode}|activePet={(activePetOpen ? 1 : 0)}|petList={(petListOpen ? 1 : 0)}|partyAddon={(partyAddonShown ? 1 : 0)}|party={partyRows.Count}|calls=0|note=off");
+                _loggedOffThisPhase = true;
+            }
+            if (armed)
+                _arm = MarkFormationPassDone(in _arm);
             return;
         }
 
-        if (!TryIdentifyBattle(stage, territoryBoard, out var board, out var battle, out var detailId, out var nameIds))
+        if (!armed)
+            return;
+
+        // Resolve sigs unconditionally so telemetry learns whether they resolve on this game version.
+        var sigsOk = EnsureSigs();
+        LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|sigs={(sigsOk ? "ok" : "miss")}|calls=0");
+
+        var eventOk = EnsureReceiveEvent(pet);
+        if (!sigsOk && !eventOk)
         {
-            LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|abort=battle_unidentified|calls=0");
-            _passDoneThisPhase = true;
+            LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|abort=no_assign_route|sigs=miss|event=0|calls=0");
+            _arm = MarkFormationAborted(in _arm);
+            return;
+        }
+
+        // Prefer the observed event route: live PSP proved kind=0 [Int 1, Int petId] toggled SelectedPetIds.
+        // Sig route has never resolved at runtime on a graded build.
+        var route = eventOk ? "event" : "sig";
+
+        if (stage == 0 || !TryIdentifyBattle(stage, territoryBoard, out var board, out battle, out detailId, out var nameIds))
+        {
+            LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|abort=battle_unidentified|route={route}|calls=0");
+            _arm = MarkFormationPassDone(in _arm);
             return;
         }
 
         var hpPets = ReadPartyHpRaw(pet, partyRows);
-        var hpMap = BST_CrucibleAdvisor.HpPercentByRow(hpPets);
+        var hpMap = HpPercentByRow(hpPets);
         var candidates = new List<int>(partyRows.Count);
         foreach (var r in partyRows)
             if (r is >= 1 and <= BST_Beasts.Count)
                 candidates.Add(r);
 
-        var picks = BST_CrucibleAdvisor.PickSlots(board, battle, candidates, hpMap, 3);
+        var picks = PickSlots(board, battle, candidates, hpMap, 3);
         var currentHorns = ReadPetIds(pet, PartySelectedPetIds);
-        var changes = BST_CrucibleAdvisor.PlanHornChanges(currentHorns, picks);
+        var changes = PlanHornChanges(currentHorns, picks);
 
         var candStr = string.Join(",", hpPets.ConvertAll(p =>
             $"{p.Row}:{(p.Max == 0 || p.Current == 0 ? 0 : (int)Math.Round(100.0 * p.Current / p.Max))}"));
         var pickStr = string.Join(",", picks.ConvertAll(p => $"{p.Row}:{Clean(p.Why, 40)}"));
         var nameStr = string.Join(",", nameIds);
-        LogPs($"PS|{now}|opt=1|b={board}|terr={Svc.ClientState.TerritoryType}|bt={battle}|detail={detailId}|names={nameStr}|cand={candStr}|picks={pickStr}|need={changes.Count}");
+        LogPs($"PS|{now}|opt=1|b={board}|terr={Svc.ClientState.TerritoryType}|bt={battle}|detail={detailId}|names={nameStr}|cand={candStr}|picks={pickStr}|need={changes.Count}|route={route}|sigs={(sigsOk ? "ok" : "miss")}");
 
         if (changes.Count == 0)
         {
-            LogPs($"PS|{now}|opt=1|b={board}|bt={battle}|calls=0|readback=ok|note=already_correct");
-            _passDoneThisPhase = true;
+            LogPs($"PS|{now}|opt=1|b={board}|bt={battle}|route={route}|calls=0|readback=ok|note=already_correct|apply=not_needed");
+            _arm = MarkFormationPassDone(in _arm);
             return;
         }
 
-        if (!EnsureSigs())
-        {
-            LogPs($"PS|{now}|opt=1|b={board}|bt={battle}|abort=sigs_missing|calls=0");
-            _abortThisPhase = true;
-            _passDoneThisPhase = true;
-            return;
-        }
-
-        // Residual G2 route: clear mismatched flute occupants, TogglePet each desired row in slot order, ApplyPetSelection.
-        // Never ConfirmSelection / StartBattle / Int-8.
-        var calls = new List<string>(8);
         var agent = (AgentInterface*)pet;
+        var calls = new List<string>(8);
 
         foreach (var change in changes)
         {
             if (change.FromRow is >= 1 and <= BST_Beasts.Count)
             {
-                calls.Add($"TogglePet-{change.FromRow}");
-                _togglePet!(agent, (uint)change.FromRow);
+                if (!ToggleOne(agent, (uint)change.FromRow, route, calls))
+                {
+                    AbortReadback(now, board, battle, route, calls, "toggle_off_no_route");
+                    return;
+                }
                 if (!ReadbackOk(pet, expectRemove: change.FromRow, expectAdd: 0, slot: change.Slot, afterToggleOff: true))
                 {
-                    AbortReadback(now, board, battle, calls, "toggle_off_mismatch");
+                    AbortReadback(now, board, battle, route, calls, "toggle_off_mismatch");
                     return;
                 }
             }
@@ -242,45 +270,89 @@ internal static unsafe class BST_CruciblePetSelect
             var at = slot < have.Count ? have[slot] : 0;
             if (at == want)
                 continue;
-            calls.Add($"TogglePet+{want}");
-            _togglePet!(agent, (uint)want);
+            if (!ToggleOne(agent, (uint)want, route, calls))
+            {
+                AbortReadback(now, board, battle, route, calls, "toggle_on_no_route");
+                return;
+            }
             if (!ReadbackOk(pet, expectRemove: 0, expectAdd: want, slot: slot, afterToggleOff: false))
             {
-                AbortReadback(now, board, battle, calls, "toggle_on_mismatch");
+                AbortReadback(now, board, battle, route, calls, "toggle_on_mismatch");
                 return;
             }
         }
 
-        calls.Add("ApplyPetSelection");
-        _applyPetSelection!(agent);
-
-        var final = ReadPetIds(pet, PartySelectedPetIds);
+        var afterToggles = ReadPetIds(pet, PartySelectedPetIds);
         var desired = new List<int>(3);
         for (var i = 0; i < 3 && i < picks.Count; i++)
             desired.Add(picks[i].Row);
 
+        var applyNeeded = !ListsMatchPrefix(afterToggles, desired);
+        if (applyNeeded)
+        {
+            if (!sigsOk || _applyPetSelection is null)
+            {
+                AbortReadback(now, board, battle, route, calls, "apply_unavailable");
+                return;
+            }
+            calls.Add("ApplyPetSelection");
+            _applyPetSelection(agent);
+        }
+
+        var final = ReadPetIds(pet, PartySelectedPetIds);
         if (!ListsMatchPrefix(final, desired))
         {
-            AbortReadback(now, board, battle, calls, "apply_mismatch");
+            AbortReadback(now, board, battle, route, calls, "apply_mismatch");
             return;
         }
 
-        LogPs($"PS|{now}|opt=1|b={board}|bt={battle}|calls={string.Join(",", calls)}|readback=ok|sl={string.Join(".", final)}");
-        _passDoneThisPhase = true;
+        LogPs($"PS|{now}|opt=1|b={board}|bt={battle}|route={route}|calls={string.Join(",", calls)}|readback=ok|apply={(applyNeeded ? "needed" : "not_needed")}|sl={string.Join(".", final)}");
+        _arm = MarkFormationPassDone(in _arm);
     }
 
-    private static void AbortReadback(long now, int board, int battle, List<string> calls, string reason)
+    private static bool ToggleOne(AgentInterface* agent, uint petId, string route, List<string> calls)
     {
-        LogPs($"PS|{now}|opt=1|b={board}|bt={battle}|calls={string.Join(",", calls)}|readback=fail|abort={reason}");
-        _abortThisPhase = true;
-        _passDoneThisPhase = true;
+        if (route == "event" && _receiveEvent is not null)
+        {
+            calls.Add($"EventToggle-{petId}");
+            return FireEventToggle(agent, petId);
+        }
+        if (_togglePet is not null)
+        {
+            calls.Add($"TogglePet-{petId}");
+            _togglePet(agent, petId);
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    ///     Replay the live-proven pet-party toggle: ReceiveEvent(eventKind 0, [Int 1, Int petId]), resolved by
+    ///     name through the generated vtable — never a literal index. Never targets the stage agent.
+    /// </summary>
+    private static bool FireEventToggle(AgentInterface* agent, uint petId)
+    {
+        if (_receiveEvent is null)
+            return false;
+        var values = stackalloc AtkValue[2];
+        var ret = stackalloc AtkValue[1];
+        values[0].Type = AtkValueType.Int;
+        values[0].Int = 1;
+        values[1].Type = AtkValueType.Int;
+        values[1].Int = (int)petId;
+        ret[0] = default;
+        _receiveEvent(agent, ret, values, 2, 0);
+        return true;
+    }
+
+    private static void AbortReadback(long now, int board, int battle, string route, List<string> calls, string reason)
+    {
+        LogPs($"PS|{now}|opt=1|b={board}|bt={battle}|route={route}|calls={string.Join(",", calls)}|readback=fail|abort={reason}");
+        _arm = MarkFormationAborted(in _arm);
     }
 
     private static bool ReadbackOk(nint pet, int expectRemove, int expectAdd, int slot, bool afterToggleOff)
     {
-        // After TogglePet(off): that row must no longer occupy the named flute slot.
-        // After TogglePet(on) / Apply: final ListsMatchPrefix is the hard gate; this only
-        // catches an immediate wrong write so we abort before pressing more buttons.
         var horns = ReadPetIds(pet, PartySelectedPetIds);
         if (afterToggleOff)
         {
@@ -291,7 +363,6 @@ internal static unsafe class BST_CruciblePetSelect
         }
         if (expectAdd is >= 1 and <= BST_Beasts.Count)
         {
-            // Desired row should appear somewhere in SelectedPetIds after a select toggle.
             for (var i = 0; i < horns.Count; i++)
                 if (horns[i] == expectAdd)
                     return true;
@@ -323,10 +394,6 @@ internal static unsafe class BST_CruciblePetSelect
         if (contentId is >= 1 and <= 5 && (int)contentId != territoryBoard)
             return false;
 
-        // Prefer the first EntryType==3 whose BattleDetail maps to this board. Mid-run the focused node's
-        // battle-detail rows are present; when several boards' details appear, territory board filters.
-        // If multiple distinct battles map on this board, require a single distinct battleDetailId among type-3
-        // rows that belong to this board — otherwise abort (branch ambiguity).
         var seen = new HashSet<uint>();
         for (var i = 0; i < StageMaxEntries; i++)
         {
@@ -409,6 +476,77 @@ internal static unsafe class BST_CruciblePetSelect
         return (nint)module->GetAgentByInternalId(id);
     }
 
+    private static bool IsAddonVisible(string name)
+    {
+        try
+        {
+            return TryGetAddonByName<AtkUnitBase>(name, out var addon)
+                   && addon is not null
+                   && addon->IsVisible;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool IsPetListAddonVisible(nint pet)
+    {
+        try
+        {
+            var id = *(uint*)(pet + PartyPetListAddonId);
+            if (id == 0)
+                return false;
+            var mgr = RaptureAtkUnitManager.Instance();
+            if (mgr is null)
+                return false;
+            var addon = mgr->GetAddonById((ushort)id);
+            return addon is not null && addon->IsVisible;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool IsAgentAddonShown(nint pet)
+    {
+        try
+        {
+            var agent = (AgentInterface*)pet;
+            return agent->IsAddonShown();
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static void MaybeLogPhase(
+        nint pet, int territoryBoard, uint mode,
+        bool activePetOpen, bool petListOpen, bool partyAddonShown, bool screenOpen, bool armed, int partyCount)
+    {
+        try
+        {
+            var flutes = partyCount > 0 ? ReadPetIds(pet, PartySelectedPetIds) : [];
+            var optOn = (bool)BST.Config.BST_CrucibleAutoGrab;
+            var sig =
+                $"m={mode}|ap={(activePetOpen ? 1 : 0)}|pl={(petListOpen ? 1 : 0)}|pa={(partyAddonShown ? 1 : 0)}"
+                + $"|so={(screenOpen ? 1 : 0)}|arm={(armed ? 1 : 0)}|opt={(optOn ? 1 : 0)}|p={partyCount}|f={flutes.Count}|bk={_arm.BattleKey}";
+            if (sig == _lastPhaseSig)
+                return;
+            _lastPhaseSig = sig;
+            LogPs($"PS|{UnixMs()}|gate=phase|mode={mode}|activePet={(activePetOpen ? 1 : 0)}|petList={(petListOpen ? 1 : 0)}"
+                + $"|partyAddon={(partyAddonShown ? 1 : 0)}|screen={(screenOpen ? 1 : 0)}|armed={(armed ? 1 : 0)}"
+                + $"|opt={(optOn ? 1 : 0)}|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}"
+                + $"|party={partyCount}|flutes={flutes.Count}|sl={string.Join(".", flutes)}|bk={_arm.BattleKey}|calls=0");
+        }
+        catch (Exception ex)
+        {
+            Svc.Log.Debug(ex, "[BST_CruciblePetSelect] phase log failed");
+        }
+    }
+
     private static bool EnsureSigs()
     {
         if (_sigsResolved)
@@ -423,7 +561,6 @@ internal static unsafe class BST_CruciblePetSelect
                 return false;
             }
             _togglePet = Marshal.GetDelegateForFunctionPointer<TogglePetDelegate>(toggle);
-            // ApplyPetSelection is an E8 call site in the PR listing — resolve the call target.
             _applyPetSelection = Marshal.GetDelegateForFunctionPointer<ApplyPetSelectionDelegate>(ResolveCallTarget(apply));
             _sigsOk = _togglePet is not null && _applyPetSelection is not null;
         }
@@ -433,6 +570,29 @@ internal static unsafe class BST_CruciblePetSelect
             _sigsOk = false;
         }
         return _sigsOk;
+    }
+
+    private static bool EnsureReceiveEvent(nint pet)
+    {
+        if (_receiveEvent is not null)
+            return true;
+        try
+        {
+            var agent = (AgentInterface*)pet;
+            var vt = agent->VirtualTable;
+            if (vt is null)
+                return false;
+            var receiveEvent = (nint)vt->ReceiveEvent;
+            if (receiveEvent == 0)
+                return false;
+            _receiveEvent = Marshal.GetDelegateForFunctionPointer<ReceiveEventDelegate>(receiveEvent);
+            return _receiveEvent is not null;
+        }
+        catch (Exception ex)
+        {
+            Svc.Log.Debug(ex, "[BST_CruciblePetSelect] ReceiveEvent resolve failed");
+            return false;
+        }
     }
 
     /// <summary> Resolve an E8 rel32 call instruction to its absolute target. </summary>
@@ -461,9 +621,6 @@ internal static unsafe class BST_CruciblePetSelect
             if (vt is null)
                 return;
 
-            // Resolved by NAME through the generated ClientStructs vtable struct, never by a hardcoded index:
-            // AgentInterfaceVirtualTable is ReceiveEvent (slot 0), ReceiveEventWithResult (slot 1), Dtor (slot 2).
-            // A literal index here previously landed on Dtor. Both entries share one signature, so one delegate covers both.
             var receiveEvent = (nint)vt->ReceiveEvent;
             if (receiveEvent != 0)
             {
@@ -471,8 +628,6 @@ internal static unsafe class BST_CruciblePetSelect
                 _receiveEventHook.Enable();
             }
 
-            // The pet-party agent may dispatch its slot clicks through either entry; the probe is read-only, so
-            // cover both rather than lose the G2 capture to the wrong one. Skip if the agent does not override it.
             var receiveEventWithResult = (nint)vt->ReceiveEventWithResult;
             if (receiveEventWithResult != 0 && receiveEventWithResult != receiveEvent)
             {
@@ -561,28 +716,6 @@ internal static unsafe class BST_CruciblePetSelect
         catch (Exception ex)
         {
             Svc.Log.Debug(ex, "[BST_CruciblePetSelect] PSP log failed");
-        }
-    }
-
-    /// <summary>
-    ///     One line per change of the stage agent's Mode, carrying the pet-party counts that distinguish the
-    ///     competing readings of that field (formation adjust vs. stage list vs. battle start). The pass itself
-    ///     still runs only at Mode 0; this makes a gate that never opened visible instead of silent. No calls fired.
-    /// </summary>
-    private static void LogModeGate(nint pet, int territoryBoard, uint mode)
-    {
-        try
-        {
-            var party = ReadPetIds(pet, PartySelectedPets);
-            var flutes = ReadPetIds(pet, PartySelectedPetIds);
-            var optOn = (bool)BST.Config.BST_CrucibleAutoGrab;
-            LogPs($"PS|{UnixMs()}|gate=mode|mode={mode}|pass={(mode == 0 ? 1 : 0)}|opt={(optOn ? 1 : 0)}"
-                + $"|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}"
-                + $"|party={party.Count}|flutes={flutes.Count}|sl={string.Join(".", flutes)}|calls=0");
-        }
-        catch (Exception ex)
-        {
-            Svc.Log.Debug(ex, "[BST_CruciblePetSelect] mode gate log failed");
         }
     }
 

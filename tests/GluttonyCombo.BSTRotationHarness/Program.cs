@@ -412,6 +412,36 @@ internal static class Program
             && hpMap.TryGetValue(second, out var dead) && dead == 0
             && hpMap.TryGetValue(zeroFit, out var deadMax) && deadMax == 0
             && !hpMap.ContainsKey(9999));
+
+        // --- FormationArm re-arm (Dalamud-free phase decision) ---
+        var closed = default(BST_CrucibleAdvisor.FormationArmState);
+        var opened = BST_CrucibleAdvisor.NextFormationArm(closed, screenOpen: true, battleKey: 10);
+        Check("FormationArm: screen opens → armed",
+            BST_CrucibleAdvisor.IsFormationArmed(opened) && opened.BattleKey == 10);
+
+        var afterPass = BST_CrucibleAdvisor.MarkFormationPassDone(opened);
+        var sameBattle = BST_CrucibleAdvisor.NextFormationArm(afterPass, screenOpen: true, battleKey: 10);
+        Check("FormationArm: pass done, same battle → not re-armed",
+            !BST_CrucibleAdvisor.IsFormationArmed(sameBattle) && sameBattle.PassDone);
+
+        var battleChanged = BST_CrucibleAdvisor.NextFormationArm(afterPass, screenOpen: true, battleKey: 20);
+        Check("FormationArm: battle changes while screen open → re-armed",
+            BST_CrucibleAdvisor.IsFormationArmed(battleChanged) && battleChanged.BattleKey == 20 && !battleChanged.PassDone);
+
+        var afterClose = BST_CrucibleAdvisor.NextFormationArm(afterPass, screenOpen: false, battleKey: 10);
+        var reopen = BST_CrucibleAdvisor.NextFormationArm(afterClose, screenOpen: true, battleKey: 10);
+        Check("FormationArm: screen closes and reopens → re-armed",
+            !afterClose.ScreenOpen && BST_CrucibleAdvisor.IsFormationArmed(reopen));
+
+        var aborted = BST_CrucibleAdvisor.MarkFormationAborted(opened);
+        var abortSame = BST_CrucibleAdvisor.NextFormationArm(aborted, screenOpen: true, battleKey: 99);
+        Check("FormationArm: aborted phase stays closed until screen drops (battle change ignored)",
+            !BST_CrucibleAdvisor.IsFormationArmed(abortSame) && abortSame.Aborted);
+        var abortCleared = BST_CrucibleAdvisor.NextFormationArm(
+            BST_CrucibleAdvisor.NextFormationArm(aborted, screenOpen: false, battleKey: 0),
+            screenOpen: true, battleKey: 11);
+        Check("FormationArm: aborted phase re-arms after screen drop",
+            BST_CrucibleAdvisor.IsFormationArmed(abortCleared));
     }
 
     /// <summary> In combat on the First Board, L30, Cu Sith out (One with Nature spent), raptor / buffalo on ready horns 2 and 3. </summary>
