@@ -137,6 +137,50 @@ public static class RoutingMove
   private const int RetainerCrystalsContainer = 12001;
 
   /// <summary>
+  /// 0.1.60.0: the unrouted-bags question on its own, for callers that want only the answer to
+  /// "which marked bags stock does no routing rule cover?" and none of the movement planning.
+  /// CategoryAutoAssignService.AssignNow used to get this by building an entire RoutingMovePlan -
+  /// the free-slot probes, the reconciliation ledger, the ops - and discarding everything but this
+  /// list, fifteen lines before the sweep built the real plan for the same retainer. The classifying
+  /// rules are identical to <see cref="Plan"/>'s and must stay that way; harness case 122 feeds both
+  /// the same inputs and fails if they ever disagree.
+  /// </summary>
+  public static List<(uint ItemId, bool HQ)> UnroutedBags(
+    IReadOnlyList<StockStack> stock,
+    IReadOnlyList<ItemRule> rules,
+    IReadOnlyDictionary<string, ItemCategoryInfo> categoryByKey,
+    IReadOnlyDictionary<string, bool> excludeByKey,
+    IReadOnlyList<CategoryRetainerRule> categoryRules)
+  {
+    var unrouted = new List<(uint ItemId, bool HQ)>();
+    var seen = new HashSet<string>();
+
+    foreach (var stack in stock)
+    {
+      // Crystals are out of the mover's scope entirely, so they are never "uncovered" either.
+      if (stack.Container == CrystalsContainer || stack.Container == RetainerCrystalsContainer)
+        continue;
+      if (stack.Origin == StockOrigin.Retainer)
+        continue;
+      if (!rules.Any(r => r.ItemId == stack.ItemId && r.HQ == stack.HQ))
+        continue;
+
+      var key = $"{stack.ItemId}:{(stack.HQ ? "hq" : "nq")}";
+      if (!categoryByKey.TryGetValue(key, out var info) || !info.Marketable)
+        continue;
+      if (excludeByKey.TryGetValue(key, out var ex) && ex)
+        continue;
+      if (categoryRules.Any(r => r.CategoryId == info.CategoryId))
+        continue;
+
+      if (seen.Add(key))
+        unrouted.Add((stack.ItemId, stack.HQ));
+    }
+
+    return unrouted;
+  }
+
+  /// <summary>
   /// 0.1.50.0: session-qualified key for the post-move reconciliation ledger. The game side
   /// records this key for every routing move that reports OK and drops any later plan op with
   /// the same key: a stack that was moved OK yet is back in the same source slot did not stick

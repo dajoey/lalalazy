@@ -1805,11 +1805,25 @@ internal sealed class MarketAutomation : Window, IDisposable
     // chat, naming the item and slot) and returns true so the chain moves on cleanly - never the old
     // silent drop, and never the raw TaskManager timeout path either (the step's own TimeLimitMs is
     // padded past our deadline so we always get there first).
+    // 0.1.60.0: both deadlines start on this step's FIRST tick, not when the step was built.
+    // BuildAndInsertListingSteps builds every op's steps in one synchronous loop, so anchoring here
+    // gave the whole plan a single shared deadline while the ops themselves run one after another,
+    // each with its own delays and up to a ten-second Universalis wait. Past the first op or two the
+    // window had already elapsed before the confirmation was ever looked at: the step re-fired the
+    // listing call immediately and then reported "never confirmed even after a retry", in chat and at
+    // ERROR, for listings that had landed. Each op now gets the full fifteen seconds it was promised.
     var retried = false;
-    var retryAtMs = Environment.TickCount64 + ListedConfirmTimeoutMs / 2;
-    var giveUpAtMs = Environment.TickCount64 + ListedConfirmTimeoutMs;
+    long retryAtMs = 0;
+    long giveUpAtMs = 0;
     steps.Add(new Step(() =>
     {
+      if (giveUpAtMs == 0)
+      {
+        var startedAtMs = Environment.TickCount64;
+        retryAtMs = startedAtMs + ListedConfirmTimeoutMs / 2;
+        giveUpAtMs = startedAtMs + ListedConfirmTimeoutMs;
+      }
+
       if (AutoMarketService.IsListed(op))
       {
         _listedThisRetainer.Add(op);

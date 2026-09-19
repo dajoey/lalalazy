@@ -1,4 +1,19 @@
-﻿## v0.1.59.0 (2026-09-17)
+﻿## v0.1.60.0 (2026-09-19)
+
+### Fixed
+
+- **Items that do not stack to 999 can reach their assigned retainer again.** When Category Routing had a stack to move and the destination already held another stack of the same item, the move worked out whether the two would fit together by assuming every item stacks to 999. Gear stacks to one, and plenty of other items stack to less than 999, so for those the game was asked to combine two stacks it can never combine: it declined, the stack stayed where it was, and the move was graded as refused. The destination is chosen the same way every time, so the next sweep picked the same impossible one, and so did every sweep after it - stock of such an item could never reach the retainer its category is assigned to. The item's real stack size is read from the game now, exactly as the listing path already read it.
+- **A listing that landed is no longer reported as one that never confirmed.** Every listing is given fifteen seconds to appear on the retainer's board before it is retried once and then reported as failed. That countdown was started for all of a run's listings at the moment the run was planned, rather than when each listing was actually made - and listings are made one after another, each with its own waits. By the third or fourth listing the fifteen seconds had already elapsed before the board was read even once: the listing was sent a second time and then announced in chat, and logged as an error, as never confirmed, for stock that had listed correctly. Each listing now gets its full fifteen seconds from the moment it is made.
+- **Nothing is listed onto a market board that could not be read.** When the retainer's market container had not finished loading, it was read as a board with twenty empty slots instead of as a board with no answer yet, and the plan handed those twenty imaginary slots to listings. The check that refuses to plan against a board that cannot be seen existed but had not been connected to the listing plan since v0.1.47.0; it is connected again, and a session that cannot read the board now lists nothing and says so.
+- **The amount held back from vendoring is taken from the smallest stacks.** With more than one stack of the same item in the same place, the keep amount was applied to whichever stack happened to sit in the lower inventory slot, so a large stack in a low slot was kept whole while a small one further along was vendored entirely. The keep now falls on the smallest stacks and the largest ones vendor first, which is what the setting has always described. The quantity vendored is unchanged - only which stacks it is taken from.
+
+### Notes
+
+- The routing auto-fill no longer builds an entire movement plan and discards it to find items no routing rule covers; it asks that question directly. Two full planning passes ran per retainer visit before, of which only the second was ever used.
+- Internal tidy-up with no effect in game: the category lookups the routing gate and the routing mover each built separately are now built once and shared, so the two cannot drift apart on which retainer owns a category; an unused listing-confirmation helper whose description promised a reconciliation pass that was never written has been removed.
+- Offline suite: new case 122 pins that the direct uncovered-stock question and the full movement planner classify identically (marketable, excluded, non-marketable, retainer-side and crystals stock all put through both); new case 123 pins the vendoring keep order from both stack arrangements, including the quantity being unchanged and equal stacks breaking the tie on the lower slot.
+
+## v0.1.59.0 (2026-09-17)
 
 ### Fixed
 

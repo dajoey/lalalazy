@@ -170,13 +170,22 @@ public static class VendorPlanner
         if (!enabled)
           continue;
 
-        // stacks of this rule's item+quality in this origin, slot-ascending
+        // stacks of this rule's item+quality in this origin
         var stacks = new List<StockStack>();
         foreach (var s in stock)
           if (s.Origin == origin && s.ItemId == rule.ItemId && s.HQ == rule.HQ)
             stacks.Add(s);
         if (stacks.Count == 0)
           continue;
+
+        // 0.1.60.0: largest stack first, which is what this class's own summary and the sibling
+        // AutoMarketPlanner.Plan both describe. The list was consumed in slot order, so the keep
+        // floor landed on whichever stack happened to sit in the lowest slot: with a keep of 40, a
+        // 40-unit stack in a low slot was kept whole and a 10-unit stack in a higher slot was
+        // vendored entire - the opposite of the documented behaviour, and arbitrary from the
+        // player's side, since slot order is not something they control. Ties break on the lower
+        // slot so the plan stays identical between two runs over the same stock.
+        stacks.Sort((a, b) => a.Quantity != b.Quantity ? b.Quantity.CompareTo(a.Quantity) : a.Slot.CompareTo(b.Slot));
 
         long keep = origin == StockOrigin.Bags ? rule.KeepInBags : rule.KeepInRetainer;
 

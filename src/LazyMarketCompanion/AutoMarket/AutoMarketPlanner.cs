@@ -56,24 +56,33 @@ public static class MarketListingCap
 
 public static class AutoMarketPlanner
 {
+  /// <summary>
+  /// Board-budget probe for the LISTING plan (0.1.46.0 gate, the related support thread, "it just
+  /// moves the same stuff around"): true when the open retainer's board can accept a listing this
+  /// session. 0.1.47.0: the routing mover no longer consults this - organizing inventory (pulling
+  /// misplaced stock to the bags, depositing assigned stock into the assigned retainer's pages)
+  /// needs no free market slot, and skipping it left full boards permanently unorganized. The
+  /// shuffle stays shut by the 0.1.44.0 settle/identity/once-per-run guards. An
+  /// unloaded/unreadable snapshot (fewer rows than the board has slots) still reads as no budget -
+  /// the listing plan never claims slots on a board it cannot see.
+  ///
+  /// 0.1.60.0: <see cref="Plan"/> calls this instead of re-deriving the same empty-slot/reserve
+  /// arithmetic itself. When the mover stopped consulting it in 0.1.47.0 nothing else picked it up,
+  /// so the only copy that ran was Plan's inline one - which counts empties but does NOT fail closed
+  /// on an unreadable board. AutoMarketService.SnapshotMarket returns an EMPTY list when the
+  /// RetainerMarket container is missing or not yet loaded, and against an empty list every slot
+  /// index reads as empty, so a board the plugin could not see was planned as twenty free slots.
+  /// The guard cases 91-94 pin has covered nothing shipping since 0.1.47.0; it covers the listing
+  /// plan again now.
+  /// </summary>
+  public static bool HasListingBudget(IReadOnlyList<MarketSlot> market, int reserveSlots, int slotCount)
+  {
+    if (market == null || market.Count < slotCount)
+      return false;
+    var empty = Enumerable.Range(0, slotCount).Count(i => market.All(m => m.Slot != i || m.ItemId == 0));
+    return empty - Math.Max(reserveSlots, 0) > 0;
+  }
 
-/// <summary>
-/// Board-budget probe for the LISTING plan (0.1.46.0 gate, the related support thread, "it just
-/// moves the same stuff around"): true when the open retainer's board can accept a listing this
-/// session. 0.1.47.0: the routing mover no longer consults this - organizing inventory (pulling
-/// misplaced stock to the bags, depositing assigned stock into the assigned retainer's pages)
-/// needs no free market slot, and skipping it left full boards permanently unorganized. The
-/// shuffle stays shut by the 0.1.44.0 settle/identity/once-per-run guards. An
-/// unloaded/unreadable snapshot (fewer rows than the board has slots) still reads as no budget -
-/// the listing plan never claims slots on a board it cannot see.
-/// </summary>
-public static bool HasListingBudget(IReadOnlyList<MarketSlot> market, int reserveSlots, int slotCount)
-{
-  if (market == null || market.Count < slotCount)
-    return false;
-  var empty = Enumerable.Range(0, slotCount).Count(i => market.All(m => m.Slot != i || m.ItemId == 0));
-  return empty - Math.Max(reserveSlots, 0) > 0;
-}
   public static PlanResult Plan(IEnumerable<ItemRule> rules, IReadOnlyList<StockStack> stock, IReadOnlyList<MarketSlot> market, PlannerOptions options)
   {
     var ops = new List<ListingOp>();
@@ -84,12 +93,18 @@ public static bool HasListingBudget(IReadOnlyList<MarketSlot> market, int reserv
       .Where(i => market.All(m => m.Slot != i || m.ItemId == 0))
       .OrderBy(i => i));
 
-    var freeBudget = emptySlots.Count - Math.Max(options.ReserveSlots, 0);
-    if (freeBudget <= 0)
+    // 0.1.60.0: one budget rule, in HasListingBudget, for the board that cannot be read as well as
+    // the board that is simply full. A short snapshot means the market container was not loaded, and
+    // reading twenty free slots off it would hand every one of them to a listing op.
+    if (!HasListingBudget(market, options.ReserveSlots, options.MarketSlotCount))
     {
-      notes.Add($"no free market slots ({emptySlots.Count} empty, {options.ReserveSlots} reserved)");
+      notes.Add(market == null || market.Count < options.MarketSlotCount
+        ? $"the market board could not be read ({market?.Count ?? 0} of {options.MarketSlotCount} slots); nothing is listed this session"
+        : $"no free market slots ({emptySlots.Count} empty, {options.ReserveSlots} reserved)");
       return new PlanResult(ops, notes);
     }
+
+    var freeBudget = emptySlots.Count - Math.Max(options.ReserveSlots, 0);
 
     // Mutable local copy of stock so successive ops see decremented quantities.
     var pool = stock.Select(s => new MutableStack(s)).ToList();

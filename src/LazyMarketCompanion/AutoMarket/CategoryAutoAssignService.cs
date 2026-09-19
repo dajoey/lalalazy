@@ -31,15 +31,18 @@ internal static class CategoryAutoAssignService
     if (candidates.Count == 0)
       return [];
 
-    var probe = AutoMarketService.PlanRoutingMoves();
-    if (probe.UnroutedBagsStacks.Count == 0)
+    // 0.1.60.0: the cheap probe, not a whole discarded movement plan. This call used to build a
+    // full RoutingMovePlan - free-slot probes, reconciliation ledger, every op - and read one list
+    // off it, fifteen lines before MarketAutomation built the real plan for the same retainer.
+    var unroutedStacks = AutoMarketService.ProbeUnroutedBagsStacks();
+    if (unroutedStacks.Count == 0)
       return [];
 
     var sheet = Svc.Data.GetExcelSheet<Item>();
-    var categoryByKey = new Dictionary<string, ItemCategoryInfo>(probe.UnroutedBagsStacks.Count);
+    var categoryByKey = new Dictionary<string, ItemCategoryInfo>(unroutedStacks.Count);
     if (sheet != null)
     {
-      foreach (var (itemId, hq) in probe.UnroutedBagsStacks)
+      foreach (var (itemId, hq) in unroutedStacks)
       {
         var key = $"{itemId}:{(hq ? "hq" : "nq")}";
         if (categoryByKey.ContainsKey(key) || !sheet.TryGetRow(itemId, out var row))
@@ -49,7 +52,7 @@ internal static class CategoryAutoAssignService
       }
     }
 
-    var missing = CategoryRouter.UnroutedCategories(probe.UnroutedBagsStacks, categoryByKey);
+    var missing = CategoryRouter.UnroutedCategories(unroutedStacks, categoryByKey);
     if (missing.Count == 0)
       return [];
 

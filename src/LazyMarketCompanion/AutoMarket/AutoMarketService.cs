@@ -168,22 +168,35 @@ internal static unsafe class AutoMarketService
   private static List<ItemRule> ApplyCategoryRouting(List<ItemRule> rules, List<CategoryRetainerRule> categoryRules)
   {
     var retainerName = CurrentRetainerName();
+    BuildCategoryLookups(rules, out var categoryByKey, out var excludeByKey);
+    return CategoryRouter.FilterForRetainer(rules, categoryByKey, excludeByKey, categoryRules, retainerName);
+  }
+
+  /// <summary>
+  /// The per-item category/marketable/exclude lookups CategoryRouter needs, read from the Item sheet
+  /// and the config. 0.1.60.0: one copy, shared by the gate (<see cref="ApplyCategoryRouting"/>) and
+  /// the mover (<see cref="TryBuildRoutingLookups"/>). The two built it separately before, so a change
+  /// to how marketability or exclusion is derived had to be made twice or the gate and the mover would
+  /// disagree about which retainer owns a category - the one disagreement this path must never have.
+  /// An item missing from the sheet is left out of the map, and CategoryRouter.FilterForRetainer
+  /// fails open on the missing key.
+  /// </summary>
+  private static void BuildCategoryLookups(IReadOnlyList<ItemRule> rules, out Dictionary<string, ItemCategoryInfo> categoryByKey, out Dictionary<string, bool> excludeByKey)
+  {
     var items = Svc.Data.GetExcelSheet<Item>();
-    var categoryByKey = new Dictionary<string, ItemCategoryInfo>(rules.Count);
-    var excludeByKey = new Dictionary<string, bool>(rules.Count);
+    var config = Plugin.Configuration;
+    categoryByKey = new Dictionary<string, ItemCategoryInfo>(rules.Count);
+    excludeByKey = new Dictionary<string, bool>(rules.Count);
 
     foreach (var rule in rules)
     {
       var key = $"{rule.ItemId}:{(rule.HQ ? "hq" : "nq")}";
-      var entry = Plugin.Configuration.GetAutoMarketItem(rule.ItemId, rule.HQ);
+      var entry = config.GetAutoMarketItem(rule.ItemId, rule.HQ);
       excludeByKey[key] = entry?.ExcludeFromCategoryRouting ?? false;
 
       if (items.TryGetRow(rule.ItemId, out var row))
         categoryByKey[key] = new ItemCategoryInfo(rule.ItemId, rule.HQ, row.ItemSearchCategory.RowId, row.ItemSearchCategory.RowId != 0 && !row.IsUntradable);
-      // else: no entry, CategoryRouter.FilterForRetainer fails open on the missing key.
     }
-
-    return CategoryRouter.FilterForRetainer(rules, categoryByKey, excludeByKey, categoryRules, retainerName);
   }
 
   /// <summary>
@@ -739,19 +752,7 @@ internal static unsafe class AutoMarketService
     // that is fine here - the bags half of the snapshot is always live, and the lap only ever deposits bags stock.
     var stock = SnapshotStock();
     var rules = BuildEnabledRules();
-    var items = Svc.Data.GetExcelSheet<Item>();
-    var categoryByKey = new Dictionary<string, ItemCategoryInfo>(rules.Count);
-    var excludeByKey = new Dictionary<string, bool>(rules.Count);
-
-    foreach (var rule in rules)
-    {
-      var key = $"{rule.ItemId}:{(rule.HQ ? "hq" : "nq")}";
-      var entry = config.GetAutoMarketItem(rule.ItemId, rule.HQ);
-      excludeByKey[key] = entry?.ExcludeFromCategoryRouting ?? false;
-
-      if (items.TryGetRow(rule.ItemId, out var row))
-        categoryByKey[key] = new ItemCategoryInfo(rule.ItemId, rule.HQ, row.ItemSearchCategory.RowId, row.ItemSearchCategory.RowId != 0 && !row.IsUntradable);
-    }
+    BuildCategoryLookups(rules, out var categoryByKey, out var excludeByKey);
 
     lookups = new RoutingLookups(stock, rules, categoryByKey, excludeByKey, config.CategoryRetainerRules);
     return true;
@@ -763,6 +764,21 @@ internal static unsafe class AutoMarketService
   /// mover and the gate can never disagree about which retainer a category is assigned to. Returns
   /// an empty plan when no routing rules exist.
   /// </summary>
+  /// <summary>
+  /// 0.1.60.0: the unrouted-bags probe on its own, for the routing auto-fill. It used to build a
+  /// whole RoutingMovePlan and throw away everything except this list, immediately before the sweep
+  /// built the real plan for the same retainer - two full planning passes per retainer visit, the
+  /// second one the only one whose ops were ever used. This keeps its own fresh snapshot, because
+  /// the auto-fill runs before the real plan and that plan must still read the game as it is then.
+  /// </summary>
+  public static IReadOnlyList<(uint ItemId, bool HQ)> ProbeUnroutedBagsStacks()
+  {
+    if (!TryBuildRoutingLookups(out var l))
+      return Array.Empty<(uint ItemId, bool HQ)>();
+
+    return RoutingMove.UnroutedBags(l.Stock, l.Rules, l.CategoryByKey, l.ExcludeByKey, l.CategoryRules);
+  }
+
   public static RoutingMovePlan PlanRoutingMoves(IReadOnlyCollection<string>? movedThisRun = null, IReadOnlyCollection<string>? reconciledSkip = null)
   {
     if (!TryBuildRoutingLookups(out var l))
@@ -940,6 +956,15 @@ internal static unsafe class AutoMarketService
       return false;
 
     var dstTypes = op.Leg == MoveLeg.RetainerToBags ? PlayerBagTypes : RetainerPageTypes;
+    // 0.1.60.0: the merge search asks the Item sheet for this item's real stack size instead of
+    // assuming 999. Gear stacks to 1, and plenty of other items stack below 999; against the flat
+    // 999 any two stacks of such an item summed under the cap, so a destination that CANNOT hold
+    // them both was picked as a merge target. MoveItemSlot then declined to merge, the source slot
+    // stayed occupied, the post-move emptiness check below failed the op - and because the search
+    // is deterministic the next sweep chose the same impossible destination again. Stock of any
+    // item stacking under 999 could never reach its assigned retainer. The listing path already
+    // read the sheet for its own cap (see ItemMaxStack at the MoveToRetainerMarket guard).
+    var mergeCap = ItemMaxStack(op.ItemId);
     var merged = false;
     var moved = false;
     InventoryType? dstType = null;
@@ -953,7 +978,7 @@ internal static unsafe class AutoMarketService
         var it = cont->GetInventorySlot(i);
         if (it == null) continue;
         var hq = it->Flags.HasFlag(InventoryItem.ItemFlags.HighQuality);
-        if (it->ItemId == op.ItemId && hq == op.HQ && it->Quantity + before->Quantity <= 999)
+        if (it->ItemId == op.ItemId && hq == op.HQ && it->Quantity + before->Quantity <= mergeCap)
         {
           dstType = type; dstSlot = i; merged = true; moved = true; break;
         }

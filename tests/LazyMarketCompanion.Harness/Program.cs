@@ -2635,24 +2635,14 @@ var Catalogue = new (uint Id, string Name)[]
 //     server never took the listing" as the same thing at the same 6s deadline, with no way for
 //     PinchScope or the value gate's own accounting to learn the difference between "not listed yet"
 //     and "never listed at all". These are the Dalamud-free pieces of that fix.
+//
+//     0.1.60.0: the Unconfirmed(planned, confirmed) set-difference assertions that used to open this
+//     case are gone with the function itself. It had no caller in the plugin and its summary
+//     described a second-look pass (MarketAutomation.ReconcileUnconfirmedListings) that was never
+//     written, so the coverage here was pinning a safety net that did not exist - which reads, to
+//     anyone auditing this file later, as though the timeout path were reconciled when it is not.
+//     What actually ships is retry-once-then-report-loudly, and that is what this case now covers.
 {
-  var op1 = new ListingOp(StockOrigin.Retainer, 10000, 15, 4, 44151, false, 1, 0);
-  var op2 = new ListingOp(StockOrigin.Retainer, 10000, 20, 11, 44011, false, 1, 0);
-  var op3 = new ListingOp(StockOrigin.Bags, 0, 3, 13, 45975, false, 1, 0);
-
-  Check("59 unconfirmed: all three ops dropped when nothing confirmed (the 2026-09-10 11:45 sweep)",
-    ListingConfirmation.Unconfirmed([op1, op2, op3], []).Count == 3);
-  Check("59 unconfirmed: a fully confirmed retainer has nothing unconfirmed",
-    ListingConfirmation.Unconfirmed([op1, op2, op3], [op1, op2, op3]).Count == 0);
-  Check("59 unconfirmed: partial confirmation names exactly the ones that did not land",
-    ListingConfirmation.Unconfirmed([op1, op2, op3], [op2]).SequenceEqual([op1, op3]));
-  Check("59 unconfirmed: no plan at all is not itself unconfirmed anything",
-    ListingConfirmation.Unconfirmed([], []).Count == 0);
-  // A confirmed set naming an op that was never planned is nonsense input, not a defect in this
-  // function - it must not crash and must not invent a negative "unconfirmed" count.
-  Check("59 unconfirmed: a confirmed op absent from the plan is ignored, not miscounted",
-    ListingConfirmation.Unconfirmed([op1], [op1, op2]).Count == 0);
-
   // The retry-once contract: fires exactly at/after the halfway deadline, never before, and never a
   // second time once it has already fired - this is what stops the fix from becoming an infinite
   // hammering loop under sustained contention.
@@ -3706,6 +3696,109 @@ StockStack BagStack(uint id, int slot, int qty, uint cat = CatA, bool marketable
     new Dictionary<string, DateTime>(StringComparer.Ordinal) { [key] = stamp });
   Check("121 ledger: a file this build wrote still loads",
     RoutingMove.ParseReconcileLedger(current, stamp).TryGetValue(key, out var kept) && kept == stamp, current);
+}
+
+// ===== 0.1.60.0: the review-slice findings =====
+
+// 122. RoutingMove.UnroutedBags answers the "no rule covers this" question on its own, so the
+// routing auto-fill no longer builds and discards a whole movement plan to read one list off it.
+// The two must never disagree about what counts as uncovered, so every fixture here is put through
+// both and the lists are compared. Covered: a bags stack whose category has no rule (uncovered), a
+// bags stack whose category IS routed (covered), a RETAINER stack with no rule (not a bags stack,
+// so never reported), a non-marketable item, an excluded item, an item with no Auto-Market rule at
+// all, and a crystals stack (out of the mover's scope entirely).
+{
+  const uint Unassigned = 77;   // no CategoryRetainerRule names this category
+  var rules = new List<ItemRule> { Rule(1001, 99), Rule(1002, 99), Rule(1003, 99), Rule(1004, 99), Rule(1005, 99) };
+  var info = new Dictionary<string, ItemCategoryInfo>
+  {
+    ["1001:nq"] = new(1001, false, Unassigned, true),   // uncovered: marketable, no rule for its category
+    ["1002:nq"] = new(1002, false, CatA, true),         // covered: CatA -> R1
+    ["1003:nq"] = new(1003, false, Unassigned, false),  // not marketable -> never reported
+    ["1004:nq"] = new(1004, false, Unassigned, true),   // excluded by the per-item opt-out
+    ["1005:nq"] = new(1005, false, Unassigned, true),   // sits in crystals -> out of scope
+  };
+  var excluded = new Dictionary<string, bool> { ["1004:nq"] = true };
+  var stock = new List<StockStack>
+  {
+    BagStack(1001, 0, 30),
+    BagStack(1002, 1, 30),
+    BagStack(1003, 2, 30),
+    BagStack(1004, 3, 30),
+    new(StockOrigin.Bags, 2001, 4, 1005, false, 30),    // player Crystals container
+    new(StockOrigin.Retainer, 10000, 5, 1006, false, 30), // retainer stock, no rule at all
+    BagStack(1001, 6, 12),                              // a SECOND stack of the uncovered item
+  };
+
+  var probe = RoutingMove.UnroutedBags(stock, rules, info, excluded, routingRules);
+  Check("122 unrouted: only the uncovered marketable BAGS item is reported",
+    probe.Count == 1 && probe[0].ItemId == 1001 && !probe[0].HQ,
+    string.Join(",", probe.Select(p => p.ItemId)));
+  Check("122 unrouted: two stacks of the same uncovered item are reported once",
+    probe.Count(p => p.ItemId == 1001) == 1, $"{probe.Count} entries");
+
+  // THE agreement pin: the cheap probe and the full planner classify identically.
+  var full = RoutingMove.Plan(stock, rules, info, excluded, routingRules, "R1", () => 10, () => 10);
+  Check("122 unrouted: the probe and RoutingMove.Plan agree exactly",
+    probe.SequenceEqual(full.UnroutedBagsStacks),
+    $"probe=[{string.Join(",", probe.Select(p => p.ItemId))}] plan=[{string.Join(",", full.UnroutedBagsStacks.Select(p => p.ItemId))}]");
+
+  // A fixture where nothing is uncovered must also agree - an empty list, not a null.
+  var covered = new Dictionary<string, ItemCategoryInfo> { ["1002:nq"] = new(1002, false, CatA, true) };
+  var coveredStock = new List<StockStack> { BagStack(1002, 0, 30) };
+  var coveredProbe = RoutingMove.UnroutedBags(coveredStock, rules, covered, new Dictionary<string, bool>(), routingRules);
+  var coveredPlan = RoutingMove.Plan(coveredStock, rules, covered, new Dictionary<string, bool>(), routingRules, "R1", () => 10, () => 10);
+  Check("122 unrouted: a fully covered fixture reports nothing, on both paths",
+    coveredProbe.Count == 0 && coveredPlan.UnroutedBagsStacks.Count == 0, $"{coveredProbe.Count}/{coveredPlan.UnroutedBagsStacks.Count}");
+}
+
+// 123. VendorPlanner honours the keep floor from the LARGEST stack down, which is what its own
+// summary and the sibling AutoMarketPlanner.Plan both describe. It consumed the origin's stacks in
+// slot order instead, so the keep landed on whichever stack happened to sit in the lowest slot: a
+// keep of 40 against a 40-stack in a low slot and a 10-stack in a high slot kept the big one whole
+// and vendored the small one entire. Slot order is not something a player controls, so which of
+// their stacks survived was effectively arbitrary.
+{
+  ItemRule V(uint id, int keepB) => new(id, false, 99, keepB, 0, 0, true, true, 0, 999);
+  var prices = new Dictionary<uint, (uint, uint)> { [5111] = (40, 10) };
+
+  // The big stack sits in the HIGHER slot: slot order would have kept the small one first.
+  var smallFirst = new List<StockStack>
+  {
+    new(StockOrigin.Bags, 0, 0, 5111, false, 10),
+    new(StockOrigin.Bags, 0, 1, 5111, false, 40),
+  };
+  var plan = VendorPlanner.Plan([V(5111, keepB: 40)], smallFirst, prices, preferHq: true);
+  Check("123 vendor keep: the 40-unit stack is kept whole and the 10-unit stack vendors",
+    plan.Ops.Count == 1 && plan.Ops[0].Quantity == 10 && plan.Ops[0].Slot == 0,
+    string.Join(",", plan.Ops.Select(o => $"slot{o.Slot}x{o.Quantity}")));
+
+  // Same stock, same keep, big stack in the LOWER slot: the outcome must be identical.
+  var bigFirst = new List<StockStack>
+  {
+    new(StockOrigin.Bags, 0, 0, 5111, false, 40),
+    new(StockOrigin.Bags, 0, 1, 5111, false, 10),
+  };
+  var mirrored = VendorPlanner.Plan([V(5111, keepB: 40)], bigFirst, prices, preferHq: true);
+  Check("123 vendor keep: slot order does not change which stack survives",
+    mirrored.Ops.Count == 1 && mirrored.Ops[0].Quantity == 10 && mirrored.Ops[0].Slot == 1,
+    string.Join(",", mirrored.Ops.Select(o => $"slot{o.Slot}x{o.Quantity}")));
+
+  // The total vendored is the same either way - this reorders the keep, it does not change how much moves.
+  Check("123 vendor keep: the quantity vendored is unchanged by the ordering",
+    plan.Ops.Sum(o => o.Quantity) == mirrored.Ops.Sum(o => o.Quantity) && plan.Ops.Sum(o => o.Quantity) == 10,
+    $"{plan.Ops.Sum(o => o.Quantity)} vs {mirrored.Ops.Sum(o => o.Quantity)}");
+
+  // Equal stacks: the tie breaks on the lower slot, so two runs over the same stock plan the same.
+  var tied = new List<StockStack>
+  {
+    new(StockOrigin.Bags, 0, 3, 5111, false, 25),
+    new(StockOrigin.Bags, 0, 1, 5111, false, 25),
+  };
+  var tiePlan = VendorPlanner.Plan([V(5111, keepB: 25)], tied, prices, preferHq: true);
+  Check("123 vendor keep: equal stacks break the tie on the lower slot",
+    tiePlan.Ops.Count == 1 && tiePlan.Ops[0].Slot == 3,
+    string.Join(",", tiePlan.Ops.Select(o => $"slot{o.Slot}x{o.Quantity}")));
 }
 
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");

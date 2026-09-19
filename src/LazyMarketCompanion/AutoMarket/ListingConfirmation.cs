@@ -1,39 +1,28 @@
-using System.Collections.Generic;
-using System.Linq;
-
 namespace LazyMarketCompanion.AutoMarket;
 
 // Dalamud-free. Everything in this file is exercised by tests/LazyMarketCompanion.Harness.
 
 /// <summary>
-/// t_deb0e274 (2026-09-10): which planned listings this retainer never got a Listed{slot} confirmation
-/// for. Before this fix, a timed-out confirmation just dropped the op - it never joined
-/// <c>_listedThisRetainer</c>, so PinchScope saw a lower (sometimes zero) count and the pinch pass never
-/// knew the retainer had anything new to price, and the value gate's own accounting silently undercounted.
+/// t_deb0e274 (2026-09-10): a Listed{slot} confirmation that times out must not silently drop the op.
+/// Before that fix it never joined <c>_listedThisRetainer</c>, so PinchScope saw a lower (sometimes
+/// zero) count and the pinch pass never knew the retainer had anything new to price, and the value
+/// gate's own accounting silently undercounted.
 ///
 /// Evidence this is real, not a race in the read: on 2026-09-10 11:45, three concurrent Universalis
 /// timeouts for the value-gate lookup starved three Listed{slot} confirmations on the FIRST retainer of a
 /// sweep; item 44011 turned up unvendored, unlisted, sitting in its retainer's own inventory nearly two
-/// hours later - the listing itself never took, not just the read of it. So "planned but not confirmed"
-/// needs a second look at the game's own state, not a second guess: see
-/// <see cref="MarketAutomation.ReconcileUnconfirmedListings"/>, which re-checks
-/// <c>AutoMarketService.IsListed</c> before deciding whether to retry.
+/// hours later - the listing itself never took, not just the read of it. So a listing that has not
+/// confirmed gets one retry of the call itself, on the schedule <see cref="ShouldRetryNow"/> decides,
+/// and a timeout that survives that retry is reported loudly rather than dropped.
+///
+/// 0.1.60.0: the <c>Unconfirmed(planned, confirmed)</c> set-difference helper that used to sit here was
+/// removed. It had no callers, and its summary described a second-look pass
+/// (<c>MarketAutomation.ReconcileUnconfirmedListings</c>) that was never written - a doc comment
+/// promising a safety net that did not exist is worse than no comment. The retry-once-then-report-loudly
+/// path in MarketAutomation.AddListingSteps is the whole of what actually runs.
 /// </summary>
 public static class ListingConfirmation
 {
-  /// <param name="planned">Every listing this retainer's plan attempted, in attempt order.</param>
-  /// <param name="confirmed">Listings whose Listed{slot} step actually saw the server reflect them.</param>
-  public static List<ListingOp> Unconfirmed(IReadOnlyList<ListingOp> planned, IReadOnlyList<ListingOp> confirmed)
-  {
-    if (planned.Count == 0)
-      return [];
-    if (confirmed.Count == 0)
-      return planned.ToList();
-
-    var confirmedSet = new HashSet<ListingOp>(confirmed);
-    return planned.Where(op => !confirmedSet.Contains(op)).ToList();
-  }
-
   /// <summary>
   /// Whether a Listed{slot} confirmation step should retry the <c>MoveToRetainerMarket</c> call right
   /// now. True exactly once per op: the first tick after <paramref name="retryDeadlineMs"/> has passed
