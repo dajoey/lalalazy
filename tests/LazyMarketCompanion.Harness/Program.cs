@@ -3842,6 +3842,64 @@ StockStack BagStack(uint id, int slot, int qty, uint cat = CatA, bool marketable
     string.Join(" | ", full.Notes));
 }
 
+// 125. THE MERGE CAP (the 0.1.60.0 defect, extracted in 0.1.61.0 so it is reachable offline). The
+// destination search treated any same-item/same-quality stack as mergeable whenever the two summed
+// to 999 or less - a hardcoded cap, while the listing path a few lines away already read the item's
+// real stack size from the sheet. Gear stacks to ONE, so two one-unit gear stacks summed to 2,
+// passed the 999 test, and were handed to MoveItemSlot as a merge the client will not perform: the
+// source slot stayed occupied, the post-move emptiness check failed the op, and because the search
+// is deterministic every later sweep chose the same impossible destination. That stock could never
+// reach its assigned retainer, and the only symptom was "it never moves".
+{
+  const uint Gear = 40403, Pot = 5111;
+  RoutingMove.DestinationSlot D(int slot, uint id, int qty, bool hq = false, int cont = 10000)
+    => new(cont, slot, id, hq, qty);
+
+  // THE REGRESSION: gear, real stack size 1. An occupied gear slot is NOT a merge target, and the
+  // move must fall through to the empty slot instead. Under the old flat 999 this returned slot 0.
+  var gearBoard = new List<RoutingMove.DestinationSlot> { D(0, Gear, 1), D(1, 0, 0) };
+  var gearPick = RoutingMove.ChooseMoveDestination(gearBoard, Gear, false, 1, maxStack: 1);
+  Check("125 merge cap: a stack-1 item never merges onto another stack of itself",
+    gearPick != null && gearPick.Slot == 1 && !gearPick.Merged, $"{gearPick}");
+
+  // Same board with no empty slot: the destination is full, so nothing is chosen and the caller
+  // leaves the stack alone. The old code merged onto slot 0 and graded the refusal as a failure.
+  Check("125 merge cap: stack-1 item with no empty slot chooses nothing at all",
+    RoutingMove.ChooseMoveDestination([D(0, Gear, 1)], Gear, false, 1, maxStack: 1) == null, "full board");
+
+  // A normally-stacking item still merges, and still respects its own real cap.
+  var potBoard = new List<RoutingMove.DestinationSlot> { D(0, Pot, 40), D(1, 0, 0) };
+  var fits = RoutingMove.ChooseMoveDestination(potBoard, Pot, false, 59, maxStack: 99);
+  Check("125 merge cap: a merge that exactly reaches the cap is allowed",
+    fits != null && fits.Slot == 0 && fits.Merged, $"{fits}");
+  var overflows = RoutingMove.ChooseMoveDestination(potBoard, Pot, false, 60, maxStack: 99);
+  Check("125 merge cap: one unit over the cap is not a merge, it takes the empty slot",
+    overflows != null && overflows.Slot == 1 && !overflows.Merged, $"{overflows}");
+
+  // Quality is part of identity: an NQ stack never merges into the HQ stack of the same item.
+  var mixed = new List<RoutingMove.DestinationSlot> { D(0, Pot, 1, hq: true), D(1, 0, 0) };
+  var nq = RoutingMove.ChooseMoveDestination(mixed, Pot, false, 1, maxStack: 99);
+  Check("125 merge cap: quality is part of the match - NQ does not merge into HQ",
+    nq != null && nq.Slot == 1 && !nq.Merged, $"{nq}");
+
+  // A merge ANYWHERE beats an empty slot EVERYWHERE - the pre-existing two-pass order, kept
+  // deliberately so routed stock consolidates instead of fragmenting across pages.
+  var emptyFirst = new List<RoutingMove.DestinationSlot> { D(0, 0, 0), D(5, Pot, 10, cont: 10001) };
+  var consolidates = RoutingMove.ChooseMoveDestination(emptyFirst, Pot, false, 10, maxStack: 99);
+  Check("125 merge cap: a mergeable stack in a later container still beats an earlier empty slot",
+    consolidates != null && consolidates.Container == 10001 && consolidates.Slot == 5 && consolidates.Merged, $"{consolidates}");
+
+  // An unreadable slot reports as item 0 and counts as empty, never as a merge target.
+  Check("125 merge cap: an unreadable slot is empty, not a merge target",
+    RoutingMove.ChooseMoveDestination([D(3, 0, 0)], Pot, false, 1, maxStack: 99) is { Slot: 3, Merged: false }, "unreadable slot");
+
+  // Degenerate inputs: no candidates at all, and a nonsense max stack of 0 (treated as 1).
+  Check("125 merge cap: an empty candidate list chooses nothing",
+    RoutingMove.ChooseMoveDestination([], Pot, false, 1, maxStack: 99) == null, "no candidates");
+  Check("125 merge cap: a max stack of 0 is read as 1, so no merge onto an occupied slot",
+    RoutingMove.ChooseMoveDestination([D(0, Pot, 1)], Pot, false, 1, maxStack: 0) == null, "maxStack 0");
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 

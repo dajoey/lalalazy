@@ -1,4 +1,14 @@
-﻿## v0.1.60.0 (2026-09-19)
+﻿## v0.1.61.0 (2026-09-19)
+
+### Changed
+
+- **No behaviour change in game.** The rule that decides where a routed stack lands - merge onto an existing stack of the same item and quality if the two fit within that item's real stack size, otherwise take the first empty slot, otherwise leave the stack alone - was separated from the code that reads inventory, so the offline suite can test it directly. It was previously written in among those reads, where no test could reach it, and that is where the stack-size fault fixed in v0.1.60.0 was able to sit unnoticed. The rule itself is unchanged, including its preference for merging into an existing stack anywhere over taking an empty slot, which keeps stock together rather than spread across pages.
+
+### Notes
+
+- Offline suite: new case 125 covers the destination rule on its own - an item that stacks to one never merges onto another stack of itself and takes an empty slot instead, or nothing at all when the destination is full; a merge that exactly reaches the cap is allowed and one unit over is not; quality is part of the match; a mergeable stack in a later container still beats an earlier empty slot; an unreadable slot counts as empty and never as a merge target.
+
+## v0.1.60.0 (2026-09-19)
 
 ### Fixed
 

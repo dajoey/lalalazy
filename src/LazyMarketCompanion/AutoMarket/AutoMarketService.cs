@@ -964,11 +964,14 @@ internal static unsafe class AutoMarketService
     // is deterministic the next sweep chose the same impossible destination again. Stock of any
     // item stacking under 999 could never reach its assigned retainer. The listing path already
     // read the sheet for its own cap (see ItemMaxStack at the MoveToRetainerMarket guard).
-    var mergeCap = ItemMaxStack(op.ItemId);
-    var merged = false;
-    var moved = false;
-    InventoryType? dstType = null;
-    var dstSlot = -1;
+    // 0.1.61.0: the containers are READ here and the destination is CHOSEN in
+    // RoutingMove.ChooseMoveDestination, which is Dalamud-free and harness-pinned (case 125). The
+    // 0.1.60.0 merge-cap defect lived in that choice while it was interleaved with these unsafe
+    // reads, where no offline case could reach it. This loop now does nothing but flatten the
+    // destination containers in the same order the two passes used to walk them - container order,
+    // slots ascending - and an unreadable slot is reported as item 0, exactly as the old empty pass
+    // treated a null pointer.
+    var candidates = new List<RoutingMove.DestinationSlot>();
     foreach (var type in dstTypes)
     {
       var cont = manager->GetInventoryContainer(type);
@@ -976,32 +979,21 @@ internal static unsafe class AutoMarketService
       for (var i = 0; i < cont->Size; i++)
       {
         var it = cont->GetInventorySlot(i);
-        if (it == null) continue;
-        var hq = it->Flags.HasFlag(InventoryItem.ItemFlags.HighQuality);
-        if (it->ItemId == op.ItemId && hq == op.HQ && it->Quantity + before->Quantity <= mergeCap)
+        if (it == null)
         {
-          dstType = type; dstSlot = i; merged = true; moved = true; break;
+          candidates.Add(new RoutingMove.DestinationSlot((int)type, i, 0, false, 0));
+          continue;
         }
-      }
-      if (moved) break;
-    }
-    if (!moved)
-    {
-      foreach (var type in dstTypes)
-      {
-        var cont = manager->GetInventoryContainer(type);
-        if (cont == null || !cont->IsLoaded) continue;
-        for (var i = 0; i < cont->Size; i++)
-        {
-          var it = cont->GetInventorySlot(i);
-          if (it == null || it->ItemId == 0)
-          {
-            dstType = type; dstSlot = i; moved = true; break;
-          }
-        }
-        if (moved) break;
+        candidates.Add(new RoutingMove.DestinationSlot(
+          (int)type, i, it->ItemId, it->Flags.HasFlag(InventoryItem.ItemFlags.HighQuality), (int)it->Quantity));
       }
     }
+
+    var chosen = RoutingMove.ChooseMoveDestination(candidates, op.ItemId, op.HQ, (int)before->Quantity, ItemMaxStack(op.ItemId));
+    var merged = chosen?.Merged ?? false;
+    var moved = chosen != null;
+    InventoryType? dstType = chosen == null ? null : (InventoryType)chosen.Container;
+    var dstSlot = chosen?.Slot ?? -1;
     if (!moved)
     {
       rc = -2;

@@ -137,6 +137,59 @@ public static class RoutingMove
   private const int RetainerCrystalsContainer = 12001;
 
   /// <summary>
+  /// 0.1.61.0: one readable destination slot, as the game side flattens it out of the destination
+  /// containers - container type as int, slot index, and what sits there. An unreadable slot (a null
+  /// InventoryItem pointer) is reported as <see cref="ItemId"/> 0, i.e. as empty, which is what the
+  /// game-side loop has always done on the empty pass; it can never match the merge test, because
+  /// item id 0 is not a real item.
+  /// </summary>
+  public readonly record struct DestinationSlot(int Container, int Slot, uint ItemId, bool HQ, int Quantity);
+
+  /// <summary>Where a routing move should go: which slot, and whether landing there is a merge into
+  /// an existing stack rather than a move into an empty slot.</summary>
+  public sealed record MoveDestination(int Container, int Slot, bool Merged);
+
+  /// <summary>
+  /// 0.1.61.0: choosing the destination slot for a routing move, extracted from
+  /// AutoMarketService.ExecuteRoutingMove so it can be pinned offline - the 0.1.60.0 merge-cap
+  /// defect lived in this decision and the harness could not reach it, because the decision was
+  /// interleaved with unsafe container reads.
+  ///
+  /// Two passes over <paramref name="candidates"/>, in the order the caller supplies them (the game
+  /// side flattens destination containers in order, slots ascending): first any stack of the SAME
+  /// item at the SAME quality that can take the whole moving stack without exceeding
+  /// <paramref name="maxStack"/>, then the first empty slot. A merge anywhere beats an empty slot
+  /// everywhere, which is the pre-existing behaviour and is deliberate - it keeps stock consolidated
+  /// rather than fragmenting it across pages.
+  ///
+  /// <paramref name="maxStack"/> is the item's REAL stack size from the Item sheet, never a flat
+  /// 999. Gear stacks to 1: against 999, two one-unit gear stacks summed to 2, passed the cap, and
+  /// were handed to MoveItemSlot as a merge the client will not perform - the source slot stayed
+  /// occupied, the move was graded refused, and the deterministic search chose the same impossible
+  /// destination on every later sweep, so that stock could never reach its assigned retainer.
+  ///
+  /// Null means the destination is full: no mergeable stack and no empty slot. The caller leaves the
+  /// stack where it is and says so.
+  /// </summary>
+  public static MoveDestination? ChooseMoveDestination(
+    IReadOnlyList<DestinationSlot> candidates, uint itemId, bool hq, int movingQuantity, int maxStack)
+  {
+    if (candidates == null || candidates.Count == 0)
+      return null;
+
+    var cap = Math.Max(maxStack, 1);
+    foreach (var c in candidates)
+      if (c.ItemId == itemId && c.HQ == hq && c.Quantity + movingQuantity <= cap)
+        return new MoveDestination(c.Container, c.Slot, true);
+
+    foreach (var c in candidates)
+      if (c.ItemId == 0)
+        return new MoveDestination(c.Container, c.Slot, false);
+
+    return null;
+  }
+
+  /// <summary>
   /// 0.1.60.0: the unrouted-bags question on its own, for callers that want only the answer to
   /// "which marked bags stock does no routing rule cover?" and none of the movement planning.
   /// CategoryAutoAssignService.AssignNow used to get this by building an entire RoutingMovePlan -
