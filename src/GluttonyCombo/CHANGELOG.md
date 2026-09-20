@@ -1,3 +1,13 @@
+## v1.0.4.221 (2026-09-20) [testing]
+### Fixed
+- **Crucible Auto-fill Battlehorn slots now runs at Bentbranch Meadows as well as inside a board.** The pass no longer requires a Crucible territory. It arms when a familiar-selection screen is open (`XBMActivePet` or `XBMPetParty`) and the run roster is readable; territory is logged and never decisive.
+- **Observers follow the addons, not the territory.** The `XB|` screen collector and the read-only pet-party click probe record outside board territories too, so a pre-entry visit is visible in the log instead of silent.
+### Changed
+- **Each pick states the opponent reason it was taken for.** Decision lines carry the weakness, unanswered interrupt / dispel / cleanse, crowd control, or combat recommendation behind the familiar; the option description matches. HP is only a tie-breaker that demotes a hurt familiar.
+- When the upcoming battle cannot be identified (typical at Bentbranch), ranking uses coverage across that board's battles and labels every pick as coverage so it is never presented as a targeted fight pick.
+### Notes
+- Auto-fill remains off by default and never starts the fight. Offline harness adds pre-entry / surface re-arm cases and coverage ranking checks.
+
 ## v1.0.4.220 (2026-09-19) [testing]
 ### Fixed
 - **Crucible Auto-fill Battlehorn slots now runs while the familiar party screen is open.** The pass no longer waits on a stage-mode value that never appears during assignment. It keys off Crucible territory, a non-empty run roster, and the `XBMActivePet` screen being visible; stage mode stays in the log only.

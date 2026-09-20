@@ -181,9 +181,10 @@ internal partial class BST
     private static readonly Dictionary<string, (int Hash, long Ms)> CrucibleUiSeen = [];
 
     /// <summary>
-    ///     With the collector on, on a Crucible board: every visible addon whose name starts with "XBM" is written once
+    ///     With the collector on: every visible addon whose name starts with "XBM" is written once
     ///     per change (at most once a second per addon) as <c>XB|unixms|name|n=count|index:type=value;...</c>, split
-    ///     across <c>XB+|</c> lines. Read-only; this is how the beast party HP and board map get mapped later.
+    ///     across <c>XB+|</c> lines. Territory is not a gate — Bentbranch Meadows captures land here too.
+    ///     Read-only; this is how the beast party HP and board map get mapped later.
     /// </summary>
     internal static unsafe void CaptureCrucibleUi(long nowMs)
     {

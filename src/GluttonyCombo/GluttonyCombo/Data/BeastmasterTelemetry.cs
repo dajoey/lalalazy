@@ -66,12 +66,15 @@ internal static class BeastmasterTelemetry
             if (BeastmasterTelemetryFormat.ShouldEmit(ref _gate, now, snapshot))
                 Svc.Log.Information(BeastmasterTelemetryFormat.BuildLine(now, snapshot));
 
-            // Crucible of the Unbroken: a second line (CR|) only while standing on a board.
-            if (BST_CrucibleData.BoardOfTerritory(Svc.ClientState.TerritoryType) != 0 && Player.Object is not null)
+            // Crucible of the Unbroken: CR| stays board-only; XB| follows any visible XBM* addon (Bentbranch included).
+            if (Player.Object is not null)
             {
-                var crucible = SampleCrucible();
-                if (CrucibleTelemetryFormat.ShouldEmit(ref _crucibleGate, now, crucible))
-                    Svc.Log.Information(CrucibleTelemetryFormat.BuildLine(now, crucible));
+                if (BST_CrucibleData.BoardOfTerritory(Svc.ClientState.TerritoryType) != 0)
+                {
+                    var crucible = SampleCrucible();
+                    if (CrucibleTelemetryFormat.ShouldEmit(ref _crucibleGate, now, crucible))
+                        Svc.Log.Information(CrucibleTelemetryFormat.BuildLine(now, crucible));
+                }
                 BST.CaptureCrucibleUi(now);
             }
         }

@@ -267,29 +267,134 @@ internal static class BST_CrucibleAdvisor
     }
 
     /// <summary>
+    ///     Best horn fills when the upcoming battle is unknown but the board is known (pre-entry / Bentbranch).
+    ///     PURE. Scores each candidate as the sum of <see cref="Score"/> across every battle on that board, then
+    ///     greedy-picks like <see cref="PickSlots"/>. Every Why string starts with <c>coverage board N</c> so a
+    ///     coverage guess is never presented as a targeted pick.
+    /// </summary>
+    public static List<CrucibleBeastPick> PickSlotsCoverage(
+        int board,
+        IReadOnlyList<int> candidateRows,
+        IReadOnlyDictionary<int, int> hpPercentByRow,
+        int slots = 3)
+    {
+        var battles = new List<int>(8);
+        foreach (var info in BST_CrucibleData.Battles)
+        {
+            if (info.Board == board)
+                battles.Add(info.Battle);
+        }
+
+        var picks = new List<CrucibleBeastPick>(slots);
+        var covered = CrucibleNeeds.None;
+        var taken = new HashSet<int>();
+        var weaknessPicks = 0;
+        var candidates = new List<int>(candidateRows.Count);
+        var seen = new HashSet<int>();
+        foreach (var row in candidateRows)
+        {
+            if (row is < 1 or > BST_Beasts.Count || !seen.Add(row))
+                continue;
+            candidates.Add(row);
+        }
+
+        if (battles.Count == 0)
+            return picks;
+
+        for (var n = 0; n < slots; n++)
+        {
+            var bestRow = 0;
+            var bestEff = int.MinValue;
+            var bestHp = -1;
+            var bestHpKnown = true;
+
+            foreach (var row in candidates)
+            {
+                if (taken.Contains(row))
+                    continue;
+
+                var hpKnown = hpPercentByRow.TryGetValue(row, out var hp);
+                if (!hpKnown)
+                    hp = 100;
+                if (hp <= 0)
+                    continue;
+
+                var raw = 0;
+                var any = false;
+                foreach (var battle in battles)
+                {
+                    var s = Score(board, battle, row, covered, null, weaknessPicks);
+                    if (s == int.MinValue)
+                        continue;
+                    raw += s;
+                    any = true;
+                }
+                if (!any)
+                    continue;
+                var eff = EffectiveScore(raw, hp);
+
+                var better = eff > bestEff
+                             || (eff == bestEff && hp > bestHp)
+                             || (eff == bestEff && hp == bestHp && (bestRow == 0 || row < bestRow));
+                if (!better)
+                    continue;
+
+                bestEff = eff;
+                bestRow = row;
+                bestHp = hp;
+                bestHpKnown = hpKnown;
+            }
+
+            if (bestRow == 0)
+                break;
+
+            var why = new List<string>(6) { $"coverage board {board}" };
+            // Prefer the first non-boss battle's reasons as the readable sample; always keep the coverage tag.
+            var sampleBattle = battles.Contains(1) ? 1 : battles[0];
+            Score(board, sampleBattle, bestRow, covered, why, weaknessPicks);
+            if (!bestHpKnown)
+                why.Add("HP assumed full");
+            else if (bestHp < 100)
+                why.Add($"HP {bestHp}%");
+
+            picks.Add(new(bestRow, bestEff, true, string.Join(", ", why)));
+            taken.Add(bestRow);
+            covered |= Answers(bestRow);
+            if (HitsWeakness(board, sampleBattle, bestRow))
+                weaknessPicks++;
+        }
+
+        return picks;
+    }
+
+    /// <summary>
     ///     Latch for one Crucible formation-phase autograb pass. PURE: the live layer feeds screen-open and
     ///     identified-battle signals; this type never reads game memory. <see cref="Aborted"/> stays set until
     ///     the screen closes (re-arm on battle change does not clear an abort).
+    ///     <see cref="SurfaceKey"/> distinguishes pre-entry from in-board so a Bentbranch pass and the first
+    ///     in-board pass are two phases.
     /// </summary>
-    public readonly record struct FormationArmState(bool ScreenOpen, int BattleKey, bool PassDone, bool Aborted);
+    public readonly record struct FormationArmState(
+        bool ScreenOpen, int BattleKey, bool PassDone, bool Aborted, int SurfaceKey = 0);
 
     /// <summary>
-    ///     Advance the formation-phase latch. Screen close clears everything. Screen open after close, or a
-    ///     battle-key change while the screen stays open and the phase was not aborted, re-arms the pass.
-    ///     PURE.
+    ///     Advance the formation-phase latch. Screen close clears everything. Screen open after close, a
+    ///     battle-key change, or a surface change while the screen stays open and the phase was not aborted,
+    ///     re-arms the pass. Territory alone is not a re-arm signal. PURE.
     /// </summary>
-    public static FormationArmState NextFormationArm(FormationArmState prev, bool screenOpen, int battleKey)
+    public static FormationArmState NextFormationArm(
+        FormationArmState prev, bool screenOpen, int battleKey, int surfaceKey = 0)
     {
         if (!screenOpen)
-            return new(false, 0, false, false);
+            return new(false, 0, false, false, 0);
 
         if (!prev.ScreenOpen)
-            return new(true, battleKey, false, false);
+            return new(true, battleKey, false, false, surfaceKey);
 
-        if (battleKey != prev.BattleKey && !prev.Aborted)
-            return new(true, battleKey, false, false);
+        if ((battleKey != prev.BattleKey || surfaceKey != prev.SurfaceKey) && !prev.Aborted)
+            return new(true, battleKey, false, false, surfaceKey);
 
-        return new(true, battleKey, prev.PassDone, prev.Aborted);
+        return new(true, battleKey, prev.PassDone, prev.Aborted, surfaceKey);
     }
 
     /// <summary> Whether the assign pass may run under the current latch. PURE. </summary>

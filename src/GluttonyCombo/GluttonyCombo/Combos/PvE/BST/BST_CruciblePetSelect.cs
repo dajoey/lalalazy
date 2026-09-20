@@ -20,21 +20,28 @@ using static GluttonyCombo.Combos.PvE.BST_CrucibleAdvisor;
 namespace GluttonyCombo.Combos.PvE;
 
 /// <summary>
-///     Crucible pet-selection autograb (live). Gates on Crucible territory, a non-empty run roster, and a
-///     screen-open signal (XBMActivePet visible) — never on StageMode. Ranks via <see cref="PickSlots"/> and
-///     assigns through the proven ReceiveEvent toggle route and/or PR #1952 TogglePet/ApplyPetSelection, with
-///     SelectedPetIds read-back abort. StageMode is telemetry only. Default-off.
+///     Crucible pet-selection autograb (live). Arms when a familiar-selection addon is open
+///     (<c>XBMActivePet</c> or <c>XBMPetParty</c>) and the run roster is readable — never on territory and
+///     never on StageMode. Works at Bentbranch Meadows (pre-entry) and on a board. Ranks via
+///     <see cref="PickSlots"/> or <see cref="PickSlotsCoverage"/>; assigns through the proven ReceiveEvent
+///     toggle route and/or PR #1952 TogglePet/ApplyPetSelection, with SelectedPetIds read-back abort.
+///     StageMode is telemetry only. Default-off.
 /// </summary>
 internal static unsafe class BST_CruciblePetSelect
 {
     // AgentXBMPetParty offsets (PR #1952 / DailyRoutines production).
     private const int PartyPetListAddonId = 0x60;
+    private const int PartyContentId = 0x70;
     private const int PartySelectedPets = 0x78;
     private const int PartySelectedPetIds = 0x90;
     private const int PartyCandidatePets = 0xA8;
     private const int PartyCurrentHp = 0xC0;
     private const int PartyMaxHp = 0xFC;
     private const int PartySlots = 15;
+
+    /// <summary> Phase-key surface: 0 = pre-entry (no board territory), 1 = in-board. </summary>
+    private const int SurfacePreentry = 0;
+    private const int SurfaceBoard = 1;
 
     // AgentXBMStageDetailList.
     private const int StageContentId = 0x38;
@@ -70,7 +77,7 @@ internal static unsafe class BST_CruciblePetSelect
     private static int _lastBoard;
     private static string _lastPhaseSig = "";
 
-    /// <summary> Framework tick: probe lifecycle + one autograb pass per formation phase. </summary>
+    /// <summary> Framework tick: probe lifecycle + one autograb pass per formation phase. Territory is never a gate. </summary>
     internal static void Tick()
     {
         if (Player.Job is not Job.BST || Player.Object is null)
@@ -80,31 +87,26 @@ internal static unsafe class BST_CruciblePetSelect
             return;
         }
 
-        var board = BST_CrucibleData.BoardOfTerritory(Svc.ClientState.TerritoryType);
-        if (board == 0)
-        {
-            TeardownProbe();
-            ResetRun();
-            return;
-        }
+        var territoryBoard = BST_CrucibleData.BoardOfTerritory(Svc.ClientState.TerritoryType);
 
-        if (board != _lastBoard)
+        if (territoryBoard != _lastBoard)
         {
-            _lastBoard = board;
+            _lastBoard = territoryBoard;
             _loggedAggroThisRun = false;
         }
 
+        // Probe follows the addons, not the territory — must stay armed at Bentbranch.
         EnsureProbe();
         if (!_loggedAggroThisRun)
         {
             _loggedAggroThisRun = true;
             var aggro = (CrucibleAggroMode)(int)BST.Config.BST_CrucibleAggro;
-            LogPs($"PS|{UnixMs()}|aggro={(int)aggro}|aggroName={aggro}|b={board}|note=effective_default_On_stored_overrides");
+            LogPs($"PS|{UnixMs()}|aggro={(int)aggro}|aggroName={aggro}|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|note=effective_default_On_stored_overrides");
         }
 
         try
         {
-            RunFormationPass(board);
+            RunFormationPass(territoryBoard);
         }
         catch (Exception ex)
         {
@@ -136,41 +138,65 @@ internal static unsafe class BST_CruciblePetSelect
     {
         var stage = GetAgent(AgentId.XBMStageDetailList);
         var pet = GetAgent(AgentId.XBMPetParty);
-        if (pet == 0)
-            return;
+        var surfaceKey = territoryBoard != 0 ? SurfaceBoard : SurfacePreentry;
+        var surfaceName = surfaceKey == SurfaceBoard ? "board" : "preentry";
+        var xbmNames = ListVisibleXbmAddons();
+        var agentNonZero = pet != 0;
 
         var mode = stage != 0 ? *(uint*)(stage + StageMode) : uint.MaxValue;
         var activePetOpen = IsAddonVisible("XBMActivePet");
-        var petListOpen = IsPetListAddonVisible(pet);
-        var partyAddonShown = IsAgentAddonShown(pet);
-        // Chosen gate signal: XBMActivePet presence+visibility (G5). Pet-list / agent-addon are logged only.
-        var screenOpen = activePetOpen;
+        var petPartyOpen = IsAddonVisible("XBMPetParty");
+        var petListOpen = pet != 0 && IsPetListAddonVisible(pet);
+        var partyAddonShown = pet != 0 && IsAgentAddonShown(pet);
+        // Arming gate: a Crucible familiar-selection addon is open (territory is never decisive).
+        var screenOpen = activePetOpen || petPartyOpen;
 
-        if (!TryReadPetVector(pet, PartySelectedPets, out var partyRows) || partyRows.Count == 0)
+        var partyCount = 0;
+        List<int> partyRows = [];
+        if (pet != 0 && TryReadPetVector(pet, PartySelectedPets, out partyRows))
+            partyCount = partyRows.Count;
+
+        // Observer line above every assign gate: fires on change while BST, any territory.
+        if (partyCount == 0)
         {
-            // No roster yet — keep StageMode telemetry out of decisions; still emit phase when signals move.
-            MaybeLogPhase(pet, territoryBoard, mode, activePetOpen, petListOpen, partyAddonShown, screenOpen, armed: false, partyCount: 0);
+            MaybeLogPhase(pet, territoryBoard, mode, activePetOpen, petPartyOpen, petListOpen, partyAddonShown,
+                screenOpen, armed: false, partyCount: 0, surfaceName, xbmNames, agentNonZero);
             if (!screenOpen)
             {
-                _arm = NextFormationArm(_arm, false, 0);
+                _arm = NextFormationArm(_arm, false, 0, surfaceKey);
                 _loggedOffThisPhase = false;
+            }
+            else
+            {
+                // Screen open but no roster → not armed (A2). Still advance latch so reopen re-arms.
+                var prevOpenEmpty = _arm.ScreenOpen;
+                _arm = NextFormationArm(_arm, screenOpen, 0, surfaceKey);
+                if (!prevOpenEmpty && _arm.ScreenOpen)
+                    _loggedOffThisPhase = false;
             }
             return;
         }
 
+        var contentBoard = pet != 0 ? *(uint*)(pet + PartyContentId) : 0u;
         var battleKey = 0;
-        if (stage != 0 && TryIdentifyBattle(stage, territoryBoard, out _, out var battle, out var detailId, out _))
+        if (stage != 0 && TryIdentifyBattle(stage, territoryBoard != 0 ? territoryBoard : (int)contentBoard,
+                out _, out var battle, out var detailId, out _))
             battleKey = (int)detailId != 0 ? (int)detailId : battle + 1;
+        else if (contentBoard is >= 1 and <= 5)
+            battleKey = -(int)contentBoard; // coverage phase key per board
+        else if (territoryBoard != 0)
+            battleKey = -territoryBoard;
 
         var prevOpen = _arm.ScreenOpen;
-        _arm = NextFormationArm(_arm, screenOpen, battleKey);
+        _arm = NextFormationArm(_arm, screenOpen, battleKey, surfaceKey);
         if (!prevOpen && _arm.ScreenOpen)
             _loggedOffThisPhase = false;
         if (!_arm.ScreenOpen)
             _loggedOffThisPhase = false;
 
-        var armed = IsFormationArmed(in _arm);
-        MaybeLogPhase(pet, territoryBoard, mode, activePetOpen, petListOpen, partyAddonShown, screenOpen, armed, partyRows.Count);
+        var armed = IsFormationArmed(in _arm) && partyCount > 0;
+        MaybeLogPhase(pet, territoryBoard, mode, activePetOpen, petPartyOpen, petListOpen, partyAddonShown,
+            screenOpen, armed, partyCount, surfaceName, xbmNames, agentNonZero);
 
         if (!screenOpen)
             return;
@@ -183,7 +209,7 @@ internal static unsafe class BST_CruciblePetSelect
         {
             if (!_loggedOffThisPhase)
             {
-                LogPs($"PS|{now}|opt=0|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|mode={mode}|activePet={(activePetOpen ? 1 : 0)}|petList={(petListOpen ? 1 : 0)}|partyAddon={(partyAddonShown ? 1 : 0)}|party={partyRows.Count}|calls=0|note=off");
+                LogPs($"PS|{now}|opt=0|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|mode={mode}|surface={surfaceName}|activePet={(activePetOpen ? 1 : 0)}|petParty={(petPartyOpen ? 1 : 0)}|petList={(petListOpen ? 1 : 0)}|partyAddon={(partyAddonShown ? 1 : 0)}|party={partyCount}|calls=0|note=off");
                 _loggedOffThisPhase = true;
             }
             if (armed)
@@ -196,12 +222,12 @@ internal static unsafe class BST_CruciblePetSelect
 
         // Resolve sigs unconditionally so telemetry learns whether they resolve on this game version.
         var sigsOk = EnsureSigs();
-        LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|sigs={(sigsOk ? "ok" : "miss")}|calls=0");
+        LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|sigs={(sigsOk ? "ok" : "miss")}|calls=0");
 
         var eventOk = EnsureReceiveEvent(pet);
         if (!sigsOk && !eventOk)
         {
-            LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|abort=no_assign_route|sigs=miss|event=0|calls=0");
+            LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|abort=no_assign_route|sigs=miss|event=0|calls=0");
             _arm = MarkFormationAborted(in _arm);
             return;
         }
@@ -210,33 +236,59 @@ internal static unsafe class BST_CruciblePetSelect
         // Sig route has never resolved at runtime on a graded build.
         var route = eventOk ? "event" : "sig";
 
-        if (stage == 0 || !TryIdentifyBattle(stage, territoryBoard, out var board, out battle, out detailId, out var nameIds))
+        int board;
+        List<uint> nameIds;
+        List<CrucibleBeastPick> picks;
+        var coverage = false;
+
+        if (stage != 0 && TryIdentifyBattle(stage, territoryBoard != 0 ? territoryBoard : (int)contentBoard,
+                out board, out battle, out detailId, out nameIds))
         {
-            LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|abort=battle_unidentified|route={route}|calls=0");
-            _arm = MarkFormationPassDone(in _arm);
-            return;
+            var hpPets = ReadPartyHpRaw(pet, partyRows);
+            var hpMap = HpPercentByRow(hpPets);
+            var candidates = new List<int>(partyRows.Count);
+            foreach (var r in partyRows)
+                if (r is >= 1 and <= BST_Beasts.Count)
+                    candidates.Add(r);
+            picks = PickSlots(board, battle, candidates, hpMap, 3);
+        }
+        else
+        {
+            board = territoryBoard != 0 ? territoryBoard
+                : contentBoard is >= 1 and <= 5 ? (int)contentBoard
+                : 0;
+            if (board is < 1 or > 5)
+            {
+                LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|content={contentBoard}|abort=battle_unidentified|route={route}|calls=0");
+                _arm = MarkFormationPassDone(in _arm);
+                return;
+            }
+
+            coverage = true;
+            battle = -1;
+            detailId = 0;
+            nameIds = [];
+            var hpPets = ReadPartyHpRaw(pet, partyRows);
+            var hpMap = HpPercentByRow(hpPets);
+            var candidates = new List<int>(partyRows.Count);
+            foreach (var r in partyRows)
+                if (r is >= 1 and <= BST_Beasts.Count)
+                    candidates.Add(r);
+            picks = PickSlotsCoverage(board, candidates, hpMap, 3);
         }
 
-        var hpPets = ReadPartyHpRaw(pet, partyRows);
-        var hpMap = HpPercentByRow(hpPets);
-        var candidates = new List<int>(partyRows.Count);
-        foreach (var r in partyRows)
-            if (r is >= 1 and <= BST_Beasts.Count)
-                candidates.Add(r);
-
-        var picks = PickSlots(board, battle, candidates, hpMap, 3);
         var currentHorns = ReadPetIds(pet, PartySelectedPetIds);
         var changes = PlanHornChanges(currentHorns, picks);
 
-        var candStr = string.Join(",", hpPets.ConvertAll(p =>
+        var candStr = string.Join(",", ReadPartyHpRaw(pet, partyRows).ConvertAll(p =>
             $"{p.Row}:{(p.Max == 0 || p.Current == 0 ? 0 : (int)Math.Round(100.0 * p.Current / p.Max))}"));
-        var pickStr = string.Join(",", picks.ConvertAll(p => $"{p.Row}:{Clean(p.Why, 40)}"));
+        var pickStr = string.Join(",", picks.ConvertAll(p => $"{p.Row}:{Clean(p.Why, 80)}"));
         var nameStr = string.Join(",", nameIds);
-        LogPs($"PS|{now}|opt=1|b={board}|terr={Svc.ClientState.TerritoryType}|bt={battle}|detail={detailId}|names={nameStr}|cand={candStr}|picks={pickStr}|need={changes.Count}|route={route}|sigs={(sigsOk ? "ok" : "miss")}");
+        LogPs($"PS|{now}|opt=1|b={board}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|bt={battle}|detail={detailId}|coverage={(coverage ? 1 : 0)}|names={nameStr}|cand={candStr}|picks={pickStr}|need={changes.Count}|route={route}|sigs={(sigsOk ? "ok" : "miss")}");
 
         if (changes.Count == 0)
         {
-            LogPs($"PS|{now}|opt=1|b={board}|bt={battle}|route={route}|calls=0|readback=ok|note=already_correct|apply=not_needed");
+            LogPs($"PS|{now}|opt=1|b={board}|bt={battle}|surface={surfaceName}|route={route}|calls=0|readback=ok|note=already_correct|apply=not_needed");
             _arm = MarkFormationPassDone(in _arm);
             return;
         }
@@ -306,7 +358,7 @@ internal static unsafe class BST_CruciblePetSelect
             return;
         }
 
-        LogPs($"PS|{now}|opt=1|b={board}|bt={battle}|route={route}|calls={string.Join(",", calls)}|readback=ok|apply={(applyNeeded ? "needed" : "not_needed")}|sl={string.Join(".", final)}");
+        LogPs($"PS|{now}|opt=1|b={board}|bt={battle}|surface={surfaceName}|route={route}|calls={string.Join(",", calls)}|readback=ok|apply={(applyNeeded ? "needed" : "not_needed")}|sl={string.Join(".", final)}");
         _arm = MarkFormationPassDone(in _arm);
     }
 
@@ -524,26 +576,59 @@ internal static unsafe class BST_CruciblePetSelect
 
     private static void MaybeLogPhase(
         nint pet, int territoryBoard, uint mode,
-        bool activePetOpen, bool petListOpen, bool partyAddonShown, bool screenOpen, bool armed, int partyCount)
+        bool activePetOpen, bool petPartyOpen, bool petListOpen, bool partyAddonShown,
+        bool screenOpen, bool armed, int partyCount, string surfaceName, string xbmNames, bool agentNonZero)
     {
         try
         {
-            var flutes = partyCount > 0 ? ReadPetIds(pet, PartySelectedPetIds) : [];
+            var flutes = partyCount > 0 && pet != 0 ? ReadPetIds(pet, PartySelectedPetIds) : [];
             var optOn = (bool)BST.Config.BST_CrucibleAutoGrab;
             var sig =
-                $"m={mode}|ap={(activePetOpen ? 1 : 0)}|pl={(petListOpen ? 1 : 0)}|pa={(partyAddonShown ? 1 : 0)}"
-                + $"|so={(screenOpen ? 1 : 0)}|arm={(armed ? 1 : 0)}|opt={(optOn ? 1 : 0)}|p={partyCount}|f={flutes.Count}|bk={_arm.BattleKey}";
+                $"m={mode}|ap={(activePetOpen ? 1 : 0)}|pp={(petPartyOpen ? 1 : 0)}|pl={(petListOpen ? 1 : 0)}|pa={(partyAddonShown ? 1 : 0)}"
+                + $"|so={(screenOpen ? 1 : 0)}|arm={(armed ? 1 : 0)}|opt={(optOn ? 1 : 0)}|p={partyCount}|f={flutes.Count}"
+                + $"|bk={_arm.BattleKey}|sf={_arm.SurfaceKey}|xb={xbmNames}|ag={(agentNonZero ? 1 : 0)}";
             if (sig == _lastPhaseSig)
                 return;
             _lastPhaseSig = sig;
-            LogPs($"PS|{UnixMs()}|gate=phase|mode={mode}|activePet={(activePetOpen ? 1 : 0)}|petList={(petListOpen ? 1 : 0)}"
-                + $"|partyAddon={(partyAddonShown ? 1 : 0)}|screen={(screenOpen ? 1 : 0)}|armed={(armed ? 1 : 0)}"
+            LogPs($"PS|{UnixMs()}|gate=phase|mode={mode}|surface={surfaceName}|activePet={(activePetOpen ? 1 : 0)}|petParty={(petPartyOpen ? 1 : 0)}"
+                + $"|petList={(petListOpen ? 1 : 0)}|partyAddon={(partyAddonShown ? 1 : 0)}|screen={(screenOpen ? 1 : 0)}|armed={(armed ? 1 : 0)}"
                 + $"|opt={(optOn ? 1 : 0)}|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}"
-                + $"|party={partyCount}|flutes={flutes.Count}|sl={string.Join(".", flutes)}|bk={_arm.BattleKey}|calls=0");
+                + $"|agent={(agentNonZero ? 1 : 0)}|xbm={xbmNames}"
+                + $"|party={partyCount}|flutes={flutes.Count}|sl={string.Join(".", flutes)}|bk={_arm.BattleKey}|sk={_arm.SurfaceKey}|calls=0");
         }
         catch (Exception ex)
         {
             Svc.Log.Debug(ex, "[BST_CruciblePetSelect] phase log failed");
+        }
+    }
+
+    /// <summary> Visible addon names starting with XBM, comma-joined (empty if none). </summary>
+    private static string ListVisibleXbmAddons()
+    {
+        try
+        {
+            var manager = RaptureAtkUnitManager.Instance();
+            if (manager is null)
+                return "";
+            var list = manager->AtkUnitManager.AllLoadedUnitsList;
+            var count = Math.Min((int)list.Count, list.Entries.Length);
+            var names = new List<string>(8);
+            for (var i = 0; i < count; i++)
+            {
+                var unit = list.Entries[i].Value;
+                if (unit is null || !unit->IsVisible)
+                    continue;
+                var name = unit->NameString;
+                if (name is null || !name.StartsWith("XBM", StringComparison.Ordinal))
+                    continue;
+                if (!names.Contains(name))
+                    names.Add(name);
+            }
+            return string.Join(",", names);
+        }
+        catch
+        {
+            return "";
         }
     }
 
@@ -681,7 +766,7 @@ internal static unsafe class BST_CruciblePetSelect
     {
         try
         {
-            if (!_probeWanted || BST_CrucibleData.BoardOfTerritory(Svc.ClientState.TerritoryType) == 0)
+            if (!_probeWanted)
                 return;
 
             var inv = CultureInfo.InvariantCulture;

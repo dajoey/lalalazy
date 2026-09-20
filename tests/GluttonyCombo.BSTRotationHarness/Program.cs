@@ -442,6 +442,30 @@ internal static class Program
             screenOpen: true, battleKey: 11);
         Check("FormationArm: aborted phase re-arms after screen drop",
             BST_CrucibleAdvisor.IsFormationArmed(abortCleared));
+
+        // --- Round-7 surface / pre-entry arming ---
+        var preentryOpen = BST_CrucibleAdvisor.NextFormationArm(closed, screenOpen: true, battleKey: -1, surfaceKey: 0);
+        Check("FormationArm: screen opens outside any board (preentry surface) → armed",
+            BST_CrucibleAdvisor.IsFormationArmed(preentryOpen) && preentryOpen.SurfaceKey == 0);
+
+        // "No roster" is a live-layer gate (armed requires partyCount>0); the latch itself still arms on screen open.
+        // Territory change alone must not re-arm: same surface + same battle key, pass already done.
+        var preentryDone = BST_CrucibleAdvisor.MarkFormationPassDone(preentryOpen);
+        var territoryOnly = BST_CrucibleAdvisor.NextFormationArm(preentryDone, screenOpen: true, battleKey: -1, surfaceKey: 0);
+        Check("FormationArm: territory change alone (same surface+battle key) → not re-armed",
+            !BST_CrucibleAdvisor.IsFormationArmed(territoryOnly) && territoryOnly.PassDone);
+
+        var surfaceFlip = BST_CrucibleAdvisor.NextFormationArm(preentryDone, screenOpen: true, battleKey: -1, surfaceKey: 1);
+        Check("FormationArm: surface preentry→board → re-armed",
+            BST_CrucibleAdvisor.IsFormationArmed(surfaceFlip) && surfaceFlip.SurfaceKey == 1 && !surfaceFlip.PassDone);
+
+        // Coverage ranking: board known, no single battle — Why must carry the coverage tag.
+        var covCandidates = new[] { 1, 4, 5, 7, 11 }; // Cu Sith, spriggan-ish rows from B1 roster samples
+        var covHp = new Dictionary<int, int> { [1] = 100, [4] = 100, [5] = 100, [7] = 100, [11] = 100 };
+        var cov = BST_CrucibleAdvisor.PickSlotsCoverage(1, covCandidates, covHp, 3);
+        Check("PickSlotsCoverage: returns up to 3 picks for board 1", cov.Count is >= 1 and <= 3);
+        Check("PickSlotsCoverage: every Why starts with coverage board tag",
+            cov.Count > 0 && cov.All(p => p.Why.StartsWith("coverage board 1", StringComparison.Ordinal)));
     }
 
     /// <summary> In combat on the First Board, L30, Cu Sith out (One with Nature spent), raptor / buffalo on ready horns 2 and 3. </summary>
