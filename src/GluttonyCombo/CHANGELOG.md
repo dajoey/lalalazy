@@ -1,3 +1,9 @@
+## v1.0.4.227 (2026-09-20) [testing]
+### Fixed
+- **Conflict scanner no longer aborts when BossMod Reborn reports an AI auto-target conflict and classic BossMod is not installed.** The Reborn AI-targeting conflict row was labelled with the classic BossMod internal name, so building that row threw and the whole settings-conflict pass failed every tick.
+### Notes
+- Latent copy-paste error in the Reborn settings block; production channel unchanged.
+
 ## v1.0.4.226 (2026-09-20) [testing]
 ### Fixed
 - **Battlehorn Auto-fill no longer deselects a familiar that is already in the horn when rewriting overlapping picks.** Toggles flip membership; a slot-ordered rewrite that re-toggled an already-selected familiar turned it off and the read-back aborted, which could leave the horn empty after restore. Removals and additions are now a membership delta against the live selection; Apply still runs when order alone is wrong.

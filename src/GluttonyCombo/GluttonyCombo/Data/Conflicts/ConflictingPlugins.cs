@@ -506,7 +506,7 @@ public static class ConflictingPlugins
         if (ConflictingPluginsChecks.BossModReborn.AiTargetingConflicted)
         {
             conflicts = conflicts.Append(new Conflict(
-                    "BossMod", ConflictType.Settings,
+                    "BossModReborn", ConflictType.Settings,
                     "AI is enabled without disabling auto-target [check 'Manual Targeting']"))
                 .ToArray();
         }
