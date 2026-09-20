@@ -73,6 +73,11 @@ internal static unsafe class BST_CruciblePetSelect
 
     private static Hook<ReceiveEventDelegate>? _receiveEventHook;
     private static Hook<ReceiveEventDelegate>? _receiveEventWithResultHook;
+    private static Hook<ReceiveEventDelegate>? _notebookReceiveEventHook;
+    private static Hook<ReceiveEventDelegate>? _notebookReceiveEventWithResultHook;
+    private static readonly HashSet<nint> _probeHookedAddrs = [];
+    private static nint _petPartyAgent;
+    private static nint _notebookAgent;
     private static bool _probeWanted;
 
     private static bool _disarmRestOfScreen;
@@ -814,35 +819,31 @@ internal static unsafe class BST_CruciblePetSelect
         return callSite + 5 + rel;
     }
 
-    // ------------------------------------------------------------------ PSP| probe (read-only ReceiveEvent)
+    // ------------------------------------------------------------- PSP| probe (read-only ReceiveEvent)
+    // Watched agents: AgentXBMPetParty (roster remove / horn toggles) and
+    // AgentXBMMonsterNotebook (roster ADD — 2026-09-19 evening session proved adds arrive
+    // there, not on the pet-party agent). Lines carry `ag=pp|nb` so a capture names its agent.
+    // If an agent does not override ReceiveEvent, its vtable slot is the shared base
+    // implementation also used by unrelated agents; attribution by agent pointer keeps those
+    // events out, and the same address is never hooked twice.
 
     private static void EnsureProbe()
     {
         _probeWanted = true;
-        if (_receiveEventHook is not null || _receiveEventWithResultHook is not null)
-            return;
         try
         {
-            var agent = (AgentInterface*)GetAgent(AgentId.XBMPetParty);
-            if (agent is null)
-                return;
-            var vt = agent->VirtualTable;
-            if (vt is null)
-                return;
-
-            var receiveEvent = (nint)vt->ReceiveEvent;
-            if (receiveEvent != 0)
+            var pet = GetAgent(AgentId.XBMPetParty);
+            if (pet != 0)
             {
-                _receiveEventHook = Svc.Hook.HookFromAddress<ReceiveEventDelegate>(receiveEvent, ReceiveEventDetour);
-                _receiveEventHook.Enable();
+                _petPartyAgent = pet;
+                EnsureProbeHooks(pet, notebook: false);
             }
 
-            var receiveEventWithResult = (nint)vt->ReceiveEventWithResult;
-            if (receiveEventWithResult != 0 && receiveEventWithResult != receiveEvent)
+            var notebook = GetAgent(AgentId.XBMMonsterNotebook);
+            if (notebook != 0)
             {
-                _receiveEventWithResultHook =
-                    Svc.Hook.HookFromAddress<ReceiveEventDelegate>(receiveEventWithResult, ReceiveEventWithResultDetour);
-                _receiveEventWithResultHook.Enable();
+                _notebookAgent = notebook;
+                EnsureProbeHooks(notebook, notebook: true);
             }
         }
         catch (Exception ex)
@@ -851,11 +852,57 @@ internal static unsafe class BST_CruciblePetSelect
         }
     }
 
+    /// <summary> Hook both event entries on one agent's vtable, once per distinct address. </summary>
+    private static void EnsureProbeHooks(nint agentAddr, bool notebook)
+    {
+        var agent = (AgentInterface*)agentAddr;
+        var vt = agent->VirtualTable;
+        if (vt is null)
+            return;
+
+        var receiveEvent = (nint)vt->ReceiveEvent;
+        if (receiveEvent != 0 && _probeHookedAddrs.Add(receiveEvent))
+        {
+            if (notebook)
+            {
+                _notebookReceiveEventHook = Svc.Hook.HookFromAddress<ReceiveEventDelegate>(receiveEvent, NotebookReceiveEventDetour);
+                _notebookReceiveEventHook.Enable();
+            }
+            else
+            {
+                _receiveEventHook = Svc.Hook.HookFromAddress<ReceiveEventDelegate>(receiveEvent, ReceiveEventDetour);
+                _receiveEventHook.Enable();
+            }
+        }
+
+        var receiveEventWithResult = (nint)vt->ReceiveEventWithResult;
+        if (receiveEventWithResult != 0 && _probeHookedAddrs.Add(receiveEventWithResult))
+        {
+            if (notebook)
+            {
+                _notebookReceiveEventWithResultHook =
+                    Svc.Hook.HookFromAddress<ReceiveEventDelegate>(receiveEventWithResult, NotebookReceiveEventWithResultDetour);
+                _notebookReceiveEventWithResultHook.Enable();
+            }
+            else
+            {
+                _receiveEventWithResultHook =
+                    Svc.Hook.HookFromAddress<ReceiveEventDelegate>(receiveEventWithResult, ReceiveEventWithResultDetour);
+                _receiveEventWithResultHook.Enable();
+            }
+        }
+    }
+
     private static void TeardownProbe()
     {
         _probeWanted = false;
         DisposeHook(ref _receiveEventHook);
         DisposeHook(ref _receiveEventWithResultHook);
+        DisposeHook(ref _notebookReceiveEventHook);
+        DisposeHook(ref _notebookReceiveEventWithResultHook);
+        _probeHookedAddrs.Clear();
+        _petPartyAgent = 0;
+        _notebookAgent = 0;
     }
 
     private static void DisposeHook(ref Hook<ReceiveEventDelegate>? hook)
@@ -874,28 +921,53 @@ internal static unsafe class BST_CruciblePetSelect
     private static AtkValue* ReceiveEventDetour(
         AgentInterface* agent, AtkValue* returnValues, AtkValue* values, uint valueCount, ulong eventKind)
     {
-        LogProbe("re", values, valueCount, eventKind);
+        LogProbe(agent, "re", values, valueCount, eventKind);
         return _receiveEventHook!.Original(agent, returnValues, values, valueCount, eventKind);
     }
 
     private static AtkValue* ReceiveEventWithResultDetour(
         AgentInterface* agent, AtkValue* returnValues, AtkValue* values, uint valueCount, ulong eventKind)
     {
-        LogProbe("rewr", values, valueCount, eventKind);
+        LogProbe(agent, "rewr", values, valueCount, eventKind);
         return _receiveEventWithResultHook!.Original(agent, returnValues, values, valueCount, eventKind);
     }
 
-    /// <summary> Read-only PSP| record of one pet-party agent event. Never alters arguments or the return value. </summary>
-    private static void LogProbe(string via, AtkValue* values, uint valueCount, ulong eventKind)
+    private static AtkValue* NotebookReceiveEventDetour(
+        AgentInterface* agent, AtkValue* returnValues, AtkValue* values, uint valueCount, ulong eventKind)
+    {
+        LogProbe(agent, "re", values, valueCount, eventKind);
+        return _notebookReceiveEventHook!.Original(agent, returnValues, values, valueCount, eventKind);
+    }
+
+    private static AtkValue* NotebookReceiveEventWithResultDetour(
+        AgentInterface* agent, AtkValue* returnValues, AtkValue* values, uint valueCount, ulong eventKind)
+    {
+        LogProbe(agent, "rewr", values, valueCount, eventKind);
+        return _notebookReceiveEventWithResultHook!.Original(agent, returnValues, values, valueCount, eventKind);
+    }
+
+    /// <summary>
+    ///     Read-only PSP| record of one watched agent event. Never alters arguments or the return
+    ///     value. Only events whose `agent` is one of the two watched agents are emitted — a hook
+    ///     that landed on the shared base implementation otherwise logs every agent's traffic.
+    /// </summary>
+    private static void LogProbe(AgentInterface* agent, string via, AtkValue* values, uint valueCount, ulong eventKind)
     {
         try
         {
             if (!_probeWanted)
                 return;
 
+            var ag = (nint)agent == _petPartyAgent ? "pp"
+                : (nint)agent == _notebookAgent ? "nb"
+                : null;
+            if (ag is null)
+                return;
+
             var inv = CultureInfo.InvariantCulture;
             var sb = new StringBuilder(128);
             sb.Append("PSP|").Append(UnixMs().ToString(inv))
+              .Append("|ag=").Append(ag)
               .Append("|via=").Append(via)
               .Append("|kind=").Append(eventKind.ToString(inv))
               .Append("|n=").Append(valueCount.ToString(inv));

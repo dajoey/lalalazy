@@ -1,3 +1,11 @@
+## v1.0.4.223 (2026-09-20) [testing]
+### Added
+- **The read-only `PSP|` click probe now also watches the monster-notebook agent.** Adding a familiar to the ten-familiar run roster happens on the monster notebook screen, and those clicks never pass through the familiar-party agent the probe already covered, so a manual roster add was invisible to the log. Both agents' interface-event entries are now hooked, and every probe line names the agent it came from (`ag=pp` familiar party, `ag=nb` monster notebook).
+### Changed
+- Probe lines are emitted only for events actually delivered to one of the two watched agents, so shared interface plumbing can never be misattributed to a familiar screen.
+### Notes
+- The Auto-fill write path, abort/restore guard and defaults are unchanged from the previous testing build. The ten-familiar roster menu is still never written.
+
 ## v1.0.4.222 (2026-09-20) [testing]
 ### Fixed
 - **Battlehorn Auto-fill now sends the list position the screen expects, not the familiar's id.** Manual clicks on that screen toggle by index into the run roster; the previous testing build sent the familiar row and never landed. Decision lines record both the familiar and the index sent for it. Read-back compares the same horn-index field the write targeted.
