@@ -247,7 +247,7 @@
     <value>Auto-fill Battlehorn slots</value>
   </data>
   <data name="CrucibleAutoGrabDesc" xml:space="preserve">
-    <value>Off by default. On a Crucible familiar-selection screen (Bentbranch Meadows group selection or in-run), once per formation phase, fills empty or mismatched Battlehorn slots from the run roster. Picks are ranked for the opponent's elemental weakness, unanswered interrupt / dispel / cleanse abilities, crowd control that lands on that fight, and the fight's combat recommendations; HP is only a tie-breaker that demotes a hurt familiar. Never starts the fight.</value>
+    <value>Off by default. On a Crucible familiar-selection screen — the Bentbranch Meadows NPC roster menu or the in-run battlehorn — once per formation phase, fills empty or mismatched Battlehorn slots from the run roster when the open screen is addressing horn indices. Picks are ranked for the opponent's elemental weakness, unanswered interrupt / dispel / cleanse abilities, crowd control that lands on that fight, and the fight's combat recommendations; HP is only a tie-breaker that demotes a hurt familiar. Never starts the fight. Does not rewrite the ten-familiar run roster on the Bentbranch menu.</value>
   </data>
   <data name="CrucibleHornWarningMessage" xml:space="preserve">
     <value>Crucible: no beasts are assigned to the Battlehorns.</value>

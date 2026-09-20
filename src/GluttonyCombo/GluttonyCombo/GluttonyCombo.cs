@@ -433,8 +433,9 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
             if (Service.Configuration.ComboTelemetry)
                 BeastmasterTelemetry.Tick();
 
-            // Crucible pet-selection autograb + read-only PSP| probe. Self-gates on BST +
-            // Crucible territory; option-off still emits one PS| line per formation phase.
+            // Crucible pet-selection autograb + read-only PSP| probe. Arms when a familiar-selection
+            // addon is open (XBMActivePet / XBMPetParty), never on territory; option-off still emits
+            // one PS| line per formation phase.
             BST_CruciblePetSelect.Tick();
 
             if (Player.IsDead)

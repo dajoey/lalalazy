@@ -464,8 +464,31 @@ internal static class Program
         var covHp = new Dictionary<int, int> { [1] = 100, [4] = 100, [5] = 100, [7] = 100, [11] = 100 };
         var cov = BST_CrucibleAdvisor.PickSlotsCoverage(1, covCandidates, covHp, 3);
         Check("PickSlotsCoverage: returns up to 3 picks for board 1", cov.Count is >= 1 and <= 3);
-        Check("PickSlotsCoverage: every Why starts with coverage board tag",
-            cov.Count > 0 && cov.All(p => p.Why.StartsWith("coverage board 1", StringComparison.Ordinal)));
+        Check("PickSlotsCoverage: every Why starts with coverage board tag + unidentified",
+            cov.Count > 0 && cov.All(p => p.Why.StartsWith("coverage board 1, battle unidentified", StringComparison.Ordinal)));
+
+        // --- Round-8 horn index basis + party index resolve (autograb write route) ---
+        var partySample = new List<int> { 17, 28, 35, 22, 18, 6, 1, 12, 29, 27 };
+        Check("IsHornIndexBasis: empty with party → horn-capable",
+            BST_CrucibleAdvisor.IsHornIndexBasis(Array.Empty<int>(), partySample.Count));
+        Check("IsHornIndexBasis: 0.1.4 indices → horn",
+            BST_CrucibleAdvisor.IsHornIndexBasis(new[] { 0, 1, 4 }, partySample.Count));
+        Check("IsHornIndexBasis: ten familiar ids → not horn",
+            !BST_CrucibleAdvisor.IsHornIndexBasis(partySample, partySample.Count));
+        Check("IsHornIndexBasis: pet id 27 as lone value with party 10 → not horn",
+            !BST_CrucibleAdvisor.IsHornIndexBasis(new[] { 27 }, partySample.Count));
+        Check("FindPartyIndex: present row → index",
+            BST_CrucibleAdvisor.FindPartyIndex(partySample, 18) == 4
+            && BST_CrucibleAdvisor.FindPartyIndex(partySample, 17) == 0);
+        Check("FindPartyIndex: missing row → -1",
+            BST_CrucibleAdvisor.FindPartyIndex(partySample, 99) == -1);
+        var resolved = BST_CrucibleAdvisor.ResolveHornPetRows(new[] { 0, 1, 4 }, partySample);
+        Check("ResolveHornPetRows: indices 0.1.4 → pets 17.28.18",
+            resolved.Count == 3 && resolved[0] == 17 && resolved[1] == 28 && resolved[2] == 18);
+        Check("SelectionEquals: match / mismatch",
+            BST_CrucibleAdvisor.SelectionEquals(new[] { 0, 1, 4 }, new[] { 0, 1, 4 })
+            && !BST_CrucibleAdvisor.SelectionEquals(new[] { 0, 1, 4 }, new[] { 0 })
+            && !BST_CrucibleAdvisor.SelectionEquals(new[] { 0, 1 }, new[] { 0, 1, 4 }));
     }
 
     /// <summary> In combat on the First Board, L30, Cu Sith out (One with Nature spent), raptor / buffalo on ready horns 2 and 3. </summary>

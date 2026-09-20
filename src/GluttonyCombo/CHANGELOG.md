@@ -1,3 +1,13 @@
+## v1.0.4.222 (2026-09-20) [testing]
+### Fixed
+- **Battlehorn Auto-fill now sends the list position the screen expects, not the familiar's id.** Manual clicks on that screen toggle by index into the run roster; the previous testing build sent the familiar row and never landed. Decision lines record both the familiar and the index sent for it. Read-back compares the same horn-index field the write targeted.
+- **A failed pass no longer leaves the Battlehorn worse than it found it.** The pass snapshots the horn selection before the first toggle and restores it (or stops arming for the rest of that screen) when read-back aborts.
+- **Battle identity prefers the focused stage entry** when the board graph lists more than one fight, so ranking can name the opponent instead of always falling back to coverage. Coverage picks still label themselves as battle-unidentified when no focus is readable.
+### Changed
+- Option description names both surfaces (Bentbranch Meadows NPC roster menu and in-run battlehorn) and states that the ten-familiar Bentbranch roster is not rewritten by this pass — only horn-index screens are written.
+### Notes
+- Auto-fill remains off by default and never starts the fight. Offline harness adds horn-index basis, party-index resolve, and abort-restore equality checks.
+
 ## v1.0.4.221 (2026-09-20) [testing]
 ### Fixed
 - **Crucible Auto-fill Battlehorn slots now runs at Bentbranch Meadows as well as inside a board.** The pass no longer requires a Crucible territory. It arms when a familiar-selection screen is open (`XBMActivePet` or `XBMPetParty`) and the run roster is readable; territory is logged and never decisive.

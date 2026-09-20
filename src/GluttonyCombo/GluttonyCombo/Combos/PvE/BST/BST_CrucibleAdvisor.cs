@@ -348,7 +348,7 @@ internal static class BST_CrucibleAdvisor
             if (bestRow == 0)
                 break;
 
-            var why = new List<string>(6) { $"coverage board {board}" };
+            var why = new List<string>(6) { $"coverage board {board}, battle unidentified" };
             // Prefer the first non-boss battle's reasons as the readable sample; always keep the coverage tag.
             var sampleBattle = battles.Contains(1) ? 1 : battles[0];
             Score(board, sampleBattle, bestRow, covered, why, weaknessPicks);
@@ -411,9 +411,11 @@ internal static class BST_CrucibleAdvisor
     public readonly record struct HornSlotChange(int Slot, int FromRow, int ToRow);
 
     /// <summary>
-    ///     Which horn slots actually need a write given the current <c>SelectedPetIds</c> order and a
+    ///     Which horn slots actually need a write given the current horn occupants as familiar rows and a
     ///     <see cref="PickSlots"/> result. PURE: no game types. Slots already matching are omitted so a
     ///     second pass does not oscillate. Empty desired slots (fewer than 3 picks) are left alone.
+    ///     Callers on the live horn screen must first map <c>SelectedPetIds</c> indices through
+    ///     <see cref="ResolveHornPetRows"/>.
     /// </summary>
     public static List<HornSlotChange> PlanHornChanges(
         IReadOnlyList<int> currentSelectedPetIds,
@@ -430,6 +432,68 @@ internal static class BST_CrucibleAdvisor
                 changes.Add(new(slot, have, want));
         }
         return changes;
+    }
+
+    /// <summary>
+    ///     Whether <paramref name="selectedPetIds"/> is the battlehorn index basis (each value indexes
+    ///     <paramref name="partyRows"/>) rather than a roster of familiar row ids. PURE.
+    ///     Empty is treated as horn-capable when <paramref name="partyCount"/> is at least 1 so a fresh
+    ///     empty horn can be filled; a vector longer than 3, or any out-of-range value, is not horn basis.
+    /// </summary>
+    public static bool IsHornIndexBasis(IReadOnlyList<int> selectedPetIds, int partyCount)
+    {
+        if (partyCount <= 0)
+            return false;
+        if (selectedPetIds.Count > 3)
+            return false;
+        for (var i = 0; i < selectedPetIds.Count; i++)
+        {
+            var v = selectedPetIds[i];
+            if (v < 0 || v >= partyCount)
+                return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    ///     Map horn-slot indices in <paramref name="selectedPetIds"/> through the party roster to familiar
+    ///     rows. Out-of-range indices become 0. PURE.
+    /// </summary>
+    public static List<int> ResolveHornPetRows(IReadOnlyList<int> selectedPetIds, IReadOnlyList<int> partyRows)
+    {
+        var rows = new List<int>(selectedPetIds.Count);
+        for (var i = 0; i < selectedPetIds.Count; i++)
+        {
+            var idx = selectedPetIds[i];
+            rows.Add(idx >= 0 && idx < partyRows.Count ? partyRows[idx] : 0);
+        }
+        return rows;
+    }
+
+    /// <summary>
+    ///     Index of <paramref name="petRow"/> in <paramref name="partyRows"/>, or -1. PURE.
+    /// </summary>
+    public static int FindPartyIndex(IReadOnlyList<int> partyRows, int petRow)
+    {
+        if (petRow is < 1 or > BST_Beasts.Count)
+            return -1;
+        for (var i = 0; i < partyRows.Count; i++)
+            if (partyRows[i] == petRow)
+                return i;
+        return -1;
+    }
+
+    /// <summary>
+    ///     Whether two selection vectors match (same length and values). PURE. Used for abort-restore.
+    /// </summary>
+    public static bool SelectionEquals(IReadOnlyList<int> a, IReadOnlyList<int> b)
+    {
+        if (a.Count != b.Count)
+            return false;
+        for (var i = 0; i < a.Count; i++)
+            if (a[i] != b[i])
+                return false;
+        return true;
     }
 
     /// <summary>
