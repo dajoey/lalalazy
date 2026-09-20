@@ -1,3 +1,10 @@
+## v1.0.4.225 (2026-09-20) [testing]
+### Added
+- **Crucible Auto-fill now writes the ten-familiar run roster at the Bentbranch Meadows entry menu.** When opening the roster menu at Bentbranch Meadows, Auto-fill evaluates candidate familiars unlocked in the monster notebook, selects ten picks maximizing elemental and status coverage across the board's encounters, and synchronizes the run roster via notebook toggles.
+- **Roster synchronization verifies selection changes before committing.** Desired additions and removals are applied sequentially with snapshot and restore guards. The pass disarms upon confirming the updated roster count.
+### Notes
+- Battlehorn three-slot auto-fill inside Crucible duties remains unchanged. Offline harness verifies ten-slot coverage selection and roster delta planning. Production channel unchanged.
+
 ## v1.0.4.224 (2026-09-20) [testing]
 ### Fixed
 - **Battlehorn Auto-fill no longer treats a brief three-slot read on the Bentbranch roster menu as a Battlehorn screen.** Opening that menu can briefly show a short list that looks like horn positions; the previous testing build followed that read and tried a horn toggle, which the roster surface ignored and the read-back aborted without changing anything. The pass now recognizes the Bentbranch roster surface first (familiar party open without the three-slot ActivePet UI) and waits for the ten-familiar list to settle instead of writing.

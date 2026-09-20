@@ -261,18 +261,32 @@ internal static unsafe class BST_CruciblePetSelect
         var hornBasis = IsHornWriteBasis(selectedRaw, partyRows.Count, rosterSurface);
         if (!hornBasis)
         {
-            // Roster / pet-id basis: horn writer must not run — sending familiar ids as indices cleared horns on .221.
-            var basisNote = $"roster|{selectedRaw.Count}|{string.Join(".", selectedRaw)}|rs={(rosterSurface ? 1 : 0)}";
+            if (rosterSurface)
+            {
+                // Bentbranch ten-familiar roster: if transient (1..3 values while menu loads), wait to settle.
+                if (selectedRaw.Count is > 0 and <= 3)
+                {
+                    var transientNote = $"roster_transient|{selectedRaw.Count}|{string.Join(".", selectedRaw)}";
+                    if (transientNote != _lastBasisNote)
+                    {
+                        _lastBasisNote = transientNote;
+                        LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|basis=roster|sl={string.Join(".", selectedRaw)}|flutes={selectedRaw.Count}|rs=1|note=wait_roster_settle|route={route}|calls=0");
+                    }
+                    return;
+                }
+
+                _lastBasisNote = "";
+                ExecuteRosterWrite(pet, surfaceName, route, sigsOk, now, territoryBoard, contentBoard, selectedRaw);
+                return;
+            }
+
+            // On a board, keep the latch — SelectedPetIds often flashes roster ids then becomes an empty horn.
+            var basisNote = $"roster|{selectedRaw.Count}|{string.Join(".", selectedRaw)}|rs=0";
             if (basisNote != _lastBasisNote)
             {
                 _lastBasisNote = basisNote;
-                LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|basis=roster|sl={string.Join(".", selectedRaw)}|flutes={selectedRaw.Count}|rs={(rosterSurface ? 1 : 0)}|note=wait_horn_basis|route={route}|calls=0");
+                LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|basis=roster|sl={string.Join(".", selectedRaw)}|flutes={selectedRaw.Count}|rs=0|note=wait_horn_basis|route={route}|calls=0");
             }
-            // Bentbranch ten-familiar roster: consume the pass only once SelectedPetIds has settled past the
-            // ≤3 transient (roster writer is a different event shape). On a board, keep the latch —
-            // SelectedPetIds often flashes roster ids then becomes an empty horn.
-            if (surfaceKey == SurfacePreentry && selectedRaw.Count > 3)
-                _arm = MarkFormationPassDone(in _arm);
             return;
         }
         _lastBasisNote = "";
@@ -453,14 +467,139 @@ internal static unsafe class BST_CruciblePetSelect
         return true;
     }
 
+    private static void ExecuteRosterWrite(
+        nint pet, string surfaceName, string route, bool sigsOk, long now, int territoryBoard, uint contentBoard, List<int> selectedRaw)
+    {
+        var board = territoryBoard != 0 ? territoryBoard
+            : contentBoard is >= 1 and <= 5 ? (int)contentBoard
+            : 1;
+
+        // Try reading unlocked pets bitfield from AgentXBMMonsterNotebook (AgentId 500) at offset 0x70.
+        var notebook = GetAgent(AgentId.XBMMonsterNotebook);
+        var candidates = new List<int>(BST_Beasts.Count);
+        if (notebook != 0)
+        {
+            try
+            {
+                for (var row = 1; row <= BST_Beasts.Count; row++)
+                {
+                    var idx = row - 1;
+                    var b = *(byte*)(notebook + 0x70 + (idx >> 3));
+                    if ((b & (1 << (idx & 7))) != 0)
+                        candidates.Add(row);
+                }
+            }
+            catch
+            {
+                candidates.Clear();
+            }
+        }
+        if (candidates.Count == 0)
+        {
+            for (var row = 1; row <= BST_Beasts.Count; row++)
+                candidates.Add(row);
+        }
+
+        var candidatePets = ReadPetIds(pet, PartyCandidatePets);
+        var hpPets = ReadPartyHpRaw(pet, candidatePets.Count > 0 ? candidatePets : selectedRaw);
+        var hpMap = HpPercentByRow(hpPets);
+
+        var picks = BST_CrucibleAdvisor.PickSlotsCoverage(board, candidates, hpMap, 10);
+        var desiredRows = picks.ConvertAll(p => p.Row);
+
+        var snapshot = new List<int>(selectedRaw);
+        var changes = BST_CrucibleAdvisor.PlanRosterChanges(selectedRaw, picks);
+
+        var candStr = string.Join(",", candidates.ConvertAll(r => $"{r}:{(hpMap.TryGetValue(r, out var h) ? h : 100)}"));
+        var pickStr = string.Join(",", picks.ConvertAll(p => $"{p.Row}:{Clean(p.Why, 80)}"));
+        LogPs($"PS|{now}|opt=1|b={board}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|basis=roster|bt=-1|detail=0|coverage=1|names=|cand={candStr}|picks={pickStr}|need={changes.Count}|route={route}|sigs={(sigsOk ? "ok" : "miss")}");
+
+        if (changes.Count == 0)
+        {
+            LogPs($"PS|{now}|opt=1|b={board}|bt=-1|surface={surfaceName}|basis=roster|route={route}|calls=0|readback=ok|note=already_correct|apply=not_needed|sl={string.Join(".", snapshot)}");
+            _arm = MarkFormationPassDone(in _arm);
+            return;
+        }
+
+        var agent = (AgentInterface*)pet;
+        var calls = new List<string>(changes.Count + 2);
+
+        // Removals first
+        foreach (var c in changes)
+        {
+            if (c.FromRow is >= 1 and <= BST_Beasts.Count)
+            {
+                calls.Add($"TogglePet-rem{c.FromRow}");
+                if (_togglePet is not null)
+                {
+                    _togglePet(agent, (uint)c.FromRow);
+                }
+                else
+                {
+                    AbortWithRestore(pet, snapshot, now, board, -1, route, calls, "toggle_unavailable", isRosterSurface: true);
+                    return;
+                }
+            }
+        }
+
+        // Additions second
+        foreach (var c in changes)
+        {
+            if (c.ToRow is >= 1 and <= BST_Beasts.Count)
+            {
+                calls.Add($"TogglePet-add{c.ToRow}");
+                if (_togglePet is not null)
+                {
+                    _togglePet(agent, (uint)c.ToRow);
+                }
+                else
+                {
+                    AbortWithRestore(pet, snapshot, now, board, -1, route, calls, "toggle_unavailable", isRosterSurface: true);
+                    return;
+                }
+            }
+        }
+
+        if (_applyPetSelection is not null)
+        {
+            calls.Add("ApplyPetSelection");
+            _applyPetSelection(agent);
+        }
+
+        if (notebook != 0)
+        {
+            try
+            {
+                *(ushort*)(notebook + 0x5E) = 0x0101;
+            }
+            catch { }
+        }
+
+        var finalRows = ReadPetIds(pet, PartySelectedPetIds);
+        var desiredSet = new HashSet<int>(desiredRows);
+        var finalSet = new HashSet<int>(finalRows);
+
+        var match = desiredSet.SetEquals(finalSet);
+        if (!match)
+        {
+            AbortWithRestore(pet, snapshot, now, board, -1, route, calls, "roster_mismatch", isRosterSurface: true);
+            return;
+        }
+
+        var gained = finalRows.FindAll(r => !snapshot.Contains(r));
+        var dropped = snapshot.FindAll(r => !finalRows.Contains(r));
+        LogPs($"PS|{now}|opt=1|b={board}|bt=-1|surface={surfaceName}|basis=roster|route={route}|calls={string.Join(",", calls)}|readback=ok|apply=needed|pre={string.Join(".", snapshot)}|post={string.Join(".", finalRows)}|gain={string.Join(".", gained)}|dropped={string.Join(".", dropped)}|sl={string.Join(".", finalRows)}");
+        _arm = MarkFormationPassDone(in _arm);
+    }
+
     private static void AbortWithRestore(
-        nint pet, List<int> snapshot, long now, int board, int battle, string route, List<string> calls, string reason)
+        nint pet, List<int> snapshot, long now, int board, int battle, string route, List<string> calls, string reason, bool isRosterSurface = false)
     {
         var after = ReadPetIds(pet, PartySelectedPetIds);
         var damaged = !SelectionEquals(snapshot, after);
         var restored = false;
         if (damaged)
-            restored = TryRestoreSelection(pet, snapshot);
+            restored = TryRestoreSelection(pet, snapshot, isRosterSurface);
 
         var afterRestore = ReadPetIds(pet, PartySelectedPetIds);
         var match = SelectionEquals(snapshot, afterRestore);
@@ -475,17 +614,39 @@ internal static unsafe class BST_CruciblePetSelect
     }
 
     /// <summary>
-    ///     Best-effort restore of SelectedPetIds after a failed pass: toggle indices present only on one side.
+    ///     Best-effort restore of SelectedPetIds after a failed pass: toggle indices or familiar IDs present only on one side.
     ///     Returns true when a restore attempt ran; caller still verifies SelectionEquals.
     /// </summary>
-    private static bool TryRestoreSelection(nint pet, List<int> snapshot)
+    private static bool TryRestoreSelection(nint pet, List<int> snapshot, bool isRosterSurface)
     {
-        if (_receiveEvent is null)
-            return false;
         try
         {
             var agent = (AgentInterface*)pet;
             var current = ReadPetIds(pet, PartySelectedPetIds);
+
+            if (isRosterSurface)
+            {
+                if (_togglePet is null)
+                    return false;
+                foreach (var petId in current)
+                {
+                    if (!snapshot.Contains(petId) && petId is >= 1 and <= BST_Beasts.Count)
+                        _togglePet(agent, (uint)petId);
+                }
+                current = ReadPetIds(pet, PartySelectedPetIds);
+                foreach (var petId in snapshot)
+                {
+                    if (!current.Contains(petId) && petId is >= 1 and <= BST_Beasts.Count)
+                        _togglePet(agent, (uint)petId);
+                }
+                if (_applyPetSelection is not null)
+                    _applyPetSelection(agent);
+                return true;
+            }
+
+            if (_receiveEvent is null && _togglePet is null)
+                return false;
+            // Horn surface
             // Toggle off extras, then toggle on missing — order matches manual horn edits (toggle membership).
             foreach (var idx in current)
             {

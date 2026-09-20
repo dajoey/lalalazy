@@ -434,6 +434,42 @@ internal static class BST_CrucibleAdvisor
         return changes;
     }
 
+    /// <summary> One planned Crucible run roster rewrite: familiar to remove (FromRow, 0 if none), familiar to add (ToRow, 0 if none). </summary>
+    public readonly record struct RosterSlotChange(int FromRow, int ToRow);
+
+    /// <summary>
+    ///     Which roster familiars actually need a write given the current roster occupants as familiar rows and a
+    ///     <see cref="PickSlotsCoverage"/> result. PURE: no game types. Familiars already present are omitted so a
+    ///     second pass does not oscillate. Any current familiar not in desired is planned for removal; any desired
+    ///     familiar not in current is planned for addition.
+    /// </summary>
+    public static List<RosterSlotChange> PlanRosterChanges(
+        IReadOnlyList<int> currentRosterPetIds,
+        IReadOnlyList<CrucibleBeastPick> picks)
+    {
+        var desired = new List<int>(picks.Count);
+        for (var i = 0; i < picks.Count; i++)
+        {
+            if (picks[i].Row >= 1 && picks[i].Row <= BST_Beasts.Count && !desired.Contains(picks[i].Row))
+                desired.Add(picks[i].Row);
+        }
+
+        var changes = new List<RosterSlotChange>();
+        // Extras in current that are not in desired -> remove (ToRow = 0)
+        foreach (var cur in currentRosterPetIds)
+        {
+            if (cur >= 1 && cur <= BST_Beasts.Count && !desired.Contains(cur))
+                changes.Add(new RosterSlotChange(cur, 0));
+        }
+        // Missing in current that are in desired -> add (FromRow = 0)
+        foreach (var want in desired)
+        {
+            if (want >= 1 && want <= BST_Beasts.Count && !currentRosterPetIds.Contains(want))
+                changes.Add(new RosterSlotChange(0, want));
+        }
+        return changes;
+    }
+
     /// <summary>
     ///     Whether <paramref name="selectedPetIds"/> is the battlehorn index basis (each value indexes
     ///     <paramref name="partyRows"/>) rather than a roster of familiar row ids. PURE.

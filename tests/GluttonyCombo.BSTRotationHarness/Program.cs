@@ -499,6 +499,38 @@ internal static class Program
             BST_CrucibleAdvisor.SelectionEquals(new[] { 0, 1, 4 }, new[] { 0, 1, 4 })
             && !BST_CrucibleAdvisor.SelectionEquals(new[] { 0, 1, 4 }, new[] { 0 })
             && !BST_CrucibleAdvisor.SelectionEquals(new[] { 0, 1 }, new[] { 0, 1, 4 }));
+
+        // --- Round-10 Stage-1 roster writer planning and coverage tests ---
+        var allCandidates = new List<int>();
+        for (var r = 1; r <= BST_Beasts.Count; r++) allCandidates.Add(r);
+        var cov10 = BST_CrucibleAdvisor.PickSlotsCoverage(1, allCandidates, new Dictionary<int, int>(), 10);
+        Check("PickSlotsCoverage: 10 picks for roster on board 1", cov10.Count == 10);
+        Check("PickSlotsCoverage: all 10 picks unique", cov10.Select(p => p.Row).Distinct().Count() == 10);
+        Check("PickSlotsCoverage: all 10 Why start with coverage board 1",
+            cov10.All(p => p.Why.StartsWith("coverage board 1, battle unidentified", StringComparison.Ordinal)));
+
+        var covPicks = cov10;
+        var desired10 = cov10.ConvertAll(p => p.Row);
+        // Case 1: already matching -> 0 changes
+        var changesMatch = BST_CrucibleAdvisor.PlanRosterChanges(desired10, covPicks);
+        Check("PlanRosterChanges: identical roster → 0 changes", changesMatch.Count == 0);
+
+        // Case 2: completely disjoint roster
+        var actualDisjoint = allCandidates.Where(c => !desired10.Contains(c)).Take(10).ToList();
+        var changesDisjoint = BST_CrucibleAdvisor.PlanRosterChanges(actualDisjoint, covPicks);
+        Check("PlanRosterChanges: disjoint roster → 10 removes, 10 adds",
+            changesDisjoint.Count == 20
+            && changesDisjoint.Count(c => c.FromRow != 0 && c.ToRow == 0) == 10
+            && changesDisjoint.Count(c => c.FromRow == 0 && c.ToRow != 0) == 10);
+
+        // Case 3: 7 matching, 3 different
+        var partialSample = new List<int>(desired10.Take(7));
+        partialSample.AddRange(actualDisjoint.Take(3));
+        var changesPartial = BST_CrucibleAdvisor.PlanRosterChanges(partialSample, covPicks);
+        Check("PlanRosterChanges: 7 matching + 3 different → 3 removes, 3 adds",
+            changesPartial.Count == 6
+            && changesPartial.Count(c => c.FromRow != 0 && c.ToRow == 0) == 3
+            && changesPartial.Count(c => c.FromRow == 0 && c.ToRow != 0) == 3);
     }
 
     /// <summary> In combat on the First Board, L30, Cu Sith out (One with Nature spent), raptor / buffalo on ready horns 2 and 3. </summary>
