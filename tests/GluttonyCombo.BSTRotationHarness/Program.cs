@@ -477,6 +477,16 @@ internal static class Program
             !BST_CrucibleAdvisor.IsHornIndexBasis(partySample, partySample.Count));
         Check("IsHornIndexBasis: pet id 27 as lone value with party 10 → not horn",
             !BST_CrucibleAdvisor.IsHornIndexBasis(new[] { 27 }, partySample.Count));
+        // .222 live defect: transient horn-shaped sl=3.5.6 at Bentbranch roster-menu-open must not
+        // take the horn write path (screen/shape before size). Same vector on a board/ActivePet screen stays horn.
+        Check("IsHornWriteBasis: .222 transient 3.5.6 on roster surface → not horn",
+            !BST_CrucibleAdvisor.IsHornWriteBasis(new[] { 3, 5, 6 }, partySample.Count, rosterSurface: true));
+        Check("IsHornWriteBasis: .222 transient 3.5.6 on horn/board surface → horn",
+            BST_CrucibleAdvisor.IsHornWriteBasis(new[] { 3, 5, 6 }, partySample.Count, rosterSurface: false));
+        Check("IsHornWriteBasis: empty on roster surface → not horn (wait settle)",
+            !BST_CrucibleAdvisor.IsHornWriteBasis(Array.Empty<int>(), partySample.Count, rosterSurface: true));
+        Check("IsHornWriteBasis: empty on horn surface → horn-capable",
+            BST_CrucibleAdvisor.IsHornWriteBasis(Array.Empty<int>(), partySample.Count, rosterSurface: false));
         Check("FindPartyIndex: present row → index",
             BST_CrucibleAdvisor.FindPartyIndex(partySample, 18) == 4
             && BST_CrucibleAdvisor.FindPartyIndex(partySample, 17) == 0);

@@ -255,18 +255,22 @@ internal static unsafe class BST_CruciblePetSelect
         var route = eventOk ? "event" : "sig";
 
         var selectedRaw = ReadPetIds(pet, PartySelectedPetIds);
-        var hornBasis = IsHornIndexBasis(selectedRaw, partyRows.Count);
+        // Screen/shape before size: Bentbranch entry roster is PetParty without ActivePet on pre-entry.
+        // A transient ≤3 index-looking SelectedPetIds there must not take the horn path (.222 live defect).
+        var rosterSurface = surfaceKey == SurfacePreentry && !activePetOpen;
+        var hornBasis = IsHornWriteBasis(selectedRaw, partyRows.Count, rosterSurface);
         if (!hornBasis)
         {
             // Roster / pet-id basis: horn writer must not run — sending familiar ids as indices cleared horns on .221.
-            var basisNote = $"roster|{selectedRaw.Count}|{string.Join(".", selectedRaw)}";
+            var basisNote = $"roster|{selectedRaw.Count}|{string.Join(".", selectedRaw)}|rs={(rosterSurface ? 1 : 0)}";
             if (basisNote != _lastBasisNote)
             {
                 _lastBasisNote = basisNote;
-                LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|basis=roster|sl={string.Join(".", selectedRaw)}|flutes={selectedRaw.Count}|note=wait_horn_basis|route={route}|calls=0");
+                LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|basis=roster|sl={string.Join(".", selectedRaw)}|flutes={selectedRaw.Count}|rs={(rosterSurface ? 1 : 0)}|note=wait_horn_basis|route={route}|calls=0");
             }
-            // Bentbranch ten-familiar roster: consume the pass (roster writer is a different event shape).
-            // On a board, keep the latch — SelectedPetIds often flashes roster ids then becomes an empty horn.
+            // Bentbranch ten-familiar roster: consume the pass only once SelectedPetIds has settled past the
+            // ≤3 transient (roster writer is a different event shape). On a board, keep the latch —
+            // SelectedPetIds often flashes roster ids then becomes an empty horn.
             if (surfaceKey == SurfacePreentry && selectedRaw.Count > 3)
                 _arm = MarkFormationPassDone(in _arm);
             return;

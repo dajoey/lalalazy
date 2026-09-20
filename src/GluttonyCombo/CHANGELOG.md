@@ -1,3 +1,9 @@
+## v1.0.4.224 (2026-09-20) [testing]
+### Fixed
+- **Battlehorn Auto-fill no longer treats a brief three-slot read on the Bentbranch roster menu as a Battlehorn screen.** Opening that menu can briefly show a short list that looks like horn positions; the previous testing build followed that read and tried a horn toggle, which the roster surface ignored and the read-back aborted without changing anything. The pass now recognizes the Bentbranch roster surface first (familiar party open without the three-slot ActivePet UI) and waits for the ten-familiar list to settle instead of writing.
+### Notes
+- Offline harness reproduces the transient three-value read on the roster surface and requires the roster basis. The ten-familiar roster is still never rewritten — the add click path remains uncaptured. Production channel unchanged.
+
 ## v1.0.4.223 (2026-09-20) [testing]
 ### Added
 - **The read-only `PSP|` click probe now also watches the monster-notebook agent.** Adding a familiar to the ten-familiar run roster happens on the monster notebook screen, and those clicks never pass through the familiar-party agent the probe already covered, so a manual roster add was invisible to the log. Both agents' interface-event entries are now hooked, and every probe line names the agent it came from (`ag=pp` familiar party, `ag=nb` monster notebook).

@@ -439,6 +439,8 @@ internal static class BST_CrucibleAdvisor
     ///     <paramref name="partyRows"/>) rather than a roster of familiar row ids. PURE.
     ///     Empty is treated as horn-capable when <paramref name="partyCount"/> is at least 1 so a fresh
     ///     empty horn can be filled; a vector longer than 3, or any out-of-range value, is not horn basis.
+    ///     Callers that know the open screen must use <see cref="IsHornWriteBasis"/> so a roster-menu
+    ///     surface cannot be mis-routed by a transient ≤3 index-looking vector.
     /// </summary>
     public static bool IsHornIndexBasis(IReadOnlyList<int> selectedPetIds, int partyCount)
     {
@@ -453,6 +455,21 @@ internal static class BST_CrucibleAdvisor
                 return false;
         }
         return true;
+    }
+
+    /// <summary>
+    ///     Whether the Auto-fill write path may treat <paramref name="selectedPetIds"/> as battlehorn
+    ///     indices. PURE. Screen/shape is checked before the size/index test: the Bentbranch entry
+    ///     roster (pre-entry familiar party without the three-slot ActivePet UI) holds familiar row
+    ///     ids in SelectedPetIds once settled, and a transient ≤3 index-looking read there must not
+    ///     take the horn path (live .222 defect: sl=3.5.6 at roster-menu-open → basis=horn →
+    ///     readback=fail, undamaged). Board surfaces and ActivePet keep the index-size test alone.
+    /// </summary>
+    public static bool IsHornWriteBasis(IReadOnlyList<int> selectedPetIds, int partyCount, bool rosterSurface)
+    {
+        if (rosterSurface)
+            return false;
+        return IsHornIndexBasis(selectedPetIds, partyCount);
     }
 
     /// <summary>
