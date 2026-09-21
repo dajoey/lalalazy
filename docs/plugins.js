@@ -163,5 +163,17 @@ const PLUGINS = [
       { t: 'Live score predictor', d: 'As you assemble the outfit, see \scores N - needs +X for 80\ per slot and in total.' },
     ],
   },
+  {
+    slug: 'lazycrucible', name: 'LazyCrucible', origin: 'Original', hasWindow: true,
+    short: 'Picks your Beastmaster familiars in the Crucible of the Unbroken: the ten-familiar run roster, then all three Battlehorn slots before every fight.',
+    tag: 'Your familiars, picked for every Crucible fight.',
+    command: '/lazycrucible', credit: 'Original plugin by dajoey · split out of Gluttony Combo',
+    features: [
+      { t: 'Run roster, filled', d: 'At the Bentbranch Meadows entry menu it fills the ten-familiar run roster with the familiars that cover the board best.' },
+      { t: 'Battlehorn picks per fight', d: 'Before every fight the three Battlehorn slots get the familiars best suited to its mechanics — weakness element, interrupts, crowd control and dispels — skipping knocked-out and badly hurt familiars.' },
+      { t: 'You stay in charge', d: 'Picks are announced in chat, every automation has its own toggle, and your manual edits always win.' },
+      { t: 'Beast-pick advisor', d: 'A panel with the picks per battle for any board, plus a read-only recorder that logs every Crucible screen for the automation still to come.' },
+    ],
+  },
 ];
 if (typeof module !== 'undefined') module.exports = PLUGINS;

@@ -41,6 +41,7 @@ $nameMapping = @{
     "LazyCrafter"          = "LazyCrafter.md"
     "LazyRetainerLive"     = "Lazy-Retainer-Live.md"
 "LazyFashionReport"    = "Lazy-Fashion-Report.md"
+    "LazyCrucible"         = "Lazy-Crucible.md"
 }
 
 foreach ($plugin in $manifest) {
