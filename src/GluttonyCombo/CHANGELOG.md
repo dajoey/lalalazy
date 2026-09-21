@@ -1,3 +1,15 @@
+## v1.0.4.230 (2026-09-21) [testing]
+### Added
+- **Problem reports.** `/gluttony report <what happened>` or the "Report a problem" button in the settings window writes a report to the plugin log: zone, job, target, auto-rotation and opener state, the presets enabled for the current job, the recent combo decisions and the windows that are open.
+### Changed
+- **Structured error lines.** An error is written as one line carrying the plugin version, build, zone, job and the full stack with file and line numbers, instead of two lines on every frame.
+- **A failing per-frame update pauses instead of repeating every frame.** After repeated errors it stops with one chat notice and retries on its own (after 30 seconds, doubling up to 5 minutes). A failure in the Beastmaster collectors or the server info bar text no longer stops auto-rotation.
+- **Crucible familiar selection moved to the new LazyCrucible plugin.** The run roster fill at Bentbranch Meadows, the Battlehorn auto-fill and the beast-pick advisor live there now. The "Auto-fill Battlehorn slots" option is removed; the Beastmaster options point to LazyCrucible instead. The Beastmaster rotation, Crucible targeting, Guard/Challenge and the empty-Battlehorn warning are unchanged.
+### Fixed
+- The Beast Feed picker in the Crucible item shop is no longer mistaken for a Battlehorn screen, and the run roster pass stands down when another plugin or a manual edit changes the roster. Both fixes moved with the familiar selection into LazyCrucible.
+### Notes
+- Production channel unchanged.
+
 ## v1.0.4.229 (2026-09-20) [testing]
 ### Added
 - **Custom burst toggling.** Burst options in the UI now show whether they are included in the burst toggle, and `/gluttony burst custom` toggles just the burst options you picked for the current job (`hold`/`disable` and `resume`/`enable` work the same way).

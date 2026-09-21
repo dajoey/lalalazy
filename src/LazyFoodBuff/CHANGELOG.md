@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.1.5.0 (2026-09-21)
+
+### Changed
+- **"Only eat in combat duties" now covers Crucible of the Unbroken.** The five boards count as combat duties, and so does the Bentbranch Meadows entry area while playing Beastmaster (the one job that can enter), so the meal is eaten before a run starts. Eating before entry matters: a meal eaten inside does not refill HP to the raised maximum.
+
 ## v0.1.4.0 (2026-09-05)
 
 ### Added

@@ -1,3 +1,11 @@
+## v0.1.66.0 (2026-09-21)
+
+- **Problem reports.** `/lmc report <what happened>` or the "Report a problem" button in the settings window writes a report to the plugin log: zone, job, the automation state, a settings summary (counts only, no names), the recent price decisions and the windows that are open.
+
+- **Structured error lines.** An error is written as one line carrying the plugin version, build, zone, job and the full stack with file and line numbers.
+
+- **Automation pauses instead of repeating an error every frame.** Retainer automation, the inventory markers and the market-board price watcher each stop after repeated errors with one chat notice and retry on their own. While retainer automation is paused, AutoRetainer sessions are released untouched instead of being started with nothing watching them.
+
 ## v0.1.65.0 (2026-09-21)
 
 - **Retainer exit no longer stalls on the retainer menu or exits prematurely.** The leave flow now properly waits for the retainer menu to appear before closing it, completes only once the retainer list is restored, and correctly acknowledges the post-vendoring buyback confirmation dialog when present.
