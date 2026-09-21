@@ -23,6 +23,8 @@ All four version locations MUST match in every release commit for any plugin `<P
   offered in the installer, with no error on the plugin's own row. Package-Plugin.ps1 sets it
   from the built manifest since 2026-08-01; before that fix every packager-produced testing
   build was invisible (LazyFoodBuff 0.1.2.0, LazyGearCollector 0.0.1.0).
+- **No two presets may share a numeric value — run `python tools/check-preset-ids.py .` before every release.** Duplicate values in the `Preset` enum are legal C# with no warning, but `PresetStorage.BuildPresets` assigns with `dict[preset] = ...`, so the two names collapse to one entry: one becomes unreachable in the UI and in `PresetsByName`, and `IsEnabled(A)` silently reads B's bit. It ships looking fine and behaving wrong. This has bitten twice, both from an upstream merge claiming a value this fork already used — 2026-08-30 (BLU 70026/70027) and 2026-09-20 (`Phantom_RedMage_OccultLibra_Refresh` vs `Phantom755_RequireWeakness` at 110140).
+- **When you must renumber to break a collision, renumber the side that has NEVER SHIPPED.** Presets persist by value in `EnabledActionsV6`, so renumbering one that has already shipped silently switches an existing user onto a different feature. A preset that upstream just added and this fork has never released is free to move; one this fork has published is not. If both sides have shipped it is a product decision — escalate, do not pick. Move the region's `//Last Value =` comment with it.
 - **Never use `git push --force` or `git commit --amend` on this repo.**
 - **Never touch game files** (XIVLauncher installedPlugins, pluginConfigs, etc.) — only work on the repo and push. The game downloads from GitHub.
 
@@ -54,6 +56,7 @@ TEST BUILD (default for every change):
 1. Read current csproj version; increment to the next patch version
 2. Update csproj + src/<Plugin>/CHANGELOG.md (player-facing: the in-game popup renders it verbatim)
 2b. Run tests/LalaChangelog.Harness — every plugin PASS, newest CHANGELOG entry == csproj <Version>
+2c. python tools/check-preset-ids.py .  — MUST print 0 duplicate values (silent-breakage gate, see Rules)
 3. tools/Package-Plugin.ps1 -PluginName <Plugin> -Channel testing
 4. ** VERIFY: git diff pluginmaster.json — ONLY TestingAssemblyVersion + TestingDalamudApiLevel moved; AssemblyVersion untouched, no regression **
 5. ** VERIFY: extract manifest from plugins/<Plugin>/testing/testing.zip — version == TestingAssemblyVersion **
