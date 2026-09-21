@@ -1,3 +1,17 @@
+## v0.1.67.0 (2026-09-21)
+
+- **New "Inventory" tab.** Nothing in it changes Auto-Market, category routing or Sweep to Bags.
+
+- **Who handles this stack.** Hovering a stack in the bags, a retainer or the Armoury Chest lists every plugin that moves, sells, discards or protects it, or "Nothing handles this stack" (AutoRetainer's lists are read from its config file).
+
+- **Space at a glance.** Free slots for bags, Armoury pages, saddlebags and retainers, the Quick Exploration intake and an estimate of when each retainer fills.
+
+- **Venture loot.** Quick Exploration rewards logged by AutoRetainer, shown per retainer with the reason each is kept. Marketable stock is never vendored or sorted; unmarketable loot is marked as a GC delivery or desynth candidate (preview only).
+
+- **Gear to the Armoury.** "Move N piece(s) to the Armoury" and "Undo last batch", plus an optional idle mode ("Move gear on its own when everything is idle"), off by default.
+
+- Every Inventory action is logged to lmc_inventory_actions.log.
+
 ## v0.1.66.0 (2026-09-21)
 
 - **Problem reports.** `/lmc report <what happened>` or the "Report a problem" button in the settings window writes a report to the plugin log: zone, job, the automation state, a settings summary (counts only, no names), the recent price decisions and the windows that are open.

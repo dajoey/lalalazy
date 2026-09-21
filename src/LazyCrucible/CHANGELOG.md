@@ -1,5 +1,16 @@
 # LazyCrucible — Changelog
 
+## v0.1.1.0 (2026-09-21)
+
+- **Beast Feed**: picks the familiar each feed helps most in the fights ahead and confirms it (kin, satiety, no repeats, knocked-out familiars honoured).
+- **Shop**: buys the heals, resistances, gear and feed the upcoming fights call for; never sells and never leaves the shop.
+- **Spoils**: takes everything when it all fits; otherwise lists the best items first.
+- **Campsite**: selects which familiars rest; Rest stays with the player.
+- **Treasure**: marks the best choice and explains why.
+- **Fight guide** (`/lazycrucible guide`): all five boards, with horn picks and their reasons, dangerous hits, mechanics and what to bring; opens on the next fight.
+- **Hands back**: any input made by hand on one of these screens, or AutoDuty running, hands that screen back to the player. Each screen has its own switch, on by default.
+- **Error reporting** covers the new screens: a screen automation that keeps failing drops the input in flight, pauses with one chat notice and retries on its own.
+
 ## v0.1.0.0 (2026-09-21)
 
 - **First release**, split out of GluttonyCombo: the Beastmaster familiar selection for Crucible of the Unbroken now lives here, and GluttonyCombo keeps the Beastmaster rotation. Both automations are on by default and each has its own switch.

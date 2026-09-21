@@ -143,9 +143,11 @@ Every shipping plugin should have a `PLUGINS` entry in `docs/plugins.js` and a `
 
 **Remove a plugin** — reverse all of the above. (Done for **LazySightseeing** on 2026-06-06: removed from `src/`, `plugins/`, `pluginmaster.json`, its `LalaImages` icon, the `README` build line, and `tools/sync-wiki.ps1`.)
 
-### Current roster (14 plugins, as of 2026-09-06)
+### Current roster (16 plugins, as of 2026-09-21)
 
-GluttonyCombo, PvPSolver, LazyMarketCompanion, AutoPotion, ArmoireAutoFill, LazyWTMath, LazyCurrencySpender, LazyFateAutomation, LazySkywardTracker, LazyFashionReport, LazyFoodBuff, LazyGearCollector, LazyCrafter, LazyFishSitter (testing-only).
+GluttonyCombo, PvPSolver, LazyMarketCompanion, AutoPotion, ArmoireAutoFill, LazyWTMath, LazyCurrencySpender, LazyFateAutomation, LazySkywardTracker, LazyFashionReport (testing-only), LazyFoodBuff, LazyGearCollector, LazyCrafter, LazyFishSitter, LazyRetainerLive, LazyCrucible (testing-only).
+
+`pluginmaster.json` also carries `ARControlPRTest2`, a testing-exclusive entry with no source under `src/`; it is not part of the roster.
 
 **DagobertPriceMatcher was RETIRED on 2026-09-05** (kanban t_138ee175) in favour of LazyMarketCompanion, which carries its price-matching engine (AGPLv3, credit SHOEGAZEssb) and imports its config on first load. Removed from `src/`, `plugins/`, `pluginmaster.json`, `README`, `docs/`, `tools/sync-wiki.ps1`, the nightly upstream-merge runbook/marker and the `dagobert` git remote. `LalaImages/dagobert-icon.png` is kept for history. Do not resurrect it.
 
