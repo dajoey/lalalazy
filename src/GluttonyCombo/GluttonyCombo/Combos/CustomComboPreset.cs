@@ -2402,7 +2402,7 @@ public enum Preset
     #region BEASTMASTER
 
     // Beastmaster (Job.BST = 43) ROTATION (t_02fe2681) - fork-range ordinals (70000+), which
-    // upstream WrathCombo does not use for job presets, so a nightly upstream merge cannot
+    // upstream GluttonyCombo does not use for job presets, so a nightly upstream merge cannot
     // collide.
     //
     // [AutoAction] added here (2026-09-10, Helm "auto isn't working"): the SKELETON stubs

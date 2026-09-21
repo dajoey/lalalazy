@@ -1,6 +1,5 @@
 using Dalamud.Game.ClientState.Objects.Types;
 using System;
-using ECommons;
 using GluttonyCombo.Core;
 using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.Data;

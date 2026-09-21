@@ -519,5 +519,7 @@ public partial class Configuration : IPluginConfiguration
 
     public List<FFXIVOPCodes> OpCodesBackup = [];
 
+    public Dictionary<Preset, bool> BurstPresets = [];
+
     #endregion
 }
