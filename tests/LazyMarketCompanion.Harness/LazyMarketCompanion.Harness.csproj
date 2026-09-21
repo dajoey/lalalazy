@@ -34,6 +34,11 @@
   <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\MarkerAnchor.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\DoneLine.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\SaleHistoryPricing.cs" />
+    <!-- Inventory tab (feat/lmc-inventory-tab): the Dalamud-free core, plus the shared telemetry line
+         builder its IV| audit lines are built with. -->
+    <Compile Include="..\..\src\LazyMarketCompanion\Inventory\Core\*.cs" />
+    <Compile Include="..\..\src\Shared\LalaTelemetry\Core\TelemetryEscape.cs" />
+    <Compile Include="InventoryCases.cs" />
     <Compile Include="Program.cs" />
   </ItemGroup>
 </Project>

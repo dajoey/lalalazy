@@ -98,7 +98,7 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
   ];
 
   /// <summary>Every bag-grid addon name the client structs register, both display modes.</summary>
-  private static readonly string[] GridNames =
+  internal static readonly string[] GridNames =
   [
     "InventoryGrid", "InventoryGrid0", "InventoryGrid1",
     "InventoryGrid0E", "InventoryGrid1E", "InventoryGrid2E", "InventoryGrid3E",
@@ -110,7 +110,7 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
   /// "RetainerGrid0".."RetainerGrid6" are the expanded-mode grids (RetainerGridMap.PageCount = 7).
   /// See RetainerGridMap's class remarks for the corroborating evidence this correction rests on.
   /// </summary>
-  private static readonly string[] RetainerGridNames =
+  internal static readonly string[] RetainerGridNames =
     new[] { "RetainerGrid" }.Concat(Enumerable.Range(0, RetainerGridMap.PageCount).Select(i => $"RetainerGrid{i}")).ToArray();
 
   /// <summary>A retainer's up to seven storage pages, in the game's own order; index == RetainerGridMap page index.</summary>

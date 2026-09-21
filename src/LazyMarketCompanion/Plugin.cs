@@ -48,6 +48,7 @@ public sealed class Plugin : IDalamudPlugin
 
   private readonly MarketAutomation _automation;
   private readonly AutoMarketMarkers _markers;
+  private readonly Inventory.InventoryService _inventory;
   private readonly ChangelogGate _changelog;
   private readonly DalamudTelemetry? _telemetry;
 
@@ -170,6 +171,10 @@ public sealed class Plugin : IDalamudPlugin
     WindowSystem.AddWindow(_automation);
     _markers = new AutoMarketMarkers();
     WindowSystem.AddWindow(_markers);
+    // Inventory tab: who-handles-this-stack hover box, space at a glance, venture-loot sorter, gear mover.
+    _inventory = new Inventory.InventoryService(_automation);
+    WindowSystem.AddWindow(new Inventory.OwnerTooltip(_inventory));
+    ConfigWindow.DrawInventoryTab = new Inventory.InventoryTab(_inventory).Draw;
 
     Log.Information($"[LMC] loaded {PluginInterface.Manifest.AssemblyVersion}; autoMarketItems={Configuration.AutoMarketItems.Count} arInstalled={AutoRetainerIPC.Installed} imported={Configuration.ImportedFromDagobert}");
   }
@@ -181,6 +186,7 @@ public sealed class Plugin : IDalamudPlugin
     _retainerItemCommandHook = null;
     _changelog.Dispose();
     WindowSystem.RemoveAllWindows();
+    _inventory.Dispose();
     _markers.Dispose();
     _automation.Dispose();
     AutoRetainerIPC.DisposeInstance();

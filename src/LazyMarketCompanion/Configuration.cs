@@ -357,6 +357,32 @@ public sealed class Configuration : IPluginConfiguration
   /// </summary>
   public bool AutoAssignUnroutedCategories { get; set; } = true;
 
+  // ----- Inventory tab -----
+  // New fields with initializers: an existing config deserializes them as these defaults, no Version bump
+  // (the same reasoning as every block above). Nothing here changes what Auto-Market or the routing mover do.
+
+  /// <summary>Hover a bag / retainer / armoury slot: a small box under the game's item tooltip lists every
+  /// plugin that moves, sells, discards or protects that item (LMC, AutoRetainer), or "nothing handles this".</summary>
+  public bool InventoryOwnerTooltip { get; set; } = true;
+
+  /// <summary>"Space at a glance" warns when the bags or a retainer have this many free slots or fewer.</summary>
+  public int InventoryLowSpaceSlots { get; set; } = 10;
+
+  /// <summary>"Space at a glance" warns when an Armoury Chest page has this many free slots or fewer.</summary>
+  public int InventoryArmouryLowSlots { get; set; } = 3;
+
+  /// <summary>Venture loot: AutoRetainer venture records older than this many days do not count (1-365).</summary>
+  public int VentureLootLookbackDays { get; set; } = 30;
+
+  /// <summary>Venture loot: sort HQ stacks too. Off = HQ venture loot is always kept.</summary>
+  public bool VentureLootAllowHq { get; set; } = false;
+
+  /// <summary>Venture loot: item ids explicitly allowed past the unique / untradable / rare rail (and ONLY that rail).</summary>
+  public List<uint> VentureLootOptIns { get; set; } = [];
+
+  /// <summary>Move equippable gear from the bags to the Armoury Chest on its own while everything is idle. Off by default.</summary>
+  public bool GearMoverWhenIdle { get; set; } = false;
+
   public CategoryRetainerRule? GetCategoryRetainerRule(uint categoryId)
   {
     return CategoryRetainerRules.FirstOrDefault(r => r.CategoryId == categoryId);
