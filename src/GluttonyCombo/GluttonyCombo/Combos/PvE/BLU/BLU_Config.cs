@@ -21,12 +21,17 @@ internal partial class BLU
             BLU_Balance_Content = new("BLU_Balance_Content", 1),
             BLU_SelectedOpener = new("BLU_SelectedOpener", 0),
             // Filler overrides. 0 = auto-detect from your active spell slots.
-            BLU_PrimalCombo_Spells = new("BLU_PrimalCombo_Spells", [true, true, true, true, true]);
+            BLU_ST_DPS_Filler = new("BLU_ST_DPS_Filler", 0),
+            BLU_AoE_DPS_Filler = new("BLU_AoE_DPS_Filler", 0),
+            BLU_ST_Tank_Filler = new("BLU_ST_Tank_Filler", 0),
+            BLU_AoE_Tank_Filler = new("BLU_AoE_Tank_Filler", 0);
         public static UserBool
             BLU_Opener_PrepullBlock = new("BLU_Opener_PrepullBlock", true),
             BLU_ManualJKick = new("BLU_ManualJKick", false);
         public static UserBoolArray
             BLU_PrimalCombo_Spells = new("BLU_PrimalCombo_Spells", [true, true, true, true, true]);
+
+        internal static void Draw(Preset preset)
         {
             switch (preset)
             {

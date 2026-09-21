@@ -4,6 +4,7 @@ using Dalamud.Game.ClientState.Objects.Types;
 using FFXIVClientStructs.FFXIV.Client.Game.InstanceContent;
 using System;
 using System.Reflection;
+using GluttonyCombo.Services;
 using static GluttonyCombo.Combos.PvE.JobIDExtensions;
 using static GluttonyCombo.Combos.PvE.OccultCrescent.Config;
 using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
