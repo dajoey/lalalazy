@@ -30,8 +30,12 @@ public sealed class Plugin : IDalamudPlugin
 
     internal static Configuration Config { get; private set; } = null!;
 
+    /// <summary> The per-fight information repository (embedded CrucibleGuide.json). </summary>
+    internal static CrucibleGuide Guide { get; private set; } = CrucibleGuide.Parse("{}");
+
     private readonly WindowSystem _windowSystem = new("LazyCrucible");
     private readonly MainWindow _window;
+    private readonly GuideWindow _guideWindow;
     private readonly ChangelogGate _changelog;
     private bool _wasBst;
     private bool _gluttonyConflict;
@@ -46,8 +50,11 @@ public sealed class Plugin : IDalamudPlugin
         var existingInstall = pi.ConfigFile.Exists;
         Config = pi.GetPluginConfig() as Configuration ?? new Configuration();
 
+        Guide = LoadGuide();
         _window = new MainWindow(this);
         _windowSystem.AddWindow(_window);
+        _guideWindow = new GuideWindow();
+        _windowSystem.AddWindow(_guideWindow);
 
         // Shared "What's new" popup (repo standing rule): shows this plugin's CHANGELOG once after an update.
         _changelog = new ChangelogGate(new ChangelogGate.Options
@@ -67,13 +74,14 @@ public sealed class Plugin : IDalamudPlugin
         });
 
         PluginInterface.UiBuilder.Draw += _windowSystem.Draw;
+        PluginInterface.UiBuilder.Draw += SuggestionOverlay.Draw;
         PluginInterface.UiBuilder.OpenConfigUi += ToggleWindow;
         PluginInterface.UiBuilder.OpenMainUi += ToggleWindow;
         Framework.Update += OnFrameworkUpdate;
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Open LazyCrucible. /lazycrucible changelog shows what's new.",
+            HelpMessage = "Open LazyCrucible. /lazycrucible guide opens the fight guide; /lazycrucible changelog shows what's new.",
         });
     }
 
@@ -89,6 +97,8 @@ public sealed class Plugin : IDalamudPlugin
                     AgentProbe.Teardown();
                     ScreenRecorder.Stop();
                     PetSelect.ResetRun();
+                    SelectionScreens.Reset();
+                    RunTracker.Reset();
                 }
                 _wasBst = false;
                 return;
@@ -101,7 +111,11 @@ public sealed class Plugin : IDalamudPlugin
                 : null;
             AgentProbe.Ensure();
             ScreenRecorder.Tick(Config.RecordScreens);
+            PromptTexts.Load();
+            RunTracker.Tick();
             PetSelect.Tick();
+            SelectionScreens.Tick(PetSelect.YieldReason);
+            _guideWindow.FollowFocus();
         }
         catch (Exception ex)
         {
@@ -140,12 +154,41 @@ public sealed class Plugin : IDalamudPlugin
 
     private void ToggleWindow() => _window.IsOpen = !_window.IsOpen;
 
+    internal void ToggleGuide() => _guideWindow.IsOpen = !_guideWindow.IsOpen;
+
+    /// <summary> The embedded fight guide; an unreadable file leaves an empty guide and one error line. </summary>
+    private static CrucibleGuide LoadGuide()
+    {
+        try
+        {
+            using var stream = typeof(Plugin).Assembly.GetManifestResourceStream("CrucibleGuide.json");
+            if (stream is null)
+                return CrucibleGuide.Parse("{}");
+            using var reader = new StreamReader(stream);
+            var guide = CrucibleGuide.Parse(reader.ReadToEnd());
+            var problems = guide.Validate();
+            if (problems.Count > 0)
+                CrucibleLog.Warning($"Fight guide: {problems.Count} problem(s), first: {problems[0]}");
+            return guide;
+        }
+        catch (Exception ex)
+        {
+            CrucibleLog.Error(ex, "fight guide");
+            return CrucibleGuide.Parse("{}");
+        }
+    }
+
     private void OnCommand(string command, string args)
     {
         var a = args.Trim();
         if (a.Equals("changelog", StringComparison.OrdinalIgnoreCase) || a.Equals("whatsnew", StringComparison.OrdinalIgnoreCase))
         {
             _changelog.ShowNow();
+            return;
+        }
+        if (a.Equals("guide", StringComparison.OrdinalIgnoreCase))
+        {
+            _guideWindow.IsOpen = !_guideWindow.IsOpen;
             return;
         }
         ToggleWindow();
@@ -158,6 +201,7 @@ public sealed class Plugin : IDalamudPlugin
         ScreenRecorder.Stop();
         PetSelect.Dispose();
         PluginInterface.UiBuilder.Draw -= _windowSystem.Draw;
+        PluginInterface.UiBuilder.Draw -= SuggestionOverlay.Draw;
         PluginInterface.UiBuilder.OpenConfigUi -= ToggleWindow;
         PluginInterface.UiBuilder.OpenMainUi -= ToggleWindow;
         _changelog.Dispose();

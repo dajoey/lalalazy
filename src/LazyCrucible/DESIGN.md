@@ -1,248 +1,191 @@
-# LazyCrucible — design (0.1.0.0)
+# LazyCrucible — design (phase 2, after 0.1.0.0)
 
-What the plugin decides on every screen of a Crucible of the Unbroken run, what is known and unknown
-about each screen, and the one read-only capture that closes the unknowns without further probe rounds.
+> "I don't want LazyCrucible to play it. I want it to select the animals and the switch and the food and take the best
+> items for the upcoming fights and be a repository of information you'll need to know for each fight.. I'm not looking
+> for fully crucible automation. i can pair autoduty with it if I want that. I don't."
+> — the owner's scope, 2026-09-21. It governs everything below.
 
-Evidence tags: **[obs]** seen in the plugin logs (ffxivdb `plugin_log_lines`, runs of 2026-09-17 to
-2026-09-21); **[pub]** published in someone else's source (licence in §7); **[inf]** inferred, unverified.
-Timestamps are US Eastern.
+LazyCrucible fills in the **selection screens the player opens** during a Crucible of the Unbroken run and carries a
+**per-fight guide**. It never plays the run.
 
-## 1. Status in 0.1.0.0
+Evidence tags: **[obs]** seen in recorded plugin logs (ffxivdb `plugin_log_lines`, runs of 2026-09-17 to 2026-09-21;
+replay fixtures in `tests/LazyCrucible.Harness/Fixtures`); **[pub]** read in someone else's source (facts only; licences
+in §8); **[sheet]** game sheet data (7.56); **[inf]** inferred, unverified. Times are US Eastern.
 
-| Area | 0.1.0.0 does | Switch (default) |
-|---|---|---|
-| Run roster, Bentbranch entry menu | Writes the ten best-coverage familiars for the board, once per menu open | `AutoRoster` (on) |
-| Battlehorns, pre-fight formation | Writes the three familiars that answer the identified fight | `AutoHorns` (on) |
-| Every other screen | Records only (§5); never acts | `RecordScreens` (on) |
-| Beast-pick advisor | Panel: picks per battle, board roster, familiars worth capturing | — |
+## 1. What it does, what it only suggests, what it never does
 
-Guards on every write: `XBMPetParty` itself open and its own mode naming the roster list (mode 0,
-pre-entry only) or the horn preview (mode 2, board only); feeding (3, 5) and campsite (4) never
-written; read-back after every toggle with snapshot/restore; the start-battle confirm is never pressed;
-any selection edit the pass did not send (the player, a preset, AutoDuty) stands the pass down for that
-screen, and for the roster for the rest of that Bentbranch visit; stands down entirely while AutoDuty
-reports a run in progress (`YieldToAutoDuty`, on) or while a GluttonyCombo ≤ 1.0.4.229 (which still
-carries its own writer) is loaded.
+| Screen (opened by the player) | LazyCrucible | Switch (default) | Grounded by |
+|---|---|---|---|
+| Run roster, Bentbranch entry menu | Writes the ten best-coverage familiars | `AutoRoster` (on) | 0.1.0.0, live-graded |
+| Battlehorns before each fight (the "switch") | Writes the three familiars that answer that fight | `AutoHorns` (on) | 0.1.0.0, 20/20 correct |
+| Beast Feed picker (opens when a feed is bought) | Picks who eats it, confirms on the prompt that names both | `AutoFeed` (on) | [obs] 3 recorded feeds: pick `kind 0 [1, slot]`, confirm, picker closes, satiety +1; [pub] |
+| Shop | Buys the items, gear and feed the fights ahead call for | `AutoShop` (on) | [obs] 12 recorded feed purchases (tokens drop by the listed price); [pub] buy = callback `[2, index]` |
+| Spoils after a battle | "Take all" when everything fits | `AutoSpoils` (on) | [pub] button node 46; [obs] AutoDuty's 12:56 take (tokens 201 → 412) |
+| Campsite | Selects who rests; **Rest stays the player's button** | `AutoCamp` (on) | [obs] picks `kind 0 [1, index]` flip the rest flag (09-20 01:40) |
+| Treasure coffer | **Suggestion only**: frames the screen, names the best choice and why | `AutoTreasure` (on) | click param ↔ choice mapping never recorded (§6) |
+| Spoils that do not fit / repeat owned gear | **Suggestion only**: best items first | — | per-item take not needed yet |
+| A feed that would hurt every familiar, or a feed LazyCrucible did not see bought | **Suggestion only** | — | — |
+| Fight guide | `/lazycrucible guide`; opens on the upcoming fight | `GuideAutoOpen` (on) | §5 |
 
-### The coexistence question (owner decision, not settled here)
+**Never:** walk, enter a board, pick a board, press challenge / commence / start battle, choose the path, press Rest,
+leave a campsite / shop / coffer, sell, discard, use board items, flee, suspend or forfeit. The allow-list
+(`Policy/ActuationGuard.cs`) is the complete list of inputs that can ever be sent: shop `[2, index]`, familiar pick
+`kind 0 [1, index]`, "Take all" (node 46), a treasure choice button (param ≥ 2, not enabled), and Yes/No on a prompt this
+plugin's own input opened. Everything else is refused before it is sent (harness-tested).
 
-AutoDuty (a fork with Crucible support, `erdelf/AutoDuty@9c680db16f`) already drives most of a run
-[pub, and live 2026-09-21 12:50–13:02: "Running AutoDuty in First Board of the Unbroken, Looping 6
-times"]: entry NPC, board select, its own familiar team (Leveling / Recommended modes), horns, spoils
-("Take all"), treasure, shop, campsite rest, board item use, and path choice by walking. At 12:50 it
-rebuilt a *leveling* roster while GluttonyCombo's writer rewrote a *coverage* roster four times.
-LazyCrucible therefore yields to AutoDuty by default. Before any screen below is automated, the
-owner should decide which tool drives runs:
+**Stand-down:** every screen is acted on once per open, one input at a time. Any input the player makes on the same
+screen (a familiar pick not sent by LazyCrucible, a shop click seen by the FireCallback hook, an entry bought by hand), a
+failed read-back, a prompt that does not match, AutoDuty running (`YieldToAutoDuty`, on) or an older GluttonyCombo with
+its own writer hands the rest of that screen open to the player.
 
-- **A. AutoDuty drives, LazyCrucible advises** (today's default): no duplicate screen automation; the
-  familiar picks are AutoDuty's.
-- **B. LazyCrucible drives the familiar decisions, AutoDuty the rest**: needs AutoDuty's team handling
-  off during Crucible runs (its config is reachable through its `SetConfig` IPC [pub], key names not
-  yet read).
-- **C. LazyCrucible drives everything** (AutoDuty off): the §3 plan below.
+## 2. Policies — survival first (pure, `Policy/`, harness-tested)
 
-## 2. Policy — survival first
+Order of priorities: (1) keep the player and the familiars alive (the player's knock-out ends the run; a knocked-out
+familiar is gone unless revived), (2) win, (3) score. Score bonuses are chased only by the `ScoreGoal` setting
+(`Starve the Fever` = never feed; `Feed the Bold` = feed anything harmless). Every decision returns a short reason that
+goes to the log (`SL|`), to chat (`AnnouncePicks`) and to the guide window.
 
-Order of priorities for every decision: (1) keep familiars alive (a knocked-out familiar is gone for
-the run), (2) win the run, (3) score bonuses. Score-only choices (e.g. "Starve the Fever": no feeding)
-are never taken at the cost of (1) or (2); a later opt-in "score mode" may take them only on boards
-the character has already cleared.
+**What is ahead** (`Data/CrucibleBoards`, [sheet]): the board graph (spaces, depths, edges, random outcomes, campsite
+sizes). The run's position is the space of the last battle fought (`RunTracker`, from the hostile enemies' panel battle
+in combat); everything reachable from there is ahead, both sides of an unchosen fork. A battle is *certain* when every
+path to the boss passes it. The fights ahead give the context: threats (from the guide), panel needs, weaknesses, and
+**horn demand** — for each familiar, how many fights ahead it is one of the three `PickSlots` picks (1 per certain fight,
+0.5 per possible one). Feeding and resting use horn demand, so they favour the familiars the horn pass will field.
 
-## 3. Screens
+**Items** (`Data/CrucibleItems`, generated from the XBMItem tooltips, [sheet]): max HP, damage taken, vulnerabilities,
+resistances, heals, kin suitability and drawbacks are parsed from the tooltip text; only an item's role is hand-assigned.
+Value (`ItemValue`): gear = max HP + 2 × damage-taken cut + vulnerability cuts + 35 per resistance to a status a certain
+fight ahead inflicts (18 possible) + a third of damage (half for familiar-affecting gear) − drawbacks; owned gear and
+full slots are worth 0. Consumables: heals scale down as more are held; Reraise 55/70, Temporal Sand 60, a revive 45 when
+a needed familiar is down, cures / serums 25–32 for a status ahead, fangs more with adds ahead (Fang of Water more with a
+dispel need), score items 1, self-harming potions 0.
 
-Agents in the linked ClientStructs: `XBMContentsMainHUD` 497, `XBMItemDetail` 498,
-`XBMBattleMonsterDetail` 499, `XBMMonsterNotebook` 500, `XBMPetParty` 501, `XBMStageDetailList` 502,
-`XBMStageList` 503, `XBMStageMap` 504, `XBMResult` 505, `XBMRanking` 506 (enum only; structs are
-PR #1952-only for 500-502). Addons without an agent of their own: ContentsBooty, ContentsTreasure,
-ContentsItemShop, ContentsGearEffect, ContentsItemDispose, ActivePet, PetActionDetail, PresetPreview,
-StageSummary, BonusList.
+**Feed** (`FeedPolicy`). Hard rules: the feed's kin list [sheet] and the picker's own "cannot eat" mark (they agreed in
+every recorded picker [obs]); satiety below the familiar's cap (XBMPet.SatietyMax [sheet], +1 per feed [obs]); the same
+feed never twice ([obs] every recorded refusal was a repeat); never a knocked-out familiar. Value: max HP, heals (up to
+the missing HP), damage-taken and vulnerability cuts, resistance to a status ahead, Lily Simular (feed survives a rest)
+and Lassi Simular (full heal at a campsite) when a campsite is ahead; damage counts a little; drawbacks (max HP -80%,
+Slow +200%, self damage over time, self-inflicted statuses) cost more than most feeds give. Weighted by horn demand; a
+hurt familiar that may rest at a campsite ahead is discounted 25% (resting wipes feed, Addon#17657 [sheet]) unless it ate
+Lily. In the picker: the best eligible familiar; a feed that is harmful to everyone is left to the player. A feed is paid
+for only when the familiar is confirmed (Addon#17653 "Purchase X and feed it to your Y?").
 
-### 3.1 Entrance and board select (Central Shroud 148, NPC by the Bentbranch Meadows aetheryte)
+**Shop** (`ItemPolicies.NextPurchase`, one purchase at a time, re-read after each): (1) healing reserve — while fewer
+heals are held than fights ahead (min 2, max 4), the best affordable heal; (2) otherwise the highest value among items,
+gear, and feed (feed on the item scale: its value × 0.5–2 by horn demand, so one familiar's buff does not outbid gear that
+protects the player); (3) stop below value 12, when nothing is affordable, or after 8 purchases. No token reserve: what is
+bought now also serves later fights, and a later shop's stock is unknown (shop stock has no client sheet [sheet §7.5]).
 
-- **Known** [obs]: `XBMStageList` n=14 (`2:s=<board name>`, `3:u=<XBMContent row>`), then
-  `XBMStageMap`, then `XBMStageDetailList`+`XBMPetParty` (stage mode 0, party mode 0 = roster).
-  [pub, AutoDuty/BeastHelper, facts only]: talk → SelectString / SelectIconString; `XBMStageList`
-  callback `[2,board]` highlights, `[1,board]` opens. BeastHelper crashed twice inside
-  `AgentXBMStageDetailList.Update` firing that callback the instant the list appeared, and once
-  re-entering < 5 s after a run ended; it now waits 2 s / 8 s.
-- **Unknown**: our own capture of those callbacks; which board the player intends (the roster pass
-  today falls back to board 1 when `AgentXBMPetParty.ContentId` is unset).
-- **Decision**: board = the one the player highlights; never auto-select a board (a player choice).
-  If automated later: replay captured values only, ≥ 2 s after the list is visible, ≥ 8 s after a run.
+**Treasure** (`TreasurePick`): the highest-value choice; if nothing is worth anything (e.g. items full and only items
+offered) the choice is left to the player. **Spoils** (`Spoils`): Take all when every item fits (≤ 10 items, gear not
+already owned, ≤ 10 gear); otherwise the best items first, for the player.
 
-### 3.2 Duty entry and confirm
+**Campsite** (`CampPolicy`): heal per rest for the player and each resting familiar: boards 1–2 90 / 45 / 30 % (0 / 1 /
+2 familiars), board 3 100 / 60 / 40 / 30 % [guides, two sources; [obs] +30% each with two familiars on board 1]; boards
+4–5 publish no numbers, board 3's table is used and the chat line says so [inf]. For 0 up to the campsite's limit
+(nearest campsite ahead on the board graph; the screen does not show it [obs]) it adds the player's HP gained (× 2) and
+each familiar's HP gained × (0.5 + horn demand) minus 12 per feed it would lose (0 if it ate Lily), and picks the best
+count, fewer on a tie. Knocked-out familiars cannot rest.
 
-- **Known** [pub]: `XBMStageDetailList` `[8]` = challenge (DailyRoutines hooks this as kind 0 [8]);
-  a `SelectYesno` if the team has fewer than ten; `ContentsFinderConfirm` Commence.
-- **Decision**: never automated — starting a run is the player's decision (same rule as the horn
-  pass: the start-battle confirm is never pressed).
+## 3. Screens (layouts verified against recorded snapshots [obs])
 
-### 3.3 Run roster (automated) and 3.4 Battlehorns (automated)
+- **Shop `XBMContentsItemShop` (n=269):** `[1]` tokens text; `[2]` stock count (16: always 8 feed, 4 items, 4 gear);
+  entry k at `3+5k`: listed, XBMItem row, price text (`" (-50%)"` when discounted; unaffordable prices are wrapped in
+  colour payloads, stripped before reading), discount flag, bought flag. Carried items `154+5s`, gear `205+5s` (row at
+  +3). Buy = callback `[2, k]` → Yes/No Addon#17641 "Purchase X?" (items/gear) → bought flag + tokens drop. A **feed**
+  entry opens the Beast Feed picker instead; the prompt comes after the familiar is picked.
+- **Beast Feed picker `XBMPetParty`, mode 3 (n=1188):** familiar k block `B=6+77k`: +1 `242000+XBMPet row`, +2 cannot eat
+  the offered feed, +3 name, +5/+6 HP, +7..+16 feeds eaten as (icon, row) pairs, +72/+73 satiety used/max, +75 rest flag,
+  +76 XBMPet row. **The offered feed is not shown anywhere [obs]**: LazyCrucible knows it from its own purchase or from the
+  player's shop click (FireCallback hook, `[2, k]`), and cross-checks it against the picker's cannot-eat marks before
+  feeding. Pick = agent event `kind 0 [1, k]` (the same live-proven route as the horn pass) → Yes/No Addon#17653 → the
+  picker closes and the entry is bought. The picker fires `kind 0 [1, slot]` by itself when it opens [obs]; events in its
+  first 1.2 s are not treated as player edits.
+- **Campsite, `XBMPetParty` mode 4:** same blocks; pick = `kind 0 [1, k]`, read back from +75. Rest (`kind 0 [3]`) and its
+  prompt (Addon#17660) are the player's.
+- **Treasure `XBMContentsTreasure` (n=144):** choice k present `3+5k`, row `6+5k`; carried `24+5s` / `75+5s`. Choice
+  buttons are ButtonClick events with param ≥ 2 [pub]; prompt Addon#17626 "Choose X?".
+- **Spoils `XBMContentsBooty` (n=147):** `[2]` tokens, `[4]` tokens offered; loot k present `6+5k`, row `9+5k`, taken flag
+  `129+k`; carried `27+5s` / `78+5s`. Take all = node 46 → prompt Addon#17674 "You will receive: … Proceed?" (every loot
+  name must be in it).
+- **HUD `XBMContentsMainHUD` (n=111):** carried items `9+5s`, gear `60+5s` (used as the treasure read-back).
 
-- Roster: coverage ranking over the board's battles (`PickSlotsCoverage`, 10 slots), TogglePet
-  (PR #1952 sig, live-proven) + ApplyPetSelection, read-back by membership.
-- Horns: next fight identified from the stage agent's focused entry (`_entrySelection`), ranked by
-  `PickSlots` (weakness, interrupt/dispel/cleanse needs, crowd control, rank-synced stats, HP factor,
-  0 % never picked); membership-delta toggles via `ReceiveEvent(kind 0, [1, SelectedPets index])`.
-- Live record [obs, 5 runs .227-.229]: 26 horn writes read back OK; for all 20 identified pre-fight
-  passes the horns the fight started with (`BT| sl=`) equal the pass's picks. The 4 other targeted
-  passes were not horn screens (3 × the shop's feed picker, 1 × the notebook's team screen), both now
-  excluded. Each fight gets different familiars (board 1: bt 1 opo-opo/morbol/dullahan, bt 3
-  dullahan/uragnite/flying trap, bt 4 ziz/flying trap/ghost, elite ghost/salamander/uragnite or worm,
-  boss sabotender/salamander/ghost or morbol).
-- **Unknown**: whether `_entrySelection` names the focused entry on boards 2-5 (only board 1 graded).
+**Prompt guard** (`Policy/PromptGuard.cs`): Yes is pressed only on a prompt that appears within 3 s of LazyCrucible's own
+input, contains the expected Addon row's fixed text in order (read from the running client, English fallback) and every
+name LazyCrucible chose (item, familiar), and matches none of the refused rows (forfeit 17618, suspend 17619, challenge
+17787, commence 17789, leave shop 17648 / campsite 17656 / coffer 17633, discard 17610/17632/17647/17684, sell 17663,
+rest 17660/17662, leave loot 17676, flee 17894/17895, revive 17697, team presets). A mismatch answers No and stands down.
+Names are matched in English; on another client language the check fails closed (the player chooses).
 
-### 3.5 Path choice (`XBMStageDetailList`, stage mode 3 on the board)
+**Read-back** after every input: shop — bought flag or tokens drop (or the picker opened, for feed); feed — satiety or the
+eaten list, or the picker closing after the confirmed Yes; campsite — the rest flag; spoils — every taken flag, or the
+screen closing after the confirmed Yes. A miss stands down with a chat line.
 
-- **Known** [obs]: the pre-entry graph lists every space: `[6]` 2 battle / 0 other, `[+5]` space type
-  (0 enemy, 1 elite, 2 boss, 3 shop, 4 camp, 5 treasure), 40 values per entry; battle rows carry the
-  `XBMBattleDetail` row (→ board/battle via the generated table). [pub, AutoDuty path file for 1339]:
-  the choice is made by **walking** onto the space (forks at x = -705 left / -695 right).
-- **Unknown**: what commits a space when it is stepped on (event object? director event?); whether
-  the candidate spaces' enemies are readable before the fork (the focused-entry detail is).
-- **Decision** (survival first): score each branch by (a) the fights' fit to the *alive* roster
-  (sum of `PickSlots` scores of the best three per fight), (b) access to a campsite when the roster's
-  HP is low, (c) a shop when tokens are high; treasure over shop when the roster is healthy. Movement
-  itself stays manual until the commit mechanism is recorded (§5: `XO|` + `XK|`).
+## 4. What 0.1.0.0 already records that 0.1.1.0 relies on
 
-### 3.6 Spoils (`XBMContentsBooty`, n=147, 0.1-0.3 s after each battle)
+`XB|` (every XBM screen + generic prompts in Bentbranch/boards, 2000 values), `XC|` (callbacks), `XR|` (plain-button
+clicks with param/node), `XE|`/`PSP|` (agent events), `XA|`, `XO|`, `XK|`. New in 0.1.1.0: `SL|` (every selection
+decision, input, prompt answer and read-back) and `RT|` (run start, battles fought).
 
-- **Known** [obs]: tokens before/gained `[2]/[4]`; up to 4 loot entries (present 6+5k, XBMItem row
-  9+5k); held items 27-76, gear 78-127; per-loot taken flags 129-132. [pub]: "Take all" = button
-  node 46 (a plain button — no FireCallback), then `SelectYesno` Yes.
-- **Unknown**: the per-item take event; `[145]`; the inventory-full discard flow (probably
-  `XBMContentsItemDispose`, never seen).
-- **Decision**: take everything; when full, discard the lowest-value Crucible item (sell price from
-  `XBMItem`) but never a healing item before the boss.
+## 5. The fight guide (information repository)
 
-### 3.7 Treasure (`XBMContentsTreasure`, n=144)
+`Guide/CrucibleGuide.json` (embedded): all 45 battles on the five boards. Per fight: title, where it sits, a one-line
+summary, kill order, mechanics and dangerous hits (**tell → what to do**, action ids, cast time), counters (interrupt /
+dispel / cleanse and what they answer), threats (statuses, room-wide hits, big single hits, adds, counter stances,
+invulnerable phases, do-not-attack targets), what to bring, and what no source covers. Every line carries source tags
+(`panel` = game sheets; guides IV, NT, AS, G8, LSB, CGW; public automation data MRB, CHR, BMR; R, YT). Conflicts between
+sources are listed under "not covered", with the safer instruction in the text; nothing is invented.
 
-- **Known** [obs]: 4 choices (present 3+5k, XBMItem row 6+5k), held items from 24, gear from 75.
-  Board 1 pools per treasure space recorded across 9 runs. [pub]: choice buttons are ButtonClick
-  events with Param ≥ 2 (probably 2+k [inf]), then Yes.
-- **Unknown**: exact Param per choice (§5 `XR|`); the two-pick flow with Thief's Knife.
-- **Decision**: rank choices by survival value for the rest of the board: familiar HP/defence gear
-  > healing items > damage gear > score items.
+Coverage: 37 fights have two or more strategy sources; 8 are partial — 2:6 (panel data only), 3:7, 4:4, 4:6, 4:9 (the
+only guide reconstructed them from the panels), 5:11, 5:12, 5:13 (one guide, no BossmodReborn module).
 
-### 3.8 Shop buy / sell (`XBMContentsItemShop`, n=269)
+**The guide and the picks never disagree:** the window's horn picks are the live `PickSlots` ranking (run roster and HP
+on the board, else every captured familiar) with its reasons; the guide names no familiar team of its own (harness
+check). Every enemy-panel need the ranking scores is a guide counter tagged `panel`, and no counter claims the panel for
+a need it does not have (`CrucibleGuide.Validate`, harness check); the window marks each counter covered or not by the
+picks. The threats that drive the shop, feed and treasure values are the guide's own threat lists, and "Bring" adds the
+items, gear and feed whose tooltips resist or cure what the fight inflicts.
 
-- **Known** [obs, re-checked 11:43:57]: `[1]` tokens, `[2]` stock count (16); stock from 3, stride 5:
-  present, XBMItem row, price text (" (-50%)" when discounted), discount flag, bought flag. Always
-  8 feed + 4 items + 4 gear. [pub]: buy = callback `[2, stockIndex]`, then Yes; close = node 40 then Yes.
-- **Unknown**: selling (never observed, no source).
-- **Decision**: buy feeds for the next fights' horn familiars first (§3.9), then healing items for the
-  boss, then gear; keep a reserve for the next shop only if one is still reachable.
+**Window** (`/lazycrucible guide`): follows the fight the board layout or the Battlehorn screen is focused on (the horn
+pass's identification) and opens on it; board and battle selectors to browse; short lines, source tags at line end; the
+session's selection decisions and their reasons at the bottom.
 
-### 3.9 Beast Feed (`XBMPetParty` agent mode 3, opened from the shop)
+## 6. What the 0.1.0.0 recorder still needs to confirm
 
-- **Known** [obs]: feed target = `kind 0 [1, SelectedPets index]`, `kind 1 [0]` = Yes, then
-  `kind 1 [-2]` + `kind 0 [-2]` close; a lone `kind 1 [0]` = refused. Per familiar a 77-value block
-  (B = 6+77k): B+2 "cannot eat this feed" (matched kin rules in all 5 sessions), B+7..16 feeds eaten,
-  B+72/B+73 satiety used/max, B+76 XBMPet row. `SelectedPetIds` (0x90) holds the feed target. Rules
-  [pub, consolegameswiki]: capacity = `XBMPet.SatietyMax` (1-5), no duplicate feed per familiar, kin
-  restrictions, not while knocked out; a campsite rest wipes feed unless Lily Simular was eaten.
-  G1 Primafodder: max HP +15 %, heals 10 % [obs].
-- **Decision** (survival first): feed only familiars that will be on the horns in the remaining
-  fights (the `PickSlots` picks for those fights), max-HP / defence feeds first, never a familiar
-  flagged B+2, never past satiety, never a knocked-out familiar; buy feed only after the last campsite
-  the path still passes (or with Lily Simular). "Feed the Bold" (20+ feeds) is a side effect, never a
-  goal; "Starve the Fever" is never chased (it costs survival).
-- **0.1.0.0**: excluded from every write (the .227-.229 `bt=5 readback=fail` defect was the horn pass
-  writing into this picker). Automating it needs only the Yes/No prompt text (§5 `XB|SelectYesno`).
+1. **Treasure click param ↔ choice.** One manual treasure pick with 0.1.0.0: its `XR|…XBMContentsTreasure|type=25|param=P`
+   line and the next HUD `XB|` (which item was gained) give the mapping. Then `TreasureActuation.Grounded` becomes true
+   (the input path, prompt guard and read-back are already in place). The AutoDuty take at 12:59:08 (Green Beret) was
+   too fast to snapshot.
+2. **The Yes/No prompts in play.** `XB|SelectYesno` on a shop item purchase, a feed confirm, a Take all, a treasure pick:
+   the exact text the guard matches (the Addon rows are known; that each flow shows one is inferred from event timing).
+3. **Knocked-out familiars in the picker / campsite.** No recorded block had 0 HP (the old collector stopped at value
+   399, party slots 6–9); 0.1.0.0 records 2000 values. The reader treats 0 current HP as knocked out [inf].
+4. **Campsite limit and heal on boards 3–5.** Not on the screen; the board graph's campsite size and board 3's table are
+   used. One campsite on board 3+ with `XB|` before/after Rest confirms both.
+5. **Item and gear purchases.** Only feed purchases were ever recorded; the first item purchase's `XC|`/`XB|` confirms
+   the bought flag / tokens read-back for items.
+6. **Full inventory.** Never recorded (most held: 7). The discard prompts are refused; the spoils fall back to a
+   suggestion.
+7. **Stage focus on boards 2–5** (`_entrySelection`, carried over from 0.1.0.0): the guide's auto-follow uses it too.
 
-### 3.10 Campsite (`XBMPetParty` agent mode 4)
+## 7. Residual assumptions (each beside its guard)
 
-- **Known** [obs, 4 visits]: `[2]=4 [3]=0`; picks `kind 0 [1, index]` (B+75 flips to 1), Rest =
-  `kind 0 [3]`, then `kind 2 [0]`, `kind 2 [-2]`, `kind 0 [-2]`. 2 familiars picked: +30 % HP each;
-  none picked: 90 % self heal [pub].
-- **Unknown**: where the camp's familiar count and heal percentage are exposed.
-- **Decision**: rest the lowest-HP alive familiars that the remaining fights need; if all needed
-  familiars are healthy, take the self heal.
+- The run's position is the last battle fought — guard: everything reachable counts as ahead (over-inclusive).
+- A suspended and resumed run starts over — guard: same (the whole board counts as ahead).
+- The campsite limit is the smallest campsite ahead — guard: a pick the game refuses fails its read-back and stands down.
+- Item names in prompts are English — guard: fails closed.
+- The feed the picker offers is the last one bought / clicked — guard: the picker's cannot-eat marks must match that
+  feed's kin list exactly, else the choice is the player's.
 
-### 3.11 Beast gear (`XBMContentsGearEffect`, n=45) — read-only list; nothing to decide.
-
-### 3.12 Board items (`XBMContentsMainHUD`, n=111, agent 497)
-
-- **Known** [obs]: items from 9, 10×5 (shown, **usable now**, icon, XBMItem row, name); gear from 60.
-  [pub, AutoDuty]: `[6, slot]` opens the item menu, then `ContextMenu [0,0,0]` (live 12:59:01).
-- **Decision**: use healing items at the familiar's HP threshold in battle (the rotation already swaps
-  hurt familiars); use Temporal Sand–type items only outside battle; save boss-only items.
-
-### 3.13 Result (`XBMResult`, n=169) — read the score; button 61 continues [pub]. Suspend / forfeit
-(HUD buttons [2]/[3]): unknown flow; **never automated** (player decisions).
-
-## 4. Implementation order after the capture
-
-1. Feed (3.9) and campsite (3.10): same agent as the horn pass, events already recorded.
-2. Spoils (3.6) and treasure (3.7): one screen each, deterministic.
-3. Shop buy (3.8), then board items (3.12).
-4. Path choice (3.5): needs the commit mechanism first.
-
-## 5. One capture session (0.1.0.0 recorder, always on, read-only)
-
-What the recorder writes (all lines through `CrucibleLog`, context `LazyCrucible`):
-
-| Line | Source | Answers |
-|---|---|---|
-| `XV\|ms\|open=Name` / `close=Name` | addon visibility, 10 Hz | the run's screen sequence |
-| `XB\|ms\|Name\|n=..\|idx:type=value;..` (+`XB+\|`) | AtkValues on open/change, ≤ 1/s per addon, 2000 values, 60-char strings | every screen's contents (all 10 familiars on XBMPetParty; shop, spoils, treasure, result) |
-| `XC\|ms\|Name\|upd=..\|n=..\|values` | `AtkUnitBase.FireCallback` hook | exact callback values per click (replayable) |
-| `XR\|ms\|Name\|type=..\|param=..\|node=..\|d=hex16` | Dalamud addon lifecycle PreReceiveEvent (clicks only) | plain-button node/param (Take all, treasure choice, Rest, HUD buttons) |
-| `XE\|ms\|ag=Agent\|via=..\|kind=..\|n=..\|values` | ReceiveEvent on agents 497-506 (pp/nb keep `PSP\|`) | agent-side events for every screen |
-| `XA\|ms\|pp\|mode=..\|sub=..\|selIdx=..\|u138=..\|u13c=..` / `XA\|ms\|stage\|content=..\|mode=..` | PR #1952 offsets, on change | feed/camp modes, `SetMode` parameters (Unk138 probably the feed row) |
-| `XO\|ms\|pos=..\|obj=kind:DataId@x,z;..` | on a board, ≤ 1/s, objects within 40 y | how stepping onto a space commits the path |
-| `XK\|ms\|+Flag` / `-Flag` | condition changes in 148 / boards | event states around path commits and menus |
-| `PS\|..\|note=autoduty\|running=0/1` | AutoDuty IPC | which run segments were AutoDuty's |
-
-Session script — one sitting, one board-1 run plus a short manual pass (≈ 30 min):
-
-1. One AutoDuty run with LazyCrucible's `YieldToAutoDuty` on: records the exact callbacks AutoDuty sends
-   on every screen it drives (facts by observation) next to the screen contents.
-2. One manual run (AutoDuty stopped), LazyCrucible roster/horns on, doing each of these once: take
-   one spoils item individually; pick treasure by clicking; buy one item and **sell** one; feed one
-   familiar and try one invalid feed; rest at the camp with one familiar (and, on a later run, two);
-   use one board item from the HUD; open Beast Gear; open Suspend and answer No; open Forfeit and
-   answer No; if possible fill the item slots so the discard screen appears.
-
-After it, every screen in §3 has contents (`XB`), the actions that drive it (`XC`/`XR`/`XE`), the
-agent state around it (`XA`) and, for the path, position/object/condition traces (`XO`/`XK`).
-
-### What the recorder cannot do (stated, not guessed)
-
-- No memory dumps of `AgentXBMContentsMainHUD` or the Crucible director: their struct sizes are not
-  published; the slot map (+0x50) and director inventory (+0x2384) come from unlicensed, unverified
-  code, and reading at guessed offsets is exactly what this project does not ship.
-- Path commits are recorded only indirectly (position, nearby objects, conditions); no hook on the
-  event framework or director.
-- `XBMStageDetailList` has 40,058 AtkValues; the recorder keeps the first 2000 (50 entries of 40),
-  which covers the board-1 graph; boards 2-5 unverified.
-- `XR` records the first 16 bytes of the event data raw (list indices live there; layout differs by
-  event type).
-- Screens only appear on Beastmaster (the recorder, like the automation, runs only on BST).
-- Four addons have never been seen: `XBMContentsItemDispose`, `XBMStageSummary`, `XBMRanking`,
-  `XBMMonsterNotebookFilterSetting`.
-
-## 6. Residual assumptions of 0.1.0.0 (each beside its guard)
-
-- XBMPetParty AtkValues [2]/[3] mirror agent Mode/SubMode (26 opens agree; agent fields logged as
-  `agm=`/`ags=` for confirmation) — guard: any feed/camp signal vetoes a write; unknown modes never write.
-- `_entrySelection` focus = the next fight (board 1 only) — guard: coverage fallback never replaces a
-  non-empty horn; picks name the fight in chat, so a wrong focus is visible.
-- An event the pass did not send is an edit to respect (includes AutoDuty and presets) — guard is the
-  stand-down itself (the safe direction: at worst the horns stay as someone else left them).
-- Roster board at Bentbranch falls back to board 1 when `ContentId` is unset — logged as `b=` on the
-  roster decision line.
-
-## 7. Upstream sources and licences
+## 8. Upstream sources and licences
 
 | Source | Licence | Use here |
 |---|---|---|
 | FFXIVClientStructs + PR #1952 | MIT | offsets, signatures, agent/addon ids |
-| ECommons | MIT | Callback hook pattern (FireCallback delegate) |
-| Dalamud | AGPL-3.0 | addon lifecycle API (runtime use) |
-| DailyRoutines ModulesPublic | AGPL-3.0 | facts (stage agent kind 0 [8] = start battle) |
-| BossmodReborn / WrathCombo | BSD-3-Clause | nothing XBM-specific found |
-| MagitekRoutine, RotationSolverReborn | GPL-3.0 | Crucible piece data only (MagitekRB PR #325) |
-| erdelf/AutoDuty | none ("Unlicensed" per README) | facts only: callbacks, node ids, path positions, IPC names |
-| BeastHelper (Rin-0617) | none | facts only: crash timings, board callbacks |
-| BOCXIV/Beastmaster-JP, CherryXIV | none | facts only |
+| ECommons | MIT | callback firing (`Callback.Fire`), addon helpers |
+| Dalamud, Lumina | AGPL-3.0 / MIT | runtime API; the client's Addon sheet text for the prompt guard |
+| BossmodReborn | BSD-3-Clause | facts for the guide: mechanic names, action ids, cast times, shapes (no code) — see NOTICE.md |
+| MagitekRoutine PR #325 data, CherryXIV Beastmaster-Reactions | GPL-3.0 / none | facts for the guide (ids, panel reads, reaction triggers) |
+| Icy Veins, consolegameswiki, nettoge, asellog, Game8, Lodestone blog | web guides | facts for the guide, tagged per line |
+| erdelf/AutoDuty | none ("Unlicensed") | facts only: callback values, node ids (shop `[2, k]`, Take all 46, treasure param ≥ 2) |
+| DailyRoutines ModulesPublic, BeastHelper, BOCXIV | AGPL-3.0 / none | facts only (0.1.0.0) |

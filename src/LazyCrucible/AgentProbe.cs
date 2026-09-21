@@ -127,6 +127,7 @@ internal static unsafe class AgentProbe
 
             int? firstInt = values is not null && valueCount > 0 && values[0].Type == AtkValueType.Int ? values[0].Int : null;
             PetSelect.OnAgentEvent(tag, eventKind, valueCount, firstInt);
+            SelectionScreens.OnAgentEvent(tag, eventKind, valueCount, firstInt);
 
             var familiar = tag is "pp" or "nb";
             if (!familiar && !Plugin.Config.RecordScreens)

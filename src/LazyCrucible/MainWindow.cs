@@ -31,6 +31,12 @@ internal sealed class MainWindow : Window
         ImGui.TextWrapped(PetSelect.LastSummary.Length == 0
             ? "No familiar selection yet this session."
             : $"{PetSelect.LastSummaryAt:HH:mm:ss}  {PetSelect.LastSummary}");
+        if (SelectionScreens.Status.Length > 0)
+            ImGui.TextWrapped(SelectionScreens.Status);
+        if (ImGui.Button("Open the fight guide"))
+            _plugin.ToggleGuide();
+        ImGui.SameLine();
+        ImGui.TextDisabled("/lazycrucible guide");
         ImGui.Separator();
 
         var changed = false;
@@ -50,13 +56,73 @@ internal sealed class MainWindow : Window
         }
         Help("On the formation screen before every fight, puts the three familiars that answer that fight's mechanics on the horns: elemental weakness, interrupts (Soul Crush), dispels (Quelling Wave), cleanses and crowd control the enemies are vulnerable to. Knocked-out familiars are never picked; badly hurt ones lose to a healthy one that fits nearly as well. Never starts the fight, never touches the shop's feeding screen, and stops for that screen as soon as a slot is changed by hand.");
 
+        ImGui.Spacing();
+        ImGui.TextUnformatted("Selection screens (only when you open them; never walks, starts a battle, rests, sells or leaves)");
+
+        var feed = cfg.AutoFeed;
+        if (ImGui.Checkbox("Beast Feed: pick who eats the feed and confirm", ref feed))
+        {
+            cfg.AutoFeed = feed;
+            changed = true;
+        }
+        Help("When a feed is bought, feeds it to the familiar it helps most in the fights ahead. Never a familiar whose kin cannot eat it, one that is full or knocked out, or one that already ate it. A feed that would hurt every familiar (for example max HP -80%) is left to you.");
+
+        var shop = cfg.AutoShop;
+        if (ImGui.Checkbox("Shop: buy what the fights ahead call for", ref shop))
+        {
+            cfg.AutoShop = shop;
+            changed = true;
+        }
+        Help("Keeps enough heals for the fights ahead, then buys what keeps you and your familiars alive: resistance to what those fights inflict, max HP and damage-taken gear, revives, and feed for the familiars the horns will use. Each purchase is confirmed only when the prompt names that item. Never sells and never leaves the shop; buying anything yourself hands the rest of the visit to you.");
+
+        var spoils = cfg.AutoSpoils;
+        if (ImGui.Checkbox("Spoils: Take all when everything fits", ref spoils))
+        {
+            cfg.AutoSpoils = spoils;
+            changed = true;
+        }
+        Help("If the loot would not fit (or repeats gear you own), shows the best items first and leaves the choice to you.");
+
+        var treasure = cfg.AutoTreasure;
+        if (ImGui.Checkbox("Treasure: suggest the best choice", ref treasure))
+        {
+            cfg.AutoTreasure = treasure;
+            changed = true;
+        }
+        Help("Marks the choice that helps most and says why. It does not click yet: which button belongs to which choice has not been recorded.");
+
+        var camp = cfg.AutoCamp;
+        if (ImGui.Checkbox("Campsite: select who rests (you press Rest)", ref camp))
+        {
+            cfg.AutoCamp = camp;
+            changed = true;
+        }
+        Help("Weighs your heal against the familiars' (resting familiars lose their feed unless they ate Lily Simular) and selects the familiars worth resting. Your self heal wins when you are low. Rest is always your button.");
+
+        var goal = (int)cfg.ScoreGoal;
+        ImGui.SetNextItemWidth(260);
+        if (ImGui.Combo("Score goal for feeding", ref goal, "Survival first (default)\0Starve the Fever (never feed)\0Feed the Bold (feed anything harmless)\0"))
+        {
+            cfg.ScoreGoal = (ScoreGoal)goal;
+            changed = true;
+        }
+
+        var guideOpen = cfg.GuideAutoOpen;
+        if (ImGui.Checkbox("Open the fight guide on the upcoming fight", ref guideOpen))
+        {
+            cfg.GuideAutoOpen = guideOpen;
+            changed = true;
+        }
+        Help("When the board layout or the Battlehorn screen points at a fight, the guide opens on it: horn picks and why, what the fight calls for, dangerous hits, mechanics and what to bring.");
+        ImGui.Spacing();
+
         var yieldAd = cfg.YieldToAutoDuty;
         if (ImGui.Checkbox("Stand down while AutoDuty is running", ref yieldAd))
         {
             cfg.YieldToAutoDuty = yieldAd;
             changed = true;
         }
-        Help("AutoDuty can run whole Crucible boards and fills the roster and horns with its own team (for example a leveling team). While it is running, LazyCrucible does not touch the familiar screens, so the two never overwrite each other.");
+        Help("AutoDuty can run whole Crucible boards and fills the roster and horns with its own team (for example a leveling team). While it is running, LazyCrucible does not touch any Crucible screen, so the two never overwrite each other.");
 
         var announce = cfg.AnnouncePicks;
         if (ImGui.Checkbox("Announce picks in chat", ref announce))

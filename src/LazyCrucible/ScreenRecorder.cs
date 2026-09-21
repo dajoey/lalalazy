@@ -65,16 +65,20 @@ internal static unsafe class ScreenRecorder
     /// <summary> Addon event types worth recording (clicks and selections; no hover, move, focus or timers). </summary>
     private static readonly HashSet<int> ClickEventTypes = [9, 10, 23, 25, 27, 31, 35, 36, 38, 58, 61, 63];
 
-    /// <summary> Framework tick while Beastmaster: visibility, snapshots, callback hook lifecycle. </summary>
+    /// <summary>
+    ///     Framework tick while Beastmaster: visibility, snapshots, callback hook lifecycle. The FireCallback hook stays on
+    ///     while Beastmaster even with recording off: the selection screens learn from it which shop entry the player
+    ///     clicked (the Beast Feed picker never names the feed being offered).
+    /// </summary>
     public static void Tick(bool wanted)
     {
+        EnsureCallbackHook();
         if (!wanted)
         {
-            Stop();
+            StopRecording();
             return;
         }
 
-        EnsureCallbackHook();
         EnsureListeners();
 
         var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
@@ -109,6 +113,12 @@ internal static unsafe class ScreenRecorder
             }
             _fireCallbackHook = null;
         }
+        StopRecording();
+    }
+
+    /// <summary> Recording off: listeners and snapshot state go, the callback hook stays (see <see cref="Tick"/>). </summary>
+    private static void StopRecording()
+    {
         if (_listenersOn)
         {
             try
@@ -404,6 +414,10 @@ internal static unsafe class ScreenRecorder
     {
         try
         {
+            if (unit is not null && OwnCalls.Depth == 0 && valueCount >= 2 && values is not null
+                && values[0].Type == AtkValueType.Int && values[1].Type == AtkValueType.Int && unit->NameString == "XBMContentsItemShop")
+                SelectionScreens.OnPlayerShopCallback(values[0].Int, values[1].Int);
+
             if (unit is not null && Plugin.Config.RecordScreens)
             {
                 var name = unit->NameString;
