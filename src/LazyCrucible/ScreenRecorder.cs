@@ -66,19 +66,21 @@ internal static unsafe class ScreenRecorder
     private static readonly HashSet<int> ClickEventTypes = [9, 10, 23, 25, 27, 31, 35, 36, 38, 58, 61, 63];
 
     /// <summary>
-    ///     Framework tick while Beastmaster: visibility, snapshots, callback hook lifecycle. A failure propagates to
-    ///     the plugin's <c>tick.recorder</c> breaker (src/Shared/LalaTelemetry), which pauses the recorder after
-    ///     repeated errors without touching familiar selection.
+    ///     Framework tick while Beastmaster: visibility, snapshots, callback hook lifecycle. The FireCallback hook stays on
+    ///     while Beastmaster even with recording off: the selection screens learn from it which shop entry the player
+    ///     clicked (the Beast Feed picker never names the feed being offered). A failure propagates to the plugin's
+    ///     <c>tick.recorder</c> breaker (src/Shared/LalaTelemetry), which pauses the recorder after repeated errors
+    ///     without touching familiar selection or the selection screens.
     /// </summary>
     public static void Tick(bool wanted)
     {
+        EnsureCallbackHook();
         if (!wanted)
         {
-            Stop();
+            StopRecording();
             return;
         }
 
-        EnsureCallbackHook();
         EnsureListeners();
 
         var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
@@ -132,6 +134,12 @@ internal static unsafe class ScreenRecorder
             }
             _fireCallbackHook = null;
         }
+        StopRecording();
+    }
+
+    /// <summary> Recording off: listeners and snapshot state go, the callback hook stays (see <see cref="Tick"/>). </summary>
+    private static void StopRecording()
+    {
         if (_listenersOn)
         {
             try
@@ -431,6 +439,19 @@ internal static unsafe class ScreenRecorder
 
     private static bool FireCallbackDetour(AtkUnitBase* unit, uint valueCount, AtkValue* values, bool updateState)
     {
+        // The selection screens' shop-click latch first, never behind the recorder's breaker: a purchase made by
+        // hand must always hand the shop visit back to the player (and name the feed the Beast Feed picker offers).
+        try
+        {
+            if (unit is not null && OwnCalls.Depth == 0 && valueCount >= 2 && values is not null
+                && values[0].Type == AtkValueType.Int && values[1].Type == AtkValueType.Int && unit->NameString == "XBMContentsItemShop")
+                SelectionScreens.OnPlayerShopCallback(values[0].Int, values[1].Int);
+        }
+        catch (Exception ex)
+        {
+            CrucibleLog.Error(ex, "shop click latch");
+        }
+
         // Logging only, under its breaker; the original always runs with the arguments untouched.
         var guard = CrucibleLog.RecorderHook;
         if (guard.TryEnter())

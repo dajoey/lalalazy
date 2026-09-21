@@ -120,8 +120,8 @@ internal static unsafe class AgentProbe
 
     private static void Observe(AgentInterface* agent, string via, AtkValue* values, uint valueCount, ulong eventKind)
     {
-        // The familiar-selection edit latch first, never behind a breaker: skipping it could let the pass
-        // overwrite a manual edit.
+        // The edit latches first (familiar selection, then the selection screens' Beast Feed picker / campsite),
+        // never behind a breaker: skipping them could let a pass overwrite a manual edit.
         string? tag;
         try
         {
@@ -130,6 +130,7 @@ internal static unsafe class AgentProbe
 
             int? firstInt = values is not null && valueCount > 0 && values[0].Type == AtkValueType.Int ? values[0].Int : null;
             PetSelect.OnAgentEvent(tag, eventKind, valueCount, firstInt);
+            SelectionScreens.OnAgentEvent(tag, eventKind, valueCount, firstInt);
         }
         catch (Exception ex)
         {

@@ -11,7 +11,8 @@ to print fresh synthetic examples of every line kind.
 Older positional lines (`CT|`, `BT|`, `CR|`, `MT|`, `PT|`, `FT|`, `PS|`, `PSP|`, `XB|`, `XB+|`, `XP|`)
 are unchanged. Their grammars live in the `*TelemetryFormat.cs` file that writes them (LazyCrucible's
 `PS|`, `PSP|`, `XV|`, `XB|`, `XC|`, `XR|`, `XE|`, `XA|`, `XO|`, `XK|`: the doc comments of
-`src/LazyCrucible/PetSelect.cs`, `AgentProbe.cs` and `ScreenRecorder.cs`). This library only adds `ER|`,
+`src/LazyCrucible/PetSelect.cs`, `AgentProbe.cs` and `ScreenRecorder.cs`; `SL|` and `RT|`:
+`SelectionScreens.cs` and `RunTracker.cs`, see `src/LazyCrucible/DESIGN.md`). This library only adds `ER|`,
 `RP|` and the ring-only `NT|`.
 
 ## 1. Where the lines are
@@ -161,8 +162,10 @@ Per-frame handlers run under a breaker named by `a`. The plugins use these areas
 | LazyCrucible | `tick` | the whole framework tick (stand-down checks, agent probe setup) |
 | LazyCrucible | `tick.select` | familiar selection (the formation pass), inside `tick` |
 | LazyCrucible | `tick.recorder` | the screen recorder's scan (XV/XB/XA/XO), inside `tick` |
-| LazyCrucible | `hook.probe` | the PSP|/XE| log in the XBM agent ReceiveEvent hooks; the familiar-edit latch runs before it and is never skipped |
-| LazyCrucible | `hook.recorder` | the recorder's FireCallback hook, addon-click listener and condition listener (log only) |
+| LazyCrucible | `tick.screens` | the selection screens (Beast Feed picker, shop, spoils, campsite, treasure) with the prompt texts and run tracker they read, inside `tick`; a failure drops the input in flight |
+| LazyCrucible | `overlay.draw` | the suggestion frames drawn over Crucible screens |
+| LazyCrucible | `hook.probe` | the PSP|/XE| log in the XBM agent ReceiveEvent hooks; the edit latches (familiar selection, selection screens) run before it and are never skipped |
+| LazyCrucible | `hook.recorder` | the recorder's FireCallback hook, addon-click listener and condition listener (log only); the selection screens' shop-click latch runs before it and is never skipped |
 
 LazyCrucible's other catch points write `swallowed` lines whose area is the call site's description
 folded to lower case with dashes, e.g. `receiveevent-resolve-failed`, `restore-failed`,
@@ -235,7 +238,8 @@ Each plugin keeps the last 200 telemetry lines in memory, always, whatever its t
   `XP|` are recorded only while the switch is on (their sampling runs per frame). Crucible familiar
   selection (`PS|`, `PSP|`) moved to LazyCrucible; only the once-per-board `PS|aggro=` line is still
   written by GluttonyCombo, and it is not recorded.
-- LazyCrucible (ring of 120 lines, not 200, see 4.2): every `PS|` selection decision; `PSP|` pet-party /
+- LazyCrucible (ring of 120 lines, not 200, see 4.2): every `PS|` familiar-selection decision, `SL|`
+  selection-screen line and `RT|` run line (all event-driven); `PSP|` pet-party /
   notebook events at most 5/s (burst 40); `XB+|` continuation chunks never; every other screen line
   (`XV| XB| XC| XR| XE| XA| XO| XK|`) at most 3/s (burst 30). A recorder flood therefore cannot push the
   selection decisions out of the ring (asserted in `tests/LazyCrucible.Harness`). Every line is still

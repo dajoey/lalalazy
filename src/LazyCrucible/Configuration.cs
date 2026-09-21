@@ -22,6 +22,27 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary> Write every Crucible screen and its button presses to the Dalamud log (read-only). </summary>
     public bool RecordScreens { get; set; } = true;
 
+    /// <summary> Beast Feed picker (opened by buying feed): choose which familiar eats it and confirm. </summary>
+    public bool AutoFeed { get; set; } = true;
+
+    /// <summary> Shop: buy the items, gear and feed the fights ahead call for (never sells, never closes the shop). </summary>
+    public bool AutoShop { get; set; } = true;
+
+    /// <summary> Treasure coffer: take the best choice. </summary>
+    public bool AutoTreasure { get; set; } = true;
+
+    /// <summary> Spoils after a battle: "Take all" when everything fits. </summary>
+    public bool AutoSpoils { get; set; } = true;
+
+    /// <summary> Campsite: select which familiars rest (the Rest button is left to the player). </summary>
+    public bool AutoCamp { get; set; } = true;
+
+    /// <summary> Score bonus the feed choices may chase; survival first by default. </summary>
+    public ScoreGoal ScoreGoal { get; set; } = ScoreGoal.SurvivalFirst;
+
+    /// <summary> Open the fight guide on the upcoming fight when the board layout or the Battlehorn screen shows it. </summary>
+    public bool GuideAutoOpen { get; set; } = true;
+
     /// <summary> Newest CHANGELOG version the in-game "What's new" popup has shown (shared LalaChangelog gate). </summary>
     public string? LastSeenChangelogVersion { get; set; }
 

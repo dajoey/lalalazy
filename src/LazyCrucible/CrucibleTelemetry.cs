@@ -133,7 +133,9 @@ internal static class CrucibleTelemetry
 ///     before). The screen recorder can write dozens of lines a second, so without a cap it would push the
 ///     familiar-selection decisions out of a 120-line ring within seconds:
 ///     <list type="bullet">
-///         <item><c>PS|</c> (selection decisions): always.</item>
+///         <item><c>PS|</c> (familiar selection decisions), <c>SL|</c> (selection-screen decisions, inputs, prompt
+///             answers, read-backs) and <c>RT|</c> (run start, battles fought): always. All three are event-driven, a
+///             handful per screen or fight, never per frame.</item>
 ///         <item><c>PSP|</c> (pet-party / notebook events): at most 5/s, burst 40.</item>
 ///         <item><c>XB+|</c> (continuation chunks of a screen dump): never; the first <c>XB|</c> chunk marks the
 ///             change, and a report carries the full values of every visible XBM screen anyway.</item>
@@ -152,7 +154,8 @@ internal sealed class CrucibleRingPolicy
     public bool ShouldRecord(string line, long nowMs)
     {
         bool keep;
-        if (line.StartsWith("PS|", StringComparison.Ordinal))
+        if (line.StartsWith("PS|", StringComparison.Ordinal) || line.StartsWith("SL|", StringComparison.Ordinal)
+            || line.StartsWith("RT|", StringComparison.Ordinal))
             keep = true;
         else if (line.StartsWith("XB+|", StringComparison.Ordinal))
             keep = false;

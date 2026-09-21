@@ -80,8 +80,6 @@ internal static unsafe class PetSelect
     private static bool _loggedConflictThisPhase;
 
     private static bool _disarmRestOfScreen;
-    /// <summary> >0 while this pass's own agent calls are on the stack; the probe ignores those events. </summary>
-    private static int _ownCallDepth;
     /// <summary> A selection edit this pass did not send, seen by the probe; consumed on the next tick. </summary>
     private static string? _pendingExternalEdit;
     /// <summary> The player edited the Bentbranch roster this visit: the roster writer stands down until a board is entered. </summary>
@@ -124,7 +122,7 @@ internal static unsafe class PetSelect
     /// </summary>
     internal static void OnAgentEvent(string tag, ulong kind, uint valueCount, int? firstInt)
     {
-        if (_ownCallDepth == 0 && IsSelectionEditEvent(tag, kind, valueCount, firstInt))
+        if (OwnCalls.Depth == 0 && IsSelectionEditEvent(tag, kind, valueCount, firstInt))
             _pendingExternalEdit = $"ag={tag}|kind={kind}|v0={(firstInt?.ToString(CultureInfo.InvariantCulture) ?? "")}";
     }
 
@@ -197,7 +195,7 @@ internal static unsafe class PetSelect
                 // four overwrites).
                 var prevOpenEmpty = _arm.ScreenOpen;
                 _arm = NextFormationArm(_arm, screenOpen, prevOpenEmpty ? _arm.BattleKey : 0, surfaceKey);
-                if (_rosterAfterPass is { Count: > 0 } && _ownCallDepth == 0)
+                if (_rosterAfterPass is { Count: > 0 } && OwnCalls.Depth == 0)
                     _pendingExternalEdit ??= "src=state|roster=0";
                 ConsumeExternalEdit(surfaceKey, petPartyOpen);
                 if (!prevOpenEmpty && _arm.ScreenOpen)
@@ -224,7 +222,7 @@ internal static unsafe class PetSelect
         _arm = NextFormationArm(_arm, screenOpen, battleKey, surfaceKey);
         if (!_arm.ScreenOpen)
             _rosterAfterPass = null;
-        else if (_rosterAfterPass is not null && surfaceKey == SurfacePreentry && _ownCallDepth == 0)
+        else if (_rosterAfterPass is not null && surfaceKey == SurfacePreentry && OwnCalls.Depth == 0)
         {
             // Notebook adds call TogglePet from the addon callback and never reach ReceiveEvent: watch membership.
             var nowRoster = ReadPetIds(pet, PartySelectedPetIds);
@@ -592,7 +590,7 @@ internal static unsafe class PetSelect
     ///     Replay the live-proven pet-party toggle: ReceiveEvent(eventKind 0, [Int 1, Int screenIndex]),
     ///     where screenIndex is the index into SelectedPets on the open horn screen — never a familiar id.
     /// </summary>
-    private static bool FireEventToggle(AgentInterface* agent, int screenIndex)
+    internal static bool FireEventToggle(AgentInterface* agent, int screenIndex)
     {
         if (_receiveEvent is null)
             return false;
@@ -603,14 +601,14 @@ internal static unsafe class PetSelect
         values[1].Type = AtkValueType.Int;
         values[1].Int = screenIndex;
         ret[0] = default;
-        _ownCallDepth++;
+        OwnCalls.Depth++;
         try
         {
             _receiveEvent(agent, ret, values, 2, 0);
         }
         finally
         {
-            _ownCallDepth--;
+            OwnCalls.Depth--;
         }
         return true;
     }
@@ -856,7 +854,7 @@ internal static unsafe class PetSelect
         return true;
     }
 
-    private static bool TryIdentifyBattle(nint stage, int territoryBoard, out int board, out int battle, out uint detailId, out List<uint> nameIds)
+    internal static bool TryIdentifyBattle(nint stage, int territoryBoard, out int board, out int battle, out uint detailId, out List<uint> nameIds)
     {
         board = 0;
         battle = -1;
@@ -926,6 +924,23 @@ internal static unsafe class PetSelect
         return nameIds.Count > 0;
     }
 
+    /// <summary>
+    ///     The run roster (AgentXBMPetParty SelectedPets) and each familiar's HP percent (0 = knocked out), for the
+    ///     selection policies. False when the agent holds no party.
+    /// </summary>
+    internal static bool TryReadRunRoster(out List<int> rows, out Dictionary<int, int> hpPercent)
+    {
+        hpPercent = [];
+        var pet = GetAgent(AgentId.XBMPetParty);
+        if (pet == 0 || !TryReadPetVector(pet, PartySelectedPets, out rows) || rows.Count == 0)
+        {
+            rows = [];
+            return false;
+        }
+        hpPercent = HpPercentByRow(ReadPartyHpRaw(pet, rows));
+        return true;
+    }
+
     private static List<(int Row, uint Current, uint Max)> ReadPartyHpRaw(nint agent, List<int> partyRows)
     {
         var list = new List<(int, uint, uint)>(partyRows.Count);
@@ -967,7 +982,7 @@ internal static unsafe class PetSelect
         }
     }
 
-    private static nint GetAgent(AgentId id)
+    internal static nint GetAgent(AgentId id)
     {
         var module = AgentModule.Instance();
         if (module is null)
@@ -1026,7 +1041,7 @@ internal static unsafe class PetSelect
     ///     is not populated yet (only [3] is set on the first frame of an open). Live: roster list 0/1,
     ///     Battlehorn preview 2/1, shop feed picker 3/0.
     /// </summary>
-    private static (int Mode, int SubMode) ReadPetPartyAddonMode()
+    internal static (int Mode, int SubMode) ReadPetPartyAddonMode()
     {
         try
         {
@@ -1138,7 +1153,7 @@ internal static unsafe class PetSelect
         return _sigsOk;
     }
 
-    private static bool EnsureReceiveEvent(nint pet)
+    internal static bool EnsureReceiveEvent(nint pet)
     {
         if (_receiveEvent is not null)
             return true;

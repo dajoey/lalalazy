@@ -33,6 +33,7 @@
   <ItemGroup>
     <Compile Include="..\Shared\LalaChangelog\**\*.cs" Link="LalaChangelog\%(RecursiveDir)%(Filename)%(Extension)" />
     <EmbeddedResource Include="CHANGELOG.md" LogicalName="CHANGELOG.md" />
+    <EmbeddedResource Include="Guide\CrucibleGuide.json" LogicalName="CrucibleGuide.json" />
   </ItemGroup>
   <!-- Crucible data + beast-pick ranking shared with GluttonyCombo's Beastmaster rotation, as SOURCE
        (each plugin has its own AssemblyLoadContext; a shared DLL would be pruned). -->

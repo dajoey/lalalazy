@@ -1,0 +1,2626 @@
+{
+ "source": "FFXIV 7.56 game sheets via xivapi v2 (XBMItem, XBMPet (SatietyMax), XBMContentStageEvent, XBMContentStageEventMap, XBMContentCamp, XBMContentRandomStageEvent, XBMRandomStageEvent), decoded 2026-09-16 (crucible-data/build.py)",
+ "items": [
+  {
+   "row": 1,
+   "type": 1,
+   "name": "Belt of Constitution",
+   "sell": 98,
+   "description": "Maximum HP +20%"
+  },
+  {
+   "row": 2,
+   "type": 1,
+   "name": "Ring of Sacrifice",
+   "sell": 35,
+   "description": "Revives beastmaster upon KO by sacrificing the summoned familiar.\nIneffective if a familiar is not summoned."
+  },
+  {
+   "row": 3,
+   "type": 1,
+   "name": "Ring of Curing",
+   "sell": 175,
+   "description": "Recovers 25% of maximum HP at the end of battles."
+  },
+  {
+   "row": 4,
+   "type": 1,
+   "name": "Chemist's Satchel",
+   "sell": 35,
+   "description": "Procures one random beast potion upon resting at campsites."
+  },
+  {
+   "row": 5,
+   "type": 1,
+   "name": "Hexed Hat",
+   "sell": 56,
+   "description": "Magic Vulnerability -10%"
+  },
+  {
+   "row": 6,
+   "type": 1,
+   "name": "Steel Armor",
+   "sell": 63,
+   "description": "Physical Vulnerability -15%"
+  },
+  {
+   "row": 7,
+   "type": 1,
+   "name": "Crown of the Wild",
+   "sell": 190,
+   "description": "Physical Damage Dealt +10%\nCritical Hit Rate +3%\n※Effects also apply to summoned familiar."
+  },
+  {
+   "row": 8,
+   "type": 1,
+   "name": "Staff of the Wise",
+   "sell": 190,
+   "description": "Magic Damage Dealt +20%\n※Effects also apply to summoned familiar."
+  },
+  {
+   "row": 9,
+   "type": 1,
+   "name": "Power Armlet",
+   "sell": 174,
+   "description": "Physical Damage Dealt +12%\nEvasion +3%"
+  },
+  {
+   "row": 10,
+   "type": 1,
+   "name": "Twisted Headband",
+   "sell": 84,
+   "description": "Physical Damage Dealt +5%\nPhysical Vulnerability -5%"
+  },
+  {
+   "row": 11,
+   "type": 1,
+   "name": "Green Beret",
+   "sell": 174,
+   "description": "Critical Hit Power +35\nDamage Dealt +3%\nMaximum HP +7%"
+  },
+  {
+   "row": 12,
+   "type": 1,
+   "name": "Mystic Boots",
+   "sell": 91,
+   "description": "Evasion +8%\nMovement Speed +50%\nIncreases HP recovery via actions and crucible items by 15%."
+  },
+  {
+   "row": 13,
+   "type": 1,
+   "name": "Ring of Protection",
+   "sell": 104,
+   "description": "Damage Taken -10%\nMaximum HP +7%"
+  },
+  {
+   "row": 14,
+   "type": 1,
+   "name": "Ice Shield",
+   "sell": 140,
+   "description": "Damage Taken -30%\nSlow +10%\n30% chance to absorb ice damage as HP."
+  },
+  {
+   "row": 15,
+   "type": 1,
+   "name": "Earth Shield",
+   "sell": 266,
+   "description": "30% chance to absorb earth damage as HP.\n10% chance to grant Stoneskin upon blocking with shield.\nStoneskin Effect: Absorbs damage totaling 15% of maximum HP\nDuration: 60s"
+  },
+  {
+   "row": 16,
+   "type": 1,
+   "name": "Water Shield",
+   "sell": 214,
+   "description": "Block Strength +50%\n30% chance to absorb water damage as HP.\n10% chance to grant Reflect upon blocking with shield.\nReflect Effect: Reflects most magic attacks back at the caster\nDuration: 60s"
+  },
+  {
+   "row": 17,
+   "type": 1,
+   "name": "Force Shield",
+   "sell": 82,
+   "description": "Block Strength +75%\nMagic Vulnerability -10%"
+  },
+  {
+   "row": 18,
+   "type": 1,
+   "name": "Crimson Ribbon",
+   "sell": 84,
+   "description": "Petrification Resistance +100%\nBlind Resistance +100%\nParalysis Resistance +100%"
+  },
+  {
+   "row": 19,
+   "type": 1,
+   "name": "Genji Gloves",
+   "sell": 238,
+   "description": "Damage Dealt +12%\nParalysis Resistance +100%\n10% chance to recover TP upon completing a combo with a beastmaster instinctual skill."
+  },
+  {
+   "row": 20,
+   "type": 1,
+   "name": "Genji Greatshield",
+   "sell": 94,
+   "description": "Block Strength +30%\nEvasion +10%"
+  },
+  {
+   "row": 21,
+   "type": 1,
+   "name": "Genji Armor",
+   "sell": 226,
+   "description": "Movement Speed -20%\nDamage Taken -20%\nMaximum HP +30%"
+  },
+  {
+   "row": 22,
+   "type": 1,
+   "name": "Silver Specs",
+   "sell": 112,
+   "description": "Critical Hit Rate +15%\nBlind Resistance +100%"
+  },
+  {
+   "row": 23,
+   "type": 1,
+   "name": "Angel Robe",
+   "sell": 189,
+   "description": "Damage Taken -7%\nPoison Resistance +100%\n5% chance to grant one stack of Rehabilitation upon suffering damage.\nRehabilitation Effect: Restores 3% of maximum HP at regular intervals\nDuration: 12s\nMaximum Stacks: 8"
+  },
+  {
+   "row": 24,
+   "type": 1,
+   "name": "Master Shield",
+   "sell": 390,
+   "description": "Block Strength +125%\nDamage Taken -25%\nMaximum HP +35%"
+  },
+  {
+   "row": 25,
+   "type": 1,
+   "name": "Mystic Veil",
+   "sell": 220,
+   "description": "Magic Damage Dealt +18%\nMagic Vulnerability -15%\nIncreases HP recovery via actions and crucible items by 15%."
+  },
+  {
+   "row": 26,
+   "type": 1,
+   "name": "Black Cowl",
+   "sell": 122,
+   "description": "Maximum HP +6%\nEvasion +8%\nSleep Resistance +100%"
+  },
+  {
+   "row": 27,
+   "type": 1,
+   "name": "Hero's Crown",
+   "sell": 420,
+   "description": "Maximum HP +30%\nDamage Dealt +18%\nGrants Excellence upon completing a combo with a beastmaster instinctual skill.\nExcellence Effect: Nullifies most attacks and increases damage dealt by 10%\nDuration: 9s"
+  },
+  {
+   "row": 28,
+   "type": 1,
+   "name": "Mirage Vest",
+   "sell": 150,
+   "description": "20% chance to grant one stack of Blink upon suffering damage.\nBlink Effect: Nullifies most physical attacks, reducing one stack per nullification\nDuration: 120s"
+  },
+  {
+   "row": 29,
+   "type": 1,
+   "name": "Soulreaper's Armor",
+   "sell": 99,
+   "description": "Maximum HP +10%\nDamage Taken -5%\nDoom Resistance +100%"
+  },
+  {
+   "row": 30,
+   "type": 1,
+   "name": "Briar Armor",
+   "sell": 168,
+   "description": "Deals unaspected damage with a potency of 360 each time you suffer physical damage.\nCounter damage is affected by magic damage increase effects of other beast gear, items, and abilities."
+  },
+  {
+   "row": 31,
+   "type": 1,
+   "name": "Coward's Knife",
+   "sell": 90,
+   "description": "Damage Dealt +1%\n35% chance to offer escape from an enemy space, thus avoiding battle and forfeiting loot. Ineffective on elite enemy or boss spaces.\nGrants one stack of Guerrilla Tactics upon fleeing.\nGuerrilla Tactics Effect: Increases damage dealt by 18% and evasion by 4%"
+  },
+  {
+   "row": 32,
+   "type": 1,
+   "name": "Umbral Mantle",
+   "sell": 167,
+   "description": "Maximum HP +12%\n25% chance to recover TP upon completing a combo with a beastmaster instinctual skill."
+  },
+  {
+   "row": 33,
+   "type": 1,
+   "name": "Umbral Band",
+   "sell": 81,
+   "description": "Physical Vulnerability -9%\n10% chance to recover TP upon completing a combo with a beastmaster instinctual skill."
+  },
+  {
+   "row": 34,
+   "type": 1,
+   "name": "Umbral Wristlet",
+   "sell": 112,
+   "description": "Magic Vulnerability -15%\nMaximum HP +5%\nStun Resistance +100%"
+  },
+  {
+   "row": 35,
+   "type": 1,
+   "name": "Astral Mantle",
+   "sell": 190,
+   "description": "Rapid Recast +25%\nDamage Taken -7%\nMaximum HP +15%"
+  },
+  {
+   "row": 36,
+   "type": 1,
+   "name": "Astral Band",
+   "sell": 74,
+   "description": "Rapid Recast +15%\nPhysical Vulnerability -8%"
+  },
+  {
+   "row": 37,
+   "type": 1,
+   "name": "Astral Wristlet",
+   "sell": 86,
+   "description": "Rapid Recast +15%\nMagic Vulnerability -8%"
+  },
+  {
+   "row": 38,
+   "type": 1,
+   "name": "Flame-wreathed Axe",
+   "sell": 168,
+   "description": "Deals additional fire damage with a potency of 240 after each auto-attack.\nAdditional damage is affected by magic damage increase effects of other beast gear, items, and abilities.\nWhen carrying multiple pieces of beast gear that influence auto-attacks, only one will take effect."
+  },
+  {
+   "row": 39,
+   "type": 1,
+   "name": "Icebitten Axe",
+   "sell": 168,
+   "description": "Deals additional ice damage with a potency of 240 after each auto-attack.\nAdditional damage is affected by magic damage increase effects of other beast gear, items, and abilities.\nWhen carrying multiple pieces of beast gear that influence auto-attacks, only one will take effect."
+  },
+  {
+   "row": 40,
+   "type": 1,
+   "name": "Thunderstruck Axe",
+   "sell": 168,
+   "description": "Deals additional lightning damage with a potency of 240 after each auto-attack.\nAdditional damage is affected by magic damage increase effects of other beast gear, items, and abilities.\nWhen carrying multiple pieces of beast gear that influence auto-attacks, only one will take effect."
+  },
+  {
+   "row": 41,
+   "type": 1,
+   "name": "Earthcrushed Axe",
+   "sell": 168,
+   "description": "Deals additional earth damage with a potency of 240 after each auto-attack.\nAdditional damage is affected by magic damage increase effects of other beast gear, items, and abilities.\nWhen carrying multiple pieces of beast gear that influence auto-attacks, only one will take effect."
+  },
+  {
+   "row": 42,
+   "type": 1,
+   "name": "Deepdrowned Axe",
+   "sell": 168,
+   "description": "Deals additional water damage with a potency of 240 after each auto-attack.\nAdditional damage is affected by magic damage increase effects of other beast gear, items, and abilities.\nWhen carrying multiple pieces of beast gear that influence auto-attacks, only one will take effect."
+  },
+  {
+   "row": 43,
+   "type": 1,
+   "name": "Windblown Axe",
+   "sell": 168,
+   "description": "Deals additional wind damage with a potency of 240 after each auto-attack.\nAdditional damage is affected by magic damage increase effects of other beast gear, items, and abilities.\nWhen carrying multiple pieces of beast gear that influence auto-attacks, only one will take effect."
+  },
+  {
+   "row": 44,
+   "type": 1,
+   "name": "Ninja Suit",
+   "sell": 175,
+   "description": "Maximum HP +17%\nEvasion +8%\nGrants one stack of Haste for each attack evaded.\nHaste Effect: Reduces weaponskill cast time and recast time, spell cast time and recast time, and auto-attack delay by 2%\nDuration: 60s\nMaximum Stacks: 5"
+  },
+  {
+   "row": 45,
+   "type": 1,
+   "name": "Ninja Gloves",
+   "sell": 63,
+   "description": "Haste +2%\nPhysical Damage Dealt +3%"
+  },
+  {
+   "row": 46,
+   "type": 1,
+   "name": "Ninja Eyepatch",
+   "sell": 91,
+   "description": "Haste +5%\nCritical Hit Rate +5%"
+  },
+  {
+   "row": 47,
+   "type": 1,
+   "name": "Wind Shield",
+   "sell": 224,
+   "description": "30% chance to absorb wind damage as HP.\n50% chance to grant Blink upon blocking with shield.\nBlink Effect: Nullifies most physical attacks, reducing one stack per nullification\nDuration: 120s"
+  },
+  {
+   "row": 48,
+   "type": 1,
+   "name": "Wind Mask",
+   "sell": 154,
+   "description": "Magic Vulnerability -10%\nIncreases HP recovery via actions and crucible items by 15%.\nGrants Keen Edge upon evading an attack.\nKeen Edge Effect: Inflicts damage over time on self in exchange for increasing damage dealt by 30%\nDuration: 21s"
+  },
+  {
+   "row": 49,
+   "type": 1,
+   "name": "Wind Armor",
+   "sell": 264,
+   "description": "Damage Taken -15%\nMagic Damage Dealt +20%\nIncreases HP recovery via actions and crucible items by 30%."
+  },
+  {
+   "row": 50,
+   "type": 1,
+   "name": "Heavy Axe",
+   "sell": 268,
+   "description": "Damage Dealt +25%\nMovement Speed -20%"
+  },
+  {
+   "row": 51,
+   "type": 1,
+   "name": "Mythril Armor",
+   "sell": 172,
+   "description": "Damage Taken -15%\nMaximum HP +15%"
+  },
+  {
+   "row": 52,
+   "type": 1,
+   "name": "Mythril Gloves",
+   "sell": 113,
+   "description": "Damage Taken -5%\nPhysical Damage Dealt +5%\nMaximum HP +5%"
+  },
+  {
+   "row": 53,
+   "type": 1,
+   "name": "Mythril Greaves",
+   "sell": 85,
+   "description": "Damage Taken -10%\nMaximum HP +5%"
+  },
+  {
+   "row": 54,
+   "type": 1,
+   "name": "Beast Mask",
+   "sell": 126,
+   "description": "Physical Vulnerability -10%\nCritical Hit Rate +15%"
+  },
+  {
+   "row": 55,
+   "type": 1,
+   "name": "Beastly Knife",
+   "sell": 87,
+   "description": "Critical Hit Rate +8%\n25% chance to grant one stack of Damage Up upon landing a critical hit.\nDamage Up Effect: Increases damage dealt by 3%\nDuration: 30s\nMaximum Stacks: 8"
+  },
+  {
+   "row": 56,
+   "type": 1,
+   "name": "Beast Earring",
+   "sell": 84,
+   "description": "Critical Hit Rate +15%\nMaximum HP +2%"
+  },
+  {
+   "row": 57,
+   "type": 1,
+   "name": "Thief's Knife",
+   "sell": 200,
+   "description": "Haste +1%\nGrants two items on treasure spaces."
+  },
+  {
+   "row": 58,
+   "type": 1,
+   "name": "Thief's Garb",
+   "sell": 172,
+   "description": "Loot Drop Rate +80%\nDamage Taken -8%\nMaximum HP +18%"
+  },
+  {
+   "row": 59,
+   "type": 1,
+   "name": "Thief's Gloves",
+   "sell": 50,
+   "description": "Loot Drop Rate +70%\nHaste +2%"
+  },
+  {
+   "row": 60,
+   "type": 1,
+   "name": "Thief's Boots",
+   "sell": 30,
+   "description": "Loot Drop Rate +40%\nEvasion +2%"
+  },
+  {
+   "row": 61,
+   "type": 1,
+   "name": "Thunder Axe",
+   "sell": 315,
+   "description": "Damage Dealt +30%\n5% chance to inflict Stun on self upon suffering damage.\nDuration: 3s"
+  },
+  {
+   "row": 62,
+   "type": 1,
+   "name": "Thunder Armor",
+   "sell": 161,
+   "description": "30% chance to absorb lightning damage as HP.\n5% chance of granting one stack of High Wire upon landing a critical hit.\nHigh Wire Effect: Increases damage dealt by 10% and reduces damage taken by 5%\nDuration: 180s\nMaximum Stacks: 4"
+  },
+  {
+   "row": 63,
+   "type": 1,
+   "name": "Warded Shield",
+   "sell": 84,
+   "description": "Grants one stack of Magic Vulnerability Down upon blocking with shield.\nMagic Vulnerability Down Effect: Reduces magic damage taken by 5%\nDuration: 60s\nMaximum Stacks: 8"
+  },
+  {
+   "row": 64,
+   "type": 1,
+   "name": "Gold Hairpin",
+   "sell": 113,
+   "description": "Rapid Recast +10%\n25% chance to recover TP upon completing a combo with a beastmaster instinctual skill."
+  },
+  {
+   "row": 65,
+   "type": 1,
+   "name": "Flame Knife",
+   "sell": 262,
+   "description": "Damage Dealt +25%\nHaste +5%\n10% chance to inflict Chains of Condemnation on self upon landing a critical hit.\nChains of Condemnation Effect: Suffers magic damage upon moving\nDuration: 9s"
+  },
+  {
+   "row": 66,
+   "type": 1,
+   "name": "Flame Shield",
+   "sell": 116,
+   "description": "Block Strength +50%\nDamage Dealt +3%\n30% chance to absorb fire damage as HP."
+  },
+  {
+   "row": 67,
+   "type": 1,
+   "name": "Merchant's Cap",
+   "sell": 24,
+   "description": "Territory Tokens Earned +25%\nCritical Hit Rate -10%\nDamage Dealt +5%"
+  },
+  {
+   "row": 68,
+   "type": 1,
+   "name": "Merchant's Garb",
+   "sell": 52,
+   "description": "Territory Tokens Earned +25%\nPhysical Vulnerability -10%"
+  },
+  {
+   "row": 69,
+   "type": 1,
+   "name": "Merchant's Shoes",
+   "sell": 101,
+   "description": "Territory Tokens Earned +25%\nEvasion +4%\nMaximum HP +12%"
+  },
+  {
+   "row": 70,
+   "type": 1,
+   "name": "Spirited Ring",
+   "sell": 113,
+   "description": "Maximum HP +3%\nTP Accumulation +25%"
+  },
+  {
+   "row": 71,
+   "type": 1,
+   "name": "Demonic Helm",
+   "sell": 264,
+   "description": "Damage Dealt +20%\nTP Accumulation +20%\n1% chance to inflict Doom on self upon suffering damage.\nDuration: 2s"
+  },
+  {
+   "row": 72,
+   "type": 1,
+   "name": "Demonic Armor",
+   "sell": 170,
+   "description": "Maximum HP +5%\nTP Accumulation +5%\nGrants one stack of High Wire upon defeating an enemy.\nHigh Wire Effect: Increases damage dealt by 10% and reduces damage taken by 5%\nDuration: 180s\nMaximum Stacks: 4"
+  },
+  {
+   "row": 73,
+   "type": 1,
+   "name": "Empress Hairpin",
+   "sell": 129,
+   "description": "Evasion +10%\nMaximum HP -8%\n2% chance to grant one stack of Rehabilitation upon landing a critical hit.\nRehabilitation Effect: Restores 3% of maximum HP at regular intervals\nDuration: 12s\nMaximum Stacks: 8"
+  },
+  {
+   "row": 74,
+   "type": 1,
+   "name": "Haste Belt",
+   "sell": 76,
+   "description": "Haste +6%"
+  },
+  {
+   "row": 75,
+   "type": 1,
+   "name": "Warrior's Buckler",
+   "sell": 64,
+   "description": "Block Strength +100%\nPhysical Vulnerability -5%\nMaximum HP +2%"
+  },
+  {
+   "row": 76,
+   "type": 2,
+   "name": "G1 Beast Potion",
+   "sell": 32,
+   "description": "Restores 10% of HP to self or familiar."
+  },
+  {
+   "row": 77,
+   "type": 2,
+   "name": "G2 Beast Potion",
+   "sell": 72,
+   "description": "Restores 23% of HP to self or familiar."
+  },
+  {
+   "row": 78,
+   "type": 2,
+   "name": "G3 Beast Potion",
+   "sell": 113,
+   "description": "Restores 36% of HP to self or familiar."
+  },
+  {
+   "row": 79,
+   "type": 2,
+   "name": "G4 Beast Potion",
+   "sell": 158,
+   "description": "Restores 50% of HP to self or familiar."
+  },
+  {
+   "row": 80,
+   "type": 2,
+   "name": "G1 Crucible Ash",
+   "sell": 63,
+   "description": "Restores 10% of HP to self and nearby allies."
+  },
+  {
+   "row": 81,
+   "type": 2,
+   "name": "G2 Crucible Ash",
+   "sell": 158,
+   "description": "Restores 25% of HP to self and nearby allies."
+  },
+  {
+   "row": 82,
+   "type": 2,
+   "name": "G3 Crucible Ash",
+   "sell": 252,
+   "description": "Restores 40% of HP to self and nearby allies."
+  },
+  {
+   "row": 83,
+   "type": 2,
+   "name": "Crucible Antidote",
+   "sell": 32,
+   "description": "Instantly cures most instances of poison for self or familiar, restoring 25% of maximum HP upon success.\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 84,
+   "type": 2,
+   "name": "Crucible Needle",
+   "sell": 32,
+   "description": "Instantly cures most instances of petrification for familiar, restoring 50% of maximum HP upon success. Additionally grants Stoneskin.\nStoneskin Effect: Absorbs damage totaling 50% of maximum HP\nDuration: 60s\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 85,
+   "type": 2,
+   "name": "Crucible Eye Drops",
+   "sell": 32,
+   "description": "Instantly cures most instances of blindness for self or familiar, restoring 25% of maximum HP upon success.\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 86,
+   "type": 2,
+   "name": "G1 Antipoison Soul Serum",
+   "sell": 32,
+   "description": "Increases poison resistance by 100% for self or familiar.\nDuration: 180s\nAdditional Effect: When carrying a crimson ribbon, restores 50% of target's total HP\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 87,
+   "type": 2,
+   "name": "G2 Antipoison Soul Serum",
+   "sell": 50,
+   "description": "Increases poison resistance by 100% for self and nearby allies.\nDuration: 300s\nAdditional Effect: When carrying a crimson ribbon, restores 50% of target's total HP\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 88,
+   "type": 2,
+   "name": "G1 Antiparalysis Soul Serum",
+   "sell": 32,
+   "description": "Increases paralysis resistance by 100% for self or familiar.\nDuration: 180s\nAdditional Effect: When carrying a crimson ribbon, restores 50% of target's total HP\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 89,
+   "type": 2,
+   "name": "G2 Antiparalysis Soul Serum",
+   "sell": 50,
+   "description": "Increases paralysis resistance by 100% for self and nearby allies.\nDuration: 300s\nAdditional Effect: When carrying a crimson ribbon, restores 50% of target's total HP\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 90,
+   "type": 2,
+   "name": "G1 Antiblind Soul Serum",
+   "sell": 32,
+   "description": "Increases blind resistance by 100% for self or familiar.\nDuration: 180s\nAdditional Effect: When carrying a crimson ribbon, restores 50% of target's total HP\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 91,
+   "type": 2,
+   "name": "G2 Antiblind Soul Serum",
+   "sell": 50,
+   "description": "Increases blind resistance by 100% for self and nearby allies.\nDuration: 300s\nAdditional Effect: When carrying a crimson ribbon, restores 50% of target's total HP\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 92,
+   "type": 2,
+   "name": "G1 Antipetrification Soul Serum",
+   "sell": 32,
+   "description": "Increases petrification resistance by 100% for self or familiar.\nDuration: 180s\nAdditional Effect: When carrying a crimson ribbon, restores 50% of target's total HP\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 93,
+   "type": 2,
+   "name": "G2 Antipetrification Soul Serum",
+   "sell": 50,
+   "description": "Increases petrification resistance by 100% for self and nearby allies.\nDuration: 300s\nAdditional Effect: When carrying a crimson ribbon, restores 50% of target's total HP\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 94,
+   "type": 2,
+   "name": "G1 Antisleep Soul Serum",
+   "sell": 32,
+   "description": "Increases sleep resistance by 100% for self or familiar.\nDuration: 180s\nAdditional Effect: When carrying a crimson ribbon, restores 50% of target's total HP\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 95,
+   "type": 2,
+   "name": "G2 Antisleep Soul Serum",
+   "sell": 50,
+   "description": "Increases sleep resistance by 100% for self and nearby allies.\nDuration: 300s\nAdditional Effect: When carrying a crimson ribbon, restores 50% of target's total HP\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 96,
+   "type": 2,
+   "name": "Blessed Horn",
+   "sell": 135,
+   "description": "Revives an incapacitated familiar.\n※Can only be used while traversing a Crucible board."
+  },
+  {
+   "row": 97,
+   "type": 2,
+   "name": "Beastly Smokebomb",
+   "sell": 85,
+   "description": "Creates a distraction, allowing escape from battle. Ineffective against elite enemies and bosses.\nUse by selecting “Flee” upon an enemy space."
+  },
+  {
+   "row": 98,
+   "type": 2,
+   "name": "G1 Beastmaster Reraiser",
+   "sell": 221,
+   "description": "Grants Reraise to self.\nReraise Effect: 70% chance of automatic revival upon KO"
+  },
+  {
+   "row": 99,
+   "type": 2,
+   "name": "G2 Beastmaster Reraiser",
+   "sell": 299,
+   "description": "Grants Reraise to self.\nReraise Effect: 95% chance of automatic revival upon KO"
+  },
+  {
+   "row": 100,
+   "type": 2,
+   "name": "Thief's Eye",
+   "sell": 32,
+   "description": "Triples the loot drop rate for the next enemy space cleared.\nDuration: 30m\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 101,
+   "type": 2,
+   "name": "Merchant's Eye",
+   "sell": 23,
+   "description": "Doubles the territory tokens earned for the next enemy space cleared.\nDuration: 30m\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 102,
+   "type": 2,
+   "name": "Crucible Tannin",
+   "sell": 47,
+   "description": "Grants Tough Skin to self or familiar.\nTough Skin Effect: Reduces damage taken by 20%\nDuration: 60s\nAdditional Effect: When carrying an ice shield, duration increases to 90s\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 103,
+   "type": 2,
+   "name": "Crucible Stimulant",
+   "sell": 43,
+   "description": "Grants Hasty Spirit to self or familiar.\nHasty Spirit Effect: Reduces weaponskill cast time and recast time, spell cast time and recast time, and auto-attack delay by 15%\nDuration: 60s\nAdditional Effect: When carrying thief's gloves, duration increases to 90s\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 104,
+   "type": 2,
+   "name": "Potion of Tempered Strength",
+   "sell": 36,
+   "description": "Grants Liquid Strength to self or familiar.\nLiquid Strength Effect: Increases physical damage dealt by 30%\nDuration: 15s\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 105,
+   "type": 2,
+   "name": "Potion of Feral Strength",
+   "sell": 88,
+   "description": "Inflicts Stun while also granting Liquid Strength to self or familiar.\nStun Duration: 15s\nLiquid Strength Effect: Increases physical damage dealt by 45%\nDuration: 30s\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 106,
+   "type": 2,
+   "name": "Potion of Tempered Magic",
+   "sell": 23,
+   "description": "Grants Liquid Magic to self or familiar.\nLiquid Magic Effect: Increases magic damage dealt by 30%\nDuration: 15s\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 107,
+   "type": 2,
+   "name": "Potion of Feral Magic",
+   "sell": 50,
+   "description": "Inflicts Nightmare while also granting Liquid Magic to self or familiar.\nNightmare Duration: 30s\nLiquid Magic Effect: Increases magic damage dealt by 50%\nDuration: 30s\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 108,
+   "type": 2,
+   "name": "Potion of Tempered Intensity",
+   "sell": 20,
+   "description": "Grants Liquid Intensity to self or familiar.\nLiquid Intensity Effect: Increases critical hit rate by 30%\nDuration: 30s\nAdditional Effect: When carrying silver specs, duration increases to 60s\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 109,
+   "type": 2,
+   "name": "Potion of Feral Intensity",
+   "sell": 36,
+   "description": "Inflicts Petrification while also granting Liquid Intensity to self or familiar.\nPetrification Duration: 15s\nLiquid Intensity Effect: Increases critical hit rate by 50%\nDuration: 30s\nAdditional Effect: When carrying silver specs, duration increases to 60s\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 110,
+   "type": 2,
+   "name": "Potion of Tempered Evasion",
+   "sell": 21,
+   "description": "Grants Liquid Evasion to self or familiar.\nLiquid Evasion Effect: Increases evasion by 25%\nDuration: 30s\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 111,
+   "type": 2,
+   "name": "Potion of Feral Evasion",
+   "sell": 36,
+   "description": "Inflicts Blind while also granting Liquid Evasion to self or familiar.\nBlind Duration: 30s\nLiquid Evasion Effect: Increases evasion by 25%\nDuration: 60s\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 112,
+   "type": 2,
+   "name": "Potion of Tempered Constitution",
+   "sell": 95,
+   "description": "Grants Liquid Constitution while also restoring 10% of HP to self or familiar.\nLiquid Constitution Effect: Increases maximum HP by 20%\nEffect ends upon combat completion.\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 113,
+   "type": 2,
+   "name": "Potion of Feral Constitution",
+   "sell": 140,
+   "description": "Inflicts Pollen while also granting Liquid Constitution and restoring 10% of HP to self or familiar.\nPollen Duration: 180s\nLiquid Constitution Effect: Increases maximum HP by 30%\nEffect ends upon combat completion.\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 114,
+   "type": 2,
+   "name": "Potion of Breathtaking Swiftness",
+   "sell": 225,
+   "description": "Grants Spirit of the Breathtaker to self.\nSpirit of the Breathtaker Effect: Increases movement speed by 20%, evasion by 5%, and poison resistance by 100%\nEffect ends upon combat completion.\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 115,
+   "type": 2,
+   "name": "Crucible Feather",
+   "sell": 43,
+   "description": "Grants 100 TP to self or familiar.\nAdditional Effect: When carrying a spirited ring, grants 250 TP\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 116,
+   "type": 2,
+   "name": "G1 Wildfire Weakener",
+   "sell": 47,
+   "description": "Grants Through Fire to self and nearby allies.\nThrough Fire Effect: 50% chance to absorb fire damage as HP\nDuration: 15s\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 117,
+   "type": 2,
+   "name": "G2 Wildfire Weakener",
+   "sell": 95,
+   "description": "Grants Through Fire to self and nearby allies.\nThrough Fire Effect: 70% chance to absorb fire damage as HP\nDuration: 15s\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 118,
+   "type": 2,
+   "name": "G1 Wildwave Weakener",
+   "sell": 47,
+   "description": "Grants Through Water to self and nearby allies.\nThrough Water Effect: 50% chance to absorb water damage as HP\nDuration: 15s\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 119,
+   "type": 2,
+   "name": "G2 Wildwave Weakener",
+   "sell": 95,
+   "description": "Grants Through Water to self and nearby allies.\nThrough Water Effect: 70% chance to absorb water damage as HP\nDuration: 15s\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 120,
+   "type": 2,
+   "name": "G1 Wildearth Weakener",
+   "sell": 47,
+   "description": "Grants Through Earth to self and nearby allies.\nThrough Earth Effect: 50% chance to absorb earth damage as HP\nDuration: 15s\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 121,
+   "type": 2,
+   "name": "G2 Wildearth Weakener",
+   "sell": 95,
+   "description": "Grants Through Earth to self and nearby allies.\nThrough Earth Effect: 70% chance to absorb earth damage as HP\nDuration: 15s\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 122,
+   "type": 2,
+   "name": "G1 Wildthunder Weakener",
+   "sell": 47,
+   "description": "Grants Through Thunder to self and nearby allies.\nThrough Thunder Effect: 50% chance to absorb lightning damage as HP\nDuration: 15s\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 123,
+   "type": 2,
+   "name": "G2 Wildthunder Weakener",
+   "sell": 95,
+   "description": "Grants Through Thunder to self and nearby allies.\nThrough Thunder Effect: 70% chance to absorb lightning damage as HP\nDuration: 15s\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 124,
+   "type": 2,
+   "name": "G1 Wildgale Weakener",
+   "sell": 47,
+   "description": "Grants Through Wind to self and nearby allies.\nThrough Wind Effect: 50% chance to absorb wind damage as HP\nDuration: 15s\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 125,
+   "type": 2,
+   "name": "G2 Wildgale Weakener",
+   "sell": 95,
+   "description": "Grants Through Wind to self and nearby allies.\nThrough Wind Effect: 70% chance to absorb wind damage as HP\nDuration: 15s\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 126,
+   "type": 2,
+   "name": "G1 Wildfreeze Weakener",
+   "sell": 47,
+   "description": "Grants Through Ice to self and nearby allies.\nThrough Ice Effect: 50% chance to absorb ice damage as HP\nDuration: 15s\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 127,
+   "type": 2,
+   "name": "G2 Wildfreeze Weakener",
+   "sell": 95,
+   "description": "Grants Through Ice to self and nearby allies.\nThrough Ice Effect: 70% chance to absorb ice damage as HP\nDuration: 15s\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 128,
+   "type": 2,
+   "name": "Fang of Fire",
+   "sell": 45,
+   "description": "Deals ranged fire damage with a potency of 2,500 to target and all enemies within 12 yalms of it.\nAdditional Effect: Targets suffering from Deep Freeze receive additional damage with a potency of 1,000\nDamage is affected by magic damage increase effects of other beast gear, items, or abilities.\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 129,
+   "type": 2,
+   "name": "Fang of Ice",
+   "sell": 45,
+   "description": "Deals ranged ice damage with a potency of 2,000 to target and all enemies within 12 yalms of it.\nAdditional Effect: Afflicts target with Deep Freeze\nDuration: 20s\nDamage is affected by magic damage increase effects of other beast gear, items, and abilities.\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 130,
+   "type": 2,
+   "name": "Fang of Water",
+   "sell": 45,
+   "description": "Deals ranged water damage with a potency of 2,000 to target and all enemies within 12 yalms of it.\nAdditional Effect: Removes one beneficial status from target, thereby granting 100 TP\nDamage is affected by magic damage increase effects of other beast gear, items, and abilities.\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 131,
+   "type": 2,
+   "name": "Fang of Lightning",
+   "sell": 45,
+   "description": "Deals ranged lightning damage with a potency of 2,000 to target and all enemies within 12 yalms of it.\nAdditional Effect: Afflicts target with Paralysis\nDuration: 30s\nDamage is affected by magic damage increase effects of other beast gear, items, and abilities.\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 132,
+   "type": 2,
+   "name": "Fang of Earth",
+   "sell": 45,
+   "description": "Deals ranged earth damage with a potency of 2,000 to target and all enemies within 12 yalms of it.\nAdditional Effect: Afflicts target with Heavy\nDuration: 60s\nDamage is affected by magic damage increase effects of other beast gear, items, and abilities.\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 133,
+   "type": 2,
+   "name": "Fang of Wind",
+   "sell": 45,
+   "description": "Deals ranged wind damage with a potency of 2,000 to target and all enemies within 12 yalms of it.\nAdditional Effect: 15-yalm knockback\nDamage is affected by magic damage increase effects of other beast gear, items, and abilities.\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 134,
+   "type": 2,
+   "name": "Vampiric Fang",
+   "sell": 68,
+   "description": "Deals ranged piercing physical damage with a potency of 1,500 to target and all enemies within 12 yalms of it.\nPotency increases up to 3,300 as your maximum HP increases, and damage is partially absorbed as HP.\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 135,
+   "type": 2,
+   "name": "Vampiric Essence",
+   "sell": 378,
+   "description": "Grants Life Siphon to self or familiar.\nLife Siphon Effect: Absorbs 10% of damage dealt as HP\nDuration: 60s\nAdditional Effect: When carrying demonic armor, duration increases to 90s\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 136,
+   "type": 2,
+   "name": "Tome of Reflection",
+   "sell": 81,
+   "description": "Grants Reflect to self or familiar.\nReflect Effect: Reflects most magic attacks back at the caster\nDuration: 30s\nAdditional Effect: When carrying a hexed hat, duration increases to 60s\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 137,
+   "type": 2,
+   "name": "Tome of the Impervious",
+   "sell": 63,
+   "description": "Grants five stacks of Blink to self or familiar.\nBlink Effect: Nullifies most physical attacks, reducing one stack per nullification\nDuration: 120s\nSpirit of the Breathtaker Effect: Grants three additional stacks\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 138,
+   "type": 2,
+   "name": "Temporal Sand",
+   "sell": 315,
+   "description": "Grants Sandstill to self.\nSandstill Effect: Returns you to the moment combat commences upon incapacitation\n※Can only be used outside of combat."
+  },
+  {
+   "row": 139,
+   "type": 2,
+   "name": "Celestial Sand",
+   "sell": 72,
+   "description": "Calls down a Starstorm that deals fire damage with a potency of 3,000 to target and all enemies within 18 yalms of it.\nAdditional Effect: Increases TP Gauge by 50 for every enemy hit\nAdditional Effect: Reduces target's fire resistance by 20%\nDuration: 60s\nDamage is affected by magic damage increase effects of other beast gear, items, and abilities.\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 140,
+   "type": 2,
+   "name": "Beast Potion Kit",
+   "sell": 189,
+   "description": "Grants Auto-potion to self.\nAuto-potion Effect: Restores 40% of HP automatically when HP falls below 50%\n50% chance for the effect to expire when triggered. Chance is reduced to 10% when under the effect of Spirit of the Breathtaker.\nDuration: 150s\nAdditional Effect: When carrying thief's garb, duration increases to 240s\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 141,
+   "type": 2,
+   "name": "Beast Remedy Kit",
+   "sell": 32,
+   "description": "Grants Auto-remedy to self.\nAuto-remedy Effect: Automatically cures the next status ailment suffered\nDuration: 240s\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 142,
+   "type": 2,
+   "name": "Spellforge Tome",
+   "sell": 63,
+   "description": "Ensures all attacks deal magic damage. Effects also apply to familiars.\nDuration: 180s\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 143,
+   "type": 2,
+   "name": "Steelsting Tome",
+   "sell": 63,
+   "description": "Ensures all attacks deliver physical damage. Effects also apply to familiars.\nDuration: 180s\n※Can only be used on Crucible battlegrounds."
+  },
+  {
+   "row": 144,
+   "type": 3,
+   "name": "G1 Primafodder",
+   "sell": 0,
+   "description": "Maximum HP +15%\nDamage Dealt +5%\nAdditional Effect: Restores 10% of HP upon consumption\nAdditional Effect: Increases familiar's earned EXP by 25%\n[Suitable for beastkin, vilekin, cloudkin, seedkin, wavekin, scalekin, soulkin, and ashkin.]"
+  },
+  {
+   "row": 145,
+   "type": 3,
+   "name": "G2 Primafodder",
+   "sell": 0,
+   "description": "Maximum HP +30%\nDamage Dealt +10%\nAdditional Effect: Restores 18% of HP upon consumption\nAdditional Effect: Increases familiar's earned EXP by 50%\n[Suitable for beastkin, vilekin, cloudkin, seedkin, wavekin, scalekin, soulkin, and ashkin.]"
+  },
+  {
+   "row": 146,
+   "type": 3,
+   "name": "Meat Simular",
+   "sell": 0,
+   "description": "Physical Damage Dealt +20%\n[Suitable for beastkin, vilekin, cloudkin, seedkin, wavekin, scalekin, and ashkin.]"
+  },
+  {
+   "row": 147,
+   "type": 3,
+   "name": "Hydrolixer",
+   "sell": 0,
+   "description": "Aetheric Burst Potency +35%\n[Suitable for beastkin, vilekin, cloudkin, seedkin, wavekin, scalekin, and ashkin.]"
+  },
+  {
+   "row": 148,
+   "type": 3,
+   "name": "Honey Simular",
+   "sell": 0,
+   "description": "Physical Vulnerability -25%\nAetheric Burst Potency +10%\n[Suitable for beastkin, vilekin, cloudkin, seedkin, wavekin, scalekin, and ashkin.]"
+  },
+  {
+   "row": 149,
+   "type": 3,
+   "name": "Crab Ball Simular",
+   "sell": 0,
+   "description": "Critical Hit Rate +35%\nMagic Vulnerability -30%\nMaximum HP +10%\nAdditional Effect: Restores 7% of HP upon consumption\n[Suitable for soulkin.]"
+  },
+  {
+   "row": 150,
+   "type": 3,
+   "name": "Banana Simular",
+   "sell": 0,
+   "description": "Aetheric Burst Potency +10%\nGrants one stack of Physical Damage Up upon landing a critical hit.\nPhysical Damage Up Effect: Increases physical damage dealt by 10%\nDuration: 30s\nMaximum Stacks: 5\n[Suitable for beastkin, vilekin, cloudkin, seedkin, wavekin, scalekin, and ashkin.]"
+  },
+  {
+   "row": 151,
+   "type": 3,
+   "name": "Berry Simular",
+   "sell": 0,
+   "description": "Critical Hit Power +60\nAetheric Burst Potency +10%\n[Suitable for beastkin, vilekin, cloudkin, seedkin, wavekin, scalekin, and ashkin.]"
+  },
+  {
+   "row": 152,
+   "type": 3,
+   "name": "Egg Simular",
+   "sell": 0,
+   "description": "Haste +5%\nPhysical Damage Dealt +25%\n[Suitable for beastkin, vilekin, cloudkin, wavekin, and scalekin.]"
+  },
+  {
+   "row": 153,
+   "type": 3,
+   "name": "Yellow Egg Simular",
+   "sell": 0,
+   "description": "Haste +15%\nDamage Dealt +5%\nMaximum HP +35%\nAdditional Effect: Restores 20% of HP upon consumption\n[Suitable for seedkin.]"
+  },
+  {
+   "row": 154,
+   "type": 3,
+   "name": "Tomato Simular",
+   "sell": 0,
+   "description": "Evasion +10%\nPhysical Damage Dealt +10%\n[Suitable for beastkin, vilekin, cloudkin, seedkin, wavekin, and ashkin.]"
+  },
+  {
+   "row": 155,
+   "type": 3,
+   "name": "Milk Simular",
+   "sell": 0,
+   "description": "Haste +5%\nMaximum HP +50%\nAdditional Effect: Restores 26% of HP upon consumption\n[Suitable for beastkin, vilekin, cloudkin, wavekin, and scalekin.]"
+  },
+  {
+   "row": 156,
+   "type": 3,
+   "name": "Rolanberry Cheese Simular",
+   "sell": 0,
+   "description": "Haste +5%\nAetheric Burst Potency +25%\n[Suitable for beastkin, vilekin, cloudkin, wavekin, and scalekin.]"
+  },
+  {
+   "row": 157,
+   "type": 3,
+   "name": "Porcini Simular",
+   "sell": 0,
+   "description": "Poison Resistance +100%\nDamage Taken -10%\n[Suitable for beastkin, vilekin, cloudkin, seedkin, wavekin, scalekin, soulkin, and ashkin.]"
+  },
+  {
+   "row": 158,
+   "type": 3,
+   "name": "Morel Simular",
+   "sell": 0,
+   "description": "Paralysis Resistance +100%\nDamage Taken -10%\n[Suitable for beastkin, vilekin, cloudkin, seedkin, wavekin, scalekin, soulkin, and ashkin.]"
+  },
+  {
+   "row": 159,
+   "type": 3,
+   "name": "Black Truffle Simular",
+   "sell": 0,
+   "description": "Blind Resistance +100%\nDamage Taken -10%\n[Suitable for beastkin, vilekin, cloudkin, seedkin, wavekin, scalekin, soulkin, and ashkin.]"
+  },
+  {
+   "row": 160,
+   "type": 3,
+   "name": "White Truffle Simular",
+   "sell": 0,
+   "description": "Petrification Resistance +100%\nDamage Taken -10%\n[Suitable for beastkin, vilekin, cloudkin, seedkin, wavekin, scalekin, soulkin, and ashkin.]"
+  },
+  {
+   "row": 161,
+   "type": 3,
+   "name": "Mushroom Simular",
+   "sell": 0,
+   "description": "Sleep Resistance +100%\nDamage Taken -10%\n[Suitable for beastkin, vilekin, cloudkin, seedkin, wavekin, scalekin, soulkin, and ashkin.]"
+  },
+  {
+   "row": 162,
+   "type": 3,
+   "name": "Sole Simular",
+   "sell": 0,
+   "description": "Physical Damage Dealt +20%\nTP Accumulation +50%\n[Suitable for cloudkin.]"
+  },
+  {
+   "row": 163,
+   "type": 3,
+   "name": "Magnum Water",
+   "sell": 0,
+   "description": "Maximum HP +30%\nDamage Dealt +15%\nAdditional Effect: Restores 18% of HP upon consumption\nGrants one stack of Rehabilitation upon defeating an enemy.\nRehabilitation Effect: Restores 3% of maximum HP at regular intervals\nDuration: 6s\nMaximum Stacks: 8\n[Suitable for wavekin.]"
+  },
+  {
+   "row": 164,
+   "type": 3,
+   "name": "Blood Simular",
+   "sell": 0,
+   "description": "Critical Hit Rate +50%\nDamage Dealt +35%\nAdditional Effect: Inflicts damage over time on self\n[Suitable for vilekin.]"
+  },
+  {
+   "row": 165,
+   "type": 3,
+   "name": "Noble Blood Simular",
+   "sell": 0,
+   "description": "Maximum HP +20%\nCritical Hit Rate +15%\nAdditional Effect: Restores 13% of HP upon consumption\n5% chance to grant one stack of Rehabilitation upon landing a critical hit.\nRehabilitation Effect: Restores 3% of maximum HP at regular intervals\nDuration: 6s\nMaximum Stacks: 8\n[Suitable for wavekin.]"
+  },
+  {
+   "row": 166,
+   "type": 3,
+   "name": "Lily Simular",
+   "sell": 0,
+   "description": "Damage Dealt +10%\nDamage Taken -10%\nAdditional Effect: Preserves the effects of feed when resting at a campsite\n[Suitable for beastkin, vilekin, cloudkin, seedkin, wavekin, scalekin, soulkin, and ashkin.]"
+  },
+  {
+   "row": 167,
+   "type": 3,
+   "name": "Flounder Simular",
+   "sell": 0,
+   "description": "Physical Damage Dealt +10%\n30% chance to recover TP upon completing a combo with a familiar instinctual skill.\n[Suitable for beastkin, vilekin, seedkin, wavekin, scalekin, and ashkin.]"
+  },
+  {
+   "row": 168,
+   "type": 3,
+   "name": "White Scorpion Simular",
+   "sell": 0,
+   "description": "Grants Reflect when summoned by a beastmaster.\nReflect Effect: Reflects most magic attacks back at the caster\nDuration: 60s\n[Suitable for scalekin.]"
+  },
+  {
+   "row": 169,
+   "type": 3,
+   "name": "Black Scorpion Simular",
+   "sell": 0,
+   "description": "Damage Dealt +15%\nDamage Taken -35%\n3% chance to inflict Poison on self upon suffering damage.\nDuration: 30s\n[Suitable for scalekin.]"
+  },
+  {
+   "row": 170,
+   "type": 3,
+   "name": "Herring Simular",
+   "sell": 0,
+   "description": "Aetheric Burst Potency +25%\n35% chance to recover TP upon completing a combo with a familiar instinctual skill.\n[Suitable for cloudkin.]"
+  },
+  {
+   "row": 171,
+   "type": 3,
+   "name": "Angelfish Simular",
+   "sell": 0,
+   "description": "Damage Taken -10%\nTP Accumulation +30%\n[Suitable for beastkin, vilekin, seedkin, wavekin, and ashkin.]"
+  },
+  {
+   "row": 172,
+   "type": 3,
+   "name": "Grape Simular",
+   "sell": 0,
+   "description": "Critical Hit Rate +35%\nPhysical Damage Dealt +15%\n[Suitable for beastkin, vilekin, cloudkin, seedkin, wavekin, scalekin, and ashkin.]"
+  },
+  {
+   "row": 173,
+   "type": 3,
+   "name": "Orange Simular",
+   "sell": 0,
+   "description": "Critical Hit Rate +25%\nAetheric Burst Potency +20%\n[Suitable for beastkin, vilekin, cloudkin, seedkin, wavekin, scalekin, and ashkin.]"
+  },
+  {
+   "row": 174,
+   "type": 3,
+   "name": "Lugworm Simular",
+   "sell": 0,
+   "description": "Maximum HP +30%\nAdditional Effect: Restores 18% of HP upon consumption\nGrants one stack of Magic Vulnerability Down upon suffering damage.\nMagic Vulnerability Down Effect: Reduces magic damage taken by 5%\nDuration: 60s\nMaximum Stacks: 8\n[Suitable for soulkin.]"
+  },
+  {
+   "row": 175,
+   "type": 3,
+   "name": "Crucible Tonic",
+   "sell": 0,
+   "description": "Grants one stack of High Wire upon defeating an enemy.\nHigh Wire Effect: Increases damage dealt by 15% and reduces damage taken by 8%\nDuration: 60s\nMaximum Stacks: 4\n[Suitable for beastkin, vilekin, cloudkin, seedkin, wavekin, scalekin, soulkin, and ashkin.]"
+  },
+  {
+   "row": 176,
+   "type": 3,
+   "name": "Carrot Simular",
+   "sell": 0,
+   "description": "Evasion +10%\nAetheric Burst Potency +5%\n[Suitable for beastkin, vilekin, cloudkin, seedkin, wavekin, and ashkin.]"
+  },
+  {
+   "row": 177,
+   "type": 3,
+   "name": "Onion Simular",
+   "sell": 0,
+   "description": "Evasion +15%\nDamage Taken -5%\n[Suitable for beastkin, vilekin, cloudkin, seedkin, wavekin, and ashkin.]"
+  },
+  {
+   "row": 178,
+   "type": 3,
+   "name": "Lettuce Simular",
+   "sell": 0,
+   "description": "Evasion +5%\nGrants one stack of High Wire for each attack evaded.\nHigh Wire Effect: Increases damage dealt by 15% and reduces damage taken by 8%\nDuration: 60s\nMaximum Stacks: 4\n[Suitable for beastkin, vilekin, cloudkin, seedkin, wavekin, and ashkin.]"
+  },
+  {
+   "row": 179,
+   "type": 3,
+   "name": "Lemon Simular",
+   "sell": 0,
+   "description": "Aetheric Burst Potency +10%\nGrants one stack of Blink upon landing a critical hit.\nBlink Effect: Nullifies most physical attacks, reducing one stack per nullification\nDuration: 120s\nMaximum Stacks: 5\n[Suitable for beastkin, vilekin, cloudkin, seedkin, wavekin, scalekin, and ashkin.]"
+  },
+  {
+   "row": 180,
+   "type": 3,
+   "name": "Untaming Oil",
+   "sell": 0,
+   "description": "Haste +20%\nGrants one stack of High Wire for each combo completed with a familiar instinctual skill.\nHigh Wire Effect: Increases damage dealt by 15% and reduces damage taken by 8%\nDuration: 60s\nMaximum Stacks: 4\n[Suitable for soulkin.]"
+  },
+  {
+   "row": 181,
+   "type": 3,
+   "name": "Mucus Simular",
+   "sell": 0,
+   "description": "Damage Dealt +30%\nDamage Taken -30%\nInflicts Nightmare on self upon landing a critical hit.\nDuration: 30s\n[Suitable for beastkin, vilekin, cloudkin, seedkin, wavekin, scalekin, and ashkin.]"
+  },
+  {
+   "row": 182,
+   "type": 3,
+   "name": "Sap Simular",
+   "sell": 0,
+   "description": "Physical Vulnerability -40%\nAetheric Burst Potency +20%\n[Suitable for scalekin.]"
+  },
+  {
+   "row": 183,
+   "type": 3,
+   "name": "Salt Simular",
+   "sell": 0,
+   "description": "Evasion +25%\n15% chance to grant Stoneskin upon evading an attack.\nStoneskin Effect: Absorbs damage equivalent to 12% of maximum HP\nDuration: 60s\n[Suitable for soulkin.]"
+  },
+  {
+   "row": 184,
+   "type": 3,
+   "name": "Syrup Simular",
+   "sell": 0,
+   "description": "Damage Dealt +30%\nPhysical Vulnerability -30%\n3% chance to inflict Paralysis on self upon suffering damage.\nDuration: 30s\n[Suitable for vilekin.]"
+  },
+  {
+   "row": 185,
+   "type": 3,
+   "name": "Cream Cheese Simular",
+   "sell": 0,
+   "description": "Maximum HP +50%\nDamage Taken -20%\nAdditional Effect: Restores 26% of HP upon consumption\n50% chance to grant one stack of Haste upon suffering damage.\nHaste Effect: Reduces weaponskill cast time and recast time, spell cast time and recast time, and auto-attack delay by 3%\nDuration: 60s\nMaximum Stacks: 5\n[Suitable for seedkin.]"
+  },
+  {
+   "row": 186,
+   "type": 3,
+   "name": "Red Egg Simular",
+   "sell": 0,
+   "description": "Haste +15%\nDamage Dealt +30%\nAdditional Effect: Inflicts damage over time on self\n[Suitable for beastkin, vilekin, cloudkin, wavekin, and scalekin.]"
+  },
+  {
+   "row": 187,
+   "type": 3,
+   "name": "Toast Simular",
+   "sell": 0,
+   "description": "Magic Vulnerability -30%\n[Suitable for beastkin, vilekin, cloudkin, seedkin, wavekin, scalekin, and ashkin.]"
+  },
+  {
+   "row": 188,
+   "type": 3,
+   "name": "Cornbread Simular",
+   "sell": 0,
+   "description": "Magic Vulnerability -40%\nAetheric Burst Potency +10%\nMaximum HP +15%\nAdditional Effect: Restores 10% of HP upon consumption\n[Suitable for vilekin.]"
+  },
+  {
+   "row": 189,
+   "type": 3,
+   "name": "Mandrake Simular",
+   "sell": 0,
+   "description": "Physical Damage Dealt +40%\nInflicts Blind on self upon landing a critical hit.\nDuration: 30s\n[Suitable for beastkin, vilekin, cloudkin, seedkin, wavekin, scalekin, soulkin, and ashkin.]"
+  },
+  {
+   "row": 190,
+   "type": 3,
+   "name": "Tarantula Simular",
+   "sell": 0,
+   "description": "Critical Hit Rate +25%\nGrants one stack of Damage Up upon landing a critical hit.\nDamage Up Effect: Increases damage dealt by 10%\nDuration: 60s\nMaximum Stacks: 5\n[Suitable for soulkin.]"
+  },
+  {
+   "row": 191,
+   "type": 3,
+   "name": "Belladonna Simular",
+   "sell": 0,
+   "description": "Damage Taken -30%\nMaximum HP +30%\nAdditional Effect: Restores 18% of HP upon consumption\n3% chance to inflict Petrification on self upon suffering damage.\nDuration: 30s\n[Suitable for beastkin, vilekin, cloudkin, seedkin, wavekin, scalekin, soulkin, and ashkin.]"
+  },
+  {
+   "row": 192,
+   "type": 3,
+   "name": "Steak Simular",
+   "sell": 0,
+   "description": "Delivers blunt physical damage with a potency of 350 each time your familiar suffers physical damage.\nCounter damage is affected by physical damage increase effects of other feed and crucible items, and your familiar's strength.\n[Suitable for beastkin, vilekin, cloudkin, scalekin, and ashkin.]"
+  },
+  {
+   "row": 193,
+   "type": 3,
+   "name": "Roe Simular",
+   "sell": 0,
+   "description": "Aetheric Burst Potency +10%\n30% chance to recover TP upon completing a combo with a familiar instinctual skill.\n[Suitable for beastkin, vilekin, seedkin, wavekin, scalekin, and ashkin.]"
+  },
+  {
+   "row": 194,
+   "type": 3,
+   "name": "Herbal Tea Simular",
+   "sell": 0,
+   "description": "Grants Stoneskin when summoned by a beastmaster.\nStoneskin Effect: Absorbs damage equivalent to 24% of maximum HP\nDuration: 60s\n[Suitable for beastkin, vilekin, cloudkin, seedkin, wavekin, scalekin, and ashkin.]"
+  },
+  {
+   "row": 195,
+   "type": 3,
+   "name": "Honeycomb Simular",
+   "sell": 0,
+   "description": "Physical Vulnerability -30%\nDamage Dealt +10%\n30% chance to recover TP upon completing a combo with a familiar instinctual skill.\n[Suitable for soulkin.]"
+  },
+  {
+   "row": 196,
+   "type": 3,
+   "name": "Orange Juice Simular",
+   "sell": 0,
+   "description": "Magic Damage Dealt +30%\nAetheric Burst Potency +15%\n[Suitable for beastkin, vilekin, cloudkin, seedkin, wavekin, scalekin, and ashkin.]"
+  },
+  {
+   "row": 197,
+   "type": 3,
+   "name": "Grape Juice Simular",
+   "sell": 0,
+   "description": "Physical Damage Dealt +30%\nAetheric Burst Potency +50%\nMaximum HP -80%\n[Suitable for beastkin, vilekin, cloudkin, seedkin, wavekin, scalekin, and ashkin.]"
+  },
+  {
+   "row": 198,
+   "type": 3,
+   "name": "Skewer Simular",
+   "sell": 0,
+   "description": "Slow +200%\nPhysical Damage Dealt +50%\n[Suitable for beastkin, vilekin, cloudkin, seedkin, wavekin, scalekin, and ashkin.]"
+  },
+  {
+   "row": 199,
+   "type": 3,
+   "name": "Pineapple Juice Simular",
+   "sell": 0,
+   "description": "Slow +200%\nMagic Damage Dealt +50%\n[Suitable for beastkin, vilekin, cloudkin, seedkin, wavekin, scalekin, and ashkin.]"
+  },
+  {
+   "row": 200,
+   "type": 3,
+   "name": "Oyster Simular",
+   "sell": 0,
+   "description": "Increases Familiar TP Gauge by 100 upon commencing battle or when summoned by a beastmaster during combat.\n[Suitable for cloudkin.]"
+  },
+  {
+   "row": 201,
+   "type": 3,
+   "name": "Blue Cheese Simular",
+   "sell": 0,
+   "description": "Deals unaspected damage with a potency of 350 each time your familiar suffers magic damage.\nCounter damage is affected by magic damage increase effects of other feed and crucible items, and your familiar's intelligence.\n[Suitable for seedkin and wavekin.]"
+  },
+  {
+   "row": 202,
+   "type": 3,
+   "name": "Cottage Cheese Simular",
+   "sell": 0,
+   "description": "Maximum HP +30%\nHaste +15%\nAdditional Effect: Restores 18% of HP upon consumption\n30% chance to recover TP upon completing a combo with a familiar instinctual skill.\n[Suitable for vilekin.]"
+  },
+  {
+   "row": 203,
+   "type": 3,
+   "name": "Lassi Simular",
+   "sell": 0,
+   "description": "Maximum HP +30%\nAdditional Effect: Restores 18% of HP upon consumption\nAdditional Effect: Completely restores HP at campsites\n[Suitable for beastkin, vilekin, cloudkin, seedkin, wavekin, and scalekin.]"
+  }
+ ],
+ "boards": [
+  {
+   "board": 1,
+   "name": "First Board of the Unbroken",
+   "nodes": [
+    {
+     "node": 0,
+     "type": "Start",
+     "depth": 0
+    },
+    {
+     "node": 1,
+     "type": "Enemy",
+     "depth": 1,
+     "battle": 1
+    },
+    {
+     "node": 2,
+     "type": "Enemy",
+     "depth": 2,
+     "battle": 2
+    },
+    {
+     "node": 3,
+     "type": "Enemy",
+     "depth": 2,
+     "battle": 3
+    },
+    {
+     "node": 4,
+     "type": "Campsite",
+     "depth": 3,
+     "camp_familiars": 2
+    },
+    {
+     "node": 5,
+     "type": "Treasure",
+     "depth": 3
+    },
+    {
+     "node": 6,
+     "type": "Enemy",
+     "depth": 4,
+     "battle": 4
+    },
+    {
+     "node": 7,
+     "type": "Treasure",
+     "depth": 5
+    },
+    {
+     "node": 8,
+     "type": "Elite Enemy",
+     "depth": 6,
+     "battle": 5
+    },
+    {
+     "node": 9,
+     "type": "Treasure",
+     "depth": 7
+    },
+    {
+     "node": 10,
+     "type": "Campsite",
+     "depth": 7,
+     "camp_familiars": 2
+    },
+    {
+     "node": 11,
+     "type": "Shop",
+     "depth": 8
+    },
+    {
+     "node": 12,
+     "type": "Boss",
+     "depth": 9,
+     "battle": 0
+    }
+   ],
+   "edges": [
+    [
+     0,
+     1
+    ],
+    [
+     1,
+     2
+    ],
+    [
+     1,
+     3
+    ],
+    [
+     2,
+     4
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     4,
+     6
+    ],
+    [
+     5,
+     6
+    ],
+    [
+     6,
+     7
+    ],
+    [
+     7,
+     8
+    ],
+    [
+     8,
+     9
+    ],
+    [
+     8,
+     10
+    ],
+    [
+     9,
+     11
+    ],
+    [
+     10,
+     11
+    ],
+    [
+     11,
+     12
+    ]
+   ]
+  },
+  {
+   "board": 2,
+   "name": "Second Board of the Unbroken",
+   "nodes": [
+    {
+     "node": 0,
+     "type": "Start",
+     "depth": 0
+    },
+    {
+     "node": 1,
+     "type": "Enemy",
+     "depth": 1,
+     "battle": 1
+    },
+    {
+     "node": 2,
+     "type": "Shop",
+     "depth": 2
+    },
+    {
+     "node": 3,
+     "type": "Elite Enemy",
+     "depth": 3,
+     "battle": 2
+    },
+    {
+     "node": 4,
+     "type": "Enemy",
+     "depth": 3,
+     "battle": 3
+    },
+    {
+     "node": 5,
+     "type": "Treasure",
+     "depth": 4
+    },
+    {
+     "node": 6,
+     "type": "Campsite",
+     "depth": 4,
+     "camp_familiars": 2
+    },
+    {
+     "node": 7,
+     "type": "Enemy",
+     "depth": 5,
+     "battle": 4
+    },
+    {
+     "node": 8,
+     "type": "Treasure",
+     "depth": 6
+    },
+    {
+     "node": 9,
+     "type": "Elite Enemy",
+     "depth": 7,
+     "battle": 5
+    },
+    {
+     "node": 10,
+     "type": "Random",
+     "depth": 8,
+     "random": [
+      {
+       "type": "Enemy",
+       "battle": 6
+      },
+      {
+       "type": "Campsite",
+       "camp_familiars": 3
+      }
+     ]
+    },
+    {
+     "node": 11,
+     "type": "Treasure",
+     "depth": 8
+    },
+    {
+     "node": 12,
+     "type": "Shop",
+     "depth": 9
+    },
+    {
+     "node": 13,
+     "type": "Boss",
+     "depth": 10,
+     "battle": 0
+    }
+   ],
+   "edges": [
+    [
+     0,
+     1
+    ],
+    [
+     1,
+     2
+    ],
+    [
+     2,
+     3
+    ],
+    [
+     2,
+     4
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     4,
+     6
+    ],
+    [
+     5,
+     7
+    ],
+    [
+     6,
+     7
+    ],
+    [
+     7,
+     8
+    ],
+    [
+     8,
+     9
+    ],
+    [
+     9,
+     10
+    ],
+    [
+     9,
+     11
+    ],
+    [
+     10,
+     12
+    ],
+    [
+     11,
+     12
+    ],
+    [
+     12,
+     13
+    ]
+   ]
+  },
+  {
+   "board": 3,
+   "name": "Third Board of the Unbroken",
+   "nodes": [
+    {
+     "node": 0,
+     "type": "Start",
+     "depth": 0
+    },
+    {
+     "node": 1,
+     "type": "Enemy",
+     "depth": 1,
+     "battle": 1
+    },
+    {
+     "node": 2,
+     "type": "Enemy",
+     "depth": 2,
+     "battle": 2
+    },
+    {
+     "node": 3,
+     "type": "Shop",
+     "depth": 3
+    },
+    {
+     "node": 4,
+     "type": "Elite Enemy",
+     "depth": 4,
+     "battle": 3
+    },
+    {
+     "node": 5,
+     "type": "Enemy",
+     "depth": 4,
+     "battle": 4
+    },
+    {
+     "node": 6,
+     "type": "Treasure",
+     "depth": 5
+    },
+    {
+     "node": 7,
+     "type": "Campsite",
+     "depth": 5,
+     "camp_familiars": 3
+    },
+    {
+     "node": 8,
+     "type": "Enemy",
+     "depth": 6,
+     "battle": 5
+    },
+    {
+     "node": 9,
+     "type": "Treasure",
+     "depth": 7
+    },
+    {
+     "node": 10,
+     "type": "Shop",
+     "depth": 7
+    },
+    {
+     "node": 11,
+     "type": "Elite Enemy",
+     "depth": 8,
+     "battle": 6
+    },
+    {
+     "node": 12,
+     "type": "Treasure",
+     "depth": 9
+    },
+    {
+     "node": 13,
+     "type": "Random",
+     "depth": 10,
+     "random": [
+      {
+       "type": "Enemy",
+       "battle": 7
+      },
+      {
+       "type": "Treasure"
+      }
+     ]
+    },
+    {
+     "node": 14,
+     "type": "Campsite",
+     "depth": 10,
+     "camp_familiars": 3
+    },
+    {
+     "node": 15,
+     "type": "Shop",
+     "depth": 11
+    },
+    {
+     "node": 16,
+     "type": "Boss",
+     "depth": 12,
+     "battle": 0
+    }
+   ],
+   "edges": [
+    [
+     0,
+     1
+    ],
+    [
+     1,
+     2
+    ],
+    [
+     2,
+     3
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     4,
+     6
+    ],
+    [
+     5,
+     7
+    ],
+    [
+     6,
+     8
+    ],
+    [
+     7,
+     8
+    ],
+    [
+     8,
+     9
+    ],
+    [
+     8,
+     10
+    ],
+    [
+     9,
+     11
+    ],
+    [
+     10,
+     11
+    ],
+    [
+     11,
+     12
+    ],
+    [
+     12,
+     13
+    ],
+    [
+     12,
+     14
+    ],
+    [
+     13,
+     15
+    ],
+    [
+     14,
+     15
+    ],
+    [
+     15,
+     16
+    ]
+   ]
+  },
+  {
+   "board": 4,
+   "name": "First Master's Board",
+   "nodes": [
+    {
+     "node": 0,
+     "type": "Start",
+     "depth": 0
+    },
+    {
+     "node": 1,
+     "type": "Enemy",
+     "depth": 1,
+     "battle": 1
+    },
+    {
+     "node": 2,
+     "type": "Enemy",
+     "depth": 2,
+     "battle": 2
+    },
+    {
+     "node": 3,
+     "type": "Random",
+     "depth": 2,
+     "random": [
+      {
+       "type": "Enemy",
+       "battle": 3
+      },
+      {
+       "type": "Treasure"
+      }
+     ]
+    },
+    {
+     "node": 4,
+     "type": "Shop",
+     "depth": 3
+    },
+    {
+     "node": 5,
+     "type": "Campsite",
+     "depth": 4,
+     "camp_familiars": 2
+    },
+    {
+     "node": 6,
+     "type": "Random",
+     "depth": 4,
+     "random": [
+      {
+       "type": "Enemy",
+       "battle": 4
+      },
+      {
+       "type": "Treasure"
+      }
+     ]
+    },
+    {
+     "node": 7,
+     "type": "Elite Enemy",
+     "depth": 5,
+     "battle": 5
+    },
+    {
+     "node": 8,
+     "type": "Random",
+     "depth": 6,
+     "random": [
+      {
+       "type": "Enemy",
+       "battle": 6
+      },
+      {
+       "type": "Treasure"
+      },
+      {
+       "type": "Campsite",
+       "camp_familiars": 4
+      }
+     ]
+    },
+    {
+     "node": 9,
+     "type": "Treasure",
+     "depth": 6
+    },
+    {
+     "node": 10,
+     "type": "Elite Enemy",
+     "depth": 7,
+     "battle": 7
+    },
+    {
+     "node": 11,
+     "type": "Enemy",
+     "depth": 7,
+     "battle": 8
+    },
+    {
+     "node": 12,
+     "type": "Random",
+     "depth": 8,
+     "random": [
+      {
+       "type": "Enemy",
+       "battle": 9
+      },
+      {
+       "type": "Shop"
+      }
+     ]
+    },
+    {
+     "node": 13,
+     "type": "Shop",
+     "depth": 8
+    },
+    {
+     "node": 14,
+     "type": "Boss",
+     "depth": 9,
+     "battle": 0
+    }
+   ],
+   "edges": [
+    [
+     0,
+     1
+    ],
+    [
+     1,
+     2
+    ],
+    [
+     1,
+     3
+    ],
+    [
+     2,
+     4
+    ],
+    [
+     3,
+     4
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     4,
+     6
+    ],
+    [
+     5,
+     7
+    ],
+    [
+     6,
+     7
+    ],
+    [
+     7,
+     8
+    ],
+    [
+     7,
+     9
+    ],
+    [
+     8,
+     10
+    ],
+    [
+     9,
+     11
+    ],
+    [
+     10,
+     12
+    ],
+    [
+     11,
+     13
+    ],
+    [
+     12,
+     14
+    ],
+    [
+     13,
+     14
+    ]
+   ]
+  },
+  {
+   "board": 5,
+   "name": "Second Master's Board",
+   "nodes": [
+    {
+     "node": 0,
+     "type": "Start",
+     "depth": 0
+    },
+    {
+     "node": 1,
+     "type": "Enemy",
+     "depth": 1,
+     "battle": 1
+    },
+    {
+     "node": 2,
+     "type": "Elite Enemy",
+     "depth": 2,
+     "battle": 2
+    },
+    {
+     "node": 3,
+     "type": "Shop",
+     "depth": 2
+    },
+    {
+     "node": 4,
+     "type": "Campsite",
+     "depth": 3,
+     "camp_familiars": 1
+    },
+    {
+     "node": 5,
+     "type": "Treasure",
+     "depth": 3
+    },
+    {
+     "node": 6,
+     "type": "Random",
+     "depth": 3,
+     "random": [
+      {
+       "type": "Enemy",
+       "battle": 3
+      },
+      {
+       "type": "Treasure"
+      }
+     ]
+    },
+    {
+     "node": 7,
+     "type": "Random",
+     "depth": 4,
+     "random": [
+      {
+       "type": "Enemy",
+       "battle": 4
+      },
+      {
+       "type": "Shop"
+      }
+     ]
+    },
+    {
+     "node": 8,
+     "type": "Enemy",
+     "depth": 4,
+     "battle": 5
+    },
+    {
+     "node": 9,
+     "type": "Treasure",
+     "depth": 4
+    },
+    {
+     "node": 10,
+     "type": "Elite Enemy",
+     "depth": 5,
+     "battle": 6
+    },
+    {
+     "node": 11,
+     "type": "Campsite",
+     "depth": 6,
+     "camp_familiars": 2
+    },
+    {
+     "node": 12,
+     "type": "Random",
+     "depth": 7,
+     "random": [
+      {
+       "type": "Elite Enemy",
+       "battle": 7
+      },
+      {
+       "type": "Treasure"
+      }
+     ]
+    },
+    {
+     "node": 13,
+     "type": "Shop",
+     "depth": 7
+    },
+    {
+     "node": 14,
+     "type": "Treasure",
+     "depth": 8
+    },
+    {
+     "node": 15,
+     "type": "Treasure",
+     "depth": 8
+    },
+    {
+     "node": 16,
+     "type": "Elite Enemy",
+     "depth": 9,
+     "battle": 8
+    },
+    {
+     "node": 17,
+     "type": "Enemy",
+     "depth": 9,
+     "battle": 9
+    },
+    {
+     "node": 18,
+     "type": "Enemy",
+     "depth": 10,
+     "battle": 10
+    },
+    {
+     "node": 19,
+     "type": "Shop",
+     "depth": 11
+    },
+    {
+     "node": 20,
+     "type": "Random",
+     "depth": 12,
+     "random": [
+      {
+       "type": "Enemy",
+       "battle": 11
+      },
+      {
+       "type": "Treasure"
+      }
+     ]
+    },
+    {
+     "node": 21,
+     "type": "Campsite",
+     "depth": 12,
+     "camp_familiars": 3
+    },
+    {
+     "node": 22,
+     "type": "Treasure",
+     "depth": 12
+    },
+    {
+     "node": 23,
+     "type": "Random",
+     "depth": 13,
+     "random": [
+      {
+       "type": "Elite Enemy",
+       "battle": 12
+      },
+      {
+       "type": "Shop"
+      }
+     ]
+    },
+    {
+     "node": 24,
+     "type": "Elite Enemy",
+     "depth": 13,
+     "battle": 13
+    },
+    {
+     "node": 25,
+     "type": "Boss",
+     "depth": 14,
+     "battle": 0
+    }
+   ],
+   "edges": [
+    [
+     0,
+     1
+    ],
+    [
+     1,
+     2
+    ],
+    [
+     1,
+     3
+    ],
+    [
+     2,
+     4
+    ],
+    [
+     2,
+     5
+    ],
+    [
+     3,
+     5
+    ],
+    [
+     3,
+     6
+    ],
+    [
+     4,
+     7
+    ],
+    [
+     5,
+     8
+    ],
+    [
+     6,
+     9
+    ],
+    [
+     7,
+     10
+    ],
+    [
+     8,
+     10
+    ],
+    [
+     9,
+     10
+    ],
+    [
+     10,
+     11
+    ],
+    [
+     11,
+     12
+    ],
+    [
+     11,
+     13
+    ],
+    [
+     12,
+     14
+    ],
+    [
+     13,
+     15
+    ],
+    [
+     14,
+     16
+    ],
+    [
+     15,
+     17
+    ],
+    [
+     16,
+     18
+    ],
+    [
+     17,
+     18
+    ],
+    [
+     18,
+     19
+    ],
+    [
+     19,
+     20
+    ],
+    [
+     19,
+     21
+    ],
+    [
+     19,
+     22
+    ],
+    [
+     20,
+     23
+    ],
+    [
+     21,
+     25
+    ],
+    [
+     22,
+     24
+    ],
+    [
+     23,
+     25
+    ],
+    [
+     24,
+     25
+    ]
+   ]
+  }
+ ],
+ "pets": [
+  {
+   "row": 1,
+   "satiety_max": 3
+  },
+  {
+   "row": 2,
+   "satiety_max": 3
+  },
+  {
+   "row": 3,
+   "satiety_max": 4
+  },
+  {
+   "row": 4,
+   "satiety_max": 2
+  },
+  {
+   "row": 5,
+   "satiety_max": 3
+  },
+  {
+   "row": 6,
+   "satiety_max": 2
+  },
+  {
+   "row": 7,
+   "satiety_max": 1
+  },
+  {
+   "row": 8,
+   "satiety_max": 1
+  },
+  {
+   "row": 9,
+   "satiety_max": 2
+  },
+  {
+   "row": 10,
+   "satiety_max": 1
+  },
+  {
+   "row": 11,
+   "satiety_max": 2
+  },
+  {
+   "row": 12,
+   "satiety_max": 2
+  },
+  {
+   "row": 13,
+   "satiety_max": 5
+  },
+  {
+   "row": 14,
+   "satiety_max": 2
+  },
+  {
+   "row": 15,
+   "satiety_max": 2
+  },
+  {
+   "row": 16,
+   "satiety_max": 1
+  },
+  {
+   "row": 17,
+   "satiety_max": 5
+  },
+  {
+   "row": 18,
+   "satiety_max": 2
+  },
+  {
+   "row": 19,
+   "satiety_max": 2
+  },
+  {
+   "row": 20,
+   "satiety_max": 2
+  },
+  {
+   "row": 21,
+   "satiety_max": 2
+  },
+  {
+   "row": 22,
+   "satiety_max": 2
+  },
+  {
+   "row": 23,
+   "satiety_max": 2
+  },
+  {
+   "row": 24,
+   "satiety_max": 2
+  },
+  {
+   "row": 25,
+   "satiety_max": 2
+  },
+  {
+   "row": 26,
+   "satiety_max": 3
+  },
+  {
+   "row": 27,
+   "satiety_max": 2
+  },
+  {
+   "row": 28,
+   "satiety_max": 2
+  },
+  {
+   "row": 29,
+   "satiety_max": 2
+  },
+  {
+   "row": 30,
+   "satiety_max": 3
+  },
+  {
+   "row": 31,
+   "satiety_max": 2
+  },
+  {
+   "row": 32,
+   "satiety_max": 2
+  },
+  {
+   "row": 33,
+   "satiety_max": 3
+  },
+  {
+   "row": 34,
+   "satiety_max": 2
+  },
+  {
+   "row": 35,
+   "satiety_max": 2
+  },
+  {
+   "row": 36,
+   "satiety_max": 2
+  },
+  {
+   "row": 37,
+   "satiety_max": 1
+  },
+  {
+   "row": 38,
+   "satiety_max": 3
+  },
+  {
+   "row": 39,
+   "satiety_max": 2
+  },
+  {
+   "row": 40,
+   "satiety_max": 5
+  },
+  {
+   "row": 41,
+   "satiety_max": 2
+  },
+  {
+   "row": 42,
+   "satiety_max": 2
+  },
+  {
+   "row": 43,
+   "satiety_max": 3
+  },
+  {
+   "row": 44,
+   "satiety_max": 1
+  },
+  {
+   "row": 45,
+   "satiety_max": 5
+  },
+  {
+   "row": 46,
+   "satiety_max": 3
+  },
+  {
+   "row": 47,
+   "satiety_max": 3
+  },
+  {
+   "row": 48,
+   "satiety_max": 3
+  },
+  {
+   "row": 49,
+   "satiety_max": 3
+  },
+  {
+   "row": 50,
+   "satiety_max": 4
+  }
+ ]
+}

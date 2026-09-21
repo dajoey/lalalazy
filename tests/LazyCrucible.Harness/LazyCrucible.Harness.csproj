@@ -20,6 +20,12 @@
   <ItemGroup>
     <Compile Include="..\..\src\Shared\LalaCrucible\**\*.cs" Link="LalaCrucible\%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="..\..\src\LazyCrucible\FormationLogic.cs" Link="FormationLogic.cs" />
+    <!-- Phase 2 (selection screens): generated item table and board graphs, the pure policies, the guide model. -->
+    <Compile Include="..\..\src\LazyCrucible\Data\**\*.cs" Link="Data\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\..\src\LazyCrucible\Policy\**\*.cs" Link="Policy\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\..\src\LazyCrucible\Guide\CrucibleGuide.cs" Link="Guide\CrucibleGuide.cs" />
+    <None Include="Fixtures\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\LazyCrucible\Guide\CrucibleGuide.json" Link="CrucibleGuide.json" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\src\LazyCrucible\Guide\CrucibleGuide.json')" />
     <Using Include="Lalalazy.Crucible" />
     <!-- Error reporting (2026-09-21): LazyCrucible's pure telemetry policy (report ring cap, ER| areas, XBM capture
          split) and the Dalamud-free core of the shared library it feeds (report builder, token bucket, parser). -->

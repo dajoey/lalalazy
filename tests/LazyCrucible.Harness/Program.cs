@@ -21,6 +21,9 @@ internal static class Program
         RosterOverwriteReplay();
         GluttonyVersionGuard();
         Telemetry();
+        PolicyCases.Run();
+        ReplayCases.Run();
+        GuideCases.Run();
 
         Console.WriteLine(_fail == 0 ? $"OK ({_pass} checks)" : $"FAILED ({_fail} of {_pass + _fail})");
         return _fail == 0 ? 0 : 1;
@@ -446,6 +449,42 @@ internal static class Program
                 psWritten.Count == 10 && psWritten.All(inRing.Contains), $"{psWritten.Count(inRing.Contains)}/{psWritten.Count}");
         }
 
+        // The selection screens' decision lines (SL|) and the run tracker's lines (RT|) count as decisions too: a
+        // report filed after a shop, feed, spoils, campsite or treasure action must carry the lines explaining it.
+        {
+            var sel = new CrucibleRingPolicy();
+            var drained = Enumerable.Range(0, 100).Count(_ => sel.ShouldRecord("XB|1|XBMContentsItemShop|n=9|0:i=1;", 0));
+            var slKept = Enumerable.Range(0, 200).All(i => sel.ShouldRecord($"SL|{i}|screen=shop|decide|idx=1|row=5", 0));
+            var rtKept = Enumerable.Range(0, 50).All(i => sel.ShouldRecord($"RT|{i}|fight|b=1|bt=2|fought=1.2", 0));
+            Check("ring: every SL| and RT| line is kept, even with the screen-line bucket empty",
+                drained == 30 && slKept && rtKept, $"drained={drained} sl={slKept} rt={rtKept}");
+
+            var flood = new CrucibleRingPolicy();
+            var ring = new RingBuffer(CrucibleTelemetry.RingCapacity);
+            var slWritten = new List<string>();
+            for (long ms = 0; ms < 60_000; ms += 10)
+            {
+                var line = (ms / 10 % 3) switch
+                {
+                    0 => $"XB|{ms}|XBMContentsItemShop|n=2000|0:i=1;",
+                    1 => $"XC|{ms}|XBMContentsItemShop|upd=1|n=2|0:i2",
+                    _ => $"PSP|{ms}|ag=pp|via=re|kind=0|n=2",
+                };
+                if (flood.ShouldRecord(line, ms))
+                    ring.Add(ms, line);
+                if (ms % 700 == 0 && ms >= 50_000)
+                {
+                    var sl = $"SL|{ms}|screen=shop|buy|idx=3|row=17|readback=ok";
+                    slWritten.Add(sl);
+                    if (flood.ShouldRecord(sl, ms))
+                        ring.Add(ms, sl);
+                }
+            }
+            var inRing = ring.Snapshot().Select(e => e.Line).ToHashSet();
+            Check("ring: a 60 s recorder flood never pushes the last 10 s of SL| selection-screen lines out of the ring",
+                slWritten.Count > 10 && slWritten.All(inRing.Contains), $"{slWritten.Count(inRing.Contains)}/{slWritten.Count}");
+        }
+
         // --- XBM capture split ---
         static string Dump(int values, int strLen)
         {
@@ -518,11 +557,13 @@ internal static class Program
         }
     }
 
-    private static void Check(string what, bool ok, string? detail = null)
+    internal static void Check(string what, bool ok, string? detail = null)
     {
         if (ok)
         {
             _pass++;
+            if (detail is not null && Environment.GetEnvironmentVariable("LC_VERBOSE") == "1")
+                Console.WriteLine($"  ok {what}  [{detail}]");
             return;
         }
         _fail++;
