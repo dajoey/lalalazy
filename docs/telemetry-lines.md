@@ -152,6 +152,9 @@ Per-frame handlers run under a breaker named by `a`. The pilots use these areas:
 | LazyMarketCompanion | `automation.draw` | retainer automation overlay + AutoRetainer session watchdog |
 | LazyMarketCompanion | `markers.draw` | inventory marker overlay |
 | LazyMarketCompanion | `market-board.tick` | market-board price-request timeouts |
+| LazyMarketCompanion | `inventory.tick` | Inventory tab upkeep: last-seen capture, AutoRetainer file reads, the running Inventory action |
+| LazyMarketCompanion | `inventory.tooltip` | the "who handles this stack" box under item tooltips |
+| LazyMarketCompanion | `inventory.tab` | the Inventory tab's draw |
 
 - **Trip:** 10 failures within 5 s. One `trip` line (`ev=tripped`) is written, and ONE chat notice
   for the whole session, e.g. `Gluttony Combo: auto-rotation and the per-frame update stopped after
@@ -219,11 +222,31 @@ Each plugin keeps the last 200 telemetry lines in memory, always, whatever its t
   `XP|` are recorded only while the switch is on (their sampling runs per frame). `PS|` and `PSP|`
   (Crucible familiar selection) are recorded whenever they are emitted, which is independent of the switch.
 - LazyMarketCompanion: `MT|` price decisions. With the switch off, a light copy with `itemId` 0 and
-  `qty` 0 (no Item-sheet scan) goes to the ring, one per price decision.
+  `qty` 0 (no Item-sheet scan) goes to the ring, one per price decision. Every `IV|` Inventory-tab
+  action line (section 4.2) also goes to the ring, whatever the switch says.
 - Both: the head of every `ER|` line, every chat notice (`NT|`), every filed report (`RP|..|filed`).
 
 The plugins' own narrative INF lines (`[LMC] ...`) are not in the ring. They are already in the log;
 join them to a report on `context` and a time window around the report's `unixms`.
+
+### 4.2 `IV|` Inventory-tab action lines (LazyMarketCompanion)
+
+Every action the Inventory tab takes, or refuses, is one `IV|` line at INF, in the same record grammar
+as section 2 (built with the shared `TelemetryLineBuilder`; fixed key order, pinned by
+`tests/LazyMarketCompanion.Harness` case group I10). The same line is appended to the append-only audit
+file `<pluginConfigs>/LazyMarketCompanion/lmc_inventory_actions.log`. Container names are the
+FFXIVClientStructs `InventoryType` names (`RetainerPage2`, `Inventory1`, `ArmoryBody`).
+
+```
+IV|<ms>|vendor|v|r|src|i|hq|q|est|ok|why          one venture-loot stack sold through the open retainer
+IV|<ms>|move|v|src|dst|i|hq|ok|rc|why             one bags -> Armoury move (why ends with the trigger: manual / idle)
+IV|<ms>|undo|v|src|dst|i|hq|ok|rc|why             one Armoury -> bags move back
+IV|<ms>|batch|v|what|ev|n|okn|fail|why            what = vendor / move / undo; ev = begin / end / refused
+IV|<ms>|optin|v|i|on|rail                         an item allowed past (on=1) or back behind (on=0) the unique / untradable / rare rail
+```
+
+`ok=1` on `vendor` means the sell call was issued after the slot re-read matched; `ok=1` on `move`/`undo`
+means the source slot emptied and the destination slot was seen holding the item.
 
 ## 5. Reference parser (Python)
 

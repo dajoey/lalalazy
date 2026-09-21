@@ -49,6 +49,9 @@ public sealed class ConfigWindow : Window
   /// <summary>0.1.58.0: see <see cref="ReconcileLedgerRelease"/>.</summary>
   internal Func<int>? ReconcileLedgerReleaseAll { get; set; }
 
+  /// <summary>The Inventory tab's draw (Inventory/InventoryTab.cs), wired in Plugin.cs. Null = no tab.</summary>
+  internal System.Action? DrawInventoryTab { get; set; }
+
   public ConfigWindow()
     : base("Lazy Market Companion")
   {
@@ -66,6 +69,12 @@ public sealed class ConfigWindow : Window
     if (ImGui.BeginTabItem("Auto-Market", _forceTab == Tab.AutoMarket ? ImGuiTabItemFlags.SetSelected : ImGuiTabItemFlags.None))
     {
       DrawAutoMarket();
+      ImGui.EndTabItem();
+    }
+
+    if (DrawInventoryTab != null && ImGui.BeginTabItem("Inventory"))
+    {
+      DrawInventoryTab();
       ImGui.EndTabItem();
     }
 
