@@ -4003,6 +4003,117 @@ StockStack BagStack(uint id, int slot, int qty, uint cat = CatA, bool marketable
 }
 
 
+// 128. RETAINER CLOSE GATE (0.1.65.0): Governs retainer exit across all sweeps.
+//     Must wait for the retainer menu (SelectString) to open before closing it (fixes the
+//     0.1.64.0 early-exit bug where CloseRetainer returned true while SelectString had not
+//     opened yet, leaving the retainer dialog stuck on screen and stalling the next retainer's
+//     ClickRetainer). Completes only when RetainerList is ready at the summoning bell.
+{
+  const string BuybackPrompt = "Your retainer will be unable to process item buyback requests once recalled. Are you sure you wish to proceed?";
+  const string UnrelatedPrompt = "Are you sure you want to discard this item?";
+
+  // Case A: Initial state when RetainerSellList has just closed - SelectString is not open yet.
+  // CRITICAL REGRESSION TEST for 0.1.64.0: must WAIT, never complete/Done prematurely!
+  Check("128 close: initial state with menu not yet open is Wait (not Done)",
+    RetainerCloseGate.Decide(
+      retainerListReady: false,
+      selectYesnoReady: false,
+      yesnoPrompt: null,
+      selectStringReady: false,
+      closeSent: false,
+      closeTicks: 0,
+      buybackConfirmed: false) == RetainerCloseAction.Wait);
+
+  // Case B: Retainer menu opens and is ready.
+  Check("128 close: SelectString ready before closeSent issues CloseMenu",
+    RetainerCloseGate.Decide(
+      retainerListReady: false,
+      selectYesnoReady: false,
+      yesnoPrompt: null,
+      selectStringReady: true,
+      closeSent: false,
+      closeTicks: 0,
+      buybackConfirmed: false) == RetainerCloseAction.CloseMenu);
+
+  // Case C: SelectString is closing (closeSent is true, few ticks elapsed) -> Wait (do not spam Close(true))
+  Check("128 close: SelectString still ready while closing waits without spamming close",
+    RetainerCloseGate.Decide(
+      retainerListReady: false,
+      selectYesnoReady: false,
+      yesnoPrompt: null,
+      selectStringReady: true,
+      closeSent: true,
+      closeTicks: 5,
+      buybackConfirmed: false) == RetainerCloseAction.Wait);
+
+  // Case D: SelectString still open after RetryCloseIntervalTicks -> CloseMenu (retry)
+  Check("128 close: SelectString still open after retry interval re-issues CloseMenu",
+    RetainerCloseGate.Decide(
+      retainerListReady: false,
+      selectYesnoReady: false,
+      yesnoPrompt: null,
+      selectStringReady: true,
+      closeSent: true,
+      closeTicks: RetainerCloseGate.RetryCloseIntervalTicks,
+      buybackConfirmed: false) == RetainerCloseAction.CloseMenu);
+
+  // Case E: Normal exit without vendoring - SelectString closes and RetainerList appears -> Done
+  Check("128 close: RetainerList ready is Done",
+    RetainerCloseGate.Decide(
+      retainerListReady: true,
+      selectYesnoReady: false,
+      yesnoPrompt: null,
+      selectStringReady: false,
+      closeSent: true,
+      closeTicks: 10,
+      buybackConfirmed: false) == RetainerCloseAction.Done);
+
+  // Case F: Vendoring occurred - SelectString closed, SelectYesno appears with buyback prompt -> ConfirmBuyback
+  Check("128 close: buyback SelectYesno prompt triggers ConfirmBuyback",
+    RetainerCloseGate.Decide(
+      retainerListReady: false,
+      selectYesnoReady: true,
+      yesnoPrompt: BuybackPrompt,
+      selectStringReady: false,
+      closeSent: true,
+      closeTicks: 10,
+      buybackConfirmed: false) == RetainerCloseAction.ConfirmBuyback);
+
+  // Case G: Buyback confirm already clicked (buybackConfirmed is true) -> Wait (do not double-click Yes)
+  Check("128 close: buyback confirm already clicked waits for RetainerList",
+    RetainerCloseGate.Decide(
+      retainerListReady: false,
+      selectYesnoReady: true,
+      yesnoPrompt: BuybackPrompt,
+      selectStringReady: false,
+      closeSent: true,
+      closeTicks: 12,
+      buybackConfirmed: true) == RetainerCloseAction.Wait);
+
+  // Case H: Unrelated SelectYesno prompt -> Wait (never generic confirm)
+  Check("128 close: unrelated SelectYesno prompt is ignored and waits",
+    RetainerCloseGate.Decide(
+      retainerListReady: false,
+      selectYesnoReady: true,
+      yesnoPrompt: UnrelatedPrompt,
+      selectStringReady: false,
+      closeSent: true,
+      closeTicks: 10,
+      buybackConfirmed: false) == RetainerCloseAction.Wait);
+
+  // Case I: RetainerList ready even if closeSent was false (e.g. already at bell) -> Done
+  Check("128 close: RetainerList ready without prior closeSent is Done",
+    RetainerCloseGate.Decide(
+      retainerListReady: true,
+      selectYesnoReady: false,
+      yesnoPrompt: null,
+      selectStringReady: false,
+      closeSent: false,
+      closeTicks: 0,
+      buybackConfirmed: false) == RetainerCloseAction.Done);
+}
+
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 

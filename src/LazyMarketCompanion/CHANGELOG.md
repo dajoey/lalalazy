@@ -1,3 +1,9 @@
+## v0.1.65.0 (2026-09-21)
+
+- **Retainer exit no longer stalls on the retainer menu or exits prematurely.** The leave flow now properly waits for the retainer menu to appear before closing it, completes only once the retainer list is restored, and correctly acknowledges the post-vendoring buyback confirmation dialog when present.
+
+- Offline suite: new case 128 pins the retainer close state machine across sweeps (waits for menu to open, issues single close command with bounded retry, confirms buyback prompt, and declares completion only at the retainer list).
+
 ## v0.1.64.0 (2026-09-21)
 
 - **Leaving a retainer after Auto-Market vendoring no longer stalls on the buyback warning.** After "Have Retainer Sell Items", the game asks whether to recall the retainer and lose the buyback list. Auto-Market now confirms that specific prompt and continues; it does not dismiss other yes/no dialogs and it never opens buyback or re-buys what was just vendored.
