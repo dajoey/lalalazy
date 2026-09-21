@@ -1,6 +1,7 @@
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
+using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using Lumina.Excel.Sheets;
 
 namespace LazyFoodBuff;
@@ -13,22 +14,7 @@ internal class FoodService
     // Food refresh: eating extends the timer by up to 30 minutes total cap.
     private const uint FoodMaxDurationMinutes = 30;
 
-    // Combat duty TerritoryIntendedUse values (from ECommons TerritoryIntendedUseEnum).
-    private static readonly HashSet<uint> CombatDutyIntendedUses = new()
-    {
-        3,    // Dungeon
-        8,    // Alliance Raid
-        10,   // Trial
-        16,   // Raid
-        17,   // Raid (alternate)
-        33,   // Treasure Map Duty (has combat)
-        52,   // Large Scale Raid (Bozja Dalriada etc.)
-        53,   // Large Scale Savage Raid
-        57,   // Criterion Duty
-        58,   // Criterion Savage Duty
-        31,   // Deep Dungeon (Palace of the Dead, Heaven-on-High, Eureka Orthos)
-        61,   // Occult Crescent (South Horn, North Horn)
-    };
+    // Where "Only eat in combat duties" allows eating: DutyGate (pure, harness-tested).
 
     private readonly Plugin _plugin;
     private readonly List<Food> _allFoods;
@@ -351,15 +337,18 @@ internal class FoodService
         var sheet = Plugin.Data.GetExcelSheet<TerritoryType>();
         if (sheet == null || !sheet.TryGetRow(territoryId, out var row)) return false;
 
-        var intendedUse = row.TerritoryIntendedUse.RowId;
-
-        // Check against the combat duty allow-list.
-        if (CombatDutyIntendedUses.Contains(intendedUse)) return true;
-
-        // Variant dungeons count as combat duty.
-        if (intendedUse == 4) return true; // Variant Dungeon
-
-        return false;
+        uint area = 0, subArea = 0;
+        unsafe
+        {
+            var info = TerritoryInfo.Instance();
+            if (info != null)
+            {
+                area = info->AreaPlaceNameId;
+                subArea = info->SubAreaPlaceNameId;
+            }
+        }
+        var job = Plugin.Objects.LocalPlayer?.ClassJob.RowId ?? 0;
+        return DutyGate.IsCombatDuty(territoryId, row.TerritoryIntendedUse.RowId, area, subArea, job);
     }
 
     public void LogDebugState()

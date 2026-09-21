@@ -41,7 +41,8 @@ internal class ConfigWindow : Window
         var onlyDuty = c.OnlyInCombatDuty;
         if (ImGui.Checkbox("Only eat in combat duties", ref onlyDuty))
         { c.OnlyInCombatDuty = onlyDuty; changed = true; }
-        ImGui.TextDisabled("Dungeons, raids, trials, alliance raids, criterion, variant, deep dungeons.");
+        ImGui.TextDisabled("Dungeons, raids, trials, alliance raids, criterion, variant, deep dungeons,");
+        ImGui.TextDisabled("Crucible of the Unbroken (and its Bentbranch Meadows entry, on Beastmaster).");
         ImGui.TextDisabled("Excludes Diadem, field operations (Eureka/Bozja), overworld.");
 
         ImGui.Spacing();

@@ -34,9 +34,42 @@ internal static class Program
         RecommendationGate();
         ApplicationGate();
         ReplayRealTrace(args.Length > 0 ? args[0] : null);
+        CrucibleDutyGate();
 
         Console.WriteLine(_fail == 0 ? "OK" : $"FAILED ({_fail} of {_pass + _fail})");
         return _fail == 0 ? 0 : 1;
+    }
+
+    // ---------------------------------------------------------------- duty gate
+
+    /// <summary>
+    ///     "Only eat in combat duties" and the Beastmaster Crucible of the Unbroken. The five boards
+    ///     (territories 1339-1343) are the only TerritoryIntendedUse 62 rows and were not on the
+    ///     allow-list, so no meal was ever eaten for a Crucible run. Meals are one of the two consumable
+    ///     kinds the Crucible allows, and eating before entry is better (eaten inside, HP does not refill
+    ///     to the new maximum), so the Bentbranch Meadows entry area in Central Shroud (148) counts too —
+    ///     only on Beastmaster (ClassJob 43), the one job that can enter.
+    /// </summary>
+    private static void CrucibleDutyGate()
+    {
+        const uint bst = 43, war = 21, centralShroud = 148;
+        Check("Crucible board 1339 (intended use 62) allows eating",
+            DutyGate.IsCombatDuty(1339, 62, 0, 0, bst));
+        Check("Crucible board 1343 (intended use 62) allows eating on any job",
+            DutyGate.IsCombatDuty(1343, 62, 0, 0, war));
+        Check("Central Shroud, Bentbranch area (PlaceName 70), Beastmaster: allows eating",
+            DutyGate.IsCombatDuty(centralShroud, 1, 70, 0, bst));
+        Check("Central Shroud, Bentbranch Meadows sub-area (PlaceName 94), Beastmaster: allows eating",
+            DutyGate.IsCombatDuty(centralShroud, 1, 0, 94, bst));
+        Check("Central Shroud, Bentbranch, not Beastmaster: no",
+            !DutyGate.IsCombatDuty(centralShroud, 1, 70, 94, war));
+        Check("Central Shroud elsewhere, Beastmaster: no",
+            !DutyGate.IsCombatDuty(centralShroud, 1, 71, 0, bst));
+        Check("Other overworld with the Bentbranch place id: no (territory must be Central Shroud)",
+            !DutyGate.IsCombatDuty(152, 1, 70, 94, bst));
+        Check("Unchanged: dungeon (3) yes, variant (4) yes, overworld (1) no, territory 0 no",
+            DutyGate.IsCombatDuty(1036, 3, 0, 0, war) && DutyGate.IsCombatDuty(1069, 4, 0, 0, war)
+            && !DutyGate.IsCombatDuty(132, 1, 0, 0, war) && !DutyGate.IsCombatDuty(0, 62, 0, 0, bst));
     }
 
     // ---------------------------------------------------------------- line format
