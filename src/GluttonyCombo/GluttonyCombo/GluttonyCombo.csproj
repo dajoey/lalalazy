@@ -27,6 +27,9 @@
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <!-- Fork (error reporting, 2026-09-21): the PDB lives INSIDE the DLL, so stack traces in ER| lines carry
+         file:line even though packaging ships no .pdb. Do not remove in an upstream merge. -->
+    <DebugType>embedded</DebugType>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="Native\Icons\**" />
@@ -43,6 +46,10 @@
     <Compile Include="..\..\Shared\LalaChangelog\**\*.cs" Link="LalaChangelog\%(RecursiveDir)%(Filename)%(Extension)" />
     <EmbeddedResource Include="..\CHANGELOG.md" LogicalName="CHANGELOG.md" />
   </ItemGroup>
+  <!-- Fork: build stamp for the shared error reporting (src/Shared/LalaTelemetry). The git SHA of the tree being
+       built goes into [AssemblyMetadata("LalaCommit")] and onto every ER| / RP| line as c=; "unknown" without
+       git. Do not remove in an upstream merge. -->
+  <Import Project="..\..\Shared\LalaTelemetry\LalaTelemetry.Stamp.targets" />
   <!-- Styling Rules -->
   <ItemGroup>
     <None Include="..\.editorconfig" Link=".editorconfig" />
