@@ -337,6 +337,7 @@ internal static unsafe class BST_CruciblePetSelect
         var snapshot = new List<int>(selectedRaw);
         var currentHornRows = ResolveHornPetRows(selectedRaw, partyRows);
         var changes = PlanHornChanges(currentHornRows, picks);
+        var (removeRows, addRows) = PlanHornMembershipDelta(currentHornRows, picks);
 
         var candStr = string.Join(",", ReadPartyHpRaw(pet, partyRows).ConvertAll(p =>
             $"{p.Row}:{(p.Max == 0 || p.Current == 0 ? 0 : (int)Math.Round(100.0 * p.Current / p.Max))}"));
@@ -348,7 +349,17 @@ internal static unsafe class BST_CruciblePetSelect
         var nameStr = string.Join(",", nameIds);
         LogPs($"PS|{now}|opt=1|b={board}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|basis=horn|bt={battle}|detail={detailId}|coverage={(coverage ? 1 : 0)}|names={nameStr}|cand={candStr}|picks={pickStr}|need={changes.Count}|route={route}|sigs={(sigsOk ? "ok" : "miss")}");
 
-        if (changes.Count == 0)
+        // Mid-run unidentified: never replace a non-empty horn with coverage. Focus settles ~40 ms
+        // later and re-arms an opponent-fitted pass; a coverage replace that aborts emptied the horn (.225).
+        if (coverage && currentHornRows.Exists(r => r is >= 1 and <= BST_Beasts.Count))
+        {
+            LogPs($"PS|{now}|opt=1|b={board}|bt={battle}|surface={surfaceName}|route={route}|calls=0|readback=ok|note=leave_standing_horn|apply=not_needed|sl={string.Join(".", snapshot)}");
+            _arm = MarkFormationPassDone(in _arm);
+            return;
+        }
+
+        if (removeRows.Count == 0 && addRows.Count == 0
+            && ListsMatchPrefix(currentHornRows, picks.ConvertAll(p => p.Row)))
         {
             LogPs($"PS|{now}|opt=1|b={board}|bt={battle}|surface={surfaceName}|route={route}|calls=0|readback=ok|note=already_correct|apply=not_needed");
             _arm = MarkFormationPassDone(in _arm);
@@ -358,32 +369,22 @@ internal static unsafe class BST_CruciblePetSelect
         var agent = (AgentInterface*)pet;
         var calls = new List<string>(8);
 
-        foreach (var change in changes)
+        foreach (var fromRow in removeRows)
         {
-            if (change.FromRow is >= 1 and <= BST_Beasts.Count)
+            if (!ToggleOne(agent, partyRows, fromRow, route, calls))
             {
-                if (!ToggleOne(agent, partyRows, change.FromRow, route, calls))
-                {
-                    AbortWithRestore(pet, snapshot, now, board, battle, route, calls, "toggle_off_no_route");
-                    return;
-                }
-                if (!ReadbackHornOk(pet, partyRows, expectRemove: change.FromRow, expectAdd: 0, afterToggleOff: true))
-                {
-                    AbortWithRestore(pet, snapshot, now, board, battle, route, calls, "toggle_off_mismatch");
-                    return;
-                }
+                AbortWithRestore(pet, snapshot, now, board, battle, route, calls, "toggle_off_no_route");
+                return;
+            }
+            if (!ReadbackHornOk(pet, partyRows, expectRemove: fromRow, expectAdd: 0, afterToggleOff: true))
+            {
+                AbortWithRestore(pet, snapshot, now, board, battle, route, calls, "toggle_off_mismatch");
+                return;
             }
         }
 
-        for (var slot = 0; slot < 3; slot++)
+        foreach (var want in addRows)
         {
-            var want = slot < picks.Count ? picks[slot].Row : 0;
-            if (want == 0)
-                continue;
-            var haveRows = ResolveHornPetRows(ReadPetIds(pet, PartySelectedPetIds), partyRows);
-            var at = slot < haveRows.Count ? haveRows[slot] : 0;
-            if (at == want)
-                continue;
             if (!ToggleOne(agent, partyRows, want, route, calls))
             {
                 AbortWithRestore(pet, snapshot, now, board, battle, route, calls, "toggle_on_no_route");

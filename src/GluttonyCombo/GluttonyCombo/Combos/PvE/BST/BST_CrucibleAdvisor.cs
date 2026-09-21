@@ -434,6 +434,49 @@ internal static class BST_CrucibleAdvisor
         return changes;
     }
 
+    /// <summary>
+    ///     Membership delta for the live Battlehorn toggle route. PURE. EventToggle flips membership, so a
+    ///     slot-ordered rewrite that re-toggles an already-selected familiar deselects it (live .225 late-run
+    ///     aborts). Removals are current rows not in the desired set; additions are desired rows missing from
+    ///     current. Order is left to ApplyPetSelection when membership alone is insufficient.
+    /// </summary>
+    public static (List<int> RemoveRows, List<int> AddRows) PlanHornMembershipDelta(
+        IReadOnlyList<int> currentHornRows,
+        IReadOnlyList<CrucibleBeastPick> picks)
+    {
+        var desired = new List<int>(3);
+        for (var i = 0; i < picks.Count && desired.Count < 3; i++)
+        {
+            var row = picks[i].Row;
+            if (row is >= 1 and <= BST_Beasts.Count && !desired.Contains(row))
+                desired.Add(row);
+        }
+
+        var currentSet = new HashSet<int>();
+        for (var i = 0; i < currentHornRows.Count; i++)
+        {
+            var row = currentHornRows[i];
+            if (row is >= 1 and <= BST_Beasts.Count)
+                currentSet.Add(row);
+        }
+
+        var remove = new List<int>(3);
+        foreach (var row in currentSet)
+        {
+            if (!desired.Contains(row))
+                remove.Add(row);
+        }
+
+        var add = new List<int>(3);
+        foreach (var row in desired)
+        {
+            if (!currentSet.Contains(row))
+                add.Add(row);
+        }
+
+        return (remove, add);
+    }
+
     /// <summary> One planned Crucible run roster rewrite: familiar to remove (FromRow, 0 if none), familiar to add (ToRow, 0 if none). </summary>
     public readonly record struct RosterSlotChange(int FromRow, int ToRow);
 

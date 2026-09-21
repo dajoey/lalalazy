@@ -1,3 +1,16 @@
+## v1.0.4.227 (2026-09-20) [testing]
+### Fixed
+- **Conflict scanner no longer aborts when BossMod Reborn reports an AI auto-target conflict and classic BossMod is not installed.** The Reborn AI-targeting conflict row was labelled with the classic BossMod internal name, so building that row threw and the whole settings-conflict pass failed every tick.
+### Notes
+- Latent copy-paste error in the Reborn settings block; production channel unchanged.
+
+## v1.0.4.226 (2026-09-20) [testing]
+### Fixed
+- **Battlehorn Auto-fill no longer deselects a familiar that is already in the horn when rewriting overlapping picks.** Toggles flip membership; a slot-ordered rewrite that re-toggled an already-selected familiar turned it off and the read-back aborted, which could leave the horn empty after restore. Removals and additions are now a membership delta against the live selection; Apply still runs when order alone is wrong.
+- **When the upcoming fight is not yet identified and the horn already has familiars, Auto-fill leaves those picks alone** instead of replacing them with coverage. Focus on the stage list often settles a moment later and re-arms an opponent-fitted pass; replacing first was the path that emptied late-run horns.
+### Notes
+- Offline harness adds the overlapping late-run rewrite shapes and the leave-standing re-arm contrast. Production channel unchanged.
+
 ## v1.0.4.225 (2026-09-20) [testing]
 ### Added
 - **Crucible Auto-fill now writes the ten-familiar run roster at the Bentbranch Meadows entry menu.** When opening the roster menu at Bentbranch Meadows, Auto-fill evaluates candidate familiars unlocked in the monster notebook, selects ten picks maximizing elemental and status coverage across the board's encounters, and synchronizes the run roster via notebook toggles.

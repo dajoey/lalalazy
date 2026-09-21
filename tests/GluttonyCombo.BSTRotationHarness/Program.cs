@@ -400,6 +400,73 @@ internal static class Program
                 string.Join(",", replace.Select(c => $"{c.Slot}:{c.FromRow}->{c.ToRow}")));
         }
 
+        // --- Round-12 .225 late-run membership delta (Abort 1 / Abort 2 shapes) ---
+        // Abort 1: pre horn rows 21,20,19 (sl=8.5.7) → coverage want 27,20,21. Slot planner
+        // would re-toggle 20/21; membership delta must remove only 19 and add only 27.
+        {
+            var abort1Current = new List<int> { 21, 20, 19 };
+            var abort1Picks = new List<CrucibleBeastPick>
+            {
+                new(27, 0, false, "coverage board 1, battle unidentified, Quelling Wave"),
+                new(20, 0, false, "coverage board 1, battle unidentified"),
+                new(21, 0, false, "coverage board 1, battle unidentified"),
+            };
+            var (a1Rem, a1Add) = BST_CrucibleAdvisor.PlanHornMembershipDelta(abort1Current, abort1Picks);
+            Check("PlanHornMembershipDelta: .225 abort1 overlapping horn → remove 19 only, add 27 only",
+                a1Rem.Count == 1 && a1Rem[0] == 19
+                && a1Add.Count == 1 && a1Add[0] == 27
+                && !a1Add.Contains(20) && !a1Add.Contains(21) && !a1Rem.Contains(20) && !a1Rem.Contains(21),
+                $"rem={string.Join(",", a1Rem)} add={string.Join(",", a1Add)}");
+            var a1Slot = BST_CrucibleAdvisor.PlanHornChanges(abort1Current, abort1Picks);
+            Check("PlanHornChanges: .225 abort1 still reports slot rewrites (telemetry need=)",
+                a1Slot.Count >= 2,
+                string.Join(",", a1Slot.Select(c => $"{c.Slot}:{c.FromRow}->{c.ToRow}")));
+        }
+        // Abort 2: pre 28,22,12 (sl=0.1.3) → want 27,21,12. Must not re-toggle already-on 12.
+        {
+            var abort2Current = new List<int> { 28, 22, 12 };
+            var abort2Picks = new List<CrucibleBeastPick>
+            {
+                new(27, 0, false, "coverage board 1, battle unidentified, Quelling Wave"),
+                new(21, 0, false, "coverage board 1, battle unidentified"),
+                new(12, 0, false, "coverage board 1, battle unidentified, blunt x2, crowd control"),
+            };
+            var (a2Rem, a2Add) = BST_CrucibleAdvisor.PlanHornMembershipDelta(abort2Current, abort2Picks);
+            Check("PlanHornMembershipDelta: .225 abort2 overlapping horn → remove 28+22, add 27+21, leave 12",
+                a2Rem.Count == 2 && a2Rem.Contains(28) && a2Rem.Contains(22)
+                && a2Add.Count == 2 && a2Add.Contains(27) && a2Add.Contains(21)
+                && !a2Rem.Contains(12) && !a2Add.Contains(12),
+                $"rem={string.Join(",", a2Rem)} add={string.Join(",", a2Add)}");
+        }
+        // Empty horn still plans all three adds (early-fight coverage fill path).
+        {
+            var (emptyRem, emptyAdd) = BST_CrucibleAdvisor.PlanHornMembershipDelta(
+                Array.Empty<int>(), slotsFull);
+            Check("PlanHornMembershipDelta: empty horn → no removals, all desired adds",
+                emptyRem.Count == 0 && emptyAdd.Count == slotsFull.Count
+                && emptyAdd.SequenceEqual(slotsFull.Select(p => p.Row)),
+                $"rem={string.Join(",", emptyRem)} add={string.Join(",", emptyAdd)}");
+        }
+        // Identified re-arm after leave_standing: PassDone on battleKey=-1, then detail settles → re-arm.
+        {
+            var unidentOpen = BST_CrucibleAdvisor.NextFormationArm(
+                default, screenOpen: true, battleKey: -1, surfaceKey: 1);
+            var leftStanding = BST_CrucibleAdvisor.MarkFormationPassDone(unidentOpen);
+            var afterFocus = BST_CrucibleAdvisor.NextFormationArm(
+                leftStanding, screenOpen: true, battleKey: 5, surfaceKey: 1);
+            Check("FormationArm: leave_standing PassDone then detail settles → re-armed (not aborted)",
+                !BST_CrucibleAdvisor.IsFormationArmed(leftStanding)
+                && BST_CrucibleAdvisor.IsFormationArmed(afterFocus)
+                && afterFocus.BattleKey == 5 && !afterFocus.Aborted,
+                $"left={leftStanding} after={afterFocus}");
+            var abortedUnident = BST_CrucibleAdvisor.MarkFormationAborted(unidentOpen);
+            var blockedFocus = BST_CrucibleAdvisor.NextFormationArm(
+                abortedUnident, screenOpen: true, battleKey: 5, surfaceKey: 1);
+            Check("FormationArm: .225 abort path blocks re-arm when detail settles (contrast)",
+                !BST_CrucibleAdvisor.IsFormationArmed(blockedFocus) && blockedFocus.Aborted,
+                $"blocked={blockedFocus}");
+        }
+
         var hpMap = BST_CrucibleAdvisor.HpPercentByRow(
         [
             (top, 50u, 100u),
