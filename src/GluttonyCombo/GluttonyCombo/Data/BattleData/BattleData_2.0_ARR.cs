@@ -3,6 +3,7 @@ using ECommons.ExcelServices;
 using ECommons.GameHelpers;
 using System.Linq;
 using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
+using GluttonyCombo.Extensions;
 
 namespace GluttonyCombo.Data.BattleData
 {
@@ -17,7 +18,7 @@ namespace GluttonyCombo.Data.BattleData
                     _invincibleCheck = (target, targetID, _) =>
                     {
                         // Thanatos, Spooky Ghosts Only
-                        if (targetID is 2350 && !HasStatusEffect(398)) return Invincible.True;
+                        if (targetID is 2350 && !LocalPlayer.HasStatus(398)) return Invincible.True;
                         // Allagan Bomb
                         if (targetID is 2407 &&
                             (NumberOfObjectsInRange<SelfCircle>(30,

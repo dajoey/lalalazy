@@ -21,12 +21,12 @@ internal partial class BLU
             BLU_Balance_Content = new("BLU_Balance_Content", 1),
             BLU_SelectedOpener = new("BLU_SelectedOpener", 0),
             // Filler overrides. 0 = auto-detect from your active spell slots.
-            BLU_ST_DPS_Filler = new("BLU_ST_DPS_Filler", 0),
-            BLU_AoE_DPS_Filler = new("BLU_AoE_DPS_Filler", 0),
-            BLU_ST_Tank_Filler = new("BLU_ST_Tank_Filler", 0),
-            BLU_AoE_Tank_Filler = new("BLU_AoE_Tank_Filler", 0);
-
-        internal static void Draw(Preset preset)
+            BLU_PrimalCombo_Spells = new("BLU_PrimalCombo_Spells", [true, true, true, true, true]);
+        public static UserBool
+            BLU_Opener_PrepullBlock = new("BLU_Opener_PrepullBlock", true),
+            BLU_ManualJKick = new("BLU_ManualJKick", false);
+        public static UserBoolArray
+            BLU_PrimalCombo_Spells = new("BLU_PrimalCombo_Spells", [true, true, true, true, true]);
         {
             switch (preset)
             {
@@ -57,6 +57,26 @@ internal partial class BLU
                         "DoT Opener",
                         "Mortal Flame or Breath of Magic instead of Winged Reprobation. Requires 2.20 or faster spell speed.",
                         1, descriptionAsTooltip: true);
+
+                    DrawOpenerPrepullBlockChoice(BLU_Opener_PrepullBlock);
+                    DrawAdditionalBoolChoice(BLU_ManualJKick,
+                        "Input J Kick yourself",
+                        "Skips J Kick in the opener and 1-button primals so you can gap-close with it. Reopeners will not wait for J Kick.");
+                    break;
+
+                case Preset.BLU_NewMoonFluteOpener:
+                    DrawAdditionalBoolChoice(BLU_ManualJKick,
+                        "Input J Kick yourself",
+                        "Skips J Kick in this opener so you can gap-close with it. Reopeners will not wait for J Kick.");
+                    break;
+
+                case Preset.BLU_PrimalCombo:
+                    ImGuiEx.TextUnderlined("Primals to use on this button");
+                    DrawHorizontalMultiChoice(BLU_PrimalCombo_Spells, FeatherRain.ActionName(), "Use Feather Rain.", 5, 0);
+                    DrawHorizontalMultiChoice(BLU_PrimalCombo_Spells, Eruption.ActionName(), "Use Eruption.", 5, 1);
+                    DrawHorizontalMultiChoice(BLU_PrimalCombo_Spells, ShockStrike.ActionName(), "Use Shock Strike.", 5, 2);
+                    DrawHorizontalMultiChoice(BLU_PrimalCombo_Spells, RoseOfDestruction.ActionName(), "Use Rose of Destruction.", 5, 3);
+                    DrawHorizontalMultiChoice(BLU_PrimalCombo_Spells, GlassDance.ActionName(), "Use Glass Dance.", 5, 4);
                     break;
 
                 case Preset.BLU_ST_DPS_SongOfTorment:

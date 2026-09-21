@@ -57,7 +57,8 @@ internal class ConfigWindow : Dalamud.Interface.Windowing.Window
         JobRole.MeleeDPS => 2,
         JobRole.RangedDPS => 3,
         JobRole.MagicalDPS => 4,
-        _ => 5
+        JobRole.Limited => 5,
+        _ => 99
     };
 
     internal static Dictionary<Job, List<PresetData>> GetGroupedPresets()
@@ -279,8 +280,6 @@ internal class ConfigWindow : Dalamud.Interface.Windowing.Window
 
         if (OpenWindow == OpenWindow.None)
             OpenWindow = OpenWindow.PvE;
-
-        ImGui.TextWrapped($"Tip: If a combo replaces an action, you can drag the action directly from this window to your hotbar!"); //Todo Remove this after some time once people are used to it.
 
         switch (OpenWindow)
         {

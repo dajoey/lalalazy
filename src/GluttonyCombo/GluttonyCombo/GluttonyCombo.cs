@@ -150,6 +150,7 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
     {
         ActionRequestIPCProvider.ResetAllBlacklist();
         ActionRequestIPCProvider.ResetAllRequests();
+        UpcomingPositionalHintService.Reset();
         CustomComboFunctions.CleanupExpiredLineOfSightCache();
         TM.DelayNext(1000);
         TM.Enqueue(() =>
@@ -327,6 +328,8 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         Svc.Framework.RunOnTick(ActionRetargeting.ClearOldRetargets,
             TimeSpan.FromSeconds(60));
 
+        Svc.Data.GameData.Options.PanicOnSheetChecksumMismatch = false; //Remove this once schema is stable
+
 #if DEBUG
         VfxManager.Logging = true;
         ConfigWindow.IsOpen = true;
@@ -426,6 +429,7 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
             TargetHelper.Draw();
 
             AutoRotationController.Run();
+            UpcomingPositionalHintService.Tick();
 
             // Fork (BST skeleton): Beastmaster debug collector. Off by default behind the
             // same "Combo Decision Telemetry" switch as the CT| tap; when off this is one
