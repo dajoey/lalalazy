@@ -26,19 +26,16 @@ namespace LazyMarketCompanion.Inventory;
 //   (item list or ItemUICategory, assigned or not); a "duplicates" plan on this retainer while the bags hold
 //   a copy; the AutoRetainer protect list; referenced by a gearset; unique / untradable / rare (blue or
 //   better) unless the player opted that item in; HQ unless the HQ setting is on; sheet miss.
-//   Then, for a MARKETABLE item (the grey-marker set), the Auto-Market value gate decides with the same
-//   MarketGate.Decide the listing path uses, over everything of it the retainer holds:
-//     List (worth more than the threshold) -> KEEP ("worth listing").
-//     no fresh quote / prices not checked recently / gate off -> KEEP (uncertainty never vendors).
-//     Vendor (fresh, quality-matched, at or under the threshold) -> eligible for a bucket below.
-//   So grey stock only ever leaves KEEP when the gate has PROVEN it is not worth a market slot.
-//   Buckets for what is left (unmarketable stock, or marketable stock proven below the threshold):
-//     GC DELIVERY - green (uncommon) equippable gear: expert-delivery fodder, worth seals, so it is never
-//                   vendored. PREVIEW ONLY in v1 (AutoDuty / AutoRetainer deliver it from the bags).
-//     VENDOR      - marketable, proven below the threshold, with an Item-sheet vendor price. LIVE: sold
-//                   through the retainer ("Have Retainer Sell Items", AutoMarketService.ExecuteVendor).
+//   Then the STRICT GREY RULE (decided 2026-09-21): a MARKETABLE item (the grey-marker set - it can go on
+//   the market board and is not on the Auto-Market list) is always KEEP, whatever its price or the value
+//   gate says. Market stock is never vendored and never bucketed; a person decides what happens to it.
+//   Buckets for what is left (unmarketable stock only):
+//     GC DELIVERY - green (uncommon) equippable gear: expert-delivery fodder. PREVIEW ONLY in v1
+//                   (AutoDuty / AutoRetainer deliver it from the bags).
 //     DESYNTH     - desynthesizable. PREVIEW ONLY in v1 (PandorasBox / AutoRetainer desynthesis).
 //     KEEP        - everything else, with the reason.
+//     VENDOR      - the bucket, its button and its sell path (AutoMarketService.ExecuteVendor) remain, but
+//                   no stack reaches it: grey stock is never vendored, and unmarketable stock cannot be priced.
 //   An unmarketable item is never VENDOR: the gate cannot price it, and v1 never vendors what the gate
 //   cannot judge.
 
@@ -178,52 +175,29 @@ public static class VentureLoot
     if (s.Hq && !opt.AllowHq)
       return Keep("HQ - kept unless \"Sort HQ venture loot\" is on");
 
-    // The value gate: for marketable stock, only a PROVEN below-threshold verdict leaves KEEP.
-    var belowGate = false;
-    long netOnBoard = 0;
+    // STRICT GREY RULE (decided 2026-09-21): marketable stock that is not on the Auto-Market list - the grey
+    // marker - is NEVER vendored and never bucketed, whatever its price or the value gate says. Only a person
+    // decides what happens to market stock (list it, enrol it, or sell it by hand). Pinned by harness group I12.
     if (facts.Marketable)
-    {
-      if (!opt.Gate.Enabled || opt.Gate.ThresholdGil <= 0)
-        return Keep("worth-listing check is off (Auto-Market value gate disabled) - uncertainty never vendors");
-      var fetchAge = opt.NowUnixMs - opt.QuotesFetchedUnixMs;
-      if (input.Quotes == null || opt.QuotesFetchedUnixMs <= 0)
-        return Keep("prices not checked yet - uncertainty never vendors");
-      if (fetchAge > opt.QuoteMaxAgeMs || fetchAge < 0)
-        return Keep("prices were checked too long ago - check again");
-      input.Quotes.TryGetValue(s.ItemId, out var quote);
-      var unit = MarketGate.UsableQuote(quote, s.Hq, opt.PreferHq, opt.NowUnixMs, opt.Gate.FreshnessMs);
-      if (unit == null)
-        return Keep("no fresh board price - uncertainty never vendors");
-      netOnBoard = MarketGate.NetRevenue(unit.Value, holds);
-      var verdict = MarketGate.Decide(holds, quote, s.Hq, opt.PreferHq, opt.Gate, opt.NowUnixMs);
-      if (verdict != GateVerdict.Vendor)
-        return Keep($"worth listing: ~{netOnBoard:N0} gil net on the board (over the {opt.Gate.ThresholdGil:N0} gil gate)");
-      belowGate = true;
-    }
+      return Keep(GreyReason);
 
+    // Only unmarketable stock reaches the buckets. It can never be priced, so it is never VENDOR either:
+    // the VENDOR bucket, its button and its sell path stay in place but no stack reaches them.
     if (facts.Equippable && facts.Rarity == 2)
       return new LootRow(s, LootBucket.GcDelivery,
         "green gear: Grand Company expert delivery candidate (AutoDuty / AutoRetainer deliver it from the bags; LMC does not deliver)",
         false, 0, null, got, true);
-
-    if (belowGate && ItemVendorPrice.Vendorable(facts.PriceLow))
-    {
-      var unit = ItemVendorPrice.UnitFor(s.Hq, s.Hq, facts.PriceMid, facts.PriceLow, opt.PreferHq);
-      var est = ItemVendorPrice.Total(unit, s.Quantity);
-      return new LootRow(s, LootBucket.Vendor,
-        $"not worth a market slot: ~{netOnBoard:N0} gil net on the board, at or under the {opt.Gate.ThresholdGil:N0} gil gate",
-        true, est, null, got, true);
-    }
 
     if (facts.Desynth > 0)
       return new LootRow(s, LootBucket.Desynth,
         "desynthesizable (PandorasBox Desynth All / AutoRetainer desynthesis act on the bags; LMC does not desynthesize)",
         false, 0, null, got, true);
 
-    return belowGate
-      ? Keep("below the gate, but the game gives it no vendor price")
-      : Keep("cannot be listed on the market; v1 never vendors what the value gate cannot price");
+    return Keep("cannot be listed on the market; v1 never vendors what the value gate cannot price");
   }
+
+  /// <summary>Why a grey-marker (marketable, not enrolled) stack is kept.</summary>
+  public const string GreyReason = "Marketable - never vendored (grey marker: list it, enrol it on Auto-Market, or sell it by hand)";
 
   /// <summary>
   /// The live VENDOR button's ops: actionable VENDOR rows only, and only for real retainer-page slots

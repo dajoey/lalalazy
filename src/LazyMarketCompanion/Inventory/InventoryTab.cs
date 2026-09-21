@@ -212,7 +212,8 @@ internal sealed class InventoryTab
     var c = Plugin.Configuration;
     ImGui.TextWrapped("Venture loot = a stack in a retainer's own inventory that AutoRetainer's venture log for that retainer records as a " +
       "Quick Exploration reward within the look-back window, with no more of it in the retainer than those rewards delivered. " +
-      "Market stock, AutoRetainer entrust-plan items, gearset items and anything uncertain are always KEEP.");
+      "Marketable stock (grey marker) is never vendored or sorted - it is always KEEP. Auto-Market stock, AutoRetainer entrust-plan " +
+      "items, gearset items and anything uncertain are always KEEP too. Only unmarketable loot is bucketed (GC delivery / desynth, preview only).");
 
     ImGui.SetNextItemWidth(90);
     var days = c.VentureLootLookbackDays;
@@ -221,12 +222,6 @@ internal sealed class InventoryTab
     var hq = c.VentureLootAllowHq;
     if (ImGui.Checkbox("Sort HQ venture loot##vlhq", ref hq)) { c.VentureLootAllowHq = hq; c.Save(); }
     Tip("Off (default): HQ venture loot is always kept.");
-
-    if (c.AutoMarketValueGateEnabled && c.AutoMarketValueGateThresholdGil > 0)
-      ImGui.TextColored(Muted, $"Worth-listing check: the Auto-Market value gate ({c.AutoMarketValueGateThresholdGil:N0} gil net, data under {c.AutoMarketGateFreshnessHours} h old). " +
-        "Only stock it proves is at or under that is ever vendored.");
-    else
-      ImGui.TextColored(Warn, "The Auto-Market value gate is off (Auto-Market tab): nothing marketable is vendored - uncertainty never vendors.");
 
     var names = _s.RetainerNames();
     if (names.Count == 0)
@@ -237,20 +232,8 @@ internal sealed class InventoryTab
     if (!names.Contains(_retainer))
       _retainer = names.FirstOrDefault(n => n == _s.SettledRetainer()) ?? names[0];
 
-    // Summary across retainers + the price check.
+    // Summary across retainers. (No price check: marketable stock is never vendored, so nothing here needs a price.)
     var plans = names.ToDictionary(n => n, n => _s.VenturePreview(n, out _));
-    if (ImGui.Button("Check prices##vlprices"))
-    {
-      var ids = plans.Values.SelectMany(p => p.Rows).Where(r => r.IsLoot && _s.Facts(r.Stack.ItemId) is { Marketable: true })
-        .Select(r => r.Stack.ItemId).ToHashSet();
-      _s.CheckPrices(ids);
-    }
-    Tip("Asks Universalis about every marketable venture-loot item (the same request the Auto-Market value gate makes).\r\n" +
-        "Nothing is vendored from a check older than 30 minutes.");
-    ImGui.SameLine();
-    var age = _s.QuotesFetchedMs > 0 ? SpaceMath.Age(_s.QuotesFetchedMs, InventoryService.NowMs) : "never";
-    ImGui.TextColored(Muted, $"{_s.QuotesStatus} (checked {age})");
-
     if (ImGui.BeginTable("##vlsum", 6, ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.SizingStretchProp))
     {
       ImGui.TableSetupColumn("Retainer", ImGuiTableColumnFlags.WidthStretch, 2);
@@ -303,7 +286,7 @@ internal sealed class InventoryTab
       ? "Sells these stacks through this retainer (\"Have Retainer Sell Items\", the same call Auto-Market's value gate uses).\r\n" +
         "Each stack is re-read right before it is sold; the first failure stops the run. Every sale is written to the actions log.\r\n" +
         "Sold stacks can be bought back from the retainer until the retainer is dismissed."
-      : "Not now: " + blocker);
+      : "Not now: " + blocker + ".\r\nMarketable (grey-marker) stock is never vendored, and unmarketable stock cannot be priced, so this bucket stays empty.");
 
     ImGui.SameLine();
     ImGui.BeginDisabled();

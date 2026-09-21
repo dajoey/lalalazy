@@ -18,6 +18,7 @@ internal static class InventoryCases
   private const uint WhiteGear = 6001;  // white equippable gear, marketable, desynthable
   private const uint Unmarket = 7000;   // tradable, no search category, desynthable
   private const uint UnmarketNoDesynth = 7001;
+  private const uint UnmarketGreen = 7002;   // green equippable gear with no market category
   private const uint UniqueItem = 8000; // unique, marketable
   private const uint Untradable = 8001;
   private const uint BlueItem = 8002;   // rare
@@ -38,6 +39,7 @@ internal static class InventoryCases
     WhiteGear => new ItemFacts(WhiteGear, UiCatGear, 31, false, false, 1, ArmourySlot.Head, 40, 200, 250),
     Unmarket => new ItemFacts(Unmarket, 60, 0, false, false, 1, ArmourySlot.None, 30, 10, 12),
     UnmarketNoDesynth => new ItemFacts(UnmarketNoDesynth, 60, 0, false, false, 1, ArmourySlot.None, 0, 10, 12),
+    UnmarketGreen => new ItemFacts(UnmarketGreen, UiCatGear, 0, false, false, 2, ArmourySlot.Legs, 45, 300, 400),
     UniqueItem => new ItemFacts(UniqueItem, 60, 50, false, true, 1, ArmourySlot.None, 0, 10, 12),
     Untradable => new ItemFacts(Untradable, 60, 0, true, false, 1, ArmourySlot.None, 0, 10, 12),
     BlueItem => new ItemFacts(BlueItem, 60, 50, false, false, 3, ArmourySlot.None, 0, 10, 12),
@@ -262,8 +264,8 @@ internal static class InventoryCases
     // =====================================================================================
     {
       var p = VentureLoot.Classify(Input([Page(0, Mat, 3)], [Qe(Mat, amount: 3)], CheapQuotes()), Opts());
-      Check("I4 loot: QE-delivered cheap material is venture loot -> VENDOR", p.Rows.Count == 1 && One(p).IsLoot && One(p).Bucket == LootBucket.Vendor && One(p).Actionable, One(p).Reason);
-      Check("I4 loot: vendor estimate = PriceLow x qty", One(p).EstGil == 9, One(p).EstGil.ToString());
+      Check("I4 loot: QE-delivered material is venture loot (grey, so KEEP)", p.Rows.Count == 1 && One(p).IsLoot && One(p).Bucket == LootBucket.Keep && One(p).Reason == VentureLoot.GreyReason, One(p).Reason);
+      Check("I4 loot: the row carries what Quick Exploration delivered", One(p).Delivered == 3, One(p).Delivered.ToString());
 
       Check("I4 loot: another venture's reward is not venture loot (not shown)",
         VentureLoot.Classify(Input([Page(0, Mat)], [Qe(Mat, venture: 10)], CheapQuotes()), Opts()).Rows.Count == 0);
@@ -309,7 +311,7 @@ internal static class InventoryCases
       Check("RAIL I5: an UNASSIGNED plan naming the item still keeps it", NeverVendor(Row(Mat, ar: unassigned)));
       var dupPlan = ArWith([Plan("p1", dup: true)], new Dictionary<string, string> { [RetA] = "p1" });
       Check("RAIL I5: duplicates plan on this retainer + a copy in the bags -> kept", NeverVendor(Row(Mat, ar: dupPlan, bags: [Mat])));
-      Check("I5: duplicates plan but no copy in the bags -> not railed", Row(Mat, ar: dupPlan).Bucket == LootBucket.Vendor);
+      Check("I5: duplicates plan but no copy in the bags -> not railed (reaches the grey rule)", Row(Mat, ar: dupPlan).Reason == VentureLoot.GreyReason);
       Check("RAIL I5: AutoRetainer unreadable -> nothing is sorted", NeverVendor(Row(Mat, ar: ArWith(available: false))));
       Check("RAIL I5: AutoRetainer protect list -> kept", NeverVendor(Row(Mat, ar: ArWith(im: Im(protect: [Mat])))));
 
@@ -320,7 +322,7 @@ internal static class InventoryCases
       Check("RAIL I5: unique item kept without opt-in, rail named", uniq.Bucket == LootBucket.Keep && uniq.OptInRail == "unique");
       Check("RAIL I5: untradable item kept without opt-in", Row(Untradable).OptInRail == "untradable");
       Check("RAIL I5: rare (blue) item kept without opt-in", Row(BlueItem).OptInRail == "rare");
-      Check("I5: opt-in lifts ONLY that rail (unique marketable below gate -> vendor)", Row(UniqueItem, opt: Opts(optIns: [UniqueItem])).Bucket == LootBucket.Vendor);
+      Check("I5: opt-in lifts ONLY that rail (unique marketable -> reaches the grey rule, still KEEP)", Row(UniqueItem, opt: Opts(optIns: [UniqueItem])).Reason == VentureLoot.GreyReason);
       Check("RAIL I5: opt-in never lifts the Auto-Market rail",
         NeverVendor(Row(UniqueItem, am: [new AmEntry(UniqueItem, false, true, false)], opt: Opts(optIns: [UniqueItem]))));
       Check("RAIL I5: opt-in never lifts the entrust rail", NeverVendor(Row(UniqueItem, ar: ArWith([Plan("p", items: [UniqueItem])]), opt: Opts(optIns: [UniqueItem]))));
@@ -328,7 +330,7 @@ internal static class InventoryCases
 
       var hq = Row(Mat, hq: true, quotes: new() { [Mat] = Quote(Mat, 5, hq: true) });
       Check("RAIL I5: HQ kept unless the HQ setting is on", hq.Bucket == LootBucket.Keep && hq.Reason.Contains("HQ"));
-      Check("I5: HQ with the setting on -> vendor", Row(Mat, hq: true, quotes: new() { [Mat] = Quote(Mat, 5, hq: true) }, opt: Opts(allowHq: true)).Bucket == LootBucket.Vendor);
+      Check("I5: HQ with the setting on -> past the HQ rail (reaches the grey rule)", Row(Mat, hq: true, quotes: new() { [Mat] = Quote(Mat, 5, hq: true) }, opt: Opts(allowHq: true)).Reason == VentureLoot.GreyReason);
       Check("RAIL I5: collectable kept", NeverVendor(Row(Mat, collectable: true)));
       Check("RAIL I5: sheet miss kept", NeverVendor(Row(Missing)));
 
@@ -342,49 +344,76 @@ internal static class InventoryCases
       Check("RAIL I5: value gate disabled -> kept", NeverVendor(Row(Mat, opt: Opts(gate: Gate(on: false)))));
       Check("RAIL I5: value gate threshold 0 -> kept", NeverVendor(Row(Mat, opt: Opts(gate: Gate(threshold: 0)))));
       var worth = Row(Mat, quotes: new() { [Mat] = Quote(Mat, 5000) });
-      Check("RAIL I5: worth listing (over the threshold) -> kept, reason says so", worth.Bucket == LootBucket.Keep && worth.Reason.Contains("worth listing"), worth.Reason);
+      Check("RAIL I5: worth listing (over the threshold) -> kept", NeverVendor(worth) && worth.Bucket == LootBucket.Keep, worth.Reason);
       Check("I5: the gate judges the retainer's whole holding (3 x 400 = 1140 net > 1000 -> keep)",
         Row(Mat, qty: 3, quotes: new() { [Mat] = Quote(Mat, 400) }).Bucket == LootBucket.Keep);
-      Check("I5: at exactly the threshold it is below the gate (MarketGate's own polarity)",
-        Row(Mat, qty: 1, quotes: new() { [Mat] = Quote(Mat, 1054) }).Bucket == LootBucket.Keep     // 1054 x 0.95 = 1001 net
-        && Row(Mat, qty: 1, quotes: new() { [Mat] = Quote(Mat, 1053) }).Bucket == LootBucket.Vendor); // 1053 x 0.95 = 1000 net
+      Check("RAIL I5: the value gate's verdict does not matter for grey stock (just over AND at the threshold -> kept)",
+        NeverVendor(Row(Mat, qty: 1, quotes: new() { [Mat] = Quote(Mat, 1054) }))     // 1054 x 0.95 = 1001 net
+        && NeverVendor(Row(Mat, qty: 1, quotes: new() { [Mat] = Quote(Mat, 1053) }))); // 1053 x 0.95 = 1000 net
     }
 
     // =====================================================================================
-    // I6. Venture loot: buckets
+    // I6. Venture loot: buckets (unmarketable stock only - grey stock is always KEEP, group I12)
     // =====================================================================================
     {
       LootRow Row(uint id, Dictionary<uint, ItemQuote>? quotes = null)
         => One(VentureLoot.Classify(Input([Page(0, id)], [Qe(id)], quotes ?? CheapQuotes()), Opts()));
 
-      var green = Row(GreenGear);
-      Check("I6 buckets: green gear below the gate -> GC DELIVERY (never vendored), preview only", green.Bucket == LootBucket.GcDelivery && !green.Actionable);
-      Check("I6 buckets: green gear worth listing -> KEEP", Row(GreenGear, new() { [GreenGear] = Quote(GreenGear, 100_000) }).Bucket == LootBucket.Keep);
-      var white = Row(WhiteGear);
-      Check("I6 buckets: white gear below the gate with a vendor price -> VENDOR", white.Bucket == LootBucket.Vendor && white.Actionable);
+      var green = Row(UnmarketGreen);
+      Check("I6 buckets: unmarketable green gear -> GC DELIVERY, preview only", green.Bucket == LootBucket.GcDelivery && !green.Actionable);
+      Check("I6 buckets: marketable green gear -> KEEP (grey)", Row(GreenGear).Reason == VentureLoot.GreyReason);
+      Check("I6 buckets: marketable white gear -> KEEP (grey), never VENDOR", Row(WhiteGear).Bucket == LootBucket.Keep && !Row(WhiteGear).Actionable);
       var des = Row(Unmarket);
       Check("I6 buckets: unmarketable desynthesizable -> DESYNTH, preview only", des.Bucket == LootBucket.Desynth && !des.Actionable);
       var keep = Row(UnmarketNoDesynth);
       Check("I6 buckets: unmarketable, not desynthesizable -> KEEP (never vendored unpriced)", keep.Bucket == LootBucket.Keep && keep.Reason.Contains("cannot be listed"));
-      Check("I6 buckets: below the gate, no vendor price, desynthesizable -> DESYNTH", Row(NoPriceDesynth).Bucket == LootBucket.Desynth);
-      var noPrice = Row(NoPrice);
-      Check("I6 buckets: below the gate, no vendor price -> KEEP", noPrice.Bucket == LootBucket.Keep && noPrice.Reason.Contains("no vendor price"));
+      Check("I6 buckets: marketable, no vendor price, desynthesizable -> KEEP (grey)", Row(NoPriceDesynth).Reason == VentureLoot.GreyReason);
+      Check("I6 buckets: marketable, no vendor price -> KEEP (grey)", Row(NoPrice).Reason == VentureLoot.GreyReason);
 
       var plan = VentureLoot.Classify(Input(
-        [Page(0, Mat), Page(1, GreenGear), Page(2, Unmarket), Page(3, UnmarketNoDesynth, page: 6), Page(4, WhiteGear, page: 2)],
-        [Qe(Mat), Qe(GreenGear), Qe(Unmarket), Qe(UnmarketNoDesynth), Qe(WhiteGear)], CheapQuotes()), Opts());
-      Check("I6 buckets: counts per bucket", plan.Count(LootBucket.Vendor) == 2 && plan.Count(LootBucket.GcDelivery) == 1 && plan.Count(LootBucket.Desynth) == 1 && plan.Count(LootBucket.Keep) == 1,
+        [Page(0, Mat), Page(1, UnmarketGreen), Page(2, Unmarket), Page(3, UnmarketNoDesynth, page: 6), Page(4, WhiteGear, page: 2)],
+        [Qe(Mat), Qe(UnmarketGreen), Qe(Unmarket), Qe(UnmarketNoDesynth), Qe(WhiteGear)], CheapQuotes()), Opts());
+      Check("I6 buckets: counts per bucket (VENDOR is unreachable)", plan.Count(LootBucket.Vendor) == 0 && plan.Count(LootBucket.GcDelivery) == 1 && plan.Count(LootBucket.Desynth) == 1 && plan.Count(LootBucket.Keep) == 3,
         $"v={plan.Count(LootBucket.Vendor)} gc={plan.Count(LootBucket.GcDelivery)} d={plan.Count(LootBucket.Desynth)} k={plan.Count(LootBucket.Keep)}");
-      var ops = VentureLoot.VendorOps(plan);
-      Check("I6 vendor ops: only the actionable VENDOR rows", ops.Count == 2 && ops.Select(o => o.ItemId).OrderBy(x => x).SequenceEqual([Mat, WhiteGear]));
-      Check("I6 vendor ops: real retainer-page containers only (RetainerPage1 / RetainerPage3)",
-        ops.All(o => o.HasKnownContainer && o.Container is >= 10000 and <= 10006) && ops.Any(o => o.ContainerName() == "RetainerPage3"));
+      Check("RAIL I6 vendor ops: a classified plan yields no vendor ops", VentureLoot.VendorOps(plan).Count == 0);
+
+      // The kept VENDOR path itself (VendorOps -> the sell button) still refuses anything but real, actionable page rows.
+      var pageRow = new LootPlan([new LootRow(Page(4, Mat, page: 2), LootBucket.Vendor, "x", true, 9, null, 1, true)], []);
+      var pageOps = VentureLoot.VendorOps(pageRow);
+      Check("I6 vendor ops: an actionable VENDOR page row maps to a RetainerPage op", pageOps.Count == 1 && pageOps[0].HasKnownContainer && pageOps[0].ContainerName() == "RetainerPage3");
       var forged = new LootPlan([new LootRow(new RetainerStack(0, 1, Mat, false, 1, false), LootBucket.Vendor, "x", true, 1, null, 1, true)], []);
       Check("RAIL I6 vendor ops: a bag-container row can never become a vendor op", VentureLoot.VendorOps(forged).Count == 0);
       var notLoot = new LootPlan([new LootRow(Page(0, Mat), LootBucket.Vendor, "x", true, 1, null, 1, false)], []);
       Check("RAIL I6 vendor ops: a not-loot row can never become a vendor op", VentureLoot.VendorOps(notLoot).Count == 0);
-      var stale = VentureLoot.Classify(Input([Page(0, Mat)], [Qe(Mat)], CheapQuotes()), Opts(fetchedAgoMs: 31 * 60_000L));
-      Check("RAIL I6 vendor ops: stale price check -> zero ops", VentureLoot.VendorOps(stale).Count == 0);
+      var notActionable = new LootPlan([new LootRow(Page(0, Mat), LootBucket.Vendor, "x", false, 1, null, 1, true)], []);
+      Check("RAIL I6 vendor ops: a non-actionable row can never become a vendor op", VentureLoot.VendorOps(notActionable).Count == 0);
+    }
+
+    // =====================================================================================
+    // I12. Strict grey rule (decided 2026-09-21): marketable, not-enrolled (grey-marker) venture loot is
+    // NEVER vendored and never bucketed - always KEEP, whatever its price or the value gate says.
+    // =====================================================================================
+    {
+      LootRow Row(uint id, bool hq = false, LootOptions? opt = null, Dictionary<uint, ItemQuote>? quotes = null)
+        => One(VentureLoot.Classify(Input([Page(0, id, hq: hq)], [Qe(id, hq)], quotes ?? CheapQuotes()), opt ?? Opts()));
+      bool GreyKept(LootRow r) => r.IsLoot && r.Bucket == LootBucket.Keep && !r.Actionable && r.Reason.Contains("never vendored");
+
+      Check("RAIL I12 grey: cheap material with a fresh below-gate price -> KEEP, never vendored", GreyKept(Row(Mat)), Row(Mat).Bucket + ": " + Row(Mat).Reason);
+      Check("RAIL I12 grey: white gear below the gate with a vendor price -> KEEP, not VENDOR", GreyKept(Row(WhiteGear)), Row(WhiteGear).Bucket + ": " + Row(WhiteGear).Reason);
+      Check("RAIL I12 grey: green gear below the gate -> KEEP (not GC, not VENDOR)", GreyKept(Row(GreenGear)), Row(GreenGear).Bucket + ": " + Row(GreenGear).Reason);
+      Check("RAIL I12 grey: below the gate, no vendor price, desynthesizable -> KEEP (not DESYNTH)", GreyKept(Row(NoPriceDesynth)), Row(NoPriceDesynth).Bucket + ": " + Row(NoPriceDesynth).Reason);
+      Check("RAIL I12 grey: prices never checked -> kept FOR BEING GREY", GreyKept(One(VentureLoot.Classify(Input([Page(0, Mat)], [Qe(Mat)], null), Opts()))));
+      Check("RAIL I12 grey: value gate off -> kept for being grey", GreyKept(Row(Mat, opt: Opts(gate: Gate(on: false)))));
+      Check("RAIL I12 grey: HQ with \"Sort HQ\" on -> still kept", GreyKept(Row(Mat, hq: true, quotes: new() { [Mat] = Quote(Mat, 5, hq: true) }, opt: Opts(allowHq: true))));
+      Check("RAIL I12 grey: opted-in unique marketable item -> still kept", GreyKept(Row(UniqueItem, opt: Opts(optIns: [UniqueItem]))));
+      var mixedPlan = VentureLoot.Classify(Input(
+        [Page(0, Mat), Page(1, WhiteGear), Page(2, GreenGear), Page(3, Mat2)],
+        [Qe(Mat), Qe(WhiteGear), Qe(GreenGear), Qe(Mat2)], CheapQuotes()), Opts());
+      Check("RAIL I12 grey: a retainer of grey loot yields ZERO vendor ops", VentureLoot.VendorOps(mixedPlan).Count == 0 && mixedPlan.Count(LootBucket.Vendor) == 0,
+        $"ops={VentureLoot.VendorOps(mixedPlan).Count}");
+      Check("I12 unmarketable unchanged: desynthesizable -> DESYNTH", Row(Unmarket).Bucket == LootBucket.Desynth);
+      Check("I12 unmarketable unchanged: not desynthesizable -> KEEP (cannot be listed)", Row(UnmarketNoDesynth).Bucket == LootBucket.Keep && Row(UnmarketNoDesynth).Reason.Contains("cannot be listed"));
+      Check("I12 green (Auto-Market) still wins over the grey reason", One(VentureLoot.Classify(Input([Page(0, Mat)], [Qe(Mat)], CheapQuotes(), am: [new AmEntry(Mat, false, true, false)]), Opts())).Reason.Contains("Auto-Market"));
     }
 
     // =====================================================================================
