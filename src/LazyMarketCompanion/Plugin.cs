@@ -15,6 +15,7 @@ using ECommons.DalamudServices;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using LazyMarketCompanion.AutoMarket;
 using Lalalazy.Changelog;
+using Lalalazy.Telemetry;
 using LazyMarketCompanion.Windows;
 using Lumina.Excel.Sheets;
 using Newtonsoft.Json;
@@ -48,6 +49,10 @@ public sealed class Plugin : IDalamudPlugin
   private readonly MarketAutomation _automation;
   private readonly AutoMarketMarkers _markers;
   private readonly ChangelogGate _changelog;
+  private readonly DalamudTelemetry? _telemetry;
+
+  /// <summary>Shared error reporting (ER| lines, report button); null only before load / after unload.</summary>
+  internal static DalamudTelemetry? Telemetry { get; private set; }
   private readonly bool _ownsLegacyCommand;
 
   public readonly WindowSystem WindowSystem = new("LazyMarketCompanion");
@@ -79,6 +84,28 @@ public sealed class Plugin : IDalamudPlugin
   public Plugin()
   {
     ECommonsMain.Init(PluginInterface, this);
+
+    // Shared error reporting FIRST (after ECommons, which provides the services), so a failure anywhere
+    // below - the signature hook, config import, window setup - is an ER| line with version/commit/zone.
+    _telemetry = DalamudTelemetry.Install(new DalamudTelemetry.Options
+    {
+      PluginInterface = PluginInterface,
+      PluginAssembly = typeof(Plugin).Assembly,
+      DisplayName = "Lazy Market Companion",
+      Command = CommandName,
+      Log = Log,
+      Framework = Framework,
+      ClientState = ClientState,
+      Condition = Condition,
+      Chat = ChatGui,
+      PlayerState = Svc.PlayerState,
+      Objects = Svc.Objects,
+      Targets = Svc.Targets,
+      ConfigSummary = () => ConfigSummary.Describe(Configuration),
+      StateSummary = () => _automation?.DebugState() ?? string.Empty,
+    });
+    Telemetry = _telemetry;
+
     _retainerItemCommandHook = Svc.Hook.HookFromSignature<RetainerItemCommandDelegate>(
       "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 57 48 83 EC 30 48 8B 5C 24 ?? 41 8B F0",
       RetainerItemCommandDetour);
@@ -111,7 +138,7 @@ public sealed class Plugin : IDalamudPlugin
 
     CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
     {
-      HelpMessage = "Open Lazy Market Companion. Subcommands: market (auto-market open retainer), pinch (re-price open retainer), sweep (all retainers), cancel, changelog (what's new), telemetry (log price decisions), debug"
+      HelpMessage = "Open Lazy Market Companion. Subcommands: market (auto-market open retainer), pinch (re-price open retainer), sweep (all retainers), cancel, changelog (what's new), telemetry (log price decisions), report <what happened> (write a problem report to the plugin log), debug"
     });
     // Only take the old alias if Dagobert is not loaded alongside us; otherwise we'd log an error now
     // and yank Dagobert's command on our Dispose.
@@ -165,6 +192,10 @@ public sealed class Plugin : IDalamudPlugin
     PluginInterface.UiBuilder.OpenMainUi -= ToggleConfigUI;
     PluginInterface.UiBuilder.OpenConfigUi -= ToggleConfigUI;
     ChatGui.RemoveChatLinkHandler();
+    // Last (before ECommons, which owns the services it writes through): anything that failed while
+    // tearing down above was still reported.
+    _telemetry?.Dispose();
+    Telemetry = null;
     ECommonsMain.Dispose();
   }
 
@@ -203,7 +234,7 @@ public sealed class Plugin : IDalamudPlugin
     }
     catch (Exception ex)
     {
-      Log.Warning(ex, "[LMC] Dagobert config import failed; starting with defaults");
+      LalaTelemetry.Swallowed("config.import-dagobert", ex, "starting with defaults");
       config = new Configuration();
     }
 
@@ -286,7 +317,18 @@ public sealed class Plugin : IDalamudPlugin
 
   private void OnCommand(string command, string args)
   {
-    var sub = args.Trim().ToLowerInvariant();
+    // Handled before the lower-casing below: the report text is kept exactly as typed.
+    var trimmed = args.Trim();
+    if (trimmed.Equals("report", StringComparison.OrdinalIgnoreCase) || trimmed.StartsWith("report ", StringComparison.OrdinalIgnoreCase))
+    {
+      if (_telemetry is null)
+        ChatGui.PrintError("[LMC] Problem reports are unavailable this session: error reporting did not start (the reason is in the plugin log).");
+      else
+        _telemetry.FileReport(trimmed.Length > 6 ? trimmed[6..].Trim() : string.Empty);
+      return;
+    }
+
+    var sub = trimmed.ToLowerInvariant();
 
     // Handled before the switch because it takes an argument: "telemetry on" / "telemetry off".
     if (sub.StartsWith("telemetry", StringComparison.Ordinal))
@@ -414,7 +456,7 @@ public sealed class Plugin : IDalamudPlugin
     }
     catch (Exception ex)
     {
-      Svc.Log.Error(ex, $"[LMC] failed to add item {itemId} to Auto-Market");
+      LalaTelemetry.Error("context-menu.auto-market", ex, $"item {itemId} hq={(hq ? 1 : 0)}");
     }
   }
 
@@ -435,7 +477,7 @@ public sealed class Plugin : IDalamudPlugin
     }
     catch (Exception ex)
     {
-      Svc.Log.Error(ex, $"[LMC] failed to add item {itemId} to price limits");
+      LalaTelemetry.Error("context-menu.price-limits", ex, $"item {itemId}");
     }
   }
 

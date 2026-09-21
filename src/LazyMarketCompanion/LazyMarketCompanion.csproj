@@ -29,6 +29,12 @@
     <EmbeddedResource Include="CHANGELOG.md" LogicalName="CHANGELOG.md" />
   </ItemGroup>
 
+  <!-- Shared error reporting (src/Shared/LalaTelemetry, 2026-09-21): ER| error lines, circuit breakers on the
+       per-frame handlers, `/lmc report`. Shared SOURCE like LalaChangelog, never a DLL. Do not remove in a merge. -->
+  <ItemGroup>
+    <Compile Include="..\Shared\LalaTelemetry\**\*.cs" Link="LalaTelemetry\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
   <!-- Build stamp for the shared error reporting (src/Shared/LalaTelemetry): the git SHA of the tree being built
        goes into [AssemblyMetadata("LalaCommit")] and onto every ER| / RP| line as c=. "unknown" without git. -->
   <Import Project="..\Shared\LalaTelemetry\LalaTelemetry.Stamp.targets" />

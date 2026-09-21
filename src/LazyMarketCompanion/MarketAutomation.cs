@@ -14,6 +14,7 @@ using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Common.Math;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using LazyMarketCompanion.AutoMarket;
+using Lalalazy.Telemetry;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -216,6 +217,13 @@ internal sealed class MarketAutomation : Window, IDisposable
   private long _arStartedAt;
   private const int ArSessionCapMs = 5 * 60 * 1000;
 
+  // Error reporting (2026-09-21): circuit breaker around the per-frame Draw below. A Draw that throws on
+  // every frame used to abort, log and (with ShowErrorsInChat) print on EVERY frame; now it is stopped after
+  // repeated failures (one ER|trip line + one chat notice), retries on its own, and while it is stopped the
+  // AutoRetainer postprocess hooks release AutoRetainer untouched instead of starting a session nothing
+  // would watch (OnArPostprocessStep / OnArReadyToPostprocess).
+  private readonly TelemetryGuard _drawGuard = LalaTelemetry.CreateGuard("automation.draw", "retainer automation");
+
   public bool IsBusy => _taskManager.IsBusy;
   public string? ActiveAutoRetainerSession => _arRetainer;
 
@@ -283,6 +291,9 @@ internal sealed class MarketAutomation : Window, IDisposable
 
   public override void Draw()
   {
+    if (!_drawGuard.TryEnter())
+      return;
+
     try
     {
       ClearCachedPricesIfUniversalisSettingChanged();
@@ -304,8 +315,9 @@ internal sealed class MarketAutomation : Window, IDisposable
     catch (Exception ex)
     {
       _taskManager.Abort();
-      Svc.Log.Error(ex, "[LMC] error while automating");
-      if (Plugin.Configuration.ShowErrorsInChat)
+      // ER| line (rate-limited per fingerprint) instead of an ERR line per frame. The chat line follows
+      // the same limit: a repeat of an error already written in full is not printed again.
+      if (_drawGuard.Failed(ex) && Plugin.Configuration.ShowErrorsInChat)
         Svc.Chat.PrintError($"[LMC] Error: {ex.Message}");
 
       RemoveTalkAddonListeners();
@@ -2087,6 +2099,12 @@ internal sealed class MarketAutomation : Window, IDisposable
   {
     if (!Plugin.Configuration.AutoMarketDuringAutoRetainer || !Plugin.Configuration.AutoMarketEnabled)
       return;
+    // The automation's per-frame watchdog is stopped by its error breaker: never claim a session it cannot watch.
+    if (_drawGuard.IsOpen)
+    {
+      Svc.Log.Warning($"[LMC] AR step: retainer automation is stopped after repeated errors; not claiming {retainer}");
+      return;
+    }
     if (!IsRetainerEnabled(retainer))
     {
       Svc.Log.Debug($"[LMC] AR step: retainer '{retainer}' not enabled, not claiming");
@@ -2116,6 +2134,13 @@ internal sealed class MarketAutomation : Window, IDisposable
     if (_taskManager.IsBusy)
     {
       Svc.Log.Warning($"[LMC] AR ready for {retainer} but we are busy; releasing immediately");
+      AutoRetainerIPC.Instance?.FinishRetainerPostProcess();
+      return;
+    }
+
+    if (_drawGuard.IsOpen)
+    {
+      Svc.Log.Warning($"[LMC] AR ready for {retainer} but retainer automation is stopped after repeated errors; releasing immediately");
       AutoRetainerIPC.Instance?.FinishRetainerPostProcess();
       return;
     }
@@ -2511,16 +2536,17 @@ internal sealed class MarketAutomation : Window, IDisposable
         else
           Communicator.PrintAboveMaxCutError(itemName);
 
-        // Off-by-default decision tap. The flag is read BEFORE anything is gathered: resolving the
-        // item id is a linear scan of the Item sheet, so "off" must cost exactly this bool read.
-        // Both outcomes are emitted - an abort writes no price and is otherwise almost traceless,
-        // which makes it the single most interesting line in the plugin.
-        if (Plugin.Configuration.DecisionTelemetry)
-          MarketTelemetry.RecordDecision(
-            itemName, rawItemName,
-            _oldPrice.Value, rawPrice, _newPrice.Value,
-            _newPriceFromUniversalis, _newPriceFromCache, usedDefaultAmount,
-            wasLimited, isPlaceholder, aborted: !priceAccepted, cutPercentage);
+        // Decision tap. With the flag ON the MT| line is logged with the resolved item id; with it OFF
+        // (the default) a light copy - item id and quantity 0, so no Item-sheet scan - is kept only in
+        // the in-memory ring a problem report dumps (2026-09-21). One line per price decision, never
+        // per frame. Both outcomes are recorded - an abort writes no price and is otherwise almost
+        // traceless, which makes it the single most interesting line in the plugin.
+        MarketTelemetry.RecordDecision(
+          itemName, rawItemName,
+          _oldPrice.Value, rawPrice, _newPrice.Value,
+          _newPriceFromUniversalis, _newPriceFromCache, usedDefaultAmount,
+          wasLimited, isPlaceholder, aborted: !priceAccepted, cutPercentage,
+          log: Plugin.Configuration.DecisionTelemetry);
 
         ECommons.Automation.Callback.Fire(&retainerSell->AtkUnitBase, true, 0); // confirm
         ui->Close(true);

@@ -3,6 +3,7 @@ using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using Dalamud.Game.Network.Structures;
 using ECommons.DalamudServices;
 using FFXIVClientStructs.FFXIV.Client.Game;
+using Lalalazy.Telemetry;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using Lumina.Excel.Sheets;
 using System;
@@ -23,6 +24,10 @@ namespace LazyMarketCompanion
     private int _pendingNoMatchRequestId = UnknownRequestId;
     private long _pendingNoMatchTimeoutAt;
     private long _pendingNoOfferingsTimeoutAt;
+
+    // Error reporting (2026-09-21): circuit breaker for the per-frame timeout check (it raises
+    // NewPriceReceived, whose handlers are automation code).
+    private readonly TelemetryGuard _tickGuard = LalaTelemetry.CreateGuard("market-board.tick", "the market board price watcher");
 
     private int NewPrice
     {
@@ -112,9 +117,21 @@ namespace LazyMarketCompanion
 
     private void FrameworkOnUpdate(object _)
     {
-      if (!_newRequest)
+      if (!_newRequest || !_tickGuard.TryEnter())
         return;
 
+      try
+      {
+        CheckPriceRequestTimeouts();
+      }
+      catch (Exception ex)
+      {
+        _tickGuard.Failed(ex);
+      }
+    }
+
+    private void CheckPriceRequestTimeouts()
+    {
       var now = Environment.TickCount64;
       if (_pendingNoMatchRequestId >= 0 && now >= _pendingNoMatchTimeoutAt)
       {
