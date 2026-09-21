@@ -888,12 +888,35 @@ internal sealed class MarketAutomation : Window, IDisposable
 
   private static unsafe bool? CloseRetainer()
   {
+    // 0.1.64.0: after Have-Retainer-Sell-Items vendoring, closing the bell menu surfaces
+    // SelectYesno "Your retainer will be unable to process item buyback requests once
+    // recalled...". Yes abandons the buyback list and lets leave finish; No/ESC returns to
+    // the menu. Match ONLY that prompt (BuybackConfirmGate) - never a generic dismiss and
+    // never a Shop buyback purchase. Confirm first; then close SelectString; only complete
+    // when neither is up (closing SelectString can spawn the confirm on the next frame).
+    if (GenericHelpers.TryGetAddonByName<AtkUnitBase>("SelectYesno", out var yesno) && GenericHelpers.IsAddonReady(yesno))
+    {
+      var prompt = new AddonMaster.SelectYesno(yesno).Text;
+      switch (AutoMarket.BuybackConfirmGate.Decide(prompt))
+      {
+        case AutoMarket.BuybackConfirmDecision.ConfirmLeave:
+          Svc.Log.Information("[LMC] vendor: confirming leave - abandoning retainer buyback list (SelectYesno)");
+          new AddonMaster.SelectYesno(yesno).Yes();
+          return false; // wait for the confirm to clear, then finish closing
+        case AutoMarket.BuybackConfirmDecision.IgnoreOther:
+          // Unknown yes/no - do not click. Retry; a stuck unrelated dialog still times out.
+          return false;
+        default:
+          break; // empty text: fall through and try SelectString
+      }
+    }
+
     if (GenericHelpers.TryGetAddonByName<AtkUnitBase>("SelectString", out var addon) && GenericHelpers.IsAddonReady(addon))
     {
       addon->Close(true);
-      return true;
+      return false; // next tick may show the buyback confirm; complete only when both are gone
     }
-    return false;
+    return true;
   }
 
   // =====================================================================================

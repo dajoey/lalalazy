@@ -3973,6 +3973,36 @@ StockStack BagStack(uint id, int slot, int qty, uint cat = CatA, bool marketable
     $"ops={zero.Ops.Count} left={zero.Skipped.Count(s => s.Reason == "bags full")}");
 }
 
+
+// 127. BUYBACK-ABANDON CONFIRM GATE (0.1.64.0): after Have-Retainer-Sell-Items vendoring,
+//     leaving the retainer surfaces SelectYesno "Your retainer will be unable to process item
+//     buyback requests once recalled...". CloseRetainer must Yes THAT prompt only - never a
+//     generic dismiss, never a Shop "Buy Back" purchase path.
+{
+  var live = "Your retainer will be unable to process item buyback requests once recalled. Are you sure you wish to proceed?";
+  var multiline = "Your retainer will be unable to process item buyback requests once recalled.\nAre you sure you wish to proceed?";
+  Check("127 buyback: live prompt is ConfirmLeave",
+    BuybackConfirmGate.Decide(live) == BuybackConfirmDecision.ConfirmLeave);
+  Check("127 buyback: multiline prompt (TextLegacy shape) is ConfirmLeave",
+    BuybackConfirmGate.Decide(multiline) == BuybackConfirmDecision.ConfirmLeave);
+  Check("127 buyback: marker helper agrees",
+    BuybackConfirmGate.IsBuybackAbandonConfirm(live));
+  Check("127 buyback: empty/null is None (not a click)",
+    BuybackConfirmGate.Decide(null) == BuybackConfirmDecision.None
+    && BuybackConfirmGate.Decide("") == BuybackConfirmDecision.None
+    && BuybackConfirmGate.Decide("   ") == BuybackConfirmDecision.None);
+  Check("127 buyback: unrelated SelectYesno is IgnoreOther (never generic Yes)",
+    BuybackConfirmGate.Decide("Sell this item for 100 gil?") == BuybackConfirmDecision.IgnoreOther
+    && BuybackConfirmGate.Decide("Are you sure?") == BuybackConfirmDecision.IgnoreOther);
+  Check("127 buyback: Shop 'Buy Back' label alone is NOT the abandon confirm",
+    BuybackConfirmGate.Decide("Buy Back") == BuybackConfirmDecision.IgnoreOther
+    && BuybackConfirmGate.Decide("Buyback") == BuybackConfirmDecision.IgnoreOther
+    && !BuybackConfirmGate.IsBuybackAbandonConfirm("Buy Back"));
+  Check("127 buyback: prompt marker is the scoped phrase, not a bare 'buyback'",
+    BuybackConfirmGate.PromptMarker.Equals("unable to process item buyback", StringComparison.Ordinal));
+}
+
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 
