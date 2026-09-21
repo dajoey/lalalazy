@@ -21,9 +21,12 @@ internal sealed class MainWindow : Window
     {
         var cfg = Plugin.Config;
 
-        if (PetSelect.WritesBlocked)
+        if (PetSelect.YieldReason == "conflict_gluttony")
             ImGui.TextColored(new Vector4(1f, 0.55f, 0.3f, 1f),
                 "An older GluttonyCombo that also fills familiars is loaded. LazyCrucible is not writing until it is updated.");
+        else if (PetSelect.YieldReason == "autoduty_running")
+            ImGui.TextColored(new Vector4(1f, 0.85f, 0.4f, 1f),
+                "AutoDuty is running this board and picks its own familiars; LazyCrucible is leaving the familiar screens alone.");
 
         ImGui.TextWrapped(PetSelect.LastSummary.Length == 0
             ? "No familiar selection yet this session."
@@ -46,6 +49,14 @@ internal sealed class MainWindow : Window
             changed = true;
         }
         Help("On the formation screen before every fight, puts the three familiars that answer that fight's mechanics on the horns: elemental weakness, interrupts (Soul Crush), dispels (Quelling Wave), cleanses and crowd control the enemies are vulnerable to. Knocked-out familiars are never picked; badly hurt ones lose to a healthy one that fits nearly as well. Never starts the fight, never touches the shop's feeding screen, and stops for that screen as soon as a slot is changed by hand.");
+
+        var yieldAd = cfg.YieldToAutoDuty;
+        if (ImGui.Checkbox("Stand down while AutoDuty is running", ref yieldAd))
+        {
+            cfg.YieldToAutoDuty = yieldAd;
+            changed = true;
+        }
+        Help("AutoDuty can run whole Crucible boards and fills the roster and horns with its own team (for example a leveling team). While it is running, LazyCrucible does not touch the familiar screens, so the two never overwrite each other.");
 
         var announce = cfg.AnnouncePicks;
         if (ImGui.Checkbox("Announce picks in chat", ref announce))

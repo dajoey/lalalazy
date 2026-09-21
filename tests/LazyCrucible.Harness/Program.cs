@@ -255,7 +255,7 @@ internal static class Program
             var d = FormationLogic.DecideFormationWrite(new(
                 PetPartyOpen: true, ActivePetOpen: false, PreEntrySurface: false,
                 AddonMode: 3, AddonSubMode: 0, SelectedPetIds: new[] { sel }, PartyCount: party.Count));
-            Check($"Feed picker {when}: no write", d.Write == FormationLogic.FormationWrite.None && d.Reason == "feed",
+            Check($"Feed picker {when}: no write", d.Write == FormationLogic.FormationWrite.None && d.Reason == "feed_or_camp",
                 $"{d.Write}/{d.Reason}");
         }
 
@@ -265,6 +265,12 @@ internal static class Program
             true, false, false, AddonMode: -1, AddonSubMode: 0, new[] { 8, 7, 3 }, party.Count));
         Check("Feed picker first frame (only SubMode populated, stale horn 8.7.3): no write",
             firstFrame.Write == FormationLogic.FormationWrite.None, $"{firstFrame.Write}/{firstFrame.Reason}");
+
+        // Campsite rest picker (2026-09-21 12:56:54 ET): the same addon in agent mode 4, [2]=4 [3]=0.
+        var camp = FormationLogic.DecideFormationWrite(new(
+            true, false, false, AddonMode: 4, AddonSubMode: 0, new[] { 0, 4 }, party.Count));
+        Check("Campsite rest picker (mode 4): no write",
+            camp.Write == FormationLogic.FormationWrite.None && camp.Reason == "feed_or_camp", $"{camp.Write}/{camp.Reason}");
 
         // Regression guards: the Battlehorn preview must still be written, including on its first frame.
         var hornEmpty = FormationLogic.DecideFormationWrite(new(
@@ -293,10 +299,10 @@ internal static class Program
             notebookTeam.Write == FormationLogic.FormationWrite.None, $"{notebookTeam.Write}/{notebookTeam.Reason}");
 
         // Mode values the pass does not write.
-        Check("Classify: [2]=3 [3]=0 -> Feed; [2]=4/5 -> Feed; [2]=1 -> Other; [2]=0 -> Roster; [2]=2 -> Horn",
-            FormationLogic.ClassifyPetPartyScreen(3, 0) == FormationLogic.PetPartyScreen.Feed
-            && FormationLogic.ClassifyPetPartyScreen(4, 0) == FormationLogic.PetPartyScreen.Feed
-            && FormationLogic.ClassifyPetPartyScreen(5, 1) == FormationLogic.PetPartyScreen.Feed
+        Check("Classify: [2]=3 [3]=0 -> FeedOrCamp; [2]=4/5 -> FeedOrCamp; [2]=1 -> Other; [2]=0 -> Roster; [2]=2 -> Horn",
+            FormationLogic.ClassifyPetPartyScreen(3, 0) == FormationLogic.PetPartyScreen.FeedOrCamp
+            && FormationLogic.ClassifyPetPartyScreen(4, 0) == FormationLogic.PetPartyScreen.FeedOrCamp
+            && FormationLogic.ClassifyPetPartyScreen(5, 1) == FormationLogic.PetPartyScreen.FeedOrCamp
             && FormationLogic.ClassifyPetPartyScreen(1, 1) == FormationLogic.PetPartyScreen.Other
             && FormationLogic.ClassifyPetPartyScreen(0, 1) == FormationLogic.PetPartyScreen.Roster
             && FormationLogic.ClassifyPetPartyScreen(2, 1) == FormationLogic.PetPartyScreen.Horn
@@ -305,13 +311,14 @@ internal static class Program
     }
 
     /// <summary>
-    ///     Replay of the 1.0.4.229 Bentbranch roster overwrite (2026-09-21 12:50:24-12:50:36 ET). The pass
-    ///     found the roster already correct (12:50:24.215, pass done). The player then cleared it
-    ///     (pet-party events kind 0 [2,0], kind 7, kind 8) and began rebuilding it; each time the rebuild
-    ///     reached four familiars the writer replaced it with its own ten (12:50:25.7, 27.5, 30.2, 36.3), four
-    ///     times, until the option was switched off (12:52:25 note=off). Mechanism: while the roster is empty
-    ///     the live pass fed battle key 0 to the latch, the key returned to -1 as the rebuild started, and a
-    ///     key change re-armed the writer.
+    ///     Replay of the 1.0.4.229 Bentbranch roster overwrite (2026-09-21 12:50:24-12:50:36 ET). The pass found
+    ///     the roster already correct (12:50:24.215, pass done). AutoDuty, running board 1 with a leveling team
+    ///     (its log: "Board is holding 10; clearing it before reading more ranks", 12:50:24.320 / 26.066 /
+    ///     27.870), then cleared the roster (pet-party events kind 0 [2,0], kind 7, kind 8) and rebuilt it; each
+    ///     time the rebuild reached four familiars GluttonyCombo's writer replaced it with its own ten (12:50:25.7,
+    ///     27.5, 30.2, 36.3) until the option was switched off (12:52:25 note=off). Mechanism: while the roster
+    ///     is empty the live pass fed battle key 0 to the latch, the key returned to -1 as the rebuild started,
+    ///     and a key change re-armed the writer. Any edit the pass did not send (player or another tool) wins.
     /// </summary>
     private static void RosterOverwriteReplay()
     {
@@ -325,7 +332,7 @@ internal static class Program
         Check("Roster cleared and rebuilt on the same open: writer stays done (no overwrite)",
             !FormationLogic.IsFormationArmed(s), s.ToString());
 
-        // The player's clear/preset events at 12:50:24.320-.537 are selection edits; hovers and navigation are not.
+        // The clear events at 12:50:24.320-.537 (AutoDuty's) are selection edits; hovers and navigation are not.
         Check("IsSelectionEditEvent: pp kind 0 [2,0] roster select, kind 7, kind 8, kind 5, kind 16 → edit",
             FormationLogic.IsSelectionEditEvent("pp", 0, 2, 2)
             && FormationLogic.IsSelectionEditEvent("pp", 7, 3, 0)
@@ -356,7 +363,7 @@ internal static class Program
         Check("MarkPlayerEdited on a closed screen is a no-op",
             !FormationLogic.MarkPlayerEdited(default).PlayerEdited);
 
-        // Roster the player built by hand this Bentbranch visit: never rewritten on a later open.
+        // Roster edited by the player or another tool this Bentbranch visit: never rewritten on a later open.
         var party = new List<int> { 28, 22, 18, 27, 20, 5, 21, 41, 40, 39 };
         var owned = FormationLogic.DecideFormationWrite(new(
             true, false, true, AddonMode: 0, AddonSubMode: 1, party, party.Count, RosterPlayerOwned: true));

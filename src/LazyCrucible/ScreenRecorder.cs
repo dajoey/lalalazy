@@ -1,9 +1,14 @@
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
+using Dalamud.Game.Addon.Lifecycle;
+using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
+using Dalamud.Game.ClientState.Conditions;
+using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Hooking;
 using ECommons.DalamudServices;
 using FFXIVClientStructs.FFXIV.Client.UI;
+using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 
 namespace LazyCrucible;
@@ -17,10 +22,20 @@ namespace LazyCrucible;
 ///             machine).</item>
 ///         <item><c>XB|ms|Name|n=count|idx:type=value;...</c> (+ <c>XB+|ms|Name|part|...</c>) — the addon's full
 ///             AtkValues when it opens and whenever they change (at most once a second per addon). Same grammar as
-///             GluttonyCombo's collector, with a larger cap: 2000 values, 60-character strings, 24 chunks.</item>
+///             GluttonyCombo's collector, with a larger cap: 2000 values, 60-character strings, 40 chunks.</item>
 ///         <item><c>XC|ms|Name|upd=0|1|n=count|0:i..|1:u..</c> — every callback the addon fires
 ///             (AtkUnitBase.FireCallback): the exact values a click sends, replayable later with
 ///             ECommons Callback.Fire.</item>
+///         <item><c>XR|ms|Name|type=T|param=P|node=N|d=hex</c> — button / list clicks the addon receives
+///             (Dalamud addon lifecycle PreReceiveEvent). Plain buttons such as "Take all" or the start-battle
+///             button never go through FireCallback, so this is how their node and param are learned.</item>
+///         <item><c>XA|ms|pp|mode=..|sub=..|selIdx=..|u138=..|u13c=..|src=..|party=..|sel=..</c> and
+///             <c>XA|ms|stage|content=..|mode=..</c> — AgentXBMPetParty / AgentXBMStageDetailList fields at the
+///             offsets ClientStructs PR #1952 documents, on change.</item>
+///         <item><c>XO|ms|pos=x,y,z|obj=kind:DataId@x,y,z;...</c> — on a board, the character's position and the
+///             event / treasure objects within 40 yalms, on change (at most once a second): how stepping onto a
+///             space commits the path choice.</item>
+///         <item><c>XK|ms|+Flag</c> / <c>XK|ms|-Flag</c> — condition changes in the Crucible area.</item>
 ///     </list>
 ///     Scope: addons named XBM*, plus SelectString / SelectIconString / SelectYesno / ContentsFinderConfirm /
 ///     Talk while on Beastmaster in Central Shroud (Bentbranch Meadows) or on a Crucible board — the entry
@@ -31,7 +46,7 @@ internal static unsafe class ScreenRecorder
     private const int MaxValues = 2000;
     private const int MaxString = 60;
     private const int Chunk = 900;
-    private const int MaxChunks = 24;
+    private const int MaxChunks = 40;
     private const ushort CentralShroud = 148;
 
     private static readonly string[] GenericAddons = ["SelectString", "SelectIconString", "SelectYesno", "ContentsFinderConfirm", "Talk"];
@@ -41,6 +56,14 @@ internal static unsafe class ScreenRecorder
     private static readonly HashSet<string> NowVisible = [];
     private static Hook<AtkUnitBase.Delegates.FireCallback>? _fireCallbackHook;
     private static long _nextScanMs;
+    private static bool _listenersOn;
+    private static string _lastPp = "";
+    private static string _lastStage = "";
+    private static string _lastObjects = "";
+    private static long _nextObjectsMs;
+
+    /// <summary> Addon event types worth recording (clicks and selections; no hover, move, focus or timers). </summary>
+    private static readonly HashSet<int> ClickEventTypes = [9, 10, 23, 25, 27, 31, 35, 36, 38, 58, 61, 63];
 
     /// <summary> Framework tick while Beastmaster: visibility, snapshots, callback hook lifecycle. </summary>
     public static void Tick(bool wanted)
@@ -52,6 +75,7 @@ internal static unsafe class ScreenRecorder
         }
 
         EnsureCallbackHook();
+        EnsureListeners();
 
         var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         if (now < _nextScanMs)
@@ -61,6 +85,8 @@ internal static unsafe class ScreenRecorder
         try
         {
             Scan(now);
+            AgentState(now);
+            Objects(now);
         }
         catch (Exception ex)
         {
@@ -83,8 +109,162 @@ internal static unsafe class ScreenRecorder
             }
             _fireCallbackHook = null;
         }
+        if (_listenersOn)
+        {
+            try
+            {
+                Svc.AddonLifecycle.UnregisterListener(AddonEvent.PreReceiveEvent, OnReceiveEvent);
+                Svc.Condition.ConditionChange -= OnConditionChange;
+            }
+            catch
+            {
+                // ignored: unload path
+            }
+            _listenersOn = false;
+        }
         Seen.Clear();
         Visible.Clear();
+        _lastPp = _lastStage = _lastObjects = "";
+    }
+
+    private static void EnsureListeners()
+    {
+        if (_listenersOn)
+            return;
+        try
+        {
+            Svc.AddonLifecycle.RegisterListener(AddonEvent.PreReceiveEvent, OnReceiveEvent);
+            Svc.Condition.ConditionChange += OnConditionChange;
+            _listenersOn = true;
+        }
+        catch (Exception ex)
+        {
+            CrucibleLog.Error(ex, "recorder listeners");
+        }
+    }
+
+    private static void OnReceiveEvent(AddonEvent type, AddonArgs args)
+    {
+        try
+        {
+            if (args is not AddonReceiveEventArgs e)
+                return;
+            var eventType = (int)e.AtkEventType;
+            if (!ClickEventTypes.Contains(eventType) || !Wanted(e.AddonName, InCrucibleArea()))
+                return;
+
+            var node = 0u;
+            if (e.AtkEvent != 0)
+            {
+                var atkEvent = (AtkEvent*)e.AtkEvent;
+                if (atkEvent->Node is not null)
+                    node = atkEvent->Node->NodeId;
+            }
+            var data = "";
+            if (e.AtkEventData != 0)
+            {
+                var bytes = new byte[16];
+                Marshal.Copy(e.AtkEventData, bytes, 0, bytes.Length);
+                data = Convert.ToHexString(bytes);
+            }
+            CrucibleLog.Line($"XR|{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}|{e.AddonName}|type={eventType}|param={e.EventParam}|node={node}|d={data}");
+        }
+        catch (Exception ex)
+        {
+            CrucibleLog.Error(ex, "addon event log");
+        }
+    }
+
+    private static void OnConditionChange(ConditionFlag flag, bool value)
+    {
+        try
+        {
+            if (InCrucibleArea())
+                CrucibleLog.Line($"XK|{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}|{(value ? '+' : '-')}{flag}");
+        }
+        catch (Exception ex)
+        {
+            CrucibleLog.Error(ex, "condition log");
+        }
+    }
+
+    /// <summary> AgentXBMPetParty / AgentXBMStageDetailList fields at PR #1952 offsets (inside the documented struct sizes). </summary>
+    private static void AgentState(long now)
+    {
+        var module = AgentModule.Instance();
+        if (module is null)
+            return;
+
+        var pp = (nint)module->GetAgentByInternalId(AgentId.XBMPetParty);
+        if (pp != 0)
+        {
+            var line = $"pp|mode={*(uint*)(pp + 0x64)}|sub={*(uint*)(pp + 0x68)}|selIdx={*(uint*)(pp + 0x140)}"
+                       + $"|u138={*(uint*)(pp + 0x138)}|u13c={*(uint*)(pp + 0x13C)}|src={*(uint*)(pp + 0x154)}"
+                       + $"|content={*(uint*)(pp + 0x70)}|party={Vector(pp, 0x78)}|sel={Vector(pp, 0x90)}";
+            if (line != _lastPp)
+            {
+                _lastPp = line;
+                CrucibleLog.Line($"XA|{now}|{line}");
+            }
+        }
+
+        var stage = (nint)module->GetAgentByInternalId(AgentId.XBMStageDetailList);
+        if (stage != 0)
+        {
+            var line = $"stage|content={*(uint*)(stage + 0x38)}|mode={*(uint*)(stage + 0x3C)}";
+            if (line != _lastStage)
+            {
+                _lastStage = line;
+                CrucibleLog.Line($"XA|{now}|{line}");
+            }
+        }
+    }
+
+    /// <summary> Pet ids of a StdVector&lt;{uint PetId, uint SortKey}&gt; (at most 15), dot-joined. </summary>
+    private static string Vector(nint agent, int offset)
+    {
+        var first = *(nint*)(agent + offset);
+        var last = *(nint*)(agent + offset + 8);
+        if (first == 0 || last < first)
+            return "";
+        var count = (int)((last - first) / 8);
+        if (count is <= 0 or > 15)
+            return count == 0 ? "" : $"n{count}";
+        var ids = new string[count];
+        for (var i = 0; i < count; i++)
+            ids[i] = (*(uint*)(first + i * 8)).ToString(CultureInfo.InvariantCulture);
+        return string.Join(".", ids);
+    }
+
+    /// <summary> On a board: position and nearby event / treasure objects, on change, at most once a second. </summary>
+    private static void Objects(long now)
+    {
+        if (now < _nextObjectsMs || BST_CrucibleData.BoardOfTerritory(Svc.ClientState.TerritoryType) == 0)
+            return;
+        _nextObjectsMs = now + 1000;
+        var me = Svc.Objects.LocalPlayer;
+        if (me is null)
+            return;
+
+        var inv = CultureInfo.InvariantCulture;
+        var sb = new StringBuilder(256);
+        sb.Append("pos=").Append(me.Position.X.ToString("0", inv)).Append(',').Append(me.Position.Y.ToString("0", inv))
+          .Append(',').Append(me.Position.Z.ToString("0", inv)).Append("|obj=");
+        foreach (var obj in Svc.Objects)
+        {
+            if (obj.ObjectKind is not (ObjectKind.EventObj or ObjectKind.Treasure or ObjectKind.EventNpc))
+                continue;
+            if (System.Numerics.Vector3.Distance(obj.Position, me.Position) > 40f)
+                continue;
+            sb.Append((int)obj.ObjectKind).Append(':').Append(obj.BaseId.ToString(inv)).Append('@')
+              .Append(obj.Position.X.ToString("0", inv)).Append(',').Append(obj.Position.Z.ToString("0", inv))
+              .Append(obj.IsTargetable ? "" : "/nt").Append(';');
+        }
+        var line = sb.ToString();
+        if (line == _lastObjects)
+            return;
+        _lastObjects = line;
+        CrucibleLog.Line($"XO|{now}|{line}");
     }
 
     private static bool InCrucibleArea()

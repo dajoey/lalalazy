@@ -13,6 +13,9 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary> Fill the three Battlehorn slots on the formation screen before each fight. </summary>
     public bool AutoHorns { get; set; } = true;
 
+    /// <summary> Leave familiar screens alone while AutoDuty is running a board (it picks its own team). </summary>
+    public bool YieldToAutoDuty { get; set; } = true;
+
     /// <summary> Print each fight's picks (and why) to chat when they are set. </summary>
     public bool AnnouncePicks { get; set; } = true;
 

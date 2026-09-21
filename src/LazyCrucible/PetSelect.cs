@@ -68,8 +68,11 @@ internal static unsafe class PetSelect
     private static bool _sigsResolved;
     private static bool _sigsOk;
 
-    /// <summary> Set by the plugin while an older GluttonyCombo that still writes familiars is loaded. </summary>
-    internal static bool WritesBlocked;
+    /// <summary>
+    ///     Why the pass must not write right now, set by the plugin each tick: <c>conflict_gluttony</c> (an older
+    ///     GluttonyCombo that still writes familiars is loaded) or <c>autoduty_running</c>; null = free to write.
+    /// </summary>
+    internal static string? YieldReason;
     /// <summary> Last thing the pass did, for the window. </summary>
     internal static string LastSummary { get; private set; } = "";
     internal static DateTime LastSummaryAt { get; private set; }
@@ -195,7 +198,8 @@ internal static unsafe class PetSelect
             {
                 // Screen open but no roster → not armed (A2). Still advance latch so reopen re-arms. The
                 // battle key is kept: feeding 0 here made the key flap -1 -> 0 -> -1 while the roster was
-                // cleared and rebuilt by hand, which re-armed the writer (live 12:50, four overwrites).
+                // cleared and rebuilt by AutoDuty (its leveling team), which re-armed the writer (live 12:50,
+                // four overwrites).
                 var prevOpenEmpty = _arm.ScreenOpen;
                 _arm = NextFormationArm(_arm, screenOpen, prevOpenEmpty ? _arm.BattleKey : 0, surfaceKey);
                 if (_rosterAfterPass is { Count: > 0 } && _ownCallDepth == 0)
@@ -267,13 +271,15 @@ internal static unsafe class PetSelect
             return;
         }
 
-        if (WritesBlocked)
+        if (YieldReason is { } yieldReason)
         {
             if (!_loggedConflictThisPhase)
             {
                 _loggedConflictThisPhase = true;
-                LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|calls=0|note=conflict_gluttony");
-                SetSummary("Not writing: an older GluttonyCombo that also fills familiars is loaded.");
+                LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|calls=0|note={yieldReason}");
+                SetSummary(yieldReason == "autoduty_running"
+                    ? "Not writing: AutoDuty is running this board and picks its own familiars."
+                    : "Not writing: an older GluttonyCombo that also fills familiars is loaded.");
             }
             return;
         }

@@ -34,6 +34,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly MainWindow _window;
     private readonly ChangelogGate _changelog;
     private bool _wasBst;
+    private bool _gluttonyConflict;
     private DateTime _nextConflictCheck = DateTime.MinValue;
 
     public Plugin(IDalamudPluginInterface pi)
@@ -95,6 +96,9 @@ public sealed class Plugin : IDalamudPlugin
             _wasBst = true;
 
             CheckGluttonyConflict();
+            PetSelect.YieldReason = _gluttonyConflict ? "conflict_gluttony"
+                : Config.YieldToAutoDuty && ExternalDrivers.AutoDutyRunning ? "autoduty_running"
+                : null;
             AgentProbe.Ensure();
             ScreenRecorder.Tick(Config.RecordScreens);
             PetSelect.Tick();
@@ -124,9 +128,9 @@ public sealed class Plugin : IDalamudPlugin
             }
         }
 
-        if (blocked == PetSelect.WritesBlocked)
+        if (blocked == _gluttonyConflict)
             return;
-        PetSelect.WritesBlocked = blocked;
+        _gluttonyConflict = blocked;
         if (blocked)
         {
             CrucibleLog.Warning($"GluttonyCombo {version} also fills Crucible familiars; LazyCrucible is not writing until GluttonyCombo is updated.");

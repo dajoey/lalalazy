@@ -29,7 +29,8 @@ internal static class FormationLogic
     ///     surface change re-arms the pass. On a board, a battle-key change while the screen stays open
     ///     re-arms too (the stage focus settles ~40 ms after the horn preview opens). On the pre-entry roster
     ///     menu a key change never re-arms: the key there is only a board guess and flapped -1 -> 0 -> -1
-    ///     while the roster was cleared and rebuilt by hand (live 12:50, four overwrites). An aborted phase
+    ///     while another automation (AutoDuty building its leveling team) cleared and rebuilt the roster (live
+    ///     12:50, four overwrites). An aborted phase
     ///     or one the player edited stays done until the screen closes. Territory alone is not a re-arm
     ///     signal. PURE.
     /// </summary>
@@ -244,8 +245,12 @@ internal static class FormationLogic
         Roster,
         /// <summary> Mode 2: party preview from content, where the three Battlehorn slots are assigned. </summary>
         Horn,
-        /// <summary> Modes 3-5 or SubMode 0: the shop's feed flow reusing the same agent. Never written. </summary>
-        Feed,
+        /// <summary>
+        ///     Modes 3-5 or SubMode 0: the item shop's Beast Feed target picker (mode 3) and the campsite's
+        ///     rest picker (mode 4, live 2026-09-21 12:56:54 — PR #1952 calls it "buy feed result") reuse the same
+        ///     agent and addon. Never written.
+        /// </summary>
+        FeedOrCamp,
         /// <summary> Any other mode (1 = party preview without content). Never written. </summary>
         Other,
     }
@@ -276,7 +281,7 @@ internal static class FormationLogic
     /// <summary>
     ///     Classify the open XBMPetParty screen from AtkValues [2] (Mode) and [3] (SubMode). PURE.
     ///     Live evidence (2026-09-20/21, every open in five runs): Bentbranch roster list [2]=0 [3]=1,
-    ///     in-board Battlehorn preview [2]=2 [3]=1, shop feed picker [2]=3 [3]=0 — the same values
+    ///     in-board Battlehorn preview [2]=2 [3]=1, shop feed picker [2]=3 [3]=0, campsite [2]=4 [3]=0 — the same values
     ///     ClientStructs PR #1952 documents for AgentXBMPetParty.Mode (0 pet list, 1 party preview,
     ///     2 party preview from content, 3 buy feed, 4 buy feed result, 5 feed detail) and SubMode (0 for
     ///     modes 3 and 4). On the first frame of an open only [3] is populated.
@@ -285,7 +290,7 @@ internal static class FormationLogic
     {
         // Any feed signal wins: SubMode 0 is populated on the first frame of the shop's open.
         if (addonSubMode == 0 || addonMode is 3 or 4 or 5)
-            return PetPartyScreen.Feed;
+            return PetPartyScreen.FeedOrCamp;
         if (addonSubMode < 0)
             return PetPartyScreen.Settling;
         return addonMode switch
@@ -314,8 +319,8 @@ internal static class FormationLogic
         var screen = ClassifyPetPartyScreen(g.AddonMode, g.AddonSubMode);
         switch (screen)
         {
-            case PetPartyScreen.Feed:
-                return (FormationWrite.None, "feed");
+            case PetPartyScreen.FeedOrCamp:
+                return (FormationWrite.None, "feed_or_camp");
             case PetPartyScreen.Other:
                 return (FormationWrite.None, "other_mode");
             case PetPartyScreen.Settling:
