@@ -13,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using Lalalazy.Telemetry;
 
 namespace LazyMarketCompanion;
 
@@ -146,6 +147,9 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
   private const float CornerInset = MarkerAnchor.Inset;
 
   private bool _disposed;
+
+  // Error reporting (2026-09-21): circuit breaker for the per-frame marker draw.
+  private readonly TelemetryGuard _drawGuard = LalaTelemetry.CreateGuard("markers.draw", "inventory markers");
   // Which (grid addon, container) pairs already emitted their one INFO line this session (the grading signal).
   private readonly HashSet<string> _loggedAddons = [];
   // Set once per session when the page gate suppresses every E-grid (the Key Items & Crystals grading signal).
@@ -174,6 +178,10 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
   {
     if (_disposed || !Plugin.Configuration.AutoMarketMarkersEnabled)
       return;
+    // Error reporting (2026-09-21): a draw that throws every frame is stopped after repeated failures
+    // (one ER|trip line + one chat notice) instead of an ERR line per frame; it retries on its own.
+    if (!_drawGuard.TryEnter())
+      return;
 
     try
     {
@@ -194,7 +202,7 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
     catch (Exception ex)
     {
       // Markers are pure display and must never take the plugin's automation down with them.
-      Svc.Log.Error(ex, "[LMC] markers: draw failed (markers suppressed this frame)");
+      _drawGuard.Failed(ex);
     }
   }
 

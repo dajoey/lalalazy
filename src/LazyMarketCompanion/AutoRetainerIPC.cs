@@ -78,7 +78,7 @@ public sealed class AutoRetainerIPC : IDisposable
   private void OnAdditionalTask(string retainer)
   {
     try { OnRetainerPostprocessStep?.Invoke(retainer); }
-    catch (Exception ex) { Svc.Log.Error(ex, "[LMC] OnRetainerPostprocessStep handler"); }
+    catch (Exception ex) { Lalalazy.Telemetry.LalaTelemetry.Error("ar-ipc.postprocess-step", ex); }
   }
 
   private void OnReadyForPostprocess(string plugin, string retainer)
@@ -90,7 +90,7 @@ public sealed class AutoRetainerIPC : IDisposable
     try { OnRetainerReadyToPostprocess?.Invoke(retainer); }
     catch (Exception ex)
     {
-      Svc.Log.Error(ex, "[LMC] OnRetainerReadyToPostprocess handler; releasing AutoRetainer");
+      Lalalazy.Telemetry.LalaTelemetry.Error("ar-ipc.ready-to-postprocess", ex, "releasing AutoRetainer");
       FinishRetainerPostProcess();
     }
   }

@@ -7,6 +7,7 @@ using ECommons.GameHelpers;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Component.GUI;
+using Lalalazy.Telemetry;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -213,15 +214,19 @@ internal partial class BST
             if (name == "XBMPetParty" || name == "XBMContentsMainHUD")
             {
                 var party = ReadPartyHp();
-                Svc.Log.Information($"XP|{nowMs}|{name}|verified={(PartyHpVerified ? 1 : 0)}|" +
-                                    string.Join(",", party.Select(kv => $"{kv.Key}:{kv.Value:0}")));
+                var xp = $"XP|{nowMs}|{name}|verified={(PartyHpVerified ? 1 : 0)}|" +
+                         string.Join(",", party.Select(kv => $"{kv.Key}:{kv.Value:0}"));
+                Svc.Log.Information(xp);
+                LalaTelemetry.Record(xp);
             }
 
             const int chunk = 900;
             for (int offset = 0, part = 0; offset < text.Length && part < 8; offset += chunk, part++)
             {
                 var prefix = part == 0 ? $"XB|{nowMs}|{name}|n={unit->AtkValuesCount}|" : $"XB+|{nowMs}|{name}|{part}|";
-                Svc.Log.Information(prefix + text.Substring(offset, Math.Min(chunk, text.Length - offset)));
+                var xb = prefix + text.Substring(offset, Math.Min(chunk, text.Length - offset));
+                Svc.Log.Information(xb);
+                LalaTelemetry.Record(xb);
             }
         }
     }

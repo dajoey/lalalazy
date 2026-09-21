@@ -1,5 +1,6 @@
 using System;
 using ECommons.DalamudServices;
+using Lalalazy.Telemetry;
 using LazyMarketCompanion.AutoMarket;
 
 namespace LazyMarketCompanion;
@@ -18,10 +19,11 @@ namespace LazyMarketCompanion;
 ///     price?" from a guess into a query.
 /// </summary>
 /// <remarks>
-///     <b>Cost when off:</b> a single bool read at the one call site in
-///     <c>SetNewPrice</c>; nothing else runs - in particular not
-///     <see cref="ItemNameResolver.TryGetItemId"/>, which is a linear scan of the Item
-///     sheet and is the reason the flag is checked BEFORE anything is gathered.<br />
+///     <b>Cost when off:</b> no log line, and in particular no
+///     <see cref="ItemNameResolver.TryGetItemId"/> (a linear scan of the Item sheet) and no
+///     market-container read. Since 2026-09-21 a light copy of the line (itemId 0, qty 0) is
+///     still formatted once per price decision - never per frame - and kept only in the
+///     in-memory ring that a <c>/lmc report</c> dumps (src/Shared/LalaTelemetry).<br />
 ///     <b>Volume:</b> one line per price decision, ungated. A retainer run prices tens of
 ///     listings, so unlike GluttonyCombo (one decision per frame) there is nothing here to
 ///     rate-limit, and a dropped abort would be the single most interesting line lost.<br />
@@ -35,9 +37,9 @@ internal static class MarketTelemetry
     public const string Prefix = MarketTelemetryFormat.Prefix;
 
     /// <summary>
-    ///     Emits one price-decision line. Call ONLY behind
-    ///     <c>Plugin.Configuration.DecisionTelemetry</c> - the item-id resolution below is
-    ///     not free, and the whole promise of the flag is that nothing happens when it is off.
+    ///     Records one price-decision line. <paramref name="log"/> = <c>Plugin.Configuration.DecisionTelemetry</c>:
+    ///     when true the line is logged with the resolved item id and quantity; when false only a light
+    ///     copy (itemId 0, qty 0 - no Item-sheet scan) goes to the in-memory telemetry ring.
     /// </summary>
     /// <param name="itemName">Display name from the open price dialog.</param>
     /// <param name="rawItemName">Raw (SeString) name from the same dialog; both are needed to resolve the id.</param>
@@ -51,11 +53,13 @@ internal static class MarketTelemetry
     /// <param name="isPlaceholder">The old price was the Auto-Market placeholder (a brand-new listing).</param>
     /// <param name="aborted">The MaxUndercutPercentage guard refused the write.</param>
     /// <param name="cutPercentage">Change from oldPrice to newPriceFinal in percent, as the guard computed it.</param>
+    /// <param name="log">Write the full line to the plugin log (the telemetry toggle); false = ring only.</param>
     public static void RecordDecision(
         string itemName, string rawItemName,
         int oldPrice, int newPriceRaw, int newPriceFinal,
         bool fromUniversalis, bool fromCache, bool usedDefaultAmount,
-        bool limited, bool isPlaceholder, bool aborted, float cutPercentage)
+        bool limited, bool isPlaceholder, bool aborted, float cutPercentage,
+        bool log = true)
     {
         try
         {
@@ -66,28 +70,36 @@ internal static class MarketTelemetry
             var hq = itemName.Contains(MarketTelemetryFormat.HqGlyph, StringComparison.Ordinal)
                   || rawItemName.Contains(MarketTelemetryFormat.HqGlyph, StringComparison.Ordinal);
 
-            if (!ItemNameResolver.TryGetItemId(itemName, rawItemName, out var itemId))
-                itemId = 0;
-
-            var qty = MarketTelemetryFormat.ResolveQuantity(AutoMarketService.SnapshotMarket(), itemId, hq);
+            uint itemId = 0;
+            var qty = 0;
+            if (log)
+            {
+                if (!ItemNameResolver.TryGetItemId(itemName, rawItemName, out itemId))
+                    itemId = 0;
+                qty = MarketTelemetryFormat.ResolveQuantity(AutoMarketService.SnapshotMarket(), itemId, hq);
+            }
 
             var src = usedDefaultAmount ? MarketTelemetryFormat.SrcDefault
                     : fromUniversalis ? MarketTelemetryFormat.SrcUniversalis
                     : MarketTelemetryFormat.SrcBoard;
 
-            Svc.Log.Information(MarketTelemetryFormat.BuildLine(
+            var line = MarketTelemetryFormat.BuildLine(
                 DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                 itemId, hq, qty,
                 oldPrice, newPriceRaw, newPriceFinal,
                 src,
                 MarketTelemetryFormat.BuildFlags(isPlaceholder, fromCache, limited, aborted),
                 cutPercentage,
-                itemName));
+                itemName);
+            if (log)
+                Svc.Log.Information(line);
+            LalaTelemetry.Record(line);
         }
         catch (Exception ex)
         {
-            // A telemetry tap must never be able to break the plugin.
-            Svc.Log.Debug(ex, "[MarketTelemetry] failed to emit a decision line");
+            // A telemetry tap must never be able to break the plugin - but a tap that silently stops
+            // is how a report ends up with "zero telemetry". Rate-limited WRN, not Debug.
+            LalaTelemetry.Swallowed("telemetry.mt", ex);
         }
     }
 }

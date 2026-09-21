@@ -127,9 +127,10 @@ internal abstract partial class CustomCombo : CustomComboFunctions
 
         // Fork (v1.0.4.168): combo-decision telemetry tap. Sits here, after every
         // gate above, so the line records the action that will actually go out.
-        // Off by default; when off this is one bool read and nothing more.
-        if (Service.Configuration.ComboTelemetry)
-            ComboTelemetry.Record(Preset, actionID, changed ? resultingActionID : actionID);
+        // Switch on: logged. Switch off (default): a changed decision is kept only in the
+        // in-memory ring a /gluttony report dumps, capped at 10 lines/s (2026-09-21).
+        ComboTelemetry.Record(Preset, actionID, changed ? resultingActionID : actionID,
+            Service.Configuration.ComboTelemetry);
 
         if (!changed)
             return false;

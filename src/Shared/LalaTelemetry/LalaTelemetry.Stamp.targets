@@ -1,0 +1,46 @@
+<Project>
+  <!--
+    Build stamp for src/Shared/LalaTelemetry: puts the short git SHA of the tree being built into
+    [assembly: AssemblyMetadata("LalaCommit", "<sha>")], which BuildStamp.CommitOf() reads at runtime and
+    every ER| / RP| line carries as c=<sha>.
+
+    Degrades to "unknown" instead of failing the build when git is missing from PATH (a Windows packaging
+    shell), the source is not a git checkout (a zip), or git prints anything that is not a bare SHA.
+    Overrides:  -p:LalaCommit=<sha>  (skip git entirely)   -p:LalaGitExe=<path to git>
+    Import it once per project:  <Import Project="..\Shared\LalaTelemetry\LalaTelemetry.Stamp.targets" />
+  -->
+  <PropertyGroup>
+    <LalaGitExe Condition="'$(LalaGitExe)' == ''">git</LalaGitExe>
+  </PropertyGroup>
+
+  <Target Name="LalaStampCommit" BeforeTargets="GetAssemblyAttributes">
+    <Exec Condition="'$(LalaCommit)' == ''"
+          Command="&quot;$(LalaGitExe)&quot; rev-parse --short=10 HEAD"
+          WorkingDirectory="$(MSBuildProjectDirectory)"
+          ConsoleToMSBuild="true"
+          EchoOff="true"
+          IgnoreExitCode="true"
+          IgnoreStandardErrorWarningFormat="true"
+          StandardOutputImportance="low"
+          StandardErrorImportance="low"
+          ContinueOnError="true">
+      <Output TaskParameter="ConsoleOutput" ItemName="_LalaGitLine" />
+      <Output TaskParameter="ExitCode" PropertyName="_LalaGitExitCode" />
+    </Exec>
+
+    <ItemGroup Condition="'$(LalaCommit)' == '' and '$(_LalaGitExitCode)' == '0'">
+      <_LalaShaLine Include="@(_LalaGitLine)" Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(Identity)', '^[0-9a-f]{7,40}$'))" />
+    </ItemGroup>
+
+    <PropertyGroup>
+      <LalaCommit Condition="'$(LalaCommit)' == '' and '@(_LalaShaLine)' != '' and !$([System.String]::new('@(_LalaShaLine)').Contains(';'))">@(_LalaShaLine)</LalaCommit>
+      <LalaCommit Condition="'$(LalaCommit)' == ''">unknown</LalaCommit>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <AssemblyMetadata Include="LalaCommit" Value="$(LalaCommit)" />
+    </ItemGroup>
+
+    <Message Importance="normal" Text="LalaTelemetry: $(MSBuildProjectName) stamped with commit $(LalaCommit)" />
+  </Target>
+</Project>

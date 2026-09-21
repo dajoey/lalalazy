@@ -4,6 +4,7 @@ using ECommons.GameHelpers;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using GluttonyCombo.Combos.PvE;
 using GluttonyCombo.Core;
+using Lalalazy.Telemetry;
 using System;
 using System.Collections.Generic;
 
@@ -64,7 +65,11 @@ internal static class BeastmasterTelemetry
             var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
             if (BeastmasterTelemetryFormat.ShouldEmit(ref _gate, now, snapshot))
-                Svc.Log.Information(BeastmasterTelemetryFormat.BuildLine(now, snapshot));
+            {
+                var line = BeastmasterTelemetryFormat.BuildLine(now, snapshot);
+                Svc.Log.Information(line);
+                LalaTelemetry.Record(line);
+            }
 
             // Crucible of the Unbroken: CR| stays board-only; XB| follows any visible XBM* addon (Bentbranch included).
             if (Player.Object is not null)
@@ -73,15 +78,20 @@ internal static class BeastmasterTelemetry
                 {
                     var crucible = SampleCrucible();
                     if (CrucibleTelemetryFormat.ShouldEmit(ref _crucibleGate, now, crucible))
-                        Svc.Log.Information(CrucibleTelemetryFormat.BuildLine(now, crucible));
+                    {
+                        var line = CrucibleTelemetryFormat.BuildLine(now, crucible);
+                        Svc.Log.Information(line);
+                        LalaTelemetry.Record(line);
+                    }
                 }
                 BST.CaptureCrucibleUi(now);
             }
         }
         catch (Exception ex)
         {
-            // A collector must never be able to break the framework tick.
-            Svc.Log.Debug(ex, "[BeastmasterTelemetry] failed to emit a collector line");
+            // A collector must never be able to break the framework tick - nor fail silently every
+            // frame (it used to log at Debug, i.e. invisibly). Rate-limited WRN via the error reporting.
+            LalaTelemetry.Swallowed("telemetry.bt", ex);
         }
     }
 

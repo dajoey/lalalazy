@@ -87,6 +87,10 @@ public sealed class ConfigWindow : Window
       ImGui.EndTabItem();
     }
 
+    // Shared "Report a problem" (src/Shared/LalaTelemetry): a trailing tab-bar button + popup that writes
+    // an RP| report (game state, recent decisions, open windows) to the plugin log.
+    Plugin.Telemetry?.DrawReportTabButton();
+
     ImGui.EndTabBar();
     _forceTab = Tab.None;
   }

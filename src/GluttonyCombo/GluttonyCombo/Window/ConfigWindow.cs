@@ -256,6 +256,11 @@ internal class ConfigWindow : Dalamud.Interface.Windowing.Window
         if (ImGui.Selectable(MainWindowUI.Button_About, OpenWindow == OpenWindow.About))
             OpenWindow = OpenWindow.About;
 
+        // Fork (error reporting): shared "Report a problem" button + popup - writes an RP| report (game
+        // state, recent decisions, open windows) to the plugin log. src/Shared/LalaTelemetry.
+        ImGui.Spacing();
+        P.Telemetry?.DrawReportButton();
+
 #if DEBUG
         ImGui.Spacing();
         ImGui.Spacing();

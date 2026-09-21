@@ -2449,7 +2449,12 @@ internal unsafe class AutoRotationController
                                 (NeedsDoomTopUp(x.BattleChara) ||
                                  GetTargetHPPercent(x.BattleChara, cfg.HealerSettings.IncludeShields) <= cfg.HealerSettings.AoETargetHPP));
             }
-            catch { memberCount = 0; }
+            catch (Exception ex)
+            {
+                // Fork (error reporting): was a silent catch - an AoE heal that never fires with no trace.
+                memberCount = 0;
+                Lalalazy.Telemetry.LalaTelemetry.Swallowed("autorot.aoe-heal-count", ex);
+            }
 
             return memberCount >= cfg.HealerSettings.AoEHealTargetCount;
         }

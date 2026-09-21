@@ -132,7 +132,9 @@ internal sealed class ActionReplacer : IDisposable
         }
         catch (Exception e)
         {
-            e.Log();
+            // Fork (error reporting): one rate-limited ER| line per failure signature instead of an
+            // ERR line on every hook call (this detour runs for every visible hotbar slot).
+            Lalalazy.Telemetry.LalaTelemetry.Error("action-replacer", e);
             return actionID;
         }
     }

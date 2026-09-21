@@ -46,6 +46,7 @@ using GluttonyCombo.Window;
 using GluttonyCombo.Window.Functions;
 using GluttonyCombo.Window.Tabs;
 using Lalalazy.Changelog;
+using Lalalazy.Telemetry;
 using GenericHelpers = ECommons.GenericHelpers;
 
 namespace GluttonyCombo;
@@ -60,6 +61,12 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
     internal static GluttonyCombo? P;
     private readonly WindowSystem ws;    // Shared lalalazy "What's new" popup - fork wiring, seen-version in a sidecar json (NOT Configuration).
     internal ChangelogGate? _changelog;
+    // Fork: shared error reporting (src/Shared/LalaTelemetry) - installed first in the constructor, disposed
+    // last. The guards are the framework tick's circuit breakers (see OnFrameworkUpdate).
+    internal DalamudTelemetry? Telemetry;
+    private readonly TelemetryGuard _tickGuard;
+    private readonly TelemetryGuard _tickBstGuard;
+    private readonly TelemetryGuard _tickStatusGuard;
     private static readonly SocketsHttpHandler httpHandler = new()
     {
         AutomaticDecompression = DecompressionMethods.All,
@@ -217,6 +224,12 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         var existingInstall = pluginInterface.ConfigFile.Exists;
         pluginInterface.Create<Service>();
         ECommonsMain.Init(pluginInterface, this, Module.All);
+        // Fork: shared error reporting FIRST (right after ECommons, which provides the services), so a
+        // failure anywhere below is an ER| line carrying version, channel, commit and zone.
+        Telemetry = InstallTelemetry(pluginInterface);
+        _tickGuard = LalaTelemetry.CreateGuard("tick", "auto-rotation and the per-frame update");
+        _tickBstGuard = LalaTelemetry.CreateGuard("tick.bst", "the Beastmaster collectors and Crucible familiar selection");
+        _tickStatusGuard = LalaTelemetry.CreateGuard("tick.status", "the server info bar text and combat alerts");
         // The Retarget registry is created FIRST: static initialisers elsewhere
         // (AutoRotationController) call (uint).Retarget(), which needs it.
         ActionRetargeting = new ActionRetargeting();
@@ -386,7 +399,7 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         }
         catch (Exception e)
         {
-            e.Log();
+            LalaTelemetry.Error("startup.remove-null-autos", e);
         }
     }
 
@@ -402,6 +415,13 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
 
     private void OnFrameworkUpdate(IFramework framework)
     {
+        // Fork (error reporting): a circuit breaker instead of logging the same exception every frame. A
+        // tick that keeps throwing is skipped after repeated failures (one ER|trip line + one chat notice)
+        // and retries on its own - 30 s, doubling to 5 min (src/Shared/LalaTelemetry). The fork-owned
+        // sections below have their own breakers, so a failure there can never stop auto-rotation.
+        if (!_tickGuard.TryEnter())
+            return;
+
         try
         {
             #region Checks that don't require the Player to be loaded
@@ -431,16 +451,26 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
             AutoRotationController.Run();
             UpcomingPositionalHintService.Tick();
 
-            // Fork (BST skeleton): Beastmaster debug collector. Off by default behind the
-            // same "Combo Decision Telemetry" switch as the CT| tap; when off this is one
-            // bool read. Tick() itself returns immediately unless the player is on BST.
-            if (Service.Configuration.ComboTelemetry)
-                BeastmasterTelemetry.Tick();
+            if (_tickBstGuard.TryEnter())
+            {
+                try
+                {
+                    // Fork (BST skeleton): Beastmaster debug collector. Off by default behind the
+                    // same "Combo Decision Telemetry" switch as the CT| tap; when off this is one
+                    // bool read. Tick() itself returns immediately unless the player is on BST.
+                    if (Service.Configuration.ComboTelemetry)
+                        BeastmasterTelemetry.Tick();
 
-            // Crucible pet-selection autograb + read-only PSP| probe. Arms when a familiar-selection
-            // addon is open (XBMActivePet / XBMPetParty), never on territory; option-off still emits
-            // one PS| line per formation phase.
-            BST_CruciblePetSelect.Tick();
+                    // Crucible pet-selection autograb + read-only PSP| probe. Arms when a familiar-selection
+                    // addon is open (XBMActivePet / XBMPetParty), never on territory; option-off still emits
+                    // one PS| line per formation phase.
+                    BST_CruciblePetSelect.Tick();
+                }
+                catch (Exception ex)
+                {
+                    _tickBstGuard.Failed(ex);
+                }
+            }
 
             if (Player.IsDead)
             {
@@ -450,57 +480,72 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
 
             #endregion
 
-            #region DTR Bar Updating
-
-            var autoOn = IPC.GetAutoRotationState();
-            var icon = new IconPayload(autoOn
-                ? BitmapFontIcon.SwordUnsheathed
-                : BitmapFontIcon.SwordSheathed);
-
-            var text = autoOn ? ": On" : ": Off";
-            if (!Service.Configuration.ShortDTRText && autoOn)
-                text += $" ({P.IPCSearch.ActiveJobPresets} active)";
-            var ipcControlledText =
-                P.UIHelper.AutoRotationStateControlled() is not null
-                    ? "(Locked)"
-                    : "";
-
-            var pausedText =
-                AutoRotationController.Paused ? "(Paused)" : "";
-
-            var statusText = string.Join(" ", [text, ipcControlledText, pausedText]);
-
-            var payloadText = new TextPayload(statusText);
-            if (DtrBarEntry is not null)
-                DtrBarEntry.Text = new SeString(icon, payloadText);
-
-            #endregion
-
-            if (OpenerDtr is not null)
+            // Fork (error reporting): server info bar text and combat alerts under their own breaker - a
+            // display failure here must not stop the rotation above.
+            if (_tickStatusGuard.TryEnter())
             {
-                if (Service.Configuration.ShowOpenerDtr)
+                try
                 {
-                    var status = new TextPayload(WrathOpener.OpenerStatus());
-                    OpenerDtr.Text = new SeString(status);
-                    OpenerDtr.Shown = true;
+                    #region DTR Bar Updating
+
+                    var autoOn = IPC.GetAutoRotationState();
+                    var icon = new IconPayload(autoOn
+                        ? BitmapFontIcon.SwordUnsheathed
+                        : BitmapFontIcon.SwordSheathed);
+
+                    var text = autoOn ? ": On" : ": Off";
+                    if (!Service.Configuration.ShortDTRText && autoOn)
+                        text += $" ({P.IPCSearch.ActiveJobPresets} active)";
+                    var ipcControlledText =
+                        P.UIHelper.AutoRotationStateControlled() is not null
+                            ? "(Locked)"
+                            : "";
+
+                    var pausedText =
+                        AutoRotationController.Paused ? "(Paused)" : "";
+
+                    var statusText = string.Join(" ", [text, ipcControlledText, pausedText]);
+
+                    var payloadText = new TextPayload(statusText);
+                    if (DtrBarEntry is not null)
+                        DtrBarEntry.Text = new SeString(icon, payloadText);
+
+                    #endregion
+
+                    if (OpenerDtr is not null)
+                    {
+                        if (Service.Configuration.ShowOpenerDtr)
+                        {
+                            var status = new TextPayload(WrathOpener.OpenerStatus());
+                            OpenerDtr.Text = new SeString(status);
+                            OpenerDtr.Shown = true;
+                        }
+                        else
+                            OpenerDtr.Shown = false;
+                    }
+
+                    // v1.0.4.197: Smart Movement DTR text (own toggle, independent of
+                    // auto-rotation). Reuses the verified sword icons.
+                    if (Service.Configuration.TankbusterTTS || Service.Configuration.TankbusterToast)
+                        CustomComboFunctions.PlayTankbusterAlert();
+
+                    if (Service.Configuration.AoEDamageTTS || Service.Configuration.AoEDamageToast)
+                        CustomComboFunctions.PlayGroupwideAlert();
                 }
-                else
-                    OpenerDtr.Shown = false;
+                catch (Exception ex)
+                {
+                    _tickStatusGuard.Failed(ex);
+                }
             }
-
-            // v1.0.4.197: Smart Movement DTR text (own toggle, independent of
-            // auto-rotation). Reuses the verified sword icons.
-            if (Service.Configuration.TankbusterTTS || Service.Configuration.TankbusterToast)
-                CustomComboFunctions.PlayTankbusterAlert();
-
-            if (Service.Configuration.AoEDamageTTS || Service.Configuration.AoEDamageToast)
-                CustomComboFunctions.PlayGroupwideAlert();
 
             SimpleTargetState.ManageStateList();
         }
         catch (Exception ex)
         {
-            ex.Log("Pls no crash game ty");
+            // Fork (error reporting): was ex.Log("Pls no crash game ty"), which wrote the message and the
+            // exception as TWO ERR lines (the stack-free half became its own top error group) on every
+            // frame. Now: one rate-limited ER| line with version/commit/zone/job, and the breaker above.
+            _tickGuard.Failed(ex);
         }
     }
 
@@ -553,7 +598,7 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
 
         catch (Exception ex)
         {
-            Svc.Log.Error(ex, "Unable to retrieve MotD");
+            LalaTelemetry.Error("motd", ex);
         }
     }
 
@@ -595,7 +640,7 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         {
             // A failed migration must never stop the plugin loading; worst case the user's
             // settings simply stay as they were.
-            PluginLog.Error($"Configuration migration failed, leaving settings as-is: {ex}");
+            LalaTelemetry.Error("startup.config-migration", ex, "leaving settings as-is");
         }
     }
 
@@ -666,6 +711,9 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         AllStaticIPCSubscriptions.Dispose();
         AutoDutyIPC?.Dispose();
         Svc.ClientState.Login -= PrintLoginMessage;
+        // Fork: error reporting last, so anything that failed while tearing down above was still reported.
+        Telemetry?.Dispose();
+        Telemetry = null;
         ECommonsMain.Dispose();
         P = null;
     }
