@@ -1193,7 +1193,7 @@ public enum Preset
     [OccultCrescent]
     [ParentCombo(Phantom_RedMage_OccultLibra)]
     [JobInfo(Job.ADV)]
-    Phantom_RedMage_OccultLibra_Refresh = 110140,
+    Phantom_RedMage_OccultLibra_Refresh = 110143,
 
     [OccultCrescent]
     [ParentCombo(Phantom_RedMage)]
@@ -1238,7 +1238,7 @@ public enum Preset
     [JobInfo(Job.ADV)]
     Phantom755_RequireWeakness = 110140,
 
-    //Last Value = 110142
+    //Last Value = 110143
     #endregion
 
     #region Deep Dungeon

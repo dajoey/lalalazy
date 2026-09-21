@@ -1,3 +1,23 @@
+## v1.0.4.228 (2026-09-20) [testing]
+### Added
+- **Upcoming positional hints are published over IPC.** Dragoon, Monk, Ninja, Reaper, Samurai and Viper now report which side the next positional weapon skill wants, so an overlay plugin can show it before the skill comes up.
+- **Blue Mage gains a second Moon Flute opener and a one-button primal combo.** The opener has an optional damage-over-time variant for 2.20 or faster spell speed. The primal button carries per-spell toggles for Feather Rain, Eruption, Shock Strike, Rose of Destruction and Glass Dance, with separate options for pooling, J Kick, Nightbloom, Matra Magic, Surpanakha, Winged Reprobation, Sea Shanty and Phantom Flurry. Song of Torment can also be held until Bristle is up.
+- **Occult Crescent: Libra can refresh itself**, as a sub-option of the existing Libra feature.
+- **Openers can be blocked from firing pre-pull**, and J Kick can be left to you to press so it stays available as a gap closer.
+### Changed
+- **Openers were rebuilt on one shared framework.** Countdown and territory checks behave the same way across jobs, an opener that gets skipped now resets after a bounded wait instead of staying skipped for the fight, and an opener for Futures Rewritten was added.
+- Job helper code across the roster moved to the current status-checking calls. Behaviour is unchanged; the older helpers are now marked obsolete.
+- Dark Knight, Dragoon, Machinist, Monk, Reaper, Red Mage, Sage and Samurai picked up upstream rotation fixes from this range.
+- The two Occult Crescent Aero sub-options are now hidden in the list; a value already saved for them is still honoured.
+### Fixed
+- Item-use messages from other players no longer show up in your chat.
+- Astrologian's advanced AoE custom action retargets correctly again.
+- Dark Knight handles The Blackest Night below level 70.
+- Queueing Cease no longer breaks the disable path.
+- A settings-conflict row was added for the Redirect plugin.
+### Notes
+- Large upstream catch-up: 118 upstream commits across 155 files. Beastmaster remains fork-owned — upstream's own Beastmaster rotation, its presets and its debug gauge overlay are deliberately not imported, and the fork's Beastmaster and Crucible files are untouched by this merge. One newly added upstream feature claimed an option id this plugin had already used for a different Occult Crescent option; the new one was renumbered before release, so no saved setting changes meaning. Production channel unchanged.
+
 ## v1.0.4.227 (2026-09-20) [testing]
 ### Fixed
 - **Conflict scanner no longer aborts when BossMod Reborn reports an AI auto-target conflict and classic BossMod is not installed.** The Reborn AI-targeting conflict row was labelled with the classic BossMod internal name, so building that row threw and the whole settings-conflict pass failed every tick.
