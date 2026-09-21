@@ -83,8 +83,8 @@ dotnet build src/GluttonyCombo/GluttonyCombo.slnx -c Release
 
 ## pluginmaster.json Encoding
 
-This file has a **UTF-8 BOM**. When writing it:
-- PowerShell: use `[IO.File]::WriteAllBytes` with BOM prefix, or `-Encoding UTF8` (which adds BOM in PS 5.1)
+This file is **UTF-8 without a BOM** — `tools/Package-Plugin.ps1` writes it with `[System.IO.File]::WriteAllText(..., [System.Text.UTF8Encoding]::new($false))` (corrected 2026-09-21; an older note here said it had a BOM). When writing it by hand:
+- PowerShell: use `[IO.File]::WriteAllText` with `[Text.UTF8Encoding]::new($false)`; never `-Encoding UTF8` in PS 5.1 (that adds a BOM)
 - Direct string replacement (not regex) is more reliable than regex for this file
 - Always do a post-write verification read
 

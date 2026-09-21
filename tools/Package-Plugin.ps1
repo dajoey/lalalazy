@@ -429,9 +429,11 @@ if (-not $entry) {
     $entry.Tags = $manifest.Tags
     $entry.CategoryTags = $manifest.CategoryTags
     $entry.IconUrl = "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/$($PluginName.ToLower())-icon.png"
-    $entry.DownloadLinkInstall = "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/$PluginName/latest/latest.zip"
-    $entry.DownloadLinkUpdate = "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/$PluginName/latest/latest.zip"
-    $entry.DownloadLinkTesting = "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/$PluginName/testing/testing.zip"
+    # Link policy lives in PackageLinks.ps1 (tested by tools/tests/Test-PackageLinks.ps1):
+    # a testing-exclusive plugin keeps install/update on testing.zip (fix 2026-09-21 -
+    # these three lines used to force latest.zip, which 404s before a first promote).
+    . (Join-Path $PSScriptRoot 'PackageLinks.ps1')
+    Set-EntryDownloadLinks -Entry $entry -PluginName $PluginName -Channel $Channel
 
     # Changelog was assigned only when creating a brand-new entry, so an existing plugin
     # kept the text it was first published with forever (fix 2026-08-02). Refresh it here,
