@@ -1,0 +1,6779 @@
+{
+ "version": 1,
+ "sources": {
+  "panel": "game sheets (XBMBattleDetail/Action, 7.56)",
+  "IV": "Icy Veins",
+  "NT": "nettoge.com",
+  "AS": "asellog.com",
+  "G8": "Game8",
+  "LSB": "Lodestone blog",
+  "CGW": "consolegameswiki",
+  "MRB": "MagitekRoutine PR #325 data",
+  "CHR": "CherryXIV Beastmaster-Reactions",
+  "BMR": "BossmodReborn Crucible modules (BSD-3-Clause)",
+  "R": "Reddit comment",
+  "YT": "video description"
+ },
+ "fights": [
+  {
+   "board": 1,
+   "battle": 1,
+   "title": "Bone Knight + Bone Bishop",
+   "where": "Move 1 (both paths)",
+   "summary": "Two skeletons: dodge rings and lines, stop Ossify, hit the Knight from behind.",
+   "killOrder": {
+    "text": "Bone Bishop first; its ring and line casts are harder to dodge",
+    "src": [
+     "NT",
+     "R"
+    ]
+   },
+   "mechanics": [
+    {
+     "name": "Death Spiral",
+     "ids": [
+      46867,
+      46868
+     ],
+     "cast": 6.0,
+     "tell": "Bishop casts a donut (4-40y) around itself",
+     "do": "Stand right under the Bishop",
+     "src": [
+      "IV",
+      "NT",
+      "MRB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Tumulus",
+     "ids": [
+      46866
+     ],
+     "cast": 5.0,
+     "tell": "Knight casts a 6y circle on itself",
+     "do": "Step out of the Knight's circle",
+     "src": [
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Black Eruption",
+     "ids": [
+      46873,
+      46874,
+      46900
+     ],
+     "cast": 6.0,
+     "tell": "5y circle, then 4 lines of circles march outward",
+     "do": "Wait out the first bursts, then step into the origin",
+     "src": [
+      "IV",
+      "NT",
+      "CHR",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Ancient Aero",
+     "ids": [
+      46869,
+      46870
+     ],
+     "cast": 5.7,
+     "tell": "Bishop fires an 8y-wide line; leaves Windburn",
+     "do": "Step out of the line",
+     "src": [
+      "IV",
+      "NT",
+      "MRB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Forward Guard",
+     "ids": [
+      46864
+     ],
+     "cast": 5.0,
+     "tell": "Knight raises a shield that blocks hits from the front",
+     "do": "Snarl so it faces the pet, then hit it from behind",
+     "src": [
+      "IV",
+      "NT",
+      "CHR",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Ossify",
+     "ids": [
+      46871
+     ],
+     "cast": 8.0,
+     "tell": "Knight self buff: Physical Damage Up",
+     "do": "Interrupt with Soul Crush or dispel it; small buff, can ignore",
+     "src": [
+      "IV",
+      "NT",
+      "MRB",
+      "panel",
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [
+    {
+     "name": "Skull Splinter",
+     "ids": [],
+     "cast": 5.0,
+     "tell": "Knight single-target hard hit",
+     "do": "Let the pet take it, or Parting Blow 1-2 s before it lands",
+     "src": [
+      "NT"
+     ]
+    }
+   ],
+   "counters": [
+    {
+     "need": "interrupt",
+     "what": "Ossify (Knight, 8 s self buff)",
+     "src": [
+      "panel"
+     ]
+    },
+    {
+     "need": "dispel",
+     "what": "Physical Damage Up from Ossify",
+     "src": [
+      "panel"
+     ]
+    },
+    {
+     "need": "cleanse",
+     "what": "Windburn from Ancient Aero",
+     "src": [
+      "panel"
+     ]
+    }
+   ],
+   "threats": [
+    "tankbuster"
+   ],
+   "bring": [
+    {
+     "text": "Beastskin (Beastkin borrow) before the pull",
+     "src": [
+      "NT"
+     ]
+    },
+    {
+     "text": "Scouring Ash (Ashkin) or Ultrasonics (bat) for Windburn when convenient",
+     "src": [
+      "IV",
+      "NT"
+     ]
+    }
+   ],
+   "unknown": [
+    "Black Eruption caster: IV and BMR say Bishop; NT and CHR say Knight",
+    "Skull Splinter has no known action ID"
+   ]
+  },
+  {
+   "board": 1,
+   "battle": 2,
+   "title": "Arch Demon Piece",
+   "where": "Move 2 (left path)",
+   "summary": "Pure movement fight; mechanics layer up the longer it lives, so burn it down.",
+   "mechanics": [
+    {
+     "name": "Abyssal Charge",
+     "ids": [
+      46875,
+      46876
+     ],
+     "cast": 3.0,
+     "tell": "Lances appear and fire 4y-wide lines at you, 2-3 times",
+     "do": "Sidestep each line; the lances are not worth attacking",
+     "src": [
+      "IV",
+      "NT",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Dismember",
+     "ids": [
+      46877,
+      46879
+     ],
+     "cast": 4.5,
+     "tell": "Five 8y-wide lanes fire one after another",
+     "do": "Step into the lane that just fired",
+     "src": [
+      "IV",
+      "NT",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Abyssal Transfixion",
+     "ids": [
+      46880,
+      46882,
+      46884
+     ],
+     "cast": 3.7,
+     "tell": "Sword markers drop delayed circles, also under your feet",
+     "do": "Keep moving so the follow-up stab misses",
+     "src": [
+      "IV",
+      "NT",
+      "CHR",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Abyssal Swing",
+     "ids": [
+      46885,
+      46886
+     ],
+     "cast": 5.7,
+     "tell": "Axe swing covers the front half",
+     "do": "Stand in the rear half; the boundary is its centerline",
+     "src": [
+      "IV",
+      "NT",
+      "MRB",
+      "panel",
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [],
+   "counters": [],
+   "threats": [],
+   "bring": [],
+   "unknown": []
+  },
+  {
+   "board": 1,
+   "battle": 3,
+   "title": "Piscodemon Piece",
+   "where": "Move 2 (right path)",
+   "summary": "Dispel Clear Mind before Arcane Blast; dodge marching ice, the cross and the donut.",
+   "mechanics": [
+    {
+     "name": "Void Blizzard III",
+     "ids": [
+      46887,
+      49886,
+      46889,
+      46890
+     ],
+     "cast": 6.0,
+     "tell": "Ice marks the starts; 2 sets of 5y bursts march across",
+     "do": "Wait in set 2's lane, step into set 1's after it passes",
+     "src": [
+      "IV",
+      "NT",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Clear Mind",
+     "ids": [
+      46898
+     ],
+     "cast": 4.0,
+     "tell": "Self buff: Damage Up",
+     "do": "Dispel it: Quelling Wave, Bloodcurdling Caw or Fang of Water",
+     "src": [
+      "IV",
+      "NT",
+      "MRB",
+      "panel"
+     ]
+    },
+    {
+     "name": "Void Flare Star",
+     "ids": [
+      46893,
+      46895
+     ],
+     "cast": 6.0,
+     "tell": "Proximity blast from a marked point",
+     "do": "Get as far from the point as you can",
+     "src": [
+      "IV",
+      "NT",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Void Thunder III",
+     "ids": [
+      46891,
+      46892
+     ],
+     "cast": 5.0,
+     "tell": "Cross AoE with 10y-wide arms",
+     "do": "Stand on a diagonal",
+     "src": [
+      "IV",
+      "NT",
+      "MRB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Void Aero III",
+     "ids": [
+      46896,
+      46897
+     ],
+     "cast": 6.0,
+     "tell": "Donut; safe only right under the boss",
+     "do": "Go under the boss",
+     "src": [
+      "IV",
+      "NT",
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [
+    {
+     "name": "Arcane Blast",
+     "ids": [
+      46899
+     ],
+     "cast": 8.0,
+     "tell": "Unavoidable room-wide; much bigger while Clear Mind is up",
+     "do": "Dispel Clear Mind first, else mitigate (Water Wall, Beastskin)",
+     "src": [
+      "IV",
+      "NT",
+      "BMR"
+     ]
+    }
+   ],
+   "counters": [
+    {
+     "need": "dispel",
+     "what": "Clear Mind (Damage Up on the Piscodemon)",
+     "src": [
+      "panel"
+     ]
+    }
+   ],
+   "threats": [
+    "roomwide"
+   ],
+   "bring": [
+    {
+     "text": "A dispel for Clear Mind: Quelling Wave (Wavekin), Bloodcurdling Caw (vulture) or Fang of Water",
+     "src": [
+      "IV",
+      "NT"
+     ]
+    }
+   ],
+   "unknown": []
+  },
+  {
+   "board": 1,
+   "battle": 4,
+   "title": "Banemite Piece + Miteling Piece",
+   "where": "Move 4 (both paths)",
+   "summary": "Poison tankbuster, expanding rings and a web; AoE the Mitelings when they spawn.",
+   "mechanics": [
+    {
+     "name": "Bedrock Uplift",
+     "ids": [
+      46901,
+      46902,
+      46903,
+      46904,
+      46905
+     ],
+     "cast": 5.0,
+     "tell": "6y circle at center, then rings expand out to 24y",
+     "do": "Step into the first area right after it pops",
+     "src": [
+      "IV",
+      "NT",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Venom Web",
+     "ids": [
+      46907,
+      46908
+     ],
+     "cast": 6.0,
+     "tell": "9y circles drop at center, then around the edge in order",
+     "do": "Move into spots that already went off",
+     "src": [
+      "IV",
+      "NT",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Miteling spawn",
+     "ids": [],
+     "tell": "3 Miteling Pieces spawn around the end of Venom Web",
+     "do": "AoE them; hold an AoE Tempered Release for this",
+     "src": [
+      "IV",
+      "NT",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Silkscreen",
+     "ids": [
+      46909
+     ],
+     "cast": 5.0,
+     "tell": "Miteling line AoE, 4y wide, Heavy",
+     "do": "Step out of the line; Heavy can't be cleansed",
+     "src": [
+      "IV",
+      "MRB",
+      "panel",
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [
+    {
+     "name": "Deadly Thrust",
+     "ids": [
+      46906
+     ],
+     "cast": 5.0,
+     "tell": "Single-target hit on you plus poison",
+     "do": "Snarl, then Parting Blow 1-2 s before it lands; or cleanse after",
+     "src": [
+      "IV",
+      "NT",
+      "CHR",
+      "R",
+      "MRB",
+      "panel",
+      "BMR"
+     ]
+    }
+   ],
+   "counters": [
+    {
+     "need": "cleanse",
+     "what": "Poison from Deadly Thrust",
+     "src": [
+      "panel"
+     ]
+    }
+   ],
+   "threats": [
+    "poison",
+    "heavy",
+    "tankbuster",
+    "adds"
+   ],
+   "bring": [
+    {
+     "text": "Crucible Antidote, Scouring Ash (Ashkin) or Ultrasonics (bat) for Deadly Thrust poison",
+     "src": [
+      "IV",
+      "NT"
+     ]
+    },
+    {
+     "text": "Angel Robe prevents the poison",
+     "src": [
+      "NT"
+     ]
+    },
+    {
+     "text": "Skip poison beasts: the Banemite resists poison",
+     "src": [
+      "NT",
+      "panel"
+     ]
+    }
+   ],
+   "unknown": []
+  },
+  {
+   "board": 1,
+   "battle": 5,
+   "title": "Ogre Piece + Wisp Piece + Great Wisp Piece",
+   "where": "Move 6, elite (both paths)",
+   "summary": "Burst before Burning Ward; if the Ogre shields, kill every wisp before it reaches center.",
+   "killOrder": {
+    "text": "During Burning Ward: nearest wisp first, smallest first",
+    "src": [
+     "IV",
+     "NT",
+     "CHR"
+    ]
+   },
+   "mechanics": [
+    {
+     "name": "Scorching Smite",
+     "ids": [
+      46913,
+      46912
+     ],
+     "cast": 6.0,
+     "tell": "Large 120-degree frontal cone",
+     "do": "Get out of the front; the pet may stay in it",
+     "src": [
+      "IV",
+      "NT",
+      "CHR",
+      "CGW",
+      "MRB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Scorching Smite (teleport)",
+     "ids": [
+      46910,
+      49688
+     ],
+     "cast": 9.3,
+     "tell": "Ogre stands in a lava circle, then teleports to the other",
+     "do": "Stand beside the other circle, outside its facing",
+     "src": [
+      "IV",
+      "NT",
+      "R",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Allfire",
+     "ids": [
+      46915
+     ],
+     "cast": 4.0,
+     "tell": "Room-wide fire, then ground circles and lava pools",
+     "do": "Take the hit, then dodge the circles and pools",
+     "src": [
+      "IV",
+      "NT",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Burning Ward",
+     "ids": [
+      46918
+     ],
+     "cast": 3.0,
+     "tell": "Ogre enters a fireball and is invulnerable",
+     "do": "Burst before it to skip it; if it happens, swap to the wisps",
+     "src": [
+      "IV",
+      "NT",
+      "MRB",
+      "R",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Scorched Earth",
+     "ids": [
+      46919,
+      49728
+     ],
+     "tell": "Wisps that reach center explode room-wide, vuln up",
+     "do": "Kill each wisp first; Snarl if one will reach center",
+     "src": [
+      "IV",
+      "NT",
+      "MRB",
+      "R",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Fire Call",
+     "ids": [
+      46921,
+      46922
+     ],
+     "cast": 4.0,
+     "tell": "A fireball tethers to you, chases, then explodes (10y)",
+     "do": "Kite it; move away when it stops",
+     "src": [
+      "IV",
+      "NT",
+      "CHR",
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [
+    {
+     "name": "Straight Punch",
+     "ids": [
+      46920
+     ],
+     "cast": 5.0,
+     "tell": "Strong single-target hit on you",
+     "do": "Snarl-parting, or let the pet take it",
+     "src": [
+      "IV",
+      "NT",
+      "MRB",
+      "panel"
+     ]
+    }
+   ],
+   "counters": [],
+   "threats": [
+    "roomwide",
+    "adds",
+    "invulnerable",
+    "tankbuster"
+   ],
+   "bring": [
+    {
+     "text": "Water one-shots small wisps: Quelling Wave or a water auto axe",
+     "src": [
+      "MRB",
+      "R"
+     ]
+    },
+    {
+     "text": "An AoE Tempered Release or Parting Blow, and Shield Charges, for the wisps",
+     "src": [
+      "NT",
+      "R"
+     ]
+    }
+   ],
+   "unknown": []
+  },
+  {
+   "board": 1,
+   "battle": 0,
+   "title": "Pas de Seul + Succubus Mage + Succubus Knight",
+   "where": "Move 9, boss (both paths)",
+   "summary": "Kill the Mage first, stop Fanaticism, cleanse poison, read Blood Rain.",
+   "killOrder": {
+    "text": "Succubus Mage, then the Knights, then Pas de Seul",
+    "src": [
+     "IV",
+     "NT",
+     "R",
+     "BMR"
+    ]
+   },
+   "mechanics": [
+    {
+     "name": "Blood Rain",
+     "ids": [
+      46925,
+      46926,
+      46923,
+      46924
+     ],
+     "cast": 6.0,
+     "tell": "Glowing orb raised = 8y circle; sword held = donut",
+     "do": "Orb: get out. Sword: get in under her",
+     "src": [
+      "IV",
+      "NT",
+      "MRB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Void Aero II",
+     "ids": [
+      46932,
+      46933
+     ],
+     "cast": 4.0,
+     "tell": "Untelegraphed 8y line, then a wind orb fires narrow cones",
+     "do": "Go behind her and watch the ground",
+     "src": [
+      "IV",
+      "NT",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Summon",
+     "ids": [
+      46927
+     ],
+     "cast": 4.0,
+     "tell": "1 Succubus Mage (north) + 2 Succubus Knights",
+     "do": "AoE them down, Mage first",
+     "src": [
+      "IV",
+      "NT",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Fanaticism",
+     "ids": [
+      46928
+     ],
+     "cast": 9.0,
+     "tell": "Mage casts Damage Up on the boss",
+     "do": "Interrupt with Soul Crush, or dispel the buff",
+     "src": [
+      "IV",
+      "NT",
+      "MRB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Void Fire II",
+     "ids": [
+      46929
+     ],
+     "cast": 6.0,
+     "tell": "Mage drops a 10y ground circle",
+     "do": "Step out",
+     "src": [
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Sweet Steel",
+     "ids": [
+      46930
+     ],
+     "cast": 6.0,
+     "tell": "Knight 120-degree frontal cone, 10y",
+     "do": "Stay out of the Knights' fronts",
+     "src": [
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Beguiling Mist",
+     "ids": [
+      46936,
+      46937,
+      46938
+     ],
+     "cast": 5.0,
+     "tell": "Sleep, then two tethered hearts meet and explode (24y)",
+     "do": "Sleep in the center, then run from the meeting point",
+     "src": [
+      "IV",
+      "NT",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Cleaving auto-attack",
+     "ids": [],
+     "tell": "Her auto-attack hits everything in front",
+     "do": "Keep her facing away from the pet",
+     "src": [
+      "R"
+     ]
+    }
+   ],
+   "hits": [
+    {
+     "name": "Cold Caress",
+     "ids": [
+      46935
+     ],
+     "cast": 5.0,
+     "tell": "Hit on the enmity target plus poison",
+     "do": "Snarl or snarl-parting; cleanse the poison after",
+     "src": [
+      "IV",
+      "NT",
+      "MRB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Blood Sword",
+     "ids": [
+      46934
+     ],
+     "cast": 6.0,
+     "tell": "Single-target hit that heals her if it connects",
+     "do": "Let the pet take it, or burst her before it",
+     "src": [
+      "IV",
+      "NT",
+      "BMR"
+     ]
+    }
+   ],
+   "counters": [
+    {
+     "need": "interrupt",
+     "what": "Fanaticism (Succubus Mage)",
+     "src": [
+      "panel"
+     ]
+    },
+    {
+     "need": "dispel",
+     "what": "Damage Up on the boss from Fanaticism",
+     "src": [
+      "panel"
+     ]
+    },
+    {
+     "need": "cleanse",
+     "what": "Poison from Cold Caress",
+     "src": [
+      "panel"
+     ]
+    }
+   ],
+   "threats": [
+    "poison",
+    "sleep",
+    "adds",
+    "tankbuster"
+   ],
+   "bring": [
+    {
+     "text": "An AoE Tempered Release or Parting Blow one-shots the adds",
+     "src": [
+      "IV",
+      "NT"
+     ]
+    },
+    {
+     "text": "Scouring Ash (Ashkin), Ultrasonics (bat) or an antidote for Cold Caress poison",
+     "src": [
+      "IV",
+      "NT"
+     ]
+    },
+    {
+     "text": "Black Cowl resists the Beguiling Mist sleep",
+     "src": [
+      "NT"
+     ]
+    },
+    {
+     "text": "Skip poison beasts: she resists poison",
+     "src": [
+      "NT",
+      "panel"
+     ]
+    },
+    {
+     "text": "Use leftover items and heal before the kill; remaining HP scores",
+     "src": [
+      "IV",
+      "NT"
+     ]
+    }
+   ],
+   "unknown": [
+    "Cast times differ: panel lists Fanaticism 6 s, Void Fire II and Sweet Steel 4 s; BMR logs 9, 6, 6 s",
+    "BMR notes Blood Sword 'interrupt if possible'; the panel does not mark it interruptible"
+   ]
+  },
+  {
+   "board": 2,
+   "battle": 1,
+   "title": "Manticore Piece",
+   "where": "Move 1 (both paths)",
+   "summary": "Read the glowing arm, dodge the leap and dashes; tankbuster about 30 s in.",
+   "mechanics": [
+    {
+     "name": "Arm and Hammer",
+     "ids": [
+      48122,
+      48123,
+      48124,
+      48125
+     ],
+     "cast": 5.6,
+     "tell": "One arm glows; that half of the arena gets cleaved",
+     "do": "Go to the non-glowing side; it repeats, alternating",
+     "src": [
+      "IV",
+      "NT",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Hammerleap",
+     "ids": [
+      48135,
+      48137
+     ],
+     "cast": 8.1,
+     "tell": "Faces a wall and leaps: huge 30y circle",
+     "do": "Run to the opposite side; keep a Shield Charge to return",
+     "src": [
+      "IV",
+      "NT",
+      "MRB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Heads and Tails",
+     "ids": [
+      48139,
+      48140,
+      48141,
+      48142,
+      50410,
+      50411,
+      50412,
+      50413
+     ],
+     "cast": 3.9,
+     "tell": "Front half then back half, or back then front",
+     "do": "Dodge the first half, then swap",
+     "src": [
+      "IV",
+      "NT",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Charge and Hammer",
+     "ids": [
+      48127,
+      48128,
+      48130,
+      48132,
+      48134
+     ],
+     "cast": 10.0,
+     "tell": "4 dash lines, then the glowing-arm cleave at the end",
+     "do": "Note the glowing arm, dodge the dashes, go to the safe half",
+     "src": [
+      "IV",
+      "NT",
+      "CHR",
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [
+    {
+     "name": "Deadly Hold",
+     "ids": [
+      48138
+     ],
+     "cast": 5.0,
+     "tell": "Strong single-target hit on you, about 30 s in",
+     "do": "Let the pet take it or snarl-parting; Beastskin in score runs",
+     "src": [
+      "IV",
+      "NT",
+      "MRB",
+      "panel",
+      "BMR"
+     ]
+    }
+   ],
+   "counters": [],
+   "threats": [
+    "tankbuster"
+   ],
+   "bring": [],
+   "unknown": []
+  },
+  {
+   "board": 2,
+   "battle": 2,
+   "title": "Taurus Piece + Ahriman Piece",
+   "where": "Move 3, left path (elite)",
+   "summary": "Doom from Mortal Ray is cleared by lit floor tiles; look away from Ahriman gazes.",
+   "mechanics": [
+    {
+     "name": "Mortal Ray",
+     "ids": [
+      48143
+     ],
+     "cast": 5.0,
+     "tell": "Room-wide hit plus Doom (not cleansable)",
+     "do": "Stand on one of the 4 floor tiles until it fully lights",
+     "src": [
+      "IV",
+      "NT",
+      "MRB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Ruinous Ring / Ruinous Locus",
+     "ids": [
+      48156,
+      48157,
+      48154,
+      48155
+     ],
+     "cast": 6.0,
+     "tell": "Donut (8-50y) or 8y circle; they alternate",
+     "do": "Donut: go under the boss. Circle: get out",
+     "src": [
+      "IV",
+      "NT",
+      "MRB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Ruinous Expansion / Contraction",
+     "ids": [
+      48158,
+      48162
+     ],
+     "cast": 6.0,
+     "tell": "Circle then donut, or donut then circle, 3.5 s apart",
+     "do": "Dodge the first, then swap in or out",
+     "src": [
+      "IV",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Ray of Ignorance",
+     "ids": [
+      48144,
+      48145,
+      48146,
+      48147,
+      48148
+     ],
+     "cast": 6.0,
+     "tell": "Marker on you; drops an orb that pulses growing circles",
+     "do": "Drop it in a corner",
+     "src": [
+      "IV",
+      "NT",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Aetherial Fissure",
+     "ids": [
+      48149,
+      48150
+     ],
+     "cast": 6.0,
+     "tell": "Sigils fire 10y-wide lines, 2-3 at a time",
+     "do": "Stand clear of the lit lines",
+     "src": [
+      "IV",
+      "NT",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Summon",
+     "ids": [
+      48151
+     ],
+     "cast": 3.0,
+     "tell": "4 Ahriman Pieces appear in the corners",
+     "do": "Swap to them once targetable and AoE them",
+     "src": [
+      "IV",
+      "NT",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Mortal Gaze",
+     "ids": [
+      48152,
+      48153
+     ],
+     "cast": 5.0,
+     "tell": "Ahriman gaze: Doom if you face it",
+     "do": "Turn away from the Ahrimans",
+     "src": [
+      "IV",
+      "NT",
+      "MRB",
+      "panel",
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [],
+   "counters": [],
+   "threats": [
+    "doom",
+    "roomwide",
+    "adds"
+   ],
+   "bring": [
+    {
+     "text": "Soulreaper's Armor gives full Doom resistance",
+     "src": [
+      "IV",
+      "NT"
+     ]
+    },
+    {
+     "text": "Beastskin for the first Mortal Ray",
+     "src": [
+      "NT"
+     ]
+    }
+   ],
+   "unknown": []
+  },
+  {
+   "board": 2,
+   "battle": 3,
+   "title": "Wyvern Piece",
+   "where": "Move 3, right path",
+   "summary": "Most movement-heavy B2 fight: stay central, dodge tornadoes, cones and the leap.",
+   "mechanics": [
+    {
+     "name": "The Storm's Grip",
+     "ids": [
+      48166,
+      48167
+     ],
+     "cast": 4.0,
+     "tell": "Wind sprites fire 10y-wide lines for the rest of the fight",
+     "do": "Fight near the center, out of the sprite lines",
+     "src": [
+      "IV",
+      "NT",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Typhoon",
+     "ids": [
+      48168
+     ],
+     "cast": 3.0,
+     "tell": "10y knockback plus tornadoes crossing the arena",
+     "do": "Avoid edges; don't rely on Snarl, gusts move the pet",
+     "src": [
+      "IV",
+      "NT",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Liquid Hell",
+     "ids": [
+      48171,
+      48172
+     ],
+     "cast": 6.0,
+     "tell": "6y fire circles that leave puddles",
+     "do": "Stay out; under the boss is safe",
+     "src": [
+      "IV",
+      "NT",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Blazing Trail",
+     "ids": [
+      48174,
+      48175
+     ],
+     "cast": 8.0,
+     "tell": "Leaps to a wall; half-arena frontal",
+     "do": "Run behind it, through the puddles if needed",
+     "src": [
+      "IV",
+      "NT",
+      "MRB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Storm Trail",
+     "ids": [
+      48176,
+      48177,
+      48178
+     ],
+     "cast": 6.0,
+     "tell": "3 cones (60 degrees) marked by green sigils",
+     "do": "Stand between the cones",
+     "src": [
+      "IV",
+      "NT",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Wind Spiral",
+     "ids": [],
+     "tell": "Circle on the boss",
+     "do": "Step away from the boss",
+     "src": [
+      "NT"
+     ]
+    }
+   ],
+   "hits": [],
+   "counters": [],
+   "threats": [
+    "knockback"
+   ],
+   "bring": [],
+   "unknown": [
+    "BMR is unsure whether The Storm's Grip itself deals damage"
+   ]
+  },
+  {
+   "board": 2,
+   "battle": 4,
+   "title": "Voidmancer Piece + Zombie Piece",
+   "where": "Move 5 (both paths)",
+   "summary": "Keep zombies grouped and AoE them; mind Wit's End stacks, revives and the forced march.",
+   "mechanics": [
+    {
+     "name": "Water",
+     "ids": [
+      50793
+     ],
+     "tell": "Magic auto-attack on the enmity target",
+     "do": "Let the pet hold enmity",
+     "src": [
+      "MRB",
+      "NT",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Death Drive",
+     "ids": [
+      48181,
+      48182
+     ],
+     "cast": 7.0,
+     "tell": "Marker, then a 10y circle; zombies rise and walk to you",
+     "do": "Drop it away from zombies; don't touch their hitboxes",
+     "src": [
+      "IV",
+      "NT",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Dark Orb",
+     "ids": [
+      48185,
+      48186
+     ],
+     "cast": 8.0,
+     "tell": "Huge 18y circle on the boss",
+     "do": "Get out; it does not hit the pet",
+     "src": [
+      "IV",
+      "NT",
+      "MRB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Evil Mist",
+     "ids": [
+      48183
+     ],
+     "cast": 4.0,
+     "tell": "Orbs that pulse circles",
+     "do": "Dodge the pulses",
+     "src": [
+      "IV",
+      "NT",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Necropurge",
+     "ids": [
+      48184
+     ],
+     "cast": 1.0,
+     "tell": "Ring marker: dead zombies inside it revive",
+     "do": "Place it so at most 1 corpse is inside",
+     "src": [
+      "NT",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Mindjack",
+     "ids": [
+      48187
+     ],
+     "cast": 4.0,
+     "tell": "Forced march (left or right face) on expiry",
+     "do": "Pre-face a safe direction before it ends",
+     "src": [
+      "IV",
+      "NT",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Zombie Pieces",
+     "ids": [],
+     "tell": "Zombie hits stack Wit's End; 12 stacks = confusion",
+     "do": "AoE them quickly and keep them grouped",
+     "src": [
+      "IV",
+      "NT",
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [],
+   "counters": [],
+   "threats": [
+    "confusion",
+    "adds"
+   ],
+   "bring": [
+    {
+     "text": "AoE for the zombies: a stunning AoE release then Parting Blow, or a fang",
+     "src": [
+      "IV",
+      "NT"
+     ]
+    }
+   ],
+   "unknown": [
+    "Revives: IV says Death Drive revives zombies; NT names a separate ring marker"
+   ]
+  },
+  {
+   "board": 2,
+   "battle": 5,
+   "title": "Elder Tablitaur Piece + Younger Tablitaur Piece",
+   "where": "Move 7, elite (both paths)",
+   "summary": "Kill both together; stop Rallying Cheer; dodge the brothers' casts in finish order.",
+   "killOrder": {
+    "text": "Keep HP even: Younger to about 15%, then Elder, then finish both together",
+    "src": [
+     "NT",
+     "BMR"
+    ]
+   },
+   "mechanics": [
+    {
+     "name": "1000-tonze Swipe",
+     "ids": [
+      48189,
+      48190,
+      48191,
+      48192
+     ],
+     "cast": 7.0,
+     "tell": "Half-room cleave in its facing, one brother after the other",
+     "do": "Stand behind the first to finish, then swap",
+     "src": [
+      "IV",
+      "NT",
+      "MRB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "1111-tonze Swing",
+     "ids": [
+      48193,
+      48194,
+      48195,
+      48196
+     ],
+     "cast": 8.0,
+     "tell": "Huge 23y circle on each, one after the other",
+     "do": "Get away from the first, then the second",
+     "src": [
+      "IV",
+      "NT",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "10-tonze Stomp",
+     "ids": [
+      48197,
+      48198,
+      48199,
+      48200,
+      48201,
+      48202
+     ],
+     "cast": 7.0,
+     "tell": "Leaps to a corner; 20y knockback",
+     "do": "Challenge first; angle it diagonally so you miss the wall",
+     "src": [
+      "IV",
+      "NT",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Rallying Cheer",
+     "ids": [
+      48203
+     ],
+     "cast": 7.0,
+     "tell": "Younger gives the Elder Damage Up",
+     "do": "Interrupt with Soul Crush, or dispel the buff",
+     "src": [
+      "IV",
+      "NT",
+      "MRB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Endless Swing",
+     "ids": [
+      48205,
+      48206
+     ],
+     "cast": 6.0,
+     "tell": "Younger spins and chases you (8y), untargetable",
+     "do": "Kite it; only pet autos on the Younger",
+     "src": [
+      "IV",
+      "NT",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Endless Swipes",
+     "ids": [
+      48208,
+      48209,
+      48210
+     ],
+     "cast": 5.2,
+     "tell": "Rotating 60-degree cones, 13 hits, 30 degrees each",
+     "do": "Watch the turn direction and stay out of the cones",
+     "src": [
+      "IV",
+      "NT",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Endless Slashes",
+     "ids": [
+      48213,
+      48214,
+      48216
+     ],
+     "cast": 9.0,
+     "tell": "Enrage: if one dies first, the other chains attacks",
+     "do": "Keep both HP even so they die together",
+     "src": [
+      "NT",
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [
+    {
+     "name": "100-tonze Slash",
+     "ids": [
+      48204
+     ],
+     "cast": 9.0,
+     "tell": "Elder: 8y-wide line at you with a tankbuster marker",
+     "do": "Snarl so the pet takes it",
+     "src": [
+      "IV",
+      "NT",
+      "BMR"
+     ]
+    }
+   ],
+   "counters": [
+    {
+     "need": "interrupt",
+     "what": "Rallying Cheer (Younger Tablitaur)",
+     "src": [
+      "panel"
+     ]
+    },
+    {
+     "need": "dispel",
+     "what": "Damage Up on the Elder from Rallying Cheer",
+     "src": [
+      "panel"
+     ]
+    }
+   ],
+   "threats": [
+    "knockback",
+    "tankbuster"
+   ],
+   "bring": [
+    {
+     "text": "Soul Crush (Soulkin borrow) taken before the pull, for Rallying Cheer",
+     "src": [
+      "IV",
+      "NT"
+     ]
+    },
+    {
+     "text": "Fire damage (their weakness); a fire-resistance-down release helps",
+     "src": [
+      "IV",
+      "NT"
+     ]
+    }
+   ],
+   "unknown": [
+    "100-tonze Slash: IV says line AoE, NT says tankbuster; BMR shows a baited line tankbuster"
+   ]
+  },
+  {
+   "board": 2,
+   "battle": 6,
+   "title": "Demon Piece + Evil Weapon Piece + Devilet Piece",
+   "where": "Move 8, left (random space)",
+   "summary": "No guide covers it; all three can be stunned. Cleanse Void Paralyze.",
+   "mechanics": [
+    {
+     "name": "Void Paralyze",
+     "ids": [
+      48247
+     ],
+     "cast": 5.0,
+     "tell": "Demon hits the enmity target, plus paralysis",
+     "do": "Let the pet hold enmity; cleanse paralysis on you",
+     "src": [
+      "panel",
+      "MRB"
+     ]
+    },
+    {
+     "name": "Condemnation",
+     "ids": [
+      48223
+     ],
+     "cast": 3.0,
+     "tell": "Demon frontal",
+     "do": "Stay out of the Demon's front",
+     "src": [
+      "panel",
+      "MRB"
+     ]
+    },
+    {
+     "name": "Smite of Excessive Rage",
+     "ids": [
+      48218,
+      48219
+     ],
+     "cast": 7.0,
+     "tell": "Evil Weapon: front+rear line, or a ring around itself",
+     "do": "Line: stand to its side. Ring: stand close to it",
+     "src": [
+      "panel",
+      "MRB"
+     ]
+    },
+    {
+     "name": "Void Fire III",
+     "ids": [
+      48222
+     ],
+     "cast": 10.0,
+     "tell": "Devilet room-wide hit, long cast",
+     "do": "Top up HP before it lands",
+     "src": [
+      "panel",
+      "MRB"
+     ]
+    }
+   ],
+   "hits": [],
+   "counters": [
+    {
+     "need": "cleanse",
+     "what": "Paralysis from Void Paralyze",
+     "src": [
+      "panel"
+     ]
+    }
+   ],
+   "threats": [
+    "paralysis",
+    "roomwide"
+   ],
+   "bring": [
+    {
+     "text": "Scouring Ash for Void Paralyze paralysis",
+     "src": [
+      "panel",
+      "AS"
+     ]
+    }
+   ],
+   "unknown": [
+    "No guide and no BMR module cover this fight; panel data only",
+    "Untested: whether killing the Devilet during its 10 s cast stops Void Fire III"
+   ]
+  },
+  {
+   "board": 2,
+   "battle": 0,
+   "title": "Loosefrox Inkyjots + Chewchum Popoto",
+   "where": "Move 10, boss (both paths)",
+   "summary": "Dispel Kinborrow, push small bombs into Chewchum's pool, and kill both together.",
+   "killOrder": {
+    "text": "Finish both together; never kill Loosefrox first",
+    "src": [
+     "IV",
+     "NT"
+    ]
+   },
+   "mechanics": [
+    {
+     "name": "Sand Breath",
+     "ids": [
+      48226,
+      48227
+     ],
+     "cast": 9.0,
+     "tell": "Chewchum surfaces at a '!' pool; 90-degree frontal, Blind",
+     "do": "Stand beside the '!' pool, never on it",
+     "src": [
+      "IV",
+      "NT",
+      "MRB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Gobspin Headlops",
+     "ids": [
+      48228,
+      48229,
+      48230,
+      48231
+     ],
+     "cast": 6.0,
+     "tell": "Sword glowing = donut; not glowing = 8y circle",
+     "do": "Glowing: get in. Not glowing: get out",
+     "src": [
+      "IV",
+      "NT",
+      "MRB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Kinborrow",
+     "ids": [
+      48242
+     ],
+     "cast": 4.0,
+     "tell": "Loosefrox self buff: Popoto Skin (damage taken down)",
+     "do": "Dispel it: Quelling Wave, Caw or Fang of Water",
+     "src": [
+      "IV",
+      "NT",
+      "MRB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Gobbieboom Barrage",
+     "ids": [
+      50446,
+      48234,
+      48235,
+      48236
+     ],
+     "cast": 3.0,
+     "tell": "Round bombs (12y blast) can be pushed; spiky bombs blast a cross",
+     "do": "Hit a round bomb into Chewchum's '!' pool",
+     "src": [
+      "IV",
+      "NT",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Chewchum stunned",
+     "ids": [],
+     "tell": "A bomb in its pool knocks Chewchum up; it takes extra damage",
+     "do": "Burst Chewchum now; save a TR and Parting Blow for it",
+     "src": [
+      "IV",
+      "NT"
+     ]
+    },
+    {
+     "name": "Bomb Toss / Goblin Hammer",
+     "ids": [
+      48518,
+      48519,
+      48232,
+      48233
+     ],
+     "tell": "Small circles, or many circles with tiny safe spots",
+     "do": "Find the gaps",
+     "src": [
+      "IV",
+      "NT",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Earthquake",
+     "ids": [
+      48239,
+      48240
+     ],
+     "cast": 5.0,
+     "tell": "Enrage: Chewchum spams it if Loosefrox dies first",
+     "do": "Balance HP and finish both together",
+     "src": [
+      "IV",
+      "NT",
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [],
+   "counters": [
+    {
+     "need": "dispel",
+     "what": "Kinborrow (Popoto Skin on Loosefrox)",
+     "src": [
+      "panel"
+     ]
+    },
+    {
+     "need": "cleanse",
+     "what": "Blind from Sand Breath",
+     "src": [
+      "panel"
+     ]
+    }
+   ],
+   "threats": [
+    "blind"
+   ],
+   "bring": [
+    {
+     "text": "Quelling Wave (Wavekin) or Fang of Water for Kinborrow",
+     "src": [
+      "IV",
+      "NT"
+     ]
+    },
+    {
+     "text": "Scouring Ash (Ashkin), Ultrasonics (bat) or Eye Drops for Sand Breath blind",
+     "src": [
+      "IV",
+      "NT"
+     ]
+    },
+    {
+     "text": "No camp before the boss: buy potions at the last shop",
+     "src": [
+      "NT"
+     ]
+    }
+   ],
+   "unknown": [
+    "BMR's AI targets Loosefrox first; guides warn that triggers Earthquake"
+   ]
+  },
+  {
+   "board": 3,
+   "battle": 1,
+   "title": "Cavalier Piece + Bone Bishop",
+   "where": "Move 1 (both paths)",
+   "summary": "AoE each Bone Bishop pack before Soul Douse; keep 4 or fewer light orbs on the floor.",
+   "killOrder": {
+    "text": "Bone Bishop adds first, each pack together",
+    "src": [
+     "NT",
+     "AS",
+     "BMR"
+    ]
+   },
+   "mechanics": [
+    {
+     "name": "Bone Bishop packs",
+     "ids": [],
+     "tell": "The Cavalier keeps calling 2-3 Bone Bishops",
+     "do": "Swap and AoE them; kill each pack before the 4th spawns",
+     "src": [
+      "NT",
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Soul Douse",
+     "ids": [
+      50693
+     ],
+     "cast": 5.0,
+     "tell": "Bishop room-wide hit plus Damage Down",
+     "do": "Kill the casting Bishop within 5 s",
+     "src": [
+      "MRB",
+      "NT",
+      "AS",
+      "panel"
+     ]
+    },
+    {
+     "name": "Doubling",
+     "ids": [
+      48460,
+      48461,
+      48462,
+      48463,
+      48464
+     ],
+     "cast": 6.0,
+     "tell": "Dead Bishops leave orbs; phantoms: center = 20y circle, edge = line",
+     "do": "Dodge; keep 4 or fewer orbs or there is no safe spot",
+     "src": [
+      "NT",
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Steelripper",
+     "ids": [
+      48472,
+      48473
+     ],
+     "cast": 7.0,
+     "tell": "Wide 130-degree frontal cone",
+     "do": "Go behind",
+     "src": [
+      "MRB",
+      "NT",
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Homing circles",
+     "ids": [],
+     "tell": "Ground circles chase you",
+     "do": "Keep moving",
+     "src": [
+      "AS"
+     ]
+    },
+    {
+     "name": "Blizzard",
+     "ids": [
+      48621
+     ],
+     "tell": "Bishop hits the enmity target",
+     "do": "Keep enmity on the pet with Snarl",
+     "src": [
+      "NT",
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [
+    {
+     "name": "Crushing Blade",
+     "ids": [
+      48471
+     ],
+     "cast": 5.0,
+     "tell": "Single-target hit on you with a 15y knockback",
+     "do": "Let the pet take it; never stand with your back to a wall",
+     "src": [
+      "NT",
+      "AS",
+      "BMR"
+     ]
+    }
+   ],
+   "counters": [],
+   "threats": [
+    "adds",
+    "roomwide",
+    "knockback",
+    "tankbuster"
+   ],
+   "bring": [
+    {
+     "text": "A stunning AoE release then Parting Blow, or Shield Charge, for the add packs",
+     "src": [
+      "NT",
+      "AS"
+     ]
+    }
+   ],
+   "unknown": [
+    "The 4-orb cap is from NT only; AS does not mention it"
+   ]
+  },
+  {
+   "board": 3,
+   "battle": 2,
+   "title": "Ymir Piece + Sahagin Piece",
+   "where": "Move 2 (both paths)",
+   "summary": "Interrupt Dreadwash, never hit a spiked Sahagin, stun the Ymir once its shell breaks.",
+   "killOrder": {
+    "text": "Break the shell and kill the Ymir, then the Sahagin; strong teams burst the Sahagin first",
+    "src": [
+     "AS",
+     "BMR",
+     "NT",
+     "R"
+    ]
+   },
+   "mechanics": [
+    {
+     "name": "Ymir shell",
+     "ids": [],
+     "tell": "Ymir takes heavily reduced damage while shelled",
+     "do": "Break the shell, then stun or bind the Ymir as it crawls",
+     "src": [
+      "NT",
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Paralyzing Spikes",
+     "ids": [
+      50532
+     ],
+     "cast": 3.0,
+     "tell": "Sahagin counter stance while the Ymir lives",
+     "do": "Stop hitting the Sahagin; swap to the Ymir",
+     "src": [
+      "MRB",
+      "NT",
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Dreadwash",
+     "ids": [
+      48485
+     ],
+     "cast": 8.0,
+     "tell": "Sahagin room-wide hit plus Hysteria",
+     "do": "Interrupt with Soul Crush; else Snarl so the pet covers",
+     "src": [
+      "MRB",
+      "NT",
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Blanket Thunder",
+     "ids": [
+      48479
+     ],
+     "cast": 5.0,
+     "tell": "Ymir unavoidable room-wide hit",
+     "do": "Mitigate (Beastskin); no camp until Move 5",
+     "src": [
+      "MRB",
+      "NT",
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Head Snatch",
+     "ids": [
+      48477
+     ],
+     "tell": "Ymir instant frontal cleave auto",
+     "do": "Stay out of its front",
+     "src": [
+      "MRB",
+      "NT",
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Tsunami",
+     "ids": [
+      48480,
+      48481
+     ],
+     "cast": 8.0,
+     "tell": "Sahagin: strong 35y push in one direction",
+     "do": "Vileskin, Shield Charge at the push, or stand upstream",
+     "src": [
+      "NT",
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Water II",
+     "ids": [
+      48482,
+      48483
+     ],
+     "cast": 3.0,
+     "tell": "6y targeted circle",
+     "do": "Step out",
+     "src": [
+      "NT",
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [],
+   "counters": [
+    {
+     "need": "interrupt",
+     "what": "Dreadwash (Sahagin Piece)",
+     "src": [
+      "panel"
+     ]
+    }
+   ],
+   "threats": [
+    "counterstance",
+    "paralysis",
+    "knockback",
+    "roomwide"
+   ],
+   "bring": [
+    {
+     "text": "Soul Crush (Soulkin borrow) taken before the pull, for Dreadwash",
+     "src": [
+      "NT"
+     ]
+    },
+    {
+     "text": "A stun or bind for the Ymir once its shell breaks",
+     "src": [
+      "NT",
+      "AS"
+     ]
+    }
+   ],
+   "unknown": [
+    "Kill order differs between guides; all three orders are reported to work"
+   ]
+  },
+  {
+   "board": 3,
+   "battle": 3,
+   "title": "Zu Piece + Cockerel Piece + Pullet Piece",
+   "where": "Move 4, left path (elite)",
+   "summary": "Don't hit the eggs; kill Pullets first and keep every AoE away from eggs.",
+   "killOrder": {
+    "text": "Pullet Piece, then Cockerel Piece, then the Zu",
+    "src": [
+     "AS",
+     "BMR"
+    ]
+   },
+   "mechanics": [
+    {
+     "name": "Eggs",
+     "ids": [
+      48487
+     ],
+     "cast": 10.0,
+     "tell": "Hitting an egg hatches it and makes the Zu stronger",
+     "do": "Pull the Zu away from eggs; no AoE near them",
+     "src": [
+      "NT",
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Fore Carve / Rear Carve",
+     "ids": [
+      48493,
+      48497,
+      48494,
+      48499
+     ],
+     "cast": 1.0,
+     "tell": "Tether, then a 180-degree cleave to the front or rear",
+     "do": "Stand to the side",
+     "src": [
+      "MRB",
+      "NT",
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Crossbreeze",
+     "ids": [
+      48491,
+      48492
+     ],
+     "cast": 3.0,
+     "tell": "Cross marker on you, 8y-wide arms",
+     "do": "Aim it so no arm crosses an egg",
+     "src": [
+      "NT",
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Airy Pursuit",
+     "ids": [
+      48500,
+      48501
+     ],
+     "cast": 3.0,
+     "tell": "6y circles chase you",
+     "do": "Lead them away from the eggs",
+     "src": [
+      "BMR"
+     ]
+    },
+    {
+     "name": "Caustic Vomit",
+     "ids": [
+      48489
+     ],
+     "cast": 13.0,
+     "tell": "Pullet: 13 s cast at the enmity target, Heavy",
+     "do": "Interrupt with Soul Crush, else let the pet take it",
+     "src": [
+      "MRB",
+      "NT",
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [
+    {
+     "name": "Flying Frenzy",
+     "ids": [
+      50465,
+      48490
+     ],
+     "cast": 8.0,
+     "tell": "6y circle on you with a tankbuster marker",
+     "do": "Keep it off the eggs; mitigate",
+     "src": [
+      "BMR"
+     ]
+    },
+    {
+     "name": "Zu room-wide hit",
+     "ids": [],
+     "tell": "Big AoE hit that also hits the pet",
+     "do": "Beastskin; Parting Blow the pet during the cast",
+     "src": [
+      "NT",
+      "AS"
+     ]
+    }
+   ],
+   "counters": [
+    {
+     "need": "interrupt",
+     "what": "Caustic Vomit (Pullet Piece)",
+     "src": [
+      "panel"
+     ]
+    }
+   ],
+   "threats": [
+    "heavy",
+    "adds",
+    "dontattack",
+    "tankbuster",
+    "roomwide"
+   ],
+   "bring": [],
+   "unknown": [
+    "The Zu's circle/ring and room-wide casts have no known name or ID"
+   ]
+  },
+  {
+   "board": 3,
+   "battle": 4,
+   "title": "Catoblepas Piece",
+   "where": "Move 4, right path",
+   "summary": "Burst it: rolling eye orbs petrify if you face them; go behind for Sinister Gleam.",
+   "mechanics": [
+    {
+     "name": "Demon eye orbs",
+     "ids": [
+      48509,
+      48505,
+      48506,
+      48507,
+      48508
+     ],
+     "tell": "6 orbs roll in from the edges in pairs",
+     "do": "Plain orb = 25y circle, get away; banded orb = donut, get close",
+     "src": [
+      "MRB",
+      "NT",
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "False Demon Eye",
+     "ids": [
+      48510
+     ],
+     "tell": "From the 2nd set, eye orbs gaze: facing them petrifies",
+     "do": "Face away from eye orbs when they explode",
+     "src": [
+      "MRB",
+      "NT",
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Sinister Gleam",
+     "ids": [
+      48511,
+      48512
+     ],
+     "cast": 6.5,
+     "tell": "Front-half cleave",
+     "do": "Go behind",
+     "src": [
+      "MRB",
+      "NT",
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Bestial Roar",
+     "ids": [
+      48504
+     ],
+     "cast": 3.0,
+     "tell": "Room-wide hit",
+     "do": "Keep HP up",
+     "src": [
+      "BMR"
+     ]
+    },
+    {
+     "name": "Jettatura",
+     "ids": [],
+     "tell": "Targeted circle",
+     "do": "Step out",
+     "src": [
+      "NT"
+     ]
+    }
+   ],
+   "hits": [],
+   "counters": [],
+   "threats": [
+    "petrify",
+    "roomwide"
+   ],
+   "bring": [
+    {
+     "text": "Crimson Ribbon or Antipetrification serum",
+     "src": [
+      "NT",
+      "AS"
+     ]
+    },
+    {
+     "text": "Scouring Ash removes petrify",
+     "src": [
+      "AS"
+     ]
+    },
+    {
+     "text": "Wind damage (its weakness)",
+     "src": [
+      "NT",
+      "AS"
+     ]
+    }
+   ],
+   "unknown": [
+    "BMR module for this fight is incomplete (marked Dummy)"
+   ]
+  },
+  {
+   "board": 3,
+   "battle": 5,
+   "title": "Lakhamu Piece + Golem Piece",
+   "where": "Move 6 (both paths)",
+   "summary": "Pick a landing column clear of the Golem line; kill the Golem; keep apart from the pet.",
+   "killOrder": {
+    "text": "Golem Piece first when it spawns",
+    "src": [
+     "NT",
+     "AS",
+     "BMR"
+    ]
+   },
+   "mechanics": [
+    {
+     "name": "Landslip",
+     "ids": [
+      48553,
+      48556
+     ],
+     "cast": 8.0,
+     "tell": "Quicksand pushes you 20y (about 2 columns) forward",
+     "do": "Land in a column the Golem line misses; Vileskin blocks it",
+     "src": [
+      "MRB",
+      "NT",
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Rockslide",
+     "ids": [
+      48554,
+      48555
+     ],
+     "cast": 7.0,
+     "tell": "A Golem spawns and fires a 10y-wide line down its column",
+     "do": "Don't land in that column",
+     "src": [
+      "MRB",
+      "NT",
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Might",
+     "ids": [
+      48221
+     ],
+     "cast": 5.0,
+     "tell": "Golem self buff: Damage Up",
+     "do": "Try a dispel; if it fails, kill the Golem",
+     "src": [
+      "MRB",
+      "NT",
+      "AS",
+      "panel"
+     ]
+    },
+    {
+     "name": "Sand Tempest",
+     "ids": [
+      48561
+     ],
+     "cast": 5.0,
+     "tell": "Unavoidable room-wide hit plus Blind",
+     "do": "Pre-resist with Antiblind serum during the cast",
+     "src": [
+      "MRB",
+      "NT",
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Earthshaker",
+     "ids": [
+      48557,
+      48558
+     ],
+     "cast": 4.2,
+     "tell": "Cones at you and the pet; with Snarl both hit the pet",
+     "do": "Stay apart from the pet, or Parting Blow it",
+     "src": [
+      "NT",
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Earthrender",
+     "ids": [
+      48559,
+      48560
+     ],
+     "cast": 3.0,
+     "tell": "6y ground circles",
+     "do": "Step out",
+     "src": [
+      "NT",
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Burst",
+     "ids": [
+      48562
+     ],
+     "cast": 3.0,
+     "tell": "Sand spheres explode, 12y",
+     "do": "Leave the sphere's circle",
+     "src": [
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [],
+   "counters": [
+    {
+     "need": "dispel",
+     "what": "Might on the Golem (panel says not dispellable)",
+     "src": [
+      "AS",
+      "NT"
+     ]
+    },
+    {
+     "need": "cleanse",
+     "what": "Blind from Sand Tempest (panel says not cleansable)",
+     "src": [
+      "AS",
+      "NT"
+     ]
+    }
+   ],
+   "threats": [
+    "blind",
+    "adds",
+    "roomwide",
+    "knockback"
+   ],
+   "bring": [
+    {
+     "text": "Antiblind serum for Sand Tempest",
+     "src": [
+      "NT",
+      "AS"
+     ]
+    },
+    {
+     "text": "Water damage (weakness of both); Quelling Wave for Might",
+     "src": [
+      "NT",
+      "AS"
+     ]
+    }
+   ],
+   "unknown": [
+    "Might: panel says not dispellable; AS and NT say it can be removed",
+    "Sand Tempest blind: panel says not cleansable; AS and NT say it can be"
+   ]
+  },
+  {
+   "board": 3,
+   "battle": 6,
+   "title": "Siren Piece + Shambling Piece + Crawling Piece",
+   "where": "Move 8, elite (both paths)",
+   "summary": "Hardest B3 fight: keep the pet off her cleave, kill the Crawling Piece first, dodge songs.",
+   "killOrder": {
+    "text": "Crawling Piece first, then Shambling Pieces, then the Siren",
+    "src": [
+     "NT",
+     "AS",
+     "BMR"
+    ]
+   },
+   "mechanics": [
+    {
+     "name": "Cleaving auto-attack",
+     "ids": [
+      50395
+     ],
+     "tell": "Her auto-attack cleaves in front and hits the pet",
+     "do": "Challenge and keep the pet on her far side",
+     "src": [
+      "NT",
+      "R",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Dead Man's Dirge",
+     "ids": [
+      48572,
+      48573,
+      48574,
+      48575
+     ],
+     "cast": 7.0,
+     "tell": "Wings wrapped = 12y circle; harp = donut with a tiny safe spot",
+     "do": "Circle: get out. Donut: hug her",
+     "src": [
+      "MRB",
+      "NT",
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Unmooring Melody",
+     "ids": [
+      48565,
+      48566
+     ],
+     "tell": "Jumps to the edge, then fast cones toward the center",
+     "do": "Go to her side at once",
+     "src": [
+      "NT",
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Feral Lunge",
+     "ids": [
+      48569,
+      48570
+     ],
+     "cast": 4.0,
+     "tell": "Rises and lands at an edge with a 16y-wide line",
+     "do": "Keep a Shield Charge; get out of the line",
+     "src": [
+      "NT",
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Summon",
+     "ids": [
+      48567
+     ],
+     "cast": 3.0,
+     "tell": "3 Shambling + 1 Crawling Piece",
+     "do": "Gather them at center and AoE; Crawling first",
+     "src": [
+      "NT",
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Death Throes",
+     "ids": [
+      48568
+     ],
+     "tell": "Crawling Piece tethers and chases; touch = Bind + Damage Down",
+     "do": "Kill it before it reaches you",
+     "src": [
+      "MRB",
+      "NT",
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Inviting Verse",
+     "ids": [
+      48571
+     ],
+     "cast": 5.0,
+     "tell": "Forced march",
+     "do": "Face the center before it expires",
+     "src": [
+      "NT",
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Distant Tune",
+     "ids": [
+      48576,
+      48577
+     ],
+     "cast": 3.0,
+     "tell": "Bubbles in 3 sets pop in order (9y)",
+     "do": "Move into spots that already popped",
+     "src": [
+      "NT",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Wallop",
+     "ids": [
+      50662
+     ],
+     "cast": 2.5,
+     "tell": "Shambling frontal",
+     "do": "Stay out of their fronts",
+     "src": [
+      "panel",
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [
+    {
+     "name": "Song of Torment",
+     "ids": [
+      48563
+     ],
+     "cast": 5.0,
+     "tell": "Strong hit on you; Snarl can't retarget it",
+     "do": "Snarl so the pet covers it, then Challenge back",
+     "src": [
+      "MRB",
+      "NT",
+      "AS",
+      "BMR"
+     ]
+    }
+   ],
+   "counters": [],
+   "threats": [
+    "confusion",
+    "bind",
+    "adds",
+    "tankbuster"
+   ],
+   "bring": [
+    {
+     "text": "Piercing damage for the Siren, fire for the adds",
+     "src": [
+      "NT",
+      "AS"
+     ]
+    },
+    {
+     "text": "A fang, or a stunning AoE release then Parting Blow, for the adds",
+     "src": [
+      "NT",
+      "AS"
+     ]
+    }
+   ],
+   "unknown": []
+  },
+  {
+   "board": 3,
+   "battle": 7,
+   "title": "Campeador Piece + Sabotender Piece + Flowertender Piece + Soldado Piece + Guardia Piece",
+   "where": "Move 10, left (random space)",
+   "summary": "Kill the Flowertender healers first; the Guardia shields an ally; read Campeador's pose.",
+   "killOrder": {
+    "text": "Flowertender, then Guardia (once it guards), Soldado, Campeador, Sabotender",
+    "src": [
+     "NT",
+     "AS"
+    ]
+   },
+   "mechanics": [
+    {
+     "name": "Healing Water",
+     "ids": [
+      48579
+     ],
+     "cast": 3.0,
+     "tell": "Flowertender heals nearby allies",
+     "do": "Kill the Flowertenders first",
+     "src": [
+      "NT",
+      "AS",
+      "MRB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Cactguard",
+     "ids": [
+      48582
+     ],
+     "tell": "Guardia covers an ally, which then takes no damage",
+     "do": "Kill the Guardia next",
+     "src": [
+      "NT",
+      "AS",
+      "MRB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Seeding Needles",
+     "ids": [
+      48585,
+      48586,
+      48587,
+      48588
+     ],
+     "cast": 6.0,
+     "tell": "Jumps up = donut; dances on the floor = 9y circle",
+     "do": "Donut: get close. Circle: get out",
+     "src": [
+      "NT",
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Seeding Needles (room-wide)",
+     "ids": [
+      48589
+     ],
+     "cast": 5.0,
+     "tell": "Unavoidable room-wide hit",
+     "do": "Keep HP up",
+     "src": [
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Needles",
+     "ids": [
+      48580,
+      48581
+     ],
+     "cast": 8.0,
+     "tell": "Soldado: 15y circles, or numbered markers in order",
+     "do": "Get out of each circle",
+     "src": [
+      "NT",
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Needle Gnarl",
+     "ids": [
+      48583,
+      48584
+     ],
+     "cast": 4.0,
+     "tell": "Targeted 8y circle",
+     "do": "Step out",
+     "src": [
+      "NT",
+      "AS",
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [],
+   "counters": [],
+   "threats": [
+    "adds",
+    "roomwide"
+   ],
+   "bring": [],
+   "unknown": [
+    "Kill order differs: guides put Guardia second, BMR puts Soldado second",
+    "AS found no footage; details are partly reconstructed"
+   ]
+  },
+  {
+   "board": 3,
+   "battle": 0,
+   "title": "Guttler the Gutter + Thanatos Piece",
+   "where": "Move 12, boss (both paths)",
+   "summary": "Cleaving autos: Challenge, pet behind her. Keep blade lines off the wall statues.",
+   "killOrder": {
+    "text": "Kill a woken Thanatos Piece first",
+    "src": [
+     "NT",
+     "AS",
+     "BMR"
+    ]
+   },
+   "mechanics": [
+    {
+     "name": "Cleaving auto-attack",
+     "ids": [
+      49714
+     ],
+     "tell": "Frontal cleave auto that also hits the pet",
+     "do": "Challenge; keep the pet on her far side, re-place after summons",
+     "src": [
+      "NT",
+      "AS",
+      "R",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Beastly Aura",
+     "ids": [
+      48606,
+      48607
+     ],
+     "cast": 7.0,
+     "tell": "Room-wide 20y knockback to both sides of a line",
+     "do": "Hug her on the north-south centerline; fly into the recesses",
+     "src": [
+      "MRB",
+      "NT",
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Gyrocleave",
+     "ids": [
+      48604,
+      48605
+     ],
+     "cast": 7.0,
+     "tell": "Moves to center; 20y-wide line through the arena",
+     "do": "Go to the small side recesses",
+     "src": [
+      "NT",
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Overpowering Point",
+     "ids": [
+      48612,
+      48614
+     ],
+     "cast": 8.4,
+     "tell": "Line toward where you stood; wakes any statue it hits",
+     "do": "Aim the line north or south, away from the side walls",
+     "src": [
+      "NT",
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Combusting Blades",
+     "ids": [
+      48597
+     ],
+     "cast": 5.0,
+     "tell": "Swords drop 8y circles",
+     "do": "Step out of the sword circles",
+     "src": [
+      "NT",
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Gluttonous Gutting",
+     "ids": [
+      48599,
+      48600
+     ],
+     "cast": 11.6,
+     "tell": "Axe held flat, boss grounded: huge 40y-wide cleave",
+     "do": "Go behind her",
+     "src": [
+      "NT",
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Gluttonous Goring",
+     "ids": [
+      48602,
+      48603
+     ],
+     "cast": 11.6,
+     "tell": "Axe thrown, boss jumps: 40y circle",
+     "do": "Run to the opposite edge or diagonal",
+     "src": [
+      "NT",
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Deadly Demesne",
+     "ids": [
+      48608,
+      48609,
+      48611
+     ],
+     "cast": 3.0,
+     "tell": "Sword cage binds anyone inside; then cross blasts",
+     "do": "Leave the cage, avoid blade lines; no Shield Charge into it",
+     "src": [
+      "NT",
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Molten Metal",
+     "ids": [
+      48615,
+      48617,
+      48618,
+      48619
+     ],
+     "cast": 8.3,
+     "tell": "Sword drops where you stood; big proximity blast",
+     "do": "Drop it at one edge and run far",
+     "src": [
+      "NT",
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Frontal blade line",
+     "ids": [],
+     "tell": "Frontal line",
+     "do": "Stay out of her front",
+     "src": [
+      "NT"
+     ]
+    },
+    {
+     "name": "Infernal Pain",
+     "ids": [
+      50540
+     ],
+     "cast": 8.0,
+     "tell": "Woken Thanatos Piece room-wide hit",
+     "do": "Kill it with lightning before the cast ends",
+     "src": [
+      "MRB",
+      "NT",
+      "AS",
+      "panel"
+     ]
+    }
+   ],
+   "hits": [
+    {
+     "name": "Thunderbolt",
+     "ids": [
+      48620
+     ],
+     "cast": 5.0,
+     "tell": "6y-wide line at the enmity target plus Paralysis",
+     "do": "Snarl so the pet takes it, then Challenge and swap the pet out",
+     "src": [
+      "MRB",
+      "NT",
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    }
+   ],
+   "counters": [],
+   "threats": [
+    "paralysis",
+    "knockback",
+    "bind",
+    "roomwide",
+    "tankbuster",
+    "adds"
+   ],
+   "bring": [
+    {
+     "text": "Antiparalysis serum, Genji Gloves or Crimson Ribbon for Thunderbolt",
+     "src": [
+      "NT",
+      "AS"
+     ]
+    },
+    {
+     "text": "Lightning damage for a woken Thanatos",
+     "src": [
+      "NT",
+      "AS"
+     ]
+    },
+    {
+     "text": "Use leftover items and heal to full before the kill",
+     "src": [
+      "NT"
+     ]
+    }
+   ],
+   "unknown": [
+    "English names for Gyrocleave, Gutting/Goring, Deadly Demesne and Molten Metal matched to guide descriptions by timing and shape"
+   ]
+  },
+  {
+   "board": 4,
+   "battle": 1,
+   "title": "Strix Piece",
+   "where": "Row 1 (both lanes)",
+   "summary": "Use the matching platform for each chapter, dispel Ultimate Focus, kill the Plume.",
+   "mechanics": [
+    {
+     "name": "On the Properties of Quakes",
+     "ids": [
+      48657
+     ],
+     "cast": 8.0,
+     "tell": "Quake chapter; the fight usually opens with it",
+     "do": "Stand on the gravity platform until it resolves",
+     "src": [
+      "AS",
+      "G8",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Floods / Magical Mallet Theory",
+     "ids": [
+      48658,
+      48659,
+      48660
+     ],
+     "cast": 8.0,
+     "tell": "Water and hammer chapters",
+     "do": "Touch the matching platform to transform, touch again after",
+     "src": [
+      "AS",
+      "G8",
+      "BMR"
+     ]
+    },
+    {
+     "name": "On the Properties of Darkness",
+     "ids": [
+      48669
+     ],
+     "cast": 8.0,
+     "tell": "100y room-wide hit, can't be avoided",
+     "do": "Mitigate and heal after",
+     "src": [
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Ultimate Focus",
+     "ids": [
+      48668
+     ],
+     "cast": 3.0,
+     "tell": "Self buff: Magic Damage Up; next chapter hurts more",
+     "do": "Dispel it with Quelling Wave",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Aero III",
+     "ids": [
+      48666,
+      48667
+     ],
+     "cast": 12.0,
+     "tell": "A Strix Plume add casts a 25y knockback",
+     "do": "Kill the Plume during the cast",
+     "src": [
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Plummet",
+     "ids": [
+      48654,
+      48655,
+      48656
+     ],
+     "cast": 7.5,
+     "tell": "10y ground circles",
+     "do": "Step out",
+     "src": [
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Overdue",
+     "ids": [
+      48661,
+      48664,
+      48665
+     ],
+     "cast": 7.0,
+     "tell": "Tome Pieces cast 15y circles",
+     "do": "Get out of the circles",
+     "src": [
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Hellish Breath",
+     "ids": [],
+     "cast": 1.1,
+     "tell": "Frontal cone",
+     "do": "Stay out of its front",
+     "src": [
+      "AS"
+     ]
+    }
+   ],
+   "hits": [],
+   "counters": [
+    {
+     "need": "dispel",
+     "what": "Ultimate Focus (Magic Damage Up)",
+     "src": [
+      "panel"
+     ]
+    },
+    {
+     "need": "interrupt",
+     "what": "Aero III knockback (guide says Soul Crush stops it)",
+     "src": [
+      "AS"
+     ]
+    }
+   ],
+   "threats": [
+    "knockback",
+    "roomwide",
+    "adds"
+   ],
+   "bring": [
+    {
+     "text": "Quelling Wave (Wavekin borrow) for Ultimate Focus; a borrow lasts 90 s after the familiar leaves",
+     "src": [
+      "AS"
+     ]
+    },
+    {
+     "text": "Piercing damage (its weakness)",
+     "src": [
+      "AS"
+     ]
+    }
+   ],
+   "unknown": [
+    "Aero III: AS says Soul Crush stops it; BMR shows the Plume add casts it and says kill it"
+   ]
+  },
+  {
+   "board": 4,
+   "battle": 2,
+   "title": "Morbol Piece + Seedling Piece + Ochu Piece + Carrion Broth",
+   "where": "Row 2, left lane",
+   "summary": "Parting Blow Seedlings with the Morbol; dodge the rotating breath; cleanse paralysis.",
+   "killOrder": {
+    "text": "Seedlings together with the Morbol; the Carrion Broth can be skipped",
+    "src": [
+     "AS",
+     "G8"
+    ]
+   },
+   "mechanics": [
+    {
+     "name": "Seedling Pieces",
+     "ids": [
+      50750
+     ],
+     "tell": "Seedlings are up at the start; their hits poison",
+     "do": "Parting Blow them together with the Morbol",
+     "src": [
+      "AS",
+      "G8",
+      "panel"
+     ]
+    },
+    {
+     "name": "Extremely Bad Breath",
+     "ids": [
+      48671,
+      48672,
+      48673,
+      48675
+     ],
+     "cast": 5.0,
+     "tell": "90-degree cone, then 4 more turning 50 degrees; Paralysis",
+     "do": "Snarl so it faces the pet and stay to the side",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Tremblor",
+     "ids": [
+      50757,
+      50758
+     ],
+     "cast": 5.0,
+     "tell": "Unavoidable room-wide hit with a 10y knockback",
+     "do": "Stand away from the edge",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Vine Probe",
+     "ids": [
+      48681,
+      48682
+     ],
+     "cast": 5.0,
+     "tell": "13y line in front",
+     "do": "Stay out of the line",
+     "src": [
+      "BMR"
+     ]
+    },
+    {
+     "name": "Acid Mist",
+     "ids": [
+      48679
+     ],
+     "cast": 4.0,
+     "tell": "Ochu 6y circle",
+     "do": "Step out",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Sticky Spit",
+     "ids": [
+      48680
+     ],
+     "cast": 2.0,
+     "tell": "Carrion Broth hits you: Heavy (no resist)",
+     "do": "Snarl so it hits the pet",
+     "src": [
+      "AS",
+      "G8",
+      "panel",
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [],
+   "counters": [
+    {
+     "need": "cleanse",
+     "what": "Paralysis from Extremely Bad Breath",
+     "src": [
+      "panel"
+     ]
+    },
+    {
+     "need": "cleanse",
+     "what": "Poison from Seedling hits",
+     "src": [
+      "panel"
+     ]
+    },
+    {
+     "need": "cleanse",
+     "what": "Paralysis from Carrion Broth hits",
+     "src": [
+      "panel"
+     ]
+    }
+   ],
+   "threats": [
+    "paralysis",
+    "poison",
+    "heavy",
+    "knockback",
+    "roomwide",
+    "adds"
+   ],
+   "bring": [
+    {
+     "text": "Scouring Ash for paralysis",
+     "src": [
+      "AS"
+     ]
+    }
+   ],
+   "unknown": [
+    "BMR's AI kills the Carrion Broth first; guides say it can be skipped"
+   ]
+  },
+  {
+   "board": 4,
+   "battle": 3,
+   "title": "Corpse Flower Piece + Queen Hawk Piece",
+   "where": "Row 2, right lane (random space)",
+   "summary": "Stand on thorns for Floral Trap, keep Snarl so frontals face the pet, AoE the Saplings.",
+   "killOrder": {
+    "text": "Queen Hawk Piece first",
+    "src": [
+     "BMR"
+    ]
+   },
+   "mechanics": [
+    {
+     "name": "Floral Trap",
+     "ids": [
+      48683,
+      48684
+     ],
+     "cast": 5.0,
+     "tell": "Draw-in toward the boss",
+     "do": "Step onto a thorn patch just before the cast ends",
+     "src": [
+      "AS",
+      "G8",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Devour",
+     "ids": [
+      48685
+     ],
+     "tell": "Frontal bite after the pull; still hits if you resisted it",
+     "do": "Stay out of its front",
+     "src": [
+      "AS",
+      "G8",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Rotten Stench",
+     "ids": [
+      48690,
+      48691
+     ],
+     "cast": 6.0,
+     "tell": "12y-wide frontal line aimed at a marked target",
+     "do": "Keep Snarl so it faces the pet; stand aside",
+     "src": [
+      "AS",
+      "G8",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Acid Rain",
+     "ids": [
+      48692,
+      48693,
+      48694
+     ],
+     "cast": 2.0,
+     "tell": "Chained 6y circles follow you",
+     "do": "Keep moving in one direction",
+     "src": [
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Sapling spawn",
+     "ids": [],
+     "tell": "3 Sapling Pieces spawn mid-fight (not on the panel)",
+     "do": "Parting Blow them in a cluster",
+     "src": [
+      "AS"
+     ]
+    },
+    {
+     "name": "Queen Hawk trick",
+     "ids": [],
+     "tell": "The Floral Trap pull can hit the Queen Hawk",
+     "do": "Stand behind the Queen Hawk during the pull",
+     "src": [
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [
+    {
+     "name": "Final Sting",
+     "ids": [
+      48689
+     ],
+     "cast": 5.0,
+     "tell": "Queen Hawk hits the enmity target",
+     "do": "Snarl so the pet takes it, or snarl-parting",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    }
+   ],
+   "counters": [],
+   "threats": [
+    "adds",
+    "tankbuster"
+   ],
+   "bring": [
+    {
+     "text": "Wind damage for the Corpse Flower",
+     "src": [
+      "AS"
+     ]
+    }
+   ],
+   "unknown": []
+  },
+  {
+   "board": 4,
+   "battle": 4,
+   "title": "Ice Dragon Piece + Ice Sprite",
+   "where": "Row 4, right lane (random space)",
+   "summary": "Kill the Ice Sprite first, stay out of ice puddles, dodge lines and the landing.",
+   "killOrder": {
+    "text": "Ice Sprite first",
+    "src": [
+     "AS",
+     "BMR"
+    ]
+   },
+   "mechanics": [
+    {
+     "name": "Withering Eternity",
+     "ids": [
+      48707,
+      48708
+     ],
+     "cast": 5.0,
+     "tell": "9y circles leave ice puddles that stack Freezing",
+     "do": "Stay out of the puddles; 8 stacks freezes you",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Icy Torment",
+     "ids": [
+      48696,
+      48697,
+      48698,
+      48699
+     ],
+     "cast": 6.5,
+     "tell": "Long 15y-wide line",
+     "do": "Step out of the line",
+     "src": [
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Sheet of Ice",
+     "ids": [
+      48710,
+      48712
+     ],
+     "cast": 5.5,
+     "tell": "5y ground circles",
+     "do": "Step out",
+     "src": [
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Rime Wreath",
+     "ids": [
+      48709
+     ],
+     "cast": 5.0,
+     "tell": "Room-wide hit plus Frostbite",
+     "do": "Mitigate",
+     "src": [
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Cauterize",
+     "ids": [
+      48700,
+      48701,
+      48704
+     ],
+     "cast": 1.0,
+     "tell": "Flies off; 23y-wide lines sweep the arena",
+     "do": "Stay out of the marked lines",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Touchdown",
+     "ids": [
+      48702,
+      48705,
+      48706
+     ],
+     "cast": 0.5,
+     "tell": "Lands: 60y hit with a 30y knockback from the marker",
+     "do": "Position so the 30y push away from the mark stays in bounds",
+     "src": [
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Blizzard",
+     "ids": [
+      48621
+     ],
+     "tell": "Ice Sprite hits the enmity target",
+     "do": "Let the pet hold enmity (Snarl)",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [],
+   "counters": [],
+   "threats": [
+    "knockback",
+    "roomwide",
+    "adds"
+   ],
+   "bring": [
+    {
+     "text": "Fire damage; magic autos beat the sprite's physical defense",
+     "src": [
+      "AS"
+     ]
+    }
+   ],
+   "unknown": [
+    "AS found no footage for this fight; details are reconstructed from panels",
+    "Touchdown: AS says get far from the landing; BMR adds a 30y push from it"
+   ]
+  },
+  {
+   "board": 4,
+   "battle": 5,
+   "title": "Gargoyle Piece",
+   "where": "Row 5, elite (mandatory)",
+   "summary": "Physical autos only; soak orbs up to 4 stacks; aim the knockback into a corner.",
+   "mechanics": [
+    {
+     "name": "Rippling Evisceration",
+     "ids": [
+      48719,
+      48720,
+      48721
+     ],
+     "cast": 6.0,
+     "tell": "13y circle, then a 13-30y donut 2 s later",
+     "do": "Get out, then move back in",
+     "src": [
+      "AS",
+      "G8",
+      "MRB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Sweeping Evisceration",
+     "ids": [
+      48717,
+      48718
+     ],
+     "cast": 7.9,
+     "tell": "Tether; charge, then front-half and rear-half cleaves",
+     "do": "Stretch the tether, then dodge front then rear",
+     "src": [
+      "AS",
+      "G8",
+      "CHR",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Malady orbs",
+     "ids": [
+      48713,
+      48714,
+      48715,
+      48716
+     ],
+     "cast": 5.0,
+     "tell": "10 orbs; each soaked = 1 Growing Dread, 5 = Panic",
+     "do": "Soak up to 4, wait for it to drop, then soak more",
+     "src": [
+      "AS",
+      "G8",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Fivefold Fallout",
+     "ids": [
+      50695,
+      50696,
+      48723,
+      48724,
+      48725
+     ],
+     "cast": 3.0,
+     "tell": "4 room-wide hits, then a 20y knockback",
+     "do": "Stand so you fly into a corner, not off the edge",
+     "src": [
+      "AS",
+      "G8",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Desolation",
+     "ids": [
+      48726,
+      48727
+     ],
+     "cast": 3.5,
+     "tell": "7y-wide frontal line plus Growing Dread",
+     "do": "Let the pet hold enmity so it faces the pet",
+     "src": [
+      "AS",
+      "MRB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Sea of Pitch",
+     "ids": [
+      48728,
+      48729
+     ],
+     "cast": 3.0,
+     "tell": "6y ground puddles",
+     "do": "Stay out of the puddles",
+     "src": [
+      "AS",
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [
+    {
+     "name": "Grim Fate",
+     "ids": [
+      48730
+     ],
+     "cast": 5.0,
+     "tell": "Single-target cast on you with a tankbuster marker",
+     "do": "Treat it as a tankbuster: mitigate",
+     "src": [
+      "BMR"
+     ]
+    }
+   ],
+   "counters": [],
+   "threats": [
+    "knockback",
+    "roomwide",
+    "tankbuster"
+   ],
+   "bring": [
+    {
+     "text": "Physical autos (it has 5-star magic defense)",
+     "src": [
+      "AS",
+      "G8"
+     ]
+    },
+    {
+     "text": "A Blink tome at the start",
+     "src": [
+      "G8"
+     ]
+    }
+   ],
+   "unknown": [
+    "Grim Fate appears only in BMR; no guide covers it"
+   ]
+  },
+  {
+   "board": 4,
+   "battle": 6,
+   "title": "Administrator Piece + Bug Piece + Footman Piece + Dreadnaught Piece + Drone Piece + Cobra Piece",
+   "where": "Row 6, left lane (random space)",
+   "summary": "Interrupt Confound or you get confused; kill Bugs before they reach and buff the boss.",
+   "killOrder": {
+    "text": "Bug and Cobra adds first, then Dreadnaught, Drone, Footman, boss last",
+    "src": [
+     "BMR"
+    ]
+   },
+   "mechanics": [
+    {
+     "name": "Confound",
+     "ids": [
+      48740
+     ],
+     "cast": 8.0,
+     "tell": "Room-wide Confusion (12 s, no resist)",
+     "do": "Interrupt it; save your one Soul Crush for this",
+     "src": [
+      "AS",
+      "CGW",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Flame Thrower",
+     "ids": [
+      48746,
+      48747
+     ],
+     "cast": 7.0,
+     "tell": "120-degree frontal cone",
+     "do": "Get out of its front",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Piercing Laser",
+     "ids": [
+      48744,
+      48745
+     ],
+     "cast": 6.0,
+     "tell": "Marker, then a 5y-wide laser line",
+     "do": "Stay out of the line's path",
+     "src": [
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Object 199",
+     "ids": [
+      48743
+     ],
+     "cast": 5.0,
+     "tell": "60y room-wide hit",
+     "do": "Mitigate",
+     "src": [
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Bug Pieces",
+     "ids": [
+      48734
+     ],
+     "tell": "Bugs tether to the boss and give it Damage Up and regen",
+     "do": "Kill Bugs before they reach the boss",
+     "src": [
+      "BMR"
+     ]
+    },
+    {
+     "name": "Machina add attacks",
+     "ids": [
+      48735,
+      48736,
+      48742
+     ],
+     "cast": 3.5,
+     "tell": "Drone line, Footman 5y spin, Dreadnaught frontal",
+     "do": "Stay out of their lines and fronts",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Noxious Nova",
+     "ids": [
+      48738
+     ],
+     "cast": 8.0,
+     "tell": "Cobra room-wide poison, not interruptible",
+     "do": "Kill the Cobra first, or cleanse after",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [],
+   "counters": [
+    {
+     "need": "interrupt",
+     "what": "Confound (Administrator)",
+     "src": [
+      "panel"
+     ]
+    },
+    {
+     "need": "cleanse",
+     "what": "Poison from Noxious Nova",
+     "src": [
+      "panel"
+     ]
+    }
+   ],
+   "threats": [
+    "confusion",
+    "poison",
+    "roomwide",
+    "adds"
+   ],
+   "bring": [
+    {
+     "text": "Lightning damage plus Soul Crush (Soulkin) for Confound",
+     "src": [
+      "AS"
+     ]
+    }
+   ],
+   "unknown": [
+    "Kill order differs: AS says boss first; BMR kills Bug and Cobra adds first",
+    "AS reconstructed this fight from panels"
+   ]
+  },
+  {
+   "board": 4,
+   "battle": 7,
+   "title": "Golem Piece",
+   "where": "Row 7, left lane (elite)",
+   "summary": "Read the castbar name for in or out; kill the heart within its 20 s Self-destruct.",
+   "mechanics": [
+    {
+     "name": "Earthen Ring",
+     "ids": [
+      48752,
+      48753
+     ],
+     "cast": 7.0,
+     "tell": "Donut, 5-50y",
+     "do": "Stand at its feet",
+     "src": [
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Plaincracker",
+     "ids": [
+      48754,
+      48755,
+      48760,
+      48765
+     ],
+     "cast": 7.0,
+     "tell": "20y circle; alternates with Earthen Ring",
+     "do": "Get out; read the castbar name",
+     "src": [
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Rock Wall",
+     "ids": [
+      48748,
+      48750,
+      48751
+     ],
+     "cast": 4.0,
+     "tell": "Bands on the floor: the middle or the outer lanes",
+     "do": "Stand in a band that is not marked",
+     "src": [
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Outcrop",
+     "ids": [
+      48767,
+      48768
+     ],
+     "cast": 5.0,
+     "tell": "60-degree frontal cone",
+     "do": "Pet holds enmity; stand to the side",
+     "src": [
+      "AS",
+      "MRB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Stoneshower",
+     "ids": [
+      48756,
+      48757,
+      48758
+     ],
+     "cast": 1.0,
+     "tell": "Falling rocks: 8y circle or 3-11y donut",
+     "do": "React to the floor telegraph",
+     "src": [
+      "AS",
+      "MRB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Obliterate",
+     "ids": [
+      50649
+     ],
+     "cast": 5.0,
+     "tell": "Second golem: 17y knockback",
+     "do": "Don't stand near an edge",
+     "src": [
+      "BMR"
+     ]
+    },
+    {
+     "name": "Self-destruct",
+     "ids": [
+      48766
+     ],
+     "cast": 20.0,
+     "tell": "Arena-wide 20 s cast at the end",
+     "do": "Burst everything: kill it before the cast ends",
+     "src": [
+      "AS",
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [],
+   "counters": [],
+   "threats": [
+    "knockback",
+    "roomwide"
+   ],
+   "bring": [
+    {
+     "text": "Water damage (its weakness)",
+     "src": [
+      "AS"
+     ]
+    },
+    {
+     "text": "Hold a Trick and a Parting Blow for the Self-destruct window",
+     "src": [
+      "AS"
+     ]
+    }
+   ],
+   "unknown": [
+    "AS: one golem self-destructs at ~20% HP; BMR: two golems, then a heart casts it"
+   ]
+  },
+  {
+   "board": 4,
+   "battle": 8,
+   "title": "Treant Piece + Slug Piece + Sapling Piece + Diremite Piece + Biloko Piece",
+   "where": "Row 7, right lane",
+   "summary": "Interrupt Natural Nurture, kill the healers and growers, dodge rings and breeze cones.",
+   "killOrder": {
+    "text": "Biloko and Sapling first, then Diremite, Slug, Treant",
+    "src": [
+     "AS",
+     "BMR"
+    ]
+   },
+   "mechanics": [
+    {
+     "name": "Natural Nurture",
+     "ids": [
+      48782
+     ],
+     "cast": 9.0,
+     "tell": "Biloko heals the Treant",
+     "do": "Interrupt it, then kill the Biloko",
+     "src": [
+      "AS",
+      "CGW",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Grab and Grow",
+     "ids": [
+      48786
+     ],
+     "tell": "Sapling latches on and keeps growing",
+     "do": "Kill Saplings early; one guide says the growth can be dispelled",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Acorn Bomb",
+     "ids": [
+      50518,
+      48781
+     ],
+     "cast": 5.0,
+     "tell": "3y circle on you, Nightmare (no resist)",
+     "do": "Keep moving so it misses",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Arboreal Storm",
+     "ids": [
+      48770,
+      48771,
+      48772,
+      48773,
+      48774,
+      48775
+     ],
+     "cast": 5.0,
+     "tell": "12y center circle, then rings expand out to 36y",
+     "do": "Wait at a ring edge, step in after it fires",
+     "src": [
+      "AS",
+      "G8",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Rustling Breeze",
+     "ids": [
+      48776,
+      48777,
+      48778,
+      48779,
+      48780
+     ],
+     "cast": 7.0,
+     "tell": "Cones from the glowing part: 150 or 90 degrees",
+     "do": "One cone: be outside it. Two: stand between",
+     "src": [
+      "AS",
+      "G8",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Silkscreen",
+     "ids": [
+      48785
+     ],
+     "cast": 3.5,
+     "tell": "Diremite 4y-wide line, Heavy",
+     "do": "Step out of the line",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Aqueous Discharge",
+     "ids": [
+      48783
+     ],
+     "cast": 2.5,
+     "tell": "Slug 5y circle",
+     "do": "Step away from the Slugs",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Second add wave",
+     "ids": [
+      48769
+     ],
+     "cast": 3.0,
+     "tell": "Another wave of adds spawns",
+     "do": "If the Treant is nearly dead ignore them; else AoE",
+     "src": [
+      "AS",
+      "G8",
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [],
+   "counters": [
+    {
+     "need": "interrupt",
+     "what": "Natural Nurture (Biloko Piece)",
+     "src": [
+      "panel"
+     ]
+    },
+    {
+     "need": "dispel",
+     "what": "Growing buff from Grab and Grow (panel says not dispellable)",
+     "src": [
+      "AS"
+     ]
+    }
+   ],
+   "threats": [
+    "heavy",
+    "adds"
+   ],
+   "bring": [
+    {
+     "text": "Poison works here; a draining release plus Shield Charge on the adds heals you",
+     "src": [
+      "G8"
+     ]
+    }
+   ],
+   "unknown": [
+    "Kill order differs: AS puts the Biloko first, BMR the Sapling",
+    "Grab and Grow: AS says dispellable; the panel says it is not"
+   ]
+  },
+  {
+   "board": 4,
+   "battle": 9,
+   "title": "Progenitrix Piece + Grenade Piece + Bomb Piece + Snoll Piece + Pyrobolus Piece",
+   "where": "Row 8, left lane (random space)",
+   "summary": "Kill Grenades first, interrupt Massive Explosion, never hit a Snoll under Ice Spikes.",
+   "killOrder": {
+    "text": "Grenades first, then the other bombs, Progenitrix last",
+    "src": [
+     "AS",
+     "BMR"
+    ]
+   },
+   "mechanics": [
+    {
+     "name": "Massive Explosion (Grenade)",
+     "ids": [
+      48790
+     ],
+     "cast": 4.0,
+     "tell": "Grenade arena-wide blast, not interruptible",
+     "do": "Kill Grenades first",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Massive Explosion (Progenitrix)",
+     "ids": [
+      48802
+     ],
+     "cast": 7.0,
+     "tell": "Progenitrix arena-wide blast, interruptible",
+     "do": "Interrupt it with Soul Crush",
+     "src": [
+      "AS",
+      "CGW",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Invincibility",
+     "ids": [],
+     "tell": "Progenitrix is invulnerable while a Grenade is tethered",
+     "do": "Kill the tethered Grenade",
+     "src": [
+      "BMR"
+     ]
+    },
+    {
+     "name": "Scalding Scolding",
+     "ids": [
+      48798,
+      48799
+     ],
+     "cast": 6.0,
+     "tell": "Half-arena frontal cone",
+     "do": "Go behind",
+     "src": [
+      "BMR"
+     ]
+    },
+    {
+     "name": "Fiery Fury",
+     "ids": [
+      48803,
+      48805,
+      48827
+     ],
+     "cast": 7.9,
+     "tell": "Teleports; 15y knockback plus 6y circles",
+     "do": "Stay off the edge; dodge the circles",
+     "src": [
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Fire II / Self-destruct",
+     "ids": [
+      48791,
+      48792
+     ],
+     "cast": 4.0,
+     "tell": "Bomb 5y ground circle; 6y blast when a bomb is low",
+     "do": "Step out; move away from low-HP bombs",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Ice Spikes",
+     "ids": [
+      48793
+     ],
+     "cast": 3.0,
+     "tell": "Snoll counter stance",
+     "do": "Stop attacking the Snoll, or dispel it",
+     "src": [
+      "AS",
+      "panel"
+     ]
+    },
+    {
+     "name": "Hypothermal Combustion",
+     "ids": [
+      48794
+     ],
+     "tell": "Snoll 10y blast",
+     "do": "Stay away; a Snoll killed on fire puddles clears them",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Toxic Fumes",
+     "ids": [
+      48795,
+      48796
+     ],
+     "cast": 4.0,
+     "tell": "Pyrobolus narrow cone, poison",
+     "do": "Stay out of its front; cleanse after",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [
+    {
+     "name": "Meltdown",
+     "ids": [
+      48800,
+      48801
+     ],
+     "tell": "12y-wide line at you with a tankbuster marker, 15y push",
+     "do": "Mitigate; expect a 15y push away from the boss",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    }
+   ],
+   "counters": [
+    {
+     "need": "interrupt",
+     "what": "Massive Explosion (Progenitrix)",
+     "src": [
+      "panel"
+     ]
+    },
+    {
+     "need": "dispel",
+     "what": "Ice Spikes (Snoll Piece)",
+     "src": [
+      "panel"
+     ]
+    },
+    {
+     "need": "cleanse",
+     "what": "Poison from Toxic Fumes",
+     "src": [
+      "panel"
+     ]
+    }
+   ],
+   "threats": [
+    "poison",
+    "knockback",
+    "roomwide",
+    "adds",
+    "counterstance",
+    "invulnerable",
+    "tankbuster"
+   ],
+   "bring": [],
+   "unknown": [
+    "AS confirms only the interrupt; the rest is reconstructed from panels",
+    "Order after Grenades differs between AS and BMR"
+   ]
+  },
+  {
+   "board": 4,
+   "battle": 0,
+   "title": "Borgny the Venomous + Toxic Mass",
+   "where": "Row 9, boss",
+   "summary": "Bring 100% poison resist; drop vomit puddles center; kill Wriggling Phlegm adds fast.",
+   "mechanics": [
+    {
+     "name": "Toxic Breath",
+     "ids": [
+      48807,
+      48808
+     ],
+     "cast": 3.0,
+     "tell": "Turns, jumps ~20y back, then a 120-degree cone",
+     "do": "Get behind at the cast, then out toward the edge",
+     "src": [
+      "AS",
+      "G8",
+      "CHR",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Toxic Vomit",
+     "ids": [
+      48809,
+      48810
+     ],
+     "cast": 5.0,
+     "tell": "4 successive 6y circles on you, leaving puddles",
+     "do": "Drop puddles in the center; Snarl, Parting Blow on the 4th",
+     "src": [
+      "AS",
+      "G8",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Fuming Vomit",
+     "ids": [
+      48811,
+      48812
+     ],
+     "cast": 6.0,
+     "tell": "6y circle from the boss",
+     "do": "Get out, then watch its facing",
+     "src": [
+      "AS",
+      "G8",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Wriggling Phlegm",
+     "ids": [
+      48817,
+      48819
+     ],
+     "cast": 7.9,
+     "tell": "Marker; drops a 6y circle that spawns about 8 adds",
+     "do": "Drop it away from puddles; AoE the adds at once",
+     "src": [
+      "AS",
+      "G8",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Cauterize",
+     "ids": [
+      48813,
+      48814
+     ],
+     "cast": 6.0,
+     "tell": "20y-wide line across the arena, Toxin",
+     "do": "Snarl so it faces the pet; stand to the side",
+     "src": [
+      "AS",
+      "MRB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Touchdown",
+     "ids": [
+      48815,
+      48816,
+      48828
+     ],
+     "cast": 4.0,
+     "tell": "30y knockback plus a 6y circle",
+     "do": "Rarely seen; avoid edges",
+     "src": [
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Noxious Explosion",
+     "ids": [
+      48821
+     ],
+     "tell": "Toxic Mass room-wide Toxin",
+     "do": "Kill the Toxic Mass fast with water",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [],
+   "counters": [
+    {
+     "need": "cleanse",
+     "what": "Toxin without resist (panel says not cleansable)",
+     "src": [
+      "AS",
+      "G8"
+     ]
+    }
+   ],
+   "threats": [
+    "poison",
+    "adds",
+    "knockback",
+    "roomwide"
+   ],
+   "bring": [
+    {
+     "text": "100% poison resist: Breathtaking Swiftness potion, Antipoison G2, Angel Robe or Porcini",
+     "src": [
+      "AS",
+      "G8"
+     ]
+    },
+    {
+     "text": "Earth damage for Borgny, water for the Toxic Mass",
+     "src": [
+      "AS"
+     ]
+    },
+    {
+     "text": "Hold a TR and Parting Blow for the Wriggling Phlegm adds",
+     "src": [
+      "G8",
+      "AS"
+     ]
+    }
+   ],
+   "unknown": [
+    "Toxin: the panel marks it not cleansable while guides cleanse it; resist it instead"
+   ]
+  },
+  {
+   "board": 5,
+   "battle": 1,
+   "title": "Flauros Piece + Lightning Sprite",
+   "where": "Row 1",
+   "summary": "Snarl-parting Erratic Blaster, kill the sprites, get behind Charged Lightning.",
+   "mechanics": [
+    {
+     "name": "Heat Lightning",
+     "ids": [
+      49185,
+      49186
+     ],
+     "cast": 4.0,
+     "tell": "6y circles; 3 Lightning Sprites appear",
+     "do": "Kill the sprites; combo steps 2-3 finish them",
+     "src": [
+      "AS",
+      "LSB",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Line Voltage",
+     "ids": [
+      49194,
+      49195
+     ],
+     "cast": 2.0,
+     "tell": "Sprites fire lines at the enmity target (2y, or 6y)",
+     "do": "Step out of the lines",
+     "src": [
+      "AS",
+      "LSB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Charged Lightning",
+     "ids": [
+      49192,
+      49193
+     ],
+     "cast": 5.8,
+     "tell": "Large frontal, 40y wide",
+     "do": "Go behind",
+     "src": [
+      "AS",
+      "LSB",
+      "MRB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Electric Shock",
+     "ids": [
+      49190,
+      49191
+     ],
+     "cast": 6.0,
+     "tell": "Long charge, then a 16y circle on the boss",
+     "do": "Get out",
+     "src": [
+      "AS",
+      "LSB",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Aetherial Offering",
+     "ids": [
+      49187
+     ],
+     "cast": 5.0,
+     "tell": "5 s cast; sprites tether to the boss",
+     "do": "Optional: keep one sprite alive to bait it, kill it as it starts",
+     "src": [
+      "AS",
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [
+    {
+     "name": "Erratic Blaster",
+     "ids": [
+      49188,
+      49189
+     ],
+     "cast": 7.0,
+     "tell": "Strong hit on you plus Paralysis; Snarl can't retarget it",
+     "do": "Snarl-parting: Parting Blow about 2 s before it lands",
+     "src": [
+      "AS",
+      "LSB",
+      "R",
+      "panel",
+      "BMR"
+     ]
+    }
+   ],
+   "counters": [
+    {
+     "need": "cleanse",
+     "what": "Paralysis from Erratic Blaster",
+     "src": [
+      "panel"
+     ]
+    }
+   ],
+   "threats": [
+    "paralysis",
+    "tankbuster",
+    "adds"
+   ],
+   "bring": [
+    {
+     "text": "Earth damage (weakness of both); Scouring Ash (Ashkin) for Erratic Blaster paralysis",
+     "src": [
+      "AS"
+     ]
+    },
+    {
+     "text": "Antiparalysis serum or Crimson Ribbon to pre-resist",
+     "src": [
+      "AS"
+     ]
+    }
+   ],
+   "unknown": [
+    "Aetherial Offering matched to the guides' 5 s sprite-bait cast by timing"
+   ]
+  },
+  {
+   "board": 5,
+   "battle": 2,
+   "title": "Mindflayer Piece + Myconid Piece",
+   "where": "Row 2, left (elite)",
+   "summary": "Kill Myconids on water puddles, get off water for Void Thunder III, cleanse paralysis.",
+   "mechanics": [
+    {
+     "name": "Void Water III",
+     "ids": [
+      49199,
+      49200
+     ],
+     "cast": 5.0,
+     "tell": "8y circles under you and the pet leave water puddles",
+     "do": "Place the puddles away from the center",
+     "src": [
+      "AS",
+      "LSB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Myconid Pieces",
+     "ids": [
+      49196,
+      49198
+     ],
+     "tell": "On death: room-wide poison burst and a 6y circle",
+     "do": "Kill them while they stand on a water puddle",
+     "src": [
+      "AS",
+      "LSB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Void Thunder III",
+     "ids": [
+      49205,
+      49206,
+      49207,
+      50939
+     ],
+     "cast": 5.0,
+     "tell": "Strong 6y hit on you plus a 10y-wide cross",
+     "do": "Get off the water first; dodge the cross",
+     "src": [
+      "AS",
+      "LSB",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Arcane Enhancement",
+     "ids": [
+      49201,
+      49202,
+      49203,
+      49204
+     ],
+     "cast": 5.0,
+     "tell": "Orbs fire lines; tethered orbs fire 10y-wide lines",
+     "do": "Stand clear of each orb's line",
+     "src": [
+      "AS",
+      "LSB",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Void Paralyze III",
+     "ids": [
+      49208
+     ],
+     "cast": 7.0,
+     "tell": "Room-wide Paralysis (no vuln or damage down)",
+     "do": "Cleanse with Scouring Ash, or pre-resist",
+     "src": [
+      "AS",
+      "LSB",
+      "MRB",
+      "panel",
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [],
+   "counters": [
+    {
+     "need": "cleanse",
+     "what": "Paralysis from Void Paralyze III",
+     "src": [
+      "panel"
+     ]
+    },
+    {
+     "need": "cleanse",
+     "what": "Poison from Myconid bursts",
+     "src": [
+      "panel"
+     ]
+    }
+   ],
+   "threats": [
+    "paralysis",
+    "poison",
+    "adds",
+    "roomwide",
+    "tankbuster"
+   ],
+   "bring": [],
+   "unknown": []
+  },
+  {
+   "board": 5,
+   "battle": 3,
+   "title": "Boogyman Piece + Deepeye Piece + Bomb Piece + Light Sprite",
+   "where": "Row 3, right (random space)",
+   "summary": "Kill bombs, then the Deepeye during Oogle; aim a dying Light Sprite at the hidden boss.",
+   "killOrder": {
+    "text": "Bomb, then Deepeye, then Light Sprite, then Boogyman",
+    "src": [
+     "AS",
+     "BMR"
+    ]
+   },
+   "mechanics": [
+    {
+     "name": "Swing Round",
+     "ids": [
+      49225,
+      49226,
+      49227,
+      49228
+     ],
+     "cast": 5.0,
+     "tell": "Club = 20y knockback; sword = 12y circle on the boss",
+     "do": "Club: stay off the edge. Sword: get out",
+     "src": [
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Weapon swap",
+     "ids": [
+      49215,
+      49216
+     ],
+     "cast": 3.0,
+     "tell": "The boss fetches a new weapon",
+     "do": "Read the weapon again",
+     "src": [
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Swoop",
+     "ids": [
+      49219,
+      49220,
+      49222,
+      49224
+     ],
+     "cast": 3.0,
+     "tell": "Charges to the edge; club = 30y circle, sword = cone",
+     "do": "Club: get far away. Sword: leave the cone",
+     "src": [
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Veil of Darkness",
+     "ids": [
+      49209
+     ],
+     "cast": 4.0,
+     "tell": "Boss and adds turn invisible; the boss can't be hit",
+     "do": "Swap to the adds",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Self-destruct",
+     "ids": [
+      49211
+     ],
+     "cast": 8.0,
+     "tell": "Bomb room-wide blast on a timer",
+     "do": "Kill the bombs first",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Explosion",
+     "ids": [
+      49210
+     ],
+     "cast": 5.0,
+     "tell": "Bomb 9y circle",
+     "do": "Step out",
+     "src": [
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Oogle",
+     "ids": [
+      49214
+     ],
+     "cast": 10.0,
+     "tell": "Deepeye room-wide petrify gaze",
+     "do": "Kill the Deepeye during the cast, or look away",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Diffuse Light",
+     "ids": [
+      49212
+     ],
+     "cast": 1.5,
+     "tell": "Light Sprite fires a cone where it faces as it dies",
+     "do": "Aim it at the hidden boss; too early speeds up the fight",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Ripples of Gloom",
+     "ids": [
+      49231
+     ],
+     "cast": 5.0,
+     "tell": "Room-wide hit plus Blind",
+     "do": "Pre-resist, or cleanse with Scouring Ash",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [],
+   "counters": [
+    {
+     "need": "cleanse",
+     "what": "Blind from Ripples of Gloom",
+     "src": [
+      "AS",
+      "BMR"
+     ]
+    }
+   ],
+   "threats": [
+    "blind",
+    "petrify",
+    "knockback",
+    "roomwide",
+    "adds",
+    "invulnerable"
+   ],
+   "bring": [
+    {
+     "text": "Crimson Ribbon covers blind and petrify",
+     "src": [
+      "AS"
+     ]
+    }
+   ],
+   "unknown": [
+    "Ripples of Gloom Blind: panel lists status 5389 (not cleansable); BMR logs 5381 (cleansable)"
+   ]
+  },
+  {
+   "board": 5,
+   "battle": 4,
+   "title": "Atomos Piece + Red Gremlin Piece + Gremlin Piece + Pudding Piece + Bavarois Piece + Flan Piece + Vodoriga Piece + Menacing Dahak Piece",
+   "where": "Row 4, left (random space)",
+   "summary": "Clear each wave (it drains the Atomos); Bavarois first; share Fire III on a puddle.",
+   "killOrder": {
+    "text": "Bavarois, then Pudding, Flan and Dahak, then Gremlins and Vodoriga",
+    "src": [
+     "AS",
+     "BMR"
+    ]
+   },
+   "mechanics": [
+    {
+     "name": "Summon waves",
+     "ids": [],
+     "tell": "The Atomos loses HP with each summon; 5 waves",
+     "do": "Clear the adds quickly; that is progress",
+     "src": [
+      "AS"
+     ]
+    },
+    {
+     "name": "Bad-mouth",
+     "ids": [
+      49241
+     ],
+     "cast": 3.0,
+     "tell": "Red Gremlin: stacking Physical Vulnerability Up on you",
+     "do": "Group the Gremlins and Parting Blow them",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Terror Eye",
+     "ids": [
+      49247
+     ],
+     "cast": 3.0,
+     "tell": "Vodoriga 6y ground circles",
+     "do": "Step out",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Shockwave",
+     "ids": [
+      49238
+     ],
+     "cast": 6.0,
+     "tell": "Room-wide 16y knockback",
+     "do": "Position so the 16y push stays inside the arena",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Water III",
+     "ids": [
+      49242
+     ],
+     "cast": 2.0,
+     "tell": "Bavarois: room-wide 20y knockback; leaves water puddles",
+     "do": "Kill it first; position so the 20y push stays in bounds",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Fire III",
+     "ids": [
+      49243
+     ],
+     "cast": 8.0,
+     "tell": "Pudding stack marker on you (6y)",
+     "do": "Stand on a water puddle with the pet to share it",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Thunder III",
+     "ids": [
+      49244,
+      49245,
+      49246
+     ],
+     "cast": 8.0,
+     "tell": "Flan: 5y circle on you",
+     "do": "Be off the puddle and away from other AoEs",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Dark II",
+     "ids": [
+      49239,
+      49240
+     ],
+     "cast": 7.0,
+     "tell": "120-degree frontal cone",
+     "do": "Go to the side or back",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Aetheric charges",
+     "ids": [
+      49236,
+      49237
+     ],
+     "cast": 2.0,
+     "tell": "Wave 4: overlapping 12y and 6y circles",
+     "do": "Find the gap between them",
+     "src": [
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Rotten Breath / Tail Drive",
+     "ids": [
+      49248,
+      49249
+     ],
+     "cast": 5.0,
+     "tell": "Menacing Dahak: front cone and rear cone",
+     "do": "Go to its sides",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Forsaken Fount",
+     "ids": [
+      49235
+     ],
+     "cast": 5.0,
+     "tell": "Room-wide hit",
+     "do": "Mitigate",
+     "src": [
+      "BMR"
+     ]
+    },
+    {
+     "name": "Mana Manifestation",
+     "ids": [
+      49232,
+      49233
+     ],
+     "cast": 4.0,
+     "tell": "8y ground circles",
+     "do": "Step out",
+     "src": [
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [],
+   "counters": [],
+   "threats": [
+    "knockback",
+    "roomwide",
+    "adds"
+   ],
+   "bring": [],
+   "unknown": [
+    "AS is the only guide; the chapter list confirms the fight exists"
+   ]
+  },
+  {
+   "board": 5,
+   "battle": 5,
+   "title": "Drake Piece + Barbmole Piece + Abaddon Piece + Morpho Piece",
+   "where": "Row 4, center (standard route)",
+   "summary": "Don't hit spiked targets; feed Morphos to the Abaddon (never kill them); dispel regen.",
+   "killOrder": {
+    "text": "Drake, then remaining Barbmoles; Abaddon last, after every Morpho is eaten",
+    "src": [
+     "AS",
+     "BMR"
+    ]
+   },
+   "mechanics": [
+    {
+     "name": "Burning Cyclone",
+     "ids": [
+      49255,
+      49256
+     ],
+     "cast": 5.0,
+     "tell": "Drake moves east or west; 120-degree cone to center",
+     "do": "Leave the cone; fire orbs pulse small circles",
+     "src": [
+      "AS",
+      "LSB",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Blaze Spikes",
+     "ids": [
+      49253
+     ],
+     "cast": 3.0,
+     "tell": "Drake reflect barrier",
+     "do": "Stop attacking the Drake, or dispel it",
+     "src": [
+      "AS",
+      "LSB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Needles Out",
+     "ids": [
+      49250
+     ],
+     "cast": 3.0,
+     "tell": "Barbmole reflects physical hits with a stacking bleed",
+     "do": "Stop hitting it; poison still works",
+     "src": [
+      "AS",
+      "LSB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Seeding Needles",
+     "ids": [
+      49252
+     ],
+     "cast": 5.0,
+     "tell": "20y circle around a Barbmole",
+     "do": "Lead moles to the edge; kill them fast",
+     "src": [
+      "AS",
+      "LSB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Blowing Ring of Fire",
+     "ids": [
+      49259
+     ],
+     "cast": 5.0,
+     "tell": "A fire orb becomes a tornado; wide donut",
+     "do": "Go in, right next to the tornado",
+     "src": [
+      "AS",
+      "LSB",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Morpho Pieces",
+     "ids": [
+      49260,
+      49261
+     ],
+     "cast": 4.0,
+     "tell": "Killing a Morpho = room-wide Confusion; wings stack Wit's End",
+     "do": "Never kill Morphos; no AoE while they live",
+     "src": [
+      "AS",
+      "LSB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Abaddon feeding",
+     "ids": [],
+     "tell": "The Abaddon eats Morphos and gains regen for 1 minute",
+     "do": "Take its aggro, walk it to Morphos; chip them first",
+     "src": [
+      "AS",
+      "LSB",
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [
+    {
+     "name": "Mangling Fang",
+     "ids": [
+      49254
+     ],
+     "cast": 5.0,
+     "tell": "Single-target hit on you; Snarl can't redirect it",
+     "do": "Beastskin, or accept it",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    }
+   ],
+   "counters": [
+    {
+     "need": "dispel",
+     "what": "Blaze Spikes (Drake Piece)",
+     "src": [
+      "panel"
+     ]
+    },
+    {
+     "need": "dispel",
+     "what": "Regen on the Abaddon from eaten Morphos",
+     "src": [
+      "AS",
+      "LSB"
+     ]
+    }
+   ],
+   "threats": [
+    "confusion",
+    "counterstance",
+    "dontattack",
+    "adds",
+    "tankbuster"
+   ],
+   "bring": [
+    {
+     "text": "Poison (Seedkin borrow) still damages spiked moles",
+     "src": [
+      "AS"
+     ]
+    },
+    {
+     "text": "Fangs or Parting Blow for the Barbmoles",
+     "src": [
+      "LSB"
+     ]
+    }
+   ],
+   "unknown": []
+  },
+  {
+   "board": 5,
+   "battle": 6,
+   "title": "Durga Piece + Spinner-rook Piece",
+   "where": "Row 5, elite (mandatory)",
+   "summary": "Track the hands for Grounding Jolt; kill rooks fast; mitigate Atomic Ray yourself.",
+   "mechanics": [
+    {
+     "name": "Grounding Jolt",
+     "ids": [
+      49263,
+      49264,
+      49265,
+      49266
+     ],
+     "cast": 5.2,
+     "tell": "Absorbing hand = 20y circle, other hand = 6y circle",
+     "do": "Track which hand absorbed; the boss turns",
+     "src": [
+      "AS",
+      "LSB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Missiles",
+     "ids": [
+      49267,
+      50688
+     ],
+     "tell": "4y-wide lines that track you",
+     "do": "Move after they lock on",
+     "src": [
+      "AS",
+      "LSB",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Thermobaric Charge",
+     "ids": [
+      49273,
+      49274
+     ],
+     "cast": 5.0,
+     "tell": "Marker on the enmity target; 40y knockback from the drop",
+     "do": "Drop it at a corner or edge",
+     "src": [
+      "AS",
+      "LSB",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Diffusion Ray",
+     "ids": [
+      49275,
+      49276
+     ],
+     "cast": 5.0,
+     "tell": "120-degree frontal cone",
+     "do": "Get out of its front",
+     "src": [
+      "LSB",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Spinner-rook Pieces",
+     "ids": [
+      49269,
+      49271
+     ],
+     "cast": 3.0,
+     "tell": "At ~50-60% rooks spawn; Durga invulnerable; gauge fills",
+     "do": "Swap and burst the rooks: Parting Blows, fangs",
+     "src": [
+      "AS",
+      "LSB",
+      "panel",
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [
+    {
+     "name": "Atomic Ray",
+     "ids": [
+      49272
+     ],
+     "cast": 13.0,
+     "tell": "Room-wide; heavier the fuller the gauge; pet cover fails",
+     "do": "Drake TR, Scaleskin or Beastskin, potion; keep HP high",
+     "src": [
+      "AS",
+      "LSB",
+      "panel",
+      "BMR"
+     ]
+    }
+   ],
+   "counters": [],
+   "threats": [
+    "knockback",
+    "roomwide",
+    "adds",
+    "invulnerable"
+   ],
+   "bring": [
+    {
+     "text": "Flame Shield gear (fire absorb) for Atomic Ray",
+     "src": [
+      "LSB"
+     ]
+    }
+   ],
+   "unknown": [
+    "Rook phase trigger: ~50% (AS) vs ~60% (LSB)",
+    "Thermobaric Charge drop spot: BMR says a corner, guides say the edge"
+   ]
+  },
+  {
+   "board": 5,
+   "battle": 7,
+   "title": "Medusa Piece + Lamia Piece + Cyclops Piece",
+   "where": "Row 7, left (random space)",
+   "summary": "Interrupt Raise, never get petrified; aim the petrify cone at Cyclopes, not Lamias.",
+   "killOrder": {
+    "text": "Both Lamias evenly (interrupt Raise), then petrified Cyclopes",
+    "src": [
+     "AS",
+     "BMR"
+    ]
+   },
+   "mechanics": [
+    {
+     "name": "Summon",
+     "ids": [
+      49283
+     ],
+     "cast": 3.0,
+     "tell": "2 Lamias; later 4 Cyclopes",
+     "do": "Kill both Lamias evenly",
+     "src": [
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Raise",
+     "ids": [
+      49287
+     ],
+     "cast": 10.0,
+     "tell": "A Lamia revives the dead one",
+     "do": "Interrupt it or burst the caster",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Petrifying Regard",
+     "ids": [
+      49277,
+      49278
+     ],
+     "cast": 3.0,
+     "tell": "Petrify cone baited on you; petrified = dead",
+     "do": "Aim it away from Lamias and onto Cyclopes",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Petrifying Passion",
+     "ids": [
+      49279,
+      49281,
+      49282
+     ],
+     "cast": 3.0,
+     "tell": "5 rotating petrify cones, 30 degrees apart",
+     "do": "Stay out of every cone; aim them at Cyclopes",
+     "src": [
+      "BMR"
+     ]
+    },
+    {
+     "name": "Impassion",
+     "ids": [
+      49298
+     ],
+     "cast": 8.0,
+     "tell": "Medusa self Damage Up",
+     "do": "Dispel it if you can",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Terrorizing Miasma",
+     "ids": [
+      49286
+     ],
+     "cast": 4.0,
+     "tell": "Lamia circle, Hysteria",
+     "do": "Step out",
+     "src": [
+      "AS",
+      "panel"
+     ]
+    },
+    {
+     "name": "Constricting Evisceration",
+     "ids": [
+      49292,
+      49293,
+      49295,
+      49296
+     ],
+     "cast": 7.0,
+     "tell": "Blade combo: 5-60y donut, 6y circle, narrow cones",
+     "do": "Watch each telegraph and move in or out",
+     "src": [
+      "BMR"
+     ]
+    },
+    {
+     "name": "1000-tonze Swing",
+     "ids": [
+      49297
+     ],
+     "cast": 10.0,
+     "tell": "Cyclops 20y circles covering the arena",
+     "do": "Petrify the Cyclopes with the cone to stop it",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Glower",
+     "ids": [
+      49370
+     ],
+     "cast": 4.0,
+     "tell": "Cyclops 3y-wide line, Paralysis",
+     "do": "Step out of the line",
+     "src": [
+      "AS",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Petrified Cyclops",
+     "ids": [],
+     "tell": "Petrified Cyclopes die to one physical hit",
+     "do": "Hit them right away",
+     "src": [
+      "AS",
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [],
+   "counters": [
+    {
+     "need": "interrupt",
+     "what": "Raise (Lamia Piece)",
+     "src": [
+      "panel"
+     ]
+    },
+    {
+     "need": "cleanse",
+     "what": "Paralysis from Glower",
+     "src": [
+      "panel"
+     ]
+    },
+    {
+     "need": "dispel",
+     "what": "Impassion Damage Up (panel says not dispellable)",
+     "src": [
+      "AS"
+     ]
+    }
+   ],
+   "threats": [
+    "petrify",
+    "paralysis",
+    "adds"
+   ],
+   "bring": [],
+   "unknown": [
+    "Impassion: AS says dispellable; the panel says it is not",
+    "AS is the only guide for this random space"
+   ]
+  },
+  {
+   "board": 5,
+   "battle": 8,
+   "title": "Chimera Piece",
+   "where": "Row 9, left (elite)",
+   "summary": "Pick in or out from the roar, then the safe angle from the breathing head; cleanse poison.",
+   "mechanics": [
+    {
+     "name": "The Ram's Roar",
+     "ids": [
+      49309,
+      49310,
+      49311,
+      49315
+     ],
+     "cast": 7.0,
+     "tell": "Ice: 12y circle, Frostbite",
+     "do": "Get out",
+     "src": [
+      "AS",
+      "LSB",
+      "MRB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "The Dragon's Roar",
+     "ids": [
+      49316
+     ],
+     "cast": 7.0,
+     "tell": "Lightning: donut, Electrocution",
+     "do": "Hug the boss",
+     "src": [
+      "AS",
+      "LSB",
+      "MRB",
+      "panel"
+     ]
+    },
+    {
+     "name": "Head breaths",
+     "ids": [
+      49300,
+      49302,
+      49304
+     ],
+     "cast": 7.0,
+     "tell": "240-degree breath from the lion, goat or dragon head",
+     "do": "Lion: rear safe. Goat: front-left. Dragon: front-right",
+     "src": [
+      "AS",
+      "LSB",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Rushing Roar",
+     "ids": [
+      49322,
+      49323,
+      49324,
+      49325,
+      49327,
+      49329,
+      49331
+     ],
+     "cast": 5.9,
+     "tell": "Tether to the enmity target, a charge, then a breath",
+     "do": "Get far until the tether changes, then dodge the breath",
+     "src": [
+      "AS",
+      "LSB",
+      "BMR"
+     ]
+    },
+    {
+     "name": "The Ram's Keeper",
+     "ids": [
+      49319,
+      49320
+     ],
+     "cast": 4.5,
+     "tell": "Marker; leaves an 18y freezing puddle",
+     "do": "Drop it at the edge; keep the boss central",
+     "src": [
+      "AS",
+      "LSB",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Cacophony",
+     "ids": [
+      49317,
+      49318
+     ],
+     "cast": 3.0,
+     "tell": "Slow chasing lightning orb, Paralysis",
+     "do": "Kite it away",
+     "src": [
+      "AS",
+      "LSB",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Toxic Tantrum",
+     "ids": [
+      49332
+     ],
+     "cast": 5.0,
+     "tell": "Room-wide hit plus poison",
+     "do": "Cleanse with Scouring Ash",
+     "src": [
+      "AS",
+      "LSB",
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [],
+   "counters": [
+    {
+     "need": "cleanse",
+     "what": "Frostbite or Electrocution from the roars",
+     "src": [
+      "panel"
+     ]
+    },
+    {
+     "need": "cleanse",
+     "what": "Poison from Toxic Tantrum",
+     "src": [
+      "AS",
+      "LSB",
+      "BMR"
+     ]
+    }
+   ],
+   "threats": [
+    "poison",
+    "paralysis",
+    "roomwide"
+   ],
+   "bring": [],
+   "unknown": [
+    "Rushing Roar and The Ram's Keeper matched to guide descriptions by shape and timing"
+   ]
+  },
+  {
+   "board": 5,
+   "battle": 9,
+   "title": "Sphinx Piece",
+   "where": "Row 9, right (standard route)",
+   "summary": "Burst to skip riddles; stand on a number matching your buff; pick the named beast.",
+   "mechanics": [
+    {
+     "name": "Banish",
+     "ids": [
+      49334,
+      49335,
+      49336,
+      49337,
+      49338,
+      49339,
+      49340,
+      49341
+     ],
+     "cast": 6.0,
+     "tell": "Head low = 18y circle; head raised = donut; leap = half",
+     "do": "Circle: out. Donut: in. Half: go to the other side",
+     "src": [
+      "AS",
+      "LSB",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Numeric Riddle",
+     "ids": [
+      49352,
+      49353,
+      49354
+     ],
+     "cast": 5.0,
+     "tell": "Tiles 1-9; you get All Odds, Evens, Three or Primes",
+     "do": "Stand on a matching tile; pick a northern one",
+     "src": [
+      "AS",
+      "CHR",
+      "LSB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Mnemonic Riddle",
+     "ids": [
+      49343,
+      49344,
+      49345
+     ],
+     "cast": 5.0,
+     "tell": "Dodo, Opo-opo, Puk and Pugil turn into Mandragoras",
+     "do": "Track the named kin: cloud Dodo, scale Puk, beast Opo-opo, wave Pugil",
+     "src": [
+      "AS",
+      "CHR",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Riddle result",
+     "ids": [
+      49348,
+      49349,
+      49350,
+      49351
+     ],
+     "cast": 3.0,
+     "tell": "Right = Damage Up for you; wrong = 4 adds",
+     "do": "AoE the adds if you miss",
+     "src": [
+      "AS",
+      "LSB",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Lost Hope",
+     "ids": [
+      49342
+     ],
+     "cast": 3.0,
+     "tell": "Temporary Misdirection on you",
+     "do": "Move carefully; your movement is misdirected",
+     "src": [
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [],
+   "counters": [],
+   "threats": [
+    "adds"
+   ],
+   "bring": [
+    {
+     "text": "Slashing damage (its weakness) for the whole fight",
+     "src": [
+      "AS"
+     ]
+    }
+   ],
+   "unknown": []
+  },
+  {
+   "board": 5,
+   "battle": 10,
+   "title": "Gigantis Piece + Cyclops Piece + Congealed Lightning + Congealed Kindling",
+   "where": "Row 10 (mandatory)",
+   "summary": "Interrupt Rupture and Camaraderie; aim Smashing Stamp through a gel; read the club pose.",
+   "killOrder": {
+    "text": "Cyclops, then the gel you are not crushing, then small gels and the boss",
+    "src": [
+     "BMR"
+    ]
+   },
+   "mechanics": [
+    {
+     "name": "Gigantic Rage",
+     "ids": [
+      49358,
+      49359,
+      49360,
+      49361,
+      49362,
+      49363
+     ],
+     "cast": 6.0,
+     "tell": "Club pose picks the shape: 15y circle or 180-degree cone",
+     "do": "Read the pose; get out or go to the safe half",
+     "src": [
+      "AS",
+      "LSB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Smashing Stamp",
+     "ids": [
+      49377,
+      49378,
+      49379
+     ],
+     "cast": 3.0,
+     "tell": "Marker; 8y-wide line from the boss to you, Knockdown",
+     "do": "Aim the line through a gel of the other element",
+     "src": [
+      "AS",
+      "LSB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Club element",
+     "ids": [
+      49364,
+      49365,
+      49366
+     ],
+     "cast": 3.0,
+     "tell": "Lightning club: tower under you; fire club: 6y AoE",
+     "do": "Lightning: stay in the tower. Fire: move out",
+     "src": [
+      "AS",
+      "LSB",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Rupture",
+     "ids": [
+      49373,
+      49375
+     ],
+     "cast": 7.0,
+     "tell": "Gel room-wide hit plus Damage Down",
+     "do": "Interrupt with Soul Crush, else kill the gel",
+     "src": [
+      "AS",
+      "LSB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Camaraderie",
+     "ids": [
+      49368
+     ],
+     "cast": 8.0,
+     "tell": "Cyclops heals the boss 5% if it finishes",
+     "do": "Interrupt it",
+     "src": [
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Glower",
+     "ids": [
+      49367
+     ],
+     "cast": 4.0,
+     "tell": "Cyclops 6y-wide line, Paralysis",
+     "do": "Step out of the line",
+     "src": [
+      "AS",
+      "LSB",
+      "panel",
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [],
+   "counters": [
+    {
+     "need": "interrupt",
+     "what": "Rupture (Congealed Lightning or Kindling)",
+     "src": [
+      "panel"
+     ]
+    },
+    {
+     "need": "interrupt",
+     "what": "Camaraderie (Cyclops Piece)",
+     "src": [
+      "panel"
+     ]
+    },
+    {
+     "need": "cleanse",
+     "what": "Paralysis from Glower",
+     "src": [
+      "panel"
+     ]
+    }
+   ],
+   "threats": [
+    "paralysis",
+    "adds",
+    "roomwide"
+   ],
+   "bring": [
+    {
+     "text": "Soul Crush (Soulkin borrow) for Rupture; near-mandatory",
+     "src": [
+      "AS",
+      "LSB"
+     ]
+    }
+   ],
+   "unknown": [
+    "Camaraderie: AS says dispel; panel and BMR say interrupt",
+    "Club pose descriptions differ between AS and LSB"
+   ]
+  },
+  {
+   "board": 5,
+   "battle": 11,
+   "title": "Swordsmog Piece + Mogbreaker Piece + Kinged Kupocurer + Kinged Kupocaster + Kupocurer Piece + Kupocaster Piece + Kinged Swordsmog + Melomog Piece + Mogmugger Piece",
+   "where": "Row 12, left (random space)",
+   "summary": "Kill the Mogmugger before it flees; killing the Kinged Swordsmog ends the fight.",
+   "killOrder": {
+    "text": "Mogmugger, Melomogs, the casting Kinged healer or caster, then Kinged Swordsmog",
+    "src": [
+     "AS"
+    ]
+   },
+   "mechanics": [
+    {
+     "name": "Swordsmog on standby",
+     "ids": [],
+     "tell": "The standby Swordsmog only auto-attacks",
+     "do": "Kill it at once",
+     "src": [
+      "AS"
+     ]
+    },
+    {
+     "name": "Moogle Tempest",
+     "ids": [
+      49383
+     ],
+     "cast": 8.0,
+     "tell": "Circle around a wave moogle",
+     "do": "Step out",
+     "src": [
+      "AS",
+      "panel"
+     ]
+    },
+    {
+     "name": "100-kuponze Swipe",
+     "ids": [
+      49381
+     ],
+     "cast": 8.0,
+     "tell": "Frontal cone",
+     "do": "Stay out of its front",
+     "src": [
+      "AS",
+      "panel"
+     ]
+    },
+    {
+     "name": "Pom Holy",
+     "ids": [
+      49387
+     ],
+     "cast": 9.0,
+     "tell": "The triangle between 3 moogles is the danger zone",
+     "do": "Stay outside the triangle",
+     "src": [
+      "AS",
+      "panel"
+     ]
+    },
+    {
+     "name": "Pom Meteorain",
+     "ids": [
+      50943
+     ],
+     "cast": 7.5,
+     "tell": "Ground circles",
+     "do": "Step out",
+     "src": [
+      "AS",
+      "panel"
+     ]
+    },
+    {
+     "name": "Pom Flood / Pom Flare",
+     "ids": [
+      49385,
+      49384
+     ],
+     "cast": 10.0,
+     "tell": "Room-wide hit, water or fire resist down",
+     "do": "Kill the role that has two members first",
+     "src": [
+      "AS",
+      "panel"
+     ]
+    },
+    {
+     "name": "Daylight Pommery",
+     "ids": [
+      49399,
+      49400
+     ],
+     "cast": 10.0,
+     "tell": "Mogmugger steals coins, then flees",
+     "do": "Kill the Mogmugger first",
+     "src": [
+      "AS",
+      "panel"
+     ]
+    },
+    {
+     "name": "Moghemian Rhapsody",
+     "ids": [
+      49397
+     ],
+     "tell": "Melomogs give nearby allies Damage Up",
+     "do": "Kill them after the Mogmugger",
+     "src": [
+      "AS",
+      "panel"
+     ]
+    },
+    {
+     "name": "Spirit of Pompetition",
+     "ids": [
+      49394
+     ],
+     "cast": 3.0,
+     "tell": "Kinged Swordsmog self Damage Up",
+     "do": "Dispel it",
+     "src": [
+      "AS",
+      "panel"
+     ]
+    },
+    {
+     "name": "Mogshield Swipe",
+     "ids": [
+      49395
+     ],
+     "tell": "Kinged Swordsmog frontal",
+     "do": "Stay out of its front",
+     "src": [
+      "panel"
+     ]
+    }
+   ],
+   "hits": [],
+   "counters": [
+    {
+     "need": "dispel",
+     "what": "Spirit of Pompetition (Kinged Swordsmog)",
+     "src": [
+      "panel"
+     ]
+    }
+   ],
+   "threats": [
+    "roomwide",
+    "adds"
+   ],
+   "bring": [],
+   "unknown": [
+    "No BMR module; AS is the only guide",
+    "Wave order and AoE sizes are not documented"
+   ]
+  },
+  {
+   "board": 5,
+   "battle": 12,
+   "title": "Behemoth Piece + Giant Piece + Lightning Sprite",
+   "where": "Row 13, left (random space)",
+   "summary": "Reset towers at 2, spread comets, hide behind a comet for Ecliptic Meteor.",
+   "mechanics": [
+    {
+     "name": "Towers",
+     "ids": [],
+     "tell": "Left and right towers charge through 3 stages",
+     "do": "Touch a tower at 2 to reset it; 3 = stun + room-wide",
+     "src": [
+      "AS"
+     ]
+    },
+    {
+     "name": "Meteor Impact",
+     "ids": [],
+     "tell": "5 comets placed in sequence",
+     "do": "Spread them; comets too close explode",
+     "src": [
+      "AS"
+     ]
+    },
+    {
+     "name": "Thundercloud",
+     "ids": [],
+     "tell": "A cloud on you adds 2 charges to a tower",
+     "do": "Drop it on a tower, then reset that tower first",
+     "src": [
+      "AS"
+     ]
+    },
+    {
+     "name": "Ecliptic Meteor",
+     "ids": [
+      49410
+     ],
+     "cast": 11.0,
+     "tell": "Room-wide hit",
+     "do": "Hide behind a comet (line of sight)",
+     "src": [
+      "AS",
+      "panel"
+     ]
+    },
+    {
+     "name": "Charybdis",
+     "ids": [
+      49415
+     ],
+     "cast": 6.0,
+     "tell": "Behemoth crouching = in; arms raised = out",
+     "do": "Crouching: get close. Arms up: get out",
+     "src": [
+      "AS",
+      "panel"
+     ]
+    },
+    {
+     "name": "Grand Sword",
+     "ids": [
+      49408
+     ],
+     "cast": 4.0,
+     "tell": "Giant frontal cone",
+     "do": "Stay out of its front",
+     "src": [
+      "AS",
+      "panel"
+     ]
+    },
+    {
+     "name": "Cross Charge",
+     "ids": [
+      49411
+     ],
+     "cast": 4.0,
+     "tell": "Lightning Sprite cross, Paralysis",
+     "do": "Stand off the cross arms",
+     "src": [
+      "AS",
+      "panel"
+     ]
+    },
+    {
+     "name": "Meteor",
+     "ids": [],
+     "tell": "Stack shared by you and the pet",
+     "do": "Keep the pet summoned and next to you",
+     "src": [
+      "AS"
+     ]
+    }
+   ],
+   "hits": [],
+   "counters": [
+    {
+     "need": "cleanse",
+     "what": "Paralysis from Cross Charge",
+     "src": [
+      "panel"
+     ]
+    }
+   ],
+   "threats": [
+    "paralysis",
+    "roomwide",
+    "adds"
+   ],
+   "bring": [],
+   "unknown": [
+    "No BMR module; AS is the only guide",
+    "Tower, comet and cloud casts have no known IDs"
+   ]
+  },
+  {
+   "board": 5,
+   "battle": 13,
+   "title": "King Ahriman Piece + Hapalit Piece + Dirty Eye Piece",
+   "where": "Row 13, right (elite)",
+   "summary": "Parting Blow the pet before Curtains for Rank 5; clear adds; face per the gaze debuff.",
+   "mechanics": [
+    {
+     "name": "Curtains for Rank 5",
+     "ids": [
+      49429
+     ],
+     "cast": 6.0,
+     "tell": "Kills only the familiar",
+     "do": "Parting Blow the pet before it resolves; resummon after",
+     "src": [
+      "AS",
+      "panel"
+     ]
+    },
+    {
+     "name": "Roulette",
+     "ids": [
+      49418
+     ],
+     "cast": 5.0,
+     "tell": "You are rooted and thrown to a quadrant with an hourglass",
+     "do": "Break the hourglass when the needle is not on you",
+     "src": [
+      "AS",
+      "panel"
+     ]
+    },
+    {
+     "name": "Uncast frontal line",
+     "ids": [],
+     "tell": "Strong frontal line with no castbar",
+     "do": "Stay out of its front",
+     "src": [
+      "AS"
+     ]
+    },
+    {
+     "name": "Gaze debuffs",
+     "ids": [],
+     "tell": "Wrath or Grief debuff on you",
+     "do": "Wrath: go behind the boss. Grief: go in front",
+     "src": [
+      "AS"
+     ]
+    },
+    {
+     "name": "Adds",
+     "ids": [],
+     "tell": "While adds are up, King Ahriman is invulnerable",
+     "do": "Clear the adds first",
+     "src": [
+      "AS"
+     ]
+    },
+    {
+     "name": "Mortal Gaze",
+     "ids": [
+      49434
+     ],
+     "cast": 4.0,
+     "tell": "Dirty Eye Doom gaze; you can turn while rooted",
+     "do": "Look away",
+     "src": [
+      "AS",
+      "panel"
+     ]
+    },
+    {
+     "name": "Straight Punch",
+     "ids": [
+      49435
+     ],
+     "tell": "Hapalit hits the enmity target, Burns",
+     "do": "Snarl it onto the pet; cleanse Burns",
+     "src": [
+      "AS",
+      "panel"
+     ]
+    },
+    {
+     "name": "Stone",
+     "ids": [
+      50747
+     ],
+     "tell": "Dirty Eye hits the enmity target",
+     "do": "Keep it on the pet with Snarl",
+     "src": [
+      "AS",
+      "panel"
+     ]
+    },
+    {
+     "name": "Flare",
+     "ids": [],
+     "tell": "Proximity damage on you",
+     "do": "Take it away from the pet",
+     "src": [
+      "AS"
+     ]
+    }
+   ],
+   "hits": [],
+   "counters": [
+    {
+     "need": "cleanse",
+     "what": "Burns from Straight Punch",
+     "src": [
+      "panel"
+     ]
+    }
+   ],
+   "threats": [
+    "doom",
+    "adds",
+    "invulnerable"
+   ],
+   "bring": [
+    {
+     "text": "Soulreaper's Armor: the only Doom resist",
+     "src": [
+      "AS"
+     ]
+    }
+   ],
+   "unknown": [
+    "No BMR module; AS is the only guide"
+   ]
+  },
+  {
+   "board": 5,
+   "battle": 0,
+   "title": "Lauda the Spellcleaver + Thanatos Piece",
+   "where": "Row 14, boss",
+   "summary": "Stronger Guttler: Challenge, pet behind her, 100% paralysis resist, lines off statues.",
+   "killOrder": {
+    "text": "Tethered blades first, then a woken Thanatos, then Lauda",
+    "src": [
+     "BMR",
+     "LSB",
+     "AS"
+    ]
+   },
+   "mechanics": [
+    {
+     "name": "Cleaving auto-attack",
+     "ids": [
+      50860
+     ],
+     "tell": "120-degree frontal cleave auto",
+     "do": "Challenge; keep the pet away from her front",
+     "src": [
+      "CHR",
+      "LSB",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Beastly Aura",
+     "ids": [
+      49452,
+      49453
+     ],
+     "cast": 7.0,
+     "tell": "Room-wide 20y knockback on you and the pet",
+     "do": "Stand at the center so you fly to the north/south tiles",
+     "src": [
+      "AS",
+      "LSB",
+      "panel",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Vanishing Daggers",
+     "ids": [
+      49481,
+      49482,
+      49483
+     ],
+     "cast": 3.0,
+     "tell": "Swords go invisible, then fire 5y lines along their blades",
+     "do": "Read the blade directions and take the safe half",
+     "src": [
+      "AS",
+      "LSB",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Gyrocleave",
+     "ids": [
+      49450,
+      49451
+     ],
+     "cast": 7.0,
+     "tell": "20y-wide line",
+     "do": "Go to the raised side tiles",
+     "src": [
+      "AS",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Overpowering Point",
+     "ids": [
+      49462,
+      50846,
+      49463,
+      50848,
+      49464
+     ],
+     "cast": 6.9,
+     "tell": "Lines from the boss and 2 swords, all aimed at you",
+     "do": "Keep her central; stand north or south so lines miss statues",
+     "src": [
+      "AS",
+      "LSB",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Unseen Force",
+     "ids": [
+      49484,
+      49489
+     ],
+     "cast": 3.0,
+     "tell": "Sword stabs you from front or back; 40y push",
+     "do": "Stand on a north/south tile facing so you fly inward",
+     "src": [
+      "AS",
+      "LSB",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Deadly Demesne",
+     "ids": [
+      49454,
+      49455,
+      49457,
+      49458,
+      49460
+     ],
+     "cast": 3.0,
+     "tell": "Cages bind inside; yellow = 12y circle, green = cross",
+     "do": "Stay out of cages; the 2nd cast uses the other colour",
+     "src": [
+      "AS",
+      "LSB",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Molten Metal",
+     "ids": [
+      49465,
+      49468,
+      49469
+     ],
+     "cast": 8.3,
+     "tell": "Sword drops where you stood; big blast",
+     "do": "Drop it at one side and run; wait for other AoEs first",
+     "src": [
+      "AS",
+      "LSB",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Gluttonous Gutting / Goring",
+     "ids": [
+      49445,
+      49446,
+      49448,
+      49449
+     ],
+     "cast": 13.6,
+     "tell": "Leap: airborne = arena-wide circle; grounded = front half",
+     "do": "Airborne: get far away. Grounded: go behind",
+     "src": [
+      "AS",
+      "LSB",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Greater Strength",
+     "ids": [
+      49472,
+      49473,
+      49477
+     ],
+     "cast": 3.0,
+     "tell": "Two blades tether; a 28 s cast ends in a blast or push",
+     "do": "Destroy the tethered blades fast",
+     "src": [
+      "AS",
+      "LSB",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Combusting Blades",
+     "ids": [
+      49443
+     ],
+     "cast": 5.0,
+     "tell": "Swords drop 8y circles",
+     "do": "Step out",
+     "src": [
+      "LSB",
+      "BMR"
+     ]
+    },
+    {
+     "name": "Infernal Pain",
+     "ids": [
+      50541
+     ],
+     "cast": 8.0,
+     "tell": "Woken Thanatos Piece room-wide hit",
+     "do": "Kill it with lightning before the cast ends",
+     "src": [
+      "AS",
+      "LSB",
+      "panel",
+      "BMR"
+     ]
+    }
+   ],
+   "hits": [
+    {
+     "name": "Thunderbolt",
+     "ids": [
+      49470
+     ],
+     "cast": 5.0,
+     "tell": "6y-wide line at the enmity target, Paralysis",
+     "do": "Dodge the first; Snarl the second, then swap the pet",
+     "src": [
+      "AS",
+      "LSB",
+      "MRB",
+      "panel",
+      "BMR"
+     ]
+    }
+   ],
+   "counters": [
+    {
+     "need": "cleanse",
+     "what": "Paralysis from Thunderbolt (panel says not cleansable)",
+     "src": [
+      "AS",
+      "LSB"
+     ]
+    }
+   ],
+   "threats": [
+    "paralysis",
+    "knockback",
+    "bind",
+    "roomwide",
+    "tankbuster",
+    "adds"
+   ],
+   "bring": [
+    {
+     "text": "100% paralysis resist: Antiparalysis serum, Crimson Ribbon, Genji Gloves or Morel",
+     "src": [
+      "AS"
+     ]
+    },
+    {
+     "text": "Beastskin (Beastkin borrow); a paralysis-resist release for Thunderbolt",
+     "src": [
+      "AS"
+     ]
+    }
+   ],
+   "unknown": [
+    "Empowered blades: AS says the boss takes Damage Down, LSB says destroy the swords; BMR prioritizes them",
+    "Thunderbolt paralysis: panel says not cleansable; guides cleanse it; pre-resist to be safe"
+   ]
+  }
+ ]
+}

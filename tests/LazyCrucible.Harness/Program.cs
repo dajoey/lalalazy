@@ -17,6 +17,9 @@ internal static class Program
         Formation();
         FeedScreenReplay();
         RosterOverwriteReplay();
+        PolicyCases.Run();
+        ReplayCases.Run();
+        GuideCases.Run();
 
         Console.WriteLine(_fail == 0 ? $"OK ({_pass} checks)" : $"FAILED ({_fail} of {_pass + _fail})");
         return _fail == 0 ? 0 : 1;
@@ -371,11 +374,13 @@ internal static class Program
             owned.Write == FormationLogic.FormationWrite.None && owned.Reason == "player_owned", $"{owned.Write}/{owned.Reason}");
     }
 
-    private static void Check(string what, bool ok, string? detail = null)
+    internal static void Check(string what, bool ok, string? detail = null)
     {
         if (ok)
         {
             _pass++;
+            if (detail is not null && Environment.GetEnvironmentVariable("LC_VERBOSE") == "1")
+                Console.WriteLine($"  ok {what}  [{detail}]");
             return;
         }
         _fail++;
