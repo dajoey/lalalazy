@@ -67,7 +67,7 @@ internal class ConfigWindow : Dalamud.Interface.Windowing.Window
             .Where(kvp => (int)kvp.Key > 100)
             .Where(kvp => kvp.Value.Parent == null)
             .Where(kvp => kvp.Value.JobInfo != null)
-            .OrderBy(kvp => GetRoleOrder(kvp.Value.JobInfo.Role))
+            .OrderBy(kvp => kvp.Value.JobInfo.Job is Job.ADV ? 5 : GetRoleOrder(kvp.Value.JobInfo.Role))
             .ThenByDescending(kvp => kvp.Value.JobInfo.Job is Job.ADV)
             .ThenByDescending(kvp => kvp.Value.JobInfo.Job is Job.MIN)
             .ThenBy(kvp => kvp.Value.JobInfo.Job)
@@ -209,7 +209,7 @@ internal class ConfigWindow : Dalamud.Interface.Windowing.Window
                 Svc.PluginInterface.AssemblyLocation.Directory?.FullName!,
                 "images\\wrathcombo.png");
             if (EzThrottler.Throttle("logTypeOfWrathIconUsed", 45000))
-                PluginLog.Verbose("Using Local WrathCombo Icon");
+                PluginLog.Verbose("Using Local GluttonyCombo Icon");
         }
         catch (Exception)
         {
@@ -217,7 +217,7 @@ internal class ConfigWindow : Dalamud.Interface.Windowing.Window
             imagePath = Svc.PluginInterface.Manifest.IconUrl ?? "";
             if (EzThrottler.Throttle("logTypeOfWrathIconUsed", 45000))
                 PluginLog.Verbose(
-                    "Using Remote WrathCombo Icon\n             " +
+                    "Using Remote GluttonyCombo Icon\n             " +
                     Svc.PluginInterface.AssemblyLocation.Directory?.FullName! +
                     "images\\wrathcombo.png");
         }
