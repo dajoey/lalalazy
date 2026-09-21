@@ -22,7 +22,9 @@ namespace GluttonyCombo.Combos.PvE;
 /// <summary>
 ///     Crucible pet-selection autograb (live). Arms when a familiar-selection addon is open
 ///     (<c>XBMActivePet</c> or <c>XBMPetParty</c>) and the run roster is readable — never on territory and
-///     never on StageMode. Works at Bentbranch Meadows (pre-entry) and on a board. Ranks via
+///     never on StageMode. Writes only when <c>XBMPetParty</c> itself is open and its mode values name the
+///     roster list or the Battlehorn preview (<see cref="DecideFormationWrite"/>); the shop's Beast Feed
+///     picker and the notebook's team screen are never written. Works at Bentbranch Meadows (pre-entry) and on a board. Ranks via
 ///     <see cref="PickSlots"/> or <see cref="PickSlotsCoverage"/>; on the horn screen assigns through
 ///     ReceiveEvent kind 0 with a <em>SelectedPets index</em> (not a familiar id), with SelectedPetIds
 ///     read-back and abort-restore. Roster-basis screens are skipped so a ten-familiar list is never
@@ -32,6 +34,8 @@ internal static unsafe class BST_CruciblePetSelect
 {
     // AgentXBMPetParty offsets (PR #1952 / DailyRoutines production).
     private const int PartyPetListAddonId = 0x60;
+    private const int PartyMode = 0x64;    // PR #1952 Mode (telemetry only; the addon's AtkValue [2] decides)
+    private const int PartySubMode = 0x68; // PR #1952 SubMode (telemetry only; the addon's AtkValue [3] decides)
     private const int PartyContentId = 0x70;
     private const int PartySelectedPets = 0x78;
     private const int PartySelectedPetIds = 0x90;
@@ -85,6 +89,7 @@ internal static unsafe class BST_CruciblePetSelect
     private static FormationArmState _arm;
     private static bool _loggedAggroThisRun;
     private static bool _loggedOffThisPhase;
+    private static bool _loggedSigsThisPhase;
     private static int _lastBoard;
     private static string _lastPhaseSig = "";
 
@@ -141,6 +146,7 @@ internal static unsafe class BST_CruciblePetSelect
         _arm = default;
         _loggedAggroThisRun = false;
         _loggedOffThisPhase = false;
+        _loggedSigsThisPhase = false;
         _lastBoard = 0;
         _lastPhaseSig = "";
         _disarmRestOfScreen = false;
@@ -178,6 +184,7 @@ internal static unsafe class BST_CruciblePetSelect
             {
                 _arm = NextFormationArm(_arm, false, 0, surfaceKey);
                 _loggedOffThisPhase = false;
+                _loggedSigsThisPhase = false;
             }
             else
             {
@@ -185,7 +192,10 @@ internal static unsafe class BST_CruciblePetSelect
                 var prevOpenEmpty = _arm.ScreenOpen;
                 _arm = NextFormationArm(_arm, screenOpen, 0, surfaceKey);
                 if (!prevOpenEmpty && _arm.ScreenOpen)
+                {
                     _loggedOffThisPhase = false;
+                    _loggedSigsThisPhase = false;
+                }
             }
             return;
         }
@@ -205,11 +215,13 @@ internal static unsafe class BST_CruciblePetSelect
         if (!prevOpen && _arm.ScreenOpen)
         {
             _loggedOffThisPhase = false;
+            _loggedSigsThisPhase = false;
             _disarmRestOfScreen = false;
         }
         if (!_arm.ScreenOpen)
         {
             _loggedOffThisPhase = false;
+            _loggedSigsThisPhase = false;
             _disarmRestOfScreen = false;
         }
 
@@ -239,9 +251,32 @@ internal static unsafe class BST_CruciblePetSelect
         if (!armed)
             return;
 
+        // What the open screen is for, from the XBMPetParty addon's own mode values ([2] Mode, [3] SubMode).
+        // The shop opens the same addon/agent as the Beast Feed target picker (mode 3, sub 0) and reuses
+        // SelectedPetIds as a one-familiar selection; the .227-.229 bt=5 readback=fail passes were horn
+        // writes into that picker. The notebook's team screen (XBMActivePet alone) is not a run screen.
+        var (addonMode, addonSub) = ReadPetPartyAddonMode();
+        var selectedRaw = ReadPetIds(pet, PartySelectedPetIds);
+        var gate = DecideFormationWrite(new FormationGateInput(
+            petPartyOpen, activePetOpen, surfaceKey == SurfacePreentry, addonMode, addonSub, selectedRaw, partyRows.Count));
+        if (gate.Write == FormationWrite.None)
+        {
+            var skipNote = $"skip|{gate.Reason}|{addonMode}|{addonSub}";
+            if (skipNote != _lastBasisNote)
+            {
+                _lastBasisNote = skipNote;
+                LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|ppm={addonMode}|pps={addonSub}|sl={string.Join(".", selectedRaw)}|flutes={selectedRaw.Count}|note=skip_screen|why={gate.Reason}|calls=0");
+            }
+            return;
+        }
+
         // Resolve sigs unconditionally so telemetry learns whether they resolve on this game version.
         var sigsOk = EnsureSigs();
-        LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|sigs={(sigsOk ? "ok" : "miss")}|calls=0");
+        if (!_loggedSigsThisPhase)
+        {
+            _loggedSigsThisPhase = true;
+            LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|sigs={(sigsOk ? "ok" : "miss")}|calls=0");
+        }
 
         var eventOk = EnsureReceiveEvent(pet);
         if (!sigsOk && !eventOk)
@@ -254,39 +289,24 @@ internal static unsafe class BST_CruciblePetSelect
         // Prefer the observed event route: live PSP proved kind=0 [Int 1, Int screenIndex] toggled SelectedPetIds.
         var route = eventOk ? "event" : "sig";
 
-        var selectedRaw = ReadPetIds(pet, PartySelectedPetIds);
-        // Screen/shape before size: Bentbranch entry roster is PetParty without ActivePet on pre-entry.
-        // A transient ≤3 index-looking SelectedPetIds there must not take the horn path (.222 live defect).
-        var rosterSurface = surfaceKey == SurfacePreentry && !activePetOpen;
-        var hornBasis = IsHornWriteBasis(selectedRaw, partyRows.Count, rosterSurface);
-        if (!hornBasis)
+        if (gate.Write == FormationWrite.Wait)
         {
-            if (rosterSurface)
+            var waitNote = $"{gate.Reason}|{selectedRaw.Count}|{string.Join(".", selectedRaw)}|{addonMode}";
+            if (waitNote != _lastBasisNote)
             {
-                // Bentbranch ten-familiar roster: if transient (1..3 values while menu loads), wait to settle.
-                if (selectedRaw.Count is > 0 and <= 3)
-                {
-                    var transientNote = $"roster_transient|{selectedRaw.Count}|{string.Join(".", selectedRaw)}";
-                    if (transientNote != _lastBasisNote)
-                    {
-                        _lastBasisNote = transientNote;
-                        LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|basis=roster|sl={string.Join(".", selectedRaw)}|flutes={selectedRaw.Count}|rs=1|note=wait_roster_settle|route={route}|calls=0");
-                    }
-                    return;
-                }
-
-                _lastBasisNote = "";
-                ExecuteRosterWrite(pet, surfaceName, route, sigsOk, now, territoryBoard, contentBoard, selectedRaw);
-                return;
+                _lastBasisNote = waitNote;
+                var basisName = gate.Reason == "wait_horn_basis" ? "roster" : gate.Reason == "wait_roster_settle" ? "roster" : "pending";
+                var rs = gate.Reason == "wait_roster_settle" ? 1 : 0;
+                var note = gate.Reason == "settling" ? "wait_settling" : gate.Reason;
+                LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|basis={basisName}|sl={string.Join(".", selectedRaw)}|flutes={selectedRaw.Count}|rs={rs}|ppm={addonMode}|pps={addonSub}|note={note}|route={route}|calls=0");
             }
+            return;
+        }
 
-            // On a board, keep the latch — SelectedPetIds often flashes roster ids then becomes an empty horn.
-            var basisNote = $"roster|{selectedRaw.Count}|{string.Join(".", selectedRaw)}|rs=0";
-            if (basisNote != _lastBasisNote)
-            {
-                _lastBasisNote = basisNote;
-                LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|basis=roster|sl={string.Join(".", selectedRaw)}|flutes={selectedRaw.Count}|rs=0|note=wait_horn_basis|route={route}|calls=0");
-            }
+        if (gate.Write == FormationWrite.Roster)
+        {
+            _lastBasisNote = "";
+            ExecuteRosterWrite(pet, surfaceName, route, sigsOk, now, territoryBoard, contentBoard, selectedRaw);
             return;
         }
         _lastBasisNote = "";
@@ -869,6 +889,35 @@ internal static unsafe class BST_CruciblePetSelect
         }
     }
 
+    /// <summary>
+    ///     XBMPetParty AtkValues [2] (Mode) and [3] (SubMode); -1 when the addon is not visible or the value
+    ///     is not populated yet (only [3] is set on the first frame of an open). Live: roster list 0/1,
+    ///     Battlehorn preview 2/1, shop feed picker 3/0.
+    /// </summary>
+    private static (int Mode, int SubMode) ReadPetPartyAddonMode()
+    {
+        try
+        {
+            if (!TryGetAddonByName<AtkUnitBase>("XBMPetParty", out var addon) || addon is null || !addon->IsVisible)
+                return (-1, -1);
+            var values = addon->AtkValues;
+            if (values is null || addon->AtkValuesCount < 4)
+                return (-1, -1);
+            return (AtkNumber(values[2]), AtkNumber(values[3]));
+        }
+        catch
+        {
+            return (-1, -1);
+        }
+    }
+
+    private static int AtkNumber(AtkValue v) => v.Type switch
+    {
+        AtkValueType.UInt => (int)v.UInt,
+        AtkValueType.Int => v.Int,
+        _ => -1,
+    };
+
     private static void MaybeLogPhase(
         nint pet, int territoryBoard, uint mode,
         bool activePetOpen, bool petPartyOpen, bool petListOpen, bool partyAddonShown,
@@ -878,8 +927,12 @@ internal static unsafe class BST_CruciblePetSelect
         {
             var flutes = partyCount > 0 && pet != 0 ? ReadPetIds(pet, PartySelectedPetIds) : [];
             var optOn = (bool)BST.Config.BST_CrucibleAutoGrab;
+            var (ppm, pps) = petPartyOpen ? ReadPetPartyAddonMode() : (-1, -1);
+            var agm = pet != 0 ? (int)*(uint*)(pet + PartyMode) : -1;
+            var ags = pet != 0 ? (int)*(uint*)(pet + PartySubMode) : -1;
             var sig =
                 $"m={mode}|ap={(activePetOpen ? 1 : 0)}|pp={(petPartyOpen ? 1 : 0)}|pl={(petListOpen ? 1 : 0)}|pa={(partyAddonShown ? 1 : 0)}"
+                + $"|ppm={ppm}|pps={pps}|agm={agm}|ags={ags}"
                 + $"|so={(screenOpen ? 1 : 0)}|arm={(armed ? 1 : 0)}|opt={(optOn ? 1 : 0)}|p={partyCount}|f={flutes.Count}"
                 + $"|bk={_arm.BattleKey}|sf={_arm.SurfaceKey}|xb={xbmNames}|ag={(agentNonZero ? 1 : 0)}";
             if (sig == _lastPhaseSig)
@@ -889,7 +942,8 @@ internal static unsafe class BST_CruciblePetSelect
                 + $"|petList={(petListOpen ? 1 : 0)}|partyAddon={(partyAddonShown ? 1 : 0)}|screen={(screenOpen ? 1 : 0)}|armed={(armed ? 1 : 0)}"
                 + $"|opt={(optOn ? 1 : 0)}|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}"
                 + $"|agent={(agentNonZero ? 1 : 0)}|xbm={xbmNames}"
-                + $"|party={partyCount}|flutes={flutes.Count}|sl={string.Join(".", flutes)}|bk={_arm.BattleKey}|sk={_arm.SurfaceKey}|calls=0");
+                + $"|party={partyCount}|flutes={flutes.Count}|sl={string.Join(".", flutes)}|bk={_arm.BattleKey}|sk={_arm.SurfaceKey}"
+                + $"|ppm={ppm}|pps={pps}|agm={agm}|ags={ags}|calls=0");
         }
         catch (Exception ex)
         {

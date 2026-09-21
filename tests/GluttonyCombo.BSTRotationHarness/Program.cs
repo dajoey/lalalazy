@@ -567,6 +567,8 @@ internal static class Program
             && !BST_CrucibleAdvisor.SelectionEquals(new[] { 0, 1, 4 }, new[] { 0 })
             && !BST_CrucibleAdvisor.SelectionEquals(new[] { 0, 1 }, new[] { 0, 1, 4 }));
 
+        FeedScreenReplay();
+
         // --- Round-10 Stage-1 roster writer planning and coverage tests ---
         var allCandidates = new List<int>();
         for (var r = 1; r <= BST_Beasts.Count; r++) allCandidates.Add(r);
@@ -598,6 +600,80 @@ internal static class Program
             changesPartial.Count == 6
             && changesPartial.Count(c => c.FromRow != 0 && c.ToRow == 0) == 3
             && changesPartial.Count(c => c.FromRow == 0 && c.ToRow != 0) == 3);
+    }
+
+    /// <summary>
+    ///     Replay of the six 1.0.4.227-.229 `readback=fail` passes (2026-09-21 00:45:07, 00:45:15, 11:43:58,
+    ///     11:44:02, 11:44:12, 12:36:01 ET). Every one ran with XBMContentsItemShop open: the shop opens
+    ///     XBMPetParty as the Beast Feed target picker (AtkValues [2]=3 [3]=0), which reuses SelectedPetIds
+    ///     as a one-familiar selection. The pass read that lone index as a Battlehorn (basis=horn, bt=5 = the
+    ///     stage focus left on the elite fought just before the shop), fired horn toggles plus
+    ///     ApplyPetSelection into the feed flow and aborted. The feed picker must never be written.
+    /// </summary>
+    private static void FeedScreenReplay()
+    {
+        Console.WriteLine("-- feed screen replay (bt=5 readback=fail, .227-.229) --");
+        var party = new List<int> { 28, 22, 18, 27, 20, 5, 21, 41, 40, 39 };
+
+        // Exact states read at the six failing passes: board surface, PetParty open, ActivePet closed,
+        // one index in SelectedPetIds (the feed target the player had just picked), addon mode 3 / sub 0.
+        var failing = new (string When, int Selected)[]
+        {
+            ("00:45:06.998 sl=9", 9), ("00:45:15.008 sl=7", 7), ("11:43:58.471 sl=8", 8),
+            ("11:44:02.446 sl=2", 2), ("11:44:12.540 sl=6", 6), ("12:36:01.147 sl=1", 1),
+        };
+        foreach (var (when, sel) in failing)
+        {
+            var d = BST_CrucibleAdvisor.DecideFormationWrite(new(
+                PetPartyOpen: true, ActivePetOpen: false, PreEntrySurface: false,
+                AddonMode: 3, AddonSubMode: 0, SelectedPetIds: new[] { sel }, PartyCount: party.Count));
+            Check($"Feed picker {when}: no write", d.Write == BST_CrucibleAdvisor.FormationWrite.None && d.Reason == "feed",
+                $"{d.Write}/{d.Reason}");
+        }
+
+        // First frame of the shop's feed open (00:45:01.274): only [3]=0 populated, SelectedPetIds still
+        // holds the previous horn 8.7.3. SubMode 0 alone already identifies the feed flow.
+        var firstFrame = BST_CrucibleAdvisor.DecideFormationWrite(new(
+            true, false, false, AddonMode: -1, AddonSubMode: 0, new[] { 8, 7, 3 }, party.Count));
+        Check("Feed picker first frame (only SubMode populated, stale horn 8.7.3): no write",
+            firstFrame.Write == BST_CrucibleAdvisor.FormationWrite.None, $"{firstFrame.Write}/{firstFrame.Reason}");
+
+        // Regression guards: the Battlehorn preview must still be written, including on its first frame.
+        var hornEmpty = BST_CrucibleAdvisor.DecideFormationWrite(new(
+            true, false, false, AddonMode: 2, AddonSubMode: 1, Array.Empty<int>(), party.Count));
+        Check("Horn preview after the shop (00:45:44.353, empty horn, mode 2): horn write",
+            hornEmpty.Write == BST_CrucibleAdvisor.FormationWrite.Horn, $"{hornEmpty.Write}/{hornEmpty.Reason}");
+        var hornFirstFrame = BST_CrucibleAdvisor.DecideFormationWrite(new(
+            true, false, false, AddonMode: -1, AddonSubMode: 1, new[] { 8, 7, 3 }, party.Count));
+        Check("Horn preview first frame (only SubMode 1 populated): horn write, no added delay",
+            hornFirstFrame.Write == BST_CrucibleAdvisor.FormationWrite.Horn, $"{hornFirstFrame.Write}/{hornFirstFrame.Reason}");
+        var rosterList = BST_CrucibleAdvisor.DecideFormationWrite(new(
+            true, false, true, AddonMode: 0, AddonSubMode: 1, party, party.Count));
+        Check("Bentbranch roster list (mode 0, ten ids): roster write",
+            rosterList.Write == BST_CrucibleAdvisor.FormationWrite.Roster, $"{rosterList.Write}/{rosterList.Reason}");
+        var rosterTransient = BST_CrucibleAdvisor.DecideFormationWrite(new(
+            true, false, true, AddonMode: 0, AddonSubMode: 1, new[] { 3, 5, 6 }, party.Count));
+        Check("Bentbranch roster list transient 3.5.6 (.222): wait, never horn",
+            rosterTransient.Write == BST_CrucibleAdvisor.FormationWrite.Wait, $"{rosterTransient.Write}/{rosterTransient.Reason}");
+
+        // Notebook "Team Composition" (XBMActivePet with no XBMPetParty, Bentbranch 00:06:01.467): the
+        // overworld familiar team, not a run screen. The pass armed there on stale run data.
+        var notebookTeam = BST_CrucibleAdvisor.DecideFormationWrite(new(
+            PetPartyOpen: false, ActivePetOpen: true, PreEntrySurface: true,
+            AddonMode: -1, AddonSubMode: -1, new[] { 1, 7, 4 }, party.Count));
+        Check("Notebook team screen (ActivePet without PetParty): no write",
+            notebookTeam.Write == BST_CrucibleAdvisor.FormationWrite.None, $"{notebookTeam.Write}/{notebookTeam.Reason}");
+
+        // Mode values the pass does not write.
+        Check("Classify: [2]=3 [3]=0 -> Feed; [2]=4/5 -> Feed; [2]=1 -> Other; [2]=0 -> Roster; [2]=2 -> Horn",
+            BST_CrucibleAdvisor.ClassifyPetPartyScreen(3, 0) == BST_CrucibleAdvisor.PetPartyScreen.Feed
+            && BST_CrucibleAdvisor.ClassifyPetPartyScreen(4, 0) == BST_CrucibleAdvisor.PetPartyScreen.Feed
+            && BST_CrucibleAdvisor.ClassifyPetPartyScreen(5, 1) == BST_CrucibleAdvisor.PetPartyScreen.Feed
+            && BST_CrucibleAdvisor.ClassifyPetPartyScreen(1, 1) == BST_CrucibleAdvisor.PetPartyScreen.Other
+            && BST_CrucibleAdvisor.ClassifyPetPartyScreen(0, 1) == BST_CrucibleAdvisor.PetPartyScreen.Roster
+            && BST_CrucibleAdvisor.ClassifyPetPartyScreen(2, 1) == BST_CrucibleAdvisor.PetPartyScreen.Horn
+            && BST_CrucibleAdvisor.ClassifyPetPartyScreen(-1, 1) == BST_CrucibleAdvisor.PetPartyScreen.RosterOrHorn
+            && BST_CrucibleAdvisor.ClassifyPetPartyScreen(-1, -1) == BST_CrucibleAdvisor.PetPartyScreen.Settling);
     }
 
     /// <summary> In combat on the First Board, L30, Cu Sith out (One with Nature spent), raptor / buffalo on ready horns 2 and 3. </summary>

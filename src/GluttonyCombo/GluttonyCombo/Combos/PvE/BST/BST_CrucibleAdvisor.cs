@@ -551,6 +551,114 @@ internal static class BST_CrucibleAdvisor
         return IsHornIndexBasis(selectedPetIds, partyCount);
     }
 
+    /// <summary> What the open familiar-party screen is for, from the addon's own mode values. </summary>
+    public enum PetPartyScreen
+    {
+        /// <summary> Mode values not populated yet (first frame of an open). </summary>
+        Settling,
+        /// <summary> SubMode 1 but Mode not populated yet: roster list or horn preview, not feeding. </summary>
+        RosterOrHorn,
+        /// <summary> Mode 0: the ten-familiar run roster list (Bentbranch entry menu). </summary>
+        Roster,
+        /// <summary> Mode 2: party preview from content, where the three Battlehorn slots are assigned. </summary>
+        Horn,
+        /// <summary> Modes 3-5 or SubMode 0: the shop's feed flow reusing the same agent. Never written. </summary>
+        Feed,
+        /// <summary> Any other mode (1 = party preview without content). Never written. </summary>
+        Other,
+    }
+
+    /// <summary> What the formation pass may do this tick. </summary>
+    public enum FormationWrite
+    {
+        None,
+        Wait,
+        Roster,
+        Horn,
+    }
+
+    /// <summary>
+    ///     Inputs to <see cref="DecideFormationWrite"/>. AddonMode / AddonSubMode are XBMPetParty AtkValues
+    ///     [2] / [3] (-1 = not populated), which mirror AgentXBMPetParty.Mode / SubMode.
+    /// </summary>
+    public readonly record struct FormationGateInput(
+        bool PetPartyOpen,
+        bool ActivePetOpen,
+        bool PreEntrySurface,
+        int AddonMode,
+        int AddonSubMode,
+        IReadOnlyList<int> SelectedPetIds,
+        int PartyCount);
+
+    /// <summary>
+    ///     Classify the open XBMPetParty screen from AtkValues [2] (Mode) and [3] (SubMode). PURE.
+    ///     Live evidence (2026-09-20/21, every open in five runs): Bentbranch roster list [2]=0 [3]=1,
+    ///     in-board Battlehorn preview [2]=2 [3]=1, shop feed picker [2]=3 [3]=0 — the same values
+    ///     ClientStructs PR #1952 documents for AgentXBMPetParty.Mode (0 pet list, 1 party preview,
+    ///     2 party preview from content, 3 buy feed, 4 buy feed result, 5 feed detail) and SubMode (0 for
+    ///     modes 3 and 4). On the first frame of an open only [3] is populated.
+    /// </summary>
+    public static PetPartyScreen ClassifyPetPartyScreen(int addonMode, int addonSubMode)
+    {
+        // Any feed signal wins: SubMode 0 is populated on the first frame of the shop's open.
+        if (addonSubMode == 0 || addonMode is 3 or 4 or 5)
+            return PetPartyScreen.Feed;
+        if (addonSubMode < 0)
+            return PetPartyScreen.Settling;
+        return addonMode switch
+        {
+            < 0 => PetPartyScreen.RosterOrHorn,
+            0 => PetPartyScreen.Roster,
+            2 => PetPartyScreen.Horn,
+            _ => PetPartyScreen.Other,
+        };
+    }
+
+    /// <summary>
+    ///     The formation-pass gate. PURE. Returns the write the live pass may attempt and a short reason
+    ///     for telemetry. Writes need the XBMPetParty addon itself open and its mode to name the roster
+    ///     list (pre-entry only) or the Battlehorn preview (board only); the shop's feed picker, the
+    ///     notebook's team screen (XBMActivePet alone) and unknown modes are never written. While only
+    ///     SubMode 1 is populated, the previous screen/shape rules decide (no added delay on the horn).
+    /// </summary>
+    public static (FormationWrite Write, string Reason) DecideFormationWrite(in FormationGateInput g)
+    {
+        if (!g.PetPartyOpen)
+            return (FormationWrite.None, g.ActivePetOpen ? "activepet_only" : "closed");
+        if (g.PartyCount <= 0)
+            return (FormationWrite.None, "no_party");
+
+        var screen = ClassifyPetPartyScreen(g.AddonMode, g.AddonSubMode);
+        switch (screen)
+        {
+            case PetPartyScreen.Feed:
+                return (FormationWrite.None, "feed");
+            case PetPartyScreen.Other:
+                return (FormationWrite.None, "other_mode");
+            case PetPartyScreen.Settling:
+                return (FormationWrite.Wait, "settling");
+            case PetPartyScreen.Roster when !g.PreEntrySurface:
+                return (FormationWrite.None, "roster_mode_on_board");
+            case PetPartyScreen.Horn when g.PreEntrySurface:
+                return (FormationWrite.None, "horn_mode_preentry");
+        }
+
+        // A populated mode names the surface outright; before it populates, the screen/shape rule decides.
+        var rosterSurface = screen switch
+        {
+            PetPartyScreen.Roster => true,
+            PetPartyScreen.Horn => false,
+            _ => g.PreEntrySurface && !g.ActivePetOpen,
+        };
+        if (IsHornWriteBasis(g.SelectedPetIds, g.PartyCount, rosterSurface))
+            return (FormationWrite.Horn, "horn");
+        if (!rosterSurface)
+            return (FormationWrite.Wait, "wait_horn_basis");
+        if (g.SelectedPetIds.Count is > 0 and <= 3)
+            return (FormationWrite.Wait, "wait_roster_settle");
+        return (FormationWrite.Roster, "roster");
+    }
+
     /// <summary>
     ///     Map horn-slot indices in <paramref name="selectedPetIds"/> through the party roster to familiar
     ///     rows. Out-of-range indices become 0. PURE.
