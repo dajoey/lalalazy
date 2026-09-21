@@ -389,4 +389,16 @@ internal static class FormationLogic
                 return false;
         return true;
     }
+
+    /// <summary>
+    ///     The last GluttonyCombo that carried its own familiar writer (BST_CruciblePetSelect). 1.0.4.230 is the
+    ///     first build without it (the split shipped).
+    /// </summary>
+    public static readonly System.Version LastGluttonyWithPetSelect = new(1, 0, 4, 229);
+
+    /// <summary>
+    ///     Whether a loaded GluttonyCombo of <paramref name="version"/> still writes the familiar screens itself.
+    ///     While it does, two plugins would write the same screens, so LazyCrucible stands down. PURE.
+    /// </summary>
+    public static bool GluttonyStillWritesFamiliars(System.Version version) => version <= LastGluttonyWithPetSelect;
 }

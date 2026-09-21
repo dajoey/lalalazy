@@ -77,6 +77,11 @@ internal sealed class MainWindow : Window
         if (changed)
             cfg.Save();
 
+        // Shared "Report a problem" (src/Shared/LalaTelemetry): writes an RP| report (game state, recent
+        // selection and screen lines, the full values of the open Crucible screens) to the plugin log.
+        ImGui.Spacing();
+        Plugin.Telemetry?.DrawReportButton();
+
         ImGui.Spacing();
         DrawAdvisor();
     }

@@ -21,5 +21,9 @@
     <Compile Include="..\..\src\Shared\LalaCrucible\**\*.cs" Link="LalaCrucible\%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="..\..\src\LazyCrucible\FormationLogic.cs" Link="FormationLogic.cs" />
     <Using Include="Lalalazy.Crucible" />
+    <!-- Error reporting (2026-09-21): LazyCrucible's pure telemetry policy (report ring cap, ER| areas, XBM capture
+         split) and the Dalamud-free core of the shared library it feeds (report builder, token bucket, parser). -->
+    <Compile Include="..\..\src\LazyCrucible\CrucibleTelemetry.cs" Link="CrucibleTelemetry.cs" />
+    <Compile Include="..\..\src\Shared\LalaTelemetry\Core\**\*.cs" Link="LalaTelemetry\Core\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

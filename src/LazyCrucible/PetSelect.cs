@@ -113,14 +113,9 @@ internal static unsafe class PetSelect
                 _rosterPlayerOwned = false; // a board was entered: the next Bentbranch visit is automatic again
         }
 
-        try
-        {
-            RunFormationPass(territoryBoard);
-        }
-        catch (Exception ex)
-        {
-            CrucibleLog.Error(ex, "formation pass");
-        }
+        // A failure propagates to the plugin's tick.select breaker (src/Shared/LalaTelemetry): an ER| line, and
+        // after repeated failures the pass pauses with one chat notice and retries on its own.
+        RunFormationPass(territoryBoard);
     }
 
     /// <summary>

@@ -57,6 +57,13 @@ public sealed class DalamudTelemetry : IDisposable
         /// <summary>Plugin-specific live state for a report (what the automation thinks it is doing).</summary>
         public Func<string>? StateSummary { get; init; }
 
+        /// <summary>
+        /// Optional plugin-specific addon captures appended after the generic ones in a report (e.g. LazyCrucible's
+        /// full captures of its XBM screens). Framework thread. The plugin bounds their number and size; each
+        /// record's values are still capped at <see cref="ReportBuilder.MaxAddonValueChars"/>.
+        /// </summary>
+        public Func<IReadOnlyList<AddonCapture>>? ExtraAddons { get; init; }
+
         public bool CaptureUnobservedTasks { get; init; } = true;
         public int RingCapacity { get; init; } = 200;
     }
@@ -223,8 +230,17 @@ public sealed class DalamudTelemetry : IDisposable
         var state = Try(notes, "state", () => _o.StateSummary?.Invoke() ?? string.Empty, string.Empty);
         var config = Try(notes, "config", () => _o.ConfigSummary?.Invoke() ?? string.Empty, string.Empty);
         var addons = Try(notes, "addons", () => AddonDump.Capture(), AddonDump.Result.Empty);
+        IReadOnlyList<AddonCapture> details = addons.Details;
+        var extraSource = _o.ExtraAddons;
+        if (extraSource is not null)
+        {
+            IReadOnlyList<AddonCapture> none = Array.Empty<AddonCapture>();
+            var extra = Try(notes, "extra-addons", extraSource, none);
+            if (extra.Count > 0)
+                details = details.Concat(extra).ToList();
+        }
 
-        return Hub.BaseInput(id, text?.Trim() ?? string.Empty, game, state, config, addons.Visible, addons.Details, notes);
+        return Hub.BaseInput(id, text?.Trim() ?? string.Empty, game, state, config, addons.Visible, details, notes);
     }
 
     private static T Try<T>(List<string> notes, string section, Func<T> read, T fallback)

@@ -65,7 +65,11 @@ internal static unsafe class ScreenRecorder
     /// <summary> Addon event types worth recording (clicks and selections; no hover, move, focus or timers). </summary>
     private static readonly HashSet<int> ClickEventTypes = [9, 10, 23, 25, 27, 31, 35, 36, 38, 58, 61, 63];
 
-    /// <summary> Framework tick while Beastmaster: visibility, snapshots, callback hook lifecycle. </summary>
+    /// <summary>
+    ///     Framework tick while Beastmaster: visibility, snapshots, callback hook lifecycle. A failure propagates to
+    ///     the plugin's <c>tick.recorder</c> breaker (src/Shared/LalaTelemetry), which pauses the recorder after
+    ///     repeated errors without touching familiar selection.
+    /// </summary>
     public static void Tick(bool wanted)
     {
         if (!wanted)
@@ -82,16 +86,35 @@ internal static unsafe class ScreenRecorder
             return;
         _nextScanMs = now + 100; // 10 scans a second is enough to catch every screen
 
-        try
+        Scan(now);
+        AgentState(now);
+        Objects(now);
+    }
+
+    /// <summary>
+    ///     For a problem report: the full AtkValues (<see cref="DescribeAddon"/>, the XB| grammar) of every visible
+    ///     XBM* window, whatever the recorder switch says. Read-only; framework thread.
+    /// </summary>
+    internal static List<(string Name, int ValueCount, string Values)> VisibleXbmDumps()
+    {
+        var result = new List<(string Name, int ValueCount, string Values)>();
+        var manager = RaptureAtkUnitManager.Instance();
+        if (manager is null)
+            return result;
+
+        var list = manager->AtkUnitManager.AllLoadedUnitsList;
+        var count = Math.Min((int)list.Count, list.Entries.Length);
+        for (var i = 0; i < count; i++)
         {
-            Scan(now);
-            AgentState(now);
-            Objects(now);
+            var unit = list.Entries[i].Value;
+            if (unit is null || !unit->IsVisible)
+                continue;
+            var name = unit->NameString;
+            if (string.IsNullOrEmpty(name) || !name.StartsWith("XBM", StringComparison.Ordinal))
+                continue;
+            result.Add((name, unit->AtkValuesCount, DescribeAddon(unit)));
         }
-        catch (Exception ex)
-        {
-            CrucibleLog.Error(ex, "screen recorder scan");
-        }
+        return result;
     }
 
     public static void Stop()
@@ -145,6 +168,9 @@ internal static unsafe class ScreenRecorder
 
     private static void OnReceiveEvent(AddonEvent type, AddonArgs args)
     {
+        var guard = CrucibleLog.RecorderHook;
+        if (!guard.TryEnter())
+            return;
         try
         {
             if (args is not AddonReceiveEventArgs e)
@@ -171,12 +197,15 @@ internal static unsafe class ScreenRecorder
         }
         catch (Exception ex)
         {
-            CrucibleLog.Error(ex, "addon event log");
+            guard.Failed(ex);
         }
     }
 
     private static void OnConditionChange(ConditionFlag flag, bool value)
     {
+        var guard = CrucibleLog.RecorderHook;
+        if (!guard.TryEnter())
+            return;
         try
         {
             if (InCrucibleArea())
@@ -184,7 +213,7 @@ internal static unsafe class ScreenRecorder
         }
         catch (Exception ex)
         {
-            CrucibleLog.Error(ex, "condition log");
+            guard.Failed(ex);
         }
     }
 
@@ -402,22 +431,27 @@ internal static unsafe class ScreenRecorder
 
     private static bool FireCallbackDetour(AtkUnitBase* unit, uint valueCount, AtkValue* values, bool updateState)
     {
-        try
+        // Logging only, under its breaker; the original always runs with the arguments untouched.
+        var guard = CrucibleLog.RecorderHook;
+        if (guard.TryEnter())
         {
-            if (unit is not null && Plugin.Config.RecordScreens)
+            try
             {
-                var name = unit->NameString;
-                if (!string.IsNullOrEmpty(name) && Wanted(name, InCrucibleArea()))
+                if (unit is not null && Plugin.Config.RecordScreens)
                 {
-                    var inv = CultureInfo.InvariantCulture;
-                    CrucibleLog.Line($"XC|{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString(inv)}|{name}|upd={(updateState ? 1 : 0)}|n={valueCount.ToString(inv)}"
-                                     + AgentProbe.DescribeValues(values, valueCount, 16));
+                    var name = unit->NameString;
+                    if (!string.IsNullOrEmpty(name) && Wanted(name, InCrucibleArea()))
+                    {
+                        var inv = CultureInfo.InvariantCulture;
+                        CrucibleLog.Line($"XC|{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString(inv)}|{name}|upd={(updateState ? 1 : 0)}|n={valueCount.ToString(inv)}"
+                                         + AgentProbe.DescribeValues(values, valueCount, 16));
+                    }
                 }
             }
-        }
-        catch (Exception ex)
-        {
-            CrucibleLog.Error(ex, "callback log");
+            catch (Exception ex)
+            {
+                guard.Failed(ex);
+            }
         }
         return _fireCallbackHook!.Original(unit, valueCount, values, updateState);
     }

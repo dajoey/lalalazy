@@ -2,14 +2,17 @@
 
 Source of truth for the lines written by the shared error-reporting library
 `src/Shared/LalaTelemetry` (namespace `Lalalazy.Telemetry`). The pilot plugins are GluttonyCombo and
-LazyMarketCompanion. The grammar is pinned by `tests/LalaTelemetry.Harness`: key order, escaping,
+LazyMarketCompanion; LazyCrucible uses it from its first release. The grammar is pinned by
+`tests/LalaTelemetry.Harness`: key order, escaping,
 the report block shape and the size bounds are all asserted there. Run
 `dotnet tests/LalaTelemetry.Harness/bin/Release/net10.0/LalaTelemetry.Harness.dll --print-samples`
 to print fresh synthetic examples of every line kind.
 
 Older positional lines (`CT|`, `BT|`, `CR|`, `MT|`, `PT|`, `FT|`, `PS|`, `PSP|`, `XB|`, `XB+|`, `XP|`)
-are unchanged. Their grammars live in the `*TelemetryFormat.cs` file that writes them. This library
-only adds `ER|`, `RP|` and the ring-only `NT|`.
+are unchanged. Their grammars live in the `*TelemetryFormat.cs` file that writes them (LazyCrucible's
+`PS|`, `PSP|`, `XV|`, `XB|`, `XC|`, `XR|`, `XE|`, `XA|`, `XO|`, `XK|`: the doc comments of
+`src/LazyCrucible/PetSelect.cs`, `AgentProbe.cs` and `ScreenRecorder.cs`). This library only adds `ER|`,
+`RP|` and the ring-only `NT|`.
 
 ## 1. Where the lines are
 
@@ -142,16 +145,25 @@ Reconciliation: for one `(p, fp)` in one load, once nothing is pending (always t
 
 ### 3.4 Circuit breakers
 
-Per-frame handlers run under a breaker named by `a`. The pilots use these areas:
+Per-frame handlers run under a breaker named by `a`. The plugins use these areas:
 
 | plugin | area | handler |
 |---|---|---|
 | GluttonyCombo | `tick` | the whole framework tick (auto-rotation, save queue, state) |
-| GluttonyCombo | `tick.bst` | Beastmaster collectors and Crucible familiar selection, inside `tick` |
+| GluttonyCombo | `tick.bst` | Beastmaster collectors and the once-per-board Crucible `PS|aggro=` line, inside `tick` |
 | GluttonyCombo | `tick.status` | server info bar text and tankbuster/AoE alerts, inside `tick` |
 | LazyMarketCompanion | `automation.draw` | retainer automation overlay + AutoRetainer session watchdog |
 | LazyMarketCompanion | `markers.draw` | inventory marker overlay |
 | LazyMarketCompanion | `market-board.tick` | market-board price-request timeouts |
+| LazyCrucible | `tick` | the whole framework tick (stand-down checks, agent probe setup) |
+| LazyCrucible | `tick.select` | familiar selection (the formation pass), inside `tick` |
+| LazyCrucible | `tick.recorder` | the screen recorder's scan (XV/XB/XA/XO), inside `tick` |
+| LazyCrucible | `hook.probe` | the PSP|/XE| log in the XBM agent ReceiveEvent hooks; the familiar-edit latch runs before it and is never skipped |
+| LazyCrucible | `hook.recorder` | the recorder's FireCallback hook, addon-click listener and condition listener (log only) |
+
+LazyCrucible's other catch points write `swallowed` lines whose area is the call site's description
+folded to lower case with dashes, e.g. `receiveevent-resolve-failed`, `restore-failed`,
+`agent-probe-hook` (`CrucibleTelemetry.Area`).
 
 - **Trip:** 10 failures within 5 s. One `trip` line (`ev=tripped`) is written, and ONE chat notice
   for the whole session, e.g. `Gluttony Combo: auto-rotation and the per-frame update stopped after
@@ -165,7 +177,8 @@ Per-frame handlers run under a breaker named by `a`. The pilots use these areas:
 
 ## 4. `RP|` problem report
 
-Written by `/<cmd> report <what happened>` (`/gluttony report ...`, `/lmc report ...`) or by the
+Written by `/<cmd> report <what happened>` (`/gluttony report ...`, `/lmc report ...`,
+`/lazycrucible report ...`) or by the
 "Report a problem" button in the plugin window. Chat confirms `Problem report <id> written to the
 plugin log.` At most one report per 10 s.
 
@@ -192,14 +205,14 @@ Sections, in this order (`*` = repeated, possibly zero times):
 | `begin` | `id fmt p v ch c lines` | `fmt` = report format version (currently `1`) |
 | `text` | `id t` | the free text as typed (cap 1000) |
 | `game` | `id src at tt j ja lv cb du li pos tgt cond` | `src` = `live` or `cached` or `none`, `at` = unix ms of the read, `ja` = job abbreviation, `li` = logged in, `pos` = `x,y,z` (2 decimals, empty if unknown), `tgt` = `<ObjectKind>:<BaseId>:<EntityId>:<name>` where another player's name is always written `pc`, `cond` = every set ConditionFlag name, comma-separated |
-| `state` | `id s` | `guard.<area>=<closed/open/halfopen>/<trips>/<failures>` for every breaker, then the plugin's own state (`;`-separated `k=v`). GluttonyCombo: auto-rotation on/paused/locked, opener, telemetry switch, every enabled preset for the current job (`*` = in auto-rotation). LazyMarketCompanion: its `/lmc debug` state. |
+| `state` | `id s` | `guard.<area>=<closed/open/halfopen>/<trips>/<failures>` for every breaker, then the plugin's own state (`;`-separated `k=v`). GluttonyCombo: auto-rotation on/paused/locked, opener, telemetry switch, every enabled preset for the current job (`*` = in auto-rotation). LazyMarketCompanion: its `/lmc debug` state. LazyCrucible: `bst`, `yield` (why it stands down: `none`, `conflict_gluttony`, `autoduty_running`), `gluttonyConflict`, `ringKept`/`ringSkipped` (lines offered to the ring), `lastAt`, `last` (the last selection summary). |
 | `config` | `id s` | `k=v;...` scalars of the plugin configuration (bool as 0/1, numbers, enums). Collections are `name#=count`, and nested objects `parent.child=`. Strings are never included. Cap 4000. |
 | `errs` | `id n held seen` | `n` err lines follow (newest 16 of `held` in memory, `seen` since load) |
 | `err`* | `id i at l` | `l` = a full `ER|` line (cap 2000, then `tr=l`), oldest first |
 | `rings` | `id n seen` | `n` ring lines follow, `seen` = lines ever added since load |
 | `ring`* | `id i at l` | `l` = one telemetry line exactly as the plugin formatted it (cap 600), oldest first. It is either a positional line (`CT|`, `BT|`, `MT|`, ...) or an `ER|` head cut to 300 chars, or `NT|<ms>|notice|a=..|m=..` (a chat notice that was shown), or `RP|<ms>|filed|id=..` (an earlier report). |
 | `addons` | `id n visible` | names of every visible addon, sorted, comma-separated (at most 150) |
-| `addon`* | `id name n vals` | up to 12 visible WINDOWS (names starting with `_` are HUD parts and appear in `visible` only, `ChatLog*` is skipped). `n` = AtkValue count, `vals` = `index:type=value;` for the first 24 defined values. Types: `b` bool, `i` int, `u` uint, `f` float, `s` string (cap 48, `;` replaced by `,`), `tN` other type N. |
+| `addon`* | `id name n vals` | up to 12 visible WINDOWS (names starting with `_` are HUD parts and appear in `visible` only, `ChatLog*` is skipped). `n` = AtkValue count, `vals` = `index:type=value;` for the first 24 defined values. Types: `b` bool, `i` int, `u` uint, `f` float, `s` string (cap 48, `;` replaced by `,`), `tN` other type N. LazyCrucible then appends full captures of every visible `XBM*` window, see 4.2. |
 | `note`* | `id m` | a section that could not be read and why. The report is still written. |
 | `end` | `id lines` | |
 
@@ -216,14 +229,36 @@ Each plugin keeps the last 200 telemetry lines in memory, always, whatever its t
 
 - GluttonyCombo: `CT|` combo decisions. With the switch off, a changed decision is still formatted
   into the ring, capped at 10 lines/s (burst 20), never per frame. `BT|`, `CR|`, `XB|`, `XB+|` and
-  `XP|` are recorded only while the switch is on (their sampling runs per frame). `PS|` and `PSP|`
-  (Crucible familiar selection) are recorded whenever they are emitted, which is independent of the switch.
+  `XP|` are recorded only while the switch is on (their sampling runs per frame). Crucible familiar
+  selection (`PS|`, `PSP|`) moved to LazyCrucible; only the once-per-board `PS|aggro=` line is still
+  written by GluttonyCombo, and it is not recorded.
+- LazyCrucible (ring of 120 lines, not 200, see 4.2): every `PS|` selection decision; `PSP|` pet-party /
+  notebook events at most 5/s (burst 40); `XB+|` continuation chunks never; every other screen line
+  (`XV| XB| XC| XR| XE| XA| XO| XK|`) at most 3/s (burst 30). A recorder flood therefore cannot push the
+  selection decisions out of the ring (asserted in `tests/LazyCrucible.Harness`). Every line is still
+  written to the log as before.
 - LazyMarketCompanion: `MT|` price decisions. With the switch off, a light copy with `itemId` 0 and
   `qty` 0 (no Item-sheet scan) goes to the ring, one per price decision.
-- Both: the head of every `ER|` line, every chat notice (`NT|`), every filed report (`RP|..|filed`).
+- All: the head of every `ER|` line, every chat notice (`NT|`), every filed report (`RP|..|filed`).
 
 The plugins' own narrative INF lines (`[LMC] ...`) are not in the ring. They are already in the log;
 join them to a report on `context` and a time window around the report's `unixms`.
+
+### 4.2 LazyCrucible: full captures of the open Crucible screens
+
+A LazyCrucible report carries, after the generic `addon` records, the FULL AtkValues of every visible
+`XBM*` window (whatever the "Record Crucible screens" switch says), in the XB| value grammar
+(`index:type=value;`, strings cap 60 with `|` `;` and newlines replaced). They are ordinary `addon`
+records with a `full:` name prefix:
+
+- `full:<Name>`, `full:<Name>+1`, `full:<Name>+2`, ... are consecutive pieces of one window's values,
+  each at most 1400 characters and cut only between values, so each piece parses on its own and the
+  pieces concatenate back to the whole dump. `n` is the window's AtkValue count on every piece.
+- Smaller windows come first, so every open screen is represented. At most 32 records per report; a
+  window cut by that budget ends with a `full:<Name>+cut` record whose `vals` is `shown=<k>/<needed>`,
+  and a window that no longer fits at all is only in the `addons` `visible` list.
+- To keep the same size bound, LazyCrucible's ring holds 120 lines instead of 200. The worst case with
+  every cap hit, captures included, stays under 200 KB (asserted in `tests/LazyCrucible.Harness`).
 
 ## 5. Reference parser (Python)
 

@@ -24,6 +24,9 @@
     <CanUnloadAsync>false</CanUnloadAsync>
     <LoadPriority>0</LoadPriority>
     <AcceptsFeedback>false</AcceptsFeedback>
+    <!-- Error reporting (2026-09-21): the PDB lives INSIDE the DLL, so stack traces in ER| lines carry
+         file:line even though packaging ships no .pdb. -->
+    <DebugType>embedded</DebugType>
   </PropertyGroup>
   <!-- Shared in-game "What's new" changelog popup (standing rule, 2026-09-05): compiled as SOURCE and
        this plugin's CHANGELOG.md embedded. Do not remove. -->
@@ -37,6 +40,15 @@
     <Compile Include="..\Shared\LalaCrucible\**\*.cs" Link="LalaCrucible\%(RecursiveDir)%(Filename)%(Extension)" />
     <Using Include="Lalalazy.Crucible" />
   </ItemGroup>
+  <!-- Shared error reporting (src/Shared/LalaTelemetry, 2026-09-21): ER| error lines, circuit breakers on the
+       per-frame tick and the screen hooks, `/lazycrucible report`. Shared SOURCE like LalaChangelog, never a DLL.
+       Do not remove. -->
+  <ItemGroup>
+    <Compile Include="..\Shared\LalaTelemetry\**\*.cs" Link="LalaTelemetry\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+  <!-- Build stamp for the shared error reporting: the git SHA of the tree being built goes into
+       [AssemblyMetadata("LalaCommit")] and onto every ER| / RP| line as c=. "unknown" without git. -->
+  <Import Project="..\Shared\LalaTelemetry\LalaTelemetry.Stamp.targets" />
   <ItemGroup>
     <Content Include="LazyCrucible.json" />
   </ItemGroup>

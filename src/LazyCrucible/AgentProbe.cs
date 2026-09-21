@@ -120,14 +120,29 @@ internal static unsafe class AgentProbe
 
     private static void Observe(AgentInterface* agent, string via, AtkValue* values, uint valueCount, ulong eventKind)
     {
+        // The familiar-selection edit latch first, never behind a breaker: skipping it could let the pass
+        // overwrite a manual edit.
+        string? tag;
         try
         {
-            if (!_active || !TagByAgent.TryGetValue((nint)agent, out var tag))
+            if (!_active || !TagByAgent.TryGetValue((nint)agent, out tag))
                 return;
 
             int? firstInt = values is not null && valueCount > 0 && values[0].Type == AtkValueType.Int ? values[0].Int : null;
             PetSelect.OnAgentEvent(tag, eventKind, valueCount, firstInt);
+        }
+        catch (Exception ex)
+        {
+            CrucibleLog.Error(ex, "agent probe latch");
+            return;
+        }
 
+        // The PSP| / XE| event log, under its breaker (src/Shared/LalaTelemetry).
+        var guard = CrucibleLog.ProbeHook;
+        if (!guard.TryEnter())
+            return;
+        try
+        {
             var familiar = tag is "pp" or "nb";
             if (!familiar && !Plugin.Config.RecordScreens)
                 return;
@@ -164,7 +179,7 @@ internal static unsafe class AgentProbe
         }
         catch (Exception ex)
         {
-            CrucibleLog.Error(ex, "agent probe log");
+            guard.Failed(ex);
         }
     }
 

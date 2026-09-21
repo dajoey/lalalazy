@@ -1,3 +1,5 @@
+using System.Text;
+using Lalalazy.Telemetry;
 using LazyCrucible;
 
 namespace LazyCrucible.Harness;
@@ -17,6 +19,8 @@ internal static class Program
         Formation();
         FeedScreenReplay();
         RosterOverwriteReplay();
+        GluttonyVersionGuard();
+        Telemetry();
 
         Console.WriteLine(_fail == 0 ? $"OK ({_pass} checks)" : $"FAILED ({_fail} of {_pass + _fail})");
         return _fail == 0 ? 0 : 1;
@@ -369,6 +373,149 @@ internal static class Program
             true, false, true, AddonMode: 0, AddonSubMode: 1, party, party.Count, RosterPlayerOwned: true));
         Check("Roster menu reopened after a manual edit: no write",
             owned.Write == FormationLogic.FormationWrite.None && owned.Reason == "player_owned", $"{owned.Write}/{owned.Reason}");
+    }
+
+    /// <summary> LazyCrucible stands down only while a GluttonyCombo that still writes familiars is loaded. </summary>
+    private static void GluttonyVersionGuard()
+    {
+        Console.WriteLine("-- GluttonyCombo version guard (split shipped in 1.0.4.230) --");
+        Check("GluttonyCombo 1.0.4.229 still writes familiars (stand down)", FormationLogic.GluttonyStillWritesFamiliars(new Version(1, 0, 4, 229)));
+        Check("GluttonyCombo 1.0.4.228 still writes familiars (stand down)", FormationLogic.GluttonyStillWritesFamiliars(new Version(1, 0, 4, 228)));
+        Check("GluttonyCombo 1.0.4.230 = split shipped (LazyCrucible writes)", !FormationLogic.GluttonyStillWritesFamiliars(new Version(1, 0, 4, 230)));
+        Check("GluttonyCombo 1.0.5.0 = split shipped", !FormationLogic.GluttonyStillWritesFamiliars(new Version(1, 0, 5, 0)));
+    }
+
+    /// <summary>
+    ///     Error reporting (2026-09-21): ER| area names, the report-ring cap that keeps selection lines from being
+    ///     flushed by the screen recorder, and the XBM capture split with the whole report's size bound.
+    /// </summary>
+    private static void Telemetry()
+    {
+        Console.WriteLine("-- error reporting (ER| areas, report ring cap, XBM captures in RP|) --");
+
+        Check("area: description folded to a stable machine name",
+            CrucibleTelemetry.Area("ReceiveEvent resolve failed") == "receiveevent-resolve-failed"
+            && CrucibleTelemetry.Area("agent probe latch") == "agent-probe-latch"
+            && CrucibleTelemetry.Area("  callback  hook!") == "callback-hook"
+            && CrucibleTelemetry.Area("") == "unknown",
+            CrucibleTelemetry.Area("ReceiveEvent resolve failed"));
+
+        // --- ring policy ---
+        var policy = new CrucibleRingPolicy();
+        var psKept = Enumerable.Range(0, 500).All(i => policy.ShouldRecord($"PS|{i}|note=x", 0));
+        Check("ring: every PS| line is kept, even 500 in one millisecond", psKept);
+        Check("ring: XB+| continuation chunks never reach the ring", !policy.ShouldRecord("XB+|1|XBMPetParty|1|0:i=1;", 0));
+        var pspBurst = Enumerable.Range(0, 100).Count(_ => policy.ShouldRecord("PSP|1|ag=nb|kind=5", 0));
+        Check("ring: PSP| burst capped at 40", pspBurst == 40, pspBurst.ToString());
+        var pspRefill = Enumerable.Range(0, 100).Count(_ => policy.ShouldRecord("PSP|2|ag=nb|kind=5", 1000));
+        Check("ring: PSP| refills 5 per second", pspRefill == 5, pspRefill.ToString());
+        var xBurst = Enumerable.Range(0, 100).Count(i => policy.ShouldRecord(i % 2 == 0 ? "XB|1|XBMPetParty|n=9|0:i=1;" : "XC|1|XBMPetParty|upd=1|n=2|0:i1", 0));
+        Check("ring: screen lines (XV/XB/XC/XR/XE/XA/XO/XK) burst capped at 30", xBurst == 30, xBurst.ToString());
+        var xRefill = Enumerable.Range(0, 100).Count(_ => policy.ShouldRecord("XO|3|pos=1,2,3|obj=", 1000));
+        Check("ring: screen lines refill 3 per second", xRefill == 3, xRefill.ToString());
+        Check("ring: kept + skipped counts every line offered", policy.Kept + policy.Skipped == 500 + 1 + 100 + 100 + 100 + 100,
+            $"{policy.Kept}+{policy.Skipped}");
+
+        // A recorder flood (100 lines/s for 60 s, as when a screen with 2000 values changes every frame) with one
+        // selection decision per second: every PS| line must still be in the ring at the end.
+        {
+            var flood = new CrucibleRingPolicy();
+            var ring = new RingBuffer(CrucibleTelemetry.RingCapacity);
+            var psWritten = new List<string>();
+            for (long ms = 0; ms < 60_000; ms += 10)
+            {
+                var line = (ms / 10 % 4) switch
+                {
+                    0 => $"XB|{ms}|XBMPetParty|n=2000|0:i=1;",
+                    1 => $"XB+|{ms}|XBMPetParty|1|5:i=2;",
+                    2 => $"PSP|{ms}|ag=nb|via=re|kind=5|n=2",
+                    _ => $"XE|{ms}|ag=XBMStageMap|via=re|kind=1|n=1",
+                };
+                if (flood.ShouldRecord(line, ms))
+                    ring.Add(ms, line);
+                if (ms % 1000 == 0 && ms >= 50_000)
+                {
+                    var ps = $"PS|{ms}|b=1|note=decision";
+                    psWritten.Add(ps);
+                    if (flood.ShouldRecord(ps, ms))
+                        ring.Add(ms, ps);
+                }
+            }
+            var inRing = ring.Snapshot().Select(e => e.Line).ToHashSet();
+            Check("ring: a 60 s recorder flood never pushes the last 10 s of PS| decisions out of the ring",
+                psWritten.Count == 10 && psWritten.All(inRing.Contains), $"{psWritten.Count(inRing.Contains)}/{psWritten.Count}");
+        }
+
+        // --- XBM capture split ---
+        static string Dump(int values, int strLen)
+        {
+            var sb = new StringBuilder();
+            for (var i = 0; i < values; i++)
+                sb.Append(i).Append(i % 3 == 0 ? ":s=" + new string('n', strLen) : ":i=" + (i * 7)).Append(';');
+            return sb.ToString();
+        }
+
+        var small = Dump(12, 10);
+        var one = CrucibleTelemetry.SplitCaptures([("XBMContentsMainHUD", 40, small)]);
+        Check("capture: a small screen is one record named full:<Name> holding every value",
+            one.Count == 1 && one[0].Name == "full:XBMContentsMainHUD" && one[0].Values == small && one[0].ValueCount == 40);
+
+        var big = Dump(2000, 60);
+        var parts = CrucibleTelemetry.SplitCaptures([("XBMPetParty", 2400, big)], maxRecords: 1000);
+        Check("capture: a 2000-value screen splits into records named full:Name, full:Name+1, ...",
+            parts.Count > 1 && parts[0].Name == "full:XBMPetParty" && parts[1].Name == "full:XBMPetParty+1"
+            && parts[^1].Name == $"full:XBMPetParty+{parts.Count - 1}", $"{parts.Count} records");
+        Check("capture: records rejoin to exactly the original values",
+            string.Concat(parts.Select(p => p.Values)) == big);
+        Check("capture: every record fits the chunk size and is cut only between values",
+            parts.All(p => p.Values.Length <= CrucibleTelemetry.CaptureChunkChars && p.Values.EndsWith(';') && char.IsAsciiDigit(p.Values[0])));
+        Check("capture: chunk size stays under the report's addon value cap",
+            CrucibleTelemetry.CaptureChunkChars <= ReportBuilder.MaxAddonValueChars);
+
+        var mixed = CrucibleTelemetry.SplitCaptures(
+            [("XBMPetParty", 2400, big), ("XBMStageMap", 30, Dump(20, 5)), ("XBMActivePet", 60, Dump(40, 5))]);
+        Check("capture: smaller screens first, so every open screen is represented",
+            mixed[0].Name == "full:XBMStageMap" && mixed[1].Name == "full:XBMActivePet" && mixed[2].Name == "full:XBMPetParty",
+            string.Join(",", mixed.Take(3).Select(m => m.Name)));
+        Check("capture: never more than MaxCaptureRecords records", mixed.Count <= CrucibleTelemetry.MaxCaptureRecords, mixed.Count.ToString());
+        var cutMarker = mixed[^1];
+        var needed = CrucibleTelemetry.Chunk(big, CrucibleTelemetry.CaptureChunkChars).Count;
+        var shownBig = mixed.Count(m => m.Name.StartsWith("full:XBMPetParty", StringComparison.Ordinal) && !m.Name.EndsWith("+cut", StringComparison.Ordinal));
+        Check("capture: a screen cut by the budget ends with full:Name+cut shown=k/total",
+            needed > CrucibleTelemetry.MaxCaptureRecords && cutMarker.Name == "full:XBMPetParty+cut"
+            && cutMarker.Values == $"shown={shownBig}/{needed}" && mixed.Count == CrucibleTelemetry.MaxCaptureRecords,
+            $"{cutMarker.Name}={cutMarker.Values} needed={needed}");
+        var noRoom = CrucibleTelemetry.SplitCaptures([("XBMA", 1, "0:i=1;"), ("XBMB", 1, "0:i=2;"), ("XBMC", 1, "0:i=3;")], maxRecords: 2);
+        Check("capture: screens past the budget are left out (they stay in the visible list)",
+            noRoom.Count == 2 && noRoom[0].Name == "full:XBMA" && noRoom[1].Name == "full:XBMB");
+
+        // --- whole RP| report at every cap, with the XBM captures: parses, nothing cut, < 200 KB ---
+        {
+            var identity = new TelemetryIdentity { Plugin = "LazyCrucible", DisplayName = "LazyCrucible", Version = "0.1.0.0", Channel = "testing", Commit = "abc1234def", Command = "/lazycrucible" };
+            var captures = CrucibleTelemetry.SplitCaptures(
+                Enumerable.Range(0, 6).Select(i => ($"XBMScreen{i}", 2000, Dump(2000, 60))));
+            var addons = Enumerable.Range(0, 12).Select(i => new AddonCapture("A" + i, 24, new string('v', 9000)))
+                .Concat(captures).ToArray();
+            var lines = ReportBuilder.BuildLines(new ReportInput
+            {
+                Id = "1NP3K7QA", UnixMs = 1_788_000_000_000, Identity = identity,
+                Text = new string('t', 5000),
+                Ring = Enumerable.Range(0, CrucibleTelemetry.RingCapacity).Select(i => new RingBuffer.Entry(i, new string('r', 5000))).ToArray(),
+                Errors = Enumerable.Range(0, 20).Select(i => new RingBuffer.Entry(i, "ER|" + i + "|error|st=" + new string('s', 3000))).ToArray(),
+                Addons = addons,
+                VisibleAddons = Enumerable.Range(0, 200).Select(i => "Addon" + i).ToArray(),
+                State = new string('s', 9000), Config = new string('c', 9000),
+            });
+            var size = lines.Sum(l => l.Length + 1);
+            Check("report: worst case with the XBM captures stays under 200 KB", size < 200_000, $"{size} bytes");
+            var parsed = lines.Select(l => ParsedTelemetryLine.TryParse(l, out var p) ? p : null).ToList();
+            var captureLines = parsed.Where(p => p?.Kind == "addon" && (p.Get("name") ?? "").StartsWith("full:", StringComparison.Ordinal)).ToList();
+            Check("report: every capture record parses and none is cut (no tr=)",
+                parsed.All(p => p is not null) && captureLines.Count == captures.Count && captureLines.All(p => p!.Get("tr") is null),
+                $"{captureLines.Count}/{captures.Count}");
+            Check("report: capture values round-trip through the RP| escaping",
+                captureLines.Select(p => p!.Get("vals")).SequenceEqual(captures.Select(c => c.Values)));
+        }
     }
 
     private static void Check(string what, bool ok, string? detail = null)

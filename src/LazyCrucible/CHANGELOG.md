@@ -13,4 +13,6 @@
 - **Beast-pick advisor**: picks for every battle on every board, the board roster and familiars worth capturing, under "Beast picks by battle".
 - **Screen recorder** (`"Record Crucible screens to the log"`, read-only): writes each Crucible screen and every button pressed on it to the Dalamud log, groundwork for automating the path, spoils, treasure, shop, feeding, campsite and beast gear screens.
 - Stands down with a chat notice while a GluttonyCombo version that still fills familiars itself is loaded.
+- **Problem reports**: `/lazycrucible report <what happened>` or the "Report a problem" button writes a report to the plugin log with the zone, job, recent familiar-selection and screen lines, and the full contents of the Crucible screens that are open.
+- **Error reporting**: an error is written as one line carrying the plugin version, build, zone, job and the full stack with file and line numbers. A part that keeps failing (familiar selection, the screen recorder, or its event and click logs) pauses with one chat notice and retries on its own; manual edits are still detected while the event log is paused.
 - `/lazycrucible` opens the window; `/lazycrucible changelog` shows this list.
