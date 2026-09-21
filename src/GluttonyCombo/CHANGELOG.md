@@ -1,3 +1,19 @@
+## v1.0.4.229 (2026-09-20) [testing]
+### Added
+- **Custom burst toggling.** Burst options in the UI now show whether they are included in the burst toggle, and `/gluttony burst custom` toggles just the burst options you picked for the current job (`hold`/`disable` and `resume`/`enable` work the same way).
+- **Summoner's opener moved onto the shared opener framework**, gaining a pre-pull Cease step and honouring the block-pre-pull-openers option (the settings UI already exposed it, but the old opener ignored it).
+### Changed
+- Role combos no longer assign themselves a job role on classes, and Roles & Combat entries are sorted back to the bottom of the main menu.
+- Warrior's opener accounts for a Heavy Swing opener start.
+- Blue Mage's Moon Flute opener skip conditions now also check that the spell is actually ready, and its cooldown check was simplified to the flute itself.
+### Fixed
+- Gunbreaker: Burst Strike handling corrected.
+- Dancer: an opener step corrected.
+- Option icon flicker in the settings UI.
+- Rotation helper fixes from upstream for Dark Knight, Gunbreaker, Pictomancer, Red Mage, Sage, Samurai and Warrior.
+### Notes
+- Upstream catch-up: 18 WrathCombo commits (1.0.4.26) across 25 files. Beastmaster and Crucible remain fork-owned and untouched by this merge. Production channel unchanged.
+
 ## v1.0.4.228 (2026-09-20) [testing]
 ### Added
 - **Upcoming positional hints are published over IPC.** Dragoon, Monk, Ninja, Reaper, Samurai and Viper now report which side the next positional weapon skill wants, so an overlay plugin can show it before the skill comes up.
