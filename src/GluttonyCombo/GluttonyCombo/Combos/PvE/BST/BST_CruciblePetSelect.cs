@@ -85,6 +85,14 @@ internal static unsafe class BST_CruciblePetSelect
     private static bool _probeWanted;
 
     private static bool _disarmRestOfScreen;
+    /// <summary> >0 while this pass's own agent calls are on the stack; the probe ignores those events. </summary>
+    private static int _ownCallDepth;
+    /// <summary> A selection edit this pass did not send, seen by the probe; consumed on the next tick. </summary>
+    private static string? _pendingExternalEdit;
+    /// <summary> The player edited the Bentbranch roster this visit: the roster writer stands down until a board is entered. </summary>
+    private static bool _rosterPlayerOwned;
+    /// <summary> Roster membership right after this open's roster pass; a later difference is a manual edit. </summary>
+    private static HashSet<int>? _rosterAfterPass;
     private static string _lastBasisNote = "";
     private static FormationArmState _arm;
     private static bool _loggedAggroThisRun;
@@ -109,6 +117,8 @@ internal static unsafe class BST_CruciblePetSelect
         {
             _lastBoard = territoryBoard;
             _loggedAggroThisRun = false;
+            if (territoryBoard != 0)
+                _rosterPlayerOwned = false; // a board was entered: the next Bentbranch visit is automatic again
         }
 
         // Probe follows the addons, not the territory — must stay armed at Bentbranch.
@@ -151,6 +161,9 @@ internal static unsafe class BST_CruciblePetSelect
         _lastPhaseSig = "";
         _disarmRestOfScreen = false;
         _lastBasisNote = "";
+        _pendingExternalEdit = null;
+        _rosterPlayerOwned = false;
+        _rosterAfterPass = null;
     }
 
     private static void RunFormationPass(int territoryBoard)
@@ -183,14 +196,21 @@ internal static unsafe class BST_CruciblePetSelect
             if (!screenOpen)
             {
                 _arm = NextFormationArm(_arm, false, 0, surfaceKey);
+                ConsumeExternalEdit(surfaceKey, petPartyOpen);
+                _rosterAfterPass = null;
                 _loggedOffThisPhase = false;
                 _loggedSigsThisPhase = false;
             }
             else
             {
-                // Screen open but no roster → not armed (A2). Still advance latch so reopen re-arms.
+                // Screen open but no roster → not armed (A2). Still advance latch so reopen re-arms. The
+                // battle key is kept: feeding 0 here made the key flap -1 -> 0 -> -1 while the roster was
+                // cleared and rebuilt by hand, which re-armed the writer (live 12:50, four overwrites).
                 var prevOpenEmpty = _arm.ScreenOpen;
-                _arm = NextFormationArm(_arm, screenOpen, 0, surfaceKey);
+                _arm = NextFormationArm(_arm, screenOpen, prevOpenEmpty ? _arm.BattleKey : 0, surfaceKey);
+                if (_rosterAfterPass is { Count: > 0 } && _ownCallDepth == 0)
+                    _pendingExternalEdit ??= "src=state|roster=0";
+                ConsumeExternalEdit(surfaceKey, petPartyOpen);
                 if (!prevOpenEmpty && _arm.ScreenOpen)
                 {
                     _loggedOffThisPhase = false;
@@ -212,6 +232,16 @@ internal static unsafe class BST_CruciblePetSelect
 
         var prevOpen = _arm.ScreenOpen;
         _arm = NextFormationArm(_arm, screenOpen, battleKey, surfaceKey);
+        if (!_arm.ScreenOpen)
+            _rosterAfterPass = null;
+        else if (_rosterAfterPass is not null && surfaceKey == SurfacePreentry && _ownCallDepth == 0)
+        {
+            // Notebook adds call TogglePet from the addon callback and never reach ReceiveEvent: watch membership.
+            var nowRoster = ReadPetIds(pet, PartySelectedPetIds);
+            if (!_rosterAfterPass.SetEquals(nowRoster))
+                _pendingExternalEdit ??= $"src=state|roster={string.Join(".", nowRoster)}";
+        }
+        ConsumeExternalEdit(surfaceKey, petPartyOpen);
         if (!prevOpen && _arm.ScreenOpen)
         {
             _loggedOffThisPhase = false;
@@ -258,7 +288,8 @@ internal static unsafe class BST_CruciblePetSelect
         var (addonMode, addonSub) = ReadPetPartyAddonMode();
         var selectedRaw = ReadPetIds(pet, PartySelectedPetIds);
         var gate = DecideFormationWrite(new FormationGateInput(
-            petPartyOpen, activePetOpen, surfaceKey == SurfacePreentry, addonMode, addonSub, selectedRaw, partyRows.Count));
+            petPartyOpen, activePetOpen, surfaceKey == SurfacePreentry, addonMode, addonSub, selectedRaw, partyRows.Count,
+            RosterPlayerOwned: _rosterPlayerOwned));
         if (gate.Write == FormationWrite.None)
         {
             var skipNote = $"skip|{gate.Reason}|{addonMode}|{addonSub}";
@@ -446,6 +477,26 @@ internal static unsafe class BST_CruciblePetSelect
         _arm = MarkFormationPassDone(in _arm);
     }
 
+    /// <summary>
+    ///     Turn a selection edit the pass did not send into the stand-down latch: the rest of this screen
+    ///     open is the player's, and on the Bentbranch roster the rest of the visit is.
+    /// </summary>
+    private static void ConsumeExternalEdit(int surfaceKey, bool petPartyOpen)
+    {
+        var edit = _pendingExternalEdit;
+        if (edit is null)
+            return;
+        _pendingExternalEdit = null;
+        if (!_arm.ScreenOpen)
+            return;
+        var already = _arm.PlayerEdited;
+        _arm = MarkPlayerEdited(in _arm);
+        if (surfaceKey == SurfacePreentry && petPartyOpen)
+            _rosterPlayerOwned = true; // the run roster itself was edited, not the notebook's overworld team
+        if (!already)
+            LogPs($"PS|{UnixMs()}|opt={((bool)BST.Config.BST_CrucibleAutoGrab ? 1 : 0)}|terr={Svc.ClientState.TerritoryType}|surface={(surfaceKey == SurfaceBoard ? "board" : "preentry")}|{edit}|note=player_edit|calls=0");
+    }
+
     private static bool ToggleOne(AgentInterface* agent, IReadOnlyList<int> partyRows, int petRow, string route, List<string> calls)
     {
         if (route == "event" && _receiveEvent is not null)
@@ -484,7 +535,15 @@ internal static unsafe class BST_CruciblePetSelect
         values[1].Type = AtkValueType.Int;
         values[1].Int = screenIndex;
         ret[0] = default;
-        _receiveEvent(agent, ret, values, 2, 0);
+        _ownCallDepth++;
+        try
+        {
+            _receiveEvent(agent, ret, values, 2, 0);
+        }
+        finally
+        {
+            _ownCallDepth--;
+        }
         return true;
     }
 
@@ -539,6 +598,7 @@ internal static unsafe class BST_CruciblePetSelect
         {
             LogPs($"PS|{now}|opt=1|b={board}|bt=-1|surface={surfaceName}|basis=roster|route={route}|calls=0|readback=ok|note=already_correct|apply=not_needed|sl={string.Join(".", snapshot)}");
             _arm = MarkFormationPassDone(in _arm);
+            _rosterAfterPass = new HashSet<int>(snapshot);
             return;
         }
 
@@ -611,6 +671,7 @@ internal static unsafe class BST_CruciblePetSelect
         var dropped = snapshot.FindAll(r => !finalRows.Contains(r));
         LogPs($"PS|{now}|opt=1|b={board}|bt=-1|surface={surfaceName}|basis=roster|route={route}|calls={string.Join(",", calls)}|readback=ok|apply=needed|pre={string.Join(".", snapshot)}|post={string.Join(".", finalRows)}|gain={string.Join(".", gained)}|dropped={string.Join(".", dropped)}|sl={string.Join(".", finalRows)}");
         _arm = MarkFormationPassDone(in _arm);
+        _rosterAfterPass = new HashSet<int>(finalRows);
     }
 
     private static void AbortWithRestore(
@@ -1183,6 +1244,13 @@ internal static unsafe class BST_CruciblePetSelect
                 : null;
             if (ag is null)
                 return;
+
+            if (_ownCallDepth == 0)
+            {
+                int? firstInt = values is not null && valueCount > 0 && values[0].Type == AtkValueType.Int ? values[0].Int : null;
+                if (IsSelectionEditEvent(ag, eventKind, valueCount, firstInt))
+                    _pendingExternalEdit = $"ag={ag}|kind={eventKind}|v0={(firstInt?.ToString(CultureInfo.InvariantCulture) ?? "")}";
+            }
 
             var inv = CultureInfo.InvariantCulture;
             var sb = new StringBuilder(128);

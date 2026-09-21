@@ -481,22 +481,23 @@ internal static class Program
             && !hpMap.ContainsKey(9999));
 
         // --- FormationArm re-arm (Dalamud-free phase decision) ---
+        // Board surface (1): battle-key re-arm is a board rule (pre-entry never re-arms on a key change).
         var closed = default(BST_CrucibleAdvisor.FormationArmState);
-        var opened = BST_CrucibleAdvisor.NextFormationArm(closed, screenOpen: true, battleKey: 10);
+        var opened = BST_CrucibleAdvisor.NextFormationArm(closed, screenOpen: true, battleKey: 10, surfaceKey: 1);
         Check("FormationArm: screen opens → armed",
             BST_CrucibleAdvisor.IsFormationArmed(opened) && opened.BattleKey == 10);
 
         var afterPass = BST_CrucibleAdvisor.MarkFormationPassDone(opened);
-        var sameBattle = BST_CrucibleAdvisor.NextFormationArm(afterPass, screenOpen: true, battleKey: 10);
+        var sameBattle = BST_CrucibleAdvisor.NextFormationArm(afterPass, screenOpen: true, battleKey: 10, surfaceKey: 1);
         Check("FormationArm: pass done, same battle → not re-armed",
             !BST_CrucibleAdvisor.IsFormationArmed(sameBattle) && sameBattle.PassDone);
 
-        var battleChanged = BST_CrucibleAdvisor.NextFormationArm(afterPass, screenOpen: true, battleKey: 20);
+        var battleChanged = BST_CrucibleAdvisor.NextFormationArm(afterPass, screenOpen: true, battleKey: 20, surfaceKey: 1);
         Check("FormationArm: battle changes while screen open → re-armed",
             BST_CrucibleAdvisor.IsFormationArmed(battleChanged) && battleChanged.BattleKey == 20 && !battleChanged.PassDone);
 
         var afterClose = BST_CrucibleAdvisor.NextFormationArm(afterPass, screenOpen: false, battleKey: 10);
-        var reopen = BST_CrucibleAdvisor.NextFormationArm(afterClose, screenOpen: true, battleKey: 10);
+        var reopen = BST_CrucibleAdvisor.NextFormationArm(afterClose, screenOpen: true, battleKey: 10, surfaceKey: 1);
         Check("FormationArm: screen closes and reopens → re-armed",
             !afterClose.ScreenOpen && BST_CrucibleAdvisor.IsFormationArmed(reopen));
 
@@ -568,6 +569,7 @@ internal static class Program
             && !BST_CrucibleAdvisor.SelectionEquals(new[] { 0, 1 }, new[] { 0, 1, 4 }));
 
         FeedScreenReplay();
+        RosterOverwriteReplay();
 
         // --- Round-10 Stage-1 roster writer planning and coverage tests ---
         var allCandidates = new List<int>();
@@ -674,6 +676,66 @@ internal static class Program
             && BST_CrucibleAdvisor.ClassifyPetPartyScreen(2, 1) == BST_CrucibleAdvisor.PetPartyScreen.Horn
             && BST_CrucibleAdvisor.ClassifyPetPartyScreen(-1, 1) == BST_CrucibleAdvisor.PetPartyScreen.RosterOrHorn
             && BST_CrucibleAdvisor.ClassifyPetPartyScreen(-1, -1) == BST_CrucibleAdvisor.PetPartyScreen.Settling);
+    }
+
+    /// <summary>
+    ///     Replay of the 1.0.4.229 Bentbranch roster overwrite (2026-09-21 12:50:24-12:50:36 ET). The pass
+    ///     found the roster already correct (12:50:24.215, pass done). The player then cleared it
+    ///     (pet-party events kind 0 [2,0], kind 7, kind 8) and began rebuilding it; each time the rebuild
+    ///     reached four familiars the writer replaced it with its own ten (12:50:25.7, 27.5, 30.2, 36.3), four
+    ///     times, until the option was switched off (12:52:25 note=off). Mechanism: while the roster is empty
+    ///     the live pass fed battle key 0 to the latch, the key returned to -1 as the rebuild started, and a
+    ///     key change re-armed the writer.
+    /// </summary>
+    private static void RosterOverwriteReplay()
+    {
+        Console.WriteLine("-- Bentbranch roster overwrite replay (12:50, .229) --");
+        const int preentry = 0;
+        var s = BST_CrucibleAdvisor.NextFormationArm(default, screenOpen: true, battleKey: -1, surfaceKey: preentry);
+        Check("Roster menu opens: armed", BST_CrucibleAdvisor.IsFormationArmed(s));
+        s = BST_CrucibleAdvisor.MarkFormationPassDone(s); // 12:50:24.215 already_correct
+        s = BST_CrucibleAdvisor.NextFormationArm(s, true, battleKey: 0, surfaceKey: preentry); // party=0 (cleared)
+        s = BST_CrucibleAdvisor.NextFormationArm(s, true, battleKey: -1, surfaceKey: preentry); // rebuild starts
+        Check("Roster cleared and rebuilt on the same open: writer stays done (no overwrite)",
+            !BST_CrucibleAdvisor.IsFormationArmed(s), s.ToString());
+
+        // The player's clear/preset events at 12:50:24.320-.537 are selection edits; hovers and navigation are not.
+        Check("IsSelectionEditEvent: pp kind 0 [2,0] roster select, kind 7, kind 8, kind 5, kind 16 → edit",
+            BST_CrucibleAdvisor.IsSelectionEditEvent("pp", 0, 2, 2)
+            && BST_CrucibleAdvisor.IsSelectionEditEvent("pp", 7, 3, 0)
+            && BST_CrucibleAdvisor.IsSelectionEditEvent("pp", 8, 1, 0)
+            && BST_CrucibleAdvisor.IsSelectionEditEvent("pp", 5, 3, 0)
+            && BST_CrucibleAdvisor.IsSelectionEditEvent("pp", 16, 1, 0));
+        Check("IsSelectionEditEvent: pp kind 0 [1,idx] horn toggle → edit",
+            BST_CrucibleAdvisor.IsSelectionEditEvent("pp", 0, 2, 1));
+        Check("IsSelectionEditEvent: pp single-Int navigation [5]/[0]/[-2], nb hover [5,u], nb kind 5 add",
+            !BST_CrucibleAdvisor.IsSelectionEditEvent("pp", 0, 1, 5)
+            && !BST_CrucibleAdvisor.IsSelectionEditEvent("pp", 0, 1, -2)
+            && !BST_CrucibleAdvisor.IsSelectionEditEvent("pp", 1, 1, 0)
+            && !BST_CrucibleAdvisor.IsSelectionEditEvent("nb", 0, 2, 5)
+            && BST_CrucibleAdvisor.IsSelectionEditEvent("nb", 5, 1, 0));
+
+        // Player edit on a board: stands down for the rest of the open even when the focus settles,
+        // and the next open (next formation) is automatic again.
+        var h = BST_CrucibleAdvisor.NextFormationArm(default, true, battleKey: 5, surfaceKey: 1);
+        h = BST_CrucibleAdvisor.MarkFormationPassDone(h);
+        h = BST_CrucibleAdvisor.MarkPlayerEdited(h);
+        var hKey = BST_CrucibleAdvisor.NextFormationArm(h, true, battleKey: 6, surfaceKey: 1);
+        Check("Player edit on the horn preview: battle-key change does not re-arm",
+            !BST_CrucibleAdvisor.IsFormationArmed(hKey) && hKey.PlayerEdited, hKey.ToString());
+        var hNext = BST_CrucibleAdvisor.NextFormationArm(
+            BST_CrucibleAdvisor.NextFormationArm(hKey, false, 0, 1), true, battleKey: 7, surfaceKey: 1);
+        Check("Player edit clears when the screen closes: next formation armed",
+            BST_CrucibleAdvisor.IsFormationArmed(hNext) && !hNext.PlayerEdited, hNext.ToString());
+        Check("MarkPlayerEdited on a closed screen is a no-op",
+            !BST_CrucibleAdvisor.MarkPlayerEdited(default).PlayerEdited);
+
+        // Roster the player built by hand this Bentbranch visit: never rewritten on a later open.
+        var party = new List<int> { 28, 22, 18, 27, 20, 5, 21, 41, 40, 39 };
+        var owned = BST_CrucibleAdvisor.DecideFormationWrite(new(
+            true, false, true, AddonMode: 0, AddonSubMode: 1, party, party.Count, RosterPlayerOwned: true));
+        Check("Roster menu reopened after a manual edit: no write",
+            owned.Write == BST_CrucibleAdvisor.FormationWrite.None && owned.Reason == "player_owned", $"{owned.Write}/{owned.Reason}");
     }
 
     /// <summary> In combat on the First Board, L30, Cu Sith out (One with Nature spent), raptor / buffalo on ready horns 2 and 3. </summary>

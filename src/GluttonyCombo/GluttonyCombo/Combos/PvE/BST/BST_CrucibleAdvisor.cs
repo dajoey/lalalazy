@@ -375,12 +375,19 @@ internal static class BST_CrucibleAdvisor
     ///     in-board pass are two phases.
     /// </summary>
     public readonly record struct FormationArmState(
-        bool ScreenOpen, int BattleKey, bool PassDone, bool Aborted, int SurfaceKey = 0);
+        bool ScreenOpen, int BattleKey, bool PassDone, bool Aborted, int SurfaceKey = 0, bool PlayerEdited = false);
+
+    /// <summary> Surface key of the pre-entry (Bentbranch) roster menu; the board surface is 1. </summary>
+    public const int PreEntrySurfaceKey = 0;
 
     /// <summary>
-    ///     Advance the formation-phase latch. Screen close clears everything. Screen open after close, a
-    ///     battle-key change, or a surface change while the screen stays open and the phase was not aborted,
-    ///     re-arms the pass. Territory alone is not a re-arm signal. PURE.
+    ///     Advance the formation-phase latch. Screen close clears everything. Screen open after close or a
+    ///     surface change re-arms the pass. On a board, a battle-key change while the screen stays open
+    ///     re-arms too (the stage focus settles ~40 ms after the horn preview opens). On the pre-entry roster
+    ///     menu a key change never re-arms: the key there is only a board guess and flapped -1 -> 0 -> -1
+    ///     while the roster was cleared and rebuilt by hand (live 12:50, four overwrites). An aborted phase
+    ///     or one the player edited stays done until the screen closes. Territory alone is not a re-arm
+    ///     signal. PURE.
     /// </summary>
     public static FormationArmState NextFormationArm(
         FormationArmState prev, bool screenOpen, int battleKey, int surfaceKey = 0)
@@ -391,10 +398,41 @@ internal static class BST_CrucibleAdvisor
         if (!prev.ScreenOpen)
             return new(true, battleKey, false, false, surfaceKey);
 
-        if ((battleKey != prev.BattleKey || surfaceKey != prev.SurfaceKey) && !prev.Aborted)
+        var standDown = prev.Aborted || prev.PlayerEdited;
+        var keyRearms = battleKey != prev.BattleKey && surfaceKey != PreEntrySurfaceKey;
+        if ((keyRearms || surfaceKey != prev.SurfaceKey) && !standDown)
             return new(true, battleKey, false, false, surfaceKey);
 
-        return new(true, battleKey, prev.PassDone, prev.Aborted, surfaceKey);
+        return new(true, battleKey, prev.PassDone, prev.Aborted, surfaceKey, prev.PlayerEdited);
+    }
+
+    /// <summary>
+    ///     The player (or anything that is not this pass) changed the selection on the open screen: the pass
+    ///     stands down until the screen closes, whatever the battle key does. PURE.
+    /// </summary>
+    public static FormationArmState MarkPlayerEdited(in FormationArmState s) =>
+        s.ScreenOpen ? s with { PassDone = true, PlayerEdited = true } : s;
+
+    /// <summary>
+    ///     Whether a ReceiveEvent on a familiar agent that the pass did not send is a selection edit (as
+    ///     opposed to navigation, hover or close). PURE. <paramref name="agent"/> is "pp" (AgentXBMPetParty)
+    ///     or "nb" (AgentXBMMonsterNotebook); <paramref name="firstInt"/> is value [0] as Int (or null).
+    ///     Live evidence: pp kind 0 [1, index] = Battlehorn toggle / feed target; pp kind 0 [2, index] =
+    ///     roster row select; pp kind 5 = roster remove confirm; pp kind 7 then 8 = roster clear / preset;
+    ///     pp kind 16 = preset apply; nb kind 5 = notebook add/remove (calls TogglePet). Single-Int kind 0
+    ///     events ([5], [6], [0], [-2]) and notebook kind 0 hovers are navigation.
+    /// </summary>
+    public static bool IsSelectionEditEvent(string agent, ulong kind, uint valueCount, int? firstInt)
+    {
+        if (agent == "pp")
+        {
+            if (kind == 0)
+                return valueCount >= 2 && firstInt is 1 or 2;
+            return kind is 5 or 7 or 8 or 16;
+        }
+        if (agent == "nb")
+            return kind == 5;
+        return false;
     }
 
     /// <summary> Whether the assign pass may run under the current latch. PURE. </summary>
@@ -588,7 +626,8 @@ internal static class BST_CrucibleAdvisor
         int AddonMode,
         int AddonSubMode,
         IReadOnlyList<int> SelectedPetIds,
-        int PartyCount);
+        int PartyCount,
+        bool RosterPlayerOwned = false);
 
     /// <summary>
     ///     Classify the open XBMPetParty screen from AtkValues [2] (Mode) and [3] (SubMode). PURE.
@@ -654,6 +693,8 @@ internal static class BST_CrucibleAdvisor
             return (FormationWrite.Horn, "horn");
         if (!rosterSurface)
             return (FormationWrite.Wait, "wait_horn_basis");
+        if (g.RosterPlayerOwned)
+            return (FormationWrite.None, "player_owned");
         if (g.SelectedPetIds.Count is > 0 and <= 3)
             return (FormationWrite.Wait, "wait_roster_settle");
         return (FormationWrite.Roster, "roster");
