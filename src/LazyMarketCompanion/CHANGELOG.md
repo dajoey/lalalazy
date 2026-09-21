@@ -1,3 +1,9 @@
+## v0.1.64.0 (2026-09-21)
+
+- **Leaving a retainer after Auto-Market vendoring no longer stalls on the buyback warning.** After "Have Retainer Sell Items", the game asks whether to recall the retainer and lose the buyback list. Auto-Market now confirms that specific prompt and continues; it does not dismiss other yes/no dialogs and it never opens buyback or re-buys what was just vendored.
+
+- Offline suite: new case 127 pins the prompt match (including multiline text), refuses unrelated yes/no and bare "Buy Back" labels, and keeps empty prompts as a no-click.
+
 ﻿## v0.1.63.0 (2026-09-19)
 
 ### Fixed
