@@ -386,6 +386,8 @@ internal sealed class InventoryTab
     var verdict = _s.LastIdle;
     ImGui.SameLine();
     ImGui.TextColored(verdict.Idle ? Good : Muted, verdict.Idle ? "idle now" : "not idle: " + string.Join("; ", verdict.Why));
+    if (_s.IdleBackoffMinutesLeft > 0)
+      ImGui.TextColored(Warn, $"The last idle pass had a failed move; idle mode waits {_s.IdleBackoffMinutesLeft} more minute(s) (the actions log says why).");
 
     var preview = _s.GearPreview(0);
     var blocker = preview.Ops.Count == 0 ? "no gear to move" : _s.MoveBlocker();

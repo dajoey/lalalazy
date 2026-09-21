@@ -106,6 +106,7 @@ internal sealed class InventoryService : IDisposable
   private readonly IdleDebounce _idleDebounce = new(20_000, 60_000);
   private long _nextIdleCheck;
   private IdleVerdict _lastIdle = new(false, ["not checked yet"]);
+  private long _idleBackoffUntil;
   private readonly List<string> _recentLines = [];
 
   public InventoryService(MarketAutomation automation)
@@ -141,6 +142,7 @@ internal sealed class InventoryService : IDisposable
   public bool BatchRunning => _batch != null;
   public string BatchStatus => _batch == null ? string.Empty : $"{_batch.What}: {_batch.Index}/{_batch.Count} ({_batch.Trigger})";
   public IdleVerdict LastIdle => _lastIdle;
+  public long IdleBackoffMinutesLeft => Math.Max(0, (_idleBackoffUntil - Environment.TickCount64) / 60_000L + (_idleBackoffUntil > Environment.TickCount64 ? 1 : 0));
   public string QuotesStatus => _quotesLoading != 0 ? "checking prices..." : _quotesStatus;
   public long QuotesFetchedMs => _quotesFetchedMs;
   public static long NowMs => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
@@ -565,6 +567,11 @@ internal sealed class InventoryService : IDisposable
         EndBatch("stopped: " + string.Join("; ", v.Why));
         return;
       }
+      if (b.Trigger == "idle" && InventoryWindowOpen())
+      {
+        EndBatch("stopped: the inventory or Armoury Chest window opened");
+        return;
+      }
       var src = m->GetInventorySlot((InventoryType)step.SrcContainer, step.SrcSlot);
       if (src == null || src->ItemId != step.ItemId || src->Flags.HasFlag(InventoryItem.ItemFlags.HighQuality) != step.Hq)
       {
@@ -692,6 +699,11 @@ internal sealed class InventoryService : IDisposable
       MarkDirty();
     }
 
+    // An idle pass that failed anything is not retried for 30 minutes: a stack the game keeps refusing must
+    // not turn into a move attempt (and a chat line) every minute.
+    if (b.Trigger == "idle" && b.Fail > 0)
+      _idleBackoffUntil = Environment.TickCount64 + 30 * 60_000L;
+
     if (b.Ok > 0 || b.Fail > 0)
       Communicator.PrintInfo($"Inventory: {b.What} {b.Ok}/{b.Count} done{(b.Fail > 0 ? $", {b.Fail} failed" : string.Empty)} - {why}.");
   }
@@ -752,6 +764,11 @@ internal sealed class InventoryService : IDisposable
       _idleDebounce.Reset();
       return;
     }
+    if (now < _idleBackoffUntil)
+    {
+      _idleDebounce.Reset();
+      return;
+    }
     if (_idleDebounce.Update(_lastIdle.Idle, now))
       StartGearMoves("idle");
   }
@@ -796,7 +813,19 @@ internal sealed class InventoryService : IDisposable
   /// Another plugin's busy flag over its own IPC. <paramref name="inverted"/> = the call answers "stopped"
   /// (AutoDuty.IsStopped). Not loaded -> NotInstalled; loaded but the call fails -> Unknown (never idle).
   /// </summary>
+  private readonly Dictionary<string, (long At, PluginBusy Value)> _busyCache = new(StringComparer.Ordinal);
+
   private PluginBusy BusyOf(string internalName, string ipc, bool inverted)
+  {
+    var now = Environment.TickCount64;
+    if (_busyCache.TryGetValue(ipc, out var hit) && now - hit.At < 500)
+      return hit.Value;
+    var value = ReadBusy(internalName, ipc, inverted);
+    _busyCache[ipc] = (now, value);
+    return value;
+  }
+
+  private PluginBusy ReadBusy(string internalName, string ipc, bool inverted)
   {
     if (!Svc.PluginInterface.InstalledPlugins.Any(p => p.InternalName == internalName && p.IsLoaded))
       return PluginBusy.NotInstalled;
