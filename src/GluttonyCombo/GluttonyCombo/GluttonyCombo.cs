@@ -228,7 +228,7 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         // failure anywhere below is an ER| line carrying version, channel, commit and zone.
         Telemetry = InstallTelemetry(pluginInterface);
         _tickGuard = LalaTelemetry.CreateGuard("tick", "auto-rotation and the per-frame update");
-        _tickBstGuard = LalaTelemetry.CreateGuard("tick.bst", "the Beastmaster collectors and Crucible familiar selection");
+        _tickBstGuard = LalaTelemetry.CreateGuard("tick.bst", "the Beastmaster collectors and the Crucible Guard/Challenge line");
         _tickStatusGuard = LalaTelemetry.CreateGuard("tick.status", "the server info bar text and combat alerts");
         // The Retarget registry is created FIRST: static initialisers elsewhere
         // (AutoRotationController) call (uint).Retarget(), which needs it.
@@ -461,10 +461,9 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
                     if (Service.Configuration.ComboTelemetry)
                         BeastmasterTelemetry.Tick();
 
-                    // Crucible pet-selection autograb + read-only PSP| probe. Arms when a familiar-selection
-                    // addon is open (XBMActivePet / XBMPetParty), never on territory; option-off still emits
-                    // one PS| line per formation phase.
-                    BST_CruciblePetSelect.Tick();
+                    // Crucible: once per board change on BST, the effective Guard/Challenge mode (PS| aggro=).
+                    // Familiar selection moved to the LazyCrucible plugin (2026-09-21).
+                    BST.LogCrucibleAggroOnce();
                 }
                 catch (Exception ex)
                 {
@@ -693,8 +692,6 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         Svc.ClientState.TerritoryChanged -= ClientState_TerritoryChanged;
         Svc.PluginInterface.UiBuilder.OpenConfigUi -= OnOpenConfigUi;
         Svc.PluginInterface.UiBuilder.Draw -= DrawUI;
-
-        BST_CruciblePetSelect.Dispose();
 
         Service.ActionReplacer.Dispose();
         Service.ComboCache.Dispose();

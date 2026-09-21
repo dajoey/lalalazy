@@ -1,0 +1,21 @@
+{
+  "Author": "dajoey",
+  "Name": "LazyCrucible",
+  "Punchline": "Crucible of the Unbroken familiar picks, filled in for every fight",
+  "Description": "For the Beastmaster duty Crucible of the Unbroken. Fills the ten-familiar run roster at the Bentbranch Meadows entry menu and the three Battlehorn slots before every fight with the familiars that answer that fight's mechanics: elemental weakness, interrupts, dispels, cleanses and crowd control, skipping knocked-out familiars and benching badly hurt ones. Picks are announced in chat. Every automation has its own toggle and manual edits always win. Includes the beast-pick advisor for every board and a read-only recorder that writes each Crucible screen to the Dalamud log. Use /lazycrucible to open.",
+  "ApplicableVersion": "any",
+  "Tags": [
+    "beastmaster",
+    "bst",
+    "crucible",
+    "unbroken",
+    "familiar",
+    "battlehorn",
+    "automation"
+  ],
+  "CategoryTags": [ "jobs", "utility" ],
+  "InternalName": "LazyCrucible",
+  "DalamudApiLevel": 15,
+  "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazycrucible-icon.png",
+  "ImageUrls": [ "" ]
+}

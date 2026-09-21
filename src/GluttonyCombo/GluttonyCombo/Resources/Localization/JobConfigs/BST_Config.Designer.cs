@@ -430,20 +430,11 @@ namespace GluttonyCombo.Resources.Localization.JobConfigs {
         }
 
         /// <summary>
-        ///   Looks up a localized string similar to Auto-fill Battlehorn slots.
+        ///   Looks up a localized string similar to Familiar selection (run roster and Battlehorn auto-fill) and the beast-pick advisor are in the LazyCrucible plugin..
         /// </summary>
-        internal static string CrucibleAutoGrab {
+        internal static string CrucibleMovedToLazyCrucible {
             get {
-                return ResourceManager.GetString("CrucibleAutoGrab", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to Off by default. On the pet-selection screen, once at run start and again befo....
-        /// </summary>
-        internal static string CrucibleAutoGrabDesc {
-            get {
-                return ResourceManager.GetString("CrucibleAutoGrabDesc", resourceCulture);
+                return ResourceManager.GetString("CrucibleMovedToLazyCrucible", resourceCulture);
             }
         }
         
@@ -501,96 +492,6 @@ namespace GluttonyCombo.Resources.Localization.JobConfigs {
             }
         }
         
-        /// <summary>
-        ///   Looks up a localized string similar to Beast picks.
-        /// </summary>
-        internal static string CrucibleAdvisorHeader {
-            get {
-                return ResourceManager.GetString("CrucibleAdvisorHeader", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Board.
-        /// </summary>
-        internal static string CrucibleAdvisorBoard {
-            get {
-                return ResourceManager.GetString("CrucibleAdvisorBoard", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to The captured familiar list has not arrived yet (open the Master's Bestiary on....
-        /// </summary>
-        internal static string CrucibleAdvisorRosterUnknown {
-            get {
-                return ResourceManager.GetString("CrucibleAdvisorRosterUnknown", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Roster (familiars in the most battles' picks, number of battles): {0}.
-        /// </summary>
-        internal static string CrucibleAdvisorRoster0 {
-            get {
-                return ResourceManager.GetString("CrucibleAdvisorRoster0", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to boss.
-        /// </summary>
-        internal static string CrucibleAdvisorBoss {
-            get {
-                return ResourceManager.GetString("CrucibleAdvisorBoss", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to elite.
-        /// </summary>
-        internal static string CrucibleAdvisorElite {
-            get {
-                return ResourceManager.GetString("CrucibleAdvisorElite", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to enemy.
-        /// </summary>
-        internal static string CrucibleAdvisorEnemy {
-            get {
-                return ResourceManager.GetString("CrucibleAdvisorEnemy", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to random space.
-        /// </summary>
-        internal static string CrucibleAdvisorRandom {
-            get {
-                return ResourceManager.GetString("CrucibleAdvisorRandom", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Enemy panel calls for: {0}.
-        /// </summary>
-        internal static string CrucibleAdvisorNeeds0 {
-            get {
-                return ResourceManager.GetString("CrucibleAdvisorNeeds0", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Worth capturing:.
-        /// </summary>
-        internal static string CrucibleAdvisorCapture {
-            get {
-                return ResourceManager.GetString("CrucibleAdvisorCapture", resourceCulture);
-            }
-        }
-    
         /// <summary>
         ///   Looks up a localized string similar to Score mode (the character tanks).
         /// </summary>

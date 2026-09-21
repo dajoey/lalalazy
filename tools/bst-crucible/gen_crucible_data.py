@@ -12,7 +12,7 @@ pulled from xivapi v2 and decoded on 2026-09-16:
   - cleansable debuff = detrimental Status with CanDispel.
 
 Usage: python3 tools/bst-crucible/gen_crucible_data.py
-Writes src/GluttonyCombo/GluttonyCombo/Combos/PvE/BST/BST_CrucibleData.Generated.cs.
+Writes src/Shared/LalaCrucible/BST_CrucibleData.Generated.cs (shared SOURCE: GluttonyCombo + LazyCrucible).
 """
 import json
 import os
@@ -21,7 +21,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
 SRC = os.path.join(HERE, "crucible_sheets_7.56.json")
 BEASTS = os.path.join(HERE, "crucible_beasts_7.56.json")
-OUT = os.path.join(REPO, "src", "GluttonyCombo", "GluttonyCombo", "Combos", "PvE", "BST", "BST_CrucibleData.Generated.cs")
+OUT = os.path.join(REPO, "src", "Shared", "LalaCrucible", "BST_CrucibleData.Generated.cs")
 
 WEAKNESS = {0: "None", 1: "Fire", 2: "Wind", 3: "Earth", 4: "Lightning", 5: "Ice", 6: "Water", 7: "Blunt", 8: "Piercing", 9: "Slashing"}
 
@@ -42,7 +42,7 @@ def main():
     w("// Source: " + data["source"])
     w("// </auto-generated>")
     w("")
-    w("namespace GluttonyCombo.Combos.PvE;")
+    w("namespace Lalalazy.Crucible;")
     w("")
     w("internal static partial class BST_CrucibleData")
     w("{")

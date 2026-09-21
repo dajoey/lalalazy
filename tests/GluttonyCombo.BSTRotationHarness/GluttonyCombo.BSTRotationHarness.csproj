@@ -22,13 +22,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\BST\BST_Enums.cs" Link="BST_Enums.cs" />
+    <!-- Crucible data + beast-pick ranking are shared SOURCE with LazyCrucible since 2026-09-21. -->
+    <Compile Include="..\..\src\Shared\LalaCrucible\**\*.cs" Link="LalaCrucible\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Using Include="Lalalazy.Crucible" />
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\BST\BST_RotationLogic.cs" Link="BST_RotationLogic.cs" />
-    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\BST\BST_Beasts.cs" Link="BST_Beasts.cs" />
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\BST\BST_Helper.cs" Link="BST_Helper.cs" />
-    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\BST\BST_CrucibleData.cs" Link="BST_CrucibleData.cs" />
-    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\BST\BST_CrucibleData.Generated.cs" Link="BST_CrucibleData.Generated.cs" />
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\BST\BST_CrucibleLogic.cs" Link="BST_CrucibleLogic.cs" />
-    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\BST\BST_CrucibleAdvisor.cs" Link="BST_CrucibleAdvisor.cs" />
   </ItemGroup>
 </Project>

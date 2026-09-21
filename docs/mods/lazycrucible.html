@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LazyCrucible — lalalazy</title>
 <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=Noto+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../colors_and_type.css">
 <link rel="stylesheet" href="../site.css">
@@ -18,43 +19,49 @@
   </nav>
 
   <header class="mod-hero">
-    <img class="mico" src="https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyfishsitter-icon.png" alt="Lazy Fish Sitter icon">
+    <img class="mico" src="https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazycrucible-icon.png" alt="LazyCrucible icon">
     <div>
-      <h1>Lazy Fish Sitter</h1>
+      <h1>LazyCrucible</h1>
       <div class="badges">
         <span class="pill original">Original</span>
         <span class="pill testing">Testing</span>
         <span class="pill window">Config window</span>
       </div>
-      <p class="tag">Sits you down while you fish. That's it.</p>
+      <p class="tag">Your familiars, picked for every Crucible fight.</p>
     </div>
   </header>
 
   <div class="feat">
-    <div class="f"><div class="fi">Sit while you cast</div><div class="ft">Checks every few seconds while you are fishing; if you are standing, it runs /sit for you.</div></div>
-    <div class="f"><div class="fi">Stays out of the way</div><div class="ft">Never re-sits once you are seated &mdash; ground sit, chair, or pose &mdash; and pauses in cutscenes, events and combat.</div></div>
+    <div class="f"><div class="fi">Run roster, filled</div><div class="ft">Open the entry menu at Bentbranch Meadows and the ten-familiar run roster fills itself with the familiars that cover the board best.</div></div>
+    <div class="f"><div class="fi">Battlehorn picks per fight</div><div class="ft">Before every fight in the Crucible of the Unbroken, the three Battlehorn slots get the familiars best suited to that fight&rsquo;s mechanics &mdash; weakness element, interrupts, crowd control and dispels. Knocked-out and badly hurt familiars stay on the bench.</div></div>
+    <div class="f"><div class="fi">You stay in charge</div><div class="ft">Every pick is announced in chat, every automation has its own toggle, and your manual edits always win.</div></div>
+    <div class="f"><div class="fi">Beast-pick advisor</div><div class="ft">A panel that lays out the picks for each battle on any board.</div></div>
+    <div class="f"><div class="fi">Screen recorder</div><div class="ft">A read-only recorder logs every Crucible screen to the Dalamud log, laying the groundwork for automating the rest: path choice, spoils, treasure, shop and feeding, campsite and beast gear.</div></div>
   </div>
 
   <div class="kv">
-    <div class="row"><span class="k">Access</span><span class="v"><code>/lazyfishsitter</code></span></div>
+    <div class="row"><span class="k">Access</span><span class="v"><code>/lazycrucible</code></span></div>
     <div class="row"><span class="k">Type</span><span class="v">Original plugin</span></div>
     <div class="row"><span class="k">Config</span><span class="v">In-game window</span></div>
-    <div class="row"><span class="k">Credit</span><span class="v">Original plugin by dajoey</span></div>
+    <div class="row"><span class="k">Credit</span><span class="v">Original plugin by dajoey · split out of Gluttony Combo, which keeps the Beastmaster rotation</span></div>
   </div>
 
   <section class="install">
+    <div class="label">Install — add the repo, then grab LazyCrucible</div>
     <div class="urlrow">
       <code id="repo-url">https://raw.githubusercontent.com/dajoey/lalalazy/main/pluginmaster.json</code>
       <button class="copybtn" onclick="copyRepo(this)">Copy</button>
     </div>
     <div class="steps">
-      <div class="step"><b>2.</b> Save, open <span class="mono">/xlplugins</span>, search <b>Lazy Fish Sitter</b>.</div>
+      <div class="step"><b>1.</b> <span class="mono">/xlsettings</span> → <b>Experimental</b> → paste under Custom Plugin Repositories.</div>
+      <div class="step"><b>2.</b> Save, open <span class="mono">/xlplugins</span>, search <b>LazyCrucible</b>. Testing builds need the per-plugin testing opt-in.</div>
+      <div class="step"><b>3.</b> Install — done.</div>
     </div>
   </section>
 
   <div style="display:flex;justify-content:space-between;gap:12px">
     <a class="backlink" href="../index.html#plugins">← All plugins</a>
-    <a class="backlink" href="lazyfashionreport.html">LazyFashionReport →</a>
+    <a class="backlink" href="gluttonycombo.html">Gluttony Combo →</a>
   </div>
 
   <footer class="foot">

@@ -22,6 +22,7 @@ A collection of Dalamud plugins for Final Fantasy XIV, maintained by [dajoey](ht
 | **LazyFashionReport** | Gold Saucer Fashion Report assistant: weekly hints, exact +2 dyes and +1 shades, owned-item candidates, and a live score predictor. | Testing |
 | **LazyCrafter** | Catalogs every recipe you can craft, prices it with Universalis, and hands the missing materials to Artisan / GatherBuddyReborn / AutoRetainer / Lifestream. | Active |
 | **Lazy Fish Sitter** | Sits you down while you fish. Checks every few seconds while fishing and runs /sit if you are standing. Never re-sits once you are seated (ground, chair, or pose). | Testing |
+| **LazyCrucible** | Beastmaster Crucible of the Unbroken helper. Fills the ten-familiar run roster at Bentbranch Meadows and the three Battlehorn slots before every fight with the familiars best suited to that fight's mechanics (weakness element, interrupts, crowd control, dispels), skipping knocked-out and badly hurt familiars. Every automation has its own toggle and manual edits always win. Includes a beast-pick advisor panel. Split out of Gluttony Combo, which keeps the Beastmaster rotation. | Testing |
 
 ## Installation
 
@@ -75,6 +76,7 @@ cd src/LazyGearCollector && dotnet build --configuration Release
 cd src/LazyFoodBuff/LazyFoodBuff && dotnet build --configuration Release
 cd src/LazyCrafter && dotnet build --configuration Release
 cd src/LazyFishSitter && dotnet build --configuration Release
+cd src/LazyCrucible && dotnet build --configuration Release
 
 ```
 

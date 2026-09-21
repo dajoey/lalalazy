@@ -377,96 +377,6 @@ internal static class Program
         Check("PickSlots: deterministic — same inputs same order",
             once.Select(p => p.Row).SequenceEqual(twice.Select(p => p.Row)));
 
-        // --- PlanHornChanges + HpPercentByRow (autograb assignment planning) ---
-        var planWant = slotsFull.Select(p => p.Row).ToList();
-        Check("PlanHornChanges: all slots already correct → no calls",
-            BST_CrucibleAdvisor.PlanHornChanges(planWant, slotsFull).Count == 0);
-        if (planWant.Count >= 2)
-        {
-            var oneWrong = new List<int>(planWant) { [0] = planWant[1] };
-            var changes = BST_CrucibleAdvisor.PlanHornChanges(oneWrong, slotsFull);
-            Check("PlanHornChanges: one slot wrong → exactly that slot changes",
-                changes.Count == 1 && changes[0].Slot == 0 && changes[0].FromRow == planWant[1]
-                && changes[0].ToRow == planWant[0],
-                string.Join(",", changes.Select(c => $"{c.Slot}:{c.FromRow}->{c.ToRow}")));
-        }
-        if (planWant.Count >= 1)
-        {
-            var knocked = new List<int>(planWant) { [0] = 0 };
-            var replace = BST_CrucibleAdvisor.PlanHornChanges(knocked, slotsFull);
-            Check("PlanHornChanges: knocked-out slot occupant is replaced",
-                replace.Count == 1 && replace[0].Slot == 0 && replace[0].FromRow == 0
-                && replace[0].ToRow == planWant[0],
-                string.Join(",", replace.Select(c => $"{c.Slot}:{c.FromRow}->{c.ToRow}")));
-        }
-
-        // --- Round-12 .225 late-run membership delta (Abort 1 / Abort 2 shapes) ---
-        // Abort 1: pre horn rows 21,20,19 (sl=8.5.7) → coverage want 27,20,21. Slot planner
-        // would re-toggle 20/21; membership delta must remove only 19 and add only 27.
-        {
-            var abort1Current = new List<int> { 21, 20, 19 };
-            var abort1Picks = new List<CrucibleBeastPick>
-            {
-                new(27, 0, false, "coverage board 1, battle unidentified, Quelling Wave"),
-                new(20, 0, false, "coverage board 1, battle unidentified"),
-                new(21, 0, false, "coverage board 1, battle unidentified"),
-            };
-            var (a1Rem, a1Add) = BST_CrucibleAdvisor.PlanHornMembershipDelta(abort1Current, abort1Picks);
-            Check("PlanHornMembershipDelta: .225 abort1 overlapping horn → remove 19 only, add 27 only",
-                a1Rem.Count == 1 && a1Rem[0] == 19
-                && a1Add.Count == 1 && a1Add[0] == 27
-                && !a1Add.Contains(20) && !a1Add.Contains(21) && !a1Rem.Contains(20) && !a1Rem.Contains(21),
-                $"rem={string.Join(",", a1Rem)} add={string.Join(",", a1Add)}");
-            var a1Slot = BST_CrucibleAdvisor.PlanHornChanges(abort1Current, abort1Picks);
-            Check("PlanHornChanges: .225 abort1 still reports slot rewrites (telemetry need=)",
-                a1Slot.Count >= 2,
-                string.Join(",", a1Slot.Select(c => $"{c.Slot}:{c.FromRow}->{c.ToRow}")));
-        }
-        // Abort 2: pre 28,22,12 (sl=0.1.3) → want 27,21,12. Must not re-toggle already-on 12.
-        {
-            var abort2Current = new List<int> { 28, 22, 12 };
-            var abort2Picks = new List<CrucibleBeastPick>
-            {
-                new(27, 0, false, "coverage board 1, battle unidentified, Quelling Wave"),
-                new(21, 0, false, "coverage board 1, battle unidentified"),
-                new(12, 0, false, "coverage board 1, battle unidentified, blunt x2, crowd control"),
-            };
-            var (a2Rem, a2Add) = BST_CrucibleAdvisor.PlanHornMembershipDelta(abort2Current, abort2Picks);
-            Check("PlanHornMembershipDelta: .225 abort2 overlapping horn → remove 28+22, add 27+21, leave 12",
-                a2Rem.Count == 2 && a2Rem.Contains(28) && a2Rem.Contains(22)
-                && a2Add.Count == 2 && a2Add.Contains(27) && a2Add.Contains(21)
-                && !a2Rem.Contains(12) && !a2Add.Contains(12),
-                $"rem={string.Join(",", a2Rem)} add={string.Join(",", a2Add)}");
-        }
-        // Empty horn still plans all three adds (early-fight coverage fill path).
-        {
-            var (emptyRem, emptyAdd) = BST_CrucibleAdvisor.PlanHornMembershipDelta(
-                Array.Empty<int>(), slotsFull);
-            Check("PlanHornMembershipDelta: empty horn → no removals, all desired adds",
-                emptyRem.Count == 0 && emptyAdd.Count == slotsFull.Count
-                && emptyAdd.SequenceEqual(slotsFull.Select(p => p.Row)),
-                $"rem={string.Join(",", emptyRem)} add={string.Join(",", emptyAdd)}");
-        }
-        // Identified re-arm after leave_standing: PassDone on battleKey=-1, then detail settles → re-arm.
-        {
-            var unidentOpen = BST_CrucibleAdvisor.NextFormationArm(
-                default, screenOpen: true, battleKey: -1, surfaceKey: 1);
-            var leftStanding = BST_CrucibleAdvisor.MarkFormationPassDone(unidentOpen);
-            var afterFocus = BST_CrucibleAdvisor.NextFormationArm(
-                leftStanding, screenOpen: true, battleKey: 5, surfaceKey: 1);
-            Check("FormationArm: leave_standing PassDone then detail settles → re-armed (not aborted)",
-                !BST_CrucibleAdvisor.IsFormationArmed(leftStanding)
-                && BST_CrucibleAdvisor.IsFormationArmed(afterFocus)
-                && afterFocus.BattleKey == 5 && !afterFocus.Aborted,
-                $"left={leftStanding} after={afterFocus}");
-            var abortedUnident = BST_CrucibleAdvisor.MarkFormationAborted(unidentOpen);
-            var blockedFocus = BST_CrucibleAdvisor.NextFormationArm(
-                abortedUnident, screenOpen: true, battleKey: 5, surfaceKey: 1);
-            Check("FormationArm: .225 abort path blocks re-arm when detail settles (contrast)",
-                !BST_CrucibleAdvisor.IsFormationArmed(blockedFocus) && blockedFocus.Aborted,
-                $"blocked={blockedFocus}");
-        }
-
         var hpMap = BST_CrucibleAdvisor.HpPercentByRow(
         [
             (top, 50u, 100u),
@@ -480,51 +390,6 @@ internal static class Program
             && hpMap.TryGetValue(zeroFit, out var deadMax) && deadMax == 0
             && !hpMap.ContainsKey(9999));
 
-        // --- FormationArm re-arm (Dalamud-free phase decision) ---
-        var closed = default(BST_CrucibleAdvisor.FormationArmState);
-        var opened = BST_CrucibleAdvisor.NextFormationArm(closed, screenOpen: true, battleKey: 10);
-        Check("FormationArm: screen opens → armed",
-            BST_CrucibleAdvisor.IsFormationArmed(opened) && opened.BattleKey == 10);
-
-        var afterPass = BST_CrucibleAdvisor.MarkFormationPassDone(opened);
-        var sameBattle = BST_CrucibleAdvisor.NextFormationArm(afterPass, screenOpen: true, battleKey: 10);
-        Check("FormationArm: pass done, same battle → not re-armed",
-            !BST_CrucibleAdvisor.IsFormationArmed(sameBattle) && sameBattle.PassDone);
-
-        var battleChanged = BST_CrucibleAdvisor.NextFormationArm(afterPass, screenOpen: true, battleKey: 20);
-        Check("FormationArm: battle changes while screen open → re-armed",
-            BST_CrucibleAdvisor.IsFormationArmed(battleChanged) && battleChanged.BattleKey == 20 && !battleChanged.PassDone);
-
-        var afterClose = BST_CrucibleAdvisor.NextFormationArm(afterPass, screenOpen: false, battleKey: 10);
-        var reopen = BST_CrucibleAdvisor.NextFormationArm(afterClose, screenOpen: true, battleKey: 10);
-        Check("FormationArm: screen closes and reopens → re-armed",
-            !afterClose.ScreenOpen && BST_CrucibleAdvisor.IsFormationArmed(reopen));
-
-        var aborted = BST_CrucibleAdvisor.MarkFormationAborted(opened);
-        var abortSame = BST_CrucibleAdvisor.NextFormationArm(aborted, screenOpen: true, battleKey: 99);
-        Check("FormationArm: aborted phase stays closed until screen drops (battle change ignored)",
-            !BST_CrucibleAdvisor.IsFormationArmed(abortSame) && abortSame.Aborted);
-        var abortCleared = BST_CrucibleAdvisor.NextFormationArm(
-            BST_CrucibleAdvisor.NextFormationArm(aborted, screenOpen: false, battleKey: 0),
-            screenOpen: true, battleKey: 11);
-        Check("FormationArm: aborted phase re-arms after screen drop",
-            BST_CrucibleAdvisor.IsFormationArmed(abortCleared));
-
-        // --- Round-7 surface / pre-entry arming ---
-        var preentryOpen = BST_CrucibleAdvisor.NextFormationArm(closed, screenOpen: true, battleKey: -1, surfaceKey: 0);
-        Check("FormationArm: screen opens outside any board (preentry surface) → armed",
-            BST_CrucibleAdvisor.IsFormationArmed(preentryOpen) && preentryOpen.SurfaceKey == 0);
-
-        // "No roster" is a live-layer gate (armed requires partyCount>0); the latch itself still arms on screen open.
-        // Territory change alone must not re-arm: same surface + same battle key, pass already done.
-        var preentryDone = BST_CrucibleAdvisor.MarkFormationPassDone(preentryOpen);
-        var territoryOnly = BST_CrucibleAdvisor.NextFormationArm(preentryDone, screenOpen: true, battleKey: -1, surfaceKey: 0);
-        Check("FormationArm: territory change alone (same surface+battle key) → not re-armed",
-            !BST_CrucibleAdvisor.IsFormationArmed(territoryOnly) && territoryOnly.PassDone);
-
-        var surfaceFlip = BST_CrucibleAdvisor.NextFormationArm(preentryDone, screenOpen: true, battleKey: -1, surfaceKey: 1);
-        Check("FormationArm: surface preentry→board → re-armed",
-            BST_CrucibleAdvisor.IsFormationArmed(surfaceFlip) && surfaceFlip.SurfaceKey == 1 && !surfaceFlip.PassDone);
 
         // Coverage ranking: board known, no single battle — Why must carry the coverage tag.
         var covCandidates = new[] { 1, 4, 5, 7, 11 }; // Cu Sith, spriggan-ish rows from B1 roster samples
@@ -534,39 +399,6 @@ internal static class Program
         Check("PickSlotsCoverage: every Why starts with coverage board tag + unidentified",
             cov.Count > 0 && cov.All(p => p.Why.StartsWith("coverage board 1, battle unidentified", StringComparison.Ordinal)));
 
-        // --- Round-8 horn index basis + party index resolve (autograb write route) ---
-        var partySample = new List<int> { 17, 28, 35, 22, 18, 6, 1, 12, 29, 27 };
-        Check("IsHornIndexBasis: empty with party → horn-capable",
-            BST_CrucibleAdvisor.IsHornIndexBasis(Array.Empty<int>(), partySample.Count));
-        Check("IsHornIndexBasis: 0.1.4 indices → horn",
-            BST_CrucibleAdvisor.IsHornIndexBasis(new[] { 0, 1, 4 }, partySample.Count));
-        Check("IsHornIndexBasis: ten familiar ids → not horn",
-            !BST_CrucibleAdvisor.IsHornIndexBasis(partySample, partySample.Count));
-        Check("IsHornIndexBasis: pet id 27 as lone value with party 10 → not horn",
-            !BST_CrucibleAdvisor.IsHornIndexBasis(new[] { 27 }, partySample.Count));
-        // .222 live defect: transient horn-shaped sl=3.5.6 at Bentbranch roster-menu-open must not
-        // take the horn write path (screen/shape before size). Same vector on a board/ActivePet screen stays horn.
-        Check("IsHornWriteBasis: .222 transient 3.5.6 on roster surface → not horn",
-            !BST_CrucibleAdvisor.IsHornWriteBasis(new[] { 3, 5, 6 }, partySample.Count, rosterSurface: true));
-        Check("IsHornWriteBasis: .222 transient 3.5.6 on horn/board surface → horn",
-            BST_CrucibleAdvisor.IsHornWriteBasis(new[] { 3, 5, 6 }, partySample.Count, rosterSurface: false));
-        Check("IsHornWriteBasis: empty on roster surface → not horn (wait settle)",
-            !BST_CrucibleAdvisor.IsHornWriteBasis(Array.Empty<int>(), partySample.Count, rosterSurface: true));
-        Check("IsHornWriteBasis: empty on horn surface → horn-capable",
-            BST_CrucibleAdvisor.IsHornWriteBasis(Array.Empty<int>(), partySample.Count, rosterSurface: false));
-        Check("FindPartyIndex: present row → index",
-            BST_CrucibleAdvisor.FindPartyIndex(partySample, 18) == 4
-            && BST_CrucibleAdvisor.FindPartyIndex(partySample, 17) == 0);
-        Check("FindPartyIndex: missing row → -1",
-            BST_CrucibleAdvisor.FindPartyIndex(partySample, 99) == -1);
-        var resolved = BST_CrucibleAdvisor.ResolveHornPetRows(new[] { 0, 1, 4 }, partySample);
-        Check("ResolveHornPetRows: indices 0.1.4 → pets 17.28.18",
-            resolved.Count == 3 && resolved[0] == 17 && resolved[1] == 28 && resolved[2] == 18);
-        Check("SelectionEquals: match / mismatch",
-            BST_CrucibleAdvisor.SelectionEquals(new[] { 0, 1, 4 }, new[] { 0, 1, 4 })
-            && !BST_CrucibleAdvisor.SelectionEquals(new[] { 0, 1, 4 }, new[] { 0 })
-            && !BST_CrucibleAdvisor.SelectionEquals(new[] { 0, 1 }, new[] { 0, 1, 4 }));
-
         // --- Round-10 Stage-1 roster writer planning and coverage tests ---
         var allCandidates = new List<int>();
         for (var r = 1; r <= BST_Beasts.Count; r++) allCandidates.Add(r);
@@ -575,29 +407,6 @@ internal static class Program
         Check("PickSlotsCoverage: all 10 picks unique", cov10.Select(p => p.Row).Distinct().Count() == 10);
         Check("PickSlotsCoverage: all 10 Why start with coverage board 1",
             cov10.All(p => p.Why.StartsWith("coverage board 1, battle unidentified", StringComparison.Ordinal)));
-
-        var covPicks = cov10;
-        var desired10 = cov10.ConvertAll(p => p.Row);
-        // Case 1: already matching -> 0 changes
-        var changesMatch = BST_CrucibleAdvisor.PlanRosterChanges(desired10, covPicks);
-        Check("PlanRosterChanges: identical roster → 0 changes", changesMatch.Count == 0);
-
-        // Case 2: completely disjoint roster
-        var actualDisjoint = allCandidates.Where(c => !desired10.Contains(c)).Take(10).ToList();
-        var changesDisjoint = BST_CrucibleAdvisor.PlanRosterChanges(actualDisjoint, covPicks);
-        Check("PlanRosterChanges: disjoint roster → 10 removes, 10 adds",
-            changesDisjoint.Count == 20
-            && changesDisjoint.Count(c => c.FromRow != 0 && c.ToRow == 0) == 10
-            && changesDisjoint.Count(c => c.FromRow == 0 && c.ToRow != 0) == 10);
-
-        // Case 3: 7 matching, 3 different
-        var partialSample = new List<int>(desired10.Take(7));
-        partialSample.AddRange(actualDisjoint.Take(3));
-        var changesPartial = BST_CrucibleAdvisor.PlanRosterChanges(partialSample, covPicks);
-        Check("PlanRosterChanges: 7 matching + 3 different → 3 removes, 3 adds",
-            changesPartial.Count == 6
-            && changesPartial.Count(c => c.FromRow != 0 && c.ToRow == 0) == 3
-            && changesPartial.Count(c => c.FromRow == 0 && c.ToRow != 0) == 3);
     }
 
     /// <summary> In combat on the First Board, L30, Cu Sith out (One with Nature spent), raptor / buffalo on ready horns 2 and 3. </summary>

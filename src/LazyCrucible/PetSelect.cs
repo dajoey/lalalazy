@@ -1,38 +1,36 @@
-#region Dependencies
-
-using Dalamud.Hooking;
-using ECommons.DalamudServices;
-using ECommons.ExcelServices;
-using ECommons.GameHelpers;
-using static ECommons.GenericHelpers;
-using FFXIVClientStructs.FFXIV.Client.UI;
-using FFXIVClientStructs.FFXIV.Client.UI.Agent;
-using FFXIVClientStructs.FFXIV.Component.GUI;
-using Lalalazy.Telemetry;
-using System;
-using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
-using static GluttonyCombo.Combos.PvE.BST_CrucibleAdvisor;
+using ECommons.DalamudServices;
+using ECommons.ExcelServices;
+using ECommons.GameHelpers;
+using FFXIVClientStructs.FFXIV.Client.UI;
+using FFXIVClientStructs.FFXIV.Client.UI.Agent;
+using FFXIVClientStructs.FFXIV.Component.GUI;
+using static ECommons.GenericHelpers;
+using static Lalalazy.Crucible.BST_CrucibleAdvisor;
+using static LazyCrucible.FormationLogic;
 
-#endregion
-
-namespace GluttonyCombo.Combos.PvE;
+namespace LazyCrucible;
 
 /// <summary>
-///     Crucible pet-selection autograb (live). Arms when a familiar-selection addon is open
+///     Crucible familiar selection (live). Moved from GluttonyCombo's BST_CruciblePetSelect on 2026-09-21 with its
+///     telemetry grammar unchanged (<c>PS|</c> / <c>PSP|</c>). Arms when a familiar-selection addon is open
 ///     (<c>XBMActivePet</c> or <c>XBMPetParty</c>) and the run roster is readable — never on territory and
-///     never on StageMode. Works at Bentbranch Meadows (pre-entry) and on a board. Ranks via
-///     <see cref="PickSlots"/> or <see cref="PickSlotsCoverage"/>; on the horn screen assigns through
-///     ReceiveEvent kind 0 with a <em>SelectedPets index</em> (not a familiar id), with SelectedPetIds
-///     read-back and abort-restore. Roster-basis screens are skipped so a ten-familiar list is never
-///     treated as horn indices. StageMode is telemetry only. Default-off.
+///     never on StageMode. Writes only when <c>XBMPetParty</c> itself is open and its mode values name the
+///     roster list (<see cref="Configuration.AutoRoster"/>) or the Battlehorn preview
+///     (<see cref="Configuration.AutoHorns"/>) — <see cref="DecideFormationWrite"/>; the shop's Beast Feed
+///     picker and the notebook's team screen are never written. Ranks via <see cref="PickSlots"/> or
+///     <see cref="PickSlotsCoverage"/>; on the horn screen assigns through ReceiveEvent kind 0 with a
+///     <em>SelectedPets index</em> (not a familiar id), with SelectedPetIds read-back and abort-restore. Any
+///     selection edit it did not send stands the pass down for that screen (the player's edit wins).
 /// </summary>
-internal static unsafe class BST_CruciblePetSelect
+internal static unsafe class PetSelect
 {
     // AgentXBMPetParty offsets (PR #1952 / DailyRoutines production).
     private const int PartyPetListAddonId = 0x60;
+    private const int PartyMode = 0x64;    // PR #1952 Mode (telemetry only; the addon's AtkValue [2] decides)
+    private const int PartySubMode = 0x68; // PR #1952 SubMode (telemetry only; the addon's AtkValue [3] decides)
     private const int PartyContentId = 0x70;
     private const int PartySelectedPets = 0x78;
     private const int PartySelectedPetIds = 0x90;
@@ -63,57 +61,56 @@ internal static unsafe class BST_CruciblePetSelect
 
     private delegate void TogglePetDelegate(AgentInterface* agent, uint petId);
     private delegate void ApplyPetSelectionDelegate(AgentInterface* agent);
-    private delegate AtkValue* ReceiveEventDelegate(
-        AgentInterface* agent, AtkValue* returnValues, AtkValue* values, uint valueCount, ulong eventKind);
 
     private static TogglePetDelegate? _togglePet;
     private static ApplyPetSelectionDelegate? _applyPetSelection;
-    private static ReceiveEventDelegate? _receiveEvent;
+    private static AgentProbe.ReceiveEventDelegate? _receiveEvent;
     private static bool _sigsResolved;
     private static bool _sigsOk;
 
-    private static Hook<ReceiveEventDelegate>? _receiveEventHook;
-    private static Hook<ReceiveEventDelegate>? _receiveEventWithResultHook;
-    private static Hook<ReceiveEventDelegate>? _notebookReceiveEventHook;
-    private static Hook<ReceiveEventDelegate>? _notebookReceiveEventWithResultHook;
-    private static readonly HashSet<nint> _probeHookedAddrs = [];
-    private static nint _petPartyAgent;
-    private static nint _notebookAgent;
-    private static bool _probeWanted;
+    /// <summary>
+    ///     Why the pass must not write right now, set by the plugin each tick: <c>conflict_gluttony</c> (an older
+    ///     GluttonyCombo that still writes familiars is loaded) or <c>autoduty_running</c>; null = free to write.
+    /// </summary>
+    internal static string? YieldReason;
+    /// <summary> Last thing the pass did, for the window. </summary>
+    internal static string LastSummary { get; private set; } = "";
+    internal static DateTime LastSummaryAt { get; private set; }
+    private static string _lastAnnounced = "";
+    private static bool _loggedConflictThisPhase;
 
     private static bool _disarmRestOfScreen;
+    /// <summary> >0 while this pass's own agent calls are on the stack; the probe ignores those events. </summary>
+    private static int _ownCallDepth;
+    /// <summary> A selection edit this pass did not send, seen by the probe; consumed on the next tick. </summary>
+    private static string? _pendingExternalEdit;
+    /// <summary> The player edited the Bentbranch roster this visit: the roster writer stands down until a board is entered. </summary>
+    private static bool _rosterPlayerOwned;
+    /// <summary> Roster membership right after this open's roster pass; a later difference is a manual edit. </summary>
+    private static HashSet<int>? _rosterAfterPass;
     private static string _lastBasisNote = "";
     private static FormationArmState _arm;
-    private static bool _loggedAggroThisRun;
     private static bool _loggedOffThisPhase;
+    private static bool _loggedSigsThisPhase;
     private static int _lastBoard;
     private static string _lastPhaseSig = "";
 
-    /// <summary> Framework tick: probe lifecycle + one autograb pass per formation phase. Territory is never a gate. </summary>
+    /// <summary>
+    ///     Framework tick while Beastmaster (the plugin tears the pass down otherwise): one autograb pass per
+    ///     formation phase. Territory is never a gate. The agent probe (<see cref="AgentProbe"/>) runs alongside.
+    /// </summary>
     internal static void Tick()
     {
-        if (Player.Job is not Job.BST || Player.Object is null)
-        {
-            TeardownProbe();
-            ResetRun();
+        if (Player.Object is null)
             return;
-        }
 
         var territoryBoard = BST_CrucibleData.BoardOfTerritory(Svc.ClientState.TerritoryType);
 
         if (territoryBoard != _lastBoard)
         {
             _lastBoard = territoryBoard;
-            _loggedAggroThisRun = false;
-        }
-
-        // Probe follows the addons, not the territory — must stay armed at Bentbranch.
-        EnsureProbe();
-        if (!_loggedAggroThisRun)
-        {
-            _loggedAggroThisRun = true;
-            var aggro = (CrucibleAggroMode)(int)BST.Config.BST_CrucibleAggro;
-            LogPs($"PS|{UnixMs()}|aggro={(int)aggro}|aggroName={aggro}|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|note=effective_default_On_stored_overrides");
+            if (territoryBoard != 0)
+                _rosterPlayerOwned = false; // a board was entered: the next Bentbranch visit is automatic again
         }
 
         try
@@ -122,14 +119,22 @@ internal static unsafe class BST_CruciblePetSelect
         }
         catch (Exception ex)
         {
-            // Fork error reporting: was Debug (invisible) on a per-frame path. Rate-limited WRN.
-            LalaTelemetry.Swallowed("bst.petselect.formation", ex);
+            CrucibleLog.Error(ex, "formation pass");
         }
+    }
+
+    /// <summary>
+    ///     Agent event seen by the probe. A selection edit the pass did not send (the player's click, a preset,
+    ///     another tool) is queued for the stand-down latch on the next tick.
+    /// </summary>
+    internal static void OnAgentEvent(string tag, ulong kind, uint valueCount, int? firstInt)
+    {
+        if (_ownCallDepth == 0 && IsSelectionEditEvent(tag, kind, valueCount, firstInt))
+            _pendingExternalEdit = $"ag={tag}|kind={kind}|v0={(firstInt?.ToString(CultureInfo.InvariantCulture) ?? "")}";
     }
 
     internal static void Dispose()
     {
-        TeardownProbe();
         ResetRun();
         _sigsResolved = false;
         _sigsOk = false;
@@ -138,15 +143,19 @@ internal static unsafe class BST_CruciblePetSelect
         _receiveEvent = null;
     }
 
-    private static void ResetRun()
+    internal static void ResetRun()
     {
         _arm = default;
-        _loggedAggroThisRun = false;
         _loggedOffThisPhase = false;
+        _loggedConflictThisPhase = false;
+        _loggedSigsThisPhase = false;
         _lastBoard = 0;
         _lastPhaseSig = "";
         _disarmRestOfScreen = false;
         _lastBasisNote = "";
+        _pendingExternalEdit = null;
+        _rosterPlayerOwned = false;
+        _rosterAfterPass = null;
     }
 
     private static void RunFormationPass(int territoryBoard)
@@ -179,15 +188,29 @@ internal static unsafe class BST_CruciblePetSelect
             if (!screenOpen)
             {
                 _arm = NextFormationArm(_arm, false, 0, surfaceKey);
+                ConsumeExternalEdit(surfaceKey, petPartyOpen);
+                _rosterAfterPass = null;
                 _loggedOffThisPhase = false;
+                _loggedConflictThisPhase = false;
+                _loggedSigsThisPhase = false;
             }
             else
             {
-                // Screen open but no roster → not armed (A2). Still advance latch so reopen re-arms.
+                // Screen open but no roster → not armed (A2). Still advance latch so reopen re-arms. The
+                // battle key is kept: feeding 0 here made the key flap -1 -> 0 -> -1 while the roster was
+                // cleared and rebuilt by AutoDuty (its leveling team), which re-armed the writer (live 12:50,
+                // four overwrites).
                 var prevOpenEmpty = _arm.ScreenOpen;
-                _arm = NextFormationArm(_arm, screenOpen, 0, surfaceKey);
+                _arm = NextFormationArm(_arm, screenOpen, prevOpenEmpty ? _arm.BattleKey : 0, surfaceKey);
+                if (_rosterAfterPass is { Count: > 0 } && _ownCallDepth == 0)
+                    _pendingExternalEdit ??= "src=state|roster=0";
+                ConsumeExternalEdit(surfaceKey, petPartyOpen);
                 if (!prevOpenEmpty && _arm.ScreenOpen)
+                {
                     _loggedOffThisPhase = false;
+                    _loggedConflictThisPhase = false;
+                    _loggedSigsThisPhase = false;
+                }
             }
             return;
         }
@@ -204,14 +227,28 @@ internal static unsafe class BST_CruciblePetSelect
 
         var prevOpen = _arm.ScreenOpen;
         _arm = NextFormationArm(_arm, screenOpen, battleKey, surfaceKey);
+        if (!_arm.ScreenOpen)
+            _rosterAfterPass = null;
+        else if (_rosterAfterPass is not null && surfaceKey == SurfacePreentry && _ownCallDepth == 0)
+        {
+            // Notebook adds call TogglePet from the addon callback and never reach ReceiveEvent: watch membership.
+            var nowRoster = ReadPetIds(pet, PartySelectedPetIds);
+            if (!_rosterAfterPass.SetEquals(nowRoster))
+                _pendingExternalEdit ??= $"src=state|roster={string.Join(".", nowRoster)}";
+        }
+        ConsumeExternalEdit(surfaceKey, petPartyOpen);
         if (!prevOpen && _arm.ScreenOpen)
         {
             _loggedOffThisPhase = false;
+            _loggedConflictThisPhase = false;
+            _loggedSigsThisPhase = false;
             _disarmRestOfScreen = false;
         }
         if (!_arm.ScreenOpen)
         {
             _loggedOffThisPhase = false;
+            _loggedConflictThisPhase = false;
+            _loggedSigsThisPhase = false;
             _disarmRestOfScreen = false;
         }
 
@@ -223,27 +260,72 @@ internal static unsafe class BST_CruciblePetSelect
             return;
 
         var now = UnixMs();
-        var optOn = (bool)BST.Config.BST_CrucibleAutoGrab;
+        var cfg = Plugin.Config;
 
-        // Off-state line ABOVE every suppressing condition (battle id, sigs, assign route).
-        if (!optOn)
+        // Off-state line ABOVE every suppressing condition (battle id, sigs, assign route): both automations off.
+        if (!cfg.AutoRoster && !cfg.AutoHorns)
         {
-            if (!_loggedOffThisPhase)
-            {
-                LogPs($"PS|{now}|opt=0|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|mode={mode}|surface={surfaceName}|activePet={(activePetOpen ? 1 : 0)}|petParty={(petPartyOpen ? 1 : 0)}|petList={(petListOpen ? 1 : 0)}|partyAddon={(partyAddonShown ? 1 : 0)}|party={partyCount}|calls=0|note=off");
-                _loggedOffThisPhase = true;
-            }
+            LogOffOnce(now, territoryBoard, mode, surfaceName, activePetOpen, petPartyOpen, petListOpen, partyAddonShown, partyCount, "all");
             if (armed)
                 _arm = MarkFormationPassDone(in _arm);
+            return;
+        }
+
+        if (YieldReason is { } yieldReason)
+        {
+            if (!_loggedConflictThisPhase)
+            {
+                _loggedConflictThisPhase = true;
+                LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|calls=0|note={yieldReason}");
+                SetSummary(yieldReason == "autoduty_running"
+                    ? "Not writing: AutoDuty is running this board and picks its own familiars."
+                    : "Not writing: an older GluttonyCombo that also fills familiars is loaded.");
+            }
             return;
         }
 
         if (!armed)
             return;
 
+        // What the open screen is for, from the XBMPetParty addon's own mode values ([2] Mode, [3] SubMode).
+        // The shop opens the same addon/agent as the Beast Feed target picker (mode 3, sub 0) and reuses
+        // SelectedPetIds as a one-familiar selection; the .227-.229 bt=5 readback=fail passes were horn
+        // writes into that picker. The notebook's team screen (XBMActivePet alone) is not a run screen.
+        var (addonMode, addonSub) = ReadPetPartyAddonMode();
+        var selectedRaw = ReadPetIds(pet, PartySelectedPetIds);
+        var gate = DecideFormationWrite(new FormationGateInput(
+            petPartyOpen, activePetOpen, surfaceKey == SurfacePreentry, addonMode, addonSub, selectedRaw, partyRows.Count,
+            RosterPlayerOwned: _rosterPlayerOwned));
+        if (gate.Write == FormationWrite.None)
+        {
+            var skipNote = $"skip|{gate.Reason}|{addonMode}|{addonSub}";
+            if (skipNote != _lastBasisNote)
+            {
+                _lastBasisNote = skipNote;
+                LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|ppm={addonMode}|pps={addonSub}|sl={string.Join(".", selectedRaw)}|flutes={selectedRaw.Count}|note=skip_screen|why={gate.Reason}|calls=0");
+            }
+            return;
+        }
+
+        // Per-surface switch: the roster list and the Battlehorn preview each have their own toggle.
+        var scopeOff = gate.Write == FormationWrite.Roster ? !cfg.AutoRoster
+            : gate.Write == FormationWrite.Horn ? !cfg.AutoHorns
+            : false;
+        if (scopeOff)
+        {
+            LogOffOnce(now, territoryBoard, mode, surfaceName, activePetOpen, petPartyOpen, petListOpen, partyAddonShown, partyCount,
+                gate.Write == FormationWrite.Roster ? "roster" : "horn");
+            _arm = MarkFormationPassDone(in _arm);
+            return;
+        }
+
         // Resolve sigs unconditionally so telemetry learns whether they resolve on this game version.
         var sigsOk = EnsureSigs();
-        LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|sigs={(sigsOk ? "ok" : "miss")}|calls=0");
+        if (!_loggedSigsThisPhase)
+        {
+            _loggedSigsThisPhase = true;
+            LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|sigs={(sigsOk ? "ok" : "miss")}|calls=0");
+        }
 
         var eventOk = EnsureReceiveEvent(pet);
         if (!sigsOk && !eventOk)
@@ -256,39 +338,24 @@ internal static unsafe class BST_CruciblePetSelect
         // Prefer the observed event route: live PSP proved kind=0 [Int 1, Int screenIndex] toggled SelectedPetIds.
         var route = eventOk ? "event" : "sig";
 
-        var selectedRaw = ReadPetIds(pet, PartySelectedPetIds);
-        // Screen/shape before size: Bentbranch entry roster is PetParty without ActivePet on pre-entry.
-        // A transient ≤3 index-looking SelectedPetIds there must not take the horn path (.222 live defect).
-        var rosterSurface = surfaceKey == SurfacePreentry && !activePetOpen;
-        var hornBasis = IsHornWriteBasis(selectedRaw, partyRows.Count, rosterSurface);
-        if (!hornBasis)
+        if (gate.Write == FormationWrite.Wait)
         {
-            if (rosterSurface)
+            var waitNote = $"{gate.Reason}|{selectedRaw.Count}|{string.Join(".", selectedRaw)}|{addonMode}";
+            if (waitNote != _lastBasisNote)
             {
-                // Bentbranch ten-familiar roster: if transient (1..3 values while menu loads), wait to settle.
-                if (selectedRaw.Count is > 0 and <= 3)
-                {
-                    var transientNote = $"roster_transient|{selectedRaw.Count}|{string.Join(".", selectedRaw)}";
-                    if (transientNote != _lastBasisNote)
-                    {
-                        _lastBasisNote = transientNote;
-                        LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|basis=roster|sl={string.Join(".", selectedRaw)}|flutes={selectedRaw.Count}|rs=1|note=wait_roster_settle|route={route}|calls=0");
-                    }
-                    return;
-                }
-
-                _lastBasisNote = "";
-                ExecuteRosterWrite(pet, surfaceName, route, sigsOk, now, territoryBoard, contentBoard, selectedRaw);
-                return;
+                _lastBasisNote = waitNote;
+                var basisName = gate.Reason == "wait_horn_basis" ? "roster" : gate.Reason == "wait_roster_settle" ? "roster" : "pending";
+                var rs = gate.Reason == "wait_roster_settle" ? 1 : 0;
+                var note = gate.Reason == "settling" ? "wait_settling" : gate.Reason;
+                LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|basis={basisName}|sl={string.Join(".", selectedRaw)}|flutes={selectedRaw.Count}|rs={rs}|ppm={addonMode}|pps={addonSub}|note={note}|route={route}|calls=0");
             }
+            return;
+        }
 
-            // On a board, keep the latch — SelectedPetIds often flashes roster ids then becomes an empty horn.
-            var basisNote = $"roster|{selectedRaw.Count}|{string.Join(".", selectedRaw)}|rs=0";
-            if (basisNote != _lastBasisNote)
-            {
-                _lastBasisNote = basisNote;
-                LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|basis=roster|sl={string.Join(".", selectedRaw)}|flutes={selectedRaw.Count}|rs=0|note=wait_horn_basis|route={route}|calls=0");
-            }
+        if (gate.Write == FormationWrite.Roster)
+        {
+            _lastBasisNote = "";
+            ExecuteRosterWrite(pet, surfaceName, route, sigsOk, now, territoryBoard, contentBoard, selectedRaw);
             return;
         }
         _lastBasisNote = "";
@@ -365,6 +432,7 @@ internal static unsafe class BST_CruciblePetSelect
         {
             LogPs($"PS|{now}|opt=1|b={board}|bt={battle}|surface={surfaceName}|route={route}|calls=0|readback=ok|note=already_correct|apply=not_needed");
             _arm = MarkFormationPassDone(in _arm);
+            AnnounceHorns(board, battle, coverage, picks);
             return;
         }
 
@@ -426,6 +494,80 @@ internal static unsafe class BST_CruciblePetSelect
         var finalIdx = ReadPetIds(pet, PartySelectedPetIds);
         LogPs($"PS|{now}|opt=1|b={board}|bt={battle}|surface={surfaceName}|route={route}|calls={string.Join(",", calls)}|readback=ok|apply={(applyNeeded ? "needed" : "not_needed")}|sl={string.Join(".", finalIdx)}");
         _arm = MarkFormationPassDone(in _arm);
+        AnnounceHorns(board, battle, coverage, picks);
+    }
+
+    /// <summary> The once-per-phase <c>note=off</c> line; <paramref name="scope"/> says which switch is off. </summary>
+    private static void LogOffOnce(long now, int territoryBoard, uint mode, string surfaceName, bool activePetOpen, bool petPartyOpen,
+        bool petListOpen, bool partyAddonShown, int partyCount, string scope)
+    {
+        if (_loggedOffThisPhase)
+            return;
+        _loggedOffThisPhase = true;
+        LogPs($"PS|{now}|opt=0|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|mode={mode}|surface={surfaceName}|activePet={(activePetOpen ? 1 : 0)}|petParty={(petPartyOpen ? 1 : 0)}|petList={(petListOpen ? 1 : 0)}|partyAddon={(partyAddonShown ? 1 : 0)}|party={partyCount}|calls=0|note=off|scope={scope}");
+    }
+
+    private static void SetSummary(string text)
+    {
+        LastSummary = text;
+        LastSummaryAt = DateTime.Now;
+    }
+
+    private static string BoardName(int board) =>
+        board is >= 1 and <= 5 ? BST_CrucibleData.Boards[board - 1].Name : $"board {board}";
+
+    /// <summary> Horn picks are announced once the fight is identified; a coverage fill only updates the window. </summary>
+    private static void AnnounceHorns(int board, int battle, bool coverage, IReadOnlyList<CrucibleBeastPick> picks)
+    {
+        if (coverage)
+        {
+            SetSummary($"Battlehorns (fight not identified yet, best for {BoardName(board)}): {string.Join(", ", picks.Select(p => BeastName(p.Row)))}");
+            return;
+        }
+        Announce($"h|{board}|{battle}", $"Battlehorns for {BST_CrucibleData.BattleLabel(board, battle)}", picks);
+    }
+
+    private static string BeastName(int row)
+    {
+        if (row is < 1 or > BST_Beasts.Count)
+            return "?";
+        var name = BST_Beasts.All[row].Name;
+        return name.Length == 0 ? "?" : char.ToUpperInvariant(name[0]) + name[1..];
+    }
+
+    /// <summary>
+    ///     Chat line and window summary for picks that are now on the horns (or the roster). Once per battle key;
+    ///     never for the coverage fallback (it is replaced ~40 ms later when the fight is identified).
+    /// </summary>
+    private static void Announce(string key, string what, IReadOnlyList<CrucibleBeastPick> picks)
+    {
+        var names = string.Join(", ", picks.Select(p => string.IsNullOrEmpty(p.Why) ? BeastName(p.Row) : $"{BeastName(p.Row)} ({p.Why})"));
+        SetSummary($"{what}: {names}");
+        if (key == _lastAnnounced)
+            return;
+        _lastAnnounced = key;
+        if (Plugin.Config.AnnouncePicks)
+            Svc.Chat.Print($"[LazyCrucible] {what}: {names}");
+    }
+
+    /// <summary>
+    ///     Turn a selection edit the pass did not send into the stand-down latch: the rest of this screen
+    ///     open is the player's, and on the Bentbranch roster the rest of the visit is.
+    /// </summary>
+    private static void ConsumeExternalEdit(int surfaceKey, bool petPartyOpen)
+    {
+        var edit = _pendingExternalEdit;
+        if (edit is null)
+            return;
+        _pendingExternalEdit = null;
+        if (!_arm.ScreenOpen)
+            return;
+        var already = _arm.PlayerEdited;
+        _arm = MarkPlayerEdited(in _arm);
+        if (surfaceKey == SurfacePreentry && petPartyOpen)
+            _rosterPlayerOwned = true; // the run roster itself was edited, not the notebook's overworld team
+        if (!already)
+            LogPs($"PS|{UnixMs()}|opt={(Plugin.Config.AutoRoster || Plugin.Config.AutoHorns ? 1 : 0)}|terr={Svc.ClientState.TerritoryType}|surface={(surfaceKey == SurfaceBoard ? "board" : "preentry")}|{edit}|note=player_edit|calls=0");
     }
 
     private static bool ToggleOne(AgentInterface* agent, IReadOnlyList<int> partyRows, int petRow, string route, List<string> calls)
@@ -466,7 +608,15 @@ internal static unsafe class BST_CruciblePetSelect
         values[1].Type = AtkValueType.Int;
         values[1].Int = screenIndex;
         ret[0] = default;
-        _receiveEvent(agent, ret, values, 2, 0);
+        _ownCallDepth++;
+        try
+        {
+            _receiveEvent(agent, ret, values, 2, 0);
+        }
+        finally
+        {
+            _ownCallDepth--;
+        }
         return true;
     }
 
@@ -511,7 +661,7 @@ internal static unsafe class BST_CruciblePetSelect
         var desiredRows = picks.ConvertAll(p => p.Row);
 
         var snapshot = new List<int>(selectedRaw);
-        var changes = BST_CrucibleAdvisor.PlanRosterChanges(selectedRaw, picks);
+        var changes = PlanRosterChanges(selectedRaw, picks);
 
         var candStr = string.Join(",", candidates.ConvertAll(r => $"{r}:{(hpMap.TryGetValue(r, out var h) ? h : 100)}"));
         var pickStr = string.Join(",", picks.ConvertAll(p => $"{p.Row}:{Clean(p.Why, 80)}"));
@@ -521,6 +671,8 @@ internal static unsafe class BST_CruciblePetSelect
         {
             LogPs($"PS|{now}|opt=1|b={board}|bt=-1|surface={surfaceName}|basis=roster|route={route}|calls=0|readback=ok|note=already_correct|apply=not_needed|sl={string.Join(".", snapshot)}");
             _arm = MarkFormationPassDone(in _arm);
+            SetSummary($"Run roster for {BoardName(board)} already set: {string.Join(", ", desiredRows.ConvertAll(BeastName))}");
+            _rosterAfterPass = new HashSet<int>(snapshot);
             return;
         }
 
@@ -593,6 +745,9 @@ internal static unsafe class BST_CruciblePetSelect
         var dropped = snapshot.FindAll(r => !finalRows.Contains(r));
         LogPs($"PS|{now}|opt=1|b={board}|bt=-1|surface={surfaceName}|basis=roster|route={route}|calls={string.Join(",", calls)}|readback=ok|apply=needed|pre={string.Join(".", snapshot)}|post={string.Join(".", finalRows)}|gain={string.Join(".", gained)}|dropped={string.Join(".", dropped)}|sl={string.Join(".", finalRows)}");
         _arm = MarkFormationPassDone(in _arm);
+        _rosterAfterPass = new HashSet<int>(finalRows);
+        Announce($"r|{board}|{string.Join(".", desiredRows)}", $"Run roster for {BoardName(board)}",
+            picks.ConvertAll(p => p with { Why = "" }));
     }
 
     private static void AbortWithRestore(
@@ -666,7 +821,7 @@ internal static unsafe class BST_CruciblePetSelect
         }
         catch (Exception ex)
         {
-            LalaTelemetry.Swallowed("bst.petselect.restore", ex);
+            CrucibleLog.Error(ex, "restore failed");
             return false;
         }
     }
@@ -871,6 +1026,35 @@ internal static unsafe class BST_CruciblePetSelect
         }
     }
 
+    /// <summary>
+    ///     XBMPetParty AtkValues [2] (Mode) and [3] (SubMode); -1 when the addon is not visible or the value
+    ///     is not populated yet (only [3] is set on the first frame of an open). Live: roster list 0/1,
+    ///     Battlehorn preview 2/1, shop feed picker 3/0.
+    /// </summary>
+    private static (int Mode, int SubMode) ReadPetPartyAddonMode()
+    {
+        try
+        {
+            if (!TryGetAddonByName<AtkUnitBase>("XBMPetParty", out var addon) || addon is null || !addon->IsVisible)
+                return (-1, -1);
+            var values = addon->AtkValues;
+            if (values is null || addon->AtkValuesCount < 4)
+                return (-1, -1);
+            return (AtkNumber(values[2]), AtkNumber(values[3]));
+        }
+        catch
+        {
+            return (-1, -1);
+        }
+    }
+
+    private static int AtkNumber(AtkValue v) => v.Type switch
+    {
+        AtkValueType.UInt => (int)v.UInt,
+        AtkValueType.Int => v.Int,
+        _ => -1,
+    };
+
     private static void MaybeLogPhase(
         nint pet, int territoryBoard, uint mode,
         bool activePetOpen, bool petPartyOpen, bool petListOpen, bool partyAddonShown,
@@ -879,9 +1063,13 @@ internal static unsafe class BST_CruciblePetSelect
         try
         {
             var flutes = partyCount > 0 && pet != 0 ? ReadPetIds(pet, PartySelectedPetIds) : [];
-            var optOn = (bool)BST.Config.BST_CrucibleAutoGrab;
+            var optOn = Plugin.Config.AutoRoster || Plugin.Config.AutoHorns;
+            var (ppm, pps) = petPartyOpen ? ReadPetPartyAddonMode() : (-1, -1);
+            var agm = pet != 0 ? (int)*(uint*)(pet + PartyMode) : -1;
+            var ags = pet != 0 ? (int)*(uint*)(pet + PartySubMode) : -1;
             var sig =
                 $"m={mode}|ap={(activePetOpen ? 1 : 0)}|pp={(petPartyOpen ? 1 : 0)}|pl={(petListOpen ? 1 : 0)}|pa={(partyAddonShown ? 1 : 0)}"
+                + $"|ppm={ppm}|pps={pps}|agm={agm}|ags={ags}"
                 + $"|so={(screenOpen ? 1 : 0)}|arm={(armed ? 1 : 0)}|opt={(optOn ? 1 : 0)}|p={partyCount}|f={flutes.Count}"
                 + $"|bk={_arm.BattleKey}|sf={_arm.SurfaceKey}|xb={xbmNames}|ag={(agentNonZero ? 1 : 0)}";
             if (sig == _lastPhaseSig)
@@ -891,11 +1079,12 @@ internal static unsafe class BST_CruciblePetSelect
                 + $"|petList={(petListOpen ? 1 : 0)}|partyAddon={(partyAddonShown ? 1 : 0)}|screen={(screenOpen ? 1 : 0)}|armed={(armed ? 1 : 0)}"
                 + $"|opt={(optOn ? 1 : 0)}|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}"
                 + $"|agent={(agentNonZero ? 1 : 0)}|xbm={xbmNames}"
-                + $"|party={partyCount}|flutes={flutes.Count}|sl={string.Join(".", flutes)}|bk={_arm.BattleKey}|sk={_arm.SurfaceKey}|calls=0");
+                + $"|party={partyCount}|flutes={flutes.Count}|sl={string.Join(".", flutes)}|bk={_arm.BattleKey}|sk={_arm.SurfaceKey}"
+                + $"|ppm={ppm}|pps={pps}|agm={agm}|ags={ags}|calls=0");
         }
         catch (Exception ex)
         {
-            LalaTelemetry.Swallowed("bst.petselect.phase-log", ex);
+            CrucibleLog.Error(ex, "phase log failed");
         }
     }
 
@@ -948,8 +1137,7 @@ internal static unsafe class BST_CruciblePetSelect
         }
         catch (Exception ex)
         {
-            // Without these the autograb silently does nothing - exactly what a report needs to see.
-            LalaTelemetry.Swallowed("bst.petselect.signatures", ex);
+            CrucibleLog.Error(ex, "signature resolve failed");
             _sigsOk = false;
         }
         return _sigsOk;
@@ -968,12 +1156,12 @@ internal static unsafe class BST_CruciblePetSelect
             var receiveEvent = (nint)vt->ReceiveEvent;
             if (receiveEvent == 0)
                 return false;
-            _receiveEvent = Marshal.GetDelegateForFunctionPointer<ReceiveEventDelegate>(receiveEvent);
+            _receiveEvent = Marshal.GetDelegateForFunctionPointer<AgentProbe.ReceiveEventDelegate>(receiveEvent);
             return _receiveEvent is not null;
         }
         catch (Exception ex)
         {
-            LalaTelemetry.Swallowed("bst.petselect.receive-event", ex);
+            CrucibleLog.Error(ex, "ReceiveEvent resolve failed");
             return false;
         }
     }
@@ -988,198 +1176,9 @@ internal static unsafe class BST_CruciblePetSelect
         return callSite + 5 + rel;
     }
 
-    // ------------------------------------------------------------- PSP| probe (read-only ReceiveEvent)
-    // Watched agents: AgentXBMPetParty (roster remove / horn toggles) and
-    // AgentXBMMonsterNotebook (roster ADD — 2026-09-19 evening session proved adds arrive
-    // there, not on the pet-party agent). Lines carry `ag=pp|nb` so a capture names its agent.
-    // If an agent does not override ReceiveEvent, its vtable slot is the shared base
-    // implementation also used by unrelated agents; attribution by agent pointer keeps those
-    // events out, and the same address is never hooked twice.
-
-    private static void EnsureProbe()
-    {
-        _probeWanted = true;
-        try
-        {
-            var pet = GetAgent(AgentId.XBMPetParty);
-            if (pet != 0)
-            {
-                _petPartyAgent = pet;
-                EnsureProbeHooks(pet, notebook: false);
-            }
-
-            var notebook = GetAgent(AgentId.XBMMonsterNotebook);
-            if (notebook != 0)
-            {
-                _notebookAgent = notebook;
-                EnsureProbeHooks(notebook, notebook: true);
-            }
-        }
-        catch (Exception ex)
-        {
-            LalaTelemetry.Swallowed("bst.petselect.probe-hook", ex);
-        }
-    }
-
-    /// <summary> Hook both event entries on one agent's vtable, once per distinct address. </summary>
-    private static void EnsureProbeHooks(nint agentAddr, bool notebook)
-    {
-        var agent = (AgentInterface*)agentAddr;
-        var vt = agent->VirtualTable;
-        if (vt is null)
-            return;
-
-        var receiveEvent = (nint)vt->ReceiveEvent;
-        if (receiveEvent != 0 && _probeHookedAddrs.Add(receiveEvent))
-        {
-            if (notebook)
-            {
-                _notebookReceiveEventHook = Svc.Hook.HookFromAddress<ReceiveEventDelegate>(receiveEvent, NotebookReceiveEventDetour);
-                _notebookReceiveEventHook.Enable();
-            }
-            else
-            {
-                _receiveEventHook = Svc.Hook.HookFromAddress<ReceiveEventDelegate>(receiveEvent, ReceiveEventDetour);
-                _receiveEventHook.Enable();
-            }
-        }
-
-        var receiveEventWithResult = (nint)vt->ReceiveEventWithResult;
-        if (receiveEventWithResult != 0 && _probeHookedAddrs.Add(receiveEventWithResult))
-        {
-            if (notebook)
-            {
-                _notebookReceiveEventWithResultHook =
-                    Svc.Hook.HookFromAddress<ReceiveEventDelegate>(receiveEventWithResult, NotebookReceiveEventWithResultDetour);
-                _notebookReceiveEventWithResultHook.Enable();
-            }
-            else
-            {
-                _receiveEventWithResultHook =
-                    Svc.Hook.HookFromAddress<ReceiveEventDelegate>(receiveEventWithResult, ReceiveEventWithResultDetour);
-                _receiveEventWithResultHook.Enable();
-            }
-        }
-    }
-
-    private static void TeardownProbe()
-    {
-        _probeWanted = false;
-        DisposeHook(ref _receiveEventHook);
-        DisposeHook(ref _receiveEventWithResultHook);
-        DisposeHook(ref _notebookReceiveEventHook);
-        DisposeHook(ref _notebookReceiveEventWithResultHook);
-        _probeHookedAddrs.Clear();
-        _petPartyAgent = 0;
-        _notebookAgent = 0;
-    }
-
-    private static void DisposeHook(ref Hook<ReceiveEventDelegate>? hook)
-    {
-        if (hook is null)
-            return;
-        try
-        {
-            hook.Disable();
-            hook.Dispose();
-        }
-        catch { /* ignore */ }
-        hook = null;
-    }
-
-    private static AtkValue* ReceiveEventDetour(
-        AgentInterface* agent, AtkValue* returnValues, AtkValue* values, uint valueCount, ulong eventKind)
-    {
-        LogProbe(agent, "re", values, valueCount, eventKind);
-        return _receiveEventHook!.Original(agent, returnValues, values, valueCount, eventKind);
-    }
-
-    private static AtkValue* ReceiveEventWithResultDetour(
-        AgentInterface* agent, AtkValue* returnValues, AtkValue* values, uint valueCount, ulong eventKind)
-    {
-        LogProbe(agent, "rewr", values, valueCount, eventKind);
-        return _receiveEventWithResultHook!.Original(agent, returnValues, values, valueCount, eventKind);
-    }
-
-    private static AtkValue* NotebookReceiveEventDetour(
-        AgentInterface* agent, AtkValue* returnValues, AtkValue* values, uint valueCount, ulong eventKind)
-    {
-        LogProbe(agent, "re", values, valueCount, eventKind);
-        return _notebookReceiveEventHook!.Original(agent, returnValues, values, valueCount, eventKind);
-    }
-
-    private static AtkValue* NotebookReceiveEventWithResultDetour(
-        AgentInterface* agent, AtkValue* returnValues, AtkValue* values, uint valueCount, ulong eventKind)
-    {
-        LogProbe(agent, "rewr", values, valueCount, eventKind);
-        return _notebookReceiveEventWithResultHook!.Original(agent, returnValues, values, valueCount, eventKind);
-    }
-
-    /// <summary>
-    ///     Read-only PSP| record of one watched agent event. Never alters arguments or the return
-    ///     value. Only events whose `agent` is one of the two watched agents are emitted — a hook
-    ///     that landed on the shared base implementation otherwise logs every agent's traffic.
-    /// </summary>
-    private static void LogProbe(AgentInterface* agent, string via, AtkValue* values, uint valueCount, ulong eventKind)
-    {
-        try
-        {
-            if (!_probeWanted)
-                return;
-
-            var ag = (nint)agent == _petPartyAgent ? "pp"
-                : (nint)agent == _notebookAgent ? "nb"
-                : null;
-            if (ag is null)
-                return;
-
-            var inv = CultureInfo.InvariantCulture;
-            var sb = new StringBuilder(128);
-            sb.Append("PSP|").Append(UnixMs().ToString(inv))
-              .Append("|ag=").Append(ag)
-              .Append("|via=").Append(via)
-              .Append("|kind=").Append(eventKind.ToString(inv))
-              .Append("|n=").Append(valueCount.ToString(inv));
-            var n = values is null ? 0u : Math.Min(valueCount, 8u);
-            for (var i = 0u; i < n; i++)
-            {
-                var v = values[i];
-                sb.Append('|').Append(i.ToString(inv)).Append(':');
-                switch (v.Type)
-                {
-                    case AtkValueType.Int:
-                        sb.Append('i').Append(v.Int.ToString(inv));
-                        break;
-                    case AtkValueType.UInt:
-                        sb.Append('u').Append(v.UInt.ToString(inv));
-                        break;
-                    case AtkValueType.Bool:
-                        sb.Append('b').Append(v.Byte != 0 ? '1' : '0');
-                        break;
-                    default:
-                        sb.Append('t').Append(((int)v.Type).ToString(inv));
-                        break;
-                }
-            }
-            var line = sb.ToString();
-            Svc.Log.Information(line);
-            LalaTelemetry.Record(line);
-        }
-        catch (Exception ex)
-        {
-            LalaTelemetry.Swallowed("bst.petselect.probe-log", ex);
-        }
-    }
-
     private static long UnixMs() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
-    private static void LogPs(string line)
-    {
-        if (line.Length > 900)
-            line = line[..900];
-        Svc.Log.Information(line);
-        LalaTelemetry.Record(line);
-    }
+    private static void LogPs(string line) => CrucibleLog.Line(line);
 
     private static string Clean(string? text, int max)
     {

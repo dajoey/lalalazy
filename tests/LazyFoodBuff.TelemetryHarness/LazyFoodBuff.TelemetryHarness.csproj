@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <Compile Include="..\..\src\LazyFoodBuff\LazyFoodBuff\FoodTelemetryFormat.cs" Link="FoodTelemetryFormat.cs" />
+    <Compile Include="..\..\src\LazyFoodBuff\LazyFoodBuff\DutyGate.cs" Link="DutyGate.cs" />
     <!-- Real ffxivdb player_samples rows collapsed to change-points; the replay at the
          end of Program.cs reads this from AppContext.BaseDirectory to produce a
          MEASURED line rate. -->

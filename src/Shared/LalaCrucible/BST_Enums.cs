@@ -1,9 +1,9 @@
-namespace GluttonyCombo.Combos.PvE;
+namespace Lalalazy.Crucible;
 
 // Split out of BST_Gauge.cs (t_02fe2681) so the pure rotation logic in BST_RotationLogic.cs -
 // and this file itself - compile Dalamud-free into tests/GluttonyCombo.BSTRotationHarness.
-// BST_Gauge.cs (the vendored ClientStructs gauge overlay, which DOES need Dalamud/ClientStructs
-// to read the live gauge) references these two enums from the same namespace.
+// Shared SOURCE since 2026-09-21 (src/Shared/LalaCrucible, namespace Lalalazy.Crucible): compiled into
+// GluttonyCombo (global using) and LazyCrucible. BST_Gauge.cs reads these two enums for the live gauge.
 
 /// <summary> Affinity of the most recent instinctual skill (PR #1947 BeastmasterAffinity). </summary>
 public enum BeastmasterAffinity : byte
