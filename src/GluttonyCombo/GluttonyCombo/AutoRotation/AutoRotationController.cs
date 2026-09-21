@@ -816,7 +816,7 @@ internal unsafe class AutoRotationController
                 ActionManager.Instance()->QueuedActionId == BLU.Exuviation)
                 ActionManager.Instance()->QueuedActionId = 0;
 
-            if ((!needsHeal || GetPartyMembers().Any(x => HasCleansableDoom(x.BattleChara))) && WrathOpener.CurrentOpener?.CurrentState is not
+            if ((!needsHeal || GetPartyMembers().Any(x => x.BattleChara.HasCleansableDoom)) && WrathOpener.CurrentOpener?.CurrentState is not
                 OpenerState.InOpener)
             {
                 if (cfg.HealerSettings.AutoCleanse && isHealer)
@@ -1458,7 +1458,7 @@ internal unsafe class AutoRotationController
             _ => 0
         };
 
-        if (regenSpell != 0 && !JustUsed(regenSpell, 4) && SimpleTarget.FocusTarget != null && (!HasStatusEffect(regenBuff, out var regen, SimpleTarget.FocusTarget) || regen?.RemainingTime <= 5f))
+        if (regenSpell != 0 && !JustUsed(regenSpell, 4) && SimpleTarget.FocusTarget != null && (!SimpleTarget.FocusTarget.HasStatus(regenBuff, out var regen) || regen?.RemainingTime <= 5f))
         {
             var query = Svc.Objects.GetBattleCharas().Where(x => !x.IsDead && x.IsTargetable && x.IsHostile());
             if (!query.Any())
@@ -1508,9 +1508,9 @@ internal unsafe class AutoRotationController
             _ => 0
         };
 
-        if (shieldSpell != 0 && !JustUsed(shieldSpell, 4) && SimpleTarget.FocusTarget != null && (!HasStatusEffect(shieldBuff, out var shield, SimpleTarget.FocusTarget) || shield?.RemainingTime <= 1f))
+        if (shieldSpell != 0 && !JustUsed(shieldSpell, 4) && SimpleTarget.FocusTarget != null && (!SimpleTarget.FocusTarget.HasStatus(shieldBuff, out var shield) || shield?.RemainingTime <= 1f))
         {
-            if (prepSpell != 0 && !JustUsed(prepSpell, 4) && !HasStatusEffect(SGE.Buffs.Eukrasia))
+            if (prepSpell != 0 && !JustUsed(prepSpell, 4) && !LocalPlayer.HasStatus(SGE.Buffs.Eukrasia))
             {
                 var spell = ActionManager.Instance()->GetAdjustedActionId(prepSpell).Retarget(SimpleTarget.FocusTarget);
 
@@ -1752,10 +1752,10 @@ internal unsafe class AutoRotationController
         foreach (var member in GetPartyMembers().Where(x => !x.BattleChara.IsDead).OrderByDescending(x => x.BattleChara?.GetRole() is CombatRole.Tank))
         {
             if (cfg.HealerSettings.KardiaTanksOnly && member.BattleChara?.GetRole() is not CombatRole.Tank &&
-                !HasStatusEffect(3615, member.BattleChara, true)) continue; // Duty Support Gosetsu Tank Stance
+                !member.BattleChara.HasStatus(3615, true)) continue; // Duty Support Gosetsu Tank Stance
 
             var enemiesTargeting = Svc.Objects.GetBattleCharas().Count(x => x.IsTargetable && x.IsHostile() && x.TargetObjectId == member.BattleChara.GameObjectId);
-            if (enemiesTargeting > 0 && !HasStatusEffect(SGE.Buffs.Kardion, member.BattleChara))
+            if (enemiesTargeting > 0 && !member.BattleChara.HasStatus(SGE.Buffs.Kardion))
             {
                 ActionManager.Instance()->UseAction(ActionType.Action, SGE.Kardia.Retarget(member.BattleChara), member.BattleChara.GameObjectId);
                 return;
@@ -2024,7 +2024,6 @@ internal unsafe class AutoRotationController
                 // ground-targeted.
                 var resolvedFriendlyOnly = canUseSelf && !targetsHostile && !areaTargeted;
 
-                bool switched = SwitchOnDChole(attributes, outAct, ref target);
                 var castTime = ActionManager.GetAdjustedCastTime(ActionType.Action, outAct);
                 bool orbwalking = cfg.OrbwalkerIntegration && OrbwalkerIPC.CanOrbwalk;
 
@@ -2100,7 +2099,6 @@ internal unsafe class AutoRotationController
                 return false;
             }
 
-            bool switched = SwitchOnDChole(attributes, outAct, ref target);
             if (outAct is DNC.ClosedPosition && DNC.DancePartnerResolver() is IBattleChara dp)
                 target = dp;
 
@@ -2138,6 +2136,12 @@ internal unsafe class AutoRotationController
             var resolvedFriendlyOnly = canUseSelf && !canUseTarget && !areaTargeted;
             var isHeal = attributes.AutoAction!.IsHeal || resolvedFriendlyOnly;
 
+            if (target is not null)
+            {
+                if ((!isHeal && cfg.DPSSettings.DPSAlwaysHardTarget && mode is not DPSRotationMode.Manual) || (isHeal && cfg.HealerSettings.HealerAlwaysHardTarget && mode is not HealerRotationMode.Manual))
+                    Svc.Targets.Target = target;
+            }
+
             var castTime = ActionManager.GetAdjustedCastTime(ActionType.Action, outAct);
             bool orbwalking = cfg.OrbwalkerIntegration && OrbwalkerIPC.CanOrbwalk;
 
@@ -2160,12 +2164,6 @@ internal unsafe class AutoRotationController
 
             if (canUse && (inRange || areaTargeted))
             {
-                if (target is not null)
-                {
-                    if ((!isHeal && cfg.DPSSettings.DPSAlwaysHardTarget && mode is not DPSRotationMode.Manual) || (isHeal && cfg.HealerSettings.HealerAlwaysHardTarget && mode is not HealerRotationMode.Manual))
-                        Svc.Targets.Target = target;
-                }
-
                 WouldLikeToGroundTarget = areaTargeted;
                 if (changed)
                     Svc.Log.Debug($"Updated target to {target.Name} for {replacedWith.ActionName()}");
@@ -2324,8 +2322,8 @@ internal unsafe class AutoRotationController
         public static IBattleChara? GetTankTarget()
         {
             var tank = GetPartyMembers().FirstOrDefault(x => x.BattleChara?.GetRole() == CombatRole.Tank ||
-                HasStatusEffect(1719, x.BattleChara, true) || // BLU Mighty Guard
-                HasStatusEffect(3615, x.BattleChara, true));  // Duty Support Gosetsu Tank Stance
+                x.BattleChara.HasStatus(1719, true) || // BLU Mighty Guard
+                x.BattleChara.HasStatus(3615, true));  // Duty Support Gosetsu Tank Stance
             if (tank == null)
                 return null;
 

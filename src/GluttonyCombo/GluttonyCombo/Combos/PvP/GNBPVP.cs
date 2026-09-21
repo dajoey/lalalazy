@@ -1,8 +1,9 @@
-using GluttonyCombo.CustomComboNS;
+﻿using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.CustomComboNS.Functions;
 using GluttonyCombo.Window.Functions;
 using static GluttonyCombo.Window.Functions.UserConfig;
 using static GluttonyCombo.Combos.PvP.GNBPvP.Config;
+using GluttonyCombo.Extensions;
 
 namespace GluttonyCombo.Combos.PvP;
 
@@ -116,7 +117,7 @@ internal static class GNBPvP
                 //RoughDivide overcap protection
                 if (IsEnabled(Preset.GNBPvP_RoughDivide))
                 {
-                    if (HasCharges(RoughDivide) && !HasStatusEffect(Buffs.NoMercy) && !JustUsed(RoughDivide, 3f) &&
+                    if (HasCharges(RoughDivide) && !LocalPlayer.HasStatus(Buffs.NoMercy) && !JustUsed(RoughDivide, 3f) &&
                         (ActionReady(FatedCircle)|| ActionReady(GnashingFang) || GetRemainingCharges(RoughDivide) == 2)) // Will RD for for no mercy when at 2 charges, or before the fated circle or gnashing fang combo
                         return RoughDivide;
                 }
@@ -124,7 +125,7 @@ internal static class GNBPvP
                 //Fated Circle and Followup
                 if (IsEnabled(Preset.GNBPvP_FatedCircle))
                 {
-                    if (ActionReady(FatedCircle) && HasStatusEffect(Buffs.NoMercy) && OriginalHook(Continuation) == Continuation)
+                    if (ActionReady(FatedCircle) && LocalPlayer.HasStatus(Buffs.NoMercy) && OriginalHook(Continuation) == Continuation)
                         return FatedCircle;
                 }
 
@@ -144,7 +145,7 @@ internal static class GNBPvP
                 return actionID;
 
             return CanWeave() && 
-                   (HasStatusEffect(Buffs.ReadyToRip) || HasStatusEffect(Buffs.ReadyToTear) || HasStatusEffect(Buffs.ReadyToGouge))
+                   (LocalPlayer.HasStatus(Buffs.ReadyToRip) || LocalPlayer.HasStatus(Buffs.ReadyToTear) || LocalPlayer.HasStatus(Buffs.ReadyToGouge))
                 ? OriginalHook(Continuation)
                 : actionID;
         }

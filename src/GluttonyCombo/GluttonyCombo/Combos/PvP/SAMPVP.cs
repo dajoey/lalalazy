@@ -1,7 +1,8 @@
-using GluttonyCombo.CustomComboNS;
+﻿using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.CustomComboNS.Functions;
 using static GluttonyCombo.Window.Functions.UserConfig;
 using static GluttonyCombo.Combos.PvP.SAMPvP.Config;
+using GluttonyCombo.Extensions;
 
 namespace GluttonyCombo.Combos.PvP;
 
@@ -107,12 +108,12 @@ internal static class SAMPvP
             bool isMoving = IsMoving();
             bool inCombat = InCombat();
             bool hasTarget = HasTarget();
-            bool hasKaiten = HasStatusEffect(Buffs.Kaiten);
+            bool hasKaiten = LocalPlayer.HasStatus(Buffs.Kaiten);
             bool hasZanshin = OriginalHook(Chiten) is Zanshin;
-            bool hasBind = HasStatusEffect(PvPCommon.Debuffs.Bind, anyOwner: true);
+            bool hasBind = LocalPlayer.HasStatus(PvPCommon.Debuffs.Bind, true);
             bool targetHasImmunity = PvPCommon.TargetImmuneToDamage();
             bool isTargetPrimed = hasTarget && !targetHasImmunity;
-            bool targetHasKuzushi = HasStatusEffect(Debuffs.Kuzushi, CurrentTarget);
+            bool targetHasKuzushi = CurrentTarget.HasStatus(Debuffs.Kuzushi);
             bool hasKaeshiNamikiri = OriginalHook(OgiNamikiri) is Kaeshi;
             bool hasTendo = OriginalHook(MeikyoShisui) is TendoSetsugekka;
             bool isYukikazePrimed = ComboTimer == 0 || ComboAction is Kasha;
@@ -121,7 +122,7 @@ internal static class SAMPvP
             bool isMeikyoPrimed = IsOnCooldown(OgiNamikiri) && !hasKaeshiNamikiri && !hasKaiten && !isMoving;
             bool isZantetsukenPrimed = IsLB1Ready && !hasBind && hasTarget && targetHasKuzushi && InActionRange(Zantetsuken);
             bool isSotenPrimed = chargesSoten > SAMPvP_Soten_Charges && !hasKaiten && !hasBind && !hasPrioWeaponskill;
-            bool isTargetInvincible = HasStatusEffect(PLDPvP.Buffs.HallowedGround, CurrentTarget, true) || HasStatusEffect(DRKPvP.Buffs.UndeadRedemption, CurrentTarget, true);
+            bool isTargetInvincible = CurrentTarget.HasStatus(PLDPvP.Buffs.HallowedGround, true) || CurrentTarget.HasStatus(DRKPvP.Buffs.UndeadRedemption, true);
             #endregion
 
             // Zantetsuken

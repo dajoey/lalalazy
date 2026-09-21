@@ -4,7 +4,7 @@
   <PropertyGroup>
     <Authors>dajoey</Authors>
     <Company>-</Company>
-    <Version>1.0.4.227</Version>
+    <Version>1.0.4.228</Version>
     <!-- This is the version that will be used when pushing to the repo.-->
     <Description>Gluttony Combo - lalalazy fork of Gluttony Combo. XIVCombo for very lazy players.</Description>
     <Copyright>Copyleft attick 2021 thanks attick UwU (forked as Gluttony Combo by dajoey)</Copyright>
@@ -19,7 +19,7 @@
     <TargetFramework>net10.0-windows</TargetFramework>
     <Configurations>Debug;Release</Configurations>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
-    <NoWarn>CS1591</NoWarn>
+    <NoWarn>CS1591;PendingExcelSchema</NoWarn>
     <LangVersion>preview</LangVersion>
     <Platforms>x64</Platforms>
     <Nullable>enable</Nullable>

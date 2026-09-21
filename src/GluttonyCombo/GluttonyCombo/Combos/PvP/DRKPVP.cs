@@ -1,8 +1,9 @@
-using GluttonyCombo.CustomComboNS;
+﻿using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.CustomComboNS.Functions;
 using GluttonyCombo.Window.Functions;
 using static GluttonyCombo.Window.Functions.UserConfig;
 using static GluttonyCombo.Combos.PvP.DRKPvP.Config;
+using GluttonyCombo.Extensions;
 
 namespace GluttonyCombo.Combos.PvP;
 
@@ -82,21 +83,21 @@ internal class DRKPvP
                         return OriginalHook(Plunge);
                 }
 
-                if (IsEnabled(Preset.DRKPvP_Scorn) && HasStatusEffect(Buffs.Scorn))
+                if (IsEnabled(Preset.DRKPvP_Scorn) && LocalPlayer.HasStatus(Buffs.Scorn))
                     return OriginalHook(Eventide);
 
                 if (canWeave)
                 {
-                    if (IsEnabled(Preset.DRKPvP_BlackestNight) && ActionReady(BlackestNight) && !HasStatusEffect(Buffs.BlackestNight) && !WasLastAbility(BlackestNight))
+                    if (IsEnabled(Preset.DRKPvP_BlackestNight) && ActionReady(BlackestNight) && !LocalPlayer.HasStatus(Buffs.BlackestNight) && !WasLastAbility(BlackestNight))
                         return OriginalHook(BlackestNight);
 
                     if (IsEnabled(Preset.DRKPvP_SaltedEarth) && ActionReady(SaltedEarth) && IsEnabled(Preset.DRKPvP_SaltedEarth))
                         return OriginalHook(SaltedEarth);
 
-                    if (IsEnabled(Preset.DRKPvP_SaltAndDarkness) && HasStatusEffect(Buffs.SaltedEarthDMG) && ActionReady(SaltAndDarkness))
+                    if (IsEnabled(Preset.DRKPvP_SaltAndDarkness) && LocalPlayer.HasStatus(Buffs.SaltedEarthDMG) && ActionReady(SaltAndDarkness))
                         return OriginalHook(SaltAndDarkness);
 
-                    if (IsEnabled(Preset.DRKPvP_Shadowbringer) && !HasStatusEffect(Buffs.Blackblood) && (HasStatusEffect(Buffs.DarkArts) || PlayerHealthPercentageHp() >= shadowBringerThreshold))
+                    if (IsEnabled(Preset.DRKPvP_Shadowbringer) && !LocalPlayer.HasStatus(Buffs.Blackblood) && (LocalPlayer.HasStatus(Buffs.DarkArts) || PlayerHealthPercentageHp() >= shadowBringerThreshold))
                         return OriginalHook(Shadowbringer);
                 }
 

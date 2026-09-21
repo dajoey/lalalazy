@@ -9,8 +9,11 @@ using System;
 using System.Linq;
 using System.Numerics;
 using System.Text;
+using GluttonyCombo.Attributes;
+using GluttonyCombo.Core;
 using GluttonyCombo.CustomComboNS.Functions;
 using GluttonyCombo.Extensions;
+using GluttonyCombo.Native;
 using GluttonyCombo.Resources.Localization.UI.MainWindow;
 using GluttonyCombo.Resources.Localization.UI.Misc;
 using EZ = ECommons.Throttlers.EzThrottler;
@@ -560,6 +563,19 @@ public static class ConflictingPlugins
             conflicts = conflicts.Append(new Conflict(
                     "Redirect", ConflictType.Settings,
                     "Whole Plugin - Could be causing Bunnies [Reload or Disable Redirect]"))
+                .ToArray();
+
+        // Check if Redirect is enabled and any DPS or healing custom actions are enabled
+        var hasDpsOrHealingCustomActionsEnabled =
+            CustomActionHelper.CustomActionEnabled(CustomActionType.SingleTargetDPS) ||
+            CustomActionHelper.CustomActionEnabled(CustomActionType.AoEDPS) ||
+            CustomActionHelper.CustomActionEnabled(CustomActionType.SingleTargetHeals) ||
+            CustomActionHelper.CustomActionEnabled(CustomActionType.AoEHeals);
+
+        if (ConflictingPluginsChecks.Redirect.PluginEnabled && hasDpsOrHealingCustomActionsEnabled)
+            conflicts = conflicts.Append(new Conflict(
+                    "Redirect", ConflictType.Settings,
+                    "DPS or Healing Custom Actions are enabled with Redirect plugin [Disable Redirect or disable custom actions]"))
                 .ToArray();
 
         #endregion
