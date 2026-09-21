@@ -4113,6 +4113,8 @@ StockStack BagStack(uint id, int slot, int qty, uint cat = CatA, bool marketable
       buybackConfirmed: false) == RetainerCloseAction.Done);
 }
 
+// Inventory tab (feat/lmc-inventory-tab): venture-loot rails, ownership, gear mover, idle gate, IV| lines.
+InventoryCases.Run((name, ok, detail) => Check(name, ok, detail));
 
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
