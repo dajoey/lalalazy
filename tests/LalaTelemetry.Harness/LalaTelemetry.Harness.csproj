@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Plain console app, no Dalamud. Compiles src/Shared/LalaTelemetry/Core/** directly: any Dalamud type
+       leaking into Core breaks this build. Run from the repo root:
+         dotnet build tests/LalaTelemetry.Harness -c Release
+         dotnet tests/LalaTelemetry.Harness/bin/Release/net10.0/LalaTelemetry.Harness.dll [repoRoot] [plugin-dll options, see Program.cs]
+       Exit code 0 = every check passed. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>LalaTelemetry.Harness</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <!-- Same flag as the pilot plugins: the harness's own stack traces must carry file:line too. -->
+    <DebugType>embedded</DebugType>
+    <DefaultItemExcludes>$(DefaultItemExcludes);PdbProbe/**</DefaultItemExcludes>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\src\Shared\LalaTelemetry\Core\**\*.cs" Link="Core\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!-- Build both probes and copy their DLLs next to the harness; never referenced at compile time. -->
+  <ItemGroup>
+    <ProjectReference Include="PdbProbe\Embedded\PdbProbeEmbedded.csproj" ReferenceOutputAssembly="false" OutputItemType="Content" CopyToOutputDirectory="PreserveNewest" />
+    <ProjectReference Include="PdbProbe\None\PdbProbeNone.csproj" ReferenceOutputAssembly="false" OutputItemType="Content" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <Import Project="..\..\src\Shared\LalaTelemetry\LalaTelemetry.Stamp.targets" />
+</Project>
