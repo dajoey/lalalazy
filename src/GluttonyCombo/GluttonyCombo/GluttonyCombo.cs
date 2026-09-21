@@ -437,10 +437,9 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
             if (Service.Configuration.ComboTelemetry)
                 BeastmasterTelemetry.Tick();
 
-            // Crucible pet-selection autograb + read-only PSP| probe. Arms when a familiar-selection
-            // addon is open (XBMActivePet / XBMPetParty), never on territory; option-off still emits
-            // one PS| line per formation phase.
-            BST_CruciblePetSelect.Tick();
+            // Crucible: once per board change on BST, the effective Guard/Challenge mode (PS| aggro=).
+            // Familiar selection moved to the LazyCrucible plugin (2026-09-21).
+            BST.LogCrucibleAggroOnce();
 
             if (Player.IsDead)
             {
@@ -648,8 +647,6 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         Svc.ClientState.TerritoryChanged -= ClientState_TerritoryChanged;
         Svc.PluginInterface.UiBuilder.OpenConfigUi -= OnOpenConfigUi;
         Svc.PluginInterface.UiBuilder.Draw -= DrawUI;
-
-        BST_CruciblePetSelect.Dispose();
 
         Service.ActionReplacer.Dispose();
         Service.ComboCache.Dispose();

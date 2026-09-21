@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 
-namespace GluttonyCombo.Combos.PvE;
+namespace Lalalazy.Crucible;
 
-// Crucible of the Unbroken (Beastmaster-only duty, 7.56). Pure data, no Dalamud types: compiled into
-// tests/GluttonyCombo.BSTRotationHarness. The per-enemy panel table (BST_CrucibleData.Generated.cs) comes
+// Crucible of the Unbroken (Beastmaster-only duty, 7.56). Pure data, no Dalamud types: shared SOURCE
+// (GluttonyCombo + LazyCrucible + both harnesses). The per-enemy panel table (BST_CrucibleData.Generated.cs) comes
 // straight from the game's own XBM sheets; the sets in this file are hand-authored from the Crucible
 // guides (Icy Veins, consolegameswiki, nettoge, asellog) and a public reaction set, with status ids
 // confirmed against the 7.56 Status sheet.

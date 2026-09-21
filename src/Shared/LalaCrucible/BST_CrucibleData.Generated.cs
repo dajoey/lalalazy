@@ -4,7 +4,7 @@
 // Source: FFXIV 7.56 game sheets via xivapi v2 (version f5af21155b99a524): XBMContent, XBMContentBattle, XBMBattleDetail, XBMBattleDetailAction, BNpcName, BNpcResist, Action, Status. Decoded 2026-09-16.
 // </auto-generated>
 
-namespace GluttonyCombo.Combos.PvE;
+namespace Lalalazy.Crucible;
 
 internal static partial class BST_CrucibleData
 {

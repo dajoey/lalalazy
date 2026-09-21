@@ -57,6 +57,32 @@ internal partial class BST
         return result;
     }
 
+    // ------------------------------------------------------------------ Guard/Challenge telemetry
+
+    private static int _aggroLoggedBoard = -1;
+
+    /// <summary>
+    ///     Once per board change on BST: the effective Guard/Challenge mode and whether it is the shipped
+    ///     default or a stored override. Same <c>PS|…|aggro=</c> line the familiar-selection pass used to
+    ///     write before it moved to the LazyCrucible plugin; graders read it from this plugin's log.
+    /// </summary>
+    internal static void LogCrucibleAggroOnce()
+    {
+        if (Player.Job is not Job.BST || Player.Object is null)
+        {
+            _aggroLoggedBoard = -1;
+            return;
+        }
+
+        var board = BST_CrucibleData.BoardOfTerritory(Svc.ClientState.TerritoryType);
+        if (board == _aggroLoggedBoard)
+            return;
+        _aggroLoggedBoard = board;
+
+        var aggro = (CrucibleAggroMode)(int)Config.BST_CrucibleAggro;
+        Svc.Log.Information($"PS|{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}|aggro={(int)aggro}|aggroName={aggro}|b={board}|terr={Svc.ClientState.TerritoryType}|note=effective_default_On_stored_overrides");
+    }
+
     // ------------------------------------------------------------------ roster
 
     /// <summary> Whether the game has sent the captured-familiar list (it arrives with the Master's Bestiary). </summary>

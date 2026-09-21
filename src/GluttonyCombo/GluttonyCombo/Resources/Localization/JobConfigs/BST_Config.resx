@@ -243,11 +243,8 @@
   <data name="CrucibleHornWarningDesc" xml:space="preserve">
     <value>Horns deselect after every Crucible encounter. Out of combat, with the next battle's enemies present and all three horns empty, shows one warning.</value>
   </data>
-  <data name="CrucibleAutoGrab" xml:space="preserve">
-    <value>Auto-fill Battlehorn slots</value>
-  </data>
-  <data name="CrucibleAutoGrabDesc" xml:space="preserve">
-    <value>Off by default. On a Crucible familiar-selection screen — the Bentbranch Meadows NPC roster menu or the in-run battlehorn — once per formation phase, fills empty or mismatched Battlehorn slots from the run roster when the open screen is addressing horn indices. Picks are ranked for the opponent's elemental weakness, unanswered interrupt / dispel / cleanse abilities, crowd control that lands on that fight, and the fight's combat recommendations; HP is only a tie-breaker that demotes a hurt familiar. Never starts the fight. Does not rewrite the ten-familiar run roster on the Bentbranch menu.</value>
+  <data name="CrucibleMovedToLazyCrucible" xml:space="preserve">
+    <value>Familiar selection (run roster and Battlehorn auto-fill) and the beast-pick advisor are in the LazyCrucible plugin.</value>
   </data>
   <data name="CrucibleHornWarningMessage" xml:space="preserve">
     <value>Crucible: no beasts are assigned to the Battlehorns.</value>
@@ -266,36 +263,6 @@
   </data>
   <data name="CrucibleTargetingDesc" xml:space="preserve">
     <value>With Auto-Rotation targeting on a Crucible board: never picks zu eggs or morphos, picks enemies in a counter stance only when nothing else is up, takes priority adds first, and keeps pairs that must die together within 10% HP of each other.</value>
-  </data>
-  <data name="CrucibleAdvisorHeader" xml:space="preserve">
-    <value>Beast picks</value>
-  </data>
-  <data name="CrucibleAdvisorBoard" xml:space="preserve">
-    <value>Board</value>
-  </data>
-  <data name="CrucibleAdvisorRosterUnknown" xml:space="preserve">
-    <value>The captured familiar list has not arrived yet (open the Master's Bestiary once); picks assume every familiar is captured.</value>
-  </data>
-  <data name="CrucibleAdvisorRoster0" xml:space="preserve">
-    <value>Roster (familiars in the most battles' picks, number of battles): {0}</value>
-  </data>
-  <data name="CrucibleAdvisorBoss" xml:space="preserve">
-    <value>boss</value>
-  </data>
-  <data name="CrucibleAdvisorElite" xml:space="preserve">
-    <value>elite</value>
-  </data>
-  <data name="CrucibleAdvisorEnemy" xml:space="preserve">
-    <value>enemy</value>
-  </data>
-  <data name="CrucibleAdvisorRandom" xml:space="preserve">
-    <value>random space</value>
-  </data>
-  <data name="CrucibleAdvisorNeeds0" xml:space="preserve">
-    <value>Enemy panel calls for: {0}</value>
-  </data>
-  <data name="CrucibleAdvisorCapture" xml:space="preserve">
-    <value>Worth capturing:</value>
   </data>
   <data name="CrucibleScoreMode" xml:space="preserve">
     <value>Score mode (the character tanks)</value>

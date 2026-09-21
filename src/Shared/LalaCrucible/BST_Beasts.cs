@@ -1,10 +1,11 @@
-namespace GluttonyCombo.Combos.PvE;
+namespace Lalalazy.Crucible;
 
 // Beastmaster familiar roster (fork, BST rebuild 2026-09-16). GENERATED from the 7.56 game sheets
 // (xivapi v2 schema exdschema@2:latest: XBMPet -> Pet.Abilities[0]=Trick skill, [1]=Tempered Release
 // skill; BNpcName = 14406 + row; BNpcBase = 18915 + row, live-confirmed for wespe 18925, crab 18930,
 // flying trap 18935). Release classes are from the verbatim Tempered Release tooltips.
-// Pure data, no Dalamud types: compiled into tests/GluttonyCombo.BSTRotationHarness.
+// Pure data, no Dalamud types: shared SOURCE (src/Shared/LalaCrucible) compiled into GluttonyCombo,
+// LazyCrucible, tests/GluttonyCombo.BSTRotationHarness and tests/LazyCrucible.Harness.
 //
 // Ground truth that drives the rotation (research/bst-live-evidence.md, research/bst-gamedata.md):
 //  - Only wespe's Tempered Release (Final Sting, all-HP cost) makes the familiar retreat. On

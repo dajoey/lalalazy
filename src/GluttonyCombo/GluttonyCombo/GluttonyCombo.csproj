@@ -43,6 +43,14 @@
     <Compile Include="..\..\Shared\LalaChangelog\**\*.cs" Link="LalaChangelog\%(RecursiveDir)%(Filename)%(Extension)" />
     <EmbeddedResource Include="..\CHANGELOG.md" LogicalName="CHANGELOG.md" />
   </ItemGroup>
+  <!-- Crucible of the Unbroken data shared with the LazyCrucible plugin (fork, 2026-09-21): familiar
+       roster, board/battle/enemy panel tables and the beast-pick ranking, compiled as SOURCE into both
+       plugins (same reason as LalaChangelog). The rotation reads them; familiar selection lives in
+       LazyCrucible. Fork-owned: upstream WrathCombo has no copy. -->
+  <ItemGroup>
+    <Compile Include="..\..\Shared\LalaCrucible\**\*.cs" Link="LalaCrucible\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Using Include="Lalalazy.Crucible" />
+  </ItemGroup>
   <!-- Styling Rules -->
   <ItemGroup>
     <None Include="..\.editorconfig" Link=".editorconfig" />
