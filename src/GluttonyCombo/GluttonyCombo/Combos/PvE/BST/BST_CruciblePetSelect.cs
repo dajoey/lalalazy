@@ -8,6 +8,7 @@ using static ECommons.GenericHelpers;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
+using Lalalazy.Telemetry;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -121,7 +122,8 @@ internal static unsafe class BST_CruciblePetSelect
         }
         catch (Exception ex)
         {
-            Svc.Log.Debug(ex, "[BST_CruciblePetSelect] formation pass failed");
+            // Fork error reporting: was Debug (invisible) on a per-frame path. Rate-limited WRN.
+            LalaTelemetry.Swallowed("bst.petselect.formation", ex);
         }
     }
 
@@ -664,7 +666,7 @@ internal static unsafe class BST_CruciblePetSelect
         }
         catch (Exception ex)
         {
-            Svc.Log.Debug(ex, "[BST_CruciblePetSelect] restore failed");
+            LalaTelemetry.Swallowed("bst.petselect.restore", ex);
             return false;
         }
     }
@@ -893,7 +895,7 @@ internal static unsafe class BST_CruciblePetSelect
         }
         catch (Exception ex)
         {
-            Svc.Log.Debug(ex, "[BST_CruciblePetSelect] phase log failed");
+            LalaTelemetry.Swallowed("bst.petselect.phase-log", ex);
         }
     }
 
@@ -946,7 +948,8 @@ internal static unsafe class BST_CruciblePetSelect
         }
         catch (Exception ex)
         {
-            Svc.Log.Debug(ex, "[BST_CruciblePetSelect] signature resolve failed");
+            // Without these the autograb silently does nothing - exactly what a report needs to see.
+            LalaTelemetry.Swallowed("bst.petselect.signatures", ex);
             _sigsOk = false;
         }
         return _sigsOk;
@@ -970,7 +973,7 @@ internal static unsafe class BST_CruciblePetSelect
         }
         catch (Exception ex)
         {
-            Svc.Log.Debug(ex, "[BST_CruciblePetSelect] ReceiveEvent resolve failed");
+            LalaTelemetry.Swallowed("bst.petselect.receive-event", ex);
             return false;
         }
     }
@@ -1014,7 +1017,7 @@ internal static unsafe class BST_CruciblePetSelect
         }
         catch (Exception ex)
         {
-            Svc.Log.Debug(ex, "[BST_CruciblePetSelect] PSP probe hook failed");
+            LalaTelemetry.Swallowed("bst.petselect.probe-hook", ex);
         }
     }
 
@@ -1158,11 +1161,13 @@ internal static unsafe class BST_CruciblePetSelect
                         break;
                 }
             }
-            Svc.Log.Information(sb.ToString());
+            var line = sb.ToString();
+            Svc.Log.Information(line);
+            LalaTelemetry.Record(line);
         }
         catch (Exception ex)
         {
-            Svc.Log.Debug(ex, "[BST_CruciblePetSelect] PSP log failed");
+            LalaTelemetry.Swallowed("bst.petselect.probe-log", ex);
         }
     }
 
@@ -1173,6 +1178,7 @@ internal static unsafe class BST_CruciblePetSelect
         if (line.Length > 900)
             line = line[..900];
         Svc.Log.Information(line);
+        LalaTelemetry.Record(line);
     }
 
     private static string Clean(string? text, int max)

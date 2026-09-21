@@ -1,5 +1,6 @@
 using ECommons.DalamudServices;
 using ECommons.GameHelpers;
+using Lalalazy.Telemetry;
 using System;
 using System.Collections.Generic;
 using GluttonyCombo.Core;
@@ -21,8 +22,12 @@ namespace GluttonyCombo.Data;
 ///     (wiki Docker/ffxivdb § Action telemetry → Combo decisions).
 /// </summary>
 /// <remarks>
-///     <b>Cost when off:</b> a single bool read in
-///     <see cref="CustomComboNS.CustomCombo.TryInvoke"/>; nothing else runs.<br />
+///     <b>When off (the default):</b> nothing is logged, but since 2026-09-21 the same
+///     change-gate still runs and a changed decision is formatted into the in-memory
+///     telemetry ring (src/Shared/LalaTelemetry) that <c>/gluttony report</c> dumps -
+///     capped by a token bucket at 10 lines/s (burst 20), so a flickering decision can
+///     never format on every frame. Per call this is one dictionary lookup; formatting
+///     happens only on a decision change.<br />
 ///     <b>keyBuffs</b> is what the combos consulted THIS FRAME — the status
 ///     cache is cleared every framework tick and only lookups made by combo
 ///     code populate it — so it is per-frame, not strictly per-combo. Player
@@ -41,24 +46,33 @@ internal static class ComboTelemetry
     /// <summary> Last settled action per (preset, pressed button). </summary>
     private static readonly Dictionary<(uint Preset, uint Original), uint> LastChosen = new();
 
+    /// <summary> Ring-only formatting budget while the log toggle is off (never per frame). </summary>
+    private static TokenBucket _ringBudget = new(20, 10);
+
     /// <summary> Forgets every remembered decision (toggle-on, so the first decision re-emits). </summary>
     public static void Reset() => LastChosen.Clear();
 
     /// <summary>
     ///     Records one settled decision; emits a line only when the chosen
     ///     action for this (preset, button) pair differs from the last one.
+    ///     <paramref name="log"/> = the "Combo Decision Telemetry" switch: on writes the
+    ///     line to the plugin log; off keeps it only in the telemetry ring (rate-capped).
     /// </summary>
     /// <param name="preset"> The combo that made the decision. </param>
     /// <param name="original"> The button that was pressed / walked. </param>
     /// <param name="chosen"> The action that will actually go out (== original when unchanged). </param>
-    public static void Record(Preset preset, uint original, uint chosen)
+    /// <param name="log"> Write to the plugin log (the telemetry switch), not just the ring. </param>
+    public static void Record(Preset preset, uint original, uint chosen, bool log)
     {
         if (!ComboTelemetryFormat.ShouldEmit(LastChosen, (uint)preset, original, chosen))
             return;
 
+        if (!log && !_ringBudget.TryTake(Environment.TickCount64))
+            return;
+
         try
         {
-            Svc.Log.Information(ComboTelemetryFormat.BuildLine(
+            var line = ComboTelemetryFormat.BuildLine(
                 DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                 Player.Job.ToString(),
                 preset.ToString(),
@@ -68,12 +82,16 @@ internal static class ComboTelemetry
                 ActionWatching.WeaveActions.Count,
                 CustomComboFunctions.CanWeave(),
                 CustomComboFunctions.GetTargetHPPercent(),
-                ConsultedBuffs()));
+                ConsultedBuffs());
+            if (log)
+                Svc.Log.Information(line);
+            LalaTelemetry.Record(line);
         }
         catch (Exception ex)
         {
-            // A telemetry tap must never be able to break a combo.
-            Svc.Log.Debug(ex, "[ComboTelemetry] failed to emit a decision line");
+            // A telemetry tap must never be able to break a combo - but one that silently stops is how a
+            // report ends up with "zero telemetry". Rate-limited WRN (fork error reporting), not Debug.
+            LalaTelemetry.Swallowed("telemetry.ct", ex);
         }
     }
 

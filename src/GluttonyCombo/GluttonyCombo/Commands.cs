@@ -131,6 +131,7 @@ public partial class GluttonyCombo
             "Open a window to edit custom combo settings.\n" +
             $"{Command} auto → Toggle Auto-rotation on/off.\n" +
             $"{Command} debug → Dumps a debug log onto your desktop for developers.\n" +
+            $"{Command} report <what happened> → Writes a problem report (game state, recent decisions, open windows) to the plugin log.\n" +
             $"{OldCommand} → Old alias from XIVSlothCombo, still works!");
         EzCmd.Add(OldCommand, OnCommand);
     }
@@ -153,6 +154,15 @@ public partial class GluttonyCombo
     /// </param>
     private void OnCommand(string command, string arguments)
     {
+        // Fork (error reporting): handled before the lower-casing below so the report text is kept as typed.
+        var trimmed = arguments.Trim();
+        if (trimmed.Equals("report", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("report ", StringComparison.OrdinalIgnoreCase))
+        {
+            HandleReportCommand(trimmed.Length > 6 ? trimmed[6..].Trim() : string.Empty);
+            return;
+        }
+
         var argumentParts = arguments.ToLowerInvariant().Split();
         switch (argumentParts[0])
         {
