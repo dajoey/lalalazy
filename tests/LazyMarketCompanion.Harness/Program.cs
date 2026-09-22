@@ -4116,6 +4116,62 @@ StockStack BagStack(uint id, int slot, int qty, uint cat = CatA, bool marketable
 // Inventory tab (feat/lmc-inventory-tab): venture-loot rails, ownership, gear mover, idle gate, IV| lines.
 InventoryCases.Run((name, ok, detail) => Check(name, ok, detail));
 
+// 129. GATE CHUNK RETRY (0.1.68.0): a chunk that dies transiently - the HttpClient 8 s timeout
+//     surfaces as a TaskCanceledException on a live token - is retried once before its items are
+//     declared unpriceable. Measured 2026-09-21: one 50-id chunk timed out while its siblings
+//     answered, and all 50 items listed with the threshold unchecked; the next evening nearly
+//     every chunk timed out (125 of 129 unpriced).
+{
+  Dictionary<uint, ItemQuote> QuotesFor(IReadOnlyList<uint> chunk) =>
+    chunk.ToDictionary(id => id, id => new ItemQuote(id, true, 1, [new QuoteListing(100, false, false)]));
+
+  var ids = Enumerable.Range(1, 120).Select(i => (uint)i).ToList();
+
+  // Case A: every chunk times out once, then answers - nothing ends up unpriceable.
+  var callsA = new Dictionary<string, int>();
+  async Task<Dictionary<uint, ItemQuote>> FlakyOnce(IReadOnlyList<uint> chunk, CancellationToken ct)
+  {
+    await Task.Yield();
+    var key = string.Join(",", chunk);
+    callsA[key] = callsA.TryGetValue(key, out var n) ? n + 1 : 1;
+    if (callsA[key] == 1)
+      throw new TaskCanceledException("simulated 8 s Universalis timeout");
+    return QuotesFor(chunk);
+  }
+  var recovered = await GateChunkFetch.FetchAllAsync(ids, 50, FlakyOnce, (_, _) => { }, CancellationToken.None);
+  Check("129 gate fetch: a transient timeout on every chunk is retried, all 120 items priced",
+    recovered.Quotes != null && recovered.Quotes.Count == 120 && recovered.FailedChunks == 0 && recovered.RetriedChunks == 3,
+    $"quotes={recovered.Quotes?.Count} retried={recovered.RetriedChunks} failed={recovered.FailedChunks}");
+  Check("129 gate fetch: each chunk fetched exactly twice",
+    callsA.Count == 3 && callsA.Values.All(n => n == 2), string.Join(",", callsA.Values));
+
+  // Case B: one chunk never answers - the rest still price, the dead chunk is reported once.
+  var failedReports = 0;
+  async Task<Dictionary<uint, ItemQuote>> FlakyOneDead(IReadOnlyList<uint> chunk, CancellationToken ct)
+  {
+    await Task.Yield();
+    if (chunk.Contains(51u))
+      throw new TaskCanceledException("simulated persistent Universalis timeout");
+    return QuotesFor(chunk);
+  }
+  var partial = await GateChunkFetch.FetchAllAsync(ids, 50, FlakyOneDead, (_, _) => failedReports++, CancellationToken.None);
+  Check("129 gate fetch: a persistently dead chunk costs only its own 50 items",
+    partial.Quotes != null && partial.Quotes.Count == 70 && partial.FailedChunks == 1 && partial.RetriedChunks == 0 && failedReports == 1,
+    $"quotes={partial.Quotes?.Count} failed={partial.FailedChunks} reports={failedReports}");
+  Check("129 gate fetch: answered count covers the two live chunks",
+    partial.AnsweredItemCount == 70, $"answered={partial.AnsweredItemCount}");
+
+  // Case C: every chunk dead - null quotes (the declared blind gate), never an empty map.
+  async Task<Dictionary<uint, ItemQuote>> AlwaysDead(IReadOnlyList<uint> chunk, CancellationToken ct)
+  {
+    await Task.Yield();
+    throw new TaskCanceledException("simulated outage");
+  }
+  var blind = await GateChunkFetch.FetchAllAsync(ids, 50, AlwaysDead, (_, _) => { }, CancellationToken.None);
+  Check("129 gate fetch: all chunks dead returns null quotes (blind gate, not empty sight)",
+    blind.Quotes == null && blind.FailedChunks == 3, $"failed={blind.FailedChunks}");
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 

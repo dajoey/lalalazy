@@ -1,3 +1,11 @@
+## v0.1.68.0 (2026-09-22)
+
+### Fixed
+
+- **A Universalis request that times out no longer blinds its whole batch of items.** The gate asks about items in groups of 50; when one group died on the 8-second request timeout, all 50 items listed with the price threshold unchecked, and on a slow Universalis evening nearly every group timed out at once (125 of 129 items unpriced). A group that fails is now asked once more before it is declared failed - the gate already waits up to 25 seconds for prices, so the second ask fits inside that wait. Items whose group fails twice behave exactly as before: they list, never vendor, and the warning names how many went unchecked.
+
+- Offline suite: new case 129 pins the retry - a group that fails once then answers prices everything with no failures recorded; a group that never answers costs only its own items while the rest price; all groups dead still returns the declared blind gate rather than an empty result.
+
 ## v0.1.67.0 (2026-09-21)
 
 - **New "Inventory" tab.** Nothing in it changes Auto-Market, category routing or Sweep to Bags.

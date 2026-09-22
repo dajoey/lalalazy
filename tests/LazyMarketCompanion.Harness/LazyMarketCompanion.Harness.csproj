@@ -33,6 +33,7 @@
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\CategoryRouting.cs" />
   <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\MarkerAnchor.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\DoneLine.cs" />
+    <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\GateChunkFetch.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\SaleHistoryPricing.cs" />
     <!-- Inventory tab (feat/lmc-inventory-tab): the Dalamud-free core, plus the shared telemetry line
          builder its IV| audit lines are built with. -->

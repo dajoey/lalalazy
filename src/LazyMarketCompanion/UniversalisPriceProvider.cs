@@ -198,28 +198,22 @@ internal sealed class UniversalisPriceProvider : IDisposable
     // the rest still answer, so a single flaky batch costs a few unpriceable items (announced by
     // the gate) instead of the whole gate's sight. Every chunk dead returns null: the declared
     // blind gate, never a silent one.
-    var merged = new Dictionary<uint, ItemQuote>();
-    var answeredIds = 0;
-    for (var i = 0; i < itemIds.Count; i += GateChunkSize)
-    {
-      var chunk = itemIds.Skip(i).Take(GateChunkSize).ToList();
-      try
+    // 0.1.68.0: one retry per chunk. Measured 2026-09-21, a 50-id chunk died on the HttpClient's
+    // own 8 s timeout while its siblings answered, and all 50 items listed with the threshold
+    // unchecked; on the next evening's sweep nearly every chunk timed out (125 of 129 unpriced).
+    // A transient timeout is now retried once before the chunk is declared failed - the wait step
+    // already runs up to 25 s, so the retry fits inside the budget the gate already allows.
+    var result = await GateChunkFetch.FetchAllAsync(
+      itemIds,
+      GateChunkSize,
+      async (chunk, ct) =>
       {
-        var json = await _client.GetMarketDataJson(chunk, scopeName, cancellationToken, listings: UniversalisClient.ListingCount, entries: 20).ConfigureAwait(false);
-        foreach (var kv in UniversalisQuotes.Parse(json, Plugin.Configuration.SeenRetainers))
-          merged[kv.Key] = kv.Value;
-        answeredIds += chunk.Count;
-      }
-      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-      {
-        throw;
-      }
-      catch (Exception ex)
-      {
-        Svc.Log.Warning(ex, $"[LMC] Auto-Market gate lookup failed for {chunk.Count} item(s); continuing with the other chunks");
-      }
-    }
-    return answeredIds > 0 ? merged : null;
+        var json = await _client.GetMarketDataJson(chunk, scopeName, ct, listings: UniversalisClient.ListingCount, entries: 20).ConfigureAwait(false);
+        return UniversalisQuotes.Parse(json, Plugin.Configuration.SeenRetainers);
+      },
+      (count, ex) => Svc.Log.Warning(ex, $"[LMC] Auto-Market gate lookup failed for {count} item(s) twice; continuing with the other chunks"),
+      cancellationToken).ConfigureAwait(false);
+    return result.Quotes;
   }
 
   /// <summary>
