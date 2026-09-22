@@ -1,5 +1,9 @@
 # Changelog - Lazy Currency Spender
 
+## v1.2.7.1 (2026-09-22)
+
+- Fixed an error the plugin logged on every game close (the type initializer for ECommons.Automation.Callback threw an exception). The bundled support library predated the current game data layout and failed to initialise during shutdown; it is now current with the rest of the plugin family. No change to currency tracking or the spending suggestions.
+
 ## v1.2.7.0 (2026-09-05)
 
 - Added the in-game "What's new" popup. After Lazy Currency Spender updates, its changelog now opens once inside the game so the changes are visible without a trip to GitHub. It waits until the character is logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/cur changelog` any time to reopen it.
