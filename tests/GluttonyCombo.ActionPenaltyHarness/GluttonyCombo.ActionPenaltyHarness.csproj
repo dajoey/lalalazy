@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Plain console app, no Dalamud and no ECommons. Compiles the REAL
+       src/GluttonyCombo/GluttonyCombo/Core/ActionPenalty.cs, so the penalty decision that ships
+       in the zip is the one asserted here. Any game type leaking into that file breaks this
+       build, which is the point. The null-statuses case guards fingerprint 3072e17f8875
+       (UseActionDetour ArgumentNullException with no local player).
+         dotnet build tests\GluttonyCombo.ActionPenaltyHarness -c Release
+         dotnet tests\GluttonyCombo.ActionPenaltyHarness\bin\Release\net10.0\GluttonyCombo.ActionPenaltyHarness.dll
+       Prints PASS/FAIL per case, "OK" and exit 0 when every case passes. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>GluttonyCombo.ActionPenaltyHarness</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NoWarn>$(NoWarn);CS1574;CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Core\ActionPenalty.cs" Link="ActionPenalty.cs" />
+  </ItemGroup>
+</Project>

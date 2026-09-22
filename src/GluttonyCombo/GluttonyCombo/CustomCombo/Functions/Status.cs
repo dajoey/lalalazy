@@ -8,6 +8,7 @@ using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using GluttonyCombo.Core;
 using GluttonyCombo.Data;
 using GluttonyCombo.Data.BattleData;
 using GluttonyCombo.Extensions;
@@ -204,20 +205,21 @@ internal abstract partial class CustomComboFunctions
         hasActionPenalty = BattleData.PauseActions();
         if (!hasActionPenalty)
         {
+            // No local player (login screen, territory transition): Player.Status is
+            // null and Enumerable.Any on it throws out of UseActionDetour
+            // (fingerprint 3072e17f8875). No statuses means no penalty - keep the
+            // BattleData answer instead of crashing.
+            var statuses = Player.Status;
+            if (statuses is null)
+                return hasActionPenalty;
+
             float userSetting = fromAutorot ? 1.5f : Service.Configuration.PenaltyPause;
-            hasActionPenalty =
-                Player.Status.Any(s =>
-                    // Acceleration Bomb within Timeframe
-                    (StatusCache.PausingStatuses.AccelerationBombs.Contains(s.StatusId) &&
-                        s.RemainingTimeOrZero(false) <= userSetting) ||
-
-                    // Pyretic
-                    StatusCache.PausingStatuses.Pyretics.Contains(s.StatusId) ||
-
-                    // Others
-                    (StatusCache.PausingStatuses.Misc.Contains(s.StatusId) && s.RemainingTimeOrZero(false) <= userSetting)
-
-                );
+            hasActionPenalty = ActionPenalty.HasPenalty(
+                statuses.Select(s => (s.StatusId, s.RemainingTimeOrZero(false))),
+                userSetting,
+                StatusCache.PausingStatuses.AccelerationBombs,
+                StatusCache.PausingStatuses.Pyretics,
+                StatusCache.PausingStatuses.Misc);
         }
 
         if (hasActionPenalty)

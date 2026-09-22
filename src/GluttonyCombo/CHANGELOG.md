@@ -1,3 +1,9 @@
+﻿## v1.0.4.231 (2026-09-22) [testing]
+### Fixed
+- **Action check no longer throws with no local player.** The Pyretic / Acceleration Bomb input block read the player status list without a null guard, so using an action during login, character select or a territory transition raised an error instead of passing the action through. A missing status list now counts as no penalty, and the penalty decision is covered by an offline harness.
+### Notes
+- Production channel unchanged.
+
 ## v1.0.4.230 (2026-09-21) [testing]
 ### Added
 - **Problem reports.** `/gluttony report <what happened>` or the "Report a problem" button in the settings window writes a report to the plugin log: zone, job, target, auto-rotation and opener state, the presets enabled for the current job, the recent combo decisions and the windows that are open.
