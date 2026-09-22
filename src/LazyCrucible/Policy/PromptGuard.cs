@@ -104,12 +104,12 @@ internal static class PromptGuard
 }
 
 /// <summary>
-///     Treasure pick actuation. The choice buttons are plain buttons whose click event param starts at 2 [pub]; which
-///     param belongs to which choice (AtkValue order) was never recorded, so the treasure pick ships as a suggestion
-///     until the 0.1.0.0 recorder's <c>XR|</c> line of one manual pick (param) and the HUD after it (item) ground the
-///     mapping. The input path below is complete and still refuses Yes unless the prompt names the chosen item.
+///     Treasure pick actuation. Choice buttons are plain buttons whose click event param starts at
+///     <see cref="ActuationGuard.TreasureFirstParam"/> (= 2) [pub]. Live XR/XC pairs ground the mapping:
+///     param = TreasureFirstParam + choice index (param 2→0, 3→1, 4→2, 5→3). The Yes path still refuses unless the
+///     prompt names the chosen item.
 /// </summary>
 internal static class TreasureActuation
 {
-    public static readonly bool Grounded = false;
+    public static readonly bool Grounded = true;
 }

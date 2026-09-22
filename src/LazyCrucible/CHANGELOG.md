@@ -1,5 +1,9 @@
 # LazyCrucible — Changelog
 
+## v0.1.2.0 (2026-09-22)
+
+- **Treasure**: takes the best choice instead of only suggesting it. Live button clicks confirmed choice *k* is event param `2+k`, so the pick path that was already built can fire.
+
 ## v0.1.1.0 (2026-09-21)
 
 - **Beast Feed**: picks the familiar each feed helps most in the fights ahead and confirms it (kin, satiety, no repeats, knocked-out familiars honoured).

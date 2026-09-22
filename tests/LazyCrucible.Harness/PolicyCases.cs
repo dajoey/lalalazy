@@ -268,6 +268,15 @@ internal static class PolicyCases
             && !ActuationGuard.Allowed("XBMContentsTreasure", ActuationGuard.Input.Button, [], eventParam: 1)
             && !ActuationGuard.Allowed("SelectYesno", ActuationGuard.Input.Callback, [2]));
 
+        // Manual treasure clicks (testing 0.1.1.0): XR type=25 param paired with XC choice index —
+        // param 2→0, 3→1, 4→2, 5→3. That is TreasureFirstParam + index; actuation may fire.
+        Check("Treasure actuation grounded: param = TreasureFirstParam + choice index (live XR/XC)",
+            TreasureActuation.Grounded
+            && ActuationGuard.TreasureFirstParam == 2
+            && Enumerable.Range(0, 4).All(i =>
+                ActuationGuard.Allowed("XBMContentsTreasure", ActuationGuard.Input.Button, [],
+                    eventParam: ActuationGuard.TreasureFirstParam + i)));
+
         var latch = new ScreenLatch();
         var opened = latch.Update(true);
         latch.StandDown("player edit");
