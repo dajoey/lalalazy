@@ -235,7 +235,7 @@ function renderMap() {
     else if (!reach.has(n.id)) classes.push('off');
     if (next.has(n.id)) classes.push('next');
     if (state.selected === n.id) classes.push('sel');
-    return `<g class="${classes.join(' ')}" data-id="${n.id}" role="button" tabindex="0" aria-label="Move ${n.depth}: ${esc(n.type)}">
+    return `<g class="${classes.join(' ')}" data-id="${n.id}" role="button" tabindex="0" aria-label="${glyph} ${esc(nodeLabel(bm, n))}: move ${n.depth}, ${esc(n.type)}">
       <circle class="${cls}" cx="${X(n)}" cy="${Y(n)}" r="17"/>
       <text class="g" x="${X(n)}" y="${Y(n)}">${glyph}</text>
       <text class="l" x="${X(n)}" y="${Y(n) + 29}">${esc(nodeLabel(bm, n))}</text>
@@ -256,7 +256,7 @@ function renderSummary() {
       ? `<div class="cp-empty">None of your familiars scores on this board yet.</div>`
       : team.map((t) => `<span class="chip">${esc(beastName(t.row))} <small>×${t.battles}</small></span>`).join('');
   $('#board-summary').innerHTML = `<div class="cp-card cp-summary">
-    <div class="cp-card-head"><span class="cp-title">${esc(bm.name)}</span><span class="cp-sub">${bm.nodes.length} spaces · ${ab.battles} fights · ${bm.timeLimitMin} min limit</span></div>
+    <div class="cp-card-head"><h2 class="cp-title">${esc(bm.name)}</h2><span class="cp-sub">${bm.nodes.length} spaces · ${ab.battles} fights · ${bm.timeLimitMin} min limit</span></div>
     <div class="cp-kv">
       <div><b>Level sync</b>${bm.level}${bm.itemLevel ? ` / iLv ${bm.itemLevel}` : ''}</div>
       <div><b>Beast rank sync</b>${bm.rankSync}</div>
@@ -264,7 +264,7 @@ function renderSummary() {
       <div><b>Unlock</b>${esc(bm.unlockQuest?.name || '—')}</div>
       <div><b>Legendary line</b>≈ ${CONFIG.legendary[state.board].toLocaleString()} <span class="cp-sub">(guides)</span></div>
     </div>
-    <div class="cp-picks"><h4>Your team for this board <span class="cp-sub">(${Math.min(team.length, bm.teamSize)} of ${bm.teamSize}, familiars that make a fight's top three, most fights first)</span></h4>${teamHtml}</div>
+    <div class="cp-picks"><h3>Your team for this board <span class="cp-sub">(${Math.min(team.length, bm.teamSize)} of ${bm.teamSize}, familiars that make a fight's top three, most fights first)</span></h3>${teamHtml}</div>
     <details class="cp-casts"><summary>Score bonuses on this board (${bonuses.length})</summary>
       <div class="cp-bonus">${bonuses.map(([n, v]) => `<div>${esc(n)}<span>${v.toLocaleString()}</span></div>`).join('')}</div>
     </details>
@@ -302,9 +302,9 @@ function picksHtml(board, battle) {
     ? picks.map((p, i) => `<div class="cp-pick"><span class="slot">${i + 1}</span><span class="nm">${esc(beastName(p.row))}</span><span class="why">${esc(p.why || '—')}</span><span class="sc">${p.score}</span></div>`).join('')
     : `<div class="cp-empty">${state.trackHp ? 'Every familiar you own is knocked out.' : 'No familiar you own scores here.'}</div>`;
   const worthHtml = worth.length
-    ? `<h4>Worth capturing before this board <span class="cp-sub">(capturable by Lv ${bm.level})</span></h4>${worth.map((p) => `<div class="cp-pick"><span class="slot">+</span><span class="nm">${esc(beastName(p.row))}</span><span class="why">${esc(p.why || '—')}</span><span class="sc">${p.score}</span></div>`).join('')}`
+    ? `<h3>Worth capturing before this board <span class="cp-sub">(capturable by Lv ${bm.level})</span></h3>${worth.map((p) => `<div class="cp-pick"><span class="slot">+</span><span class="nm">${esc(beastName(p.row))}</span><span class="why">${esc(p.why || '—')}</span><span class="sc">${p.score}</span></div>`).join('')}`
     : '';
-  return `<div class="cp-picks"><h4>Bring${state.trackHp ? ' <span class="cp-sub">(run HP applied)</span>' : ''}</h4>${list}${worthHtml}</div>`;
+  return `<div class="cp-picks"><h3>Bring${state.trackHp ? ' <span class="cp-sub">(run HP applied)</span>' : ''}</h3>${list}${worthHtml}</div>`;
 }
 
 function fightCard(bm, node, battleNo, opts = {}) {
@@ -316,7 +316,7 @@ function fightCard(bm, node, battleNo, opts = {}) {
   const inner = `
     <div class="cp-card-head">
       <span class="cp-move">Move ${node.depth}</span>
-      <span class="cp-title">${esc(role)}: ${esc(names)}</span>
+      <h2 class="cp-title">${esc(role)}: ${esc(names)}</h2>
       <span class="cp-sub">${b.enemies.map((e) => elementChip(e.weakness)).join('')}${needChips(needs)}</span>
     </div>
     <div class="cp-enemies">${b.enemies.map((e) => enemyHtml(e, battleNo === 0 && e.sub === 0)).join('')}</div>
@@ -333,9 +333,9 @@ function renderSheet() {
     if (n.type === 'Start') continue;
     let body = '';
     if (n.battle !== undefined) body = fightCard(bm, n, n.battle);
-    else if (n.type === 'Campsite') body = `<div class="cp-card-head"><span class="cp-move">Move ${n.depth}</span><span class="cp-title">Campsite</span></div><div class="cp-outcomes">Rest here. Heals you and up to ${n.recover ?? '?'} familiars; the split you choose decides how much each gets.</div>`;
-    else if (n.type === 'Shop') body = `<div class="cp-card-head"><span class="cp-move">Move ${n.depth}</span><span class="cp-title">Shop</span></div><div class="cp-outcomes">Spend Territory Tokens: feed first, then potions and gear. The list scrolls.</div>`;
-    else if (n.type === 'Treasure') body = `<div class="cp-card-head"><span class="cp-move">Move ${n.depth}</span><span class="cp-title">Treasure</span></div><div class="cp-outcomes">Pick one item (two with a Thief's Knife).</div>`;
+    else if (n.type === 'Campsite') body = `<div class="cp-card-head"><span class="cp-move">Move ${n.depth}</span><h2 class="cp-title">Campsite</h2></div><div class="cp-outcomes">Rest here. Heals you and up to ${n.recover ?? '?'} familiars; the split you choose decides how much each gets.</div>`;
+    else if (n.type === 'Shop') body = `<div class="cp-card-head"><span class="cp-move">Move ${n.depth}</span><h2 class="cp-title">Shop</h2></div><div class="cp-outcomes">Spend Territory Tokens: feed first, then potions and gear. The list scrolls.</div>`;
+    else if (n.type === 'Treasure') body = `<div class="cp-card-head"><span class="cp-move">Move ${n.depth}</span><h2 class="cp-title">Treasure</h2></div><div class="cp-outcomes">Pick one item (two with a Thief's Knife).</div>`;
     else if (n.type === 'Random') {
       const outs = (n.outcomes || []).map((o) => {
         if (o.xbm_content_battle) {
@@ -345,8 +345,8 @@ function renderSheet() {
         if (o.type === 'Campsite') return `<li><b>Campsite</b> — rest, up to ${o.familiar_recover_count ?? '?'} familiars</li>`;
         return `<li><b>${esc(o.type)}</b></li>`;
       }).join('');
-      body = `<div class="cp-card-head"><span class="cp-move">Move ${n.depth}</span><span class="cp-title">Random space</span><span class="cp-sub">resolves on arrival to one of:</span></div><ul class="cp-outcomes">${outs || '<li>unknown</li>'}</ul>`;
-    } else body = `<div class="cp-card-head"><span class="cp-move">Move ${n.depth}</span><span class="cp-title">${esc(n.type)}</span></div>`;
+      body = `<div class="cp-card-head"><span class="cp-move">Move ${n.depth}</span><h2 class="cp-title">Random space</h2><span class="cp-sub">resolves on arrival to one of:</span></div><ul class="cp-outcomes">${outs || '<li>unknown</li>'}</ul>`;
+    } else body = `<div class="cp-card-head"><span class="cp-move">Move ${n.depth}</span><h2 class="cp-title">${esc(n.type)}</h2></div>`;
     cards.push(`<div class="cp-card${state.selected === id ? ' sel' : ''}" data-node="${id}">${body}</div>`);
   }
   const bmChildren = children(bm, p[p.length - 1]);
@@ -362,7 +362,7 @@ function renderRoster() {
     if (!rows.length) return '';
     const own = rows.filter(captured).length;
     const role = kin === 7 ? 'interrupt (Soul Crush)' : kin === 5 ? 'dispel (Quelling Wave)' : kin === 8 ? 'cleanse (Scouring Ash)' : '';
-    return `<div class="cp-kin"><h4>${KIN_NAMES[kin]} <small>${own}/${rows.length}${role ? ' · ' + role : ''}</small></h4>${rows.map((r) => {
+    return `<div class="cp-kin"><h3>${KIN_NAMES[kin]} <small>${own}/${rows.length}${role ? ' · ' + role : ''}</small></h3>${rows.map((r) => {
       const b = data.beasts[r];
       const prof = data.beastProfiles[r];
       const owned = captured(r);

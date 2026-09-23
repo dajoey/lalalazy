@@ -6,10 +6,17 @@
 <title>Crucible Planner — Beastmaster's Crucible of the Unbroken, planned from the familiars you own</title>
 <meta name="description" content="Free planner for FFXIV Beastmaster's Crucible of the Unbroken: every board mapped, every fight's weaknesses and casts, and the best three familiars for each fight from the beasts you actually own. Works on a phone. Nothing to install.">
 <link rel="canonical" href="https://dajoey.github.io/lalalazy/crucible/">
-<link rel="icon" href="https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/repo-icon.png">
+<link rel="icon" href="icon-96.png">
 <meta property="og:title" content="Crucible Planner — FFXIV Beastmaster">
 <meta property="og:description" content="Every Crucible board, every fight, and the best three familiars per fight from your own roster. Free, no install, phone friendly.">
-<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=Noto+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=Noto+Sans:wght@400;700&display=swap" rel="stylesheet">
+<link rel="modulepreload" href="app.js">
+<link rel="modulepreload" href="advisor.js">
+<link rel="preload" href="data/advisor.json" as="fetch" crossorigin>
+<link rel="preload" href="data/boards.json" as="fetch" crossorigin>
+<link rel="preload" href="data/version.json" as="fetch" crossorigin>
 <link rel="stylesheet" href="../colors_and_type.css">
 <link rel="stylesheet" href="../site.css">
 <link rel="stylesheet" href="crucible.css">
@@ -18,7 +25,7 @@
 <div class="wrap">
 
   <nav class="nav">
-    <a class="brand" href="../"><img src="https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/repo-icon.png" alt=""><b>lalalazy</b></a>
+    <a class="brand" href="../"><img src="icon-96.png" width="38" height="38" alt=""><b>lalalazy</b></a>
     <span class="spacer"></span>
     <a class="link" href="#boards">Boards</a>
     <a class="link" href="#roster">Roster</a>
@@ -42,7 +49,7 @@
           <span class="cp-panel-title" id="map-title">Board</span>
           <button class="cp-mini" id="reset-route" type="button">Reset route</button>
         </div>
-        <div id="map" class="cp-map"></div>
+        <div id="map" class="cp-map"><div class="cp-skel">Loading the board…</div></div>
         <div class="cp-legend">
           <span><i class="n n-enemy">E</i> Enemy</span>
           <span><i class="n n-elite">X</i> Elite</span>
@@ -64,7 +71,7 @@
 
   <section id="roster" class="cp-section">
     <details open class="cp-details">
-      <summary class="shead">Your roster <span class="cp-count" id="roster-count"></span></summary>
+      <summary><h2 class="shead">Your roster <span class="cp-count" id="roster-count"></span></h2></summary>
       <p class="cp-hint">Tick the familiars you have captured. Picks, the board team and the "worth capturing" list follow your roster. Saved in this browser; use <b>Share</b> to carry it to another device.</p>
       <div class="cp-roster-tools">
         <button class="cp-mini" type="button" data-roster="all">All</button>
@@ -81,7 +88,7 @@
 
   <section id="about" class="cp-section">
     <details class="cp-details">
-      <summary class="shead">About the data</summary>
+      <summary><h2 class="shead">About the data</h2></summary>
       <div class="cp-prose">
         <p><b>Where the numbers come from.</b> Boards, spaces, branches, every enemy's weakness, star ratings, vulnerabilities and panel casts are read from the game's own Crucible tables (patch 7.56). Nothing here is typed in by hand, so a balance patch means a regeneration, not a rewrite.</p>
         <p><b>How the picks are made.</b> The familiar recommendations use the same advisor that drives the <a href="../mods/lazycrucible.html">LazyCrucible</a> plugin's selection screens, verified in real runs: weakness matches on the fight's main enemy count most, then crowd control the enemy is actually vulnerable to, then an unanswered interrupt, dispel or cleanse, then the beast's main stat and constitution at the board's rank sync. The third horn is deliberately traded toward utility rather than a third weakness hit, the way the good guides do it. Picks are suggestions with their reasons shown; your run, your call.</p>
