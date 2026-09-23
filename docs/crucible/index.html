@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crucible Planner — Beastmaster's Crucible of the Unbroken, planned from the familiars you own</title>
+<meta name="description" content="Free planner for FFXIV Beastmaster's Crucible of the Unbroken: every board mapped, every fight's weaknesses and casts, and the best three familiars for each fight from the beasts you actually own. Works on a phone. Nothing to install.">
+<link rel="canonical" href="https://dajoey.github.io/lalalazy/crucible/">
+<link rel="icon" href="https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/repo-icon.png">
+<meta property="og:title" content="Crucible Planner — FFXIV Beastmaster">
+<meta property="og:description" content="Every Crucible board, every fight, and the best three familiars per fight from your own roster. Free, no install, phone friendly.">
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=Noto+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="../site.css">
+<link rel="stylesheet" href="crucible.css">
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="nav">
+    <a class="brand" href="../"><img src="https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/repo-icon.png" alt=""><b>lalalazy</b></a>
+    <span class="spacer"></span>
+    <a class="link" href="#boards">Boards</a>
+    <a class="link" href="#roster">Roster</a>
+    <a class="link" href="#about">About</a>
+    <a class="link" href="https://github.com/dajoey/lalalazy">GitHub</a>
+    <span id="kofi-slot"></span>
+  </nav>
+
+  <header class="cp-hero">
+    <h1>Crucible Planner</h1>
+    <p class="tag">Beastmaster's <b>Crucible of the Unbroken</b>, planned from the familiars you actually own. Every board, every fight, the best three horns for each one, and what to capture next. Nothing to install; it works on your phone next to the console.</p>
+    <div class="cp-version" id="version">loading game data…</div>
+  </header>
+
+  <section id="boards" class="cp-boards" aria-label="Boards"></section>
+
+  <div class="cp-layout">
+    <aside class="cp-map-col">
+      <div class="cp-panel">
+        <div class="cp-panel-head">
+          <span class="cp-panel-title" id="map-title">Board</span>
+          <button class="cp-mini" id="reset-route" type="button">Reset route</button>
+        </div>
+        <div id="map" class="cp-map"></div>
+        <div class="cp-legend">
+          <span><i class="n n-enemy">E</i> Enemy</span>
+          <span><i class="n n-elite">X</i> Elite</span>
+          <span><i class="n n-boss">B</i> Boss</span>
+          <span><i class="n n-camp">C</i> Campsite</span>
+          <span><i class="n n-shop">S</i> Shop</span>
+          <span><i class="n n-treasure">T</i> Treasure</span>
+          <span><i class="n n-random">?</i> Random</span>
+        </div>
+        <p class="cp-hint">Tap a space to choose your route at each fork. Spaces the game locks out are dimmed. Tap a space on your route to go back to it.</p>
+      </div>
+    </aside>
+
+    <main class="cp-sheet-col">
+      <div id="board-summary"></div>
+      <div id="run-sheet"></div>
+    </main>
+  </div>
+
+  <section id="roster" class="cp-section">
+    <details open class="cp-details">
+      <summary class="shead">Your roster <span class="cp-count" id="roster-count"></span></summary>
+      <p class="cp-hint">Tick the familiars you have captured. Picks, the board team and the "worth capturing" list follow your roster. Saved in this browser; use <b>Share</b> to carry it to another device.</p>
+      <div class="cp-roster-tools">
+        <button class="cp-mini" type="button" data-roster="all">All</button>
+        <button class="cp-mini" type="button" data-roster="none">None</button>
+        <button class="cp-mini" type="button" data-roster="lv30">Capturable by Lv 30</button>
+        <button class="cp-mini" type="button" data-roster="lv40">Lv 40</button>
+        <button class="cp-mini" type="button" data-roster="lv50">Lv 50</button>
+        <label class="cp-toggle"><input type="checkbox" id="track-hp"> Track run HP (hurt or KO'd familiars rank lower)</label>
+        <button class="cp-mini" type="button" id="share">Share</button>
+      </div>
+      <div id="roster-grid" class="cp-roster"></div>
+    </details>
+  </section>
+
+  <section id="about" class="cp-section">
+    <details class="cp-details">
+      <summary class="shead">About the data</summary>
+      <div class="cp-prose">
+        <p><b>Where the numbers come from.</b> Boards, spaces, branches, every enemy's weakness, star ratings, vulnerabilities and panel casts are read from the game's own Crucible tables (patch 7.56). Nothing here is typed in by hand, so a balance patch means a regeneration, not a rewrite.</p>
+        <p><b>How the picks are made.</b> The familiar recommendations use the same advisor that drives the <a href="../mods/lazycrucible.html">LazyCrucible</a> plugin's selection screens, verified in real runs: weakness matches on the fight's main enemy count most, then crowd control the enemy is actually vulnerable to, then an unanswered interrupt, dispel or cleanse, then the beast's main stat and constitution at the board's rank sync. The third horn is deliberately traded toward utility rather than a third weakness hit, the way the good guides do it. Picks are suggestions with their reasons shown; your run, your call.</p>
+        <p><b>What this does not do.</b> It does not play the board for you, does not need any plugin, and does not track your character. Your roster lives in this browser only.</p>
+        <p><b>Credits.</b> Guides that shaped the fight notes and the advisor's rules: <a href="https://www.icy-veins.com/ffxiv/beastmaster-crucible-of-the-unbroken">Icy Veins</a>, the <a href="https://ffxiv.consolegameswiki.com/wiki/Crucible_of_the_Unbroken">FFXIV Community Wiki</a>, <a href="https://eorzeantavern.com/crucible-of-the-unbroken/">Eorzean Tavern</a>, and the Japanese board guides at nettoge and asellog. Score bonuses are listed here; for full score planning see <a href="https://evyx.gg/beastmaster/score-calculator">Evyx's calculator</a>.</p>
+        <p><b>PC player with Dalamud?</b> <a href="../mods/lazycrucible.html">LazyCrucible</a> fills the roster and the horns in-game from the same advisor.</p>
+      </div>
+    </details>
+  </section>
+
+  <footer class="foot">
+    Part of <a href="../">lalalazy</a>. Built and maintained by <a href="https://github.com/dajoey">dajoey</a>. <span id="version-foot"></span>
+    <div class="disc">Not affiliated with Square Enix. FINAL FANTASY XIV is a registered trademark of Square Enix Holdings Co., Ltd. Game data © Square Enix.</div>
+  </footer>
+</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

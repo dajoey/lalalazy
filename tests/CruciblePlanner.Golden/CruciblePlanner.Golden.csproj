@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Golden-fixture dumper for the web Crucible Planner (docs/crucible, 2026-09-22). Compiles the REAL shared
+       advisor (src/Shared/LalaCrucible) and writes every pick the JavaScript port must reproduce byte for byte:
+         dotnet run -c Release - -project tests/CruciblePlanner.Golden - - tests/CruciblePlanner.Golden/golden.json
+       docs/crucible/test/advisor.test.mjs (node - -test) replays golden.json against docs/crucible/advisor.js.
+       Re-run whenever BST_CrucibleAdvisor.cs, BST_CrucibleData*.cs or BST_Beasts.cs change; commit the JSON. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>CruciblePlanner.Golden</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);CS1574;CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\..\src\Shared\LalaCrucible\**\*.cs" Link="LalaCrucible\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Using Include="Lalalazy.Crucible" />
+  </ItemGroup>
+</Project>

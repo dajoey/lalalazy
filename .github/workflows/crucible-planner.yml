@@ -1,0 +1,45 @@
+# Crucible Planner (docs/crucible): the JavaScript advisor must stay byte-identical to the shared C# advisor,
+# and the exported data files must match their generators. Runs on every change to the planner, the shared
+# Crucible source, the sheet slices, or the golden dumper.
+name: Crucible Planner
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'docs/crucible/**'
+      - 'tests/CruciblePlanner.Golden/**'
+      - 'src/Shared/LalaCrucible/**'
+      - 'tools/crucible-planner/**'
+      - 'tools/bst-crucible/**'
+      - '.github/workflows/crucible-planner.yml'
+  pull_request:
+    paths:
+      - 'docs/crucible/**'
+      - 'tests/CruciblePlanner.Golden/**'
+      - 'src/Shared/LalaCrucible/**'
+      - 'tools/crucible-planner/**'
+      - 'tools/bst-crucible/**'
+      - '.github/workflows/crucible-planner.yml'
+
+jobs:
+  advisor-port:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Golden fixtures are current (regenerate from the shared C# advisor and compare)
+        run: |
+          dotnet run -c Release --project tests/CruciblePlanner.Golden -- /tmp/golden.json
+          cmp /tmp/golden.json tests/CruciblePlanner.Golden/golden.json
+      - name: Exported data files are current (advisor.json, boards.json)
+        run: |
+          python3 tools/crucible-planner/export_planner_data.py
+          git diff --exit-code -- docs/crucible/data/advisor.json docs/crucible/data/boards.json
+      - name: JavaScript advisor matches the C# advisor
+        run: node --test docs/crucible/test/advisor.test.mjs

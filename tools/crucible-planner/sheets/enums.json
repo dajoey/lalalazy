@@ -1,0 +1,133 @@
+{
+ "XBMActionTarget": {
+  "0": "",
+  "1": "Self",
+  "2": "Ground",
+  "3": "Highest Enmity",
+  "4": "Random",
+  "5": "Player",
+  "6": "Allies"
+ },
+ "XBMActionEffectType": {
+  "0": "???",
+  "1": "Single Target",
+  "2": "Front",
+  "3": "Rear",
+  "4": "Front/Rear",
+  "5": "Lateral",
+  "6": "Circle",
+  "7": "Ring",
+  "8": "Circle/Ring",
+  "9": "Universal",
+  "10": "Cross"
+ },
+ "XBMElement_weakness": {
+  "0": "",
+  "1": "Fire",
+  "2": "Wind",
+  "3": "Earth",
+  "4": "Lightning",
+  "5": "Ice",
+  "6": "Water",
+  "7": "Blunt",
+  "8": "Piercing",
+  "9": "Slashing"
+ },
+ "XBMStageEventType(StageEvent.Unknown0)": {
+  "0": {
+   "name": null,
+   "addon": null,
+   "XBMStageEventType.Unknown0": 0
+  },
+  "1": {
+   "name": "Start",
+   "addon": 17540,
+   "XBMStageEventType.Unknown0": 0
+  },
+  "2": {
+   "name": "Enemy",
+   "addon": 17541,
+   "XBMStageEventType.Unknown0": 3
+  },
+  "3": {
+   "name": "Elite Enemy",
+   "addon": 17542,
+   "XBMStageEventType.Unknown0": 2
+  },
+  "4": {
+   "name": "Boss",
+   "addon": 17543,
+   "XBMStageEventType.Unknown0": 1
+  },
+  "5": {
+   "name": "Shop",
+   "addon": 17544,
+   "XBMStageEventType.Unknown0": 5
+  },
+  "6": {
+   "name": "Campsite",
+   "addon": 17545,
+   "XBMStageEventType.Unknown0": 6
+  },
+  "7": {
+   "name": "Treasure",
+   "addon": 17546,
+   "XBMStageEventType.Unknown0": 4
+  },
+  "8": {
+   "name": "Random",
+   "addon": 17547,
+   "XBMStageEventType.Unknown0": 7
+  }
+ },
+ "BNpcResist.Unknown0_index_INFERRED": {
+  "0": "Slow",
+  "1": "Petrification",
+  "2": "Paralysis",
+  "3": "Silence/Interrupt",
+  "4": "Blind",
+  "5": "Poison",
+  "6": "Stun",
+  "7": "Sleep",
+  "8": "Bind",
+  "9": "Heavy",
+  "10": "Doom"
+ },
+ "XBMBattleDetail.Unknown5-9_INFERRED": [
+  "STR",
+  "INT",
+  "PHY_R",
+  "MAG_R",
+  "CON"
+ ],
+ "Action.AttackType": {
+  "0": null,
+  "1": "Slashing",
+  "2": "Piercing",
+  "3": "Blunt",
+  "4": "Shot",
+  "5": "Magic",
+  "6": "Breath",
+  "7": "Sound",
+  "8": "Limit Break"
+ },
+ "Action.Aspect": {
+  "0": null,
+  "1": "Fire",
+  "2": "Ice",
+  "3": "Wind",
+  "4": "Earth",
+  "5": "Lightning",
+  "6": "Water",
+  "7": "Unaspected"
+ },
+ "Action.CastType": {
+  "1": "single-target",
+  "2": "circle",
+  "10": "donut",
+  "11": "cross",
+  "12": "line/rect",
+  "13": "cone",
+  "14": "unknown(14)"
+ }
+}
