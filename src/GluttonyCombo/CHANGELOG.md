@@ -1,4 +1,10 @@
-﻿## v1.0.4.231 (2026-09-22) [testing]
+﻿## v1.0.4.232 (2026-09-23) [testing]
+### Added
+- **Crucible: Borgny Salivous Snap is treated as a hard hit.** The First Master's Board boss's 7-second single-target cast now triggers the same Snarl / Challenge shadow and live aggro rules as the other logged tankbusters.
+### Notes
+- Production channel unchanged.
+
+## v1.0.4.231 (2026-09-22) [testing]
 ### Fixed
 - **Action check no longer throws with no local player.** The Pyretic / Acceleration Bomb input block read the player status list without a null guard, so using an action during login, character select or a territory transition raised an error instead of passing the action through. A missing status list now counts as no penalty, and the penalty decision is covered by an offline harness.
 ### Notes

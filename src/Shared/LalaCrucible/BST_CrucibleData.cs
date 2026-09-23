@@ -190,7 +190,7 @@ internal static partial class BST_CrucibleData
         46935, 46934, 46872, 46906, 46920,        // First Board: Cold Caress, Blood Sword, Skullsplinter, Deadly Thrust, Straight Punch
         48138, 48204, 48247,                      // Second Board: Deadly Hold, 100-tonze Slash, Void Paralyze
         48620, 48471, 48489, 50465, 48563,        // Third Board: Thunderbolt, Crushing Blade, Caustic Vomit, Flying Frenzy, Song of Torment
-        48809, 48689, 48730,                      // First Master's: Toxic Vomit, Final Sting, Grim Fate
+        48809, 48822, 48689, 48730,               // First Master's: Toxic Vomit, Salivous Snap, Final Sting, Grim Fate
         49470, 49188, 49205, 49254,               // Second Master's: Thunderbolt, Erratic Blaster, Void Thunder III, Mangling Fang
     ];
 
