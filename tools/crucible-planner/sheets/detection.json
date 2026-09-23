@@ -1,0 +1,1001 @@
+{
+ "territory_type_ids": {
+  "1339": 1,
+  "1340": 2,
+  "1341": 3,
+  "1342": 4,
+  "1343": 5
+ },
+ "cfc_ids": {
+  "1088": 1,
+  "1089": 2,
+  "1090": 3,
+  "1091": 4,
+  "1092": 5
+ },
+ "territory_intended_use": 62,
+ "content_type": 40,
+ "instance_content_type": 22,
+ "duty_actions": {
+  "Challenge": 46750,
+  "Snarl": 46751
+ },
+ "bnpcname_to_encounters": {
+  "14531": [
+   {
+    "board": 1,
+    "battle": 1,
+    "xbm_battle_detail": 1,
+    "name": "bone knight"
+   }
+  ],
+  "14532": [
+   {
+    "board": 1,
+    "battle": 1,
+    "xbm_battle_detail": 1,
+    "name": "bone bishop"
+   }
+  ],
+  "14533": [
+   {
+    "board": 1,
+    "battle": 2,
+    "xbm_battle_detail": 2,
+    "name": "arch demon piece"
+   }
+  ],
+  "14535": [
+   {
+    "board": 1,
+    "battle": 3,
+    "xbm_battle_detail": 3,
+    "name": "piscodemon piece"
+   }
+  ],
+  "14536": [
+   {
+    "board": 1,
+    "battle": 4,
+    "xbm_battle_detail": 4,
+    "name": "banemite piece"
+   }
+  ],
+  "14537": [
+   {
+    "board": 1,
+    "battle": 4,
+    "xbm_battle_detail": 4,
+    "name": "miteling piece"
+   }
+  ],
+  "14538": [
+   {
+    "board": 1,
+    "battle": 5,
+    "xbm_battle_detail": 5,
+    "name": "ogre piece"
+   }
+  ],
+  "14539": [
+   {
+    "board": 1,
+    "battle": 5,
+    "xbm_battle_detail": 5,
+    "name": "wisp piece"
+   }
+  ],
+  "14541": [
+   {
+    "board": 1,
+    "battle": 0,
+    "xbm_battle_detail": 6,
+    "name": "Pas de Seul"
+   }
+  ],
+  "14542": [
+   {
+    "board": 1,
+    "battle": 0,
+    "xbm_battle_detail": 6,
+    "name": "succubus mage"
+   }
+  ],
+  "14543": [
+   {
+    "board": 1,
+    "battle": 0,
+    "xbm_battle_detail": 6,
+    "name": "succubus knight"
+   }
+  ],
+  "14545": [
+   {
+    "board": 2,
+    "battle": 1,
+    "xbm_battle_detail": 7,
+    "name": "manticore piece"
+   }
+  ],
+  "14546": [
+   {
+    "board": 2,
+    "battle": 2,
+    "xbm_battle_detail": 8,
+    "name": "taurus piece"
+   }
+  ],
+  "14548": [
+   {
+    "board": 2,
+    "battle": 2,
+    "xbm_battle_detail": 8,
+    "name": "ahriman piece"
+   }
+  ],
+  "14549": [
+   {
+    "board": 2,
+    "battle": 3,
+    "xbm_battle_detail": 9,
+    "name": "wyvern piece"
+   }
+  ],
+  "14552": [
+   {
+    "board": 2,
+    "battle": 4,
+    "xbm_battle_detail": 10,
+    "name": "voidmancer piece"
+   }
+  ],
+  "14553": [
+   {
+    "board": 2,
+    "battle": 4,
+    "xbm_battle_detail": 10,
+    "name": "zombie piece"
+   }
+  ],
+  "14555": [
+   {
+    "board": 2,
+    "battle": 5,
+    "xbm_battle_detail": 11,
+    "name": "elder tablitaur piece"
+   }
+  ],
+  "14556": [
+   {
+    "board": 2,
+    "battle": 5,
+    "xbm_battle_detail": 11,
+    "name": "younger tablitaur piece"
+   }
+  ],
+  "14557": [
+   {
+    "board": 2,
+    "battle": 6,
+    "xbm_battle_detail": 12,
+    "name": "demon piece"
+   }
+  ],
+  "14558": [
+   {
+    "board": 2,
+    "battle": 6,
+    "xbm_battle_detail": 12,
+    "name": "evil weapon piece"
+   }
+  ],
+  "14559": [
+   {
+    "board": 2,
+    "battle": 6,
+    "xbm_battle_detail": 12,
+    "name": "devilet piece"
+   }
+  ],
+  "14561": [
+   {
+    "board": 2,
+    "battle": 0,
+    "xbm_battle_detail": 13,
+    "name": "Loosefrox Inkyjots"
+   }
+  ],
+  "14562": [
+   {
+    "board": 2,
+    "battle": 0,
+    "xbm_battle_detail": 13,
+    "name": "Chewchum Popoto"
+   }
+  ],
+  "14564": [
+   {
+    "board": 3,
+    "battle": 1,
+    "xbm_battle_detail": 14,
+    "name": "cavalier piece"
+   }
+  ],
+  "14567": [
+   {
+    "board": 3,
+    "battle": 1,
+    "xbm_battle_detail": 14,
+    "name": "bone bishop"
+   }
+  ],
+  "14569": [
+   {
+    "board": 3,
+    "battle": 2,
+    "xbm_battle_detail": 15,
+    "name": "ymir piece"
+   }
+  ],
+  "14571": [
+   {
+    "board": 3,
+    "battle": 2,
+    "xbm_battle_detail": 15,
+    "name": "Sahagin piece"
+   }
+  ],
+  "14572": [
+   {
+    "board": 3,
+    "battle": 3,
+    "xbm_battle_detail": 16,
+    "name": "zu piece"
+   }
+  ],
+  "14573": [
+   {
+    "board": 3,
+    "battle": 3,
+    "xbm_battle_detail": 16,
+    "name": "cockerel piece"
+   }
+  ],
+  "14574": [
+   {
+    "board": 3,
+    "battle": 3,
+    "xbm_battle_detail": 16,
+    "name": "pullet piece"
+   }
+  ],
+  "14577": [
+   {
+    "board": 3,
+    "battle": 4,
+    "xbm_battle_detail": 17,
+    "name": "catoblepas piece"
+   }
+  ],
+  "14580": [
+   {
+    "board": 3,
+    "battle": 5,
+    "xbm_battle_detail": 18,
+    "name": "Lakhamu piece"
+   }
+  ],
+  "14581": [
+   {
+    "board": 3,
+    "battle": 5,
+    "xbm_battle_detail": 18,
+    "name": "golem piece"
+   }
+  ],
+  "14583": [
+   {
+    "board": 3,
+    "battle": 6,
+    "xbm_battle_detail": 19,
+    "name": "siren piece"
+   }
+  ],
+  "14585": [
+   {
+    "board": 3,
+    "battle": 6,
+    "xbm_battle_detail": 19,
+    "name": "shambling piece"
+   }
+  ],
+  "14586": [
+   {
+    "board": 3,
+    "battle": 6,
+    "xbm_battle_detail": 19,
+    "name": "crawling piece"
+   }
+  ],
+  "14587": [
+   {
+    "board": 3,
+    "battle": 7,
+    "xbm_battle_detail": 20,
+    "name": "campeador piece"
+   }
+  ],
+  "14588": [
+   {
+    "board": 3,
+    "battle": 7,
+    "xbm_battle_detail": 20,
+    "name": "sabotender piece"
+   }
+  ],
+  "14589": [
+   {
+    "board": 3,
+    "battle": 7,
+    "xbm_battle_detail": 20,
+    "name": "flowertender piece"
+   }
+  ],
+  "14590": [
+   {
+    "board": 3,
+    "battle": 7,
+    "xbm_battle_detail": 20,
+    "name": "soldado piece"
+   }
+  ],
+  "14591": [
+   {
+    "board": 3,
+    "battle": 7,
+    "xbm_battle_detail": 20,
+    "name": "guardia piece"
+   }
+  ],
+  "14592": [
+   {
+    "board": 3,
+    "battle": 0,
+    "xbm_battle_detail": 21,
+    "name": "Guttler the Gutter"
+   }
+  ],
+  "14595": [
+   {
+    "board": 3,
+    "battle": 0,
+    "xbm_battle_detail": 21,
+    "name": "Thanatos piece"
+   }
+  ],
+  "14596": [
+   {
+    "board": 4,
+    "battle": 1,
+    "xbm_battle_detail": 22,
+    "name": "Strix piece"
+   }
+  ],
+  "14599": [
+   {
+    "board": 4,
+    "battle": 2,
+    "xbm_battle_detail": 23,
+    "name": "morbol piece"
+   }
+  ],
+  "14600": [
+   {
+    "board": 4,
+    "battle": 2,
+    "xbm_battle_detail": 23,
+    "name": "seedling piece"
+   }
+  ],
+  "14601": [
+   {
+    "board": 4,
+    "battle": 2,
+    "xbm_battle_detail": 23,
+    "name": "ochu piece"
+   }
+  ],
+  "14602": [
+   {
+    "board": 4,
+    "battle": 2,
+    "xbm_battle_detail": 23,
+    "name": "carrion broth"
+   }
+  ],
+  "14603": [
+   {
+    "board": 4,
+    "battle": 3,
+    "xbm_battle_detail": 24,
+    "name": "corpse flower piece"
+   }
+  ],
+  "14605": [
+   {
+    "board": 4,
+    "battle": 3,
+    "xbm_battle_detail": 24,
+    "name": "queen hawk piece"
+   }
+  ],
+  "14606": [
+   {
+    "board": 4,
+    "battle": 4,
+    "xbm_battle_detail": 25,
+    "name": "ice dragon piece"
+   }
+  ],
+  "14607": [
+   {
+    "board": 4,
+    "battle": 4,
+    "xbm_battle_detail": 25,
+    "name": "ice sprite"
+   }
+  ],
+  "14608": [
+   {
+    "board": 4,
+    "battle": 5,
+    "xbm_battle_detail": 26,
+    "name": "gargoyle piece"
+   }
+  ],
+  "14610": [
+   {
+    "board": 4,
+    "battle": 6,
+    "xbm_battle_detail": 27,
+    "name": "administrator piece"
+   }
+  ],
+  "14611": [
+   {
+    "board": 4,
+    "battle": 6,
+    "xbm_battle_detail": 27,
+    "name": "bug piece"
+   }
+  ],
+  "14612": [
+   {
+    "board": 4,
+    "battle": 6,
+    "xbm_battle_detail": 27,
+    "name": "footman piece"
+   }
+  ],
+  "14613": [
+   {
+    "board": 4,
+    "battle": 6,
+    "xbm_battle_detail": 27,
+    "name": "dreadnaught piece"
+   }
+  ],
+  "14614": [
+   {
+    "board": 4,
+    "battle": 6,
+    "xbm_battle_detail": 27,
+    "name": "drone piece"
+   }
+  ],
+  "14616": [
+   {
+    "board": 4,
+    "battle": 6,
+    "xbm_battle_detail": 27,
+    "name": "cobra piece"
+   }
+  ],
+  "14617": [
+   {
+    "board": 4,
+    "battle": 7,
+    "xbm_battle_detail": 28,
+    "name": "golem piece"
+   }
+  ],
+  "14618": [
+   {
+    "board": 4,
+    "battle": 8,
+    "xbm_battle_detail": 29,
+    "name": "treant piece"
+   }
+  ],
+  "14619": [
+   {
+    "board": 4,
+    "battle": 8,
+    "xbm_battle_detail": 29,
+    "name": "slug piece"
+   }
+  ],
+  "14620": [
+   {
+    "board": 4,
+    "battle": 8,
+    "xbm_battle_detail": 29,
+    "name": "sapling piece"
+   }
+  ],
+  "14621": [
+   {
+    "board": 4,
+    "battle": 8,
+    "xbm_battle_detail": 29,
+    "name": "diremite piece"
+   }
+  ],
+  "14622": [
+   {
+    "board": 4,
+    "battle": 8,
+    "xbm_battle_detail": 29,
+    "name": "biloko piece"
+   }
+  ],
+  "14623": [
+   {
+    "board": 4,
+    "battle": 9,
+    "xbm_battle_detail": 30,
+    "name": "Progenitrix piece"
+   }
+  ],
+  "14624": [
+   {
+    "board": 4,
+    "battle": 9,
+    "xbm_battle_detail": 30,
+    "name": "grenade piece"
+   }
+  ],
+  "14625": [
+   {
+    "board": 4,
+    "battle": 9,
+    "xbm_battle_detail": 30,
+    "name": "bomb piece"
+   }
+  ],
+  "14626": [
+   {
+    "board": 4,
+    "battle": 9,
+    "xbm_battle_detail": 30,
+    "name": "snoll piece"
+   }
+  ],
+  "14627": [
+   {
+    "board": 4,
+    "battle": 9,
+    "xbm_battle_detail": 30,
+    "name": "pyrobolus piece"
+   }
+  ],
+  "14628": [
+   {
+    "board": 4,
+    "battle": 0,
+    "xbm_battle_detail": 31,
+    "name": "Borgny the Venomous"
+   }
+  ],
+  "14629": [
+   {
+    "board": 4,
+    "battle": 0,
+    "xbm_battle_detail": 31,
+    "name": "toxic mass"
+   }
+  ],
+  "14631": [
+   {
+    "board": 5,
+    "battle": 1,
+    "xbm_battle_detail": 32,
+    "name": "Flauros piece"
+   }
+  ],
+  "14632": [
+   {
+    "board": 5,
+    "battle": 1,
+    "xbm_battle_detail": 32,
+    "name": "lightning sprite"
+   }
+  ],
+  "14633": [
+   {
+    "board": 5,
+    "battle": 2,
+    "xbm_battle_detail": 33,
+    "name": "mindflayer piece"
+   }
+  ],
+  "14634": [
+   {
+    "board": 5,
+    "battle": 2,
+    "xbm_battle_detail": 33,
+    "name": "myconid piece"
+   }
+  ],
+  "14638": [
+   {
+    "board": 5,
+    "battle": 3,
+    "xbm_battle_detail": 34,
+    "name": "boogyman piece"
+   }
+  ],
+  "14639": [
+   {
+    "board": 5,
+    "battle": 3,
+    "xbm_battle_detail": 34,
+    "name": "deepeye piece"
+   }
+  ],
+  "14640": [
+   {
+    "board": 5,
+    "battle": 3,
+    "xbm_battle_detail": 34,
+    "name": "bomb piece"
+   }
+  ],
+  "14641": [
+   {
+    "board": 5,
+    "battle": 3,
+    "xbm_battle_detail": 34,
+    "name": "light sprite"
+   }
+  ],
+  "14642": [
+   {
+    "board": 5,
+    "battle": 4,
+    "xbm_battle_detail": 35,
+    "name": "Atomos piece"
+   }
+  ],
+  "14643": [
+   {
+    "board": 5,
+    "battle": 4,
+    "xbm_battle_detail": 35,
+    "name": "red gremlin piece"
+   }
+  ],
+  "14644": [
+   {
+    "board": 5,
+    "battle": 4,
+    "xbm_battle_detail": 35,
+    "name": "gremlin piece"
+   }
+  ],
+  "14645": [
+   {
+    "board": 5,
+    "battle": 4,
+    "xbm_battle_detail": 35,
+    "name": "pudding piece"
+   }
+  ],
+  "14646": [
+   {
+    "board": 5,
+    "battle": 4,
+    "xbm_battle_detail": 35,
+    "name": "bavarois piece"
+   }
+  ],
+  "14647": [
+   {
+    "board": 5,
+    "battle": 4,
+    "xbm_battle_detail": 35,
+    "name": "flan piece"
+   }
+  ],
+  "14648": [
+   {
+    "board": 5,
+    "battle": 4,
+    "xbm_battle_detail": 35,
+    "name": "vodoriga piece"
+   }
+  ],
+  "14649": [
+   {
+    "board": 5,
+    "battle": 4,
+    "xbm_battle_detail": 35,
+    "name": "menacing dahak piece"
+   }
+  ],
+  "14651": [
+   {
+    "board": 5,
+    "battle": 5,
+    "xbm_battle_detail": 36,
+    "name": "drake piece"
+   }
+  ],
+  "14653": [
+   {
+    "board": 5,
+    "battle": 5,
+    "xbm_battle_detail": 36,
+    "name": "barbmole piece"
+   }
+  ],
+  "14655": [
+   {
+    "board": 5,
+    "battle": 5,
+    "xbm_battle_detail": 36,
+    "name": "abaddon piece"
+   }
+  ],
+  "14656": [
+   {
+    "board": 5,
+    "battle": 5,
+    "xbm_battle_detail": 36,
+    "name": "morpho piece"
+   }
+  ],
+  "14657": [
+   {
+    "board": 5,
+    "battle": 6,
+    "xbm_battle_detail": 37,
+    "name": "Durga piece"
+   }
+  ],
+  "14659": [
+   {
+    "board": 5,
+    "battle": 6,
+    "xbm_battle_detail": 37,
+    "name": "spinner-rook piece"
+   }
+  ],
+  "14660": [
+   {
+    "board": 5,
+    "battle": 7,
+    "xbm_battle_detail": 38,
+    "name": "medusa piece"
+   }
+  ],
+  "14661": [
+   {
+    "board": 5,
+    "battle": 7,
+    "xbm_battle_detail": 38,
+    "name": "lamia piece"
+   }
+  ],
+  "14662": [
+   {
+    "board": 5,
+    "battle": 7,
+    "xbm_battle_detail": 38,
+    "name": "cyclops piece"
+   }
+  ],
+  "14663": [
+   {
+    "board": 5,
+    "battle": 8,
+    "xbm_battle_detail": 39,
+    "name": "chimera piece"
+   }
+  ],
+  "14665": [
+   {
+    "board": 5,
+    "battle": 9,
+    "xbm_battle_detail": 40,
+    "name": "sphinx piece"
+   }
+  ],
+  "14670": [
+   {
+    "board": 5,
+    "battle": 10,
+    "xbm_battle_detail": 41,
+    "name": "gigantis piece"
+   }
+  ],
+  "14671": [
+   {
+    "board": 5,
+    "battle": 10,
+    "xbm_battle_detail": 41,
+    "name": "cyclops piece"
+   }
+  ],
+  "14672": [
+   {
+    "board": 5,
+    "battle": 10,
+    "xbm_battle_detail": 41,
+    "name": "congealed lightning"
+   }
+  ],
+  "14673": [
+   {
+    "board": 5,
+    "battle": 10,
+    "xbm_battle_detail": 41,
+    "name": "congealed kindling"
+   }
+  ],
+  "14674": [
+   {
+    "board": 5,
+    "battle": 11,
+    "xbm_battle_detail": 42,
+    "name": "swordsmog piece"
+   }
+  ],
+  "14675": [
+   {
+    "board": 5,
+    "battle": 11,
+    "xbm_battle_detail": 42,
+    "name": "mogbreaker piece"
+   }
+  ],
+  "14676": [
+   {
+    "board": 5,
+    "battle": 11,
+    "xbm_battle_detail": 42,
+    "name": "kinged kupocurer"
+   }
+  ],
+  "14677": [
+   {
+    "board": 5,
+    "battle": 11,
+    "xbm_battle_detail": 42,
+    "name": "kinged kupocaster"
+   }
+  ],
+  "14678": [
+   {
+    "board": 5,
+    "battle": 11,
+    "xbm_battle_detail": 42,
+    "name": "kupocurer piece"
+   }
+  ],
+  "14679": [
+   {
+    "board": 5,
+    "battle": 11,
+    "xbm_battle_detail": 42,
+    "name": "kupocaster piece"
+   }
+  ],
+  "14680": [
+   {
+    "board": 5,
+    "battle": 11,
+    "xbm_battle_detail": 42,
+    "name": "kinged swordsmog"
+   }
+  ],
+  "14681": [
+   {
+    "board": 5,
+    "battle": 11,
+    "xbm_battle_detail": 42,
+    "name": "melomog piece"
+   }
+  ],
+  "14683": [
+   {
+    "board": 5,
+    "battle": 11,
+    "xbm_battle_detail": 42,
+    "name": "mogmugger piece"
+   }
+  ],
+  "14684": [
+   {
+    "board": 5,
+    "battle": 12,
+    "xbm_battle_detail": 43,
+    "name": "behemoth piece"
+   }
+  ],
+  "14685": [
+   {
+    "board": 5,
+    "battle": 12,
+    "xbm_battle_detail": 43,
+    "name": "giant piece"
+   }
+  ],
+  "14686": [
+   {
+    "board": 5,
+    "battle": 12,
+    "xbm_battle_detail": 43,
+    "name": "lightning sprite"
+   }
+  ],
+  "14688": [
+   {
+    "board": 5,
+    "battle": 13,
+    "xbm_battle_detail": 44,
+    "name": "king ahriman piece"
+   }
+  ],
+  "14691": [
+   {
+    "board": 5,
+    "battle": 13,
+    "xbm_battle_detail": 44,
+    "name": "hapalit piece"
+   }
+  ],
+  "14692": [
+   {
+    "board": 5,
+    "battle": 13,
+    "xbm_battle_detail": 44,
+    "name": "dirty eye piece"
+   }
+  ],
+  "14693": [
+   {
+    "board": 5,
+    "battle": 0,
+    "xbm_battle_detail": 45,
+    "name": "Lauda the Spellcleaver"
+   }
+  ],
+  "14699": [
+   {
+    "board": 5,
+    "battle": 0,
+    "xbm_battle_detail": 45,
+    "name": "Thanatos piece"
+   }
+  ],
+  "14748": [
+   {
+    "board": 1,
+    "battle": 5,
+    "xbm_battle_detail": 5,
+    "name": "great wisp piece"
+   }
+  ]
+ }
+}
