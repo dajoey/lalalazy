@@ -145,7 +145,7 @@ Every shipping plugin should have a `PLUGINS` entry in `docs/plugins.js` and a `
 
 ### Current roster (16 plugins, as of 2026-09-21)
 
-GluttonyCombo, PvPSolver, LazyMarketCompanion, AutoPotion, ArmoireAutoFill, LazyWTMath, LazyCurrencySpender, LazyFateAutomation, LazySkywardTracker, LazyFashionReport (testing-only), LazyFoodBuff, LazyGearCollector, LazyCrafter, LazyFishSitter, LazyRetainerLive, LazyCrucible (testing-only).
+GluttonyCombo, PvPSolver, LazyMarketCompanion, AutoPotion, ArmoireAutoFill, LazyWTMath, LazyCurrencySpender, LazyFateAutomation, LazySkywardTracker, LazyFoodBuff, LazyGearCollector, LazyCrafter, LazyFishSitter, LazyRetainerLive, LazyCrucible.
 
 `pluginmaster.json` also carries `ARControlPRTest2`, a testing-exclusive entry with no source under `src/`; it is not part of the roster.
 

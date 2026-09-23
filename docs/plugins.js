@@ -154,16 +154,6 @@ const PLUGINS = [
     ],
   },
   {
-    slug: 'lazyfashionreport', name: 'LazyFashionReport', origin: 'Original', hasWindow: true,
-    short: 'Fashion Report assistant: hints, exact dyes, and a live score predictor.',
-    tag: 'What to wear, what to dye, and what you will score.',
-    features: [
-      { t: 'Weekly hints and exact dyes', d: 'The four weekly hints with the exact +2 dye and +1 shade for every left-side slot.' },
-      { t: 'Owned candidates', d: 'Top crowd-sourced gold items filtered down to what you actually own - bags, glamour dresser and armoire.' },
-      { t: 'Live score predictor', d: 'As you assemble the outfit, see \scores N - needs +X for 80\ per slot and in total.' },
-    ],
-  },
-  {
     slug: 'lazycrucible', name: 'LazyCrucible', origin: 'Original', hasWindow: true,
     short: 'Picks your Beastmaster familiars in the Crucible of the Unbroken: the ten-familiar run roster, then all three Battlehorn slots before every fight.',
     tag: 'Your familiars, picked for every Crucible fight.',
