@@ -1,4 +1,10 @@
-﻿## v1.0.4.232 (2026-09-23) [testing]
+﻿## v1.0.4.233 (2026-09-23) [testing]
+### Fixed
+- **Conflicting-plugin scan no longer stalls on a single bad probe.** A missing BossMod rotation (reloads, zone changes) aborted the whole periodic check with a repeated warning; each plugin is now probed independently and repeat warnings are throttled to one line per 15 minutes with a count of the lines held back.
+### Notes
+- Production channel unchanged.
+
+## v1.0.4.232 (2026-09-23) [testing]
 ### Added
 - **Crucible: Borgny Salivous Snap is treated as a hard hit.** The First Master's Board boss's 7-second single-target cast now triggers the same Snarl / Challenge shadow and live aggro rules as the other logged tankbusters.
 ### Notes

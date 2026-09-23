@@ -12,6 +12,7 @@ using GluttonyCombo.Core;
 using GluttonyCombo.CustomComboNS.Functions;
 using GluttonyCombo.Extensions;
 using GluttonyCombo.Services;
+using GluttonyCombo.Services.IPC;
 using GluttonyCombo.Services.IPC_Subscriber;
 using GluttonyCombo.Window.Functions;
 using EZ = ECommons.Throttlers.EzThrottler;
@@ -44,6 +45,19 @@ public static class ConflictingPluginsChecks
         Dalamud.CheckForConflict(true);
     };
 
+    /// <summary>Shipped throttle for the periodic-check failure line.</summary>
+    /// <remarks>
+    ///     Mirrored in <c>tests/GluttonyCombo.ConflictCheckHarness</c>, which replays
+    ///     the measured 2026-09-22 incident (359 identical WRNs in 8h41m) through this
+    ///     exact configuration. One line per window; the suppressed count rides along.
+    /// </remarks>
+    private static readonly TimeSpan PeriodicCheckWarnWindow = TS.FromMinutes(15);
+
+    private const int PeriodicCheckWarnBurst = 1;
+
+    private static readonly LogEmitGate PeriodicCheckWarnGate =
+        new(PeriodicCheckWarnWindow, PeriodicCheckWarnBurst);
+
     private static readonly Action RunChecks = () =>
     {
         if (_cancelConflictChecks)
@@ -52,26 +66,44 @@ public static class ConflictingPluginsChecks
         PluginLog.Verbose(
             "[ConflictingPlugins] Periodic check for conflicting plugins");
 
-        try
-        {
-            BossMod.CheckForConflict();
-            BossModReborn.CheckForConflict();
-            Redirect.CheckForConflict();
-            ReAction.CheckForConflict();
-            ReActionEx.CheckForConflict();
-            MOAction.CheckForConflict();
-            Wrath.CheckForConflict();
-            XIV.CheckForConflict();
-            Dalamud.CheckForConflict();
-        }
-        catch
-        {
-            PluginLog.Warning(
-                "[ConflictingPlugins] Periodic check failed (async plugin?)");
-        }
+        RunOneCheck("BossMod", () => BossMod.CheckForConflict());
+        RunOneCheck("BossModReborn", () => BossModReborn.CheckForConflict());
+        RunOneCheck("Redirect", () => Redirect.CheckForConflict());
+        RunOneCheck("ReAction", () => ReAction.CheckForConflict());
+        RunOneCheck("ReActionEx", () => ReActionEx.CheckForConflict());
+        RunOneCheck("MOAction", () => MOAction.CheckForConflict());
+        RunOneCheck("Wrath", () => Wrath.CheckForConflict());
+        RunOneCheck("XIV", () => XIV.CheckForConflict());
+        RunOneCheck("Dalamud", () => Dalamud.CheckForConflict());
 
         Svc.Framework.RunOnTick(RunChecks!, TS.FromSeconds(2));
     };
+
+    /// <summary>
+    ///     Runs one conflicting-plugin probe so a single failing probe neither aborts
+    ///     the rest of the scan nor spams the log every tick. The exception summary
+    ///     goes to Verbose (diagnosable without volume); the Warning itself passes
+    ///     through <see cref="PeriodicCheckWarnGate" />.
+    /// </summary>
+    private static void RunOneCheck(string name, Action check)
+    {
+        try
+        {
+            check();
+        }
+        catch (Exception e)
+        {
+            PluginLog.Verbose(
+                $"[ConflictingPlugins] [{name}] Periodic probe failed: " +
+                $"{e.GetType().Name}: {e.Message}");
+            const string line =
+                "[ConflictingPlugins] Periodic check failed (async plugin?)";
+            if (PeriodicCheckWarnGate.ShouldEmit(
+                    line, DateTime.UtcNow, out var suppressed))
+                PluginLog.Warning(
+                    line + PeriodicCheckWarnGate.SuppressedNote(suppressed));
+        }
+    }
 
     internal static BossModCheck BossMod { get; } = new();
     internal static BossModCheck BossModReborn { get; } = new(true);

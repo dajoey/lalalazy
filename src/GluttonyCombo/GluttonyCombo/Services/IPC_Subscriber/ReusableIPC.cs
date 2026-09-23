@@ -47,9 +47,17 @@ public abstract class ReusableIPC : IDisposable
         get
         {
             if (PluginIsLoaded)
-                if (_plugin is IDalamudPlugin)
-                    return (IDalamudPlugin)_plugin!;
-                else return (IAsyncDalamudPlugin)_plugin!;
+            {
+                if (_plugin is IDalamudPlugin idp)
+                    return idp;
+                if (_plugin is IAsyncDalamudPlugin adp)
+                    return adp;
+                throw new InvalidOperationException(
+                    $"Plugin '{PluginName}' resolved to " +
+                    $"{_plugin?.GetType().FullName ?? "null"}, which implements " +
+                    "neither IDalamudPlugin nor IAsyncDalamudPlugin. " +
+                    "(This should be used after a `PluginIsLoaded` check)");
+            }
             throw new InvalidOperationException(
                 "Plugin is not loaded or does not exist. " +
                 "(This should be used after a `PluginIsLoaded` check)");

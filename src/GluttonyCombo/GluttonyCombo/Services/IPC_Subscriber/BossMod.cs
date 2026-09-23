@@ -85,13 +85,19 @@ internal sealed class BossModIPC(
     private IEnumerable<object?> GetModules(bool isReborn)
     {
         var entryPoint = isReborn ? Plugin : GetTickService();
+        if (entryPoint is null)
+        {
+            PluginLog.Debug(
+                    $"[ConflictingPlugins] [{PluginName}] Could not access entry point");
+            yield break;
+        }
 
         var rotationManager = entryPoint.GetFoP("_rotation");
         if (rotationManager is null)
         {
             PluginLog.Debug(
                     $"[ConflictingPlugins] [{PluginName}] Could not access RotationManager");
-            yield return null;
+            yield break;
         }
 
         if (isReborn)
@@ -114,7 +120,7 @@ internal sealed class BossModIPC(
         {
             PluginLog.Debug(
                     $"[ConflictingPlugins] [{PluginName}] Could not access Presets");
-            yield return null;
+            yield break;
         }
 
 
@@ -159,13 +165,19 @@ internal sealed class BossModIPC(
     private IEnumerable<object?> GetPresets(bool isReborn)
     {
         var entryPoint = isReborn ? Plugin : GetTickService();
+        if (entryPoint is null)
+        {
+            PluginLog.Debug(
+                    $"[ConflictingPlugins] [{PluginName}] Could not access entry point");
+            yield break;
+        }
 
         var rotationManager = entryPoint.GetFoP("_rotation");
         if (rotationManager is null)
         {
             PluginLog.Debug(
                     $"[ConflictingPlugins] [{PluginName}] Could not access RotationManager");
-            yield return null;
+            yield break;
         }
 
         if (isReborn)
@@ -179,7 +191,7 @@ internal sealed class BossModIPC(
         {
             PluginLog.Debug(
                     $"[ConflictingPlugins] [{PluginName}] Could not access Presets");
-            yield return null;
+            yield break;
         }
 
 
