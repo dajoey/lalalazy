@@ -1,4 +1,11 @@
-﻿## v1.0.4.233 (2026-09-23) [testing]
+## v1.0.4.234 (2026-09-25) [testing]
+### Fixed
+- **Beastmaster: Level 50 finisher combo (Universality) now reliably executes.** The finisher action (Risen Fall or Hawkish Talons) is now offered continuously while the Sunstrider or Moonstalker window is active and TP is available, rather than reverting to the basic GCD chain during GCD rolling, preventing the basic combo from queueing and consuming the finisher buff window.
+- **Beastmaster: Level 50 Rally gating.** At level 50, Rally is now held until Sunstrider or Moonstalker is active rather than firing out of combo and dumping 250 TP on non-combo axes, ensuring maximum TP is available to execute the level 50 finisher.
+### Notes
+- Production channel unchanged.
+
+## v1.0.4.233 (2026-09-23) [testing]
 ### Fixed
 - **Conflicting-plugin scan no longer stalls on a single bad probe.** A missing BossMod rotation (reloads, zone changes) aborted the whole periodic check with a repeated warning; each plugin is now probed independently and repeat warnings are throttled to one line per 15 minutes with a count of the lines held back.
 ### Notes

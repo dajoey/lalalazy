@@ -27,6 +27,7 @@ internal static class Program
         NoResummonBugFixed();
         VantageNeverStalls();
         AxesOnlyOnGcdReadyTicks();
+        Level50FinisherAndRallyGate();
         OutOfCombat();
         CrucibleDataChecks();
         CrucibleRules();
@@ -211,6 +212,55 @@ internal static class Program
         s.PlayerTp = 150; s.ReadyAxe = true; s.GcdReady = false; s.CanWeave = true;
         Check("L5, TP 150, weave window -> no axe", Decide(s, cfg).ActionId != BST.AvalancheAxe);
         Check("L5, TP 150, GCD ready -> Avalanche Axe (no familiar possible)", Decide(s with { GcdReady = true, CanWeave = false }, cfg).ActionId == BST.AvalancheAxe);
+    }
+
+    private static void Level50FinisherAndRallyGate()
+    {
+        Console.WriteLine("-- L50 finisher and Rally gating (Universality combo) --");
+        var cfg = BstSettings.Defaults();
+
+        // 1. Rally gating: at L50, Rally is held until Sun/Moon is active to avoid dumping 250 TP on bare axes
+        var s50 = BaseState(50);
+        s50.MasterStacks = 3; s50.ReadyRally = true; s50.PlayerTp = 0; s50.SunOrMoonActive = false;
+        Check("L50, 3 MasterStacks, 0 TP, Sun/Moon inactive -> Rally held", ChooseRally(s50) == 0);
+
+        var s50Sun = s50 with { SunOrMoonActive = true, SunMoon = BeastmasterAffinity.Sunstrider };
+        Check("L50, 3 MasterStacks, 0 TP, Sunstrider active -> Rally used", ChooseRally(s50Sun) == BST.Rally);
+
+        var s50Moon = s50 with { SunOrMoonActive = true, SunMoon = BeastmasterAffinity.Moonstalker };
+        Check("L50, 3 MasterStacks, 0 TP, Moonstalker active -> Rally used", ChooseRally(s50Moon) == BST.Rally);
+
+        var s50Full = s50Sun with { PlayerTp = 250 };
+        Check("L50, 3 MasterStacks, 250 TP, Sunstrider active -> Rally not wasted", ChooseRally(s50Full) == 0);
+
+        var s49 = BaseState(49);
+        s49.MasterStacks = 3; s49.ReadyRally = true; s49.PlayerTp = 0; s49.SunOrMoonActive = false;
+        Check("L49, 3 MasterStacks, 0 TP, Sun/Moon inactive -> Rally used (pre-50 behavior)", ChooseRally(s49) == BST.Rally);
+
+        // 2. Finisher offering in Sun/Moon window:
+        // Must offer finisher even during GCD roll (GcdReady = false) so button does not revert to gcdchain
+        var sFinisher = BaseState(50);
+        sFinisher.PlayerTp = 250; sFinisher.ReadyAxe = true; sFinisher.TargetDistance = 3f;
+        sFinisher.SunOrMoonActive = true; sFinisher.SunMoon = BeastmasterAffinity.Moonstalker;
+
+        // Moonstalker active -> Risen Fall (replaces SpinningAxe)
+        var dMoonGcdReady = Decide(sFinisher with { GcdReady = true }, cfg);
+        Check("L50 Moonstalker, GCD ready -> Spinning Axe (Risen Fall)", dMoonGcdReady.ActionId == BST.SpinningAxe && dMoonGcdReady.Reason == "finisher:risenfall-universality");
+
+        var dMoonGcdRolling = Decide(sFinisher with { GcdReady = false, CanWeave = false }, cfg);
+        Check("L50 Moonstalker, GCD rolling -> still Spinning Axe (Risen Fall, never gcdchain)", dMoonGcdRolling.ActionId == BST.SpinningAxe && dMoonGcdRolling.Reason == "finisher:risenfall-universality");
+
+        // Sunstrider active -> Hawkish Talons (replaces MistralAxe)
+        var sSunFinisher = sFinisher with { SunMoon = BeastmasterAffinity.Sunstrider };
+        var dSunGcdReady = Decide(sSunFinisher with { GcdReady = true }, cfg);
+        Check("L50 Sunstrider, GCD ready -> Mistral Axe (Hawkish Talons)", dSunGcdReady.ActionId == BST.MistralAxe && dSunGcdReady.Reason == "finisher:hawkishtalons-universality");
+
+        var dSunGcdRolling = Decide(sSunFinisher with { GcdReady = false, CanWeave = false }, cfg);
+        Check("L50 Sunstrider, GCD rolling -> still Mistral Axe (Hawkish Talons, never gcdchain)", dSunGcdRolling.ActionId == BST.MistralAxe && dSunGcdRolling.Reason == "finisher:hawkishtalons-universality");
+
+        // Insufficient TP (< 250) -> finisher NOT offered
+        var dLowTp = Decide(sFinisher with { PlayerTp = 100, GcdReady = false }, cfg);
+        Check("L50 Moonstalker, 100 TP -> finisher NOT offered", dLowTp.ActionId != BST.SpinningAxe);
     }
 
     private static void OutOfCombat()

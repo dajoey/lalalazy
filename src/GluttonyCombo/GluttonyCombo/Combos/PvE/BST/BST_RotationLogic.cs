@@ -768,7 +768,9 @@ internal static class BST_RotationLogic
     /// </summary>
     public static uint ChooseRally(in BstState s)
     {
-        if (s.Level >= LvRally && s.ReadyRally && s.MasterStacks >= 3 && s.PlayerTp <= 28)
+        var tpOk = s.Level >= LvFinishers ? s.PlayerTp < 250 : s.PlayerTp <= 28;
+        var l50Gate = s.Level < LvFinishers || s.SunOrMoonActive;
+        if (s.Level >= LvRally && s.ReadyRally && s.MasterStacks >= 3 && tpOk && l50Gate)
             return BST.Rally;
 
         if (s.Level >= LvRallyingCheer && s.ReadyCheer && s.ActiveSlot != 0 && s.NaturalStacks >= 2 && s.FamiliarTp < 100)
@@ -794,7 +796,7 @@ internal static class BST_RotationLogic
         var window = ComboWindowSeconds - 0.5f;
 
         // L50 finisher: Sun/Moon active and TP 250 -> the axe whose finisher is the OPPOSITE type (Universality).
-        if (s.Level >= LvFinishers && s.PlayerTp >= 250 && s.ReadyAxe && s.GcdReady && targetInMelee)
+        if (s.Level >= LvFinishers && s.PlayerTp >= 250 && s.ReadyAxe && targetInMelee)
         {
             if (s.SunMoon == BeastmasterAffinity.Moonstalker)
                 return (BST.SpinningAxe, "finisher:risenfall-universality");

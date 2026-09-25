@@ -1,4 +1,4 @@
-﻿#region Dependencies
+#region Dependencies
 
 using ECommons.DalamudServices;
 using FFXIVClientStructs.FFXIV.Client.Game;
@@ -324,7 +324,7 @@ internal partial class BST : Melee
         s.ReadyTempered = ActionReady(TemperedRelease);
         s.ReadyBorrow = ActionReady(Borrow);
         s.ReadyParting = ActionReady(PartingBlow);
-        s.ReadyAxe = s.Level >= BST_RotationLogic.LvAvalancheAxe && GetCooldownRemainingTime(AvalancheAxe) <= BaseActionQueue;
+        s.ReadyAxe = ActionReady(AvalancheAxe);
         s.ReadyRally = ActionReady(Rally);
         s.ReadyCheer = ActionReady(RallyingCheer);
 
