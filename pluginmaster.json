@@ -1,561 +1,561 @@
 [
-  {
-    "Author": "dajoey",
-    "Name": "PvP Solver",
-    "Punchline": "PvP-only auto-rotation",
-    "Description": "PvP-only auto-rotation for FFXIV. Activates in PvP zones.",
-    "InternalName": "PvPSolver",
-    "AssemblyVersion": "0.1.1.1",
-    "TestingAssemblyVersion": "0.1.1.1",
-    "Changelog": "v0.1.1.1 (2026-09-05)\n\n- Fixed a log line that repeated forever instead of once. The startup line \"MajorUpdater: first valid cycle\" sat behind a check that only asked whether rotations had loaded yet, but the flag that answers that is only ever set while actually in a PvP-valid state - so out of PvP it never flipped and the line printed on every single update cycle, including at the title screen with no character logged in. It now sits inside the block that really does load the rotations, so it prints once each time rotations are loaded and describes the state it claims to describe.\n- Impact: over one 5.5-hour sample this single line was 55,497 of the 106,116 log lines collected across every installed plugin - 52.3% of the whole log - and 29,152 of those were written at the title screen by a PvP plugin. The same window would now produce 91 of them, a 99.8% reduction, with no loss of information: the line still states what condition the plugin came up in.\n- No gameplay change. Rotation loading, targeting and the PvP rotations themselves are untouched; the only edit is where the log statement sits.\n\n- The paired \"triggering rotation load...\" line already fired 91 times in that sample rather than once, because `MajorUpdater.IsValid` resets `_rotationsLoaded` on every zone transition, logout and `Player.Available == false`. That reload behaviour is unchanged here and is tracked separately; it is why the line is \"once per rotation load\" rather than literally once per session.\n- Second log-spam fix in this plugin (v0.1.0.11 throttled the per-frame \"no rotation found\" warnings). Every other Information-level plugin log line was audited this release: remaining helper logs are gated behind the InDebug setting, and nothing else logs at Information on a per-cycle path.\n\nv0.1.1.0 (2026-09-05)\n\n- Added the in-game \"What's new\" popup. After PvP Solver updates, its changelog now opens once inside the game so the changes are visible without a trip to GitHub. It waits until the character is logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/pvpsolver changelog` (or `/pvs changelog`) any time to reopen it.\n- No change to rotations or targeting: the sticky-target and team-pressure work from 0.1.0.13 is untouched, and the seen-version is stored in its own small file so upstream RotationSolverReborn syncs stay clean.\n\nv0.1.0.13 - 2026-08-25\n- **`PvPHighestPressure` targeting mode** (issue #4). Selects the hostile the most members of the player's own side are currently targeting, breaking ties toward the lowest HP percentage. Party and alliance lists are both counted, so it behaves in Frontline (where the rest of the player's side arrives as alliance members) as well as in Crystalline Conflict. The player's current target is excluded from the count, otherwise the mode would reinforce whatever was already targeted. Appended to the end of `TargetingType`, so existing saved `TargetingTypes` indices are unaffected, and it is **not** added to the default list - it is opt-in from Target settings.\n\n- **Auto-target abandoned an enemy mid damage-window** (issue #4). `FindHostileRaw` re-ranked every hostile from scratch on each action and returned the top of the list, with no reference to the target already selected; `RSCommands.DoAction` then hard-assigned `Svc.Targets.Target` to it. Under an HP-based targeting mode this flips target the instant another enemy's HP crosses the player's, so a just-applied Wildfire is left on a target no longer being hit. `FindHostileRaw` now consults `FindStickyTarget` before returning: if the current target is still a legal candidate **for the action being used** and carries at least one status sourced from the player with `0 < RemainingTime <= StickyTargetMaxRemaining`, it is kept.\n\n- Two new options under Target settings: **`StickyTarget`** (default **on**) and **`StickyTargetMaxRemaining`** (default 30s). The second exists so an effectively permanent aura cannot pin the target forever - `RemainingTime == 0` is this codebase's convention for a permanent status and is already excluded, and the cap covers long ones.\n\n- **Trade-off, by design:** while the debuff is ticking the rotation will stay on that target even if another enemy drops lower. That is the requested behavior, and turning `StickyTarget` off restores the previous snap-to-lowest-HP handling exactly.\n- **Scoped to PvP.** `FindStickyTarget` returns early unless `DataCenter.IsPvP`, so PvE target selection is byte-for-byte unchanged.\n- Sticky selection reads `Svc.Targets.Target`, i.e. the target the previous action settled on, which is what makes this hysteresis rather than a second independent pick.\n- `CountTeamPressure` scores every candidate once before sorting rather than inside the comparator; a comparator that re-reads live target data can throw `IComparer.Compare returns inconsistent results` if a teammate switches target mid-sort.\n- **Not yet verified in-game** - shipped to the testing channel only.\n\nv0.1.0.12 - 2026-08-06\n- Synced upstream RotationSolverReborn `35ceb6e82` (\"Guard status check for Doom to ensure valid object\"): the PvP-rotation portion of that commit is a `GameVersion` attribute bump from `7.5` to `7.55` across all 21 PvP rotations.\n\n- **No gameplay change.** The Doom guard itself lives in and upstream's PvE rotations - base classes this fork intentionally does not track (RUNBOOK 3.2). The fork's PvP rotations contain no Doom status checks, so there is nothing to port.\n- Synced from upstream; all 21 PvP rotation files verified byte-identical to the upstream tip (CR-normalised).\n- **Promoted to production.** `AssemblyVersion` 0.1.0.9 -> 0.1.0.12; both channels now ship this build. In-game gate waived: the 0.1.0.11 fix executes only outside PvP (guard on `DataCenter.IsPvP`) and this sync is attribute-only, so PvP play cannot exercise what changed; the user-facing check is the absence of the PvE `no rotation found` warning in `dalamud.log` (issue #3).\n\nv0.1.0.11 - 2026-08-03\n- **Per-frame log spam in all PvE content** (issue #3). `UpdateCustomRotation` is driven from the framework tick via `MajorUpdater.RSRRotationAndStateUpdate`, and emitted `WRN... no rotation found for job=<job> combatType=PvE` roughly 50 times per second for as long as the player was outside PvP. PvPSolver is PvP-only and ships no PvE rotations, so the lookup could never succeed; worse, the miss path set `DataCenter.CurrentRotation = null` immediately before logging, which permanently defeated the unchanged-state guard at the top of the method and forced a full re-resolve every tick.\n\n- `UpdateCustomRotation` now returns early when `DataCenter.IsPvP` is false, clearing `CurrentRotation`/`CurrentRotationActions` once on the PvP-to-PvE transition instead of every frame. `curCombatType` is consequently always `CombatType.PvP` below that guard.\n- Removed the ungated `PluginLog.Information($\"UpdateCustomRotation: job=..., IsPvP=..., groups=...\")` call. It ran unconditionally on every invocation, ahead of every early return - invisible to users filtering at Warning+, but hammering `dalamud.log` in PvP and PvE alike.\n- Both remaining \"no rotation\" warnings (`no rotation found for job=...` and `No valid rotations found for...`) are now throttled by a `_lastNoRotationLogged` (job, combat type) tuple, so a persistent miss reports once rather than once per frame. Reset in `ChangeRotation` so a later successful load re-arms the warning.\n\n- **Shipped to production with 0.1.0.12.** In-game gate waived: every changed statement executes only when `DataCenter.IsPvP` is false, so in-PvP behavior is provably unchanged; the empirical check is that the PvE `no rotation found` warning stops firing (issue #3).\n- Both log lines date to the initial vendored commit `9b3652dae`, so this affected every release to date.\n- No rotation, targeting or combat behavior changes - the end state in PvE is identical (`CurrentRotation == null`), it is just no longer recomputed and re-logged every tick.\n\nv0.1.0.10 - 2026-07-31\n- Synced upstream RotationSolverReborn commit `2ac940563`: the `EmergencyGCD` hook now takes the queued next GCD as a parameter, bringing it in line with `EmergencyAbility`, interrupts, dispels and the heal hooks, which have all taken it for some time. Applied to the base engine and to the two rotations that override it.\n\n- **No gameplay change.** The new `nextGCD` parameter is not read by any implementation of the hook \u2014 not in this fork, and not anywhere in upstream `641bd792e`. It is plumbing for future upstream use. Purify (stun / heavy / bind / silence / deep freeze / Miracle of Nature), Guard, Recuperate and Standard-issue Elixir priority are unchanged, as are the WHM Aquaveil and BRD The Warden's Paean cleanse paths.\n- The WHM and BRD PvP rotations are now byte-identical to upstream (verified by diff, CR-normalised).\n- First release on the **reinstated testing channel**. The channel was removed; its previous entry never worked because `TestingDalamudApiLevel` was unset, so Dalamud hid the build. Now set to 15 alongside `TestingAssemblyVersion`. Production remains 0.1.0.9 until this build is verified in-game.\n- Escalated by the nightly upstream-merge on under RUNBOOK 3.2 (\"never pull base classes\"). RUNBOOK amended the same day with a signature-only carve-out so equivalent changes sync unattended.",
-    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/PvPSolver",
-    "ApplicableVersion": "any",
-    "DalamudApiLevel": 15,
-    "TestingDalamudApiLevel": 15,
-    "IsHide": false,
-    "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/PvPSolver/latest/latest.zip",
-    "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/PvPSolver/latest/latest.zip",
-    "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/PvPSolver/testing/testing.zip",
-    "Tags": null,
-    "CategoryTags": null,
-    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/pvpsolver-icon.png",
-    "ImageUrls": [
-      ""
-    ],
-    "DownloadCount": 0,
-    "LastUpdate": "0"
-  },
-  {
-    "Author": "dajoey",
-    "Name": "AutoPotion",
-    "Punchline": "Per-job HP, MP, and deep dungeon potion automation.",
-    "Description": "Auto-uses the highest-tier HP potion, MP potion (Ether), and the deep dungeon regen potion (Sustaining / Eurekan / Orthos / Pilgrim's) at configurable thresholds. Each potion's threshold and on/off state is stored per-job, so casters and tanks can have completely different setups.",
-    "InternalName": "AutoPotion",
-    "AssemblyVersion": "0.2.5.0",
-    "Changelog": "v0.2.5.0 (2026-09-05)\n\n- New per-job option: \"Auto-use Echo Drops when silenced\". When it is on and Silence lands (mob silence spells, AoE silences, deep dungeon traps), AutoPotion uses Echo Drops from inventory to cure it automatically. Item use is not blocked by Silence, so the cure works exactly when nothing else can.\n- OFF by default like every option, and per job like the rest: tick the new box in the settings window for the jobs it should apply to. With it off (the default) nothing changes - not even a status check.\n- It reuses the same machinery as the potions: HQ Echo Drops are preferred over normal ones, the shared 750 ms cooldown after any potion use applies, and a Silence that arrives during that cooldown is cured on the next tick.\n- If the diagnostic tap is enabled, the cure logs as an `e` event; when it cannot fire the near-miss reasons are `edblocked` (on cooldown / blocked) or `ednostock` (none in the bags).\n- No change to potion behaviour. HP/MP/regen thresholds, the overshoot guard, the deep dungeon Rehabilitation lockout and the in-combat / in-duty gates all work exactly as before.\n\nv0.2.4.0 (2026-09-05)\n\n- Added an optional \"Log potion decisions\" diagnostic, OFF by default. Turn it on with `/autopotion telemetry on` or the new Advanced / Diagnostics section of the settings window, and AutoPotion writes one line to its plugin log every time it uses a potion, plus a rate-limited line when a threshold was crossed and nothing fired.\n- Purpose: the log line records the HP%, the MP%, the threshold that was in force and the job, so a threshold can be verified after the fact instead of guessed at. Nothing leaves the machine - the lines only go to the local Dalamud plugin log.\n- The \"nothing fired\" lines say WHY in a short code: `hpover` (a potion was available but the heal would have been wasted), `hpblocked` / `mpblocked` / `rgblocked` (on cooldown or blocked by a status), `hpnostock` / `mpnostock` / `rgnostock` (none left in inventory) and `rgrehab` (Rehabilitation still up in a deep dungeon).\n- These lines are heavily rate-limited on purpose: a repeated state logs once, not once per frame. Measured against 214 minutes of real play the near-miss lines come out under one line per minute, so the log stays readable.\n- No change to potion behaviour. Thresholds, per-job profiles, the overshoot guard, the deep dungeon Rehabilitation lockout and the in-combat / in-duty gates all work exactly as before, and with the setting off (the default) the plugin does not even build a log line.\n\nv0.2.3.0 (2026-09-05)\n\n- Added the in-game \"What's new\" popup. After AutoPotion updates, its changelog now opens once inside the game so the changes are visible without a trip to GitHub. It waits until the character is logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/autopotion changelog` any time to reopen it.\n- No change to potion behaviour: thresholds, per-job profiles and the in-combat / in-duty gates all work exactly as before.\n\nv0.2.2.1 - 2026-07-02\n- **Plugin icon now shows in the Dalamud installer.** The manifest (`AutoPotion.json`) had no\n\n- No behavior changes. Part of a repo cleanup pass.",
-    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/AutoPotion",
-    "ApplicableVersion": "any",
-    "DalamudApiLevel": 15,
-    "IsHide": false,
-    "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/AutoPotion/latest/latest.zip",
-    "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/AutoPotion/latest/latest.zip",
-    "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/AutoPotion/testing/testing.zip",
-    "Tags": [
-      "auto",
-      "potion",
-      "healing",
-      "deep dungeon"
-    ],
-    "CategoryTags": [
-      "utility"
-    ],
-    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/autopotion-icon.png",
-    "ImageUrls": [
-      ""
-    ],
-    "DownloadCount": 0,
-    "LastUpdate": "0",
-    "TestingAssemblyVersion": "0.2.5.0",
-    "TestingDalamudApiLevel": 15
-  },
-  {
-    "Author": "dajoey",
-    "Name": "Armoire Auto-Fill",
-    "Punchline": "Per-dungeon view of which armoire-eligible gear pieces you're still missing",
-    "Description": "Lists every armoire-eligible dungeon drop in the game and shows whether each is in your inventory, in your armoire, or still missing. Sort by level, hide completed dungeons, toggle to show owned items too. Open the armoire UI at an inn once per session to populate the in-armoire state; in-inventory and equipped state is detected automatically.",
-    "InternalName": "ArmoireAutoFill",
-    "AssemblyVersion": "0.4.4.0",
-    "Changelog": "v0.4.4.0 (2026-09-05)\n\n- Added the in-game \"What's new\" popup. After Armoire Auto-Fill updates, its changelog now opens once inside the game so the changes are visible without a trip to GitHub. It waits until the character is logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/armoire changelog` any time to reopen it.\n- No change to armoire behaviour: the dungeon checklist, the auto-store on opening the armoire, and the gearset/armoury options are all unchanged.\n\nv0.4.3.0 (2026-07-02)\n\n- **Auto-store on armoire open actually fires now.** v0.4.2.0 ran `StoreAll` directly from the Cabinet addon's PostSetup event, but cabinet contents load from the server asynchronously *after* the addon opens, so `UIState.Cabinet.IsCabinetLoaded()` was still false and the store bailed silently (the manual button worked because the data had loaded by then). PostSetup now just arms a pending flag; a Framework.Update poll fires `StoreAll` once the cabinet data is loaded (10s timeout, disarmed on PreFinalize if the UI closes first). File: `Logic/ArmoireAutoStore.cs`.\n\nv0.4.2.0 (2026-07-02)\n\n- **Auto-store is now ON by default** - the plugin finally lives up to its name. Opening the armoire UI at an inn automatically stores eligible gear from inventory. Config migration (v2 -> v3) flips `AutoStoreOnOpen` on for existing installs; it can still be turned off via the checkbox in the main window. Files: `Configuration.cs`, `Plugin.cs`.\n- **Auto-store scope narrowed to the regular inventory (bags) by default.** The armoury chest is no longer scanned unless the new \"Also store from armoury chest\" option (`AutoStoreIncludeArmory`, off by default) is enabled. Gearset protection (`SkipGearsetItems`) remains on by default. Files: `Logic/ArmoireAutoStore.cs`, `Windows/MainWindow.cs`.\n\n- **Eligibility check order in `StoreAll`.** Items with no Cabinet sheet entry were previously tested via `IsItemInCabinet(GetValueOrDefault(itemId, 0))`, probing cabinet row 0 before the real lookup ran. The `TryGetValue` lookup now runs first and `IsItemInCabinet` only ever sees a real cabinet row. File: `Logic/ArmoireAutoStore.cs`.\n\nv0.4.1.0 (2026-06-18)\n\n- **\"Skip gear that is in a gearset\" option** (on by default). Auto-store now excludes any item that belongs to a saved gearset, so gear in active use is not deposited. Built from RaptureGearsetModule (same source as the in-game gearset UI), HQ flag stripped for matching. New `SkipGearsetItems` config + checkbox in the main window; result message reports how many items were kept. Files: `Logic/ArmoireAutoStore.cs`, `Configuration.cs`, `Windows/MainWindow.cs`.\n\nv0.4.0.0 (2026-06-18)\n\n- Auto-store to armoire. New Logic/ArmoireAutoStore.cs stores eligible items into the armoire via the native Cabinet.StoreCabinetItem API. Adds an optional \"Auto-store when armoire opens\" toggle (off by default) that fires on the Cabinet addon PostSetup, plus a manual \"Store all to armoire\" button in the main window with a live result message. Deduplicates by item ID and skips items already in the armoire. Files: Logic/ArmoireAutoStore.cs, Configuration.cs (AutoStoreOnOpen), Plugin.cs, Windows/MainWindow.cs.",
-    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/ArmoireAutoFill",
-    "ApplicableVersion": "any",
-    "DalamudApiLevel": 15,
-    "IsHide": false,
-    "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/ArmoireAutoFill/latest/latest.zip",
-    "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/ArmoireAutoFill/latest/latest.zip",
-    "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/ArmoireAutoFill/testing/testing.zip",
-    "Tags": [
-      "armoire",
-      "dungeon",
-      "gear",
-      "collection",
-      "scanner"
-    ],
-    "CategoryTags": [
-      "utility"
-    ],
-    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/armoireautofill-icon.png",
-    "ImageUrls": [
-      ""
-    ],
-    "DownloadCount": 0,
-    "LastUpdate": "0",
-    "TestingAssemblyVersion": "0.4.4.0",
-    "TestingDalamudApiLevel": 15
-  },
-  {
-    "Author": "dajoey",
-    "Name": "Gluttony Combo",
-    "Punchline": "Lalalazy fork of Wrath Combo - XIVCombo for very lazy players.",
-    "Description": "Gluttony Combo - lalalazy fork of Gluttony Combo. XIVCombo for very lazy players.",
-    "InternalName": "GluttonyCombo",
-    "AssemblyVersion": "1.0.4.233",
-    "Changelog": "v1.0.4.234 (2026-09-25) [testing]\n- **Beastmaster: Level 50 finisher combo (Universality) now reliably executes.** The finisher action (Risen Fall or Hawkish Talons) is now offered continuously while the Sunstrider or Moonstalker window is active and TP is available, rather than reverting to the basic GCD chain during GCD rolling, preventing the basic combo from queueing and consuming the finisher buff window.\n- **Beastmaster: Level 50 Rally gating.** At level 50, Rally is now held until Sunstrider or Moonstalker is active rather than firing out of combo and dumping 250 TP on non-combo axes, ensuring maximum TP is available to execute the level 50 finisher.\n- Production channel unchanged.\n\nv1.0.4.233 (2026-09-23) [testing]\n- **Conflicting-plugin scan no longer stalls on a single bad probe.** A missing BossMod rotation (reloads, zone changes) aborted the whole periodic check with a repeated warning; each plugin is now probed independently and repeat warnings are throttled to one line per 15 minutes with a count of the lines held back.\n- Production channel unchanged.\n\nv1.0.4.232 (2026-09-23) [testing]\n- **Crucible: Borgny Salivous Snap is treated as a hard hit.** The First Master's Board boss's 7-second single-target cast now triggers the same Snarl / Challenge shadow and live aggro rules as the other logged tankbusters.\n- Production channel unchanged.\n\nv1.0.4.231 (2026-09-22) [testing]\n- **Action check no longer throws with no local player.** The Pyretic / Acceleration Bomb input block read the player status list without a null guard, so using an action during login, character select or a territory transition raised an error instead of passing the action through. A missing status list now counts as no penalty, and the penalty decision is covered by an offline harness.\n- Production channel unchanged.\n\nv1.0.4.230 (2026-09-21) [testing]\n- **Problem reports.** `/gluttony report <what happened>` or the \"Report a problem\" button in the settings window writes a report to the plugin log: zone, job, target, auto-rotation and opener state, the presets enabled for the current job, the recent combo decisions and the windows that are open.\n- **Structured error lines.** An error is written as one line carrying the plugin version, build, zone, job and the full stack with file and line numbers, instead of two lines on every frame.\n- **A failing per-frame update pauses instead of repeating every frame.** After repeated errors it stops with one chat notice and retries on its own (after 30 seconds, doubling up to 5 minutes). A failure in the Beastmaster collectors or the server info bar text no longer stops auto-rotation.\n- **Crucible familiar selection moved to the new LazyCrucible plugin.** The run roster fill at Bentbranch Meadows, the Battlehorn auto-fill and the beast-pick advisor live there now. The \"Auto-fill Battlehorn slots\" option is removed; the Beastmaster options point to LazyCrucible instead. The Beastmaster rotation, Crucible targeting, Guard/Challenge and the empty-Battlehorn warning are unchanged.\n- The Beast Feed picker in the Crucible item shop is no longer mistaken for a Battlehorn screen, and the run roster pass stands down when another plugin or a manual edit changes the roster. Both fixes moved with the familiar selection into LazyCrucible.\n- Production channel unchanged.\n\nv1.0.4.229 (2026-09-20) [testing]\n- **Custom burst toggling.** Burst options in the UI now show whether they are included in the burst toggle, and `/gluttony burst custom` toggles just the burst options you picked for the current job (`hold`/`disable` and `resume`/`enable` work the same way).\n- **Summoner's opener moved onto the shared opener framework**, gaining a pre-pull Cease step and honouring the block-pre-pull-openers option (the settings UI already exposed it, but the old opener ignored it).\n- Role combos no longer assign themselves a job role on classes, and Roles & Combat entries are sorted back to the bottom of the main menu.\n- Warrior's opener accounts for a Heavy Swing opener start.\n- Blue Mage's Moon Flute opener skip conditions now also check that the spell is actually ready, and its cooldown check was simplified to the flute itself.\n- Gunbreaker: Burst Strike handling corrected.\n- Dancer: an opener step corrected.\n- Option icon flicker in the settings UI.\n- Rotation helper fixes from upstream for Dark Knight, Gunbreaker, Pictomancer, Red Mage, Sage, Samurai and Warrior.\n- Upstream catch-up: 18 WrathCombo commits (1.0.4.26) across 25 files. Beastmaster and Crucible remain fork-owned and untouched by this merge. Production channel unchanged.\n\nv1.0.4.228 (2026-09-20) [testing]\n- **Upcoming positional hints are published over IPC.** Dragoon, Monk, Ninja, Reaper, Samurai and Viper now report which side the next positional weapon skill wants, so an overlay plugin can show it before the skill comes up.\n- **Blue Mage gains a second Moon Flute opener and a one-button primal combo.** The opener has an optional damage-over-time variant for 2.20 or faster spell speed. The primal button carries per-spell toggles for Feather Rain, Eruption, Shock Strike, Rose of Destruction and Glass Dance, with separate options for pooling, J Kick, Nightbloom, Matra Magic, Surpanakha, Winged Reprobation, Sea Shanty and Phantom Flurry. Song of Torment can also be held until Bristle is up.\n- **Occult Crescent: Libra can refresh itself**, as a sub-option of the existing Libra feature.\n- **Openers can be blocked from firing pre-pull**, and J Kick can be left to you to press so it stays available as a gap closer.\n- **Openers were rebuilt on one shared framework.** Countdown and territory checks behave the same way across jobs, an opener that gets skipped now resets after a bounded wait instead of staying skipped for the fight, and an opener for Futures Rewritten was added.\n- Job helper code across the roster moved to the current status-checking calls. Behaviour is unchanged; the older helpers are now marked obsolete.\n- Dark Knight, Dragoon, Machinist, Monk, Reaper, Red Mage, Sage and Samurai picked up upstream rotation fixes from this range.\n- The two Occult Crescent Aero sub-options are now hidden in the list; a value already saved for them is still honoured.\n- Item-use messages from other players no longer show up in your chat.\n- Astrologian's advanced AoE custom action retargets correctly again.\n- Dark Knight handles The Blackest Night below level 70.\n- Queueing Cease no longer breaks the disable path.\n- A settings-conflict row was added for the Redirect plugin.\n- Large upstream catch-up: 118 upstream commits across 155 files. Beastmaster remains fork-owned \u2014 upstream's own Beastmaster rotation, its presets and its debug gauge overlay are deliberately not imported, and the fork's Beastmaster and Crucible files are untouched by this merge. One newly added upstream feature claimed an option id this plugin had already used for a different Occult Crescent option; the new one was renumbered before release, so no saved setting changes meaning. Production channel unchanged.",
-    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/GluttonyCombo",
-    "ApplicableVersion": "any",
-    "DalamudApiLevel": 15,
-    "IsHide": false,
-    "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/GluttonyCombo/latest/latest.zip",
-    "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/GluttonyCombo/latest/latest.zip",
-    "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/GluttonyCombo/testing/testing.zip",
-    "Tags": [
-      "combo",
-      "gluttony",
-      "wrath",
-      "wrathcombo",
-      "auto",
-      "autorotation",
-      "rotation",
-      "pve",
-      "pvp",
-      "lalalazy"
-    ],
-    "CategoryTags": null,
-    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/gluttonycombo-icon.png",
-    "ImageUrls": [
-      ""
-    ],
-    "DownloadCount": 0,
-    "LastUpdate": "1789882328",
-    "TestingAssemblyVersion": "1.0.4.234",
-    "TestingDalamudApiLevel": 15
-  },
-  {
-    "Author": "daemitus, MidoriKami, dajoey",
-    "Name": "Lazy WT Math",
-    "Punchline": "FFXIV Wondrous Tails probability calculator.",
-    "Description": "Adds row probabilities to the Wondrous Tails display along with the average probability of what would happen if you shuffled. Upgraded for modern FFXIV.",
-    "InternalName": "LazyWTMath",
-    "AssemblyVersion": "3.2.3.1",
-    "Changelog": "v3.2.3.1 (2026-09-07)\n\n- Removed the `/lazywtmath` command introduced in 3.2.3.0. It existed only to reopen the \"What's new\" popup, and this plugin's only interface is the probability readout inside the Wondrous Tails window itself.\n- The changelog popup itself is unchanged: it still opens once automatically after an update, and it can be reopened any time from the Dalamud plugin installer (the plugin's \"Open\" button).\n- No math, plugin behaviour or configuration changed.\n\nv3.2.3.0 (2026-09-05)\n\n- Added the in-game \"What's new\" popup. After Lazy WT Math updates, its changelog now opens once inside the game so the changes are visible without a trip to GitHub. It waits until the character is logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read.\n- New command `/lazywtmath` reopens that popup. This plugin had no command at all before: the probabilities still appear inside the Wondrous Tails window itself, exactly as before, and nothing about how they are calculated has changed.\n- The rebuild against current FFXIVClientStructs from 3.2.2.10 (which stopped the Wondrous Tails crash loop) is included.\n\nv3.2.2.10 - 2026-09-05\n- **Rebuilt against current FFXIVClientStructs (7.55.1.8875) to stop the WeeklyBingo crash loop.** The 3.2.2.9 binaries (built 2026-07-02) threw `System.TypeLoadException: Could not load type 'FFXIVClientStructs.FFXIV.Client.System.Memory.ICreatable'` from `AddonWeeklyBingoController.AddonRefresh` on every WeeklyBingo PostUpdate (3,032 errors in one session on 2026-09-05), because the bundled KamiToolKit.dll was compiled against an older FFXIVClientStructs whose `ICreatable<T>` shape no longer matches the one Dalamud ships. No source changes; clean Release rebuild of LazyWTMath + KamiToolKit against the Dalamud 15.0.3.2 hooks currently loading in the client (files: `KamiToolKit.dll`, `LazyWTMath.dll`).\n\n- Fix for Helm thread t-plugerr-52f9741c16e8 (kanban t_a7838408). If the crash persists after updating, the next step is merging upstream MidoriKami/EzWondrousTails and its current KamiToolKit.\n\nv3.2.2.9 - 2026-07-02\n- **Plugin icon now shows in the Dalamud installer.** Installed copies were built before\n\n- Part of the 2026-07-02 lalalazy repo cleanup pass.",
-    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/LazyWTMath",
-    "ApplicableVersion": "any",
-    "DalamudApiLevel": 15,
-    "IsHide": false,
-    "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyWTMath/latest/latest.zip",
-    "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyWTMath/latest/latest.zip",
-    "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyWTMath/testing/testing.zip",
-    "Tags": [
-      "wondrous tails",
-      "math",
-      "calculator",
-      "probability"
-    ],
-    "CategoryTags": [
-      "utility"
-    ],
-    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazywtmath-icon.png",
-    "ImageUrls": [
-      ""
-    ],
-    "DownloadCount": 0,
-    "LastUpdate": "0",
-    "TestingAssemblyVersion": "3.2.3.1",
-    "TestingDalamudApiLevel": 15
-  },
-  {
-    "Author": "Blackcatz1911, dajoey",
-    "Name": "Lazy Currency Spender",
-    "Punchline": "Find the absolute best way to spend all your FFXIV currencies.",
-    "Description": "Fork of CurrencySpender by Blackcatz1911. Never wonder 'What should I do with this?' again. Access real-time prices from Universalis, identify missing collectibles tied to your currencies, and unlock new possibilities for utilizing your in-game resources effectively.",
-    "InternalName": "LazyCurrencySpender",
-    "AssemblyVersion": "1.2.7.1",
-    "Changelog": "v1.2.7.1 (2026-09-22)\n\n- Fixed an error the plugin logged on every game close (the type initializer for ECommons.Automation.Callback threw an exception). The bundled support library predated the current game data layout and failed to initialise during shutdown; it is now current with the rest of the plugin family. No change to currency tracking or the spending suggestions.\n\nv1.2.7.0 (2026-09-05)\n\n- Added the in-game \"What's new\" popup. After Lazy Currency Spender updates, its changelog now opens once inside the game so the changes are visible without a trip to GitHub. It waits until the character is logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/cur changelog` any time to reopen it.\n- The existing Changelog tab in the settings window still works exactly as before; this is the pop-up on update, not a replacement for it.\n- No change to currency tracking or the spending suggestions.\n\nv1.2.6.1 - 2026-05-25\n- Added a new \"Equipment and Gear Exchange\" section to the UI to display untradable, non-collectable gear and weapons (like Bygone Brass equipment) purchased with endgame tomestones.\n\nv1.2.6 - 2026-05-25\n- Enabled weekly capped Allagan Tomestones of Mnemonics currency by default.\n- Added automatic SelectedCurrencies migration logic to auto-enable weekly capped tomestones upon updating.\n\nv1.2.5.1 - 2026-05-25\n- Forked from original CurrencySpender by Blackcatz1911.\n- Updated for Dalamud API Level 15 / .NET 10 (FFXIV Patch 7.50 compatibility).\n- Registered new command shortcuts: `/lazycur` and `/lazycurrencyspender`.\n- Custom premium coin-bag icon added.\n- Display clear credits to the original developer inside the settings tab.",
-    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/LazyCurrencySpender",
-    "ApplicableVersion": "any",
-    "DalamudApiLevel": 15,
-    "IsHide": false,
-    "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyCurrencySpender/latest/latest.zip",
-    "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyCurrencySpender/latest/latest.zip",
-    "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyCurrencySpender/testing/testing.zip",
-    "Tags": [
-      "currency",
-      "poetics",
-      "tomestone",
-      "lazy"
-    ],
-    "CategoryTags": null,
-    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazycurrencyspender-icon.png",
-    "ImageUrls": [
-      ""
-    ],
-    "DownloadCount": 0,
-    "LastUpdate": "0",
-    "TestingAssemblyVersion": "1.2.7.1",
-    "TestingDalamudApiLevel": 15
-  },
-  {
-    "Author": "croizat, dajoey",
-    "Name": "Lazy Fate Automation",
-    "Punchline": "Fully automated FATE grinding utilizing vnavmesh, lifestream, and Gluttony Combo.",
-    "Description": "Automates FATE grinding, including Zodiac Atma, Anima Luminous Crystals, Resistance Memories, Phantom Demiatmas, Yo-kai Watch Medals, and Bicolor Gemstones. Seamlessly integrates with vnavmesh for pathing and flight, lifestream for zone swapping, TextAdvance for dialogue skipping, and Gluttony Combo/BossMod for combat. Use /lazyfate to open.",
-    "InternalName": "LazyFateAutomation",
-    "AssemblyVersion": "0.0.3.1",
-    "Changelog": "v0.0.3.1 (2026-09-12)\n\n\n- Combat now prioritizes a Forlorn Maiden or the Forlorn (the rare bonus mob that can spawn mid-FATE and despawns quickly if not killed) over the FATE's normal targets. When one is present it becomes the automation's hard target until it is defeated or disappears; normal nearest-target behaviour resumes automatically afterward. New setting \"Prioritize Forlorn Maidens\" (on by default).\n- Debug log line when a Forlorn is detected or clears, for troubleshooting.\n\n\n- The fate-priority sort order list could grow duplicate entries over repeated updates (harmless to ordering, just clutter in the settings window). Existing installs are cleaned up automatically on the next load.\n\nv0.0.3.0 (2026-09-07)\n\n\n- Dashboard snapshot endpoint: the plugin now serves a read-only JSON snapshot of FATE and hunt state at http://127.0.0.1:10505/fates on the game host (new FateSnapshot service types). Loopback-only, no settings. The home dashboard relay polls it; nothing in the plugin's FATE automation behaviour changes.\n- The snapshot lists each active FATE with progress, seconds remaining, bonus flag, and whether the player is inside it, capped at the 12 most relevant (joined FATE first, soonest to expire next).\n- The snapshot carries a session counter of FATEs completed (a joined FATE that reaches 100% and then ends counts once) and the number of unlocked hunt bills with their total monster kills so far.\n- The snapshot names one live elite hunt mark present in the current zone (the game's own hunt-target check, MobHunt.IsHuntTarget); no name when none is up.\n- New debug command: \"/lazyfate snapshot\" prints the current snapshot state to the plugin log for troubleshooting.\n\n\n- The snapshot endpoint answers 503 only before the first character loads (title screen); afterwards it always serves the latest snapshot, matching LazyRetainerLive's behaviour.\n\nv0.0.2.0 (2026-09-05)\n\n- Added the in-game \"What's new\" popup. After Lazy Fate Automation updates, its changelog now opens once inside the game so the changes are visible without a trip to GitHub. It waits until the character is logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/lazyfate changelog` any time to reopen it.\n- No change to FATE grinding: zone swapping, the duty pause, the Gluttony lease and every sort/blacklist setting are unchanged.\n\nv0.0.1.45 - 2026-08-17\n- **Pauses inside instanced content and RELEASES the Gluttony lease.** `FateGrind` had no duty gate: queuing\n- **Auto-Rotation control actually works now.** `GluttonyComboIPC.Enable` called `SetAutoRotationConfigState`\n- **`InvalidLease` handled on every IPC call** (`SetAutoRotationState`, `SetAutoRotationConfigState`,\n- IPC warnings are throttled to one per 10s.\n\nv0.0.1.44 - 2026-06-27\n- **Stop now halts vnavmesh immediately.** Hitting Stop (or `/lazyfate stop`) while the bot was pathfinding/flying to a FATE previously left vnavmesh navigating to the destination on its own - cancelling the plugin's task does not stop vnav's in-flight movement. `FateToolKit` Running=false and the `FateGrind` task teardown now call `Svc.Navmesh.PathfindCancelAll` + `Svc.Navmesh.Stop` (cancel any in-progress pathfind AND stop following the current path), so the character stops the moment Stop is pressed.\n\nv0.0.1.43 - 2026-06-27\n- **Stop now fully releases the Gluttony Combo lease** instead of only disabling auto-rotation. Previously, Stop (and `/lazyfate stop`, and auto-complete) left Gluttony \"controlled by Lazy Fate Automation\" with the lease still held, so manual/macro control of Gluttony stayed locked out. `FateToolKit` Running=false now calls `GluttonyComboIPC.Release` (which calls `ReleaseControl`) instead of `Disable`; a fresh lease is acquired on the next grind start. Between-FATE pauses still use `Disable` (keep the lease, just stop the rotation).",
-    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/LazyFateAutomation",
-    "ApplicableVersion": "any",
-    "DalamudApiLevel": 15,
-    "IsHide": false,
-    "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyFateAutomation/latest/latest.zip",
-    "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyFateAutomation/latest/latest.zip",
-    "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyFateAutomation/testing/testing.zip",
-    "Tags": [
-      "fate",
-      "grind",
-      "automation",
-      "relic",
-      "yokai",
-      "vnavmesh"
-    ],
-    "CategoryTags": [
-      "utility"
-    ],
-    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyfateautomation-icon.png",
-    "ImageUrls": [
-      ""
-    ],
-    "DownloadCount": 0,
-    "LastUpdate": "0",
-    "TestingAssemblyVersion": "0.0.3.1",
-    "TestingDalamudApiLevel": 15
-  },
-  {
-    "Author": "dajoey",
-    "Name": "Lazy Skyward Tracker",
-    "Punchline": "Track your Skyward points for all jobs toward the Pteranodon mount",
-    "Description": "Tracks all jobs' Skyward points for the Pteranodon mount achievement. Scans your inventory for Skybuilders turn-in items and projects how many points they'll add, shown as a cyan bar extension on each job's progress bar. Use /lazysky to open.",
-    "InternalName": "LazySkywardTracker",
-    "AssemblyVersion": "0.0.3.0",
-    "Changelog": "v0.0.3.0 (2026-09-05)\n\n- Added the in-game \"What's new\" popup. After Lazy Skyward Tracker updates, its changelog now opens once inside the game so the changes are visible without a trip to GitHub. It waits until the character is logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/lazysky changelog` any time to reopen it.\n- No change to tracking: Skybuilders' points per job, the achievement progress read and the Diadem crediting all work exactly as before.\n\nv0.0.2.2 (2026-06-26)\n\n- **Gathered Diadem items are now credited to the correct gathering class.** Miner\n\n- **Class is now read from the game's own data.** `BuildGathererLookup` derives the\n\n- No change to which items count or their point values. Raw, non-collectable node",
-    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/LazySkywardTracker",
-    "ApplicableVersion": "any",
-    "DalamudApiLevel": 15,
-    "IsHide": false,
-    "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazySkywardTracker/latest/latest.zip",
-    "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazySkywardTracker/latest/latest.zip",
-    "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazySkywardTracker/testing/testing.zip",
-    "Tags": [
-      "skybuilders",
-      "restoration",
-      "pteranodon",
-      "achievement",
-      "tracker"
-    ],
-    "CategoryTags": [
-      "utility"
-    ],
-    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyskywardtracker-icon.png",
-    "ImageUrls": [
-      ""
-    ],
-    "DownloadCount": 0,
-    "LastUpdate": "0",
-    "TestingAssemblyVersion": "0.0.3.0",
-    "TestingDalamudApiLevel": 15
-  },
-  {
-    "Author": "dajoey",
-    "Name": "LazyFoodBuff",
-    "Punchline": "Never forget to eat your food again.",
-    "Description": "Auto-eats food in combat duties with per-job selection, auto-select based on best stats, and a low-food warning.",
-    "InternalName": "LazyFoodBuff",
-    "AssemblyVersion": "0.1.5.0",
-    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/LazyFoodBuff",
-    "ApplicableVersion": "any",
-    "DalamudApiLevel": 15,
-    "IsHide": false,
-    "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyFoodBuff/latest/latest.zip",
-    "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyFoodBuff/latest/latest.zip",
-    "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyFoodBuff/testing/testing.zip",
-    "Tags": [
-      "auto",
-      "food",
-      "buff",
-      "duty",
-      "lazy"
-    ],
-    "CategoryTags": [
-      "utility"
-    ],
-    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyfoodbuff-icon.png",
-    "ImageUrls": [
-      ""
-    ],
-    "DownloadCount": 0,
-    "LastUpdate": "0",
-    "Changelog": "v0.1.5.0 (2026-09-21)\n\n- **\"Only eat in combat duties\" now covers Crucible of the Unbroken.** The five boards count as combat duties, and so does the Bentbranch Meadows entry area while playing Beastmaster (the one job that can enter), so the meal is eaten before a run starts. Eating before entry matters: a meal eaten inside does not refill HP to the raised maximum.\n\nv0.1.4.0 (2026-09-05)\n\n- Optional decision diagnostics, off by default. Turn on \"Log food decisions\" (settings window, Advanced / Diagnostics) or run `/lazyfoodbuff telemetry on`, and every time the plugin settles on a food for the current job it writes one line to the plugin log: the food it picked, its score, and the runner-ups it beat \u2014 plus a second line when that food is actually eaten. The point is the runner-ups: \"picked X at 41.20 over Y at 40.80\" is the shape of evidence that can eventually say whether the auto-select weights are right. Nothing leaves the machine; the lines only go to the local plugin log.\n\n- Honest caveat: this is a data-collection investment, not an answer. The outcome side (what a food actually did to damage) needs weeks of encounter data before it says anything statistically \u2014 the plugin log will quietly accumulate the decision half in the meantime.\n- Nothing about food selection changed. When the toggle is off, the only cost is one boolean read.\n\nv0.1.3.1 (2026-09-05)\n\n- The \"What's new\" popup now opens after this very update. 0.1.3.0 stayed silent the first time it ran because it had no record of the last version shown; the gate now tells an updated plugin (settings file already present) apart from a brand-new install (none yet) and only the latter stays quiet (`ChangelogGate.Options.ExistingInstall`, read from `pi.ConfigFile.Exists`.\n\n- Nothing else changed. The notes can be reopened later with `/lazyfoodbuff changelog`.\n\nv0.1.3.0 (2026-09-05)\n\n- In-game \"What's new\" popup. After every update, the first time the character is logged in and out of combat, LazyFoodBuff opens a window with the release notes for every version since the last one shown. It appears once per update; pressing \"Got it\" (or closing it) keeps it quiet until the next update.\n- `/lazyfoodbuff changelog` (or `whatsnew`) reopens the release notes at any time.\n- \"Open changelog on GitHub\" button in the popup links to the full CHANGELOG for this plugin.\n\n- This is the pilot of a standing rule for every lalalazy plugin: the popup code is shared across plugins and each plugin embeds its own release notes at build time. New config field `Configuration.LastSeenChangelogVersion`; on the first build carrying the feature it records the running version silently and does not open.\n- The popup never opens during combat, inside a duty, while zoning, or in a cutscene - it waits until the character is free.\n- `/lazyfoodbuff` with no argument still opens these settings.",
-    "TestingDalamudApiLevel": 15,
-    "TestingAssemblyVersion": "0.1.5.0"
-  },
-  {
-    "Author": "dajoey",
-    "Name": "Lazy Gear Collector",
-    "Punchline": "Track upgradable gear sets and what it costs to finish them",
-    "Description": "Tracks upgradable gear collections piece by piece. Starts with Occult Crescent: North Horn's Phantom Vision sets - all 7 roles, 5 slots, 4 tiers. Shows which pieces you own and at what tier, what the next upgrade costs, and the exact obol/fixative shortfall to finish a role or the whole collection. Every item ID and price is read from the game's own shop data at runtime, so it stays correct across patches. Also flags Arcanaut's gear you can trade up for free. Use /lazygear to open.",
-    "InternalName": "LazyGearCollector",
-    "AssemblyVersion": "0.0.2.0",
-    "TestingDalamudApiLevel": 15,
-    "TestingAssemblyVersion": "0.0.2.0",
-    "Changelog": "v0.0.2.0 (2026-09-05)\n\n- Added the in-game \"What's new\" popup. After Lazy Gear Collector updates, its changelog now opens once inside the game so the changes are visible without a trip to GitHub. It waits until the character is logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/lazygear changelog` any time to reopen it.\n- No change to collection tracking: the Phantom Vision set, tier detection, ownership counting and the remaining-cost figures are all unchanged.\n\nv0.0.1.0 (2026-07-30)\n\n- **First release.** Tracks upgradable gear collections: which pieces are owned, what tier each one\n- **Phantom Vision (Occult Crescent: North Horn, patch 7.55)** as the first collection \u2014 7 role sets\n- **Runtime shop-derived pricing.** `ShopGraph.cs` builds a reverse index over the entire\n- **Arcanaut's trade-up detection** (`Planner.DetectShortcut`). Arcanaut's +1 and +2 exchange into\n- **Ownership scanning** across bags, armoury chest and equipped gear (live), plus opportunistic\n- Role roster UI with click-through to per-piece detail, a wallet strip, per-role and\n\n- **The glamour dresser cannot be enumerated** at Dalamud API level 15 \u2014 `MirageManager` exposes\n- `ItemCostsStruct.CostType` is honoured when reading shop costs. `CostType == 0` means the cost\n- Reference data behind this release, including the full item-ID matrix and the shop table, is in\n\n- Release build: 0 warnings, 0 errors.\n- The set-construction and pricing logic was re-implemented independently against a raw Lumina dump",
-    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/LazyGearCollector",
-    "ApplicableVersion": "any",
-    "DalamudApiLevel": 15,
-    "IsHide": false,
-    "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyGearCollector/latest/latest.zip",
-    "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyGearCollector/latest/latest.zip",
-    "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyGearCollector/testing/testing.zip",
-    "Tags": [
-      "occult",
-      "crescent",
-      "northhorn",
-      "phantomvision",
-      "gear",
-      "collection",
-      "tracker"
-    ],
-    "CategoryTags": [
-      "utility"
-    ],
-    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazygearcollector-icon.png",
-    "ImageUrls": [
-      ""
-    ],
-    "DownloadCount": 0,
-    "LastUpdate": "0"
-  },
-  {
-    "Author": "dajoey",
-    "Name": "LazyCrafter",
-    "Punchline": "What can I make right now, what's it worth, and what would it take to make the rest?",
-    "Description": "Catalogs every recipe you can craft, buckets them by how much effort the missing materials take, prices them with Universalis, and hands the missing-material work to Artisan / GBR / ARC / Lifestream.",
-    "InternalName": "LazyCrafter",
-    "AssemblyVersion": "0.1.7.5",
-    "TestingAssemblyVersion": "0.1.7.5",
-    "TestingDalamudApiLevel": 15,
-    "Changelog": "v0.1.7.5 (2026-09-16)\n\n- **The shopping-stop Resume popup window is gone.** The 0.1.7.4 test pass: the full-screen popup opened at every shopping stop sat over the game and blocked mouse input with the client - verdict: remove the resume extra window. The window is removed and nothing else changed: a blocked shopping stop still says the what-to-do message in chat and on the Run tab exactly once, and Resume stays on the Run tab button, in chat (/lcraft resume) and the copied report - keyboard-only resume works\n\nv0.1.7.4 (2026-09-15)\n\n- **The retainer batch fetch no longer calls every session a zero-move without counting the bags.** The 0.1.6.16 early exit for an instantly-dead bell session sat ABOVE the bag-delta measurement with the moved counter still 0 from wave start, so every batch session ended as \"the retainer fetch moved nothing into the bags\", the cart held for Resume, and the per-item fallback never ran - the 0.1.7.3 test runs show exactly this shape (batch queued, retainers scanned, 0 counted). The exit now runs AFTER the measurement: a genuinely empty session still stops with the bell named, a session that moved anything trims the remainder into the per-item pass\n\nv0.1.7.3 (2026-09-10)\n\n- **The venture hand-off to ARC now actually uses ARC's new IPC surface instead of silently falling back to reflection forever.** The adapter subscribed to IPC callbacks named \"ARControl.AddItem\" and \"ARControl.GetInProgress\", but ARC registers them under a fixed \"ARC\" prefix independent of the plugin's internal name - so the subscription could never resolve, even against an ARC build that has the IPC, and every venture hand-off quietly used the older reflection path with no error anywhere. Found while preparing an in-game test of ARC's pending IPC pull request. The channel names are now decoupled from ARC's internal plugin name.\n\n- No behavior change for players on the current, unmodified ARC release: it has no IPC surface yet, so the reflection path is exercised exactly as before either way. This only changes what happens once ARC ships the IPC PR - the intended, faster hand-off finally engages instead of silently never firing.\n- Full harness: 364/364 PASS (no change in count - this fix touches IPC subscription wiring, not anything the offline harness exercises).\n\nv0.1.7.2 (2026-09-10)\n\n- **After a vendor-stop teleport across zones, the retainer-bell fetch no longer starts while the character is still loading into the new zone.** The wave-start gate that holds the fetch during a shopping-stop trip checked only whether the character was moving (Lifestream.IsBusy) or a fixed 5-second clock (ShoppingStopGate.SettleWindow) had elapsed - and Lifestream's own teleport call returns the moment it is accepted, well before a cross-zone loading screen finishes. A Kugane vendor stop showed both halves failing together: the busy flag read false and the 5-second clock lapsed while still mid-load, so the fetch queued, Artisan's bell scan answered against stale object-table data from the old zone, and the character right-clicked at nothing for 42 seconds before the run was stopped by hand. The gate now also holds on the game's own 'a zone change' state (ConditionFlag.BetweenAreas), independent of the trip flag and the settle clock, until it clears or the existing 3-minute cap ends the wait\n\n- Proved offline before shipping: two new offline harness pins assert a zone change holds even after the settle window has lapsed and even when the trip flag itself already reads false - the exact Kugane failure shape - plus the existing cap-forces-Proceed pin now covers a zone-change hold too. Full harness: 364/364 PASS (361 prior + 3 new).\n- This does not change what happens once the character has actually arrived and the zone flag clears - the settle window and every existing at-the-bell exemption (standing at the bell, inside a retainer's inventory, a quantity prompt, a dialogue) are unchanged.\n\nv0.1.7.1 (2026-09-08)\n\n- **The plugin no longer prints one caught error on the first frame after an update while the client is already running.** The shopping-stop popup (v0.1.7.0) was wired to the UI tick before the dispatch service it reads was built, so an update mid-session could let one draw frame run with the service still null and log a single caught exception - harmless to the run, but exactly the noise this feature was built to remove. The popup is now wired after the service exists.\n\nv0.1.7.0 (2026-09-08)\n\n- **A cart run now takes its shopping stops first, with one popup per stop: buy, press Resume, then the run goes unattended.** When a cart needs things the player must buy in person (gil vendors, the market board, currency shops, manual sources), the run makes those stops its first order of business: each blocked wave shows exactly ONE modal - title \"LazyCrafter\", what to buy and where, a single \"Resume\" button - instead of a wall of chat errors. Pressing Resume re-checks the bags and continues the same cart; when the run believes the rest needs no player it kicks into unattended mode and behaves exactly as before, with no popups. Error spam is suppressed at the source: a blocked stage emits its popup once, at the stage transition, never per frame\n- **New setting \"Run shopping stops first with a popup per stop (buy, press Resume, then unattended)\" (on by default).** Off restores the pre-0.1.7.0 run exactly: one continuous wave loop, no stage machine, no popups - so a bad stage machine can never brick the plugin\n\n- The stage machine is pure Core: it records Done / NeedsUser / Failed per stage and dedupes popup emissions by construction - a blocked stage re-recorded every framework tick still emits exactly one popup. Proved offline by the new `RunStageTests` suite in the harness (16 checks: one emission per blocked stage, no re-emit on 100 re-records, Resume advances without restarting, Done auto-continues, Failed records once, empty order = unattended).\n- The modal's Resume button routes into the same `DispatchService.Resume` the Run tab button and `/lcraft resume` already use - the run continues from recorded state (re-plan from the live bags), never a plan restart.\n- A wave that blocks with NO shopping work (a fetch dead end, a refused hand-off) does not stage-block: the chat block already names everything, and a popup with nothing to do would be noise.",
-    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/LazyCrafter",
-    "ApplicableVersion": "any",
-    "DalamudApiLevel": 15,
-    "IsHide": false,
-    "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyCrafter/latest/latest.zip",
-    "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyCrafter/latest/latest.zip",
-    "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyCrafter/testing/testing.zip",
-    "Tags": [
-      "crafting",
-      "recipe",
-      "market",
-      "universalis",
-      "artisan",
-      "gatherbuddy",
-      "lazy"
-    ],
-    "CategoryTags": [
-      "utility"
-    ],
-    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazycrafter-icon.png",
-    "ImageUrls": [
-      ""
-    ],
-    "DownloadCount": 0,
-    "LastUpdate": "0"
-  },
-  {
-    "Author": "dajoey",
-    "Name": "Lazy Market Companion",
-    "Punchline": "Auto-lists your always-sell items and matches market board prices",
-    "Description": "Keep an Auto-Market list of items you always sell. The companion lists them through your retainers in the stack size you choose (keeping a reserve in your bags if you want), prices every listing by matching the lowest board price instead of undercutting, and can do all of it inside AutoRetainer's venture cycle. Also re-prices existing listings (Auto Pinch). Successor to Dagobert Price Matcher; your old settings are imported automatically.",
-    "InternalName": "LazyMarketCompanion",
-    "AssemblyVersion": "0.1.68.0",
-    "TestingAssemblyVersion": "0.1.68.0",
-    "TestingDalamudApiLevel": 15,
-    "Changelog": "v0.1.68.0 (2026-09-22)\n\n\n- **A Universalis request that times out no longer blinds its whole batch of items.** The gate asks about items in groups of 50; when one group died on the 8-second request timeout, all 50 items listed with the price threshold unchecked, and on a slow Universalis evening nearly every group timed out at once (125 of 129 items unpriced). A group that fails is now asked once more before it is declared failed - the gate already waits up to 25 seconds for prices, so the second ask fits inside that wait. Items whose group fails twice behave exactly as before: they list, never vendor, and the warning names how many went unchecked.\n\n- Offline suite: new case 129 pins the retry - a group that fails once then answers prices everything with no failures recorded; a group that never answers costs only its own items while the rest price; all groups dead still returns the declared blind gate rather than an empty result.\n\nv0.1.67.0 (2026-09-21)\n\n- **New \"Inventory\" tab.** Nothing in it changes Auto-Market, category routing or Sweep to Bags.\n\n- **Who handles this stack.** Hovering a stack in the bags, a retainer or the Armoury Chest lists every plugin that moves, sells, discards or protects it, or \"Nothing handles this stack\" (AutoRetainer's lists are read from its config file).\n\n- **Space at a glance.** Free slots for bags, Armoury pages, saddlebags and retainers, the Quick Exploration intake and an estimate of when each retainer fills.\n\n- **Venture loot.** Quick Exploration rewards logged by AutoRetainer, shown per retainer with the reason each is kept. Marketable stock is never vendored or sorted; unmarketable loot is marked as a GC delivery or desynth candidate (preview only).\n\n- **Gear to the Armoury.** \"Move N piece(s) to the Armoury\" and \"Undo last batch\", plus an optional idle mode (\"Move gear on its own when everything is idle\"), off by default.\n\n- Every Inventory action is logged to lmc_inventory_actions.log.\n\nv0.1.66.0 (2026-09-21)\n\n- **Problem reports.** `/lmc report <what happened>` or the \"Report a problem\" button in the settings window writes a report to the plugin log: zone, job, the automation state, a settings summary (counts only, no names), the recent price decisions and the windows that are open.\n\n- **Structured error lines.** An error is written as one line carrying the plugin version, build, zone, job and the full stack with file and line numbers.\n\n- **Automation pauses instead of repeating an error every frame.** Retainer automation, the inventory markers and the market-board price watcher each stop after repeated errors with one chat notice and retry on their own. While retainer automation is paused, AutoRetainer sessions are released untouched instead of being started with nothing watching them.\n\nv0.1.65.0 (2026-09-21)\n\n- **Retainer exit no longer stalls on the retainer menu or exits prematurely.** The leave flow now properly waits for the retainer menu to appear before closing it, completes only once the retainer list is restored, and correctly acknowledges the post-vendoring buyback confirmation dialog when present.\n\n- Offline suite: new case 128 pins the retainer close state machine across sweeps (waits for menu to open, issues single close command with bounded retry, confirms buyback prompt, and declares completion only at the retainer list).\n\nv0.1.64.0 (2026-09-21)\n\n- **Leaving a retainer after Auto-Market vendoring no longer stalls on the buyback warning.** After \"Have Retainer Sell Items\", the game asks whether to recall the retainer and lose the buyback list. Auto-Market now confirms that specific prompt and continues; it does not dismiss other yes/no dialogs and it never opens buyback or re-buys what was just vendored.\n\n- Offline suite: new case 127 pins the prompt match (including multiline text), refuses unrelated yes/no and bare \"Buy Back\" labels, and keeps empty prompts as a no-click.\n\n\n\n- **\"Sweep to Bags\" now sweeps the right stock: marketable items that are NOT on the Auto-Market list.** The button's first release pulled the opposite set - enrolled Auto-Market stock sitting in retainer inventory - and with a full market board that meant one press dragged the entire sell backlog into the character's bags, where the next automatic run routed all of it straight back to the retainers. The pass now targets exactly the stacks the bag markers shade grey: items that CAN be sold on the market board but have no enabled Auto-Market entry - stock nothing automated will ever look after. That is what manual review is for.\n- **Enrolled Auto-Market stock is an explicit never-touch rail for the sweep.** Anything the enabled Auto-Market list names (item and quality) stays exactly where it is, whether or not it is currently listed. Items already on the market board remain structurally out of reach as before - the pass only reads retainer pages.\n- The completion line now reports both sides: how many marketable stacks moved, how many stayed because they are on the Auto-Market list, how many were not marketable, how many were left because bags were full, and any failures. Stops cleanly at full bags, same as before. Still manual-only: nothing but the button starts it.\n\n\n- Offline suite: case 126 now pins the corrected target - a marketable unenrolled stack moves; an enrolled stack, an unmarketable stack, crystal-container stock and character-bags stock never move; a one-slot or empty bag budget leaves the remainder in place; and quality is part of enrollment (not marketability), so an HQ stack whose item has only an NQ entry still sweeps.\n\nv0.1.62.0 (2026-09-19)\n\n\n- **A \"Sweep to Bags\" button on the retainer list moves Auto-Market-list items that are sitting in retainer inventory into the character's bags for manual review.** Listed items on the market board are never touched - the pass only reads retainer pages. Items that are not on the enabled Auto-Market list are never touched. When bags are full, the pass stops cleanly, leaves the remaining stacks where they are, and reports what moved and what was left. The button is the only way this runs: no schedule, no idle loop, and no AutoRetainer hook starts it.\n\n\n- Offline suite: new case 126 pins eligibility (item and quality), the skip of ineligible and crystal-container stock, that bags stock is never a candidate, and that a full or empty bag budget leaves remaining stacks in place rather than dropping them.",
-    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/LazyMarketCompanion",
-    "ApplicableVersion": "any",
-    "DalamudApiLevel": 15,
-    "IsHide": false,
-    "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyMarketCompanion/latest/latest.zip",
-    "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyMarketCompanion/latest/latest.zip",
-    "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyMarketCompanion/testing/testing.zip",
-    "Tags": [
-      "marketboard",
-      "retainer",
-      "sell",
-      "price",
-      "match",
-      "autoretainer"
-    ],
-    "CategoryTags": [
-      "utility"
-    ],
-    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazymarketcompanion-icon.png",
-    "ImageUrls": [
-      ""
-    ],
-    "DownloadCount": 0,
-    "LastUpdate": "0"
-  },
-  {
-    "Author": "dajoey",
-    "Name": "Lazy Fish Sitter",
-    "Punchline": "Sits you down while you fish. That's it.",
-    "Description": "Checks every few seconds while you are fishing; if you are not sitting, it runs /sit for you. Leaves you alone once you are seated (ground sit, chair, or pose).",
-    "InternalName": "LazyFishSitter",
-    "AssemblyVersion": "0.1.0.0",
-    "TestingAssemblyVersion": "0.1.4.0",
-    "TestingDalamudApiLevel": 15,
-    "Changelog": "v0.1.0.0 (2026-09-05)\n\n- New plugin: while the game's Fishing condition is active, checks every few seconds (default 2) and runs /sit when the player is not already seated (file: `FishSitService.cs`, `Tick`).\n- Seated detection reads the local Character's Mode field - 12 (EmoteLoop) covers persistent emotes like /sit, 13 (InPositionLoop) covers chair/bench and pose loops - the same read SimpleHeels' EmoteIdentifier uses, so the plugin never re-sits someone already seated, on a chair, or holding a pose (file: `FishSitService.cs`, `IsInPostureLoop`).\n- The /sit is sent through the game's own chat-entry path (UIModule ProcessChatBoxEntry), inlined and trimmed from XivCommon's MIT Chat.cs - the same code ECommons ships inside this repo (file: `ChatCommand.cs`).\n- Safety valves: never re-sends the sit command more than once per 3 seconds, and skips while between areas, in events, quest events, cutscenes, combat, mid-emote, or jumping (file: `FishSitService.cs`, `Tick`).\n- Config: enabled toggle, check interval 1-10s, and the sit command itself (default /sit, must start with a slash) (files: `Configuration.cs`, `ConfigWindow.cs`).\n- Ships on the TESTING channel first. Use /lazyfishsitter for settings, /lazyfishsitter debug for a state dump in the Dalamud log.",
-    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/LazyFishSitter",
-    "ApplicableVersion": "any",
-    "DalamudApiLevel": 15,
-    "IsHide": false,
-    "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyFishSitter/latest/latest.zip",
-    "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyFishSitter/latest/latest.zip",
-    "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyFishSitter/testing/testing.zip",
-    "Tags": [
-      "fishing",
-      "lazy",
-      "sit",
-      "emote",
-      "utility"
-    ],
-    "CategoryTags": [
-      "utility"
-    ],
-    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyfishsitter-icon.png",
-    "ImageUrls": [
-      ""
-    ],
-    "DownloadCount": 0,
-    "LastUpdate": "0"
-  },
-  {
-    "Author": "dajoey",
-    "Name": "LazyRetainerLive",
-    "Punchline": "Real-time retainer venture countdowns for your dashboard.",
-    "Description": "Serves the logged-in character's live retainer and venture state on loopback HTTP (127.0.0.1:10504) so the ffxiv dashboard relay can show real-time venture countdowns instead of AutoRetainer's occasionally-stale file cache.",
-    "InternalName": "LazyRetainerLive",
-    "AssemblyVersion": "0.1.0.1",
-    "TestingAssemblyVersion": "0.1.0.1",
-    "TestingDalamudApiLevel": 15,
-    "Changelog": "v0.1.0.1 (2026-09-05)\n\n\n- Corrected a wrong claim in the v0.1.0.0 notes below (and on the mod's web page): **the endpoint does not answer 503 on logout.** Once logged in, it keeps serving that character's last known retainer state - including at the title screen - and only ever answers 503 if it has never read the retainer table at all since the plugin loaded (i.e. it started at the title screen and no login has happened yet). That freeze is deliberate and is the better behaviour: measured previously the frozen live snapshot was still *newer* than AutoRetainer's file, so falling back to the file on logout would have shown the dashboard **older** data, not fresher. No behaviour was changed here - only the description was wrong.\n- The settings window no longer reports \"serving live snapshot\" while logged out. It now distinguishes three states: no snapshot yet, serving a live snapshot, or serving the last-known snapshot while the game is in transition.\n\n\n- For anything scripting against this endpoint: `readAt` is the time the request was **served**, not the time the data was read from the game, so it does not reveal how stale a frozen snapshot is. Use the settings window (or `/lazyretainerlive debug`) to tell live from frozen.\n\nv0.1.0.0 (2026-09-05)\n\n\n- First release. LazyRetainerLive reads the logged-in character's LIVE retainer table (the same in-memory data AutoRetainer uses to drive its own countdowns) and serves it as JSON on `http://127.0.0.1:10504/retainers`, so the ffxiv dashboard's retainer panel can show venture countdowns that update the moment a venture is collected instead of whenever AutoRetainer next saves its config file.\n- When not logged in (or the live table has no data yet) the endpoint answers HTTP 503, which tells the dashboard relay to fall back to AutoRetainer's file. Loopback only - the port is never reachable from other machines.\n\n\n- Companion of AutoRetainer - it reads, it never writes, assigns, or collects anything. Settings: Enabled (default on) and loopback port (default 10504). Commands: `/lazyretainerlive` opens settings, `/lazyretainerlive debug` dumps listener + snapshot state, `/lazyretainerlive changelog` reopens this popup.\n- Why this exists: AutoRetainer's `DefaultConfig.json` (which feeds the dashboard today) is saved only at AutoRetainer's own save points, so its venture rows can be tens of minutes stale while ventures are actually completing. The countdown for the logged-in character lives in the game's memory - this plugin is a small read-only window onto it.",
-    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/LazyRetainerLive",
-    "ApplicableVersion": "any",
-    "DalamudApiLevel": 15,
-    "IsHide": false,
-    "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyRetainerLive/latest/latest.zip",
-    "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyRetainerLive/latest/latest.zip",
-    "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyRetainerLive/testing/testing.zip",
-    "Tags": [
-      "retainers",
-      "ventures",
-      "dashboard",
-      "http",
-      "lazy"
-    ],
-    "CategoryTags": [
-      "utility"
-    ],
-    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyretainerlive-icon.png",
-    "ImageUrls": [
-      ""
-    ],
-    "DownloadCount": 0,
-    "LastUpdate": "0"
-  },
-  {
-    "Author": "zbee, Liza Carvelli (upstream PR by dajoey)",
-    "Name": "ARC (PR test 2 - IPC venture work)",
-    "Punchline": "TEST BUILD ONLY - zbee/ARC PR#3 IPC surface (separate instance)",
-    "Description": "TEMPORARY test build of zbee/ARC PR #3 (ipc-venture-work): adds ARC.AddItem / ARC.GetInProgress / ARC.GetListCount IPC used by LazyCrafter's ArcDispatch. Installs alongside your normal production ARControl (different InternalName, no config or IPC collision at rest) for in-game verification only. Pre-seeded with a copy of your existing ARControl venture setup so no re-setup is needed. Not maintained; remove after testing is done.",
-    "InternalName": "ARControlPRTest2",
-    "AssemblyVersion": "0.0.0.0",
-    "TestingAssemblyVersion": "8.6.0",
-    "TestingDalamudApiLevel": 15,
-    "Changelog": "v8.6.0 (2026-09-11)\n\nTest build of zbee/ARC PR#3 (github.com/zbee/ARC/pull/3, branch dajoey/ARC ipc-venture-work). Adds an IPC surface (ARC.AddItem, ARC.GetInProgress, ARC.GetListCount) for other plugins to hand off venture work - LazyCrafter's ArcDispatch uses it when present, falling back to reflection otherwise. Not for general use; installed alongside production ARControl to verify the PR in-game before replying to the maintainer.",
-    "RepoUrl": "https://github.com/dajoey/ARC/tree/ipc-venture-work",
-    "ApplicableVersion": "any",
-    "DalamudApiLevel": 15,
-    "IsHide": false,
-    "IsTestingExclusive": true,
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/ARControlPRTest2/testing/testing.zip",
-    "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/ARControlPRTest2/testing/testing.zip",
-    "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/ARControlPRTest2/testing/testing.zip",
-    "Tags": [
-      "arc",
-      "autoretainer",
-      "ventures",
-      "ipc-test",
-      "temporary"
-    ],
-    "CategoryTags": [
-      "utility"
-    ],
-    "IconUrl": "https://raw.githubusercontent.com/zbee/ARC/master/ARControl.png",
-    "ImageUrls": [
-      ""
-    ],
-    "DownloadCount": 0,
-    "LastUpdate": "0"
-  },
-  {
-    "Author": "dajoey",
-    "Name": "LazyCrucible",
-    "Punchline": "Crucible of the Unbroken familiar picks, filled in for every fight",
-    "Description": "For the Beastmaster duty Crucible of the Unbroken. Fills the ten-familiar run roster at the Bentbranch Meadows entry menu and the three Battlehorn slots before every fight with the familiars that answer that fight's mechanics: elemental weakness, interrupts, dispels, cleanses and crowd control, skipping knocked-out familiars and benching badly hurt ones. Picks are announced in chat. Every automation has its own toggle and manual edits always win. Includes the beast-pick advisor for every board and a read-only recorder that writes each Crucible screen to the Dalamud log. Use /lazycrucible to open.",
-    "InternalName": "LazyCrucible",
-    "AssemblyVersion": "0.1.2.0",
-    "TestingAssemblyVersion": "0.1.2.0",
-    "TestingDalamudApiLevel": 15,
-    "Changelog": "v0.1.2.0 (2026-09-22)\n\n- **Treasure**: takes the best choice instead of only suggesting it. Live button clicks confirmed choice *k* is event param `2+k`, so the pick path that was already built can fire.\n\nv0.1.1.0 (2026-09-21)\n\n- **Beast Feed**: picks the familiar each feed helps most in the fights ahead and confirms it (kin, satiety, no repeats, knocked-out familiars honoured).\n- **Shop**: buys the heals, resistances, gear and feed the upcoming fights call for; never sells and never leaves the shop.\n- **Spoils**: takes everything when it all fits; otherwise lists the best items first.\n- **Campsite**: selects which familiars rest; Rest stays with the player.\n- **Treasure**: marks the best choice and explains why.\n- **Fight guide** (`/lazycrucible guide`): all five boards, with horn picks and their reasons, dangerous hits, mechanics and what to bring; opens on the next fight.\n- **Hands back**: any input made by hand on one of these screens, or AutoDuty running, hands that screen back to the player. Each screen has its own switch, on by default.\n- **Error reporting** covers the new screens: a screen automation that keeps failing drops the input in flight, pauses with one chat notice and retries on its own.\n\nv0.1.0.0 (2026-09-21)\n\n- **First release**, split out of GluttonyCombo: the Beastmaster familiar selection for Crucible of the Unbroken now lives here, and GluttonyCombo keeps the Beastmaster rotation. Both automations are on by default and each has its own switch.\n- **Run roster**: on the Bentbranch Meadows entry menu, sets the ten familiars that cover the board's battles best, once per visit.\n- **Battlehorns**: on the formation screen before every fight, puts the three familiars that answer that fight's mechanics on the horns (elemental weakness, interrupts, dispels, cleanses, crowd control the enemies are vulnerable to). Knocked-out familiars are never picked; badly hurt ones lose to a healthy familiar that fits nearly as well. The fight itself is never started.\n- **Picks in chat**: one line per fight naming each familiar and why it was chosen (`\"Announce picks in chat\"`). The window shows the latest selection.\n- **Manual edits win**: a roster or horn change made by hand (or by another tool) stops the automation for that screen, and a roster edited that way is kept for the rest of that visit.\n- **Stands down for AutoDuty**: while AutoDuty is running a board (it picks its own familiar team), the familiar screens are left alone (`\"Stand down while AutoDuty is running\"`, on by default).\n- **Fixed** (carried over from GluttonyCombo testing builds): the item shop's Beast Feed screen was treated as the Battlehorn screen, so feeding a familiar after the elite fight could fail or move the feed target. The feeding and campsite screens are now never touched.\n- **Fixed** (carried over): a run roster cleared and rebuilt on the entry menu (by hand or by AutoDuty) is no longer overwritten mid-edit.\n- **Beast-pick advisor**: picks for every battle on every board, the board roster and familiars worth capturing, under \"Beast picks by battle\".\n- **Screen recorder** (`\"Record Crucible screens to the log\"`, read-only): writes each Crucible screen and every button pressed on it to the Dalamud log, groundwork for automating the path, spoils, treasure, shop, feeding, campsite and beast gear screens.\n- Stands down with a chat notice while a GluttonyCombo version that still fills familiars itself is loaded.\n- **Problem reports**: `/lazycrucible report <what happened>` or the \"Report a problem\" button writes a report to the plugin log with the zone, job, recent familiar-selection and screen lines, and the full contents of the Crucible screens that are open.\n- **Error reporting**: an error is written as one line carrying the plugin version, build, zone, job and the full stack with file and line numbers. A part that keeps failing (familiar selection, the screen recorder, or its event and click logs) pauses with one chat notice and retries on its own; manual edits are still detected while the event log is paused.\n- `/lazycrucible` opens the window; `/lazycrucible changelog` shows this list.",
-    "RepoUrl": "https://github.com/dajoey/lalalazy/tree/main/src/LazyCrucible",
-    "ApplicableVersion": "any",
-    "DalamudApiLevel": 15,
-    "IsHide": false,
-    "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyCrucible/latest/latest.zip",
-    "DownloadLinkUpdate": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyCrucible/latest/latest.zip",
-    "DownloadLinkTesting": "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyCrucible/testing/testing.zip",
-    "Tags": [
-      "beastmaster",
-      "bst",
-      "crucible",
-      "unbroken",
-      "familiar",
-      "battlehorn",
-      "automation"
-    ],
-    "CategoryTags": [
-      "jobs",
-      "utility"
-    ],
-    "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazycrucible-icon.png",
-    "ImageUrls": [
-      ""
-    ],
-    "DownloadCount": 0,
-    "LastUpdate": "0"
-  }
+    {
+        "Author":  "dajoey",
+        "Name":  "PvP Solver",
+        "Punchline":  "PvP-only auto-rotation",
+        "Description":  "PvP-only auto-rotation for FFXIV. Activates in PvP zones.",
+        "InternalName":  "PvPSolver",
+        "AssemblyVersion":  "0.1.1.1",
+        "TestingAssemblyVersion":  "0.1.1.1",
+        "Changelog":  "v0.1.1.1 (2026-09-05)\n\n- Fixed a log line that repeated forever instead of once. The startup line \"MajorUpdater: first valid cycle\" sat behind a check that only asked whether rotations had loaded yet, but the flag that answers that is only ever set while actually in a PvP-valid state - so out of PvP it never flipped and the line printed on every single update cycle, including at the title screen with no character logged in. It now sits inside the block that really does load the rotations, so it prints once each time rotations are loaded and describes the state it claims to describe.\n- Impact: over one 5.5-hour sample this single line was 55,497 of the 106,116 log lines collected across every installed plugin - 52.3% of the whole log - and 29,152 of those were written at the title screen by a PvP plugin. The same window would now produce 91 of them, a 99.8% reduction, with no loss of information: the line still states what condition the plugin came up in.\n- No gameplay change. Rotation loading, targeting and the PvP rotations themselves are untouched; the only edit is where the log statement sits.\n\n- The paired \"triggering rotation load...\" line already fired 91 times in that sample rather than once, because `MajorUpdater.IsValid` resets `_rotationsLoaded` on every zone transition, logout and `Player.Available == false`. That reload behaviour is unchanged here and is tracked separately; it is why the line is \"once per rotation load\" rather than literally once per session.\n- Second log-spam fix in this plugin (v0.1.0.11 throttled the per-frame \"no rotation found\" warnings). Every other Information-level plugin log line was audited this release: remaining helper logs are gated behind the InDebug setting, and nothing else logs at Information on a per-cycle path.\n\nv0.1.1.0 (2026-09-05)\n\n- Added the in-game \"What\u0027s new\" popup. After PvP Solver updates, its changelog now opens once inside the game so the changes are visible without a trip to GitHub. It waits until the character is logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/pvpsolver changelog` (or `/pvs changelog`) any time to reopen it.\n- No change to rotations or targeting: the sticky-target and team-pressure work from 0.1.0.13 is untouched, and the seen-version is stored in its own small file so upstream RotationSolverReborn syncs stay clean.\n\nv0.1.0.13 - 2026-08-25\n- **`PvPHighestPressure` targeting mode** (issue #4). Selects the hostile the most members of the player\u0027s own side are currently targeting, breaking ties toward the lowest HP percentage. Party and alliance lists are both counted, so it behaves in Frontline (where the rest of the player\u0027s side arrives as alliance members) as well as in Crystalline Conflict. The player\u0027s current target is excluded from the count, otherwise the mode would reinforce whatever was already targeted. Appended to the end of `TargetingType`, so existing saved `TargetingTypes` indices are unaffected, and it is **not** added to the default list - it is opt-in from Target settings.\n\n- **Auto-target abandoned an enemy mid damage-window** (issue #4). `FindHostileRaw` re-ranked every hostile from scratch on each action and returned the top of the list, with no reference to the target already selected; `RSCommands.DoAction` then hard-assigned `Svc.Targets.Target` to it. Under an HP-based targeting mode this flips target the instant another enemy\u0027s HP crosses the player\u0027s, so a just-applied Wildfire is left on a target no longer being hit. `FindHostileRaw` now consults `FindStickyTarget` before returning: if the current target is still a legal candidate **for the action being used** and carries at least one status sourced from the player with `0 \u003c RemainingTime \u003c= StickyTargetMaxRemaining`, it is kept.\n\n- Two new options under Target settings: **`StickyTarget`** (default **on**) and **`StickyTargetMaxRemaining`** (default 30s). The second exists so an effectively permanent aura cannot pin the target forever - `RemainingTime == 0` is this codebase\u0027s convention for a permanent status and is already excluded, and the cap covers long ones.\n\n- **Trade-off, by design:** while the debuff is ticking the rotation will stay on that target even if another enemy drops lower. That is the requested behavior, and turning `StickyTarget` off restores the previous snap-to-lowest-HP handling exactly.\n- **Scoped to PvP.** `FindStickyTarget` returns early unless `DataCenter.IsPvP`, so PvE target selection is byte-for-byte unchanged.\n- Sticky selection reads `Svc.Targets.Target`, i.e. the target the previous action settled on, which is what makes this hysteresis rather than a second independent pick.\n- `CountTeamPressure` scores every candidate once before sorting rather than inside the comparator; a comparator that re-reads live target data can throw `IComparer.Compare returns inconsistent results` if a teammate switches target mid-sort.\n- **Not yet verified in-game** - shipped to the testing channel only.\n\nv0.1.0.12 - 2026-08-06\n- Synced upstream RotationSolverReborn `35ceb6e82` (\"Guard status check for Doom to ensure valid object\"): the PvP-rotation portion of that commit is a `GameVersion` attribute bump from `7.5` to `7.55` across all 21 PvP rotations.\n\n- **No gameplay change.** The Doom guard itself lives in and upstream\u0027s PvE rotations - base classes this fork intentionally does not track (RUNBOOK 3.2). The fork\u0027s PvP rotations contain no Doom status checks, so there is nothing to port.\n- Synced from upstream; all 21 PvP rotation files verified byte-identical to the upstream tip (CR-normalised).\n- **Promoted to production.** `AssemblyVersion` 0.1.0.9 -\u003e 0.1.0.12; both channels now ship this build. In-game gate waived: the 0.1.0.11 fix executes only outside PvP (guard on `DataCenter.IsPvP`) and this sync is attribute-only, so PvP play cannot exercise what changed; the user-facing check is the absence of the PvE `no rotation found` warning in `dalamud.log` (issue #3).\n\nv0.1.0.11 - 2026-08-03\n- **Per-frame log spam in all PvE content** (issue #3). `UpdateCustomRotation` is driven from the framework tick via `MajorUpdater.RSRRotationAndStateUpdate`, and emitted `WRN... no rotation found for job=\u003cjob\u003e combatType=PvE` roughly 50 times per second for as long as the player was outside PvP. PvPSolver is PvP-only and ships no PvE rotations, so the lookup could never succeed; worse, the miss path set `DataCenter.CurrentRotation = null` immediately before logging, which permanently defeated the unchanged-state guard at the top of the method and forced a full re-resolve every tick.\n\n- `UpdateCustomRotation` now returns early when `DataCenter.IsPvP` is false, clearing `CurrentRotation`/`CurrentRotationActions` once on the PvP-to-PvE transition instead of every frame. `curCombatType` is consequently always `CombatType.PvP` below that guard.\n- Removed the ungated `PluginLog.Information($\"UpdateCustomRotation: job=..., IsPvP=..., groups=...\")` call. It ran unconditionally on every invocation, ahead of every early return - invisible to users filtering at Warning+, but hammering `dalamud.log` in PvP and PvE alike.\n- Both remaining \"no rotation\" warnings (`no rotation found for job=...` and `No valid rotations found for...`) are now throttled by a `_lastNoRotationLogged` (job, combat type) tuple, so a persistent miss reports once rather than once per frame. Reset in `ChangeRotation` so a later successful load re-arms the warning.\n\n- **Shipped to production with 0.1.0.12.** In-game gate waived: every changed statement executes only when `DataCenter.IsPvP` is false, so in-PvP behavior is provably unchanged; the empirical check is that the PvE `no rotation found` warning stops firing (issue #3).\n- Both log lines date to the initial vendored commit `9b3652dae`, so this affected every release to date.\n- No rotation, targeting or combat behavior changes - the end state in PvE is identical (`CurrentRotation == null`), it is just no longer recomputed and re-logged every tick.\n\nv0.1.0.10 - 2026-07-31\n- Synced upstream RotationSolverReborn commit `2ac940563`: the `EmergencyGCD` hook now takes the queued next GCD as a parameter, bringing it in line with `EmergencyAbility`, interrupts, dispels and the heal hooks, which have all taken it for some time. Applied to the base engine and to the two rotations that override it.\n\n- **No gameplay change.** The new `nextGCD` parameter is not read by any implementation of the hook — not in this fork, and not anywhere in upstream `641bd792e`. It is plumbing for future upstream use. Purify (stun / heavy / bind / silence / deep freeze / Miracle of Nature), Guard, Recuperate and Standard-issue Elixir priority are unchanged, as are the WHM Aquaveil and BRD The Warden\u0027s Paean cleanse paths.\n- The WHM and BRD PvP rotations are now byte-identical to upstream (verified by diff, CR-normalised).\n- First release on the **reinstated testing channel**. The channel was removed; its previous entry never worked because `TestingDalamudApiLevel` was unset, so Dalamud hid the build. Now set to 15 alongside `TestingAssemblyVersion`. Production remains 0.1.0.9 until this build is verified in-game.\n- Escalated by the nightly upstream-merge on under RUNBOOK 3.2 (\"never pull base classes\"). RUNBOOK amended the same day with a signature-only carve-out so equivalent changes sync unattended.",
+        "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/PvPSolver",
+        "ApplicableVersion":  "any",
+        "DalamudApiLevel":  15,
+        "TestingDalamudApiLevel":  15,
+        "IsHide":  false,
+        "IsTestingExclusive":  false,
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/PvPSolver/latest/latest.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/PvPSolver/latest/latest.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/PvPSolver/testing/testing.zip",
+        "Tags":  null,
+        "CategoryTags":  null,
+        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/pvpsolver-icon.png",
+        "ImageUrls":  [
+                          ""
+                      ],
+        "DownloadCount":  0,
+        "LastUpdate":  "0"
+    },
+    {
+        "Author":  "dajoey",
+        "Name":  "AutoPotion",
+        "Punchline":  "Per-job HP, MP, and deep dungeon potion automation.",
+        "Description":  "Auto-uses the highest-tier HP potion, MP potion (Ether), and the deep dungeon regen potion (Sustaining / Eurekan / Orthos / Pilgrim\u0027s) at configurable thresholds. Each potion\u0027s threshold and on/off state is stored per-job, so casters and tanks can have completely different setups.",
+        "InternalName":  "AutoPotion",
+        "AssemblyVersion":  "0.2.5.0",
+        "Changelog":  "v0.2.5.0 (2026-09-05)\n\n- New per-job option: \"Auto-use Echo Drops when silenced\". When it is on and Silence lands (mob silence spells, AoE silences, deep dungeon traps), AutoPotion uses Echo Drops from inventory to cure it automatically. Item use is not blocked by Silence, so the cure works exactly when nothing else can.\n- OFF by default like every option, and per job like the rest: tick the new box in the settings window for the jobs it should apply to. With it off (the default) nothing changes - not even a status check.\n- It reuses the same machinery as the potions: HQ Echo Drops are preferred over normal ones, the shared 750 ms cooldown after any potion use applies, and a Silence that arrives during that cooldown is cured on the next tick.\n- If the diagnostic tap is enabled, the cure logs as an `e` event; when it cannot fire the near-miss reasons are `edblocked` (on cooldown / blocked) or `ednostock` (none in the bags).\n- No change to potion behaviour. HP/MP/regen thresholds, the overshoot guard, the deep dungeon Rehabilitation lockout and the in-combat / in-duty gates all work exactly as before.\n\nv0.2.4.0 (2026-09-05)\n\n- Added an optional \"Log potion decisions\" diagnostic, OFF by default. Turn it on with `/autopotion telemetry on` or the new Advanced / Diagnostics section of the settings window, and AutoPotion writes one line to its plugin log every time it uses a potion, plus a rate-limited line when a threshold was crossed and nothing fired.\n- Purpose: the log line records the HP%, the MP%, the threshold that was in force and the job, so a threshold can be verified after the fact instead of guessed at. Nothing leaves the machine - the lines only go to the local Dalamud plugin log.\n- The \"nothing fired\" lines say WHY in a short code: `hpover` (a potion was available but the heal would have been wasted), `hpblocked` / `mpblocked` / `rgblocked` (on cooldown or blocked by a status), `hpnostock` / `mpnostock` / `rgnostock` (none left in inventory) and `rgrehab` (Rehabilitation still up in a deep dungeon).\n- These lines are heavily rate-limited on purpose: a repeated state logs once, not once per frame. Measured against 214 minutes of real play the near-miss lines come out under one line per minute, so the log stays readable.\n- No change to potion behaviour. Thresholds, per-job profiles, the overshoot guard, the deep dungeon Rehabilitation lockout and the in-combat / in-duty gates all work exactly as before, and with the setting off (the default) the plugin does not even build a log line.\n\nv0.2.3.0 (2026-09-05)\n\n- Added the in-game \"What\u0027s new\" popup. After AutoPotion updates, its changelog now opens once inside the game so the changes are visible without a trip to GitHub. It waits until the character is logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/autopotion changelog` any time to reopen it.\n- No change to potion behaviour: thresholds, per-job profiles and the in-combat / in-duty gates all work exactly as before.\n\nv0.2.2.1 - 2026-07-02\n- **Plugin icon now shows in the Dalamud installer.** The manifest (`AutoPotion.json`) had no\n\n- No behavior changes. Part of a repo cleanup pass.",
+        "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/AutoPotion",
+        "ApplicableVersion":  "any",
+        "DalamudApiLevel":  15,
+        "IsHide":  false,
+        "IsTestingExclusive":  false,
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/AutoPotion/latest/latest.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/AutoPotion/latest/latest.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/AutoPotion/testing/testing.zip",
+        "Tags":  [
+                     "auto",
+                     "potion",
+                     "healing",
+                     "deep dungeon"
+                 ],
+        "CategoryTags":  [
+                             "utility"
+                         ],
+        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/autopotion-icon.png",
+        "ImageUrls":  [
+                          ""
+                      ],
+        "DownloadCount":  0,
+        "LastUpdate":  "0",
+        "TestingAssemblyVersion":  "0.2.5.0",
+        "TestingDalamudApiLevel":  15
+    },
+    {
+        "Author":  "dajoey",
+        "Name":  "Armoire Auto-Fill",
+        "Punchline":  "Per-dungeon view of which armoire-eligible gear pieces you\u0027re still missing",
+        "Description":  "Lists every armoire-eligible dungeon drop in the game and shows whether each is in your inventory, in your armoire, or still missing. Sort by level, hide completed dungeons, toggle to show owned items too. Open the armoire UI at an inn once per session to populate the in-armoire state; in-inventory and equipped state is detected automatically.",
+        "InternalName":  "ArmoireAutoFill",
+        "AssemblyVersion":  "0.4.4.0",
+        "Changelog":  "v0.4.4.0 (2026-09-05)\n\n- Added the in-game \"What\u0027s new\" popup. After Armoire Auto-Fill updates, its changelog now opens once inside the game so the changes are visible without a trip to GitHub. It waits until the character is logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/armoire changelog` any time to reopen it.\n- No change to armoire behaviour: the dungeon checklist, the auto-store on opening the armoire, and the gearset/armoury options are all unchanged.\n\nv0.4.3.0 (2026-07-02)\n\n- **Auto-store on armoire open actually fires now.** v0.4.2.0 ran `StoreAll` directly from the Cabinet addon\u0027s PostSetup event, but cabinet contents load from the server asynchronously *after* the addon opens, so `UIState.Cabinet.IsCabinetLoaded()` was still false and the store bailed silently (the manual button worked because the data had loaded by then). PostSetup now just arms a pending flag; a Framework.Update poll fires `StoreAll` once the cabinet data is loaded (10s timeout, disarmed on PreFinalize if the UI closes first). File: `Logic/ArmoireAutoStore.cs`.\n\nv0.4.2.0 (2026-07-02)\n\n- **Auto-store is now ON by default** - the plugin finally lives up to its name. Opening the armoire UI at an inn automatically stores eligible gear from inventory. Config migration (v2 -\u003e v3) flips `AutoStoreOnOpen` on for existing installs; it can still be turned off via the checkbox in the main window. Files: `Configuration.cs`, `Plugin.cs`.\n- **Auto-store scope narrowed to the regular inventory (bags) by default.** The armoury chest is no longer scanned unless the new \"Also store from armoury chest\" option (`AutoStoreIncludeArmory`, off by default) is enabled. Gearset protection (`SkipGearsetItems`) remains on by default. Files: `Logic/ArmoireAutoStore.cs`, `Windows/MainWindow.cs`.\n\n- **Eligibility check order in `StoreAll`.** Items with no Cabinet sheet entry were previously tested via `IsItemInCabinet(GetValueOrDefault(itemId, 0))`, probing cabinet row 0 before the real lookup ran. The `TryGetValue` lookup now runs first and `IsItemInCabinet` only ever sees a real cabinet row. File: `Logic/ArmoireAutoStore.cs`.\n\nv0.4.1.0 (2026-06-18)\n\n- **\"Skip gear that is in a gearset\" option** (on by default). Auto-store now excludes any item that belongs to a saved gearset, so gear in active use is not deposited. Built from RaptureGearsetModule (same source as the in-game gearset UI), HQ flag stripped for matching. New `SkipGearsetItems` config + checkbox in the main window; result message reports how many items were kept. Files: `Logic/ArmoireAutoStore.cs`, `Configuration.cs`, `Windows/MainWindow.cs`.\n\nv0.4.0.0 (2026-06-18)\n\n- Auto-store to armoire. New Logic/ArmoireAutoStore.cs stores eligible items into the armoire via the native Cabinet.StoreCabinetItem API. Adds an optional \"Auto-store when armoire opens\" toggle (off by default) that fires on the Cabinet addon PostSetup, plus a manual \"Store all to armoire\" button in the main window with a live result message. Deduplicates by item ID and skips items already in the armoire. Files: Logic/ArmoireAutoStore.cs, Configuration.cs (AutoStoreOnOpen), Plugin.cs, Windows/MainWindow.cs.",
+        "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/ArmoireAutoFill",
+        "ApplicableVersion":  "any",
+        "DalamudApiLevel":  15,
+        "IsHide":  false,
+        "IsTestingExclusive":  false,
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/ArmoireAutoFill/latest/latest.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/ArmoireAutoFill/latest/latest.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/ArmoireAutoFill/testing/testing.zip",
+        "Tags":  [
+                     "armoire",
+                     "dungeon",
+                     "gear",
+                     "collection",
+                     "scanner"
+                 ],
+        "CategoryTags":  [
+                             "utility"
+                         ],
+        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/armoireautofill-icon.png",
+        "ImageUrls":  [
+                          ""
+                      ],
+        "DownloadCount":  0,
+        "LastUpdate":  "0",
+        "TestingAssemblyVersion":  "0.4.4.0",
+        "TestingDalamudApiLevel":  15
+    },
+    {
+        "Author":  "dajoey",
+        "Name":  "Gluttony Combo",
+        "Punchline":  "Lalalazy fork of Wrath Combo - XIVCombo for very lazy players.",
+        "Description":  "Gluttony Combo - lalalazy fork of Gluttony Combo. XIVCombo for very lazy players.",
+        "InternalName":  "GluttonyCombo",
+        "AssemblyVersion":  "1.0.4.233",
+        "Changelog":  "v1.0.4.235 (2026-09-25) [testing]\n- **Merged upstream WrathCombo (55d55a3e): opener potion check reworked.** An opener step whose action is an item that is not ready (e.g. the potion) is now skipped by returning immediately instead of advancing to the next action mid-check, so the opener no longer offers the following action early when the potion is not up.\n- **Debug tab: opener display shows action IDs.** The current opener action and each opener step now show the action ID next to the action name.\n- Production channel unchanged.\n\nv1.0.4.234 (2026-09-25) [testing]\n- **Beastmaster: Level 50 finisher combo (Universality) now reliably executes.** The finisher action (Risen Fall or Hawkish Talons) is now offered continuously while the Sunstrider or Moonstalker window is active and TP is available, rather than reverting to the basic GCD chain during GCD rolling, preventing the basic combo from queueing and consuming the finisher buff window.\n- **Beastmaster: Level 50 Rally gating.** At level 50, Rally is now held until Sunstrider or Moonstalker is active rather than firing out of combo and dumping 250 TP on non-combo axes, ensuring maximum TP is available to execute the level 50 finisher.\n- Production channel unchanged.\n\nv1.0.4.233 (2026-09-23) [testing]\n- **Conflicting-plugin scan no longer stalls on a single bad probe.** A missing BossMod rotation (reloads, zone changes) aborted the whole periodic check with a repeated warning; each plugin is now probed independently and repeat warnings are throttled to one line per 15 minutes with a count of the lines held back.\n- Production channel unchanged.\n\nv1.0.4.232 (2026-09-23) [testing]\n- **Crucible: Borgny Salivous Snap is treated as a hard hit.** The First Master\u0027s Board boss\u0027s 7-second single-target cast now triggers the same Snarl / Challenge shadow and live aggro rules as the other logged tankbusters.\n- Production channel unchanged.\n\nv1.0.4.231 (2026-09-22) [testing]\n- **Action check no longer throws with no local player.** The Pyretic / Acceleration Bomb input block read the player status list without a null guard, so using an action during login, character select or a territory transition raised an error instead of passing the action through. A missing status list now counts as no penalty, and the penalty decision is covered by an offline harness.\n- Production channel unchanged.\n\nv1.0.4.230 (2026-09-21) [testing]\n- **Problem reports.** `/gluttony report \u003cwhat happened\u003e` or the \"Report a problem\" button in the settings window writes a report to the plugin log: zone, job, target, auto-rotation and opener state, the presets enabled for the current job, the recent combo decisions and the windows that are open.\n- **Structured error lines.** An error is written as one line carrying the plugin version, build, zone, job and the full stack with file and line numbers, instead of two lines on every frame.\n- **A failing per-frame update pauses instead of repeating every frame.** After repeated errors it stops with one chat notice and retries on its own (after 30 seconds, doubling up to 5 minutes). A failure in the Beastmaster collectors or the server info bar text no longer stops auto-rotation.\n- **Crucible familiar selection moved to the new LazyCrucible plugin.** The run roster fill at Bentbranch Meadows, the Battlehorn auto-fill and the beast-pick advisor live there now. The \"Auto-fill Battlehorn slots\" option is removed; the Beastmaster options point to LazyCrucible instead. The Beastmaster rotation, Crucible targeting, Guard/Challenge and the empty-Battlehorn warning are unchanged.\n- The Beast Feed picker in the Crucible item shop is no longer mistaken for a Battlehorn screen, and the run roster pass stands down when another plugin or a manual edit changes the roster. Both fixes moved with the familiar selection into LazyCrucible.\n- Production channel unchanged.",
+        "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/GluttonyCombo",
+        "ApplicableVersion":  "any",
+        "DalamudApiLevel":  15,
+        "IsHide":  false,
+        "IsTestingExclusive":  false,
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/GluttonyCombo/latest/latest.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/GluttonyCombo/latest/latest.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/GluttonyCombo/testing/testing.zip",
+        "Tags":  [
+                     "combo",
+                     "gluttony",
+                     "wrath",
+                     "wrathcombo",
+                     "auto",
+                     "autorotation",
+                     "rotation",
+                     "pve",
+                     "pvp",
+                     "lalalazy"
+                 ],
+        "CategoryTags":  null,
+        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/gluttonycombo-icon.png",
+        "ImageUrls":  [
+                          ""
+                      ],
+        "DownloadCount":  0,
+        "LastUpdate":  "1789882328",
+        "TestingAssemblyVersion":  "1.0.4.235",
+        "TestingDalamudApiLevel":  15
+    },
+    {
+        "Author":  "daemitus, MidoriKami, dajoey",
+        "Name":  "Lazy WT Math",
+        "Punchline":  "FFXIV Wondrous Tails probability calculator.",
+        "Description":  "Adds row probabilities to the Wondrous Tails display along with the average probability of what would happen if you shuffled. Upgraded for modern FFXIV.",
+        "InternalName":  "LazyWTMath",
+        "AssemblyVersion":  "3.2.3.1",
+        "Changelog":  "v3.2.3.1 (2026-09-07)\n\n- Removed the `/lazywtmath` command introduced in 3.2.3.0. It existed only to reopen the \"What\u0027s new\" popup, and this plugin\u0027s only interface is the probability readout inside the Wondrous Tails window itself.\n- The changelog popup itself is unchanged: it still opens once automatically after an update, and it can be reopened any time from the Dalamud plugin installer (the plugin\u0027s \"Open\" button).\n- No math, plugin behaviour or configuration changed.\n\nv3.2.3.0 (2026-09-05)\n\n- Added the in-game \"What\u0027s new\" popup. After Lazy WT Math updates, its changelog now opens once inside the game so the changes are visible without a trip to GitHub. It waits until the character is logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read.\n- New command `/lazywtmath` reopens that popup. This plugin had no command at all before: the probabilities still appear inside the Wondrous Tails window itself, exactly as before, and nothing about how they are calculated has changed.\n- The rebuild against current FFXIVClientStructs from 3.2.2.10 (which stopped the Wondrous Tails crash loop) is included.\n\nv3.2.2.10 - 2026-09-05\n- **Rebuilt against current FFXIVClientStructs (7.55.1.8875) to stop the WeeklyBingo crash loop.** The 3.2.2.9 binaries (built 2026-07-02) threw `System.TypeLoadException: Could not load type \u0027FFXIVClientStructs.FFXIV.Client.System.Memory.ICreatable\u0027` from `AddonWeeklyBingoController.AddonRefresh` on every WeeklyBingo PostUpdate (3,032 errors in one session on 2026-09-05), because the bundled KamiToolKit.dll was compiled against an older FFXIVClientStructs whose `ICreatable\u003cT\u003e` shape no longer matches the one Dalamud ships. No source changes; clean Release rebuild of LazyWTMath + KamiToolKit against the Dalamud 15.0.3.2 hooks currently loading in the client (files: `KamiToolKit.dll`, `LazyWTMath.dll`).\n\n- Fix for Helm thread t-plugerr-52f9741c16e8 (kanban t_a7838408). If the crash persists after updating, the next step is merging upstream MidoriKami/EzWondrousTails and its current KamiToolKit.\n\nv3.2.2.9 - 2026-07-02\n- **Plugin icon now shows in the Dalamud installer.** Installed copies were built before\n\n- Part of the 2026-07-02 lalalazy repo cleanup pass.",
+        "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/LazyWTMath",
+        "ApplicableVersion":  "any",
+        "DalamudApiLevel":  15,
+        "IsHide":  false,
+        "IsTestingExclusive":  false,
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyWTMath/latest/latest.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyWTMath/latest/latest.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyWTMath/testing/testing.zip",
+        "Tags":  [
+                     "wondrous tails",
+                     "math",
+                     "calculator",
+                     "probability"
+                 ],
+        "CategoryTags":  [
+                             "utility"
+                         ],
+        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazywtmath-icon.png",
+        "ImageUrls":  [
+                          ""
+                      ],
+        "DownloadCount":  0,
+        "LastUpdate":  "0",
+        "TestingAssemblyVersion":  "3.2.3.1",
+        "TestingDalamudApiLevel":  15
+    },
+    {
+        "Author":  "Blackcatz1911, dajoey",
+        "Name":  "Lazy Currency Spender",
+        "Punchline":  "Find the absolute best way to spend all your FFXIV currencies.",
+        "Description":  "Fork of CurrencySpender by Blackcatz1911. Never wonder \u0027What should I do with this?\u0027 again. Access real-time prices from Universalis, identify missing collectibles tied to your currencies, and unlock new possibilities for utilizing your in-game resources effectively.",
+        "InternalName":  "LazyCurrencySpender",
+        "AssemblyVersion":  "1.2.7.1",
+        "Changelog":  "v1.2.7.1 (2026-09-22)\n\n- Fixed an error the plugin logged on every game close (the type initializer for ECommons.Automation.Callback threw an exception). The bundled support library predated the current game data layout and failed to initialise during shutdown; it is now current with the rest of the plugin family. No change to currency tracking or the spending suggestions.\n\nv1.2.7.0 (2026-09-05)\n\n- Added the in-game \"What\u0027s new\" popup. After Lazy Currency Spender updates, its changelog now opens once inside the game so the changes are visible without a trip to GitHub. It waits until the character is logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/cur changelog` any time to reopen it.\n- The existing Changelog tab in the settings window still works exactly as before; this is the pop-up on update, not a replacement for it.\n- No change to currency tracking or the spending suggestions.\n\nv1.2.6.1 - 2026-05-25\n- Added a new \"Equipment and Gear Exchange\" section to the UI to display untradable, non-collectable gear and weapons (like Bygone Brass equipment) purchased with endgame tomestones.\n\nv1.2.6 - 2026-05-25\n- Enabled weekly capped Allagan Tomestones of Mnemonics currency by default.\n- Added automatic SelectedCurrencies migration logic to auto-enable weekly capped tomestones upon updating.\n\nv1.2.5.1 - 2026-05-25\n- Forked from original CurrencySpender by Blackcatz1911.\n- Updated for Dalamud API Level 15 / .NET 10 (FFXIV Patch 7.50 compatibility).\n- Registered new command shortcuts: `/lazycur` and `/lazycurrencyspender`.\n- Custom premium coin-bag icon added.\n- Display clear credits to the original developer inside the settings tab.",
+        "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/LazyCurrencySpender",
+        "ApplicableVersion":  "any",
+        "DalamudApiLevel":  15,
+        "IsHide":  false,
+        "IsTestingExclusive":  false,
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyCurrencySpender/latest/latest.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyCurrencySpender/latest/latest.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyCurrencySpender/testing/testing.zip",
+        "Tags":  [
+                     "currency",
+                     "poetics",
+                     "tomestone",
+                     "lazy"
+                 ],
+        "CategoryTags":  null,
+        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazycurrencyspender-icon.png",
+        "ImageUrls":  [
+                          ""
+                      ],
+        "DownloadCount":  0,
+        "LastUpdate":  "0",
+        "TestingAssemblyVersion":  "1.2.7.1",
+        "TestingDalamudApiLevel":  15
+    },
+    {
+        "Author":  "croizat, dajoey",
+        "Name":  "Lazy Fate Automation",
+        "Punchline":  "Fully automated FATE grinding utilizing vnavmesh, lifestream, and Gluttony Combo.",
+        "Description":  "Automates FATE grinding, including Zodiac Atma, Anima Luminous Crystals, Resistance Memories, Phantom Demiatmas, Yo-kai Watch Medals, and Bicolor Gemstones. Seamlessly integrates with vnavmesh for pathing and flight, lifestream for zone swapping, TextAdvance for dialogue skipping, and Gluttony Combo/BossMod for combat. Use /lazyfate to open.",
+        "InternalName":  "LazyFateAutomation",
+        "AssemblyVersion":  "0.0.3.1",
+        "Changelog":  "v0.0.3.1 (2026-09-12)\n\n\n- Combat now prioritizes a Forlorn Maiden or the Forlorn (the rare bonus mob that can spawn mid-FATE and despawns quickly if not killed) over the FATE\u0027s normal targets. When one is present it becomes the automation\u0027s hard target until it is defeated or disappears; normal nearest-target behaviour resumes automatically afterward. New setting \"Prioritize Forlorn Maidens\" (on by default).\n- Debug log line when a Forlorn is detected or clears, for troubleshooting.\n\n\n- The fate-priority sort order list could grow duplicate entries over repeated updates (harmless to ordering, just clutter in the settings window). Existing installs are cleaned up automatically on the next load.\n\nv0.0.3.0 (2026-09-07)\n\n\n- Dashboard snapshot endpoint: the plugin now serves a read-only JSON snapshot of FATE and hunt state at http://127.0.0.1:10505/fates on the game host (new FateSnapshot service types). Loopback-only, no settings. The home dashboard relay polls it; nothing in the plugin\u0027s FATE automation behaviour changes.\n- The snapshot lists each active FATE with progress, seconds remaining, bonus flag, and whether the player is inside it, capped at the 12 most relevant (joined FATE first, soonest to expire next).\n- The snapshot carries a session counter of FATEs completed (a joined FATE that reaches 100% and then ends counts once) and the number of unlocked hunt bills with their total monster kills so far.\n- The snapshot names one live elite hunt mark present in the current zone (the game\u0027s own hunt-target check, MobHunt.IsHuntTarget); no name when none is up.\n- New debug command: \"/lazyfate snapshot\" prints the current snapshot state to the plugin log for troubleshooting.\n\n\n- The snapshot endpoint answers 503 only before the first character loads (title screen); afterwards it always serves the latest snapshot, matching LazyRetainerLive\u0027s behaviour.\n\nv0.0.2.0 (2026-09-05)\n\n- Added the in-game \"What\u0027s new\" popup. After Lazy Fate Automation updates, its changelog now opens once inside the game so the changes are visible without a trip to GitHub. It waits until the character is logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/lazyfate changelog` any time to reopen it.\n- No change to FATE grinding: zone swapping, the duty pause, the Gluttony lease and every sort/blacklist setting are unchanged.\n\nv0.0.1.45 - 2026-08-17\n- **Pauses inside instanced content and RELEASES the Gluttony lease.** `FateGrind` had no duty gate: queuing\n- **Auto-Rotation control actually works now.** `GluttonyComboIPC.Enable` called `SetAutoRotationConfigState`\n- **`InvalidLease` handled on every IPC call** (`SetAutoRotationState`, `SetAutoRotationConfigState`,\n- IPC warnings are throttled to one per 10s.\n\nv0.0.1.44 - 2026-06-27\n- **Stop now halts vnavmesh immediately.** Hitting Stop (or `/lazyfate stop`) while the bot was pathfinding/flying to a FATE previously left vnavmesh navigating to the destination on its own - cancelling the plugin\u0027s task does not stop vnav\u0027s in-flight movement. `FateToolKit` Running=false and the `FateGrind` task teardown now call `Svc.Navmesh.PathfindCancelAll` + `Svc.Navmesh.Stop` (cancel any in-progress pathfind AND stop following the current path), so the character stops the moment Stop is pressed.\n\nv0.0.1.43 - 2026-06-27\n- **Stop now fully releases the Gluttony Combo lease** instead of only disabling auto-rotation. Previously, Stop (and `/lazyfate stop`, and auto-complete) left Gluttony \"controlled by Lazy Fate Automation\" with the lease still held, so manual/macro control of Gluttony stayed locked out. `FateToolKit` Running=false now calls `GluttonyComboIPC.Release` (which calls `ReleaseControl`) instead of `Disable`; a fresh lease is acquired on the next grind start. Between-FATE pauses still use `Disable` (keep the lease, just stop the rotation).",
+        "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/LazyFateAutomation",
+        "ApplicableVersion":  "any",
+        "DalamudApiLevel":  15,
+        "IsHide":  false,
+        "IsTestingExclusive":  false,
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyFateAutomation/latest/latest.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyFateAutomation/latest/latest.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyFateAutomation/testing/testing.zip",
+        "Tags":  [
+                     "fate",
+                     "grind",
+                     "automation",
+                     "relic",
+                     "yokai",
+                     "vnavmesh"
+                 ],
+        "CategoryTags":  [
+                             "utility"
+                         ],
+        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyfateautomation-icon.png",
+        "ImageUrls":  [
+                          ""
+                      ],
+        "DownloadCount":  0,
+        "LastUpdate":  "0",
+        "TestingAssemblyVersion":  "0.0.3.1",
+        "TestingDalamudApiLevel":  15
+    },
+    {
+        "Author":  "dajoey",
+        "Name":  "Lazy Skyward Tracker",
+        "Punchline":  "Track your Skyward points for all jobs toward the Pteranodon mount",
+        "Description":  "Tracks all jobs\u0027 Skyward points for the Pteranodon mount achievement. Scans your inventory for Skybuilders turn-in items and projects how many points they\u0027ll add, shown as a cyan bar extension on each job\u0027s progress bar. Use /lazysky to open.",
+        "InternalName":  "LazySkywardTracker",
+        "AssemblyVersion":  "0.0.3.0",
+        "Changelog":  "v0.0.3.0 (2026-09-05)\n\n- Added the in-game \"What\u0027s new\" popup. After Lazy Skyward Tracker updates, its changelog now opens once inside the game so the changes are visible without a trip to GitHub. It waits until the character is logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/lazysky changelog` any time to reopen it.\n- No change to tracking: Skybuilders\u0027 points per job, the achievement progress read and the Diadem crediting all work exactly as before.\n\nv0.0.2.2 (2026-06-26)\n\n- **Gathered Diadem items are now credited to the correct gathering class.** Miner\n\n- **Class is now read from the game\u0027s own data.** `BuildGathererLookup` derives the\n\n- No change to which items count or their point values. Raw, non-collectable node",
+        "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/LazySkywardTracker",
+        "ApplicableVersion":  "any",
+        "DalamudApiLevel":  15,
+        "IsHide":  false,
+        "IsTestingExclusive":  false,
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazySkywardTracker/latest/latest.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazySkywardTracker/latest/latest.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazySkywardTracker/testing/testing.zip",
+        "Tags":  [
+                     "skybuilders",
+                     "restoration",
+                     "pteranodon",
+                     "achievement",
+                     "tracker"
+                 ],
+        "CategoryTags":  [
+                             "utility"
+                         ],
+        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyskywardtracker-icon.png",
+        "ImageUrls":  [
+                          ""
+                      ],
+        "DownloadCount":  0,
+        "LastUpdate":  "0",
+        "TestingAssemblyVersion":  "0.0.3.0",
+        "TestingDalamudApiLevel":  15
+    },
+    {
+        "Author":  "dajoey",
+        "Name":  "LazyFoodBuff",
+        "Punchline":  "Never forget to eat your food again.",
+        "Description":  "Auto-eats food in combat duties with per-job selection, auto-select based on best stats, and a low-food warning.",
+        "InternalName":  "LazyFoodBuff",
+        "AssemblyVersion":  "0.1.5.0",
+        "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/LazyFoodBuff",
+        "ApplicableVersion":  "any",
+        "DalamudApiLevel":  15,
+        "IsHide":  false,
+        "IsTestingExclusive":  false,
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyFoodBuff/latest/latest.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyFoodBuff/latest/latest.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyFoodBuff/testing/testing.zip",
+        "Tags":  [
+                     "auto",
+                     "food",
+                     "buff",
+                     "duty",
+                     "lazy"
+                 ],
+        "CategoryTags":  [
+                             "utility"
+                         ],
+        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyfoodbuff-icon.png",
+        "ImageUrls":  [
+                          ""
+                      ],
+        "DownloadCount":  0,
+        "LastUpdate":  "0",
+        "Changelog":  "v0.1.5.0 (2026-09-21)\n\n- **\"Only eat in combat duties\" now covers Crucible of the Unbroken.** The five boards count as combat duties, and so does the Bentbranch Meadows entry area while playing Beastmaster (the one job that can enter), so the meal is eaten before a run starts. Eating before entry matters: a meal eaten inside does not refill HP to the raised maximum.\n\nv0.1.4.0 (2026-09-05)\n\n- Optional decision diagnostics, off by default. Turn on \"Log food decisions\" (settings window, Advanced / Diagnostics) or run `/lazyfoodbuff telemetry on`, and every time the plugin settles on a food for the current job it writes one line to the plugin log: the food it picked, its score, and the runner-ups it beat — plus a second line when that food is actually eaten. The point is the runner-ups: \"picked X at 41.20 over Y at 40.80\" is the shape of evidence that can eventually say whether the auto-select weights are right. Nothing leaves the machine; the lines only go to the local plugin log.\n\n- Honest caveat: this is a data-collection investment, not an answer. The outcome side (what a food actually did to damage) needs weeks of encounter data before it says anything statistically — the plugin log will quietly accumulate the decision half in the meantime.\n- Nothing about food selection changed. When the toggle is off, the only cost is one boolean read.\n\nv0.1.3.1 (2026-09-05)\n\n- The \"What\u0027s new\" popup now opens after this very update. 0.1.3.0 stayed silent the first time it ran because it had no record of the last version shown; the gate now tells an updated plugin (settings file already present) apart from a brand-new install (none yet) and only the latter stays quiet (`ChangelogGate.Options.ExistingInstall`, read from `pi.ConfigFile.Exists`.\n\n- Nothing else changed. The notes can be reopened later with `/lazyfoodbuff changelog`.\n\nv0.1.3.0 (2026-09-05)\n\n- In-game \"What\u0027s new\" popup. After every update, the first time the character is logged in and out of combat, LazyFoodBuff opens a window with the release notes for every version since the last one shown. It appears once per update; pressing \"Got it\" (or closing it) keeps it quiet until the next update.\n- `/lazyfoodbuff changelog` (or `whatsnew`) reopens the release notes at any time.\n- \"Open changelog on GitHub\" button in the popup links to the full CHANGELOG for this plugin.\n\n- This is the pilot of a standing rule for every lalalazy plugin: the popup code is shared across plugins and each plugin embeds its own release notes at build time. New config field `Configuration.LastSeenChangelogVersion`; on the first build carrying the feature it records the running version silently and does not open.\n- The popup never opens during combat, inside a duty, while zoning, or in a cutscene - it waits until the character is free.\n- `/lazyfoodbuff` with no argument still opens these settings.",
+        "TestingDalamudApiLevel":  15,
+        "TestingAssemblyVersion":  "0.1.5.0"
+    },
+    {
+        "Author":  "dajoey",
+        "Name":  "Lazy Gear Collector",
+        "Punchline":  "Track upgradable gear sets and what it costs to finish them",
+        "Description":  "Tracks upgradable gear collections piece by piece. Starts with Occult Crescent: North Horn\u0027s Phantom Vision sets - all 7 roles, 5 slots, 4 tiers. Shows which pieces you own and at what tier, what the next upgrade costs, and the exact obol/fixative shortfall to finish a role or the whole collection. Every item ID and price is read from the game\u0027s own shop data at runtime, so it stays correct across patches. Also flags Arcanaut\u0027s gear you can trade up for free. Use /lazygear to open.",
+        "InternalName":  "LazyGearCollector",
+        "AssemblyVersion":  "0.0.2.0",
+        "TestingDalamudApiLevel":  15,
+        "TestingAssemblyVersion":  "0.0.2.0",
+        "Changelog":  "v0.0.2.0 (2026-09-05)\n\n- Added the in-game \"What\u0027s new\" popup. After Lazy Gear Collector updates, its changelog now opens once inside the game so the changes are visible without a trip to GitHub. It waits until the character is logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/lazygear changelog` any time to reopen it.\n- No change to collection tracking: the Phantom Vision set, tier detection, ownership counting and the remaining-cost figures are all unchanged.\n\nv0.0.1.0 (2026-07-30)\n\n- **First release.** Tracks upgradable gear collections: which pieces are owned, what tier each one\n- **Phantom Vision (Occult Crescent: North Horn, patch 7.55)** as the first collection — 7 role sets\n- **Runtime shop-derived pricing.** `ShopGraph.cs` builds a reverse index over the entire\n- **Arcanaut\u0027s trade-up detection** (`Planner.DetectShortcut`). Arcanaut\u0027s +1 and +2 exchange into\n- **Ownership scanning** across bags, armoury chest and equipped gear (live), plus opportunistic\n- Role roster UI with click-through to per-piece detail, a wallet strip, per-role and\n\n- **The glamour dresser cannot be enumerated** at Dalamud API level 15 — `MirageManager` exposes\n- `ItemCostsStruct.CostType` is honoured when reading shop costs. `CostType == 0` means the cost\n- Reference data behind this release, including the full item-ID matrix and the shop table, is in\n\n- Release build: 0 warnings, 0 errors.\n- The set-construction and pricing logic was re-implemented independently against a raw Lumina dump",
+        "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/LazyGearCollector",
+        "ApplicableVersion":  "any",
+        "DalamudApiLevel":  15,
+        "IsHide":  false,
+        "IsTestingExclusive":  false,
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyGearCollector/latest/latest.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyGearCollector/latest/latest.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyGearCollector/testing/testing.zip",
+        "Tags":  [
+                     "occult",
+                     "crescent",
+                     "northhorn",
+                     "phantomvision",
+                     "gear",
+                     "collection",
+                     "tracker"
+                 ],
+        "CategoryTags":  [
+                             "utility"
+                         ],
+        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazygearcollector-icon.png",
+        "ImageUrls":  [
+                          ""
+                      ],
+        "DownloadCount":  0,
+        "LastUpdate":  "0"
+    },
+    {
+        "Author":  "dajoey",
+        "Name":  "LazyCrafter",
+        "Punchline":  "What can I make right now, what\u0027s it worth, and what would it take to make the rest?",
+        "Description":  "Catalogs every recipe you can craft, buckets them by how much effort the missing materials take, prices them with Universalis, and hands the missing-material work to Artisan / GBR / ARC / Lifestream.",
+        "InternalName":  "LazyCrafter",
+        "AssemblyVersion":  "0.1.7.5",
+        "TestingAssemblyVersion":  "0.1.7.5",
+        "TestingDalamudApiLevel":  15,
+        "Changelog":  "v0.1.7.5 (2026-09-16)\n\n- **The shopping-stop Resume popup window is gone.** The 0.1.7.4 test pass: the full-screen popup opened at every shopping stop sat over the game and blocked mouse input with the client - verdict: remove the resume extra window. The window is removed and nothing else changed: a blocked shopping stop still says the what-to-do message in chat and on the Run tab exactly once, and Resume stays on the Run tab button, in chat (/lcraft resume) and the copied report - keyboard-only resume works\n\nv0.1.7.4 (2026-09-15)\n\n- **The retainer batch fetch no longer calls every session a zero-move without counting the bags.** The 0.1.6.16 early exit for an instantly-dead bell session sat ABOVE the bag-delta measurement with the moved counter still 0 from wave start, so every batch session ended as \"the retainer fetch moved nothing into the bags\", the cart held for Resume, and the per-item fallback never ran - the 0.1.7.3 test runs show exactly this shape (batch queued, retainers scanned, 0 counted). The exit now runs AFTER the measurement: a genuinely empty session still stops with the bell named, a session that moved anything trims the remainder into the per-item pass\n\nv0.1.7.3 (2026-09-10)\n\n- **The venture hand-off to ARC now actually uses ARC\u0027s new IPC surface instead of silently falling back to reflection forever.** The adapter subscribed to IPC callbacks named \"ARControl.AddItem\" and \"ARControl.GetInProgress\", but ARC registers them under a fixed \"ARC\" prefix independent of the plugin\u0027s internal name - so the subscription could never resolve, even against an ARC build that has the IPC, and every venture hand-off quietly used the older reflection path with no error anywhere. Found while preparing an in-game test of ARC\u0027s pending IPC pull request. The channel names are now decoupled from ARC\u0027s internal plugin name.\n\n- No behavior change for players on the current, unmodified ARC release: it has no IPC surface yet, so the reflection path is exercised exactly as before either way. This only changes what happens once ARC ships the IPC PR - the intended, faster hand-off finally engages instead of silently never firing.\n- Full harness: 364/364 PASS (no change in count - this fix touches IPC subscription wiring, not anything the offline harness exercises).\n\nv0.1.7.2 (2026-09-10)\n\n- **After a vendor-stop teleport across zones, the retainer-bell fetch no longer starts while the character is still loading into the new zone.** The wave-start gate that holds the fetch during a shopping-stop trip checked only whether the character was moving (Lifestream.IsBusy) or a fixed 5-second clock (ShoppingStopGate.SettleWindow) had elapsed - and Lifestream\u0027s own teleport call returns the moment it is accepted, well before a cross-zone loading screen finishes. A Kugane vendor stop showed both halves failing together: the busy flag read false and the 5-second clock lapsed while still mid-load, so the fetch queued, Artisan\u0027s bell scan answered against stale object-table data from the old zone, and the character right-clicked at nothing for 42 seconds before the run was stopped by hand. The gate now also holds on the game\u0027s own \u0027a zone change\u0027 state (ConditionFlag.BetweenAreas), independent of the trip flag and the settle clock, until it clears or the existing 3-minute cap ends the wait\n\n- Proved offline before shipping: two new offline harness pins assert a zone change holds even after the settle window has lapsed and even when the trip flag itself already reads false - the exact Kugane failure shape - plus the existing cap-forces-Proceed pin now covers a zone-change hold too. Full harness: 364/364 PASS (361 prior + 3 new).\n- This does not change what happens once the character has actually arrived and the zone flag clears - the settle window and every existing at-the-bell exemption (standing at the bell, inside a retainer\u0027s inventory, a quantity prompt, a dialogue) are unchanged.\n\nv0.1.7.1 (2026-09-08)\n\n- **The plugin no longer prints one caught error on the first frame after an update while the client is already running.** The shopping-stop popup (v0.1.7.0) was wired to the UI tick before the dispatch service it reads was built, so an update mid-session could let one draw frame run with the service still null and log a single caught exception - harmless to the run, but exactly the noise this feature was built to remove. The popup is now wired after the service exists.\n\nv0.1.7.0 (2026-09-08)\n\n- **A cart run now takes its shopping stops first, with one popup per stop: buy, press Resume, then the run goes unattended.** When a cart needs things the player must buy in person (gil vendors, the market board, currency shops, manual sources), the run makes those stops its first order of business: each blocked wave shows exactly ONE modal - title \"LazyCrafter\", what to buy and where, a single \"Resume\" button - instead of a wall of chat errors. Pressing Resume re-checks the bags and continues the same cart; when the run believes the rest needs no player it kicks into unattended mode and behaves exactly as before, with no popups. Error spam is suppressed at the source: a blocked stage emits its popup once, at the stage transition, never per frame\n- **New setting \"Run shopping stops first with a popup per stop (buy, press Resume, then unattended)\" (on by default).** Off restores the pre-0.1.7.0 run exactly: one continuous wave loop, no stage machine, no popups - so a bad stage machine can never brick the plugin\n\n- The stage machine is pure Core: it records Done / NeedsUser / Failed per stage and dedupes popup emissions by construction - a blocked stage re-recorded every framework tick still emits exactly one popup. Proved offline by the new `RunStageTests` suite in the harness (16 checks: one emission per blocked stage, no re-emit on 100 re-records, Resume advances without restarting, Done auto-continues, Failed records once, empty order = unattended).\n- The modal\u0027s Resume button routes into the same `DispatchService.Resume` the Run tab button and `/lcraft resume` already use - the run continues from recorded state (re-plan from the live bags), never a plan restart.\n- A wave that blocks with NO shopping work (a fetch dead end, a refused hand-off) does not stage-block: the chat block already names everything, and a popup with nothing to do would be noise.",
+        "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/LazyCrafter",
+        "ApplicableVersion":  "any",
+        "DalamudApiLevel":  15,
+        "IsHide":  false,
+        "IsTestingExclusive":  false,
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyCrafter/latest/latest.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyCrafter/latest/latest.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyCrafter/testing/testing.zip",
+        "Tags":  [
+                     "crafting",
+                     "recipe",
+                     "market",
+                     "universalis",
+                     "artisan",
+                     "gatherbuddy",
+                     "lazy"
+                 ],
+        "CategoryTags":  [
+                             "utility"
+                         ],
+        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazycrafter-icon.png",
+        "ImageUrls":  [
+                          ""
+                      ],
+        "DownloadCount":  0,
+        "LastUpdate":  "0"
+    },
+    {
+        "Author":  "dajoey",
+        "Name":  "Lazy Market Companion",
+        "Punchline":  "Auto-lists your always-sell items and matches market board prices",
+        "Description":  "Keep an Auto-Market list of items you always sell. The companion lists them through your retainers in the stack size you choose (keeping a reserve in your bags if you want), prices every listing by matching the lowest board price instead of undercutting, and can do all of it inside AutoRetainer\u0027s venture cycle. Also re-prices existing listings (Auto Pinch). Successor to Dagobert Price Matcher; your old settings are imported automatically.",
+        "InternalName":  "LazyMarketCompanion",
+        "AssemblyVersion":  "0.1.68.0",
+        "TestingAssemblyVersion":  "0.1.68.0",
+        "TestingDalamudApiLevel":  15,
+        "Changelog":  "v0.1.68.0 (2026-09-22)\n\n\n- **A Universalis request that times out no longer blinds its whole batch of items.** The gate asks about items in groups of 50; when one group died on the 8-second request timeout, all 50 items listed with the price threshold unchecked, and on a slow Universalis evening nearly every group timed out at once (125 of 129 items unpriced). A group that fails is now asked once more before it is declared failed - the gate already waits up to 25 seconds for prices, so the second ask fits inside that wait. Items whose group fails twice behave exactly as before: they list, never vendor, and the warning names how many went unchecked.\n\n- Offline suite: new case 129 pins the retry - a group that fails once then answers prices everything with no failures recorded; a group that never answers costs only its own items while the rest price; all groups dead still returns the declared blind gate rather than an empty result.\n\nv0.1.67.0 (2026-09-21)\n\n- **New \"Inventory\" tab.** Nothing in it changes Auto-Market, category routing or Sweep to Bags.\n\n- **Who handles this stack.** Hovering a stack in the bags, a retainer or the Armoury Chest lists every plugin that moves, sells, discards or protects it, or \"Nothing handles this stack\" (AutoRetainer\u0027s lists are read from its config file).\n\n- **Space at a glance.** Free slots for bags, Armoury pages, saddlebags and retainers, the Quick Exploration intake and an estimate of when each retainer fills.\n\n- **Venture loot.** Quick Exploration rewards logged by AutoRetainer, shown per retainer with the reason each is kept. Marketable stock is never vendored or sorted; unmarketable loot is marked as a GC delivery or desynth candidate (preview only).\n\n- **Gear to the Armoury.** \"Move N piece(s) to the Armoury\" and \"Undo last batch\", plus an optional idle mode (\"Move gear on its own when everything is idle\"), off by default.\n\n- Every Inventory action is logged to lmc_inventory_actions.log.\n\nv0.1.66.0 (2026-09-21)\n\n- **Problem reports.** `/lmc report \u003cwhat happened\u003e` or the \"Report a problem\" button in the settings window writes a report to the plugin log: zone, job, the automation state, a settings summary (counts only, no names), the recent price decisions and the windows that are open.\n\n- **Structured error lines.** An error is written as one line carrying the plugin version, build, zone, job and the full stack with file and line numbers.\n\n- **Automation pauses instead of repeating an error every frame.** Retainer automation, the inventory markers and the market-board price watcher each stop after repeated errors with one chat notice and retry on their own. While retainer automation is paused, AutoRetainer sessions are released untouched instead of being started with nothing watching them.\n\nv0.1.65.0 (2026-09-21)\n\n- **Retainer exit no longer stalls on the retainer menu or exits prematurely.** The leave flow now properly waits for the retainer menu to appear before closing it, completes only once the retainer list is restored, and correctly acknowledges the post-vendoring buyback confirmation dialog when present.\n\n- Offline suite: new case 128 pins the retainer close state machine across sweeps (waits for menu to open, issues single close command with bounded retry, confirms buyback prompt, and declares completion only at the retainer list).\n\nv0.1.64.0 (2026-09-21)\n\n- **Leaving a retainer after Auto-Market vendoring no longer stalls on the buyback warning.** After \"Have Retainer Sell Items\", the game asks whether to recall the retainer and lose the buyback list. Auto-Market now confirms that specific prompt and continues; it does not dismiss other yes/no dialogs and it never opens buyback or re-buys what was just vendored.\n\n- Offline suite: new case 127 pins the prompt match (including multiline text), refuses unrelated yes/no and bare \"Buy Back\" labels, and keeps empty prompts as a no-click.\n\n\n\n- **\"Sweep to Bags\" now sweeps the right stock: marketable items that are NOT on the Auto-Market list.** The button\u0027s first release pulled the opposite set - enrolled Auto-Market stock sitting in retainer inventory - and with a full market board that meant one press dragged the entire sell backlog into the character\u0027s bags, where the next automatic run routed all of it straight back to the retainers. The pass now targets exactly the stacks the bag markers shade grey: items that CAN be sold on the market board but have no enabled Auto-Market entry - stock nothing automated will ever look after. That is what manual review is for.\n- **Enrolled Auto-Market stock is an explicit never-touch rail for the sweep.** Anything the enabled Auto-Market list names (item and quality) stays exactly where it is, whether or not it is currently listed. Items already on the market board remain structurally out of reach as before - the pass only reads retainer pages.\n- The completion line now reports both sides: how many marketable stacks moved, how many stayed because they are on the Auto-Market list, how many were not marketable, how many were left because bags were full, and any failures. Stops cleanly at full bags, same as before. Still manual-only: nothing but the button starts it.\n\n\n- Offline suite: case 126 now pins the corrected target - a marketable unenrolled stack moves; an enrolled stack, an unmarketable stack, crystal-container stock and character-bags stock never move; a one-slot or empty bag budget leaves the remainder in place; and quality is part of enrollment (not marketability), so an HQ stack whose item has only an NQ entry still sweeps.\n\nv0.1.62.0 (2026-09-19)\n\n\n- **A \"Sweep to Bags\" button on the retainer list moves Auto-Market-list items that are sitting in retainer inventory into the character\u0027s bags for manual review.** Listed items on the market board are never touched - the pass only reads retainer pages. Items that are not on the enabled Auto-Market list are never touched. When bags are full, the pass stops cleanly, leaves the remaining stacks where they are, and reports what moved and what was left. The button is the only way this runs: no schedule, no idle loop, and no AutoRetainer hook starts it.\n\n\n- Offline suite: new case 126 pins eligibility (item and quality), the skip of ineligible and crystal-container stock, that bags stock is never a candidate, and that a full or empty bag budget leaves remaining stacks in place rather than dropping them.",
+        "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/LazyMarketCompanion",
+        "ApplicableVersion":  "any",
+        "DalamudApiLevel":  15,
+        "IsHide":  false,
+        "IsTestingExclusive":  false,
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyMarketCompanion/latest/latest.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyMarketCompanion/latest/latest.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyMarketCompanion/testing/testing.zip",
+        "Tags":  [
+                     "marketboard",
+                     "retainer",
+                     "sell",
+                     "price",
+                     "match",
+                     "autoretainer"
+                 ],
+        "CategoryTags":  [
+                             "utility"
+                         ],
+        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazymarketcompanion-icon.png",
+        "ImageUrls":  [
+                          ""
+                      ],
+        "DownloadCount":  0,
+        "LastUpdate":  "0"
+    },
+    {
+        "Author":  "dajoey",
+        "Name":  "Lazy Fish Sitter",
+        "Punchline":  "Sits you down while you fish. That\u0027s it.",
+        "Description":  "Checks every few seconds while you are fishing; if you are not sitting, it runs /sit for you. Leaves you alone once you are seated (ground sit, chair, or pose).",
+        "InternalName":  "LazyFishSitter",
+        "AssemblyVersion":  "0.1.0.0",
+        "TestingAssemblyVersion":  "0.1.4.0",
+        "TestingDalamudApiLevel":  15,
+        "Changelog":  "v0.1.0.0 (2026-09-05)\n\n- New plugin: while the game\u0027s Fishing condition is active, checks every few seconds (default 2) and runs /sit when the player is not already seated (file: `FishSitService.cs`, `Tick`).\n- Seated detection reads the local Character\u0027s Mode field - 12 (EmoteLoop) covers persistent emotes like /sit, 13 (InPositionLoop) covers chair/bench and pose loops - the same read SimpleHeels\u0027 EmoteIdentifier uses, so the plugin never re-sits someone already seated, on a chair, or holding a pose (file: `FishSitService.cs`, `IsInPostureLoop`).\n- The /sit is sent through the game\u0027s own chat-entry path (UIModule ProcessChatBoxEntry), inlined and trimmed from XivCommon\u0027s MIT Chat.cs - the same code ECommons ships inside this repo (file: `ChatCommand.cs`).\n- Safety valves: never re-sends the sit command more than once per 3 seconds, and skips while between areas, in events, quest events, cutscenes, combat, mid-emote, or jumping (file: `FishSitService.cs`, `Tick`).\n- Config: enabled toggle, check interval 1-10s, and the sit command itself (default /sit, must start with a slash) (files: `Configuration.cs`, `ConfigWindow.cs`).\n- Ships on the TESTING channel first. Use /lazyfishsitter for settings, /lazyfishsitter debug for a state dump in the Dalamud log.",
+        "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/LazyFishSitter",
+        "ApplicableVersion":  "any",
+        "DalamudApiLevel":  15,
+        "IsHide":  false,
+        "IsTestingExclusive":  false,
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyFishSitter/latest/latest.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyFishSitter/latest/latest.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyFishSitter/testing/testing.zip",
+        "Tags":  [
+                     "fishing",
+                     "lazy",
+                     "sit",
+                     "emote",
+                     "utility"
+                 ],
+        "CategoryTags":  [
+                             "utility"
+                         ],
+        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyfishsitter-icon.png",
+        "ImageUrls":  [
+                          ""
+                      ],
+        "DownloadCount":  0,
+        "LastUpdate":  "0"
+    },
+    {
+        "Author":  "dajoey",
+        "Name":  "LazyRetainerLive",
+        "Punchline":  "Real-time retainer venture countdowns for your dashboard.",
+        "Description":  "Serves the logged-in character\u0027s live retainer and venture state on loopback HTTP (127.0.0.1:10504) so the ffxiv dashboard relay can show real-time venture countdowns instead of AutoRetainer\u0027s occasionally-stale file cache.",
+        "InternalName":  "LazyRetainerLive",
+        "AssemblyVersion":  "0.1.0.1",
+        "TestingAssemblyVersion":  "0.1.0.1",
+        "TestingDalamudApiLevel":  15,
+        "Changelog":  "v0.1.0.1 (2026-09-05)\n\n\n- Corrected a wrong claim in the v0.1.0.0 notes below (and on the mod\u0027s web page): **the endpoint does not answer 503 on logout.** Once logged in, it keeps serving that character\u0027s last known retainer state - including at the title screen - and only ever answers 503 if it has never read the retainer table at all since the plugin loaded (i.e. it started at the title screen and no login has happened yet). That freeze is deliberate and is the better behaviour: measured previously the frozen live snapshot was still *newer* than AutoRetainer\u0027s file, so falling back to the file on logout would have shown the dashboard **older** data, not fresher. No behaviour was changed here - only the description was wrong.\n- The settings window no longer reports \"serving live snapshot\" while logged out. It now distinguishes three states: no snapshot yet, serving a live snapshot, or serving the last-known snapshot while the game is in transition.\n\n\n- For anything scripting against this endpoint: `readAt` is the time the request was **served**, not the time the data was read from the game, so it does not reveal how stale a frozen snapshot is. Use the settings window (or `/lazyretainerlive debug`) to tell live from frozen.\n\nv0.1.0.0 (2026-09-05)\n\n\n- First release. LazyRetainerLive reads the logged-in character\u0027s LIVE retainer table (the same in-memory data AutoRetainer uses to drive its own countdowns) and serves it as JSON on `http://127.0.0.1:10504/retainers`, so the ffxiv dashboard\u0027s retainer panel can show venture countdowns that update the moment a venture is collected instead of whenever AutoRetainer next saves its config file.\n- When not logged in (or the live table has no data yet) the endpoint answers HTTP 503, which tells the dashboard relay to fall back to AutoRetainer\u0027s file. Loopback only - the port is never reachable from other machines.\n\n\n- Companion of AutoRetainer - it reads, it never writes, assigns, or collects anything. Settings: Enabled (default on) and loopback port (default 10504). Commands: `/lazyretainerlive` opens settings, `/lazyretainerlive debug` dumps listener + snapshot state, `/lazyretainerlive changelog` reopens this popup.\n- Why this exists: AutoRetainer\u0027s `DefaultConfig.json` (which feeds the dashboard today) is saved only at AutoRetainer\u0027s own save points, so its venture rows can be tens of minutes stale while ventures are actually completing. The countdown for the logged-in character lives in the game\u0027s memory - this plugin is a small read-only window onto it.",
+        "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/LazyRetainerLive",
+        "ApplicableVersion":  "any",
+        "DalamudApiLevel":  15,
+        "IsHide":  false,
+        "IsTestingExclusive":  false,
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyRetainerLive/latest/latest.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyRetainerLive/latest/latest.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyRetainerLive/testing/testing.zip",
+        "Tags":  [
+                     "retainers",
+                     "ventures",
+                     "dashboard",
+                     "http",
+                     "lazy"
+                 ],
+        "CategoryTags":  [
+                             "utility"
+                         ],
+        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyretainerlive-icon.png",
+        "ImageUrls":  [
+                          ""
+                      ],
+        "DownloadCount":  0,
+        "LastUpdate":  "0"
+    },
+    {
+        "Author":  "zbee, Liza Carvelli (upstream PR by dajoey)",
+        "Name":  "ARC (PR test 2 - IPC venture work)",
+        "Punchline":  "TEST BUILD ONLY - zbee/ARC PR#3 IPC surface (separate instance)",
+        "Description":  "TEMPORARY test build of zbee/ARC PR #3 (ipc-venture-work): adds ARC.AddItem / ARC.GetInProgress / ARC.GetListCount IPC used by LazyCrafter\u0027s ArcDispatch. Installs alongside your normal production ARControl (different InternalName, no config or IPC collision at rest) for in-game verification only. Pre-seeded with a copy of your existing ARControl venture setup so no re-setup is needed. Not maintained; remove after testing is done.",
+        "InternalName":  "ARControlPRTest2",
+        "AssemblyVersion":  "0.0.0.0",
+        "TestingAssemblyVersion":  "8.6.0",
+        "TestingDalamudApiLevel":  15,
+        "Changelog":  "v8.6.0 (2026-09-11)\n\nTest build of zbee/ARC PR#3 (github.com/zbee/ARC/pull/3, branch dajoey/ARC ipc-venture-work). Adds an IPC surface (ARC.AddItem, ARC.GetInProgress, ARC.GetListCount) for other plugins to hand off venture work - LazyCrafter\u0027s ArcDispatch uses it when present, falling back to reflection otherwise. Not for general use; installed alongside production ARControl to verify the PR in-game before replying to the maintainer.",
+        "RepoUrl":  "https://github.com/dajoey/ARC/tree/ipc-venture-work",
+        "ApplicableVersion":  "any",
+        "DalamudApiLevel":  15,
+        "IsHide":  false,
+        "IsTestingExclusive":  true,
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/ARControlPRTest2/testing/testing.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/ARControlPRTest2/testing/testing.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/ARControlPRTest2/testing/testing.zip",
+        "Tags":  [
+                     "arc",
+                     "autoretainer",
+                     "ventures",
+                     "ipc-test",
+                     "temporary"
+                 ],
+        "CategoryTags":  [
+                             "utility"
+                         ],
+        "IconUrl":  "https://raw.githubusercontent.com/zbee/ARC/master/ARControl.png",
+        "ImageUrls":  [
+                          ""
+                      ],
+        "DownloadCount":  0,
+        "LastUpdate":  "0"
+    },
+    {
+        "Author":  "dajoey",
+        "Name":  "LazyCrucible",
+        "Punchline":  "Crucible of the Unbroken familiar picks, filled in for every fight",
+        "Description":  "For the Beastmaster duty Crucible of the Unbroken. Fills the ten-familiar run roster at the Bentbranch Meadows entry menu and the three Battlehorn slots before every fight with the familiars that answer that fight\u0027s mechanics: elemental weakness, interrupts, dispels, cleanses and crowd control, skipping knocked-out familiars and benching badly hurt ones. Picks are announced in chat. Every automation has its own toggle and manual edits always win. Includes the beast-pick advisor for every board and a read-only recorder that writes each Crucible screen to the Dalamud log. Use /lazycrucible to open.",
+        "InternalName":  "LazyCrucible",
+        "AssemblyVersion":  "0.1.2.0",
+        "TestingAssemblyVersion":  "0.1.2.0",
+        "TestingDalamudApiLevel":  15,
+        "Changelog":  "v0.1.2.0 (2026-09-22)\n\n- **Treasure**: takes the best choice instead of only suggesting it. Live button clicks confirmed choice *k* is event param `2+k`, so the pick path that was already built can fire.\n\nv0.1.1.0 (2026-09-21)\n\n- **Beast Feed**: picks the familiar each feed helps most in the fights ahead and confirms it (kin, satiety, no repeats, knocked-out familiars honoured).\n- **Shop**: buys the heals, resistances, gear and feed the upcoming fights call for; never sells and never leaves the shop.\n- **Spoils**: takes everything when it all fits; otherwise lists the best items first.\n- **Campsite**: selects which familiars rest; Rest stays with the player.\n- **Treasure**: marks the best choice and explains why.\n- **Fight guide** (`/lazycrucible guide`): all five boards, with horn picks and their reasons, dangerous hits, mechanics and what to bring; opens on the next fight.\n- **Hands back**: any input made by hand on one of these screens, or AutoDuty running, hands that screen back to the player. Each screen has its own switch, on by default.\n- **Error reporting** covers the new screens: a screen automation that keeps failing drops the input in flight, pauses with one chat notice and retries on its own.\n\nv0.1.0.0 (2026-09-21)\n\n- **First release**, split out of GluttonyCombo: the Beastmaster familiar selection for Crucible of the Unbroken now lives here, and GluttonyCombo keeps the Beastmaster rotation. Both automations are on by default and each has its own switch.\n- **Run roster**: on the Bentbranch Meadows entry menu, sets the ten familiars that cover the board\u0027s battles best, once per visit.\n- **Battlehorns**: on the formation screen before every fight, puts the three familiars that answer that fight\u0027s mechanics on the horns (elemental weakness, interrupts, dispels, cleanses, crowd control the enemies are vulnerable to). Knocked-out familiars are never picked; badly hurt ones lose to a healthy familiar that fits nearly as well. The fight itself is never started.\n- **Picks in chat**: one line per fight naming each familiar and why it was chosen (`\"Announce picks in chat\"`). The window shows the latest selection.\n- **Manual edits win**: a roster or horn change made by hand (or by another tool) stops the automation for that screen, and a roster edited that way is kept for the rest of that visit.\n- **Stands down for AutoDuty**: while AutoDuty is running a board (it picks its own familiar team), the familiar screens are left alone (`\"Stand down while AutoDuty is running\"`, on by default).\n- **Fixed** (carried over from GluttonyCombo testing builds): the item shop\u0027s Beast Feed screen was treated as the Battlehorn screen, so feeding a familiar after the elite fight could fail or move the feed target. The feeding and campsite screens are now never touched.\n- **Fixed** (carried over): a run roster cleared and rebuilt on the entry menu (by hand or by AutoDuty) is no longer overwritten mid-edit.\n- **Beast-pick advisor**: picks for every battle on every board, the board roster and familiars worth capturing, under \"Beast picks by battle\".\n- **Screen recorder** (`\"Record Crucible screens to the log\"`, read-only): writes each Crucible screen and every button pressed on it to the Dalamud log, groundwork for automating the path, spoils, treasure, shop, feeding, campsite and beast gear screens.\n- Stands down with a chat notice while a GluttonyCombo version that still fills familiars itself is loaded.\n- **Problem reports**: `/lazycrucible report \u003cwhat happened\u003e` or the \"Report a problem\" button writes a report to the plugin log with the zone, job, recent familiar-selection and screen lines, and the full contents of the Crucible screens that are open.\n- **Error reporting**: an error is written as one line carrying the plugin version, build, zone, job and the full stack with file and line numbers. A part that keeps failing (familiar selection, the screen recorder, or its event and click logs) pauses with one chat notice and retries on its own; manual edits are still detected while the event log is paused.\n- `/lazycrucible` opens the window; `/lazycrucible changelog` shows this list.",
+        "RepoUrl":  "https://github.com/dajoey/lalalazy/tree/main/src/LazyCrucible",
+        "ApplicableVersion":  "any",
+        "DalamudApiLevel":  15,
+        "IsHide":  false,
+        "IsTestingExclusive":  false,
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyCrucible/latest/latest.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyCrucible/latest/latest.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/LazyCrucible/testing/testing.zip",
+        "Tags":  [
+                     "beastmaster",
+                     "bst",
+                     "crucible",
+                     "unbroken",
+                     "familiar",
+                     "battlehorn",
+                     "automation"
+                 ],
+        "CategoryTags":  [
+                             "jobs",
+                             "utility"
+                         ],
+        "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazycrucible-icon.png",
+        "ImageUrls":  [
+                          ""
+                      ],
+        "DownloadCount":  0,
+        "LastUpdate":  "0"
+    }
 ]

@@ -1,3 +1,10 @@
+## v1.0.4.235 (2026-09-25) [testing]
+### Changed
+- **Merged upstream WrathCombo (55d55a3e): opener potion check reworked.** An opener step whose action is an item that is not ready (e.g. the potion) is now skipped by returning immediately instead of advancing to the next action mid-check, so the opener no longer offers the following action early when the potion is not up.
+- **Debug tab: opener display shows action IDs.** The current opener action and each opener step now show the action ID next to the action name.
+### Notes
+- Production channel unchanged.
+
 ## v1.0.4.234 (2026-09-25) [testing]
 ### Fixed
 - **Beastmaster: Level 50 finisher combo (Universality) now reliably executes.** The finisher action (Risen Fall or Hawkish Talons) is now offered continuously while the Sunstrider or Moonstalker window is active and TP is available, rather than reverting to the basic GCD chain during GCD rolling, preventing the basic combo from queueing and consuming the finisher buff window.
