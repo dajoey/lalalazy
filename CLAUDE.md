@@ -58,7 +58,8 @@ TEST BUILD (default for every change):
 2b. Run tests/LalaChangelog.Harness — every plugin PASS, newest CHANGELOG entry == csproj <Version>
 2c. python tools/check-preset-ids.py .  — MUST print 0 duplicate values (silent-breakage gate, see Rules)
 3. tools/Package-Plugin.ps1 -PluginName <Plugin> -Channel testing
-4. ** VERIFY: git diff pluginmaster.json — ONLY TestingAssemblyVersion + TestingDalamudApiLevel moved; AssemblyVersion untouched, no regression **
+4. ** VERIFY: git diff pluginmaster.json — ONLY TestingAssemblyVersion + TestingDalamudApiLevel + DownloadLinkTesting moved; AssemblyVersion and the production links untouched, no regression **
+4b. ** VERIFY: DownloadLinkTesting == https://github.com/dajoey/lalalazy/releases/download/<Plugin>-v<version>/<Plugin>-testing.zip (a testing-exclusive plugin's Install/Update move with it). A raw.githubusercontent.com link means the packager printed "GitHub Release publish failed": fix the cause, re-run with -Republish BEFORE pushing **
 5. ** VERIFY: extract manifest from plugins/<Plugin>/testing/testing.zip — version == TestingAssemblyVersion **
 6. git add (csproj, CHANGELOG, pluginmaster.json, plugins/<Plugin>/testing/*), commit, push
 7. Verify in-game from the testing channel
@@ -66,10 +67,41 @@ TEST BUILD (default for every change):
 PROMOTE TO PRODUCTION (only after in-game verification):
 1. Same csproj version — no new bump
 2. tools/Package-Plugin.ps1 -PluginName <Plugin> -Channel production
-3. ** VERIFY: git diff pluginmaster.json — AssemblyVersion increased to the tested version, no regression **
+3. ** VERIFY: git diff pluginmaster.json — AssemblyVersion increased to the tested version, no regression; DownloadLinkInstall/Update == .../releases/download/<Plugin>-v<version>/<Plugin>.zip **
 4. ** VERIFY: extract manifest from plugins/<Plugin>/latest/latest.zip — version == AssemblyVersion **
 5. git add, commit, push
+
+AFTER ANY MERGE THAT TOUCHED pluginmaster.json (upstream merges, rebases, conflict fixes):
+   powershell -NoProfile -File tools\Migrate-ToReleases.ps1 -Check   — MUST print OK before pushing
 ```
+
+### Release downloads — GitHub Releases (since 2026-09-25)
+
+Every packaged zip is also published as a **GitHub Release asset**, and pluginmaster.json links
+point at the asset, because GitHub counts Release downloads and counts nothing on
+raw.githubusercontent.com (before this there was no install count anywhere). The owner asked for
+install counts on 2026-09-25; jobunthree `~/ops/github-traffic-snapshot.py` records them daily
+next to the repo's traffic.
+
+- **Naming contract** (the snapshot job parses exactly this; change both together):
+  tag `<Plugin>-v<version>` (one release per plugin version, shared by both channels), asset
+  `<Plugin>.zip` (production) or `<Plugin>-testing.zip` (testing). A testing build creates the
+  release as a pre-release; the production promote of that version adds `<Plugin>.zip` and clears
+  the flag. No release is ever marked Latest (`make_latest=false`): one "latest" across 16 plugins
+  would mislead.
+- `tools/PackageRelease.ps1` does it; `Package-Plugin.ps1` calls it after zipping and before
+  writing pluginmaster.json. Token: `GITHUB_TOKEN` from the environment, else `/infra/GITHUB_TOKEN`
+  from Infisical via `%USERPROFILE%\.credentials\infisical-agents.env`. Uploads are verified by the
+  SHA-256 digest GitHub returns, never by downloading, so packaging adds no downloads.
+- **If publishing fails the build still ships** on the raw copy (loud WARNING, uncounted). `-NoRelease`
+  does that on purpose. A run moves only its own channel's links; the other channel's stay.
+- The zips are still committed under `plugins/` (fallback + history). **Never delete a release or
+  asset**: its download count goes with it.
+- Tests: `tools/tests/Test-PackageLinks.ps1` (link policy) and `tools/tests/Test-PackageRelease.ps1`
+  (naming; `-Live` does a real publish/promote/replace round trip on a throwaway `ZzReleaseProbe`
+  release and deletes it).
+- `tools/Migrate-ToReleases.ps1` moved the zips that were live on 2026-09-25 onto Releases; `-Check`
+  is the post-merge guard in the checklist above.
 
 ## Build
 

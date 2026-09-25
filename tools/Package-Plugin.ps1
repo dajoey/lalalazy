@@ -23,7 +23,10 @@ param(
   # stale-zip failure mode (see the v1.0.4.130 entry in GluttonyCombo's CHANGELOG).
   [switch]$Republish,
   # Opt in to the old behaviour: bump the csproj patch number and package that.
-  [switch]$AutoBump
+  [switch]$AutoBump,
+  # Link the raw.githubusercontent.com copy instead of publishing a GitHub Release asset.
+  # Downloads of such a build are not counted (tools/PackageRelease.ps1).
+  [switch]$NoRelease
 )
 
 $ErrorActionPreference = 'Stop'
@@ -124,6 +127,7 @@ if (-not (Test-Path $changelogPath)) {
 }
 
 $changelogText = $null
+$releaseNotes = $null
 if (Test-Path $changelogPath) {
     Write-Host "Parsing CHANGELOG.md for metadata..."
     # Explicit UTF-8, NOT Get-Content (fix 2026-09-05, t_dd984b1e). Under Windows
@@ -189,6 +193,8 @@ if (Test-Path $changelogPath) {
         }
     }
     $changelogText = ($formattedEntries | Select-Object -First 6) -join "`n`n"
+    # The newest entry alone is this version's note on its GitHub Release.
+    $releaseNotes = $formattedEntries | Select-Object -First 1
 }
 
 # 1. Clean old outputs
@@ -371,6 +377,25 @@ Copy-Item $stagedManifestPath (Join-Path $targetDir "$PluginName.json") -Force
 # Clean staging
 Remove-Item -Recurse -Force $stageDir
 
+# 4b. Publish the zip as a GitHub Release asset, so GitHub counts its downloads (2026-09-25,
+# tools/PackageRelease.ps1); the link written below points at that asset. If publishing
+# fails the build still ships on the raw.githubusercontent.com copy, uncounted, and says so.
+$releaseUrl = $null
+if ($NoRelease) {
+    Write-Host "-NoRelease: linking the raw.githubusercontent.com copy; downloads of this build are not counted." -ForegroundColor Yellow
+} else {
+    try {
+        . (Join-Path $PSScriptRoot 'PackageRelease.ps1')
+        $releaseUrl = Publish-PluginRelease -PluginName $PluginName -Version $version -Channel $Channel `
+            -ZipPath $zipPath -DisplayName $manifest.Name -Notes $releaseNotes
+        Write-Host "Release asset: $releaseUrl"
+    } catch {
+        Write-Host "WARNING: GitHub Release publish failed: $($_.Exception.Message)" -ForegroundColor Yellow
+        Write-Host "         Linking the raw.githubusercontent.com copy instead: the build ships, its downloads are not counted." -ForegroundColor Yellow
+        Write-Host "         For a counted link, fix the cause and re-run with -Republish BEFORE pushing." -ForegroundColor Yellow
+    }
+}
+
 # 5. Synchronize pluginmaster.json automatically
 Write-Host "Updating pluginmaster.json index..."
 
@@ -409,9 +434,10 @@ if (-not $entry) {
         DalamudApiLevel = $manifest.DalamudApiLevel
         IsHide = $false
         IsTestingExclusive = $(if ($Channel -eq 'testing') { $true } else { $false })
-        DownloadLinkInstall = $(if ($Channel -eq 'testing') { "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/$PluginName/testing/testing.zip" } else { "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/$PluginName/latest/latest.zip" })
-        DownloadLinkUpdate = $(if ($Channel -eq 'testing') { "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/$PluginName/testing/testing.zip" } else { "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/$PluginName/latest/latest.zip" })
-        DownloadLinkTesting = "https://raw.githubusercontent.com/dajoey/lalalazy/main/plugins/$PluginName/testing/testing.zip"
+        # Filled in below by Set-EntryDownloadLinks, the same policy as an existing entry.
+        DownloadLinkInstall = ''
+        DownloadLinkUpdate = ''
+        DownloadLinkTesting = ''
         Tags = $manifest.Tags
         CategoryTags = $manifest.CategoryTags
         IconUrl = "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/$($PluginName.ToLower())-icon.png"
@@ -429,12 +455,6 @@ if (-not $entry) {
     $entry.Tags = $manifest.Tags
     $entry.CategoryTags = $manifest.CategoryTags
     $entry.IconUrl = "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/$($PluginName.ToLower())-icon.png"
-    # Link policy lives in PackageLinks.ps1 (tested by tools/tests/Test-PackageLinks.ps1):
-    # a testing-exclusive plugin keeps install/update on testing.zip (fix 2026-09-21 -
-    # these three lines used to force latest.zip, which 404s before a first promote).
-    . (Join-Path $PSScriptRoot 'PackageLinks.ps1')
-    Set-EntryDownloadLinks -Entry $entry -PluginName $PluginName -Channel $Channel
-
     # Changelog was assigned only when creating a brand-new entry, so an existing plugin
     # kept the text it was first published with forever (fix 2026-08-02). Refresh it here,
     # but never blank a good field just because the CHANGELOG failed to parse.
@@ -470,6 +490,14 @@ if (-not $entry) {
         if ($entry.PSObject.Properties['IsTestingExclusive']) { $entry.IsTestingExclusive = $false }
     }
 }
+
+# Link policy lives in PackageLinks.ps1 (tested by tools/tests/Test-PackageLinks.ps1): the
+# channel being published points at this build's Release asset (or its raw copy when there
+# is none), the other channel's links stay, and a testing-exclusive plugin keeps
+# install/update on its testing build (fix 2026-09-21 - these lines used to force
+# latest.zip, which 404s before a first promote).
+. (Join-Path $PSScriptRoot 'PackageLinks.ps1')
+Set-EntryDownloadLinks -Entry $entry -PluginName $PluginName -Channel $Channel -ReleaseUrl $releaseUrl
 
 if ($isNew) {
     # Append to master list
