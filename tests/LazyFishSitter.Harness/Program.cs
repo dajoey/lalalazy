@@ -27,8 +27,8 @@ internal static class Program
         Console.WriteLine(new string('-', 72));
 
         Case01_SitsOnceAtTheStandbyBeat();
-        Case02_NeverSendsWhileTheLineIsInTheWater();
-        Case03_NegativeControl_TheV0110Trace();
+        Case02_NeverSendsDuringActiveAnimations();
+        Case03_SitsWhenJoiningWithLineInWater();
         Case04_NoResitAfterEveryCatch();
         Case05_NeverSendsWhileSeated();
         Case06_AlreadySeatedOnArrivalSendsNothing();
@@ -43,6 +43,7 @@ internal static class Program
         Case15_TransitionLogIsRateLimited();
         Case16_EitherSeatedSignalAloneBlocksTheSend();
         Case17_NeverSendsWhileChangingPosition();
+        Case18_JoeyReproduction_QuickCastsSitsAfterCast();
 
         Console.WriteLine(new string('-', 72));
         Console.WriteLine($"{_pass} passed, {_fail} failed");
@@ -69,35 +70,35 @@ internal static class Program
     }
 
     // ---------------------------------------------------------------------------------
-    // 2. v0.1.1.0's defect: a send with the line already in the water is swallowed by the
-    //    game. The policy must never pick that moment.
+    // 2. Never sends during active animation locks (CastingOut, Bite, Hooking, PullingPoleIn,
+    //    or ChangingPosition). Only idle states (PoleReady, LineInWater) are accepted.
     // ---------------------------------------------------------------------------------
-    private static void Case02_NeverSendsWhileTheLineIsInTheWater()
+    private static void Case02_NeverSendsDuringActiveAnimations()
     {
         var s = new Session().ArriveAtHole().PoleReady(10).CastNoBite(20).CastAndCatch().LeaveHole();
         var r = Runner.Run(s, sitTakes: false); // worst case: nothing ever takes, so it keeps trying
 
-        var badStates = r.Sends.Where(x => x.Snap.State != FishState.PoleReady).ToList();
-        Check("02 no send in any state other than PoleReady", badStates.Count == 0,
+        var badStates = r.Sends.Where(x => x.Snap.State is FishState.CastingOut or FishState.Bite
+                                           or FishState.Hooking or FishState.PullingPoleIn
+                                           || x.Snap.ChangingPosition).ToList();
+        Check("02 no send during cast, hook, or reel animations", badStates.Count == 0,
             badStates.Count == 0 ? "" : string.Join(", ", badStates.Select(b => b.Snap.State.ToString())));
     }
 
     // ---------------------------------------------------------------------------------
-    // 3. NEGATIVE CONTROL. The real v0.1.1.0 trace from ffxivdb: the plugin woke up with the
-    //    Fishing flag already on and a line already in the water, and fired its one /sit
-    //    there - ten times across ten sessions, with no effect. Same input shape here must
-    //    produce zero sends, otherwise this harness proves nothing.
+    // 3. Line in water when joining: the player is standing and fishing; once settled,
+    //    the plugin must send /sit to sit them down.
     // ---------------------------------------------------------------------------------
-    private static void Case03_NegativeControl_TheV0110Trace()
+    private static void Case03_SitsWhenJoiningWithLineInWater()
     {
         var s = new Session()
             .Set(x => { x.Fishing = true; x.CanFish = true; x.State = FishState.LineInWater; x.ModeName = "Gathering"; x.ModeValue = 6; })
             .Hold(25)
             .Set(x => x.State = FishState.PullingPoleIn).Hold(2)
             .Set(x => { x.Fishing = false; x.State = FishState.None; }).Hold(3);
-        var r = Runner.Run(s, sitTakes: false);
+        var r = Runner.Run(s);
 
-        Check("03 the v0.1.1.0 trace (join mid-cast, line in water) sends nothing", r.Count == 0,
+        Check("03 sends exactly one /sit when line is already in the water", r.Count == 1,
             $"sent {r.Count}");
     }
 
@@ -303,5 +304,25 @@ internal static class Program
             .LeaveHole();
         var r = Runner.Run(s, sitTakes: false);
         Check("17 never sends while sitting down / standing up", r.Count == 0, $"sent {r.Count}");
+    }
+
+    // ---------------------------------------------------------------------------------
+    // 18. Reproduction of Joey's live report (2026-09-25): player arrives and casts
+    //     quickly across several casts without waiting at PoleReady. The automation must
+    //     attempt to sit after the cast (during LineInWater), not remain silent with 0 sends.
+    // ---------------------------------------------------------------------------------
+    private static void Case18_JoeyReproduction_QuickCastsSitsAfterCast()
+    {
+        var s = new Session().ArriveAtHole(1)
+            .Set(x => { x.Fishing = true; x.State = FishState.PoleReady; }).Hold(0.5)
+            .Set(x => x.State = FishState.CastingOut).Hold(1)
+            .Set(x => x.State = FishState.LineInWater).Hold(12)
+            .Set(x => x.State = FishState.PullingPoleIn).Hold(1.5)
+            .Set(x => x.State = FishState.PoleReady).Hold(0.5)
+            .Set(x => x.State = FishState.CastingOut).Hold(1)
+            .Set(x => x.State = FishState.LineInWater).Hold(12)
+            .LeaveHole();
+        var r = Runner.Run(s);
+        Check("18 quick casts without long standby beat still sits after cast", r.Count == 1, $"sent {r.Count}");
     }
 }

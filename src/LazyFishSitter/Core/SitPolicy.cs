@@ -26,8 +26,8 @@ public sealed class SitPolicy
     /// <summary>Hard floor between two sends, whatever else is true.</summary>
     public static readonly TimeSpan MinSendSpacing = TimeSpan.FromSeconds(10);
     /// <summary>"Standing" must be read continuously for this long before it is believed.</summary>
-    public static readonly TimeSpan StandConfirm = TimeSpan.FromSeconds(3);
-    /// <summary>PoleReady must have been held this long - lets the cast/reel animation finish.</summary>
+    public static readonly TimeSpan StandConfirm = TimeSpan.FromSeconds(2);
+    /// <summary>Idle state (PoleReady or LineInWater) must have been held this long - lets the cast/reel animation finish.</summary>
     public static readonly TimeSpan StateSettle = TimeSpan.FromSeconds(1);
     /// <summary>A stand read this soon after a bite/hook/reel is the game's animation, not the player.</summary>
     public static readonly TimeSpan HookTransientWindow = TimeSpan.FromSeconds(3);
@@ -75,8 +75,8 @@ public sealed class SitPolicy
     public DateTime LastSitSentUtc => _lastSitSent;
     public string SkipReason => _skipReason;
 
-    /// <summary>Rod out, no line in the water: the standby beat where the game accepts /sit.</summary>
-    public static bool IsStandbyBeat(FishState s) => s == FishState.PoleReady;
+    /// <summary>States where the character is idle and the game accepts /sit: standby beat (rod ready) or line in water.</summary>
+    public static bool IsStandbyBeat(FishState s) => s is FishState.PoleReady or FishState.LineInWater;
 
     /// <summary>
     /// States where the game stands you for a catch and then re-seats you afterwards, so a
@@ -157,12 +157,12 @@ public sealed class SitPolicy
             return null;
         }
 
-        // GUARD 3 - only at the standby beat. Not mid-cast, not with a line in the water, not
-        // mid-bite/hook/reel. This is what v0.1.1.0 and v0.1.2.0 both got wrong.
+        // GUARD 3 - only at idle fishing states (standby beat or line in water). Not mid-cast,
+        // not mid-bite/hook/reel.
         if (!snap.HandlerAvailable) { reason = "fishing handler unavailable"; return null; }
-        if (!IsStandbyBeat(snap.State)) { reason = $"fishing state {snap.State}({(int)snap.State}) - not the standby beat"; return null; }
+        if (!IsStandbyBeat(snap.State)) { reason = $"fishing state {snap.State}({(int)snap.State}) - not an idle fishing state"; return null; }
         if (snap.ChangingPosition) { reason = "sitting down / standing up"; return null; }
-        if (_poleReadySince is not { } ready || now - ready < StateSettle) { reason = "standby beat too fresh"; return null; }
+        if (_poleReadySince is not { } ready || now - ready < StateSettle) { reason = $"{snap.State} state too fresh"; return null; }
 
         // GUARD 4 - the game stands you for a moment around a catch and puts you back down.
         // Anything inside that window is the animation, not the player choosing to stand.
@@ -188,7 +188,7 @@ public sealed class SitPolicy
         _sendsThisTrip++;
         _pendingOutcomeAt = now + AcceptWindow;
         Log($"sending {cmd} (#{_sendsThisTrip} of {MaxSendsPerTrip} this trip, standing for " +
-            $"{(now - standing).TotalSeconds:F1}s at the standby beat) [{snap}]");
+            $"{(now - standing).TotalSeconds:F1}s at {snap.State}) [{snap}]");
         reason = $"sent {cmd} (#{_sendsThisTrip} this trip)";
         return cmd;
     }

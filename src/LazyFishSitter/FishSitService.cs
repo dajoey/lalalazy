@@ -100,7 +100,7 @@ internal sealed class FishSitService
             catch (Exception ex)
             {
                 s_eventFrameworkBroken = true;
-                Plugin.Log.Warning(ex, "[LazyFishSitter] EventFramework/FishingEventHandler unreadable on this client build - the plugin will never see the standby beat and will not send /sit");
+                Plugin.Log.Warning(ex, "[LazyFishSitter] EventFramework/FishingEventHandler unreadable on this client build - the plugin will never see an idle fishing state and will not send /sit");
             }
         }
 

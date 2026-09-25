@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.1.4.0 (2026-09-25)
+
+- Sits after a cast: the automated /sit check now runs after a cast once the line is settled in the water (`LineInWater`), in addition to the pre-cast standby beat (`PoleReady`). In active fishing loops or when using automated casting tools, the standby beat between casts typically lasts under a second, which previously prevented the automation from ever triggering across repeated casts (file: `FishSitService.cs`, `IsStandbyBeat`).
+- Safe timing: commands are sent only after the line has been in the water for at least 1 second to ensure the cast animation has resolved, and continue to be refused during active casting, biting, hooking, reeling, and position change animations.
+
 ## v0.1.3.0 (2026-09-05)
 
 - Correction first, because the last release's notes got the game wrong: FFXIV does NOT force standing on every hooked fish. If the character is sitting when the cast starts, the game keeps it seated for the whole loop - a hook may cause a momentary stand, but the game sits back down on its own. v0.1.2.0 was designed around that mistake (one /sit per cast) and this release replaces it entirely.
