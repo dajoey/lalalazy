@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.1.5.0 (2026-09-25)
+
+- Persistent seating across fishing hole visits: if the character stands up during a visit to a fishing hole (such as putting the rod away to change bait or use cordials, or manually standing up), the automation now detects the stand and re-seats upon resuming fishing or on the subsequent cast.
+- Unaccepted send cap: the 3-send limit per hole visit is now scoped to consecutive unaccepted sends rather than a lifetime cap per hole visit. When a sit is accepted by the game, the counter resets, ensuring long fishing sessions with multiple bait changes or pauses remain seated while still guarding against unbounded retry loops if commands are blocked.
+
 ## v0.1.4.0 (2026-09-25)
 
 - Sits after a cast: the automated /sit check now runs after a cast once the line is settled in the water (`LineInWater`), in addition to the pre-cast standby beat (`PoleReady`). In active fishing loops or when using automated casting tools, the standby beat between casts typically lasts under a second, which previously prevented the automation from ever triggering across repeated casts (file: `FishSitService.cs`, `IsStandbyBeat`).

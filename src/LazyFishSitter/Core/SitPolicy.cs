@@ -38,10 +38,12 @@ public sealed class SitPolicy
     public const int MaxSendsPerTrip = 3;
     public const int MaxTransitionLogsPerMinute = 40;
 
-    // --- per fishing trip (one visit to a hole, NOT one cast) -------------------------
+    // --- per fishing trip and per cast -----------------------------------------------
     private bool _tripActive;
     private DateTime? _leftHoleAt;
     private int _sendsThisTrip;
+    private int _consecutiveUnacceptedSends;
+    private bool _satThisCast;
     private bool _capLogged;
     /// <summary>The character is seated as far as we can tell: a seated read, or the game took our /sit.</summary>
     private bool _sitBelieved;
@@ -146,14 +148,16 @@ public sealed class SitPolicy
         // be wrong in the permissive direction, so it is first and absolute.
         if (snap.Seated) { reason = $"already seated ({snap.PostureText})"; return null; }
 
-        // GUARD 2 - sit once and stay. Once the game has taken a sit on this trip we are done:
-        // the game re-seats him after every catch by itself. The only way we would send again is
-        // if the seated read had proved it still reports seated with the rod out - otherwise a
-        // "standing" read is an unproven read, and acting on it is exactly the v0.1.0.0 yo-yo.
-        if (_sitBelieved && !_detectorProvenWithRodOut)
+        // GUARD 2 - sit once and stay. Once the character is believed seated (or a send is
+        // currently in flight awaiting outcome), we do not send again:
+        // - While actively fishing, the game keeps you seated across normal catches.
+        // - If the character stands up (position change without our send, or quitting fishing / putting rod away),
+        //   _sitBelieved is reset to false, allowing a re-sit.
+        if (_sitBelieved || (_satThisCast && now < _pendingOutcomeAt))
         {
-            reason = "already sat you once this trip; the seated read is blind with the rod out, " +
-                     "so a \"standing\" read cannot be trusted";
+            reason = _sitBelieved
+                ? "already seated"
+                : "waiting for /sit outcome";
             return null;
         }
 
@@ -169,9 +173,9 @@ public sealed class SitPolicy
         if (_lastHookish is { } hook && now - hook < HookTransientWindow) { reason = "just hooked/reeled - the game re-seats you itself"; return null; }
         if (_notSeatedSince is not { } standing || now - standing < StandConfirm) { reason = "standing read not held long enough"; return null; }
 
-        // GUARD 5 - hard loop bounds.
+        // GUARD 5 - hard loop bounds: minimum spacing between sends, and cap on unaccepted sends.
         if (now - _lastSitSent < MinSendSpacing) { reason = "sent /sit recently"; return null; }
-        if (_sendsThisTrip >= MaxSendsPerTrip)
+        if (_consecutiveUnacceptedSends >= MaxSendsPerTrip)
         {
             if (!_capLogged)
             {
@@ -186,6 +190,8 @@ public sealed class SitPolicy
         var cmd = string.IsNullOrWhiteSpace(ctx.SitCommand) ? "/sit" : ctx.SitCommand;
         _lastSitSent = now;
         _sendsThisTrip++;
+        _consecutiveUnacceptedSends++;
+        _satThisCast = true;
         _pendingOutcomeAt = now + AcceptWindow;
         Log($"sending {cmd} (#{_sendsThisTrip} of {MaxSendsPerTrip} this trip, standing for " +
             $"{(now - standing).TotalSeconds:F1}s at {snap.State}) [{snap}]");
@@ -201,6 +207,7 @@ public sealed class SitPolicy
         {
             _notSeatedSince = null;
             _sitBelieved = true;
+            _satThisCast = true;
             if (snap.HandlerAvailable && snap.State != FishState.None)
             {
                 _seatedReadsWithRodOut++;
@@ -224,6 +231,19 @@ public sealed class SitPolicy
             else _poleReadySince = null;
 
             if (IsHookish(snap.State)) _lastHookish = now;
+        }
+
+        // --- cast boundaries -------------------------------------------------------------
+        // When quitting fishing or standing outside of fishing, the character has put the rod away and stood up.
+        // Deliberately NOT !snap.Fishing alone: ConditionFlag.Fishing drops briefly between casts (case 09).
+        if (snap.State is FishState.Quitting or FishState.None)
+        {
+            _satThisCast = false;
+            if (!snap.Seated)
+            {
+                _sitBelieved = false;
+                _consecutiveUnacceptedSends = 0;
+            }
         }
 
         // --- trip boundaries -------------------------------------------------------------
@@ -271,8 +291,20 @@ public sealed class SitPolicy
             && now - _lastSitSent <= AcceptWindow)
         {
             _sitBelieved = true;
+            _satThisCast = true;
+            _consecutiveUnacceptedSends = 0;
             Log($"the game took our /sit (started changing position {(now - _lastSitSent).TotalMilliseconds:F0} ms after the send) - " +
-                "not sending again this trip");
+                "seated for this cast");
+        }
+        else if (snap.ChangingPosition && !_last.ChangingPosition && now - _lastSitSent > AcceptWindow)
+        {
+            // Position changed without our command: player manually stood up or sat down.
+            if (!snap.Seated)
+            {
+                _sitBelieved = false;
+                _satThisCast = false;
+                _consecutiveUnacceptedSends = 0;
+            }
         }
 
         _last = snap;
@@ -283,6 +315,8 @@ public sealed class SitPolicy
         _tripActive = true;
         _leftHoleAt = null;
         _sendsThisTrip = 0;
+        _consecutiveUnacceptedSends = 0;
+        _satThisCast = snap.Seated;
         _capLogged = false;
         _sitBelieved = snap.Seated;
         _detectorProvenWithRodOut = false;
@@ -311,6 +345,8 @@ public sealed class SitPolicy
         _tripActive = false;
         _leftHoleAt = null;
         _sendsThisTrip = 0;
+        _consecutiveUnacceptedSends = 0;
+        _satThisCast = false;
         _capLogged = false;
         _sitBelieved = false;
         _detectorProvenWithRodOut = false;
@@ -338,7 +374,7 @@ public sealed class SitPolicy
     }
 
     public string DebugState() =>
-        $"tripActive={_tripActive} sends={_sendsThisTrip}/{MaxSendsPerTrip} gameTookASit={_sitBelieved} " +
-        $"seatedReadWorksWithRodOut={_detectorProvenWithRodOut} seatedReadsWithRodOut={_seatedReadsWithRodOut} " +
-        $"lastSitUtc={_lastSitSent:HH:mm:ss} skip={_skipReason}";
+        $"tripActive={_tripActive} sends={_sendsThisTrip} satThisCast={_satThisCast} unaccepted={_consecutiveUnacceptedSends}/{MaxSendsPerTrip} " +
+        $"gameTookASit={_sitBelieved} seatedReadWorksWithRodOut={_detectorProvenWithRodOut} " +
+        $"seatedReadsWithRodOut={_seatedReadsWithRodOut} lastSitUtc={_lastSitSent:HH:mm:ss} skip={_skipReason}";
 }

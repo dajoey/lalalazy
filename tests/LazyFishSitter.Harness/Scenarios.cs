@@ -85,6 +85,11 @@ internal sealed class Session
         return this;
     }
 
+    /// <summary>The character stands up (position change while at the hole).</summary>
+    public Session StandUp(double seconds = 1.0)
+        => Set(s => { s.Seated = false; s.ChangingPosition = true; }).Hold(seconds)
+          .Set(s => s.ChangingPosition = false);
+
     /// <summary>Leave the hole for long enough that the trip ends.</summary>
     public Session LeaveHole(double seconds = 30)
         => Set(s => { s.Fishing = false; s.CanFish = false; s.State = FishState.None; }).Hold(seconds);
@@ -112,16 +117,36 @@ internal static class Runner
         var logs = new List<string>();
         DateTime? sentAt = null;
 
+        var seatedBySit = false;
         foreach (var (at, baseSnap) in session.Frames)
         {
             var snap = baseSnap;
+
+            // If the character stands up (manually or via quitting), clear the simulated sit.
+            if (seatedBySit)
+            {
+                if (baseSnap.ChangingPosition && (sentAt == null || at - sentAt.Value > SitPolicy.AcceptWindow))
+                {
+                    sentAt = null;
+                    seatedBySit = false;
+                }
+                else if (baseSnap.State is FishState.Quitting || (!baseSnap.Fishing && baseSnap.State == FishState.None && !baseSnap.Seated))
+                {
+                    sentAt = null;
+                    seatedBySit = false;
+                }
+            }
 
             // Model the game's reaction to a send we already made.
             if (sitTakes && sentAt is { } t)
             {
                 var dt = (at - t).TotalSeconds;
                 if (dt is >= 0.5 and < 1.5) snap = snap with { ChangingPosition = true };
-                if (dt >= 1.5) snap = snap with { GameSeated = true, GamePosture = "SittingOnGround" };
+                if (dt >= 1.5)
+                {
+                    snap = snap with { GameSeated = true, GamePosture = "SittingOnGround" };
+                    seatedBySit = true;
+                }
             }
 
             var step = policy.Step(snap, at, new PolicyContext(enabled, sitCommand, blockReason));

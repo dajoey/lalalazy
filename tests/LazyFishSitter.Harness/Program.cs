@@ -44,6 +44,7 @@ internal static class Program
         Case16_EitherSeatedSignalAloneBlocksTheSend();
         Case17_NeverSendsWhileChangingPosition();
         Case18_JoeyReproduction_QuickCastsSitsAfterCast();
+        Case19_StandAgainResitsOnSubsequentCast();
 
         Console.WriteLine(new string('-', 72));
         Console.WriteLine($"{_pass} passed, {_fail} failed");
@@ -324,5 +325,30 @@ internal static class Program
             .LeaveHole();
         var r = Runner.Run(s);
         Check("18 quick casts without long standby beat still sits after cast", r.Count == 1, $"sent {r.Count}");
+    }
+
+    // ---------------------------------------------------------------------------------
+    // 19. Reproduction of Joey's live report (2026-09-25): after a sit takes on cast 1,
+    //     a subsequent cast where the player stands again (e.g. from hook/reel/recast)
+    //     must re-sit on cast 2 rather than leaving the character standing for the trip.
+    // ---------------------------------------------------------------------------------
+    private static void Case19_StandAgainResitsOnSubsequentCast()
+    {
+        var s = new Session().ArriveAtHole(1)
+            // Cast 1: quick cast, sits during LineInWater
+            .Set(x => { x.Fishing = true; x.State = FishState.PoleReady; }).Hold(0.5)
+            .Set(x => x.State = FishState.CastingOut).Hold(1)
+            .Set(x => x.State = FishState.LineInWater).Hold(12)
+            // Catch / reel stands the player up (Hooking -> PullingPoleIn -> StandUp -> PoleReady)
+            .Set(x => x.State = FishState.Hooking).Hold(3)
+            .Set(x => x.State = FishState.PullingPoleIn).Hold(1.5)
+            .StandUp(1.0)
+            .Set(x => x.State = FishState.PoleReady).Hold(0.5)
+            // Cast 2: character is standing again at the hole with line in water
+            .Set(x => { x.Fishing = true; x.State = FishState.CastingOut; }).Hold(1)
+            .Set(x => x.State = FishState.LineInWater).Hold(12)
+            .LeaveHole();
+        var r = Runner.Run(s);
+        Check("19 stand again during hole visit re-sits on subsequent cast", r.Count == 2, $"sent {r.Count}");
     }
 }
