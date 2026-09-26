@@ -316,14 +316,16 @@ internal static class Program
             BST_CrucibleData.CleaveAutoBosses.SetEquals(new uint[] { 14541, 14583, 14592, 14693 }));
         Check("Third Board priority adds: crawling, flowertender, golem, bone bishop",
             new uint[] { 14586, 14589, 14581, 14567 }.All(id => BST_CrucibleData.PriorityAdds.Contains(id)));
-        Check("Crucible priority adds across all boards",
-            new uint[] {
-                14532, 14537, 14539, 14748, 14542, 14543,
-                14548, 14553, 14559, 14558,
-                14567, 14581, 14586, 14589, 14591, 14595, 14573, 14574,
+        Check("Crucible priority adds: exact game-data set, 51 ids across all boards",
+            BST_CrucibleData.PriorityAdds.SetEquals(new uint[] {
+                14532, 14537, 14539, 14542, 14543, 14748,
+                14548, 14553, 14558, 14559,
+                14567, 14573, 14574, 14581, 14585, 14586, 14589, 14591, 14595,
                 14605, 14607, 14610, 14622, 14624, 14625, 14629,
-                14632, 14640, 14639, 14646, 14659, 14661, 14672, 14673, 14683, 14681, 14677, 14676, 14680, 14691, 14692, 14699,
-            }.All(id => BST_CrucibleData.PriorityAdds.Contains(id)));
+                14632, 14639, 14640, 14643, 14644, 14645, 14646, 14647, 14648, 14649,
+                14653, 14659, 14661, 14662, 14671, 14672, 14673,
+                14676, 14677, 14680, 14681, 14683, 14691, 14692, 14699,
+            }));
     }
 
     private static void CrucibleTargetingAndAdvisor()
@@ -341,8 +343,8 @@ internal static class Program
         Check("Loosefrox 30% / Chewchum 70%: Chewchum", Allowed(C(14561, 30f, false), C(14562, 70f, false)).SequenceEqual(new[] { 1 }));
         Check("Pas de Seul + succubus mage: the add first", Allowed(C(14541, 90f, false), C(14542, 100f, false)).SequenceEqual(new[] { 1 }));
         Check("bone knight + bone bishop: the bishop first", Allowed(C(14531, 100f, false), C(14532, 100f, false)).SequenceEqual(new[] { 1 }));
-        Check("siren + shambling + crawling: the crawling piece first (Damage Down on touch)",
-            Allowed(C(14583, 40f, false), C(14585, 60f, false), C(14586, 55f, false)).SequenceEqual(new[] { 2 }));
+        Check("siren + shambling + crawling: the whole add wave first (crawling's Damage Down on touch, shamblings before they Wallop)",
+            Allowed(C(14583, 40f, false), C(14585, 60f, false), C(14586, 55f, false)).SequenceEqual(new[] { 1, 2 }));
         Check("cactuar pack: flowertender (heals allies) before the rest",
             Allowed(C(14588, 50f, false), C(14589, 60f, false), C(14590, 40f, false), C(14591, 30f, false)).SequenceEqual(new[] { 1, 3 }));
         Check("lakhamu + golem: the golem first once it spawns",
@@ -364,6 +366,16 @@ internal static class Program
         Check("medusa + lamia: lamia first", Allowed(C(14660, 100f, false), C(14661, 100f, false)).SequenceEqual(new[] { 1 }));
         Check("gigantis + congealed gel: gel first", Allowed(C(14670, 100f, false), C(14672, 100f, false)).SequenceEqual(new[] { 1 }));
         Check("king ahriman + hapalit: hapalit first", Allowed(C(14688, 100f, false), C(14691, 100f, false)).SequenceEqual(new[] { 1 }));
+        Check("drake + spinemole (barbmole): the mole first (near-lethal Seeding Needles when left alone)",
+            Allowed(C(14651, 100f, false), C(14653, 100f, false)).SequenceEqual(new[] { 1 }));
+        Check("atomos + summon wave: the wave first (every summon killed is boss damage)",
+            Allowed(C(14642, 100f, false), C(14643, 80f, false), C(14646, 70f, false), C(14649, 60f, false)).SequenceEqual(new[] { 1, 2, 3 }));
+        Check("medusa + lamia + cyclops: the adds first",
+            Allowed(C(14660, 100f, false), C(14661, 90f, false), C(14662, 80f, false)).SequenceEqual(new[] { 1, 2 }));
+        Check("gigantis + cyclops + gel: the adds first",
+            Allowed(C(14670, 100f, false), C(14671, 80f, false), C(14672, 90f, false)).SequenceEqual(new[] { 1, 2 }));
+        Check("morpho stays do-not-attack, never a priority add",
+            !BST_CrucibleData.PriorityAdds.Contains(14656) && BST_CrucibleData.DoNotAttack.ContainsKey(14656));
 
         Check("51 beast profiles, row-indexed", BST_CrucibleData.BeastProfiles.Length == 51 && Enumerable.Range(1, 50).All(r => BST_CrucibleData.BeastProfiles[r].Row == r));
         Check("lamb inflicts sleep (bit 7); coblyn auto is lightning magic",
