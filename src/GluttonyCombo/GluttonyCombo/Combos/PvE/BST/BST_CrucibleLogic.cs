@@ -214,8 +214,17 @@ internal static class BST_CrucibleLogic
     /// </summary>
     public static (uint ActionId, string Reason) TryPetSave(in BstState s, in BstSettings cfg, BeastmasterBeast? beast, List<string> declines)
     {
+        if (!FamiliarOut(s))
+            return (0, "");
+
+        // Curtains for Rank 5 (49429, King Ahriman): 6.0s cast that instantly KOs the familiar regardless of HP.
+        // Parting Blow recalls the familiar safely before the cast resolves.
+        if (s.TargetCastId == 49429 && s.TargetCastRemaining is > 0.2f and <= 2.5f
+            && s.Level >= LvPartingBlow && s.ReadyParting && s.CanWeave && !s.TargetDoNotAttack && !s.ProtectedNearTarget)
+            return (BST.PartingBlow, "crucible:petsave-curtains");
+
         var hp = s.PetHpPercent;
-        if (!FamiliarOut(s) || hp <= 0f || hp > cfg.CruciblePetSwapHp)
+        if (hp <= 0f || hp > cfg.CruciblePetSwapHp)
             return (0, "");
 
         if (s.EnemyCount <= 1 && s.HasHostileTarget && s.TargetHpPercent <= EnemyDyingHp)

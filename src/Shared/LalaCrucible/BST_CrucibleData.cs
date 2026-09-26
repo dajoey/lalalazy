@@ -205,11 +205,21 @@ internal static partial class BST_CrucibleData
     /// <summary>
     ///     Enemies auto-targeting takes first whenever they are up: the adds the guides kill on sight (succubi, wisps before
     ///     they reach the centre, ahriman after the gaze, zombies, a woken Thanatos, the guardia that covers its allies) and
-    ///     the bone bishop before the bone knight. Third Board: the bone bishops a cavalier keeps summoning (Soul Douse is a
-    ///     room-wide Damage Down), the golem a lakhamu spawns with, the crawling piece (its touch is Bind plus Damage Down)
-    ///     and the flowertender (it heals the pack).
+    ///     the bone bishop before the bone knight, plus all board add priorities across B1-B3, M1 and M2.
     /// </summary>
-    public static readonly HashSet<uint> PriorityAdds = [14542, 14543, 14539, 14748, 14532, 14548, 14553, 14595, 14699, 14591, 14567, 14581, 14586, 14589];
+    public static readonly HashSet<uint> PriorityAdds =
+    [
+        // Board 1: succubi, wisps, bone bishop, mitelings
+        14542, 14543, 14539, 14748, 14532, 14537,
+        // Board 2: ahriman, zombies, devilet, evil weapon
+        14548, 14553, 14559, 14558,
+        // Board 3: bone bishop, golem, crawling piece, flowertender, guardia, Thanatos, cockerel, pullet
+        14567, 14581, 14586, 14589, 14591, 14595, 14573, 14574,
+        // First Master's Board (M1): Queen Hawk, Ice Sprite, Administrator, Biloko, Grenade, Bomb, Toxic Mass
+        14605, 14607, 14610, 14622, 14624, 14625, 14629,
+        // Second Master's Board (M2): Lightning Sprite, Bomb, Deepeye, Bavarois, Spinner-rook, Lamia, Gels, Moogle officers, Hapalit, Dirty Eye, Thanatos
+        14632, 14640, 14639, 14646, 14659, 14661, 14672, 14673, 14683, 14681, 14677, 14676, 14680, 14691, 14692, 14699,
+    ];
 
     /// <summary>
     ///     Bosses whose auto-attacks are a frontal cone that also hits the familiar (guides, two independent sources:
