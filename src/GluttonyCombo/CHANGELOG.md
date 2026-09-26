@@ -1,3 +1,12 @@
+## v1.0.4.238 (2026-09-26) [testing]
+### Fixed
+- **Crucible: the drake fight's Spinemoles are now killed on sight.** The Spinemole pieces that burrow up around the Second Master's Board drake were missing from the priority list, so auto-targeting stayed on the drake while the moles fired their near-lethal needle volleys; they are now prioritized until defeated.
+### Added
+- **Crucible: the remaining add waves join the priority list.** The siren's shambling adds, both Cyclops waves (the medusa and gigantis fights), and all seven Atomos summon-wave adds are now auto-prioritized, so every summon is cleared before returning to the main enemy — the Atomos notably takes damage each time a summon is defeated.
+### Notes
+- Every priority-add identity is now pinned against the decoded game data, and the test suite asserts the exact 51-entry set, so an add can no longer be covered under the wrong name.
+- Production channel unchanged.
+
 ## v1.0.4.237 (2026-09-26) [testing]
 ### Added
 - **Crucible: full fight-data accounting across all five boards.** Target-priority handling is now active for every multi-target encounter in the Crucible corpus across all boards (First, Second, Third, First Master's, and Second Master's Boards): dangerous add spawns, healers, gaze casters, exploding bombs, and invulnerability-granting pieces are automatically prioritized by auto-targeting before returning to primary targets.
