@@ -313,7 +313,12 @@ internal static class FormationLogic
     {
         if (!g.PetPartyOpen)
             return (FormationWrite.None, g.ActivePetOpen ? "activepet_only" : "closed");
-        if (g.PartyCount <= 0)
+        // An empty run party is fatal off the pre-entry surface only. The entry roster menu's party
+        // vector is the OUTPUT being built: a first entry of a board with no saved team has both vectors
+        // wiped ~110 ms after open (XA|pp party=|sel=, 2026-09-26 14:37:30.494), and the roster writer's
+        // candidates are the notebook's unlocked bitfield, not the party. On the pre-entry surface the
+        // screen/mode switch below still decides; every board surface with no party stays read-only.
+        if (g.PartyCount <= 0 && !g.PreEntrySurface)
             return (FormationWrite.None, "no_party");
 
         var screen = ClassifyPetPartyScreen(g.AddonMode, g.AddonSubMode);

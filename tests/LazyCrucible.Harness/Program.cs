@@ -19,6 +19,7 @@ internal static class Program
         Formation();
         FeedScreenReplay();
         RosterOverwriteReplay();
+        MasterBoardEntryCases();
         GluttonyVersionGuard();
         Telemetry();
         PolicyCases.Run();
@@ -327,6 +328,64 @@ internal static class Program
     ///     is empty the live pass fed battle key 0 to the latch, the key returned to -1 as the rebuild started,
     ///     and a key change re-armed the writer. Any edit the pass did not send (player or another tool) wins.
     /// </summary>
+    /// <summary>
+    ///     First Master Board first entry (2026-09-26 14:37:30 ET, LazyCrucible 0.1.3.0). Selecting the board
+    ///     in XBMStageList opens the entry roster menu carrying the previous board's team, then the game
+    ///     wipes both vectors ~110 ms later (XA|pp ... party=28.20.5.21.22.39.33.7.8.12|sel=6.1.7 at
+    ///     14:37:30.385 -> party=|sel= at 30.494) and the menu itself reads "0/12". With the run party
+    ///     empty the roster writer must STILL run on this one surface (its candidates are the notebook's
+    ///     unlocked bitfield, not the party); every other empty-party surface stays read-only.
+    /// </summary>
+    private static void MasterBoardEntryCases()
+    {
+        Console.WriteLine("-- master-board entry: empty run party on the roster menu (M1, 0.1.3.0) --");
+
+        // The state from 14:37:30.494 until confirm: preentry, PetParty open in roster mode, both
+        // vectors empty. Currently None/no_party -> the roster writer can never run (the M1 defect).
+        var wiped = FormationLogic.DecideFormationWrite(new(
+            PetPartyOpen: true, ActivePetOpen: false, PreEntrySurface: true,
+            AddonMode: 0, AddonSubMode: 1, SelectedPetIds: Array.Empty<int>(), PartyCount: 0));
+        Check("M1 entry menu after the wipe (mode 0, party=0, sel empty): roster write",
+            wiped.Write == FormationLogic.FormationWrite.Roster, $"{wiped.Write}/{wiped.Reason}");
+
+        // First frame of the same open (only SubMode populated): same decision.
+        var wipedFirstFrame = FormationLogic.DecideFormationWrite(new(
+            PetPartyOpen: true, ActivePetOpen: false, PreEntrySurface: true,
+            AddonMode: -1, AddonSubMode: 1, SelectedPetIds: Array.Empty<int>(), PartyCount: 0));
+        Check("M1 entry menu first frame (mode -1, sub 1, party=0, sel empty): roster write",
+            wipedFirstFrame.Write == FormationLogic.FormationWrite.Roster, $"{wipedFirstFrame.Write}/{wipedFirstFrame.Reason}");
+
+        // The 14:37:30.335 state one tick before the wipe: party=10 still standing, sel=6.1.7 (three
+        // leftover horn rows). The settle guard must hold with an empty party too - never write into
+        // the <=3 transient.
+        var transient = FormationLogic.DecideFormationWrite(new(
+            PetPartyOpen: true, ActivePetOpen: false, PreEntrySurface: true,
+            AddonMode: -1, AddonSubMode: 1, SelectedPetIds: new[] { 6, 1, 7 }, PartyCount: 0));
+        Check("Transient 6.1.7 with party=0: wait for settle, never write",
+            transient.Write == FormationLogic.FormationWrite.Wait, $"{transient.Write}/{transient.Reason}");
+
+        // Characterization: the in-board surface with no run party stays read-only (14:38:19.6, mode 2,
+        // party=0 - nothing to select from; the roster menu that builds a team is the pre-entry surface).
+        var boardEmpty = FormationLogic.DecideFormationWrite(new(
+            PetPartyOpen: true, ActivePetOpen: false, PreEntrySurface: false,
+            AddonMode: 2, AddonSubMode: 1, SelectedPetIds: Array.Empty<int>(), PartyCount: 0));
+        Check("Board surface with empty party (M1 in-board horn preview): no write",
+            boardEmpty.Write == FormationLogic.FormationWrite.None && boardEmpty.Reason == "no_party",
+            $"{boardEmpty.Write}/{boardEmpty.Reason}");
+        var boardRosterMode = FormationLogic.DecideFormationWrite(new(
+            PetPartyOpen: true, ActivePetOpen: false, PreEntrySurface: false,
+            AddonMode: 0, AddonSubMode: 1, SelectedPetIds: Array.Empty<int>(), PartyCount: 0));
+        Check("Board surface roster mode with empty party: no write",
+            boardRosterMode.Write == FormationLogic.FormationWrite.None && boardRosterMode.Reason == "no_party",
+            $"{boardRosterMode.Write}/{boardRosterMode.Reason}");
+
+        // Roster sizes the writer must use per board (XBMPetParty said 0/12 on M1; B3 carried 10 of 14
+        // all week because 10 was hardcoded).
+        var sizes = string.Join("/", BST_CrucibleData.Boards.Select(b => b.Roster));
+        Check("Board roster sizes 10/12/14/12/15 (CrucibleBoard.Roster)",
+            sizes == "10/12/14/12/15", sizes);
+    }
+
     private static void RosterOverwriteReplay()
     {
         Console.WriteLine("-- Bentbranch roster overwrite replay (12:50, .229) --");

@@ -174,7 +174,13 @@ internal static unsafe class PetSelect
             partyCount = partyRows.Count;
 
         // Observer line above every assign gate: fires on change while BST, any territory.
-        if (partyCount == 0)
+        // The Bentbranch entry roster menu may build a team from an empty run party: a first entry of a
+        // board with no saved team has both vectors wiped ~110 ms after open (XA|pp party=|sel=,
+        // 2026-09-26 14:37:30.494) and the writer's candidates are the notebook's unlocked bitfield, so
+        // the pass must still run there. Every other empty-party surface (board, notebook, closed)
+        // keeps the read-only stand-down inside this block.
+        var rosterMenuBuild = surfaceKey == SurfacePreentry && petPartyOpen && pet != 0;
+        if (partyCount == 0 && !rosterMenuBuild)
         {
             MaybeLogPhase(pet, territoryBoard, mode, activePetOpen, petPartyOpen, petListOpen, partyAddonShown,
                 screenOpen, armed: false, partyCount: 0, surfaceName, xbmNames, agentNonZero);
@@ -245,7 +251,7 @@ internal static unsafe class PetSelect
             _disarmRestOfScreen = false;
         }
 
-        var armed = IsFormationArmed(in _arm) && partyCount > 0 && !_disarmRestOfScreen;
+        var armed = IsFormationArmed(in _arm) && (partyCount > 0 || rosterMenuBuild) && !_disarmRestOfScreen;
         MaybeLogPhase(pet, territoryBoard, mode, activePetOpen, petPartyOpen, petListOpen, partyAddonShown,
             screenOpen, armed, partyCount, surfaceName, xbmNames, agentNonZero);
 
@@ -650,7 +656,13 @@ internal static unsafe class PetSelect
         var hpPets = ReadPartyHpRaw(pet, candidatePets.Count > 0 ? candidatePets : selectedRaw);
         var hpMap = HpPercentByRow(hpPets);
 
-        var picks = BST_CrucibleAdvisor.PickSlotsCoverage(board, candidates, hpMap, 10);
+        // The roster size is per board: the sheet table says 10/12/14/12/15 and the First Master's
+        // Board menu itself read "0/12" (XBMPetParty 1181, 2026-09-26 14:37:31), so the hardcoded 10
+        // under-filled every board after the first (Third Board runs carried 10 of 14).
+        var rosterSize = board >= 1 && board <= BST_CrucibleData.Boards.Length
+            ? BST_CrucibleData.Boards[board - 1].Roster
+            : 10;
+        var picks = BST_CrucibleAdvisor.PickSlotsCoverage(board, candidates, hpMap, rosterSize);
         var desiredRows = picks.ConvertAll(p => p.Row);
 
         var snapshot = new List<int>(selectedRaw);
