@@ -1,5 +1,10 @@
 # LazyCrucible — Changelog
 
+## v0.1.5.0 (2026-09-26)
+
+- **Battlehorns**: familiar read-back now verifies team membership rather than strict positional order against advisor priority rankings. Previously, when the active party slots held the chosen familiars in an order different from the advisor's score ranking, the read-back treated the permutation as a mismatch and aborted with an erroneous disarm.
+- **Battlehorns**: selection restore after an abort now checks membership equality across active horn slots so restored selections leave clean state rather than disarming the screen.
+
 ## v0.1.4.0 (2026-09-26)
 
 - **Run roster**: the Bentbranch Meadows entry menu now fills a team even on a board's first entry, when no team is saved yet. Previously the menu was skipped exactly then, which left the First Master's Board without familiars.
