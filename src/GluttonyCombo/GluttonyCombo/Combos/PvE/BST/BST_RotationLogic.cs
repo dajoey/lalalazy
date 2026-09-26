@@ -691,6 +691,14 @@ internal static class BST_RotationLogic
             return 0;
         }
 
+        // Crucible horn conservation: even with damage cycling allowed, an exit must not strand the player —
+        // only cycle out when a resummon will actually happen (ready horn, familiar above the critical line).
+        if (crucible && !BST_CrucibleLogic.ResummonAvailable(s, cfg))
+        {
+            declines.Add("crucible:exit-no-resummon-horn");
+            return 0;
+        }
+
         if (s.SinceSummon < cfg.MinFamiliarStaySeconds)
         {
             declines.Add("exit:min-stay");

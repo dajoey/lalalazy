@@ -282,6 +282,17 @@ internal static class BST_CrucibleLogic
             return (0, "");
         }
 
+        // Horn conservation: a recall exit with no resummon actually available strands the player
+        // weaponless until a horn unlocks (~90 s). Keep the familiar out instead: it keeps covering and
+        // fighting, and a familiar that falls is one familiar, while a character death ends the run
+        // (Third Board 2026-09-26: last recall at 11% HP, boss 21%). When the round is ending anyway the
+        // recall is free — the familiar is saved for the next battle.
+        if (!ResummonAvailable(s, cfg) && !(s.EnemyCount > 0 && s.HighestEnemyHpPercent <= RoundEndingHp))
+        {
+            declines.Add("crucible:petsave-no-resummon-horn");
+            return (0, "");
+        }
+
         if (beast is { } b && (b.Release & BeastmasterReleaseTraits.Exit) != 0 && s.OneWithNature && s.ReadyTempered)
             return (BST.TemperedRelease, "crucible:petsave-finalsting");
         if (s.ReadyParting)
@@ -289,6 +300,26 @@ internal static class BST_CrucibleLogic
 
         declines.Add("crucible:petsave-partingblow-recast");
         return (0, "");
+    }
+
+    /// <summary>
+    ///     A recall exit (Parting Blow / Final Sting) is safe only when a resummon will actually happen: a
+    ///     ready horn, not the active one, whose familiar is above the critical line (the summon path refuses
+    ///     a critical familiar while Parting Blow recasts). Without one the recall strands the player with no
+    ///     familiar and no axe partner until a horn unlocks (~90 s) — the horn-exhaustion death on the Third
+    ///     Board (2026-09-26 Catoblepas: last recall at 11% player HP, boss 21%, weaponless from there).
+    /// </summary>
+    public static bool ResummonAvailable(in BstState s, in BstSettings cfg)
+    {
+        var learned = LearnedHornSlots(s.Level);
+        for (var slot = 1; slot <= learned; slot++)
+        {
+            if (slot == s.ActiveSlot || !HornReady(s, slot) || (s.SlotBeastsKnown && SlotBeast(s, slot) == 0))
+                continue;
+            if (SlotPetHp(s, slot) > CriticalHp(cfg))
+                return true;
+        }
+        return false;
     }
 
     /// <summary> A ready horn whose familiar is healthier than the one out: above the swap line and 10+ points up (critical: any gain). </summary>
@@ -373,8 +404,10 @@ internal static class BST_CrucibleLogic
     /// <summary>
     ///     Snarl (the familiar takes the aggro and covers the character) / Challenge (the character takes it back).
     ///     Survival: Snarl on Directional Parry, or when the character is at 40% or lower while the familiar (50%+) can
-    ///     carry 15 s of the character's recent damage intake and is not a wespe about to Final Sting (at 25% or lower
-    ///     only the familiar's HP matters); Snarl ahead of a known tankbuster only with the Snarl -> Parting Blow dodge
+    ///     carry 15 s of the character's recent damage intake and is not a wespe about to Final Sting. At 25% or lower
+    ///     the character's survival is the run: the familiar is snarled in whatever its HP (a 30% familiar holding the
+    ///     enemy still beats the character holding it — Third Board 2026-09-26: 11% character, covering familiar at
+    ///     critical, nothing pressed). Snarl ahead of a known tankbuster only with the Snarl -> Parting Blow dodge
     ///     on. Challenge when the parry ends, or when the familiar is at 30% or lower and the character 60%+.
     ///     Frontal-cleave-auto bosses (siren, Guttler, Pas de Seul, Lauda): their cone autos hit the familiar too, so
     ///     Snarl only to cover a known tankbuster cast (pet 50%+), and Challenge the aggro back off the familiar whenever
@@ -414,13 +447,18 @@ internal static class BST_CrucibleLogic
                 return (BST.Snarl, "aggro:snarl-cleave-tankbuster");
 
             var lastResort = s.PlayerHpPercent is > 0f and <= 25f;
+            var stingDue = BST_Beasts.ByRow(SlotBeast(s, s.ActiveSlot)) is { } b
+                           && (b.Release & BeastmasterReleaseTraits.Exit) != 0 && FinalStingDue(s, cfg);
+
+            // Last resort: whatever the familiar's HP, the alternative is the character dying.
+            if (lastResort && !stingDue)
+                return (BST.Snarl, "aggro:snarl-last-resort");
+
             if (s.PlayerHpPercent is > 0f and <= 40f && s.PetHpPercent >= 50f)
             {
                 var carries = s.PetHp > s.PlayerIntakePerSecond * 15f;
-                var stingDue = BST_Beasts.ByRow(SlotBeast(s, s.ActiveSlot)) is { } b
-                               && (b.Release & BeastmasterReleaseTraits.Exit) != 0 && FinalStingDue(s, cfg);
-                if (lastResort || (carries && !stingDue))
-                    return (BST.Snarl, lastResort ? "aggro:snarl-last-resort" : "aggro:snarl-player-low");
+                if (carries && !stingDue)
+                    return (BST.Snarl, "aggro:snarl-player-low");
             }
         }
 
