@@ -205,20 +205,24 @@ internal static partial class BST_CrucibleData
     /// <summary>
     ///     Enemies auto-targeting takes first whenever they are up: the adds the guides kill on sight (succubi, wisps before
     ///     they reach the centre, ahriman after the gaze, zombies, a woken Thanatos, the guardia that covers its allies) and
-    ///     the bone bishop before the bone knight, plus all board add priorities across B1-B3, M1 and M2.
+    ///     the bone bishop before the bone knight, plus every panel add priority across B1-B3, M1 and M2. Identities are
+    ///     pinned to the 7.56 sheet decode (wiki Crucible Game Data); the BSTRotationHarness asserts this exact set.
     /// </summary>
     public static readonly HashSet<uint> PriorityAdds =
     [
-        // Board 1: succubi, wisps, bone bishop, mitelings
-        14542, 14543, 14539, 14748, 14532, 14537,
-        // Board 2: ahriman, zombies, devilet, evil weapon
-        14548, 14553, 14559, 14558,
-        // Board 3: bone bishop, golem, crawling piece, flowertender, guardia, Thanatos, cockerel, pullet
-        14567, 14581, 14586, 14589, 14591, 14595, 14573, 14574,
-        // First Master's Board (M1): Queen Hawk, Ice Sprite, Administrator, Biloko, Grenade, Bomb, Toxic Mass
+        // Board 1: bone bishop, miteling, wisp, great wisp, succubus mage + knight
+        14532, 14537, 14539, 14748, 14542, 14543,
+        // Board 2: ahriman, zombie, evil weapon, devilet
+        14548, 14553, 14558, 14559,
+        // Board 3: bone bishop, cockerel, pullet, golem, shambling, crawling, flowertender, guardia, Thanatos
+        14567, 14573, 14574, 14581, 14585, 14586, 14589, 14591, 14595,
+        // M1: queen hawk, ice sprite, administrator, biloko, grenade, bomb, toxic mass
         14605, 14607, 14610, 14622, 14624, 14625, 14629,
-        // Second Master's Board (M2): Lightning Sprite, Bomb, Deepeye, Bavarois, Spinner-rook, Lamia, Gels, Moogle officers, Hapalit, Dirty Eye, Thanatos
-        14632, 14640, 14639, 14646, 14659, 14661, 14672, 14673, 14683, 14681, 14677, 14676, 14680, 14691, 14692, 14699,
+        // M2: lightning sprite, deepeye, bomb, atomos wave adds (gremlins, puddings, bavarois, flan, vodoriga, dahak),
+        //     barbmole (drake-fight spinemole), spinner-rook, lamia, cyclops x2 (medusa + gigantis), congealed gels,
+        //     moogle officers (kinged casters, kinged swordmog, melomog, mogmugger), hapalit, dirty eye, Thanatus statues
+        14632, 14639, 14640, 14643, 14644, 14645, 14646, 14647, 14648, 14649, 14653,
+        14659, 14661, 14662, 14671, 14672, 14673, 14676, 14677, 14680, 14681, 14683, 14691, 14692, 14699,
     ];
 
     /// <summary>
