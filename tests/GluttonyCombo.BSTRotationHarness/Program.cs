@@ -316,6 +316,14 @@ internal static class Program
             BST_CrucibleData.CleaveAutoBosses.SetEquals(new uint[] { 14541, 14583, 14592, 14693 }));
         Check("Third Board priority adds: crawling, flowertender, golem, bone bishop",
             new uint[] { 14586, 14589, 14581, 14567 }.All(id => BST_CrucibleData.PriorityAdds.Contains(id)));
+        Check("Crucible priority adds across all boards",
+            new uint[] {
+                14532, 14537, 14539, 14748, 14542, 14543,
+                14548, 14553, 14559, 14558,
+                14567, 14581, 14586, 14589, 14591, 14595, 14573, 14574,
+                14605, 14607, 14610, 14622, 14624, 14625, 14629,
+                14632, 14640, 14639, 14646, 14659, 14661, 14672, 14673, 14683, 14681, 14677, 14676, 14680, 14691, 14692, 14699,
+            }.All(id => BST_CrucibleData.PriorityAdds.Contains(id)));
     }
 
     private static void CrucibleTargetingAndAdvisor()
@@ -342,6 +350,20 @@ internal static class Program
         Check("cavalier + bone bishop add: the add first",
             Allowed(C(14564, 80f, false), C(14567, 100f, false)).SequenceEqual(new[] { 1 }));
         Check("ogre in Burning Ward + wisp: the wisp", Allowed(C(14538, 100f, true), C(14539, 100f, false)).SequenceEqual(new[] { 1 }));
+        Check("banemite + miteling: mitelings first", Allowed(C(14536, 100f, false), C(14537, 100f, false)).SequenceEqual(new[] { 1 }));
+        Check("demon pack: devilet before demon", Allowed(C(14557, 100f, false), C(14559, 100f, false)).SequenceEqual(new[] { 1 }));
+        Check("zu + cockerel + pullet: adds before zu", Allowed(C(14572, 100f, false), C(14573, 100f, false), C(14574, 100f, false)).SequenceEqual(new[] { 1, 2 }));
+        Check("corpse flower + queen hawk: queen hawk first", Allowed(C(14603, 100f, false), C(14605, 100f, false)).SequenceEqual(new[] { 1 }));
+        Check("ice dragon + ice sprite: ice sprite first", Allowed(C(14606, 100f, false), C(14607, 100f, false)).SequenceEqual(new[] { 1 }));
+        Check("treant + biloko: biloko first", Allowed(C(14618, 100f, false), C(14622, 100f, false)).SequenceEqual(new[] { 1 }));
+        Check("progenitrix + grenade: grenade first", Allowed(C(14623, 100f, false), C(14624, 100f, false)).SequenceEqual(new[] { 1 }));
+        Check("Borgny + toxic mass: toxic mass first", Allowed(C(14628, 100f, false), C(14629, 100f, false)).SequenceEqual(new[] { 1 }));
+        Check("flauros + lightning sprite: sprite first", Allowed(C(14631, 100f, false), C(14632, 100f, false)).SequenceEqual(new[] { 1 }));
+        Check("boogyman + bomb: bomb first", Allowed(C(14638, 100f, false), C(14640, 100f, false)).SequenceEqual(new[] { 1 }));
+        Check("durga + spinner-rook: spinner-rook first", Allowed(C(14657, 100f, false), C(14659, 100f, false)).SequenceEqual(new[] { 1 }));
+        Check("medusa + lamia: lamia first", Allowed(C(14660, 100f, false), C(14661, 100f, false)).SequenceEqual(new[] { 1 }));
+        Check("gigantis + congealed gel: gel first", Allowed(C(14670, 100f, false), C(14672, 100f, false)).SequenceEqual(new[] { 1 }));
+        Check("king ahriman + hapalit: hapalit first", Allowed(C(14688, 100f, false), C(14691, 100f, false)).SequenceEqual(new[] { 1 }));
 
         Check("51 beast profiles, row-indexed", BST_CrucibleData.BeastProfiles.Length == 51 && Enumerable.Range(1, 50).All(r => BST_CrucibleData.BeastProfiles[r].Row == r));
         Check("lamb inflicts sleep (bit 7); coblyn auto is lightning magic",
@@ -526,6 +548,12 @@ internal static class Program
         Check("last enemy at 2%: no save", !Decide(crit with { TargetHpPercent = 2f, HighestEnemyHpPercent = 2f }, cfg).Reason.StartsWith("crucible:petsave"));
         Check("Parting Blow recasting: declined, logged", Decide(crit with { ReadyParting = false }, cfg).Declines.Contains("crucible:petsave-partingblow-recast"));
         Check("egg near the target: no save Parting Blow", Decide(crit with { ProtectedNearTarget = true }, cfg).ActionId != BST.PartingBlow);
+
+        var curtains = CrucibleState() with { TargetCastId = 49429, TargetCastRemaining = 1.5f, PetHpPercent = 100f, ReadyParting = true };
+        Check("Curtains for Rank 5 cast (pet KO): Parting Blow before resolve even with healthy pet",
+            Decide(curtains, cfg) is { ActionId: BST.PartingBlow, Reason: "crucible:petsave-curtains" });
+        Check("Curtains for Rank 5 with 4 s remaining: not yet",
+            Decide(curtains with { TargetCastRemaining = 4.0f }, cfg).Reason != "crucible:petsave-curtains");
 
         // Party-agent HP lag after Parting Blow / horn-swap (first-board run 2026-09-17: live 19% → agent 100 for ~48 s)
         var mem = new Dictionary<int, float> { [20] = 19f };
