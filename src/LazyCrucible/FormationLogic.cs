@@ -383,15 +383,42 @@ internal static class FormationLogic
     }
 
     /// <summary>
-    ///     Whether two selection vectors match (same length and values). PURE. Used for abort-restore.
+    ///     Whether the actual horn familiar rows satisfy desired picks order-insensitively (multiset membership).
+    ///     Returns true if every familiar in desired is present in actual. PURE.
+    /// </summary>
+    public static bool HornSelectionMatches(IReadOnlyList<int> actual, IReadOnlyList<int> desired)
+    {
+        if (desired.Count == 0)
+            return true;
+        if (actual.Count < desired.Count)
+            return false;
+        var remaining = new List<int>(actual);
+        for (var i = 0; i < desired.Count; i++)
+        {
+            var idx = remaining.IndexOf(desired[i]);
+            if (idx < 0)
+                return false;
+            remaining.RemoveAt(idx);
+        }
+        return true;
+    }
+
+    /// <summary>
+    ///     Whether two selection vectors match in membership (same length and values, order-insensitive).
+    ///     PURE. Used for abort-restore.
     /// </summary>
     public static bool SelectionEquals(IReadOnlyList<int> a, IReadOnlyList<int> b)
     {
         if (a.Count != b.Count)
             return false;
+        var remaining = new List<int>(b);
         for (var i = 0; i < a.Count; i++)
-            if (a[i] != b[i])
+        {
+            var idx = remaining.IndexOf(a[i]);
+            if (idx < 0)
                 return false;
+            remaining.RemoveAt(idx);
+        }
         return true;
     }
 

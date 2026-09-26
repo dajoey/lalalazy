@@ -427,7 +427,7 @@ internal static unsafe class PetSelect
         }
 
         if (removeRows.Count == 0 && addRows.Count == 0
-            && ListsMatchPrefix(currentHornRows, picks.ConvertAll(p => p.Row)))
+            && FormationLogic.HornSelectionMatches(currentHornRows, picks.ConvertAll(p => p.Row)))
         {
             LogPs($"PS|{now}|opt=1|b={board}|bt={battle}|surface={surfaceName}|route={route}|calls=0|readback=ok|note=already_correct|apply=not_needed");
             _arm = MarkFormationPassDone(in _arm);
@@ -471,7 +471,7 @@ internal static unsafe class PetSelect
         for (var i = 0; i < 3 && i < picks.Count; i++)
             desired.Add(picks[i].Row);
 
-        var applyNeeded = !ListsMatchPrefix(afterToggles, desired);
+        var applyNeeded = !FormationLogic.HornSelectionMatches(afterToggles, desired);
         if (applyNeeded)
         {
             if (!sigsOk || _applyPetSelection is null)
@@ -484,7 +484,7 @@ internal static unsafe class PetSelect
         }
 
         var finalRows = ResolveHornPetRows(ReadPetIds(pet, PartySelectedPetIds), partyRows);
-        if (!ListsMatchPrefix(finalRows, desired))
+        if (!FormationLogic.HornSelectionMatches(finalRows, desired))
         {
             AbortWithRestore(pet, snapshot, now, board, battle, route, calls, "apply_mismatch");
             return;
@@ -854,17 +854,8 @@ internal static unsafe class PetSelect
         return true;
     }
 
-    private static bool ListsMatchPrefix(IReadOnlyList<int> actual, IReadOnlyList<int> desired)
-    {
-        if (desired.Count == 0)
-            return true;
-        if (actual.Count < desired.Count)
-            return false;
-        for (var i = 0; i < desired.Count; i++)
-            if (actual[i] != desired[i])
-                return false;
-        return true;
-    }
+    private static bool ListsMatchPrefix(IReadOnlyList<int> actual, IReadOnlyList<int> desired) =>
+        FormationLogic.HornSelectionMatches(actual, desired);
 
     internal static bool TryIdentifyBattle(nint stage, int territoryBoard, out int board, out int battle, out uint detailId, out List<uint> nameIds)
     {

@@ -20,6 +20,7 @@ internal static class Program
         FeedScreenReplay();
         RosterOverwriteReplay();
         MasterBoardEntryCases();
+        HornReadbackOrderCases();
         GluttonyVersionGuard();
         Telemetry();
         PolicyCases.Run();
@@ -384,6 +385,80 @@ internal static class Program
         var sizes = string.Join("/", BST_CrucibleData.Boards.Select(b => b.Roster));
         Check("Board roster sizes 10/12/14/12/15 (CrucibleBoard.Roster)",
             sizes == "10/12/14/12/15", sizes);
+    }
+
+    /// <summary>
+    ///     In-board battlehorn read-back matching (2026-09-26 First Master Board Battle 1 defect, 0.1.4.0).
+    ///     The advisor ranks desired familiars by priority score (e.g. 8, 22, 11), while the addon returns
+    ///     them in party index order (e.g. 11, 8, 22). Positional prefix comparison failed (11 != 8) and
+    ///     triggered an erroneous apply_mismatch abort and screen disarm.
+    ///     Read-back must verify selection MEMBERSHIP order-insensitively, while strictly preserving the abort
+    ///     guard on true membership mismatches. SelectionEquals on abort-restore must also match by membership
+    ///     so restored party slots leave clean state (restored=1, disarm=0).
+    /// </summary>
+    private static void HornReadbackOrderCases()
+    {
+        Console.WriteLine("-- in-board horn read-back order & restore (M1 B1 0.1.4.0 defect) --");
+
+        // (a) Permutation case: Battle 1 exact failure shape.
+        // Advisor score order desired: 8 (corpse flower), 22, 11.
+        // Addon party index order actual: 11, 8, 22.
+        // Pre-fix ListsMatchPrefix fails (11 != 8); post-fix HornSelectionMatches must succeed.
+        var desiredB1 = new[] { 8, 22, 11 };
+        var actualB1 = new[] { 11, 8, 22 };
+        Check("Horn read-back: Battle 1 permutation [11, 8, 22] matches desired [8, 22, 11]",
+            FormationLogic.HornSelectionMatches(actualB1, desiredB1));
+
+        // Permutation case 2: reverse order
+        Check("Horn read-back: reversed permutation [3, 2, 1] matches desired [1, 2, 3]",
+            FormationLogic.HornSelectionMatches(new[] { 3, 2, 1 }, new[] { 1, 2, 3 }));
+
+        // Permutation case 3: partial desired (2 picks desired, 3 in actual including both)
+        Check("Horn read-back: actual [11, 8, 22] satisfies desired prefix [22, 8]",
+            FormationLogic.HornSelectionMatches(actualB1, new[] { 22, 8 }));
+
+        // Empty desired: always matches
+        Check("Horn read-back: empty desired matches any actual",
+            FormationLogic.HornSelectionMatches(actualB1, Array.Empty<int>()));
+
+        // (b) Control cases: true membership differences MUST STILL FAIL (guard not weakened).
+        // One familiar wrong (look-alikes-it-must-catch)
+        var actualWrongOne = new[] { 11, 8, 40 };
+        Check("Horn read-back control: genuine mismatch [11, 8, 40] != desired [8, 22, 11] fails",
+            !FormationLogic.HornSelectionMatches(actualWrongOne, desiredB1));
+
+        // Completely disjoint
+        var actualDisjoint = new[] { 1, 2, 3 };
+        Check("Horn read-back control: completely disjoint [1, 2, 3] != desired [8, 22, 11] fails",
+            !FormationLogic.HornSelectionMatches(actualDisjoint, desiredB1));
+
+        // Insufficient count (only 2 familiars selected when 3 desired)
+        var actualShort = new[] { 8, 22 };
+        Check("Horn read-back control: short actual [8, 22] < desired [8, 22, 11] fails",
+            !FormationLogic.HornSelectionMatches(actualShort, desiredB1));
+
+        // Duplicate row in actual cannot satisfy distinct desired
+        var actualDuplicate = new[] { 8, 8, 11 };
+        Check("Horn read-back control: duplicate [8, 8, 11] cannot satisfy [8, 22, 11]",
+            !FormationLogic.HornSelectionMatches(actualDuplicate, desiredB1));
+
+        // (c) False-abort clean-state case: SelectionEquals on restore.
+        // Snapshot had party indices [0, 1, 2]. After restore, slot 1 stayed active while 0 and 2 were
+        // toggled on, giving [1, 0, 2] in memory. Pre-fix positional compare returned false (0 != 1),
+        // disarming the screen. Post-fix SelectionEquals must recognize [1, 0, 2] as matching [0, 1, 2].
+        var snapshot = new[] { 0, 1, 2 };
+        var restoredPerm = new[] { 1, 0, 2 };
+        Check("SelectionEquals: restore permutation [1, 0, 2] matches snapshot [0, 1, 2] (clean state)",
+            FormationLogic.SelectionEquals(snapshot, restoredPerm));
+
+        // SelectionEquals control: genuine index mismatch must still fail
+        var restoredWrong = new[] { 1, 0, 3 };
+        Check("SelectionEquals control: genuine index mismatch [1, 0, 3] != [0, 1, 2] fails",
+            !FormationLogic.SelectionEquals(snapshot, restoredWrong));
+
+        var restoredCountMismatch = new[] { 0, 1 };
+        Check("SelectionEquals control: count mismatch [0, 1] != [0, 1, 2] fails",
+            !FormationLogic.SelectionEquals(snapshot, restoredCountMismatch));
     }
 
     private static void RosterOverwriteReplay()
