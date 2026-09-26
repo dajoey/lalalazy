@@ -444,7 +444,7 @@ internal static unsafe class SelectionScreens
         }
         var target = screen.Familiars.First(f => f.Index == c.FamiliarIndex);
         var shownName = cells[Screens.PetBlockStart + c.FamiliarIndex * Screens.PetBlockSize + 3].Text ?? target.Name;
-        if (!KinFlagsAgree(screen, feedRow))
+        if (!FeedPolicy.KinFlagsAgree(screen.Familiars, feedRow))
         {
             Feed.Finish("feed mismatch");
             Suggest("XBMPetParty", $"The picker's 'cannot eat' marks do not fit {CrucibleItems.NameOf(feedRow)}; the choice is yours.");
@@ -493,23 +493,6 @@ internal static unsafe class SelectionScreens
                 Feed.Finish();
             },
         };
-    }
-
-    /// <summary>
-    ///     Cross-check of the feed the plugin believes is offered: the picker's own "cannot eat" marks must be exactly the
-    ///     familiars whose kin the feed's sheet entry does not suit (matched every recorded picker).
-    /// </summary>
-    private static bool KinFlagsAgree(PetPartyScreen screen, int feedRow)
-    {
-        var feed = CrucibleItems.Get(feedRow);
-        foreach (var f in screen.Familiars)
-        {
-            if (f.CannotEat is not { } cannot || Lalalazy.Crucible.BST_Beasts.ByRow(f.Row) is not { } beast)
-                continue;
-            if (cannot == feed.SuitsKin(beast.Kin))
-                return false;
-        }
-        return true;
     }
 
     private static void CampPass()

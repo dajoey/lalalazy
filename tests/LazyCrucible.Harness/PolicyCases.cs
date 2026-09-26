@@ -127,6 +127,27 @@ internal static class PolicyCases
         Check("Starve the Fever goal: never feeds", FeedPolicy.BestTarget(144, fams, starve) is null
             && FeedPolicy.BestPurchase([(0, 144, 10)], 999, fams, starve) is null);
 
+        // Live replay, 2026-09-25 third-board shop: the picker marked the knocked-out flying trap (seedkin, 0 HP)
+        // "cannot eat" the Cream Cheese Simular (185, seedkin-only). A KO mark is about being knocked out, not about
+        // the feed, so the cross-check must ignore it; with the familiar alive the same mark is a real disagreement.
+        FamiliarState[] koRoster =
+        [
+            Fam(28, 0, cannot: true),               // worm (vilekin): picker and kin list agree it cannot eat
+            Fam(20, 1, hp: 0, cannot: true),        // flying trap (seedkin) KNOCKED OUT: marked cannot-eat regardless of feed
+            Fam(5, 2, cannot: true),                // opo-opo (beastkin)
+            Fam(21, 3, hp: 95, cannot: true),       // ziz (scalekin)
+            Fam(22, 4, cannot: false),              // sabotender (seedkin): can eat
+            Fam(39, 5, hp: 74, cannot: false),      // morbol (seedkin): can eat
+            Fam(33, 6, cannot: true),               // coeurl (beastkin)
+            Fam(7, 7, hp: 0, cannot: true),         // coblyn (soulkin) knocked out: mark agrees with the kin list anyway
+            Fam(8, 8, hp: 81, cannot: true),        // diremite (vilekin)
+            Fam(12, 9, cannot: false),              // mandragora (seedkin): can eat
+        ];
+        Check("Kin cross-check: a knocked-out familiar's 'cannot eat' mark is not a feed disagreement (live 09-25 board-3 replay)",
+            FeedPolicy.KinFlagsAgree(koRoster, 185));
+        Check("Kin cross-check: the same mark from a familiar that is ALIVE still aborts the feed",
+            !FeedPolicy.KinFlagsAgree(koRoster.Select(f => f.Row == 20 ? Fam(20, f.Index, cannot: true) : f).ToArray(), 185));
+
         var hurt = new[] { Fam(41, 0, hp: 35), Fam(5, 1) };
         var buy = FeedPolicy.BestPurchase([(0, 146, 30), (1, 155, 30)], 100, hurt, Ctx(1, new() { [41] = 3 }));
         Check("Shop feed: Milk Simular (max HP +50%, heals) over Meat Simular (damage) for a hurt, needed familiar",

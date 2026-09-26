@@ -1,5 +1,9 @@
 # LazyCrucible — Changelog
 
+## v0.1.3.0 (2026-09-26)
+
+- **Beast Feed**: feeding no longer stalls while a knocked-out familiar is on the picker. The game marks a knocked-out familiar "cannot eat" whatever is offered, and the kin cross-check read that as the feed not fitting, so every feed was left for the player until the familiar was revived. Knocked-out familiars no longer take part in that check.
+
 ## v0.1.2.0 (2026-09-22)
 
 - **Treasure**: takes the best choice instead of only suggesting it. Live button clicks confirmed choice *k* is event param `2+k`, so the pick path that was already built can fire.

@@ -1,6 +1,6 @@
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
-    <Version>0.1.2.0</Version>
+    <Version>0.1.3.0</Version>
     <AssemblyName>LazyCrucible</AssemblyName>
     <Description>Crucible of the Unbroken (Beastmaster) familiar selection: fills the run roster and the Battlehorn slots for each fight's mechanics, with a beast-pick advisor and a read-only screen recorder.</Description>
     <IsPackable>false</IsPackable>

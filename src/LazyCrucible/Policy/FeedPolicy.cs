@@ -49,6 +49,24 @@ internal static class FeedPolicy
         return whyNot.Length == 0;
     }
 
+    /// <summary>
+    ///     Cross-check of the feed the plugin believes is offered: the picker's own "cannot eat" marks must be exactly the
+    ///     familiars whose kin the feed's sheet entry does not suit (matched every recorded picker). A knocked-out
+    ///     familiar is always marked "cannot eat" whatever the feed, so its mark says nothing about the kin list.
+    /// </summary>
+    public static bool KinFlagsAgree(IReadOnlyList<FamiliarState> familiars, int feedRow)
+    {
+        var feed = CrucibleItems.Get(feedRow);
+        foreach (var f in familiars)
+        {
+            if (f.KnockedOut || f.CannotEat is not { } cannot || BST_Beasts.ByRow(f.Row) is not { } beast)
+                continue;
+            if (cannot == feed.SuitsKin(beast.Kin))
+                return false;
+        }
+        return true;
+    }
+
     /// <summary> Unweighted survival value of one feed for one familiar (can be negative). </summary>
     public static int Value(int feedRow, in FamiliarState f, RunContext ctx, List<string>? why = null)
     {
