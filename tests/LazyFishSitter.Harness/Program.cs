@@ -45,6 +45,7 @@ internal static class Program
         Case17_NeverSendsWhileChangingPosition();
         Case18_JoeyReproduction_QuickCastsSitsAfterCast();
         Case19_StandAgainResitsOnSubsequentCast();
+        Case20_BlindReadStandAgainResits();
 
         Console.WriteLine(new string('-', 72));
         Console.WriteLine($"{_pass} passed, {_fail} failed");
@@ -350,5 +351,36 @@ internal static class Program
             .LeaveHole();
         var r = Runner.Run(s);
         Check("19 stand again during hole visit re-sits on subsequent cast", r.Count == 2, $"sent {r.Count}");
+    }
+
+    // ---------------------------------------------------------------------------------
+    // 20. The production 0.1.4.0 latch (reported 2026-09-25, follow-up to case 19): the game
+    //     TOOK the /sit - the ChangingPosition acceptance blip happens - but Mode/GetPosture
+    //     never report seated while the rod is out (sitReadsSeated: false). 0.1.4.0 set
+    //     "believed seated" on that acceptance and only cleared it when the trip ended, and
+    //     the trip is one whole hole visit, so a single stand-up left the character standing
+    //     for the rest of the visit. This case is the blind-read complement of case 19: the
+    //     policy must observe the stand-up (position change without our send) and re-sit.
+    // ---------------------------------------------------------------------------------
+    private static void Case20_BlindReadStandAgainResits()
+    {
+        var s = new Session().ArriveAtHole(1)
+            // Cast 1: quick cast; sit sent during LineInWater, accepted (ChangingPosition),
+            // but the seated read never turns true while the rod is out.
+            .Set(x => { x.Fishing = true; x.State = FishState.PoleReady; }).Hold(0.5)
+            .Set(x => x.State = FishState.CastingOut).Hold(1)
+            .Set(x => x.State = FishState.LineInWater).Hold(12)
+            // Catch / reel stands the player up (Hooking -> PullingPoleIn -> StandUp -> PoleReady)
+            .Set(x => x.State = FishState.Hooking).Hold(3)
+            .Set(x => x.State = FishState.PullingPoleIn).Hold(1.5)
+            .StandUp(1.0)
+            .Set(x => x.State = FishState.PoleReady).Hold(0.5)
+            // Cast 2: character is standing again at the hole with the line in the water
+            .Set(x => { x.Fishing = true; x.State = FishState.CastingOut; }).Hold(1)
+            .Set(x => x.State = FishState.LineInWater).Hold(12)
+            .LeaveHole();
+        var r = Runner.Run(s, sitReadsSeated: false);
+        Check("20 a sit the game takes but never reads seated still re-sits after stand-up",
+            r.Count == 2, $"sent {r.Count}");
     }
 }

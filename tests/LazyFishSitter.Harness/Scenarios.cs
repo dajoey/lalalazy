@@ -108,9 +108,14 @@ internal static class Runner
     /// accepting the /sit: when true, ChangingPosition flips true 0.5 s after a send and the
     /// character reads seated 1 s after that (what should happen at the standby beat). When
     /// false the emote is swallowed - what actually happened to v0.1.1.0 mid-cast.
+    /// <paramref name="sitReadsSeated"/> models the open detector question: when false the
+    /// character still sits down (the ChangingPosition acceptance blip still happens) but
+    /// Mode/GetPosture never report seated while the rod is out - the blind read under which
+    /// 0.1.4.0 latched "sit once and stay" for the rest of a hole visit.
     /// </summary>
     public static Replay Run(Session session, bool sitTakes = true, bool enabled = true,
-                             string? blockReason = null, string sitCommand = "/sit")
+                             string? blockReason = null, string sitCommand = "/sit",
+                             bool sitReadsSeated = true)
     {
         var policy = new SitPolicy();
         var sends = new List<(DateTime, string, FishingSnapshot)>();
@@ -142,7 +147,7 @@ internal static class Runner
             {
                 var dt = (at - t).TotalSeconds;
                 if (dt is >= 0.5 and < 1.5) snap = snap with { ChangingPosition = true };
-                if (dt >= 1.5)
+                if (dt >= 1.5 && sitReadsSeated)
                 {
                     snap = snap with { GameSeated = true, GamePosture = "SittingOnGround" };
                     seatedBySit = true;
