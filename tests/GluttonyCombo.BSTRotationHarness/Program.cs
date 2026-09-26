@@ -552,13 +552,26 @@ internal static class Program
         Check("moving: the 1 s horn cast waits", !IsHorn(Decide(hurt with { IsMoving = true }, cfg).ActionId));
         Check("swap line follows the setting", Decide(hurt with { PetHpPercent = 65f }, cfg with { CruciblePetSwapHp = 70 }).Reason == "crucible:petsave-swap");
         var crit = CrucibleState() with { PetHpPercent = 20f, ReadyHorn2 = false, ReadyHorn3 = false, SinceSummon = 2f, OneWithNature = true, ReadyTempered = true };
-        Check("critical 20%, no horn ready: Parting Blow", Decide(crit, cfg) is { ActionId: BST.PartingBlow, Reason: "crucible:petsave-partingblow" }, Decide(crit, cfg).Reason);
+        // Horn conservation (Third Board Catoblepas death 2026-09-26): the last Parting Blow recall with
+        // no horn ready to resummon left the character at 11% with no familiar and no axe partner; the
+        // run died weaponless with the boss at 21%. A recall exit with no resummon keeps the familiar out.
+        var keepOut = Decide(crit, cfg);
+        Check("critical 20%, no horn ready to resummon: keep the familiar out (no Parting Blow)",
+            keepOut.ActionId != BST.PartingBlow && keepOut.Reason != "crucible:petsave-finalsting" && keepOut.Declines.Contains("crucible:petsave-no-resummon-horn"), $"{keepOut.Reason} [{keepOut.Declines}]");
+        Check("critical, no horn ready, every enemy under 10%: recall anyway (round ending, familiar saved for the next battle)",
+            Decide(crit with { TargetHpPercent = 8f, HighestEnemyHpPercent = 8f }, cfg) is { ActionId: BST.PartingBlow, Reason: "crucible:petsave-partingblow" });
+        Check("critical, a ready horn whose familiar is also critical: keep the familiar out",
+            Decide(crit with { ReadyHorn2 = true, Slot2PetHp = 26f }, cfg).Declines.Contains("crucible:petsave-no-resummon-horn"));
         Check("critical 20%, a horn ready with a 40% familiar: swap even inside the grace",
             Decide(crit with { ReadyHorn2 = true, Slot2PetHp = 40f }, cfg) is { ActionId: BST.SecondBattlehorn, Reason: "crucible:petsave-swap-critical" });
         Check("critical, a horn blown 1 s ago: give it time, no Parting Blow", Decide(crit with { SinceHornPress = 1f }, cfg).ActionId != BST.PartingBlow);
-        Check("critical wespe with One with Nature: Final Sting", Decide(crit with { Slot1Beast = 10, PetObjectBeast = 10 }, cfg) is { ActionId: BST.TemperedRelease, Reason: "crucible:petsave-finalsting" });
+        Check("critical wespe, a resummonable horn (28% familiar): Final Sting save still fires",
+            Decide(crit with { Slot1Beast = 10, PetObjectBeast = 10, ReadyHorn2 = true, Slot2PetHp = 28f }, cfg) is { ActionId: BST.TemperedRelease, Reason: "crucible:petsave-finalsting" },
+            Decide(crit with { Slot1Beast = 10, PetObjectBeast = 10, ReadyHorn2 = true, Slot2PetHp = 28f }, cfg).Reason);
+        Check("critical wespe, no resummon: keep it out (no Final Sting save)",
+            Decide(crit with { Slot1Beast = 10, PetObjectBeast = 10 }, cfg).ActionId != BST.TemperedRelease);
         Check("last enemy at 2%: no save", !Decide(crit with { TargetHpPercent = 2f, HighestEnemyHpPercent = 2f }, cfg).Reason.StartsWith("crucible:petsave"));
-        Check("Parting Blow recasting: declined, logged", Decide(crit with { ReadyParting = false }, cfg).Declines.Contains("crucible:petsave-partingblow-recast"));
+        Check("Parting Blow recasting: declined, logged", Decide(crit with { ReadyParting = false, ReadyHorn2 = true, Slot2PetHp = 28f }, cfg).Declines.Contains("crucible:petsave-partingblow-recast"));
         Check("egg near the target: no save Parting Blow", Decide(crit with { ProtectedNearTarget = true }, cfg).ActionId != BST.PartingBlow);
 
         var curtains = CrucibleState() with { TargetCastId = 49429, TargetCastRemaining = 1.5f, PetHpPercent = 100f, ReadyParting = true };
@@ -589,6 +602,9 @@ internal static class Program
         var ending = Decide(CrucibleState() with { TargetHpPercent = 8f, HighestEnemyHpPercent = 8f }, cycle);
         Check("cycling on, every enemy under 10%: no exit", ending.ActionId != BST.PartingBlow && ending.Declines.Contains("crucible:exit-round-ending"), $"{ending.Reason} [{ending.Declines}]");
         Check("cycling on, another enemy at 50%: exit allowed", Decide(CrucibleState() with { TargetHpPercent = 8f, HighestEnemyHpPercent = 50f, EnemyCount = 2 }, cycle).ActionId == BST.PartingBlow);
+        var critHorns = Decide(CrucibleState() with { ReadyHorn2 = true, ReadyHorn3 = true, Slot2PetHp = 20f, Slot3PetHp = 20f, TargetHpPercent = 60f, HighestEnemyHpPercent = 60f }, cycle);
+        Check("cycling on, only critical familiars on ready horns: no exit (no resummon)",
+            critHorns.ActionId != BST.PartingBlow && critHorns.Declines.Contains("crucible:exit-no-resummon-horn"), $"{critHorns.Reason} [{critHorns.Declines}]");
 
         // Final Sting
         var fs = CrucibleState() with { Slot1Beast = 10, PetObjectBeast = 10, OneWithNature = true, ReadyTempered = true, SinceSummon = 1.5f, ReadyHorn2 = false, ReadyHorn3 = false };
@@ -675,6 +691,13 @@ internal static class Program
         Check("character 35%, familiar can carry 15 s of intake: Snarl", Decide(lowChar, on).Reason == "aggro:snarl-player-low", Decide(lowChar, on).Reason);
         Check("character 35%, familiar cannot carry it: no Snarl", Decide(lowChar with { PlayerIntakePerSecond = 2000f }, on).ActionId != BST.Snarl);
         Check("character 20%: last-resort Snarl", Decide(lowChar with { PlayerHpPercent = 20f, PlayerIntakePerSecond = 2000f }, on).Reason == "aggro:snarl-last-resort");
+        Check("character 11%, familiar 30% (under the 50% floor, cannot carry): last-resort Snarl anyway",
+            Decide(lowChar with { PlayerHpPercent = 11f, PetHpPercent = 30f, ReadyHorn2 = false, ReadyHorn3 = false }, on).Reason == "aggro:snarl-last-resort",
+            Decide(lowChar with { PlayerHpPercent = 11f, PetHpPercent = 30f, ReadyHorn2 = false, ReadyHorn3 = false }, on).Reason);
+        var deathWindow = Decide(crit with { PlayerHpPercent = 11f, ReadySnarl = true }, on);
+        Check("death window: player 11%, familiar critical, no horns: Snarl the familiar in, no recall",
+            deathWindow is { ActionId: BST.Snarl, Reason: "aggro:snarl-last-resort" } && deathWindow.Declines.Contains("crucible:petsave-no-resummon-horn"),
+            $"{deathWindow.Reason} [{deathWindow.Declines}]");
         Check("wespe about to Final Sting: no Snarl",
             Decide(lowChar with { Slot1Beast = 10, PetObjectBeast = 10, TargetHpPercent = 25f }, cfg).Shadow != "aggro:snarl-player-low");
         Check("familiar 25% holding aggro, character 80%, On: Challenge",
@@ -847,8 +870,9 @@ internal static class Program
                     sim.Run(180f);
                     var tag = $"Crucible B{board} L{level} {loadout.Name} drain {drain}%/s{(cycling ? " cycling" : "")}";
 
-                    // 3%/s is a stress run: a knocked-out familiar is reported, not failed.
-                    var violations = sim.Violations.Where(v => !(drain >= 3f && v.Kind == "familiar-ko")).ToList();
+                    // 3%/s is a stress run: a knocked-out familiar is reported, not failed. The same for a KO
+                    // under the horn-conservation keep-out posture (deliberate: cover the character, don't strand it).
+                    var violations = sim.Violations.Where(v => !(drain >= 3f && v.Kind == "familiar-ko") && v.Kind != "familiar-ko-keepout").ToList();
                     if (violations.Count > 0)
                     {
                         foreach (var v in violations.GroupBy(v => v.Kind))
@@ -1055,8 +1079,13 @@ internal static class Program
                 LowestPetHp = Math.Min(LowestPetHp, Math.Max(0f, _petHp[_activeSlot]));
                 if (_petHp[_activeSlot] <= 0f)
                 {
+                    // A KO under the horn-conservation keep-out posture (no other horn could have been resummoned)
+                    // is the accepted trade — the familiar stayed out to cover the character instead of being
+                    // recalled into a weaponless spiral. Reported, not failed.
+                    var keepOut = !Enumerable.Range(1, LearnedSlots).Any(i => i != _activeSlot
+                        && HornReadyNow(i) && (_petSeen[i] ? _petHp[i] : 100f) > BST_CrucibleLogic.CriticalHp(_cfg));
                     Kos++;
-                    Fail("familiar-ko", $"slot{_activeSlot} ({BST_Beasts.ByRow(_slots[_activeSlot - 1])?.Name})");
+                    Fail(keepOut ? "familiar-ko-keepout" : "familiar-ko", $"slot{_activeSlot} ({BST_Beasts.ByRow(_slots[_activeSlot - 1])?.Name})");
                     _slots[_activeSlot - 1] = 0;
                     _activeSlot = 0;
                     _oneWithNature = false;
@@ -1080,10 +1109,13 @@ internal static class Program
             var state = BuildState();
             var d = Decide(state, _cfg);
 
-            // A critical familiar must be saved whenever Parting Blow or a healthier horn could do it.
+            // A critical familiar must be saved whenever a healthier horn could do it, or Parting Blow could
+            // recall it with a resummon actually available (a ready horn with a familiar above the critical
+            // line — horn conservation keeps the last familiar out when there is nothing to resummon).
             if (Crucible && _activeSlot != 0 && InCombat && _petHp[_activeSlot] <= BST_CrucibleLogic.CriticalHp(_cfg) && state.CanWeave
                 && TargetHp > BST_CrucibleLogic.EnemyDyingHp && _t - _lastHornAt >= 2.5f && _arrivalAt < 0
-                && (state.ReadyParting || Enumerable.Range(1, LearnedSlots).Any(i => i != _activeSlot && HornReadyNow(i) && (_petSeen[i] ? _petHp[i] : 100f) >= _petHp[_activeSlot] + BST_CrucibleLogic.SwapMinGain))
+                && (Enumerable.Range(1, LearnedSlots).Any(i => i != _activeSlot && HornReadyNow(i) && (_petSeen[i] ? _petHp[i] : 100f) >= _petHp[_activeSlot] + BST_CrucibleLogic.SwapMinGain)
+                    || (state.ReadyParting && Enumerable.Range(1, LearnedSlots).Any(i => i != _activeSlot && HornReadyNow(i) && (_petSeen[i] ? _petHp[i] : 100f) > BST_CrucibleLogic.CriticalHp(_cfg))))
                 && !d.Reason.StartsWith("crucible:petsave"))
                 Fail("petsave-missed", $"{d.Reason} familiar {_petHp[_activeSlot]:0}%");
 
