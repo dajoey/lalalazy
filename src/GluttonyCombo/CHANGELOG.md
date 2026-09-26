@@ -1,3 +1,11 @@
+## v1.0.4.239 (2026-09-26) [testing]
+### Fixed
+- **Crucible: a familiar is no longer recalled when no horn is ready to resummon it.** Parting Blow and Final Sting recall exits now require another ready horn whose familiar is above the critical line, so the last familiar stays out covering and fighting instead of leaving the character weaponless through the horn lockout — the horn-exhaustion spiral that lost low-HP Third Board fights with the boss nearly dead. When the round is ending anyway the familiar is still recalled and saved for the next battle.
+- **Crucible: last-resort coverage no longer requires a healthy familiar.** When the character is at 25% or lower and holding the enemy, the familiar is snarled in whatever its HP is — a wounded familiar tanking still beats the character tanking near death.
+### Notes
+- Damage-cycling exits follow the same horn-conservation rule: no exit without a resummon actually available.
+- Production channel unchanged.
+
 ## v1.0.4.238 (2026-09-26) [testing]
 ### Fixed
 - **Crucible: the drake fight's Spinemoles are now killed on sight.** The Spinemole pieces that burrow up around the Second Master's Board drake were missing from the priority list, so auto-targeting stayed on the drake while the moles fired their near-lethal needle volleys; they are now prioritized until defeated.
