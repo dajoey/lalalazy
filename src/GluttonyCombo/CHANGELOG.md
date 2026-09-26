@@ -1,3 +1,10 @@
+## v1.0.4.237 (2026-09-26) [testing]
+### Added
+- **Crucible: full fight-data accounting across all five boards.** Target-priority handling is now active for every multi-target encounter in the Crucible corpus across all boards (First, Second, Third, First Master's, and Second Master's Boards): dangerous add spawns, healers, gaze casters, exploding bombs, and invulnerability-granting pieces are automatically prioritized by auto-targeting before returning to primary targets.
+- **Crucible: instant-KO familiar rescue against Curtains for Rank 5.** When King Ahriman casts Curtains for Rank 5, Parting Blow automatically recalls the familiar before the cast resolves regardless of familiar HP, preventing the fatal familiar knockout and allowing safe resummoning afterwards.
+### Notes
+- Production channel unchanged.
+
 ## v1.0.4.236 (2026-09-26) [testing]
 ### Fixed
 - **Crucible: Guard/Challenge now actually presses for existing installs.** A stored "Log only" setting from before the Guard/Challenge default was turned ON is migrated to ON once: in board fights the rotation now presses Snarl and Challenge instead of only logging what it would have pressed. "Off" stays off; the mode can be set back to "Log only" in the Beastmaster options at any time.
