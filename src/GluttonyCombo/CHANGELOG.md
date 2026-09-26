@@ -1,3 +1,13 @@
+## v1.0.4.236 (2026-09-26) [testing]
+### Fixed
+- **Crucible: Guard/Challenge now actually presses for existing installs.** A stored "Log only" setting from before the Guard/Challenge default was turned ON is migrated to ON once: in board fights the rotation now presses Snarl and Challenge instead of only logging what it would have pressed. "Off" stays off; the mode can be set back to "Log only" in the Beastmaster options at any time.
+### Added
+- **Crucible: bosses with cleaving auto-attacks no longer grind the familiar down.** Against enemies whose auto-attacks are a frontal cone that also hits the familiar (the Third Board elite and boss among them), the rotation now takes the enemy off the familiar with Challenge whenever the player is healthy, and Snarls the familiar in to cover only the known single-target hard casts, taking the enemy back once the cast resolves.
+- **Crucible: Third Board kill priorities.** The bone bishops a cavalier summons, the golem that appears alongside a lakhamu, the crawling piece (its touch applies Damage Down) and the flowertender (it heals its allies) are now targeted first whenever they are up.
+- **Crucible: a counter-stance hold no longer freezes the rotation with no familiar out.** When the only enemy left is in a counter stance, every familiar is gone and the player is below half health, the rotation fights instead of holding — the counter damage is better than standing weaponless.
+### Notes
+- Production channel unchanged.
+
 ## v1.0.4.235 (2026-09-25) [testing]
 ### Changed
 - **Merged upstream WrathCombo (55d55a3e): opener potion check reworked.** An opener step whose action is an item that is not ready (e.g. the potion) is now skipped by returning immediately instead of advancing to the next action mid-check, so the opener no longer offers the following action early when the potion is not up.

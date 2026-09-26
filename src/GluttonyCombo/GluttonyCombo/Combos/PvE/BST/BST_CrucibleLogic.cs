@@ -367,6 +367,10 @@ internal static class BST_CrucibleLogic
     ///     carry 15 s of the character's recent damage intake and is not a wespe about to Final Sting (at 25% or lower
     ///     only the familiar's HP matters); Snarl ahead of a known tankbuster only with the Snarl -> Parting Blow dodge
     ///     on. Challenge when the parry ends, or when the familiar is at 30% or lower and the character 60%+.
+    ///     Frontal-cleave-auto bosses (siren, Guttler, Pas de Seul, Lauda): their cone autos hit the familiar too, so
+    ///     Snarl only to cover a known tankbuster cast (pet 50%+), and Challenge the aggro back off the familiar whenever
+    ///     no such cast is up and the player is 50%+ — a familiar that holds aggro through the autos is ground down fight
+    ///     long (Third Board elite 2026-09-25: pet 44% → 20% under cleave autos while the player sat at 8%).
     ///     Score mode: Challenge whenever the target is on the familiar; Snarl only for the tankbuster dodge.
     /// </summary>
     public static (uint ActionId, string Reason) ChooseAggro(in BstState s, in BstSettings cfg)
@@ -375,6 +379,7 @@ internal static class BST_CrucibleLogic
             return (0, "");
 
         var tankbuster = s.TargetCastId != 0 && BST_CrucibleData.Tankbusters.Contains(s.TargetCastId);
+        var cleave = BST_CrucibleData.CleaveAutoBosses.Contains(s.TargetNameId);
         var tankbusterSetUp = cfg.CrucibleSnarlParting && tankbuster && s.ReadySnarl && !s.EnemyTargetsPet
                               && s.TargetCastRemaining > cfg.CrucibleSnarlPartingLead + 1f && s.ReadyParting;
 
@@ -394,6 +399,11 @@ internal static class BST_CrucibleLogic
             if (tankbusterSetUp)
                 return (BST.Snarl, "aggro:snarl-tankbuster");
 
+            // Cleave-auto boss: the familiar covers the known hard cast (Song of Torment, Thunderbolt),
+            // then Challenge below takes the aggro back once the cast resolves.
+            if (cleave && tankbuster && s.PetHpPercent >= 50f)
+                return (BST.Snarl, "aggro:snarl-cleave-tankbuster");
+
             var lastResort = s.PlayerHpPercent is > 0f and <= 25f;
             if (s.PlayerHpPercent is > 0f and <= 40f && s.PetHpPercent >= 50f)
             {
@@ -409,6 +419,14 @@ internal static class BST_CrucibleLogic
         {
             if (s.ParryJustEnded && !s.TargetHasParry)
                 return (BST.Challenge, "aggro:challenge-parry-ended");
+
+            // Cleave-auto boss: between hard casts the player holds the boss so the cone autos stop
+            // hitting the familiar (not while a covered tankbuster cast is still up, and only while the
+            // player is healthy enough to take the autos; below 50% the low-player rules above own it).
+            if (cleave && !tankbuster && s.PlayerHpPercent >= 50f && s.PetHpPercent > 0f
+                && s.SinceHornPress > SummonSettleSeconds)
+                return (BST.Challenge, "aggro:challenge-cleave-auto");
+
             if (s.PetHpPercent is > 0f and <= 30f && s.PlayerHpPercent >= 60f && s.SinceHornPress > SummonSettleSeconds)
                 return (BST.Challenge, "aggro:challenge-pet-low");
         }

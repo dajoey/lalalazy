@@ -312,6 +312,10 @@ internal static class Program
             BST_CrucibleData.Tankbusters.Contains(46906) && BST_CrucibleData.Tankbusters.Contains(49188) && BST_CrucibleData.TankbusterHitDelay(49188) == 1f);
         Check("tankbusters: Borgny Salivous Snap 48822 (BMR SingleTargetCast)",
             BST_CrucibleData.Tankbusters.Contains(48822));
+        Check("cleave-auto bosses: Pas de Seul, Siren, Guttler, Lauda",
+            BST_CrucibleData.CleaveAutoBosses.SetEquals(new uint[] { 14541, 14583, 14592, 14693 }));
+        Check("Third Board priority adds: crawling, flowertender, golem, bone bishop",
+            new uint[] { 14586, 14589, 14581, 14567 }.All(id => BST_CrucibleData.PriorityAdds.Contains(id)));
     }
 
     private static void CrucibleTargetingAndAdvisor()
@@ -329,6 +333,14 @@ internal static class Program
         Check("Loosefrox 30% / Chewchum 70%: Chewchum", Allowed(C(14561, 30f, false), C(14562, 70f, false)).SequenceEqual(new[] { 1 }));
         Check("Pas de Seul + succubus mage: the add first", Allowed(C(14541, 90f, false), C(14542, 100f, false)).SequenceEqual(new[] { 1 }));
         Check("bone knight + bone bishop: the bishop first", Allowed(C(14531, 100f, false), C(14532, 100f, false)).SequenceEqual(new[] { 1 }));
+        Check("siren + shambling + crawling: the crawling piece first (Damage Down on touch)",
+            Allowed(C(14583, 40f, false), C(14585, 60f, false), C(14586, 55f, false)).SequenceEqual(new[] { 2 }));
+        Check("cactuar pack: flowertender (heals allies) before the rest",
+            Allowed(C(14588, 50f, false), C(14589, 60f, false), C(14590, 40f, false), C(14591, 30f, false)).SequenceEqual(new[] { 1, 3 }));
+        Check("lakhamu + golem: the golem first once it spawns",
+            Allowed(C(14580, 60f, false), C(14581, 40f, false)).SequenceEqual(new[] { 1 }));
+        Check("cavalier + bone bishop add: the add first",
+            Allowed(C(14564, 80f, false), C(14567, 100f, false)).SequenceEqual(new[] { 1 }));
         Check("ogre in Burning Ward + wisp: the wisp", Allowed(C(14538, 100f, true), C(14539, 100f, false)).SequenceEqual(new[] { 1 }));
 
         Check("51 beast profiles, row-indexed", BST_CrucibleData.BeastProfiles.Length == 51 && Enumerable.Range(1, 50).All(r => BST_CrucibleData.BeastProfiles[r].Row == r));
@@ -649,6 +661,47 @@ internal static class Program
         BST_CrucibleData.Tankbusters.Remove(tb);
         Check("Erratic Blaster castbar 0.8 s left (lands in 1.8 s): not yet", Decide(landing with { TargetCastId = 49188, TargetCastRemaining = 0.8f }, spCfg).Reason != "crucible:snarl-parting");
         Check("Erratic Blaster castbar 0.4 s left (lands in 1.4 s): Parting Blow", Decide(landing with { TargetCastId = 49188, TargetCastRemaining = 0.4f }, spCfg).Reason == "crucible:snarl-parting");
+
+        // Frontal-cleave-auto bosses (Third Board: siren elite 14583, Guttler boss 14592; also Pas de
+        // Seul and Lauda). Their autos are a cone that hits the familiar too, so the familiar must NOT
+        // hold aggro between hard hits: Challenge it off, Snarl only to cover a known tankbuster cast.
+        const uint songOfTorment = 48563, thunderbolt = 48620;
+        var cleave = CrucibleState() with { ReadySnarl = true, ReadyChallenge = true, ReadyParting = false, PetHpPercent = 80f };
+        Check("siren: Song of Torment cast at the player, pet healthy: Snarl covers",
+            Decide(cleave with { TargetNameId = 14583, TargetCastId = songOfTorment, TargetCastRemaining = 3f }, on).Reason == "aggro:snarl-cleave-tankbuster",
+            Decide(cleave with { TargetNameId = 14583, TargetCastId = songOfTorment, TargetCastRemaining = 3f }, on).Reason);
+        Check("guttler: Thunderbolt cast at the player: Snarl covers",
+            Decide(cleave with { TargetNameId = 14592, TargetCastId = thunderbolt, TargetCastRemaining = 3f }, on).Reason == "aggro:snarl-cleave-tankbuster",
+            Decide(cleave with { TargetNameId = 14592, TargetCastId = thunderbolt, TargetCastRemaining = 3f }, on).Reason);
+        Check("siren: tankbuster cast but the pet is low: no cover Snarl",
+            Decide(cleave with { TargetNameId = 14583, TargetCastId = songOfTorment, TargetCastRemaining = 3f, PetHpPercent = 30f }, on).Reason != "aggro:snarl-cleave-tankbuster");
+        Check("siren: pet holding aggro, no cast, player healthy: Challenge it off",
+            Decide(cleave with { TargetNameId = 14583, EnemyTargetsPet = true, EnemyTargetsPlayer = false }, on).Reason == "aggro:challenge-cleave-auto",
+            Decide(cleave with { TargetNameId = 14583, EnemyTargetsPet = true, EnemyTargetsPlayer = false }, on).Reason);
+        Check("siren: cast resolved, Snarl cover still on the pet: Challenge back",
+            Decide(cleave with { TargetNameId = 14583, EnemyTargetsPet = true, EnemyTargetsPlayer = false, SinceSnarl = 5f }, on).Reason == "aggro:challenge-cleave-auto");
+        Check("siren: no Challenge while the tankbuster cast is still up (the pet must keep Cover)",
+            Decide(cleave with { TargetNameId = 14583, EnemyTargetsPet = true, EnemyTargetsPlayer = false, TargetCastId = songOfTorment, TargetCastRemaining = 3f }, on).Reason != "aggro:challenge-cleave-auto");
+        Check("siren: player below 50%: no cleave Challenge (the low-player rules own that state)",
+            Decide(cleave with { TargetNameId = 14583, EnemyTargetsPet = true, EnemyTargetsPlayer = false, PlayerHpPercent = 40f }, on).Reason != "aggro:challenge-cleave-auto");
+        Check("ymir (not a cleave boss): pet holding aggro, player healthy: no cleave Challenge",
+            Decide(cleave with { TargetNameId = 14569, EnemyTargetsPet = true, EnemyTargetsPlayer = false }, on).Reason != "aggro:challenge-cleave-auto");
+        Check("siren cleave Challenge is logged in shadow mode, not pressed",
+            Decide(cleave with { TargetNameId = 14583, EnemyTargetsPet = true, EnemyTargetsPlayer = false }, cfg) is { Shadow: "aggro:challenge-cleave-auto" } sh && sh.Reason != "aggro:challenge-cleave-auto");
+
+        // A stance hold with no familiar out and the player dying is a death spiral: fight instead.
+        var stanceAlone = CrucibleState() with
+        {
+            TargetInStance = true, ActiveSlot = 0, PetObjectPresent = false, SinceHornPress = 30f,
+            ReadyHorn1 = false, ReadyHorn2 = false, ReadyHorn3 = false, PlayerHpPercent = 35f, GcdReady = true,
+        };
+        Check("stance up, no familiar, player low: fight instead of holding",
+            Decide(stanceAlone, on) is { ActionId: not BST_CrucibleLogic.Hold } fight && fight.Declines.Contains("crucible:stance-break-no-familiar"),
+            $"{Decide(stanceAlone, on).ActionId} [{Decide(stanceAlone, on).Declines}]");
+        Check("stance up, no familiar, player healthy: still holds",
+            Decide(stanceAlone with { PlayerHpPercent = 90f }, on).ActionId == BST_CrucibleLogic.Hold);
+        Check("stance up, familiar out: still holds (counter damage is the pet's problem)",
+            Decide(CrucibleState() with { TargetInStance = true }, on).ActionId == BST_CrucibleLogic.Hold);
 
         // Summon order: healthy first, set-up beasts before the rest, wespe last unless its Final Sting is due
         var none = CrucibleState() with { ActiveSlot = 0, PetObjectPresent = false, SinceHornPress = 30f, ReadyHorn1 = true, ReadyHorn2 = true, ReadyHorn3 = false, Slot1PetHp = 12f, Slot2PetHp = 90f };

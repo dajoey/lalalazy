@@ -154,6 +154,7 @@ internal partial class BST
         if (target is not null)
         {
             LastCrucibleTargetNameId = target.NameId;
+            s.TargetNameId = target.NameId;
 
             foreach (var status in target.StatusList)
             {

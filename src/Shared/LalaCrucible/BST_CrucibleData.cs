@@ -205,9 +205,20 @@ internal static partial class BST_CrucibleData
     /// <summary>
     ///     Enemies auto-targeting takes first whenever they are up: the adds the guides kill on sight (succubi, wisps before
     ///     they reach the centre, ahriman after the gaze, zombies, a woken Thanatos, the guardia that covers its allies) and
-    ///     the bone bishop before the bone knight.
+    ///     the bone bishop before the bone knight. Third Board: the bone bishops a cavalier keeps summoning (Soul Douse is a
+    ///     room-wide Damage Down), the golem a lakhamu spawns with, the crawling piece (its touch is Bind plus Damage Down)
+    ///     and the flowertender (it heals the pack).
     /// </summary>
-    public static readonly HashSet<uint> PriorityAdds = [14542, 14543, 14539, 14748, 14532, 14548, 14553, 14595, 14699, 14591];
+    public static readonly HashSet<uint> PriorityAdds = [14542, 14543, 14539, 14748, 14532, 14548, 14553, 14595, 14699, 14591, 14567, 14581, 14586, 14589];
+
+    /// <summary>
+    ///     Bosses whose auto-attacks are a frontal cone that also hits the familiar (guides, two independent sources:
+    ///     "the boss of board 3 has this too", "siren autos are a frontal cleave that also hits the pet",
+    ///     "Guttler's autos are a frontal cleave that hits the pet", Lauda's 120° 8y cone drawn by the public reaction set).
+    ///     Rule (Crucible-wide, C2): the player holds enmity with Challenge so the enemy faces away from the familiar;
+    ///     Snarl only to cover a known tankbuster cast, then Challenge back when it resolves.
+    /// </summary>
+    public static readonly HashSet<uint> CleaveAutoBosses = [14541, 14583, 14592, 14693];
 
 
     // ------------------------------------------------------------------ lookups

@@ -30,7 +30,7 @@ internal static class ConfigMigration
     ///     Must match <see cref="Configuration.Version" />'s initialiser, so a fresh install
     ///     starts at the top of the ladder and skips every step.
     /// </remarks>
-    public const int CurrentVersion = 8;
+    public const int CurrentVersion = 9;
 
     /// <summary>Configuration values the ladder can move, in and out.</summary>
     /// <param name="Version">The config's schema version.</param>
@@ -44,11 +44,17 @@ internal static class ConfigMigration
     ///     leave the per-job fields on their own defaults.
     /// </param>
     /// <param name="RequireSwift">The seven per-job replacements, in and out.</param>
+    /// <param name="CrucibleAggro">
+    ///     Beastmaster Crucible Guard/Challenge mode as stored in CustomIntValues (0 Off, 1 Shadow,
+    ///     2 On). -1 when the key is absent (fresh install or BST options never touched); the
+    ///     ladder never writes that back.
+    /// </param>
     public readonly record struct State(
         int Version,
         bool TankbustersBeyondParty,
         bool? AutoRezRequireSwiftGlobal = null,
-        PerJobRequireSwift RequireSwift = default);
+        PerJobRequireSwift RequireSwift = default,
+        int CrucibleAggro = -1);
 
     /// <summary>
     ///     The seven per-job "Require Swiftcast/Dualcast before auto-rezzing" flags.
@@ -85,6 +91,7 @@ internal static class ConfigMigration
         var tankbustersBeyondParty = state.TankbustersBeyondParty;
         var requireSwift = state.RequireSwift;
         var carriedGlobal = state.AutoRezRequireSwiftGlobal;
+        var crucibleAggro = state.CrucibleAggro;
 
         // A config from the future is left completely alone - downgrading a user's settings is
         // worse than running an old build against a new config.
@@ -150,14 +157,35 @@ internal static class ConfigMigration
             carriedGlobal = null;
         }
 
+        // ---- v9: turn a STORED Crucible Guard/Challenge "Log only" (Shadow) ON. The testing
+        // 1.0.4.218 default flip never reached configs saved before it - Newtonsoft restores
+        // the stored value over the new default - so the graded runs of 2026-09-24/26 ran
+        // every board with Guard/Challenge decided-but-never-pressed while the player died
+        // with a healthy familiar out (shadow lines every tick, nothing in the decisions).
+        // Off is a deliberate choice and stays; an absent key (fresh install) is seeded by
+        // the option's own default and is not written here.
+        if (version < 9)
+        {
+            if (crucibleAggro == 1)
+            {
+                crucibleAggro = 2;
+                notes.Add(
+                    "Beastmaster > Crucible of the Unbroken > Guard/Challenge (Snarl/Challenge) has " +
+                    "been turned ON by this update: the rotation now presses Snarl and Challenge in " +
+                    "board fights instead of only logging what it would have pressed. Set it back to " +
+                    "\"Log only\" in the Beastmaster options to return to observation-only.");
+            }
+        }
+
         version = CurrentVersion;
         var changed = version != state.Version ||
                       tankbustersBeyondParty != state.TankbustersBeyondParty ||
                       requireSwift != state.RequireSwift ||
-                      carriedGlobal != state.AutoRezRequireSwiftGlobal;
+                      carriedGlobal != state.AutoRezRequireSwiftGlobal ||
+                      crucibleAggro != state.CrucibleAggro;
 
         return new Result(
-            new State(version, tankbustersBeyondParty, carriedGlobal, requireSwift),
+            new State(version, tankbustersBeyondParty, carriedGlobal, requireSwift, crucibleAggro),
             changed,
             notes);
     }
@@ -170,7 +198,7 @@ internal static class ConfigMigration
     // in the abstract and mis-wired in GluttonyCombo.cs is still a broken migration.
 
     /// <summary>Reads the migratable values out of a just-loaded configuration.</summary>
-    public static State Read(int version, HealerSettings healer) => new(
+    public static State Read(int version, HealerSettings healer, int crucibleAggro = -1) => new(
         version,
         healer.TankbustersBeyondParty,
         healer.AutoRezRequireSwiftLegacy,
@@ -181,10 +209,11 @@ internal static class ConfigMigration
             healer.AutoRezRequireSwiftSGE,
             healer.AutoRezRequireSwiftSMN,
             healer.AutoRezRequireSwiftBLU,
-            healer.AutoRezRequireSwiftRDM));
+            healer.AutoRezRequireSwiftRDM),
+        crucibleAggro);
 
     /// <summary>Writes a migrated <see cref="State" /> back onto the live settings object.</summary>
-    public static void Write(State state, HealerSettings healer)
+    public static void Write(State state, HealerSettings healer, Dictionary<string, int>? customInts = null)
     {
         healer.TankbustersBeyondParty = state.TankbustersBeyondParty;
         healer.AutoRezRequireSwiftLegacy = state.AutoRezRequireSwiftGlobal;
@@ -195,6 +224,8 @@ internal static class ConfigMigration
         healer.AutoRezRequireSwiftSMN = state.RequireSwift.SMN;
         healer.AutoRezRequireSwiftBLU = state.RequireSwift.BLU;
         healer.AutoRezRequireSwiftRDM = state.RequireSwift.RDM;
+        if (customInts is not null && state.CrucibleAggro >= 0)
+            customInts["BST_CrucibleAggro"] = state.CrucibleAggro;
     }
 
     #endregion

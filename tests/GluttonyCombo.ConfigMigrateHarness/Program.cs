@@ -21,6 +21,7 @@ internal static class Program
     {
         MigrationV7();
         MigrationV8();
+        MigrationV9();
         LegacyShadowRoundTrip();
         ResolverTruthTable();
 
@@ -173,6 +174,50 @@ internal static class Program
     // The legacy shadow, through the REAL serializer. A migration that reads a key
     // Newtonsoft never populates is a no-op dressed as a fix.
     // =============================================================================
+    // =============================================================================
+    // v8 -> v9: the Crucible Guard/Challenge default flip (testing 1.0.4.218) never reached
+    // configs saved before it - Newtonsoft restores the stored Shadow(1) over the new
+    // default, so the only live player ran every board with Guard/Challenge in log-only
+    // mode (PS| lines 2026-09-24/26, ffxivdb). This step turns a stored Shadow ON once.
+    // Off (a deliberate choice) and absent (fresh install) are untouched.
+    // =============================================================================
+    private static void MigrationV9()
+    {
+        Section("v8 -> v9 (Crucible Guard/Challenge stored Shadow -> On)");
+
+        var shadow = ConfigMigration.Migrate(new State(8, TankbustersBeyondParty: true, CrucibleAggro: 1));
+        Check("stored Shadow is turned ON", shadow.Changed && shadow.State.CrucibleAggro == 2,
+            $"changed={shadow.Changed} aggro={shadow.State.CrucibleAggro}");
+        Check("...and the note names the setting and how to undo it",
+            shadow.Notes.Any(n => n.Contains("Guard/Challenge", StringComparison.Ordinal) && n.Contains("Beastmaster", StringComparison.Ordinal)),
+            shadow.Notes.Count > 0 ? shadow.Notes[^1] : "(none)");
+
+        var offResult = ConfigMigration.Migrate(new State(8, TankbustersBeyondParty: true, CrucibleAggro: 0));
+        Check("stored Off stays Off (a deliberate choice)", offResult.State.CrucibleAggro == 0 &&
+              !offResult.Notes.Any(n => n.Contains("Guard/Challenge", StringComparison.Ordinal)));
+
+        var absent = ConfigMigration.Migrate(new State(8, TankbustersBeyondParty: true));
+        Check("absent key stays absent (never written back)", absent.State.CrucibleAggro == -1 &&
+              !absent.Notes.Any(n => n.Contains("Guard/Challenge", StringComparison.Ordinal)));
+
+        var stored = ConfigMigration.Migrate(new State(8, TankbustersBeyondParty: true, CrucibleAggro: 2));
+        Check("already On: no note", stored.State.CrucibleAggro == 2 &&
+              !stored.Notes.Any(n => n.Contains("Guard/Challenge", StringComparison.Ordinal)));
+
+        var again = ConfigMigration.Migrate(shadow.State);
+        Check("...and never re-applied on the next load (a user who turns it back off keeps that)",
+            !again.Changed && again.State.CrucibleAggro == 2);
+
+        // The adapter contract: a migrated On is written back into CustomIntValues; an absent
+        // key is still not created by the ladder.
+        var ints = new Dictionary<string, int> { ["BST_CrucibleAggro"] = 1 };
+        ConfigMigration.Write(shadow.State, new HealerSettings(), ints);
+        Check("Write puts the migrated value into CustomIntValues", ints["BST_CrucibleAggro"] == 2);
+        var untouched = new Dictionary<string, int>();
+        ConfigMigration.Write(absent.State, new HealerSettings(), untouched);
+        Check("Write never creates the key when it was absent", !untouched.ContainsKey("BST_CrucibleAggro"));
+    }
+
     private static void LegacyShadowRoundTrip()
     {
         Section("legacy shadow (real Newtonsoft round-trip)");

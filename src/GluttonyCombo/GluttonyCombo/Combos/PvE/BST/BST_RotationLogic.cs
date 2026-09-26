@@ -276,6 +276,7 @@ internal static class BST_RotationLogic
         public bool EnemyTargetsPet, EnemyTargetsPlayer; // who the current target is attacking
         public bool ReadySnarl, ReadyChallenge;
         public float SinceSnarl;                  // float.MaxValue when never
+        public uint TargetNameId;                 // BNpcName of the current target (0 when none)
     }
 
     /// <summary> Config, resolved by the live half (Simple mode = defaults). </summary>
@@ -512,16 +513,25 @@ internal static class BST_RotationLogic
                 return Pick(dispel.ActionId, dispel.Reason);
 
             // Spikes / needles up (and not dispelled above), an egg / morpho targeted, or an invulnerable phase:
-            // nothing that damages it.
+            // nothing that damages it — unless the counter-stance hold would be a death spiral: with no
+            // familiar at all (Ring of Sacrifice already spent one) and the player under half, holding
+            // while the last enemy beats on an undefended player is how a Third Board run ended
+            // (2026-09-26: 14 s of hold with no familiar out, player 43% -> 0%). Fight instead.
             if (s.HasHostileTarget && (s.TargetDoNotAttack || s.TargetInStance || s.TargetInvulnerable))
             {
-                if (aggro.ActionId != 0 && cfg.CrucibleAggro == CrucibleAggroMode.On && s.CanWeave)
-                    return Pick(aggro.ActionId, aggro.Reason);
-                var cleanse = BST_CrucibleLogic.TryCleanse(s, beast);
-                if (cleanse.ActionId != 0)
-                    return Pick(cleanse.ActionId, cleanse.Reason);
-                return Pick(BST_CrucibleLogic.Hold, s.TargetDoNotAttack ? "crucible:hold-do-not-attack"
-                    : s.TargetInStance ? "crucible:hold-stance" : "crucible:hold-invulnerable");
+                var stanceBreak = s.TargetInStance && !s.TargetDoNotAttack && !s.TargetInvulnerable
+                                  && !FamiliarPresentOrPending(s) && s.PlayerHpPercent is > 0f and < 50f;
+                if (!stanceBreak)
+                {
+                    if (aggro.ActionId != 0 && cfg.CrucibleAggro == CrucibleAggroMode.On && s.CanWeave)
+                        return Pick(aggro.ActionId, aggro.Reason);
+                    var cleanse = BST_CrucibleLogic.TryCleanse(s, beast);
+                    if (cleanse.ActionId != 0)
+                        return Pick(cleanse.ActionId, cleanse.Reason);
+                    return Pick(BST_CrucibleLogic.Hold, s.TargetDoNotAttack ? "crucible:hold-do-not-attack"
+                        : s.TargetInStance ? "crucible:hold-stance" : "crucible:hold-invulnerable");
+                }
+                declines.Add("crucible:stance-break-no-familiar");
             }
 
             if (aggro.ActionId != 0 && cfg.CrucibleAggro == CrucibleAggroMode.On && s.CanWeave)
