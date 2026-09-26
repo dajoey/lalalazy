@@ -1,5 +1,10 @@
 # LazyCrucible — Changelog
 
+## v0.1.4.0 (2026-09-26)
+
+- **Run roster**: the Bentbranch Meadows entry menu now fills a team even on a board's first entry, when no team is saved yet. Previously the menu was skipped exactly then, which left the First Master's Board without familiars.
+- **Run roster**: team size now follows the board (twelve familiars on the First Master's Board) instead of a fixed ten, which had been under-filling every board after the first.
+
 ## v0.1.3.0 (2026-09-26)
 
 - **Beast Feed**: feeding no longer stalls while a knocked-out familiar is on the picker. The game marks a knocked-out familiar "cannot eat" whatever is offered, and the kin cross-check read that as the feed not fitting, so every feed was left for the player until the familiar was revived. Knocked-out familiars no longer take part in that check.
