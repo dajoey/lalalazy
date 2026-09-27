@@ -1,3 +1,14 @@
+## v0.2.0.0 (2026-09-27) [testing]
+
+### Changed
+
+- **Auto-Market's market and vendor decisions were rebuilt around one rule: no action on unconfirmed price data.** Automated vendoring is now restricted to the bounded junk path - items whose confirmed market value is at or under the value-gate threshold, NQ and non-equippable only. High-quality stock and gear are never auto-vendored, whatever any price source claims.
+- **"Keep" amounts are one number across bags and retainer inventory.** A keep-N item keeps N units in total wherever they sit, and the reserve is consumed last. Market listings never count toward or reduce it.
+- **Unpriced or stale market data now holds stock in place** instead of listing it unchecked.
+- **The under-vendor delist pass is withdrawn.** Market listings are only removed when their confirmed value is under the threshold, every withdrawal is re-verified before planning continues, and every market slot left empty by a pass is either refilled by a new listing or reported with the reason.
+- **Dry-run mode is on by default.** Every listing, pulling and vendoring decision is computed and logged as "[AM][dry-run] would ..." without executing anything; turn it off in settings once the logged decisions look right.
+- **The retainer buyback window is protected.** If the buyback-abandon confirmation appears after vendoring, automation leaves it on screen instead of dismissing it, so vendored stock can still be bought back.
+
 ## v0.1.71.0 (2026-09-27) [testing] - emergency reversion to v0.1.68.0
 
 - **Reversion build: plugin code is identical to v0.1.68.0.** The v0.1.69.0 and v0.1.70.0 Auto-Market changes are withdrawn from the testing channel while a serious defect observed on v0.1.70.0 (market items vendored when their market value was higher, the keep-in-bags reserve bypassed, and withdrawn marketboard slots left empty) is investigated and fixed offline. This build is versioned above the withdrawn ones only so clients on those updates roll back automatically (Dalamud ignores downgrades); behavior returns exactly to v0.1.68.0.
