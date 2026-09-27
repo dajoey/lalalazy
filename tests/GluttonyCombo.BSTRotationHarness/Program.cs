@@ -326,6 +326,18 @@ internal static class Program
                 14653, 14659, 14661, 14662, 14671, 14672, 14673,
                 14676, 14677, 14680, 14681, 14683, 14691, 14692, 14699,
             }));
+        Check("priority-add order overlay: crawling before shambling; biloko before sapling before diremite",
+            BST_CrucibleData.PriorityAddRank(14586) < BST_CrucibleData.PriorityAddRank(14585)
+            && BST_CrucibleData.PriorityAddRank(14622) < BST_CrucibleData.PriorityAddRank(14620)
+            && BST_CrucibleData.PriorityAddRank(14620) < BST_CrucibleData.PriorityAddRank(14621));
+        Check("priority-add order overlay: thanatos, grenade, M2 bomb, mogmugger each first",
+            BST_CrucibleData.PriorityAddRank(14595) < BST_CrucibleData.PriorityAddRank(14591)
+            && BST_CrucibleData.PriorityAddRank(14624) < BST_CrucibleData.PriorityAddRank(14625)
+            && BST_CrucibleData.PriorityAddRank(14640) < BST_CrucibleData.PriorityAddRank(14639)
+            && BST_CrucibleData.PriorityAddOrder.Any(w => w.Contains(14683u)));
+        Check("every ordered id is a priority add; unranked ids share the last tier",
+            BST_CrucibleData.PriorityAddOrder.SelectMany(w => w).All(id => BST_CrucibleData.PriorityAdds.Contains(id))
+            && BST_CrucibleData.PriorityAddRank(14542) == int.MaxValue);
     }
 
     private static void CrucibleTargetingAndAdvisor()

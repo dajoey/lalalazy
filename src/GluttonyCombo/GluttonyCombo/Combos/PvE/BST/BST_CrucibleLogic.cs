@@ -514,8 +514,11 @@ internal static class BST_CrucibleLogic
 
     /// <summary>
     ///     Which candidates auto-targeting may pick on a Crucible board: never eggs / morphos; enemies in a counter
-    ///     stance or invulnerable only when nothing else is up; priority adds first; of a pair that must die together,
-    ///     the healthier one while they are more than <see cref="PairHpGap"/> apart.
+    ///     stance or invulnerable only when nothing else is up; priority adds first — and of the priority adds up, only
+    ///     the most dangerous documented tier (<see cref="BST_CrucibleData.PriorityAddOrder"/>) until it is dead, so a
+    ///     wave is cleared in the guides' kill order instead of nearest-first (live 2026-09-26: the siren wave's
+    ///     shamblings were attacked ~5 s before the crawling piece whose touch breaks Unbeastable); of a pair that must
+    ///     die together, the healthier one while they are more than <see cref="PairHpGap"/> apart.
     /// </summary>
     public static List<int> AllowedTargets(IReadOnlyList<TargetCandidate> candidates)
     {
@@ -530,7 +533,44 @@ internal static class BST_CrucibleLogic
 
         var priority = allowed.FindAll(i => BST_CrucibleData.PriorityAdds.Contains(candidates[i].NameId));
         if (priority.Count > 0)
-            allowed = priority;
+        {
+            // Ranks are wave-scoped: only members of the same documented wave order each other, so an
+            // unrelated priority add is never shadowed by another fight's rank.
+            var ordered = new List<int>(priority.Count);
+            var taken = new bool[priority.Count];
+            for (var a = 0; a < priority.Count; a++)
+            {
+                if (taken[a])
+                    continue;
+
+                var wave = BST_CrucibleData.PriorityAddWave(candidates[priority[a]].NameId);
+                taken[a] = true;
+                var members = new List<int> { a };
+                if (wave >= 0)
+                    for (var b = a + 1; b < priority.Count; b++)
+                    {
+                        if (taken[b] || BST_CrucibleData.PriorityAddWave(candidates[priority[b]].NameId) != wave)
+                            continue;
+                        taken[b] = true;
+                        members.Add(b);
+                    }
+
+                if (members.Count == 1)
+                {
+                    ordered.Add(priority[a]);
+                    continue;
+                }
+
+                var best = int.MaxValue;
+                foreach (var m in members)
+                    best = Math.Min(best, BST_CrucibleData.PriorityAddRank(candidates[priority[m]].NameId));
+                foreach (var m in members)
+                    if (BST_CrucibleData.PriorityAddRank(candidates[priority[m]].NameId) == best)
+                        ordered.Add(priority[m]);
+            }
+
+            allowed = ordered;
+        }
 
         foreach (var (a, b) in BST_CrucibleData.Pairs)
         {

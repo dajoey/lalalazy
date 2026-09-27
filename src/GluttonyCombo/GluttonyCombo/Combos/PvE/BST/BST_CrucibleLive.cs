@@ -30,7 +30,7 @@ internal partial class BST
         Player.Job is Job.BST && Config.BST_Crucible && Config.BST_CrucibleTargeting
         && BST_CrucibleData.BoardOfTerritory(Svc.ClientState.TerritoryType) != 0;
 
-    /// <summary> BST_CrucibleLogic.AllowedTargets over live candidates: no eggs / morphos, stances last, priority adds, pairs balanced. </summary>
+    /// <summary> BST_CrucibleLogic.AllowedTargets over live candidates: no eggs / morphos, stances last, priority adds in documented kill order, pairs balanced. </summary>
     internal static List<IBattleChara> RestrictCrucibleTargets(List<IBattleChara> targets)
     {
         if (targets.Count == 0)
