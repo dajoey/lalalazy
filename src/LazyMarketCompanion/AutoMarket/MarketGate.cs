@@ -77,7 +77,7 @@ public static class MarketGate
   /// ones, which is the difference between a request Universalis answers and the 504 Gateway
   /// Timeout that blinded every sweep that day.
   /// </summary>
-  public static List<uint> GateFetchIds(IReadOnlyList<ItemRule> rules, IReadOnlyList<StockStack> stock, bool listPartialStacks, IReadOnlyList<MarketSlot>? market = null)
+  public static List<uint> GateFetchIds(IReadOnlyList<ItemRule> rules, IReadOnlyList<StockStack> stock, bool listPartialStacks, IReadOnlyList<MarketSlot>? market = null, bool includeAllMarketSlots = false)
   {
     var ids = new List<uint>();
     foreach (var rule in rules)
@@ -94,13 +94,15 @@ public static class MarketGate
     // could never be judged - no quote means uncertainty, and uncertainty never pulls. This ADDS
     // ids for items currently sitting in an occupied market slot under an enabled rule of the same
     // quality; it never removes or changes anything the stocked-only fetch above already asked for.
+    // 0.1.70.0 (the delist pass): when includeAllMarketSlots is true, quotes are fetched for every
+    // occupied market slot on the retainer so under-vendor listings can be judged and delisted.
     if (market != null)
     {
       foreach (var slot in market)
       {
         if (slot.ItemId == 0 || ids.Contains(slot.ItemId))
           continue;
-        if (!rules.Any(r => r.ItemId == slot.ItemId && r.HQ == slot.HQ))
+        if (!includeAllMarketSlots && !rules.Any(r => r.ItemId == slot.ItemId && r.HQ == slot.HQ))
           continue;
         ids.Add(slot.ItemId);
       }

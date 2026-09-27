@@ -58,6 +58,9 @@ internal sealed class MarketAutomation : Window, IDisposable
   // inventory so the unchanged vendor leg below could sell them. Reset per-run in ClearState like
   // every other counter here.
   private int _pulledThisRun;
+  // Delist pass (0.1.70.0): vendor ops generated from delisted under-vendor listings
+  private readonly List<VendorOp> _delistedVendorOps = [];
+  private readonly List<DelistOp> _delistedThisRetainer = [];
   // 0.1.40.0: routing-mover counters for the whole run (all retainers), reported by the done line.
   private int _routingMovedOk;
   private int _routingMovedFail;
@@ -1600,50 +1603,93 @@ internal sealed class MarketAutomation : Window, IDisposable
       InsertSteps(moveSteps);
     }
 
+    _delistedThisRetainer.Clear();
+    _delistedVendorOps.Clear();
+    var delistPlan = AutoMarketService.PlanDelists(_gateQuotes);
+    foreach (var note in delistPlan.Notes)
+      Svc.Log.Information($"[LMC] {note}");
+
+    Svc.Log.Information($"[LMC] delist: {delistPlan.Summary()}");
+    if (Plugin.Configuration.ShowAutoMarketMessages && (delistPlan.RemovedCount > 0 || delistPlan.KeptUnpriceableCount > 0 || delistPlan.KeptNoVendorPriceCount > 0))
+      Communicator.PrintInfo($"delist: {delistPlan.Summary()}");
+
+    var withdrawalSteps = new List<Step>();
+    foreach (var op in delistPlan.Ops)
+    {
+      var captured = op;
+      withdrawalSteps.Add(new Step(() =>
+      {
+        var destinationHint = captured.Target == PullTarget.PlayerBags ? "player inventory" : "retainer inventory";
+        Svc.Log.Information($"[LMC] delist: market#{captured.Slot} item {captured.ItemId}{(captured.HQ ? " HQ" : "")} x{captured.Quantity} market net {captured.MarketNet:N0} gil is under vendor value {captured.VendorValue:N0} gil; pulling to {destinationHint}");
+        var ok = AutoMarketService.ExecuteDelist(captured, out var rc, out var destination, out var landedContainer, out var landedSlot);
+        if (ok)
+        {
+          _pulledThisRun++;
+          _delistedThisRetainer.Add(captured);
+          if (landedContainer >= 0 && landedSlot >= 0)
+          {
+            _delistedVendorOps.Add(new VendorOp(landedContainer, landedSlot, captured.ItemId, captured.HQ, captured.Quantity, captured.VendorValue));
+          }
+          Svc.Log.Information($"[LMC] delisted RetainerMarket:{captured.Slot} item {captured.ItemId}{(captured.HQ ? " HQ" : "")} x{captured.Quantity} -> {destination} (rc={rc}; queued for vendoring)");
+        }
+        else
+        {
+          Svc.Log.Warning($"[LMC] delist: FAILED - market#{captured.Slot} item {captured.ItemId}{(captured.HQ ? " HQ" : "")} x{captured.Quantity}: rc={rc}; leaving the listing on the board");
+        }
+        return true;
+      }, $"Delist{captured.Slot}", DelayAfterMs: 250));
+    }
+
     var pullPlan = AutoMarketService.PlanPulls(_gateQuotes);
     foreach (var note in pullPlan.Notes)
       Svc.Log.Information($"[LMC] {note}");
 
-    if (pullPlan.Ops.Count == 0)
-      return BuildAndInsertListingSteps();
+    // Filter out any slot already handled by delistPlan
+    var remainingPullOps = pullPlan.Ops.Where(p => !delistPlan.Ops.Any(d => d.Slot == p.Slot)).ToList();
 
-    var names = string.Join(", ", pullPlan.Ops.Select(o => o.ItemId.ToString() + (o.HQ ? " HQ" : "")));
-    Svc.Log.Information($"[LMC] gate: pulling {pullPlan.Ops.Count} listing(s) below threshold: {names}");
-    if (Plugin.Configuration.ShowAutoMarketMessages)
-      Communicator.PrintInfo($"value gate: pulling {pullPlan.Ops.Count} listing(s) below threshold: {names}");
-
-    var pullSteps = new List<Step>();
-    foreach (var op in pullPlan.Ops)
+    if (remainingPullOps.Count > 0)
     {
-      var captured = op;
-      pullSteps.Add(new Step(() =>
+      var names = string.Join(", ", remainingPullOps.Select(o => o.ItemId.ToString() + (o.HQ ? " HQ" : "")));
+      Svc.Log.Information($"[LMC] gate: pulling {remainingPullOps.Count} listing(s) below threshold: {names}");
+      if (Plugin.Configuration.ShowAutoMarketMessages)
+        Communicator.PrintInfo($"value gate: pulling {remainingPullOps.Count} listing(s) below threshold: {names}");
+
+      foreach (var op in remainingPullOps)
       {
-        var destinationHint = captured.Target == PullTarget.PlayerBags ? "player inventory" : "retainer inventory";
-        Svc.Log.Information($"[LMC] pull: market#{captured.Slot} item {captured.ItemId}{(captured.HQ ? " HQ" : "")} x{captured.Quantity} listed at {captured.ListedPrice:N0} gil is under the {Plugin.Configuration.AutoMarketValueGateThresholdGil:N0} gil net threshold; pulling to {destinationHint}");
-        var ok = AutoMarketService.ExecutePull(captured, out var rc, out var destination);
-        if (ok)
+        var captured = op;
+        withdrawalSteps.Add(new Step(() =>
         {
-          _pulledThisRun++;
-          Svc.Log.Information($"[LMC] pulled RetainerMarket:{captured.Slot} item {captured.ItemId}{(captured.HQ ? " HQ" : "")} x{captured.Quantity} -> {destination} (rc={rc})");
-        }
-        else
-        {
-          Svc.Log.Warning($"[LMC] pull: FAILED - market#{captured.Slot} item {captured.ItemId}{(captured.HQ ? " HQ" : "")} x{captured.Quantity}: rc={rc}; leaving the listing on the board");
-        }
-        return true;
-      }, $"Pull{captured.Slot}", DelayAfterMs: 250));
+          var destinationHint = captured.Target == PullTarget.PlayerBags ? "player inventory" : "retainer inventory";
+          Svc.Log.Information($"[LMC] pull: market#{captured.Slot} item {captured.ItemId}{(captured.HQ ? " HQ" : "")} x{captured.Quantity} listed at {captured.ListedPrice:N0} gil is under the {Plugin.Configuration.AutoMarketValueGateThresholdGil:N0} gil net threshold; pulling to {destinationHint}");
+          var ok = AutoMarketService.ExecutePull(captured, out var rc, out var destination);
+          if (ok)
+          {
+            _pulledThisRun++;
+            Svc.Log.Information($"[LMC] pulled RetainerMarket:{captured.Slot} item {captured.ItemId}{(captured.HQ ? " HQ" : "")} x{captured.Quantity} -> {destination} (rc={rc})");
+          }
+          else
+          {
+            Svc.Log.Warning($"[LMC] pull: FAILED - market#{captured.Slot} item {captured.ItemId}{(captured.HQ ? " HQ" : "")} x{captured.Quantity}: rc={rc}; leaving the listing on the board");
+          }
+          return true;
+        }, $"Pull{captured.Slot}", DelayAfterMs: 250));
+      }
     }
 
-    // Continuation: the actual listing plan build runs AFTER every pull has executed, against a
+    if (withdrawalSteps.Count == 0)
+      return BuildAndInsertListingSteps();
+
+    // Continuation: the actual listing plan build runs AFTER every withdrawal has executed, against a
     // fresh stock snapshot that includes what the pass just pulled back.
-    pullSteps.Add(new Step(BuildAndInsertListingSteps, "BuildPlanAfterPull"));
-    InsertSteps(pullSteps);
+    withdrawalSteps.Add(new Step(BuildAndInsertListingSteps, "BuildPlanAfterPull"));
+    InsertSteps(withdrawalSteps);
     return true;
   }
 
   private bool? BuildAndInsertListingSteps()
   {
-    var plan = AutoMarketService.BuildPlan(_gateQuotes);
+    var excluded = _delistedThisRetainer.Select(d => d.ItemId).ToHashSet();
+    var plan = AutoMarketService.BuildPlan(_gateQuotes, excluded);
     foreach (var note in plan.Notes)
       Svc.Log.Information($"[LMC] plan: {note}");
 
@@ -1674,7 +1720,7 @@ internal sealed class MarketAutomation : Window, IDisposable
   private void BuildVendoringSteps()
   {
     var held = AutoMarketService.HeldBackRules;
-    if (held.Count == 0)
+    if (held.Count == 0 && _delistedVendorOps.Count == 0)
       return;
 
     var stock = AutoMarketService.SnapshotStock();
@@ -1687,23 +1733,37 @@ internal sealed class MarketAutomation : Window, IDisposable
       prices[rule.ItemId] = AutoMarketService.VendorPrices(rule.ItemId);
     }
 
-    var plan = VendorPlanner.Plan(held, stock, prices, preferHq);
-    if (plan.Ops.Count == 0)
+    var plan = held.Count > 0 ? VendorPlanner.Plan(held, stock, prices, preferHq) : new VendorPlan([], []);
+    var ops = new List<VendorOp>(plan.Ops);
+    if (_delistedVendorOps.Count > 0)
+    {
+      ops.AddRange(_delistedVendorOps);
+    }
+
+    var seenSlots = new HashSet<(int Container, int Slot)>();
+    var uniqueOps = new List<VendorOp>();
+    foreach (var op in ops)
+    {
+      if (seenSlots.Add((op.Container, op.Slot)))
+        uniqueOps.Add(op);
+    }
+
+    if (uniqueOps.Count == 0)
     {
       foreach (var note in plan.Notes)
         Svc.Log.Information($"[LMC] plan: {note}");
       return;
     }
 
-    _vendorPlan = plan;
+    _vendorPlan = new VendorPlan(uniqueOps, plan.Notes);
     _vendorPlanPlaced = true;
-    Svc.Log.Information($"[LMC] plan: {plan.Ops.Count} vendor op(s): {string.Join(", ", plan.Ops.Select(o => $"{o.ContainerName()}:{o.Slot} item{o.ItemId}x{o.Quantity}"))}");
+    Svc.Log.Information($"[LMC] plan: {_vendorPlan.Ops.Count} vendor op(s): {string.Join(", ", _vendorPlan.Ops.Select(o => $"{o.ContainerName()}:{o.Slot} item{o.ItemId}x{o.Quantity}"))}");
     long est = 0;
-    foreach (var op in plan.Ops)
+    foreach (var op in _vendorPlan.Ops)
       est += op.EstGil;
-    _vendorPlannedCount = plan.Ops.Count;
+    _vendorPlannedCount = _vendorPlan.Ops.Count;
     if (Plugin.Configuration.ShowAutoMarketMessages)
-      Communicator.PrintInfo($"value gate: vendoring {plan.Ops.Count} stack(s) through the retainer (est {est:N0} gil)");
+      Communicator.PrintInfo($"value gate: vendoring {_vendorPlan.Ops.Count} stack(s) through the retainer (est {est:N0} gil)");
   }
 
   /// <summary>
@@ -3109,6 +3169,8 @@ internal sealed class MarketAutomation : Window, IDisposable
     _vendoredThisRun = 0;
     _vendorFailedThisRun = 0;
     _pulledThisRun = 0;
+    _delistedVendorOps.Clear();
+    _delistedThisRetainer.Clear();
     _routingMovedOk = 0;
     _routingMovedFail = 0;
     _reviewMovedOk = 0;

@@ -4265,6 +4265,140 @@ InventoryCases.Run((name, ok, detail) => Check(name, ok, detail));
   Check("130 vendor-op drop: dropped vendor item is not in listing candidates", !keptForListing.Any(r => r.ItemId == 5112));
 }
 
+// 131. DELIST UNDER-VENDOR LISTINGS (0.1.70.0). Active marketboard listings whose confirmed market net
+// is strictly below vendor value must be removed from the market board and routed to the retainer vendor leg.
+// (1) Under-vendor listing -> removed and vendored (market net < vendor value).
+// (2) Above-vendor listing -> untouched (market net >= vendor value).
+// (3) Unpriceable listing -> untouched (null quote, no data, stale quote, no quality quote; never remove blind).
+// (4) No-vendor-price listing -> untouched (Item-sheet PriceLow == 0).
+// (5) Pipeline integration: removal frees the retainer slot for listing, and the vendor leg executes the returned item.
+{
+  const long Fresh = 6 * 3_600_000L;
+  const long Now = 1_788_910_000_000L;
+
+  // Item 5594 (Dye): vendor PriceLow=10, PriceMid=20
+  // Item 5113: vendor PriceLow=10, PriceMid=20
+  // Item 9 (Ice Crystal): vendor PriceLow=0, PriceMid=0 (no vendor price)
+  // Item 99999: no sheet entry (PriceLow=0, PriceMid=0)
+  var vendorPrices = new Dictionary<uint, (uint PriceMid, uint PriceLow)>
+  {
+    [5594] = (20u, 10u),
+    [5113] = (20u, 10u),
+    [9] = (0u, 0u),
+    [99999] = (0u, 0u),
+  };
+
+  // Quotes:
+  // 5594: cheap (unit price 5g). For qty 5:
+  //   marketNet = 5 * 5 * 95 / 100 = 23g.
+  //   vendorValue = 5 * 10 = 50g.
+  //   marketNet (23g) < vendorValue (50g) -> REMOVE!
+  var cheapQuote = new ItemQuote(5594, true, Now, [new QuoteListing(5, false, false)]);
+
+  // 5113: dear (unit price 100g). For qty 5:
+  //   marketNet = 100 * 5 * 95 / 100 = 475g.
+  //   vendorValue = 5 * 10 = 50g.
+  //   marketNet (475g) >= vendorValue (50g) -> UNTOUCHED!
+  var dearQuote = new ItemQuote(5113, true, Now, [new QuoteListing(100, false, false)]);
+
+  // Boundary quote: unit price 11g, qty 1 -> net 11 * 95 / 100 = 10g. Vendor = 10g -> net == vendor -> untouched.
+  var boundaryQuote = new ItemQuote(5594, true, Now, [new QuoteListing(11, false, false)]);
+
+  // Unpriceable quotes for 5594:
+  var nullQuote = (ItemQuote?)null;
+  var noDataQuote = new ItemQuote(5594, false, Now, []);
+  var staleQuote = new ItemQuote(5594, true, Now - Fresh - 1, [new QuoteListing(5, false, false)]);
+  var noQualityQuote = new ItemQuote(5594, true, Now, [new QuoteListing(5, false, false)]); // NQ listing when rule/slot is HQ
+
+  // (1) Under-vendor listing -> removed and vendored
+  var underSlot = new MarketSlot(0, 5594, false, 5);
+  var inspectUnder = MarketDelist.Inspect(underSlot, cheapQuote, vendorPrices[5594], false, Now, Fresh);
+  Check("131 delist: under-vendor listing inspected as Remove",
+    inspectUnder.Verdict == DelistVerdict.Remove && inspectUnder.MarketNet == 23 && inspectUnder.VendorValue == 50);
+
+  // (2) Above-vendor listing -> untouched
+  var aboveSlot = new MarketSlot(1, 5113, false, 5);
+  var inspectAbove = MarketDelist.Inspect(aboveSlot, dearQuote, vendorPrices[5113], false, Now, Fresh);
+  Check("131 delist: above-vendor listing inspected as KeepAboveVendor",
+    inspectAbove.Verdict == DelistVerdict.KeepAboveVendor && inspectAbove.MarketNet == 475 && inspectAbove.VendorValue == 50);
+
+  // Exact boundary: market net == vendor value -> untouched
+  var boundarySlot = new MarketSlot(0, 5594, false, 1);
+  var inspectBoundary = MarketDelist.Inspect(boundarySlot, boundaryQuote, vendorPrices[5594], false, Now, Fresh);
+  Check("131 delist: boundary net == vendor value inspected as KeepAboveVendor (untouched)",
+    inspectBoundary.Verdict == DelistVerdict.KeepAboveVendor && inspectBoundary.MarketNet == 10 && inspectBoundary.VendorValue == 10);
+
+  // (3) Unpriceable -> untouched (never remove blind)
+  Check("131 delist unpriceable: null quote untouched",
+    MarketDelist.Inspect(underSlot, nullQuote, vendorPrices[5594], false, Now, Fresh).Verdict == DelistVerdict.KeepUnpriceable);
+  Check("131 delist unpriceable: hasData=false untouched",
+    MarketDelist.Inspect(underSlot, noDataQuote, vendorPrices[5594], false, Now, Fresh).Verdict == DelistVerdict.KeepUnpriceable);
+  Check("131 delist unpriceable: stale quote untouched",
+    MarketDelist.Inspect(underSlot, staleQuote, vendorPrices[5594], false, Now, Fresh).Verdict == DelistVerdict.KeepUnpriceable);
+  Check("131 delist unpriceable: missing quality quote untouched",
+    MarketDelist.Inspect(new MarketSlot(0, 5594, true, 5), noQualityQuote, vendorPrices[5594], true, Now, Fresh).Verdict == DelistVerdict.KeepUnpriceable);
+
+  // (4) No vendor price -> untouched
+  var noVendorSlot = new MarketSlot(2, 9, false, 10);
+  Check("131 delist no-vendor-price: PriceLow 0 untouched",
+    MarketDelist.Inspect(noVendorSlot, cheapQuote, vendorPrices[9], false, Now, Fresh).Verdict == DelistVerdict.KeepNoVendorPrice);
+
+  // (5) Delist plan and pipeline integration
+  var market = new List<MarketSlot>
+  {
+    new(0, 5594, false, 5),   // under-vendor -> Remove
+    new(1, 5113, false, 5),   // above-vendor -> KeepAboveVendor
+    new(2, 9, false, 10),     // no vendor price -> KeepNoVendorPrice
+    new(3, 88888, false, 5), // unpriceable (not in quotes) -> KeepUnpriceable
+  };
+  vendorPrices[88888] = (20u, 10u);
+  var planQuotes = new Dictionary<uint, ItemQuote>
+  {
+    [5594] = cheapQuote,
+    [5113] = dearQuote,
+  };
+
+  var plan = MarketDelist.Plan(market, vendorPrices, planQuotes, false, Now, Fresh, () => 10, () => true);
+  Check("131 delist plan: exactly slot 0 planned for removal",
+    plan.Ops.Count == 1 && plan.Ops[0].Slot == 0 && plan.Ops[0].ItemId == 5594 && plan.Ops[0].Quantity == 5);
+  Check("131 delist plan: summary counts match reporting style",
+    plan.RemovedCount == 1 && plan.KeptAboveVendorCount == 1 && plan.KeptNoVendorPriceCount == 1 && plan.KeptUnpriceableCount == 1);
+
+  // Old build comparison / proof: old MarketPull with threshold=0 or unmanaged rule leaves slot 0 on the board
+  var oldGate = new GateOptions(true, 0, Fresh);
+  var pullRules = new List<ItemRule> { new(5594, false, 99, 0, 0, 0, true, true, 0, 999) };
+  var oldPullPlan = MarketPull.Plan(market, new Dictionary<int, ulong> { [0] = 5 }, pullRules, planQuotes, oldGate, true, Now, () => 10, () => true);
+  Check("131 old-build proof: old MarketPull with threshold=0 provably leaves slot 0 on the board (0 pulls)",
+    oldPullPlan.Ops.Count == 0);
+
+  // (5b) Removal frees the retainer slot and vendor leg executes
+  var fullMarket = new List<MarketSlot>();
+  fullMarket.Add(new MarketSlot(0, 5594, false, 5)); // under-vendor
+  for (int s = 1; s < 20; s++)
+    fullMarket.Add(new MarketSlot(s, 5113, false, 5)); // all other slots occupied by dear item
+  
+  Check("131 budget: full market has NO listing budget before delist",
+    !AutoMarketPlanner.HasListingBudget(fullMarket, 0, 20));
+
+  var fullPlan = MarketDelist.Plan(fullMarket, vendorPrices, planQuotes, false, Now, Fresh, () => 10, () => true);
+  Check("131 delist: exactly slot 0 removed from full market",
+    fullPlan.Ops.Count == 1 && fullPlan.Ops[0].Slot == 0);
+
+  // Simulate slot 0 freed by removal
+  fullMarket[0] = new MarketSlot(0, 0, false, 0);
+  Check("131 budget: removal frees slot 0, opening listing budget",
+    AutoMarketPlanner.HasListingBudget(fullMarket, 0, 20));
+
+  // Vendor leg execution check: returned item lands in RetainerPage1:0 and produces a VendorOp
+  const int RetainerPage1 = 10000;
+  var delistedVendorOps = new List<VendorOp>
+  {
+    new(RetainerPage1, 0, fullPlan.Ops[0].ItemId, fullPlan.Ops[0].HQ, fullPlan.Ops[0].Quantity, fullPlan.Ops[0].VendorValue)
+  };
+  Check("131 vendor leg: returned item mapped to VendorOp in retainer inventory",
+    delistedVendorOps.Count == 1 && delistedVendorOps[0].Container == RetainerPage1 && delistedVendorOps[0].EstGil == 50);
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 

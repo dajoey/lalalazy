@@ -1,3 +1,12 @@
+## v0.1.70.0 (2026-09-27) [testing]
+
+### Fixed
+
+- **Active market listings priced below vendor value are delisted and routed to the vendor leg.** When a retainer's existing market board listing has a confirmed market price strictly below its NPC vendor price, Auto-Market now withdraws the item from the market board back into retainer inventory and hands it directly to the retainer vendor leg ("Have Retainer Sell Items").
+- **Delisted items never re-list during the same session and unburden market slots.** Withdrawing an under-vendor listing frees the retainer's market slot for profitable listings while preventing the delisted item from being re-evaluated for market listing on that pass.
+- Listings with unconfirmed market prices, stale data, or no Item-sheet vendor price remain untouched.
+- Offline suite: new case 131 pins the delist pass — delists under-vendor listings to the vendor leg, preserves above-vendor and at-vendor listings, leaves unpriced and unvendorable listings untouched, and confirms market slots are freed.
+
 ## v0.1.69.0 (2026-09-27)
 
 ### Fixed

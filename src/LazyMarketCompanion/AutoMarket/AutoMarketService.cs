@@ -79,7 +79,8 @@ internal static unsafe class AutoMarketService
     // 0.1.32.0: also ask about items currently LISTED under an enabled rule (the pull pass) - see
     // MarketGate.GateFetchIds' own remarks for why a listed-only item would otherwise never get
     // a quote at all.
-    return MarketGate.GateFetchIds(rules, SnapshotStock(), Plugin.Configuration.AutoMarketListPartialStacks, SnapshotMarket());
+    // 0.1.70.0: includeAllMarketSlots: true so all active listings get quotes to check against vendor value.
+    return MarketGate.GateFetchIds(rules, SnapshotStock(), Plugin.Configuration.AutoMarketListPartialStacks, SnapshotMarket(), includeAllMarketSlots: true);
   }
 
   /// <summary>
@@ -139,10 +140,13 @@ internal static unsafe class AutoMarketService
     return result;
   }
 
-  public static PlanResult BuildPlan(Dictionary<uint, ItemQuote>? gateQuotes = null)
+  public static PlanResult BuildPlan(Dictionary<uint, ItemQuote>? gateQuotes = null, IReadOnlyCollection<uint>? excludedItemIds = null)
   {
     var config = Plugin.Configuration;
     var rules = BuildEnabledRules();
+
+    if (excludedItemIds != null && excludedItemIds.Count > 0)
+      rules = rules.Where(r => !excludedItemIds.Contains(r.ItemId)).ToList();
 
     // Category routing (0.1.37.0): filter to what THIS retainer is eligible for BEFORE the value gate,
     // so a routed-elsewhere item is never listed here and never vendored here either - it is left
@@ -254,6 +258,24 @@ internal static unsafe class AutoMarketService
         var verdict = MarketGate.Decide(sellable, quote, rule.HQ, config.HQ, gateOptions, now);
         if (verdict == GateVerdict.List)
         {
+          // 0.1.70.0: even if above the flat gil threshold, never list when confirmed market net is below vendor price
+          var vendor = VendorPrices(rule.ItemId);
+          if (ItemVendorPrice.Vendorable(vendor.PriceLow))
+          {
+            var vendorUnit = ItemVendorPrice.UnitFor(rule.HQ, rule.HQ, vendor.PriceMid, vendor.PriceLow, config.HQ);
+            var mQuote = MarketGate.UsableQuote(quote, rule.HQ, config.HQ, now, freshnessMs);
+            if (vendorUnit > 0 && mQuote != null && mQuote > 0)
+            {
+              var vendorTotal = ItemVendorPrice.Total(vendorUnit, sellable);
+              var marketNet = MarketGate.NetRevenue(mQuote.Value, sellable);
+              if (marketNet < vendorTotal)
+              {
+                belowThreshold.Add(rule);
+                continue;
+              }
+            }
+          }
+
           kept.Add(rule);
           continue;
         }
@@ -586,6 +608,41 @@ internal static unsafe class AutoMarketService
   }
 
   // =====================================================================================
+  // Delist pass (0.1.70.0): removing active listings whose confirmed market net is below
+  // vendor price and routing them to the retainer vendor leg. See AutoMarket/MarketDelist.cs.
+  // =====================================================================================
+
+  /// <summary>
+  /// Builds this retainer's delist plan: active marketboard listings whose confirmed market net
+  /// is strictly below vendor price are planned for removal to inventory and vendored at the retainer.
+  /// </summary>
+  public static DelistPlan PlanDelists(Dictionary<uint, ItemQuote>? gateQuotes)
+  {
+    var config = Plugin.Configuration;
+    var market = SnapshotMarket();
+    var prices = new Dictionary<uint, (uint PriceMid, uint PriceLow)>();
+    foreach (var slot in market)
+    {
+      if (slot.ItemId == 0 || prices.ContainsKey(slot.ItemId))
+        continue;
+      prices[slot.ItemId] = VendorPrices(slot.ItemId);
+    }
+
+    var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+    var freshnessMs = (long)Math.Clamp(config.AutoMarketGateFreshnessHours, 1, 168) * 3_600_000L;
+
+    return MarketDelist.Plan(
+      market,
+      prices,
+      gateQuotes,
+      config.HQ,
+      now,
+      freshnessMs,
+      RetainerPageFreeSlot,
+      HasFreeBagSlot);
+  }
+
+  // =====================================================================================
   // Pull pass (0.1.32.0, t_4d12b8b0): pulling a below-threshold LISTING back into inventory so the
   // unchanged vendor leg below can sell it. See AutoMarket/MarketPull.cs for the decision table.
   // =====================================================================================
@@ -745,6 +802,50 @@ internal static unsafe class AutoMarketService
     var found = FindStack(landedTypes, op.ItemId, op.HQ, op.Quantity);
     if (found != null)
       destination = $"{NameOfContainer(found.Value.Container)}:{found.Value.Slot}";
+
+    return true;
+  }
+
+  /// <summary>
+  /// Issues the delist withdrawal call. Moves the under-vendor listing from RetainerMarket to
+  /// retainer inventory (or player bags). Confirms the slot emptied, finds where the stack landed,
+  /// and outputs landedContainer + landedSlot so the returned item can be directly addressed by the vendor leg.
+  /// </summary>
+  public static bool ExecuteDelist(DelistOp op, out int rc, out string destination, out int landedContainer, out int landedSlot)
+  {
+    rc = -1;
+    destination = op.Target == PullTarget.PlayerBags ? "player inventory" : "retainer inventory";
+    landedContainer = -1;
+    landedSlot = -1;
+
+    var manager = InventoryManager.Instance();
+    if (manager == null) return false;
+
+    var market = manager->GetInventoryContainer(InventoryType.RetainerMarket);
+    if (market == null || !market->IsLoaded) return false;
+    var before = market->GetInventorySlot(op.Slot);
+    if (before == null || before->ItemId != op.ItemId || before->Quantity != op.Quantity
+        || before->Flags.HasFlag(InventoryItem.ItemFlags.HighQuality) != op.HQ)
+      return false;
+
+    rc = op.Target == PullTarget.PlayerBags
+      ? manager->MoveFromRetainerMarketToPlayerInventory(InventoryType.RetainerMarket, (ushort)op.Slot, (uint)op.Quantity)
+      : manager->MoveFromRetainerMarketToRetainerInventory(InventoryType.RetainerMarket, (ushort)op.Slot, (uint)op.Quantity);
+    if (rc != 0)
+      return false;
+
+    var after = market->GetInventorySlot(op.Slot);
+    if (after != null && after->ItemId == op.ItemId)
+      return false;
+
+    var landedTypes = op.Target == PullTarget.PlayerBags ? PlayerBagTypes : RetainerPageTypes;
+    var found = FindStack(landedTypes, op.ItemId, op.HQ, op.Quantity);
+    if (found != null)
+    {
+      landedContainer = (int)found.Value.Container;
+      landedSlot = found.Value.Slot;
+      destination = $"{NameOfContainer(found.Value.Container)}:{found.Value.Slot}";
+    }
 
     return true;
   }
