@@ -1883,6 +1883,23 @@ internal unsafe class AutoRotationController
         {
             if (rotationMode is DPSRotationMode dpsmode)
             {
+                // Fork (1.0.4.241): "Use boss-mod targeting when active" — when the checkbox
+                // is on and BossMod Reborn's active module reports a priority target, that
+                // target supersedes the targeting-mode dropdown below (and, through it, the
+                // BST Crucible priority table, which lives inside DPSTargeting.BaseSelection).
+                // Every miss — checkbox off, no active module, no opinion, or a target that
+                // fails the standard enemy filter — falls through to the unchanged path.
+                if (cfg.DPSSettings.UseBossModTargeting)
+                {
+                    var bmrId = Data.Conflicts.ConflictingPluginsChecks.BossModReborn
+                        .GetPriorityTargetId();
+                    var bmrChara = bmrId == 0 ? null : bmrId.GetBattleChara();
+                    if (BossModTargetingGate.ShouldUseBossModTarget(
+                            cfg.DPSSettings.UseBossModTargeting, bmrId,
+                            bmrChara is not null && DPSTargeting.Query(bmrChara)))
+                        return LogBossModOverride(bmrChara!);
+                }
+
                 if (Player.Object?.Role is CombatRole.Tank ||
                     (Player.Job is Job.BLU && BLU.HasTankMimicry))
                 {
@@ -1933,6 +1950,26 @@ internal unsafe class AutoRotationController
             }
 
             return null;
+        }
+
+        /// <summary>Last actor id the boss-mod override selected; used to log acquisitions, not every tick.</summary>
+        private static ulong _lastBossModOverrideTargetId;
+
+        /// <summary>
+        ///     Emits one Debug line per boss-mod override ACQUISITION (target id change only)
+        ///     so post-play telemetry can verify the checkbox did what it says, without
+        ///     per-tick volume.
+        /// </summary>
+        private static IBattleChara LogBossModOverride(IBattleChara target)
+        {
+            if (target.GameObjectId != _lastBossModOverrideTargetId)
+            {
+                _lastBossModOverrideTargetId = target.GameObjectId;
+                PluginLog.Debug(
+                    $"[BossModTargeting] override -> {target.Name} ({target.GameObjectId})");
+            }
+
+            return target;
         }
 
         public static bool ExecuteAoE(Enum mode, Preset preset, PresetStorage.PresetData attributes, uint gameAct)
@@ -2240,7 +2277,10 @@ internal unsafe class AutoRotationController
 
     public class DPSTargeting
     {
-        private static bool Query(IBattleChara chara) =>
+        // Fork (1.0.4.241): internal so AutoRotationHelper's boss-mod targeting gate can
+        // validate the BMR-suggested actor through the exact same enemy filter the
+        // dropdown getters use. No behavior change.
+        internal static bool Query(IBattleChara chara) =>
             !chara.IsDead &&
             GetTargetCurrentHP(chara, true) > 0 &&
             chara.IsTargetable &&

@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- BMR targeting checkbox (v1.0.4.241): asserts the four-state semantics of
+       "Use boss-mod targeting when active" offline against the exact code that ships.
+       Plain console app, no Dalamud. Compiles the REAL
+       src/GluttonyCombo/GluttonyCombo/AutoRotation/BossModTargetingGate.cs — the pure
+       decision core GetSingleTarget consults before the DPS targeting-mode switch.
+       Any Dalamud type leaking into that file breaks this build, which is the point.
+         dotnet build tests/GluttonyCombo.BossModTargetingHarness -c Release
+         dotnet tests/GluttonyCombo.BossModTargetingHarness/bin/Release/net10.0/GluttonyCombo.BossModTargetingHarness.dll
+       Prints PASS/FAIL per case, "OK" and exit 0 when every case passes. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>GluttonyCombo.BossModTargetingHarness</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NoWarn>$(NoWarn);CS1574;CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\BossModTargetingGate.cs" Link="BossModTargetingGate.cs" />
+  </ItemGroup>
+</Project>

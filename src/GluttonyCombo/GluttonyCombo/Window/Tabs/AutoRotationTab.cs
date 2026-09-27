@@ -101,6 +101,18 @@ internal class AutoRotationTab : ConfigWindow
                 ref cfg.HealerRotationMode, "DPSRotationMode");
 
             ImGuiComponents.HelpMarker(AutoRotationUI.HelpText_DPSTargettingMode);
+
+            // Fork (1.0.4.241): boss-mod targeting supersede — decision core in
+            // AutoRotation/BossModTargetingGate.cs, BMR reads via BossMod.Hints.PriorityTarget.
+            changed |= ImGui.Checkbox(
+                "Use boss-mod targeting when active",
+                ref cfg.DPSSettings.UseBossModTargeting);
+            ImGuiComponents.HelpMarker(
+                "When BossMod Reborn has an active fight module with a priority target, " +
+                "the rotation targets what it says. With no active module, no target " +
+                "opinion, or this box unticked, the targeting mode above applies " +
+                "unchanged.");
+
             ImGui.Spacing();
 
             if (cfg.DPSRotationMode is DPSRotationMode.Manual)

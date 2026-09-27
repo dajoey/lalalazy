@@ -187,6 +187,9 @@ public class DPSSettingsIPCWrapper(DPSSettings settings)
     public float MaxDistance => settings.MaxDistance;
 
     public bool AoEIgnoreManual => settings.AoEIgnoreManual;
+
+    /// <summary>Fork (1.0.4.241): boss-mod targeting supersede — local-only setting, no IPC control.</summary>
+    public bool UseBossModTargeting => settings.UseBossModTargeting;
     
     public bool UnTargetAndDisableForPenalty
     {

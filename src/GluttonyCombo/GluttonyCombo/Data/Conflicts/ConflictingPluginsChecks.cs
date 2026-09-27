@@ -159,6 +159,12 @@ public static class ConflictingPluginsChecks
 
         internal void SetMaxDistanceToTarget(float distance) => IPC.SetMaxDistanceToTarget(distance);
 
+        /// <summary>
+        ///     Fork (1.0.4.241): BMR priority-target IPC accessor for the targeting bridge
+        ///     (0 = no active module / no opinion / BMR unavailable).
+        /// </summary>
+        internal ulong GetPriorityTargetId() => IPC.GetPriorityTargetId();
+
         internal bool IsAIActive() => IPC.IsAIActive();
 
 

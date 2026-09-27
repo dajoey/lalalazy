@@ -550,11 +550,41 @@ internal sealed class BossModIPC(
         return smartTargetEnabled;
     }
 
+    /// <summary>
+    ///     Fork (1.0.4.241): BossMod Reborn's fight-aware combat target for the active
+    ///     module — the forced target when a module demands one, otherwise the head of
+    ///     BMR's priority-target ordering. Returns 0 when BMR is absent or older than the
+    ///     endpoint, has no active module, or the module expresses no attackable opinion;
+    ///     callers (the "Use boss-mod targeting when active" checkbox path) fall back to
+    ///     their own targeting on 0.
+    /// </summary>
+    public ulong GetPriorityTargetId()
+    {
+        if (!IsEnabled || !PluginIsLoaded)
+            return 0ul;
+
+        try
+        {
+            return _priorityTarget();
+        }
+        catch (Exception e)
+        {
+            // Endpoint not registered by the installed BMR build (e.g. upstream
+            // replaced the fleet fork), or transient IPC failure: treat as no opinion.
+            PluginLog.Verbose($"[BossModTargeting] [{PluginName}] " +
+                              $"`Hints.PriorityTarget` unavailable: {e.Message}");
+            return 0ul;
+        }
+    }
+
 #pragma warning disable CS0649, CS8618 // Complaints of the method
     [EzIPC("BossMod.Rotation.ActionQueue.HasEntries", false)]
     private readonly Func<bool> _hasEntries = null!;
 
     [EzIPC("BossMod.Configuration.LastModified", false)]
     private readonly Func<DateTime> _lastModified = null!;
+
+    [EzIPC("BossMod.Hints.PriorityTarget", false)]
+    private readonly Func<ulong> _priorityTarget = null!;
 #pragma warning restore CS8618, CS0649
 }

@@ -38,6 +38,15 @@ public class DPSSettings
     public bool AoEIgnoreManual = false;
     public bool AoEOnlyWhenTargeting = false;
     public bool UnTargetAndDisableForPenalty = false;
+
+    /// <summary>
+    ///     Fork (1.0.4.241): "Use boss-mod targeting when active" — when on, BossMod
+    ///     Reborn's active-module priority target supersedes the DPS targeting mode
+    ///     (and the BST Crucible table) for single-target selection. Default false:
+    ///     unticked, behavior is byte-identical to pre-checkbox builds; missing key on
+    ///     existing installs deserializes to false.
+    /// </summary>
+    public bool UseBossModTargeting = false;
 }
 
 public class HealerSettings
