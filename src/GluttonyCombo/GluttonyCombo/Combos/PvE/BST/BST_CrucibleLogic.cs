@@ -506,15 +506,18 @@ internal static class BST_CrucibleLogic
 
     // ------------------------------------------------------------------ auto-targeting
 
-    /// <summary> One enemy auto-targeting could pick. <see cref="Avoid"/>: counter stance or invulnerable right now. </summary>
-    public readonly record struct TargetCandidate(uint NameId, float HpPercent, bool Avoid);
+    /// <summary>
+    ///     One enemy auto-targeting could pick. <see cref="Avoid"/> marks a counter stance that may be relaxed when
+    ///     nothing else is up; <see cref="DamageImmune"/> is an absolute exclusion.
+    /// </summary>
+    public readonly record struct TargetCandidate(uint NameId, float HpPercent, bool Avoid, bool DamageImmune = false);
 
     /// <summary> Paired enemies further apart than this (HP %) get balanced: the lower one is left alone. </summary>
     public const float PairHpGap = 10f;
 
     /// <summary>
-    ///     Which candidates auto-targeting may pick on a Crucible board: never eggs / morphos; enemies in a counter
-    ///     stance or invulnerable only when nothing else is up; priority adds first — and of the priority adds up, only
+    ///     Which candidates auto-targeting may pick on a Crucible board: never eggs / morphos or damage-immune enemies;
+    ///     enemies in a counter stance only when nothing else is up; priority adds first — and of the priority adds up, only
     ///     the most dangerous documented tier (<see cref="BST_CrucibleData.PriorityAddOrder"/>) until it is dead, so a
     ///     wave is cleared in the guides' kill order instead of nearest-first (live 2026-09-26: the siren wave's
     ///     shamblings were attacked ~5 s before the crawling piece whose touch breaks Unbeastable); of a pair that must
@@ -524,7 +527,8 @@ internal static class BST_CrucibleLogic
     {
         var allowed = new List<int>(candidates.Count);
         for (var i = 0; i < candidates.Count; i++)
-            if (!BST_CrucibleData.DoNotAttack.ContainsKey(candidates[i].NameId))
+            if (!candidates[i].DamageImmune
+                && !BST_CrucibleData.DoNotAttack.ContainsKey(candidates[i].NameId))
                 allowed.Add(i);
 
         var calm = allowed.FindAll(i => !candidates[i].Avoid);

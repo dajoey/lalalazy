@@ -1,7 +1,8 @@
 // Fork (1.0.4.241): pure decision core for the "Use boss-mod targeting when
 // active" checkbox. Deliberately free of Dalamud types so the offline harness
 // (tests/GluttonyCombo.BossModTargetingHarness) asserts the exact semantics that
-// ship; GetSingleTarget in AutoRotationController is the only runtime caller.
+// ship; AutoRotationController also reuses the status-immunity seam for dropdown,
+// AoE, and action-retarget fallback routing.
 
 namespace GluttonyCombo.AutoRotation;
 
@@ -28,6 +29,27 @@ namespace GluttonyCombo.AutoRotation;
 internal static class BossModTargetingGate
 {
     /// <summary>
+    ///     Applies the status-based damage-immunity guard after the caller's normal
+    ///     target-presence/usability checks.
+    /// </summary>
+    internal static bool IsTargetUsable(bool baseUsable, bool statusDamageImmune) =>
+        baseUsable && !statusDamageImmune;
+
+    /// <summary>
+    ///     Replaces a selected status-immune target with a caller-provided, already
+    ///     filtered fallback. A missing selection remains missing so Manual mode's
+    ///     no-target behavior is unchanged.
+    /// </summary>
+    internal static T? ResolveStatusImmuneTarget<T>(
+        T? selectedTarget,
+        bool selectedDamageImmune,
+        T? fallbackTarget)
+        where T : class =>
+        selectedTarget is not null && selectedDamageImmune
+            ? fallbackTarget
+            : selectedTarget;
+
+    /// <summary>
     ///     Whether this tick's DPS single-target choice should be the boss-mod target.
     ///     Checkbox off never overrides (byte-identical to pre-checkbox behavior). Checkbox
     ///     on overrides only on a non-zero id whose actor is usable and can take damage;
@@ -38,5 +60,7 @@ internal static class BossModTargetingGate
         ulong bossModTargetId,
         bool targetUsable,
         bool targetDamageImmune = false)
-        => checkboxOn && bossModTargetId != 0 && targetUsable && !targetDamageImmune;
+        => checkboxOn
+        && bossModTargetId != 0
+        && IsTargetUsable(targetUsable, targetDamageImmune);
 }

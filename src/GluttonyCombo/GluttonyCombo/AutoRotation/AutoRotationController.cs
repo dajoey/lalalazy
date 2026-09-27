@@ -1902,6 +1902,7 @@ internal unsafe class AutoRotationController
                             bmrDamageImmune))
                         return LogBossModOverride(bmrChara!);
                 }
+                _lastBossModOverrideTargetId = 0;
 
                 if (Player.Object?.Role is CombatRole.Tank ||
                     (Player.Job is Job.BLU && BLU.HasTankMimicry))
@@ -1918,7 +1919,7 @@ internal unsafe class AutoRotationController
                         DPSRotationMode.Furthest => DPSTargeting.GetFurthestTarget(),
                         _ => SimpleTarget.HardTarget,
                     };
-                    return target;
+                    return ResolveStatusImmuneTarget(target);
                 }
                 else
                 {
@@ -1934,7 +1935,7 @@ internal unsafe class AutoRotationController
                         DPSRotationMode.Furthest => DPSTargeting.GetFurthestTarget(),
                         _ => SimpleTarget.HardTarget,
                     };
-                    return target;
+                    return ResolveStatusImmuneTarget(target);
                 }
             }
             if (rotationMode is HealerRotationMode healermode)
@@ -1953,6 +1954,25 @@ internal unsafe class AutoRotationController
             }
 
             return null;
+        }
+
+        /// <summary>
+        ///     Final guard and filtered fallback for direct dropdown, manual AoE, and action-retargeting
+        ///     paths that can bypass <see cref="DPSTargeting.BaseSelection"/>.
+        ///     Outside a Crucible duty <see cref="Combos.PvE.BST.IsCrucibleDamageImmune"/> is always false.
+        /// </summary>
+        private static IBattleChara? ResolveStatusImmuneTarget(
+            IBattleChara? target,
+            IBattleChara? fallbackTarget = null)
+        {
+            var statusDamageImmune = target is not null
+                && Combos.PvE.BST.IsCrucibleDamageImmune(target);
+            if (statusDamageImmune && fallbackTarget is null)
+                fallbackTarget = DPSTargeting.GetNearestTarget();
+            return BossModTargetingGate.ResolveStatusImmuneTarget(
+                target,
+                statusDamageImmune,
+                fallbackTarget);
         }
 
         /// <summary>Last actor id the boss-mod override selected; used to log acquisitions, not every tick.</summary>
@@ -1990,7 +2010,9 @@ internal unsafe class AutoRotationController
             // Determine target according to rotation mode and AoE settings
 
             var useAutoTarget = cfg.DPSRotationMode != DPSRotationMode.Manual || (cfg.DPSRotationMode == DPSRotationMode.Manual && cfg.DPSSettings.AoEIgnoreManual && (!cfg.DPSSettings.AoEOnlyWhenTargeting || manualTarget is not null));
-            target = useAutoTarget ? autoTarget : manualTarget;
+            target = ResolveStatusImmuneTarget(
+                useAutoTarget ? autoTarget : manualTarget,
+                autoTarget);
 
             if ((target is not IBattleChara t || (!t.IsHostile() && !t.IsFriendly())) && cfg.PauseWhenNoTarget) return true;
 
@@ -2040,7 +2062,11 @@ internal unsafe class AutoRotationController
                 }
                 ulong targetId = target?.GameObjectId ?? 0;
                 var changed = CheckForChangedTarget(gameAct, ref targetId, out var replacedWith) && targetId != target?.GameObjectId;
-                if (changed) target = targetId.GetBattleChara();
+                if (changed)
+                {
+                    target = ResolveStatusImmuneTarget(targetId.GetBattleChara(), autoTarget);
+                    targetId = target?.GameObjectId ?? 0;
+                }
 
                 OverrideTarget = target ?? OverrideTarget;
                 uint outAct = OriginalHook(InvokeCombo(preset, attributes, ref gameAct, OverrideTarget));
@@ -2123,7 +2149,11 @@ internal unsafe class AutoRotationController
 
             ulong targetId = target?.GameObjectId ?? 0;
             var changed = CheckForChangedTarget(gameAct, ref targetId, out var replacedWith) && targetId != target?.GameObjectId;
-            if (changed) target = targetId.GetBattleChara();
+            if (changed)
+            {
+                target = ResolveStatusImmuneTarget(targetId.GetBattleChara());
+                targetId = target?.GameObjectId ?? 0;
+            }
 
             OverrideTarget = target ?? OverrideTarget;
             var outAct = OriginalHook(InvokeCombo(preset, attributes, ref gameAct, target));
@@ -2205,7 +2235,7 @@ internal unsafe class AutoRotationController
             if (canUse && (inRange || areaTargeted))
             {
                 WouldLikeToGroundTarget = areaTargeted;
-                if (changed)
+                if (changed && target is not null)
                     Svc.Log.Debug($"Updated target to {target.Name} for {replacedWith.ActionName()}");
                 // Friendly-only resolutions bypass ActionChanging: handing the hook `gameAct`
                 // makes it re-derive the action from the pressed damage button, which cannot be
@@ -2301,7 +2331,9 @@ internal unsafe class AutoRotationController
             {
                 var validTargets = Svc.Objects.GetBattleCharas()
                     .Where(Query)
-                    .Where(target => !Combos.PvE.BST.IsCrucibleDamageImmune(target))
+                    .Where(target => BossModTargetingGate.IsTargetUsable(
+                        baseUsable: true,
+                        statusDamageImmune: Combos.PvE.BST.IsCrucibleDamageImmune(target)))
                     .ToList();
 
                 if (cfg.DPSSettings.FATEPriority || cfg.DPSSettings.QuestPriority)

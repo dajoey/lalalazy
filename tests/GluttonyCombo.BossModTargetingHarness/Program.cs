@@ -31,6 +31,13 @@ void Check(string name, bool expected, bool actual)
     Console.WriteLine($"{(pass ? "PASS" : "FAIL")}  {name}: expected {expected}, got {actual}");
 }
 
+void CheckEqual<T>(string name, T expected, T actual)
+{
+    var pass = EqualityComparer<T>.Default.Equals(expected, actual);
+    if (!pass) failures++;
+    Console.WriteLine($"{(pass ? "PASS" : "FAIL")}  {name}: expected {expected}, got {actual}");
+}
+
 // 1. ON + active module + opinion -> the boss-mod target must win.
 Check("on+module+opinion overrides",
     expected: true,
@@ -73,6 +80,57 @@ Check("on+status-immune target falls back",
     actual: BossModTargetingGate.ShouldUseBossModTarget(
         checkboxOn: true, bossModTargetId: 0x1001234, targetUsable: true,
         targetDamageImmune: true));
+
+// The dropdown result itself is guarded too: direct modes such as Manual and
+// Tank Target bypass the candidate list, so an immune result must be rejected.
+Check("direct dropdown target with status immunity is rejected",
+    expected: false,
+    actual: BossModTargetingGate.IsTargetUsable(
+        baseUsable: true, statusDamageImmune: true));
+Check("direct dropdown attackable target is retained",
+    expected: true,
+    actual: BossModTargetingGate.IsTargetUsable(
+        baseUsable: true, statusDamageImmune: false));
+
+// All eight DPS dropdown values converge on this resolution seam after their
+// tank/non-tank switch has selected an actor.
+var dropdownModes = new[]
+{
+    "Manual", "Highest_Max", "Lowest_Max", "Highest_Current",
+    "Lowest_Current", "Tank_Target", "Nearest", "Furthest",
+};
+foreach (var mode in dropdownModes)
+    CheckEqual($"direct {mode} immune target selects attackable fallback",
+        expected: "sahagin",
+        actual: BossModTargetingGate.ResolveStatusImmuneTarget(
+            selectedTarget: "ymir",
+            selectedDamageImmune: true,
+            fallbackTarget: "sahagin"));
+
+CheckEqual("direct immune target with no attackable fallback returns none",
+    expected: null,
+    actual: BossModTargetingGate.ResolveStatusImmuneTarget(
+        selectedTarget: "ymir",
+        selectedDamageImmune: true,
+        fallbackTarget: null as string));
+CheckEqual("outside-Crucible/direct attackable selection is unchanged",
+    expected: "ymir",
+    actual: BossModTargetingGate.ResolveStatusImmuneTarget(
+        selectedTarget: "ymir",
+        selectedDamageImmune: false,
+        fallbackTarget: "sahagin"));
+CheckEqual("manual AoE (AoEIgnoreManual off) immune center selects filtered auto-target",
+    expected: "sahagin",
+    actual: BossModTargetingGate.ResolveStatusImmuneTarget(
+        selectedTarget: "ymir",
+        selectedDamageImmune: true,
+        fallbackTarget: "sahagin"));
+CheckEqual("manual AoE (AoEIgnoreManual on) keeps filtered auto-target",
+    expected: "sahagin",
+    actual: BossModTargetingGate.ResolveStatusImmuneTarget(
+        selectedTarget: "sahagin",
+        selectedDamageImmune: false,
+        fallbackTarget: "sahagin"));
 
 if (failures > 0)
 {

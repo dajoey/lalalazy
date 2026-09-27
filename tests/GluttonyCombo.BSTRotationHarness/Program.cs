@@ -347,12 +347,17 @@ internal static class Program
     {
         Console.WriteLine("-- crucible auto-targeting and beast picks --");
         List<int> Allowed(params BST_CrucibleLogic.TargetCandidate[] c) => BST_CrucibleLogic.AllowedTargets(c);
-        BST_CrucibleLogic.TargetCandidate C(uint nameId, float hp, bool avoid) => new(nameId, hp, avoid);
+        BST_CrucibleLogic.TargetCandidate C(uint nameId, float hp, bool avoid, bool damageImmune = false) =>
+            new(nameId, hp, avoid, damageImmune);
 
         Check("zu egg never allowed", Allowed(C(14575, 100f, false), C(14572, 100f, false)).SequenceEqual(new[] { 1 }));
         Check("only eggs up: nothing to target", Allowed(C(14575, 100f, false), C(14576, 100f, false)).Count == 0);
-        Check("stance / invulnerable skipped while another enemy is up", Allowed(C(14571, 100f, true), C(14570, 90f, false)).SequenceEqual(new[] { 1 }));
-        Check("everything to avoid: still targetable", Allowed(C(14571, 100f, true)).SequenceEqual(new[] { 0 }));
+        Check("counter stance skipped while another enemy is up", Allowed(C(14571, 100f, true), C(14570, 90f, false)).SequenceEqual(new[] { 1 }));
+        Check("only counter stance up: still targetable", Allowed(C(14571, 100f, true)).SequenceEqual(new[] { 0 }));
+        Check("status-immune Ymir skipped for an attackable Sahagin",
+            Allowed(C(14569, 100f, false, damageImmune: true), C(14571, 100f, false)).SequenceEqual(new[] { 1 }));
+        Check("only status-immune enemy up: nothing to target",
+            Allowed(C(14569, 100f, false, damageImmune: true)).Count == 0);
         Check("tablitaurs 80% / 50%: only the healthier", Allowed(C(14555, 80f, false), C(14556, 50f, false)).SequenceEqual(new[] { 0 }));
         Check("tablitaurs 60% / 55%: both", Allowed(C(14555, 60f, false), C(14556, 55f, false)).Count == 2);
         Check("Loosefrox 30% / Chewchum 70%: Chewchum", Allowed(C(14561, 30f, false), C(14562, 70f, false)).SequenceEqual(new[] { 1 }));

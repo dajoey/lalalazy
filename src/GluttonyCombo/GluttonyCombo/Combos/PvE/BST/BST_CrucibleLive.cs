@@ -61,15 +61,21 @@ internal partial class BST
         foreach (var t in targets)
         {
             var inStance = false;
+            var damageImmune = false;
             foreach (var status in t.StatusList)
             {
                 if (BST_CrucibleData.StanceStatuses.Contains(status.StatusId))
-                {
                     inStance = true;
+                if (BST_CrucibleData.IsDamageImmunityStatus(status.StatusId))
+                    damageImmune = true;
+                if (inStance && damageImmune)
                     break;
-                }
             }
-            candidates.Add(new(t.NameId, t.MaxHp == 0 ? 0f : 100f * t.CurrentHp / t.MaxHp, inStance));
+            candidates.Add(new(
+                t.NameId,
+                t.MaxHp == 0 ? 0f : 100f * t.CurrentHp / t.MaxHp,
+                inStance,
+                damageImmune));
         }
 
         var allowed = BST_CrucibleLogic.AllowedTargets(candidates);
