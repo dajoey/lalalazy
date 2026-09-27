@@ -78,11 +78,18 @@ without a confirmed vendor price (§1).
 ## 3. Keep-N reserve — one floor, all stock, exhausted last
 
 The keep floor for an item is `max(KeepInBags, KeepInRetainer)` — one number,
-counted across **all** sellable stock of that item and quality: bags, retainer
-pages, **and active market listings** (a listing is stock). The vendor leg may
-only vendor units beyond that floor, taken largest-stack-first (existing
+counted across **bags and retainer pages together**. The vendor leg may only
+vendor units beyond that floor, taken largest-stack-first (existing
 sort). Listing may use stock above the floor freely; the floor itself is never
 listed or vendored.
+
+**Active market listings never reduce the floor.** A listing is a pending
+SALE, not a reserve: stock the board is already selling is on its way out, so
+it cannot stand in for units the player asked to keep. (Correction
+2026-09-27, before implementation: an earlier draft of this section counted
+listings toward the floor — "a listing is stock" — which would let 500
+listings substitute for a keep-500 reserve and vendor 450 units of stock the
+moment the board filled in. The reserve must survive the board selling out.)
 
 Rationale: "keep 500" means *keep 500*, not "keep 500 only where the config
 field happens to be checked". On 2026-09-27 a keep-500 item lost its whole
@@ -159,7 +166,7 @@ protecting the window.) Recovery of incident losses depends on this window.
 | # | 2026-09-27 defect | Mechanism in 0.1.70.0 | Design element that forbids it | Suite proof |
 |---|---|---|---|---|
 | D1 | 999+ super-ethers (market value > vendor price) vendored | `BuildPlan` compared `marketNet < vendorTotal` with sheet-fantasy `vendorTotal` (e.g. 399,996 gil for a 4-stack) → routed to vendor leg | §1/§4: vendor price never decides anything above the bounded threshold; the comparison does not exist | Case 130: sentinel sheet price + confirmed live market quote → zero vendor ops, Hold |
-| D2 | keep-500 reserve ignored | reserve was per-origin (retainer keep 0 ⇒ whole retainer stack vendored); delist hand-off appended raw ops bypassing the planner | §3: one global floor across bags + retainer + listings; §3 invariant: only VendorPlanner builds ops | Case 131: 100 in bags + 198 on retainer, keep 500 → 0 vendored; Case 132: floor counts active listings |
+| D2 | keep-500 reserve ignored | reserve was per-origin (retainer keep 0 ⇒ whole retainer stack vendored); delist hand-off appended raw ops bypassing the planner | §3: one global floor across bags + retainer + listings; §3 invariant: only VendorPlanner builds ops | Case 131: 100 in bags + 198 on retainer, keep 500 → 0 vendored; Case 132: listings never reduce the floor
 | D3 | gear worth tens of thousands vendored | same fantasy comparison routed HQ gear to the vendor leg | §4: NQ-only and non-equippable-only junk path; HQ and gear always Hold | Case 133: HQ gear below threshold → Hold, zero vendor ops |
 | D4 | marketboard listings removed, retainer sale slots left EMPTY | delist pass removed listings with no backfill contract; read-back race made the planner run on a stale container | §2: delist withdrawn; §5: rebuild from fresh snapshot, freed slot → listing or logged hold; bounded read-back retry | Case 134: pull frees a slot → same-plan backfill op or hold note; stale-snapshot probe replans from fresh data |
 
