@@ -146,9 +146,10 @@ decisions are computed and logged (`[AM][dry-run] would vendor …`, `would
 list …`, `would pull …`) and **not executed**. The full decision core runs —
 that is the point: a real session over real inventory shows exactly what the
 build would do, at zero risk. Turning it off is one config toggle. The offline
-suite replays recorded incident inventory states (§8) through the core with
-dry-run on and asserts the decision log contains holds — and that no executor
-is reached.
+suite replays recorded incident inventory states (§9) through the decision
+core and asserts holds and zero planned actions — no executor is reached. The
+dry-run gates themselves are automation-layer code; their `[AM][dry-run]` log
+format is not suite-pinned in 0.2.0.0 (deferred to the next build's suite).
 
 ## 7. The vendor buyback window is a protected resource
 
@@ -170,9 +171,13 @@ protecting the window.) Recovery of incident losses depends on this window.
 | D3 | gear worth tens of thousands vendored | same fantasy comparison routed HQ gear to the vendor leg | §4: NQ-only and non-equippable-only junk path; HQ and gear always Hold | Case 133: HQ gear below threshold → Hold, zero vendor ops |
 | D4 | marketboard listings removed, retainer sale slots left EMPTY | delist pass removed listings with no backfill contract; read-back race made the planner run on a stale container | §2: delist withdrawn; §5: rebuild from fresh snapshot, freed slot → listing or logged hold; bounded read-back retry | Case 134: pull frees a slot → same-plan backfill op or hold note; stale-snapshot probe replans from fresh data |
 
-Plus: Case 135 pins the buyback gate never confirming (§7); Case 136 replays
-the recorded incident fixtures (below) end-to-end through the dry-run core and
-asserts holds-only.
+Plus: case 127 pins the buyback gate never confirming (§7); case 135 replays
+the recorded incident fixtures (below) end-to-end through the decision core
+and asserts zero vendor/pull actions (every listing untouched, stock held);
+case 136 pins the pull pass (confirmed below-threshold only — an unconfirmed
+quote keeps the listing on the board). Numbering corrected 2026-09-27 at
+review (the pre-integration draft's 135/136 shifted when the buyback pin
+landed in the existing case 127).
 
 ## 9. Recorded incident fixtures (from the 2026-09-27 telemetry)
 
