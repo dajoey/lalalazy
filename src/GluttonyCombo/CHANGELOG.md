@@ -1,3 +1,11 @@
+## v1.0.4.241 (2026-09-27) [testing]
+### Added
+- **New option: "Use boss-mod targeting when active" (Auto-Rotation → Damage settings).** When ticked and a BossMod Reborn fight module is active, auto-targeting follows the boss mod's priority target — the module's forced target when it demands one, otherwise the head of its own priority list — instead of the targeting-mode dropdown. Requires the fleet BossMod Reborn build 7.5.6.24 or newer.
+### Notes
+- With no boss mod active, no target opinion from the module, or the box unticked, the targeting mode above applies exactly as before; the setting defaults to off and changes nothing until ticked.
+- A boss-mod suggestion that points at a dead, untargetable or out-of-range enemy is ignored rather than followed, so the rotation never stalls on an unusable target.
+- Production channel unchanged.
+
 ## v1.0.4.240 (2026-09-27) [testing]
 ### Fixed
 - **Crucible: add waves now clear in the guides' kill order instead of nearest-first.** When several priority adds are up at once, auto-targeting locks onto the most dangerous documented one until it is dead: the siren's crawling piece (its touch is Bind plus Damage Down) goes before the shamblings, the treant fight clears biloko, then sapling, then diremite before any slug, and the woken Thanatos, the progenitrix's grenade, the boogyman's self-destructing bomb and the moogle finale's coin-stealing Mogmugger each take precedence inside their own wave.
