@@ -1,22 +1,6 @@
-## v0.1.70.0 (2026-09-27) [testing]
+## v0.1.71.0 (2026-09-27) [testing] - emergency reversion to v0.1.68.0
 
-### Fixed
-
-- **Active market listings priced below vendor value are delisted and routed to the vendor leg.** When a retainer's existing market board listing has a confirmed market price strictly below its NPC vendor price, Auto-Market now withdraws the item from the market board back into retainer inventory and hands it directly to the retainer vendor leg ("Have Retainer Sell Items").
-- **Delisted items never re-list during the same session and unburden market slots.** Withdrawing an under-vendor listing frees the retainer's market slot for profitable listings while preventing the delisted item from being re-evaluated for market listing on that pass.
-- Listings with unconfirmed market prices, stale data, or no Item-sheet vendor price remain untouched.
-- Offline suite: new case 131 pins the delist pass — delists under-vendor listings to the vendor leg, preserves above-vendor and at-vendor listings, leaves unpriced and unvendorable listings untouched, and confirms market slots are freed.
-
-## v0.1.69.0 (2026-09-27)
-
-### Fixed
-
-- **Items with no confirmed market price are now held rather than listed blind on the market board.** When Universalis has no price data for an item (timeouts, missing listings of the requested quality, or stale records), Auto-Market previously listed the item unchecked under the assumption that uncertainty should list. When the market price was below vendor value, this caused items to list on the board for less than the vendor would have paid. Unpriced stock is now held in inventory for the next run's pricing without listing or vendoring.
-
-- **Retainer vendor ops dropped when the item command hook is inactive are explicitly reported as failed and held.** If the retainer item-command hook is disabled or uninitialized, vendor operations are rejected, logged, and held rather than being reported as successful sales.
-
-- Offline suite: new case 130 pins the value gate hold behavior — unpriced items with stock are held back from both listing and vendoring, priced items below threshold vendor, priced items above threshold list, and dropped vendor ops never fall through to listing.
-
+- **Reversion build: plugin code is identical to v0.1.68.0.** The v0.1.69.0 and v0.1.70.0 Auto-Market changes are withdrawn from the testing channel while a serious defect observed on v0.1.70.0 (market items vendored when their market value was higher, the keep-in-bags reserve bypassed, and withdrawn marketboard slots left empty) is investigated and fixed offline. This build is versioned above the withdrawn ones only so clients on those updates roll back automatically (Dalamud ignores downgrades); behavior returns exactly to v0.1.68.0.
 ## v0.1.68.0 (2026-09-22)
 
 ### Fixed

@@ -20,7 +20,6 @@
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\AllaganFlags.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\MarketGate.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\MarketPull.cs" />
-    <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\MarketDelist.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\RoutingMove.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\ReviewSweep.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\VendorPlanner.cs" />

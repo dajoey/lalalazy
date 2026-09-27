@@ -1,4 +1,4 @@
-using ECommons;
+﻿using ECommons;
 using ECommons.DalamudServices;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
@@ -79,8 +79,7 @@ internal static unsafe class AutoMarketService
     // 0.1.32.0: also ask about items currently LISTED under an enabled rule (the pull pass) - see
     // MarketGate.GateFetchIds' own remarks for why a listed-only item would otherwise never get
     // a quote at all.
-    // 0.1.70.0: includeAllMarketSlots: true so all active listings get quotes to check against vendor value.
-    return MarketGate.GateFetchIds(rules, SnapshotStock(), Plugin.Configuration.AutoMarketListPartialStacks, SnapshotMarket(), includeAllMarketSlots: true);
+    return MarketGate.GateFetchIds(rules, SnapshotStock(), Plugin.Configuration.AutoMarketListPartialStacks, SnapshotMarket());
   }
 
   /// <summary>
@@ -140,13 +139,10 @@ internal static unsafe class AutoMarketService
     return result;
   }
 
-  public static PlanResult BuildPlan(Dictionary<uint, ItemQuote>? gateQuotes = null, IReadOnlyCollection<uint>? excludedItemIds = null)
+  public static PlanResult BuildPlan(Dictionary<uint, ItemQuote>? gateQuotes = null)
   {
     var config = Plugin.Configuration;
     var rules = BuildEnabledRules();
-
-    if (excludedItemIds != null && excludedItemIds.Count > 0)
-      rules = rules.Where(r => !excludedItemIds.Contains(r.ItemId)).ToList();
 
     // Category routing (0.1.37.0): filter to what THIS retainer is eligible for BEFORE the value gate,
     // so a routed-elsewhere item is never listed here and never vendored here either - it is left
@@ -248,7 +244,6 @@ internal static unsafe class AutoMarketService
       var gateOptions = new GateOptions(true, Math.Max(config.AutoMarketValueGateThresholdGil, 0), freshnessMs);
       kept = new List<ItemRule>(rules.Count);
       var belowThreshold = new List<ItemRule>();
-      var heldUnpriced = new List<ItemRule>();
 
       foreach (var rule in rules)
       {
@@ -258,44 +253,22 @@ internal static unsafe class AutoMarketService
         var verdict = MarketGate.Decide(sellable, quote, rule.HQ, config.HQ, gateOptions, now);
         if (verdict == GateVerdict.List)
         {
-          // 0.1.70.0: even if above the flat gil threshold, never list when confirmed market net is below vendor price
-          var vendor = VendorPrices(rule.ItemId);
-          if (ItemVendorPrice.Vendorable(vendor.PriceLow))
-          {
-            var vendorUnit = ItemVendorPrice.UnitFor(rule.HQ, rule.HQ, vendor.PriceMid, vendor.PriceLow, config.HQ);
-            var mQuote = MarketGate.UsableQuote(quote, rule.HQ, config.HQ, now, freshnessMs);
-            if (vendorUnit > 0 && mQuote != null && mQuote > 0)
-            {
-              var vendorTotal = ItemVendorPrice.Total(vendorUnit, sellable);
-              var marketNet = MarketGate.NetRevenue(mQuote.Value, sellable);
-              if (marketNet < vendorTotal)
-              {
-                belowThreshold.Add(rule);
-                continue;
-              }
-            }
-          }
-
           kept.Add(rule);
           continue;
         }
 
         // 0.1.12.0: the request SUCCEEDED and priced this item at or under the threshold, so the
         // below-threshold vendor leg takes it - "Have Retainer Sell Items", no market slot, no fee.
+        // The old 0.1.11.0 "hold it" is gone; only an uncertainty (request failed/null below) still holds.
         if (verdict == GateVerdict.Vendor)
         {
           belowThreshold.Add(rule);
           continue;
         }
 
-        // 0.1.69.0: stock with no confirmed price is HELD (neither listed nor vendored). Listing
-        // blind bypassed the value gate and put items on the market board below their vendor price;
-        // vendoring blind would be irreversible on a guess. Holding is the safe default until priced.
-        if (verdict == GateVerdict.HoldBack)
-        {
-          heldUnpriced.Add(rule);
-          continue;
-        }
+        // Impossible with the current Decide (uncertainty returns List), kept as the polarity pin:
+        // a HoldBack verdict that reaches the priced gate is a data bug, not a sell decision.
+        kept.Add(rule);
       }
 
       // 0.1.30.0: the Item-sheet lookup runs HERE, before the announce. A below-threshold item the
@@ -328,23 +301,37 @@ internal static unsafe class AutoMarketService
         if (Plugin.Configuration.ShowAutoMarketMessages)
           Communicator.PrintInfo($"value gate: {unvendorable.Count} item(s) below the threshold cannot be vendored (no vendor price); left in place, not listed: {names}");
       }
-      if (heldUnpriced.Count > 0)
-      {
-        var names = string.Join(", ", heldUnpriced.Select(r => r.ItemId.ToString() + (r.HQ ? " HQ" : "")));
-        Svc.Log.Information($"[LMC] gate: {heldUnpriced.Count} item(s) have no confirmed market price; left in place, not listed: {names}");
-      }
 
-      var stockedRules = rules.Where(r => MarketGate.PotentialSellable(r, stock, config.AutoMarketListPartialStacks) > 0).ToList();
-      var sight = MarketGate.CountSight(rules, quotes, config.HQ, now, freshnessMs, stock, config.AutoMarketListPartialStacks);
-      if (sight.Unpriceable > 0)
+      // The clean / no-data sight announce describes a sweep the gate held NOTHING back on, so it
+      // must stay out of the way of BOTH held sets. Before 0.1.30.0 only the vendored set gated it;
+      // once item 9 moved to the unvendorable set, an unchanged "else" here would have printed
+      // "every item is above the threshold" on a sweep that had just held one back - trading one
+      // honesty wart for another.
+      if (vendored.Count == 0 && unvendorable.Count == 0 && kept.Count > 0)
       {
-        Svc.Log.Warning($"[LMC] gate: no price data for {sight.Unpriceable} of {sight.Judged + sight.Unpriceable} item(s) with stock to sell ({stockedRules.Count} of {rules.Count} enabled item(s) have stock) - the {gateOptions.ThresholdGil:N0} gil net threshold was NOT checked for those; held, not listed");
-        if (Plugin.Configuration.ShowAutoMarketMessages)
-          Communicator.PrintInfo($"value gate: no price data for {sight.Unpriceable} of {sight.Judged + sight.Unpriceable} item(s) with stock; held, not listed - holding until priced");
-      }
-      else if (vendored.Count == 0 && unvendorable.Count == 0 && kept.Count > 0)
-      {
-        Svc.Log.Information($"[LMC] gate: every item is above the {gateOptions.ThresholdGil:N0} gil net threshold (checked {sight.Judged} of {rules.Count} enabled item(s), {stockedRules.Count} with stock)");
+        // 0.1.19.0: the old line printed identically whether every item was JUDGED above the
+        // threshold or NOTHING was judged at all (failed request -> null quotes -> every rule
+        // unpriceable -> every rule lists). On the 2026-09-07 runs the fetch 504'd and this same
+        // line announced a check that never happened while below-threshold stock listed blind.
+        // Fully-judged keeps the old wording; anything less says how many items the threshold
+        // was NOT checked for.
+        // 0.1.23.0: the sight count and both announce branches are judged over the STOCKED set -
+        // the same rules GateFetchIds asked Universalis about - with the fully-stocked count in
+        // the log line so a degenerate "every list entry has nothing to sell" sweep is still
+        // visible and auditable. The 0.1.19.0 whole-list count made every no-stock rule read
+        // unpriceable (no quote is ever fetched for it), so on the live config (~257 entries,
+        // ~25 stocked) the no-data warning printed on EVERY sweep and the clean
+        // "every item is above the threshold" line was unreachable.
+        var stockedRules = rules.Where(r => MarketGate.PotentialSellable(r, stock, config.AutoMarketListPartialStacks) > 0).ToList();
+        var sight = MarketGate.CountSight(rules, quotes, config.HQ, now, freshnessMs, stock, config.AutoMarketListPartialStacks);
+        if (sight.Unpriceable == 0)
+          Svc.Log.Information($"[LMC] gate: every item is above the {gateOptions.ThresholdGil:N0} gil net threshold (checked {sight.Judged} of {rules.Count} enabled item(s), {stockedRules.Count} with stock)");
+        else
+        {
+          Svc.Log.Warning($"[LMC] gate: no price data for {sight.Unpriceable} of {sight.Judged + sight.Unpriceable} item(s) with stock to sell ({stockedRules.Count} of {rules.Count} enabled item(s) have stock) - the {gateOptions.ThresholdGil:N0} gil net threshold was NOT checked for those; they list (uncertainty lists, never vendors)");
+          if (Plugin.Configuration.ShowAutoMarketMessages)
+            Communicator.PrintInfo($"value gate: no price data for {sight.Unpriceable} of {sight.Judged + sight.Unpriceable} item(s) with stock; they will list unchecked - vendoring still only fires on a confirmed price");
+        }
       }
     }
 
@@ -598,48 +585,9 @@ internal static unsafe class AutoMarketService
     }
 
     var module = (nint)AgentModule.Instance()->GetAgentByInternalId(AgentId.Retainer) + 40;
-    if (!Plugin.RetainerItemCommand(module, (uint)op.Slot, (InventoryType)op.Container, 0, RetainerItemCommand.HaveRetainerSellItem))
-    {
-      Svc.Log.Warning($"[LMC] vendor: hook inactive; vendor op dropped for {(InventoryType)op.Container}:{op.Slot} item {op.ItemId}; holding stock (not vendored, not listed)");
-      return false;
-    }
+    Plugin.RetainerItemCommand(module, (uint)op.Slot, (InventoryType)op.Container, 0, RetainerItemCommand.HaveRetainerSellItem);
     Svc.Log.Information($"[LMC] vendored {(InventoryType)op.Container}:{op.Slot} item {op.ItemId}{(op.HQ ? " HQ" : "")} x{op.Quantity} (est {op.EstGil:N0} gil)");
     return true;
-  }
-
-  // =====================================================================================
-  // Delist pass (0.1.70.0): removing active listings whose confirmed market net is below
-  // vendor price and routing them to the retainer vendor leg. See AutoMarket/MarketDelist.cs.
-  // =====================================================================================
-
-  /// <summary>
-  /// Builds this retainer's delist plan: active marketboard listings whose confirmed market net
-  /// is strictly below vendor price are planned for removal to inventory and vendored at the retainer.
-  /// </summary>
-  public static DelistPlan PlanDelists(Dictionary<uint, ItemQuote>? gateQuotes)
-  {
-    var config = Plugin.Configuration;
-    var market = SnapshotMarket();
-    var prices = new Dictionary<uint, (uint PriceMid, uint PriceLow)>();
-    foreach (var slot in market)
-    {
-      if (slot.ItemId == 0 || prices.ContainsKey(slot.ItemId))
-        continue;
-      prices[slot.ItemId] = VendorPrices(slot.ItemId);
-    }
-
-    var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-    var freshnessMs = (long)Math.Clamp(config.AutoMarketGateFreshnessHours, 1, 168) * 3_600_000L;
-
-    return MarketDelist.Plan(
-      market,
-      prices,
-      gateQuotes,
-      config.HQ,
-      now,
-      freshnessMs,
-      RetainerPageFreeSlot,
-      HasFreeBagSlot);
   }
 
   // =====================================================================================
@@ -802,50 +750,6 @@ internal static unsafe class AutoMarketService
     var found = FindStack(landedTypes, op.ItemId, op.HQ, op.Quantity);
     if (found != null)
       destination = $"{NameOfContainer(found.Value.Container)}:{found.Value.Slot}";
-
-    return true;
-  }
-
-  /// <summary>
-  /// Issues the delist withdrawal call. Moves the under-vendor listing from RetainerMarket to
-  /// retainer inventory (or player bags). Confirms the slot emptied, finds where the stack landed,
-  /// and outputs landedContainer + landedSlot so the returned item can be directly addressed by the vendor leg.
-  /// </summary>
-  public static bool ExecuteDelist(DelistOp op, out int rc, out string destination, out int landedContainer, out int landedSlot)
-  {
-    rc = -1;
-    destination = op.Target == PullTarget.PlayerBags ? "player inventory" : "retainer inventory";
-    landedContainer = -1;
-    landedSlot = -1;
-
-    var manager = InventoryManager.Instance();
-    if (manager == null) return false;
-
-    var market = manager->GetInventoryContainer(InventoryType.RetainerMarket);
-    if (market == null || !market->IsLoaded) return false;
-    var before = market->GetInventorySlot(op.Slot);
-    if (before == null || before->ItemId != op.ItemId || before->Quantity != op.Quantity
-        || before->Flags.HasFlag(InventoryItem.ItemFlags.HighQuality) != op.HQ)
-      return false;
-
-    rc = op.Target == PullTarget.PlayerBags
-      ? manager->MoveFromRetainerMarketToPlayerInventory(InventoryType.RetainerMarket, (ushort)op.Slot, (uint)op.Quantity)
-      : manager->MoveFromRetainerMarketToRetainerInventory(InventoryType.RetainerMarket, (ushort)op.Slot, (uint)op.Quantity);
-    if (rc != 0)
-      return false;
-
-    var after = market->GetInventorySlot(op.Slot);
-    if (after != null && after->ItemId == op.ItemId)
-      return false;
-
-    var landedTypes = op.Target == PullTarget.PlayerBags ? PlayerBagTypes : RetainerPageTypes;
-    var found = FindStack(landedTypes, op.ItemId, op.HQ, op.Quantity);
-    if (found != null)
-    {
-      landedContainer = (int)found.Value.Container;
-      landedSlot = found.Value.Slot;
-      destination = $"{NameOfContainer(found.Value.Container)}:{found.Value.Slot}";
-    }
 
     return true;
   }

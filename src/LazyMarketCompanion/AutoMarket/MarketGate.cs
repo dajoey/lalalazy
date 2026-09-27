@@ -59,11 +59,10 @@ public sealed record GateOptions(bool Enabled, long ThresholdGil, long Freshness
 public sealed record RuleQuote(long UnitPrice, double VelocityPerDay);
 
 /// <summary>
-/// The Auto-Market value gate and listing order (0.1.11.0, updated 0.1.69.0). Both halves share one
-/// Universalis fetch and one rule: UNCONFIRMED STOCK IS HELD. Listing blind on uncertainty bypassed
-/// the value gate and put items on the market board below their vendor price; vendoring blind would
-/// be irreversible on a guess. Every "cannot tell" case - no data, stale data, no listing of the wanted
-/// quality, a failed request - is held back in inventory for the next run's pricing.
+/// The Auto-Market value gate and listing order (0.1.11.0). Both halves share one Universalis fetch
+/// and one rule: UNCERTAINTY ALWAYS LISTS. Vendoring an item on a guess is irreversible; listing an
+/// item the gate should have held costs a market slot until it sells. Every "cannot tell" case - no
+/// data, stale data, no listing of the wanted quality, a failed request - falls on the reversible side.
 /// </summary>
 public static class MarketGate
 {
@@ -77,7 +76,7 @@ public static class MarketGate
   /// ones, which is the difference between a request Universalis answers and the 504 Gateway
   /// Timeout that blinded every sweep that day.
   /// </summary>
-  public static List<uint> GateFetchIds(IReadOnlyList<ItemRule> rules, IReadOnlyList<StockStack> stock, bool listPartialStacks, IReadOnlyList<MarketSlot>? market = null, bool includeAllMarketSlots = false)
+  public static List<uint> GateFetchIds(IReadOnlyList<ItemRule> rules, IReadOnlyList<StockStack> stock, bool listPartialStacks, IReadOnlyList<MarketSlot>? market = null)
   {
     var ids = new List<uint>();
     foreach (var rule in rules)
@@ -94,15 +93,13 @@ public static class MarketGate
     // could never be judged - no quote means uncertainty, and uncertainty never pulls. This ADDS
     // ids for items currently sitting in an occupied market slot under an enabled rule of the same
     // quality; it never removes or changes anything the stocked-only fetch above already asked for.
-    // 0.1.70.0 (the delist pass): when includeAllMarketSlots is true, quotes are fetched for every
-    // occupied market slot on the retainer so under-vendor listings can be judged and delisted.
     if (market != null)
     {
       foreach (var slot in market)
       {
         if (slot.ItemId == 0 || ids.Contains(slot.ItemId))
           continue;
-        if (!includeAllMarketSlots && !rules.Any(r => r.ItemId == slot.ItemId && r.HQ == slot.HQ))
+        if (!rules.Any(r => r.ItemId == slot.ItemId && r.HQ == slot.HQ))
           continue;
         ids.Add(slot.ItemId);
       }
@@ -238,12 +235,11 @@ public static class MarketGate
   }
 
   /// <summary>
-  /// The gate for one item AFTER the request has completed: judged on its total sellable value at
-  /// the current board price, net of the 5% market fee. An item must be worth STRICTLY more than the
-  /// threshold to list - at exactly or under the threshold it is VENDORED (0.1.12.0). Every unpriced
-  /// or uncertain case (null quote, no data, stale data, or no listing of the wanted quality) is HELD
-  /// (0.1.69.0) - never listed (which would bypass the vendor threshold), never vendored (which would
-  /// be irreversible on a guess).
+  /// The gate for one item AFTER the request has completed successfully: judged on its total sellable
+  /// value at the current board price, net of the 5% market fee. An item must be worth STRICTLY more
+  /// than the threshold to list - at exactly the threshold it is VENDORED (0.1.12.0), every
+  /// "cannot tell" still LISTS. Caller contract: a request that fails, times out or returns no data
+  /// NEVER calls this function - such rules go straight to HoldBack without a verdict-of-record.
   /// </summary>
   public static GateVerdict Decide(long sellableQuantity, ItemQuote? quote, bool ruleIsHq, bool preferHq, GateOptions options, long nowUnixMs)
   {
@@ -252,13 +248,13 @@ public static class MarketGate
     if (sellableQuantity <= 0)
       return GateVerdict.List;
     if (quote == null || !quote.HasData)
-      return GateVerdict.HoldBack;
+      return GateVerdict.List;
     if (quote.LastUploadUnixMs <= 0 || nowUnixMs - quote.LastUploadUnixMs > options.FreshnessMs)
-      return GateVerdict.HoldBack;
+      return GateVerdict.List;
 
     var unit = CheapestUnitPrice(quote, ruleIsHq, preferHq);
     if (unit == null || unit <= 0)
-      return GateVerdict.HoldBack;
+      return GateVerdict.List;
 
     return NetRevenue(unit.Value, sellableQuantity) > options.ThresholdGil
       ? GateVerdict.List

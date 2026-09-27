@@ -1,4 +1,4 @@
-using LazyMarketCompanion;
+﻿using LazyMarketCompanion;
 using LazyMarketCompanion.AutoMarket;
 
 // Offline tests for the Auto-Market planner. Prints PASS/FAIL per case, exits non-zero on any FAIL.
@@ -1225,15 +1225,15 @@ var Catalogue = new (uint Id, string Name)[]
   var justAbove = new ItemQuote(5111, true, Now, [new(1054, false, false)]);
   Check("gate: one gil above the threshold lists", MarketGate.Decide(1, justAbove, false, true, gate, Now) == GateVerdict.List);
 
-  // THE unconfirmed-data cases: uncertain data must HOLD BACK (0.1.69.0), never list blind, never vendor
+  // THE vendor-polarity cases: uncertain data must LIST, never hold, even at price 1 with threshold 1000
   var oneGil = new ItemQuote(5111, true, Now, [new(1, false, false)]);
   var strictGate = new GateOptions(true, 1_000, Fresh);
-  Check("gate: STALE data held back, never vendored for pennies, never listed blind",
-    MarketGate.Decide(99, stale, false, true, strictGate, Now) == GateVerdict.HoldBack);
-  Check("gate: missing lastUploadTime held back", MarketGate.Decide(99, noUploadTs, false, true, strictGate, Now) == GateVerdict.HoldBack);
-  Check("gate: hasData=false held back", MarketGate.Decide(99, new ItemQuote(5111, false, Now, []), false, true, strictGate, Now) == GateVerdict.HoldBack);
-  Check("gate: no listing of the quality held back", MarketGate.Decide(99, noListing, false, true, strictGate, Now) == GateVerdict.HoldBack);
-  Check("gate: null quote held back", MarketGate.Decide(99, null, false, true, strictGate, Now) == GateVerdict.HoldBack);
+  Check("gate: STALE data lists, never vendored for pennies, never held back",
+    MarketGate.Decide(99, stale, false, true, strictGate, Now) == GateVerdict.List);
+  Check("gate: missing lastUploadTime lists", MarketGate.Decide(99, noUploadTs, false, true, strictGate, Now) == GateVerdict.List);
+  Check("gate: hasData=false lists", MarketGate.Decide(99, new ItemQuote(5111, false, Now, []), false, true, strictGate, Now) == GateVerdict.List);
+  Check("gate: no listing of the quality lists", MarketGate.Decide(99, noListing, false, true, strictGate, Now) == GateVerdict.List);
+  Check("gate: null quote lists", MarketGate.Decide(99, null, false, true, strictGate, Now) == GateVerdict.List);
   Check("gate: gate off lists even the pennies item",
     MarketGate.Decide(99, oneGil, false, true, new GateOptions(false, 1_000, Fresh), Now) == GateVerdict.List);
   Check("gate: threshold 0 is inert (lists)", MarketGate.Decide(99, oneGil, false, true, new GateOptions(true, 0, Fresh), Now) == GateVerdict.List);
@@ -1346,12 +1346,12 @@ var Catalogue = new (uint Id, string Name)[]
     && MarketGate.Decide(1, new ItemQuote(5111, true, Now, [new(1053, false, false)]), false, true, gate, Now) == GateVerdict.Vendor);
   Check("vendor: just above threshold lists", MarketGate.Decide(1, new ItemQuote(5111, true, Now, [new(1054, false, false)]), false, true, gate, Now) == GateVerdict.List);
 
-  // THE vendor-uncertainty battery, mirrored from case 36: every one holds back (never vendors, never lists blind)
-  Check("vendor: STALE data never vendors (held back)", MarketGate.Decide(99, new ItemQuote(5111, true, Now - 7 * 3_600_000L, [new(1, false, false)]), false, true, gate, Now) == GateVerdict.HoldBack);
-  Check("vendor: no lastUploadTime never vendors (held back)", MarketGate.Decide(99, new ItemQuote(5111, true, 0, [new(1, false, false)]), false, true, gate, Now) == GateVerdict.HoldBack);
-  Check("vendor: hasData=false never vendors (held back)", MarketGate.Decide(99, new ItemQuote(5111, false, Now, []), false, true, gate, Now) == GateVerdict.HoldBack);
-  Check("vendor: no listing of the quality never vendors (held back)", MarketGate.Decide(99, new ItemQuote(5111, true, Now, []), false, true, gate, Now) == GateVerdict.HoldBack);
-  Check("vendor: null quote never vendors (held back)", MarketGate.Decide(99, null, false, true, gate, Now) == GateVerdict.HoldBack);
+  // THE vendor-uncertainty battery, mirrored from case 36: every one LISTS (never vendors)
+  Check("vendor: STALE data never vendors", MarketGate.Decide(99, new ItemQuote(5111, true, Now - 7 * 3_600_000L, [new(1, false, false)]), false, true, gate, Now) == GateVerdict.List);
+  Check("vendor: no lastUploadTime never vendors", MarketGate.Decide(99, new ItemQuote(5111, true, 0, [new(1, false, false)]), false, true, gate, Now) == GateVerdict.List);
+  Check("vendor: hasData=false never vendors", MarketGate.Decide(99, new ItemQuote(5111, false, Now, []), false, true, gate, Now) == GateVerdict.List);
+  Check("vendor: no listing of the quality never vendors", MarketGate.Decide(99, new ItemQuote(5111, true, Now, []), false, true, gate, Now) == GateVerdict.List);
+  Check("vendor: null quote never vendors", MarketGate.Decide(99, null, false, true, gate, Now) == GateVerdict.List);
   Check("vendor: gate off never vendors", MarketGate.Decide(99, cheap, false, true, new GateOptions(false, 1_000, Fresh), Now) == GateVerdict.List);
   Check("vendor: threshold 0 never vendors", MarketGate.Decide(99, cheap, false, true, new GateOptions(true, 0, Fresh), Now) == GateVerdict.List);
   Check("vendor: zero sellable never vendors", MarketGate.Decide(0, cheap, false, true, gate, Now) == GateVerdict.List);
@@ -4172,234 +4172,6 @@ InventoryCases.Run((name, ok, detail) => Check(name, ok, detail));
     blind.Quotes == null && blind.FailedChunks == 3, $"failed={blind.FailedChunks}");
 }
 
-// 130. UNPRICED STOCK HELD BACK (0.1.69.0). When Universalis cannot price an item (null quote,
-// stale quote, no data, no listings of requested quality), stock with no confirmed market price is
-// HELD (neither listed nor vendored) rather than listing blind and bypassing the vendor value gate.
-// (1) Unpriced item -> held not listed (GateVerdict.HoldBack).
-// (2) Priced below-threshold -> vendored (GateVerdict.Vendor).
-// (3) Priced above-threshold -> listed (GateVerdict.List).
-// (4) Dropped vendor op -> held, not listed.
-{
-  const long Fresh = 6 * 3_600_000L;
-  const long Now = 1_788_900_000_000L;
-  var gate = new GateOptions(true, 1_000, Fresh);
-
-  // Items:
-  // 5111: stocked, unpriced (null quote, stale quote, hasData=false, no quality listing)
-  // 5112: stocked, priced cheap (unit 10 -> net 950 <= 1000 threshold -> Vendor)
-  // 5113: stocked, priced dear (unit 200 -> net 19000 > 1000 threshold -> List)
-  var unpricedQuoteNull = (ItemQuote?)null;
-  var unpricedQuoteNoData = new ItemQuote(5111, false, Now, []);
-  var unpricedQuoteStale = new ItemQuote(5111, true, Now - Fresh - 1, [new QuoteListing(500, false, false)]);
-  var unpricedQuoteNoQuality = new ItemQuote(5111, true, Now, [new QuoteListing(500, false, false)]);
-
-  // (1) Unpriced item returns HoldBack
-  Check("130 unpriced: null quote returns HoldBack (not List)",
-    MarketGate.Decide(10, unpricedQuoteNull, false, true, gate, Now) == GateVerdict.HoldBack);
-  Check("130 unpriced: hasData=false returns HoldBack",
-    MarketGate.Decide(10, unpricedQuoteNoData, false, true, gate, Now) == GateVerdict.HoldBack);
-  Check("130 unpriced: stale quote returns HoldBack",
-    MarketGate.Decide(10, unpricedQuoteStale, false, true, gate, Now) == GateVerdict.HoldBack);
-  Check("130 unpriced: missing quality listing returns HoldBack",
-    MarketGate.Decide(10, unpricedQuoteNoQuality, true, true, gate, Now) == GateVerdict.HoldBack);
-
-  // (2) Below-threshold item returns Vendor
-  var cheapQuote = new ItemQuote(5112, true, Now, [new QuoteListing(10, false, false)]);
-  Check("130 priced: below threshold returns Vendor",
-    MarketGate.Decide(100, cheapQuote, false, true, gate, Now) == GateVerdict.Vendor);
-
-  // (3) Above-threshold item returns List
-  var dearQuote = new ItemQuote(5113, true, Now, [new QuoteListing(200, false, false)]);
-  Check("130 priced: above threshold returns List",
-    MarketGate.Decide(100, dearQuote, false, true, gate, Now) == GateVerdict.List);
-
-  // (4) Planning integration: unpriced stock and vendor-dropped stock are never in the listing plan
-  var rules = new List<ItemRule>
-  {
-    new(5111, false, 99, 0, 0, 0, true, true, 0, 999),
-    new(5112, false, 99, 0, 0, 0, true, true, 0, 999),
-    new(5113, false, 99, 0, 0, 0, true, true, 0, 999),
-  };
-  var stock = new List<StockStack>
-  {
-    new(StockOrigin.Bags, Bags1, 0, 5111, false, 100),
-    new(StockOrigin.Bags, Bags1, 1, 5112, false, 100),
-    new(StockOrigin.Bags, Bags1, 2, 5113, false, 100),
-  };
-  var quotes = new Dictionary<uint, ItemQuote>
-  {
-    [5112] = cheapQuote,
-    [5113] = dearQuote,
-  };
-
-  var keptForListing = new List<ItemRule>();
-  var forVendoring = new List<ItemRule>();
-  var heldUnpriced = new List<ItemRule>();
-  foreach (var r in rules)
-  {
-    quotes.TryGetValue(r.ItemId, out var q);
-    var sellable = MarketGate.PotentialSellable(r, stock, false);
-    var v = MarketGate.Decide(sellable, q, r.HQ, true, gate, Now);
-    if (v == GateVerdict.List) keptForListing.Add(r);
-    else if (v == GateVerdict.Vendor) forVendoring.Add(r);
-    else if (v == GateVerdict.HoldBack) heldUnpriced.Add(r);
-  }
-
-  Check("130 pipeline: unpriced rule held back", heldUnpriced.Count == 1 && heldUnpriced[0].ItemId == 5111);
-  Check("130 pipeline: cheap rule routed to vendor", forVendoring.Count == 1 && forVendoring[0].ItemId == 5112);
-  Check("130 pipeline: dear rule kept for listing", keptForListing.Count == 1 && keptForListing[0].ItemId == 5113);
-
-  var listingPlan = AutoMarketPlanner.Plan(keptForListing, stock, EmptyMarket(), Opts());
-  Check("130 pipeline: listing plan lists dear item", listingPlan.Ops.Any(o => o.ItemId == 5113));
-  Check("130 pipeline: listing plan NEVER lists unpriced item", listingPlan.Ops.All(o => o.ItemId != 5111));
-  Check("130 pipeline: listing plan NEVER lists vendor item", listingPlan.Ops.All(o => o.ItemId != 5112));
-
-  var vendorPrices = new Dictionary<uint, (uint PriceMid, uint PriceLow)>
-  {
-    [5112] = (10u, 10u),
-  };
-  var vendorPlan = VendorPlanner.Plan(forVendoring, stock, vendorPrices, true);
-  Check("130 pipeline: vendor plan plans cheap item", vendorPlan.Ops.Any(o => o.ItemId == 5112));
-  Check("130 pipeline: vendor plan NEVER plans unpriced item", vendorPlan.Ops.All(o => o.ItemId != 5111));
-
-  Check("130 vendor-op drop: dropped vendor item is not in listing candidates", !keptForListing.Any(r => r.ItemId == 5112));
-}
-
-// 131. DELIST UNDER-VENDOR LISTINGS (0.1.70.0). Active marketboard listings whose confirmed market net
-// is strictly below vendor value must be removed from the market board and routed to the retainer vendor leg.
-// (1) Under-vendor listing -> removed and vendored (market net < vendor value).
-// (2) Above-vendor listing -> untouched (market net >= vendor value).
-// (3) Unpriceable listing -> untouched (null quote, no data, stale quote, no quality quote; never remove blind).
-// (4) No-vendor-price listing -> untouched (Item-sheet PriceLow == 0).
-// (5) Pipeline integration: removal frees the retainer slot for listing, and the vendor leg executes the returned item.
-{
-  const long Fresh = 6 * 3_600_000L;
-  const long Now = 1_788_910_000_000L;
-
-  // Item 5594 (Dye): vendor PriceLow=10, PriceMid=20
-  // Item 5113: vendor PriceLow=10, PriceMid=20
-  // Item 9 (Ice Crystal): vendor PriceLow=0, PriceMid=0 (no vendor price)
-  // Item 99999: no sheet entry (PriceLow=0, PriceMid=0)
-  var vendorPrices = new Dictionary<uint, (uint PriceMid, uint PriceLow)>
-  {
-    [5594] = (20u, 10u),
-    [5113] = (20u, 10u),
-    [9] = (0u, 0u),
-    [99999] = (0u, 0u),
-  };
-
-  // Quotes:
-  // 5594: cheap (unit price 5g). For qty 5:
-  //   marketNet = 5 * 5 * 95 / 100 = 23g.
-  //   vendorValue = 5 * 10 = 50g.
-  //   marketNet (23g) < vendorValue (50g) -> REMOVE!
-  var cheapQuote = new ItemQuote(5594, true, Now, [new QuoteListing(5, false, false)]);
-
-  // 5113: dear (unit price 100g). For qty 5:
-  //   marketNet = 100 * 5 * 95 / 100 = 475g.
-  //   vendorValue = 5 * 10 = 50g.
-  //   marketNet (475g) >= vendorValue (50g) -> UNTOUCHED!
-  var dearQuote = new ItemQuote(5113, true, Now, [new QuoteListing(100, false, false)]);
-
-  // Boundary quote: unit price 11g, qty 1 -> net 11 * 95 / 100 = 10g. Vendor = 10g -> net == vendor -> untouched.
-  var boundaryQuote = new ItemQuote(5594, true, Now, [new QuoteListing(11, false, false)]);
-
-  // Unpriceable quotes for 5594:
-  var nullQuote = (ItemQuote?)null;
-  var noDataQuote = new ItemQuote(5594, false, Now, []);
-  var staleQuote = new ItemQuote(5594, true, Now - Fresh - 1, [new QuoteListing(5, false, false)]);
-  var noQualityQuote = new ItemQuote(5594, true, Now, [new QuoteListing(5, false, false)]); // NQ listing when rule/slot is HQ
-
-  // (1) Under-vendor listing -> removed and vendored
-  var underSlot = new MarketSlot(0, 5594, false, 5);
-  var inspectUnder = MarketDelist.Inspect(underSlot, cheapQuote, vendorPrices[5594], false, Now, Fresh);
-  Check("131 delist: under-vendor listing inspected as Remove",
-    inspectUnder.Verdict == DelistVerdict.Remove && inspectUnder.MarketNet == 23 && inspectUnder.VendorValue == 50);
-
-  // (2) Above-vendor listing -> untouched
-  var aboveSlot = new MarketSlot(1, 5113, false, 5);
-  var inspectAbove = MarketDelist.Inspect(aboveSlot, dearQuote, vendorPrices[5113], false, Now, Fresh);
-  Check("131 delist: above-vendor listing inspected as KeepAboveVendor",
-    inspectAbove.Verdict == DelistVerdict.KeepAboveVendor && inspectAbove.MarketNet == 475 && inspectAbove.VendorValue == 50);
-
-  // Exact boundary: market net == vendor value -> untouched
-  var boundarySlot = new MarketSlot(0, 5594, false, 1);
-  var inspectBoundary = MarketDelist.Inspect(boundarySlot, boundaryQuote, vendorPrices[5594], false, Now, Fresh);
-  Check("131 delist: boundary net == vendor value inspected as KeepAboveVendor (untouched)",
-    inspectBoundary.Verdict == DelistVerdict.KeepAboveVendor && inspectBoundary.MarketNet == 10 && inspectBoundary.VendorValue == 10);
-
-  // (3) Unpriceable -> untouched (never remove blind)
-  Check("131 delist unpriceable: null quote untouched",
-    MarketDelist.Inspect(underSlot, nullQuote, vendorPrices[5594], false, Now, Fresh).Verdict == DelistVerdict.KeepUnpriceable);
-  Check("131 delist unpriceable: hasData=false untouched",
-    MarketDelist.Inspect(underSlot, noDataQuote, vendorPrices[5594], false, Now, Fresh).Verdict == DelistVerdict.KeepUnpriceable);
-  Check("131 delist unpriceable: stale quote untouched",
-    MarketDelist.Inspect(underSlot, staleQuote, vendorPrices[5594], false, Now, Fresh).Verdict == DelistVerdict.KeepUnpriceable);
-  Check("131 delist unpriceable: missing quality quote untouched",
-    MarketDelist.Inspect(new MarketSlot(0, 5594, true, 5), noQualityQuote, vendorPrices[5594], true, Now, Fresh).Verdict == DelistVerdict.KeepUnpriceable);
-
-  // (4) No vendor price -> untouched
-  var noVendorSlot = new MarketSlot(2, 9, false, 10);
-  Check("131 delist no-vendor-price: PriceLow 0 untouched",
-    MarketDelist.Inspect(noVendorSlot, cheapQuote, vendorPrices[9], false, Now, Fresh).Verdict == DelistVerdict.KeepNoVendorPrice);
-
-  // (5) Delist plan and pipeline integration
-  var market = new List<MarketSlot>
-  {
-    new(0, 5594, false, 5),   // under-vendor -> Remove
-    new(1, 5113, false, 5),   // above-vendor -> KeepAboveVendor
-    new(2, 9, false, 10),     // no vendor price -> KeepNoVendorPrice
-    new(3, 88888, false, 5), // unpriceable (not in quotes) -> KeepUnpriceable
-  };
-  vendorPrices[88888] = (20u, 10u);
-  var planQuotes = new Dictionary<uint, ItemQuote>
-  {
-    [5594] = cheapQuote,
-    [5113] = dearQuote,
-  };
-
-  var plan = MarketDelist.Plan(market, vendorPrices, planQuotes, false, Now, Fresh, () => 10, () => true);
-  Check("131 delist plan: exactly slot 0 planned for removal",
-    plan.Ops.Count == 1 && plan.Ops[0].Slot == 0 && plan.Ops[0].ItemId == 5594 && plan.Ops[0].Quantity == 5);
-  Check("131 delist plan: summary counts match reporting style",
-    plan.RemovedCount == 1 && plan.KeptAboveVendorCount == 1 && plan.KeptNoVendorPriceCount == 1 && plan.KeptUnpriceableCount == 1);
-
-  // Old build comparison / proof: old MarketPull with threshold=0 or unmanaged rule leaves slot 0 on the board
-  var oldGate = new GateOptions(true, 0, Fresh);
-  var pullRules = new List<ItemRule> { new(5594, false, 99, 0, 0, 0, true, true, 0, 999) };
-  var oldPullPlan = MarketPull.Plan(market, new Dictionary<int, ulong> { [0] = 5 }, pullRules, planQuotes, oldGate, true, Now, () => 10, () => true);
-  Check("131 old-build proof: old MarketPull with threshold=0 provably leaves slot 0 on the board (0 pulls)",
-    oldPullPlan.Ops.Count == 0);
-
-  // (5b) Removal frees the retainer slot and vendor leg executes
-  var fullMarket = new List<MarketSlot>();
-  fullMarket.Add(new MarketSlot(0, 5594, false, 5)); // under-vendor
-  for (int s = 1; s < 20; s++)
-    fullMarket.Add(new MarketSlot(s, 5113, false, 5)); // all other slots occupied by dear item
-  
-  Check("131 budget: full market has NO listing budget before delist",
-    !AutoMarketPlanner.HasListingBudget(fullMarket, 0, 20));
-
-  var fullPlan = MarketDelist.Plan(fullMarket, vendorPrices, planQuotes, false, Now, Fresh, () => 10, () => true);
-  Check("131 delist: exactly slot 0 removed from full market",
-    fullPlan.Ops.Count == 1 && fullPlan.Ops[0].Slot == 0);
-
-  // Simulate slot 0 freed by removal
-  fullMarket[0] = new MarketSlot(0, 0, false, 0);
-  Check("131 budget: removal frees slot 0, opening listing budget",
-    AutoMarketPlanner.HasListingBudget(fullMarket, 0, 20));
-
-  // Vendor leg execution check: returned item lands in RetainerPage1:0 and produces a VendorOp
-  const int RetainerPage1 = 10000;
-  var delistedVendorOps = new List<VendorOp>
-  {
-    new(RetainerPage1, 0, fullPlan.Ops[0].ItemId, fullPlan.Ops[0].HQ, fullPlan.Ops[0].Quantity, fullPlan.Ops[0].VendorValue)
-  };
-  Check("131 vendor leg: returned item mapped to VendorOp in retainer inventory",
-    delistedVendorOps.Count == 1 && delistedVendorOps[0].Container == RetainerPage1 && delistedVendorOps[0].EstGil == 50);
-}
-
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
-
 
