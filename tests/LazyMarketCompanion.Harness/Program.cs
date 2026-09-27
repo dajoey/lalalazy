@@ -4222,7 +4222,7 @@ InventoryCases.Run((name, ok, detail) => Check(name, ok, detail));
   };
   var stock = new List<StockStack>
   {
-    new(StockOrigin.Bags, Bags1, 0, 5111, false, 10),
+    new(StockOrigin.Bags, Bags1, 0, 5111, false, 100),
     new(StockOrigin.Bags, Bags1, 1, 5112, false, 100),
     new(StockOrigin.Bags, Bags1, 2, 5113, false, 100),
   };
