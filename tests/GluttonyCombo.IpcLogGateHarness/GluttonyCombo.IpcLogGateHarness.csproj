@@ -22,5 +22,6 @@
   <ItemGroup>
     <Compile Include="Program.cs" />
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Services\IPC\LogEmitGate.cs" Link="LogEmitGate.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Services\IPC\LeaseSuspensionGate.cs" Link="LeaseSuspensionGate.cs" />
   </ItemGroup>
 </Project>

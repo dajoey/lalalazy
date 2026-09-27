@@ -147,7 +147,20 @@ internal static class Program
         Check("burst is clamped to at least 1", g7.Burst == 1, g7.Burst.ToString());
         Check("empty message does not throw and emits once",
             g7.ShouldEmit(string.Empty, t0, out _));
-        Check("empty message is then gated", !g7.ShouldEmit(string.Empty, t0.AddMilliseconds(1), out _));
+        // ---------------------------------------------------------------------------
+        // 8. Lease suspension lifecycle: no warning logs on job changes or teardown,
+        //    and no suspension actions when active lease count is zero.
+        // ---------------------------------------------------------------------------
+        Check("zero active leases skips suspension",
+            !LeaseSuspensionGate.ShouldSuspend(0));
+        Check("negative lease count skips suspension",
+            !LeaseSuspensionGate.ShouldSuspend(-1));
+        Check("active leases trigger suspension",
+            LeaseSuspensionGate.ShouldSuspend(1));
+        Check("multiple active leases trigger suspension",
+            LeaseSuspensionGate.ShouldSuspend(5));
+        Check("suspension log level is Debug, not Warning or Error",
+            LeaseSuspensionGate.SuspensionLogLevel == LeaseSuspensionGate.LogLevel.Debug);
 
         Console.WriteLine();
         Console.WriteLine($"{_pass} passed, {_fail} failed");

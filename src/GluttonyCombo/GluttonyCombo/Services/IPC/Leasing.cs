@@ -771,9 +771,12 @@ public partial class Leasing
     /// <seealso cref="RemoveRegistration" />
     internal void SuspendLeases(CancellationReasonEnum? reason = null)
     {
+        if (!LeaseSuspensionGate.ShouldSuspend(Registrations.Count))
+            return;
+
         var reasonToUse = reason ?? CancellationReasonEnum.AllServicesSuspended;
 
-        Logging.Warn("Suspending all leases.");
+        Logging.Log("Suspending all leases.");
 
         // dispose every lease in _registrations
         foreach (var registration in Registrations.Values)

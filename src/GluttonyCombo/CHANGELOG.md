@@ -1,3 +1,9 @@
+## v1.0.4.243 (2026-09-27) [testing]
+### Fixed
+- **IPC lease suspension no longer logs spurious warnings on job change and plugin teardown.** Routine lease revocation is treated as normal lifecycle cleanup and logs at Debug level only when active leases exist, eliminating false-positive warning spam when changing jobs.
+### Notes
+- Production channel unchanged.
+
 ## v1.0.4.242 (2026-09-27) [testing]
 ### Fixed
 - **Crucible auto-targeting now skips enemies protected by damage-immunity statuses.** Boss-mod overrides and normal targeting-mode selections reject status-based immunity (including Ymir's Vulnerability Down) and choose an attackable enemy instead of holding the rotation on an invulnerable target.
