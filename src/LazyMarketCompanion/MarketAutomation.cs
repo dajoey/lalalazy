@@ -1721,7 +1721,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     // so the announce and the plan cannot drift apart. The keep floor is max(KeepInBags,
     // KeepInRetainer) over bags + retainer stock inside the planner; active listings never
     // reduce it (a listing is a pending sale, not a reserve).
-    var plan = VendorPlanner.Plan(held, stock, prices, preferHq, AutoMarketService.IsEquippable);
+    var plan = VendorPlanner.Plan(held, stock, prices, preferHq, r => AutoMarketService.IsEquippable(r.ItemId));
     if (plan.Ops.Count == 0)
     {
       foreach (var note in plan.Notes)
