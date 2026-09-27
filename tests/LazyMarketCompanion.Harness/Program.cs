@@ -1,4 +1,4 @@
-﻿using LazyMarketCompanion;
+using LazyMarketCompanion;
 using LazyMarketCompanion.AutoMarket;
 
 // Offline tests for the Auto-Market planner. Prints PASS/FAIL per case, exits non-zero on any FAIL.
@@ -4172,6 +4172,100 @@ InventoryCases.Run((name, ok, detail) => Check(name, ok, detail));
     blind.Quotes == null && blind.FailedChunks == 3, $"failed={blind.FailedChunks}");
 }
 
+// 130. UNPRICED STOCK HELD BACK (0.1.69.0). When Universalis cannot price an item (null quote,
+// stale quote, no data, no listings of requested quality), stock with no confirmed market price is
+// HELD (neither listed nor vendored) rather than listing blind and bypassing the vendor value gate.
+// (1) Unpriced item -> held not listed (GateVerdict.HoldBack).
+// (2) Priced below-threshold -> vendored (GateVerdict.Vendor).
+// (3) Priced above-threshold -> listed (GateVerdict.List).
+// (4) Dropped vendor op -> held, not listed.
+{
+  const long Fresh = 6 * 3_600_000L;
+  const long Now = 1_788_900_000_000L;
+  var gate = new GateOptions(true, 1_000, Fresh);
+
+  // Items:
+  // 5111: stocked, unpriced (null quote, stale quote, hasData=false, no quality listing)
+  // 5112: stocked, priced cheap (unit 10 -> net 950 <= 1000 threshold -> Vendor)
+  // 5113: stocked, priced dear (unit 200 -> net 19000 > 1000 threshold -> List)
+  var unpricedQuoteNull = (ItemQuote?)null;
+  var unpricedQuoteNoData = new ItemQuote(5111, false, Now, []);
+  var unpricedQuoteStale = new ItemQuote(5111, true, Now - Fresh - 1, [new QuoteListing(500, false, false)]);
+  var unpricedQuoteNoQuality = new ItemQuote(5111, true, Now, [new QuoteListing(500, false, false)]);
+
+  // (1) Unpriced item returns HoldBack
+  Check("130 unpriced: null quote returns HoldBack (not List)",
+    MarketGate.Decide(10, unpricedQuoteNull, false, true, gate, Now) == GateVerdict.HoldBack);
+  Check("130 unpriced: hasData=false returns HoldBack",
+    MarketGate.Decide(10, unpricedQuoteNoData, false, true, gate, Now) == GateVerdict.HoldBack);
+  Check("130 unpriced: stale quote returns HoldBack",
+    MarketGate.Decide(10, unpricedQuoteStale, false, true, gate, Now) == GateVerdict.HoldBack);
+  Check("130 unpriced: missing quality listing returns HoldBack",
+    MarketGate.Decide(10, unpricedQuoteNoQuality, true, true, gate, Now) == GateVerdict.HoldBack);
+
+  // (2) Below-threshold item returns Vendor
+  var cheapQuote = new ItemQuote(5112, true, Now, [new QuoteListing(10, false, false)]);
+  Check("130 priced: below threshold returns Vendor",
+    MarketGate.Decide(100, cheapQuote, false, true, gate, Now) == GateVerdict.Vendor);
+
+  // (3) Above-threshold item returns List
+  var dearQuote = new ItemQuote(5113, true, Now, [new QuoteListing(200, false, false)]);
+  Check("130 priced: above threshold returns List",
+    MarketGate.Decide(100, dearQuote, false, true, gate, Now) == GateVerdict.List);
+
+  // (4) Planning integration: unpriced stock and vendor-dropped stock are never in the listing plan
+  var rules = new List<ItemRule>
+  {
+    new(5111, false, 99, 0, 0, 0, true, true, 0, 999),
+    new(5112, false, 99, 0, 0, 0, true, true, 0, 999),
+    new(5113, false, 99, 0, 0, 0, true, true, 0, 999),
+  };
+  var stock = new List<StockStack>
+  {
+    new(StockOrigin.Bags, Bags1, 0, 5111, false, 10),
+    new(StockOrigin.Bags, Bags1, 1, 5112, false, 100),
+    new(StockOrigin.Bags, Bags1, 2, 5113, false, 100),
+  };
+  var quotes = new Dictionary<uint, ItemQuote>
+  {
+    [5112] = cheapQuote,
+    [5113] = dearQuote,
+  };
+
+  var keptForListing = new List<ItemRule>();
+  var forVendoring = new List<ItemRule>();
+  var heldUnpriced = new List<ItemRule>();
+  foreach (var r in rules)
+  {
+    quotes.TryGetValue(r.ItemId, out var q);
+    var sellable = MarketGate.PotentialSellable(r, stock, false);
+    var v = MarketGate.Decide(sellable, q, r.HQ, true, gate, Now);
+    if (v == GateVerdict.List) keptForListing.Add(r);
+    else if (v == GateVerdict.Vendor) forVendoring.Add(r);
+    else if (v == GateVerdict.HoldBack) heldUnpriced.Add(r);
+  }
+
+  Check("130 pipeline: unpriced rule held back", heldUnpriced.Count == 1 && heldUnpriced[0].ItemId == 5111);
+  Check("130 pipeline: cheap rule routed to vendor", forVendoring.Count == 1 && forVendoring[0].ItemId == 5112);
+  Check("130 pipeline: dear rule kept for listing", keptForListing.Count == 1 && keptForListing[0].ItemId == 5113);
+
+  var listingPlan = AutoMarketPlanner.Plan(keptForListing, stock, EmptyMarket(), Opts());
+  Check("130 pipeline: listing plan lists dear item", listingPlan.Ops.Any(o => o.ItemId == 5113));
+  Check("130 pipeline: listing plan NEVER lists unpriced item", listingPlan.Ops.All(o => o.ItemId != 5111));
+  Check("130 pipeline: listing plan NEVER lists vendor item", listingPlan.Ops.All(o => o.ItemId != 5112));
+
+  var vendorPrices = new Dictionary<uint, (uint PriceMid, uint PriceLow)>
+  {
+    [5112] = (10u, 10u),
+  };
+  var vendorPlan = VendorPlanner.Plan(forVendoring, stock, vendorPrices, true);
+  Check("130 pipeline: vendor plan plans cheap item", vendorPlan.Ops.Any(o => o.ItemId == 5112));
+  Check("130 pipeline: vendor plan NEVER plans unpriced item", vendorPlan.Ops.All(o => o.ItemId != 5111));
+
+  Check("130 vendor-op drop: dropped vendor item is not in listing candidates", !keptForListing.Any(r => r.ItemId == 5112));
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
+
 
