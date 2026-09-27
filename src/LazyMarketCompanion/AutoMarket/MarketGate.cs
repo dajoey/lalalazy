@@ -237,8 +237,10 @@ public static class MarketGate
   /// <summary>
   /// The gate for one item AFTER the request has completed successfully: judged on its total sellable
   /// value at the current board price, net of the 5% market fee. An item must be worth STRICTLY more
-  /// than the threshold to list - at exactly the threshold it is VENDORED (0.1.12.0), every
-  /// "cannot tell" still LISTS. Caller contract: a request that fails, times out or returns no data
+  /// than the threshold to list - at exactly or under the threshold it is a VENDOR CANDIDATE for the
+  /// bounded junk path (0.2.0.0 VendorPolicy); every "cannot tell" HOLDS (0.2.0.0, restoring the
+  /// 0.1.69.0 doctrine the reversion withdrew: unconfirmed market data means HOLD, never list blind,
+  /// never vendor). Caller contract: a request that fails, times out or returns no data
   /// NEVER calls this function - such rules go straight to HoldBack without a verdict-of-record.
   /// </summary>
   public static GateVerdict Decide(long sellableQuantity, ItemQuote? quote, bool ruleIsHq, bool preferHq, GateOptions options, long nowUnixMs)
@@ -248,13 +250,13 @@ public static class MarketGate
     if (sellableQuantity <= 0)
       return GateVerdict.List;
     if (quote == null || !quote.HasData)
-      return GateVerdict.List;
+      return GateVerdict.HoldBack;
     if (quote.LastUploadUnixMs <= 0 || nowUnixMs - quote.LastUploadUnixMs > options.FreshnessMs)
-      return GateVerdict.List;
+      return GateVerdict.HoldBack;
 
     var unit = CheapestUnitPrice(quote, ruleIsHq, preferHq);
     if (unit == null || unit <= 0)
-      return GateVerdict.List;
+      return GateVerdict.HoldBack;
 
     return NetRevenue(unit.Value, sellableQuantity) > options.ThresholdGil
       ? GateVerdict.List

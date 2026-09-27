@@ -23,6 +23,8 @@
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\RoutingMove.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\ReviewSweep.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\VendorPlanner.cs" />
+    <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\VendorPolicy.cs" />
+    <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\SlotAccounting.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\VendorMenuGate.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\BuybackConfirmGate.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\RetainerCloseGate.cs" />

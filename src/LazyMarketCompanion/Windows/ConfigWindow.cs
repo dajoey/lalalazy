@@ -211,10 +211,15 @@ public sealed class ConfigWindow : Window
     if (ImGui.InputInt("##gatethreshold", ref threshold, 0, 0)) { c.AutoMarketValueGateThresholdGil = Math.Max(threshold, 0); c.Save(); }
     ImGui.SameLine();
     ImGui.TextUnformatted("gil, net of fees");
+
+    var dry = c.AutoMarketDryRun;
+    if (ImGui.Checkbox("Dry-run mode (log decisions, execute nothing)", ref dry)) { c.AutoMarketDryRun = dry; c.Save(); }
+    Tip("While dry-run is on, Auto-Market computes every listing, pulling and vendoring decision and logs it as \"[AM][dry-run] would ...\" without executing anything. "
+        + "Runs against real inventory and real prices, so a session shows exactly what would happen at zero risk. Uncheck to let Auto-Market act. New in 0.2.0.0, on by default after the 2026-09-27 incident.");
     Tip("Before listing, Auto-Market checks every enabled item against current Universalis prices. Items whose total sellable value "
-        + "(current board price x everything it could sell of that item, after the market's 5% fee) is at or under this number are VENDORED at the retainer instead of listed - the retainer sells them to a vendor for you in the same session, so nothing needs a market slot and there is no 5% fee.\r\n"
+        + "(current board price x everything it could sell of that item, after the market's 5% fee) is at or under this number take the vendor leg instead of a market slot - only NQ non-gear items the Item sheet prices as vendorable; the retainer sells them to a vendor in the same session.\r\n"
         + "The value they will fetch is the vendor price (the same number the sell window autofills), which is usually far below the market board price - if in doubt, set the threshold lower.\r\n"
-        + "Anything Universalis is unsure about is LISTED, never vendored: no data, data older than the freshness window below, or no listing of the right quality. Vendoring an item on a guess cannot be undone.\r\n"
+        + "Anything Universalis is unsure about is HELD, never listed and never vendored (0.2.0.0): no data, data older than the freshness window below, or no listing of the right quality. Vendoring an item on a guess cannot be undone.\r\n"
         + "0 = the switch does nothing.");
 
     if (c.AutoMarketValueGateEnabled)

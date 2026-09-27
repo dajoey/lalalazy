@@ -14,16 +14,18 @@ namespace LazyMarketCompanion.AutoMarket;
 // Safeguards pinned here:
 //   * Match ONLY this buyback-abandon confirm (distinctive prompt text), never any other
 //     SelectYesno and never a Shop / Buy Back purchase UI.
-//   * ConfirmLeave means click Yes (proceed / abandon buyback). There is no path that
-//     opens buyback or re-purchases vendored stock.
+//   * ParkForPlayer means NEVER click Yes from automation (0.2.0.0, design §7): the buyback
+//     list is a protected resource - recovery of vendored stock depends on it - so the chain
+//     parks that retainer and the player decides whether to buy back before closing. There is
+//     no path that opens buyback or re-purchases vendored stock, and no path that abandons it.
 
 /// <summary>What CloseRetainer should do when a SelectYesno may be on screen.</summary>
 public enum BuybackConfirmDecision
 {
   /// <summary>No SelectYesno text to judge - continue closing the bell menu.</summary>
   None,
-  /// <summary>The buyback-abandon confirm - click Yes so leaving can finish.</summary>
-  ConfirmLeave,
+  /// <summary>The buyback-abandon confirm - automation must NOT click; park for the player (0.2.0.0).</summary>
+  ParkForPlayer,
   /// <summary>Some other SelectYesno - do not click; leave it alone.</summary>
   IgnoreOther,
 }
@@ -55,7 +57,7 @@ public static class BuybackConfirmGate
     // prompt still matches the marker.
     var normalized = promptText.Replace('\n', ' ').Trim();
     if (normalized.IndexOf(PromptMarker, StringComparison.OrdinalIgnoreCase) >= 0)
-      return BuybackConfirmDecision.ConfirmLeave;
+      return BuybackConfirmDecision.ParkForPlayer;
     return BuybackConfirmDecision.IgnoreOther;
   }
 
@@ -64,5 +66,5 @@ public static class BuybackConfirmGate
   /// "Buy Back" labels and unrelated yes/no prompts must never pass.
   /// </summary>
   public static bool IsBuybackAbandonConfirm(string? promptText) =>
-    Decide(promptText) == BuybackConfirmDecision.ConfirmLeave;
+    Decide(promptText) == BuybackConfirmDecision.ParkForPlayer;
 }

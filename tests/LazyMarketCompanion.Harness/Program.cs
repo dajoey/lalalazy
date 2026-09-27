@@ -1228,12 +1228,15 @@ var Catalogue = new (uint Id, string Name)[]
   // THE vendor-polarity cases: uncertain data must LIST, never hold, even at price 1 with threshold 1000
   var oneGil = new ItemQuote(5111, true, Now, [new(1, false, false)]);
   var strictGate = new GateOptions(true, 1_000, Fresh);
-  Check("gate: STALE data lists, never vendored for pennies, never held back",
-    MarketGate.Decide(99, stale, false, true, strictGate, Now) == GateVerdict.List);
-  Check("gate: missing lastUploadTime lists", MarketGate.Decide(99, noUploadTs, false, true, strictGate, Now) == GateVerdict.List);
-  Check("gate: hasData=false lists", MarketGate.Decide(99, new ItemQuote(5111, false, Now, []), false, true, strictGate, Now) == GateVerdict.List);
-  Check("gate: no listing of the quality lists", MarketGate.Decide(99, noListing, false, true, strictGate, Now) == GateVerdict.List);
-  Check("gate: null quote lists", MarketGate.Decide(99, null, false, true, strictGate, Now) == GateVerdict.List);
+  // 0.2.0.0 (design §1): unconfirmed market data HOLDS - never listed (which would bypass the
+  // value gate), never vendored (irreversible on a guess). The 0.1.x polarity "uncertainty lists"
+  // is withdrawn; this is the 0.1.69.0 doctrine restored by the redesign.
+  Check("gate: STALE data holds - never listed blind, never vendored",
+    MarketGate.Decide(99, stale, false, true, strictGate, Now) == GateVerdict.HoldBack);
+  Check("gate: missing lastUploadTime holds", MarketGate.Decide(99, noUploadTs, false, true, strictGate, Now) == GateVerdict.HoldBack);
+  Check("gate: hasData=false holds", MarketGate.Decide(99, new ItemQuote(5111, false, Now, []), false, true, strictGate, Now) == GateVerdict.HoldBack);
+  Check("gate: no listing of the quality holds", MarketGate.Decide(99, noListing, false, true, strictGate, Now) == GateVerdict.HoldBack);
+  Check("gate: null quote holds", MarketGate.Decide(99, null, false, true, strictGate, Now) == GateVerdict.HoldBack);
   Check("gate: gate off lists even the pennies item",
     MarketGate.Decide(99, oneGil, false, true, new GateOptions(false, 1_000, Fresh), Now) == GateVerdict.List);
   Check("gate: threshold 0 is inert (lists)", MarketGate.Decide(99, oneGil, false, true, new GateOptions(true, 0, Fresh), Now) == GateVerdict.List);
@@ -1347,11 +1350,11 @@ var Catalogue = new (uint Id, string Name)[]
   Check("vendor: just above threshold lists", MarketGate.Decide(1, new ItemQuote(5111, true, Now, [new(1054, false, false)]), false, true, gate, Now) == GateVerdict.List);
 
   // THE vendor-uncertainty battery, mirrored from case 36: every one LISTS (never vendors)
-  Check("vendor: STALE data never vendors", MarketGate.Decide(99, new ItemQuote(5111, true, Now - 7 * 3_600_000L, [new(1, false, false)]), false, true, gate, Now) == GateVerdict.List);
-  Check("vendor: no lastUploadTime never vendors", MarketGate.Decide(99, new ItemQuote(5111, true, 0, [new(1, false, false)]), false, true, gate, Now) == GateVerdict.List);
-  Check("vendor: hasData=false never vendors", MarketGate.Decide(99, new ItemQuote(5111, false, Now, []), false, true, gate, Now) == GateVerdict.List);
-  Check("vendor: no listing of the quality never vendors", MarketGate.Decide(99, new ItemQuote(5111, true, Now, []), false, true, gate, Now) == GateVerdict.List);
-  Check("vendor: null quote never vendors", MarketGate.Decide(99, null, false, true, gate, Now) == GateVerdict.List);
+  Check("vendor: STALE data never vendors - it HOLDS (0.2.0.0: unconfirmed means hold)", MarketGate.Decide(99, new ItemQuote(5111, true, Now - 7 * 3_600_000L, [new(1, false, false)]), false, true, gate, Now) == GateVerdict.HoldBack);
+  Check("vendor: no lastUploadTime never vendors - it HOLDS", MarketGate.Decide(99, new ItemQuote(5111, true, 0, [new(1, false, false)]), false, true, gate, Now) == GateVerdict.HoldBack);
+  Check("vendor: hasData=false never vendors - it HOLDS", MarketGate.Decide(99, new ItemQuote(5111, false, Now, []), false, true, gate, Now) == GateVerdict.HoldBack);
+  Check("vendor: no listing of the quality never vendors - it HOLDS", MarketGate.Decide(99, new ItemQuote(5111, true, Now, []), false, true, gate, Now) == GateVerdict.HoldBack);
+  Check("vendor: null quote never vendors - it HOLDS", MarketGate.Decide(99, null, false, true, gate, Now) == GateVerdict.HoldBack);
   Check("vendor: gate off never vendors", MarketGate.Decide(99, cheap, false, true, new GateOptions(false, 1_000, Fresh), Now) == GateVerdict.List);
   Check("vendor: threshold 0 never vendors", MarketGate.Decide(99, cheap, false, true, new GateOptions(true, 0, Fresh), Now) == GateVerdict.List);
   Check("vendor: zero sellable never vendors", MarketGate.Decide(0, cheap, false, true, gate, Now) == GateVerdict.List);
@@ -1376,14 +1379,17 @@ var Catalogue = new (uint Id, string Name)[]
   var prices = new Dictionary<uint, (uint, uint)> { [5111] = (40, 10) };
   var rule = R(5111, stack: 99, keepB: 5, keepR: 100);
 
-  // keep 100 retainer: 159 retainer stock - 100 kept = 59 vendored from the 60-stack; bags keep 5 -> 25 + 12
+  // 0.2.0.0 (design §3): ONE global keep floor = max(KeepInBags, KeepInRetainer) across every
+  // enabled origin. keepB 5 / keepR 100 -> floor 100 TOTAL: the 99-stack kept whole, 1 more kept
+  // off the 60-stack (59 vendored from retainer), and the bags 30+12 vendored entire (42) - the
+  // per-origin bag keep of 5 no longer shields bag stock when the floor is larger elsewhere.
   var plan = VendorPlanner.Plan([rule], stock, prices, preferHq: true);
-  Check("vendor: retainer keep 100 - 159 retainer units minus 100 kept = 59 vendored",
+  Check("vendor: global floor 100 - 159 retainer units keep 100, 59 vendored",
     plan.Ops.Where(o => o.Container == 10000).Sum(o => o.Quantity) == 59, string.Join(",", plan.Ops));
-  Check("vendor: bags keep 5 -> the 30-stack vendors 25, the 12-stack vendors 12",
-    plan.Ops.Where(o => o.Container == 0).Sum(o => o.Quantity) == 25 + 12, string.Join(",", plan.Ops));
+  Check("vendor: global floor 100 - bags vendored entire (30 + 12)",
+    plan.Ops.Where(o => o.Container == 0).Sum(o => o.Quantity) == 30 + 12, string.Join(",", plan.Ops));
   Check("vendor: the estimate is unit x qty at priceLow with prefer-HQ on for NQ stock",
-    plan.Ops.Sum(o => o.EstGil) == (59 + 25 + 12) * 10);
+    plan.Ops.Sum(o => o.EstGil) == (59 + 30 + 12) * 10);
 
   // keep bigger than the origin's stock: nothing vendored from that origin
   var keepAll = VendorPlanner.Plan([R(5111, keepR: 999)], stock, prices, true);
@@ -3981,10 +3987,12 @@ StockStack BagStack(uint id, int slot, int qty, uint cat = CatA, bool marketable
 {
   var live = "Your retainer will be unable to process item buyback requests once recalled. Are you sure you wish to proceed?";
   var multiline = "Your retainer will be unable to process item buyback requests once recalled.\nAre you sure you wish to proceed?";
-  Check("127 buyback: live prompt is ConfirmLeave",
-    BuybackConfirmGate.Decide(live) == BuybackConfirmDecision.ConfirmLeave);
-  Check("127 buyback: multiline prompt (TextLegacy shape) is ConfirmLeave",
-    BuybackConfirmGate.Decide(multiline) == BuybackConfirmDecision.ConfirmLeave);
+  // 0.2.0.0 (design §7): automation never clicks Yes on the buyback-abandon confirm - the
+  // buyback list is a protected resource. The verdict changed from ConfirmLeave to ParkForPlayer.
+  Check("127 buyback: live prompt is ParkForPlayer (automation never confirms)",
+    BuybackConfirmGate.Decide(live) == BuybackConfirmDecision.ParkForPlayer);
+  Check("127 buyback: multiline prompt (TextLegacy shape) is ParkForPlayer",
+    BuybackConfirmGate.Decide(multiline) == BuybackConfirmDecision.ParkForPlayer);
   Check("127 buyback: marker helper agrees",
     BuybackConfirmGate.IsBuybackAbandonConfirm(live));
   Check("127 buyback: empty/null is None (not a click)",
@@ -4068,8 +4076,9 @@ StockStack BagStack(uint id, int slot, int qty, uint cat = CatA, bool marketable
       closeTicks: 10,
       buybackConfirmed: false) == RetainerCloseAction.Done);
 
-  // Case F: Vendoring occurred - SelectString closed, SelectYesno appears with buyback prompt -> ConfirmBuyback
-  Check("128 close: buyback SelectYesno prompt triggers ConfirmBuyback",
+  // Case F: Vendoring occurred - SelectString closed, SelectYesno appears with buyback prompt.
+  // 0.2.0.0 (design §7): the chain PARKS - automation never abandons the buyback list.
+  Check("128 close: buyback SelectYesno prompt triggers ParkForBuyback",
     RetainerCloseGate.Decide(
       retainerListReady: false,
       selectYesnoReady: true,
@@ -4077,7 +4086,7 @@ StockStack BagStack(uint id, int slot, int qty, uint cat = CatA, bool marketable
       selectStringReady: false,
       closeSent: true,
       closeTicks: 10,
-      buybackConfirmed: false) == RetainerCloseAction.ConfirmBuyback);
+      buybackConfirmed: false) == RetainerCloseAction.ParkForBuyback);
 
   // Case G: Buyback confirm already clicked (buybackConfirmed is true) -> Wait (do not double-click Yes)
   Check("128 close: buyback confirm already clicked waits for RetainerList",
@@ -4171,6 +4180,213 @@ InventoryCases.Run((name, ok, detail) => Check(name, ok, detail));
   Check("129 gate fetch: all chunks dead returns null quotes (blind gate, not empty sight)",
     blind.Quotes == null && blind.FailedChunks == 3, $"failed={blind.FailedChunks}");
 }
+
+
+// =====================================================================================
+// 0.2.0.0 REDESIGN CASES (tasks-20260927-lmc-automarket-redesign-01, docs/AutoMarket-Design.md).
+// Every fixture value is a real number from the 2026-09-27 incident telemetry; the same set was
+// run at ef620b4 (0.1.70.0) as cases 130f-133f and FAILED there in four lines - the failing run
+// is quoted in the task's Progress. D4's backfill invariant has no compilable probe at ef620b4
+// (the 0.1.70 DelistPlan carried no backfill contract at all); it is pinned here as case 134.
+// =====================================================================================
+
+// 130. (D1) A fantasy Item-sheet vendor price can never route stock to the vendor leg. The market
+//     side is judged by MarketGate.Decide; the vendor side enters ONLY through VendorPolicy's
+//     bounded junk path, where the sheet price is an enablement check, never a comparison input.
+{
+  const long Now = 1_788_710_000_000L;
+  const long Fresh = 6 * 3_600_000L;
+  var gate = new GateOptions(true, 100, Fresh);
+
+  // Telemetry 13:37:19: item 37832 HQ x4, market net 15,086 gil, sheet "vendor value" 399,996.
+  // 0.1.70.0 removed the listing and vendored it; the market quote (3,970/unit HQ) is real.
+  var quote = new ItemQuote(37832, true, Now - 1000, [new QuoteListing(3970, true, false)]);
+  Check("130 sentinel vendor price: above-threshold market is List, never vendor-routed",
+    MarketGate.Decide(4, quote, true, true, gate, Now) == GateVerdict.List);
+
+  // The junk path itself: a fantasy sheet price (99,999) does not make an above-threshold item
+  // eligible - marketNet is the fixture's real 15,086 gil against a 100 gil threshold.
+  Check("130 sentinel vendor price: JunkPathEligible refuses above-threshold market net",
+    !VendorPolicy.JunkPathEligible(true, 15_086, 100, false, false, 99_999));
+
+  // The bounded path still works for genuine junk: confirmed net 95 gil, NQ, non-gear, sheet>0.
+  Check("130 bounded junk path: confirmed below-threshold NQ non-gear junk is eligible",
+    VendorPolicy.JunkPathEligible(true, 95, 100, false, false, 3));
+
+  // And refuses on every guard independently: unconfirmed market, HQ, gear, sheet 0.
+  Check("130 junk path: unconfirmed market refuses", !VendorPolicy.JunkPathEligible(false, 0, 100, false, false, 3));
+  Check("130 junk path: HQ refuses", !VendorPolicy.JunkPathEligible(true, 95, 100, true, false, 3));
+  Check("130 junk path: equippable refuses", !VendorPolicy.JunkPathEligible(true, 95, 100, false, true, 3));
+  Check("130 junk path: sheet PriceLow 0 refuses", !VendorPolicy.JunkPathEligible(true, 95, 100, false, false, 0));
+}
+
+// 131. (D2) The keep floor is GLOBAL: one number across bags and retainer stock. Telemetry: item
+//     4854 keep-500, 302 in bags + 198 on the retainer page; 0.1.70.0 vendored all 198 because the
+//     retainer origin's keep was 0. Nothing may be vendored while total stock is under the floor.
+{
+  var stock = new List<StockStack>
+  {
+    new(StockOrigin.Bags, 0, 5, 4854u, false, 302),
+    new(StockOrigin.Retainer, 10000, 2, 4854u, false, 198),
+  };
+  var prices = new Dictionary<uint, (uint PriceMid, uint PriceLow)> { [4854u] = (3, 3) };
+  var plan = VendorPlanner.Plan([Rule(4854u, 99, keepB: 500)], stock, prices, preferHq: false);
+  Check("131 global keep floor: 500 stock total, keep 500 -> nothing vendored",
+    plan.Ops.Count == 0, $"ops={plan.Ops.Count} (0.1.70 vendored the 198 retainer units)");
+}
+
+// 132. (D2b) ACTIVE LISTINGS NEVER REDUCE THE FLOOR. A listing is a pending sale, not a reserve:
+//     stock the board is already selling cannot stand in for units the player asked to keep, or
+//     the reserve dies the moment the board sells out. (Corrected before implementation - the
+//     first draft let listings satisfy the floor and would vendor 450 units of a keep-500 item.)
+{
+  var prices = new Dictionary<uint, (uint PriceMid, uint PriceLow)> { [4854u] = (3, 3) };
+
+  // 450 stock + 500 listed, keep 500 -> nothing vendored: the floor is over bags+retainer stock
+  // (450 < 500), and the 500 listings are irrelevant to it.
+  var stockA = new List<StockStack>
+  {
+    new(StockOrigin.Bags, 0, 0, 4854u, false, 250),
+    new(StockOrigin.Retainer, 10000, 1, 4854u, false, 200),
+  };
+  var planA = VendorPlanner.Plan([Rule(4854u, 99, keepB: 500)], stockA, prices, preferHq: false);
+  Check("132 listings never reduce the floor: 450 stock, keep 500 -> 0 vendored",
+    planA.Ops.Count == 0, $"ops={planA.Ops.Count}");
+
+  // 600 stock, keep 500 -> exactly 100 vendored (100 beyond the floor), regardless of listings.
+  var stockB = new List<StockStack>
+  {
+    new(StockOrigin.Bags, 0, 0, 4854u, false, 350),
+    new(StockOrigin.Retainer, 10000, 1, 4854u, false, 250),
+  };
+  var planB = VendorPlanner.Plan([Rule(4854u, 99, keepB: 500)], stockB, prices, preferHq: false);
+  Check("132 floor exhausted last: 600 stock, keep 500 -> exactly 100 vendored",
+    planB.Ops.Sum(o => o.Quantity) == 100, $"vendored={planB.Ops.Sum(o => o.Quantity)}");
+}
+
+// 133. (D3) HQ stock and equippable gear are NEVER auto-vendored, whatever any price source claims.
+//     Telemetry: 36251 HQ x1 and 43976 HQ x20 vendored on fantasy sheet estimates (99,999/unit).
+{
+  var hqStock = new List<StockStack> { new(StockOrigin.Retainer, 10000, 6, 36251u, true, 1) };
+  var prices = new Dictionary<uint, (uint PriceMid, uint PriceLow)> { [36251u] = (99999, 99999) };
+  var hqPlan = VendorPlanner.Plan([Rule(36251u, 1, hq: true)], hqStock, prices, preferHq: true);
+  Check("133 HQ stock never auto-vendored",
+    hqPlan.Ops.Count == 0, $"ops={hqPlan.Ops.Count} (0.1.70 built HQ vendor ops)");
+
+  var gearStock = new List<StockStack> { new(StockOrigin.Retainer, 10000, 6, 43976u, false, 20) };
+  var gearPrices = new Dictionary<uint, (uint PriceMid, uint PriceLow)> { [43976u] = (99999, 99999) };
+  var gearPlan = VendorPlanner.Plan([Rule(43976u, 1)], gearStock, gearPrices, preferHq: false,
+    isProtectedFromVendor: _ => true);
+  Check("133 equippable gear never auto-vendored, even with a fantasy sheet price",
+    gearPlan.Ops.Count == 0 && gearPlan.Notes.Count == 1, $"ops={gearPlan.Ops.Count} notes={gearPlan.Notes.Count}");
+}
+
+// 134. (D4) No silently empty market slot: after a withdrawal pass the plan is rebuilt from a FRESH
+//     snapshot, and every still-empty slot is either filled by a planned listing or named in the
+//     hold note. (At ef620b4 the delist pass had no backfill contract and its read-back race left
+//     real slots empty - Sofondapeters 13:40, seven false-failed removals, one listing planned.)
+{
+  // Fresh post-pull snapshot: slots 0 and 5 freed, slot 7 also empty, everything else occupied.
+  var market = new List<MarketSlot>();
+  for (var i = 0; i < 20; i++)
+    market.Add(i is 0 or 5 or 7 ? new MarketSlot(i, 0u, false, 0) : new MarketSlot(i, 9999u, false, 1));
+
+  // The refill: other stock exists, the planner fills a freed slot.
+  var stock = new List<StockStack> { new(StockOrigin.Bags, 0, 3, Dye, false, 99) };
+  var refill = AutoMarketPlanner.Plan([Rule(Dye, 5)], stock, market, Opts());
+  Check("134 backfill: the listing plan fills a freed slot from fresh stock",
+    refill.Ops.Count > 0 && refill.Ops.All(o => o.TargetSlot is 0 or 5 or 7),
+    $"targets={string.Join(",", refill.Ops.Select(o => o.TargetSlot))}");
+
+  // The hold decision: the plan fills 0 and 5; slot 7 stays empty and MUST be named.
+  var note = SlotAccounting.EmptySlotNote(market, [0, 5], 20);
+  Check("134 empty-slot note names the unfilled slot with the reason",
+    note.Contains("#7") && !note.Contains("#0") && !note.Contains("#5") && note.Length > 0, note);
+  Check("134 empty-slot note is empty when the plan fills every free slot",
+    SlotAccounting.EmptySlotNote(market, [0, 5, 7], 20).Length == 0);
+}
+
+// 135. (D1+D2+D3 end-to-end) THE INCIDENT FIXTURE REPLAY: every row of the design doc's §9 table,
+//     judged by the real decision core (MarketGate.Decide -> VendorPolicy -> VendorPlanner). 0.2.0.0
+//     must hold or list every one of them; 0.1.70.0 vendored or removed all six.
+{
+  const long Now = 1_788_710_000_000L;
+  const long Fresh = 6 * 3_600_000L;
+  var gate = new GateOptions(true, 100, Fresh);
+
+  // Rows 1-2: 37832 HQ x4 (net 15,086) and 36251 HQ x1 (net 3,757) were DELISTED and vendored.
+  Check("135 fixture 37832 HQ x4: List, listing untouched",
+    MarketGate.Decide(4, new ItemQuote(37832, true, Now - 1000, [new QuoteListing(3970, true, false)]), true, true, gate, Now) == GateVerdict.List);
+  Check("135 fixture 36251 HQ x1: List, listing untouched",
+    MarketGate.Decide(1, new ItemQuote(36251, true, Now - 1000, [new QuoteListing(3949, true, false)]), true, true, gate, Now) == GateVerdict.List);
+
+  // Row 3: 43976 HQ x20 (gear): even with a junk-level market quote the vendor leg refuses (HQ + gear).
+  var gearVerdict = MarketGate.Decide(20, new ItemQuote(43976, true, Now - 1000, [new QuoteListing(5, true, false)]), true, true, gate, Now);
+  Check("135 fixture 43976 HQ x20 (gear): Vendor verdict, but the junk path refuses HQ",
+    gearVerdict == GateVerdict.Vendor
+    && !VendorPolicy.JunkPathEligible(true, MarketGate.NetRevenue(5, 20), 100, true, true, 99999));
+
+  // Row 4: 4854 keep-500 with 302 bags + 198 retainer: even junk-priced, the global floor holds all 500.
+  {
+    var stock = new List<StockStack>
+    {
+      new(StockOrigin.Bags, 0, 5, 4854u, false, 302),
+      new(StockOrigin.Retainer, 10000, 2, 4854u, false, 198),
+    };
+    var prices = new Dictionary<uint, (uint PriceMid, uint PriceLow)> { [4854u] = (3, 3) };
+    var plan = VendorPlanner.Plan([Rule(4854u, 99, keepB: 500)], stock, prices, preferHq: false);
+    Check("135 fixture 4854 keep-500: nothing vendored (0.1.70 vendored 198)",
+      plan.Ops.Count == 0, $"ops={plan.Ops.Count}");
+  }
+
+  // Rows 5-6: board listings 23168 HQ x99 (net 109,192) and 8146 x15 (net 1,838): above threshold,
+  // so the pull pass never touches them - Decide is the pull pass's own gate (MarketPull.Plan).
+  var pullGate = new GateOptions(true, 100, Fresh);
+  Check("135 fixture 23168 HQ x99: Decide says List, the listing stays on the board",
+    MarketGate.Decide(99, new ItemQuote(23168, true, Now - 1000, [new QuoteListing(1160, true, false)]), true, true, pullGate, Now) == GateVerdict.List);
+  Check("135 fixture 8146 x15: Decide says List, the listing stays on the board",
+    MarketGate.Decide(15, new ItemQuote(8146, true, Now - 1000, [new QuoteListing(129, false, false)]), false, true, pullGate, Now) == GateVerdict.List);
+
+  // And the pull pass composes the same way: a full market snapshot of the incident board with
+  // fresh above-threshold quotes produces ZERO pull ops.
+  {
+    var board = new List<MarketSlot>();
+    for (var i = 0; i < 20; i++)
+      board.Add(i < 4 ? new MarketSlot(i, 23168u, true, 99) : i == 4 ? new MarketSlot(i, 8146u, false, 15) : new MarketSlot(i, 0u, false, 0));
+    var quotes = new Dictionary<uint, ItemQuote>
+    {
+      [23168u] = new(23168, true, Now - 1000, [new QuoteListing(1160, true, false)]),
+      [8146u] = new(8146, true, Now - 1000, [new QuoteListing(129, false, false)]),
+    };
+    var rules = new List<ItemRule> { Rule(23168u, 99, hq: true), Rule(8146u, 99) };
+    var pulls = MarketPull.Plan(board, new Dictionary<int, ulong>(), rules, quotes, pullGate, true, Now, () => 5, () => true);
+    Check("135 incident board replay: zero pull ops - every listing stays on the board",
+      pulls.Ops.Count == 0, $"ops={pulls.Ops.Count} (0.1.70 removed all five)");
+  }
+}
+
+// 136. (D4 behavioral) The pull pass only removes CONFIRMED below-threshold listings, and an
+//     unconfirmed quote keeps the listing exactly where it is (never removed blind).
+{
+  const long Now = 1_788_710_000_000L;
+  const long Fresh = 6 * 3_600_000L;
+  var gate = new GateOptions(true, 100, Fresh);
+  var board = new List<MarketSlot> { new(0, 8146u, false, 15), new(1, 9999u, false, 10) };
+  var rules = new List<ItemRule> { Rule(8146u, 99), Rule(9999u, 99) };
+
+  // Confirmed junk (1 gil/unit x 10 = 9 net) IS pulled - the bounded path still works.
+  var junkQuotes = new Dictionary<uint, ItemQuote> { [8146u] = new(8146, true, Now - 1000, [new QuoteListing(1, false, false)]) };
+  var junkPulls = MarketPull.Plan(board, new Dictionary<int, ulong>(), rules, junkQuotes, gate, true, Now, () => 5, () => true);
+  Check("136 pull pass: confirmed below-threshold junk listing is pulled",
+    junkPulls.Ops.Count == 1 && junkPulls.Ops[0].Slot == 0, $"ops={junkPulls.Ops.Count}");
+
+  // No quote at all: the listing stays (0.2.0.0 - the pull gate holds on unconfirmed).
+  var noQuotes = new Dictionary<uint, ItemQuote>();
+  var blindPulls = MarketPull.Plan(board, new Dictionary<int, ulong>(), rules, noQuotes, gate, true, Now, () => 5, () => true);
+  Check("136 pull pass: unconfirmed quote keeps the listing on the board",
+    blindPulls.Ops.Count == 0, $"ops={blindPulls.Ops.Count}");
+}
+
 
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;

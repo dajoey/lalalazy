@@ -239,6 +239,8 @@ internal static unsafe class AutoMarketService
     List<ItemRule> kept = rules;
     var vendored = new List<ItemRule>();
     var unvendorable = new List<ItemRule>();
+    var heldUnpriced = new List<ItemRule>();
+    var heldJunkIneligible = new List<ItemRule>();
     if (config.AutoMarketValueGateEnabled)
     {
       var gateOptions = new GateOptions(true, Math.Max(config.AutoMarketValueGateThresholdGil, 0), freshnessMs);
@@ -259,15 +261,41 @@ internal static unsafe class AutoMarketService
 
         // 0.1.12.0: the request SUCCEEDED and priced this item at or under the threshold, so the
         // below-threshold vendor leg takes it - "Have Retainer Sell Items", no market slot, no fee.
-        // The old 0.1.11.0 "hold it" is gone; only an uncertainty (request failed/null below) still holds.
+        // 0.2.0.0 (design §4): only through the BOUNDED JUNK PATH - HQ and equippable stock never
+        // takes it, whatever any price source claims. Items failing a junk-path guard are HELD
+        // (left in place), never listed (they are below threshold) and never vendored.
         if (verdict == GateVerdict.Vendor)
         {
-          belowThreshold.Add(rule);
+          var unit = MarketGate.UsableQuote(quote, rule.HQ, config.HQ, now, freshnessMs);
+          var net = unit != null ? MarketGate.NetRevenue(unit.Value, sellable) : 0L;
+          if (VendorPolicy.JunkPathEligible(
+                marketConfirmed: unit != null,
+                marketNet: net,
+                thresholdGil: gateOptions.ThresholdGil,
+                isHq: rule.HQ,
+                isProtectedFromVendor: IsEquippable(rule.ItemId),
+                sheetPriceLow: VendorPrices(rule.ItemId).PriceLow))
+          {
+            belowThreshold.Add(rule);
+          }
+          else
+          {
+            heldJunkIneligible.Add(rule);
+          }
           continue;
         }
 
-        // Impossible with the current Decide (uncertainty returns List), kept as the polarity pin:
-        // a HoldBack verdict that reaches the priced gate is a data bug, not a sell decision.
+        // 0.2.0.0 (design §1): unconfirmed market data means HOLD - never listed (which would
+        // bypass the value gate), never vendored (irreversible on a guess). Restores the
+        // 0.1.69.0 doctrine the 0.1.71.0 reversion withdrew.
+        if (verdict == GateVerdict.HoldBack)
+        {
+          heldUnpriced.Add(rule);
+          continue;
+        }
+
+        // Unreachable with the current Decide (every verdict is handled above); kept as the
+        // polarity pin so a future verdict cannot silently fall through to listing.
         kept.Add(rule);
       }
 
@@ -301,6 +329,15 @@ internal static unsafe class AutoMarketService
         if (Plugin.Configuration.ShowAutoMarketMessages)
           Communicator.PrintInfo($"value gate: {unvendorable.Count} item(s) below the threshold cannot be vendored (no vendor price); left in place, not listed: {names}");
       }
+      if (heldUnpriced.Count > 0)
+      {
+        Svc.Log.Information($"[LMC] gate: {heldUnpriced.Count} item(s) have no confirmed market price; held in place, not listed and not vendored (unconfirmed means hold)");
+      }
+      if (heldJunkIneligible.Count > 0)
+      {
+        var names = string.Join(", ", heldJunkIneligible.Select(r => r.ItemId.ToString() + (r.HQ ? " HQ" : "")));
+        Svc.Log.Information($"[LMC] gate: {heldJunkIneligible.Count} below-threshold item(s) are HQ or equippable and never take the vendor leg; held in place, not listed: {names}");
+      }
 
       // The clean / no-data sight announce describes a sweep the gate held NOTHING back on, so it
       // must stay out of the way of BOTH held sets. Before 0.1.30.0 only the vendored set gated it;
@@ -328,9 +365,9 @@ internal static unsafe class AutoMarketService
           Svc.Log.Information($"[LMC] gate: every item is above the {gateOptions.ThresholdGil:N0} gil net threshold (checked {sight.Judged} of {rules.Count} enabled item(s), {stockedRules.Count} with stock)");
         else
         {
-          Svc.Log.Warning($"[LMC] gate: no price data for {sight.Unpriceable} of {sight.Judged + sight.Unpriceable} item(s) with stock to sell ({stockedRules.Count} of {rules.Count} enabled item(s) have stock) - the {gateOptions.ThresholdGil:N0} gil net threshold was NOT checked for those; they list (uncertainty lists, never vendors)");
+          Svc.Log.Warning($"[LMC] gate: no price data for {sight.Unpriceable} of {sight.Judged + sight.Unpriceable} item(s) with stock to sell ({stockedRules.Count} of {rules.Count} enabled item(s) have stock) - the {gateOptions.ThresholdGil:N0} gil net threshold was NOT checked for those; held, not listed (unconfirmed means hold, 0.2.0.0)");
           if (Plugin.Configuration.ShowAutoMarketMessages)
-            Communicator.PrintInfo($"value gate: no price data for {sight.Unpriceable} of {sight.Judged + sight.Unpriceable} item(s) with stock; they will list unchecked - vendoring still only fires on a confirmed price");
+            Communicator.PrintInfo($"value gate: no price data for {sight.Unpriceable} of {sight.Judged + sight.Unpriceable} item(s) with stock; held, not listed");
         }
       }
     }
@@ -521,6 +558,20 @@ internal static unsafe class AutoMarketService
     if (items == null || !items.TryGetRow(itemId, out var row))
       return (0, 0);
     return (row.PriceMid, row.PriceLow);
+  }
+
+  /// <summary>
+  /// 0.2.0.0 (design §4): whether the item is equippable gear. Gear is NEVER auto-vendored,
+  /// whatever any price source claims - on 2026-09-27 fantasy sheet prices routed five-figure
+  /// HQ gear to the vendor leg. An unknown row reads as not equippable; the junk path stays
+  /// bounded by the confirmed-below-threshold market side either way.
+  /// </summary>
+  public static bool IsEquippable(uint itemId)
+  {
+    var items = Svc.Data.GetExcelSheet<Item>();
+    if (items == null || !items.TryGetRow(itemId, out var row))
+      return false;
+    return row.EquipSlotCategory.RowId != 0;
   }
 
   /// <summary>
@@ -742,8 +793,22 @@ internal static unsafe class AutoMarketService
     if (rc != 0)
       return false;
 
-    var after = market->GetInventorySlot(op.Slot);
-    if (after != null && after->ItemId == op.ItemId)
+    // 0.2.0.0 (design §5): the market container can lag the move. A single immediate read-back
+    // reported rc=0 successes as failures on 2026-09-27 (every delist step logged FAILED while
+    // the items HAD moved), and the plans built afterwards ran against that stale slot state -
+    // real slots were left empty. Bounded retry before declaring failure.
+    var slotCleared = false;
+    for (var attempt = 0; attempt < 6; attempt++)
+    {
+      var after = market->GetInventorySlot(op.Slot);
+      if (after == null || after->ItemId != op.ItemId)
+      {
+        slotCleared = true;
+        break;
+      }
+      Thread.Sleep(250);
+    }
+    if (!slotCleared)
       return false;
 
     var landedTypes = op.Target == PullTarget.PlayerBags ? PlayerBagTypes : RetainerPageTypes;

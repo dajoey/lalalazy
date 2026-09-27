@@ -18,8 +18,8 @@ public enum RetainerCloseAction
   Wait,
   /// <summary>The retainer menu (SelectString) is open and ready to be closed.</summary>
   CloseMenu,
-  /// <summary>The post-vendoring buyback abandon dialog (SelectYesno) is open and ready for Yes.</summary>
-  ConfirmBuyback,
+  /// <summary>The buyback-abandon confirm is up: STOP - the chain releases and the player decides (0.2.0.0 §7).</summary>
+  ParkForBuyback,
   /// <summary>Retainer exit complete: RetainerList is ready at the bell.</summary>
   Done,
 }
@@ -48,11 +48,13 @@ public static class RetainerCloseGate
     if (retainerListReady)
       return RetainerCloseAction.Done;
 
-    // 2. If the buyback-abandon confirm is up and not yet clicked, confirm it.
+    // 2. If the buyback-abandon confirm is up and not yet handled: PARK. 0.2.0.0 (design §7):
+    // the buyback list is a protected resource - automation never clicks Yes on it. The chain
+    // releases this retainer and the player decides whether to buy back before closing.
     if (!buybackConfirmed && selectYesnoReady)
     {
-      if (BuybackConfirmGate.Decide(yesnoPrompt) == BuybackConfirmDecision.ConfirmLeave)
-        return RetainerCloseAction.ConfirmBuyback;
+      if (BuybackConfirmGate.Decide(yesnoPrompt) == BuybackConfirmDecision.ParkForPlayer)
+        return RetainerCloseAction.ParkForBuyback;
       return RetainerCloseAction.Wait;
     }
 

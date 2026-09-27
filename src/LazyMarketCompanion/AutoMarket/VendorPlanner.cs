@@ -147,7 +147,8 @@ public static class VendorPlanner
   }
 
   public static VendorPlan Plan(IReadOnlyList<ItemRule> heldRules, IReadOnlyList<StockStack> stock,
-    Dictionary<uint, (uint PriceMid, uint PriceLow)> prices, bool preferHq)
+    Dictionary<uint, (uint PriceMid, uint PriceLow)> prices, bool preferHq,
+    Func<ItemRule, bool>? isProtectedFromVendor = null)
   {
     var ops = new List<VendorOp>();
     var notes = new List<string>();
@@ -164,51 +165,70 @@ public static class VendorPlanner
         continue;
       }
 
-      foreach (var origin in new[] { StockOrigin.Retainer, StockOrigin.Bags })
+      // 0.2.0.0 (design §4): HQ stock is NEVER auto-vendored. Every large loss on 2026-09-27 was
+      // an HQ stack the fantasy-price comparison routed to the vendor leg.
+      if (rule.HQ)
       {
-        var enabled = origin == StockOrigin.Bags ? rule.SellFromBags : rule.SellFromRetainer;
-        if (!enabled)
-          continue;
+        notes.Add($"vendor: item {rule.ItemId} HQ - HQ stock is never auto-vendored; leaving it in place");
+        continue;
+      }
 
-        // stacks of this rule's item+quality in this origin
-        var stacks = new List<StockStack>();
-        foreach (var s in stock)
-          if (s.Origin == origin && s.ItemId == rule.ItemId && s.HQ == rule.HQ)
-            stacks.Add(s);
-        if (stacks.Count == 0)
-          continue;
+      // 0.2.0.0 (design §4): the caller's protected-class predicate (equippable gear) - gear is
+      // never auto-vendored, whatever any price source claims.
+      if (isProtectedFromVendor != null && isProtectedFromVendor(rule))
+      {
+        notes.Add($"vendor: item {rule.ItemId} is equippable - gear is never auto-vendored; leaving it in place");
+        continue;
+      }
 
-        // 0.1.60.0: largest stack first, which is what this class's own summary and the sibling
-        // AutoMarketPlanner.Plan both describe. The list was consumed in slot order, so the keep
-        // floor landed on whichever stack happened to sit in the lowest slot: with a keep of 40, a
-        // 40-unit stack in a low slot was kept whole and a 10-unit stack in a higher slot was
-        // vendored entire - the opposite of the documented behaviour, and arbitrary from the
-        // player's side, since slot order is not something they control. Ties break on the lower
-        // slot so the plan stays identical between two runs over the same stock.
-        stacks.Sort((a, b) => a.Quantity != b.Quantity ? b.Quantity.CompareTo(a.Quantity) : a.Slot.CompareTo(b.Slot));
+      // 0.2.0.0 (design §3): ONE keep floor across every sellable origin. The 0.1.x planner kept
+      // per-origin floors, so a keep-500 item with 302 in bags and 198 on the retainer page lost
+      // the whole retainer stack (its origin's keep was 0) - "keep 500" must mean keep 500 TOTAL.
+      // Stacks are collected from every ENABLED origin into one list, then the single floor is
+      // consumed largest-stack-first (0.1.60.0 order, ties: retainer before bags, then lower slot,
+      // so two runs over the same stock produce the same plan).
+      var stacks = new List<StockStack>();
+      foreach (var s in stock)
+        if (s.ItemId == rule.ItemId && s.HQ == rule.HQ
+            && (s.Origin == StockOrigin.Bags ? rule.SellFromBags : rule.SellFromRetainer))
+          stacks.Add(s);
+      if (stacks.Count == 0)
+        continue;
 
-        long keep = origin == StockOrigin.Bags ? rule.KeepInBags : rule.KeepInRetainer;
+      stacks.Sort((a, b) =>
+      {
+        if (a.Quantity != b.Quantity)
+          return b.Quantity.CompareTo(a.Quantity);
+        if (a.Origin != b.Origin)
+          return a.Origin == StockOrigin.Retainer ? -1 : 1;
+        return a.Slot.CompareTo(b.Slot);
+      });
 
-        // whole stacks first; the remainder of a partially-kept stack only moves when partials are on
-        long remainingKeep = keep;
-        foreach (var s in stacks)
+      long keep = Math.Max(rule.KeepInBags, rule.KeepInRetainer);
+      // 0.2.0.0 (design §3, corrected before implementation): active market listings NEVER reduce
+      // the floor. A listing is a pending sale, not a reserve - stock the board is already selling
+      // cannot stand in for units the player asked to keep, or the reserve dies the moment the
+      // board sells out. The floor is over bags + retainer stock only.
+
+      // whole stacks first; the remainder of a partially-kept stack only moves when partials are on
+      long remainingKeep = keep;
+      foreach (var s in stacks)
+      {
+        var qty = s.Quantity;
+        if (remainingKeep > 0)
         {
-          var qty = s.Quantity;
-          if (remainingKeep > 0)
-          {
-            var leave = Math.Min((long)qty, remainingKeep);
-            remainingKeep -= leave;
-            qty -= (int)leave;
-          }
-          if (qty <= 0)
-            continue;
-
-          var unit = ItemVendorPrice.UnitFor(rule.HQ, rule.HQ, price.PriceMid, price.PriceLow, preferHq);
-          var est = ItemVendorPrice.Total(unit, (long)qty);
-          // 0.1.15.0: the op carries the stack's real container id (RetainerPage1-7 / Inventory1-4 /
-          // crystals), NOT the origin enum - see the file header for the 0.1.12.0 defect this fixes.
-          ops.Add(new VendorOp(s.Container, s.Slot, rule.ItemId, rule.HQ, (int)Math.Min(qty, int.MaxValue), est));
+          var leave = Math.Min((long)qty, remainingKeep);
+          remainingKeep -= leave;
+          qty -= (int)leave;
         }
+        if (qty <= 0)
+          continue;
+
+        var unit = ItemVendorPrice.UnitFor(rule.HQ, rule.HQ, price.PriceMid, price.PriceLow, preferHq);
+        var est = ItemVendorPrice.Total(unit, (long)qty);
+        // 0.1.15.0: the op carries the stack's real container id (RetainerPage1-7 / Inventory1-4 /
+        // crystals), NOT the origin enum - see the file header for the 0.1.12.0 defect this fixes.
+        ops.Add(new VendorOp(s.Container, s.Slot, rule.ItemId, rule.HQ, (int)Math.Min(qty, int.MaxValue), est));
       }
     }
 

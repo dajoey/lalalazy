@@ -274,9 +274,17 @@ public sealed class Configuration : IPluginConfiguration
   /// and skips the ones whose total sellable value (board price x sellable quantity, net of the 5%
   /// market fee) is at or under <see cref="AutoMarketValueGateThresholdGil"/>. A held-back item is left
   /// exactly where it is - in the bags or the retainer inventory; nothing is vendored or destroyed.
-  /// Stale or missing data always lists the item: uncertainty falls on the reversible side.
+  /// Stale or missing data HOLDS the item (0.2.0.0): unconfirmed means hold, never act in any direction.
   /// </summary>
   public bool AutoMarketValueGateEnabled { get; set; } = false;
+
+  /// <summary>
+  /// 0.2.0.0 dry-run mode (design §6), ON by default: every listing / pulling / vendoring decision
+  /// is computed and LOGGED as "[AM][dry-run] would ..." and NOT executed. The full decision core
+  /// runs on real inventory and real prices, so a session shows exactly what the build would do at
+  /// zero risk. Turn it off to let Auto-Market act again.
+  /// </summary>
+  public bool AutoMarketDryRun { get; set; } = true;
 
   /// <summary>Minimum NET gil an item must be worth to be listed. 0 = the gate never holds anything.</summary>
   public long AutoMarketValueGateThresholdGil { get; set; } = 0;

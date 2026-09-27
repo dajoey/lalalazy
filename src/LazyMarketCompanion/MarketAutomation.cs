@@ -926,11 +926,16 @@ internal sealed class MarketAutomation : Window, IDisposable
         _buybackConfirmed = false;
         return true;
 
-      case AutoMarket.RetainerCloseAction.ConfirmBuyback:
-        Svc.Log.Information("[LMC] vendor: confirming leave - abandoning retainer buyback list (SelectYesno)");
+      case AutoMarket.RetainerCloseAction.ParkForBuyback:
+        // 0.2.0.0 (design §7): the buyback window is a protected resource. Automation never
+        // clicks Yes here - the confirm stays on screen for the player, the chain releases this
+        // retainer, and the done line records it. With the bounded junk path as the only vendor
+        // source this dialog should not appear from automation at all.
+        Svc.Log.Information("[LMC] vendor: buyback-abandon confirm left for the player (automation never abandons the buyback list); retainer left at the confirm - buy back first if wanted, then close by hand");
         _buybackConfirmed = true;
-        new AddonMaster.SelectYesno(yesno).Yes();
-        return false;
+        _retainerCloseSent = false;
+        _retainerCloseTicks = 0;
+        return true;
 
       case AutoMarket.RetainerCloseAction.CloseMenu:
         _retainerCloseSent = true;
@@ -1612,6 +1617,14 @@ internal sealed class MarketAutomation : Window, IDisposable
     if (Plugin.Configuration.ShowAutoMarketMessages)
       Communicator.PrintInfo($"value gate: pulling {pullPlan.Ops.Count} listing(s) below threshold: {names}");
 
+    // 0.2.0.0 (design §6): dry-run computes and logs the decisions, executes nothing.
+    if (Plugin.Configuration.AutoMarketDryRun)
+    {
+      foreach (var op in pullPlan.Ops)
+        Svc.Log.Information($"[AM][dry-run] would pull market#{op.Slot} item {op.ItemId}{(op.HQ ? " HQ" : "")} x{op.Quantity} (listed at {op.ListedPrice:N0} gil, under the {Plugin.Configuration.AutoMarketValueGateThresholdGil:N0} gil net threshold) back to {(op.Target == PullTarget.PlayerBags ? "player inventory" : "retainer inventory")}");
+      return BuildAndInsertListingSteps();
+    }
+
     var pullSteps = new List<Step>();
     foreach (var op in pullPlan.Ops)
     {
@@ -1654,6 +1667,22 @@ internal sealed class MarketAutomation : Window, IDisposable
     }
 
     Svc.Log.Information($"[LMC] plan: {plan.Ops.Count} listing(s): {string.Join(", ", plan.Ops.Select(o => $"{o.ItemId}{(o.HQ ? "HQ" : "")}x{o.Quantity}->#{o.TargetSlot}"))}");
+
+    // 0.2.0.0 (design §5, invariant V4): every market slot the fresh snapshot shows empty that
+    // this plan does not fill is named with the reason - a recorded hold decision, never a
+    // silently empty slot.
+    var emptyNote = AutoMarket.SlotAccounting.EmptySlotNote(AutoMarketService.SnapshotMarket(), plan.Ops.Select(o => o.TargetSlot).ToList(), AutoMarketService.MarketSlotCount);
+    if (emptyNote.Length > 0)
+      Svc.Log.Information($"[LMC] {emptyNote}");
+
+    // 0.2.0.0 (design §6): dry-run computes and logs the decisions, executes nothing.
+    if (Plugin.Configuration.AutoMarketDryRun)
+    {
+      foreach (var op in plan.Ops)
+        Svc.Log.Information($"[AM][dry-run] would list {op.ItemId}{(op.HQ ? " HQ" : "")} x{op.Quantity} from {op.Origin} into market#{op.TargetSlot}");
+      return true;
+    }
+
     var listing = new List<Step>();
     foreach (var op in plan.Ops)
       AddListingSteps(listing, op);
@@ -1687,7 +1716,12 @@ internal sealed class MarketAutomation : Window, IDisposable
       prices[rule.ItemId] = AutoMarketService.VendorPrices(rule.ItemId);
     }
 
-    var plan = VendorPlanner.Plan(held, stock, prices, preferHq);
+    // 0.2.0.0 (design §3, corrected before implementation): VendorPlanner is the ONLY constructor
+    // of vendor ops (invariant V2). The protected-class predicate (equippable gear) rides in here
+    // so the announce and the plan cannot drift apart. The keep floor is max(KeepInBags,
+    // KeepInRetainer) over bags + retainer stock inside the planner; active listings never
+    // reduce it (a listing is a pending sale, not a reserve).
+    var plan = VendorPlanner.Plan(held, stock, prices, preferHq, AutoMarketService.IsEquippable);
     if (plan.Ops.Count == 0)
     {
       foreach (var note in plan.Notes)
@@ -1695,8 +1729,6 @@ internal sealed class MarketAutomation : Window, IDisposable
       return;
     }
 
-    _vendorPlan = plan;
-    _vendorPlanPlaced = true;
     Svc.Log.Information($"[LMC] plan: {plan.Ops.Count} vendor op(s): {string.Join(", ", plan.Ops.Select(o => $"{o.ContainerName()}:{o.Slot} item{o.ItemId}x{o.Quantity}"))}");
     long est = 0;
     foreach (var op in plan.Ops)
@@ -1704,6 +1736,19 @@ internal sealed class MarketAutomation : Window, IDisposable
     _vendorPlannedCount = plan.Ops.Count;
     if (Plugin.Configuration.ShowAutoMarketMessages)
       Communicator.PrintInfo($"value gate: vendoring {plan.Ops.Count} stack(s) through the retainer (est {est:N0} gil)");
+
+    // 0.2.0.0 (design §6): dry-run computes and logs the decisions, executes nothing - no vendor
+    // plan is placed, so the end-of-session leg has nothing to run (its no-plan trigger completes
+    // cleanly, the 0.1.16.3 pin).
+    if (Plugin.Configuration.AutoMarketDryRun)
+    {
+      foreach (var op in plan.Ops)
+        Svc.Log.Information($"[AM][dry-run] would vendor {op.ContainerName()}:{op.Slot} item {op.ItemId}{(op.HQ ? " HQ" : "")} x{op.Quantity} (est {op.EstGil:N0} gil)");
+      return;
+    }
+
+    _vendorPlan = plan;
+    _vendorPlanPlaced = true;
   }
 
   /// <summary>
