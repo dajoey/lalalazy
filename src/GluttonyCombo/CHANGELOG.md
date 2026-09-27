@@ -1,3 +1,11 @@
+## v1.0.4.240 (2026-09-27) [testing]
+### Fixed
+- **Crucible: add waves now clear in the guides' kill order instead of nearest-first.** When several priority adds are up at once, auto-targeting locks onto the most dangerous documented one until it is dead: the siren's crawling piece (its touch is Bind plus Damage Down) goes before the shamblings, the treant fight clears biloko, then sapling, then diremite before any slug, and the woken Thanatos, the progenitrix's grenade, the boogyman's self-destructing bomb and the moogle finale's coin-stealing Mogmugger each take precedence inside their own wave.
+- **Crucible: the treant fight's sapling and diremite pieces are now priority adds.** Both were missing from the priority list, so the rotation ground through slugs while the biloko kept healing the wave and the sapling kept buffing it; the whole wave is now prioritized in order (biloko first) ahead of slugs and the treant itself.
+### Notes
+- Wave order is scoped to a single fight's documented add wave, so unrelated priority adds never shadow each other, and a wave with no documented order (or a single kind of add, like three shamblings) behaves exactly as before.
+- Production channel unchanged.
+
 ## v1.0.4.239 (2026-09-26) [testing]
 ### Fixed
 - **Crucible: a familiar is no longer recalled when no horn is ready to resummon it.** Parting Blow and Final Sting recall exits now require another ready horn whose familiar is above the critical line, so the last familiar stays out covering and fighting instead of leaving the character weaponless through the horn lockout — the horn-exhaustion spiral that lost low-HP Third Board fights with the boss nearly dead. When the round is ending anyway the familiar is still recalled and saved for the next battle.
