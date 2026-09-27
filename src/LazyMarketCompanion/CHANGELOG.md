@@ -1,3 +1,13 @@
+## v0.1.69.0 (2026-09-27)
+
+### Fixed
+
+- **Items with no confirmed market price are now held rather than listed blind on the market board.** When Universalis has no price data for an item (timeouts, missing listings of the requested quality, or stale records), Auto-Market previously listed the item unchecked under the assumption that uncertainty should list. When the market price was below vendor value, this caused items to list on the board for less than the vendor would have paid. Unpriced stock is now held in inventory for the next run's pricing without listing or vendoring.
+
+- **Retainer vendor ops dropped when the item command hook is inactive are explicitly reported as failed and held.** If the retainer item-command hook is disabled or uninitialized, vendor operations are rejected, logged, and held rather than being reported as successful sales.
+
+- Offline suite: new case 130 pins the value gate hold behavior — unpriced items with stock are held back from both listing and vendoring, priced items below threshold vendor, priced items above threshold list, and dropped vendor ops never fall through to listing.
+
 ## v0.1.68.0 (2026-09-22)
 
 ### Fixed

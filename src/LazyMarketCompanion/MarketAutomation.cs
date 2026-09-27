@@ -1,4 +1,4 @@
-﻿using Dalamud.Game.Addon.Lifecycle;
+using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
@@ -1948,7 +1948,7 @@ internal sealed class MarketAutomation : Window, IDisposable
         // that had already died, BuildPlan blind. With the `when` filter above, a timeout lands
         // HERE instead - named, logged, and the wait completes with null quotes: a declared
         // blind gate (ApplyValueGate announces it), never a silent one.
-        Svc.Log.Warning(ex, "[LMC] gate lookup failed; every item will list in list order");
+        Svc.Log.Warning(ex, "[LMC] gate lookup failed; unpriced stock will be held if value gate is enabled");
       }
 
       await Svc.Framework.RunOnFrameworkThread(() =>

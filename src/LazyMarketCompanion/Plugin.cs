@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using Dalamud.Game.Command;
@@ -66,14 +66,15 @@ public sealed class Plugin : IDalamudPlugin
   private delegate void RetainerItemCommandDelegate(nint agentRetainerItemCommandModule, uint slot, InventoryType inventoryType, uint a4, RetainerItemCommand command);
   private static Hook<RetainerItemCommandDelegate>? _retainerItemCommandHook;
 
-  internal static void RetainerItemCommand(nint module, uint slot, InventoryType inventoryType, uint a4, RetainerItemCommand command)
+  internal static bool RetainerItemCommand(nint module, uint slot, InventoryType inventoryType, uint a4, RetainerItemCommand command)
   {
     if (_retainerItemCommandHook == null || !_retainerItemCommandHook.IsEnabled)
     {
       Log.Warning("[LMC] retainer item command hook is not active; vendor op dropped (slot {0}:{1})", slot, inventoryType);
-      return;
+      return false;
     }
     _retainerItemCommandHook.Original(module, slot, inventoryType, a4, command);
+    return true;
   }
 
   private static void RetainerItemCommandDetour(nint module, uint slot, InventoryType inventoryType, uint a4, RetainerItemCommand command)

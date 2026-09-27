@@ -1225,15 +1225,15 @@ var Catalogue = new (uint Id, string Name)[]
   var justAbove = new ItemQuote(5111, true, Now, [new(1054, false, false)]);
   Check("gate: one gil above the threshold lists", MarketGate.Decide(1, justAbove, false, true, gate, Now) == GateVerdict.List);
 
-  // THE vendor-polarity cases: uncertain data must LIST, never hold, even at price 1 with threshold 1000
+  // THE unconfirmed-data cases: uncertain data must HOLD BACK (0.1.69.0), never list blind, never vendor
   var oneGil = new ItemQuote(5111, true, Now, [new(1, false, false)]);
   var strictGate = new GateOptions(true, 1_000, Fresh);
-  Check("gate: STALE data lists, never vendored for pennies, never held back",
-    MarketGate.Decide(99, stale, false, true, strictGate, Now) == GateVerdict.List);
-  Check("gate: missing lastUploadTime lists", MarketGate.Decide(99, noUploadTs, false, true, strictGate, Now) == GateVerdict.List);
-  Check("gate: hasData=false lists", MarketGate.Decide(99, new ItemQuote(5111, false, Now, []), false, true, strictGate, Now) == GateVerdict.List);
-  Check("gate: no listing of the quality lists", MarketGate.Decide(99, noListing, false, true, strictGate, Now) == GateVerdict.List);
-  Check("gate: null quote lists", MarketGate.Decide(99, null, false, true, strictGate, Now) == GateVerdict.List);
+  Check("gate: STALE data held back, never vendored for pennies, never listed blind",
+    MarketGate.Decide(99, stale, false, true, strictGate, Now) == GateVerdict.HoldBack);
+  Check("gate: missing lastUploadTime held back", MarketGate.Decide(99, noUploadTs, false, true, strictGate, Now) == GateVerdict.HoldBack);
+  Check("gate: hasData=false held back", MarketGate.Decide(99, new ItemQuote(5111, false, Now, []), false, true, strictGate, Now) == GateVerdict.HoldBack);
+  Check("gate: no listing of the quality held back", MarketGate.Decide(99, noListing, false, true, strictGate, Now) == GateVerdict.HoldBack);
+  Check("gate: null quote held back", MarketGate.Decide(99, null, false, true, strictGate, Now) == GateVerdict.HoldBack);
   Check("gate: gate off lists even the pennies item",
     MarketGate.Decide(99, oneGil, false, true, new GateOptions(false, 1_000, Fresh), Now) == GateVerdict.List);
   Check("gate: threshold 0 is inert (lists)", MarketGate.Decide(99, oneGil, false, true, new GateOptions(true, 0, Fresh), Now) == GateVerdict.List);
@@ -1346,12 +1346,12 @@ var Catalogue = new (uint Id, string Name)[]
     && MarketGate.Decide(1, new ItemQuote(5111, true, Now, [new(1053, false, false)]), false, true, gate, Now) == GateVerdict.Vendor);
   Check("vendor: just above threshold lists", MarketGate.Decide(1, new ItemQuote(5111, true, Now, [new(1054, false, false)]), false, true, gate, Now) == GateVerdict.List);
 
-  // THE vendor-uncertainty battery, mirrored from case 36: every one LISTS (never vendors)
-  Check("vendor: STALE data never vendors", MarketGate.Decide(99, new ItemQuote(5111, true, Now - 7 * 3_600_000L, [new(1, false, false)]), false, true, gate, Now) == GateVerdict.List);
-  Check("vendor: no lastUploadTime never vendors", MarketGate.Decide(99, new ItemQuote(5111, true, 0, [new(1, false, false)]), false, true, gate, Now) == GateVerdict.List);
-  Check("vendor: hasData=false never vendors", MarketGate.Decide(99, new ItemQuote(5111, false, Now, []), false, true, gate, Now) == GateVerdict.List);
-  Check("vendor: no listing of the quality never vendors", MarketGate.Decide(99, new ItemQuote(5111, true, Now, []), false, true, gate, Now) == GateVerdict.List);
-  Check("vendor: null quote never vendors", MarketGate.Decide(99, null, false, true, gate, Now) == GateVerdict.List);
+  // THE vendor-uncertainty battery, mirrored from case 36: every one holds back (never vendors, never lists blind)
+  Check("vendor: STALE data never vendors (held back)", MarketGate.Decide(99, new ItemQuote(5111, true, Now - 7 * 3_600_000L, [new(1, false, false)]), false, true, gate, Now) == GateVerdict.HoldBack);
+  Check("vendor: no lastUploadTime never vendors (held back)", MarketGate.Decide(99, new ItemQuote(5111, true, 0, [new(1, false, false)]), false, true, gate, Now) == GateVerdict.HoldBack);
+  Check("vendor: hasData=false never vendors (held back)", MarketGate.Decide(99, new ItemQuote(5111, false, Now, []), false, true, gate, Now) == GateVerdict.HoldBack);
+  Check("vendor: no listing of the quality never vendors (held back)", MarketGate.Decide(99, new ItemQuote(5111, true, Now, []), false, true, gate, Now) == GateVerdict.HoldBack);
+  Check("vendor: null quote never vendors (held back)", MarketGate.Decide(99, null, false, true, gate, Now) == GateVerdict.HoldBack);
   Check("vendor: gate off never vendors", MarketGate.Decide(99, cheap, false, true, new GateOptions(false, 1_000, Fresh), Now) == GateVerdict.List);
   Check("vendor: threshold 0 never vendors", MarketGate.Decide(99, cheap, false, true, new GateOptions(true, 0, Fresh), Now) == GateVerdict.List);
   Check("vendor: zero sellable never vendors", MarketGate.Decide(0, cheap, false, true, gate, Now) == GateVerdict.List);
