@@ -1894,9 +1894,12 @@ internal unsafe class AutoRotationController
                     var bmrId = Data.Conflicts.ConflictingPluginsChecks.BossModReborn
                         .GetPriorityTargetId();
                     var bmrChara = bmrId == 0 ? null : bmrId.GetBattleChara();
+                    var bmrDamageImmune = bmrChara is not null
+                        && Combos.PvE.BST.IsCrucibleDamageImmune(bmrChara);
                     if (BossModTargetingGate.ShouldUseBossModTarget(
                             cfg.DPSSettings.UseBossModTargeting, bmrId,
-                            bmrChara is not null && DPSTargeting.Query(bmrChara)))
+                            bmrChara is not null && DPSTargeting.Query(bmrChara),
+                            bmrDamageImmune))
                         return LogBossModOverride(bmrChara!);
                 }
 
@@ -2298,6 +2301,7 @@ internal unsafe class AutoRotationController
             {
                 var validTargets = Svc.Objects.GetBattleCharas()
                     .Where(Query)
+                    .Where(target => !Combos.PvE.BST.IsCrucibleDamageImmune(target))
                     .ToList();
 
                 if (cfg.DPSSettings.FATEPriority || cfg.DPSSettings.QuestPriority)

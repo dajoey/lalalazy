@@ -65,6 +65,15 @@ Check("on+unusable-target falls back (no stall)",
     actual: BossModTargetingGate.ShouldUseBossModTarget(
         checkboxOn: true, bossModTargetId: 0x1001234, targetUsable: false));
 
+// Regression (.241 in-game verdict): a status-based damage immunity can coexist
+// with IsTargetable and the standard enemy checks. It must still reject BMR's
+// opinion so normal targeting can choose an attackable enemy.
+Check("on+status-immune target falls back",
+    expected: false,
+    actual: BossModTargetingGate.ShouldUseBossModTarget(
+        checkboxOn: true, bossModTargetId: 0x1001234, targetUsable: true,
+        targetDamageImmune: true));
+
 if (failures > 0)
 {
     Console.WriteLine($"{failures} case(s) FAILED");

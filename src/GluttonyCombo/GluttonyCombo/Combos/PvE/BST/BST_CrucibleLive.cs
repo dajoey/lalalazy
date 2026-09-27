@@ -25,10 +25,31 @@ internal partial class BST
 {
     // ------------------------------------------------------------------ auto-targeting
 
+    private static bool InCrucibleDuty =>
+        Player.Job is Job.BST
+        && BST_CrucibleData.BoardOfTerritory(Svc.ClientState.TerritoryType) != 0;
+
     /// <summary> Auto-rotation DPS targeting consults <see cref="RestrictCrucibleTargets"/> while this holds. </summary>
     internal static bool CrucibleTargetingActive =>
-        Player.Job is Job.BST && Config.BST_Crucible && Config.BST_CrucibleTargeting
-        && BST_CrucibleData.BoardOfTerritory(Svc.ClientState.TerritoryType) != 0;
+        InCrucibleDuty && Config.BST_Crucible && Config.BST_CrucibleTargeting;
+
+    /// <summary>
+    ///     Encounter-specific damage immunity that Dalamud's native <c>IsInvincible</c>
+    ///     actor flag does not report (for example Ymir's Vulnerability Down).
+    /// </summary>
+    internal static bool IsCrucibleDamageImmune(IBattleChara target)
+    {
+        if (!InCrucibleDuty)
+            return false;
+
+        foreach (var status in target.StatusList)
+        {
+            if (BST_CrucibleData.IsDamageImmunityStatus(status.StatusId))
+                return true;
+        }
+
+        return false;
+    }
 
     /// <summary> BST_CrucibleLogic.AllowedTargets over live candidates: no eggs / morphos, stances last, priority adds in documented kill order, pairs balanced. </summary>
     internal static List<IBattleChara> RestrictCrucibleTargets(List<IBattleChara> targets)

@@ -1,3 +1,10 @@
+## v1.0.4.242 (2026-09-27) [testing]
+### Fixed
+- **Crucible auto-targeting now skips enemies protected by damage-immunity statuses.** Boss-mod overrides and normal targeting-mode selections reject status-based immunity (including Ymir's Vulnerability Down) and choose an attackable enemy instead of holding the rotation on an invulnerable target.
+### Notes
+- Native invincibility and targetability checks remain in place; the added status guard applies only inside the Crucible, so targeting elsewhere is unchanged.
+- Production channel unchanged.
+
 ## v1.0.4.241 (2026-09-27) [testing]
 ### Added
 - **New option: "Use boss-mod targeting when active" (Auto-Rotation → Damage settings).** When ticked and a BossMod Reborn fight module is active, auto-targeting follows the boss mod's priority target — the module's forced target when it demands one, otherwise the head of its own priority list — instead of the targeting-mode dropdown. Requires the fleet BossMod Reborn build 7.5.6.24 or newer.

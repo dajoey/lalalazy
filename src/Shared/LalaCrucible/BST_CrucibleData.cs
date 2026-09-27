@@ -140,6 +140,13 @@ internal static partial class BST_CrucibleData
     /// </summary>
     public static readonly HashSet<uint> InvulnerableStatuses = [4175, 4410, 2198, 2413, 616];
 
+    /// <summary>
+    ///     Whether a status makes a Crucible enemy immune to damage. The native actor
+    ///     invincibility flag does not cover these encounter-specific statuses.
+    /// </summary>
+    public static bool IsDamageImmunityStatus(uint statusId) =>
+        InvulnerableStatuses.Contains(statusId);
+
     /// <summary> Directional Parry (Forward Guard). 680 is the named status everywhere. </summary>
     public static readonly HashSet<uint> ParryStatuses = [680];
 

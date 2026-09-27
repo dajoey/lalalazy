@@ -20,18 +20,23 @@ namespace GluttonyCombo.AutoRotation;
 ///     </para>
 ///     <para>
 ///         <c>targetUsable</c> is the resolved actor passed through the standard
-///         <c>DPSTargeting.Query</c> enemy filter, so a boss-mod opinion pointing at a
-///         dead, untargetable or out-of-range actor falls back to the dropdown instead
-///         of stalling the rotation.
+///         <c>DPSTargeting.Query</c> enemy filter. <c>targetDamageImmune</c> adds
+///         encounter-specific immunity statuses that Dalamud's native actor flags do
+///         not expose. Either failure falls back to the dropdown instead of stalling.
 ///     </para>
 /// </remarks>
 internal static class BossModTargetingGate
 {
     /// <summary>
     ///     Whether this tick's DPS single-target choice should be the boss-mod target.
-    ///     Checkbox off never overrides (byte-identical to pre-checkbox behavior);
-    ///     checkbox on overrides only on a non-zero id whose actor is usable.
+    ///     Checkbox off never overrides (byte-identical to pre-checkbox behavior). Checkbox
+    ///     on overrides only on a non-zero id whose actor is usable and can take damage;
+    ///     encounter-specific status immunity is separate from Dalamud's actor flags.
     /// </summary>
-    internal static bool ShouldUseBossModTarget(bool checkboxOn, ulong bossModTargetId, bool targetUsable)
-        => checkboxOn && bossModTargetId != 0 && targetUsable;
+    internal static bool ShouldUseBossModTarget(
+        bool checkboxOn,
+        ulong bossModTargetId,
+        bool targetUsable,
+        bool targetDamageImmune = false)
+        => checkboxOn && bossModTargetId != 0 && targetUsable && !targetDamageImmune;
 }

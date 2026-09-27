@@ -308,6 +308,9 @@ internal static class Program
         Check("Directional Parry is 680; 2552 only on the bone knight", BST_CrucibleData.ParryStatuses.SetEquals(new uint[] { 680 })
             && BST_CrucibleData.BoneKnightParryStatus == 2552 && BST_CrucibleData.BoneKnightNameIds.Contains(14531));
         Check("invulnerable: Burning Ward 4175 on the ogre", BST_CrucibleData.InvulnerableStatuses.Contains(4175));
+        Check("damage immunity classifier: Ymir Vulnerability Down is immune; Paralyzing Spikes is not",
+            BST_CrucibleData.IsDamageImmunityStatus(2198)
+            && !BST_CrucibleData.IsDamageImmunityStatus(5434));
         Check("tankbusters: Deadly Thrust 46906; Erratic Blaster castbar 49188 lands 1 s after it",
             BST_CrucibleData.Tankbusters.Contains(46906) && BST_CrucibleData.Tankbusters.Contains(49188) && BST_CrucibleData.TankbusterHitDelay(49188) == 1f);
         Check("tankbusters: Borgny Salivous Snap 48822 (BMR SingleTargetCast)",
