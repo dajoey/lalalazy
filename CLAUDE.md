@@ -28,7 +28,35 @@ All four version locations MUST match in every release commit for any plugin `<P
 - **Never use `git push --force` or `git commit --amend` on this repo.**
 - **Never touch game files** (XIVLauncher installedPlugins, pluginConfigs, etc.) — only work on the repo and push. The game downloads from GitHub.
 
-### Changelog voice: impersonal, never second person (STANDING RULE, decided 2026-09-06)
+### Auto-Market safety doctrine (0.2.0.0, 2026-09-27 — binding after the 0.1.70.0 incident)
+
+Full design: `docs/AutoMarket-Design.md`. The rules that bind every future change to the
+market/vendor machinery:
+
+- **No vendoring, listing, pulling or delisting decision may act on unconfirmed price data, in
+  ANY direction.** Unconfirmed means HOLD (stock stays exactly where it is). The Item sheet's
+  PriceMid/PriceLow is NEVER a confirmed vendor payout — it is an enablement check for the
+  bounded junk path only, never a comparison input (2026-09-27: 99,999/unit sentinel sheet
+  prices vendored market-valuable stock and five-figure HQ gear en masse).
+- **Automated vendoring is the bounded junk path only**: confirmed market net at or under the
+  value-gate threshold, NQ, non-equippable, sheet-vendorable, keep floor respected.
+- **"Keep N" is one number across bags + retainer stock**; listings never reduce it.
+- **No change to vendor/list/delete paths ships without its dry-run exercised against recorded
+  real inventory states first.** Dry-run mode exists for exactly this (`AutoMarketDryRun`, on
+  by default): a real in-game session logs every decision it would take. The recorded incident
+  fixtures live in `tests/LazyMarketCompanion.Harness` (cases 130-136) — a behavior change to
+  the decision core adds/updates a fixture case, fails it against the OLD code first when the
+  old behavior was the defect, and ships only with the suite at 0 fail.
+- **The vendor buyback window is a protected resource:** automation never clicks Yes on the
+  buyback-abandon confirm (the chain parks for the player).
+- **Rollback path (documented, rehearsed 2026-09-27 on the testing feed):** flip
+  `TestingAssemblyVersion` + `DownloadLinkTesting` in pluginmaster.json back to the
+  last-known-good testing build, push main — that stops every NEW update from getting the bad
+  build within minutes. Rolling CLIENTS back additionally needs a reversion build (version
+  above the bad one, code = last-known-good — the 0.1.71.0 build is the worked example),
+  because Dalamud ignores downgrades.
+
+## Changelog voice: impersonal, never second person (STANDING RULE, decided 2026-09-06)
 
 **Changelog bullets describe what the plugin does, not what "you" do.** No "you can now", "your bags", "tells you", "sends you there", "your retainers", "when you log out". A changelog is a record of changes to the software, addressed to nobody. Write "inventory" not "your bags", "the character" / "the player" when the distinction matters, "the list" not "your list", "routes to the vendor" not "sends you to the vendor". This applies to `CHANGELOG.md`, the `pluginmaster.json` `Changelog` field, and manifest `Changelog` fields alike (the packager derives all of them from CHANGELOG.md).
 
