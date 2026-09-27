@@ -316,12 +316,12 @@ internal static class Program
             BST_CrucibleData.CleaveAutoBosses.SetEquals(new uint[] { 14541, 14583, 14592, 14693 }));
         Check("Third Board priority adds: crawling, flowertender, golem, bone bishop",
             new uint[] { 14586, 14589, 14581, 14567 }.All(id => BST_CrucibleData.PriorityAdds.Contains(id)));
-        Check("Crucible priority adds: exact game-data set, 51 ids across all boards",
+        Check("Crucible priority adds: exact game-data set, 53 ids across all boards (treant sapling + diremite added)",
             BST_CrucibleData.PriorityAdds.SetEquals(new uint[] {
                 14532, 14537, 14539, 14542, 14543, 14748,
                 14548, 14553, 14558, 14559,
                 14567, 14573, 14574, 14581, 14585, 14586, 14589, 14591, 14595,
-                14605, 14607, 14610, 14622, 14624, 14625, 14629,
+                14605, 14607, 14610, 14620, 14621, 14622, 14624, 14625, 14629,
                 14632, 14639, 14640, 14643, 14644, 14645, 14646, 14647, 14648, 14649,
                 14653, 14659, 14661, 14662, 14671, 14672, 14673,
                 14676, 14677, 14680, 14681, 14683, 14691, 14692, 14699,
@@ -343,8 +343,26 @@ internal static class Program
         Check("Loosefrox 30% / Chewchum 70%: Chewchum", Allowed(C(14561, 30f, false), C(14562, 70f, false)).SequenceEqual(new[] { 1 }));
         Check("Pas de Seul + succubus mage: the add first", Allowed(C(14541, 90f, false), C(14542, 100f, false)).SequenceEqual(new[] { 1 }));
         Check("bone knight + bone bishop: the bishop first", Allowed(C(14531, 100f, false), C(14532, 100f, false)).SequenceEqual(new[] { 1 }));
-        Check("siren + shambling + crawling: the whole add wave first (crawling's Damage Down on touch, shamblings before they Wallop)",
-            Allowed(C(14583, 40f, false), C(14585, 60f, false), C(14586, 55f, false)).SequenceEqual(new[] { 1, 2 }));
+        Check("siren + shambling + crawling: only the crawling piece while it lives (its touch is Bind + Damage Down)",
+            Allowed(C(14583, 40f, false), C(14585, 60f, false), C(14586, 55f, false)).SequenceEqual(new[] { 2 }));
+        Check("siren wave after the crawling dies: every shambling, siren still excluded",
+            Allowed(C(14583, 40f, false), C(14585, 60f, false), C(14585, 55f, false)).SequenceEqual(new[] { 1, 2 }));
+        Check("treant wave: biloko only while it lives (Natural Nurture heals the wave)",
+            Allowed(C(14618, 100f, false), C(14619, 100f, false), C(14620, 100f, false), C(14621, 100f, false), C(14622, 100f, false)).SequenceEqual(new[] { 4 }));
+        Check("treant wave after the biloko dies: the sapling before the diremite",
+            Allowed(C(14618, 100f, false), C(14619, 100f, false), C(14620, 100f, false), C(14621, 100f, false)).SequenceEqual(new[] { 2 }));
+        Check("treant wave after the sapling too: the diremite before slugs and treant",
+            Allowed(C(14618, 100f, false), C(14619, 100f, false), C(14621, 100f, false)).SequenceEqual(new[] { 2 }));
+        Check("treant: slugs and treant only after every documented priority add is dead",
+            Allowed(C(14618, 100f, false), C(14619, 100f, false)).Count == 2);
+        Check("thanatos + guardia: the thanatos first (a dead thanatos removes a room-wide)",
+            Allowed(C(14591, 100f, false), C(14595, 100f, false)).SequenceEqual(new[] { 1 }));
+        Check("progenitrix wave: the grenade before the bombs",
+            Allowed(C(14624, 100f, false), C(14625, 100f, false)).SequenceEqual(new[] { 0 }));
+        Check("boogyman wave: the self-destructing bomb before the deepeye",
+            Allowed(C(14639, 100f, false), C(14640, 100f, false)).SequenceEqual(new[] { 1 }));
+        Check("moogle finale: the coin-stealing mogmugger before the other officers",
+            Allowed(C(14676, 100f, false), C(14681, 100f, false), C(14683, 100f, false)).SequenceEqual(new[] { 2 }));
         Check("cactuar pack: flowertender (heals allies) before the rest",
             Allowed(C(14588, 50f, false), C(14589, 60f, false), C(14590, 40f, false), C(14591, 30f, false)).SequenceEqual(new[] { 1, 3 }));
         Check("lakhamu + golem: the golem first once it spawns",
