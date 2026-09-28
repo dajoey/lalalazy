@@ -42,6 +42,11 @@
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\GateDcFallback.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\HeldSetAnnounce.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\PinchRepriceLog.cs" />
+    <!-- 0.2.6.0 round 6: bag filler, gated market-destined, pull/vacated op contracts, run-tagged
+         done lines, and the DC-fallback wall-time bound. -->
+    <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\BagFillerPlanner.cs" />
+    <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\MarketDestined.cs" />
+    <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\PullOutcome.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\SaleHistoryPricing.cs" />
     <!-- Inventory tab (feat/lmc-inventory-tab): the Dalamud-free core, plus the shared telemetry line
          builder its IV| audit lines are built with. -->
