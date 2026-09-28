@@ -244,11 +244,13 @@ deposited market-destined stock into retainer storage pages ahead of the listing
 
 Observed in game on 0.2.2.0: gate retry and cache fallback functioned as designed, planning
 11 potential listings across retainers, but all 11 were intercepted by dry-run simulation.
-Because AutoRetainer cycles retainers headlessly in automated passes, the retainer bell / sell list overlays
-were never rendered to the player, making the overlay toggle button unreachable and leaving
-the player unaware of why no listings executed.
+While a reachable settings checkbox in the configuration window already existed (`ConfigWindow.cs:215-216`),
+the 0.2.1.0 interactive toggle was placed on the retainer bell / sell list overlays, which AutoRetainer's
+automated venture cycles never render. Crucially, a full automated pass in dry-run mode simulated silently
+without emitting any chat notification, leaving the player completely unaware that listings were being planned
+and intercepted, and lacking immediate feedback on how to enable live execution.
 
-0.2.3.0 establishes the control-surface and per-pass feedback contracts:
+0.2.3.0 establishes the control-surface discoverability and per-pass feedback contracts:
 
 1. **One persisted gate, three control handles:**
    `Configuration.AutoMarketDryRun` remains the single persisted boolean gate, defaulting to `true`

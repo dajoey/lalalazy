@@ -5,10 +5,6 @@
 - **Reachable dry-run controls across automated sessions.** Dry-run mode can now be toggled via chat command (`/lmc dryrun [on|off|toggle|status]`) or in the plugin configuration window under Auto-Market settings, in addition to the retainer bell / sell list overlay button. All three controls flip the same persisted configuration and confirm the resulting state in chat.
 - **Per-pass dry-run chat feedback.** When an Auto-Market pass simulates one or more listing actions while dry-run mode is active, a chat notification is emitted stating the simulated action count and the command to enable live execution (`/lmc dryrun off`). Live passes and passes with no planned actions emit no simulation messages.
 
-### Fixed
-
-- **Live listing execution path.** When dry-run mode is disabled, planned market listings execute live actions to populate empty retainer market slots instead of logging simulation messages.
-
 ## v0.2.2.0 (2026-09-28) [testing]
 
 ### Fixed
