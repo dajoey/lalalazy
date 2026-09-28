@@ -4872,6 +4872,17 @@ ItemQuote FillerQuote(uint id, long unit, bool hq = false, double vel = 0, long 
     destined.OrderBy(x => x).SequenceEqual(gatedPlan.Ops.Select(o => o.ItemId).Distinct().OrderBy(x => x))
       && destined.Contains(55501) && !destined.Contains(55502),
     $"destined={string.Join(",", destined)} plan={string.Join(",", gatedPlan.Ops.Select(o => o.ItemId))}");
+
+  // 0.2.8.0 (review): the assertion above compares two lists that both hold List verdicts, so it
+  // could pass even if the gate excluded nothing. This rule has a FRESH home-world quote at 1 gil:
+  // a real Vendor verdict, which the gate must still exclude from the listing plan and from the
+  // destined set.
+  var junk = Rule(55503, 1);
+  var stockJ = new List<StockStack>(stock) { new(StockOrigin.Bags, Bags1, 3, 55503, false, 99) };
+  var quotesJ = new Dictionary<uint, ItemQuote>(quotes) { [55503] = FillerQuote(55503, 1) };
+  var gatedJ = MarketDestined.ListVerdictRules([unpriced, priced, junk], stockJ, quotesJ, preferHq: false, listPartialStacks: false, thresholdGil: 100, NowMs, FreshMs);
+  Check("153 control: a fresh home-world junk quote is a Vendor verdict and stays out of the gated listing rules",
+    gatedJ.All(r => r.ItemId != 55503) && gatedJ.Any(r => r.ItemId == 55501), $"gated={string.Join(",", gatedJ.Select(r => r.ItemId))}");
 }
 
 // 154. (0.2.6.0 pull result contract): rc=0 is the server's ACCEPTANCE. A market-slot
@@ -5140,6 +5151,84 @@ ItemQuote FillerQuote(uint id, long unit, bool hq = false, double vel = 0, long 
   var stampCalls = System.Text.RegularExpressions.Regex.Matches(provSrc, "GateDcFallback\\.StampDataCenterScope\\(").Count;
   Check("159c wiring: UniversalisPriceProvider stamps in both the data-center fallback fetch and the data-center-scope primary fetch",
     provSrc.Length > 0 && stampCalls >= 2, provSrc.Length == 0 ? "UniversalisPriceProvider.cs not found" : $"stamp calls={stampCalls}");
+}
+
+// 159d. (0.2.8.0 review finding: one world's quote must never stand in for another's): the gate
+// cache holds quotes keyed by item id alone and lives as long as the plugin, which outlasts a
+// character switch onto a different world (AutoRetainer multi-mode). A world chunk that then fails
+// three times is filled from the cache - with the OTHER world's quote (1 gil here, 4,993 gil at
+// this world), which reads as a fresh home-world quote and could vendor or pull. The cache now
+// drops everything when the scope it is about to query changes, and the data-center pass has its
+// own instance.
+{
+  const long Now = 1_790_600_000_000L;
+  const long Fresh159d = 6 * 3_600_000L;
+  var cache = new GatePriceCache();
+  Check("159d the first scope claim on a fresh cache discards nothing", cache.EnsureScope("world:WorldA") == false);
+  cache.Record(new ItemQuote(36117, true, Now - 1000, [new QuoteListing(1, false, false)]), Now);
+  Check("159d asking the same scope again keeps its entries", cache.EnsureScope("world:WorldA") == false && cache.Count == 1, $"count={cache.Count}");
+  Check("159d a different world drops every entry and says so", cache.EnsureScope("world:WorldB") == true && cache.Count == 0, $"count={cache.Count}");
+  var failedChunk = new Dictionary<uint, ItemQuote>();
+  var recovered = cache.PopulateMissing(failedChunk, [36117u], Now, Fresh159d);
+  Check("159d another world's quote cannot fill this world's failed chunk", recovered == 0 && failedChunk.Count == 0, $"recovered={recovered}");
+  cache.Record(new ItemQuote(36117, true, Now - 1000, [new QuoteListing(4993, false, false)]), Now);
+  var sameWorld = new Dictionary<uint, ItemQuote>();
+  cache.PopulateMissing(sameWorld, [36117u], Now, Fresh159d);
+  Check("159d control: this world's own recent quote still recovers a failed chunk (the outage cache keeps working)",
+    sameWorld.TryGetValue(36117, out var own) && own.Listings[0].PricePerUnit == 4993, "own-world recovery broke");
+
+  var provPath = new[]
+  {
+    Path.Combine("..", "..", "..", "..", "..", "src", "LazyMarketCompanion", "UniversalisPriceProvider.cs"),
+    Path.Combine("src", "LazyMarketCompanion", "UniversalisPriceProvider.cs"),
+  }.FirstOrDefault(File.Exists) ?? "";
+  var src = provPath.Length > 0 ? File.ReadAllText(provPath) : "";
+  Check("159d wiring: the primary fetch guards its cache scope and the data-center pass has its own cache and guard",
+    src.Length > 0
+      && System.Text.RegularExpressions.Regex.Matches(src, "\\.EnsureScope\\(").Count >= 2
+      && src.Contains("_dcGatePriceCache = new()")
+      && System.Text.RegularExpressions.Regex.Matches(src, "cache: _dcGatePriceCache,").Count == 1
+      && System.Text.RegularExpressions.Regex.Matches(src, "cache: _gatePriceCache,").Count == 1,
+    src.Length == 0 ? "UniversalisPriceProvider.cs not found" : "cache wiring not as pinned");
+}
+
+// 159e. (0.2.8.0 review): the gate's sight line must not claim the threshold was checked on a
+// quote that can never vendor or pull. A fresh data-center minimum under the threshold used to
+// count as "judged", so a pass could announce "every item is above the threshold" over stock the
+// gate had only sighted at the data-center scope. And Decide can no longer return HoldBack.
+{
+  const long Now = 1_790_600_000_000L;
+  const long Fresh159e = 6 * 3_600_000L;
+  ItemRule R159(uint id) => new(id, false, 99, 0, 0, 0, true, true, 0, 999);
+  var stock159 = new List<StockStack> { new(StockOrigin.Bags, Bags1, 1, 36117, false, 1), new(StockOrigin.Bags, Bags1, 2, 17574, false, 2) };
+  var quotes159 = new Dictionary<uint, ItemQuote>
+  {
+    [36117] = new ItemQuote(36117, true, Now - 60_000, [new QuoteListing(1, false, false)], DataCenterScope: true),
+    [17574] = new ItemQuote(17574, true, Now - 60_000, [new QuoteListing(500, false, false)]),
+  };
+  var sight = MarketGate.CountSight([R159(36117), R159(17574)], quotes159, true, Now, Fresh159e, stock159, false);
+  Check("159e a data-center quote counts as NOT checked against the threshold; a home-world quote counts as judged",
+    sight.Judged == 1 && sight.Unpriceable == 1, $"judged={sight.Judged} unpriceable={sight.Unpriceable}");
+
+  var gate159e = new GateOptions(true, 100, Fresh159e);
+  var matrix = new (string Name, ItemQuote? Quote)[]
+  {
+    ("null", null),
+    ("hasData=false", new ItemQuote(5111, false, Now, [])),
+    ("stale", new ItemQuote(5111, true, Now - 7 * 3_600_000L, [new QuoteListing(1, false, false)])),
+    ("no upload time", new ItemQuote(5111, true, 0, [new QuoteListing(1, false, false)])),
+    ("no listing", new ItemQuote(5111, true, Now, [])),
+    ("fresh junk, home world", new ItemQuote(5111, true, Now, [new QuoteListing(1, false, false)])),
+    ("fresh junk, data center", new ItemQuote(5111, true, Now, [new QuoteListing(1, false, false)], DataCenterScope: true)),
+    ("fresh valuable, home world", new ItemQuote(5111, true, Now, [new QuoteListing(5000, false, false)])),
+    ("fresh valuable, data center", new ItemQuote(5111, true, Now, [new QuoteListing(5000, false, false)], DataCenterScope: true)),
+  };
+  Check("159e Decide never returns HoldBack for any quote shape (the gate lists or vendors, it does not hold)",
+    matrix.All(m => MarketGate.Decide(1, m.Quote, false, true, gate159e, Now) != GateVerdict.HoldBack),
+    string.Join("; ", matrix.Where(m => MarketGate.Decide(1, m.Quote, false, true, gate159e, Now) == GateVerdict.HoldBack).Select(m => m.Name)));
+  Check("159e only a fresh home-world junk quote vendors: exactly one shape in the matrix returns Vendor",
+    matrix.Count(m => MarketGate.Decide(1, m.Quote, false, true, gate159e, Now) == GateVerdict.Vendor) == 1
+      && MarketGate.Decide(1, matrix[5].Quote, false, true, gate159e, Now) == GateVerdict.Vendor);
 }
 
 

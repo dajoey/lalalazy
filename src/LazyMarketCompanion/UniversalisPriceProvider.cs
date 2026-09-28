@@ -42,6 +42,12 @@ internal sealed class UniversalisPriceProvider : IDisposable
 
   private readonly GatePriceCache _gatePriceCache = new();
 
+  // 0.2.8.0: the data-center fallback gets its OWN cache. GatePriceCache is keyed by item id alone,
+  // so sharing one instance let a data-center quote come back out of it standing in for a world
+  // quote (and one world's quote for another world's). Each cache also drops everything when the
+  // scope it is about to query changes (GatePriceCache.EnsureScope).
+  private readonly GatePriceCache _dcGatePriceCache = new();
+
   public UniversalisPriceProvider()
   {
     _items = Svc.Data.GetExcelSheet<Item>();
@@ -224,6 +230,9 @@ internal sealed class UniversalisPriceProvider : IDisposable
     // recent valid quotes within freshness rather than starving all stocked items.
     var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
     var freshnessMs = (long)Math.Clamp(Plugin.Configuration.AutoMarketGateFreshnessHours, 1, 168) * 3_600_000L;
+    // 0.2.8.0: quotes recovered from the cache must come from the scope being asked about right now.
+    if (_gatePriceCache.EnsureScope($"{(useDataCenter ? "dc" : "world")}:{scopeName}"))
+      Svc.Log.Information($"[LMC] gate: price cache dropped - the market scope changed to {(useDataCenter ? "data center" : "world")} {scopeName}");
     var result = await GateChunkFetch.FetchAllAsync(
       itemIds,
       GateChunkSize,
@@ -266,6 +275,7 @@ internal sealed class UniversalisPriceProvider : IDisposable
           // 42 tasks cleared on timeout, a CloseRetainer timeout, a sweep's tail lost). Past the
           // budget no NEW chunk is issued; the never-asked ids stay held this pass - unconfirmed
           // means hold - and the next pass asks again. Held-stays-safe is unchanged.
+          _dcGatePriceCache.EnsureScope($"dc:{dcName}");
           var dcStarted = System.Diagnostics.Stopwatch.StartNew();
           var dcResult = await GateChunkFetch.FetchAllAsync(
             needing,
@@ -279,14 +289,14 @@ internal sealed class UniversalisPriceProvider : IDisposable
             },
             (count, ex) => Svc.Log.Warning(ex, $"[LMC] Auto-Market data-center fallback lookup failed for {count} item(s) after 3 attempts; continuing with what the world scope returned"),
             cancellationToken,
-            cache: _gatePriceCache,
+            cache: _dcGatePriceCache,
             nowUnixMs: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             cacheTtlMs: freshnessMs,
             backoffDelay: attempt => Task.Delay((attempt + 1) * 250, cancellationToken),
             elapsedMs: () => dcStarted.ElapsedMilliseconds,
             wallBudgetMs: DcFallbackWallBudgetMs).ConfigureAwait(false);
           if (dcResult.SkippedForDeadlineItemCount > 0)
-            Svc.Log.Information($"[LMC] gate: data-center fallback stopped at the {DcFallbackWallBudgetMs / 1000.0:0.#}s wall-time bound; {dcResult.SkippedForDeadlineItemCount} item(s) were not re-asked and stay held this pass (unconfirmed means hold; the next pass asks again)");
+            Svc.Log.Information($"[LMC] gate: data-center fallback stopped at the {DcFallbackWallBudgetMs / 1000.0:0.#}s wall-time bound; {dcResult.SkippedForDeadlineItemCount} item(s) were not re-asked and are listed without a data-center quote this pass (nothing vendors or pulls on it; the next pass asks again)");
 
           if (dcResult.Quotes != null)
           {
@@ -338,6 +348,7 @@ internal sealed class UniversalisPriceProvider : IDisposable
   public void Dispose()
   {
     _gatePriceCache.Clear();
+    _dcGatePriceCache.Clear();
     _client.Dispose();
   }
 

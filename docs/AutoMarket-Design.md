@@ -41,7 +41,7 @@ alone. See §14.)
 
 | Source | Confirmed when | Failure modes | Safe default |
 |---|---|---|---|
-| **Market quote** (Universalis cheapest listing of the wanted quality) | `HasData`, `LastUploadUnixMs` fresh (< gate freshness hours), wanted-quality cheapest listing exists and is > 0 | request timeout, no data, stale upload, no listing of wanted quality, thin/single-listing price | **HOLD** — never list blind, never vendor, never pull |
+| **Market quote** (Universalis cheapest listing of the wanted quality) | `HasData`, `LastUploadUnixMs` fresh (< gate freshness hours), wanted-quality cheapest listing exists and is > 0 | request timeout, no data, stale upload, no listing of wanted quality, thin/single-listing price | **LIST** (0.2.8.0, §14: the listing is priced by the normal pricing pass); **never vendor, never pull** |
 | **Item sheet `PriceMid`/`PriceLow`** | **NEVER confirmed as a vendor payout.** It is a static data table, not a quote. | sentinel prices (99,999), NPC retail price ≠ vendor payout, HQ path fantasy, 0 on items NPCs do buy | Display estimate only. It may gate the *enablement* of the bounded junk path (§4) — it may NEVER decide that an item is worth vendoring |
 | **Vendor offer from the game's own sell UI** | read for `(itemId, quality)` during this session from the retainer shop UI | UI not open, row unreadable | Vendor side unconfirmed ⇒ the item is **never** routed to vendoring by comparison (§4) |
 
@@ -413,6 +413,16 @@ marked stock lying in bags and retainer inventories that could be marketed and i
   otherwise come back out of the cache as a home-world quote when a later world chunk timed out
   (case 159c). A quote so stamped can allow a listing and rank, but never produces `Vendor`, so
   it never vendors and never pulls. Only a fresh, positive, home-world quote can.
+- *Cache scope.* `GatePriceCache` is keyed by item id alone and lives as long as the plugin, which
+  outlasts a character switch on another world. The data-center pass now has its own cache, and
+  both caches drop everything when the scope they are about to query changes
+  (`GatePriceCache.EnsureScope`, case 159d), so a quote recovered after a failed chunk is always
+  from the scope being asked about right now and one world's price can never stand in for
+  another's. Defense in depth: the vendor branch's `marketConfirmed` also requires a
+  non-data-center quote, and `CountSight` counts a data-center quote as NOT checked against the
+  threshold, so the gate no longer announces "every item is above the threshold" on one.
+- *Data-center price mode.* With `UseUniversalisDataCenterPrices` on, every gate quote is a
+  data-center quote, so the vendor and pull legs are inert by construction; items list.
 
 **What is unchanged:** the bounded junk path (§4: NQ, not equippable, sheet-vendorable, confirmed
 net at or under the threshold, keep floor respected); HQ and gear never vendored; "keep N" is one
@@ -431,8 +441,12 @@ overwritten; c: the stamp survives a cache round trip, with a control documentin
 a wiring pin on both fetch lambdas). Cases 36, 148, 148a, 153 and the vendor-uncertainty battery were re-pinned to the
 new polarity; 153 now pins the invariant directly (the destined set equals the real gated plan).
 
-**Residuals recorded, not fixed here:** the "held unpriced" pass counter and the held-set line
-now read zero; the data-center pass still costs wall time (bounded at 10 s, §13) although it now
+**Residuals recorded, not fixed here:** an item with no price data anywhere (empty board, no
+recent sales, default amount 0) lists at the placeholder price and stays there because the pricing
+pass has nothing to set (a Warning names it; rare: 2 of the 83 measured had no home-world listing,
+both had data-center data); in the Universalis-first and data-center price modes the listing price
+is the data-center minimum by the user's own setting; the "held unpriced" pass counter, the
+held-set line and the gate-retry block now read zero or never run; the data-center pass still costs wall time (bounded at 10 s, §13) although it now
 serves only ranking; a placeholder listing whose Auto Pinch walk fails stays at the placeholder
 price, unchanged from before.
 

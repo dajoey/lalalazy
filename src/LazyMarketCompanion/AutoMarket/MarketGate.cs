@@ -134,7 +134,7 @@ public static class MarketGate
     }
 
     return (GateLogLevel.Debug,
-      $"[LMC] gate: no price data for {sight.Unpriceable} of {sight.Judged + sight.Unpriceable} item(s) with stock to sell ({stockedCount} of {rulesCount} enabled item(s) have stock) - the {thresholdGil:N0} gil net threshold was NOT checked for those; they list at the live board price and are never vendored or pulled on an unconfirmed quote (0.2.8.0)");
+      $"[LMC] gate: no price data for {sight.Unpriceable} of {sight.Judged + sight.Unpriceable} item(s) with stock to sell ({stockedCount} of {rulesCount} enabled item(s) have stock) - the {thresholdGil:N0} gil net threshold was NOT checked for those; they list wherever a market slot is free, priced by the normal pricing pass, and are never vendored or pulled without a home-world quote (0.2.8.0)");
   }
 
   /// <summary>
@@ -165,7 +165,11 @@ public static class MarketGate
     {
       ItemQuote? quote = null;
       quotes?.TryGetValue(rule.ItemId, out quote);
-      if (UsableQuote(quote, rule.HQ, preferHq, nowUnixMs, freshnessMs) != null)
+      // 0.2.8.0: a data-center quote cannot judge the threshold question this count reports on
+      // (Decide never vendors or pulls on one), so it counts as NOT checked - otherwise a fresh
+      // data-center minimum under the threshold read as "judged" and the gate announced that
+      // every item was above it, the false clean bill of health this record exists to prevent.
+      if (UsableQuote(quote, rule.HQ, preferHq, nowUnixMs, freshnessMs) != null && quote?.DataCenterScope != true)
         judged++;
     }
     return new Sight(judged, scopedRules.Count - judged);

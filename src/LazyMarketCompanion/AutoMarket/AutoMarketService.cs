@@ -290,7 +290,9 @@ internal static unsafe class AutoMarketService
           var unit = MarketGate.UsableQuote(quote, rule.HQ, config.HQ, now, freshnessMs);
           var net = unit != null ? MarketGate.NetRevenue(unit.Value, sellable) : 0L;
           if (VendorPolicy.JunkPathEligible(
-                marketConfirmed: unit != null,
+                // 0.2.8.0 defense in depth: a data-center quote is never "confirmed" for the
+                // vendor path, even if a future Decide change let one reach this branch.
+                marketConfirmed: unit != null && quote?.DataCenterScope != true,
                 marketNet: net,
                 thresholdGil: gateOptions.ThresholdGil,
                 isHq: rule.HQ,
@@ -408,7 +410,7 @@ internal static unsafe class AutoMarketService
           Svc.Log.Warning(logMsg);
 
         if (sight.Unpriceable > 0 && Plugin.Configuration.ShowAutoMarketMessages)
-          Communicator.PrintInfo($"value gate: no price data for {sight.Unpriceable} of {sight.Judged + sight.Unpriceable} item(s) with stock; listing them at the live board price");
+          Communicator.PrintInfo($"value gate: no price data for {sight.Unpriceable} of {sight.Judged + sight.Unpriceable} item(s) with stock; not checked against the threshold, so they list wherever a market slot is free and are never vendored or pulled");
       }
     }
 
