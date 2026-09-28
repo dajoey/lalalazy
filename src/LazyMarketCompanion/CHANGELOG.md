@@ -1,3 +1,9 @@
+## v0.2.2.0 (2026-09-28) [testing]
+
+### Fixed
+
+- **Value gate log level on unpriced stock.** When market price data for stocked items is unconfirmed or missing, the gate safely holds stock in place (unconfirmed means hold). This handled operational condition is now logged at Debug rather than Warning, preventing expected market data gaps from generating spurious warning-level telemetry alerts.
+
 ## v0.2.1.0 (2026-09-28) [testing]
 
 ### Fixed

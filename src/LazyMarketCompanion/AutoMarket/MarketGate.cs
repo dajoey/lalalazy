@@ -133,7 +133,7 @@ public static class MarketGate
         $"[LMC] gate: every item is above the {thresholdGil:N0} gil net threshold (checked {sight.Judged} of {rulesCount} enabled item(s), {stockedCount} with stock)");
     }
 
-    return (GateLogLevel.Warning,
+    return (GateLogLevel.Debug,
       $"[LMC] gate: no price data for {sight.Unpriceable} of {sight.Judged + sight.Unpriceable} item(s) with stock to sell ({stockedCount} of {rulesCount} enabled item(s) have stock) - the {thresholdGil:N0} gil net threshold was NOT checked for those; held, not listed (unconfirmed means hold, 0.2.0.0)");
   }
 
