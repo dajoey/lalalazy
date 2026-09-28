@@ -1,3 +1,9 @@
+## v1.0.4.245 (2026-09-28) [testing]
+### Fixed
+- **Crucible: Forward Guard auto-recall now triggers deterministically across the full cast window without weave restrictions.** Auto-recall no longer gates on a narrow cast-remaining threshold (<= 2.5s) or weave availability (`CanWeave`), ensuring Parting Blow executes reliably even when weaponskills are ready or GCD is mid-roll, providing sufficient time for the familiar retreat animation before Directional Parry resolves.
+### Notes
+- Production channel unchanged.
+
 ## v1.0.4.244 (2026-09-28) [testing]
 ### Fixed
 - **Crucible: Forward Guard now triggers an auto-recall before the guard lands, and attacks hold while facing Directional Parry.** When an enemy casts Forward Guard, Parting Blow recalls the active familiar safely before the cast resolves so pets are not locked or lost to the parry window. If the enemy enters Directional Parry while targeting the player without a familiar to reposition it, weaponskill execution pauses until the shield drops or aggro turns the enemy, preventing attacks from deflecting for zero damage.

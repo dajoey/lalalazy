@@ -621,8 +621,34 @@ internal static class Program
         var forwardGuard = CrucibleState() with { TargetCastId = 46864, TargetCastRemaining = 2.0f, PetHpPercent = 100f, ReadyParting = true };
         Check("Forward Guard cast (directional parry): Parting Blow recalls familiar before guard lands",
             Decide(forwardGuard, cfg) is { ActionId: BST.PartingBlow, Reason: "crucible:petsave-guard" });
-        Check("Forward Guard with 4 s remaining: not yet",
-            Decide(forwardGuard with { TargetCastRemaining = 4.0f }, cfg).Reason != "crucible:petsave-guard");
+        // Replay of failing run (2026-09-28 run 2): Forward Guard cast began at 4.4 s remaining;
+        // recall must fire immediately rather than waiting for <= 2.5 s or being starved by GCD/weave states.
+        Check("Forward Guard replay (4.4 s remaining): recall fires immediately",
+            Decide(forwardGuard with { TargetCastRemaining = 4.4f }, cfg) is { ActionId: BST.PartingBlow, Reason: "crucible:petsave-guard" });
+        Check("Forward Guard replay (4.0 s remaining): recall fires",
+            Decide(forwardGuard with { TargetCastRemaining = 4.0f }, cfg) is { ActionId: BST.PartingBlow, Reason: "crucible:petsave-guard" });
+        Check("Forward Guard replay (GCD ready, CanWeave false): recall fires, no weaponskill",
+            Decide(forwardGuard with { TargetCastRemaining = 2.0f, GcdReady = true, CanWeave = false }, cfg) is { ActionId: BST.PartingBlow, Reason: "crucible:petsave-guard" });
+        Check("Forward Guard replay (GCD rolling, CanWeave false): recall fires, no weaponskill",
+            Decide(forwardGuard with { TargetCastRemaining = 2.0f, GcdReady = false, CanWeave = false }, cfg) is { ActionId: BST.PartingBlow, Reason: "crucible:petsave-guard" });
+
+        // Timing sweep: across the entire cast window (4.8 s down to 0.5 s) and all 3 weave/GCD states,
+        // recall must remain deterministic and never flip back to weaponskills.
+        var sweepPassed = true;
+        for (var rem = 4.8f; rem >= 0.5f; rem -= 0.5f)
+        {
+            var canWeave = Decide(forwardGuard with { TargetCastRemaining = rem, GcdReady = false, CanWeave = true }, cfg);
+            var gcdReady = Decide(forwardGuard with { TargetCastRemaining = rem, GcdReady = true, CanWeave = false }, cfg);
+            var gcdRolling = Decide(forwardGuard with { TargetCastRemaining = rem, GcdReady = false, CanWeave = false }, cfg);
+            if (canWeave is not { ActionId: BST.PartingBlow, Reason: "crucible:petsave-guard" } ||
+                gcdReady is not { ActionId: BST.PartingBlow, Reason: "crucible:petsave-guard" } ||
+                gcdRolling is not { ActionId: BST.PartingBlow, Reason: "crucible:petsave-guard" })
+            {
+                sweepPassed = false;
+                break;
+            }
+        }
+        Check("Forward Guard timing sweep (4.8 s -> 0.5 s, all GCD/weave states): deterministic recall", sweepPassed);
 
         var parryFacing = CrucibleState() with { TargetHasParry = true, EnemyTargetsPlayer = true, EnemyTargetsPet = false, GcdReady = true, ReadyParting = false };
         Check("Directional Parry facing player: hold attacks",
