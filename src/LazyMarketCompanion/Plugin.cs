@@ -289,6 +289,14 @@ public sealed class Plugin : IDalamudPlugin
       Log.Information($"[LMC] config migrated v{from} -> v3: 'Price from recent sales when nothing is on the board' {(wasOn ? "was already ON" : "was OFF and is now ON")}; an empty board prices from the median of recent Universalis sales (30-day freshness guard) instead of giving up. Untick it in /lmc settings for the old behaviour.");
     }
 
+    if (config.Version < 4)
+    {
+      var wasOn = config.AutoMarketBagFillerEnabled;
+      config.AutoMarketBagFillerEnabled = false;
+      config.Version = 4;
+      Log.Information($"[LMC] config migrated v{from} -> v4: the retired off-list 'bag filler' {(wasOn ? "was ON and has been turned OFF" : "was already off")}; Auto-Market sells only what is on the Auto-Market list.");
+    }
+
     config.Version = Configuration.CurrentVersion;
     config.Save();
     return config;

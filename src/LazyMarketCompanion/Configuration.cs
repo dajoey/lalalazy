@@ -130,7 +130,7 @@ public sealed class Configuration : IPluginConfiguration
   /// v1 -> v2 (0.1.3.0): AutoMarketPinchAllAfter became opt-in.
   /// v2 -> v3 (0.1.14.0): UseUniversalisSaleHistoryFallback became the default (was opt-in).
   /// </summary>
-  public const int CurrentVersion = 3;
+  public const int CurrentVersion = 4;
 
   public int Version { get; set; } = CurrentVersion;
 
@@ -231,14 +231,14 @@ public sealed class Configuration : IPluginConfiguration
   public bool AutoMarketListPartialStacks { get; set; } = false;
 
   /// <summary>
-  /// 0.2.6.0: the bag filler. Marketable bag stock that is NOT on the Auto-Market list may fill
-  /// market slots the configured plan leaves free, at a confirmed price only (world or data-center
-  /// scope inside the freshness window). Never vendored, never deposited into storage - it lists
-  /// from the bags exactly where it sits. Unconfirmed stock stays held in the bags and is named in
-  /// the log. ON by default: the feature exists because off-list marketable bag stock was invisible
-  /// to every plan and laid in the bags while retainer market slots sat empty.
+  /// 0.2.7.0: RETIRED. The off-list "bag filler" that 0.2.6.0 shipped (ON by default) is removed:
+  /// marketable stock that is NOT on the Auto-Market list is manual-review territory, and nothing
+  /// automated may list, deposit or vendor it - the enrollment list is the boundary of what
+  /// Auto-Market may sell. The property survives only so the v3 -> v4 migration in
+  /// Plugin.MigrateIfNeeded can force false any config that picked up 0.2.6.0's ON default;
+  /// nothing reads it. Do not re-wire a selling surface off this switch without new commission.
   /// </summary>
-  public bool AutoMarketBagFillerEnabled { get; set; } = true;
+  public bool AutoMarketBagFillerEnabled { get; set; } = false;
 
   /// <summary>
   /// After listing, run Auto Pinch over the whole retainer (re-prices old listings too). Off (the default

@@ -1,3 +1,9 @@
+## v0.2.7.0 (2026-09-28) [testing]
+
+### Removed
+
+- **Auto-Market no longer sells anything that is not on the Auto-Market list.** The off-list "bag filler" stage added in 0.2.6.0 is removed entirely. Free retainer market slots stay free unless a configured listing fills them; marketable items that are not enrolled on the list are never listed, deposited or vendored automatically - they are manual-review territory, exactly as before 0.2.6.0. A configuration migration retires the stage's switch and turns it off once for any install that picked it up, so returning to list-only behaviour needs no action.
+
 ## v0.2.6.0 (2026-09-28) [testing]
 
 ### Added
