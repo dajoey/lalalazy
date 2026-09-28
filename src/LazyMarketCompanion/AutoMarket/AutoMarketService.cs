@@ -93,10 +93,20 @@ internal static unsafe class AutoMarketService
     // 5.8 s). An id with no sellable stock can never be judged below-threshold anyway, so the
     // trim loses nothing and keeps the request in the size class the API answers reliably.
     var rules = BuildEnabledRules();
+    var stock = SnapshotStock();
     // 0.1.32.0: also ask about items currently LISTED under an enabled rule (the pull pass) - see
     // MarketGate.GateFetchIds' own remarks for why a listed-only item would otherwise never get
     // a quote at all.
-    return MarketGate.GateFetchIds(rules, SnapshotStock(), Plugin.Configuration.AutoMarketListPartialStacks, SnapshotMarket());
+    var ids = MarketGate.GateFetchIds(rules, stock, Plugin.Configuration.AutoMarketListPartialStacks, SnapshotMarket());
+    // 0.2.6.0: the bag filler's off-list marketable stock needs quotes too, or every grey stack
+    // would read unpriced and hold forever (the exact starvation this round fixes).
+    if (Plugin.Configuration.AutoMarketBagFillerEnabled)
+    {
+      foreach (var id in BuildGreyInfo(stock, rules).Keys)
+        if (!ids.Contains(id))
+          ids.Add(id);
+    }
+    return ids;
   }
 
   /// <summary>
@@ -183,7 +193,102 @@ internal static unsafe class AutoMarketService
     rules = gated;
 
     var options = new PlannerOptions(MarketSlotCount, config.AutoMarketReserveSlots, config.AutoMarketPreferRetainerStockFirst, config.AutoMarketListPartialStacks);
-    return AutoMarketPlanner.Plan(rules, stock, market, options);
+    var plan = AutoMarketPlanner.Plan(rules, stock, market, options);
+    // 0.2.6.0: the bag filler runs LAST, against the slots the configured plan left free.
+    return AppendBagFiller(plan, rules, stock, market, gateQuotes, options, config);
+  }
+
+  /// <summary>
+  /// 0.2.6.0: the bag-filler stage of the listing plan (BagFillerPlanner carries the contract).
+  /// Marketable bag stock that is NOT on the Auto-Market list fills free slots at a confirmed
+  /// price only; unconfirmed stock stays held in the bags and is named here; confirmed
+  /// below-threshold stock is held too - the junk/vendor path is for configured items only, so
+  /// the filler NEVER vendors. Announces ride plan.Notes (logged by the execution path) plus one
+  /// chat line when the filler actually listed, so the new behavior is visible at the bell.
+  /// Best-effort by construction: any failure here degrades to the configured plan unchanged.
+  /// </summary>
+  private static PlanResult AppendBagFiller(PlanResult plan, IReadOnlyList<ItemRule> configuredRules,
+    List<StockStack> stock, List<MarketSlot> market, Dictionary<uint, ItemQuote>? quotes,
+    PlannerOptions options, Configuration config)
+  {
+    try
+    {
+      var greyInfo = BuildGreyInfo(stock, configuredRules);
+      if (greyInfo.Count == 0)
+        return plan;
+
+      var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+      var freshnessMs = (long)Math.Clamp(config.AutoMarketGateFreshnessHours, 1, 168) * 3_600_000L;
+      var filler = BagFillerPlanner.Plan(
+        stock, configuredRules, greyInfo, config.CategoryRetainerRules, CurrentRetainerName(),
+        quotes, market, plan.Ops,
+        new BagFillerOptions(config.AutoMarketBagFillerEnabled, config.AutoMarketReserveSlots, MarketSlotCount),
+        config.HQ, now, freshnessMs, Math.Max(config.AutoMarketValueGateThresholdGil, 0));
+
+      if (filler.Ops.Count == 0 && filler.HeldUnpricedIds.Count == 0 && filler.HeldBelowThresholdIds.Count == 0)
+        return plan;
+
+      var notes = plan.Notes.ToList();
+      if (filler.Ops.Count > 0)
+      {
+        var detail = string.Join(", ", filler.Ops.Select(o => $"{o.ItemId}{(o.HQ ? " HQ" : "")} x{o.Quantity}->slot #{o.TargetSlot}"));
+        notes.Add($"bag filler: {filler.Ops.Count} marketable off-list bag stack(s) into free slot(s), confirmed price only, never vendored: {detail}");
+        Svc.Log.Information($"[LMC] bag filler: {filler.Ops.Count} marketable off-list bag stack(s) will list into free slot(s): {detail}");
+        if (config.ShowAutoMarketMessages)
+          Communicator.PrintInfo($"bag filler: listing {filler.Ops.Count} marketable bag stack(s) that are not on the Auto-Market list (confirmed prices only)");
+      }
+      if (filler.HeldUnpricedIds.Count > 0)
+        notes.Add($"bag filler: {filler.HeldUnpricedIds.Count} marketable off-list bag stack(s) have no confirmed price; held in the bags, not listed and not vendored (unconfirmed means hold): {DescribeGreyIds(filler.HeldUnpricedIds)}");
+      if (filler.HeldBelowThresholdIds.Count > 0)
+        notes.Add($"bag filler: {filler.HeldBelowThresholdIds.Count} off-list bag stack(s) are confirmed at or under the threshold; held in the bags, never vendored (the vendor path is for configured items only): {DescribeGreyIds(filler.HeldBelowThresholdIds)}");
+
+      var ops = new List<ListingOp>(plan.Ops.Count + filler.Ops.Count);
+      ops.AddRange(plan.Ops);
+      ops.AddRange(filler.Ops);
+      return new PlanResult(ops, notes);
+    }
+    catch (Exception ex)
+    {
+      Svc.Log.Warning(ex, "[LMC] bag filler: planning failed; continuing with the configured plan only");
+      return plan;
+    }
+  }
+
+  /// <summary>Ids with best-effort names for the filler's held notes (HeldSetAnnounce format).</summary>
+  private static string DescribeGreyIds(IReadOnlyList<uint> ids)
+  {
+    var sheet = Svc.Data.GetExcelSheet<Item>();
+    string Name(uint id)
+    {
+      if (sheet != null && sheet.TryGetRow(id, out var row) && !string.IsNullOrWhiteSpace(row.Name.ToString()))
+        return row.Name.ToString();
+      return $"item {id}";
+    }
+    return string.Join(", ", ids.Select(id => $"{id} ({Name(id)})"));
+  }
+
+  /// <summary>
+  /// Item-sheet info for the bag filler: every DISTINCT unconfigured bag item id. The configured
+  /// rules' ids are excluded (never double-managed); a sheet miss is omitted entirely, which the
+  /// filler treats as not marketable - fail closed, nothing lists on an unresolved identity.
+  /// </summary>
+  internal static Dictionary<uint, GreyItemInfo> BuildGreyInfo(List<StockStack> stock, IReadOnlyList<ItemRule> configuredRules)
+  {
+    var result = new Dictionary<uint, GreyItemInfo>();
+    var configured = configuredRules.Select(r => r.ItemId).ToHashSet();
+    var sheet = Svc.Data.GetExcelSheet<Item>();
+    if (sheet == null)
+      return result;
+    foreach (var s in stock)
+    {
+      if (s.Origin != StockOrigin.Bags || configured.Contains(s.ItemId) || result.ContainsKey(s.ItemId))
+        continue;
+      if (!sheet.TryGetRow(s.ItemId, out var row))
+        continue;
+      result[s.ItemId] = new GreyItemInfo(s.ItemId, row.ItemSearchCategory.RowId,
+        row.ItemSearchCategory.RowId != 0 && !row.IsUntradable, (int)Math.Max(row.StackSize, 1u));
+    }
+    return result;
   }
 
   /// <summary>
@@ -833,7 +938,12 @@ internal static unsafe class AutoMarketService
     // 0.2.0.0 (design §5): the market container can lag the move. A single immediate read-back
     // reported rc=0 successes as failures on 2026-09-27 (every delist step logged FAILED while
     // the items HAD moved), and the plans built afterwards ran against that stale slot state -
-    // real slots were left empty. Bounded retry before declaring failure.
+    // real slots were left empty. Bounded retry before deciding.
+    // 0.2.6.0: rc=0 is the server's ACCEPTANCE (PullOutcome, case 154). On 2026-09-28 a pull
+    // reported "FAILED ... rc=0; leaving the listing on the board" for a withdrawal that had
+    // landed - the same pass vendored that stack out of retainer inventory seconds later - so a
+    // read-back that still lags after the full window is ACCEPTED-WITH-LAG, never FAILED: the
+    // next pass re-reads the board and corrects any stale slot state.
     var slotCleared = false;
     for (var attempt = 0; attempt < 6; attempt++)
     {
@@ -846,7 +956,12 @@ internal static unsafe class AutoMarketService
       Thread.Sleep(250);
     }
     if (!slotCleared)
-      return false;
+    {
+      // PullOutcome.Classify(rc: 0, slotCleared: false) == AcceptedWithLag - the single
+      // classification lives in the pinned contract, not in this executor.
+      Svc.Log.Warning($"[LMC] {PullOutcome.LagLine(op.ItemId, op.HQ, op.Quantity, 6 * 250)}");
+      return true;
+    }
 
     var landedTypes = op.Target == PullTarget.PlayerBags ? PlayerBagTypes : RetainerPageTypes;
     var found = FindStack(landedTypes, op.ItemId, op.HQ, op.Quantity);
@@ -906,7 +1021,8 @@ internal static unsafe class AutoMarketService
     return RoutingMove.UnroutedBags(l.Stock, l.Rules, l.CategoryByKey, l.ExcludeByKey, l.CategoryRules);
   }
 
-  internal static HashSet<uint> ComputeMarketDestined(IReadOnlyList<StockStack> stock, IReadOnlyList<ItemRule> rules)
+  internal static HashSet<uint> ComputeMarketDestined(IReadOnlyList<StockStack> stock, IReadOnlyList<ItemRule> rules,
+    Dictionary<uint, ItemQuote>? gateQuotes = null)
   {
     if (!IsMarketContainerLoaded())
       return [];
@@ -916,52 +1032,69 @@ internal static unsafe class AutoMarketService
     var ruleList = rules as List<ItemRule> ?? rules.ToList();
     var stockList = stock as List<StockStack> ?? stock.ToList();
     var eligibleRules = config.CategoryRetainerRules.Count > 0 ? ApplyCategoryRouting(ruleList, config.CategoryRetainerRules) : ruleList;
+    // 0.2.6.0: the destined set must mirror the REAL listing plan - same category filter, same
+    // value gate, same sort - or the deposit guard excludes the wrong stacks. The 0.2.5.0 body
+    // planned WITHOUT the gate: an unpriced rule crowded the free slots first and a PRICED later
+    // rule missed the destined set, kept its deposit op, and the mover then logged a false
+    // "FAILED rc=-1; leaving the stack where it is" after the listing pass had already taken the
+    // stack from the bags (2026-09-28 session, item 7488 HQ). The gate and sort below are the
+    // quiet twins of ApplyValueGate's kept-branch, in MarketDestined (harness case 153).
+    if (config.AutoMarketValueGateEnabled)
+    {
+      var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+      var freshnessMs = (long)Math.Clamp(config.AutoMarketGateFreshnessHours, 1, 168) * 3_600_000L;
+      eligibleRules = MarketDestined.ListVerdictRules(eligibleRules, stockList, gateQuotes,
+        config.HQ, config.AutoMarketListPartialStacks, config.AutoMarketValueGateThresholdGil, now, freshnessMs);
+    }
+    eligibleRules = MarketGate.SortRules(eligibleRules,
+      MarketGate.RuleQuotes(eligibleRules, gateQuotes, config.HQ, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+        (long)Math.Clamp(config.AutoMarketGateFreshnessHours, 1, 168) * 3_600_000L),
+      config.AutoMarketSortMode);
     var options = new PlannerOptions(MarketSlotCount, config.AutoMarketReserveSlots, config.AutoMarketPreferRetainerStockFirst, config.AutoMarketListPartialStacks);
-    var plan = AutoMarketPlanner.Plan(eligibleRules, stockList, market, options);
-    return plan.Ops.Where(o => o.Origin == StockOrigin.Bags).Select(o => o.ItemId).ToHashSet();
+    return MarketDestined.BagsOriginItemIds(eligibleRules, stockList, market, options);
   }
 
-  public static RoutingMovePlan PlanRoutingMoves(IReadOnlyCollection<string>? movedThisRun = null, IReadOnlyCollection<string>? reconciledSkip = null, IReadOnlyCollection<uint>? marketDestined = null)
+  public static RoutingMovePlan PlanRoutingMoves(IReadOnlyCollection<string>? movedThisRun = null, IReadOnlyCollection<string>? reconciledSkip = null, IReadOnlyCollection<uint>? marketDestined = null, Dictionary<uint, ItemQuote>? gateQuotes = null)
   {
     if (!TryBuildRoutingLookups(out var l))
       return new RoutingMovePlan(new List<RoutingMoveOp>(), new List<string>(), false, false);
 
     var session = CurrentRetainerName();
-    var destined = marketDestined ?? ComputeMarketDestined(l.Stock, l.Rules);
+    var destined = marketDestined ?? ComputeMarketDestined(l.Stock, l.Rules, gateQuotes);
     return RoutingMove.Plan(l.Stock, l.Rules, l.CategoryByKey, l.ExcludeByKey, l.CategoryRules,
       session, CountFreeBagSlots, RetainerPageFreeSlot, movedThisRun, reconciledSkip, destined)
       with { SessionRetainer = session };
   }
 
   /// <summary>Identical to PlanRoutingMoves but calls RoutingMove.PlanDepositsOnly.</summary>
-  public static RoutingMovePlan PlanRoutingDepositsOnly(IReadOnlyCollection<string>? reconciledSkip = null, IReadOnlyCollection<uint>? marketDestined = null)
+  public static RoutingMovePlan PlanRoutingDepositsOnly(IReadOnlyCollection<string>? reconciledSkip = null, IReadOnlyCollection<uint>? marketDestined = null, Dictionary<uint, ItemQuote>? gateQuotes = null)
   {
     if (!TryBuildRoutingLookups(out var l))
       return new RoutingMovePlan(new List<RoutingMoveOp>(), new List<string>(), false, false);
 
     var session = CurrentRetainerName();
-    var destined = marketDestined ?? ComputeMarketDestined(l.Stock, l.Rules);
+    var destined = marketDestined ?? ComputeMarketDestined(l.Stock, l.Rules, gateQuotes);
     return RoutingMove.PlanDepositsOnly(l.Stock, l.Rules, l.CategoryByKey, l.ExcludeByKey, l.CategoryRules,
       session, CountFreeBagSlots, RetainerPageFreeSlot, reconciledSkip, destined)
       with { SessionRetainer = session };
   }
 
-  public static bool HasPendingRoutingDeposits(IReadOnlyCollection<uint>? marketDestined = null)
+  public static bool HasPendingRoutingDeposits(IReadOnlyCollection<uint>? marketDestined = null, Dictionary<uint, ItemQuote>? gateQuotes = null)
   {
     if (!TryBuildRoutingLookups(out var l))
       return false;
 
-    var destined = marketDestined ?? ComputeMarketDestined(l.Stock, l.Rules);
+    var destined = marketDestined ?? ComputeMarketDestined(l.Stock, l.Rules, gateQuotes);
     return RoutingMove.HasPendingDeposits(l.Stock, l.Rules, l.CategoryByKey, l.ExcludeByKey, l.CategoryRules,
       CurrentRetainerName(), CountFreeBagSlots, () => int.MaxValue, destined);
   }
 
-  public static bool HasPendingRoutingDepositsForAny(IReadOnlyList<string> retainerNames, IReadOnlyCollection<uint>? marketDestined = null)
+  public static bool HasPendingRoutingDepositsForAny(IReadOnlyList<string> retainerNames, IReadOnlyCollection<uint>? marketDestined = null, Dictionary<uint, ItemQuote>? gateQuotes = null)
   {
     if (retainerNames.Count == 0 || !TryBuildRoutingLookups(out var l))
       return false;
 
-    var destined = marketDestined ?? ComputeMarketDestined(l.Stock, l.Rules);
+    var destined = marketDestined ?? ComputeMarketDestined(l.Stock, l.Rules, gateQuotes);
     foreach (var name in retainerNames)
     {
       if (RoutingMove.HasPendingDeposits(l.Stock, l.Rules, l.CategoryByKey, l.ExcludeByKey, l.CategoryRules, name, () => 0, () => int.MaxValue, destined))
@@ -1073,6 +1206,29 @@ internal static unsafe class AutoMarketService
   /// no mergeable stack -> the move fails with rc=-2 and the stack stays where it is; the planner's
   /// free-slot accounting is advisory, and a swap-shaped hole never opens.
   /// </summary>
+  /// <summary>
+  /// 0.2.6.0: post-failure honesty for the routing mover. A MoveItemSlot that returned rc=-1
+  /// did its own pre-fire source check and found the slot no longer holding the planned stack -
+  /// usually because the listing pass (which runs AHEAD of the routing moves) already took that
+  /// stack from the bags to a market slot. That is not a failure and the stack was not "left
+  /// where it is"; this re-read distinguishes the vacated source (skip, RoutingMove.VacatedLine)
+  /// from a genuinely unreadable container (keep the old FAILED semantics).
+  /// </summary>
+  public unsafe static bool SourceSlotVacated(RoutingMoveOp op)
+  {
+    var manager = InventoryManager.Instance();
+    if (manager == null)
+      return false;
+    var src = manager->GetInventoryContainer((InventoryType)op.SrcContainer);
+    if (src == null || !src->IsLoaded)
+      return false;
+    var slot = src->GetInventorySlot(op.SrcSlot);
+    if (slot == null)
+      return true;
+    return slot->ItemId != op.ItemId
+      || slot->Flags.HasFlag(InventoryItem.ItemFlags.HighQuality) != op.HQ;
+  }
+
   public static bool ExecuteRoutingMove(RoutingMoveOp op, out int rc)
   {
     rc = -1;

@@ -30,5 +30,21 @@ public static class DoneLine
       ? "done."
       : $"done: {listed} new listing(s){(failures > 0 ? $", {failures} skipped (stock moved)" : string.Empty)}{(unconfirmed > 0 ? $", {unconfirmed} unconfirmed (see log)" : string.Empty)}{(pulled > 0 ? $", {pulled} pulled" : string.Empty)}{(routed > 0 ? $", {routed} routed into place" : string.Empty)}{(vendored > 0 ? $", {vendored} vendored" : string.Empty)}{(vendorFailures > 0 ? $", {vendorFailures} vendoring op(s) failed (see log)" : string.Empty)}{(heldBack > 0 ? $", {heldBack} held back by the value gate" : string.Empty)}.";
   }
+
+  /// <summary>
+  /// 0.2.6.0: run-scoped counters. The done line's counters cover ONE run - the ClearState-to-done
+  /// window, whatever its scope (a whole sweep, one manual current-retainer run, or one AutoRetainer
+  /// postprocess session) - and a game session can contain several runs. The 2026-09-28 session ran
+  /// two sweeps; its single surviving done line reconciled with the SECOND run's ops only, and
+  /// grading it against the whole session's op lines read as "5 counted vs 8 executed". The run tag
+  /// makes the boundary mechanical: every run logs a tagged start line and a tagged done line, and a
+  /// run whose chain dies (task-manager cascade) is visible as a start with no done. The untagged
+  /// Format above is unchanged - case 40 still pins it character-for-character.
+  /// </summary>
+  public static string RunTag(int runId) => $"run #{runId}";
+
+  public static string RunStartLogLine(int runId) => $"Auto-Market {RunTag(runId)} start";
+
+  public static string RunDoneLogLine(int runId, string formattedDoneLine) => $"Auto-Market {RunTag(runId)} {formattedDoneLine}";
 }
 

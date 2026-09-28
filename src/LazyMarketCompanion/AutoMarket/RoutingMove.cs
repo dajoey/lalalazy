@@ -845,6 +845,17 @@ public static class RoutingMove
     return new RoutingMovePlan(ops, notes, stoppedBags, stoppedRet) { UnroutedBagsStacks = unrouted };
   }
 
+  /// <summary>
+  /// 0.2.6.0: the honest line for a deposit whose source slot no longer holds the stack. The
+  /// 2026-09-28 session listed item 7488 HQ from the bags (the listing pass runs ahead of the
+  /// routing mover), and the mover's MoveItemSlot then hit the already-empty source slot and
+  /// logged "FAILED rc=-1; leaving the stack where it is" - false on both counts: the stack
+  /// had already moved to the market. A vacated source is a SKIP with this line, counted as
+  /// neither a move nor a failure.
+  /// </summary>
+  public static string VacatedLine(uint itemId, bool hq, int container, int slot)
+    => $"routing move: skipped item {itemId}{(hq ? " HQ" : "")} - the source slot {container}#{slot} no longer holds it (the stack already left, listed or moved earlier in this pass); nothing to move";
+
   /// <summary>The one-line summary for the log/chat announce: "3 pull-out(s), 2 deposit(s)".</summary>
   public static string Summarize(IReadOnlyList<RoutingMoveOp> ops)
   {

@@ -51,6 +51,14 @@ internal sealed class MarketAutomation : Window, IDisposable
   // Auto-market run bookkeeping
   private readonly List<ListingOp> _listedThisRetainer = [];
   private int _listedTotal;
+
+  /// <summary>
+  /// 0.2.6.0: the monotonic Auto-Market run id. Every run (sweep, manual current-retainer run,
+  /// AutoRetainer postprocess session) logs a tagged start line and its AnnounceRunDone logs a
+  /// tagged done line, so a game session containing several runs reconciles per-run instead of
+  /// one surviving done line reading as undercounted against the whole session's ops.
+  /// </summary>
+  private int _runSeq;
   private int _listingFailures;
   private int _vendoredThisRun;
   private int _vendorFailedThisRun;
@@ -452,6 +460,7 @@ internal sealed class MarketAutomation : Window, IDisposable
       return;
 
     ClearState();
+    BeginRun();
     if (!(GenericHelpers.TryGetAddonByName<AtkUnitBase>("RetainerList", out var addon) && GenericHelpers.IsAddonReady(addon)))
       return;
 
@@ -687,6 +696,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     }
 
     ClearState();
+    BeginRun();
     _taskManager.Enqueue(() => InsertAutoMarketThenPinch(), "AutoMarketCurrent");
     _taskManager.Enqueue(AnnounceRunDone, "AnnounceDone");
   }
@@ -735,7 +745,7 @@ internal sealed class MarketAutomation : Window, IDisposable
   private bool? RunFinalLapGate(List<(int Index, string Name)> lapRetainers)
   {
     var names = lapRetainers.Select(r => r.Name).ToList();
-    if (!AutoMarketService.HasPendingRoutingDepositsForAny(names))
+    if (!AutoMarketService.HasPendingRoutingDepositsForAny(names, gateQuotes: _gateQuotes))
     {
       Svc.Log.Information("[LMC] routing lap: no pending deposits - skipping the lap");
       return true;
@@ -748,7 +758,7 @@ internal sealed class MarketAutomation : Window, IDisposable
       var capturedName = name;
       candidateSteps.Add(new Step(() =>
       {
-        if (!AutoMarketService.HasPendingRoutingDepositsForAny(new[] { capturedName }))
+        if (!AutoMarketService.HasPendingRoutingDepositsForAny(new[] { capturedName }, gateQuotes: _gateQuotes))
         {
           Svc.Log.Information($"[LMC] routing lap: {capturedName} has nothing pending - skipped");
           return true;
@@ -798,7 +808,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     // the game did not keep is already quarantined when this lap's plan is built.
     VerifyRoutingPersistence(retainerName);
     PruneReconcileSkip(retainerName);
-    var routingPlan = AutoMarketService.PlanRoutingDepositsOnly(_routingReconcileSkip.Keys);
+    var routingPlan = AutoMarketService.PlanRoutingDepositsOnly(_routingReconcileSkip.Keys, gateQuotes: _gateQuotes);
     foreach (var note in routingPlan.Notes)
       Svc.Log.Information($"[LMC] {note}");
 
@@ -1529,7 +1539,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     // before this session's plan is built.
     VerifyRoutingPersistence(AutoMarketService.CurrentRetainerName());
     PruneReconcileSkip(AutoMarketService.CurrentRetainerName());
-    var routingPlan = AutoMarketService.PlanRoutingMoves(_routingPulledThisRun, _routingReconcileSkip.Keys);
+    var routingPlan = AutoMarketService.PlanRoutingMoves(_routingPulledThisRun, _routingReconcileSkip.Keys, gateQuotes: _gateQuotes);
     foreach (var note in routingPlan.Notes)
       Svc.Log.Information($"[LMC] {note}");
     // 0.1.49.0: session identity on every planning pass - the live RetainerManager name the
@@ -1587,6 +1597,13 @@ internal sealed class MarketAutomation : Window, IDisposable
             if (captured.Leg == MoveLeg.RetainerToBags)
               _routingPulledThisRun.Add($"{captured.SrcContainer}:{captured.SrcSlot}:{captured.ItemId}:{(captured.HQ ? "hq" : "nq")}");
             Svc.Log.Information($"[LMC] routing move: OK {(captured.Leg == MoveLeg.RetainerToBags ? "pulled to bags" : "deposited to retainer")}: item {captured.ItemId}{(captured.HQ ? " HQ" : "")} from container {captured.SrcContainer} slot {captured.SrcSlot}");
+          }
+          else if (rc == -1 && AutoMarketService.SourceSlotVacated(captured))
+          {
+            // 0.2.6.0: the source slot no longer holds the stack - the listing pass (which runs
+            // ahead of the routing moves) already took it from the bags to a market slot. Not a
+            // failure, and the stack was not "left where it is" (the 2026-09-28 7488 false FAILED).
+            Svc.Log.Information($"[LMC] {RoutingMove.VacatedLine(captured.ItemId, captured.HQ, captured.SrcContainer, captured.SrcSlot)}");
           }
           else
           {
@@ -2282,6 +2299,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     _arRetainer = retainer;
     _arStartedAt = Environment.TickCount64;
     ClearState();
+    BeginRun();
     Communicator.PrintRetainerName(retainer);
     Svc.Log.Information($"[LMC] AR session start: {retainer}");
 
@@ -2872,6 +2890,9 @@ internal sealed class MarketAutomation : Window, IDisposable
   /// vendoring and then executed none of it (the leg never ran - chain died, menu never came back)
   /// says the shortfall in chat, not just in the log.
   /// </summary>
+  /// <summary>0.2.6.0: stamps the run boundary in the log (DoneLine.RunStartLogLine, case 156).</summary>
+  private void BeginRun() => Svc.Log.Information($"[LMC] {AutoMarket.DoneLine.RunStartLogLine(++_runSeq)}");
+
   private void AnnounceRunDone()
   {
     // 0.1.15.1: with the leg running inside each retainer's session, counters at zero here mean the
@@ -2883,7 +2904,7 @@ internal sealed class MarketAutomation : Window, IDisposable
       if (Plugin.Configuration.ShowAutoMarketMessages)
         Communicator.PrintInfo($"value gate: 0 of {_vendorPlannedCount} planned stack(s) were vendored - the leg did not run (see log)");
     }
-    Communicator.PrintSweepDone(_listedTotal, _listingFailures, _vendoredThisRun, 0, _vendorFailedThisRun, _pulledThisRun, _unconfirmedThisRun, _routingMovedOk);
+    Communicator.PrintSweepDone(_listedTotal, _listingFailures, _vendoredThisRun, 0, _vendorFailedThisRun, _pulledThisRun, _unconfirmedThisRun, _routingMovedOk, _runSeq);
   }
 
   /// <summary>

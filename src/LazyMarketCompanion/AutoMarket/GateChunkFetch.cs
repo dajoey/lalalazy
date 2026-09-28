@@ -14,12 +14,14 @@ namespace LazyMarketCompanion.AutoMarket;
 /// <param name="RetriedChunks">Chunks that failed at least once and answered on retry.</param>
 /// <param name="FailedChunks">Chunks that answered never, even after all retries.</param>
 /// <param name="CachedItemCount">Items recovered from the short-TTL price cache on failed chunks.</param>
+/// <param name="SkippedForDeadlineItemCount">0.2.6.0: items never asked because the wall-time budget ran out (unconfirmed means hold; the next pass re-asks).</param>
 internal sealed record GateFetchResult(
   Dictionary<uint, ItemQuote>? Quotes,
   int AnsweredItemCount,
   int RetriedChunks,
   int FailedChunks,
-  int CachedItemCount = 0);
+  int CachedItemCount = 0,
+  int SkippedForDeadlineItemCount = 0);
 
 /// <summary>
 /// Chunked Universalis gate fetch (0.1.19.0 chunking, 0.1.68.0 retry, 0.2.1.0 bounded backoff + cache).
@@ -44,15 +46,31 @@ internal static class GateChunkFetch
     GatePriceCache? cache = null,
     long nowUnixMs = 0,
     long cacheTtlMs = GatePriceCache.DefaultTtlMs,
-    Func<int, Task>? backoffDelay = null)
+    Func<int, Task>? backoffDelay = null,
+    Func<long>? elapsedMs = null,
+    long wallBudgetMs = 0)
   {
     var merged = new Dictionary<uint, ItemQuote>();
     var answered = 0;
     var retried = 0;
     var failed = 0;
     var cached = 0;
+    var skippedForDeadline = 0;
     for (var i = 0; i < itemIds.Count; i += chunkSize)
     {
+      // 0.2.6.0: the wall-time bound. The data-center fallback re-asks every source-unusable id
+      // in small chunks with retries, and on a full stale set that pass had no deadline: the
+      // 2026-09-28 session tripped the task manager ("Task GateWait took too long", 42 cleared
+      // tasks, a CloseRetainer timeout) and lost a sweep's tail to the cascade. Past the budget
+      // no NEW chunk is issued; the never-asked ids stay held this pass (unconfirmed means
+      // hold) and are reported so the caller can say so. The budget only gates new chunks -
+      // an in-flight chunk finishes its own retries, so the bound is soft by at most one chunk.
+      if (i > 0 && elapsedMs != null && wallBudgetMs > 0 && elapsedMs() > wallBudgetMs)
+      {
+        skippedForDeadline = itemIds.Count - i;
+        break;
+      }
+
       var chunk = itemIds.Skip(i).Take(chunkSize).ToList();
       Dictionary<uint, ItemQuote>? quotes = null;
       for (var attempt = 0; attempt < MaxAttempts && quotes == null; attempt++)
@@ -103,6 +121,6 @@ internal static class GateChunkFetch
       }
     }
 
-    return new GateFetchResult(answered > 0 ? merged : null, answered, retried, failed, cached);
+    return new GateFetchResult(answered > 0 ? merged : null, answered, retried, failed, cached, skippedForDeadline);
   }
 }

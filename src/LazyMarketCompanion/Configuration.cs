@@ -231,6 +231,16 @@ public sealed class Configuration : IPluginConfiguration
   public bool AutoMarketListPartialStacks { get; set; } = false;
 
   /// <summary>
+  /// 0.2.6.0: the bag filler. Marketable bag stock that is NOT on the Auto-Market list may fill
+  /// market slots the configured plan leaves free, at a confirmed price only (world or data-center
+  /// scope inside the freshness window). Never vendored, never deposited into storage - it lists
+  /// from the bags exactly where it sits. Unconfirmed stock stays held in the bags and is named in
+  /// the log. ON by default: the feature exists because off-list marketable bag stock was invisible
+  /// to every plan and laid in the bags while retainer market slots sat empty.
+  /// </summary>
+  public bool AutoMarketBagFillerEnabled { get; set; } = true;
+
+  /// <summary>
   /// After listing, run Auto Pinch over the whole retainer (re-prices old listings too). Off (the default
   /// since 0.1.3.0) = only the slots this run just filled get priced, which is the whole point of listing
   /// and pricing in one pass. Existing configs are moved to false once by the v1 -> v2 migration.

@@ -1,3 +1,16 @@
+## v0.2.6.0 (2026-09-28) [testing]
+
+### Added
+
+- **Marketable bag stock that is not on the Auto-Market list now sells too.** Free retainer market slots left over after the configured listings are filled by marketable items sitting in the character's bags, listed from the bags at a confirmed market price only (world or data-center scope, inside the freshness window). Off-list stock is never vendored and never parked into retainer storage; items with no confirmed price anywhere stay in the bags, named in the log. Category routing divides off-list stock the same way as configured stock; a board already selling an item does not get a second listing of it. One chat line per pass names how many off-list stacks were listed, and a configuration switch ("bag filler", on by default) turns the stage off entirely.
+
+### Fixed
+
+- **A market withdrawal is no longer reported as failed when the server accepted it.** A pull whose market slot still read occupied after the bounded confirmation window logged "FAILED ... rc=0; leaving the listing on the board" for a withdrawal that had landed. The return code is now treated as what it is - the server's acceptance - and a lagging slot read is reported as accepted-with-lag; the next pass re-reads the board.
+- **A storage deposit no longer reports failure for stock the listing pass already listed.** The deposit guard now mirrors the real, price-gated listing plan (it used to plan without the price gate, so unpriced items crowded the free slots and a priced item kept a doomed deposit). A deposit whose source slot is already empty is logged as a skip with the reason, not as a failure claiming the stack stayed put.
+- **The data-center price fallback is wall-time bounded.** A fully stale price set no longer extends the fallback re-asks without limit; past the bound the remaining items stay held (unconfirmed means hold) and are retried on the next pass. This removes the task-chain starvation a large fallback run could cause.
+- **The closing "Auto-Market run done" line is run-scoped.** Every run (a full sweep, a single-retainer run, an automated postprocess session) now logs a numbered start line and its done line carries the same number, so the counts reconcile against that run's operations - a game session with several runs no longer reads as undercounted.
+
 ## v0.2.5.0 (2026-09-28) [testing]
 
 ### Fixed
