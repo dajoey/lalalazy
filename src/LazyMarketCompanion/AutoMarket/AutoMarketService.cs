@@ -290,7 +290,9 @@ internal static unsafe class AutoMarketService
           var unit = MarketGate.UsableQuote(quote, rule.HQ, config.HQ, now, freshnessMs);
           var net = unit != null ? MarketGate.NetRevenue(unit.Value, sellable) : 0L;
           if (VendorPolicy.JunkPathEligible(
-                marketConfirmed: unit != null,
+                // 0.2.8.0 defense in depth: a data-center quote is never "confirmed" for the
+                // vendor path, even if a future Decide change let one reach this branch.
+                marketConfirmed: unit != null && quote?.DataCenterScope != true,
                 marketNet: net,
                 thresholdGil: gateOptions.ThresholdGil,
                 isHq: rule.HQ,
@@ -306,9 +308,9 @@ internal static unsafe class AutoMarketService
           continue;
         }
 
-        // 0.2.0.0 (design §1): unconfirmed market data means HOLD - never listed (which would
-        // bypass the value gate), never vendored (irreversible on a guess). Restores the
-        // 0.1.69.0 doctrine the 0.1.71.0 reversion withdrew.
+        // 0.2.8.0: MarketGate.Decide no longer returns HoldBack - an unconfirmed quote LISTS (the
+        // plugin's job) and only a fresh home-world quote can vendor. This branch is a defensive
+        // holdover for a future verdict; it is not reached today.
         if (verdict == GateVerdict.HoldBack)
         {
           heldUnpriced.Add(rule);
@@ -408,7 +410,7 @@ internal static unsafe class AutoMarketService
           Svc.Log.Warning(logMsg);
 
         if (sight.Unpriceable > 0 && Plugin.Configuration.ShowAutoMarketMessages)
-          Communicator.PrintInfo($"value gate: no price data for {sight.Unpriceable} of {sight.Judged + sight.Unpriceable} item(s) with stock; held, not listed");
+          Communicator.PrintInfo($"value gate: no price data for {sight.Unpriceable} of {sight.Judged + sight.Unpriceable} item(s) with stock; not checked against the threshold, so they list wherever a market slot is free and are never vendored or pulled");
       }
     }
 

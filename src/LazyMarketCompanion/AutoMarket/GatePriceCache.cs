@@ -109,4 +109,29 @@ public sealed class GatePriceCache
       _entries.Clear();
     }
   }
+
+  private string? _scopeKey;
+
+  /// <summary>
+  /// 0.2.8.0: the cache is keyed by item id alone, so it must only ever hold quotes from ONE market
+  /// scope. The plugin's lifetime spans several characters on different worlds (AutoRetainer
+  /// multi-mode), and a world quote recovered from the cache after a failed chunk would otherwise
+  /// stand in for ANOTHER world's price and could drive the vendor or pull leg. The caller names
+  /// the scope it is about to query (for example "world:Hyperion"); when it differs from the
+  /// scope the cache was last used for, every entry is dropped. Returns true when entries were
+  /// discarded because the scope changed.
+  /// </summary>
+  public bool EnsureScope(string scopeKey)
+  {
+    lock (_lock)
+    {
+      if (string.Equals(_scopeKey, scopeKey, StringComparison.Ordinal))
+        return false;
+
+      var discarded = _entries.Count > 0;
+      _entries.Clear();
+      _scopeKey = scopeKey;
+      return discarded;
+    }
+  }
 }

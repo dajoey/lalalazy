@@ -22,13 +22,20 @@ public sealed record QuoteListing(long PricePerUnit, bool Hq, bool OwnRetainer);
 /// reading, not "unknown" - freshness is what marks a quote unusable.
 /// </param>
 /// <param name="HqVelocityPerDay">Same, HQ sales only (<c>hqSaleVelocity</c>).</param>
+/// <param name="DataCenterScope">
+/// 0.2.8.0: true when this quote is the cheapest listing across the WHOLE data center (the 0.2.5.0
+/// fallback for a stale home-world quote) rather than the home world's own board. A data-center
+/// minimum is one cheap listing on any of eight worlds, not what this world pays, so it may rank and
+/// allow a listing but never sends stock to the vendor or pulls a listing (MarketGate.Decide).
+/// </param>
 public sealed record ItemQuote(
   uint ItemId,
   bool HasData,
   long LastUploadUnixMs,
   IReadOnlyList<QuoteListing> Listings,
   double NqVelocityPerDay = 0,
-  double HqVelocityPerDay = 0);
+  double HqVelocityPerDay = 0,
+  bool DataCenterScope = false);
 
 /// <summary>One row of the open sell list, as the pre-flight sees it.</summary>
 /// <param name="CurrentPrice">The asking price the listing carries right now, read off the market container.</param>
