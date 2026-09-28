@@ -4691,6 +4691,140 @@ InventoryCases.Run((name, ok, detail) => Check(name, ok, detail));
     $"probe={probe?.AutoMarketValueGateEnabled} retiredMember={hasRetiredMember}");
 }
 
+// 148. (0.2.5.0 data-center fallback: a stale world-scope quote must not strand sellable
+// stock while the data-center aggregate is fresh). CONTROL first, on the API that exists at
+// 05c44d6: a world quote whose lastUploadTime is older than the freshness window is unusable
+// and the gate HOLDS - that is the invariant and it must keep holding after the change too.
+{
+  const long Now = 1_790_600_000_000L; // 2026-09-28, the day the mechanism was diagnosed
+  var staleWorld = new ItemQuote(52367, true, Now - 7 * 3600 * 1000, [new QuoteListing(166, false, false)]);
+  Check("148 DC fallback control: a stale world-scope quote stays unusable and the gate holds",
+    MarketGate.UsableQuote(staleWorld, false, true, Now, 6 * 3600 * 1000) == null
+    && MarketGate.Decide(99, staleWorld, false, true, new GateOptions(true, 100, 6 * 3600 * 1000), Now) == GateVerdict.HoldBack,
+    "stale world quote was usable or did not hold");
+}
+
+// 148a. The 0.2.5.0 contract: when the world scope has no source-usable data for an id but the
+// data-center scope does, the merged quote set the gate reads must carry the fresh data-center
+// quote and the item must LIST. All inside the frozen invariant: the fallback quote is real
+// Universalis data (hasData, fresh upload, positive listing) - never a heuristic price.
+{
+  const long Now = 1_790_600_000_000L;
+  var requested = new List<uint> { 52367, 19938, 44012 };
+  var merged = new Dictionary<uint, ItemQuote>
+  {
+    // stale at world scope (7 h old upload), genuinely listed - the diagnosed starvation shape
+    [52367] = new(52367, true, Now - 7 * 3600 * 1000, [new QuoteListing(166, false, false)]),
+    // hasData=false at world scope
+    [19938] = new(19938, false, 0, []),
+    // fresh at world scope - must NOT be selected for fallback
+    [44012] = new(44012, true, Now - 1000, [new QuoteListing(300, false, false)]),
+  };
+  var needing = GateDcFallback.Select(requested, merged, Now, 6 * 3600 * 1000);
+  Check("148a DC fallback: selection names exactly the stale/no-data ids, never the fresh one",
+    needing.Count == 2 && needing.Contains(52367) && needing.Contains(19938) && !needing.Contains(44012),
+    $"selected=[{string.Join(",", needing)}]");
+
+  var dcQuotes = new Dictionary<uint, ItemQuote>
+  {
+    // fresh DC aggregate with real listings
+    [52367] = new(52367, true, Now - 60_000, [new QuoteListing(166, false, false)]),
+    // DC aggregate ALSO stale for this one - nothing to recover with
+    [19938] = new(19938, true, Now - 30L * 24 * 3600 * 1000, [new QuoteListing(500, false, false)]),
+  };
+  var mergedIn = GateDcFallback.MergeUsable(merged, dcQuotes, Now, 6 * 3600 * 1000);
+  Check("148a DC fallback: a fresh data-center quote replaces the stale world quote and the item LISTS",
+    mergedIn == 1
+    && MarketGate.UsableQuote(merged[52367], false, true, Now, 6 * 3600 * 1000) == 166
+    && MarketGate.Decide(99, merged[52367], false, true, new GateOptions(true, 100, 6 * 3600 * 1000), Now) == GateVerdict.List,
+    $"merged={mergedIn} usable52367={MarketGate.UsableQuote(merged[52367], false, true, Now, 6 * 3600 * 1000)}");
+  Check("148a DC fallback: a stale data-center quote overwrites nothing - the item stays HELD (invariant)",
+    merged[19938].HasData == false
+    && MarketGate.Decide(99, merged[19938], false, true, new GateOptions(true, 100, 6 * 3600 * 1000), Now) == GateVerdict.HoldBack,
+    "a stale DC quote was allowed to act");
+  Check("148a DC fallback: the fresh world quote was left untouched",
+    merged[44012].LastUploadUnixMs == Now - 1000,
+    "fresh world quote was replaced");
+  Check("148a DC fallback: the one-line announce names both counts",
+    GateDcFallback.Summarize(2, 1) == "gate: 2 item(s) had no fresh world-scope price data; using data-center-scope quotes for 1 of them",
+    GateDcFallback.Summarize(2, 1));
+}
+
+// 148b. End-to-end through the chunk fetch: a world pass that answers stale for part of its
+// ids, then a DC pass that answers fresh - the final map prices those ids. This is the shape
+// GetRuleQuotes drives in 0.2.5.0.
+{
+  const long Now = 1_790_600_000_000L;
+  var ids = new List<uint> { 52367, 19938 };
+  Task<Dictionary<uint, ItemQuote>> WorldStub(IReadOnlyList<uint> chunk, CancellationToken ct) => Task.FromResult(new Dictionary<uint, ItemQuote>
+  {
+    [chunk[0]] = new(chunk[0], true, Now - 7 * 3600 * 1000, [new QuoteListing(166, false, false)]),
+    [chunk[1]] = new(chunk[1], true, Now - 1000, [new QuoteListing(300, false, false)]),
+  });
+  Task<Dictionary<uint, ItemQuote>> DcStub(IReadOnlyList<uint> chunk, CancellationToken ct) => Task.FromResult(new Dictionary<uint, ItemQuote>
+  {
+    [chunk[0]] = new(chunk[0], true, Now - 60_000, [new QuoteListing(166, false, false)]),
+  });
+  var world = await GateChunkFetch.FetchAllAsync(ids, 50, WorldStub, (_, _) => { }, CancellationToken.None);
+  var needing = GateDcFallback.Select(ids, world.Quotes, Now, 6 * 3600 * 1000);
+  var dc = await GateChunkFetch.FetchAllAsync(needing, 10, DcStub, (_, _) => { }, CancellationToken.None);
+  var mergedCount = GateDcFallback.MergeUsable(world.Quotes!, dc.Quotes, Now, 6 * 3600 * 1000);
+  Check("148b DC fallback: the two-pass fetch recovers the stale id end-to-end",
+    mergedCount == 1 && world.Quotes![52367].LastUploadUnixMs == Now - 60_000
+    && MarketGate.Decide(99, world.Quotes[52367], false, true, new GateOptions(true, 100, 6 * 3600 * 1000), Now) == GateVerdict.List,
+    $"merged={mergedCount}");
+}
+
+// 149. (0.2.5.0 held-set visibility in the pass line): a pass that holds items unpriced names
+// a bounded top-N of the held item NAMES in the single chat line, and nothing when idle.
+{
+  var named = AutoMarketExecution.FormatPassFeedback(0, 0, 5, ["Windbreak Shoaleaves", "Tulerowe", "Ash Cedar", "Amberscale", "Mythrite Ore"]); // 5 held, top 3 named
+  Check("149 held names: a held pass names up to three held item names and the overflow count",
+    named != null && named.Contains("5 item(s) held unpriced") && named.Contains("Windbreak Shoaleaves") && named.Contains("Tulerowe")
+    && named.Contains("Ash Cedar") && named.Contains("+2 more") && !named.Contains("Amberscale") && !named.Contains("Mythrite"),
+    named ?? "null");
+
+  var few = AutoMarketExecution.FormatPassFeedback(0, 0, 2, ["Tulerowe", "Ash Cedar"]);
+  Check("149 held names: fewer than three names all appear with no overflow suffix",
+    few != null && few.Contains("Tulerowe") && few.Contains("Ash Cedar") && !few.Contains("more"),
+    few ?? "null");
+
+  var unnamed = AutoMarketExecution.FormatPassFeedback(11, 0, 54, null);
+  Check("149 held names: a pass with no names resolvable keeps the exact 0.2.4.0 line shape",
+    unnamed != null && unnamed.Contains("11 listing(s)") && unnamed.Contains("54 item(s) held unpriced") && !unnamed.Contains("held:"),
+    unnamed ?? "null");
+
+  var idleNamed = AutoMarketExecution.FormatPassFeedback(0, 0, 0, ["Windbreak Shoaleaves"]);
+  Check("149 held names: idle pass still emits zero lines",
+    idleNamed == null, idleNamed ?? "null");
+}
+
+// 150. (0.2.5.0 held-set visibility in the plugin log): the full held set with ids (and names
+// where the sheet resolves them) is one greppable log line, so future sessions are diagnosable
+// per-item. Unresolvable names fall back to the bare id.
+{
+  var line = HeldSetAnnounce.FormatLog([(52367u, "Windbreak Shoaleaves"), (19938u, "Tulerowe"), (44012u, "")]);
+  Check("150 held log: the line names every held id with its name, bare id when unresolvable",
+    line.StartsWith("gate: held unpriced item(s) (no confirmed market price): ")
+    && line.Contains("52367 (Windbreak Shoaleaves)") && line.Contains("19938 (Tulerowe)") && line.Contains("44012") && !line.Contains("44012 ()"),
+    line);
+}
+
+// 151. (0.2.5.0 pinch reprice execution line): every price the pinch walk actually writes is
+// one Information-level log line naming the item, the price it replaced and the price it set -
+// placeholder-landing is answerable from telemetry without the optional decision-tap flag.
+{
+  var line = PinchRepriceLog.Format(27758, "Dwarven Cotton Thread", 999999999, 299, PinchRepriceLog.SourceUniversalis, wasPlaceholder: true);
+  Check("151 pinch reprice: the line names the item, both prices and the placeholder context",
+    line.Contains("27758") && line.Contains("Dwarven Cotton Thread") && line.Contains("999999999") && line.Contains("299")
+    && line.Contains("placeholder"),
+    line);
+  var repriced = PinchRepriceLog.Format(27758, "Dwarven Cotton Thread", 400, 380, PinchRepriceLog.SourceComparePrices, wasPlaceholder: false);
+  Check("151 pinch reprice: a non-placeholder reprice is labeled as a reprice, not a new listing",
+    repriced.Contains("400") && repriced.Contains("380") && !repriced.Contains("placeholder"),
+    repriced);
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 
