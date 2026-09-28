@@ -4546,6 +4546,24 @@ InventoryCases.Run((name, ok, detail) => Check(name, ok, detail));
     vendorBags == "[AM][dry-run] would vendor Bags:8 item 3002 HQ x1 (est 50 gil)", vendorBags);
 }
 
+// 140. Value gate log level (fingerprint 558ab9dd3dd6 fix).
+// Missing price data for stocked items is a handled, expected operational condition
+// under the confirmed-price-only doctrine (unconfirmed means hold, 0.2.0.0).
+// It must log at Debug, NOT Warning, to prevent false-alarm error telemetry.
+{
+  var sightAll = new MarketGate.Sight(Judged: 10, Unpriceable: 0);
+  var (infoLevel, infoMsg) = MarketGate.FormatSightLog(sightAll, stockedCount: 10, rulesCount: 50, thresholdGil: 100);
+  Check("140 gate log level: fully sighted sweep logs at Information",
+    infoLevel == GateLogLevel.Information && infoMsg.Contains("every item is above the 100 gil net threshold"),
+    $"level={infoLevel} msg={infoMsg}");
+
+  var sightMissing = new MarketGate.Sight(Judged: 5, Unpriceable: 5);
+  var (debugLevel, debugMsg) = MarketGate.FormatSightLog(sightMissing, stockedCount: 10, rulesCount: 50, thresholdGil: 100);
+  Check("140 gate log level: unpriced items log at Debug, NOT Warning (fingerprint 558ab9dd3dd6)",
+    debugLevel == GateLogLevel.Debug && debugLevel != GateLogLevel.Warning && debugMsg.Contains("no price data for 5 of 10 item(s) with stock to sell"),
+    $"level={debugLevel} msg={debugMsg}");
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 

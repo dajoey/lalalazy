@@ -45,6 +45,14 @@ public enum GateVerdict
   HoldBack,
 }
 
+/// <summary>Log severity for the gate sight announce (0.2.2.0).</summary>
+public enum GateLogLevel
+{
+  Debug,
+  Information,
+  Warning,
+}
+
 /// <summary>Everything the gate needs from the configuration, so the decision logic sees no Dalamud.</summary>
 /// <param name="Enabled">Master switch. Off = every item lists, exactly as before 0.1.11.0.</param>
 /// <param name="ThresholdGil">An item must be worth strictly MORE than this many gil, net of the market fee, to be listed. 0 = the gate is present but never holds anything.</param>
@@ -110,6 +118,24 @@ public static class MarketGate
 
   /// <summary>The judged/unpriceable split behind the 0.1.19.0 honest gate announce.</summary>
   public sealed record Sight(int Judged, int Unpriceable);
+
+  /// <summary>
+  /// Determines the log severity and message for the gate sight outcome (0.2.2.0, fixing fingerprint 558ab9dd3dd6).
+  /// A fully sighted sweep logs at Information. Sweeps where stock has unconfirmed/missing prices
+  /// are a handled safe condition (unconfirmed means hold, 0.2.0.0) and log at Debug, NOT Warning,
+  /// preventing expected market-data gaps from triggering warning-level telemetry alerts.
+  /// </summary>
+  public static (GateLogLevel Level, string Message) FormatSightLog(Sight sight, int stockedCount, int rulesCount, long thresholdGil)
+  {
+    if (sight.Unpriceable == 0)
+    {
+      return (GateLogLevel.Information,
+        $"[LMC] gate: every item is above the {thresholdGil:N0} gil net threshold (checked {sight.Judged} of {rulesCount} enabled item(s), {stockedCount} with stock)");
+    }
+
+    return (GateLogLevel.Warning,
+      $"[LMC] gate: no price data for {sight.Unpriceable} of {sight.Judged + sight.Unpriceable} item(s) with stock to sell ({stockedCount} of {rulesCount} enabled item(s) have stock) - the {thresholdGil:N0} gil net threshold was NOT checked for those; held, not listed (unconfirmed means hold, 0.2.0.0)");
+  }
 
   /// <summary>
   /// How many rules the gate actually saw usable price data for (0.1.19.0; STOCKED-ONLY since
