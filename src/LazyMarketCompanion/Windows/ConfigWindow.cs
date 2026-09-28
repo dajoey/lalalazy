@@ -1,4 +1,4 @@
-﻿using Dalamud.Game.ClientState.Keys;
+using Dalamud.Game.ClientState.Keys;
 using Dalamud.Interface.Windowing;
 using Dalamud.Bindings.ImGui;
 using ECommons.DalamudServices;
@@ -213,7 +213,12 @@ public sealed class ConfigWindow : Window
     ImGui.TextUnformatted("gil, net of fees");
 
     var dry = c.AutoMarketDryRun;
-    if (ImGui.Checkbox("Dry-run mode (log decisions, execute nothing)", ref dry)) { c.AutoMarketDryRun = dry; c.Save(); }
+    if (ImGui.Checkbox("Dry-run mode (log decisions, execute nothing)", ref dry))
+    {
+      c.AutoMarketDryRun = dry;
+      c.Save();
+      Communicator.PrintInfo($"Auto-Market dry-run is now {(c.AutoMarketDryRun ? "ON (simulation only)" : "OFF (live execution)")}.");
+    }
     Tip("While dry-run is on, Auto-Market computes every listing, pulling and vendoring decision and logs it as \"[AM][dry-run] would ...\" without executing anything. "
         + "Runs against real inventory and real prices, so a session shows exactly what would happen at zero risk. Uncheck to let Auto-Market act. New in 0.2.0.0, on by default after the 2026-09-27 incident.");
     Tip("Before listing, Auto-Market checks every enabled item against current Universalis prices. Items whose total sellable value "

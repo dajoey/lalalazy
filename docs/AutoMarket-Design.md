@@ -240,3 +240,36 @@ deposited market-destined stock into retainer storage pages ahead of the listing
      `would vendor ...` is extracted into `DryRunFormat.cs` and pinned in the offline harness
      (Case 139).
 
+## 12. 0.2.3.0 additions: Reachable dry-run control surfaces and per-pass feedback
+
+Observed in game on 0.2.2.0: gate retry and cache fallback functioned as designed, planning
+11 potential listings across retainers, but all 11 were intercepted by dry-run simulation.
+Because AutoRetainer cycles retainers headlessly in automated passes, the retainer bell / sell list overlays
+were never rendered to the player, making the overlay toggle button unreachable and leaving
+the player unaware of why no listings executed.
+
+0.2.3.0 establishes the control-surface and per-pass feedback contracts:
+
+1. **One persisted gate, three control handles:**
+   `Configuration.AutoMarketDryRun` remains the single persisted boolean gate, defaulting to `true`
+   per the SC4 safety doctrine. It can be inspected and flipped from three independent surfaces:
+   - **Chat command:** `/lmc dryrun [on|off|toggle|status]`. Parsed by `DryRunCommand.cs`,
+     flips and persists the setting, and answers immediately in chat. Accessible anytime without
+     requiring retainer interaction.
+   - **Config window:** Settings checkbox in the Auto-Market configuration section (`ConfigWindow.cs`),
+     bound to `AutoMarketDryRun`, now emits chat confirmation on state change.
+   - **Bell & sell list overlay:** The 0.2.1.0 interactive toggle button (`MarketAutomation.cs`)
+     remains active on summoning bell and retainer sell list overlays, flipping the same setting.
+
+2. **Per-pass dry-run chat feedback contract:**
+   When an Auto-Market pass simulates ≥1 action in dry-run mode, exactly one prominent chat message
+   is emitted naming the simulated action count and how to switch to live execution via `/lmc dryrun off`
+   (`DryRunFormat.FormatPassFeedback`). When dry-run is disabled or when no actions are planned (idle pass),
+   zero dry-run chat lines are emitted.
+
+3. **Live listing execution path:**
+   When `AutoMarketDryRun` is `false`, `AutoMarketExecution.Evaluate` routes all planned listing
+   operations into real action insertion (`AddListingSteps` / `InsertSteps`), allowing listings to execute
+   and backfill empty retainer slots live.
+
+

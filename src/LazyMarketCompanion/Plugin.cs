@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using Dalamud.Game.Command;
@@ -139,7 +139,7 @@ public sealed class Plugin : IDalamudPlugin
 
     CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
     {
-      HelpMessage = "Open Lazy Market Companion. Subcommands: market (auto-market open retainer), pinch (re-price open retainer), sweep (all retainers), cancel, changelog (what's new), telemetry (log price decisions), report <what happened> (write a problem report to the plugin log), debug"
+      HelpMessage = "Open Lazy Market Companion. Subcommands: market (auto-market open retainer), pinch (re-price open retainer), sweep (all retainers), dryrun [on|off|toggle|status], cancel, changelog (what's new), telemetry (log price decisions), report <what happened> (write a problem report to the plugin log), debug"
     });
     // Only take the old alias if Dagobert is not loaded alongside us; otherwise we'd log an error now
     // and yank Dagobert's command on our Dispose.
@@ -343,6 +343,13 @@ public sealed class Plugin : IDalamudPlugin
       return;
     }
 
+    // Handled before the switch because it takes an argument: "dryrun on" / "dryrun off" / "dryrun toggle" / "dryrun status".
+    if (sub.StartsWith("dryrun", StringComparison.Ordinal))
+    {
+      HandleDryRunCommand(sub["dryrun".Length..].Trim());
+      return;
+    }
+
     switch (sub)
     {
       case "market":
@@ -405,6 +412,22 @@ public sealed class Plugin : IDalamudPlugin
 
     ChatGui.Print($"[LMC] Price-decision telemetry {(wanted.Value ? "ON" : "OFF")}" +
                   (wanted.Value ? $" - writing {MarketTelemetry.Prefix} lines to the plugin log." : "."));
+  }
+
+  /// <summary>
+  /// <c>/lmc dryrun [on|off|toggle|status]</c> - toggle dry-run simulation mode vs live execution (0.2.3.0).
+  /// Flips the single persisted gate <see cref="Configuration.AutoMarketDryRun"/> and answers in chat.
+  /// </summary>
+  private void HandleDryRunCommand(string sub)
+  {
+    var current = Configuration.AutoMarketDryRun;
+    var result = DryRunCommand.ParseAndApply(sub, current);
+    if (result.StateChanged)
+    {
+      Configuration.AutoMarketDryRun = result.NewState;
+      Configuration.Save();
+    }
+    ChatGui.Print("[LMC] " + result.Message);
   }
 
   private void OnContextMenuOpened(IMenuOpenedArgs args)
