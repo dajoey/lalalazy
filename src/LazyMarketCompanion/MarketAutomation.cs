@@ -1654,7 +1654,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     {
       foreach (var op in pullPlan.Ops)
         Svc.Log.Information(DryRunFormat.WouldPull(op.Slot, op.ItemId, op.HQ, op.Quantity, op.ListedPrice, Plugin.Configuration.AutoMarketValueGateThresholdGil, op.Target));
-      return BuildAndInsertListingSteps();
+      return BuildAndInsertListingSteps(pullPlan.Ops.Count);
     }
 
     var pullSteps = new List<Step>();
@@ -1681,12 +1681,12 @@ internal sealed class MarketAutomation : Window, IDisposable
 
     // Continuation: the actual listing plan build runs AFTER every pull has executed, against a
     // fresh stock snapshot that includes what the pass just pulled back.
-    pullSteps.Add(new Step(BuildAndInsertListingSteps, "BuildPlanAfterPull"));
+    pullSteps.Add(new Step(() => BuildAndInsertListingSteps(), "BuildPlanAfterPull"));
     InsertSteps(pullSteps);
     return true;
   }
 
-  private bool? BuildAndInsertListingSteps()
+  private bool? BuildAndInsertListingSteps(int simulatedPulls = 0)
   {
     var plan = AutoMarketService.BuildPlan(_gateQuotes);
 
@@ -1706,7 +1706,7 @@ internal sealed class MarketAutomation : Window, IDisposable
         var retrySteps = new List<Step>
         {
           new Step(() => _gateRetryQuotesDone, "GateRetryWait", TimeLimitMs: 15000),
-          new Step(BuildAndInsertListingSteps, "BuildPlanAfterRetry")
+          new Step(() => BuildAndInsertListingSteps(simulatedPulls), "BuildPlanAfterRetry")
         };
         InsertSteps(retrySteps);
         return true;
@@ -1718,7 +1718,10 @@ internal sealed class MarketAutomation : Window, IDisposable
 
     if (plan.Ops.Count == 0)
     {
-      Communicator.PrintInfo(plan.Notes.Count > 0 ? $"Nothing to list ({plan.Notes[0]})." : "Nothing to list.");
+      if (Plugin.Configuration.AutoMarketDryRun && simulatedPulls > 0)
+        Communicator.PrintDryRunFeedback(simulatedPulls);
+      else
+        Communicator.PrintInfo(plan.Notes.Count > 0 ? $"Nothing to list ({plan.Notes[0]})." : "Nothing to list.");
       return true;
     }
 
@@ -1731,16 +1734,19 @@ internal sealed class MarketAutomation : Window, IDisposable
     if (emptyNote.Length > 0)
       Svc.Log.Information($"[LMC] {emptyNote}");
 
-    // 0.2.0.0 (design §6): dry-run computes and logs the decisions, executes nothing.
+    // 0.2.3.0: evaluate execution path (dry-run simulation vs live execution).
+    var execution = AutoMarketExecution.Evaluate(Plugin.Configuration.AutoMarketDryRun, plan, simulatedPulls);
     if (Plugin.Configuration.AutoMarketDryRun)
     {
-      foreach (var op in plan.Ops)
-        Svc.Log.Information(DryRunFormat.WouldList(op.ItemId, op.HQ, op.Quantity, op.Origin, op.TargetSlot));
+      foreach (var line in execution.SimulatedLines)
+        Svc.Log.Information(line);
+      if (execution.ChatFeedback != null)
+        Communicator.PrintInfo(execution.ChatFeedback);
       return true;
     }
 
     var listing = new List<Step>();
-    foreach (var op in plan.Ops)
+    foreach (var op in execution.ExecutedOps)
       AddListingSteps(listing, op);
     InsertSteps(listing);
 

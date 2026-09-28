@@ -4564,25 +4564,94 @@ InventoryCases.Run((name, ok, detail) => Check(name, ok, detail));
     $"level={debugLevel} msg={debugMsg}");
 }
 
-// 141. Pre-fix check: DryRunCommand must exist and handle chat command
+// 141. (Live Execution A: Control Surfaces)
+// Dry-run toggle must be reachable from non-overlay surfaces (chat command + config window),
+// flipping the single persisted AutoMarketDryRun config, confirming state in chat, default ON.
 {
-  var cmdType = typeof(DryRunFormat).Assembly.GetType("LazyMarketCompanion.AutoMarket.DryRunCommand");
-  Check("141 dry-run toggle: DryRunCommand surface exists on tree",
-    cmdType != null, "DryRunCommand is null on 4c73226 (only bell overlay existed in 0.2.1.0)");
+  // 141a: Command parser flips state and answers in chat
+  var onToOff = DryRunCommand.ParseAndApply("off", true);
+  Check("141 dryrun command off: flips to false and confirms",
+    !onToOff.NewState && onToOff.StateChanged && onToOff.Message.Contains("OFF"),
+    $"state={onToOff.NewState} msg={onToOff.Message}");
+
+  var offToOn = DryRunCommand.ParseAndApply("on", false);
+  Check("141 dryrun command on: flips to true and confirms",
+    offToOn.NewState && offToOn.StateChanged && offToOn.Message.Contains("ON"),
+    $"state={offToOn.NewState} msg={offToOn.Message}");
+
+  var toggle = DryRunCommand.ParseAndApply("toggle", true);
+  Check("141 dryrun command toggle: inverts state",
+    !toggle.NewState && toggle.StateChanged,
+    $"state={toggle.NewState}");
+
+  var status = DryRunCommand.ParseAndApply("status", true);
+  Check("141 dryrun command status: preserves state and reports",
+    status.NewState && !status.StateChanged && status.Message.Contains("ON") && status.Message.Contains("/lmc dryrun off"),
+    $"state={status.NewState} msg={status.Message}");
 }
 
-// 142. Pre-fix check: DryRunFormat.FormatPassFeedback must exist
+// 142. (Live Execution B: Per-Pass Feedback Contract)
+// When a pass simulates >= 1 action in dry-run, exactly one prominent chat line is emitted
+// naming the simulated count and the go-live command (/lmc dryrun off). Zero such lines when live or idle.
 {
-  var feedbackMethod = typeof(DryRunFormat).GetMethod("FormatPassFeedback", new[] { typeof(bool), typeof(int) });
-  Check("142 per-pass feedback: DryRunFormat.FormatPassFeedback exists on tree",
-    feedbackMethod != null, "FormatPassFeedback is null on 4c73226 (no chat feedback emitted on dry-run pass)");
+  // Pass with 11 simulated listings (Bussyqueen incident replay)
+  var dryPass11 = DryRunFormat.FormatPassFeedback(isDryRun: true, simulatedCount: 11);
+  Check("142 pass feedback: dry-run with 11 simulated actions emits prominent chat line naming count and go-live command",
+    dryPass11 != null && dryPass11.Contains("11") && dryPass11.Contains("/lmc dryrun off"),
+    dryPass11 ?? "null");
+
+  // Pass with 1 simulated listing
+  var dryPass1 = DryRunFormat.FormatPassFeedback(isDryRun: true, simulatedCount: 1);
+  Check("142 pass feedback: dry-run with 1 simulated action emits line",
+    dryPass1 != null && dryPass1.Contains("1") && dryPass1.Contains("/lmc dryrun off"),
+    dryPass1 ?? "null");
+
+  // Live pass (dry-run OFF) with 11 listings: zero chat feedback lines
+  var livePass = DryRunFormat.FormatPassFeedback(isDryRun: false, simulatedCount: 11);
+  Check("142 pass feedback: live pass (dry-run OFF) emits zero feedback lines",
+    livePass == null,
+    livePass ?? "null");
+
+  // Idle pass (0 listings planned): zero chat feedback lines
+  var idleDryPass = DryRunFormat.FormatPassFeedback(isDryRun: true, simulatedCount: 0);
+  Check("142 pass feedback: idle pass (0 planned) emits zero feedback lines",
+    idleDryPass == null,
+    idleDryPass ?? "null");
+
+  var idleLivePass = DryRunFormat.FormatPassFeedback(isDryRun: false, simulatedCount: 0);
+  Check("142 pass feedback: idle live pass emits zero feedback lines",
+    idleLivePass == null,
+    idleLivePass ?? "null");
 }
 
-// 143. Pre-fix check: AutoMarketExecution must exist to evaluate live vs dry-run
+// 143. (Live Execution C: Live Listing Execution Path)
+// With AutoMarketDryRun = false, listing ops execute (real action insertion), not DryRunFormat simulation.
 {
-  var execType = typeof(DryRunFormat).Assembly.GetType("LazyMarketCompanion.AutoMarket.AutoMarketExecution");
-  Check("143 live execution: AutoMarketExecution exists on tree",
-    execType != null, "AutoMarketExecution is null on 4c73226");
+  const uint Dye = 5594u;
+  var stock = new List<StockStack> { new(StockOrigin.Bags, Bags1, 0, Dye, false, 20) };
+  var market = EmptyMarket();
+  var plan = AutoMarketPlanner.Plan([Rule(Dye, 5)], stock, market, Opts());
+
+  // (1) Dry-run ON: 0 executed ops, all ops simulated via DryRunFormat, feedback emitted
+  var dryExec = AutoMarketExecution.Evaluate(isDryRun: true, plan);
+  Check("143 execution: dry-run ON yields 0 executed ops",
+    dryExec.ExecutedOps.Count == 0, $"executed={dryExec.ExecutedOps.Count}");
+  Check("143 execution: dry-run ON produces simulated lines for all plan ops",
+    dryExec.SimulatedLines.Count == plan.Ops.Count && dryExec.SimulatedLines[0].StartsWith("[AM][dry-run] would list"),
+    $"simulated={dryExec.SimulatedLines.Count}");
+  Check("143 execution: dry-run ON produces non-null chat feedback",
+    dryExec.ChatFeedback != null && dryExec.ChatFeedback.Contains("/lmc dryrun off"),
+    dryExec.ChatFeedback ?? "null");
+
+  // (2) Dry-run OFF (Live Path): all plan ops execute (real action insertion), 0 simulated lines, null feedback
+  var liveExec = AutoMarketExecution.Evaluate(isDryRun: false, plan);
+  Check("143 execution: live path (dry-run OFF) executes all plan ops (real action insertion)",
+    liveExec.ExecutedOps.Count == plan.Ops.Count && liveExec.ExecutedOps.SequenceEqual(plan.Ops),
+    $"executed={liveExec.ExecutedOps.Count} planOps={plan.Ops.Count}");
+  Check("143 execution: live path produces 0 simulated lines",
+    liveExec.SimulatedLines.Count == 0, $"simulated={liveExec.SimulatedLines.Count}");
+  Check("143 execution: live path produces null chat feedback",
+    liveExec.ChatFeedback == null, liveExec.ChatFeedback ?? "non-null");
 }
 
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
