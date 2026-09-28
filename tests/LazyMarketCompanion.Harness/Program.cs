@@ -4627,10 +4627,10 @@ InventoryCases.Run((name, ok, detail) => Check(name, ok, detail));
 // 143. (Live Execution C: Live Listing Execution Path)
 // With AutoMarketDryRun = false, listing ops execute (real action insertion), not DryRunFormat simulation.
 {
-  const uint Dye = 5594u;
-  var stock = new List<StockStack> { new(StockOrigin.Bags, Bags1, 0, Dye, false, 20) };
+  const uint LiveItem = 5594u;
+  var stock = new List<StockStack> { new(StockOrigin.Bags, Bags1, 0, LiveItem, false, 20) };
   var market = EmptyMarket();
-  var plan = AutoMarketPlanner.Plan([Rule(Dye, 5)], stock, market, Opts());
+  var plan = AutoMarketPlanner.Plan([Rule(LiveItem, 5)], stock, market, Opts());
 
   // (1) Dry-run ON: 0 executed ops, all ops simulated via DryRunFormat, feedback emitted
   var dryExec = AutoMarketExecution.Evaluate(isDryRun: true, plan);
