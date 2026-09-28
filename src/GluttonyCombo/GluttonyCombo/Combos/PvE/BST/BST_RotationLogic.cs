@@ -517,9 +517,11 @@ internal static class BST_RotationLogic
             // familiar at all (Ring of Sacrifice already spent one) and the player under half, holding
             // while the last enemy beats on an undefended player is how a Third Board run ended
             // (2026-09-26: 14 s of hold with no familiar out, player 43% -> 0%). Fight instead.
-            if (s.HasHostileTarget && (s.TargetDoNotAttack || s.TargetInStance || s.TargetInvulnerable))
+            // Directional parry facing player: holding prevents spamming 0-damage frontal attacks.
+            var parryFacingPlayer = s.TargetHasParry && (!FamiliarOut(s) || !s.EnemyTargetsPet);
+            if (s.HasHostileTarget && (s.TargetDoNotAttack || s.TargetInStance || s.TargetInvulnerable || parryFacingPlayer))
             {
-                var stanceBreak = s.TargetInStance && !s.TargetDoNotAttack && !s.TargetInvulnerable
+                var stanceBreak = s.TargetInStance && !s.TargetDoNotAttack && !s.TargetInvulnerable && !parryFacingPlayer
                                   && !FamiliarPresentOrPending(s) && s.PlayerHpPercent is > 0f and < 50f;
                 if (!stanceBreak)
                 {
@@ -529,7 +531,9 @@ internal static class BST_RotationLogic
                     if (cleanse.ActionId != 0)
                         return Pick(cleanse.ActionId, cleanse.Reason);
                     return Pick(BST_CrucibleLogic.Hold, s.TargetDoNotAttack ? "crucible:hold-do-not-attack"
-                        : s.TargetInStance ? "crucible:hold-stance" : "crucible:hold-invulnerable");
+                        : s.TargetInStance ? "crucible:hold-stance"
+                        : s.TargetInvulnerable ? "crucible:hold-invulnerable"
+                        : "crucible:hold-parry");
                 }
                 declines.Add("crucible:stance-break-no-familiar");
             }

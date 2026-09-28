@@ -618,6 +618,20 @@ internal static class Program
         Check("Curtains for Rank 5 with 4 s remaining: not yet",
             Decide(curtains with { TargetCastRemaining = 4.0f }, cfg).Reason != "crucible:petsave-curtains");
 
+        var forwardGuard = CrucibleState() with { TargetCastId = 46864, TargetCastRemaining = 2.0f, PetHpPercent = 100f, ReadyParting = true };
+        Check("Forward Guard cast (directional parry): Parting Blow recalls familiar before guard lands",
+            Decide(forwardGuard, cfg) is { ActionId: BST.PartingBlow, Reason: "crucible:petsave-guard" });
+        Check("Forward Guard with 4 s remaining: not yet",
+            Decide(forwardGuard with { TargetCastRemaining = 4.0f }, cfg).Reason != "crucible:petsave-guard");
+
+        var parryFacing = CrucibleState() with { TargetHasParry = true, EnemyTargetsPlayer = true, EnemyTargetsPet = false, GcdReady = true, ReadyParting = false };
+        Check("Directional Parry facing player: hold attacks",
+            Decide(parryFacing, cfg) is { ActionId: BST_CrucibleLogic.Hold, Reason: "crucible:hold-parry" });
+        Check("Directional Parry facing pet: attacks allowed from behind",
+            Decide(parryFacing with { EnemyTargetsPet = true, EnemyTargetsPlayer = false }, cfg).ActionId != BST_CrucibleLogic.Hold);
+        Check("Directional Parry drops (expiry): damage resumes",
+            Decide(parryFacing with { TargetHasParry = false }, cfg).ActionId != BST_CrucibleLogic.Hold);
+
         // Party-agent HP lag after Parting Blow / horn-swap (first-board run 2026-09-17: live 19% → agent 100 for ~48 s)
         var mem = new Dictionary<int, float> { [20] = 19f };
         Check("party agent 100 after a low leave: keep 19",

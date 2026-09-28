@@ -223,6 +223,11 @@ internal static class BST_CrucibleLogic
             && s.Level >= LvPartingBlow && s.ReadyParting && s.CanWeave && !s.TargetDoNotAttack && !s.ProtectedNearTarget)
             return (BST.PartingBlow, "crucible:petsave-curtains");
 
+        // Forward Guard (46864, Bone Knight): Parting Blow recalls the familiar before the guard lands.
+        if (BST_CrucibleData.ForwardGuardCasts.Contains(s.TargetCastId) && s.TargetCastRemaining is > 0.2f and <= 2.5f
+            && s.Level >= LvPartingBlow && s.ReadyParting && s.CanWeave && !s.TargetDoNotAttack && !s.ProtectedNearTarget)
+            return (BST.PartingBlow, "crucible:petsave-guard");
+
         var hp = s.PetHpPercent;
         if (hp <= 0f || hp > cfg.CruciblePetSwapHp)
             return (0, "");

@@ -158,6 +158,12 @@ internal static partial class BST_CrucibleData
 
     public static readonly HashSet<uint> BoneKnightNameIds = [14531, 14566];
 
+    /// <summary>
+    ///     Forward Guard casts (Bone Knight): directional parry that blocks hits from the front.
+    ///     Parting Blow recalls the familiar before the guard lands so pets are not locked or killed on it.
+    /// </summary>
+    public static readonly HashSet<uint> ForwardGuardCasts = [46864];
+
     /// <summary> Physical Vulnerability Up from the mantis's Eerie Soundwave: Final Sting lands inside this window. </summary>
     public const uint PhysicalVulnerabilityUp = 5180;
 

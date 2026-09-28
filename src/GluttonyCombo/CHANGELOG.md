@@ -1,3 +1,9 @@
+## v1.0.4.244 (2026-09-28) [testing]
+### Fixed
+- **Crucible: Forward Guard now triggers an auto-recall before the guard lands, and attacks hold while facing Directional Parry.** When an enemy casts Forward Guard, Parting Blow recalls the active familiar safely before the cast resolves so pets are not locked or lost to the parry window. If the enemy enters Directional Parry while targeting the player without a familiar to reposition it, weaponskill execution pauses until the shield drops or aggro turns the enemy, preventing attacks from deflecting for zero damage.
+### Notes
+- Production channel unchanged.
+
 ## v1.0.4.243 (2026-09-27) [testing]
 ### Fixed
 - **IPC lease suspension no longer logs spurious warnings on job change and plugin teardown.** Routine lease revocation is treated as normal lifecycle cleanup and logs at Debug level only when active leases exist, eliminating false-positive warning spam when changing jobs.
