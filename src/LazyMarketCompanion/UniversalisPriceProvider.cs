@@ -18,6 +18,14 @@ internal sealed class UniversalisPriceProvider : IDisposable
   private const int GateChunkSize = 50;
 
   /// <summary>
+  /// Ids per DATA-CENTER fallback request (0.2.5.0). The DC aggregate is expensive for
+  /// Universalis to compute: measured 2026-09-28, 50-id DC chunks 504 (the same gateway
+  /// death the 0.1.18.0 world-scope giant requests hit) while 8-10-id DC chunks answer in
+  /// ~0.2-0.3 s - so the fallback stays small even though the primary pass chunks at 50.
+  /// </summary>
+  private const int DcGateChunkSize = 10;
+
+  /// <summary>
   /// Why the most recent sale-history lookup refused to price its item (null when it priced one or
   /// nothing has run yet). Written on the lookup's background thread before the framework-thread
   /// handoff that reads it, so no lock is needed. Consumed by the "no price to set" chat message.
@@ -225,6 +233,48 @@ internal sealed class UniversalisPriceProvider : IDisposable
 
     if (result.CachedItemCount > 0)
       Svc.Log.Information($"[LMC] Auto-Market gate recovered {result.CachedItemCount} item quote(s) from short-TTL cache after chunk failure(s)");
+
+    // 0.2.5.0: world-scope staleness fallback (GateDcFallback carries the full rationale). When the
+    // primary scope is the HOME WORLD and part of the fetch came back with no source-usable data
+    // (stale world upload, hasData=false, no positive listing), re-ask JUST those ids at the data-
+    // center scope in small no-history chunks. Every quote used is real Universalis data inside the
+    // same freshness window - a stale DC answer overwrites nothing and the item stays held. DC
+    // fallback quotes carry zero sale velocity (entries=0), so they rank at the end of the
+    // fastest-selling-first order but still take free slots - that is the starvation this fixes.
+    if (!useDataCenter)
+    {
+      var destination = result.Quotes ?? new Dictionary<uint, ItemQuote>();
+      var needing = GateDcFallback.Select(itemIds, result.Quotes, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), freshnessMs);
+      if (needing.Count > 0)
+      {
+        var dcName = await ResolveDataCenter().ConfigureAwait(false);
+        if (!string.IsNullOrWhiteSpace(dcName))
+        {
+          var dcResult = await GateChunkFetch.FetchAllAsync(
+            needing,
+            DcGateChunkSize,
+            async (chunk, ct) =>
+            {
+              var json = await _client.GetMarketDataJson(chunk, dcName!, ct, listings: UniversalisClient.ListingCount, entries: 0).ConfigureAwait(false);
+              return UniversalisQuotes.Parse(json, Plugin.Configuration.SeenRetainers);
+            },
+            (count, ex) => Svc.Log.Warning(ex, $"[LMC] Auto-Market data-center fallback lookup failed for {count} item(s) after 3 attempts; continuing with what the world scope returned"),
+            cancellationToken,
+            cache: _gatePriceCache,
+            nowUnixMs: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            cacheTtlMs: freshnessMs,
+            backoffDelay: attempt => Task.Delay((attempt + 1) * 250, cancellationToken)).ConfigureAwait(false);
+
+          if (dcResult.Quotes != null)
+          {
+            var mergedIn = GateDcFallback.MergeUsable(destination, dcResult.Quotes, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), freshnessMs);
+            Svc.Log.Information($"[LMC] {GateDcFallback.Summarize(needing.Count, mergedIn)}");
+            if (mergedIn > 0 && result.Quotes == null)
+              result = new GateFetchResult(destination, result.AnsweredItemCount + mergedIn, result.RetriedChunks, result.FailedChunks, result.CachedItemCount);
+          }
+        }
+      }
+    }
 
     return result.Quotes;
   }

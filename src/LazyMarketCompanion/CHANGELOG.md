@@ -1,3 +1,14 @@
+## v0.2.5.0 (2026-09-28) [testing]
+
+### Fixed
+
+- **Auto-Market no longer strands sellable stock when the home world's market data is stale.** The value gate's price lookup asks the player's home world first; when an item's world-side upload data is older than the freshness window (the board's own listing data may be perfectly fine - the coverage gap is in the price source), the gate re-asks the data-center aggregate for exactly those items, in small chunks. Only confirmed market data is ever used: a stale data-center answer changes nothing and the item stays held, never listed, pulled or vendored on a guess. Items with genuinely no fresh data anywhere stay held - that is the safe default, now visible by name.
+
+### Added
+
+- **The held-unpriced set is visible in game.** The per-pass chat line now names up to three of the held item names alongside the held count, and the plugin log records the full held set with item ids (and names), so a starved pass is diagnosable per item without guesswork. The held count in the line is the current pass's own count.
+- **Every price the re-pricing pass writes is logged.** One log line per executed re-price names the item, the price it replaced, the price it set and the price source - so whether a new listing landed at a real market price (instead of the placeholder) is answerable directly from the log, without enabling optional decision telemetry.
+
 ## v0.2.4.0 (2026-09-28) [testing]
 
 ### Changed

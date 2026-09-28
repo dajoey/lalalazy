@@ -1683,7 +1683,7 @@ internal sealed class MarketAutomation : Window, IDisposable
 
     if (plan.Ops.Count == 0)
     {
-      var idleFeedback = AutoMarketExecution.FormatPassFeedback(0, executedPulls, AutoMarketService.HeldUnpricedRules.Count);
+      var idleFeedback = AutoMarketExecution.FormatPassFeedback(0, executedPulls, AutoMarketService.LastPassHeldUnpriced.Count, HeldItemNamesForFeedback());
       if (idleFeedback != null)
         Communicator.PrintInfo(idleFeedback);
       else
@@ -1702,7 +1702,9 @@ internal sealed class MarketAutomation : Window, IDisposable
 
     // 0.2.4.0: live by default - every planned op executes. The single per-pass feedback
     // names the executed count and the held-unpriced count with the hold reason (design §12).
-    var execution = AutoMarketExecution.Evaluate(plan, executedPulls, AutoMarketService.HeldUnpricedRules.Count);
+    // 0.2.5.0: the held count is THIS pass's snapshot (LastPassHeldUnpriced), not the sweep's
+    // accumulated list, and up to three held item names ride along.
+    var execution = AutoMarketExecution.Evaluate(plan, executedPulls, AutoMarketService.LastPassHeldUnpriced.Count, HeldItemNamesForFeedback());
     if (execution.ChatFeedback != null)
       Communicator.PrintInfo(execution.ChatFeedback);
 
@@ -1712,6 +1714,34 @@ internal sealed class MarketAutomation : Window, IDisposable
     InsertSteps(listing);
 
     return true;
+  }
+
+  /// <summary>
+  /// Display names for the held-unpriced items of the CURRENT pass (0.2.5.0), for the pass
+  /// feedback line. Best-effort: an unresolvable name is skipped (the line falls back to the
+  /// bare count). Distinct by (id, quality) so an NQ+HQ pair of the same item names once.
+  /// </summary>
+  private static List<string> HeldItemNamesForFeedback()
+  {
+    var names = new List<string>();
+    try
+    {
+      var sheet = Svc.Data.GetExcelSheet<Lumina.Excel.Sheets.Item>();
+      foreach (var group in AutoMarketService.LastPassHeldUnpriced.GroupBy(r => (r.ItemId, r.HQ)))
+      {
+        if (sheet != null && sheet.TryGetRow(group.Key.ItemId, out var row))
+        {
+          var name = row.Name.ToString();
+          if (!string.IsNullOrWhiteSpace(name))
+            names.Add(name + (group.Key.HQ ? " HQ" : string.Empty));
+        }
+      }
+    }
+    catch
+    {
+      // Names are a nicety; the count and the plugin-log id line carry the diagnosis.
+    }
+    return names;
   }
 
   /// <summary>
@@ -2632,6 +2662,20 @@ internal sealed class MarketAutomation : Window, IDisposable
           Svc.Log.Debug("[LMC] setting new price");
           _cachedPrices.TryAdd(itemName, new CachedPrice(_newPrice.Value, _newPriceFromUniversalis));
           retainerSell->AskingPrice->SetValue(_newPrice.Value);
+
+          // 0.2.5.0: one unconditional Information line per price the pass actually writes -
+          // item, the price it replaced, the price it set, and where the price came from. Until
+          // now the only per-decision record was the optional MT| decision tap (DecisionTelemetry
+          // flag), so with the flag off a placeholder listing that never repriced was almost
+          // traceless and "did the placeholder->market reprice land?" was unanswerable from the
+          // plugin log. Id is best-effort; 0 prints as-is.
+          ItemNameResolver.TryGetItemId(itemName, rawItemName, out var repriceItemId);
+          var repriceSource = usedDefaultAmount ? PinchRepriceLog.SourceDefault
+            : _newPriceFromCache ? PinchRepriceLog.SourceCache
+            : _newPriceFromUniversalis ? PinchRepriceLog.SourceUniversalis
+            : PinchRepriceLog.SourceComparePrices;
+          Svc.Log.Information($"[LMC] {PinchRepriceLog.Format(repriceItemId, itemName, _oldPrice.Value, _newPrice.Value, repriceSource, isPlaceholder)}");
+
           if (isPlaceholder)
             Communicator.PrintNewListingPriced(itemName, _newPrice.Value, _newPriceFromUniversalis);
           else

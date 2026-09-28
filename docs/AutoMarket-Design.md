@@ -235,7 +235,45 @@ deposited market-destined stock into retainer storage pages ahead of the listing
 5. **Dry-run log-line format pinned:**
    - Deterministic formatting for `[AM][dry-run] would list ...`, `would pull ...`, and
      `would vendor ...` is extracted into `DryRunFormat.cs` and pinned in the offline harness
-     (Case 139).
+     (Case 139). (Superseded by §12: the in-game gate is gone since 0.2.4.0; the formatter
+     remains the offline harness's simulation formatter.)
+
+## 11a. 0.2.5.0: world-scope staleness fallback and held-set visibility
+
+Diagnosed 2026-09-28 from a live 0.2.4.0 session plus an offline reproduction of the exact
+gate request: sellable stock sat held while market slots were free NOT because of transport
+failures (zero chunk failures in the session) but because **Universalis' per-world
+`lastUploadTime` went stale for a large fraction of the configured items** (342 of 597 ids
+on the live install were older than the 6 h freshness window at world scope, while the
+data-center aggregate carried fresh data for 191 of them - other worlds of the data center
+upload those items). The gate correctly held (unconfirmed means hold); the stock starved.
+The round-3 timeout diagnosis is retired for this failure mode.
+
+1. **Data-center-scope fallback (`GateDcFallback.cs`, suite cases 148/148a/148b):** when the
+   primary scope is the home world and part of the fetch comes back with no source-usable
+   quote (missing, `hasData=false`, stale upload, no positive listing), exactly those ids
+   are re-asked at the data-center scope in small no-history chunks (10 ids,
+   `entries=0`: the DC aggregate is expensive - 50-id DC chunks 504, 10-id no-history
+   chunks answer in ~0.3 s). A DC quote replaces the stale world quote only when it is
+   ITSELF source-usable; a stale DC answer overwrites nothing and the item stays held.
+   DC fallback quotes carry zero sale velocity, so they rank at the end of the
+   fastest-selling-first order while still taking free slots. **The invariant is
+   unchanged**: every quote acted on is real Universalis data inside the freshness window;
+   no heuristic price exists anywhere in the path. Items with no fresh data at either scope
+   stay held - the correct outcome for genuinely cold items.
+2. **Held-set visibility (cases 149/150):** the single per-pass chat line names up to three
+   held item names plus an overflow count (bounded by construction, no chat spam), and the
+   plugin log records the FULL held set with ids and best-effort names
+   (`HeldSetAnnounce`). The count the line reports is the CURRENT pass's snapshot
+   (`LastPassHeldUnpriced`), not the sweep-accumulated list, which had later retainers'
+   lines naming earlier retainers' held stock as their own.
+3. **Reprice execution telemetry (case 151):** every price the pinch walk writes emits one
+   unconditional Information line (`PinchRepriceLog`) naming the item, the price replaced,
+   the price set and the source - placeholder-landing is answerable from the plugin log
+   without the optional decision-tap flag. Field evidence from the 0.2.4.0 session: every
+   placeholder listing was walked to a market price (the walk's decision taps show
+   placeholder → market transitions, and the following pass reported zero placeholder rows),
+   so the pre-existing pinch flow was verified landing, not changed.
 
 ## 12. 0.2.4.0: the in-game dry-run gate is removed — testing builds list live
 
@@ -258,7 +296,9 @@ choice beyond SC4's criterion, and it is ordered out: **testing builds list live
    and/or holds ≥1 item unpriced, exactly ONE chat line names BOTH the executed count and the
    held-unpriced count with the hold reason ("no confirmed market price; held in place").
    Idle passes emit zero such lines. `AutoMarketExecution.FormatPassFeedback` builds it;
-   executed pulls thread into the final line via the post-pull continuation.
+   executed pulls thread into the final line via the post-pull continuation. Since 0.2.5.0
+   (§11a) the line also names up to three held item names, and the count it reports is the
+   current pass's own held snapshot.
 4. **What did NOT change:** the four value invariants (§1–§5 pins — unconfirmed means hold in
    any direction, net-higher-never-vendored, keep-N honored, no removal without replacement
    or recorded hold) and the rollback doctrine (production pin + rehearsed feed-pin drill).
