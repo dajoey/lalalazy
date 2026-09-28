@@ -5206,7 +5206,9 @@ ItemQuote FillerQuote(uint id, long unit, bool hq = false, double vel = 0, long 
     [36117] = new ItemQuote(36117, true, Now - 60_000, [new QuoteListing(1, false, false)], DataCenterScope: true),
     [17574] = new ItemQuote(17574, true, Now - 60_000, [new QuoteListing(500, false, false)]),
   };
-  var sight = MarketGate.CountSight([R159(36117), R159(17574)], quotes159, true, Now, Fresh159e, stock159, false);
+  // partial stacks ON: the stock here is 1 and 2 units against a 99 stack, which the count would
+  // otherwise treat as nothing sellable and leave both rules out of scope.
+  var sight = MarketGate.CountSight([R159(36117), R159(17574)], quotes159, true, Now, Fresh159e, stock159, true);
   Check("159e a data-center quote counts as NOT checked against the threshold; a home-world quote counts as judged",
     sight.Judged == 1 && sight.Unpriceable == 1, $"judged={sight.Judged} unpriceable={sight.Unpriceable}");
 
