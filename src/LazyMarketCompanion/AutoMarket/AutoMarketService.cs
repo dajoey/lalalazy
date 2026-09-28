@@ -1,4 +1,4 @@
-﻿using ECommons;
+using ECommons;
 using ECommons.DalamudServices;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
@@ -56,10 +56,16 @@ internal static unsafe class AutoMarketService
   /// </summary>
   internal static List<ItemRule> HeldBackRules { get; } = new();
 
+  /// <summary>
+  /// Rules the gate held back due to unconfirmed / missing market data (0.2.1.0).
+  /// </summary>
+  internal static List<ItemRule> HeldUnpricedRules { get; } = new();
+
   internal static void ResetGateHeld()
   {
     GateHeldThisRun = 0;
     HeldBackRules.Clear();
+    HeldUnpricedRules.Clear();
   }
 
   /// <summary>
@@ -291,6 +297,7 @@ internal static unsafe class AutoMarketService
         if (verdict == GateVerdict.HoldBack)
         {
           heldUnpriced.Add(rule);
+          HeldUnpricedRules.Add(rule);
           continue;
         }
 
@@ -869,46 +876,65 @@ internal static unsafe class AutoMarketService
     return RoutingMove.UnroutedBags(l.Stock, l.Rules, l.CategoryByKey, l.ExcludeByKey, l.CategoryRules);
   }
 
-  public static RoutingMovePlan PlanRoutingMoves(IReadOnlyCollection<string>? movedThisRun = null, IReadOnlyCollection<string>? reconciledSkip = null)
+  internal static HashSet<uint> ComputeMarketDestined(IReadOnlyList<StockStack> stock, IReadOnlyList<ItemRule> rules)
+  {
+    if (!IsMarketContainerLoaded())
+      return [];
+
+    var market = SnapshotMarket();
+    var config = Plugin.Configuration;
+    var ruleList = rules as List<ItemRule> ?? rules.ToList();
+    var stockList = stock as List<StockStack> ?? stock.ToList();
+    var eligibleRules = config.CategoryRetainerRules.Count > 0 ? ApplyCategoryRouting(ruleList, config.CategoryRetainerRules) : ruleList;
+    var options = new PlannerOptions(MarketSlotCount, config.AutoMarketReserveSlots, config.AutoMarketPreferRetainerStockFirst, config.AutoMarketListPartialStacks);
+    var plan = AutoMarketPlanner.Plan(eligibleRules, stockList, market, options);
+    return plan.Ops.Where(o => o.Origin == StockOrigin.Bags).Select(o => o.ItemId).ToHashSet();
+  }
+
+  public static RoutingMovePlan PlanRoutingMoves(IReadOnlyCollection<string>? movedThisRun = null, IReadOnlyCollection<string>? reconciledSkip = null, IReadOnlyCollection<uint>? marketDestined = null)
   {
     if (!TryBuildRoutingLookups(out var l))
       return new RoutingMovePlan(new List<RoutingMoveOp>(), new List<string>(), false, false);
 
     var session = CurrentRetainerName();
+    var destined = marketDestined ?? ComputeMarketDestined(l.Stock, l.Rules);
     return RoutingMove.Plan(l.Stock, l.Rules, l.CategoryByKey, l.ExcludeByKey, l.CategoryRules,
-      session, CountFreeBagSlots, RetainerPageFreeSlot, movedThisRun, reconciledSkip)
+      session, CountFreeBagSlots, RetainerPageFreeSlot, movedThisRun, reconciledSkip, destined)
       with { SessionRetainer = session };
   }
 
   /// <summary>Identical to PlanRoutingMoves but calls RoutingMove.PlanDepositsOnly.</summary>
-  public static RoutingMovePlan PlanRoutingDepositsOnly(IReadOnlyCollection<string>? reconciledSkip = null)
+  public static RoutingMovePlan PlanRoutingDepositsOnly(IReadOnlyCollection<string>? reconciledSkip = null, IReadOnlyCollection<uint>? marketDestined = null)
   {
     if (!TryBuildRoutingLookups(out var l))
       return new RoutingMovePlan(new List<RoutingMoveOp>(), new List<string>(), false, false);
 
     var session = CurrentRetainerName();
+    var destined = marketDestined ?? ComputeMarketDestined(l.Stock, l.Rules);
     return RoutingMove.PlanDepositsOnly(l.Stock, l.Rules, l.CategoryByKey, l.ExcludeByKey, l.CategoryRules,
-      session, CountFreeBagSlots, RetainerPageFreeSlot, reconciledSkip)
+      session, CountFreeBagSlots, RetainerPageFreeSlot, reconciledSkip, destined)
       with { SessionRetainer = session };
   }
 
-  public static bool HasPendingRoutingDeposits()
+  public static bool HasPendingRoutingDeposits(IReadOnlyCollection<uint>? marketDestined = null)
   {
     if (!TryBuildRoutingLookups(out var l))
       return false;
 
+    var destined = marketDestined ?? ComputeMarketDestined(l.Stock, l.Rules);
     return RoutingMove.HasPendingDeposits(l.Stock, l.Rules, l.CategoryByKey, l.ExcludeByKey, l.CategoryRules,
-      CurrentRetainerName(), CountFreeBagSlots, () => int.MaxValue);
+      CurrentRetainerName(), CountFreeBagSlots, () => int.MaxValue, destined);
   }
 
-  public static bool HasPendingRoutingDepositsForAny(IReadOnlyList<string> retainerNames)
+  public static bool HasPendingRoutingDepositsForAny(IReadOnlyList<string> retainerNames, IReadOnlyCollection<uint>? marketDestined = null)
   {
     if (retainerNames.Count == 0 || !TryBuildRoutingLookups(out var l))
       return false;
 
+    var destined = marketDestined ?? ComputeMarketDestined(l.Stock, l.Rules);
     foreach (var name in retainerNames)
     {
-      if (RoutingMove.HasPendingDeposits(l.Stock, l.Rules, l.CategoryByKey, l.ExcludeByKey, l.CategoryRules, name))
+      if (RoutingMove.HasPendingDeposits(l.Stock, l.Rules, l.CategoryByKey, l.ExcludeByKey, l.CategoryRules, name, () => 0, () => int.MaxValue, destined))
         return true;
     }
 

@@ -1,4 +1,4 @@
-﻿using LazyMarketCompanion;
+using LazyMarketCompanion;
 using LazyMarketCompanion.AutoMarket;
 
 // Offline tests for the Auto-Market planner. Prints PASS/FAIL per case, exits non-zero on any FAIL.
@@ -4388,6 +4388,166 @@ InventoryCases.Run((name, ok, detail) => Check(name, ok, detail));
 }
 
 
+// =====================================================================================
+// 0.2.1.0 STARVATION & RESILIENCE CASES (tasks-20260928-lmc-automarket-listing-starvation-01).
+// (a) chunk dropout / timeout resilience: bounded retry + cache fallback fills empty slots
+// (b) routing does not deposit market-destined items into storage ahead of listing pass
+// (c) pin [AM][dry-run] log-line format (the recorded design §6 deferral)
+// =====================================================================================
+
+// 137. (Starvation A) Gate chunk dropout / Universalis timeout resilience across a pass:
+// Reproduces the 2026-09-27 21:09 starvation: 52 stocked items (50 in chunk 1, 2 in chunk 2).
+// 7 empty market slots (#5, #6, #7, #8, #13, #16, #17).
+// Sub-case 1: Chunk 1 times out twice, then succeeds on attempt 3 (bounded retry).
+// All 7 empty market slots are filled.
+{
+  const long Now = 1_788_710_000_000L;
+  var ids = Enumerable.Range(1001, 52).Select(i => (uint)i).ToList();
+  // 7 empty market slots: slots 0..12 occupied, slots 13..19 empty
+  var market = new List<MarketSlot>();
+  for (var i = 0; i < 20; i++)
+    market.Add(i < 13 ? new MarketSlot(i, 9999u, false, 1) : new MarketSlot(i, 0u, false, 0));
+
+  var stock = ids.Select((id, idx) => new StockStack(StockOrigin.Bags, 0, idx, id, false, 5)).ToList();
+  var rules = ids.Select(id => Rule(id, 5, bags: true, ret: true)).ToList();
+
+  var chunk1Attempts = 0;
+  async Task<Dictionary<uint, ItemQuote>> FlakyChunk1(IReadOnlyList<uint> chunk, CancellationToken ct)
+  {
+    await Task.Yield();
+    if (chunk.Contains(1001u))
+    {
+      chunk1Attempts++;
+      if (chunk1Attempts < 3)
+        throw new TaskCanceledException("simulated Universalis chunk timeout");
+    }
+    return chunk.ToDictionary(id => id, id => new ItemQuote(id, true, Now - 1000, [new QuoteListing(500, false, false)]));
+  }
+
+  var fetch = await GateChunkFetch.FetchAllAsync(ids, 50, FlakyChunk1, (_, _) => { }, CancellationToken.None);
+  var gate = new GateOptions(true, 100, 6 * 3_600_000L);
+
+  var kept = new List<ItemRule>();
+  foreach (var r in rules)
+  {
+    ItemQuote? q = null;
+    fetch.Quotes?.TryGetValue(r.ItemId, out q);
+    if (MarketGate.Decide(5, q, false, false, gate, Now) == GateVerdict.List)
+      kept.Add(r);
+  }
+
+  var plan = AutoMarketPlanner.Plan(kept, stock, market, Opts());
+  Check("137 gate fetch: bounded retry (3 attempts) recovers chunk dropout and fills 7 empty slots",
+    plan.Ops.Count == 7 && fetch.RetriedChunks == 1 && fetch.FailedChunks == 0,
+    $"ops={plan.Ops.Count} retried={fetch.RetriedChunks} failed={fetch.FailedChunks}");
+
+  // Sub-case 2: Chunk 1 times out all 3 attempts, but price cache has recent valid quotes.
+  var cache = new GatePriceCache();
+  var cachedQuotes = ids.Take(50).ToDictionary(id => id, id => new ItemQuote(id, true, Now - 5000, [new QuoteListing(500, false, false)]));
+  cache.Record(cachedQuotes, Now - 5000);
+
+  async Task<Dictionary<uint, ItemQuote>> DeadChunk1(IReadOnlyList<uint> chunk, CancellationToken ct)
+  {
+    await Task.Yield();
+    if (chunk.Contains(1001u))
+      throw new TaskCanceledException("simulated persistent Universalis chunk outage");
+    return chunk.ToDictionary(id => id, id => new ItemQuote(id, true, Now - 1000, [new QuoteListing(500, false, false)]));
+  }
+
+  var cachedFetch = await GateChunkFetch.FetchAllAsync(ids, 50, DeadChunk1, (_, _) => { }, CancellationToken.None,
+    cache: cache, nowUnixMs: Now, cacheTtlMs: 30 * 60 * 1000L);
+
+  var cachedKept = new List<ItemRule>();
+  foreach (var r in rules)
+  {
+    ItemQuote? q = null;
+    cachedFetch.Quotes?.TryGetValue(r.ItemId, out q);
+    if (MarketGate.Decide(5, q, false, false, gate, Now) == GateVerdict.List)
+      cachedKept.Add(r);
+  }
+
+  var cachedPlan = AutoMarketPlanner.Plan(cachedKept, stock, market, Opts());
+  Check("137 gate fetch: price cache fallback recovers dead chunk and fills 7 empty slots",
+    cachedPlan.Ops.Count == 7 && cachedFetch.CachedItemCount == 50,
+    $"ops={cachedPlan.Ops.Count} cached={cachedFetch.CachedItemCount}");
+}
+
+// 138. (Starvation B) Routing must not deposit an item into retainer storage when its destination
+// is an open market slot awaiting a listing pass.
+// Telemetry: items 35568 and 20310 in bags, retainer has open market slots.
+// RoutingMove.Plan respects marketDestined, leaving market-destined items in bags for listing.
+{
+  const uint ItemA = 35568u;
+  const uint ItemB = 20310u;
+  const uint ItemC = 13718u; // not on automarket list
+  const string RetName = "Bussyqueen";
+
+  var stock = new List<StockStack>
+  {
+    new(StockOrigin.Bags, 1, 15, ItemA, false, 1),
+    new(StockOrigin.Bags, 1, 18, ItemB, false, 1),
+    new(StockOrigin.Bags, 1, 16, ItemC, false, 1),
+  };
+
+  var rules = new List<ItemRule>
+  {
+    Rule(ItemA, 1, bags: true, ret: true),
+    Rule(ItemB, 1, bags: true, ret: true),
+  };
+
+  var catByKey = new Dictionary<string, ItemCategoryInfo>
+  {
+    [$"{ItemA}:nq"] = new(ItemA, false, 70, true),
+    [$"{ItemB}:nq"] = new(ItemB, false, 71, true),
+    [$"{ItemC}:nq"] = new(ItemC, false, 54, true),
+  };
+
+  var catRules = new List<CategoryRetainerRule>
+  {
+    new() { CategoryId = 70, RetainerName = RetName },
+    new() { CategoryId = 71, RetainerName = RetName },
+    new() { CategoryId = 54, RetainerName = RetName },
+  };
+
+  var marketDestined = new HashSet<uint> { ItemA, ItemB };
+  var plan = RoutingMove.Plan(stock, rules, catByKey, new Dictionary<string, bool>(), catRules, RetName,
+    () => 10, () => 10, marketDestined: marketDestined);
+
+  var depositsMarketDestined = plan.Ops.Any(o => o.Leg == MoveLeg.BagsToRetainer && (o.ItemId == ItemA || o.ItemId == ItemB));
+  Check("138 routing does not deposit market-destined item into storage",
+    !depositsMarketDestined, $"ops={plan.Ops.Count}");
+}
+
+// 139. (Starvation C) Pin the [AM][dry-run] log-line format (the recorded design §6 deferral).
+// Format for list, pull, and vendor must match the design contract and be accessible offline.
+{
+  var listNq = DryRunFormat.WouldList(1001, false, 5, StockOrigin.Bags, 3);
+  Check("139 dry-run format: WouldList NQ",
+    listNq == "[AM][dry-run] would list 1001 x5 from Bags into market#3", listNq);
+
+  var listHq = DryRunFormat.WouldList(1002, true, 1, StockOrigin.Retainer, 7);
+  Check("139 dry-run format: WouldList HQ",
+    listHq == "[AM][dry-run] would list 1002 HQ x1 from Retainer into market#7", listHq);
+
+  var pullBags = DryRunFormat.WouldPull(2, 2001, false, 10, 500, 1000, PullTarget.PlayerBags);
+  Check("139 dry-run format: WouldPull to player inventory",
+    pullBags == "[AM][dry-run] would pull market#2 item 2001 x10 (listed at 500 gil, under the 1,000 gil net threshold) back to player inventory", pullBags);
+
+  var pullRet = DryRunFormat.WouldPull(5, 2002, true, 1, 800, 2000, PullTarget.RetainerInventory);
+  Check("139 dry-run format: WouldPull to retainer inventory",
+    pullRet == "[AM][dry-run] would pull market#5 item 2002 HQ x1 (listed at 800 gil, under the 2,000 gil net threshold) back to retainer inventory", pullRet);
+
+  var vendorRet = DryRunFormat.WouldVendor("RetainerPage1", 4, 3001, false, 12, 120);
+  Check("139 dry-run format: WouldVendor retainer page",
+    vendorRet == "[AM][dry-run] would vendor RetainerPage1:4 item 3001 x12 (est 120 gil)", vendorRet);
+
+  var vendorBags = DryRunFormat.WouldVendor("Bags", 8, 3002, true, 1, 50);
+  Check("139 dry-run format: WouldVendor bags",
+    vendorBags == "[AM][dry-run] would vendor Bags:8 item 3002 HQ x1 (est 50 gil)", vendorBags);
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
+
+
 

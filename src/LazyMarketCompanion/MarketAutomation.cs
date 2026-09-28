@@ -1,4 +1,4 @@
-﻿using Dalamud.Game.Addon.Lifecycle;
+using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
@@ -188,6 +188,10 @@ internal sealed class MarketAutomation : Window, IDisposable
   private bool _gateQuotesDone;
   private int _gateQuotesRequestId;
   private CancellationTokenSource? _gateQuotesCts;
+  private bool _gateRetryDone;
+  private bool _gateRetryQuotesDone;
+  private int _gateRetryRequestId;
+  private CancellationTokenSource? _gateRetryCts;
 
   // Empty-board sale-history fallback (0.1.8.0). The in-game "Compare Prices" path is synchronous and
   // has already failed by the time SetNewPrice runs, so the fallback lookup is fired from there and the
@@ -426,6 +430,34 @@ internal sealed class MarketAutomation : Window, IDisposable
       if (disabled) ImGui.EndDisabled();
       if (ImGui.IsItemHovered())
         ImGui.SetTooltip(tooltip + "\r\nPlease do not interact with the game while this runs." + (disabled ? "\r\n(Auto-Market is disabled in settings.)" : string.Empty));
+    }
+
+    // 0.2.1.0: Dry-run visibility and 1-click toggle on the bell overlay and sell list overlay.
+    // SC4 doctrine: default stays ON, but the gated state is impossible to miss and 1-click to flip.
+    if (Plugin.Configuration.AutoMarketEnabled)
+    {
+      ImGui.SameLine();
+      var isDry = Plugin.Configuration.AutoMarketDryRun;
+      var dryLabel = isDry ? "Dry-Run: ON" : "Dry-Run: OFF";
+      if (isDry)
+        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.8f, 0.2f, 1f));
+      else
+        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.4f, 1f, 0.4f, 1f));
+
+      if (ImGui.Button(dryLabel))
+      {
+        Plugin.Configuration.AutoMarketDryRun = !isDry;
+        Plugin.Configuration.Save();
+        Communicator.PrintInfo($"Auto-Market dry-run is now {(Plugin.Configuration.AutoMarketDryRun ? "ON (simulation only)" : "OFF (live execution)")}.");
+      }
+      ImGui.PopStyleColor();
+
+      if (ImGui.IsItemHovered())
+      {
+        ImGui.SetTooltip(isDry
+          ? "Auto-Market Dry-Run: ON (click to turn OFF).\r\nDecisions are computed and logged as [AM][dry-run] without executing.\r\nTurn OFF to allow real market listings."
+          : "Auto-Market Dry-Run: OFF (click to turn ON).\r\nAuto-Market will actively execute real listings and inventory moves.");
+      }
     }
   }
 
@@ -1621,7 +1653,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     if (Plugin.Configuration.AutoMarketDryRun)
     {
       foreach (var op in pullPlan.Ops)
-        Svc.Log.Information($"[AM][dry-run] would pull market#{op.Slot} item {op.ItemId}{(op.HQ ? " HQ" : "")} x{op.Quantity} (listed at {op.ListedPrice:N0} gil, under the {Plugin.Configuration.AutoMarketValueGateThresholdGil:N0} gil net threshold) back to {(op.Target == PullTarget.PlayerBags ? "player inventory" : "retainer inventory")}");
+        Svc.Log.Information(DryRunFormat.WouldPull(op.Slot, op.ItemId, op.HQ, op.Quantity, op.ListedPrice, Plugin.Configuration.AutoMarketValueGateThresholdGil, op.Target));
       return BuildAndInsertListingSteps();
     }
 
@@ -1657,6 +1689,30 @@ internal sealed class MarketAutomation : Window, IDisposable
   private bool? BuildAndInsertListingSteps()
   {
     var plan = AutoMarketService.BuildPlan(_gateQuotes);
+
+    // 0.2.1.0: if market slots remain unfilled and items were held unpriced due to transient
+    // Universalis chunk failure, retry fetching quotes for the unpriced items within the session
+    // before abandoning the slots.
+    if (!_gateRetryDone && AutoMarketService.HeldUnpricedRules.Count > 0)
+    {
+      var marketSnapshot = AutoMarketService.SnapshotMarket();
+      var emptySlots = AutoMarketService.MarketSlotCount - marketSnapshot.Count(s => s.ItemId != 0) - plan.Ops.Count;
+      if (emptySlots > 0)
+      {
+        _gateRetryDone = true;
+        var unpricedIds = AutoMarketService.HeldUnpricedRules.Select(r => r.ItemId).Distinct().ToList();
+        Svc.Log.Information($"[LMC] gate: {emptySlots} market slot(s) unfilled and {unpricedIds.Count} item(s) unpriced; retrying quote lookup before finalizing plan");
+        StartGateRetryLookup(unpricedIds);
+        var retrySteps = new List<Step>
+        {
+          new Step(() => _gateRetryQuotesDone, "GateRetryWait", TimeLimitMs: 15000),
+          new Step(BuildAndInsertListingSteps, "BuildPlanAfterRetry")
+        };
+        InsertSteps(retrySteps);
+        return true;
+      }
+    }
+
     foreach (var note in plan.Notes)
       Svc.Log.Information($"[LMC] plan: {note}");
 
@@ -1679,7 +1735,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     if (Plugin.Configuration.AutoMarketDryRun)
     {
       foreach (var op in plan.Ops)
-        Svc.Log.Information($"[AM][dry-run] would list {op.ItemId}{(op.HQ ? " HQ" : "")} x{op.Quantity} from {op.Origin} into market#{op.TargetSlot}");
+        Svc.Log.Information(DryRunFormat.WouldList(op.ItemId, op.HQ, op.Quantity, op.Origin, op.TargetSlot));
       return true;
     }
 
@@ -1743,7 +1799,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     if (Plugin.Configuration.AutoMarketDryRun)
     {
       foreach (var op in plan.Ops)
-        Svc.Log.Information($"[AM][dry-run] would vendor {op.ContainerName()}:{op.Slot} item {op.ItemId}{(op.HQ ? " HQ" : "")} x{op.Quantity} (est {op.EstGil:N0} gil)");
+        Svc.Log.Information(DryRunFormat.WouldVendor(op.ContainerName(), op.Slot, op.ItemId, op.HQ, op.Quantity, op.EstGil));
       return;
     }
 
@@ -2013,6 +2069,52 @@ internal sealed class MarketAutomation : Window, IDisposable
     _gateQuotesCts?.Cancel();
     _gateQuotesCts?.Dispose();
     _gateQuotesCts = null;
+
+    _gateRetryDone = false;
+    _gateRetryRequestId++;
+    _gateRetryQuotesDone = false;
+    _gateRetryCts?.Cancel();
+    _gateRetryCts?.Dispose();
+    _gateRetryCts = null;
+  }
+
+  private void StartGateRetryLookup(IReadOnlyList<uint> unpricedIds)
+  {
+    _gateRetryQuotesDone = false;
+    var requestId = ++_gateRetryRequestId;
+    _gateRetryCts?.Cancel();
+    _gateRetryCts?.Dispose();
+    _gateRetryCts = new CancellationTokenSource();
+    var token = _gateRetryCts.Token;
+
+    _ = Task.Run(async () =>
+    {
+      Dictionary<uint, ItemQuote>? newQuotes = null;
+      try
+      {
+        newQuotes = await _universalisPriceProvider.GetRuleQuotes(unpricedIds, token).ConfigureAwait(false);
+      }
+      catch (OperationCanceledException) when (token.IsCancellationRequested)
+      {
+        return;
+      }
+      catch (Exception ex)
+      {
+        Svc.Log.Warning(ex, "[LMC] gate retry lookup failed");
+      }
+
+      await Svc.Framework.RunOnFrameworkThread(() =>
+      {
+        if (_disposed || requestId != _gateRetryRequestId) return;
+        if (newQuotes != null && newQuotes.Count > 0)
+        {
+          _gateQuotes ??= new Dictionary<uint, ItemQuote>();
+          foreach (var kv in newQuotes)
+            _gateQuotes[kv.Key] = kv.Value;
+        }
+        _gateRetryQuotesDone = true;
+      });
+    }, token);
   }
 
   /// <summary>
@@ -3148,6 +3250,11 @@ internal sealed class MarketAutomation : Window, IDisposable
     _expectedRowItems.Clear();
     _rowSlots.Clear();
     _newOnlyPendingSlots.Clear();
+    _gateRetryDone = false;
+    _gateRetryQuotesDone = false;
+    _gateRetryCts?.Cancel();
+    _gateRetryCts?.Dispose();
+    _gateRetryCts = null;
     _currentPinchRow = -1;
     _listedTotal = 0;
     _listingFailures = 0;

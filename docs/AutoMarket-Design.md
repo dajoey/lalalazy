@@ -1,8 +1,8 @@
-# Auto-Market decision core — design (0.2.0.0)
+# Auto-Market decision core — design (0.2.0.0 / 0.2.1.0)
 
-Status: **binding design for the 0.2.0.0 rebuild**, written after the 2026-09-27
-incident (four defects shipped in 0.1.70.0) and committed BEFORE any implementing
-commit. Git history is the proof of order. This document is mirrored to the
+Status: **binding design for the 0.2.0.0 rebuild and 0.2.1.0 listing starvation fixes**,
+written after the 2026-09-27 incident and expanded for the 2026-09-28 starvation fixes.
+Git history is the proof of order. This document is mirrored to the
 notebook (`Projects/FFXIV Mods`) through Helm.
 
 ## 0. The class of error this design exists to forbid
@@ -199,5 +199,44 @@ decision from the implicated run:
   confirmed vendor price (§1); the feature does not exist in this release.
 - Re-pricing, pinch pre-flight, routing mover, category routing — unchanged;
   they already follow their own verified contracts.
-- Any change to the production channel. 0.2.0.0 ships to the **testing**
+- Any change to the production channel. Testing releases (0.2.0.0, 0.2.1.0) ship to the **testing**
   channel only; production stays 0.1.68.0.
+
+## 11. 0.2.1.0 additions: Gate resilience, routing priority, and dry-run visibility
+
+Observed in game on 0.2.0.0: transient network drops during Universalis multi-chunk fetch
+held 49 of 52 items unpriced, leaving 7 market slots empty across the pass. Furthermore,
+dry-run simulation mode was on by default but lacked in-game visibility, and category routing
+deposited market-destined stock into retainer storage pages ahead of the listing pass.
+0.2.1.0 introduces the following targeted mechanisms:
+
+1. **Gate resilience & bounded-TTL price cache:**
+   - Multi-chunk Universalis fetch (`GateChunkFetch.cs`) now retries failed chunks up to 3
+     attempts with linear backoff delay (`(attempt + 1) * 250ms`).
+   - If all retries for a chunk fail, `GatePriceCache` provides confirmed quotes from prior
+     successful lookups within the gate quote-freshness window (configurable 1–168 h, default 6 h) before declaring items unpriced.
+   - The unconfirmed => hold rule remains strictly intact: unpriced items without cached or
+     live data are never listed or vendored blind.
+
+2. **Empty-slot backfill retry:**
+   - If market slots remain unfilled after an initial listing pass because stocked items
+     were held unpriced by the gate, `MarketAutomation` triggers a targeted retry lookup
+     for those unpriced items within the session before concluding the pass.
+
+3. **Routing deposit priority over storage:**
+   - Category routing (`RoutingMove.cs`, `AutoMarketService.cs`) now computes market-destined
+     items via `AutoMarketPlanner` before planning bag deposits into retainer storage.
+   - Any stack needed to fill open market slots on the current retainer is excluded from
+     storage deposit moves, ensuring stock remains available in bags for the listing pass.
+
+4. **Dry-run visibility and 1-click toggle:**
+   - Dry-run mode remains ON by default per SC4 doctrine.
+   - A visible indicator and one-click toggle button (`Dry-Run: ON` / `Dry-Run: OFF`) are
+     rendered directly on the retainer bell and sell list overlays (`MarketAutomation.cs`),
+     making simulation state obvious and easily toggled in-game.
+
+5. **Dry-run log-line format pinned:**
+   - Deterministic formatting for `[AM][dry-run] would list ...`, `would pull ...`, and
+     `would vendor ...` is extracted into `DryRunFormat.cs` and pinned in the offline harness
+     (Case 139).
+
