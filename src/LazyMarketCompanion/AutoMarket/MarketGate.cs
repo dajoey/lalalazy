@@ -134,7 +134,7 @@ public static class MarketGate
     }
 
     return (GateLogLevel.Debug,
-      $"[LMC] gate: no price data for {sight.Unpriceable} of {sight.Judged + sight.Unpriceable} item(s) with stock to sell ({stockedCount} of {rulesCount} enabled item(s) have stock) - the {thresholdGil:N0} gil net threshold was NOT checked for those; held, not listed (unconfirmed means hold, 0.2.0.0)");
+      $"[LMC] gate: no price data for {sight.Unpriceable} of {sight.Judged + sight.Unpriceable} item(s) with stock to sell ({stockedCount} of {rulesCount} enabled item(s) have stock) - the {thresholdGil:N0} gil net threshold was NOT checked for those; they list at the live board price and are never vendored or pulled on an unconfirmed quote (0.2.8.0)");
   }
 
   /// <summary>
@@ -264,10 +264,18 @@ public static class MarketGate
   /// The gate for one item AFTER the request has completed successfully: judged on its total sellable
   /// value at the current board price, net of the 5% market fee. An item must be worth STRICTLY more
   /// than the threshold to list - at exactly or under the threshold it is a VENDOR CANDIDATE for the
-  /// bounded junk path (0.2.0.0 VendorPolicy); every "cannot tell" HOLDS (0.2.0.0, restoring the
-  /// 0.1.69.0 doctrine the reversion withdrew: unconfirmed market data means HOLD, never list blind,
-  /// never vendor). Caller contract: a request that fails, times out or returns no data
-  /// NEVER calls this function - such rules go straight to HoldBack without a verdict-of-record.
+  /// bounded junk path (0.2.0.0 VendorPolicy).
+  ///
+  /// 0.2.8.0 - the plugin's job is to LIST what is on the Auto-Market list, so every "cannot tell"
+  /// LISTS: an item whose quote is missing, stale, empty or has no listing of the quality is not
+  /// known to be junk, and the listing price comes from the live board through Auto Pinch, never
+  /// from this quote. 0.2.0.0 made the same cases HOLD, which left 83 marked items unlisted in one
+  /// field session. What stays conservative is everything IRREVERSIBLE: only a fresh, positive
+  /// quote from the home world itself can produce Vendor (and so a pull). A data-center quote is
+  /// the cheapest listing on any of eight worlds, not this world's price (2026-09-28: eight stacks
+  /// vendored for about 245 gil that list at about 12,500 gil at home), so it lists and never
+  /// vendors. Caller contract: a request that fails, times out or returns no data never calls
+  /// this function - such rules take <see cref="DecideUncertain"/>, which also lists.
   /// </summary>
   public static GateVerdict Decide(long sellableQuantity, ItemQuote? quote, bool ruleIsHq, bool preferHq, GateOptions options, long nowUnixMs)
   {
@@ -276,28 +284,31 @@ public static class MarketGate
     if (sellableQuantity <= 0)
       return GateVerdict.List;
     if (quote == null || !quote.HasData)
-      return GateVerdict.HoldBack;
+      return GateVerdict.List;
     if (quote.LastUploadUnixMs <= 0 || nowUnixMs - quote.LastUploadUnixMs > options.FreshnessMs)
-      return GateVerdict.HoldBack;
+      return GateVerdict.List;
 
     var unit = CheapestUnitPrice(quote, ruleIsHq, preferHq);
     if (unit == null || unit <= 0)
-      return GateVerdict.HoldBack;
+      return GateVerdict.List;
 
-    return NetRevenue(unit.Value, sellableQuantity) > options.ThresholdGil
-      ? GateVerdict.List
-      : GateVerdict.Vendor;
+    if (NetRevenue(unit.Value, sellableQuantity) > options.ThresholdGil)
+      return GateVerdict.List;
+
+    // At or under the threshold: a vendor candidate ONLY on the home world's own fresh quote.
+    return quote.DataCenterScope ? GateVerdict.List : GateVerdict.Vendor;
   }
 
   /// <summary>
   /// The wire-side gate (0.1.12.0 split): decides what to do with a rule whose Universalis request
   /// FAILED, TIMED OUT, or was superseded before a verdict could be read. The rule never sat in front
-  /// of the priced Decide() in that state - there was no price to judge anything with - so it lands
-  /// flatly on HOLD-BACK rather than guessing. Kept as its own function so the contract "uncertainty
-  /// arrives here without a verdict of record" is visible at the call site, not reconstructed by
-  /// inlining a default. Vendoring stays human.
+  /// of the priced Decide() in that state - there was no price to judge anything with. 0.2.8.0: it
+  /// LISTS (the plugin's job; the price comes from the live board through Auto Pinch), and it can
+  /// never vendor or pull, because no verdict of record exists. Kept as its own function so the
+  /// contract "uncertainty arrives here without a verdict of record" is visible at the call site,
+  /// not reconstructed by inlining a default.
   /// </summary>
-  public static GateVerdict DecideUncertain() => GateVerdict.HoldBack;
+  public static GateVerdict DecideUncertain() => GateVerdict.List;
 
   /// <summary>
   /// Price + velocity for each rule from fresh quotes (see <see cref="RuleQuote"/> for what "not

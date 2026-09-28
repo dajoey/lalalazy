@@ -1228,15 +1228,16 @@ var Catalogue = new (uint Id, string Name)[]
   // THE vendor-polarity cases: uncertain data must LIST, never hold, even at price 1 with threshold 1000
   var oneGil = new ItemQuote(5111, true, Now, [new(1, false, false)]);
   var strictGate = new GateOptions(true, 1_000, Fresh);
-  // 0.2.0.0 (design §1): unconfirmed market data HOLDS - never listed (which would bypass the
-  // value gate), never vendored (irreversible on a guess). The 0.1.x polarity "uncertainty lists"
-  // is withdrawn; this is the 0.1.69.0 doctrine restored by the redesign.
-  Check("gate: STALE data holds - never listed blind, never vendored",
-    MarketGate.Decide(99, stale, false, true, strictGate, Now) == GateVerdict.HoldBack);
-  Check("gate: missing lastUploadTime holds", MarketGate.Decide(99, noUploadTs, false, true, strictGate, Now) == GateVerdict.HoldBack);
-  Check("gate: hasData=false holds", MarketGate.Decide(99, new ItemQuote(5111, false, Now, []), false, true, strictGate, Now) == GateVerdict.HoldBack);
-  Check("gate: no listing of the quality holds", MarketGate.Decide(99, noListing, false, true, strictGate, Now) == GateVerdict.HoldBack);
-  Check("gate: null quote holds", MarketGate.Decide(99, null, false, true, strictGate, Now) == GateVerdict.HoldBack);
+  // 0.2.8.0 (design §1, amended): uncertain data LISTS - the plugin's job is to list what is on
+  // the Auto-Market list, and the listing price comes from the live board through Auto Pinch, not
+  // from this quote. 0.2.0.0 made these cases HOLD, which left 83 marked items unlisted in one
+  // field session (case 159). Only a fresh home-world quote can vendor or pull; unconfirmed never can.
+  Check("gate: STALE data lists - never vendored, never held off the board",
+    MarketGate.Decide(99, stale, false, true, strictGate, Now) == GateVerdict.List);
+  Check("gate: missing lastUploadTime lists", MarketGate.Decide(99, noUploadTs, false, true, strictGate, Now) == GateVerdict.List);
+  Check("gate: hasData=false lists", MarketGate.Decide(99, new ItemQuote(5111, false, Now, []), false, true, strictGate, Now) == GateVerdict.List);
+  Check("gate: no listing of the quality lists", MarketGate.Decide(99, noListing, false, true, strictGate, Now) == GateVerdict.List);
+  Check("gate: null quote lists", MarketGate.Decide(99, null, false, true, strictGate, Now) == GateVerdict.List);
   Check("gate: gate off lists even the pennies item",
     MarketGate.Decide(99, oneGil, false, true, new GateOptions(false, 1_000, Fresh), Now) == GateVerdict.List);
   Check("gate: threshold 0 is inert (lists)", MarketGate.Decide(99, oneGil, false, true, new GateOptions(true, 0, Fresh), Now) == GateVerdict.List);
@@ -1338,9 +1339,9 @@ var Catalogue = new (uint Id, string Name)[]
   ItemRule R(uint id, bool hq = false, int stack = 99, int keepB = 0, int keepR = 0, bool bags = true, bool ret = true)
     => new(id, hq, stack, keepB, keepR, 0, bags, ret, 0, 999);
 
-  // --- DecideUncertain: a request that never produced a verdict holds, deciding nothing ---
-  Check("vendor: an uncertainty reached the gate without a verdict must NOT vendor",
-    MarketGate.DecideUncertain() == GateVerdict.HoldBack);
+  // --- DecideUncertain: a request that never produced a verdict lists (0.2.8.0), and can never vendor ---
+  Check("vendor: an uncertainty reached the gate without a verdict must NOT vendor - it lists",
+    MarketGate.DecideUncertain() == GateVerdict.List);
 
   // --- the priced Decide returns Vendor, not List, at/under threshold ---
   var cheap = new ItemQuote(5111, true, Now, [new(5, false, false)]);       // 99 x 5 -> 470 net
@@ -1350,11 +1351,11 @@ var Catalogue = new (uint Id, string Name)[]
   Check("vendor: just above threshold lists", MarketGate.Decide(1, new ItemQuote(5111, true, Now, [new(1054, false, false)]), false, true, gate, Now) == GateVerdict.List);
 
   // THE vendor-uncertainty battery, mirrored from case 36: every one LISTS (never vendors)
-  Check("vendor: STALE data never vendors - it HOLDS (0.2.0.0: unconfirmed means hold)", MarketGate.Decide(99, new ItemQuote(5111, true, Now - 7 * 3_600_000L, [new(1, false, false)]), false, true, gate, Now) == GateVerdict.HoldBack);
-  Check("vendor: no lastUploadTime never vendors - it HOLDS", MarketGate.Decide(99, new ItemQuote(5111, true, 0, [new(1, false, false)]), false, true, gate, Now) == GateVerdict.HoldBack);
-  Check("vendor: hasData=false never vendors - it HOLDS", MarketGate.Decide(99, new ItemQuote(5111, false, Now, []), false, true, gate, Now) == GateVerdict.HoldBack);
-  Check("vendor: no listing of the quality never vendors - it HOLDS", MarketGate.Decide(99, new ItemQuote(5111, true, Now, []), false, true, gate, Now) == GateVerdict.HoldBack);
-  Check("vendor: null quote never vendors - it HOLDS", MarketGate.Decide(99, null, false, true, gate, Now) == GateVerdict.HoldBack);
+  Check("vendor: STALE data never vendors - it LISTS (0.2.8.0: unconfirmed lists, only a fresh home-world quote vendors)", MarketGate.Decide(99, new ItemQuote(5111, true, Now - 7 * 3_600_000L, [new(1, false, false)]), false, true, gate, Now) == GateVerdict.List);
+  Check("vendor: no lastUploadTime never vendors - it LISTS", MarketGate.Decide(99, new ItemQuote(5111, true, 0, [new(1, false, false)]), false, true, gate, Now) == GateVerdict.List);
+  Check("vendor: hasData=false never vendors - it LISTS", MarketGate.Decide(99, new ItemQuote(5111, false, Now, []), false, true, gate, Now) == GateVerdict.List);
+  Check("vendor: no listing of the quality never vendors - it LISTS", MarketGate.Decide(99, new ItemQuote(5111, true, Now, []), false, true, gate, Now) == GateVerdict.List);
+  Check("vendor: null quote never vendors - it LISTS", MarketGate.Decide(99, null, false, true, gate, Now) == GateVerdict.List);
   Check("vendor: gate off never vendors", MarketGate.Decide(99, cheap, false, true, new GateOptions(false, 1_000, Fresh), Now) == GateVerdict.List);
   Check("vendor: threshold 0 never vendors", MarketGate.Decide(99, cheap, false, true, new GateOptions(true, 0, Fresh), Now) == GateVerdict.List);
   Check("vendor: zero sellable never vendors", MarketGate.Decide(0, cheap, false, true, gate, Now) == GateVerdict.List);
@@ -4698,10 +4699,10 @@ InventoryCases.Run((name, ok, detail) => Check(name, ok, detail));
 {
   const long Now = 1_790_600_000_000L; // 2026-09-28, the day the mechanism was diagnosed
   var staleWorld = new ItemQuote(52367, true, Now - 7 * 3600 * 1000, [new QuoteListing(166, false, false)]);
-  Check("148 DC fallback control: a stale world-scope quote stays unusable and the gate holds",
+  Check("148 DC fallback control: a stale world-scope quote stays unusable and never vendors (0.2.8.0: it lists)",
     MarketGate.UsableQuote(staleWorld, false, true, Now, 6 * 3600 * 1000) == null
-    && MarketGate.Decide(99, staleWorld, false, true, new GateOptions(true, 100, 6 * 3600 * 1000), Now) == GateVerdict.HoldBack,
-    "stale world quote was usable or did not hold");
+    && MarketGate.Decide(99, staleWorld, false, true, new GateOptions(true, 100, 6 * 3600 * 1000), Now) == GateVerdict.List,
+    "stale world quote was usable or did not list");
 }
 
 // 148a. The 0.2.5.0 contract: when the world scope has no source-usable data for an id but the
@@ -4738,9 +4739,9 @@ InventoryCases.Run((name, ok, detail) => Check(name, ok, detail));
     && MarketGate.UsableQuote(merged[52367], false, true, Now, 6 * 3600 * 1000) == 166
     && MarketGate.Decide(99, merged[52367], false, true, new GateOptions(true, 100, 6 * 3600 * 1000), Now) == GateVerdict.List,
     $"merged={mergedIn} usable52367={MarketGate.UsableQuote(merged[52367], false, true, Now, 6 * 3600 * 1000)}");
-  Check("148a DC fallback: a stale data-center quote overwrites nothing - the item stays HELD (invariant)",
+  Check("148a DC fallback: a stale data-center quote overwrites nothing - the item never vendors (0.2.8.0: it lists)",
     merged[19938].HasData == false
-    && MarketGate.Decide(99, merged[19938], false, true, new GateOptions(true, 100, 6 * 3600 * 1000), Now) == GateVerdict.HoldBack,
+    && MarketGate.Decide(99, merged[19938], false, true, new GateOptions(true, 100, 6 * 3600 * 1000), Now) == GateVerdict.List,
     "a stale DC quote was allowed to act");
   Check("148a DC fallback: the fresh world quote was left untouched",
     merged[44012].LastUploadUnixMs == Now - 1000,

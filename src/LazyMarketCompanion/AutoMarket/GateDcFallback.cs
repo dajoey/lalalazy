@@ -84,7 +84,9 @@ public static class GateDcFallback
         continue;
       if (!SourceUsable(kv.Value, nowUnixMs, freshnessMs))
         continue;
-      destination[kv.Key] = kv.Value;
+      // 0.2.8.0: stamp the scope. The merged quote is the cheapest listing of ALL worlds, and the
+      // gate must know that: it may list on it, it may never vendor or pull on it.
+      destination[kv.Key] = kv.Value with { DataCenterScope = true };
       merged++;
     }
     return merged;
