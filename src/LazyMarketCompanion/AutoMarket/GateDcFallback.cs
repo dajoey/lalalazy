@@ -92,6 +92,17 @@ public static class GateDcFallback
     return merged;
   }
 
+  /// <summary>
+  /// 0.2.8.0: marks every quote as data-center scope. Applied where the quotes are FETCHED (both
+  /// Universalis lambdas in UniversalisPriceProvider), not only when they are merged: the world
+  /// pass and the data-center pass share one GatePriceCache keyed by item id alone, so an
+  /// unstamped data-center quote could come back out of the cache as a home-world quote when a
+  /// later world chunk timed out, and the vendor leg would act on it. A stamp applied at the
+  /// source travels with the quote through any cache round trip. The input is left untouched.
+  /// </summary>
+  public static Dictionary<uint, ItemQuote> StampDataCenterScope(IReadOnlyDictionary<uint, ItemQuote> quotes)
+    => quotes.ToDictionary(kv => kv.Key, kv => kv.Value with { DataCenterScope = true });
+
   /// <summary>The one Information line the fallback emits, naming both counts (0.2.5.0).</summary>
   public static string Summarize(int neededCount, int mergedCount)
     => $"gate: {neededCount} item(s) had no fresh world-scope price data; using data-center-scope quotes for {mergedCount} of them";

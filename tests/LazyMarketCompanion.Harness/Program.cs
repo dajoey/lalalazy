@@ -5084,6 +5084,65 @@ ItemQuote FillerQuote(uint id, long unit, bool hq = false, double vel = 0, long 
     freshHome[36117].Listings[0].PricePerUnit == 4993, $"price={freshHome[36117].Listings[0].PricePerUnit}");
 }
 
+// 159c. (0.2.8.0 the stamp must survive the cache): the world pass and the data-center pass share
+// ONE GatePriceCache keyed by item id alone. A data-center quote recorded by the fallback pass
+// comes back out of PopulateMissing when a later WORLD chunk times out - as an unstamped quote
+// posing as the home world's. Stamping only at MergeUsable left that door open, so the stamp is
+// applied where the quote is FETCHED (GateDcFallback.StampDataCenterScope, wired into both fetch
+// lambdas in UniversalisPriceProvider) and travels with the quote through any cache round trip.
+{
+  const long Now = 1_790_600_000_000L;
+  const long Fresh159c = 6 * 3_600_000L;
+  var gate159c = new GateOptions(true, 100, Fresh159c);
+  var raw = new Dictionary<uint, ItemQuote>
+  {
+    [36117] = new ItemQuote(36117, true, Now - 60_000, [new QuoteListing(1, false, false)]),
+    [17574] = new ItemQuote(17574, true, Now - 60_000, [new QuoteListing(15, false, false)]),
+  };
+
+  // CONTROL (documents the hole; true on both sides of the change): the SAME round trip with an
+  // unstamped quote vendors - which is exactly what the fetch-side stamp exists to prevent.
+  var unstampedCache = new GatePriceCache();
+  unstampedCache.Record(raw, Now);
+  var viaUnstamped = new Dictionary<uint, ItemQuote>();
+  unstampedCache.PopulateMissing(viaUnstamped, [36117u], Now, Fresh159c);
+  Check("159c control: an UNSTAMPED data-center quote that round-trips through the shared cache would vendor (the hole)",
+    viaUnstamped.TryGetValue(36117, out var leaked)
+    && MarketGate.Decide(1, leaked, false, true, gate159c, Now) == GateVerdict.Vendor,
+    "the control no longer demonstrates the hole");
+
+  var stamped = GateDcFallback.StampDataCenterScope(raw);
+  Check("159c the helper stamps every fetched quote and leaves the input untouched",
+    stamped.Count == 2 && stamped.Values.All(q => q.DataCenterScope) && raw.Values.All(q => !q.DataCenterScope),
+    $"stamped={stamped.Count}");
+
+  var cache = new GatePriceCache();
+  cache.Record(stamped, Now);
+  var worldChunkFailed = new Dictionary<uint, ItemQuote>();
+  cache.PopulateMissing(worldChunkFailed, [36117u, 17574u], Now, Fresh159c);
+  Check("159c the stamp survives the cache: a world chunk that timed out is filled with a quote still marked data-center",
+    worldChunkFailed.Count == 2 && worldChunkFailed.Values.All(q => q.DataCenterScope),
+    $"filled={worldChunkFailed.Count}");
+  Check("159c and that cache-served data-center quote never vendors",
+    MarketGate.Decide(1, worldChunkFailed[36117], false, true, gate159c, Now) == GateVerdict.List
+    && MarketGate.Decide(2, worldChunkFailed[17574], false, true, gate159c, Now) == GateVerdict.List,
+    "a cache-served data-center quote vendored");
+
+  // wiring pin (case-46 control form: a missing source read FAILS, never passes vacuously): both
+  // Universalis fetch lambdas in the price provider stamp what they parse.
+  var provRoots = new[]
+  {
+    Path.Combine("..", "..", "..", "..", "..", "src", "LazyMarketCompanion", "UniversalisPriceProvider.cs"),
+    Path.Combine("src", "LazyMarketCompanion", "UniversalisPriceProvider.cs"),
+  };
+  var provPath = provRoots.FirstOrDefault(File.Exists) ?? "";
+  var provSrc = provPath.Length > 0 ? File.ReadAllText(provPath) : "";
+  var stampCalls = System.Text.RegularExpressions.Regex.Matches(provSrc, "GateDcFallback\\.StampDataCenterScope\\(").Count;
+  Check("159c wiring: UniversalisPriceProvider stamps in both the data-center fallback fetch and the data-center-scope primary fetch",
+    provSrc.Length > 0 && stampCalls >= 2, provSrc.Length == 0 ? "UniversalisPriceProvider.cs not found" : $"stamp calls={stampCalls}");
+}
+
+
 
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;

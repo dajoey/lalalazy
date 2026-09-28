@@ -405,9 +405,14 @@ marked stock lying in bags and retainer inventories that could be marketed and i
   quality, a request that failed) LISTS (`MarketGate.Decide`, `DecideUncertain`). Listing is
   reversible and its price does not come from this quote: the listing lands at the placeholder
   price and Auto Pinch prices it from the live board. The quote only ever has to decide junk.
-- *Scope.* `ItemQuote.DataCenterScope` is stamped by `GateDcFallback.MergeUsable`. A quote so
-  stamped can allow a listing and rank, but never produces `Vendor`, so it never vendors and
-  never pulls. Only a fresh, positive, home-world quote can.
+- *Scope.* `ItemQuote.DataCenterScope` is stamped where a data-center quote is FETCHED
+  (`GateDcFallback.StampDataCenterScope`, wired into both Universalis fetch lambdas, so a gate
+  running in data-center-price mode stamps its primary quotes too) and again by
+  `GateDcFallback.MergeUsable`. Stamping at the source is what makes the flag survive the shared
+  `GatePriceCache`, which is keyed by item id alone: an unstamped data-center quote could
+  otherwise come back out of the cache as a home-world quote when a later world chunk timed out
+  (case 159c). A quote so stamped can allow a listing and rank, but never produces `Vendor`, so
+  it never vendors and never pulls. Only a fresh, positive, home-world quote can.
 
 **What is unchanged:** the bounded junk path (§4: NQ, not equippable, sheet-vendorable, confirmed
 net at or under the threshold, keep floor respected); HQ and gear never vendored; "keep N" is one
@@ -422,7 +427,8 @@ occupying a market slot at a few gil until a fresh home-world quote lets the pul
 **Cases:** 159 (a: every cannot-tell lists; controls that a fresh confirmed quote still vendors and
 still lists above threshold; b: the eight real stacks never vendor on a data-center quote, the
 pull leg never pulls on one, a fresh home-world quote still pulls, a fresh home quote is never
-overwritten). Cases 36, 148, 148a, 153 and the vendor-uncertainty battery were re-pinned to the
+overwritten; c: the stamp survives a cache round trip, with a control documenting the hole, and
+a wiring pin on both fetch lambdas). Cases 36, 148, 148a, 153 and the vendor-uncertainty battery were re-pinned to the
 new polarity; 153 now pins the invariant directly (the destined set equals the real gated plan).
 
 **Residuals recorded, not fixed here:** the "held unpriced" pass counter and the held-set line

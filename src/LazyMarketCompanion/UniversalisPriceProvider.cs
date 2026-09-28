@@ -230,7 +230,10 @@ internal sealed class UniversalisPriceProvider : IDisposable
       async (chunk, ct) =>
       {
         var json = await _client.GetMarketDataJson(chunk, scopeName, ct, listings: UniversalisClient.ListingCount, entries: 20).ConfigureAwait(false);
-        return UniversalisQuotes.Parse(json, Plugin.Configuration.SeenRetainers);
+        var parsed = UniversalisQuotes.Parse(json, Plugin.Configuration.SeenRetainers);
+        // 0.2.8.0: when the gate reads the whole data center, every quote is a data-center
+        // minimum, not this world's price - stamped at the source so it can list but never vendor.
+        return useDataCenter ? GateDcFallback.StampDataCenterScope(parsed) : parsed;
       },
       (count, ex) => Svc.Log.Warning(ex, $"[LMC] Auto-Market gate lookup failed for {count} item(s) after 3 attempts; continuing with the other chunks"),
       cancellationToken,
@@ -270,7 +273,9 @@ internal sealed class UniversalisPriceProvider : IDisposable
             async (chunk, ct) =>
             {
               var json = await _client.GetMarketDataJson(chunk, dcName!, ct, listings: UniversalisClient.ListingCount, entries: 0).ConfigureAwait(false);
-              return UniversalisQuotes.Parse(json, Plugin.Configuration.SeenRetainers);
+              // 0.2.8.0: stamped at the source (see GateDcFallback.StampDataCenterScope) so the
+              // scope survives the shared GatePriceCache; a data-center quote never vendors.
+              return GateDcFallback.StampDataCenterScope(UniversalisQuotes.Parse(json, Plugin.Configuration.SeenRetainers));
             },
             (count, ex) => Svc.Log.Warning(ex, $"[LMC] Auto-Market data-center fallback lookup failed for {count} item(s) after 3 attempts; continuing with what the world scope returned"),
             cancellationToken,
