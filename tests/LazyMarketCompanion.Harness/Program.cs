@@ -4564,98 +4564,137 @@ InventoryCases.Run((name, ok, detail) => Check(name, ok, detail));
     $"level={debugLevel} msg={debugMsg}");
 }
 
-// 141. (Live Execution A: Control Surfaces)
-// Dry-run toggle must be reachable from non-overlay surfaces (chat command + config window),
-// flipping the single persisted AutoMarketDryRun config, confirming state in chat, default ON.
+// 141. REMOVED (0.2.4.0): the dry-run toggle surfaces case is retired with the feature itself.
+// The /lmc dryrun subcommand, the ConfigWindow checkbox and the bell-overlay toggle are deleted
+// by directive (2026-09-28): testing builds list live by default. Its no-interception contract
+// lives on as case 145 below. Failing-first evidence for the removal ran on the pre-removal
+// tree c40777c (branch feat/lmc-dryrun-removal-failing-first, commit 69eb9e4).
+
+// 142. (0.2.4.0 per-pass feedback: executed AND held-unpriced — re-scoped from the 0.2.3.0 dry-run feedback)
+// When a pass executes >= 1 op and/or holds >= 1 unpriced item, exactly one chat line names
+// BOTH counts and the hold reason. Zero such lines when idle. No dry-run command is referenced.
 {
-  // 141a: Command parser flips state and answers in chat
-  var onToOff = DryRunCommand.ParseAndApply("off", true);
-  Check("141 dryrun command off: flips to false and confirms",
-    !onToOff.NewState && onToOff.StateChanged && onToOff.Message.Contains("OFF"),
-    $"state={onToOff.NewState} msg={onToOff.Message}");
+  var both = AutoMarketExecution.FormatPassFeedback(executedListings: 12, executedPulls: 4, heldUnpriced: 63);
+  Check("142 pass feedback: pass with executed and held ops emits one line naming both counts and the reason",
+    both != null && both.Contains("12 listing(s)") && both.Contains("4 pull(s)") && both.Contains("63 item(s)") && both.Contains("no confirmed market price; held in place"),
+    both ?? "null");
 
-  var offToOn = DryRunCommand.ParseAndApply("on", false);
-  Check("141 dryrun command on: flips to true and confirms",
-    offToOn.NewState && offToOn.StateChanged && offToOn.Message.Contains("ON"),
-    $"state={offToOn.NewState} msg={offToOn.Message}");
+  var onlyHeld = AutoMarketExecution.FormatPassFeedback(0, 0, 80);
+  Check("142 pass feedback: held-only pass still names the executed count (0) and the hold reason",
+    onlyHeld != null && onlyHeld.Contains("0 listing(s)") && onlyHeld.Contains("80 item(s)") && onlyHeld.Contains("no confirmed market price"),
+    onlyHeld ?? "null");
 
-  var toggle = DryRunCommand.ParseAndApply("toggle", true);
-  Check("141 dryrun command toggle: inverts state",
-    !toggle.NewState && toggle.StateChanged,
-    $"state={toggle.NewState}");
+  var onlyExec = AutoMarketExecution.FormatPassFeedback(9, 0, 0);
+  Check("142 pass feedback: exec-only pass still names the held count (0)",
+    onlyExec != null && onlyExec.Contains("9 listing(s)") && onlyExec.Contains("0 item(s) held unpriced"),
+    onlyExec ?? "null");
 
-  var status = DryRunCommand.ParseAndApply("status", true);
-  Check("141 dryrun command status: preserves state and reports",
-    status.NewState && !status.StateChanged && status.Message.Contains("ON") && status.Message.Contains("/lmc dryrun off"),
-    $"state={status.NewState} msg={status.Message}");
+  var idle = AutoMarketExecution.FormatPassFeedback(0, 0, 0);
+  Check("142 pass feedback: idle pass emits zero lines", idle == null, idle ?? "null");
+
+  Check("142 pass feedback: no feedback line references a dry-run mode or command",
+    new[] { both, onlyHeld, onlyExec }.All(x => x != null && !x.Contains("dry-run") && !x.Contains("dryrun")),
+    "a line references the removed dry-run feature");
 }
 
-// 142. (Live Execution B: Per-Pass Feedback Contract)
-// When a pass simulates >= 1 action in dry-run, exactly one prominent chat line is emitted
-// naming the simulated count and the go-live command (/lmc dryrun off). Zero such lines when live or idle.
-{
-  // Pass with 11 simulated listings (Bussyqueen incident replay)
-  var dryPass11 = DryRunFormat.FormatPassFeedback(isDryRun: true, simulatedCount: 11);
-  Check("142 pass feedback: dry-run with 11 simulated actions emits prominent chat line naming count and go-live command",
-    dryPass11 != null && dryPass11.Contains("11") && dryPass11.Contains("/lmc dryrun off"),
-    dryPass11 ?? "null");
-
-  // Pass with 1 simulated listing
-  var dryPass1 = DryRunFormat.FormatPassFeedback(isDryRun: true, simulatedCount: 1);
-  Check("142 pass feedback: dry-run with 1 simulated action emits line",
-    dryPass1 != null && dryPass1.Contains("1") && dryPass1.Contains("/lmc dryrun off"),
-    dryPass1 ?? "null");
-
-  // Live pass (dry-run OFF) with 11 listings: zero chat feedback lines
-  var livePass = DryRunFormat.FormatPassFeedback(isDryRun: false, simulatedCount: 11);
-  Check("142 pass feedback: live pass (dry-run OFF) emits zero feedback lines",
-    livePass == null,
-    livePass ?? "null");
-
-  // Idle pass (0 listings planned): zero chat feedback lines
-  var idleDryPass = DryRunFormat.FormatPassFeedback(isDryRun: true, simulatedCount: 0);
-  Check("142 pass feedback: idle pass (0 planned) emits zero feedback lines",
-    idleDryPass == null,
-    idleDryPass ?? "null");
-
-  var idleLivePass = DryRunFormat.FormatPassFeedback(isDryRun: false, simulatedCount: 0);
-  Check("142 pass feedback: idle live pass emits zero feedback lines",
-    idleLivePass == null,
-    idleLivePass ?? "null");
-}
-
-// 143. (Live Execution C: Live Listing Execution Path)
-// With AutoMarketDryRun = false, listing ops execute (real action insertion), not DryRunFormat simulation.
+// 143. (0.2.4.0: the evaluator always executes — re-scoped from the 0.2.3.0 gated evaluator)
 {
   const uint LiveItem = 5594u;
   var stock = new List<StockStack> { new(StockOrigin.Bags, Bags1, 0, LiveItem, false, 20) };
-  var market = EmptyMarket();
-  var plan = AutoMarketPlanner.Plan([Rule(LiveItem, 5)], stock, market, Opts());
+  var plan = AutoMarketPlanner.Plan([Rule(LiveItem, 5)], stock, EmptyMarket(), Opts());
 
-  // (1) Dry-run ON: 0 executed ops, all ops simulated via DryRunFormat, feedback emitted
-  var dryExec = AutoMarketExecution.Evaluate(isDryRun: true, plan);
-  Check("143 execution: dry-run ON yields 0 executed ops",
-    dryExec.ExecutedOps.Count == 0, $"executed={dryExec.ExecutedOps.Count}");
-  Check("143 execution: dry-run ON produces simulated lines for all plan ops",
-    dryExec.SimulatedLines.Count == plan.Ops.Count && dryExec.SimulatedLines[0].StartsWith("[AM][dry-run] would list"),
-    $"simulated={dryExec.SimulatedLines.Count}");
-  Check("143 execution: dry-run ON produces non-null chat feedback",
-    dryExec.ChatFeedback != null && dryExec.ChatFeedback.Contains("/lmc dryrun off"),
-    dryExec.ChatFeedback ?? "null");
+  var exec = AutoMarketExecution.Evaluate(plan);
+  Check("143 execution: all planned ops execute (there is no gate to intercept them)",
+    exec.ExecutedOps.Count == plan.Ops.Count && plan.Ops.Count > 0 && exec.ExecutedOps.SequenceEqual(plan.Ops),
+    $"executed={exec.ExecutedOps.Count} of plan={plan.Ops.Count}");
+  Check("143 execution: feedback names the executed count",
+    exec.ChatFeedback != null && exec.ChatFeedback.Contains($"{plan.Ops.Count} listing(s)"),
+    exec.ChatFeedback ?? "null");
 
-  // (2) Dry-run OFF (Live Path): all plan ops execute (real action insertion), 0 simulated lines, null feedback
-  var liveExec = AutoMarketExecution.Evaluate(isDryRun: false, plan);
-  Check("143 execution: live path (dry-run OFF) executes all plan ops (real action insertion)",
-    liveExec.ExecutedOps.Count == plan.Ops.Count && liveExec.ExecutedOps.SequenceEqual(plan.Ops),
-    $"executed={liveExec.ExecutedOps.Count} planOps={plan.Ops.Count}");
-  Check("143 execution: live path produces 0 simulated lines",
-    liveExec.SimulatedLines.Count == 0, $"simulated={liveExec.SimulatedLines.Count}");
-  Check("143 execution: live path produces null chat feedback",
-    liveExec.ChatFeedback == null, liveExec.ChatFeedback ?? "non-null");
+  var execPullsHeld = AutoMarketExecution.Evaluate(plan, 3, 7);
+  Check("143 execution: executed pulls and held-unpriced flow into the single feedback line",
+    execPullsHeld.ChatFeedback != null && execPullsHeld.ChatFeedback.Contains("3 pull(s)") && execPullsHeld.ChatFeedback.Contains("7 item(s) held unpriced"),
+    execPullsHeld.ChatFeedback ?? "null");
+
+  var idlePlan = AutoMarketPlanner.Plan([], [], EmptyMarket(), Opts());
+  var idleExec = AutoMarketExecution.Evaluate(idlePlan);
+  Check("143 execution: idle plan produces null feedback",
+    idleExec.ExecutedOps.Count == 0 && idleExec.ChatFeedback == null,
+    $"executed={idleExec.ExecutedOps.Count} feedback={idleExec.ChatFeedback ?? "null"}");
+}
+
+// 144. (0.2.4.0 dry-run removal, case A: live by default — suite-pinned at the release commit)
+// With the plugin's DEFAULT configuration and NO user action, a planned pass with
+// confirmed-priced stock EXECUTES its listing ops. There is no persisted gate to consult.
+{
+  const uint LiveItem = 5594u;
+  var stock = new List<StockStack> { new(StockOrigin.Bags, Bags1, 0, LiveItem, false, 20) };
+  var plan = AutoMarketPlanner.Plan([Rule(LiveItem, 5)], stock, EmptyMarket(), Opts());
+  var exec = AutoMarketExecution.Evaluate(plan);
+  Check("144 live by default: default-config planned pass with confirmed-priced stock EXECUTES listing ops",
+    exec.ExecutedOps.Count == plan.Ops.Count && plan.Ops.Count > 0,
+    $"executed={exec.ExecutedOps.Count} of plan={plan.Ops.Count}");
+  Check("144 live by default: the execution path takes no gate boolean (nothing a user could set to intercept it)",
+    !typeof(AutoMarketExecution).GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+      .Any(m => m.Name == "Evaluate" && m.GetParameters().Any(pp => pp.ParameterType == typeof(bool))),
+    "Evaluate still takes a boolean gate parameter");
+}
+
+// 145. (0.2.4.0 dry-run removal, case B: no in-game interception — absence assertions, honestly framed)
+// The command surface type is deleted, the evaluator has no gate parameter, and the dry-run
+// pass-feedback formatter (whose 0.2.3.0 signature took the gate boolean) is gone. Absence
+// cannot be driven behaviorally; the failing-first counterpart on c40777c proved the surfaces
+// existed and flipped the persisted gate there (branch feat/lmc-dryrun-removal-failing-first).
+{
+  var dryRunCommandType = typeof(AutoMarketExecution).Assembly.GetType("LazyMarketCompanion.AutoMarket.DryRunCommand");
+  Check("145 no in-game gate: the dry-run command surface type is gone",
+    dryRunCommandType == null,
+    dryRunCommandType != null ? "DryRunCommand still exists" : "");
+
+  var evaluateHasGateParam = typeof(AutoMarketExecution)
+    .GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+    .Any(m => m.Name == "Evaluate" && m.GetParameters().Any(pp => pp.ParameterType == typeof(bool)));
+  Check("145 no in-game gate: AutoMarketExecution.Evaluate takes no boolean gate parameter",
+    !evaluateHasGateParam, "");
+
+  var gatedFeedback = typeof(DryRunFormat).GetMethod("FormatPassFeedback");
+  Check("145 no in-game gate: no gate-parameterized pass-feedback formatter exists on DryRunFormat",
+    gatedFeedback == null,
+    gatedFeedback != null ? "DryRunFormat.FormatPassFeedback still exists" : "");
+}
+
+// 146. (0.2.4.0 dry-run removal, case C: extended per-pass feedback — suite-pinned at the release commit)
+// The 0.2.3.0 contract only reported dry-run simulations; the 0.2.4.0 contract reports what a
+// LIVE pass did. (Failing-first counterpart on c40777c: FormatPassFeedback(false, 11) == null
+// and the dry-run line instructed the removed command - see branch feat/lmc-dryrun-removal-failing-first.)
+{
+  var live11 = AutoMarketExecution.FormatPassFeedback(11, 0, 0);
+  Check("146 pass feedback: a live pass with 11 executed ops emits one line naming the executed count",
+    live11 != null && live11.Contains("11 listing(s)") && live11.Contains("held"),
+    live11 ?? "null");
+
+  var heldOnly = AutoMarketExecution.FormatPassFeedback(0, 0, 11);
+  Check("146 pass feedback: a pass holding 11 unpriced items names the held count and the reason",
+    heldOnly != null && heldOnly.Contains("11 item(s) held unpriced") && heldOnly.Contains("no confirmed market price"),
+    heldOnly ?? "null");
+}
+
+// 147. (0.2.4.0: a stale persisted AutoMarketDryRun key in an existing config file is a dead key)
+// Dalamud deserializes plugin configs by name and ignores unknown members (the plugin's own
+// legacy import uses the same Newtonsoft path); this check pins the mechanism with the
+// in-box serializer, which behaves the same way for unmapped keys.
+{
+  var probe = System.Text.Json.JsonSerializer.Deserialize<StaleKeyProbe>("{\"AutoMarketDryRun\":true,\"AutoMarketValueGateEnabled\":true}");
+  var hasRetiredMember = typeof(StaleKeyProbe).GetProperties().Any(pp => pp.Name == "AutoMarketDryRun");
+  Check("147 stale key: config JSON carrying the retired dry-run key loads without error and the key maps to nothing",
+    probe != null && probe.AutoMarketValueGateEnabled && !hasRetiredMember,
+    $"probe={probe?.AutoMarketValueGateEnabled} retiredMember={hasRetiredMember}");
 }
 
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 
-
-
+// Config-deserialization probe for case 147: mirrors the post-0.2.4.0 config surface, which
+// has no AutoMarketDryRun member. Deserializing old config JSON with the retired key present
+// must simply ignore it.
+file sealed record StaleKeyProbe(bool AutoMarketValueGateEnabled);

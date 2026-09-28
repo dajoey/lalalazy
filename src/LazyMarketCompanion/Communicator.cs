@@ -19,13 +19,6 @@ public static class Communicator
     Svc.Chat.Print(Prefix + message);
   }
 
-  public static void PrintDryRunFeedback(int simulatedCount)
-  {
-    var msg = LazyMarketCompanion.AutoMarket.DryRunFormat.FormatPassFeedback(Plugin.Configuration.AutoMarketDryRun, simulatedCount);
-    if (!string.IsNullOrEmpty(msg))
-      PrintInfo(msg);
-  }
-
   public static void PrintPriceUpdate(string itemName, int? oldPrice, int? newPrice, float cutPercentage, bool priceFromUniversalis = false)
   {
     if (!Plugin.Configuration.ShowPriceAdjustmentsMessages)
