@@ -67,6 +67,33 @@ if (Test-Path $csprojPath) {
     [xml]$csproj = [System.IO.File]::ReadAllText($csprojPath, [System.Text.Encoding]::UTF8)
     $targetGroup = $csproj.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1
     $projVersion = if ($targetGroup) { $targetGroup.Version } else { $null }
+
+    # Three-field version contract (2026-09-28, after the partial-bump incident): <Version>,
+    # <AssemblyVersion> and <FileVersion> must carry the same value in a release commit
+    # (cf. e0d02fd, 5154b127a). The version this script packages comes from the BUILT
+    # manifest, whose AssemblyVersion is <AssemblyVersion> when that field is set - so a
+    # csproj where only <Version> was bumped makes the run target the OLD version and the
+    # GitHub Release upload replaces that old version's live asset. Absent fields are fine
+    # (the SDK derives them from <Version>; most plugins here ship that way); fields that
+    # are PRESENT and disagree refuse the run before anything is built, zipped or uploaded.
+    $asmGroup = $csproj.Project.PropertyGroup | Where-Object { $_.AssemblyVersion } | Select-Object -First 1
+    $fileGroup = $csproj.Project.PropertyGroup | Where-Object { $_.FileVersion } | Select-Object -First 1
+    $asmVersion = if ($asmGroup) { $asmGroup.AssemblyVersion } else { $null }
+    $fileVersion = if ($fileGroup) { $fileGroup.FileVersion } else { $null }
+    if ($projVersion -and (($asmVersion -and $asmVersion -ne $projVersion) -or ($fileVersion -and $fileVersion -ne $projVersion))) {
+        throw @"
+csproj version fields disagree for ${PluginName}:
+  <Version>          $projVersion
+  <AssemblyVersion>  $(if ($asmVersion) { $asmVersion } else { '(absent: derived from <Version>)' })
+  <FileVersion>      $(if ($fileVersion) { $fileVersion } else { '(absent: derived from <Version>)' })
+The packaged version comes from the built manifest's AssemblyVersion, i.e. from
+<AssemblyVersion> when it is set - a partial bump makes the run target the OLD version and
+overwrites that version's live release asset (found live 2026-09-28). Release contract:
+<Version>, <AssemblyVersion> and <FileVersion> move together. Set every present field to
+the same four-part version in $csprojPath and re-run. No override exists: fixing the
+csproj is always the right move.
+"@
+    }
     
     if ($projVersion -and $entry -and -not $VersionOverride) {
         # Compare against the channel we're publishing to: testing builds bump against
@@ -93,6 +120,11 @@ if (Test-Path $csprojPath) {
                 Write-Host "-AutoBump: $projVersion already published on '$Channel'; csproj -> $suggested." -ForegroundColor Yellow
                 Write-Host "           Add a '## v$suggested (yyyy-MM-dd)' section to CHANGELOG.md before committing." -ForegroundColor Yellow
                 $targetGroup.Version = $suggested
+                # Three-field contract (see the guard above): -AutoBump rewrites <Version>,
+                # so any explicit <AssemblyVersion>/<FileVersion> must move with it, or this
+                # very run would package under the old version - the incident the guard refuses.
+                if ($asmVersion) { $asmGroup.AssemblyVersion = $suggested }
+                if ($fileVersion) { $fileGroup.FileVersion = $suggested }
                 $csproj.Save($csprojPath)
             }
             elseif ($Republish) {

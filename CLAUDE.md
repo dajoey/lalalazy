@@ -4,7 +4,7 @@
 
 All four version locations MUST match in every release commit for any plugin `<PluginName>`:
 
-1. `src/<PluginName>/<PluginName>.csproj` (or `src/<PluginName>/<PluginName>/<PluginName>.csproj`) `<Version>`
+1. `src/<PluginName>/<PluginName>.csproj` (or `src/<PluginName>/<PluginName>/<PluginName>.csproj`) `<Version>`, `<AssemblyVersion>`, `<FileVersion>` - all present fields equal, absent ones derive from `<Version>` (the packager refuses disagreeing fields; partial bumps overwrite live release assets)
 2. `pluginmaster.json` → `<PluginName>` `TestingAssemblyVersion` (testing releases) or `AssemblyVersion` (production promotes)
 3. `plugins/<PluginName>/testing/` (testing) or `plugins/<PluginName>/latest/` (production) `<PluginName>.json` `AssemblyVersion` (inside the zip AND the standalone copy)
 4. `src/<PluginName>/CHANGELOG.md`
@@ -81,7 +81,7 @@ Exceptions, kept verbatim:
 
 ```
 TEST BUILD (default for every change):
-1. Read current csproj version; increment to the next patch version
+1. Read current csproj version; increment to the next patch version in `<Version>`, `<AssemblyVersion>` and `<FileVersion>` together (bump all present fields; the packager refuses disagreeing ones)
 2. Update csproj + src/<Plugin>/CHANGELOG.md (player-facing: the in-game popup renders it verbatim)
 2b. Run tests/LalaChangelog.Harness — every plugin PASS, newest CHANGELOG entry == csproj <Version>
 2c. python tools/check-preset-ids.py .  — MUST print 0 duplicate values (silent-breakage gate, see Rules)
