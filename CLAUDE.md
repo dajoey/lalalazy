@@ -42,9 +42,9 @@ market/vendor machinery:
   value-gate threshold, NQ, non-equippable, sheet-vendorable, keep floor respected.
 - **"Keep N" is one number across bags + retainer stock**; listings never reduce it.
 - **No change to vendor/list/delete paths ships without its dry-run exercised against recorded
-  real inventory states first.** Dry-run mode exists for exactly this (`AutoMarketDryRun`, on
-  by default): a real in-game session logs every decision it would take. The recorded incident
-  fixtures live in `tests/LazyMarketCompanion.Harness` (cases 130-136) — a behavior change to
+  real inventory states first.** Dry-run is the offline harness's job (since 0.2.4.0 there is
+  no in-game gate): the recorded incident fixtures replay through the decision core with zero
+  execution, in `tests/LazyMarketCompanion.Harness` (cases 130-136) — a behavior change to
   the decision core adds/updates a fixture case, fails it against the OLD code first when the
   old behavior was the defect, and ships only with the suite at 0 fail.
 - **The vendor buyback window is a protected resource:** automation never clicks Yes on the

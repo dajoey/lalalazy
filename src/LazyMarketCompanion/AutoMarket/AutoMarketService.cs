@@ -61,11 +61,22 @@ internal static unsafe class AutoMarketService
   /// </summary>
   internal static List<ItemRule> HeldUnpricedRules { get; } = new();
 
+  /// <summary>
+  /// The held-unpriced rules of the MOST RECENT BuildPlan call (0.2.5.0). HeldUnpricedRules
+  /// accumulates across a whole sweep and re-adds on the gate-retry's second BuildPlan, so it
+  /// cannot feed the per-pass feedback: a later retainer's chat line would name earlier
+  /// retainers' held stock as its own (observed in the 2026-09-28 session: the accumulated
+  /// count read 62 where the current pass held 9). This snapshot is rebuilt on every
+  /// ApplyValueGate run and is what the pass line and its held names read.
+  /// </summary>
+  internal static List<ItemRule> LastPassHeldUnpriced { get; } = new();
+
   internal static void ResetGateHeld()
   {
     GateHeldThisRun = 0;
     HeldBackRules.Clear();
     HeldUnpricedRules.Clear();
+    LastPassHeldUnpriced.Clear();
   }
 
   /// <summary>
@@ -247,6 +258,7 @@ internal static unsafe class AutoMarketService
     var unvendorable = new List<ItemRule>();
     var heldUnpriced = new List<ItemRule>();
     var heldJunkIneligible = new List<ItemRule>();
+    LastPassHeldUnpriced.Clear();
     if (config.AutoMarketValueGateEnabled)
     {
       var gateOptions = new GateOptions(true, Math.Max(config.AutoMarketValueGateThresholdGil, 0), freshnessMs);
@@ -298,6 +310,7 @@ internal static unsafe class AutoMarketService
         {
           heldUnpriced.Add(rule);
           HeldUnpricedRules.Add(rule);
+          LastPassHeldUnpriced.Add(rule);
           continue;
         }
 
@@ -339,6 +352,21 @@ internal static unsafe class AutoMarketService
       if (heldUnpriced.Count > 0)
       {
         Svc.Log.Information($"[LMC] gate: {heldUnpriced.Count} item(s) have no confirmed market price; held in place, not listed and not vendored (unconfirmed means hold)");
+        // 0.2.5.0: the full held set with ids (and names where the sheet resolves them) - one
+        // greppable line so a later session is diagnosable per-item without reconstructing the
+        // priced set to subtract it. Names are best-effort; a missing row prints the bare id.
+        try
+        {
+          var sheet = Svc.Data.GetExcelSheet<Lumina.Excel.Sheets.Item>();
+          var heldWithNames = heldUnpriced
+            .Select(r => (r.ItemId, sheet != null && sheet.TryGetRow(r.ItemId, out var row) ? row.Name.ToString() : string.Empty))
+            .ToList();
+          Svc.Log.Information($"[LMC] {HeldSetAnnounce.FormatLog(heldWithNames)}");
+        }
+        catch (Exception ex)
+        {
+          Svc.Log.Warning(ex, "[LMC] gate: could not resolve held item names for the held-set log line");
+        }
       }
       if (heldJunkIneligible.Count > 0)
       {
