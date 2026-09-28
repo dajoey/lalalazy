@@ -4654,6 +4654,54 @@ InventoryCases.Run((name, ok, detail) => Check(name, ok, detail));
     liveExec.ChatFeedback == null, liveExec.ChatFeedback ?? "non-null");
 }
 
+// 144. (0.2.4.0 dry-run removal, case A: live by default — added on the pre-removal tree, asserts the NEW contract)
+// New contract: with the plugin's DEFAULT configuration and NO user action, a planned pass with
+// confirmed-priced stock EXECUTES its listing ops. On this tree the default gate is
+// AutoMarketDryRun=true (Configuration.cs:287) and the evaluator intercepts every op as simulation.
+{
+  const uint LiveItem = 5594u;
+  var stock = new List<StockStack> { new(StockOrigin.Bags, Bags1, 0, LiveItem, false, 20) };
+  var plan = AutoMarketPlanner.Plan([Rule(LiveItem, 5)], stock, EmptyMarket(), Opts());
+  const bool DefaultGateOnPreRemoval = true; // model of Configuration.AutoMarketDryRun's default on this tree (Configuration.cs:287)
+  var exec = AutoMarketExecution.Evaluate(DefaultGateOnPreRemoval, plan);
+  Check("144 live by default: default-config planned pass with confirmed-priced stock EXECUTES listing ops",
+    exec.ExecutedOps.Count == plan.Ops.Count && plan.Ops.Count > 0,
+    $"executed={exec.ExecutedOps.Count} of plan={plan.Ops.Count} - the default dry-run gate intercepts them as simulation");
+}
+
+// 145. (0.2.4.0 dry-run removal, case B: no in-game interception — added on the pre-removal tree, asserts the NEW contract)
+// New contract: no code path gates ops behind a persisted in-game dry-run toggle; the command
+// surface must be gone and the evaluator must take no gate parameter.
+{
+  var gateAfterCommand = DryRunCommand.ParseAndApply("off", true);
+  Check("145 no in-game gate: no persisted dry-run command surface can intercept listing ops",
+    !gateAfterCommand.StateChanged && gateAfterCommand.NewState,
+    $"ParseAndApply(\"off\", true) flips the persisted gate to {gateAfterCommand.NewState} (a persisted in-game toggle exists on this tree)");
+
+  var evaluateHasGateParam = typeof(AutoMarketExecution)
+    .GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+    .Any(m => m.Name == "Evaluate" && m.GetParameters().Any(p => p.ParameterType == typeof(bool)));
+  Check("145 no in-game gate: AutoMarketExecution.Evaluate takes no boolean gate parameter",
+    !evaluateHasGateParam,
+    "Evaluate(bool isDryRun, ...) can intercept ops on any listing path");
+}
+
+// 146. (0.2.4.0 dry-run removal, case C: extended per-pass feedback — added on the pre-removal tree, asserts the NEW contract)
+// New contract: when a pass executes >=1 op and/or holds >=1 unpriced item, exactly one chat line
+// names the EXECUTED count AND the held-unpriced count with the hold reason; zero such lines when
+// idle; no line instructs a dry-run command.
+{
+  var livePass = DryRunFormat.FormatPassFeedback(false, 11);
+  Check("146 pass feedback: live pass with 11 executed ops emits one line naming executed and held counts",
+    livePass != null && livePass.Contains("11") && livePass.Contains("held"),
+    $"live-pass feedback = {livePass ?? "null"} (this tree emits nothing for live passes)");
+
+  var dryPass = DryRunFormat.FormatPassFeedback(true, 11);
+  Check("146 pass feedback: no feedback line instructs a dry-run command",
+    dryPass == null || !dryPass.Contains("/lmc dryrun"),
+    $"this tree: {dryPass}");
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 
