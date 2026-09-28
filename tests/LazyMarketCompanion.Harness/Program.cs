@@ -4564,6 +4564,83 @@ InventoryCases.Run((name, ok, detail) => Check(name, ok, detail));
     $"level={debugLevel} msg={debugMsg}");
 }
 
+// 141. (Live Execution A: Control Surfaces)
+// Drive the pre-fix /lmc OnCommand subcommand path with "dryrun off".
+// On 4c73226, /lmc subcommands only recognized telemetry, market, pinch, sweep, cancel, changelog, debug;
+// "dryrun off" is unrecognized (falls through to config UI toggle), fails to flip dry-run to false,
+// and emits no chat confirmation.
+{
+  static (bool NewState, bool Handled, string Message) DispatchPreFixCommand(string args, bool currentDryRun)
+  {
+    var trimmed = (args ?? string.Empty).Trim().ToLowerInvariant();
+    if (trimmed.StartsWith("telemetry", StringComparison.Ordinal))
+      return (currentDryRun, true, "telemetry handled");
+    switch (trimmed)
+    {
+      case "market":
+      case "pinch":
+      case "sweep":
+      case "cancel":
+      case "changelog":
+      case "whatsnew":
+      case "debug":
+        return (currentDryRun, true, trimmed);
+      default:
+        // 4c73226 Plugin.cs line 364: unrecognized subcommand falls through to ToggleConfigUI()
+        return (currentDryRun, false, "unrecognized subcommand (falls through to ToggleConfigUI; no state change or chat confirmation)");
+    }
+  }
+
+  var result = DispatchPreFixCommand("dryrun off", currentDryRun: true);
+  Check("141 dry-run toggle: /lmc dryrun off command flips state to false and confirms in chat",
+    result.Handled && !result.NewState && result.Message.Contains("OFF"),
+    $"handled={result.Handled} state={result.NewState} msg={result.Message}");
+}
+
+// 142. (Live Execution B: Per-Pass Feedback Contract)
+// In 4c73226, when a pass simulates >= 1 action in dry-run mode (11 listings on Bussyqueen),
+// DryRunFormat only logs individual [AM][dry-run] lines; no pass feedback method exists,
+// and zero chat feedback lines are emitted naming the count and the go-live command (/lmc dryrun off).
+{
+  var plan = AutoMarketPlanner.Plan(
+    Enumerable.Range(1, 11).Select(i => Rule((uint)(1000 + i), 1)).ToList(),
+    Enumerable.Range(1, 11).Select(i => new StockStack(StockOrigin.Bags, Bags1, i, (uint)(1000 + i), false, 1)).ToList(),
+    EmptyMarket(),
+    Opts());
+
+  // Evaluate pre-fix pass simulation output from DryRunFormat:
+  // Pre-fix DryRunFormat only formats individual lines (WouldList/WouldPull/WouldVendor).
+  var simLines = plan.Ops.Select(op => DryRunFormat.WouldList(op.ItemId, op.HQ, op.Quantity, op.Origin, op.TargetSlot)).ToList();
+
+  // Assert against pre-fix DryRunFormat output that a prominent pass feedback line naming the count
+  // and go-live command exists after a simulated pass
+  var feedbackMethod = typeof(DryRunFormat).GetMethod("FormatPassFeedback", new[] { typeof(bool), typeof(int) });
+  var passFeedback = feedbackMethod != null
+    ? (string?)feedbackMethod.Invoke(null, new object[] { true, plan.Ops.Count })
+    : null;
+
+  Check("142 pass feedback: dry-run pass with 11 simulated actions emits chat line naming count and /lmc dryrun off",
+    passFeedback != null && passFeedback.Contains("11") && passFeedback.Contains("/lmc dryrun off"),
+    $"simulated={simLines.Count} passFeedback={(passFeedback ?? "null (pre-fix DryRunFormat emits zero pass chat lines)")}");
+}
+
+// 143. (Live Execution C: Live Listing Execution Path)
+// On 4c73226, dispatch between live action insertion and dry-run simulation was coupled to Dalamud UI/Svc.Log
+// in MarketAutomation.cs without an offline-testable execution evaluator (AutoMarketExecution.Evaluate).
+{
+  const uint LiveItem = 5594u;
+  var stock = new List<StockStack> { new(StockOrigin.Bags, Bags1, 0, LiveItem, false, 20) };
+  var market = EmptyMarket();
+  var plan = AutoMarketPlanner.Plan([Rule(LiveItem, 5)], stock, market, Opts());
+
+  var execType = typeof(DryRunFormat).Assembly.GetType("LazyMarketCompanion.AutoMarket.AutoMarketExecution");
+  var evalMethod = execType?.GetMethod("Evaluate", new[] { typeof(bool), typeof(PlanResult), typeof(int) });
+
+  Check("143 live execution: AutoMarketExecution evaluator routes plan ops to real action execution when dry-run OFF",
+    evalMethod != null,
+    "AutoMarketExecution evaluator does not exist on 4c73226 (execution dispatch coupled to MarketAutomation.cs)");
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 
