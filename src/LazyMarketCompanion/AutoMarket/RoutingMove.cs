@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -551,6 +551,21 @@ public static class RoutingMove
       freeBagSlots, freeRetainerSlots, depositsOnly: false);
   }
 
+  public static RoutingMovePlan Plan(
+    IReadOnlyList<StockStack> stock,
+    IReadOnlyList<ItemRule> rules,
+    IReadOnlyDictionary<string, ItemCategoryInfo> categoryByKey,
+    IReadOnlyDictionary<string, bool> excludeByKey,
+    IReadOnlyList<CategoryRetainerRule> categoryRules,
+    string retainerName,
+    Func<int> freeBagSlots,
+    Func<int> freeRetainerSlots,
+    IReadOnlyCollection<uint>? marketDestined)
+  {
+    return PlanCore(stock, rules, categoryByKey, excludeByKey, categoryRules, retainerName,
+      freeBagSlots, freeRetainerSlots, depositsOnly: false, marketDestined: marketDestined);
+  }
+
   /// <summary>
   /// 0.1.44.0: Plan with the once-per-run pull guard. movedThisRun carries the stack keys this run
   /// already pulled to bags (filled by the executor as pulls succeed); a stack already pulled this
@@ -562,6 +577,8 @@ public static class RoutingMove
   /// OK on an earlier sweep (filled by the executor, pruned when the stack leaves its slot). A
   /// plan op with the same key means the stack is back where a previous sweep moved it from -
   /// the move did not stick - so it is skipped on BOTH legs instead of re-fired every sweep.
+  /// 0.2.1.0: marketDestined carries item ids destined for open market slots awaiting a listing pass;
+  /// these must not be parked into retainer storage bags ahead of the listing pass.
   /// </summary>
   public static RoutingMovePlan Plan(
     IReadOnlyList<StockStack> stock,
@@ -573,10 +590,11 @@ public static class RoutingMove
     Func<int> freeBagSlots,
     Func<int> freeRetainerSlots,
     IReadOnlyCollection<string>? movedThisRun,
-    IReadOnlyCollection<string>? reconciledSkip = null)
+    IReadOnlyCollection<string>? reconciledSkip = null,
+    IReadOnlyCollection<uint>? marketDestined = null)
   {
     return PlanCore(stock, rules, categoryByKey, excludeByKey, categoryRules, retainerName,
-      freeBagSlots, freeRetainerSlots, depositsOnly: false, movedThisRun: movedThisRun, reconciledSkip: reconciledSkip);
+      freeBagSlots, freeRetainerSlots, depositsOnly: false, movedThisRun: movedThisRun, reconciledSkip: reconciledSkip, marketDestined: marketDestined);
   }
 
   /// <summary>
@@ -594,10 +612,11 @@ public static class RoutingMove
     string retainerName,
     Func<int> freeBagSlots,
     Func<int> freeRetainerSlots,
-    IReadOnlyCollection<string>? reconciledSkip = null)
+    IReadOnlyCollection<string>? reconciledSkip = null,
+    IReadOnlyCollection<uint>? marketDestined = null)
   {
     return PlanCore(stock, rules, categoryByKey, excludeByKey, categoryRules, retainerName,
-      freeBagSlots, freeRetainerSlots, depositsOnly: true, reconciledSkip: reconciledSkip);
+      freeBagSlots, freeRetainerSlots, depositsOnly: true, reconciledSkip: reconciledSkip, marketDestined: marketDestined);
   }
 
   /// <summary>
@@ -636,11 +655,12 @@ public static class RoutingMove
     IReadOnlyList<CategoryRetainerRule> categoryRules,
     string retainerName,
     Func<int> freeBagSlots,
-    Func<int> freeRetainerSlots)
+    Func<int> freeRetainerSlots,
+    IReadOnlyCollection<uint>? marketDestined = null)
   {
     // Capacity is unknowable before the retainer is opened; the lap decides capacity at execution time like every other move.
     var plan = PlanCore(stock, rules, categoryByKey, excludeByKey, categoryRules, retainerName,
-      freeBagSlots, () => int.MaxValue, depositsOnly: true, earlyExitOnFirstOp: true);
+      freeBagSlots, () => int.MaxValue, depositsOnly: true, earlyExitOnFirstOp: true, marketDestined: marketDestined);
     return plan.Ops.Count > 0;
   }
 
@@ -656,7 +676,8 @@ public static class RoutingMove
     bool depositsOnly,
     bool earlyExitOnFirstOp = false,
     IReadOnlyCollection<string>? movedThisRun = null,
-    IReadOnlyCollection<string>? reconciledSkip = null)
+    IReadOnlyCollection<string>? reconciledSkip = null,
+    IReadOnlyCollection<uint>? marketDestined = null)
   {
     var ops = new List<RoutingMoveOp>();
     var notes = new List<string>();
@@ -769,6 +790,11 @@ public static class RoutingMove
       {
         if (!CategoryRouter.RetainerNamesEqual(mapped.RetainerName, retainerName))
           continue; // belongs to a different retainer's session - that retainer takes it in
+
+        // 0.2.1.0: Items destined for open market slots on this retainer awaiting a listing pass
+        // must not be parked into retainer storage bags ahead of the listing pass.
+        if (marketDestined != null && marketDestined.Contains(stack.ItemId))
+          continue;
 
         // 0.1.50.0: reconciliation on the deposit leg too (see the pull-out branch) - a deposit
         // the server rolled back reappears in the bags and must not be re-fired every sweep.

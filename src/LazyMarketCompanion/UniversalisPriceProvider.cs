@@ -24,6 +24,8 @@ internal sealed class UniversalisPriceProvider : IDisposable
   /// </summary>
   public static string? LastHistoryRefusal { get; private set; }
 
+  private readonly GatePriceCache _gatePriceCache = new();
+
   public UniversalisPriceProvider()
   {
     _items = Svc.Data.GetExcelSheet<Item>();
@@ -201,8 +203,11 @@ internal sealed class UniversalisPriceProvider : IDisposable
     // 0.1.68.0: one retry per chunk. Measured 2026-09-21, a 50-id chunk died on the HttpClient's
     // own 8 s timeout while its siblings answered, and all 50 items listed with the threshold
     // unchecked; on the next evening's sweep nearly every chunk timed out (125 of 129 unpriced).
-    // A transient timeout is now retried once before the chunk is declared failed - the wait step
-    // already runs up to 25 s, so the retry fits inside the budget the gate already allows.
+    // 0.2.1.0: three attempts with backoff and short-TTL price cache fallback. A transient
+    // timeout or gateway dropout is retried with backoff, and persistently dead chunks degrade to
+    // recent valid quotes within freshness rather than starving all stocked items.
+    var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+    var freshnessMs = (long)Math.Clamp(Plugin.Configuration.AutoMarketGateFreshnessHours, 1, 168) * 3_600_000L;
     var result = await GateChunkFetch.FetchAllAsync(
       itemIds,
       GateChunkSize,
@@ -211,8 +216,16 @@ internal sealed class UniversalisPriceProvider : IDisposable
         var json = await _client.GetMarketDataJson(chunk, scopeName, ct, listings: UniversalisClient.ListingCount, entries: 20).ConfigureAwait(false);
         return UniversalisQuotes.Parse(json, Plugin.Configuration.SeenRetainers);
       },
-      (count, ex) => Svc.Log.Warning(ex, $"[LMC] Auto-Market gate lookup failed for {count} item(s) twice; continuing with the other chunks"),
-      cancellationToken).ConfigureAwait(false);
+      (count, ex) => Svc.Log.Warning(ex, $"[LMC] Auto-Market gate lookup failed for {count} item(s) after 3 attempts; continuing with the other chunks"),
+      cancellationToken,
+      cache: _gatePriceCache,
+      nowUnixMs: nowMs,
+      cacheTtlMs: freshnessMs,
+      backoffDelay: attempt => Task.Delay((attempt + 1) * 250, cancellationToken)).ConfigureAwait(false);
+
+    if (result.CachedItemCount > 0)
+      Svc.Log.Information($"[LMC] Auto-Market gate recovered {result.CachedItemCount} item quote(s) from short-TTL cache after chunk failure(s)");
+
     return result.Quotes;
   }
 
@@ -251,6 +264,7 @@ internal sealed class UniversalisPriceProvider : IDisposable
 
   public void Dispose()
   {
+    _gatePriceCache.Clear();
     _client.Dispose();
   }
 

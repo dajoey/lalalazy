@@ -1,3 +1,13 @@
+## v0.2.1.0 (2026-09-28) [testing]
+
+### Fixed
+
+- **Gate resilience and timeout recovery.** Multi-chunk Universalis gate lookups now retry up to three times with exponential backoff. If all attempts fail, the gate falls back to confirmed valid quotes from a 30-minute short-TTL cache before declaring items unpriced, preventing transient network timeouts from starving listing passes.
+- **Empty-slot backfill retry.** If market slots remain unfilled because some eligible stocked items were held unpriced during initial gate lookup, the listing pass performs a targeted retry for those unpriced items within the session before concluding the pass.
+- **Routing inventory deposit order.** Category routing no longer deposits items from bags into retainer storage pages when those items are destined for open market slots on the active retainer, keeping them available for the market listing pass.
+- **Dry-run visibility and 1-click toggle.** A visible indicator and one-click toggle button on the retainer bell and sell list overlays display dry-run status (`Dry-Run: ON` / `Dry-Run: OFF`), making the gated simulation state clear and easily flippable while keeping the default ON.
+- **Dry-run format pinned.** Offline test suite now suite-pins deterministic formatting for simulated listing, pulling, and vendoring decisions.
+
 ## v0.2.0.0 (2026-09-27) [testing]
 
 ### Changed
