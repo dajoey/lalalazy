@@ -368,14 +368,16 @@ internal static unsafe class AutoMarketService
         // "every item is above the threshold" line was unreachable.
         var stockedRules = rules.Where(r => MarketGate.PotentialSellable(r, stock, config.AutoMarketListPartialStacks) > 0).ToList();
         var sight = MarketGate.CountSight(rules, quotes, config.HQ, now, freshnessMs, stock, config.AutoMarketListPartialStacks);
-        if (sight.Unpriceable == 0)
-          Svc.Log.Information($"[LMC] gate: every item is above the {gateOptions.ThresholdGil:N0} gil net threshold (checked {sight.Judged} of {rules.Count} enabled item(s), {stockedRules.Count} with stock)");
+        var (logLevel, logMsg) = MarketGate.FormatSightLog(sight, stockedRules.Count, rules.Count, gateOptions.ThresholdGil);
+        if (logLevel == GateLogLevel.Information)
+          Svc.Log.Information(logMsg);
+        else if (logLevel == GateLogLevel.Debug)
+          Svc.Log.Debug(logMsg);
         else
-        {
-          Svc.Log.Warning($"[LMC] gate: no price data for {sight.Unpriceable} of {sight.Judged + sight.Unpriceable} item(s) with stock to sell ({stockedRules.Count} of {rules.Count} enabled item(s) have stock) - the {gateOptions.ThresholdGil:N0} gil net threshold was NOT checked for those; held, not listed (unconfirmed means hold, 0.2.0.0)");
-          if (Plugin.Configuration.ShowAutoMarketMessages)
-            Communicator.PrintInfo($"value gate: no price data for {sight.Unpriceable} of {sight.Judged + sight.Unpriceable} item(s) with stock; held, not listed");
-        }
+          Svc.Log.Warning(logMsg);
+
+        if (sight.Unpriceable > 0 && Plugin.Configuration.ShowAutoMarketMessages)
+          Communicator.PrintInfo($"value gate: no price data for {sight.Unpriceable} of {sight.Judged + sight.Unpriceable} item(s) with stock; held, not listed");
       }
     }
 
