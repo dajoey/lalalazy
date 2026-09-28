@@ -304,40 +304,24 @@ choice beyond SC4's criterion, and it is ordered out: **testing builds list live
    or recorded hold) and the rollback doctrine (production pin + rehearsed feed-pin drill).
    The value gate protects real money decisions; the removed dry-run gate only delayed them.
 
-## 13. 0.2.6.0: the bag filler, op-result semantics, the DC wall bound, run-scoped counters
+## 13. 0.2.6.0: op-result semantics, the DC wall bound, run-scoped counters (the bag filler: removed in 0.2.7.0)
 
 Diagnosed 2026-09-28 from the live 0.2.5.0 session plus a code walk of f1360f8c. The player's
 report: "there are still items laying around in both my inventory and the inventory of
 retainers that could be marketed and isn't." Both halves are real, and both have named
 mechanisms now.
 
-1. **The bag filler (the "my inventory" half, §8-adjacent).** The bag markers' grey state is
-   defined as "marketable but not on the Auto-Market list", and the session opened with 20 grey
-   bag stacks while BOTH planning surfaces were rule-bounded (the listing planner iterates
-   configured rules; the mover requires a rule) - the 2 on-list (green) bag stacks were exactly
-   the 2 stacks the session moved. Off-list marketable bag stock was structurally invisible to
-   every plan. The filler is the listing plan's LAST stage (`BagFillerPlanner`, suite cases
-   152-152h): after the configured plan claims its slots, remaining free slots (beyond the
-   reserve) may be filled by marketable unconfigured BAG stacks under these bindings:
-   - a filler listing requires a CONFIRMED quote (fresh world or DC scope, wanted quality,
-     positive price). Unconfirmed means HOLD: the stack stays in the bags and is named in the
-     log. No heuristic price exists anywhere in the path (§0 unchanged);
-   - filler stock is NEVER vendored - a confirmed below-threshold off-list stack is held in the
-     bags; the bounded junk path (§4) belongs to configured rules only;
-   - filler stock is never deposited into retainer storage (the mover stays rule-bounded); it
-     lists from the bags exactly where it sits;
-   - category routing divides filler stock like configured stock: a mapped category lists only
-     on its assigned retainer, an unmapped category is unrestricted;
-   - a board already selling the item gets no second listing of it; an unreadable board claims
-     no slot (fail closed, §5 direction);
-   - the whole stack lists, clamped to the server's per-listing cap; one listing per stack;
-     scarce slots go to the fastest-selling grey first;
-   - the gate's Universalis fetch asks about the filler's ids too (an unasked id would hold
-     forever - the exact starvation this fixes). Configuration: `AutoMarketBagFillerEnabled`,
-     ON by default (the build must need zero user action).
-   The starved-slot half ("inventory of retainers") fills through the same stage: empty market
-   slots with held (unpriced configured) stock take filler stock instead of staying empty, and
-   genuinely-cold configured stock stays held with its shipped visibility.
+1. **The bag filler (0.2.7.0: REMOVED).** 0.2.6.0 shipped an off-list selling stage - marketable
+   bag stock NOT on the Auto-Market list filling free market slots - ON by default. The owner
+   rejected the surface itself (2026-09-28): the enrollment list is the boundary of what
+   Auto-Market may sell, and marketable-but-unenrolled stock is manual-review territory (the
+   standing rule since the 0.1.6x sweep-to-bags design). 0.2.7.0 removes the stage entirely:
+   BagFillerPlanner and its service wiring are gone, the gate asks about configured ids only,
+   and the v3 -> v4 config migration (Plugin.MigrateIfNeeded) forces the retired switch false
+   once for any config that picked up the ON default. Free market slots stay free unless a
+   CONFIGURED listing fills them - the planner iterates enrolled rules only (suite case 158
+   pins the removal and the boundary). No bag-filler listing is known to have executed in the
+   field (0.2.6.0's only loaded session ended at its price-gate line).
 
 2. **Pull result semantics (rc=0 is acceptance).** A pull whose market-slot read-back still
    showed the item after the bounded ~1.5 s window was declared FAILED with "leaving the
