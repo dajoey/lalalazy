@@ -212,9 +212,9 @@ deposited market-destined stock into retainer storage pages ahead of the listing
 
 1. **Gate resilience & bounded-TTL price cache:**
    - Multi-chunk Universalis fetch (`GateChunkFetch.cs`) now retries failed chunks up to 3
-     attempts with exponential backoff delay (`(attempt + 1) * 250ms`).
+     attempts with linear backoff delay (`(attempt + 1) * 250ms`).
    - If all retries for a chunk fail, `GatePriceCache` provides confirmed quotes from prior
-     successful lookups within a 30-minute sliding TTL before declaring items unpriced.
+     successful lookups within the gate quote-freshness window (configurable 1–168 h, default 6 h) before declaring items unpriced.
    - The unconfirmed => hold rule remains strictly intact: unpriced items without cached or
      live data are never listed or vendored blind.
 
