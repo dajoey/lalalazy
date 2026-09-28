@@ -431,34 +431,6 @@ internal sealed class MarketAutomation : Window, IDisposable
       if (ImGui.IsItemHovered())
         ImGui.SetTooltip(tooltip + "\r\nPlease do not interact with the game while this runs." + (disabled ? "\r\n(Auto-Market is disabled in settings.)" : string.Empty));
     }
-
-    // 0.2.1.0: Dry-run visibility and 1-click toggle on the bell overlay and sell list overlay.
-    // SC4 doctrine: default stays ON, but the gated state is impossible to miss and 1-click to flip.
-    if (Plugin.Configuration.AutoMarketEnabled)
-    {
-      ImGui.SameLine();
-      var isDry = Plugin.Configuration.AutoMarketDryRun;
-      var dryLabel = isDry ? "Dry-Run: ON" : "Dry-Run: OFF";
-      if (isDry)
-        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.8f, 0.2f, 1f));
-      else
-        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.4f, 1f, 0.4f, 1f));
-
-      if (ImGui.Button(dryLabel))
-      {
-        Plugin.Configuration.AutoMarketDryRun = !isDry;
-        Plugin.Configuration.Save();
-        Communicator.PrintInfo($"Auto-Market dry-run is now {(Plugin.Configuration.AutoMarketDryRun ? "ON (simulation only)" : "OFF (live execution)")}.");
-      }
-      ImGui.PopStyleColor();
-
-      if (ImGui.IsItemHovered())
-      {
-        ImGui.SetTooltip(isDry
-          ? "Auto-Market Dry-Run: ON (click to turn OFF).\r\nDecisions are computed and logged as [AM][dry-run] without executing.\r\nTurn OFF to allow real market listings."
-          : "Auto-Market Dry-Run: OFF (click to turn ON).\r\nAuto-Market will actively execute real listings and inventory moves.");
-      }
-    }
   }
 
   public void CancelEverything(string reason)
@@ -1649,14 +1621,6 @@ internal sealed class MarketAutomation : Window, IDisposable
     if (Plugin.Configuration.ShowAutoMarketMessages)
       Communicator.PrintInfo($"value gate: pulling {pullPlan.Ops.Count} listing(s) below threshold: {names}");
 
-    // 0.2.0.0 (design §6): dry-run computes and logs the decisions, executes nothing.
-    if (Plugin.Configuration.AutoMarketDryRun)
-    {
-      foreach (var op in pullPlan.Ops)
-        Svc.Log.Information(DryRunFormat.WouldPull(op.Slot, op.ItemId, op.HQ, op.Quantity, op.ListedPrice, Plugin.Configuration.AutoMarketValueGateThresholdGil, op.Target));
-      return BuildAndInsertListingSteps(pullPlan.Ops.Count);
-    }
-
     var pullSteps = new List<Step>();
     foreach (var op in pullPlan.Ops)
     {
@@ -1681,12 +1645,13 @@ internal sealed class MarketAutomation : Window, IDisposable
 
     // Continuation: the actual listing plan build runs AFTER every pull has executed, against a
     // fresh stock snapshot that includes what the pass just pulled back.
-    pullSteps.Add(new Step(() => BuildAndInsertListingSteps(), "BuildPlanAfterPull"));
+    // 0.2.4.0: the executed pull count rides along into the end-of-pass feedback.
+    pullSteps.Add(new Step(() => BuildAndInsertListingSteps(pullPlan.Ops.Count), "BuildPlanAfterPull"));
     InsertSteps(pullSteps);
     return true;
   }
 
-  private bool? BuildAndInsertListingSteps(int simulatedPulls = 0)
+  private bool? BuildAndInsertListingSteps(int executedPulls = 0)
   {
     var plan = AutoMarketService.BuildPlan(_gateQuotes);
 
@@ -1706,7 +1671,7 @@ internal sealed class MarketAutomation : Window, IDisposable
         var retrySteps = new List<Step>
         {
           new Step(() => _gateRetryQuotesDone, "GateRetryWait", TimeLimitMs: 15000),
-          new Step(() => BuildAndInsertListingSteps(simulatedPulls), "BuildPlanAfterRetry")
+          new Step(() => BuildAndInsertListingSteps(executedPulls), "BuildPlanAfterRetry")
         };
         InsertSteps(retrySteps);
         return true;
@@ -1718,8 +1683,9 @@ internal sealed class MarketAutomation : Window, IDisposable
 
     if (plan.Ops.Count == 0)
     {
-      if (Plugin.Configuration.AutoMarketDryRun && simulatedPulls > 0)
-        Communicator.PrintDryRunFeedback(simulatedPulls);
+      var idleFeedback = AutoMarketExecution.FormatPassFeedback(0, executedPulls, AutoMarketService.HeldUnpricedRules.Count);
+      if (idleFeedback != null)
+        Communicator.PrintInfo(idleFeedback);
       else
         Communicator.PrintInfo(plan.Notes.Count > 0 ? $"Nothing to list ({plan.Notes[0]})." : "Nothing to list.");
       return true;
@@ -1734,16 +1700,11 @@ internal sealed class MarketAutomation : Window, IDisposable
     if (emptyNote.Length > 0)
       Svc.Log.Information($"[LMC] {emptyNote}");
 
-    // 0.2.3.0: evaluate execution path (dry-run simulation vs live execution).
-    var execution = AutoMarketExecution.Evaluate(Plugin.Configuration.AutoMarketDryRun, plan, simulatedPulls);
-    if (Plugin.Configuration.AutoMarketDryRun)
-    {
-      foreach (var line in execution.SimulatedLines)
-        Svc.Log.Information(line);
-      if (execution.ChatFeedback != null)
-        Communicator.PrintInfo(execution.ChatFeedback);
-      return true;
-    }
+    // 0.2.4.0: live by default - every planned op executes. The single per-pass feedback
+    // names the executed count and the held-unpriced count with the hold reason (design §12).
+    var execution = AutoMarketExecution.Evaluate(plan, executedPulls, AutoMarketService.HeldUnpricedRules.Count);
+    if (execution.ChatFeedback != null)
+      Communicator.PrintInfo(execution.ChatFeedback);
 
     var listing = new List<Step>();
     foreach (var op in execution.ExecutedOps)
@@ -1798,16 +1759,6 @@ internal sealed class MarketAutomation : Window, IDisposable
     _vendorPlannedCount = plan.Ops.Count;
     if (Plugin.Configuration.ShowAutoMarketMessages)
       Communicator.PrintInfo($"value gate: vendoring {plan.Ops.Count} stack(s) through the retainer (est {est:N0} gil)");
-
-    // 0.2.0.0 (design §6): dry-run computes and logs the decisions, executes nothing - no vendor
-    // plan is placed, so the end-of-session leg has nothing to run (its no-plan trigger completes
-    // cleanly, the 0.1.16.3 pin).
-    if (Plugin.Configuration.AutoMarketDryRun)
-    {
-      foreach (var op in plan.Ops)
-        Svc.Log.Information(DryRunFormat.WouldVendor(op.ContainerName(), op.Slot, op.ItemId, op.HQ, op.Quantity, op.EstGil));
-      return;
-    }
 
     _vendorPlan = plan;
     _vendorPlanPlaced = true;

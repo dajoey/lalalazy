@@ -139,17 +139,14 @@ against stale slot data and left real slots empty).
 going up in the same plan or an explicit hold decision recorded in the run
 log.**
 
-## 6. Dry-run mode (ships ON)
+## 6. Dry-run (offline harness only, since 0.2.4.0)
 
-`AutoMarketDryRun` (default **on**). While on, vendor / list / delist / delete
-decisions are computed and logged (`[AM][dry-run] would vendor …`, `would
-list …`, `would pull …`) and **not executed**. The full decision core runs —
-that is the point: a real session over real inventory shows exactly what the
-build would do, at zero risk. Turning it off is one config toggle. The offline
-suite replays recorded incident inventory states (§9) through the decision
-core and asserts holds and zero planned actions — no executor is reached. The
-dry-run gates themselves are automation-layer code; their `[AM][dry-run]` log
-format is not suite-pinned in 0.2.0.0 (deferred to the next build's suite).
+The in-game dry-run gate (0.2.0.0–0.2.3.0) is REMOVED — see §12. Dry-run simulation now
+exists only in the offline harness: the recorded incident inventory states (§9) replay
+through the decision core with zero execution and assert holds and zero planned actions —
+that simulation is SC4's dry-run evidence. The `[AM][dry-run] would ...` strings
+(`DryRunFormat`) remain as that harness's simulation formatter and are suite-pinned
+(case 139); no in-game code path emits them.
 
 ## 7. The vendor buyback window is a protected resource
 
@@ -240,38 +237,29 @@ deposited market-destined stock into retainer storage pages ahead of the listing
      `would vendor ...` is extracted into `DryRunFormat.cs` and pinned in the offline harness
      (Case 139).
 
-## 12. 0.2.3.0 additions: Reachable dry-run control surfaces and per-pass feedback
+## 12. 0.2.4.0: the in-game dry-run gate is removed — testing builds list live
 
-Observed in game on 0.2.2.0: gate retry and cache fallback functioned as designed, planning
-11 potential listings across retainers, but all 11 were intercepted by dry-run simulation.
-While a reachable settings checkbox in the configuration window already existed (`ConfigWindow.cs:215-216`),
-the 0.2.1.0 interactive toggle was placed on the retainer bell / sell list overlays, which AutoRetainer's
-automated venture cycles never render. Crucially, a full automated pass in dry-run mode simulated silently
-without emitting any chat notification, leaving the player completely unaware that listings were being planned
-and intercepted, and lacking immediate feedback on how to enable live execution.
+Observed across three builds (0.2.1.0–0.2.3.0): the gate — not the machinery — was the thing
+the player experienced. Automated passes planned correctly every time while the default-ON
+interception turned each pass into a silent simulation that had to be discovered, understood
+and disabled before anything would list; the reachable controls added in 0.2.3.0 were never
+reached before patience ran out. The default-ON interception layer was an implementation
+choice beyond SC4's criterion, and it is ordered out: **testing builds list live by default.**
 
-0.2.3.0 establishes the control-surface discoverability and per-pass feedback contracts:
-
-1. **One persisted gate, three control handles:**
-   `Configuration.AutoMarketDryRun` remains the single persisted boolean gate, defaulting to `true`
-   per the SC4 safety doctrine. It can be inspected and flipped from three independent surfaces:
-   - **Chat command:** `/lmc dryrun [on|off|toggle|status]`. Parsed by `DryRunCommand.cs`,
-     flips and persists the setting, and answers immediately in chat. Accessible anytime without
-     requiring retainer interaction.
-   - **Config window:** Settings checkbox in the Auto-Market configuration section (`ConfigWindow.cs`),
-     bound to `AutoMarketDryRun`, now emits chat confirmation on state change.
-   - **Bell & sell list overlay:** The 0.2.1.0 interactive toggle button (`MarketAutomation.cs`)
-     remains active on summoning bell and retainer sell list overlays, flipping the same setting.
-
-2. **Per-pass dry-run chat feedback contract:**
-   When an Auto-Market pass simulates ≥1 action in dry-run mode, exactly one prominent chat message
-   is emitted naming the simulated action count and how to switch to live execution via `/lmc dryrun off`
-   (`DryRunFormat.FormatPassFeedback`). When dry-run is disabled or when no actions are planned (idle pass),
-   zero dry-run chat lines are emitted.
-
-3. **Live listing execution path:**
-   When `AutoMarketDryRun` is `false`, `AutoMarketExecution.Evaluate` routes all planned listing
-   operations into real action insertion (`AddListingSteps` / `InsertSteps`), allowing listings to execute
-   and backfill empty retainer slots live.
-
-
+1. **Live by default.** There is no persisted in-game dry-run toggle, no `/lmc dryrun`
+   command, no settings checkbox, no bell-overlay toggle, and no interception branch in any
+   execution path (listing, pulling, vendoring). A planned pass with confirmed-priced stock
+   executes. A stale `AutoMarketDryRun` key in an existing config file is an ignored dead
+   key (config deserialization is by name; unmapped members are dropped — no migration).
+2. **Dry-run lives ONLY in the offline harness.** The recorded incident fixtures (§9) replay
+   through the decision core with zero execution; `DryRunFormat` stays as that harness's
+   simulation formatter (suite-pinned, case 139). No in-game code calls it.
+3. **Per-pass feedback (the visibility contract).** When a pass executes ≥1 listing/pull op
+   and/or holds ≥1 item unpriced, exactly ONE chat line names BOTH the executed count and the
+   held-unpriced count with the hold reason ("no confirmed market price; held in place").
+   Idle passes emit zero such lines. `AutoMarketExecution.FormatPassFeedback` builds it;
+   executed pulls thread into the final line via the post-pull continuation.
+4. **What did NOT change:** the four value invariants (§1–§5 pins — unconfirmed means hold in
+   any direction, net-higher-never-vendored, keep-N honored, no removal without replacement
+   or recorded hold) and the rollback doctrine (production pin + rehearsed feed-pin drill).
+   The value gate protects real money decisions; the removed dry-run gate only delayed them.

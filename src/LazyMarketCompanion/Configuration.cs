@@ -278,14 +278,6 @@ public sealed class Configuration : IPluginConfiguration
   /// </summary>
   public bool AutoMarketValueGateEnabled { get; set; } = false;
 
-  /// <summary>
-  /// 0.2.0.0 dry-run mode (design §6), ON by default: every listing / pulling / vendoring decision
-  /// is computed and LOGGED as "[AM][dry-run] would ..." and NOT executed. The full decision core
-  /// runs on real inventory and real prices, so a session shows exactly what the build would do at
-  /// zero risk. Turn it off to let Auto-Market act again.
-  /// </summary>
-  public bool AutoMarketDryRun { get; set; } = true;
-
   /// <summary>Minimum NET gil an item must be worth to be listed. 0 = the gate never holds anything.</summary>
   public long AutoMarketValueGateThresholdGil { get; set; } = 0;
 

@@ -1,3 +1,12 @@
+## v0.2.4.0 (2026-09-28) [testing]
+
+### Changed
+
+- **Auto-Market lists live by default.** The in-game dry-run mode and every one of its control surfaces (the chat command, the settings checkbox, the bell-overlay toggle) are removed: updating to this version is the only step - no setting to change, no command to run, no box to untick. A planned pass with confirmed market prices executes its listings; unconfirmed prices still hold stock exactly where it is, in any direction (nothing is ever listed, pulled or vendored on a guess).
+- **Per-pass chat feedback now reports what a pass actually did.** When a pass executes at least one listing or pull and/or holds at least one item unpriced, exactly one chat line names the executed action count AND the held-unpriced item count with the hold reason ("no confirmed market price; held in place"). Passes that execute nothing and hold nothing stay silent.
+- **A leftover dry-run value in an existing configuration file is ignored** (dead key - no migration, no reset).
+- Dry-run simulation of recorded inventory states remains part of the offline test harness only; it no longer gates anything in game.
+
 ## v0.2.3.0 (2026-09-28) [testing]
 
 ### Added
