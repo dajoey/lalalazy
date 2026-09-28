@@ -1,3 +1,11 @@
+## v0.2.8.0 (2026-09-28) [testing]
+
+### Fixed
+
+- **Items on the Auto-Market list are no longer left in place just because their price could not be confirmed.** The value gate held every listed item whose Universalis quote was missing, stale or empty, which left sellable stock sitting in bags and retainer inventories while market slots stayed free. Those items now list like any other. The listing is priced from the live board by Auto Pinch, so the quote only ever has to decide whether an item is junk. A price request that fails or times out no longer keeps items off the board either.
+- **A data-center price can no longer send stock to the vendor or pull a listing.** When a stale home-world quote was replaced by the data-center fallback, the fallback's number was the cheapest listing across every world of the data center, so items worth many times more on the home world were judged as junk and vendored. Only a fresh quote from the home world itself can vendor an item or pull a listing now. A data-center quote can still let an item list.
+- The value-gate settings tooltip, the gate log line and the chat line now describe what actually happens to an item whose price is unconfirmed: it lists at the live board price and is never vendored or pulled.
+
 ## v0.2.7.0 (2026-09-28) [testing]
 
 ### Removed

@@ -33,11 +33,18 @@ All four version locations MUST match in every release commit for any plugin `<P
 Full design: `docs/AutoMarket-Design.md`. The rules that bind every future change to the
 market/vendor machinery:
 
-- **No vendoring, listing, pulling or delisting decision may act on unconfirmed price data, in
-  ANY direction.** Unconfirmed means HOLD (stock stays exactly where it is). The Item sheet's
-  PriceMid/PriceLow is NEVER a confirmed vendor payout — it is an enablement check for the
-  bounded junk path only, never a comparison input (2026-09-27: 99,999/unit sentinel sheet
-  prices vendored market-valuable stock and five-figure HQ gear en masse).
+- **No IRREVERSIBLE action (vendoring, pulling a listing) may act on unconfirmed price data**
+  (amended 0.2.8.0; see `docs/AutoMarket-Design.md` §14). Unconfirmed means the stock stays where
+  it is and is never vendored or pulled. It does NOT mean an Auto-Market item is kept off the
+  board: the plugin's job is to list what is on the list, and the listing price comes from the
+  live board through Auto Pinch, not from the Universalis quote. Only a fresh quote from the HOME
+  world can vendor or pull; a data-center quote (`ItemQuote.DataCenterScope`) is the cheapest
+  listing on any of eight worlds and never does (2026-09-28: eight stacks vendored for ~245 gil
+  that list at ~12,500 gil at home). The Item sheet's PriceMid/PriceLow is NEVER a confirmed
+  vendor payout — it is an enablement check for the bounded junk path only, never a comparison
+  input (2026-09-27: 99,999/unit sentinel sheet prices vendored market-valuable stock and
+  five-figure HQ gear en masse). Stock that is NOT on the Auto-Market list is never touched at
+  all: the list is the boundary of what may be sold.
 - **Automated vendoring is the bounded junk path only**: confirmed market net at or under the
   value-gate threshold, NQ, non-equippable, sheet-vendorable, keep floor respected.
 - **"Keep N" is one number across bags + retainer stock**; listings never reduce it.

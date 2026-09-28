@@ -4864,8 +4864,14 @@ ItemQuote FillerQuote(uint id, long unit, bool hq = false, double vel = 0, long 
     ungated.Ops.Count == 1 && ungated.Ops[0].ItemId == 55501, $"ops={string.Join(",", ungated.Ops.Select(o => o.ItemId))}");
   var gated = MarketDestined.ListVerdictRules([unpriced, priced], stock, quotes, preferHq: false, listPartialStacks: false, thresholdGil: 100, NowMs, FreshMs);
   var destined = MarketDestined.BagsOriginItemIds(gated, stock, EmptyMarket(occupied: 19), Opts());
-  Check("153 the gated destined set contains the PRICED later rule, not the unpriced first one",
-    destined.Contains(55502) && !destined.Contains(55501), string.Join(",", destined));
+  // 0.2.8.0: an unpriced rule now LISTS (case 159), so the gated plan gives the one free slot to
+  // the first rule again - and the destined set must still mirror that real plan exactly, which is
+  // the invariant this case exists to pin (it can never disagree with the plan that empties the source).
+  var gatedPlan = AutoMarketPlanner.Plan(gated, stock, EmptyMarket(occupied: 19), Opts());
+  Check("153 the gated destined set mirrors the real gated plan exactly (the first, unpriced rule takes the slot)",
+    destined.OrderBy(x => x).SequenceEqual(gatedPlan.Ops.Select(o => o.ItemId).Distinct().OrderBy(x => x))
+      && destined.Contains(55501) && !destined.Contains(55502),
+    $"destined={string.Join(",", destined)} plan={string.Join(",", gatedPlan.Ops.Select(o => o.ItemId))}");
 }
 
 // 154. (0.2.6.0 pull result contract): rc=0 is the server's ACCEPTANCE. A market-slot

@@ -22,9 +22,20 @@ direction* — was only ever applied to the market side. This design applies it
 to **every** price that any state-changing decision depends on, in both
 directions, with no exceptions and no "reasonable default" escape hatches.
 
-**Prime rule: a state-changing action (list, pull, vendor) may run only when
-every price it depends on is CONFIRMED. Anything else is HOLD — no action in
-any direction. HOLD is always safe: it leaves stock exactly where it is.**
+**Prime rule (amended 0.2.8.0, §14): the IRREVERSIBLE actions — vendor and
+pull — may run only when every price they depend on is CONFIRMED and came from
+the home world itself. Anything else never vendors and never pulls. Listing is
+the plugin's job and is reversible: an item that is on the Auto-Market list
+lists even when its price cannot be confirmed, because the listing price comes
+from the live board through Auto Pinch, not from the Universalis quote. HOLD
+remains for stock that must never take the vendor leg (gear, HQ, unvendorable,
+below a keep floor).**
+
+(The original 0.2.0.0 wording — "a state-changing action (list, pull, vendor)
+may run only when every price it depends on is CONFIRMED; anything else is HOLD
+in any direction" — held every marked item whose quote was stale or missing.
+One field session left 83 distinct marked items unlisted for that reason
+alone. See §14.)
 
 ## 1. Price sources and their confirmation contracts
 
@@ -51,7 +62,13 @@ does not exist.)
                   └────────────────────────────────────────────────────┘
  stock (bags, retainer pages)  +  active market listings of same item+quality
         │
-        ├─ market quote UNCONFIRMED ────────────────► HOLD (in place; named in log)
+        ├─ market quote UNCONFIRMED (missing, stale, empty, no listing of the
+        │  quality, request failed) ────────────────► LIST (0.2.8.0, §14: never
+        │                                             vendor, never pull; priced
+        │                                             by Auto Pinch off the board)
+        │
+        ├─ market quote is a DATA-CENTER quote, net ≤ threshold ► LIST (§14: a
+        │  data-center minimum is not this world's price - it never vendors)
         │
         ├─ market net (5% fee, wanted quality, total sellable incl. listings)
         │     > threshold (default 100 gil) ───────► LIST (existing planner;
@@ -359,3 +376,59 @@ mechanisms now.
    case 156); the untagged chat shape is unchanged (case 40). A run whose chain dies in a
    cascade is visible as a start with no done line. The pull undercount that fed the same
    grading confusion is closed by (2).
+
+## 14. 0.2.8.0: list what is marked; a data-center price never vendors
+
+**Direction (owner, 2026-09-28):** the plugin must do what it advertises. It advertises one
+job: keep a list of always-sell items, list them through the retainers in the chosen stack size
+with the chosen reserve, priced by matching the lowest board price. The owner's report was
+marked stock lying in bags and retainer inventories that could be marketed and is not.
+
+**Diagnosis (replay of the 0.2.5.0 field session plus Universalis measured afterwards):**
+
+1. *Marked items were held, not listed.* 83 distinct on-list items sat "held unpriced". By the
+   home world's own cheapest listing, 38 of them are worth 1,000+ gil and 10 are worth 10,000+
+   (the top listing is 80,000). The cause is the confirmation contract of §1: a quote whose last
+   upload is older than the freshness window (default 6 h) at the home world is unconfirmed, and
+   unconfirmed held. Measured against the same 83 ids: 39 had usable home-world data at 6 h, 71
+   with the data-center fallback, so the fallback rescued about half and the rest starved.
+2. *The data-center fallback fed the irreversible legs.* A stale home quote was replaced by the
+   cheapest listing across ALL worlds of the data center, and `MarketGate.Decide` treated that
+   number as the item's price. One cheap listing on any of eight worlds is not what this world
+   pays. Eight stacks were vendored in that session for about 245 gil; their home-world cheapest
+   listings total about 12,500 gil (fixtures in case 159b: e.g. 4,993 at home against 1 at the
+   data-center minimum). Six of the eight reproduce as `Vendor` on the pre-fix code.
+
+**Decision:**
+
+- *Polarity.* Every "cannot tell" (no quote, no data, stale or no upload time, no listing of the
+  quality, a request that failed) LISTS (`MarketGate.Decide`, `DecideUncertain`). Listing is
+  reversible and its price does not come from this quote: the listing lands at the placeholder
+  price and Auto Pinch prices it from the live board. The quote only ever has to decide junk.
+- *Scope.* `ItemQuote.DataCenterScope` is stamped by `GateDcFallback.MergeUsable`. A quote so
+  stamped can allow a listing and rank, but never produces `Vendor`, so it never vendors and
+  never pulls. Only a fresh, positive, home-world quote can.
+
+**What is unchanged:** the bounded junk path (§4: NQ, not equippable, sheet-vendorable, confirmed
+net at or under the threshold, keep floor respected); HQ and gear never vendored; "keep N" is one
+number across bags and retainer stock; no listing removed without a replacement or a recorded
+hold (§5); the pull leg's confirmed-below-threshold rule (now home-world only); the value gate's
+threshold and freshness settings; the Auto-Market list as the boundary of what may be sold.
+
+**What changed in the doctrine:** "no action on unconfirmed data in any direction" became "no
+IRREVERSIBLE action on unconfirmed data". The worst case of the new polarity is a junk item
+occupying a market slot at a few gil until a fresh home-world quote lets the pull leg return it.
+
+**Cases:** 159 (a: every cannot-tell lists; controls that a fresh confirmed quote still vendors and
+still lists above threshold; b: the eight real stacks never vendor on a data-center quote, the
+pull leg never pulls on one, a fresh home-world quote still pulls, a fresh home quote is never
+overwritten). Cases 36, 148, 148a, 153 and the vendor-uncertainty battery were re-pinned to the
+new polarity; 153 now pins the invariant directly (the destined set equals the real gated plan).
+
+**Residuals recorded, not fixed here:** the "held unpriced" pass counter and the held-set line
+now read zero; the data-center pass still costs wall time (bounded at 10 s, §13) although it now
+serves only ranking; a placeholder listing whose Auto Pinch walk fails stays at the placeholder
+price, unchanged from before.
+
+**Rollback:** repoint `TestingAssemblyVersion` and `DownloadLinkTesting` at the 0.2.7.0 build
+(last-known-good testing), push `main`; production stays pinned at 0.1.68.0 throughout.
