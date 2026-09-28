@@ -5063,6 +5063,60 @@ BagFillerOptions FillerOpts(bool enabled = true, int reserve = 0, int slots = 20
 }
 
 
+// 158. (0.2.7.0 kill): the off-list "bag filler" is GONE. 0.2.6.0 shipped an auto-selling
+// stage for marketable bag stock NOT on the Auto-Market list, ON by default; the owner
+// rejected the surface itself - the enrollment list is the boundary of what Auto-Market
+// may sell, and nothing automated may list, deposit or vendor unenrolled stock. Cases
+// 152-152h pinned the filler's internals and were removed with it; these pin the REMOVAL
+// so it cannot silently come back (case-46 control form: a missing source read FAILS,
+// never passes vacuously).
+{
+  var roots = new[]
+  {
+    Path.Combine("..", "..", "..", "..", "..", "src", "LazyMarketCompanion"),
+    Path.Combine("src", "LazyMarketCompanion"),
+  };
+  var root = roots.Where(Directory.Exists).FirstOrDefault() ?? "";
+  Check("158 kill: plugin source tree found (run from repo root or bin)",
+    root.Length > 0, "src/LazyMarketCompanion not found from either candidate path");
+
+  if (root.Length > 0)
+  {
+    var sources = Directory.GetFiles(root, "*.cs", SearchOption.AllDirectories)
+      .Where(p => { var n = p.Replace('\\', '/'); return !n.Contains("/obj/") && !n.Contains("/bin/"); })
+      .Select(File.ReadAllText)
+      .ToList();
+    Check("158 the bag filler is gone: no production source references its machinery",
+      sources.Count > 0 && sources.All(sc =>
+        !sc.Contains("BagFillerPlanner") && !sc.Contains("BagFillerOptions") && !sc.Contains("GreyItemInfo")
+        && !sc.Contains("AppendBagFiller") && !sc.Contains("BuildGreyInfo")),
+      sources.Count == 0 ? "no .cs files read under the plugin source root" : "");
+
+    var cfgSrc = File.ReadAllText(Path.Combine(root, "Configuration.cs"));
+    Check("158 the retired switch defaults OFF on a fresh config",
+      cfgSrc.Contains("AutoMarketBagFillerEnabled { get; set; } = false;"),
+      cfgSrc.Length == 0 ? "Configuration.cs not found" : "");
+    Check("158 config schema bumped to v4 (the migration ladder grew a step)",
+      cfgSrc.Contains("CurrentVersion = 4;"), "");
+
+    var pluginSrc = File.ReadAllText(Path.Combine(root, "Plugin.cs"));
+    Check("158 the v3 -> v4 migration forces the retired switch OFF for existing configs",
+      pluginSrc.Contains("config.Version < 4") && pluginSrc.Contains("config.AutoMarketBagFillerEnabled = false;"),
+      "");
+  }
+
+  // CONTROL (passes on both sides of 0.2.6.0 - pins the boundary the kill restores): the
+  // configured planner iterates enrolled rules only; priced, marketable, off-list bag stock
+  // with free slots available produces NO listing op. Free slots stay free.
+  {
+    var stock = new List<StockStack> { new(StockOrigin.Bags, Bags1, 7, 55501, false, 30) };
+    var plan = AutoMarketPlanner.Plan([], stock, EmptyMarket(occupied: 15), Opts());
+    Check("158 control: unconfigured stock never reaches a plan - the list is the boundary",
+      plan.Ops.Count == 0, $"ops={plan.Ops.Count}");
+  }
+}
+
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 
