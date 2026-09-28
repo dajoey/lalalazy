@@ -4989,6 +4989,94 @@ ItemQuote FillerQuote(uint id, long unit, bool hq = false, double vel = 0, long 
   }
 }
 
+// 159. (0.2.8.0 list what is marked): the plugin's advertised job is to list the items on the
+// Auto-Market list through the retainers, priced by matching the lowest board price. 0.2.0.0
+// made an unconfirmed Universalis quote HOLD every marked item, and the 0.2.5.0 field session
+// left 83 distinct marked items unlisted for that reason alone (20 of them worth 1,000+ gil each
+// at the home world). Two defects, one build:
+//  (a) POLARITY: a marked item whose price cannot be confirmed (stale, no upload time, no data,
+//      no listing of the quality, request failed) LISTS. The listing price comes from the live
+//      board through Auto Pinch, not from this quote; the quote only ever decides junk.
+//  (b) SCOPE: the data-center fallback swapped the cheapest listing of ALL worlds in for a stale
+//      home-world quote, and that number then drove the vendor and pull legs. A data-center
+//      minimum is not this world's price. Eight stacks were vendored in the 0.2.5.0 session for
+//      about 245 gil that list at about 12,500 gil on the home world (fixtures below: world and
+//      data-center cheapest listings measured 2026-09-28, quantities from the session's own
+//      vendor ops). Vendoring and pulling now need a fresh quote from the home world itself.
+{
+  const long Now = 1_790_600_000_000L;
+  const long Fresh159 = 6 * 3_600_000L;
+  var gate159 = new GateOptions(true, 100, Fresh159);
+
+  // (a) every "cannot tell" lists
+  var staleQ = new ItemQuote(5111, true, Now - 7 * 3_600_000L, [new QuoteListing(1, false, false)]);
+  var noTsQ = new ItemQuote(5111, true, 0, [new QuoteListing(1, false, false)]);
+  var noDataQ = new ItemQuote(5111, false, Now, []);
+  var noListingQ = new ItemQuote(5111, true, Now, []);
+  Check("159a a STALE quote lists - it never holds a marked item off the board",
+    MarketGate.Decide(99, staleQ, false, true, gate159, Now) == GateVerdict.List);
+  Check("159a a quote with no upload time lists", MarketGate.Decide(99, noTsQ, false, true, gate159, Now) == GateVerdict.List);
+  Check("159a hasData=false lists", MarketGate.Decide(99, noDataQ, false, true, gate159, Now) == GateVerdict.List);
+  Check("159a no listing of the quality lists", MarketGate.Decide(99, noListingQ, false, true, gate159, Now) == GateVerdict.List);
+  Check("159a a null quote lists", MarketGate.Decide(99, null, false, true, gate159, Now) == GateVerdict.List);
+  Check("159a a request that never produced a verdict lists", MarketGate.DecideUncertain() == GateVerdict.List);
+  // controls that hold on both sides of the change: only a CONFIRMED fresh home-world quote vendors
+  Check("159a control: a fresh confirmed quote at or under the threshold still vendors",
+    MarketGate.Decide(1, new ItemQuote(5111, true, Now, [new QuoteListing(50, false, false)]), false, true, gate159, Now) == GateVerdict.Vendor);
+  Check("159a control: a fresh confirmed quote above the threshold still lists",
+    MarketGate.Decide(1, new ItemQuote(5111, true, Now, [new QuoteListing(5000, false, false)]), false, true, gate159, Now) == GateVerdict.List);
+
+  // (b) the eight real vendored stacks: home-world quote stale, data-center quote fresh and low
+  var real = new (string Name, uint Id, int Qty, long HomeMin, long DcMin)[]
+  {
+    ("Flannel", 17574, 2, 88, 15),
+    ("Palladium Ingot", 19948, 1, 200, 100),
+    ("Alchemical Charcoal", 36218, 2, 50, 45),
+    ("Airbright Coolant", 44142, 1, 420, 55),
+    ("Magicked Prism (Spriggan)", 36117, 1, 4993, 1),
+    ("Alexandrian Axe Beak Wing", 44072, 12, 99, 43),
+    ("Hingan Squinch Window", 20700, 1, 1500, 100),
+    ("Tea Caddy Cabinet", 44913, 1, 3895, 979),
+  };
+  var mergedReal = new Dictionary<uint, ItemQuote>();
+  var dcReal = new Dictionary<uint, ItemQuote>();
+  foreach (var r in real)
+  {
+    mergedReal[r.Id] = new ItemQuote(r.Id, true, Now - 7 * 3_600_000L, [new QuoteListing(r.HomeMin, false, false)]);
+    dcReal[r.Id] = new ItemQuote(r.Id, true, Now - 60_000, [new QuoteListing(r.DcMin, false, false)]);
+  }
+  var recovered = GateDcFallback.MergeUsable(mergedReal, dcReal, Now, Fresh159);
+  Check("159b the fixture is the diagnosed shape: every stale home quote was replaced by the data-center quote",
+    recovered == real.Length, $"recovered={recovered}");
+  foreach (var r in real)
+  {
+    var verdict = MarketGate.Decide(r.Qty, mergedReal[r.Id], false, true, gate159, Now);
+    Check($"159b {r.Name} x{r.Qty} (home {r.HomeMin:N0} gil, data-center minimum {r.DcMin:N0}) is never vendored on a data-center quote",
+      verdict != GateVerdict.Vendor, $"verdict={verdict}");
+  }
+  // the same junk-looking DC quote lists instead (the pull leg later judges it on a home-world quote)
+  Check("159b a data-center quote at or under the threshold LISTS (not held, not vendored)",
+    MarketGate.Decide(1, mergedReal[36117], false, true, gate159, Now) == GateVerdict.List);
+
+  // (b) the pull leg reads the same quotes: a listed stack must not be pulled on a data-center quote
+  var pullMarket = new List<MarketSlot> { new(0, 36117, false, 1) };
+  var pullPrices = new Dictionary<int, ulong> { [0] = 4993 };
+  ItemRule PR(uint id) => new(id, false, 99, 0, 0, 0, true, true, 0, 999);
+  var pullPlan = MarketPull.Plan(pullMarket, pullPrices, [PR(36117)], mergedReal, gate159, true, Now, () => 10, () => true);
+  Check("159b the pull leg never pulls a listing on a data-center quote",
+    pullPlan.Ops.Count == 0, $"ops={pullPlan.Ops.Count}");
+  // control: a fresh HOME-world quote at or under the threshold still pulls (the 09-27 delist guard stands)
+  var homeCheap = new Dictionary<uint, ItemQuote> { [36117] = new ItemQuote(36117, true, Now, [new QuoteListing(1, false, false)]) };
+  var pullHome = MarketPull.Plan(pullMarket, pullPrices, [PR(36117)], homeCheap, gate159, true, Now, () => 10, () => true);
+  Check("159b control: a fresh home-world quote at or under the threshold still pulls",
+    pullHome.Ops.Count == 1, $"ops={pullHome.Ops.Count}");
+  // control: a data-center quote never overwrites a fresh home-world quote (unchanged 0.2.5.0 contract)
+  var freshHome = new Dictionary<uint, ItemQuote> { [36117] = new ItemQuote(36117, true, Now - 1000, [new QuoteListing(4993, false, false)]) };
+  GateDcFallback.MergeUsable(freshHome, dcReal, Now, Fresh159);
+  Check("159b control: a fresh home-world quote is never replaced by the data-center one",
+    freshHome[36117].Listings[0].PricePerUnit == 4993, $"price={freshHome[36117].Listings[0].PricePerUnit}");
+}
+
 
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
