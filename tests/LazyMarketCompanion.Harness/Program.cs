@@ -4564,6 +4564,27 @@ InventoryCases.Run((name, ok, detail) => Check(name, ok, detail));
     $"level={debugLevel} msg={debugMsg}");
 }
 
+// 141. Pre-fix check: DryRunCommand must exist and handle chat command
+{
+  var cmdType = typeof(DryRunFormat).Assembly.GetType("LazyMarketCompanion.AutoMarket.DryRunCommand");
+  Check("141 dry-run toggle: DryRunCommand surface exists on tree",
+    cmdType != null, "DryRunCommand is null on 4c73226 (only bell overlay existed in 0.2.1.0)");
+}
+
+// 142. Pre-fix check: DryRunFormat.FormatPassFeedback must exist
+{
+  var feedbackMethod = typeof(DryRunFormat).GetMethod("FormatPassFeedback", new[] { typeof(bool), typeof(int) });
+  Check("142 per-pass feedback: DryRunFormat.FormatPassFeedback exists on tree",
+    feedbackMethod != null, "FormatPassFeedback is null on 4c73226 (no chat feedback emitted on dry-run pass)");
+}
+
+// 143. Pre-fix check: AutoMarketExecution must exist to evaluate live vs dry-run
+{
+  var execType = typeof(DryRunFormat).Assembly.GetType("LazyMarketCompanion.AutoMarket.AutoMarketExecution");
+  Check("143 live execution: AutoMarketExecution exists on tree",
+    execType != null, "AutoMarketExecution is null on 4c73226");
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 
