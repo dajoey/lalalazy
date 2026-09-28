@@ -74,7 +74,7 @@ public static class Communicator
         .Build());
   }
 
-  public static void PrintSweepDone(int listed, int failures, int vendored = 0, int heldBack = 0, int vendorFailures = 0, int pulled = 0, int unconfirmed = 0, int routed = 0)
+  public static void PrintSweepDone(int listed, int failures, int vendored = 0, int heldBack = 0, int vendorFailures = 0, int pulled = 0, int unconfirmed = 0, int routed = 0, int runId = 0)
   {
     var didAnything = listed != 0 || failures != 0 || vendored != 0 || heldBack != 0 || vendorFailures != 0 || pulled != 0 || unconfirmed != 0 || routed != 0;
 
@@ -82,8 +82,12 @@ public static class Communicator
     // chat lines never reach the harvested plugin logs, so a run's vendored count could not be
     // verified from them after the fact. Logged whenever the run did anything; a no-op run stays
     // silent in both channels.
+    // 0.2.6.0: the logged line carries the run id (DoneLine.RunDoneLogLine, case 156) so the
+    // counters reconcile against THAT run's op lines - a session can contain several runs.
     if (didAnything)
-      Svc.Log.Information("[LMC] Auto-Market run " + FormatDoneLine(listed, failures, vendored, heldBack, vendorFailures, pulled, unconfirmed, routed));
+      Svc.Log.Information(runId > 0
+        ? "[LMC] " + AutoMarket.DoneLine.RunDoneLogLine(runId, FormatDoneLine(listed, failures, vendored, heldBack, vendorFailures, pulled, unconfirmed, routed))
+        : "[LMC] Auto-Market run " + FormatDoneLine(listed, failures, vendored, heldBack, vendorFailures, pulled, unconfirmed, routed));
 
     if (!Plugin.Configuration.ShowAutoMarketMessages && !didAnything)
       return;

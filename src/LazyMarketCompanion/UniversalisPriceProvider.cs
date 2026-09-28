@@ -26,6 +26,14 @@ internal sealed class UniversalisPriceProvider : IDisposable
   private const int DcGateChunkSize = 10;
 
   /// <summary>
+  /// 0.2.6.0: the data-center fallback's wall-time budget in ms. Ten seconds covers the healthy
+  /// case (a 46-id stale set measured ~8 s across two gate rounds on 2026-09-28) while capping the
+  /// degraded case that starved the task chain behind the gate. Soft bound: an in-flight chunk
+  /// finishes its own retries, so the pass can overshoot by at most one chunk's worst case.
+  /// </summary>
+  internal const long DcFallbackWallBudgetMs = 10_000;
+
+  /// <summary>
   /// Why the most recent sale-history lookup refused to price its item (null when it priced one or
   /// nothing has run yet). Written on the lookup's background thread before the framework-thread
   /// handoff that reads it, so no lock is needed. Consumed by the "no price to set" chat message.
@@ -250,6 +258,12 @@ internal sealed class UniversalisPriceProvider : IDisposable
         var dcName = await ResolveDataCenter().ConfigureAwait(false);
         if (!string.IsNullOrWhiteSpace(dcName))
         {
+          // 0.2.6.0: the DC pass is WALL-TIME BOUNDED. On a full stale set the fallback had no
+          // deadline and the task chain behind it starved (2026-09-28 session: GateWait overrun,
+          // 42 tasks cleared on timeout, a CloseRetainer timeout, a sweep's tail lost). Past the
+          // budget no NEW chunk is issued; the never-asked ids stay held this pass - unconfirmed
+          // means hold - and the next pass asks again. Held-stays-safe is unchanged.
+          var dcStarted = System.Diagnostics.Stopwatch.StartNew();
           var dcResult = await GateChunkFetch.FetchAllAsync(
             needing,
             DcGateChunkSize,
@@ -263,7 +277,11 @@ internal sealed class UniversalisPriceProvider : IDisposable
             cache: _gatePriceCache,
             nowUnixMs: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             cacheTtlMs: freshnessMs,
-            backoffDelay: attempt => Task.Delay((attempt + 1) * 250, cancellationToken)).ConfigureAwait(false);
+            backoffDelay: attempt => Task.Delay((attempt + 1) * 250, cancellationToken),
+            elapsedMs: () => dcStarted.ElapsedMilliseconds,
+            wallBudgetMs: DcFallbackWallBudgetMs).ConfigureAwait(false);
+          if (dcResult.SkippedForDeadlineItemCount > 0)
+            Svc.Log.Information($"[LMC] gate: data-center fallback stopped at the {DcFallbackWallBudgetMs / 1000.0:0.#}s wall-time bound; {dcResult.SkippedForDeadlineItemCount} item(s) were not re-asked and stay held this pass (unconfirmed means hold; the next pass asks again)");
 
           if (dcResult.Quotes != null)
           {

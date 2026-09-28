@@ -303,3 +303,75 @@ choice beyond SC4's criterion, and it is ordered out: **testing builds list live
    any direction, net-higher-never-vendored, keep-N honored, no removal without replacement
    or recorded hold) and the rollback doctrine (production pin + rehearsed feed-pin drill).
    The value gate protects real money decisions; the removed dry-run gate only delayed them.
+
+## 13. 0.2.6.0: the bag filler, op-result semantics, the DC wall bound, run-scoped counters
+
+Diagnosed 2026-09-28 from the live 0.2.5.0 session plus a code walk of f1360f8c. The player's
+report: "there are still items laying around in both my inventory and the inventory of
+retainers that could be marketed and isn't." Both halves are real, and both have named
+mechanisms now.
+
+1. **The bag filler (the "my inventory" half, §8-adjacent).** The bag markers' grey state is
+   defined as "marketable but not on the Auto-Market list", and the session opened with 20 grey
+   bag stacks while BOTH planning surfaces were rule-bounded (the listing planner iterates
+   configured rules; the mover requires a rule) - the 2 on-list (green) bag stacks were exactly
+   the 2 stacks the session moved. Off-list marketable bag stock was structurally invisible to
+   every plan. The filler is the listing plan's LAST stage (`BagFillerPlanner`, suite cases
+   152-152h): after the configured plan claims its slots, remaining free slots (beyond the
+   reserve) may be filled by marketable unconfigured BAG stacks under these bindings:
+   - a filler listing requires a CONFIRMED quote (fresh world or DC scope, wanted quality,
+     positive price). Unconfirmed means HOLD: the stack stays in the bags and is named in the
+     log. No heuristic price exists anywhere in the path (§0 unchanged);
+   - filler stock is NEVER vendored - a confirmed below-threshold off-list stack is held in the
+     bags; the bounded junk path (§4) belongs to configured rules only;
+   - filler stock is never deposited into retainer storage (the mover stays rule-bounded); it
+     lists from the bags exactly where it sits;
+   - category routing divides filler stock like configured stock: a mapped category lists only
+     on its assigned retainer, an unmapped category is unrestricted;
+   - a board already selling the item gets no second listing of it; an unreadable board claims
+     no slot (fail closed, §5 direction);
+   - the whole stack lists, clamped to the server's per-listing cap; one listing per stack;
+     scarce slots go to the fastest-selling grey first;
+   - the gate's Universalis fetch asks about the filler's ids too (an unasked id would hold
+     forever - the exact starvation this fixes). Configuration: `AutoMarketBagFillerEnabled`,
+     ON by default (the build must need zero user action).
+   The starved-slot half ("inventory of retainers") fills through the same stage: empty market
+   slots with held (unpriced configured) stock take filler stock instead of staying empty, and
+   genuinely-cold configured stock stays held with its shipped visibility.
+
+2. **Pull result semantics (rc=0 is acceptance).** A pull whose market-slot read-back still
+   showed the item after the bounded ~1.5 s window was declared FAILED with "leaving the
+   listing on the board" - for a withdrawal the server had accepted (rc=0) and that landed
+   (the same pass vendored the stack out of retainer inventory). §5's declared-failure path is
+   amended: rc=0 is the server's acceptance; a lagging read-back is reported as
+   accepted-with-lag (`PullOutcome`, case 154) and the NEXT pass's fresh board snapshot is the
+   corrective. A nonzero rc keeps the old FAILED semantics. The read-back itself is unchanged
+   (bounded retry, best-effort destination hint).
+
+3. **The market-destined guard mirrors the gated plan.** The 0.2.1.0 deposit guard computed
+   "which bags stacks will the listing pass take" WITHOUT the value gate, so unpriced rules
+   crowded the free slots and a priced later rule kept a storage-deposit op; the listing pass
+   (which runs ahead of the routing moves) then emptied that source slot and the mover logged a
+   false "FAILED rc=-1; leaving the stack where it is" for stock already listed. The destined
+   set is now computed from the same gated, sorted rule list the real plan uses
+   (`MarketDestined`, case 153), and a deposit whose source slot no longer holds the stack is
+   an honest SKIP (`RoutingMove.VacatedLine`, case 155) - counted as neither move nor failure.
+   Listing/stock integrity: a listing cannot go up for stock that never moved - the game moves
+   the item into the market slot when it accepts the listing; the false-failure line was the
+   defect, not the listing.
+
+4. **The DC fallback is wall-time bounded.** The 0.2.5.0 fallback re-asked every
+   source-unusable id with no deadline; a full stale set starved the task chain behind the gate
+   (GateWait overrun, 42 cleared tasks, a CloseRetainer timeout, a lost sweep tail). The DC
+   pass now stops issuing new chunks past a 10 s budget (`GateChunkFetch` deadline, case 157);
+   never-asked ids stay held this pass - unconfirmed means hold - and the next pass asks again.
+   The bound is soft by at most one in-flight chunk.
+
+5. **Run-scoped counters.** The done line's counters cover ONE run - the state-reset-to-done
+   window, whatever its scope (a sweep, a manual run, an automated postprocess session) - and a
+   game session can contain several runs; the 0.2.5.0 session ran two sweeps and its surviving
+   done line reconciled with the second run only (5 listed vs 8 executed across both). Every
+   run now logs a numbered start line and a tagged done line (`DoneLine.RunTag`/`RunDoneLogLine`,
+   case 156); the untagged chat shape is unchanged (case 40). A run whose chain dies in a
+   cascade is visible as a start with no done line. The pull undercount that fed the same
+   grading confusion is closed by (2).

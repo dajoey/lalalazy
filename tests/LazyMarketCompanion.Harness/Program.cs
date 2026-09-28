@@ -4825,6 +4825,244 @@ InventoryCases.Run((name, ok, detail) => Check(name, ok, detail));
     repriced);
 }
 
+
+// =====================================================================================
+// 0.2.6.0 round-6 cases (152-157). Failing-first: written BEFORE the implementation;
+// against the 0.2.5.0 tree (f1360f8c) these do not compile - the new 0.2.6.0 API surface
+// (BagFillerPlanner, MarketDestined, PullOutcome, RoutingMove.VacatedLine, DoneLine run
+// tags, the GateChunkFetch wall-time bound) does not exist there. The compile failure IS
+// the pre-fix FAIL evidence for new seams (round-5 precedent); every case is behavioral
+// from the first build that has the API.
+
+// Shared 0.2.6.0 fixtures.
+const long NowMs = 1_700_000_000_000;
+const long FreshMs = 6 * 3_600_000L;
+long UploadMs(long ageMs = 1000) => NowMs - ageMs;
+ItemQuote FillerQuote(uint id, long unit, bool hq = false, double vel = 0, long ageMs = 1000)
+  => new(id, true, UploadMs(ageMs), [new QuoteListing(unit, hq, false)], hq ? 0 : vel, hq ? vel : 0);
+GreyItemInfo Grey(uint id, uint cat = 0, bool marketable = true, int maxStack = 999) => new(id, cat, marketable, maxStack);
+BagFillerOptions FillerOpts(bool enabled = true, int reserve = 0, int slots = 20) => new(enabled, reserve, slots);
+
+// 152. (0.2.6.0 bag filler): marketable UNCONFIGURED bag stock fills slots the configured
+// plan left free - the round-6 "items laying around in inventory that could be marketed"
+// case. The 0.2.5.0 planner iterated configured rules only, so grey (off-list) bag stock
+// was structurally invisible to every plan.
+{
+  var stock = new List<StockStack> { new(StockOrigin.Bags, Bags1, 7, 55501, false, 30) };
+  var quotes = new Dictionary<uint, ItemQuote> { [55501] = FillerQuote(55501, 500) };
+  var r = BagFillerPlanner.Plan(stock, [], new Dictionary<uint, GreyItemInfo> { [55501] = Grey(55501) }, [], "Sofondapeters",
+    quotes, EmptyMarket(occupied: 15), [], FillerOpts(), preferHq: false, NowMs, FreshMs, thresholdGil: 100);
+  Check("152 filler lists marketable off-list bag stock into a free slot",
+    r.Ops.Count == 1 && r.Ops[0].ItemId == 55501 && r.Ops[0].TargetSlot == 15 && r.Ops[0].Quantity == 30 && r.Ops[0].Origin == StockOrigin.Bags && r.Ops[0].FixedPrice == 0,
+    $"ops={r.Ops.Count}");
+  Check("152 filler holds nothing when the quote is confirmed and above threshold",
+    r.HeldUnpricedIds.Count == 0 && r.HeldBelowThresholdIds.Count == 0);
+  Check("152 filler counted the considered stack", r.ConsideredStacks == 1, $"considered={r.ConsideredStacks}");
+}
+
+// 152a. (frozen invariant, filler side): unconfirmed price means HOLD - the stack never
+// reaches a market slot on a guess. Stale upload, missing quote, and no-data all hold.
+{
+  var stock = new List<StockStack> { new(StockOrigin.Bags, Bags1, 7, 55501, false, 30) };
+  var grey = new Dictionary<uint, GreyItemInfo> { [55501] = Grey(55501) };
+  var stale = new Dictionary<uint, ItemQuote> { [55501] = FillerQuote(55501, 500, ageMs: FreshMs + 1) };
+  var r1 = BagFillerPlanner.Plan(stock, [], grey, [], "R", stale, EmptyMarket(), [], FillerOpts(), false, NowMs, FreshMs, 100);
+  Check("152a stale quote holds the stack in the bags", r1.Ops.Count == 0 && r1.HeldUnpricedIds.SequenceEqual([55501u]));
+  var r2 = BagFillerPlanner.Plan(stock, [], grey, [], "R", null, EmptyMarket(), [], FillerOpts(), false, NowMs, FreshMs, 100);
+  Check("152a null quote map holds everything", r2.Ops.Count == 0 && r2.HeldUnpricedIds.SequenceEqual([55501u]));
+  var noData = new Dictionary<uint, ItemQuote> { [55501] = new(55501, false, UploadMs(), []) };
+  var r3 = BagFillerPlanner.Plan(stock, [], grey, [], "R", noData, EmptyMarket(), [], FillerOpts(), false, NowMs, FreshMs, 100);
+  Check("152a hasData=false holds the stack", r3.Ops.Count == 0 && r3.HeldUnpricedIds.SequenceEqual([55501u]));
+}
+
+// 152b. (never vendored): a CONFIRMED below-threshold off-list stack is held in the bags,
+// never listed, never vendored - the bounded junk path belongs to configured rules only.
+{
+  var stock = new List<StockStack> { new(StockOrigin.Bags, Bags1, 7, 55501, false, 3) };
+  var quotes = new Dictionary<uint, ItemQuote> { [55501] = FillerQuote(55501, 2) };
+  var r = BagFillerPlanner.Plan(stock, [], new Dictionary<uint, GreyItemInfo> { [55501] = Grey(55501) }, [], "R",
+    quotes, EmptyMarket(), [], FillerOpts(), false, NowMs, FreshMs, thresholdGil: 100);
+  Check("152b below-threshold off-list stock: no ops, no vendor eligibility, held by name",
+    r.Ops.Count == 0 && r.HeldBelowThresholdIds.SequenceEqual([55501u]) && r.HeldUnpricedIds.Count == 0);
+}
+
+// 152c. (category division holds): an off-list stack whose category maps to another
+// retainer never lists on this board; an unmapped category lists wherever a slot is free.
+{
+  var stock = new List<StockStack> { new(StockOrigin.Bags, Bags1, 7, 55501, false, 30) };
+  var grey = new Dictionary<uint, GreyItemInfo> { [55501] = Grey(55501, cat: 36) };
+  var catRules = new List<CategoryRetainerRule> { new() { CategoryId = 36, RetainerName = "Dojarat" } };
+  var quotes = new Dictionary<uint, ItemQuote> { [55501] = FillerQuote(55501, 500) };
+  var wrong = BagFillerPlanner.Plan(stock, [], grey, catRules, "Sofondapeters", quotes, EmptyMarket(), [], FillerOpts(), false, NowMs, FreshMs, 100);
+  Check("152c category-mapped off-list stock does not list on another retainer", wrong.Ops.Count == 0 && wrong.ConsideredStacks == 0);
+  var right = BagFillerPlanner.Plan(stock, [], grey, catRules, "Dojarat", quotes, EmptyMarket(), [], FillerOpts(), false, NowMs, FreshMs, 100);
+  Check("152c the assigned retainer lists it", right.Ops.Count == 1);
+  var unmapped = BagFillerPlanner.Plan(stock, [], new Dictionary<uint, GreyItemInfo> { [55501] = Grey(55501, cat: 36) }, [], "Anyone", quotes, EmptyMarket(), [], FillerOpts(), false, NowMs, FreshMs, 100);
+  Check("152c unmapped category lists on any retainer", unmapped.Ops.Count == 1);
+}
+
+// 152d. (no double management): a stack with a configured rule belongs to the configured
+// planner alone; the filler never touches it, priced or not.
+{
+  var stock = new List<StockStack> { new(StockOrigin.Bags, Bags1, 7, Dye, false, 30) };
+  var quotes = new Dictionary<uint, ItemQuote> { [Dye] = FillerQuote(Dye, 500) };
+  var r = BagFillerPlanner.Plan(stock, [Rule(Dye, 30)], new Dictionary<uint, GreyItemInfo> { [Dye] = Grey(Dye) }, [], "R",
+    quotes, EmptyMarket(), [], FillerOpts(), false, NowMs, FreshMs, 100);
+  Check("152d configured stock is invisible to the filler", r.Ops.Count == 0 && r.ConsideredStacks == 0 && r.HeldUnpricedIds.Count == 0);
+}
+
+// 152e. (no duplicate listing): a board already selling the item never gets a second
+// listing of it from the filler.
+{
+  var market = EmptyMarket(occupied: 19);
+  market[3] = new MarketSlot(3, 55501, false, 10);
+  var stock = new List<StockStack> { new(StockOrigin.Bags, Bags1, 7, 55501, false, 30) };
+  var quotes = new Dictionary<uint, ItemQuote> { [55501] = FillerQuote(55501, 500) };
+  var r = BagFillerPlanner.Plan(stock, [], new Dictionary<uint, GreyItemInfo> { [55501] = Grey(55501) }, [], "R",
+    quotes, market, [], FillerOpts(), false, NowMs, FreshMs, 100);
+  Check("152e item already on this board: no second listing", r.Ops.Count == 0);
+}
+
+// 152f. (reserve + configured-first): filler fills only what the configured plan leaves:
+// free minus reserve minus configured ops; fastest-selling grey first when slots are scarce.
+{
+  var stock = new List<StockStack>
+  {
+    new(StockOrigin.Bags, Bags1, 1, 55501, false, 30),
+    new(StockOrigin.Bags, Bags1, 2, 55502, false, 30),
+    new(StockOrigin.Bags, Bags1, 3, 55503, false, 30),
+  };
+  var quotes = new Dictionary<uint, ItemQuote>
+  {
+    [55501] = FillerQuote(55501, 500, vel: 0.1),
+    [55502] = FillerQuote(55502, 500, vel: 9),
+    [55503] = FillerQuote(55503, 500, vel: 4),
+  };
+  var grey = new Dictionary<uint, GreyItemInfo> { [55501] = Grey(55501), [55502] = Grey(55502), [55503] = Grey(55503) };
+  var configured = new List<ListingOp> { new(StockOrigin.Retainer, 10000, 0, 15, Dye, false, 5, 0) };
+  // 5 empty (15..19), 1 taken by the configured op (15), reserve 2 -> 2 filler slots: 16, 17.
+  var r = BagFillerPlanner.Plan(stock, [Rule(Dye, 5)], grey, [], "R", quotes, EmptyMarket(occupied: 15), configured,
+    FillerOpts(reserve: 2), false, NowMs, FreshMs, 100);
+  Check("152f filler respects reserve and configured-first budget: exactly 2 ops into 16,17",
+    r.Ops.Count == 2 && r.Ops.All(o => o.TargetSlot is 16 or 17),
+    string.Join(",", r.Ops.Select(o => $"{o.ItemId}->{o.TargetSlot}")));
+  Check("152f scarce slots go to the fastest-selling grey first (55502 then 55503)",
+    r.Ops[0].ItemId == 55502 && r.Ops[1].ItemId == 55503,
+    string.Join(",", r.Ops.Select(o => o.ItemId.ToString())));
+}
+
+// 152g. (server cap): a 500-unit grey stack lists at most the market cap for its stack size.
+{
+  var stock = new List<StockStack> { new(StockOrigin.Bags, Bags1, 7, 55501, false, 500) };
+  var quotes = new Dictionary<uint, ItemQuote> { [55501] = FillerQuote(55501, 500) };
+  var r = BagFillerPlanner.Plan(stock, [], new Dictionary<uint, GreyItemInfo> { [55501] = Grey(55501, maxStack: 999) }, [], "R",
+    quotes, EmptyMarket(), [], FillerOpts(), false, NowMs, FreshMs, 100);
+  Check("152g grey stack clamped to the 99 market cap", r.Ops.Count == 1 && r.Ops[0].Quantity == 99, $"qty={r.Ops.FirstOrDefault()?.Quantity}");
+}
+
+// 152h. (fail closed on an unreadable board): a short market snapshot claims no slot.
+{
+  var stock = new List<StockStack> { new(StockOrigin.Bags, Bags1, 7, 55501, false, 30) };
+  var quotes = new Dictionary<uint, ItemQuote> { [55501] = FillerQuote(55501, 500) };
+  var shortBoard = Enumerable.Range(0, 7).Select(i => new MarketSlot(i, 0, false, 0)).ToList();
+  var r = BagFillerPlanner.Plan(stock, [], new Dictionary<uint, GreyItemInfo> { [55501] = Grey(55501) }, [], "R",
+    quotes, shortBoard, [], FillerOpts(), false, NowMs, FreshMs, 100);
+  Check("152h unreadable board: no filler ops", r.Ops.Count == 0);
+}
+
+// 153. (0.2.6.0 gated market-destined): the deposit guard must mirror the REAL (gated)
+// listing plan, not the ungated one. 0.2.5.0's ComputeMarketDestined planned without the
+// value gate, so an unpriced rule crowded the free slot and a LATER priced rule missed
+// `destined` - it kept a deposit op, the listing pass then emptied the source slot first,
+// and the mover logged a false "FAILED rc=-1; leaving the stack where it is" (field
+// evidence: item 7488 HQ, listed from the bags at 1100 gil while its deposit failed).
+{
+  var priced = Rule(55502, 1);
+  var unpriced = Rule(55501, 99);
+  var stock = new List<StockStack>
+  {
+    new(StockOrigin.Bags, Bags1, 1, 55501, false, 99),
+    new(StockOrigin.Bags, Bags1, 2, 55502, false, 1),
+  };
+  var quotes = new Dictionary<uint, ItemQuote> { [55502] = FillerQuote(55502, 500) };
+  var ungated = AutoMarketPlanner.Plan([unpriced, priced], stock, EmptyMarket(occupied: 19), Opts());
+  Check("153 control: the ungated plan gives the one free slot to the first rule (the 0.2.5.0 defect shape)",
+    ungated.Ops.Count == 1 && ungated.Ops[0].ItemId == 55501, $"ops={string.Join(",", ungated.Ops.Select(o => o.ItemId))}");
+  var gated = MarketDestined.ListVerdictRules([unpriced, priced], stock, quotes, preferHq: false, listPartialStacks: false, thresholdGil: 100, NowMs, FreshMs);
+  var destined = MarketDestined.BagsOriginItemIds(gated, stock, EmptyMarket(occupied: 19), Opts());
+  Check("153 the gated destined set contains the PRICED later rule, not the unpriced first one",
+    destined.Contains(55502) && !destined.Contains(55501), string.Join(",", destined));
+}
+
+// 154. (0.2.6.0 pull result contract): rc=0 is the server's ACCEPTANCE. A market-slot
+// read-back that still shows the item after the bounded retry window is container lag,
+// reported as accepted-with-lag - never as "FAILED ... leaving the listing on the board"
+// (field evidence: item 44072 x12 "pull: FAILED ... rc=0" while the stack HAD landed and
+// was vendored from retainer inventory seconds later).
+{
+  Check("154 rc=0 + cleared slot = Accepted", PullOutcome.Classify(0, slotClearedAfterRetry: true) == PullOutcome.Accepted);
+  Check("154 rc=0 + lagged read = AcceptedWithLag, never Failed", PullOutcome.Classify(0, slotClearedAfterRetry: false) == PullOutcome.AcceptedWithLag);
+  Check("154 rc!=0 = Failed", PullOutcome.Classify(-1, true) == PullOutcome.Failed && PullOutcome.Classify(5, false) == PullOutcome.Failed);
+  var line = PullOutcome.LagLine(55504, true, 12, 1500);
+  Check("154 the lag line says accepted and names the lag, never FAILED",
+    line.Contains("rc=0") && line.Contains("accepted") && line.Contains("lag") && !line.Contains("FAILED"),
+    line);
+}
+
+// 155. (0.2.6.0 vacated-source honesty): a deposit whose source slot no longer holds the
+// stack (the listing pass took it from the bags first) is a SKIP with an honest line, not
+// a FAILED that claims "leaving the stack where it is".
+{
+  var line = RoutingMove.VacatedLine(7488, hq: true, container: 1, slot: 16);
+  Check("155 the vacated line names the item, the slot, and that the stack already left",
+    line.Contains("7488") && line.Contains("1#16") && line.Contains("already left") && !line.Contains("FAILED"),
+    line);
+}
+
+// 156. (0.2.6.0 run-scoped counters): the closing line's counters cover ONE run
+// (ClearState-to-done); a session with two runs prints two run-tagged boundaries so the
+// line reconciles with that run's op lines only. The untagged DoneLine shape is unchanged.
+{
+  Check("156 run tag", DoneLine.RunTag(7) == "run #7");
+  var done = DoneLine.Format(5, 0, 3, 0, 0, 0, 0, routed: 1);
+  Check("156 untagged done line unchanged (case 40 pin)",
+    done == "done: 5 new listing(s), 1 routed into place, 3 vendored.", done);
+  var logLine = DoneLine.RunDoneLogLine(7, done);
+  Check("156 the logged done line carries the run id",
+    logLine == "Auto-Market run #7 done: 5 new listing(s), 1 routed into place, 3 vendored.", logLine);
+  Check("156 the run start line shape", DoneLine.RunStartLogLine(7) == "Auto-Market run #7 start", DoneLine.RunStartLogLine(7));
+}
+
+// 157. (0.2.6.0 DC-fallback wall-time bound): the data-center re-ask stops issuing chunks
+// once the wall budget is spent; the ids never asked stay held this pass (unconfirmed means
+// hold) and are reported, so a full stale set cannot trip the task-manager cascade (field
+// evidence: GateWait overrun + 42 cleared tasks + CloseRetainer timeout).
+{
+  var sw = System.Diagnostics.Stopwatch.StartNew();
+  var fetched = new List<uint>();
+  var result = GateChunkFetch.FetchAllAsync(
+    [55501u, 55502u, 55503u, 55504u],
+    chunkSize: 1,
+    async (chunk, ct) => { await Task.Delay(50, ct); fetched.AddRange(chunk); return new Dictionary<uint, ItemQuote> { [chunk[0]] = FillerQuote(chunk[0], 100) }; },
+    (_, _) => { },
+    CancellationToken.None,
+    elapsedMs: () => sw.ElapsedMilliseconds,
+    wallBudgetMs: 10).GetAwaiter().GetResult();
+  Check("157 the bound stops later chunks once the budget is spent",
+    fetched.Count >= 1 && fetched.Count < 4, $"fetched={fetched.Count}");
+  Check("157 skipped-for-deadline ids are reported", result.SkippedForDeadlineItemCount == 4 - fetched.Count, $"skipped={result.SkippedForDeadlineItemCount}");
+  Check("157 quotes fetched before the bound survive", result.Quotes != null && result.Quotes.Count == fetched.Count);
+  var unbudgeted = GateChunkFetch.FetchAllAsync(
+    [55501u, 55502u],
+    chunkSize: 1,
+    async (chunk, ct) => { await Task.Delay(10, ct); return new Dictionary<uint, ItemQuote> { [chunk[0]] = FillerQuote(chunk[0], 100) }; },
+    (_, _) => { },
+    CancellationToken.None).GetAwaiter().GetResult();
+  Check("157 no budget passed: unchanged behavior, nothing skipped",
+    unbudgeted.Quotes!.Count == 2 && unbudgeted.SkippedForDeadlineItemCount == 0);
+}
+
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 
