@@ -351,6 +351,16 @@ internal static class FormationLogic
             return (FormationWrite.None, "player_owned");
         if (g.SelectedPetIds.Count is > 0 and <= 3)
             return (FormationWrite.Wait, "wait_roster_settle");
+        // A settled roster menu always agrees on emptiness: both vectors empty (the buildable state)
+        // or both holding the team. A non-empty party with an empty SelectedPetIds is the open's
+        // first frames — the previous session's team still in the party vector — and the mirror
+        // (empty party, non-empty SelectedPetIds) is the game mid-wipe. A write in either state
+        // plans its toggles against state the menu has not settled into (live 2026-09-29 18:13:52:
+        // fifteen adds against a stale party of fifteen read empty on SelectedPetIds ->
+        // readback=fail abort=roster_mismatch, pre=|post=, party 15 -> 0). Wait for the vectors
+        // to agree.
+        if ((g.PartyCount > 0) != (g.SelectedPetIds.Count > 0))
+            return (FormationWrite.Wait, "wait_roster_settle");
         return (FormationWrite.Roster, "roster");
     }
 

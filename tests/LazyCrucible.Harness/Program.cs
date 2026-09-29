@@ -21,6 +21,7 @@ internal static class Program
         RosterOverwriteReplay();
         MasterBoardEntryCases();
         HornReadbackOrderCases();
+        RosterOpenSettleCases();
         GluttonyVersionGuard();
         Telemetry();
         PolicyCases.Run();
@@ -385,6 +386,69 @@ internal static class Program
         var sizes = string.Join("/", BST_CrucibleData.Boards.Select(b => b.Roster));
         Check("Board roster sizes 10/12/14/12/15 (CrucibleBoard.Roster)",
             sizes == "10/12/14/12/15", sizes);
+    }
+
+    /// <summary>
+    ///     Second Master Board pre-entry roster write (2026-09-29 18:13:52 ET, LazyCrucible 0.1.5.0). The
+    ///     board's entry menu re-opened after an abandoned run with the party vector still holding the
+    ///     previous session's fifteen while SelectedPetIds read empty (the abandoned run's in-board horn
+    ///     menu had cleared it). The settle guard only covers a 1-3 entry read, so the pass planned all
+    ///     fifteen adds against the empty read, toggled into the not-yet-settled menu and read back empty
+    ///     (readback=fail abort=roster_mismatch pre=|post= with party=15 -> party=0). A settled roster
+    ///     menu always agrees on emptiness: both vectors empty (buildable) or both holding the team.
+    ///     The pass must wait until they agree.
+    /// </summary>
+    private static void RosterOpenSettleCases()
+    {
+        Console.WriteLine("-- pre-entry roster open settle (M2 0.1.5.0 defect) --");
+        var m2Team = new List<int> { 40, 28, 20, 6, 27, 8, 22, 39, 36, 19, 44, 21, 33, 12, 18 };
+        var b3Team = new List<int> { 33, 7, 8, 20, 39, 21, 5, 22, 28, 12, 40, 6, 19, 27 };
+
+        // The 18:13:52.775 state: preentry, PetParty open in its first frames (only SubMode populated),
+        // party vector = the previous session's 15, SelectedPetIds empty. Wait, never write.
+        var staleParty = FormationLogic.DecideFormationWrite(new(
+            PetPartyOpen: true, ActivePetOpen: false, PreEntrySurface: true,
+            AddonMode: -1, AddonSubMode: 1, SelectedPetIds: Array.Empty<int>(), PartyCount: m2Team.Count));
+        Check("M2 reopen first frames (party=15 stale, sel empty): wait for settle, never write",
+            staleParty.Write == FormationLogic.FormationWrite.Wait, $"{staleParty.Write}/{staleParty.Reason}");
+
+        // Same disagreement with the mode already populated (mode 0 roster list): still wait.
+        var stalePartyMode = FormationLogic.DecideFormationWrite(new(
+            PetPartyOpen: true, ActivePetOpen: false, PreEntrySurface: true,
+            AddonMode: 0, AddonSubMode: 1, SelectedPetIds: Array.Empty<int>(), PartyCount: m2Team.Count));
+        Check("M2 reopen roster mode (party=15 stale, sel empty): wait for settle",
+            stalePartyMode.Write == FormationLogic.FormationWrite.Wait, $"{stalePartyMode.Write}/{stalePartyMode.Reason}");
+
+        // The mirror: the party vector wiped first while SelectedPetIds still holds the previous
+        // fifteen. Never write against a selection the party no longer carries.
+        var staleSel = FormationLogic.DecideFormationWrite(new(
+            PetPartyOpen: true, ActivePetOpen: false, PreEntrySurface: true,
+            AddonMode: -1, AddonSubMode: 1, SelectedPetIds: m2Team, PartyCount: 0));
+        Check("M2 reopen mid-wipe (party=0, sel=15 stale): wait for settle, never write",
+            staleSel.Write == FormationLogic.FormationWrite.Wait, $"{staleSel.Write}/{staleSel.Reason}");
+
+        // Controls - the settled states still write. Both vectors empty (the 18:13:52.886 buildable
+        // state; the board-3 menu wrote fourteen from exactly this shape at 18:15:03): roster write.
+        var settledEmpty = FormationLogic.DecideFormationWrite(new(
+            PetPartyOpen: true, ActivePetOpen: false, PreEntrySurface: true,
+            AddonMode: -1, AddonSubMode: 1, SelectedPetIds: Array.Empty<int>(), PartyCount: 0));
+        Check("Settled buildable menu (party=0, sel empty): roster write",
+            settledEmpty.Write == FormationLogic.FormationWrite.Roster, $"{settledEmpty.Write}/{settledEmpty.Reason}");
+
+        // Both vectors holding the fourteen the board-3 write just landed (18:15:07 delta shape):
+        // roster write (the membership delta still runs).
+        var settledB3 = FormationLogic.DecideFormationWrite(new(
+            PetPartyOpen: true, ActivePetOpen: false, PreEntrySurface: true,
+            AddonMode: -1, AddonSubMode: 1, SelectedPetIds: b3Team, PartyCount: b3Team.Count));
+        Check("Settled team menu (party=14, sel=14): roster write",
+            settledB3.Write == FormationLogic.FormationWrite.Roster, $"{settledB3.Write}/{settledB3.Reason}");
+
+        // Both vectors holding the saved fifteen (the 18:09:11.742 shape): roster write.
+        var settledM2 = FormationLogic.DecideFormationWrite(new(
+            PetPartyOpen: true, ActivePetOpen: false, PreEntrySurface: true,
+            AddonMode: 0, AddonSubMode: 1, SelectedPetIds: m2Team, PartyCount: m2Team.Count));
+        Check("Settled saved-team menu (party=15, sel=15): roster write",
+            settledM2.Write == FormationLogic.FormationWrite.Roster, $"{settledM2.Write}/{settledM2.Reason}");
     }
 
     /// <summary>
