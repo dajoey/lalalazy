@@ -1,5 +1,9 @@
 # LazyCrucible — Changelog
 
+## v0.1.6.0 (2026-09-29)
+
+- **Run roster**: the entry-menu team fill now waits for a re-opened menu to settle before writing. A re-opened board menu briefly shows the previous session's team in one list while the roster read is still empty, and a fill planned from that mismatch toggled the live team off and aborted on the read-back, leaving the team empty. The fill now waits until the two lists agree, then writes normally.
+
 ## v0.1.5.0 (2026-09-26)
 
 - **Battlehorns**: familiar read-back now verifies team membership rather than strict positional order against advisor priority rankings. Previously, when the active party slots held the chosen familiars in an order different from the advisor's score ranking, the read-back treated the permutation as a mismatch and aborted with an erroneous disarm.
