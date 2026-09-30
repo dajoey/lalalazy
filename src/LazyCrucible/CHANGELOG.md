@@ -1,5 +1,10 @@
 # LazyCrucible — Changelog
 
+## v0.1.7.0 (2026-09-30)
+
+- **AutoDuty stand-down**: the plugin now leaves the Crucible screens alone for AutoDuty only while AutoDuty is actually stepping. AutoDuty can keep reporting "running" after its loop has stopped (seen after a run ends), and the plugin used to keep standing down for as long as that lasted, including on boards played by hand. It now also reads AutoDuty's looping and navigating state and where the character is: a loop that is not navigating the current board, is navigating a different board, or has made no progress in the lobby is treated as stalled, and the plugin works normally until AutoDuty starts a new run. The stand-down note in the log and the main window say which case was seen.
+- **AutoDuty preset in BossMod Reborn**: while AutoDuty is judged stalled inside a board, the BossMod Reborn preset named "AutoDuty" that the stalled loop left active is cleared. That preset retargets to enemies of its own choosing and walks the character to them, and only AutoDuty stopping clears it. A preset with any other name is never touched.
+
 ## v0.1.6.0 (2026-09-29)
 
 - **Run roster**: the entry-menu team fill now waits for a re-opened menu to settle before writing. A re-opened board menu briefly shows the previous session's team in one list while the roster read is still empty, and a fill planned from that mismatch toggled the live team off and aborted on the read-back, leaving the team empty. The fill now waits until the two lists agree, then writes normally.
