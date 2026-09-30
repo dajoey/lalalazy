@@ -197,23 +197,28 @@ internal static partial class BST_CrucibleData
     /// <summary>
     ///     Hard hits on the character (or the highest-enmity target) worth dodging with Snarl -> Parting Blow: castbar
     ///     action ids bound from BossmodReborn's Crucible modules and the guides (two sources, or one real log), 2026-09-17.
+    ///     Master's Board entries are the casts the recorded runs measured as single-target hits that follow the enmity holder
+    ///     (<see cref="HeavyCasts"/>, kind Tankbuster: victim == holder in every logged cast); the two Second Master's ids in
+    ///     <see cref="GuideBoundTankbusters"/> were never seen cast and stay guide-derived.
     /// </summary>
     public static readonly HashSet<uint> Tankbusters =
     [
         46935, 46934, 46872, 46906, 46920,        // First Board: Cold Caress, Blood Sword, Skullsplinter, Deadly Thrust, Straight Punch
         48138, 48204, 48247,                      // Second Board: Deadly Hold, 100-tonze Slash, Void Paralyze
         48620, 48471, 48489, 50465, 48563,        // Third Board: Thunderbolt, Crushing Blade, Caustic Vomit, Flying Frenzy, Song of Torment
-        48809, 48822, 48689, 48730,               // First Master's: Toxic Vomit, Salivous Snap, Final Sting, Grim Fate
-        49470, 49188, 49205, 49254,               // Second Master's: Thunderbolt, Erratic Blaster, Void Thunder III, Mangling Fang
+        48809, 48822, 48689, 48730,               // First Master's (measured): Toxic Vomit, Salivous Snap, Final Sting, Grim Fate (five-hit string)
+        48717, 50649, 48669,                      // First Master's (measured): Sweeping Evisceration, Obliterate, On the Properties of Darkness
+        49188, 49254,                             // Second Master's (measured): Erratic Blaster, Mangling Fang
+        49470, 49205,                             // Second Master's (guide only, never seen cast): Thunderbolt, Void Thunder III
     ];
 
-    /// <summary> Seconds from the end of the castbar to the hit landing, where the hit is a later helper action. </summary>
-    public static float TankbusterHitDelay(uint castId) => castId switch
-    {
-        49188 => 1.0f, // Erratic Blaster: 6.0 s castbar, hit 49189 at 7.0 s
-        48809 => 1.5f, // Toxic Vomit: 3.5 s castbar, hit 1.5 s later
-        _ => 0f,
-    };
+    /// <summary>
+    ///     Seconds from the moment the plugin's castbar remaining reaches 0 to the hit landing (negative = the hit lands first). Measured
+    ///     for the Master's Board casts in <see cref="HeavyCasts"/>; 0 for every other id (no measurement: Boards 1-3 and the guide-only
+    ///     Master's ids).
+    /// </summary>
+    public static float TankbusterHitDelay(uint castId) =>
+        HeavyCast(castId) is { Kind: CrucibleHitKind.Tankbuster } row ? row.HitDelay : 0f;
 
     /// <summary>
     ///     Enemies auto-targeting takes first whenever they are up: the adds the guides kill on sight (succubi, wisps before

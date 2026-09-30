@@ -329,6 +329,29 @@ internal static class BST_CrucibleLogic
         return false;
     }
 
+    /// <summary>
+    ///     A discretionary cycle exit (cycle-for-damage, not a HP-driven save) needs a ready horn whose familiar is above the swap line to
+    ///     summon now AND another in reserve for a real familiar save: every horn press locks that horn for 90 s, so an exit that leaves
+    ///     no ready horn means the next crisis has nothing to swap to and <see cref="TryPetSave"/> declines the recall too
+    ///     (<c>petsave-no-resummon-horn</c>). First Master's battle 3, 2026-09-26 .. 09-30: in 8 of 8 familiar deaths a cycle exit and
+    ///     resummon had spent the horns 4-37 s before the familiar crossed the swap line; 09-30 14:35:48 the only ready horn held a
+    ///     42% familiar, it replaced a 100% one and fell in 34 s. With fewer than three horns learned the reserve shrinks with them.
+    /// </summary>
+    public static bool CycleExitKeepsReserve(in BstState s, in BstSettings cfg)
+    {
+        var learned = LearnedHornSlots(s.Level);
+        var need = Math.Min(2, learned - 1);
+        var healthy = 0;
+        for (var slot = 1; slot <= learned; slot++)
+        {
+            if (slot == s.ActiveSlot || !HornReady(s, slot) || (s.SlotBeastsKnown && SlotBeast(s, slot) == 0))
+                continue;
+            if (SlotPetHp(s, slot) > cfg.CruciblePetSwapHp)
+                healthy++;
+        }
+        return healthy >= need;
+    }
+
     /// <summary> A ready horn whose familiar is healthier than the one out: above the swap line and 10+ points up (critical: any gain). </summary>
     private static int BestSwapHorn(in BstState s, in BstSettings cfg, float hp, bool critical)
     {

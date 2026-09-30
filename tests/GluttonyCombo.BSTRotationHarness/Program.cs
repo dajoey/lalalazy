@@ -31,6 +31,7 @@ internal static class Program
         OutOfCombat();
         CrucibleDataChecks();
         CrucibleRules();
+        MasterBoardFights();
         CrucibleTargetingAndAdvisor();
 
         SimulateAllLevels(verbose);
@@ -311,8 +312,8 @@ internal static class Program
         Check("damage immunity classifier: Ymir Vulnerability Down is immune; Paralyzing Spikes is not",
             BST_CrucibleData.IsDamageImmunityStatus(2198)
             && !BST_CrucibleData.IsDamageImmunityStatus(5434));
-        Check("tankbusters: Deadly Thrust 46906; Erratic Blaster castbar 49188 lands 1 s after it",
-            BST_CrucibleData.Tankbusters.Contains(46906) && BST_CrucibleData.Tankbusters.Contains(49188) && BST_CrucibleData.TankbusterHitDelay(49188) == 1f);
+        Check("tankbusters: Deadly Thrust 46906; Erratic Blaster castbar 49188 lands 0.3 s after it (measured, 6 of 6 casts)",
+            BST_CrucibleData.Tankbusters.Contains(46906) && BST_CrucibleData.Tankbusters.Contains(49188) && BST_CrucibleData.TankbusterHitDelay(49188) == 0.3f);
         Check("tankbusters: Borgny Salivous Snap 48822 (BMR SingleTargetCast)",
             BST_CrucibleData.Tankbusters.Contains(48822));
         Check("cleave-auto bosses: Pas de Seul, Siren, Guttler, Lauda",
@@ -800,8 +801,8 @@ internal static class Program
             Decide(landing, cfg with { CrucibleSnarlParting = true }) is { Shadow: "crucible:snarl-parting" } logged && logged.Reason != "crucible:snarl-parting");
         Check("score mode with snarl-parting: Snarl for the tankbuster", Decide(castStart, scoreCfg with { CrucibleSnarlParting = true }).ActionId == BST.Snarl);
         BST_CrucibleData.Tankbusters.Remove(tb);
-        Check("Erratic Blaster castbar 0.8 s left (lands in 1.8 s): not yet", Decide(landing with { TargetCastId = 49188, TargetCastRemaining = 0.8f }, spCfg).Reason != "crucible:snarl-parting");
-        Check("Erratic Blaster castbar 0.4 s left (lands in 1.4 s): Parting Blow", Decide(landing with { TargetCastId = 49188, TargetCastRemaining = 0.4f }, spCfg).Reason == "crucible:snarl-parting");
+        Check("Erratic Blaster castbar 1.4 s left (lands in 1.7 s): not yet", Decide(landing with { TargetCastId = 49188, TargetCastRemaining = 1.4f }, spCfg).Reason != "crucible:snarl-parting");
+        Check("Erratic Blaster castbar 1.0 s left (lands in 1.3 s): Parting Blow", Decide(landing with { TargetCastId = 49188, TargetCastRemaining = 1.0f }, spCfg).Reason == "crucible:snarl-parting");
 
         // Frontal-cleave-auto bosses (Third Board: siren elite 14583, Guttler boss 14592; also Pas de
         // Seul and Lauda). Their autos are a cone that hits the familiar too, so the familiar must NOT
@@ -1532,6 +1533,103 @@ internal static class Program
             _oneWithNature = false;
             _petHeartAt = -1;
         }
+    }
+
+
+    /// <summary>
+    ///     First / Second Master's Board fight knowledge, measured from the recorded runs of 2026-09-26 .. 09-30
+    ///     (analysis: holder / hit-timing / horn-ledger scripts over the CR| telemetry and the network logs). Each case
+    ///     quotes the logged situation it comes from.
+    /// </summary>
+    private static void MasterBoardFights()
+    {
+        Console.WriteLine("-- master board fights (measured) --");
+        var cfg = BstSettings.Defaults();
+        var on = cfg with { CrucibleAggro = CrucibleAggroMode.On };
+        var spCfg = on with { CrucibleSnarlParting = true };
+        var cycle = cfg with { CrucibleCycleForDamage = true };
+        bool IsHorn(uint id) => id is BST.FirstBattlehorn or BST.SecondBattlehorn or BST.ThirdBattlehorn;
+
+        // --- Tankbusters: who follows the enmity holder, and when the hit lands in the plugin's clock ---
+        // Sweeping Evisceration (Gargoyle Piece, First Master's battle 5): cast 48717, 7.6 s, hit 50933 lands 1.3 s after the
+        // castbar; 18 of 18 logged hits hit the enmity holder (character 14 / familiar 4: 1,225 / 2,021).
+        Check("tankbuster: Sweeping Evisceration 48717 (hits the enmity holder 18 of 18)", BST_CrucibleData.Tankbusters.Contains(48717));
+        Check("tankbuster: Obliterate 50649 (Golem Piece, 2 of 2 on the holder, 1,349 / 1,112)", BST_CrucibleData.Tankbusters.Contains(50649));
+        Check("tankbuster: On the Properties of Darkness 48669 (Strix Piece, 9 of 9 on the holder, up to 1,265)", BST_CrucibleData.Tankbusters.Contains(48669));
+        // Grim Fate 48730: the follow-up 48731 is a FIVE-hit string of 121-212 each, 645-1,030 per cast, on the holder (7 of 7).
+        Check("tankbuster kept: Grim Fate 48730 is a five-hit string, 645-1,030 per cast", BST_CrucibleData.Tankbusters.Contains(48730));
+        Check("hit delay 48717 Sweeping Evisceration: 1.3 s after the castbar", BST_CrucibleData.TankbusterHitDelay(48717) == 1.3f, BST_CrucibleData.TankbusterHitDelay(48717).ToString());
+        Check("hit delay 48730 Grim Fate: 1.3 s after the castbar", BST_CrucibleData.TankbusterHitDelay(48730) == 1.3f);
+        Check("hit delay 49188 Erratic Blaster: 0.3 s after the castbar (was 1.0, guide)", BST_CrucibleData.TankbusterHitDelay(49188) == 0.3f, BST_CrucibleData.TankbusterHitDelay(49188).ToString());
+        Check("hit delay 48822 / 48689 / 50649 / 48669: 0.3 s after the castbar",
+            new uint[] { 48822, 48689, 50649, 48669 }.All(id => BST_CrucibleData.TankbusterHitDelay(id) == 0.3f));
+        Check("hit delay 49254 Mangling Fang: 0.4 s", BST_CrucibleData.TankbusterHitDelay(49254) == 0.4f);
+        // Toxic Vomit 48809 (Borgny): the plugin shows 4.7 s remaining at cast start, the log says a 3.2 s cast and the hit lands 3.5 s
+        // after the start, i.e. 1.2 s BEFORE the plugin's remaining reaches 0 (CR|...|c=48809:4.7 at 13.69, hit at 17.11; 15 of 15 casts).
+        Check("hit delay 48809 Toxic Vomit: lands 1.2 s before the plugin's remaining reaches 0 (was +1.5, guide)", BST_CrucibleData.TankbusterHitDelay(48809) == -1.2f, BST_CrucibleData.TankbusterHitDelay(48809).ToString());
+
+        // Snarl -> Parting Blow with that timing (lead 1.5 s): Toxic Vomit with 2.5 s remaining lands in 1.3 s.
+        var landing = CrucibleState() with { TargetCastId = 48809, TargetCastRemaining = 2.5f, SinceSnarl = 3f, EnemyTargetsPet = true, EnemyTargetsPlayer = false };
+        Check("Toxic Vomit, 2.5 s remaining (hit lands in 1.3 s), Snarl up: Parting Blow", Decide(landing, spCfg) is { ActionId: BST.PartingBlow, Reason: "crucible:snarl-parting" },
+            Decide(landing, spCfg).Reason);
+        Check("Toxic Vomit, 1.0 s remaining: the hit already landed 0.2 s ago, no Parting Blow", Decide(landing with { TargetCastRemaining = 1.0f }, spCfg).Reason != "crucible:snarl-parting");
+        Check("Toxic Vomit, 4.0 s remaining: too early", Decide(landing with { TargetCastRemaining = 4.0f }, spCfg).Reason != "crucible:snarl-parting");
+        var sweeping = landing with { TargetCastId = 48717, TargetCastRemaining = 0.4f };
+        Check("Sweeping Evisceration, 0.4 s remaining (hit lands in 1.7 s): not yet", Decide(sweeping, spCfg).Reason != "crucible:snarl-parting");
+        Check("Sweeping Evisceration, 0.1 s remaining (hit lands in 1.4 s): Parting Blow", Decide(sweeping with { TargetCastRemaining = 0.1f }, spCfg).Reason == "crucible:snarl-parting");
+
+        // --- the measured table and what it may claim ---
+        var boards123 = new HashSet<uint> { 46935, 46934, 46872, 46906, 46920, 48138, 48204, 48247, 48620, 48471, 48489, 50465, 48563 };
+        Check("every Tankbuster is a Board 1-3 id, a measured Tankbuster row, or marked guide-only (nothing unmeasured passes as measured)",
+            BST_CrucibleData.Tankbusters.All(id => boards123.Contains(id) || BST_CrucibleData.GuideBoundTankbusters.Contains(id)
+                || BST_CrucibleData.HeavyCast(id) is { Kind: CrucibleHitKind.Tankbuster }),
+            string.Join(",", BST_CrucibleData.Tankbusters.Where(id => !boards123.Contains(id) && !BST_CrucibleData.GuideBoundTankbusters.Contains(id) && BST_CrucibleData.HeavyCast(id) is not { Kind: CrucibleHitKind.Tankbuster })));
+        Check("the two guide-only Second Master's ids are in Tankbusters and have no measured row",
+            BST_CrucibleData.GuideBoundTankbusters.SetEquals(new uint[] { 49205, 49470 })
+            && BST_CrucibleData.GuideBoundTankbusters.All(id => BST_CrucibleData.Tankbusters.Contains(id) && BST_CrucibleData.HeavyCast(id) is null));
+        Check("every measured Tankbuster row is in the Tankbusters set; no area / party-wide / cast-only row is",
+            BST_CrucibleData.HeavyCasts.All(h => (h.Kind == CrucibleHitKind.Tankbuster) == BST_CrucibleData.Tankbusters.Contains(h.CastId)));
+        Check("every measured row belongs to a battle the recorded runs fought", BST_CrucibleData.HeavyCasts.All(h => BST_CrucibleData.IsMeasuredBattle(h.Board, h.Battle)),
+            string.Join(",", BST_CrucibleData.HeavyCasts.Where(h => !BST_CrucibleData.IsMeasuredBattle(h.Board, h.Battle)).Select(h => h.Name)));
+        Check("measured battles: 6 of 10 First Master's and 4 of 14 Second Master's; Durga yes, the rest of the second board no",
+            BST_CrucibleData.MeasuredBattles.Count(b => b.Board == 4) == 6 && BST_CrucibleData.MeasuredBattles.Count(b => b.Board == 5) == 4
+            && BST_CrucibleData.IsMeasuredBattle(5, 6) && !BST_CrucibleData.IsMeasuredBattle(5, 2) && !BST_CrucibleData.IsMeasuredBattle(4, 2));
+        Check("every measured row has cast ids unique, positive castbar, and evidence text", BST_CrucibleData.HeavyCasts.Select(h => h.CastId).Distinct().Count() == BST_CrucibleData.HeavyCasts.Length
+            && BST_CrucibleData.HeavyCasts.All(h => h.CastSeconds > 0f && h.Evidence.Length > 20 && h.Casts >= h.Hits));
+        Check("Atomic Ray 49272 (12.7 s, 4,782 on the character while the familiar held enmity) is the one guide warning, and never a Snarl rule",
+            BST_CrucibleData.WarnCasts().Select(h => h.CastId).SequenceEqual(new uint[] { 49272 })
+            && BST_CrucibleData.HeavyCast(49272) is { Kind: CrucibleHitKind.CastOnly, CastSeconds: 12.7f, MaxOnCharacter: 4782 }
+            && !BST_CrucibleData.Tankbusters.Contains(49272));
+        Check("Sea of Pitch, Rippling Evisceration, Touchdown, Grounding Jolt, Rotten Stench are recorded but not Tankbusters",
+            new uint[] { 48729, 48721, 48815, 49266, 48690 }.All(id => BST_CrucibleData.HeavyCast(id) is { Kind: not CrucibleHitKind.Tankbuster } && !BST_CrucibleData.Tankbusters.Contains(id)));
+
+        // --- First Master's battle 3: a discretionary cycle exit must not spend the horns a real familiar save needs ---
+        // 2026-09-30 14:35:48 ET, Corpse Flower + Queen Hawk, character 31%:
+        //   CR|...|b=4|bt=3|...|hp=31|pet=100|sl=96.100.42|dec=44891:exit:partingblow   (horn 2's familiar out, 100%; horn 1 recasting)
+        //   the only ready horn was horn 3, its familiar at 42%: it came out and fell 42% -> 0 in 34 s with no horn left to swap.
+        // In 8 of 8 recorded familiar deaths in this fight a cycle exit + resummon had used the horns 4-37 s before the swap line.
+        var cycling = CrucibleState() with
+        {
+            ActiveSlot = 2, PetObjectBeast = 34, Slot1Beast = 1, Slot2Beast = 34, Slot3Beast = 26,
+            ReadyHorn1 = false, ReadyHorn2 = false, ReadyHorn3 = true, Slot1PetHp = 96f, Slot2PetHp = 100f, Slot3PetHp = 42f,
+            PetHpPercent = 100f, SinceSummon = 12f, SinceHornPress = 13f, TargetHpPercent = 79f, HighestEnemyHpPercent = 79f,
+            PlayerHpPercent = 31f, ReadyParting = true, CrucibleBattle = 3,
+        };
+        var wounded = Decide(cycling, cycle);
+        Check("09-30 14:35:48: cycle exit into a 42% familiar, no other ready horn: no Parting Blow",
+            wounded.ActionId != BST.PartingBlow && wounded.Declines.Contains("crucible:exit-keep-reserve-horn"), $"{wounded.Reason} [{wounded.Declines}]");
+        // 2026-09-29 21:36:56: sl=71.90.73, familiar 73% out of slot 3, exit; one ready horn (71%) and nothing behind it.
+        var oneHealthy = cycling with { ActiveSlot = 3, PetObjectBeast = 26, ReadyHorn1 = true, ReadyHorn2 = false, ReadyHorn3 = false, Slot1PetHp = 71f, Slot2PetHp = 90f, Slot3PetHp = 73f, PetHpPercent = 73f, PlayerHpPercent = 30f };
+        var single = Decide(oneHealthy, cycle);
+        Check("09-29 21:36:56: one ready healthy horn and no reserve behind it: no Parting Blow",
+            single.ActionId != BST.PartingBlow && single.Declines.Contains("crucible:exit-keep-reserve-horn"), $"{single.Reason} [{single.Declines}]");
+        Check("two ready horns, one healthy and one at 42%: the reserve would be the wounded one, no exit",
+            Decide(cycling with { ReadyHorn1 = true, Slot1PetHp = 96f }, cycle).ActionId != BST.PartingBlow);
+        Check("two ready healthy horns (one to summon, one in reserve): the exit still happens",
+            Decide(cycling with { ReadyHorn1 = true, Slot1PetHp = 96f, Slot3PetHp = 90f }, cycle).ActionId == BST.PartingBlow);
+        Check("the reserve rule never touches an emergency save: familiar 20%, one ready healthy horn, critical swap still fires",
+            Decide(cycling with { PetHpPercent = 20f, ReadyHorn1 = true, Slot1PetHp = 96f, SinceSummon = 2f }, cycle) is { ActionId: BST.FirstBattlehorn, Reason: "crucible:petsave-swap-critical" });
+        Check("cycling off (default): no exit, unchanged", Decide(cycling with { ReadyHorn1 = true, Slot1PetHp = 96f, Slot3PetHp = 90f }, cfg).Declines.Contains("crucible:exit-hold"));
     }
 
     // ================================================================== helpers

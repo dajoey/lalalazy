@@ -703,6 +703,14 @@ internal static class BST_RotationLogic
             return 0;
         }
 
+        // ...and it must leave a ready horn for a real familiar save: a cycle exit that spends the last ready horns turns the next
+        // HP crisis into a familiar death (First Master's battle 3, 8 of 8 deaths).
+        if (crucible && !BST_CrucibleLogic.CycleExitKeepsReserve(s, cfg))
+        {
+            declines.Add("crucible:exit-keep-reserve-horn");
+            return 0;
+        }
+
         if (s.SinceSummon < cfg.MinFamiliarStaySeconds)
         {
             declines.Add("exit:min-stay");
