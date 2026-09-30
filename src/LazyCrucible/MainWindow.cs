@@ -27,6 +27,9 @@ internal sealed class MainWindow : Window
         else if (PetSelect.YieldReason == "autoduty_running")
             ImGui.TextColored(new Vector4(1f, 0.85f, 0.4f, 1f),
                 "AutoDuty is running this board and picks its own familiars; LazyCrucible is leaving the familiar screens alone.");
+        else if (Plugin.Config.YieldToAutoDuty && ExternalDrivers.StallReason is { } stall)
+            ImGui.TextColored(new Vector4(0.6f, 0.85f, 0.6f, 1f),
+                $"AutoDuty reports running but has stopped stepping ({StallText(stall)}); LazyCrucible is not standing down for it.");
 
         ImGui.TextWrapped(PetSelect.LastSummary.Length == 0
             ? "No familiar selection yet this session."
@@ -151,6 +154,17 @@ internal sealed class MainWindow : Window
         ImGui.Spacing();
         DrawAdvisor();
     }
+
+    /// <summary> The watch's reason code in words, for the window. </summary>
+    private static string StallText(string reason) => reason switch
+    {
+        "not_running" => "neither looping nor navigating",
+        "idle_in_board" => "not navigating this board",
+        "navigating_in_lobby" => "still navigating after leaving its run",
+        "other_board" => "driving a different board",
+        "no_progress_in_lobby" => "no progress in the lobby",
+        _ => reason,
+    };
 
     private static void Help(string text)
     {

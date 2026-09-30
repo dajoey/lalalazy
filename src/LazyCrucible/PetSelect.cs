@@ -275,7 +275,7 @@ internal static unsafe class PetSelect
             if (!_loggedConflictThisPhase)
             {
                 _loggedConflictThisPhase = true;
-                LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|calls=0|note={yieldReason}");
+                LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|calls=0|note={yieldReason}{(yieldReason == "autoduty_running" ? "|" + ExternalDrivers.Detail : "")}");
                 SetSummary(yieldReason == "autoduty_running"
                     ? "Not writing: AutoDuty is running this board and picks its own familiars."
                     : "Not writing: an older GluttonyCombo that also fills familiars is loaded.");
