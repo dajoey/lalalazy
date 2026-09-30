@@ -1659,6 +1659,18 @@ internal static class Program
         Check("Crucible, max charges, protected enemy near, 12 y -> still no dash", Decide(cr with { TargetDistance = 12f }, cfg).ActionId != BST.ShieldCharge);
         Check("Crucible, max charges, nothing protected, moving -> spends one", Decide(cr with { ProtectedNearTarget = false }, cfg).ActionId == BST.ShieldCharge);
 
+        // The overcap protection is an option: off restores the earlier rule (a full pool is spent only while standing still).
+        var noOvercap = cfg with { ShieldChargeOvercap = false };
+        Check("overcap option defaults on", cfg.ShieldChargeOvercap);
+        var offMoving = Decide(s with { IsMoving = true }, noOvercap);
+        Check("option off, max charges, melee, moving -> held, no decline noise", offMoving.ActionId != BST.ShieldCharge && !offMoving.Declines.Contains("shieldcharge"), $"{offMoving.ActionId}:{offMoving.Reason} [{offMoving.Declines}]");
+        var offStill = Decide(s, noOvercap);
+        Check("option off, max charges, melee, standing -> still spends one", offStill.ActionId == BST.ShieldCharge && offStill.Reason == "shieldcharge:max-charges", $"{offStill.ActionId}:{offStill.Reason}");
+        var offFar = Decide(s with { TargetDistance = 12f, IsMoving = true }, noOvercap);
+        Check("option off, 12 y, moving -> gap-close dash unchanged", offFar.ActionId == BST.ShieldCharge && offFar.Reason == "shieldcharge:gapclose", $"{offFar.ActionId}:{offFar.Reason}");
+        Check("option off, Crucible, protected enemy near, moving -> no dash, no decline noise", Decide(cr, noOvercap) is { } d1 && d1.ActionId != BST.ShieldCharge && !d1.Declines.Contains("shieldcharge"));
+        Check("option off, L30 (max 1), melee, moving -> held", Decide(BaseState(30) with { ReadyShieldCharge = true, ShieldChargeCharges = 1, ShieldChargeMax = 1, IsMoving = true }, noOvercap).ActionId != BST.ShieldCharge);
+
         var l30 = BaseState(30);
         l30.ReadyShieldCharge = true; l30.ShieldChargeCharges = 1; l30.ShieldChargeMax = 1;
         Check("L30 (max 1), melee, moving -> spends the single charge", Decide(l30 with { IsMoving = true }, cfg).ActionId == BST.ShieldCharge);

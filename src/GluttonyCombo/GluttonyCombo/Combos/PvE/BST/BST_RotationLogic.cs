@@ -293,6 +293,7 @@ internal static class BST_RotationLogic
         public bool RefreshBetweenPulls;
         public bool UseBeastskin, UseVileskin, UseSeedsower, UseScaleskin, UseSoulCrush, UseQuellingWaveRanged;
         public bool UseShieldCharge;
+        public bool ShieldChargeOvercap;
         public bool UseRally;
 
         // Crucible of the Unbroken
@@ -325,6 +326,7 @@ internal static class BST_RotationLogic
             UseSoulCrush = true,
             UseQuellingWaveRanged = true,
             UseShieldCharge = true,
+            ShieldChargeOvercap = true,
             UseRally = true,
             Crucible = true,
             CruciblePetSwapHp = 55,
@@ -614,12 +616,13 @@ internal static class BST_RotationLogic
             return Pick(beastMode.ActionId, beastMode.Reason);
 
         // ---------------------------------------------------------- 8. Shield Charge
-        // Overcap protection: a full pool wastes recharge time, so one charge is spent at the next weave whether or
-        // not the character is moving. The range and protected-enemy gates still apply; when one blocks a capped
-        // pool the decline is recorded instead of dashing.
+        // Overcap protection (option, default on): a full pool wastes recharge time, so one charge is spent at the
+        // next weave whether or not the character is moving. With the option off a full pool is spent only while
+        // standing still. The range and protected-enemy gates apply either way; when one blocks a pool the rule
+        // would have spent, the decline is recorded instead of dashing.
         if (cfg.UseShieldCharge && s.Level >= LvShieldCharge && s.ReadyShieldCharge && s.CanWeave && s.ShieldChargeCharges > 0)
         {
-            var atCap = s.ShieldChargeCharges >= s.ShieldChargeMax;
+            var atCap = s.ShieldChargeCharges >= s.ShieldChargeMax && (cfg.ShieldChargeOvercap || !s.IsMoving);
             if (s.TargetDistance > 20f)
             {
                 if (atCap && s.HasHostileTarget)
