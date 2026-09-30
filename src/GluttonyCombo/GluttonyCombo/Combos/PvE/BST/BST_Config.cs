@@ -38,7 +38,6 @@ internal partial class BST
             BST_UseSoulCrush = new("BST_UseSoulCrush", true),
             BST_UseQuellingWaveRanged = new("BST_UseQuellingWaveRanged", true),
             BST_UseShieldCharge = new("BST_UseShieldCharge", true),
-            BST_ShieldChargeOvercap = new("BST_ShieldChargeOvercap", true),
             BST_UseRally = new("BST_UseRally", true),
             BST_Crucible = new("BST_Crucible", true),
             BST_CrucibleAllowDisplacing = new("BST_CrucibleAllowDisplacing", true),
@@ -110,10 +109,6 @@ internal partial class BST
                     ImGui.Spacing();
 
                     DrawAdditionalBoolChoice(BST_UseShieldCharge, ShieldCharge.ActionName(), BST_Config.UseShieldChargeDesc);
-                    if (BST_UseShieldCharge)
-                        DrawAdditionalBoolChoice(BST_ShieldChargeOvercap,
-                            FormatAndCache(BST_Config.ShieldChargeOvercap0, ShieldCharge.ActionName()),
-                            BST_Config.ShieldChargeOvercapDesc);
                     DrawAdditionalBoolChoice(BST_UseRally,
                         FormatAndCache(BST_Config.UseRally0And1, Rally.ActionName(), RallyingCheer.ActionName()),
                         BST_Config.UseRallyDesc);

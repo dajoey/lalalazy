@@ -1,3 +1,9 @@
+## v1.0.4.249 (2026-09-30) [testing]
+### Changed
+- **Beastmaster: the Shield Charge overcap change from 1.0.4.247 and 1.0.4.248 is withdrawn.** Shield Charge behaves exactly as in 1.0.4.246 again: a gap-closing dash from range, and a full pool spent only while standing still. The Overcap protection for Shield Charge option is removed. The feature is being redesigned.
+### Notes
+- Production channel unchanged.
+
 ## v1.0.4.248 (2026-09-30) [testing]
 ### Changed
 - **Beastmaster: Shield Charge overcap protection is now an option, "Overcap protection for Shield Charge".** It sits under the Shield Charge setting in Advanced Mode and is on by default. On: with every charge available, one is spent at the next weave window even while moving, so recharge time is not wasted. Off: a full pool is spent only while standing still, as before 1.0.4.247, and moving never spends a charge at full. The 20 y range, the Crucible rule that holds the dash while a do-not-attack enemy is near the target, and gap-closing dashes from range apply either way. Simple Mode uses the default (on).

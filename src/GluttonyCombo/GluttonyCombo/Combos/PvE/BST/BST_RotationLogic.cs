@@ -293,7 +293,6 @@ internal static class BST_RotationLogic
         public bool RefreshBetweenPulls;
         public bool UseBeastskin, UseVileskin, UseSeedsower, UseScaleskin, UseSoulCrush, UseQuellingWaveRanged;
         public bool UseShieldCharge;
-        public bool ShieldChargeOvercap;
         public bool UseRally;
 
         // Crucible of the Unbroken
@@ -326,7 +325,6 @@ internal static class BST_RotationLogic
             UseSoulCrush = true,
             UseQuellingWaveRanged = true,
             UseShieldCharge = true,
-            ShieldChargeOvercap = true,
             UseRally = true,
             Crucible = true,
             CruciblePetSwapHp = 55,
@@ -616,26 +614,12 @@ internal static class BST_RotationLogic
             return Pick(beastMode.ActionId, beastMode.Reason);
 
         // ---------------------------------------------------------- 8. Shield Charge
-        // Overcap protection (option, default on): a full pool wastes recharge time, so one charge is spent at the
-        // next weave whether or not the character is moving. With the option off a full pool is spent only while
-        // standing still. The range and protected-enemy gates apply either way; when one blocks a pool the rule
-        // would have spent, the decline is recorded instead of dashing.
-        if (cfg.UseShieldCharge && s.Level >= LvShieldCharge && s.ReadyShieldCharge && s.CanWeave && s.ShieldChargeCharges > 0)
+        if (cfg.UseShieldCharge && s.Level >= LvShieldCharge && s.ReadyShieldCharge && s.CanWeave && s.ShieldChargeCharges > 0
+            && s.TargetDistance <= 20f && !(crucible && s.ProtectedNearTarget))
         {
-            var atCap = s.ShieldChargeCharges >= s.ShieldChargeMax && (cfg.ShieldChargeOvercap || !s.IsMoving);
-            if (s.TargetDistance > 20f)
-            {
-                if (atCap && s.HasHostileTarget)
-                    declines.Add("shieldcharge:overcap-out-of-range");
-            }
-            else if (crucible && s.ProtectedNearTarget)
-            {
-                if (atCap)
-                    declines.Add("crucible:shieldcharge-protected-near");
-            }
-            else if (s.TargetDistance > 3.5f)
+            if (s.TargetDistance > 3.5f)
                 return Pick(BST.ShieldCharge, "shieldcharge:gapclose");
-            else if (atCap)
+            if (s.ShieldChargeCharges >= s.ShieldChargeMax && !s.IsMoving)
                 return Pick(BST.ShieldCharge, "shieldcharge:max-charges");
         }
 
