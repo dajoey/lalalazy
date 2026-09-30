@@ -33,6 +33,7 @@ internal static class Program
         CrucibleRules();
         MasterBoardFights();
         CrucibleTargetingAndAdvisor();
+        ShieldChargeOvercap();
 
         SimulateAllLevels(verbose);
         SimulateCrucible(verbose);
@@ -1630,6 +1631,43 @@ internal static class Program
         Check("the reserve rule never touches an emergency save: familiar 20%, one ready healthy horn, critical swap still fires",
             Decide(cycling with { PetHpPercent = 20f, ReadyHorn1 = true, Slot1PetHp = 96f, SinceSummon = 2f }, cycle) is { ActionId: BST.FirstBattlehorn, Reason: "crucible:petsave-swap-critical" });
         Check("cycling off (default): no exit, unchanged", Decide(cycling with { ReadyHorn1 = true, Slot1PetHp = 96f, Slot3PetHp = 90f }, cfg).Declines.Contains("crucible:exit-hold"));
+    }
+
+    private static void ShieldChargeOvercap()
+    {
+        Console.WriteLine("-- Shield Charge overcap protection (option, only with the dash off) --");
+        var on = BstSettings.Defaults();
+        var dashOff = on with { UseShieldCharge = false };
+        var protect = dashOff with { ShieldChargeOvercap = true };
+        var s = BaseState(40);
+        s.ReadyShieldCharge = true; s.ShieldChargeCharges = 3; s.ShieldChargeMax = 3;
+        bool Dashes(BstDecision d) => d.ActionId == BST.ShieldCharge;
+
+        Check("option defaults off", !on.ShieldChargeOvercap);
+        Check("dash on, option ignored: 12 y gap-close unchanged", Decide(s with { TargetDistance = 12f }, on with { ShieldChargeOvercap = true }) is { Reason: "shieldcharge:gapclose" } d0 && Dashes(d0));
+        Check("dash on, max charges, melee, moving -> held (option has no effect while the dash is on)", !Dashes(Decide(s with { IsMoving = true }, on with { ShieldChargeOvercap = true })));
+        Check("dash on, max charges, melee, standing -> spends (unchanged)", Dashes(Decide(s, on)));
+
+        Check("dash off, option off, max charges -> never dashes", !Dashes(Decide(s, dashOff)) && !Dashes(Decide(s with { IsMoving = true }, dashOff)) && !Dashes(Decide(s with { TargetDistance = 12f }, dashOff)));
+        var m = Decide(s with { IsMoving = true }, protect);
+        Check("dash off, option on, max charges, melee, moving -> spends one", Dashes(m) && m.Reason == "shieldcharge:overcap", $"{m.ActionId}:{m.Reason} [{m.Declines}]");
+        Check("dash off, option on, max charges, standing -> spends one", Dashes(Decide(s, protect)));
+        Check("dash off, option on, max charges, 12 y -> spends one (overcap, not gap-close)", Decide(s with { TargetDistance = 12f }, protect) is { Reason: "shieldcharge:overcap" } d1 && Dashes(d1));
+        Check("dash off, option on, max-1 charges -> held (never closes gaps, never the last charges)", !Dashes(Decide(s with { ShieldChargeCharges = 2, IsMoving = true }, protect)) && !Dashes(Decide(s with { ShieldChargeCharges = 2, TargetDistance = 12f }, protect)));
+        Check("dash off, option on, max charges, no weave window -> no dash", !Dashes(Decide(s with { CanWeave = false }, protect)));
+        var oor = Decide(s with { TargetDistance = 25f }, protect);
+        Check("dash off, option on, 25 y out of range -> no dash, reason recorded", !Dashes(oor) && oor.Declines.Contains("shieldcharge:overcap-out-of-range"), $"{oor.ActionId}:{oor.Reason} [{oor.Declines}]");
+        Check("dash off, option on, no target -> no dash", !Dashes(Decide(s with { HasHostileTarget = false }, protect)));
+
+        var cr = s with { CrucibleBoard = 1, IsMoving = true, ProtectedNearTarget = true };
+        var prot = Decide(cr, protect);
+        Check("Crucible, protected enemy near target -> declines with reason", !Dashes(prot) && prot.Declines.Contains("crucible:shieldcharge-protected-near"), $"{prot.ActionId}:{prot.Reason} [{prot.Declines}]");
+        Check("Crucible, nothing protected, moving -> spends one", Dashes(Decide(cr with { ProtectedNearTarget = false }, protect)));
+
+        var l30 = BaseState(30);
+        l30.ReadyShieldCharge = true; l30.ShieldChargeCharges = 1; l30.ShieldChargeMax = 1;
+        Check("L30 (max 1), option on, moving -> spends the single charge", Dashes(Decide(l30 with { IsMoving = true }, protect)));
+        Check("L23 (before the skill) -> no dash", !Dashes(Decide(BaseState(23) with { ReadyShieldCharge = true, ShieldChargeCharges = 1, ShieldChargeMax = 1 }, protect)));
     }
 
     // ================================================================== helpers

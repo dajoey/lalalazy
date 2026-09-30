@@ -120,6 +120,7 @@ internal partial class BST : Melee
         UseSoulCrush = BST_UseSoulCrush,
         UseQuellingWaveRanged = BST_UseQuellingWaveRanged,
         UseShieldCharge = BST_UseShieldCharge,
+        ShieldChargeOvercap = BST_ShieldChargeOvercap,
         UseRally = BST_UseRally,
     });
 

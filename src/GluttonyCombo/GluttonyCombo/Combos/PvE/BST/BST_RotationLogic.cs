@@ -293,6 +293,7 @@ internal static class BST_RotationLogic
         public bool RefreshBetweenPulls;
         public bool UseBeastskin, UseVileskin, UseSeedsower, UseScaleskin, UseSoulCrush, UseQuellingWaveRanged;
         public bool UseShieldCharge;
+        public bool ShieldChargeOvercap;
         public bool UseRally;
 
         // Crucible of the Unbroken
@@ -325,6 +326,7 @@ internal static class BST_RotationLogic
             UseSoulCrush = true,
             UseQuellingWaveRanged = true,
             UseShieldCharge = true,
+            ShieldChargeOvercap = false,
             UseRally = true,
             Crucible = true,
             CruciblePetSwapHp = 55,
@@ -614,13 +616,30 @@ internal static class BST_RotationLogic
             return Pick(beastMode.ActionId, beastMode.Reason);
 
         // ---------------------------------------------------------- 8. Shield Charge
-        if (cfg.UseShieldCharge && s.Level >= LvShieldCharge && s.ReadyShieldCharge && s.CanWeave && s.ShieldChargeCharges > 0
-            && s.TargetDistance <= 20f && !(crucible && s.ProtectedNearTarget))
+        // Overcap protection is an option for when the dash is switched off: the rotation then never uses it to
+        // close a gap, and spends one charge at the next weave only when the pool is full (moving or not), so
+        // recharge time is not wasted. It is ignored while the dash itself is on. The range and protected-enemy
+        // gates apply; when one blocks a full pool the decline is recorded instead of dashing.
+        var overcapOnly = !cfg.UseShieldCharge && cfg.ShieldChargeOvercap;
+        if ((cfg.UseShieldCharge || overcapOnly) && s.Level >= LvShieldCharge && s.ReadyShieldCharge && s.CanWeave && s.ShieldChargeCharges > 0)
         {
-            if (s.TargetDistance > 3.5f)
-                return Pick(BST.ShieldCharge, "shieldcharge:gapclose");
-            if (s.ShieldChargeCharges >= s.ShieldChargeMax && !s.IsMoving)
-                return Pick(BST.ShieldCharge, "shieldcharge:max-charges");
+            var atCap = s.ShieldChargeCharges >= s.ShieldChargeMax;
+            if (overcapOnly && atCap && s.HasHostileTarget)
+            {
+                if (s.TargetDistance > 20f)
+                    declines.Add("shieldcharge:overcap-out-of-range");
+                else if (crucible && s.ProtectedNearTarget)
+                    declines.Add("crucible:shieldcharge-protected-near");
+                else
+                    return Pick(BST.ShieldCharge, "shieldcharge:overcap");
+            }
+            else if (cfg.UseShieldCharge && s.TargetDistance <= 20f && !(crucible && s.ProtectedNearTarget))
+            {
+                if (s.TargetDistance > 3.5f)
+                    return Pick(BST.ShieldCharge, "shieldcharge:gapclose");
+                if (atCap && !s.IsMoving)
+                    return Pick(BST.ShieldCharge, "shieldcharge:max-charges");
+            }
         }
 
         // ---------------------------------------------------------- 9. GCD

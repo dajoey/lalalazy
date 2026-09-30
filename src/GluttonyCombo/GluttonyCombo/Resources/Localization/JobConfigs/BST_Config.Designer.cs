@@ -286,6 +286,24 @@ namespace GluttonyCombo.Resources.Localization.JobConfigs {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Overcap protection for {0}.
+        /// </summary>
+        internal static string ShieldChargeOvercap0 {
+            get {
+                return ResourceManager.GetString("ShieldChargeOvercap0", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Only available while the dash above is switched off; spends one charge at the next weave when every charge is available..
+        /// </summary>
+        internal static string ShieldChargeOvercapDesc {
+            get {
+                return ResourceManager.GetString("ShieldChargeOvercapDesc", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Only to interrupt an interruptible cast in melee range..
         /// </summary>
         internal static string UseSoulCrushDesc {

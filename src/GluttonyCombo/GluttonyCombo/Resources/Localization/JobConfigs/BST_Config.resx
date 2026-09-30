@@ -195,6 +195,12 @@
   <data name="UseShieldChargeDesc" xml:space="preserve">
     <value>As a gap closer when the target is 4-20 yalms away, and for damage in melee range when charges are full and the character is standing still. Respects the movement safety gate.</value>
   </data>
+  <data name="ShieldChargeOvercap0" xml:space="preserve">
+    <value>Overcap protection for {0}</value>
+  </data>
+  <data name="ShieldChargeOvercapDesc" xml:space="preserve">
+    <value>Only available while the dash above is switched off. The rotation then never dashes to close a gap, but spends one charge at the next weave whenever every charge is available (moving or not), so recharge time is not wasted. Never fires out of range or while the Crucible protected-enemy rule holds the dash.</value>
+  </data>
   <data name="UseSoulCrushDesc" xml:space="preserve">
     <value>Only to interrupt an interruptible cast in melee range.</value>
   </data>
