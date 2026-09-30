@@ -1,5 +1,12 @@
 # LazyCrucible — Changelog
 
+## v0.1.8.0 (2026-09-30)
+
+- **Fight guide: incoming-cast warning.** While an enemy casts Atomic Ray (Second Master's Board, Durga Piece: 12.7 s castbar, 3,998 and 4,782 damage to a character with about 4,060 HP, even with the familiar holding enmity), the fight guide window shows the cast name, the seconds left and the damage, and opens on its own when the cast starts (when "Open the fight guide on the upcoming fight" is on). Read-only: nothing is pressed.
+- **Fight guide: low-HP entry advice.** When the upcoming fight is First Master's Board battle 3 (Corpse Flower + Queen Hawk) or Second Master's Board battle 6 (Durga) and the character is under 70% HP, the guide says so. Battle 3 is a random-space outcome with no campsite before it; every recorded visit entered at 1-42% HP and ended in knock-outs.
+- **Fight guide: text corrected from recorded fights.** On the Properties of Darkness (Strix Piece) is a single hit on whoever holds enmity, not a room-wide hit. Grim Fate is a five-hit cast of 645-1,030 per cast. Sweeping Evisceration, Obliterate and Salivous Snap are listed as hits that follow enmity. Rotten Stench hits the character and the familiar together. Atomic Ray's castbar and damage are the measured ones. Lines taken from recorded fights carry the new `LOG` source tag.
+- Only First Master's Board battles 0, 1, 3, 5, 7 and 8 and Second Master's Board battles 1, 3, 5 and 6 have measured data; every other fight in the guide stays guide-derived and keeps its guide source tags.
+
 ## v0.1.7.0 (2026-09-30)
 
 - **AutoDuty stand-down**: the plugin now leaves the Crucible screens alone for AutoDuty only while AutoDuty is actually stepping. AutoDuty can keep reporting "running" after its loop has stopped (seen after a run ends), and the plugin used to keep standing down for as long as that lasted, including on boards played by hand. It now also reads AutoDuty's looping and navigating state and where the character is: a loop that is not navigating the current board, is navigating a different board, or has made no progress in the lobby is treated as stalled, and the plugin works normally until AutoDuty starts a new run. The stand-down note in the log and the main window say which case was seen.

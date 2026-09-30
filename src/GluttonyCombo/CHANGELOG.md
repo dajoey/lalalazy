@@ -1,3 +1,13 @@
+## v1.0.4.246 (2026-09-30) [testing]
+### Fixed
+- **Crucible: a damage-cycling Parting Blow exit now keeps a ready horn in reserve.** With "cycle for damage" on, the familiar is only cycled out when one healthy horn is ready to summon and another stays ready for a real save. Before this, a cycle exit could spend the last ready horns, and the next low-HP familiar had nothing to swap to and died (First Master's Board, Corpse Flower + Queen Hawk fight: every recorded familiar death followed one). The recall is also no longer used to swap a healthy familiar for a wounded one. New decline reason in the decision log: `crucible:exit-keep-reserve-horn`.
+- **Crucible: Snarl -> Parting Blow timing now matches when the Master's Board hits actually land.** Toxic Vomit lands about 1.2 s before its castbar reaches zero (the old table assumed 1.5 s after it), so the dodge could not fire in time; Erratic Blaster lands 0.3 s after its castbar, not 1.0 s; Sweeping Evisceration and Grim Fate land 1.3 s after.
+- **Crucible: the Master's Board tankbuster list is corrected from recorded fights.** Sweeping Evisceration (Gargoyle Piece), Obliterate (Golem Piece) and On the Properties of Darkness (Strix Piece) are now treated as single-target hits that follow whoever holds enmity, so the optional Snarl -> Parting Blow dodge covers them. Grim Fate stays: it is a five-hit string of 645-1,030 per cast, not a light hit. Area hits that only catch whoever stands in them (Sea of Pitch, Rippling Evisceration, Touchdown, Grounding Jolt) and the party-wide Rotten Stench are recorded but are not Snarl rules, and Atomic Ray (Second Master's Board, Durga Piece) hits the character even while the familiar holds enmity.
+### Notes
+- Only First Master's Board battles 0, 1, 3, 5, 7 and 8 and Second Master's Board battles 1, 3, 5 and 6 have measured data. Every other Master's Board fight, including the Second Master's Thunderbolt and Void Thunder III tankbusters that no recorded fight ever cast, stays guide-derived.
+- No option default changed: cycling for damage and the Snarl -> Parting Blow dodge keep their settings.
+- Production channel unchanged.
+
 ## v1.0.4.245 (2026-09-28) [testing]
 ### Fixed
 - **Crucible: Forward Guard auto-recall now triggers deterministically across the full cast window without weave restrictions.** Auto-recall no longer gates on a narrow cast-remaining threshold (<= 2.5s) or weave availability (`CanWeave`), ensuring Parting Blow executes reliably even when weaponskills are ready or GCD is mid-roll, providing sufficient time for the familiar retreat animation before Directional Parry resolves.
