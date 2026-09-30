@@ -33,6 +33,7 @@ internal static class Program
         CrucibleRules();
         MasterBoardFights();
         CrucibleTargetingAndAdvisor();
+        ShieldChargeOvercap();
 
         SimulateAllLevels(verbose);
         SimulateCrucible(verbose);
@@ -1630,6 +1631,39 @@ internal static class Program
         Check("the reserve rule never touches an emergency save: familiar 20%, one ready healthy horn, critical swap still fires",
             Decide(cycling with { PetHpPercent = 20f, ReadyHorn1 = true, Slot1PetHp = 96f, SinceSummon = 2f }, cycle) is { ActionId: BST.FirstBattlehorn, Reason: "crucible:petsave-swap-critical" });
         Check("cycling off (default): no exit, unchanged", Decide(cycling with { ReadyHorn1 = true, Slot1PetHp = 96f, Slot3PetHp = 90f }, cfg).Declines.Contains("crucible:exit-hold"));
+    }
+
+    private static void ShieldChargeOvercap()
+    {
+        Console.WriteLine("-- Shield Charge overcap protection --");
+        var cfg = BstSettings.Defaults();
+        var s = BaseState(40);
+        s.ReadyShieldCharge = true; s.ShieldChargeCharges = 3; s.ShieldChargeMax = 3;
+
+        var moving = Decide(s with { IsMoving = true }, cfg);
+        Check("max charges, melee, moving -> spends one", moving.ActionId == BST.ShieldCharge && moving.Reason == "shieldcharge:max-charges", $"{moving.ActionId}:{moving.Reason} [{moving.Declines}]");
+        var still = Decide(s, cfg);
+        Check("max charges, melee, standing -> spends one", still.ActionId == BST.ShieldCharge && still.Reason == "shieldcharge:max-charges", $"{still.ActionId}:{still.Reason}");
+        var far = Decide(s with { TargetDistance = 12f, IsMoving = true }, cfg);
+        Check("max charges, 12 y, moving -> gap-close dash", far.ActionId == BST.ShieldCharge && far.Reason == "shieldcharge:gapclose", $"{far.ActionId}:{far.Reason}");
+        Check("max-1 charges, melee, moving -> held", Decide(s with { ShieldChargeCharges = 2, IsMoving = true }, cfg).ActionId != BST.ShieldCharge);
+        Check("max-1 charges, melee, standing -> held", Decide(s with { ShieldChargeCharges = 2 }, cfg).ActionId != BST.ShieldCharge);
+        Check("max charges, no weave window -> no dash", Decide(s with { CanWeave = false, IsMoving = true }, cfg).ActionId != BST.ShieldCharge);
+        Check("max charges, option off -> no dash", Decide(s with { IsMoving = true }, cfg with { UseShieldCharge = false }).ActionId != BST.ShieldCharge);
+        var oor = Decide(s with { TargetDistance = 25f, IsMoving = true }, cfg);
+        Check("max charges, target 25 y out of range -> no dash, reason recorded", oor.ActionId != BST.ShieldCharge && oor.Declines.Contains("shieldcharge:overcap-out-of-range"), $"{oor.ActionId}:{oor.Reason} [{oor.Declines}]");
+
+        var cr = s with { CrucibleBoard = 1, IsMoving = true, ProtectedNearTarget = true };
+        var prot = Decide(cr, cfg);
+        Check("Crucible, max charges, protected enemy near target -> declines with reason", prot.ActionId != BST.ShieldCharge && prot.Declines.Contains("crucible:shieldcharge-protected-near"), $"{prot.ActionId}:{prot.Reason} [{prot.Declines}]");
+        Check("Crucible, max charges, protected enemy near, 12 y -> still no dash", Decide(cr with { TargetDistance = 12f }, cfg).ActionId != BST.ShieldCharge);
+        Check("Crucible, max charges, nothing protected, moving -> spends one", Decide(cr with { ProtectedNearTarget = false }, cfg).ActionId == BST.ShieldCharge);
+
+        var l30 = BaseState(30);
+        l30.ReadyShieldCharge = true; l30.ShieldChargeCharges = 1; l30.ShieldChargeMax = 1;
+        Check("L30 (max 1), melee, moving -> spends the single charge", Decide(l30 with { IsMoving = true }, cfg).ActionId == BST.ShieldCharge);
+        Check("L30 (max 1), none ready -> no dash", Decide(l30 with { ReadyShieldCharge = false, ShieldChargeCharges = 0 }, cfg).ActionId != BST.ShieldCharge);
+        Check("L23 (before the skill) -> no dash", Decide(BaseState(23) with { ReadyShieldCharge = true, ShieldChargeCharges = 1, ShieldChargeMax = 1 }, cfg).ActionId != BST.ShieldCharge);
     }
 
     // ================================================================== helpers

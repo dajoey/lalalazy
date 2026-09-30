@@ -614,12 +614,25 @@ internal static class BST_RotationLogic
             return Pick(beastMode.ActionId, beastMode.Reason);
 
         // ---------------------------------------------------------- 8. Shield Charge
-        if (cfg.UseShieldCharge && s.Level >= LvShieldCharge && s.ReadyShieldCharge && s.CanWeave && s.ShieldChargeCharges > 0
-            && s.TargetDistance <= 20f && !(crucible && s.ProtectedNearTarget))
+        // Overcap protection: a full pool wastes recharge time, so one charge is spent at the next weave whether or
+        // not the character is moving. The range and protected-enemy gates still apply; when one blocks a capped
+        // pool the decline is recorded instead of dashing.
+        if (cfg.UseShieldCharge && s.Level >= LvShieldCharge && s.ReadyShieldCharge && s.CanWeave && s.ShieldChargeCharges > 0)
         {
-            if (s.TargetDistance > 3.5f)
+            var atCap = s.ShieldChargeCharges >= s.ShieldChargeMax;
+            if (s.TargetDistance > 20f)
+            {
+                if (atCap && s.HasHostileTarget)
+                    declines.Add("shieldcharge:overcap-out-of-range");
+            }
+            else if (crucible && s.ProtectedNearTarget)
+            {
+                if (atCap)
+                    declines.Add("crucible:shieldcharge-protected-near");
+            }
+            else if (s.TargetDistance > 3.5f)
                 return Pick(BST.ShieldCharge, "shieldcharge:gapclose");
-            if (s.ShieldChargeCharges >= s.ShieldChargeMax && !s.IsMoving)
+            else if (atCap)
                 return Pick(BST.ShieldCharge, "shieldcharge:max-charges");
         }
 
