@@ -27,6 +27,7 @@ internal static class Program
         PolicyCases.Run();
         ReplayCases.Run();
         GuideCases.Run();
+        FightWarningCases.Run();
         AutoDutyWatchCases.Run();
 
         Console.WriteLine(_fail == 0 ? $"OK ({_pass} checks)" : $"FAILED ({_fail} of {_pass + _fail})");

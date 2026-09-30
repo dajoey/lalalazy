@@ -39,4 +39,19 @@ internal static unsafe class CrucibleGame
                 return enemy.Battle;
         return -1;
     }
+
+    /// <summary>
+    ///     The measured cast a hostile enemy on this board is casting right now that the fight guide warns about (Atomic Ray), or null.
+    ///     Read-only: the plugin never acts on it.
+    /// </summary>
+    public static IncomingCast? WarnedCast()
+    {
+        if (BST_CrucibleData.BoardOfTerritory(Svc.ClientState.TerritoryType) == 0)
+            return null;
+        foreach (var obj in Svc.Objects)
+            if (obj is IBattleNpc npc && !npc.IsDead && npc.IsHostile() && npc.IsCasting
+                && FightWarnings.ForCast(npc.CastActionId, npc.TotalCastTime - npc.CurrentCastTime) is { } warning)
+                return warning;
+        return null;
+    }
 }

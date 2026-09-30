@@ -23,6 +23,8 @@ internal sealed class GuideWindow : Window
     private int _battle = 1;
     private bool _follow = true;
     private (int, int) _lastFocus = (0, -1);
+    private long _nextIncomingScan;
+    private IncomingCast? _incoming;
 
     public GuideWindow() : base("Crucible fight guide###LazyCrucibleGuide")
     {
@@ -31,9 +33,13 @@ internal sealed class GuideWindow : Window
         SizeCondition = ImGuiCond.FirstUseEver;
     }
 
-    /// <summary> Called every frame: open on a newly focused fight when the setting says so. </summary>
+    /// <summary>
+    ///     Called every frame: open on a newly focused fight when the setting says so, and watch for a measured cast worth a warning
+    ///     (Atomic Ray): the banner shows while the cast is up and the window opens when it starts.
+    /// </summary>
     public void FollowFocus()
     {
+        WatchIncoming();
         var focus = RunTracker.Focus;
         if (focus.Battle < 0 || focus == _lastFocus)
             return;
@@ -47,8 +53,35 @@ internal sealed class GuideWindow : Window
             IsOpen = true;
     }
 
+    private void WatchIncoming()
+    {
+        var now = Environment.TickCount64;
+        if (now < _nextIncomingScan)
+            return;
+        _nextIncomingScan = now + 250;
+        var found = CrucibleGame.WarnedCast();
+        if (found is not null && _incoming is null && Plugin.Config.GuideAutoOpen)
+            IsOpen = true;
+        _incoming = found;
+    }
+
+    private void DrawIncoming()
+    {
+        if (_incoming is not { } warn)
+            return;
+        ImGui.TextColored(Danger, "INCOMING");
+        ImGui.SameLine();
+        ImGui.TextWrapped(warn.Text);
+        var guideDo = Plugin.Guide.File.Fights.SelectMany(f => f.Hits.Concat(f.Mechanics))
+            .Where(m => m.Ids.Contains(warn.CastId) && m.Do.Length > 0).Select(m => m.Do).FirstOrDefault();
+        if (guideDo is not null)
+            ImGui.TextDisabled("Guide: " + guideDo);
+        ImGui.Separator();
+    }
+
     public override void Draw()
     {
+        DrawIncoming();
         ImGui.Checkbox("Follow the next fight", ref _follow);
         ImGui.SameLine();
         ImGui.TextDisabled(RunTracker.Focus.Battle >= 0
@@ -122,6 +155,13 @@ internal sealed class GuideWindow : Window
         ImGui.TextDisabled(CrucibleBoards.Where(f.Board, f.Battle));
         if (f.Summary.Length > 0)
             ImGui.TextWrapped(f.Summary);
+        if (RunTracker.Focus == (f.Board, f.Battle)
+            && FightWarnings.EntryAdvice(f.Board, f.Battle, RunTracker.PlayerHpPercent) is { } advice)
+        {
+            ImGui.TextColored(Danger, "Before this fight");
+            ImGui.SameLine();
+            ImGui.TextWrapped(advice);
+        }
 
         var weak = BST_CrucibleData.Enemies.Where(e => e.Board == f.Board && e.Battle == f.Battle)
             .Select(e => $"{e.Name}: {(e.Weakness == CrucibleWeakness.None ? "no weakness" : e.Weakness.ToString().ToLowerInvariant())}");
