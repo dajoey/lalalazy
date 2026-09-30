@@ -1,3 +1,9 @@
+## v1.0.4.247 (2026-09-30) [testing]
+### Fixed
+- **Beastmaster: Shield Charge no longer sits at a full pool while the character is moving.** With all charges available the rotation now spends one at the next weave window whether or not the character is moving, so recharge time is not wasted. The charge count, the 20 y range and the Crucible rule that holds the dash while a do-not-attack enemy is near the target are unchanged; when one of those blocks a full pool the decision log records why (`shieldcharge:overcap-out-of-range`, `crucible:shieldcharge-protected-near`). Gap-closing dashes from range are unchanged, and below level 36 the single charge is handled the same way.
+### Notes
+- Production channel unchanged.
+
 ## v1.0.4.246 (2026-09-30) [testing]
 ### Fixed
 - **Crucible: a damage-cycling Parting Blow exit now keeps a ready horn in reserve.** With "cycle for damage" on, the familiar is only cycled out when one healthy horn is ready to summon and another stays ready for a real save. Before this, a cycle exit could spend the last ready horns, and the next low-HP familiar had nothing to swap to and died (First Master's Board, Corpse Flower + Queen Hawk fight: every recorded familiar death followed one). The recall is also no longer used to swap a healthy familiar for a wounded one. New decline reason in the decision log: `crucible:exit-keep-reserve-horn`.
