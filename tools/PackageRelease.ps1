@@ -3,7 +3,7 @@
 #
 # Why (2026-09-25): Dalamud downloaded every zip from raw.githubusercontent.com, where GitHub
 # counts nothing, so there was no install count anywhere. Release assets carry a
-# download_count; ~/ops/github-traffic-snapshot.py on jobunthree records it daily.
+# download_count; ~/ops/github-traffic-snapshot.py on the ops host records it daily.
 #
 # Naming contract - github-traffic-snapshot.py parses exactly this; change both together:
 #   tag    <Plugin>-v<version>        one release per plugin version, shared by both channels
@@ -15,7 +15,7 @@
 #
 # Uploads are verified by the SHA-256 digest GitHub returns, never by downloading the asset,
 # so the packager adds nothing to the download counts.
-# Windows PowerShell 5.1 runs this (no pwsh on DAJOEYROG): no ternaries, no ?? operators.
+# Windows PowerShell 5.1 runs this (no pwsh on the build host): no ternaries, no ?? operators.
 
 $script:ReleaseRepo = 'dajoey/lalalazy'
 

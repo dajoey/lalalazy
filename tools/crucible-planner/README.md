@@ -8,7 +8,7 @@ Pinned baseline: FFXIV **7.56** (`f5af21155b99a524`). Use `--version latest` (or
 new game-version key from `https://v2.xivapi.com/api/version`) only when you intend
 to absorb a real sheet change.
 
-Expected runtime on jobunthree (xivapi rate-limit ~0.3 s/call): **~30–60 s** for the
+Expected runtime on the ops host (xivapi rate-limit ~0.3 s/call): **~30–60 s** for the
 two fetches, then a few seconds for gen / golden / export / node test.
 
 ## Commands (in order)

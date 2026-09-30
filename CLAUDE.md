@@ -115,7 +115,7 @@ AFTER ANY MERGE THAT TOUCHED pluginmaster.json (upstream merges, rebases, confli
 Every packaged zip is also published as a **GitHub Release asset**, and pluginmaster.json links
 point at the asset, because GitHub counts Release downloads and counts nothing on
 raw.githubusercontent.com (before this there was no install count anywhere). The owner asked for
-install counts on 2026-09-25; jobunthree `~/ops/github-traffic-snapshot.py` records them daily
+install counts on 2026-09-25; a daily job on the ops host (`github-traffic-snapshot.py`) records them
 next to the repo's traffic.
 
 - **Naming contract** (the snapshot job parses exactly this; change both together):
@@ -126,7 +126,7 @@ next to the repo's traffic.
   would mislead.
 - `tools/PackageRelease.ps1` does it; `Package-Plugin.ps1` calls it after zipping and before
   writing pluginmaster.json. Token: `GITHUB_TOKEN` from the environment, else `/infra/GITHUB_TOKEN`
-  from Infisical via `%USERPROFILE%\.credentials\infisical-agents.env`. Uploads are verified by the
+  from the vault via the credentials file in the user profile. Uploads are verified by the
   SHA-256 digest GitHub returns, never by downloading, so packaging adds no downloads.
 - **If publishing fails the build still ships** on the raw copy (loud WARNING, uncounted). `-NoRelease`
   does that on purpose. A run moves only its own channel's links; the other channel's stay.
@@ -155,13 +155,13 @@ This file is **UTF-8 without a BOM** — `tools/Package-Plugin.ps1` writes it wi
 - Direct string replacement (not regex) is more reliable than regex for this file
 - Always do a post-write verification read
 
-## Push host — `git push` runs from DAJOEYROG (standing rule, added 2026-09-18)
+## Push host — `git push` runs from the build host (standing rule, added 2026-09-18)
 
-**Pushes run from DAJOEYROG, like builds.** The remote is HTTPS and only the build host has credentials: on other hosts (jobunthree has no credential helper and no `gh`) `git push` fails with `fatal: could not read Username for 'https://github.com': No such device or address`. Edit anywhere, but commit and push from the canonical checkout at `C:\Users\dajoey\lalalazy` — or, safer while release agents are using that checkout, a throwaway `git worktree add --detach` off it. **This applies to text-only commits too**: a CHANGELOG or docs change still cannot be pushed from a non-credentialed host; don't burn a cycle rediscovering that.
+**Pushes run from the build host, like builds.** The remote is HTTPS and only the build host has credentials: on other hosts (the ops host has no credential helper and no `gh`) `git push` fails with `fatal: could not read Username for 'https://github.com': No such device or address`. Edit anywhere, but commit and push from the canonical checkout at `C:\Users\dajoey\lalalazy` — or, safer while release agents are using that checkout, a throwaway `git worktree add --detach` off it. **This applies to text-only commits too**: a CHANGELOG or docs change still cannot be pushed from a non-credentialed host; don't burn a cycle rediscovering that.
 
 ## Test Machine
 
-Testing runs on **test-machine** (Linux/Wine) — NOT dajoeyrog. dajoeyrog is the build/repo host only.
+Testing runs on **test-machine** (Linux/Wine) — not on the build host, which is the build/repo host only.
 
 ## BLU Autorotation
 

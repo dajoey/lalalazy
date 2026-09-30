@@ -12,7 +12,7 @@ function Check($name, $actual, $expected) {
     if ($actual -ceq $expected) { Write-Host "PASS $name" } else { Write-Host "FAIL $name`n  expected $expected`n  actual   $actual"; $script:fail++ }
 }
 
-# The naming contract ~/ops/github-traffic-snapshot.py parses on jobunthree.
+# The naming contract ~/ops/github-traffic-snapshot.py parses on the ops host.
 Check 'tag'              (Get-ReleaseTag 'GluttonyCombo' '1.0.4.235') 'GluttonyCombo-v1.0.4.235'
 Check 'production asset' (Get-ReleaseAssetName 'GluttonyCombo' 'production') 'GluttonyCombo.zip'
 Check 'testing asset'    (Get-ReleaseAssetName 'GluttonyCombo' 'testing') 'GluttonyCombo-testing.zip'
