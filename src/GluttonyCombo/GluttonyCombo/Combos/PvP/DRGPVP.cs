@@ -58,7 +58,7 @@ internal static class DRGPvP
                     break;
 
                 case Preset.DRGPvP_ChaoticSpringSustain:
-                    DrawSliderInt(0, 101, DRGPvP_CS_HP_Threshold, "Chaotic Spring HP percentage threshold. Set to 100 to use on cd");
+                    DrawSliderInt(1, 100, DRGPvP_CS_HP_Threshold, "Chaotic Spring HP percentage threshold. Set to 100 to use on cd");
                     break;
                         
 
@@ -121,7 +121,7 @@ internal static class DRGPvP
             }
             if (IsOffCooldown(ChaoticSpring) && InMeleeRange())
             {
-                if (IsEnabled(Preset.DRGPvP_ChaoticSpringSustain) && PlayerHealthPercentageHp() < DRGPvP_CS_HP_Threshold) // Chaotic Spring as a self heal option, it does not break combos of other skills
+                if (IsEnabled(Preset.DRGPvP_ChaoticSpringSustain) && PlayerHealthPercentageHp() <= DRGPvP_CS_HP_Threshold) // Chaotic Spring as a self heal option, it does not break combos of other skills
                     return ChaoticSpring;
                 if (IsEnabled(Preset.DRGPvP_ChaoticSpringExecute) && GetTargetCurrentHP() <= 8000) // Chaotic Spring Execute
                     return ChaoticSpring;
