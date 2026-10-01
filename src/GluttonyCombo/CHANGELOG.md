@@ -1,3 +1,13 @@
+## v1.0.4.251 (2026-10-01) [testing]
+### Fixed
+- **Scholar: DoT retargeting in the single-target DPS rotation (upstream "Fix SCH dots").** The DoT is now retargeted directly onto the chosen enemy (`Retarget(actionID, target)`) instead of through the Broil retarget list, so it lands on the target the rotation actually picked.
+- **Dragoon (PvP): the Chaotic Spring sustain HP threshold is now a 1-100 slider and fires at or below the set percentage** (was a 0-101 slider firing strictly below).
+### Changed
+- **Dancer: the Technical 7s+ opener now also requires Last Dance Ready and Finishing Move at 13s or less cooldown remaining before it will start.** Opener option descriptions corrected ("cooldown" -> "countdown"), and the alternative 7s+ Technical opener is relabelled with its real requirements (Standard Step performed beforehand, countdown about 3s under the Finishing Move cooldown).
+- **Conjurer: the level 15 class quest heal is covered** - Cure now retargets onto the quest NPC.
+### Notes
+- Merges upstream WrathCombo commits 55d55a3..5d76520 (3 commits, 5 files). Production channel unchanged.
+
 ## v1.0.4.250 (2026-09-30) [testing]
 ### Added
 - **Beastmaster: new option "Overcap protection for Shield Charge", available only while Shield Charge is switched off.** It sits right under the Shield Charge setting in Advanced Mode and is greyed out while Shield Charge is on; switch Shield Charge off to tick it. With Shield Charge off and this ticked, the rotation never uses the dash to close a gap, but spends one charge at the next weave window whenever every charge is available, whether moving or not, so recharge time is not wasted. It is off by default, and with Shield Charge on nothing changes from 1.0.4.246. The 20 y range and the Crucible rule that holds the dash while a do-not-attack enemy is near the target still apply; when one blocks a full pool the decision log records why.
