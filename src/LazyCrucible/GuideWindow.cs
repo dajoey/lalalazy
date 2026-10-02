@@ -18,6 +18,7 @@ internal sealed class GuideWindow : Window
     private static readonly Vector4 Danger = new(1f, 0.45f, 0.35f, 1f);
     private static readonly Vector4 Good = new(0.55f, 0.9f, 0.55f, 1f);
     private static readonly Vector4 Warn = new(1f, 0.8f, 0.35f, 1f);
+    private static readonly Vector4 Muted = new(0.6f, 0.6f, 0.6f, 1f);
 
     private int _board = 1;
     private int _battle = 1;
@@ -186,7 +187,7 @@ internal sealed class GuideWindow : Window
             foreach (var r in rows)
             {
                 var tier = r.Tier == CrucibleNeedTier.Required ? "" : " (useful)";
-                ImGui.TextColored(r.Covered ? Good : r.Warn ? Warn : ImGui.GetStyleColorVec4(ImGuiCol.TextDisabled), r.Covered ? "✓" : r.Warn ? "!" : "·");
+                ImGui.TextColored(r.Covered ? Good : r.Warn ? Warn : Muted, r.Covered ? "✓" : r.Warn ? "!" : "·");
                 ImGui.SameLine();
                 var by = r.Covered ? $" — {FamiliarState.BeastName(r.CoveredBy)}" : $" — {r.WhyNot}";
                 ImGui.TextWrapped($"{r.Tool}{tier}: {r.What}{by}");
