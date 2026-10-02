@@ -70,6 +70,7 @@ internal static class NeedFirstCases
         {
             RunCases(guide);
             NewBehaviour(guide);
+            BoardRosterCases();
         }
         finally
         {
@@ -153,6 +154,64 @@ internal static class NeedFirstCases
         Check("same inputs, same picks in the same order",
             Under(1, 1, allRows, fullHp).SequenceEqual(Under(1, 1, allRows, fullHp)));
     }
+    /// <summary>
+    ///     The run-roster / formation-screen pick under test: the familiars chosen for a board's whole roster (the beast
+    ///     selection limit) from the candidates and their HP%. This is the call PetSelect.ExecuteRosterWrite makes.
+    /// </summary>
+    private static List<int> RosterUnder(int board, IReadOnlyList<int> candidates, IReadOnlyDictionary<int, int> hp) =>
+        BST_CrucibleNeedFirst.SelectCoverage(board, candidates, hp, BST_CrucibleData.Boards[board - 1].Roster).Select(p => p.Row).ToList();
+
+    /// <summary>
+    ///     The run roster is chosen by the abilities the board's fights need, not by a point score (task
+    ///     tasks-20261002-crucible-lazycrucible-roster-surfaces-need-first-01). Oracle: <see cref="RequiredByFight"/>.
+    ///     A roster of hitters plus ONE familiar per answering kin must carry that familiar for every kind any fight of
+    ///     the board REQUIRES, however many hitters out-score it.
+    /// </summary>
+    private static void BoardRosterCases()
+    {
+        Console.WriteLine("-- board roster (run roster auto-fill) --");
+        var required = RequiredByFight();
+        var allRows = Enumerable.Range(1, BST_Beasts.Count).ToList();
+        var hitters = allRows.Where(r => BST_CrucibleAdvisor.Answers(r) == CrucibleNeeds.None).ToList();
+        var soulkin = RowsOfKin(BeastmasterKinType.Soulkin);
+        var wavekin = RowsOfKin(BeastmasterKinType.Wavekin);
+        var ashkin = RowsOfKin(BeastmasterKinType.Ashkin);
+        var one = new Dictionary<CrucibleNeeds, int> { [CrucibleNeeds.Interrupt] = soulkin[0], [CrucibleNeeds.Dispel] = wavekin[0], [CrucibleNeeds.Cleanse] = ashkin[0] };
+        var fullHp = new Dictionary<int, int>();
+
+        var misses = new List<string>();
+        var boards = 0;
+        for (var board = 1; board <= BST_CrucibleData.Boards.Length; board++)
+        {
+            boards++;
+            var needed = CrucibleNeeds.None;
+            foreach (var b in BST_CrucibleData.Battles)
+                if (b.Board == board)
+                    needed |= required[(b.Board, b.Battle)];
+            var roster = RosterUnder(board, [.. hitters, .. one.Values], fullHp);
+            foreach (var kind in Kinds)
+                if ((needed & kind) != 0 && !roster.Any(r => Answers(r, kind)))
+                    misses.Add($"board {board} {kind}");
+        }
+        Check($"every board ({boards}), every hitter captured plus one Soulkin, Wavekin and Ashkin: each ability a fight of the board requires has its familiar on the roster",
+            misses.Count == 0, string.Join(" | ", misses));
+
+        // The Soulkin among familiars that out-score it, on a board with a Required interrupt: it is still on the roster.
+        var interruptBoard = Enumerable.Range(1, BST_CrucibleData.Boards.Length).First(bd =>
+            BST_CrucibleData.Battles.Any(b => b.Board == bd && (required[(b.Board, b.Battle)] & CrucibleNeeds.Interrupt) != 0));
+        var rosterI = RosterUnder(interruptBoard, [.. hitters, soulkin[0]], fullHp);
+        Check($"board {interruptBoard} has a fight that requires an interrupt: the one Soulkin is on the roster beside every hitter",
+            rosterI.Contains(soulkin[0]), string.Join(",", rosterI.Select(r => BST_Beasts.All[r].Name)));
+        Check("the roster never exceeds the board's beast-selection limit and holds no duplicate",
+            Enumerable.Range(1, BST_CrucibleData.Boards.Length).All(bd =>
+            {
+                var r = RosterUnder(bd, allRows, fullHp);
+                return r.Count <= BST_CrucibleData.Boards[bd - 1].Roster && r.Distinct().Count() == r.Count;
+            }));
+        var hurt = new Dictionary<int, int> { [soulkin[0]] = 0 };
+        Check("a knocked-out Soulkin is never on the roster", !RosterUnder(interruptBoard, [.. hitters, soulkin[0], soulkin[1]], hurt).Contains(soulkin[0]));
+    }
+
     private static CrucibleSelection Sel(int board, int battle, IReadOnlyList<int> candidates, IReadOnlyDictionary<int, int>? hp = null, int slots = 3) =>
         BST_CrucibleNeedFirst.Select(board, battle, candidates, hp ?? new Dictionary<int, int>(), slots, "in the roster");
 

@@ -95,7 +95,7 @@ internal static class FormationLogic
 
     /// <summary>
     ///     Which horn slots actually need a write given the current horn occupants as familiar rows and a
-    ///     <see cref="BST_CrucibleAdvisor.PickSlots"/> result. PURE: no game types. Slots already matching are omitted so a
+    ///     <see cref="BST_CrucibleNeedFirst.Select"/> result. PURE: no game types. Slots already matching are omitted so a
     ///     second pass does not oscillate. Empty desired slots (fewer than 3 picks) are left alone.
     ///     Callers on the live horn screen must first map <c>SelectedPetIds</c> indices through
     ///     <see cref="ResolveHornPetRows"/>.
@@ -165,7 +165,7 @@ internal static class FormationLogic
 
     /// <summary>
     ///     Which roster familiars actually need a write given the current roster occupants as familiar rows and a
-    ///     <see cref="BST_CrucibleAdvisor.PickSlotsCoverage"/> result. PURE: no game types. Familiars already present are omitted so a
+    ///     <see cref="BST_CrucibleNeedFirst.SelectCoverage"/> result (the board's fights' Required needs first). PURE: no game types. Familiars already present are omitted so a
     ///     second pass does not oscillate. Any current familiar not in desired is planned for removal; any desired
     ///     familiar not in current is planned for addition.
     /// </summary>

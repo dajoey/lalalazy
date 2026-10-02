@@ -197,7 +197,7 @@ internal sealed class MainWindow : Window
         if (!CrucibleGame.RosterLoaded)
             ImGui.TextWrapped("The captured familiar list has not arrived yet (open the Master's Bestiary once); picks assume every familiar is captured.");
 
-        var roster = BST_CrucibleAdvisor.BoardRoster(board.Board, CrucibleGame.BeastCaptured);
+        var roster = BST_CrucibleNeedFirst.BoardRoster(board.Board, CrucibleGame.BeastCaptured);
         ImGui.TextWrapped("Roster (familiars in the most battles' picks, number of battles): "
                           + string.Join(", ", roster.ConvertAll(r => $"{BeastName(r.Row)} ({r.Battles})")));
 

@@ -667,7 +667,7 @@ internal static unsafe class PetSelect
         var rosterSize = board >= 1 && board <= BST_CrucibleData.Boards.Length
             ? BST_CrucibleData.Boards[board - 1].Roster
             : 10;
-        var picks = BST_CrucibleAdvisor.PickSlotsCoverage(board, candidates, hpMap, rosterSize);
+        var picks = BST_CrucibleNeedFirst.SelectCoverage(board, candidates, hpMap, rosterSize);
         var desiredRows = picks.ConvertAll(p => p.Row);
 
         var snapshot = new List<int>(selectedRaw);

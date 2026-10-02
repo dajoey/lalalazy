@@ -70,7 +70,7 @@ public readonly record struct FamiliarState(
 /// <summary>
 ///     Everything the selection policies know about the run at a decision: the board, what is still ahead (from the
 ///     board graph and the last battle fought), what those fights threaten (the fight guide), which familiars the
-///     Battlehorn ranking will want for them (<see cref="HornDemand"/>, from <see cref="BST_CrucibleAdvisor.PickSlots"/>
+///     Battlehorn ranking will want for them (<see cref="HornDemand"/>, from <see cref="BST_CrucibleNeedFirst.Select"/>
 ///     so feeding, resting and the horn picks never disagree), the player's HP and the score goal. PURE.
 /// </summary>
 internal sealed class RunContext
