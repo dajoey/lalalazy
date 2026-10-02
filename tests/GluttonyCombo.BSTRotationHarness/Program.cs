@@ -35,6 +35,7 @@ internal static class Program
         CrucibleTargetingAndAdvisor();
         CrucibleHornWarning();
         GuideNeedsInRotation();
+        ArmAndAimTheInterrupt();
         ShieldChargeOvercap();
 
         SimulateAllLevels(verbose);
@@ -432,6 +433,60 @@ internal static class Program
         {
             CrucibleNeedModel.Extras = null;
         }
+    }
+
+    /// <summary>
+    ///     Interrupts (research-to-behaviour audit, 2026-10-02). The logs show interruptible casts in six fights (Fanaticism, Ossify,
+    ///     Rallying Cheer, Dreadwash, Caustic Vomit, Natural Nurture: 108 casts); the rotation interrupted a handful, and nearly every
+    ///     one it did was a cast that began while Soul Crush was already held. So: arm the Soul Crush at the open (the Soulkin comes out
+    ///     first when the fight needs an interrupt), and aim at the caster once it is armed (the interruptible cast is often not on the
+    ///     current target: Progenitrix's Massive Explosion while grenades are the priority, the Younger Tablitaur's Rallying Cheer
+    ///     while the pair rule keeps the Elder).
+    /// </summary>
+    private static void ArmAndAimTheInterrupt()
+    {
+        Console.WriteLine("-- arm and aim the interrupt --");
+        var cfg = BstSettings.Defaults();
+        // No familiar out, all three horns ready: a cu sith (not a Soulkin) on horn 1, a coblyn (Soulkin) on horn 2, a dodo on horn 3.
+        var open = CrucibleState(30) with
+        {
+            CrucibleBoard = 3, CrucibleBattle = 2, CrucibleNeeds = CrucibleNeeds.Interrupt, ActiveSlot = 0, PetObjectPresent = false, PetObjectBeast = 0,
+            SinceHornPress = 30f, SinceSummon = 0f, ReadyHorn1 = true, ReadyHorn2 = true, ReadyHorn3 = true, Slot1Beast = 1, Slot2Beast = 7, Slot3Beast = 34,
+            GcdReady = true,
+        };
+        var usual = Decide(open with { CrucibleNeeds = CrucibleNeeds.None }, cfg);
+        Check("control: with no need the usual choice is not the Soulkin's horn", usual.ActionId != BST.SecondBattlehorn && usual.Reason.StartsWith("summon:slot", StringComparison.Ordinal), usual.Reason);
+        Check("fight needs an interrupt, nothing out, Soul Crush not held: the Soulkin's horn first",
+            Decide(open, cfg) is { ActionId: BST.SecondBattlehorn, Reason: "summon:slot2" }, $"{Decide(open, cfg).Reason}");
+        Check("... Soul Crush already held: the usual choice",
+            Decide(open with { KinshipHeld = true, BeastModeResolved = BST.SoulCrush, ReadyBeastMode = true }, cfg).ActionId == usual.ActionId);
+        Check("... a dispel-only fight does not pull the Soulkin forward", Decide(open with { CrucibleNeeds = CrucibleNeeds.Dispel }, cfg).ActionId == usual.ActionId);
+        Check("... the Soulkin is below the swap line: not preferred", Decide(open with { Slot2PetHp = 30f }, cfg).ActionId == usual.ActionId);
+        Check("... Soul Crush is switched off: the usual choice", Decide(open, cfg with { UseSoulCrush = false }).ActionId == usual.ActionId);
+
+        var armedState = open with { ActiveSlot = 2, PetObjectPresent = true, PetObjectBeast = 7, KinshipHeld = true, BeastModeResolved = BST.SoulCrush, ReadyBeastMode = true };
+        Check("armed means: Soul Crush held and ready, the fight needs an interrupt, the option is on",
+            BST_CrucibleLogic.InterruptArmed(armedState, cfg)
+            && !BST_CrucibleLogic.InterruptArmed(armedState with { ReadyBeastMode = false }, cfg)
+            && !BST_CrucibleLogic.InterruptArmed(armedState with { KinshipHeld = false }, cfg)
+            && !BST_CrucibleLogic.InterruptArmed(armedState with { BeastModeResolved = BST.QuellingWave }, cfg)
+            && !BST_CrucibleLogic.InterruptArmed(armedState with { CrucibleNeeds = CrucibleNeeds.Dispel }, cfg)
+            && !BST_CrucibleLogic.InterruptArmed(armedState, cfg with { UseSoulCrush = false })
+            && !BST_CrucibleLogic.InterruptArmed(armedState with { CrucibleBoard = 0 }, cfg));
+
+        List<int> Aim(bool armed, params BST_CrucibleLogic.TargetCandidate[] c) => BST_CrucibleLogic.AllowedTargets(c, armed);
+        BST_CrucibleLogic.TargetCandidate K(uint nameId, float hp, bool casting, bool immune = false) => new(nameId, hp, false, immune, casting);
+        Check("Progenitrix casts Massive Explosion while grenades live: unarmed the grenade stays the target",
+            Aim(false, K(14623, 100f, true), K(14624, 100f, false)).SequenceEqual(new[] { 1 }));
+        Check("... armed: the interrupt goes to the Progenitrix", Aim(true, K(14623, 100f, true), K(14624, 100f, false)).SequenceEqual(new[] { 0 }));
+        Check("Younger Tablitaur casts Rallying Cheer, Elder 80% / Younger 50%: unarmed the pair rule keeps the Elder, armed aims at the Younger",
+            Aim(false, K(14555, 80f, false), K(14556, 50f, true)).SequenceEqual(new[] { 0 })
+            && Aim(true, K(14555, 80f, false), K(14556, 50f, true)).SequenceEqual(new[] { 1 }));
+        Check("armed, nobody casting an interruptible cast: nothing changes",
+            Aim(true, K(14623, 100f, false), K(14624, 100f, false)).SequenceEqual(new[] { 1 }));
+        Check("armed, the caster is damage immune: never aimed at", Aim(true, K(14623, 100f, true, immune: true), K(14624, 100f, false)).SequenceEqual(new[] { 1 }));
+        Check("armed, two interruptible casters: both stay candidates",
+            Aim(true, K(14542, 100f, true), K(14543, 100f, true), K(14541, 100f, false)).SequenceEqual(new[] { 0, 1 }));
     }
 
     private static void CrucibleTargetingAndAdvisor()

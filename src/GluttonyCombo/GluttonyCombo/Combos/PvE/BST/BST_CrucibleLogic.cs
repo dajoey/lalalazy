@@ -191,9 +191,12 @@ internal static class BST_CrucibleLogic
     {
         var learned = LearnedHornSlots(s.Level);
         var best = 0;
-        (int, int, int, int, float) bestKey = (0, 0, 0, 0, 0f);
+        (int, int, int, int, int, float) bestKey = (0, 0, 0, 0, 0, 0f);
         var stingDue = FinalStingDue(s, cfg);
         var answers = LiveAnswerSlots(s);
+        // The fight needs an interrupt and Soul Crush is not held: the Soulkin comes out first so its Kinship is borrowed before the
+        // cast (an interrupt is gone in seconds; the logs show nearly every interrupt that landed began with Soul Crush already held).
+        var armInterrupt = cfg.UseSoulCrush && (s.CrucibleNeeds & CrucibleNeeds.Interrupt) != 0 && HeldKin(s) != BeastmasterKinType.Soulkin;
 
         for (var slot = 1; slot <= learned; slot++)
         {
@@ -205,6 +208,7 @@ internal static class BST_CrucibleLogic
             var key = (
                 healthy ? 1 : 0,
                 healthy && answers.Contains(slot) ? 1 : 0,       // the familiar that answers what the fight is doing right now
+                healthy && armInterrupt && BST_Beasts.ByRow(SlotBeast(s, slot)) is { Kin: BeastmasterKinType.Soulkin } ? 1 : 0,
                 IsExitBeast(s, slot) ? (stingDue ? 2 : 0) : 1,   // wespe first when its Final Sting is due, else last
                 healthy && IsSetUpBeast(s, slot) ? 1 : 0,        // set-up beasts first; below the line health decides
                 hp);
@@ -215,7 +219,7 @@ internal static class BST_CrucibleLogic
             }
         }
 
-        if (best != 0 && bestKey.Item5 <= CriticalHp(cfg) && s.InCombat && s.PartingBlowRecast > 2f)
+        if (best != 0 && bestKey.Item6 <= CriticalHp(cfg) && s.InCombat && s.PartingBlowRecast > 2f)
             return 0;
         return best;
     }
@@ -661,7 +665,7 @@ internal static class BST_CrucibleLogic
     ///     One enemy auto-targeting could pick. <see cref="Avoid"/> marks a counter stance that may be relaxed when
     ///     nothing else is up; <see cref="DamageImmune"/> is an absolute exclusion.
     /// </summary>
-    public readonly record struct TargetCandidate(uint NameId, float HpPercent, bool Avoid, bool DamageImmune = false);
+    public readonly record struct TargetCandidate(uint NameId, float HpPercent, bool Avoid, bool DamageImmune = false, bool CastInterruptible = false);
 
     /// <summary> Paired enemies further apart than this (HP %) get balanced: the lower one is left alone. </summary>
     public const float PairHpGap = 10f;
@@ -672,9 +676,11 @@ internal static class BST_CrucibleLogic
     ///     the most dangerous documented tier (<see cref="BST_CrucibleData.PriorityAddOrder"/>) until it is dead, so a
     ///     wave is cleared in the guides' kill order instead of nearest-first (live 2026-09-26: the siren wave's
     ///     shamblings were attacked ~5 s before the crawling piece whose touch breaks Unbeastable); of a pair that must
-    ///     die together, the healthier one while they are more than <see cref="PairHpGap"/> apart.
+    ///     die together, the healthier one while they are more than <see cref="PairHpGap"/> apart. With
+    ///     <paramref name="interruptArmed"/> (Soul Crush held and ready) an enemy casting something interruptible comes before
+    ///     all of that: the cast is gone in seconds and the order resumes when it ends.
     /// </summary>
-    public static List<int> AllowedTargets(IReadOnlyList<TargetCandidate> candidates)
+    public static List<int> AllowedTargets(IReadOnlyList<TargetCandidate> candidates, bool interruptArmed = false)
     {
         var allowed = new List<int>(candidates.Count);
         for (var i = 0; i < candidates.Count; i++)
@@ -685,6 +691,15 @@ internal static class BST_CrucibleLogic
         var calm = allowed.FindAll(i => !candidates[i].Avoid);
         if (calm.Count > 0)
             allowed = calm;
+
+        // Soul Crush is armed and an enemy is casting something interruptible: that enemy first, whatever the kill order or the
+        // pair rule says (the cast is gone in seconds; the kill order resumes the moment it ends).
+        if (interruptArmed)
+        {
+            var casters = allowed.FindAll(i => candidates[i].CastInterruptible);
+            if (casters.Count > 0)
+                return casters;
+        }
 
         var priority = allowed.FindAll(i => BST_CrucibleData.PriorityAdds.Contains(candidates[i].NameId));
         if (priority.Count > 0)
@@ -724,6 +739,14 @@ internal static class BST_CrucibleLogic
 
         return allowed;
     }
+
+    /// <summary>
+    ///     Soul Crush is held and ready, the option is on and the fight needs an interrupt: the rotation can answer an interruptible
+    ///     cast the moment one starts, so auto-targeting may aim at the caster (<see cref="AllowedTargets"/>).
+    /// </summary>
+    public static bool InterruptArmed(in BstState s, in BstSettings cfg) =>
+        cfg.Crucible && s.CrucibleBoard != 0 && cfg.UseSoulCrush && (s.CrucibleNeeds & CrucibleNeeds.Interrupt) != 0
+        && s.KinshipHeld && s.BeastModeResolved == BST.SoulCrush && s.ReadyBeastMode;
 
     // ------------------------------------------------------------------ familiar HP memory (party agent)
 

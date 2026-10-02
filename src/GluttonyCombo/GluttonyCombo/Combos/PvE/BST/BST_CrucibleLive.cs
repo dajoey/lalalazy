@@ -51,7 +51,13 @@ internal partial class BST
         return false;
     }
 
-    /// <summary> BST_CrucibleLogic.AllowedTargets over live candidates: no eggs / morphos, stances last, priority adds in documented kill order, pairs balanced. </summary>
+    /// <summary> Soul Crush is held and ready for a fight that needs an interrupt (set every tick by the rotation): targeting may aim at an interruptible caster. </summary>
+    internal static bool InterruptArmed;
+
+    /// <summary>
+    ///     BST_CrucibleLogic.AllowedTargets over live candidates: no eggs / morphos, an armed Soul Crush aims at the interruptible caster,
+    ///     stances last, priority adds in documented kill order, pairs balanced.
+    /// </summary>
     internal static List<IBattleChara> RestrictCrucibleTargets(List<IBattleChara> targets)
     {
         if (targets.Count == 0)
@@ -75,10 +81,11 @@ internal partial class BST
                 t.NameId,
                 t.MaxHp == 0 ? 0f : 100f * t.CurrentHp / t.MaxHp,
                 inStance,
-                damageImmune));
+                damageImmune,
+                InterruptArmed && t is { IsCasting: true, IsCastInterruptible: true }));
         }
 
-        var allowed = BST_CrucibleLogic.AllowedTargets(candidates);
+        var allowed = BST_CrucibleLogic.AllowedTargets(candidates, InterruptArmed);
         var result = new List<IBattleChara>(allowed.Count);
         foreach (var i in allowed)
             result.Add(targets[i]);

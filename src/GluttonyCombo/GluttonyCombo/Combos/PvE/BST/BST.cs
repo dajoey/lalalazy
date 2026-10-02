@@ -130,6 +130,7 @@ internal partial class BST : Melee
             return SmashAxe;
 
         var state = ReadState();
+        InterruptArmed = BST_CrucibleLogic.InterruptArmed(state, cfg);
         var decision = BST_RotationLogic.Decide(state, cfg);
 
         LastDecisionActionId = decision.ActionId;
