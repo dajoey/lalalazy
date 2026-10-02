@@ -49,14 +49,17 @@ internal static class BST_CrucibleLogic
         BST_CrucibleNeedFirst.Pick(board, battle, captured);
 
     /// <summary>
-    ///     What the rotation reads for a battle: every ability need the picker and the fight guide read, Required and Useful alike
-    ///     (the panel's calls plus the guide's counters, one list per battle). An answer only fires when the thing is actually
-    ///     happening (an interruptible cast, a dispellable buff, a cleansable debuff), so a Useful need costs nothing while it is quiet.
+    ///     What the rotation reads for a battle: the ability needs the picker and the fight guide read (the panel's calls plus the
+    ///     guide's counters, one list per battle). Required needs always count. A Useful interrupt or cleanse counts too: the game's
+    ///     own flag (the cast is interruptible, the character's debuff is cleansable) decides at run time, so a guide claim the game
+    ///     contradicts never fires. A Useful dispel does NOT count: the dispellable-buff list is this plugin's own (the panel's flags
+    ///     plus Might), and where the guides and the sheet disagree (Might, Grab and Grow, Impassion) a swap and a Tempered Release
+    ///     spent on a buff nobody has seen come off would be a guess; a run log that shows the buff leaving after a dispel settles it.
     /// </summary>
     public static CrucibleNeeds FightNeeds(int board, int battle)
     {
         var model = CrucibleNeedModel.For(board, battle);
-        return model.Required | model.Useful;
+        return model.Required | (model.Useful & ~CrucibleNeeds.Dispel);
     }
 
     /// <summary> A familiar summoned this recently is not swapped out above the critical line. </summary>
