@@ -238,7 +238,7 @@ internal partial class BST
             return;
         _hornWarningKey = key;
 
-        var picks = BST_CrucibleAdvisor.Pick(s.CrucibleBoard, s.CrucibleBattle, CrucibleBeastCaptured);
+        var picks = BST_CrucibleLogic.HornWarningPicks(s.CrucibleBoard, s.CrucibleBattle, CrucibleBeastCaptured);
         var names = string.Join(", ", picks.ConvertAll(p =>
         {
             var name = BST_Beasts.All[p.Row].Name;

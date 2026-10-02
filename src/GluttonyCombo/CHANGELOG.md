@@ -1,3 +1,9 @@
+## v1.0.4.252 (2026-10-02) [testing]
+### Fixed
+- **Beastmaster (Crucible of the Unbroken): the "no Battlehorn familiars assigned" chat warning now names the familiars the fight needs.** The suggested familiars cover what the enemy panel calls for first (interrupt, dispel, cleanse), then rank by weakness, crowd control and stats. Before, the suggestion ranked by a point score alone, so a fight that needs an interrupt could be told to bring no Soulkin.
+### Notes
+- Same need-first rule LazyCrucible 0.1.9.0 uses for its horn picks. Production channel unchanged.
+
 ## v1.0.4.251 (2026-10-01) [testing]
 ### Fixed
 - **Scholar: DoT retargeting in the single-target DPS rotation (upstream "Fix SCH dots").** The DoT is now retargeted directly onto the chosen enemy (`Retarget(actionID, target)`) instead of through the Broil retarget list, so it lands on the target the rotation actually picked.

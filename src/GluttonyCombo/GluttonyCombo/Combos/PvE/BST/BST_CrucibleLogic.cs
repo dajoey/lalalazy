@@ -41,6 +41,13 @@ internal static class BST_CrucibleLogic
     /// <summary> XBMPet row of the vulture: Bloodcurdling Caw dispels a buff. </summary>
     public const int VultureRow = 11;
 
+    /// <summary>
+    ///     Horn picks named in the "no horns assigned" chat warning. Gluttony installs no fight guide, so the need model
+    ///     is the enemy panel alone (every call Required): the picks answer what the fight calls for, then rank by points.
+    /// </summary>
+    public static List<CrucibleBeastPick> HornWarningPicks(int board, int battle, Func<int, bool> captured) =>
+        BST_CrucibleNeedFirst.Pick(board, battle, captured);
+
     /// <summary> A familiar summoned this recently is not swapped out above the critical line. </summary>
     public const float SwapGraceSeconds = 8f;
 

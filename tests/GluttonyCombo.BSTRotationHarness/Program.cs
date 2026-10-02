@@ -33,6 +33,7 @@ internal static class Program
         CrucibleRules();
         MasterBoardFights();
         CrucibleTargetingAndAdvisor();
+        CrucibleHornWarning();
         ShieldChargeOvercap();
 
         SimulateAllLevels(verbose);
@@ -343,6 +344,36 @@ internal static class Program
         Check("every ordered id is a priority add; unranked ids share the last tier",
             BST_CrucibleData.PriorityAddOrder.SelectMany(w => w).All(id => BST_CrucibleData.PriorityAdds.Contains(id))
             && BST_CrucibleData.PriorityAddRank(14542) == int.MaxValue);
+    }
+
+    /// <summary>
+    ///     The empty-horn chat warning names the need-first picks (2026-10-02): the abilities the fight needs choose the
+    ///     horns, never the point score. A roster with one Soulkin among familiars that out-score it still gets the
+    ///     Soulkin when the panel says the fight interrupts. Gluttony installs no guide, so the model is panel-only.
+    /// </summary>
+    private static void CrucibleHornWarning()
+    {
+        Console.WriteLine("-- crucible empty-horn warning --");
+        Check("harness runs panel-only, like Gluttony (no guide installed)", CrucibleNeedModel.Extras is null);
+        var soulkin = Enumerable.Range(1, BST_Beasts.Count).Where(r => BST_Beasts.All[r].Kin == BeastmasterKinType.Soulkin).ToList();
+        const int coblyn = 7;
+        Check("coblyn is a Soulkin", soulkin.Contains(coblyn));
+        var owned = Enumerable.Range(1, BST_Beasts.Count).Where(r => !soulkin.Contains(r) || r == coblyn).ToHashSet();
+        bool Captured(int r) => owned.Contains(r);
+
+        foreach (var (board, battle) in new[] { (4, 8), (1, 0) })
+        {
+            var tag = $"horn warning b{board}/{battle}";
+            Check($"{tag}: the panel calls for an interrupt", (CrucibleNeedModel.For(board, battle).Required & CrucibleNeeds.Interrupt) != 0);
+            var warned = BST_CrucibleLogic.HornWarningPicks(board, battle, Captured);
+            var expected = BST_CrucibleNeedFirst.SelectCaptured(board, battle, Captured).Picks;
+            Check($"{tag}: picks equal the need-first picks", warned.Select(p => (p.Row, p.Why)).SequenceEqual(expected.Select(p => (p.Row, p.Why))),
+                string.Join(",", warned.Select(p => p.Row)) + " vs " + string.Join(",", expected.Select(p => p.Row)));
+            Check($"{tag}: the lone Soulkin gets a horn", warned.Any(p => p.Row == coblyn), string.Join(",", warned.Select(p => p.Row)));
+            Check($"{tag}: control, the point score alone leaves the Soulkin out", BST_CrucibleAdvisor.Pick(board, battle, Captured).All(p => p.Row != coblyn));
+        }
+
+        Check("horn warning: nothing captured names no familiar", BST_CrucibleLogic.HornWarningPicks(4, 8, _ => false).Count == 0);
     }
 
     private static void CrucibleTargetingAndAdvisor()
