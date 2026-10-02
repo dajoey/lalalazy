@@ -322,11 +322,12 @@ internal static class Program
             BST_CrucibleData.CleaveAutoBosses.SetEquals(new uint[] { 14541, 14583, 14592, 14693 }));
         Check("Third Board priority adds: crawling, flowertender, golem, bone bishop",
             new uint[] { 14586, 14589, 14581, 14567 }.All(id => BST_CrucibleData.PriorityAdds.Contains(id)));
-        Check("Crucible priority adds: exact game-data set, 53 ids across all boards (treant sapling + diremite added)",
+        Check("Crucible priority adds: exact game-data set, 54 ids across all boards (treant sapling + diremite, Strix Plume added)",
             BST_CrucibleData.PriorityAdds.SetEquals(new uint[] {
                 14532, 14537, 14539, 14542, 14543, 14748,
                 14548, 14553, 14558, 14559,
                 14567, 14573, 14574, 14581, 14585, 14586, 14589, 14591, 14595,
+                14598,
                 14605, 14607, 14610, 14620, 14621, 14622, 14624, 14625, 14629,
                 14632, 14639, 14640, 14643, 14644, 14645, 14646, 14647, 14648, 14649,
                 14653, 14659, 14661, 14662, 14671, 14672, 14673,
@@ -445,6 +446,14 @@ internal static class Program
             Allowed(C(14660, 100f, false), C(14661, 90f, false), C(14662, 80f, false)).SequenceEqual(new[] { 1, 2 }));
         Check("gigantis + cyclops + gel: the adds first",
             Allowed(C(14670, 100f, false), C(14671, 80f, false), C(14672, 90f, false)).SequenceEqual(new[] { 1, 2 }));
+        // Strix Piece (board 4, battle 1): the boss casts Aero III itself, then a Plume add (14598) casts the 12 s 25y one.
+        // The game never marks either cast interruptible (0 of 5 logged casts), so the only counter is killing the add:
+        // live 2026-10-01, three runs left it at 100% beside the boss while the cast went off.
+        Check("Strix Piece + Plume add (full HP): the Plume while it lives, never the boss",
+            Allowed(C(14596, 25f, false), C(14598, 100f, false)).SequenceEqual(new[] { 1 }));
+        Check("Strix Piece + Plume add (hurt): still only the Plume",
+            Allowed(C(14596, 25f, false), C(14598, 30f, false)).SequenceEqual(new[] { 1 }));
+        Check("Strix Piece after the Plume dies: the boss again", Allowed(C(14596, 25f, false)).SequenceEqual(new[] { 0 }));
         Check("morpho stays do-not-attack, never a priority add",
             !BST_CrucibleData.PriorityAdds.Contains(14656) && BST_CrucibleData.DoNotAttack.ContainsKey(14656));
 

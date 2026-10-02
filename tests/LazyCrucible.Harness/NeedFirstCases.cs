@@ -87,9 +87,11 @@ internal static class NeedFirstCases
         var wavekin = RowsOfKin(BeastmasterKinType.Wavekin);
 
         // The screenshot: board 4, Strix Piece (piercing weakness). The guide listed an interrupt (Aero III) the picker never saw.
+        // Resolved by the game's own log (2026-10-01, five Aero III casts, none ever flagged interruptible): the cast cannot
+        // be interrupted, so the fight needs a dispeller (Ultimate Focus, on the panel) and nothing else; the Plume add is the counter.
         var strix = Under(4, 1, allRows, fullHp);
-        Check("screenshot fight (board 4 Strix Piece), every familiar captured: a Soulkin AND a dispeller are picked",
-            strix.Any(r => Answers(r, CrucibleNeeds.Interrupt)) && strix.Any(r => Answers(r, CrucibleNeeds.Dispel)),
+        Check("screenshot fight (board 4 Strix Piece), every familiar captured: a dispeller is picked, no horn is spent on an interrupt nobody can use",
+            strix.Any(r => Answers(r, CrucibleNeeds.Dispel)) && !strix.Any(r => Answers(r, CrucibleNeeds.Interrupt)),
             string.Join(",", strix.Select(r => BST_Beasts.All[r].Name)));
 
         // The same fight with a realistic small roster: one Soulkin, one Wavekin and three piercing hitters (the weakness).
@@ -98,8 +100,8 @@ internal static class NeedFirstCases
         var roster = new List<int> { soulkin[0], wavekin[0] };
         roster.AddRange(piercing);
         var small = Under(4, 1, roster, fullHp);
-        Check("screenshot fight, roster of one Soulkin, one Wavekin and three piercing hitters: Soulkin and Wavekin both picked",
-            small.Contains(soulkin[0]) && small.Contains(wavekin[0]),
+        Check("screenshot fight, roster of one Soulkin, one Wavekin and three piercing hitters: the Wavekin and the piercing hitters are picked, the Soulkin is not",
+            small.Contains(wavekin[0]) && !small.Contains(soulkin[0]) && piercing.All(small.Contains),
             string.Join(",", small.Select(r => BST_Beasts.All[r].Name)));
 
         // A weakness match never displaces the only familiar covering a Required need: bone knight + bishop (blunt weakness,
@@ -262,15 +264,26 @@ internal static class NeedFirstCases
         // ---- the screenshot fight shows no warning when covered, and says why when not
         var strixCovered = Sel(4, 1, [wavekin[0], soulkin[0], .. hitters.Take(3)]);
         var coveredRows = GuideNeeds.Rows(strixCovered);
-        Check("screenshot fight, Wavekin and Soulkin in the roster: both picked and every need row covered, no '!'",
-            strixCovered.Picks.Select(p => p.Row).Contains(soulkin[0]) && strixCovered.Picks.Select(p => p.Row).Contains(wavekin[0])
-            && coveredRows.Count == 2 && coveredRows.All(r => r.Covered && !r.Warn),
+        Check("screenshot fight, Wavekin and Soulkin in the roster: the Wavekin covers the one need row (dispel), no interrupt row, no '!', no Soulkin spent",
+            strixCovered.Picks.Select(p => p.Row).Contains(wavekin[0]) && !strixCovered.Picks.Select(p => p.Row).Contains(soulkin[0])
+            && coveredRows.Count == 1 && coveredRows[0].Kind == CrucibleNeeds.Dispel && coveredRows.All(r => r.Covered && !r.Warn),
             string.Join(" | ", coveredRows.Select(r => $"{r.Kind}:{r.Tier}:{r.CoveredBy}:{r.WhyNot}")));
         var strixNoSoul = GuideNeeds.Rows(Sel(4, 1, [wavekin[0], .. hitters.Take(4)]));
-        var open = strixNoSoul.FirstOrDefault(r => r.Kind == CrucibleNeeds.Interrupt);
-        Check("screenshot fight, no Soulkin: the interrupt row says why, and as a Useful need it is not a warning",
-            open is { Covered: false, Warn: false } && open.WhyNot == "no Soulkin in the roster" && strixNoSoul.First(r => r.Kind == CrucibleNeeds.Dispel).Covered,
+        Check("screenshot fight, no Soulkin: nothing to explain, the guide lists the dispel only and covers it",
+            strixNoSoul.Count == 1 && strixNoSoul[0] is { Kind: CrucibleNeeds.Dispel, Covered: true, Warn: false },
             string.Join(" | ", strixNoSoul.Select(r => $"{r.Kind}:{r.Tier}:{r.CoveredBy}:{r.WhyNot}")));
+        // The class behind it: the guide never lists an interrupt for a cast the game has been logged casting without the
+        // interruptible flag (Aero III 48666 / 48667: 5 casts, 0 interruptible; board 3's interruptible cast does carry it).
+        var strixFight = guide.Fight(4, 1)!;
+        Check("Strix Piece: no interrupt counter names Aero III (the game never flags it interruptible)",
+            !strixFight.Counters.Any(c => c.AsNeed == CrucibleNeeds.Interrupt) && !strixFight.Counters.Any(c => c.What.Contains("Aero III", StringComparison.Ordinal)));
+        var aero = strixFight.Mechanics.FirstOrDefault(m => m.Name == "Aero III");
+        Check("Strix Piece: the Aero III line says Soul Crush cannot stop it and to kill the Plume, citing the log",
+            aero is not null && aero.Do.Contains("Plume", StringComparison.Ordinal) && aero.Do.Contains("Soul Crush", StringComparison.Ordinal)
+            && aero.Src.Contains("LOG") && strixFight.KillOrder is { } ko && ko.Text.Contains("Plume", StringComparison.Ordinal),
+            aero?.Do);
+        Check("Strix Piece: nothing left in the guide's unresolved list about who stops Aero III",
+            !strixFight.Unknown.Any(u => u.Contains("Aero III", StringComparison.Ordinal)));
 
         // ---- a Required need that cannot be covered is a warning with a named reason
         var boneNoSoul = GuideNeeds.Rows(Sel(1, 1, [wavekin[0], ashkin[0], .. hitters.Take(3)]));
@@ -308,7 +321,7 @@ internal static class NeedFirstCases
         // ---- the log carries the coverage
         var log = GuideNeeds.Log(Sel(4, 1, [wavekin[0], .. hitters.Take(4)]));
         Check("telemetry: PS| need coverage names kind, tier and the covering row or the reason",
-            log == $"D:R:{wavekin[0]};I:U:miss=no Soulkin in the roster", log);
+            log == $"D:R:{wavekin[0]}", log);
 
         // ---- no ability need at all: the points choose, and picks stay valid
         var arch = Sel(1, 2, allRows);
@@ -342,7 +355,7 @@ internal static class NeedFirstCases
         Check("no guide installed: the model is the game panel alone (Strix: dispel only)",
             panelOnly.Required == CrucibleNeeds.Dispel && panelOnly.Useful == CrucibleNeeds.None);
         guide.InstallNeedModel();
-        Check("guide installed: the same fight also carries the Useful interrupt",
-            CrucibleNeedModel.For(4, 1) is { Required: CrucibleNeeds.Dispel, Useful: CrucibleNeeds.Interrupt });
+        Check("guide installed: the same fight still needs the dispel alone (the Aero III interrupt claim is gone)",
+            CrucibleNeedModel.For(4, 1) is { Required: CrucibleNeeds.Dispel, Useful: CrucibleNeeds.None });
     }
 }
