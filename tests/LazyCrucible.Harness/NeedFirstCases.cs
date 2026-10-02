@@ -271,6 +271,12 @@ internal static class NeedFirstCases
             worth.Count > 0 && Answers(worth[0].Row, CrucibleNeeds.Interrupt) && !captured.Contains(worth[0].Row),
             string.Join(" | ", worth.Select(w => $"{BST_Beasts.All[w.Row].Name}: {w.Why}")));
 
+        foreach (var b in BST_CrucibleData.Battles)
+        {
+            var all = Sel(b.Board, b.Battle, allRows);
+            Console.WriteLine($"   B{b.Board}:{b.Battle,-2} {BST_CrucibleData.BattleLabel(b.Board, b.Battle),-22} {string.Join(" | ", all.Picks.Select(p => $"{BST_Beasts.All[p.Row].Name} ({p.Why})"))}   needs {GuideNeeds.Log(all)}");
+        }
+
         // ---- without the guide the model is the panel alone
         CrucibleNeedModel.Extras = null;
         var panelOnly = CrucibleNeedModel.For(4, 1);
