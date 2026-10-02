@@ -4,7 +4,10 @@ generate the plugin's C# tables, so the web advisor and the in-game advisor read
 
   advisor.json  - boards, enemies, battles, beast profiles (mirrors tools/bst-crucible/gen_crucible_data.py
                   field for field; the JS port in docs/crucible/advisor.js consumes it) plus the beast roster
-                  parsed from src/Shared/LalaCrucible/BST_Beasts.cs (kin, release traits, capture level).
+                  parsed from src/Shared/LalaCrucible/BST_Beasts.cs (kin, release traits, capture level) and
+                  needItems: each fight's guide counters with their Required / Useful tier (the tier rule of
+                  GuideCounter.Tier in src/LazyCrucible/Guide/CrucibleGuide.cs, applied to CrucibleGuide.json),
+                  the extras LazyCrucible installs into CrucibleNeedModel so the need-first picks agree.
   boards.json   - board graphs for the map UI from tools/crucible-planner/sheets/crucible_map.json
                   (nodes with map coordinates, edges, per-battle enemy panels with casts and statuses, bonus points).
   version.json  - game version key and export time.
@@ -24,6 +27,7 @@ REPO = os.path.dirname(os.path.dirname(HERE))
 SHEETS = os.path.join(REPO, "tools", "bst-crucible", "crucible_sheets_7.56.json")
 BEASTS = os.path.join(REPO, "tools", "bst-crucible", "crucible_beasts_7.56.json")
 BEASTS_CS = os.path.join(REPO, "src", "Shared", "LalaCrucible", "BST_Beasts.cs")
+GUIDE = os.path.join(REPO, "src", "LazyCrucible", "Guide", "CrucibleGuide.json")
 MAP = os.path.join(HERE, "sheets", "crucible_map.json")
 OUT = os.path.join(REPO, "docs", "crucible", "data")
 
@@ -32,6 +36,8 @@ AFFINITY = {"None": 0, "Volant": 1, "Rampant": 2, "Durant": 3, "Eldritch": 4, "S
 RELEASE = {"None": 0, "Damage": 1, "AoE": 2, "Exit": 4, "Sleep": 8, "Knockback": 16, "DrawIn": 32, "CrowdControl": 64,
            "TargetDebuff": 128, "PartyBuff": 256, "Mitigation": 512, "PetBuff": 1024, "PetCast": 2048}
 NEEDS = {"Interrupt": 1, "Dispel": 2, "Cleanse": 4}
+GUIDE_NEEDS = {"interrupt": 1, "dispel": 2, "cleanse": 4}
+TIER_USEFUL, TIER_REQUIRED = 1, 2
 ROLE = {"Enemy": 0, "EliteEnemy": 1, "Boss": 2}
 VULN_NAMES = ["Slow", "Petrification", "Paralysis", "Silence/Interrupt", "Blind", "Poison", "Stun", "Sleep", "Bind", "Heavy", "Doom"]
 
@@ -58,7 +64,32 @@ def parse_beasts_cs():
     return [None] + [rows[r] for r in range(1, count + 1)]
 
 
-def advisor(data, extra, beasts):
+def counter_tier(c):
+    """GuideCounter.Tier: Required when the game panel calls for it, the guide marks it mandatory, or two or more
+    distinct sources agree and none disputes it; Useful when it is single-sourced or disputed."""
+    src = c.get("src", [])
+    if "panel" in src or c.get("mandatory"):
+        return TIER_REQUIRED
+    if c.get("disputed"):
+        return TIER_USEFUL
+    return TIER_REQUIRED if len({s.split(":")[0] for s in src}) >= 2 else TIER_USEFUL
+
+
+def need_items(guide):
+    """One entry per guide fight (file order): its ability counters as tiered needs (CrucibleGuide.NeedsOf)."""
+    out = []
+    for f in guide["fights"]:
+        items = []
+        for c in f.get("counters", []):
+            kind = GUIDE_NEEDS.get(c["need"])
+            if kind is None:
+                continue
+            items.append({"kind": kind, "tier": counter_tier(c), "what": c.get("what", ""), "src": c.get("src", [])})
+        out.append({"board": f["board"], "battle": f["battle"], "items": items})
+    return out
+
+
+def advisor(data, extra, beasts, guide):
     stars = extra["enemy_stars"]
     boards = [None]
     for b in data["boards"]:
@@ -98,7 +129,7 @@ def advisor(data, extra, beasts):
     if [p["row"] for p in profiles[1:]] != list(range(1, 51)):
         sys.exit("beast profiles are not rows 1..50 in order")
     return {"source": data["source"], "beastCount": 50, "boards": boards, "enemies": enemies, "battles": battles,
-            "beastProfiles": profiles, "beasts": beasts}
+            "beastProfiles": profiles, "beasts": beasts, "needItems": need_items(guide)}
 
 
 def board_maps(m):
@@ -153,8 +184,9 @@ def main():
     data = json.load(open(SHEETS, encoding="utf-8"))
     extra = json.load(open(BEASTS, encoding="utf-8"))
     m = json.load(open(MAP, encoding="utf-8"))
+    guide = json.load(open(GUIDE, encoding="utf-8"))
     os.makedirs(OUT, exist_ok=True)
-    adv = advisor(data, extra, parse_beasts_cs())
+    adv = advisor(data, extra, parse_beasts_cs(), guide)
     maps = board_maps(m)
     key = re.search(r"([0-9a-f]{16})", data["source"])
     version = {"game": "7.56", "versionKey": key.group(1) if key else None,

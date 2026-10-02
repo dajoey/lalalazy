@@ -1,4 +1,5 @@
-// node --test docs/crucible/test  — proves docs/crucible/advisor.js reproduces the C# advisor exactly.
+// node --test docs/crucible/test  — proves docs/crucible/advisor.js reproduces the C# advisor (point score) and the
+// C# need-first horn picks (BST_CrucibleNeedFirst) exactly.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -56,44 +57,68 @@ test(`score matrix (${golden.scoreMatrix.length} cells x 3 variants)`, () => {
   assert.equal(n, golden.scoreMatrix.length);
 });
 
-test(`pick (${golden.pick.length} cases)`, () => {
-  for (const c of golden.pick) {
+const normNeed = (n) => ({ kind: n.need.kind, tier: n.need.tier, what: n.need.what, src: n.need.src, row: n.row, whyNot: n.whyNot ?? null });
+const normSel = (sel) => ({ picks: sel.picks.map(norm), needs: sel.needs.map(normNeed) });
+const goldenSel = (sel) => ({
+  picks: sel.picks.map(norm),
+  needs: sel.needs.map((n) => ({ kind: n.kind, tier: n.tier, what: n.what, src: n.src, row: n.row, whyNot: n.whyNot ?? null })),
+});
+
+test(`needItems (guide counters, tiered) are in the data and cover every fight`, () => {
+  assert.equal(data.needItems.length, 45);
+  for (const m of golden.needModels) assert.ok(data.needItems.some((f) => f.board === m.board && f.battle === m.battle), `fight ${m.board}:${m.battle}`);
+});
+
+test(`needModel: tiered ability needs per fight (${golden.needModels.length} fights)`, () => {
+  for (const m of golden.needModels) {
+    const got = adv.needModel(m.board, m.battle);
+    assert.deepEqual(got.items, m.items, `items ${m.board}:${m.battle}`);
+    assert.equal(got.required, m.required, `required ${m.board}:${m.battle}`);
+    assert.equal(got.useful, m.useful, `useful ${m.board}:${m.battle}`);
+    assert.equal(got.crowdControl, m.crowdControl, `crowdControl ${m.board}:${m.battle}`);
+  }
+});
+
+test(`selectCaptured: need-first picks and need status (${golden.needFirst.length} cases)`, () => {
+  for (const c of golden.needFirst) {
     const set = rosterSet(c.roster);
-    const got = adv.pick(c.board, c.battle, (r) => set.has(r), c.count).map(norm);
-    assert.deepEqual(got, c.picks.map(norm), `pick ${c.roster} b${c.board}/${c.battle} x${c.count}`);
+    const got = normSel(adv.selectCaptured(c.board, c.battle, (r) => set.has(r), c.count));
+    assert.deepEqual(got, goldenSel(c.selection), `selectCaptured ${c.roster} b${c.board}/${c.battle} x${c.count}`);
   }
 });
 
-test(`pickSlots (${golden.pickSlots.length} cases)`, () => {
-  for (const c of golden.pickSlots) {
-    const got = adv.pickSlots(c.board, c.battle, golden.rosters[c.roster], hpMap(golden.scenarios[c.scenario]), c.slots).map(norm);
-    assert.deepEqual(got, c.picks.map(norm), `pickSlots ${c.roster} b${c.board}/${c.battle} ${c.scenario} x${c.slots}`);
+test(`select with run HP: need-first picks and need status (${golden.needFirstSlots.length} cases)`, () => {
+  for (const c of golden.needFirstSlots) {
+    const got = normSel(adv.select(c.board, c.battle, golden.rosters[c.roster], hpMap(golden.scenarios[c.scenario]), c.slots, 'in the run roster'));
+    assert.deepEqual(got, goldenSel(c.selection), `select ${c.roster} b${c.board}/${c.battle} ${c.scenario} x${c.slots}`);
   }
 });
 
-test(`pickSlotsCoverage (${golden.coverage.length} cases)`, () => {
-  for (const c of golden.coverage) {
-    const got = adv.pickSlotsCoverage(c.board, golden.rosters[c.roster], hpMap(golden.scenarios[c.scenario]), c.slots).map(norm);
-    assert.deepEqual(got, c.picks.map(norm), `coverage ${c.roster} b${c.board} ${c.scenario} x${c.slots}`);
-  }
-});
-
-test(`worthCapturing (${golden.worth.length} cases)`, () => {
-  for (const c of golden.worth) {
+test(`worthCapturing: need-answering familiars first (${golden.needFirstWorth.length} cases)`, () => {
+  for (const c of golden.needFirstWorth) {
     const set = rosterSet(c.roster);
     const captured = (r) => set.has(r);
-    const picks = adv.pick(c.board, c.battle, captured);
-    const got = adv.worthCapturing(c.board, c.battle, captured, picks, c.count).map(norm);
+    const selection = adv.selectCaptured(c.board, c.battle, captured, 3);
+    const got = adv.worthCapturing(c.board, c.battle, captured, selection, c.count).map(norm);
     assert.deepEqual(got, c.picks.map(norm), `worth ${c.roster} b${c.board}/${c.battle} x${c.count}`);
   }
 });
 
-test(`boardRoster (${golden.boardRoster.length} cases)`, () => {
-  for (const c of golden.boardRoster) {
+test(`boardRoster from need-first picks (${golden.needFirstBoardRoster.length} cases)`, () => {
+  for (const c of golden.needFirstBoardRoster) {
     const set = rosterSet(c.roster);
     const got = adv.boardRoster(c.board, (r) => set.has(r));
     assert.deepEqual(got, c.rows, `boardRoster ${c.roster} b${c.board}`);
   }
+});
+
+// The reported defect: a point score let weakness and stats outvote an ability the fight needs.
+test('board 4 battle 1 with a Wavekin and a Soulkin captured: both are picked (dispel Required, interrupt Useful)', () => {
+  const owned = new Set([4, 7, 1, 2, 3]); // pugil (Wavekin), coblyn (Soulkin), three non-answering familiars
+  const sel = adv.selectCaptured(4, 1, (r) => owned.has(r), 3);
+  const rows = sel.picks.map((p) => p.row);
+  assert.ok(rows.includes(4) && rows.includes(7), `picks ${rows}`);
+  assert.ok(sel.needs.every((n) => n.row !== 0), 'every need covered');
 });
 
 test('INT_MIN sentinel matches C# int.MinValue', () => assert.equal(INT_MIN, -2147483648));

@@ -3,7 +3,8 @@
        advisor (src/Shared/LalaCrucible) and writes every pick the JavaScript port must reproduce byte for byte:
          dotnet run -c Release - -project tests/CruciblePlanner.Golden - - tests/CruciblePlanner.Golden/golden.json
        docs/crucible/test/advisor.test.mjs (node - -test) replays golden.json against docs/crucible/advisor.js.
-       Re-run whenever BST_CrucibleAdvisor.cs, BST_CrucibleData*.cs or BST_Beasts.cs change; commit the JSON. -->
+       Re-run whenever BST_CrucibleAdvisor.cs, BST_CrucibleNeedFirst.cs, BST_CrucibleData*.cs, BST_Beasts.cs or
+       LazyCrucible's CrucibleGuide.* change; commit the JSON. -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
@@ -16,6 +17,15 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\..\src\Shared\LalaCrucible\**\*.cs" Link="LalaCrucible\%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- Need-first picks (2026-10-02): the tiered ability needs come from LazyCrucible's guide (the same
+         CrucibleGuide.cs / CrucibleGuide.json the plugin installs as CrucibleNeedModel.Extras); CrucibleThreat lives in
+         RunContext.cs, which pulls the policy files with it, exactly as tests/LazyCrucible.Harness compiles them. -->
+    <Compile Include="..\..\src\LazyCrucible\FormationLogic.cs" Link="LazyCrucible\FormationLogic.cs" />
+    <Compile Include="..\..\src\LazyCrucible\Data\**\*.cs" Link="LazyCrucible\Data\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\..\src\LazyCrucible\Policy\**\*.cs" Link="LazyCrucible\Policy\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\..\src\LazyCrucible\Guide\CrucibleGuide.cs" Link="LazyCrucible\Guide\CrucibleGuide.cs" />
+    <Compile Include="..\..\src\LazyCrucible\Guide\GuideNeeds.cs" Link="LazyCrucible\Guide\GuideNeeds.cs" />
+    <None Include="..\..\src\LazyCrucible\Guide\CrucibleGuide.json" Link="CrucibleGuide.json" CopyToOutputDirectory="PreserveNewest" />
     <Using Include="Lalalazy.Crucible" />
   </ItemGroup>
 </Project>

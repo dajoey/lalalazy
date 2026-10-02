@@ -1,6 +1,6 @@
 // Crucible Planner — page logic. Data: data/advisor.json (advisor tables), data/boards.json (map graphs + panels).
 // No framework, no build step, no tracking. Roster and route live in localStorage and the URL hash.
-import { createAdvisor, WEAKNESS, NEEDS } from './advisor.js';
+import { createAdvisor, WEAKNESS, NEEDS, TIER } from './advisor.js';
 
 const CONFIG = {
   kofi: '',            // Ko-fi handle (e.g. 'dajoey'). Empty hides the support button.
@@ -152,14 +152,25 @@ function routeTo(bm, from, to) {
 }
 
 // ---------------------------------------------------------------- picks
-function getPicks(board, battle) {
-  if (state.trackHp) {
-    // Explicit 100% for every owned familiar without a set HP, so the reasons do not say "HP assumed full".
-    const rows = [...state.owned].sort((a, b) => a - b);
-    const hp = new Map(rows.map((r) => [r, state.hp.has(r) ? state.hp.get(r) : 100]));
-    return adv.pickSlots(board, battle, rows, hp, 3);
-  }
-  return adv.pick(board, battle, captured, 3);
+// Need-first (BST_CrucibleNeedFirst): the abilities the fight needs choose the three familiars; points only break ties.
+function getSelection(board, battle) {
+  // Explicit 100% for every owned familiar without a set HP, so the reasons do not say "HP assumed full".
+  const rows = [...state.owned].sort((a, b) => a - b);
+  const hp = new Map(rows.map((r) => [r, state.trackHp && state.hp.has(r) ? state.hp.get(r) : 100]));
+  return adv.select(board, battle, rows, hp, 3, state.trackHp ? 'in the run roster' : 'captured');
+}
+
+const NEED_LABEL = { [NEEDS.Interrupt]: 'Interrupt', [NEEDS.Dispel]: 'Dispel', [NEEDS.Cleanse]: 'Cleanse' };
+
+/** What the fight calls for and which picked familiar answers each need (or why none does). */
+function needsHtml(selection) {
+  if (selection.needs.length === 0) return '';
+  const rows = selection.needs.map((n) => {
+    const tag = n.need.tier === TIER.Required ? '' : ' <small>(useful)</small>';
+    const by = n.row ? `<b>${esc(beastName(n.row))}</b>` : `<span class="cp-sub">${esc(n.whyNot)}</span>`;
+    return `<div class="cp-cast"><b>${NEED_LABEL[n.need.kind]}</b>${tag} <span class="m">${esc(n.need.what)}</span> → ${by}</div>`;
+  }).join('');
+  return `<details class="cp-casts" open><summary>The fight calls for (${selection.needs.length})</summary>${rows}</details>`;
 }
 
 function battleNeeds(board, battle) {
@@ -253,7 +264,7 @@ function renderSummary() {
   const teamHtml = state.owned.size === 0
     ? `<div class="cp-empty">Tick the familiars you own in <a href="#roster">Your roster</a> to get a team and per-fight picks.</div>`
     : team.length === 0
-      ? `<div class="cp-empty">None of your familiars scores on this board yet.</div>`
+      ? `<div class="cp-empty">None of your familiars makes a fight's three on this board yet.</div>`
       : team.map((t) => `<span class="chip">${esc(beastName(t.row))} <small>×${t.battles}</small></span>`).join('');
   $('#board-summary').innerHTML = `<div class="cp-card cp-summary">
     <div class="cp-card-head"><h2 class="cp-title">${esc(bm.name)}</h2><span class="cp-sub">${bm.nodes.length} spaces · ${ab.battles} fights · ${bm.timeLimitMin} min limit</span></div>
@@ -295,16 +306,16 @@ function enemyHtml(e, isBoss) {
 function picksHtml(board, battle) {
   const bm = boardMap();
   if (state.owned.size === 0) return `<div class="cp-empty">Tick your familiars in <a href="#roster">Your roster</a> to see who to bring.</div>`;
-  const picks = getPicks(board, battle);
-  const base = adv.pick(board, battle, captured, 3);
-  const worth = adv.worthCapturing(board, battle, captured, base, 2);
+  const selection = getSelection(board, battle);
+  const picks = selection.picks;
+  const worth = adv.worthCapturing(board, battle, captured, adv.selectCaptured(board, battle, captured, 3), 2);
   const list = picks.length
-    ? picks.map((p, i) => `<div class="cp-pick"><span class="slot">${i + 1}</span><span class="nm">${esc(beastName(p.row))}</span><span class="why">${esc(p.why || '—')}</span><span class="sc">${p.score}</span></div>`).join('')
-    : `<div class="cp-empty">${state.trackHp ? 'Every familiar you own is knocked out.' : 'No familiar you own scores here.'}</div>`;
+    ? picks.map((p, i) => `<div class="cp-pick"><span class="slot">${i + 1}</span><span class="nm">${esc(beastName(p.row))}</span><span class="why">${esc(p.why || '—')}</span></div>`).join('')
+    : `<div class="cp-empty">${state.trackHp ? 'Every familiar you own is knocked out.' : 'No familiar you own can be brought here.'}</div>`;
   const worthHtml = worth.length
-    ? `<h3>Worth capturing before this board <span class="cp-sub">(capturable by Lv ${bm.level})</span></h3>${worth.map((p) => `<div class="cp-pick"><span class="slot">+</span><span class="nm">${esc(beastName(p.row))}</span><span class="why">${esc(p.why || '—')}</span><span class="sc">${p.score}</span></div>`).join('')}`
+    ? `<h3>Worth capturing before this board <span class="cp-sub">(capturable by Lv ${bm.level})</span></h3>${worth.map((p) => `<div class="cp-pick"><span class="slot">+</span><span class="nm">${esc(beastName(p.row))}</span><span class="why">${esc(p.why || '—')}</span></div>`).join('')}`
     : '';
-  return `<div class="cp-picks"><h3>Bring${state.trackHp ? ' <span class="cp-sub">(run HP applied)</span>' : ''}</h3>${list}${worthHtml}</div>`;
+  return `<div class="cp-picks"><h3>Bring${state.trackHp ? ' <span class="cp-sub">(run HP applied)</span>' : ''}</h3>${list}${needsHtml(selection)}${worthHtml}</div>`;
 }
 
 function fightCard(bm, node, battleNo, opts = {}) {

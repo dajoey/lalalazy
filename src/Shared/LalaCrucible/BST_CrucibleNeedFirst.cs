@@ -313,6 +313,35 @@ internal static class BST_CrucibleNeedFirst
         SelectCaptured(board, battle, captured, count).Picks;
 
     /// <summary>
+    ///     A roster for the whole board (the beast-selection limit) from the need-first picks: familiars that appear in
+    ///     battles' picks, most battles first, then by total score. Battles only a random space leads to count half.
+    ///     Same tally as <see cref="BST_CrucibleAdvisor.BoardRoster"/>, over <see cref="Pick"/> instead of the point score.
+    /// </summary>
+    public static List<(int Row, int Battles)> BoardRoster(int board, Func<int, bool> captured)
+    {
+        var info = BST_CrucibleData.Boards[board - 1];
+        var tally = new Dictionary<int, (double Weight, int Battles, int Score)>();
+
+        foreach (var battle in BST_CrucibleData.Battles)
+        {
+            if (battle.Board != board)
+                continue;
+            foreach (var pick in Pick(board, battle.Battle, captured))
+            {
+                var t = tally.GetValueOrDefault(pick.Row);
+                tally[pick.Row] = (t.Weight + (battle.RandomOnly ? 0.5 : 1.0), t.Battles + 1, t.Score + pick.Score);
+            }
+        }
+
+        return tally
+            .OrderByDescending(kv => kv.Value.Weight)
+            .ThenByDescending(kv => kv.Value.Score)
+            .Take(info.Roster)
+            .Select(kv => (kv.Key, kv.Value.Battles))
+            .ToList();
+    }
+
+    /// <summary>
     ///     Horn picks when the battle is not identified but the board is (pre-entry): the same need-first rule, with
     ///     every battle of the board counted. Each pick maximises the Required (fight, ability) pairs it newly covers,
     ///     then the Useful ones, then points. Every <c>Why</c> starts with <c>coverage board N, battle unidentified</c>.

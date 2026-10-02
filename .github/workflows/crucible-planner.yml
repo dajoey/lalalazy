@@ -1,6 +1,6 @@
-# Crucible Planner (docs/crucible): the JavaScript advisor must stay byte-identical to the shared C# advisor,
-# and the exported data files must match their generators. Runs on every change to the planner, the shared
-# Crucible source, the sheet slices, or the golden dumper.
+# Crucible Planner (docs/crucible): the JavaScript advisor must stay byte-identical to the shared C# advisor and
+# need-first picker, and the exported data files must match their generators. Runs on every change to the planner,
+# the shared Crucible source, LazyCrucible's guide (the tiered needs), the sheet slices, or the golden dumper.
 name: Crucible Planner
 
 on:
@@ -10,6 +10,10 @@ on:
       - 'docs/crucible/**'
       - 'tests/CruciblePlanner.Golden/**'
       - 'src/Shared/LalaCrucible/**'
+      - 'src/LazyCrucible/Guide/**'
+      - 'src/LazyCrucible/Policy/**'
+      - 'src/LazyCrucible/Data/**'
+      - 'src/LazyCrucible/FormationLogic.cs'
       - 'tools/crucible-planner/**'
       - 'tools/bst-crucible/**'
       - '.github/workflows/crucible-planner.yml'
@@ -18,6 +22,10 @@ on:
       - 'docs/crucible/**'
       - 'tests/CruciblePlanner.Golden/**'
       - 'src/Shared/LalaCrucible/**'
+      - 'src/LazyCrucible/Guide/**'
+      - 'src/LazyCrucible/Policy/**'
+      - 'src/LazyCrucible/Data/**'
+      - 'src/LazyCrucible/FormationLogic.cs'
       - 'tools/crucible-planner/**'
       - 'tools/bst-crucible/**'
       - '.github/workflows/crucible-planner.yml'
