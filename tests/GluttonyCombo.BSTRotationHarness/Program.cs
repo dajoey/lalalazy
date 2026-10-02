@@ -1029,6 +1029,14 @@ internal static class Program
         Check("3 s before it lands: not yet", Decide(landing with { TargetCastRemaining = 3f }, spCfg).Reason != "crucible:snarl-parting");
         Check("no Snarl in the last 45 s: no whiff", Decide(landing with { SinceSnarl = 60f }, spCfg).Reason != "crucible:snarl-parting");
         Check("snarl-parting is off by default", Decide(landing, on).Reason != "crucible:snarl-parting");
+        // Never evaluated while off, so no run could grade it (0 snarl-parting decisions in 209 logged tankbuster casts, 2026-09-24 .. 10-01):
+        // the open window is logged in the shadow field while the option is off, so the next run can be graded without anyone reporting it.
+        Check("snarl-parting off (the default): the open window is logged for grading and nothing is pressed",
+            Decide(landing, on) is { Shadow: "crucible:snarl-parting-off" } offLogged && offLogged.ActionId != BST.PartingBlow, Decide(landing, on).Shadow);
+        Check("... also when no Snarl was used (the dodge never set up)", Decide(landing with { SinceSnarl = 60f }, on).Shadow == "crucible:snarl-parting-off");
+        Check("... not logged before the window (3 s before it lands)", Decide(landing with { TargetCastRemaining = 3f }, on).Shadow != "crucible:snarl-parting-off");
+        Check("... not logged with the aggro option off", Decide(landing, cfg with { CrucibleAggro = CrucibleAggroMode.Off }).Shadow != "crucible:snarl-parting-off");
+        Check("... not logged when the option is on (it presses instead)", Decide(landing, spCfg).Shadow != "crucible:snarl-parting-off");
         Check("snarl-parting in log-only mode: logged, not pressed",
             Decide(landing, cfg with { CrucibleSnarlParting = true }) is { Shadow: "crucible:snarl-parting" } logged && logged.Reason != "crucible:snarl-parting");
         Check("score mode with snarl-parting: Snarl for the tankbuster", Decide(castStart, scoreCfg with { CrucibleSnarlParting = true }).ActionId == BST.Snarl);

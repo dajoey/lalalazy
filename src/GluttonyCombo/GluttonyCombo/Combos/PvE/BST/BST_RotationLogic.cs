@@ -498,6 +498,12 @@ internal static class BST_RotationLogic
                 if (cfg.CrucibleAggro == CrucibleAggroMode.Shadow)
                     shadow = "crucible:snarl-parting";
             }
+            else if (familiarOut && !cfg.CrucibleSnarlParting && cfg.CrucibleAggro != CrucibleAggroMode.Off
+                     && shadow.Length == 0 && BST_CrucibleLogic.SnarlPartingWindow(s, cfg))
+            {
+                // Option off: nothing pressed, but the open window is logged so the dodge can be graded from a run.
+                shadow = "crucible:snarl-parting-off";
+            }
 
             if (familiarOut)
             {

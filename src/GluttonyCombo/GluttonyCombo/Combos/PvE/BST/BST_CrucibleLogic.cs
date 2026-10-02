@@ -656,11 +656,18 @@ internal static class BST_CrucibleLogic
     ///     ends: earlier and the hit lands on the character, later and the familiar eats it.
     /// </summary>
     public static bool SnarlPartingNow(in BstState s, in BstSettings cfg) =>
+        SnarlPartingWindow(s, cfg) && s.SinceSnarl < 45f;
+
+    /// <summary>
+    ///     The Parting Blow window of a known tankbuster is open (the hit lands within the lead time), whether or not Snarl set it up.
+    ///     Logged in the shadow field while the option is off, so a run can be graded (it had never been evaluated: 0 decisions).
+    /// </summary>
+    public static bool SnarlPartingWindow(in BstState s, in BstSettings cfg) =>
         s.HasHostileTarget && FamiliarOut(s) && s.ReadyParting && !s.TargetDoNotAttack && !s.ProtectedNearTarget
         && s.TargetCastId != 0 && BST_CrucibleData.Tankbusters.Contains(s.TargetCastId)
         && s.TargetCastRemaining + BST_CrucibleData.TankbusterHitDelay(s.TargetCastId) is > 0.2f and var landsIn
         && landsIn <= cfg.CrucibleSnarlPartingLead
-        && s.SinceSnarl < 45f && s.TargetDistance <= 25f;
+        && s.TargetDistance <= 25f;
 
     // ------------------------------------------------------------------ auto-targeting
 
