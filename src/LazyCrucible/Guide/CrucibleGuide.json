@@ -2506,7 +2506,8 @@
      "src": [
       "AS",
       "NT"
-     ]
+     ],
+     "disputed": true
     },
     {
      "need": "cleanse",
@@ -2514,7 +2515,8 @@
      "src": [
       "AS",
       "NT"
-     ]
+     ],
+     "disputed": true
     }
    ],
    "threats": [
@@ -3218,7 +3220,8 @@
      "what": "Aero III knockback (guide says Soul Crush stops it)",
      "src": [
       "AS"
-     ]
+     ],
+     "disputed": true
     }
    ],
    "threats": [
@@ -4261,7 +4264,8 @@
      "what": "Growing buff from Grab and Grow (panel says not dispellable)",
      "src": [
       "AS"
-     ]
+     ],
+     "disputed": true
     }
    ],
    "threats": [
@@ -4607,7 +4611,8 @@
      "src": [
       "AS",
       "G8"
-     ]
+     ],
+     "disputed": true
     }
    ],
    "threats": [
@@ -5045,7 +5050,8 @@
      "src": [
       "AS",
       "BMR"
-     ]
+     ],
+     "disputed": true
     }
    ],
    "threats": [
@@ -5726,7 +5732,8 @@
      "what": "Impassion Damage Up (panel says not dispellable)",
      "src": [
       "AS"
-     ]
+     ],
+     "disputed": true
     }
    ],
    "threats": [
@@ -6791,7 +6798,8 @@
      "src": [
       "AS",
       "LSB"
-     ]
+     ],
+     "disputed": true
     }
    ],
    "threats": [
