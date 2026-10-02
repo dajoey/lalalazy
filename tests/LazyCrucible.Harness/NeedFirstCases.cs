@@ -261,6 +261,21 @@ internal static class NeedFirstCases
         Check("every battle: the picker's need list holds every guide counter and every panel need; the guide rows ARE that list",
             mismatch.Count == 0, string.Join(" | ", mismatch.Take(5)));
 
+        // ---- GluttonyCombo has no guide file: it reads the same counters from generated shared source. Equal for every battle.
+        var tableDrift = new List<string>();
+        foreach (var b in BST_CrucibleData.Battles)
+        {
+            var fromTable = BST_CrucibleGuideNeeds.NeedsOf(b.Board, b.Battle);
+            var fromGuide = guide.NeedsOf(b.Board, b.Battle);
+            var same = fromTable.Count == fromGuide.Count
+                       && fromTable.Zip(fromGuide).All(p => p.First.Kind == p.Second.Kind && p.First.Tier == p.Second.Tier
+                                                            && p.First.What == p.Second.What && p.First.Src.SequenceEqual(p.Second.Src));
+            if (!same)
+                tableDrift.Add($"{b.Board}:{b.Battle} table {fromTable.Count} vs guide {fromGuide.Count}");
+        }
+        Check("the rotation's generated guide-needs table equals CrucibleGuide.NeedsOf for every battle (regenerate with tools/crucible-planner/gen_guide_needs.py)",
+            tableDrift.Count == 0, string.Join(" | ", tableDrift.Take(5)));
+
         // ---- the screenshot fight shows no warning when covered, and says why when not
         var strixCovered = Sel(4, 1, [wavekin[0], soulkin[0], .. hitters.Take(3)]);
         var coveredRows = GuideNeeds.Rows(strixCovered);

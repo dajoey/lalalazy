@@ -220,7 +220,10 @@ internal partial class BST
     {
         if (board != _needsBoard || battle != _needsBattle)
         {
-            _needs = BST_CrucibleData.BattleNeeds(board, battle);
+            // Gluttony ships no guide file: the guide's counters come as generated shared source, installed once.
+            if (CrucibleNeedModel.Extras is null)
+                BST_CrucibleGuideNeeds.Install();
+            _needs = BST_CrucibleLogic.FightNeeds(board, battle);
             _needsBoard = board;
             _needsBattle = battle;
         }

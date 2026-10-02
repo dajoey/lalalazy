@@ -48,6 +48,17 @@ internal static class BST_CrucibleLogic
     public static List<CrucibleBeastPick> HornWarningPicks(int board, int battle, Func<int, bool> captured) =>
         BST_CrucibleNeedFirst.Pick(board, battle, captured);
 
+    /// <summary>
+    ///     What the rotation reads for a battle: every ability need the picker and the fight guide read, Required and Useful alike
+    ///     (the panel's calls plus the guide's counters, one list per battle). An answer only fires when the thing is actually
+    ///     happening (an interruptible cast, a dispellable buff, a cleansable debuff), so a Useful need costs nothing while it is quiet.
+    /// </summary>
+    public static CrucibleNeeds FightNeeds(int board, int battle)
+    {
+        var model = CrucibleNeedModel.For(board, battle);
+        return model.Required | model.Useful;
+    }
+
     /// <summary> A familiar summoned this recently is not swapped out above the critical line. </summary>
     public const float SwapGraceSeconds = 8f;
 

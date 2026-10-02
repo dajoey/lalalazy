@@ -34,6 +34,7 @@ internal static class Program
         MasterBoardFights();
         CrucibleTargetingAndAdvisor();
         CrucibleHornWarning();
+        GuideNeedsInRotation();
         ShieldChargeOvercap();
 
         SimulateAllLevels(verbose);
@@ -375,6 +376,62 @@ internal static class Program
         }
 
         Check("horn warning: nothing captured names no familiar", BST_CrucibleLogic.HornWarningPicks(4, 8, _ => false).Count == 0);
+    }
+
+    /// <summary>
+    ///     The rotation reads the SAME Required / Useful ability needs as LazyCrucible's picker and guide window (research-to-behaviour
+    ///     audit, 2026-10-02): before, the research's counters were visible to the picker but the rotation only knew the enemy panel,
+    ///     so a need only the guide named (Chimera's poison, the disputed Might / Sand Tempest / Grab and Grow) was never answered
+    ///     in the fight. Gluttony installs the generated guide table at load; the harness does the same.
+    /// </summary>
+    private static void GuideNeedsInRotation()
+    {
+        Console.WriteLine("-- guide needs in the rotation --");
+        BST_CrucibleGuideNeeds.Install();
+        try
+        {
+            var chimera = CrucibleNeedModel.For(5, 8);
+            Check("Chimera (5.8): the panel and the guide's three agreeing sources both call for the cleanse, so it is Required",
+                (BST_CrucibleData.BattleNeeds(5, 8) & CrucibleNeeds.Cleanse) != 0 && (chimera.Required & CrucibleNeeds.Cleanse) != 0, chimera.Required.ToString());
+            var golem = CrucibleNeedModel.For(3, 5);
+            Check("Lakhamu + Golem (3.5): the panel is silent; the guide's disputed Might dispel and Sand Tempest cleanse are Useful, not Required",
+                BST_CrucibleData.BattleNeeds(3, 5) == CrucibleNeeds.None
+                && (golem.Useful & CrucibleNeeds.Dispel) != 0 && (golem.Useful & CrucibleNeeds.Cleanse) != 0 && golem.Required == CrucibleNeeds.None,
+                $"req {golem.Required} useful {golem.Useful}");
+            Check("the rotation reads Required and Useful: Chimera cleanse, Lakhamu dispel + cleanse, Treant interrupt + dispel",
+                BST_CrucibleLogic.FightNeeds(5, 8) == CrucibleNeeds.Cleanse
+                && BST_CrucibleLogic.FightNeeds(3, 5) == (CrucibleNeeds.Dispel | CrucibleNeeds.Cleanse)
+                && BST_CrucibleLogic.FightNeeds(4, 8) == (CrucibleNeeds.Interrupt | CrucibleNeeds.Dispel),
+                $"{BST_CrucibleLogic.FightNeeds(5, 8)} / {BST_CrucibleLogic.FightNeeds(3, 5)} / {BST_CrucibleLogic.FightNeeds(4, 8)}");
+            Check("a panel need stays: Strix Piece still needs the dispel (and nothing else)", BST_CrucibleLogic.FightNeeds(4, 1) == CrucibleNeeds.Dispel);
+            Check("a fight with neither panel nor guide needs reads none (1.2)", BST_CrucibleLogic.FightNeeds(1, 2) == CrucibleNeeds.None);
+
+            // The chain: a need only the guide knows reaches the rotation and brings out the answering familiar.
+            var cfg = BstSettings.Defaults();
+            var live = CrucibleState(50) with { SinceSummon = 12f, ReadyParting = false, SinceHornPress = 30f };
+            var golemFight = live with
+            {
+                CrucibleBoard = 3, CrucibleBattle = 5, CrucibleNeeds = BST_CrucibleLogic.FightNeeds(3, 5),
+                Slot1Beast = 1, Slot2Beast = 11, Slot3Beast = 34, ActiveSlot = 1, PetObjectBeast = 1,
+                ReadyHorn2 = true, TargetHasDispellableBuff = true, GcdReady = true,
+            };
+            Check("Golem Might on the target (3.5, a dispel only the guide names), vulture on a ready horn: the rotation blows its horn",
+                Decide(golemFight, cfg) is { ActionId: BST.SecondBattlehorn, Reason: "crucible:answer-dispel-slot2" },
+                $"{Decide(golemFight, cfg).Reason} [{Decide(golemFight, cfg).Declines}]");
+            var sand = live with
+            {
+                CrucibleBoard = 3, CrucibleBattle = 5, CrucibleNeeds = BST_CrucibleLogic.FightNeeds(3, 5),
+                Slot1Beast = 1, Slot2Beast = 19, Slot3Beast = 34, ActiveSlot = 1, PetObjectBeast = 1,
+                ReadyHorn2 = true, PlayerHasCleansableDebuff = true, GcdReady = true,
+            };
+            Check("Sand Tempest blind on the character (3.5, a cleanse only the guide names), bat on a ready horn: the rotation blows its horn",
+                Decide(sand, cfg) is { ActionId: BST.SecondBattlehorn, Reason: "crucible:answer-cleanse-slot2" },
+                $"{Decide(sand, cfg).Reason} [{Decide(sand, cfg).Declines}]");
+        }
+        finally
+        {
+            CrucibleNeedModel.Extras = null;
+        }
     }
 
     private static void CrucibleTargetingAndAdvisor()
