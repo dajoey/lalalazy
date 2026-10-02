@@ -180,8 +180,9 @@ internal static class BST_CrucibleLogic
     {
         var learned = LearnedHornSlots(s.Level);
         var best = 0;
-        (int, int, int, float) bestKey = (0, 0, 0, 0f);
+        (int, int, int, int, float) bestKey = (0, 0, 0, 0, 0f);
         var stingDue = FinalStingDue(s, cfg);
+        var answers = LiveAnswerSlots(s);
 
         for (var slot = 1; slot <= learned; slot++)
         {
@@ -192,6 +193,7 @@ internal static class BST_CrucibleLogic
             var healthy = hp > cfg.CruciblePetSwapHp;
             var key = (
                 healthy ? 1 : 0,
+                healthy && answers.Contains(slot) ? 1 : 0,       // the familiar that answers what the fight is doing right now
                 IsExitBeast(s, slot) ? (stingDue ? 2 : 0) : 1,   // wespe first when its Final Sting is due, else last
                 healthy && IsSetUpBeast(s, slot) ? 1 : 0,        // set-up beasts first; below the line health decides
                 hp);
@@ -202,7 +204,7 @@ internal static class BST_CrucibleLogic
             }
         }
 
-        if (best != 0 && bestKey.Item4 <= CriticalHp(cfg) && s.InCombat && s.PartingBlowRecast > 2f)
+        if (best != 0 && bestKey.Item5 <= CriticalHp(cfg) && s.InCombat && s.PartingBlowRecast > 2f)
             return 0;
         return best;
     }
@@ -406,6 +408,107 @@ internal static class BST_CrucibleLogic
             declines.Add("crucible:finalsting-swap-moving");
         else
             return (HornAction(slot), "crucible:finalsting-swap");
+        return (0, "");
+    }
+
+    // ------------------------------------------------------------------ answer on demand
+
+    /// <summary> Ability kinds in the order they are answered: an interrupt is gone in seconds, a buff or debuff lasts longer. </summary>
+    private static readonly CrucibleNeeds[] AnswerKinds = [CrucibleNeeds.Interrupt, CrucibleNeeds.Dispel, CrucibleNeeds.Cleanse];
+
+    private static string AnswerName(CrucibleNeeds kind) => kind switch
+    {
+        CrucibleNeeds.Interrupt => "interrupt",
+        CrucibleNeeds.Dispel => "dispel",
+        _ => "cleanse",
+    };
+
+    /// <summary>
+    ///     The horn whose familiar answers <paramref name="kind"/> while the fight is calling for it right now, and is not
+    ///     already answered (the familiar out is that one, or its Kinship is held). 0 = not live, already answered, or no horn
+    ///     carries an answer. Live means the fight's panel needs it AND the thing is happening: an interruptible cast on the
+    ///     target, a dispellable buff on the target, a cleansable debuff on the character. The vulture and the bat answer
+    ///     with their own Tempered Release, so they come first; otherwise the Kinship is borrowed from the familiar that has it.
+    /// </summary>
+    public static int LiveAnswerSlot(in BstState s, CrucibleNeeds kind, BeastmasterBeast? active)
+    {
+        if ((s.CrucibleNeeds & kind) == 0)
+            return 0;
+
+        var outKin = active is { } a ? a.Kin : BeastmasterKinType.None;
+        var outRow = active is { } b ? b.Row : 0;
+        switch (kind)
+        {
+            case CrucibleNeeds.Interrupt:
+                if (!s.HasHostileTarget || s.TargetDoNotAttack || !s.TargetInterruptible
+                    || HeldKin(s) == BeastmasterKinType.Soulkin || outKin == BeastmasterKinType.Soulkin)
+                    return 0;
+                return SlotWithKin(s, BeastmasterKinType.Soulkin);
+            case CrucibleNeeds.Dispel:
+            {
+                if (!s.HasHostileTarget || s.TargetDoNotAttack || !s.TargetHasDispellableBuff
+                    || outRow == VultureRow || HeldKin(s) == BeastmasterKinType.Wavekin || outKin == BeastmasterKinType.Wavekin)
+                    return 0;
+                var vulture = SlotWithKin(s, BeastmasterKinType.None, VultureRow);
+                return vulture != 0 ? vulture : SlotWithKin(s, BeastmasterKinType.Wavekin);
+            }
+            default:
+            {
+                if (!s.PlayerHasCleansableDebuff
+                    || outRow == BST_CrucibleData.BatRow || HeldKin(s) == BeastmasterKinType.Ashkin || outKin == BeastmasterKinType.Ashkin)
+                    return 0;
+                var bat = SlotWithKin(s, BeastmasterKinType.None, BST_CrucibleData.BatRow);
+                return bat != 0 ? bat : SlotWithKin(s, BeastmasterKinType.Ashkin);
+            }
+        }
+    }
+
+    /// <summary> Every horn that answers something live (no familiar out, so nothing counts as already answered). </summary>
+    private static HashSet<int> LiveAnswerSlots(in BstState s)
+    {
+        var slots = new HashSet<int>();
+        if (!s.InCombat)
+            return slots;
+        foreach (var kind in AnswerKinds)
+            if (LiveAnswerSlot(s, kind, null) is var slot and not 0)
+                slots.Add(slot);
+        return slots;
+    }
+
+    /// <summary>
+    ///     The fight is calling for an ability (interruptible cast, dispellable buff, cleansable debuff) and the familiar out
+    ///     does not answer it: blow the horn of the one that does, like a familiar save (healthy, not moving, between GCDs,
+    ///     the last horn settled). The ability itself then goes out through <see cref="TryDispel"/>, <see cref="TryCleanse"/>,
+    ///     the Borrow rule and the interrupt rule. Without this the familiar that was picked for the fight stays on its horn
+    ///     and the rotation logs "dispel-unavailable" until the buff has done its damage (board 4 Strix Piece, 2026-10-01).
+    /// </summary>
+    public static (uint ActionId, string Reason) TryAnswerSwap(in BstState s, in BstSettings cfg, BeastmasterBeast? beast, List<string> declines)
+    {
+        if (!FamiliarOut(s) || s.CrucibleNeeds == CrucibleNeeds.None)
+            return (0, "");
+
+        foreach (var kind in AnswerKinds)
+        {
+            var slot = LiveAnswerSlot(s, kind, beast);
+            if (slot == 0 || slot == s.ActiveSlot)
+                continue;
+
+            var name = AnswerName(kind);
+            if (!HornReady(s, slot))
+                declines.Add($"crucible:answer-{name}-horn-not-ready");
+            else if (SlotPetHp(s, slot) <= CriticalHp(cfg))
+                declines.Add($"crucible:answer-{name}-familiar-hurt");
+            else if (Covering(s) && s.PlayerHpPercent < 50f)
+                declines.Add($"crucible:answer-{name}-covering");
+            else if (s.IsMoving || s.PlayerIsCasting || !(s.CanWeave || !s.GcdReady) || s.SinceHornPress <= SummonSettleSeconds)
+            {
+                declines.Add($"crucible:answer-{name}-waiting");
+                return (0, "");
+            }
+            else
+                return (HornAction(slot), $"crucible:answer-{name}-slot{slot}");
+        }
+
         return (0, "");
     }
 

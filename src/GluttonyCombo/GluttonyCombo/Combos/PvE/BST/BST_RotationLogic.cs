@@ -508,6 +508,10 @@ internal static class BST_RotationLogic
                 var sting = BST_CrucibleLogic.TryFinalStingSwap(s, cfg, beast, declines);
                 if (sting.ActionId != 0)
                     return Pick(sting.ActionId, sting.Reason);
+
+                var answer = BST_CrucibleLogic.TryAnswerSwap(s, cfg, beast, declines);
+                if (answer.ActionId != 0)
+                    return Pick(answer.ActionId, answer.Reason);
             }
 
             var dispel = BST_CrucibleLogic.TryDispel(s, beast, declines);
