@@ -27,6 +27,7 @@
     <Compile Include="..\..\src\LazyCrucible\Guide\GuideNeeds.cs" Link="Guide\GuideNeeds.cs" />
     <None Include="Fixtures\*.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\src\LazyCrucible\Guide\CrucibleGuide.json" Link="CrucibleGuide.json" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\src\LazyCrucible\Guide\CrucibleGuide.json')" />
+    <None Include="ResearchBehavior.tsv" CopyToOutputDirectory="PreserveNewest" />
     <Using Include="Lalalazy.Crucible" />
     <!-- Error reporting (2026-09-21): LazyCrucible's pure telemetry policy (report ring cap, ER| areas, XBM capture
          split) and the Dalamud-free core of the shared library it feeds (report builder, token bucket, parser). -->

@@ -29,6 +29,7 @@ internal static class Program
         GuideCases.Run();
         NeedFirstCases.Run();
         ResearchLogCases.Run();
+        ResearchBehaviorCases.Run();
         FightWarningCases.Run();
         AutoDutyWatchCases.Run();
 
