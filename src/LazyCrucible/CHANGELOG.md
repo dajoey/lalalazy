@@ -1,5 +1,10 @@
 # LazyCrucible — Changelog
 
+## v0.1.9.2 (2026-10-02)
+
+- **Fight guide (First Master's Board, Strix Piece)**: the guide no longer lists Soul Crush as a counter for the Aero III knockback. The game never flags either Aero III cast as interruptible (none of the five recorded casts was), so no interrupt can stop it. The line now says the only counter is killing the Plume add before its 12-second cast ends, and the fight's kill order names the Plume.
+- **Battlehorns**: with that need gone, Strix Piece picks a dispeller for Ultimate Focus and spends no horn on a Soulkin for the knockback.
+
 ## v0.1.9.1 (2026-10-02)
 
 - **Run roster**: the team filled at the entry menu is chosen by the abilities the board's fights need. Each familiar answering an interrupt, dispel or cleanse that a fight of the board requires is placed first (Required before Useful, per fight), and only the remaining places go to the point score. Previously the whole team was ranked by the point score alone, so a board's only Soulkin or Wavekin could be left off the team behind elemental-weakness hitters, and the fight guide's own counters were never considered.

@@ -234,8 +234,11 @@ internal static partial class BST_CrucibleData
         14548, 14553, 14558, 14559,
         // Board 3: bone bishop, cockerel, pullet, golem, shambling, crawling, flowertender, guardia, Thanatos
         14567, 14573, 14574, 14581, 14585, 14586, 14589, 14591, 14595,
-        // M1: queen hawk, ice sprite, administrator, biloko, sapling, diremite, grenade, bomb, toxic mass
-        14605, 14607, 14610, 14622, 14620, 14621, 14624, 14625, 14629,
+        // M1: queen hawk, ice sprite, administrator, biloko, sapling, diremite, grenade, bomb, toxic mass,
+        //     Strix Plume (the add that casts the 12 s Aero III knockback; no cast of Aero III was ever flagged interruptible in
+        //     five logged casts, so killing the add is the only counter - live 2026-10-01 it stood at 100% beside the boss while
+        //     the cast went off in three runs)
+        14605, 14607, 14610, 14622, 14620, 14621, 14624, 14625, 14629, 14598,
         // M2: lightning sprite, deepeye, bomb, atomos wave adds (gremlins, puddings, bavarois, flan, vodoriga, dahak),
         //     barbmole (drake-fight spinemole), spinner-rook, lamia, cyclops x2 (medusa + gigantis), congealed gels,
         //     moogle officers (kinged casters, kinged swordmog, melomog, mogmugger), hapalit, dirty eye, Thanatus statues

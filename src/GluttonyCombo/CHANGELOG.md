@@ -1,3 +1,9 @@
+## v1.0.4.254 (2026-10-02) [testing]
+### Fixed
+- **Beastmaster (Crucible of the Unbroken, First Master's Board, Strix Piece): auto-targeting now goes after the Plume add as soon as it appears.** The add casts a 12-second Aero III knockback that the game never marks interruptible, so killing it is the only counter. Before, the add stood at full health beside the boss for the whole cast because it was not among the priority targets, and the knockback went off.
+### Notes
+- The boss is targeted again once the add is dead. A kill inside the 12 seconds depends on how much damage lands; the rotation only guarantees the add is the target. Production channel unchanged.
+
 ## v1.0.4.253 (2026-10-02) [testing]
 ### Fixed
 - **Beastmaster (Crucible of the Unbroken): the rotation now brings out the familiar that answers what the fight is doing, instead of leaving it on its horn.** When the fight calls for a dispel and the enemy has a dispellable buff, the vulture's horn (or a Wavekin's, when there is no vulture) is blown over the familiar that is out, and Bloodcurdling Caw or Quelling Wave follows. The same goes for a cleanse while the character has a cleansable debuff (bat, else Ashkin) and for an interrupt while the target is casting something interruptible (Soulkin). Before, the familiars were chosen for the fight but the rotation only ever cycled them by health, so the one that could dispel could sit on its horn for the whole fight while the buff did its damage.

@@ -13,7 +13,7 @@
   "BMR": "BossmodReborn Crucible modules (BSD-3-Clause)",
   "R": "Reddit comment",
   "YT": "video description",
-  "LOG": "recorded runs 2026-09-26..30, measured (CR| telemetry, network logs)"
+  "LOG": "recorded runs 2026-09-26..10-01, measured (CR| telemetry, network logs)"
  },
  "fights": [
   {
@@ -3092,6 +3092,14 @@
    "title": "Strix Piece",
    "where": "Row 1 (both lanes)",
    "summary": "Use the matching platform for each chapter, dispel Ultimate Focus, kill the Plume.",
+   "killOrder": {
+    "text": "The Plume add as soon as it appears: only its death stops the Aero III knockback",
+    "src": [
+     "AS",
+     "BMR",
+     "LOG"
+    ]
+   },
    "mechanics": [
     {
      "name": "On the Properties of Quakes",
@@ -3145,11 +3153,12 @@
       48667
      ],
      "cast": 12.0,
-     "tell": "A Strix Plume add casts a 25y knockback",
-     "do": "Kill the Plume during the cast",
+     "tell": "The Strix, then a Plume add (12 s cast), casts a 25y knockback; the game never marks either cast interruptible",
+     "do": "Kill the Plume before its cast ends; Soul Crush cannot stop it",
      "src": [
       "AS",
-      "BMR"
+      "BMR",
+      "LOG"
      ]
     },
     {
@@ -3214,14 +3223,6 @@
      "src": [
       "panel"
      ]
-    },
-    {
-     "need": "interrupt",
-     "what": "Aero III knockback (guide says Soul Crush stops it)",
-     "src": [
-      "AS"
-     ],
-     "disputed": true
     }
    ],
    "threats": [
@@ -3243,9 +3244,7 @@
      ]
     }
    ],
-   "unknown": [
-    "Aero III: AS says Soul Crush stops it; BMR shows the Plume add casts it and says kill it"
-   ]
+   "unknown": []
   },
   {
    "board": 4,
