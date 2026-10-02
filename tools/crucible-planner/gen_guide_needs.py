@@ -67,7 +67,7 @@ def render():
 def main():
     text = render()
     if "--check" in sys.argv:
-        current = open(OUT, encoding="utf-8", newline="").read() if os.path.exists(OUT) else ""
+        current = open(OUT, encoding="utf-8", newline="").read().replace("\r\n", "\n") if os.path.exists(OUT) else ""
         if current != text:
             sys.exit("BST_CrucibleGuideNeeds.Generated.cs is stale: run tools/crucible-planner/gen_guide_needs.py")
         print("OK  guide needs table is current")
