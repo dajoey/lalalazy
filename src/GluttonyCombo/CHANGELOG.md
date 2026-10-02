@@ -1,3 +1,10 @@
+## v1.0.4.256 (2026-10-02) [testing]
+### Added
+- **Beastmaster (Crucible of the Unbroken): the Golem Piece's Self-destruct is now met with a burst.** While the 20-second arena-wide cast is running, the familiar's Tempered Release goes first, then a Parting Blow brings the next horn's familiar and its release when the cast has at least 7 seconds left and the boss would not die first. The fight ends at that cast, so the 90-second horn lock costs nothing. Before, the rotation carried on as usual and the cast ended with the Golem still standing.
+- **Beastmaster: new option "Hold Tempered Release for the add pack or the Ymir's shell break, then Parting Blow the pack" (off by default).** In the fights where the guide answers an add pack with an AoE release (Bone Bishops, zombies, wisps, Ahriman, the siren wave) or a stun at the Ymir once its shell breaks, the release waits up to 30 seconds for the pack (3 or more enemies) or the broken shell, and Parting Blow follows once the pack is out and horns are spare. While the option is off, the window it would have used is only logged in the shadow field, so a run can show whether it pays.
+### Notes
+- The other deferred rows of the fight research are settled in the research table as built (the option above), manual, or unknown, each with the recorded run that decides it. Production channel unchanged.
+
 ## v1.0.4.255 (2026-10-02) [testing]
 ### Fixed
 - **Beastmaster (Crucible of the Unbroken): a fight that needs an interrupt now opens with the Soulkin.** Its horn is blown first and Soul Crush is borrowed before the cast. Before, the Soulkin usually stayed on its horn, so Soul Crush was rarely held when an interruptible cast started.
