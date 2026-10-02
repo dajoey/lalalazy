@@ -1,3 +1,10 @@
+## v1.0.4.253 (2026-10-02) [testing]
+### Fixed
+- **Beastmaster (Crucible of the Unbroken): the rotation now brings out the familiar that answers what the fight is doing, instead of leaving it on its horn.** When the fight calls for a dispel and the enemy has a dispellable buff, the vulture's horn (or a Wavekin's, when there is no vulture) is blown over the familiar that is out, and Bloodcurdling Caw or Quelling Wave follows. The same goes for a cleanse while the character has a cleansable debuff (bat, else Ashkin) and for an interrupt while the target is casting something interruptible (Soulkin). Before, the familiars were chosen for the fight but the rotation only ever cycled them by health, so the one that could dispel could sit on its horn for the whole fight while the buff did its damage.
+- **Beastmaster (Crucible of the Unbroken): with no familiar out, the first summon prefers the horn whose familiar answers what is happening right now.**
+### Notes
+- The swap waits while moving or casting, between GCDs, and never calls a familiar below the critical line; a locked horn is logged as `crucible:answer-<need>-horn-not-ready`. Each swap is logged as `crucible:answer-<need>-slot<n>`. Production channel unchanged.
+
 ## v1.0.4.252 (2026-10-02) [testing]
 ### Fixed
 - **Beastmaster (Crucible of the Unbroken): the "no Battlehorn familiars assigned" chat warning now names the familiars the fight needs.** The suggested familiars cover what the enemy panel calls for first (interrupt, dispel, cleanse), then rank by weakness, crowd control and stats. Before, the suggestion ranked by a point score alone, so a fight that needs an interrupt could be told to bring no Soulkin.
