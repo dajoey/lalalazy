@@ -112,12 +112,14 @@ test(`boardRoster from need-first picks (${golden.needFirstBoardRoster.length} c
   }
 });
 
-// The reported defect: a point score let weakness and stats outvote an ability the fight needs.
-test('board 4 battle 1 with a Wavekin and a Soulkin captured: both are picked (dispel Required, interrupt Useful)', () => {
+// The reported defect: a point score let weakness and stats outvote an ability the fight needs. Strix Piece (b4:1) needs
+// a dispeller only: the game never flags its Aero III as interruptible, so no horn is spent on a Soulkin for it.
+test('board 4 battle 1 with a Wavekin and a Soulkin captured: the Wavekin is picked, no horn goes to the Soulkin (dispel is the only need)', () => {
   const owned = new Set([4, 7, 1, 2, 3]); // pugil (Wavekin), coblyn (Soulkin), three non-answering familiars
   const sel = adv.selectCaptured(4, 1, (r) => owned.has(r), 3);
   const rows = sel.picks.map((p) => p.row);
-  assert.ok(rows.includes(4) && rows.includes(7), `picks ${rows}`);
+  assert.ok(rows.includes(4) && !rows.includes(7), `picks ${rows}`);
+  assert.equal(sel.needs.length, 1, 'one need row');
   assert.ok(sel.needs.every((n) => n.row !== 0), 'every need covered');
 });
 
