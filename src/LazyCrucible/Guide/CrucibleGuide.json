@@ -1408,7 +1408,7 @@
       48191,
       48192
      ],
-     "cast": 7.0,
+     "cast": 9.0,
      "tell": "Half-room cleave in its facing, one brother after the other",
      "do": "Stand behind the first to finish, then swap",
      "src": [
@@ -1416,7 +1416,8 @@
       "NT",
       "MRB",
       "panel",
-      "BMR"
+      "BMR",
+      "LOG"
      ]
     },
     {
@@ -1427,14 +1428,15 @@
       48195,
       48196
      ],
-     "cast": 8.0,
+     "cast": 13.0,
      "tell": "Huge 23y circle on each, one after the other",
      "do": "Get away from the first, then the second",
      "src": [
       "IV",
       "NT",
       "panel",
-      "BMR"
+      "BMR",
+      "LOG"
      ]
     },
     {
@@ -1447,13 +1449,14 @@
       48201,
       48202
      ],
-     "cast": 7.0,
+     "cast": 9.5,
      "tell": "Leaps to a corner; 20y knockback",
      "do": "Challenge first; angle it diagonally so you miss the wall",
      "src": [
       "IV",
       "NT",
-      "BMR"
+      "BMR",
+      "LOG"
      ]
     },
     {
@@ -2162,7 +2165,7 @@
       48494,
       48499
      ],
-     "cast": 1.0,
+     "cast": 5.0,
      "tell": "Tether, then a 180-degree cleave to the front or rear",
      "do": "Stand to the side",
      "src": [
@@ -2170,7 +2173,8 @@
       "NT",
       "AS",
       "panel",
-      "BMR"
+      "BMR",
+      "LOG"
      ]
     },
     {
@@ -2179,13 +2183,14 @@
       48491,
       48492
      ],
-     "cast": 3.0,
+     "cast": 9.0,
      "tell": "Cross marker on you, 8y-wide arms",
      "do": "Aim it so no arm crosses an egg",
      "src": [
       "NT",
       "AS",
-      "BMR"
+      "BMR",
+      "LOG"
      ]
     },
     {
@@ -2194,11 +2199,12 @@
       48500,
       48501
      ],
-     "cast": 3.0,
+     "cast": 7.0,
      "tell": "6y circles chase you",
      "do": "Lead them away from the eggs",
      "src": [
-      "BMR"
+      "BMR",
+      "LOG"
      ]
     },
     {
@@ -4024,14 +4030,15 @@
       48757,
       48758
      ],
-     "cast": 1.0,
+     "cast": 2.0,
      "tell": "Falling rocks: 8y circle or 3-11y donut",
      "do": "React to the floor telegraph",
      "src": [
       "AS",
       "MRB",
       "panel",
-      "BMR"
+      "BMR",
+      "LOG"
      ]
     },
     {
