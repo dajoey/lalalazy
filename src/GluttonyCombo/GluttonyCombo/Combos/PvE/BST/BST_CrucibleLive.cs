@@ -82,7 +82,8 @@ internal partial class BST
                 t.MaxHp == 0 ? 0f : 100f * t.CurrentHp / t.MaxHp,
                 inStance,
                 damageImmune,
-                InterruptArmed && t is { IsCasting: true, IsCastInterruptible: true }));
+                InterruptArmed && t is { IsCasting: true, IsCastInterruptible: true },
+                t.IsCasting ? t.CastActionId : 0));
         }
 
         var allowed = BST_CrucibleLogic.AllowedTargets(candidates, InterruptArmed);

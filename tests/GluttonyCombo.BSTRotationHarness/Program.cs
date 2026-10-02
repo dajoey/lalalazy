@@ -489,6 +489,16 @@ internal static class Program
         Check("armed, nobody casting an interruptible cast: nothing changes",
             Aim(true, K(14623, 100f, false), K(14624, 100f, false)).SequenceEqual(new[] { 1 }));
         Check("armed, the caster is damage immune: never aimed at", Aim(true, K(14623, 100f, true, immune: true), K(14624, 100f, false)).SequenceEqual(new[] { 1 }));
+        BST_CrucibleLogic.TargetCandidate Q(uint nameId, float hp, uint castId) => new(nameId, hp, false, false, false, castId);
+        const uint soulDouse = 50693, oogle = 49214;
+        Check("Bone Bishop packs (3.1): of three bishops the one casting Soul Douse is the target (guide: kill the casting Bishop within 5 s)",
+            Aim(false, Q(14567, 100f, 0), Q(14567, 90f, soulDouse), Q(14567, 80f, 0)).SequenceEqual(new[] { 1 }));
+        Check("... nobody casting it: every bishop stays a candidate", Aim(false, Q(14567, 100f, 0), Q(14567, 90f, 0), Q(14567, 80f, 0)).SequenceEqual(new[] { 0, 1, 2 }));
+        Check("Boogyman wave (5.3): the Deepeye casting Oogle comes before the bomb, the kill order resumes when the cast ends",
+            Aim(false, Q(14640, 100f, 0), Q(14639, 100f, oogle)).SequenceEqual(new[] { 1 })
+            && Aim(false, Q(14640, 100f, 0), Q(14639, 100f, 0)).SequenceEqual(new[] { 0 }));
+        Check("a caster to kill never overrides an armed interrupt on another caster",
+            Aim(true, Q(14567, 100f, soulDouse), new BST_CrucibleLogic.TargetCandidate(14542, 100f, false, false, true, 46928)).SequenceEqual(new[] { 1 }));
         Check("armed, two interruptible casters: both stay candidates",
             Aim(true, K(14542, 100f, true), K(14543, 100f, true), K(14541, 100f, false)).SequenceEqual(new[] { 0, 1 }));
     }

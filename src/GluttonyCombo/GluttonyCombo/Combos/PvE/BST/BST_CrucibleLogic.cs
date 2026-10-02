@@ -675,7 +675,7 @@ internal static class BST_CrucibleLogic
     ///     One enemy auto-targeting could pick. <see cref="Avoid"/> marks a counter stance that may be relaxed when
     ///     nothing else is up; <see cref="DamageImmune"/> is an absolute exclusion.
     /// </summary>
-    public readonly record struct TargetCandidate(uint NameId, float HpPercent, bool Avoid, bool DamageImmune = false, bool CastInterruptible = false);
+    public readonly record struct TargetCandidate(uint NameId, float HpPercent, bool Avoid, bool DamageImmune = false, bool CastInterruptible = false, uint CastId = 0);
 
     /// <summary> Paired enemies further apart than this (HP %) get balanced: the lower one is left alone. </summary>
     public const float PairHpGap = 10f;
@@ -688,7 +688,8 @@ internal static class BST_CrucibleLogic
     ///     shamblings were attacked ~5 s before the crawling piece whose touch breaks Unbeastable); of a pair that must
     ///     die together, the healthier one while they are more than <see cref="PairHpGap"/> apart. With
     ///     <paramref name="interruptArmed"/> (Soul Crush held and ready) an enemy casting something interruptible comes before
-    ///     all of that: the cast is gone in seconds and the order resumes when it ends.
+    ///     all of that: the cast is gone in seconds and the order resumes when it ends; a caster of a
+    ///     <see cref="BST_CrucibleData.KillTheCaster"/> cast comes next.
     /// </summary>
     public static List<int> AllowedTargets(IReadOnlyList<TargetCandidate> candidates, bool interruptArmed = false)
     {
@@ -710,6 +711,11 @@ internal static class BST_CrucibleLogic
             if (casters.Count > 0)
                 return casters;
         }
+
+        // A cast the guide answers with "kill the caster before it ends" (Soul Douse, Oogle): that caster before any other.
+        var killers = allowed.FindAll(i => candidates[i].CastId != 0 && BST_CrucibleData.KillTheCaster.Contains(candidates[i].CastId));
+        if (killers.Count > 0)
+            return killers;
 
         var priority = allowed.FindAll(i => BST_CrucibleData.PriorityAdds.Contains(candidates[i].NameId));
         if (priority.Count > 0)

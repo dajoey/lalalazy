@@ -287,6 +287,13 @@ internal static partial class BST_CrucibleData
         [[14646], [14645, 14647, 14649], [14644, 14643, 14648]], // Atomos summons: bavarois; pudding, flan, dahak; gremlins, vodoriga
     ];
 
+    /// <summary>
+    ///     Casts whose caster is killed while it casts, because the guide's answer to them is "kill it before the cast ends": the Bone Bishop's
+    ///     Soul Douse (50693: "kill the casting Bishop within 5 s") and the Deepeye's Oogle (49214: "kill the Deepeye during the cast").
+    ///     A candidate casting one of these is the target before any other (an armed interrupt still comes first).
+    /// </summary>
+    public static readonly HashSet<uint> KillTheCaster = [50693, 49214];
+
     private static Dictionary<uint, (int Wave, int Tier)[]>? _priorityAddRanks;
 
     private static Dictionary<uint, (int Wave, int Tier)[]> PriorityAddMap()
