@@ -171,6 +171,6 @@ internal static class ResearchBehaviorCases
                     missing.Add($"{r.Key}: '{p[..Math.Min(60, p.Length)]}' is not a harness case");
         }
         Check($"research table: every implemented row ({rows.Count(r => r.Status == "implemented")}) names at least one harness case that exists", missing.Count == 0, string.Join(" | ", missing.Take(6)));
-        Console.WriteLine($"   research table: {string.Join(", ", rows.GroupBy(r => r.Status).OrderBy(g => g.Key).Select(g => $"{g.Key} {g.Count()}"))}");
+        Console.WriteLine($"   research table: {string.Join(", ", statuses.OrderBy(x => x, StringComparer.Ordinal).Select(st => $"{st} {rows.Count(r => r.Status == st)}"))}");
     }
 }
