@@ -1,3 +1,13 @@
+## v1.0.4.255 (2026-10-02) [testing]
+### Fixed
+- **Beastmaster (Crucible of the Unbroken): a fight that needs an interrupt now opens with the Soulkin.** Its horn is blown first and Soul Crush is borrowed before the cast. Before, the Soulkin usually stayed on its horn, so Soul Crush was rarely held when an interruptible cast started.
+- **Beastmaster: while Soul Crush is held and ready, auto-targeting aims at the enemy that is casting something interruptible**, even when the kill order or the pair rule would pick another target (the Progenitrix's Massive Explosion while grenades live, the Younger Tablitaur's Rallying Cheer). The kill order resumes when the cast ends.
+- **Beastmaster: the casters of Soul Douse (Bone Bishop) and Oogle (Deepeye) are targeted first** while they cast, as the fight guide says.
+- **Beastmaster: auto-targeting kill orders follow the fight guide.** Succubus Mage before the Knights, small wisps before the great wisp, pullet before cockerel, flowertender before guardia, the boogyman's bomb then Deepeye then light sprite, the Atomos summons by tier, and the moogle finale's Mogmugger then Melomogs then the kinged healer and caster then the Kinged Swordsmog (the Melomogs were last before).
+- **Beastmaster: the rotation reads the same ability needs as the fight guide and the familiar picker.** An interrupt or cleanse the guide names is answered when the game flags it; a dispel only the guides name (the Golem's Might) never brings a familiar out because the game's sheet disagrees.
+### Notes
+- Snarl -> Parting Blow stays off by default (each Parting Blow locks a horn for 90 s); while it is off the open window of a known tankbuster cast is logged in the shadow field so it can be graded from a run. Production channel unchanged.
+
 ## v1.0.4.254 (2026-10-02) [testing]
 ### Fixed
 - **Beastmaster (Crucible of the Unbroken, First Master's Board, Strix Piece): auto-targeting now goes after the Plume add as soon as it appears.** The add casts a 12-second Aero III knockback that the game never marks interruptible, so killing it is the only counter. Before, the add stood at full health beside the boss for the whole cast because it was not among the priority targets, and the knockback went off.

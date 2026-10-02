@@ -1,5 +1,8 @@
 # LazyCrucible — Changelog
 
+## v0.1.9.3 (2026-10-02)
+
+- **Fight guide checked against recorded runs.** Entries the runs disprove are corrected: Sand Tempest's blind (Lakhamu + Golem), Borgny's Toxin and petrification (Catoblepas) are never cleansable, so they are no longer cleanse counters and Scouring Ash is no longer listed for petrify; resist items are the counter. Black Eruption is the Bishop's cast. Fanaticism's cast is 6 s and Sweet Steel's 4 s (the game panel's values), Blood Sword is not interruptible, and seven cast times that the recorded castbars contradict by a second or more follow the castbars. Where a run could not settle a claim (the Golem's Might dispel), the guide says no run has shown it.
 ## v0.1.9.2 (2026-10-02)
 
 - **Fight guide (First Master's Board, Strix Piece)**: the guide no longer lists Soul Crush as a counter for the Aero III knockback. The game never flags either Aero III cast as interruptible (none of the five recorded casts was), so no interrupt can stop it. The line now says the only counter is killing the Plume add before its 12-second cast ends, and the fight's kill order names the Plume.
