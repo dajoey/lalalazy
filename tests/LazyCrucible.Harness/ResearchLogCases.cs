@@ -54,6 +54,19 @@ internal static class ResearchLogCases
         Check("guide cast times follow the recorded castbars where the guide was off by a second or more (7 casts: Elder / Younger Tablitaur swings, the zu pack's carves, crossbreeze and pursuit, Golem's Stoneshower)",
             wrong.Count == 0, string.Join(" | ", wrong));
 
+        // Questions the guide left open that a recorded run answers (CR| casts: the target's cast id, castbar and the interruptible flag).
+        Check("Bone Knight + Bishop (1.1): Black Eruption (46873) was cast by the Bishop (17 samples, nameId 14532), so IV and BMR are right and the caster question is closed",
+            !guide.Fight(1, 1)!.Unknown.Any(u => u.Contains("Black Eruption", StringComparison.Ordinal))
+            && guide.Fight(1, 1)!.Mechanics.First(m => m.Name == "Black Eruption").Tell.Contains("Bishop", StringComparison.Ordinal),
+            string.Join(" | ", guide.Fight(1, 1)!.Unknown));
+        var pas = guide.Fight(1, 0)!;
+        Check("Pas de Seul (1.0): Fanaticism's castbar read 5.6-5.7 s in all 3 casts and Sweet Steel's 3.7 s, so the panel's 6 s and 4 s stand and BMR's 9 s and 6 s do not",
+            pas.Mechanics.First(m => m.Name == "Fanaticism").Cast is 6.0 && pas.Mechanics.First(m => m.Name == "Sweet Steel").Cast is 4.0,
+            $"{pas.Mechanics.First(m => m.Name == "Fanaticism").Cast} / {pas.Mechanics.First(m => m.Name == "Sweet Steel").Cast}");
+        Check("Pas de Seul (1.0): Blood Sword (46934) was never flagged interruptible in 9 samples, so the panel is right and the 'interrupt if possible' question is closed; Void Fire II stays open (never seen on the target)",
+            !pas.Unknown.Any(u => u.Contains("Blood Sword", StringComparison.Ordinal)) && pas.Unknown.Any(u => u.Contains("Void Fire II", StringComparison.Ordinal)),
+            string.Join(" | ", pas.Unknown));
+
         // Still open, and said so: Might was never dispelled in a recorded run.
         Check("Lakhamu + Golem (3.5): the Might dispel stays a disputed (Useful) counter, and the unresolved list says no run has dispelled it",
             guide.Fight(3, 5)!.Counters.Any(c => c.AsNeed == CrucibleNeeds.Dispel && c.Disputed)
