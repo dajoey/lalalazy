@@ -37,6 +37,7 @@ internal static class Program
         GuideNeedsInRotation();
         ArmAndAimTheInterrupt();
         ShieldChargeOvercap();
+        CrucibleTactics();
 
         SimulateAllLevels(verbose);
         SimulateCrucible(verbose);
@@ -1880,6 +1881,83 @@ internal static class Program
         Check("the reserve rule never touches an emergency save: familiar 20%, one ready healthy horn, critical swap still fires",
             Decide(cycling with { PetHpPercent = 20f, ReadyHorn1 = true, Slot1PetHp = 96f, SinceSummon = 2f }, cycle) is { ActionId: BST.FirstBattlehorn, Reason: "crucible:petsave-swap-critical" });
         Check("cycling off (default): no exit, unchanged", Decide(cycling with { ReadyHorn1 = true, Slot1PetHp = 96f, Slot3PetHp = 90f }, cfg).Declines.Contains("crucible:exit-hold"));
+    }
+
+    /// <summary>
+    ///     Add-pack AoE, window holds and the Ymir stun the fight guide names (task tasks-20261002-crucible-add-pack-and-window-tactics-01).
+    ///     Self-destruct burst is on by default (2 of 2 recorded runs did not finish the Golem before the 20 s cast); the pack / shell hold and the
+    ///     Parting Blow on the pack are the <see cref="BstSettings.CruciblePackWindow"/> option, off until a run grades them (the open window is logged in <c>sh=</c>).
+    /// </summary>
+    private static void CrucibleTactics()
+    {
+        Console.WriteLine("-- crucible tactics: pack AoE, windows, Ymir --");
+        var cfg = BstSettings.Defaults();
+        var on = cfg with { CruciblePackWindow = true };
+        // L30, board / battle given, the active familiar `beast` with its One with Nature unspent, two healthy ready horns behind it.
+        BstState Tactic(int board, int battle, int beast) => CrucibleState() with
+        {
+            CrucibleBoard = board, CrucibleBattle = battle, ActiveSlot = 1, Slot1Beast = beast, PetObjectBeast = beast, Slot2Beast = 34, Slot3Beast = 26,
+            OneWithNature = true, ReadyTempered = true, SinceSummon = 5f, SinceHornPress = 6f, ReadyHorn2 = true, ReadyHorn3 = true,
+            TargetHpPercent = 90f, HighestEnemyHpPercent = 90f, EnemyCount = 1,
+        };
+
+        Check("option defaults off", !cfg.CruciblePackWindow);
+        Check("pack battles are the twelve fights whose guide answer is an AoE on an add pack (1.0 1.4 1.5 2.2 2.4 3.1 3.6 4.0 4.8 5.4 5.5 5.9)",
+            BST_CrucibleData.PackBattles.Count == 12 && new[] { (1, 0), (1, 4), (1, 5), (2, 2), (2, 4), (3, 1), (3, 6), (4, 0), (4, 8), (5, 4), (5, 5), (5, 9) }.All(BST_CrucibleData.PackBattles.Contains));
+        Check("a release binds when its trait says crowd control (ziz, buffalo, coeurl, chimera) or it is the slime (Bind+ on the Ymir 6 times); Cu Sith and raptor do not",
+            new[] { 21, 26, 33, 38, 17 }.All(r => BST_CrucibleData.ReleaseBinds(BST_Beasts.All[r])) && !BST_CrucibleData.ReleaseBinds(BST_Beasts.All[1]) && !BST_CrucibleData.ReleaseBinds(BST_Beasts.All[34]));
+
+        // ---- 4.7 Self-destruct: a 20 s deadline the normal rotation missed in 2 of 2 recorded runs ----
+        var sd = Tactic(4, 7, 34) with { TargetNameId = 14617, TargetCastId = 48766, TargetCastRemaining = 19.5f, TargetHpPercent = 87f, HighestEnemyHpPercent = 87f };
+        var burst = Decide(sd, cfg);
+        Check("Self-destruct begins (48766, 19.5 s left), familiar out, One with Nature unspent: Tempered Release now",
+            burst is { ActionId: BST.TemperedRelease, Reason: "crucible:burst-tempered" }, $"{burst.Reason} [{burst.Declines}]");
+        var spent = sd with { OneWithNature = false, ReadyTempered = false, TemperedRecastRemaining = 50f, SinceTempered = 3f, TargetCastRemaining = 16f, SinceSummon = 14f };
+        var recall = Decide(spent, cfg);
+        Check("Self-destruct, release spent, Parting Blow ready, healthy horns ready: Parting Blow to bring a fresh familiar and its release",
+            recall is { ActionId: BST.PartingBlow, Reason: "crucible:burst-parting" }, $"{recall.Reason} [{recall.Declines}]");
+        Check("Self-destruct: no Parting Blow when the Golem dies before the cast ends anyway (3 s to death, 16 s left)", Decide(spent with { TargetTimeToDeath = 3f }, cfg).ActionId != BST.PartingBlow);
+        Check("Self-destruct: no Parting Blow with 5 s of the cast left (the resummon would not land)", Decide(spent with { TargetCastRemaining = 5f }, cfg).ActionId != BST.PartingBlow);
+        Check("Self-destruct: no Parting Blow with no ready horn behind it (it would strand the character)", Decide(spent with { ReadyHorn2 = false, ReadyHorn3 = false }, cfg).ActionId != BST.PartingBlow);
+        Check("Self-destruct: no Parting Blow while the release is still resolving (1 s ago)", Decide(spent with { SinceTempered = 1f }, cfg).ActionId != BST.PartingBlow);
+        Check("another cast of the Golem (Outcrop 48767) is not a burst", Decide(sd with { TargetCastId = 48767 }, cfg).Reason != "crucible:burst-tempered");
+
+        // ---- 3.1 and the other add packs: hold the release for the pack (option), Parting Blow it once it is out ----
+        var pk = Tactic(3, 1, 34) with { TargetNameId = 14567 };
+        var held = Decide(pk, on);
+        Check("pack window on, no pack yet, raptor (AoE release) with One with Nature unspent: Tempered Release is held for the pack",
+            held.ActionId != BST.TemperedRelease && held.Declines.Contains("crucible:hold-release-window"), $"{held.Reason} [{held.Declines}]");
+        Check("pack window on, 4 enemies up (the Cavalier's Bone Bishops): the held Tempered Release goes on the pack",
+            Decide(pk with { EnemyCount = 4 }, on) is { ActionId: BST.TemperedRelease, Reason: "crucible:pack-release" });
+        Check("pack window off (default): the release is spent as before and the window that would have held it is logged for grading",
+            Decide(pk, cfg) is { ActionId: BST.TemperedRelease, Reason: "own:tempered", Shadow: "crucible:pack-hold-off" });
+        Check("pack window: the hold ends 30 s after the summon (the release is the summon's one use of One with Nature)",
+            Decide(pk with { SinceSummon = 31f }, on) is { ActionId: BST.TemperedRelease, Reason: "own:tempered" });
+        Check("pack window: a familiar under the swap line is not held for a pack", !Decide(pk with { PetHpPercent = 40f }, on).Declines.Contains("crucible:hold-release-window"));
+        Check("pack window: a familiar whose release is not AoE (Cu Sith) is not held", !Decide(Tactic(3, 1, 1) with { TargetNameId = 14567 }, on).Declines.Contains("crucible:hold-release-window"));
+        Check("pack window: a battle with no pack in the guide (1.1) is not held", !Decide(Tactic(1, 1, 34), on).Declines.Contains("crucible:hold-release-window"));
+        Check("pack window: next to a protected Morpho (5.5) nothing AoE goes off", Decide(Tactic(5, 5, 34) with { EnemyCount = 4, ProtectedNearTarget = true }, on).ActionId != BST.TemperedRelease);
+
+        var out4 = pk with { EnemyCount = 4, OneWithNature = false, ReadyTempered = false, TemperedRecastRemaining = 50f, SinceTempered = 3f, SinceSummon = 14f };
+        var pb = Decide(out4, on);
+        Check("pack window on, the release has gone off on a pack of 4, a reserve of two healthy ready horns: Parting Blow the pack",
+            pb is { ActionId: BST.PartingBlow, Reason: "crucible:pack-parting" }, $"{pb.Reason} [{pb.Declines}]");
+        Check("pack window off (default): the open Parting Blow window is logged and nothing is pressed",
+            Decide(out4, cfg) is { Shadow: "crucible:pack-parting-off" } off && off.ActionId != BST.PartingBlow);
+        Check("pack Parting Blow keeps a reserve: one ready horn behind it is not enough", Decide(out4 with { ReadyHorn3 = false }, on).ActionId != BST.PartingBlow);
+        Check("pack Parting Blow respects the minimum stay (5 s after the summon)", Decide(out4 with { SinceSummon = 5f }, on).ActionId != BST.PartingBlow);
+        Check("pack Parting Blow needs the pack: with 1 enemy up nothing is pressed", Decide(out4 with { EnemyCount = 1 }, on).ActionId != BST.PartingBlow);
+        Check("pack Parting Blow never ends a round (highest enemy at 8%)", Decide(out4 with { HighestEnemyHpPercent = 8f, TargetHpPercent = 8f }, on).ActionId != BST.PartingBlow);
+
+        // ---- 3.2 Ymir: a stun or bind once the shell breaks ----
+        var ym = Tactic(3, 2, 21) with { TargetNameId = 14569, EnemyCount = 2 };
+        var shelled = Decide(ym, on);
+        Check("Ymir window on, shell still up, ziz (stunning AoE release): Tempered Release is held for the shell break",
+            shelled.ActionId != BST.TemperedRelease && shelled.Declines.Contains("crucible:hold-release-window"), $"{shelled.Reason} [{shelled.Declines}]");
+        Check("Ymir window on, the shell just broke, Ymir targeted: the stun goes on it", Decide(ym with { ShellJustBroke = true }, on) is { ActionId: BST.TemperedRelease, Reason: "crucible:ymir-bind" });
+        Check("Ymir window on, the shell just broke but another enemy is targeted: no stun on the wrong target", Decide(ym with { ShellJustBroke = true, TargetNameId = 14570 }, on).Reason != "crucible:ymir-bind");
+        Check("Ymir window: a familiar whose release does not bind (Cu Sith) is not held", !Decide(Tactic(3, 2, 1) with { TargetNameId = 14569 }, on).Declines.Contains("crucible:hold-release-window"));
+        Check("Ymir window off (default): the release is spent as before and the held shell window is logged", Decide(ym, cfg) is { ActionId: BST.TemperedRelease, Reason: "own:tempered", Shadow: "crucible:pack-hold-off" });
     }
 
     private static void ShieldChargeOvercap()

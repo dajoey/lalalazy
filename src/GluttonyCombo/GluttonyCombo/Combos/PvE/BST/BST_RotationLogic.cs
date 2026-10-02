@@ -277,6 +277,7 @@ internal static class BST_RotationLogic
         public bool ReadySnarl, ReadyChallenge;
         public float SinceSnarl;                  // float.MaxValue when never
         public uint TargetNameId;                 // BNpcName of the current target (0 when none)
+        public bool ShellJustBroke;               // a ShellTargets enemy (Ymir Piece) lost its damage-immune shell within the last few seconds
     }
 
     /// <summary> Config, resolved by the live half (Simple mode = defaults). </summary>
@@ -307,6 +308,8 @@ internal static class BST_RotationLogic
         public bool CruciblePrepullHorns;
         public bool CrucibleSnarlParting;
         public float CrucibleSnarlPartingLead;
+        /// <summary> Hold a familiar's Tempered Release for the add pack / shell break the fight guide names, then Parting Blow the pack (default off: logged in <c>sh=</c> first). </summary>
+        public bool CruciblePackWindow;
 
         public static BstSettings Defaults(bool aoe = false) => new()
         {
@@ -338,6 +341,7 @@ internal static class BST_RotationLogic
             CruciblePrepullHorns = false,
             CrucibleSnarlParting = false,
             CrucibleSnarlPartingLead = 1.5f,
+            CruciblePackWindow = false,
         };
     }
 
