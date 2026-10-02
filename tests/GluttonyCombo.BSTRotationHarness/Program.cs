@@ -395,15 +395,19 @@ internal static class Program
             Check("Chimera (5.8): the panel and the guide's three agreeing sources both call for the cleanse, so it is Required",
                 (BST_CrucibleData.BattleNeeds(5, 8) & CrucibleNeeds.Cleanse) != 0 && (chimera.Required & CrucibleNeeds.Cleanse) != 0, chimera.Required.ToString());
             var golem = CrucibleNeedModel.For(3, 5);
-            Check("Lakhamu + Golem (3.5): the panel is silent; the guide's disputed Might dispel and Sand Tempest cleanse are Useful, not Required",
-                BST_CrucibleData.BattleNeeds(3, 5) == CrucibleNeeds.None
-                && (golem.Useful & CrucibleNeeds.Dispel) != 0 && (golem.Useful & CrucibleNeeds.Cleanse) != 0 && golem.Required == CrucibleNeeds.None,
+            Check("Lakhamu + Golem (3.5): the panel is silent; the guide's disputed Might dispel is Useful, not Required (the blind cleanse was disproved by the logs and removed)",
+                BST_CrucibleData.BattleNeeds(3, 5) == CrucibleNeeds.None && golem.Required == CrucibleNeeds.None && golem.Useful == CrucibleNeeds.Dispel,
                 $"req {golem.Required} useful {golem.Useful}");
-            Check("the rotation reads Required needs and Useful interrupts / cleanses, never a Useful dispel: Chimera cleanse, Lakhamu cleanse (not the disputed Might dispel), Treant interrupt (not the disputed Grab and Grow dispel)",
+            var boogyman = CrucibleNeedModel.For(5, 3);
+            Check("Boogyman (5.3): the panel is silent; the guide's disputed Ripples of Gloom cleanse is Useful",
+                BST_CrucibleData.BattleNeeds(5, 3) == CrucibleNeeds.None && boogyman.Required == CrucibleNeeds.None && (boogyman.Useful & CrucibleNeeds.Cleanse) != 0,
+                $"req {boogyman.Required} useful {boogyman.Useful}");
+            Check("the rotation reads Required needs and Useful interrupts / cleanses, never a Useful dispel: Chimera cleanse, Lakhamu nothing (the Might dispel is Useful), Boogyman cleanse, Treant interrupt (not the disputed Grab and Grow dispel)",
                 BST_CrucibleLogic.FightNeeds(5, 8) == CrucibleNeeds.Cleanse
-                && BST_CrucibleLogic.FightNeeds(3, 5) == CrucibleNeeds.Cleanse
+                && BST_CrucibleLogic.FightNeeds(3, 5) == CrucibleNeeds.None
+                && BST_CrucibleLogic.FightNeeds(5, 3) == CrucibleNeeds.Cleanse
                 && BST_CrucibleLogic.FightNeeds(4, 8) == CrucibleNeeds.Interrupt,
-                $"{BST_CrucibleLogic.FightNeeds(5, 8)} / {BST_CrucibleLogic.FightNeeds(3, 5)} / {BST_CrucibleLogic.FightNeeds(4, 8)}");
+                $"{BST_CrucibleLogic.FightNeeds(5, 8)} / {BST_CrucibleLogic.FightNeeds(3, 5)} / {BST_CrucibleLogic.FightNeeds(5, 3)} / {BST_CrucibleLogic.FightNeeds(4, 8)}");
             Check("a panel need stays: Strix Piece still needs the dispel (and nothing else)", BST_CrucibleLogic.FightNeeds(4, 1) == CrucibleNeeds.Dispel);
             Check("a fight with neither panel nor guide needs reads none (1.2)", BST_CrucibleLogic.FightNeeds(1, 2) == CrucibleNeeds.None);
 
@@ -419,15 +423,15 @@ internal static class Program
             Check("Golem Might on the target (3.5, a dispel only the guides name and the sheet denies), vulture on a ready horn: no swap, no horn spent on a guess",
                 Decide(golemFight, cfg).ActionId is not (BST.FirstBattlehorn or BST.SecondBattlehorn or BST.ThirdBattlehorn),
                 $"{Decide(golemFight, cfg).Reason} [{Decide(golemFight, cfg).Declines}]");
-            var sand = live with
+            var ripples = live with
             {
-                CrucibleBoard = 3, CrucibleBattle = 5, CrucibleNeeds = BST_CrucibleLogic.FightNeeds(3, 5),
+                CrucibleBoard = 5, CrucibleBattle = 3, CrucibleNeeds = BST_CrucibleLogic.FightNeeds(5, 3),
                 Slot1Beast = 1, Slot2Beast = 19, Slot3Beast = 34, ActiveSlot = 1, PetObjectBeast = 1,
                 ReadyHorn2 = true, PlayerHasCleansableDebuff = true, GcdReady = true,
             };
-            Check("Sand Tempest blind on the character (3.5, a cleanse only the guide names), bat on a ready horn: the rotation blows its horn",
-                Decide(sand, cfg) is { ActionId: BST.SecondBattlehorn, Reason: "crucible:answer-cleanse-slot2" },
-                $"{Decide(sand, cfg).Reason} [{Decide(sand, cfg).Declines}]");
+            Check("Ripples of Gloom blind flagged cleansable on the character (5.3, a cleanse only the guide names), bat on a ready horn: the rotation blows its horn",
+                Decide(ripples, cfg) is { ActionId: BST.SecondBattlehorn, Reason: "crucible:answer-cleanse-slot2" },
+                $"{Decide(ripples, cfg).Reason} [{Decide(ripples, cfg).Declines}]");
         }
         finally
         {

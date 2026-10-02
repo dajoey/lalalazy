@@ -2358,12 +2358,6 @@
      ]
     },
     {
-     "text": "Scouring Ash removes petrify",
-     "src": [
-      "AS"
-     ]
-    },
-    {
      "text": "Wind damage (its weakness)",
      "src": [
       "NT",
@@ -2446,13 +2440,14 @@
      ],
      "cast": 5.0,
      "tell": "Unavoidable room-wide hit plus Blind",
-     "do": "Pre-resist with Antiblind serum during the cast",
+     "do": "Pre-resist with Antiblind serum; the blind cannot be cleansed",
      "src": [
       "MRB",
       "NT",
       "AS",
       "panel",
-      "BMR"
+      "BMR",
+      "LOG"
      ]
     },
     {
@@ -2508,15 +2503,6 @@
       "NT"
      ],
      "disputed": true
-    },
-    {
-     "need": "cleanse",
-     "what": "Blind from Sand Tempest (panel says not cleansable)",
-     "src": [
-      "AS",
-      "NT"
-     ],
-     "disputed": true
     }
    ],
    "threats": [
@@ -2542,8 +2528,7 @@
     }
    ],
    "unknown": [
-    "Might: panel says not dispellable; AS and NT say it can be removed",
-    "Sand Tempest blind: panel says not cleansable; AS and NT say it can be"
+    "Might: panel says not dispellable; AS and NT say it can be removed; no run has dispelled it (the Golem's four Damage Up buffs ended when it died)"
    ]
   },
   {
@@ -4603,17 +4588,7 @@
      ]
     }
    ],
-   "counters": [
-    {
-     "need": "cleanse",
-     "what": "Toxin without resist (panel says not cleansable)",
-     "src": [
-      "AS",
-      "G8"
-     ],
-     "disputed": true
-    }
-   ],
+   "counters": [],
    "threats": [
     "poison",
     "adds",
@@ -4622,10 +4597,11 @@
    ],
    "bring": [
     {
-     "text": "100% poison resist: Breathtaking Swiftness potion, Antipoison G2, Angel Robe or Porcini",
+     "text": "100% poison resist: Breathtaking Swiftness potion, Antipoison G2, Angel Robe or Porcini; the Toxin cannot be cleansed",
      "src": [
       "AS",
-      "G8"
+      "G8",
+      "LOG"
      ]
     },
     {
@@ -4642,9 +4618,7 @@
      ]
     }
    ],
-   "unknown": [
-    "Toxin: the panel marks it not cleansable while guides cleanse it; resist it instead"
-   ]
+   "unknown": []
   },
   {
    "board": 5,
