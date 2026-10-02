@@ -770,6 +770,56 @@ internal static class Program
         Check("coblyn out, fight needs an interrupt: Borrow Soulkin", Decide(coblynFight, cfg) is { ActionId: BST.Borrow, Reason: "crucible:borrow-soulkin" });
         Check("Soul Kinship already held: Tempered Release", Decide(coblynFight with { KinshipHeld = true, BeastModeResolved = BST.SoulCrush, KinshipSlot = 2 }, cfg).ActionId == BST.TemperedRelease);
 
+        // The familiar that answers a live need is brought out when it is not (2026-10-01 run, board 4 Strix Piece: the
+        // vulture stayed on its horn for the whole fight while Ultimate Focus sat on the boss; 19 x crucible:dispel-unavailable).
+        var live = CrucibleState(50) with { SinceSummon = 12f, ReadyParting = false, SinceHornPress = 30f };
+        var strix = live with
+        {
+            CrucibleBoard = 4, CrucibleBattle = 1, CrucibleNeeds = BST_CrucibleData.BattleNeeds(4, 1),
+            Slot1Beast = 18, Slot2Beast = 8, Slot3Beast = 11, ActiveSlot = 2, PetObjectBeast = 8,
+            ReadyHorn1 = false, ReadyHorn2 = false, ReadyHorn3 = true, TargetHasDispellableBuff = true, GcdReady = true,
+        };
+        Check("board 4 Strix Piece: the enemy panel needs a dispel", (strix.CrucibleNeeds & CrucibleNeeds.Dispel) != 0, strix.CrucibleNeeds.ToString());
+        var strixSwap = Decide(strix, cfg);
+        Check("Strix Piece replay: Ultimate Focus up, Diremite out, vulture on a ready horn 3: blow horn 3",
+            strixSwap is { ActionId: BST.ThirdBattlehorn, Reason: "crucible:answer-dispel-slot3" }, $"{strixSwap.Reason} [{strixSwap.Declines}]");
+        Check("... vulture already out: Bloodcurdling Caw, no swap",
+            Decide(strix with { ActiveSlot = 3, PetObjectBeast = 11, OneWithNature = true, ReadyTempered = true, SinceSummon = 3f }, cfg) is { ActionId: BST.TemperedRelease, Reason: "crucible:dispel-caw" });
+        Check("... the buff is gone: no swap", !IsHorn(Decide(strix with { TargetHasDispellableBuff = false }, cfg).ActionId));
+        Check("... the fight does not call for a dispel: no swap", !IsHorn(Decide(strix with { CrucibleNeeds = CrucibleNeeds.None }, cfg).ActionId));
+        var notReady = Decide(strix with { ReadyHorn3 = false }, cfg);
+        Check("... the vulture's horn is locked: no swap, the reason is logged, the rotation goes on",
+            !IsHorn(notReady.ActionId) && notReady.Declines.Contains("crucible:answer-dispel-horn-not-ready"), $"{notReady.Reason} [{notReady.Declines}]");
+        Check("... the vulture is below the critical line: no swap", !IsHorn(Decide(strix with { Slot3PetHp = 10f }, cfg).ActionId));
+        var movingSwap = Decide(strix with { IsMoving = true }, cfg);
+        Check("... moving: waits, says so", !IsHorn(movingSwap.ActionId) && movingSwap.Declines.Contains("crucible:answer-dispel-waiting"), $"{movingSwap.Reason} [{movingSwap.Declines}]");
+        Check("... the horn was blown a moment ago: waits", !IsHorn(Decide(strix with { SinceHornPress = 1f }, cfg).ActionId));
+        Check("... outside the Crucible: unchanged", !IsHorn(Decide(strix with { CrucibleBoard = 0 }, cfg).ActionId));
+        var waveOnly = strix with { Slot3Beast = 4, Slot1Beast = 1 };
+        Check("no vulture, a pugil (Wavekin) on horn 3: blow it, Borrow follows", Decide(waveOnly, cfg) is { ActionId: BST.ThirdBattlehorn, Reason: "crucible:answer-dispel-slot3" });
+        Check("... Wavekin out with One with Nature: Borrow",
+            Decide(waveOnly with { ActiveSlot = 3, PetObjectBeast = 4, OneWithNature = true, ReadyTempered = true, ReadyBorrow = true, SinceSummon = 3f }, cfg) is { ActionId: BST.Borrow, Reason: "crucible:borrow-wavekin" });
+        var batFight = live with
+        {
+            CrucibleNeeds = CrucibleNeeds.Cleanse, Slot1Beast = 1, Slot2Beast = 19, Slot3Beast = 34, ActiveSlot = 1, PetObjectBeast = 1,
+            ReadyHorn2 = true, PlayerHasCleansableDebuff = true, GcdReady = true,
+        };
+        Check("fight needs a cleanse, debuff on the character, bat on a ready horn: blow its horn", Decide(batFight, cfg) is { ActionId: BST.SecondBattlehorn, Reason: "crucible:answer-cleanse-slot2" });
+        Check("... Scouring Ash already held: no swap", !IsHorn(Decide(batFight with { KinshipHeld = true, BeastModeResolved = BST.ScouringAsh, ReadyBeastMode = true }, cfg).ActionId));
+        var soulFight = live with
+        {
+            CrucibleNeeds = CrucibleNeeds.Interrupt, Slot1Beast = 1, Slot2Beast = 7, Slot3Beast = 34, ActiveSlot = 1, PetObjectBeast = 1,
+            ReadyHorn2 = true, TargetInterruptible = true, GcdReady = true,
+        };
+        Check("fight needs an interrupt, an interruptible cast is up, Soulkin on a ready horn: blow its horn", Decide(soulFight, cfg) is { ActionId: BST.SecondBattlehorn, Reason: "crucible:answer-interrupt-slot2" });
+        Check("... no interruptible cast: no swap", !IsHorn(Decide(soulFight with { TargetInterruptible = false }, cfg).ActionId));
+        Check("... Soul Kinship already held: no swap", !IsHorn(Decide(soulFight with { KinshipHeld = true, BeastModeResolved = BST.SoulCrush, ReadyBeastMode = true }, cfg).ActionId));
+        var both = Decide(soulFight with { Slot3Beast = 11, ReadyHorn3 = true, TargetHasDispellableBuff = true, CrucibleNeeds = CrucibleNeeds.Interrupt | CrucibleNeeds.Dispel }, cfg);
+        Check("interrupt and dispel both live: the interrupt (time-critical) goes first", both.Reason == "crucible:answer-interrupt-slot2", both.Reason);
+        var noFamiliar = strix with { ActiveSlot = 0, PetObjectPresent = false, PetObjectBeast = 0, SinceHornPress = 30f, ReadyHorn1 = true, ReadyHorn2 = true, ReadyHorn3 = true, Slot1Beast = 1, Slot2Beast = 34 };
+        Check("no familiar out, dispel needed: summon the vulture's horn, not the healthiest",
+            Decide(noFamiliar, cfg) is { ActionId: BST.ThirdBattlehorn, Reason: "summon:slot3" }, Decide(noFamiliar, cfg).Reason);
+
         // Out of combat: no horns unless allowed
         var pre = CrucibleState() with
         {
