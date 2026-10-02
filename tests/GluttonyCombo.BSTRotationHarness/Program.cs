@@ -322,14 +322,14 @@ internal static class Program
             BST_CrucibleData.CleaveAutoBosses.SetEquals(new uint[] { 14541, 14583, 14592, 14693 }));
         Check("Third Board priority adds: crawling, flowertender, golem, bone bishop",
             new uint[] { 14586, 14589, 14581, 14567 }.All(id => BST_CrucibleData.PriorityAdds.Contains(id)));
-        Check("Crucible priority adds: exact game-data set, 54 ids across all boards (treant sapling + diremite, Strix Plume added)",
+        Check("Crucible priority adds: exact game-data set, 55 ids across all boards (treant sapling + diremite, Strix Plume, boogyman Light Sprite added)",
             BST_CrucibleData.PriorityAdds.SetEquals(new uint[] {
                 14532, 14537, 14539, 14542, 14543, 14748,
                 14548, 14553, 14558, 14559,
                 14567, 14573, 14574, 14581, 14585, 14586, 14589, 14591, 14595,
                 14598,
                 14605, 14607, 14610, 14620, 14621, 14622, 14624, 14625, 14629,
-                14632, 14639, 14640, 14643, 14644, 14645, 14646, 14647, 14648, 14649,
+                14632, 14639, 14640, 14641, 14643, 14644, 14645, 14646, 14647, 14648, 14649,
                 14653, 14659, 14661, 14662, 14671, 14672, 14673,
                 14676, 14677, 14680, 14681, 14683, 14691, 14692, 14699,
             }));
@@ -341,10 +341,10 @@ internal static class Program
             BST_CrucibleData.PriorityAddRank(14595) < BST_CrucibleData.PriorityAddRank(14591)
             && BST_CrucibleData.PriorityAddRank(14624) < BST_CrucibleData.PriorityAddRank(14625)
             && BST_CrucibleData.PriorityAddRank(14640) < BST_CrucibleData.PriorityAddRank(14639)
-            && BST_CrucibleData.PriorityAddOrder.Any(w => w.Contains(14683u)));
+            && BST_CrucibleData.PriorityAddOrder.Any(w => w.Any(t => t.Contains(14683u))));
         Check("every ordered id is a priority add; unranked ids share the last tier",
-            BST_CrucibleData.PriorityAddOrder.SelectMany(w => w).All(id => BST_CrucibleData.PriorityAdds.Contains(id))
-            && BST_CrucibleData.PriorityAddRank(14542) == int.MaxValue);
+            BST_CrucibleData.PriorityAddOrder.SelectMany(w => w).SelectMany(t => t).All(id => BST_CrucibleData.PriorityAdds.Contains(id))
+            && BST_CrucibleData.PriorityAddRank(14537) == int.MaxValue);
     }
 
     /// <summary>
@@ -417,8 +417,9 @@ internal static class Program
             Allowed(C(14639, 100f, false), C(14640, 100f, false)).SequenceEqual(new[] { 1 }));
         Check("moogle finale: the coin-stealing mogmugger before the other officers",
             Allowed(C(14676, 100f, false), C(14681, 100f, false), C(14683, 100f, false)).SequenceEqual(new[] { 2 }));
-        Check("cactuar pack: flowertender (heals allies) before the rest",
-            Allowed(C(14588, 50f, false), C(14589, 60f, false), C(14590, 40f, false), C(14591, 30f, false)).SequenceEqual(new[] { 1, 3 }));
+        Check("cactuar pack: flowertender (heals allies) first, then the guardia once it is the one left (guide kill order)",
+            Allowed(C(14588, 50f, false), C(14589, 60f, false), C(14590, 40f, false), C(14591, 30f, false)).SequenceEqual(new[] { 1 })
+            && Allowed(C(14588, 50f, false), C(14590, 40f, false), C(14591, 30f, false)).SequenceEqual(new[] { 2 }));
         Check("lakhamu + golem: the golem first once it spawns",
             Allowed(C(14580, 60f, false), C(14581, 40f, false)).SequenceEqual(new[] { 1 }));
         Check("cavalier + bone bishop add: the add first",
@@ -426,7 +427,10 @@ internal static class Program
         Check("ogre in Burning Ward + wisp: the wisp", Allowed(C(14538, 100f, true), C(14539, 100f, false)).SequenceEqual(new[] { 1 }));
         Check("banemite + miteling: mitelings first", Allowed(C(14536, 100f, false), C(14537, 100f, false)).SequenceEqual(new[] { 1 }));
         Check("demon pack: devilet before demon", Allowed(C(14557, 100f, false), C(14559, 100f, false)).SequenceEqual(new[] { 1 }));
-        Check("zu + cockerel + pullet: adds before zu", Allowed(C(14572, 100f, false), C(14573, 100f, false), C(14574, 100f, false)).SequenceEqual(new[] { 1, 2 }));
+        Check("zu + cockerel + pullet: the pullet (Caustic Vomit), then the cockerel, then the zu (guide kill order)",
+            Allowed(C(14572, 100f, false), C(14573, 100f, false), C(14574, 100f, false)).SequenceEqual(new[] { 2 })
+            && Allowed(C(14572, 100f, false), C(14573, 100f, false)).SequenceEqual(new[] { 1 })
+            && Allowed(C(14572, 100f, false)).SequenceEqual(new[] { 0 }));
         Check("corpse flower + queen hawk: queen hawk first", Allowed(C(14603, 100f, false), C(14605, 100f, false)).SequenceEqual(new[] { 1 }));
         Check("ice dragon + ice sprite: ice sprite first", Allowed(C(14606, 100f, false), C(14607, 100f, false)).SequenceEqual(new[] { 1 }));
         Check("treant + biloko: biloko first", Allowed(C(14618, 100f, false), C(14622, 100f, false)).SequenceEqual(new[] { 1 }));
@@ -440,12 +444,33 @@ internal static class Program
         Check("king ahriman + hapalit: hapalit first", Allowed(C(14688, 100f, false), C(14691, 100f, false)).SequenceEqual(new[] { 1 }));
         Check("drake + spinemole (barbmole): the mole first (near-lethal Seeding Needles when left alone)",
             Allowed(C(14651, 100f, false), C(14653, 100f, false)).SequenceEqual(new[] { 1 }));
-        Check("atomos + summon wave: the wave first (every summon killed is boss damage)",
-            Allowed(C(14642, 100f, false), C(14643, 80f, false), C(14646, 70f, false), C(14649, 60f, false)).SequenceEqual(new[] { 1, 2, 3 }));
+        Check("atomos + summon wave: the wave first (every summon killed is boss damage), bavarois, then pudding / flan / dahak, then gremlins and vodoriga",
+            Allowed(C(14642, 100f, false), C(14643, 80f, false), C(14646, 70f, false), C(14649, 60f, false)).SequenceEqual(new[] { 2 })
+            && Allowed(C(14642, 100f, false), C(14643, 80f, false), C(14645, 70f, false), C(14649, 60f, false), C(14647, 50f, false)).SequenceEqual(new[] { 2, 3, 4 })
+            && Allowed(C(14642, 100f, false), C(14643, 80f, false), C(14648, 70f, false), C(14644, 60f, false)).SequenceEqual(new[] { 1, 2, 3 })
+            && Allowed(C(14642, 100f, false)).SequenceEqual(new[] { 0 }));
         Check("medusa + lamia + cyclops: the adds first",
             Allowed(C(14660, 100f, false), C(14661, 90f, false), C(14662, 80f, false)).SequenceEqual(new[] { 1, 2 }));
         Check("gigantis + cyclops + gel: the adds first",
             Allowed(C(14670, 100f, false), C(14671, 80f, false), C(14672, 90f, false)).SequenceEqual(new[] { 1, 2 }));
+        // Guide kill orders the rotation did not enforce (research-to-behaviour audit, 2026-10-02).
+        Check("Pas de Seul + mage + knight: the Succubus Mage, then the Knights, then Pas de Seul (guide kill order)",
+            Allowed(C(14541, 90f, false), C(14542, 100f, false), C(14543, 100f, false)).SequenceEqual(new[] { 1 })
+            && Allowed(C(14541, 90f, false), C(14543, 100f, false), C(14543, 100f, false)).SequenceEqual(new[] { 1, 2 }));
+        Check("ogre + wisp + great wisp: the small wisps before the great wisp",
+            Allowed(C(14538, 100f, true), C(14748, 100f, false), C(14539, 100f, false)).SequenceEqual(new[] { 2 })
+            && Allowed(C(14538, 100f, true), C(14748, 100f, false)).SequenceEqual(new[] { 1 }));
+        Check("boogyman wave: bomb, then deepeye, then light sprite, then the boogyman",
+            Allowed(C(14638, 100f, false), C(14641, 100f, false), C(14639, 100f, false), C(14640, 100f, false)).SequenceEqual(new[] { 3 })
+            && Allowed(C(14638, 100f, false), C(14641, 100f, false), C(14639, 100f, false)).SequenceEqual(new[] { 2 })
+            && Allowed(C(14638, 100f, false), C(14641, 100f, false)).SequenceEqual(new[] { 1 })
+            && Allowed(C(14638, 100f, false)).SequenceEqual(new[] { 0 }));
+        Check("moogle finale: Mogmugger, then the Melomogs, then the kinged healer and caster together, then the Kinged Swordsmog",
+            Allowed(C(14683, 100f, false), C(14681, 100f, false), C(14676, 100f, false), C(14680, 100f, false)).SequenceEqual(new[] { 0 })
+            && Allowed(C(14681, 100f, false), C(14676, 100f, false), C(14677, 100f, false), C(14680, 100f, false)).SequenceEqual(new[] { 0 })
+            && Allowed(C(14676, 100f, false), C(14677, 100f, false), C(14680, 100f, false)).SequenceEqual(new[] { 0, 1 })
+            && Allowed(C(14680, 100f, false)).SequenceEqual(new[] { 0 }));
+
         // Strix Piece (board 4, battle 1): the boss casts Aero III itself, then a Plume add (14598) casts the 12 s 25y one.
         // The game never marks either cast interruptible (0 of 5 logged casts), so the only counter is killing the add:
         // live 2026-10-01, three runs left it at 100% beside the boss while the cast went off.

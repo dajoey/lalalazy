@@ -678,42 +678,25 @@ internal static class BST_CrucibleLogic
         var priority = allowed.FindAll(i => BST_CrucibleData.PriorityAdds.Contains(candidates[i].NameId));
         if (priority.Count > 0)
         {
-            // Ranks are wave-scoped: only members of the same documented wave order each other, so an
-            // unrelated priority add is never shadowed by another fight's rank.
-            var ordered = new List<int>(priority.Count);
-            var taken = new bool[priority.Count];
-            for (var a = 0; a < priority.Count; a++)
+            // Documented kill orders: of the members of one order that are up, only the first tier present stays
+            // targetable. An order never constrains an add that is not one of its members.
+            var dropped = new HashSet<int>();
+            for (var wave = 0; wave < BST_CrucibleData.PriorityAddOrder.Length; wave++)
             {
-                if (taken[a])
-                    continue;
-
-                var wave = BST_CrucibleData.PriorityAddWave(candidates[priority[a]].NameId);
-                taken[a] = true;
-                var members = new List<int> { a };
-                if (wave >= 0)
-                    for (var b = a + 1; b < priority.Count; b++)
-                    {
-                        if (taken[b] || BST_CrucibleData.PriorityAddWave(candidates[priority[b]].NameId) != wave)
-                            continue;
-                        taken[b] = true;
-                        members.Add(b);
-                    }
-
-                if (members.Count == 1)
-                {
-                    ordered.Add(priority[a]);
-                    continue;
-                }
-
                 var best = int.MaxValue;
-                foreach (var m in members)
-                    best = Math.Min(best, BST_CrucibleData.PriorityAddRank(candidates[priority[m]].NameId));
-                foreach (var m in members)
-                    if (BST_CrucibleData.PriorityAddRank(candidates[priority[m]].NameId) == best)
-                        ordered.Add(priority[m]);
+                foreach (var i in priority)
+                    best = Math.Min(best, BST_CrucibleData.PriorityAddTier(candidates[i].NameId, wave));
+                if (best == int.MaxValue)
+                    continue;
+                foreach (var i in priority)
+                {
+                    var tier = BST_CrucibleData.PriorityAddTier(candidates[i].NameId, wave);
+                    if (tier != int.MaxValue && tier > best)
+                        dropped.Add(i);
+                }
             }
 
-            allowed = ordered;
+            allowed = priority.FindAll(i => !dropped.Contains(i));
         }
 
         foreach (var (a, b) in BST_CrucibleData.Pairs)

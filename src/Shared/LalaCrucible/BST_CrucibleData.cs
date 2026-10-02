@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Lalalazy.Crucible;
 
@@ -242,7 +243,7 @@ internal static partial class BST_CrucibleData
         // M2: lightning sprite, deepeye, bomb, atomos wave adds (gremlins, puddings, bavarois, flan, vodoriga, dahak),
         //     barbmole (drake-fight spinemole), spinner-rook, lamia, cyclops x2 (medusa + gigantis), congealed gels,
         //     moogle officers (kinged casters, kinged swordmog, melomog, mogmugger), hapalit, dirty eye, Thanatus statues
-        14632, 14639, 14640, 14643, 14644, 14645, 14646, 14647, 14648, 14649, 14653,
+        14632, 14639, 14640, 14641, 14643, 14644, 14645, 14646, 14647, 14648, 14649, 14653,
         14659, 14661, 14662, 14671, 14672, 14673, 14676, 14677, 14680, 14681, 14683, 14691, 14692, 14699,
     ];
 
@@ -256,50 +257,75 @@ internal static partial class BST_CrucibleData
     public static readonly HashSet<uint> CleaveAutoBosses = [14541, 14583, 14592, 14693];
 
     /// <summary>
-    ///     Within-wave danger order for priority adds that spawn together: only the most dangerous tier present stays
-    ///     targetable until it is dead (see <c>BST_CrucibleLogic.AllowedTargets</c>). Every list is one fight's documented
-    ///     kill order from the corpus (wiki Crucible Fights): the siren wave's crawling piece before the shamblings (its
-    ///     touch is Bind + Damage Down, which breaks Unbeastable); the treant wave "Biloko &gt; Sapling &gt; Diremite &gt;
-    ///     Slug / Treant" (the biloko's Natural Nurture heals the wave, the sapling's Grab and Grow buffs an ally); the
-    ///     woken Thanatos before its guardia (a dead Thanatos removes one room-wide); the progenitrix's grenade before its
-    ///     bombs; the boogyman's self-destructing bomb before the deepeye; the moogle finale's coin-stealing Mogmugger.
-    ///     A priority add absent from every list is unranked: a wave of only unranked adds (or of one ranked
-    ///     kind, e.g. three shamblings) keeps the whole tier targetable, exactly as before 1.0.4.240. Ranks are
-    ///     wave-scoped — an id's order applies only beside another member of the same wave.
+    ///     Documented kill orders for priority adds that spawn together: each list is one fight's order, each inner array a
+    ///     tier of enemies killed together, most dangerous tier first. Of the members of a list that are up, only the first
+    ///     tier present stays targetable until it is dead (see <c>BST_CrucibleLogic.AllowedTargets</c>), so a wave is cleared
+    ///     in the guides' order instead of nearest-first (live 2026-09-26: the siren wave's shamblings were attacked ~5 s
+    ///     before the crawling piece whose touch breaks Unbeastable). Orders, from the fight guide's kill orders (the
+    ///     research-to-behaviour audit of 2026-10-02 checked all 26): siren wave, crawling piece before the shamblings; treant
+    ///     wave "Biloko &gt; Sapling &gt; Diremite &gt; Slug / Treant" (the biloko's Natural Nurture heals the wave, the sapling's
+    ///     Grab and Grow buffs an ally); the woken Thanatos before its guardia; the progenitrix's grenade before its bombs; the
+    ///     boogyman's self-destructing bomb, the deepeye, then the light sprite; Pas de Seul's Succubus Mage before the Knights;
+    ///     the ogre's small wisps before the great wisp; the pullet (Caustic Vomit) before the cockerel; the cactuar pack's
+    ///     flowertender before the guardia; the Atomos summons bavarois, then pudding / flan / dahak, then gremlins and
+    ///     vodoriga; the moogle finale's Mogmugger, then the Melomogs, then the kinged healer and caster, then the Kinged
+    ///     Swordsmog. A priority add absent from every list is unranked: a wave of only unranked adds keeps the whole tier
+    ///     targetable. An order only constrains the members of its own list that are up.
     /// </summary>
-    public static readonly uint[][] PriorityAddOrder =
+    public static readonly uint[][][] PriorityAddOrder =
     [
-        [14586, 14585],                // siren wave: crawling first
-        [14622, 14620, 14621],         // treant wave: biloko, sapling, diremite
-        [14595, 14591],                // Thanatos before the guardia that covers it
-        [14624, 14625],                // progenitrix wave: grenade first
-        [14640, 14639],                // boogyman wave: self-destructing bomb first
-        [14683, 14676, 14677, 14680, 14681], // moogle finale: Mogmugger before the officers
+        [[14586], [14585]],                                    // siren wave: crawling first
+        [[14622], [14620], [14621]],                           // treant wave: biloko, sapling, diremite
+        [[14595], [14591]],                                    // Thanatos before the guardia that covers it
+        [[14624], [14625]],                                    // progenitrix wave: grenade first
+        [[14640], [14639], [14641]],                           // boogyman wave: self-destructing bomb, deepeye, light sprite
+        [[14683], [14681], [14676, 14677], [14680]],           // moogle finale: Mogmugger, Melomogs, kinged healer and caster, Kinged Swordsmog
+        [[14542], [14543]],                                    // Pas de Seul: Succubus Mage before the Knights
+        [[14539], [14748]],                                    // ogre: small wisps before the great wisp
+        [[14574], [14573]],                                    // zu pack: pullet (Caustic Vomit) before the cockerel
+        [[14589], [14591]],                                    // cactuar pack: flowertender before the guardia
+        [[14646], [14645, 14647, 14649], [14644, 14643, 14648]], // Atomos summons: bavarois; pudding, flan, dahak; gremlins, vodoriga
     ];
 
-    private static Dictionary<uint, (int Wave, int Pos)>? _priorityAddRanks;
+    private static Dictionary<uint, (int Wave, int Tier)[]>? _priorityAddRanks;
 
-    private static Dictionary<uint, (int Wave, int Pos)> PriorityAddMap()
+    private static Dictionary<uint, (int Wave, int Tier)[]> PriorityAddMap()
     {
         if (_priorityAddRanks == null)
         {
-            var map = new Dictionary<uint, (int, int)>();
+            var map = new Dictionary<uint, List<(int, int)>>();
             for (var w = 0; w < PriorityAddOrder.Length; w++)
-                for (var i = 0; i < PriorityAddOrder[w].Length; i++)
-                    map[PriorityAddOrder[w][i]] = (w, i);
-            _priorityAddRanks = map;
+                for (var t = 0; t < PriorityAddOrder[w].Length; t++)
+                    foreach (var id in PriorityAddOrder[w][t])
+                    {
+                        if (!map.TryGetValue(id, out var list))
+                            map[id] = list = [];
+                        list.Add((w, t));
+                    }
+
+            _priorityAddRanks = map.ToDictionary(kv => kv.Key, kv => kv.Value.ToArray());
         }
 
         return _priorityAddRanks;
     }
 
-    /// <summary> Position of a priority add inside its wave (0 = kill first); <see cref="int.MaxValue"/> when unranked. </summary>
-    public static int PriorityAddRank(uint nameId) =>
-        PriorityAddMap().TryGetValue(nameId, out var r) ? r.Pos : int.MaxValue;
+    /// <summary> Tier of a priority add inside the documented order <paramref name="wave"/> (0 = kill first); <see cref="int.MaxValue"/> when it is not a member of that order. </summary>
+    public static int PriorityAddTier(uint nameId, int wave)
+    {
+        if (PriorityAddMap().TryGetValue(nameId, out var memberships))
+            foreach (var (w, t) in memberships)
+                if (w == wave)
+                    return t;
+        return int.MaxValue;
+    }
 
-    /// <summary> Which documented wave a priority add belongs to, or -1 when unranked. Ranks are wave-scoped: an id's order only matters beside another member of the same wave. </summary>
+    /// <summary> Tier of a priority add in its (first) documented order; <see cref="int.MaxValue"/> when unranked. </summary>
+    public static int PriorityAddRank(uint nameId) =>
+        PriorityAddMap().TryGetValue(nameId, out var r) ? r[0].Tier : int.MaxValue;
+
+    /// <summary> The first documented order a priority add belongs to, or -1 when unranked. </summary>
     public static int PriorityAddWave(uint nameId) =>
-        PriorityAddMap().TryGetValue(nameId, out var r) ? r.Wave : -1;
+        PriorityAddMap().TryGetValue(nameId, out var r) ? r[0].Wave : -1;
 
 
     // ------------------------------------------------------------------ lookups
