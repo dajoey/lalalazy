@@ -1,5 +1,10 @@
 # LazyCrucible — Changelog
 
+## v0.1.9.1 (2026-10-02)
+
+- **Run roster**: the team filled at the entry menu is chosen by the abilities the board's fights need. Each familiar answering an interrupt, dispel or cleanse that a fight of the board requires is placed first (Required before Useful, per fight), and only the remaining places go to the point score. Previously the whole team was ranked by the point score alone, so a board's only Soulkin or Wavekin could be left off the team behind elemental-weakness hitters, and the fight guide's own counters were never considered.
+- **Advisor window**: the "Roster" line (familiars in the most battles' picks) is built from the same need-first picks as the Battlehorns, so it matches what each fight actually selects.
+
 ## v0.1.9.0 (2026-10-02)
 
 - **Battlehorns**: the three familiars are chosen by the abilities the fight needs. Interrupt (Soul Crush), dispel (Quelling Wave) and cleanse (Scouring Ash) needs are covered first, Required before Useful; the elemental weakness, crowd control and stats only decide between familiars that cover the same needs. Previously a single point score let an elemental-weakness match outvote an interrupt or dispel the fight called for, and the guide could report a need the picker never considered.
