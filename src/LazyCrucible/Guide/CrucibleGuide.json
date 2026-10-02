@@ -3153,7 +3153,7 @@
       48667
      ],
      "cast": 12.0,
-     "tell": "The Strix, then a Plume add (12 s cast), casts a 25y knockback; the game never marks either cast interruptible",
+     "tell": "Strix, then its Plume add, cast a 25y knockback (never interruptible)",
      "do": "Kill the Plume before its cast ends; Soul Crush cannot stop it",
      "src": [
       "AS",

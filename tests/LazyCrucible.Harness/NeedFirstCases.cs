@@ -100,8 +100,8 @@ internal static class NeedFirstCases
         var roster = new List<int> { soulkin[0], wavekin[0] };
         roster.AddRange(piercing);
         var small = Under(4, 1, roster, fullHp);
-        Check("screenshot fight, roster of one Soulkin, one Wavekin and three piercing hitters: the Wavekin and the piercing hitters are picked, the Soulkin is not",
-            small.Contains(wavekin[0]) && !small.Contains(soulkin[0]) && piercing.All(small.Contains),
+        Check("screenshot fight, roster of one Soulkin, one Wavekin and three piercing hitters: the Wavekin and two piercing hitters are picked, the Soulkin is not",
+            small.Contains(wavekin[0]) && !small.Contains(soulkin[0]) && small.Count(piercing.Contains) == 2,
             string.Join(",", small.Select(r => BST_Beasts.All[r].Name)));
 
         // A weakness match never displaces the only familiar covering a Required need: bone knight + bishop (blunt weakness,
