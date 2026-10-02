@@ -139,11 +139,22 @@ sources are listed under "not covered", with the safer instruction in the text; 
 Coverage: 37 fights have two or more strategy sources; 8 are partial — 2:6 (panel data only), 3:7, 4:4, 4:6, 4:9 (the
 only guide reconstructed them from the panels), 5:11, 5:12, 5:13 (one guide, no BossmodReborn module).
 
-**The guide and the picks never disagree:** the window's horn picks are the live `PickSlots` ranking (run roster and HP
-on the board, else every captured familiar) with its reasons; the guide names no familiar team of its own (harness
-check). Every enemy-panel need the ranking scores is a guide counter tagged `panel`, and no counter claims the panel for
-a need it does not have (`CrucibleGuide.Validate`, harness check); the window marks each counter covered or not by the
-picks. The threats that drive the shop, feed and treasure values are the guide's own threat lists, and "Bring" adds the
+**Horn picks are need-first (0.1.9.0):** `BST_CrucibleNeedFirst.Select` covers the fight's abilities (interrupt, dispel,
+cleanse) before anything else: every Required need first (one familiar covering several is preferred), then the Useful
+ones; the point score (weakness, crowd control, stats, scaled by HP) only chooses between familiars that cover the same
+needs and orders the final slots. Knocked-out familiars are never picked. A need nothing can cover is recorded with the
+reason (not captured / knocked out / the slots went to other needs). The tier rule (`GuideCounter.Tier`): Required when
+the game panel calls for it, the guide marks it `mandatory`, or two or more distinct sources agree and none disputes it
+(`disputed`); anything single-sourced or disputed is Useful. Crowd control and elemental weakness are not tiered.
+
+**The guide and the picks never disagree:** both read ONE need list per fight (`CrucibleNeedModel.For`: the guide's
+tiered counters plus the panel's needs, installed by `CrucibleGuide.InstallNeedModel`); the window's horn picks are the
+same `Select` call the formation screen makes (run roster and HP on the board, else every captured familiar) and its
+"Calls for" rows are that selection's needs (`GuideNeeds.Rows`). The "!" shows only for a Required need nothing can cover,
+with the reason; a Useful need nothing covers is shown quietly with the reason. The guide names no familiar team of its
+own (harness check). Every enemy-panel need is a guide counter tagged `panel`, and no counter claims the panel for a need
+it does not have (`CrucibleGuide.Validate`, harness check); a counter that says the panel disagrees must be `disputed`.
+The `PS|` horn line records the coverage per fight (`needs=I:R:<row>;D:U:miss=<reason>`). The threats that drive the shop, feed and treasure values are the guide's own threat lists, and "Bring" adds the
 items, gear and feed whose tooltips resist or cure what the fight inflicts.
 
 **Window** (`/lazycrucible guide`): follows the fight the board layout or the Battlehorn screen is focused on (the horn

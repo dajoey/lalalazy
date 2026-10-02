@@ -1,5 +1,12 @@
 # LazyCrucible — Changelog
 
+## v0.1.9.0 (2026-10-02)
+
+- **Battlehorns**: the three familiars are chosen by the abilities the fight needs. Interrupt (Soul Crush), dispel (Quelling Wave) and cleanse (Scouring Ash) needs are covered first, Required before Useful; the elemental weakness, crowd control and stats only decide between familiars that cover the same needs. Previously a single point score let an elemental-weakness match outvote an interrupt or dispel the fight called for, and the guide could report a need the picker never considered.
+- **Fight guide**: the picks and the guide read one need list per fight. A need is Required when the game's enemy panel calls for it or sources agree, and Useful when it is single-sourced or disputed. Each need shows the familiar that covers it. The warning mark appears only for a Required need nothing can cover and gives the reason (not captured, knocked out, or the horn slots went to other needs); an uncovered Useful need is shown without a warning, with the same reason.
+- **Fight guide**: counters that a source or the game panel contradicts are marked disputed instead of required.
+- **Telemetry**: the horn selection line records which familiar covers each need, or why none does.
+
 ## v0.1.8.0 (2026-09-30)
 
 - **Fight guide: incoming-cast warning.** While an enemy casts Atomic Ray (Second Master's Board, Durga Piece: 12.7 s castbar, 3,998 and 4,782 damage to a character with about 4,060 HP, even with the familiar holding enmity), the fight guide window shows the cast name, the seconds left and the damage, and opens on its own when the cast starts (when "Open the fight guide on the upcoming fight" is on). Read-only: nothing is pressed.
