@@ -167,14 +167,10 @@ internal sealed class GuideWindow : Window
             .Select(e => $"{e.Name}: {(e.Weakness == CrucibleWeakness.None ? "no weakness" : e.Weakness.ToString().ToLowerInvariant())}");
         ImGui.TextDisabled("Weak to  " + string.Join("; ", weak));
 
-        // Horn picks: the live ranking (run roster and HP on this board, else every captured familiar).
+        // Horn picks: need-first, from the run roster and HP on this board, else every captured familiar.
         Heading("Horn picks");
-        List<CrucibleBeastPick> picks;
-        if (RunTracker.Board == f.Board && RunTracker.Roster.Count > 0)
-            picks = BST_CrucibleAdvisor.PickSlots(f.Board, f.Battle, RunTracker.Roster, RunTracker.RosterHp, 3);
-        else
-            picks = BST_CrucibleAdvisor.Pick(f.Board, f.Battle, CrucibleGame.BeastCaptured);
-        foreach (var p in picks)
+        var selection = GuideNeeds.SelectionFor(f.Board, f.Battle, RunTracker.Board, RunTracker.Roster, RunTracker.RosterHp, CrucibleGame.BeastCaptured);
+        foreach (var p in selection.Picks)
         {
             ImGui.Bullet();
             ImGui.SameLine();
@@ -183,24 +179,18 @@ internal sealed class GuideWindow : Window
             ImGui.TextDisabled(p.Why);
         }
 
-        if (f.Counters.Count > 0)
+        var rows = GuideNeeds.Rows(selection);
+        if (rows.Count > 0)
         {
             Heading("Calls for");
-            var covered = picks.Aggregate(CrucibleNeeds.None, (acc, p) => acc | BST_CrucibleAdvisor.Answers(p.Row));
-            foreach (var c in f.Counters)
+            foreach (var r in rows)
             {
-                var tool = c.AsNeed switch
-                {
-                    CrucibleNeeds.Interrupt => "interrupt (Soul Crush)",
-                    CrucibleNeeds.Dispel => "dispel (Quelling Wave)",
-                    CrucibleNeeds.Cleanse => "cleanse (Scouring Ash)",
-                    _ => c.Need,
-                };
-                var ok = (covered & c.AsNeed) != 0;
-                ImGui.TextColored(ok ? Good : Warn, ok ? "✓" : "!");
+                var tier = r.Tier == CrucibleNeedTier.Required ? "" : " (useful)";
+                ImGui.TextColored(r.Covered ? Good : r.Warn ? Warn : ImGui.GetStyleColorVec4(ImGuiCol.TextDisabled), r.Covered ? "✓" : r.Warn ? "!" : "·");
                 ImGui.SameLine();
-                ImGui.TextWrapped($"{tool}: {c.What}{(ok ? "" : " — no horn pick brings it")}");
-                Src(c.Src);
+                var by = r.Covered ? $" — {FamiliarState.BeastName(r.CoveredBy)}" : $" — {r.WhyNot}";
+                ImGui.TextWrapped($"{r.Tool}{tier}: {r.What}{by}");
+                Src(r.Src.ToList());
             }
         }
 

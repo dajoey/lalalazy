@@ -20,8 +20,9 @@ namespace LazyCrucible;
 ///     never on StageMode. Writes only when <c>XBMPetParty</c> itself is open and its mode values name the
 ///     roster list (<see cref="Configuration.AutoRoster"/>) or the Battlehorn preview
 ///     (<see cref="Configuration.AutoHorns"/>) — <see cref="DecideFormationWrite"/>; the shop's Beast Feed
-///     picker and the notebook's team screen are never written. Ranks via <see cref="PickSlots"/> or
-///     <see cref="PickSlotsCoverage"/>; on the horn screen assigns through ReceiveEvent kind 0 with a
+///     picker and the notebook's team screen are never written. Horns are chosen need-first
+///     (<see cref="BST_CrucibleNeedFirst.Select"/> / <see cref="BST_CrucibleNeedFirst.SelectCoverage"/>: the fight's
+///     abilities first, points only break ties); the roster list still ranks via <see cref="PickSlotsCoverage"/>; on the horn screen assigns through ReceiveEvent kind 0 with a
 ///     <em>SelectedPets index</em> (not a familiar id), with SelectedPetIds read-back and abort-restore. Any
 ///     selection edit it did not send stands the pass down for that screen (the player's edit wins).
 /// </summary>
@@ -362,6 +363,7 @@ internal static unsafe class PetSelect
         int board;
         List<uint> nameIds;
         List<CrucibleBeastPick> picks;
+        var needStr = "";
         var coverage = false;
         int battle;
         uint detailId;
@@ -375,7 +377,9 @@ internal static unsafe class PetSelect
             foreach (var r in partyRows)
                 if (r is >= 1 and <= BST_Beasts.Count)
                     candidates.Add(r);
-            picks = PickSlots(board, battle, candidates, hpMap, 3);
+            var selection = BST_CrucibleNeedFirst.Select(board, battle, candidates, hpMap, 3, "in the roster");
+            picks = selection.Picks;
+            needStr = GuideNeeds.Log(selection);
         }
         else
         {
@@ -399,7 +403,8 @@ internal static unsafe class PetSelect
             foreach (var r in partyRows)
                 if (r is >= 1 and <= BST_Beasts.Count)
                     candidates.Add(r);
-            picks = PickSlotsCoverage(board, candidates, hpMap, 3);
+            picks = BST_CrucibleNeedFirst.SelectCoverage(board, candidates, hpMap, 3);
+            needStr = "coverage";
         }
 
         var snapshot = new List<int>(selectedRaw);
@@ -415,7 +420,7 @@ internal static unsafe class PetSelect
             return $"{p.Row}:idx{(idx < 0 ? "miss" : idx.ToString(CultureInfo.InvariantCulture))}:{Clean(p.Why, 80)}";
         }));
         var nameStr = string.Join(",", nameIds);
-        LogPs($"PS|{now}|opt=1|b={board}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|basis=horn|bt={battle}|detail={detailId}|coverage={(coverage ? 1 : 0)}|names={nameStr}|cand={candStr}|picks={pickStr}|need={changes.Count}|route={route}|sigs={(sigsOk ? "ok" : "miss")}");
+        LogPs($"PS|{now}|opt=1|b={board}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|basis=horn|bt={battle}|detail={detailId}|coverage={(coverage ? 1 : 0)}|names={nameStr}|cand={candStr}|picks={pickStr}|needs={needStr}|need={changes.Count}|route={route}|sigs={(sigsOk ? "ok" : "miss")}");
 
         // Mid-run unidentified: never replace a non-empty horn with coverage. Focus settles ~40 ms
         // later and re-arms an opponent-fitted pass; a coverage replace that aborts emptied the horn (.225).

@@ -135,7 +135,7 @@ internal sealed class RunContext
         {
             var weight = u.Certain ? 1.0 : 0.5;
             if (rosterRows.Count > 0)
-                foreach (var p in BST_CrucibleAdvisor.PickSlots(board, u.Battle, rosterRows, hpByRow, 3))
+                foreach (var p in BST_CrucibleNeedFirst.Select(board, u.Battle, rosterRows, hpByRow, 3).Picks)
                     demand[p.Row] = demand.GetValueOrDefault(p.Row) + weight;
 
             var t = threatsOf(board, u.Battle);

@@ -225,11 +225,12 @@ internal sealed class MainWindow : Window
             ImGui.TextWrapped(string.Join("; ", weaknesses));
             ImGui.TextWrapped($"Enemy panel calls for: {BST_CrucibleData.BattleNeeds(battle.Board, battle.Battle)}");
 
-            var picks = BST_CrucibleAdvisor.Pick(battle.Board, battle.Battle, CrucibleGame.BeastCaptured);
+            var selection = BST_CrucibleNeedFirst.SelectCaptured(battle.Board, battle.Battle, CrucibleGame.BeastCaptured);
+            var picks = selection.Picks;
             foreach (var pick in picks)
                 ImGui.BulletText($"{BeastName(pick.Row)}: {pick.Why}");
 
-            var capture = BST_CrucibleAdvisor.WorthCapturing(battle.Board, battle.Battle, CrucibleGame.BeastCaptured, picks);
+            var capture = BST_CrucibleNeedFirst.WorthCapturing(battle.Board, battle.Battle, CrucibleGame.BeastCaptured, selection);
             if (CrucibleGame.RosterLoaded && capture.Count > 0)
                 ImGui.TextWrapped("Worth capturing: " + string.Join(", ",
                     capture.ConvertAll(c => $"{BeastName(c.Row)} (L{BST_Beasts.All[c.Row].CaptureLevel}: {c.Why})")));

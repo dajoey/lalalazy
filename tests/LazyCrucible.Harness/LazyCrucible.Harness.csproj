@@ -24,6 +24,7 @@
     <Compile Include="..\..\src\LazyCrucible\Data\**\*.cs" Link="Data\%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="..\..\src\LazyCrucible\Policy\**\*.cs" Link="Policy\%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="..\..\src\LazyCrucible\Guide\CrucibleGuide.cs" Link="Guide\CrucibleGuide.cs" />
+    <Compile Include="..\..\src\LazyCrucible\Guide\GuideNeeds.cs" Link="Guide\GuideNeeds.cs" />
     <None Include="Fixtures\*.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\src\LazyCrucible\Guide\CrucibleGuide.json" Link="CrucibleGuide.json" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\src\LazyCrucible\Guide\CrucibleGuide.json')" />
     <Using Include="Lalalazy.Crucible" />

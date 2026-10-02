@@ -88,6 +88,7 @@ public sealed class Plugin : IDalamudPlugin
         Config = pi.GetPluginConfig() as Configuration ?? new Configuration();
 
         Guide = LoadGuide();
+        Guide.InstallNeedModel();
         _window = new MainWindow(this);
         _windowSystem.AddWindow(_window);
         _guideWindow = new GuideWindow();

@@ -29,8 +29,24 @@ public sealed class GuideCounter
     [JsonPropertyName("what")] public string What { get; set; } = "";
     [JsonPropertyName("src")] public List<string> Src { get; set; } = [];
 
-    /// <summary> Backed by the game's own enemy panel (the horn ranking scores it). </summary>
+    /// <summary> Marked mandatory by the guide itself (Required whatever the sources say). </summary>
+    [JsonPropertyName("mandatory")] public bool Mandatory { get; set; }
+
+    /// <summary> Another source or the game's panel contradicts this counter (the fight's <c>unknown</c> list says how). </summary>
+    [JsonPropertyName("disputed")] public bool Disputed { get; set; }
+
+    /// <summary> Backed by the game's own enemy panel (the horn picks cover it first). </summary>
     public bool FromPanel => Src.Contains("panel");
+
+    /// <summary>
+    ///     The tier rule: Required when the game panel calls for it, the guide marks it mandatory, or two or more sources
+    ///     agree and none disputes it; Useful when it is single-sourced or disputed.
+    /// </summary>
+    public CrucibleNeedTier Tier =>
+        FromPanel || Mandatory ? CrucibleNeedTier.Required
+        : Disputed ? CrucibleNeedTier.Useful
+        : Src.Select(s => s.Split(':')[0]).Distinct().Count() >= 2 ? CrucibleNeedTier.Required
+        : CrucibleNeedTier.Useful;
 
     public CrucibleNeeds AsNeed => Need switch
     {
@@ -104,6 +120,23 @@ internal sealed class CrucibleGuide
 
     public GuideFight? Fight(int board, int battle) => _byBattle.GetValueOrDefault((board, battle));
 
+    /// <summary>
+    ///     The fight's ability counters as tiered needs: the one list the horn picks and the guide window both read
+    ///     (installed as <see cref="CrucibleNeedModel.Extras"/> by <see cref="InstallNeedModel"/>).
+    /// </summary>
+    public IReadOnlyList<CrucibleAbilityNeed> NeedsOf(int board, int battle)
+    {
+        var needs = new List<CrucibleAbilityNeed>();
+        if (Fight(board, battle) is { } f)
+            foreach (var c in f.Counters)
+                if (c.AsNeed != CrucibleNeeds.None)
+                    needs.Add(new(c.AsNeed, c.Tier, c.What, c.Src));
+        return needs;
+    }
+
+    /// <summary> Make this guide's counters part of every horn pick (and clear the cached need models). </summary>
+    public void InstallNeedModel() => CrucibleNeedModel.Extras = NeedsOf;
+
     /// <summary> The fight's threats, or none when the fight is missing (used by <see cref="RunContext.Build"/>). </summary>
     public CrucibleThreat ThreatsOf(int board, int battle) => Fight(board, battle)?.ThreatFlags ?? CrucibleThreat.None;
 
@@ -172,6 +205,12 @@ internal sealed class CrucibleGuide
                     problems.Add($"{f.Board}:{f.Battle} unknown counter need '{c.Need}'");
                     continue;
                 }
+                if (c.Disputed && c.FromPanel)
+                    problems.Add($"{f.Board}:{f.Battle} counter '{c.Need}' is disputed but claims the panel (the panel decides)");
+                if (c.Disputed && c.Src.All(src => src == "panel"))
+                    problems.Add($"{f.Board}:{f.Battle} counter '{c.Need}' is disputed with no other source");
+                if (!c.FromPanel && !c.Disputed && c.What.Contains("panel says", StringComparison.OrdinalIgnoreCase))
+                    problems.Add($"{f.Board}:{f.Battle} counter '{c.Need}' says the panel disagrees but is not marked disputed");
                 if (c.FromPanel)
                 {
                     listed |= c.AsNeed;
