@@ -570,6 +570,18 @@ internal static class BST_RotationLogic
             && s.TargetInterruptible && s.CanWeave && s.TargetDistance <= 3.5f)
             return Pick(BST.SoulCrush, "beastmode:soulcrush-interrupt");
 
+        // ---------------------------------------------------------- 2b. Crucible tactics (Self-destruct burst, add-pack and shell windows)
+        var holdRelease = false;
+        if (crucible && familiarOut && s.CanWeave)
+        {
+            var tactic = BST_CrucibleLogic.TryTactic(s, cfg, beast, plan, declines);
+            if (tactic.Shadow.Length != 0 && shadow.Length == 0)
+                shadow = tactic.Shadow;
+            if (tactic.ActionId != 0)
+                return Pick(tactic.ActionId, tactic.Reason);
+            holdRelease = tactic.HoldRelease;
+        }
+
         // ---------------------------------------------------------- 3. exit (Parting Blow / Final Sting)
         if (familiarOut && s.CanWeave)
         {
@@ -585,25 +597,29 @@ internal static class BST_RotationLogic
             if (crucible && BST_CrucibleLogic.ShouldBorrowForFight(s, beast))
                 return Pick(BST.Borrow, $"crucible:borrow-{beast!.Value.Kin.ToString().ToLowerInvariant()}");
 
-            switch (plan)
+            // A Crucible window holds the release (TryTactic recorded why); Borrow above still wins when the fight needs its Kinship.
+            if (!holdRelease)
             {
-                case ReleasePlan.Use:
-                    if (s.ReadyTempered && s.TargetDistance <= 25f)
-                        return Pick(BST.TemperedRelease, "own:tempered");
-                    if (!s.ReadyTempered && cfg.BorrowWhileReleaseRecasts && BorrowAllowed(s) && s.TemperedRecastRemaining > 12f)
-                        return Pick(BST.Borrow, "own:borrow-while-tempered-recasts");
-                    declines.Add(s.ReadyTempered ? "own:tempered-out-of-range" : "own:tempered-recast");
-                    break;
+                switch (plan)
+                {
+                    case ReleasePlan.Use:
+                        if (s.ReadyTempered && s.TargetDistance <= 25f)
+                            return Pick(BST.TemperedRelease, "own:tempered");
+                        if (!s.ReadyTempered && cfg.BorrowWhileReleaseRecasts && BorrowAllowed(s) && s.TemperedRecastRemaining > 12f)
+                            return Pick(BST.Borrow, "own:borrow-while-tempered-recasts");
+                        declines.Add(s.ReadyTempered ? "own:tempered-out-of-range" : "own:tempered-recast");
+                        break;
 
-                case ReleasePlan.Blocked:
-                    if (BorrowAllowed(s))
-                        return Pick(BST.Borrow, beast is null ? "own:borrow-unknown-beast" : "own:borrow-release-blocked");
-                    declines.Add(beast is null ? "own:beast-unknown" : "own:release-blocked");
-                    break;
+                    case ReleasePlan.Blocked:
+                        if (BorrowAllowed(s))
+                            return Pick(BST.Borrow, beast is null ? "own:borrow-unknown-beast" : "own:borrow-release-blocked");
+                        declines.Add(beast is null ? "own:beast-unknown" : "own:release-blocked");
+                        break;
 
-                case ReleasePlan.HoldForExit:
-                    declines.Add("own:held-for-finalsting");
-                    break;
+                    case ReleasePlan.HoldForExit:
+                        declines.Add("own:held-for-finalsting");
+                        break;
+                }
             }
         }
 

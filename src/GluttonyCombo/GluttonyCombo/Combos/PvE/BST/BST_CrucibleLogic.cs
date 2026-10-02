@@ -669,6 +669,114 @@ internal static class BST_CrucibleLogic
         && landsIn <= cfg.CrucibleSnarlPartingLead
         && s.TargetDistance <= 25f;
 
+    // ------------------------------------------------------------------ tactics: add packs, windows, Self-destruct
+
+    /// <summary> What a Tempered Release is held for: an add pack (AoE release) or the Ymir's shell break (stun / bind release). </summary>
+    public enum WindowKind { None, Pack, Shell }
+
+    /// <summary> The window the guide names for this battle that the active familiar's release can serve; <see cref="WindowKind.None"/> otherwise. </summary>
+    public static WindowKind WindowFor(in BstState s, BeastmasterBeast? beast)
+    {
+        if (beast is not { } b)
+            return WindowKind.None;
+        if (BST_CrucibleData.IsShellBattle(s.CrucibleBoard, s.CrucibleBattle))
+            return BST_CrucibleData.ReleaseBinds(b) ? WindowKind.Shell : WindowKind.None;
+        if (BST_CrucibleData.PackBattles.Contains((s.CrucibleBoard, s.CrucibleBattle)))
+            return (b.Release & BeastmasterReleaseTraits.AoE) != 0 ? WindowKind.Pack : WindowKind.None;
+        return WindowKind.None;
+    }
+
+    /// <summary> The pack is on the field (3+ hostile enemies), or the Ymir's shell just broke with the Ymir targeted. </summary>
+    public static bool WindowOpen(in BstState s, WindowKind kind) => kind switch
+    {
+        WindowKind.Pack => s.EnemyCount >= BST_CrucibleData.PackMinEnemies,
+        WindowKind.Shell => s.ShellJustBroke && BST_CrucibleData.ShellTargets.Contains(s.TargetNameId),
+        _ => false,
+    };
+
+    /// <summary>
+    ///     One tactic decision: an action, why, what to log in the shadow field (the window the option would have used while it is off)
+    ///     and whether the release is being held for a window (the caller then skips its own Tempered Release).
+    /// </summary>
+    public readonly record struct TacticResult(uint ActionId, string Reason, string Shadow, bool HoldRelease)
+    {
+        public static readonly TacticResult None = new(0, "", "", false);
+    }
+
+    /// <summary>
+    ///     Crucible tactics that cost the familiar's Tempered Release or a Parting Blow. Priced from the recorded runs
+    ///     (task tasks-20261002-crucible-add-pack-and-window-tactics-01):
+    ///     <list type="bullet">
+    ///         <item>Self-destruct (4.7, 48766): ON. A 20 s deadline; in 2 of 2 runs the telemetry stops 3 s before it ends with the Golem at 9% / 12%.
+    ///         The release goes first; once it is spent, a Parting Blow brings the next horn's familiar and its own release when the cast has
+    ///         time left, a ready horn waits, and the Golem will not die first anyway. The fight ends here, so the 90 s horn lock is no price.</item>
+    ///         <item>Add packs and the Ymir's shell break: the release is held until the window opens (the option, off): in the recorded runs the release had
+    ///         already gone off before 85-97% of the pack spikes, and pack clear times with and without an AoE press do not separate (3.1: 12 s with, 15 s
+    ///         without; 3.6: 22 s with, 18 s without), so no run shows it pays. While off, the window is logged in the shadow field.</item>
+    ///         <item>Parting Blow on the pack (the option, off): behind the same gates as a cycle exit (stay time, resummon, reserve).</item>
+    ///     </list>
+    /// </summary>
+    public static TacticResult TryTactic(in BstState s, in BstSettings cfg, BeastmasterBeast? beast, ReleasePlan plan, List<string> declines)
+    {
+        var releaseSpendable = s.OneWithNature && s.ReadyTempered && plan == ReleasePlan.Use && s.SinceSummon >= 0.8f && s.TargetDistance <= 25f;
+
+        // ---- Self-destruct burst
+        if (s.TargetCastId != 0 && BST_CrucibleData.SelfDestructCasts.Contains(s.TargetCastId)
+            && !s.TargetDoNotAttack && !s.TargetInvulnerable)
+        {
+            if (releaseSpendable)
+                return new(BST.TemperedRelease, "crucible:burst-tempered", "", false);
+
+            var releaseDone = !(s.OneWithNature && plan == ReleasePlan.Use);
+            if (releaseDone && s.ReadyParting && s.SinceTempered >= 2f && s.SinceBorrow >= 1f
+                && s.TargetCastRemaining >= BST_CrucibleData.BurstPartingMinCastLeft && s.TargetDistance <= 25f
+                && !(s.TargetTimeToDeath > 0f && s.TargetTimeToDeath < s.TargetCastRemaining - 2f)
+                && ResummonAvailable(s, cfg))
+                return new(BST.PartingBlow, "crucible:burst-parting", "", false);
+            return TacticResult.None;
+        }
+
+        var kind = WindowFor(s, beast);
+        if (kind == WindowKind.None)
+            return TacticResult.None;
+        var open = WindowOpen(s, kind);
+
+        // ---- the held release: goes on the pack / the Ymir when the window opens
+        var hold = !open && s.OneWithNature && s.ReadyTempered && plan == ReleasePlan.Use && !s.TargetDoNotAttack
+                   && s.SinceSummon < BST_CrucibleData.WindowHoldSeconds && s.PetHpPercent > cfg.CruciblePetSwapHp;
+        var shadow = "";
+        if (hold && !cfg.CruciblePackWindow)
+        {
+            shadow = "crucible:pack-hold-off";
+            hold = false;
+        }
+        if (cfg.CruciblePackWindow)
+        {
+            if (open && releaseSpendable)
+                return new(BST.TemperedRelease, kind == WindowKind.Shell ? "crucible:ymir-bind" : "crucible:pack-release", "", false);
+            if (hold)
+            {
+                declines.Add("crucible:hold-release-window");
+                return new(0, "", "", true);
+            }
+        }
+
+        // ---- Parting Blow on the pack, once its release has gone off
+        if (kind == WindowKind.Pack && open && !s.OneWithNature && s.ReadyParting && s.SinceSummon >= cfg.MinFamiliarStaySeconds
+            && s.SinceTempered >= 2f && s.SinceBorrow >= 1f && s.TargetDistance <= 25f
+            && !(s.TargetDoNotAttack || s.TargetInStance || s.TargetInvulnerable || s.ProtectedNearTarget)
+            && !(s.EnemyCount > 0 && s.HighestEnemyHpPercent <= RoundEndingHp)
+            && ResummonAvailable(s, cfg) && CycleExitKeepsReserve(s, cfg))
+        {
+            if (cfg.CruciblePackWindow)
+                return new(BST.PartingBlow, "crucible:pack-parting", "", false);
+            if (shadow.Length == 0)
+                shadow = "crucible:pack-parting-off";
+        }
+
+        return new(0, "", shadow, false);
+    }
+
     // ------------------------------------------------------------------ auto-targeting
 
     /// <summary>

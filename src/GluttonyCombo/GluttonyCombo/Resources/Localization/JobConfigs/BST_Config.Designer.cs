@@ -554,6 +554,24 @@ namespace GluttonyCombo.Resources.Localization.JobConfigs {
                 return ResourceManager.GetString("CrucibleSnarlPartingLead", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Hold {0} for the add pack or the Ymir's shell break, then {1} the pack.
+        /// </summary>
+        internal static string CruciblePackWindow0And1 {
+            get {
+                return ResourceManager.GetString("CruciblePackWindow0And1", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Off by default. In the fights where the guide answers an add pack with an AoE release (Bone Bishops, zombies, wisps, Ahriman, siren wave) or a stun at the Ymir once its shell breaks, the familiar's Tempered Release waits up to 30 s for the pack....
+        /// </summary>
+        internal static string CruciblePackWindowDesc {
+            get {
+                return ResourceManager.GetString("CruciblePackWindowDesc", resourceCulture);
+            }
+        }
     
         /// <summary>
         ///   Looks up a localized string similar to Crucible: no beasts are assigned to the Battlehorns. Suggested for {0}: {1}..

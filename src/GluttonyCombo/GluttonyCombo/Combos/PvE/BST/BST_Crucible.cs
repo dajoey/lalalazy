@@ -36,6 +36,11 @@ internal partial class BST
     private static long _parryEndedTick;
     private static string _hornWarningKey = "";
     private static int _lastLivePetRow;
+    private static bool _shellWasUp;
+    private static long _shellBrokeTick;
+
+    /// <summary> Seconds a broken shell still counts as "just broke" (the stun / bind window of the Ymir). </summary>
+    private const long ShellBrokeWindowMs = 6000;
 
     /// <summary> Seconds a lost Directional Parry still counts as "just ended" (Challenge back). </summary>
     private const long ParryEndedWindowMs = 6000;
@@ -60,6 +65,8 @@ internal partial class BST
             _hornWarningKey = "";
             _parryTargetId = 0;
             _lastLivePetRow = 0;
+            _shellWasUp = false;
+            _shellBrokeTick = 0;
             PartyHpVerified = false;
             PlayerHpSamples.Clear();
             TargetHpSamples.Clear();
@@ -76,6 +83,7 @@ internal partial class BST
         var target = s.HasHostileTarget ? CurrentTarget as IBattleChara : null;
 
         // Enemies present: count, highest HP, which panel battle they belong to, eggs / morphos near the target.
+        var shellUp = false;
         foreach (var obj in Svc.Objects)
         {
             if (obj is not IBattleNpc npc || npc.IsDead || !npc.IsTargetable || npc.CurrentHp == 0 || !npc.IsHostile())
@@ -94,6 +102,17 @@ internal partial class BST
             }
 
             s.EnemyCount++;
+            if (BST_CrucibleData.ShellTargets.Contains(nameId))
+            {
+                foreach (var status in npc.StatusList)
+                {
+                    if (BST_CrucibleData.IsDamageImmunityStatus(status.StatusId))
+                    {
+                        shellUp = true;
+                        break;
+                    }
+                }
+            }
             var hp = npc.MaxHp == 0 ? 0f : 100f * npc.CurrentHp / npc.MaxHp;
             if (hp > s.HighestEnemyHpPercent)
                 s.HighestEnemyHpPercent = hp;
@@ -104,6 +123,12 @@ internal partial class BST
 
         if (s.CrucibleBattle >= 0)
             s.CrucibleNeeds = BattleNeedsCached(s.CrucibleBoard, s.CrucibleBattle);
+
+        // A shell (the Ymir's Vulnerability Down) that was up and is gone: the window the guide wants a stun or bind in.
+        if (_shellWasUp && !shellUp)
+            _shellBrokeTick = now;
+        _shellWasUp = shellUp;
+        s.ShellJustBroke = !shellUp && _shellBrokeTick != 0 && now - _shellBrokeTick < ShellBrokeWindowMs;
 
         s.PlayerHpPercent = player.MaxHp == 0 ? 0f : 100f * player.CurrentHp / player.MaxHp;
         s.PlayerIntakePerSecond = TrackIntake(now, player.CurrentHp);

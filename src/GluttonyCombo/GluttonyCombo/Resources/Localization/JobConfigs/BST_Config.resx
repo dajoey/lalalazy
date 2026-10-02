@@ -285,6 +285,12 @@
   <data name="CrucibleSnarlPartingLead" xml:space="preserve">
     <value>Parting Blow this many tenths of a second before the cast ends</value>
   </data>
+  <data name="CruciblePackWindow0And1" xml:space="preserve">
+    <value>Hold {0} for the add pack or the Ymir's shell break, then {1} the pack</value>
+  </data>
+  <data name="CruciblePackWindowDesc" xml:space="preserve">
+    <value>Off by default. In the fights where the guide answers an add pack with an AoE release (Bone Bishops, zombies, wisps, Ahriman, siren wave) or a stun at the Ymir once its shell breaks, the familiar's Tempered Release waits up to 30 s for the pack (3 or more enemies) or the broken shell, and Parting Blow follows once the pack is out and horns are spare. While off, the window is only logged (sh= in the Crucible log) so a run can show whether it pays.</value>
+  </data>
   <data name="CrucibleHornWarningPicks0And1" xml:space="preserve">
     <value>Crucible: no beasts are assigned to the Battlehorns. Suggested for {0}: {1}.</value>
   </data>

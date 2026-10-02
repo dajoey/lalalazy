@@ -100,6 +100,7 @@ internal partial class BST : Melee
         CruciblePrepullHorns = BST_CruciblePrepullHorns,
         CrucibleSnarlParting = BST_CrucibleSnarlParting,
         CrucibleSnarlPartingLead = BST_CrucibleSnarlPartingLead / 10f,
+        CruciblePackWindow = BST_CruciblePackWindow,
     };
 
     private static BST_RotationLogic.BstSettings AdvancedSettings(bool aoe) => WithCrucible(new()
