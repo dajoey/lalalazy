@@ -8,6 +8,7 @@ using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using Lalalazy.Telemetry;
+using Fn = GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -128,10 +129,10 @@ internal partial class BST
     /// </summary>
     internal static BST_RotationLogic.DashLanding ReadDashLanding()
     {
-        if (CurrentTarget is not { } target || LocalPlayer is not { } player)
+        if (Fn.CurrentTarget is not { } target || Fn.LocalPlayer is not { } player)
             return BST_RotationLogic.DashLanding.Safe;
 
-        if (!IsInLineOfSight(target))
+        if (!Fn.IsInLineOfSight(target))
             return BST_RotationLogic.DashLanding.Unreachable;
 
         var from = player.Position;
@@ -146,7 +147,7 @@ internal partial class BST
             landing = new System.Numerics.Vector3(to.X - dir.X * back, to.Y, to.Z - dir.Y * back);
         }
 
-        var bmr = GluttonyCombo.Data.Conflicts.ConflictingPluginsChecks.BossModReborn;
+        var bmr = global::GluttonyCombo.Data.Conflicts.ConflictingPluginsChecks.BossModReborn;
         var atEnemy = bmr.IsDashSafe(from, to);
         var atLanding = bmr.IsDashSafe(from, landing);
         if (atEnemy is null || atLanding is null)

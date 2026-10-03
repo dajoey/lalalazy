@@ -190,6 +190,7 @@ public class DPSSettingsIPCWrapper(DPSSettings settings)
 
     /// <summary>Fork (1.0.4.241): boss-mod targeting supersede — local-only setting, no IPC control.</summary>
     public bool UseBossModTargeting => settings.UseBossModTargeting;
+    public bool FallbackToInRangeEnemy => settings.FallbackToInRangeEnemy;
     
     public bool UnTargetAndDisableForPenalty
     {

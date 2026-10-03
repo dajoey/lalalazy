@@ -2153,8 +2153,10 @@ internal unsafe class AutoRotationController
             ref IBattleChara? target,
             ref ulong targetId)
         {
-            if (!cfg.DPSSettings.FallbackToInRangeEnemy || attributes.AutoAction!.IsHeal
-                || target is null || LocalPlayer is not { } player)
+            if (!cfg.DPSSettings.FallbackToInRangeEnemy || attributes.AutoAction!.IsHeal || target is null)
+                return false;
+
+            if (LocalPlayer is not { } player)
                 return false;
 
             var haveSheet = ActionSheet.TryGetValue(outAct, out var sheet);
