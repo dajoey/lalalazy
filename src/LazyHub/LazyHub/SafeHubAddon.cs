@@ -7,7 +7,11 @@ using LazyHub.Core;
 namespace LazyHub;
 
 /// <summary>
-/// The hub window: a native game-style window (KamiToolKit) with two tabs.
+/// SAFE MODE window (`/lazy safe`): the plain 0.1.0.1 hub window, kept as it shipped. It reads Dalamud's plugin list and
+/// Gluttony's auto-rotation state and nothing else: no hub IPC, no panels, no tint. If the full window ever misbehaves,
+/// `/lazy safe` brings this one back without uninstalling. The full window is HubAddon.
+///
+/// (Original description) A native game-style window (KamiToolKit) with two tabs.
 /// Plugins: a two-column grid, one cell per lalalazy plugin (icon, name, live status, Open button).
 /// Quick: Gluttony Combo's auto-rotation state, read only.
 ///
@@ -15,7 +19,7 @@ namespace LazyHub;
 /// created in <see cref="OnSetup"/> and forgotten in <see cref="OnFinalize"/>. Nothing may hold a node
 /// across a close; <see cref="_generation"/> lets asynchronous icon loads tell.
 /// </summary>
-internal sealed unsafe class HubAddon(PluginMonitor monitor, GluttonyProbe gluttony, IconLoader icons) : NativeAddon
+internal sealed unsafe class SafeHubAddon(PluginMonitor monitor, GluttonyProbe gluttony, IconLoader icons) : NativeAddon
 {
     private const float TabWidth = 120f;
     private const float TabHeight = 28f;

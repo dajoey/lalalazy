@@ -34,7 +34,10 @@ public sealed class Plugin : IDalamudPlugin
     private readonly WindowSystem _windows = new("LazyHub");
     private readonly ChangelogGate _changelog;
     private readonly PluginMonitor _monitor;
-    private readonly HubAddon _addon;
+    private readonly HubClient _client;
+    private readonly IconLoader _icons;
+    private readonly GluttonyProbe _probe;
+    private NativeAddon _addon;
     private readonly IDtrBarEntry _dtr;
     private long _nextDtrUpdateTicks;
 
@@ -49,12 +52,10 @@ public sealed class Plugin : IDalamudPlugin
         KamiToolKitLibrary.Initialize(pi);
 
         _monitor = new PluginMonitor(pi);
-        _addon = new HubAddon(_monitor, new GluttonyProbe(pi, Log), new IconLoader(Textures, Framework, Log))
-        {
-            InternalName = "LazyHub",
-            Title = "lalalazy",
-            Size = new Vector2(620f, 640f),
-        };
+        _client = new HubClient(pi, Log);
+        _icons = new IconLoader(Textures, Framework, Log);
+        _probe = new GluttonyProbe(pi, Log);
+        _addon = BuildAddon();
 
         // Shared "What's new" popup: shows this plugin's CHANGELOG once after an update.
         _changelog = new ChangelogGate(new ChangelogGate.Options
@@ -86,7 +87,7 @@ public sealed class Plugin : IDalamudPlugin
 
         var info = new CommandInfo(OnCommand)
         {
-            HelpMessage = "Open the lalalazy window. /lazy changelog shows what's new.",
+            HelpMessage = "Open the lalalazy window. /lazy safe switches to the plain window and back. /lazy changelog shows what's new.",
         };
         Commands.AddHandler(CommandName, info);
         Commands.AddHandler(AltCommandName, new CommandInfo(OnCommand) { HelpMessage = "Same as /lazy.", ShowInHelp = false });
@@ -103,7 +104,39 @@ public sealed class Plugin : IDalamudPlugin
             _changelog.ShowNow();
             return;
         }
+        if (arg.Equals("safe", StringComparison.OrdinalIgnoreCase))
+        {
+            SetSafeMode(!_config.SafeMode);
+            return;
+        }
         _addon.Toggle();
+    }
+
+    /// <summary>The full window, or the plain 0.1.0.1 window when safe mode is on.</summary>
+    private NativeAddon BuildAddon() => _config.SafeMode
+        ? new SafeHubAddon(_monitor, _probe, _icons)
+        {
+            InternalName = "LazyHub",
+            Title = "lalalazy (safe mode)",
+            Size = new Vector2(620f, 640f),
+        }
+        : new HubAddon(_monitor, _client, _icons, Textures, Log)
+        {
+            InternalName = "LazyHub",
+            Title = "lalalazy",
+            Size = new Vector2(780f, 690f),
+        };
+
+    private void SetSafeMode(bool on)
+    {
+        // The old window closes asynchronously, so it is not reopened here: the next /lazy opens the new one.
+        _addon.Dispose();
+        _config.SafeMode = on;
+        Pi.SavePluginConfig(_config);
+        _addon = BuildAddon();
+        ChatGui.Print(on
+            ? "[Lazy Hub] Safe mode ON: /lazy opens the plain window. /lazy safe switches back."
+            : "[Lazy Hub] Safe mode OFF: /lazy opens the full window.");
     }
 
     private void OnFrameworkUpdate(IFramework framework)

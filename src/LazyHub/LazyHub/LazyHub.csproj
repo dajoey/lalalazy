@@ -29,6 +29,12 @@
     <EmbeddedResource Include="..\CHANGELOG.md" LogicalName="CHANGELOG.md" />
   </ItemGroup>
 
+  <!-- The hub protocol (src/Shared/LalaHub/Core): descriptor parser and models, shared SOURCE like LalaChangelog.
+       LazyHub only reads descriptors, so it compiles Core and not the provider. -->
+  <ItemGroup>
+    <Compile Include="..\..\Shared\LalaHub\Core\**\*.cs" Link="LalaHubCore\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
   <!-- The native game-style window is built with the KamiToolKit copy that LazyWTMath already carries
        (known good on Dalamud API 15). Each plugin ships its own copy in its own load context. -->
   <ItemGroup>

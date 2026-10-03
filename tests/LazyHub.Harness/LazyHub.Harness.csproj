@@ -16,5 +16,7 @@
 
   <ItemGroup>
     <Compile Include="..\..\src\LazyHub\LazyHub\Core\**\*.cs" Link="Core\%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- The hub protocol Core (parser and models) is shared SOURCE too: LazyHub reads descriptors with it. -->
+    <Compile Include="..\..\src\Shared\LalaHub\Core\**\*.cs" Link="LalaHubCore\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>
