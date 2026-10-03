@@ -597,23 +597,37 @@ internal static class BST_RotationLogic
             if (crucible && BST_CrucibleLogic.ShouldBorrowForFight(s, beast))
                 return Pick(BST.Borrow, $"crucible:borrow-{beast!.Value.Kin.ToString().ToLowerInvariant()}");
 
-            // A Crucible window holds the release (TryTactic recorded why); Borrow above still wins when the fight needs its Kinship.
-            if (!holdRelease)
+            // Crucible: the Soulkin's One with Nature is the once-per-summon re-arm of Soul Crush — hold it while no
+            // interruptible cast is up (the borrow above fires the moment one is; 2026-10-03 fix round).
+            if (crucible && BST_CrucibleLogic.HoldOwnForInterrupt(s, cfg, beast))
+                declines.Add("own:held-for-interrupt");
+            else if (!holdRelease)
             {
                 switch (plan)
                 {
                     case ReleasePlan.Use:
                         if (s.ReadyTempered && s.TargetDistance <= 25f)
                             return Pick(BST.TemperedRelease, "own:tempered");
-                        if (!s.ReadyTempered && cfg.BorrowWhileReleaseRecasts && BorrowAllowed(s) && s.TemperedRecastRemaining > 12f)
-                            return Pick(BST.Borrow, "own:borrow-while-tempered-recasts");
-                        declines.Add(s.ReadyTempered ? "own:tempered-out-of-range" : "own:tempered-recast");
+                        if (!s.ReadyTempered && cfg.BorrowWhileReleaseRecasts && s.TemperedRecastRemaining > 12f)
+                        {
+                            if (crucible && BST_CrucibleLogic.KeepHeldSoulCrush(s, cfg))
+                                declines.Add("own:borrow-keep-soulcrush");
+                            else if (BorrowAllowed(s))
+                                return Pick(BST.Borrow, "own:borrow-while-tempered-recasts");
+                            else
+                                declines.Add("own:tempered-recast");
+                        }
+                        else
+                            declines.Add(s.ReadyTempered ? "own:tempered-out-of-range" : "own:tempered-recast");
                         break;
 
                     case ReleasePlan.Blocked:
-                        if (BorrowAllowed(s))
+                        if (crucible && BST_CrucibleLogic.KeepHeldSoulCrush(s, cfg))
+                            declines.Add("own:borrow-keep-soulcrush");
+                        else if (BorrowAllowed(s))
                             return Pick(BST.Borrow, beast is null ? "own:borrow-unknown-beast" : "own:borrow-release-blocked");
-                        declines.Add(beast is null ? "own:beast-unknown" : "own:release-blocked");
+                        else
+                            declines.Add(beast is null ? "own:beast-unknown" : "own:release-blocked");
                         break;
 
                     case ReleasePlan.HoldForExit:

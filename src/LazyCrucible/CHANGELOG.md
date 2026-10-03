@@ -1,5 +1,9 @@
 # LazyCrucible — Changelog
 
+## v0.1.9.4 (2026-10-03)
+
+- **Need coverage is corrected on top of AutoDuty's picks.** AutoDuty runs whole boards with its own leveling familiars, and its battlehorn picks and roster rebuilds are blind to what the fights call for: in a full automated evening, every enemy buff that ran its whole duration was a fight where no dispeller was on the horns even though one sat in the roster, and the healer fight often had no interrupter in the roster at all. The plugin no longer stands down entirely while AutoDuty drives: once its selection on a screen has settled (its writes come one toggle at a time), a minimal correction swaps an answerer in for one pick that answers nothing — its leveling picks are otherwise kept, and a fight whose needs are already covered is never touched. The roster gets the same treatment at the board entry: when none of the board's fights' needs has a healthy answerer in the built roster, one is appended (room permitting) or swapped in. The log names every correction (`autoduty-needfix`, with the exact swap) and every need that could not be covered and why (`miss=`). One correction per screen; a later AutoDuty write still wins. Screens played by hand are unchanged.
+
 ## v0.1.9.3 (2026-10-02)
 
 - **Fight guide checked against recorded runs.** Entries the runs disprove are corrected: Sand Tempest's blind (Lakhamu + Golem), Borgny's Toxin and petrification (Catoblepas) are never cleansable, so they are no longer cleanse counters and Scouring Ash is no longer listed for petrify; resist items are the counter. Black Eruption is the Bishop's cast. Fanaticism's cast is 6 s and Sweet Steel's 4 s (the game panel's values), Blood Sword is not interruptible, and seven cast times that the recorded castbars contradict by a second or more follow the castbars. Where a run could not settle a claim (the Golem's Might dispel), the guide says no run has shown it.

@@ -128,11 +128,15 @@ internal static class BST_CrucibleLogic
 
     /// <summary>
     ///     In combat: the familiar out is the one whose Kinship the fight calls for and that Kinship is not held, so
-    ///     its One with Nature goes to Borrow instead of Tempered Release.
+    ///     its One with Nature goes to Borrow instead of Tempered Release. The Soulkin is the exception with a clock:
+    ///     Soul Crush is a 30 s kinship and the borrow spends the Soulkin's once-per-summon One with Nature, so it is
+    ///     borrowed only while an interruptible cast is live (that is the re-arm; otherwise
+    ///     <see cref="HoldOwnForInterrupt"/> keeps the ammo).
     /// </summary>
     public static bool ShouldBorrowForFight(in BstState s, BeastmasterBeast? beast) =>
         beast is { } b && b.Kin != BeastmasterKinType.None && WantedKin(s) == b.Kin && HeldKin(s) != b.Kin
-        && s.OneWithNature && BorrowAllowed(s);
+        && s.OneWithNature && BorrowAllowed(s)
+        && (b.Kin != BeastmasterKinType.Soulkin || s.TargetInterruptible);
 
     /// <summary>
     ///     Out of combat (only with "horns out of combat" allowed): summon the horn with the wanted kin, Borrow, and let
@@ -152,6 +156,13 @@ internal static class BST_CrucibleLogic
 
         if (s.ActiveSlot == slot)
         {
+            // The Soulkin waits for a live cast (see ShouldBorrowForFight): a prepull borrow would arm Soul Crush's
+            // 30 s window before anything can be interrupted.
+            if (kin == BeastmasterKinType.Soulkin)
+            {
+                declines.Add("crucible:prepull-borrow-waiting-cast");
+                return (0, "");
+            }
             if (s.OneWithNature && s.ReadyBorrow && s.SinceHornPress > SummonSettleSeconds)
                 return (BST.Borrow, $"crucible:prepull-borrow-{name}");
             declines.Add("crucible:prepull-borrow-waiting");
@@ -169,6 +180,28 @@ internal static class BST_CrucibleLogic
 
         return (0, "");
     }
+
+    /// <summary>
+    ///     Hold the Soulkin's One with Nature on an interrupt fight: Soul Crush is a 30 s kinship and the very borrow that
+    ///     arms it spends the Soulkin's once-per-summon One with Nature, so each summon buys one window. Spending that
+    ///     One with Nature on a Tempered Release while no cast is up wastes the window before the next cast starts (the
+    ///     2026-10-02 evening: every one of the 12 completed heals started with Soul Crush not held). While this holds,
+    ///     <see cref="ShouldBorrowForFight"/> still borrows the moment an interruptible cast is live — that is the re-arm.
+    /// </summary>
+    public static bool HoldOwnForInterrupt(in BstState s, in BstSettings cfg, BeastmasterBeast? beast) =>
+        cfg.Crucible && s.CrucibleBoard != 0 && cfg.UseSoulCrush && (s.CrucibleNeeds & CrucibleNeeds.Interrupt) != 0
+        && beast is { Kin: BeastmasterKinType.Soulkin }
+        && HeldKin(s) != BeastmasterKinType.Soulkin
+        && !s.TargetInterruptible;
+
+    /// <summary>
+    ///     A discretionary Borrow (Tempered on recast, release blocked) would replace the held Soul Crush with another
+    ///     kin on a fight that still needs interrupts — the 2026-10-02 evening showed the held kinship dropping to
+    ///     beastskin exactly this way mid-fight. While Soul Crush is held on an interrupt fight, those borrows wait.
+    /// </summary>
+    public static bool KeepHeldSoulCrush(in BstState s, in BstSettings cfg) =>
+        cfg.Crucible && s.CrucibleBoard != 0 && cfg.UseSoulCrush && (s.CrucibleNeeds & CrucibleNeeds.Interrupt) != 0
+        && s.KinshipHeld && s.BeastModeResolved == BST.SoulCrush;
 
     // ------------------------------------------------------------------ horns
 
@@ -442,11 +475,30 @@ internal static class BST_CrucibleLogic
     };
 
     /// <summary>
+    ///     A horn (never the active one — the active familiar is already out) whose beast is of <paramref name="kin"/>
+    /// (or is <paramref name="row"/>); 0 = none. </summary>
+    public static int AnswerSlot(in BstState s, BeastmasterKinType kin, int row = 0)
+    {
+        var learned = LearnedHornSlots(s.Level);
+        for (var slot = 1; slot <= learned; slot++)
+        {
+            if (slot == s.ActiveSlot)
+                continue;
+            var beast = BST_Beasts.ByRow(SlotBeast(s, slot));
+            if (beast is { } b && (row != 0 ? b.Row == row : b.Kin == kin))
+                return slot;
+        }
+        return 0;
+    }
+
+    /// <summary>
     ///     The horn whose familiar answers <paramref name="kind"/> while the fight is calling for it right now, and is not
-    ///     already answered (the familiar out is that one, or its Kinship is held). 0 = not live, already answered, or no horn
-    ///     carries an answer. Live means the fight's panel needs it AND the thing is happening: an interruptible cast on the
-    ///     target, a dispellable buff on the target, a cleansable debuff on the character. The vulture and the bat answer
-    ///     with their own Tempered Release, so they come first; otherwise the Kinship is borrowed from the familiar that has it.
+    ///     already answered. 0 = not live, already answered, or no horn carries an answer. Live means the fight's panel needs
+    ///     it AND the thing is happening: an interruptible cast on the target, a dispellable buff on the target, a cleansable
+    ///     debuff on the character. The vulture and the bat answer with their own Tempered Release, so they come first;
+    ///     otherwise the Kinship is borrowed from the familiar that has it. The familiar that is already OUT only counts as
+    ///     the answer while it can still give it: its One with Nature is up or its Kinship is already held (the 2026-10-02
+    ///     evening: a Wavekin/Soulkin out with One with Nature spent answered nothing, and no swap was even considered).
     /// </summary>
     public static int LiveAnswerSlot(in BstState s, CrucibleNeeds kind, BeastmasterBeast? active)
     {
@@ -459,24 +511,26 @@ internal static class BST_CrucibleLogic
         {
             case CrucibleNeeds.Interrupt:
                 if (!s.HasHostileTarget || s.TargetDoNotAttack || !s.TargetInterruptible
-                    || HeldKin(s) == BeastmasterKinType.Soulkin || outKin == BeastmasterKinType.Soulkin)
+                    || HeldKin(s) == BeastmasterKinType.Soulkin || (outKin == BeastmasterKinType.Soulkin && s.OneWithNature))
                     return 0;
-                return SlotWithKin(s, BeastmasterKinType.Soulkin);
+                return AnswerSlot(s, BeastmasterKinType.Soulkin);
             case CrucibleNeeds.Dispel:
             {
                 if (!s.HasHostileTarget || s.TargetDoNotAttack || !s.TargetHasDispellableBuff
-                    || outRow == VultureRow || HeldKin(s) == BeastmasterKinType.Wavekin || outKin == BeastmasterKinType.Wavekin)
+                    || (outRow == VultureRow && s.OneWithNature) || HeldKin(s) == BeastmasterKinType.Wavekin
+                    || (outKin == BeastmasterKinType.Wavekin && s.OneWithNature))
                     return 0;
-                var vulture = SlotWithKin(s, BeastmasterKinType.None, VultureRow);
-                return vulture != 0 ? vulture : SlotWithKin(s, BeastmasterKinType.Wavekin);
+                var vulture = AnswerSlot(s, BeastmasterKinType.None, VultureRow);
+                return vulture != 0 ? vulture : AnswerSlot(s, BeastmasterKinType.Wavekin);
             }
             default:
             {
                 if (!s.PlayerHasCleansableDebuff
-                    || outRow == BST_CrucibleData.BatRow || HeldKin(s) == BeastmasterKinType.Ashkin || outKin == BeastmasterKinType.Ashkin)
+                    || (outRow == BST_CrucibleData.BatRow && s.OneWithNature) || HeldKin(s) == BeastmasterKinType.Ashkin
+                    || (outKin == BeastmasterKinType.Ashkin && s.OneWithNature))
                     return 0;
-                var bat = SlotWithKin(s, BeastmasterKinType.None, BST_CrucibleData.BatRow);
-                return bat != 0 ? bat : SlotWithKin(s, BeastmasterKinType.Ashkin);
+                var bat = AnswerSlot(s, BeastmasterKinType.None, BST_CrucibleData.BatRow);
+                return bat != 0 ? bat : AnswerSlot(s, BeastmasterKinType.Ashkin);
             }
         }
     }
@@ -499,6 +553,10 @@ internal static class BST_CrucibleLogic
     ///     the last horn settled). The ability itself then goes out through <see cref="TryDispel"/>, <see cref="TryCleanse"/>,
     ///     the Borrow rule and the interrupt rule. Without this the familiar that was picked for the fight stays on its horn
     ///     and the rotation logs "dispel-unavailable" until the buff has done its damage (board 4 Strix Piece, 2026-10-01).
+    ///     When the answering familiar is already out but cannot answer (interrupt: Soulkin out with One with Nature
+    ///     spent, Soul Crush not held, no other Soulkin horn ready) that limit is named in the declines
+    ///     (<c>crucible:answer-interrupt-cannot-rearm</c>) instead of passing silently (12 of 41 heals on the
+    ///     Natural Nurture fight finished casting that way, 2026-10-02).
     /// </summary>
     public static (uint ActionId, string Reason) TryAnswerSwap(in BstState s, in BstSettings cfg, BeastmasterBeast? beast, List<string> declines)
     {
@@ -526,6 +584,15 @@ internal static class BST_CrucibleLogic
             else
                 return (HornAction(slot), $"crucible:answer-{name}-slot{slot}");
         }
+
+        // The engine limit, said out loud: an interruptible cast is live, Soul Crush is not held, the Soulkin is
+        // the familiar out and its One with Nature (the only thing that can re-borrow Soul Crush) is spent, and
+        // no other ready horn carries a Soulkin. Nothing can answer this cast; the log should say so.
+        if ((s.CrucibleNeeds & CrucibleNeeds.Interrupt) != 0 && s.HasHostileTarget && !s.TargetDoNotAttack && s.TargetInterruptible
+            && HeldKin(s) != BeastmasterKinType.Soulkin && !InterruptArmed(s, cfg)
+            && beast is { Kin: BeastmasterKinType.Soulkin } && !s.OneWithNature
+            && AnswerSlot(s, BeastmasterKinType.Soulkin) == 0)
+            declines.Add("crucible:answer-interrupt-cannot-rearm");
 
         return (0, "");
     }
