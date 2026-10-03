@@ -55,6 +55,9 @@ internal partial class BST
     /// <summary> Soul Crush is held and ready for a fight that needs an interrupt (set every tick by the rotation): targeting may aim at an interruptible caster. </summary>
     internal static bool InterruptArmed;
 
+    /// <summary> The dispel is ready and an enemy in reach carries a dispellable buff (set every tick by the rotation): targeting may aim at the carrier. </summary>
+    internal static bool DispelArmed;
+
     /// <summary>
     ///     BST_CrucibleLogic.AllowedTargets over live candidates: no eggs / morphos, an armed Soul Crush aims at the interruptible caster,
     ///     stances last, priority adds in documented kill order, pairs balanced.
@@ -65,7 +68,7 @@ internal partial class BST
             return targets;
 
         var candidates = CrucibleCandidates(targets);
-        var allowed = BST_CrucibleLogic.AllowedTargets(candidates, InterruptArmed);
+        var allowed = BST_CrucibleLogic.AllowedTargets(candidates, InterruptArmed, DispelArmed);
         var result = new List<IBattleChara>(allowed.Count);
         foreach (var i in allowed)
             result.Add(targets[i]);
@@ -105,13 +108,15 @@ internal partial class BST
                 if (inStance && damageImmune)
                     break;
             }
+            var dispellable = DispelArmed && Fn.GetTargetDistance(t) <= DispelReach && CarriesDispellableBuff(t);
             candidates.Add(new(
                 t.NameId,
                 t.MaxHp == 0 ? 0f : 100f * t.CurrentHp / t.MaxHp,
                 inStance,
                 damageImmune,
                 InterruptArmed && t is { IsCasting: true, IsCastInterruptible: true },
-                t.IsCasting ? t.CastActionId : 0));
+                t.IsCasting ? t.CastActionId : 0,
+                dispellable));
         }
 
         return candidates;

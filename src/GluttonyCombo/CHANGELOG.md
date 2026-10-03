@@ -1,3 +1,13 @@
+## v1.0.4.262 (2026-10-03) [testing]
+### Fixed
+- **Beastmaster, Crucible of the Unbroken: Regen on an enemy is now dispelled.** Regen (the Abaddon Piece's buff from eaten Morphos, status Rehabilitation) was not on the list of buffs the rotation treats as dispellable, so the dispel step was never reached even with Quelling Wave held and ready. The same gap stood for Growing (Sapling Piece) and Impassion (Medusa Piece). Every dispel counter in the fight research now has a status id, and a test fails if a new one is added without one.
+- **Beastmaster, Crucible: the dispel goes to the enemy that carries the buff, not only to the hard target.** With Quelling Wave held and ready (or the vulture out with Tempered Release up) and a fight that calls for a dispel, auto-targeting aims at an enemy within 30 y that carries a dispellable buff, ahead of the kill order and including an enemy in a counter stance (the spikes are what the dispel removes); an interruptible cast still comes first. A buff on an enemy that is not the target also brings out the Wavekin or the vulture on a ready horn, as a buff on the target already did.
+### Added
+- **A dispel that leaves the buff standing is not repeated.** Regen, Growing, Impassion and Might are not flagged dispellable by the game's enemy panel, so the game may refuse them: each is dispelled at most twice per enemy while it keeps standing, then left alone; the count starts over when the buff comes off. The panel's own dispellable buffs are never given up on. Each dispel writes one `DS|` log line (enemy id, the dispellable status ids on it, and the ones given up on).
+### Notes
+- Regen, Growing, Impassion and Might remain unproven until a dispel is seen taking them off; the `DS|` lines and the buff leaving settle it. The Wavekin is brought out for a dispel only where the research marks the counter as required (the panel's buffs and Regen); for Might, Growing and Impassion the dispel is sent when Quelling Wave is already held.
+- Testing channel only; the production channel is unchanged.
+
 ## v1.0.4.261 (2026-10-03) [testing]
 ### Added
 - **Quick controls for the Lazy Hub window.** The plugin now offers the Auto-Rotation switch and its common settings ("Only in combat", "FATE priority", "Quest priority", the DPS targeting mode, boss-mod targeting, the AoE target count, the maximum target distance, "Block spells while moving" and hiding the Auto-Rotation chat message) to Lazy Hub (`/lazy`) over Dalamud IPC, so they can be changed from one window next to the other lalalazy plugins. Each change does exactly what the matching setting in the plugin's own window does.

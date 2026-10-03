@@ -838,6 +838,9 @@ internal static class Program
                 BST_CrucibleData.DispelRows.Length > 0 && BST_CrucibleData.DispelRows.All(r => BST_CrucibleData.DispellableBuffs.Contains(r.StatusId)));
             Check("the stances stay undispellable and the Needles Out / Paralyzing Spikes ids stay out",
                 !BST_CrucibleData.DispellableBuffs.Contains(5145) && !BST_CrucibleData.DispellableBuffs.Contains(5434));
+            Check("the panel's own flagged ids (known honoured) are never given up on; Regen, Growing, Impassion and Might are unproven",
+                new uint[] { 1225, 2074, 2528, 5020, 5423, 5465 }.All(BST_CrucibleData.PanelFlagsDispellable)
+                && new uint[] { 989, 390, 3129, 1572 }.All(id => !BST_CrucibleData.PanelFlagsDispellable(id)));
             Check("the Abaddon fight (5.5) needs the dispel", (BST_CrucibleLogic.FightNeeds(5, 5) & CrucibleNeeds.Dispel) != 0);
 
             // The Abaddon fight, replayed: Wave Kinship held and ready, Regen on the target.

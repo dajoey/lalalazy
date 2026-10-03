@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using static GluttonyCombo.Combos.PvE.BST_RotationLogic;
 
 namespace GluttonyCombo.Combos.PvE;
@@ -494,7 +495,8 @@ internal static class BST_CrucibleLogic
     /// <summary>
     ///     The horn whose familiar answers <paramref name="kind"/> while the fight is calling for it right now, and is not
     ///     already answered. 0 = not live, already answered, or no horn carries an answer. Live means the fight's panel needs
-    ///     it AND the thing is happening: an interruptible cast on the target, a dispellable buff on the target, a cleansable
+    ///     it AND the thing is happening: an interruptible cast on the target, a dispellable buff on any enemy in reach (the
+    ///     aim follows it once the Kinship is held, <see cref="DispelArmed"/>), a cleansable
     ///     debuff on the character. The vulture and the bat answer with their own Tempered Release, so they come first;
     ///     otherwise the Kinship is borrowed from the familiar that has it. The familiar that is already OUT only counts as
     ///     the answer while it can still give it: its One with Nature is up or its Kinship is already held (the 2026-10-02
@@ -516,7 +518,7 @@ internal static class BST_CrucibleLogic
                 return AnswerSlot(s, BeastmasterKinType.Soulkin);
             case CrucibleNeeds.Dispel:
             {
-                if (!s.HasHostileTarget || s.TargetDoNotAttack || !s.TargetHasDispellableBuff
+                if (!s.HasHostileTarget || s.TargetDoNotAttack || !(s.TargetHasDispellableBuff || s.EnemyHasDispellableBuff)
                     || (outRow == VultureRow && s.OneWithNature) || HeldKin(s) == BeastmasterKinType.Wavekin
                     || (outKin == BeastmasterKinType.Wavekin && s.OneWithNature))
                     return 0;
@@ -882,7 +884,8 @@ internal static class BST_CrucibleLogic
     ///     die together, the healthier one while they are more than <see cref="PairHpGap"/> apart. With
     ///     <paramref name="interruptArmed"/> (Soul Crush held and ready) an enemy casting something interruptible comes before
     ///     all of that: the cast is gone in seconds and the order resumes when it ends; a caster of a
-    ///     <see cref="BST_CrucibleData.KillTheCaster"/> cast comes next.
+    ///     <see cref="BST_CrucibleData.KillTheCaster"/> cast comes next, then (with <paramref name="dispelArmed"/>) the enemies
+    ///     that carry a dispellable buff.
     /// </summary>
     public static List<int> AllowedTargets(IReadOnlyList<TargetCandidate> candidates, bool interruptArmed = false, bool dispelArmed = false)
     {
@@ -892,6 +895,7 @@ internal static class BST_CrucibleLogic
                 && !BST_CrucibleData.DoNotAttack.ContainsKey(candidates[i].NameId))
                 allowed.Add(i);
 
+        var all = allowed;
         var calm = allowed.FindAll(i => !candidates[i].Avoid);
         if (calm.Count > 0)
             allowed = calm;
@@ -909,6 +913,16 @@ internal static class BST_CrucibleLogic
         var killers = allowed.FindAll(i => candidates[i].CastId != 0 && BST_CrucibleData.KillTheCaster.Contains(candidates[i].CastId));
         if (killers.Count > 0)
             return killers;
+
+        // The dispel is armed (Quelling Wave held, or the vulture ready) and an enemy carries a dispellable buff: that enemy
+        // before the kill order, stances included (the spikes are exactly what the dispel removes). The buff is gone in one
+        // cast and the order resumes the moment it is, or when the dispel proves futile (the carrier then stops counting).
+        if (dispelArmed)
+        {
+            var carriers = all.FindAll(i => candidates[i].Dispellable);
+            if (carriers.Count > 0)
+                return carriers;
+        }
 
         var priority = allowed.FindAll(i => BST_CrucibleData.PriorityAdds.Contains(candidates[i].NameId));
         if (priority.Count > 0)
@@ -957,20 +971,42 @@ internal static class BST_CrucibleLogic
         cfg.Crucible && s.CrucibleBoard != 0 && cfg.UseSoulCrush && (s.CrucibleNeeds & CrucibleNeeds.Interrupt) != 0
         && s.KinshipHeld && s.BeastModeResolved == BST.SoulCrush && s.ReadyBeastMode;
 
-    /// <summary> Placeholder (failing-first). </summary>
-    public static bool DispelArmed(in BstState s, in BstSettings cfg) => false;
+    /// <summary>
+    ///     The dispel is ready to go out and the fight calls for it while an enemy carries a dispellable buff: Quelling Wave is
+    ///     held and ready, or the vulture is out with its One with Nature and Tempered Release up. Auto-targeting then aims at
+    ///     the carrier (<see cref="AllowedTargets"/>) the way it aims at an interruptible caster when Soul Crush is armed;
+    ///     <see cref="TryDispel"/> casts it on the next tick, with that enemy as the target.
+    /// </summary>
+    public static bool DispelArmed(in BstState s, in BstSettings cfg) =>
+        cfg.Crucible && s.CrucibleBoard != 0 && (s.CrucibleNeeds & CrucibleNeeds.Dispel) != 0 && s.EnemyHasDispellableBuff
+        && ((s.KinshipHeld && s.BeastModeResolved == BST.QuellingWave && s.ReadyBeastMode)
+            || (ActiveBeast(s) is { Row: VultureRow } && FamiliarOut(s) && s.OneWithNature && s.ReadyTempered));
 
-    /// <summary> Placeholder (failing-first). </summary>
+    /// <summary>
+    ///     A dispel the game does not honour is not sent again and again: after this many dispels that left the same status on
+    ///     the same enemy, that status on that enemy stops counting as dispellable. The research's "live" and "guide" ids
+    ///     (<see cref="BST_CrucibleData.DispelRows"/>) have never been dispelled in a run; every one costs a Kinship and a
+    ///     swap, so the answer to "does Quelling Wave remove it" comes from the first two tries and stops there.
+    /// </summary>
     public const int DispelMaxTries = 2;
 
-    /// <summary> Placeholder (failing-first). </summary>
-    public static void NoteDispelSent(Dictionary<(ulong Enemy, uint Status), int> tries, ulong enemy, IEnumerable<uint> statusesOnEnemy) { }
+    /// <summary> A dispel was just sent at <paramref name="enemy"/> while it carried <paramref name="statusesOnEnemy"/>: count one try on each. </summary>
+    public static void NoteDispelSent(Dictionary<(ulong Enemy, uint Status), int> tries, ulong enemy, IEnumerable<uint> statusesOnEnemy)
+    {
+        foreach (var status in statusesOnEnemy)
+            tries[(enemy, status)] = tries.GetValueOrDefault((enemy, status)) + 1;
+    }
 
-    /// <summary> Placeholder (failing-first). </summary>
-    public static void ForgetGoneStatuses(Dictionary<(ulong Enemy, uint Status), int> tries, ulong enemy, ICollection<uint> statusesOnEnemy) { }
+    /// <summary> The enemy's statuses as read now: a status that came off starts its count over (it can be put back on). </summary>
+    public static void ForgetGoneStatuses(Dictionary<(ulong Enemy, uint Status), int> tries, ulong enemy, ICollection<uint> statusesOnEnemy)
+    {
+        foreach (var key in tries.Keys.Where(k => k.Enemy == enemy && !statusesOnEnemy.Contains(k.Status)).ToList())
+            tries.Remove(key);
+    }
 
-    /// <summary> Placeholder (failing-first). </summary>
-    public static bool DispelFutile(Dictionary<(ulong Enemy, uint Status), int> tries, ulong enemy, uint status) => false;
+    /// <summary> This status on this enemy took <see cref="DispelMaxTries"/> dispels and is still there. </summary>
+    public static bool DispelFutile(Dictionary<(ulong Enemy, uint Status), int> tries, ulong enemy, uint status) =>
+        tries.TryGetValue((enemy, status), out var n) && n >= DispelMaxTries;
 
     // ------------------------------------------------------------------ familiar HP memory (party agent)
 

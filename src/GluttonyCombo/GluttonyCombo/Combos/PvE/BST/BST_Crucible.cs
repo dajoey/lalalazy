@@ -39,6 +39,9 @@ internal partial class BST
     private static bool _shellWasUp;
     private static long _shellBrokeTick;
 
+    /// <summary> Quelling Wave's range (30 y): a carrier further out than this does not call for a dispel or steer the aim. </summary>
+    private const float DispelReach = 30f;
+
     /// <summary> Seconds a broken shell still counts as "just broke" (the stun / bind window of the Ymir). </summary>
     private const long ShellBrokeWindowMs = 6000;
 
@@ -53,6 +56,88 @@ internal partial class BST
 
     /// <summary> BNpcName of the current target, sampled for the CR| collector. </summary>
     internal static uint LastCrucibleTargetNameId;
+
+    /// <summary>
+    ///     Dispels sent that left a status standing, per (enemy, status): after <see cref="BST_CrucibleLogic.DispelMaxTries"/> the
+    ///     status stops counting as dispellable on that enemy (<see cref="CarriesDispellableBuff"/>).
+    /// </summary>
+    private static readonly Dictionary<(ulong Enemy, uint Status), int> DispelTries = [];
+
+    private static readonly HashSet<uint> StatusScratch = [];
+    private static readonly List<uint> DispelStatuses = [];
+    private static ulong _dispelEnemy;
+    private static uint _dispelEnemyName;
+    private static long _dispelBurstStart, _dispelDecidedTick, _dispelCountedTick;
+
+    /// <summary> Seconds after a Quelling Wave / Tempered Release use during which the use still belongs to the dispel just decided. </summary>
+    private const float DispelUseWindow = 1.5f;
+
+    /// <summary> Seconds a dispel decision stays the open one (the decision repeats every tick until the cast goes out). </summary>
+    private const long DispelDecisionWindowMs = 2500;
+
+    /// <summary> A dispellable buff (<see cref="BST_CrucibleData.DispellableBuffs"/>) the rotation has not given up on stands on this enemy. </summary>
+    internal static bool CarriesDispellableBuff(IBattleChara enemy)
+    {
+        foreach (var status in enemy.StatusList)
+        {
+            var id = status.StatusId;
+            if (id != 0 && BST_CrucibleData.DispellableBuffs.Contains(id) && !BST_CrucibleLogic.DispelFutile(DispelTries, enemy.GameObjectId, id))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    ///     The rotation decided to dispel (a <c>crucible:dispel-*</c> decision this tick): remember WHICH enemy and which
+    ///     dispellable statuses it carried, because by the time the cast has gone out the aim may have moved on.
+    /// </summary>
+    internal static void NoteDispelDecision(long now)
+    {
+        if (CurrentTarget is not IBattleChara target)
+            return;
+
+        if (now - _dispelDecidedTick > DispelDecisionWindowMs)
+            _dispelBurstStart = now;
+        _dispelDecidedTick = now;
+        _dispelEnemy = target.GameObjectId;
+        _dispelEnemyName = target.NameId;
+        DispelStatuses.Clear();
+        foreach (var status in target.StatusList)
+            if (status.StatusId != 0 && BST_CrucibleData.DispellableBuffs.Contains(status.StatusId))
+                DispelStatuses.Add(status.StatusId);
+    }
+
+    /// <summary>
+    ///     Per tick: a status that is no longer on the target starts its count over, and a dispel that has gone out since the
+    ///     decision (Quelling Wave, or Tempered Release for the Caw) counts one try on each UNPROVEN status the enemy carried
+    ///     (<see cref="BST_CrucibleData.PanelFlagsDispellable"/>: the panel's own are never given up on). One <c>DS|</c> line
+    ///     per dispel names the enemy, the statuses and the ones given up on, so a run shows whether the buff came off
+    ///     (status_events) and whether the rotation stopped trying.
+    /// </summary>
+    private static void TrackDispels(IBattleChara? target, long now)
+    {
+        if (target is not null)
+        {
+            StatusScratch.Clear();
+            foreach (var status in target.StatusList)
+                if (status.StatusId != 0)
+                    StatusScratch.Add(status.StatusId);
+            BST_CrucibleLogic.ForgetGoneStatuses(DispelTries, target.GameObjectId, StatusScratch);
+        }
+
+        if (DispelStatuses.Count == 0 || _dispelCountedTick >= _dispelBurstStart || now - _dispelDecidedTick > DispelDecisionWindowMs)
+            return;
+
+        var since = Math.Min(SinceUsed(QuellingWave), SinceUsed(TemperedRelease));
+        if (since > DispelUseWindow || now - (long)(since * 1000f) < _dispelBurstStart - 100)
+            return;
+
+        _dispelCountedTick = now;
+        BST_CrucibleLogic.NoteDispelSent(DispelTries, _dispelEnemy, DispelStatuses.FindAll(id => !BST_CrucibleData.PanelFlagsDispellable(id)));
+        var futile = DispelStatuses.FindAll(id => BST_CrucibleLogic.DispelFutile(DispelTries, _dispelEnemy, id));
+        Svc.Log.Information(
+            $"DS|{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}|enemy={_dispelEnemyName}|st={string.Join(',', DispelStatuses)}|futile={string.Join(',', futile)}");
+    }
 
     internal static unsafe void ReadCrucible(ref BST_RotationLogic.BstState s)
     {
@@ -70,6 +155,7 @@ internal partial class BST
             PartyHpVerified = false;
             PlayerHpSamples.Clear();
             TargetHpSamples.Clear();
+            DispelTries.Clear();
         }
 
         s.CrucibleBoard = BST_CrucibleData.BoardOfTerritory(territory);
@@ -102,6 +188,8 @@ internal partial class BST
             }
 
             s.EnemyCount++;
+            if (!s.EnemyHasDispellableBuff && CarriesDispellableBuff(npc) && GetTargetDistance(npc) <= DispelReach)
+                s.EnemyHasDispellableBuff = true;
             if (BST_CrucibleData.ShellTargets.Contains(nameId))
             {
                 foreach (var status in npc.StatusList)
@@ -188,7 +276,7 @@ internal partial class BST
                     continue;
                 if (BST_CrucibleData.StanceStatuses.Contains(id))
                     s.TargetInStance = true;
-                if (BST_CrucibleData.DispellableBuffs.Contains(id))
+                if (BST_CrucibleData.DispellableBuffs.Contains(id) && !BST_CrucibleLogic.DispelFutile(DispelTries, target.GameObjectId, id))
                     s.TargetHasDispellableBuff = true;
                 if (BST_CrucibleData.ParryStatuses.Contains(id)
                     || (id == BST_CrucibleData.BoneKnightParryStatus && BST_CrucibleData.BoneKnightNameIds.Contains(target.NameId)))
@@ -201,6 +289,9 @@ internal partial class BST
 
             if (target.IsInvincible)
                 s.TargetInvulnerable = true;
+
+            if (s.TargetHasDispellableBuff)
+                s.EnemyHasDispellableBuff = true;
 
             s.TargetTimeToDeath = TrackTimeToDeath(now, target.GameObjectId, s.TargetHpPercent);
 
@@ -228,6 +319,8 @@ internal partial class BST
                     _parryTargetId = 0;
             }
         }
+
+        TrackDispels(target, now);
 
         s.PartingBlowRecast = GetCooldownRemainingTime(PartingBlow);
         s.ReadySnarl = ActionReady(Snarl);

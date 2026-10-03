@@ -124,20 +124,50 @@ internal static partial class BST_CrucibleData
     /// </summary>
     public static readonly HashSet<uint> StanceStatuses = [5434, 2528, 5465, 5145];
 
-    /// <summary>
-    ///     Enemy buffs worth a dispel: the panel's dispellable buffs plus 1572 Might (Third Board golem, which
-    ///     two guides dispel with Quelling Wave / Bloodcurdling Caw although its sheet flag is unset).
-    /// </summary>
-    /// <remarks> Lazy: static initializers in different files of a partial class run in no guaranteed order. </remarks>
-    public static HashSet<uint> DispellableBuffs => _dispellableBuffs ??= [.. PanelDispellableBuffs, 1572];
-
-    /// <summary> One research dispel row: the fight, the buff's status id, and what the evidence for it is. </summary>
+    /// <summary> One research dispel row: the fight, the buff's status id, and what the id rests on. </summary>
     internal readonly record struct DispelRow(int Board, int Battle, uint StatusId, string Buff, string Basis);
 
-    /// <summary> Placeholder (failing-first): the research's dispel rows with a status id each. </summary>
-    public static readonly DispelRow[] DispelRows = [];
+    /// <summary>
+    ///     Every dispel counter in the fight research (CrucibleGuide.json, 13 rows) with the status id the game puts on the enemy.
+    ///     The rotation dispels a buff whose id is here (and on the panel's list), on whichever enemy carries it. Basis:
+    ///     "panel" = the enemy panel flags the cast's buff dispellable; "live" = the id was recorded on the enemy in a real
+    ///     run (ffxivdb status_events) and the guides say to dispel it, but the panel does not flag it; "guide" = the guides
+    ///     say so and the id comes from the panel's cast table, never seen on an enemy in a run. A "live" / "guide" id has never been dispelled in a run, so
+    ///     the rotation gives up on it after <see cref="BST_CrucibleLogic.DispelMaxTries"/> dispels that left it standing.
+    ///     The test in BSTRotationHarness asserts one row per guide counter, so a new dispel need cannot ship without an id.
+    /// </summary>
+    public static readonly DispelRow[] DispelRows =
+    [
+        new(1, 0, 1225, "Damage Up on the boss from Fanaticism", "panel"),
+        new(1, 1, 2074, "Physical Damage Up from Ossify (Bone Knight)", "panel"),
+        new(1, 3, 1225, "Clear Mind (Damage Up on the Piscodemon)", "panel"),
+        new(2, 0, 5423, "Popoto Skin from Kinborrow (Loosefrox Inkyjots)", "panel"),
+        new(2, 5, 1225, "Damage Up on the Elder from Rallying Cheer", "panel"),
+        new(3, 5, 1572, "Might on the Golem", "live"),
+        new(4, 1, 5020, "Ultimate Focus (Magic Damage Up, Strix Piece)", "panel"),
+        new(4, 8, 390, "Growing from Grab and Grow (Sapling Piece)", "live"),
+        new(4, 9, 2528, "Ice Spikes (Snoll Piece)", "panel"),
+        new(5, 5, 5465, "Blaze Spikes (Drake Piece)", "panel"),
+        new(5, 5, 989, "Regen (Rehabilitation) on the Abaddon from eaten Morphos", "live"),
+        new(5, 7, 3129, "Impassion Damage Up (Medusa Piece)", "guide"),
+        new(5, 11, 1225, "Spirit of Pompetition (Kinged Swordsmog)", "panel"),
+    ];
+
+    /// <summary>
+    ///     Enemy buffs worth a dispel: the panel's dispellable buffs plus every status id a research dispel row names
+    ///     (<see cref="DispelRows"/>). 989 Regen was missing until 2026-10-03: the Abaddon Piece fight needed the dispel for
+    ///     428 of 430 ticks with Quelling Wave held and the target flag never rose.
+    /// </summary>
+    /// <remarks> Lazy: static initializers in different files of a partial class run in no guaranteed order. </remarks>
+    public static HashSet<uint> DispellableBuffs => _dispellableBuffs ??= [.. PanelDispellableBuffs, .. DispelRows.Select(r => r.StatusId)];
 
     private static HashSet<uint>? _dispellableBuffs;
+
+    /// <summary>
+    ///     The enemy panel itself flags this buff dispellable. Those are the ones the game is known to honour; every other
+    ///     dispellable id (the guides' "live" / "guide" rows) is unproven until a dispel is seen to take it off.
+    /// </summary>
+    public static bool PanelFlagsDispellable(uint statusId) => PanelDispellableBuffs.Contains(statusId);
 
     /// <summary>
     ///     Crucible damage-immune states on enemies, on top of the plugin's general invulnerability check (BossmodReborn
