@@ -891,6 +891,16 @@ internal static class Program
             Check("... the vulture, a carrier in a counter stance with a protected Morpho beside it: the aim is not pinned on it, the calm enemy is chosen",
                 BST_CrucibleLogic.AllowedTargets(cawField, false, BST_CrucibleLogic.DispelArmed(cawBlocked, cfg)).SequenceEqual(new[] { 1 }));
 
+            // Aimed at a stance carrier the rotation holds (no GCD), so the GCD sits idle and a weave window never opens: the
+            // Caw must not wait for one. Mid-GCD it holds the tick, the GCD runs out, and the next tick it goes out.
+            var cawStance = vultureOut with { TargetInStance = true, TargetDistance = 5f, ProtectedNearTarget = false, CanWeave = false, GcdReady = true };
+            Check("the vulture, a stance carrier with a clear area, GCD idle and no weave window: the Caw goes out, the rotation does not hold on it",
+                Decide(cawStance, cfg) is { ActionId: BST.TemperedRelease, Reason: "crucible:dispel-caw" }, $"{Decide(cawStance, cfg).Reason} [{Decide(cawStance, cfg).Declines}]");
+            Check("... the GCD still rolling (inside the closing window): held this tick, no flap (the aim stays, the next tick the GCD is idle)",
+                Decide(cawStance with { GcdReady = false }, cfg).Reason == "crucible:hold-stance" && BST_CrucibleLogic.DispelArmed(cawStance with { GcdReady = false }, cfg));
+            Check("... a calm carrier, GCD idle and no weave window: no Caw, the rotation keeps its GCD (the weave comes with the next window)",
+                Decide(cawStance with { TargetInStance = false }, cfg).ActionId != BST.TemperedRelease);
+
             const uint drake = 14651, barbmole = 14653, abaddonName = 14655, morpho = 14656;
             List<int> Aim(bool armed, params BST_CrucibleLogic.TargetCandidate[] c) => BST_CrucibleLogic.AllowedTargets(c, false, armed);
             BST_CrucibleLogic.TargetCandidate N(uint nameId, bool carrier = false, bool avoid = false, bool immune = false) => new(nameId, 100f, avoid, immune, false, 0, carrier);
