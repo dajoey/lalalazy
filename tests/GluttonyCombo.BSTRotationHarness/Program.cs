@@ -36,6 +36,7 @@ internal static class Program
         CrucibleHornWarning();
         GuideNeedsInRotation();
         ArmAndAimTheInterrupt();
+    InterruptEconomy();
         ShieldChargeOvercap();
         CrucibleTactics();
 
@@ -504,6 +505,65 @@ internal static class Program
             Aim(true, K(14542, 100f, true), K(14543, 100f, true), K(14541, 100f, false)).SequenceEqual(new[] { 0, 1 }));
     }
 
+    /// <summary>
+    ///     Interrupt economy (fix round 2026-10-03, graded from the 2026-10-02 evening). Soul Crush is a 30 s
+    ///     kinship and the Soulkin's One with Nature is spent by the very borrow that arms it, so each summon buys
+    ///     one 30 s window. That evening: on the healer fight 12 of 41 heals finished casting and every one of them
+    ///     started with Soul Crush not held (held kinship replaced by a discretionary borrow or simply expired,
+    ///     bm= 44902 -> 44896/44886). So: hold the Soulkin's One with Nature until a cast is actually up, never
+    ///     borrow over a held Soul Crush on an interrupt fight, and say why out loud when a re-arm is impossible.
+    /// </summary>
+    private static void InterruptEconomy()
+    {
+        Console.WriteLine("-- interrupt economy: hold the re-arm ammo, keep Soul Crush, name the impossible --");
+        var cfg = BstSettings.Defaults();
+
+        // The Soulkin (coblyn, row 7) is out with One with Nature up on an interrupt fight; nothing held.
+        var soulOut = CrucibleState(30) with
+        {
+            CrucibleBoard = 3, CrucibleBattle = 2, CrucibleNeeds = CrucibleNeeds.Interrupt,
+            ActiveSlot = 2, Slot2Beast = 7, PetObjectBeast = 7, Slot1Beast = 1, Slot3Beast = 34,
+            OneWithNature = true, ReadyTempered = true, ReadyBorrow = true,
+            KinshipHeld = false, BeastModeResolved = BST.BeastMode,
+            SinceSummon = 20f, SinceHornPress = 21f, CanWeave = true, HasHostileTarget = true, TargetDistance = 3f,
+        };
+
+        // Hold: no cast up, the ammo survives for the next one.
+        var hold = Decide(soulOut, cfg);
+        Check("no cast up: the Soulkin's One with Nature is held for the interrupt, not spent",
+            hold.ActionId != BST.TemperedRelease && hold.ActionId != BST.Borrow && hold.Declines.Contains("own:held-for-interrupt"),
+            $"{hold.ActionId}:{hold.Reason} [{hold.Declines}]");
+
+        // Spend when it matters: a cast is live, borrow arms Soul Crush now (existing rule, the control).
+        var borrow = Decide(soulOut with { TargetInterruptible = true }, cfg);
+        Check("a cast starts: the Soulkin's One with Nature goes to Borrow and arms the interrupt",
+            borrow is { ActionId: BST.Borrow, Reason: "crucible:borrow-soulkin" }, $"{borrow.ActionId}:{borrow.Reason}");
+
+        // Armed (Soul Crush held): the hold lifts (already armed, the release may spend) but a different
+        // familiar's kinship must never replace it mid-window.
+        var kinHeld = soulOut with
+        {
+            ActiveSlot = 1, Slot1Beast = 1, PetObjectBeast = 1, Slot2Beast = 7,
+            OneWithNature = true, ReadyTempered = false, TemperedRecastRemaining = 20f, ReadyBorrow = true,
+            KinshipHeld = true, BeastModeResolved = BST.SoulCrush, ReadyBeastMode = true, KinshipSlot = 2,
+            TargetInterruptible = false,
+        };
+        var keep = Decide(kinHeld, cfg with { BorrowWhileReleaseRecasts = true });
+        Check("Soul Crush held, Tempered on recast: no discretionary borrow over it",
+            keep.ActionId != BST.Borrow && keep.Declines.Contains("own:borrow-keep-soulcrush"), $"{keep.ActionId}:{keep.Reason} [{keep.Declines}]");
+        Check("... same fight, nothing held: the usual release/borrow economy is untouched",
+            Decide(kinHeld with { KinshipHeld = false, BeastModeResolved = BST.BeastMode }, cfg with { BorrowWhileReleaseRecasts = true }).Declines.Contains("own:borrow-keep-soulcrush") == false);
+
+        // The impossible case said out loud: cast live, the Soulkin is out, its One with Nature spent,
+        // no other Soulkin horn ready. Today this is silent (gcdchain); it must name the engine limit.
+        var spent = soulOut with { TargetInterruptible = true, OneWithNature = false, ReadyTempered = false, ReadyHorn2 = false, ReadyHorn3 = true, Slot3Beast = 34 };
+        var cannot = Decide(spent, cfg);
+        Check("cast live, Soulkin out with One with Nature spent, no other Soulkin horn: the limit is named",
+            cannot.Declines.Contains("crucible:answer-interrupt-cannot-rearm"), $"{cannot.ActionId}:{cannot.Reason} [{cannot.Declines}]");
+        Check("... a ready Soulkin horn exists instead: the answer swap fires (existing rule)",
+            Decide(spent with { Slot3Beast = 7 }, cfg) is { ActionId: BST.ThirdBattlehorn, Reason: "crucible:answer-interrupt-slot3" });
+    }
+
     private static void CrucibleTargetingAndAdvisor()
     {
         Console.WriteLine("-- crucible auto-targeting and beast picks --");
@@ -928,7 +988,10 @@ internal static class Program
         Check("cleansable debuff, bat out with One with Nature: Ultrasonics",
             Decide(CrucibleState() with { PlayerHasCleansableDebuff = true, Slot1Beast = 19, PetObjectBeast = 19, OneWithNature = true, ReadyTempered = true }, cfg) is { ActionId: BST.TemperedRelease, Reason: "crucible:cleanse-ultrasonics" });
         var coblynFight = CrucibleState() with { Slot1Beast = 7, PetObjectBeast = 7, OneWithNature = true, ReadyTempered = true, ReadyBorrow = true, CrucibleNeeds = CrucibleNeeds.Interrupt, ReadyParting = false };
-        Check("coblyn out, fight needs an interrupt: Borrow Soulkin", Decide(coblynFight, cfg) is { ActionId: BST.Borrow, Reason: "crucible:borrow-soulkin" });
+        Check("coblyn out, a cast interruptible NOW: Borrow Soulkin (the re-arm)",
+            Decide(coblynFight with { TargetInterruptible = true }, cfg) is { ActionId: BST.Borrow, Reason: "crucible:borrow-soulkin" });
+        Check("coblyn out, no cast up: the One with Nature is held for the next cast",
+            Decide(coblynFight, cfg).Declines.Contains("own:held-for-interrupt"));
         Check("Soul Kinship already held: Tempered Release", Decide(coblynFight with { KinshipHeld = true, BeastModeResolved = BST.SoulCrush, KinshipSlot = 2 }, cfg).ActionId == BST.TemperedRelease);
 
         // The familiar that answers a live need is brought out when it is not (2026-10-01 run, board 4 Strix Piece: the
@@ -992,7 +1055,10 @@ internal static class Program
         Check("out of combat on a board: no horn by default", !IsHorn(noHorn.ActionId) && noHorn.Declines.Contains("crucible:no-horns-out-of-combat"), $"{noHorn.Reason} [{noHorn.Declines}]");
         Check("allowed: pre-pull, fight needs an interrupt, coblyn on horn 2: summon horn 2", Decide(pre, prepull) is { ActionId: BST.SecondBattlehorn, Reason: "crucible:prepull-soulkin-slot2" });
         var coblyn = pre with { ActiveSlot = 2, PetObjectPresent = true, PetObjectBeast = 7, OneWithNature = true, ReadyBorrow = true, SinceHornPress = 3f };
-        Check("allowed: coblyn out, Borrow", Decide(coblyn, prepull) is { ActionId: BST.Borrow, Reason: "crucible:prepull-borrow-soulkin" });
+        Check("allowed: coblyn out pre-pull, the Soulkin's borrow waits for a live cast (no prepull window waste)",
+            Decide(coblyn, prepull).Declines.Contains("crucible:prepull-borrow-waiting-cast"));
+        Check("allowed: pugil out pre-pull on a dispel fight: the Wavekin borrow still fires (only the Soulkin waits)",
+            Decide(coblyn with { CrucibleNeeds = CrucibleNeeds.Dispel, Slot2Beast = 4, PetObjectBeast = 4 }, prepull) is { ActionId: BST.Borrow, Reason: "crucible:prepull-borrow-wavekin" });
         var held = Decide(coblyn with { OneWithNature = false, KinshipHeld = true, KinshipSlot = 2, BeastModeResolved = BST.SoulCrush, SinceHornPress = 6f }, prepull);
         Check("allowed: Soul Kinship held, swap to horn 1", held.ActionId == BST.FirstBattlehorn, $"{held.Reason} [{held.Declines}]");
         Check("allowed: no Soulkin, pugil on horn 3, Wavekin", Decide(pre with { Slot2Beast = 26 }, prepull).Reason == "crucible:prepull-wavekin-slot3");
