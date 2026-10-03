@@ -2,6 +2,8 @@
 // while another valid enemy is in range". Deliberately free of Dalamud types so the offline
 // harness (tests/GluttonyCombo.RangeFallbackHarness) asserts the exact semantics that ship.
 
+using System.Collections.Generic;
+
 namespace GluttonyCombo.AutoRotation;
 
 /// <summary>
