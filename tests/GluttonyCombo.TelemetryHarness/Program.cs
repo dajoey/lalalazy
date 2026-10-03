@@ -97,6 +97,7 @@ internal static class Program
 
         BeastmasterCases();
         CrucibleCases();
+        StallCases();
 
         Console.WriteLine(_fail == 0 ? "OK" : $"FAILED ({_fail} of {_pass + _fail})");
         return _fail == 0 ? 0 : 1;
@@ -347,7 +348,7 @@ internal static class Program
 
         var line = CrucibleTelemetryFormat.BuildLine(1_788_904_962_577, snap);
         Check("CR| exact line shape",
-            line == "CR|1788904962577|b=1|bt=1|nd=ID|ne=2|hi=87|t=14531:64|c=46871:3.2|f=Sysi|hp=92|pet=40|sl=40.0.0|dec=1000004:crucible:hold-stance|sh=aggro:snarl-parry|ttd=0|in=0|vul=0|xp=0",
+            line == "CR|1788904962577|b=1|bt=1|nd=ID|ne=2|hi=87|t=14531:64|c=46871:3.2|f=Sysi|hp=92|pet=40|sl=40.0.0|dec=1000004:crucible:hold-stance|sh=aggro:snarl-parry|ttd=0|in=0|vul=0|xp=0|d=|mv=0.0",
             line);
         Check("CR| trend fields render", CrucibleTelemetryFormat.BuildLine(1, snap with { TimeToDeath = 12.4f, IntakePerSecond = 350, VulnerabilityRemaining = 8.6f, PartyHpVerified = true })
             .EndsWith("|ttd=12|in=350|vul=9|xp=1"));
@@ -355,8 +356,21 @@ internal static class Program
         Check("CR| all flag letters in order",
             CrucibleTelemetryFormat.BuildLine(1, snap with { Observed = (CrucibleTelemetryFormat.Flags)0x0FFF }).Contains("|f=DSXNPJCpysci|"));
         var nasty = CrucibleTelemetryFormat.BuildLine(1, snap with { DecisionReason = "a|b\nc" + new string('x', 200), Shadow = "s|h" });
-        Check("CR| reasons cannot fabricate fields", nasty.Split('|').Length == line.Split('|').Length, nasty);
+        Check("CR| reasons cannot fabricate fields", nasty.Split('|').Length == CrucibleTelemetryFormat.BuildLine(1, snap).Split('|').Length, nasty);
         Check("CR| stays within the line budget", nasty.Length <= CrucibleTelemetryFormat.MaxLineLength, $"len={nasty.Length}");
+
+        // The idle-time fields (1.0.4.266): the edge distance to the target and the character's own speed name
+        // why the rotation was not attacking, on the lines that are already emitted for other changes.
+        Check("CR| edge distance to the target renders",
+            CrucibleTelemetryFormat.BuildLine(1, snap with { TargetEdgeDistance = 1.94f }).EndsWith("|xp=0|d=1.9|mv=0.0"));
+        Check("CR| own movement speed renders",
+            CrucibleTelemetryFormat.BuildLine(1, snap with { MoveSpeed = 6.16f }).Contains("|d=|mv=6.2"));
+        Check("CR| an out-of-range edge distance is clamped, never negative",
+            !CrucibleTelemetryFormat.BuildLine(1, snap with { TargetEdgeDistance = 140f }).Contains("d=140"));
+        var moving = new CrucibleTelemetryFormat.GateState();
+        Check("CR| speed gate: first snapshot emits", CrucibleTelemetryFormat.ShouldEmit(ref moving, 1_000, snap));
+        Check("CR| d= and mv= never join the emit key (speed alone must not flood lines)",
+            !CrucibleTelemetryFormat.ShouldEmit(ref moving, 2_000, snap with { TargetEdgeDistance = 4.2f, MoveSpeed = 7.7f }));
 
         var gate = new CrucibleTelemetryFormat.GateState();
         long t = 1_000;
@@ -367,6 +381,46 @@ internal static class Program
         Check("CR| a new cast emits", CrucibleTelemetryFormat.ShouldEmit(ref gate, t, snap with { CastId = 46866 }));
         Check("CR| a change inside 250 ms is held back", !CrucibleTelemetryFormat.ShouldEmit(ref gate, t + 100, snap with { CastId = 0 }));
         Check("CR| and emits once the window passes", CrucibleTelemetryFormat.ShouldEmit(ref gate, t + 260, snap with { CastId = 0 }));
+    }
+
+    /// <summary> The stalled-GCD collector (SG|): line shape, reason words, and the continuing-stall rate. </summary>
+    private static void StallCases()
+    {
+        Console.WriteLine("-- BST Crucible stalled GCD (SG|) --");
+        var snap = new CrucibleStallFormat.Snapshot(
+            ActionId: 44884, Why: CrucibleStallFormat.Reason.Range, EdgeDistance: 2.34f,
+            TargetNameId: 14531, StallSeconds: 1.4f);
+
+        var line = CrucibleStallFormat.BuildLine(1_788_904_962_577, snap);
+        Check("SG| exact line shape",
+            line == "SG|1788904962577|act=44884|r=range|d=2.3|t=14531|s=1.4",
+            line);
+        Check("SG| no target renders the reason with an empty distance",
+            CrucibleStallFormat.BuildLine(1, snap with { Why = CrucibleStallFormat.Reason.NoTarget, EdgeDistance = -1f, TargetNameId = 0 })
+                == "SG|1|act=44884|r=notarget|d=|t=0|s=1.4");
+        Check("SG| an unexplained stall names itself unknown",
+            CrucibleStallFormat.BuildLine(1, snap with { Why = CrucibleStallFormat.Reason.Unknown })
+                .Contains("|r=unknown|"));
+        Check("SG| every reason has a greppable word",
+            CrucibleStallFormat.Reason.NoTarget is var _ && new[]
+            {
+                (CrucibleStallFormat.Reason.NoTarget, "notarget"), (CrucibleStallFormat.Reason.Cast, "cast"),
+                (CrucibleStallFormat.Reason.Lock, "lock"), (CrucibleStallFormat.Reason.Queue, "queue"),
+                (CrucibleStallFormat.Reason.Range, "range"), (CrucibleStallFormat.Reason.Unknown, "unknown"),
+            }.All(p => CrucibleStallFormat.BuildLine(1, snap with { Why = p.Item1 }).Contains($"|r={p.Item2}|")));
+        Check("SG| the first line waits out the stall threshold", CrucibleStallFormat.StallAfterSeconds == 1f,
+            CrucibleStallFormat.StallAfterSeconds.ToString(CultureInfo.InvariantCulture));
+
+        var gate = new CrucibleStallFormat.GateState();
+        long t = 1_000;
+        Check("SG| a new stall emits at once", CrucibleStallFormat.ShouldEmit(ref gate, t, snap));
+        Check("SG| the same stall does not re-log inside 2 s", !CrucibleStallFormat.ShouldEmit(ref gate, t + 500, snap with { StallSeconds = 1.9f }));
+        Check("SG| a continuing stall re-logs after 2 s with its new duration",
+            CrucibleStallFormat.ShouldEmit(ref gate, t + 2_100, snap with { StallSeconds = 3.1f }));
+        Check("SG| the reason changing starts a new stall line",
+            CrucibleStallFormat.ShouldEmit(ref gate, t + 2_200, snap with { Why = CrucibleStallFormat.Reason.Lock, EdgeDistance = -1f }));
+        Check("SG| the line stays within its budget",
+            CrucibleStallFormat.BuildLine(1, snap with { StallSeconds = 999f }).Length <= CrucibleStallFormat.MaxLineLength);
     }
 
     private static void Check(string what, bool ok, string? detail = null)
