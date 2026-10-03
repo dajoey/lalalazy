@@ -949,6 +949,28 @@ internal static class Program
         // Outside the Crucible the potions never fire.
         Check("board 0: no survival actions", Decide(ray with { CrucibleBoard = 0 }, cfg).Reason != "crucible:raidwide-guard"
               && Decide(board with { CrucibleBoard = 0 }, cfg).Reason != "crucible:board-heal");
+
+        // The picker itself (the only live-state code this policy had; every case above set ReadyHealPotion by hand,
+        // so the shipped selection had zero coverage): grades strongest-first over HELD stock and refused ids.
+        // The shipped picker read only the recast, so with no G4 held it pressed the dead 46962 id every time
+        // (Durga held G1 only, Lauda G2), and its blanket 2.5 s throttle starved a need appearing just after an idle offer.
+        Func<uint, bool> clear = _ => true;
+        var grades = BST_CrucibleData.HealPotionActions;
+        Check("picker: G1 only held offers the G1 action (Durga's stock; today: the dead G4)",
+            BST_CrucibleLogic.PickHealPotion(grades, new HashSet<uint> { 46959u }, new HashSet<uint>(), clear) == 46959u);
+        Check("picker: G4 refused falls to G3 (both held)",
+            BST_CrucibleLogic.PickHealPotion(grades, new HashSet<uint> { 46962u, 46961u }, new HashSet<uint> { 46962u }, clear) == 46961u);
+        Check("picker: G2+G1 held offers the G2 (Lauda's stock)",
+            BST_CrucibleLogic.PickHealPotion(grades, new HashSet<uint> { 46960u, 46959u }, new HashSet<uint>(), clear) == 46960u);
+        Check("picker: nothing held offers nothing (the old picker pressed G4 anyway)",
+            BST_CrucibleLogic.PickHealPotion(grades, new HashSet<uint>(), new HashSet<uint>(), clear) == 0u);
+        Check("picker: recast blocks the only held grade",
+            BST_CrucibleLogic.PickHealPotion(grades, new HashSet<uint> { 46961u }, new HashSet<uint>(), id => id != 46961u) == 0u);
+        Check("picker: refusing the only held grade offers nothing (a refusal never invents stock)",
+            BST_CrucibleLogic.PickHealPotion(grades, new HashSet<uint> { 46959u }, new HashSet<uint> { 46959u }, clear) == 0u);
+        Check("picker: HUD stock rows map 76-79 to the G1-G4 actions",
+            BST_CrucibleData.HealPotionItemRows[76] == 46959u && BST_CrucibleData.HealPotionItemRows[77] == 46960u
+            && BST_CrucibleData.HealPotionItemRows[78] == 46961u && BST_CrucibleData.HealPotionItemRows[79] == 46962u);
     }
 
     /// <summary> In combat on the First Board, L30, Cu Sith out (One with Nature spent), raptor / buffalo on ready horns 2 and 3. </summary>

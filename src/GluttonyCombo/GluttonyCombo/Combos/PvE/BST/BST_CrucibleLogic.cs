@@ -806,12 +806,24 @@ internal static class BST_CrucibleLogic
     public const float SkinGuardLeadSeconds = 8f;
 
     /// <summary>
+    ///     STUB, failing first (the shipped picker's exact semantics): the first grade whose RECAST is clear. Recast says
+    ///     nothing about stock, so the picker cases below fail until the real picker reads the held set.
+    /// </summary>
+    public static uint PickHealPotion(IReadOnlyList<uint> gradesStrongestFirst, IReadOnlySet<uint> held, IReadOnlySet<uint> refused, Func<uint, bool> recastClear)
+    {
+        foreach (var id in gradesStrongestFirst)
+            if (recastClear(id))
+                return id;
+        return 0;
+    }
+
+    /// <summary>
     ///     Survival policy (task tasks-20261003-crucible-survivability-entry-hp-01, 2026-10-03): the character kept dying from HP carried
     ///     into a fight (five of the day's ten deaths entered below 60%) and from single aimed hits above remaining HP (Atomic Ray: 3,998 /
     ///     4,782 on a 30% character, nothing pressed). The only heal actor, AutoDuty's Crucible Items, under-heals on the board (60% line) and
     ///     goes silent when the HUD stock runs dry (the Durga fight: 126 s below its 40% line, zero uses). PURE, like the rest of this file.
     ///     <para>Board heal: out of combat, below <see cref="BoardHealHpPercent"/>, press the best-grade ready heal potion action directly
-    ///     (no HUD menu dance; a press with nothing held fails silently and the live layer throttles it).</para>
+    ///     (no HUD menu dance; the live layer offers only grades with stock in the HUD and steps down on a dead press).</para>
     ///     <para>Guard: a measured <see cref="BST_CrucibleData.HeavyCast"/> of kind CastOnly / PartyWide — it hits the character whatever the
     ///     familiar does — with remaining HP under its <see cref="CrucibleHeavyCast.MaxOnCharacter"/> gets the best available answer: the held
     ///     skin inside <see cref="SkinGuardLeadSeconds"/> of the hit (free, 90 s), else the potion at any point in the cast. A registered

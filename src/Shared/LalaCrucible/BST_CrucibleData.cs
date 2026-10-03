@@ -267,9 +267,24 @@ internal static partial class BST_CrucibleData
     /// <summary>
     ///     Crucible heal potions as the actions the character performs, strongest first (a G3 healed 39% to 75% of a
     ///     7,950 HP bar on 2026-10-03). The HUD slot binding and the stock are the game's: a press with none held fails
-    ///     silently, so the live layer only offers ids whose recast is clear and throttles refused presses.
+    ///     silently, so the live layer offers only ids with stock in the HUD (see <see cref="HealPotionItemRows"/>) and
+    ///     a clear recast, and steps down a grade when a press does not land.
     /// </summary>
     public static readonly uint[] HealPotionActions = [46962, 46961, 46960, 46959];
+
+    /// <summary>
+    ///     XBMItem sheet row -> heal potion action, for the live HUD stock walk: the Crucible item HUD carries these
+    ///     rows in its slots (76-79 = G1-G4 Beast Potion, the same numbering the game's shop and AutoDuty's item engine
+    ///     use). Grounded in the captured XBMContentsMainHUD values (XB| lines): slot base 9 + i*5, held byte at +1,
+    ///     XBMItem row at +3, name at +4.
+    /// </summary>
+    public static readonly Dictionary<uint, uint> HealPotionItemRows = new()
+    {
+        [76] = 46959,
+        [77] = 46960,
+        [78] = 46961,
+        [79] = 46962,
+    };
 
     /// <summary>
     ///     Enemies auto-targeting takes first whenever they are up: the adds the guides kill on sight (succubi, wisps before
