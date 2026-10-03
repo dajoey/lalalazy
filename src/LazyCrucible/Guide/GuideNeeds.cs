@@ -36,6 +36,19 @@ internal static class GuideNeeds
             + $"{(s.Need.Tier == CrucibleNeedTier.Required ? "R" : "U")}:"
             + (s.Covered ? s.Row.ToString() : "miss=" + s.WhyNot)));
 
+    /// <summary>
+    ///     The fight's ability needs graded against the rows actually standing on the horn (the <c>HC|</c> line,
+    ///     0.1.9.7): one <c>kind:tier:row</c> per need the fight calls for (I/D/C = interrupt/dispel/cleanse,
+    ///     R/U = required/useful), naming the first horn row that answers it, or <c>miss</c> when none does.
+    ///     Unlike <see cref="Log"/> this reads the SETTLED horn, so it grades what the fight actually runs with,
+    ///     including a driver's picks. Empty when the fight has no ability needs. PURE.
+    /// </summary>
+    public static string HornLog(int board, int battle, IReadOnlyList<int> hornRows)
+    {
+        return ""; // STUB (failing-first): the real grade lands with the implementation commit
+    }
+
+
     /// <summary> Required needs first, each group in interrupt, dispel, cleanse order. </summary>
     public static List<GuideNeedRow> Rows(CrucibleSelection selection) =>
         selection.Needs

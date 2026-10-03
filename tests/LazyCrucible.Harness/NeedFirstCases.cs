@@ -300,6 +300,38 @@ internal static class NeedFirstCases
         Check("Strix Piece: nothing left in the guide's unresolved list about who stops Aero III",
             !strixFight.Unknown.Any(u => u.Contains("Aero III", StringComparison.Ordinal)));
 
+        // ---- HC| fight-start coverage (0.1.9.7): the fight's needs graded against the rows actually on the horn
+        Check("HornLog: the screenshot fight's dispel is covered by the Wavekin row standing on the horn",
+            GuideNeeds.HornLog(4, 1, [wavekin[0], hitters[0], hitters[1]]) == $"D:R:{wavekin[0]}",
+            GuideNeeds.HornLog(4, 1, [wavekin[0], hitters[0], hitters[1]]));
+        Check("HornLog: the same fight with no answerer on the horn names the miss",
+            GuideNeeds.HornLog(4, 1, hitters.Take(3).ToList()) == "D:R:miss",
+            GuideNeeds.HornLog(4, 1, hitters.Take(3).ToList()));
+        Check("HornLog: empty and out-of-range rows are ignored, not graded",
+            GuideNeeds.HornLog(4, 1, [0, wavekin[0], 999]) == $"D:R:{wavekin[0]}");
+        Check("HornLog: a fight with no ability needs logs empty",
+            GuideNeeds.HornLog(99, 99, [wavekin[0]]) == "");
+        var hornDrift = new List<string>();
+        foreach (var b in BST_CrucibleData.Battles)
+        {
+            var panel = BST_CrucibleData.BattleNeeds(b.Board, b.Battle);
+            var with = GuideNeeds.HornLog(b.Board, b.Battle, [soulkin[0], wavekin[0], ashkin[0]]);
+            var without = GuideNeeds.HornLog(b.Board, b.Battle, []);
+            foreach (var kind in Kinds)
+            {
+                if ((panel & kind) == 0)
+                    continue;
+                var letter = kind == CrucibleNeeds.Interrupt ? "I" : kind == CrucibleNeeds.Dispel ? "D" : "C";
+                var coveredRow = kind == CrucibleNeeds.Interrupt ? soulkin[0] : kind == CrucibleNeeds.Dispel ? wavekin[0] : ashkin[0];
+                if (!with.Contains($"{letter}:R:{coveredRow}"))
+                    hornDrift.Add($"{b.Board}:{b.Battle} {letter} not reported covered by {coveredRow} in '{with}'");
+                if (!without.Contains($"{letter}:R:miss"))
+                    hornDrift.Add($"{b.Board}:{b.Battle} {letter} not reported miss in '{without}'");
+            }
+        }
+        Check("HornLog: for every battle each panel need is R, covered by a row that answers it, miss when the horn holds none",
+            hornDrift.Count == 0, string.Join(" | ", hornDrift.Take(4)));
+
         // ---- a Required need that cannot be covered is a warning with a named reason
         var boneNoSoul = GuideNeeds.Rows(Sel(1, 1, [wavekin[0], ashkin[0], .. hitters.Take(3)]));
         var warn = boneNoSoul.FirstOrDefault(r => r.Warn);

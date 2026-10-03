@@ -79,7 +79,9 @@ internal static class CrucibleTelemetryFormat
         float TimeToDeath = 0f,
         int IntakePerSecond = 0,
         float VulnerabilityRemaining = 0f,
-        bool PartyHpVerified = false);
+        bool PartyHpVerified = false,
+        float TargetEdgeDistance = -1f,
+        float MoveSpeed = 0f);
 
     internal static (byte, sbyte, byte, byte, int, uint, int, uint, Flags, int, int, string, uint, string, string) KeyOf(in Snapshot s) =>
         (s.Board, s.Battle, s.Needs, s.Enemies, s.HighestEnemyHp / HpBucket, s.TargetNameId, s.TargetHp / HpBucket, s.CastId, s.Observed,
