@@ -281,6 +281,7 @@ internal static class BST_RotationLogic
         public float PartingBlowRecast;           // seconds left on Parting Blow (readable with no familiar out)
         public bool TargetHasDispellableBuff;
         public bool EnemyHasDispellableBuff;      // any enemy in reach carries a dispellable buff (the target or not)
+        public bool DispelCawReachable;           // an enemy within the Caw's range carries a dispellable buff and no do-not-attack enemy is within AoE reach of it
         public bool TargetInStance;               // spikes / needles: attacking it hurts
         public bool TargetDoNotAttack;            // eggs, morphos
         public bool TargetInvulnerable;           // damage-immune phase (e.g. Burning Ward)

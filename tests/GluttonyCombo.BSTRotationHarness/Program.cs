@@ -876,8 +876,20 @@ internal static class Program
                 && !BST_CrucibleLogic.DispelArmed(abaddon with { CrucibleNeeds = CrucibleNeeds.None }, cfg)
                 && !BST_CrucibleLogic.DispelArmed(abaddon with { EnemyHasDispellableBuff = false }, cfg)
                 && !BST_CrucibleLogic.DispelArmed(abaddon with { CrucibleBoard = 0 }, cfg));
-            Check("... the vulture out, One with Nature and Tempered Release ready, a carrier: armed",
-                BST_CrucibleLogic.DispelArmed(abaddon with { KinshipHeld = false, ReadyBeastMode = false, Slot1Beast = 11, PetObjectBeast = 11, OneWithNature = true, ReadyTempered = true, SinceSummon = 3f }, cfg));
+            var vultureOut = abaddon with { KinshipHeld = false, ReadyBeastMode = false, Slot1Beast = 11, PetObjectBeast = 11, OneWithNature = true, ReadyTempered = true, SinceSummon = 3f, DispelCawReachable = true };
+            Check("... the vulture out, One with Nature and Tempered Release ready, a carrier the Caw can be cast at: armed",
+                BST_CrucibleLogic.DispelArmed(vultureOut, cfg));
+
+            // The Caw is an area attack: it is refused while a do-not-attack enemy (the Morphos) stands within reach of the carrier.
+            // An armed aim on such a carrier would pin the aim on it and hold every tick (stance carrier + protected add).
+            var cawBlocked = vultureOut with { DispelCawReachable = false, ProtectedNearTarget = true, TargetInStance = true };
+            Check("... the vulture out but every carrier has a protected enemy beside it (or is out of the Caw's range): not armed, the Caw would be refused",
+                !BST_CrucibleLogic.DispelArmed(cawBlocked, cfg));
+            Check("... the same with Quelling Wave held instead of the vulture: armed (single target, no area to protect)",
+                BST_CrucibleLogic.DispelArmed(abaddon with { ProtectedNearTarget = true, TargetInStance = true, DispelCawReachable = false }, cfg));
+            var cawField = new BST_CrucibleLogic.TargetCandidate[] { new(14651, 100f, true, false, false, 0, true), new(14655, 100f, false, false, false, 0, false) };
+            Check("... the vulture, a carrier in a counter stance with a protected Morpho beside it: the aim is not pinned on it, the calm enemy is chosen",
+                BST_CrucibleLogic.AllowedTargets(cawField, false, BST_CrucibleLogic.DispelArmed(cawBlocked, cfg)).SequenceEqual(new[] { 1 }));
 
             const uint drake = 14651, barbmole = 14653, abaddonName = 14655, morpho = 14656;
             List<int> Aim(bool armed, params BST_CrucibleLogic.TargetCandidate[] c) => BST_CrucibleLogic.AllowedTargets(c, false, armed);
