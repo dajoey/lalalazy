@@ -4,6 +4,7 @@ using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Lalalazy.Changelog;
+using Lalalazy.Hub;
 
 namespace LazyFishSitter;
 
@@ -27,6 +28,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly WindowSystem _windows = new("LazyFishSitter");
     private readonly ConfigWindow _configWindow;
     private readonly ChangelogGate _changelog;
+    private readonly LalaHubProvider? _hub;
 
     public Plugin(IDalamudPluginInterface pi)
     {
@@ -56,6 +58,9 @@ public sealed class Plugin : IDalamudPlugin
                 () => Config.LastSeenChangelogVersion,
                 v => { Config.LastSeenChangelogVersion = v; SaveConfig(); }),
         });
+
+        // Quick controls for the lalalazy hub window (src/Shared/LalaHub). Never throws; null when nothing was registered.
+        _hub = LalaHubProvider.TryCreate(pi, Log, "LazyFishSitter", typeof(Plugin).Assembly.GetName().Version?.ToString() ?? "", ep => HubAdapter.Declare(ep, this));
 
         Pi.UiBuilder.Draw += _windows.Draw;
         Pi.UiBuilder.OpenConfigUi += OpenConfig;
@@ -97,6 +102,7 @@ public sealed class Plugin : IDalamudPlugin
 
     public void Dispose()
     {
+        _hub?.Dispose();   // first: a provider must never outlive its plugin
         Framework.Update -= OnFrameworkUpdate;
         _changelog.Dispose();
         Pi.UiBuilder.Draw -= _windows.Draw;

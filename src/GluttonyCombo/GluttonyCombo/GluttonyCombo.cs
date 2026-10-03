@@ -254,6 +254,7 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         IPC = Provider.Init();
         PingPluginIPC.Init();
         AutoDutyIPC = new();
+        InstallLazyHub();   // fork: quick controls for the lalalazy hub window (GluttonyCombo.LazyHub.cs)
         ConflictingPluginsChecks.Begin();
 
         // Subscribe to language changes to update localized text if needed (Client != Selected UI)
@@ -667,6 +668,7 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
 
     public void Dispose()
     {
+        DisposeLazyHub();   // fork: first, a hub provider must never outlive its plugin (GluttonyCombo.LazyHub.cs)
         ActionRetargeting.Dispose();
         ConfigWindow.Dispose();
         Debug.Dispose();

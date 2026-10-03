@@ -8,6 +8,7 @@ using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using ECommons;
 using Lalalazy.Changelog;
+using Lalalazy.Hub;
 
 namespace LazyGearCollector;
 
@@ -34,6 +35,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly WindowSystem _windowSystem = new("LazyGearCollector");
     private readonly CollectorWindow _window;
     private readonly ChangelogGate _changelog;
+    private readonly LalaHubProvider? _hub;
     private DateTime _nextSnapshotSweep = DateTime.MinValue;
     private uint[] _trackedItemIds = [];
 
@@ -71,6 +73,9 @@ public sealed class Plugin : IDalamudPlugin
                 () => Config.LastSeenChangelogVersion,
                 v => { Config.LastSeenChangelogVersion = v; Config.Save(); }),
         });
+
+        // Quick controls for the lalalazy hub window (src/Shared/LalaHub). Never throws; null when nothing was registered.
+        _hub = LalaHubProvider.TryCreate(pi, PluginLog, "LazyGearCollector", typeof(Plugin).Assembly.GetName().Version?.ToString() ?? "", ep => HubAdapter.Declare(ep, this));
 
         PluginInterface.UiBuilder.Draw += _windowSystem.Draw;
         PluginInterface.UiBuilder.OpenConfigUi += ToggleWindow;
@@ -144,6 +149,7 @@ public sealed class Plugin : IDalamudPlugin
 
     public void Dispose()
     {
+        _hub?.Dispose();   // first: a provider must never outlive its plugin
         Framework.Update -= OnFrameworkUpdate;
         PluginInterface.UiBuilder.Draw -= _windowSystem.Draw;
         PluginInterface.UiBuilder.OpenConfigUi -= ToggleWindow;

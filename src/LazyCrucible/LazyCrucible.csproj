@@ -32,6 +32,8 @@
        this plugin's CHANGELOG.md embedded. Do not remove. -->
   <ItemGroup>
     <Compile Include="..\Shared\LalaChangelog\**\*.cs" Link="LalaChangelog\%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- Quick controls for the lalalazy hub window: shared SOURCE (src/Shared/LalaHub), never a shared DLL. -->
+    <Compile Include="..\Shared\LalaHub\**\*.cs" Link="LalaHub\%(RecursiveDir)%(Filename)%(Extension)" />
     <EmbeddedResource Include="CHANGELOG.md" LogicalName="CHANGELOG.md" />
     <EmbeddedResource Include="Guide\CrucibleGuide.json" LogicalName="CrucibleGuide.json" />
   </ItemGroup>

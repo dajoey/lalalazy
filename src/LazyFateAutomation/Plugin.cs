@@ -3,6 +3,7 @@ using ECommons;
 using ECommons.SimpleGui;
 using ECommons.EzIpcManager;
 using Lalalazy.Changelog;
+using Lalalazy.Hub;
 using LazyFateAutomation.Helpers.IPC;
 using LazyFateAutomation.Helpers.Services;
 using LazyFateAutomation.Helpers.Internal;
@@ -16,6 +17,7 @@ public class Plugin : IDalamudPlugin {
     public static FateToolKit FateToolKit { get; private set; } = null!;
     public static FateToolKitWindow Window { get; private set; } = null!;
     private ChangelogGate _changelog = null!;
+    private readonly LalaHubProvider? _hub;
     private readonly FateSnapshotService _fateSnapshot = new();
     private readonly FateSnapshotServer _fateHttp;
 
@@ -80,6 +82,9 @@ public class Plugin : IDalamudPlugin {
             HelpMessage = "Alias for /lazyfate",
             ShowInHelp = false
         });
+        // Quick controls for the lalalazy hub window (src/Shared/LalaHub). Never throws; null when nothing was registered.
+        _hub = LalaHubProvider.TryCreate(pluginInterface, Svc.Log, "LazyFateAutomation", typeof(Plugin).Assembly.GetName().Version?.ToString() ?? "", ep => HubAdapter.Declare(ep));
+
         Svc.Framework.Update += OnFrameworkUpdateSnapshot;
 
     }
@@ -94,6 +99,7 @@ public class Plugin : IDalamudPlugin {
     }
 
     public void Dispose() {
+        _hub?.Dispose();   // first: a provider must never outlive its plugin
         Svc.Commands.RemoveHandler("/lazyfate");
         Svc.Commands.RemoveHandler("/vfate");
         

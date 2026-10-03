@@ -8,6 +8,7 @@ using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using ECommons;
 using Lalalazy.Changelog;
+using Lalalazy.Hub;
 
 namespace ArmoireAutoFill;
 
@@ -29,6 +30,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly InventoryScanner _scanner;
     private readonly ArmoireAutoStore _autoStore;
     private readonly ChangelogGate _changelog;
+    private readonly LalaHubProvider? _hub;
 
     public Plugin()
     {
@@ -84,6 +86,9 @@ public sealed class Plugin : IDalamudPlugin
             HelpMessage = "Open the Armoire Auto-Fill window. /armoire changelog shows what's new."
         });
 
+        // Quick controls for the lalalazy hub window (src/Shared/LalaHub). Never throws; null when nothing was registered.
+        _hub = LalaHubProvider.TryCreate(PluginInterface, Log, "ArmoireAutoFill", typeof(Plugin).Assembly.GetName().Version?.ToString() ?? "", ep => HubAdapter.Declare(ep));
+
         PluginInterface.UiBuilder.Draw += DrawUI;
         PluginInterface.UiBuilder.OpenMainUi += ToggleMainUI;
         PluginInterface.UiBuilder.OpenConfigUi += ToggleConfigUI;
@@ -99,6 +104,7 @@ public sealed class Plugin : IDalamudPlugin
 
     public void Dispose()
     {
+        _hub?.Dispose();   // first: a provider must never outlive its plugin
         Framework.Update -= OnFrameworkUpdate;
         ClientState.Login -= OnLogin;
         PluginInterface.UiBuilder.Draw -= DrawUI;

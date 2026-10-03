@@ -7,6 +7,7 @@ using ECommons.DalamudServices;
 using ECommons.ImGuiMethods;
 using ECommons.Logging;
 using Lalalazy.Changelog;
+using Lalalazy.Hub;
 using Lumina.Excel.Sheets;
 using RotationSolver.ActionTimeline;
 using RotationSolver.Basic.Configuration;
@@ -47,6 +48,7 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 	private static readonly Random _random = new();
 
 	internal IPCProvider IPCProvider;
+	private readonly LalaHubProvider? _hub;
 	public PvPSolverPlugin(IDalamudPluginInterface pluginInterface)
 	{
 		// Read BEFORE anything touches/saves the config: tells the changelog gate "update" from "fresh install".
@@ -87,6 +89,9 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 			PluginLog.Warning($"Failed to load config: {ex.Message}");
 			Service.Config = new Configs();
 		}
+
+		// Quick controls for the lalalazy hub window (src/Shared/LalaHub). Never throws; null when nothing was registered.
+		_hub = LalaHubProvider.TryCreate(pluginInterface, Svc.Log, "PvPSolver", typeof(PvPSolverPlugin).Assembly.GetName().Version?.ToString() ?? "", ep => HubAdapter.Declare(ep));
 
 		IPCProvider = new();
 
@@ -329,6 +334,7 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 
 	public async Task Dispose()
 	{
+		_hub?.Dispose();   // first: a provider must never outlive its plugin
 		Service.Config.Save();
 		await OtherConfiguration.Save();
 

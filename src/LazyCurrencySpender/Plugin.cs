@@ -10,6 +10,7 @@ using System.IO;
 using System.Net.Mime;
 using CurrencySpender.Hooks;
 using Lalalazy.Changelog;
+using Lalalazy.Hub;
 using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using Dalamud.Game.Command;
@@ -42,6 +43,7 @@ public sealed unsafe class Plugin : IDalamudPlugin
 
     // Shared lalalazy "What's new" popup - fork wiring, seen-version in a sidecar json (NOT Config).
     internal ChangelogGate? _changelog;
+    private readonly LalaHubProvider? _hub;
 
     internal string? changelogPath;
     public string Version;
@@ -87,6 +89,9 @@ public sealed unsafe class Plugin : IDalamudPlugin
         {
             HelpMessage = "Lazy Currency Spender main command. Arguments: config, c, settings, s"
         });
+
+        // Quick controls for the lalalazy hub window (src/Shared/LalaHub). Never throws; null when nothing was registered.
+        _hub = LalaHubProvider.TryCreate(pluginInterface, Service.Log, "LazyCurrencySpender", typeof(Plugin).Assembly.GetName().Version?.ToString() ?? "", ep => HubAdapter.Declare(ep));
 
         _ = new TickScheduler(delegate
         {
@@ -154,6 +159,7 @@ public sealed unsafe class Plugin : IDalamudPlugin
 
     public void Dispose()
     {
+        _hub?.Dispose();   // first: a provider must never outlive its plugin
         _changelog?.Dispose();
         PluginInterface.UiBuilder.Draw -= ws.Draw;
         ECommonsMain.Dispose();

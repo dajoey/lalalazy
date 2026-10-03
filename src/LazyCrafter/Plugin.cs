@@ -6,6 +6,7 @@ using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using ECommons;
 using Lalalazy.Changelog;
+using Lalalazy.Hub;
 using LazyCrafter.Adapters;
 using LazyCrafter.Catalog;
 using LazyCrafter.Spike;
@@ -58,6 +59,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly WindowSystem _windows = new("LazyCrafter");
     private readonly MainWindow _mainWindow;
     private readonly ChangelogGate _changelog;
+    private readonly LalaHubProvider? _hub;
     // Phase 6 spike runner (t_933683a5): '/lcraft spike' and nothing else. INERT - no dispatch, cart, Run tab
     // or vendor hand-off path calls into it, so a normal run behaves identically with and without it.
     private readonly VendorSpike _spike;
@@ -140,6 +142,9 @@ public sealed class Plugin : IDalamudPlugin
         });
 
         if (ClientState.IsLoggedIn) OnLogin();
+
+        // Quick controls for the lalalazy hub window (src/Shared/LalaHub). Never throws; null when nothing was registered.
+        _hub = LalaHubProvider.TryCreate(pi, Log, "LazyCrafter", typeof(Plugin).Assembly.GetName().Version?.ToString() ?? "", ep => HubAdapter.Declare(ep, this));
 
         Log.Information("LazyCrafter {Version} loaded (core {Core})", Version, Core.CoreInfo.Version);
     }
@@ -367,6 +372,7 @@ public sealed class Plugin : IDalamudPlugin
 
     public void Dispose()
     {
+        _hub?.Dispose();   // first: a provider must never outlive its plugin
         _cts.Cancel();
         Commands.RemoveHandler(CommandName);
         ClientState.Login -= OnLogin;

@@ -15,6 +15,7 @@ using ECommons.DalamudServices;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using LazyMarketCompanion.AutoMarket;
 using Lalalazy.Changelog;
+using Lalalazy.Hub;
 using Lalalazy.Telemetry;
 using LazyMarketCompanion.Windows;
 using Lumina.Excel.Sheets;
@@ -50,6 +51,7 @@ public sealed class Plugin : IDalamudPlugin
   private readonly AutoMarketMarkers _markers;
   private readonly Inventory.InventoryService _inventory;
   private readonly ChangelogGate _changelog;
+  private readonly LalaHubProvider? _hub;
   private readonly DalamudTelemetry? _telemetry;
 
   /// <summary>Shared error reporting (ER| lines, report button); null only before load / after unload.</summary>
@@ -155,6 +157,9 @@ public sealed class Plugin : IDalamudPlugin
 
     ConfigLinkPayload = ChatGui.AddChatLinkHandler(0, (id, _) => ToggleConfigUI());
 
+    // Quick controls for the lalalazy hub window (src/Shared/LalaHub). Never throws; null when nothing was registered.
+    _hub = LalaHubProvider.TryCreate(PluginInterface, Log, "LazyMarketCompanion", typeof(Plugin).Assembly.GetName().Version?.ToString() ?? "", ep => HubAdapter.Declare(ep));
+
     PluginInterface.UiBuilder.Draw += DrawUI;
     PluginInterface.UiBuilder.OpenMainUi += ToggleConfigUI;
     PluginInterface.UiBuilder.OpenConfigUi += ToggleConfigUI;
@@ -181,6 +186,7 @@ public sealed class Plugin : IDalamudPlugin
 
   public void Dispose()
   {
+    _hub?.Dispose();   // first: a provider must never outlive its plugin
     _retainerItemCommandHook?.Disable();
     _retainerItemCommandHook?.Dispose();
     _retainerItemCommandHook = null;

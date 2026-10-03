@@ -52,6 +52,11 @@
   <ItemGroup>
     <Compile Include="..\..\Shared\LalaTelemetry\**\*.cs" Link="LalaTelemetry\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
+  <!-- Fork: quick controls for the lalalazy hub window (src/Shared/LalaHub, 2026-10). Shared SOURCE like LalaChangelog,
+       never a DLL. Do not remove in an upstream merge. -->
+  <ItemGroup>
+    <Compile Include="..\..\Shared\LalaHub\**\*.cs" Link="LalaHub\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
   <!-- Fork: build stamp for the shared error reporting (src/Shared/LalaTelemetry). The git SHA of the tree being
        built goes into [AssemblyMetadata("LalaCommit")] and onto every ER| / RP| line as c=; "unknown" without
        git. Do not remove in an upstream merge. -->

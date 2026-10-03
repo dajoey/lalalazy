@@ -9,6 +9,7 @@ using ECommons.ExcelServices;
 using ECommons.GameHelpers;
 using System.Text;
 using Lalalazy.Changelog;
+using Lalalazy.Hub;
 using Lalalazy.Telemetry;
 
 namespace LazyCrucible;
@@ -36,6 +37,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly MainWindow _window;
     private readonly GuideWindow _guideWindow;
     private readonly ChangelogGate _changelog;
+    private readonly LalaHubProvider? _hub;
     private readonly DalamudTelemetry? _telemetry;
     // Circuit breakers (src/Shared/LalaTelemetry): a handler that keeps throwing is skipped after repeated
     // failures (one ER|trip line + one chat notice) and retries on its own, 30 s doubling to 5 min.
@@ -110,6 +112,9 @@ public sealed class Plugin : IDalamudPlugin
                 () => Config.LastSeenChangelogVersion,
                 v => { Config.LastSeenChangelogVersion = v; Config.Save(); }),
         });
+
+        // Quick controls for the lalalazy hub window (src/Shared/LalaHub). Never throws; null when nothing was registered.
+        _hub = LalaHubProvider.TryCreate(pi, PluginLog, "LazyCrucible", typeof(Plugin).Assembly.GetName().Version?.ToString() ?? "", ep => HubAdapter.Declare(ep));
 
         PluginInterface.UiBuilder.Draw += _windowSystem.Draw;
         PluginInterface.UiBuilder.Draw += DrawOverlay;
@@ -320,6 +325,7 @@ public sealed class Plugin : IDalamudPlugin
 
     public void Dispose()
     {
+        _hub?.Dispose();   // first: a provider must never outlive its plugin
         Framework.Update -= OnFrameworkUpdate;
         AgentProbe.Teardown();
         ScreenRecorder.Stop();
