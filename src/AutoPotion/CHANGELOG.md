@@ -1,5 +1,13 @@
 # Changelog - AutoPotion
 
+## v0.2.5.1 (2026-10-03) [testing]
+### Added
+- **Quick controls for the Lazy Hub window.** The plugin now offers the master switch, "Only in combat", "Only in a duty", the HP, MP and Regen potion switches with their thresholds, and Cure Silence (Echo Drops) to Lazy Hub (`/lazy`) over Dalamud IPC, so they can be changed from one window next to the other lalalazy plugins. Each change does exactly what the matching setting in the plugin's own window does.
+- The potion settings apply to the active job's profile, as in the settings window.
+### Notes
+- Testing channel only; the production channel is unchanged.
+- Without Lazy Hub installed the plugin behaves exactly as before.
+
 ## v0.2.5.0 (2026-09-05)
 
 - New per-job option: "Auto-use Echo Drops when silenced". When it is on and Silence lands (mob silence spells, AoE silences, deep dungeon traps), AutoPotion uses Echo Drops from inventory to cure it automatically. Item use is not blocked by Silence, so the cure works exactly when nothing else can.

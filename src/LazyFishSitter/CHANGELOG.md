@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.1.5.1 (2026-10-03) [testing]
+### Added
+- **Quick controls for the Lazy Hub window.** The plugin now offers the "Sit while fishing" switch to Lazy Hub (`/lazy`) over Dalamud IPC, so they can be changed from one window next to the other lalalazy plugins. Each change does exactly what the matching setting in the plugin's own window does.
+### Notes
+- Testing channel only; the production channel is unchanged.
+- Without Lazy Hub installed the plugin behaves exactly as before.
+
 ## v0.1.5.0 (2026-09-25)
 
 - Persistent seating across fishing hole visits: if the character stands up during a visit to a fishing hole (such as putting the rod away to change bait or use cordials, or manually standing up), the automation now detects the stand and re-seats upon resuming fishing or on the subsequent cast.

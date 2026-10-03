@@ -1,5 +1,13 @@
 # Changelog - Lazy Fate Automation
 
+## v0.0.3.2 (2026-10-03) [testing]
+### Added
+- **Quick controls for the Lazy Hub window.** The plugin now offers the FATE bot switch (starting asks for a confirmation), "Stop when safe", "Prioritize Forlorn Maidens", "Swap zones when empty", the three FATE filters (longest duration, least time left, furthest progress) and the grind mode to Lazy Hub (`/lazy`) over Dalamud IPC, so they can be changed from one window next to the other lalalazy plugins. Each change does exactly what the matching setting in the plugin's own window does.
+- The zone swap, the FATE filters and the grind mode can only be changed while the bot is stopped. The filters have limited ranges that still let FATEs through.
+### Notes
+- Testing channel only; the production channel is unchanged.
+- Without Lazy Hub installed the plugin behaves exactly as before.
+
 ## v0.0.3.1 (2026-09-12)
 
 ### Added

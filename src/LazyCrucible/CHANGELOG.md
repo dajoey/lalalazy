@@ -1,5 +1,13 @@
 # LazyCrucible — Changelog
 
+## v0.1.9.5 (2026-10-03) [testing]
+### Added
+- **Quick controls for the Lazy Hub window.** The plugin now offers the selection switches (filling the familiar roster, setting the Battlehorns, picking who rests) and the display switches (opening the guide automatically, announcing picks in chat, recording screens to the log) to Lazy Hub (`/lazy`) over Dalamud IPC, so they can be changed from one window next to the other lalalazy plugins. Each change does exactly what the matching setting in the plugin's own window does.
+- The switches that buy, feed, choose treasure or take loot are not offered.
+### Notes
+- Testing channel only; the production channel is unchanged.
+- Without Lazy Hub installed the plugin behaves exactly as before.
+
 ## v0.1.9.4 (2026-10-03)
 
 - **Need coverage is corrected on top of AutoDuty's picks.** AutoDuty runs whole boards with its own leveling familiars, and its battlehorn picks and roster rebuilds are blind to what the fights call for: in a full automated evening, every enemy buff that ran its whole duration was a fight where no dispeller was on the horns even though one sat in the roster, and the healer fight often had no interrupter in the roster at all. The plugin no longer stands down entirely while AutoDuty drives: once its selection on a screen has settled (its writes come one toggle at a time), a minimal correction swaps an answerer in for one pick that answers nothing — its leveling picks are otherwise kept, and a fight whose needs are already covered is never touched. The roster gets the same treatment at the board entry: when none of the board's fights' needs has a healthy answerer in the built roster, one is appended (room permitting) or swapped in. The log names every correction (`autoduty-needfix`, with the exact swap) and every need that could not be covered and why (`miss=`). One correction per screen; a later AutoDuty write still wins. Screens played by hand are unchanged.

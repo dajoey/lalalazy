@@ -1,3 +1,11 @@
+## v0.2.8.1 (2026-10-03) [testing]
+### Added
+- **Quick controls for the Lazy Hub window.** The plugin now offers the Auto-Market switch and the display settings (bag markers, Auto-Market chat messages, errors in chat, price adjustment messages, retainer names, the inventory owner tooltip, the inventory right-click entry and price decision logging) to Lazy Hub (`/lazy`) over Dalamud IPC, so they can be changed from one window next to the other lalalazy plugins. Each change does exactly what the matching setting in the plugin's own window does.
+- The Auto-Market switch asks for a confirmation before it turns on and is locked while a run is in progress. Nothing that changes what Auto-Market lists, prices, vends or pulls is offered.
+### Notes
+- Testing channel only; the production channel is unchanged.
+- Without Lazy Hub installed the plugin behaves exactly as before.
+
 ## v0.2.8.0 (2026-09-28) [testing]
 
 ### Fixed

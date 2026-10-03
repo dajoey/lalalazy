@@ -1,5 +1,12 @@
 # Changelog - ArmoireAutoFill
 
+## v0.4.4.1 (2026-10-03) [testing]
+### Added
+- **Quick controls for the Lazy Hub window.** The plugin now offers "Auto-store when the Armoire opens", scanning the inventory on login, showing owned items and hiding finished dungeons to Lazy Hub (`/lazy`) over Dalamud IPC, so they can be changed from one window next to the other lalalazy plugins. Each change does exactly what the matching setting in the plugin's own window does.
+### Notes
+- Testing channel only; the production channel is unchanged.
+- Without Lazy Hub installed the plugin behaves exactly as before.
+
 ## v0.4.4.0 (2026-09-05)
 
 - Added the in-game "What's new" popup. After Armoire Auto-Fill updates, its changelog now opens once inside the game so the changes are visible without a trip to GitHub. It waits until the character is logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/armoire changelog` any time to reopen it.

@@ -1,5 +1,12 @@
 # LazyGearCollector — Changelog
 
+## v0.0.2.1 (2026-10-03) [testing]
+### Added
+- **Quick controls for the Lazy Hub window.** The plugin now offers whether the saddlebag and retainers count and the target tier to Lazy Hub (`/lazy`) over Dalamud IPC, so they can be changed from one window next to the other lalalazy plugins. Each change does exactly what the matching setting in the plugin's own window does.
+### Notes
+- Testing channel only; the production channel is unchanged.
+- Without Lazy Hub installed the plugin behaves exactly as before.
+
 ## v0.0.2.0 (2026-09-05)
 
 - Added the in-game "What's new" popup. After Lazy Gear Collector updates, its changelog now opens once inside the game so the changes are visible without a trip to GitHub. It waits until the character is logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/lazygear changelog` any time to reopen it.

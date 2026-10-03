@@ -1,3 +1,12 @@
+## v1.0.4.261 (2026-10-03) [testing]
+### Added
+- **Quick controls for the Lazy Hub window.** The plugin now offers the Auto-Rotation switch and its common settings ("Only in combat", "FATE priority", "Quest priority", the DPS targeting mode, boss-mod targeting, the AoE target count, the maximum target distance, "Block spells while moving" and hiding the Auto-Rotation chat message) to Lazy Hub (`/lazy`) over Dalamud IPC, so they can be changed from one window next to the other lalalazy plugins. Each change does exactly what the matching setting in the plugin's own window does.
+- **Hotbar buttons for the Custom Actions.** Lazy Hub can pick up Single Target DPS, AoE DPS, Single Target Heals, AoE Heals and Auto-Rotation On, Off and Toggle and place one on a hotbar slot while Gluttony Combo's own window is closed: click the button, then click a hotbar slot; Escape or a click elsewhere cancels. The Custom Actions tab and its drag are unchanged.
+- A setting that another plugin holds through the lease system shows as locked in Lazy Hub and refuses changes, as in the settings window. Lazy Hub never takes or releases a lease.
+### Notes
+- Testing channel only; the production channel is unchanged.
+- Without Lazy Hub installed the plugin behaves exactly as before.
+
 ## v1.0.4.260 (2026-10-03) [testing]
 ### Fixed
 - **Auto-rotation: the out-of-range fallback also covers an enemy the action cannot be used on, not only one that is too far.** An enemy that is out of range, out of line of sight, or not a valid target for the action about to be used no longer leaves the GCD idle while another enemy is within reach; that tick's action goes to the best reachable enemy and the chosen enemy stays preferred.

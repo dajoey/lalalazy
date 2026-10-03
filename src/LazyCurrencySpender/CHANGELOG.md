@@ -1,5 +1,12 @@
 # Changelog - Lazy Currency Spender
 
+## v1.2.7.2 (2026-10-03) [testing]
+### Added
+- **Quick controls for the Lazy Hub window.** The plugin now offers the table switches (ventures, collectables, missing collectables, items of interest, items eligible for sale, hide empty currencies), opening automatically, the minimum sales for the sellable table and the thousands separator to Lazy Hub (`/lazy`) over Dalamud IPC, so they can be changed from one window next to the other lalalazy plugins. Each change does exactly what the matching setting in the plugin's own window does.
+### Notes
+- Testing channel only; the production channel is unchanged.
+- Without Lazy Hub installed the plugin behaves exactly as before.
+
 ## v1.2.7.1 (2026-09-22)
 
 - Fixed an error the plugin logged on every game close (the type initializer for ECommons.Automation.Callback threw an exception). The bundled support library predated the current game data layout and failed to initialise during shutdown; it is now current with the rest of the plugin family. No change to currency tracking or the spending suggestions.

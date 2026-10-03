@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.1.5.1 (2026-10-03) [testing]
+### Added
+- **Quick controls for the Lazy Hub window.** The plugin now offers auto-eating, "Only in combat duties", the minutes of food left before eating again and the low-food warning with its count to Lazy Hub (`/lazy`) over Dalamud IPC, so they can be changed from one window next to the other lalalazy plugins. Each change does exactly what the matching setting in the plugin's own window does.
+### Notes
+- Testing channel only; the production channel is unchanged.
+- Without Lazy Hub installed the plugin behaves exactly as before.
+
 ## v0.1.5.0 (2026-09-21)
 
 ### Changed

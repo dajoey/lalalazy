@@ -1,6 +1,6 @@
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
-    <Version>0.0.2.0</Version>
+    <Version>0.0.2.1</Version>
     <AssemblyName>LazyGearCollector</AssemblyName>
     <Description>Tracks upgradable gear collections - which pieces you own, what tier they are, and exactly what it costs to finish the set.</Description>
     <IsPackable>false</IsPackable>

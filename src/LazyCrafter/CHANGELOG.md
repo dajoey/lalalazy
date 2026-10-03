@@ -1,4 +1,12 @@
 # Changelog
+## v0.1.7.6 (2026-10-03) [testing]
+### Added
+- **Quick controls for the Lazy Hub window.** The plugin now offers the catalog and price settings (recipes above the character's level, the undersupplied thresholds, the revenue basis, pricing at the home world only, the price refresh interval, the price-match message) and the cart-run hand-off switches (fetching materials from retainers, walking to a summoning bell or to vendors, preferring a currency shop) to Lazy Hub (`/lazy`) over Dalamud IPC, so they can be changed from one window next to the other lalalazy plugins. Each change does exactly what the matching setting in the plugin's own window does.
+- The cart-run hand-off switches can only be changed while no cart run is active.
+### Notes
+- Testing channel only; the production channel is unchanged.
+- Without Lazy Hub installed the plugin behaves exactly as before.
+
 ## v0.1.7.5 (2026-09-16)
 
 ### Removed
