@@ -125,6 +125,15 @@ internal partial class BST
         return false;
     }
 
+    /// <summary> The enemy carries a buff the panel itself flags dispellable: one the game is known to take off. </summary>
+    internal static bool CarriesProvenDispellableBuff(IBattleChara enemy)
+    {
+        foreach (var status in enemy.StatusList)
+            if (status.StatusId != 0 && BST_CrucibleData.PanelFlagsDispellable(status.StatusId))
+                return true;
+        return false;
+    }
+
     /// <summary>
     ///     The rotation decided to dispel (a <c>crucible:dispel-*</c> decision this tick): remember WHICH enemy and which
     ///     dispellable statuses it carried, because by the time the cast has gone out the aim may have moved on.

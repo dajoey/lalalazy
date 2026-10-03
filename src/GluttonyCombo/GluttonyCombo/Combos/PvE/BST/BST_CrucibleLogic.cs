@@ -1080,6 +1080,11 @@ internal static class BST_CrucibleLogic
         if (dispelArmed)
         {
             var carriers = all.FindAll(i => candidates[i].Dispellable);
+            // A buff the panel flags is known to come off; an unproven one is a try. The known one first: the Drake's Blaze
+            // Spikes waited 5.5 s behind the Abaddon's Regen (2026-10-03 19:34:57 to 19:35:03).
+            var proven = carriers.FindAll(i => candidates[i].DispellableProven);
+            if (proven.Count > 0)
+                return proven;
             if (carriers.Count > 0)
                 return carriers;
         }
@@ -1171,8 +1176,11 @@ internal static class BST_CrucibleLogic
     }
 
     /// <summary>
-    ///     Which dispels actually went out, for <see cref="NoteDispelSent"/>. PURE: the live read passes the clock and the seconds
-    ///     since Quelling Wave / Tempered Release were last used. A dispel decision repeats every tick until the cast goes out.
+    ///     Which dispels actually went out, for <see cref="NoteDispelSent"/>: one try per Quelling Wave / Tempered Release use that
+    ///     followed a dispel decision. PURE: the live read passes the clock and the seconds since either was last used. A decision
+    ///     repeats every tick until the cast goes out and again every GCD, so the use is matched to the FIRST decision since the
+    ///     last counted use, and a use is counted once however many ticks see it. (The earlier burst count took decisions less
+    ///     than 2.5 s apart for one burst: 12 Quelling Waves at the Abaddon's Regen counted 2, 2026-10-03 19:34-19:35.)
     /// </summary>
     public sealed class DispelUseTracker
     {
@@ -1182,23 +1190,28 @@ internal static class BST_CrucibleLogic
         /// <summary> A use this recent (s) can still belong to the dispel just decided. </summary>
         public const float UseWindow = 1.5f;
 
-        private long _burstStart, _decided, _counted;
+        /// <summary> Two uses closer than this (ms) are one use seen on two ticks. </summary>
+        private const long SameUseMs = 400;
+
+        private long _pending, _decided, _counted;
 
         public void NoteDecision(long nowMs)
         {
-            if (nowMs - _decided > DecisionWindowMs)
-                _burstStart = nowMs;
+            if (_pending == 0 || nowMs - _decided > DecisionWindowMs)
+                _pending = nowMs;
             _decided = nowMs;
         }
 
-        /// <summary> True once for a dispel that went out since the open decision. </summary>
+        /// <summary> True once for each dispel that went out since the open decision. </summary>
         public bool CountUse(long nowMs, float sinceUsedSeconds)
         {
-            if (_counted >= _burstStart || nowMs - _decided > DecisionWindowMs)
+            if (_pending == 0 || nowMs - _decided > DecisionWindowMs || sinceUsedSeconds > UseWindow)
                 return false;
-            if (sinceUsedSeconds > UseWindow || nowMs - (long)(sinceUsedSeconds * 1000f) < _burstStart - 100)
+            var useMs = nowMs - (long)(sinceUsedSeconds * 1000f);
+            if (useMs < _pending - 100 || (_counted != 0 && useMs - _counted < SameUseMs))
                 return false;
-            _counted = nowMs;
+            _counted = useMs;
+            _pending = 0;
             return true;
         }
     }

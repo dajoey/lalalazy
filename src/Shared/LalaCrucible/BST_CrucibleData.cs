@@ -132,8 +132,10 @@ internal static partial class BST_CrucibleData
     ///     The rotation dispels a buff whose id is here (and on the panel's list), on whichever enemy carries it. Basis:
     ///     "panel" = the enemy panel flags the cast's buff dispellable; "live" = the id was recorded on the enemy in a real
     ///     run (ffxivdb status_events) and the guides say to dispel it, but the panel does not flag it; "guide" = the guides
-    ///     say so and the id comes from the panel's cast table, never seen on an enemy in a run. A "live" / "guide" id has never been dispelled in a run, so
-    ///     the rotation gives up on it after <see cref="BST_CrucibleLogic.DispelMaxTries"/> dispels that left it standing.
+    ///     say so and the id comes from the panel's cast table, never seen on an enemy in a run; "disproven" = a run sent dispels and the
+    ///     status stood (989 Regen: 12 Quelling Waves at the Abaddon 2026-10-03 19:34-19:35, effects damage only, no removal; the same
+    ///     cast on the Drake's Blaze Spikes carried the removal effect), so it is never tried. A "live" / "guide" id has never been
+    ///     dispelled in a run, so the rotation gives up on it after <see cref="BST_CrucibleLogic.DispelMaxTries"/> dispels that left it standing.
     ///     The test in BSTRotationHarness asserts one row per guide counter, so a new dispel need cannot ship without an id.
     /// </summary>
     public static readonly DispelRow[] DispelRows =
@@ -148,18 +150,18 @@ internal static partial class BST_CrucibleData
         new(4, 8, 390, "Growing from Grab and Grow (Sapling Piece)", "live"),
         new(4, 9, 2528, "Ice Spikes (Snoll Piece)", "panel"),
         new(5, 5, 5465, "Blaze Spikes (Drake Piece)", "panel"),
-        new(5, 5, 989, "Regen (Rehabilitation) on the Abaddon from eaten Morphos", "live"),
+        new(5, 5, 989, "Regen (Rehabilitation) on the Abaddon from eaten Morphos", "disproven"),
         new(5, 7, 3129, "Impassion Damage Up (Medusa Piece)", "guide"),
         new(5, 11, 1225, "Spirit of Pompetition (Kinged Swordsmog)", "panel"),
     ];
 
     /// <summary>
     ///     Enemy buffs worth a dispel: the panel's dispellable buffs plus every status id a research dispel row names
-    ///     (<see cref="DispelRows"/>). 989 Regen was missing until 2026-10-03: the Abaddon Piece fight needed the dispel for
-    ///     428 of 430 ticks with Quelling Wave held and the target flag never rose.
+    ///     (<see cref="DispelRows"/>) unless a run disproved it. 989 Regen was added on 2026-10-03 on the guides' word and taken out the
+    ///     same evening: the game does not dispel it.
     /// </summary>
     /// <remarks> Lazy: static initializers in different files of a partial class run in no guaranteed order. </remarks>
-    public static HashSet<uint> DispellableBuffs => _dispellableBuffs ??= [.. PanelDispellableBuffs, .. DispelRows.Select(r => r.StatusId)];
+    public static HashSet<uint> DispellableBuffs => _dispellableBuffs ??= [.. PanelDispellableBuffs, .. DispelRows.Where(r => r.Basis != "disproven").Select(r => r.StatusId)];
 
     private static HashSet<uint>? _dispellableBuffs;
 

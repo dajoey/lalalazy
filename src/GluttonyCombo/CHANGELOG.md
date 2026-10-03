@@ -1,3 +1,10 @@
+## v1.0.4.270 (2026-10-03) [testing]
+### Fixed
+- **Beastmaster, Crucible: a dispel is no longer repeated on a buff the game will not take off.** The research counts Regen (Rehabilitation) on the Abaddon as a dispel target, but the game does not dispel it: twelve Quelling Waves in a row did nothing while the Regen stood the whole fight, and every one of them cost the damage global it replaced. Regen is no longer treated as dispellable. The cap that should have stopped any unproven buff after two tries never did, because the count treated a dispel decided every global as one continuous burst; every Quelling Wave or Caw that goes out now counts as one try, so Growing, Impassion and Might get two tries per enemy and then are left alone.
+- **Beastmaster, Crucible: buffs the game is known to dispel come first.** With a spiked enemy (Blaze Spikes) and an enemy carrying an unproven buff both up, the dispel now goes to the spiked one; before, the spikes waited several seconds behind the unproven buff.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v1.0.4.269 (2026-10-03) [testing]
 ### Fixed
 - **Beastmaster, Crucible: the heal potion now follows the stock.** The survival policy's potion choice read only the action recast, which says nothing about what is actually held: with no Grade 4 Beast Potion in the slots it kept pressing the dead Grade 4 action while a lower grade sat in the bag, and no heal ever landed. The choice now reads the Crucible item HUD slots directly (the same stock display the game shows), offers the strongest grade actually held, and when a press does not land it steps down to the next held grade instead of re-pressing the dead one. The wait between presses now starts only after a real press, so a sudden need is never put on hold by an idle offer.

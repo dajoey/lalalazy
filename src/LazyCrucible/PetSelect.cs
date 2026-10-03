@@ -323,7 +323,8 @@ internal static unsafe class PetSelect
                 _loggedConflictThisPhase = true;
                 LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|calls=0|note=autoduty_running|{ExternalDrivers.Detail}|needfix=on");
             }
-            if (!FormationLogic.AutoDutyCorrectionDue(_adEditSeenThisOpen, _adLastEditMs, _adLastCorrectionMs, _adCorrections, now, AutoDutySettleMs))
+            if (!FormationLogic.AutoDutyCorrectionDue(_adEditSeenThisOpen, _adLastEditMs, _adLastCorrectionMs, _adCorrections, now, AutoDutySettleMs,
+                    ReadPetIds(pet, PartySelectedPetIds).Count))
                 return; // its selection has not settled yet, it has not written since our last correction, or the cap is reached
         }
 

@@ -113,6 +113,7 @@ internal partial class BST
             }
             var dispellable = DispelArmed && CarriesDispellableBuff(t)
                 && (DispelByCawOnly ? CawCanDispel(t) : Fn.GetTargetDistance(t) <= DispelReach);
+            var proven = dispellable && CarriesProvenDispellableBuff(t);
             candidates.Add(new(
                 t.NameId,
                 t.MaxHp == 0 ? 0f : 100f * t.CurrentHp / t.MaxHp,
@@ -120,7 +121,8 @@ internal partial class BST
                 damageImmune,
                 InterruptArmed && t is { IsCasting: true, IsCastInterruptible: true },
                 t.IsCasting ? t.CastActionId : 0,
-                dispellable));
+                dispellable,
+                proven));
         }
 
         return candidates;
