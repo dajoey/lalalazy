@@ -806,14 +806,22 @@ internal static class BST_CrucibleLogic
     public const float SkinGuardLeadSeconds = 8f;
 
     /// <summary>
-    ///     STUB, failing first (the shipped picker's exact semantics): the first grade whose RECAST is clear. Recast says
-    ///     nothing about stock, so the picker cases below fail until the real picker reads the held set.
+    ///     The heal-potion offer, strongest grade first: the first id that is HELD (the XBMContentsMainHUD stock walk),
+    ///     was not refused by an earlier dead press, and whose recast is clear. Pure over the sets the live layer
+    ///     supplies; 0 when nothing qualifies. The shipped picker took the first grade whose RECAST was clear, which
+    ///     says nothing about stock: with no G4 held it pressed the dead 46962 every time while a G1 sat in the bag
+    ///     (Durga held G1 only, Lauda G2), and its blanket offer throttle starved a need that appeared just after an
+    ///     idle offer.
     /// </summary>
     public static uint PickHealPotion(IReadOnlyList<uint> gradesStrongestFirst, IReadOnlySet<uint> held, IReadOnlySet<uint> refused, Func<uint, bool> recastClear)
     {
         foreach (var id in gradesStrongestFirst)
+        {
+            if (!held.Contains(id) || refused.Contains(id))
+                continue;
             if (recastClear(id))
                 return id;
+        }
         return 0;
     }
 

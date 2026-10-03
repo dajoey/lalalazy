@@ -312,6 +312,58 @@ internal partial class BST
         return result;
     }
 
+    // ------------------------------------------------------------------ Crucible item HUD stock (XBMContentsMainHUD)
+
+    /// <summary>
+    ///     Heal-potion actions with stock in the Crucible item HUD: the same slots the game shows and AutoDuty's item
+    ///     engine reads (slot base 9 + i*5: +1 the held byte, +3 the XBMItem row, +4 the name; grounded in the XB|
+    ///     captures, rows 76-79 = G1-G4 Beast Potion). Empty when the HUD is not readable — then no potion is offered,
+    ///     matching AutoDuty's "no slot, no use".
+    /// </summary>
+    internal static unsafe HashSet<uint> ReadHeldHealActions()
+    {
+        var held = new HashSet<uint>(2);
+        try
+        {
+            var manager = RaptureAtkUnitManager.Instance();
+            if (manager is null)
+                return held;
+            var list = manager->AtkUnitManager.AllLoadedUnitsList;
+            var count = Math.Min((int)list.Count, list.Entries.Length);
+            for (var i = 0; i < count; i++)
+            {
+                var unit = list.Entries[i].Value;
+                if (unit is null || !unit->IsVisible || unit->NameString != "XBMContentsMainHUD")
+                    continue;
+
+                for (var slot = 0; slot < 10; slot++)
+                {
+                    var at = 9 + slot * 5;
+                    if (at + 4 >= unit->AtkValuesCount)
+                        break;
+                    if (unit->AtkValues[at + 1].Byte == 0)
+                        continue;
+                    var row = AsItemRow(unit->AtkValues[at + 3]);
+                    if (row != 0 && BST_CrucibleData.HealPotionItemRows.TryGetValue(row, out var action))
+                        held.Add(action);
+                }
+                break;
+            }
+        }
+        catch (Exception)
+        {
+            held.Clear();
+        }
+        return held;
+    }
+
+    private static uint AsItemRow(AtkValue value) => value.Type switch
+    {
+        AtkValueType.UInt => value.UInt,
+        AtkValueType.Int => value.Int > 0 ? (uint)value.Int : 0u,
+        _ => 0u,
+    };
+
     // ------------------------------------------------------------------ Crucible screen capture (XB| lines)
 
     private static readonly Dictionary<string, (int Hash, long Ms)> CrucibleUiSeen = [];

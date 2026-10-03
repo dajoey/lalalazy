@@ -273,7 +273,7 @@ internal static class BST_RotationLogic
         public float HighestEnemyHpPercent;       // across those enemies
         public float PlayerHpPercent;
         public float PlayerHp;                       // absolute: the survival guard compares it to a cast's largest measured hit
-        public uint ReadyHealPotion;                // best-grade Crucible heal potion action usable now, 0 = none
+        public uint ReadyHealPotion;                // best-grade Crucible heal potion action with stock held and recast clear, 0 = none
         public float PetHpPercent;                // the summoned familiar (100 when none)
         public float PetHp;                       // the summoned familiar's HP (absolute)
         public float PlayerIntakePerSecond;       // HP the character lost per second over the last 10 s

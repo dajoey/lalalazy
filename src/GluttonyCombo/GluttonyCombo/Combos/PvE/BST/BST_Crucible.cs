@@ -39,11 +39,28 @@ internal partial class BST
     private static bool _shellWasUp;
     private static long _shellBrokeTick;
 
-    /// <summary> Last tick a heal potion was offered: a press the game refuses (nothing held) is not re-sent for this long. </summary>
-    private static long _lastHealOfferTick;
+    /// <summary> Heal-potion actions whose press did not land (a stale-stock race), and the tick they are refused until. </summary>
+    private static readonly Dictionary<uint, long> RefusedHealPotions = [];
 
-    /// <summary> The game's item-use lockout after a refused potion press, before the id is offered again. </summary>
-    private const long HealOfferThrottleMs = 2500;
+    /// <summary> The heal-potion press the rotation last made, awaiting its outcome (0 = none pending). </summary>
+    private static uint _healPressPending;
+
+    private static long _healPressPendingTick;
+
+    /// <summary> A landed press shows in TimeSinceActionUsed within this of the attempt; still unused later means the press was refused. </summary>
+    private const long HealPressGraceMs = 1500;
+
+    /// <summary> How long a refused heal-potion id is skipped before it is offered again (stock may have been re-bought meanwhile). </summary>
+    private const long HealRefuseHoldMs = 10_000;
+
+    /// <summary> The tick of the last heal-potion press: the next offer waits for the heal to land and HP to move (stock is the scarce resource). </summary>
+    private static long _healPressTick;
+
+    /// <summary> Spacing between heal-potion presses. The throttle keys on a REAL press only — an idle offer never delays a need that appears next tick. </summary>
+    private const long HealPressSpacingMs = 2000;
+
+    private static readonly HashSet<uint> RefusedHealScratch = [];
+    private static readonly HashSet<uint> ExpiredHealScratch = [];
 
     /// <summary> Quelling Wave's range (30 y): a carrier further out than this does not call for a dispel or steer the aim. </summary>
     private const float DispelReach = 30f;
@@ -183,6 +200,10 @@ internal partial class BST
             PlayerHpSamples.Clear();
             TargetHpSamples.Clear();
             DispelTries.Clear();
+            RefusedHealPotions.Clear();
+            _healPressPending = 0;
+            _healPressPendingTick = 0;
+            _healPressTick = 0;
         }
 
         s.CrucibleBoard = BST_CrucibleData.BoardOfTerritory(territory);
@@ -250,18 +271,16 @@ internal partial class BST
         s.PlayerHpPercent = player.MaxHp == 0 ? 0f : 100f * player.CurrentHp / player.MaxHp;
         s.PlayerHp = player.CurrentHp;
 
-        // Crucible heal potions: the best grade whose recast is clear (a press with nothing held fails silently;
-        // the throttle keeps a refused press from being re-sent every tick).
-        if (now - _lastHealOfferTick > HealOfferThrottleMs)
-        {
-            foreach (var id in BST_CrucibleData.HealPotionActions)
-                if (GetCooldownRemainingTime(id) < 0.1f)
-                {
-                    s.ReadyHealPotion = id;
-                    _lastHealOfferTick = now;
-                    break;
-                }
-        }
+        // Crucible heal potions: the strongest grade HELD (the HUD stock walk in ReadHeldHealActions) whose recast is
+        // clear. Recast alone pressed a dead G4 id while a G1 sat in the bag, and a press that does not land (a
+        // stale-stock race) refuses that one id for a while so the next grade down answers — no blanket offer throttle,
+        // which starved a need appearing just after an idle offer.
+        TrackHealPressOutcome(now);
+        s.ReadyHealPotion = now - _healPressTick < HealPressSpacingMs
+            ? 0
+            : BST_CrucibleLogic.PickHealPotion(
+                BST_CrucibleData.HealPotionActions, ReadHeldHealActions(), RefusedHealActions(now),
+                id => GetCooldownRemainingTime(id) < 0.1f);
         s.PlayerIntakePerSecond = TrackIntake(now, player.CurrentHp);
         s.PlayerHasCleansableDebuff = player.HasCleansableDebuff;
 
@@ -372,6 +391,53 @@ internal partial class BST
         s.ReadyChallenge = ActionReady(Challenge);
 
         WarnEmptyHorns(s);
+    }
+
+    /// <summary> The rotation pressed a heal potion this tick (from BST.Run): remember it so a dead press can be noticed and the next offer is spaced. </summary>
+    internal static void NoteHealPress(uint actionId, long now)
+    {
+        _healPressPending = actionId;
+        _healPressPendingTick = now;
+        _healPressTick = now;
+    }
+
+    /// <summary>
+    ///     Resolve the last heal-potion press: the action firing at or after the attempt means it landed (its own recast
+    ///     spaces the next press); still unused past the grace refuses that id for <see cref="HealRefuseHoldMs"/>, so the
+    ///     offer steps down a grade instead of re-pressing a dead id.
+    /// </summary>
+    private static void TrackHealPressOutcome(long now)
+    {
+        if (_healPressPending == 0)
+            return;
+        var pending = _healPressPending;
+        var sinceUsed = TimeSinceActionUsed(pending);
+        if (sinceUsed >= 0f && (long)(sinceUsed * 1000f) + HealPressGraceMs >= now - _healPressPendingTick)
+        {
+            _healPressPending = 0;
+            RefusedHealPotions.Remove(pending);
+            return;
+        }
+        if (now - _healPressPendingTick >= HealPressGraceMs)
+        {
+            RefusedHealPotions[pending] = now + HealRefuseHoldMs;
+            _healPressPending = 0;
+        }
+    }
+
+    /// <summary> The still-refused heal-potion ids, pruning expired entries (a refusal expires so re-bought stock is offered again). </summary>
+    private static HashSet<uint> RefusedHealActions(long now)
+    {
+        ExpiredHealScratch.Clear();
+        foreach (var (action, until) in RefusedHealPotions)
+            if (until <= now)
+                ExpiredHealScratch.Add(action);
+        foreach (var action in ExpiredHealScratch)
+            RefusedHealPotions.Remove(action);
+        RefusedHealScratch.Clear();
+        foreach (var (action, _) in RefusedHealPotions)
+            RefusedHealScratch.Add(action);
+        return RefusedHealScratch;
     }
 
     private static int _needsBoard = -1, _needsBattle = -1;

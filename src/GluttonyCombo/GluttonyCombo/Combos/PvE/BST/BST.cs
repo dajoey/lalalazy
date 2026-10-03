@@ -138,6 +138,8 @@ internal partial class BST : Melee
         var decision = BST_RotationLogic.Decide(state, cfg);
         if (decision.Reason.StartsWith("crucible:dispel-", StringComparison.Ordinal))
             NoteDispelDecision(Environment.TickCount64);
+        if (BST_CrucibleData.HealPotionActions.Contains(decision.ActionId))
+            NoteHealPress(decision.ActionId, Environment.TickCount64);
 
         LastDecisionActionId = decision.ActionId;
         LastDecisionReason = decision.Reason;
