@@ -1,6 +1,14 @@
+## v1.0.4.260 (2026-10-03) [testing]
+### Fixed
+- **Auto-rotation: the out-of-range fallback also covers an enemy the action cannot be used on, not only one that is too far.** An enemy that is out of range, out of line of sight, or not a valid target for the action about to be used no longer leaves the GCD idle while another enemy is within reach; that tick's action goes to the best reachable enemy and the chosen enemy stays preferred.
+### Added
+- **The `RF|` log line also records the ticks where the chosen enemy was unreachable and nothing else was in reach (`to=none`),** with the chosen enemy's id and distance, so an idle stretch can be explained from the log.
+### Notes
+- Same code as 1.0.4.259 with corrected release notes. Production channel unchanged.
+
 ## v1.0.4.259 (2026-10-03) [testing]
 ### Fixed
-- **Auto-rotation: the out-of-range fallback also covers an enemy the action cannot be used on, not only one that is too far.** The check that decides whether the chosen enemy is reachable is the one the rotation already applied before pressing an action: in range with line of sight, and usable on that enemy. Before, an enemy that failed it for any of those reasons left the GCD idle. Recorded run that settled it: the Second Master's Board fight against Flauros (2026-10-03, 11:08 to 11:15 ET) was idle for 362 of its 451 seconds, 91% of the time the targeted enemy was a lightning sprite (a priority add), and the boss stood next to the character taking no damage.
+- **Auto-rotation: the out-of-range fallback also covers an enemy the action cannot be used on, not only one that is too far.** The check that decides whether the chosen enemy is reachable is the one the rotation already applied before pressing an action: in range with line of sight, and usable on that enemy. Before, an enemy that failed it for any of those reasons left the GCD idle.
 ### Added
 - **The `RF|` log line now also records the ticks where the chosen enemy was unreachable and nothing else was in reach (`to=none`),** with the chosen enemy's id and distance, so an idle stretch can be explained from the log.
 ### Notes
