@@ -35,6 +35,7 @@ internal static class Program
         CrucibleTargetingAndAdvisor();
         CrucibleHornWarning();
         GuideNeedsInRotation();
+        DispelClass();
         ArmAndAimTheInterrupt();
     InterruptEconomy();
         ShieldChargeOvercap();
@@ -802,6 +803,117 @@ internal static class Program
     }
 
     /// <summary> In combat on the First Board, L30, Cu Sith out (One with Nature spent), raptor / buffalo on ready horns 2 and 3. </summary>
+    /// <summary>
+    ///     Dispel as a class (task tasks-20261003-crucible-regen-dispel-not-fired-01, 2026-10-03). The Board 5 Drake + Barbmole +
+    ///     Abaddon + Morpho fight (Abaddon Piece, 14:49 to 14:53 ET) needed a dispel for 428 of 430 ticks with Quelling Wave held
+    ///     the whole fight (bm=44900, Wave Kinship up) and was never dispelled: the Abaddon's Regen is status 989
+    ///     (Rehabilitation, "Regenerating HP over time", added 4 times and on the hard target for about 160 s) and 989 was
+    ///     not in the dispellable-buff list, so the target flag never rose. The same hole stood for the other research rows the sheet
+    ///     does not flag (Growing 390, Impassion 3129). Also the dispel only ever aimed at the hard target.
+    /// </summary>
+    private static void DispelClass()
+    {
+        Console.WriteLine("-- dispel as a class --");
+        BST_CrucibleGuideNeeds.Install();
+        try
+        {
+            // Data: every research dispel row names the status the game puts on the enemy.
+            Check("Regen on the Abaddon is status 989 (Rehabilitation): a dispellable buff", BST_CrucibleData.DispellableBuffs.Contains(989));
+            Check("Growing (390, Saplings) and Impassion (3129, Medusa) are in the list too: the guides name them, the logs decide",
+                BST_CrucibleData.DispellableBuffs.Contains(390) && BST_CrucibleData.DispellableBuffs.Contains(3129));
+            var gaps = new List<string>();
+            var guideRows = 0;
+            for (var board = 1; board <= 5; board++)
+                for (var battle = 0; battle <= 15; battle++)
+                {
+                    var wanted = BST_CrucibleGuideNeeds.NeedsOf(board, battle).Count(n => n.Kind == CrucibleNeeds.Dispel);
+                    var have = BST_CrucibleData.DispelRows.Count(r => r.Board == board && r.Battle == battle);
+                    guideRows += wanted;
+                    if (wanted != have)
+                        gaps.Add($"{board}.{battle}: guide {wanted} vs rows {have}");
+                }
+            Check("every dispel counter in the research has a status-id row, and no row stands without one (13 of them)",
+                gaps.Count == 0 && guideRows == 13 && BST_CrucibleData.DispelRows.Length == 13, $"{guideRows} guide rows; {string.Join("; ", gaps)}");
+            Check("every row's status is a dispellable buff the rotation reads",
+                BST_CrucibleData.DispelRows.Length > 0 && BST_CrucibleData.DispelRows.All(r => BST_CrucibleData.DispellableBuffs.Contains(r.StatusId)));
+            Check("the stances stay undispellable and the Needles Out / Paralyzing Spikes ids stay out",
+                !BST_CrucibleData.DispellableBuffs.Contains(5145) && !BST_CrucibleData.DispellableBuffs.Contains(5434));
+            Check("the Abaddon fight (5.5) needs the dispel", (BST_CrucibleLogic.FightNeeds(5, 5) & CrucibleNeeds.Dispel) != 0);
+
+            // The Abaddon fight, replayed: Wave Kinship held and ready, Regen on the target.
+            var cfg = BstSettings.Defaults();
+            var live = CrucibleState(50) with { SinceSummon = 12f, ReadyParting = false, SinceHornPress = 30f };
+            var abaddon = live with
+            {
+                CrucibleBoard = 5, CrucibleBattle = 5, CrucibleNeeds = BST_CrucibleLogic.FightNeeds(5, 5), EnemyCount = 3,
+                Slot1Beast = 1, Slot2Beast = 8, Slot3Beast = 4, ActiveSlot = 1, PetObjectBeast = 1, GcdReady = true,
+                KinshipHeld = true, BeastModeResolved = BST.QuellingWave, ReadyBeastMode = true,
+                TargetHasDispellableBuff = true, EnemyHasDispellableBuff = true,
+            };
+            Check("Abaddon with Regen on the target, Quelling Wave held: dispel it", Decide(abaddon, cfg) is { ActionId: BST.QuellingWave, Reason: "crucible:dispel-quellingwave" },
+                $"{Decide(abaddon, cfg).Reason} [{Decide(abaddon, cfg).Declines}]");
+
+            // The carrier is not the target: bring the Wavekin out (there was no way before: the buff was only ever read off the target).
+            var elsewhere = abaddon with
+            {
+                KinshipHeld = false, BeastModeResolved = 0, ReadyBeastMode = false, TargetHasDispellableBuff = false,
+                ReadyHorn1 = false, ReadyHorn2 = false, ReadyHorn3 = true,
+            };
+            Check("Regen on an enemy that is not the target, no Wave held, a pugil on a ready horn: blow it",
+                Decide(elsewhere, cfg) is { ActionId: BST.ThirdBattlehorn, Reason: "crucible:answer-dispel-slot3" }, $"{Decide(elsewhere, cfg).Reason} [{Decide(elsewhere, cfg).Declines}]");
+            Check("... nobody carries a dispellable buff: no swap",
+                Decide(elsewhere with { EnemyHasDispellableBuff = false }, cfg).ActionId is not (BST.FirstBattlehorn or BST.SecondBattlehorn or BST.ThirdBattlehorn));
+
+            // Armed means aim at the carrier.
+            Check("armed: Wave held and ready (or the vulture out with Tempered Release up), a fight that needs the dispel, a carrier in reach",
+                BST_CrucibleLogic.DispelArmed(abaddon, cfg)
+                && !BST_CrucibleLogic.DispelArmed(abaddon with { ReadyBeastMode = false }, cfg)
+                && !BST_CrucibleLogic.DispelArmed(abaddon with { KinshipHeld = false }, cfg)
+                && !BST_CrucibleLogic.DispelArmed(abaddon with { BeastModeResolved = BST.SoulCrush }, cfg)
+                && !BST_CrucibleLogic.DispelArmed(abaddon with { CrucibleNeeds = CrucibleNeeds.None }, cfg)
+                && !BST_CrucibleLogic.DispelArmed(abaddon with { EnemyHasDispellableBuff = false }, cfg)
+                && !BST_CrucibleLogic.DispelArmed(abaddon with { CrucibleBoard = 0 }, cfg));
+            Check("... the vulture out, One with Nature and Tempered Release ready, a carrier: armed",
+                BST_CrucibleLogic.DispelArmed(abaddon with { KinshipHeld = false, ReadyBeastMode = false, Slot1Beast = 11, PetObjectBeast = 11, OneWithNature = true, ReadyTempered = true, SinceSummon = 3f }, cfg));
+
+            const uint drake = 14651, barbmole = 14653, abaddonName = 14655, morpho = 14656;
+            List<int> Aim(bool armed, params BST_CrucibleLogic.TargetCandidate[] c) => BST_CrucibleLogic.AllowedTargets(c, false, armed);
+            BST_CrucibleLogic.TargetCandidate N(uint nameId, bool carrier = false, bool avoid = false, bool immune = false) => new(nameId, 100f, avoid, immune, false, 0, carrier);
+            var field = new[] { N(drake, carrier: true, avoid: true), N(barbmole, avoid: true), N(abaddonName, carrier: true), N(morpho) };
+            Check("unarmed: the dispel does not steer targeting (control: the Barbmole is a priority add and stays the only candidate)", Aim(false, N(barbmole), N(abaddonName, carrier: true)).SequenceEqual(new[] { 0 }));
+            Check("armed, Regen on the Abaddon and a Barbmole (priority add) beside it: aim at the Abaddon", Aim(true, N(barbmole), N(abaddonName, carrier: true)).SequenceEqual(new[] { 1 }));
+            Check("armed, nobody carries one: nothing changes", Aim(true, N(barbmole), N(abaddonName)).SequenceEqual(new[] { 0 }));
+            Check("armed, the Drake in Blaze Spikes (a stance) carries one: it is aimed at, the stance is what the dispel removes",
+                Aim(true, N(drake, carrier: true, avoid: true), N(abaddonName)).SequenceEqual(new[] { 0 }));
+            Check("armed, Drake and Abaddon both carry one: both stay candidates, the Morpho and the Barbmole do not", Aim(true, field).SequenceEqual(new[] { 0, 2 }));
+            Check("armed, a carrier that is damage immune is never aimed at", Aim(true, N(abaddonName, carrier: true, immune: true), N(barbmole)).SequenceEqual(new[] { 1 }));
+            Check("armed, an egg or morpho flagged as a carrier is never aimed at", Aim(true, N(morpho, carrier: true), N(barbmole)).SequenceEqual(new[] { 1 }));
+            Check("armed with the interrupt too: the interrupt caster still goes first",
+                BST_CrucibleLogic.AllowedTargets([N(abaddonName, carrier: true), new(14623, 100f, false, false, true)], true, true).SequenceEqual(new[] { 1 }));
+
+            // A dispel the game does not honour is not retried forever.
+            var tries = new Dictionary<(ulong Enemy, uint Status), int>();
+            Check("no dispel sent yet: not futile", !BST_CrucibleLogic.DispelFutile(tries, 7, 989));
+            BST_CrucibleLogic.NoteDispelSent(tries, 7, [989]);
+            Check("one dispel sent and the buff is still up: one more try is allowed", !BST_CrucibleLogic.DispelFutile(tries, 7, 989));
+            BST_CrucibleLogic.NoteDispelSent(tries, 7, [989]);
+            Check($"{BST_CrucibleLogic.DispelMaxTries} dispels sent and the buff is still up: given up on that enemy and that status",
+                BST_CrucibleLogic.DispelFutile(tries, 7, 989) && !BST_CrucibleLogic.DispelFutile(tries, 8, 989) && !BST_CrucibleLogic.DispelFutile(tries, 7, 390));
+            BST_CrucibleLogic.ForgetGoneStatuses(tries, 7, [989]);
+            Check("the buff still on the enemy: the verdict stands", BST_CrucibleLogic.DispelFutile(tries, 7, 989));
+            BST_CrucibleLogic.ForgetGoneStatuses(tries, 7, []);
+            Check("the buff came off: the count starts over (it can be put back on)", !BST_CrucibleLogic.DispelFutile(tries, 7, 989));
+            BST_CrucibleLogic.NoteDispelSent(tries, 7, [989]);
+            BST_CrucibleLogic.ForgetGoneStatuses(tries, 8, []);
+            BST_CrucibleLogic.NoteDispelSent(tries, 7, [989]);
+            Check("another enemy's buffs coming off does not reset this one", BST_CrucibleLogic.DispelFutile(tries, 7, 989));
+        }
+        finally
+        {
+            CrucibleNeedModel.Extras = null;
+        }
+    }
+
     private static BstState CrucibleState(int level = 30)
     {
         var s = BaseState(level);

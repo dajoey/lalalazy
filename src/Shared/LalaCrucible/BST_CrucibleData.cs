@@ -131,6 +131,12 @@ internal static partial class BST_CrucibleData
     /// <remarks> Lazy: static initializers in different files of a partial class run in no guaranteed order. </remarks>
     public static HashSet<uint> DispellableBuffs => _dispellableBuffs ??= [.. PanelDispellableBuffs, 1572];
 
+    /// <summary> One research dispel row: the fight, the buff's status id, and what the evidence for it is. </summary>
+    internal readonly record struct DispelRow(int Board, int Battle, uint StatusId, string Buff, string Basis);
+
+    /// <summary> Placeholder (failing-first): the research's dispel rows with a status id each. </summary>
+    public static readonly DispelRow[] DispelRows = [];
+
     private static HashSet<uint>? _dispellableBuffs;
 
     /// <summary>

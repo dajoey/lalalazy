@@ -280,6 +280,7 @@ internal static class BST_RotationLogic
         public float Slot1PetHp, Slot2PetHp, Slot3PetHp; // last HP seen per horn's familiar this battle, 0 = unknown
         public float PartingBlowRecast;           // seconds left on Parting Blow (readable with no familiar out)
         public bool TargetHasDispellableBuff;
+        public bool EnemyHasDispellableBuff;      // any enemy in reach carries a dispellable buff (the target or not)
         public bool TargetInStance;               // spikes / needles: attacking it hurts
         public bool TargetDoNotAttack;            // eggs, morphos
         public bool TargetInvulnerable;           // damage-immune phase (e.g. Burning Ward)

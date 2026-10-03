@@ -850,7 +850,7 @@ internal static class BST_CrucibleLogic
     ///     One enemy auto-targeting could pick. <see cref="Avoid"/> marks a counter stance that may be relaxed when
     ///     nothing else is up; <see cref="DamageImmune"/> is an absolute exclusion.
     /// </summary>
-    public readonly record struct TargetCandidate(uint NameId, float HpPercent, bool Avoid, bool DamageImmune = false, bool CastInterruptible = false, uint CastId = 0);
+    public readonly record struct TargetCandidate(uint NameId, float HpPercent, bool Avoid, bool DamageImmune = false, bool CastInterruptible = false, uint CastId = 0, bool Dispellable = false);
 
     /// <summary>
     ///     Which candidates may take a hit when the enemy <see cref="AllowedTargets"/> chose is out of the action's reach:
@@ -884,7 +884,7 @@ internal static class BST_CrucibleLogic
     ///     all of that: the cast is gone in seconds and the order resumes when it ends; a caster of a
     ///     <see cref="BST_CrucibleData.KillTheCaster"/> cast comes next.
     /// </summary>
-    public static List<int> AllowedTargets(IReadOnlyList<TargetCandidate> candidates, bool interruptArmed = false)
+    public static List<int> AllowedTargets(IReadOnlyList<TargetCandidate> candidates, bool interruptArmed = false, bool dispelArmed = false)
     {
         var allowed = new List<int>(candidates.Count);
         for (var i = 0; i < candidates.Count; i++)
@@ -956,6 +956,21 @@ internal static class BST_CrucibleLogic
     public static bool InterruptArmed(in BstState s, in BstSettings cfg) =>
         cfg.Crucible && s.CrucibleBoard != 0 && cfg.UseSoulCrush && (s.CrucibleNeeds & CrucibleNeeds.Interrupt) != 0
         && s.KinshipHeld && s.BeastModeResolved == BST.SoulCrush && s.ReadyBeastMode;
+
+    /// <summary> Placeholder (failing-first). </summary>
+    public static bool DispelArmed(in BstState s, in BstSettings cfg) => false;
+
+    /// <summary> Placeholder (failing-first). </summary>
+    public const int DispelMaxTries = 2;
+
+    /// <summary> Placeholder (failing-first). </summary>
+    public static void NoteDispelSent(Dictionary<(ulong Enemy, uint Status), int> tries, ulong enemy, IEnumerable<uint> statusesOnEnemy) { }
+
+    /// <summary> Placeholder (failing-first). </summary>
+    public static void ForgetGoneStatuses(Dictionary<(ulong Enemy, uint Status), int> tries, ulong enemy, ICollection<uint> statusesOnEnemy) { }
+
+    /// <summary> Placeholder (failing-first). </summary>
+    public static bool DispelFutile(Dictionary<(ulong Enemy, uint Status), int> tries, ulong enemy, uint status) => false;
 
     // ------------------------------------------------------------------ familiar HP memory (party agent)
 
