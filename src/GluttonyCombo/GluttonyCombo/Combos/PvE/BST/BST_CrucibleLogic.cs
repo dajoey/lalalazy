@@ -1012,7 +1012,7 @@ internal static class BST_CrucibleLogic
     ///     One enemy auto-targeting could pick. <see cref="Avoid"/> marks a counter stance that may be relaxed when
     ///     nothing else is up; <see cref="DamageImmune"/> is an absolute exclusion.
     /// </summary>
-    public readonly record struct TargetCandidate(uint NameId, float HpPercent, bool Avoid, bool DamageImmune = false, bool CastInterruptible = false, uint CastId = 0, bool Dispellable = false);
+    public readonly record struct TargetCandidate(uint NameId, float HpPercent, bool Avoid, bool DamageImmune = false, bool CastInterruptible = false, uint CastId = 0, bool Dispellable = false, bool DispellableProven = false);
 
     /// <summary>
     ///     Which candidates may take a hit when the enemy <see cref="AllowedTargets"/> chose is out of the action's reach:
@@ -1168,6 +1168,39 @@ internal static class BST_CrucibleLogic
     {
         foreach (var key in tries.Keys.Where(k => k.Enemy == enemy && !statusesOnEnemy.Contains(k.Status)).ToList())
             tries.Remove(key);
+    }
+
+    /// <summary>
+    ///     Which dispels actually went out, for <see cref="NoteDispelSent"/>. PURE: the live read passes the clock and the seconds
+    ///     since Quelling Wave / Tempered Release were last used. A dispel decision repeats every tick until the cast goes out.
+    /// </summary>
+    public sealed class DispelUseTracker
+    {
+        /// <summary> A decision stays the open one this long (ms). </summary>
+        public const long DecisionWindowMs = 2500;
+
+        /// <summary> A use this recent (s) can still belong to the dispel just decided. </summary>
+        public const float UseWindow = 1.5f;
+
+        private long _burstStart, _decided, _counted;
+
+        public void NoteDecision(long nowMs)
+        {
+            if (nowMs - _decided > DecisionWindowMs)
+                _burstStart = nowMs;
+            _decided = nowMs;
+        }
+
+        /// <summary> True once for a dispel that went out since the open decision. </summary>
+        public bool CountUse(long nowMs, float sinceUsedSeconds)
+        {
+            if (_counted >= _burstStart || nowMs - _decided > DecisionWindowMs)
+                return false;
+            if (sinceUsedSeconds > UseWindow || nowMs - (long)(sinceUsedSeconds * 1000f) < _burstStart - 100)
+                return false;
+            _counted = nowMs;
+            return true;
+        }
     }
 
     /// <summary> This status on this enemy took <see cref="DispelMaxTries"/> dispels and is still there. </summary>

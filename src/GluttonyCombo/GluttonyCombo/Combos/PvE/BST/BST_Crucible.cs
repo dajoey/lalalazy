@@ -111,13 +111,7 @@ internal partial class BST
     private static readonly List<uint> DispelStatuses = [];
     private static ulong _dispelEnemy;
     private static uint _dispelEnemyName;
-    private static long _dispelBurstStart, _dispelDecidedTick, _dispelCountedTick;
-
-    /// <summary> Seconds after a Quelling Wave / Tempered Release use during which the use still belongs to the dispel just decided. </summary>
-    private const float DispelUseWindow = 1.5f;
-
-    /// <summary> Seconds a dispel decision stays the open one (the decision repeats every tick until the cast goes out). </summary>
-    private const long DispelDecisionWindowMs = 2500;
+    private static readonly BST_CrucibleLogic.DispelUseTracker DispelUses = new();
 
     /// <summary> A dispellable buff (<see cref="BST_CrucibleData.DispellableBuffs"/>) the rotation has not given up on stands on this enemy. </summary>
     internal static bool CarriesDispellableBuff(IBattleChara enemy)
@@ -140,9 +134,7 @@ internal partial class BST
         if (CurrentTarget is not IBattleChara target)
             return;
 
-        if (now - _dispelDecidedTick > DispelDecisionWindowMs)
-            _dispelBurstStart = now;
-        _dispelDecidedTick = now;
+        DispelUses.NoteDecision(now);
         _dispelEnemy = target.GameObjectId;
         _dispelEnemyName = target.NameId;
         DispelStatuses.Clear();
@@ -169,14 +161,13 @@ internal partial class BST
             BST_CrucibleLogic.ForgetGoneStatuses(DispelTries, target.GameObjectId, StatusScratch);
         }
 
-        if (DispelStatuses.Count == 0 || _dispelCountedTick >= _dispelBurstStart || now - _dispelDecidedTick > DispelDecisionWindowMs)
+        if (DispelStatuses.Count == 0)
             return;
 
         var since = Math.Min(SinceUsed(QuellingWave), SinceUsed(TemperedRelease));
-        if (since > DispelUseWindow || now - (long)(since * 1000f) < _dispelBurstStart - 100)
+        if (!DispelUses.CountUse(now, since))
             return;
 
-        _dispelCountedTick = now;
         BST_CrucibleLogic.NoteDispelSent(DispelTries, _dispelEnemy, DispelStatuses.FindAll(id => !BST_CrucibleData.PanelFlagsDispellable(id)));
         var futile = DispelStatuses.FindAll(id => BST_CrucibleLogic.DispelFutile(DispelTries, _dispelEnemy, id));
         Svc.Log.Information(

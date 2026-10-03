@@ -83,6 +83,12 @@ internal static class FormationLogic
     /// <summary> Most corrections one screen open makes on top of AutoDuty's selection writes. </summary>
     public const int AutoDutyMaxCorrections = 4;
 
+    /// <summary> Horn picks AutoDuty ends with (the battlehorn holds three). </summary>
+    public const int AutoDutyFullTeam = 3;
+
+    /// <summary> Quiet (ms) after which a team AutoDuty left short of <see cref="AutoDutyFullTeam"/> counts as finished. </summary>
+    public const long AutoDutyShortTeamQuietMs = 1500;
+
     /// <summary>
     ///     Whether the need-coverage correction is due while AutoDuty drives the screen. PURE. AutoDuty sets its horn picks one toggle
     ///     every ~0.5 s and confirms ~0.5 s after the last one, so a correction written after the FIRST toggle is overwritten by the
@@ -91,7 +97,7 @@ internal static class FormationLogic
     ///     at most <see cref="AutoDutyMaxCorrections"/> times per screen open; with no new AutoDuty edit nothing is written.
     ///     <paramref name="lastCorrectionMs"/> is 0 (or older than any edit) until a correction has been made.
     /// </summary>
-    public static bool AutoDutyCorrectionDue(bool editSeen, long lastEditMs, long lastCorrectionMs, int corrections, long nowMs, long settleMs) =>
+    public static bool AutoDutyCorrectionDue(bool editSeen, long lastEditMs, long lastCorrectionMs, int corrections, long nowMs, long settleMs, int selectedCount = AutoDutyFullTeam) =>
         editSeen && corrections < AutoDutyMaxCorrections && lastEditMs > lastCorrectionMs && nowMs - lastEditMs >= settleMs;
 
     /// <summary> Whether the assign pass may run under the current latch. PURE. </summary>

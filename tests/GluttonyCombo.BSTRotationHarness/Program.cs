@@ -989,8 +989,14 @@ internal static class Program
         try
         {
             // Data: every research dispel row names the status the game puts on the enemy.
-            Check("Regen on the Abaddon is status 989 (Rehabilitation): a dispellable buff", BST_CrucibleData.DispellableBuffs.Contains(989));
-            Check("Growing (390, Saplings) and Impassion (3129, Medusa) are in the list too: the guides name them, the logs decide",
+            // 2026-10-03 19:34-19:35 (Abaddon Piece, 1.0.4.268): the rotation sent 12 Quelling Waves at the Abaddon's Rehabilitation (989); the
+            // casts' effects were damage only (the same cast on the Drake's Blaze Spikes carried the status-removal effect and the
+            // spikes came off 0.6 s later) and 989 stood the whole fight. The game does not honour a dispel on it.
+            Check("Regen on the Abaddon is status 989 (Rehabilitation): the game does not dispel it (12 Quelling Waves, none took it off), so it is not a dispellable buff",
+                !BST_CrucibleData.DispellableBuffs.Contains(989));
+            Check("... its research row stays (the guide still counts it) and says why it is not tried",
+                BST_CrucibleData.DispelRows.Any(r => r.StatusId == 989 && r.Basis == "disproven"));
+            Check("Growing (390, Saplings) and Impassion (3129, Medusa) stay in the list as unproven tries: the guides name them, the logs decide",
                 BST_CrucibleData.DispellableBuffs.Contains(390) && BST_CrucibleData.DispellableBuffs.Contains(3129));
             var gaps = new List<string>();
             var guideRows = 0;
@@ -1005,11 +1011,12 @@ internal static class Program
                 }
             Check("every dispel counter in the research has a status-id row, and no row stands without one (13 of them)",
                 gaps.Count == 0 && guideRows == 13 && BST_CrucibleData.DispelRows.Length == 13, $"{guideRows} guide rows; {string.Join("; ", gaps)}");
-            Check("every row's status is a dispellable buff the rotation reads",
-                BST_CrucibleData.DispelRows.Length > 0 && BST_CrucibleData.DispelRows.All(r => BST_CrucibleData.DispellableBuffs.Contains(r.StatusId)));
+            Check("every row's status is a dispellable buff the rotation reads, except the ones a run has disproven",
+                BST_CrucibleData.DispelRows.Length > 0
+                && BST_CrucibleData.DispelRows.All(r => BST_CrucibleData.DispellableBuffs.Contains(r.StatusId) == (r.Basis != "disproven")));
             Check("the stances stay undispellable and the Needles Out / Paralyzing Spikes ids stay out",
                 !BST_CrucibleData.DispellableBuffs.Contains(5145) && !BST_CrucibleData.DispellableBuffs.Contains(5434));
-            Check("the panel's own flagged ids (known honoured) are never given up on; Regen, Growing, Impassion and Might are unproven",
+            Check("the panel's own flagged ids (known honoured) are never given up on; Regen, Growing, Impassion and Might are not panel-flagged",
                 new uint[] { 1225, 2074, 2528, 5020, 5423, 5465 }.All(BST_CrucibleData.PanelFlagsDispellable)
                 && new uint[] { 989, 390, 3129, 1572 }.All(id => !BST_CrucibleData.PanelFlagsDispellable(id)));
             Check("the Abaddon fight (5.5) needs the dispel", (BST_CrucibleLogic.FightNeeds(5, 5) & CrucibleNeeds.Dispel) != 0);
@@ -1103,6 +1110,43 @@ internal static class Program
             BST_CrucibleLogic.ForgetGoneStatuses(tries, 8, []);
             BST_CrucibleLogic.NoteDispelSent(tries, 7, [989]);
             Check("another enemy's buffs coming off does not reset this one", BST_CrucibleLogic.DispelFutile(tries, 7, 989));
+
+            // Every dispel that goes out is one try. The decision repeats every GCD (the rotation re-decides as soon as the GCD is
+            // ready again, ~2.5 s), and the old count took a run of decisions less than 2.5 s apart for ONE burst and counted one
+            // try per burst: 12 Quelling Waves on the Abaddon's 989 counted 2 (19:34:55 and 19:35:19 DS| lines).
+            var uses = new BST_CrucibleLogic.DispelUseTracker();
+            var counted = 0;
+            for (var cycle = 0; cycle < 8; cycle++)
+            {
+                var t0 = 10_000L + cycle * 2480L;
+                var cast = t0 + 120;
+                foreach (var at in new long[] { 0, 250, 500, 750, 1000 })
+                {
+                    var tick = t0 + at;
+                    if (at <= 250)
+                        uses.NoteDecision(tick);
+                    if (uses.CountUse(tick, tick >= cast ? (tick - cast) / 1000f : 999f))
+                        counted++;
+                }
+            }
+            Check("a dispel decided and sent every GCD for 8 GCDs: 8 tries counted, each use once", counted == 8, $"{counted} counted");
+            var oneUse = new BST_CrucibleLogic.DispelUseTracker();
+            Check("a use with no decision before it is not a dispel (a Caw used for damage)", !oneUse.CountUse(50_000, 0.2f));
+            oneUse.NoteDecision(60_000);
+            Check("a use from before the decision is not that decision's dispel", !oneUse.CountUse(60_100, 1.4f));
+            Check("a use 0.3 s after the decision is", oneUse.CountUse(60_300, 0.2f));
+            Check("... and is not counted again on the next tick", !oneUse.CountUse(60_550, 0.45f));
+            Check("a decision that went stale (2.5 s without a cast) counts nothing late", !new BST_CrucibleLogic.DispelUseTracker().CountUse(70_000, 0.1f));
+
+            // A proven carrier (the panel flags its buff) comes before an unproven one: the Drake's Blaze Spikes waited 5.5 s
+            // (19:34:57.7 to 19:35:03.2) while the rotation spent the GCDs on the Abaddon's Regen.
+            BST_CrucibleLogic.TargetCandidate P(uint nameId, bool proven, bool avoid = false) => new(nameId, 100f, avoid, false, false, 0, true, proven);
+            Check("armed, the Drake in Blaze Spikes (panel-flagged) and the Abaddon with an unproven buff: the Drake only",
+                Aim(true, P(drake, true, avoid: true), P(abaddonName, false), N(barbmole)).SequenceEqual(new[] { 0 }));
+            Check("armed, only unproven carriers up: they are still aimed at (the first two tries are how the rotation learns)",
+                Aim(true, P(abaddonName, false), N(barbmole)).SequenceEqual(new[] { 0 }));
+            Check("armed, two proven carriers: both stay candidates",
+                Aim(true, P(drake, true, avoid: true), P(abaddonName, true)).SequenceEqual(new[] { 0, 1 }));
         }
         finally
         {
