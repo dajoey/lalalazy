@@ -1,0 +1,27 @@
+{
+    "Author":  "dajoey",
+    "Name":  "Lazy Hub",
+    "InternalName":  "LazyHub",
+    "AssemblyVersion":  "0.1.0.0",
+    "Description":  "One in-game window for the whole lalalazy suite. Lists every lalalazy plugin with its live status (loaded, testing build, not loaded, not installed) and an Open button for each running plugin, plus a server info bar entry. Open it with /lazy.",
+    "ApplicableVersion":  "any",
+    "Tags":  [
+                 "hub",
+                 "ui",
+                 "suite",
+                 "launcher",
+                 "lazy"
+             ],
+    "CategoryTags":  [
+                         "utility"
+                     ],
+    "DalamudApiLevel":  15,
+    "LoadRequiredState":  0,
+    "LoadSync":  false,
+    "CanUnloadAsync":  false,
+    "LoadPriority":  0,
+    "IconUrl":  "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyhub-icon.png",
+    "Punchline":  "One window for every lalalazy plugin.",
+    "AcceptsFeedback":  false,
+    "Changelog":  "v0.1.0.0 (2026-10-03)\n\n- **First release: one in-game window for the whole lalalazy suite.** `/lazy` (or `/lazyhub`) opens a native game-style window with two tabs.\n- **Plugins tab:** all fifteen lalalazy plugins in a grid, each with its icon, its name, a live status and an Open button. Status reads as Loaded, Loaded (testing), Not loaded or Not installed, and refreshes about once a second. Open launches that plugin\u0027s main window (or its settings window when it has no main window) and is available only while the plugin is running.\n- **Quick tab:** shows whether Gluttony Combo\u0027s auto-rotation is on or off, read from Gluttony Combo itself. The card says so when Gluttony Combo is not running.\n- **Server info bar entry** showing how many of the suite\u0027s plugins are running, for example `13/15`. Clicking it opens or closes the window.\n- The plugin opens from the Dalamud plugin installer\u0027s Open button as well.\n\n- This is a testing-channel first release. It reads status and opens windows; it does not change any plugin\u0027s settings yet.\n- The window uses the stock game window frame. The icons are the repository\u0027s pixel-art plugin icons.\n- After an update the \"What\u0027s new\" window shows these notes once. `/lazy changelog` reopens them."
+}
