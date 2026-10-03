@@ -824,6 +824,40 @@ internal static class BST_CrucibleLogic
         if (!cfg.CrucibleSurvival)
             return (0, "");
 
+        var potion = s.ReadyHealPotion;
+
+        if (s.TargetCastId != 0 && s.TargetCastRemaining + BST_CrucibleData.TankbusterHitDelay(s.TargetCastId) > 0.2f)
+        {
+            var heavy = BST_CrucibleData.HeavyCast(s.TargetCastId);
+
+            // A measured cast that lands on the character regardless of enmity (CastOnly: mitigation is the only answer;
+            // PartyWide: it hits both) while the character's remaining HP is under the largest logged hit.
+            if (heavy is { Kind: CrucibleHitKind.CastOnly or CrucibleHitKind.PartyWide, MaxOnCharacter: > 0 } row
+                && s.PlayerHp > 0f && s.PlayerHp < row.MaxOnCharacter)
+            {
+                if (s.TargetCastRemaining <= SkinGuardLeadSeconds && s.KinshipHeld && s.ReadyBeastMode && s.CanWeave
+                    && s.BeastModeResolved is BST.Scaleskin or BST.Beastskin or BST.Vileskin)
+                    return (s.BeastModeResolved, "crucible:raidwide-guard");
+                if (potion != 0)
+                    return (potion, "crucible:raidwide-guard");
+                declines.Add("crucible:raidwide-guard-none");
+            }
+            else if ((heavy is { Kind: CrucibleHitKind.Tankbuster } || BST_CrucibleData.Tankbusters.Contains(s.TargetCastId))
+                     && !TankbusterCoverArmed(s, cfg)
+                     && s.PlayerHpPercent is > 0f and <= TankbusterGuardHpPercent)
+            {
+                if (potion != 0)
+                    return (potion, "crucible:raidwide-guard");
+                declines.Add("crucible:raidwide-guard-none");
+            }
+        }
+
+        if (s.InCombat && s.PlayerHpPercent is > 0f and <= PanicHealHpPercent && potion != 0)
+            return (potion, "crucible:panic-heal");
+
+        if (!s.InCombat && s.PlayerHpPercent is > 0f and < BoardHealHpPercent && potion != 0 && !s.PlayerIsCasting)
+            return (potion, "crucible:board-heal");
+
         return (0, "");
     }
 
