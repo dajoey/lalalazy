@@ -86,9 +86,6 @@ public sealed class Plugin : IDalamudPlugin
             HelpMessage = "Open the Armoire Auto-Fill window. /armoire changelog shows what's new."
         });
 
-        // Quick controls for the lalalazy hub window (src/Shared/LalaHub). Never throws; null when nothing was registered.
-        _hub = LalaHubProvider.TryCreate(PluginInterface, Log, "ArmoireAutoFill", typeof(Plugin).Assembly.GetName().Version?.ToString() ?? "", ep => HubAdapter.Declare(ep));
-
         PluginInterface.UiBuilder.Draw += DrawUI;
         PluginInterface.UiBuilder.OpenMainUi += ToggleMainUI;
         PluginInterface.UiBuilder.OpenConfigUi += ToggleConfigUI;
@@ -100,6 +97,11 @@ public sealed class Plugin : IDalamudPlugin
         {
             OnLogin();
         }
+
+        // Quick controls for the lalalazy hub window (src/Shared/LalaHub). Last on purpose: Dalamud never calls Dispose on a
+        // constructor that threw, so a half-built plugin must not leave its endpoints registered. Never throws; null when
+        // nothing was registered.
+        _hub = LalaHubProvider.TryCreate(PluginInterface, Log, "ArmoireAutoFill", typeof(Plugin).Assembly.GetName().Version?.ToString() ?? "", ep => HubAdapter.Declare(ep));
     }
 
     public void Dispose()

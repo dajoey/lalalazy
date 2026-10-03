@@ -12,7 +12,7 @@ namespace Lalalazy.Hub;
 ///
 /// Adapter pattern (the same three lines in every plugin):
 /// <code>
-/// _hub = LalaHubProvider.TryCreate(pi, Log, "AutoPotion", Version, ep => ep.Toggle(...));   // constructor, after config is loaded
+/// _hub = LalaHubProvider.TryCreate(pi, Log, "AutoPotion", Version, ep => ep.Toggle(...));   // LAST statement of the constructor
 /// _hub?.Dispose();                                                                          // FIRST line of Dispose
 /// </code>
 ///

@@ -113,9 +113,6 @@ public sealed class Plugin : IDalamudPlugin
                 v => { Config.LastSeenChangelogVersion = v; Config.Save(); }),
         });
 
-        // Quick controls for the lalalazy hub window (src/Shared/LalaHub). Never throws; null when nothing was registered.
-        _hub = LalaHubProvider.TryCreate(pi, PluginLog, "LazyCrucible", typeof(Plugin).Assembly.GetName().Version?.ToString() ?? "", ep => HubAdapter.Declare(ep));
-
         PluginInterface.UiBuilder.Draw += _windowSystem.Draw;
         PluginInterface.UiBuilder.Draw += DrawOverlay;
         PluginInterface.UiBuilder.OpenConfigUi += ToggleWindow;
@@ -126,6 +123,11 @@ public sealed class Plugin : IDalamudPlugin
         {
             HelpMessage = "Open LazyCrucible. /lazycrucible guide opens the fight guide; /lazycrucible changelog shows what's new; /lazycrucible report <what happened> writes a problem report to the plugin log.",
         });
+
+        // Quick controls for the lalalazy hub window (src/Shared/LalaHub). Last on purpose: Dalamud never calls Dispose on a
+        // constructor that threw, so a half-built plugin must not leave its endpoints registered. Never throws; null when
+        // nothing was registered.
+        _hub = LalaHubProvider.TryCreate(pi, PluginLog, "LazyCrucible", typeof(Plugin).Assembly.GetName().Version?.ToString() ?? "", ep => HubAdapter.Declare(ep));
     }
 
     private void OnFrameworkUpdate(IFramework framework)

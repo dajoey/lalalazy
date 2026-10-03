@@ -59,9 +59,6 @@ public sealed class Plugin : IDalamudPlugin
                 v => { Config.LastSeenChangelogVersion = v; SaveConfig(); }),
         });
 
-        // Quick controls for the lalalazy hub window (src/Shared/LalaHub). Never throws; null when nothing was registered.
-        _hub = LalaHubProvider.TryCreate(pi, Log, "LazyFishSitter", typeof(Plugin).Assembly.GetName().Version?.ToString() ?? "", ep => HubAdapter.Declare(ep, this));
-
         Pi.UiBuilder.Draw += _windows.Draw;
         Pi.UiBuilder.OpenConfigUi += OpenConfig;
         Pi.UiBuilder.OpenMainUi += OpenConfig;
@@ -72,6 +69,11 @@ public sealed class Plugin : IDalamudPlugin
         {
             HelpMessage = "Open the Lazy Fish Sitter settings window. /lazyfishsitter changelog shows what's new."
         });
+
+        // Quick controls for the lalalazy hub window (src/Shared/LalaHub). Last on purpose: Dalamud never calls Dispose on a
+        // constructor that threw, so a half-built plugin must not leave its endpoints registered. Never throws; null when
+        // nothing was registered.
+        _hub = LalaHubProvider.TryCreate(pi, Log, "LazyFishSitter", typeof(Plugin).Assembly.GetName().Version?.ToString() ?? "", ep => HubAdapter.Declare(ep, this));
     }
 
     public void SaveConfig() => Pi.SavePluginConfig(Config);
