@@ -14,14 +14,14 @@ internal static class AutoDutyReArmCases
 {
     private static void Check(string what, bool ok, string? detail = null) => Program.Check(what, ok, detail);
 
-    /// <summary> Runs the scheduler over a 10 ms tick clock and returns the times a correction was made. </summary>
+    /// <summary> Runs the scheduler over a 1 ms tick clock and returns the times a correction was made. </summary>
     private static List<long> Corrections(IReadOnlyList<long> autoDutyEdits, long untilMs, long settleMs = 250)
     {
         var made = new List<long>();
         var editSeen = false;
         long lastEdit = 0, lastCorrection = long.MinValue;
         var corrections = 0;
-        for (long t = 0; t <= untilMs; t += 10)
+        for (long t = 0; t <= untilMs; t++)
         {
             foreach (var e in autoDutyEdits)
                 if (e == t)
@@ -52,8 +52,8 @@ internal static class AutoDutyReArmCases
         Check("... the first one is 250 ms after the first toggle, as before", made.Count > 0 && made[0] == 250, string.Join(",", made));
         Check("... the last one lands after AutoDuty's last toggle and before its confirm (so it is the selection that is confirmed)",
             made.Count > 0 && made[^1] > edits[^1] && made[^1] < confirm, string.Join(",", made));
-        Check("nothing is written between corrections without a new AutoDuty toggle",
-            !made.Any(m => m > 250 && m < 766 && m != 766), string.Join(",", made));
+        Check("... the corrections are 250 ms after each toggle and nowhere else (nothing is written without a new AutoDuty toggle)",
+            made.SequenceEqual(new long[] { 250, 766, 1283, 1791 }), string.Join(",", made));
 
         // No edit seen: never due (the pass waits for AutoDuty to write something this open).
         Check("AutoDuty never wrote this open: never due", Corrections([], 5000).Count == 0);
