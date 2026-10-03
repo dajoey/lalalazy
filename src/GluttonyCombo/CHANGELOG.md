@@ -1,7 +1,16 @@
+## v1.0.4.267 (2026-10-03) [testing]
+### Added
+- **Beastmaster, Crucible: the collector now says why the character is not attacking.** The `CR|` line carries the hitbox-edge distance to the current target (`d=`, empty without one) and the character's own movement speed (`mv=`, yalms per second), so a stretch with no attack can be told apart as out of range, moving, or standing still. A new `SG|` line is written while the rotation has chosen an attack, the global cooldown sits ready and nothing has been sent for over a second, naming the reason: no target, own cast bar, animation lock, a queued action, out of range, or none of those. A continuing stall re-logs at most every 2 seconds with its length so far.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v1.0.4.266 (2026-10-03) [testing]
 ### Changed
 - **Beastmaster (Crucible): the bat's and the vulture's answers are no longer spent before the fight asks for them.** Each summon buys one release of the familiar's own ability - the bat's Ultrasonics cleanses, the vulture's Bloodcurdling Caw dispels - and a discretionary Tempered Release or borrow used to spend that One with Nature long before the debuff or buff it answers was up (on a logged cleanse fight the bat's release went to a borrow 1.4 seconds after its summon, and the Paralysis 49 seconds later ran until the character died behind it). On a fight the panel calls for a cleanse or a dispel, the answering familiar's One with Nature is now held until the debuff or buff is actually up, and the release fires then. A discretionary borrow no longer replaces a held Scouring Ash or Quelling Wave either - the same guard Soul Crush already had.
 - **Beastmaster (Crucible): an impossible cleanse or dispel is now named in the decision log** (`answer-cleanse-cannot-rearm`, `answer-dispel-cannot-rearm`) instead of passing silently: the debuff or buff is live, the answering familiar is out with its One with Nature spent, the kinship is not held, and no other ready horn carries an answerer. Nothing can answer that one; the log now says so.
+
+### Notes
+- Testing channel only; the production channel is unchanged.
 
 ## v1.0.4.265 (2026-10-03) [testing]
 ### Fixed

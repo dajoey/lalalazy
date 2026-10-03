@@ -1,5 +1,12 @@
 # LazyCrucible — Changelog
 
+
+## v0.1.9.7 (2026-10-03) [testing]
+### Added
+- **One line per fight names what the horn can answer.** When a formation pass settles for an identified fight, a new `HC|` line lists the rows actually standing on the horn and grades the fight's needs against them (`I/D/C:R/U:row` per need, or `miss` when no row answers), including picks an external driver made. The grade is re-stated whenever the settled horn changes while the screen is open, so answer coverage can be read from one line.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v0.1.9.6 (2026-10-03) [testing]
 ### Fixed
 - **Need coverage on top of AutoDuty now reaches the fight's horn slots.** AutoDuty sets its Battlehorn picks one toggle at a time and confirms shortly after the last one. The correction was written once, after the first toggle, and every later toggle overwrote it, so the dispel or interrupt answer a fight calls for never stayed on the horn. The correction is now made again after each AutoDuty toggle (at most four per screen) and the last one lands after AutoDuty's last toggle and before its confirm. The run log's `adn=` field counts the corrections made on a screen.
