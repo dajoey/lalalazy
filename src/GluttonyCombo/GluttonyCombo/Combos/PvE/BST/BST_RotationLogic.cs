@@ -184,6 +184,21 @@ internal static class BST_RotationLogic
 
     // ------------------------------------------------------------------ decision
 
+    /// <summary>
+    ///     What the live half found when it asked where an auto-fired Shield Charge would land (next to the
+    ///     current target). <see cref="Safe"/> is the default: states built without a landing read dash as before.
+    /// </summary>
+    public enum DashLanding : byte
+    {
+        Safe = 0,
+        /// <summary> The landing spot, or the enemy itself, is inside a known danger zone (puddle, telegraph) or a temporary obstacle. </summary>
+        Danger,
+        /// <summary> The enemy is outside the arena bounds or cannot be reached (no line of sight). </summary>
+        Unreachable,
+        /// <summary> Nothing could answer (boss-mod IPC missing or failing). Blocks only on a Crucible board, where the void is real. </summary>
+        Unknown,
+    }
+
     /// <summary> Everything the engine needs for one tick. The live half fills it from the game. </summary>
     public struct BstState
     {
@@ -244,6 +259,7 @@ internal static class BST_RotationLogic
         public bool ReadyBeastMode;
         public bool ReadyShieldCharge;
         public int ShieldChargeCharges, ShieldChargeMax;
+        public DashLanding DashLanding;   // where Shield Charge would land, read only while a dash is on the table
 
         // GCD combo
         public uint LastComboAction;

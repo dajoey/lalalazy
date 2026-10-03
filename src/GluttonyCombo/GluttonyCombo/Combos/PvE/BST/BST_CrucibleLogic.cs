@@ -852,6 +852,12 @@ internal static class BST_CrucibleLogic
     /// </summary>
     public readonly record struct TargetCandidate(uint NameId, float HpPercent, bool Avoid, bool DamageImmune = false, bool CastInterruptible = false, uint CastId = 0);
 
+    /// <summary>
+    ///     Placeholder for the failing-first commit: the live behaviour is that the only list auto-targeting has is
+    ///     the kill-order-narrowed one.
+    /// </summary>
+    public static List<int> SafeTargets(IReadOnlyList<TargetCandidate> candidates) => AllowedTargets(candidates);
+
     /// <summary> Paired enemies further apart than this (HP %) get balanced: the lower one is left alone. </summary>
     public const float PairHpGap = 10f;
 

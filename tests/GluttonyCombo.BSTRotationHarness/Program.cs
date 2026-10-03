@@ -39,6 +39,8 @@ internal static class Program
     InterruptEconomy();
         ShieldChargeOvercap();
         CrucibleTactics();
+        DashLandingSafety();
+        FallbackCandidates();
 
         SimulateAllLevels(verbose);
         SimulateCrucible(verbose);
@@ -2061,6 +2063,75 @@ internal static class Program
         l30.ReadyShieldCharge = true; l30.ShieldChargeCharges = 1; l30.ShieldChargeMax = 1;
         Check("L30 (max 1), option on, moving -> spends the single charge", Dashes(Decide(l30 with { IsMoving = true }, protect)));
         Check("L23 (before the skill) -> no dash", !Dashes(Decide(BaseState(23) with { ReadyShieldCharge = true, ShieldChargeCharges = 1, ShieldChargeMax = 1 }, protect)));
+    }
+
+    // Joey, 2026-10-03T16:26:26Z, verbatim: "Use a dash movement ability to dash into an enemy that was out of
+    // bounds and in a danger puddle." The gap-close and overcap dashes had three gates (20 y range, Crucible
+    // protected-near, weave) and nothing that asked where the character would land.
+    private static void DashLandingSafety()
+    {
+        Console.WriteLine("-- Shield Charge landing safety (every auto-fired dash) --");
+        var on = BstSettings.Defaults();
+        var protect = on with { UseShieldCharge = false, ShieldChargeOvercap = true };
+        var s = BaseState(40);
+        s.ReadyShieldCharge = true; s.ShieldChargeCharges = 3; s.ShieldChargeMax = 3;
+        bool Dashes(BstDecision d) => d.ActionId == BST.ShieldCharge;
+
+        // control: a clean landing dashes exactly as before
+        Check("clean landing, 12 y gap-close: dashes", Decide(s with { TargetDistance = 12f, DashLanding = DashLanding.Safe }, on) is { Reason: "shieldcharge:gapclose" } c0 && Dashes(c0));
+
+        // the puddle
+        var puddle = Decide(s with { TargetDistance = 12f, DashLanding = DashLanding.Danger }, on);
+        Check("enemy standing in a danger puddle, 12 y gap-close: no dash, reason recorded", !Dashes(puddle) && puddle.Declines.Contains("shieldcharge:landing-danger"), $"{puddle.ActionId}:{puddle.Reason} [{puddle.Declines}]");
+        var puddleMax = Decide(s with { DashLanding = DashLanding.Danger }, on);
+        Check("enemy in a puddle, melee range, max charges: the spend-at-cap dash is held too", !Dashes(puddleMax) && puddleMax.Declines.Contains("shieldcharge:landing-danger"), $"{puddleMax.ActionId}:{puddleMax.Reason} [{puddleMax.Declines}]");
+
+        // out of bounds
+        var oob = Decide(s with { TargetDistance = 15f, DashLanding = DashLanding.Unreachable }, on);
+        Check("enemy outside the arena, 15 y gap-close: no dash, reason recorded", !Dashes(oob) && oob.Declines.Contains("shieldcharge:landing-unreachable"), $"{oob.ActionId}:{oob.Reason} [{oob.Declines}]");
+
+        // the overcap rule (1.0.4.247+) fires while moving: same check
+        var overcap = Decide(s with { IsMoving = true, DashLanding = DashLanding.Danger }, protect);
+        Check("overcap dash while moving, landing in a puddle: no dash", !Dashes(overcap) && overcap.Declines.Contains("shieldcharge:landing-danger"), $"{overcap.ActionId}:{overcap.Reason} [{overcap.Declines}]");
+        Check("overcap dash while moving, landing outside the arena: no dash", !Dashes(Decide(s with { IsMoving = true, TargetDistance = 12f, DashLanding = DashLanding.Unreachable }, protect)));
+        Check("overcap dash while moving, clean landing: spends one (unchanged)", Dashes(Decide(s with { IsMoving = true, DashLanding = DashLanding.Safe }, protect)));
+
+        // nothing could answer (boss-mod IPC missing): blocks only where the void is real
+        var cr = s with { CrucibleBoard = 1, TargetDistance = 12f, DashLanding = DashLanding.Unknown };
+        var unk = Decide(cr, on);
+        Check("Crucible board, landing unknown: no dash, reason recorded", !Dashes(unk) && unk.Declines.Contains("shieldcharge:landing-unknown"), $"{unk.ActionId}:{unk.Reason} [{unk.Declines}]");
+        Check("outside the Crucible, landing unknown: dashes as before", Dashes(Decide(s with { TargetDistance = 12f, DashLanding = DashLanding.Unknown }, on)));
+
+        // a held dash never costs the damage floor: the GCD chain still goes
+        Check("dash held for a puddle: the GCD chain still goes", Decide(s with { TargetDistance = 12f, DashLanding = DashLanding.Danger }, on).ActionId != 0);
+    }
+
+    // The fallback target list: Gluttony's Crucible targeting narrows to the head of the kill order, which may be
+    // out of reach; the fallback must keep every exclusion (eggs, immune enemies, stances) and drop only the
+    // kill-order narrowing, so the nearby plain enemy can take the hit.
+    private static void FallbackCandidates()
+    {
+        Console.WriteLine("-- fallback targets (safe set without the kill-order narrowing) --");
+        const uint egg = 14656;      // do-not-attack
+        const uint priority = 14586; // priority add
+        const uint plain = 14569;    // ordinary enemy
+        Check("test data: egg is do-not-attack, priority add is priority, plain is neither",
+            BST_CrucibleData.DoNotAttack.ContainsKey(egg) && BST_CrucibleData.PriorityAdds.Contains(priority)
+            && !BST_CrucibleData.PriorityAdds.Contains(plain) && !BST_CrucibleData.DoNotAttack.ContainsKey(plain));
+
+        BST_CrucibleLogic.TargetCandidate T(uint id, bool avoid = false, bool immune = false) => new(id, 100f, avoid, immune);
+        var field = new[] { T(priority), T(plain), T(egg), T(plain, immune: true) };
+
+        var narrowed = BST_CrucibleLogic.AllowedTargets(field);
+        Check("the kill-order list is only the priority add (that is the targeting working as designed)", narrowed.SequenceEqual(new[] { 0 }), string.Join(",", narrowed));
+
+        var safe = BST_CrucibleLogic.SafeTargets(field);
+        Check("safe set keeps the priority add and the plain enemy", safe.Contains(0) && safe.Contains(1), string.Join(",", safe));
+        Check("safe set never holds an egg / morpho", !safe.Contains(2), string.Join(",", safe));
+        Check("safe set never holds a damage-immune enemy", !safe.Contains(3), string.Join(",", safe));
+        Check("safe set prefers enemies out of a counter stance, and falls back to the stance enemy only when nothing else is up",
+            BST_CrucibleLogic.SafeTargets(new[] { T(plain, avoid: true), T(plain) }).SequenceEqual(new[] { 1 })
+            && BST_CrucibleLogic.SafeTargets(new[] { T(plain, avoid: true) }).SequenceEqual(new[] { 0 }));
     }
 
     // ================================================================== helpers
