@@ -196,6 +196,50 @@ internal static class BST_CrucibleLogic
         && !s.TargetInterruptible;
 
     /// <summary>
+    ///     The bat's Ultrasonics is the cleanse answer, and its One with Nature is spent by the very release that
+    ///     cleanses — each summon buys one cleanse. Board 5, 2026-10-03 11:08:42: the bat was summoned on the cleanse
+    ///     fight and its One with Nature went to a discretionary Tempered and borrow 1.4 s later; 11:09:31 the
+    ///     Paralysis landed and stayed because Ultrasonics needs that One with Nature, and the character died behind
+    ///     it. Hold the bat's One with Nature while no cleansable debuff is up and Scouring Ash is not held;
+    ///     <see cref="TryCleanse"/> spends it the moment a debuff lands.
+    /// </summary>
+    public static bool HoldOwnForCleanse(in BstState s, in BstSettings cfg, BeastmasterBeast? beast) =>
+        cfg.Crucible && s.CrucibleBoard != 0 && (s.CrucibleNeeds & CrucibleNeeds.Cleanse) != 0
+        && beast is { Row: BST_CrucibleData.BatRow }
+        && HeldKin(s) != BeastmasterKinType.Ashkin
+        && !s.PlayerHasCleansableDebuff;
+
+    /// <summary>
+    ///     The vulture's Bloodcurdling Caw is the dispel answer on a fight the panel calls for, and its One with
+    ///     Nature buys one Caw per summon (the Strix Piece's Ultimate Focus). Hold it between dispellable buffs
+    ///     unless Quelling Wave is already held; <see cref="TryDispel"/> spends it the moment the buff lands.
+    /// </summary>
+    public static bool HoldOwnForDispel(in BstState s, in BstSettings cfg, BeastmasterBeast? beast) =>
+        cfg.Crucible && s.CrucibleBoard != 0 && (s.CrucibleNeeds & CrucibleNeeds.Dispel) != 0
+        && beast is { Row: VultureRow }
+        && HeldKin(s) != BeastmasterKinType.Wavekin
+        && !s.TargetHasDispellableBuff;
+
+    /// <summary>
+    ///     A discretionary Borrow (Tempered on recast, release blocked) would replace a held answer kinship with another
+    ///     kin on a fight that still needs that answer — the 2026-10-02 evening showed the held Soul Crush dropping to
+    ///     beastskin exactly this way mid-fight, and the same borrow replaces a held Scouring Ash or Quelling Wave.
+    ///     Returns the decline reason naming the held answer, or null when the borrow may go through.
+    /// </summary>
+    public static string? HeldAnswerBorrowBlock(in BstState s, in BstSettings cfg)
+    {
+        if (!cfg.Crucible || s.CrucibleBoard == 0 || !s.KinshipHeld)
+            return null;
+        if (cfg.UseSoulCrush && (s.CrucibleNeeds & CrucibleNeeds.Interrupt) != 0 && s.BeastModeResolved == BST.SoulCrush)
+            return "own:borrow-keep-soulcrush";
+        if ((s.CrucibleNeeds & CrucibleNeeds.Cleanse) != 0 && s.BeastModeResolved == BST.ScouringAsh)
+            return "own:borrow-keep-scouringash";
+        if ((s.CrucibleNeeds & CrucibleNeeds.Dispel) != 0 && s.BeastModeResolved == BST.QuellingWave)
+            return "own:borrow-keep-quellingwave";
+        return null;
+    }
+
+    /// <summary>
     ///     A discretionary Borrow (Tempered on recast, release blocked) would replace the held Soul Crush with another
     ///     kin on a fight that still needs interrupts — the 2026-10-02 evening showed the held kinship dropping to
     ///     beastskin exactly this way mid-fight. While Soul Crush is held on an interrupt fight, those borrows wait.
@@ -595,6 +639,24 @@ internal static class BST_CrucibleLogic
             && beast is { Kin: BeastmasterKinType.Soulkin } && !s.OneWithNature
             && AnswerSlot(s, BeastmasterKinType.Soulkin) == 0)
             declines.Add("crucible:answer-interrupt-cannot-rearm");
+
+        // The same limit for the other two answers: the thing is live, the answering familiar is out with its
+        // One with Nature spent (its release was the answer), the kinship is not held, and no other horn carries
+        // an answerer. Nothing can answer this one; the log must say so instead of passing silently (board 5,
+        // 2026-10-03: the bat's release went to a discretionary borrow 1.4 s after its summon, the Paralysis ran
+        // 49 s later and the character died behind it with nothing in the log).
+        if ((s.CrucibleNeeds & CrucibleNeeds.Cleanse) != 0 && s.PlayerHasCleansableDebuff
+            && HeldKin(s) != BeastmasterKinType.Ashkin
+            && beast is { Row: BST_CrucibleData.BatRow } && !s.OneWithNature
+            && AnswerSlot(s, BeastmasterKinType.None, BST_CrucibleData.BatRow) == 0
+            && AnswerSlot(s, BeastmasterKinType.Ashkin) == 0)
+            declines.Add("crucible:answer-cleanse-cannot-rearm");
+        if ((s.CrucibleNeeds & CrucibleNeeds.Dispel) != 0 && s.HasHostileTarget && !s.TargetDoNotAttack && s.TargetHasDispellableBuff
+            && HeldKin(s) != BeastmasterKinType.Wavekin
+            && beast is { Row: VultureRow } && !s.OneWithNature
+            && AnswerSlot(s, BeastmasterKinType.None, VultureRow) == 0
+            && AnswerSlot(s, BeastmasterKinType.Wavekin) == 0)
+            declines.Add("crucible:answer-dispel-cannot-rearm");
 
         return (0, "");
     }

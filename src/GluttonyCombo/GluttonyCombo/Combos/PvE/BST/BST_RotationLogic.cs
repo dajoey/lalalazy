@@ -616,9 +616,17 @@ internal static class BST_RotationLogic
                 return Pick(BST.Borrow, $"crucible:borrow-{beast!.Value.Kin.ToString().ToLowerInvariant()}");
 
             // Crucible: the Soulkin's One with Nature is the once-per-summon re-arm of Soul Crush — hold it while no
-            // interruptible cast is up (the borrow above fires the moment one is; 2026-10-03 fix round).
+            // interruptible cast is up (the borrow above fires the moment one is; 2026-10-03 fix round). The bat's
+            // and the vulture's releases are the cleanse and dispel answers the same way: each summon buys one, so
+            // hold them while the thing they answer is not live (2026-10-03 morning, board 5: the bat's release went
+            // to a discretionary Tempered 1.4 s after the summon and the Paralysis that landed 49 s later ran until
+            // the character died). TryCleanse / TryDispel spend them the moment the debuff or buff is live.
             if (crucible && BST_CrucibleLogic.HoldOwnForInterrupt(s, cfg, beast))
                 declines.Add("own:held-for-interrupt");
+            else if (crucible && BST_CrucibleLogic.HoldOwnForCleanse(s, cfg, beast))
+                declines.Add("own:held-for-cleanse");
+            else if (crucible && BST_CrucibleLogic.HoldOwnForDispel(s, cfg, beast))
+                declines.Add("own:held-for-dispel");
             else if (!holdRelease)
             {
                 switch (plan)
@@ -628,8 +636,8 @@ internal static class BST_RotationLogic
                             return Pick(BST.TemperedRelease, "own:tempered");
                         if (!s.ReadyTempered && cfg.BorrowWhileReleaseRecasts && s.TemperedRecastRemaining > 12f)
                         {
-                            if (crucible && BST_CrucibleLogic.KeepHeldSoulCrush(s, cfg))
-                                declines.Add("own:borrow-keep-soulcrush");
+                            if (crucible && BST_CrucibleLogic.HeldAnswerBorrowBlock(s, cfg) is { } keepAnswer)
+                                declines.Add(keepAnswer);
                             else if (BorrowAllowed(s))
                                 return Pick(BST.Borrow, "own:borrow-while-tempered-recasts");
                             else
@@ -640,8 +648,8 @@ internal static class BST_RotationLogic
                         break;
 
                     case ReleasePlan.Blocked:
-                        if (crucible && BST_CrucibleLogic.KeepHeldSoulCrush(s, cfg))
-                            declines.Add("own:borrow-keep-soulcrush");
+                        if (crucible && BST_CrucibleLogic.HeldAnswerBorrowBlock(s, cfg) is { } keepBlocked)
+                            declines.Add(keepBlocked);
                         else if (BorrowAllowed(s))
                             return Pick(BST.Borrow, beast is null ? "own:borrow-unknown-beast" : "own:borrow-release-blocked");
                         else
