@@ -16,6 +16,11 @@ namespace LazyFateAutomation;
 /// The grind mode can change the zone pool and equip items on the next zone swap, so it is only editable while the
 /// bot is stopped. The window never saved its display settings, so they are left out, as are the zone sets and the
 /// blacklist. No lease is registered with Gluttony from here: FateToolKit already manages its own.
+///
+/// The three FATE filters (max duration, min time left, max progress) have no control in the plugin's window, only in
+/// its config file, so the ranges here are limited to values that still let FATEs through (an extreme value makes every
+/// FATE ineligible and the bot then teleports around looking for one), and they, like "swap zones", are only editable
+/// while the bot is stopped.
 /// </summary>
 internal static class HubAdapter
 {
@@ -24,7 +29,12 @@ internal static class HubAdapter
         const string bot = "FATE bot";
         const string tuning = "Tuning";
 
-        bool Running() => Plugin.FateToolKit.Running && Service.Automation.Running;
+        // The window repairs a Running flag whose task has ended on every draw; with that window closed nothing does, so do it here.
+        bool Running()
+        {
+            Plugin.FateToolKit.SyncRunningState();
+            return Plugin.FateToolKit.Running && Service.Automation.Running;
+        }
         ControlState WhileStopped() => Running()
             ? new ControlState(Enabled: false, Why: "Stop the bot first.")
             : new ControlState();
@@ -32,7 +42,7 @@ internal static class HubAdapter
         ep.Toggle("running", "FATE bot", Running,
             v =>
             {
-                if (v == Plugin.FateToolKit.Running) return SetOutcome.Success;
+                if (v == Running()) return SetOutcome.Success;
                 if (v)
                 {
                     if (!ECommons.GameHelpers.Player.Available) return SetOutcome.Refuse("Log in first.");
@@ -41,7 +51,8 @@ internal static class HubAdapter
                 else
                 {
                     Plugin.FateToolKit.ToggleRunning();
-                    Service.Navmesh.Stop();
+                    // The bot is already stopped at this point; a missing vnavmesh must not turn that into a reported failure.
+                    try { Service.Navmesh.Stop(); } catch { }
                 }
                 return SetOutcome.Success;
             },
@@ -64,16 +75,17 @@ internal static class HubAdapter
             v => { Plugin.Config.PrioritizeForlornMaidens = v; Plugin.Config.Save(); }, group: tuning);
         ep.Toggle("swap_zones", "Swap zones when empty", () => Plugin.Config.SwapZones,
             v => { Plugin.Config.SwapZones = v; Plugin.Config.Save(); }, group: tuning,
-            tip: "A running bot teleports to another zone when this one has no FATE.");
-        ep.Stepper("max_duration", "Skip FATEs longer than", min: 60, max: 3600, step: 60,
+            tip: "Only matters when no grind mode or zone list is set: a mode or zone list swaps zones on its own.",
+            state: WhileStopped);
+        ep.Stepper("max_duration", "Skip FATEs longer than", min: 300, max: 3600, step: 60,
             get: () => Plugin.Config.MaxDuration, set: v => { Plugin.Config.MaxDuration = (int)v; Plugin.Config.Save(); },
-            unit: " s", group: tuning);
-        ep.Stepper("min_time_left", "Skip FATEs with less than", min: 0, max: 600, step: 10,
+            unit: " s", group: tuning, state: WhileStopped);
+        ep.Stepper("min_time_left", "Skip FATEs with less than", min: 0, max: 300, step: 10,
             get: () => Plugin.Config.MinTimeRemaining, set: v => { Plugin.Config.MinTimeRemaining = (int)v; Plugin.Config.Save(); },
-            unit: " s left", group: tuning);
-        ep.Stepper("max_progress", "Skip FATEs past", min: 0, max: 100, step: 5,
+            unit: " s left", group: tuning, state: WhileStopped);
+        ep.Stepper("max_progress", "Skip FATEs past", min: 10, max: 100, step: 5,
             get: () => Plugin.Config.MaxProgress, set: v => { Plugin.Config.MaxProgress = (int)v; Plugin.Config.Save(); },
-            unit: "%", group: tuning);
+            unit: "%", group: tuning, state: WhileStopped);
 
         // The mode list is fixed once the plugin has loaded, so it is read here, once.
         var modes = FateGrindModes.All.Select(m => m.DisplayName).ToArray();

@@ -90,9 +90,6 @@ public sealed unsafe class Plugin : IDalamudPlugin
             HelpMessage = "Lazy Currency Spender main command. Arguments: config, c, settings, s"
         });
 
-        // Quick controls for the lalalazy hub window (src/Shared/LalaHub). Never throws; null when nothing was registered.
-        _hub = LalaHubProvider.TryCreate(pluginInterface, Service.Log, "LazyCurrencySpender", typeof(Plugin).Assembly.GetName().Version?.ToString() ?? "", ep => HubAdapter.Declare(ep));
-
         _ = new TickScheduler(delegate
         {
             EzConfig.Migrate<Config>();
@@ -155,6 +152,11 @@ public sealed unsafe class Plugin : IDalamudPlugin
             new FileInfo(Path.Join(pluginInterface.ConfigDirectory.FullName, "SigCache.json")));
         Resolver.GetInstance.Resolve();
 #endif
+
+        // Quick controls for the lalalazy hub window (src/Shared/LalaHub). Last on purpose: Dalamud never calls Dispose on a
+        // constructor that threw, so a half-built plugin must not leave its endpoints registered. Never throws; null when
+        // nothing was registered.
+        _hub = LalaHubProvider.TryCreate(pluginInterface, Service.Log, "LazyCurrencySpender", typeof(Plugin).Assembly.GetName().Version?.ToString() ?? "", ep => HubAdapter.Declare(ep));
     }
 
     public void Dispose()

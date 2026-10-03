@@ -41,7 +41,7 @@ internal static class HubAdapter
         T("hide_empty_currencies", "Hide empty currencies", "Tables", c => c.HideEmptyCurrencies, (c, v) => c.HideEmptyCurrencies = v);
         T("open_automatically", "Open automatically", "General", c => c.OpenAutomatically, (c, v) => c.OpenAutomatically = v);
 
-        ep.Stepper("min_sales", "Minimum sales for the sellable table", min: 0, max: 1000, step: 10,
+        ep.Stepper("min_sales", "Minimum sales for the sellable table", min: 0, max: 10000, step: 10,
             get: () => P.config?.MinSales ?? 0,
             set: v =>
             {

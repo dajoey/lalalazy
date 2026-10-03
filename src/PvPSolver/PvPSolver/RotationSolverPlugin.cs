@@ -90,9 +90,6 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 			Service.Config = new Configs();
 		}
 
-		// Quick controls for the lalalazy hub window (src/Shared/LalaHub). Never throws; null when nothing was registered.
-		_hub = LalaHubProvider.TryCreate(pluginInterface, Svc.Log, "PvPSolver", typeof(PvPSolverPlugin).Assembly.GetName().Version?.ToString() ?? "", ep => HubAdapter.Declare(ep));
-
 		IPCProvider = new();
 
 		_rotationConfigWindow = new();
@@ -213,6 +210,11 @@ public sealed class PvPSolverPlugin : IDalamudPlugin, IDisposable
 		{
 			await DownloadHelper.DownloadAsync();
 		});
+
+		// Quick controls for the lalalazy hub window (src/Shared/LalaHub). Last on purpose: Dalamud never calls Dispose on a
+		// constructor that threw, so a half-built plugin must not leave its endpoints registered. Never throws; null when
+		// nothing was registered.
+		_hub = LalaHubProvider.TryCreate(pluginInterface, Svc.Log, "PvPSolver", typeof(PvPSolverPlugin).Assembly.GetName().Version?.ToString() ?? "", ep => HubAdapter.Declare(ep));
 	}
 
 	private void OnDraw()

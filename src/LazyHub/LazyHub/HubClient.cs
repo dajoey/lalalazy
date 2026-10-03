@@ -12,6 +12,12 @@ internal sealed class PluginLink
     public required CatalogEntry Entry { get; init; }
     public PluginState State { get; set; } = PluginState.NotInstalled;
     public ParsedDescriptor? Descriptor { get; set; }
+
+    /// <summary>The Dalamud version of the plugin when its descriptor was read; a different version means the descriptor is stale.</summary>
+    internal string DescribedVersion = "";
+
+    /// <summary>The version Dalamud reports now, refreshed on every pass.</summary>
+    internal string InstalledVersion = "";
     public Dictionary<string, ParsedState> Values { get; set; } = new(StringComparer.Ordinal);
 
     internal long NextDescribeAt;
@@ -52,18 +58,25 @@ internal sealed class HubClient(IDalamudPluginInterface pi, IPluginLog log)
     /// <summary>Updates every plugin's state from Dalamud, then asks the running ones for controls and, when asked to, values.</summary>
     public void Refresh(IReadOnlyList<PluginMonitor.Row> rows, bool pollValues, long nowMs)
     {
-        var state = new Dictionary<string, PluginState>(rows.Count, StringComparer.Ordinal);
-        foreach (var r in rows) state[r.Entry.InternalName] = r.State;
+        var byName = new Dictionary<string, PluginMonitor.Row>(rows.Count, StringComparer.Ordinal);
+        foreach (var r in rows) byName[r.Entry.InternalName] = r;
 
         foreach (var link in Links)
         {
-            link.State = state.GetValueOrDefault(link.Entry.InternalName, PluginState.NotInstalled);
+            byName.TryGetValue(link.Entry.InternalName, out var row);
+            link.State = row.Entry == null ? PluginState.NotInstalled : row.State;
+            link.InstalledVersion = row.Version ?? "";
 
             if (!link.IsRunning)
             {
                 Forget(link);
                 continue;
             }
+
+            // The plugin was updated since its controls were read (while the window was open, between two polls, or before it
+            // was opened): its control list may have changed, so read it again.
+            if (link.Descriptor != null && !string.Equals(link.DescribedVersion, link.InstalledVersion, StringComparison.Ordinal))
+                Forget(link);
 
             if (link.Descriptor == null)
             {
@@ -87,7 +100,7 @@ internal sealed class HubClient(IDalamudPluginInterface pi, IPluginLog log)
         catch (Exception ex)
         {
             log.Debug(ex, "Set {Plugin}.{Control} failed", link.Entry.InternalName, controlId);
-            return SetOutcome.Refuse("Could not reach " + link.Entry.DisplayName + ".");
+            return SetOutcome.Refuse("Not answering right now.");
         }
     }
 
@@ -103,7 +116,7 @@ internal sealed class HubClient(IDalamudPluginInterface pi, IPluginLog log)
         catch (Exception ex)
         {
             log.Debug(ex, "Invoke {Plugin}.{Control} failed", link.Entry.InternalName, controlId);
-            return SetOutcome.Refuse("Could not reach " + link.Entry.DisplayName + ".");
+            return SetOutcome.Refuse("Not answering right now.");
         }
     }
 
@@ -120,6 +133,7 @@ internal sealed class HubClient(IDalamudPluginInterface pi, IPluginLog log)
             }
 
             link.Descriptor = parsed;
+            link.DescribedVersion = link.InstalledVersion;
             link.Failures = 0;
             PollValues(link, nowMs);
         }
@@ -151,8 +165,18 @@ internal sealed class HubClient(IDalamudPluginInterface pi, IPluginLog log)
         }
     }
 
+    /// <summary>
+    /// Drops everything learned about every plugin so the next refresh describes them afresh. The window calls it when it
+    /// opens: nothing is polled while it is closed, so a plugin may have been reloaded in the meantime.
+    /// </summary>
+    public void ForgetAll()
+    {
+        foreach (var link in Links) Forget(link);
+    }
+
     private static void Forget(PluginLink link)
     {
+        link.NextDescribeAt = 0;   // a plugin that failed Describe a moment ago and has just reloaded is asked again at once
         link.Descriptor = null;
         link.Values = new Dictionary<string, ParsedState>(StringComparer.Ordinal);
         link.Failures = 0;

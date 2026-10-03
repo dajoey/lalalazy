@@ -22,6 +22,9 @@ public sealed class HubEndpoint
     private readonly List<ControlDef> _defs = new List<ControlDef>();
     private readonly Dictionary<string, ControlDef> _byId = new Dictionary<string, ControlDef>(StringComparer.Ordinal);
 
+    // Failures already logged, so a control that stays broken is reported once instead of on every poll.
+    private readonly HashSet<string> _logged = new HashSet<string>(StringComparer.Ordinal);
+
     public string Plugin { get; }
     public string Version { get; }
 
@@ -274,10 +277,11 @@ public sealed class HubEndpoint
         {
             var st = d.State?.Invoke();
             if (st != null) { enabled = st.Enabled; locked = st.Locked; why = st.Why ?? ""; }
+            _logged.Remove("state:" + d.Id);
         }
         catch (Exception ex)
         {
-            Log?.Invoke("hub state of '" + d.Id + "' failed: " + ex.Message);
+            LogOnce("state:" + d.Id, "hub state of '" + d.Id + "' failed: " + ex.Message);
             enabled = false;
             why = "unavailable";
         }
@@ -294,10 +298,11 @@ public sealed class HubEndpoint
                     case double dbl: w.WriteNumber("v", dbl); break;
                     default: enabled = false; if (why.Length == 0) why = "unavailable"; break;
                 }
+                _logged.Remove("value:" + d.Id);
             }
             catch (Exception ex)
             {
-                Log?.Invoke("hub value of '" + d.Id + "' failed: " + ex.Message);
+                LogOnce("value:" + d.Id, "hub value of '" + d.Id + "' failed: " + ex.Message);
                 enabled = false;
                 if (why.Length == 0) why = "unavailable";
             }
@@ -306,6 +311,11 @@ public sealed class HubEndpoint
         if (!enabled) w.WriteBoolean("enabled", false);
         if (locked) w.WriteBoolean("locked", true);
         if (why.Length > 0) w.WriteString("why", why);
+    }
+
+    private void LogOnce(string key, string message)
+    {
+        if (_logged.Add(key)) Log?.Invoke(message);
     }
 
     private static string KindName(ControlKind k) => k switch

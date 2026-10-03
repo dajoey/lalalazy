@@ -12,10 +12,14 @@ namespace LazyMarketCompanion;
 /// per-item list are all deliberately NOT exposed. Do not add one without reading that section first.
 ///
 /// Every setter does what the settings window does: set the field, then Configuration.Save().
+///
+/// The master is locked while a run is in progress (review 2026-10-03): a sweep reads the switch per retainer, and a
+/// switch turned off part-way skips the listing and pulls but still runs the vendor leg from the verdicts already made.
+/// The settings window allows it; one click in another window while the game is automated is too easy.
 /// </summary>
 internal static class HubAdapter
 {
-    public static void Declare(HubEndpoint ep)
+    public static void Declare(HubEndpoint ep, Func<bool> runInProgress)
     {
         const string run = "Auto-Market";
         const string show = "Messages and display";
@@ -23,7 +27,10 @@ internal static class HubAdapter
         ep.Toggle("auto_market", "Auto-Market", () => Plugin.Configuration.AutoMarketEnabled,
             v => { Plugin.Configuration.AutoMarketEnabled = v; Plugin.Configuration.Save(); },
             group: run, master: true,
-            tip: "Master switch. A run already in progress is not stopped.",
+            state: () => runInProgress()
+                ? new ControlState(Enabled: false, Why: "A run is in progress. Cancel it first.")
+                : new ControlState(),
+            tip: "Master switch. Locked while a run is in progress.",
             confirm: "Turning Auto-Market on lets it run the next time it is triggered, including during AutoRetainer cycles if that is set up in its settings.");
 
         ep.Toggle("bag_markers", "Bag markers", () => Plugin.Configuration.AutoMarketMarkersEnabled,

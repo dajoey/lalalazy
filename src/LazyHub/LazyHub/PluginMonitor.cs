@@ -10,7 +10,8 @@ namespace LazyHub;
 /// </summary>
 internal sealed class PluginMonitor(IDalamudPluginInterface pi)
 {
-    public readonly record struct Row(CatalogEntry Entry, PluginState State);
+    /// <summary>Version is what Dalamud reports for the installed build ("" when not installed); the hub re-describes a plugin whose version changed.</summary>
+    public readonly record struct Row(CatalogEntry Entry, PluginState State, string Version = "");
 
     /// <summary>One row per catalog entry, in catalog order.</summary>
     public IReadOnlyList<Row> Snapshot()
@@ -31,7 +32,8 @@ internal sealed class PluginMonitor(IDalamudPluginInterface pi)
             rows.Add(new Row(entry, PluginStatus.Classify(
                 installed: plugin != null,
                 loaded: plugin?.IsLoaded ?? false,
-                testing: plugin?.IsTesting ?? false)));
+                testing: plugin?.IsTesting ?? false),
+                plugin?.Version?.ToString() ?? ""));
         }
         return rows;
     }

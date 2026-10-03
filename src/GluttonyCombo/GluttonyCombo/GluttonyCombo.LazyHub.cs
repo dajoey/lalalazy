@@ -79,6 +79,10 @@ public sealed partial class GluttonyCombo
         static AutoRotationConfig Rot() => Service.Configuration.RotationConfig;
         static void Save() => Service.Configuration.Save();
 
+        // What auto-rotation actually uses right now: another plugin's lease wins over the stored setting (the settings
+        // tab shows the same value), so a locked control shows the leased value, not a stale stored one.
+        static AutoRotationConfigIPCWrapper Eff() => new(Rot());
+
         const string rotation = "Auto-Rotation";
         const string targeting = "Targeting";
         const string behavior = "Behavior";
@@ -89,22 +93,31 @@ public sealed partial class GluttonyCombo
             v => { AutoRotationController.ToggleAutoRotation(v); },
             group: rotation, master: true, tip: "Same switch as the server bar and /gluttony auto.",
             state: LazyHubAutoRotationLock);
-        ep.Toggle("in_combat_only", "Only in combat", () => Rot().InCombatOnly,
+        ep.Toggle("in_combat_only", "Only in combat", () => Eff().InCombatOnly,
             v => { Rot().InCombatOnly = v; Save(); }, group: rotation, state: () => LazyHubOptionLock("InCombatOnly"));
-        ep.Toggle("fate_priority", "FATE priority", () => Rot().DPSSettings.FATEPriority,
+        ep.Toggle("fate_priority", "FATE priority", () => Eff().DPSSettings.FATEPriority,
             v => { Rot().DPSSettings.FATEPriority = v; Save(); }, group: rotation, state: () => LazyHubOptionLock("FATEPriority"));
-        ep.Toggle("quest_priority", "Quest priority", () => Rot().DPSSettings.QuestPriority,
+        ep.Toggle("quest_priority", "Quest priority", () => Eff().DPSSettings.QuestPriority,
             v => { Rot().DPSSettings.QuestPriority = v; Save(); }, group: rotation, state: () => LazyHubOptionLock("QuestPriority"));
 
-        ep.Choice("dps_target", "DPS targeting mode", TargetingModes, () => (int)Rot().DPSRotationMode,
+        ep.Choice("dps_target", "DPS targeting mode", TargetingModes, () => (int)Eff().DPSRotationMode,
             i => { Rot().DPSRotationMode = (DPSRotationMode)Math.Max(0, Math.Min(TargetingModes.Length - 1, i)); Save(); },
             group: targeting, state: () => LazyHubOptionLock("DPSRotationMode"));
         ep.Toggle("boss_mod_targeting", "Use boss-mod targeting when active", () => Rot().DPSSettings.UseBossModTargeting,
             v => { Rot().DPSSettings.UseBossModTargeting = v; Save(); }, group: targeting,
             tip: "Only has an effect while BossMod Reborn has an active fight module.");
-        ep.Stepper("aoe_targets", "AoE needs at least", min: 0, max: 8, step: 1, get: () => Rot().DPSSettings.DPSAoETargets ?? 3,
+        // In Gluttony a null target count means "AoE off" (a checkbox in its settings that is not exposed here), so there is no
+        // number to show or change while it is off.
+        ep.Stepper("aoe_targets", "AoE needs at least", min: 0, max: 8, step: 1, get: () => Eff().DPSSettings.DPSAoETargets ?? 0,
             set: v => { Rot().DPSSettings.DPSAoETargets = (int)v; Save(); }, unit: " targets", group: targeting,
-            state: () => LazyHubOptionLock("DPSAoETargets"));
+            state: () =>
+            {
+                var lk = LazyHubOptionLock("DPSAoETargets");
+                if (lk.Locked) return lk;
+                return Rot().DPSSettings.DPSAoETargets == null
+                    ? new ControlState(Enabled: false, Why: "AoE is switched off in Gluttony's settings.")
+                    : lk;
+            });
         ep.Stepper("max_distance", "Max target distance", min: 1, max: 30, step: 1, get: () => Rot().DPSSettings.MaxDistance,
             set: v => { Rot().DPSSettings.MaxDistance = (float)Math.Max(1, Math.Min(30, v)); Save(); }, unit: " y", group: targeting);
 

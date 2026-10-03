@@ -13,7 +13,7 @@ int pass = 0, fail = 0;
 void Check(string name, bool ok, string detail = "")
 {
     if (ok) { pass++; Console.WriteLine("PASS  " + name); }
-    else { fail++; Console.WriteLine("FAIL  " + name + (detail.Length > 0 ? "  -> " + detail : "")); }
+    else { fail++; Console.WriteLine("FAIL  " + name + (!string.IsNullOrEmpty(detail) ? "  -> " + detail : "")); }
 }
 
 JsonElement J(string json) => JsonDocument.Parse(json).RootElement.Clone();
@@ -229,6 +229,88 @@ Check("parser caps an absurd control count", DescriptorParser.ParseDescriptor("{
 Check("value to JSON round-trips each kind",
     DescriptorParser.ValueToJson(true) == "true" && DescriptorParser.ValueToJson(false) == "false"
     && DescriptorParser.ValueToJson(3) == "3" && DescriptorParser.ValueToJson(2.5) == "2.5");
+
+// ===== review round 1 (2026-10-03): each case was written failing first ====================================
+{
+    // 1. an infinite bound or step passed validation, then Describe threw on every call
+    foreach (var (name, lo, hi, st) in new[] {
+        ("max", 0.0, double.PositiveInfinity, 1.0), ("min", double.NegativeInfinity, 10.0, 1.0), ("step", 0.0, 10.0, double.PositiveInfinity) })
+    {
+        var bad = new HubEndpoint("X", "1.0");
+        bad.Stepper("s", "S", min: lo, max: hi, step: st, get: () => 1, set: v => { });
+        Check("a stepper with an infinite " + name + " is rejected", bad.Validate().Count > 0, string.Join("; ", bad.Validate()));
+    }
+    {
+        var bad = new HubEndpoint("X", "1.0");
+        bad.Stepper("s", "S", min: 0, max: 10, step: double.NaN, get: () => 1, set: v => { });
+        Check("a stepper with a NaN step is rejected", bad.Validate().Count > 0);
+    }
+
+    // 2. decimals that cannot represent the step or the bounds quietly collapsed or escaped the range
+    {
+        var bad = new HubEndpoint("X", "1.0");
+        bad.Stepper("s", "S", min: 0, max: 10, step: 0.25, get: () => 1, set: v => { }, decimals: 0);
+        Check("a step that decimals cannot represent is rejected", bad.Validate().Any(e => e.Contains("decimals")), string.Join("; ", bad.Validate()));
+        var bad2 = new HubEndpoint("X", "1.0");
+        bad2.Stepper("s", "S", min: 0.25, max: 10, step: 1, get: () => 1, set: v => { }, decimals: 1);
+        Check("a bound that decimals cannot represent is rejected", bad2.Validate().Any(e => e.Contains("decimals")), string.Join("; ", bad2.Validate()));
+        var ok = new HubEndpoint("X", "1.0");
+        ok.Stepper("s", "S", min: 0, max: 100, step: 0.5, get: () => 1, set: v => { }, decimals: 1);
+        Check("a half-step with one decimal is accepted", ok.Validate().Count == 0, string.Join("; ", ok.Validate()));
+    }
+
+    // 3. banker's rounding made the top of a range unreachable (9 snapped to 8 with step 2)
+    {
+        double got = -1;
+        var ep = new HubEndpoint("X", "1.0");
+        ep.Stepper("s", "S", min: 1, max: 9, step: 2, get: () => got, set: v => { got = v; });
+        ep.Set("s", "9");
+        Check("the top of the range stays reachable on a tie (1..9 step 2, send 9)", got == 9, "got=" + got);
+    }
+    {
+        double got = 0;
+        var ep = new HubEndpoint("X", "1.0");
+        ep.Stepper("s", "S", min: -9, max: 9, step: 2, get: () => got, set: v => { got = v; });
+        ep.Set("s", "-9");
+        Check("the bottom of a negative range stays reachable on a tie (-9..9 step 2, send -9)", got == -9, "got=" + got);
+    }
+
+    // 4. the hub treats everything an adapter sends as untrusted
+    string D(string controls, string plugin = "X", string version = "1") =>
+        "{\"p\":1,\"plugin\":\"" + plugin + "\",\"version\":\"" + version + "\",\"controls\":[" + controls + "]}";
+    {
+        var d = DescriptorParser.ParseDescriptor(D("{\"id\":\"a\",\"label\":\"A\\u0002B\\u001bC\",\"kind\":\"toggle\"}"));
+        Check("control characters are stripped from a label", d != null && d.Controls.Count == 1 && d.Controls[0].Label == "ABC", d?.Controls[0].Label);
+        var d2 = DescriptorParser.ParseDescriptor(D("{\"id\":\"a\",\"label\":\"A\",\"kind\":\"toggle\",\"tip\":\"x\\u0002y\"}"));
+        Check("control characters are stripped from a tip", d2 != null && d2.Controls[0].Tip == "xy", d2?.Controls[0].Tip);
+        var d3 = DescriptorParser.ParseDescriptor(D("{\"id\":\"a\",\"label\":\"A\",\"kind\":\"toggle\"}", plugin: new string('P', 500), version: new string('9', 500)));
+        Check("plugin and version are clipped", d3 != null && d3.Plugin.Length <= HubProtocol.MaxPluginLength && d3.Version.Length <= HubProtocol.MaxVersionLength);
+        var d4 = DescriptorParser.ParseDescriptor(D("{\"id\":\"a\",\"label\":\"A\",\"kind\":\"stepper\",\"min\":0,\"max\":5,\"master\":true}"));
+        Check("only a toggle can be the master", d4 != null && d4.Controls.Count == 1 && !d4.Controls[0].Master);
+        var d5 = DescriptorParser.ParseDescriptor(D("{\"id\":\"a\",\"label\":\"First\",\"kind\":\"toggle\"},{\"id\":\"a\",\"label\":\"Second\",\"kind\":\"toggle\"}"));
+        Check("a repeated control id keeps only the first", d5 != null && d5.Controls.Count == 1 && d5.Controls[0].Label == "First");
+        var d6 = DescriptorParser.ParseDescriptor(D("{\"id\":\"c\",\"label\":\"C\",\"kind\":\"choice\",\"choices\":[\"A\",5,\"C\"]}"));
+        Check("a choice with a non-text option is dropped, never shifted", d6 != null && d6.Controls.Count == 0, d6 == null ? "null" : d6.Controls.Count + " controls");
+        var huge = D("{\"id\":\"a\",\"label\":\"" + new string('x', 400_000) + "\",\"kind\":\"toggle\"}");
+        Check("an oversized payload is refused before parsing", DescriptorParser.ParseDescriptor(huge) == null);
+        var s = DescriptorParser.ParseState("{\"p\":1,\"v\":{\"a\":{\"v\":true,\"why\":\"no\\u0002pe\"}}}");
+        Check("control characters are stripped from a state reason", s != null && s["a"].Why == "nope", s?["a"].Why);
+        var r = DescriptorParser.ParseResult("{\"ok\":false,\"why\":\"no\\u0002pe\"}");
+        Check("control characters are stripped from a result reason", !r.Ok && r.Why == "nope", r.Why);
+    }
+}
+
+// 5. a getter that keeps failing is logged when it starts failing, not once per poll (the hub polls at 1 Hz)
+{
+    var lines = new List<string>();
+    bool broken = true;
+    var ep = new HubEndpoint("X", "1.0") { Log = lines.Add };
+    ep.Toggle("flaky", "Flaky", () => broken ? throw new InvalidOperationException("nope") : true, v => { });
+    for (int i = 0; i < 10; i++) ep.GetAll();
+    Check("a persistently failing getter is logged once, not on every poll", lines.Count == 1, lines.Count + " lines");
+    broken = false; ep.GetAll(); broken = true; ep.GetAll();
+    Check("a getter that recovers and fails again is logged again", lines.Count == 2, lines.Count + " lines");
+}
 
 Console.WriteLine("LalaHub.Harness: " + pass + " pass, " + fail + " fail");
 return fail == 0 ? 0 : 1;

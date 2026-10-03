@@ -33,4 +33,15 @@ public sealed class ConfirmGate
     public bool IsPending(string key, long nowMs) => _key == key && nowMs <= _expiresAt;
 
     public void Reset() => _key = null;
+
+    /// <summary>
+    /// Clears a first click whose window has passed and says so, so the window can drop its "Confirm?" label at the
+    /// moment it lapses instead of at the next poll. False when nothing was pending or it is still open.
+    /// </summary>
+    public bool ClearIfExpired(long nowMs)
+    {
+        if (_key == null || nowMs <= _expiresAt) return false;
+        _key = null;
+        return true;
+    }
 }

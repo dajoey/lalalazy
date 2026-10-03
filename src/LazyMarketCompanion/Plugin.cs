@@ -157,9 +157,6 @@ public sealed class Plugin : IDalamudPlugin
 
     ConfigLinkPayload = ChatGui.AddChatLinkHandler(0, (id, _) => ToggleConfigUI());
 
-    // Quick controls for the lalalazy hub window (src/Shared/LalaHub). Never throws; null when nothing was registered.
-    _hub = LalaHubProvider.TryCreate(PluginInterface, Log, "LazyMarketCompanion", typeof(Plugin).Assembly.GetName().Version?.ToString() ?? "", ep => HubAdapter.Declare(ep));
-
     PluginInterface.UiBuilder.Draw += DrawUI;
     PluginInterface.UiBuilder.OpenMainUi += ToggleConfigUI;
     PluginInterface.UiBuilder.OpenConfigUi += ToggleConfigUI;
@@ -182,6 +179,11 @@ public sealed class Plugin : IDalamudPlugin
     ConfigWindow.DrawInventoryTab = new Inventory.InventoryTab(_inventory).Draw;
 
     Log.Information($"[LMC] loaded {PluginInterface.Manifest.AssemblyVersion}; autoMarketItems={Configuration.AutoMarketItems.Count} arInstalled={AutoRetainerIPC.Installed} imported={Configuration.ImportedFromDagobert}");
+
+    // Quick controls for the lalalazy hub window (src/Shared/LalaHub). Last on purpose: Dalamud never calls Dispose on a
+    // constructor that threw, so nothing registered here may be left behind by a half-built plugin. Never throws; null
+    // when nothing was registered.
+    _hub = LalaHubProvider.TryCreate(PluginInterface, Log, "LazyMarketCompanion", typeof(Plugin).Assembly.GetName().Version?.ToString() ?? "", ep => HubAdapter.Declare(ep, () => _automation.IsBusy));
   }
 
   public void Dispose()

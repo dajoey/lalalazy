@@ -239,5 +239,17 @@ Check("e2e: the hub clips over-long text from an adapter instead of trusting it"
     DescriptorParser.ParseDescriptor("{\"p\":1,\"plugin\":\"X\",\"version\":\"1\",\"controls\":[{\"id\":\"a\",\"label\":\"" + new string('x', 500) + "\",\"kind\":\"toggle\"}]}") is var clip
     && clip != null && clip.Controls.Count == 1 && clip.Controls[0].Label.Length <= 60);
 
+// ---- review round 1 (2026-10-03): written failing first ---------------------------------------
+{
+    // A pending "Confirm?" label stayed on screen until the next 1 s poll after the 5 s window had passed, and a click in that gap re-armed instead of confirming.
+    var gate = new ConfirmGate(5000);
+    gate.ShouldProceed("k", true, 1000);
+    Check("ClearIfExpired does nothing while the confirmation is still open", !gate.ClearIfExpired(5999) && gate.IsPending("k", 5999));
+    Check("ClearIfExpired reports the expiry once and clears the pending state", gate.ClearIfExpired(6001) && !gate.IsPending("k", 6001) && !gate.ClearIfExpired(6002));
+    Check("after an expiry the next click arms again instead of confirming", !gate.ShouldProceed("k", true, 6100) && gate.IsPending("k", 6100));
+    var idle = new ConfirmGate(5000);
+    Check("ClearIfExpired is false when nothing was ever pending", !idle.ClearIfExpired(1_000_000));
+}
+
 Console.WriteLine($"LazyHub.Harness: {pass} pass, {fail} fail");
 return fail == 0 ? 0 : 1;

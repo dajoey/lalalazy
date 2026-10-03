@@ -31,10 +31,10 @@ internal static class HubAdapter
         ep.Toggle("show_above_level", "Show recipes above my level", () => c.ShowAboveLevel,
             v => { c.ShowAboveLevel = v; Save(); }, group: catalog,
             tip: "Also lists recipes above the current job level and for jobs not unlocked.");
-        ep.Stepper("undersupplied_min_velocity", "Undersupplied: min sales per day", min: 0, max: 100, step: 0.5,
+        ep.Stepper("undersupplied_min_velocity", "Undersupplied: min sales per day", min: 0, max: 1000, step: 0.5,
             get: () => c.UndersuppliedMinVelocity, set: v => { c.UndersuppliedMinVelocity = Math.Max(0, v); Save(); },
             decimals: 1, group: catalog);
-        ep.Stepper("undersupplied_max_listings", "Undersupplied: max listings", min: 0, max: 50, step: 1,
+        ep.Stepper("undersupplied_max_listings", "Undersupplied: max listings", min: 0, max: 500, step: 1,
             get: () => c.UndersuppliedMaxListings, set: v => { c.UndersuppliedMaxListings = Math.Max(0, (int)v); Save(); },
             group: catalog);
 

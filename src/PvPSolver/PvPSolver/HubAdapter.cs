@@ -40,7 +40,10 @@ internal static class HubAdapter
                 if (v == DataCenter.State) return SetOutcome.Success;
                 if (v && !DataCenter.IsPvP) return SetOutcome.Refuse("PvP Solver only turns on in a PvP zone.");
                 RSCommands.DoStateCommandType(v ? StateCommandType.PvP : StateCommandType.Off);
-                return SetOutcome.Success;
+
+                // DoStateCommandType returns silently when there is no player object (a zone change), and UpdateState sets
+                // DataCenter.State before it returns, so a state that did not move means nothing happened.
+                return DataCenter.State == v ? SetOutcome.Success : SetOutcome.Refuse("Could not change PvP Solver right now.");
             },
             group: pvp, master: true, tip: "Turns on only in a PvP zone. It can be turned off anywhere.",
             state: () => DataCenter.State || DataCenter.IsPvP

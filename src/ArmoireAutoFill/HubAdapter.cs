@@ -15,7 +15,7 @@ internal static class HubAdapter
         ep.Toggle("auto_store_on_open", "Auto-store when the Armoire opens",
             () => Plugin.Configuration.AutoStoreOnOpen, v => { Plugin.Configuration.AutoStoreOnOpen = v; Plugin.Configuration.Save(); },
             group: "General", tip: "Stores eligible gear the next time the Armoire window opens.", master: true);
-        ep.Toggle("scan_on_load", "Scan the Armoire on login", () => Plugin.Configuration.ScanOnLoad,
+        ep.Toggle("scan_on_load", "Scan inventory on login", () => Plugin.Configuration.ScanOnLoad,
             v => { Plugin.Configuration.ScanOnLoad = v; Plugin.Configuration.Save(); }, group: "General",
             tip: "Takes effect at the next login.");
         ep.Toggle("show_owned_items", "Show owned items", () => Plugin.Configuration.ShowOwnedItems,

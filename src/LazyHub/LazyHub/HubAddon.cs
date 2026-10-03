@@ -35,6 +35,7 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
     private const float TabW = 110f;
     private const float TabH = 28f;
     private const float TrayH = 164f;
+    private const float FlashH = 38f;
     private const long FlashMs = 5000;
     private const long PollMs = 1000;
 
@@ -62,6 +63,10 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
             B1.IsVisible = false;
             Val.IsVisible = false;
             B2.IsVisible = false;
+
+            // Pooled buttons are reused across pages: a toggle's green/grey/amber label must not leak into the next page's plain button.
+            B1.LabelNode.TextColor = HubTheme.White;
+            B2.LabelNode.TextColor = HubTheme.White;
         }
     }
 
@@ -119,12 +124,21 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
     private Page? _nextPage;
     private PluginLink? _nextDetail;
     private long _flashUntil;
+    private bool _tintFailed;
 
     private static long Now => Environment.TickCount64;
 
     // ===== lifecycle ====================================================================================
 
     protected override void OnSetup(AtkUnitBase* addon)
+    {
+        // This runs inside the game's native Setup callback: an exception that escapes here ends the game. A half-built window
+        // is safe, because BindAll returns early while any of its pieces is missing, so log and leave it.
+        try { BuildWindow(); }
+        catch (Exception ex) { log.Error(ex, "Hub window setup failed"); }
+    }
+
+    private void BuildWindow()
     {
         _generation++;
         _rows.Clear();
@@ -135,6 +149,7 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
         _nextPage = null;
         _nextDetail = null;
         _flashUntil = 0;
+        _tintFailed = false;
 
         TintChrome();
 
@@ -154,9 +169,14 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
 
         _tray = BuildTray();
         for (var i = 0; i < PoolSize; i++) _rows.Add(MakeRow());
-        _empty = MakeText(Vector2.Zero, new Vector2(_width - 16f, 40f), 13, HubTheme.Dim, "");
-        _flash = MakeText(_origin + new Vector2(8f, _height - 22f), new Vector2(_width - 16f, 20f), 13, HubTheme.Amber, "");
+        _empty = MakeText(Vector2.Zero, new Vector2(_width - 16f, 20f), 13, HubTheme.Dim, "");
 
+        // Two wrapped lines: a confirm text can be 200 characters, which must not run past the window.
+        _flash = MakeText(_origin + new Vector2(8f, _height - FlashH), new Vector2(_width - 16f, FlashH - 2f), 12, HubTheme.Amber, "");
+        _flash.TextFlags = TextFlags.WordWrap | TextFlags.MultiLine;
+
+        // Nothing is polled while the window is closed, so a plugin may have been updated or reloaded since: describe afresh.
+        client.ForgetAll();
         Poll();
         _sincePoll.Restart();
     }
@@ -182,6 +202,11 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
                 ran = true;
             }
             if (ran) BindAll();
+
+            // The window's own focus animation resets the background tint: put it back.
+            TintChrome();
+
+            if (_confirm.ClearIfExpired(Now)) BindAll();
 
             if (_flashUntil != 0 && Now > _flashUntil)
             {
@@ -222,8 +247,14 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
         BindAll();
     }
 
+    /// <summary>
+    /// Pulls the stock window's blue toward forest green. Called on open and every update: the stock window animates its
+    /// background tint back to neutral whenever it gains or loses focus (the border only animates its alpha), so the tint
+    /// is simply re-applied. Stops for good after one failure so a bad node cannot spam the log.
+    /// </summary>
     private void TintChrome()
     {
+        if (_tintFailed) return;
         try
         {
             if (WindowNode is KamiToolKit.Nodes.WindowNode w)
@@ -234,6 +265,7 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
         }
         catch (Exception ex)
         {
+            _tintFailed = true;
             log.Debug(ex, "Could not tint the window chrome");
         }
     }
@@ -252,15 +284,17 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
         };
         node.AttachNode(this);
 
-        var rgba = new byte[2 * 2 * 4];
+        // BGRA, like the PNG icons that are proven in game: Dalamud maps B8G8R8A8 to a kernel texture format and has no case
+        // for R8G8B8A8, so an RGBA texture would reach the game with an unset format.
+        var bgra = new byte[2 * 2 * 4];
         for (var i = 0; i < 4; i++)
         {
-            rgba[i * 4 + 0] = (byte)Math.Clamp((int)MathF.Round(color.X * 255f), 0, 255);
-            rgba[i * 4 + 1] = (byte)Math.Clamp((int)MathF.Round(color.Y * 255f), 0, 255);
-            rgba[i * 4 + 2] = (byte)Math.Clamp((int)MathF.Round(color.Z * 255f), 0, 255);
-            rgba[i * 4 + 3] = (byte)Math.Clamp((int)MathF.Round(color.W * 255f), 0, 255);
+            bgra[i * 4 + 0] = (byte)Math.Clamp((int)MathF.Round(color.Z * 255f), 0, 255);
+            bgra[i * 4 + 1] = (byte)Math.Clamp((int)MathF.Round(color.Y * 255f), 0, 255);
+            bgra[i * 4 + 2] = (byte)Math.Clamp((int)MathF.Round(color.X * 255f), 0, 255);
+            bgra[i * 4 + 3] = (byte)Math.Clamp((int)MathF.Round(color.W * 255f), 0, 255);
         }
-        node.LoadTexture(textures.CreateFromRaw(RawImageSpecification.Rgba32(2, 2), rgba, "LazyHubPanel"));
+        node.LoadTexture(textures.CreateFromRaw(RawImageSpecification.Bgra32(2, 2), bgra, "LazyHubPanel"));
         return node;
     }
 
@@ -308,6 +342,11 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
         var b1 = MakeButton(Vector2.Zero, new Vector2(100f, 24f), "", () => row?.On1?.Invoke());
         var val = MakeText(Vector2.Zero, new Vector2(120f, 18f), 14, HubTheme.White, "");
         val.AlignmentType = AlignmentType.Center;
+
+        // A single line that is too long ends in "..." instead of running past its node (and the window).
+        label.TextFlags = TextFlags.Ellipsis;
+        info.TextFlags = TextFlags.Ellipsis;
+        val.TextFlags = TextFlags.Ellipsis;
         var b2 = MakeButton(Vector2.Zero, new Vector2(100f, 24f), "", () => row?.On2?.Invoke());
 
         row = new Row { Icon = icon, Label = label, Info = info, B1 = b1, Val = val, B2 = b2 };
@@ -388,18 +427,18 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
                 Put(r.Info, 480, y + 7, _width - 488f, 18); r.Info.IsVisible = true;
                 break;
             case RowKind.Stepper:
-                Put(r.Label, 8, y + 5, 340, 20);
-                Put(r.B1, 360, y + 2, 34, 24); r.B1.IsVisible = true;
-                Put(r.Val, 400, y + 6, 130, 18); r.Val.IsVisible = true;
-                Put(r.B2, 536, y + 2, 34, 24); r.B2.IsVisible = true;
-                Put(r.Info, 580, y + 7, _width - 588f, 18); r.Info.IsVisible = true;
+                Put(r.Label, 8, y + 5, 300, 20);
+                Put(r.B1, 316, y + 2, 44, 24); r.B1.IsVisible = true;
+                Put(r.Val, 364, y + 6, 130, 18); r.Val.IsVisible = true;
+                Put(r.B2, 498, y + 2, 44, 24); r.B2.IsVisible = true;
+                Put(r.Info, 552, y + 7, _width - 560f, 18); r.Info.IsVisible = true;
                 break;
             case RowKind.Choice:
-                Put(r.Label, 8, y + 5, 340, 20);
-                Put(r.B1, 360, y + 2, 34, 24); r.B1.IsVisible = true;
-                Put(r.Val, 400, y + 6, 190, 18); r.Val.IsVisible = true;
-                Put(r.B2, 596, y + 2, 34, 24); r.B2.IsVisible = true;
-                Put(r.Info, 640, y + 7, _width - 648f, 18); r.Info.IsVisible = true;
+                Put(r.Label, 8, y + 5, 300, 20);
+                Put(r.B1, 316, y + 2, 44, 24); r.B1.IsVisible = true;
+                Put(r.Val, 364, y + 6, 190, 18); r.Val.IsVisible = true;
+                Put(r.B2, 558, y + 2, 44, 24); r.B2.IsVisible = true;
+                Put(r.Info, 612, y + 7, _width - 620f, 18); r.Info.IsVisible = true;
                 break;
             case RowKind.Button:
                 Put(r.Label, 8, y + 5, 340, 20);
@@ -507,7 +546,7 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
 
     private string WhyText(PluginLink link, ParsedControl c, ParsedState? st)
     {
-        if (_confirm.IsPending(Key(link, c), Now) && !string.IsNullOrEmpty(c.Confirm)) return c.Confirm;
+        if (_confirm.IsPending(Key(link, c), Now) && !string.IsNullOrEmpty(c.Confirm)) return "Click again to confirm";
         return st?.Why ?? "";
     }
 
@@ -521,7 +560,7 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
         {
             if (string.Equals(link.Entry.InternalName, GluttonyName, StringComparison.Ordinal)) continue;
             var m = link.Master;
-            if (m == null || n >= _rows.Count) continue;
+            if (m == null || n >= _rows.Count || y + RowH > _height - FlashH) continue;
 
             var r = _rows[n++];
             var st = link.ValueOf(m.Id);
@@ -602,7 +641,10 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
         head.Info.String = PluginStatus.Label(link.State);
         head.Info.TextColor = link.State == PluginState.LoadedTesting ? HubTheme.Amber : HubTheme.Green;
 
-        var rows = DetailRows.Build(link.Descriptor, _rows.Count - 1, HotbarGroup, out var hidden);
+        // Keep the rows (and the "and N more" line) clear of the message line at the bottom.
+        // The header row and a 24 px "and N more" line come out of the space above the message line.
+        var capacity = Math.Max(1, Math.Min(_rows.Count - 1, (int)((_height - FlashH - RowH - 24f) / RowH)));
+        var rows = DetailRows.Build(link.Descriptor, capacity, HotbarGroup, out var hidden);
         foreach (var dr in rows)
         {
             if (n >= _rows.Count) break;
@@ -699,7 +741,7 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
         var needsConfirm = target && !string.IsNullOrEmpty(c.Confirm);
         if (!_confirm.ShouldProceed(Key(link, c), needsConfirm, Now))
         {
-            Flash("Click again within a few seconds to confirm.", HubTheme.Amber);
+            Flash(ConfirmText(c), HubTheme.Amber);
             return;
         }
         Report(link, client.Set(link, c.Id, target), "");
@@ -723,11 +765,16 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, HubClient client, I
     {
         if (!_confirm.ShouldProceed(Key(link, c), !string.IsNullOrEmpty(c.Confirm), Now))
         {
-            Flash("Click again within a few seconds to confirm.", HubTheme.Amber);
+            Flash(ConfirmText(c), HubTheme.Amber);
             return;
         }
         Report(link, client.Invoke(link, c.Id), successNote);
     }
+
+    private static string ConfirmText(ParsedControl c)
+        => string.IsNullOrEmpty(c.Confirm)
+            ? "Click again within a few seconds to confirm."
+            : c.Confirm + " Click again within a few seconds to confirm.";
 
     private void Report(PluginLink link, SetOutcome outcome, string successNote)
     {

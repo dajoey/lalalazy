@@ -254,7 +254,6 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         IPC = Provider.Init();
         PingPluginIPC.Init();
         AutoDutyIPC = new();
-        InstallLazyHub();   // fork: quick controls for the lalalazy hub window (GluttonyCombo.LazyHub.cs)
         ConflictingPluginsChecks.Begin();
 
         // Subscribe to language changes to update localized text if needed (Client != Selected UI)
@@ -343,6 +342,10 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
             TimeSpan.FromSeconds(60));
 
         Svc.Data.GameData.Options.PanicOnSheetChecksumMismatch = false; //Remove this once schema is stable
+
+        // fork: quick controls for the lalalazy hub window (GluttonyCombo.LazyHub.cs). Last on purpose: Dalamud never calls
+        // Dispose on a constructor that threw, so a half-built plugin must not leave its hub endpoints registered.
+        InstallLazyHub();
 
 #if DEBUG
         VfxManager.Logging = true;

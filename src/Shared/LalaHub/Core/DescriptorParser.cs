@@ -48,11 +48,14 @@ public sealed class ParsedState
 /// </summary>
 public static class DescriptorParser
 {
+    /// <summary>Longest payload read at all. The biggest legal descriptor is a few tens of KB.</summary>
+    private const int MaxPayloadChars = 128 * 1024;
+
     public static ParsedDescriptor? ParseDescriptor(string? json)
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(json)) return null;
+            if (string.IsNullOrWhiteSpace(json) || json.Length > MaxPayloadChars) return null;
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
             if (root.ValueKind != JsonValueKind.Object) return null;
@@ -61,12 +64,13 @@ public static class DescriptorParser
 
             var result = new ParsedDescriptor
             {
-                Plugin = Str(root, "plugin"),
-                Version = Str(root, "version"),
+                Plugin = Clip(Str(root, "plugin"), HubProtocol.MaxPluginLength),
+                Version = Clip(Str(root, "version"), HubProtocol.MaxVersionLength),
             };
 
             if (!root.TryGetProperty("controls", out var controls) || controls.ValueKind != JsonValueKind.Array) return result;
 
+            var seen = new HashSet<string>(StringComparer.Ordinal);
             foreach (var c in controls.EnumerateArray())
             {
                 if (result.Controls.Count >= HubProtocol.MaxControls) break;
@@ -74,6 +78,7 @@ public static class DescriptorParser
 
                 var id = Str(c, "id");
                 if (!HubValidation.IsValidId(id)) continue;
+                if (!seen.Add(id)) continue;   // a repeated id keeps the first, so one id never means two controls
                 if (!TryKind(Str(c, "kind"), out var kind)) continue;
 
                 var pc = new ParsedControl
@@ -83,7 +88,7 @@ public static class DescriptorParser
                     Kind = kind,
                     Group = Clip(Str(c, "group"), HubProtocol.MaxLabelLength),
                     Tip = Clip(Str(c, "tip"), HubProtocol.MaxTipLength),
-                    Master = Bool(c, "master"),
+                    Master = kind == ControlKind.Toggle && Bool(c, "master"),   // only a toggle can drive the Quick tab's on/off
                     Confirm = Clip(Str(c, "confirm"), HubProtocol.MaxConfirmLength),
                     Unit = Clip(Str(c, "unit"), 8),
                 };
@@ -99,13 +104,16 @@ public static class DescriptorParser
                 }
                 else if (kind == ControlKind.Choice)
                 {
+                    var intact = true;
                     if (c.TryGetProperty("choices", out var ch) && ch.ValueKind == JsonValueKind.Array)
                         foreach (var item in ch.EnumerateArray())
                         {
                             if (pc.Choices.Count >= HubProtocol.MaxChoices) break;
-                            if (item.ValueKind == JsonValueKind.String) pc.Choices.Add(Clip(item.GetString() ?? "", HubProtocol.MaxChoiceLength));
+                            // A non-text option would shift every later index, so the hub would write the wrong choice: drop the control.
+                            if (item.ValueKind != JsonValueKind.String) { intact = false; break; }
+                            pc.Choices.Add(Clip(item.GetString() ?? "", HubProtocol.MaxChoiceLength));
                         }
-                    if (pc.Choices.Count == 0) continue;
+                    if (!intact || pc.Choices.Count == 0) continue;
                 }
 
                 result.Controls.Add(pc);
@@ -123,7 +131,7 @@ public static class DescriptorParser
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(json)) return null;
+            if (string.IsNullOrWhiteSpace(json) || json.Length > MaxPayloadChars) return null;
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
             if (root.ValueKind != JsonValueKind.Object) return null;
@@ -160,7 +168,7 @@ public static class DescriptorParser
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(json)) return SetOutcome.Refuse("no answer from the plugin");
+            if (string.IsNullOrWhiteSpace(json) || json.Length > MaxPayloadChars) return SetOutcome.Refuse("no answer from the plugin");
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
             if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("ok", out var ok)) return SetOutcome.Refuse("unreadable answer from the plugin");
@@ -207,5 +215,20 @@ public static class DescriptorParser
     private static double Num(JsonElement e, string name, double fallback)
         => e.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.Number && p.TryGetDouble(out var d) && !double.IsNaN(d) && !double.IsInfinity(d) ? d : fallback;
 
-    private static string Clip(string s, int max) => s.Length <= max ? s : s.Substring(0, max);
+    /// <summary>
+    /// Strips control characters, then clips. Strings go straight into native text nodes, which read byte 0x02 as the
+    /// start of a game text macro, so nothing an adapter sends may carry one.
+    /// </summary>
+    private static string Clip(string s, int max)
+    {
+        var clean = false;
+        foreach (var ch in s) if (char.IsControl(ch)) { clean = true; break; }
+        if (clean)
+        {
+            var sb = new System.Text.StringBuilder(s.Length);
+            foreach (var ch in s) if (!char.IsControl(ch)) sb.Append(ch);
+            s = sb.ToString();
+        }
+        return s.Length <= max ? s : s.Substring(0, max);
+    }
 }

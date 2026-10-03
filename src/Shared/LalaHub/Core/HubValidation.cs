@@ -52,10 +52,19 @@ internal static class HubValidation
             switch (d.Kind)
             {
                 case ControlKind.Stepper:
-                    if (!(d.Min < d.Max))
-                        errors.Add("stepper '" + d.Id + "': min must be below max");
-                    if (!(d.Step > 0))
-                        errors.Add("stepper '" + d.Id + "': step must be above 0");
+                    if (!IsFinite(d.Min) || !IsFinite(d.Max) || !IsFinite(d.Step))
+                        errors.Add("stepper '" + d.Id + "': min, max and step must be finite numbers");
+                    else
+                    {
+                        if (!(d.Min < d.Max))
+                            errors.Add("stepper '" + d.Id + "': min must be below max");
+                        if (!(d.Step > 0))
+                            errors.Add("stepper '" + d.Id + "': step must be above 0");
+                        if (d.Decimals < 0 || d.Decimals > 6)
+                            errors.Add("stepper '" + d.Id + "': decimals must be 0 to 6");
+                        else if (!Representable(d.Min, d.Decimals) || !Representable(d.Max, d.Decimals) || !Representable(d.Step, d.Decimals))
+                            errors.Add("stepper '" + d.Id + "': decimals (" + d.Decimals + ") cannot represent the min, max and step exactly");
+                    }
                     if (d.Get == null || d.Set == null)
                         errors.Add("stepper '" + d.Id + "': needs a getter and a setter");
                     break;
@@ -87,6 +96,11 @@ internal static class HubValidation
 
         return errors;
     }
+
+    private static bool IsFinite(double x) => !double.IsNaN(x) && !double.IsInfinity(x);
+
+    /// <summary>True when rounding to the given number of decimals leaves the number unchanged.</summary>
+    private static bool Representable(double x, int decimals) => Math.Abs(Math.Round(x, decimals) - x) < 1e-9;
 
     public static bool IsValidId(string? id)
     {

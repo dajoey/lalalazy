@@ -47,14 +47,20 @@ internal sealed unsafe class CustomActionDragService : IDisposable
         try
         {
             if (!Player.Available) return SetOutcome.Refuse("Log in first.");
-            if (Active) return SetOutcome.Refuse("A button is already picked up: click a hotbar slot, or press Escape.");
+            // Picking another button while one is held switches to it (the click that got here would otherwise also reach
+            // Update, find no hovered slot, and drop the first one, leaving the player with neither).
+            if (Active) Cancel();
 
             var manager = P?.CustomActions?.Manager;
             if (manager == null) return SetOutcome.Refuse("Custom action buttons are not ready.");
 
             var act = manager.Actions.FirstOrDefault(a => a.Id == actionId);
             if (act == null) return SetOutcome.Refuse("That button does not exist.");
-            if (!manager.IconTextures.ContainsKey(act.IconId)) return SetOutcome.Refuse("The button's icon is not loaded yet.");
+            if (!manager.IconTextures.TryGetValue(act.IconId, out var icon) || icon == null) return SetOutcome.Refuse("The button's icon is not loaded yet.");
+
+            // Shared textures load lazily and are dropped when idle. With Gluttony's window closed nothing has asked for this
+            // one recently, so ask now: it then loads while the first frames of the drag wait for it.
+            icon.TryGetWrap(out _, out _);
 
             Svc.GameConfig.TryGet(HotbarSetting, out _hiddenSlots);
             Svc.GameConfig.Set(HotbarSetting, 1);   // show empty slots so there is something to drop onto
@@ -75,6 +81,11 @@ internal sealed unsafe class CustomActionDragService : IDisposable
     {
         if (_selected == null) return;
         _selected = null;
+
+        // A captured 1 is either the player's own choice (writing it back changes nothing) or the value a Custom Actions tab
+        // drag forced while it was active, which that drag restores itself. Writing 1 here could pin it on for good.
+        if (_hiddenSlots == 1) return;
+
         try { Svc.GameConfig.Set(HotbarSetting, _hiddenSlots); }
         catch (Exception ex) { Svc.Log.Warning(ex, "[LalaHub] could not restore the hotbar setting"); }
     }
@@ -94,10 +105,20 @@ internal sealed unsafe class CustomActionDragService : IDisposable
                 return;
             }
 
-            if (P?.CustomActions?.Manager.IconTextures.TryGetValue(act.IconId, out var icon) != true
-                || icon == null || !icon.TryGetWrap(out var texture, out _))
+            if (P?.CustomActions?.Manager.IconTextures.TryGetValue(act.IconId, out var icon) != true || icon == null)
             {
                 Cancel();
+                return;
+            }
+
+            if (!icon.TryGetWrap(out var texture, out var textureError))
+            {
+                // Still loading is not a failure (TryGetWrap is false with no exception then): wait, the timeout bounds it.
+                if (textureError != null)
+                {
+                    Svc.Log.Warning(textureError, "[LalaHub] hotbar button icon failed to load");
+                    Cancel();
+                }
                 return;
             }
 

@@ -33,7 +33,8 @@ internal static class ValueCoercion
 
                 // Snap to the nearest multiple of the step (so a stored 60 stays 60 with step 5), then keep
                 // the result inside the range: the ends of the range always stay reachable.
-                var snapped = Math.Round(x / def.Step) * def.Step;
+                // Ties round away from zero: banker's rounding sent 9 to 8 with step 2 and made the top unreachable.
+                var snapped = Math.Round(x / def.Step, MidpointRounding.AwayFromZero) * def.Step;
                 if (snapped < def.Min) snapped = def.Min;
                 if (snapped > def.Max) snapped = def.Max;
 
