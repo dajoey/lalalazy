@@ -2074,6 +2074,11 @@ internal unsafe class AutoRotationController
                 if (!ActionReady(outAct))
                     return false;
 
+                // Fork (1.0.4.258): same out-of-range fallback as ExecuteST.
+                var fellBack = TryFallbackToInRangeEnemy(preset, attributes, ref gameAct, ref outAct, ref target, ref targetId);
+                if (fellBack && (outAct is All.Cease || !ActionReady(outAct)))
+                    return false;
+
                 var canQueue = outAct.ActionAttackType() is { } type && ((type is ActionAttackType.Ability && AnimationLock <= cfg.QueueWindow) || (type is not ActionAttackType.Ability && RemainingGCD <= cfg.QueueWindow));
                 if (!canQueue)
                     return false;
@@ -2096,7 +2101,7 @@ internal unsafe class AutoRotationController
                 if (MovementBlocksCastStart(castTime, orbwalking))
                     return false;
 
-                if (cfg.DPSSettings.DPSAlwaysHardTarget && OverrideTarget is not null && !resolvedFriendlyOnly)
+                if (cfg.DPSSettings.DPSAlwaysHardTarget && OverrideTarget is not null && !resolvedFriendlyOnly && !fellBack)
                     Svc.Targets.Target = OverrideTarget;
                 var acRangeCheck = ActionManager.GetActionInRangeOrLoS(outAct, player.GameObject(), OverrideTarget is null ? player.GameObject() : OverrideTarget.Struct());
                 var inRange = acRangeCheck is 0 or 565 || canUseSelf || areaTargeted;
@@ -2128,6 +2133,69 @@ internal unsafe class AutoRotationController
 
             }
             return false;
+        }
+
+        private static long _lastRangeFallbackMs;
+        private static (ulong From, ulong To) _lastRangeFallbackKey;
+
+        /// <summary>
+        ///     Fork (1.0.4.258): when the enemy chosen for this tick is out of range of the resolved action while
+        ///     another valid enemy is in range, point this tick's action at that enemy and re-resolve the
+        ///     combo against it (the rotation reads distance and HP from the current target). Decision core:
+        ///     <see cref="RangeFallbackGate"/>. Never changes the hard target; the next tick starts from the
+        ///     chosen enemy again, so a target coming back into range is picked up at once.
+        /// </summary>
+        private static bool TryFallbackToInRangeEnemy(
+            Preset preset,
+            PresetStorage.PresetData attributes,
+            ref uint gameAct,
+            ref uint outAct,
+            ref IBattleChara? target,
+            ref ulong targetId)
+        {
+            if (!cfg.DPSSettings.FallbackToInRangeEnemy || attributes.AutoAction!.IsHeal
+                || target is null || LocalPlayer is not { } player)
+                return false;
+
+            var haveSheet = ActionSheet.TryGetValue(outAct, out var sheet);
+            var canUseSelf = ActionManager.CanUseActionOnTarget(outAct, Player.GameObject);
+            var rangeCheck = ActionManager.GetActionInRangeOrLoS(outAct, player.GameObject(), target.GameObject());
+            if (!RangeFallbackGate.NeedsFallback(
+                    enabled: true,
+                    hasTarget: true,
+                    actionTargetsHostile: haveSheet && sheet.CanTargetHostile,
+                    canUseSelf: canUseSelf,
+                    areaTargeted: haveSheet && sheet.TargetArea,
+                    targetInActionRange: rangeCheck is 0 or 565))
+                return false;
+
+            var near = DPSTargeting.InRangeFallback(outAct, target);
+            if (near is null)
+                return false;
+
+            LogRangeFallback(outAct, target, near);
+            target = near;
+            targetId = near.GameObjectId;
+            OverrideTarget = near;
+            outAct = OriginalHook(InvokeCombo(preset, attributes, ref gameAct, near));
+            return true;
+        }
+
+        /// <summary>
+        ///     One <c>RF|</c> line per change of (chosen enemy, fallback enemy) and at most one per 2 s, so a run can be
+        ///     graded for the fallback without per-tick volume.
+        /// </summary>
+        private static void LogRangeFallback(uint action, IBattleChara from, IBattleChara to)
+        {
+            var now = Environment.TickCount64;
+            var key = (from.GameObjectId, to.GameObjectId);
+            if (key == _lastRangeFallbackKey && now - _lastRangeFallbackMs < 2000)
+                return;
+
+            _lastRangeFallbackKey = key;
+            _lastRangeFallbackMs = now;
+            Svc.Log.Information(
+                $"RF|{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}|act={action}|from={from.NameId}:{GetTargetDistance(from):0.#}|to={to.NameId}:{GetTargetDistance(to):0.#}");
         }
 
         private static bool DontChangeForAoe(uint gameAct)
@@ -2169,6 +2237,12 @@ internal unsafe class AutoRotationController
                 return false;
             }
 
+            // Fork (1.0.4.258): the chosen enemy is out of this action's reach but another valid enemy is not -
+            // hit that one this tick instead of idling. The hard target is left alone.
+            var fellBack = TryFallbackToInRangeEnemy(preset, attributes, ref gameAct, ref outAct, ref target, ref targetId);
+            if (fellBack && !ActionReady(outAct))
+                return false;
+
             if (outAct is DNC.ClosedPosition && DNC.DancePartnerResolver() is IBattleChara dp)
                 target = dp;
 
@@ -2206,7 +2280,7 @@ internal unsafe class AutoRotationController
             var resolvedFriendlyOnly = canUseSelf && !canUseTarget && !areaTargeted;
             var isHeal = attributes.AutoAction!.IsHeal || resolvedFriendlyOnly;
 
-            if (target is not null)
+            if (target is not null && !fellBack)
             {
                 if ((!isHeal && cfg.DPSSettings.DPSAlwaysHardTarget && mode is not DPSRotationMode.Manual) || (isHeal && cfg.HealerSettings.HealerAlwaysHardTarget && mode is not HealerRotationMode.Manual))
                     Svc.Targets.Target = target;
@@ -2325,16 +2399,42 @@ internal unsafe class AutoRotationController
             ((cfg.DPSSettings.OnlyAttackInCombat && chara.Struct()->InCombat) || !cfg.DPSSettings.OnlyAttackInCombat) &&
             IsInLineOfSight(chara);
 
+        /// <summary> Every enemy that passes the standard filter and is not status-immune, before any priority narrowing. </summary>
+        private static List<IBattleChara> ValidTargets() =>
+            Svc.Objects.GetBattleCharas()
+                .Where(Query)
+                .Where(target => BossModTargetingGate.IsTargetUsable(
+                    baseUsable: true,
+                    statusDamageImmune: Combos.PvE.BST.IsCrucibleDamageImmune(target)))
+                .ToList();
+
+        /// <summary>
+        ///     Fork (1.0.4.258): the enemy to hit when the chosen one is out of range of <paramref name="action"/>:
+        ///     among every valid enemy (Crucible exclusions kept, priority narrowing dropped) the action can
+        ///     reach, those the mode / kill order would allow first, then the nearest. Null when none is in reach.
+        /// </summary>
+        internal static IBattleChara? InRangeFallback(uint action, IBattleChara? selected)
+        {
+            if (LocalPlayer is not { } player)
+                return null;
+
+            var preferred = new HashSet<ulong>(BaseSelection.Select(x => x.GameObjectId));
+            var pool = Combos.PvE.BST.SafeCrucibleTargets(ValidTargets());
+            var candidates = new List<RangeFallbackGate.Candidate<IBattleChara>>(pool.Count);
+            foreach (var x in pool)
+            {
+                var rc = ActionManager.GetActionInRangeOrLoS(action, player.GameObject(), x.GameObject());
+                candidates.Add(new(x, rc is 0 or 565, GetTargetDistance(x), preferred.Contains(x.GameObjectId)));
+            }
+
+            return RangeFallbackGate.PickInRange(selected, candidates);
+        }
+
         public static IEnumerable<IBattleChara> BaseSelection
         {
             get
             {
-                var validTargets = Svc.Objects.GetBattleCharas()
-                    .Where(Query)
-                    .Where(target => BossModTargetingGate.IsTargetUsable(
-                        baseUsable: true,
-                        statusDamageImmune: Combos.PvE.BST.IsCrucibleDamageImmune(target)))
-                    .ToList();
+                var validTargets = ValidTargets();
 
                 if (cfg.DPSSettings.FATEPriority || cfg.DPSSettings.QuestPriority)
                 {

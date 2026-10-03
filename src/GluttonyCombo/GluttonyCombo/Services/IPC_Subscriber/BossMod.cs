@@ -7,6 +7,7 @@ using ECommons.Logging;
 using ECommons.Reflection;
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 
 // ReSharper disable InlineTemporaryVariable
 
@@ -577,6 +578,29 @@ internal sealed class BossModIPC(
         }
     }
 
+    /// <summary>
+    ///     Fork (1.0.4.258): whether BossMod Reborn considers a dash from <paramref name="from"/> to
+    ///     <paramref name="to"/> safe: inside the arena bounds, not inside a forbidden zone (puddles, telegraphs)
+    ///     or temporary obstacle, and dashes not forbidden by the active module. Null when BMR is absent, older
+    ///     than the endpoint, or the call fails: callers decide what an unanswered question means.
+    /// </summary>
+    public bool? IsDashSafe(Vector3 from, Vector3 to)
+    {
+        if (!IsEnabled || !PluginIsLoaded)
+            return null;
+
+        try
+        {
+            return _isDashSafe(from, to);
+        }
+        catch (Exception e)
+        {
+            PluginLog.Verbose($"[DashSafety] [{PluginName}] " +
+                              $"`Hints.IsDashSafe` unavailable: {e.Message}");
+            return null;
+        }
+    }
+
 #pragma warning disable CS0649, CS8618 // Complaints of the method
     [EzIPC("BossMod.Rotation.ActionQueue.HasEntries", false)]
     private readonly Func<bool> _hasEntries = null!;
@@ -586,5 +610,8 @@ internal sealed class BossModIPC(
 
     [EzIPC("BossMod.Hints.PriorityTarget", false)]
     private readonly Func<ulong> _priorityTarget = null!;
+
+    [EzIPC("BossMod.Hints.IsDashSafe", false)]
+    private readonly Func<Vector3, Vector3, bool> _isDashSafe = null!;
 #pragma warning restore CS8618, CS0649
 }

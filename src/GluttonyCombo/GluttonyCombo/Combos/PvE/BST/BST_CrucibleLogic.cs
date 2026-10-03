@@ -853,10 +853,22 @@ internal static class BST_CrucibleLogic
     public readonly record struct TargetCandidate(uint NameId, float HpPercent, bool Avoid, bool DamageImmune = false, bool CastInterruptible = false, uint CastId = 0);
 
     /// <summary>
-    ///     Placeholder for the failing-first commit: the live behaviour is that the only list auto-targeting has is
-    ///     the kill-order-narrowed one.
+    ///     Which candidates may take a hit when the enemy <see cref="AllowedTargets"/> chose is out of the action's reach:
+    ///     the same exclusions (never eggs / morphos or damage-immune enemies; counter stances only when nothing
+    ///     else is up) without the kill-order narrowing, so a nearby ordinary enemy keeps the damage going
+    ///     instead of the rotation idling for the head of the order.
     /// </summary>
-    public static List<int> SafeTargets(IReadOnlyList<TargetCandidate> candidates) => AllowedTargets(candidates);
+    public static List<int> SafeTargets(IReadOnlyList<TargetCandidate> candidates)
+    {
+        var safe = new List<int>(candidates.Count);
+        for (var i = 0; i < candidates.Count; i++)
+            if (!candidates[i].DamageImmune
+                && !BST_CrucibleData.DoNotAttack.ContainsKey(candidates[i].NameId))
+                safe.Add(i);
+
+        var calm = safe.FindAll(i => !candidates[i].Avoid);
+        return calm.Count > 0 ? calm : safe;
+    }
 
     /// <summary> Paired enemies further apart than this (HP %) get balanced: the lower one is left alone. </summary>
     public const float PairHpGap = 10f;

@@ -165,6 +165,11 @@ public static class ConflictingPluginsChecks
         /// </summary>
         internal ulong GetPriorityTargetId() => IPC.GetPriorityTargetId();
 
+        /// <summary>
+        ///     Fork (1.0.4.258): BMR's dash-safety answer for a landing point (null = BMR cannot answer).
+        /// </summary>
+        internal bool? IsDashSafe(System.Numerics.Vector3 from, System.Numerics.Vector3 to) => IPC.IsDashSafe(from, to);
+
         internal bool IsAIActive() => IPC.IsAIActive();
 
 

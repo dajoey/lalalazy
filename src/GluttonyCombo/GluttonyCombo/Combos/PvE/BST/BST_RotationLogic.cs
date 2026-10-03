@@ -680,6 +680,9 @@ internal static class BST_RotationLogic
         // close a gap, and spends one charge at the next weave only when the pool is full (moving or not), so
         // recharge time is not wasted. It is ignored while the dash itself is on. The range and protected-enemy
         // gates apply; when one blocks a full pool the decline is recorded instead of dashing.
+        // Every auto-fired dash also asks where it would land (2026-10-03: a dash into an enemy outside the arena and
+        // standing in a puddle): a landing in a danger zone, outside the bounds, or that nothing could answer for on a
+        // Crucible board holds the dash with the reason recorded. The damage floor (GCD chain) is never held.
         var overcapOnly = !cfg.UseShieldCharge && cfg.ShieldChargeOvercap;
         if ((cfg.UseShieldCharge || overcapOnly) && s.Level >= LvShieldCharge && s.ReadyShieldCharge && s.CanWeave && s.ShieldChargeCharges > 0)
         {
@@ -690,21 +693,35 @@ internal static class BST_RotationLogic
                     declines.Add("shieldcharge:overcap-out-of-range");
                 else if (crucible && s.ProtectedNearTarget)
                     declines.Add("crucible:shieldcharge-protected-near");
+                else if (DashLandingDecline(s, crucible) is { } blocked)
+                    declines.Add(blocked);
                 else
                     return Pick(BST.ShieldCharge, "shieldcharge:overcap");
             }
             else if (cfg.UseShieldCharge && s.TargetDistance <= 20f && !(crucible && s.ProtectedNearTarget))
             {
-                if (s.TargetDistance > 3.5f)
-                    return Pick(BST.ShieldCharge, "shieldcharge:gapclose");
-                if (atCap && !s.IsMoving)
-                    return Pick(BST.ShieldCharge, "shieldcharge:max-charges");
+                if (s.TargetDistance > 3.5f || (atCap && !s.IsMoving))
+                {
+                    if (DashLandingDecline(s, crucible) is { } blocked)
+                        declines.Add(blocked);
+                    else
+                        return Pick(BST.ShieldCharge, s.TargetDistance > 3.5f ? "shieldcharge:gapclose" : "shieldcharge:max-charges");
+                }
             }
         }
 
         // ---------------------------------------------------------- 9. GCD
         return Pick(GcdChain(s), "gcdchain");
     }
+
+    /// <summary> Why a Shield Charge must not fire at this landing (a decline label), or null when it may. </summary>
+    public static string? DashLandingDecline(in BstState s, bool crucible) => s.DashLanding switch
+    {
+        DashLanding.Danger => "shieldcharge:landing-danger",
+        DashLanding.Unreachable => "shieldcharge:landing-unreachable",
+        DashLanding.Unknown when crucible => "shieldcharge:landing-unknown",
+        _ => null,
+    };
 
     /// <summary> Smash Axe -> Axeblade Bite (L2) -> Shieldsplitter (L12). </summary>
     public static uint GcdChain(in BstState s)

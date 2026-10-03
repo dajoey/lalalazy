@@ -47,6 +47,15 @@ public class DPSSettings
     ///     existing installs deserializes to false.
     /// </summary>
     public bool UseBossModTargeting = false;
+
+    /// <summary>
+    ///     Fork (1.0.4.258): when the enemy the targeting mode chose (the hard target in Manual mode) is out of
+    ///     range of the action about to be used and another valid enemy is in range, that enemy takes the hit
+    ///     this tick instead of the rotation idling. The chosen enemy stays preferred and the hard target is
+    ///     never changed. Default true; unticked, behavior is byte-identical to earlier builds.
+    ///     Decision core: AutoRotation/RangeFallbackGate.cs.
+    /// </summary>
+    public bool FallbackToInRangeEnemy = true;
 }
 
 public class HealerSettings

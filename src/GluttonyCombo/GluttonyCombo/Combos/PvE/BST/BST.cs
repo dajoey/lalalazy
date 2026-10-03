@@ -338,6 +338,9 @@ internal partial class BST : Melee
         s.ShieldChargeCharges = (int)GetRemainingCharges(ShieldCharge);
         s.ShieldChargeMax = GetMaxCharges(ShieldCharge);
         s.ReadyShieldCharge = ActionReady(ShieldCharge);
+        // Where an auto-fired dash would land: asked only while a dash is actually on the table (one boss-mod IPC call).
+        if (s.ReadyShieldCharge && s.HasHostileTarget && s.Level >= BST_RotationLogic.LvShieldCharge)
+            s.DashLanding = ReadDashLanding();
 
         ReadCrucible(ref s);
 

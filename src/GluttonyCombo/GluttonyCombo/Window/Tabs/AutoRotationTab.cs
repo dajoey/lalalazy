@@ -113,6 +113,17 @@ internal class AutoRotationTab : ConfigWindow
                 "opinion, or this box unticked, the targeting mode above applies " +
                 "unchanged.");
 
+            // Fork (1.0.4.258): out-of-range fallback - decision core AutoRotation/RangeFallbackGate.cs.
+            changed |= ImGui.Checkbox(
+                "Attack an in-range enemy when the chosen target is out of range",
+                ref cfg.DPSSettings.FallbackToInRangeEnemy);
+            ImGuiComponents.HelpMarker(
+                "When the enemy chosen above (your hard target in Manual mode) is too far for the " +
+                "action about to be used but another valid enemy is within reach, that enemy takes " +
+                "the hit instead of the rotation standing idle. The chosen target stays preferred " +
+                "and your hard target is never changed. Unticked, the rotation waits for the " +
+                "chosen target as before.");
+
             ImGui.Spacing();
 
             if (cfg.DPSRotationMode is DPSRotationMode.Manual)

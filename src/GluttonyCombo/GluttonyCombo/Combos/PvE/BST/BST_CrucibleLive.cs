@@ -63,6 +63,33 @@ internal partial class BST
         if (targets.Count == 0)
             return targets;
 
+        var candidates = CrucibleCandidates(targets);
+        var allowed = BST_CrucibleLogic.AllowedTargets(candidates, InterruptArmed);
+        var result = new List<IBattleChara>(allowed.Count);
+        foreach (var i in allowed)
+            result.Add(targets[i]);
+        return result;
+    }
+
+    /// <summary>
+    ///     Out-of-range fallback list (<see cref="BST_CrucibleLogic.SafeTargets"/>): on a Crucible board with Crucible
+    ///     targeting on, the exclusions without the kill-order narrowing (never eggs / morphos or damage-immune
+    ///     enemies, stances last). Elsewhere the list is returned unchanged.
+    /// </summary>
+    internal static List<IBattleChara> SafeCrucibleTargets(List<IBattleChara> targets)
+    {
+        if (targets.Count == 0 || !CrucibleTargetingActive)
+            return targets;
+
+        var safe = BST_CrucibleLogic.SafeTargets(CrucibleCandidates(targets));
+        var result = new List<IBattleChara>(safe.Count);
+        foreach (var i in safe)
+            result.Add(targets[i]);
+        return result;
+    }
+
+    private static List<BST_CrucibleLogic.TargetCandidate> CrucibleCandidates(List<IBattleChara> targets)
+    {
         var candidates = new List<BST_CrucibleLogic.TargetCandidate>(targets.Count);
         foreach (var t in targets)
         {
@@ -86,11 +113,48 @@ internal partial class BST
                 t.IsCasting ? t.CastActionId : 0));
         }
 
-        var allowed = BST_CrucibleLogic.AllowedTargets(candidates, InterruptArmed);
-        var result = new List<IBattleChara>(allowed.Count);
-        foreach (var i in allowed)
-            result.Add(targets[i]);
-        return result;
+        return candidates;
+    }
+
+    // ------------------------------------------------------------------ dash landing
+
+    /// <summary>
+    ///     Where an auto-fired Shield Charge would land, from the current target (the hard target, or the enemy
+    ///     the rotation is aiming at this tick): unreachable without line of sight; otherwise BossMod Reborn's
+    ///     dash-safety answer for the enemy's position and for the landing point at its edge (inside the arena
+    ///     bounds, outside forbidden zones such as puddles and telegraphs and temporary obstacles, dashes not
+    ///     forbidden by the module). BMR gives one bit, so both an out-of-bounds enemy and one in a puddle read
+    ///     <see cref="BST_RotationLogic.DashLanding.Danger"/>; BMR missing or failing reads Unknown.
+    /// </summary>
+    internal static BST_RotationLogic.DashLanding ReadDashLanding()
+    {
+        if (CurrentTarget is not { } target || LocalPlayer is not { } player)
+            return BST_RotationLogic.DashLanding.Safe;
+
+        if (!IsInLineOfSight(target))
+            return BST_RotationLogic.DashLanding.Unreachable;
+
+        var from = player.Position;
+        var to = target.Position;
+        var flat = new System.Numerics.Vector2(to.X - from.X, to.Z - from.Z);
+        var length = flat.Length();
+        var landing = to;
+        if (length > 0.01f)
+        {
+            var back = Math.Min(length, target.HitboxRadius + player.HitboxRadius);
+            var dir = flat / length;
+            landing = new System.Numerics.Vector3(to.X - dir.X * back, to.Y, to.Z - dir.Y * back);
+        }
+
+        var bmr = GluttonyCombo.Data.Conflicts.ConflictingPluginsChecks.BossModReborn;
+        var atEnemy = bmr.IsDashSafe(from, to);
+        var atLanding = bmr.IsDashSafe(from, landing);
+        if (atEnemy is null || atLanding is null)
+            return BST_RotationLogic.DashLanding.Unknown;
+
+        return atEnemy.Value && atLanding.Value
+            ? BST_RotationLogic.DashLanding.Safe
+            : BST_RotationLogic.DashLanding.Danger;
     }
 
     // ------------------------------------------------------------------ Guard/Challenge telemetry
