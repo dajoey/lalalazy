@@ -1,3 +1,10 @@
+## v1.0.4.263 (2026-10-03) [testing]
+### Fixed
+- **Beastmaster, Crucible: the vulture's dispel no longer pins the aim on an enemy the Caw cannot be cast at.** With the vulture out and Tempered Release up, auto-targeting aimed at a buff carrier even when the Caw would be refused there (a do-not-attack enemy such as a Morpho standing within its area, or the carrier beyond 25 y); on a carrier in a counter stance that held the rotation every tick. The aim now follows a carrier only where the Caw can actually go out. With Quelling Wave held the aim is unchanged: it is single-target and needs no clear area.
+### Notes
+- When the vulture is the only dispeller and every carrier has a protected enemy beside it, the buff stays up and the rotation fights on with its normal target choice; bringing out the Wavekin instead is not done for a buff the vulture can already answer.
+- Testing channel only; the production channel is unchanged.
+
 ## v1.0.4.262 (2026-10-03) [testing]
 ### Fixed
 - **Beastmaster, Crucible of the Unbroken: Regen on an enemy is now dispelled.** Regen (the Abaddon Piece's buff from eaten Morphos, status Rehabilitation) was not on the list of buffs the rotation treats as dispellable, so the dispel step was never reached even with Quelling Wave held and ready. The same gap stood for Growing (Sapling Piece) and Impassion (Medusa Piece). Every dispel counter in the fight research now has a status id, and a test fails if a new one is added without one.

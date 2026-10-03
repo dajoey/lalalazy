@@ -58,6 +58,9 @@ internal partial class BST
     /// <summary> The dispel is ready and an enemy in reach carries a dispellable buff (set every tick by the rotation): targeting may aim at the carrier. </summary>
     internal static bool DispelArmed;
 
+    /// <summary> The armed dispel is the vulture's Caw alone (no Quelling Wave held): only a carrier the Caw can be cast at is aimed at. </summary>
+    internal static bool DispelByCawOnly;
+
     /// <summary>
     ///     BST_CrucibleLogic.AllowedTargets over live candidates: no eggs / morphos, an armed Soul Crush aims at the interruptible caster,
     ///     stances last, priority adds in documented kill order, pairs balanced.
@@ -108,7 +111,8 @@ internal partial class BST
                 if (inStance && damageImmune)
                     break;
             }
-            var dispellable = DispelArmed && Fn.GetTargetDistance(t) <= DispelReach && CarriesDispellableBuff(t);
+            var dispellable = DispelArmed && CarriesDispellableBuff(t)
+                && (DispelByCawOnly ? CawCanDispel(t) : Fn.GetTargetDistance(t) <= DispelReach);
             candidates.Add(new(
                 t.NameId,
                 t.MaxHp == 0 ? 0f : 100f * t.CurrentHp / t.MaxHp,

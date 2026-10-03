@@ -133,6 +133,7 @@ internal partial class BST : Melee
         var state = ReadState();
         InterruptArmed = BST_CrucibleLogic.InterruptArmed(state, cfg);
         DispelArmed = BST_CrucibleLogic.DispelArmed(state, cfg);
+        DispelByCawOnly = DispelArmed && !BST_CrucibleLogic.DispelViaWave(state);
         var decision = BST_RotationLogic.Decide(state, cfg);
         if (decision.Reason.StartsWith("crucible:dispel-", StringComparison.Ordinal))
             NoteDispelDecision(Environment.TickCount64);

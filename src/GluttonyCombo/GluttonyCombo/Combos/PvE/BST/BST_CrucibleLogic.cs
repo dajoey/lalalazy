@@ -971,16 +971,22 @@ internal static class BST_CrucibleLogic
         cfg.Crucible && s.CrucibleBoard != 0 && cfg.UseSoulCrush && (s.CrucibleNeeds & CrucibleNeeds.Interrupt) != 0
         && s.KinshipHeld && s.BeastModeResolved == BST.SoulCrush && s.ReadyBeastMode;
 
+    /// <summary> Quelling Wave is held and ready: a single-target GCD spell, nothing standing beside the carrier can be hit by it. </summary>
+    public static bool DispelViaWave(in BstState s) =>
+        s.KinshipHeld && s.BeastModeResolved == BST.QuellingWave && s.ReadyBeastMode;
+
     /// <summary>
     ///     The dispel is ready to go out and the fight calls for it while an enemy carries a dispellable buff: Quelling Wave is
-    ///     held and ready, or the vulture is out with its One with Nature and Tempered Release up. Auto-targeting then aims at
-    ///     the carrier (<see cref="AllowedTargets"/>) the way it aims at an interruptible caster when Soul Crush is armed;
-    ///     <see cref="TryDispel"/> casts it on the next tick, with that enemy as the target.
+    ///     held and ready, or the vulture is out with its One with Nature and Tempered Release up AND some carrier is one the
+    ///     Caw can be cast at (in its range, no do-not-attack enemy within its area: <see cref="BstState.DispelCawReachable"/>;
+    ///     <see cref="TryDispel"/> refuses the Caw otherwise, and an aim pinned on a carrier that cannot be dispelled holds the
+    ///     rotation every tick). Auto-targeting then aims at the carrier (<see cref="AllowedTargets"/>) the way it aims at an
+    ///     interruptible caster when Soul Crush is armed; <see cref="TryDispel"/> casts it on the next tick, with that enemy as the target.
     /// </summary>
     public static bool DispelArmed(in BstState s, in BstSettings cfg) =>
         cfg.Crucible && s.CrucibleBoard != 0 && (s.CrucibleNeeds & CrucibleNeeds.Dispel) != 0 && s.EnemyHasDispellableBuff
-        && ((s.KinshipHeld && s.BeastModeResolved == BST.QuellingWave && s.ReadyBeastMode)
-            || (ActiveBeast(s) is { Row: VultureRow } && FamiliarOut(s) && s.OneWithNature && s.ReadyTempered));
+        && (DispelViaWave(s)
+            || (ActiveBeast(s) is { Row: VultureRow } && FamiliarOut(s) && s.OneWithNature && s.ReadyTempered && s.DispelCawReachable));
 
     /// <summary>
     ///     A dispel the game does not honour is not sent again and again: after this many dispels that left the same status on

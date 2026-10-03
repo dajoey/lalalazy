@@ -42,6 +42,27 @@ internal partial class BST
     /// <summary> Quelling Wave's range (30 y): a carrier further out than this does not call for a dispel or steer the aim. </summary>
     private const float DispelReach = 30f;
 
+    /// <summary> The Caw's range (25 y, as <see cref="BST_CrucibleLogic.TryDispel"/> gates it). </summary>
+    private const float CawReach = 25f;
+
+    /// <summary>
+    ///     The Caw can be cast at <paramref name="enemy"/>: in its range and no do-not-attack enemy (the Morphos) within the
+    ///     area around it, the same refusal <see cref="BST_CrucibleLogic.TryDispel"/> applies to the target.
+    /// </summary>
+    internal static bool CawCanDispel(IBattleChara enemy)
+    {
+        if (GetTargetDistance(enemy) > CawReach)
+            return false;
+        foreach (var obj in Svc.Objects)
+        {
+            if (obj is IBattleNpc npc && !npc.IsDead && npc.IsTargetable && npc.CurrentHp != 0 && npc.IsHostile()
+                && npc.GameObjectId != enemy.GameObjectId && BST_CrucibleData.DoNotAttack.TryGetValue(npc.NameId, out var reach)
+                && (reach == float.MaxValue || Vector3.Distance(npc.Position, enemy.Position) <= reach + enemy.HitboxRadius))
+                return false;
+        }
+        return true;
+    }
+
     /// <summary> Seconds a broken shell still counts as "just broke" (the stun / bind window of the Ymir). </summary>
     private const long ShellBrokeWindowMs = 6000;
 
@@ -190,6 +211,8 @@ internal partial class BST
             s.EnemyCount++;
             if (!s.EnemyHasDispellableBuff && CarriesDispellableBuff(npc) && GetTargetDistance(npc) <= DispelReach)
                 s.EnemyHasDispellableBuff = true;
+            if (!s.DispelCawReachable && CarriesDispellableBuff(npc) && CawCanDispel(npc))
+                s.DispelCawReachable = true;
             if (BST_CrucibleData.ShellTargets.Contains(nameId))
             {
                 foreach (var status in npc.StatusList)
