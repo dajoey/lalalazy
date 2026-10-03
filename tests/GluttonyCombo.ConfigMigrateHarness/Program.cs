@@ -22,6 +22,7 @@ internal static class Program
         MigrationV7();
         MigrationV8();
         MigrationV9();
+        MigrationV10();
         LegacyShadowRoundTrip();
         ResolverTruthTable();
 
@@ -181,6 +182,46 @@ internal static class Program
     // mode (PS| lines 2026-09-24/26, ffxivdb). This step turns a stored Shadow ON once.
     // Off (a deliberate choice) and absent (fresh install) are untouched.
     // =============================================================================
+    // =============================================================================
+    // v9 -> v10: Snarl -> Parting Blow stored OFF -> ON. It shipped opt-in and OFF (2026-09-16) and was never
+    // evaluated: 2026-10-03 the open window was logged 166 times in 62 board fights while tankbusters took
+    // 79,000 of the 260,000 damage the character and familiars took. A default flip alone never reaches a config
+    // that stored the old default.
+    // =============================================================================
+    private static void MigrationV10()
+    {
+        Section("v9 -> v10 (Crucible Snarl -> Parting Blow stored Off -> On)");
+
+        var stored = ConfigMigration.Migrate(new State(9, TankbustersBeyondParty: true, CrucibleAggro: 2, CrucibleSnarlParting: 0));
+        Check("stored Off is turned ON once", stored.Changed && stored.State.CrucibleSnarlParting == 1,
+            $"changed={stored.Changed} value={stored.State.CrucibleSnarlParting}");
+        Check("...the schema version is 10", stored.State.Version == 10 && ConfigMigration.CurrentVersion == 10, stored.State.Version.ToString());
+        Check("...the note names the setting and how to undo it",
+            stored.Notes.Any(n => n.Contains("Snarl -> Parting Blow", StringComparison.Ordinal) && n.Contains("Beastmaster", StringComparison.Ordinal)),
+            stored.Notes.Count > 0 ? stored.Notes[^1] : "(none)");
+
+        var absent = ConfigMigration.Migrate(new State(9, TankbustersBeyondParty: true, CrucibleAggro: 2));
+        Check("absent key stays absent (a fresh install takes the option's own default; never written back)",
+            absent.State.CrucibleSnarlParting == -1 && !absent.Notes.Any(n => n.Contains("Parting Blow", StringComparison.Ordinal)));
+
+        var already = ConfigMigration.Migrate(new State(9, TankbustersBeyondParty: true, CrucibleSnarlParting: 1));
+        Check("stored On stays On with nothing to say", already.State.CrucibleSnarlParting == 1
+              && !already.Notes.Any(n => n.Contains("Parting Blow", StringComparison.Ordinal)));
+
+        var afterOptOut = ConfigMigration.Migrate(new State(10, TankbustersBeyondParty: true, CrucibleSnarlParting: 0));
+        Check("a user who turns it back off after the update is NOT overridden", afterOptOut.State.CrucibleSnarlParting == 0 && !afterOptOut.Changed);
+
+        var again = ConfigMigration.Migrate(stored.State);
+        Check("idempotent: running the ladder over its own output changes nothing", !again.Changed && again.State.CrucibleSnarlParting == 1);
+
+        // The adapters: the value is read from and written to the bool store the option lives in.
+        var bools = new Dictionary<string, bool> { ["BST_CrucibleSnarlParting"] = false };
+        ConfigMigration.Write(stored.State, new HealerSettings(), customBools: bools);
+        Check("Write puts the migrated value in the bool store", bools["BST_CrucibleSnarlParting"]);
+        var read = ConfigMigration.Read(9, new HealerSettings(), 2, 0);
+        Check("Read carries the stored value into the ladder state", read.CrucibleSnarlParting == 0 && read.CrucibleAggro == 2);
+    }
+
     private static void MigrationV9()
     {
         Section("v8 -> v9 (Crucible Guard/Challenge stored Shadow -> On)");

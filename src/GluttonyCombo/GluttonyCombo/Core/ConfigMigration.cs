@@ -49,12 +49,17 @@ internal static class ConfigMigration
     ///     2 On). -1 when the key is absent (fresh install or BST options never touched); the
     ///     ladder never writes that back.
     /// </param>
+    /// <param name="CrucibleSnarlParting">
+    ///     Beastmaster Crucible "Snarl -&gt; Parting Blow" tankbuster dodge as stored in CustomBoolValues (0 off, 1 on).
+    ///     -1 when the key is absent (fresh install or BST options never touched); the ladder never writes that back.
+    /// </param>
     public readonly record struct State(
         int Version,
         bool TankbustersBeyondParty,
         bool? AutoRezRequireSwiftGlobal = null,
         PerJobRequireSwift RequireSwift = default,
-        int CrucibleAggro = -1);
+        int CrucibleAggro = -1,
+        int CrucibleSnarlParting = -1);
 
     /// <summary>
     ///     The seven per-job "Require Swiftcast/Dualcast before auto-rezzing" flags.
@@ -92,6 +97,7 @@ internal static class ConfigMigration
         var requireSwift = state.RequireSwift;
         var carriedGlobal = state.AutoRezRequireSwiftGlobal;
         var crucibleAggro = state.CrucibleAggro;
+        var crucibleSnarlParting = state.CrucibleSnarlParting;
 
         // A config from the future is left completely alone - downgrading a user's settings is
         // worse than running an old build against a new config.
@@ -182,10 +188,11 @@ internal static class ConfigMigration
                       tankbustersBeyondParty != state.TankbustersBeyondParty ||
                       requireSwift != state.RequireSwift ||
                       carriedGlobal != state.AutoRezRequireSwiftGlobal ||
-                      crucibleAggro != state.CrucibleAggro;
+                      crucibleAggro != state.CrucibleAggro ||
+                      crucibleSnarlParting != state.CrucibleSnarlParting;
 
         return new Result(
-            new State(version, tankbustersBeyondParty, carriedGlobal, requireSwift, crucibleAggro),
+            new State(version, tankbustersBeyondParty, carriedGlobal, requireSwift, crucibleAggro, crucibleSnarlParting),
             changed,
             notes);
     }
@@ -198,7 +205,7 @@ internal static class ConfigMigration
     // in the abstract and mis-wired in GluttonyCombo.cs is still a broken migration.
 
     /// <summary>Reads the migratable values out of a just-loaded configuration.</summary>
-    public static State Read(int version, HealerSettings healer, int crucibleAggro = -1) => new(
+    public static State Read(int version, HealerSettings healer, int crucibleAggro = -1, int crucibleSnarlParting = -1) => new(
         version,
         healer.TankbustersBeyondParty,
         healer.AutoRezRequireSwiftLegacy,
@@ -210,10 +217,11 @@ internal static class ConfigMigration
             healer.AutoRezRequireSwiftSMN,
             healer.AutoRezRequireSwiftBLU,
             healer.AutoRezRequireSwiftRDM),
-        crucibleAggro);
+        crucibleAggro,
+        crucibleSnarlParting);
 
     /// <summary>Writes a migrated <see cref="State" /> back onto the live settings object.</summary>
-    public static void Write(State state, HealerSettings healer, Dictionary<string, int>? customInts = null)
+    public static void Write(State state, HealerSettings healer, Dictionary<string, int>? customInts = null, Dictionary<string, bool>? customBools = null)
     {
         healer.TankbustersBeyondParty = state.TankbustersBeyondParty;
         healer.AutoRezRequireSwiftLegacy = state.AutoRezRequireSwiftGlobal;
@@ -226,6 +234,8 @@ internal static class ConfigMigration
         healer.AutoRezRequireSwiftRDM = state.RequireSwift.RDM;
         if (customInts is not null && state.CrucibleAggro >= 0)
             customInts["BST_CrucibleAggro"] = state.CrucibleAggro;
+        if (customBools is not null && state.CrucibleSnarlParting >= 0)
+            customBools["BST_CrucibleSnarlParting"] = state.CrucibleSnarlParting == 1;
     }
 
     #endregion

@@ -80,6 +80,16 @@ internal static class FormationLogic
         return false;
     }
 
+    /// <summary> Most corrections one screen open makes on top of AutoDuty's selection writes. </summary>
+    public const int AutoDutyMaxCorrections = 4;
+
+    /// <summary>
+    ///     Whether the need-coverage correction is due while AutoDuty drives the screen. PURE. PLACEHOLDER, live behaviour of
+    ///     0.1.9.4/0.1.9.5: one correction per open, 250 ms after the first AutoDuty edit.
+    /// </summary>
+    public static bool AutoDutyCorrectionDue(bool editSeen, long lastEditMs, long lastCorrectionMs, int corrections, long nowMs, long settleMs) =>
+        editSeen && nowMs - lastEditMs >= settleMs && corrections == 0;
+
     /// <summary> Whether the assign pass may run under the current latch. PURE. </summary>
     public static bool IsFormationArmed(in FormationArmState s) => s.ScreenOpen && !s.PassDone && !s.Aborted;
 

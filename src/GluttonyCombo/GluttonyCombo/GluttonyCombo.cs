@@ -629,13 +629,14 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
                 ConfigMigration.Read(
                     config.Version,
                     config.RotationConfig.HealerSettings,
-                    Configuration.CustomIntValues.TryGetValue("BST_CrucibleAggro", out var crucibleAggro) ? crucibleAggro : -1));
+                    Configuration.CustomIntValues.TryGetValue("BST_CrucibleAggro", out var crucibleAggro) ? crucibleAggro : -1,
+                    Configuration.CustomBoolValues.TryGetValue("BST_CrucibleSnarlParting", out var snarlParting) ? (snarlParting ? 1 : 0) : -1));
 
             if (!result.Changed)
                 return;
 
             config.Version = result.State.Version;
-            ConfigMigration.Write(result.State, config.RotationConfig.HealerSettings, Configuration.CustomIntValues);
+            ConfigMigration.Write(result.State, config.RotationConfig.HealerSettings, Configuration.CustomIntValues, Configuration.CustomBoolValues);
 
             foreach (var note in result.Notes)
                 PluginLog.Information("[Config migration] " + note);

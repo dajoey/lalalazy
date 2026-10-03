@@ -42,6 +42,7 @@ internal static class Program
         CrucibleTactics();
         DashLandingSafety();
         FallbackCandidates();
+        LearnedFromTheRuns();
 
         SimulateAllLevels(verbose);
         SimulateCrucible(verbose);
@@ -2269,6 +2270,37 @@ internal static class Program
         Check("safe set prefers enemies out of a counter stance, and falls back to the stance enemy only when nothing else is up",
             BST_CrucibleLogic.SafeTargets(new[] { T(plain, avoid: true), T(plain) }).SequenceEqual(new[] { 1 })
             && BST_CrucibleLogic.SafeTargets(new[] { T(plain, avoid: true) }).SequenceEqual(new[] { 0 }));
+    }
+
+    // Live 2026-10-03, 62 Master's Board fights (GluttonyCombo 1.0.4.256-260). Two defects found in the logs that a unit case can pin.
+    private static void LearnedFromTheRuns()
+    {
+        Console.WriteLine("-- learned from the 2026-10-03 runs --");
+        var cfg = BstSettings.Defaults();
+
+        // King Ahriman Piece starts "Curtains for Rank 5" as TWO simultaneous casts, 49428 and 49429, at 47.6 s and 164.3 s of the
+        // fight. The target's castbar reads 49428 (CR| c=49428:4.7 down to 0.1) while the rule only knew 49429, so
+        // crucible:petsave-curtains had zero decisions in all of the recorded history and both familiars died to the effect
+        // (924 on Ziz, 890 on Bat).
+        var curtains = CrucibleState() with { TargetCastId = 49428, TargetCastRemaining = 1.5f, PetHpPercent = 100f, ReadyParting = true };
+        Check("Curtains for Rank 5 as the castbar shows it (49428): Parting Blow before it resolves, even with a healthy familiar",
+            Decide(curtains, cfg) is { ActionId: BST.PartingBlow, Reason: "crucible:petsave-curtains" },
+            $"{Decide(curtains, cfg).ActionId}/{Decide(curtains, cfg).Reason}");
+        Check("... the same cast id with 4 s remaining: not yet", Decide(curtains with { TargetCastRemaining = 4.0f }, cfg).Reason != "crucible:petsave-curtains");
+
+        // Roulette #3 of the same fight spawned a Final Hourglass (name id 14689). The target list narrows to the priority adds
+        // whenever one is up, and the hourglass was not one: Hapalit and Dirty Eye (up) were, so it was never attacked and the
+        // Death it carries killed the character through Doom. In roulettes 1 and 2, with no adds up, it was broken within ~12 s.
+        BST_CrucibleLogic.TargetCandidate T(uint id) => new(id, 100f, false);
+        const uint hourglass = 14689, hapalit = 14691, dirtyEye = 14692;
+        Check("Final Hourglass is a priority add", BST_CrucibleData.PriorityAdds.Contains(hourglass));
+        var field = new[] { T(hapalit), T(dirtyEye), T(hourglass) };
+        var allowed = BST_CrucibleLogic.AllowedTargets(field);
+        Check("hourglass up with Hapalit and Dirty Eye: the hourglass is the only target until it is broken",
+            allowed.SequenceEqual(new[] { 2 }), string.Join(",", allowed));
+        var noGlass = BST_CrucibleLogic.AllowedTargets(new[] { T(hapalit), T(dirtyEye) });
+        Check("control: no hourglass, Hapalit and Dirty Eye stay equally targetable", noGlass.SequenceEqual(new[] { 0, 1 }), string.Join(",", noGlass));
+        Check("control: the hourglass alone is targetable", BST_CrucibleLogic.AllowedTargets(new[] { T(hourglass) }).SequenceEqual(new[] { 0 }));
     }
 
     // ================================================================== helpers
