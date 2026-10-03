@@ -31,9 +31,11 @@
   </header>
 
   <div class="feat">
-    <div class="f"><div class="fi">All the plugins at a glance</div><div class="ft">Lists every lalalazy plugin with its icon and whether it is running, running a testing build, installed but off, or not installed.</div></div>
-    <div class="f"><div class="fi">Open anything in one click</div><div class="ft">Each running plugin gets an Open button that brings up its own window.</div></div>
-    <div class="f"><div class="fi">Quick look at auto-rotation</div><div class="ft">Shows whether Gluttony Combo&rsquo;s auto-rotation is on, and a server info bar entry counts how many of the plugins are running.</div></div>
+    <div class="f"><div class="fi">Every plugin, one place</div><div class="ft">Lists every lalalazy plugin with its icon and whether it is running, running a testing build, installed but off, or not installed, with an Open button for each running plugin.</div></div>
+    <div class="f"><div class="fi">A switch for each plugin</div><div class="ft">The Quick tab has one on/off switch per plugin that offers one, so a plugin can be turned on or off without opening its window. Switches with real consequences ask for a second click first.</div></div>
+    <div class="f"><div class="fi">Settings from one page</div><div class="ft">Open a plugin&rsquo;s page to change its common settings: toggles, number steppers and option pickers. A setting that another plugin or a running task has locked shows as locked. Plugins appear here once updated to a version that supports the hub.</div></div>
+    <div class="f"><div class="fi">Gluttony Combo up front</div><div class="ft">Gluttony Combo&rsquo;s Auto-Rotation switch and its action buttons sit at the top of the Quick tab. Click an action button, then click a hotbar slot to place it.</div></div>
+    <div class="f"><div class="fi">Safe mode</div><div class="ft"><code>/lazy safe</code> switches to a plain window if the full one ever misbehaves, and back again.</div></div>
   </div>
 
   <div class="kv">
@@ -49,12 +51,15 @@
       <button class="copybtn" onclick="copyRepo(this)">Copy</button>
     </div>
     <div class="steps">
-      <div class="step"><b>2.</b> Save, open <span class="mono">/xlplugins</span>, search <b>Lazy Hub</b>.</div>
+      <div class="step"><b>1.</b> <span class="mono">/xlsettings</span> → <b>Experimental</b> → paste under Custom Plugin Repositories.</div>
+      <div class="step"><b>2.</b> Save, open <span class="mono">/xlplugins</span>, search <b>Lazy Hub</b>. This is a testing build, so it needs the per-plugin testing opt-in.</div>
+      <div class="step"><b>3.</b> Install — done.</div>
     </div>
   </section>
 
   <div style="display:flex;justify-content:space-between;gap:12px">
-    <a class="backlink" href="../index.html#plugins">&larr; All plugins</a>
+    <a class="backlink" href="../index.html#plugins">← All plugins</a>
+    <a class="backlink" href="gluttonycombo.html">Gluttony Combo →</a>
   </div>
 
   <footer class="foot">

@@ -2,7 +2,7 @@
   "Author": "dajoey",
   "Name": "Lazy Hub",
   "InternalName": "LazyHub",
-  "Description": "One in-game window for the whole lalalazy suite. Lists every lalalazy plugin with its live status (loaded, testing build, not loaded, not installed) and an Open button for each running plugin, plus a server info bar entry. Open it with /lazy.",
+  "Description": "One in-game window for the whole lalalazy suite. Turn plugins on and off, change their common settings and open their windows from one place, with Gluttony Combo's Auto-Rotation switch and drag-to-hotbar action buttons up front, plus a server info bar entry. Open it with /lazy.",
   "Punchline": "One window for every lalalazy plugin.",
   "ApplicableVersion": "any",
   "DalamudApiLevel": 15,

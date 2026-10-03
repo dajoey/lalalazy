@@ -167,13 +167,15 @@ const PLUGINS = [
   },
   {
     slug: 'lazyhub', name: 'Lazy Hub', origin: 'Original', hasWindow: true,
-    short: 'One window for the whole suite: every lalalazy plugin with its live status and an Open button.',
+    short: 'One window for the whole suite: a switch and the common settings for every plugin, plus Gluttony Combo\u2019s hotbar buttons.',
     tag: 'Every lalalazy plugin, one window.',
     command: '/lazy', credit: 'Original plugin by dajoey \u00b7 built on the Dalamud SDK',
     features: [
-      { t: 'All the plugins at a glance', d: 'Lists every lalalazy plugin with its icon and whether it is running, running a testing build, installed but off, or not installed.' },
-      { t: 'Open anything in one click', d: 'Each running plugin gets an Open button that brings up its own window.' },
-      { t: 'Quick look at auto-rotation', d: 'Shows whether Gluttony Combo\u2019s auto-rotation is on, and a server info bar entry counts how many of the plugins are running.' },
+      { t: 'Every plugin, one place', d: 'Lists every lalalazy plugin with its icon and whether it is running, running a testing build, installed but off, or not installed, with an Open button for each running plugin.' },
+      { t: 'A switch for each plugin', d: 'The Quick tab has one on/off switch per plugin that offers one, so a plugin can be turned on or off without opening its window. Switches with real consequences ask for a second click first.' },
+      { t: 'Settings from one page', d: 'Open a plugin\u2019s page to change its common settings: toggles, number steppers and option pickers. A setting that another plugin or a running task has locked shows as locked. Plugins appear here once updated to a version that supports the hub.' },
+      { t: 'Gluttony Combo up front', d: 'Gluttony Combo\u2019s Auto-Rotation switch and its action buttons sit at the top of the Quick tab. Click an action button, then click a hotbar slot to place it.' },
+      { t: 'Safe mode', d: '/lazy safe switches to a plain window if the full one ever misbehaves, and back again.' },
     ],
   },
 ];
