@@ -1,3 +1,9 @@
+## v1.0.4.269 (2026-10-03) [testing]
+### Fixed
+- **Beastmaster, Crucible: the heal potion now follows the stock.** The survival policy's potion choice read only the action recast, which says nothing about what is actually held: with no Grade 4 Beast Potion in the slots it kept pressing the dead Grade 4 action while a lower grade sat in the bag, and no heal ever landed. The choice now reads the Crucible item HUD slots directly (the same stock display the game shows), offers the strongest grade actually held, and when a press does not land it steps down to the next held grade instead of re-pressing the dead one. The wait between presses now starts only after a real press, so a sudden need is never put on hold by an idle offer.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v1.0.4.268 (2026-10-03) [testing]
 ### Added
 - **Beastmaster, Crucible: a survival policy - heal potions between battles, a guard for measured aimed hits, and a panic heal.** Health carries between board battles and nothing topped the character up between campsites, so fights were entered at low health (entering below 40% died close to nine times as often as entering above 80%). Inside a fight, a measured heavy cast that hits the character whatever the familiar does (Durga's Atomic Ray) could land for more than the character's remaining health with nothing pressed. Between battles the best held Beast Potion is now drunk below 80% health; inside a fight, when such a cast is live and its largest measured hit exceeds remaining health, the held skin (Scaleskin / Beastskin / Vileskin) is used close to the hit and the potion otherwise; a known tankbuster with no Snarl -> Parting cover armed gets the potion at 35% health or below; and at 25% health or below a potion is drunk with no cast to react to. Potions are pressed as actions straight from the Crucible item slots; with none held the press fails silently and the decision log names why nothing fired.
