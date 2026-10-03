@@ -38,6 +38,7 @@ internal static class Program
         DispelClass();
         ArmAndAimTheInterrupt();
     InterruptEconomy();
+        AnswerAmmoCleanseDispel();
         ShieldChargeOvercap();
         CrucibleTactics();
         DashLandingSafety();
@@ -566,6 +567,93 @@ internal static class Program
             cannot.Declines.Contains("crucible:answer-interrupt-cannot-rearm"), $"{cannot.ActionId}:{cannot.Reason} [{cannot.Declines}]");
         Check("... a ready Soulkin horn exists instead: the answer swap fires (existing rule)",
             Decide(spent with { Slot3Beast = 7 }, cfg) is { ActionId: BST.ThirdBattlehorn, Reason: "crucible:answer-interrupt-slot3" });
+    }
+
+    /// <summary>
+    ///     Answer ammo, the rest of the class (2026-10-03 morning run, board 5 Flauros piece, character died). The
+    ///     fix round held the Soulkin's One with Nature on interrupt fights; the same economy governs the bat's
+    ///     Ultrasonics (the cleanse) and the vulture's Bloodcurdling Caw (the dispel): each summon buys one release,
+    ///     and a discretionary Tempered or borrow spends it. Live, 2026-10-03 11:08:42 the bat was summoned on the
+    ///     cleanse fight and its One with Nature went to own:tempered + borrow-while-tempered-recasts 1.4 s later;
+    ///     11:09:31 the Paralysis landed and stayed (Ultrasonics needs that One with Nature), hp 28 -&gt; 4, the
+    ///     character died at 11:15:19 — silently, because TryCleanse logs no decline. So: hold the answering
+    ///     release while the thing it answers is not live, never borrow over a held answer kinship (Scouring Ash,
+    ///     Quelling Wave — the held-Soul-Crush guard generalised), and name the impossible re-arm for all three needs.
+    /// </summary>
+    private static void AnswerAmmoCleanseDispel()
+    {
+        Console.WriteLine("-- answer ammo: hold the bat's and the vulture's release, keep held answers, name the impossible --");
+        var cfg = BstSettings.Defaults();
+
+        // The bat (row 19) is out with One with Nature up on a cleanse fight (board 5, the Flauros piece);
+        // nothing held, no debuff on the character yet. This is 11:08:43 in the log, one second after the summon.
+        var batOut = CrucibleState(30) with
+        {
+            CrucibleBoard = 5, CrucibleBattle = 1, CrucibleNeeds = CrucibleNeeds.Cleanse,
+            ActiveSlot = 2, Slot2Beast = 19, PetObjectBeast = 19, Slot1Beast = 1, Slot3Beast = 34,
+            OneWithNature = true, ReadyTempered = true, ReadyBorrow = true,
+            KinshipHeld = false, BeastModeResolved = BST.BeastMode,
+            SinceSummon = 20f, SinceHornPress = 21f, CanWeave = true, HasHostileTarget = true, TargetDistance = 3f,
+        };
+
+        // Hold: no debuff up, the ammo survives for the one that lands 49 s later.
+        var hold = Decide(batOut, cfg);
+        Check("no debuff up: the bat's One with Nature is held for the cleanse, not spent",
+            hold.ActionId != BST.TemperedRelease && hold.ActionId != BST.Borrow && hold.Declines.Contains("own:held-for-cleanse"),
+            $"{hold.ActionId}:{hold.Reason} [{hold.Declines}]");
+
+        // Spend when it matters: the debuff is live, Ultrasonics fires now (existing rule, the control).
+        Check("a cleansable debuff lands: the bat's One with Nature goes to Ultrasonics",
+            Decide(batOut with { PlayerHasCleansableDebuff = true }, cfg) is { ActionId: BST.TemperedRelease, Reason: "crucible:cleanse-ultrasonics" },
+            $"{Decide(batOut with { PlayerHasCleansableDebuff = true }, cfg).ActionId}:{Decide(batOut with { PlayerHasCleansableDebuff = true }, cfg).Reason}");
+
+        // The vulture (row 11) on the Strix dispel fight, between Ultimate Focus windows.
+        var vultureOut = batOut with
+        {
+            CrucibleBoard = 4, CrucibleBattle = 1, CrucibleNeeds = CrucibleNeeds.Dispel,
+            ActiveSlot = 2, Slot2Beast = 11, PetObjectBeast = 11,
+        };
+        var vHold = Decide(vultureOut, cfg);
+        Check("Strix between buffs: the vulture's One with Nature is held for the dispel, not spent",
+            vHold.ActionId != BST.TemperedRelease && vHold.ActionId != BST.Borrow && vHold.Declines.Contains("own:held-for-dispel"),
+            $"{vHold.ActionId}:{vHold.Reason} [{vHold.Declines}]");
+        Check("... Ultimate Focus lands: Bloodcurdling Caw answers (existing rule)",
+            Decide(vultureOut with { TargetHasDispellableBuff = true }, cfg) is { ActionId: BST.TemperedRelease, Reason: "crucible:dispel-caw" });
+
+        // A held answer kinship is never replaced by a discretionary borrow — the held-Soul-Crush guard, generalised.
+        var ashHeld = batOut with
+        {
+            ActiveSlot = 1, Slot1Beast = 1, PetObjectBeast = 1, Slot2Beast = 19,
+            OneWithNature = true, ReadyTempered = false, TemperedRecastRemaining = 20f, ReadyBorrow = true,
+            KinshipHeld = true, BeastModeResolved = BST.ScouringAsh, ReadyBeastMode = true, KinshipSlot = 2,
+        };
+        Check("Scouring Ash held, Tempered on recast: no discretionary borrow over it",
+            Decide(ashHeld, cfg with { BorrowWhileReleaseRecasts = true }).Declines.Contains("own:borrow-keep-scouringash"));
+        var waveHeld = vultureOut with
+        {
+            ActiveSlot = 1, Slot1Beast = 1, PetObjectBeast = 1, Slot2Beast = 11,
+            OneWithNature = true, ReadyTempered = false, TemperedRecastRemaining = 20f, ReadyBorrow = true,
+            KinshipHeld = true, BeastModeResolved = BST.QuellingWave, ReadyBeastMode = true, KinshipSlot = 2,
+        };
+        Check("Quelling Wave held on the dispel fight: the same guard",
+            Decide(waveHeld, cfg with { BorrowWhileReleaseRecasts = true }).Declines.Contains("own:borrow-keep-quellingwave"));
+
+        // The impossible cases said out loud (today they are silent — the character died behind one of them).
+        var spentBat = batOut with { PlayerHasCleansableDebuff = true, OneWithNature = false, ReadyTempered = false, ReadyHorn3 = true, Slot3Beast = 34 };
+        var cannotCleanse = Decide(spentBat, cfg);
+        Check("debuff live, bat out with One with Nature spent, no other cleanser horn: the limit is named",
+            cannotCleanse.Declines.Contains("crucible:answer-cleanse-cannot-rearm"),
+            $"{cannotCleanse.ActionId}:{cannotCleanse.Reason} [{cannotCleanse.Declines}]");
+        Check("... an Ashkin horn is ready instead: the answer swap fires (existing rule)",
+            Decide(spentBat with { Slot3Beast = 13 }, cfg) is { ActionId: BST.ThirdBattlehorn, Reason: "crucible:answer-cleanse-slot3" });
+
+        var spentVulture = vultureOut with { TargetHasDispellableBuff = true, OneWithNature = false, ReadyTempered = false, ReadyHorn3 = true, Slot3Beast = 34 };
+        var cannotDispel = Decide(spentVulture, cfg);
+        Check("buff live, vulture out with One with Nature spent, no other dispeller horn: the limit is named",
+            cannotDispel.Declines.Contains("crucible:answer-dispel-cannot-rearm"),
+            $"{cannotDispel.ActionId}:{cannotDispel.Reason} [{cannotDispel.Declines}]");
+        Check("... a Wavekin horn is ready instead: the answer swap fires (existing rule)",
+            Decide(spentVulture with { Slot3Beast = 4 }, cfg) is { ActionId: BST.ThirdBattlehorn, Reason: "crucible:answer-dispel-slot3" });
     }
 
     private static void CrucibleTargetingAndAdvisor()
