@@ -556,6 +556,24 @@ namespace GluttonyCombo.Resources.Localization.JobConfigs {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Crucible survival: heal potions and the aimed-hit guard.
+        /// </summary>
+        internal static string CrucibleSurvival {
+            get {
+                return ResourceManager.GetString("CrucibleSurvival", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to On by default. Between battles the best held Beast Potion is drunk below 80% HP, and inside a fight a measured heavy cast whose largest hit exceeds remaining HP (Atomic Ray) gets the held skin or the potion; below 25% HP a potion is drunk with no cast to react to. Needs potions in the Crucible item slots..
+        /// </summary>
+        internal static string CrucibleSurvivalDesc {
+            get {
+                return ResourceManager.GetString("CrucibleSurvivalDesc", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Hold {0} for the add pack or the Ymir's shell break, then {1} the pack.
         /// </summary>
         internal static string CruciblePackWindow0And1 {

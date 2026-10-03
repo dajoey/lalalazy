@@ -272,6 +272,8 @@ internal static class BST_RotationLogic
         public int EnemyCount;                    // hostile, targetable, alive
         public float HighestEnemyHpPercent;       // across those enemies
         public float PlayerHpPercent;
+        public float PlayerHp;                       // absolute: the survival guard compares it to a cast's largest measured hit
+        public uint ReadyHealPotion;                // best-grade Crucible heal potion action usable now, 0 = none
         public float PetHpPercent;                // the summoned familiar (100 when none)
         public float PetHp;                       // the summoned familiar's HP (absolute)
         public float PlayerIntakePerSecond;       // HP the character lost per second over the last 10 s
@@ -326,6 +328,8 @@ internal static class BST_RotationLogic
         public bool CruciblePrepullHorns;
         public bool CrucibleSnarlParting;
         public float CrucibleSnarlPartingLead;
+        /// <summary> Crucible survival policy: board heal to the entry line, the aimed-hit guard and the panic heal (2026-10-03 deaths). </summary>
+        public bool CrucibleSurvival;
         /// <summary> Hold a familiar's Tempered Release for the add pack / shell break the fight guide names, then Parting Blow the pack (default off: logged in <c>sh=</c> first). </summary>
         public bool CruciblePackWindow;
 
@@ -359,6 +363,7 @@ internal static class BST_RotationLogic
             CruciblePrepullHorns = false,
             CrucibleSnarlParting = false,
             CrucibleSnarlPartingLead = 1.5f,
+            CrucibleSurvival = true,
             CruciblePackWindow = false,
         };
     }
@@ -433,6 +438,14 @@ internal static class BST_RotationLogic
         // Crucible of the Unbroken: extra rules only on a Crucible board (nothing below changes elsewhere).
         var crucible = cfg.Crucible && s.CrucibleBoard != 0;
         var rcfg = crucible && cfg.CrucibleAllowDisplacing ? cfg with { AllowDisplacingRelease = true } : cfg;
+
+        // ---------------------------------------------------------- 0. Crucible survival: entry-HP heal, aimed-hit guard, panic heal
+        if (crucible)
+        {
+            var survival = BST_CrucibleLogic.TrySurvival(s, cfg, declines);
+            if (survival.ActionId != 0)
+                return Pick(survival.ActionId, survival.Reason);
+        }
 
         // ---------------------------------------------------------- out of combat
         if (!s.InCombat)

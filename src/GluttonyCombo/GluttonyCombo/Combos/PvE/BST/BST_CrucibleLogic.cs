@@ -791,6 +791,48 @@ internal static class BST_CrucibleLogic
     public static bool SnarlPartingNow(in BstState s, in BstSettings cfg) =>
         SnarlPartingWindow(s, cfg) && s.SinceSnarl < 45f;
 
+    // ------------------------------------------------------------------ survival (2026-10-03 deaths)
+
+    /// <summary> Out of combat on a board: top the character up to this line before the next fight. Entry below 40% HP died 8.8x the 80%+ rate over 7 days. </summary>
+    public const float BoardHealHpPercent = 80f;
+
+    /// <summary> In combat with no cast to react to: the line where a heal is pressed anyway (Burns / cone attrition deaths at 3% HP). </summary>
+    public const float PanicHealHpPercent = 25f;
+
+    /// <summary> A registered tankbuster with no Snarl -> Parting cover armed gets the potion at or below this line (per-hit damage unknown for most ids). </summary>
+    public const float TankbusterGuardHpPercent = 35f;
+
+    /// <summary> A held skin (Scaleskin / Beastskin / Vileskin) is offered this close to the hit: potions heal now, skins last. </summary>
+    public const float SkinGuardLeadSeconds = 8f;
+
+    /// <summary>
+    ///     Survival policy (task tasks-20261003-crucible-survivability-entry-hp-01, 2026-10-03): the character kept dying from HP carried
+    ///     into a fight (five of the day's ten deaths entered below 60%) and from single aimed hits above remaining HP (Atomic Ray: 3,998 /
+    ///     4,782 on a 30% character, nothing pressed). The only heal actor, AutoDuty's Crucible Items, under-heals on the board (60% line) and
+    ///     goes silent when the HUD stock runs dry (the Durga fight: 126 s below its 40% line, zero uses). PURE, like the rest of this file.
+    ///     <para>Board heal: out of combat, below <see cref="BoardHealHpPercent"/>, press the best-grade ready heal potion action directly
+    ///     (no HUD menu dance; a press with nothing held fails silently and the live layer throttles it).</para>
+    ///     <para>Guard: a measured <see cref="BST_CrucibleData.HeavyCast"/> of kind CastOnly / PartyWide — it hits the character whatever the
+    ///     familiar does — with remaining HP under its <see cref="CrucibleHeavyCast.MaxOnCharacter"/> gets the best available answer: the held
+    ///     skin inside <see cref="SkinGuardLeadSeconds"/> of the hit (free, 90 s), else the potion at any point in the cast. A registered
+    ///     tankbuster gets the potion only when no Snarl -> Parting cover is armed and HP is at or below <see cref="TankbusterGuardHpPercent"/>
+    ///     (the dodge, not the stock, is the first answer there).</para>
+    ///     <para>Panic: in combat at or below <see cref="PanicHealHpPercent"/> with no cast to react to.</para>
+    /// </summary>
+    public static (uint ActionId, string Reason) TrySurvival(in BstState s, in BstSettings cfg, List<string> declines)
+    {
+        if (!cfg.CrucibleSurvival)
+            return (0, "");
+
+        return (0, "");
+    }
+
+    /// <summary> A familiar already holding the enemy, or the Snarl -> Parting dodge still able to run for it, owns a registered tankbuster. </summary>
+    private static bool TankbusterCoverArmed(in BstState s, in BstSettings cfg) =>
+        s.EnemyTargetsPet
+        || (cfg.CrucibleSnarlParting && s.HasHostileTarget && FamiliarOut(s) && s.ReadyParting
+            && !s.TargetDoNotAttack && !s.ProtectedNearTarget && s.SinceSnarl < 45f && s.TargetDistance <= 25f);
+
     /// <summary>
     ///     The Parting Blow window of a known tankbuster is open (the hit lands within the lead time), whether or not Snarl set it up.
     ///     Logged in the shadow field while the option is off, so a run can be graded (it had never been evaluated: 0 decisions).

@@ -46,6 +46,7 @@ internal partial class BST
             BST_CrucibleTargeting = new("BST_CrucibleTargeting", true),
             BST_CrucibleScoreMode = new("BST_CrucibleScoreMode", false),
             BST_CrucibleSnarlParting = new("BST_CrucibleSnarlParting", true),
+            BST_CrucibleSurvival = new("BST_CrucibleSurvival", true),
             BST_CruciblePackWindow = new("BST_CruciblePackWindow", false),
             BST_CrucibleCycleForDamage = new("BST_CrucibleCycleForDamage", false),
             BST_CruciblePrepullHorns = new("BST_CruciblePrepullHorns", false);
@@ -159,6 +160,10 @@ internal partial class BST
                 BST_Config.CrucibleSnarlPartingDesc);
             if (BST_CrucibleSnarlParting)
                 DrawSliderInt(5, 30, BST_CrucibleSnarlPartingLead, BST_Config.CrucibleSnarlPartingLead);
+
+            DrawAdditionalBoolChoice(BST_CrucibleSurvival,
+                BST_Config.CrucibleSurvival,
+                BST_Config.CrucibleSurvivalDesc);
 
             DrawAdditionalBoolChoice(BST_CruciblePackWindow,
                 FormatAndCache(BST_Config.CruciblePackWindow0And1, TemperedRelease.ActionName(), PartingBlow.ActionName()),

@@ -39,6 +39,12 @@ internal partial class BST
     private static bool _shellWasUp;
     private static long _shellBrokeTick;
 
+    /// <summary> Last tick a heal potion was offered: a press the game refuses (nothing held) is not re-sent for this long. </summary>
+    private static long _lastHealOfferTick;
+
+    /// <summary> The game's item-use lockout after a refused potion press, before the id is offered again. </summary>
+    private const long HealOfferThrottleMs = 2500;
+
     /// <summary> Quelling Wave's range (30 y): a carrier further out than this does not call for a dispel or steer the aim. </summary>
     private const float DispelReach = 30f;
 
@@ -242,6 +248,20 @@ internal partial class BST
         s.ShellJustBroke = !shellUp && _shellBrokeTick != 0 && now - _shellBrokeTick < ShellBrokeWindowMs;
 
         s.PlayerHpPercent = player.MaxHp == 0 ? 0f : 100f * player.CurrentHp / player.MaxHp;
+        s.PlayerHp = player.CurrentHp;
+
+        // Crucible heal potions: the best grade whose recast is clear (a press with nothing held fails silently;
+        // the throttle keeps a refused press from being re-sent every tick).
+        if (now - _lastHealOfferTick > HealOfferThrottleMs)
+        {
+            foreach (var id in BST_CrucibleData.HealPotionActions)
+                if (GetCooldownRemainingTime(id) < 0.1f)
+                {
+                    s.ReadyHealPotion = id;
+                    _lastHealOfferTick = now;
+                    break;
+                }
+        }
         s.PlayerIntakePerSecond = TrackIntake(now, player.CurrentHp);
         s.PlayerHasCleansableDebuff = player.HasCleansableDebuff;
 

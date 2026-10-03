@@ -265,6 +265,13 @@ internal static partial class BST_CrucibleData
         HeavyCast(castId) is { Kind: CrucibleHitKind.Tankbuster } row ? row.HitDelay : 0f;
 
     /// <summary>
+    ///     Crucible heal potions as the actions the character performs, strongest first (a G3 healed 39% to 75% of a
+    ///     7,950 HP bar on 2026-10-03). The HUD slot binding and the stock are the game's: a press with none held fails
+    ///     silently, so the live layer only offers ids whose recast is clear and throttles refused presses.
+    /// </summary>
+    public static readonly uint[] HealPotionActions = [46962, 46961, 46960, 46959];
+
+    /// <summary>
     ///     Enemies auto-targeting takes first whenever they are up: the adds the guides kill on sight (succubi, wisps before
     ///     they reach the centre, ahriman after the gaze, zombies, a woken Thanatos, the guardia that covers its allies) and
     ///     the bone bishop before the bone knight, plus every panel add priority across B1-B3, M1 and M2. Identities are

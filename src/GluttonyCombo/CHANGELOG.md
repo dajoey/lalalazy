@@ -1,6 +1,11 @@
+## v1.0.4.268 (2026-10-03) [testing]
+### Added
+- **Beastmaster, Crucible: a survival policy - heal potions between battles, a guard for measured aimed hits, and a panic heal.** Health carries between board battles and nothing topped the character up between campsites, so fights were entered at low health (entering below 40% died close to nine times as often as entering above 80%). Inside a fight, a measured heavy cast that hits the character whatever the familiar does (Durga's Atomic Ray) could land for more than the character's remaining health with nothing pressed. Between battles the best held Beast Potion is now drunk below 80% health; inside a fight, when such a cast is live and its largest measured hit exceeds remaining health, the held skin (Scaleskin / Beastskin / Vileskin) is used close to the hit and the potion otherwise; a known tankbuster with no Snarl -> Parting cover armed gets the potion at 35% health or below; and at 25% health or below a potion is drunk with no cast to react to. Potions are pressed as actions straight from the Crucible item slots; with none held the press fails silently and the decision log names why nothing fired.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v1.0.4.267 (2026-10-03) [testing]
 ### Added
-- **Beastmaster, Crucible: the collector now says why the character is not attacking.** The `CR|` line carries the hitbox-edge distance to the current target (`d=`, empty without one) and the character's own movement speed (`mv=`, yalms per second), so a stretch with no attack can be told apart as out of range, moving, or standing still. A new `SG|` line is written while the rotation has chosen an attack, the global cooldown sits ready and nothing has been sent for over a second, naming the reason: no target, own cast bar, animation lock, a queued action, out of range, or none of those. A continuing stall re-logs at most every 2 seconds with its length so far.
 ### Notes
 - Testing channel only; the production channel is unchanged.
 

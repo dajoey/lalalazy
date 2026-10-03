@@ -31,6 +31,7 @@ internal static class Program
         OutOfCombat();
         CrucibleDataChecks();
         CrucibleRules();
+        CrucibleSurvival();
         MasterBoardFights();
         CrucibleTargetingAndAdvisor();
         CrucibleHornWarning();
@@ -889,6 +890,65 @@ internal static class Program
         Check("PickSlotsCoverage: all 10 picks unique", cov10.Select(p => p.Row).Distinct().Count() == 10);
         Check("PickSlotsCoverage: all 10 Why start with coverage board 1",
             cov10.All(p => p.Why.StartsWith("coverage board 1, battle unidentified", StringComparison.Ordinal)));
+    }
+
+    /// <summary>
+    ///     Survival as a class (task tasks-20261003-crucible-survivability-entry-hp-01, 2026-10-03). Five of the day's ten deaths
+    ///     were fights entered below 60% HP (Durga 37%, Lauda 59/57%; below 40% entry died 8.8x the 80%+ rate over 7 days), and
+    ///     Durga's Atomic Ray (49272, aimed at the character, 3,998 / 4,782 / 2,953-clamped on a 7,950 bar) killed a 30% character
+    ///     with nothing pressed. The only heal actor (AutoDuty's Crucible Items) under-heals on the board (60% line) and goes
+    ///     silent when the HUD stock is dry; the Durga fight ran 126 s below its 40% line with zero uses.
+    /// </summary>
+    private static void CrucibleSurvival()
+    {
+        Console.WriteLine("-- crucible survival --");
+        var cfg = BstSettings.Defaults();
+        var off = cfg with { CrucibleSurvival = false };
+
+        // Atomic Ray, the logged lethal shape: 13 s cast, 8 s remaining, character at 2,385 of 7,950 HP, known max hit 4,782.
+        var ray = CrucibleState() with
+        {
+            InCombat = true, TargetCastId = 49272, TargetCastRemaining = 8f,
+            PlayerHpPercent = 30f, PlayerHp = 2385f, ReadyHealPotion = 46961,
+        };
+        Check("Atomic Ray 8 s out, 2,385 HP under the 4,782 known hit: the G3 potion (today: nothing)",
+            Decide(ray, cfg) is { ActionId: 46961, Reason: "crucible:raidwide-guard" }, $"{Decide(ray, cfg).Reason} [{Decide(ray, cfg).Declines}]");
+        Check("survival off: nothing pressed", Decide(ray, off).Reason != "crucible:raidwide-guard");
+        Check("above the known hit (6,000 HP): no guard", Decide(ray with { PlayerHp = 6000f, PlayerHpPercent = 75f }, cfg).Reason != "crucible:raidwide-guard");
+        Check("cast already resolving (0.1 s): too late", Decide(ray with { TargetCastRemaining = 0.1f }, cfg).Reason != "crucible:raidwide-guard");
+        Check("no potion usable: decline names the guard", Decide(ray with { ReadyHealPotion = 0 }, cfg).Declines.Contains("crucible:raidwide-guard-none"));
+
+        // Scale Kinship held: the magic-absorbing skin answers first once the hit is close (potions are stock, the skin is free).
+        var skinned = ray with { KinshipHeld = true, BeastModeResolved = BST.Scaleskin, ReadyBeastMode = true, TargetCastRemaining = 6f };
+        Check("Scaleskin held, hit 6 s out: the skin, not the stock", Decide(skinned, cfg) is { ActionId: BST.Scaleskin, Reason: "crucible:raidwide-guard" });
+        Check("Scaleskin held but the hit is 12 s out: the potion heals now, the skin waits",
+            Decide(skinned with { TargetCastRemaining = 12f }, cfg) is { ActionId: 46961, Reason: "crucible:raidwide-guard" });
+
+        // Registered tankbuster with no Snarl -> Parting cover armed (option off, no familiar out): the potion at low HP.
+        var vomit = CrucibleState() with
+        {
+            ActiveSlot = 0, PetObjectPresent = false, EnemyTargetsPet = false,
+            TargetCastId = 48809, TargetCastRemaining = 3f, PlayerHpPercent = 30f, PlayerHp = 2385f, ReadyHealPotion = 46961,
+        };
+        Check("Toxic Vomit, no cover armed, 30% HP: the potion", Decide(vomit, cfg) is { ActionId: 46961, Reason: "crucible:raidwide-guard" });
+        Check("familiar already covering: the dodge owns it, no potion",
+            Decide(vomit with { EnemyTargetsPet = true }, cfg).Reason != "crucible:raidwide-guard");
+
+        // Attrition deaths (Lauda: Burns + cone autos at 3% HP): the panic line.
+        var panic = CrucibleState() with { PlayerHpPercent = 20f, PlayerHp = 1590f, ReadyHealPotion = 46959 };
+        Check("20% HP, no cast to react to: the panic heal", Decide(panic, cfg) is { ActionId: 46959, Reason: "crucible:panic-heal" });
+        Check("40% HP: no panic", Decide(panic with { PlayerHpPercent = 40f, PlayerHp = 3180f }, cfg).Reason != "crucible:panic-heal");
+
+        // Entry HP: on the board, top up before the next fight (HP carries between battles).
+        var board = CrucibleState() with { InCombat = false, PlayerHpPercent = 59f, PlayerHp = 4690f, ReadyHealPotion = 46960 };
+        Check("on the board at 59%: the G2 potion before the next fight", Decide(board, cfg) is { ActionId: 46960, Reason: "crucible:board-heal" },
+            $"{Decide(board, cfg).Reason} [{Decide(board, cfg).Declines}]");
+        Check("on the board at 85%: no heal", Decide(board with { PlayerHpPercent = 85f, PlayerHp = 6757f }, cfg).Reason != "crucible:board-heal");
+        Check("survival off: no board heal", Decide(board, off).Reason != "crucible:board-heal");
+
+        // Outside the Crucible the potions never fire.
+        Check("board 0: no survival actions", Decide(ray with { CrucibleBoard = 0 }, cfg).Reason != "crucible:raidwide-guard"
+              && Decide(board with { CrucibleBoard = 0 }, cfg).Reason != "crucible:board-heal");
     }
 
     /// <summary> In combat on the First Board, L30, Cu Sith out (One with Nature spent), raptor / buffalo on ready horns 2 and 3. </summary>

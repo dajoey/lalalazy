@@ -285,6 +285,12 @@
   <data name="CrucibleSnarlPartingLead" xml:space="preserve">
     <value>Parting Blow this many tenths of a second before the cast ends</value>
   </data>
+  <data name="CrucibleSurvival" xml:space="preserve">
+    <value>Crucible survival: heal potions and the aimed-hit guard</value>
+  </data>
+  <data name="CrucibleSurvivalDesc" xml:space="preserve">
+    <value>On by default. Between battles the best held Beast Potion is drunk below 80% HP, and inside a fight a measured heavy cast whose largest hit exceeds remaining HP (Atomic Ray) gets the held skin or the potion; below 25% HP a potion is drunk with no cast to react to. Needs potions in the Crucible item slots.</value>
+  </data>
   <data name="CruciblePackWindow0And1" xml:space="preserve">
     <value>Hold {0} for the add pack or the Ymir's shell break, then {1} the pack</value>
   </data>
