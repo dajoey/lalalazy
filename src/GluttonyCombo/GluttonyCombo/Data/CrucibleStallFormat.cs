@@ -1,3 +1,7 @@
+using System;
+using System.Globalization;
+using System.Text;
+
 namespace GluttonyCombo.Data;
 
 /// <summary>
@@ -16,8 +20,8 @@ internal static class CrucibleStallFormat
     /// <summary> Hard budget for one emitted line. </summary>
     public const int MaxLineLength = 160;
 
-    /// <summary> Same rate floor as <c>RF|</c>: a continuing stall re-logs at most every 2 s. </summary>
-    public const int MinIntervalMs = BeastmasterTelemetryFormat.MinIntervalMs;
+    /// <summary> Same rate floor as <c>RF|</c>: a continuing stall re-logs at most every 2 s, not every change gate tick. </summary>
+    public const int MinIntervalMs = 2000;
 
     /// <summary> Nothing fired for this long (with the GCD ready) before the first line is written. </summary>
     public const float StallAfterSeconds = 1f;
@@ -40,6 +44,8 @@ internal static class CrucibleStallFormat
         Unknown,
     }
 
+    private static readonly string[] ReasonWords = ["none", "notarget", "cast", "lock", "queue", "range", "unknown"];
+
     internal readonly record struct Snapshot(
         uint ActionId,
         Reason Why,
@@ -53,7 +59,16 @@ internal static class CrucibleStallFormat
     /// <summary> A new stall (action, reason, distance or target changed) emits at once; the same one re-logs at most every <see cref="MinIntervalMs"/>. </summary>
     internal static bool ShouldEmit(ref GateState state, long nowMs, in Snapshot snapshot)
     {
-        return false; // STUB (failing-first): the real gate lands with the implementation commit
+        var key = KeyOf(snapshot);
+
+        if (state.HasLast && state.LastKey == key && (!state.HasEmitted || nowMs - state.LastEmitMs < MinIntervalMs))
+            return false;
+
+        state.HasLast = true;
+        state.LastKey = key;
+        state.HasEmitted = true;
+        state.LastEmitMs = nowMs;
+        return true;
     }
 
     internal struct GateState
@@ -72,6 +87,20 @@ internal static class CrucibleStallFormat
     /// </summary>
     internal static string BuildLine(long unixMs, in Snapshot s)
     {
-        return Prefix; // STUB (failing-first): the real line lands with the implementation commit
+        var inv = CultureInfo.InvariantCulture;
+        var sb = new StringBuilder(MaxLineLength + 32);
+
+        sb.Append(Prefix).Append(unixMs.ToString(inv))
+          .Append("|act=").Append(s.ActionId.ToString(inv))
+          .Append("|r=").Append(ReasonWords[(int)s.Why])
+          .Append("|d=");
+        if (s.EdgeDistance >= 0f)
+            sb.Append(Math.Min(99f, s.EdgeDistance).ToString("0.0", inv));
+        sb.Append("|t=").Append(s.TargetNameId.ToString(inv))
+          .Append("|s=").Append(Math.Min(999f, Math.Max(0f, s.StallSeconds)).ToString("0.0", inv));
+
+        if (sb.Length > MaxLineLength)
+            sb.Length = MaxLineLength;
+        return sb.ToString();
     }
 }

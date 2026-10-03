@@ -1,5 +1,8 @@
+using Dalamud.Game.ClientState.Objects.Types;
+using ECommons;
 using ECommons.DalamudServices;
 using ECommons.ExcelServices;
+using ECommons.GameFunctions;
 using ECommons.GameHelpers;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using GluttonyCombo.Combos.PvE;
@@ -7,6 +10,7 @@ using GluttonyCombo.Core;
 using Lalalazy.Telemetry;
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 
 namespace GluttonyCombo.Data;
 
@@ -40,6 +44,12 @@ internal static class BeastmasterTelemetry
 
     private static CrucibleTelemetryFormat.GateState _crucibleGate;
 
+    /// <summary> Stalled-GCD gate and movement tracking for <c>SG|</c> / <c>CR|mv=</c>. </summary>
+    private static CrucibleStallFormat.GateState _stallGate;
+    private static long _lastPosTick;
+    private static Vector3 _lastPos;
+    private static float _moveSpeed;
+
     /// <summary> Reusable status buffer; the collector runs on the framework thread only. </summary>
     private static readonly List<ushort> StatusBuffer = [];
 
@@ -48,6 +58,9 @@ internal static class BeastmasterTelemetry
     {
         _gate.Reset();
         _crucibleGate.Reset();
+        _stallGate.Reset();
+        _lastPosTick = 0;
+        _moveSpeed = 0f;
     }
 
     /// <summary>
@@ -74,15 +87,35 @@ internal static class BeastmasterTelemetry
             // Crucible of the Unbroken: CR| stays board-only; XB| follows any visible XBM* addon (Bentbranch included).
             if (Player.Object is not null)
             {
+                // Own movement speed (CR|mv=, SG|): position deltas between framework ticks, EMA-smoothed, yalms/s.
+                var tick = Environment.TickCount64;
+                if (_lastPosTick != 0 && tick > _lastPosTick)
+                {
+                    var dt = (tick - _lastPosTick) / 1000f;
+                    if (dt is > 0.001f and < 1f)
+                    {
+                        var dx = Player.Object.Position.X - _lastPos.X;
+                        var dz = Player.Object.Position.Z - _lastPos.Z;
+                        var speed = MathF.Sqrt(dx * dx + dz * dz) / dt;
+                        _moveSpeed = _moveSpeed <= 0f ? speed : 0.6f * _moveSpeed + 0.4f * speed;
+                    }
+                }
+                _lastPos = Player.Object.Position;
+                _lastPosTick = tick;
+
                 if (BST_CrucibleData.BoardOfTerritory(Svc.ClientState.TerritoryType) != 0)
                 {
-                    var crucible = SampleCrucible();
+                    var state = BST.ReadState();
+                    var crucible = SampleCrucible(state);
                     if (CrucibleTelemetryFormat.ShouldEmit(ref _crucibleGate, now, crucible))
                     {
                         var line = CrucibleTelemetryFormat.BuildLine(now, crucible);
                         Svc.Log.Information(line);
                         LalaTelemetry.Record(line);
                     }
+
+                    // Stalled GCD (SG|): the rotation chose an attack, the GCD sits ready, nothing is being sent.
+                    SampleStall(state, now);
                 }
                 BST.CaptureCrucibleUi(now);
             }
@@ -95,10 +128,62 @@ internal static class BeastmasterTelemetry
         }
     }
 
-    /// <summary> The rotation's own view of the Crucible (BST.ReadState), sampled even when the rotation is idle. </summary>
-    private static CrucibleTelemetryFormat.Snapshot SampleCrucible()
+    /// <summary> The hitbox-edge distance to a target (centers minus both hitboxes), or -1 without one. </summary>
+    private static float EdgeDistanceTo(IGameObject target)
     {
-        var s = BST.ReadState();
+        if (Player.Object is not { } player)
+            return -1f;
+        var dx = target.Position.X - player.Position.X;
+        var dz = target.Position.Z - player.Position.Z;
+        var center = MathF.Sqrt(dx * dx + dz * dz);
+        return MathF.Max(0f, center - target.HitboxRadius - player.HitboxRadius);
+    }
+
+    /// <summary>
+    ///     Stalled GCD (SG|, 1.0.4.266): while the rotation names an attack, the global cooldown is ready and
+    ///     nothing has been sent for over a second, one line per stall says WHY - in order: no hostile target,
+    ///     own cast bar, animation lock, a queued action, the chosen action out of range of the current target,
+    ///     or none of those (unknown). Re-logs a continuing stall at most every 2 s with its length so far.
+    /// </summary>
+    private static unsafe void SampleStall(in BST_RotationLogic.BstState s, long unixMs)
+    {
+        var act = BST.LastDecisionActionId;
+        var isAttack = act != 0 && ActionWatching.ActionSheet.TryGetValue(act, out var sheet)
+            && sheet.CanTargetHostile && !sheet.CanTargetSelf;
+        var sinceFire = (float)(DateTime.UtcNow - ActionWatching.TimeLastActionUsed).TotalSeconds;
+        var holding = s.InCombat && s.GcdReady && isAttack && sinceFire > CrucibleStallFormat.StallAfterSeconds;
+        if (!holding)
+            return;
+
+        var why = CrucibleStallFormat.Reason.Unknown;
+        var edge = -1f;
+        if (!s.HasHostileTarget)
+            why = CrucibleStallFormat.Reason.NoTarget;
+        else if (s.PlayerIsCasting)
+            why = CrucibleStallFormat.Reason.Cast;
+        else if (Player.AnimationLock > 0.05f)
+            why = CrucibleStallFormat.Reason.Lock;
+        else if (ActionManager.Instance()->QueuedActionId != 0)
+            why = CrucibleStallFormat.Reason.Queue;
+        else if (Svc.Targets.Target is { } target && Player.Object is { } player)
+        {
+            edge = EdgeDistanceTo(target);
+            if (edge >= 0f && ActionManager.GetActionInRangeOrLoS(act, player.GameObject(), target.Struct()) is not (0 or 565))
+                why = CrucibleStallFormat.Reason.Range;
+        }
+
+        var snap = new CrucibleStallFormat.Snapshot(act, why, edge, BST.LastCrucibleTargetNameId, sinceFire);
+        if (CrucibleStallFormat.ShouldEmit(ref _stallGate, unixMs, snap))
+        {
+            var line = CrucibleStallFormat.BuildLine(unixMs, snap);
+            Svc.Log.Information(line);
+            LalaTelemetry.Record(line);
+        }
+    }
+
+    /// <summary> The rotation's own view of the Crucible (BST.ReadState), sampled even when the rotation is idle. </summary>
+    private static CrucibleTelemetryFormat.Snapshot SampleCrucible(in BST_RotationLogic.BstState s)
+    {
         var flags = CrucibleTelemetryFormat.Flags.None;
         if (s.TargetHasDispellableBuff) flags |= CrucibleTelemetryFormat.Flags.TargetDispellable;
         if (s.TargetInStance) flags |= CrucibleTelemetryFormat.Flags.TargetStance;
@@ -135,7 +220,9 @@ internal static class BeastmasterTelemetry
             s.TargetTimeToDeath,
             (int)s.PlayerIntakePerSecond,
             s.TargetVulnerabilityRemaining,
-            BST.PartyHpVerified);
+            BST.PartyHpVerified,
+            Svc.Targets.Target is { } tgt ? EdgeDistanceTo(tgt) : -1f,
+            _moveSpeed);
     }
 
     private static unsafe BeastmasterTelemetryFormat.Snapshot Sample()

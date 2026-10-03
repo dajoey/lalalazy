@@ -45,8 +45,22 @@ internal static class GuideNeeds
     /// </summary>
     public static string HornLog(int board, int battle, IReadOnlyList<int> hornRows)
     {
-        return ""; // STUB (failing-first): the real grade lands with the implementation commit
+        var model = CrucibleNeedModel.For(board, battle);
+        var rows = hornRows.Where(r => r is >= 1 and <= BST_Beasts.Count).Distinct().ToList();
+        var parts = new List<string>(3);
+        foreach (var kind in BST_CrucibleNeedFirst.Kinds)
+        {
+            var required = (model.Required & kind) != 0;
+            var useful = (model.Useful & kind) != 0;
+            if (!required && !useful)
+                continue;
+            var cover = rows.FirstOrDefault(r => (BST_CrucibleAdvisor.Answers(r) & kind) != 0);
+            parts.Add(Letter(kind) + ":" + (required ? "R" : "U") + ":" + (cover == 0 ? "miss" : cover.ToString()));
+        }
+        return string.Join(";", parts);
     }
+
+    private static char Letter(CrucibleNeeds kind) => kind == CrucibleNeeds.Interrupt ? 'I' : kind == CrucibleNeeds.Dispel ? 'D' : 'C';
 
 
     /// <summary> Required needs first, each group in interrupt, dispel, cleanse order. </summary>

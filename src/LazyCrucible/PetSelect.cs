@@ -170,6 +170,7 @@ internal static unsafe class PetSelect
         _pendingExternalEdit = null;
         _rosterPlayerOwned = false;
         _rosterAfterPass = null;
+        _lastHcKey = "";
     }
 
     private static void RunFormationPass(int territoryBoard)
@@ -213,6 +214,7 @@ internal static unsafe class PetSelect
                 _loggedOffThisPhase = false;
                 _loggedConflictThisPhase = false;
                 _loggedSigsThisPhase = false;
+                _lastHcKey = "";
             }
             else
             {
@@ -486,6 +488,7 @@ internal static unsafe class PetSelect
         if (coverage && currentHornRows.Exists(r => r is >= 1 and <= BST_Beasts.Count))
         {
             LogPs($"PS|{now}|opt=1|b={board}|bt={battle}|surface={surfaceName}|route={route}|calls=0|readback=ok|note=leave_standing_horn|apply=not_needed|sl={string.Join(".", snapshot)}");
+            LogHc(now, board, battle, detailId, currentHornRows);
             _arm = MarkFormationPassDone(in _arm);
             return;
         }
@@ -496,6 +499,7 @@ internal static unsafe class PetSelect
             LogPs($"PS|{now}|opt=1|b={board}|bt={battle}|surface={surfaceName}|route={route}|calls=0|readback=ok|note=already_correct|apply=not_needed{AdCorrectionNote(autoDutyDriving)}");
             FinishPass(autoDutyDriving, now, wrote: false);
             AnnounceHorns(board, battle, coverage, picks);
+            LogHc(now, board, battle, detailId, currentHornRows);
             return;
         }
 
@@ -556,6 +560,7 @@ internal static unsafe class PetSelect
 
         var finalIdx = ReadPetIds(pet, PartySelectedPetIds);
         LogPs($"PS|{now}|opt=1|b={board}|bt={battle}|surface={surfaceName}|route={route}|calls={string.Join(",", calls)}|readback=ok|apply={(applyNeeded ? "needed" : "not_needed")}|sl={string.Join(".", finalIdx)}");
+        LogHc(now, board, battle, detailId, finalRows);
         FinishPass(autoDutyDriving, now, wrote: true);
         AnnounceHorns(board, battle, coverage, picks);
     }
@@ -852,6 +857,28 @@ internal static unsafe class PetSelect
     ///     the next AutoDuty edit brings the correction again (<see cref="FormationLogic.AutoDutyCorrectionDue"/>), up to the cap; a pass
     ///     that wrote counts toward the cap, a check that found the selection already right does not.
     /// </summary>
+    private static string _lastHcKey = "";
+
+    /// <summary>
+    ///     Fight-start horn coverage (<c>HC|</c>, 0.1.9.7): when a formation pass settles for an identified
+    ///     fight, one line names the rows actually standing on the horn and the fight's needs graded against
+    ///     them (<see cref="GuideNeeds.HornLog"/>: <c>I/D/C:R/U:row</c> or <c>miss</c>), so answer coverage is
+    ///     graded from one line instead of reconstructed from the pick pass. Re-emits within an open screen only
+    ///     when the settled horn or its coverage changes; every new screen open starts fresh.
+    /// </summary>
+    private static void LogHc(long now, int board, int battle, uint detailId, IReadOnlyList<int> hornRows)
+    {
+        if (battle == -1)
+            return;
+        var sl = string.Join(".", hornRows);
+        var needs = GuideNeeds.HornLog(board, battle, hornRows);
+        var key = $"{board}/{battle}/{sl}/{needs}";
+        if (key == _lastHcKey)
+            return;
+        _lastHcKey = key;
+        LogPs($"HC|{now}|b={board}|bt={battle}|detail={detailId}|sl={sl}|needs={needs}");
+    }
+
     private static void FinishPass(bool autoDutyDriving, long now, bool wrote)
     {
         if (!autoDutyDriving)

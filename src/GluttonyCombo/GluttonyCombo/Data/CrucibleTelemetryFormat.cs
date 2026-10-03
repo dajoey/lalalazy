@@ -119,7 +119,9 @@ internal static class CrucibleTelemetryFormat
     ///     <c>CR|unixms|b=board|bt=battle|nd=needs|ne=enemies|hi=highestHp|t=nameId:hp|c=castId:remaining|f=flags|hp=player|pet=familiar|sl=h1.h2.h3|dec=id:reason|sh=shadow|ttd=s|in=hp/s|vul=s|xp=0/1</c>.
     ///     <c>ttd</c> is the target's estimated seconds to death (0 unknown), <c>in</c> the character's HP loss per second
     ///     over 10 s, <c>vul</c> the target's Physical Vulnerability Up left, <c>xp</c> whether the familiar party HP read
-    ///     has been verified against a live familiar.
+    ///     has been verified against a live familiar. <c>d</c> (1.0.4.266) is the hitbox-edge distance to the current
+    ///     target (empty without one) and <c>mv</c> the character's own movement speed in yalms/s: together they name
+    ///     range and movement on every line, without joining the emit key.
     ///     <c>bt</c> is -1 when no panel enemy is present; <c>c=0:0.0</c> when the target is not casting.
     /// </summary>
     internal static string BuildLine(long unixMs, in Snapshot s)
@@ -152,7 +154,11 @@ internal static class CrucibleTelemetryFormat
           .Append("|ttd=").Append(Math.Min(999f, Math.Max(0f, s.TimeToDeath)).ToString("0", inv))
           .Append("|in=").Append(Math.Max(0, s.IntakePerSecond).ToString(inv))
           .Append("|vul=").Append(Math.Max(0f, s.VulnerabilityRemaining).ToString("0", inv))
-          .Append("|xp=").Append(s.PartyHpVerified ? '1' : '0');
+          .Append("|xp=").Append(s.PartyHpVerified ? '1' : '0')
+          .Append("|d=");
+        if (s.TargetEdgeDistance >= 0f)
+            sb.Append(Math.Min(99f, s.TargetEdgeDistance).ToString("0.0", inv));
+        sb.Append("|mv=").Append(Math.Min(99f, Math.Max(0f, s.MoveSpeed)).ToString("0.0", inv));
 
         if (sb.Length > MaxLineLength)
             sb.Length = MaxLineLength;
