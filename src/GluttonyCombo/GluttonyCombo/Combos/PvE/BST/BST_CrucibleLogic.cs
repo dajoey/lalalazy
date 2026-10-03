@@ -605,7 +605,9 @@ internal static class BST_CrucibleLogic
         if (!s.HasHostileTarget || !s.TargetHasDispellableBuff || s.TargetDoNotAttack)
             return (0, "");
 
-        if (beast is { Row: VultureRow } && FamiliarOut(s) && s.OneWithNature && s.ReadyTempered && s.CanWeave
+        // A carrier in a counter stance is held on (no GCD goes out), so the GCD sits idle and a weave window never opens:
+        // with the GCD ready the Caw goes out anyway (a calm carrier keeps rolling its GCD and weaves in the next window).
+        if (beast is { Row: VultureRow } && FamiliarOut(s) && s.OneWithNature && s.ReadyTempered && (s.CanWeave || (s.TargetInStance && s.GcdReady))
             && s.SinceSummon >= 0.8f && s.TargetDistance <= 25f && !s.ProtectedNearTarget)
             return (BST.TemperedRelease, "crucible:dispel-caw");
 
