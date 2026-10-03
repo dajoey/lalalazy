@@ -1,3 +1,12 @@
+## v1.0.4.265 (2026-10-03) [testing]
+### Fixed
+- **Beastmaster, Crucible: King Ahriman's Curtains for Rank 5 is recognised under both of its cast ids.** The game starts it as two simultaneous casts and the castbar reads the one the rule did not know, so the Parting Blow that recalls the familiar just before the cast resolves never went out and the familiars were lost to it.
+- **Beastmaster, Crucible: the Final Hourglass that the Roulette spawns is a priority target, ahead of Hapalit and Dirty Eye.** The target list narrows to the priority adds whenever one is up, and the hourglass was not one, so with Hapalit or Dirty Eye alive it was never attacked and the Death it carries landed.
+### Changed
+- **Beastmaster, Crucible: Snarl -> Parting Blow is on by default.** Before a known tankbuster lands the familiar takes the aggro and is sent away just before the hit; the decision window had been logged and never pressed while the option was off, and tankbusters were the largest single share of the damage taken in the board fights. Settings that still carry the old Off value are switched on once by this update (the plugin log names the change); turning the option off again in the Beastmaster options stays off.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v1.0.4.264 (2026-10-03) [testing]
 ### Fixed
 - **Beastmaster, Crucible: the vulture's dispel no longer waits for a weave window while the rotation is holding on a buff carrier in a counter stance.** Holding sends no attack, so the global cooldown sits idle and the window the Caw needs never opens; the rotation could stand still on the carrier until the stance ended. With the global cooldown ready the Caw now goes out against a carrier in a counter stance; against a calm carrier nothing changes (the attacks keep rolling and the Caw weaves in the next window). While the cooldown is still rolling the rotation holds that one tick and the Caw goes out on the next.

@@ -1,5 +1,11 @@
 # LazyCrucible — Changelog
 
+## v0.1.9.6 (2026-10-03) [testing]
+### Fixed
+- **Need coverage on top of AutoDuty now reaches the fight's horn slots.** AutoDuty sets its Battlehorn picks one toggle at a time and confirms shortly after the last one. The correction was written once, after the first toggle, and every later toggle overwrote it, so the dispel or interrupt answer a fight calls for never stayed on the horn. The correction is now made again after each AutoDuty toggle (at most four per screen) and the last one lands after AutoDuty's last toggle and before its confirm. The run log's `adn=` field counts the corrections made on a screen.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v0.1.9.5 (2026-10-03) [testing]
 ### Added
 - **Quick controls for the Lazy Hub window.** The plugin now offers the selection switches (filling the familiar roster, setting the Battlehorns, picking who rests) and the display switches (opening the guide automatically, announcing picks in chat, recording screens to the log) to Lazy Hub (`/lazy`) over Dalamud IPC, so they can be changed from one window next to the other lalalazy plugins. Each change does exactly what the matching setting in the plugin's own window does.
