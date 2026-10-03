@@ -2161,21 +2161,20 @@ internal unsafe class AutoRotationController
 
             var haveSheet = ActionSheet.TryGetValue(outAct, out var sheet);
             var canUseSelf = ActionManager.CanUseActionOnTarget(outAct, Player.GameObject);
-            var rangeCheck = ActionManager.GetActionInRangeOrLoS(outAct, player.GameObject(), target.GameObject());
             if (!RangeFallbackGate.NeedsFallback(
                     enabled: true,
                     hasTarget: true,
                     actionTargetsHostile: haveSheet && sheet.CanTargetHostile,
                     canUseSelf: canUseSelf,
                     areaTargeted: haveSheet && sheet.TargetArea,
-                    targetInActionRange: rangeCheck is 0 or 565))
+                    targetReachable: DPSTargeting.Reaches(outAct, target)))
                 return false;
 
             var near = DPSTargeting.InRangeFallback(outAct, target);
+            LogRangeFallback(outAct, target, near);
             if (near is null)
                 return false;
 
-            LogRangeFallback(outAct, target, near);
             target = near;
             targetId = near.GameObjectId;
             OverrideTarget = near;
@@ -2185,19 +2184,21 @@ internal unsafe class AutoRotationController
 
         /// <summary>
         ///     One <c>RF|</c> line per change of (chosen enemy, fallback enemy) and at most one per 2 s, so a run can be
-        ///     graded for the fallback without per-tick volume.
+        ///     graded for the fallback without per-tick volume. <c>to=none</c> names the ticks where the chosen enemy
+        ///     was unreachable and nothing else was either: the chosen enemy's NameId and distance say why the GCD idled.
         /// </summary>
-        private static void LogRangeFallback(uint action, IBattleChara from, IBattleChara to)
+        private static void LogRangeFallback(uint action, IBattleChara from, IBattleChara? to)
         {
             var now = Environment.TickCount64;
-            var key = (from.GameObjectId, to.GameObjectId);
+            var key = (from.GameObjectId, to?.GameObjectId ?? 0ul);
             if (key == _lastRangeFallbackKey && now - _lastRangeFallbackMs < 2000)
                 return;
 
             _lastRangeFallbackKey = key;
             _lastRangeFallbackMs = now;
+            var dest = to is null ? "none" : $"{to.NameId}:{GetTargetDistance(to):0.#}";
             Svc.Log.Information(
-                $"RF|{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}|act={action}|from={from.NameId}:{GetTargetDistance(from):0.#}|to={to.NameId}:{GetTargetDistance(to):0.#}");
+                $"RF|{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}|act={action}|from={from.NameId}:{GetTargetDistance(from):0.#}|to={dest}");
         }
 
         private static bool DontChangeForAoe(uint gameAct)
@@ -2417,19 +2418,23 @@ internal unsafe class AutoRotationController
         /// </summary>
         internal static IBattleChara? InRangeFallback(uint action, IBattleChara? selected)
         {
-            if (LocalPlayer is not { } player)
-                return null;
-
             var preferred = new HashSet<ulong>(BaseSelection.Select(x => x.GameObjectId));
             var pool = Combos.PvE.BST.SafeCrucibleTargets(ValidTargets());
             var candidates = new List<RangeFallbackGate.Candidate<IBattleChara>>(pool.Count);
             foreach (var x in pool)
-            {
-                var rc = ActionManager.GetActionInRangeOrLoS(action, player.GameObject(), x.GameObject());
-                candidates.Add(new(x, rc is 0 or 565, GetTargetDistance(x), preferred.Contains(x.GameObjectId)));
-            }
+                candidates.Add(new(x, Reaches(action, x), GetTargetDistance(x), preferred.Contains(x.GameObjectId)));
 
             return RangeFallbackGate.PickInRange(selected, candidates);
+        }
+
+        /// <summary> The action is in range of <paramref name="enemy"/> (line of sight included) and can be used on it: what ExecuteST / ExecuteAoE require before they press it. </summary>
+        internal static bool Reaches(uint action, IBattleChara enemy)
+        {
+            if (LocalPlayer is not { } player)
+                return false;
+
+            var rc = ActionManager.GetActionInRangeOrLoS(action, player.GameObject(), enemy.GameObject());
+            return rc is 0 or 565 && ActionManager.CanUseActionOnTarget(action, enemy.GameObject());
         }
 
         public static IEnumerable<IBattleChara> BaseSelection

@@ -1,3 +1,11 @@
+## v1.0.4.259 (2026-10-03) [testing]
+### Fixed
+- **Auto-rotation: the out-of-range fallback also covers an enemy the action cannot be used on, not only one that is too far.** The check that decides whether the chosen enemy is reachable is the one the rotation already applied before pressing an action: in range with line of sight, and usable on that enemy. Before, an enemy that failed it for any of those reasons left the GCD idle. Recorded run that settled it: the Second Master's Board fight against Flauros (2026-10-03, 11:08 to 11:15 ET) was idle for 362 of its 451 seconds, 91% of the time the targeted enemy was a lightning sprite (a priority add), and the boss stood next to the character taking no damage.
+### Added
+- **The `RF|` log line now also records the ticks where the chosen enemy was unreachable and nothing else was in reach (`to=none`),** with the chosen enemy's id and distance, so an idle stretch can be explained from the log.
+### Notes
+- Production channel unchanged.
+
 ## v1.0.4.258 (2026-10-03) [testing]
 ### Fixed
 - **Auto-rotation: a valid enemy within reach no longer goes unattacked because the chosen target is out of range.** The rotation picks one enemy first (the hard target in Manual mode, the mode's pick, the Crucible kill-order head, or the boss-mod target) and used to check the action's range against that enemy alone, so with the chosen enemy 30 y away and another enemy 3 y away the damage uptime was lost. Now, when the action about to be used cannot reach the chosen enemy, that tick's action goes to the enemy that can be reached: members of the targeting mode's or kill order's list first, then the nearest. The chosen enemy stays preferred and the hard target is never changed, so the rotation returns to it the moment it is back in range. Self, ground-targeted and friendly actions, and healing presets, are never redirected. In the Crucible the same exclusions apply as for normal targeting (never eggs, morphos or damage-immune enemies; counter stances only when nothing else is up), without the kill-order narrowing. Each switch is logged as one `RF|` line.

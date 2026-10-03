@@ -31,7 +31,7 @@ var nearKill = "kill-order add at 5 y";
 var nearPlain = "plain enemy at 2 y";
 var far = "second far enemy at 28 y";
 
-RangeFallbackGate.Candidate<string> C(string e, bool inRange, float d, bool kill = false) => new(e, inRange, d, kill);
+RangeFallbackGate.Candidate<string> C(string e, bool reachable, float d, bool kill = false) => new(e, reachable, d, kill);
 
 // ---- 1. the observed case: hard target 30 y away, another enemy standing at 3 y
 Check("hard target 30 y, enemy at 3 y: the near enemy takes the hit",
@@ -39,11 +39,11 @@ Check("hard target 30 y, enemy at 3 y: the near enemy takes the hit",
 
 Check("the fallback is wanted when the resolved melee action cannot reach the hard target",
     RangeFallbackGate.NeedsFallback(enabled: true, hasTarget: true, actionTargetsHostile: true,
-        canUseSelf: false, areaTargeted: false, targetInActionRange: false));
+        canUseSelf: false, areaTargeted: false, targetReachable: false));
 
 // ---- 2. in range: nothing changes
 Check("target in range: no fallback",
-    !RangeFallbackGate.NeedsFallback(true, true, true, false, false, targetInActionRange: true));
+    !RangeFallbackGate.NeedsFallback(true, true, true, false, false, targetReachable: true));
 
 // ---- 3. the option off is byte-identical to the old behaviour
 Check("option off: no fallback",
@@ -68,6 +68,10 @@ Check("a kill-order member that is itself out of range is not chosen over an in-
     RangeFallbackGate.PickInRange(hard, new[] { C(hard, false, 30f, kill: true), C(near, true, 3f) }) == near);
 Check("two in-range enemies at equal distance: the first listed (stable, no flapping)",
     RangeFallbackGate.PickInRange(hard, new[] { C(near, true, 3f), C(nearPlain, true, 3f) }) == near);
+
+// An enemy 2 y away that the action cannot be used on (not attackable, no line of sight) counts as unreachable: the usable enemy is chosen.
+Check("an enemy in range but unusable for the action is skipped for the usable one",
+    RangeFallbackGate.PickInRange(hard, new[] { C(hard, false, 30f), C(nearPlain, false, 2f), C(near, true, 3f) }) == near);
 
 // ---- 6. no in-range enemy: no invented target
 Check("nothing in range: null (the rotation keeps waiting for the hard target)",
