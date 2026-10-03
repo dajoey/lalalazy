@@ -278,9 +278,9 @@ internal static class BST_CrucibleLogic
         if (!FamiliarOut(s))
             return (0, "");
 
-        // Curtains for Rank 5 (49429, King Ahriman): 6.0s cast that instantly KOs the familiar regardless of HP.
+        // Curtains for Rank 5 (49428 / 49429, King Ahriman): 6.0s cast that instantly KOs the familiar regardless of HP.
         // Parting Blow recalls the familiar safely before the cast resolves.
-        if (s.TargetCastId == 49429 && s.TargetCastRemaining is > 0.2f and <= 2.5f
+        if (BST_CrucibleData.CurtainsCasts.Contains(s.TargetCastId) && s.TargetCastRemaining is > 0.2f and <= 2.5f
             && s.Level >= LvPartingBlow && s.ReadyParting && s.CanWeave && !s.TargetDoNotAttack && !s.ProtectedNearTarget)
             return (BST.PartingBlow, "crucible:petsave-curtains");
 

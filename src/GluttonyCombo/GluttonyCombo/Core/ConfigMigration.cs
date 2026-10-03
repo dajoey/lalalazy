@@ -30,7 +30,7 @@ internal static class ConfigMigration
     ///     Must match <see cref="Configuration.Version" />'s initialiser, so a fresh install
     ///     starts at the top of the ladder and skips every step.
     /// </remarks>
-    public const int CurrentVersion = 9;
+    public const int CurrentVersion = 10;
 
     /// <summary>Configuration values the ladder can move, in and out.</summary>
     /// <param name="Version">The config's schema version.</param>
@@ -180,6 +180,25 @@ internal static class ConfigMigration
                     "been turned ON by this update: the rotation now presses Snarl and Challenge in " +
                     "board fights instead of only logging what it would have pressed. Set it back to " +
                     "\"Log only\" in the Beastmaster options to return to observation-only.");
+            }
+        }
+
+        // ---- v10: turn a STORED Crucible "Snarl -> Parting Blow" Off into On. The option shipped opt-in and Off (2026-09-16,
+        // "ping-dependent") and was never evaluated: 2026-10-03 its open window was logged 166 times in 62 board fights while
+        // tankbusters took 79,000 of the 260,000 damage the character and familiars took (Strix 14,000, Gargoyle 25,000,
+        // Borgny 29,000). The default flip alone never reaches a config that stored the old default - Newtonsoft restores the
+        // stored value over it. An absent key (fresh install) takes the option's own default (now On) and is not written here.
+        // Runs once; a user who turns it back off after this update is never overridden.
+        if (version < 10)
+        {
+            if (crucibleSnarlParting == 0)
+            {
+                crucibleSnarlParting = 1;
+                notes.Add(
+                    "Beastmaster > Crucible of the Unbroken > Snarl -> Parting Blow has been turned ON by this " +
+                    "update: before a known tankbuster lands the rotation now has the familiar take the aggro and " +
+                    "sends it away just before the hit, instead of only logging the window. Untick it in the " +
+                    "Beastmaster options to go back.");
             }
         }
 

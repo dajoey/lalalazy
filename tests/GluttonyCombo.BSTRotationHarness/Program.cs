@@ -330,7 +330,7 @@ internal static class Program
             BST_CrucibleData.CleaveAutoBosses.SetEquals(new uint[] { 14541, 14583, 14592, 14693 }));
         Check("Third Board priority adds: crawling, flowertender, golem, bone bishop",
             new uint[] { 14586, 14589, 14581, 14567 }.All(id => BST_CrucibleData.PriorityAdds.Contains(id)));
-        Check("Crucible priority adds: exact game-data set, 55 ids across all boards (treant sapling + diremite, Strix Plume, boogyman Light Sprite added)",
+        Check("Crucible priority adds: exact game-data set, 56 ids across all boards (treant sapling + diremite, Strix Plume, boogyman Light Sprite, King Ahriman's Final Hourglass added)",
             BST_CrucibleData.PriorityAdds.SetEquals(new uint[] {
                 14532, 14537, 14539, 14542, 14543, 14748,
                 14548, 14553, 14558, 14559,
@@ -339,7 +339,7 @@ internal static class Program
                 14605, 14607, 14610, 14620, 14621, 14622, 14624, 14625, 14629,
                 14632, 14639, 14640, 14641, 14643, 14644, 14645, 14646, 14647, 14648, 14649,
                 14653, 14659, 14661, 14662, 14671, 14672, 14673,
-                14676, 14677, 14680, 14681, 14683, 14691, 14692, 14699,
+                14676, 14677, 14680, 14681, 14683, 14689, 14691, 14692, 14699,
             }));
         Check("priority-add order overlay: crawling before shambling; biloko before sapling before diremite",
             BST_CrucibleData.PriorityAddRank(14586) < BST_CrucibleData.PriorityAddRank(14585)

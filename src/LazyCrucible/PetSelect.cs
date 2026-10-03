@@ -96,6 +96,9 @@ internal static unsafe class PetSelect
     /// <summary> While AutoDuty drives: it wrote on this screen open, and when (Unix ms). The corrective pass waits for its selection to settle. </summary>
     private static bool _adEditSeenThisOpen;
     private static long _adLastEditMs;
+    /// <summary> While AutoDuty drives: corrections written this open, and when the last one was (Unix ms). AutoDuty keeps toggling after a write, so the pass stays armed for its next edit. </summary>
+    private static int _adCorrections;
+    private static long _adLastCorrectionMs;
     /// <summary> The player edited the Bentbranch roster this visit: the roster writer stands down until a board is entered. </summary>
     private static bool _rosterPlayerOwned;
     /// <summary> Roster membership right after this open's roster pass; a later difference is a manual edit. </summary>
@@ -161,6 +164,8 @@ internal static unsafe class PetSelect
         _disarmRestOfScreen = false;
         _adEditSeenThisOpen = false;
         _adLastEditMs = 0;
+        _adCorrections = 0;
+        _adLastCorrectionMs = 0;
         _lastBasisNote = "";
         _pendingExternalEdit = null;
         _rosterPlayerOwned = false;
@@ -260,6 +265,8 @@ internal static unsafe class PetSelect
             _disarmRestOfScreen = false;
             _adEditSeenThisOpen = false;
             _adLastEditMs = 0;
+            _adCorrections = 0;
+            _adLastCorrectionMs = 0;
         }
         if (!_arm.ScreenOpen)
         {
@@ -269,6 +276,8 @@ internal static unsafe class PetSelect
             _disarmRestOfScreen = false;
             _adEditSeenThisOpen = false;
             _adLastEditMs = 0;
+            _adCorrections = 0;
+            _adLastCorrectionMs = 0;
         }
 
         var armed = IsFormationArmed(in _arm) && (partyCount > 0 || rosterMenuBuild) && !_disarmRestOfScreen;
@@ -312,8 +321,8 @@ internal static unsafe class PetSelect
                 _loggedConflictThisPhase = true;
                 LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|calls=0|note=autoduty_running|{ExternalDrivers.Detail}|needfix=on");
             }
-            if (!_adEditSeenThisOpen || now - _adLastEditMs < AutoDutySettleMs)
-                return; // its selection has not settled yet (or it has not written this open)
+            if (!FormationLogic.AutoDutyCorrectionDue(_adEditSeenThisOpen, _adLastEditMs, _adLastCorrectionMs, _adCorrections, now, AutoDutySettleMs))
+                return; // its selection has not settled yet, it has not written since our last correction, or the cap is reached
         }
 
         if (!armed)
@@ -470,7 +479,7 @@ internal static unsafe class PetSelect
             return $"{p.Row}:idx{(idx < 0 ? "miss" : idx.ToString(CultureInfo.InvariantCulture))}:{Clean(p.Why, 80)}";
         }));
         var nameStr = string.Join(",", nameIds);
-        LogPs($"PS|{now}|opt=1|b={board}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|basis=horn|bt={battle}|detail={detailId}|coverage={(coverage ? 1 : 0)}|names={nameStr}|cand={candStr}|picks={pickStr}|needs={needStr}|need={changes.Count}{(autoDutyDriving ? $"|note=autoduty-needfix|adfix={adFix}|miss={adMiss}" : "")}|route={route}|sigs={(sigsOk ? "ok" : "miss")}");
+        LogPs($"PS|{now}|opt=1|b={board}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|basis=horn|bt={battle}|detail={detailId}|coverage={(coverage ? 1 : 0)}|names={nameStr}|cand={candStr}|picks={pickStr}|needs={needStr}|need={changes.Count}{(autoDutyDriving ? $"|note=autoduty-needfix|adfix={adFix}|miss={adMiss}|adn={_adCorrections}" : "")}|route={route}|sigs={(sigsOk ? "ok" : "miss")}");
 
         // Mid-run unidentified: never replace a non-empty horn with coverage. Focus settles ~40 ms
         // later and re-arms an opponent-fitted pass; a coverage replace that aborts emptied the horn (.225).
@@ -484,8 +493,8 @@ internal static unsafe class PetSelect
         if (removeRows.Count == 0 && addRows.Count == 0
             && FormationLogic.HornSelectionMatches(currentHornRows, picks.ConvertAll(p => p.Row)))
         {
-            LogPs($"PS|{now}|opt=1|b={board}|bt={battle}|surface={surfaceName}|route={route}|calls=0|readback=ok|note=already_correct|apply=not_needed");
-            _arm = MarkFormationPassDone(in _arm);
+            LogPs($"PS|{now}|opt=1|b={board}|bt={battle}|surface={surfaceName}|route={route}|calls=0|readback=ok|note=already_correct|apply=not_needed{AdCorrectionNote(autoDutyDriving)}");
+            FinishPass(autoDutyDriving, now, wrote: false);
             AnnounceHorns(board, battle, coverage, picks);
             return;
         }
@@ -547,7 +556,7 @@ internal static unsafe class PetSelect
 
         var finalIdx = ReadPetIds(pet, PartySelectedPetIds);
         LogPs($"PS|{now}|opt=1|b={board}|bt={battle}|surface={surfaceName}|route={route}|calls={string.Join(",", calls)}|readback=ok|apply={(applyNeeded ? "needed" : "not_needed")}|sl={string.Join(".", finalIdx)}");
-        _arm = MarkFormationPassDone(in _arm);
+        FinishPass(autoDutyDriving, now, wrote: true);
         AnnounceHorns(board, battle, coverage, picks);
     }
 
@@ -749,12 +758,12 @@ internal static unsafe class PetSelect
 
         var candStr = string.Join(",", candidates.ConvertAll(r => $"{r}:{(hpMap.TryGetValue(r, out var h) ? h : 100)}"));
         var pickStr = string.Join(",", picks.ConvertAll(p => $"{p.Row}:{Clean(p.Why, 80)}"));
-        LogPs($"PS|{now}|opt=1|b={board}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|basis=roster|bt=-1|detail=0|coverage=1|names=|cand={candStr}|picks={pickStr}|need={changes.Count}{(autoDutyDriving ? $"|note=autoduty-needfix|adfix={adFix}|miss={adMiss}" : "")}|route={route}|sigs={(sigsOk ? "ok" : "miss")}");
+        LogPs($"PS|{now}|opt=1|b={board}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|basis=roster|bt=-1|detail=0|coverage=1|names=|cand={candStr}|picks={pickStr}|need={changes.Count}{(autoDutyDriving ? $"|note=autoduty-needfix|adfix={adFix}|miss={adMiss}|adn={_adCorrections}" : "")}|route={route}|sigs={(sigsOk ? "ok" : "miss")}");
 
         if (changes.Count == 0)
         {
-            LogPs($"PS|{now}|opt=1|b={board}|bt=-1|surface={surfaceName}|basis=roster|route={route}|calls=0|readback=ok|note=already_correct|apply=not_needed|sl={string.Join(".", snapshot)}");
-            _arm = MarkFormationPassDone(in _arm);
+            LogPs($"PS|{now}|opt=1|b={board}|bt=-1|surface={surfaceName}|basis=roster|route={route}|calls=0|readback=ok|note=already_correct|apply=not_needed|sl={string.Join(".", snapshot)}{AdCorrectionNote(autoDutyDriving)}");
+            FinishPass(autoDutyDriving, now, wrote: false);
             SetSummary($"Run roster for {BoardName(board)} already set: {string.Join(", ", desiredRows.ConvertAll(BeastName))}");
             _rosterAfterPass = new HashSet<int>(snapshot);
             return;
@@ -828,10 +837,34 @@ internal static unsafe class PetSelect
         var gained = finalRows.FindAll(r => !snapshot.Contains(r));
         var dropped = snapshot.FindAll(r => !finalRows.Contains(r));
         LogPs($"PS|{now}|opt=1|b={board}|bt=-1|surface={surfaceName}|basis=roster|route={route}|calls={string.Join(",", calls)}|readback=ok|apply=needed|pre={string.Join(".", snapshot)}|post={string.Join(".", finalRows)}|gain={string.Join(".", gained)}|dropped={string.Join(".", dropped)}|sl={string.Join(".", finalRows)}");
-        _arm = MarkFormationPassDone(in _arm);
+        FinishPass(autoDutyDriving, now, wrote: true);
         _rosterAfterPass = new HashSet<int>(finalRows);
         Announce($"r|{board}|{string.Join(".", desiredRows)}", $"Run roster for {BoardName(board)}",
             picks.ConvertAll(p => p with { Why = "" }));
+    }
+
+    /// <summary> <c>|adn=</c> for the run log while AutoDuty drives: how many corrections this screen open has made so far. </summary>
+    private static string AdCorrectionNote(bool autoDutyDriving) => autoDutyDriving ? $"|adn={_adCorrections}" : "";
+
+    /// <summary>
+    ///     End of a pass that wrote (or found nothing to write). Outside AutoDuty the pass is done for this screen open. While AutoDuty
+    ///     drives it is NOT: AutoDuty keeps toggling after our write and confirms ~0.5 s after its last toggle, so the pass stays armed and
+    ///     the next AutoDuty edit brings the correction again (<see cref="FormationLogic.AutoDutyCorrectionDue"/>), up to the cap; a pass
+    ///     that wrote counts toward the cap, a check that found the selection already right does not.
+    /// </summary>
+    private static void FinishPass(bool autoDutyDriving, long now, bool wrote)
+    {
+        if (!autoDutyDriving)
+        {
+            _arm = MarkFormationPassDone(in _arm);
+            return;
+        }
+
+        _adLastCorrectionMs = now;
+        if (wrote)
+            _adCorrections++;
+        if (_adCorrections >= FormationLogic.AutoDutyMaxCorrections)
+            _arm = MarkFormationPassDone(in _arm);
     }
 
     private static void AbortWithRestore(

@@ -201,6 +201,13 @@ internal static partial class BST_CrucibleData
     /// </summary>
     public static readonly HashSet<uint> ForwardGuardCasts = [46864];
 
+    /// <summary>
+    ///     Curtains for Rank 5 (King Ahriman): a 6.0 s cast that KOs the familiar whatever its HP. The game starts it as TWO simultaneous
+    ///     casts, 49428 and 49429, and the target's castbar reads 49428 (live 2026-10-03: 47.6 s and 164.3 s, both familiars died to the
+    ///     effect because the rule only knew 49429). Parting Blow recalls the familiar before either resolves.
+    /// </summary>
+    public static readonly HashSet<uint> CurtainsCasts = [49428, 49429];
+
     /// <summary> Physical Vulnerability Up from the mantis's Eerie Soundwave: Final Sting lands inside this window. </summary>
     public const uint PhysicalVulnerabilityUp = 5180;
 
@@ -281,6 +288,9 @@ internal static partial class BST_CrucibleData
         //     moogle officers (kinged casters, kinged swordmog, melomog, mogmugger), hapalit, dirty eye, Thanatus statues
         14632, 14639, 14640, 14641, 14643, 14644, 14645, 14646, 14647, 14648, 14649, 14653,
         14659, 14661, 14662, 14671, 14672, 14673, 14676, 14677, 14680, 14681, 14683, 14691, 14692, 14699,
+        // M2 King Ahriman: the Final Hourglass the Roulette spawns (live 2026-10-03: with Hapalit and Dirty Eye up it was never attacked
+        // and its Death killed the character through Doom; broken within ~12 s in the two roulettes with no adds up)
+        14689,
     ];
 
     /// <summary>
@@ -321,6 +331,7 @@ internal static partial class BST_CrucibleData
         [[14574], [14573]],                                    // zu pack: pullet (Caustic Vomit) before the cockerel
         [[14589], [14591]],                                    // cactuar pack: flowertender before the guardia
         [[14646], [14645, 14647, 14649], [14644, 14643, 14648]], // Atomos summons: bavarois; pudding, flan, dahak; gremlins, vodoriga
+        [[14689], [14691, 14692]],                             // King Ahriman: the Final Hourglass before Hapalit and Dirty Eye
     ];
 
     /// <summary>

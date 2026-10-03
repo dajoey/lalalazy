@@ -84,11 +84,15 @@ internal static class FormationLogic
     public const int AutoDutyMaxCorrections = 4;
 
     /// <summary>
-    ///     Whether the need-coverage correction is due while AutoDuty drives the screen. PURE. PLACEHOLDER, live behaviour of
-    ///     0.1.9.4/0.1.9.5: one correction per open, 250 ms after the first AutoDuty edit.
+    ///     Whether the need-coverage correction is due while AutoDuty drives the screen. PURE. AutoDuty sets its horn picks one toggle
+    ///     every ~0.5 s and confirms ~0.5 s after the last one, so a correction written after the FIRST toggle is overwritten by the
+    ///     later ones (live 2026-10-03: 17 corrections, none reached the fight's horn slots). A correction is therefore due again after
+    ///     every AutoDuty edit that is newer than the last correction, once that edit has been quiet for <paramref name="settleMs"/>,
+    ///     at most <see cref="AutoDutyMaxCorrections"/> times per screen open; with no new AutoDuty edit nothing is written.
+    ///     <paramref name="lastCorrectionMs"/> is 0 (or older than any edit) until a correction has been made.
     /// </summary>
     public static bool AutoDutyCorrectionDue(bool editSeen, long lastEditMs, long lastCorrectionMs, int corrections, long nowMs, long settleMs) =>
-        editSeen && nowMs - lastEditMs >= settleMs && corrections == 0;
+        editSeen && corrections < AutoDutyMaxCorrections && lastEditMs > lastCorrectionMs && nowMs - lastEditMs >= settleMs;
 
     /// <summary> Whether the assign pass may run under the current latch. PURE. </summary>
     public static bool IsFormationArmed(in FormationArmState s) => s.ScreenOpen && !s.PassDone && !s.Aborted;
