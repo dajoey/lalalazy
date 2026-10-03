@@ -129,6 +129,8 @@ internal sealed unsafe class HubAddon(PluginMonitor monitor, GluttonyProbe glutt
                 Position = cell + new Vector2(0f, 6f),
                 Size = new Vector2(IconSize, IconSize),
                 TextureSize = new Vector2(64f, 64f),
+                // Without this a native image node draws the texture at its own 64px and ignores Size.
+                FitTexture = true,
             };
             icon.AttachNode(body);
             icons.LoadInto(icon, entry.IconFile, () => generation == _generation && IsOpen);

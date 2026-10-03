@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.1.0.1 (2026-10-03)
+
+### Fixed
+- **Plugin icons in the Plugins tab now fit their slot.** They were drawn at their full 64-pixel size instead of the 44-pixel slot, which covered the first letters of each name and status line and touched the row below. Each icon now scales to its slot and the text is fully visible.
+
 ## v0.1.0.0 (2026-10-03)
 
 ### Added

@@ -67,6 +67,38 @@ Check("Find is exact (no case folding) and returns null for unknown", Catalog.Fi
     Check("every catalog icon (and the hub icon) is a 64x64 PNG in Resources", problems.Count == 0, string.Join("; ", problems));
 }
 
+// ---- native image nodes must scale to their slot -------------------------------------------------
+// A native image node draws its texture at the texture's own size unless FitTexture is set, which
+// makes it stretch to the node's Size. Without it the 64px icons ignored their 44px slot, covered the
+// first letters of the name and status text and touched the next row (seen in game on 0.1.0.0).
+// Native nodes cannot run without the game, so this guards the source: every `new ImGuiImageNode`
+// initializer in the plugin must set FitTexture = true.
+{
+    var pluginDir = Path.Combine(repoRoot, "src", "LazyHub", "LazyHub");
+    var offenders = new List<string>();
+    int found = 0;
+    foreach (var file in Directory.EnumerateFiles(pluginDir, "*.cs", SearchOption.AllDirectories))
+    {
+        if (file.Contains(Path.DirectorySeparatorChar + "Core" + Path.DirectorySeparatorChar)) continue;
+        var text = File.ReadAllText(file);
+        int from = 0;
+        while (true)
+        {
+            int at = text.IndexOf("new ImGuiImageNode", from, StringComparison.Ordinal);
+            if (at < 0) break;
+            found++;
+            int open = text.IndexOf('{', at);
+            int close = open < 0 ? -1 : text.IndexOf("};", open, StringComparison.Ordinal);
+            var block = open >= 0 && close > open ? text[open..close] : "";
+            if (!block.Contains("FitTexture = true", StringComparison.Ordinal))
+                offenders.Add($"{Path.GetFileName(file)}@{text[..at].Count(c => c == '\n') + 1}");
+            from = at + 1;
+        }
+    }
+    Check("every ImGuiImageNode in the plugin sets FitTexture = true (and there is at least one)",
+        found > 0 && offenders.Count == 0, $"found={found} without FitTexture: [{string.Join(",", offenders)}]");
+}
+
 // ---- status classification ---------------------------------------------------------------------
 Check("not installed -> NotInstalled", PluginStatus.Classify(installed: false, loaded: false, testing: false) == PluginState.NotInstalled);
 Check("not installed wins even if flags are set", PluginStatus.Classify(installed: false, loaded: true, testing: true) == PluginState.NotInstalled);
