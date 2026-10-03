@@ -22,6 +22,7 @@ A collection of Dalamud plugins for Final Fantasy XIV, maintained by [dajoey](ht
 | **LazyCrafter** | Catalogs every recipe you can craft, prices it with Universalis, and hands the missing materials to Artisan / GatherBuddyReborn / AutoRetainer / Lifestream. | Active |
 | **Lazy Fish Sitter** | Sits you down while you fish. Checks every few seconds while fishing and runs /sit if you are standing. Never re-sits once you are seated (ground, chair, or pose). | Testing |
 | **LazyCrucible** | Beastmaster Crucible of the Unbroken helper. Fills the ten-familiar run roster at Bentbranch Meadows and the three Battlehorn slots before every fight with the familiars best suited to that fight's mechanics (weakness element, interrupts, crowd control, dispels), skipping knocked-out and badly hurt familiars. Every automation has its own toggle and manual edits always win. Includes a beast-pick advisor panel. Split out of Gluttony Combo, which keeps the Beastmaster rotation. | Testing |
+| **Lazy Hub** | One in-game window for the whole suite: every lalalazy plugin with its live status and an Open button. Open it with /lazy. | Testing |
 
 ## Installation
 

@@ -165,5 +165,16 @@ const PLUGINS = [
       { t: 'Beast-pick advisor', d: 'A panel with the picks per battle for any board, plus a read-only recorder that logs every Crucible screen for the automation still to come.' },
     ],
   },
+  {
+    slug: 'lazyhub', name: 'Lazy Hub', origin: 'Original', hasWindow: true,
+    short: 'One window for the whole suite: every lalalazy plugin with its live status and an Open button.',
+    tag: 'Every lalalazy plugin, one window.',
+    command: '/lazy', credit: 'Original plugin by dajoey \u00b7 built on the Dalamud SDK',
+    features: [
+      { t: 'All the plugins at a glance', d: 'Lists every lalalazy plugin with its icon and whether it is running, running a testing build, installed but off, or not installed.' },
+      { t: 'Open anything in one click', d: 'Each running plugin gets an Open button that brings up its own window.' },
+      { t: 'Quick look at auto-rotation', d: 'Shows whether Gluttony Combo\u2019s auto-rotation is on, and a server info bar entry counts how many of the plugins are running.' },
+    ],
+  },
 ];
 if (typeof module !== 'undefined') module.exports = PLUGINS;

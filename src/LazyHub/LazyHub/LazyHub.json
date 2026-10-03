@@ -1,0 +1,26 @@
+{
+  "Author": "dajoey",
+  "Name": "Lazy Hub",
+  "InternalName": "LazyHub",
+  "Description": "One in-game window for the whole lalalazy suite. Lists every lalalazy plugin with its live status (loaded, testing build, not loaded, not installed) and an Open button for each running plugin, plus a server info bar entry. Open it with /lazy.",
+  "Punchline": "One window for every lalalazy plugin.",
+  "ApplicableVersion": "any",
+  "DalamudApiLevel": 15,
+  "Tags": [
+    "hub",
+    "ui",
+    "suite",
+    "launcher",
+    "lazy"
+  ],
+  "CategoryTags": [
+    "utility"
+  ],
+  "AcceptsFeedback": false,
+  "LoadRequiredState": 0,
+  "LoadSync": false,
+  "CanUnloadAsync": false,
+  "LoadPriority": 0,
+  "IsTestingExclusive": true,
+  "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazyhub-icon.png"
+}

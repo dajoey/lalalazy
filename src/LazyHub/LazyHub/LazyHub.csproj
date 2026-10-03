@@ -1,0 +1,52 @@
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <Authors>dajoey</Authors>
+    <Version>0.1.0.0</Version>
+    <AssemblyVersion>0.1.0.0</AssemblyVersion>
+    <FileVersion>0.1.0.0</FileVersion>
+    <Description>One in-game window for the whole lalalazy suite: every plugin with its live status and an Open button, from a native game-style window.</Description>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Platforms>x64</Platforms>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <SupportedOSPlatformVersion>8.0</SupportedOSPlatformVersion>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <NoWarn>$(NoWarn);MSB3277;1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System.Numerics" />
+  </ItemGroup>
+
+  <!-- Shared in-game "What's new" changelog popup (standing rule, 2026-09-05): every lalalazy
+       plugin compiles src/Shared/LalaChangelog as SOURCE (never a shared DLL - each plugin lives in
+       its own AssemblyLoadContext and PruneOutputDlls would strip it) and embeds its own CHANGELOG.md.
+       Do not remove this block in an upstream merge. -->
+  <ItemGroup>
+    <Compile Include="..\..\Shared\LalaChangelog\**\*.cs" Link="LalaChangelog\%(RecursiveDir)%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\CHANGELOG.md" LogicalName="CHANGELOG.md" />
+  </ItemGroup>
+
+  <!-- The native game-style window is built with the KamiToolKit copy that LazyWTMath already carries
+       (known good on Dalamud API 15). Each plugin ships its own copy in its own load context. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\LazyWTMath\KamiToolKit\KamiToolKit.csproj" />
+  </ItemGroup>
+
+  <!-- The 64x64 plugin icons are embedded, so the zip needs no loose files for them. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\*.png" LogicalName="Resources.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!-- Keep the zip lean: ship our DLL, the toolkit and its one dependency. Drop
+       Microsoft.Windows.SDK.NET.dll (~26 MB) and WinRT.Runtime.dll (provided by the game host). -->
+  <Target Name="PruneOutputDlls" AfterTargets="ResolveReferences">
+    <ItemGroup>
+      <_KeepDlls Include="@(ReferenceCopyLocalPaths)" Condition="'%(Filename)' == 'LazyHub' Or '%(Filename)' == 'KamiToolKit' Or '%(Filename)' == 'SixLabors.ImageSharp'" />
+      <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)" />
+      <ReferenceCopyLocalPaths Include="@(_KeepDlls)" />
+    </ItemGroup>
+  </Target>
+</Project>
