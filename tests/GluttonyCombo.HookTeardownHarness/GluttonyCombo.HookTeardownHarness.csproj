@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- GluttonyCombo hook-teardown harness (2026-10-04). Plain console app. Drives the REAL ECommons
+       hook modules (src/GluttonyCombo/ECommons/ECommons/Hooks: StaticVfx, ActorVfx, GameObjectCtor)
+       by reflection with no game running: hook statics are null exactly as they are the moment after
+       Dispose() has torn them down mid-hot-reload. Case A requires every detour to fail soft instead
+       of throwing NullReferenceException out of the detour (the 2026-10-03 game crash, E0434352 /
+       80004003); Case B requires Dispose() to wait (bounded) for a detour that is still running
+       before it disposes and nulls the hooks.
+         dotnet run -c Release --project tests/GluttonyCombo.HookTeardownHarness
+       Prints PASS/FAIL per case, "OK (n checks)" and exit 0 when every case passes. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows7.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>GluttonyCombo.HookTeardownHarness</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NoWarn>$(NoWarn);CS1574;CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\GluttonyCombo\ECommons\ECommons\ECommons.csproj" />
+  </ItemGroup>
+</Project>

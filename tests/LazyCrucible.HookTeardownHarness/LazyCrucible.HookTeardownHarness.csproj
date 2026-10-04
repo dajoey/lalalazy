@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- LazyCrucible hook-teardown harness (2026-10-04). Plain console app. Drives the REAL
+       LazyCrucible hook modules (ScreenRecorder's FireCallback detour, AgentProbe's ReceiveEvent
+       detour) by reflection with no game running: the callback/probe hook is null exactly as it is
+       the moment after Stop()/Teardown() has torn it down mid-hot-reload. Case A requires the
+       detours to fail soft instead of throwing out of the detour (the 2026-08-31 game crash family,
+       E0434352 / 80131509); Case B requires Stop()/Teardown() to wait (bounded) for a detour that
+       is still in flight before disposing the hooks.
+       The existing tests/LazyCrucible.Harness stays Dalamud-free by design (pure logic); the hook
+       modules need the game assemblies, so this separate harness carries the ProjectReference.
+         dotnet run -c Release --project tests/LazyCrucible.HookTeardownHarness
+       Prints PASS/FAIL per case, "OK (n checks)" and exit 0 when every case passes. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>LazyCrucible.HookTeardownHarness</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NoWarn>$(NoWarn);CS1574;CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\LazyCrucible\LazyCrucible.csproj" />
+  </ItemGroup>
+</Project>
