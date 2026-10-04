@@ -1,3 +1,35 @@
+## v1.0.4.276 (2026-10-04) [testing]
+### Added
+- **Sage: a new option, off by default, holds Phlegma charges for the party's burst windows instead
+  of spending them as they come up; charges at the cap are still spent immediately.** A second new
+  option, also off by default, refreshes Eukrasian Dosis early (from 20 seconds remaining) while the
+  party's raid buffs are up, so the damage-over-time covers the whole buff window instead of falling
+  off mid-burst.
+- **White Mage: a new option, off by default, widens the Dia refresh window to 10 seconds while the
+  party is bursting, so Dia is refreshed inside raid buffs instead of ticking down outside them.**
+- **Scholar: a new option, off by default, refreshes Biolysis early (from 10 seconds remaining)
+  while the party's raid buffs are up, so the damage-over-time covers the whole buff window.**
+- **Astrologian: a new option, off by default, refreshes Combust early (from 20 seconds remaining)
+  while the party's raid buffs are up, so the damage-over-time covers the whole buff window.**
+- **Red Mage: a new option, off by default, on the single-target and AoE Manafication features:
+  use Manafication on cooldown instead of holding it for Embolden.**
+### Changed
+- **Samurai: at exactly two enemies in Guren's range, the single-target rotation now spends the
+  shared cooldown on Hissatsu: Guren instead of Hissatsu: Senei.**
+- **Paladin: inside Fight or Flight, the Sepulchre proc is now spent before a Divine Might Holy
+  Spirit.** With no proc up, the window is unchanged.
+- **Machinist: the Automaton Queen is now also summoned between burst windows at 50-60 Battery
+  while Wildfire is more than fifteen GCDs from ready, instead of only at high Battery.** A
+  full 100-Battery Queen is still summoned whenever Battery is full.
+- **Dancer: the AoE Advanced Saber Dance check now follows the AoE Esprit threshold instead of the
+  single-target one, no longer fires during Technical Finish when the option is off, and is held
+  while Technical Step is nearly ready.**
+- **Machinist, correction to 1.0.4.275: in AoE Advanced Hypercharge windows with the Gauss
+  Round/Ricochet option on, Auto Crossbow is used from six targets onward; with that option off,
+  before Checkmate is learned, or on the dedicated Auto Crossbow feature, it is still used at any
+  number of targets.**
+### Notes
+- Testing channel only; the production channel is unchanged.
 ## v1.0.4.275 (2026-10-04) [testing]
 ### Changed
 - **Beastmaster: the rotation log now records how each Trick ended (the pet's follow-up seen, timed
