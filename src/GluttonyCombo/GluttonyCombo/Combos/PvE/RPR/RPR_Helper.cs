@@ -190,7 +190,9 @@ internal partial class RPR
 
     private static bool UseArcaneCircle(bool onAoE = false, int hpThreshold = 0) =>
         ActionReady(ArcaneCircle) && GetTargetHPPercent() > hpThreshold &&
-        (onAoE || ActionLearned(Enshroud) && JustUsed(ShadowOfDeath) || !ActionLearned(Enshroud));
+        (onAoE || !ActionLearned(Enshroud) ||
+         JustUsed(ShadowOfDeath) ||
+         CurrentTarget.Status(Debuffs.DeathsDesign).RemainingTimeOrZero() >= 20f);
 
     private static bool UseGluttony(bool enshroudEnabled = true, bool onAoE = false) =>
         UseBurstGluttony(enshroudEnabled, onAoE) ||
@@ -973,3 +975,4 @@ internal partial class RPR
 
     #endregion
 }
+
