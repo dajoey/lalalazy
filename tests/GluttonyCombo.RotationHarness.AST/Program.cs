@@ -63,6 +63,28 @@ internal static class Program
               $"Invoke(FallMalefic) returns Divination ({AST.Divination})",
             gotChar == AST.Divination, $"returned {gotChar}");
 
+        // ---- AST-1: the pool must release when Divination can never fire (off-boss, HP option 100) ----
+        SetBossFightState();
+        FakeGame.InBossEncounter = false;          // trash: divHPThreshold = AST_ST_DPS_DivinationOption
+        FakeGame.IntValues["AST_ST_DPS_DivinationOption"] = 100; // his live setting, "Non bosses" mode
+        FakeGame.NumberOfGcdsUsed = 4;
+        uint got1 = InvokeSt();
+        Check("AST-1: NOT a boss encounter + Divination HP option 100 + DPS card held + card pooling on + " +
+              $"no Divination buff (Divination cannot fire): Invoke(FallMalefic) returns Play I ({AST.Play1})",
+            got1 == AST.Play1, $"returned {got1}");
+
+        // ---- AST-1 paired: boss pooling behaviour must NOT change ----
+        SetBossFightState();
+        var divCd = FakeGame.Cooldown(AST.Divination);
+        divCd.IsCooldown = true;                   // Divination down: pool holds until it is back
+        divCd.CooldownRemaining = 60f;
+        FakeGame.NumberOfGcdsUsed = 4;
+        uint got1b = InvokeSt();
+        Check("AST-1 (paired, unchanged): boss encounter + Divination on cooldown + DPS card held + " +
+              $"card pooling on: Invoke(FallMalefic) still returns Malefic ({AST.Malefic}) — the pool " +
+              "waits for Divination exactly as today",
+            got1b == AST.Malefic, $"returned {got1b}");
+
         // ---- the CANARY: deliberately asserts the opposite; must FAIL ----
         SetBossFightState();
         FakeGame.NumberOfGcdsUsed = 10;
