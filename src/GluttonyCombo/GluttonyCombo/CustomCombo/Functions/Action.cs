@@ -403,11 +403,13 @@ internal abstract partial class CustomComboFunctions
     }
 
     // Fork (1.0.4.278): incoming damage is a combat concept. Out of combat no hostile
-    // cast bar can threaten the party, yet the 48h logs behind the 2026-10-04 report
-    // show field FATE mobs' wide casts driving the whole raidwide-shield chain at a
-    // full-HP party (Eukrasian Prognosis II x138, Medica III x41, Holy III x45,
-    // Assize x36). OutOfCombatGate.MayDetectIncomingDamage pins the rule; a shield
-    // chain already committed in combat still finishes (the lock latches on its own).
+    // cast bar can threaten the party, and the 2026-10-04 logs show field FATE mobs'
+    // wide casts driving the raidwide-shield chain at full-HP parties. (The report's
+    // per-cast re-derivation: every one of the reporting player's own raidwide-shield
+    // casts sat inside a combat window - the ungated detection path itself was the
+    // fire this closes.) OutOfCombatGate.MayDetectIncomingDamage pins the rule; a
+    // shield chain already committed in combat still finishes (the lock latches on
+    // its own).
     public static bool GroupDamageIncoming(float? maxTimeRemaining = null) =>
         OutOfCombatGate.MayDetectIncomingDamage(InCombat()) &&
         (RaidwideCasting(maxTimeRemaining) ||

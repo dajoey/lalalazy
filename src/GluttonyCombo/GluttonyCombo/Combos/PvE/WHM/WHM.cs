@@ -102,7 +102,9 @@ internal partial class WHM : Healer
 
             #region Weaves
 
-            if (CanWeave() || IsMoving())
+            // Fork (1.0.4.279): out of combat the area damage mode has nothing to weave -
+            // the same stand-down the Sage damage paths got in 1.0.4.278.
+            if ((CanWeave() || IsMoving()) && InCombat())
             {
                 if (ActionReady(Assize) &&
                     HasBattleTarget() && GetTargetDistance() <= 20)
@@ -324,7 +326,7 @@ internal partial class WHM : Healer
 
             #region Weaves
 
-            if (CanWeave() || IsMoving())
+            if ((CanWeave() || IsMoving()) && InCombat())
             {
                 if (IsEnabled(Preset.WHM_AoE_DPS_Assize) &&
                     ActionReady(Assize) &&

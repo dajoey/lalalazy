@@ -63,10 +63,10 @@ internal static class OutOfCombatGate
     ///     effects) may report true at all. Incoming damage is a combat
     ///     concept: out of combat no hostile cast bar can threaten the party, so
     ///     GroupDamageIncoming reads false and the whole raidwide-shield chain
-    ///     stands down. The 48h logs behind the 2026-10-04 amendment show field
-    ///     FATE mobs' wide casts driving Eukrasian Prognosis II x138, Medica III
-    ///     x41, Holy III x45 and Assize x36 while the party was at full health
-    ///     out of combat.
+    ///     stands down. The 2026-10-04 amendment's per-cast re-derivation found
+    ///     every one of the reporting player's own raidwide-shield casts inside
+    ///     a combat window - the ungated detection path itself was the fire this
+    ///     gate closes.
     /// </summary>
     internal static bool MayDetectIncomingDamage(bool inCombat) => inCombat;
 

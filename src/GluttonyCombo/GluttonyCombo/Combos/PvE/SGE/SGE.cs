@@ -219,8 +219,10 @@ internal partial class SGE : Healer
 
             // Fork (1.0.4.278): out of combat the advanced AoE damage path does
             // not react - the Addersgall overcap protection (this preset's
-            // SGE_AoE_Adv_DPS_AddersgallProtect) fired 22 Kerachole-class dumps
-            // at full-HP parties in the 2026-10-04 logs. It waits for combat.
+            // SGE_AoE_Adv_DPS_AddersgallProtect) pressed the protection at a
+            // full-HP party out of combat (the 2026-10-04 report's per-cast
+            // re-derivation: 2 out-of-combat Druochole on the reporting
+            // player's Sage). It waits for combat.
             if (CanWeave() && InCombat())
             {
                 if (IsEnabled(Preset.SGE_AoE_Adv_DPS_AddersgallProtect) &&

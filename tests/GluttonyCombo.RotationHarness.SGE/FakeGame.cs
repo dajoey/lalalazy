@@ -22,6 +22,8 @@ internal static class FakeGame
     public static bool TargetIsBoss = false;
     public static bool InBossEncounter = false;
     public static bool GroupDamageIncoming = false;
+    public static bool DottableEnemyPresent = false;   // SimpleTarget.DottableEnemy fake: a dottable target exists
+    public static int EnemiesInRangeCount = 0;         // EnemiesInRange fake: how many enemies are around
     public static float TargetHPPercent = 100f;
     public static bool TargetCanApplyStatus = false;     // ShouldRefreshEDosis's gate stays closed
     public static bool InActionRange = true;             // every action in range unless overridden
@@ -125,6 +127,8 @@ internal static class FakeGame
         TargetIsBoss = false;
         InBossEncounter = false;
         GroupDamageIncoming = false;
+        DottableEnemyPresent = false;
+        EnemiesInRangeCount = 0;
         TargetHPPercent = 100f;
         TargetCanApplyStatus = false;
         InActionRange = true;
@@ -301,4 +305,86 @@ internal static class FakeGauges
         Enum e => Convert.ToInt64(e) == 0,
         _ => false,
     };
+}
+
+/// <summary>
+///     A fake enemy battle character: implements the REAL Dalamud IBattleChara surface so the
+///     real SGE code can carry it as a target. The decision code only reaches it through the
+///     GameObjectExtensions fakes (Status / CanApplyStatus / IsBoss), which read harness state
+///     instead of object members - the object is the non-null carrier those checks gate on
+///     (same trick as the WHM harness's FakeGameObject). Any un-faked member throws loudly.
+/// </summary>
+internal sealed class FakeBattleChara : Dalamud.Game.ClientState.Objects.Types.IBattleChara
+{
+    internal static FakeBattleChara Enemy { get; } = new();
+
+    internal static IEnumerable<Dalamud.Game.ClientState.Objects.Types.IGameObject> Enemies(int count)
+    {
+        for (var i = 0; i < count; i++)
+            yield return Enemy;
+    }
+
+    // IGameObject (signatures reflected from the dev Dalamud.dll; same as the WHM harness's
+    // FakeGameObject, plus the ICharacter / IBattleChara members the SGE target type needs)
+    public Dalamud.Game.Text.SeStringHandling.SeString Name => "FakeEnemy";
+    public ulong GameObjectId => 2;
+    public uint EntityId => 2;
+    public uint DataId => 0x1001;
+    public uint BaseId => 0x1001;
+    public uint OwnerId => 0;
+    public ushort ObjectIndex => 2;
+    public Dalamud.Game.ClientState.Objects.Enums.ObjectKind ObjectKind =>
+        Dalamud.Game.ClientState.Objects.Enums.ObjectKind.BattleNpc;
+    public byte SubKind => 5; // 5 = enemy battle NPC
+    public byte YalmDistanceX => 3;
+    public byte YalmDistanceZ => 0;
+    public byte CurrentDistance => 3;
+    public byte NextDistance => 3;
+    public bool IsDead => false;
+    public bool IsTargetable => true;
+    public System.Numerics.Vector3 Position => new(0f, 0f, -3f);
+    public float Rotation => 0f;
+    public float HitboxRadius => 2f;
+    public ulong TargetObjectId => 0;
+    public Dalamud.Game.ClientState.Objects.Types.IGameObject? TargetObject => null;
+    public nint Address => (nint)0x2000_0000;
+    public bool IsValid() => true;
+    public bool Equals(Dalamud.Game.ClientState.Objects.Types.IGameObject? other) => other == this;
+
+    // ICharacter: rows and stats an enemy target would carry; the decision code never reads
+    // them through this object (HP/status read through the fakes), so defaults are fine.
+    public uint CurrentHp => 100_000;
+    public uint MaxHp => 100_000;
+    public uint CurrentMp => 10_000;
+    public uint MaxMp => 10_000;
+    public uint CurrentGp => 0;
+    public uint MaxGp => 0;
+    public uint CurrentCp => 0;
+    public uint MaxCp => 0;
+    public byte ShieldPercentage => 0;
+    public Lumina.Excel.RowRef<Lumina.Excel.Sheets.ClassJob> ClassJob => default;
+    public byte Level => 90;
+    public Span<byte> Customize => Span<byte>.Empty;
+    public Dalamud.Game.ClientState.Customize.ICustomizeData? CustomizeData => null;
+    public Dalamud.Game.Text.SeStringHandling.SeString CompanyTag => "";
+    public uint NameId => 0;
+    public Lumina.Excel.RowRef<Lumina.Excel.Sheets.OnlineStatus> OnlineStatus => default;
+    public Dalamud.Game.ClientState.Objects.Enums.StatusFlags StatusFlags =>
+        default;
+    public Lumina.Excel.RowRef<Lumina.Excel.Sheets.Mount>? CurrentMount => null;
+    public Lumina.Excel.RowRef<Lumina.Excel.Sheets.Companion>? CurrentMinion => null;
+
+    // IBattleChara: a non-casting enemy. StatusList would be read only through the real
+    // GameObjectExtensions paths, which the harness fakes - so reaching here is a boundary
+    // violation and throws loudly.
+    public Dalamud.Game.ClientState.Statuses.StatusList? StatusList =>
+        throw new NotSupportedException("harness boundary: statuses go through the GameObjectExtensions fake");
+    public bool IsCasting => false;
+    public bool IsCastInterruptible => false;
+    public byte CastActionType => 0;
+    public uint CastActionId => 0;
+    public ulong CastTargetObjectId => 0;
+    public float CurrentCastTime => 0f;
+    public float BaseCastTime => 0f;
+    public float TotalCastTime => 0f;
 }

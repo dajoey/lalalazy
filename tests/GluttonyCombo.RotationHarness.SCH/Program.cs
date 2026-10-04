@@ -95,6 +95,38 @@ internal static class Program
               $"Invoke(Broil IV) returns Broil IV ({SCH.Broil4}) — no burst window, no early refresh",
             got2c == SCH.Broil4, $"returned {got2c}");
 
+        // ==== OOC (1.0.4.279): out of combat the AoE damage weaves do not fire ====
+        // The same stand-down the Sage damage paths got in 1.0.4.278: out of combat the scholar's
+        // area damage mode has nothing to weave - Aetherflow and the rest of the weave ladder
+        // wait for combat. (The harvested logs show no out-of-combat Scholar casts for the
+        // player; this is class coverage for the stand-down, not a reproduced fire.)
+
+        // SCH-OOC-1: SCH_AoE_Simple_DPS - Aetherflow waits for combat
+        SetAoeWeaveState(inCombat: true);
+        uint gotSchOoc1Control = InvokeAoeSimple();
+        Check("SCH-OOC-1 control: in combat + weave window + no Aetherflow stack + Aetherflow ready: " +
+              $"Invoke(ArtOfWarII) returns Aetherflow ({SCH.Aetherflow}) - the weave fires",
+            gotSchOoc1Control == SCH.Aetherflow, $"returned {gotSchOoc1Control}");
+
+        SetAoeWeaveState(inCombat: false);
+        uint gotSchOoc1 = InvokeAoeSimple();
+        Check("SCH-OOC-1: identical state but OUT OF COMBAT: " +
+              $"Invoke(ArtOfWarII) returns the plain AoE GCD ({SCH.ArtOfWar}) - no weave",
+            gotSchOoc1 == SCH.ArtOfWar, $"returned {gotSchOoc1}");
+
+        // SCH-OOC-2: SCH_AoE_ADV_DPS - the same stand-down on the advanced AoE ladder
+        SetAoeWeaveState(inCombat: true, advanced: true);
+        uint gotSchOoc2Control = InvokeAoeAdv();
+        Check("SCH-OOC-2 control: in combat + weave window + Aetherflow preset on: " +
+              $"Invoke(ArtOfWarII) returns Aetherflow ({SCH.Aetherflow}) - the weave fires",
+            gotSchOoc2Control == SCH.Aetherflow, $"returned {gotSchOoc2Control}");
+
+        SetAoeWeaveState(inCombat: false, advanced: true);
+        uint gotSchOoc2 = InvokeAoeAdv();
+        Check("SCH-OOC-2: identical state but OUT OF COMBAT: " +
+              $"Invoke(ArtOfWarII) returns the plain AoE GCD ({SCH.ArtOfWar}) - no weave",
+            gotSchOoc2 == SCH.ArtOfWar, $"returned {gotSchOoc2}");
+
         // ---- the CANARY: deliberately asserts the opposite; must FAIL ----
         SetStAdvDpsState();
         SetBiolysisRemaining(3.0f);
@@ -151,6 +183,32 @@ internal static class Program
         FakeGame.TargetStatuses.Add(new(SCH.Debuffs.Biolysis, seconds));
 
     private static uint InvokeSt() => new SCH.SCH_ST_ADV_DPS().RunInvoke(SCH.Broil4);
+
+    private static uint InvokeAoeAdv() => new SCH.SCH_AoE_ADV_DPS().RunInvoke(SCH.ArtOfWarII);
+
+    private static uint InvokeAoeSimple() => new SCH.SCH_AoE_Simple_DPS().RunInvoke(SCH.ArtOfWarII);
+
+    /// <summary>
+    ///     The AoE damage weave state for the out-of-combat cases: the fairy out (NeedToSummon
+    ///     declines), weave window open, no Aetherflow stack, Aetherflow ready, GCD count 0 (the
+    ///     ChainStratagem site needs &gt;3), no target (the DoT branches decline), and no buffs.
+    /// </summary>
+    private static void SetAoeWeaveState(bool inCombat, bool advanced = false)
+    {
+        FakeGame.Reset();
+
+        FakeGame.EnabledPresets.Add(Preset.SCH_AoE_Simple_DPS);
+        if (advanced)
+            FakeGame.EnabledPresets.Add(Preset.SCH_AoE_ADV_DPS);
+        FakeGame.EnabledPresets.Add(Preset.SCH_AoE_ADV_DPS_Aetherflow);
+
+        FakeGame.InCombat = inCombat;
+        FakeGame.PartyInCombatFlag = inCombat;
+        FakeGame.CanWeave = true;
+        FakeGame.HasPetPresent = true;
+        FakeGame.HasBattleTarget = false;
+        FakeGame.NumberOfGcdsUsed = 0;
+    }
 
     private static void Check(string desc, bool ok, string detail = "")
     {

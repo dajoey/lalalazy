@@ -13,6 +13,9 @@
 //   WHM-1  — opt-in "refresh Dia early in buffs": with the option on and the party bursting, a
 //            10 s widened refresh window returns Dia at 8 s remaining; three controls pin the
 //            option off, the burst off, and the window bound at 10 s (12 s still casts Glare3).
+//   OOC    — the 1.0.4.279 out-of-combat stand-down for the area damage weave: out of combat
+//            Assize (and the rest of the weave block) waits for combat, matching the Sage
+//            damage paths since 1.0.4.278.
 //
 // THE CANARY: the CHAR state run through an assertion of the OPPOSITE behaviour. It is EXPECTED TO
 // FAIL; the harness only exits 0 when the canary fails as expected (proof the test can actually fail).
@@ -111,6 +114,24 @@ internal static class Program
               $"Invoke(Stone1) returns Glare3 ({WHM.Glare3}) — the widened window caps at 10 s",
             gotBound == WHM.Glare3, $"returned {gotBound}");
 
+        // ==== OOC (1.0.4.279): out of combat the AoE damage weave does not fire ====
+        // The same stand-down the Sage damage paths got in 1.0.4.278: out of combat a healer's
+        // area damage mode has nothing to weave - Assize, Presence of Mind and Lucid Dreaming
+        // all wait for combat. (The harvested logs show no out-of-combat White Mage casts for
+        // the player; this is class coverage for the stand-down, not a reproduced fire.)
+
+        SetAoeWeaveState(inCombat: true);
+        uint gotWhmOocControl = InvokeAoe();
+        Check("WHM-OOC control: in combat + weave window + Assize ready + target within 20 yalms: " +
+              $"Invoke(Holy3) returns Assize ({WHM.Assize}) - the weave fires",
+            gotWhmOocControl == WHM.Assize, $"returned {gotWhmOocControl}");
+
+        SetAoeWeaveState(inCombat: false);
+        uint gotWhmOoc = InvokeAoe();
+        Check("WHM-OOC: identical state but OUT OF COMBAT: " +
+              $"Invoke(Holy3) returns Holy ({WHM.Holy3}) - no Assize, no weave",
+            gotWhmOoc == WHM.Holy3, $"returned {gotWhmOoc}");
+
         Console.WriteLine(_fail == 0
             ? $"OK ({_pass} checks, canary failed as expected)"
             : $"FAILED ({_fail} of {_pass + _fail})");
@@ -175,6 +196,38 @@ internal static class Program
         FakeGame.TargetStatuses.Add(new FakeStatus(WHM.AeroList[WHM.Dia], remainingSeconds, SourceId: 0));
 
     private static uint InvokeMain() => new WHM.WHM_ST_MainCombo().RunInvoke(WHM.Stone1);
+
+    private static uint InvokeAoe() => new WHM.WHM_AoE_Simple_DPS().RunInvoke(WHM.Holy3);
+
+    /// <summary>
+    ///     The AoE damage weave state for the out-of-combat cases: WHM_AoE_Simple_DPS with Assize
+    ///     ready and a target within 20 yalms, the weave window open, an empty lily gauge, no
+    ///     player buffs, and Presence of Mind held on cooldown so Assize is the only weave that
+    ///     can answer in either combat state.
+    /// </summary>
+    private static void SetAoeWeaveState(bool inCombat)
+    {
+        FakeGame.Reset();
+
+        FakeGame.EnabledPresets.Add(Preset.WHM_AoE_Simple_DPS);
+
+        FakeGame.InCombat = inCombat;
+        FakeGame.PartyInCombatFlag = inCombat;
+        FakeGame.CanWeave = true;
+        FakeGame.IsMovingFlag = false;
+        FakeGame.HasBattleTarget = true;
+        FakeGame.TargetHPPercent = 100f;
+        FakeGame.NumberOfGcdsUsed = 0;
+        FakeGame.TargetDistance = 10f;
+        FakeGame.HardTargetObject = new FakeGameObject();
+
+        FakeGame.HookOverrides[WHM.Holy] = WHM.Holy3;
+
+        _ = FakeGame.Cooldown(WHM.Assize); // ready by default
+        var pom = FakeGame.Cooldown(WHM.PresenceOfMind);
+        pom.IsCooldown = true;
+        pom.CooldownRemaining = 30f;
+    }
 
     private static void Check(string desc, bool ok, string detail = "")
     {

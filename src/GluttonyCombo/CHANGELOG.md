@@ -1,12 +1,26 @@
+## v1.0.4.279 (2026-10-05) [testing]
+### Changed
+- **Out of combat, White Mage and Scholar area damage modes no longer weave.** The AoE damage
+  presets' weave blocks (Assize and Presence of Mind on White Mage; Aetherflow, Baneful Impaction,
+  Chain Strategem, Energy Drain and Lucid Dreaming on Scholar) now wait for combat, closing the
+  last ungated healer damage paths - the single-target damage modes and Astrologian already stood
+  down. Pre-pull utility (fairy summons, sanctioned self-buffs) is unchanged.
+### Fixed
+- Corrected the release-note numbers of 1.0.4.278: the out-of-combat presses re-derived per cast
+  from the logs were two Druochole (the overcap protection) plus a six-press Eukrasia chain on the
+  reporting Sage, and every one of that player's own raidwide-shield casts sat inside a combat
+  window. The earlier inflated counts had counted other players' casts.
+### Notes
+- Testing channel only; production stays on 1.0.4.278.
+
 ## v1.0.4.278 (2026-10-04) [testing]
 ### Changed
 - **Out of combat, damage rotations no longer react when there is nothing to do.** A friendly-only
   action resolved from a damage preset (Addersgall overcap dumps such as Kerachole and Druochole,
-  Eukrasian shields, regens like Physis, and unsanctioned Swiftcast) now waits for combat, matching
-  the Sage case of the 2026-10-04 report: gauges do not overcap out of combat, so the protection
-  has nothing to protect. Sage's damage presets (simple and advanced, single-target and AoE) now
-  require combat before weaving Addersgall protection, Psyche, Lucid Dreaming, Rhizomata, Soteria
-  or Eukrasia chains. Heal presets are unchanged: when a party member is actually hurt, dead or
+  Eukrasian shields, regens like Physis, and unsanctioned Swiftcast) now waits for combat: gauges
+  do not overcap out of combat, so the protection has nothing to protect. Sage's damage presets
+  (simple and advanced, single-target and AoE) now require combat before weaving Addersgall
+  protection, Psyche, Lucid Dreaming, Rhizomata, Soteria or Eukrasia chains. Heal presets are unchanged: when a party member is actually hurt, dead or
   cleansable out of combat they still act.
 - **Raidwide detection is now combat-only.** Wide-area casts by field mobs (for example FATE
   enemies) no longer count as incoming raidwide damage while the party is out of combat, so the

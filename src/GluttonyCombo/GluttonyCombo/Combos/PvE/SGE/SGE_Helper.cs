@@ -321,8 +321,10 @@ internal partial class SGE
         if (simpleMode)
         {
             // Fork (1.0.4.278): out of combat the simple DPS path does not open
-            // Eukrasia chains at field mobs (62 stray presses in the 48h logs);
-            // the advanced path already stood down via PartyInCombat below.
+            // Eukrasia chains at field mobs (the 2026-10-04 report's per-cast
+            // re-derivation: 6 out-of-combat Eukrasia-chain presses - 4 Eukrasia,
+            // 2 Eukrasian Dosis III - on the reporting player's Sage); the
+            // advanced path already stood down via PartyInCombat below.
             if (!PartyInCombat())
                 return false;
 
