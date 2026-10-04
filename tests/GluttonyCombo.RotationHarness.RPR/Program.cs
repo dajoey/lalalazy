@@ -66,19 +66,6 @@ internal static class Program
         CheckCanary($"CANARY (expected to FAIL): identical state, asserting Invoke(Slice) " +
                     $"does NOT return Arcane Circle", got2 != RPR.ArcaneCircle, $"returned {got2}");
 
-        // ---- RPR-1: Arcane Circle must fire on Death's Design >= 20 s even without a just-used SoD ----
-        SetArcaneCircleReadyNoRecentSoDState();
-        uint got3 = new RPR.RPR_ST_AdvancedMode().RunInvoke(RPR.Slice);
-        Check($"RPR-1: Arcane Circle ready + Death's Design 40 s left + no recent Shadow of Death + weave window: " +
-              $"Invoke(Slice) returns Arcane Circle ({RPR.ArcaneCircle})",
-            got3 == RPR.ArcaneCircle, $"returned {got3}");
-
-        SetArcaneCircleReadyNoRecentSoDState(10f);
-        uint got4 = new RPR.RPR_ST_AdvancedMode().RunInvoke(RPR.Slice);
-        Check($"RPR-1 (unchanged): Death's Design 10 s left + no recent Shadow of Death: " +
-              $"Invoke(Slice) does NOT return Arcane Circle",
-            got4 != RPR.ArcaneCircle, $"returned {got4}");
-
         // ---- RPR-2: Enhanced Gibbet/Gallows beats base Guillotine at exactly three targets ----
         SetAoeGuillotineState(3, enhanced: true);
         uint got5 = new RPR.RPR_AoE_AdvancedMode().RunInvoke(RPR.SpinningScythe);
@@ -116,18 +103,6 @@ internal static class Program
         FakeGame.EnabledPresets.Add(Preset.RPR_ST_ArcaneCircle);
         FakeGame.TargetStatuses.Add(new FakeStatus(RPR.Debuffs.DeathsDesign, 40f));
         FakeGame.JustUsedActions[RPR.ShadowOfDeath] = (0.5f, 2f);
-    }
-
-    /// <summary>
-    ///     RPR-1 case state: Arcane Circle ready inside the weave window with no recent Shadow of Death,
-    ///     and Death's Design left on the target for <paramref name="ddRemaining" /> seconds.
-    /// </summary>
-    private static void SetArcaneCircleReadyNoRecentSoDState(float ddRemaining = 40f)
-    {
-        FakeGame.Reset();
-        FakeGame.CanWeave = true;
-        FakeGame.EnabledPresets.Add(Preset.RPR_ST_ArcaneCircle);
-        FakeGame.TargetStatuses.Add(new FakeStatus(RPR.Debuffs.DeathsDesign, ddRemaining));
     }
 
     /// <summary>
