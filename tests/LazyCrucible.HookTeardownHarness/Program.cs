@@ -46,7 +46,7 @@ internal static class Program
     {
         Console.WriteLine("-- case A: detours invoked with the hook null (post-teardown state) --");
 
-        var recorder = typeof(LazyCrucible.ScreenRecorder);
+        var recorder = Lc("ScreenRecorder");
         Exception? ex = null;
         object? ret = null;
         try
@@ -63,7 +63,7 @@ internal static class Program
         Check("ScreenRecorder.FireCallbackDetour: returns false (not handled) when the hook is gone",
             ex is null && ret is false);
 
-        var probe = typeof(LazyCrucible.AgentProbe);
+        var probe = Lc("AgentProbe");
         ex = null;
         ret = null;
         try
@@ -93,8 +93,8 @@ internal static class Program
     private static void CaseB()
     {
         Console.WriteLine("-- case B: Stop/Teardown wait for an in-flight detour --");
-        RunStopsWaiting(typeof(LazyCrucible.ScreenRecorder), "InFlight", "Stop");
-        RunStopsWaiting(typeof(LazyCrucible.AgentProbe), "InFlight", "Teardown");
+        RunStopsWaiting(Lc("ScreenRecorder"), "InFlight", "Stop");
+        RunStopsWaiting(Lc("AgentProbe"), "InFlight", "Teardown");
     }
 
     private static void RunStopsWaiting(Type owner, string counterField, string teardownName)
@@ -145,6 +145,11 @@ internal static class Program
             probeType.GetField("<Via>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance)!
                 .SetValue(instance, via);
     }
+
+    // The hook modules are internal to the plugin assembly; reflection reaches them by name.
+    private static Type Lc(string name)
+        => Type.GetType("LazyCrucible." + name + ", LazyCrucible")
+           ?? throw new MissingMemberException("LazyCrucible." + name + " not found");
 
     private static MethodInfo Private(Type owner, string name)
         => owner.GetMethod(name, BindingFlags.NonPublic | BindingFlags.Static)
