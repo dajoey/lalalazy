@@ -42,7 +42,7 @@ internal static class Program
     }
 
     // Case A: the state after teardown — hook null — must not throw out of the detour.
-    private static void CaseA()
+    private static unsafe void CaseA()
     {
         Console.WriteLine("-- case A: detours invoked with the hook null (post-teardown state) --");
 
@@ -72,8 +72,10 @@ internal static class Program
                 ?? ThrowMissing<Type>(probe, "ProbeHook");
             var probeInstance = Activator.CreateInstance(probeType)!;
             SetVia(probeType, probeInstance, "re");
-            ret = Invoke(Private(probe, "ReceiveEventDetour"),
-                [probeInstance, null!, null!, null!, 0u, 0ul]);
+            var detour = Private(probe, "ReceiveEventDetour");
+            var bufferType = detour.GetParameters()[2].ParameterType;
+            ret = Invoke(detour,
+                [probeInstance, null!, Pointer.Box((void*)0x40, bufferType), null!, 0u, 0ul]);
         }
         catch (Exception e)
         {
@@ -83,7 +85,7 @@ internal static class Program
         Check($"AgentProbe.ReceiveEventDetour: no exception with hook null"
               + (ex == null ? "" : $" [{Describe(ex)}]"), ex is null);
         Check("AgentProbe.ReceiveEventDetour: echoes the caller's return buffer when the hook is gone",
-            ex is null && ret is null);
+            ex is null && ret is Pointer p && (nint)Pointer.Unbox(p) == 0x40);
     }
 
     // Case B: Stop()/Teardown() must wait (bounded) for a detour that is still in flight
