@@ -1,0 +1,68 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- GluttonyCombo.RotationHarness.MCH (2026-10-04, SC11 round 6): the Machinist instance of the
+       offline rotation-harness pattern proven by the rot/harness-spike VPR proof (notebook page
+       "Projects/FFXIV Job Rotation Review 2026-10/Offline Harness Approach", section 9). Compiles the
+       REAL, UNCHANGED Machinist job source (MCH.cs + MCH_Helper.cs) against a harness-owned fake of
+       the CustomComboFunctions game boundary. The job files are Compile-Included as links; the harness
+       itself never edits anything under src/. The fakes live only in this folder (fork-owned), so the
+       nightly upstream merge never sees them. A separate project per job is deliberate.
+         dotnet build tests\GluttonyCombo.RotationHarness.MCH -c Release
+         dotnet tests\GluttonyCombo.RotationHarness.MCH\bin\Release\net10.0-windows7.0\GluttonyCombo.RotationHarness.MCH.dll
+       Prints PASS/FAIL per case; a clearly-marked CANARY case is EXPECTED to fail; ends "OK" and
+       exits 0 only when every real case passes AND the canary fails as expected. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows7.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>preview</LangVersion>
+    <RootNamespace>GluttonyCombo.RotationHarness.MCH</RootNamespace>
+    <AssemblyName>GluttonyCombo.RotationHarness.MCH</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoWarn>$(NoWarn);CS1574;CS1591</NoWarn>
+  </PropertyGroup>
+  <PropertyGroup>
+    <DalamudLibPath>$(appdata)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="Fakes.cs" />
+    <Compile Include="FakeGame.cs" />
+    <!-- ==== THE CODE UNDER TEST: the real Machinist job files, unchanged ==== -->
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\MCH\MCH.cs" Link="MCH\MCH.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\MCH\MCH_Helper.cs" Link="MCH\MCH_Helper.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="Dalamud">
+      <HintPath>$(DalamudLibPath)Dalamud.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Dalamud.Common">
+      <HintPath>$(DalamudLibPath)Dalamud.Common.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="FFXIVClientStructs">
+      <HintPath>$(DalamudLibPath)FFXIVClientStructs.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Lumina">
+      <HintPath>$(DalamudLibPath)Lumina.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Lumina.Excel">
+      <HintPath>$(DalamudLibPath)Lumina.Excel.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>$(DalamudLibPath)Newtonsoft.Json.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <!-- ECommons is compiled from source so `using static ECommons.DalamudServices.Svc` in MCH_Helper
+         resolves; no ECommons code runs in the tested paths. -->
+    <ProjectReference Include="..\..\src\GluttonyCombo\ECommons\ECommons\ECommons.csproj" />
+  </ItemGroup>
+</Project>
