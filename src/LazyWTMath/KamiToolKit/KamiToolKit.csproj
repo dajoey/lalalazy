@@ -23,4 +23,9 @@
     <ItemGroup>
         <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12"/>
     </ItemGroup>
+
+    <!-- Hook teardown guard (2026-10-04): shared SOURCE (src/Shared/LalaHookGuard), never a shared DLL. -->
+    <ItemGroup>
+        <Compile Include="..\..\Shared\LalaHookGuard\**\*.cs" Link="LalaHookGuard\%(RecursiveDir)%(Filename)%(Extension)" />
+    </ItemGroup>
 </Project>

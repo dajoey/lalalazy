@@ -8,6 +8,7 @@ using ECommons.DalamudServices;
 using ECommons.EzHookManager;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using Lalalazy.Changelog;
+using Lalalazy.HookGuard;
 using System;
 using System.Collections.Generic;
 
@@ -55,6 +56,10 @@ public sealed class Plugin : IDalamudPlugin
 
     private unsafe delegate void ReceiveAchievementProgressDelegate(Achievement* achievement, uint id, uint current, uint max);
     private static EzHook<ReceiveAchievementProgressDelegate>? _receiveAchievementProgressHook;
+
+    // Progress detours running right now; the teardown drains this before pulling the hook
+    // (a detour that outlives its hook is the 2026-08-31 / 2026-10-03 game crash family).
+    private static readonly HookInFlight InFlight = new();
 
     public Plugin(IDalamudPluginInterface pi)
     {
@@ -168,6 +173,15 @@ public sealed class Plugin : IDalamudPlugin
 
     private unsafe void ReceiveAchievementProgressDetour(Achievement* achievement, uint id, uint current, uint max)
     {
+        // Count this detour so teardown can wait for it, and never run the payload against a
+        // torn-down hook: an exception escaping here takes the game down (2026-10-03 crash family).
+        using var inFlight = InFlight.Enter();
+        var hook = _receiveAchievementProgressHook;
+        if (hook == null)
+        {
+            return;
+        }
+
         try
         {
             if (SkywardAchievements.ContainsKey(id))
@@ -180,7 +194,16 @@ public sealed class Plugin : IDalamudPlugin
         {
             PluginLog.Error(ex, "Error in ReceiveAchievementProgressDetour");
         }
-        _receiveAchievementProgressHook?.Original(achievement, id, current, max);
+        hook.Original(achievement, id, current, max);
+    }
+
+    /// <summary>Disables the progress hook, waits for a detour still inside it, then drops it.</summary>
+    private void DisposeAchievementHook()
+    {
+        // EzHook.Disable disposes the underlying Dalamud hook and stops new calls.
+        _receiveAchievementProgressHook?.Disable();
+        InFlight.Drain("LazySkywardTracker.ReceiveAchievementProgress", static m => PluginLog.Error(m));
+        _receiveAchievementProgressHook = null;
     }
 
     private void ToggleWindow() => _mainWindow.IsOpen = !_mainWindow.IsOpen;
@@ -208,14 +231,7 @@ public sealed class Plugin : IDalamudPlugin
         _windowSystem.RemoveAllWindows();
         CommandManager.RemoveHandler(CommandName);
 
-        try
-        {
-            _receiveAchievementProgressHook?.Disable();
-        }
-        catch (Exception ex)
-        {
-            PluginLog.Error(ex, "Failed to disable hook");
-        }
+        DisposeAchievementHook();
         
         ECommonsMain.Dispose();
     }

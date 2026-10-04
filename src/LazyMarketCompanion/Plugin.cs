@@ -15,6 +15,7 @@ using ECommons.DalamudServices;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using LazyMarketCompanion.AutoMarket;
 using Lalalazy.Changelog;
+using Lalalazy.HookGuard;
 using Lalalazy.Hub;
 using Lalalazy.Telemetry;
 using LazyMarketCompanion.Windows;
@@ -68,6 +69,10 @@ public sealed class Plugin : IDalamudPlugin
   private delegate void RetainerItemCommandDelegate(nint agentRetainerItemCommandModule, uint slot, InventoryType inventoryType, uint a4, RetainerItemCommand command);
   private static Hook<RetainerItemCommandDelegate>? _retainerItemCommandHook;
 
+  // RetainerItemCommand detours running right now; the teardown drains this before pulling the hook
+  // (a detour that outlives its hook is the 2026-08-31 / 2026-10-03 game crash family).
+  private static readonly HookInFlight InFlight = new();
+
   internal static void RetainerItemCommand(nint module, uint slot, InventoryType inventoryType, uint a4, RetainerItemCommand command)
   {
     if (_retainerItemCommandHook == null || !_retainerItemCommandHook.IsEnabled)
@@ -80,8 +85,29 @@ public sealed class Plugin : IDalamudPlugin
 
   private static void RetainerItemCommandDetour(nint module, uint slot, InventoryType inventoryType, uint a4, RetainerItemCommand command)
   {
+    // Count this detour so teardown can wait for it, and never touch a torn-down hook: an exception
+    // escaping here takes the game down (2026-10-03 crash family).
+    using var inFlight = InFlight.Enter();
+    var hook = _retainerItemCommandHook;
+    if (hook == null || hook.IsDisposed)
+    {
+      return;
+    }
+
     Log.Debug($"[LMC] RetainerItemCommand: module={module:X16} slot={slot} type={inventoryType} a4={a4} cmd={command}");
-    _retainerItemCommandHook?.Original(module, slot, inventoryType, a4, command);
+    hook.Original(module, slot, inventoryType, a4, command);
+  }
+
+  /// <summary>Disables the retainer item command hook, waits for a detour still inside it, then disposes it.</summary>
+  internal static void DisposeRetainerItemCommandHook()
+  {
+    if (_retainerItemCommandHook?.IsEnabled == true)
+    {
+      _retainerItemCommandHook.Disable();
+    }
+    InFlight.Drain("LazyMarketCompanion.RetainerItemCommand", static m => Log.Warning("{0}", m));
+    _retainerItemCommandHook?.Dispose();
+    _retainerItemCommandHook = null;
   }
 
   public Plugin()
@@ -189,9 +215,7 @@ public sealed class Plugin : IDalamudPlugin
   public void Dispose()
   {
     _hub?.Dispose();   // first: a provider must never outlive its plugin
-    _retainerItemCommandHook?.Disable();
-    _retainerItemCommandHook?.Dispose();
-    _retainerItemCommandHook = null;
+    DisposeRetainerItemCommandHook();
     _changelog.Dispose();
     WindowSystem.RemoveAllWindows();
     _inventory.Dispose();

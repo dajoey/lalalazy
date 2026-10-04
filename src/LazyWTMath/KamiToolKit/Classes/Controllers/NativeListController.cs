@@ -5,6 +5,7 @@ using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using Dalamud.Hooking;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Component.GUI;
+using Lalalazy.HookGuard;
 
 namespace KamiToolKit.Classes.Controllers;
 
@@ -25,6 +26,10 @@ public unsafe class NativeListController(string addonName) : IDisposable {
 
     private Hook<AtkComponentListItemPopulator.PopulateDelegate>? onListPopulate;
     private Hook<AtkComponentListItemPopulator.PopulateWithRendererDelegate>? onRendererPopulate;
+
+    // Populate detours of this controller running right now; teardown drains this before pulling the
+    // hooks (a detour that outlives its hook is the 2026-08-31 / 2026-10-03 game crash family).
+    private readonly HookInFlight InFlight = new();
 
     public readonly List<uint> ModifiedIndexes = [];
     
@@ -53,10 +58,20 @@ public unsafe class NativeListController(string addonName) : IDisposable {
 
     public void Dispose() {
         DalamudInterface.Instance.AddonLifecycle.UnregisterListener(OnAddonSetup, OnAddonFinalize);
+        DisposeHooks();
+    }
 
+    /// <summary>
+    /// Disables both populate hooks, waits for the detours still inside them, then disposes and drops
+    /// them. Free of Dalamud services on purpose: it is exactly the draining teardown of the
+    /// 2026-10-03 hot-reload crash family, callable when the addon finalizes or the plugin unloads.
+    /// </summary>
+    private void DisposeHooks() {
+        onListPopulate?.Disable();
+        onRendererPopulate?.Disable();
+        InFlight.Drain("KamiToolKit.NativeListController", static m => Log.Warning(m));
         onListPopulate?.Dispose();
         onListPopulate = null;
-        
         onRendererPopulate?.Dispose();
         onRendererPopulate = null;
     }
@@ -65,11 +80,7 @@ public unsafe class NativeListController(string addonName) : IDisposable {
         => LoadPopulators((AtkUnitBase*)args.Addon.Address);
 
     private void OnAddonFinalize(AddonEvent type, AddonArgs args) {
-        onListPopulate?.Dispose();
-        onListPopulate = null;
-        
-        onRendererPopulate?.Dispose();
-        onRendererPopulate = null;
+        DisposeHooks();
         
         ModifiedIndexes.Clear();
         
@@ -93,6 +104,14 @@ public unsafe class NativeListController(string addonName) : IDisposable {
     }
 
     private void OnPopulateDetour(AtkEventListener* eventListener, AtkComponentListItemPopulator.ListItemInfo* itemInfo, AtkResNode** nodeList) {
+        // Count this detour so teardown can wait for it, and never run the payload against a
+        // torn-down hook: an exception escaping here takes the game down (2026-10-03 crash family).
+        using var inFlight = InFlight.Enter();
+        var hook = onListPopulate;
+        if (hook == null || hook.IsDisposed) {
+            return;
+        }
+
         var unitBase = (AtkUnitBase*)eventListener;
         try {
             var listItemData = new ListItemData {
@@ -108,7 +127,7 @@ public unsafe class NativeListController(string addonName) : IDisposable {
                 }
             }
             
-            onListPopulate!.Original(eventListener, itemInfo, nodeList);
+            hook.Original(eventListener, itemInfo, nodeList);
 
             if (shouldModifyElement) {
                 UpdateElement.Invoke(unitBase, listItemData, nodeList);
@@ -121,6 +140,14 @@ public unsafe class NativeListController(string addonName) : IDisposable {
     }
     
     private void OnRendererPopulateDetour(AtkEventListener* eventListener, int listItemIndex, AtkResNode** nodeList, AtkComponentListItemRenderer* listItemRenderer) {
+        // Count this detour so teardown can wait for it, and never run the payload against a
+        // torn-down hook: an exception escaping here takes the game down (2026-10-03 crash family).
+        using var inFlight = InFlight.Enter();
+        var hook = onRendererPopulate;
+        if (hook == null || hook.IsDisposed) {
+            return;
+        }
+
         var unitBase = (AtkUnitBase*)eventListener;
         try {
             var listItemData = new ListItemData {
@@ -136,7 +163,7 @@ public unsafe class NativeListController(string addonName) : IDisposable {
                 }
             }
             
-            onRendererPopulate!.Original(eventListener, listItemIndex, nodeList, listItemRenderer);
+            hook.Original(eventListener, listItemIndex, nodeList, listItemRenderer);
 
             if (shouldModifyElement) {
                 UpdateElement.Invoke(unitBase, listItemData, nodeList);

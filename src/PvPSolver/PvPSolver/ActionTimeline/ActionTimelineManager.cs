@@ -5,6 +5,7 @@ using ECommons.GameHelpers;
 using ECommons.Hooks;
 using ECommons.Hooks.ActionEffectTypes;
 using FFXIVClientStructs.FFXIV.Client.Game;
+using Lalalazy.HookGuard;
 using Action = Lumina.Excel.Sheets.Action;
 
 namespace RotationSolver.ActionTimeline;
@@ -28,14 +29,18 @@ public class ActionTimelineManager : IDisposable
 	private delegate void OnActorControlDelegate(uint entityId, uint type, uint buffID, uint direct, uint actionId, uint sourceId, uint arg7, uint arg8, uint arg9, uint arg10, ulong targetId, byte arg12);
 	[Signature("E8 ?? ?? ?? ?? 0F B7 0B 83 E9 64", DetourName = nameof(OnActorControl))]
 #pragma warning disable CS0649
-	private readonly Hook<OnActorControlDelegate>? _onActorControlHook;
+	private Hook<OnActorControlDelegate>? _onActorControlHook;
 #pragma warning restore CS0649
 
 	private delegate void OnCastDelegate(uint sourceId, IntPtr sourceCharacter);
 	[Signature("40 53 57 48 81 EC ?? ?? ?? ?? 48 8B FA 8B D1", DetourName = nameof(OnCast))]
 #pragma warning disable CS0649
-	private readonly Hook<OnCastDelegate>? _onCastHook;
+	private Hook<OnCastDelegate>? _onCastHook;
 #pragma warning restore CS0649
+
+	// Detours of this module running right now; DisposeHooks drains this before pulling the hooks
+	// (a detour that outlives its hook is the 2026-08-31 / 2026-10-03 game crash family).
+	private static readonly HookInFlight InFlight = new();
 
 	public DateTime EndTime { get; private set; } = DateTime.Now;
 
@@ -58,11 +63,24 @@ public class ActionTimelineManager : IDisposable
 	{
 		_items.Clear();
 		ActionEffect.ActionEffectEvent -= ActionFromSelf;
-		_onActorControlHook?.Disable();
-		_onActorControlHook?.Dispose();
-		_onCastHook?.Disable();
-		_onCastHook?.Dispose();
+		DisposeHooks();
 		GC.SuppressFinalize(this);
+	}
+
+	/// <summary>
+	///     Disables both hooks, waits for the detours still inside them, then disposes and drops them.
+	///     Kept free of Dalamud services on purpose: it is exactly the draining teardown of the
+	///     2026-10-03 hot-reload crash family, so it stays callable with the plugin half-torn-down.
+	/// </summary>
+	private void DisposeHooks()
+	{
+		_onActorControlHook?.Disable();
+		_onCastHook?.Disable();
+		InFlight.Drain("RotationSolver.ActionTimeline.ActionTimelineManager", static m => Svc.Log.Warning(m));
+		_onActorControlHook?.Dispose();
+		_onActorControlHook = null;
+		_onCastHook?.Dispose();
+		_onCastHook = null;
 	}
 
 	public unsafe float GCD
@@ -175,7 +193,14 @@ public class ActionTimelineManager : IDisposable
 
 	private void OnActorControl(uint entityId, uint type, uint buffID, uint direct, uint actionId, uint sourceId, uint arg7, uint arg8, uint arg9, uint arg10, ulong targetId, byte arg12)
 	{
-		_onActorControlHook?.Original(entityId, type, buffID, direct, actionId, sourceId, arg7, arg8, arg9, arg10, targetId, arg12);
+		// Count this detour so teardown can wait for it, and never call into a torn-down hook:
+		// an exception escaping here takes the game down (2026-10-03 crash family).
+		using var inFlight = InFlight.Enter();
+		var hook = _onActorControlHook;
+		if (hook != null && !hook.IsDisposed)
+		{
+			hook.Original(entityId, type, buffID, direct, actionId, sourceId, arg7, arg8, arg9, arg10, targetId, arg12);
+		}
 
 		try
 		{
@@ -195,7 +220,12 @@ public class ActionTimelineManager : IDisposable
 
 	private void OnCast(uint sourceId, IntPtr sourceCharacter)
 	{
-		_onCastHook?.Original(sourceId, sourceCharacter);
+		using var inFlight = InFlight.Enter();
+		var hook = _onCastHook;
+		if (hook != null && !hook.IsDisposed)
+		{
+			hook.Original(sourceId, sourceCharacter);
+		}
 		// Additional cast handling could go here
 	}
 

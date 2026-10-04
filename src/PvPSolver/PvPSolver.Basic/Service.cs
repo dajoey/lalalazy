@@ -4,6 +4,7 @@ using ECommons.EzHookManager;
 using ECommons.GameFunctions;
 using ECommons.Logging;
 using FFXIVClientStructs.Attributes;
+using Lalalazy.HookGuard;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using Lumina.Excel;
 using RotationSolver.Basic.Configuration;
@@ -27,8 +28,12 @@ internal class Service : IDisposable
 	public const string REPO = "lalalazy";
 
 	[EzHook("40 53 55 56 57 48 81 EC ?? ?? ?? ?? 0F 29 B4 24 ?? ?? ?? ?? 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 84 24 ?? ?? ?? ?? 0F B6 AC 24 ?? ?? ?? ?? 0F 28 F3 49 8B F8", nameof(ActorVfxCreateDetour), true)]
-	private readonly EzHook<ActorVfxCreateDelegate2> actorVfxCreateHook = null!;
+	private EzHook<ActorVfxCreateDelegate2> actorVfxCreateHook = null!;
 	private unsafe delegate IntPtr ActorVfxCreateDelegate2(char* a1, nint a2, nint a3, float a4, char a5, ushort a6, char a7);
+
+	// Detours of this module running right now; Dispose drains this before pulling the hook
+	// (a detour that outlives its hook is the 2026-08-31 / 2026-10-03 game crash family).
+	private static readonly HookInFlight InFlight = new();
 
 	// From https://GitHub.com/PunishXIV/Orbwalker/blame/master/Orbwalker/Memory.cs#L74-L76
 	[Signature("F3 0F 10 05 ?? ?? ?? ?? 0F 2E C7", ScanType = ScanType.StaticAddress, Fallibility = Fallibility.Infallible)]
@@ -69,12 +74,21 @@ internal class Service : IDisposable
 
 	private unsafe IntPtr ActorVfxCreateDetour(char* a1, nint a2, nint a3, float a4, char a5, ushort a6, char a7)
 	{
+		// Count this detour so Dispose can wait for it before the hook is pulled, and never touch a
+		// torn-down hook: an exception escaping here takes the game down (2026-10-03 crash family).
+		using var inFlight = InFlight.Enter();
+		var hook = actorVfxCreateHook;
+		if (hook == null)
+		{
+			return IntPtr.Zero;
+		}
+
 		try
 		{
 			string path = Dalamud.Memory.MemoryHelper.ReadString(new nint(a1), Encoding.ASCII, 256);
 			if (Svc.Objects.CreateObjectReference(a2) is not IBattleChara battleChara || string.IsNullOrEmpty(path))
 			{
-				return actorVfxCreateHook!.Original(a1, a2, a3, a4, a5, a6, a7);
+				return hook.Original(a1, a2, a3, a4, a5, a6, a7);
 			}
 
 			VfxNewData newVfx = new(battleChara.GameObjectId, path, battleChara.RemainingCastTime);
@@ -85,7 +99,7 @@ internal class Service : IDisposable
 			PluginLog.Warning($"Failed to process VfxCreateDetour: {ex.Message}");
 		}
 
-		return actorVfxCreateHook!.Original(a1, a2, a3, a4, a5, a6, a7);
+		return hook.Original(a1, a2, a3, a4, a5, a6, a7);
 	}
 
 	/// <summary>
@@ -204,8 +218,11 @@ internal class Service : IDisposable
 	{
 		if (disposing)
 		{
-			// Dispose the EzHook instance
+			// Stop new calls, let the detours already inside finish (EzHook.Disable disposes the
+			// underlying Dalamud hook), only then drop the reference a running detour could read.
 			actorVfxCreateHook?.Disable();
+			InFlight.Drain("RotationSolver.Basic.Service", static m => PluginLog.Warning(m));
+			actorVfxCreateHook = null;
 
 			// Clean up ForceDisableMovement if necessary
 			if (!_canMove && ForceDisableMovement > 0)

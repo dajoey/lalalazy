@@ -71,4 +71,8 @@
         <ProjectReference Include="..\PvPSolver.SourceGenerators\PvPSolver.SourceGenerators.csproj" OutputItemType="Analyzer" ExcludeAssets="All" />
         <PackageReference Include="Svg" Version="3.4.7" />
     </ItemGroup>
+    <ItemGroup>
+        <!-- Hook teardown guard (2026-10-04): shared SOURCE (src/Shared/LalaHookGuard), never a shared DLL. -->
+        <Compile Include="..\..\Shared\LalaHookGuard\**\*.cs" Link="LalaHookGuard\%(RecursiveDir)%(Filename)%(Extension)" />
+    </ItemGroup>
 </Project>
