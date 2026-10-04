@@ -98,4 +98,10 @@
 	<resheader name="writer">
 		<value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=2.0.3500.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
 	</resheader>
+	<data name="BioBurstRefresh0" xml:space="preserve">
+		<value>Refresh {0} early during party burst</value>
+	</data>
+	<data name="BioBurstRefreshDesc" xml:space="preserve">
+		<value>Advanced single-target only. On: while the party's raid buffs are up, Biolysis is refreshed with up to 10 seconds still remaining, so its buffed ticks cover the burst window. Off (default): Biolysis refreshes only under the seconds-remaining slider above.</value>
+	</data>
 </root>

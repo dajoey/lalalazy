@@ -59,5 +59,23 @@ namespace GluttonyCombo.Resources.Localization.JobConfigs {
                 resourceCulture = value;
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Refresh {0} early during party burst.
+        /// </summary>
+        internal static string BioBurstRefresh0 {
+            get {
+                return ResourceManager.GetString("BioBurstRefresh0", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Advanced single-target only. On: while the party&apos;s raid buffs are up, Biolysis is refreshed with up to 10 seconds still ....
+        /// </summary>
+        internal static string BioBurstRefreshDesc {
+            get {
+                return ResourceManager.GetString("BioBurstRefreshDesc", resourceCulture);
+            }
+        }
     }
 }
