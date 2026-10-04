@@ -650,6 +650,14 @@ namespace GluttonyCombo.Combos.PvE
 {
     // FAKE part of the partial AST class: the settings class (the real AST_Config.cs Draw drags in
     // ImGui/localization; only the fields are mirrored, one-for-one with their shipped defaults).
+    /// <summary>FAKE of Combos/PvE/ALL/Bursting.cs: only the member the AST files read after
+    /// the AST-2 change (Bursting.PartyIsBursting); constant false keeps the round-6 cases
+    /// exactly as they were (the early-refresh gate stays closed).</summary>
+    public class Bursting
+    {
+        public static bool PartyIsBursting => false;
+    }
+
     internal partial class AST
     {
         internal static class Config
@@ -736,6 +744,7 @@ namespace GluttonyCombo.Combos.PvE
                 AST_AoE_SimpleHeals_WeaveStellarDetonation = new("AST_AoE_SimpleHeals_WeaveStellarDetonation"),
                 //DPS
                 AST_ST_DPS_CombustUptime_TwoTarget = new("AST_ST_DPS_CombustUptime_TwoTarget"),
+                AST_ST_DPS_CombustUptime_BurstRefresh = new("AST_ST_DPS_CombustUptime_BurstRefresh"),
                 AST_ST_DPS_OverwriteHealCards = new("AST_ST_DPS_OverwriteHealCards"),
                 AST_AOE_DPS_OverwriteHealCards = new("AST_AOE_DPS_OverwriteHealCards"),
                 AST_QuickTarget_Manuals = new("AST_QuickTarget_Manuals", true),
