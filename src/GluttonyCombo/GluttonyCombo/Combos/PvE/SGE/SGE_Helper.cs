@@ -320,6 +320,12 @@ internal partial class SGE
 
         if (simpleMode)
         {
+            // Fork (1.0.4.278): out of combat the simple DPS path does not open
+            // Eukrasia chains at field mobs (62 stray presses in the 48h logs);
+            // the advanced path already stood down via PartyInCombat below.
+            if (!PartyInCombat())
+                return false;
+
             var target = SimpleTarget.DottableEnemy(debuff.Eukrasian, debuff.Debuff, 0, 3, 99);
             if (target is not null && target.CanApplyStatus(debuff.Debuff) &&
                 !JustUsedOn(debuff.Eukrasian, target) && ActionLearned(Eukrasia))
@@ -360,6 +366,9 @@ internal partial class SGE
     }
 
     private static bool UseEDyskrasia() =>
+        // Fork (1.0.4.278): out of combat the AoE DPS path does not open Eukrasia
+        // chains at FATE packs.
+        PartyInCombat() &&
         HasEDyskrasiaTargets() &&
         !JustUsed(EukrasianDyskrasia) &&
         TraitLevelChecked(Traits.OffensiveMagicMasteryII) &&

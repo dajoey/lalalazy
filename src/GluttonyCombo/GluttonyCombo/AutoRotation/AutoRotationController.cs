@@ -2104,9 +2104,19 @@ internal unsafe class AutoRotationController
 
                 // Fork (1.0.4.277): same shared out-of-combat gate as ExecuteST - no
                 // hostile-only press, no hard-target write, no AutoFaceTargetPosition
-                // spin while the party is not in combat. OutOfCombatGateHarness pins
-                // the semantics.
-                if (NotInCombat && !OutOfCombatGate.MayFire(targetsHostile, canUseSelf, areaTargeted))
+                // spin while the party is not in combat.
+                //
+                // Fork (1.0.4.278): out of combat a damage preset does not react - a
+                // friendly-only resolution from a damage preset (Addersgall overcap
+                // dumps, shields, regens - the 2026-10-04 Sage report) also waits
+                // for combat. Heal presets keep their need-gated out-of-combat
+                // behavior, and the plugin's own BypassBuffs prepull self-buff
+                // class (self-usable, recast under 5s) keeps firing.
+                // OutOfCombatGateHarness pins the semantics.
+                var blockedSelfBuffs = GetCooldown(outAct).CooldownTotal >= 5;
+                if (NotInCombat && !OutOfCombatGate.MayFire(targetsHostile, canUseSelf, areaTargeted,
+                        attributes.AutoAction!.IsHeal,
+                        canUseSelf && cfg.BypassBuffs && !blockedSelfBuffs))
                     return false;
 
                 var castTime = ActionManager.GetAdjustedCastTime(ActionType.Action, outAct);
@@ -2304,8 +2314,18 @@ internal unsafe class AutoRotationController
             // actions keep their out-of-combat behavior. Without this, standing in
             // the field the rotation hard-targeted a FATE mob, pressed the pre-pull
             // chain and started the whole pull with no player input.
-            // OutOfCombatGateHarness pins the semantics.
-            if (NotInCombat && ActionSheet.TryGetValue(outAct, out var gateRow) && !OutOfCombatGate.MayFire(gateRow.CanTargetHostile, gateRow.CanTargetSelf, gateRow.TargetArea))
+            //
+            // Fork (1.0.4.278): out of combat, a damage preset does not react. A
+            // friendly-only action resolved from a damage preset (the Kerachole/
+            // Druochole Addersgall overcap dumps, Eukrasia chains, Physis and
+            // shields of the 2026-10-04 Sage report) also waits for combat: with
+            // nothing to heal there is nothing for the rotation to do. Heal presets
+            // keep their need-gated out-of-combat behavior, and the plugin's own
+            // BypassBuffs prepull class (self-usable, recast under 5s: tank
+            // stances) keeps firing. OutOfCombatGateHarness pins the semantics.
+            if (NotInCombat && ActionSheet.TryGetValue(outAct, out var gateRow) && !OutOfCombatGate.MayFire(gateRow.CanTargetHostile, gateRow.CanTargetSelf, gateRow.TargetArea,
+                    attributes.AutoAction!.IsHeal,
+                    canUseSelf && cfg.BypassBuffs && !blockedSelfBuffs))
                 return false;
 
             if (target is not null && !fellBack && OutOfCombatGate.MayWriteTarget(!NotInCombat))

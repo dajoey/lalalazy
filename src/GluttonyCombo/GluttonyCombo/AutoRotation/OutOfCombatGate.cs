@@ -15,22 +15,60 @@ namespace GluttonyCombo.AutoRotation;
 ///     the plugin alone. Deliberately out-of-combat-legal actions keep their
 ///     behavior: prepull self-buffs (BypassBuffs), BST pre-pull horns toward a
 ///     target the player chose, heals, raises, cleanses and ground-targeted
-///     actions.
+///     actions. The 1.0.4.278 amendment: out of combat, a damage preset does
+///     not react - heal dumps, shields and regens wait for combat.
 /// </summary>
 internal static class OutOfCombatGate
 {
     /// <summary>
     ///     Whether the auto-rotation may press an action while not in combat.
     ///     An action that can only be aimed at a hostile (attack, gap-close,
-    ///     gauge/charge dump at an enemy - the Shield Charge overcap dash of the
-    ///     2026-10-04 report) is combat-only and waits for combat even with
+    ///     gauge/charge dump at an enemy - the Shield Charge overcap dash of
+    ///     the 2026-10-04 report) is combat-only and waits for combat even with
     ///     quest/FATE bypass. Self-usable actions, friendly-only actions and
     ///     ground-targeted actions pass; an action with no target bits in its
     ///     sheet row (unknown to the sheet) is not blocked, preserving the
     ///     pre-gate behavior for unmapped ids.
+    ///     <para>
+    ///         1.0.4.278: a friendly-only or self-only action resolved from a
+    ///         damage preset also waits for combat (the Kerachole/Druochole
+    ///         Addersgall overcap dumps, Eukrasia chains, Physis and shields of
+    ///         the 2026-10-04 Sage report) - sheet recast 5s+ separates every
+    ///         dump from the sanctioned prepull self-buffs. Heal presets keep
+    ///         their need-gated out-of-combat behavior (raises, cleanses,
+    ///         actual heals), and the plugin's own BypassBuffs prepull class
+    ///         (can use on self, BypassBuffs enabled, recast under 5s: tank
+    ///         stances, Eukrasia) keeps firing out of combat.
+    ///     </para>
     /// </summary>
-    internal static bool MayFire(bool canTargetHostile, bool canTargetSelf, bool targetArea) =>
-        !(canTargetHostile && !canTargetSelf && !targetArea);
+    internal static bool MayFire(bool canTargetHostile, bool canTargetSelf, bool targetArea, bool fromHealPreset = false, bool sanctionedSelfBuff = false)
+    {
+        if (targetArea)
+            return true;
+
+        if (sanctionedSelfBuff)
+            return true;
+
+        if (canTargetHostile && !canTargetSelf)
+            return false;
+
+        if (fromHealPreset)
+            return true;
+
+        return canTargetSelf && canTargetHostile;
+    }
+
+    /// <summary>
+    ///     Whether incoming-damage detection (raidwide cast bars, shared-damage
+    ///     effects) may report true at all. Incoming damage is a combat
+    ///     concept: out of combat no hostile cast bar can threaten the party, so
+    ///     GroupDamageIncoming reads false and the whole raidwide-shield chain
+    ///     stands down. The 48h logs behind the 2026-10-04 amendment show field
+    ///     FATE mobs' wide casts driving Eukrasian Prognosis II x138, Medica III
+    ///     x41, Holy III x45 and Assize x36 while the party was at full health
+    ///     out of combat.
+    /// </summary>
+    internal static bool MayDetectIncomingDamage(bool inCombat) => inCombat;
 
     /// <summary>
     ///     Whether the auto-rotation may write the player's hard target this

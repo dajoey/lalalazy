@@ -33,7 +33,11 @@ internal partial class SGE : Healer
             if (ContentSpecificActions.TryGet(ref actionID, out uint contentAction))
                 return contentAction;
 
-            if (CanWeave() && !LocalPlayer.HasStatus(Buffs.Eukrasia))
+            // Fork (1.0.4.278): out of combat the simple ST damage path does not
+            // react - no Addersgall overcap dumps, no Psyche/Lucid/Rhizomata/
+            // Soteria weaves at a full-HP party (2026-10-04 report: "it's used an
+            // overcap protection it should only use during combat").
+            if (CanWeave() && InCombat() && !LocalPlayer.HasStatus(Buffs.Eukrasia))
             {
                 if (UseAddersgallProtect(3))
                     return AddersgallProtectDruochole(DosisActions);
@@ -79,7 +83,10 @@ internal partial class SGE : Healer
             if (ContentSpecificActions.TryGet(ref actionID, out uint contentAction))
                 return contentAction;
 
-            if (CanWeave())
+            // Fork (1.0.4.278): out of combat the simple AoE damage path does not
+            // react - no Addersgall overcap dumps or gauge/buff weaves at a
+            // full-HP party (2026-10-04 Sage report).
+            if (CanWeave() && InCombat())
             {
                 if (UseAddersgallProtect(3))
                     return Druochole.RetargetIfEnabled([actionID]);
@@ -146,7 +153,10 @@ internal partial class SGE : Healer
             if (UseRaidwide(ref actionID))
                 return actionID;
 
-            if (CanWeave() && !LocalPlayer.HasStatus(Buffs.Eukrasia))
+            // Fork (1.0.4.278): out of combat the advanced ST damage path does not
+            // react - no Addersgall overcap dumps, no Psyche/Lucid/Rhizomata/
+            // Soteria weaves at a full-HP party (2026-10-04 Sage report).
+            if (CanWeave() && InCombat() && !LocalPlayer.HasStatus(Buffs.Eukrasia))
             {
                 if (IsEnabled(Preset.SGE_ST_Adv_DPS_AddersgallProtect) &&
                     UseAddersgallProtect(SGE_ST_Adv_DPS_AddersgallProtect))
@@ -207,7 +217,11 @@ internal partial class SGE : Healer
             if (UseRaidwide(ref actionID))
                 return actionID;
 
-            if (CanWeave())
+            // Fork (1.0.4.278): out of combat the advanced AoE damage path does
+            // not react - the Addersgall overcap protection (this preset's
+            // SGE_AoE_Adv_DPS_AddersgallProtect) fired 22 Kerachole-class dumps
+            // at full-HP parties in the 2026-10-04 logs. It waits for combat.
+            if (CanWeave() && InCombat())
             {
                 if (IsEnabled(Preset.SGE_AoE_Adv_DPS_AddersgallProtect) &&
                     UseAddersgallProtect(SGE_AoE_Adv_DPS_AddersgallProtect))
