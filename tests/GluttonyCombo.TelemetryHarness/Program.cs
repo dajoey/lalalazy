@@ -421,6 +421,35 @@ internal static class Program
             CrucibleStallFormat.ShouldEmit(ref gate, t + 2_200, snap with { Why = CrucibleStallFormat.Reason.Lock, EdgeDistance = -1f }));
         Check("SG| the line stays within its budget",
             CrucibleStallFormat.BuildLine(1, snap with { StallSeconds = 999f }).Length <= CrucibleStallFormat.MaxLineLength);
+
+        // -- the stall clock (2026-10-03, live: every line said s=999.0 while damage flowed) --
+        Check("SG| a send half a second ago is not a stall",
+            !CrucibleStallFormat.IsStalled(true, true, true, 0.5f));
+        Check("SG| the GCD ready without a hostile choice is not a stall",
+            !CrucibleStallFormat.IsStalled(true, true, false, 1.5f));
+        Check("SG| a send 1.5 s ago with everything else holding is a stall",
+            CrucibleStallFormat.IsStalled(true, true, true, 1.5f));
+        Check("SG| since-fire clamps into the line budget",
+            CrucibleStallFormat.SinceFireSeconds(TimeSpan.FromHours(4)) == 999f
+            && CrucibleStallFormat.SinceFireSeconds(TimeSpan.FromSeconds(-5)) == 0f);
+        var samplerSrc = ReadSamplerSource();
+        Check("SG| the live sampler feeds from the same-kind clock (ActionWatching keeps local time)",
+            samplerSrc.Contains("ActionWatching.TimeSinceLastAction", StringComparison.Ordinal)
+            && !samplerSrc.Contains("DateTime.UtcNow - ActionWatching.TimeLastActionUsed", StringComparison.Ordinal),
+            "the sampler must consume ActionWatching.TimeSinceLastAction, never UtcNow minus the local-time property");
+    }
+
+    /// <summary> The live sampler's source, so the harness can pin its clock wiring (2026-10-03: UtcNow
+    /// minus a local-time property saturated every line at s=999 while damage flowed). </summary>
+    private static string ReadSamplerSource()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "tools", "check-preset-ids.py")))
+            dir = dir.Parent;
+        if (dir is null)
+            return "";
+        return File.ReadAllText(Path.Combine(dir.FullName, "src", "GluttonyCombo", "GluttonyCombo",
+            "Data", "BeastmasterTelemetry.cs"));
     }
 
     private static void Check(string what, bool ok, string? detail = null)

@@ -82,6 +82,22 @@ internal static class CrucibleStallFormat
     }
 
     /// <summary>
+    ///     Seconds since the local player last used an action, clamped into the line budget. The caller passes
+    ///     <c>ActionWatching.TimeSinceLastAction</c> - a same-kind span. Never subtract across clock kinds:
+    ///     <c>DateTime.UtcNow</c> minus the local-time <c>TimeLastActionUsed</c> is always the UTC offset and
+    ///     saturates every line at the clamp (found live 2026-10-03: every SG| line said s=999 while damage flowed).
+    /// </summary>
+    internal static float SinceFireSeconds(TimeSpan sinceLastActionUsed) =>
+        MathF.Min(999f, MathF.Max(0f, (float)sinceLastActionUsed.TotalSeconds));
+
+    /// <summary>
+    ///     The live sampler's holding test: in combat, the global cooldown ready, the rotation chose a
+    ///     hostile-targeted action, and nothing has fired for over <see cref="StallAfterSeconds"/>.
+    /// </summary>
+    internal static bool IsStalled(bool inCombat, bool gcdReady, bool choseHostileAction, float sinceFireSeconds) =>
+        inCombat && gcdReady && choseHostileAction && sinceFireSeconds > StallAfterSeconds;
+
+    /// <summary>
     ///     <c>SG|unixms|act=id|r=reason|d=edge|t=nameId|s=seconds</c>. <c>d</c> is the hitbox-edge distance to the
     ///     target (empty without one), <c>s</c> how long nothing has been sent. <c>t</c> is 0 without a target.
     /// </summary>
