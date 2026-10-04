@@ -193,14 +193,17 @@ public class ActionTimelineManager : IDisposable
 
 	private void OnActorControl(uint entityId, uint type, uint buffID, uint direct, uint actionId, uint sourceId, uint arg7, uint arg8, uint arg9, uint arg10, ulong targetId, byte arg12)
 	{
-		// Count this detour so teardown can wait for it, and never call into a torn-down hook:
-		// an exception escaping here takes the game down (2026-10-03 crash family).
+		// Count this detour so teardown can wait for it; when the hook is gone do nothing at all:
+		// neither the original call nor the payload may run, and an exception escaping here takes
+		// the game down (2026-10-03 crash family).
 		using var inFlight = InFlight.Enter();
 		var hook = _onActorControlHook;
-		if (hook != null && !hook.IsDisposed)
+		if (hook == null || hook.IsDisposed)
 		{
-			hook.Original(entityId, type, buffID, direct, actionId, sourceId, arg7, arg8, arg9, arg10, targetId, arg12);
+			return;
 		}
+
+		hook.Original(entityId, type, buffID, direct, actionId, sourceId, arg7, arg8, arg9, arg10, targetId, arg12);
 
 		try
 		{
@@ -222,10 +225,12 @@ public class ActionTimelineManager : IDisposable
 	{
 		using var inFlight = InFlight.Enter();
 		var hook = _onCastHook;
-		if (hook != null && !hook.IsDisposed)
+		if (hook == null || hook.IsDisposed)
 		{
-			hook.Original(sourceId, sourceCharacter);
+			return;
 		}
+
+		hook.Original(sourceId, sourceCharacter);
 		// Additional cast handling could go here
 	}
 

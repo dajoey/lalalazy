@@ -72,10 +72,6 @@ v0.1.0.11 - 2026-08-03: Fixed per-frame 'no rotation found' log spam outside PvP
     <PackageReference Update="DalamudPackager" Version="14.0.2" />
     <PackageReference Update="DotNet.ReproducibleBuilds" Version="2.0.2" />
   </ItemGroup>
-  <ItemGroup>
-    <!-- Hook teardown guard (2026-10-04): shared SOURCE (src/Shared/LalaHookGuard), never a shared DLL. -->
-    <Compile Include="..\..\Shared\LalaHookGuard\**\*.cs" Link="LalaHookGuard\%(RecursiveDir)%(Filename)%(Extension)" />
-  </ItemGroup>
   <Target Name="PruneOutputDlls" AfterTargets="ResolveReferences">
     <ItemGroup>
       <_KeepDlls Include="@(ReferenceCopyLocalPaths)" Condition="      '%(Filename)' == 'PvPSolver' or      '%(Filename)' == 'PvPSolver.Basic' or      '%(Filename)' == 'ECommons'     " />

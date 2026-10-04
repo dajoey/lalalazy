@@ -145,13 +145,17 @@ internal static class Program
             return;
         }
 
+        // Invoke with the METHOD's binding, not the counter field's: the counter is static (case A drives
+        // uninitialized instances, where instance fields are null) while the teardown can be an instance
+        // method (Service.Dispose, ActionTimelineManager.DisposeHooks).
+        var invokeTarget = teardown.IsStatic ? null : target;
         Exception? onThread = null;
         var alive = false;
         var t = new Thread(() =>
         {
             try
             {
-                teardown.Invoke(field.IsStatic ? null : target, null);
+                teardown.Invoke(invokeTarget, null);
             }
             catch (Exception ex)
             {
