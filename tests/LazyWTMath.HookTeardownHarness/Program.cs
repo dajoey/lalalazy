@@ -125,7 +125,7 @@ internal static class Program
 
     // The controller is constructible without the game; its handlers throw if the detour payload
     // ever runs with the hook gone (fail soft means: do nothing).
-    private static object NewController()
+    private static unsafe object NewController()
         => new NativeListController("HarnessAddon")
         {
             ShouldModifyElement = static (unitBase, item, nodes) => throw new InvalidOperationException("payload must not run when the hook is gone"),
