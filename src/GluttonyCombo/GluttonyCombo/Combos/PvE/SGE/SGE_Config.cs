@@ -67,8 +67,6 @@ internal partial class SGE
                     DrawAdditionalBoolChoice(SGE_ST_Adv_DPS_EukrasianDosisUptime_BurstRefresh,
                         FormatAndCache(SGE_Config.EDosisBurstRefresh0, EukrasianDosis.ActionName()),
                         SGE_Config.EDosisBurstRefreshDesc);
-                    break;                    DrawAdditionalBoolChoice(SGE_ST_Adv_DPS_EDosis_TwoTarget,
-                        Generics.TwoTargetDotting, Generics.TwoTargetDottingDescription);
                     break;
 
                 case Preset.SGE_ST_Adv_DPS_Lucid:
