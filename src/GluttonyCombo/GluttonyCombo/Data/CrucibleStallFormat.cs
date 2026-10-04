@@ -32,7 +32,7 @@ internal static class CrucibleStallFormat
         None = 0,
         /// <summary> No hostile target. </summary>
         NoTarget,
-        /// <summary> A held target the game refuses (untargetable, invulnerable or dead): nothing can be sent at it. </summary>
+        /// <summary> A held target the game refuses as untargetable or dead (IsTargetable false / IsDead true; invulnerability is not checked - no such predicate exists in this API set): nothing can be sent at it. </summary>
         Unselectable,
         /// <summary> The character's own cast bar is rolling. </summary>
         Cast,
