@@ -8,13 +8,16 @@
 // are the exact shipping code. Everything the decisions READ (cooldowns, statuses, gauge bytes, target,
 // presets, settings, enemy counts) comes from the harness fakes instead of the game.
 //
-// THE CASE (characterization of the UNCHANGED source): with the AoE Advanced mode and its Gauss/Ricochet
-// option enabled, the player Overheated (Hypercharge window open), weave-blocked, CheckMate + BlazingShot
-// learned and FIVE enemies inside Auto Crossbow range, MCH_AoE_AdvancedMode.Invoke(SpreadShot) must
-// return Auto Crossbow today — MCH_Helper.cs OverheatGCD: NumberOfEnemiesInRange(AutoCrossbow) >= 5.
+// THE CASE (MCH-1, the behaviour the Improvements Ranked row wants — The Balance guide and the Icy Veins
+// 7.5 changelog both state 6): with the AoE Advanced mode and its Gauss/Ricochet option enabled, the
+// player Overheated (Hypercharge window open), weave-blocked, CheckMate + BlazingShot learned and FIVE
+// enemies inside Auto Crossbow range, MCH_AoE_AdvancedMode.Invoke(SpreadShot) must return BlazingShot —
+// MCH_Helper.cs OverheatGCD: NumberOfEnemiesInRange(AutoCrossbow) >= 6 after the change. The paired case
+// pins the behaviour that must NOT change: SIX enemies still returns Auto Crossbow.
 //
-// THE CANARY: the same state run through an assertion of the OPPOSITE behaviour. It is EXPECTED TO
-// FAIL; the harness only exits 0 when the canary fails as expected (proof the case can actually fail).
+// THE CANARY: the MCH-1 state run through an assertion of the PRE-change behaviour (Auto Crossbow at
+// five enemies). It is EXPECTED TO FAIL; the harness only exits 0 when the canary fails as expected
+// (proof the case can actually fail).
 //
 //   dotnet build tests\GluttonyCombo.RotationHarness.MCH -c Release
 //   dotnet tests\GluttonyCombo.RotationHarness.MCH\bin\Release\net10.0-windows7.0\GluttonyCombo.RotationHarness.MCH.dll
@@ -50,7 +53,7 @@ internal static class Program
                               .Select(kv => $"{kv.Key.Prop}=@{kv.Value}")));
         Console.WriteLine($"MCHGauge.IsOverheated reads {gauge.IsOverheated} (fresh, expected False)");
 
-        // ---- the PASS case: characterization of today's behaviour on the UNCHANGED source ----
+        // ---- MCH-1: the behaviour the row wants (Auto Crossbow only from 6 targets on) ----
         SetOverheatState(enemiesInAutoCrossbowRange: 5);
         Console.WriteLine($"case state: IsOverheated={FakeGauges.Get<MCHGauge>().IsOverheated}, " +
                           $"CanWeave={FakeGame.CanWeave}, GaussRicochet preset=" +
@@ -60,15 +63,24 @@ internal static class Program
                           $"target HP={FakeGame.TargetHPPercent}%");
 
         uint got = new MchJob.MCH_AoE_AdvancedMode().RunInvoke(MchJob.SpreadShot);
-        Check("characterization: AoE Advanced + Overheated + Gauss/Ricochet on + 5 enemies in Auto Crossbow " +
-              $"range: Invoke(SpreadShot) returns Auto Crossbow ({MchJob.AutoCrossbow}) [today's threshold >= 5]",
-            got == MchJob.AutoCrossbow, $"returned {got}");
+        Check("MCH-1: AoE Advanced + Overheated + Gauss/Ricochet on + 5 enemies in Auto Crossbow range: " +
+              $"Invoke(SpreadShot) returns BlazingShot ({MchJob.BlazingShot}), not Auto Crossbow",
+            got == MchJob.BlazingShot, $"returned {got}");
 
-        // ---- the CANARY: deliberately asserts the opposite; must FAIL ----
+        // ---- MCH-1 paired: the behaviour that must NOT change ----
+        SetOverheatState(enemiesInAutoCrossbowRange: 6);
+        Console.WriteLine($"paired case state: enemies in Auto Crossbow range={FakeGame.EnemiesInRange}");
+        uint gotPaired = new MchJob.MCH_AoE_AdvancedMode().RunInvoke(MchJob.SpreadShot);
+        Check("MCH-1 paired: identical state but SIX enemies in Auto Crossbow range: Invoke(SpreadShot) " +
+              $"keeps returning Auto Crossbow ({MchJob.AutoCrossbow})",
+            gotPaired == MchJob.AutoCrossbow, $"returned {gotPaired}");
+
+        // ---- the CANARY: asserts the PRE-change behaviour; must FAIL ----
         SetOverheatState(enemiesInAutoCrossbowRange: 5);
         uint got2 = new MchJob.MCH_AoE_AdvancedMode().RunInvoke(MchJob.SpreadShot);
-        CheckCanary("CANARY (expected to FAIL): identical state, asserting Invoke(SpreadShot) " +
-                    "does NOT return Auto Crossbow", got2 != MchJob.AutoCrossbow, $"returned {got2}");
+        CheckCanary("CANARY (expected to FAIL): identical state to MCH-1, asserting Invoke(SpreadShot) " +
+                    $"still returns Auto Crossbow (the old threshold-5 behaviour)",
+            got2 == MchJob.AutoCrossbow, $"returned {got2}");
 
         Console.WriteLine(_fail == 0
             ? $"OK ({_pass} checks, canary failed as expected)"
