@@ -6,12 +6,11 @@
 // Everything the decisions READ (cooldowns, statuses, gauge bytes, target, presets, settings) comes
 // from the harness fakes instead of the game.
 //
-// THE CHARACTERIZATION CASE: with Raptor form active, 3 enemies in range, Four-Point Fury learned,
-// and the weave block closed, MNK_AoE_SimpleMode.Invoke(ArmOfTheDestroyer) must return Four-Point
-// Fury today (MNK_Helper.cs DoBasicCombo onAoE branch, Raptor-form fallthrough at FourPointFury).
-// This records the CURRENT behaviour on the UNCHANGED source; the MNK-1 improvement commit flips
-// this assertion to the behaviour the ranked row wants (Twin Snakes below 4 enemies) and proves it
-// red first.
+// THE MNK-1 CASE: with Raptor form active, 3 enemies in range, Four-Point Fury learned, and the
+// weave block closed, MNK_AoE_SimpleMode.Invoke(ArmOfTheDestroyer) must return Twin Snakes - the
+// Balance guide's rule is "Four-Point Fury is only a gain on 4 targets" (MNK_Helper.cs DoBasicCombo
+// onAoE branch, Raptor form). The paired case pins the behaviour that must NOT change: at 4 enemies
+// in range the combo still returns Four-Point Fury. This case was proven red on unchanged source.
 //
 // THE CANARY: the same state run through an assertion of the OPPOSITE behaviour. It is EXPECTED TO
 // FAIL; the harness only exits 0 when the canary fails as expected (proof the test can actually fail).
@@ -50,7 +49,7 @@ internal static class Program
                               .Select(kv => $"{kv.Key.Prop}=@{kv.Value}")));
         Console.WriteLine($"MNKGauge.Chakra reads {gauge.Chakra} (fresh, expected 0)");
 
-        // ---- the CHARACTERIZATION case: today's behaviour on unchanged source ----
+        // ---- MNK-1: the behaviour the ranked row wants (proven red on unchanged source) ----
         SetAoEBasicComboState(3);
         Console.WriteLine($"case state: RaptorForm status on, enemies in range={FakeGame.EnemiesInRange(Mnk.ArmOfTheDestroyer)}, " +
                           $"FourPointFury learned={!FakeGame.NotLearned.Contains(Mnk.FourPointFury)}, " +
@@ -59,14 +58,21 @@ internal static class Program
 
         var combo = new Mnk.MNK_AoE_SimpleMode();
         uint got = combo.RunInvoke(Mnk.ArmOfTheDestroyer);
-        Check($"characterization: AoE basic combo, Raptor form, 3 enemies in range, FPF learned: " +
-              $"Invoke(ArmOfTheDestroyer) returns Four-Point Fury ({Mnk.FourPointFury}) — today's behaviour",
-            got == Mnk.FourPointFury, $"returned {got}");
+        Check($"MNK-1: AoE basic combo, Raptor form, 3 enemies in range, FPF learned: " +
+              $"Invoke(ArmOfTheDestroyer) returns Twin Snakes ({Mnk.TwinSnakes}) - Four-Point Fury is only a gain on 4 targets",
+            got == Mnk.TwinSnakes, $"returned {got}");
 
-        // ---- the CANARY: deliberately asserts the opposite; must FAIL ----
-        SetAoEBasicComboState(3);
+        // ---- MNK-1 paired case: the behaviour that must NOT change (4 enemies keep Four-Point Fury) ----
+        SetAoEBasicComboState(4);
+        uint got4 = new Mnk.MNK_AoE_SimpleMode().RunInvoke(Mnk.ArmOfTheDestroyer);
+        Check($"MNK-1 (unchanged): AoE basic combo, Raptor form, 4 enemies in range, FPF learned: " +
+              $"Invoke(ArmOfTheDestroyer) still returns Four-Point Fury ({Mnk.FourPointFury})",
+            got4 == Mnk.FourPointFury, $"returned {got4}");
+
+        // ---- the CANARY: deliberately asserts the opposite of the paired case; must FAIL ----
+        SetAoEBasicComboState(4);
         uint got2 = new Mnk.MNK_AoE_SimpleMode().RunInvoke(Mnk.ArmOfTheDestroyer);
-        CheckCanary($"CANARY (expected to FAIL): identical state, asserting Invoke(ArmOfTheDestroyer) " +
+        CheckCanary($"CANARY (expected to FAIL): identical 4-enemy state, asserting Invoke(ArmOfTheDestroyer) " +
                     $"does NOT return Four-Point Fury", got2 != Mnk.FourPointFury, $"returned {got2}");
 
         Console.WriteLine(_fail == 0

@@ -118,7 +118,7 @@ internal partial class MNK
 
             if (LocalPlayer.HasStatus(Buffs.RaptorForm))
             {
-                if (ActionLearned(FourPointFury))
+                if (ActionLearned(FourPointFury) && NumberOfEnemiesInRange(FourPointFury) >= 4)
                     return FourPointFury;
 
                 if (ActionLearned(TwinSnakes))
