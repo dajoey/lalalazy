@@ -19,8 +19,23 @@ internal static class Program
     private static int _pass;
     private static int _fail;
 
+    // The packaging keep-lists leave Dalamud's own assemblies out of the output folder; resolve them from
+    // the Dalamud dev folder the way the plugin build does so the detours' types load without a game.
+    private static void AddDalamudResolver()
+    {
+        var dir = Environment.GetEnvironmentVariable("DALAMUD_HOME")
+                  ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                      "XIVLauncher", "addon", "Hooks", "dev");
+        System.Runtime.Loader.AssemblyLoadContext.Default.Resolving += (ctx, name) =>
+        {
+            var file = Path.Combine(dir, name.Name + ".dll");
+            return File.Exists(file) ? ctx.LoadFromAssemblyPath(file) : null;
+        };
+    }
+
     private static int Main()
     {
+        AddDalamudResolver();
         Console.WriteLine("-- GluttonyCombo / ECommons hook teardown: detour after Dispose --");
 
         CaseA();
