@@ -391,7 +391,15 @@ internal partial class RPR
         !IsShroudOvercapping(enshroudEnabled, true) &&
         (LocalPlayer.HasStatus(Buffs.SoulReaver) || LocalPlayer.HasStatus(Buffs.Executioner)) &&
         !LocalPlayer.HasStatus(Buffs.Enshrouded) && ActionLearned(Guillotine) &&
-        InActionRange(OriginalHook(Guillotine));
+        InActionRange(OriginalHook(Guillotine)) &&
+        !EnhancedGibbetGallowsAtThreeTargets;
+
+    //The Balance: at exactly three targets an Enhanced Gibbet/Gallows beats base Guillotine,
+    //which wants four targets while the buff is up (Executioner's Guillotine still wants three).
+    private static bool EnhancedGibbetGallowsAtThreeTargets =>
+        LocalPlayer.HasStatus(Buffs.SoulReaver) && !LocalPlayer.HasStatus(Buffs.Enshrouded) &&
+        (LocalPlayer.HasStatus(Buffs.EnhancedGibbet) || LocalPlayer.HasStatus(Buffs.EnhancedGallows)) &&
+        NumberOfEnemiesInRange(Guillotine) is 3;
 
     private static bool UseGibbetGallowsGCD(bool enshroudEnabled = true) =>
         !IsShroudOvercapping(enshroudEnabled) &&

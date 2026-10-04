@@ -79,6 +79,25 @@ internal static class Program
               $"Invoke(Slice) does NOT return Arcane Circle",
             got4 != RPR.ArcaneCircle, $"returned {got4}");
 
+        // ---- RPR-2: Enhanced Gibbet/Gallows beats base Guillotine at exactly three targets ----
+        SetAoeGuillotineState(3, enhanced: true);
+        uint got5 = new RPR.RPR_AoE_AdvancedMode().RunInvoke(RPR.SpinningScythe);
+        Check($"RPR-2: Soul Reaver + Enhanced Gibbet up, 3 enemies in range: " +
+              $"Invoke(SpinningScythe) returns the Gibbet hook ({RPR.Gibbet})",
+            got5 == RPR.Gibbet, $"returned {got5}");
+
+        SetAoeGuillotineState(4, enhanced: true);
+        uint got6 = new RPR.RPR_AoE_AdvancedMode().RunInvoke(RPR.SpinningScythe);
+        Check($"RPR-2 (unchanged): Soul Reaver + Enhanced Gibbet up, 4 enemies in range: " +
+              $"Invoke(SpinningScythe) keeps returning Guillotine ({RPR.Guillotine})",
+            got6 == RPR.Guillotine, $"returned {got6}");
+
+        SetAoeGuillotineState(3, enhanced: false);
+        uint got7 = new RPR.RPR_AoE_AdvancedMode().RunInvoke(RPR.SpinningScythe);
+        Check($"RPR-2 (unchanged): Soul Reaver only (no Enhanced buff), 3 enemies in range: " +
+              $"Invoke(SpinningScythe) keeps returning Guillotine ({RPR.Guillotine})",
+            got7 == RPR.Guillotine, $"returned {got7}");
+
         Console.WriteLine(_fail == 0
             ? $"OK ({_pass} checks, canary failed as expected)"
             : $"FAILED ({_fail} of {_pass + _fail})");
@@ -109,6 +128,22 @@ internal static class Program
         FakeGame.CanWeave = true;
         FakeGame.EnabledPresets.Add(Preset.RPR_ST_ArcaneCircle);
         FakeGame.TargetStatuses.Add(new FakeStatus(RPR.Debuffs.DeathsDesign, ddRemaining));
+    }
+
+    /// <summary>
+    ///     RPR-2 case state: the AoE advanced mode on a Soul Reaver with (or without) an Enhanced Gibbet
+    ///     buff, and the given number of enemies in range. Weave window closed (GCD decision), only the
+    ///     RPR_AoE_Guillotine preset enabled.
+    /// </summary>
+    private static void SetAoeGuillotineState(int enemyCount, bool enhanced)
+    {
+        FakeGame.Reset();
+        FakeGame.CanWeave = false;
+        FakeGame.EnabledPresets.Add(Preset.RPR_AoE_Guillotine);
+        FakeGame.Statuses.Add(new FakeStatus(RPR.Buffs.SoulReaver, 30f));
+        if (enhanced)
+            FakeGame.Statuses.Add(new FakeStatus(RPR.Buffs.EnhancedGibbet, 30f));
+        FakeGame.EnemyCount = enemyCount;
     }
 
     private static void Check(string desc, bool ok, string detail = "")

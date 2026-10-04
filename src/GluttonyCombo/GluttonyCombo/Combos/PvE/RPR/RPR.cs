@@ -359,6 +359,12 @@ internal partial class RPR : Melee
                 UseGuillotine(enshroudEnabled: IsEnabled(Preset.RPR_AoE_Enshroud)))
                 return OriginalHook(Guillotine);
 
+            if (IsEnabled(Preset.RPR_AoE_Guillotine) &&
+                EnhancedGibbetGallowsAtThreeTargets)
+                return LocalPlayer.HasStatus(Buffs.EnhancedGibbet)
+                    ? OriginalHook(Gibbet)
+                    : OriginalHook(Gallows);
+
             if (UseEnshroudComboGCD(ref actionID, true,
                 IsEnabled(Preset.RPR_AoE_Communio),
                 IsEnabled(Preset.RPR_AoE_Reaping)))
@@ -635,3 +641,4 @@ internal partial class RPR : Melee
         }
     }
 }
+
