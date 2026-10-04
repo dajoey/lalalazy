@@ -1,5 +1,10 @@
 # Changelog — Lazy Skyward Tracker
 
+## v0.0.3.1 (2026-10-04) [testing]
+
+- Fixed a rare game crash when the plugin updates while the game is running: while the achievement-progress hook is active and the plugin is updated again, it is disabled only after any call still inside it has finished, so a call can no longer land on a hook that is already gone. Skybuilders' point tracking is unchanged.
+- Testing channel only; the production channel is unchanged.
+
 ## v0.0.3.0 (2026-09-05)
 
 - Added the in-game "What's new" popup. After Lazy Skyward Tracker updates, its changelog now opens once inside the game so the changes are visible without a trip to GitHub. It waits until the character is logged in and out of combat, duty, cutscenes and zoning; closing it (Got it, X or Escape) marks it read. Type `/lazysky changelog` any time to reopen it.

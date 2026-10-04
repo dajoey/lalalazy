@@ -1,5 +1,11 @@
 # Changelog - PvP Solver
 
+## v0.1.1.3 (2026-10-04) [testing]
+### Fixed
+- **A rare game crash when the plugin updates while the game is running.** While PvP Solver hooks are active and the plugin is installed or updated again, it now disables the hooks only after any call still inside them has finished, so a call can no longer land on a hook that is already gone. PvP rotation behaviour is unchanged.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v0.1.1.2 (2026-10-03) [testing]
 ### Added
 - **Quick controls for the Lazy Hub window.** The plugin now offers the PvP Solver on/off state (on only in a PvP zone, off anywhere), "Turn on when a match starts", "Turn off when a match ends", "Use no actions while in Guard", "Allow Sprint with no target", the Guard HP threshold and the four Purify toggles to Lazy Hub (`/lazy`) over Dalamud IPC, so they can be changed from one window next to the other lalalazy plugins. Each change does exactly what the matching setting in the plugin's own window does.

@@ -1,5 +1,10 @@
 # Changelog - Lazy WT Math
 
+## v3.2.3.2 (2026-10-04) [testing]
+
+- Fixed a rare game crash when the plugin updates while the game is running: while its hooks are active and the plugin is updated again, they are disabled only after any call still inside them has finished, so a call can no longer land on a hook that is already gone. The Wondrous Tails math readout is unchanged.
+- Testing channel only; the production channel is unchanged.
+
 ## v3.2.3.1 (2026-09-07)
 
 - Removed the `/lazywtmath` command introduced in 3.2.3.0. It existed only to reopen the "What's new" popup, and this plugin's only interface is the probability readout inside the Wondrous Tails window itself.
