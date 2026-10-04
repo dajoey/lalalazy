@@ -12,6 +12,8 @@
 //   AST-2  — opt-in early Combust refresh while the party is bursting: with the option ON and
 //            Bursting.PartyIsBursting true, a Combust with 8s left (threshold 4) is refreshed early so
 //            the DoT covers the ~20s buff window; option OFF, or not bursting, keeps today's behaviour.
+//            Paired cases pin both unchanged sides: option OFF while bursting, and option ON while not
+//            bursting, both keep returning Malefic above the threshold.
 //
 // THE CANARY: the CHAR refresh state run through an assertion of the OPPOSITE behaviour. It is EXPECTED
 // TO FAIL; the harness only exits 0 when the canary fails as expected (proof the test can actually fail).
@@ -67,6 +69,34 @@ internal static class Program
         Check("CHAR: same state but DoT 8s left (threshold 4s): " +
               $"Invoke(FallMalefic) returns Malefic ({AST.Malefic}) — today the DoT is NOT refreshed early",
             gotChar2 == AST.Malefic, $"returned {gotChar2}");
+
+        // ---- AST-2: opt-in early Combust refresh while the party is bursting ----
+        SetCombustState(8f);
+        FakeGame.BoolValues["AST_ST_DPS_CombustUptime_BurstRefresh"] = true; // the new opt-in option
+        FakeGame.PartyIsBurstingFlag = true;
+        uint got2 = InvokeSt();
+        Check("AST-2: option ON + party bursting + threshold 4s + DoT 8s left: " +
+              $"Invoke(FallMalefic) returns Combust ({AST.Combust}) — the DoT is refreshed early so it " +
+              "covers the ~20s buff window",
+            got2 == AST.Combust, $"returned {got2}");
+
+        // ---- AST-2 paired (option OFF keeps today's behaviour) ----
+        SetCombustState(8f);
+        FakeGame.BoolValues["AST_ST_DPS_CombustUptime_BurstRefresh"] = false;
+        FakeGame.PartyIsBurstingFlag = true;
+        uint got2b = InvokeSt();
+        Check("AST-2 (paired, unchanged): option OFF + party bursting + DoT 8s left (threshold 4s): " +
+              $"Invoke(FallMalefic) returns Malefic ({AST.Malefic}) — off is exactly today's behaviour",
+            got2b == AST.Malefic, $"returned {got2b}");
+
+        // ---- AST-2 paired (no burst, no early refresh even with the option ON) ----
+        SetCombustState(8f);
+        FakeGame.BoolValues["AST_ST_DPS_CombustUptime_BurstRefresh"] = true;
+        FakeGame.PartyIsBurstingFlag = false;
+        uint got2c = InvokeSt();
+        Check("AST-2 (paired, unchanged): option ON + party NOT bursting + DoT 8s left (threshold 4s): " +
+              $"Invoke(FallMalefic) returns Malefic ({AST.Malefic}) — outside a burst window nothing changes",
+            got2c == AST.Malefic, $"returned {got2c}");
 
         // ---- the CANARY: deliberately asserts the opposite; must FAIL ----
         SetCombustState(3f);

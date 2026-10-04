@@ -56,12 +56,19 @@ internal partial class AST
     #endregion
     
     #region Dot Checker
+    internal const double BurstRefreshWindow = 20;
+
     internal static bool NeedsDoT()
     {
         var dotAction = OriginalHook(Combust);
         var hpThreshold = IsNotEnabled(Preset.AST_ST_Simple_DPS) ? ComputeHpThreshold(CurrentTarget) : 0;
         CombustList.TryGetValue(dotAction, out var dotDebuffID);
         var dotRefresh = IsNotEnabled(Preset.AST_ST_Simple_DPS) ? AST_ST_DPS_CombustUptime_Threshold : 2.5;
+        // Opt-in (default off): while the party's raid buffs are up, widen the refresh window so the
+        // damage-over-time is reapplied early enough to cover a whole buff window instead of falling
+        // off mid-burst (Dawntrail healer guidance: buffs are ~20s, early refresh in buffs).
+        if (AST_ST_DPS_CombustUptime_BurstRefresh && Bursting.PartyIsBursting)
+            dotRefresh = Math.Max(dotRefresh, BurstRefreshWindow);
         var dotRemaining = CurrentTarget.Status(dotDebuffID).RemainingTimeOrZero();
 
         return ActionReady(dotAction) &&
@@ -707,5 +714,6 @@ internal partial class AST
 
     #endregion
 }
+
 
 

@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <!-- 
     Microsoft ResX Schema 
@@ -203,5 +203,11 @@
   </data>
   <data name="TargetHPToUse0Below" xml:space="preserve">
     <value>Target HP% to use {0} below</value>
+  </data>
+  <data name="CombustBurstRefresh0" xml:space="preserve">
+    <value>Early {0} refresh during party buffs</value>
+  </data>
+  <data name="CombustBurstRefreshDesc" xml:space="preserve">
+    <value>On: while the party's raid buffs are up, the damage-over-time is refreshed early (up to 20 seconds remaining) so it covers the whole buff window instead of falling off mid-burst. Off (default): it is refreshed only at the remaining-time threshold above.</value>
   </data>
 </root>
