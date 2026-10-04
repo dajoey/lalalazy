@@ -15,6 +15,7 @@ internal static class Program
 {
     private static int _pass;
     private static int _fail;
+    private static int _canary;
 
     private static int Main()
     {
@@ -99,7 +100,9 @@ internal static class Program
         CrucibleCases();
         StallCases();
 
-        Console.WriteLine(_fail == 0 ? "OK" : $"FAILED ({_fail} of {_pass + _fail})");
+        Console.WriteLine(_fail == 0
+            ? _canary > 0 ? $"OK ({_pass} checks, canary failed as expected)" : $"OK ({_pass} checks)"
+            : $"FAILED ({_fail} of {_pass + _fail})");
         return _fail == 0 ? 0 : 1;
     }
 
@@ -137,6 +140,14 @@ internal static class Program
         Check("BST gauge hex decodes to the source bytes in 0x08..0x10 order",
             decoded.SequenceEqual(new byte[] { 100, 132, 168, 2, 7, 5, 3, 0x51, 0x0A }),
             string.Join(",", decoded));
+
+        // Characterization for the tk= Trick-outcome field (BST-1): everything before it keeps today's
+        // exact shape, so the new field can only ever be appended after lv=, never reshape the prefix.
+        Check("BST-1: the fields before tk= keep today's exact shape",
+            line.StartsWith("BT|1788904962577|6484a802070503510a|2|5|3|81|pet=1073741830:Cu Sith:5432|bm=44896|av=44930|dec=44887:instinctual:compass|fd=|sl=|lv=0|", StringComparison.Ordinal),
+            line);
+        CheckCanary("BST-1 canary: a pending Trick must not read as timed out",
+            Outcome(1.0f, float.MaxValue) == "timeout");
 
         // No decision recorded (pre-rotation build, or a tick where nothing fired): a stable
         // dec=0: token, never an empty/malformed field.
@@ -494,5 +505,31 @@ internal static class Program
     {
         if (ok) { _pass++; Console.WriteLine($"PASS {what}"); }
         else { _fail++; Console.WriteLine($"FAIL {what}{(detail is null ? "" : $" -> {detail}")}"); }
+    }
+
+    /// <summary> A deliberately-wrong assertion that must FAIL: it proves the <see cref="Check"/>
+    /// plumbing can fail, so the PASS lines above are not vacuous (canary pattern from the
+    /// rot/harness-spike harness). A canary that PASSES counts as a real failure. </summary>
+    private static void CheckCanary(string what, bool ok, string? detail = null)
+    {
+        if (ok)
+        {
+            _fail++;
+            Console.WriteLine($"FAIL CANARY (expected to FAIL, and did not) {what}{(detail is null ? "" : $" -> {detail}")}");
+        }
+        else
+        {
+            _canary++;
+            Console.WriteLine($"FAIL CANARY (expected to FAIL): {what}");
+        }
+    }
+
+    /// <summary> Invokes the pure Trick-outcome mapping, or <c>&lt;missing&gt;</c> before the BST-1
+    /// fix lands it. Reflection keeps this compiling against the pre-fix source, so the red proof
+    /// is a runtime FAIL, not a build error. </summary>
+    private static string Outcome(float sinceTrick, float sincePetHeart)
+    {
+        var m = typeof(BeastmasterTelemetryFormat).GetMethod("TrickOutcome", new[] { typeof(float), typeof(float) });
+        return m is null ? "<missing>" : (string)m.Invoke(null, new object[] { sinceTrick, sincePetHeart })!;
     }
 }

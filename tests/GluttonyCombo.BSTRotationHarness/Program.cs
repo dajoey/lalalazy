@@ -14,6 +14,7 @@ internal static class Program
 {
     private static int _pass;
     private static int _fail;
+    private static int _canary;
 
     private static int Main(string[] args)
     {
@@ -43,13 +44,16 @@ internal static class Program
         ShieldChargeOvercap();
         CrucibleTactics();
         DashLandingSafety();
+        PartingBlowExitBaseline();
         FallbackCandidates();
         LearnedFromTheRuns();
 
         SimulateAllLevels(verbose);
         SimulateCrucible(verbose);
 
-        Console.WriteLine(_fail == 0 ? $"OK ({_pass} checks)" : $"FAILED ({_fail} of {_pass + _fail})");
+        Console.WriteLine(_fail == 0
+            ? _canary > 0 ? $"OK ({_pass} checks, canary failed as expected)" : $"OK ({_pass} checks)"
+            : $"FAILED ({_fail} of {_pass + _fail})");
         return _fail == 0 ? 0 : 1;
     }
 
@@ -2514,6 +2518,41 @@ internal static class Program
         Check("dash held for a puddle: the GCD chain still goes", Decide(s with { TargetDistance = 12f, DashLanding = DashLanding.Danger }, on).ActionId != 0);
     }
 
+    // BST-2 baseline (characterization): today the Parting Blow exit has NO enemy-count test - it fires
+    // whenever its gates pass, on both presets, however many enemies stand in its area. These pin that
+    // behaviour so the opt-in AoE rule can be shown to change only the option-on AoE-preset path.
+    private static void PartingBlowExitBaseline()
+    {
+        Console.WriteLine("-- Parting Blow exit baseline (BST-2 characterization) --");
+        var s = ExitReadyState();
+        bool Exits(BstDecision d) => d.ActionId == BST.PartingBlow;
+
+        var one = Decide(s with { EnemiesWithin6y = 1 }, BstSettings.Defaults(aoe: true));
+        Check("BST-2 baseline: option off, one enemy in its area - the exit still fires (today's behaviour)",
+            Exits(one), $"{one.ActionId}:{one.Reason} [{one.Declines}]");
+        Check("BST-2 baseline: option off, five enemies - the exit fires exactly the same",
+            Exits(Decide(s with { EnemiesWithin6y = 5 }, BstSettings.Defaults(aoe: true))));
+        Check("BST-2 baseline: the ST preset exit is unchanged",
+            Exits(Decide(s with { EnemiesWithin6y = 1 }, BstSettings.Defaults())));
+        CheckCanary("BST-2 baseline canary: no familiar out must mean no Parting Blow",
+            Exits(Decide(s with { ActiveSlot = 0 }, BstSettings.Defaults())));
+    }
+
+    /// <summary> A state where every TryExit gate passes: familiar out past the minimum stay, One with
+    /// Nature spent, Parting Blow ready, another horn ready, in weave range - only the enemy count
+    /// varies between cases. </summary>
+    private static BstState ExitReadyState()
+    {
+        var s = BaseState(40);
+        s.ActiveSlot = 1;
+        s.Slot1Beast = 1; s.Slot2Beast = 34; s.Slot3Beast = 26; s.SlotBeastsKnown = true;
+        s.ReadyHorn2 = s.ReadyHorn3 = true;
+        s.ReadyParting = true;
+        s.SinceSummon = 30f;
+        s.EnemiesWithin6y = 1;
+        return s;
+    }
+
     // The fallback target list: Gluttony's Crucible targeting narrows to the head of the kill order, which may be
     // out of reach; the fallback must keep every exclusion (eggs, immune enemies, stances) and drop only the
     // kill-order narrowing, so the nearby plain enemy can take the hit.
@@ -2585,5 +2624,30 @@ internal static class Program
 
         _fail++;
         Console.WriteLine($"FAIL {what}{(detail is null ? "" : $"  [{detail}]")}");
+    }
+
+    /// <summary> A <see cref="Check"/> that also prints its PASS line: the BST-1/BST-2 cases use it so the
+    /// run output names each shipped case when it passes (the shared Check is silent on pass by design). </summary>
+    private static void CheckLoud(string what, bool ok, string? detail = null)
+    {
+        if (ok) { _pass++; Console.WriteLine($"PASS {what}"); }
+        else Check(what, false, detail);
+    }
+
+    /// <summary> A deliberately-wrong assertion that must FAIL: it proves the <see cref="Check"/> plumbing
+    /// can fail, so the PASS lines are not vacuous (canary pattern from the rot/harness-spike harness).
+    /// A canary that PASSES counts as a real failure. </summary>
+    private static void CheckCanary(string what, bool ok, string? detail = null)
+    {
+        if (ok)
+        {
+            _fail++;
+            Console.WriteLine($"FAIL CANARY (expected to FAIL, and did not) {what}{(detail is null ? "" : $"  [{detail}]")}");
+        }
+        else
+        {
+            _canary++;
+            Console.WriteLine($"FAIL CANARY (expected to FAIL): {what}");
+        }
     }
 }
