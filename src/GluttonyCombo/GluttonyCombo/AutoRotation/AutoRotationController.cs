@@ -689,10 +689,17 @@ internal unsafe class AutoRotationController
             return false;
 
         // Stop and target self, mirroring the Pyretic handling but for enemy reflects.
-        if (Player.Available)
+        // Fork (1.0.4.277): the side effects are combat-only now. This scan runs from
+        // ShouldSkipAutorotation() on every tick, including out of combat, where the
+        // self-select was the "I keep getting selected as the target for no reason"
+        // symptom (2026-10-04) and CancelCast would kill an out-of-combat
+        // Teleport/Return cast. The penalty verdict is unchanged; out of combat the
+        // hostile-only presses a reflect punishes are already gated (OutOfCombatGate).
+        if (Player.Available && OutOfCombatGate.MayWriteTarget(!NotInCombat))
             Svc.Targets.Target = Player.Object;
         OverrideTarget = null;
-        UIState.Instance()->Hotbar.CancelCast();
+        if (OutOfCombatGate.MayWriteTarget(!NotInCombat))
+            UIState.Instance()->Hotbar.CancelCast();
         return true;
     }
 
@@ -2095,13 +2102,20 @@ internal unsafe class AutoRotationController
                 // ground-targeted.
                 var resolvedFriendlyOnly = canUseSelf && !targetsHostile && !areaTargeted;
 
+                // Fork (1.0.4.277): same shared out-of-combat gate as ExecuteST - no
+                // hostile-only press, no hard-target write, no AutoFaceTargetPosition
+                // spin while the party is not in combat. OutOfCombatGateHarness pins
+                // the semantics.
+                if (NotInCombat && !OutOfCombatGate.MayFire(targetsHostile, canUseSelf, areaTargeted))
+                    return false;
+
                 var castTime = ActionManager.GetAdjustedCastTime(ActionType.Action, outAct);
                 bool orbwalking = cfg.OrbwalkerIntegration && OrbwalkerIPC.CanOrbwalk;
 
                 if (MovementBlocksCastStart(castTime, orbwalking))
                     return false;
 
-                if (cfg.DPSSettings.DPSAlwaysHardTarget && OverrideTarget is not null && !resolvedFriendlyOnly && !fellBack)
+                if (OutOfCombatGate.MayWriteTarget(!NotInCombat) && cfg.DPSSettings.DPSAlwaysHardTarget && OverrideTarget is not null && !resolvedFriendlyOnly && !fellBack)
                     Svc.Targets.Target = OverrideTarget;
                 var acRangeCheck = ActionManager.GetActionInRangeOrLoS(outAct, player.GameObject(), OverrideTarget is null ? player.GameObject() : OverrideTarget.Struct());
                 var inRange = acRangeCheck is 0 or 565 || canUseSelf || areaTargeted;
@@ -2283,7 +2297,18 @@ internal unsafe class AutoRotationController
             var resolvedFriendlyOnly = canUseSelf && !canUseTarget && !areaTargeted;
             var isHeal = attributes.AutoAction!.IsHeal || resolvedFriendlyOnly;
 
-            if (target is not null && !fellBack)
+            // Fork (1.0.4.277): the shared out-of-combat press gate. A hostile-only
+            // action (attack, gap-close, dump aimed at an enemy - the Shield Charge
+            // overcap dash of the 2026-10-04 report) waits for combat even with
+            // quest/FATE bypass; prepull buffs, heals, raises and ground-targeted
+            // actions keep their out-of-combat behavior. Without this, standing in
+            // the field the rotation hard-targeted a FATE mob, pressed the pre-pull
+            // chain and started the whole pull with no player input.
+            // OutOfCombatGateHarness pins the semantics.
+            if (NotInCombat && ActionSheet.TryGetValue(outAct, out var gateRow) && !OutOfCombatGate.MayFire(gateRow.CanTargetHostile, gateRow.CanTargetSelf, gateRow.TargetArea))
+                return false;
+
+            if (target is not null && !fellBack && OutOfCombatGate.MayWriteTarget(!NotInCombat))
             {
                 if ((!isHeal && cfg.DPSSettings.DPSAlwaysHardTarget && mode is not DPSRotationMode.Manual) || (isHeal && cfg.HealerSettings.HealerAlwaysHardTarget && mode is not HealerRotationMode.Manual))
                     Svc.Targets.Target = target;

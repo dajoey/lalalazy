@@ -8,18 +8,37 @@
 namespace GluttonyCombo.AutoRotation;
 
 /// <summary>
-///     Decision core for the shared out-of-combat gate: while the party is not
+///     Decision core for the shared out-of-combat gate. While the party is not
 ///     in combat the auto-rotation must not change the player's target and must
-///     not fire a combat-only action. A pull may only start from the player's
+///     not fire a combat-only action: a pull may only start from the player's
 ///     own input (their target, their button) or from party combat - never from
-///     the plugin alone.
+///     the plugin alone. Deliberately out-of-combat-legal actions keep their
+///     behavior: prepull self-buffs (BypassBuffs), BST pre-pull horns toward a
+///     target the player chose, heals, raises, cleanses and ground-targeted
+///     actions.
 /// </summary>
 internal static class OutOfCombatGate
 {
-    // STUB (failing-first): keeps the shipped behavior - everything may fire out
-    // of combat, every target write allowed - so the harness runs RED against
-    // the target semantics. The fix commit replaces these bodies.
-    internal static bool MayFire(bool canTargetHostile, bool canTargetSelf, bool targetArea) => true;
+    /// <summary>
+    ///     Whether the auto-rotation may press an action while not in combat.
+    ///     An action that can only be aimed at a hostile (attack, gap-close,
+    ///     gauge/charge dump at an enemy - the Shield Charge overcap dash of the
+    ///     2026-10-04 report) is combat-only and waits for combat even with
+    ///     quest/FATE bypass. Self-usable actions, friendly-only actions and
+    ///     ground-targeted actions pass; an action with no target bits in its
+    ///     sheet row (unknown to the sheet) is not blocked, preserving the
+    ///     pre-gate behavior for unmapped ids.
+    /// </summary>
+    internal static bool MayFire(bool canTargetHostile, bool canTargetSelf, bool targetArea) =>
+        !(canTargetHostile && !canTargetSelf && !targetArea);
 
-    internal static bool MayWriteTarget(bool inCombat) => true;
+    /// <summary>
+    ///     Whether the auto-rotation may write the player's hard target this
+    ///     tick (DPS/healer hard-target modes, the reflect-penalty self-select,
+    ///     the action-penalty clear). Out of combat a target change is pure
+    ///     visible noise - the 2026-10-04 report's "I keep getting selected as
+    ///     the target for no reason". Presses carry their own explicit target
+    ///     id, so this only stops the UI-level retarget, not any action.
+    /// </summary>
+    internal static bool MayWriteTarget(bool inCombat) => inCombat;
 }

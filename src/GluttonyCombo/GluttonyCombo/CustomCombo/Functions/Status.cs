@@ -8,6 +8,7 @@ using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using GluttonyCombo.AutoRotation;
 using GluttonyCombo.Core;
 using GluttonyCombo.Data;
 using GluttonyCombo.Data.BattleData;
@@ -224,9 +225,18 @@ internal abstract partial class CustomComboFunctions
 
         if (hasActionPenalty)
         {
-            Svc.Targets.Target = null;
-            //OverrideTarget = null;
-            UIState.Instance()->Hotbar.CancelCast();
+            // Fork (1.0.4.277): the un-target/cancel side effects are combat-only. This runs
+            // on every autorotation tick and every action press, including out of combat
+            // where a lingering penalty cleared the hard target and killed an in-progress
+            // Teleport/Return cast (2026-10-04 report family). The penalty verdict itself
+            // is unchanged - out of combat the autorotation's hostile-only presses are
+            // already gated (OutOfCombatGate), so nothing needs interrupting.
+            if (OutOfCombatGate.MayWriteTarget(InCombat()))
+            {
+                Svc.Targets.Target = null;
+                //OverrideTarget = null;
+                UIState.Instance()->Hotbar.CancelCast();
+            }
         }
 
         return hasActionPenalty;
