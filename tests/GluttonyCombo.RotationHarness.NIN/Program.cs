@@ -6,12 +6,13 @@
 // code. Everything the decisions READ (cooldowns, statuses, gauge bytes, target, presets, settings,
 // enemies in range) comes from the harness fakes instead of the game.
 //
-// THE CASE (characterization, current behaviour): a level-100 Ninja mid-fight inside a Kunai's Bane
-// window on the target, Ninki at exactly 50, weave slot open, all burst cooldowns (Kassatsu, Bunshin,
-// Ten Chi Jin, Assassinate, Kunai's Bane, Dokumori/Mug) on cooldown, two enemies inside Hellfrog
-// Medium's range. NIN_ST_AdvancedMode.Invoke(SpinningEdge) reaches the Ninki-spend branch
-// (NIN.cs "NIN_ST_AdvancedMode_Bhavacakra" block) and — TODAY — returns Bhavacakra, the single-target
-// spender, even though Hellfrog Medium would hit both enemies.
+// THE CASE (NIN-2, desired behaviour): a level-100 Ninja mid-fight inside a Kunai's Bane window on
+// the target, Ninki at exactly 50, weave slot open, all burst cooldowns (Kassatsu, Bunshin, Ten Chi
+// Jin, Assassinate, Kunai's Bane, Dokumori/Mug) on cooldown, two enemies inside Hellfrog Medium's
+// range. NIN_ST_AdvancedMode.Invoke(SpinningEdge) reaches the Ninki-spend branch (NIN.cs
+// "NIN_ST_AdvancedMode_Bhavacakra" block) and must return Hellfrog Medium — the spender that hits
+// both enemies — instead of Bhavacakra. The paired case holds the same state at ONE enemy and
+// asserts today's single-target spend (Bhavacakra) is unchanged.
 //
 // THE CANARY: the same state run through an assertion of the OPPOSITE behaviour. It is EXPECTED TO
 // FAIL; the harness only exits 0 when the canary fails as expected (proof the test can actually fail).
@@ -61,15 +62,22 @@ internal static class Program
 
         var combo = new Nin.NIN_ST_AdvancedMode();
         uint got = combo.RunInvoke(Nin.SpinningEdge);
-        Check($"NIN-2 char (today): 2 enemies in Hellfrog Medium range + Ninki 50 + Kunai's Bane up: " +
-              $"Invoke(SpinningEdge) spends Ninki on Bhavacakra ({Nin.Bhavacakra})",
-            got == Nin.Bhavacakra, $"returned {got}");
+        Check($"NIN-2: 2 enemies in Hellfrog Medium range + Ninki 50 + Kunai's Bane up: " +
+              $"Invoke(SpinningEdge) spends Ninki on Hellfrog Medium ({Nin.HellfrogMedium}), not Bhavacakra",
+            got == Nin.HellfrogMedium, $"returned {got}");
+
+        // ---- the paired unchanged-behaviour case: same state, one enemy only ----
+        SetNinkiSpendState(1);
+        uint gotPair = new Nin.NIN_ST_AdvancedMode().RunInvoke(Nin.SpinningEdge);
+        Check($"NIN-2 unchanged: 1 enemy in Hellfrog Medium range, same state: " +
+              $"Invoke(SpinningEdge) still spends Ninki on Bhavacakra ({Nin.Bhavacakra})",
+            gotPair == Nin.Bhavacakra, $"returned {gotPair}");
 
         // ---- the CANARY: deliberately asserts the opposite; must FAIL ----
         SetNinkiSpendState(2);
         uint got2 = new Nin.NIN_ST_AdvancedMode().RunInvoke(Nin.SpinningEdge);
-        CheckCanary($"CANARY (expected to FAIL): identical state, asserting Invoke(SpinningEdge) " +
-                    $"does NOT return Bhavacakra", got2 != Nin.Bhavacakra, $"returned {got2}");
+        CheckCanary($"CANARY (expected to FAIL): identical 2-enemy state, asserting Invoke(SpinningEdge) " +
+                    $"does NOT return Hellfrog Medium", got2 != Nin.HellfrogMedium, $"returned {got2}");
 
         Console.WriteLine(_fail == 0
             ? $"OK ({_pass} checks, canary failed as expected)"
