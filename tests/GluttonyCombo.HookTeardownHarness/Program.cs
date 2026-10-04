@@ -38,8 +38,8 @@ internal static class Program
         CheckNoThrow(typeof(ECommons.Hooks.StaticVfx), "StaticVfxRunDetour", [null!, 0f, 0]);
         CheckNoThrow(typeof(ECommons.Hooks.StaticVfx), "StaticVfxDtorDetour", [null!]);
         CheckNoThrow(typeof(ECommons.Hooks.StaticVfx), "StaticVfxCreateDetour", [null!, null!]);
-        CheckNoThrow(typeof(ECommons.Hooks.ActorVfx), "ActorVfxDtorDetour", [0n]);
-        CheckNoThrow(typeof(ECommons.Hooks.ActorVfx), "ActorVfxCreateDetour", [0n, 0n, 0n, 0f, (byte)0, (ushort)0, (byte)0]);
+        CheckNoThrow(typeof(ECommons.Hooks.ActorVfx), "ActorVfxDtorDetour", [(nint)0]);
+        CheckNoThrow(typeof(ECommons.Hooks.ActorVfx), "ActorVfxCreateDetour", [(nint)0, (nint)0, (nint)0, 0f, (byte)0, (ushort)0, (byte)0]);
 
         // The ctor detour's ABI result is `this`; with the hook gone it must return its argument.
         var ctor = Detour(typeof(ECommons.Hooks.GameObjectCtor), "GameObjectConstructorDetour");
@@ -47,7 +47,7 @@ internal static class Program
         object? ret = null;
         try
         {
-            ret = Invoke(ctor, [0x1234n]);
+            ret = Invoke(ctor, [(nint)0x1234]);
         }
         catch (Exception e)
         {
@@ -68,7 +68,7 @@ internal static class Program
         RunDisposeWaits(typeof(ECommons.Hooks.StaticVfx), "StaticVfxRunDetour", "_staticVfxRunEvent",
             "Run", "Dispose", [null!, 0f, 0]);
         RunDisposeWaits(typeof(ECommons.Hooks.ActorVfx), "ActorVfxDtorDetour", "_actorVfxDtorEvent",
-            "Run1", "Dispose", [0n]);
+            "Run1", "Dispose", [(nint)0]);
     }
 
     private static void RunDisposeWaits(Type owner, string detourName, string eventField,
