@@ -38,6 +38,13 @@ internal partial class WHM
         var hpThreshold = IsNotEnabled(Preset.WHM_ST_Simple_DPS) ? ComputeHpThreshold(CurrentTarget) : 0;
         AeroList.TryGetValue(dotAction, out var dotDebuffID);
         var dotRefresh = IsNotEnabled(Preset.WHM_ST_Simple_DPS) ? WHM_ST_DPS_AeroUptime_Threshold : 2.5;
+
+        // WHM-1 (opt-in): widen the refresh window while the party is bursting, so Dia lands inside
+        // raid buffs instead of ticking down outside them. 10 s covers a typical two-minute buff
+        // window without re-refreshing every GCD inside it.
+        if (WHM_ST_MainCombo_DoT_EarlyInBuffs && Bursting.PartyIsBursting)
+            dotRefresh = Math.Max(dotRefresh, 10.0);
+
         var dotRemaining = CurrentTarget.Status(dotDebuffID).RemainingTimeOrZero();
 
         return ActionReady(dotAction) &&
