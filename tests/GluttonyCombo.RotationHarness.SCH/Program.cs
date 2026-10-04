@@ -65,6 +65,36 @@ internal static class Program
               $"Invoke(Broil IV) returns Broil IV ({SCH.Broil4}) — no early refresh today",
             gotChar2 == SCH.Broil4, $"returned {gotChar2}");
 
+        // ---- SCH-2: opt-in early Biolysis refresh while the party is bursting ----
+        SetStAdvDpsState();
+        FakeGame.BoolValues["SCH_ST_ADV_DPS_Bio_BurstRefresh"] = true;
+        FakeGame.PartyBursting = true;
+        SetBiolysisRemaining(8.0f);
+        uint got2 = InvokeSt();
+        Check("SCH-2: burst refresh ON + party bursting + Biolysis 8.0 s left (> uptime threshold): " +
+              $"Invoke(Broil IV) returns Biolysis ({SCH.Biolysis}) — the DoT is clipped into the burst window",
+            got2 == SCH.Biolysis, $"returned {got2}");
+
+        // ---- SCH-2 paired: option OFF keeps today's behaviour ----
+        SetStAdvDpsState();
+        FakeGame.BoolValues["SCH_ST_ADV_DPS_Bio_BurstRefresh"] = false;
+        FakeGame.PartyBursting = true;
+        SetBiolysisRemaining(8.0f);
+        uint got2b = InvokeSt();
+        Check("SCH-2 (paired, unchanged): burst refresh OFF + party bursting + Biolysis 8.0 s left: " +
+              $"Invoke(Broil IV) returns Broil IV ({SCH.Broil4}) — off is exactly today",
+            got2b == SCH.Broil4, $"returned {got2b}");
+
+        // ---- SCH-2 guard: the option alone is not enough; the burst window must be live ----
+        SetStAdvDpsState();
+        FakeGame.BoolValues["SCH_ST_ADV_DPS_Bio_BurstRefresh"] = true;
+        FakeGame.PartyBursting = false;
+        SetBiolysisRemaining(8.0f);
+        uint got2c = InvokeSt();
+        Check("SCH-2 (guard): burst refresh ON but party NOT bursting + Biolysis 8.0 s left: " +
+              $"Invoke(Broil IV) returns Broil IV ({SCH.Broil4}) — no burst window, no early refresh",
+            got2c == SCH.Broil4, $"returned {got2c}");
+
         // ---- the CANARY: deliberately asserts the opposite; must FAIL ----
         SetStAdvDpsState();
         SetBiolysisRemaining(3.0f);

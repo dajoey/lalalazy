@@ -117,6 +117,10 @@ internal partial class SCH
         var hpThreshold = IsNotEnabled(Preset.SCH_ST_Simple_DPS) ? ComputeHpThreshold(CurrentTarget) : 0;
         BioList.TryGetValue(dotAction, out var dotDebuffID);
         var dotRefresh = IsNotEnabled(Preset.SCH_ST_Simple_DPS) ? SCH_ST_DPS_BioUptime_Threshold : 2.5;
+        // Opt-in: while the party's raid buffs are up, refresh early so the DoT's buffed
+        // ticks cover the burst window (clipping the DoT at the end of buffs is a gain).
+        if (SCH_ST_ADV_DPS_Bio_BurstRefresh && Bursting.PartyIsBursting)
+            dotRefresh = Math.Max(dotRefresh, 10f);
         var dotRemaining = CurrentTarget.Status(dotDebuffID).RemainingTimeOrZero();
 
         return ActionReady(dotAction) &&

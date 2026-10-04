@@ -25,6 +25,7 @@ internal static class FakeGame
     public static bool TargetIsBoss = false;
     public static bool InBossEncounter = false;
     public static bool GroupDamageIncoming = false;
+    public static bool PartyBursting = false;        // fake Bursting.PartyIsBursting (SCH-2 gate)
     public static float TargetHPPercent = 100f;
     public static bool TargetCanApplyStatus = true;      // the target accepts the DoT debuff
     public static bool HasPetPresent = true;             // the fairy is out: NeedToSummon declines
@@ -133,6 +134,7 @@ internal static class FakeGame
         TargetIsBoss = false;
         InBossEncounter = false;
         GroupDamageIncoming = false;
+        PartyBursting = false;
         TargetHPPercent = 100f;
         TargetCanApplyStatus = true;
         HasPetPresent = true;

@@ -150,6 +150,16 @@ namespace GluttonyCombo.Combos.PvE
         }
     }
 
+    /// <summary>
+    ///     FAKE of Combos/PvE/ALL/Bursting.cs: only the PartyIsBursting read the new NeedsDoT gate
+    ///     makes. The real property scans the party's raid buffs through HasBuff (game boundary);
+    ///     here it is a knob, exactly like CanWeave or TargetHPPercent.
+    /// </summary>
+    public class Bursting
+    {
+        public static bool PartyIsBursting => GluttonyCombo.RotationHarness.FakeGame.PartyBursting;
+    }
+
     /// <summary>FAKE of Combos/PvE/Content/ContentSpecificActions.cs: never offers a content action.</summary>
     public static class ContentSpecificActions
     {
@@ -700,6 +710,7 @@ namespace GluttonyCombo.Combos.PvE
                 SCH_Opener_Potion = new("SCH_Opener_Potion"),
                 SCH_Opener_PrepullBlock = new("SCH_Opener_PrepullBlock", true),
                 SCH_ST_ADV_DPS_Bio_TwoTarget = new("SCH_ST_ADV_DPS_Bio_TwoTarget"),
+                SCH_ST_ADV_DPS_Bio_BurstRefresh = new("SCH_ST_ADV_DPS_Bio_BurstRefresh"),
                 SCH_ST_DPS_EnergyDrain_Burst = new("SCH_ST_DPS_EnergyDrain_Burst"),
                 SCH_AoE_DPS_EnergyDrain_Burst = new("SCH_AoE_DPS_EnergyDrain_Burst"),
                 SCH_AoE_DPS_ChainStratagemBanefulOption = new("SCH_AoE_DPS_ChainStratagemBanefulOption"),

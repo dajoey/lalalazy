@@ -50,6 +50,9 @@ internal partial class SCH
                     DrawRoundedSliderFloat(0, 4, SCH_ST_DPS_BioUptime_Threshold, Generics.DoTSecondsRemainingZeroDisable, digits: 1);
                     ImGui.Unindent();
                     DrawAdditionalBoolChoice(SCH_ST_ADV_DPS_Bio_TwoTarget, Generics.TwoTargetDotting, Generics.TwoTargetDottingDescription);
+                    DrawAdditionalBoolChoice(SCH_ST_ADV_DPS_Bio_BurstRefresh,
+                        FormatAndCache(SCH_Config.BioBurstRefresh0, Biolysis.ActionName()),
+                        SCH_Config.BioBurstRefreshDesc);
                     break;
 
                 case Preset.SCH_ST_ADV_DPS_ChainStrat:
@@ -383,6 +386,7 @@ internal partial class SCH
             SCH_Opener_Potion = new("SCH_Opener_Potion"),
             SCH_Opener_PrepullBlock = new("SCH_Opener_PrepullBlock", true),
             SCH_ST_ADV_DPS_Bio_TwoTarget = new("SCH_ST_ADV_DPS_Bio_TwoTarget"),
+            SCH_ST_ADV_DPS_Bio_BurstRefresh = new("SCH_ST_ADV_DPS_Bio_BurstRefresh"),
             SCH_ST_DPS_EnergyDrain_Burst = new("SCH_ST_DPS_EnergyDrain_Burst"),
             SCH_AoE_DPS_EnergyDrain_Burst = new("SCH_AoE_DPS_EnergyDrain_Burst"),
             SCH_AoE_DPS_ChainStratagemBanefulOption = new("SCH_AoE_DPS_ChainStratagemBanefulOption"),
