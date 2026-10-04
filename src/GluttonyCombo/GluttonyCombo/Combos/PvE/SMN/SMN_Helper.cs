@@ -175,7 +175,6 @@ internal partial class SMN
     internal static bool DemiNone => CurrentDemiSummon is DemiSummon.None;
     internal static bool DemiNotPheonix => CurrentDemiSummon is not DemiSummon.Phoenix;
     internal static bool DemiPheonix => CurrentDemiSummon is DemiSummon.Phoenix;
-    internal static bool SearingBurstDriftCheck => SearingCD >=3 && SearingCD <=8;
     internal static bool SummonerWeave => CanWeave();
     internal static float SearingCD => GetCooldownRemainingTime(SearingLight);
    
@@ -599,11 +598,6 @@ internal partial class SMN
             IsSTEnabled(flags, Preset.SMN_ST_Advanced_Combo_DemiSummons) ||
             IsAoEEnabled(flags, Preset.SMN_AoE_Advanced_Combo_DemiSummons);
         
-        bool searingLightBurstEnabled =
-            flags.HasFlag(Combo.Simple) ||
-            IsSTEnabled(flags, Preset.SMN_ST_Advanced_Combo_SearingLight_Burst) ||
-            IsAoEEnabled(flags, Preset.SMN_AoE_Advanced_Combo_SearingLight_Burst);
-        
         bool egiAstralFlowEnabled =
             flags.HasFlag(Combo.Simple) ||
             IsSTEnabled(flags, Preset.SMN_ST_Advanced_Combo_Egi_AstralFlow) ||
@@ -659,16 +653,7 @@ internal partial class SMN
         #region Call Demi Summon
         if (demiSummonEnabled && PartyInCombat() && ActionReady(OriginalHook(Aethercharge)))
         {
-            // If burst window is enabled, checks the cooldown of searing light and throws in an extra ruin if needed
-            // Drift mitigation for people with slightly higher spellspeed. (gcd < 2.48)
-            if (searingLightBurstEnabled && SearingBurstDriftCheck) 
-            {
-                actionID = OriginalHook(Ruin);
-            }
-            else 
-            {
-                actionID = OriginalHook(Aethercharge);
-            }
+            actionID = OriginalHook(Aethercharge);
             return true;
         }
         #endregion

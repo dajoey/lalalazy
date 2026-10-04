@@ -70,6 +70,25 @@ internal static class Program
         Check("CH2 (unchanged behaviour): party not in combat: Invoke(Ruin) returns the Ruin filler " +
               $"({Smn.Ruin}), not Aethercharge", got3 == Smn.Ruin, $"returned {got3}");
 
+        // ---- SMN-1 (round 6): the demi summon must not be delayed for Searing Light ----
+        // Balance guide (S6): "In the scenario of having higher than wanted spell speed, do not delay
+        // your demi-primals by inserting additional Ruin III casts to fill the gaps."
+        // State: Aethercharge ready, party in combat, Searing Light 5s from ready (inside the 3-8s drift
+        // window), SearingLight_Burst option on, no Demi out. The drift branch must NOT insert Ruin:
+        // Invoke(Ruin) returns Aethercharge. (Fails on the unchanged source: returns Ruin.)
+        SetDemiState();
+        uint got4 = new Smn.SMN_ST_Advanced_Combo().RunInvoke(Smn.Ruin);
+        Check($"SMN-1: Aethercharge ready, in combat, Searing 5s away, burst on, no Demi: Invoke(Ruin) " +
+              $"returns Aethercharge ({Smn.Aethercharge}), not the Ruin filler",
+            got4 == Smn.Aethercharge, $"returned {got4}");
+
+        // Paired unchanged behaviour: burst option OFF, identical state — Aethercharge fires both before
+        // and after the change (the drift branch only runs with the burst option on).
+        SetDemiState(burstOn: false);
+        uint got5 = new Smn.SMN_ST_Advanced_Combo().RunInvoke(Smn.Ruin);
+        Check($"SMN-1-unchanged: burst option off, same state: Invoke(Ruin) returns Aethercharge " +
+              $"({Smn.Aethercharge})", got5 == Smn.Aethercharge, $"returned {got5}");
+
         Console.WriteLine(_fail == 0
             ? $"OK ({_pass} checks, canary failed as expected)"
             : $"FAILED ({_fail} of {_pass + _fail})");
