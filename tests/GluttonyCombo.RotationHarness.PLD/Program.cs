@@ -55,24 +55,34 @@ internal static class Program
         SetFoFBurnState(withSepulchre: false);
         var burn = new Combos.PvE.PLD.PLD_ST_SimpleMode().RunInvoke(Combos.PvE.PLD.FastBlade);
 
-        // characterization: today's behaviour — with FoF + Divine Might and no proc to spend, the
-        // one-button spends Divine Might on Holy Spirit inside the window.
+        // PLD-1 (pair, unchanged behaviour): with FoF + Divine Might and no proc to spend, the
+        // one-button spends Divine Might on Holy Spirit inside the window. Must hold before AND
+        // after the PLD-1 change.
         Report(
-            "characterization: Fight or Flight + Divine Might, no Atonement procs -> Invoke(FastBlade) returns Holy Spirit",
+            "PLD-1 (pair): Fight or Flight + Divine Might, no Atonement procs -> Invoke(FastBlade) returns Holy Spirit",
             burn == Combos.PvE.PLD.HolySpirit,
             $"got {ActionName(burn)}",
             ref pass, ref fail);
 
-        // CANARY — asserts the opposite of the characterization and must therefore FAIL. It stays
+        // CANARY — asserts the opposite of the pair case and must therefore FAIL. It stays
         // with the harness forever: if it ever passes, the harness no longer sees the real code.
         Canary(
             "CANARY (expected to fail): same state but expecting NOT Holy Spirit",
             burn != Combos.PvE.PLD.HolySpirit,
             $"got {ActionName(burn)}",
             ref canary, ref fail);
+
+        // ---- PLD-1: the Sepulchre proc must outrank Holy Spirit inside Fight or Flight ----
+        SetFoFBurnState(withSepulchre: true);
+        var proc = new Combos.PvE.PLD.PLD_ST_SimpleMode().RunInvoke(Combos.PvE.PLD.FastBlade);
+        Report(
+            "PLD-1: Fight or Flight + Divine Might + SepulchreReady (Atonement hooked to Sepulchre) -> Invoke(FastBlade) returns Sepulchre, not Holy Spirit",
+            proc == Combos.PvE.PLD.Sepulchre,
+            $"got {ActionName(proc)}",
+            ref pass, ref fail);
     }
 
-    /// <summary>The FoF burn-window state for the Sepulchre decision (PLD_Helper.cs:700-744).</summary>
+    /// <summary>The FoF burn-window states for the Sepulchre decision (PLD_Helper.cs:700-744).</summary>
     private static void SetFoFBurnState(bool withSepulchre)
     {
         FakeGame.Reset(); // level-100 PLD, in combat, weave-blocked, in melee on a living target, full MP
