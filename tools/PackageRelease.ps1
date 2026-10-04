@@ -29,6 +29,41 @@ function Get-ReleaseAssetUrl([string] $PluginName, [string] $Version, [string] $
     "https://github.com/$script:ReleaseRepo/releases/download/$(Get-ReleaseTag $PluginName $Version)/$(Get-ReleaseAssetName $PluginName $Channel)"
 }
 
+function Assert-TargetCommitOnOrigin {
+    <#
+      Verify $TargetCommit is reachable from origin/main before any tag is created at it.
+      A tag made at an unpushed worktree state names whatever origin/main happened to be at
+      that moment - in practice the PREVIOUS release's commit, because the release commit
+      only exists once the packager's output is committed and pushed (found live 2026-10-04:
+      81 tags, GluttonyCombo v1.0.4.236-.273 among them, every one naming the previous
+      release; tools/check-release-tags.py is the gate). Fetch first so the check reads
+      origin as it is now, not as the last fetch saw it. -RepoRoot defaults to the caller's
+      current directory (tools/tests/Test-PackageRelease.ps1 drives a scratch repo pair).
+    #>
+    param([Parameter(Mandatory)] [string] $TargetCommit, [string] $RepoRoot = (Get-Location).Path)
+    # PS 5.1 + $ErrorActionPreference='Stop' turns any redirected stderr record from a native
+    # command into a terminating error, and git writes routine progress ("From ...") to
+    # stderr - so the calls run under 'Continue' and report through $LASTEXITCODE instead.
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $null = & git -C $RepoRoot fetch -q origin 2>&1
+        $fetchCode = $LASTEXITCODE
+        & git -C $RepoRoot merge-base --is-ancestor $TargetCommit origin/main
+        $ancestorCode = $LASTEXITCODE
+    } finally { $ErrorActionPreference = $prev }
+    if ($fetchCode -ne 0) { throw "git fetch origin failed in $RepoRoot (exit $fetchCode); cannot verify the target commit is on origin/main." }
+    if ($ancestorCode -ne 0) {
+        throw @"
+Refusing to create a tag at ${TargetCommit}: that commit is not reachable from origin/main.
+A release tag must name its own release commit ON origin - a tag created at an unpushed
+worktree state lands on whatever origin/main tip is current, i.e. the previous release's
+commit (found live 2026-10-04). Push the release commit to origin/main first, then pass
+its SHA as -TargetCommit (Package-Plugin.ps1 does this itself; see step 6 there).
+"@
+    }
+}
+
 function Get-ReleaseGitHubToken {
     # GITHUB_TOKEN from the environment wins; otherwise fetch /infra/GITHUB_TOKEN from
     # Infisical with this host's read-only agent identity (wiki APIs/Infisical).
@@ -81,6 +116,12 @@ function Publish-PluginRelease {
         [Parameter(Mandatory)] [string] $ZipPath,
         [string] $DisplayName,
         [string] $Notes,
+        # The exact commit (already on origin/main) the release's tag must land on. Required
+        # whenever this call CREATES the release - creating a release creates its tag.
+        [string] $TargetCommit,
+        # Repo root for the origin/main verification (defaults to the caller's cwd, which
+        # git resolves to the enclosing worktree).
+        [string] $RepoRoot,
         [string] $Token
     )
     if (-not (Test-Path $ZipPath)) { throw "Zip not found: $ZipPath" }
@@ -94,10 +135,23 @@ function Publish-PluginRelease {
     try { $rel = Invoke-ReleaseApi -Uri "$api/releases/tags/$tag" -Token $Token }
     catch { if ((Get-ReleaseHttpStatus $_) -ne 404) { throw } }
     if (-not $rel) {
-        $body = @{ tag_name = $tag; target_commitish = 'main'; name = "$DisplayName $Version"
+        # Creating the release creates its tag. Refuse to guess where: target_commitish
+        # 'main' resolved to the remote tip of the moment while the release commit sat
+        # unpushed in a worktree, so every tag named the PREVIOUS release (2026-10-04,
+        # 81 tags). The tag goes to an explicit pushed commit and nowhere else.
+        if (-not $TargetCommit) {
+            throw @"
+Refusing to create release ${tag}: creating a release creates its tag, and no -TargetCommit was given.
+Pass the release commit's SHA once it is pushed to origin/main (Package-Plugin.ps1 pushes the
+release commit and passes that SHA). A tag created without one lands on the current remote
+'main' tip - the previous release's commit (found live 2026-10-04: 81 mis-tagged releases).
+"@
+        }
+        Assert-TargetCommitOnOrigin -TargetCommit $TargetCommit -RepoRoot $(if ($RepoRoot) { $RepoRoot } else { (Get-Location).Path })
+        $body = @{ tag_name = $tag; target_commitish = $TargetCommit; name = "$DisplayName $Version"
                    body = $(if ($Notes) { $Notes } else { '' }); prerelease = ($Channel -eq 'testing'); make_latest = 'false' }
         $rel = Invoke-ReleaseApi -Method Post -Uri "$api/releases" -Body $body -Token $Token
-        Write-Host "Created release $tag$(if ($Channel -eq 'testing') { ' (pre-release)' })."
+        Write-Host "Created release $tag$(if ($Channel -eq 'testing') { ' (pre-release)' }) at commit $($TargetCommit.Substring(0,9))."
     }
 
     foreach ($old in @($rel.assets | Where-Object { $_.name -eq $assetName })) {

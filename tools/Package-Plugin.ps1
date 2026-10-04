@@ -409,23 +409,21 @@ Copy-Item $stagedManifestPath (Join-Path $targetDir "$PluginName.json") -Force
 # Clean staging
 Remove-Item -Recurse -Force $stageDir
 
-# 4b. Publish the zip as a GitHub Release asset, so GitHub counts its downloads (2026-09-25,
-# tools/PackageRelease.ps1); the link written below points at that asset. If publishing
-# fails the build still ships on the raw.githubusercontent.com copy, uncounted, and says so.
+# 4b. Resolve the release-asset link (2026-09-25: GitHub counts Release-asset downloads,
+# tools/PackageRelease.ps1). The URL is deterministic - tag name + asset name - so it can be
+# committed into pluginmaster.json BEFORE the asset exists. The publish itself moved to
+# step 6 (fix 2026-10-04): the release and its tag are created only at a commit that is
+# already on origin/main. Until then the release was published from this unpushed worktree
+# with target_commitish 'main', so GitHub resolved 'main' to the remote tip of the moment -
+# always the PREVIOUS release's commit - and 81 tags named the wrong release
+# (tools/check-release-tags.py is the gate; run it after every release).
 $releaseUrl = $null
 if ($NoRelease) {
     Write-Host "-NoRelease: linking the raw.githubusercontent.com copy; downloads of this build are not counted." -ForegroundColor Yellow
 } else {
-    try {
-        . (Join-Path $PSScriptRoot 'PackageRelease.ps1')
-        $releaseUrl = Publish-PluginRelease -PluginName $PluginName -Version $version -Channel $Channel `
-            -ZipPath $zipPath -DisplayName $manifest.Name -Notes $releaseNotes
-        Write-Host "Release asset: $releaseUrl"
-    } catch {
-        Write-Host "WARNING: GitHub Release publish failed: $($_.Exception.Message)" -ForegroundColor Yellow
-        Write-Host "         Linking the raw.githubusercontent.com copy instead: the build ships, its downloads are not counted." -ForegroundColor Yellow
-        Write-Host "         For a counted link, fix the cause and re-run with -Republish BEFORE pushing." -ForegroundColor Yellow
-    }
+    . (Join-Path $PSScriptRoot 'PackageRelease.ps1')
+    $releaseUrl = Get-ReleaseAssetUrl -PluginName $PluginName -Version $version -Channel $Channel
+    Write-Host "Release asset (published in step 6 at the pushed release commit): $releaseUrl"
 }
 
 # 5. Synchronize pluginmaster.json automatically
@@ -544,5 +542,128 @@ if ($isNew) {
 # Save pluginmaster.json back with beautiful formatting (explicit UTF-8 without BOM)
 $masterJsonOut = $masterList | ConvertTo-Json -Depth 100
 [System.IO.File]::WriteAllText($masterPath, $masterJsonOut, [System.Text.UTF8Encoding]::new($false))
+
+# 6. Release commit, push, then publish (fix 2026-10-04). Everything this run wrote is
+#    committed (release-owned paths only), pushed to origin/main, and the pushed SHA is
+#    passed to Publish-PluginRelease -TargetCommit so the tag names exactly that commit.
+#    A release tag never again lands on an unpushed worktree's notion of 'main'.
+function Invoke-GitChecked([string[]]$GitArgs) {
+    # PS 5.1 + $ErrorActionPreference='Stop' turns redirected native stderr into a terminating
+    # error, and git writes routine progress to stderr (fetch, push, "From ..."): run under
+    # 'Continue', merge the streams for the failure message, report via $LASTEXITCODE.
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $out = @(& git -C $RepoRoot @GitArgs 2>&1)
+        $code = $LASTEXITCODE
+    } finally { $ErrorActionPreference = $prev }
+    if ($code -ne 0) {
+        throw "git $($GitArgs -join ' ') failed (exit $code):`n$($out -join "`n")"
+    }
+    return $out
+}
+function Invoke-GitRaw([string[]]$GitArgs) {
+    # Same stderr escape as Invoke-GitChecked, but returns the exit code instead of throwing,
+    # for calls whose failure gets call-site-specific recovery instructions (push).
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $out = @(& git -C $RepoRoot @GitArgs 2>&1)
+        $code = $LASTEXITCODE
+    } finally { $ErrorActionPreference = $prev }
+    return @{ Code = $code; Lines = @($out); Text = ($out -join "`n") }
+}
+
+$repoCheck = Invoke-GitRaw @('rev-parse', '--is-inside-work-tree')
+if ($repoCheck.Code -ne 0) { throw "$RepoRoot is not a git work tree; the release-commit step (fix 2026-10-04) requires one." }
+
+# The release commit may sweep only this release's own paths; anything else dirty refuses
+# the run instead of being pushed unasked (a multi-plugin release commits every other
+# plugin's prep before packaging).
+$status = Invoke-GitRaw @('status', '--porcelain')
+$dirtyLines = @($status.Lines | Where-Object { $_ })
+$allowedPrefixes = @("src/$PluginName/", "plugins/$PluginName/")
+$foreignPaths = @()
+foreach ($line in $dirtyLines) {
+    if ($line.Length -lt 4) { continue }
+    foreach ($side in ($line.Substring(3) -split ' -> ')) {
+        $p = ($side.Trim().Trim('"') -replace '\\', '/')
+        $allowed = ($p -eq 'pluginmaster.json')
+        foreach ($a in $allowedPrefixes) { if ($p.StartsWith($a)) { $allowed = $true } }
+        if (-not $allowed) { $foreignPaths += $p }
+    }
+}
+if ($foreignPaths.Count -gt 0) {
+    $foreignList = ($foreignPaths | Sort-Object -Unique) -join ', '
+    throw @"
+Refusing to make the release commit: the worktree carries changes outside this release's own
+paths: $foreignList
+The release commit may sweep only src/$PluginName/, plugins/$PluginName/ and pluginmaster.json,
+so unrelated work is never pushed by a packaging run. Commit or stash those paths first (for a
+multi-plugin release, commit every other plugin's prep too), then re-run - add -Republish if
+$version is already registered for '$Channel'.
+"@
+}
+
+if ($dirtyLines.Count -gt 0) {
+    Invoke-GitChecked @('add', '--', "src/$PluginName", "plugins/$PluginName", 'pluginmaster.json')
+    Invoke-GitChecked @('commit', '-m', "release: $PluginName $version ($Channel) [packager]")
+    $shortSha = [string](Invoke-GitChecked @('rev-parse', '--short', 'HEAD') | Select-Object -First 1)
+    Write-Host "Release commit $shortSha : src/$PluginName, plugins/$PluginName, pluginmaster.json"
+}
+
+# Push the release commit; the release's tag will name exactly this SHA (step 6 publish).
+$push = Invoke-GitRaw @('push', 'origin', 'HEAD:main')
+if ($push.Code -ne 0) {
+    $pushText = $push.Text
+    throw @"
+Push of the release commit to origin/main was rejected - origin/main moved ahead (another
+release landed while this one was packaged), so this push is not a fast-forward:
+$pushText
+Nothing was published to GitHub and the feed on origin is untouched. Recover inside this
+worktree:  git fetch origin ; git rebase origin/main
+(keep BOTH releases' pluginmaster.json changes when resolving; a textual merge usually
+succeeds), then re-run with -PluginName $PluginName -Channel $Channel -Republish.
+"@
+}
+$pushedSha = [string](Invoke-GitChecked @('rev-parse', 'HEAD') | Select-Object -First 1)
+$remoteMain = [string]((Invoke-GitChecked @('ls-remote', 'origin', 'refs/heads/main')) -split "`t" | Select-Object -First 1)
+if ($remoteMain -ne $pushedSha) {
+    throw "origin/main is $remoteMain but the release commit is $pushedSha; refusing to publish the release."
+}
+
+if (-not $NoRelease) {
+    try {
+        $uploadedUrl = Publish-PluginRelease -PluginName $PluginName -Version $version -Channel $Channel `
+            -ZipPath $zipPath -DisplayName $manifest.Name -Notes $releaseNotes -TargetCommit $pushedSha -RepoRoot $RepoRoot
+        if ($uploadedUrl -ne $releaseUrl) {
+            throw "Published asset URL '$uploadedUrl' differs from the link committed into pluginmaster.json ('$releaseUrl')."
+        }
+        Write-Host "Release asset: $uploadedUrl" -ForegroundColor Green
+        Write-Host "Tag $PluginName-v$version -> $pushedSha (on origin/main); verify: python tools/check-release-tags.py" -ForegroundColor Green
+    } catch {
+        # The release commit is already pushed with the asset link. Fall the feed back to the
+        # raw copy (uncounted, but always resolves) and push that fix, so origin never serves
+        # a link to an asset that does not exist - the same ship-anyway guarantee the old
+        # pre-push publish had.
+        Write-Host "WARNING: GitHub Release publish failed: $($_.Exception.Message)" -ForegroundColor Yellow
+        Write-Host "         Falling pluginmaster.json back to the raw.githubusercontent.com copy and pushing that:" -ForegroundColor Yellow
+        Write-Host "         the build ships, its downloads are not counted." -ForegroundColor Yellow
+        $masterList2 = ([System.IO.File]::ReadAllText($masterPath, [System.Text.Encoding]::UTF8) | ConvertFrom-Json)
+        $entry2 = $masterList2 | Where-Object { $_.InternalName -eq $PluginName }
+        Set-EntryDownloadLinks -Entry $entry2 -PluginName $PluginName -Channel $Channel
+        [System.IO.File]::WriteAllText($masterPath, ($masterList2 | ConvertTo-Json -Depth 100), [System.Text.UTF8Encoding]::new($false))
+        Invoke-GitChecked @('add', '--', 'pluginmaster.json')
+        Invoke-GitChecked @('commit', '-m', "fix: $PluginName $version raw download fallback (release publish failed) [packager]")
+        $push2 = & git -C $RepoRoot push origin HEAD:main 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            $push2Text = $push2 -join "`n"
+            throw "Raw-fallback push failed after a publish failure: pluginmaster.json on disk points at the raw copy but origin still carries the asset link. Push manually from $RepoRoot. Output:`n$push2Text"
+        }
+        Write-Host "         Raw fallback pushed. For a counted link, fix the cause and re-run with -Republish." -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "Release commit pushed to origin/main ($pushedSha); the raw link serves once GitHub's CDN refreshes."
+}
 
 Write-Host "==> SUCCESS: $PluginName packaged and registered in pluginmaster.json!" -ForegroundColor Green

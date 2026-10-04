@@ -92,19 +92,21 @@ TEST BUILD (default for every change):
 2. Update csproj + src/<Plugin>/CHANGELOG.md (player-facing: the in-game popup renders it verbatim)
 2b. Run tests/LalaChangelog.Harness — every plugin PASS, newest CHANGELOG entry == csproj <Version>
 2c. python tools/check-preset-ids.py .  — MUST print 0 duplicate values (silent-breakage gate, see Rules)
-3. tools/Package-Plugin.ps1 -PluginName <Plugin> -Channel testing
-4. ** VERIFY: git diff pluginmaster.json — ONLY TestingAssemblyVersion + TestingDalamudApiLevel + DownloadLinkTesting moved; AssemblyVersion and the production links untouched, no regression **
-4b. ** VERIFY: DownloadLinkTesting == https://github.com/dajoey/lalalazy/releases/download/<Plugin>-v<version>/<Plugin>-testing.zip (a testing-exclusive plugin's Install/Update move with it). A raw.githubusercontent.com link means the packager printed "GitHub Release publish failed": fix the cause, re-run with -Republish BEFORE pushing **
+3. tools/Package-Plugin.ps1 -PluginName <Plugin> -Channel testing   (it commits the release commit itself and pushes it — see step 6)
+4. ** VERIFY: git show HEAD -- pluginmaster.json — ONLY TestingAssemblyVersion + TestingDalamudApiLevel + DownloadLinkTesting moved; AssemblyVersion and the production links untouched, no regression **
+4b. ** VERIFY: DownloadLinkTesting == https://github.com/dajoey/lalalazy/releases/download/<Plugin>-v<version>/<Plugin>-testing.zip (a testing-exclusive plugin's Install/Update move with it). A raw.githubusercontent.com link means the packager printed "GitHub Release publish failed" and pushed the raw fallback: fix the cause, re-run with -Republish **
 5. ** VERIFY: extract manifest from plugins/<Plugin>/testing/testing.zip — version == TestingAssemblyVersion **
-6. git add (csproj, CHANGELOG, pluginmaster.json, plugins/<Plugin>/testing/*), commit, push
-7. Verify in-game from the testing channel
+6. The packager already made the release commit (src/<Plugin>, plugins/<Plugin>, pluginmaster.json ONLY — it refuses the run if anything else is dirty, so commit your source changes, and every other plugin's prep for a joint release, BEFORE packaging) and pushed it; the release tag names exactly that pushed commit
+7. python tools/check-release-tags.py — MUST exit 0 (every release tag names its own release commit on origin/main)
+8. Verify in-game from the testing channel
 
 PROMOTE TO PRODUCTION (only after in-game verification):
 1. Same csproj version — no new bump
 2. tools/Package-Plugin.ps1 -PluginName <Plugin> -Channel production
-3. ** VERIFY: git diff pluginmaster.json — AssemblyVersion increased to the tested version, no regression; DownloadLinkInstall/Update == .../releases/download/<Plugin>-v<version>/<Plugin>.zip **
+3. ** VERIFY: git show HEAD -- pluginmaster.json — AssemblyVersion increased to the tested version, no regression; DownloadLinkInstall/Update == .../releases/download/<Plugin>-v<version>/<Plugin>.zip **
 4. ** VERIFY: extract manifest from plugins/<Plugin>/latest/latest.zip — version == AssemblyVersion **
-5. git add, commit, push
+5. The packager already committed and pushed (same paths as a testing build); the release's tag keeps naming its own release commit
+6. python tools/check-release-tags.py — MUST exit 0
 
 AFTER ANY MERGE THAT TOUCHED pluginmaster.json (upstream merges, rebases, conflict fixes):
    powershell -NoProfile -File tools\Migrate-ToReleases.ps1 -Check   — MUST print OK before pushing

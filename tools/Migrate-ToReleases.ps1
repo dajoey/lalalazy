@@ -11,6 +11,10 @@
   change in pluginmaster.json (a textual edit: the rest of the file keeps its bytes), and every
   edit is proven to match exactly one line before anything is published.
   Re-runnable: a link that already points at a Release asset is left alone.
+  Since 2026-10-04 Publish-PluginRelease refuses to CREATE a release without a -TargetCommit
+  already on origin/main (release tags must name their own release commit, not an unpushed
+  worktree's notion of 'main'). This one-off finished 2026-09-25 and re-runs only replace
+  assets on EXISTING releases, which creates no tag and needs no target.
 
   -Check publishes nothing: every Release link must name the version its entry advertises for
   that channel. Run it after any merge that touched pluginmaster.json - a merge can pair one
