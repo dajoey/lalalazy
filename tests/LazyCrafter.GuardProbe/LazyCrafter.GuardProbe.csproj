@@ -20,6 +20,11 @@
     <Compile Include="..\..\src\LazyCrafter\Adapters\Dispatch\ArcDispatch.cs" Link="Adapters\Dispatch\ArcDispatch.cs" />
     <Compile Include="..\..\src\LazyCrafter\Adapters\Dispatch\RetainerFetch.cs" Link="Adapters\Dispatch\RetainerFetch.cs" />
     <Compile Include="..\..\src\LazyCrafter\Adapters\ReflectionGuardExtensions.cs" Link="Adapters\ReflectionGuardExtensions.cs" />
+    <!-- The dispatch adapters have referenced LazyCrafter.Core since 0.1.6.13 (RetainerFetch classifies its
+         thrown-preflight string with Core.FetchGatePolicy.PreflightThrewPrefix). All of Core is pure BCL - no
+         Dalamud/Lumina/ECommons usings - so include it whole; a Core file that ever gains a game dependency
+         breaks this probe's build loudly instead of the include list silently going stale again. -->
+    <Compile Include="..\..\src\LazyCrafter\Core\**\*.cs" Link="Core\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>
