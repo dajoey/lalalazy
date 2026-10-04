@@ -201,7 +201,7 @@ internal partial class MCH
         if (alwaysAutoCrossbow ||
             !ActionLearned(CheckMate) && ActionReady(AutoCrossbow) ||
             ActionLearned(CheckMate) && ActionLearned(BlazingShot) &&
-            NumberOfEnemiesInRange(AutoCrossbow, CurrentTarget) >= 5 ||
+            NumberOfEnemiesInRange(AutoCrossbow, CurrentTarget) >= 6 ||
             !gaussRicoEnabled && ActionReady(AutoCrossbow))
             return AutoCrossbow;
 
