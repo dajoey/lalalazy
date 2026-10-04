@@ -96,6 +96,24 @@ namespace GluttonyCombo.Resources.Localization.JobConfigs {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Use {0} on cooldown.
+        /// </summary>
+        internal static string ManaficationOnCooldown0 {
+            get {
+                return ResourceManager.GetString("ManaficationOnCooldown0", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to On: {0} is used as soon as it is ready instead of being held for Embolden; better in fights with unknown kill times. Off (default): {0} waits for Embolden.
+        /// </summary>
+        internal static string ManaficationOnCooldownDesc {
+            get {
+                return ResourceManager.GetString("ManaficationOnCooldownDesc", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Pull with {0}/{1}.
         /// </summary>
         internal static string PullWith0_1 {

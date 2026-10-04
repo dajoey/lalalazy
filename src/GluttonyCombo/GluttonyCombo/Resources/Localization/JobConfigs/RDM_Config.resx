@@ -130,6 +130,12 @@
   <data name="AutoRotationWarning1" xml:space="preserve">
     <value>WARNING: {0} IS NOT ENABLED.</value>
   </data>
+  <data name="ManaficationOnCooldown0" xml:space="preserve">
+	  <value>Use {0} on cooldown</value>
+  </data>
+  <data name="ManaficationOnCooldownDesc" xml:space="preserve">
+	  <value>On: {0} is used as soon as it is ready instead of being held for Embolden; better in fights with unknown kill times. Off (default): {0} waits for Embolden to be ready or active.</value>
+  </data>
   <data name="DynamicallySwitchTo0" xml:space="preserve">
 	  <value>Dynamically switch to {0}</value>
   </data>
