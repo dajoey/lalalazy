@@ -5,6 +5,7 @@ using ECommons.GameFunctions;
 using System.Linq;
 using GluttonyCombo.Core;
 using GluttonyCombo.CustomComboNS;
+using GluttonyCombo.Data;
 using GluttonyCombo.Extensions;
 using GluttonyCombo.Native;
 using static GluttonyCombo.Combos.PvE.AST.Config;
@@ -271,7 +272,7 @@ internal partial class AST : Healer
 
                 //Play Card
                 if (IsEnabled(Preset.AST_DPS_AutoPlay) && HasDPSCard && ActionLearned(Play1) &&
-                    (HasDivination || !cardPooling || !ActionLearned(Divination)))
+                    (HasDivination || GetTargetHPPercent() <= divHPThreshold || !cardPooling || !ActionLearned(Divination)))
                     return IsEnabled(Preset.AST_Cards_QuickTargetCards)
                         ? OriginalHook(Play1).Retarget(replacedActions, CardResolver)
                         : OriginalHook(Play1);
@@ -279,7 +280,7 @@ internal partial class AST : Healer
                 //Minor Arcana / Lord of Crowns
                 if (IsEnabled(Preset.AST_DPS_LazyLord) && HasLord &&
                     HasBattleTarget() && ActionLearned(MinorArcana) &&
-                    (HasDivination || !lordPooling || !ActionLearned(Divination)))
+                    (HasDivination || GetTargetHPPercent() <= divHPThreshold || !lordPooling || !ActionLearned(Divination)))
                     return OriginalHook(MinorArcana);
 
                 //Card Draw
@@ -297,7 +298,8 @@ internal partial class AST : Healer
                     !HasDivination && HasBattleTarget() &&
                     !LocalPlayer.HasStatus(Buffs.Divining) &&
                     GetTargetHPPercent() > divHPThreshold &&
-                    (WaitGCDs || StandStill))
+                    (WaitGCDs || StandStill &&
+                     (IsEnabled(Preset.AST_ST_DPS_Opener) || ActionWatching.NumberOfGcdsUsed >= 3)))
                     return Divination;
 
                 //Earthly Star
