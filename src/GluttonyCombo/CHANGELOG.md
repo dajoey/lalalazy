@@ -1,3 +1,18 @@
+## v1.0.4.277 (2026-10-04) [testing]
+### Changed
+- **Out of combat, the auto-rotation no longer fires combat-only actions.** An action that can only
+  be aimed at an enemy (attacks, gap-closers, charge and gauge dumps) now waits for combat even
+  with the quest and FATE bypass toggles on, so the rotation can no longer start a fight on its own
+  while the party is out of combat. Out-of-combat behavior that targets only the player or allies
+  is unchanged: pre-pull buffs, Beastmaster pre-pull horns toward a target the player chose, heals,
+  raises, cleanses and ground-targeted actions still fire, and a pull still starts from the
+  player's own target or button press.
+- **Out of combat, the auto-rotation no longer changes the player's target** in DPS or healer
+  hard-target modes, and the enemy-reflect and action-penalty guards no longer select or clear the
+  target or cancel casts while out of combat, so a lingering penalty can no longer cancel a
+  Teleport or Return. In combat, all of these behave as before.
+### Notes
+- Testing channel only; the production channel is unchanged.
 ## v1.0.4.276 (2026-10-04) [testing]
 ### Added
 - **Sage: a new option, off by default, holds Phlegma charges for the party's burst windows instead
