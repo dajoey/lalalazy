@@ -325,7 +325,9 @@ internal partial class NIN : Melee
 
                 if (IsEnabled(Preset.NIN_ST_AdvancedMode_Bhavacakra) && CanBhavacakra &&
                     (NinkiPooling || !NIN_ST_AdvancedMode_Bhavacakra_Pooling))
-                    return ActionLearned(Bhavacakra) ? OriginalHook(Bhavacakra) : OriginalHook(HellfrogMedium);
+                    return ActionLearned(Bhavacakra) &&
+                           !(ActionLearned(HellfrogMedium) && NumberOfEnemiesInRange(HellfrogMedium) >= 2)
+                        ? OriginalHook(Bhavacakra) : OriginalHook(HellfrogMedium);
 
                 if (IsEnabled(Preset.NIN_ST_AdvancedMode_Mug) && CanMugST && CombatEngageDuration().TotalSeconds > 5 &&
                     GetTargetHPPercent() > STMugThreshold)
