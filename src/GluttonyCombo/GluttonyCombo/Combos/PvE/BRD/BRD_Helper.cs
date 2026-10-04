@@ -724,7 +724,7 @@ internal partial class BRD
                 return true;
             }
 
-            if (UsePooledApex() || !apexPoolingEnabled && gauge.SoulVoice == 100)
+            if (UsePooledApex() || gauge.SoulVoice == 100 && (!apexPoolingEnabled || RagingCD > 62))
             {
                 actionID = ApexArrow;
                 return true;

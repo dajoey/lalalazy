@@ -7,10 +7,10 @@
 // runs over harness-owned memory (FakeGauges, the stub-layer approach), so
 // gauge.SoulVoice in the job file is the real property reading fake bytes.
 //
-// THE CASES: one characterization case that pins today's behaviour on the unchanged
-// source, plus a canary with the opposite assertion (must FAIL — proves the harness can
-// fail). The improvement's own case and its paired unchanged-behaviour case are added by
-// the BRD-1 commit, which flips the failing case to passing with the one-line fix.
+// THE CASES: a characterization case pinning today's in-window behaviour on the unchanged
+// source, the BRD-1 case with its paired unchanged-behaviour case (added by the ROT-BRD-1
+// commit together with the one-line fix), and a canary with the opposite assertion (must
+// FAIL — proves the harness can fail).
 //
 // RUN:   dotnet build tests\GluttonyCombo.RotationHarness.BRD -c Release
 //        dotnet tests\GluttonyCombo.RotationHarness.BRD\bin\Release\net10.0-windows7.0\GluttonyCombo.RotationHarness.BRD.dll
@@ -56,6 +56,25 @@ internal static class Program
         Check("BRD characterization: Apex pooling on, Soul Voice 100, inside the full buff window (RS 15s left, RS CD 75s): Invoke(HeavyShot) returns Apex Arrow",
             got == BRD.ApexArrow, $"returned {got}");
 
+        // ---- BRD-1: fire Apex Arrow at gauge 100 when the next window is far off (pooling on) ----
+        // The improvement row's state: Apex Pooling on, Soul Voice capped, no buff window,
+        // Raging Strikes on cooldown with 90 s to go. Today the gauge-100 case is OR'd behind
+        // !apexPoolingEnabled (false for this preset), so the gauge overcaps into Burst Shot.
+        SetAdvModeState();
+        SetRagingCooldown(90f);
+        uint got3 = new BRD.BRD_ST_AdvMode().RunInvoke(BRD.HeavyShot);
+        Check("BRD-1: Apex pooling on, Soul Voice 100, no buff window, Raging Strikes cooldown 90s: Invoke(HeavyShot) returns Apex Arrow instead of pooling into Burst Shot",
+            got3 == BRD.ApexArrow, $"returned {got3}");
+
+        // ---- BRD-1 paired: window approaching, behaviour must NOT change ----
+        // Same state but RS CD 40 s (inside the 62 s-to-window pooling band): today's code pools
+        // (falls through to Burst Shot) and it must still pool after the fix.
+        SetAdvModeState();
+        SetRagingCooldown(40f);
+        uint got4 = new BRD.BRD_ST_AdvMode().RunInvoke(BRD.HeavyShot);
+        Check("BRD-1 paired: identical but Raging Strikes cooldown 40s (window within 62s): Invoke(HeavyShot) still returns Burst Shot, Apex stays pooled",
+            got4 == BRD.BurstShot, $"returned {got4}");
+
         // ---- the CANARY: same state, opposite assertion; must FAIL ----
         SetAdvModeState();
         FakeGame.Statuses.Add(new(BRD.Buffs.RagingStrikes, 15f));
@@ -86,8 +105,8 @@ internal static class Program
         foreach (var p in new[]
                  {
                      Preset.BRD_ST_AdvMode, Preset.BRD_Adv_Song, Preset.BRD_Adv_Buffs, Preset.BRD_ST_Adv_oGCD,
-                     Preset.BRD_Adv_Pooling, Preset.BRD_Adv_DoT, Preset.BRD_Adv_BuffsEncore,
-                     Preset.BRD_ST_ApexArrow, Preset.BRD_Adv_BuffsResonant,
+                     Preset.BRD_Adv_Pooling, Preset.BRD_Adv_ApexPooling, Preset.BRD_Adv_DoT,
+                     Preset.BRD_Adv_BuffsEncore, Preset.BRD_ST_ApexArrow, Preset.BRD_Adv_BuffsResonant,
                  })
             FakeGame.EnabledPresets.Add(p); // opener child (BRD_ST_Adv_Balance_Standard) deliberately NOT enabled
 
