@@ -1,3 +1,14 @@
+## v1.0.4.281 (2026-10-04) [testing]
+### Fixed
+- **The out-of-combat gate now follows your own out-of-combat settings.** With "Prioritise Targets
+  Not in Combat" on and "Restrict to Combat Only" off, auto-rotation attacks an enemy out of combat
+  again (and, with Always Hard Target on, targets it), instead of waiting for combat to start by
+  itself. With the defaults, or with "Restrict to Combat Only" on, nothing changes: out of combat
+  the rotation still does not pick a fight, change your target, or press overcap-protection dumps,
+  shields or raidwide answers.
+### Notes
+- Testing channel only; production stays on 1.0.4.278.
+
 ## v1.0.4.280 (2026-10-04) [testing]
 ### Notes
 - No rotation changes; corrects the release notes that shipped with 1.0.4.279. Testing channel

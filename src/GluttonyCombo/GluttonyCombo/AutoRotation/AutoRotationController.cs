@@ -223,6 +223,12 @@ internal unsafe class AutoRotationController
     static bool CombatBypass => DPSTargeting.BaseSelection.Any(x => (cfg.BypassQuest && IsQuestMob(x)) || (cfg.BypassFATE && x.Struct()->FateId != 0 && InFATE()));
     static bool NotInCombat => !GetPartyMembers().Any(x => x.BattleChara is not null && x.BattleChara.Struct()->InCombat && !x.IsOutOfPartyNPC) || PartyEngageDuration().TotalSeconds < cfg.CombatDelay;
 
+    // Fork (1.0.4.281): the user's own out-of-combat attack settings ("Prioritise Targets Not in Combat" on,
+    // "Restrict to Combat Only" off) open the OutOfCombatGate for hostile-only attacks and the DPS hard-target
+    // write. Decision core and harness: OutOfCombatGate.UserAllowsOutOfCombatAttacks.
+    static bool UserAllowsOutOfCombatAttacks =>
+        OutOfCombatGate.UserAllowsOutOfCombatAttacks(cfg.InCombatOnly, cfg.DPSSettings.PreferNonCombat);
+
     private static DateTime? _phantomHealHoldSince;
     private static DateTime _phantomHealHoldBlockedUntil = DateTime.MinValue;
     private static DateTime _phantomHealLastFired = DateTime.MinValue;
@@ -2116,7 +2122,8 @@ internal unsafe class AutoRotationController
                 var blockedSelfBuffs = GetCooldown(outAct).CooldownTotal >= 5;
                 if (NotInCombat && !OutOfCombatGate.MayFire(targetsHostile, canUseSelf, areaTargeted,
                         attributes.AutoAction!.IsHeal,
-                        canUseSelf && cfg.BypassBuffs && !blockedSelfBuffs))
+                        canUseSelf && cfg.BypassBuffs && !blockedSelfBuffs,
+                        UserAllowsOutOfCombatAttacks))
                     return false;
 
                 var castTime = ActionManager.GetAdjustedCastTime(ActionType.Action, outAct);
@@ -2125,7 +2132,7 @@ internal unsafe class AutoRotationController
                 if (MovementBlocksCastStart(castTime, orbwalking))
                     return false;
 
-                if (OutOfCombatGate.MayWriteTarget(!NotInCombat) && cfg.DPSSettings.DPSAlwaysHardTarget && OverrideTarget is not null && !resolvedFriendlyOnly && !fellBack)
+                if (OutOfCombatGate.MayWriteTarget(!NotInCombat, UserAllowsOutOfCombatAttacks) && cfg.DPSSettings.DPSAlwaysHardTarget && OverrideTarget is not null && !resolvedFriendlyOnly && !fellBack)
                     Svc.Targets.Target = OverrideTarget;
                 var acRangeCheck = ActionManager.GetActionInRangeOrLoS(outAct, player.GameObject(), OverrideTarget is null ? player.GameObject() : OverrideTarget.Struct());
                 var inRange = acRangeCheck is 0 or 565 || canUseSelf || areaTargeted;
@@ -2325,10 +2332,13 @@ internal unsafe class AutoRotationController
             // stances) keeps firing. OutOfCombatGateHarness pins the semantics.
             if (NotInCombat && ActionSheet.TryGetValue(outAct, out var gateRow) && !OutOfCombatGate.MayFire(gateRow.CanTargetHostile, gateRow.CanTargetSelf, gateRow.TargetArea,
                     attributes.AutoAction!.IsHeal,
-                    canUseSelf && cfg.BypassBuffs && !blockedSelfBuffs))
+                    canUseSelf && cfg.BypassBuffs && !blockedSelfBuffs,
+                    UserAllowsOutOfCombatAttacks))
                 return false;
 
-            if (target is not null && !fellBack && OutOfCombatGate.MayWriteTarget(!NotInCombat))
+            // 1.0.4.281: the DPS hard-target write follows the user's out-of-combat attack settings;
+            // the healer hard-target write (and any friendly-only resolution) stays combat-only.
+            if (target is not null && !fellBack && OutOfCombatGate.MayWriteTarget(!NotInCombat, !isHeal && UserAllowsOutOfCombatAttacks))
             {
                 if ((!isHeal && cfg.DPSSettings.DPSAlwaysHardTarget && mode is not DPSRotationMode.Manual) || (isHeal && cfg.HealerSettings.HealerAlwaysHardTarget && mode is not HealerRotationMode.Manual))
                     Svc.Targets.Target = target;
