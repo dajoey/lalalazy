@@ -12,6 +12,7 @@ using System.Linq;
 using GluttonyCombo.Combos.PvE;
 using GluttonyCombo.Core;
 using GluttonyCombo.Data;
+using GluttonyCombo.AutoRotation;
 using GluttonyCombo.Data.BattleData;
 using GluttonyCombo.Services;
 using GluttonyCombo.Services.ActionRequestIPC;
@@ -401,21 +402,33 @@ internal abstract partial class CustomComboFunctions
                ActionReady(actionId);                              // Action Ready
     }
 
+    // Fork (1.0.4.278): incoming damage is a combat concept. Out of combat no hostile
+    // cast bar can threaten the party, yet the 48h logs behind the 2026-10-04 report
+    // show field FATE mobs' wide casts driving the whole raidwide-shield chain at a
+    // full-HP party (Eukrasian Prognosis II x138, Medica III x41, Holy III x45,
+    // Assize x36). OutOfCombatGate.MayDetectIncomingDamage pins the rule; a shield
+    // chain already committed in combat still finishes (the lock latches on its own).
     public static bool GroupDamageIncoming(float? maxTimeRemaining = null) =>
-        RaidwideCasting(maxTimeRemaining) ||
-        CheckForSharedDamageEffect(out _, out _, 6f);
+        OutOfCombatGate.MayDetectIncomingDamage(InCombat()) &&
+        (RaidwideCasting(maxTimeRemaining) ||
+         CheckForSharedDamageEffect(out _, out _, 6f));
 
     public static bool GroupDamageIncoming
         (out bool isMultiHit, float? maxTimeRemaining = null)
     {
         isMultiHit = false;
-        return CheckForSharedDamageEffect(out isMultiHit, out _, 6f) ||
-               RaidwideCasting(maxTimeRemaining);
+        return OutOfCombatGate.MayDetectIncomingDamage(InCombat()) &&
+               (CheckForSharedDamageEffect(out isMultiHit, out _, 6f) ||
+                RaidwideCasting(maxTimeRemaining));
     }
 
     private static bool _raidwideInc;
     public static bool RaidwideCasting(float? maxTimeRemaining = null)
     {
+        // Fork (1.0.4.278): combat-only, same rule as GroupDamageIncoming (see above).
+        if (!OutOfCombatGate.MayDetectIncomingDamage(InCombat()))
+            return _raidwideInc = false;
+
         if (!EzThrottler.Throttle("RaidWideCheck", 100))
             return _raidwideInc;
 
