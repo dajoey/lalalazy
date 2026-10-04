@@ -26,6 +26,7 @@ internal static class Program
         Telemetry();
         PolicyCases.Run();
         ReplayCases.Run();
+        HealStockCases.Run();
         GuideCases.Run();
         NeedFirstCases.Run();
         ResearchLogCases.Run();
