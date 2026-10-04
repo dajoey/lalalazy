@@ -52,6 +52,9 @@ internal partial class WHM
                     DrawRoundedSliderFloat(0, 4, WHM_ST_DPS_AeroUptime_Threshold, Generics.DoTSecondsRemainingZeroDisable, digits: 1);
                     ImGui.Unindent();
                     DrawAdditionalBoolChoice(WHM_ST_MainCombo_DoT_TwoTarget, Generics.TwoTargetDotting, Generics.TwoTargetDottingDescription);
+                    DrawAdditionalBoolChoice(WHM_ST_MainCombo_DoT_EarlyInBuffs,
+                        FormatAndCache(WHM_Config.EarlyInBuffs0, Dia.ActionName()),
+                        WHM_Config.EarlyInBuffsDesc);
                     break;
 
                 case Preset.WHM_ST_MainCombo_Misery:
@@ -459,6 +462,13 @@ internal partial class WHM
 
         public static UserBool WHM_ST_MainCombo_DoT_TwoTarget =
             new("WHM_ST_MainCombo_DoT_TwoTarget", true);
+
+        /// <summary>
+        ///     Refresh Dia early while the party is bursting (opt-in, default off).
+        /// </summary>
+        /// <seealso cref="Preset.WHM_ST_MainCombo_DoT" />
+        public static UserBool WHM_ST_MainCombo_DoT_EarlyInBuffs =
+            new("WHM_ST_MainCombo_DoT_EarlyInBuffs");
 
         /// <summary>
         ///     HP threshold to stop applying DoTs on Non-Bosses in boss encounters.

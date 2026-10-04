@@ -10,7 +10,9 @@
 // THE CASES (round 7, improvement WHM-1 from the ranked list):
 //   CHAR   — Dia at 1.5s remaining under the default refresh window (2s): the MainCombo returns Dia
 //            (today's normal refresh behaviour; must keep passing).
-//   (WHM-1 cases are added with the WHM-1 commit: early Dia refresh inside party buffs, opt-in.)
+//   WHM-1  — opt-in "refresh Dia early in buffs": with the option on and the party bursting, a
+//            10 s widened refresh window returns Dia at 8 s remaining; three controls pin the
+//            option off, the burst off, and the window bound at 10 s (12 s still casts Glare3).
 //
 // THE CANARY: the CHAR state run through an assertion of the OPPOSITE behaviour. It is EXPECTED TO
 // FAIL; the harness only exits 0 when the canary fails as expected (proof the test can actually fail).
@@ -63,6 +65,52 @@ internal static class Program
         CheckCanary($"CANARY (expected to FAIL): identical CHAR state, asserting Invoke(Stone1) " +
                     $"does NOT return Dia", gotCanary != WHM.Dia, $"returned {gotCanary}");
 
+        // ==== WHM-1: opt-in early Dia refresh while the party is bursting (SC11 round 7) ====
+        // The improvement: with the option on and Bursting.PartyIsBursting true, the refresh window
+        // widens (2 s -> 10 s), so Dia is refreshed early to land inside raid buffs instead of
+        // ticking down outside them. Off (the default) or outside a burst: today's 2 s window.
+
+        // WHM-1: option ON + party bursting + Dia 8 s left -> Dia (the widened window reaches it)
+        SetFightState();
+        SetEarlyInBuffs(on: true);
+        FakeGame.PartyIsBursting = true;
+        TargetDia(8f);
+        uint gotWhm1 = InvokeMain();
+        Check("WHM-1: option on + party bursting + Dia 8 s remaining: " +
+              $"Invoke(Stone1) returns Dia ({WHM.Dia}) — refreshed early into the burst",
+            gotWhm1 == WHM.Dia, $"returned {gotWhm1}");
+
+        // paired control: option OFF + party bursting + 8 s -> Glare3 (today's behaviour unchanged)
+        SetFightState();
+        SetEarlyInBuffs(on: false);
+        FakeGame.PartyIsBursting = true;
+        TargetDia(8f);
+        uint gotOff = InvokeMain();
+        Check("WHM-1 control: option off + party bursting + Dia 8 s remaining: " +
+              $"Invoke(Stone1) returns Glare3 ({WHM.Glare3}) — default window (2 s) does not reach 8 s",
+            gotOff == WHM.Glare3, $"returned {gotOff}");
+
+        // no-burst control: option ON but nobody bursting + 8 s -> Glare3 (widening needs the burst)
+        SetFightState();
+        SetEarlyInBuffs(on: true);
+        FakeGame.PartyIsBursting = false;
+        TargetDia(8f);
+        uint gotNoBurst = InvokeMain();
+        Check("WHM-1 control: option on + party NOT bursting + Dia 8 s remaining: " +
+              $"Invoke(Stone1) returns Glare3 ({WHM.Glare3}) — widening only applies inside a burst",
+            gotNoBurst == WHM.Glare3, $"returned {gotNoBurst}");
+
+        // window bound: option ON + bursting + Dia 12 s left -> Glare3 (the widened window is 10 s,
+        // so 12 s is still too far out — no re-refresh spam every GCD inside one buff window)
+        SetFightState();
+        SetEarlyInBuffs(on: true);
+        FakeGame.PartyIsBursting = true;
+        TargetDia(12f);
+        uint gotBound = InvokeMain();
+        Check("WHM-1 control: option on + party bursting + Dia 12 s remaining: " +
+              $"Invoke(Stone1) returns Glare3 ({WHM.Glare3}) — the widened window caps at 10 s",
+            gotBound == WHM.Glare3, $"returned {gotBound}");
+
         Console.WriteLine(_fail == 0
             ? $"OK ({_pass} checks, canary failed as expected)"
             : $"FAILED ({_fail} of {_pass + _fail})");
@@ -114,9 +162,17 @@ internal static class Program
         pom.CooldownRemaining = 30f;
     }
 
-    /// <summary>Put Dia on the fake target with the given remaining time (own status).</summary>
+    /// <summary>Set the WHM-1 option (WHM_ST_MainCombo_DoT_EarlyInBuffs) in the fake config store.</summary>
+    private static void SetEarlyInBuffs(bool on) =>
+        FakeGame.BoolValues["WHM_ST_MainCombo_DoT_EarlyInBuffs"] = on;
+
+    /// <summary>
+    ///     Put Dia on the fake target with the given remaining time (own status). The status id is the
+    ///     DEBUFF id from the real AeroList table (the job code maps action -> debuff through it), not
+    ///     the action id.
+    /// </summary>
     private static void TargetDia(float remainingSeconds) =>
-        FakeGame.TargetStatuses.Add(new FakeStatus(WHM.Dia, remainingSeconds, SourceId: 0));
+        FakeGame.TargetStatuses.Add(new FakeStatus(WHM.AeroList[WHM.Dia], remainingSeconds, SourceId: 0));
 
     private static uint InvokeMain() => new WHM.WHM_ST_MainCombo().RunInvoke(WHM.Stone1);
 

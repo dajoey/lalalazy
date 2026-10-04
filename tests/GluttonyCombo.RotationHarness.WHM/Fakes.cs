@@ -740,6 +740,7 @@ namespace GluttonyCombo.Combos.PvE
                 WHM_Opener_Potion = new("WHM_Opener_Potion"),
                 WHM_Opener_PrepullBlock = new("WHM_Opener_PrepullBlock", true),
                 WHM_ST_MainCombo_DoT_TwoTarget = new("WHM_ST_MainCombo_DoT_TwoTarget", true),
+                WHM_ST_MainCombo_DoT_EarlyInBuffs = new("WHM_ST_MainCombo_DoT_EarlyInBuffs"),
                 WHM_STHeals_IncludeShields = new("WHM_STHeals_IncludeShields", false),
                 WHM_STHeals_BenedictionWeave = new("WHM_STHeals_BenedictionWeave", false),
                 WHM_STHeals_TetraWeave = new("WHM_STHeals_TetraWeave", false),

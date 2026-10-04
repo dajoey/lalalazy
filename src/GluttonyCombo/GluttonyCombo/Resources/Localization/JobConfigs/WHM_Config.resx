@@ -98,4 +98,10 @@
 	<resheader name="writer">
 		<value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=2.0.3500.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
 	</resheader>
+	<data name="EarlyInBuffs0" xml:space="preserve">
+		<value>Refresh {0} early while the party is bursting</value>
+	</data>
+	<data name="EarlyInBuffsDesc" xml:space="preserve">
+		<value>On: while the party is bursting, the Dia refresh window widens from the configured seconds to 10 s, so Dia is refreshed inside raid buffs instead of ticking down outside them. Off (default): the refresh window is unchanged.</value>
+	</data>
 </root>

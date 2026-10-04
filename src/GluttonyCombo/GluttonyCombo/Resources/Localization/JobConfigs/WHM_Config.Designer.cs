@@ -59,5 +59,23 @@ namespace GluttonyCombo.Resources.Localization.JobConfigs {
                 resourceCulture = value;
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Refresh {0} early while the party is bursting.
+        /// </summary>
+        internal static string EarlyInBuffs0 {
+            get {
+                return ResourceManager.GetString("EarlyInBuffs0", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to On: while the party is bursting, the Dia refresh window widens from the configured seconds to 10 s, so Di.
+        /// </summary>
+        internal static string EarlyInBuffsDesc {
+            get {
+                return ResourceManager.GetString("EarlyInBuffsDesc", resourceCulture);
+            }
+        }
     }
 }
