@@ -1,3 +1,26 @@
+## v1.0.4.275 (2026-10-04) [testing]
+### Changed
+- **Beastmaster: the rotation log now records how each Trick ended (the pet's follow-up seen, timed
+  out, or still pending), so missing follow-ups can be traced to a cause.** The AoE preset also has a
+  new option, off by default, to hold Parting Blow until a chosen number of enemies stand in its area.
+- **Summoner: Aethercharge is no longer delayed by an extra Ruin when Searing Light is a few seconds
+  from ready, and Searing Light is cast when ready instead of waiting for a demi summon.** The Searing
+  Light Burst options no longer change anything and their descriptions now say so.
+- **Ninja: at two enemies in range the single-target Advanced rotation spends Ninki on Hellfrog
+  Medium instead of Bhavacakra.**
+- **Monk: in the AoE basic combo Twin Snakes replaces Four-Point Fury in Raptor form below four
+  enemies in range.** The Perfect Balance sequence is unchanged.
+- **Reaper: in the AoE mode an Enhanced Gibbet or Gallows is used over Guillotine at three enemies in
+  range.** Four or more still use Guillotine.
+- **Astrologian: held damage cards and Lord of Crowns are played when Divination cannot fire, instead
+  of waiting for it.** With the opener preset off, the first Divination waits until three GCDs have
+  been used.
+- **Dragoon: Life Surge is no longer offered right after Heavens' Thrust.** It is kept for Heavens'
+  Thrust or Drakesbane.
+- **Machinist: AoE Advanced Hypercharge windows use Auto Crossbow only from six targets onward.**
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v1.0.4.274 (2026-10-04) [testing]
 ### Fixed
 - **Beastmaster, Crucible: the idle log now says why the beast tamer stood around.** Two of the biggest
