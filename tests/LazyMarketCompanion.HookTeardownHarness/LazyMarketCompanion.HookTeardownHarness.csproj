@@ -5,7 +5,7 @@
        Case A requires the detour to fail soft instead of throwing out of the detour (the
        2026-08-31 / 2026-10-03 game crash family); Case B requires the teardown to wait (bounded)
        for a detour that is still in flight before disposing the hook.
-         dotnet run -c Release --project tests/LazyMarketCompanion.HookTeardownHarness
+         dotnet run -c Release on project tests/LazyMarketCompanion.HookTeardownHarness
        Prints PASS/FAIL per case, "OK (n checks)" and exit 0 when every case passes. -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>

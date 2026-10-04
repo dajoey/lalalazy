@@ -8,7 +8,7 @@
        for a detour that is still in flight before disposing the hooks.
        The modules need the game assemblies, so this harness carries the ProjectReference and resolves
        Dalamud from the dev folder the way the plugin build does.
-         dotnet run -c Release --project tests/PvPSolver.HookTeardownHarness
+         dotnet run -c Release on project tests/PvPSolver.HookTeardownHarness
        Prints PASS/FAIL per case, "OK (n checks)" and exit 0 when every case passes. -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
