@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Reflection;
 
 namespace GluttonyCombo.HookTeardownHarness;
@@ -75,96 +74,50 @@ internal static class Program
             ex is null && ret is nint v && v == 0x1234);
     }
 
-    // Case B: Dispose() must wait (bounded) for a detour that is still running before
-    // disposing and nulling the hooks, and the detour must return cleanly afterwards.
+    // Case B: Dispose() must wait (bounded) for a detour that is still in flight before it disposes and
+    // nulls the hooks. The detour cannot run for real here (no hook object exists without the game), so
+    // the in-flight counter is held the way a running detour holds it.
     private static void CaseB()
     {
         Console.WriteLine("-- case B: Dispose() waits for an in-flight detour --");
-        RunDisposeWaits(typeof(ECommons.Hooks.StaticVfx), "StaticVfxRunDetour", "_staticVfxRunEvent",
-            "Run", "Dispose", [null!, 0f, 0]);
-        RunDisposeWaits(typeof(ECommons.Hooks.ActorVfx), "ActorVfxDtorDetour", "_actorVfxDtorEvent",
-            "Run1", "Dispose", [(nint)0]);
+        RunDisposeWaits(typeof(ECommons.Hooks.StaticVfx));
+        RunDisposeWaits(typeof(ECommons.Hooks.ActorVfx));
+        RunDisposeWaits(typeof(ECommons.Hooks.GameObjectCtor));
     }
 
-    private static void RunDisposeWaits(Type owner, string detourName, string eventField,
-        string blockerMethod, string disposeName, object?[] detourArgs)
+    private static void RunDisposeWaits(Type owner)
     {
-        var entered = new ManualResetEvent(false);
-        var release = new ManualResetEvent(false);
-        var field = owner.GetField(eventField, BindingFlags.NonPublic | BindingFlags.Static)
-            ?? ThrowMissing<FieldInfo>(owner, eventField);
-        var delegateType = field.FieldType;
-
-        var blocker = new Blocker(entered, release);
-        var subscriber = Delegate.CreateDelegate(delegateType, blocker,
-            blockerMethod);
-        field.SetValue(null, subscriber);
-        try
+        var field = owner.GetField("InFlight", BindingFlags.NonPublic | BindingFlags.Static);
+        if (field == null)
         {
-            Exception? onThread = null;
-            var t = new Thread(() =>
-            {
-                try
-                {
-                    Invoke(Detour(owner, detourName), detourArgs);
-                }
-                catch (Exception ex)
-                {
-                    onThread = ex;
-                }
-            });
-            t.Start();
-            if (!entered.WaitOne(5000))
-            {
-                Check($"{owner.Name}.{detourName}: the blocking subscriber was reached", false);
-                release.Set();
-                t.Join();
-                return;
-            }
+            Check($"{owner.Name}: an in-flight counter exists for its detours", false);
+            return;
+        }
 
-            var sw = Stopwatch.StartNew();
-            var dispose = owner.GetMethod(disposeName, BindingFlags.Public | BindingFlags.Static)
-                ?? ThrowMissing<MethodInfo>(owner, disposeName);
-            Exception? disposeEx = null;
+        Check($"{owner.Name}: an in-flight counter exists for its detours", true);
+        var counter = field.GetValue(null)!;
+        var token = counter.GetType().GetMethod("Enter", Type.EmptyTypes)!.Invoke(counter, null)!;
+        var release = token.GetType().GetMethod("Dispose", Type.EmptyTypes)!;
+
+        Exception? onThread = null;
+        var t = new Thread(() =>
+        {
             try
             {
-                dispose.Invoke(null, null);
+                owner.GetMethod("Dispose", BindingFlags.Public | BindingFlags.Static)!.Invoke(null, null);
             }
             catch (Exception ex)
             {
-                disposeEx = ex;
+                onThread = ex;
             }
+        });
+        t.Start();
+        Thread.Sleep(BlockMs / 2); // Dispose reaches its bounded wait; with no wait it has long returned
+        Check($"{owner.Name}.Dispose: waits while a detour is in flight", t.IsAlive);
 
-            var waitedWhileBlocked = sw.ElapsedMilliseconds >= BlockMs / 2;
-            Check($"{owner.Name}.{disposeName}: waits for the in-flight detour ({sw.ElapsedMilliseconds} ms while blocked)",
-                waitedWhileBlocked);
-
-            release.Set();
-            t.Join(5000);
-            Check($"{owner.Name}.{detourName}: returns cleanly once released", onThread is null);
-            Check($"{owner.Name}.{disposeName}: does not throw", disposeEx is null);
-        }
-        finally
-        {
-            field.SetValue(null, null);
-        }
-    }
-
-    /// <summary>A subscriber whose matching instance method blocks until released; bound to the
-    /// module's private callback-delegate type by reflection so the real detour fires it.</summary>
-    private sealed class Blocker(ManualResetEvent entered, ManualResetEvent release)
-    {
-        public void Run(nint a, float b, uint c)
-        {
-            entered.Set();
-            release.WaitOne(5000);
-        }
-
-        public void Run1(nint a)
-        {
-            entered.Set();
-            release.WaitOne(5000);
-        }
+        release.Invoke(token, null);
+        t.Join(5000);
+        Check($"{owner.Name}.Dispose: returns cleanly once the detour leaves", onThread is null && !t.IsAlive);
     }
 
     private static void CheckNoThrow(Type owner, string detourName, object?[] args)

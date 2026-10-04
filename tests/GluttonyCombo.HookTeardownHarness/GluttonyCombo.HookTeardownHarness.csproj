@@ -4,7 +4,7 @@
        by reflection with no game running: hook statics are null exactly as they are the moment after
        Dispose() has torn them down mid-hot-reload. Case A requires every detour to fail soft instead
        of throwing NullReferenceException out of the detour (the 2026-10-03 game crash, E0434352 /
-       80004003); Case B requires Dispose() to wait (bounded) for a detour that is still running
+       80004003); Case B requires Dispose() to wait (bounded) for a detour that is still in flight
        before it disposes and nulls the hooks.
          dotnet build tests/GluttonyCombo.HookTeardownHarness -c Release
          dotnet tests/GluttonyCombo.HookTeardownHarness/bin/Release/net10.0-windows7.0/GluttonyCombo.HookTeardownHarness.dll
