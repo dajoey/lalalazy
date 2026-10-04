@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- LazySkywardTracker hook-teardown harness (2026-10-04). Plain console app. Drives the REAL
+       LazySkywardTracker achievement-progress hook module by reflection with no game running: the
+       hook is null exactly as it is the moment after Dispose has torn it down mid-hot-reload.
+       Case A requires the detour to fail soft instead of throwing out of the detour (the
+       2026-08-31 / 2026-10-03 game crash family); Case B requires the teardown to wait (bounded)
+       for a detour that is still in flight before disabling the hook.
+         dotnet run -c Release --project tests/LazySkywardTracker.HookTeardownHarness
+       Prints PASS/FAIL per case, "OK (n checks)" and exit 0 when every case passes. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>LazySkywardTracker.HookTeardownHarness</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NoWarn>$(NoWarn);CS1574;CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\LazySkywardTracker\LazySkywardTracker.csproj" />
+  </ItemGroup>
+</Project>

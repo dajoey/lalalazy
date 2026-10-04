@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- LazyWTMath hook-teardown harness (2026-10-04). Plain console app. Drives the REAL KamiToolKit
+       hook modules (NativeAddon's FireCallback detour, NativeListController's populate detours) by
+       reflection with no game running: the hooks are null exactly as they are the moment after
+       teardown has torn them down mid-hot-reload. Case A requires the detours to fail soft instead
+       of throwing out of the detour (the 2026-08-31 / 2026-10-03 game crash family); Case B requires
+       the teardown to wait (bounded) for a detour that is still in flight before disposing the hooks.
+         dotnet run -c Release --project tests/LazyWTMath.HookTeardownHarness
+       Prints PASS/FAIL per case, "OK (n checks)" and exit 0 when every case passes. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>LazyWTMath.HookTeardownHarness</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NoWarn>$(NoWarn);CS1574;CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\LazyWTMath\KamiToolKit\KamiToolKit.csproj" />
+  </ItemGroup>
+</Project>
