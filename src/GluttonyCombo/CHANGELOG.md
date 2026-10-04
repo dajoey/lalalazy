@@ -1,3 +1,9 @@
+## v1.0.4.272 (2026-10-03) [testing]
+### Fixed
+- **A rare game crash when the plugin updates or reloads while the game is running.** The visual-effect, object-creation and action hooks could still be mid-call on the game's thread at the moment the plugin was unloaded, and the game then closed on an unhandled error. Every hook now counts the calls inside it, the unload waits (up to one second) for them to finish before the hooks are released, and a call that arrives after release returns harmlessly instead of failing.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v1.0.4.271 (2026-10-03) [testing]
 ### Fixed
 - **Beastmaster, Crucible: the stalled-attack telemetry no longer fires while attacks are flowing.** The stall line's clock mixed two time bases (UTC minus a local-time stamp), so its "nothing sent" reading always came out as the local UTC offset and every line claimed a 999-second stall - including moments of perfectly healthy attacking, which buried the real stalls the line was built to name. The clock now reads a single time base: the line appears only when the rotation chose an attack, the global cooldown is ready, and over a second has really passed with nothing sent, and its length field carries the true stall duration.

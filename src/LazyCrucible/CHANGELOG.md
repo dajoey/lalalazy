@@ -1,6 +1,12 @@
 # LazyCrucible — Changelog
 
 
+## v0.1.9.9 (2026-10-03) [testing]
+### Fixed
+- **A rare game crash when the plugin updates or reloads while the game is running.** The screen-recorder and agent-probe hooks could still be mid-call on the game's thread at the moment the plugin was unloaded, and the game then closed on an unhandled error. Every hook now counts the calls inside it, the unload waits (up to one second) for them to finish before the hooks are released, and a call that arrives after release returns harmlessly instead of failing.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v0.1.9.8 (2026-10-03) [testing]
 ### Fixed
 - **Need coverage on top of AutoDuty waits for AutoDuty to finish building its selection.** The previous version wrote the correction after AutoDuty's first toggle, when only one familiar was picked; the selection reverted within a fraction of a second and all four allowed corrections were spent in 1.5 seconds, before AutoDuty had even built its team. A fight that needs a dispel (the Strix Piece) then ran with no dispeller on the horn, five fights in a row. The correction now waits until AutoDuty's selection holds three picks (or has been quiet for 1.5 seconds if it stops short) before it is made. The same applies to the run roster, where AutoDuty clears the selection one pick at a time.
