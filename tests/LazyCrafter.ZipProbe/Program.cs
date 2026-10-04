@@ -13,7 +13,12 @@ using Lumina;
 //
 // Usage: LazyCrafter.ZipProbe <zipPath> [sqpack]
 
-var repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".."));
+// Walk up to the repo root by marker (tools/check-preset-ids.py) the same way the telemetry harnesses do;
+// a fixed ".." count silently resolved to the drive root once this probe moved under tests/.
+var repoDir = new DirectoryInfo(AppContext.BaseDirectory);
+while (repoDir is not null && !File.Exists(Path.Combine(repoDir.FullName, "tools", "check-preset-ids.py")))
+    repoDir = repoDir.Parent;
+var repoRoot = repoDir?.FullName ?? AppContext.BaseDirectory;
 var zip = args.Length > 0 ? args[0] : Path.Combine(repoRoot, @"plugins\LazyCrafter\testing\testing.zip");
 var sqpack = args.Length > 1 ? args[1] : @"C:\Program Files (x86)\SquareEnix\FINAL FANTASY XIV - A Realm Reborn\game\sqpack";
 var dalamud = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "XIVLauncher", "addon", "Hooks", "dev");
@@ -29,6 +34,18 @@ if (File.Exists(dalamudSylvan))
 {
     Console.WriteLine("FAIL: Dalamud ships Sylvan.Data.Csv itself; this probe cannot attribute the result to the zip.");
     return 2;
+}
+
+// Environment skips: the packaged zip and the game install are host artifacts, not repo state every build host has.
+if (!File.Exists(zip))
+{
+    Console.WriteLine($"SKIP: no packaged zip at {zip} - this host has no staged LazyCrafter release to prove self-sufficient (stage one or pass the zip path).");
+    return 0;
+}
+if (!Directory.Exists(sqpack))
+{
+    Console.WriteLine($"SKIP: no game install at {sqpack} - this probe loads the real sqpack to count drops, desynth sources and vendor NPCs, and this host has none.");
+    return 0;
 }
 
 var full = Path.Combine(Path.GetTempPath(), "lazycrafter-zipprobe", "full");
