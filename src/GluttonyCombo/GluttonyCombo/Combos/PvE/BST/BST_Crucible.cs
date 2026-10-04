@@ -47,8 +47,14 @@ internal partial class BST
 
     private static long _healPressPendingTick;
 
-    /// <summary> A landed press shows in TimeSinceActionUsed within this of the attempt; still unused later means the press was refused. </summary>
-    private const long HealPressGraceMs = 1500;
+    /// <summary> HP % when the pending press was made: a rise since then is evidence the potion was drunk. </summary>
+    private static float _healPressHp;
+
+    /// <summary>
+    ///     The heal (the potion's recast running, or HP rising) must show within this of the request: the item menu takes up to
+    ///     <see cref="ItemMenuWaitMs"/> to appear, the use and its recast follow. Still nothing later means the press was dead.
+    /// </summary>
+    private const long HealPressGraceMs = 3000;
 
     /// <summary> How long a refused heal-potion id is skipped before it is offered again (stock may have been re-bought meanwhile). </summary>
     private const long HealRefuseHoldMs = 10_000;
@@ -204,6 +210,7 @@ internal partial class BST
             _healPressPending = 0;
             _healPressPendingTick = 0;
             _healPressTick = 0;
+            _itemMenuOpenedTick = 0;
         }
 
         s.CrucibleBoard = BST_CrucibleData.BoardOfTerritory(territory);
@@ -275,11 +282,11 @@ internal partial class BST
         // clear. Recast alone pressed a dead G4 id while a G1 sat in the bag, and a press that does not land (a
         // stale-stock race) refuses that one id for a while so the next grade down answers — no blanket offer throttle,
         // which starved a need appearing just after an idle offer.
-        TrackHealPressOutcome(now);
-        s.ReadyHealPotion = now - _healPressTick < HealPressSpacingMs
+        TrackHealPressOutcome(now, s.PlayerHpPercent);
+        s.ReadyHealPotion = _healPressPending != 0 || now - _healPressTick < HealPressSpacingMs
             ? 0
             : BST_CrucibleLogic.PickHealPotion(
-                BST_CrucibleData.HealPotionActions, ReadHeldHealActions(), RefusedHealActions(now),
+                BST_CrucibleData.HealPotionActions, HeldHealActions(), RefusedHealActions(now),
                 id => GetCooldownRemainingTime(id) < 0.1f);
         s.PlayerIntakePerSecond = TrackIntake(now, player.CurrentHp);
         s.PlayerHasCleansableDebuff = player.HasCleansableDebuff;
@@ -393,36 +400,38 @@ internal partial class BST
         WarnEmptyHorns(s);
     }
 
-    /// <summary> The rotation pressed a heal potion this tick (from BST.Run): remember it so a dead press can be noticed and the next offer is spaced. </summary>
-    internal static void NoteHealPress(uint actionId, long now)
+    /// <summary> A heal potion was requested through the item menu (BST_CrucibleLive.RequestHealItem): remember it so its outcome is judged and the next offer is spaced. </summary>
+    private static void NoteHealPress(uint actionId, long now, float hpPercent)
     {
         _healPressPending = actionId;
         _healPressPendingTick = now;
         _healPressTick = now;
+        _healPressHp = hpPercent;
     }
 
     /// <summary>
-    ///     Resolve the last heal-potion press: the action firing at or after the attempt means it landed (its own recast
-    ///     spaces the next press); still unused past the grace refuses that id for <see cref="HealRefuseHoldMs"/>, so the
-    ///     offer steps down a grade instead of re-pressing a dead id.
+    ///     Judge the pending heal-potion request from the heal itself (<see cref="BST_CrucibleLogic.ResolveHealPress"/>): the
+    ///     potion's recast running or HP risen means it was drunk; nothing by the grace refuses that id for
+    ///     <see cref="HealRefuseHoldMs"/>, so the offer steps down a grade instead of re-pressing a dead id. The use STAMP is no
+    ///     evidence: the game client writes it when it accepts a press, whether or not the server honours it.
     /// </summary>
-    private static void TrackHealPressOutcome(long now)
+    private static void TrackHealPressOutcome(long now, float hpPercent)
     {
         if (_healPressPending == 0)
             return;
         var pending = _healPressPending;
-        var sinceUsed = TimeSinceActionUsed(pending);
-        if (sinceUsed >= 0f && (long)(sinceUsed * 1000f) + HealPressGraceMs >= now - _healPressPendingTick)
-        {
-            _healPressPending = 0;
-            RefusedHealPotions.Remove(pending);
+        var elapsed = now - _healPressPendingTick;
+        var outcome = BST_CrucibleLogic.ResolveHealPress(
+            elapsed, GetCooldownRemainingTime(pending) > 0.1f, hpPercent - _healPressHp, HealPressGraceMs);
+        if (outcome == BST_CrucibleLogic.HealPressOutcome.Pending)
             return;
-        }
-        if (now - _healPressPendingTick >= HealPressGraceMs)
-        {
+
+        _healPressPending = 0;
+        if (outcome == BST_CrucibleLogic.HealPressOutcome.Landed)
+            RefusedHealPotions.Remove(pending);
+        else
             RefusedHealPotions[pending] = now + HealRefuseHoldMs;
-            _healPressPending = 0;
-        }
+        LogHealItem($"{(outcome == BST_CrucibleLogic.HealPressOutcome.Landed ? "landed" : "dead")}|act={pending}|ms={elapsed}|hp={hpPercent:0}|from={_healPressHp:0}");
     }
 
     /// <summary> The still-refused heal-potion ids, pruning expired entries (a refusal expires so re-bought stock is offered again). </summary>

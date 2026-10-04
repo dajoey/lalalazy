@@ -138,8 +138,17 @@ internal partial class BST : Melee
         var decision = BST_RotationLogic.Decide(state, cfg);
         if (decision.Reason.StartsWith("crucible:dispel-", StringComparison.Ordinal))
             NoteDispelDecision(Environment.TickCount64);
+        // A heal potion is drunk through the Crucible item HUD (the action pressed as an action is accepted by the client and
+        // ignored by the server: 1 of 57 survival presses landed). The decision still reads in telemetry as the potion; the
+        // button gets the rotation action the tick would have taken without the potion.
+        var buttonAction = decision.ActionId;
         if (BST_CrucibleData.HealPotionActions.Contains(decision.ActionId))
-            NoteHealPress(decision.ActionId, Environment.TickCount64);
+        {
+            RequestHealItem(decision.ActionId, Environment.TickCount64, state.PlayerHpPercent);
+            var withoutPotion = state;
+            withoutPotion.ReadyHealPotion = 0;
+            buttonAction = BST_RotationLogic.Decide(withoutPotion, cfg).ActionId;
+        }
 
         LastDecisionActionId = decision.ActionId;
         LastDecisionReason = decision.Reason;
@@ -147,7 +156,7 @@ internal partial class BST : Melee
         LastSlotBeasts = $"{state.Slot1Beast}.{state.Slot2Beast}.{state.Slot3Beast}";
         LastShadow = decision.Shadow;
 
-        return decision.ActionId;
+        return buttonAction;
     }
 
     /// <summary> Last decision taken, sampled by <see cref="GluttonyCombo.Data.BeastmasterTelemetry"/> into BT|dec=. </summary>

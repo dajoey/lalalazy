@@ -1,3 +1,10 @@
+## v1.0.4.273 (2026-10-03) [testing]
+### Fixed
+- **Beastmaster, Crucible: heal potions are now actually drunk.** The survival policy decided to heal dozens of times and almost none of it happened: it pressed the potion's action like a skill, which the game accepts on the client and the server ignores, so health sat at the low mark while the same press repeated every two seconds. The Crucible's potions are drunk through the item panel, so the rotation now does exactly that: it opens the item menu on the slot holding the chosen potion and takes the menu's first entry (the same two steps the dungeon automation takes), then moves on with the normal rotation. It never opens the menu while another menu is up or the item shop is open.
+- **Beastmaster, Crucible: a heal that did not happen is now noticed.** The press tracker counted the game's own acceptance of a press as proof it worked, so a dead press was never refused and the same grade was retried for as long as health stayed low. A request now counts as landed only when the potion's recast starts or health rises; otherwise that grade is skipped for a while and the next held grade is tried. Each step logs one `HU|` line (open, choose, give-up, landed, dead) so the next run shows what the menu did.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v1.0.4.272 (2026-10-03) [testing]
 ### Fixed
 - **A rare game crash when the plugin updates or reloads while the game is running.** The visual-effect, object-creation and action hooks could still be mid-call on the game's thread at the moment the plugin was unloaded, and the game then closed on an unhandled error. Every hook now counts the calls inside it, the unload waits (up to one second) for them to finish before the hooks are released, and a call that arrives after release returns harmlessly instead of failing.

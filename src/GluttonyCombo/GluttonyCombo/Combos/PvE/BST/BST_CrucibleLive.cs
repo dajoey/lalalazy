@@ -317,46 +317,144 @@ internal partial class BST
     // ------------------------------------------------------------------ Crucible item HUD stock (XBMContentsMainHUD)
 
     /// <summary>
-    ///     Heal-potion actions with stock in the Crucible item HUD: the same slots the game shows and AutoDuty's item
-    ///     engine reads (slot base 9 + i*5: +1 the held byte, +3 the XBMItem row, +4 the name; grounded in the XB|
-    ///     captures, rows 76-79 = G1-G4 Beast Potion). Empty when the HUD is not readable — then no potion is offered,
+    ///     Heal-potion actions with stock in the Crucible item HUD, and the slot each sits in: the same slots the game shows
+    ///     and AutoDuty's item engine reads (slot base 9 + i*5: +1 the held byte, +3 the XBMItem row, +4 the name; grounded in
+    ///     the XB| captures, rows 76-79 = G1-G4 Beast Potion). Empty when the HUD is not readable — then no potion is offered,
     ///     matching AutoDuty's "no slot, no use".
     /// </summary>
-    internal static unsafe HashSet<uint> ReadHeldHealActions()
+    internal static unsafe Dictionary<uint, int> ReadHeldHealSlots()
     {
-        var held = new HashSet<uint>(2);
         try
         {
             var manager = RaptureAtkUnitManager.Instance();
             if (manager is null)
-                return held;
+                return [];
             var list = manager->AtkUnitManager.AllLoadedUnitsList;
             var count = Math.Min((int)list.Count, list.Entries.Length);
             for (var i = 0; i < count; i++)
             {
                 var unit = list.Entries[i].Value;
-                if (unit is null || !unit->IsVisible || unit->NameString != "XBMContentsMainHUD")
+                if (unit is null || !unit->IsVisible || unit->NameString != CrucibleHudAddon)
                     continue;
 
+                var slots = new List<(bool Held, uint Row)>(10);
                 for (var slot = 0; slot < 10; slot++)
                 {
                     var at = 9 + slot * 5;
                     if (at + 4 >= unit->AtkValuesCount)
                         break;
-                    if (unit->AtkValues[at + 1].Byte == 0)
-                        continue;
-                    var row = AsItemRow(unit->AtkValues[at + 3]);
-                    if (row != 0 && BST_CrucibleData.HealPotionItemRows.TryGetValue(row, out var action))
-                        held.Add(action);
+                    slots.Add((unit->AtkValues[at + 1].Byte != 0, AsItemRow(unit->AtkValues[at + 3])));
                 }
-                break;
+                return BST_CrucibleLogic.HeldHealSlots(slots, BST_CrucibleData.HealPotionItemRows);
             }
         }
         catch (Exception)
         {
-            held.Clear();
+            // an unreadable HUD offers nothing
         }
-        return held;
+        return [];
+    }
+
+    private static readonly HashSet<uint> HeldHealScratch = [];
+
+    /// <summary> The held heal-potion actions (the keys of <see cref="ReadHeldHealSlots"/>) as the picker's set. </summary>
+    private static HashSet<uint> HeldHealActions()
+    {
+        HeldHealScratch.Clear();
+        foreach (var action in ReadHeldHealSlots().Keys)
+            HeldHealScratch.Add(action);
+        return HeldHealScratch;
+    }
+
+    // ------------------------------------------------------------------ Crucible item use (the HUD item menu)
+
+    // A Crucible potion is drunk through the item HUD, never by pressing its action: the first runs on the survival policy
+    // pressed the potion action 57 times (accepted by the client, ignored by the server) and the only potions that landed were
+    // AutoDuty's menu clicks. This is that same two-step, as AutoDuty's Crucible item engine does it in production:
+    // callback (6, slot) on XBMContentsMainHUD opens the slot's item menu, then the context menu's first entry
+    // (callback 0, 0, 0) drinks it.
+
+    private const string CrucibleHudAddon = "XBMContentsMainHUD";
+    private const string ContextMenuAddon = "ContextMenu";
+    private const string ItemShopAddon = "XBMContentsItemShop";
+
+    /// <summary> How long the context menu gets to appear after the slot is opened (AutoDuty waits the same). </summary>
+    private const long ItemMenuWaitMs = 1500;
+
+    /// <summary> Tick the slot menu was opened for a heal potion; 0 = no hand-off running. </summary>
+    private static long _itemMenuOpenedTick;
+
+    private static unsafe AtkUnitBase* ReadyAddon(string name)
+    {
+        var addon = (AtkUnitBase*)Svc.GameGui.GetAddonByName(name).Address;
+        return addon != null && addon->IsVisible && addon->IsReady ? addon : null;
+    }
+
+    /// <summary>
+    ///     Open the item menu on the slot holding this heal potion. False (nothing opened, nothing pending) when the HUD is not
+    ///     ready, the item shop is open (a purchase may be mid-click), the grade is not in a slot, or a context menu is already
+    ///     up (AutoDuty mid-use: never race its click).
+    ///     <see cref="PumpHealItemUse"/> takes the menu's first entry once it appears.
+    /// </summary>
+    internal static unsafe bool RequestHealItem(uint actionId, long now, float hpPercent)
+    {
+        if (_itemMenuOpenedTick != 0)
+            return false;
+        try
+        {
+            var hud = ReadyAddon(CrucibleHudAddon);
+            if (hud == null || ReadyAddon(ContextMenuAddon) != null || ReadyAddon(ItemShopAddon) != null)
+                return false;
+            if (!ReadHeldHealSlots().TryGetValue(actionId, out var slot))
+                return false;
+
+            ECommons.Automation.Callback.Fire(hud, true, 6, slot);
+            _itemMenuOpenedTick = now;
+            NoteHealPress(actionId, now, hpPercent);
+            LogHealItem($"open|act={actionId}|slot={slot}|hp={hpPercent:0}");
+            return true;
+        }
+        catch (Exception)
+        {
+            _itemMenuOpenedTick = 0;
+            return false;
+        }
+    }
+
+    /// <summary> Each framework tick: finish a running item-menu hand-off (take the first entry of the menu we opened, or give up in time). </summary>
+    internal static unsafe void PumpHealItemUse()
+    {
+        if (_itemMenuOpenedTick == 0)
+            return;
+        try
+        {
+            var now = Environment.TickCount64;
+            var menu = ReadyAddon(ContextMenuAddon);
+            switch (BST_CrucibleLogic.NextItemMenuStep(now - _itemMenuOpenedTick, menu != null, ItemMenuWaitMs))
+            {
+                case BST_CrucibleLogic.ItemMenuStep.Choose:
+                    ECommons.Automation.Callback.Fire(menu, true, 0, 0, 0);
+                    LogHealItem($"choose|ms={now - _itemMenuOpenedTick}");
+                    _itemMenuOpenedTick = 0;
+                    break;
+                case BST_CrucibleLogic.ItemMenuStep.GiveUp:
+                    LogHealItem($"giveup|ms={now - _itemMenuOpenedTick}");
+                    _itemMenuOpenedTick = 0;
+                    break;
+            }
+        }
+        catch (Exception)
+        {
+            _itemMenuOpenedTick = 0;
+        }
+    }
+
+    /// <summary> One <c>HU|</c> line per step of a heal-potion use (open, choose, giveup, landed, dead), so the next grade reads what the menu did. </summary>
+    private static void LogHealItem(string detail)
+    {
+        var line = $"HU|{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}|{detail}";
+        Svc.Log.Information(line);
+        LalaTelemetry.Record(line);
     }
 
     private static uint AsItemRow(AtkValue value) => value.Type switch

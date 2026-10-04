@@ -468,6 +468,10 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
                     // Crucible: once per board change on BST, the effective Guard/Challenge mode (PS| aggro=).
                     // Familiar selection moved to the LazyCrucible plugin (2026-09-21).
                     BST.LogCrucibleAggroOnce();
+
+                    // Crucible: finish a running heal-potion hand-off (the item menu opened by the rotation this or an earlier
+                    // frame; the menu's first entry is taken here). One field read when nothing is running.
+                    BST.PumpHealItemUse();
                 }
                 catch (Exception ex)
                 {

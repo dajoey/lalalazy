@@ -838,19 +838,33 @@ internal static class BST_CrucibleLogic
 
     /// <summary>
     ///     Resolve a heal-potion request from evidence of the heal itself, never from the plugin's own stamps: the potion's recast is
-    ///     running, or HP rose. TEST STUB: the shipped behaviour counted any use stamp as landed, and the stamp is written when the game
-    ///     accepts the press locally, so 57 presses the server never honoured all read as landed.
+    ///     running, or HP rose by <see cref="HealLandedHpGainPercent"/>. The shipped tracker counted any use stamp as landed, and the
+    ///     stamp is written when the game CLIENT accepts a press, so 57 presses the server never honoured (the potion action pressed
+    ///     as an action, not drunk through the item menu) all read as landed and the same grade was re-pressed for twelve minutes.
+    ///     Nothing by the grace means dead, however recently the same id was used before.
     /// </summary>
     public static HealPressOutcome ResolveHealPress(long msSincePress, bool recastRunning, float hpGainPercent, long graceMs)
-        => HealPressOutcome.Landed;
+    {
+        if (recastRunning || hpGainPercent >= HealLandedHpGainPercent)
+            return HealPressOutcome.Landed;
+        return msSincePress >= graceMs ? HealPressOutcome.Dead : HealPressOutcome.Pending;
+    }
 
     /// <summary>
     ///     The held heal potions in the Crucible item HUD as action -> slot index (the slot the item menu opens on): a slot counts when
     ///     its held byte is set and its XBMItem row is a heal potion row; the first slot wins when a grade sits in two.
-    ///     TEST STUB: the shipped layer only knew which actions were held, not where.
     /// </summary>
     public static Dictionary<uint, int> HeldHealSlots(IReadOnlyList<(bool Held, uint Row)> slots, IReadOnlyDictionary<uint, uint> rowToAction)
-        => [];
+    {
+        var held = new Dictionary<uint, int>(2);
+        for (var slot = 0; slot < slots.Count; slot++)
+        {
+            var (isHeld, row) = slots[slot];
+            if (isHeld && row != 0 && rowToAction.TryGetValue(row, out var action))
+                held.TryAdd(action, slot);
+        }
+        return held;
+    }
 
     /// <summary> The next move of the item-menu use: open the slot, wait for the context menu, pick its first entry. </summary>
     public enum ItemMenuStep
@@ -861,10 +875,15 @@ internal static class BST_CrucibleLogic
     }
 
     /// <summary>
-    ///     TEST STUB: the shipped rotation never opened the menu.
+    ///     A context menu that is up inside the wait is the one the open asked for (take its first entry); past the wait nothing we
+    ///     opened can still be showing, so give up and never touch a menu somebody else raised.
     /// </summary>
     public static ItemMenuStep NextItemMenuStep(long msSinceOpen, bool menuReady, long waitMs)
-        => ItemMenuStep.Wait;
+    {
+        if (msSinceOpen >= waitMs)
+            return ItemMenuStep.GiveUp;
+        return menuReady ? ItemMenuStep.Choose : ItemMenuStep.Wait;
+    }
 
     /// <summary>
     ///     Survival policy (task tasks-20261003-crucible-survivability-entry-hp-01, 2026-10-03): the character kept dying from HP carried
