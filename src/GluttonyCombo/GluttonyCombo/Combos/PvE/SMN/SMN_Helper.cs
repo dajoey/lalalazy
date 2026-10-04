@@ -328,11 +328,6 @@ internal partial class SMN
             IsSTEnabled(flags, Preset.SMN_ST_Advanced_Combo_SearingLight) ||
             IsAoEEnabled(flags, Preset.SMN_AoE_Advanced_Combo_SearingLight);
 
-        bool SearingLightBurstEnabled =
-            flags.HasFlag(Combo.Simple) ||
-            IsSTEnabled(flags, Preset.SMN_ST_Advanced_Combo_SearingLight_Burst) ||
-            IsAoEEnabled(flags, Preset.SMN_AoE_Advanced_Combo_SearingLight_Burst);
-
         bool energyDrainEnabled =
             flags.HasFlag(Combo.Simple) ||
             IsSTEnabled(flags, Preset.SMN_ST_Advanced_Combo_EDFester) ||
@@ -394,16 +389,8 @@ internal partial class SMN
 
             if (searingLightEnabled && ActionReady(SearingLight) && !HasStatusEffect(Buffs.SearingLight, anyOwner: true))
             {
-                if (!SearingLightBurstEnabled || !TraitLevelChecked(Traits.EnhancedDreadwyrmTrance))
-                {
-                    actionID = SearingLight;
-                    return true;
-                }
-                if (DemiExists)
-                {
-                    actionID = SearingLight;
-                    return true;
-                }
+                actionID = SearingLight;
+                return true;
             }
 
 #endregion

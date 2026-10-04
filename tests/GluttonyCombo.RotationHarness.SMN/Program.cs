@@ -89,6 +89,33 @@ internal static class Program
         Check($"SMN-1-unchanged: burst option off, same state: Invoke(Ruin) returns Aethercharge " +
               $"({Smn.Aethercharge})", got5 == Smn.Aethercharge, $"returned {got5}");
 
+        // ---- SMN-2 (round 6): Searing Light on cooldown instead of waiting for a Demi ----
+        // Balance guide (S5): "Searing Light should be used on cooldown to align with all other two
+        // minute party buffs... Aligning with other party buffs should be prioritized over aligning
+        // with your own burst phases."
+        // State: Searing Light ready, no Demi out, weave window open, SearingLight + SearingLight_Burst
+        // options on. Invoke(Ruin) must return Searing Light instead of falling through to Ruin.
+        // (Fails on the pre-SMN-2 source: the burst gate holds Searing for a Demi.)
+        SetSearingState();
+        uint got6 = new Smn.SMN_ST_Advanced_Combo().RunInvoke(Smn.Ruin);
+        Check($"SMN-2: Searing ready, no Demi, weave window, burst on: Invoke(Ruin) returns " +
+              $"Searing Light ({Smn.SearingLight}), not the Ruin filler",
+            got6 == Smn.SearingLight, $"returned {got6}");
+
+        // Paired unchanged behaviour: Searing Light on cooldown — must NOT be suggested (readiness gate
+        // stays); true before and after the change.
+        SetSearingState(searingReady: false);
+        uint got7 = new Smn.SMN_ST_Advanced_Combo().RunInvoke(Smn.Ruin);
+        Check($"SMN-2-unchanged: Searing on cooldown, same state: Invoke(Ruin) does NOT return " +
+              $"Searing Light", got7 != Smn.SearingLight, $"returned {got7}");
+
+        // Paired unchanged behaviour: trait not yet learned (low level) — Searing Light already fires
+        // on cooldown today via the level gate; true before and after the change.
+        SetSearingState(traitsKnown: false);
+        uint got8 = new Smn.SMN_ST_Advanced_Combo().RunInvoke(Smn.Ruin);
+        Check($"SMN-2-unchanged: EnhancedDreadwyrmTrance not learned: Invoke(Ruin) returns " +
+              $"Searing Light ({Smn.SearingLight})", got8 == Smn.SearingLight, $"returned {got8}");
+
         Console.WriteLine(_fail == 0
             ? $"OK ({_pass} checks, canary failed as expected)"
             : $"FAILED ({_fail} of {_pass + _fail})");
@@ -111,6 +138,27 @@ internal static class Program
         searing.IsCooldown = true;
         searing.CooldownRemaining = 5f;
         searing.CooldownElapsed = 55f;
+    }
+
+    /// <summary>
+    ///     The Searing Light decision state: SearingLight + SearingLight_Burst enabled, weave window
+    ///     open, no Demi out, no Searing status, all traits known unless overridden.
+    /// </summary>
+    private static void SetSearingState(bool searingReady = true, bool traitsKnown = true)
+    {
+        FakeGame.Reset();
+        FakeGame.CanWeave = true;
+        FakeGame.AllTraitsKnown = traitsKnown;
+        FakeGame.EnabledPresets.Add(Preset.SMN_ST_Advanced_Combo_SearingLight);
+        FakeGame.EnabledPresets.Add(Preset.SMN_ST_Advanced_Combo_SearingLight_Burst);
+
+        if (!searingReady)
+        {
+            var searing = FakeGame.Cooldown(Smn.SearingLight);
+            searing.IsCooldown = true;
+            searing.CooldownRemaining = 60f;
+            searing.CooldownElapsed = 0f;
+        }
     }
 
     private static void Check(string desc, bool ok, string detail = "")
