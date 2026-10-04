@@ -396,9 +396,16 @@ namespace GluttonyCombo.CustomComboNS.Functions
 
         public static bool HasOrExpectsOccultDualcast => GluttonyCombo.RotationHarness.SGE.FakeGame.OccultDualcast;
 
-        public static bool GroupDamageIncoming() => GluttonyCombo.RotationHarness.SGE.FakeGame.GroupDamageIncoming;
+        // Mirrors the shipped Action.cs wiring (1.0.4.278): incoming-damage detection is
+        // combat-only, pinned by the REAL OutOfCombatGate.MayDetectIncomingDamage linked into
+        // this harness (see the csproj). The flag below stands for RaidwideCasting /
+        // CheckForSharedDamageEffect seeing something; whether it may report at all is the
+        // linked gate's answer, not the fake's.
+        public static bool GroupDamageIncoming() =>
+            GluttonyCombo.AutoRotation.OutOfCombatGate.MayDetectIncomingDamage(GluttonyCombo.RotationHarness.SGE.FakeGame.InCombat) &&
+            GluttonyCombo.RotationHarness.SGE.FakeGame.GroupDamageIncoming;
 
-        public static bool GroupDamageIncoming(float? maxTimeRemaining = null) => GluttonyCombo.RotationHarness.SGE.FakeGame.GroupDamageIncoming;
+        public static bool GroupDamageIncoming(float? maxTimeRemaining = null) => GroupDamageIncoming();
 
         // ---- actions / cooldowns ----
         public static uint OriginalHook(uint actionID) =>
@@ -431,7 +438,9 @@ namespace GluttonyCombo.CustomComboNS.Functions
 
         public static bool TraitLevelChecked(uint traitId) => GluttonyCombo.RotationHarness.SGE.FakeGame.AllTraitsKnown;
 
-        public static IEnumerable<IGameObject> EnemiesInRange(uint actionId) => [];
+        public static IEnumerable<IGameObject> EnemiesInRange(uint actionId) =>
+            GluttonyCombo.RotationHarness.SGE.FakeBattleChara.Enemies(
+            GluttonyCombo.RotationHarness.SGE.FakeGame.EnemiesInRangeCount);
 
         // ---- weave / combo state ----
         public static bool CanWeave(float estimatedWeaveTime = 0.6f, int? maxWeaves = null) => GluttonyCombo.RotationHarness.SGE.FakeGame.CanWeave;
@@ -523,14 +532,20 @@ namespace GluttonyCombo.CustomComboNS
             ushort dotDebuff,
             int minHPPercent = 10,
             float reapplyThreshold = 1,
-            int maxNumberOfEnemiesInRange = 3) => null;
+            int maxNumberOfEnemiesInRange = 3) =>
+            GluttonyCombo.RotationHarness.SGE.FakeGame.DottableEnemyPresent
+                ? GluttonyCombo.RotationHarness.SGE.FakeBattleChara.Enemy
+                : null;
 
         public static IBattleChara? DottableEnemy
         (uint dotAction,
             ushort dotDebuff,
             Func<IBattleChara?, int> minHPPercent,
             float reapplyThreshold = 1,
-            int maxNumberOfEnemiesInRange = 3) => null;
+            int maxNumberOfEnemiesInRange = 3) =>
+            GluttonyCombo.RotationHarness.SGE.FakeGame.DottableEnemyPresent
+                ? GluttonyCombo.RotationHarness.SGE.FakeBattleChara.Enemy
+                : null;
 
         internal static class Stack
         {

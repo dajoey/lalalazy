@@ -14,6 +14,9 @@
 //                immediately (today's "dump on cooldown" behaviour the SGE-1 row modifies).
 //   SGE-1  — opt-in Phlegma party-burst mode (added in its own commit with the change).
 //   SGE-2  — opt-in early Eukrasian Dosis refresh while the party is bursting (own commit).
+//   OOC    — the 1.0.4.278 out-of-combat wiring: every damage-path weave (Addersgall overcap
+//            protect, Rhizomata, the Eukrasia chains) and the raidwide answer stand down while
+//            not in combat; each case pairs an in-combat control with the same state ooc.
 //
 // THE CANARY: the Phlegma characterization state run through an assertion of the OPPOSITE
 // behaviour. It is EXPECTED TO FAIL; the harness only exits 0 when the canary fails as expected
@@ -134,6 +137,185 @@ internal static class Program
               $"Invoke(Dosis3) returns Dosis ({SgeJob.Dosis3}) - the widened window only applies in burst",
             gotSge2NoBurst == SgeJob.Dosis3, $"returned {gotSge2NoBurst}");
 
+        // ==== OOC (1.0.4.278 wiring): out of combat the damage paths do not react ====
+        // The 2026-10-04 report's out-of-combat fires, re-derived per cast from the harvested
+        // logs (action_events for the player's own character, distinct timestamps, no in-combat
+        // sample within 12s before / 2s after): Druochole x2 - the Addersgall overcap
+        // protection named in the report - plus Eukrasia x4 and Eukrasian Dosis III x2 (the
+        // Eukrasia chain). Every one of the player's own raidwide-shield casts sat inside a
+        // combat window (22 Eukrasian Prognosis II casts, 0 out of combat). Each case below
+        // pairs an in-combat control (the weave fires) with the same state out of combat.
+
+        // ---- OOC-1: advanced ST - the Addersgall overcap protection waits for combat ----
+        SetStDpsState(30f, phlegmaCharges: 1, phlegmaUnavailable: true);
+        FakeGame.CanWeave = true;
+        FakeGauges.SetByte<SGEGauge>("Addersgall", 3);
+        FakeGame.EnabledPresets.Add(Preset.SGE_ST_Adv_DPS_AddersgallProtect);
+        uint gotOoc1Control = InvokeSt();
+        Check("OOC-1 control: in combat + weave window + Addersgall 3 of 3 + protect preset on (threshold 3): " +
+              $"Invoke(Dosis3) returns Druochole ({SgeJob.Druochole}) - the overcap protect fires",
+            gotOoc1Control == SgeJob.Druochole, $"returned {gotOoc1Control}");
+
+        SetStDpsState(30f, phlegmaCharges: 1, phlegmaUnavailable: true);
+        FakeGame.CanWeave = true;
+        FakeGauges.SetByte<SGEGauge>("Addersgall", 3);
+        FakeGame.EnabledPresets.Add(Preset.SGE_ST_Adv_DPS_AddersgallProtect);
+        FakeGame.InCombat = false;
+        FakeGame.PartyInCombatFlag = false;
+        uint gotOoc1 = InvokeSt();
+        Check("OOC-1: identical state but OUT OF COMBAT: " +
+              $"Invoke(Dosis3) returns Dosis ({SgeJob.Dosis3}) - no overcap dump, no self-target",
+            gotOoc1 == SgeJob.Dosis3, $"returned {gotOoc1}");
+
+        // ---- OOC-2: advanced ST - Rhizomata (the gauge top-up) waits for combat ----
+        SetStDpsState(30f, phlegmaCharges: 1, phlegmaUnavailable: true);
+        FakeGame.CanWeave = true;
+        FakeGauges.SetByte<SGEGauge>("Addersgall", 0);
+        FakeGame.EnabledPresets.Add(Preset.SGE_ST_Adv_DPS_Rhizo);
+        uint gotOoc2Control = InvokeSt();
+        Check("OOC-2 control: in combat + weave window + Addersgall 0 + Rhizo preset on (threshold 1): " +
+              $"Invoke(Dosis3) returns Rhizomata ({SgeJob.Rhizomata})",
+            gotOoc2Control == SgeJob.Rhizomata, $"returned {gotOoc2Control}");
+
+        SetStDpsState(30f, phlegmaCharges: 1, phlegmaUnavailable: true);
+        FakeGame.CanWeave = true;
+        FakeGauges.SetByte<SGEGauge>("Addersgall", 0);
+        FakeGame.EnabledPresets.Add(Preset.SGE_ST_Adv_DPS_Rhizo);
+        FakeGame.InCombat = false;
+        FakeGame.PartyInCombatFlag = false;
+        uint gotOoc2 = InvokeSt();
+        Check("OOC-2: identical state but OUT OF COMBAT: " +
+              $"Invoke(Dosis3) returns Dosis ({SgeJob.Dosis3}) - no Rhizomata top-up",
+            gotOoc2 == SgeJob.Dosis3, $"returned {gotOoc2}");
+
+        // ---- OOC-3: simple ST - the ungated simple weave block waits for combat ----
+        FakeGame.Reset();
+        FakeGame.EnabledPresets.Add(Preset.SGE_ST_Simple_DPS);
+        FakeGame.CanWeave = true;
+        FakeGauges.SetByte<SGEGauge>("Addersgall", 3);
+        FakeGame.HookOverrides[SgeJob.Dosis] = SgeJob.Dosis3;
+        uint gotOoc3Control = InvokeSimpleSt();
+        Check("OOC-3 control: in combat + weave window + Addersgall 3 (simple mode presses the protect on its own): " +
+              $"Invoke(Dosis3) returns Druochole ({SgeJob.Druochole})",
+            gotOoc3Control == SgeJob.Druochole, $"returned {gotOoc3Control}");
+
+        FakeGame.Reset();
+        FakeGame.EnabledPresets.Add(Preset.SGE_ST_Simple_DPS);
+        FakeGame.CanWeave = true;
+        FakeGauges.SetByte<SGEGauge>("Addersgall", 3);
+        FakeGame.HookOverrides[SgeJob.Dosis] = SgeJob.Dosis3;
+        FakeGame.InCombat = false;
+        FakeGame.PartyInCombatFlag = false;
+        uint gotOoc3 = InvokeSimpleSt();
+        Check("OOC-3: identical state but OUT OF COMBAT: " +
+              $"Invoke(Dosis3) returns Dosis ({SgeJob.Dosis3})",
+            gotOoc3 == SgeJob.Dosis3, $"returned {gotOoc3}");
+
+        // ---- OOC-4: advanced AoE - SGE_AoE_Adv_DPS_AddersgallProtect (the preset of the report) ----
+        FakeGame.Reset();
+        FakeGame.EnabledPresets.Add(Preset.SGE_AoE_Advanced_DPS);
+        FakeGame.EnabledPresets.Add(Preset.SGE_AoE_Adv_DPS_AddersgallProtect);
+        FakeGame.CanWeave = true;
+        FakeGauges.SetByte<SGEGauge>("Addersgall", 3);
+        FakeGame.HasBattleTarget = false;
+        uint gotOoc4Control = InvokeAoeAdv();
+        Check("OOC-4 control: in combat + weave window + Addersgall 3 + AoE protect preset on: " +
+              $"Invoke(Dyskrasia2) returns Druochole ({SgeJob.Druochole})",
+            gotOoc4Control == SgeJob.Druochole, $"returned {gotOoc4Control}");
+
+        FakeGame.Reset();
+        FakeGame.EnabledPresets.Add(Preset.SGE_AoE_Advanced_DPS);
+        FakeGame.EnabledPresets.Add(Preset.SGE_AoE_Adv_DPS_AddersgallProtect);
+        FakeGame.CanWeave = true;
+        FakeGauges.SetByte<SGEGauge>("Addersgall", 3);
+        FakeGame.HasBattleTarget = false;
+        FakeGame.InCombat = false;
+        FakeGame.PartyInCombatFlag = false;
+        uint gotOoc4 = InvokeAoeAdv();
+        Check("OOC-4: identical state but OUT OF COMBAT: " +
+              $"Invoke(Dyskrasia2) returns the plain AoE GCD ({SgeJob.Dyskrasia}) - no overcap dump",
+            gotOoc4 == SgeJob.Dyskrasia, $"returned {gotOoc4}");
+
+        // ---- OOC-5: UseRaidwide - incoming-damage detection is combat-only at the boundary ----
+        // (the shipped Action.cs gate pins this rule in GroupDamageIncoming/RaidwideCasting; the
+        // harness fake delegates to the same OutOfCombatGate.MayDetectIncomingDamage so the
+        // rotation's raidwide answer is exercised on both sides of the combat line)
+        SetStDpsState(30f, phlegmaCharges: 1, phlegmaUnavailable: true);
+        FakeGame.CanWeave = true;
+        FakeGame.GroupDamageIncoming = true;
+        GluttonyCombo.AutoRotation.AutoRotationController.RaidwideMitOnCooldown = false;
+        FakeGauges.SetByte<SGEGauge>("Addersgall", 3);
+        FakeGame.EnabledPresets.Add(Preset.SGE_Raidwide_Kerachole);
+        uint gotOoc5Control = InvokeSt();
+        Check("OOC-5 control: in combat + a raidwide cast up + Kerachole raidwide preset on: " +
+              $"Invoke(Dosis3) returns Kerachole ({SgeJob.Kerachole}) - the mit answers the cast",
+            gotOoc5Control == SgeJob.Kerachole, $"returned {gotOoc5Control}");
+
+        SetStDpsState(30f, phlegmaCharges: 1, phlegmaUnavailable: true);
+        FakeGame.CanWeave = true;
+        FakeGame.GroupDamageIncoming = true;
+        GluttonyCombo.AutoRotation.AutoRotationController.RaidwideMitOnCooldown = false;
+        FakeGauges.SetByte<SGEGauge>("Addersgall", 3);
+        FakeGame.EnabledPresets.Add(Preset.SGE_Raidwide_Kerachole);
+        FakeGame.InCombat = false;
+        FakeGame.PartyInCombatFlag = false;
+        uint gotOoc5 = InvokeSt();
+        Check("OOC-5: identical state (raidwide cast up) but OUT OF COMBAT: " +
+              $"Invoke(Dosis3) returns Dosis ({SgeJob.Dosis3}) - no hostile cast counts ooc",
+            gotOoc5 == SgeJob.Dosis3, $"returned {gotOoc5}");
+
+        // ---- OOC-6: simple ST - the Eukrasia chain does not open out of combat ----
+        FakeGame.Reset();
+        FakeGame.EnabledPresets.Add(Preset.SGE_ST_Simple_DPS);
+        FakeGame.CanWeave = false;
+        FakeGauges.SetByte<SGEGauge>("Addersgall", 1);
+        FakeGame.HookOverrides[SgeJob.Dosis] = SgeJob.Dosis3;
+        FakeGame.TargetCanApplyStatus = true;
+        FakeGame.DottableEnemyPresent = true;
+        uint gotOoc6Control = InvokeSimpleSt();
+        Check("OOC-6 control: party in combat + a dottable enemy + DoT below the refresh window: " +
+              $"Invoke(Dosis3) returns Eukrasia ({SgeJob.Eukrasia}) - the chain opens",
+            gotOoc6Control == SgeJob.Eukrasia, $"returned {gotOoc6Control}");
+
+        FakeGame.Reset();
+        FakeGame.EnabledPresets.Add(Preset.SGE_ST_Simple_DPS);
+        FakeGame.CanWeave = false;
+        FakeGauges.SetByte<SGEGauge>("Addersgall", 1);
+        FakeGame.HookOverrides[SgeJob.Dosis] = SgeJob.Dosis3;
+        FakeGame.TargetCanApplyStatus = true;
+        FakeGame.DottableEnemyPresent = true;
+        FakeGame.InCombat = false;
+        FakeGame.PartyInCombatFlag = false;
+        uint gotOoc6 = InvokeSimpleSt();
+        Check("OOC-6: identical state but OUT OF COMBAT: " +
+              $"Invoke(Dosis3) returns Dosis ({SgeJob.Dosis3}) - no Eukrasia chain at field mobs",
+            gotOoc6 == SgeJob.Dosis3, $"returned {gotOoc6}");
+
+        // ---- OOC-7: simple AoE - the Eukrasian Dyskrasia chain does not open out of combat ----
+        FakeGame.Reset();
+        FakeGame.EnabledPresets.Add(Preset.SGE_AoE_Simple_DPS);
+        FakeGame.CanWeave = true;
+        FakeGauges.SetByte<SGEGauge>("Addersgall", 1);
+        FakeGame.EnemiesInRangeCount = 4;
+        FakeGame.HasBattleTarget = false;
+        uint gotOoc7Control = InvokeAoeSimple();
+        Check("OOC-7 control: party in combat + 4 enemies in range without the DoTs: " +
+              $"Invoke(Dyskrasia2) returns Eukrasia ({SgeJob.Eukrasia}) - the AoE chain opens",
+            gotOoc7Control == SgeJob.Eukrasia, $"returned {gotOoc7Control}");
+
+        FakeGame.Reset();
+        FakeGame.EnabledPresets.Add(Preset.SGE_AoE_Simple_DPS);
+        FakeGame.CanWeave = true;
+        FakeGauges.SetByte<SGEGauge>("Addersgall", 1);
+        FakeGame.EnemiesInRangeCount = 4;
+        FakeGame.HasBattleTarget = false;
+        FakeGame.InCombat = false;
+        FakeGame.PartyInCombatFlag = false;
+        uint gotOoc7 = InvokeAoeSimple();
+        Check("OOC-7: identical state but OUT OF COMBAT: " +
+              $"Invoke(Dyskrasia2) returns the plain AoE GCD ({SgeJob.Dyskrasia}) - no Eukrasia chain",
+            gotOoc7 == SgeJob.Dyskrasia, $"returned {gotOoc7}");
+
         // ---- the CANARY: deliberately asserts the opposite; must FAIL ----
         SetStDpsState(30f, phlegmaCharges: 1);
         uint gotCanary = InvokeSt();
@@ -208,6 +390,12 @@ internal static class Program
     }
 
     private static uint InvokeSt() => new SgeJob.SGE_ST_Advanced_DPS().RunInvoke(SgeJob.Dosis3);
+
+    private static uint InvokeSimpleSt() => new SgeJob.SGE_ST_Simple_DPS().RunInvoke(SgeJob.Dosis3);
+
+    private static uint InvokeAoeAdv() => new SgeJob.SGE_AoE_Advanced_DPS().RunInvoke(SgeJob.Dyskrasia2);
+
+    private static uint InvokeAoeSimple() => new SgeJob.SGE_AoE_Simple_DPS().RunInvoke(SgeJob.Dyskrasia2);
 
     private static void Check(string desc, bool ok, string detail = "")
     {

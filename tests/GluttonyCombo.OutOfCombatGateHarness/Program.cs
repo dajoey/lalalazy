@@ -9,7 +9,9 @@
 // pull ran with no player input. The 2026-10-04 amendment (15:58-15:59Z): the
 // Sage case - out of combat the damage rotation pressed Kerachole/Druochole
 // (Addersgall overcap protection), Eukrasia chains, Physis and the raidwide
-// shield chain (Eukrasian Prognosis II x138, Medica III x41 in the 48h logs) at
+// shield chain (per-cast counts in the 48h logs: the player's own raidwide-shield
+// casts all sat inside combat windows; the observed ooc presses were Druochole
+// x2, Eukrasia x4, Eukrasian Dosis III x2) at
 // full-health parties - "healers reacting when there is nothing to heal".
 //
 //   dotnet build tests\GluttonyCombo.OutOfCombatGateHarness -c Release

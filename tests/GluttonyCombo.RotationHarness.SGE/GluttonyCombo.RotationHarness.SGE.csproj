@@ -31,6 +31,9 @@
     <!-- ==== THE CODE UNDER TEST: the real Sage job files, unchanged ==== -->
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\SGE\SGE.cs" Link="SGE\SGE.cs" />
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\SGE\SGE_Helper.cs" Link="SGE\SGE_Helper.cs" />
+    <!-- The real pure out-of-combat gate: the GroupDamageIncoming fake delegates its combat rule
+         to the exact OutOfCombatGate.MayDetectIncomingDamage that ships. -->
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\OutOfCombatGate.cs" Link="OutOfCombatGate.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Dalamud">
