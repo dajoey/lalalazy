@@ -1,0 +1,67 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- RotationHarness.NIN (2026-10-04, SC11 round 6): offline harness for the real Ninja rotation.
+       Same approach as the VPR spike on rot/harness-spike (approach B, "stub layer"): the REAL,
+       UNCHANGED NIN job source (NIN.cs + NIN_Helper.cs) is Compile-Included as links and tested
+       against a harness-owned fake of the CustomComboFunctions game boundary. Nothing under src/ is
+       edited by the harness; these fakes live only in this fork-only project, so the nightly
+       upstream merge never sees them.
+         dotnet build tests\GluttonyCombo.RotationHarness.NIN -c Release
+         dotnet tests\GluttonyCombo.RotationHarness.NIN\bin\Release\net10.0-windows7.0\GluttonyCombo.RotationHarness.NIN.dll
+       Prints PASS/FAIL per case; a clearly-marked CANARY case is EXPECTED to fail; ends "OK" and exits 0
+       only when every real case passes AND the canary fails as expected. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows7.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>preview</LangVersion>
+    <RootNamespace>GluttonyCombo.RotationHarness.NIN</RootNamespace>
+    <AssemblyName>GluttonyCombo.RotationHarness.NIN</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoWarn>$(NoWarn);CS1574;CS1591</NoWarn>
+  </PropertyGroup>
+  <PropertyGroup>
+    <DalamudLibPath>$(appdata)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="Fakes.cs" />
+    <Compile Include="FakeGame.cs" />
+    <!-- ==== THE CODE UNDER TEST: the real Ninja job files, unchanged ==== -->
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\NIN\NIN.cs" Link="NIN\NIN.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\NIN\NIN_Helper.cs" Link="NIN\NIN_Helper.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="Dalamud">
+      <HintPath>$(DalamudLibPath)Dalamud.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Dalamud.Common">
+      <HintPath>$(DalamudLibPath)Dalamud.Common.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="FFXIVClientStructs">
+      <HintPath>$(DalamudLibPath)FFXIVClientStructs.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Lumina">
+      <HintPath>$(DalamudLibPath)Lumina.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Lumina.Excel">
+      <HintPath>$(DalamudLibPath)Lumina.Excel.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>$(DalamudLibPath)Newtonsoft.Json.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <!-- ECommons is compiled from source so `using static ECommons.DalamudServices.Svc` in NIN_Helper
+         resolves; no ECommons code runs in the tested paths. -->
+    <ProjectReference Include="..\..\src\GluttonyCombo\ECommons\ECommons\ECommons.csproj" />
+  </ItemGroup>
+</Project>
