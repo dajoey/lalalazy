@@ -44,7 +44,8 @@ internal static class BeastmasterTelemetryFormat
     /// <summary>
     ///     Everything the collector samples in one framework tick. The nine gauge bytes (0x08..0x10) are
     ///     carried raw so a follow-up card can re-interpret them without a new release, and the
-    ///     decoded fields the PR names are carried alongside for direct SQL.
+    ///     decoded fields the PR names are carried alongside for direct SQL. <paramref name="TrickOutcome"/>
+    ///     is the resolved outcome of the most recent Trick (<see cref="TrickOutcome(float, float)"/>).
     /// </summary>
     internal readonly record struct Snapshot(
         byte TPGauge,
@@ -66,7 +67,8 @@ internal static class BeastmasterTelemetryFormat
         string? FamiliarDecline = null,
         byte InstinctStacks = 0,
         string? SlotBeasts = null,
-        byte Level = 0);
+        byte Level = 0,
+        string? TrickOutcome = null);
 
     /// <summary>
     ///     The identity of a snapshot for change detection: the eight gauge bytes, the pet
@@ -77,7 +79,7 @@ internal static class BeastmasterTelemetryFormat
     ///     and out mid-combo) and would defeat the change gate, and any status transition worth
     ///     seeing moves a gauge byte too.
     /// </remarks>
-    internal static (ulong Gauge, ulong Pet, uint BeastMode, uint DecisionActionId, string DecisionReason, string FamiliarDecline, byte InstinctStacks, string SlotBeasts, byte Level) KeyOf(in Snapshot s)
+    internal static (ulong Gauge, ulong Pet, uint BeastMode, uint DecisionActionId, string DecisionReason, string FamiliarDecline, byte InstinctStacks, string SlotBeasts, byte Level, string TrickOutcome) KeyOf(in Snapshot s)
     {
         ulong gauge =
             ((ulong)s.TPGauge << 56) |
@@ -89,7 +91,7 @@ internal static class BeastmasterTelemetryFormat
             ((ulong)s.ChainCount << 8) |
             s.KinshipState;
 
-        return (gauge, s.PetObjectId, s.AdjustedBeastMode, s.DecisionActionId, s.DecisionReason ?? "", s.FamiliarDecline ?? "", s.InstinctStacks, s.SlotBeasts ?? "", s.Level);
+        return (gauge, s.PetObjectId, s.AdjustedBeastMode, s.DecisionActionId, s.DecisionReason ?? "", s.FamiliarDecline ?? "", s.InstinctStacks, s.SlotBeasts ?? "", s.Level, s.TrickOutcome ?? "");
     }
 
     /// <summary>
@@ -125,7 +127,7 @@ internal static class BeastmasterTelemetryFormat
     internal struct GateState
     {
         public bool HasLast;
-        public (ulong Gauge, ulong Pet, uint BeastMode, uint DecisionActionId, string DecisionReason, string FamiliarDecline, byte InstinctStacks, string SlotBeasts, byte Level) LastKey;
+        public (ulong Gauge, ulong Pet, uint BeastMode, uint DecisionActionId, string DecisionReason, string FamiliarDecline, byte InstinctStacks, string SlotBeasts, byte Level, string TrickOutcome) LastKey;
         public bool HasEmitted;
         public long LastEmitMs;
 
@@ -134,7 +136,7 @@ internal static class BeastmasterTelemetryFormat
 
     /// <summary>
     ///     Builds one collector line:
-    ///     <c>BT|unixms|gaugeHex|battlehorn|affinity|chain|kinship|pet|bm|av|dec|fd|statuses</c>.
+    ///     <c>BT|unixms|gaugeHex|battlehorn|affinity|chain|kinship|pet|bm|av|dec|fd|lv|tk|statuses</c>.
     /// </summary>
     /// <remarks>
     ///     <c>gaugeHex</c> is the nine gauge bytes 0x08..0x10 in order (byte 0x10 packs the Mastered/Natural instinct-stack nibbles), lower-case hex, no
@@ -191,6 +193,7 @@ internal static class BeastmasterTelemetryFormat
           .Append("|fd=").Append(SanitizeReason(s.FamiliarDecline, 90))
           .Append("|sl=").Append(SanitizeReason(s.SlotBeasts, 12))
           .Append("|lv=").Append(s.Level.ToString(inv))
+          .Append("|tk=").Append(string.IsNullOrEmpty(s.TrickOutcome) ? "-" : SanitizeReason(s.TrickOutcome, 12))
           .Append('|');
 
         // Everything above is fixed-width-ish and always present; only the status list is cut.
@@ -226,6 +229,28 @@ internal static class BeastmasterTelemetryFormat
             sb.Append('~');
 
         return sb.ToString();
+    }
+
+    /// <summary> A Trick stays reportable for this long after it was pressed (mirrors <c>BST_RotationLogic.ComboWindowSeconds</c>). </summary>
+    public const float TrickWindowSeconds = 7.0f;
+
+    /// <summary> The pet's Heart is given up on after this long (mirrors <c>BST_RotationLogic.PetHeartTimeoutSeconds</c>). </summary>
+    public const float TrickHeartTimeoutSeconds = 3.0f;
+
+    /// <summary>
+    ///     The outcome of the most recent Trick (BT| <c>tk=</c>): <c>pending</c> while the pet's Heart is
+    ///     still expected, <c>heart</c> once it landed, <c>timeout</c> once the 3 s wait gave up on it,
+    ///     and <c>-</c> when no Trick sits inside the combo window. The comparison is the same one the
+    ///     rotation itself uses (<c>SincePetHeart &gt; SinceTrick</c> means no Heart since the Trick), so
+    ///     the field can never disagree with the wait it reports on.
+    /// </summary>
+    internal static string TrickOutcome(float sinceTrick, float sincePetHeart)
+    {
+        if (sinceTrick > TrickWindowSeconds)
+            return "-";
+        if (sincePetHeart <= sinceTrick)
+            return "heart";
+        return sinceTrick >= TrickHeartTimeoutSeconds ? "timeout" : "pending";
     }
 
     private static void AppendHex(StringBuilder sb, byte value) =>

@@ -127,7 +127,7 @@ internal static class Program
 
         Check("BST prefix is the greppable BT|", line.StartsWith("BT|", StringComparison.Ordinal), line);
         Check("BST exact line shape",
-            line == "BT|1788904962577|6484a802070503510a|2|5|3|81|pet=1073741830:Cu Sith:5432|bm=44896|av=44930|dec=44887:instinctual:compass|fd=|sl=|lv=0|4599,4601,4621",
+            line == "BT|1788904962577|6484a802070503510a|2|5|3|81|pet=1073741830:Cu Sith:5432|bm=44896|av=44930|dec=44887:instinctual:compass|fd=|sl=|lv=0|tk=-|4599,4601,4621",
             line);
         Check("BST gauge hex is 18 chars (9 bytes)",
             line.Split('|')[2].Length == 18, line);
@@ -200,7 +200,30 @@ internal static class Program
         Check("BST line stays within the line budget",
             longLine.Length <= BeastmasterTelemetryFormat.MaxLineLength, $"len={longLine.Length}");
         Check("BST truncated line is marked with ~", longLine.EndsWith('~'), longLine);
-        Check("BST truncation keeps all 15 fields", longLine.Split('|').Length == 15, longLine);
+        Check("BST truncation keeps all 16 fields", longLine.Split('|').Length == 16, longLine);
+
+        // tk= (BST-1): the outcome of the most recent Trick rides its own field after lv=, so the
+        // Tricks with no completion inside the window can be sorted into heart-seen vs timed-out
+        // straight out of SQL instead of being re-derived from the fd= declines.
+        Check("BST-1: tk= carries the Trick outcome token",
+            BeastmasterTelemetryFormat.BuildLine(1, WithTrick(snap, "heart")).Contains("|tk=heart|")
+            && BeastmasterTelemetryFormat.BuildLine(1, WithTrick(snap, "timeout")).Contains("|tk=timeout|")
+            && BeastmasterTelemetryFormat.BuildLine(1, WithTrick(snap, "pending")).Contains("|tk=pending|"),
+            BeastmasterTelemetryFormat.BuildLine(1, WithTrick(snap, "pending")));
+        Check("BST-1: no Trick in the window renders the stable tk=- token",
+            BeastmasterTelemetryFormat.BuildLine(1, snap).Contains("|tk=-|"),
+            BeastmasterTelemetryFormat.BuildLine(1, snap));
+        Check("BST-1: the outcome mapping is heart / timeout / pending / -",
+            Outcome(2.0f, 1.0f) == "heart" && Outcome(4.0f, float.MaxValue) == "timeout"
+            && Outcome(1.2f, float.MaxValue) == "pending" && Outcome(9.0f, 1.0f) == "-",
+            $"{Outcome(2f, 1f)}/{Outcome(4f, float.MaxValue)}/{Outcome(1.2f, float.MaxValue)}/{Outcome(9f, 1f)}");
+        Check("BST-1: a Trick outcome exactly at the 3.0 s boundary reads timeout",
+            Outcome(3.0f, float.MaxValue) == "timeout" && Outcome(2.99f, float.MaxValue) == "pending",
+            $"{Outcome(3f, float.MaxValue)}/{Outcome(2.99f, float.MaxValue)}");
+        Check("BST-1: the live sampler is wired (ReadState fills LastTrickOutcome, Sample passes it)",
+            RepoFile("Combos", "PvE", "BST", "BST.cs").Contains("LastTrickOutcome = Data.BeastmasterTelemetryFormat.TrickOutcome", StringComparison.Ordinal)
+            && RepoFile("Data", "BeastmasterTelemetry.cs").Contains("BST.LastTrickOutcome", StringComparison.Ordinal),
+            "the live half must feed tk= the same way dec=/fd= are fed");
 
         // --- the change gate ---------------------------------------------------------
         var gate = new BeastmasterTelemetryFormat.GateState();
@@ -259,6 +282,16 @@ internal static class Program
         Check("BST the same familiar-decline repeated does not emit",
             !BeastmasterTelemetryFormat.ShouldEmit(ref gate, t,
                 snap with { ChainCount = 4, PetObjectId = 99, AdjustedBeastMode = 44900, DecisionActionId = 44888, DecisionReason = "instinctual:compass", InstinctStacks = 0x12, FamiliarDecline = "battlehorn:declined-recast-slot1" }));
+
+        // A changed tk= is part of the change key too (BST-1): the pending -> heart / timeout
+        // transition must emit on its own, even while every gauge byte sits still - that is the
+        // whole point of the field, a Trick that resolves without moving anything else.
+        var tkGate = new BeastmasterTelemetryFormat.GateState();
+        Check("BST-1: a pending -> heart transition emits on its own",
+            BeastmasterTelemetryFormat.ShouldEmit(ref tkGate, t, WithTrick(snap, "pending"))
+            && !BeastmasterTelemetryFormat.ShouldEmit(ref tkGate, t + 1000, WithTrick(snap, "pending"))
+            && BeastmasterTelemetryFormat.ShouldEmit(ref tkGate, t + 2000, WithTrick(snap, "heart"))
+            && !BeastmasterTelemetryFormat.ShouldEmit(ref tkGate, t + 3000, WithTrick(snap, "heart")));
 
         // --- the rate floor ----------------------------------------------------------
         var rlGate = new BeastmasterTelemetryFormat.GateState();
@@ -529,7 +562,20 @@ internal static class Program
     /// is a runtime FAIL, not a build error. </summary>
     private static string Outcome(float sinceTrick, float sincePetHeart)
     {
-        var m = typeof(BeastmasterTelemetryFormat).GetMethod("TrickOutcome", new[] { typeof(float), typeof(float) });
+        var m = typeof(BeastmasterTelemetryFormat).GetMethod("TrickOutcome",
+            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
         return m is null ? "<missing>" : (string)m.Invoke(null, new object[] { sinceTrick, sincePetHeart })!;
+    }
+
+    /// <summary> Sets the tk= outcome on a snapshot through reflection, for the same reason as
+    /// <see cref="Outcome"/>: the BST-1 red proof must FAIL AT RUNTIME against the pre-fix
+    /// formatter (field absent), not fail to compile, so the reviewer's reverse-apply of only src
+    /// still shows the FAIL lines. A typo'd name makes the checks fail post-fix, so the reflection
+    /// cannot mask a defect. </summary>
+    private static BstSnapshot WithTrick(BstSnapshot s, string outcome)
+    {
+        var boxed = (object)s;
+        typeof(BstSnapshot).GetProperty("TrickOutcome")?.SetValue(boxed, outcome);
+        return (BstSnapshot)boxed;
     }
 }
