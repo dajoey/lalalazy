@@ -700,7 +700,7 @@ internal partial class PLD
         if (holySpellEnabled && HasDivineMagicMP && isAboveMPReserve && HasBattleTarget() &&
             (LocalPlayer.HasStatus(Buffs.Requiescat) || //Use if you have req stacks. Should only happen if You are under level for Cofefe Combo
              HasDivineMight && !InMeleeRange() || //Out of melee Use this before shield lob
-             HasDivineMight && LocalPlayer.HasStatus(Buffs.FightOrFlight) || // Burn in buff window
+             HasDivineMight && LocalPlayer.HasStatus(Buffs.FightOrFlight) && !LocalPlayer.HasStatus(Buffs.SepulchreReady) || // Burn in buff window, but the Sepulchre proc outranks it (Balance: prioritize Sepulchre in FoF)
              HasDivineMight && ComboAction is RiotBlade && flags.HasFlag(Combo.ST)|| //Use if about to refresh Divine Might ST (Not combined with below for a reason)
              HasDivineMight && ComboAction is TotalEclipse && flags.HasFlag(Combo.AoE)|| //Use if about to refresh Divine Might AOE
              HasDivineMight && LocalPlayer.Status(Buffs.DivineMight).RemainingTimeOrZero() < 6)) //Use if expiring
