@@ -64,6 +64,11 @@ internal partial class SGE
                     ImGui.Unindent();
                     DrawAdditionalBoolChoice(SGE_ST_Adv_DPS_EDosis_TwoTarget,
                         Generics.TwoTargetDotting, Generics.TwoTargetDottingDescription);
+                    DrawAdditionalBoolChoice(SGE_ST_Adv_DPS_EukrasianDosisUptime_BurstRefresh,
+                        FormatAndCache(SGE_Config.EDosisBurstRefresh0, EukrasianDosis.ActionName()),
+                        SGE_Config.EDosisBurstRefreshDesc);
+                    break;                    DrawAdditionalBoolChoice(SGE_ST_Adv_DPS_EDosis_TwoTarget,
+                        Generics.TwoTargetDotting, Generics.TwoTargetDottingDescription);
                     break;
 
                 case Preset.SGE_ST_Adv_DPS_Lucid:
@@ -433,6 +438,8 @@ internal partial class SGE
             SGE_Opener_Potion = new("SGE_Opener_Potion"),
             SGE_Opener_PrepullBlock = new("SGE_Opener_PrepullBlock", true),
             SGE_ST_Adv_DPS_EDosis_TwoTarget = new("SGE_ST_DPS_EDosis_TwoTarget", true),
+            SGE_ST_Adv_DPS_EukrasianDosisUptime_BurstRefresh = new("SGE_ST_DPS_EukrasianDosisUptime_BurstRefresh"),
+
             SGE_ST_Adv_DPS_Phlegma_Burst = new("SGE_ST_DPS_Phlegma_Burst", true),
             SGE_ST_Adv_DPS_Phlegma_PartyBurst = new("SGE_ST_DPS_Phlegma_PartyBurst");
 

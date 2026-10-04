@@ -108,6 +108,32 @@ internal static class Program
               $"Invoke(Dosis3) returns Phlegma ({SgeJob.Phlegma3}) - default-off keeps today's behaviour",
             gotSge1Off == SgeJob.Phlegma3, $"returned {gotSge1Off}");
 
+        // ---- SGE-2: opt-in early Eukrasian Dosis refresh while the party is bursting ----
+        // (config SGE_ST_Adv_DPS_EukrasianDosisUptime_BurstRefresh, default off; window 20s)
+        SetStDpsState(8f, phlegmaCharges: 1, phlegmaUnavailable: true);
+        FakeGame.BoolValues["SGE_ST_DPS_EukrasianDosisUptime_BurstRefresh"] = true;
+        FakeGame.PartyIsBurstingFlag = true;
+        uint gotSge2Burst = InvokeSt();
+        Check("SGE-2: option ON + party bursting + DoT 8s left (threshold 4s): " +
+              $"Invoke(Dosis3) returns Eukrasia ({SgeJob.Eukrasia}) - the DoT is refreshed early to cover the burst window",
+            gotSge2Burst == SgeJob.Eukrasia, $"returned {gotSge2Burst}");
+
+        SetStDpsState(8f, phlegmaCharges: 1, phlegmaUnavailable: true);
+        FakeGame.BoolValues["SGE_ST_DPS_EukrasianDosisUptime_BurstRefresh"] = false;
+        FakeGame.PartyIsBurstingFlag = true;
+        uint gotSge2Off = InvokeSt();
+        Check("SGE-2: option OFF (default) + party bursting + DoT 8s left: " +
+              $"Invoke(Dosis3) returns Dosis ({SgeJob.Dosis3}) - default-off keeps today's behaviour",
+            gotSge2Off == SgeJob.Dosis3, $"returned {gotSge2Off}");
+
+        SetStDpsState(8f, phlegmaCharges: 1, phlegmaUnavailable: true);
+        FakeGame.BoolValues["SGE_ST_DPS_EukrasianDosisUptime_BurstRefresh"] = true;
+        FakeGame.PartyIsBurstingFlag = false;
+        uint gotSge2NoBurst = InvokeSt();
+        Check("SGE-2: option ON + NOT bursting + DoT 8s left: " +
+              $"Invoke(Dosis3) returns Dosis ({SgeJob.Dosis3}) - the widened window only applies in burst",
+            gotSge2NoBurst == SgeJob.Dosis3, $"returned {gotSge2NoBurst}");
+
         // ---- the CANARY: deliberately asserts the opposite; must FAIL ----
         SetStDpsState(30f, phlegmaCharges: 1);
         uint gotCanary = InvokeSt();

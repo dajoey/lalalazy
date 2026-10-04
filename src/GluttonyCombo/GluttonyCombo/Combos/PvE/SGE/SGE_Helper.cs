@@ -70,6 +70,7 @@ internal partial class SGE
     #endregion
 
     #region Dot Checker
+    internal const double BurstRefreshWindow = 20;
 
     internal static bool ShouldRefreshEDosis()
     {
@@ -77,6 +78,12 @@ internal partial class SGE
         int hpThreshold = IsNotEnabled(Preset.SGE_ST_Simple_DPS) ? EDosisHpThreshold(CurrentTarget) : 0;
         EukrasianDosisList.TryGetValue(dotAction, out ushort dotDebuffID);
         double dotRefresh = IsNotEnabled(Preset.SGE_ST_Simple_DPS) ? SGE_ST_Adv_DPS_EukrasianDosisUptime_Threshold : 2.5;
+        // Opt-in (default off): while the party's raid buffs are up, widen the refresh window so the
+        // damage-over-time is reapplied early enough to cover a whole buff window instead of falling
+        // off mid-burst (Dawntrail healer guidance: buffs are ~20s, early refresh in buffs).
+        if (SGE_ST_Adv_DPS_EukrasianDosisUptime_BurstRefresh && Bursting.PartyIsBursting)
+            dotRefresh = Math.Max(dotRefresh, BurstRefreshWindow);
+
         float dotRemaining = CurrentTarget.Status(dotDebuffID).RemainingTimeOrZero();
 
         return ActionReady(Eukrasia) &&
