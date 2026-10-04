@@ -111,8 +111,8 @@ internal static class Program
         SetAoeWeaveState(inCombat: false);
         uint gotSchOoc1 = InvokeAoeSimple();
         Check("SCH-OOC-1: identical state but OUT OF COMBAT: " +
-              $"Invoke(ArtOfWarII) returns Art of War ({SCH.ArtOfWarII}) - no weave",
-            gotSchOoc1 == SCH.ArtOfWarII, $"returned {gotSchOoc1}");
+              $"Invoke(ArtOfWarII) returns the plain AoE GCD ({SCH.ArtOfWar}) - no weave",
+            gotSchOoc1 == SCH.ArtOfWar, $"returned {gotSchOoc1}");
 
         // SCH-OOC-2: SCH_AoE_ADV_DPS - the same stand-down on the advanced AoE ladder
         SetAoeWeaveState(inCombat: true, advanced: true);
@@ -124,8 +124,8 @@ internal static class Program
         SetAoeWeaveState(inCombat: false, advanced: true);
         uint gotSchOoc2 = InvokeAoeAdv();
         Check("SCH-OOC-2: identical state but OUT OF COMBAT: " +
-              $"Invoke(ArtOfWarII) returns Art of War ({SCH.ArtOfWarII}) - no weave",
-            gotSchOoc2 == SCH.ArtOfWarII, $"returned {gotSchOoc2}");
+              $"Invoke(ArtOfWarII) returns the plain AoE GCD ({SCH.ArtOfWar}) - no weave",
+            gotSchOoc2 == SCH.ArtOfWar, $"returned {gotSchOoc2}");
 
         // ---- the CANARY: deliberately asserts the opposite; must FAIL ----
         SetStAdvDpsState();

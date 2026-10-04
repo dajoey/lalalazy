@@ -94,17 +94,19 @@ internal partial class SCH : Healer
                 return DissolveUnion;
             #endregion
 
-            if (!WasLastAction(Dissipation) && ActionReady(Aetherflow) && !HasAetherflow && CanWeave())
+            // Fork (1.0.4.279): out of combat the area damage mode has nothing to weave -
+            // the same stand-down the Sage damage paths got in 1.0.4.278.
+            if (!WasLastAction(Dissipation) && ActionReady(Aetherflow) && !HasAetherflow && CanWeave() && InCombat())
                 return Aetherflow;
 
-            if (LocalPlayer.HasStatus(Buffs.ImpactImminent) && !JustUsed(ChainStratagem) && CanWeave())
+            if (LocalPlayer.HasStatus(Buffs.ImpactImminent) && !JustUsed(ChainStratagem) && CanWeave() && InCombat())
                 return BanefulImpaction;
 
-            if (ActionWatching.NumberOfGcdsUsed > 3 && CanChainStrategem && CanWeave())
+            if (ActionWatching.NumberOfGcdsUsed > 3 && CanChainStrategem && CanWeave() && InCombat())
                 return ChainStratagem;
 
             if (ActionReady(EnergyDrain) &&
-                AetherflowCD <= 10 && CanWeave())
+                AetherflowCD <= 10 && CanWeave() && InCombat())
                 return EnergyDrain;
 
             var dotAction = OriginalHook(Bio);
@@ -115,7 +117,7 @@ internal partial class SCH : Healer
             if (ActionReady(dotAction) && target != null)
                 return OriginalHook(Bio).Retarget(actionID, target);
 
-            if (Role.CanLucidDream(SCH_AoE_DPS_LucidOption) && CanWeave())
+            if (Role.CanLucidDream(SCH_AoE_DPS_LucidOption) && CanWeave() && InCombat())
                 return Role.LucidDreaming;
 
             return OriginalHook(ArtOfWar);
@@ -408,19 +410,21 @@ internal partial class SCH : Healer
                 return Expedient;
             #endregion
 
-            if (IsEnabled(Preset.SCH_AoE_ADV_DPS_Aetherflow) && !WasLastAction(Dissipation) && ActionReady(Aetherflow) && !HasAetherflow && CanWeave())
+            // Fork (1.0.4.279): out of combat the area damage mode has nothing to weave -
+            // the same stand-down the Sage damage paths got in 1.0.4.278.
+            if (IsEnabled(Preset.SCH_AoE_ADV_DPS_Aetherflow) && !WasLastAction(Dissipation) && ActionReady(Aetherflow) && !HasAetherflow && CanWeave() && InCombat())
                 return Aetherflow;
 
-            if (IsEnabled(Preset.SCH_AoE_ADV_DPS_BanefulImpact) && LocalPlayer.HasStatus(Buffs.ImpactImminent) && !JustUsed(ChainStratagem) && CanWeave())
+            if (IsEnabled(Preset.SCH_AoE_ADV_DPS_BanefulImpact) && LocalPlayer.HasStatus(Buffs.ImpactImminent) && !JustUsed(ChainStratagem) && CanWeave() && InCombat())
                 return BanefulImpaction;
 
             if (IsEnabled(Preset.SCH_AoE_ADV_DPS_ChainStrat) && ActionWatching.NumberOfGcdsUsed > 3 && CanChainStrategem &&
-                GetTargetHPPercent() > chainThreshold && CanWeave() &&
+                GetTargetHPPercent() > chainThreshold && CanWeave() && InCombat() &&
                 (ActionLearned(BanefulImpaction) || !SCH_AoE_DPS_ChainStratagemBanefulOption))
                 return ChainStratagem;
 
             if (IsEnabled(Preset.SCH_AoE_ADV_DPS_EnergyDrain) && ActionReady(EnergyDrain) &&
-                AetherflowCD <= SCH_AoE_DPS_EnergyDrain && CanWeave() &&
+                AetherflowCD <= SCH_AoE_DPS_EnergyDrain && CanWeave() && InCombat() &&
                 (!SCH_AoE_DPS_EnergyDrain_Burst ||
                  ChainStrategemCD > 10 ||
                  !ActionLearned(ChainStratagem)))
@@ -437,7 +441,7 @@ internal partial class SCH : Healer
                 ActionReady(dotAction) && target != null)
                 return OriginalHook(Bio).Retarget(actionID, target);
 
-            if (IsEnabled(Preset.SCH_AoE_ADV_DPS_Lucid) && Role.CanLucidDream(SCH_AoE_DPS_LucidOption) && CanWeave())
+            if (IsEnabled(Preset.SCH_AoE_ADV_DPS_Lucid) && Role.CanLucidDream(SCH_AoE_DPS_LucidOption) && CanWeave() && InCombat())
                 return Role.LucidDreaming;
 
             return OriginalHook(ArtOfWar);
