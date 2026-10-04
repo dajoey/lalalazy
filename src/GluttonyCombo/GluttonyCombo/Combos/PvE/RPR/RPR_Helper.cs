@@ -190,7 +190,9 @@ internal partial class RPR
 
     private static bool UseArcaneCircle(bool onAoE = false, int hpThreshold = 0) =>
         ActionReady(ArcaneCircle) && GetTargetHPPercent() > hpThreshold &&
-        (onAoE || ActionLearned(Enshroud) && JustUsed(ShadowOfDeath) || !ActionLearned(Enshroud));
+        (onAoE || !ActionLearned(Enshroud) ||
+         JustUsed(ShadowOfDeath) ||
+         CurrentTarget.Status(Debuffs.DeathsDesign).RemainingTimeOrZero() >= 20f);
 
     private static bool UseGluttony(bool enshroudEnabled = true, bool onAoE = false) =>
         UseBurstGluttony(enshroudEnabled, onAoE) ||
@@ -389,7 +391,15 @@ internal partial class RPR
         !IsShroudOvercapping(enshroudEnabled, true) &&
         (LocalPlayer.HasStatus(Buffs.SoulReaver) || LocalPlayer.HasStatus(Buffs.Executioner)) &&
         !LocalPlayer.HasStatus(Buffs.Enshrouded) && ActionLearned(Guillotine) &&
-        InActionRange(OriginalHook(Guillotine));
+        InActionRange(OriginalHook(Guillotine)) &&
+        !EnhancedGibbetGallowsAtThreeTargets;
+
+    //The Balance: at exactly three targets an Enhanced Gibbet/Gallows beats base Guillotine,
+    //which wants four targets while the buff is up (Executioner's Guillotine still wants three).
+    private static bool EnhancedGibbetGallowsAtThreeTargets =>
+        LocalPlayer.HasStatus(Buffs.SoulReaver) && !LocalPlayer.HasStatus(Buffs.Enshrouded) &&
+        (LocalPlayer.HasStatus(Buffs.EnhancedGibbet) || LocalPlayer.HasStatus(Buffs.EnhancedGallows)) &&
+        NumberOfEnemiesInRange(Guillotine) is 3;
 
     private static bool UseGibbetGallowsGCD(bool enshroudEnabled = true) =>
         !IsShroudOvercapping(enshroudEnabled) &&
@@ -973,3 +983,4 @@ internal partial class RPR
 
     #endregion
 }
+
