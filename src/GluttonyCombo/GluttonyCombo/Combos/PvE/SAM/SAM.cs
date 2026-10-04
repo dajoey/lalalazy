@@ -161,6 +161,12 @@ internal partial class SAM : Melee
 
                     if (holdForSenei)
                     {
+                        // Two targets: Guren's cleave on both beats Senei on one.
+                        if (NumberOfEnemiesInRange(Guren) is 2 &&
+                            UseSenei() &&
+                            UseGuren())
+                            return Guren;
+
                         if (UseSenei())
                             return Senei;
 

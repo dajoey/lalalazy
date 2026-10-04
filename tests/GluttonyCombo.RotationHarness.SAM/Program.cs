@@ -64,8 +64,12 @@ internal static class Program
               $"Invoke(Hakaze) still spends the cooldown on Senei ({Sam.Senei})",
             gotPair == Sam.Senei, $"returned {gotPair}");
 
-        // ---- (step 5 adds the SAM-1 two-enemy case here; the characterization below is the
-        //      paired unchanged-behaviour case for it) ----
+        // ---- the SAM-1 case (desired behaviour): exactly TWO enemies in Guren range -> Guren ----
+        SetSeneiWindowState(2);
+        uint got = new Sam.SAM_ST_AdvancedMode().RunInvoke(Sam.Hakaze);
+        Check($"SAM-1: 2 enemies in Guren range, Senei + Guren ready, Senei gate true: " +
+              $"Invoke(Hakaze) spends the cooldown on Guren ({Sam.Guren}), not Senei",
+            got == Sam.Guren, $"returned {got}");
 
         // ---- the CANARY: deliberately asserts the opposite; must FAIL ----
         SetSeneiWindowState(1);
