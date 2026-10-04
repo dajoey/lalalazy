@@ -41,7 +41,7 @@ internal static class OutOfCombatGate
     ///         stances, Eukrasia) keeps firing out of combat.
     ///     </para>
     /// </summary>
-    internal static bool MayFire(bool canTargetHostile, bool canTargetSelf, bool targetArea, bool fromHealPreset = false, bool sanctionedSelfBuff = false)
+    internal static bool MayFire(bool canTargetHostile, bool canTargetSelf, bool targetArea, bool fromHealPreset = false, bool sanctionedSelfBuff = false, bool userAllowsOutOfCombatAttacks = false)
     {
         if (targetArea)
             return true;
@@ -78,5 +78,8 @@ internal static class OutOfCombatGate
     ///     the target for no reason". Presses carry their own explicit target
     ///     id, so this only stops the UI-level retarget, not any action.
     /// </summary>
-    internal static bool MayWriteTarget(bool inCombat) => inCombat;
+    internal static bool MayWriteTarget(bool inCombat, bool userAllowsOutOfCombatAttacks = false) => inCombat;
+
+    /// <summary>STUB (red-first): the user's out-of-combat settings are not consulted yet.</summary>
+    internal static bool UserAllowsOutOfCombatAttacks(bool inCombatOnly, bool preferNonCombat) => false;
 }

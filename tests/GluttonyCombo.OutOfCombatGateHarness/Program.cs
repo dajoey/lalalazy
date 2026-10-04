@@ -32,8 +32,8 @@ void Case(string name, bool expected, bool actual)
     Console.WriteLine($"{(ok ? "PASS" : "FAIL")}  {name,-72} => {actual}, expected {expected}");
 }
 
-void Fire(string name, bool canTargetHostile, bool canTargetSelf, bool targetArea, bool expected, bool fromHealPreset = false, bool sanctionedSelfBuff = false) =>
-    Case(name, expected, OutOfCombatGate.MayFire(canTargetHostile, canTargetSelf, targetArea, fromHealPreset, sanctionedSelfBuff));
+void Fire(string name, bool canTargetHostile, bool canTargetSelf, bool targetArea, bool expected, bool fromHealPreset = false, bool sanctionedSelfBuff = false, bool userAllowsOutOfCombatAttacks = false) =>
+    Case(name, expected, OutOfCombatGate.MayFire(canTargetHostile, canTargetSelf, targetArea, fromHealPreset, sanctionedSelfBuff, userAllowsOutOfCombatAttacks));
 
 Console.WriteLine("== Group 1: hostile-only actions are combat-only - no press out of combat ==");
 Fire("hostile-only action may not fire (Smash Axe, Shieldsplitter)", true, false, false, false);
@@ -74,6 +74,24 @@ Console.WriteLine("== Group 5: 1.0.4.278 - incoming-damage detection is combat-o
 Console.WriteLine("   (field FATE mobs casting wide spells are not raidwides: no shield chain out of combat)");
 Case("MayDetectIncomingDamage(in combat) is true", true, OutOfCombatGate.MayDetectIncomingDamage(true));
 Case("MayDetectIncomingDamage(out of combat) is false", false, OutOfCombatGate.MayDetectIncomingDamage(false));
+
+Console.WriteLine();
+Console.WriteLine("== Group 6: the gate defers to the user's own out-of-combat settings ==");
+Console.WriteLine("   (\"Prioritise Targets Not in Combat\" on + \"Restrict to Combat Only\" off = attack out of combat;");
+Console.WriteLine("    defaults and the restricted setting keep the passenger behavior; friendly dumps stay combat-only)");
+Case("settings: prioritise-not-in-combat ON + restrict-to-combat OFF => allowed", true, OutOfCombatGate.UserAllowsOutOfCombatAttacks(inCombatOnly: false, preferNonCombat: true));
+Case("settings: defaults (prioritise OFF, restrict OFF) => passenger", false, OutOfCombatGate.UserAllowsOutOfCombatAttacks(inCombatOnly: false, preferNonCombat: false));
+Case("settings: prioritise ON but restrict-to-combat ON => passenger", false, OutOfCombatGate.UserAllowsOutOfCombatAttacks(inCombatOnly: true, preferNonCombat: true));
+Case("settings: restrict-to-combat ON, prioritise OFF => passenger", false, OutOfCombatGate.UserAllowsOutOfCombatAttacks(inCombatOnly: true, preferNonCombat: false));
+Fire("opted in: hostile-only attack fires out of combat (Smash Axe)", true, false, false, true, userAllowsOutOfCombatAttacks: true);
+Fire("opted in: hostile-only gap-close fires out of combat (Shield Charge)", true, false, false, true, userAllowsOutOfCombatAttacks: true);
+Fire("not opted in: hostile-only attack still waits for combat", true, false, false, false, userAllowsOutOfCombatAttacks: false);
+Fire("opted in: damage-preset heal dump STILL waits (Kerachole/Druochole overcap)", false, true, false, false, userAllowsOutOfCombatAttacks: true);
+Fire("opted in: unsanctioned self-only action STILL waits (Physis II, Rhizomata)", false, true, false, false, userAllowsOutOfCombatAttacks: true);
+Fire("opted in: heal-preset friendly action unchanged (Medica at a hurt member)", false, true, false, true, fromHealPreset: true, userAllowsOutOfCombatAttacks: true);
+Case("opted in: DPS hard-target write allowed out of combat", true, OutOfCombatGate.MayWriteTarget(false, userAllowsOutOfCombatAttacks: true));
+Case("not opted in: hard-target write still combat-only", false, OutOfCombatGate.MayWriteTarget(false, userAllowsOutOfCombatAttacks: false));
+Case("opted in: incoming-damage detection STILL combat-only (no raidwide shields)", false, OutOfCombatGate.MayDetectIncomingDamage(false));
 
 Console.WriteLine();
 if (failures == 0)
