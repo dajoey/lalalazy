@@ -6,8 +6,8 @@
 // the decisions READ (cooldowns, statuses, gauge bytes, target, presets, settings) comes from the
 // harness fakes instead of the game.
 //
-// THIS COMMIT carries only characterization cases that pass on the UNCHANGED source (plus the
-// canary); the round-7 improvement commit (RDM-2) adds its failing-first cases here.
+// THIS COMMIT first carried only characterization cases that pass on the UNCHANGED source (plus the
+// canary); the RDM-2 improvement commit added its failing-first cases here (RDM-2*).
 //
 //   dotnet build tests\GluttonyCombo.RotationHarness.RDM -c Release
 //   dotnet tests\GluttonyCombo.RotationHarness.RDM\bin\Release\net10.0-windows7.0\GluttonyCombo.RotationHarness.RDM.dll
@@ -81,6 +81,45 @@ internal static class Program
         Check("CH4 (unchanged behaviour): AoE, Manafication ready, Embolden 10s from ready: " +
               $"Invoke(Scatter) keeps the Scatter filler ({Rdm.Scatter})", got5 == Rdm.Scatter, $"returned {got5}");
 
+        // ---- RDM-2 (round 7): opt-in Manafication on cooldown instead of held for Embolden ----
+        // Balance guide (R5): "The 110s cooldown on Manafication often causes confusion on whether it
+        // should be held for Embolden or used on cooldown, but in fights with unknown killtimes,
+        // using Manafication on cooldown is often the better choice from a risk vs reward perspective."
+        // State: Manafication ready, Embolden 10s from ready (outside the <= 5 window), no Embolden buff,
+        // the new option ON. Invoke(Jolt) must return Manafication instead of holding it.
+        // (Fails on the pre-RDM-2 source: the EmboldenCD <= 5 gate holds it.)
+        SetManaficationState(emboldenSecondsLeft: 10f, onCooldown: true);
+        uint got6 = new Rdm.RDM_ST_DPS().RunInvoke(Rdm.Jolt);
+        Check($"RDM-2: Manafication ready, Embolden 10s away, option on: Invoke(Jolt) returns " +
+              $"Manafication ({Rdm.Manafication}), not the Jolt filler",
+            got6 == Rdm.Manafication, $"returned {got6}");
+
+        // Paired unchanged behaviour: option OFF (the default), identical state - Manafication stays held
+        // for Embolden exactly as today. True before and after the change.
+        SetManaficationState(emboldenSecondsLeft: 10f);
+        uint got7 = new Rdm.RDM_ST_DPS().RunInvoke(Rdm.Jolt);
+        Check($"RDM-2-unchanged: option off, same state: Invoke(Jolt) keeps the Jolt filler ({Rdm.Jolt}), " +
+              $"Manafication stays held for Embolden", got7 == Rdm.Jolt, $"returned {got7}");
+
+        // Paired unchanged behaviour: option on, Embolden 3s away - inside the window Manafication fires
+        // with or without the option; guards the gate rewrite against losing the window entirely.
+        SetManaficationState(emboldenSecondsLeft: 3f, onCooldown: true);
+        uint got8 = new Rdm.RDM_ST_DPS().RunInvoke(Rdm.Jolt);
+        Check($"RDM-2-EmboldenWindow: option on, Embolden 3s away: Invoke(Jolt) still returns " +
+              $"Manafication ({Rdm.Manafication})", got8 == Rdm.Manafication, $"returned {got8}");
+
+        // The AoE twin of the same change.
+        SetManaficationState(emboldenSecondsLeft: 10f, aoe: true, onCooldown: true);
+        uint got9 = new Rdm.RDM_AoE_DPS().RunInvoke(Rdm.Scatter);
+        Check($"RDM-2-AoE: AoE, Manafication ready, Embolden 10s away, option on: Invoke(Scatter) returns " +
+              $"Manafication ({Rdm.Manafication}), not the Scatter filler",
+            got9 == Rdm.Manafication, $"returned {got9}");
+
+        SetManaficationState(emboldenSecondsLeft: 10f, aoe: true);
+        uint got10 = new Rdm.RDM_AoE_DPS().RunInvoke(Rdm.Scatter);
+        Check($"RDM-2-AoE-unchanged: AoE, option off, same state: Invoke(Scatter) keeps the Scatter filler " +
+              $"({Rdm.Scatter}), Manafication stays held", got10 == Rdm.Scatter, $"returned {got10}");
+
         Console.WriteLine(_fail == 0
             ? $"OK ({_pass} checks, canary failed as expected)"
             : $"FAILED ({_fail} of {_pass + _fail})");
@@ -92,12 +131,15 @@ internal static class Program
     ///     learned and ready, no Embolden buff, Embolden on cooldown with the given seconds left.
     ///     Single-target by default (RDM_ST_DPS invoked over Jolt); the AoE twin invokes RDM_AoE_DPS
     ///     over Scatter. All other oGCD sub-presets stay off so nothing outranks Manafication.
+    ///     onCooldown switches on the RDM-2 opt-in option (RDM_ST/AoE_Manafication_OnCooldown).
     /// </summary>
-    private static void SetManaficationState(float emboldenSecondsLeft, bool aoe = false)
+    private static void SetManaficationState(float emboldenSecondsLeft, bool aoe = false, bool onCooldown = false)
     {
         FakeGame.Reset();
         FakeGame.CanWeave = true;
         FakeGame.EnabledPresets.Add(aoe ? Preset.RDM_AoE_Manafication : Preset.RDM_ST_Manafication);
+        if (onCooldown)
+            FakeGame.BoolValues[aoe ? "RDM_AoE_Manafication_OnCooldown" : "RDM_ST_Manafication_OnCooldown"] = true;
 
         var embolden = FakeGame.Cooldown(Rdm.Embolden);
         embolden.IsCooldown = true;

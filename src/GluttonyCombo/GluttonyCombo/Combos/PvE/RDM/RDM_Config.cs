@@ -18,7 +18,9 @@ internal partial class RDM
             RDM_VerAero_Dynamic = new("RDM_VerAero_Dynamic", true),
             RDM_VerThunder_Dynamic = new("RDM_VerThunder_Dynamic", true),
             RDM_VerAero2_Dynamic = new("RDM_VerAero2_Dynamic", true),
-            RDM_VerThunder2_Dynamic = new("RDM_VerThunder2_Dynamic", true);
+            RDM_VerThunder2_Dynamic = new("RDM_VerThunder2_Dynamic", true),
+            RDM_ST_Manafication_OnCooldown = new("RDM_ST_Manafication_OnCooldown"),
+            RDM_AoE_Manafication_OnCooldown = new("RDM_AoE_Manafication_OnCooldown");
 
 
         public static UserInt
@@ -121,6 +123,11 @@ internal partial class RDM
                     DrawHorizontalRadioButton(RDM_ST_Manafication_SubOption,
                         Generics.AllContent, Generics.HPCheckAllContent, 1);
                     ImGui.Unindent();
+
+                    // Opt-in: spend Manafication as soon as it is ready instead of holding it for Embolden.
+                    DrawAdditionalBoolChoice(RDM_ST_Manafication_OnCooldown,
+                        FormatAndCache(RDM_Config.ManaficationOnCooldown0, Manafication.ActionName()),
+                        RDM_Config.ManaficationOnCooldownDesc);
                     break;
 
                 case Preset.RDM_ST_MeleeCombo:
@@ -188,6 +195,11 @@ internal partial class RDM
                     DrawHorizontalRadioButton(RDM_AoE_Manafication_SubOption,
                         Generics.AllContent, Generics.HPCheckAllContent, 1);
                     ImGui.Unindent();
+
+                    // Opt-in: spend Manafication as soon as it is ready instead of holding it for Embolden.
+                    DrawAdditionalBoolChoice(RDM_AoE_Manafication_OnCooldown,
+                        FormatAndCache(RDM_Config.ManaficationOnCooldown0, Manafication.ActionName()),
+                        RDM_Config.ManaficationOnCooldownDesc);
                     break;
 
                 case Preset.RDM_AoE_VerCure:

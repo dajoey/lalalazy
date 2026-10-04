@@ -603,7 +603,10 @@ namespace GluttonyCombo.Combos.PvE
                 RDM_VerAero_Dynamic = new("RDM_VerAero_Dynamic", true),
                 RDM_VerThunder_Dynamic = new("RDM_VerThunder_Dynamic", true),
                 RDM_VerAero2_Dynamic = new("RDM_VerAero2_Dynamic", true),
-                RDM_VerThunder2_Dynamic = new("RDM_VerThunder2_Dynamic", true);
+                RDM_VerThunder2_Dynamic = new("RDM_VerThunder2_Dynamic", true),
+                // RDM-2 opt-in options (default off), mirrored one-for-one from RDM_Config.cs.
+                RDM_ST_Manafication_OnCooldown = new("RDM_ST_Manafication_OnCooldown"),
+                RDM_AoE_Manafication_OnCooldown = new("RDM_AoE_Manafication_OnCooldown");
 
             public static CustomComboNS.Functions.UserInt
                 RDM_ST_Lucid_Threshold = new("RDM_LucidDreaming_Threshold", 6500),

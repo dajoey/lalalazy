@@ -262,7 +262,7 @@ internal partial class RDM : Caster
                 // scope: Manafication is an ability, so it does not consume a Dualcast, and the
                 // melee hold a Dualcast causes lasts exactly one GCD - far too short to strand
                 // the stacks. A Quick window is up to twenty seconds, which is not.
-                if (IsEnabled(Preset.RDM_ST_Manafication) && ActionReady(Manafication) && (EmboldenCD <= 5 || HasEmbolden) && !CanPrefulgence && canUseManafication &&
+                if (IsEnabled(Preset.RDM_ST_Manafication) && ActionReady(Manafication) && (RDM_ST_Manafication_OnCooldown || EmboldenCD <= 5 || HasEmbolden) && !CanPrefulgence && canUseManafication &&
                     !HasFreeInstantCasts)
                     return Manafication;
 
@@ -420,7 +420,7 @@ internal partial class RDM : Caster
                     (HasEnoughManaToStart || CanMagickedSwordplay))
                     return Corpsacorps;
 
-                if (IsEnabled(Preset.RDM_AoE_Manafication) && ActionReady(Manafication) && (EmboldenCD <= 5 || HasEmbolden) && !CanPrefulgence && canUseManafication &&
+                if (IsEnabled(Preset.RDM_AoE_Manafication) && ActionReady(Manafication) && (RDM_AoE_Manafication_OnCooldown || EmboldenCD <= 5 || HasEmbolden) && !CanPrefulgence && canUseManafication &&
                     !HasFreeInstantCasts)
                     return Manafication;
 
