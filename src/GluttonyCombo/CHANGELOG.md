@@ -1,3 +1,22 @@
+## v1.0.4.278 (2026-10-04) [testing]
+### Changed
+- **Out of combat, damage rotations no longer react when there is nothing to do.** A friendly-only
+  action resolved from a damage preset (Addersgall overcap dumps such as Kerachole and Druochole,
+  Eukrasian shields, regens like Physis, and unsanctioned Swiftcast) now waits for combat, matching
+  the Sage case of the 2026-10-04 report: gauges do not overcap out of combat, so the protection
+  has nothing to protect. Sage's damage presets (simple and advanced, single-target and AoE) now
+  require combat before weaving Addersgall protection, Psyche, Lucid Dreaming, Rhizomata, Soteria
+  or Eukrasia chains. Heal presets are unchanged: when a party member is actually hurt, dead or
+  cleansable out of combat they still act.
+- **Raidwide detection is now combat-only.** Wide-area casts by field mobs (for example FATE
+  enemies) no longer count as incoming raidwide damage while the party is out of combat, so the
+  raidwide-shield chains (Eukrasian Prognosis, Medica, timed regen locks) no longer fire at a
+  full-health party between pulls.
+- Out of combat, pre-pull self-buffs that the Bypass Buffs option already sanctions (self-usable
+  actions with a short recast, such as tank stances) still fire; mudras toward a target the player
+  chose still fire; ground-targeted actions still fire.
+### Notes
+- Testing channel only; the production channel is unchanged.
 ## v1.0.4.277 (2026-10-04) [testing]
 ### Changed
 - **Out of combat, the auto-rotation no longer fires combat-only actions.** An action that can only
