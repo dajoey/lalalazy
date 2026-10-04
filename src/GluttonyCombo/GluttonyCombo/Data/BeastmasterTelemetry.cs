@@ -150,8 +150,9 @@ internal static class BeastmasterTelemetry
         var act = BST.LastDecisionActionId;
         var isAttack = act != 0 && ActionWatching.ActionSheet.TryGetValue(act, out var sheet)
             && sheet.CanTargetHostile && !sheet.CanTargetSelf;
-        var sinceFire = (float)(DateTime.UtcNow - ActionWatching.TimeLastActionUsed).TotalSeconds;
-        var holding = s.InCombat && s.GcdReady && isAttack && sinceFire > CrucibleStallFormat.StallAfterSeconds;
+        // ActionWatching keeps LOCAL time; subtracting UtcNow saturated every line at s=999 (2026-10-03).
+        var sinceFire = CrucibleStallFormat.SinceFireSeconds(ActionWatching.TimeSinceLastAction);
+        var holding = CrucibleStallFormat.IsStalled(s.InCombat, s.GcdReady, isAttack, sinceFire);
         if (!holding)
             return;
 
