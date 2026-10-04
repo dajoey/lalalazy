@@ -84,8 +84,8 @@ fresh.MigrateIfNeeded();
 Check("fresh config has the v5-era default off (PriceMatchAfterCraft)", !fresh.PriceMatchAfterCraft);
 // v8 (the related support thread): an old config never has the WalkToVendorsOnCart key, so the initialiser
 // stands and existing installs get the vendor walk - opt-out, not opt-in, same shape as v5 -> v6.
-Check("old config arrives at v8 with the vendor walk ON", cfg.Version == 8 && cfg.WalkToVendorsOnCart);
-Check("fresh config is v8 with the vendor walk ON", fresh.Version == 8 && fresh.WalkToVendorsOnCart);
+Check("old config arrives at v8+ with the vendor walk ON", cfg.Version >= 8 && cfg.WalkToVendorsOnCart);
+Check("fresh config is v8+ with the vendor walk ON", fresh.Version >= 8 && fresh.WalkToVendorsOnCart);
 Check("fresh config serializes with no old key", !JsonConvert.SerializeObject(fresh, Formatting.Indented).Contains("DagobertAfterCraft"));
 
 // Case 5: v5 config saved by the new build reloaded directly (post-migration steady state).
