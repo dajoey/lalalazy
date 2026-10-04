@@ -1,0 +1,74 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- RotationHarness SCH (2026-10-04, SC11 round 7): proves the Scholar Invoke decisions offline by
+       compiling the REAL, UNCHANGED job source (SCH.cs + SCH_Helper.cs at the pinned revision) against a
+       harness-owned fake of the CustomComboFunctions game boundary. The job files are Compile-INcluded as
+       links; nothing under src/ is edited by the harness. The fakes live only in this folder
+       (Fakes.cs/FakeGame.cs) and are fork-owned, so the nightly upstream merge never sees them.
+         dotnet build tests\GluttonyCombo.RotationHarness.SCH -c Release
+         dotnet tests\GluttonyCombo.RotationHarness.SCH\bin\Release\net10.0-windows7.0\GluttonyCombo.RotationHarness.SCH.dll
+       Prints PASS/FAIL per case; a clearly-marked CANARY case is EXPECTED to fail; ends "OK" and exits 0
+       only when every real case passes AND the canary fails as expected. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows7.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>preview</LangVersion>
+    <RootNamespace>GluttonyCombo.RotationHarness</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoWarn>$(NoWarn);CS1574;CS1591</NoWarn>
+  </PropertyGroup>
+  <PropertyGroup>
+    <DalamudLibPath>$(appdata)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="Fakes.cs" />
+    <Compile Include="FakeGame.cs" />
+    <!-- ==== THE CODE UNDER TEST: the real Scholar job files, unchanged ==== -->
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\SCH\SCH.cs" Link="SCH\SCH.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\SCH\SCH_Helper.cs" Link="SCH\SCH_Helper.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="Dalamud">
+      <HintPath>$(DalamudLibPath)Dalamud.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Dalamud.Common">
+      <HintPath>$(DalamudLibPath)Dalamud.Common.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <!-- SCH.cs carries `using Dalamud.Bindings.ImPlot;`; the binding assemblies must resolve. -->
+    <Reference Include="Dalamud.Bindings.ImGui">
+      <HintPath>$(DalamudLibPath)Dalamud.Bindings.ImGui.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Dalamud.Bindings.ImPlot">
+      <HintPath>$(DalamudLibPath)Dalamud.Bindings.ImPlot.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="FFXIVClientStructs">
+      <HintPath>$(DalamudLibPath)FFXIVClientStructs.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Lumina">
+      <HintPath>$(DalamudLibPath)Lumina.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Lumina.Excel">
+      <HintPath>$(DalamudLibPath)Lumina.Excel.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>$(DalamudLibPath)Newtonsoft.Json.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <!-- ECommons is compiled from source so the ECommons usings in SCH_Helper (Svc, JobRoles...) resolve;
+         no ECommons code runs in the tested paths (the Svc.Log.Debug weave line is branch-skipped offline). -->
+    <ProjectReference Include="..\..\src\GluttonyCombo\ECommons\ECommons\ECommons.csproj" />
+  </ItemGroup>
+</Project>
