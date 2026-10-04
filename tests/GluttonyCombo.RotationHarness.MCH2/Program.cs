@@ -9,21 +9,18 @@
 // are the exact shipping code. Everything the decisions READ (cooldowns, statuses, gauge bytes, target,
 // presets, settings, enemy counts) comes from the harness fakes instead of the game.
 //
-// THE DECISION (MCH-2, the behaviour the Improvements Ranked row wants - Icy Veins guide, patch 7.5:
+// THE CASE (MCH-2, the behaviour the Improvements Ranked row wants - Icy Veins guide, patch 7.5:
 // "the most effective practice is to summon queen between burst windows at 50 and 60 gauge while
 // keeping a queen of 100 battery for each 2 minute burst window"): with the ST Advanced mode and its
 // Turret/Queen child enabled (Joey's live preset set, opener off), weave open, boss target, no robot
 // active, Wildfire 70 s from ready (between 2-minute bursts) and Battery 55 (inside the 50-60 band),
-// MCH_ST_AdvancedMode.Invoke(SplitShot) must return the Automaton Queen.
+// MCH_ST_AdvancedMode.Invoke(SplitShot) must return the Automaton Queen (ShouldUseQueenST gains the
+// between-bursts rule). The paired cases pin what must NOT change: holding toward 100 when Wildfire
+// is close (15 s), the band edges (Battery 40 and 70 still hold), and the existing Battery-100 rule.
 //
-// THIS COMMIT characterizes TODAY'S behaviour on the UNCHANGED source: the same state keeps returning
-// the basic combo (SplitShot), not the Queen - there is no between-bursts rule in ShouldUseQueenST
-// yet. The MCH-2 commit flips this case to the wanted behaviour (failing test first, then the
-// ShouldUseQueenST change makes it pass).
-//
-// THE CANARY: the same state asserting the behaviour that is NOT current (Queen at Battery 55 between
-// bursts). It is EXPECTED TO FAIL; the harness only exits 0 when the canary fails as expected (proof
-// the case can actually fail).
+// THE CANARY: the MCH-2 state asserting the PRE-change behaviour (the basic combo at Battery 55
+// between bursts). It is EXPECTED TO FAIL; the harness only exits 0 when the canary fails as expected
+// (proof the case can actually fail).
 //
 //   dotnet build tests\GluttonyCombo.RotationHarness.MCH2 -c Release
 //   dotnet tests\GluttonyCombo.RotationHarness.MCH2\bin\Release\net10.0-windows7.0\GluttonyCombo.RotationHarness.MCH2.dll
@@ -58,7 +55,7 @@ internal static class Program
                               .Select(kv => $"{kv.Key.Prop}=@{kv.Value}")));
         Console.WriteLine($"MCHGauge.Battery reads {gauge.Battery} (fresh, expected 0)");
 
-        // ---- characterization: today's behaviour on the UNCHANGED source ----
+        // ---- MCH-2: the behaviour the row wants (Queen between bursts at 50-60 Battery) ----
         SetQueenState(battery: 55, wildfireRemaining: 70f);
         Console.WriteLine($"case state: Battery={FakeGauges.Get<MCHGauge>().Battery}, " +
                           $"IsRobotActive={FakeGauges.Get<MCHGauge>().IsRobotActive}, CanWeave={FakeGame.CanWeave}, " +
@@ -67,16 +64,44 @@ internal static class Program
                           $"{FakeGame.Cooldown(MchJob.Hypercharge).CooldownRemaining}s, Queen preset=" +
                           $"{FakeGame.EnabledPresets.Contains(Preset.MCH_ST_Adv_TurretQueen)}");
         uint got = new MchJob.MCH_ST_AdvancedMode().RunInvoke(MchJob.SplitShot);
-        Check("characterization: Battery 55 + Wildfire 70s away + boss target + weave open: " +
-              $"Invoke(SplitShot) returns the basic combo ({MchJob.SplitShot}), NOT the Queen ({MchJob.AutomatonQueen})",
-            got == MchJob.SplitShot, $"returned {got}");
+        Check("MCH-2: Battery 55 + Wildfire 70s away + boss target + weave open: " +
+              $"Invoke(SplitShot) returns the Queen ({MchJob.AutomatonQueen}), not the basic combo",
+            got == MchJob.AutomatonQueen, $"returned {got}");
 
-        // ---- the CANARY: asserts the behaviour that is NOT current; must FAIL ----
+        // ---- MCH-2 paired: hold toward 100 when the 2-minute burst is close ----
+        SetQueenState(battery: 55, wildfireRemaining: 15f);
+        uint gotHold = new MchJob.MCH_ST_AdvancedMode().RunInvoke(MchJob.SplitShot);
+        Check("MCH-2 paired: identical state but Wildfire 15s away (burst close): Invoke(SplitShot) " +
+              $"keeps returning the basic combo ({MchJob.SplitShot}) - Battery is held toward 100",
+            gotHold == MchJob.SplitShot, $"returned {gotHold}");
+
+        // ---- MCH-2 paired: below the band ----
+        SetQueenState(battery: 40, wildfireRemaining: 70f);
+        uint gotLow = new MchJob.MCH_ST_AdvancedMode().RunInvoke(MchJob.SplitShot);
+        Check("MCH-2 paired: identical state but Battery 40 (below the 50-60 band): Invoke(SplitShot) " +
+              $"keeps returning the basic combo ({MchJob.SplitShot})",
+            gotLow == MchJob.SplitShot, $"returned {gotLow}");
+
+        // ---- MCH-2 paired: above the band ----
+        SetQueenState(battery: 70, wildfireRemaining: 70f);
+        uint gotHigh = new MchJob.MCH_ST_AdvancedMode().RunInvoke(MchJob.SplitShot);
+        Check("MCH-2 paired: identical state but Battery 70 (above the 50-60 band, no tool ready): " +
+              $"Invoke(SplitShot) keeps returning the basic combo ({MchJob.SplitShot})",
+            gotHigh == MchJob.SplitShot, $"returned {gotHigh}");
+
+        // ---- MCH-2 paired: the existing Battery-100 rule is untouched ----
+        SetQueenState(battery: 100, wildfireRemaining: 15f);
+        uint gotFull = new MchJob.MCH_ST_AdvancedMode().RunInvoke(MchJob.SplitShot);
+        Check("MCH-2 paired: Battery 100 still returns the Queen regardless of burst timing " +
+              "(the existing full-battery rule)",
+            gotFull == MchJob.AutomatonQueen, $"returned {gotFull}");
+
+        // ---- the CANARY: asserts the PRE-change behaviour; must FAIL ----
         SetQueenState(battery: 55, wildfireRemaining: 70f);
         uint got2 = new MchJob.MCH_ST_AdvancedMode().RunInvoke(MchJob.SplitShot);
-        CheckCanary("CANARY (expected to FAIL): identical state, asserting Invoke(SplitShot) already " +
-                    $"returns the Queen between bursts at Battery 55",
-            got2 == MchJob.AutomatonQueen, $"returned {got2}");
+        CheckCanary("CANARY (expected to FAIL): identical state to MCH-2, asserting Invoke(SplitShot) " +
+                    $"still returns the basic combo (the old no-Queen-between-bursts behaviour)",
+            got2 == MchJob.SplitShot, $"returned {got2}");
 
         Console.WriteLine(_fail == 0
             ? $"OK ({_pass} checks, canary failed as expected)"
