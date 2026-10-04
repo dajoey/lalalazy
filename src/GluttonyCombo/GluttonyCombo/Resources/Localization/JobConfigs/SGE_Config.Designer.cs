@@ -150,5 +150,39 @@ namespace GluttonyCombo.Resources.Localization.JobConfigs {
                 return ResourceManager.GetString("SGE_Mit_ST_Taurochole_Help", resourceCulture);
             }
         }
+        /// <summary>
+        ///   Looks up a localized string similar to Party burst only: {0}.
+        /// </summary>
+        internal static string PhlegmaPartyBurst0 {
+            get {
+                return ResourceManager.GetString("PhlegmaPartyBurst0", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Hold {0} charges for party burst windows instead of using them as they come up. Capped charges are still used. Leave off to keep using charges on cooldown..
+        /// </summary>
+        internal static string PhlegmaPartyBurstDesc {
+            get {
+                return ResourceManager.GetString("PhlegmaPartyBurstDesc", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Looks up a localized string similar to Early {0} refresh during party buffs.
+        /// </summary>
+        internal static string EDosisBurstRefresh0 {
+            get {
+                return ResourceManager.GetString("EDosisBurstRefresh0", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to On: while the party's raid buffs are up, the damage-over-time is refreshed early (up to 20 seconds remaining) so it covers the whole buff window instead of falling off mid-burst. Off (default): it is refreshed only at the remaining-time threshold above..
+        /// </summary>
+        internal static string EDosisBurstRefreshDesc {
+            get {
+                return ResourceManager.GetString("EDosisBurstRefreshDesc", resourceCulture);
+            }
+        }
     }
 }
