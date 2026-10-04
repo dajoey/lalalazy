@@ -10326,8 +10326,7 @@ Uses when moving during Garuda Phase and you have no attunement, when moving dur
     <value>Searing Flash Combo Option</value>
   </data>
   <data name="SMN_AoE_Advanced_Combo_SearingLight_Burst_Desc" xml:space="preserve">
-    <value>Casts Searing Light only during Demi phases.
-Spellspeed Builds would turn this off.</value>
+    <value>This option no longer changes anything. Searing Light is now cast whenever it is ready.</value>
   </data>
   <data name="SMN_AoE_Advanced_Combo_SearingLight_Burst_Name" xml:space="preserve">
     <value>Searing Light Burst Option</value>
@@ -10541,8 +10540,7 @@ Uses when moving during Garuda Phase and you have no attunement, when moving dur
     <value>Searing Flash Combo Option</value>
   </data>
   <data name="SMN_ST_Advanced_Combo_SearingLight_Burst_Desc" xml:space="preserve">
-    <value>Casts Searing Light only during Demi phases.
-Spellspeed builds would turn this off.</value>
+    <value>This option no longer changes anything. Searing Light is now cast whenever it is ready.</value>
   </data>
   <data name="SMN_ST_Advanced_Combo_SearingLight_Burst_Name" xml:space="preserve">
     <value>Searing Light Burst Option</value>
