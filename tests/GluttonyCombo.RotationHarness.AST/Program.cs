@@ -85,6 +85,43 @@ internal static class Program
               "waits for Divination exactly as today",
             got1b == AST.Malefic, $"returned {got1b}");
 
+        // ---- AST-3: first Divination held until 3 GCDs when the opener preset is off ----
+        SetBossFightState();
+        FakeAstCards.SetCard(0, CardType.None);    // cards played out; AstralDraw on cooldown below
+        var drawCd = FakeGame.Cooldown(AST.AstralDraw);
+        drawCd.IsCooldown = true;
+        drawCd.CooldownRemaining = 20f;
+        FakeGame.NumberOfGcdsUsed = 1;
+        uint got3 = InvokeSt();
+        Check("AST-3: opener preset OFF + 1 GCD used + standing still + Divination ready + no cards: " +
+              $"Invoke(FallMalefic) returns Malefic ({AST.Malefic}) — the first Divination is held to 3 GCDs",
+            got3 == AST.Malefic, $"returned {got3}");
+
+        // ---- AST-3: at 3 GCDs the hold releases ----
+        SetBossFightState();
+        FakeAstCards.SetCard(0, CardType.None);
+        drawCd = FakeGame.Cooldown(AST.AstralDraw);
+        drawCd.IsCooldown = true;
+        drawCd.CooldownRemaining = 20f;
+        FakeGame.NumberOfGcdsUsed = 3;
+        uint got3b = InvokeSt();
+        Check("AST-3 at 3 GCDs: opener preset OFF + 3 GCDs used + standing still + Divination ready: " +
+              $"Invoke(FallMalefic) returns Divination ({AST.Divination})",
+            got3b == AST.Divination, $"returned {got3b}");
+
+        // ---- AST-3 paired: opener users keep today's behaviour ----
+        SetBossFightState();
+        FakeAstCards.SetCard(0, CardType.None);
+        drawCd = FakeGame.Cooldown(AST.AstralDraw);
+        drawCd.IsCooldown = true;
+        drawCd.CooldownRemaining = 20f;
+        FakeGame.EnabledPresets.Add(Preset.AST_ST_DPS_Opener);
+        FakeGame.NumberOfGcdsUsed = 1;
+        uint got3c = InvokeSt();
+        Check("AST-3 (paired, unchanged): opener preset ON + 1 GCD used + standing still + Divination " +
+              $"ready: Invoke(FallMalefic) returns Divination ({AST.Divination}) — opener timing owns the pull",
+            got3c == AST.Divination, $"returned {got3c}");
+
         // ---- the CANARY: deliberately asserts the opposite; must FAIL ----
         SetBossFightState();
         FakeGame.NumberOfGcdsUsed = 10;
