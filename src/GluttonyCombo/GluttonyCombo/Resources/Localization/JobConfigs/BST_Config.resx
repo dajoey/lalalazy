@@ -138,6 +138,15 @@
   <data name="AllowSleepReleaseDesc" xml:space="preserve">
     <value>Lullaby puts enemies to sleep, which breaks on damage. Off (recommended): lamb spends One with Nature on Borrow instead (from level 22).</value>
   </data>
+  <data name="AoePartingBlow0" xml:space="preserve">
+    <value>AoE preset: hold {0} until enough enemies</value>
+  </data>
+  <data name="AoePartingBlowDesc" xml:space="preserve">
+    <value>AoE preset only. On: the AoE Parting Blow (Aetheric Burst) is held until at least the set number of enemies stand in its area, so the burst is never wasted on a lone target; the single-target preset is never affected. Off (default): the exit fires under today's rules, regardless of enemy count.</value>
+  </data>
+  <data name="AoePartingBlowEnemies0" xml:space="preserve">
+    <value>Minimum enemies in the area of {0}</value>
+  </data>
   <data name="BorrowWhileReleaseRecasts0" xml:space="preserve">
     <value>Use {0} while {1} is recasting</value>
   </data>

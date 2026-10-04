@@ -21,11 +21,13 @@ internal partial class BST
             BST_CruciblePetSwapHp = new("BST_CruciblePetSwapHp", 55),
             BST_CrucibleFinalStingHp = new("BST_CrucibleFinalStingHp", 30),
             BST_CrucibleAggro = new("BST_CrucibleAggro", (int)CrucibleAggroMode.On),
-            BST_CrucibleSnarlPartingLead = new("BST_CrucibleSnarlPartingLead", 15);
+            BST_CrucibleSnarlPartingLead = new("BST_CrucibleSnarlPartingLead", 15),
+            BST_AoePartingBlowEnemies = new("BST_AoePartingBlowEnemies", 3);
 
         public static UserBool
             BST_AllowPetlessCycling = new("BST_AllowPetlessCycling", false),
             BST_FinalStingAsExit = new("BST_FinalStingAsExit", true),
+            BST_AoePartingBlow = new("BST_AoePartingBlow", false),
             BST_AllowDisplacingRelease = new("BST_AllowDisplacingRelease", false),
             BST_AllowSleepRelease = new("BST_AllowSleepRelease", false),
             BST_BorrowWhileReleaseRecasts = new("BST_BorrowWhileReleaseRecasts", true),
@@ -75,6 +77,17 @@ internal partial class BST
                     DrawAdditionalBoolChoice(BST_FinalStingAsExit,
                         BST_Config.FinalStingAsExit,
                         FormatAndCache(BST_Config.FinalStingAsExitDesc, TemperedRelease.ActionName(), PartingBlow.ActionName()));
+
+                    // AoE preset only, opt-in: hold Aetheric Burst until enough enemies stand in its area.
+                    DrawAdditionalBoolChoice(BST_AoePartingBlow,
+                        FormatAndCache(BST_Config.AoePartingBlow0, PartingBlow.ActionName()),
+                        BST_Config.AoePartingBlowDesc);
+
+                    // Only meaningful while the gate itself is switched on, so it can only be dragged then.
+                    ImGui.BeginDisabled(!BST_AoePartingBlow);
+                    DrawSliderInt(2, 8, BST_AoePartingBlowEnemies,
+                        FormatAndCache(BST_Config.AoePartingBlowEnemies0, PartingBlow.ActionName()));
+                    ImGui.EndDisabled();
 
                     DrawAdditionalBoolChoice(BST_AllowDisplacingRelease,
                         FormatAndCache(BST_Config.AllowDisplacingRelease0, TemperedRelease.ActionName()),

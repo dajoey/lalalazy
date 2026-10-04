@@ -124,6 +124,8 @@ internal partial class BST : Melee
         UseShieldCharge = BST_UseShieldCharge,
         ShieldChargeOvercap = BST_ShieldChargeOvercap,
         UseRally = BST_UseRally,
+        AoePartingBlow = BST_AoePartingBlow,
+        AoePartingBlowEnemies = BST_AoePartingBlowEnemies,
     });
 
     private static uint Run(in BST_RotationLogic.BstSettings cfg)

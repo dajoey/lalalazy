@@ -45,6 +45,7 @@ internal static class Program
         CrucibleTactics();
         DashLandingSafety();
         PartingBlowExitBaseline();
+        PartingBlowAoeGate();
         FallbackCandidates();
         LearnedFromTheRuns();
 
@@ -2538,6 +2539,43 @@ internal static class Program
             Exits(Decide(s with { ActiveSlot = 0 }, BstSettings.Defaults())));
     }
 
+    // BST-2 proper: opt-in AoE gate for Parting Blow. Default off preserves today's count-blind
+    // behaviour exactly; on, the AoE preset declines the exit until enough enemies stand in its area
+    // (the ST preset is exempt - Aetheric Burst's bonus is the pack, not the single target).
+    private static void PartingBlowAoeGate()
+    {
+        Console.WriteLine("-- Parting Blow AoE gate (BST-2) --");
+        var s = ExitReadyState();
+        bool Exits(BstDecision d) => d.ActionId == BST.PartingBlow;
+
+        var off = Decide(s, BstSettings.Defaults(aoe: true));
+        CheckLoud("BST-2: option off, one enemy - the exit still fires (default off changes nothing)",
+            Exits(off), $"{off.ActionId}:{off.Reason} [{off.Declines}]");
+
+        var on = Opt(BstSettings.Defaults(aoe: true), "AoePartingBlow", true);
+        var blocked = Decide(s, on);
+        CheckLoud("BST-2: option on, one enemy in the area - declined with the named reason",
+            !Exits(blocked) && blocked.Declines.Contains("exit:partingblow-few-enemies", StringComparison.Ordinal),
+            $"{blocked.ActionId}:{blocked.Reason} [{blocked.Declines}]");
+
+        var fired = Decide(s with { EnemiesWithin6y = 3 }, on);
+        CheckLoud("BST-2: option on, three enemies - the exit fires",
+            Exits(fired), $"{fired.ActionId}:{fired.Reason} [{fired.Declines}]");
+
+        var on5 = Opt(on, "AoePartingBlowEnemies", 5);
+        CheckLoud("BST-2: the threshold is configurable - four enemies decline at five, five fire",
+            !Exits(Decide(s with { EnemiesWithin6y = 4 }, on5)) && Exits(Decide(s with { EnemiesWithin6y = 5 }, on5)),
+            "");
+
+        CheckLoud("BST-2: the ST preset is exempt even with the option on",
+            Exits(Decide(s, Opt(BstSettings.Defaults(), "AoePartingBlow", true))));
+
+        CheckLoud("BST-2: the live config is wired (statics, UI, AdvancedSettings)",
+            RepoFile("Combos", "PvE", "BST", "BST_Config.cs").Contains("BST_AoePartingBlow", StringComparison.Ordinal)
+            && RepoFile("Combos", "PvE", "BST", "BST.cs").Contains("AoePartingBlow = BST_AoePartingBlow", StringComparison.Ordinal),
+            "BST_Config.cs statics + BST.cs AdvancedSettings wiring");
+    }
+
     /// <summary> A state where every TryExit gate passes: familiar out past the minimum stay, One with
     /// Nature spent, Parting Blow ready, another horn ready, in weave range - only the enemy count
     /// varies between cases. </summary>
@@ -2624,6 +2662,35 @@ internal static class Program
 
         _fail++;
         Console.WriteLine($"FAIL {what}{(detail is null ? "" : $"  [{detail}]")}");
+    }
+
+    /// <summary> Sets a <see cref="BstSettings"/> field by name through reflection, boxed so the struct
+    /// copy is what gets mutated. The BST-2 red proof must FAIL AT RUNTIME against pre-fix code
+    /// (field absent -> assignment silently skipped), not fail to compile; a typo'd name fails the
+    /// check post-fix, so the reflection cannot mask a defect. </summary>
+    private static BstSettings Opt(BstSettings s, string field, object value)
+    {
+        object boxed = s;
+        typeof(BstSettings).GetField(field)?.SetValue(boxed, value);
+        return (BstSettings)boxed;
+    }
+
+    /// <summary> Reads a file from the live-plugin tree, walking up from the harness output directory
+    /// to the repo root (same pattern as the telemetry harness). Empty string when not found. </summary>
+    private static string RepoFile(params string[] rel)
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "tools", "check-preset-ids.py")))
+            dir = dir.Parent;
+        if (dir is null)
+            return "";
+        var parts = new string[rel.Length + 4];
+        parts[0] = dir.FullName;
+        parts[1] = "src";
+        parts[2] = "GluttonyCombo";
+        parts[3] = "GluttonyCombo";
+        rel.CopyTo(parts, 4);
+        return File.ReadAllText(Path.Combine(parts));
     }
 
     /// <summary> A <see cref="Check"/> that also prints its PASS line: the BST-1/BST-2 cases use it so the

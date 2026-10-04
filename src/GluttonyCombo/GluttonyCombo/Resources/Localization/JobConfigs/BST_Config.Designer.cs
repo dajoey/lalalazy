@@ -115,6 +115,33 @@ namespace GluttonyCombo.Resources.Localization.JobConfigs {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to AoE preset: hold {0} until enough enemies.
+        /// </summary>
+        internal static string AoePartingBlow0 {
+            get {
+                return ResourceManager.GetString("AoePartingBlow0", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to AoE preset only. On: the AoE Parting Blow (Aetheric Burst) is held until at least ....
+        /// </summary>
+        internal static string AoePartingBlowDesc {
+            get {
+                return ResourceManager.GetString("AoePartingBlowDesc", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Minimum enemies in the area of {0}.
+        /// </summary>
+        internal static string AoePartingBlowEnemies0 {
+            get {
+                return ResourceManager.GetString("AoePartingBlowEnemies0", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Use {0} while {1} is recasting.
         /// </summary>
         internal static string BorrowWhileReleaseRecasts0 {
