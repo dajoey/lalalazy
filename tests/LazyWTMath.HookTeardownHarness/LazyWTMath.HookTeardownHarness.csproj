@@ -24,6 +24,20 @@
     <Compile Include="Program.cs" />
   </ItemGroup>
 
+  <!-- KamiToolKit's public API exposes FFXIVClientStructs pointer types (AtkUnitBase* and friends) in
+       the controller handler delegates, so the harness needs that assembly at compile time as well;
+       the runtime resolver in Program.cs still loads everything from the Dalamud dev folder. -->
+  <PropertyGroup>
+    <DalamudLibPath Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(appdata)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
+    <DalamudLibPath Condition="$(DALAMUD_HOME) != ''">$(DALAMUD_HOME)/</DalamudLibPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="FFXIVClientStructs">
+      <HintPath>$(DalamudLibPath)FFXIVClientStructs.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\..\src\LazyWTMath\KamiToolKit\KamiToolKit.csproj" />
   </ItemGroup>

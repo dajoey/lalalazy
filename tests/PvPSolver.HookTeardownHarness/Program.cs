@@ -135,7 +135,10 @@ internal static class Program
         var token = enter.Invoke(counter, null)!;
         var release = token.GetType().GetMethod("Dispose", Type.EmptyTypes)!;
 
-        var teardown = owner.GetMethod(teardownName, BindingFlags.NonPublic | BindingFlags.Public | (instance ? BindingFlags.Instance : BindingFlags.Static));
+        // Resolve the parameterless teardown unambiguously: Service overloads Dispose() and
+        // Dispose(bool), and the plain name-only lookup throws AmbiguousMatchException on overloads.
+        var teardownFlags = BindingFlags.NonPublic | BindingFlags.Public | (instance ? BindingFlags.Instance : BindingFlags.Static);
+        var teardown = owner.GetMethod(teardownName, teardownFlags, binder: null, Type.EmptyTypes, modifiers: null);
         if (teardown == null)
         {
             Check($"{moduleName}.{teardownName}: the draining teardown exists", false);

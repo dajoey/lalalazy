@@ -59,10 +59,10 @@ internal static class Program
         // detour must fail soft before touching it at all once the hook is gone.
         var unitBase = Marshal.AllocHGlobal(0x1000);
         NativeMemory.Clear((void*)unitBase, 0x1000);
+        Exception? ex = null;
+        object? ret = null;
         try
         {
-            Exception? ex = null;
-            object? ret = null;
             try
             {
                 ret = Invoke(detour, null,
