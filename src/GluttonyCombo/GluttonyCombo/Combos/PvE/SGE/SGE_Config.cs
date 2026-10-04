@@ -77,7 +77,7 @@ internal partial class SGE
                     break;
 
                 case Preset.SGE_ST_Adv_DPS_Phlegma:
-                    if (!SGE_ST_Adv_DPS_Phlegma_Burst)
+                    if (!SGE_ST_Adv_DPS_Phlegma_Burst && !SGE_ST_Adv_DPS_Phlegma_PartyBurst)
                     {
                         DrawSliderInt(0, 1, SGE_ST_Adv_DPS_Phlegma,
                             Generics.ChargePool);
@@ -86,6 +86,10 @@ internal partial class SGE
                     DrawAdditionalBoolChoice(SGE_ST_Adv_DPS_Phlegma_Burst,
                         Generics.BurstOption,
                         FormatAndCache(Generics.Save0ChargesForBurst, Phlegma.ActionName()));
+
+                    DrawAdditionalBoolChoice(SGE_ST_Adv_DPS_Phlegma_PartyBurst,
+                        FormatAndCache(SGE_Config.PhlegmaPartyBurst0, Phlegma.ActionName()),
+                        FormatAndCache(SGE_Config.PhlegmaPartyBurstDesc, Phlegma.ActionName()));
                     break;
 
                 case Preset.SGE_ST_Adv_DPS_AddersgallProtect:
@@ -429,7 +433,8 @@ internal partial class SGE
             SGE_Opener_Potion = new("SGE_Opener_Potion"),
             SGE_Opener_PrepullBlock = new("SGE_Opener_PrepullBlock", true),
             SGE_ST_Adv_DPS_EDosis_TwoTarget = new("SGE_ST_DPS_EDosis_TwoTarget", true),
-            SGE_ST_Adv_DPS_Phlegma_Burst = new("SGE_ST_DPS_Phlegma_Burst", true);
+            SGE_ST_Adv_DPS_Phlegma_Burst = new("SGE_ST_DPS_Phlegma_Burst", true),
+            SGE_ST_Adv_DPS_Phlegma_PartyBurst = new("SGE_ST_DPS_Phlegma_PartyBurst");
 
         public static UserBoolArray
             SGE_ST_Adv_DPS_Movement = new("SGE_ST_DPS_Movement", [true, true, true]);
@@ -519,3 +524,4 @@ internal partial class SGE
         #endregion
     }
 }
+

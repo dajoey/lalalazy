@@ -128,4 +128,10 @@
   <data name="SGE_Mit_AoE_Panhaima_Help" xml:space="preserve">
     <value>Will add {0} at the end</value>
   </data>
+  <data name="PhlegmaPartyBurst0" xml:space="preserve">
+    <value>Party burst only: {0}</value>
+  </data>
+  <data name="PhlegmaPartyBurstDesc" xml:space="preserve">
+    <value>Hold {0} charges for party burst windows instead of using them as they come up. Capped charges are still used. Leave off to keep using charges on cooldown.</value>
+  </data>
 </root>

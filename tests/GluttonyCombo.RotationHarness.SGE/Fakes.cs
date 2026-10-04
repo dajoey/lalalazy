@@ -708,7 +708,8 @@ namespace GluttonyCombo.Combos.PvE
                 SGE_Opener_Potion = new("SGE_Opener_Potion"),
                 SGE_Opener_PrepullBlock = new("SGE_Opener_PrepullBlock", true),
                 SGE_ST_Adv_DPS_EDosis_TwoTarget = new("SGE_ST_DPS_EDosis_TwoTarget", true),
-                SGE_ST_Adv_DPS_Phlegma_Burst = new("SGE_ST_DPS_Phlegma_Burst", true);
+                SGE_ST_Adv_DPS_Phlegma_Burst = new("SGE_ST_DPS_Phlegma_Burst", true),
+                SGE_ST_Adv_DPS_Phlegma_PartyBurst = new("SGE_ST_DPS_Phlegma_PartyBurst");
 
             public static CustomComboNS.Functions.UserBoolArray
                 SGE_ST_Adv_DPS_Movement = new("SGE_ST_DPS_Movement", [true, true, true]);

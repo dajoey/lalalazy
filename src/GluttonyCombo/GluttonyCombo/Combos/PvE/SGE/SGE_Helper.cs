@@ -244,6 +244,12 @@ internal partial class SGE
         if (IsPhlegmaCapped)
             return true;
 
+        // Opt-in (default off): hold charges for the party's burst window - outside the
+        // caller's own burst rule Phlegma is only spent while the party is bursting
+        // (capped charges still dump: the cap rule returns before this gate).
+        if (!burst && SGE_ST_Adv_DPS_Phlegma_PartyBurst)
+            return Bursting.PartyIsBursting;
+
         if (!burst && GetRemainingCharges(OriginalHook(Phlegma)) > chargePool)
             return true;
 

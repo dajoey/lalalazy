@@ -73,6 +73,41 @@ internal static class Program
               $"Invoke(Dosis3) returns Phlegma ({SgeJob.Phlegma3}) — today the first charge is dumped at once",
             gotPhlegma == SgeJob.Phlegma3, $"returned {gotPhlegma}");
 
+        // ---- SGE-1: opt-in Phlegma party-burst mode (config SGE_ST_Adv_DPS_Phlegma_PartyBurst, default off) ----
+        // While ON, outside the caller's own burst rule Phlegma is only spent while the party is
+        // bursting; capped charges still dump (the cap rule returns before the gate).
+        SetStDpsState(30f, phlegmaCharges: 1);
+        FakeGame.BoolValues["SGE_ST_DPS_Phlegma_PartyBurst"] = true;
+        FakeGame.PartyIsBurstingFlag = true;
+        uint gotSge1Burst = InvokeSt();
+        Check("SGE-1: option ON + party bursting + Phlegma 1 of 2 charges: " +
+              $"Invoke(Dosis3) returns Phlegma ({SgeJob.Phlegma3}) - the mode still spends Phlegma in burst",
+            gotSge1Burst == SgeJob.Phlegma3, $"returned {gotSge1Burst}");
+
+        SetStDpsState(30f, phlegmaCharges: 1);
+        FakeGame.BoolValues["SGE_ST_DPS_Phlegma_PartyBurst"] = true;
+        FakeGame.PartyIsBurstingFlag = false;
+        uint gotSge1Hold = InvokeSt();
+        Check("SGE-1: option ON + NOT bursting + Phlegma 1 of 2 charges: " +
+              $"Invoke(Dosis3) returns Dosis ({SgeJob.Dosis3}) - Phlegma is held for the burst window",
+            gotSge1Hold == SgeJob.Dosis3, $"returned {gotSge1Hold}");
+
+        SetStDpsState(30f, phlegmaCharges: 2);
+        FakeGame.BoolValues["SGE_ST_DPS_Phlegma_PartyBurst"] = true;
+        FakeGame.PartyIsBurstingFlag = false;
+        uint gotSge1Capped = InvokeSt();
+        Check("SGE-1: option ON + NOT bursting + Phlegma 2 of 2 charges (capped): " +
+              $"Invoke(Dosis3) returns Phlegma ({SgeJob.Phlegma3}) - capped charges still dump",
+            gotSge1Capped == SgeJob.Phlegma3, $"returned {gotSge1Capped}");
+
+        SetStDpsState(30f, phlegmaCharges: 1);
+        FakeGame.BoolValues["SGE_ST_DPS_Phlegma_PartyBurst"] = false;
+        FakeGame.PartyIsBurstingFlag = false;
+        uint gotSge1Off = InvokeSt();
+        Check("SGE-1: option OFF (default) + NOT bursting + Phlegma 1 of 2 charges: " +
+              $"Invoke(Dosis3) returns Phlegma ({SgeJob.Phlegma3}) - default-off keeps today's behaviour",
+            gotSge1Off == SgeJob.Phlegma3, $"returned {gotSge1Off}");
+
         // ---- the CANARY: deliberately asserts the opposite; must FAIL ----
         SetStDpsState(30f, phlegmaCharges: 1);
         uint gotCanary = InvokeSt();

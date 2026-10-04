@@ -150,5 +150,22 @@ namespace GluttonyCombo.Resources.Localization.JobConfigs {
                 return ResourceManager.GetString("SGE_Mit_ST_Taurochole_Help", resourceCulture);
             }
         }
+        /// <summary>
+        ///   Looks up a localized string similar to Party burst only: {0}.
+        /// </summary>
+        internal static string PhlegmaPartyBurst0 {
+            get {
+                return ResourceManager.GetString("PhlegmaPartyBurst0", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Hold {0} charges for party burst windows instead of using them as they come up. Capped charges are still used. Leave off to keep using charges on cooldown..
+        /// </summary>
+        internal static string PhlegmaPartyBurstDesc {
+            get {
+                return ResourceManager.GetString("PhlegmaPartyBurstDesc", resourceCulture);
+            }
+        }
     }
 }
