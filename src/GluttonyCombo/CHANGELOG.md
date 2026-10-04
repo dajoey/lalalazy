@@ -1,3 +1,15 @@
+## v1.0.4.274 (2026-10-04) [testing]
+### Fixed
+- **Beastmaster, Crucible: the idle log now says why the beast tamer stood around.** Two of the biggest
+  causes of standing-still time had no name in the stall lines: a held target the game refuses to let you
+  attack (it goes invulnerable or untargetable mid-fight) was logged as "unknown", and standing out of
+  reach was logged "range" without saying why the charge-in was not used. Stall lines now name an
+  unselectable target as `unselectable`, and range lines carry `dh=` naming what held the gap-closer back
+  (charges spent, recast, disabled, landing unsafe, and so on). Nothing about the rotation's choices
+  changed - only what the log says about them.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v1.0.4.273 (2026-10-03) [testing]
 ### Fixed
 - **Beastmaster, Crucible: heal potions are now actually drunk.** The survival policy decided to heal dozens of times and almost none of it happened: it pressed the potion's action like a skill, which the game accepts on the client and the server ignores, so health sat at the low mark while the same press repeated every two seconds. The Crucible's potions are drunk through the item panel, so the rotation now does exactly that: it opens the item menu on the slot holding the chosen potion and takes the menu's first entry (the same two steps the dungeon automation takes), then moves on with the normal rotation. It never opens the menu while another menu is up or the item shop is open.
