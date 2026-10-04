@@ -318,6 +318,13 @@ internal static class BST_RotationLogic
         public bool ShieldChargeOvercap;
         public bool UseRally;
 
+        /// <summary> AoE preset, opt-in: Parting Blow (Aetheric Burst's AoE form) only fires when at least
+        ///     <see cref="AoePartingBlowEnemies"/> enemies stand in its area. Default off - single-target
+        ///     exits keep today's count-blind behaviour. </summary>
+        public bool AoePartingBlow;
+        /// <summary> Minimum enemies within Parting Blow's area before the opt-in AoE gate lets the exit fire (default 3). </summary>
+        public int AoePartingBlowEnemies;
+
         // Crucible of the Unbroken
         public bool Crucible;
         public int CruciblePetSwapHp;
@@ -354,6 +361,8 @@ internal static class BST_RotationLogic
             UseShieldCharge = true,
             ShieldChargeOvercap = false,
             UseRally = true,
+            AoePartingBlow = false,
+            AoePartingBlowEnemies = 3,
             Crucible = true,
             CruciblePetSwapHp = 55,
             CrucibleFinalStingHp = 30,
@@ -906,6 +915,15 @@ internal static class BST_RotationLogic
                 declines.Add("crucible:exit-target-unsafe");
                 return 0;
             }
+        }
+
+        // AoE preset, opt-in: Aetheric Burst (the AoE Parting Blow) only when enough enemies stand in its
+        // area - into a lone target the burst is wasted damage (guide: fire it into the pack). The ST preset
+        // is exempt, and the default (off) keeps the count-blind behaviour the baseline checks pin.
+        if (cfg.AoE && cfg.AoePartingBlow && s.EnemiesWithin6y < cfg.AoePartingBlowEnemies)
+        {
+            declines.Add("exit:partingblow-few-enemies");
+            return 0;
         }
 
         return BST.PartingBlow;

@@ -289,6 +289,7 @@ internal static class BeastmasterTelemetry
             BST.FamiliarDeclineReason,
             gauge.InstinctStacks,
             BST.LastSlotBeasts,
-            (byte)(Player.Object?.Level ?? 0));
+            (byte)(Player.Object?.Level ?? 0),
+            BST.LastTrickOutcome);
     }
 }

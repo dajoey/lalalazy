@@ -124,6 +124,8 @@ internal partial class BST : Melee
         UseShieldCharge = BST_UseShieldCharge,
         ShieldChargeOvercap = BST_ShieldChargeOvercap,
         UseRally = BST_UseRally,
+        AoePartingBlow = BST_AoePartingBlow,
+        AoePartingBlowEnemies = BST_AoePartingBlowEnemies,
     });
 
     private static uint Run(in BST_RotationLogic.BstSettings cfg)
@@ -162,6 +164,10 @@ internal partial class BST : Melee
     /// <summary> Last decision taken, sampled by <see cref="GluttonyCombo.Data.BeastmasterTelemetry"/> into BT|dec=. </summary>
     internal static uint LastDecisionActionId;
     internal static string LastDecisionReason = "";
+
+    /// <summary> The resolved outcome of the most recent Trick (see <see cref="Data.BeastmasterTelemetryFormat.TrickOutcome"/>),
+    ///     refreshed by <see cref="ReadState"/> right after the pet-heart timing block. </summary>
+    internal static string LastTrickOutcome = Data.BeastmasterTelemetryFormat.TrickOutcome(float.MaxValue, float.MaxValue);
 
     /// <summary> Why the engine declined familiar / combo steps on the last tick (BT|fd=). </summary>
     internal static string FamiliarDeclineReason = "";
@@ -334,6 +340,7 @@ internal partial class BST : Melee
                 _petHeartTick = now;
         }
         s.SincePetHeart = SecondsSince(_petHeartTick);
+        LastTrickOutcome = Data.BeastmasterTelemetryFormat.TrickOutcome(s.SinceTrick, s.SincePetHeart);
 
         // Readiness (ActionReady covers level sync, recast and resources)
         s.ReadyHorn1 = ActionReady(FirstBattlehorn);
