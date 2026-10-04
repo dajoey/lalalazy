@@ -138,7 +138,6 @@ internal partial class DRG
             (JustUsed(WheelingThrust) ||
              JustUsed(FangAndClaw) ||
              ActionLearned(LanceBarrage) && JustUsed(LanceBarrage) ||
-             ActionLearned(HeavensThrust) && JustUsed(OriginalHook(FullThrust)) ||
              !ActionLearned(LanceBarrage) && JustUsed(OriginalHook(VorpalThrust)) && ActionLearned(HeavensThrust)))
             return true;
 

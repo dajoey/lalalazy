@@ -12,6 +12,9 @@
 // "use it on Heavens' Thrust or Drakesbane" rule (DRG_Helper.cs UseLifeSurge, the JustUsed(FangAndClaw)
 // term).
 //
+// THE DRG-1 CASE: identical state except the just-used GCD is Heavens' Thrust: Life Surge must NOT be
+// offered there (it would buff Fang and Claw / Wheeling Thrust, not Heavens' Thrust or Drakesbane).
+//
 // THE CANARY: the same state run through an assertion of the OPPOSITE behaviour. It is EXPECTED TO FAIL;
 // the harness only exits 0 when the canary fails as expected (proof the test can actually fail).
 //
@@ -57,6 +60,18 @@ internal static class Program
         Check($"DRG-1 (unchanged pair): LotD active + Lance Charge up + just used Fang and Claw (next GCD is " +
               $"Drakesbane): Invoke(TrueThrust) returns Life Surge ({DRG.LifeSurge}) onto Drakesbane",
             got == DRG.LifeSurge, $"returned {got}");
+
+        // ---- the DRG-1 case: the behaviour the improvement row wants ----
+        // The Balance D1: "we tend to use it on either Heavens' Thrust or Drakesbane". Right AFTER
+        // Heavens' Thrust the buff would land on Fang and Claw / Wheeling Thrust instead, so Invoke
+        // must NOT offer Life Surge in this state.
+        SetLifeSurgeState(DRG.HeavensThrust);
+        Console.WriteLine(CaseStateLine(DRG.HeavensThrust));
+        uint gotDrg1 = new DRG.DRG_ST_AdvancedMode().RunInvoke(DRG.TrueThrust);
+        Check($"DRG-1: LotD active + Lance Charge up + just used Heavens' Thrust (the buffed GCD already " +
+              $"fired; the next combo GCD is not Drakesbane): Invoke(TrueThrust) must NOT return Life Surge " +
+              $"({DRG.LifeSurge}); Life Surge is only for Heavens' Thrust or Drakesbane (The Balance, D1)",
+            gotDrg1 != DRG.LifeSurge, $"returned {gotDrg1}");
 
         // ---- the CANARY: same state, opposite assertion; must FAIL ----
         SetLifeSurgeState(DRG.FangAndClaw);
