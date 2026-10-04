@@ -260,6 +260,7 @@ internal static class BST_RotationLogic
         public bool ReadyShieldCharge;
         public int ShieldChargeCharges, ShieldChargeMax;
         public DashLanding DashLanding;   // where Shield Charge would land, read only while a dash is on the table
+        public string? DashHold;          // why Shield Charge did not fire this tick (SG| dh=), ranked like the section-8 gate; null when it could
 
         // GCD combo
         public uint LastComboAction;

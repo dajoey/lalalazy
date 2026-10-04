@@ -8,7 +8,7 @@ namespace GluttonyCombo.Data;
 ///     The pure half of the stalled-GCD collector (<c>SG|</c>): one line while the Beastmaster rotation chose an
 ///     attack, the global cooldown sits ready, and nothing has been sent for more than
 ///     <see cref="StallAfterSeconds"/> - naming WHY (no target, own cast bar, animation lock, queued action,
-///     out of range, or none of those). Written by <see cref="BeastmasterTelemetry"/> only on a Crucible board,
+///     out of range, an unselectable held target, or none of those). Written by <see cref="BeastmasterTelemetry"/> only on a Crucible board,
 ///     so an idle stretch can be graded by reason from <c>plugin_log_lines</c> instead of guessed from the gap.
 ///     No Dalamud/game types; asserted by <c>tests/GluttonyCombo.TelemetryHarness</c>.
 /// </summary>
@@ -32,6 +32,8 @@ internal static class CrucibleStallFormat
         None = 0,
         /// <summary> No hostile target. </summary>
         NoTarget,
+        /// <summary> A held target the game refuses (untargetable, invulnerable or dead): nothing can be sent at it. </summary>
+        Unselectable,
         /// <summary> The character's own cast bar is rolling. </summary>
         Cast,
         /// <summary> The character is animation-locked. </summary>
@@ -44,14 +46,15 @@ internal static class CrucibleStallFormat
         Unknown,
     }
 
-    private static readonly string[] ReasonWords = ["none", "notarget", "cast", "lock", "queue", "range", "unknown"];
+    private static readonly string[] ReasonWords = ["none", "notarget", "unselectable", "cast", "lock", "queue", "range", "unknown"];
 
     internal readonly record struct Snapshot(
         uint ActionId,
         Reason Why,
         float EdgeDistance,
         uint TargetNameId,
-        float StallSeconds);
+        float StallSeconds,
+        string? DashHold = null);
 
     internal static (uint, Reason, int, uint) KeyOf(in Snapshot s) =>
         (s.ActionId, s.Why, Math.Clamp((int)(s.EdgeDistance * 10f), -10, 990), s.TargetNameId);
@@ -99,7 +102,8 @@ internal static class CrucibleStallFormat
 
     /// <summary>
     ///     <c>SG|unixms|act=id|r=reason|d=edge|t=nameId|s=seconds</c>. <c>d</c> is the hitbox-edge distance to the
-    ///     target (empty without one), <c>s</c> how long nothing has been sent. <c>t</c> is 0 without a target.
+    ///     target (empty without one), <c>s</c> how long nothing has been sent. <c>t</c> is 0 without a target. On
+        ///     range lines, <c>|dh=</c> names why the rotation's own gap-close (Shield Charge) did not fire.
     /// </summary>
     internal static string BuildLine(long unixMs, in Snapshot s)
     {
@@ -114,6 +118,8 @@ internal static class CrucibleStallFormat
             sb.Append(Math.Min(99f, s.EdgeDistance).ToString("0.0", inv));
         sb.Append("|t=").Append(s.TargetNameId.ToString(inv))
           .Append("|s=").Append(Math.Min(999f, Math.Max(0f, s.StallSeconds)).ToString("0.0", inv));
+        if (s.Why == Reason.Range && !string.IsNullOrEmpty(s.DashHold))
+            sb.Append("|dh=").Append(s.DashHold);
 
         if (sb.Length > MaxLineLength)
             sb.Length = MaxLineLength;

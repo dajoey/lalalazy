@@ -160,6 +160,8 @@ internal static class BeastmasterTelemetry
         var edge = -1f;
         if (!s.HasHostileTarget)
             why = CrucibleStallFormat.Reason.NoTarget;
+        else if (Svc.Targets.Target is IBattleChara sel && (!sel.IsTargetable || sel.IsDead))
+            why = CrucibleStallFormat.Reason.Unselectable;
         else if (s.PlayerIsCasting)
             why = CrucibleStallFormat.Reason.Cast;
         else if (Player.AnimationLock > 0.05f)
@@ -173,7 +175,7 @@ internal static class BeastmasterTelemetry
                 why = CrucibleStallFormat.Reason.Range;
         }
 
-        var snap = new CrucibleStallFormat.Snapshot(act, why, edge, BST.LastCrucibleTargetNameId, sinceFire);
+        var snap = new CrucibleStallFormat.Snapshot(act, why, edge, BST.LastCrucibleTargetNameId, sinceFire, s.DashHold);
         if (CrucibleStallFormat.ShouldEmit(ref _stallGate, unixMs, snap))
         {
             var line = CrucibleStallFormat.BuildLine(unixMs, snap);

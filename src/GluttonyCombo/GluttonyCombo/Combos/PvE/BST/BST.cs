@@ -360,6 +360,19 @@ internal partial class BST : Melee
 
         ReadCrucible(ref s);
 
+        // Why the gap-close did not fire this tick, mirroring the section-8 gate order, so an SG| range line can
+        // name it (2026-10-04: standing-still stalls could not be attributed - charge economy vs hold vs config).
+        s.DashHold =
+            s.Level < BST_RotationLogic.LvShieldCharge ? "lvl" :
+            !BST_UseShieldCharge && !BST_ShieldChargeOvercap ? "off" :
+            !s.ReadyShieldCharge ? (s.ShieldChargeCharges > 0 ? "recast" : "charges") :
+            s.TargetDistance > 20f ? "far" :
+            s.ProtectedNearTarget ? "protected" :
+            s.DashLanding == BST_RotationLogic.DashLanding.Danger ? "danger" :
+            s.DashLanding == BST_RotationLogic.DashLanding.Unreachable ? "unreachable" :
+            s.DashLanding == BST_RotationLogic.DashLanding.Unknown ? "unknown" :
+            null;
+
         return s;
     }
 
