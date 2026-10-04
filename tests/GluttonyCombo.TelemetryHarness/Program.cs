@@ -406,7 +406,8 @@ internal static class Program
             {
                 (CrucibleStallFormat.Reason.NoTarget, "notarget"), (CrucibleStallFormat.Reason.Cast, "cast"),
                 (CrucibleStallFormat.Reason.Lock, "lock"), (CrucibleStallFormat.Reason.Queue, "queue"),
-                (CrucibleStallFormat.Reason.Range, "range"), (CrucibleStallFormat.Reason.Unknown, "unknown"),
+                (CrucibleStallFormat.Reason.Range, "range"), (CrucibleStallFormat.Reason.Unselectable, "unselectable"),
+                (CrucibleStallFormat.Reason.Unknown, "unknown"),
             }.All(p => CrucibleStallFormat.BuildLine(1, snap with { Why = p.Item1 }).Contains($"|r={p.Item2}|")));
         Check("SG| the first line waits out the stall threshold", CrucibleStallFormat.StallAfterSeconds == 1f,
             CrucibleStallFormat.StallAfterSeconds.ToString(CultureInfo.InvariantCulture));
@@ -421,6 +422,26 @@ internal static class Program
             CrucibleStallFormat.ShouldEmit(ref gate, t + 2_200, snap with { Why = CrucibleStallFormat.Reason.Lock, EdgeDistance = -1f }));
         Check("SG| the line stays within its budget",
             CrucibleStallFormat.BuildLine(1, snap with { StallSeconds = 999f }).Length <= CrucibleStallFormat.MaxLineLength);
+
+        // -- the dash-hold field and the unselectable reason (2026-10-04, live: the top two idle classes were
+        //    "range, standing still" and an in-melee "unknown" the lines could not attribute to a cause) --
+        Check("SG| a range line names why the gap-close did not fire",
+            CrucibleStallFormat.BuildLine(1, snap with { DashHold = "charges" })
+                == "SG|1|act=44884|r=range|d=2.3|t=14531|s=1.4|dh=charges",
+            CrucibleStallFormat.BuildLine(1, snap with { DashHold = "charges" }));
+        Check("SG| a non-range line never carries the dash hold",
+            !CrucibleStallFormat.BuildLine(1, snap with { Why = CrucibleStallFormat.Reason.Unknown, DashHold = "charges" })
+                .Contains("|dh="));
+        Check("SG| a range line with no hold to name omits the field",
+            !CrucibleStallFormat.BuildLine(1, snap).Contains("|dh="));
+        Check("SG| the longest dash-hold line stays within its budget",
+            CrucibleStallFormat.BuildLine(1, snap with { StallSeconds = 999f, DashHold = "unreachable" })
+                .Length <= CrucibleStallFormat.MaxLineLength);
+        Check("SG| the live sampler names an unselectable held target and carries the dash hold",
+            RepoFile("Data", "BeastmasterTelemetry.cs").Contains("IsTargetable", StringComparison.Ordinal)
+            && RepoFile("Data", "BeastmasterTelemetry.cs").Contains("s.DashHold", StringComparison.Ordinal)
+            && RepoFile("Combos", "PvE", "BST", "BST.cs").Contains("DashHold =", StringComparison.Ordinal),
+            "the sampler must branch on the held target's live-target filter and pass s.DashHold; ReadState must fill it");
 
         // -- the stall clock (2026-10-03, live: every line said s=999.0 while damage flowed) --
         Check("SG| a send half a second ago is not a stall",
@@ -450,6 +471,23 @@ internal static class Program
             return "";
         return File.ReadAllText(Path.Combine(dir.FullName, "src", "GluttonyCombo", "GluttonyCombo",
             "Data", "BeastmasterTelemetry.cs"));
+    }
+
+    /// <summary> A repo file's text under src/GluttonyCombo/GluttonyCombo, for source-wiring checks. </summary>
+    private static string RepoFile(params string[] rel)
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "tools", "check-preset-ids.py")))
+            dir = dir.Parent;
+        if (dir is null)
+            return "";
+        var parts = new string[rel.Length + 4];
+        parts[0] = dir.FullName;
+        parts[1] = "src";
+        parts[2] = "GluttonyCombo";
+        parts[3] = "GluttonyCombo";
+        rel.CopyTo(parts, 4);
+        return File.ReadAllText(Path.Combine(parts));
     }
 
     private static void Check(string what, bool ok, string? detail = null)
