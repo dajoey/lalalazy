@@ -7,6 +7,7 @@ using ECommons.DalamudServices;
 using ECommons.Logging;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using InteropGenerator.Runtime;
+using Lalalazy.HookGuard;
 using System;
 
 #endregion
@@ -78,6 +79,9 @@ public static unsafe class StaticVfx
     /// </remarks>
     public delegate void StaticVfxRunCallbackDelegate(nint staticVfxAddress, float a1, uint a2);
 
+    // Detours running right now; Dispose() waits for them before it disposes the hooks (hot-reload crash 2026-10-03).
+    private static readonly HookInFlight InFlight = new();
+
     private static Hook<VfxObject.Delegates.Create>? StaticVfxCreateHook;
 
     private static Hook<VfxObject.Delegates.Update>? StaticVfxRunHook;
@@ -134,7 +138,14 @@ public static unsafe class StaticVfx
 
     internal static VfxObject* StaticVfxCreateDetour(CStringPointer a1, CStringPointer a2)
     {
-        var output = StaticVfxCreateHook!.Original(a1, a2);
+        using var inFlight = InFlight.Enter();
+        var hook = StaticVfxCreateHook;
+        if(hook == null || hook.IsDisposed)
+        {
+            return null;
+        }
+
+        var output = hook.Original(a1, a2);
 
         try
         {
@@ -166,6 +177,13 @@ public static unsafe class StaticVfx
 
     internal static void StaticVfxRunDetour(VfxObject* a1, float a2, int a3)
     {
+        using var inFlight = InFlight.Enter();
+        var hook = StaticVfxRunHook;
+        if(hook == null || hook.IsDisposed)
+        {
+            return;
+        }
+
         try
         {
             var @event = _staticVfxRunEvent;
@@ -191,11 +209,18 @@ public static unsafe class StaticVfx
             e.Log();
         }
 
-        StaticVfxRunHook!.Original(a1, a2, a3);
+        hook.Original(a1, a2, a3);
     }
 
     internal static void StaticVfxDtorDetour(VfxObject* a1)
     {
+        using var inFlight = InFlight.Enter();
+        var hook = StaticVfxDtorHook;
+        if(hook == null || hook.IsDisposed)
+        {
+            return;
+        }
+
         try
         {
             var @event = _staticVfxDtorEvent;
@@ -221,7 +246,7 @@ public static unsafe class StaticVfx
             e.Log();
         }
 
-        StaticVfxDtorHook!.Original(a1);
+        hook.Original(a1);
     }
 
     private static void HookCreate()
@@ -341,6 +366,12 @@ public static unsafe class StaticVfx
     /// </remarks>
     public static void Dispose()
     {
+        // Stop new calls, let the ones already inside a detour finish, only then dispose and null.
+        DisableCreate();
+        DisableRun();
+        DisableDtor();
+        InFlight.Drain("StaticVfx", m => PluginLog.Warning(m));
+
         if(StaticVfxCreateHook != null)
         {
             PluginLog.Information("Disposing StaticVfx Create Hook");

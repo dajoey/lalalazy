@@ -20,6 +20,9 @@ public class GameObjectCtor
 
     public const string Sig = "48 8D 05 ?? ?? ?? ?? 48 89 01 33 C0 48 89 41 10 48 89 41 18 89 81 ?? ?? ?? ?? 48 89 81";
 
+    // Detours running right now; Dispose() waits for them before it disposes the hook (hot-reload crash 2026-10-03).
+    private static readonly Lalalazy.HookGuard.HookInFlight InFlight = new();
+
     private static Hook<GameObjectConstructorDelegate> GameObjectConstructorHook;
 
     private static event GameObjectConstructorCallbackDelegate
@@ -42,6 +45,11 @@ public class GameObjectCtor
 
     internal static nint GameObjectConstructorDetour(nint a1)
     {
+        using var inFlight = InFlight.Enter();
+        var hook = GameObjectConstructorHook;
+        if(hook == null || hook.IsDisposed)
+            return a1;
+
         try
         {
             Svc.Framework.RunOnTick(run, delayTicks:1);
@@ -76,7 +84,7 @@ public class GameObjectCtor
             e.Log();
         }
 
-        return GameObjectConstructorHook!.Original(a1);
+        return hook.Original(a1);
     }
 
     private static void Hook()
@@ -123,11 +131,13 @@ public class GameObjectCtor
     /// </remarks>
     public static void Dispose()
     {
+        Disable();
+        InFlight.Drain("GameObjectCtor", m => PluginLog.Warning(m));
+
         if(GameObjectConstructorHook == null)
             return;
 
         PluginLog.Information("Disposing Game Object ctor() Hook");
-        Disable();
         if(!GameObjectConstructorHook.IsDisposed)
             GameObjectConstructorHook?.Dispose();
         GameObjectConstructorHook = null;

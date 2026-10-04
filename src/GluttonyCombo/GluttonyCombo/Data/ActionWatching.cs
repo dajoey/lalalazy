@@ -24,6 +24,7 @@ using GluttonyCombo.CustomComboNS;
 using GluttonyCombo.CustomComboNS.Functions;
 using GluttonyCombo.Extensions;
 using GluttonyCombo.Services;
+using Lalalazy.HookGuard;
 using static FFXIVClientStructs.FFXIV.Client.Game.Character.ActionEffectHandler;
 using static GluttonyCombo.CustomComboNS.Functions.CustomComboFunctions;
 using Action = Lumina.Excel.Sheets.Action;
@@ -61,6 +62,9 @@ public static class ActionWatching
 
     public delegate void ActionSendDelegate();
     public static event ActionSendDelegate? OnActionSend;
+
+    // Detours running right now; Dispose() waits for them before it disposes the hooks (hot-reload crash 2026-10-03).
+    private static readonly HookInFlight InFlight = new();
 
     private readonly static Hook<Delegates.Receive>? ReceiveActionEffectHook;
     private readonly static Hook<ActionManager.Delegates.UseAction>? UseActionHook;
@@ -207,6 +211,7 @@ public static class ActionWatching
     public static void Dispose()
     {
         Disable();
+        InFlight.Drain("ActionWatching", m => PluginLog.Warning(m));
         ReceiveActionEffectHook?.Dispose();
         SendActionHook?.Dispose();
         UseActionHook?.Dispose();
@@ -221,6 +226,7 @@ public static class ActionWatching
     /// <summary> Handles logic when an action causes an effect. </summary>
     private unsafe static void ReceiveActionEffectDetour(uint casterEntityId, Character* casterPtr, Vector3* targetPos, Header* header, TargetEffects* effects, GameObjectId* targetEntityIds)
     {
+        using var inFlight = InFlight.Enter();
         ReceiveActionEffectHook!.Original(casterEntityId, casterPtr, targetPos, header, effects, targetEntityIds);
 
         try
@@ -431,6 +437,7 @@ public static class ActionWatching
     /// <summary> Handles logic when an action is sent. </summary>
     private unsafe static void SendActionDetour(ulong targetObjectId, ActionType actionType, uint actionId, ushort sequence, long a5, long a6, long a7, long a8, long a9)
     {
+        using var inFlight = InFlight.Enter();
         try
         {
             if (GluttonyCombo.P.IPC.OnActionUsedProvider.SubscriptionCount > 0)

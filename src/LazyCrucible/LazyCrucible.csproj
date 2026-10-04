@@ -52,6 +52,11 @@
   <!-- Build stamp for the shared error reporting: the git SHA of the tree being built goes into
        [AssemblyMetadata("LalaCommit")] and onto every ER| / RP| line as c=. "unknown" without git. -->
   <Import Project="..\Shared\LalaTelemetry\LalaTelemetry.Stamp.targets" />
+  <!-- Hook teardown guard (2026-10-04): in-flight counter so Stop()/Teardown() wait for a running detour before
+       disposing its hook. Shared SOURCE (src/Shared/LalaHookGuard), never a DLL. Do not remove. -->
+  <ItemGroup>
+    <Compile Include="..\Shared\LalaHookGuard\**\*.cs" Link="LalaHookGuard\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
   <ItemGroup>
     <Content Include="LazyCrucible.json" />
   </ItemGroup>

@@ -48,6 +48,8 @@ internal static unsafe class AgentProbe
         public ReceiveEventDelegate? Detour { get; set; }
     }
 
+    // Detours running right now; Teardown() waits for them before it disposes the hooks (hot-reload crash 2026-10-03).
+    private static readonly Lalalazy.HookGuard.HookInFlight InFlight = new();
     private static readonly Dictionary<nint, ProbeHook> Hooks = [];
     private static readonly Dictionary<nint, string> TagByAgent = [];
     private static bool _active;
@@ -88,31 +90,51 @@ internal static unsafe class AgentProbe
         if (address == 0 || Hooks.ContainsKey(address))
             return;
         var probe = new ProbeHook { Via = via };
-        probe.Detour = (agent, ret, values, count, kind) =>
-        {
-            Observe(agent, probe.Via, values, count, kind);
-            return probe.Hook!.Original(agent, ret, values, count, kind);
-        };
+        probe.Detour = (agent, ret, values, count, kind) => ReceiveEventDetour(probe, agent, ret, values, count, kind);
         probe.Hook = Svc.Hook.HookFromAddress(address, probe.Detour);
         probe.Hook.Enable();
         Hooks[address] = probe;
+    }
+
+    private static AtkValue* ReceiveEventDetour(ProbeHook probe, AgentInterface* agent, AtkValue* returnValues, AtkValue* values, uint valueCount, ulong eventKind)
+    {
+        using var inFlight = InFlight.Enter();
+        var hook = probe.Hook;
+        if (hook is null || hook.IsDisposed)
+            return returnValues;
+
+        Observe(agent, probe.Via, values, valueCount, eventKind);
+        return hook.Original(agent, returnValues, values, valueCount, eventKind);
     }
 
     /// <summary> Unhook everything (job change, unload). </summary>
     public static void Teardown()
     {
         _active = false;
+        // Stop new calls, let the ones already inside a detour finish, only then dispose and null.
         foreach (var probe in Hooks.Values)
         {
             try
             {
                 probe.Hook?.Disable();
+            }
+            catch
+            {
+                // ignored: unload path
+            }
+        }
+        InFlight.Drain("AgentProbe", CrucibleLog.Warning);
+        foreach (var probe in Hooks.Values)
+        {
+            try
+            {
                 probe.Hook?.Dispose();
             }
             catch
             {
                 // ignored: unload path
             }
+            probe.Hook = null;
         }
         Hooks.Clear();
         TagByAgent.Clear();

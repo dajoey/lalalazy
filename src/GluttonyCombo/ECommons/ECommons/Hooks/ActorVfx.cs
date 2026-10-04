@@ -67,6 +67,9 @@ public static unsafe class ActorVfx
 
     public static readonly string DtorSig = "48 89 5C 24 ?? 57 48 83 EC ?? 48 8D 05 ?? ?? ?? ?? 48 8B D9 48 89 01 8B FA 48 8D 05 ?? ?? ?? ?? 48 89 81 ?? ?? ?? ?? 48 8B 89 ?? ?? ?? ?? 48 85 C9 74 ?? 48 8B 01 48 8B D3";
 
+    // Detours running right now; Dispose() waits for them before it disposes the hooks (hot-reload crash 2026-10-03).
+    private static readonly Lalalazy.HookGuard.HookInFlight InFlight = new();
+
     private static Hook<ActorVfxCreateDelegate> ActorVfxCreateHook;
 
     private static Hook<ActorVfxDtorDelegate> ActorVfxDtorHook;
@@ -105,7 +108,12 @@ public static unsafe class ActorVfx
 
     internal static nint ActorVfxCreateDetour(nint a1, nint a2, nint a3, float a4, byte a5, ushort a6, byte a7)
     {
-        var output = ActorVfxCreateHook!.Original(a1, a2, a3, a4, a5, a6, a7);
+        using var inFlight = InFlight.Enter();
+        var hook = ActorVfxCreateHook;
+        if(hook == null || hook.IsDisposed)
+            return 0;
+
+        var output = hook.Original(a1, a2, a3, a4, a5, a6, a7);
 
         try
         {
@@ -137,6 +145,11 @@ public static unsafe class ActorVfx
 
     internal static void ActorVfxDtorDetour(nint a1)
     {
+        using var inFlight = InFlight.Enter();
+        var hook = ActorVfxDtorHook;
+        if(hook == null || hook.IsDisposed)
+            return;
+
         try
         {
             var @event = _actorVfxDtorEvent;
@@ -163,7 +176,7 @@ public static unsafe class ActorVfx
             e.Log();
         }
 
-        ActorVfxDtorHook!.Original(a1);
+        hook.Original(a1);
     }
 
     private static void HookCreate()
@@ -246,6 +259,11 @@ public static unsafe class ActorVfx
     /// </remarks>
     public static void Dispose()
     {
+        // Stop new calls, let the ones already inside a detour finish, only then dispose and null.
+        DisableCreate();
+        DisableDtor();
+        InFlight.Drain("ActorVfx", m => PluginLog.Warning(m));
+
         if(ActorVfxCreateHook != null)
         {
             PluginLog.Information("Disposing ActorVfx Create Hook");

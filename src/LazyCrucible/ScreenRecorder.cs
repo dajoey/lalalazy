@@ -55,6 +55,8 @@ internal static unsafe class ScreenRecorder
     private static readonly HashSet<string> Visible = [];
     private static readonly HashSet<string> NowVisible = [];
     private static Hook<AtkUnitBase.Delegates.FireCallback>? _fireCallbackHook;
+    // Detours running right now; Stop() waits for them before it disposes the hook (hot-reload crash 2026-10-03).
+    private static readonly Lalalazy.HookGuard.HookInFlight InFlight = new();
     private static long _nextScanMs;
     private static bool _listenersOn;
     private static string _lastPp = "";
@@ -121,12 +123,22 @@ internal static unsafe class ScreenRecorder
 
     public static void Stop()
     {
-        if (_fireCallbackHook is not null)
+        // Stop new calls, let the ones already inside the detour finish, only then dispose and null.
+        var hook = _fireCallbackHook;
+        try
+        {
+            hook?.Disable();
+        }
+        catch
+        {
+            // ignored: unload path
+        }
+        InFlight.Drain("ScreenRecorder", CrucibleLog.Warning);
+        if (hook is not null)
         {
             try
             {
-                _fireCallbackHook.Disable();
-                _fireCallbackHook.Dispose();
+                hook.Dispose();
             }
             catch
             {
@@ -439,6 +451,11 @@ internal static unsafe class ScreenRecorder
 
     private static bool FireCallbackDetour(AtkUnitBase* unit, uint valueCount, AtkValue* values, bool updateState)
     {
+        using var inFlight = InFlight.Enter();
+        var hook = _fireCallbackHook;
+        if (hook is null || hook.IsDisposed)
+            return false;
+
         // The selection screens' shop-click latch first, never behind the recorder's breaker: a purchase made by
         // hand must always hand the shop visit back to the player (and name the feed the Beast Feed picker offers).
         try
@@ -474,6 +491,6 @@ internal static unsafe class ScreenRecorder
                 guard.Failed(ex);
             }
         }
-        return _fireCallbackHook!.Original(unit, valueCount, values, updateState);
+        return hook.Original(unit, valueCount, values, updateState);
     }
 }

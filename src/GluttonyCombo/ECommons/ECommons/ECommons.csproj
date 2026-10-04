@@ -49,6 +49,11 @@
         <RepositoryUrl>https://github.com/NightmareXIV/ECommons</RepositoryUrl>
     </PropertyGroup>
 
+    <!-- Hook teardown guard (2026-10-04): shared SOURCE (src/Shared/LalaHookGuard), never a shared DLL. -->
+    <ItemGroup>
+      <Compile Include="..\..\..\Shared\LalaHookGuard\**\*.cs" Link="LalaHookGuard\%(RecursiveDir)%(Filename)%(Extension)" />
+    </ItemGroup>
+
     <ItemGroup>
       <None Remove="BannedSymbols.txt" />
     </ItemGroup>
