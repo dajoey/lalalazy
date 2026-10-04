@@ -30,7 +30,13 @@ internal static class Program
     private static int Main()
     {
         AddDalamudResolver();
+        return Run();
+    }
 
+    // Kept out of Main: Main is JIT-compiled before the resolver below can be registered, and its body
+    // references Dalamud types (VPRGauge), so the load must happen only after the hook is in place.
+    private static int Run()
+    {
         Console.WriteLine("-- GluttonyCombo rotation harness spike: VPR_ST_SimpleMode, offline --");
 
         // Evidence: the gauge fake is a REAL VPRGauge over harness memory; show the probed layout.
@@ -47,6 +53,7 @@ internal static class Program
                           $"InMeleeRange={FakeGame.InMeleeRange}, UncoiledFury ready=" +
                           $"{!FakeGame.Cooldown(VPR.UncoiledFury).IsCooldown}, " +
                           $"SerpentsIre remaining={FakeGame.Cooldown(VPR.SerpentsIre).CooldownRemaining}s, " +
+                          $"Reawaken remaining={FakeGame.Cooldown(VPR.Reawaken).CooldownRemaining}s, " +
                           $"statuses={FakeGame.Statuses.Count}");
 
         var combo = new VPR.VPR_ST_SimpleMode();
@@ -73,8 +80,16 @@ internal static class Program
         FakeGame.Reset();
 
         // level-100 Viper in combat, no weave available, standing in melee on a living target
-        // (defaults already cover: AllTraitsKnown, everything learned/ready, no statuses, no dread combo)
+        // (defaults cover: AllTraitsKnown, everything learned/ready, no statuses, no dread combo)
         FakeGauges.SetByte<VPRGauge>("RattlingCoilStacks", 3); // at cap with Enhanced Viper's Rattle (trait 530)
+
+        // Reawaken on cooldown: keeps UseReawaken's guard short-circuiting at its FIRST term, away from the
+        // combat-buff status reads (the live code assumes Swiftscaled/Hunter's Instinct are up in combat) and
+        // the ActionManager.Instance() combo-timer read, neither of which exists offline.
+        var reawaken = FakeGame.Cooldown(VPR.Reawaken);
+        reawaken.IsCooldown = true;
+        reawaken.CooldownRemaining = 60f;
+        reawaken.CooldownElapsed = 0f;
     }
 
     private static void Check(string desc, bool ok, string detail = "")

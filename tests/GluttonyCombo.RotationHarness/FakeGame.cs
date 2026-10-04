@@ -154,7 +154,7 @@ internal static class FakeGauges
     {
         if (!Cache.TryGetValue(typeof(T), out var g))
         {
-            var ctor = typeof(T).GetConstructor([typeof(IntPtr)])
+            var ctor = typeof(T).GetConstructor(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, binder: null, [typeof(IntPtr)], modifiers: null)
                        ?? throw new MissingMethodException($"{typeof(T).Name}(IntPtr)");
             ZeroAll();
             g = ctor.Invoke([Mem])!;
