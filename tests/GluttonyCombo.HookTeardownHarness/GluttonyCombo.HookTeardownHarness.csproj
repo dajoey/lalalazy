@@ -6,7 +6,8 @@
        of throwing NullReferenceException out of the detour (the 2026-10-03 game crash, E0434352 /
        80004003); Case B requires Dispose() to wait (bounded) for a detour that is still running
        before it disposes and nulls the hooks.
-         dotnet run -c Release --project tests/GluttonyCombo.HookTeardownHarness
+         dotnet build tests/GluttonyCombo.HookTeardownHarness -c Release
+         dotnet tests/GluttonyCombo.HookTeardownHarness/bin/Release/net10.0-windows7.0/GluttonyCombo.HookTeardownHarness.dll
        Prints PASS/FAIL per case, "OK (n checks)" and exit 0 when every case passes. -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
