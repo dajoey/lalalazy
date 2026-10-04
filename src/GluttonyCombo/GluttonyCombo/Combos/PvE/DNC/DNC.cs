@@ -971,10 +971,10 @@ internal partial class DNC : PhysicalRanged
             // AoE Saber Dance
             if (IsEnabled(Preset.DNC_AoE_Adv_SaberDance) &&
                 ActionReady(SaberDance) &&
-                Gauge.Esprit >=
-                DNC_ST_Adv_SaberThreshold || // Above esprit threshold use
-                (LocalPlayer.HasStatus(Buffs.TechnicalFinish) &&
-                 Gauge.Esprit >= 50) && // Burst
+                (Gauge.Esprit >=
+                 DNC_AoE_Adv_SaberThreshold || // Above esprit threshold use
+                 (LocalPlayer.HasStatus(Buffs.TechnicalFinish) &&
+                  Gauge.Esprit >= 50)) && // Burst
                 (GetCooldownRemainingTime(TechnicalStep) > 5 ||
                  IsOffCooldown(TechnicalStep))) // Tech is up
                 return SaberDance;

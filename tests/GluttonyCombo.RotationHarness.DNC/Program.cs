@@ -9,19 +9,20 @@
 // gauge bytes, target, presets, settings, enemy counts) comes from the harness fakes instead of the
 // game. The dance-partner machinery (Svc/Player reads) is out-of-combat only and never reached here.
 //
-// THE CASE (DNC-2, the behaviour the Improvements Ranked row wants): the AoE Advanced Saber Dance TAIL
-// block (DNC.cs ~line 971) reads the SINGLE-TARGET threshold key (DNC_ST_Adv_SaberThreshold) and its
-// `||` is unparenthesised, so the condition parses as
+// THE CASE (DNC-2): the AoE Advanced Saber Dance TAIL block (DNC.cs ~line 971) read the
+// SINGLE-TARGET threshold key (DNC_ST_Adv_SaberThreshold) and its `||` was unparenthesised, so the
+// condition parsed as
 //     [enabled && ready && Esprit >= STthr] || [(TechFinish && Esprit >= 50) && TechIsUp]
-// — i.e. an AoE user's higher threshold is bypassed by the ST setting, and the Technical-finish
-// disjunct fires Saber Dance even when the option itself is disabled. The emergency block above it
-// (~line 949) already has the correct shape: it gates on DNC_AoE_Adv_SaberThreshold with the Esprit
-// checks parenthesised inside `enabled && ready && (...)`.
+// — an AoE user's higher threshold was bypassed by the ST setting, and the Technical-finish
+// disjunct fired Saber Dance even when the option itself was disabled. The fix makes the tail block
+// read DNC_AoE_Adv_SaberThreshold with the Esprit checks parenthesised inside `enabled && ready &&
+// (...)` — the exact shape the emergency block above it (~line 949) already had.
 //
-// THIS COMMIT ships the CHARACTERIZATION of today's behaviour plus the CANARY asserting the wanted
-// behaviour (which must FAIL on the unfixed source — proof the case can actually fail). The fix
-// commit flips the characterization to the wanted behaviour and adds the paired unchanged-behaviour
-// case (bugfix-test-first discipline).
+//   DNC-2        : split thresholds (ST 60 / AoE 90, Esprit 70, option ON)  -> Windmill (was SaberDance)
+//   DNC-2 paired : equal thresholds (60/60, Esprit 70, option ON)           -> SaberDance, unchanged
+//   DNC-2 tech   : option OFF, TechnicalFinish on, Esprit 60, Tech up       -> Windmill (was SaberDance
+//                  fired through the bypassed preset/ActionReady gate)
+//   CANARY       : the DNC-2 state asserting the PRE-fix behaviour; must FAIL on the fixed source.
 //
 //   dotnet build tests\GluttonyCombo.RotationHarness.DNC -c Release
 //   dotnet tests\GluttonyCombo.RotationHarness.DNC\bin\Release\net10.0-windows7.0\GluttonyCombo.RotationHarness.DNC.dll
@@ -58,9 +59,7 @@ internal static class Program
         Console.WriteLine($"DNCGauge.IsDancing reads {gauge.IsDancing} (fresh, expected False)");
         Console.WriteLine($"DNCGauge.Esprit reads {gauge.Esprit} (fresh, expected 0)");
 
-        // ---- characterization: TODAY's behaviour with the thresholds split ----
-        // ST 60 / AoE 90, Esprit 70: the emergency block correctly declines (70 < 90) but the tail
-        // block reads the ST key, so 70 >= 60 fires Saber Dance anyway.
+        // ---- DNC-2: the behaviour the row wants (the AoE threshold gates the AoE tail block) ----
         SetAoESaberState(esprit: 70, stThreshold: 60, aoeThreshold: 90, saberPresetOn: true);
         Console.WriteLine($"case state: Esprit={FakeGauges.Get<DNCGauge>().Esprit}, " +
                           $"ST SaberThreshold={FakeGame.GetInt("DNC_ST_Adv_SaberThreshold", 50)}, " +
@@ -69,16 +68,42 @@ internal static class Program
                           $"TechnicalFinish status={FakeGame.Statuses.Count > 0}, " +
                           $"CanWeave={FakeGame.CanWeave}, in combat={FakeGame.InCombat}");
         uint got = new DncJob.DNC_AoE_AdvancedMode().RunInvoke(DncJob.Windmill);
-        Check("characterization: split thresholds (ST 60 / AoE 90, Esprit 70): Invoke(Windmill) " +
-              $"returns SaberDance ({DncJob.SaberDance}) today — the AoE tail block reads the ST key (DNC-2)",
-            got == DncJob.SaberDance, $"returned {got}");
+        Check("DNC-2: split thresholds (ST 60 / AoE 90, Esprit 70, option on): Invoke(Windmill) returns " +
+              $"Windmill ({DncJob.Windmill}) — 70 Esprit is below the AoE user's 90 gate, so the AoE " +
+              $"tail block must decline",
+            got == DncJob.Windmill, $"returned {got}");
 
-        // ---- the CANARY: asserts the WANTED behaviour; must FAIL on the unfixed source ----
+        // ---- DNC-2 paired: the behaviour that must NOT change ----
+        // Equal thresholds (Joey's saved 60/60): Esprit 70 is at/above both gates and the emergency
+        // block fires exactly as before.
+        SetAoESaberState(esprit: 70, stThreshold: 60, aoeThreshold: 60, saberPresetOn: true);
+        Console.WriteLine($"paired case state: Esprit={FakeGauges.Get<DNCGauge>().Esprit}, " +
+                          $"AoE SaberThreshold={FakeGame.GetInt("DNC_AoE_Adv_SaberThreshold", 50)}");
+        uint gotPaired = new DncJob.DNC_AoE_AdvancedMode().RunInvoke(DncJob.Windmill);
+        Check("DNC-2 paired: equal thresholds (60/60, Esprit 70, option on): Invoke(Windmill) keeps " +
+              $"returning SaberDance ({DncJob.SaberDance}) via the emergency block",
+            gotPaired == DncJob.SaberDance, $"returned {gotPaired}");
+
+        // ---- DNC-2 tech: the preset must gate the Technical-finish disjunct too ----
+        // Option OFF, TechnicalFinish status on, Esprit 60, Technical Step up: the unparenthesised
+        // `||` used to fire Saber Dance through the second disjunct with the option disabled.
+        SetAoESaberState(esprit: 60, stThreshold: 50, aoeThreshold: 50, saberPresetOn: false,
+            technicalFinish: true);
+        Console.WriteLine($"tech case state: Esprit={FakeGauges.Get<DNCGauge>().Esprit}, " +
+                          $"SaberDance preset={FakeGame.EnabledPresets.Contains(Preset.DNC_AoE_Adv_SaberDance)}, " +
+                          $"TechnicalFinish status={FakeGame.Statuses.Count > 0}, " +
+                          $"TechnicalStep off cooldown={FakeGame.Cooldown(DncJob.TechnicalStep).IsCooldown == false}");
+        uint gotTech = new DncJob.DNC_AoE_AdvancedMode().RunInvoke(DncJob.Windmill);
+        Check("DNC-2 tech: option OFF + TechnicalFinish on + Esprit 60 + Tech up: Invoke(Windmill) " +
+              $"returns Windmill ({DncJob.Windmill}) — a disabled option must never fire Saber Dance",
+            gotTech == DncJob.Windmill, $"returned {gotTech}");
+
+        // ---- the CANARY: asserts the PRE-fix behaviour; must FAIL ----
         SetAoESaberState(esprit: 70, stThreshold: 60, aoeThreshold: 90, saberPresetOn: true);
         uint got2 = new DncJob.DNC_AoE_AdvancedMode().RunInvoke(DncJob.Windmill);
-        CheckCanary("CANARY (expected to FAIL): identical state, asserting Invoke(Windmill) returns " +
-                    $"Windmill ({DncJob.Windmill}) — the AoE tail block honouring the AoE threshold",
-            got2 == DncJob.Windmill, $"returned {got2}");
+        CheckCanary("CANARY (expected to FAIL): identical state to DNC-2, asserting Invoke(Windmill) " +
+                    $"still returns SaberDance ({DncJob.SaberDance}) — the old ST-key behaviour",
+            got2 == DncJob.SaberDance, $"returned {got2}");
 
         Console.WriteLine(_fail == 0
             ? $"OK ({_pass} checks, canary failed as expected)"
@@ -87,12 +112,14 @@ internal static class Program
     }
 
     /// <summary>
-    ///     The exact state both cases share: a level-100 Dancer in combat, weave-blocked, no procs,
-    ///     dance steps available — with the two Esprit thresholds split so only the key choice
-    ///     decides whether Saber Dance fires. All other defaults describe a clean fallthrough to
-    ///     OriginalHook(Windmill).
+    ///     The exact state the cases share: a level-100 Dancer in combat, weave-blocked, no procs,
+    ///     dance steps available — with the two Esprit thresholds set so only the key choice (and the
+    ///     option gate) decides whether Saber Dance fires. All other defaults describe a clean
+    ///     fallthrough to OriginalHook(Windmill). TechnicalStep sits off cooldown, so a `Tech is up`
+    ///     guard passes whenever present.
     /// </summary>
-    private static void SetAoESaberState(int esprit, int stThreshold, int aoeThreshold, bool saberPresetOn)
+    private static void SetAoESaberState(int esprit, int stThreshold, int aoeThreshold, bool saberPresetOn,
+        bool technicalFinish = false)
     {
         FakeGame.Reset();
 
@@ -108,6 +135,10 @@ internal static class Program
         // the decision under test: the ST and AoE Esprit thresholds
         FakeGame.IntValues["DNC_ST_Adv_SaberThreshold"] = stThreshold;
         FakeGame.IntValues["DNC_AoE_Adv_SaberThreshold"] = aoeThreshold;
+
+        // the Technical-finish burst disjunct
+        if (technicalFinish)
+            FakeGame.Statuses.Add(new FakeStatus(DncJob.Buffs.TechnicalFinish, 12f));
     }
 
     private static void Check(string desc, bool ok, string detail = "")
