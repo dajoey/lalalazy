@@ -825,6 +825,47 @@ internal static class BST_CrucibleLogic
         return 0;
     }
 
+    /// <summary> What became of a heal-potion use request. </summary>
+    public enum HealPressOutcome
+    {
+        Pending,
+        Landed,
+        Dead,
+    }
+
+    /// <summary> A HP rise of at least this share of max HP after a request counts as the potion having landed. </summary>
+    public const float HealLandedHpGainPercent = 3f;
+
+    /// <summary>
+    ///     Resolve a heal-potion request from evidence of the heal itself, never from the plugin's own stamps: the potion's recast is
+    ///     running, or HP rose. TEST STUB: the shipped behaviour counted any use stamp as landed, and the stamp is written when the game
+    ///     accepts the press locally, so 57 presses the server never honoured all read as landed.
+    /// </summary>
+    public static HealPressOutcome ResolveHealPress(long msSincePress, bool recastRunning, float hpGainPercent, long graceMs)
+        => HealPressOutcome.Landed;
+
+    /// <summary>
+    ///     The held heal potions in the Crucible item HUD as action -> slot index (the slot the item menu opens on): a slot counts when
+    ///     its held byte is set and its XBMItem row is a heal potion row; the first slot wins when a grade sits in two.
+    ///     TEST STUB: the shipped layer only knew which actions were held, not where.
+    /// </summary>
+    public static Dictionary<uint, int> HeldHealSlots(IReadOnlyList<(bool Held, uint Row)> slots, IReadOnlyDictionary<uint, uint> rowToAction)
+        => [];
+
+    /// <summary> The next move of the item-menu use: open the slot, wait for the context menu, pick its first entry. </summary>
+    public enum ItemMenuStep
+    {
+        Wait,
+        Choose,
+        GiveUp,
+    }
+
+    /// <summary>
+    ///     TEST STUB: the shipped rotation never opened the menu.
+    /// </summary>
+    public static ItemMenuStep NextItemMenuStep(long msSinceOpen, bool menuReady, long waitMs)
+        => ItemMenuStep.Wait;
+
     /// <summary>
     ///     Survival policy (task tasks-20261003-crucible-survivability-entry-hp-01, 2026-10-03): the character kept dying from HP carried
     ///     into a fight (five of the day's ten deaths entered below 60%) and from single aimed hits above remaining HP (Atomic Ray: 3,998 /

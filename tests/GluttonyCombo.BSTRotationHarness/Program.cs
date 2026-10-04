@@ -971,6 +971,62 @@ internal static class Program
         Check("picker: HUD stock rows map 76-79 to the G1-G4 actions",
             BST_CrucibleData.HealPotionItemRows[76] == 46959u && BST_CrucibleData.HealPotionItemRows[77] == 46960u
             && BST_CrucibleData.HealPotionItemRows[78] == 46961u && BST_CrucibleData.HealPotionItemRows[79] == 46962u);
+
+        PotionUse();
+    }
+
+    /// <summary>
+    ///     How a held potion is actually drunk (task tasks-20261003-crucible-postplay-268-01, 2026-10-04). The first Crucible runs on the
+    ///     survival policy fired 57 potion decisions and the game honoured one: pressing the potion ACTION (46959-46962) is accepted by
+    ///     the client and ignored by the server, because the potions are drunk through the item HUD menu. Every potion that did land
+    ///     (ten, 19:57-20:03 ET) was AutoDuty's HUD click: callback (6, slot) on XBMContentsMainHUD, then the context menu's first
+    ///     entry. And the press tracker saw those dead presses as landed (the use stamp is written when the client accepts), so the
+    ///     same grade was re-pressed every two seconds for twelve minutes with no step-down.
+    /// </summary>
+    private static void PotionUse()
+    {
+        Console.WriteLine("-- potion use through the item HUD --");
+        var rows = BST_CrucibleData.HealPotionItemRows;
+
+        // Which slot holds which grade (the menu opens on a slot index, not on an action id).
+        var slots = new List<(bool Held, uint Row)>
+        {
+            (true, 78u),   // 0: G3
+            (true, 130u),  // 1: Fang of Water (not a potion)
+            (true, 76u),   // 2: G1
+            (false, 0u),   // 3: empty placeholder
+            (false, 77u),  // 4: G2 row but not held
+            (true, 78u),   // 5: a second G3 (first slot wins)
+        };
+        var held = BST_CrucibleLogic.HeldHealSlots(slots, rows);
+        Check("slots: G3 at 0 and G1 at 2 (the 19:45 stock)", held.Count == 2 && held.GetValueOrDefault(46961u, -1) == 0 && held.GetValueOrDefault(46959u, -1) == 2,
+            string.Join(",", held.Select(kv => $"{kv.Key}@{kv.Value}")));
+        Check("slots: a G2 row that is not held is not offered", !held.ContainsKey(46960u));
+        Check("slots: a non-potion row is ignored", !held.ContainsKey(0u) && held.Count == 2);
+        Check("slots: the HUD with nothing held yields nothing",
+            BST_CrucibleLogic.HeldHealSlots(new List<(bool Held, uint Row)> { (false, 0u), (false, 76u) }, rows).Count == 0);
+
+        // Did the request land: the potion's recast is running or HP rose; a stamp alone never counts.
+        const long grace = 3000;
+        Check("press: recast running 400 ms in = landed",
+            BST_CrucibleLogic.ResolveHealPress(400, true, 0f, grace) == BST_CrucibleLogic.HealPressOutcome.Landed);
+        Check("press: HP up 10% 1.2 s in = landed",
+            BST_CrucibleLogic.ResolveHealPress(1200, false, 10f, grace) == BST_CrucibleLogic.HealPressOutcome.Landed);
+        Check("press: nothing yet 1 s in = pending",
+            BST_CrucibleLogic.ResolveHealPress(1000, false, 0f, grace) == BST_CrucibleLogic.HealPressOutcome.Pending);
+        Check("press: nothing at the grace = dead (the id steps down)",
+            BST_CrucibleLogic.ResolveHealPress(grace, false, 0f, grace) == BST_CrucibleLogic.HealPressOutcome.Dead);
+        Check("press: still nothing a minute on = dead (an older use of the same id counts for nothing)",
+            BST_CrucibleLogic.ResolveHealPress(60_000, false, 0f, grace) == BST_CrucibleLogic.HealPressOutcome.Dead);
+        Check("press: a 1% wobble is not a heal",
+            BST_CrucibleLogic.ResolveHealPress(grace, false, 1f, grace) == BST_CrucibleLogic.HealPressOutcome.Dead);
+
+        // The menu hand-off: open the slot, wait for the context menu, take its first entry, give up in time.
+        const long wait = 1500;
+        Check("menu: not up yet 400 ms in = wait", BST_CrucibleLogic.NextItemMenuStep(400, false, wait) == BST_CrucibleLogic.ItemMenuStep.Wait);
+        Check("menu: up 300 ms in = choose", BST_CrucibleLogic.NextItemMenuStep(300, true, wait) == BST_CrucibleLogic.ItemMenuStep.Choose);
+        Check("menu: never up by the wait = give up", BST_CrucibleLogic.NextItemMenuStep(wait, false, wait) == BST_CrucibleLogic.ItemMenuStep.GiveUp);
+        Check("menu: one that opens after the wait is not ours = give up", BST_CrucibleLogic.NextItemMenuStep(wait + 200, true, wait) == BST_CrucibleLogic.ItemMenuStep.GiveUp);
     }
 
     /// <summary> In combat on the First Board, L30, Cu Sith out (One with Nature spent), raptor / buffalo on ready horns 2 and 3. </summary>
