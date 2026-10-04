@@ -1,3 +1,9 @@
+## v1.0.4.271 (2026-10-03) [testing]
+### Fixed
+- **Beastmaster, Crucible: the stalled-attack telemetry no longer fires while attacks are flowing.** The stall line's clock mixed two time bases (UTC minus a local-time stamp), so its "nothing sent" reading always came out as the local UTC offset and every line claimed a 999-second stall - including moments of perfectly healthy attacking, which buried the real stalls the line was built to name. The clock now reads a single time base: the line appears only when the rotation chose an attack, the global cooldown is ready, and over a second has really passed with nothing sent, and its length field carries the true stall duration.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v1.0.4.270 (2026-10-03) [testing]
 ### Fixed
 - **Beastmaster, Crucible: a dispel is no longer repeated on a buff the game will not take off.** The research counts Regen (Rehabilitation) on the Abaddon as a dispel target, but the game does not dispel it: twelve Quelling Waves in a row did nothing while the Regen stood the whole fight, and every one of them cost the damage global it replaced. Regen is no longer treated as dispellable. The cap that should have stopped any unproven buff after two tries never did, because the count treated a dispel decided every global as one continuous burst; every Quelling Wave or Caw that goes out now counts as one try, so Growing, Impassion and Might get two tries per enemy and then are left alone.
