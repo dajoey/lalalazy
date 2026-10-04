@@ -1,15 +1,15 @@
-## v1.0.4.279 (2026-10-05) [testing]
+## v1.0.4.280 (2026-10-04) [testing]
+### Notes
+- No rotation changes; corrects the release notes that shipped with 1.0.4.279. Testing channel
+  only; production stays on 1.0.4.278.
+
+## v1.0.4.279 (2026-10-04) [testing]
 ### Changed
 - **Out of combat, White Mage and Scholar area damage modes no longer weave.** The AoE damage
   presets' weave blocks (Assize and Presence of Mind on White Mage; Aetherflow, Baneful Impaction,
   Chain Strategem, Energy Drain and Lucid Dreaming on Scholar) now wait for combat, closing the
   last ungated healer damage paths - the single-target damage modes and Astrologian already stood
   down. Pre-pull utility (fairy summons, sanctioned self-buffs) is unchanged.
-### Fixed
-- Corrected the release-note numbers of 1.0.4.278: the out-of-combat presses re-derived per cast
-  from the logs were two Druochole (the overcap protection) plus a six-press Eukrasia chain on the
-  reporting Sage, and every one of that player's own raidwide-shield casts sat inside a combat
-  window. The earlier inflated counts had counted other players' casts.
 ### Notes
 - Testing channel only; production stays on 1.0.4.278.
 
