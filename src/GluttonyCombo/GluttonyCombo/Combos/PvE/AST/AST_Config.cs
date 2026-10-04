@@ -15,9 +15,9 @@ internal partial class AST
     {
         #region Options
         public static UserIntArray
-            // ST: EmerED â†’ NeutralSect â†’ Exalt â†’ CI â†’ ED â†’ Bole â†’ Arrow â†’ Spire â†’ Ewer â†’ Aspected â†’ CelOpp â†’ CU â†’ Lady
+            // ST: EmerED ƒ+' NeutralSect ƒ+' Exalt ƒ+' CI ƒ+' ED ƒ+' Bole ƒ+' Arrow ƒ+' Spire ƒ+' Ewer ƒ+' Aspected ƒ+' CelOpp ƒ+' CU ƒ+' Lady
             AST_ST_SimpleHeals_Priority = new("AST_ST_SimpleHeals_Priority", [4, 5, 3, 6, 7, 9, 8, 10, 11, 12, 13, 1, 2]),
-            // AoE: NeutralSect â†’ Horoscope â†’ Lady â†’ CelOpp â†’ CU â†’ HoroscopeHeal â†’ Stellar â†’ Aspected â†’ Helios
+            // AoE: NeutralSect ƒ+' Horoscope ƒ+' Lady ƒ+' CelOpp ƒ+' CU ƒ+' HoroscopeHeal ƒ+' Stellar ƒ+' Aspected ƒ+' Helios
             AST_AoE_SimpleHeals_Priority = new("AST_AoE_SimpleHeals_Priority", [3, 4, 2, 6, 1, 7, 8, 9, 5]);
 
         public static UserInt
@@ -96,6 +96,7 @@ internal partial class AST
             AST_AoE_SimpleHeals_WeaveStellarDetonation = new("AST_AoE_SimpleHeals_WeaveStellarDetonation"),
             //DPS
             AST_ST_DPS_CombustUptime_TwoTarget = new("AST_ST_DPS_CombustUptime_TwoTarget"),
+            AST_ST_DPS_CombustUptime_BurstRefresh = new("AST_ST_DPS_CombustUptime_BurstRefresh", false),
             AST_ST_DPS_OverwriteHealCards = new("AST_ST_DPS_OverwriteHealCards"),
             AST_AOE_DPS_OverwriteHealCards = new("AST_AOE_DPS_OverwriteHealCards"),
             AST_QuickTarget_Manuals = new("AST_QuickTarget_Manuals", true),
@@ -150,6 +151,9 @@ internal partial class AST
                     DrawRoundedSliderFloat(0, 4, AST_ST_DPS_CombustUptime_Threshold, Generics.DoTSecondsRemainingZeroDisable, digits: 1);
                     ImGui.Unindent();
                     DrawAdditionalBoolChoice(AST_ST_DPS_CombustUptime_TwoTarget, Generics.TwoTargetDotting, Generics.TwoTargetDottingDescription);
+                    DrawAdditionalBoolChoice(AST_ST_DPS_CombustUptime_BurstRefresh,
+                        Text.FormatAndCache(AST_Config.CombustBurstRefresh0, Combust.ActionName()),
+                        AST_Config.CombustBurstRefreshDesc);
                     break;
 
                 case Preset.AST_DPS_Divination:
@@ -461,3 +465,4 @@ internal partial class AST
         }
     }
 }
+

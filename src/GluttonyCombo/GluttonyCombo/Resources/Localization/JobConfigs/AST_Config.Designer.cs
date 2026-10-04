@@ -97,6 +97,24 @@ namespace GluttonyCombo.Resources.Localization.JobConfigs {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Early {0} refresh during party buffs.
+        /// </summary>
+        internal static string CombustBurstRefresh0 {
+            get {
+                return ResourceManager.GetString("CombustBurstRefresh0", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to On: while the party's raid buffs are up, the damage-over-time is refreshed early (up to 20 seconds remaining) so it covers the whole buff window instead of falling off mid-burst. Off (default): it is refreshed only at the remaining-time threshold..
+        /// </summary>
+        internal static string CombustBurstRefreshDesc {
+            get {
+                return ResourceManager.GetString("CombustBurstRefreshDesc", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Does not use {0} in the Opener..
         /// </summary>
         internal static string DoesNotUseEarthlyStarInTheOpener {
@@ -323,3 +341,4 @@ namespace GluttonyCombo.Resources.Localization.JobConfigs {
         }
     }
 }
+
