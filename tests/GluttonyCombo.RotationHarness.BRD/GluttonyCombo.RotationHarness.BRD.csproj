@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <!--
+      RotationHarness.BRD — offline characterisation harness for Bard's REAL rotation code
+      (task tasks-20261004-ffxiv-rot-r6-brd, goal goals-20261002-rotation-execution-vs-best-practices round 6).
+      The REAL job files src/GluttonyCombo/GluttonyCombo/Combos/PvE/BRD/BRD.cs and BRD_Helper.cs are
+      linked UNCHANGED; everything they read is supplied by the harness fakes
+      (Fakes.cs / FakeGame.cs) per the stub-layer approach on notebook page Evidence/Offline Harness Approach.
+      NEVER installed, never shipped: no reference to the plugin project, output is an exe run on the dev box.
+    -->
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0-windows7.0</TargetFramework>
+        <LangVersion>preview</LangVersion>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <RootNamespace>GluttonyCombo.RotationHarness.BRD</RootNamespace>
+    </PropertyGroup>
+    <ItemGroup>
+        <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\BRD\BRD.cs" Link="BRD.cs" />
+        <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Combos\PvE\BRD\BRD_Helper.cs" Link="BRD_Helper.cs" />
+    </ItemGroup>
+    <ItemGroup>
+        <Reference Include="Dalamud">
+            <HintPath>$(appdata)\XIVLauncher\addon\Hooks\dev\Dalamud.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="Dalamud.Common">
+            <HintPath>$(appdata)\XIVLauncher\addon\Hooks\dev\Dalamud.Common.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="FFXIVClientStructs">
+            <HintPath>$(appdata)\XIVLauncher\addon\Hooks\dev\FFXIVClientStructs.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="Lumina">
+            <HintPath>$(appdata)\XIVLauncher\addon\Hooks\dev\Lumina.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="Lumina.Excel">
+            <HintPath>$(appdata)\XIVLauncher\addon\Hooks\dev\Lumina.Excel.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+    </ItemGroup>
+</Project>
