@@ -15,9 +15,9 @@ internal partial class AST
     {
         #region Options
         public static UserIntArray
-            // ST: EmerED ƒ+' NeutralSect ƒ+' Exalt ƒ+' CI ƒ+' ED ƒ+' Bole ƒ+' Arrow ƒ+' Spire ƒ+' Ewer ƒ+' Aspected ƒ+' CelOpp ƒ+' CU ƒ+' Lady
+            // ST: EmerED â†’ NeutralSect â†’ Exalt â†’ CI â†’ ED â†’ Bole â†’ Arrow â†’ Spire â†’ Ewer â†’ Aspected â†’ CelOpp â†’ CU â†’ Lady
             AST_ST_SimpleHeals_Priority = new("AST_ST_SimpleHeals_Priority", [4, 5, 3, 6, 7, 9, 8, 10, 11, 12, 13, 1, 2]),
-            // AoE: NeutralSect ƒ+' Horoscope ƒ+' Lady ƒ+' CelOpp ƒ+' CU ƒ+' HoroscopeHeal ƒ+' Stellar ƒ+' Aspected ƒ+' Helios
+            // AoE: NeutralSect â†’ Horoscope â†’ Lady â†’ CelOpp â†’ CU â†’ HoroscopeHeal â†’ Stellar â†’ Aspected â†’ Helios
             AST_AoE_SimpleHeals_Priority = new("AST_AoE_SimpleHeals_Priority", [3, 4, 2, 6, 1, 7, 8, 9, 5]);
 
         public static UserInt
@@ -465,4 +465,3 @@ internal partial class AST
         }
     }
 }
-
