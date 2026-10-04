@@ -34,6 +34,13 @@ internal partial class MCH
         if (Battery is 100)
             return true;
 
+        // Icy Veins: "the most effective practice is to summon queen between burst windows at 50 and 60
+        // gauge while keeping a queen of 100 battery for each 2 minute burst window" - between 2-minute
+        // bursts (Wildfire far from ready), spend 50-60 Battery on a Queen.
+        if (Battery is >= 50 and <= 60 &&
+            GetCooldownRemainingTime(Wildfire) > GCD * 15)
+            return true;
+
         if (Battery > 80 &&
             (LocalPlayer.HasStatus(Buffs.ExcavatorReady) ||
              ActionReady(Chainsaw) ||
