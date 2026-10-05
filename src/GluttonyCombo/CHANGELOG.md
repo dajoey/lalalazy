@@ -1,3 +1,10 @@
+## v1.0.4.285 (2026-10-05) [testing]
+### Fixed
+- **Beastmaster in the Crucible of the Unbroken: the Forward Guard recall no longer leaves the character with no familiar and no way to turn the Bone Knight.** The familiar is recalled with Parting Blow before the Knight's guard lands only when a horn is ready to bring a familiar back. With every horn locked it stays out, because only a familiar's Snarl turns the Knight so it can be hit from behind; the declined recall is logged as `crucible:petsave-guard-no-resummon-horn`. Before, the recall fired regardless: a healthy familiar was sent away with all three horns locked, and the guard then stood until the board's Bleeding penalty ended the run (reproduced from a Second Degree run of the First Board; the same sequence happened on an earlier run).
+- **Beastmaster in the Crucible of the Unbroken: a hold no longer starves the summon, the Snarl or the cleanse.** While the rotation deliberately sends no weaponskill (a directional parry facing the character, a counter stance, an invulnerable or do-not-attack target) the idle global cooldown now counts as a window for abilities. Before, in melee a horn that came back during a hold was never pressed (the decision log read `summon:waiting-weave` until the end of the fight), and the Snarl that turns a guarded enemy and the cleanse waited behind the same window. Nothing changes outside a hold or outside the Crucible.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v1.0.4.284 (2026-10-05) [testing]
 ### Added
 - **Diagnostics only: calls to Boss Mod Reborn now name their slow ones in the log.** Every call
