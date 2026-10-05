@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- DPS target thrash (v1.0.4.283): asserts the cadence floor, the stickiness and the exposure of the
+       out-of-range fallback offline against the exact code that ships. Plain console app, no Dalamud.
+       Compiles the REAL src/GluttonyCombo/GluttonyCombo/AutoRotation/DpsTargetStability.cs - the pure
+       decision cores ExecuteST / ExecuteAoE / TryFallbackToInRangeEnemy consult.
+         dotnet build tests/GluttonyCombo.DpsTargetStabilityHarness -c Release
+         dotnet tests/GluttonyCombo.DpsTargetStabilityHarness/bin/Release/net10.0/GluttonyCombo.DpsTargetStabilityHarness.dll
+       Prints PASS/FAIL per case, "OK" and exit 0 when every case passes. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>GluttonyCombo.DpsTargetStabilityHarness</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NoWarn>$(NoWarn);CS1574;CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\DpsTargetStability.cs" Link="DpsTargetStability.cs" />
+  </ItemGroup>
+</Project>
