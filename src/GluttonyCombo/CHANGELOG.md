@@ -1,3 +1,15 @@
+## v1.0.4.284 (2026-10-05) [testing]
+### Added
+- **Diagnostics only: calls to Boss Mod Reborn now name their slow ones in the log.** Every call
+  the plugin makes over Boss Mod Reborn's plugin interface is timed; any call that takes longer
+  than 100 milliseconds writes one `BMT|` line naming the endpoint, the duration, the thread and
+  the tick, and a game frame that stalls for over a second while such a call was in flight writes
+  one matching hitch line. Targeting, dash safety and the rotations themselves are untouched:
+  fast calls produce no output at all. This instrumentation names the cause of the next
+  intermittent freeze instead of leaving it a mystery.
+### Notes
+- Testing channel only; production stays on 1.0.4.282.
+
 ## v1.0.4.283 (2026-10-05) [testing]
 ### Fixed
 - **Auto-rotation no longer cycles through enemies several times a second when the chosen enemy is out of reach.** The out-of-range fallback (an in-range enemy takes the press when the chosen one cannot be reached) left that enemy as the current target after the press and re-picked it from scratch on every press, so the current target alternated between the chosen enemy and the fallback enemy, most visibly in the Crucible's add waves. The fallback now redirects only that one press: the current target stays on the chosen enemy, and the enemy a press is redirected to is kept for as long as it stays reachable.
