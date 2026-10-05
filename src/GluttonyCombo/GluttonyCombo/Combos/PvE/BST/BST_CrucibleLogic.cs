@@ -331,9 +331,19 @@ internal static class BST_CrucibleLogic
         // Forward Guard (46864, Bone Knight): Parting Blow recalls the familiar before the guard lands.
         // Fires deterministically across the entire cast window (> 0.2 s) regardless of GCD/weave states
         // so the ~3 s retreat animation completes safely before the guard resolves.
+        // Only with a resummon available (the horn-conservation rule every other recall follows): the guard is
+        // turned by a familiar's Snarl, so a recall with every horn locked leaves nothing to turn it until a horn
+        // returns about 90 s later. 2026-10-05 18:47 (Second Degree, encounter 2286): all three horns spent in the 70 s
+        // before the cast, a healthy Ghost recalled 0.3 s into it, the guard stood 168 s and the run ended on the
+        // board's Bleeding. 2026-09-27 22:48 was the same (no horn for 59 s). In every Forward Guard on record with
+        // the familiar left out (9 of 2026-09-20/21, 1 of 2026-10-05) no familiar died and the Snarl ended the guard.
         if (BST_CrucibleData.ForwardGuardCasts.Contains(s.TargetCastId) && s.TargetCastRemaining > 0.2f
             && s.Level >= LvPartingBlow && s.ReadyParting && !s.TargetDoNotAttack && !s.ProtectedNearTarget)
-            return (BST.PartingBlow, "crucible:petsave-guard");
+        {
+            if (ResummonAvailable(s, cfg))
+                return (BST.PartingBlow, "crucible:petsave-guard");
+            declines.Add("crucible:petsave-guard-no-resummon-horn");
+        }
 
         var hp = s.PetHpPercent;
         if (hp <= 0f || hp > cfg.CruciblePetSwapHp)
