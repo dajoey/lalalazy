@@ -115,6 +115,42 @@ internal static class FormationLogic
         editSeen && (!ignoreWhenEmpty || selectedCount > 0) && corrections < AutoDutyMaxCorrections && lastEditMs > lastCorrectionMs
         && nowMs - lastEditMs >= (selectedCount >= fullTeamCount ? settleMs : AutoDutyShortTeamQuietMs);
 
+    /// <summary>
+    ///     Quiet (ms) after which an unchanged preentry roster selection counts as finished. The roster surface
+    ///     cannot read its settle clock off edit times: AutoDuty builds the run roster through the monster notebook
+    ///     agent, whose kind-0 writes the edit detector (see <see cref="IsSelectionEditEvent"/>) classifies as
+    ///     navigation, so the build's ~100 ms add cadence never refreshes the last-edit time and any edit-time gate
+    ///     times out while the build is still running (live 2026-10-05 11:35:27 and 12:14:42 ET). What the plugin
+    ///     does observe every frame is the selection itself, so the roster settles on membership: unchanged for
+    ///     this long. AutoDuty confirms ~500 ms after its last add, so 1500 ms of quiet has outlived the confirm.
+    /// </summary>
+    public const long AutoDutyRosterStableMs = 1500;
+
+    /// <summary>
+    ///     The roster settle tracker's changed-at time for this tick. PURE. Returns <paramref name="lastChangedMs"/>
+    ///     while the selection signature is unchanged, otherwise <paramref name="nowMs"/>. The signature is the
+    ///     sorted selected-row list, so a swap restarts the quiet clock just like an add or a removal.
+    /// </summary>
+    public static long AutoDutyRosterChangedMs(string? lastSig, long lastChangedMs, string sig, long nowMs) =>
+        sig == lastSig ? lastChangedMs : nowMs;
+
+    /// <summary>
+    ///     Whether the need-coverage correction is due on the preentry run roster while AutoDuty drives. PURE.
+    ///     Settles on what the plugin observes every frame — the selection's own membership — instead of edit
+    ///     times the build never refreshes: due only once the membership has been unchanged for
+    ///     <see cref="AutoDutyRosterStableMs"/>, never on an empty selection (an empty roster is the start of
+    ///     AutoDuty's build, not the end of one — live 2026-10-05 11:48:36 ET: the correction wrote onto the empty
+    ///     roster and the build removed the rows), still within the correction cap, and only for an AutoDuty write
+    ///     newer than the last correction (<c>lastEditMs</c> stays the re-arm trigger). Live 2026-10-05 11:35:27
+    ///     and 12:14:42 ET: the edit-time gate fired mid-build on both surfaces' real event streams.
+    /// </summary>
+    public static bool AutoDutyRosterCorrectionDue(bool editSeen, long lastEditMs, long lastCorrectionMs, int corrections, long nowMs,
+        int selectedCount, long rosterChangedMs) =>
+
+        // STUB (pre-fix behavior, kept only so the harness replay cases compile and FAIL first): the 0.1.9.9
+        // edit-time gate with the horn's three-pick threshold. Replaced by the membership gate in the fix commit.
+        AutoDutyCorrectionDue(editSeen, lastEditMs, lastCorrectionMs, corrections, nowMs, 250, selectedCount, AutoDutyFullTeam);
+
     /// <summary> Whether the assign pass may run under the current latch. PURE. </summary>
     public static bool IsFormationArmed(in FormationArmState s) => s.ScreenOpen && !s.PassDone && !s.Aborted;
 
