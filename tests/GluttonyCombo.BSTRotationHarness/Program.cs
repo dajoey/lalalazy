@@ -1229,11 +1229,57 @@ internal static class Program
         return s;
     }
 
+    /// <summary>
+    ///     The harness settings must be the settings the plugin ships. 2026-10-05: <c>BstSettings.Defaults()</c> had the Snarl rules in log-only
+    ///     mode (aggro Shadow, Snarl -> Parting Blow off) while the plugin's own config defaults are On / on (BST_Config.cs), so every case written with
+    ///     the plain defaults ran the Snarl rules the way no player's plugin does. The plugin overwrites every Crucible field from its config, so the
+    ///     defaults only ever reached the harness. This reads the shipped literals from BST_Config.cs and compares them field by field.
+    /// </summary>
+    private static void ShippedDefaults(BstSettings d)
+    {
+        var src = RepoFile("Combos", "PvE", "BST", "BST_Config.cs");
+        string? Literal(string name)
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(src, name + @"\s*=\s*new\(\s*""" + name + @"""\s*,\s*([^;,]*?)\)\s*[,;]");
+            return m.Success ? m.Groups[1].Value.Trim() : null;
+        }
+        object? Field(string f) => typeof(BstSettings).GetField(f)?.GetValue(d);
+        var bad = new List<string>();
+        void Bool(string cfgName, string field)
+        {
+            var lit = Literal(cfgName);
+            if (lit is null || Field(field) is not bool v || v != (lit == "true")) bad.Add($"{field}: shipped {lit ?? "missing"}, harness {Field(field)}");
+        }
+        void Int(string cfgName, string field, Func<string, int> parse)
+        {
+            var lit = Literal(cfgName);
+            if (lit is null || Field(field) is not { } v || Convert.ToInt32(v) != parse(lit)) bad.Add($"{field}: shipped {lit ?? "missing"}, harness {Field(field)}");
+        }
+        Bool("BST_Crucible", "Crucible");
+        Int("BST_CruciblePetSwapHp", "CruciblePetSwapHp", int.Parse);
+        Int("BST_CrucibleFinalStingHp", "CrucibleFinalStingHp", int.Parse);
+        Int("BST_CrucibleAggro", "CrucibleAggro", l => l.EndsWith("Off") ? 0 : l.EndsWith("Shadow") ? 1 : l.EndsWith("On") ? 2 : -1);
+        Bool("BST_CrucibleAllowDisplacing", "CrucibleAllowDisplacing");
+        Bool("BST_CrucibleScoreMode", "CrucibleScoreMode");
+        Bool("BST_CrucibleCycleForDamage", "CrucibleCycleForDamage");
+        Bool("BST_CruciblePrepullHorns", "CruciblePrepullHorns");
+        Bool("BST_CrucibleSnarlParting", "CrucibleSnarlParting");
+        Bool("BST_CrucibleSurvival", "CrucibleSurvival");
+        Bool("BST_CruciblePackWindow", "CruciblePackWindow");
+        var lead = Literal("BST_CrucibleSnarlPartingLead");
+        if (lead is null || Math.Abs(d.CrucibleSnarlPartingLead - int.Parse(lead) / 10f) > 0.001f) bad.Add($"CrucibleSnarlPartingLead: shipped {lead ?? "missing"} (tenths), harness {d.CrucibleSnarlPartingLead}");
+        Check("harness default settings equal the shipped config defaults (Crucible options, read from BST_Config.cs)", bad.Count == 0, string.Join(" | ", bad));
+    }
+
     private static void CrucibleRules()
     {
         Console.WriteLine("-- crucible rules --");
         var cfg = BstSettings.Defaults();
+        ShippedDefaults(cfg);
         var on = cfg with { CrucibleAggro = CrucibleAggroMode.On };
+        // The log-only modes still exist as options; they were the harness default until 2026-10-05, the plugin ships On / on.
+        var shadowCfg = cfg with { CrucibleAggro = CrucibleAggroMode.Shadow, CrucibleSnarlParting = false };
+        var spOff = on with { CrucibleSnarlParting = false };
         var cycle = cfg with { CrucibleCycleForDamage = true };
         var prepull = cfg with { CruciblePrepullHorns = true };
         bool IsHorn(uint id) => id is BST.FirstBattlehorn or BST.SecondBattlehorn or BST.ThirdBattlehorn;
@@ -1550,8 +1596,8 @@ internal static class Program
 
         // Snarl / Challenge (default: logged only)
         var parry = CrucibleState() with { TargetHasParry = true, ReadySnarl = true, ReadyParting = false };
-        var shadowed = Decide(parry, cfg);
-        Check("parry, shadow mode (default): Snarl logged, not pressed", shadowed.ActionId != BST.Snarl && shadowed.Shadow == "aggro:snarl-parry", $"{shadowed.ActionId} {shadowed.Shadow}");
+        var shadowed = Decide(parry, shadowCfg);
+        Check("parry, shadow mode (an option): Snarl logged, not pressed", shadowed.ActionId != BST.Snarl && shadowed.Shadow == "aggro:snarl-parry", $"{shadowed.ActionId} {shadowed.Shadow}");
         Check("parry, On: Snarl", Decide(parry, on).ActionId == BST.Snarl);
         Check("parry, Off: nothing", Decide(parry, cfg with { CrucibleAggro = CrucibleAggroMode.Off }) is { Shadow: "" } off && off.ActionId != BST.Snarl);
         Check("parry just ended with the familiar holding aggro, On: Challenge",
@@ -1588,17 +1634,17 @@ internal static class Program
         Check("1.2 s before it lands with Snarl up: Parting Blow", Decide(landing, spCfg) is { ActionId: BST.PartingBlow, Reason: "crucible:snarl-parting" });
         Check("3 s before it lands: not yet", Decide(landing with { TargetCastRemaining = 3f }, spCfg).Reason != "crucible:snarl-parting");
         Check("no Snarl in the last 45 s: no whiff", Decide(landing with { SinceSnarl = 60f }, spCfg).Reason != "crucible:snarl-parting");
-        Check("snarl-parting is off by default", Decide(landing, on).Reason != "crucible:snarl-parting");
+        Check("snarl-parting switched off: no Parting Blow", Decide(landing, spOff).Reason != "crucible:snarl-parting");
         // Never evaluated while off, so no run could grade it (0 snarl-parting decisions in 209 logged tankbuster casts, 2026-09-24 .. 10-01):
         // the open window is logged in the shadow field while the option is off, so the next run can be graded without anyone reporting it.
-        Check("snarl-parting off (the default): the open window is logged for grading and nothing is pressed",
-            Decide(landing, on) is { Shadow: "crucible:snarl-parting-off" } offLogged && offLogged.ActionId != BST.PartingBlow, Decide(landing, on).Shadow);
-        Check("... also when no Snarl was used (the dodge never set up)", Decide(landing with { SinceSnarl = 60f }, on).Shadow == "crucible:snarl-parting-off");
-        Check("... not logged before the window (3 s before it lands)", Decide(landing with { TargetCastRemaining = 3f }, on).Shadow != "crucible:snarl-parting-off");
-        Check("... not logged with the aggro option off", Decide(landing, cfg with { CrucibleAggro = CrucibleAggroMode.Off }).Shadow != "crucible:snarl-parting-off");
+        Check("snarl-parting off: the open window is logged for grading and nothing is pressed",
+            Decide(landing, spOff) is { Shadow: "crucible:snarl-parting-off" } offLogged && offLogged.ActionId != BST.PartingBlow, Decide(landing, spOff).Shadow);
+        Check("... also when no Snarl was used (the dodge never set up)", Decide(landing with { SinceSnarl = 60f }, spOff).Shadow == "crucible:snarl-parting-off");
+        Check("... not logged before the window (3 s before it lands)", Decide(landing with { TargetCastRemaining = 3f }, spOff).Shadow != "crucible:snarl-parting-off");
+        Check("... not logged with the aggro option off", Decide(landing, spOff with { CrucibleAggro = CrucibleAggroMode.Off }).Shadow != "crucible:snarl-parting-off");
         Check("... not logged when the option is on (it presses instead)", Decide(landing, spCfg).Shadow != "crucible:snarl-parting-off");
         Check("snarl-parting in log-only mode: logged, not pressed",
-            Decide(landing, cfg with { CrucibleSnarlParting = true }) is { Shadow: "crucible:snarl-parting" } logged && logged.Reason != "crucible:snarl-parting");
+            Decide(landing, shadowCfg with { CrucibleSnarlParting = true }) is { Shadow: "crucible:snarl-parting" } logged && logged.Reason != "crucible:snarl-parting");
         Check("score mode with snarl-parting: Snarl for the tankbuster", Decide(castStart, scoreCfg with { CrucibleSnarlParting = true }).ActionId == BST.Snarl);
         BST_CrucibleData.Tankbusters.Remove(tb);
         Check("Erratic Blaster castbar 1.4 s left (lands in 1.7 s): not yet", Decide(landing with { TargetCastId = 49188, TargetCastRemaining = 1.4f }, spCfg).Reason != "crucible:snarl-parting");
@@ -1629,7 +1675,7 @@ internal static class Program
         Check("ymir (not a cleave boss): pet holding aggro, player healthy: no cleave Challenge",
             Decide(cleave with { TargetNameId = 14569, EnemyTargetsPet = true, EnemyTargetsPlayer = false }, on).Reason != "aggro:challenge-cleave-auto");
         Check("siren cleave Challenge is logged in shadow mode, not pressed",
-            Decide(cleave with { TargetNameId = 14583, EnemyTargetsPet = true, EnemyTargetsPlayer = false }, cfg) is { Shadow: "aggro:challenge-cleave-auto" } sh && sh.Reason != "aggro:challenge-cleave-auto");
+            Decide(cleave with { TargetNameId = 14583, EnemyTargetsPet = true, EnemyTargetsPlayer = false }, shadowCfg) is { Shadow: "aggro:challenge-cleave-auto" } sh && sh.Reason != "aggro:challenge-cleave-auto");
 
         // A stance hold with no familiar out and the player dying is a death spiral: fight instead.
         var stanceAlone = CrucibleState() with
