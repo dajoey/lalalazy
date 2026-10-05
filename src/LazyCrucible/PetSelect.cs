@@ -99,6 +99,14 @@ internal static unsafe class PetSelect
     /// <summary> While AutoDuty drives: corrections written this open, and when the last one was (Unix ms). AutoDuty keeps toggling after a write, so the pass stays armed for its next edit. </summary>
     private static int _adCorrections;
     private static long _adLastCorrectionMs;
+    /// <summary>
+    ///     While AutoDuty drives the preentry roster: the selected rows' signature last seen, and when it last
+    ///     changed (Unix ms) — the roster's settle clock (<see cref="FormationLogic.AutoDutyRosterStableMs"/>).
+    ///     The plugin reads the selection every frame, while the build's notebook writes never arrive as edit
+    ///     events, so membership — not edit times — is what can say the build has finished.
+    /// </summary>
+    private static string? _adRosterSig;
+    private static long _adRosterChangedMs;
     /// <summary> The player edited the Bentbranch roster this visit: the roster writer stands down until a board is entered. </summary>
     private static bool _rosterPlayerOwned;
     /// <summary> Roster membership right after this open's roster pass; a later difference is a manual edit. </summary>
@@ -166,6 +174,8 @@ internal static unsafe class PetSelect
         _adLastEditMs = 0;
         _adCorrections = 0;
         _adLastCorrectionMs = 0;
+        _adRosterSig = null;
+        _adRosterChangedMs = 0;
         _lastBasisNote = "";
         _pendingExternalEdit = null;
         _rosterPlayerOwned = false;
@@ -269,6 +279,8 @@ internal static unsafe class PetSelect
             _adLastEditMs = 0;
             _adCorrections = 0;
             _adLastCorrectionMs = 0;
+            _adRosterSig = null;
+            _adRosterChangedMs = 0;
         }
         if (!_arm.ScreenOpen)
         {
@@ -280,6 +292,8 @@ internal static unsafe class PetSelect
             _adLastEditMs = 0;
             _adCorrections = 0;
             _adLastCorrectionMs = 0;
+            _adRosterSig = null;
+            _adRosterChangedMs = 0;
         }
 
         var armed = IsFormationArmed(in _arm) && (partyCount > 0 || rosterMenuBuild) && !_disarmRestOfScreen;
@@ -323,17 +337,22 @@ internal static unsafe class PetSelect
                 _loggedConflictThisPhase = true;
                 LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|calls=0|note=autoduty_running|{ExternalDrivers.Detail}|needfix=on");
             }
-            // The roster's full-team count is the board's roster size, not the horn's 3 picks (residual a, live
-            // 2026-10-05 11:35:27 ET: a 4-pick mid-rebuild pause settled at 250 ms and the correction fired into
-            // AutoDuty's build, which tore the added rows out). The horn keeps 3. An empty roster under AutoDuty is
-            // never a settled build — it wiped and sits up to ~2 s before its build begins (live 11:48:36 ET).
+            // The roster settles on its own membership, read every frame: AutoDuty builds the run roster through
+            // the monster notebook, whose kind-0 writes are not edit events, so the last-edit time never refreshes
+            // mid-build (live 2026-10-05 11:35:27 and 12:14:42 ET: the edit-time gate fired into the build, and the
+            // build's confirm re-applies tore the added rows out). Any membership change restarts the quiet; the
+            // correction waits for AutoDutyRosterStableMs of unchanged roster and never writes onto an empty one.
+            // The horn keeps the edit-time gate: its AutoDuty toggles ARE edit events, and its re-arm works live.
             var adSelected = ReadPetIds(pet, PartySelectedPetIds);
-            var adBoard = territoryBoard != 0 ? territoryBoard : contentBoard is >= 1 and <= 5 ? (int)contentBoard : 1;
-            var adFullTeam = surfaceKey == SurfacePreentry && adBoard >= 1 && adBoard <= BST_CrucibleData.Boards.Length
-                ? BST_CrucibleData.Boards[adBoard - 1].Roster
-                : FormationLogic.AutoDutyFullTeam;
-            if (!FormationLogic.AutoDutyCorrectionDue(_adEditSeenThisOpen, _adLastEditMs, _adLastCorrectionMs, _adCorrections, now, AutoDutySettleMs,
-                    adSelected.Count, adFullTeam, ignoreWhenEmpty: surfaceKey == SurfacePreentry))
+            var adSig = string.Join(".", adSelected.OrderBy(x => x));
+            _adRosterChangedMs = FormationLogic.AutoDutyRosterChangedMs(_adRosterSig, _adRosterChangedMs, adSig, now);
+            _adRosterSig = adSig;
+            var adDue = surfaceKey == SurfacePreentry
+                ? FormationLogic.AutoDutyRosterCorrectionDue(_adEditSeenThisOpen, _adLastEditMs, _adLastCorrectionMs, _adCorrections, now,
+                    adSelected.Count, _adRosterChangedMs)
+                : FormationLogic.AutoDutyCorrectionDue(_adEditSeenThisOpen, _adLastEditMs, _adLastCorrectionMs, _adCorrections, now,
+                    AutoDutySettleMs, adSelected.Count, FormationLogic.AutoDutyFullTeam);
+            if (!adDue)
                 return; // its selection has not settled yet, it has not written since our last correction, or the cap is reached
         }
 
@@ -491,7 +510,7 @@ internal static unsafe class PetSelect
             return $"{p.Row}:idx{(idx < 0 ? "miss" : idx.ToString(CultureInfo.InvariantCulture))}:{Clean(p.Why, 80)}";
         }));
         var nameStr = string.Join(",", nameIds);
-        LogPs($"PS|{now}|opt=1|b={board}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|basis=horn|bt={battle}|detail={detailId}|coverage={(coverage ? 1 : 0)}|names={nameStr}|cand={candStr}|picks={pickStr}|needs={needStr}|need={changes.Count}{(autoDutyDriving ? $"|note=autoduty-needfix|adfix={adFix}|miss={adMiss}|adn={_adCorrections}" : "")}|route={route}|sigs={(sigsOk ? "ok" : "miss")}");
+        LogPs($"PS|{now}|opt=1|b={board}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|basis=horn|bt={battle}|detail={detailId}|coverage={(coverage ? 1 : 0)}|names={nameStr}|cand={candStr}|picks={pickStr}|needs={needStr}|need={changes.Count}{(autoDutyDriving ? $"|note=autoduty-needfix|adfix={adFix}|miss={adMiss}|adn={_adCorrections}|adedit={now - _adLastEditMs}" : "")}|route={route}|sigs={(sigsOk ? "ok" : "miss")}");
 
         // Mid-run unidentified: never replace a non-empty horn with coverage. Focus settles ~40 ms
         // later and re-arms an opponent-fitted pass; a coverage replace that aborts emptied the horn (.225).
@@ -773,7 +792,7 @@ internal static unsafe class PetSelect
 
         var candStr = string.Join(",", candidates.ConvertAll(r => $"{r}:{(hpMap.TryGetValue(r, out var h) ? h : 100)}"));
         var pickStr = string.Join(",", picks.ConvertAll(p => $"{p.Row}:{Clean(p.Why, 80)}"));
-        LogPs($"PS|{now}|opt=1|b={board}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|basis=roster|bt=-1|detail=0|coverage=1|names=|cand={candStr}|picks={pickStr}|need={changes.Count}{(autoDutyDriving ? $"|note=autoduty-needfix|adfix={adFix}|miss={adMiss}|adn={_adCorrections}" : "")}|route={route}|sigs={(sigsOk ? "ok" : "miss")}");
+        LogPs($"PS|{now}|opt=1|b={board}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|basis=roster|bt=-1|detail=0|coverage=1|names=|cand={candStr}|picks={pickStr}|need={changes.Count}{(autoDutyDriving ? $"|note=autoduty-needfix|adfix={adFix}|miss={adMiss}|adn={_adCorrections}|adedit={now - _adLastEditMs}|adstb={now - _adRosterChangedMs}|flutes={selectedRaw.Count}" : "")}|route={route}|sigs={(sigsOk ? "ok" : "miss")}");
 
         if (changes.Count == 0)
         {

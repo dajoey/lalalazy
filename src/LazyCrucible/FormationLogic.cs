@@ -101,14 +101,10 @@ internal static class FormationLogic
     ///     writes in 1.5 s spent the cap before AutoDuty had built its team (it ended on 1.2.0 two seconds later): no dispeller
     ///     reached the fight. The pre-entry roster showed the same: our vulture / bat / Soulkin were cleared one per 0.45 s.
     ///     <paramref name="lastCorrectionMs"/> is 0 (or older than any edit) until a correction has been made.
-    ///     The full-team threshold is per surface: the horn holds three picks, the preentry run roster holds the board's roster
-    ///     size (10/12/14/12/15), so callers pass their surface's capacity in <paramref name="fullTeamCount"/> — on the roster a
-    ///     3-11 row selection mid-rebuild is NOT a full team (live 2026-10-05 11:35:27 ET: a ~250 ms pause at four picks fired the
-    ///     correction mid-build and AutoDuty's continuing rebuild tore the added rows out before the screen closed). On the
-    ///     preentry roster an empty selection under AutoDuty is never a settled build — it wipes the roster and sits up to ~2 s
-    ///     before its own build begins (live 2026-10-05 11:48:36 ET: the correction wrote onto the empty roster and the build
-    ///     removed the rows) — so callers there pass <paramref name="ignoreWhenEmpty"/>; the horn keeps its empty-selection
-    ///     quiet path.
+    ///     This gate is now the HORN surface's only (its AutoDuty toggles are edit events, so its edit-time clock is
+    ///     real). The preentry run roster settles on its own membership instead — AutoDuty builds the roster through
+    ///     the monster notebook, whose kind-0 writes are not edit events, so the edit-time gate there fired mid-build
+    ///     (live 2026-10-05 11:35:27 and 12:14:42 ET) — see <see cref="AutoDutyRosterCorrectionDue"/>.
     /// </summary>
     public static bool AutoDutyCorrectionDue(bool editSeen, long lastEditMs, long lastCorrectionMs, int corrections, long nowMs, long settleMs,
         int selectedCount = AutoDutyFullTeam, int fullTeamCount = AutoDutyFullTeam, bool ignoreWhenEmpty = false) =>
@@ -146,10 +142,8 @@ internal static class FormationLogic
     /// </summary>
     public static bool AutoDutyRosterCorrectionDue(bool editSeen, long lastEditMs, long lastCorrectionMs, int corrections, long nowMs,
         int selectedCount, long rosterChangedMs) =>
-
-        // STUB (pre-fix behavior, kept only so the harness replay cases compile and FAIL first): the 0.1.9.9
-        // edit-time gate with the horn's three-pick threshold. Replaced by the membership gate in the fix commit.
-        AutoDutyCorrectionDue(editSeen, lastEditMs, lastCorrectionMs, corrections, nowMs, 250, selectedCount, AutoDutyFullTeam);
+        editSeen && selectedCount > 0 && corrections < AutoDutyMaxCorrections && lastEditMs > lastCorrectionMs
+        && nowMs - rosterChangedMs >= AutoDutyRosterStableMs;
 
     /// <summary> Whether the assign pass may run under the current latch. PURE. </summary>
     public static bool IsFormationArmed(in FormationArmState s) => s.ScreenOpen && !s.PassDone && !s.Aborted;
