@@ -51,6 +51,19 @@ public class Configuration : IPluginConfiguration {
     // config deserializes as true (bool default), so this is a no-op for pre-0.0.3.1 installs.
     public bool PrioritizeForlornMaidens = true;
 
+    // 0.0.3.3: FATE type selection - FATEs of an excluded type are never started. Empty (default)
+    // = every type runs, so an existing config loads with unchanged behavior. Boss vs kill FATEs
+    // cannot be split (both are Rule=Normal in the game's Fate sheet).
+    public HashSet<FateRule> ExcludedFateRules = [];
+
+    // 0.0.3.3: currency focus - while set, zone swaps prefer zones whose FATEs reward this currency
+    // (Company Seals: ARR/HW/SB zones; Bicolor Gemstones: ShB+; Yo-kai Medals: event zones). None
+    // (default) = unchanged behavior.
+    public FateCurrency CurrencyFocus = FateCurrency.None;
+
+    // 0.0.3.3: what to do when no FATE rewarding the focused currency is up.
+    public CurrencyFocusFallback CurrencyFocusFallback = CurrencyFocusFallback.NormalSelection;
+
     /// <summary>Newest CHANGELOG version the in-game "What's new" popup has shown (shared LalaChangelog gate).</summary>
     public string? LastSeenChangelogVersion { get; set; }
 

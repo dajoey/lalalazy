@@ -133,7 +133,7 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
                     FollowUpFateId = null;
 
                 // treat completed collect fates as done and wait for out of combat/not busy before trying to move away
-                if (current is { Rule: PublicEvent.FateRule.Collect, Progress: >= 100, Id: var id } && !Player.IsBusy && !Svc.Condition[ConditionFlag.InCombat]) {
+                if (current is { Rule: FateRule.Collect, Progress: >= 100, Id: var id } && !Player.IsBusy && !Svc.Condition[ConditionFlag.InCombat]) {
                     WaitForExpiryFateId = id;
                     return AvailableFates.FirstOrDefault(f => f.Id != id) is { } ? GrindState.BetweenFates : GrindState.WaitingForFates;
                 }
@@ -260,7 +260,7 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
 
         IEnumerable<PublicEvent> GetAvailableFates() {
             // If current is a collect at 100% we're leaving it; pick a different fate.
-            if (PublicEvent.CurrentFate is { Rule: PublicEvent.FateRule.Collect, Progress: >= 100, Id: var currentId })
+            if (PublicEvent.CurrentFate is { Rule: FateRule.Collect, Progress: >= 100, Id: var currentId })
                 return AvailableFates.Where(f => f.Id != currentId);
             return AvailableFates;
         }
@@ -468,7 +468,21 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
             }
 
             using var scope = BeginScope("SwapZones");
-            var destination = tweak.GetNextPreferredSwapZone(Player.Territory.RowId) ?? GetNextAchievementZone() ?? GetRandomSameExpacZone();
+            uint destination;
+            if (tweak.Config.CurrencyFocus != FateCurrency.None && tweak.Config.CurrencyFocusFallback == CurrencyFocusFallback.Idle) {
+                // Currency focus with the idle fallback: never grind non-focused fates; stay put when
+                // the focused pool has nothing else to offer.
+                if (tweak.GetNextPreferredSwapZone(Player.Territory.RowId) is not { } swapTarget) {
+                    Status = $"Waiting for {FateToolKit.CurrencyName(tweak.Config.CurrencyFocus)} fates";
+                    await Mount();
+                    await NextFrame(60);
+                    return;
+                }
+                destination = swapTarget;
+            }
+            else {
+                destination = tweak.GetNextPreferredSwapZone(Player.Territory.RowId) ?? GetNextAchievementZone() ?? GetRandomSameExpacZone();
+            }
             if (destination == Player.Territory.RowId) {
                 Status = "Waiting for fates in selected zones";
                 await Mount();
@@ -493,7 +507,7 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
     private void HandleIntegrations() {
         if (PublicEvent.CurrentFate is { } fate) {
             // when we leave collect fates early, it's still CurrentFate, so we need to ignore that and deactivate anyway
-            if (fate is { Rule: PublicEvent.FateRule.Collect, Progress: >= 100 } && (NextFate is null || NextFate.Id != fate.Id) && !Svc.Condition[ConditionFlag.InCombat]) {
+            if (fate is { Rule: FateRule.Collect, Progress: >= 100 } && (NextFate is null || NextFate.Id != fate.Id) && !Svc.Condition[ConditionFlag.InCombat]) {
                 DeactivateIntegrations(clearNextFate: false);
                 return;
             }
@@ -557,7 +571,7 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
             ApplyForlornPriority();
 
             try {
-                if (PublicEvent.CurrentFate is { Rule: PublicEvent.FateRule.Collect } && !Svc.TextAdvance.IsInExternalControl()) {
+                if (PublicEvent.CurrentFate is { Rule: FateRule.Collect } && !Svc.TextAdvance.IsInExternalControl()) {
                     Svc.TextAdvance.EnableExternalControl(tweak.Name, new() { EnableTalkSkip = true, EnableRequestFill = true, EnableRequestHandin = true });
                 }
             } catch (Exception ex) {
@@ -752,12 +766,15 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
             ? agent->Tabs[currentTabIndex].Zones.ToArray()
             : agent->Tabs.ToArray().SelectMany(tab => tab.Zones.ToArray());
 
-        var match = zones.FirstOrDefault(zone => zone.TerritoryTypeId != 0 && zone.NeededFates - zone.FateProgress > 0 && Svc.Data.GetRef<Sheets.TerritoryType>(zone.TerritoryTypeId).Value.Mount);
+        var match = zones.FirstOrDefault(zone => zone.TerritoryTypeId != 0 && zone.NeededFates - zone.FateProgress > 0 && Svc.Data.GetRef<Sheets.TerritoryType>(zone.TerritoryTypeId).Value.Mount && FateZones.HasPrimaryAetheryte(zone.TerritoryTypeId));
         return match.TerritoryTypeId != 0 ? match.TerritoryTypeId : null;
     }
 
     private uint GetRandomSameExpacZone() {
-        var rows = TerritoryType.Where(x => x.IsInUse && x.TerritoryIntendedUse.Value.StructsEnum is TerritoryIntendedUse.Overworld && x.ExVersion.RowId == Player.Territory.Value.ExVersion.RowId && !x.IsPvpZone && x.Mount).ToArray();
+        // aetheryte guard: never pick a zone the aetheryte network cannot teleport into (e.g. the
+        // Dravanian Hinterlands has aethernet shards only; TeleportTo would fail and stop the task)
+        var rows = TerritoryType.Where(x => x.IsInUse && x.TerritoryIntendedUse.Value.StructsEnum is TerritoryIntendedUse.Overworld && x.ExVersion.RowId == Player.Territory.Value.ExVersion.RowId && !x.IsPvpZone && x.Mount && FateZones.HasPrimaryAetheryte(x.RowId)).ToArray();
+        if (rows.Length == 0) return Player.Territory.RowId;
         return rows[new Random().Next(rows.Length)].RowId;
     }
 

@@ -9,11 +9,7 @@ using FFXIVClientStructs.Interop;
 
 namespace LazyFateAutomation.Helpers.Utils;
 
-public enum FateType {
-    Normal,
-    DynamicEvent, // forays
-    MechaEvent, // cosmic exploration
-}
+// FateType and FateRule live in FateKinds.cs (moved there with the other config-facing enums)
 
 /// <summary>
 /// Wrapper for all public event types (FATEs, Dynamic Events, Mecha Events)
@@ -290,17 +286,5 @@ public unsafe class PublicEvent(nint address, FateType fateType, uint id) {
         WKSMechaEventFlag.IsEventActive => FateState.Running,
         _ => FateState.Ended,
     };
-
-    public enum FateRule : byte {
-        None = 0,
-        Normal = 1, // trash fates or boss fates
-        Collect = 2, // pick up EventObjects or get them from killing mobs
-        Escort = 3, // guide some npc to the finish line
-        Defend = 4, // defend objectives like crates from being destroyed
-        EventFate = 5, // used for seasonal event fates, like Little Ladies Day, Hatching Tide
-        Chase = 6, // that one special fate in The Peaks
-        ConcertedWorks = 7, // rebuilding the firmament fates
-        Fete = 8, // firmament fates
-    }
 }
 

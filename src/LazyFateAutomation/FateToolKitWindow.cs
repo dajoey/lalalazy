@@ -214,16 +214,250 @@ public class FateToolKitWindow : MinimisableWindow {
         ImGui.Button(text);
     }
 
+    private static readonly (FateRule Rule, string Label)[] FateRuleLabels = [
+        (FateRule.Normal, "Kill & boss FATEs"),
+        (FateRule.Collect, "Item collection (turn-in)"),
+        (FateRule.Escort, "Escort"),
+        (FateRule.Defend, "Defend"),
+        (FateRule.EventFate, "Seasonal event"),
+        (FateRule.Chase, "Chase"),
+        (FateRule.ConcertedWorks, "Firmament: Concerted Works"),
+        (FateRule.Fete, "Firmament: Fete"),
+    ];
+
+    private string _zoneFilter = "";
+
     private void DrawSettings() {
+        DrawFateSelectionSection();
+        DrawCurrencyFocusSection();
+        DrawZonesSection();
+        DrawSortingSection();
+    }
+
+    private void DrawFateSelectionSection() {
+        if (!ImGui.CollapsingHeader("FATE Selection", ImGuiTreeNodeFlags.DefaultOpen)) return;
+
         var prioritizeForlorn = _tweak.Config.PrioritizeForlornMaidens;
         if (ImGui.Checkbox("Prioritize Forlorn Maidens", ref prioritizeForlorn)) {
             _tweak.Config.PrioritizeForlornMaidens = prioritizeForlorn;
             _tweak.Config.Save();
         }
         ImGuiComponents.HelpMarker("When a Forlorn Maiden or the Forlorn appears mid-FATE, combat targets it instead of the FATE's normal enemies until it's defeated or disappears.");
+
         ImGui.Spacing();
-        ImGui.SpacedSeparator();
+        ImGui.TextWrapped("Unchecked FATE types are never started. Boss FATEs and trash-kill FATEs cannot be separated (both are 'kill & boss' in the game data). Bozja / Occult Crescent skirmishes and cosmic exploration events count as kill & boss.");
         ImGui.Spacing();
+
+        var excluded = _tweak.Config.ExcludedFateRules;
+        for (var i = 0; i < FateRuleLabels.Length; i++) {
+            var (rule, label) = FateRuleLabels[i];
+            using var id = ImRaii.PushId($"rule_{rule}");
+            var allowed = !excluded.Contains(rule);
+            if (ImGui.Checkbox(label, ref allowed)) {
+                if (allowed)
+                    excluded.Remove(rule);
+                else
+                    excluded.Add(rule);
+                _tweak.Config.Save();
+            }
+            if (i % 2 == 0 && i < FateRuleLabels.Length - 1)
+                ImGui.SameLine();
+        }
+        ImGui.Spacing();
+    }
+
+    private void DrawCurrencyFocusSection() {
+        if (!ImGui.CollapsingHeader("Currency Focus", ImGuiTreeNodeFlags.DefaultOpen)) return;
+
+        ImGui.TextWrapped("Focus the automation on a FATE reward currency: zone swaps prefer zones whose FATEs reward it.");
+        ImGui.Spacing();
+
+        var focus = _tweak.Config.CurrencyFocus;
+        ImGuiEx.TextV("Focus currency:");
+        ImGui.SameLine();
+        ImGui.SetNextItemWidth(260f);
+        using (var combo = ImRaii.Combo("###CurrencyFocus", FateToolKit.CurrencyName(focus))) {
+            if (combo) {
+                foreach (var currency in Enum.GetValues<FateCurrency>()) {
+                    if (ImGui.Selectable(FateToolKit.CurrencyName(currency), currency == focus) && focus != currency) {
+                        _tweak.Config.CurrencyFocus = currency;
+                        _tweak.Config.Save();
+                    }
+                }
+            }
+        }
+        ImGuiComponents.HelpMarker("Company Seals: A Realm Reborn, Heavensward and Stormblood zones.\nBicolor Gemstones: Shadowbringers and later zones.\nYo-kai Medals: the Yo-kai Watch event zones (watch equipped and the matching minion out).\nA grind mode with its own zone list still wins over the currency focus.");
+
+        if (focus != FateCurrency.None) {
+            var fallback = _tweak.Config.CurrencyFocusFallback;
+            ImGuiEx.TextV("When no focused FATE is up:");
+            ImGui.SameLine();
+            ImGui.SetNextItemWidth(260f);
+            using (var combo = ImRaii.Combo("###CurrencyFocusFallback", CurrencyFallbackLabel(fallback))) {
+                if (combo) {
+                    foreach (var option in Enum.GetValues<CurrencyFocusFallback>()) {
+                        if (ImGui.Selectable(CurrencyFallbackLabel(option), option == fallback) && fallback != option) {
+                            _tweak.Config.CurrencyFocusFallback = option;
+                            _tweak.Config.Save();
+                        }
+                    }
+                }
+            }
+            ImGuiComponents.HelpMarker("Continue normally: after an empty focused zone, swap like usual (achievement-guided / same expansion).\nIdle in zone: stay put and wait for focused-currency FATEs.");
+        }
+        ImGui.Spacing();
+    }
+
+    private static string CurrencyFallbackLabel(CurrencyFocusFallback fallback) => fallback switch {
+        CurrencyFocusFallback.Idle => "Idle in zone",
+        _ => "Continue normally",
+    };
+
+    private void DrawZonesSection() {
+        if (!ImGui.CollapsingHeader("Swap Zones", ImGuiTreeNodeFlags.DefaultOpen)) return;
+
+        if (_tweak.ModeSuppliesSwapZones)
+            ImGui.TextWrapped($"Grind mode '{_tweak.GetCurrentMode().DisplayName}' defines the zone list. Uncheck zones to exclude them from rotation.");
+        else if (_tweak.Config.CurrencyFocus != FateCurrency.None)
+            ImGui.TextWrapped($"Currency focus '{FateToolKit.CurrencyName(_tweak.Config.CurrencyFocus)}' defines the zone list. Uncheck zones to exclude them from rotation.");
+        else if (_tweak.HasSelectedSwapZones)
+            ImGui.TextWrapped($"Manual selection: {_tweak.SelectedSwapZones.Count} zones. Uncheck a zone to remove it from rotation.");
+        else
+            ImGui.TextWrapped("Default rotation (achievement-guided). Check zones to build a manual list, or leave everything unchecked to keep the default.");
+
+        ImGui.Spacing();
+        ImGui.SetNextItemWidth(260f);
+        ImGui.InputTextWithHint("###ZoneFilter", "Filter zones...", ref _zoneFilter, 64);
+
+        var rawPool = _tweak.GetRawSwapZones();
+        if (rawPool is { Count: > 0 } || _tweak.HasSelectedSwapZones) {
+            ImGui.SameLine();
+            if (ImGui.Button("Select All")) {
+                _tweak.Config.ExcludedSwapZones.Clear();
+                if (rawPool == null && _tweak.HasSelectedSwapZones)
+                    foreach (var zone in FateZones.All.Where(z => z.ZoneClass == FateZoneLogic.ZoneClass.FateZone))
+                        _tweak.Config.SelectedSwapZones.Add(zone.TerritoryId);
+                _tweak.Config.Save();
+            }
+            ImGui.SameLine();
+            if (ImGui.Button("Clear All")) {
+                if (rawPool != null)
+                    foreach (var z in rawPool)
+                        _tweak.Config.ExcludedSwapZones.Add(z);
+                else
+                    foreach (var zone in FateZones.All.Where(z => z.ZoneClass == FateZoneLogic.ZoneClass.FateZone)) {
+                        _tweak.Config.SelectedSwapZones.Add(zone.TerritoryId);
+                        _tweak.Config.ExcludedSwapZones.Add(zone.TerritoryId);
+                    }
+                _tweak.Config.Save();
+            }
+            if (!_tweak.ManualZonesOverridden) {
+                ImGui.SameLine();
+                if (ImGui.Button("Edit Selected Zones..."))
+                    _tweak.OpenZoneSelector();
+            }
+        }
+        else if (!_tweak.ManualZonesOverridden) {
+            ImGui.SameLine();
+            if (ImGui.Button("Select Allowed Swap Zones..."))
+                _tweak.OpenZoneSelector();
+        }
+        ImGui.Spacing();
+
+        foreach (var group in FateZones.ByExpansion) {
+            var zones = group.Where(z => ZoneNameMatches(z.Name)).ToList();
+            if (zones.Count == 0) continue;
+            var allowedCount = zones.Count(z => IsZoneChecked(z.TerritoryId));
+
+            if (string.IsNullOrEmpty(_zoneFilter))
+                ImGui.SetNextItemOpen(true, ImGuiCond.FirstUseEver);
+            else
+                ImGui.SetNextItemOpen(true, ImGuiCond.Always);
+            if (!ImGui.TreeNode($"{group.Key.Name} ({allowedCount}/{zones.Count})###expansion_{group.Key.Id}"))
+                continue;
+
+            if (ImGui.SmallButton($"All##exp_all_{group.Key.Id}"))
+                SetZonesChecked(zones, true);
+            ImGui.SameLine();
+            if (ImGui.SmallButton($"None##exp_none_{group.Key.Id}"))
+                SetZonesChecked(zones, false);
+            ImGui.SameLine();
+            ImGui.TextDisabled($"({zones.Count(zone => zone.ZoneClass != FateZoneLogic.ZoneClass.FateZone)} no teleport)");
+
+            for (var i = 0; i < zones.Count; i++) {
+                var zone = zones[i];
+                using var id = ImRaii.PushId($"zone_{group.Key.Id}_{zone.TerritoryId}");
+                var isChecked = IsZoneChecked(zone.TerritoryId);
+                if (ImGui.Checkbox(zone.Name, ref isChecked))
+                    SetZonesChecked([zone], isChecked);
+                if (zone.ZoneClass == FateZoneLogic.ZoneClass.NoTeleportFateZone && ImGui.IsItemHovered())
+                    ImGui.SetTooltip("No aetheryte to teleport into this zone; it is never picked by automatic zone swaps.");
+                if (i % 2 == 0 && i < zones.Count - 1)
+                    ImGui.SameLine();
+            }
+            ImGui.TreePop();
+        }
+
+        ImGui.Spacing();
+    }
+
+    private bool ZoneNameMatches(string name)
+        => string.IsNullOrEmpty(_zoneFilter) || name.Contains(_zoneFilter, StringComparison.OrdinalIgnoreCase);
+
+    private bool IsZoneChecked(uint zoneId) {
+        var rawPool = _tweak.GetRawSwapZones();
+        if (rawPool != null)
+            return !_tweak.Config.ExcludedSwapZones.Contains(zoneId);
+        if (_tweak.Config.SelectedSwapZones.Count > 0)
+            return _tweak.Config.SelectedSwapZones.Contains(zoneId) && !_tweak.Config.ExcludedSwapZones.Contains(zoneId);
+        // default rotation: exclusions render as unchecked and are materialized on the first toggle
+        return !_tweak.Config.ExcludedSwapZones.Contains(zoneId);
+    }
+
+    private void SetZonesChecked(IEnumerable<FateZone> zones, bool value) {
+        var selected = _tweak.Config.SelectedSwapZones;
+        var excluded = _tweak.Config.ExcludedSwapZones;
+        var rawPool = _tweak.GetRawSwapZones();
+        var ids = zones.Where(z => z.ZoneClass == FateZoneLogic.ZoneClass.FateZone).Select(z => z.TerritoryId).ToList();
+
+        if (rawPool != null) {
+            // pool comes from the grind mode or currency focus: checkboxes edit the exclusions
+            foreach (var id in ids) {
+                if (value) excluded.Remove(id);
+                else excluded.Add(id);
+            }
+        }
+        else if (selected.Count > 0) {
+            // manual selection: checkboxes edit the selection
+            foreach (var id in ids) {
+                if (value) {
+                    selected.Add(id);
+                    excluded.Remove(id);
+                }
+                else {
+                    selected.Remove(id);
+                }
+            }
+        }
+        else if (value) {
+            // default rotation, allowing a zone: just clear any stale exclusion
+            foreach (var id in ids)
+                excluded.Remove(id);
+        }
+        else {
+            // default rotation, disallowing a zone: materialize the manual selection
+            // (all swappable zones except the disallowed ones, honoring existing exclusions)
+            var removed = ids.ToHashSet();
+            selected.Clear();
+            foreach (var zone in FateZones.All)
+                if (zone.ZoneClass == FateZoneLogic.ZoneClass.FateZone && !removed.Contains(zone.TerritoryId) && !excluded.Contains(zone.TerritoryId))
+                    selected.Add(zone.TerritoryId);
+        }
+        _tweak.Config.Save();
+    }
+
+    private void DrawSortingSection() {
+        if (!ImGui.CollapsingHeader("Sorting & Display")) return;
 
         ImGui.TextColored(new Vector4(0.8f, 0.8f, 1f, 1f), "Priority Order Configuration");
         ImGui.Spacing();
@@ -322,55 +556,6 @@ public class FateToolKitWindow : MinimisableWindow {
         }
 
         ImGui.Spacing();
-        ImGui.SpacedSeparator();
-
-        ImGui.TextColored(new Vector4(0.8f, 0.8f, 1f, 1f), "Allowed Swap Zones");
-        ImGui.Spacing();
-        ImGui.TextWrapped("Configure which zones the automation is allowed to teleport to. Uncheck a zone to exclude it from rotation.");
-        ImGui.Spacing();
-
-        var rawSettingsZones = _tweak.GetRawSwapZones();
-        if (rawSettingsZones is { Count: > 0 }) {
-            if (ImGui.Button("Select All")) {
-                _tweak.Config.ExcludedSwapZones.Clear();
-                _tweak.Config.Save();
-            }
-            ImGui.SameLine();
-            if (ImGui.Button("Clear All")) {
-                foreach (var z in rawSettingsZones)
-                    _tweak.Config.ExcludedSwapZones.Add(z);
-                _tweak.Config.Save();
-            }
-            if (!_tweak.ModeSuppliesSwapZones) {
-                ImGui.SameLine();
-                if (ImGui.Button("Edit Selected Zones...")) {
-                    _tweak.OpenZoneSelector();
-                }
-            }
-            ImGui.Spacing();
-
-            foreach (var zoneId in rawSettingsZones.OrderBy(FateToolKit.GetZoneName)) {
-                var isChecked = !_tweak.Config.ExcludedSwapZones.Contains(zoneId);
-                if (ImGui.Checkbox($"{FateToolKit.GetZoneName(zoneId)}##settings_zone_{zoneId}", ref isChecked)) {
-                    if (isChecked)
-                        _tweak.Config.ExcludedSwapZones.Remove(zoneId);
-                    else
-                        _tweak.Config.ExcludedSwapZones.Add(zoneId);
-                    _tweak.Config.Save();
-                }
-            }
-        }
-        else {
-            ImGui.TextColored(new Vector4(0.6f, 0.6f, 0.6f, 1f), "No swap zones configured for current mode/selection.");
-            if (!_tweak.ModeSuppliesSwapZones) {
-                ImGui.Spacing();
-                if (ImGui.Button("Select Allowed Swap Zones...")) {
-                    _tweak.OpenZoneSelector();
-                }
-            }
-        }
-
-        ImGui.SpacedSeparator();
     }
 
     private string BuildFateTooltip(PublicEvent fate, string displayName, bool isBlacklisted) {

@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Plain console app, no Dalamud. Compiles the REAL pure logic files
+       (FateZoneLogic.cs zone/currency rules, FateEligibility.cs FATE-type filter,
+       Helpers/Utils/FateKinds.cs config enums, Configuration.cs) plus stubs for the Dalamud
+       surface Configuration.cs touches, so the 0.0.3.3 features are asserted offline against
+       the code that ships:
+         dotnet build tests/LazyFateAutomation.Harness -c Release
+         dotnet tests/LazyFateAutomation.Harness/bin/Release/net10.0/LazyFateAutomation.Harness.dll
+       Prints PASS/FAIL per case, "OK" and exit 0 when every case passes. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>LazyFateAutomation.Harness</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="DalamudStubs.cs" />
+    <Compile Include="..\..\src\LazyFateAutomation\Configuration.cs" Link="Configuration.cs" />
+    <Compile Include="..\..\src\LazyFateAutomation\FateZoneLogic.cs" Link="FateZoneLogic.cs" />
+    <Compile Include="..\..\src\LazyFateAutomation\Helpers\Utils\FateKinds.cs" Link="FateKinds.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Dalamud ships Newtonsoft.Json 13.x; the plugin config is saved/deserialized with it. -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+</Project>

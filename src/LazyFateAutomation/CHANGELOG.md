@@ -1,5 +1,16 @@
 # Changelog - Lazy Fate Automation
 
+## v0.0.3.3 (2026-10-05) [testing]
+### Added
+- **All FATE zones are supported and selectable.** The zone list is now built from the game's own data: every A Realm Reborn through Dawntrail zone with FATEs and a teleport aetheryte (47 zones), grouped by expansion in the settings, so future zones appear with no plugin update. Zone swaps no longer pick zones the aetheryte network cannot reach; automation inside foray zones (Bozja, Eureka, Occult Crescent, cosmic exploration) is unchanged when the character is already there.
+- **FATE type selection.** The settings offer a switch per FATE type: kill & boss, item collection (turn-in), escort, defend, seasonal event, chase, and the two Firmament types. Unchecked types are never started. Defaults unchanged: every type runs.
+- **Currency focus.** A new setting focuses the automation on a FATE reward currency: Company Seals (A Realm Reborn through Stormblood zones), Bicolor Gemstones (Shadowbringers and later) or Yo-kai Medals (the Yo-kai Watch event zones). While a focus is set, zone swaps prefer zones whose FATEs reward that currency, and a fallback setting chooses between continuing normally (default) and idling until a focused FATE is up. A grind mode with its own zone list still wins over the focus.
+- **Settings reorganized into collapsible sections** (FATE selection, currency focus, swap zones, sorting & display). The zone list is grouped by expansion with a text filter, two-column checkboxes and per-expansion all/none buttons instead of one long checklist.
+### Notes
+- Existing configs load unchanged: every new setting defaults to the previous behavior.
+- Lazy Hub quick controls and the local dashboard snapshot (port 10505) are unchanged.
+- Testing channel only; the production channel is unchanged.
+
 ## v0.0.3.2 (2026-10-03) [testing]
 ### Added
 - **Quick controls for the Lazy Hub window.** The plugin now offers the FATE bot switch (starting asks for a confirmation), "Stop when safe", "Prioritize Forlorn Maidens", "Swap zones when empty", the three FATE filters (longest duration, least time left, furthest progress) and the grind mode to Lazy Hub (`/lazy`) over Dalamud IPC, so they can be changed from one window next to the other lalalazy plugins. Each change does exactly what the matching setting in the plugin's own window does.

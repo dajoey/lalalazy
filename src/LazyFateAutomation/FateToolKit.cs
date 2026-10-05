@@ -15,21 +15,8 @@ using Dalamud.Game.Text.SeStringHandling;
 
 namespace LazyFateAutomation;
 
-public enum FateSortCriteria {
-    HasBonusWithTwist,
-    Progress,
-    HasBonus,
-    TimeRemainingUrgent,
-    Distance,
-    TimeRemaining,
-    Level,
-    Name,
-}
-
-public class FateSortOrder {
-    public FateSortCriteria Criteria { get; set; }
-    public bool Descending { get; set; }
-}
+// FateSortCriteria and FateSortOrder live in Helpers/Utils/FateKinds.cs (moved there with the other
+// config-facing enums so the offline harness can compile Configuration.cs without Dalamud)
 
 public class FateToolKit : IFateGrindRunState {
     public static readonly uint[] TwistOfFateStatusIDs = [1288, 1289];
@@ -150,8 +137,22 @@ public class FateToolKit : IFateGrindRunState {
     internal static int GetRelicsCompletedForStep(IReadOnlyList<uint>? relicItemIds)
         => relicItemIds is { Count: > 0 } ids ? ids.Count(IsRelicStepComplete) : 0;
 
-    /// <summary>Zones used for swap rotation: mode's allowed zones if set, otherwise selected swap zones, unfiltered.</summary>
-    internal IReadOnlySet<uint>? GetRawSwapZones() => GetCurrentMode().GetAllowedZones() ?? (SelectedSwapZones.Count > 0 ? SelectedSwapZones : null);
+    /// <summary>
+    ///     Zones used for swap rotation: mode's allowed zones if set, else the currency focus pool,
+    ///     else selected swap zones, unfiltered (user exclusions are applied by GetEffectiveSwapZones).
+    /// </summary>
+    internal IReadOnlySet<uint>? GetRawSwapZones() {
+        var modeZones = GetCurrentMode().GetAllowedZones();
+        if (modeZones != null) return modeZones;
+
+        if (Config.CurrencyFocus != FateCurrency.None) {
+            var focusZones = FateZones.CurrencyZones(Config.CurrencyFocus);
+            if (focusZones.Count > 0) return focusZones;
+            // every focused zone excluded/unreachable -> fall through to normal selection
+        }
+
+        return SelectedSwapZones.Count > 0 ? SelectedSwapZones : null;
+    }
 
     /// <summary>Zones used for swap rotation: mode's allowed zones if set, otherwise selected swap zones, filtered by user exclusions.</summary>
     internal IReadOnlySet<uint>? GetEffectiveSwapZones() {
@@ -162,6 +163,17 @@ public class FateToolKit : IFateGrindRunState {
 
     /// <summary>True when the current mode defines its own zones; territory selector is disabled to avoid confusion.</summary>
     internal bool ModeSuppliesSwapZones => GetCurrentMode().GetAllowedZones() != null;
+
+    /// <summary>True when mode zones OR the currency focus define the zone pool (manual selection overridden).</summary>
+    internal bool ManualZonesOverridden => ModeSuppliesSwapZones
+        || (Config.CurrencyFocus != FateCurrency.None && FateZones.CurrencyZones(Config.CurrencyFocus).Count > 0);
+
+    internal static string CurrencyName(FateCurrency currency) => currency switch {
+        FateCurrency.CompanySeals => "Company Seals",
+        FateCurrency.BicolorGemstones => "Bicolor Gemstones",
+        FateCurrency.YokaiMedals => "Yo-kai Medals",
+        _ => "None",
+    };
 
     /// <summary>Next zone to swap to; prefers zones where a mode item target is not yet met (e.g. relic atma).</summary>
     internal uint? GetNextPreferredSwapZone(uint currentTerritoryId) {
@@ -283,29 +295,23 @@ public class FateToolKit : IFateGrindRunState {
     }
 
     public bool FateConditions(PublicEvent f)
-        => f.Duration <= Config.MaxDuration
-        && f.Progress <= Config.MaxProgress
-        && (f.TimeRemaining < 0 || f.TimeRemaining > Config.MinTimeRemaining)
-        && !IsBlacklisted(f)
-        && !f.IsPending;
+        => FateEligibility.IsEligible(
+            f.Duration, Config.MaxDuration,
+            f.Progress, Config.MaxProgress,
+            f.TimeRemaining, Config.MinTimeRemaining,
+            IsBlacklisted(f), f.IsPending,
+            f.Rule, Config.ExcludedFateRules);
 
     public (bool IsEligible, List<string> FailedConditions) GetFateConditionDetails(PublicEvent f) {
         var failed = new List<string>();
 
-        if (f.Duration > Config.MaxDuration)
-            failed.Add($"Duration {f.Duration}s > MaxDuration {Config.MaxDuration}s");
-
-        if (f.Progress > Config.MaxProgress)
-            failed.Add($"Progress {f.Progress}% > MaxProgress {Config.MaxProgress}%");
-
-        if (f.TimeRemaining >= 0 && f.TimeRemaining <= Config.MinTimeRemaining)
-            failed.Add($"TimeRemaining {f.TimeRemaining:F0}s <= MinTimeRemaining {Config.MinTimeRemaining}s");
-
-        if (IsBlacklisted(f))
-            failed.Add("Blacklisted");
-
-        if (f.IsPending)
-            failed.Add("Pending (not yet active / not on map)");
+        FateEligibility.AppendFailedConditions(
+            failed,
+            f.Duration, Config.MaxDuration,
+            f.Progress, Config.MaxProgress,
+            f.TimeRemaining, Config.MinTimeRemaining,
+            IsBlacklisted(f), f.IsPending,
+            f.Rule, Config.ExcludedFateRules);
 
         return (failed.Count == 0, failed);
     }
