@@ -15,7 +15,8 @@ internal static class AutoDutyReArmCases
     private static void Check(string what, bool ok, string? detail = null) => Program.Check(what, ok, detail);
 
     /// <summary> Runs the scheduler over a 1 ms tick clock and returns the times a correction was made. Each edit carries the picks selected after it. </summary>
-    private static List<long> Corrections(IReadOnlyList<(long At, int Selected)> autoDutyEdits, long untilMs, long settleMs = 250)
+    private static List<long> Corrections(IReadOnlyList<(long At, int Selected)> autoDutyEdits, long untilMs, long settleMs = 250,
+        int fullTeamCount = FormationLogic.AutoDutyFullTeam, bool ignoreWhenEmpty = false)
     {
         var made = new List<long>();
         var editSeen = false;
@@ -31,7 +32,8 @@ internal static class AutoDutyReArmCases
                     lastEdit = t;
                     selected = count;
                 }
-            if (FormationLogic.AutoDutyCorrectionDue(editSeen, lastEdit, lastCorrection, corrections, t, settleMs, selected))
+            if (FormationLogic.AutoDutyCorrectionDue(editSeen, lastEdit, lastCorrection, corrections, t, settleMs, selected, fullTeamCount,
+                ignoreWhenEmpty))
             {
                 made.Add(t);
                 corrections++;
@@ -88,5 +90,37 @@ internal static class AutoDutyReArmCases
         // The settle time still protects the confirm window: a toggle then a correction 250 ms later.
         var single = Corrections([0], 1000);
         Check("settle 250 ms after the toggle", single.Count == 1 && single[0] == 250, string.Join(",", single));
+
+        Console.WriteLine("-- 0.1.9.10: the preentry roster gates on the board's roster size, not the horn's 3 picks (live 2026-10-05) --");
+
+        // Residual (a), live 2026-10-05 11:35:27 ET (Bentbranch preentry roster, board 4): AutoDuty's rebuild
+        // paused ~250 ms with FOUR picks; the horn-shaped threshold read 4 >= 3 as a full team and the
+        // correction (+11+7) fired mid-build; AutoDuty's continuing build (six adds over ~700 ms) and its
+        // confirm re-applies tore both rows out before the screen closed. The roster's real cap is the
+        // board's roster size (12 on the Fourth Board), so a 4-pick selection is NOT a full team.
+        var rosterMidBuild = Corrections([(0, 1), (110, 2), (220, 3), (330, 4)], 1200, fullTeamCount: 12);
+        Check("roster mid-build (live 11:35:27 shape): a 4-pick pause fires nothing under the roster's own cap",
+            rosterMidBuild.Count == 0, string.Join(",", rosterMidBuild));
+        var hornMidBuild = Corrections([(0, 1), (110, 2), (220, 3), (330, 4)], 1200);
+        Check("...the same shape under the horn's 3-pick threshold still settles at 250 ms (horn unchanged)",
+            hornMidBuild.SequenceEqual(new long[] { 580 }), string.Join(",", hornMidBuild));
+
+        // The prescribed residual-a shape: edits at 0/110/220/530/640 ms leaving 1/2/3/4/5 picks with a 250 ms
+        // pause at 3 picks. Under the horn threshold that is two corrections (470, 780); under the roster's
+        // cap of 12 every selection is short and waits for the 1500 ms quiet the next edit keeps resetting.
+        var prescribed = Corrections([(0, 1), (110, 2), (220, 3), (530, 4), (640, 5)], 1500, fullTeamCount: 12);
+        Check("prescribed roster shape (5 edits, 250 ms pause at 3 picks): nothing mid-build",
+            prescribed.Count == 0, string.Join(",", prescribed));
+
+        // Live 2026-10-05 11:48:36 ET: AutoDuty WIPED the roster (one edit leaving zero) then sat ~1.5 s
+        // before its build began; the short-team quiet read the wipe as a finished selection and the
+        // correction wrote onto an empty roster, where AutoDuty's build removed the added rows. An empty
+        // selection is never a settled build, so the preentry surface ignores the empty case entirely.
+        var rosterWiped = Corrections([(0, 0)], 2500, fullTeamCount: 12, ignoreWhenEmpty: true);
+        Check("roster wiped empty under AutoDuty (live 11:48:36 shape): no correction on an empty selection",
+            rosterWiped.Count == 0, string.Join(",", rosterWiped));
+        var hornWiped = Corrections([(0, 0)], 2500);
+        Check("...the horn keeps its empty-selection quiet path (default arguments unchanged)",
+            hornWiped.SequenceEqual(new long[] { FormationLogic.AutoDutyShortTeamQuietMs }), string.Join(",", hornWiped));
     }
 }

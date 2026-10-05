@@ -102,7 +102,8 @@ internal static class FormationLogic
     ///     reached the fight. The pre-entry roster showed the same: our vulture / bat / Soulkin were cleared one per 0.45 s.
     ///     <paramref name="lastCorrectionMs"/> is 0 (or older than any edit) until a correction has been made.
     /// </summary>
-    public static bool AutoDutyCorrectionDue(bool editSeen, long lastEditMs, long lastCorrectionMs, int corrections, long nowMs, long settleMs, int selectedCount = AutoDutyFullTeam) =>
+    public static bool AutoDutyCorrectionDue(bool editSeen, long lastEditMs, long lastCorrectionMs, int corrections, long nowMs, long settleMs,
+        int selectedCount = AutoDutyFullTeam, int fullTeamCount = AutoDutyFullTeam, bool ignoreWhenEmpty = false) =>
         editSeen && corrections < AutoDutyMaxCorrections && lastEditMs > lastCorrectionMs
         && nowMs - lastEditMs >= (selectedCount >= AutoDutyFullTeam ? settleMs : AutoDutyShortTeamQuietMs);
 
