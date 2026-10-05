@@ -133,7 +133,7 @@ internal static class AutoDutyReArmCases
         var single = Corrections([0], 1000);
         Check("settle 250 ms after the toggle", single.Count == 1 && single[0] == 250, string.Join(",", single));
 
-        Console.WriteLine("-- 0.1.9.11: the preentry roster settles on its own membership (replays of the real 2026-10-05 event streams) --");
+        Console.WriteLine("-- the preentry roster surface under AutoDuty never writes (replays of the real 2026-10-05 event streams, bounded at each screen's real close) --");
 
         // The 0.1.9.10 roster cases were removed: they hand-built the edit list, treating every AutoDuty add as an
         // edit event — exactly what the plugin never sees (IsSelectionEditEvent classifies the monster notebook's
@@ -159,9 +159,17 @@ internal static class AutoDutyReArmCases
             (1365, [5, 8, 19, 22, 41, 45]), (1468, [5, 8, 19, 22, 41, 45, 46]), (1568, [5, 8, 19, 22, 41, 45, 46, 47]),
             (1670, [5, 8, 19, 22, 41, 45, 46, 47, 48]), (1770, [5, 8, 19, 22, 41, 45, 46, 47, 48, 50]),
         ];
-        var replay1135 = ReplayRoster(fight1135, build1135, 3600);
-        Check("replay 11:35:26 (real stream): nothing mid-build, one correction after 1500 ms of membership quiet",
-            replay1135.SequenceEqual(new long[] { 3270 }), string.Join(",", replay1135));
+        // The screen's real close is the last event (3131, pp kind 0 n=1 i=-2, matching gate=phase screen=0): each
+        // replay runs twice — bounded at the close (nothing may be written while the screen is open) and 2 s past
+        // it (the roster surface under AutoDuty never writes at all: AutoDuty's confirm passes remove unfamiliar
+        // rows, and its accept follows the build's last add by ~0.43-0.54 s with no observable marker between, so
+        // no correction can be placed there on evidence — it is withdrawn, not settled).
+        var replay1135 = ReplayRoster(fight1135, build1135, 3131);
+        Check("replay 11:35:26 (real stream, bounded at its real close 3131): no correction while the screen is open",
+            replay1135.Count == 0, string.Join(",", replay1135));
+        var pastClose1135 = ReplayRoster(fight1135, build1135, 5131);
+        Check("replay 11:35:26 past the close: the roster surface under AutoDuty never writes — the correction is withdrawn",
+            pastClose1135.Count == 0, string.Join(",", pastClose1135));
 
         // The 0.1.9.10 gate (roster capacity as the full-team threshold, edit times as the clock) on the SAME real
         // stream: the last edit is stale at 218, ten picks is short of twelve, so it fires at 1500-1718 — before the
@@ -186,9 +194,12 @@ internal static class AutoDutyReArmCases
             (1386, [1, 8, 19, 22, 34, 45]), (1491, [1, 8, 19, 22, 34, 45, 46]), (1591, [1, 8, 19, 22, 34, 45, 46, 47]),
             (1703, [1, 8, 19, 22, 34, 45, 46, 47, 48]), (1803, [1, 8, 19, 22, 34, 45, 46, 47, 48, 49]),
         ];
-        var replay1214 = ReplayRoster(fight1214, build1214, 3600);
-        Check("replay 12:14:41 (real stream): nothing mid-build, one correction after 1500 ms of membership quiet",
-            replay1214.SequenceEqual(new long[] { 3303 }), string.Join(",", replay1214));
+        var replay1214 = ReplayRoster(fight1214, build1214, 3249);
+        Check("replay 12:14:41 (real stream, bounded at its real close 3249): no correction while the screen is open",
+            replay1214.Count == 0, string.Join(",", replay1214));
+        var pastClose1214 = ReplayRoster(fight1214, build1214, 5249);
+        Check("replay 12:14:41 past the close: the roster surface under AutoDuty never writes — the correction is withdrawn",
+            pastClose1214.Count == 0, string.Join(",", pastClose1214));
 
         // Live 11:48:34.981-40.006 ET (post-wipe shape): edits at 0/124/249 wipe the roster, which then sits EMPTY
         // until 3458 (the live 0.1.9.9 write landed on it at ~1759), pp edits on the empty roster at 2334-2975 change
@@ -207,9 +218,12 @@ internal static class AutoDutyReArmCases
             (4068, [19, 8, 22, 41, 42, 43]), (4192, [19, 8, 22, 41, 42, 43, 45]), (4317, [19, 8, 22, 41, 42, 43, 45, 46]),
             (4417, [19, 8, 22, 41, 42, 43, 45, 46, 49]), (4542, [19, 8, 22, 41, 42, 43, 45, 46, 49, 50]),
         ];
-        var replay1148 = ReplayRoster(fight1148, build1148, 6300);
-        Check("replay 11:48:35 (real stream): nothing on the empty sit (the live write landed there at ~1759), one correction after the build settles",
-            replay1148.SequenceEqual(new long[] { 6042 }), string.Join(",", replay1148));
+        var replay1148 = ReplayRoster(fight1148, build1148, 5025);
+        Check("replay 11:48:35 (real stream, bounded at its real close 5025): no correction on the empty sit or after the build",
+            replay1148.Count == 0, string.Join(",", replay1148));
+        var pastClose1148 = ReplayRoster(fight1148, build1148, 7025);
+        Check("replay 11:48:35 past the close: the roster surface under AutoDuty never writes — the correction is withdrawn",
+            pastClose1148.Count == 0, string.Join(",", pastClose1148));
 
         // Horn unchanged (the horn's AutoDuty toggles ARE edit events, so its edit-time gate is the right model):
         var hornMidBuild = Corrections([(0, 1), (110, 2), (220, 3), (330, 4)], 1200);
