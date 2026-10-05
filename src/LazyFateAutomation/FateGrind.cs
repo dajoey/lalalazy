@@ -22,6 +22,8 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
     };
 
     protected override async Task Execute() {
+        _focusedEmptyZones.Clear();
+        _focusPoolSnapshot = null;
         using var stop = new OnDispose(() => {
             try { Svc.Navmesh.PathfindCancelAll(); Svc.Navmesh.Stop(); } catch { }
             try { Svc.TextAdvance.DisableExternalControl(tweak.Name); } catch { }
@@ -98,6 +100,13 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
     private long FollowUpWatchUntilMs { get; set; }
     private uint? WaitForExpiryFateId { get; set; } // id for when we leave a collect fate. Stay in zone until fate is null
     private long LastEmptyZoneSwapTimeMs { get; set; }
+
+    // Currency-focus fallback bookkeeping: which focused-pool zones have been visited since the last
+    // FATE the bot ran, and the pool membership those marks belong to. When every effective pool zone
+    // is marked, the pool is exhausted and the CurrencyFocusFallback setting applies (0.0.3.3 kept
+    // rotating the pool forever, so both fallback options did the same thing).
+    private readonly HashSet<uint> _focusedEmptyZones = [];
+    private IReadOnlySet<uint>? _focusPoolSnapshot;
 
     private Vector3 _lastEngagePosition;
     private long _lastEngagePositionChangedAt;
@@ -288,6 +297,7 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
             return;
 
         NextFate = nextFate;
+        _focusedEmptyZones.Clear(); // the pool found something to run: the next empty stretch starts a fresh lap
 
         if (Player.DistanceTo(NextFate.Position) <= NextFate.Radius * 0.5f) {
             if (NextFate is { State: FateState.Preparing, MotivationNpcId: not 0xE0000000 } && PublicEvent.Fates.Any(f => f.Id == NextFate.Id)) {
@@ -456,9 +466,13 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
 
         var rawZones = tweak.GetRawSwapZones();
         var hasRawZones = rawZones is { Count: > 0 };
-        var hasEffectiveZones = tweak.GetEffectiveSwapZones() is { Count: > 0 };
+        var effectiveZones = tweak.GetEffectiveSwapZones();
+        var hasEffectiveZones = effectiveZones is { Count: > 0 };
+        var focusSteers = !tweak.ModeSuppliesSwapZones
+            && tweak.Config.CurrencyFocus != FateCurrency.None
+            && hasRawZones;
 
-        if (!HasTwistOfFate && (hasEffectiveZones || (tweak.Config.SwapZones && !hasRawZones))) {
+        if (!HasTwistOfFate && (hasEffectiveZones || (tweak.Config.SwapZones && !hasRawZones) || focusSteers)) {
             var timeSinceLastSwap = Environment.TickCount64 - LastEmptyZoneSwapTimeMs;
             if (timeSinceLastSwap < 30_000) {
                 Status = $"Empty zone swap cooldown ({(30_000 - timeSinceLastSwap) / 1000 + 1}s)";
@@ -469,16 +483,30 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
 
             using var scope = BeginScope("SwapZones");
             uint destination;
-            if (tweak.Config.CurrencyFocus != FateCurrency.None && tweak.Config.CurrencyFocusFallback == CurrencyFocusFallback.Idle) {
-                // Currency focus with the idle fallback: never grind non-focused fates; stay put when
-                // the focused pool has nothing else to offer.
-                if (tweak.GetNextPreferredSwapZone(Player.Territory.RowId) is not { } swapTarget) {
-                    Status = $"Waiting for {FateToolKit.CurrencyName(tweak.Config.CurrencyFocus)} fates";
-                    await Mount();
-                    await NextFrame(60);
-                    return;
+            if (focusSteers) {
+                // The currency focus owns the zone pool: rotate inside it, marking each zone we stand
+                // in with nothing to run. Once every pool zone has been tried (a full lap), the
+                // fallback setting decides: leave the pool for the usual swap chain, or stay and
+                // wait for focused FATEs.
+                TrackFocusPool(effectiveZones);
+                switch (FateFocusSwap.Decide(
+                            focusSteers, hasEffectiveZones,
+                            IsFocusPoolExhausted(effectiveZones),
+                            tweak.Config.CurrencyFocusFallback)) {
+                    case FocusSwapAction.IdleAndWait:
+                        Status = $"Waiting for {FateToolKit.CurrencyName(tweak.Config.CurrencyFocus)} fates";
+                        await Mount();
+                        await NextFrame(60);
+                        return;
+                    case FocusSwapAction.LeavePool:
+                        // GetRandomSameExpacZone always lands somewhere (current zone when nothing else),
+                        // so the chain is total
+                        destination = GetNextAchievementZone() ?? GetRandomSameExpacZone();
+                        break;
+                    default: // RotateInPool
+                        destination = tweak.GetNextPreferredSwapZone(Player.Territory.RowId) ?? GetNextAchievementZone() ?? GetRandomSameExpacZone();
+                        break;
                 }
-                destination = swapTarget;
             }
             else {
                 destination = tweak.GetNextPreferredSwapZone(Player.Territory.RowId) ?? GetNextAchievementZone() ?? GetRandomSameExpacZone();
@@ -503,6 +531,19 @@ internal sealed class FateGrind(FateToolKit tweak) : TaskBase {
             await NextFrame(60);
         }
     }
+
+    private void TrackFocusPool(IReadOnlySet<uint>? effectiveZones) {
+        var pool = effectiveZones ?? new HashSet<uint>();
+        if (_focusPoolSnapshot == null || !_focusPoolSnapshot.SetEquals(pool)) {
+            _focusPoolSnapshot = new HashSet<uint>(pool);
+            _focusedEmptyZones.Clear(); // mode/focus/exclusion edit: the old marks say nothing about the new pool
+        }
+
+        _focusedEmptyZones.Add(Player.Territory.RowId); // standing here and nothing to run
+    }
+
+    private bool IsFocusPoolExhausted(IReadOnlySet<uint>? effectiveZones)
+        => _focusPoolSnapshot != null && _focusedEmptyZones.IsSupersetOf(effectiveZones ?? new HashSet<uint>());
 
     private void HandleIntegrations() {
         if (PublicEvent.CurrentFate is { } fate) {

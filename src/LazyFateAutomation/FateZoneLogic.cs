@@ -102,3 +102,37 @@ public static class FateEligibility {
             failed.Add($"{rule} FATEs are excluded in settings");
     }
 }
+
+/// <summary>What the zone swap does while a currency focus steers the pool.</summary>
+public enum FocusSwapAction {
+    RotateInPool, // swap to the next zone of the focused pool
+    LeavePool, // the pool yielded nothing: continue normally (achievement-guided / same-expansion swap)
+    IdleAndWait, // the pool yielded nothing: stay put and wait for focused-currency FATEs
+}
+
+/// <summary>
+///     Pure currency-focus swap decision, extracted from FateGrind.HandleNoFates so the
+///     CurrencyFocusFallback behavior is asserted offline against the same code the game runs.
+///     No Dalamud references.
+///
+///     "None is up" means every zone of the effective focused pool has been visited since the last
+///     FATE the automation ran, and none had a FATE to start — a full lap of the pool. Only then
+///     does the fallback setting apply: NormalSelection leaves the pool for the usual swap chain
+///     (achievement-guided / random same-expansion), Idle stays put and waits. While the pool still
+///     offers an unvisited zone, rotation continues inside it. When a grind mode supplies its own
+///     zone list, or the focus has no zones, the focus is not steering and the caller's normal
+///     chain decides.
+/// </summary>
+public static class FateFocusSwap {
+    public static FocusSwapAction Decide(
+        bool focusSteersPool,
+        bool effectivePoolHasZones,
+        bool poolExhausted,
+        CurrencyFocusFallback fallback
+    )
+        => !focusSteersPool || (effectivePoolHasZones && !poolExhausted)
+            ? FocusSwapAction.RotateInPool // pool still steering and not exhausted: keep rotating inside it
+            : fallback == CurrencyFocusFallback.Idle
+                ? FocusSwapAction.IdleAndWait // full lap found nothing: stay put for focused FATEs
+                : FocusSwapAction.LeavePool; // full lap found nothing: behave as if no focus was set
+}

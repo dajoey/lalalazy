@@ -1,5 +1,13 @@
 # Changelog - Lazy Fate Automation
 
+## v0.0.3.4 (2026-10-05) [testing]
+### Fixed
+- **The currency-focus fallback setting now takes effect.** In the previous version both fallback options kept rotating the focused zones identically. Zone swaps now first pass through every focused zone; once a full pass finds no FATE to run, "Continue normally" (default) resumes the usual zone rotation (achievement-guided / same expansion), while "Idle in zone" stays put and waits for focused-currency FATEs instead of grinding other FATEs.
+- Excluding every focused zone now falls back the same way instead of waiting in place.
+- The fallback setting's in-game help describes the new behavior.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v0.0.3.3 (2026-10-05) [testing]
 ### Added
 - **All FATE zones are supported and selectable.** The zone list is now built from the game's own data: every A Realm Reborn through Dawntrail zone with FATEs and a teleport aetheryte (47 zones), grouped by expansion in the settings, so future zones appear with no plugin update. Zone swaps no longer pick zones the aetheryte network cannot reach; automation inside foray zones (Bozja, Eureka, Occult Crescent, cosmic exploration) is unchanged when the character is already there.

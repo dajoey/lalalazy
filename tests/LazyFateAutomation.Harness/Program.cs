@@ -93,6 +93,7 @@ internal static class Program {
         ZoneClassificationTests();
         CurrencyMappingTests();
         FateEligibilityTests();
+        FocusFallbackTests();
         ConfigMigrationTests();
 
         Console.WriteLine($"{_pass} pass, {_fail} fail");
@@ -191,6 +192,34 @@ internal static class Program {
         Check("blacklist and pending still apply",
             !FateEligibility.IsEligible(900, 900, 0, 90, 300, 120, true, false, FateRule.Normal, empty)
             && !FateEligibility.IsEligible(900, 900, 0, 90, 300, 120, false, true, FateRule.Normal, empty));
+    }
+
+    /// <summary>
+    ///     The currency-focus fallback decision (FateFocusSwap.Decide, the function
+    ///     FateGrind.HandleNoFates defers to): the two fallback options must actually diverge once
+    ///     the focused pool is exhausted — the 0.0.3.3 bug was that both settings rotated the pool
+    ///     identically, so neither option changed anything.
+    /// </summary>
+    private static void FocusFallbackTests() {
+        Console.WriteLine("-- currency-focus fallback decision (FateFocusSwap) --");
+
+        Check("exhausted pool + Continue normally leaves the pool for the usual chain",
+            FateFocusSwap.Decide(focusSteersPool: true, effectivePoolHasZones: true, poolExhausted: true,
+                CurrencyFocusFallback.NormalSelection) == FocusSwapAction.LeavePool);
+        Check("exhausted pool + Idle in zone stays and waits",
+            FateFocusSwap.Decide(true, true, true, CurrencyFocusFallback.Idle) == FocusSwapAction.IdleAndWait);
+        Check("unexhausted pool keeps rotating under Continue normally",
+            FateFocusSwap.Decide(true, true, false, CurrencyFocusFallback.NormalSelection) == FocusSwapAction.RotateInPool);
+        Check("unexhausted pool keeps rotating under Idle in zone",
+            FateFocusSwap.Decide(true, true, false, CurrencyFocusFallback.Idle) == FocusSwapAction.RotateInPool);
+        Check("every focused zone excluded (empty effective pool) + Continue normally leaves the pool",
+            FateFocusSwap.Decide(true, false, true, CurrencyFocusFallback.NormalSelection) == FocusSwapAction.LeavePool);
+        Check("every focused zone excluded (empty effective pool) + Idle in zone waits",
+            FateFocusSwap.Decide(true, false, true, CurrencyFocusFallback.Idle) == FocusSwapAction.IdleAndWait);
+        Check("mode zone list wins over the focus fallback",
+            FateFocusSwap.Decide(false, true, true, CurrencyFocusFallback.Idle) == FocusSwapAction.RotateInPool);
+        Check("focus without zones does not steer the swap",
+            FateFocusSwap.Decide(false, false, true, CurrencyFocusFallback.Idle) == FocusSwapAction.RotateInPool);
     }
 
     private static void ConfigMigrationTests() {
