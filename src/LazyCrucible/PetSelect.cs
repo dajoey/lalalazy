@@ -323,8 +323,17 @@ internal static unsafe class PetSelect
                 _loggedConflictThisPhase = true;
                 LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|calls=0|note=autoduty_running|{ExternalDrivers.Detail}|needfix=on");
             }
+            // The roster's full-team count is the board's roster size, not the horn's 3 picks (residual a, live
+            // 2026-10-05 11:35:27 ET: a 4-pick mid-rebuild pause settled at 250 ms and the correction fired into
+            // AutoDuty's build, which tore the added rows out). The horn keeps 3. An empty roster under AutoDuty is
+            // never a settled build — it wiped and sits up to ~2 s before its build begins (live 11:48:36 ET).
+            var adSelected = ReadPetIds(pet, PartySelectedPetIds);
+            var adBoard = territoryBoard != 0 ? territoryBoard : contentBoard is >= 1 and <= 5 ? (int)contentBoard : 1;
+            var adFullTeam = surfaceKey == SurfacePreentry && adBoard >= 1 && adBoard <= BST_CrucibleData.Boards.Length
+                ? BST_CrucibleData.Boards[adBoard - 1].Roster
+                : FormationLogic.AutoDutyFullTeam;
             if (!FormationLogic.AutoDutyCorrectionDue(_adEditSeenThisOpen, _adLastEditMs, _adLastCorrectionMs, _adCorrections, now, AutoDutySettleMs,
-                    ReadPetIds(pet, PartySelectedPetIds).Count))
+                    adSelected.Count, adFullTeam, ignoreWhenEmpty: surfaceKey == SurfacePreentry))
                 return; // its selection has not settled yet, it has not written since our last correction, or the cap is reached
         }
 
