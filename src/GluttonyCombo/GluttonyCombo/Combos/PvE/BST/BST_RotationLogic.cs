@@ -437,8 +437,27 @@ internal static class BST_RotationLogic
         return fallback;
     }
 
+    /// <summary> A directional parry is up and faces the character (no familiar, or the enemy is not on the familiar). </summary>
+    public static bool ParryFacingPlayer(in BstState s) => s.TargetHasParry && (!FamiliarOut(s) || !s.EnemyTargetsPet);
+
+    /// <summary>
+    ///     The Crucible hold this tick would send (counter stance, do-not-attack, invulnerable, or a parry facing the
+    ///     character): no GCD goes out. The stance-break fight-on rule (nothing out, character under half, stance only) is not a hold.
+    /// </summary>
+    public static bool CrucibleHoldsGcd(in BstState s)
+    {
+        if (!s.HasHostileTarget)
+            return false;
+        var parry = ParryFacingPlayer(s);
+        if (!(s.TargetDoNotAttack || s.TargetInStance || s.TargetInvulnerable || parry))
+            return false;
+        var stanceBreak = s.TargetInStance && !s.TargetDoNotAttack && !s.TargetInvulnerable && !parry
+                          && !FamiliarPresentOrPending(s) && s.PlayerHpPercent is > 0f and < 50f;
+        return !stanceBreak;
+    }
+
     /// <summary> The one decision for this tick. Never returns 0: the GCD combo is the floor. </summary>
-    public static BstDecision Decide(in BstState s, in BstSettings cfg)
+    public static BstDecision Decide(in BstState state, in BstSettings cfg)
     {
         var declines = new List<string>(4);
         var shadow = "";
@@ -446,7 +465,15 @@ internal static class BST_RotationLogic
         BstDecision Pick(uint id, string reason) => new(id, reason, string.Join("+", declines), shadow);
 
         // Crucible of the Unbroken: extra rules only on a Crucible board (nothing below changes elsewhere).
-        var crucible = cfg.Crucible && s.CrucibleBoard != 0;
+        var crucible = cfg.Crucible && state.CrucibleBoard != 0;
+
+        // A hold sends no GCD, so the GCD sits idle and CanWeave() (it needs a rolling GCD) is false in melee for as long as the
+        // hold lasts: every summon, Snarl and cleanse behind CanWeave starved. 2026-10-05 18:48 .. 18:50 (Second Degree, Bone
+        // Knight): a horn was back, the guard stood facing the character, and the log read summon:waiting-weave until the death
+        // (the same class TryDispel already handles for a counter stance). While the hold is the decision, an idle GCD IS the window.
+        var s = state;
+        if (crucible && !s.CanWeave && s.GcdReady && !s.PlayerIsCasting && CrucibleHoldsGcd(s))
+            s = s with { CanWeave = true };
         var rcfg = crucible && cfg.CrucibleAllowDisplacing ? cfg with { AllowDisplacingRelease = true } : cfg;
 
         // ---------------------------------------------------------- 0. Crucible survival: entry-HP heal, aimed-hit guard, panic heal
@@ -575,7 +602,7 @@ internal static class BST_RotationLogic
             // while the last enemy beats on an undefended player is how a Third Board run ended
             // (2026-09-26: 14 s of hold with no familiar out, player 43% -> 0%). Fight instead.
             // Directional parry facing player: holding prevents spamming 0-damage frontal attacks.
-            var parryFacingPlayer = s.TargetHasParry && (!FamiliarOut(s) || !s.EnemyTargetsPet);
+            var parryFacingPlayer = ParryFacingPlayer(s);
             if (s.HasHostileTarget && (s.TargetDoNotAttack || s.TargetInStance || s.TargetInvulnerable || parryFacingPlayer))
             {
                 var stanceBreak = s.TargetInStance && !s.TargetDoNotAttack && !s.TargetInvulnerable && !parryFacingPlayer

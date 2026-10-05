@@ -1327,6 +1327,74 @@ internal static class Program
         Check("Directional Parry drops (expiry): damage resumes",
             Decide(parryFacing with { TargetHasParry = false }, cfg).ActionId != BST_CrucibleLogic.Hold);
 
+        // ---- 2026-10-05 18:47 ET, First Board of the Unbroken, Second Degree (encounter 2286): replay of the real signals.
+        // Horns 3 (Ice Golem), 1 (Salamander), 2 (Ghost) were all pressed inside 70 s and every one was locked when the
+        // Knight began Forward Guard (CR c=46864:4.6, pet=100 Ghost summoned 1.3 s earlier, sl=29.100.100). The recall
+        // (petsave-guard) sent the healthy Ghost away with no horn to bring another back; the guard then stood for
+        // 168 s because only a familiar's Snarl turns the Knight.
+        var guardAllHornsLocked = CrucibleState() with
+        {
+            ActiveSlot = 2, PetObjectPresent = true, PetObjectBeast = 34, PetHpPercent = 100f, SinceSummon = 1.3f, SinceHornPress = 1.3f,
+            ReadyHorn1 = false, ReadyHorn2 = false, ReadyHorn3 = false,
+            TargetCastId = 46864, TargetCastRemaining = 4.6f, ReadyParting = true, GcdReady = true, CanWeave = false,
+        };
+        var lockedRecall = Decide(guardAllHornsLocked, cfg);
+        Check("Forward Guard cast, every horn locked (2026-10-05 replay): the healthy familiar stays out",
+            lockedRecall.ActionId != BST.PartingBlow && lockedRecall.Reason != "crucible:petsave-guard", $"{lockedRecall.ActionId} {lockedRecall.Reason}");
+        Check("Forward Guard cast, every horn locked: the declined recall is logged",
+            lockedRecall.Declines.Contains("crucible:petsave-guard-no-resummon-horn"), lockedRecall.Declines);
+        var lockedSweepOk = true;
+        for (var rem = 4.8f; rem >= 0.5f; rem -= 0.5f)
+            foreach (var (gcdReady, canWeave) in new[] { (true, false), (false, true), (false, false) })
+                if (Decide(guardAllHornsLocked with { TargetCastRemaining = rem, GcdReady = gcdReady, CanWeave = canWeave }, cfg).ActionId == BST.PartingBlow)
+                    lockedSweepOk = false;
+        Check("Forward Guard cast, every horn locked: no recall anywhere in the cast window or GCD state", lockedSweepOk);
+        Check("Forward Guard cast, the only ready horn holds a critical familiar: no recall (it could not be resummoned)",
+            Decide(guardAllHornsLocked with { ReadyHorn3 = true, Slot3PetHp = 10f }, cfg).ActionId != BST.PartingBlow);
+        Check("Forward Guard cast, a healthy horn is ready: the recall still fires (the 1.0.4.245 behavior with a resummon)",
+            Decide(guardAllHornsLocked with { ReadyHorn3 = true, Slot3PetHp = 100f }, cfg) is { ActionId: BST.PartingBlow, Reason: "crucible:petsave-guard" });
+
+        // The guard stood 168 s: once a horn was back (about 18:48:37) the hold-parry decision stopped the GCD, the GCD stayed
+        // ready, CanWeave() is false in melee, and the summon gate (CanWeave || !GcdReady) declined summon:waiting-weave for the
+        // rest of the fight. A hold sends no GCD, so a ready GCD is the weave window.
+        var heldNoPet = CrucibleState() with
+        {
+            ActiveSlot = 0, PetObjectPresent = false, PetObjectBeast = 0, PetHpPercent = 0f, SinceSummon = 0f, SinceHornPress = 90f,
+            ReadyHorn1 = false, ReadyHorn2 = false, ReadyHorn3 = true, ReadyParting = true,
+            TargetHasParry = true, EnemyTargetsPlayer = true, EnemyTargetsPet = false, GcdReady = true, CanWeave = false, TargetDistance = 1.2f,
+        };
+        var heldSummon = Decide(heldNoPet, cfg);
+        Check("guard up, no familiar, a horn is back, GCD idle in melee (2026-10-05 replay): the horn is pressed",
+            heldSummon is { ActionId: BST.ThirdBattlehorn, Reason: "summon:slot3" }, $"{heldSummon.ActionId} {heldSummon.Reason} [{heldSummon.Declines}]");
+        Check("guard up, no familiar, no horn back yet: holds, logs summon:no-horn-ready",
+            Decide(heldNoPet with { ReadyHorn3 = false }, cfg) is { ActionId: BST_CrucibleLogic.Hold } nh && nh.Declines.Contains("summon:no-horn-ready"));
+        Check("guard up, no familiar, horn back, character moving: still no cast while moving",
+            Decide(heldNoPet with { IsMoving = true }, cfg) is { } hm && !IsHorn(hm.ActionId) && hm.Declines.Contains("crucible:summon-moving"));
+        Check("no guard, no familiar, horn back, GCD idle and not weavable: the summon waits for the weave window (unchanged)",
+            Decide(heldNoPet with { TargetHasParry = false }, cfg) is { } nw && !IsHorn(nw.ActionId) && nw.Declines.Contains("summon:waiting-weave"));
+        Check("counter stance up (hold-stance), no familiar, horn back, GCD idle: the horn is pressed (same deadlock class)",
+            Decide(heldNoPet with { TargetHasParry = false, TargetInStance = true }, cfg).ActionId == BST.ThirdBattlehorn);
+        Check("do-not-attack target (hold-do-not-attack), no familiar, horn back, GCD idle: the horn is pressed",
+            Decide(heldNoPet with { TargetHasParry = false, TargetDoNotAttack = true }, cfg).ActionId == BST.ThirdBattlehorn);
+        Check("invulnerable target (hold-invulnerable), no familiar, horn back, GCD idle: the horn is pressed",
+            Decide(heldNoPet with { TargetHasParry = false, TargetInvulnerable = true }, cfg).ActionId == BST.ThirdBattlehorn);
+        Check("board 0 (outside the Crucible): the idle-GCD summon exception does not apply",
+            Decide(heldNoPet with { CrucibleBoard = 0 }, cfg) is { } b0 && !IsHorn(b0.ActionId));
+
+        // The turn: with the familiar out the Snarl is what ends the guard; it was behind the same CanWeave gate in the hold branch.
+        var heldWithPet = heldNoPet with
+        {
+            ActiveSlot = 3, PetObjectPresent = true, PetObjectBeast = 26, PetHpPercent = 100f, SinceSummon = 3f, SinceHornPress = 3f,
+            ReadyHorn3 = false, ReadySnarl = true,
+        };
+        var heldSnarl = Decide(heldWithPet, on);
+        Check("guard up facing the character, familiar out, GCD idle in melee (2026-10-05 replay): Snarl turns the Knight",
+            heldSnarl is { ActionId: BST.Snarl, Reason: "aggro:snarl-parry" }, $"{heldSnarl.ActionId} {heldSnarl.Reason} [{heldSnarl.Declines}]");
+        Check("guard facing the familiar: damage resumes (no hold)",
+            Decide(heldWithPet with { EnemyTargetsPet = true, EnemyTargetsPlayer = false }, on).ActionId != BST_CrucibleLogic.Hold);
+        Check("guard up, familiar just summoned (inside the settle time): holds, no Snarl yet",
+            Decide(heldWithPet with { SinceHornPress = 1f }, on) is { ActionId: BST_CrucibleLogic.Hold });
+
         // Party-agent HP lag after Parting Blow / horn-swap (first-board run 2026-09-17: live 19% → agent 100 for ~48 s)
         var mem = new Dictionary<int, float> { [20] = 19f };
         Check("party agent 100 after a low leave: keep 19",
