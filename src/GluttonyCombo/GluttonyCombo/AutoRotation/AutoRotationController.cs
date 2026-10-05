@@ -1861,26 +1861,40 @@ internal unsafe class AutoRotationController
     private static bool AutomateDPS(Preset preset, PresetStorage.PresetData attributes, uint gameAct)
     {
         var mode = cfg.DPSRotationMode;
-        if (attributes.AutoAction!.IsAoE)
+        try
         {
-            return AutoRotationHelper.ExecuteAoE(mode, preset, attributes, gameAct);
+            if (attributes.AutoAction!.IsAoE)
+            {
+                return AutoRotationHelper.ExecuteAoE(mode, preset, attributes, gameAct);
+            }
+            else
+            {
+                return AutoRotationHelper.ExecuteST(mode, preset, attributes, gameAct);
+            }
         }
-        else
+        finally
         {
-            return AutoRotationHelper.ExecuteST(mode, preset, attributes, gameAct);
+            AutoRotationHelper.RestoreAfterFallback();
         }
     }
 
     private static bool AutomateTanking(Preset preset, PresetStorage.PresetData attributes, uint gameAct)
     {
         var mode = cfg.DPSRotationMode;
-        if (attributes.AutoAction!.IsAoE)
+        try
         {
-            return AutoRotationHelper.ExecuteAoE(mode, preset, attributes, gameAct);
+            if (attributes.AutoAction!.IsAoE)
+            {
+                return AutoRotationHelper.ExecuteAoE(mode, preset, attributes, gameAct);
+            }
+            else
+            {
+                return AutoRotationHelper.ExecuteST(mode, preset, attributes, gameAct);
+            }
         }
-        else
+        finally
         {
-            return AutoRotationHelper.ExecuteST(mode, preset, attributes, gameAct);
+            AutoRotationHelper.RestoreAfterFallback();
         }
     }
 
@@ -2000,6 +2014,73 @@ internal unsafe class AutoRotationController
                 fallbackTarget);
         }
 
+        /// <summary>
+        ///     Fork (1.0.4.283): one DPS target pick per second per player. The mode's pick, the Crucible kill
+        ///     order and the boss-mod target are stateless per-tick functions of live inputs; this is the cadence
+        ///     floor under them (decision core: <see cref="DpsTargetStability"/>). The first pick, a pick whose
+        ///     held enemy died or became untargetable, and a mechanic target (interrupt, dispel carrier, boss-mod
+        ///     target) switch at once. Single-target and AoE presses share it: both write the same current target.
+        /// </summary>
+        private static readonly DpsTargetStability _dpsPickFloor = new();
+
+        /// <summary> Same floor for the enemy an out-of-range press is redirected to (one hold across presses). </summary>
+        private static readonly DpsTargetStability _fallbackPickFloor = new();
+
+        /// <summary> NameId of the pick last committed by <see cref="HoldDpsPick"/>, for the TS| line. </summary>
+        private static uint _lastPickNameId;
+
+        /// <summary> The enemy can still be attacked at all (alive, targetable, hostile, not immune). Reach and line of sight are the floor's business. </summary>
+        private static bool DpsPickStillUsable(ulong id) =>
+            id.GetBattleChara() is { } c
+            && !c.IsDead
+            && c.IsTargetable
+            && c.IsHostile()
+            && c.CurrentHp > 0
+            && !c.IsInvincible
+            && !Combos.PvE.BST.IsCrucibleDamageImmune(c);
+
+        /// <summary> The enemy is the boss-mod target of this tick, or a Crucible interrupt / kill-the-caster / dispel carrier. </summary>
+        private static bool IsMechanicPick(IBattleChara? fresh) =>
+            fresh is not null
+            && ((_lastBossModOverrideTargetId != 0 && fresh.GameObjectId == _lastBossModOverrideTargetId)
+                || Combos.PvE.BST.IsCrucibleMechanicTarget(fresh));
+
+        /// <summary>
+        ///     Runs the DPS pick of a press through the cadence floor; logs one TS| line per change of the pick
+        ///     (why, from, to, how long the old one was held, how many different picks were turned down).
+        /// </summary>
+        private static IBattleChara? HoldDpsPick(string path, IBattleChara? fresh)
+        {
+            var freshId = fresh?.GameObjectId ?? 0;
+            var r = _dpsPickFloor.Resolve(freshId, Environment.TickCount64, DpsPickStillUsable, IsMechanicPick(fresh));
+            var pick = r.Id == freshId ? fresh : r.Id.GetBattleChara();
+            if (r.Changed && pick is not null)
+            {
+                Svc.Log.Information(DpsTargetStability.BuildLine(
+                    DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), r.Why, path, _lastPickNameId, pick.NameId, r.HeldMs, r.Suppressed));
+                _lastPickNameId = pick.NameId;
+            }
+
+            return pick;
+        }
+
+        /// <summary> The mode's pick of the tick, saved by the out-of-range fallback; put back as the current target once the press is done. </summary>
+        private static IBattleChara? _fallbackChosenTarget;
+
+        /// <summary>
+        ///     Fork (1.0.4.283): the out-of-range fallback redirects ONE press. It used to leave the enemy it aimed at as
+        ///     the plugin-wide current target, so the current target alternated pick, fallback enemy, pick (the
+        ///     thrash). Called after every DPS press (all returns of ExecuteST / ExecuteAoE).
+        /// </summary>
+        internal static void RestoreAfterFallback()
+        {
+            if (_fallbackChosenTarget is not { } chosen)
+                return;
+
+            _fallbackChosenTarget = null;
+            OverrideTarget = DpsTargetExposure.AfterTick<IGameObject>(chosen, OverrideTarget);
+        }
+
         /// <summary>Last actor id the boss-mod override selected; used to log acquisitions, not every tick.</summary>
         private static ulong _lastBossModOverrideTargetId;
 
@@ -2085,6 +2166,9 @@ internal unsafe class AutoRotationController
                         return false;
 
                 }
+                if (useAutoTarget && mode is DPSRotationMode)
+                    target = HoldDpsPick("aoe", target);
+
                 ulong targetId = target?.GameObjectId ?? 0;
                 var changed = CheckForChangedTarget(gameAct, ref targetId, out var replacedWith) && targetId != target?.GameObjectId;
                 if (changed)
@@ -2213,11 +2297,14 @@ internal unsafe class AutoRotationController
                     targetReachable: DPSTargeting.Reaches(outAct, target)))
                 return false;
 
-            var near = DPSTargeting.InRangeFallback(outAct, target);
+            var near = DPSTargeting.InRangeFallback(outAct, target, _fallbackPickFloor);
             LogRangeFallback(outAct, target, near);
             if (near is null)
                 return false;
 
+            // The press is redirected; the pick is not. The current target goes back to the pick when the press is
+            // done (RestoreAfterFallback), so the fallback enemy never reads as a new DPS target.
+            _fallbackChosenTarget = target;
             target = near;
             targetId = near.GameObjectId;
             OverrideTarget = near;
@@ -2258,6 +2345,8 @@ internal unsafe class AutoRotationController
                 return true;
 
             var target = GetSingleTarget(mode);
+            if (mode is DPSRotationMode dpsMode && dpsMode is not DPSRotationMode.Manual)
+                target = HoldDpsPick("st", target);
 
             if ((target is not { } t || (!t.IsHostile() && !t.IsFriendly())) && cfg.PauseWhenNoTarget) return true;
 
@@ -2483,7 +2572,7 @@ internal unsafe class AutoRotationController
         ///     among every valid enemy (Crucible exclusions kept, priority narrowing dropped) the action can
         ///     reach, those the mode / kill order would allow first, then the nearest. Null when none is in reach.
         /// </summary>
-        internal static IBattleChara? InRangeFallback(uint action, IBattleChara? selected)
+        internal static IBattleChara? InRangeFallback(uint action, IBattleChara? selected, DpsTargetStability? hold = null)
         {
             var preferred = new HashSet<ulong>(BaseSelection.Select(x => x.GameObjectId));
             var pool = Combos.PvE.BST.SafeCrucibleTargets(ValidTargets());
@@ -2491,7 +2580,25 @@ internal unsafe class AutoRotationController
             foreach (var x in pool)
                 candidates.Add(new(x, Reaches(action, x), GetTargetDistance(x), preferred.Contains(x.GameObjectId)));
 
-            return RangeFallbackGate.PickInRange(selected, candidates);
+            var pick = RangeFallbackGate.PickInRange(selected, candidates);
+            if (hold is null)
+                return pick;
+
+            // Fork (1.0.4.283): the enemy a press is redirected to is held for the DPS pick interval while it stays
+            // reachable, instead of being re-picked (nearest, kill order) from scratch every press.
+            var pickId = pick?.GameObjectId ?? 0;
+            var r = hold.Resolve(
+                pickId,
+                Environment.TickCount64,
+                id => candidates.Any(c => c.Reachable && c.Enemy.GameObjectId == id && !ReferenceEquals(c.Enemy, selected)));
+            if (r.Id == pickId)
+                return pick;
+
+            foreach (var c in candidates)
+                if (c.Enemy.GameObjectId == r.Id)
+                    return c.Enemy;
+
+            return pick;
         }
 
         /// <summary> The action is in range of <paramref name="enemy"/> (line of sight included) and can be used on it: what ExecuteST / ExecuteAoE require before they press it. </summary>

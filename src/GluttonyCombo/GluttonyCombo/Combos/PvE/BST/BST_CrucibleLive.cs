@@ -72,6 +72,27 @@ internal partial class BST
     internal static bool DispelByCawOnly;
 
     /// <summary>
+    ///     The enemy is a mechanic target of the Crucible kill order: an interruptible caster while Soul Crush is armed, a
+    ///     caster of a kill-the-caster cast, or a dispel carrier while the dispel is armed (the same three the
+    ///     <see cref="BST_CrucibleLogic.AllowedTargets"/> narrowing puts first). The DPS pick floor lets such a target
+    ///     take over at once (<see cref="AutoRotation.DpsTargetStability"/>).
+    /// </summary>
+    internal static bool IsCrucibleMechanicTarget(IBattleChara enemy)
+    {
+        if (!CrucibleTargetingActive)
+            return false;
+
+        if (InterruptArmed && enemy is { IsCasting: true, IsCastInterruptible: true })
+            return true;
+
+        if (enemy.IsCasting && BST_CrucibleData.KillTheCaster.Contains(enemy.CastActionId))
+            return true;
+
+        return DispelArmed && CarriesDispellableBuff(enemy)
+            && (DispelByCawOnly ? CawCanDispel(enemy) : Fn.GetTargetDistance(enemy) <= DispelReach);
+    }
+
+    /// <summary>
     ///     BST_CrucibleLogic.AllowedTargets over live candidates: no eggs / morphos, an armed Soul Crush aims at the interruptible caster,
     ///     stances last, priority adds in documented kill order, pairs balanced.
     /// </summary>
