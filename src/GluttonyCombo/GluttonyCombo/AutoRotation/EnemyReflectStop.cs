@@ -44,8 +44,7 @@ internal static class EnemyReflectStop
         if (statusIds is null)
             return false;
 
-        // STUB (test commit): keeps the shipped behaviour - every reflect status stops the rotation,
-        // the Crucible's dispellable counter stances included. The real table lands with the fix commit.
-        return statusIds.Any(reflects.Contains);
+        return statusIds.Any(id => reflects.Contains(id)
+            && !(crucibleTargeting && crucibleDispellableStances.Contains(id)));
     }
 }
