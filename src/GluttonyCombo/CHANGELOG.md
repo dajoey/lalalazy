@@ -1,3 +1,10 @@
+## v1.0.4.282 (2026-10-04) [testing]
+### Fixed
+- **Beastmaster, Crucible: the enemy-reflect safety stop no longer freezes the whole rotation on the spikes the rotation itself can dispel.** The stop that halts everything for lethal reflects elsewhere (Eureka's Ice Spikes and Shock Spikes) matched the Crucible's counter stances by name too, so the moment a drake or a snoll put its spikes up, the rotation stopped entirely - no attacks, no dispel, nothing pressed - until the stance expired on its own. The stance hold already keeps the attacks off a spiked enemy and the dispel removes those spikes in one cast, so inside the Crucible they no longer trigger the stop; every reflect outside the Crucible keeps the full stop.
+### Notes
+- Testing channel only; production stays on 1.0.4.281.
+- Corrected the v1.0.4.270 entry below: the futile Quelling Waves at the Regen were fifteen, not twelve.
+
 ## v1.0.4.281 (2026-10-04) [testing]
 ### Fixed
 - **The out-of-combat gate now follows your own out-of-combat settings.** With "Prioritise Targets
@@ -145,7 +152,7 @@
 
 ## v1.0.4.270 (2026-10-03) [testing]
 ### Fixed
-- **Beastmaster, Crucible: a dispel is no longer repeated on a buff the game will not take off.** The research counts Regen (Rehabilitation) on the Abaddon as a dispel target, but the game does not dispel it: twelve Quelling Waves in a row did nothing while the Regen stood the whole fight, and every one of them cost the damage global it replaced. Regen is no longer treated as dispellable. The cap that should have stopped any unproven buff after two tries never did, because the count treated a dispel decided every global as one continuous burst; every Quelling Wave or Caw that goes out now counts as one try, so Growing, Impassion and Might get two tries per enemy and then are left alone.
+- **Beastmaster, Crucible: a dispel is no longer repeated on a buff the game will not take off.** The research counts Regen (Rehabilitation) on the Abaddon as a dispel target, but the game does not dispel it: fifteen Quelling Waves in a row did nothing while the Regen stood the whole fight, and every one of them cost the damage global it replaced. Regen is no longer treated as dispellable. The cap that should have stopped any unproven buff after two tries never did, because the count treated a dispel decided every global as one continuous burst; every Quelling Wave or Caw that goes out now counts as one try, so Growing, Impassion and Might get two tries per enemy and then are left alone.
 - **Beastmaster, Crucible: buffs the game is known to dispel come first.** With a spiked enemy (Blaze Spikes) and an enemy carrying an unproven buff both up, the dispel now goes to the spiked one; before, the spikes waited several seconds behind the unproven buff.
 ### Notes
 - Testing channel only; the production channel is unchanged.
