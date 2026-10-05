@@ -1,6 +1,12 @@
 # LazyCrucible — Changelog
 
 
+## v0.1.9.11 (2026-10-05) [testing]
+### Fixed
+- **The run-roster need-coverage correction now waits for the roster itself to stop changing.** The previous fix judged a settled roster by edit timestamps, but the roster AutoDuty builds is driven through the monster notebook, whose selection writes never register as edits — so the timestamp stayed at screen-open while the build was still adding picks, and the correction still fired mid-build, where AutoDuty's continuing build and its confirm passes removed the added rows. The correction is now due only once the selected roster has been unchanged for 1.5 seconds — what the plugin sees every frame — never on an empty roster, and it still re-arms after any later AutoDuty write. The screen log's roster needfix line now also carries the age of the last edit (`adedit=`), the roster's quiet time (`adstb=`) and the selected count (`flutes=`).
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v0.1.9.10 (2026-10-05) [testing]
 ### Fixed
 - **Run-roster need coverage no longer fires while AutoDuty is still building its team.** The roster correction used the battlehorn's three-pick threshold, so any selection of four or more familiars counted as a finished team and the correction could fire in a quarter-second pause mid-rebuild — AutoDuty's continuing build then removed the added rows (five runs on 2026-10-05: every roster correction was torn down and no answerer reached the run). The roster now waits for its own capacity (10/12/14/12/15 per board) to be selected, or for the long quiet, before it corrects. A roster AutoDuty has wiped empty is also left alone: an empty selection is the start of its build, not the end of one.
