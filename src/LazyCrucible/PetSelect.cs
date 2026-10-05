@@ -337,23 +337,25 @@ internal static unsafe class PetSelect
                 _loggedConflictThisPhase = true;
                 LogPs($"PS|{now}|opt=1|b={territoryBoard}|terr={Svc.ClientState.TerritoryType}|surface={surfaceName}|calls=0|note=autoduty_running|{ExternalDrivers.Detail}|needfix=on");
             }
-            // The roster settles on its own membership, read every frame: AutoDuty builds the run roster through
-            // the monster notebook, whose kind-0 writes are not edit events, so the last-edit time never refreshes
-            // mid-build (live 2026-10-05 11:35:27 and 12:14:42 ET: the edit-time gate fired into the build, and the
-            // build's confirm re-applies tore the added rows out). Any membership change restarts the quiet; the
-            // correction waits for AutoDutyRosterStableMs of unchanged roster and never writes onto an empty one.
-            // The horn keeps the edit-time gate: its AutoDuty toggles ARE edit events, and its re-arm works live.
+            // The preentry roster correction under AutoDuty is withdrawn (0.1.9.12). AutoDuty re-asserts its roster
+            // through its own confirm sequence — row-select + remove-confirm pairs that remove unfamiliar rows one
+            // per ~0.4-0.5 s pass — and every correction this surface ever wrote was torn out before entry (the
+            // 0.1.9.6-0.1.9.9 screens: a mid-build write removed at the build's next confirm slot, an empty-roster
+            // write removed before the build even started). Its accept follows the build's last add by only
+            // ~0.43-0.54 s with no observable marker between: the confirm pairs that would mark the accept gap
+            // exist only when unfamiliar rows are already present, so a correction written into that gap is a bet
+            // on a sequence the plugin cannot see, and losing the bet costs the rows and the correction cap. The
+            // surface is left to AutoDuty entirely; the need it covered (the answerer rows AutoDuty's plan never
+            // includes — live: pets 11 and 7) still logs on the self-driven path, which is unchanged. The tracker
+            // below stays so the withdrawal can be re-examined cheaply if AutoDuty's sequence ever changes.
             var adSelected = ReadPetIds(pet, PartySelectedPetIds);
             var adSig = string.Join(".", adSelected.OrderBy(x => x));
             _adRosterChangedMs = FormationLogic.AutoDutyRosterChangedMs(_adRosterSig, _adRosterChangedMs, adSig, now);
             _adRosterSig = adSig;
-            var adDue = surfaceKey == SurfacePreentry
-                ? FormationLogic.AutoDutyRosterCorrectionDue(_adEditSeenThisOpen, _adLastEditMs, _adLastCorrectionMs, _adCorrections, now,
-                    adSelected.Count, _adRosterChangedMs)
-                : FormationLogic.AutoDutyCorrectionDue(_adEditSeenThisOpen, _adLastEditMs, _adLastCorrectionMs, _adCorrections, now,
-                    AutoDutySettleMs, adSelected.Count, FormationLogic.AutoDutyFullTeam);
+            var adDue = surfaceKey != SurfacePreentry && FormationLogic.AutoDutyCorrectionDue(_adEditSeenThisOpen, _adLastEditMs,
+                _adLastCorrectionMs, _adCorrections, now, AutoDutySettleMs, adSelected.Count, FormationLogic.AutoDutyFullTeam);
             if (!adDue)
-                return; // its selection has not settled yet, it has not written since our last correction, or the cap is reached
+                return; // its selection has not settled yet, it has not written since our last correction, the cap is reached, or the preentry roster's correction is withdrawn
         }
 
         if (!armed)

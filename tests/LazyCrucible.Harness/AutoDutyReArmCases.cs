@@ -50,12 +50,15 @@ internal static class AutoDutyReArmCases
     ///     Replays a real AutoDuty-driven roster screen through the plugin's real data flow: the recorded events go
     ///     through <see cref="FormationLogic.IsSelectionEditEvent"/> (the notebook writes the build rides on are NOT
     ///     edit events), the membership timeline is what the plugin reads every frame, and the settle tracker plus
-    ///     gate are the same FormationLogic calls PetSelect makes. With <paramref name="fullTeamCount"/> set, the
-    ///     gate is the 0.1.9.10 edit-time call instead — replayed to show on the real streams why it was replaced.
+    ///     gate are the calls the PetSelect call site makes. The default gate is the 0.1.9.12 call site's: the
+    ///     preentry roster correction under AutoDuty is withdrawn (never due). <paramref name="rosterGate01911"/>
+    ///     replays the withdrawn 0.1.9.11 membership gate instead — past the close, to show why the correction was
+    ///     withdrawn (due only after the screen closed on every real stream). With <paramref name="fullTeamCount"/>
+    ///     set, the gate is the 0.1.9.10 edit-time call — replayed to show on the real streams why it was replaced.
     ///     1 ms tick; the simulation does not feed a correction's own write back into the membership.
     /// </summary>
     private static List<long> ReplayRoster(IReadOnlyList<(long At, string Agent, ulong Kind, uint Count, int First)> events,
-        IReadOnlyList<(long At, int[] Rows)> membership, long untilMs, int fullTeamCount = 0)
+        IReadOnlyList<(long At, int[] Rows)> membership, long untilMs, int fullTeamCount = 0, bool rosterGate01911 = false)
     {
         var made = new List<long>();
         var editSeen = false;
@@ -74,10 +77,11 @@ internal static class AutoDutyReArmCases
             var nextSig = string.Join(".", rows);
             changedMs = FormationLogic.AutoDutyRosterChangedMs(sig, changedMs, nextSig, t);
             sig = nextSig;
-            var due = fullTeamCount == 0
-                ? FormationLogic.AutoDutyRosterCorrectionDue(editSeen, lastEdit, lastCorrection, corrections, t, rows.Length, changedMs)
-                : FormationLogic.AutoDutyCorrectionDue(editSeen, lastEdit, lastCorrection, corrections, t, 250, rows.Length, fullTeamCount,
-                    ignoreWhenEmpty: true);
+            var due = fullTeamCount > 0
+                ? FormationLogic.AutoDutyCorrectionDue(editSeen, lastEdit, lastCorrection, corrections, t, 250, rows.Length, fullTeamCount,
+                    ignoreWhenEmpty: true)
+                : rosterGate01911 && FormationLogic.AutoDutyRosterCorrectionDue(editSeen, lastEdit, lastCorrection, corrections, t,
+                    rows.Length, changedMs); // the withdrawn 0.1.9.11 gate, tombstoned; the 0.1.9.12 call site is never due
             if (due)
             {
                 made.Add(t);
@@ -170,6 +174,9 @@ internal static class AutoDutyReArmCases
         var pastClose1135 = ReplayRoster(fight1135, build1135, 5131);
         Check("replay 11:35:26 past the close: the roster surface under AutoDuty never writes — the correction is withdrawn",
             pastClose1135.Count == 0, string.Join(",", pastClose1135));
+        var tombstone019111135 = ReplayRoster(fight1135, build1135, 5131, rosterGate01911: true);
+        Check("replay 11:35:26 under the withdrawn 0.1.9.11 gate (tombstone): due only at 3270, after the real close 3131",
+            tombstone019111135.SequenceEqual(new long[] { 3270 }), string.Join(",", tombstone019111135));
 
         // The 0.1.9.10 gate (roster capacity as the full-team threshold, edit times as the clock) on the SAME real
         // stream: the last edit is stale at 218, ten picks is short of twelve, so it fires at 1500-1718 — before the
@@ -200,6 +207,9 @@ internal static class AutoDutyReArmCases
         var pastClose1214 = ReplayRoster(fight1214, build1214, 5249);
         Check("replay 12:14:41 past the close: the roster surface under AutoDuty never writes — the correction is withdrawn",
             pastClose1214.Count == 0, string.Join(",", pastClose1214));
+        var tombstone019111214 = ReplayRoster(fight1214, build1214, 5249, rosterGate01911: true);
+        Check("replay 12:14:41 under the withdrawn 0.1.9.11 gate (tombstone): due only at 3303, after the real close 3249",
+            tombstone019111214.SequenceEqual(new long[] { 3303 }), string.Join(",", tombstone019111214));
 
         // Live 11:48:34.981-40.006 ET (post-wipe shape): edits at 0/124/249 wipe the roster, which then sits EMPTY
         // until 3458 (the live 0.1.9.9 write landed on it at ~1759), pp edits on the empty roster at 2334-2975 change
@@ -224,6 +234,9 @@ internal static class AutoDutyReArmCases
         var pastClose1148 = ReplayRoster(fight1148, build1148, 7025);
         Check("replay 11:48:35 past the close: the roster surface under AutoDuty never writes — the correction is withdrawn",
             pastClose1148.Count == 0, string.Join(",", pastClose1148));
+        var tombstone019111148 = ReplayRoster(fight1148, build1148, 7025, rosterGate01911: true);
+        Check("replay 11:48:35 under the withdrawn 0.1.9.11 gate (tombstone): due only at 6042, after the real close 5025",
+            tombstone019111148.SequenceEqual(new long[] { 6042 }), string.Join(",", tombstone019111148));
 
         // Horn unchanged (the horn's AutoDuty toggles ARE edit events, so its edit-time gate is the right model):
         var hornMidBuild = Corrections([(0, 1), (110, 2), (220, 3), (330, 4)], 1200);

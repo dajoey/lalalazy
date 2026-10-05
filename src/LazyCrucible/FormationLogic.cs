@@ -102,9 +102,8 @@ internal static class FormationLogic
     ///     reached the fight. The pre-entry roster showed the same: our vulture / bat / Soulkin were cleared one per 0.45 s.
     ///     <paramref name="lastCorrectionMs"/> is 0 (or older than any edit) until a correction has been made.
     ///     This gate is now the HORN surface's only (its AutoDuty toggles are edit events, so its edit-time clock is
-    ///     real). The preentry run roster settles on its own membership instead — AutoDuty builds the roster through
-    ///     the monster notebook, whose kind-0 writes are not edit events, so the edit-time gate there fired mid-build
-    ///     (live 2026-10-05 11:35:27 and 12:14:42 ET) — see <see cref="AutoDutyRosterCorrectionDue"/>.
+    ///     real, and its re-arm lands live). The preentry run roster's correction is withdrawn entirely — see
+    ///     <see cref="AutoDutyRosterCorrectionDue"/>.
     /// </summary>
     public static bool AutoDutyCorrectionDue(bool editSeen, long lastEditMs, long lastCorrectionMs, int corrections, long nowMs, long settleMs,
         int selectedCount = AutoDutyFullTeam, int fullTeamCount = AutoDutyFullTeam, bool ignoreWhenEmpty = false) =>
@@ -112,13 +111,10 @@ internal static class FormationLogic
         && nowMs - lastEditMs >= (selectedCount >= fullTeamCount ? settleMs : AutoDutyShortTeamQuietMs);
 
     /// <summary>
-    ///     Quiet (ms) after which an unchanged preentry roster selection counts as finished. The roster surface
-    ///     cannot read its settle clock off edit times: AutoDuty builds the run roster through the monster notebook
-    ///     agent, whose kind-0 writes the edit detector (see <see cref="IsSelectionEditEvent"/>) classifies as
-    ///     navigation, so the build's ~100 ms add cadence never refreshes the last-edit time and any edit-time gate
-    ///     times out while the build is still running (live 2026-10-05 11:35:27 and 12:14:42 ET). What the plugin
-    ///     does observe every frame is the selection itself, so the roster settles on membership: unchanged for
-    ///     this long. AutoDuty confirms ~500 ms after its last add, so 1500 ms of quiet has outlived the confirm.
+    ///     Quiet (ms) after which an unchanged preentry roster selection counted as finished, in the withdrawn
+    ///     roster gate (<see cref="AutoDutyRosterCorrectionDue"/>) that is kept only as the harness's tombstone.
+    ///     No quiet window fits the real screens: AutoDuty's accept follows the build's last add by only
+    ///     ~0.43-0.54 s, so a 1500 ms quiet was due only after the screen had closed on every observed stream.
     /// </summary>
     public const long AutoDutyRosterStableMs = 1500;
 
@@ -131,14 +127,18 @@ internal static class FormationLogic
         sig == lastSig ? lastChangedMs : nowMs;
 
     /// <summary>
-    ///     Whether the need-coverage correction is due on the preentry run roster while AutoDuty drives. PURE.
-    ///     Settles on what the plugin observes every frame — the selection's own membership — instead of edit
-    ///     times the build never refreshes: due only once the membership has been unchanged for
-    ///     <see cref="AutoDutyRosterStableMs"/>, never on an empty selection (an empty roster is the start of
-    ///     AutoDuty's build, not the end of one — live 2026-10-05 11:48:36 ET: the correction wrote onto the empty
-    ///     roster and the build removed the rows), still within the correction cap, and only for an AutoDuty write
-    ///     newer than the last correction (<c>lastEditMs</c> stays the re-arm trigger). Live 2026-10-05 11:35:27
-    ///     and 12:14:42 ET: the edit-time gate fired mid-build on both surfaces' real event streams.
+    ///     WITHDRAWN (0.1.9.12): the need-coverage correction no longer fires on the preentry run roster while
+    ///     AutoDuty drives — the call site never consults this gate, and it is kept public only so the harness can
+    ///     replay its behavior as a tombstone. Why withdrawn rather than settled: AutoDuty re-asserts its roster
+    ///     through its own confirm sequence (row-select + remove-confirm pairs, one unfamiliar row per ~0.4-0.5 s
+    ///     pass) and every correction the surface ever wrote was torn out before entry (live 2026-10-05, ten
+    ///     screens, 0.1.9.6-0.1.9.9: mid-build writes removed at the build's next confirm slot, empty-roster writes
+    ///     removed before the build started); in the write-free shape the accept follows the build's last add by
+    ///     ~0.43-0.54 s with no observable marker between, and the confirm pairs that would mark that gap exist
+    ///     only when unfamiliar rows are already present — so no evidence-supported write point exists. Even this
+    ///     gate's own quiet window never fit: on every real stream it was due only after the screen had already
+    ///     closed (11:35:27 due at 3270 vs close 3131; 12:14:42 due 3303 vs close 3249; 11:48:36 due 6042 vs close
+    ///     5025, ms from each screen's first pp event), while the live path returns at the close. PURE.
     /// </summary>
     public static bool AutoDutyRosterCorrectionDue(bool editSeen, long lastEditMs, long lastCorrectionMs, int corrections, long nowMs,
         int selectedCount, long rosterChangedMs) =>
