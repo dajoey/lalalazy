@@ -5,6 +5,7 @@ using ECommons.DalamudServices;
 using ECommons.EzIpcManager;
 using ECommons.Logging;
 using ECommons.Reflection;
+using GluttonyCombo.Services.IPC;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
@@ -31,7 +32,7 @@ internal sealed class BossModIPC(
 
         try
         {
-            var hasEntries = _hasEntries();
+            var hasEntries = IpcStallTrace.Time("ActionQueue.HasEntries", _hasEntries);
             PluginLog.Verbose(
                 $"[ConflictingPlugins] [{PluginName}] `ActionQueue.HasEntries`: " +
                 hasEntries);
@@ -320,7 +321,7 @@ internal sealed class BossModIPC(
 
         try
         {
-            var hasEntries = _hasEntries();
+            var hasEntries = IpcStallTrace.Time("ActionQueue.HasEntries", _hasEntries);
             PluginLog.Verbose(
                 $"[ConflictingPlugins] [{PluginName}] `ActionQueue.HasEntries`: " +
                 hasEntries);
@@ -425,7 +426,7 @@ internal sealed class BossModIPC(
 
         try
         {
-            return _lastModified();
+            return IpcStallTrace.Time("Configuration.LastModified", _lastModified);
         }
         catch (Exception e)
         {
@@ -566,7 +567,7 @@ internal sealed class BossModIPC(
 
         try
         {
-            return _priorityTarget();
+            return IpcStallTrace.Time("Hints.PriorityTarget", _priorityTarget);
         }
         catch (Exception e)
         {
@@ -591,7 +592,7 @@ internal sealed class BossModIPC(
 
         try
         {
-            return _isDashSafe(from, to);
+            return IpcStallTrace.Time("Hints.IsDashSafe", () => _isDashSafe(from, to));
         }
         catch (Exception e)
         {
