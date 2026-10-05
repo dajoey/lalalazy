@@ -682,16 +682,28 @@ internal unsafe class AutoRotationController
     }
 
     /// <summary>
-    /// Scans nearby hostile enemies (the same selection the rotation targets) for a
-    /// damage-reflect / counter / "spikes" status that punishes attackers - often a
-    /// one-shot in Eureka (Gelid Charge -> Ice Spikes, Static Charge -> Shock Spikes).
-    /// While any such mob is present, targets self and cancels casts; autorotation
-    /// resumes once no mob has the status. See StatusCache.PausingStatuses.EnemyReflects.
+    ///     Scans nearby hostile enemies (the same selection the rotation targets) for a
+    ///     damage-reflect / counter / "spikes" status that punishes attackers - often a
+    ///     one-shot in Eureka (Gelid Charge -> Ice Spikes, Static Charge -> Shock Spikes).
+    ///     While any such mob is present, targets self and cancels casts; autorotation
+    ///     resumes once no mob has the status. See StatusCache.PausingStatuses.EnemyReflects.
     /// </summary>
     private static bool EnemyHasReflectPenalty()
     {
+        // Fork (1.0.4.282): the Crucible's own counter-stance spikes that the dispel lane removes in
+        // one cast (Blaze Spikes 5465, Ice Spikes 2528 - both dispel rows) are not stops while Crucible
+        // targeting is active: the by-name reflect set catches them, and the stop then froze the whole
+        // rotation (target the player, skip every press) for each stance's full 12 s - so the dispel that
+        // removes the stance could never fire, and neither could anything else (six dark windows with
+        // zero presses, 2026-10-04 20:17-20:22, where the unstopped evenings removed the same stance in
+        // under a second). The stance hold already keeps the attacks off the carrier.
+        var crucible = Combos.PvE.BST.CrucibleTargetingActive;
         if (!DPSTargeting.BaseSelection.Any(x =>
-                StatusCache.HasStatusInCacheList(StatusCache.PausingStatuses.EnemyReflects, x)))
+                EnemyReflectStop.StopsRotation(
+                    x.SafeStatusList?.Select(s => s.StatusId),
+                    StatusCache.PausingStatuses.EnemyReflects,
+                    Combos.PvE.BST.CrucibleDispellableStances,
+                    crucible)))
             return false;
 
         // Stop and target self, mirroring the Pyretic handling but for enemy reflects.

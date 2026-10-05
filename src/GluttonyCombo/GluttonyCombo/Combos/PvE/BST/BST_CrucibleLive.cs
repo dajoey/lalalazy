@@ -35,6 +35,16 @@ internal partial class BST
         InCrucibleDuty && Config.BST_Crucible && Config.BST_CrucibleTargeting;
 
     /// <summary>
+    ///     The Crucible's counter-stance spikes the dispel lane removes in one cast (Blaze Spikes on the drake,
+    ///     Ice Spikes on the snoll): while Crucible targeting is active these do not trigger the Eureka-style
+    ///     enemy-reflect stop (<see cref="AutoRotation.EnemyReflectStop"/>) - the stance hold keeps the attacks
+    ///     off the carrier and the dispel takes the stance off, so the stop would only silence the dispel itself
+    ///     (six 12 s windows with zero presses, 2026-10-04 20:17-20:22).
+    /// </summary>
+    internal static readonly HashSet<uint> CrucibleDispellableStances =
+        [.. BST_CrucibleData.StanceStatuses.Where(id => BST_CrucibleData.DispellableBuffs.Contains(id))];
+
+    /// <summary>
     ///     Encounter-specific damage immunity that Dalamud's native <c>IsInvincible</c>
     ///     actor flag does not report (for example Ymir's Vulnerability Down).
     /// </summary>
