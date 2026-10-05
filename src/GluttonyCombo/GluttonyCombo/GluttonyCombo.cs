@@ -1,4 +1,4 @@
-﻿using Dalamud.Game.Gui.Dtr;
+using Dalamud.Game.Gui.Dtr;
 using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
@@ -331,6 +331,10 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         Svc.ClientState.Login += PrintLoginMessage;
         if (Svc.ClientState.IsLoggedIn) ResetFeatures();
 
+        // Fork (1.0.4.283): BossMod IPC stall trace (Services/IPC/IpcStallTrace.cs). BMT| lines
+        // go to the plugin log like the other fork taps; unwired (and after dispose) it is silent.
+        IpcStallTrace.Emit = line => Svc.Log.Information(line);
+
         Svc.Framework.Update += OnFrameworkUpdate;
         Svc.ClientState.TerritoryChanged += ClientState_TerritoryChanged;
         Svc.Toasts.ErrorToast += OnErrorToast;
@@ -419,6 +423,9 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
 
     private void OnFrameworkUpdate(IFramework framework)
     {
+        // Fork (1.0.4.283): tick-gap baseline for the BossMod IPC stall trace (the BMT| hitch line).
+        IpcStallTrace.OnTickStart();
+
         // Fork (error reporting): a circuit breaker instead of logging the same exception every frame. A
         // tick that keeps throwing is skipped after repeated failures (one ER|trip line + one chat notice)
         // and retries on its own - 30 s, doubling to 5 min (src/Shared/LalaTelemetry). The fork-owned
@@ -702,6 +709,7 @@ public sealed partial class GluttonyCombo : IDalamudPlugin
         OpenerDtr?.Remove();
         Configuration.ConfigChanged -= DebugFile.LoggingConfigChanges;
         Svc.Framework.Update -= OnFrameworkUpdate;
+        IpcStallTrace.Emit = null;
         Svc.ClientState.TerritoryChanged -= ClientState_TerritoryChanged;
         Svc.PluginInterface.UiBuilder.OpenConfigUi -= OnOpenConfigUi;
         Svc.PluginInterface.UiBuilder.Draw -= DrawUI;
