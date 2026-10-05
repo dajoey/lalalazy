@@ -290,7 +290,7 @@ public class FateToolKitWindow : MinimisableWindow {
 
         if (focus != FateCurrency.None) {
             var fallback = _tweak.Config.CurrencyFocusFallback;
-            ImGuiEx.TextV("When no focused FATE is up:");
+            ImGuiEx.TextV("When the focused zones have nothing to run:");
             ImGui.SameLine();
             ImGui.SetNextItemWidth(260f);
             using (var combo = ImRaii.Combo("###CurrencyFocusFallback", CurrencyFallbackLabel(fallback))) {
@@ -303,7 +303,7 @@ public class FateToolKitWindow : MinimisableWindow {
                     }
                 }
             }
-            ImGuiComponents.HelpMarker("Continue normally: after an empty focused zone, swap like usual (achievement-guided / same expansion).\nIdle in zone: stay put and wait for focused-currency FATEs.");
+            ImGuiComponents.HelpMarker("Zone swaps first pass through every focused zone. If a full pass finds no FATE to run:\nContinue normally: swap like usual (achievement-guided / same expansion) and grind whatever FATEs are up.\nIdle in zone: stay put and wait for focused-currency FATEs instead of grinding other FATEs.");
         }
         ImGui.Spacing();
     }
