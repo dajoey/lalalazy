@@ -26,6 +26,7 @@
     <Compile Include="..\..\src\LazyCrucible\Guide\CrucibleGuide.cs" Link="Guide\CrucibleGuide.cs" />
     <Compile Include="..\..\src\LazyCrucible\Guide\GuideNeeds.cs" Link="Guide\GuideNeeds.cs" />
     <None Include="Fixtures\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\*.tsv" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\src\LazyCrucible\Guide\CrucibleGuide.json" Link="CrucibleGuide.json" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\src\LazyCrucible\Guide\CrucibleGuide.json')" />
     <None Include="ResearchBehavior.tsv" CopyToOutputDirectory="PreserveNewest" />
     <Using Include="Lalalazy.Crucible" />

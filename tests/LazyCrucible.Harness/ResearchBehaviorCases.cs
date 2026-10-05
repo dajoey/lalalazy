@@ -10,7 +10,10 @@ namespace LazyCrucible.Harness;
 ///     notebook table (Projects/BST Rebuild 2026-09/Crucible Research To Behavior). The checks below make the table impossible to
 ///     let rot: a guide item without a row, a row for an item that is gone or whose text changed, a status without its reason,
 ///     and an <c>implemented</c> row whose proof is not the title of a harness case that exists.
-///     Columns (tab separated): key, fight, item text, status, behaviour, where, proof (cases joined by ' ;; '), log.
+///     Columns (tab separated): key, fight, item text, status, behaviour, where, proof (cases joined by ' ;; '), log,
+///     graded (the real run or notebook grade that showed the behaviour working: '&lt;page&gt;:L&lt;line&gt; &lt;run date&gt;', 'none' or
+///     empty; a row without the cell is a schema error). Line numbers are the page as of its 2026-10-05 state — the row key
+///     beside each cite is the stable part (the page grows by appended sections).
 ///     Status: implemented | differs (the plugin does something else on purpose, or the behaviour exists but is off by default) |
 ///     manual (not automated, with the reason) | unknown (the research is unresolved or unverified; the log that settles it) |
 ///     deferred (automatable, not built in this release; the owner task is named in the log column).
@@ -19,7 +22,7 @@ internal static class ResearchBehaviorCases
 {
     private static void Check(string what, bool ok, string? detail = null) => Program.Check(what, ok, detail);
 
-    private sealed record Row(string Key, string Fight, string Text, string Status, string Behavior, string Where, string[] Proof, string Log);
+    private sealed record Row(string Key, string Fight, string Text, string Status, string Behavior, string Where, string[] Proof, string Log, string? Graded = null);
 
     public static void Run()
     {
@@ -103,16 +106,64 @@ internal static class ResearchBehaviorCases
         return all;
     }
 
-    private static List<Row> Read()
+    private static List<Row> Read() => ReadFrom(Path.Combine(AppContext.BaseDirectory, "ResearchBehavior.tsv"));
+
+    private static List<Row> ReadFrom(string path)
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "ResearchBehavior.tsv");
         var rows = new List<Row>();
         foreach (var line in File.ReadAllLines(path).Skip(1).Where(l => l.Length > 0))
         {
             var c = line.Split('\t');
-            rows.Add(new Row(c[0], c[1], c[2], c[3], c[4], c[5], c[6].Length == 0 ? [] : c[6].Split(" ;; "), c.Length > 7 ? c[7] : ""));
+            rows.Add(new Row(c[0], c[1], c[2], c[3], c[4], c[5], c[6].Length == 0 ? [] : c[6].Split(" ;; "), c.Length > 7 ? c[7] : "",
+                c.Length > 8 ? c[8] : null));
         }
         return rows;
+    }
+
+    // ------------------------------------------------------------------ the graded column (real-run proof)
+
+    private static readonly Regex GradedCite = new("^[A-Za-z0-9-]+:L[0-9]+ [0-9]{4}-[0-9]{2}-[0-9]{2}$", RegexOptions.Compiled);
+
+    /// <summary>
+    ///     The graded cell (task tasks-20261005-research-table-real-run-proof-01): the real run or notebook grade that showed an
+    ///     implemented row's behaviour working — '&lt;page&gt;:L&lt;line&gt; &lt;run date&gt;', 'none' or empty when no run graded it. A row
+    ///     without the cell, or a malformed cell, is a defect; 'none' rows are only counted and printed (a to-do count, never a
+    ///     gate). Page keys: ResearchToBehavior = notebook Projects/BST Rebuild 2026-09/Crucible Research To Behavior,
+    ///     RunGrades-2026-10-03 = notebook Projects/BST Rebuild 2026-09/Crucible Run Grades 2026-10-03.
+    /// </summary>
+    private static (List<string> Bad, List<string> NoProof) GradedCheck(IEnumerable<Row> rows)
+    {
+        var bad = new List<string>();
+        var noProof = new List<string>();
+        foreach (var r in rows)
+        {
+            if (r.Graded is null)
+            {
+                bad.Add($"{r.Key}: the row has no graded cell");
+                continue;
+            }
+            var g = r.Graded.Trim();
+            if (g.Length == 0 || g == "none")
+            {
+                if (r.Status == "implemented") noProof.Add(r.Key);
+                continue;
+            }
+            var cites = g.Split(" ;; ");
+            if (cites.Any(p => !GradedCite.IsMatch(p)))
+                bad.Add($"{r.Key}: '{g[..Math.Min(60, g.Length)]}' is not 'none' or ';-joined' <page>:L<line> <run-date> cites");
+        }
+        return (bad, noProof);
+    }
+
+    /// <summary> The validator's failure paths proven on a fixture, so the real table never has to carry a bad cell. </summary>
+    private static void GradedFixtureCases()
+    {
+        var (bad, noProof) = GradedCheck(ReadFrom(Path.Combine(AppContext.BaseDirectory, "Fixtures", "ResearchGraded.tsv")));
+        Check("research table graded (fixture): the validator flags the row without a graded cell and the malformed cell",
+            bad.Count == 2 && bad.Any(b => b.StartsWith("f4:", StringComparison.Ordinal)) && bad.Any(b => b.StartsWith("f5:", StringComparison.Ordinal)),
+            string.Join(" | ", bad));
+        Check("research table graded (fixture): the counter marks only the implemented none/empty rows as no real-run proof",
+            noProof.Count == 2 && noProof.Contains("f2") && noProof.Contains("f3"), string.Join(",", noProof));
     }
 
     /// <summary> Every guide item as (key, text): counters, bring, killOrder, mechanics, hits, unknown. </summary>
@@ -153,6 +204,16 @@ internal static class ResearchBehaviorCases
             rows.Where(r => r.Status is "unknown" or "deferred").All(r => r.Log.Contains("settled by", StringComparison.Ordinal))
             && rows.Where(r => r.Status == "deferred").All(r => r.Log.Contains("task: tasks-", StringComparison.Ordinal)),
             string.Join(",", rows.Where(r => r.Status is "unknown" or "deferred" && !r.Log.Contains("settled by", StringComparison.Ordinal)).Select(r => r.Key).Take(5)));
+
+        GradedFixtureCases();
+        var header = File.ReadLines(Path.Combine(AppContext.BaseDirectory, "ResearchBehavior.tsv")).First().Split('\t');
+        var graded = GradedCheck(rows);
+        Check("research table graded: the header's last column is 'graded' and every row carries the graded cell",
+            header[^1] == "graded" && rows.All(r => r.Graded is not null),
+            $"header ends '{string.Join("|", header[^2..])}', rows without the cell {string.Join(",", rows.Where(r => r.Graded is null).Select(r => r.Key).Take(5))}");
+        Check("research table graded: every graded cell is 'none', empty, or a <page>:L<line> <run-date> cite",
+            graded.Bad.Count == 0, string.Join(" | ", graded.Bad.Take(6)));
+        Console.WriteLine($"   research table: implemented rows with no real-run proof: {graded.NoProof.Count}");
 
         var root = RepoRoot();
         if (root is null)

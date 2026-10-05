@@ -32,12 +32,13 @@ def main():
     for s in ORDER:
         out.append(f"| {s} | {counts[s]} |")
     out.append(f"| **all** | **{len(rows)}** |\n")
-    out.append("| Fight | Research item | Status | What the plugin does | Log check / what settles it |\n|---|---|---|---|---|")
+    out.append("| Fight | Research item | Status | What the plugin does | Log check / what settles it | Graded |\n|---|---|---|---|---|---|")
     for r in rows:
-        key, fight, item, status, behavior, where, proof, log = (r + [""] * 8)[:8]
+        key, fight, item, status, behavior, where, proof, log, graded = (r + [""] * 9)[:9]
         if behavior == SPATIAL:
             behavior = "manual because it is positioning or dodging (the plugin never moves the character)"
-        out.append(f"| {key} {cell(fight.split(' ', 1)[1] if ' ' in fight else fight, 34)} | {cell(item, 150)} | {status} | {cell(behavior, 420)} | {cell(log, 260)} |")
+        graded = graded.replace(" ;; ", "<br>")
+        out.append(f"| {key} {cell(fight.split(' ', 1)[1] if ' ' in fight else fight, 34)} | {cell(item, 150)} | {status} | {cell(behavior, 420)} | {cell(log, 260)} | {cell(graded, 200)} |")
     sys.stdout.write("\n".join(out) + "\n")
 
 
