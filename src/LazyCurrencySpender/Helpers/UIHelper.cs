@@ -87,13 +87,19 @@ internal static unsafe class UiHelper
         ImGuiEx.TextWrapped(EColor.YellowBright, str);
     }
 
+    private static readonly MissingLocationLog missingLocationLog = new();
+
     internal static void BuildMapButtons(ShopItem item)
     {
         Location backupLocation = new Location();
         if (item?.Shop?.Location == null) 
         {
-            PluginLog.Error($"{item} {item?.Shop} Location not found!");
-            return; // or continue with default location
+            // Runs every frame for every row, and a shop NPC missing from the hand-kept Location.locations
+            // is an expected data gap: note each NPC once at Debug (was ERR per row per frame, 159,189
+            // lines in one session on 2026-10-04) and draw no Flag/TP buttons for it.
+            if (item?.Shop != null && missingLocationLog.Decide(item.Shop.NpcId) == MissingLocationLogLevel.Debug)
+                PluginLog.Debug($"No map location for shop NPC {item.Shop.NpcId} ({item.Shop.NpcName}), shop {item.ShopId}; Flag/TP buttons hidden.");
+            return;
         }
         if (item.Shop.Location.NeedsPresence && item.Shop.Location.BackupNpc != null)
         {

@@ -1,5 +1,11 @@
 # Changelog - Lazy Currency Spender
 
+## v1.2.7.3 (2026-10-05) [testing]
+### Fixed
+- Fixed the log being flooded with `Location not found!` errors while the spending window was open. Shops run by NPCs that have no entry in the plugin's map-location table (for example Eirene's Rain Exchange and Ermina) logged one error per row on every frame, 159,189 lines in a single session. Such a shop is now noted once at debug level, and its Flag and TP buttons are simply not drawn. Currency tracking, shop listings and the spending suggestions are unchanged.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v1.2.7.2 (2026-10-03) [testing]
 ### Added
 - **Quick controls for the Lazy Hub window.** The plugin now offers the table switches (ventures, collectables, missing collectables, items of interest, items eligible for sale, hide empty currencies), opening automatically, the minimum sales for the sellable table and the thousands separator to Lazy Hub (`/lazy`) over Dalamud IPC, so they can be changed from one window next to the other lalalazy plugins. Each change does exactly what the matching setting in the plugin's own window does.

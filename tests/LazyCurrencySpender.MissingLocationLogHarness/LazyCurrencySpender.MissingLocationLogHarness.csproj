@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Plain console app, no Dalamud. Compiles the REAL
+       src/LazyCurrencySpender/Helpers/MissingLocationLog.cs (the log policy for shop NPCs without a
+       map location) so the per-frame ERR flood of 2026-10-04 (t-plugerr-516a8b676487: 159,189 ERR
+       lines in one session) is asserted offline against the code that ships.
+         dotnet build tests/LazyCurrencySpender.MissingLocationLogHarness -c Release
+         dotnet tests/LazyCurrencySpender.MissingLocationLogHarness/bin/Release/net10.0/LazyCurrencySpender.MissingLocationLogHarness.dll
+       Prints PASS/FAIL per case, "OK" and exit 0 when every case passes. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>LazyCurrencySpender.MissingLocationLogHarness</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="..\..\src\LazyCurrencySpender\Helpers\MissingLocationLog.cs" Link="MissingLocationLog.cs" />
+  </ItemGroup>
+</Project>
