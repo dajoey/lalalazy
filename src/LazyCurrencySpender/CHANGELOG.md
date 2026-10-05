@@ -1,5 +1,12 @@
 # Changelog - Lazy Currency Spender
 
+## v1.2.7.4 (2026-10-05) [testing]
+### Added
+- Added map locations for the two shop NPCs at the Gold Saucer that had none: the tack & feed trader at Chocobo Square and the euphoric attendant. Both now draw their Flag and TP buttons like every other listed shop instead of having no buttons at all.
+### Notes
+- Testing channel only; the production channel is unchanged.
+- Five shop NPCs remain without a location on purpose: the game's own data places them nowhere (no Level-sheet placement, no placement dataset entry - campaign and seasonal attendants such as Eirene's Rain Exchange and Ermina that only exist while their event runs). They keep the behaviour introduced in 1.2.7.3: one note at debug level, no buttons.
+
 ## v1.2.7.3 (2026-10-05) [testing]
 ### Fixed
 - Fixed the log being flooded with `Location not found!` errors while the spending window was open. Shops run by NPCs that have no entry in the plugin's map-location table (for example Eirene's Rain Exchange and Ermina) logged one error per row on every frame, 159,189 lines in a single session. Such a shop is now noted once at debug level, and its Flag and TP buttons are simply not drawn. Currency tracking, shop listings and the spending suggestions are unchanged.

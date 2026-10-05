@@ -92,11 +92,13 @@ namespace CurrencySpender.Classes
             new Location { MapId = 497, TerritoryId = 0819, Position = new Pos(10.4f, 07.8f), NpcId = 1045069 }, // Scrip Exchange Quinnana
 
             new Location { MapId = 196, TerritoryId = 0144, Position = new Pos(5.1f,6.6f), NpcId =  1011039 }, // Gold Saucer Attendant
-            new Location { MapId = 196, TerritoryId = 0144, Position = new Pos(5.4f,6.5f), NpcId =  1011610 }, // Modern Aesthetics Saleswoman
-            new Location { MapId = 196, TerritoryId = 0144, Position = new Pos(5.0f,6.4f), NpcId =  1010478 }, // Triple Triad Trader
-            new Location { MapId = 196, TerritoryId = 0144, Position = new Pos(7.1f,7.8f), NpcId =  1044839 }, // Dibourdier
+            new Location { MapId = 196, TerritoryId = 0144, Position = new Pos(6.44f, 6.97f), NpcId = 1017102 }, // Euphoric Attendant
+            new Location { MapId = 196, TerritoryId = 0144, Position = new Pos(5.4f,6.5f), NpcId = 1011610 }, // Modern Aesthetics Saleswoman
+            new Location { MapId = 196, TerritoryId = 0144, Position = new Pos(5.0f,6.4f), NpcId = 1010478 }, // Triple Triad Trader
+            new Location { MapId = 196, TerritoryId = 0144, Position = new Pos(7.1f,7.8f), NpcId = 1044839 }, // Dibourdier
 
-            new Location { MapId = 197, TerritoryId = 0388, Position = new Pos(7.7f,6.9f), NpcId =  1011595 }, // Minion Trader
+            new Location { MapId = 197, TerritoryId = 0388, Position = new Pos(7.7f,6.9f), NpcId = 1011595 }, // Minion Trader
+            new Location { MapId = 197, TerritoryId = 0388, Position = new Pos(5.97f, 4.75f), NpcId = 1010488 }, // Tack & Feed Trader
 
             new Location { MapId = 257, TerritoryId = 0478, Position = new Pos(5.7f, 5.2f), NpcId = 1012228 },
             new Location { MapId = 366, TerritoryId = 0635, Position = new Pos(13.9f, 11.6f), NpcId = 1019450 },
