@@ -1,3 +1,12 @@
+## v1.0.4.283 (2026-10-05) [testing]
+### Fixed
+- **Auto-rotation no longer cycles through enemies several times a second when the chosen enemy is out of reach.** The out-of-range fallback (an in-range enemy takes the press when the chosen one cannot be reached) left that enemy as the current target after the press and re-picked it from scratch on every press, so the current target alternated between the chosen enemy and the fallback enemy, most visibly in the Crucible's add waves. The fallback now redirects only that one press: the current target stays on the chosen enemy, and the enemy a press is redirected to is kept for as long as it stays reachable.
+### Changed
+- **A DPS target pick now changes at most once per second.** Targeting modes, the Crucible kill order and the boss-mod target are re-evaluated every frame from distance, health and line of sight, so near-ties could flip the target between frames. The first pick, a pick whose enemy has died or become untargetable, and the Crucible's interrupt, kill-the-caster, dispel-carrier and boss-mod targets still take effect immediately.
+- A new log line (`TS|`) records every change of the DPS pick with the reason, so target behavior can be graded from play logs.
+### Notes
+- Testing channel only; production stays on 1.0.4.282.
+
 ## v1.0.4.282 (2026-10-04) [testing]
 ### Fixed
 - **Beastmaster, Crucible: the enemy-reflect safety stop no longer freezes the whole rotation on the spikes the rotation itself can dispel.** The stop that halts everything for lethal reflects elsewhere (Eureka's Ice Spikes and Shock Spikes) matched the Crucible's counter stances by name too, so the moment a drake or a snoll put its spikes up, the rotation stopped entirely - no attacks, no dispel, nothing pressed - until the stance expired on its own. The stance hold already keeps the attacks off a spiked enemy and the dispel removes those spikes in one cast, so inside the Crucible they no longer trigger the stop; every reflect outside the Crucible keeps the full stop.
