@@ -1,6 +1,12 @@
 # LazyCrucible — Changelog
 
 
+## v0.1.9.10 (2026-10-05) [testing]
+### Fixed
+- **Run-roster need coverage no longer fires while AutoDuty is still building its team.** The roster correction used the battlehorn's three-pick threshold, so any selection of four or more familiars counted as a finished team and the correction could fire in a quarter-second pause mid-rebuild — AutoDuty's continuing build then removed the added rows (five runs on 2026-10-05: every roster correction was torn down and no answerer reached the run). The roster now waits for its own capacity (10/12/14/12/15 per board) to be selected, or for the long quiet, before it corrects. A roster AutoDuty has wiped empty is also left alone: an empty selection is the start of its build, not the end of one.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v0.1.9.9 (2026-10-03) [testing]
 ### Fixed
 - **A rare game crash when the plugin updates or reloads while the game is running.** The screen-recorder and agent-probe hooks could still be mid-call on the game's thread at the moment the plugin was unloaded, and the game then closed on an unhandled error. Every hook now counts the calls inside it, the unload waits (up to one second) for them to finish before the hooks are released, and a call that arrives after release returns harmlessly instead of failing.
