@@ -65,7 +65,7 @@ internal sealed class FateDtr : IDisposable {
             _entry.Shown = Plugin.Config.ShowServerBarEntry;
             var running = _toolkit.Running && Service.Automation.Running;
             _entry.Text = new SeString(
-                new IconPayload(FateDtrLogic.SwordUnsheathed(running) ? BitmapFontIcon.SwordUnsheathed : BitmapFontIcon.SwordSheathed),
+                new IconPayload((BitmapFontIcon)(int)FateDtrLogic.IconGlyph),
                 new TextPayload(FateDtrLogic.EntryText(running, _toolkit.PendingStopWhenSafe, _confirmArmed, _toolkit.CurrentState)));
         }
         catch (Exception ex) {

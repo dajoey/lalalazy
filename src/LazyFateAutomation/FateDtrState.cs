@@ -65,6 +65,16 @@ internal static class FateDtrLogic {
         return $": On ({state})";
     }
 
-    /// <summary>Unsheathed sword while the bot runs, sheathed while stopped — the sibling entries' icon pair.</summary>
-    public static bool SwordUnsheathed(bool running) => running;
+    /// <summary>
+    /// The entry's icon: the boss-type FATE glyph in every state. Joey asked for a FATE icon instead
+    /// of the sibling entries' sword pair; API 15's BitmapFontIcon offers FateBoss ("The boss type
+    /// Fate icon") and no dim or paired FATE variant, so on/off stays in the text.
+    /// </summary>
+    public const FateDtrIcon IconGlyph = FateDtrIcon.FateBoss;
+}
+
+/// <summary>The DTR entry's icon glyphs, named so the pure layer can pin them without Dalamud types.</summary>
+public enum FateDtrIcon
+{
+    FateBoss,
 }

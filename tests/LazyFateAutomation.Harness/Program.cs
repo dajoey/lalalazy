@@ -325,7 +325,7 @@ internal static class Program {
         Check("a null state reads ': On'", FateDtrLogic.EntryText(true, false, false, null!) == ": On");
 
         // Icon: unsheathed while running, sheathed while stopped (the sibling entries' pair).
-        Check("sword unsheathed while running", FateDtrLogic.SwordUnsheathed(true));
-        Check("sword sheathed while stopped", !FateDtrLogic.SwordUnsheathed(false));
+        Check("the entry shows the boss FATE icon while running", FateDtrLogic.IconGlyph == FateDtrIcon.FateBoss);
+        Check("the entry shows the same boss FATE icon while stopped - the state lives in the text, no icon pair", FateDtrLogic.IconGlyph == FateDtrIcon.FateBoss);
     }
 }
