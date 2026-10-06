@@ -99,6 +99,7 @@ internal static class Program
         BeastmasterCases();
         CrucibleCases();
         StallCases();
+        LeaseCases();
 
         Console.WriteLine(_fail == 0
             ? _canary > 0 ? $"OK ({_pass} checks, canary failed as expected)" : $"OK ({_pass} checks)"
@@ -425,6 +426,43 @@ internal static class Program
         Check("CR| a new cast emits", CrucibleTelemetryFormat.ShouldEmit(ref gate, t, snap with { CastId = 46866 }));
         Check("CR| a change inside 250 ms is held back", !CrucibleTelemetryFormat.ShouldEmit(ref gate, t + 100, snap with { CastId = 0 }));
         Check("CR| and emits once the window passes", CrucibleTelemetryFormat.ShouldEmit(ref gate, t + 260, snap with { CastId = 0 }));
+    }
+
+    /// <summary>
+    ///     The lease/connector collector (LS|, 2026-10-06). AutoDuty drives Gluttony through the WrathCombo gates (the omasky bridge plugin
+    ///     forwards them): it takes a lease, switches Auto-Rotation on and overrides eight options while the lease lives. The IPC channel
+    ///     logged all of that at Debug only, so nothing in ffxivdb could say which settings a run really ran with.
+    ///     Real values from the 2026-10-06 loop (AutoDuty 0.0.0.380 SetAutoMode against the stored GluttonyCombo.json).
+    /// </summary>
+    private static void LeaseCases()
+    {
+        Console.WriteLine("-- lease / connector (LS|) --");
+        var reg = LeaseTelemetryFormat.Register(1_791_298_653_858, "AutoDuty", "3fa85f64-5717-4562-b3fc-2c963f66afa6");
+        Check("LS| register line shape", reg == "LS|1791298653858|ev=register|plugin=AutoDuty|lease=3fa85f64", reg);
+        var state = LeaseTelemetryFormat.State(1_791_298_653_900, "AutoDuty", on: true, stored: false);
+        Check("LS| state line shape (stored Auto-Rotation was off, the lease turns it on)", state == "LS|1791298653900|ev=state|plugin=AutoDuty|autorot=on|stored=off", state);
+        var cfg = LeaseTelemetryFormat.Config(1_791_298_654_000, "AutoDuty", "OnlyAttackInCombat", 0, 1);
+        Check("LS| config line shape (lease False over a stored True: diff=1)", cfg == "LS|1791298654000|ev=config|plugin=AutoDuty|opt=OnlyAttackInCombat|val=0|stored=1|diff=1", cfg);
+        var same = LeaseTelemetryFormat.Config(1_791_298_654_001, "AutoDuty", "IgnoreRangeInBoss", 1, 1);
+        Check("LS| a lease value equal to the stored one says diff=0", same.EndsWith("|val=1|stored=1|diff=0", StringComparison.Ordinal), same);
+        var unknown = LeaseTelemetryFormat.Config(1, "AutoDuty", "DPSRotationMode", 4, null);
+        Check("LS| no stored value renders an empty stored field and diff=?", unknown == "LS|1|ev=config|plugin=AutoDuty|opt=DPSRotationMode|val=4|stored=|diff=?", unknown);
+        var rel = LeaseTelemetryFormat.Release(1_791_299_000_000, "AutoDuty", "LeaseeReleased");
+        Check("LS| release line shape", rel == "LS|1791299000000|ev=release|plugin=AutoDuty|why=LeaseeReleased", rel);
+        var dirty = LeaseTelemetryFormat.Register(1, "Auto|Duty\r\nx" + new string('y', 100), "abc");
+        Check("LS| a plugin name cannot add fields or lines and stays inside the budget",
+            !dirty.Contains('\n') && !dirty.Contains('\r') && dirty.Split('|').Length == 5 && dirty.Length <= LeaseTelemetryFormat.MaxLineLength, dirty);
+
+        // AutoDuty re-sends all twelve settings every 5 s while it runs; only a first or a changed value is a new fact.
+        var gate = new LeaseTelemetryFormat.ChangeGate();
+        Check("LS| first value of an option emits", gate.ShouldEmit("AutoDuty", "OnlyAttackInCombat", "0"));
+        Check("LS| the same value re-sent every 5 s does not", !gate.ShouldEmit("AutoDuty", "OnlyAttackInCombat", "0"));
+        Check("LS| another option emits", gate.ShouldEmit("AutoDuty", "InCombatOnly", "0"));
+        Check("LS| a changed value emits", gate.ShouldEmit("AutoDuty", "OnlyAttackInCombat", "1"));
+        Check("LS| another plugin's lease on the same option is its own fact", gate.ShouldEmit("Questionable", "OnlyAttackInCombat", "1"));
+        gate.Forget("AutoDuty");
+        Check("LS| after the lease is released the same value is news again", gate.ShouldEmit("AutoDuty", "OnlyAttackInCombat", "1"));
+        Check("LS| ... and Forget touched only that plugin", !gate.ShouldEmit("Questionable", "OnlyAttackInCombat", "1"));
     }
 
     /// <summary> The stalled-GCD collector (SG|): line shape, reason words, and the continuing-stall rate. </summary>

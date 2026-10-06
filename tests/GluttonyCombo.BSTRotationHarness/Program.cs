@@ -48,6 +48,7 @@ internal static class Program
         PartingBlowAoeGate();
         FallbackCandidates();
         LearnedFromTheRuns();
+        TankbusterSnarlOnly();
 
         SimulateAllLevels(verbose);
         SimulateCrucible(verbose);
@@ -1627,7 +1628,7 @@ internal static class Program
         Check("score mode: target on the familiar -> Challenge",
             Decide(CrucibleState() with { EnemyTargetsPet = true, EnemyTargetsPlayer = false, ReadyChallenge = true, ReadyParting = false }, scoreCfg).Reason == "aggro:challenge-score");
         Check("score mode: a low character does not Snarl", Decide(lowChar, scoreCfg).ActionId != BST.Snarl);
-        var spCfg = on with { CrucibleSnarlParting = true };
+        var spCfg = on with { CrucibleSnarlParting = true, CrucibleTankbusterParting = true }; // the dormant Parting Blow step, opted in
         var castStart = CrucibleState() with { TargetCastId = tb, TargetCastRemaining = 4f, ReadySnarl = true };
         Check("tankbuster cast starts: Snarl", Decide(castStart, spCfg).Reason == "aggro:snarl-tankbuster", Decide(castStart, spCfg).Reason);
         var landing = CrucibleState() with { TargetCastId = tb, TargetCastRemaining = 1.2f, SinceSnarl = 3f, EnemyTargetsPet = true, EnemyTargetsPlayer = false };
@@ -1644,8 +1645,8 @@ internal static class Program
         Check("... not logged with the aggro option off", Decide(landing, spOff with { CrucibleAggro = CrucibleAggroMode.Off }).Shadow != "crucible:snarl-parting-off");
         Check("... not logged when the option is on (it presses instead)", Decide(landing, spCfg).Shadow != "crucible:snarl-parting-off");
         Check("snarl-parting in log-only mode: logged, not pressed",
-            Decide(landing, shadowCfg with { CrucibleSnarlParting = true }) is { Shadow: "crucible:snarl-parting" } logged && logged.Reason != "crucible:snarl-parting");
-        Check("score mode with snarl-parting: Snarl for the tankbuster", Decide(castStart, scoreCfg with { CrucibleSnarlParting = true }).ActionId == BST.Snarl);
+            Decide(landing, shadowCfg with { CrucibleSnarlParting = true, CrucibleTankbusterParting = true }) is { Shadow: "crucible:snarl-parting" } logged && logged.Reason != "crucible:snarl-parting");
+        Check("score mode with the dormant Parting Blow step opted in: Snarl for the tankbuster", Decide(castStart, scoreCfg with { CrucibleSnarlParting = true, CrucibleTankbusterParting = true }).ActionId == BST.Snarl);
         BST_CrucibleData.Tankbusters.Remove(tb);
         Check("Erratic Blaster castbar 1.4 s left (lands in 1.7 s): not yet", Decide(landing with { TargetCastId = 49188, TargetCastRemaining = 1.4f }, spCfg).Reason != "crucible:snarl-parting");
         Check("Erratic Blaster castbar 1.0 s left (lands in 1.3 s): Parting Blow", Decide(landing with { TargetCastId = 49188, TargetCastRemaining = 1.0f }, spCfg).Reason == "crucible:snarl-parting");
@@ -2392,7 +2393,7 @@ internal static class Program
         Console.WriteLine("-- master board fights (measured) --");
         var cfg = BstSettings.Defaults();
         var on = cfg with { CrucibleAggro = CrucibleAggroMode.On };
-        var spCfg = on with { CrucibleSnarlParting = true };
+        var spCfg = on with { CrucibleSnarlParting = true, CrucibleTankbusterParting = true }; // the dormant Parting Blow step, opted in
         var cycle = cfg with { CrucibleCycleForDamage = true };
         bool IsHorn(uint id) => id is BST.FirstBattlehorn or BST.SecondBattlehorn or BST.ThirdBattlehorn;
 
@@ -2762,6 +2763,81 @@ internal static class Program
         var noGlass = BST_CrucibleLogic.AllowedTargets(new[] { T(hapalit), T(dirtyEye) });
         Check("control: no hourglass, Hapalit and Dirty Eye stay equally targetable", noGlass.SequenceEqual(new[] { 0, 1 }), string.Join(",", noGlass));
         Check("control: the hourglass alone is targetable", BST_CrucibleLogic.AllowedTargets(new[] { T(hourglass) }).SequenceEqual(new[] { 0 }));
+    }
+
+    // Live 2026-10-06, the AutoDuty First Master's Board loop (First Degree, GluttonyCombo 1.0.4.285 / .286), and every registered
+    // tankbuster cast in ffxivdb action_events since 2026-09-26 (394,732 rows). Snarl -> Parting Blow was switched ON by default on
+    // 2026-10-03 (commit 26057ca6, ConfigMigration v10) on the guides' word that Parting Blow sends the hit to nobody. The logs say the opposite:
+    //   - no Snarl, no Parting Blow:           the character took the hit 280 of 313 casts (89%)
+    //   - Snarl alone:                          the familiar took it 76 of 94 (81%; 86% when the Snarl came 4 s or more before the hit)
+    //   - a Parting Blow within 6 s before it:  the character took it in about 92% of ~150 casts, at EVERY margin from 0.5 s to 6 s
+    // Sweeping Evisceration (Gargoyle, raw network log): the Parting Blow came 1.38-1.43 s before the hit in 64 of 71 tethered casts; the
+    // enemy tethers to the character exactly 1.25 s after the press (the familiar is gone) and the hit follows 0.13 s later: 11:11:17.147
+    // Parting Blow, 11:11:18.396 tether to the character, 11:11:18.529 "You take 1225 damage". The same Evisceration took 3,100 HP a fight
+    // (55% of the character's 5,661) off the character in 29 Gargoyle fights.
+    // The Snarl alone is not free on the harder board: First Degree Evisceration put 3,300-3,900 on a 3,492 HP familiar and knocked it
+    // out in 11 of 15 casts, so a cover Snarl needs the familiar to hold twice the largest hit the logs recorded on a familiar.
+    private static void TankbusterSnarlOnly()
+    {
+        Console.WriteLine("-- tankbuster: no Parting Blow after the Snarl; cover only what a familiar survives (2026-10-06 loop) --");
+        var cfg = BstSettings.Defaults();
+        var on = cfg with { CrucibleAggro = CrucibleAggroMode.On };
+        const uint evisceration = 48717, darkness = 48669, toxicVomit = 48809, erraticBlaster = 49188, obliterate = 50649;
+
+        // 11:11:09.6 Sweeping Evisceration starts on the Gargoyle (7.6 s castbar), the character holds the enemy (CR| f=ysc), the
+        // Diremite (3,492 HP) is out at 100%, Snarl and Parting Blow are both ready.
+        var start = CrucibleState() with
+        {
+            CrucibleBoard = 4, CrucibleBattle = 5, TargetCastId = evisceration, TargetCastRemaining = 7.6f,
+            ReadySnarl = true, ReadyParting = true, PetHp = 3492f, PetHpPercent = 100f, PlayerHp = 5240f, PlayerHpPercent = 93f,
+            EnemyTargetsPlayer = true, EnemyTargetsPet = false,
+        };
+        Check("Evisceration (recorded hit on a familiar 2,021, 3,300-3,900 at First Degree), a 3,492 HP familiar: no cover Snarl",
+            Decide(start, on).Reason != "aggro:snarl-tankbuster", Decide(start, on).Reason);
+
+        // 11:11:17.078 the familiar holds (f=pc) after the Snarl the old rule pressed, 6.1 s later, 0.1 s of castbar left (the hit lands 1.4 s later).
+        var landing = start with { TargetCastRemaining = 0.1f, SinceSnarl = 6.1f, EnemyTargetsPet = true, EnemyTargetsPlayer = false };
+        var landed = Decide(landing, on);
+        Check("1.4 s before it lands, the familiar holding: NO Parting Blow (it sends the hit back to the character)",
+            landed.ActionId != BST.PartingBlow && landed.Reason != "crucible:snarl-parting", $"{landed.ActionId}/{landed.Reason}");
+        Check("... and the window is still logged for grading", landed.Shadow == "crucible:snarl-parting-off", landed.Shadow);
+        foreach (var (name, id, remaining) in new[] { ("Toxic Vomit", toxicVomit, 2.5f), ("Erratic Blaster", erraticBlaster, 1.0f), ("On the Properties of Darkness", darkness, 0.4f), ("Obliterate", obliterate, 1.0f) })
+        {
+            var d = Decide(landing with { TargetCastId = id, TargetCastRemaining = remaining }, on);
+            Check($"{name}, {remaining} s left, familiar holding: no Parting Blow", d.ActionId != BST.PartingBlow && d.Reason != "crucible:snarl-parting", $"{d.ActionId}/{d.Reason}");
+        }
+
+        // A cast the logs show a familiar surviving twice over is still covered by the Snarl alone: Obliterate (Golem, battle 7: 1,112 on a
+        // familiar, 1,349 on the character) and Salivous Snap (Borgny: 1,077 / 875).
+        var golem = start with { CrucibleBattle = 7, TargetCastId = obliterate, TargetCastRemaining = 4.7f };
+        Check("Obliterate cast starts, a 3,492 HP familiar: Snarl covers it", Decide(golem, on).Reason == "aggro:snarl-tankbuster", Decide(golem, on).Reason);
+        Check("... Parting Blow on cooldown (a horn lock from an earlier recall): the Snarl still covers it",
+            Decide(golem with { ReadyParting = false }, on).Reason == "aggro:snarl-tankbuster", Decide(golem with { ReadyParting = false }, on).Reason);
+        Check("... a familiar at 2,000 HP (under twice the 1,112): no cover", Decide(golem with { PetHp = 2000f, PetHpPercent = 60f }, on).Reason != "aggro:snarl-tankbuster");
+        Check("... the same cast with the dormant Parting Blow step opted in: the old window still presses",
+            Decide(landing with { TargetCastId = obliterate, TargetCastRemaining = 1.0f }, on with { CrucibleTankbusterParting = true }) is { ActionId: BST.PartingBlow, Reason: "crucible:snarl-parting" });
+        Check("Salivous Snap cast starts (Borgny): Snarl covers it", Decide(start with { CrucibleBattle = 0, TargetCastId = 48822, TargetCastRemaining = 6.7f }, on).Reason == "aggro:snarl-tankbuster");
+
+        // Grim Fate (Gargoyle, 48730) is a FIVE-hit string: the recorded 212 is one hit, so the familiar has to hold five of them twice over.
+        var grim = start with { TargetCastId = 48730, TargetCastRemaining = 4.7f };
+        Check("Grim Fate, a 3,492 HP familiar (5 x 212 x 2 = 2,120): Snarl covers it", Decide(grim, on).Reason == "aggro:snarl-tankbuster", Decide(grim, on).Reason);
+        Check("Grim Fate, a familiar at 900 HP (a five-hit string would take it down): no cover",
+            Decide(grim with { PetHp = 900f, PetHpPercent = 60f }, on).Reason != "aggro:snarl-tankbuster");
+
+        // A cast with no recorded hit on a familiar (Darkness, Final Sting, Mangling Fang) is never covered: the character takes it as before.
+        Check("Darkness (no recorded hit on a familiar): no cover Snarl", Decide(start with { CrucibleBattle = 1, TargetCastId = darkness, TargetCastRemaining = 7.7f }, on).Reason != "aggro:snarl-tankbuster");
+
+        // A character already under the cast's recorded hit is covered whatever the familiar's HP.
+        var dying = start with { PetHp = 1500f, PetHpPercent = 60f, PlayerHp = 1100f, PlayerHpPercent = 19f };
+        Check("character at 1,100 HP, Evisceration (1,225 recorded) coming, a 1,500 HP familiar: the Snarl goes in anyway",
+            Decide(dying, on).ActionId == BST.Snarl, $"{Decide(dying, on).ActionId}/{Decide(dying, on).Reason}");
+
+        // With the cover available the heal potion waits: Snarl first (the hit goes to the familiar); the potion fires only when no cover exists.
+        var low = golem with { PlayerHp = 1700f, PlayerHpPercent = 30f, ReadyHealPotion = 46961 };
+        Check("character 30%, Obliterate (1,349 recorded) coming, Snarl ready, a healthy familiar: Snarl, not the potion",
+            Decide(low, on).Reason == "aggro:snarl-tankbuster", $"{Decide(low, on).ActionId}/{Decide(low, on).Reason}");
+        var noCover = low with { ReadySnarl = false };
+        Check("... no Snarl ready: the potion guard still fires", Decide(noCover, on).Reason == "crucible:raidwide-guard", Decide(noCover, on).Reason);
     }
 
     // ================================================================== helpers

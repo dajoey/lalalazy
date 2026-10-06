@@ -336,6 +336,7 @@ internal static class BST_RotationLogic
         public bool CruciblePrepullHorns;
         public bool CrucibleSnarlParting;
         public float CrucibleSnarlPartingLead;
+        public bool CrucibleTankbusterParting; // STAGE-1 STUB: unused, default true keeps the live behaviour so the new cases run red
         /// <summary> Crucible survival policy: board heal to the entry line, the aimed-hit guard and the panic heal (2026-10-03 deaths). </summary>
         public bool CrucibleSurvival;
         /// <summary> Hold a familiar's Tempered Release for the add pack / shell break the fight guide names, then Parting Blow the pack (default off: logged in <c>sh=</c> first). </summary>
@@ -373,6 +374,7 @@ internal static class BST_RotationLogic
             CruciblePrepullHorns = false,
             CrucibleSnarlParting = true,
             CrucibleSnarlPartingLead = 1.5f,
+            CrucibleTankbusterParting = true,
             CrucibleSurvival = true,
             CruciblePackWindow = false,
         };

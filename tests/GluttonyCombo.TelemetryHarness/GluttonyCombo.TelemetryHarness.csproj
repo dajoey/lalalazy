@@ -24,6 +24,8 @@
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Data\CrucibleTelemetryFormat.cs" Link="CrucibleTelemetryFormat.cs" />
     <!-- The pure half of the stalled-GCD SG| collector, asserted by the same harness. -->
     <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Data\CrucibleStallFormat.cs" Link="CrucibleStallFormat.cs" />
+    <!-- The pure half of the lease/connector LS| collector (2026-10-06), asserted by the same harness. -->
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\Data\LeaseTelemetryFormat.cs" Link="LeaseTelemetryFormat.cs" />
   </ItemGroup>
 
   <ItemGroup>
