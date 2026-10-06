@@ -48,42 +48,9 @@ public partial class Provider
         }
 
         // Otherwise, return the actual config value
-        var arc = Service.Configuration.RotationConfig;
-        var arcD = Service.Configuration.RotationConfig.DPSSettings;
-        var arcH = Service.Configuration.RotationConfig.HealerSettings;
         try
         {
-            return option switch
-            {
-                arcOption.InCombatOnly => arc.InCombatOnly,
-                arcOption.DPSRotationMode => arc.DPSRotationMode,
-                arcOption.HealerRotationMode => arc.HealerRotationMode,
-                arcOption.FATEPriority => arcD.FATEPriority,
-                arcOption.QuestPriority => arcD.QuestPriority,
-                arcOption.SingleTargetHPP => arcH.SingleTargetHPP,
-                arcOption.AoETargetHPP => arcH.AoETargetHPP,
-                arcOption.SingleTargetRegenHPP => arcH.SingleTargetRegenHPP,
-                arcOption.SingleTargetExcogHPP => arcH.SingleTargetExcogHPP,
-                arcOption.ManageKardia => arcH.ManageKardia,
-                arcOption.AutoRez => arcH.AutoRez,
-                arcOption.AutoRezDPSJobs => arcH.AutoRezDPSJobs,
-                arcOption.AutoRezDPSJobsHealersOnly => arcH.AutoRezDPSJobsHealersOnly,
-                arcOption.AutoCleanse => arcH.AutoCleanse,
-                arcOption.IncludeNPCs => arcH.IncludeNPCs,
-                arcOption.OnlyAttackInCombat => arcD.OnlyAttackInCombat,
-                arcOption.OrbwalkerIntegration => arc.OrbwalkerIntegration,
-                arcOption.AutoRezOutOfParty => arcH.AutoRezOutOfParty,
-                arcOption.DPSAoETargets => arcD.DPSAoETargets,
-                arcOption.DPSAlwaysHardTarget => arcD.DPSAlwaysHardTarget,
-                arcOption.HealerAlwaysHardTarget  => arcH.HealerAlwaysHardTarget ,
-                arcOption.BypassQuest => arc.BypassQuest,
-                arcOption.BypassFATE => arc.BypassFATE,
-                arcOption.IgnoreRangeInBoss => arcD.IgnoreRangeInBoss,
-                arcOption.UnTargetAndDisableForPenalty => arcD.UnTargetAndDisableForPenalty,
-                arcOption.IncludeShields => arcH.IncludeShields,
-                _ => throw new ArgumentOutOfRangeException(
-                    nameof(passedOption), passedOption, null),
-            };
+            return StoredAutoRotationConfig(option);
         }
         catch (Exception)
         {
@@ -91,6 +58,48 @@ public partial class Provider
                           "GluttonyCombo.Services.IPC.AutoRotationConfigOption");
             return null;
         }
+    }
+
+    /// <summary>
+    ///     The player's own saved value of an Auto-Rotation option, no lease applied (the <c>LS|</c> lease telemetry compares a leased
+    ///     value against it). Throws <see cref="ArgumentOutOfRangeException"/> for an option this switch does not know.
+    /// </summary>
+    internal static object? StoredAutoRotationConfig(arcOption option)
+    {
+        var arc = Service.Configuration.RotationConfig;
+        var arcD = Service.Configuration.RotationConfig.DPSSettings;
+        var arcH = Service.Configuration.RotationConfig.HealerSettings;
+        return option switch
+        {
+            arcOption.InCombatOnly => arc.InCombatOnly,
+            arcOption.DPSRotationMode => arc.DPSRotationMode,
+            arcOption.HealerRotationMode => arc.HealerRotationMode,
+            arcOption.FATEPriority => arcD.FATEPriority,
+            arcOption.QuestPriority => arcD.QuestPriority,
+            arcOption.SingleTargetHPP => arcH.SingleTargetHPP,
+            arcOption.AoETargetHPP => arcH.AoETargetHPP,
+            arcOption.SingleTargetRegenHPP => arcH.SingleTargetRegenHPP,
+            arcOption.SingleTargetExcogHPP => arcH.SingleTargetExcogHPP,
+            arcOption.ManageKardia => arcH.ManageKardia,
+            arcOption.AutoRez => arcH.AutoRez,
+            arcOption.AutoRezDPSJobs => arcH.AutoRezDPSJobs,
+            arcOption.AutoRezDPSJobsHealersOnly => arcH.AutoRezDPSJobsHealersOnly,
+            arcOption.AutoCleanse => arcH.AutoCleanse,
+            arcOption.IncludeNPCs => arcH.IncludeNPCs,
+            arcOption.OnlyAttackInCombat => arcD.OnlyAttackInCombat,
+            arcOption.OrbwalkerIntegration => arc.OrbwalkerIntegration,
+            arcOption.AutoRezOutOfParty => arcH.AutoRezOutOfParty,
+            arcOption.DPSAoETargets => arcD.DPSAoETargets,
+            arcOption.DPSAlwaysHardTarget => arcD.DPSAlwaysHardTarget,
+            arcOption.HealerAlwaysHardTarget  => arcH.HealerAlwaysHardTarget ,
+            arcOption.BypassQuest => arc.BypassQuest,
+            arcOption.BypassFATE => arc.BypassFATE,
+            arcOption.IgnoreRangeInBoss => arcD.IgnoreRangeInBoss,
+            arcOption.UnTargetAndDisableForPenalty => arcD.UnTargetAndDisableForPenalty,
+            arcOption.IncludeShields => arcH.IncludeShields,
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(option), option, null),
+        };
     }
 
     /// <summary>

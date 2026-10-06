@@ -56,6 +56,7 @@ public partial class Leasing
         AutoRotationConfigsUpdated = DateTime.Now;
 
         Logging.Log($"{registration.PluginName}: Registered Auto-Rotation Config ({option} to {value})");
+        LeaseTelemetry.ConfigOption(registration.PluginName, option, value);
         return SetResult.Okay;
     }
 }

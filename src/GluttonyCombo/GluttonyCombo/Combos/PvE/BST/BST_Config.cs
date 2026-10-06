@@ -169,10 +169,8 @@ internal partial class BST
             DrawAdditionalBoolChoice(BST_CrucibleScoreMode, BST_Config.CrucibleScoreMode, BST_Config.CrucibleScoreModeDesc);
 
             DrawAdditionalBoolChoice(BST_CrucibleSnarlParting,
-                FormatAndCache(BST_Config.CrucibleSnarlParting0And1, Snarl.ActionName(), PartingBlow.ActionName()),
+                FormatAndCache(BST_Config.CrucibleSnarlParting0And1, Snarl.ActionName()),
                 BST_Config.CrucibleSnarlPartingDesc);
-            if (BST_CrucibleSnarlParting)
-                DrawSliderInt(5, 30, BST_CrucibleSnarlPartingLead, BST_Config.CrucibleSnarlPartingLead);
 
             DrawAdditionalBoolChoice(BST_CrucibleSurvival,
                 BST_Config.CrucibleSurvival,

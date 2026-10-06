@@ -708,8 +708,9 @@ internal static class BST_CrucibleLogic
     ///     carry 15 s of the character's recent damage intake and is not a wespe about to Final Sting. At 25% or lower
     ///     the character's survival is the run: the familiar is snarled in whatever its HP (a 30% familiar holding the
     ///     enemy still beats the character holding it — Third Board 2026-09-26: 11% character, covering familiar at
-    ///     critical, nothing pressed). Snarl ahead of a known tankbuster only with the Snarl -> Parting Blow dodge
-    ///     on. Challenge when the parry ends, or when the familiar is at 30% or lower and the character 60%+.
+    ///     critical, nothing pressed). Snarl ahead of a known tankbuster (Snarl alone: the Parting Blow that used to follow it
+    ///     hands the hit back to the character, measured 2026-10-06) only when the familiar survives the recorded hit twice over
+    ///     (<see cref="FamiliarCanTakeTankbuster"/>). Challenge when the parry ends, or when the familiar is at 30% or lower and the character 60%+.
     ///     Frontal-cleave-auto bosses (siren, Guttler, Pas de Seul, Lauda): their cone autos hit the familiar too, so
     ///     Snarl only to cover a known tankbuster cast (pet 50%+), and Challenge the aggro back off the familiar whenever
     ///     no such cast is up and the player is 50%+ — a familiar that holds aggro through the autos is ground down fight
@@ -723,8 +724,13 @@ internal static class BST_CrucibleLogic
 
         var tankbuster = s.TargetCastId != 0 && BST_CrucibleData.Tankbusters.Contains(s.TargetCastId);
         var cleave = BST_CrucibleData.CleaveAutoBosses.Contains(s.TargetNameId);
+        // The familiar covers the character with Snarl alone; the Parting Blow that used to follow it is a dormant opt-in
+        // (BstSettings.CrucibleTankbusterParting): measured, it hands the hit back to the character.
         var tankbusterSetUp = cfg.CrucibleSnarlParting && tankbuster && s.ReadySnarl && !s.EnemyTargetsPet
-                              && s.TargetCastRemaining > cfg.CrucibleSnarlPartingLead + 1f && s.ReadyParting;
+                              && (cfg.CrucibleTankbusterParting
+                                  ? s.TargetCastRemaining > cfg.CrucibleSnarlPartingLead + 1f && s.ReadyParting
+                                  : s.TargetCastRemaining + BST_CrucibleData.TankbusterHitDelay(s.TargetCastId) > TankbusterSnarlMinLeadSeconds
+                                    && FamiliarCanTakeTankbuster(s));
 
         if (cfg.CrucibleScoreMode)
         {
@@ -951,11 +957,40 @@ internal static class BST_CrucibleLogic
         return (0, "");
     }
 
-    /// <summary> A familiar already holding the enemy, or the Snarl -> Parting dodge still able to run for it, owns a registered tankbuster. </summary>
+    /// <summary> A familiar already holding the enemy, or a cover Snarl still able to go in (or the dormant Snarl -> Parting dodge), owns a registered tankbuster. </summary>
     private static bool TankbusterCoverArmed(in BstState s, in BstSettings cfg) =>
         s.EnemyTargetsPet
-        || (cfg.CrucibleSnarlParting && s.HasHostileTarget && FamiliarOut(s) && s.ReadyParting
-            && !s.TargetDoNotAttack && !s.ProtectedNearTarget && s.SinceSnarl < 45f && s.TargetDistance <= 25f);
+        || (cfg.CrucibleSnarlParting && s.HasHostileTarget && FamiliarOut(s)
+            && !s.TargetDoNotAttack && !s.ProtectedNearTarget && s.TargetDistance <= 25f
+            && (cfg.CrucibleTankbusterParting
+                ? s.ReadyParting && s.SinceSnarl < 45f
+                : s.ReadySnarl && FamiliarCanTakeTankbuster(s)));
+
+    /// <summary> A cover Snarl for a registered tankbuster is worth pressing while at least this much time is left before the hit lands. </summary>
+    public const float TankbusterSnarlMinLeadSeconds = 0.5f;
+
+    /// <summary> A cover Snarl needs the familiar to hold at least this many times the largest hit on a familiar the logs recorded for the cast (the First Degree boards hit ~1.5-2x harder than the recorded Standard runs). </summary>
+    public const float TankbusterFamiliarHitMargin = 2f;
+
+    /// <summary>
+    ///     The familiar can take this tankbuster's hit: its HP is at least <see cref="TankbusterFamiliarHitMargin"/> times the largest hit on a
+    ///     familiar the logs measured for the cast (<see cref="CrucibleHeavyCast.MaxOnFamiliar"/>). A cast with no measured hit on a familiar is
+    ///     never covered (the character takes it, as before the Snarl step existed). First Degree Sweeping Evisceration put 3,300-3,900 on a
+    ///     3,492 HP familiar and knocked it out in 11 of 15 casts; a character already under the cast's measured hit on a character is
+    ///     covered whatever the familiar's HP (the alternative is the death).
+    /// </summary>
+    public static bool FamiliarCanTakeTankbuster(in BstState s)
+    {
+        if (s.PetHp <= 0f)
+            return false;
+        var heavy = BST_CrucibleData.HeavyCast(s.TargetCastId);
+        if (heavy is { MaxOnCharacter: > 0 } row && s.PlayerHp > 0f && s.PlayerHp < row.MaxOnCharacter)
+            return true;
+        return heavy is { MaxOnFamiliar: > 0 } fam && s.PetHp >= fam.MaxOnFamiliar * HitsPerCast(s.TargetCastId) * TankbusterFamiliarHitMargin;
+    }
+
+    /// <summary> Grim Fate (48730) lands as a five-hit string; the recorded hit sizes are one hit. Every other registered tankbuster is one hit. </summary>
+    private static float HitsPerCast(uint castId) => castId == 48730 ? 5f : 1f;
 
     /// <summary>
     ///     The Parting Blow window of a known tankbuster is open (the hit lands within the lead time), whether or not Snarl set it up.

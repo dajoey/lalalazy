@@ -286,10 +286,10 @@
     <value>For high-score runs: Challenge whenever the target turns on the familiar so familiars finish at full HP; Snarl only to set up the tankbuster dodge below. Uses the Snarl / Challenge setting (Log only records, Use presses).</value>
   </data>
   <data name="CrucibleSnarlParting0And1" xml:space="preserve">
-    <value>Dodge known tankbusters with {0} then {1}</value>
+    <value>Cover known tankbusters with {0}</value>
   </data>
   <data name="CrucibleSnarlPartingDesc" xml:space="preserve">
-    <value>On by default. The familiar takes the aggro with Snarl, then Parting Blow sends it away just before the tankbuster lands so the hit finds nobody. Timing depends on latency; players expect a patch. Uses the Snarl / Challenge setting.</value>
+    <value>On by default. Before a known tankbuster lands, the familiar takes the aggro with Snarl, but only for casts the logs show a familiar surviving twice over (and for a character that could not take the hit). Parting Blow is no longer pressed after the Snarl: the logs show the enemy then retargets the character and the hit lands on it in about nine casts of ten. Uses the Snarl / Challenge setting.</value>
   </data>
   <data name="CrucibleSnarlPartingLead" xml:space="preserve">
     <value>Parting Blow this many tenths of a second before the cast ends</value>

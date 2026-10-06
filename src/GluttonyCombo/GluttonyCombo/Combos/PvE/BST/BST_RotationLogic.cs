@@ -336,7 +336,8 @@ internal static class BST_RotationLogic
         public bool CruciblePrepullHorns;
         public bool CrucibleSnarlParting;
         public float CrucibleSnarlPartingLead;
-        public bool CrucibleTankbusterParting; // STAGE-1 STUB: unused, default true keeps the live behaviour so the new cases run red
+        /// <summary> The Parting Blow step after the tankbuster Snarl. Dormant (false, never set from the user's config): it hands the hit back to the character. </summary>
+        public bool CrucibleTankbusterParting;
         /// <summary> Crucible survival policy: board heal to the entry line, the aimed-hit guard and the panic heal (2026-10-03 deaths). </summary>
         public bool CrucibleSurvival;
         /// <summary> Hold a familiar's Tempered Release for the add pack / shell break the fight guide names, then Parting Blow the pack (default off: logged in <c>sh=</c> first). </summary>
@@ -374,7 +375,7 @@ internal static class BST_RotationLogic
             CruciblePrepullHorns = false,
             CrucibleSnarlParting = true,
             CrucibleSnarlPartingLead = 1.5f,
-            CrucibleTankbusterParting = true,
+            CrucibleTankbusterParting = false,
             CrucibleSurvival = true,
             CruciblePackWindow = false,
         };
@@ -564,18 +565,20 @@ internal static class BST_RotationLogic
             if (aggro.ActionId != 0 && cfg.CrucibleAggro == CrucibleAggroMode.Shadow)
                 shadow = aggro.Reason;
 
-            // Snarl -> Parting Blow: the familiar covers the character, then leaves just before the tankbuster lands.
-            if (familiarOut && s.CanWeave && cfg.CrucibleSnarlParting && BST_CrucibleLogic.SnarlPartingNow(s, cfg))
+            // Snarl -> Parting Blow (dormant opt-in): the familiar covers the character, then leaves just before the tankbuster lands.
+            // Measured 2026-10-06: the enemy retargets the character 1.25 s after the familiar goes and the hit lands on it in ~92% of
+            // the casts, so by default only the Snarl runs (ChooseAggro) and the window below is just logged.
+            if (familiarOut && s.CanWeave && cfg.CrucibleSnarlParting && cfg.CrucibleTankbusterParting && BST_CrucibleLogic.SnarlPartingNow(s, cfg))
             {
                 if (cfg.CrucibleAggro == CrucibleAggroMode.On)
                     return Pick(BST.PartingBlow, "crucible:snarl-parting");
                 if (cfg.CrucibleAggro == CrucibleAggroMode.Shadow)
                     shadow = "crucible:snarl-parting";
             }
-            else if (familiarOut && !cfg.CrucibleSnarlParting && cfg.CrucibleAggro != CrucibleAggroMode.Off
+            else if (familiarOut && (!cfg.CrucibleSnarlParting || !cfg.CrucibleTankbusterParting) && cfg.CrucibleAggro != CrucibleAggroMode.Off
                      && shadow.Length == 0 && BST_CrucibleLogic.SnarlPartingWindow(s, cfg))
             {
-                // Option off: nothing pressed, but the open window is logged so the dodge can be graded from a run.
+                // Not pressed (option off, or the Parting Blow step is dormant): the open window is logged so the dodge can be graded from a run.
                 shadow = "crucible:snarl-parting-off";
             }
 

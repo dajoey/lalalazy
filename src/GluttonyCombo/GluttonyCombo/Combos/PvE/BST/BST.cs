@@ -100,6 +100,7 @@ internal partial class BST : Melee
         CruciblePrepullHorns = BST_CruciblePrepullHorns,
         CrucibleSnarlParting = BST_CrucibleSnarlParting,
         CrucibleSnarlPartingLead = BST_CrucibleSnarlPartingLead / 10f,
+        CrucibleTankbusterParting = false, // dormant: measured to hand the tankbuster back to the character (see BstSettings)
         CrucibleSurvival = BST_CrucibleSurvival,
         CruciblePackWindow = BST_CruciblePackWindow,
     };

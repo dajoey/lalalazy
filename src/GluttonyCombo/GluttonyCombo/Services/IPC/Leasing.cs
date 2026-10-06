@@ -259,6 +259,7 @@ public partial class Leasing
         Registrations.Add(lease.ID, lease);
 
         Logging.Log($"{pluginName}: Created Lease");
+        LeaseTelemetry.Registered(pluginName, lease.ID);
 
         // Provide the lease ID to the plugin
         return lease.ID;
@@ -334,6 +335,7 @@ public partial class Leasing
         AutoRotationStateUpdated = DateTime.Now;
 
         Logging.Log($"{registration.PluginName}: Auto-Rotation state updated");
+        LeaseTelemetry.AutoRotationState(registration.PluginName, newState);
         return SetResult.Okay;
     }
 
@@ -596,6 +598,7 @@ public partial class Leasing
             );
 #endif
 
+        LeaseTelemetry.Released(Registrations[lease].PluginName, cancellationReason);
         Registrations[lease].Cancel(cancellationReason, additionalInfo);
         Registrations.Remove(lease);
 
