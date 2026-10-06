@@ -1,3 +1,9 @@
+## v0.2.8.4 (2026-10-06) [testing]
+### Fixed
+- **Auto-Market marker dots can no longer draw away from their items.** A follow-up case to the previous fix remained: every dot drew at one spot near the screen's top-left instead of on its item, because the marker's own position math and the game's layout could disagree without the marker noticing. A dot now draws only when the game's own layout confirms the position computed for it, and only one dot may occupy a screen position, so a wrong or shared position skips the dot instead of placing it somewhere wrong. When dots are skipped, one log line counts how many and reports the position the node claims next to the position the game computed, so a remaining report can say exactly which half disagrees.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v0.2.8.3 (2026-10-06) [testing]
 ### Fixed
 - **Auto-Market marker dots are back on the item icons.** After the game's inventory layout change on 2026-09-15, the node each dot was anchored to stopped carrying a live position, so every dot drew at the same place on the screen instead of on its item: no dots on the bag or retainer icons, and one stray dot left in the screen's top-left corner. Each dot is now anchored to the node the game actually places in the inventory window, and a cell whose position does not resolve draws no dot at all instead of a dot at the screen's edge. When positions cannot be resolved, one log line counts how many cells were skipped and reports the position the node claims, so the next report can say which half of the anchor is wrong.
