@@ -1,3 +1,9 @@
+## v0.2.8.5 (2026-10-06) [testing]
+### Added
+- **A diagnostic probe for the marker dots.** Two fixes in a row removed every way the marker log could detect a misplaced dot, and the dots were still landing in the wrong place, so the log now records the numbers themselves: for the first few draws and any later moment the anchors move, one line per grid lists each marked item's exact position data - where the marker computed the dot, where the game itself says the cell sits, the cell's rectangle and scale, and which dot it drew. No drawing behavior changed; every gate from the previous build stays.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v0.2.8.4 (2026-10-06) [testing]
 ### Fixed
 - **Auto-Market marker dots can no longer draw away from their items.** A follow-up case to the previous fix remained: every dot drew at one spot near the screen's top-left instead of on its item, because the marker's own position math and the game's layout could disagree without the marker noticing. A dot now draws only when the game's own layout confirms the position computed for it, and only one dot may occupy a screen position, so a wrong or shared position skips the dot instead of placing it somewhere wrong. When dots are skipped, one log line counts how many and reports the position the node claims next to the position the game computed, so a remaining report can say exactly which half disagrees.
