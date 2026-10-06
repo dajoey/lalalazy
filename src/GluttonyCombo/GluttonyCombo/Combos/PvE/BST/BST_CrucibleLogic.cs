@@ -39,6 +39,9 @@ internal static class BST_CrucibleLogic
     /// <summary> A familiar save is skipped when the last enemy is this close to death anyway. </summary>
     public const float EnemyDyingHp = 3f;
 
+    /// <summary> A Parting Blow pressed less than this long ago is still sending the familiar away (retreat ~2.3 s). </summary>
+    public const float RecallInFlightSeconds = 3f;
+
     /// <summary> XBMPet row of the vulture: Bloodcurdling Caw dispels a buff. </summary>
     public const int VultureRow = 11;
 
@@ -323,9 +326,14 @@ internal static class BST_CrucibleLogic
             return (0, "");
 
         // Curtains for Rank 5 (49428 / 49429, King Ahriman): 6.0s cast that instantly KOs the familiar regardless of HP.
-        // Parting Blow recalls the familiar safely before the cast resolves.
-        if (BST_CrucibleData.CurtainsCasts.Contains(s.TargetCastId) && s.TargetCastRemaining is > 0.2f and <= 2.5f
-            && s.Level >= LvPartingBlow && s.ReadyParting && s.CanWeave && !s.TargetDoNotAttack && !s.ProtectedNearTarget)
+        // Parting Blow recalls the familiar safely before the cast resolves. Fires deterministically across the entire
+        // cast window (> 0.2 s) regardless of GCD/weave states, like the Forward Guard recall below: the old last-2.5 s
+        // window sat behind the weave gate, so with the GCD idle or in its second half the recall never fired at all
+        // (the harness sweep shows "never recalled" across the whole cast in both states). The KO is certain, so there
+        // is nothing to wait for; recalling from the cast start is the only way every GCD state keeps the 2.4 s of
+        // retreat time (retreat measured 2.15-2.3 s) the familiar needs before the KO.
+        if (BST_CrucibleData.CurtainsCasts.Contains(s.TargetCastId) && s.TargetCastRemaining > 0.2f
+            && s.Level >= LvPartingBlow && s.ReadyParting && !s.TargetDoNotAttack && !s.ProtectedNearTarget)
             return (BST.PartingBlow, "crucible:petsave-curtains");
 
         // Forward Guard (46864, Bone Knight): Parting Blow recalls the familiar before the guard lands.
@@ -722,6 +730,11 @@ internal static class BST_CrucibleLogic
         if (!s.HasHostileTarget || !FamiliarOut(s) || s.TargetDoNotAttack)
             return (0, "");
 
+        // A Parting Blow in flight is already sending the familiar away (retreat ~2.3 s; the gauge slot lingers past
+        // the press). A Snarl pressed onto the leaving familiar is wasted — 2026-10-05 18:47: recall at 26.85, Snarl
+        // (aggro:snarl-player-low) at 28.24, familiar gone at 29.0 — and the enemy stays on the character.
+        var recallInFlight = s.SincePartingBlow < RecallInFlightSeconds;
+
         var tankbuster = s.TargetCastId != 0 && BST_CrucibleData.Tankbusters.Contains(s.TargetCastId);
         var cleave = BST_CrucibleData.CleaveAutoBosses.Contains(s.TargetNameId);
         // The familiar covers the character with Snarl alone; the Parting Blow that used to follow it is a dormant opt-in
@@ -734,14 +747,15 @@ internal static class BST_CrucibleLogic
 
         if (cfg.CrucibleScoreMode)
         {
-            if (tankbusterSetUp)
+            if (tankbusterSetUp && !recallInFlight)
                 return (BST.Snarl, "aggro:snarl-tankbuster");
             if (s.ReadyChallenge && s.EnemyTargetsPet && !(tankbuster && s.SinceSnarl < 45f))
                 return (BST.Challenge, "aggro:challenge-score");
             return (0, "");
         }
 
-        if (s.ReadySnarl && !s.EnemyTargetsPet && s.EnemyTargetsPlayer && s.SinceHornPress > SummonSettleSeconds)
+        if (s.ReadySnarl && !s.EnemyTargetsPet && s.EnemyTargetsPlayer && s.SinceHornPress > SummonSettleSeconds
+            && !recallInFlight)
         {
             if (s.TargetHasParry && s.PetHpPercent >= 50f)
                 return (BST.Snarl, "aggro:snarl-parry");

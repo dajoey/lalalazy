@@ -1334,8 +1334,11 @@ internal static class Program
         var curtains = CrucibleState() with { TargetCastId = 49429, TargetCastRemaining = 1.5f, PetHpPercent = 100f, ReadyParting = true };
         Check("Curtains for Rank 5 cast (pet KO): Parting Blow before resolve even with healthy pet",
             Decide(curtains, cfg) is { ActionId: BST.PartingBlow, Reason: "crucible:petsave-curtains" });
-        Check("Curtains for Rank 5 with 4 s remaining: not yet",
-            Decide(curtains with { TargetCastRemaining = 4.0f }, cfg).Reason != "crucible:petsave-curtains");
+        // The whole-window rule recalls from the cast start: the sweep's property (a recall out while >= 2.4 s of
+        // retreat time remain before the KO) is only met in every GCD state that way, so at 4 s remaining the recall
+        // is already the required behaviour. The old "not yet" case pinned the starved last-2.5 s window.
+        Check("Curtains for Rank 5 with 4 s remaining: recall out (whole-window rule)",
+            Decide(curtains with { TargetCastRemaining = 4.0f }, cfg) is { ActionId: BST.PartingBlow, Reason: "crucible:petsave-curtains" });
 
         // Timing sweep (the Forward Guard recall starved this exact way until 1.0.4.245): across the whole 6.0 s cast
         // (6.0 s down to 0.25 s in 0.25 s steps) and all three GCD/weave states, on both cast ids, the rule must issue
@@ -2787,7 +2790,7 @@ internal static class Program
         Check("Curtains for Rank 5 as the castbar shows it (49428): Parting Blow before it resolves, even with a healthy familiar",
             Decide(curtains, cfg) is { ActionId: BST.PartingBlow, Reason: "crucible:petsave-curtains" },
             $"{Decide(curtains, cfg).ActionId}/{Decide(curtains, cfg).Reason}");
-        Check("... the same cast id with 4 s remaining: not yet", Decide(curtains with { TargetCastRemaining = 4.0f }, cfg).Reason != "crucible:petsave-curtains");
+        Check("... the same cast id with 4 s remaining: recall out (whole-window rule)", Decide(curtains with { TargetCastRemaining = 4.0f }, cfg) is { ActionId: BST.PartingBlow, Reason: "crucible:petsave-curtains" });
 
         // Roulette #3 of the same fight spawned a Final Hourglass (name id 14689). The target list narrows to the priority adds
         // whenever one is up, and the hourglass was not one: Hapalit and Dirty Eye (up) were, so it was never attacked and the
