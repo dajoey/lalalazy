@@ -1,0 +1,6 @@
+key	fight	item	status	behavior	where	proof	log	graded
+f1	1.1 Fight One	item one	implemented	does the thing	Where.One	Case A	log one	ResearchToBehavior:L572 2026-10-02 ;; RunGrades-2026-10-03:L16 2026-10-03
+f2	1.1 Fight One	item two	implemented	does the thing	Where.One	Case A	log two	none
+f3	1.1 Fight One	item three	implemented	does the thing	Where.One	Case A	log three	
+f4	1.1 Fight One	item four	implemented	does the thing	Where.One	Case A	log four	not a cite
+f5	1.1 Fight One	item five	implemented	does the thing	Where.One	Case A	log five
