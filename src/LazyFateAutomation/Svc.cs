@@ -1,3 +1,4 @@
+using Dalamud.Game.Gui.Dtr;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
@@ -25,6 +26,7 @@ public class Svc {
     [PluginService] public static ITargetManager Targets { get; private set; } = null!;
     [PluginService] public static IGameGui GameGui { get; private set; } = null!;
     [PluginService] public static IChatGui Chat { get; private set; } = null!;
+    [PluginService] public static IDtrBar DtrBar { get; private set; } = null!;
 
     public static IDalamudPluginInterface PluginInterface => Interface;
 

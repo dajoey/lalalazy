@@ -64,6 +64,11 @@ public class Configuration : IPluginConfiguration {
     // 0.0.3.3: what to do when no FATE rewarding the focused currency is up.
     public CurrencyFocusFallback CurrencyFocusFallback = CurrencyFocusFallback.NormalSelection;
 
+    // 0.0.3.5: the server info bar (DTR) entry - the FATE bot's on/off switch in the game
+    // bar, which Umbra's DtrBar widget renders as a button. Default on, like the sibling
+    // plugins' entries; it can also be hidden per-plugin in Umbra or /xlsettings.
+    public bool ShowServerBarEntry = true;
+
     /// <summary>Newest CHANGELOG version the in-game "What's new" popup has shown (shared LalaChangelog gate).</summary>
     public string? LastSeenChangelogVersion { get; set; }
 

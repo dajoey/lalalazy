@@ -11,6 +11,8 @@ namespace LazyFateAutomation.Harness;
 ///     2. the FATE-type filter decision (FateEligibility) that FateToolKit.FateConditions delegates to,
 ///     3. config migration: an old (pre-0.0.3.3) config deserializes with the new fields defaulted,
 ///        so existing installs load with unchanged behavior.
+///     4. the server info bar (DTR) toggle decision (FateDtrLogic): the click action (stop /
+///        arm / confirm / none), the 10-second confirm window, and the entry text.
 /// </summary>
 internal static class Program {
     private static int _pass;
@@ -95,6 +97,7 @@ internal static class Program {
         FateEligibilityTests();
         FocusFallbackTests();
         ConfigMigrationTests();
+        DtrToggleTests();
 
         Console.WriteLine($"{_pass} pass, {_fail} fail");
         if (_fail == 0) Console.WriteLine("OK");
@@ -290,5 +293,39 @@ internal static class Program {
         var grown = JsonConvert.DeserializeObject<Configuration>(oldConfig)!;
         grown.SortOrder.AddRange([.. grown.SortOrder, .. grown.SortOrder]); // simulate 72-entry drift
         Check("DedupeSortOrder still collapses a grown list", grown.DedupeSortOrder() && grown.SortOrder.Count == 6);
+    }
+
+    private static void DtrToggleTests() {
+        Console.WriteLine("-- server bar (DTR) toggle: click decision, confirm window, entry text --");
+
+        // Click decision: stop a running bot; arm-then-confirm to start; nothing without a character.
+        Check("running bot: a click stops it", FateDtrLogic.DecideClick(true, confirmPending: false, playerAvailable: true) == FateDtrLogic.ClickAction.Stop);
+        Check("running bot: a click stops it even with a stale armed start", FateDtrLogic.DecideClick(true, confirmPending: true, playerAvailable: true) == FateDtrLogic.ClickAction.Stop);
+        Check("stopped bot, first click arms the start", FateDtrLogic.DecideClick(false, confirmPending: false, playerAvailable: true) == FateDtrLogic.ClickAction.ArmStart);
+        Check("stopped bot, second click confirms the start", FateDtrLogic.DecideClick(false, confirmPending: true, playerAvailable: true) == FateDtrLogic.ClickAction.StartNow);
+        Check("no character: clicks never arm or start", FateDtrLogic.DecideClick(false, confirmPending: false, playerAvailable: false) == FateDtrLogic.ClickAction.None);
+        Check("no character: an armed start cannot be confirmed", FateDtrLogic.DecideClick(false, confirmPending: true, playerAvailable: false) == FateDtrLogic.ClickAction.None);
+        Check("Ctrl+click on a running bot arms the soft stop", FateDtrLogic.DecideClick(true, confirmPending: false, playerAvailable: true, ctrlHeld: true) == FateDtrLogic.ClickAction.StopWhenSafe);
+        Check("Ctrl is ignored while stopped (a Ctrl+click still arms the start)", FateDtrLogic.DecideClick(false, confirmPending: false, playerAvailable: true, ctrlHeld: true) == FateDtrLogic.ClickAction.ArmStart);
+
+        // Confirm window: live inside it, expired at and past it, never live when unarmed.
+        Check("armed start is live right after arming", FateDtrLogic.IsConfirmLive(true, 1000, 1000));
+        Check("armed start is live just inside the window", FateDtrLogic.IsConfirmLive(true, 1000, 1000 + FateDtrLogic.ConfirmSeconds * 1000L - 1));
+        Check("armed start expires exactly at the window end", !FateDtrLogic.IsConfirmLive(true, 1000, 1000 + FateDtrLogic.ConfirmSeconds * 1000L));
+        Check("armed start expires well past the window", !FateDtrLogic.IsConfirmLive(true, 1000, 1000 + FateDtrLogic.ConfirmSeconds * 1000L * 60));
+        Check("an unarmed start is never live", !FateDtrLogic.IsConfirmLive(false, 1000, 1000));
+
+        // Entry text: Off / confirm prompt / On, with the soft-stop and live state annotations.
+        Check("stopped entry reads ': Off'", FateDtrLogic.EntryText(false, stopWhenSafePending: false, confirmPending: false, currentState: "Idle") == ": Off");
+        Check("armed entry asks for the confirming click", FateDtrLogic.EntryText(false, false, true, "Idle") == ": Start? (click again)");
+        Check("running entry reads ': On'", FateDtrLogic.EntryText(true, false, false, "Idle") == ": On");
+        Check("soft stop pending reads ': On (stopping)'", FateDtrLogic.EntryText(true, true, false, "Idle") == ": On (stopping)");
+        Check("a live non-idle state is shown", FateDtrLogic.EntryText(true, false, false, "Paused (in instance)") == ": On (Paused (in instance))");
+        Check("the stopping annotation wins over the state text", FateDtrLogic.EntryText(true, true, false, "Paused (in instance)") == ": On (stopping)");
+        Check("a null state reads ': On'", FateDtrLogic.EntryText(true, false, false, null!) == ": On");
+
+        // Icon: unsheathed while running, sheathed while stopped (the sibling entries' pair).
+        Check("sword unsheathed while running", FateDtrLogic.SwordUnsheathed(true));
+        Check("sword sheathed while stopped", !FateDtrLogic.SwordUnsheathed(false));
     }
 }

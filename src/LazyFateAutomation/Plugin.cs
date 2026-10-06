@@ -20,6 +20,7 @@ public class Plugin : IDalamudPlugin {
     private readonly LalaHubProvider? _hub;
     private readonly FateSnapshotService _fateSnapshot = new();
     private readonly FateSnapshotServer _fateHttp;
+    private FateDtr _dtr = null!;
 
 
     public Plugin(IDalamudPluginInterface pluginInterface) {
@@ -83,6 +84,12 @@ public class Plugin : IDalamudPlugin {
             ShowInHelp = false
         });
 
+        // Server info bar (DTR) entry: the bot's on/off switch in the game bar / Umbra.
+        // Click behavior (stop; arm-then-confirm to start) lives in FateDtrLogic and is
+        // asserted offline by tests/LazyFateAutomation.Harness.
+        _dtr = new FateDtr(FateToolKit);
+        Svc.Framework.Update += OnFrameworkUpdateDtr;
+
         Svc.Framework.Update += OnFrameworkUpdateSnapshot;
 
         // Quick controls for the lalalazy hub window (src/Shared/LalaHub). Last on purpose: Dalamud never calls Dispose on a
@@ -100,10 +107,16 @@ public class Plugin : IDalamudPlugin {
         }
     }
 
+    private void OnFrameworkUpdateDtr(Dalamud.Plugin.Services.IFramework framework) {
+        _dtr.Update();  // FateDtr.Update carries its own once-only failure guard
+    }
+
     public void Dispose() {
         _hub?.Dispose();   // first: a provider must never outlive its plugin
         Svc.Commands.RemoveHandler("/lazyfate");
         Svc.Commands.RemoveHandler("/vfate");
+        Svc.Framework.Update -= OnFrameworkUpdateDtr;
+        _dtr.Dispose();    // remove the server bar entry this load owns
         
         _changelog?.Dispose();
         FateToolKit.Disable();

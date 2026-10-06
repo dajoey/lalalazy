@@ -459,6 +459,14 @@ public class FateToolKitWindow : MinimisableWindow {
     private void DrawSortingSection() {
         if (!ImGui.CollapsingHeader("Sorting & Display")) return;
 
+        var showDtr = _tweak.Config.ShowServerBarEntry;
+        if (ImGui.Checkbox("Show server info bar entry", ref showDtr)) {
+            _tweak.Config.ShowServerBarEntry = showDtr;
+            _tweak.Config.Save();
+        }
+        ImGuiComponents.HelpMarker("The FATE bot's On/Off switch in the game's server info bar; Umbra renders it as a button (\"Lazy Fate Automation\"). Starting from it needs a confirming second click. It can also be hidden per-plugin in Umbra or under /xlsettings -> Server Info Bar.");
+        ImGui.Spacing();
+
         ImGui.TextColored(new Vector4(0.8f, 0.8f, 1f, 1f), "Priority Order Configuration");
         ImGui.Spacing();
         ImGui.TextWrapped("Configure the order in which fates are prioritized. The order shown here is the order used by AvailableFates when selecting which fate to complete next.");
