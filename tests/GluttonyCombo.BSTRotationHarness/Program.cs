@@ -50,6 +50,7 @@ internal static class Program
         LearnedFromTheRuns();
         TankbusterSnarlOnly();
         CrucibleDegreeAware();
+        OptionalRecallHeldForTankbuster();
 
         SimulateAllLevels(verbose);
         SimulateCrucible(verbose);
@@ -2890,7 +2891,7 @@ internal static class Program
         Check("First Degree, Grim Fate, a 2,500 HP familiar (1,060 recorded x 2 = 2,120, the margin wants 2,650): no cover",
             Decide(At(grim with { PetHp = 2500f, PetHpPercent = 72f }, CrucibleDegree.First), on).Reason != "aggro:snarl-tankbuster");
         Check("Standard, Grim Fate, a 1,400 HP familiar (5 x 212 x 1.25 = 1,325): the cover Snarl goes in",
-            Decide(At(grim with { PetHp = 1400f, PetHpPercent = 40f }, CrucibleDegree.Standard), on).Reason == "aggro:snarl-tankbuster");
+            Decide(At(grim with { PetHp = 1400f, PetHpPercent = 60f }, CrucibleDegree.Standard), on).Reason == "aggro:snarl-tankbuster");
 
         // A character already under the scaled hit is covered whatever the familiar's HP: at First Degree the 1,225 recorded is 2,144.
         var dying = start with { PetHp = 1500f, PetHpPercent = 60f, PlayerHp = 2000f, PlayerHpPercent = 50f };
@@ -2928,6 +2929,71 @@ internal static class Program
             && CrucibleDegree.FromStageDetailEvent(0, 2, 5, 1) == CrucibleDegree.Unknown && CrucibleDegree.FromStageDetailEvent(0, 2, 2, 4) == CrucibleDegree.Unknown
             && CrucibleDegree.FromStageDetailEvent(0, 2, 2, -1) == CrucibleDegree.Unknown && CrucibleDegree.FromStageDetailEvent(0, 2, 2, null) == CrucibleDegree.Unknown
             && CrucibleDegree.FromStageDetailEvent(1, 2, 2, 1) == CrucibleDegree.Unknown);
+    }
+
+    // A familiar that holds the enemy is not recalled into a tankbuster it can take (2026-10-06; ffxivdb action_events + the plugin's CR| lines,
+    // 2026-09-26 .. 10-06): with Snarl alone the familiar took the hit in 76 of 94 casts (81%); in 47 recalls by a Parting Blow with no Snarl while
+    // the familiar held the enemy and a registered tankbuster landed within 6 s, 36 landed on the character (a stricter count of the same sweep: 17 and 11), because the recalled familiar's
+    // enmity goes with it. The discretionary recalls (the cycle exit, the pack Parting Blow; the Self-destruct burst can never overlap, the
+    // target casts one thing at a time) wait for the hit to land; a recall to SAVE a low familiar is never held, and neither is one where the
+    // logs show the familiar would not survive the hit (the cover rule's own question, scaled to the degree).
+    private static void OptionalRecallHeldForTankbuster()
+    {
+        Console.WriteLine("-- optional recalls wait for a tankbuster the familiar holds --");
+        var cfg = BstSettings.Defaults();
+        var cycle = cfg with { CrucibleCycleForDamage = true };
+        const uint obliterate = 50649, evisceration = 48717, rippling = 48721;
+        BstState At(BstState s, int degree) => s with { CrucibleDegreeKnown = true, CrucibleDegreeLevel = degree };
+
+        // The 09-30 14:35 shape that Exits with a cycle recall (two healthy ready horns behind the active one), the familiar holding the enemy.
+        var cycling = CrucibleState() with
+        {
+            CrucibleBoard = 4, CrucibleBattle = 3, ActiveSlot = 2, PetObjectBeast = 34, Slot1Beast = 1, Slot2Beast = 34, Slot3Beast = 26,
+            ReadyHorn1 = true, ReadyHorn2 = false, ReadyHorn3 = true, Slot1PetHp = 96f, Slot2PetHp = 100f, Slot3PetHp = 90f,
+            PetHpPercent = 100f, PetHp = 3492f, SinceSummon = 12f, SinceHornPress = 13f, TargetHpPercent = 79f, HighestEnemyHpPercent = 79f,
+            PlayerHpPercent = 80f, PlayerHp = 4600f, ReadyParting = true, EnemyTargetsPet = true, EnemyTargetsPlayer = false,
+        };
+        Check("control: the cycle exit recalls with the familiar holding and no cast up",
+            Decide(cycling, cycle).ActionId == BST.PartingBlow, $"{Decide(cycling, cycle).ActionId}/{Decide(cycling, cycle).Reason}");
+
+        var golem = cycling with { CrucibleBattle = 7, TargetCastId = obliterate, TargetCastRemaining = 4.7f };
+        var held = Decide(golem, cycle);
+        Check("Obliterate cast up, the familiar holding and able to take it: the cycle exit waits",
+            held.ActionId != BST.PartingBlow && held.Declines.Contains("crucible:exit-tankbuster-up"), $"{held.ActionId}/{held.Reason} [{held.Declines}]");
+        Check("... also at First Degree (1,112 x 2 x 1.25 = 2,780 under 3,492)",
+            Decide(At(golem, CrucibleDegree.First), cycle).ActionId != BST.PartingBlow);
+        Check("... the character holding the enemy instead: nothing to hand back, the exit is unchanged",
+            Decide(golem with { EnemyTargetsPet = false, EnemyTargetsPlayer = true }, cycle).ActionId == BST.PartingBlow);
+        Check("... the hit has already landed (castbar over by 1.5 s): the exit goes",
+            Decide(golem with { TargetCastRemaining = -1.5f }, cycle).ActionId == BST.PartingBlow);
+
+        var evis = cycling with { CrucibleBattle = 5, TargetCastId = evisceration, TargetCastRemaining = 7.6f };
+        Check("Evisceration at Standard, a 3,492 HP familiar (it takes it, 1.25 x 2,021): the cycle exit waits",
+            Decide(At(evis, CrucibleDegree.Standard), cycle).ActionId != BST.PartingBlow);
+        Check("Evisceration at First Degree, a 3,492 HP familiar (it would not survive 3,300-3,900): the recall stays allowed",
+            Decide(At(evis, CrucibleDegree.First), cycle).ActionId == BST.PartingBlow);
+        Check("Rippling Evisceration (not a tankbuster): the exit is unchanged", Decide(evis with { TargetCastId = rippling }, cycle).ActionId == BST.PartingBlow);
+
+        // A recall that SAVES the familiar is not a discretionary one.
+        var dying = cycling with { PetHpPercent = 20f, SinceSummon = 2f };
+        var saved = Decide(dying with { CrucibleBattle = 7, TargetCastId = obliterate, TargetCastRemaining = 4.7f }, cycle);
+        Check("a 20% familiar still swaps out with Obliterate up", saved is { ActionId: BST.FirstBattlehorn, Reason: "crucible:petsave-swap-critical" }, $"{saved.ActionId}/{saved.Reason}");
+
+        // The pack Parting Blow (the window option on), once the pack's release has gone off.
+        var on = cfg with { CruciblePackWindow = true };
+        var pack = CrucibleState() with
+        {
+            CrucibleBoard = 3, CrucibleBattle = 1, ActiveSlot = 1, Slot1Beast = 34, PetObjectBeast = 34, Slot2Beast = 34, Slot3Beast = 26,
+            OneWithNature = false, ReadyTempered = false, TemperedRecastRemaining = 50f, SinceTempered = 3f, SinceSummon = 14f, SinceHornPress = 15f,
+            ReadyHorn2 = true, ReadyHorn3 = true, TargetHpPercent = 90f, HighestEnemyHpPercent = 90f, EnemyCount = 4, TargetNameId = 14567,
+            PetHp = 3492f, PetHpPercent = 100f, EnemyTargetsPet = true, EnemyTargetsPlayer = false,
+        };
+        Check("control: the pack Parting Blow goes with the familiar holding and no cast up",
+            Decide(pack, on) is { ActionId: BST.PartingBlow, Reason: "crucible:pack-parting" }, $"{Decide(pack, on).ActionId}/{Decide(pack, on).Reason}");
+        var crushing = Decide(pack with { TargetCastId = 48471, TargetCastRemaining = 3f }, on);
+        Check("Crushing Blade (a Third Board tankbuster, nothing recorded on a familiar) up: the pack Parting Blow waits",
+            crushing.ActionId != BST.PartingBlow && crushing.Declines.Contains("crucible:pack-tankbuster-up"), $"{crushing.ActionId}/{crushing.Reason} [{crushing.Declines}]");
+        Check("... and the hold is not logged as the option being off", crushing.Shadow != "crucible:pack-parting-off", crushing.Shadow);
     }
 
     // ================================================================== helpers

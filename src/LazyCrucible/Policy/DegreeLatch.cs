@@ -18,7 +18,14 @@ internal sealed class DegreeLatch
     public int Value { get; private set; } = CrucibleDegree.Unknown;
 
     /// <summary> Feed one event of the board-layout agent. True when it changed the latched degree. </summary>
-    public bool Note(ulong eventKind, uint valueCount, int? first, int? second) => false;
+    public bool Note(ulong eventKind, uint valueCount, int? first, int? second)
+    {
+        var degree = CrucibleDegree.FromStageDetailEvent(eventKind, valueCount, first, second);
+        if (degree == CrucibleDegree.Unknown || degree == Value)
+            return false;
+        Value = degree;
+        return true;
+    }
 
     /// <summary> Forget the degree (plugin job change, unload). </summary>
     public void Reset() => Value = CrucibleDegree.Unknown;

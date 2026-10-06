@@ -225,7 +225,8 @@ internal static class BeastmasterTelemetry
             s.TargetVulnerabilityRemaining,
             BST.PartyHpVerified,
             Svc.Targets.Target is { } tgt ? EdgeDistanceTo(tgt) : -1f,
-            _moveSpeed);
+            _moveSpeed,
+            s.CrucibleDegreeKnown ? s.CrucibleDegreeLevel : -1);
     }
 
     private static unsafe BeastmasterTelemetryFormat.Snapshot Sample()

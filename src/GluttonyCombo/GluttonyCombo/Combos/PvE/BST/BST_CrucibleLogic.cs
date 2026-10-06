@@ -909,7 +909,7 @@ internal static class BST_CrucibleLogic
     ///     <para>Board heal: out of combat, below <see cref="BoardHealHpPercent"/>, press the best-grade ready heal potion action directly
     ///     (no HUD menu dance; the live layer offers only grades with stock in the HUD and steps down on a dead press).</para>
     ///     <para>Guard: a measured <see cref="BST_CrucibleData.HeavyCast"/> of kind CastOnly / PartyWide — it hits the character whatever the
-    ///     familiar does — with remaining HP under its <see cref="CrucibleHeavyCast.MaxOnCharacter"/> gets the best available answer: the held
+    ///     familiar does — with remaining HP under its <see cref="CrucibleHeavyCast.MaxOnCharacter"/> (scaled to the board's degree) gets the best available answer: the held
     ///     skin inside <see cref="SkinGuardLeadSeconds"/> of the hit (free, 90 s), else the potion at any point in the cast. A registered
     ///     tankbuster gets the potion only when no Snarl -> Parting cover is armed and HP is at or below <see cref="TankbusterGuardHpPercent"/>
     ///     (the dodge, not the stock, is the first answer there).</para>
@@ -928,8 +928,9 @@ internal static class BST_CrucibleLogic
 
             // A measured cast that lands on the character regardless of enmity (CastOnly: mitigation is the only answer;
             // PartyWide: it hits both) while the character's remaining HP is under the largest logged hit.
+            // The recorded hit is a Standard number: at First Degree the same cast hits about 1.75x harder (CrucibleDegree.CharacterHitScale).
             if (heavy is { Kind: CrucibleHitKind.CastOnly or CrucibleHitKind.PartyWide, MaxOnCharacter: > 0 } row
-                && s.PlayerHp > 0f && s.PlayerHp < row.MaxOnCharacter)
+                && s.PlayerHp > 0f && s.PlayerHp < row.MaxOnCharacter * CrucibleDegree.CharacterHitScale(s.CrucibleDegreeKnown, s.CrucibleDegreeLevel))
             {
                 if (s.TargetCastRemaining <= SkinGuardLeadSeconds && s.KinshipHeld && s.ReadyBeastMode && s.CanWeave
                     && s.BeastModeResolved is BST.Scaleskin or BST.Beastskin or BST.Vileskin)
@@ -969,25 +970,50 @@ internal static class BST_CrucibleLogic
     /// <summary> A cover Snarl for a registered tankbuster is worth pressing while at least this much time is left before the hit lands. </summary>
     public const float TankbusterSnarlMinLeadSeconds = 0.5f;
 
-    /// <summary> A cover Snarl needs the familiar to hold at least this many times the largest hit on a familiar the logs recorded for the cast (the First Degree boards hit ~1.5-2x harder than the recorded Standard runs). </summary>
+    /// <summary>
+    ///     The margin 1.0.4.287 shipped, kept where the board's degree is not measured (Second, Third) or not read: a cover Snarl needs the
+    ///     familiar to hold this many times the largest hit on a familiar the logs recorded for the cast. Where the degree is known and measured the
+    ///     recorded hit is scaled to that degree and the margin is <see cref="CrucibleDegree.CoverMargin"/> (1.25).
+    /// </summary>
     public const float TankbusterFamiliarHitMargin = 2f;
 
     /// <summary>
     ///     The familiar can take this tankbuster's hit: its HP is at least <see cref="TankbusterFamiliarHitMargin"/> times the largest hit on a
-    ///     familiar the logs measured for the cast (<see cref="CrucibleHeavyCast.MaxOnFamiliar"/>). A cast with no measured hit on a familiar is
-    ///     never covered (the character takes it, as before the Snarl step existed). First Degree Sweeping Evisceration put 3,300-3,900 on a
-    ///     3,492 HP familiar and knocked it out in 11 of 15 casts; a character already under the cast's measured hit on a character is
-    ///     covered whatever the familiar's HP (the alternative is the death).
+    ///     familiar the logs measured for the cast (<see cref="CrucibleHeavyCast.MaxOnFamiliar"/>), scaled to the board's degree
+    ///     (<see cref="CrucibleDegree.FamiliarHitScale"/>: the recorded numbers are Standard, First Degree hits a familiar about twice as hard) and
+    ///     with the margin the degree allows (<see cref="CrucibleDegree.CoverMargin"/>: 1.25 where Standard / First is known, 2.0 otherwise). A cast
+    ///     with no measured hit on a familiar is never covered (the character takes it, as before the Snarl step existed). First Degree Sweeping
+    ///     Evisceration put 3,300-3,900 on a 3,492 HP familiar and knocked it out in 11 of 15 casts, where at Standard the same cast did 1,224-2,616
+    ///     and the Snarl alone was safe. A character already under the cast's measured hit on a character (scaled the same way,
+    ///     <see cref="CrucibleDegree.CharacterHitScale"/>) is covered whatever the familiar's HP (the alternative is the death).
     /// </summary>
     public static bool FamiliarCanTakeTankbuster(in BstState s)
     {
         if (s.PetHp <= 0f)
             return false;
         var heavy = BST_CrucibleData.HeavyCast(s.TargetCastId);
-        if (heavy is { MaxOnCharacter: > 0 } row && s.PlayerHp > 0f && s.PlayerHp < row.MaxOnCharacter)
+        if (heavy is { MaxOnCharacter: > 0 } row
+            && s.PlayerHp > 0f && s.PlayerHp < row.MaxOnCharacter * CrucibleDegree.CharacterHitScale(s.CrucibleDegreeKnown, s.CrucibleDegreeLevel))
             return true;
-        return heavy is { MaxOnFamiliar: > 0 } fam && s.PetHp >= fam.MaxOnFamiliar * HitsPerCast(s.TargetCastId) * TankbusterFamiliarHitMargin;
+        if (heavy is not { MaxOnFamiliar: > 0 } fam)
+            return false;
+        var hit = fam.MaxOnFamiliar * HitsPerCast(s.TargetCastId) * CrucibleDegree.FamiliarHitScale(s.CrucibleDegreeKnown, s.CrucibleDegreeLevel);
+        var margin = CrucibleDegree.CoverMargin(s.CrucibleDegreeKnown, s.CrucibleDegreeLevel);
+        return s.PetHp >= hit * margin;
     }
+
+    /// <summary>
+    ///     A discretionary recall (the cycle exit, the pack Parting Blow) would hand a registered tankbuster back to the character: the familiar
+    ///     holds the enemy, the hit has not landed yet, and the familiar can take it (the logs show it surviving the hit at this degree, or show
+    ///     nothing on a familiar for the cast, so nothing says it would fall). A recall takes the familiar's enmity with it: in 47 recalls with no
+    ///     Snarl while the familiar held the enemy and a tankbuster landed within 6 s, 36 landed on the character (17 and 11 by a stricter count), where a familiar left alone took
+    ///     76 of 94 (81%). A recall to save a low familiar, the burst and Final Sting never ask this.
+    /// </summary>
+    public static bool RecallWouldHandBackTankbuster(in BstState s) =>
+        s.EnemyTargetsPet && FamiliarOut(s)
+        && s.TargetCastId != 0 && BST_CrucibleData.Tankbusters.Contains(s.TargetCastId)
+        && s.TargetCastRemaining + BST_CrucibleData.TankbusterHitDelay(s.TargetCastId) > 0.2f
+        && (BST_CrucibleData.HeavyCast(s.TargetCastId) is not { MaxOnFamiliar: > 0 } || FamiliarCanTakeTankbuster(s));
 
     /// <summary> Grim Fate (48730) lands as a five-hit string; the recorded hit sizes are one hit. Every other registered tankbuster is one hit. </summary>
     private static float HitsPerCast(uint castId) => castId == 48730 ? 5f : 1f;
@@ -1102,9 +1128,11 @@ internal static class BST_CrucibleLogic
             && !(s.EnemyCount > 0 && s.HighestEnemyHpPercent <= RoundEndingHp)
             && ResummonAvailable(s, cfg) && CycleExitKeepsReserve(s, cfg))
         {
-            if (cfg.CruciblePackWindow)
+            if (RecallWouldHandBackTankbuster(s))
+                declines.Add("crucible:pack-tankbuster-up");
+            else if (cfg.CruciblePackWindow)
                 return new(BST.PartingBlow, "crucible:pack-parting", "", false);
-            if (shadow.Length == 0)
+            else if (shadow.Length == 0)
                 shadow = "crucible:pack-parting-off";
         }
 

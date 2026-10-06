@@ -122,7 +122,8 @@ internal static class CrucibleTelemetryFormat
     ///     over 10 s, <c>vul</c> the target's Physical Vulnerability Up left, <c>xp</c> whether the familiar party HP read
     ///     has been verified against a live familiar. <c>d</c> (1.0.4.266) is the hitbox-edge distance to the current
     ///     target (empty without one) and <c>mv</c> the character's own movement speed in yalms/s: together they name
-    ///     range and movement on every line, without joining the emit key.
+    ///     range and movement on every line, without joining the emit key. <c>dg</c> (1.0.4.288) is the board's difficulty degree
+    ///     (0 Standard, 1 First, 2 Second, 3 Third, x while LazyCrucible has not published it), also outside the emit key.
     ///     <c>bt</c> is -1 when no panel enemy is present; <c>c=0:0.0</c> when the target is not casting.
     /// </summary>
     internal static string BuildLine(long unixMs, in Snapshot s)
@@ -159,7 +160,8 @@ internal static class CrucibleTelemetryFormat
           .Append("|d=");
         if (s.TargetEdgeDistance >= 0f)
             sb.Append(Math.Min(99f, s.TargetEdgeDistance).ToString("0.0", inv));
-        sb.Append("|mv=").Append(Math.Min(99f, Math.Max(0f, s.MoveSpeed)).ToString("0.0", inv));
+        sb.Append("|mv=").Append(Math.Min(99f, Math.Max(0f, s.MoveSpeed)).ToString("0.0", inv))
+          .Append("|dg=").Append(s.Degree is >= 0 and <= 3 ? (char)('0' + s.Degree) : 'x');
 
         if (sb.Length > MaxLineLength)
             sb.Length = MaxLineLength;

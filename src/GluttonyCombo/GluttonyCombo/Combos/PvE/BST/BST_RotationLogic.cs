@@ -949,6 +949,12 @@ internal static class BST_RotationLogic
                 declines.Add("crucible:exit-target-unsafe");
                 return 0;
             }
+            // The familiar holds the enemy and a tankbuster it can take is on its way: the recall would hand the hit to the character.
+            if (BST_CrucibleLogic.RecallWouldHandBackTankbuster(s))
+            {
+                declines.Add("crucible:exit-tankbuster-up");
+                return 0;
+            }
         }
 
         // AoE preset, opt-in: Aetheric Burst (the AoE Parting Blow) only when enough enemies stand in its

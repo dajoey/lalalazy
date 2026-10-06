@@ -4,6 +4,7 @@ using Dalamud.Hooking;
 using ECommons.DalamudServices;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
+using LazyCrucible.Policy;
 
 namespace LazyCrucible;
 
@@ -53,6 +54,14 @@ internal static unsafe class AgentProbe
     private static readonly Dictionary<nint, ProbeHook> Hooks = [];
     private static readonly Dictionary<nint, string> TagByAgent = [];
     private static bool _active;
+
+    /// <summary>
+    ///     The board's degree as the layout last set it (<see cref="DegreeLatch"/>), published to GluttonyCombo over IPC by <c>Plugin</c>. Fed
+    ///     from the same latch point as the familiar selection, never behind the log breaker. Forgotten when the hooks come down (nothing
+    ///     is watching the layout then, so a later change would go unseen).
+    /// </summary>
+    internal static readonly DegreeLatch Degree = new();
+
     private static string _lastKey = "";
     private static long _lastKeyMs;
     private static int _repeats;
@@ -111,6 +120,7 @@ internal static unsafe class AgentProbe
     public static void Teardown()
     {
         _active = false;
+        Degree.Reset();
         // Stop new calls, let the ones already inside a detour finish, only then dispose and null.
         foreach (var probe in Hooks.Values)
         {
@@ -153,6 +163,9 @@ internal static unsafe class AgentProbe
             int? firstInt = values is not null && valueCount > 0 && values[0].Type == AtkValueType.Int ? values[0].Int : null;
             PetSelect.OnAgentEvent(tag, eventKind, valueCount, firstInt);
             SelectionScreens.OnAgentEvent(tag, eventKind, valueCount, firstInt);
+            if (tag == "XBMStageDetailList" && valueCount == 2 && values is not null && Degree.Note(
+                    eventKind, valueCount, firstInt, values[1].Type == AtkValueType.Int ? values[1].Int : null))
+                CrucibleLog.Line($"PS|{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}|note=degree|dg={Degree.Value}|via={via}|calls=0");
         }
         catch (Exception ex)
         {

@@ -189,6 +189,35 @@ internal partial class BST
             $"DS|{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}|enemy={_dispelEnemyName}|st={string.Join(',', DispelStatuses)}|futile={string.Join(',', futile)}");
     }
 
+    private static long _degreeNextPollMs;
+    private static int _degreeRead = CrucibleDegree.Unknown;
+
+    /// <summary>
+    ///     The board's difficulty degree, from LazyCrucible's IPC (<see cref="CrucibleDegree.IpcName"/>): once a second while a Crucible board is
+    ///     under the character, every five seconds while the plugin is not answering (not installed, or no degree seen yet), so a missing
+    ///     LazyCrucible costs one caught exception per five seconds. Unread stays "unknown": the rules then keep the conservative reading
+    ///     (<see cref="CrucibleDegree.CoverMargin"/>).
+    /// </summary>
+    private static void ReadDegree(ref BST_RotationLogic.BstState s)
+    {
+        var now = Environment.TickCount64;
+        if (now >= _degreeNextPollMs)
+        {
+            try
+            {
+                _degreeRead = Svc.PluginInterface.GetIpcSubscriber<int>(CrucibleDegree.IpcName).InvokeFunc();
+            }
+            catch
+            {
+                _degreeRead = CrucibleDegree.Unknown;
+            }
+            _degreeNextPollMs = now + (CrucibleDegree.IsDegree(_degreeRead) ? 1000 : 5000);
+        }
+
+        s.CrucibleDegreeKnown = CrucibleDegree.IsDegree(_degreeRead);
+        s.CrucibleDegreeLevel = s.CrucibleDegreeKnown ? _degreeRead : 0;
+    }
+
     internal static unsafe void ReadCrucible(ref BST_RotationLogic.BstState s)
     {
         var territory = Svc.ClientState.TerritoryType;
@@ -220,6 +249,7 @@ internal partial class BST
         if (s.CrucibleBoard == 0 || LocalPlayer is not { } player)
             return;
 
+        ReadDegree(ref s);
         var now = Environment.TickCount64;
         var target = s.HasHostileTarget ? CurrentTarget as IBattleChara : null;
 

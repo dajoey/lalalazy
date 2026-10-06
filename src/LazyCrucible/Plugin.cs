@@ -38,6 +38,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly GuideWindow _guideWindow;
     private readonly ChangelogGate _changelog;
     private readonly LalaHubProvider? _hub;
+    private Dalamud.Plugin.Ipc.ICallGateProvider<int>? _degreeIpc;
     private readonly DalamudTelemetry? _telemetry;
     // Circuit breakers (src/Shared/LalaTelemetry): a handler that keeps throwing is skipped after repeated
     // failures (one ER|trip line + one chat notice) and retries on its own, 30 s doubling to 5 min.
@@ -128,6 +129,18 @@ public sealed class Plugin : IDalamudPlugin
         // constructor that threw, so a half-built plugin must not leave its endpoints registered. Never throws; null when
         // nothing was registered.
         _hub = LalaHubProvider.TryCreate(pi, PluginLog, "LazyCrucible", typeof(Plugin).Assembly.GetName().Version?.ToString() ?? "", ep => HubAdapter.Declare(ep));
+
+        // The board's degree for GluttonyCombo's Crucible rules (src/Shared/LalaCrucible/BST_CrucibleDegree.cs): 0 Standard .. 3 Third, -1 until seen.
+        try
+        {
+            _degreeIpc = pi.GetIpcProvider<int>(Lalalazy.Crucible.CrucibleDegree.IpcName);
+            _degreeIpc.RegisterFunc(() => AgentProbe.Degree.Value);
+        }
+        catch (Exception ex)
+        {
+            _degreeIpc = null;
+            CrucibleLog.Error(ex, "degree ipc");
+        }
     }
 
     private void OnFrameworkUpdate(IFramework framework)
@@ -328,6 +341,14 @@ public sealed class Plugin : IDalamudPlugin
     public void Dispose()
     {
         _hub?.Dispose();   // first: a provider must never outlive its plugin
+        try
+        {
+            _degreeIpc?.UnregisterFunc();
+        }
+        catch
+        {
+            // ignored: unload path
+        }
         Framework.Update -= OnFrameworkUpdate;
         AgentProbe.Teardown();
         ScreenRecorder.Stop();
