@@ -327,5 +327,6 @@ internal static class Program {
         // Icon: unsheathed while running, sheathed while stopped (the sibling entries' pair).
         Check("the entry shows the boss FATE icon while running", FateDtrLogic.IconGlyph == FateDtrIcon.FateBoss);
         Check("the entry shows the same boss FATE icon while stopped - the state lives in the text, no icon pair", FateDtrLogic.IconGlyph == FateDtrIcon.FateBoss);
+        Check("the boss glyph carries Dalamud's BitmapFontIcon.FateBoss value 90, not a None cast", (int)FateDtrLogic.IconGlyph == 90);
     }
 }

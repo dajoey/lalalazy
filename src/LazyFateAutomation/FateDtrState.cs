@@ -76,5 +76,7 @@ internal static class FateDtrLogic {
 /// <summary>The DTR entry's icon glyphs, named so the pure layer can pin them without Dalamud types.</summary>
 public enum FateDtrIcon
 {
-    FateBoss,
+    /// <summary>Dalamud's BitmapFontIcon.FateBoss ("The boss type Fate icon") — its backing value is
+    /// pinned here so the int cast in FateDtr stays the boss glyph instead of decaying to None.</summary>
+    FateBoss = 90,
 }
