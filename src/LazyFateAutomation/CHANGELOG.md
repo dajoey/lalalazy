@@ -1,5 +1,13 @@
 # Changelog - Lazy Fate Automation
 
+## v0.0.3.5 (2026-10-05) [testing]
+### Added
+- **Server info bar (Umbra) toggle for the FATE bot.** The plugin adds a "Lazy Fate Automation" entry to the game's server info bar, which Umbra renders as a button. It shows the bot state with the sibling entries' sword icon: On, Off, "(stopping)" while a soft stop is pending, or the live state such as "Paused (in instance)". Clicking it stops the bot (Ctrl+click waits for the current FATE to finish, like the window's soft stop); when stopped, the first click arms the start and a second click within 10 seconds confirms it, so a stray click cannot start the automation. Starting still requires a logged-in character, exactly like the Lazy Hub switch.
+- New display setting "Show server info bar entry" (on by default) hides or shows the entry; it can also be hidden per-plugin in Umbra or under /xlsettings -> Server Info Bar.
+### Notes
+- Testing channel only; the production channel is unchanged.
+- The Lazy Hub quick controls, the snapshot endpoint and all other behavior are unchanged.
+
 ## v0.0.3.4 (2026-10-05) [testing]
 ### Fixed
 - **The currency-focus fallback setting now takes effect.** In the previous version both fallback options kept rotating the focused zones identically. Zone swaps now first pass through every focused zone; once a full pass finds no FATE to run, "Continue normally" (default) resumes the usual zone rotation (achievement-guided / same expansion), while "Idle in zone" stays put and waits for focused-currency FATEs instead of grinding other FATEs.
