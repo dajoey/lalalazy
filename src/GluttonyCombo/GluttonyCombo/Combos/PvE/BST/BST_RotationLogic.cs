@@ -269,6 +269,8 @@ internal static class BST_RotationLogic
         // Crucible of the Unbroken (BST_CrucibleLogic). Everything stays default outside: CrucibleBoard 0.
         public int CrucibleBoard;                 // 1-5 from the territory, 0 = not in the Crucible
         public int CrucibleBattle;                // panel battle matched from the enemies present, -1 = none
+        public bool CrucibleDegreeKnown;          // LazyCrucible has published the board's degree since this plugin loaded
+        public int CrucibleDegreeLevel;           // 0 Standard, 1 First, 2 Second, 3 Third; read only when CrucibleDegreeKnown (a default state is 'unknown', never Standard)
         public CrucibleNeeds CrucibleNeeds;       // what that battle's panel casts call for
         public int EnemyCount;                    // hostile, targetable, alive
         public float HighestEnemyHpPercent;       // across those enemies

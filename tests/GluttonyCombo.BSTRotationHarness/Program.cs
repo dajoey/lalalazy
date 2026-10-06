@@ -49,6 +49,7 @@ internal static class Program
         FallbackCandidates();
         LearnedFromTheRuns();
         TankbusterSnarlOnly();
+        CrucibleDegreeAware();
 
         SimulateAllLevels(verbose);
         SimulateCrucible(verbose);
@@ -2838,6 +2839,95 @@ internal static class Program
             Decide(low, on).Reason == "aggro:snarl-tankbuster", $"{Decide(low, on).ActionId}/{Decide(low, on).Reason}");
         var noCover = low with { ReadySnarl = false };
         Check("... no Snarl ready: the potion guard still fires", Decide(noCover, on).Reason == "crucible:raidwide-guard", Decide(noCover, on).Reason);
+    }
+
+    // The plugin did not know which degree the board was on (task tasks-20261006-crucible-degree-aware-tankbuster-cover-01). First Degree hits
+    // 1.5-2.0x harder than the Standard runs every recorded number comes from (ffxivdb action_events, First Master's Board, 10-02/03 Standard
+    // against 10-05/06 First Degree): Evisceration on a familiar max 2,616 -> 3,892, on the character max 1,254 -> 2,152, Grim Fate 194 -> 325 a
+    // hit, Rotten Stench 943 -> 1,579. 1.0.4.287 therefore covered a cast only where a familiar held TWICE the recorded hit, which at Standard
+    // gives up covers that worked, and the heavy-cast guard lines (recorded at Standard) fired too late at First. LazyCrucible reads the degree
+    // from the board layout's set-degree event and publishes it; the state carries CrucibleDegreeKnown / CrucibleDegreeLevel (a default state
+    // is "unknown", never Standard).
+    private static void CrucibleDegreeAware()
+    {
+        Console.WriteLine("-- crucible degree: the cover Snarl and the heavy-cast guards scale with the board's degree --");
+        var cfg = BstSettings.Defaults();
+        var on = cfg with { CrucibleAggro = CrucibleAggroMode.On };
+        const uint evisceration = 48717, grimFate = 48730, obliterate = 50649;
+        BstState At(BstState s, int degree) => s with { CrucibleDegreeKnown = true, CrucibleDegreeLevel = degree };
+
+        // 11:11:09.6 on 2026-10-06: Sweeping Evisceration starts, the character holds the enemy, a 3,492 HP Diremite at 100%, Snarl ready.
+        var start = CrucibleState() with
+        {
+            CrucibleBoard = 4, CrucibleBattle = 5, TargetCastId = evisceration, TargetCastRemaining = 7.6f,
+            ReadySnarl = true, ReadyParting = true, PetHp = 3492f, PetHpPercent = 100f, PlayerHp = 5240f, PlayerHpPercent = 93f,
+            EnemyTargetsPlayer = true, EnemyTargetsPet = false,
+        };
+        Check("a default state does not know the degree", !start.CrucibleDegreeKnown);
+        Check("First Degree, Evisceration, a 3,492 HP familiar: no cover Snarl (it took 3,300-3,900 and fell in 11 of 15 casts)",
+            Decide(At(start, CrucibleDegree.First), on).Reason != "aggro:snarl-tankbuster", Decide(At(start, CrucibleDegree.First), on).Reason);
+        Check("Standard, the same cast and familiar: the cover Snarl goes in (Standard put 1,224-2,616 on a familiar)",
+            Decide(At(start, CrucibleDegree.Standard), on) is { ActionId: BST.Snarl, Reason: "aggro:snarl-tankbuster" }, $"{Decide(At(start, CrucibleDegree.Standard), on).ActionId}/{Decide(At(start, CrucibleDegree.Standard), on).Reason}");
+        Check("degree unknown: 1.0.4.287's margin stays (twice the recorded 2,021 is more than 3,492: no cover)",
+            Decide(start, on).Reason != "aggro:snarl-tankbuster", Decide(start, on).Reason);
+        Check("Second Degree (unmeasured): no cover", Decide(At(start, CrucibleDegree.Second), on).Reason != "aggro:snarl-tankbuster");
+        Check("Third Degree (unmeasured): no cover", Decide(At(start, CrucibleDegree.Third), on).Reason != "aggro:snarl-tankbuster");
+
+        // The margin at Standard is 1.25 x the recorded hit on a familiar (2,021 -> 2,526): a 2,400 HP familiar is not covered, a 2,600 one is.
+        Check("Standard, a 2,400 HP familiar (under 1.25 x 2,021): no cover",
+            Decide(At(start with { PetHp = 2400f, PetHpPercent = 70f }, CrucibleDegree.Standard), on).Reason != "aggro:snarl-tankbuster");
+        Check("Standard, a 2,600 HP familiar (over 1.25 x 2,021): the cover Snarl goes in",
+            Decide(At(start with { PetHp = 2600f, PetHpPercent = 75f }, CrucibleDegree.Standard), on).Reason == "aggro:snarl-tankbuster");
+
+        // First Degree prices a familiar's hit at twice the recorded one, with the 1.25 margin: Obliterate (1,112 recorded) needs 2,780 HP,
+        // Grim Fate (five hits of 212) needs 2,650.
+        var golem = start with { CrucibleBattle = 7, TargetCastId = obliterate, TargetCastRemaining = 4.7f };
+        Check("First Degree, Obliterate, a 3,492 HP familiar: the cover Snarl goes in", Decide(At(golem, CrucibleDegree.First), on).Reason == "aggro:snarl-tankbuster");
+        Check("First Degree, Obliterate, a 2,700 HP familiar (under 2 x 1.25 x 1,112): no cover",
+            Decide(At(golem with { PetHp = 2700f, PetHpPercent = 77f }, CrucibleDegree.First), on).Reason != "aggro:snarl-tankbuster");
+        var grim = start with { TargetCastId = grimFate, TargetCastRemaining = 4.7f };
+        Check("First Degree, Grim Fate, a 3,492 HP familiar: the cover Snarl goes in", Decide(At(grim, CrucibleDegree.First), on).Reason == "aggro:snarl-tankbuster");
+        Check("First Degree, Grim Fate, a 2,500 HP familiar (1,060 recorded x 2 = 2,120, the margin wants 2,650): no cover",
+            Decide(At(grim with { PetHp = 2500f, PetHpPercent = 72f }, CrucibleDegree.First), on).Reason != "aggro:snarl-tankbuster");
+        Check("Standard, Grim Fate, a 1,400 HP familiar (5 x 212 x 1.25 = 1,325): the cover Snarl goes in",
+            Decide(At(grim with { PetHp = 1400f, PetHpPercent = 40f }, CrucibleDegree.Standard), on).Reason == "aggro:snarl-tankbuster");
+
+        // A character already under the scaled hit is covered whatever the familiar's HP: at First Degree the 1,225 recorded is 2,144.
+        var dying = start with { PetHp = 1500f, PetHpPercent = 60f, PlayerHp = 2000f, PlayerHpPercent = 50f };
+        Check("First Degree, the character at 2,000 HP (under 1.75 x 1,225), a 1,500 HP familiar: the Snarl goes in anyway",
+            Decide(At(dying, CrucibleDegree.First), on) is { ActionId: BST.Snarl, Reason: "aggro:snarl-tankbuster" }, $"{Decide(At(dying, CrucibleDegree.First), on).ActionId}/{Decide(At(dying, CrucibleDegree.First), on).Reason}");
+        Check("Standard, the character at 2,000 HP (over the 1,225 recorded) and a 1,500 HP familiar: no Snarl",
+            Decide(At(dying, CrucibleDegree.Standard), on).Reason != "aggro:snarl-tankbuster");
+
+        // The heavy-cast guard lines were recorded at Standard. Rotten Stench (Corpse Flower, 48690, hits the character and the familiar together,
+        // 773 recorded, 1,579 at First Degree): a 1,100 HP character is over the Standard line and under the First Degree one.
+        var stench = CrucibleState() with
+        {
+            InCombat = true, CrucibleBoard = 4, CrucibleBattle = 3, TargetCastId = 48690, TargetCastRemaining = 3f,
+            PlayerHp = 1100f, PlayerHpPercent = 20f, ReadyHealPotion = 46961, EnemyTargetsPet = true, EnemyTargetsPlayer = false,
+        };
+        Check("Rotten Stench, 1,100 HP, degree unknown: over the recorded 773, no guard", Decide(stench, cfg).Reason != "crucible:raidwide-guard");
+        Check("Rotten Stench, 1,100 HP, Standard: no guard", Decide(At(stench, CrucibleDegree.Standard), cfg).Reason != "crucible:raidwide-guard");
+        Check("Rotten Stench, 1,100 HP, First Degree (the hit is up to 1,579): the potion",
+            Decide(At(stench, CrucibleDegree.First), cfg) is { ActionId: 46961, Reason: "crucible:raidwide-guard" }, Decide(At(stench, CrucibleDegree.First), cfg).Reason);
+        Check("Rotten Stench, 1,500 HP, First Degree (over 1.75 x 773 = 1,353): no guard",
+            Decide(At(stench with { PlayerHp = 1500f, PlayerHpPercent = 28f }, CrucibleDegree.First), cfg).Reason != "crucible:raidwide-guard");
+        Check("Rotten Stench, 1,100 HP, Second Degree (at least First's scale): the potion",
+            Decide(At(stench, CrucibleDegree.Second), cfg) is { ActionId: 46961, Reason: "crucible:raidwide-guard" });
+        Check("Atomic Ray at 6,000 HP: no guard unknown / Standard, the guard at First Degree (4,782 x 1.75)",
+            Decide(CrucibleState() with { InCombat = true, TargetCastId = 49272, TargetCastRemaining = 8f, PlayerHp = 6000f, PlayerHpPercent = 75f, ReadyHealPotion = 46961 }, cfg).Reason != "crucible:raidwide-guard"
+            && Decide(At(CrucibleState() with { InCombat = true, TargetCastId = 49272, TargetCastRemaining = 8f, PlayerHp = 6000f, PlayerHpPercent = 75f, ReadyHealPotion = 46961 }, CrucibleDegree.Standard), cfg).Reason != "crucible:raidwide-guard"
+            && Decide(At(CrucibleState() with { InCombat = true, TargetCastId = 49272, TargetCastRemaining = 8f, PlayerHp = 6000f, PlayerHpPercent = 75f, ReadyHealPotion = 46961 }, CrucibleDegree.First), cfg).Reason == "crucible:raidwide-guard");
+
+        // The shared parser and scales.
+        Check("layout event 2, 1 reads First", CrucibleDegree.FromStageDetailEvent(0, 2, 2, 1) == CrucibleDegree.First);
+        Check("layout event 2, 0 reads Standard", CrucibleDegree.FromStageDetailEvent(0, 2, 2, 0) == CrucibleDegree.Standard);
+        Check("layout event 2, 3 reads Third", CrucibleDegree.FromStageDetailEvent(0, 2, 2, 3) == CrucibleDegree.Third);
+        Check("layout events that are not the set-degree event read nothing",
+            CrucibleDegree.FromStageDetailEvent(0, 1, 8, null) == CrucibleDegree.Unknown && CrucibleDegree.FromStageDetailEvent(1, 1, 0, null) == CrucibleDegree.Unknown
+            && CrucibleDegree.FromStageDetailEvent(0, 2, 5, 1) == CrucibleDegree.Unknown && CrucibleDegree.FromStageDetailEvent(0, 2, 2, 4) == CrucibleDegree.Unknown
+            && CrucibleDegree.FromStageDetailEvent(0, 2, 2, -1) == CrucibleDegree.Unknown && CrucibleDegree.FromStageDetailEvent(0, 2, 2, null) == CrucibleDegree.Unknown
+            && CrucibleDegree.FromStageDetailEvent(1, 2, 2, 1) == CrucibleDegree.Unknown);
     }
 
     // ================================================================== helpers

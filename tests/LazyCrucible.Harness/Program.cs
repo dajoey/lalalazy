@@ -33,6 +33,7 @@ internal static class Program
         ResearchBehaviorCases.Run();
         FightWarningCases.Run();
         AutoDutyWatchCases.Run();
+        DegreeLatchCases.Run();
         AutoDutyNeedFixCases.Run();
         AutoDutyReArmCases.Run();
 

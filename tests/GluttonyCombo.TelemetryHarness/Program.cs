@@ -393,7 +393,7 @@ internal static class Program
 
         var line = CrucibleTelemetryFormat.BuildLine(1_788_904_962_577, snap);
         Check("CR| exact line shape",
-            line == "CR|1788904962577|b=1|bt=1|nd=ID|ne=2|hi=87|t=14531:64|c=46871:3.2|f=Sysi|hp=92|pet=40|sl=40.0.0|dec=1000004:crucible:hold-stance|sh=aggro:snarl-parry|ttd=0|in=0|vul=0|xp=0|d=|mv=0.0",
+            line == "CR|1788904962577|b=1|bt=1|nd=ID|ne=2|hi=87|t=14531:64|c=46871:3.2|f=Sysi|hp=92|pet=40|sl=40.0.0|dec=1000004:crucible:hold-stance|sh=aggro:snarl-parry|ttd=0|in=0|vul=0|xp=0|d=|mv=0.0|dg=x",
             line);
         Check("CR| trend fields render", CrucibleTelemetryFormat.BuildLine(1, snap with { TimeToDeath = 12.4f, IntakePerSecond = 350, VulnerabilityRemaining = 8.6f, PartyHpVerified = true })
             .Contains("|ttd=12|in=350|vul=9|xp=1|"));
@@ -407,15 +407,23 @@ internal static class Program
         // The idle-time fields (1.0.4.266): the edge distance to the target and the character's own speed name
         // why the rotation was not attacking, on the lines that are already emitted for other changes.
         Check("CR| edge distance to the target renders",
-            CrucibleTelemetryFormat.BuildLine(1, snap with { TargetEdgeDistance = 1.94f }).EndsWith("|xp=0|d=1.9|mv=0.0"));
+            CrucibleTelemetryFormat.BuildLine(1, snap with { TargetEdgeDistance = 1.94f }).EndsWith("|xp=0|d=1.9|mv=0.0|dg=x"));
         Check("CR| own movement speed renders",
             CrucibleTelemetryFormat.BuildLine(1, snap with { MoveSpeed = 6.16f }).Contains("|d=|mv=6.2"));
         Check("CR| an out-of-range edge distance is clamped, never negative",
             !CrucibleTelemetryFormat.BuildLine(1, snap with { TargetEdgeDistance = 140f }).Contains("d=140"));
+
+        // The board's degree (1.0.4.288): dg= names it on every line (0 Standard .. 3 Third, x when the plugin has not seen it set), so a run
+        // can be graded against the hit sizes its degree puts on the character and the familiars.
+        Check("CR| dg= renders each degree", new[] { 0, 1, 2, 3 }.All(d => CrucibleTelemetryFormat.BuildLine(1, snap with { Degree = d }).EndsWith($"|mv=0.0|dg={d}")));
+        Check("CR| dg= is x when the degree is unread (the default)", CrucibleTelemetryFormat.BuildLine(1, snap).EndsWith("|dg=x")
+            && CrucibleTelemetryFormat.BuildLine(1, snap with { Degree = -1 }).EndsWith("|dg=x") && CrucibleTelemetryFormat.BuildLine(1, snap with { Degree = 9 }).EndsWith("|dg=x"));
         var moving = new CrucibleTelemetryFormat.GateState();
         Check("CR| speed gate: first snapshot emits", CrucibleTelemetryFormat.ShouldEmit(ref moving, 1_000, snap));
         Check("CR| d= and mv= never join the emit key (speed alone must not flood lines)",
             !CrucibleTelemetryFormat.ShouldEmit(ref moving, 2_000, snap with { TargetEdgeDistance = 4.2f, MoveSpeed = 7.7f }));
+        Check("CR| dg= never joins the emit key (a degree read mid-board must not add a line)",
+            !CrucibleTelemetryFormat.ShouldEmit(ref moving, 3_000, snap with { Degree = 1 }));
 
         var gate = new CrucibleTelemetryFormat.GateState();
         long t = 1_000;
