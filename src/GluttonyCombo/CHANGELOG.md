@@ -1,3 +1,7 @@
+## v1.0.4.286 (2026-10-06) [testing]
+### Added
+- **Ninja single-target mode: the ninjutsu block can start Doton when exactly two enemies are in range of the target.** A new toggle under the single-target ninjutsu options, with an HP-percentage slider (default 40), casts Doton while the current target sits above the threshold and the target is standing still; at one enemy or at three or more the single-target nuke (Raiton) is unchanged, so the area mode keeps owning three-plus targets. Before, single-target mode never offered Doton at any enemy count and kept pressing Raiton through two-enemy pulls.
+
 ## v1.0.4.285 (2026-10-05) [testing]
 ### Fixed
 - **Beastmaster in the Crucible of the Unbroken: the Forward Guard recall no longer leaves the character with no familiar and no way to turn the Bone Knight.** The familiar is recalled with Parting Blow before the Knight's guard lands only when a horn is ready to bring a familiar back. With every horn locked it stays out, because only a familiar's Snarl turns the Knight so it can be hit from behind; the declined recall is logged as `crucible:petsave-guard-no-resummon-horn`. Before, the recall fired regardless: a healthy familiar was sent away with all three horns locked, and the guard then stood until the board's Bleeding penalty ended the run (reproduced from a Second Degree run of the First Board; the same sequence happened on an earlier run).

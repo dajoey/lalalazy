@@ -22,6 +22,7 @@ internal partial class NIN
             NIN_ST_AdvancedMode_TrickAttack_Threshold = new("NIN_ST_AdvancedMode_TrickAttack_Threshold", 40),
             NIN_ST_AdvancedMode_TrickAttack_SubOption = new("NIN_ST_AdvancedMode_TrickAttack_SubOption", 0),
             NIN_ST_AdvancedMode_Ninjitsus_Suiton_Setup = new("NIN_ST_AdvancedMode_Ninjitsus_Suiton_Setup", 18),
+            NIN_ST_AdvancedMode_Ninjitsus_Doton_Threshold = new("NIN_ST_AdvancedMode_Ninjitsus_Doton_Threshold", 40),
             NIN_AoE_AdvancedMode_SecondWindThreshold = new("NIN_AoE_AdvancedMode_SecondWindThreshold", 40),
             NIN_AoE_AdvancedMode_Ninjitsus_Huton_Setup = new("NIN_AoE_AdvancedMode_Ninjitsus_Huton_Setup", 18),
             NIN_AoE_AdvancedMode_Ninjitsus_Doton_Threshold = new("NIN_AoE_AdvancedMode_Ninjitsus_Doton_Threshold", 40),
@@ -124,6 +125,11 @@ internal partial class NIN
                 case Preset.NIN_ST_AdvancedMode_Ninjitsus_Suiton:
                     DrawSliderInt(0, 21, NIN_ST_AdvancedMode_Ninjitsus_Suiton_Setup,
                         "Set the amount of time remaining on Trick Attack cooldown before trying to set up with Suiton.");
+                    break;
+
+                case Preset.NIN_ST_AdvancedMode_Ninjitsus_Doton:
+                    DrawSliderInt(0, 100, NIN_ST_AdvancedMode_Ninjitsus_Doton_Threshold,
+                        "Sets the max remaining HP percentage of the current target to cast Doton.");
                     break;
 
                 case Preset.NIN_ST_AdvancedMode_TenChiJin:

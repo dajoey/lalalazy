@@ -79,11 +79,42 @@ internal static class Program
         CheckCanary($"CANARY (expected to FAIL): identical 2-enemy state, asserting Invoke(SpinningEdge) " +
                     $"does NOT return Hellfrog Medium", got2 != Nin.HellfrogMedium, $"returned {got2}");
 
+        // ---- NIN-3: Doton from the ST preset at exactly 2 enemies (red-first 2026-10-06) ----
+        // Desired: the ST ninjutsu block starts the Doton mudra (Jin -> Ten -> Chi) when exactly 2
+        // enemies stand inside Doton's effect range of the target, Doton learned/ready/not down,
+        // the 3s stillness gate met, and the target above the preset's HP threshold. Before the
+        // fix the ST block has no Doton clause and keeps pressing Raiton. Negatives: at 1 enemy
+        // and at 3+ enemies the ST nuke (Raiton) is unchanged — 3+ belongs to the AoE preset.
+        SetDotonState(2);
+        Console.WriteLine($"case state: Ninki={FakeGauges.Get<NINGauge>().Ninki}, " +
+                          $"enemiesInRange(Doton)={FakeGame.NumberOfEnemiesInRange(Nin.Doton)}, " +
+                          $"HP%={FakeGame.TargetHPPercent}, still={FakeGame.TimeStoodStill.TotalSeconds}s, " +
+                          $"TenReady={FakeGame.Cooldown(Nin.Ten).IsCooldown == false}, " +
+                          $"KunaisBaneOnTarget={FakeGame.CurrentTarget.HasStatus(Nin.Debuffs.KunaisBane)}");
+        uint gotDoton = new Nin.NIN_ST_AdvancedMode().RunInvoke(Nin.SpinningEdge);
+        Check($"NIN-3: 2 enemies in Doton range + Doton ready (standing still, Ten ready, HP above threshold): " +
+              $"Invoke(SpinningEdge) starts the Doton mudra ({Nin.Jin}), not Raiton's ({Nin.Ten})",
+            gotDoton == Nin.Jin, $"returned {gotDoton}");
+
+        SetDotonState(1);
+        uint gotDoton1 = new Nin.NIN_ST_AdvancedMode().RunInvoke(Nin.SpinningEdge);
+        Check($"NIN-3 negative: 1 enemy in Doton range, same state: " +
+              $"Invoke(SpinningEdge) still presses Raiton's mudra ({Nin.Ten}), never Doton",
+            gotDoton1 == Nin.Ten, $"returned {gotDoton1}");
+
+        SetDotonState(3);
+        uint gotDoton3 = new Nin.NIN_ST_AdvancedMode().RunInvoke(Nin.SpinningEdge);
+        Check($"NIN-3 negative: 3 enemies in Doton range, same state: " +
+              $"Invoke(SpinningEdge) still presses Raiton's mudra ({Nin.Ten}); 3+ belongs to the AoE preset",
+            gotDoton3 == Nin.Ten, $"returned {gotDoton3}");
+
         Console.WriteLine(_fail == 0
             ? $"OK ({_pass} checks, canary failed as expected)"
             : $"FAILED ({_fail} of {_pass + _fail})");
         return _fail == 0 ? 0 : 1;
     }
+
+
 
     /// <summary>
     ///     The exact state of the NIN-2 row: Ninki 50, Kunai's Bane on the target, weave open, every
@@ -140,6 +171,58 @@ internal static class Program
         // the state under test: how many enemies stand inside Hellfrog Medium's range
         FakeGame.EnemyCountsByAction[Nin.HellfrogMedium] = hellfrogEnemies;
     }
+
+    /// <summary>
+    ///     The NIN-3 state: level-100 Ninja mid-fight on a living target, Ten (mudra) ready, standing
+    ///     still past Doton's 3s stillness gate, Doton learned, not down and not ticking, Kunai's Bane
+    ///     on the target (the buff window Doton pools for), every oGCD that outranks the ninjutsu
+    ///     block on cooldown or declining, and <paramref name="dotonEnemies"/> enemies inside Doton's
+    ///     effect range of the target. Ninki stays 0 so the Ninki spenders (Meisui/Bhavacakra, the
+    ///     latter also not enabled, as in Joey's config) decline and Invoke reaches the ninjutsu
+    ///     block. LegSweep is spent so the StunInterupt clause cannot return first.
+    /// </summary>
+    private static void SetDotonState(int dotonEnemies)
+    {
+        FakeGame.Reset();
+
+        FakeGame.CanWeave = true;
+        FakeGame.LastAction = Nin.SpinningEdge;    // out of any mudra; MudraPhase false
+        FakeGame.TimeStoodStill = TimeSpan.FromSeconds(4); // Doton's 3s stillness gate (config fake default)
+        FakeGame.LegSweepReady = false;            // stun spent earlier; keeps StunInterupt declining
+
+        // the presets for this state: the full ST ninjutsu family + the new Doton toggle, plus the
+        // oGCD toggles whose cooldowns (not absence) keep them declining, as in Joey's config
+        foreach (var p in new[]
+                 {
+                     NinPreset.NIN_ST_AdvancedMode,
+                     NinPreset.NIN_ST_AdvancedMode_TenriJindo,
+                     NinPreset.NIN_ST_AdvancedMode_Mug,
+                     NinPreset.NIN_ST_AdvancedMode_TrickAttack,
+                     NinPreset.NIN_ST_AdvancedMode_StunInterupt,
+                     NinPreset.NIN_ST_AdvancedMode_Ninjitsus,
+                     NinPreset.NIN_ST_AdvancedMode_Ninjitsus_Hyosho,
+                     NinPreset.NIN_ST_AdvancedMode_Ninjitsus_Suiton,
+                     NinPreset.NIN_ST_AdvancedMode_Ninjitsus_Raiton,
+                     NinPreset.NIN_ST_AdvancedMode_Ninjitsus_Doton,
+                 })
+            FakeGame.EnabledPresets.Add(p);
+
+        // the buff window Doton pools for rides the target (TrickDebuff -> true)
+        FakeGame.CurrentTarget.Statuses.Add(new FakeStatus(Nin.Debuffs.KunaisBane, 12f));
+
+        // every oGCD that outranks the ninjutsu block is on cooldown (spent earlier this window);
+        // TrickAttack's cooldown also keeps the Suiton setup clause declining (55s > 18s setup)
+        FakeGame.PutOnCooldown(Nin.Kassatsu, 50f);
+        FakeGame.PutOnCooldown(Nin.TenChiJin, 50f);
+        FakeGame.PutOnCooldown(Nin.Assassinate, 50f);
+        FakeGame.PutOnCooldown(Nin.TrickAttack, 55f);
+        FakeGame.PutOnCooldown(Nin.Mug, 55f);
+
+        // the state under test: enemies inside Doton's effect range of the target
+        FakeGame.EnemyCountsByAction[Nin.Doton] = dotonEnemies;
+    }
+
+
 
     private static void Check(string desc, bool ok, string detail = "")
     {

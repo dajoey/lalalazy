@@ -4773,6 +4773,10 @@ public enum Preset
     [JobInfo(Job.NIN)]
     NIN_ST_AdvancedMode_Ninjitsus_Hyosho = 10053,
 
+    [ParentCombo(NIN_ST_AdvancedMode_Ninjitsus)]
+    [JobInfo(Job.NIN)]
+    NIN_ST_AdvancedMode_Ninjitsus_Doton = 10057,
+
     [ParentCombo(NIN_ST_AdvancedMode)]
     [JobInfo(Job.NIN)]
     NIN_ST_AdvancedMode_TrickAttack = 10006,

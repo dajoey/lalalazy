@@ -355,6 +355,9 @@ internal partial class NIN : Melee
                     CanUseHyoshoRanryu && MudraState.CastHyoshoRanryu(ref actionID) ||
                     IsEnabled(Preset.NIN_ST_AdvancedMode_Ninjitsus_Suiton) &&
                     CanUseSuiton && TrickCD <= NIN_ST_AdvancedMode_Ninjitsus_Suiton_Setup && MudraState.CastSuiton(ref actionID) ||
+                    IsEnabled(Preset.NIN_ST_AdvancedMode_Ninjitsus_Doton) &&
+                    CanUseDoton && NumberOfEnemiesInRange(Doton, CurrentTarget) == 2 &&
+                    GetTargetHPPercent() >= NIN_ST_AdvancedMode_Ninjitsus_Doton_Threshold && MudraState.CastDoton(ref actionID) ||
                     IsEnabled(Preset.NIN_ST_AdvancedMode_Ninjitsus_Raiton) &&
                     CanUseRaiton && MudraState.CastRaiton(ref actionID) ||
                     IsEnabled(Preset.NIN_ST_AdvancedMode_Ninjitsus_Raiton) &&
