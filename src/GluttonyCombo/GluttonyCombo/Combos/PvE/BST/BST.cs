@@ -255,6 +255,7 @@ internal partial class BST : Melee
             SinceTrick = SinceUsed(Trick),
             SinceTempered = Math.Min(SinceUsed(TemperedRelease), SinceUsed(TemperedReleaseTargeted)),
             SinceBorrow = SinceUsed(Borrow),
+            SincePartingBlow = SinceUsed(PartingBlow),
             TemperedRecastRemaining = GetCooldownRemainingTime(TemperedRelease),
 
             LastComboAction = ComboAction,

@@ -299,6 +299,7 @@ internal static class BST_RotationLogic
         public bool EnemyTargetsPet, EnemyTargetsPlayer; // who the current target is attacking
         public bool ReadySnarl, ReadyChallenge;
         public float SinceSnarl;                  // float.MaxValue when never
+        public float SincePartingBlow;            // since the recall (Parting Blow) was last pressed; float.MaxValue when never
         public uint TargetNameId;                 // BNpcName of the current target (0 when none)
         public bool ShellJustBroke;               // a ShellTargets enemy (Ymir Piece) lost its damage-immune shell within the last few seconds
     }

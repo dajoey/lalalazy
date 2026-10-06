@@ -121,6 +121,7 @@ internal static class Program
             SinceBorrow = float.MaxValue,
             SinceAxe = float.MaxValue,
             SincePetHeart = float.MaxValue,
+            SincePartingBlow = float.MaxValue,
             ShieldChargeMax = 1,
         };
     }
@@ -1336,6 +1337,33 @@ internal static class Program
         Check("Curtains for Rank 5 with 4 s remaining: not yet",
             Decide(curtains with { TargetCastRemaining = 4.0f }, cfg).Reason != "crucible:petsave-curtains");
 
+        // Timing sweep (the Forward Guard recall starved this exact way until 1.0.4.245): across the whole 6.0 s cast
+        // (6.0 s down to 0.25 s in 0.25 s steps) and all three GCD/weave states, on both cast ids, the rule must issue
+        // the recall while at least 2.4 s of retreat time remain before the KO (retreat measured 2.15-2.3 s in the raw
+        // 2026-10-03 logs; the KO lands about 1.0 s after the cast completes, so a recall issued at cast remaining R
+        // leaves R + 1.0 s of retreat time).
+        var curtainsSweepMiss = new List<string>();
+        foreach (var curtainsCastId in new uint[] { 49428, 49429 })
+            foreach (var (gcdReady, canWeave) in new[] { (true, false), (false, true), (false, false) })
+            {
+                float? firedAt = null;
+                for (var rem = 6.00f; rem >= 0.25f; rem -= 0.25f)
+                {
+                    if (Decide(CrucibleState() with { TargetCastId = curtainsCastId, TargetCastRemaining = rem, GcdReady = gcdReady, CanWeave = canWeave }, cfg)
+                        is { ActionId: BST.PartingBlow, Reason: "crucible:petsave-curtains" })
+                    {
+                        firedAt = rem;
+                        break;
+                    }
+                }
+                if (firedAt is not { } f)
+                    curtainsSweepMiss.Add($"{curtainsCastId} GCD {(gcdReady ? "idle" : "rolling")}{(canWeave ? ", weavable" : ", not weavable")}: never recalled");
+                else if (f + 1.0f < 2.4f)
+                    curtainsSweepMiss.Add($"{curtainsCastId} GCD {(gcdReady ? "idle" : "rolling")}{(canWeave ? ", weavable" : ", not weavable")}: first recall at {f:F2} s left ({f + 1.0f:F2} s before the KO)");
+            }
+        Check("Curtains timing sweep (6.0 -> 0.25 s, 0.25 s steps, 3 GCD/weave states, both casts): recalled while >= 2.4 s of retreat time remain before the KO",
+            curtainsSweepMiss.Count == 0, string.Join(" | ", curtainsSweepMiss));
+
         var forwardGuard = CrucibleState() with { TargetCastId = 46864, TargetCastRemaining = 2.0f, PetHpPercent = 100f, ReadyParting = true };
         Check("Forward Guard cast (directional parry): Parting Blow recalls familiar before guard lands",
             Decide(forwardGuard, cfg) is { ActionId: BST.PartingBlow, Reason: "crucible:petsave-guard" });
@@ -1610,6 +1638,15 @@ internal static class Program
         var lowChar = CrucibleState() with { PlayerHpPercent = 35f, PetHpPercent = 80f, PetHp = 20000f, PlayerIntakePerSecond = 500f, ReadySnarl = true, ReadyParting = false };
         Check("character 35%, familiar can carry 15 s of intake: Snarl", Decide(lowChar, on).Reason == "aggro:snarl-player-low", Decide(lowChar, on).Reason);
         Check("character 35%, familiar cannot carry it: no Snarl", Decide(lowChar with { PlayerIntakePerSecond = 2000f }, on).ActionId != BST.Snarl);
+        // 2026-10-05 18:47 (encounter 2286): the petsave-guard Parting Blow at 26.85 sent the Ghost away; at 28.24 a
+        // Snarl (aggro:snarl-player-low) was pressed onto the already-retreating familiar (gone at 29.0) — wasted, and
+        // the enemy stayed on the character. While a recall is in flight the familiar is leaving: no Snarl onto it.
+        var recalling = CrucibleState() with { PlayerHpPercent = 35f, PetHpPercent = 80f, PetHp = 20000f, PlayerIntakePerSecond = 500f, ReadySnarl = true, ReadyParting = false, SincePartingBlow = 1.39f };
+        Check("Parting Blow 1.4 s ago, the familiar already leaving: no Snarl onto it",
+            Decide(recalling, on).ActionId != BST.Snarl, Decide(recalling, on).Reason);
+        Check("Parting Blow 3.5 s ago (recall no longer in flight): the Snarl rules resume",
+            Decide(recalling with { SincePartingBlow = 3.5f }, on).Reason == "aggro:snarl-player-low",
+            Decide(recalling with { SincePartingBlow = 3.5f }, on).Reason);
         Check("character 20%: last-resort Snarl", Decide(lowChar with { PlayerHpPercent = 20f, PlayerIntakePerSecond = 2000f }, on).Reason == "aggro:snarl-last-resort");
         Check("character 11%, familiar 30% (under the 50% floor, cannot carry): last-resort Snarl anyway",
             Decide(lowChar with { PlayerHpPercent = 11f, PetHpPercent = 30f, ReadyHorn2 = false, ReadyHorn3 = false }, on).Reason == "aggro:snarl-last-resort",
