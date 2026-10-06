@@ -5306,6 +5306,67 @@ ItemQuote FillerQuote(uint id, long unit, bool hq = false, double vel = 0, long 
     "the gates decide WHETHER to draw, never where");
 }
 
+// 160c. THE NUMERIC MARKER PROBE (0.2.8.5; the 0.2.8.3 and 0.2.8.4 sessions both looked perfect in
+//     the counters - zero suppressions at the logged draw - and Joey saw wrong dots both times, and
+//     the count line fires once per (addon, container) per session, so a later bad frame is
+//     invisible). Contract: the probe's logging policy is independent of the suppression counters -
+//     it logs the first MarkerProbe.DrawLimit draw passes and any later pass whose anchors moved
+//     (a stale first frame must not hide the settled one), capped at MarkerProbe.LineLimit lines
+//     per (addon, container) - and each listed cell carries the numbers that separate a wrong-node
+//     anchor from a draw-space offset from a stale frame: walked anchor, the node's own
+//     ScreenX/ScreenY, raw node X/Y, scaled size, scale, item id and dot kind. The RenderDots
+//     caller collects the first MarkerProbe.CellLimit resolved cells BEFORE the position gates, so
+//     a suppressed cell's numbers are visible too, and asks ShouldLog for every pass with resolved
+//     cells regardless of how many were suppressed - zero suppressions is exactly when the numbers
+//     matter most (the whole lesson of these two sessions).
+{
+  var probeState = new MarkerProbe.State();
+  List<(int Slot, System.Numerics.Vector2 Screen)> cells160()
+  {
+    return
+    [
+      (12, new System.Numerics.Vector2(640f, 80f)),
+      (13, new System.Numerics.Vector2(684f, 80f)),
+    ];
+  }
+  var sig160 = MarkerProbe.Signature(cells160());
+  Check("160c probe: the first draw pass logs (a clean-looking pass is exactly when the numbers matter)",
+    MarkerProbe.ShouldLog(probeState, sig160), "the 0.2.8.3 and 0.2.8.4 sessions had zero suppressions and were still wrong");
+  MarkerProbe.RecordLogged(probeState, sig160);
+  Check("160c probe: the second draw pass logs (the first frame may be stale)",
+    MarkerProbe.ShouldLog(probeState, sig160), "pre-0.2.8.5 the count line logged once per session and never again");
+  MarkerProbe.RecordLogged(probeState, sig160);
+  Check("160c probe: the third draw pass logs (MarkerProbe.DrawLimit)",
+    MarkerProbe.ShouldLog(probeState, sig160), "the first three passes are always on record");
+  MarkerProbe.RecordLogged(probeState, sig160);
+  Check("160c probe: an unchanged fourth pass does not log (bounded, no spam)",
+    !MarkerProbe.ShouldLog(probeState, sig160), "same anchors frame after frame says nothing new");
+  Check("160c probe: a pass whose anchors moved logs again (the settled frame becomes visible)",
+    MarkerProbe.ShouldLog(probeState, MarkerProbe.Signature([
+      (12, new System.Numerics.Vector2(640f, 300f)),
+      (13, new System.Numerics.Vector2(684f, 80f)),
+    ])), "one cell moved 300 - a changed frame");
+  var cappedState = new MarkerProbe.State();
+  for (var n = 0; n < MarkerProbe.LineLimit; n++)
+    MarkerProbe.RecordLogged(cappedState, sig160 + "#" + n);
+  Check("160c probe: past MarkerProbe.LineLimit nothing logs (a probe is not a firehose)",
+    !MarkerProbe.ShouldLog(cappedState, sig160 + "#new"), "8 lines logged; the cap holds");
+  Check("160c probe: the signature changes when one cell's screen anchor moves (the on-change trigger)",
+    sig160 != MarkerProbe.Signature([
+      (12, new System.Numerics.Vector2(640f, 300f)),
+      (13, new System.Numerics.Vector2(684f, 80f)),
+    ]), "a moved cell is a changed frame");
+  Check("160c probe: two passes over the same anchors give the same signature (no churn, no spam)",
+    sig160 == MarkerProbe.Signature(cells160()), "a stable layout is stable text");
+  var cell160 = MarkerProbe.CellLine(7, 46051, MarkerMatch.MarkKind.OnList,
+    new System.Numerics.Vector2(640f, 80f), new System.Numerics.Vector2(0f, 0f),
+    new System.Numerics.Vector2(12f, 20f), new System.Numerics.Vector2(1f, 1f), new System.Numerics.Vector2(44f, 44f));
+  Check("160c probe: a cell line carries both the walked anchor and the node's own screen position (their disagreement is the evidence)",
+    cell160.Contains("walk=(640,80)") && cell160.Contains("screen=(0,0)"), cell160);
+  Check("160c probe: a cell line names the slot, item and dot kind (the line must be gradeable against the bag)",
+    cell160.Contains("s7") && cell160.Contains("id=46051") && cell160.Contains("green"), cell160);
+}
+
 
 
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");

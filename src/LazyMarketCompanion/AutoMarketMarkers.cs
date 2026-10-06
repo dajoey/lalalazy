@@ -170,6 +170,11 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
   // Item ids seen stable-market this draw, carried across draws so a stable call is made once per id.
   private readonly HashSet<uint> _marketableScratch = [];
 
+  // 0.2.8.5: per (grid addon, container) numeric-probe state - the logging policy is MarkerProbe,
+  // exercised by harness case 160c. Two testing builds (0.2.8.3, 0.2.8.4) looked perfect in the
+  // suppression counters and drew wrong dots; the probe records the actual numbers instead.
+  private readonly Dictionary<string, MarkerProbe.State> _probeStates = [];
+
   public AutoMarketMarkers()
     : base("Lazy Market Companion##markers", ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoInputs, true)
   {
@@ -588,6 +593,14 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
     if (classified.Count == 0)
       return;
 
+    // 0.2.8.5 THE NUMERIC PROBE: the first MarkerProbe.CellLimit resolved cells of the pass are
+    // recorded BEFORE the position gates, so a suppressed cell's numbers are visible too. The line
+    // logs on the first MarkerProbe.DrawLimit passes and whenever the anchors move (a stale first
+    // frame must not hide the settled one - the pre-0.2.8.5 count line fired once per session),
+    // capped at MarkerProbe.LineLimit lines per (addon, container) per session.
+    var probeCells = new List<(int Slot, uint ItemId, MarkerMatch.MarkKind Kind, Vector2 Walk, Vector2 Screen, Vector2 RawXY, Vector2 Scale, Vector2 Size)>(MarkerProbe.CellLimit);
+    var nullDragDrops = 0;
+
     var drawnOnList = 0;
     var drawnNotListed = 0;
     // 0.2.8.3: cells whose position source did not resolve are counted, not drawn - the stray
@@ -610,7 +623,10 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
 
       var dragDrop = grid->Slots[i].Value;
       if (dragDrop == null)
+      {
+        nullDragDrops++;
         continue;
+      }
 
       // 0.2.8.3: the position source is the drag-drop's OwnerNode - the AtkComponentNode that
       // hosts this component in the addon's live node tree (AtkComponentBase.OwnerNode,
@@ -641,6 +657,11 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
       var size = new Vector2(node->Width, node->Height) * scale;
       if (size.X <= 0 || size.Y <= 0)
         continue;
+
+      // 0.2.8.5: this cell's numbers go to the probe whether or not any gate suppresses it - a
+      // suppressed cell is exactly the one whose numbers explain the failure.
+      if (probeCells.Count < MarkerProbe.CellLimit)
+        probeCells.Add((i, entry.Stack.ItemId, entry.Kind, position, screen, new Vector2(node->X, node->Y), scale, size));
 
       // 0.2.8.3 THE ORIGIN GATE: a cell resolving to the unpositioned-node signature (top-left
       // within the corner inset of the viewport origin in BOTH axes) has no live position -
@@ -759,6 +780,29 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
         ? $"; first suppressed cell walk=({probeWalk.X},{probeWalk.Y}) screen=({probeScreen.X},{probeScreen.Y})"
         : "";
       Svc.Log.Information($"[LMC] markers: {drawnOnList} on-list (green) + {drawnNotListed} marketable not listed (grey) of {stacks.Count} stacks on {addonName} ({containerLabel}), order={(orderIsIdentity ? "identity" : "sorted")}{suppressedTail}{probeTail}");
+    }
+
+    // 0.2.8.5: the numeric probe line - independent of the count line and its first-draw-only gate:
+    // the policy (first MarkerProbe.DrawLimit passes, then on anchor change, capped at
+    // MarkerProbe.LineLimit) is MarkerProbe.ShouldLog, tested by harness case 160c. Viewport Pos and
+    // display size go in the line too: the PvPSolver hotbar overlay draws raw node ScreenX/ScreenY
+    // and is proven in production, so a draw-space mismatch - if any - must show up as a nonzero
+    // viewport origin or an offset between these numbers and where the dots visibly land.
+    if (probeCells.Count > 0)
+    {
+      var probeKey = $"{addonName}:{containerLabel}";
+      if (!_probeStates.TryGetValue(probeKey, out var probeState))
+        _probeStates[probeKey] = probeState = new MarkerProbe.State();
+      var signature = MarkerProbe.Signature(probeCells.Select(c => (c.Slot, c.Screen)));
+      if (MarkerProbe.ShouldLog(probeState, signature))
+      {
+        var viewport = ImGuiHelpers.MainViewport;
+        var display = ImGui.GetIO().DisplaySize;
+        var cellsText = string.Join(" | ", probeCells.Select(c =>
+          MarkerProbe.CellLine(c.Slot, c.ItemId, c.Kind, c.Walk, c.Screen, c.RawXY, c.Scale, c.Size)));
+        Svc.Log.Information($"[LMC] markers probe: {addonName} ({containerLabel}) draw #{probeState.Draws} of {stacks.Count} stacks, {nullDragDrops} slot(s) without a drag-drop; viewport=({viewport.Pos.X:0.#},{viewport.Pos.Y:0.#}) display=({display.X:0.#},{display.Y:0.#}) | {cellsText}");
+        MarkerProbe.RecordLogged(probeState, signature);
+      }
     }
   }
 
