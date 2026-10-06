@@ -1,6 +1,12 @@
 # LazyCrucible — Changelog
 
 
+## v0.1.9.13 (2026-10-06) [testing]
+### Added
+- **The board's difficulty degree is now read and shared with Gluttony Combo.** The Crucible board layout reports the degree whenever it is set, by a click or by AutoDuty; the plugin keeps the last one (Standard, First, Second or Third) and offers it to Gluttony Combo 1.0.4.288 or newer, which uses it to price the hits a familiar or the character will take. The degree is forgotten when the Beastmaster job is left, and until the first time it is set the plugin reports none. The change is logged as one `PS|` line (`note=degree`).
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v0.1.9.12 (2026-10-05) [testing]
 ### Changed
 - **The run-roster need-coverage correction no longer fires while AutoDuty drives the screen.** AutoDuty re-asserts its own roster through a confirm sequence that removes unfamiliar rows one per pass and holds its acceptance until they are gone; every correction written on that surface was removed before entry, and the acceptance follows the build's last pick by about half a second with nothing the plugin can observe in between — a guess there only spent the correction budget on rows that were going to be removed anyway. The surface is now left to AutoDuty entirely. The battlehorn surface is unchanged.
