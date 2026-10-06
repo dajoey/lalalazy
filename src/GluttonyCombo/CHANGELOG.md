@@ -1,3 +1,14 @@
+## v1.0.4.287 (2026-10-06) [testing]
+### Fixed
+- **Beastmaster in the Crucible of the Unbroken: the Snarl, then Parting Blow, tankbuster dodge no longer hands the hit back to the character.** Parting Blow removed the familiar that had taken the enemy's attention just before the hit, the enemy picked the character again about 1.25 seconds later, and the hit landed on the character in roughly nine casts out of ten (about 150 casts across every board, at every timing from half a second to six seconds before the hit). A Snarl on its own left the hit on the familiar in four casts out of five. The Parting Blow step is now off, so the recalls it caused and the 90-second horn locks that followed them are gone as well; Sweeping Evisceration alone had been taking more than half of the character's health in a Gargoyle fight.
+- **A Snarl ahead of a known tankbuster now covers only the casts a familiar survives.** The familiar must hold at least twice the largest hit recorded on a familiar for that cast (Obliterate, Salivous Snap, Toxic Vomit and Grim Fate qualify). On the harder First Degree board Sweeping Evisceration hits a familiar for 3,300 to 3,900 and knocked a 3,492 HP familiar out in 11 of 15 casts, so it stays with the character, as does every cast with no recorded hit on a familiar. A character whose health is already below the cast's recorded hit is still covered whatever the familiar's health.
+### Added
+- **Lease telemetry (`LS|` log lines).** When another plugin takes control of Gluttony Combo through the lease interface (AutoDuty through the Wrath Combo bridge, Questionable and others), one line records the lease being taken, Auto-Rotation being switched, each option it overrides (the leased value next to the saved one and whether they differ) and the lease ending. A repeated value is not logged again. Overrides last only as long as the lease and are never written to the saved settings; until now nothing recorded which values a run actually used.
+### Changed
+- The Crucible option "Dodge known tankbusters with Snarl then Parting Blow" is now "Cover known tankbusters with Snarl" and its Parting Blow timing slider is gone. The stored value is unchanged.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v1.0.4.286 (2026-10-06) [testing]
 ### Added
 - **Ninja single-target mode: the ninjutsu block can start Doton when exactly two enemies are in range of the target.** A new toggle under the single-target ninjutsu options, with an HP-percentage slider (default 40), casts Doton while the current target sits above the threshold and the target is standing still; at one enemy or at three or more the single-target nuke (Raiton) is unchanged, so the area mode keeps owning three-plus targets. Before, single-target mode never offered Doton at any enemy count and kept pressing Raiton through two-enemy pulls.
