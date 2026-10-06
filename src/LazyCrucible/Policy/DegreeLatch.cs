@@ -27,6 +27,17 @@ internal sealed class DegreeLatch
         return true;
     }
 
-    /// <summary> Forget the degree (plugin job change, unload). </summary>
+    /// <summary>
+    ///     The hooks come down. With no player at all this is a loading screen (the character is gone for the zone change), and the degree
+    ///     survives it: AutoDuty sets it in the lobby and the queue then zones into the duty, so forgetting it here left every fight reading
+    ///     unknown. With the player present the hooks come down for a job change, and nothing watches the layout then: forget.
+    /// </summary>
+    public void HooksDown(bool playerAvailable)
+    {
+        if (playerAvailable)
+            Reset();
+    }
+
+    /// <summary> Forget the degree (job change, unload). </summary>
     public void Reset() => Value = CrucibleDegree.Unknown;
 }

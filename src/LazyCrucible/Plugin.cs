@@ -155,7 +155,7 @@ public sealed class Plugin : IDalamudPlugin
             {
                 if (_wasBst)
                 {
-                    AgentProbe.Teardown();
+                    AgentProbe.TeardownNotBst(Player.Available);
                     ScreenRecorder.Stop();
                     PetSelect.ResetRun();
                     SelectionScreens.Reset();

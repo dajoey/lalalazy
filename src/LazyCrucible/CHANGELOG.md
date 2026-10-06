@@ -1,6 +1,10 @@
 # LazyCrucible — Changelog
 
 
+## v0.1.9.14 (2026-10-06) [testing]
+### Fixed
+- **The board's difficulty degree now reaches Gluttony Combo during a fight.** The degree is set in the lobby (by a click or by AutoDuty) and the character then zones into the duty; the plugin used to forget it at every loading screen, so a fight always read as an unknown degree. It is now kept across loading screens and still forgotten when the Beastmaster job is left or the plugin unloads.
+
 ## v0.1.9.13 (2026-10-06) [testing]
 ### Added
 - **The board's difficulty degree is now read and shared with Gluttony Combo.** The Crucible board layout reports the degree whenever it is set, by a click or by AutoDuty; the plugin keeps the last one (Standard, First, Second or Third) and offers it to Gluttony Combo 1.0.4.288 or newer, which uses it to price the hits a familiar or the character will take. The degree is forgotten when the Beastmaster job is left, and until the first time it is set the plugin reports none. The change is logged as one `PS|` line (`note=degree`).

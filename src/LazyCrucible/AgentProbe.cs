@@ -57,8 +57,8 @@ internal static unsafe class AgentProbe
 
     /// <summary>
     ///     The board's degree as the layout last set it (<see cref="DegreeLatch"/>), published to GluttonyCombo over IPC by <c>Plugin</c>. Fed
-    ///     from the same latch point as the familiar selection, never behind the log breaker. Forgotten when the hooks come down (nothing
-    ///     is watching the layout then, so a later change would go unseen).
+    ///     from the same latch point as the familiar selection, never behind the log breaker. Forgotten when the hooks come down for a job change (nothing
+    ///     is watching the layout then, so a later change would go unseen), kept across a loading screen (<see cref="DegreeLatch.HooksDown"/>).
     /// </summary>
     internal static readonly DegreeLatch Degree = new();
 
@@ -116,11 +116,16 @@ internal static unsafe class AgentProbe
         return hook.Original(agent, returnValues, values, valueCount, eventKind);
     }
 
-    /// <summary> Unhook everything (job change, unload). </summary>
-    public static void Teardown()
+    /// <summary> Unhook everything and forget the degree (unload). </summary>
+    public static void Teardown() => Unhook(playerAvailable: true);
+
+    /// <summary> Unhook everything because the character is not a Beastmaster (job change) or is gone for a loading screen: see <see cref="DegreeLatch.HooksDown"/>. </summary>
+    public static void TeardownNotBst(bool playerAvailable) => Unhook(playerAvailable);
+
+    private static void Unhook(bool playerAvailable)
     {
         _active = false;
-        Degree.Reset();
+        Degree.HooksDown(playerAvailable);
         // Stop new calls, let the ones already inside a detour finish, only then dispose and null.
         foreach (var probe in Hooks.Values)
         {

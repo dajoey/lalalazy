@@ -40,6 +40,18 @@ internal static class DegreeLatchCases
         latch.Note(1, 2, 2, 1);
         Check("a two-value event that is not the set-degree event, or a value outside 0-3, changes nothing", latch.Value == CrucibleDegree.Third, latch.Value.ToString());
 
+        // 2026-10-06 15:39:49 .. 15:40:11 ET, every loop run: the result screen zones out (BetweenAreas, the player is gone, the hooks come down),
+        // AutoDuty sets First Degree in the lobby at 15:40:03, then the queue zones into the duty (the hooks come down again) and the first CR| line
+        // read dg=x in all 5,896 lines of 0.1.9.13. A loading screen is not a job change: the degree has to survive it.
+        latch.Reset();
+        latch.Note(0, 2, 2, 1);
+        latch.HooksDown(playerAvailable: false);
+        Check("the hooks come down for a loading screen (no player): First Degree is kept", latch.Value == CrucibleDegree.First, latch.Value.ToString());
+        latch.HooksDown(playerAvailable: false);
+        Check("a second loading screen keeps it too", latch.Value == CrucibleDegree.First, latch.Value.ToString());
+        latch.HooksDown(playerAvailable: true);
+        Check("the hooks come down with the player present (a job change): forgotten", latch.Value == CrucibleDegree.Unknown, latch.Value.ToString());
+
         latch.Reset();
         Check("a reset (job change, unload) forgets it", latch.Value == CrucibleDegree.Unknown, latch.Value.ToString());
     }
