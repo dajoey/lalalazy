@@ -41,7 +41,13 @@ namespace LazyMarketCompanion;
 /// MarkerAnchor (0.1.31.0): center CornerInset px in from the cell's right edge and CornerInset px
 /// below its top edge, inside the cell. The bag windows are the
 /// InventoryGrid* addons (35 DragDrop slots each, pinned from the client structs); each slot's
-/// DragDrop component gives the node to position over. What to draw is decided from the game's
+/// DragDrop component gives the node to position over - since 0.2.8.3 the drag-drop's OwnerNode
+/// (the component node live in the addon's tree), never the drag-drop interface's ComponentNode,
+/// which after the 2026-09-15 inventory layout change can name an unpositioned node: the walk
+/// then resolved every cell to the viewport origin and every dot window stacked at (0,0), last
+/// colour on top - one stray dot in the screen's top-left corner (2026-10-06 report). A cell
+/// that still resolves to the origin signature draws nothing (MarkerAnchor.IsResolvableCell).
+/// What to draw is decided from the game's
 /// inventory CONTAINERS (InventoryManager -> Inventory1..4), never from reading anything out of
 /// the grid UI - the grid is only a source of screen positions.
 ///
@@ -580,6 +586,12 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
 
     var drawnOnList = 0;
     var drawnNotListed = 0;
+    // 0.2.8.3: cells whose position source did not resolve are counted, not drawn - the stray
+    // top-left dot was every dot's window stacked at the viewport origin, last colour on top.
+    var suppressedNoOwner = 0;
+    var suppressedUnresolved = 0;
+    Vector2 probeWalk = default;
+    Vector2 probeScreen = default;
     for (var i = 0; i < slotCount; i++)
     {
       if (!classified.TryGetValue(i, out var entry))
@@ -589,11 +601,23 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
       if (dragDrop == null)
         continue;
 
-      var componentNode = dragDrop->AtkDragDropInterface.ComponentNode;
-      if (componentNode == null)
+      // 0.2.8.3: the position source is the drag-drop's OwnerNode - the AtkComponentNode that
+      // hosts this component in the addon's live node tree (AtkComponentBase.OwnerNode,
+      // back-linked from AtkComponentNode.Component) - not the drag-drop interface's
+      // ComponentNode, which after the 2026-09-15 inventory layout change can name a node that
+      // is not the live positioned cell node. On such grids the parent-walk below resolved
+      // every cell to the viewport origin: no dots on any icon, all dot windows stacked at
+      // (0,0), the last-drawn colour on top - the single stray green dot in the screen's
+      // top-left corner (2026-10-06 report). The walk itself is unchanged (it was verified
+      // correct on live nodes across 0.1.31.0-0.2.8.x); only the node it starts from changed.
+      var ownerNode = dragDrop->OwnerNode;
+      if (ownerNode == null)
+      {
+        suppressedNoOwner++;
         continue;
+      }
 
-      var node = (AtkResNode*)componentNode;
+      var node = (AtkResNode*)ownerNode;
       var position = GetNodePosition(node);
       var scale = GetNodeScale(node);
       if (scale.X <= 0 || scale.Y <= 0)
@@ -602,6 +626,25 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
       var size = new Vector2(node->Width, node->Height) * scale;
       if (size.X <= 0 || size.Y <= 0)
         continue;
+
+      // 0.2.8.3 THE ORIGIN GATE: a cell resolving to the unpositioned-node signature (top-left
+      // within the corner inset of the viewport origin in BOTH axes) has no live position -
+      // drawing it stacks a dot window on the screen corner (the stray dot). Fail closed: a
+      // missing dot is better than a wrong one (the GridMap contract).
+      if (!MarkerAnchor.IsResolvableCell(position, size))
+      {
+        // The probe the next session reads: the walked position of the first unresolved cell,
+        // next to the node's own ScreenX/ScreenY - which the game maintains for nodes it
+        // actually lays out. If screen is non-origin while walk is origin, the walk is the
+        // broken half on this game build; if both are origin, the node is not laid out at all.
+        if (suppressedUnresolved == 0)
+        {
+          probeWalk = position;
+          probeScreen = new Vector2(node->ScreenX, node->ScreenY);
+        }
+        suppressedUnresolved++;
+        continue;
+      }
 
       var color = entry.Kind switch
       {
@@ -644,8 +687,20 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
     // were computed from, which is exactly what 0.1.17.0 got wrong. 0.1.21.0: the line now
     // separates the two marker colours. 0.1.33.0: it also reports whether this grid's display
     // order was the identity permutation - the assumption that produced dots on empty grids.
-    if ((drawnOnList > 0 || drawnNotListed > 0) && _loggedAddons.Add($"{addonName}:{containerLabel}"))
-      Svc.Log.Information($"[LMC] markers: {drawnOnList} on-list (green) + {drawnNotListed} marketable not listed (grey) of {stacks.Count} stacks on {addonName} ({containerLabel}), order={(orderIsIdentity ? "identity" : "sorted")}");
+    // 0.2.8.3: it also fires when classified cells were suppressed (no owner node, or the origin
+    // gate), naming the counts and, for the origin gate, the first unresolved cell's walked
+    // position and the node's own ScreenX/ScreenY - the probe that says which half of the
+    // position source is broken on the live game build.
+    if ((drawnOnList + drawnNotListed + suppressedNoOwner + suppressedUnresolved > 0) && _loggedAddons.Add($"{addonName}:{containerLabel}"))
+    {
+      var suppressedTail = suppressedNoOwner + suppressedUnresolved > 0
+        ? $", {suppressedUnresolved} unresolved (origin gate) + {suppressedNoOwner} without an owner node suppressed"
+        : "";
+      var probeTail = suppressedUnresolved > 0
+        ? $"; unresolved cell0 walk=({probeWalk.X},{probeWalk.Y}) screen=({probeScreen.X},{probeScreen.Y})"
+        : "";
+      Svc.Log.Information($"[LMC] markers: {drawnOnList} on-list (green) + {drawnNotListed} marketable not listed (grey) of {stacks.Count} stacks on {addonName} ({containerLabel}), order={(orderIsIdentity ? "identity" : "sorted")}{suppressedTail}{probeTail}");
+    }
   }
 
   private static unsafe System.Numerics.Vector2 GetNodePosition(AtkResNode* node)

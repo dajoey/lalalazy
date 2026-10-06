@@ -1,3 +1,9 @@
+## v0.2.8.3 (2026-10-06) [testing]
+### Fixed
+- **Auto-Market marker dots are back on the item icons.** After the game's inventory layout change on 2026-09-15, the node each dot was anchored to stopped carrying a live position, so every dot drew at the same place on the screen instead of on its item: no dots on the bag or retainer icons, and one stray dot left in the screen's top-left corner. Each dot is now anchored to the node the game actually places in the inventory window, and a cell whose position does not resolve draws no dot at all instead of a dot at the screen's edge. When positions cannot be resolved, one log line counts how many cells were skipped and reports the position the node claims, so the next report can say which half of the anchor is wrong.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v0.2.8.2 (2026-10-04) [testing]
 ### Fixed
 - **A rare game crash when the plugin updates while the game is running.** While a retainer venture item command hook is active and the plugin is updated again, it is disabled only after any call still inside it has finished, so a call can no longer land on a hook that is already gone. Auto-Market and everything else is unchanged.

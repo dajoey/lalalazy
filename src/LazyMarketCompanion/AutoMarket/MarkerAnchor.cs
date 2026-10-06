@@ -43,4 +43,24 @@ public static class MarkerAnchor
   /// </summary>
   public static Vector2 WindowPosition(Vector2 cellPosition, Vector2 cellSize)
     => Center(cellPosition, cellSize) - new Vector2(Radius, Radius);
+
+  /// <summary>
+  /// Whether a dot may be drawn for a cell that resolved to this screen position and size
+  /// (0.2.8.3). The unpositioned-node signature - the state behind the 2026-10-06 report where
+  /// every dot window stacked at the viewport origin and read as one stray dot in the screen's
+  /// top-left corner - is a top-left within the corner inset of the origin in BOTH axes. No
+  /// visible bag or retainer cell sits that close to the screen corner on both axes (the
+  /// windows have headers and borders), and a cell whose top-left hangs fully off the top-left
+  /// corner has no visible icon region for the dot to sit on anyway. Fail closed: a missing
+  /// dot is better than a wrong one (the GridMap contract). This decides WHETHER a dot draws,
+  /// never where - the anchor of a drawable cell is unchanged (case 53).
+  /// </summary>
+  public static bool IsResolvableCell(Vector2 cellPosition, Vector2 cellSize)
+  {
+    if (cellSize.X <= 0 || cellSize.Y <= 0)
+      return false;
+    if (cellPosition.X < Inset && cellPosition.Y < Inset)
+      return false;
+    return true;
+  }
 }

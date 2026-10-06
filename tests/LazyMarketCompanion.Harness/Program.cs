@@ -5233,6 +5233,45 @@ ItemQuote FillerQuote(uint id, long unit, bool hq = false, double vel = 0, long 
       && MarketGate.Decide(1, matrix[5].Quote, false, true, gate159e, Now) == GateVerdict.Vendor);
 }
 
+// 160. THE ORIGIN GATE (0.2.8.3; 2026-10-06 report: Auto-Market marker dots not on the bag or
+//     retainer icons + ONE stray green dot at the screen's top-left). The draw loop resolved
+//     every cell's anchor from the drag-drop's ComponentNode parent-walk and drew for every
+//     positive-size result without ever validating WHERE it resolved to. When that walk starts
+//     from a node that is not the live positioned cell node (the inventory layout changed in
+//     the 2026-09-15 game build; the marker code predates it), every anchor resolves to the
+//     viewport origin: no dots on any icon, all dot windows stacked at (0,0), the last-drawn
+//     colour on top = exactly ONE stray dot in the screen's top-left corner. Contract: a cell
+//     whose resolved position is the unpositioned-node signature - top-left within the corner
+//     inset of the viewport origin in BOTH axes - draws NOTHING (a missing dot is better than
+//     a wrong one; the same doctrine as GridMap's "anything it cannot resolve draws nothing at
+//     all", and the 0.1.29.0 finding that these grids resolve ready in transitional/hidden
+//     states). A genuinely positioned cell still draws, and its anchor is unchanged (case 53).
+{
+  var size160 = new System.Numerics.Vector2(44f, 44f);
+  Check("160 origin gate: a cell resolving to the exact viewport origin (0,0) draws nothing (the stray top-left dot)",
+    !MarkerAnchor.IsResolvableCell(new System.Numerics.Vector2(0f, 0f), size160),
+    "pre-0.2.8.3 the dot drew at (0,0): all dot windows stacked at the origin, last colour on top");
+  Check("160 origin gate: a cell within the corner inset of the origin in both axes draws nothing (the unpositioned signature is (0,0)-ish)",
+    !MarkerAnchor.IsResolvableCell(new System.Numerics.Vector2(3f, 0f), size160),
+    "x=3,y=0: both < Inset(7)");
+  Check("160 origin gate: a cell up-left of the screen with a visible body still draws (x negative, y clear)",
+    MarkerAnchor.IsResolvableCell(new System.Numerics.Vector2(-50f, 30f), size160),
+    "a window dragged off the top-left keeps its y far from the origin; only the both-axes signature suppresses");
+  Check("160 origin gate: a genuinely positioned cell 40px from the corner draws",
+    MarkerAnchor.IsResolvableCell(new System.Numerics.Vector2(40f, 40f), size160), "...");
+  Check("160 origin gate: a cell whose top-left hangs fully off the top-left screen corner draws nothing (no visible icon to sit on)",
+    !MarkerAnchor.IsResolvableCell(new System.Numerics.Vector2(-50f, -50f), size160),
+    "bottom-right at (-6,-6): the whole cell is off-screen, so the dot would be invisible anyway - fail closed");
+  Check("160 origin gate: a zero-size cell draws nothing",
+    !MarkerAnchor.IsResolvableCell(new System.Numerics.Vector2(120f, 200f), new System.Numerics.Vector2(0f, 44f)),
+    "degenerate layout state");
+  Check("160 origin gate: the anchor of a drawable cell is unchanged (case 53 contract holds)",
+    MarkerAnchor.WindowPosition(new System.Numerics.Vector2(40f, 40f), size160)
+      == MarkerAnchor.Center(new System.Numerics.Vector2(40f, 40f), size160)
+        - new System.Numerics.Vector2(MarkerAnchor.Radius, MarkerAnchor.Radius),
+    "the gate only decides WHETHER to draw, never where");
+}
+
 
 
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
