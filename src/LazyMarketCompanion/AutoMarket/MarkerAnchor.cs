@@ -63,4 +63,40 @@ public static class MarkerAnchor
       return false;
     return true;
   }
+
+  /// <summary>
+  /// How far a walked anchor may sit from the node's own ScreenX/ScreenY and still count as the
+  /// game-confirmed position, in screen pixels.
+  /// </summary>
+  public const float ScreenTolerance = 2f;
+
+  /// <summary>Two anchors this close in BOTH axes are the same spot on screen (stacked dots), not two cells.</summary>
+  public const float DuplicateTolerance = 1f;
+
+  /// <summary>
+  /// Whether the game's own layout agrees that a cell walked to <paramref name="walkedPosition"/>:
+  /// AtkResNode.ScreenX/ScreenY is the top-left the game itself computed for the node this frame
+  /// (the same numbers the PvPSolver hotbar overlay draws from), and on a live positioned cell
+  /// the parent-walk reproduces them to a rounding error. A walked anchor further than
+  /// <see cref="ScreenTolerance"/> from them means the walk started from a node the game did not
+  /// lay out at that position - 0.2.8.3's shape, where every classified cell passed the origin
+  /// gate, drew, and no dot sat on its icon. A node not laid out this frame carries the zero
+  /// signature, which never agrees with a real walked anchor and suppresses the dot. Fail closed
+  /// with the origin gate: a missing dot is better than a wrong one. Decides WHETHER a dot draws,
+  /// never where (case 53).
+  /// </summary>
+  public static bool IsScreenConfirmed(Vector2 walkedPosition, Vector2 screenPosition)
+    => Math.Abs(walkedPosition.X - screenPosition.X) <= ScreenTolerance
+    && Math.Abs(walkedPosition.Y - screenPosition.Y) <= ScreenTolerance;
+
+  /// <summary>
+  /// Whether two anchors are the same screen spot: no visible grid ever shows two cells at one
+  /// position, so a position source that hands several cells the same anchor (one shared or
+  /// template node the game still positions) is not resolving cells at all - it stacks every dot
+  /// window on one spot, which reads as one stray dot exactly like the origin signature did.
+  /// The first cell keeps the spot; the rest draw nothing.
+  /// </summary>
+  public static bool IsDuplicateAnchor(Vector2 position, Vector2 drawn)
+    => Math.Abs(position.X - drawn.X) <= DuplicateTolerance
+    && Math.Abs(position.Y - drawn.Y) <= DuplicateTolerance;
 }

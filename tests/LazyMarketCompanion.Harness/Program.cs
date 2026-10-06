@@ -5270,6 +5270,40 @@ ItemQuote FillerQuote(uint id, long unit, bool hq = false, double vel = 0, long 
       == MarkerAnchor.Center(new System.Numerics.Vector2(40f, 40f), size160)
         - new System.Numerics.Vector2(MarkerAnchor.Radius, MarkerAnchor.Radius),
     "the gate only decides WHETHER to draw, never where");
+
+  // 160b. THE SCREEN-CONFIRMATION AND STACKED-ANCHOR GATES (0.2.8.4; the 0.2.8.3 session moved the
+  //     failure shape: every classified cell passed the origin gate and drew, yet no dot sat on its
+  //     icon and one green dot sat near the screen's top-left). The walk is a hand reimplementation
+  //     of the game's layout; the game itself maintains each node's true top-left this frame in
+  //     AtkResNode.ScreenX/ScreenY (the numbers the PvPSolver hotbar overlay draws from). Contract:
+  //     an anchor draws only when the game's own layout confirms it - walk within ScreenTolerance
+  //     of screen in BOTH axes - and only one cell may hold a given screen spot. A wrong anchor
+  //     is unconfirmed; a shared anchor is a duplicate; the one-stray-dot symptom cannot survive
+  //     either way. Fail closed, the same doctrine as the origin gate above.
+  var walk160 = new System.Numerics.Vector2(640f, 80f);
+  Check("160b screen gate: an anchor the game's own layout confirms (walk == screen) draws",
+    MarkerAnchor.IsScreenConfirmed(walk160, new System.Numerics.Vector2(640f, 80f)),
+    "on a live positioned cell the parent-walk reproduces the game's ScreenX/ScreenY");
+  Check("160b screen gate: float-composition rounding stays inside the tolerance",
+    MarkerAnchor.IsScreenConfirmed(new System.Numerics.Vector2(640.4f, 80.3f), new System.Numerics.Vector2(640f, 80f)),
+    "sub-pixel drift between two computations of the same layout is not a wrong anchor");
+  Check("160b screen gate: an anchor the game does not confirm draws nothing (the 0.2.8.3 shape: the origin gate passed and the dot drew off its icon)",
+    !MarkerAnchor.IsScreenConfirmed(walk160, new System.Numerics.Vector2(0f, 0f)),
+    "a walked (640,80) against a node the game lays out at the origin is not a live cell node");
+  Check("160b screen gate: a one-axis disagreement alone is not confirmed (the near-top-left stray dot the report describes)",
+    !MarkerAnchor.IsScreenConfirmed(walk160, new System.Numerics.Vector2(640f, 300f)),
+    "x agreeing is not enough; both axes must confirm");
+  Check("160b stacked gate: two cells walking to the same anchor cannot both draw (the stray dot is a stack of dot windows, not a cell)",
+    MarkerAnchor.IsDuplicateAnchor(new System.Numerics.Vector2(100f, 100f), new System.Numerics.Vector2(100f, 100f))
+      && MarkerAnchor.IsDuplicateAnchor(new System.Numerics.Vector2(100.9f, 100f), new System.Numerics.Vector2(100f, 100f)),
+    "within DuplicateTolerance in both axes is the same screen spot");
+  Check("160b stacked gate: neighbouring cells a cell-width apart are not duplicates",
+    !MarkerAnchor.IsDuplicateAnchor(new System.Numerics.Vector2(100f, 100f), new System.Numerics.Vector2(144f, 100f)),
+    "two real cells sit cell-widths apart, never within a pixel");
+  Check("160b both gates keep the case 53 anchor: a confirmed, unique anchor draws at the unchanged window position",
+    MarkerAnchor.WindowPosition(walk160, size160)
+      == MarkerAnchor.Center(walk160, size160) - new System.Numerics.Vector2(MarkerAnchor.Radius, MarkerAnchor.Radius),
+    "the gates decide WHETHER to draw, never where");
 }
 
 

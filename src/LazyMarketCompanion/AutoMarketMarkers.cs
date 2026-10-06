@@ -47,6 +47,10 @@ namespace LazyMarketCompanion;
 /// then resolved every cell to the viewport origin and every dot window stacked at (0,0), last
 /// colour on top - one stray dot in the screen's top-left corner (2026-10-06 report). A cell
 /// that still resolves to the origin signature draws nothing (MarkerAnchor.IsResolvableCell).
+/// 0.2.8.4: the 0.2.8.3 testing session proved wrong anchors are not only the origin signature
+/// (every cell drew off its icon, zero suppressed), so a cell now also draws only when the
+/// game's own layout confirms the walked anchor (the node's ScreenX/ScreenY) and only one cell
+/// may hold a given screen position.
 /// What to draw is decided from the game's
 /// inventory CONTAINERS (InventoryManager -> Inventory1..4), never from reading anything out of
 /// the grid UI - the grid is only a source of screen positions.
@@ -588,10 +592,17 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
     var drawnNotListed = 0;
     // 0.2.8.3: cells whose position source did not resolve are counted, not drawn - the stray
     // top-left dot was every dot's window stacked at the viewport origin, last colour on top.
+    // 0.2.8.4: two more position gates join the family (screen-confirmed anchors, no stacked
+    // anchors) and the anchors of the cells that actually drew are kept, to catch a source that
+    // hands several cells the same spot.
     var suppressedNoOwner = 0;
     var suppressedUnresolved = 0;
+    var suppressedUnconfirmed = 0;
+    var suppressedDuplicate = 0;
+    var drawnAnchors = new List<Vector2>(slotCount);
     Vector2 probeWalk = default;
     Vector2 probeScreen = default;
+    var probeTaken = false;
     for (var i = 0; i < slotCount; i++)
     {
       if (!classified.TryGetValue(i, out var entry))
@@ -619,6 +630,10 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
 
       var node = (AtkResNode*)ownerNode;
       var position = GetNodePosition(node);
+      // 0.2.8.4: the game's own top-left for this node this frame. AtkResNode.ScreenX/ScreenY is
+      // what the game itself computed - the same numbers the PvPSolver hotbar overlay draws from
+      // - and the screen-confirmation gate below holds every anchor against them.
+      var screen = new Vector2(node->ScreenX, node->ScreenY);
       var scale = GetNodeScale(node);
       if (scale.X <= 0 || scale.Y <= 0)
         continue;
@@ -633,16 +648,37 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
       // missing dot is better than a wrong one (the GridMap contract).
       if (!MarkerAnchor.IsResolvableCell(position, size))
       {
-        // The probe the next session reads: the walked position of the first unresolved cell,
+        // The probe the next session reads: the walked position of the first suppressed cell,
         // next to the node's own ScreenX/ScreenY - which the game maintains for nodes it
         // actually lays out. If screen is non-origin while walk is origin, the walk is the
         // broken half on this game build; if both are origin, the node is not laid out at all.
-        if (suppressedUnresolved == 0)
+        if (!probeTaken)
         {
           probeWalk = position;
-          probeScreen = new Vector2(node->ScreenX, node->ScreenY);
+          probeScreen = screen;
+          probeTaken = true;
         }
         suppressedUnresolved++;
+        continue;
+      }
+
+      // 0.2.8.4 THE SCREEN-CONFIRMATION GATE: the walk is a hand reimplementation of the game's
+      // layout, and the 0.2.8.3 session proved the origin signature is no longer its only wrong-
+      // anchor shape - every classified cell passed the origin gate and drew, yet no dot sat on
+      // its icon and one green dot sat near the screen's top-left. On a live positioned cell the
+      // walk reproduces the game's own ScreenX/ScreenY to a rounding error; a walked anchor the
+      // game's layout does not confirm is not the position of a laid-out cell, whatever its
+      // signature. Fail closed, same doctrine as the origin gate: no game-confirmed position,
+      // no dot - and the probe records walk vs screen for the first such cell.
+      if (!MarkerAnchor.IsScreenConfirmed(position, screen))
+      {
+        if (!probeTaken)
+        {
+          probeWalk = position;
+          probeScreen = screen;
+          probeTaken = true;
+        }
+        suppressedUnconfirmed++;
         continue;
       }
 
@@ -654,6 +690,27 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
       };
       if (color == 0u)
         continue;
+
+      // 0.2.8.4 THE STACKED-ANCHOR GATE: no visible grid ever shows two cells at one screen
+      // position. A position source that hands several cells the same anchor (one shared or
+      // template node the game still positions) stacks every dot window on one spot - the same
+      // one-stray-dot symptom the origin signature produced, one pixel-true cell at a time.
+      // The first cell keeps the spot; the rest draw nothing.
+      var duplicate = false;
+      foreach (var drawn in drawnAnchors)
+      {
+        if (!MarkerAnchor.IsDuplicateAnchor(position, drawn))
+          continue;
+        duplicate = true;
+        break;
+      }
+      if (duplicate)
+      {
+        suppressedDuplicate++;
+        continue;
+      }
+      drawnAnchors.Add(position);
+
       if (entry.Kind == MarkerMatch.MarkKind.OnList) drawnOnList++; else drawnNotListed++;
 
       ImGuiHelpers.ForceNextWindowMainViewport();
@@ -687,17 +744,19 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
     // were computed from, which is exactly what 0.1.17.0 got wrong. 0.1.21.0: the line now
     // separates the two marker colours. 0.1.33.0: it also reports whether this grid's display
     // order was the identity permutation - the assumption that produced dots on empty grids.
-    // 0.2.8.3: it also fires when classified cells were suppressed (no owner node, or the origin
-    // gate), naming the counts and, for the origin gate, the first unresolved cell's walked
-    // position and the node's own ScreenX/ScreenY - the probe that says which half of the
-    // position source is broken on the live game build.
-    if ((drawnOnList + drawnNotListed + suppressedNoOwner + suppressedUnresolved > 0) && _loggedAddons.Add($"{addonName}:{containerLabel}"))
+    // 0.2.8.3: it also fires when classified cells were suppressed, naming the counts and the
+    // first suppressed cell's walked position next to the node's own ScreenX/ScreenY - the probe
+    // that says which half of the position source is broken on the live game build. 0.2.8.4:
+    // the gate family grew (screen-confirmed anchors, no stacked anchors) and every position
+    // gate records into the same probe.
+    var totalSuppressed = suppressedNoOwner + suppressedUnresolved + suppressedUnconfirmed + suppressedDuplicate;
+    if ((drawnOnList + drawnNotListed + totalSuppressed > 0) && _loggedAddons.Add($"{addonName}:{containerLabel}"))
     {
-      var suppressedTail = suppressedNoOwner + suppressedUnresolved > 0
-        ? $", {suppressedUnresolved} unresolved (origin gate) + {suppressedNoOwner} without an owner node suppressed"
+      var suppressedTail = totalSuppressed > 0
+        ? $", {suppressedUnresolved} unresolved (origin gate) + {suppressedUnconfirmed} not confirmed on screen + {suppressedDuplicate} stacked on an already-drawn cell + {suppressedNoOwner} without an owner node suppressed"
         : "";
-      var probeTail = suppressedUnresolved > 0
-        ? $"; unresolved cell0 walk=({probeWalk.X},{probeWalk.Y}) screen=({probeScreen.X},{probeScreen.Y})"
+      var probeTail = probeTaken
+        ? $"; first suppressed cell walk=({probeWalk.X},{probeWalk.Y}) screen=({probeScreen.X},{probeScreen.Y})"
         : "";
       Svc.Log.Information($"[LMC] markers: {drawnOnList} on-list (green) + {drawnNotListed} marketable not listed (grey) of {stacks.Count} stacks on {addonName} ({containerLabel}), order={(orderIsIdentity ? "identity" : "sorted")}{suppressedTail}{probeTail}");
     }
