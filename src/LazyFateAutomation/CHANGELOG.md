@@ -1,5 +1,12 @@
 # Changelog - Lazy Fate Automation
 
+## v0.0.3.6 (2026-10-05) [testing]
+### Changed
+- **The server info bar entry shows the boss FATE icon instead of the sword glyphs.** The same icon is used in every state; the bot's on/off state stays in the text (": On", ": Off" and the rest), exactly as before. No other entry is affected.
+### Notes
+- Testing channel only; the production channel is unchanged.
+- The click behavior, the confirming second click and everything else in the previous build are unchanged.
+
 ## v0.0.3.5 (2026-10-05) [testing]
 ### Added
 - **Server info bar (Umbra) toggle for the FATE bot.** The plugin adds a "Lazy Fate Automation" entry to the game's server info bar, which Umbra renders as a button. It shows the bot state with the sibling entries' sword icon: On, Off, "(stopping)" while a soft stop is pending, or the live state such as "Paused (in instance)". Clicking it stops the bot (Ctrl+click waits for the current FATE to finish, like the window's soft stop); when stopped, the first click arms the start and a second click within 10 seconds confirms it, so a stray click cannot start the automation. Starting still requires a logged-in character, exactly like the Lazy Hub switch.
