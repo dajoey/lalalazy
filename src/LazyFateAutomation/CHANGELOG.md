@@ -1,5 +1,12 @@
 # Changelog - Lazy Fate Automation
 
+## v0.0.3.7 (2026-10-05) [testing]
+### Fixed
+- **The boss FATE icon on the server info bar entry now actually renders.** The previous testing build showed no icon at all because the glyph reference pointed at an empty slot instead of the boss FATE icon; the icon value is now pinned so it stays the boss glyph.
+### Notes
+- Testing channel only; the production channel is unchanged.
+- Click behavior, the confirming second click and every other part of the server bar entry are unchanged.
+
 ## v0.0.3.6 (2026-10-05) [testing]
 ### Changed
 - **The server info bar entry shows the boss FATE icon instead of the sword glyphs.** The same icon is used in every state; the bot's on/off state stays in the text (": On", ": Off" and the rest), exactly as before. No other entry is affected.
