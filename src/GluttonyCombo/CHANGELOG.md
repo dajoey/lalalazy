@@ -1,8 +1,13 @@
+## v1.0.4.291 (2026-10-07) [testing]
+### Added
+- **A new Auto-Rotation setting, "Attack out of combat while another plugin controls Gluttony" (on by default).** While another plugin holds a lease on the auto-rotation (AutoDuty, Henchman, Lazy Fate Automation and the other plugins that drive the character), the rotation now engages hostile targets even when the character and the target are both out of combat. The out-of-combat restriction saved in the older options ("Restrict to Combat Only", "Prioritise Targets Not in Combat") is read, never changed: the moment the lease ends - released by the plugin, revoked, the plugin unloading, or ten minutes passing with no control call - the saved restriction applies again exactly as it stands. The lease interface can neither read nor set the new option; only the user controls it.
+- **The Auto-Rotation tab shows a status line ("External control active: <plugin> - attacking out of combat") while a lease is fresh, and the log records each engagement and its end, at most one line per minute.**
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v1.0.4.290 (2026-10-06) [testing]
 ### Fixed
 - **Beastmaster in the Crucible of the Unbroken: no horn is blown for a new familiar while the Curtains for Rank 5 cast is running or its knockout has not landed yet.** The previous release recalls the familiar from the moment the knockout cast starts, which empties the familiar's slot several seconds before the cast resolves; the summon rules then filled that empty slot on the next weave, and the knockout took the newly summoned familiar anyway — a wasted horn and a familiar lost for nothing. The rotation now waits out the cast and the second or so it takes the knockout to land, and brings the new familiar in right after, so the horn is spent on a familiar that stays.
-### Notes
-- Testing channel only; the production channel is unchanged.
 
 ## v1.0.4.289 (2026-10-06) [testing]
 ### Fixed
