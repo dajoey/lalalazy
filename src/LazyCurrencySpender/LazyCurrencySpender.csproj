@@ -1,15 +1,15 @@
-<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+﻿<Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
     <PackageId>LazyCurrencySpender</PackageId>
     <Authors>Blackcatz1911, dajoey</Authors>
-    <Version>1.2.7.4</Version>
+    <Version>1.3.1.0</Version>
     <Description>Lazy Currency Spender — FFXIV Plugin to find the best options to spend your ingame currency. Fork of CurrencySpender by Blackcatz1911.</Description>
     <PackageProjectUrl>https://github.com/dajoey/lalalazy</PackageProjectUrl>
     <RepoUrl>https://github.com/dajoey/lalalazy</RepoUrl>
     <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
     <IsPackable>false</IsPackable>
     <Platforms>x64</Platforms>
-    <AssemblyVersion>1.2.7.4</AssemblyVersion>
+    <AssemblyVersion>1.3.1.0</AssemblyVersion>
     <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
     <SupportedOSPlatformVersion>8.0</SupportedOSPlatformVersion>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>

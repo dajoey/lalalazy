@@ -1,4 +1,14 @@
-# Changelog - Lazy Currency Spender
+﻿# Changelog - Lazy Currency Spender
+
+## v1.3.1.0 (2026-10-07) [testing]
+### Changed
+- **Upstream sync: merged CurrencySpender 1.2.6 through 1.3.1 (Blackcatz1911) into the fork.** New tracked currencies (Faux Leaf, Achievement Certificate, Oizys Credit, Auxesia Credit) and vendors (Quinnana, Faux Commander), data-driven custom-shop generation (in-code CustomShops replaces the hardcoded Cosmocredit item lists), upstream's config version migrations, and the Service.ObjectTable API rename.
+- **New optional integrations:** Lifestream and vnavmesh IPC wrappers with upstream's MovementTask movement helpers, and the NPC/menu highlight services. All are gracefully skipped when the providing plugin is absent.
+### Fixed
+- Font rendering keeps the fork's Dalamud asset-font setup; the fork keeps its own tab UI (Windows/), teleport flow, Hub integration and Quick Controls.
+### Notes
+- Testing channel only; the production channel is unchanged.
+- First sync after this fork was added to the nightly upstream-merge rotation; before today it had no upstream coverage.
 
 ## v1.2.7.4 (2026-10-05) [testing]
 ### Added

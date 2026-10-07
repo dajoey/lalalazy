@@ -18,5 +18,6 @@
   "LoadPriority": 0,
   "IconUrl": "https://raw.githubusercontent.com/dajoey/lalalazy/main/LalaImages/lazycurrencyspender-icon.png",
   "Punchline": "Find the absolute best way to spend all your FFXIV currencies.",
-  "AcceptsFeedback": true
+  "AcceptsFeedback": true,
+  "Changelog": "v1.3.1.0: Upstream sync of CurrencySpender 1.2.6-1.3.1: new currencies (Faux Leaf, Achievement Certificate, Oizys/Auxesia Credit), data-driven custom shops, config migrations, Lifestream/vnavmesh IPC + movement helpers, NPC/menu highlight, ObjectTable API rename. Fork keeps its own tab UI, fonts and teleport flow. Testing only."
 }
