@@ -9,6 +9,7 @@ using ECommons.ImGuiMethods;
 using Lumina.Excel.Sheets;
 using System;
 using System.Linq;
+using GluttonyCombo.AutoRotation;
 using GluttonyCombo.API.Enum;
 using GluttonyCombo.Combos.PvE;
 using GluttonyCombo.Extensions;
@@ -44,6 +45,24 @@ internal class AutoRotationTab : ConfigWindow
             Enum.Parse<AutoRotationConfigOption>("InCombatOnly"))!;
         changed |= P.UIHelper.ShowIPCControlledCheckboxIfNeeded(
             AutoRotationUI.Checkbox_OnlyInCombat, ref cfg.InCombatOnly, "InCombatOnly");
+
+        // Fork (1.0.4.291): external-control override - decision core
+        // OutOfCombatGate.ExternalControl* / OutOfCombatAttacksAllowed. A fresh lease
+        // lifts the restriction for hostile-only presses and the DPS hard-target write
+        // while it lasts; the saved options are read, never written.
+        changed |= ImGui.Checkbox(
+            "Attack out of combat while another plugin controls Gluttony",
+            ref cfg.AttackOutOfCombatWhileControlled);
+        ImGuiComponents.HelpMarker(
+            "While another plugin holds a lease on the auto-rotation (AutoDuty, Henchman, " +
+            "Lazy Fate Automation, ...), the rotation engages hostile targets even when " +
+            "the character and the target are both out of combat. The combat-only " +
+            "restriction saved above is not changed - it applies again the moment the " +
+            "lease ends. Self-targeting, heal dumps and raidwide shields stay combat-only.");
+
+        var externalControlStatus = AutoRotationController.ExternalControlStatusText;
+        if (externalControlStatus is not null)
+            ImGui.TextDisabled(externalControlStatus);
 
         if (inCombatOnly)
         {

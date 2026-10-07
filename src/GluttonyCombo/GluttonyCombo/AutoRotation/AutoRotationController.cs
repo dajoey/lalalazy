@@ -225,9 +225,111 @@ internal unsafe class AutoRotationController
 
     // Fork (1.0.4.281): the user's own out-of-combat attack settings ("Prioritise Targets Not in Combat" on,
     // "Restrict to Combat Only" off) open the OutOfCombatGate for hostile-only attacks and the DPS hard-target
-    // write. Decision core and harness: OutOfCombatGate.UserAllowsOutOfCombatAttacks.
+    // write. Fork (1.0.4.291): while another plugin holds a fresh lease on the rotation and the user's
+    // "Attack out of combat while another plugin controls Gluttony" setting is on, the same doors open for
+    // as long as the control lasts - the saved options are read, never written. Decision core and harness:
+    // OutOfCombatGate.OutOfCombatAttacksAllowed / ExternalControl*.
     static bool UserAllowsOutOfCombatAttacks =>
-        OutOfCombatGate.UserAllowsOutOfCombatAttacks(cfg.InCombatOnly, cfg.DPSSettings.PreferNonCombat);
+        OutOfCombatGate.OutOfCombatAttacksAllowed(cfg.InCombatOnly, cfg.DPSSettings.PreferNonCombat, ExternalControlActive);
+
+    /// <summary>
+    ///     Fork (1.0.4.291): the live external-control snapshot - how many leases
+    ///     are registered, the newest control call among them (a re-assert of a
+    ///     held state counts: Leasing refreshes LastUpdated on the Duplicate path),
+    ///     and the display name of that newest lease for the status line and log.
+    /// </summary>
+    internal static (int leases, DateTime newestRefresh, string? newestName) ExternalLeaseSnapshot()
+    {
+        var registrations = P?.IPC?.Leasing?.Registrations;
+        if (registrations is null || registrations.Count == 0)
+            return (0, DateTime.MinValue, null);
+
+        var newest = DateTime.MinValue;
+        string? newestName = null;
+        foreach (var lease in registrations.Values)
+        {
+            if (lease.LastUpdated <= newest)
+                continue;
+            newest = lease.LastUpdated;
+            newestName = lease.PluginName;
+        }
+
+        return (registrations.Count, newest, newestName);
+    }
+
+    /// <summary>
+    ///     Fork (1.0.4.291): whether another plugin is actively controlling the
+    ///     rotation and the user allows the out-of-combat override while it does.
+    ///     The moment the lease ends (explicit release, user revoke, IPC suspend,
+    ///     the plugin-unload watchdog) or goes stale past
+    ///     OutOfCombatGate.ExternalControlStalenessWindow, this is false and the
+    ///     saved restriction rules again.
+    /// </summary>
+    static bool ExternalControlActive
+    {
+        get
+        {
+            if (cfg is null || !cfg.AttackOutOfCombatWhileControlled)
+                return false;
+
+            var (leases, newestRefresh, _) = ExternalLeaseSnapshot();
+            return OutOfCombatGate.ExternalControlFresh(
+                leases, DateTime.Now - newestRefresh,
+                OutOfCombatGate.ExternalControlStalenessWindow);
+        }
+    }
+
+    /// <summary>
+    ///     Fork (1.0.4.291): status-line text for the settings window while another
+    ///     plugin controls the rotation; null when none does.
+    /// </summary>
+    internal static string? ExternalControlStatusText
+    {
+        get
+        {
+            if (cfg is null || !cfg.AttackOutOfCombatWhileControlled)
+                return null;
+
+            var (leases, newestRefresh, newestName) = ExternalLeaseSnapshot();
+            if (!OutOfCombatGate.ExternalControlFresh(
+                    leases, DateTime.Now - newestRefresh,
+                    OutOfCombatGate.ExternalControlStalenessWindow))
+                return null;
+
+            return $"External control active: {newestName ?? "another plugin"} - attacking out of combat";
+        }
+    }
+
+    // Fork (1.0.4.291): one INFO line per external-control engagement/disengagement.
+    // Henchman re-leases every few seconds while it drives an engagement; without the
+    // 60 s dampener the log would fill with engage/release pairs. A state flip inside
+    // the dampened minute stays silent and the next change past the window reports the
+    // then-current state.
+    static bool _externalControlLogged;
+    static DateTime _externalControlLogAt = DateTime.MinValue;
+    static string? _externalControlLogName;
+
+    static void LogExternalControlState()
+    {
+        var active = ExternalControlActive;
+        if (active == _externalControlLogged || (DateTime.Now - _externalControlLogAt).TotalSeconds < 60)
+            return;
+
+        var (_, _, newestName) = ExternalLeaseSnapshot();
+        _externalControlLogged = active;
+        _externalControlLogAt = DateTime.Now;
+        if (active)
+        {
+            _externalControlLogName = newestName;
+            Svc.Log.Information(
+                $"External control ({newestName ?? "another plugin"}): attacking targets out of combat while it drives the rotation");
+        }
+        else
+        {
+            Svc.Log.Information(
+                $"External control ended ({_externalControlLogName ?? "lease"} released): saved out-of-combat restriction restored");
+        }
+    }
 
     private static DateTime? _phantomHealHoldSince;
     private static DateTime _phantomHealHoldBlockedUntil = DateTime.MinValue;
@@ -725,6 +827,9 @@ internal unsafe class AutoRotationController
     {
         cfg ??= new AutoRotationConfigIPCWrapper(Service.Configuration.RotationConfig);
 
+        // Fork (1.0.4.291): one INFO line per external-control engage/disengage.
+        LogExternalControlState();
+
         if (!cfg.Enabled)
             OverrideTarget = null;
 
@@ -754,8 +859,10 @@ internal unsafe class AutoRotationController
                 return;
         }
 
-        // Only run in combat if required
-        if (cfg.InCombatOnly && NotInCombat && !CombatBypass)
+        // Only run in combat if required. Fork (1.0.4.291): not while another plugin
+        // actively controls the rotation and the user allows the override - that is
+        // the whole point of the setting.
+        if (cfg.InCombatOnly && NotInCombat && !CombatBypass && !ExternalControlActive)
             return;
 
         // Check for Pyretic / Reasons to stop
@@ -2387,7 +2494,8 @@ internal unsafe class AutoRotationController
 
             var blockedSelfBuffs = GetCooldown(outAct).CooldownTotal >= 5;
 
-            if (cfg.InCombatOnly && NotInCombat && !CombatBypass && !(canUseSelf && cfg.BypassBuffs && !blockedSelfBuffs))
+            if (cfg.InCombatOnly && NotInCombat && !CombatBypass && !ExternalControlActive &&
+                !(canUseSelf && cfg.BypassBuffs && !blockedSelfBuffs))
                 return false;
 
             if (target is null && !canUseSelf)

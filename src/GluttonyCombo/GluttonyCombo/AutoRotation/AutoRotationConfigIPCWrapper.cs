@@ -26,6 +26,15 @@ public class AutoRotationConfigIPCWrapper(AutoRotationConfig? config)
         }
     }
 
+    /// <summary>
+    ///     Fork (1.0.4.291): "Attack out of combat while another plugin controls
+    ///     Gluttony". Deliberately a plain passthrough with no controlled-check:
+    ///     the external-control override is user-owned and is not an
+    ///     AutoRotationConfigOption, so no lease can set or read it.
+    /// </summary>
+    public bool AttackOutOfCombatWhileControlled =>
+        config?.AttackOutOfCombatWhileControlled ?? true;
+
     public DPSRotationMode DPSRotationMode
     {
         get

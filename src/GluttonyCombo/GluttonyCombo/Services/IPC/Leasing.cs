@@ -321,6 +321,14 @@ public partial class Leasing
         if (registration.AutoRotationControlled.TryGetValue(0, out var currentState) &&
             currentState == newState)
         {
+            // Fork (1.0.4.291): a re-assert of the state this lease already holds is a
+            // liveness proof (AutoDuty re-sends its SetAutoMode every 5 s and lands
+            // here, Henchman re-asserts its overlay). Refresh the lease so the
+            // external-control staleness window
+            // (OutOfCombatGate.ExternalControlStalenessWindow) sees a live controller
+            // instead of timing a hung one out.
+            registration.LastUpdated = DateTime.Now;
+
             if (EZ.Throttle("ipcAutoRotSetLog", TS.FromSeconds(15)))
                 Logging.Log(
                     $"{registration.PluginName}: You are already controlling Auto-Rotation");

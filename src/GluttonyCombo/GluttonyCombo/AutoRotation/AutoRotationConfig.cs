@@ -8,6 +8,20 @@ public class AutoRotationConfig
 {
     public bool Enabled;
     public bool InCombatOnly;
+
+    /// <summary>
+    ///     Fork (1.0.4.291): "Attack out of combat while another plugin controls
+    ///     Gluttony". While another plugin holds a fresh lease on the auto-rotation
+    ///     (AutoDuty, Henchman, Lazy Fate Automation, ...), the out-of-combat
+    ///     restriction is lifted for hostile-only presses and the DPS hard-target
+    ///     write only; every saved out-of-combat option keeps its value and rules
+    ///     again the moment the lease ends (release, revoke, unload, or no control
+    ///     call for OutOfCombatGate.ExternalControlStalenessWindow). Default true -
+    ///     that is the behavior this option was added to provide; configs saved by
+    ///     older builds deserialize to it. Deliberately not exposed over IPC: only
+    ///     the user controls the override.
+    /// </summary>
+    public bool AttackOutOfCombatWhileControlled = true;
     public bool BypassQuest;
     public bool BypassFATE;
     public bool BypassBuffs;
