@@ -1,3 +1,14 @@
+## v0.2.8.6 (2026-10-07) [testing]
+### Fixed
+- **Marker dots stay put while the inventory updates.** While the game was rewriting its internal display order, the dots followed that in-progress order and could briefly land on the wrong items or jump between them. A panel's dots now draw only once its display order has been stable for a few consecutive frames, hold off while an update is in progress, and return once it settles. Each such episode is recorded in the log with which display slot pointed at which storage page, so a remaining report can be answered with evidence instead of guesswork.
+- **Dots from different panels can no longer share one screen spot.** The one-dot-per-position rule previously applied within a single panel, so a hidden retainer storage page could draw its dots exactly onto the page being viewed. The rule is now frame-wide: the first panel to claim a screen position keeps it, and any other panel's dot for that same spot is skipped and counted.
+### Added
+- **A source line for dots near the screen's top-left corner.** If a marker dot ever draws within a small corner window of the screen, the log names the panel, slot and exact position, once per panel. A stray corner dot without such a log line is not drawn by this plugin.
+- **The retainer window's page state is logged whenever its set of live storage grids changes**, which is the evidence a shown-page filter for retainer storage needs.
+### Notes
+- The marker probe's line budget rises from 8 to 32 lines per panel, so a longer stretch of unusual frames stays visible.
+- Testing channel only; the production channel is unchanged.
+
 ## v0.2.8.5 (2026-10-06) [testing]
 ### Added
 - **A diagnostic probe for the marker dots.** Two fixes in a row removed every way the marker log could detect a misplaced dot, and the dots were still landing in the wrong place, so the log now records the numbers themselves: for the first few draws and any later moment the anchors move, one line per grid lists each marked item's exact position data - where the marker computed the dot, where the game itself says the cell sits, the cell's rectangle and scale, and which dot it drew. No drawing behavior changed; every gate from the previous build stays.
