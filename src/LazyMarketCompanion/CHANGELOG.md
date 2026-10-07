@@ -1,3 +1,11 @@
+## v0.2.8.7 (2026-10-07) [testing]
+### Fixed
+- **Auto-Market marker dots render again.** Each dot is a borderless window with no content of its own - the circle is painted onto the window's internal draw list - so the window, told to auto-size itself, collapsed to the drawing engine's minimum empty-window size of 4x4 pixels, and the engine's clipping then kept only a few pixels of the circle: dots have been effectively invisible since the windows lost their padding in 0.1.22.0, through four fix attempts whose position math was provably correct every time. The windows are now explicitly sized to their dot.
+### Added
+- **`/lmc markertest`** draws one labeled green test dot at the center of the screen for about five seconds and writes its position and size to the plugin log - a one-command check that the marker drawing itself renders, independent of the marker settings.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v0.2.8.6 (2026-10-07) [testing]
 ### Fixed
 - **Marker dots stay put while the inventory updates.** While the game was rewriting its internal display order, the dots followed that in-progress order and could briefly land on the wrong items or jump between them. A panel's dots now draw only once its display order has been stable for a few consecutive frames, hold off while an update is in progress, and return once it settles. Each such episode is recorded in the log with which display slot pointed at which storage page, so a remaining report can be answered with evidence instead of guesswork.
