@@ -1,10 +1,10 @@
 using Lumina.Excel.Sheets;
+using CurrencySpender.Tasks;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
 using CurrencySpender.Managers;
 using ECommons.Automation.NeoTaskManager;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using System.Reflection;
-using CurrencySpender.Tasks;
 
 namespace CurrencySpender.Classes
 {
@@ -29,6 +29,7 @@ namespace CurrencySpender.Classes
         public uint NpcId { get; init; }
 
         private string? zone;
+        public string? Lsc;
         public string Zone {
             get
             {
@@ -43,7 +44,7 @@ namespace CurrencySpender.Classes
 
         public static Location? GetLocation(uint npcId)
         {
-            return locations.FirstOrDefault(loc => loc.NpcId == npcId);
+            return Locations.FirstOrDefault(loc => loc.NpcId == npcId);
         }
         public MapLinkPayload? GetMapMarker()
         {
@@ -319,3 +320,4 @@ namespace CurrencySpender.Classes
         }
     }
 }
+

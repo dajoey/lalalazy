@@ -4,6 +4,7 @@ using Dalamud.Plugin.Services;
 
 namespace CurrencySpender;
 
+
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 public class Service
 {
@@ -22,7 +23,7 @@ public class Service
     [PluginService] public static ISigScanner SigScanner { get; set; }
     [PluginService] public static IChatGui Chat { get; set; }
     [PluginService] public static IObjectTable ObjectTable { get; set; }
-    
     internal static HighlightNpc HighlightNpc { get; set; } = null!;
     internal static HighlightMenu HighlightMenu { get; set; } = null!;
+    
 }

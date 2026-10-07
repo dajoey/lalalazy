@@ -94,7 +94,7 @@ internal static unsafe class UiHelper
         Location backupLocation = new Location();
         if (item?.Shop?.Location == null) 
         {
-            // Runs every frame for every row, and a shop NPC missing from the hand-kept Location.locations
+            // Runs every frame for every row, and a shop NPC missing from the hand-kept Location.Locations
             // is an expected data gap: note each NPC once at Debug (was ERR per row per frame, 159,189
             // lines in one session on 2026-10-04) and draw no Flag/TP buttons for it.
             if (item?.Shop != null && missingLocationLog.Decide(item.Shop.NpcId) == MissingLocationLogLevel.Debug)
@@ -104,7 +104,7 @@ internal static unsafe class UiHelper
         if (item.Shop.Location.NeedsPresence && item.Shop.Location.BackupNpc != null)
         {
             PluginLog.Debug("Back up location triggered");
-            backupLocation = Location.locations.Where(loc => loc.NpcId == item.Shop.Location.BackupNpc).First();
+            backupLocation = Location.Locations.Where(loc => loc.NpcId == item.Shop.Location.BackupNpc).First();
         }
         if (ImGui.Button($"Flag##sellable-{item.Id}-{item.ShopId}-{item.Shop.NpcId}"))
         {

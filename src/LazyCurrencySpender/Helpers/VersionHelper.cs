@@ -52,6 +52,7 @@ namespace CurrencySpender.Helpers
 
         private static void MigrateCollectableTypes(string oldVersion)
         {
+            foreach (var (version, types) in CollectableTypeMigrations)
             {
                 if (CompareVersions(version, oldVersion) <= 0) continue;
                 foreach (var type in types)
@@ -59,6 +60,59 @@ namespace CurrencySpender.Helpers
                     C.SelectedCollectableTypes.Add(type);
                 }
             }
+        }
+
+
+        public static void OpenConfigWizard()
+        {
+            P.configWizard.SetVersion(LastVersion());
+            P.configWizard.IsOpen = true;
+        }
+
+        public static bool LowerVersionThan(String version, string version2)
+        {
+            var v1Parts = version.Split('.');
+            var v2Parts = version2.Split('.');
+            int major1 = int.Parse(v1Parts[0]);
+            int minor1 = int.Parse(v1Parts[1]);
+            int patch1 = int.Parse(v1Parts[2]);
+            int major2 = int.Parse(v2Parts[0]);
+            int minor2 = int.Parse(v2Parts[1]);
+            int patch2 = int.Parse(v2Parts[2]);
+            if (major2 < major1) return true;
+            if (major2 > major1) return false;
+            if (minor2 < minor1) return true;
+            if (minor2 > minor1) return false;
+            return patch2 < patch1;
+        }
+
+        public static string LastVersion()
+        {
+            var v1Parts = C.Version.Split('.');
+            int major1 = int.Parse(v1Parts[0]);
+            int minor1 = int.Parse(v1Parts[1]);
+            int patch1 = int.Parse(v1Parts[2]);
+            patch1--;
+            if (patch1 < 0)
+            {
+                patch1 = 0;
+                minor1--;
+            }
+            if (minor1 < 0)
+            {
+                minor1 = 0;
+                major1--;
+            }
+            if (major1 < 0)
+            {
+                major1 = 0;
+            }
+            return major1 + "." + minor1 + "." + patch1;
+        }
+
+        public static bool LowerVersionThan(String version)
+        {
+            return LowerVersionThan(version, C.Version);
         }
 
         public static bool IsNewVersion()

@@ -53,12 +53,12 @@ internal static class HubAdapter
             }, group: "Tables", tip: "0 turns the filter off.", state: Ready);
 
         ep.Choice("thousands_separator", "Thousands separator", Separators,
-            get: () => Math.Max(0, Math.Min(Separators.Length - 1, P.config?.Seperator ?? 0)),
+            get: () => Math.Max(0, Math.Min(Separators.Length - 1, P.config?.Separator ?? 0)),
             set: i =>
             {
                 var c = P.config;
                 if (c == null) return SetOutcome.Refuse("starting up");
-                c.Seperator = Math.Max(0, Math.Min(Separators.Length - 1, i));
+                c.Separator = Math.Max(0, Math.Min(Separators.Length - 1, i));
                 EzConfig.Save();
                 return SetOutcome.Success;
             }, group: "General", state: Ready);

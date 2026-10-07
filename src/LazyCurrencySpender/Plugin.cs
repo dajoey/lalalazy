@@ -131,7 +131,7 @@ public sealed unsafe class Plugin : IDalamudPlugin
             var previousVersion = VersionHelper.CheckVersion();
             if (previousVersion != null)
             {
-                configWizard.SetVersion(previousVersion, VersionHelper.GetVersion());
+                configWizard.SetVersion(previousVersion);
                 configWizard.IsOpen = true;
             }
             //PluginLog.Debug($"unlocked: {ItemHelper.IsUnlocked(36636)}");

@@ -51,14 +51,14 @@ internal class ConfigTab
         ImGui.InputInt("Minimum sales", ref C.MinSales);
         ImGui.TextWrapped("Select the thousand seperator");
         string[] items = { "None", "Seperator .", "Seperator ," };
-        if (ImGui.BeginCombo("Select an Option", items[C.Seperator]))
+        if (ImGui.BeginCombo("Select an Option", items[C.Separator]))
         {
             for (int i = 0; i < items.Length; i++)
             {
-                bool isSelected = (C.Seperator == i);
+                bool isSelected = (C.Separator == i);
                 if (ImGui.Selectable(items[i], isSelected))
                 {
-                    C.Seperator = i; // Update the selected item
+                    C.Separator = i; // Update the selected item
                 }
 
                 // Set the initial focus when opening the combo box
