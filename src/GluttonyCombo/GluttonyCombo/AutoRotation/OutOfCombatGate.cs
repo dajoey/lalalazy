@@ -93,4 +93,48 @@ internal static class OutOfCombatGate
     ///     shields and raidwide detection stay combat-only regardless.
     /// </summary>
     internal static bool UserAllowsOutOfCombatAttacks(bool inCombatOnly, bool preferNonCombat) => !inCombatOnly && preferNonCombat;
+
+    /// <summary>
+    ///     1.0.4.291 (external control): how long a lease may sit without any control
+    ///     call before it is no longer trusted as active control. Every observed
+    ///     lessee re-asserts far inside this window (AutoDuty re-sends the
+    ///     auto-rotation state every 5 s, Henchman's largest in-window gap in the
+    ///     48 h telemetry is 21 s, Lazy Fate Automation refreshes on its per-FATE
+    ///     transitions); a lessee that hangs while loaded expires out of control in
+    ///     at most this long and the saved restriction returns.
+    /// </summary>
+    internal static TimeSpan ExternalControlStalenessWindow => TimeSpan.FromMinutes(10);
+
+    /// <summary>
+    ///     1.0.4.291 (external control): whether a lease may currently be trusted as
+    ///     active control by another plugin. Control exists when at least one lease
+    ///     is registered and its newest control call (including a re-assert of a
+    ///     state the lease already holds - AutoDuty's every-5-s SetAutoMode) is no
+    ///     older than <paramref name="stalenessWindow" />. STUB: the staleness half
+    ///     is not implemented yet - this returns the shipped 1.0.4.289 semantics
+    ///     (any lease counts, however old), which the external-control cases fail
+    ///     against on purpose (failing-first).
+    /// </summary>
+    internal static bool ExternalControlFresh(int leaseCount, TimeSpan sinceNewestControlRefresh, TimeSpan stalenessWindow)
+        => leaseCount > 0;
+
+    /// <summary>
+    ///     1.0.4.291 (external control): whether the external-control override may
+    ///     lift the out-of-combat restriction right now: the user's setting is on
+    ///     and another plugin is actively controlling the rotation. STUB: always
+    ///     false - the shipped behavior (the override never engages), which the
+    ///     external-control cases fail against on purpose (failing-first).
+    /// </summary>
+    internal static bool ExternalControlAllowsOutOfCombatAttacks(bool settingEnabled, bool controlActive)
+        => false;
+
+    /// <summary>
+    ///     1.0.4.291 (external control): the one answer to "may the rotation attack
+    ///     out of combat this tick": the user's own saved opt-in, or the
+    ///     external-control override while another plugin holds the rotation.
+    ///     STUB: the override half is not consulted yet - shipped 1.0.4.289
+    ///     semantics, which the external-control cases fail against on purpose.
+    /// </summary>
+    internal static bool OutOfCombatAttacksAllowed(bool inCombatOnly, bool preferNonCombat, bool externalControlActive)
+        => UserAllowsOutOfCombatAttacks(inCombatOnly, preferNonCombat);
 }

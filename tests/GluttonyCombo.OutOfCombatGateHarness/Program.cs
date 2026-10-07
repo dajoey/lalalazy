@@ -94,6 +94,57 @@ Case("not opted in: hard-target write still combat-only", false, OutOfCombatGate
 Case("opted in: incoming-damage detection STILL combat-only (no raidwide shields)", false, OutOfCombatGate.MayDetectIncomingDamage(false));
 
 Console.WriteLine();
+Console.WriteLine("== Group 7: 1.0.4.291 - external control lifts the restriction ==");
+Console.WriteLine("   (while another plugin holds a lease and the user allows it, hostile-only presses");
+Console.WriteLine("    and the DPS hard-target write fire out of combat; the saved settings are untouched)");
+bool UnderControl(bool settingEnabled, int leases, TimeSpan silence) =>
+    OutOfCombatGate.OutOfCombatAttacksAllowed(
+        inCombatOnly: false, preferNonCombat: false,
+        externalControlActive: OutOfCombatGate.ExternalControlAllowsOutOfCombatAttacks(
+            settingEnabled,
+            OutOfCombatGate.ExternalControlFresh(
+                leases, silence, OutOfCombatGate.ExternalControlStalenessWindow)));
+Case("engaged: default settings + fresh control => allowed", true, UnderControl(true, 1, TimeSpan.Zero));
+Fire("engaged: hostile-only attack fires out of combat (the Henchman pull)", true, false, false, true,
+    userAllowsOutOfCombatAttacks: UnderControl(true, 1, TimeSpan.Zero));
+Fire("engaged: hostile-only gap-close fires out of combat", true, false, false, true,
+    userAllowsOutOfCombatAttacks: UnderControl(true, 1, TimeSpan.Zero));
+Case("engaged: DPS hard-target write allowed out of combat", true,
+    OutOfCombatGate.MayWriteTarget(false, UnderControl(true, 1, TimeSpan.Zero)));
+
+Console.WriteLine();
+Console.WriteLine("== Group 8: the lease must be fresh, and the setting gates everything ==");
+Case("fresh lease (0s since a control call) is control", true,
+    OutOfCombatGate.ExternalControlFresh(1, TimeSpan.Zero, OutOfCombatGate.ExternalControlStalenessWindow));
+Case("stale lease (no control call beyond the window) is not control", false,
+    OutOfCombatGate.ExternalControlFresh(1, OutOfCombatGate.ExternalControlStalenessWindow + TimeSpan.FromMinutes(1),
+        OutOfCombatGate.ExternalControlStalenessWindow));
+Case("no lease is not control", false,
+    OutOfCombatGate.ExternalControlFresh(0, TimeSpan.Zero, OutOfCombatGate.ExternalControlStalenessWindow));
+Case("stale control: the restriction returns at the timeout", false,
+    UnderControl(true, 1, OutOfCombatGate.ExternalControlStalenessWindow + TimeSpan.FromMinutes(1)));
+Case("setting OFF: control active, restriction holds", false, UnderControl(false, 1, TimeSpan.Zero));
+Case("released: no lease, restriction returns immediately", false, UnderControl(true, 0, TimeSpan.Zero));
+Case("no control: saved opt-in alone still allows (281 semantics)", true,
+    OutOfCombatGate.OutOfCombatAttacksAllowed(inCombatOnly: false, preferNonCombat: true, externalControlActive: false));
+Case("no control: saved restrictive settings still passenger", false,
+    OutOfCombatGate.OutOfCombatAttacksAllowed(inCombatOnly: false, preferNonCombat: false, externalControlActive: false));
+
+Console.WriteLine();
+Console.WriteLine("== Group 9: 1.0.4.291 - the earlier protections hold under external control ==");
+bool engaged = UnderControl(true, 1, TimeSpan.Zero);
+Fire("under control: damage-preset heal dump STILL waits (Kerachole/Druochole)", false, true, false, false,
+    userAllowsOutOfCombatAttacks: engaged);
+Fire("under control: unsanctioned self-only action STILL waits (Physis II)", false, true, false, false,
+    userAllowsOutOfCombatAttacks: engaged);
+Fire("under control: heal-preset friendly action unchanged (Medica)", false, true, false, true,
+    fromHealPreset: true, userAllowsOutOfCombatAttacks: engaged);
+Fire("under control: sanctioned prepull self-buff unchanged (tank stance)", false, true, false, true,
+    sanctionedSelfBuff: true, userAllowsOutOfCombatAttacks: engaged);
+Case("under control: incoming-damage detection STILL combat-only", false, OutOfCombatGate.MayDetectIncomingDamage(false));
+Case("under control: reflect-penalty self-select STILL combat-only", false, OutOfCombatGate.MayWriteTarget(false));
+
+Console.WriteLine();
 if (failures == 0)
 {
     Console.WriteLine($"OK ({total}/{total} cases pass)");
