@@ -541,7 +541,14 @@ internal static class BST_RotationLogic
         // ---------------------------------------------------------- 1. summon
         if (!FamiliarPresentOrPending(s))
         {
-            if (crucible && s.IsMoving)
+            // Curtains: the recall empties the slot early, but the KO still lands about 1 s after the cast resolves —
+            // a horn pressed into the open cast or that gap sends a new familiar into the knockout. Hold until it has
+            // landed; the normal rules re-summon right after (see CurtainsKoPending).
+            if (crucible && BST_CrucibleLogic.CurtainsKoPending(s))
+            {
+                declines.Add("crucible:summon-curtains-ko-pending");
+            }
+            else if (crucible && s.IsMoving)
             {
                 declines.Add("crucible:summon-moving");
             }

@@ -42,6 +42,20 @@ internal static class BST_CrucibleLogic
     /// <summary> A Parting Blow pressed less than this long ago is still sending the familiar away (retreat ~2.3 s). </summary>
     public const float RecallInFlightSeconds = 3f;
 
+    /// <summary>
+    ///     A Curtains cast is open or its knockout has not landed yet. The KO lands about 1.0 s after the cast completes
+    ///     (the same number the recall sweep's retreat property uses); the hold rides 1.5 s past the last seen tick for
+    ///     castbar jitter. The whole-window recall empties the slot about 3.7 s before the resolve, and without this hold
+    ///     the summon rules blew a horn for a new familiar on the next weave (review probe on 1.0.4.289: summon:slot2 at
+    ///     every tick from 3.5 s to 0.5 s remaining) and the KO took it — a wasted horn and a locked slot. The normal
+    ///     summon rules resume once the KO has landed.
+    /// </summary>
+    public const float CurtainsKoHoldSeconds = 1.5f;
+
+    public static bool CurtainsKoPending(in BstState s) =>
+        (BST_CrucibleData.CurtainsCasts.Contains(s.TargetCastId) && s.TargetCastRemaining > 0f)
+        || s.SinceCurtainsCast < CurtainsKoHoldSeconds;
+
     /// <summary> XBMPet row of the vulture: Bloodcurdling Caw dispels a buff. </summary>
     public const int VultureRow = 11;
 

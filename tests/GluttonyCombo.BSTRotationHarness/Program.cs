@@ -2189,6 +2189,7 @@ internal static class Program
                 PetHpPercent = _activeSlot != 0 ? _petHp[_activeSlot] : 100f,
                 PetHp = _activeSlot != 0 ? 200f * _petHp[_activeSlot] : 0f,
                 SinceSnarl = float.MaxValue,
+                SinceCurtainsCast = float.MaxValue,
                 Slot1PetHp = _petSeen[1] ? _petHp[1] : 0f,
                 Slot2PetHp = _petSeen[2] ? _petHp[2] : 0f,
                 Slot3PetHp = _petSeen[3] ? _petHp[3] : 0f,
