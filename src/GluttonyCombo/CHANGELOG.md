@@ -1,3 +1,9 @@
+## v1.0.4.292 (2026-10-07) [testing]
+### Changed
+- **The Auto-Rotation now runs the Black Mage area rotation when exactly two enemies are in range of the best area target, instead of staying on the single-target rotation until the configured enemy count (three by default).** Black Mage's area rotation already picks Blizzard IV over Freeze at exactly two targets; that pick was unreachable through the Auto-Rotation because the enemy-count gate sent every job back to the single-target rotation below the configured count. Every other job and every other enemy count behave exactly as before, and a disabled area rotation still disables the behavior.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v1.0.4.291 (2026-10-07) [testing]
 ### Added
 - **A new Auto-Rotation setting, "Attack out of combat while another plugin controls Gluttony" (on by default).** While another plugin holds a lease on the auto-rotation (AutoDuty, Henchman, Lazy Fate Automation and the other plugins that drive the character), the rotation now engages hostile targets even when the character and the target are both out of combat. The out-of-combat restriction saved in the older options ("Restrict to Combat Only", "Prioritise Targets Not in Combat") is read, never changed: the moment the lease ends - released by the plugin, revoked, the plugin unloading, or ten minutes passing with no control call - the saved restriction applies again exactly as it stands. The lease interface can neither read nor set the new option; only the user controls it.

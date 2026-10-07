@@ -2269,7 +2269,7 @@ internal unsafe class AutoRotationController
                     if (singleTargetModeTarget >= maxHit)
                         target = st;
 
-                    if (cfg.DPSSettings.DPSAoETargets == null || maxHit < cfg.DPSSettings.DPSAoETargets)
+                    if (!AoETargetGate.MayRunAoe(cfg.DPSSettings.DPSAoETargets, maxHit, Player.Job is Job.BLM))
                         return false;
 
                 }

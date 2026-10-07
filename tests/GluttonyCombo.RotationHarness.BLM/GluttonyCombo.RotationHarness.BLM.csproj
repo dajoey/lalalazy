@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Plain console app, no Dalamud and no ECommons. Compiles the REAL
+       src/GluttonyCombo/GluttonyCombo/AutoRotation/AoETargetGate.cs - the pure
+       decision core AutoRotationController's ExecuteAoE consults before a job's
+       AoE combo runs - so the semantics that ship in the zip are the ones
+       asserted here. Any game type leaking into that file breaks this build,
+       which is the point.
+         dotnet build tests\GluttonyCombo.RotationHarness.BLM -c Release
+         dotnet tests\GluttonyCombo.RotationHarness.BLM\bin\Release\net10.0\GluttonyCombo.RotationHarness.BLM.dll
+       Prints PASS/FAIL per case, "OK" and exit 0 when every case passes. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>GluttonyCombo.RotationHarness.BLM</RootNamespace>
+    <AssemblyName>GluttonyCombo.RotationHarness.BLM</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NoWarn>$(NoWarn);CS1574;CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="..\..\src\GluttonyCombo\GluttonyCombo\AutoRotation\AoETargetGate.cs" Link="AoETargetGate.cs" />
+  </ItemGroup>
+</Project>
