@@ -8,7 +8,7 @@ namespace LazyCrafter;
 [Serializable]
 public sealed class Configuration : IPluginConfiguration
 {
-    public const int CurrentVersion = 9;
+    public const int CurrentVersion = 10;
 
     public int Version { get; set; } = CurrentVersion;
 
@@ -159,6 +159,25 @@ public sealed class Configuration : IPluginConfiguration
     /// </summary>
     public bool SequentialInterventionMode { get; set; } = true;
 
+    // ---- v10 (0.1.7.7, Knightshopper routing) ----
+
+    /// <summary>
+    /// Buy vendor items through Knightshopper during an explicit dispatch (0.1.7.7). When ON (default) and
+    /// Knightshopper is loaded, the wave's shopping list is grouped by currency and bought through
+    /// Knightshopper's purchase IPC at TARGET inventory totals - gil vendors, and currency vendors whose
+    /// price is one currency Knightshopper supports. The run prints the list and its estimated cost BEFORE
+    /// anything is spent; one attempt per group per dispatch (target totals make a repeat dispatch ask for
+    /// the same target at most, so nothing is ever bought twice); the market board never routes; and any
+    /// refusal - Knightshopper missing, busy, not allowed, no vendor for an item - merges those items back
+    /// into the usual shopping stops.
+    /// <para>
+    /// Purchases need LazyCrafter on Knightshopper's allowed-plugins IPC list, which is set in KNIGHTSHOPPER's
+    /// settings - LazyCrafter never changes Knightshopper's own settings. Off restores the pre-0.1.7.7 run
+    /// exactly: flag and name every vendor item, buy nothing.
+    /// </para>
+    /// </summary>
+    public bool BuyVendorItemsWithKnightshopper { get; set; } = true;
+
     /// <summary>The cart, so it survives a plugin reload.</summary>
     public List<CartEntry> Cart { get; set; } = new();
 
@@ -204,6 +223,11 @@ public sealed class Configuration : IPluginConfiguration
         // as v6/v7/v8: a config written before this version has no key for it, so the initialiser stands and
         // existing users get the staged cadence - which is the point of the release. Off is one checkbox in
         // the settings and restores the monolithic run.
+        // v9 -> v10: BuyVendorItemsWithKnightshopper is new and defaults ON (0.1.7.7). Same shape as v6-v9:
+        // a config written before this version has no key for it, so the initialiser stands. The routing only
+        // fires inside an explicit dispatch, only for vendor-priced items, and only when Knightshopper itself
+        // is loaded AND has LazyCrafter on its allowed-plugins IPC list - every refusal falls back to the
+        // pre-0.1.7.7 shopping stops. Off is one checkbox and restores the old run exactly.
         Cart ??= new List<CartEntry>();
         Version = CurrentVersion;
     }

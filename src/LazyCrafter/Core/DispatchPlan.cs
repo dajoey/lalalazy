@@ -51,8 +51,10 @@ public static class DispatchPlan
     /// Something to buy. <paramref name="Where"/> is the optional "and here is who else sells it" clause
     /// (card t_b431de3a part C) - currently the placed currency vendors for a market item, cheapest first.
     /// Empty when nothing else is known, so every pre-existing caller keeps its exact output.
+    /// <paramref name="Owned"/> is the stock the plan already counts for the item (0.1.7.7): Knightshopper buys
+    /// to a TARGET inventory total, so the adapter starts from Owned + Quantity, never from Quantity alone.
     /// </summary>
-    public sealed record Purchase(uint ItemId, int Quantity, string Where = "");
+    public sealed record Purchase(uint ItemId, int Quantity, string Where = "", int Owned = 0);
     public sealed record Deferral(uint RecipeId, uint ResultItemId, int Crafts, string Reason);
     public sealed record ManualItem(uint ItemId, int Quantity, IReadOnlyList<SourceKind> Sources, string Where = "");
 
@@ -64,7 +66,7 @@ public static class DispatchPlan
     /// Anything less never reaches here; it stays on the market board with the vendor merely named.
     /// </para>
     /// </summary>
-    public sealed record CurrencyPurchase(uint ItemId, int Quantity, SpecialShopCandidate Offer)
+    public sealed record CurrencyPurchase(uint ItemId, int Quantity, SpecialShopCandidate Offer, int Owned = 0)
     {
         /// <summary>"Ixali vendor (North Shroud) for 7 Ixali Oaknot" - the whole instruction in one clause.</summary>
         public string Where => Offer.Describe(Quantity);
@@ -188,9 +190,9 @@ public static class DispatchPlan
             {
                 case Route.Venture: ventureList.Add(new Venture(leaf.ItemId, leaf.Missing, match!)); break;
                 case Route.Gather: gatherList.Add(new Gather(leaf.ItemId, leaf.Missing, GatherKind(leaf.Sources))); break;
-                case Route.Vendor: vendorList.Add(new Purchase(leaf.ItemId, leaf.Missing)); break;
+                case Route.Vendor: vendorList.Add(new Purchase(leaf.ItemId, leaf.Missing, Owned: leaf.Have)); break;
                 // Same BestOffer call RouteFor used, so the line names the vendor the routing actually chose.
-                case Route.CurrencyShop: currencyList.Add(new CurrencyPurchase(leaf.ItemId, leaf.Missing, BestOffer(leaf, shops)!)); break;
+                case Route.CurrencyShop: currencyList.Add(new CurrencyPurchase(leaf.ItemId, leaf.Missing, BestOffer(leaf, shops)!, Owned: leaf.Have)); break;
                 // Market and manual now carry the "or buy it from X for Y" clause when a currency vendor is known
                 // (part C). Both channels, because before this card only manual printed sources at all - and it
                 // printed SourceKind enum names, not vendors, which is why an OnHand-only leaf rendered as "()".

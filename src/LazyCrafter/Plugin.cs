@@ -302,6 +302,9 @@ public sealed class Plugin : IDalamudPlugin
         var plan = Dispatch.PlanFor();
         if (plan is null) return;
         string N(uint id) => GameData?.ItemName(id) ?? $"#{id}";
+        // 0.1.7.7: the Knightshopper part of the plan prints FIRST - it is the order a dispatch buys in.
+        foreach (var line in Dispatch.KnightshopperPlanLines(plan))
+            ChatGui.Print("[LazyCrafter] " + line);
         ChatGui.Print($"[LazyCrafter] plan for {cartLines.Count} cart line(s): " +
             $"retrieve [{string.Join(", ", plan.Retrievals.Select(r => $"{N(r.ItemId)} x{r.Quantity} from {r.Places}"))}] " +
             $"ARC [{string.Join(", ", plan.Ventures.Select(v => $"{N(v.ItemId)} x{v.Quantity} ({v.Match.Retainer.Name})"))}] " +

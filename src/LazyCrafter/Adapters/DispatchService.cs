@@ -50,7 +50,7 @@ namespace LazyCrafter.Adapters;
 /// </summary>
 public sealed class DispatchService : IDisposable
 {
-    public enum Phase { Idle, Retrieve, WaitRetrieve, Ventures, Gathers, WaitGather, Crafts, WaitClientFree, WaitCraftStart, WaitCraftEnd, Done, Failed, BatchRetrieve, BatchWait, Blocked }
+    public enum Phase { Idle, Retrieve, WaitRetrieve, Ventures, Gathers, WaitGather, Crafts, WaitClientFree, WaitCraftStart, WaitCraftEnd, Knightshopper, Done, Failed, BatchRetrieve, BatchWait, Blocked }
 
     private readonly Plugin _plugin;
     private readonly IFramework _framework;
@@ -69,6 +69,11 @@ public sealed class DispatchService : IDisposable
     public PriceMatchDispatch PriceMatch { get; }
     public RetainerFetch Fetch { get; }
     public ReflectionGuard Guard { get; }
+    /// <summary>
+    /// The Knightshopper IPC (0.1.7.7): the buy channel for vendor items during an explicit dispatch.
+    /// Constructed on first use, so a setup without Knightshopper never pays for the subscription.
+    /// </summary>
+    public KnightshopperDispatch Knightshopper => _ks ??= new KnightshopperDispatch(Plugin.Pi, _log);
 
     private RecipeGraph? _graph;
     private VentureResolver? _ventures;
@@ -77,6 +82,12 @@ public sealed class DispatchService : IDisposable
     private VendorContextProvider? _vendorCtx;
 
     private DispatchPlan.Plan? _plan;
+    // ---- Knightshopper leg (0.1.7.7): the buy channel. State lives only inside a wave start.
+    private KnightshopperDispatch? _ks;
+    private KnightshopperRouting.KsPlan? _ksPlan;
+    private int _ksGroupIndex;
+    private (Guid Operation, DateTime Deadline, string Describe)? _ksActive;
+    private readonly List<KnightshopperRouting.KsGroup> _ksFailedGroups = new();
     private Queue<DispatchPlan.Craft> _crafts = new();
     private DispatchPlan.Craft? _current;
     private readonly List<(uint ItemId, int Quantity)> _made = new();
@@ -281,6 +292,7 @@ public sealed class DispatchService : IDisposable
     public void Dispose()
     {
         _framework.Update -= Tick;
+        _ks?.Dispose();
     }
 
     private string Name(uint itemId) => _plugin.GameData?.ItemName(itemId) ?? $"#{itemId}";
@@ -524,6 +536,13 @@ public sealed class DispatchService : IDisposable
         if (Current is Phase.BatchRetrieve or Phase.BatchWait or Phase.Retrieve or Phase.WaitRetrieve) Fetch.Abort();
         if (Current is Phase.WaitGather or Phase.Gathers) Gbr.Stop();
         if (Current is Phase.WaitClientFree or Phase.WaitCraftStart or Phase.WaitCraftEnd or Phase.Crafts) Artisan.Stop();
+        // 0.1.7.7: stop the Knightshopper leg too - an item already being bought may still land, so this is a
+        // cancel REQUEST, and the run does not wait for the answer.
+        if (Current is Phase.Knightshopper && _ksActive is { } ksRun)
+        {
+            Knightshopper.Cancel(ksRun.Operation);
+            Say("Knightshopper purchase cancel requested - an item already being bought may still finish.");
+        }
         _loop = null;   // a manual stop is not resumable - the player chose to end it
         _snap = null;
         Finish(Phase.Failed, why);
@@ -582,8 +601,175 @@ public sealed class DispatchService : IDisposable
         _plugin.Inventory.SetDispatchRunning(true);
     }
 
-    /// <summary>One wave of the loop: queue the plan's work and enter the retrieve-first channel (0.1.3.0 logic, unchanged).</summary>
+    /// <summary>One wave of the loop: the Knightshopper buy leg first (0.1.7.7), then queue the plan's work and enter the retrieve-first channel (0.1.3.0 logic, unchanged).</summary>
     private void StartWave(DispatchPlan.Plan plan)
+    {
+        // 0.1.7.7: what a vendor sells is bought through Knightshopper when the setting is on and it is
+        // available - BEFORE any walk, flag or market trip, because Knightshopper steers the character too
+        // and two drivers must never run at once. The leg ends by queueing this wave with what is left.
+        plan = BeginKnightshopperIfAny(plan);
+        if (Current == Phase.Knightshopper) return;
+        QueueWave(plan);
+    }
+
+    /// <summary>
+    /// 0.1.7.7: split the wave's buy list into what Knightshopper buys (its purchase IPC, target inventory
+    /// totals) and what keeps the flag-and-name path. Runs only inside an explicit dispatch - the single-channel
+    /// entry points build plans with no vendor rows, so they never reach the purchase IPC. The list and its
+    /// estimated cost are printed BEFORE anything is spent; one attempt per group (target totals make a re-run
+    /// ask for the same target at most, so nothing can be bought twice); any refusal merges the items back
+    /// into the stops below.
+    /// </summary>
+    private DispatchPlan.Plan BeginKnightshopperIfAny(DispatchPlan.Plan plan)
+    {
+        if (!_plugin.Config.BuyVendorItemsWithKnightshopper) return plan;
+
+        // Probe with the routing enabled: if even a fully-available Knightshopper would take nothing,
+        // this wave has no buy leg and says nothing - the pre-0.1.7.7 behaviour, unchanged.
+        var probe = KnightshopperRouting.Partition(plan, enabled: true, GilPrice);
+        if (probe.Groups.Count == 0) return plan;
+
+        if (!Knightshopper.Ready)
+        {
+            Say("Knightshopper is not available (not loaded, too old for item purchases, or its IPC permission is off), so the vendor buys stay manual - buy them at the stops below.");
+            return plan;
+        }
+
+        _ksPlan = probe;
+        _ksGroupIndex = 0;
+        _ksActive = null;
+        _ksFailedGroups.Clear();
+
+        // The run plan, before anything is spent: per group, the currency, the items and the estimated cost.
+        foreach (var line in KnightshopperRouting.PurchaseLines(probe, Name, GilPrice))
+            Say(line);
+        Say("Knightshopper will buy the list above during this dispatch - nothing is spent before this line, and the other shopping stops wait until it finishes. A refused or failed purchase puts those items back on the shopping list below; a repeat dispatch never asks for more than the same target totals.");
+        foreach (var g in probe.Groups)
+        foreach (var item in g.Items)
+            TrackStep(item.Vendor is not null ? StepKind.Vendor : StepKind.CurrencyShop, item.ItemId, item.Quantity,
+                StepState.Pending, $"Knightshopper ({KnightshopperCurrencies.Name(g.Currency)})");
+
+        _plan = probe.Fallback;   // the wave's plan from here on; failed groups are merged back at the end
+        Enter(Phase.Knightshopper);
+        return probe.Fallback;
+    }
+
+    /// <summary>The sheet's gil price for an item, or null when unreadable - the KS cost line's input.</summary>
+    private long? GilPrice(uint itemId) => _plugin.GameData?.IsGilVendor(itemId, out var gil) == true ? gil : null;
+
+    /// <summary>The Knightshopper part of a /lcraft plan preview: what a dispatch WOULD buy, availability aside.</summary>
+    public IReadOnlyList<string> KnightshopperPlanLines(DispatchPlan.Plan plan) =>
+        _plugin.Config.BuyVendorItemsWithKnightshopper
+            ? KnightshopperRouting.PurchaseLines(KnightshopperRouting.Partition(plan, enabled: true, GilPrice), Name, GilPrice)
+            : Array.Empty<string>();
+
+    /// <summary>Bounded wait for the whole Knightshopper leg: a purchase that outlives this is cancelled and failed.</summary>
+    private static readonly TimeSpan KnightshopperWaitCap = TimeSpan.FromMinutes(10);
+
+    /// <summary>
+    /// The Knightshopper phase: one StartItems per currency group, in plan order. Waits on the Finished event
+    /// (Knightshopper keeps recent results, so an outcome that fired between ticks is not lost) with a 500 ms
+    /// status poll as the safety net. Success keeps the items out of the flag-and-name lists; ANY failure -
+    /// refusal, error, timeout, unknown operation - merges the group back. One attempt per group: no retries,
+    /// because a retry that half-landed would spend twice.
+    /// </summary>
+    private void KnightshopperTick()
+    {
+        var ksPlan = _ksPlan;
+        if (ksPlan is null || _ksGroupIndex >= ksPlan.Groups.Count) { EndKnightshopper(); return; }
+        var group = ksPlan.Groups[_ksGroupIndex];
+        var describe = $"{KnightshopperCurrencies.Name(group.Currency)} ({group.Items.Count} item{(group.Items.Count == 1 ? "" : "s")})";
+
+        if (_ksActive is null)
+        {
+            var response = Knightshopper.StartItems(group.Currency, group.Items);
+            if (!response.Started) { FailGroup(group, KnightshopperMessages.Start(response.Result, response.Message)); return; }
+            _ksActive = (response.OperationId, DateTime.UtcNow + KnightshopperWaitCap, describe);
+            TrackRunning(group);
+            SetStatus($"Knightshopper is buying the {describe} group");
+            return;
+        }
+
+        if (!Poll(500)) return;
+        var (operation, deadline, _) = _ksActive.Value;
+
+        // The Finished event first - it may have fired between ticks, and Knightshopper keeps recent results
+        // exactly so a late subscriber still learns the outcome. The status poll is the safety net.
+        if (Knightshopper.TakeFinished(operation) is { } finished)
+        {
+            if (finished.State == KnightshopperPurchaseState.Succeeded) DoneGroup(group);
+            else FailGroup(group, KnightshopperMessages.Poll(finished.State, finished.Message));
+            return;
+        }
+
+        if (Knightshopper.Status(operation) is not { } status)
+        {
+            // The IPC answered with nothing readable - treat as unknown rather than spinning.
+            FailGroup(group, KnightshopperMessages.Poll(KnightshopperPurchaseState.Unknown, ""));
+            return;
+        }
+        switch (status.State)
+        {
+            case KnightshopperPurchaseState.Succeeded: DoneGroup(group); return;
+            case KnightshopperPurchaseState.Failed:
+            case KnightshopperPurchaseState.Cancelled:
+            case KnightshopperPurchaseState.Unknown:
+                FailGroup(group, KnightshopperMessages.Poll(status.State, status.Message));
+                return;
+        }
+
+        Heartbeat($"Knightshopper is buying the {describe} group ({Math.Min(status.CurrentIndex + 1, Math.Max(status.TotalItems, 1))}/{Math.Max(status.TotalItems, 1)})");
+        if (DateTime.UtcNow >= deadline)
+        {
+            Knightshopper.Cancel(operation);   // best effort - an item already being bought may still land
+            FailGroup(group, KnightshopperMessages.Timeout(KnightshopperWaitCap));
+        }
+    }
+
+    private void TrackRunning(KnightshopperRouting.KsGroup group)
+    {
+        foreach (var item in group.Items)
+            TrackStep(item.Vendor is not null ? StepKind.Vendor : StepKind.CurrencyShop, item.ItemId, item.Quantity, StepState.Running);
+    }
+
+    private void DoneGroup(KnightshopperRouting.KsGroup group)
+    {
+        foreach (var item in group.Items)
+            TrackStep(item.Vendor is not null ? StepKind.Vendor : StepKind.CurrencyShop, item.ItemId, item.Quantity, StepState.Done);
+        Say($"Knightshopper bought the {KnightshopperCurrencies.Name(group.Currency)} group: {string.Join(", ", group.Items.Select(i => $"{Name(i.ItemId)} x{i.Quantity}"))}.");
+        AdvanceGroup();
+    }
+
+    private void FailGroup(KnightshopperRouting.KsGroup group, string why)
+    {
+        _ksFailedGroups.Add(group);
+        foreach (var item in group.Items)
+            TrackStep(item.Vendor is not null ? StepKind.Vendor : StepKind.CurrencyShop, item.ItemId, item.Quantity, StepState.Blocked, Readable(ReadableBlocked("buy", item.ItemId, item.Quantity)));
+        Say($"Knightshopper could not buy the {KnightshopperCurrencies.Name(group.Currency)} group ({why}) - those items are back on the shopping list below; buy them there and the run continues.", error: true);
+        AdvanceGroup();
+    }
+
+    private void AdvanceGroup()
+    {
+        _ksActive = null;
+        _ksGroupIndex++;
+    }
+
+    private void EndKnightshopper()
+    {
+        var ksPlan = _ksPlan;
+        var failed = _ksFailedGroups.ToList();
+        _ksPlan = null;
+        _ksFailedGroups.Clear();
+        _ksActive = null;
+        if (ksPlan is null) { QueueWave(_plan!); return; }
+        Say(failed.Count == 0
+            ? "Knightshopper finished every purchase - those stops are done."
+            : $"Knightshopper finished with {failed.Count} group{(failed.Count == 1 ? "" : "s")} not bought - the run continues with those items on the shopping list.");
+        QueueWave(KnightshopperRouting.MergeFailures(ksPlan.Fallback, failed));
+    }
+
+    private void QueueWave(DispatchPlan.Plan plan)
     {
         _plan = plan;
         _crafts = new Queue<DispatchPlan.Craft>(plan.Crafts);
@@ -1080,6 +1266,11 @@ public sealed class DispatchService : IDisposable
         {
             switch (Current)
             {
+                // ------------------------------------------------------ Knightshopper: the buy leg (0.1.7.7)
+                case Phase.Knightshopper:
+                    KnightshopperTick();
+                    break;
+
                 // ------------------------------------------------------ Retrieve: one batch pass, then per-item
                 case Phase.BatchRetrieve:
                     if (!Poll(400)) break;
@@ -1701,6 +1892,7 @@ public sealed class DispatchService : IDisposable
         Phase.Ventures => "Ventures",
         Phase.Gathers or Phase.WaitGather => "Gathering",
         Phase.Crafts or Phase.WaitCraftStart or Phase.WaitCraftEnd or Phase.WaitClientFree => "Crafting",
+        Phase.Knightshopper => "Knightshopper",
         Phase.Done => "Done",
         Phase.Failed => "Failed",
         Phase.Blocked => "Blocked",
@@ -1749,6 +1941,9 @@ public sealed class DispatchService : IDisposable
         _current = null;
         _fetching = null;
         _waitingOn = null;
+        _ksPlan = null;   // 0.1.7.7: no Knightshopper leg outlives its run (both endings, Finish and FinishBlocked)
+        _ksActive = null;
+        _ksFailedGroups.Clear();
         _crafts.Clear();
         _retrievals.Clear();
         _batchCrafts = Array.Empty<uint>();
@@ -1841,6 +2036,9 @@ public sealed class DispatchService : IDisposable
         _plan = null;
         _current = null;
         _fetching = null;
+        _ksPlan = null;   // 0.1.7.7: no Knightshopper leg outlives its run
+        _ksActive = null;
+        _ksFailedGroups.Clear();
         if (end == Phase.Done || _loop is null) { _loop = null; _snap = null; }   // Failed keeps them for Resume
         _crafts.Clear();
         _retrievals.Clear();

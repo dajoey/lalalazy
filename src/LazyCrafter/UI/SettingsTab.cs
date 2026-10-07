@@ -136,6 +136,16 @@ public sealed class SettingsTab
         ImGui.SameLine();
         ImGuiComponents.HelpMarker("On by default (0.1.7.0). A cart run takes its user-intervention-requiring parts first: each shopping stop (gil vendor, market board, currency shop, manual source) is named in chat and on the Run tab exactly once - buy what is named and press Resume (Run tab button, /lcraft resume, or the copied report). When the run believes the rest of the cart needs no player, it goes unattended and behaves exactly as before. Off: the run is one continuous wave loop, identical to every version before 0.1.7.0.");
 
+        // 0.1.7.7: the Knightshopper buy leg. ON by default; needs Knightshopper loaded AND allowed.
+        var ks = cfg.BuyVendorItemsWithKnightshopper;
+        if (ImGui.Checkbox("Buy vendor items through Knightshopper during a dispatch (one attempt, target totals)", ref ks)) { cfg.BuyVendorItemsWithKnightshopper = ks; changed = true; }
+        ImGui.SameLine();
+        ImGuiComponents.HelpMarker(
+            "On by default (0.1.7.7). When a dispatch is missing materials that a vendor sells - gil vendors, and currency vendors priced in one currency Knightshopper supports - the run hands the list to Knightshopper's purchase IPC instead of stopping at each vendor: grouped by currency, bought to TARGET inventory totals (a repeat dispatch asks for the same target at most, so nothing is bought twice). " +
+            "The run prints the list and its estimated cost before anything is spent. Market-board items are never routed, and one attempt per group means a refusal never retries. " +
+            "TWO switches must be on for a purchase to start: this one, and LazyCrafter on Knightshopper's allowed-plugins IPC list - that list lives in Knightshopper's settings (IPC permissions); LazyCrafter never changes it. If Knightshopper is missing, busy, not allowed, or has no vendor for an item, those items fall back to the usual shopping stops - flagged and named in chat as before. " +
+            "Off: the run behaves exactly like every version before 0.1.7.7 - every vendor item is flagged and named, nothing is bought automatically.");
+
         var pm = cfg.PriceMatchAfterCraft;
         if (ImGui.Checkbox("After Artisan finishes a cart, print /pricematch (Lazy Market Companion) instructions for listing the results", ref pm)) { cfg.PriceMatchAfterCraft = pm; changed = true; }
         ImGui.SameLine();
