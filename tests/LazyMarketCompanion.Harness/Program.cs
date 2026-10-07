@@ -5484,6 +5484,70 @@ ItemQuote FillerQuote(uint id, long unit, bool hq = false, double vel = 0, long 
 }
 
 
+// 160g. THE RENDER-SIDE PROBE (0.2.8.8; five builds measured the markers' numbers BEFORE the
+//     draw - anchors, screen confirmation, suppression counters, stability - every line looked
+//     perfect, and the player still saw no dots. Nothing measured what the renderer DID with the
+//     dot window: the size it was really given (imgui.cpp CalcWindowMinSize floors an empty
+//     AlwaysAutoResize window at 4x4, and without that flag the style's WindowMinSize floors it
+//     instead - the requested size is a floor, never a promise), the clip rect the circle is
+//     finally cut by, and whether the circle's vertices were added at all. This case holds the
+//     grading policy and the geometry verdicts against the real 0.2.8.6 session numbers, the
+//     4x4 shape among them.
+{
+  var st160g = new MarkerRenderProbe.State();
+  Check("160g render probe: the first pass measures",
+    MarkerRenderProbe.ShouldMeasure(st160g), "pass 1");
+  Check("160g render probe: the next PassLimit-1 passes measure and a later pass does not (bounded, like the numeric probe)",
+    MarkerRenderProbe.ShouldMeasure(st160g) && MarkerRenderProbe.ShouldMeasure(st160g) && !MarkerRenderProbe.ShouldMeasure(st160g),
+    $"PassLimit={MarkerRenderProbe.PassLimit} passes counted={st160g.Passes}");
+  for (var n = 0; n < MarkerRenderProbe.PassLimit; n++)
+    MarkerRenderProbe.RecordLogged(st160g);
+  Check("160g render probe: after PassLimit logged lines nothing more measures or logs",
+    !MarkerRenderProbe.ShouldMeasure(st160g), $"lines={st160g.Lines}");
+
+  // The real 0.2.8.6 session numbers (Grid0E s0): cell (4276.1, 646.2) size (39.6, 39.6), scale 0.9.
+  var cellPos160g = new System.Numerics.Vector2(4276.1f, 646.2f);
+  var cellSize160g = new System.Numerics.Vector2(39.6f, 39.6f);
+  var center160g = MarkerAnchor.Center(cellPos160g, cellSize160g);
+  var radius160g = MarkerAnchor.DrawRadius(0.9f);
+  var winPos160g = MarkerAnchor.WindowPosition(cellPos160g, cellSize160g);
+
+  // The OLD window shape: an empty AlwaysAutoResize window floors at 4x4 (CalcWindowMinSize),
+  // pos = center - (Radius, Radius) unchanged - the circle, extent center +/- 4.05, cannot fit.
+  var clipMin160g = winPos160g;
+  var clipMax160g = winPos160g + new System.Numerics.Vector2(4f, 4f);
+  Check("160g render probe: the 4x4 auto-fit window clips the circle (the pre-0.2.8.7 shape is graded, not assumed)",
+    MarkerRenderProbe.Check(winPos160g, new(4f, 4f), clipMin160g, clipMax160g, 12, center160g, radius160g)
+      == MarkerRenderProbe.Verdict.OutsideClip,
+    $"circle x {center160g.X - radius160g}..{center160g.X + radius160g} clip x {clipMin160g.X}..{clipMax160g.X}");
+
+  // The 0.2.8.7 shape: the window is sized to its dot (10.55 px at scale 0.9) and the style's
+  // WindowMinSize may floor it further UP (default 32x32) - either way the circle fits.
+  var sized160g = MarkerAnchor.WindowSize(0.9f);
+  var floored160g = new System.Numerics.Vector2(32f, 32f);
+  foreach (var winSize160g in new[] { sized160g, floored160g })
+    Check($"160g render probe: a window of {winSize160g.X}px holds the whole circle (floors only ever make it bigger)",
+      MarkerRenderProbe.Check(winPos160g, winSize160g, winPos160g, winPos160g + winSize160g, 12, center160g, radius160g)
+        == MarkerRenderProbe.Verdict.Ok,
+      $"circle x {center160g.X - radius160g}..{center160g.X + radius160g} window x {winPos160g.X}..{winPos160g.X + winSize160g.X}");
+
+  Check("160g render probe: a circle that was never added reports no vertices even where the geometry looks fine",
+    MarkerRenderProbe.Check(winPos160g, sized160g, winPos160g, winPos160g + sized160g, 0, center160g, radius160g)
+      == MarkerRenderProbe.Verdict.NoVertices, "vtx=0");
+  Check("160g render probe: a dot window created at a spot the circle is nowhere near reports the circle clipped (the stray-corner shape, from the other side)",
+    MarkerRenderProbe.Check(new(0f, 0f), new(4f, 4f), new(0f, 0f), new(4f, 4f), 12, center160g, radius160g)
+      == MarkerRenderProbe.Verdict.OutsideClip,
+    $"win (0,0)+4 circle at ({center160g.X},{center160g.Y})");
+  Check("160g render probe: the labels name what the log line will say",
+    MarkerRenderProbe.VerdictLabel(MarkerRenderProbe.Verdict.Ok) == "ok"
+      && MarkerRenderProbe.VerdictLabel(MarkerRenderProbe.Verdict.OutsideClip) == "clipped"
+      && MarkerRenderProbe.VerdictLabel(MarkerRenderProbe.Verdict.NoVertices) == "no vertices");
+  var line160g = MarkerRenderProbe.DotLine(0, MarkerRenderProbe.Verdict.OutsideClip, winPos160g, new(4f, 4f), clipMin160g, clipMax160g, 12, center160g, radius160g);
+  Check("160g render probe: the dot line carries slot, verdict, window and clip rects, vertex count and the circle",
+    line160g.StartsWith("s0 clipped win=(") && line160g.Contains("clip=(") && line160g.Contains("vtx=12") && line160g.Contains($"circle=({center160g.X},{center160g.Y})"),
+    line160g);
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 

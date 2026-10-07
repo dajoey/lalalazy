@@ -175,6 +175,12 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
   // suppression counters and drew wrong dots; the probe records the actual numbers instead.
   private readonly Dictionary<string, MarkerProbe.State> _probeStates = [];
 
+  // 0.2.8.8: render-side probe bookkeeping, keyed like _probeStates, plus the per-pass scratch of
+  // the first drawn dots' measured render numbers (filled between each dot window's Begin and End,
+  // graded and logged after the loop by MarkerRenderProbe).
+  private readonly Dictionary<string, MarkerRenderProbe.State> _renderStates = [];
+  private readonly List<(int Slot, Vector2 WindowPos, Vector2 WindowSize, Vector2 ClipMin, Vector2 ClipMax, int Vtx, Vector2 Center, float Radius)> _renderCells = [];
+
   // 0.2.8.6: per (grid addon, container) display-order stability state (MarkerStability). The
   // 0.2.8.5 probe caught the slot->container mapping itself churning per frame (item ids migrating
   // between grids while the anchors never moved): drawing every frame followed a mid-flight read,
@@ -222,23 +228,32 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
   // render, so this is the one-command in-game answer to "do the dot windows render at all": a
   // visible green circle at the logged position says the draw works. Nothing draws unless he types
   // the command - nothing automatic on his machine.
+  // 0.2.8.8: the test is now an A/B PAIR. The center dot still goes through the same kind of window
+  // every marker uses; a second green dot 150 px to its right is painted directly on the foreground
+  // (screen) draw list with no window at all. Seeing both says the window layer works; only the
+  // right one says windows are being hidden (a layer/z-order question, not geometry); neither says
+  // the renderer itself is blocked. The measured render numbers of both go to the log once.
   private const int TestDotFrames = 300;
   private int _testDotFrames;
   private Vector2 _testDotPos;
+  private bool _testDotRenderLogged;
+  private const float TestDotReferenceOffset = 150f;
 
   internal void ArmTestDot()
   {
     _testDotPos = ImGuiHelpers.MainViewport.Pos + ImGui.GetIO().DisplaySize * 0.5f;
     _testDotFrames = TestDotFrames;
-    Svc.Log.Information($"[LMC] marker test dot: drawing for {TestDotFrames} frame(s) (~{TestDotFrames / 60}s) at ({_testDotPos.X:F0},{_testDotPos.Y:F0}), radius 6px, window size {MarkerAnchor.WindowSize(1f).X:F0}px - a visible green circle at that position says the dot draw itself works");
+    _testDotRenderLogged = false;
+    Svc.Log.Information($"[LMC] marker test dot: drawing for {TestDotFrames} frame(s) (~{TestDotFrames / 60}s): one green dot at ({_testDotPos.X:F0},{_testDotPos.Y:F0}) through the same kind of window every marker uses, and a reference green dot at ({_testDotPos.X + TestDotReferenceOffset:F0},{_testDotPos.Y:F0}) painted directly on the screen layer - both visible says the window draw works, only the right one says windows are hidden, neither says the renderer is blocked");
   }
 
   private void DrawTestDot()
   {
     _testDotFrames--;
     if (_testDotFrames == 0)
-      Svc.Log.Information("[LMC] marker test dot: window closed - if no green circle showed at the logged position, the dot draw itself is blocked and the next diagnostic is renderer-side");
+      Svc.Log.Information("[LMC] marker test dot: window closed - if no green circle showed at the logged positions, the render-side numbers in this log name what blocked them");
     const float radius = 6f;
+    var refDotPos = _testDotPos + new Vector2(TestDotReferenceOffset, 0f);
     ImGuiHelpers.ForceNextWindowMainViewport();
     ImGui.SetNextWindowPos(_testDotPos - new Vector2(radius + 1f));
     ImGui.SetNextWindowSize(new Vector2(radius * 2f + 2f));
@@ -250,11 +265,28 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
       | ImGuiWindowFlags.AlwaysUseWindowPadding);
     var drawList = ImGui.GetWindowDrawList();
     drawList.AddCircleFilled(_testDotPos, radius, OnListColorPacked);
-    // The label goes on the foreground list: the dot window is dot-sized and would clip it.
-    ImGui.GetForegroundDrawList().AddText(_testDotPos + new Vector2(radius + 5f, -9f), OnListColorPacked, "LMC test dot");
+    // 0.2.8.8: read the renderer's own numbers while this window is still current - what ImGui
+    // really gave it and what the circle is finally clipped by (MarkerRenderProbe).
+    var winPos = ImGui.GetWindowPos();
+    var winSize = ImGui.GetWindowSize();
+    var clipMin = drawList.GetClipRectMin();
+    var clipMax = drawList.GetClipRectMax();
+    var winVtx = drawList.VtxBuffer.Size;
     ImGui.End();
     ImGui.PopStyleVar(2);
     ImGui.PopStyleColor();
+    // The labels and the reference dot go on the foreground list: the dot window is dot-sized and
+    // would clip them; the reference dot must have no window at all - it IS the control group.
+    var foreground = ImGui.GetForegroundDrawList();
+    foreground.AddCircleFilled(refDotPos, radius, OnListColorPacked);
+    foreground.AddText(_testDotPos + new Vector2(radius + 5f, -9f), OnListColorPacked, "LMC test dot");
+    foreground.AddText(refDotPos + new Vector2(radius + 5f, -9f), OnListColorPacked, "LMC reference");
+    if (!_testDotRenderLogged)
+    {
+      _testDotRenderLogged = true;
+      var verdict = MarkerRenderProbe.Check(winPos, winSize, clipMin, clipMax, winVtx, _testDotPos, radius);
+      Svc.Log.Information($"[LMC] marker test dot render: window dot {MarkerRenderProbe.VerdictLabel(verdict)} win=({winPos.X:0.#},{winPos.Y:0.#})+({winSize.X:0.#},{winSize.Y:0.#}) clip=({clipMin.X:0.#},{clipMin.Y:0.#})-({clipMax.X:0.#},{clipMax.Y:0.#}) vtx={winVtx} circle=({_testDotPos.X:0.#},{_testDotPos.Y:0.#}) r={radius:0.#} | reference dot painted directly on the screen layer at ({refDotPos.X:0.#},{refDotPos.Y:0.#})");
+    }
   }
 
   public override void Draw()
@@ -714,6 +746,12 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
   /// </summary>
   private unsafe void RenderDots(string addonName, AddonInventoryGrid* grid, int slotCount, List<MarkerMatch.Stack> stacks, string containerLabel, bool orderIsIdentity, List<Vector2> frameAnchors)
   {
+    // 0.2.8.8: the host marker window is still current here - measure it once per pass for the
+    // render probe line, and reset the per-pass render scratch (this call may early-return below).
+    var hostPos = ImGui.GetWindowPos();
+    var hostSize = ImGui.GetWindowSize();
+    _renderCells.Clear();
+
     // Marketability feeds the grey state: one sheet read per unique id in this container. An on-list
     // item is green whether or not the sheet calls it tradable (a config-entry bug is shown, not
     // hidden - the 0.1.17.0 honesty rule); only the GREY state requires real marketability.
@@ -902,6 +940,13 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
       // size) whatever the ImGui style state is (the 0.1.22.0 padding fix made cursor == window
       // pos, but that equality is an assumption about style, not a position).
       drawList.AddCircleFilled(center, DotRadius * scale.X, color);
+      // 0.2.8.8: read this dot window's own numbers while it is still current - the size ImGui
+      // really gave it (a requested size is a floor, never a promise: the 0.2.8.7 review's open
+      // question, now measured) and the clip rect the circle is finally cut by. ImGui applies
+      // clip rects at render time, so the vertex count alone cannot catch clipping - the
+      // geometry check in MarkerRenderProbe.Check does, after the loop.
+      if (_renderCells.Count < MarkerRenderProbe.DotLimit)
+        _renderCells.Add((i, ImGui.GetWindowPos(), ImGui.GetWindowSize(), drawList.GetClipRectMin(), drawList.GetClipRectMax(), drawList.VtxBuffer.Size, center, DotRadius * scale.X));
       ImGui.End();
       ImGui.PopStyleVar(2);
       ImGui.PopStyleColor();
@@ -949,6 +994,29 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
           MarkerProbe.CellLine(c.Slot, c.ItemId, c.Kind, c.Walk, c.Screen, c.RawXY, c.Scale, c.Size)));
         Svc.Log.Information($"[LMC] markers probe: {addonName} ({containerLabel}) draw #{probeState.Draws} of {stacks.Count} stacks, {nullDragDrops} slot(s) without a drag-drop; viewport=({viewport.Pos.X:0.#},{viewport.Pos.Y:0.#}) display=({display.X:0.#},{display.Y:0.#}) | {cellsText}");
         MarkerProbe.RecordLogged(probeState, signature);
+      }
+    }
+
+    // 0.2.8.8: the render-side probe line - what the renderer actually DID with the dot windows
+    // this pass: the real window sizes, the clip rects, the vertex counts, each dot graded ok or
+    // clipped by MarkerRenderProbe (harness case 160g). The policy is the numeric probe's - first
+    // MarkerRenderProbe.PassLimit passes per (addon, container), one line each, capped - and like
+    // it, deliberately independent of the suppression counters: a pass in which nothing was
+    // suppressed is exactly when the render side matters most.
+    if (_renderCells.Count > 0)
+    {
+      var renderKey = $"{addonName}:{containerLabel}";
+      if (!_renderStates.TryGetValue(renderKey, out var renderState))
+        _renderStates[renderKey] = renderState = new MarkerRenderProbe.State();
+      if (MarkerRenderProbe.ShouldMeasure(renderState))
+      {
+        var graded = _renderCells
+          .Select(c => (Cell: c, Verdict: MarkerRenderProbe.Check(c.WindowPos, c.WindowSize, c.ClipMin, c.ClipMax, c.Vtx, c.Center, c.Radius)))
+          .ToList();
+        var okCount = graded.Count(g => g.Verdict == MarkerRenderProbe.Verdict.Ok);
+        var dotsText = string.Join(" | ", graded.Select(g => MarkerRenderProbe.DotLine(g.Cell.Slot, g.Verdict, g.Cell.WindowPos, g.Cell.WindowSize, g.Cell.ClipMin, g.Cell.ClipMax, g.Cell.Vtx, g.Cell.Center, g.Cell.Radius)));
+        Svc.Log.Information($"[LMC] markers render: {addonName} ({containerLabel}) pass #{renderState.Passes} host=({hostPos.X:0.#},{hostPos.Y:0.#})+({hostSize.X:0.#},{hostSize.Y:0.#}) winmin=({ImGui.GetStyle().WindowMinSize.X:0.#},{ImGui.GetStyle().WindowMinSize.Y:0.#}) | {dotsText} | {okCount} ok, {graded.Count - okCount} not fully inside their window/clip");
+        MarkerRenderProbe.RecordLogged(renderState);
       }
     }
   }

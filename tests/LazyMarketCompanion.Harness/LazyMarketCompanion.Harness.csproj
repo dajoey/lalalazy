@@ -35,6 +35,7 @@
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\CategoryRouting.cs" />
   <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\MarkerAnchor.cs" />
   <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\MarkerProbe.cs" />
+  <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\MarkerRenderProbe.cs" />
   <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\MarkerStability.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\DoneLine.cs" />
     <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\GateChunkFetch.cs" />
