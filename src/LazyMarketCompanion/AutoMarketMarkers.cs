@@ -175,6 +175,33 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
   // suppression counters and drew wrong dots; the probe records the actual numbers instead.
   private readonly Dictionary<string, MarkerProbe.State> _probeStates = [];
 
+  // 0.2.8.6: per (grid addon, container) display-order stability state (MarkerStability). The
+  // 0.2.8.5 probe caught the slot->container mapping itself churning per frame (item ids migrating
+  // between grids while the anchors never moved): drawing every frame followed a mid-flight read,
+  // which is the "dots are not staying" report. A grid now draws only once its resolved map has
+  // been identical for MarkerStability.FramesRequired consecutive frames; the episodes log bounded
+  // lines (open with the new order's head, close with the held frame count) - the log line that
+  // distinguishes "the mapping churned and the dots held" from "the dots vanished".
+  private readonly Dictionary<string, MarkerStability.State> _stabilityStates = [];
+
+  // 0.2.8.6: one drawn-anchor set per FRAME, cleared in Draw() and shared by every grid of both
+  // passes. The 0.2.8.4 stacked-anchor gate was per grid (its list was local to RenderDots), so
+  // the 20:59:39 ET retainer session stacked Grid2 s4 exactly onto Grid0 s4 at (3019.7, 442.8) -
+  // hidden retainer pages keep live, screen-confirmed nodes at the shown pages' positions. First
+  // grid of the frame keeps a spot; every later grid suppresses with the same counter.
+  private readonly List<Vector2> _frameAnchors = [];
+
+  // 0.2.8.6: one corner-report line per (addon, container) per session - the only green circle
+  // this plugin draws is the marker dot, so a corner dot WITH this line names its source and one
+  // WITHOUT it is another plugin's overlay.
+  private readonly HashSet<string> _loggedCornerReport = [];
+
+  // 0.2.8.6: the last logged retainer live-grid set. A shown-page gate for the retainer window
+  // (the 0.1.29.0 counterpart) needs the tab->pages mapping this window actually uses; the live
+  // set and the parent's TabIndex are logged whenever the set changes, so the next session can
+  // pair the line with what was visible and fix the gate with evidence instead of a guess.
+  private string _loggedRetainerLiveSet = "";
+
   public AutoMarketMarkers()
     : base("Lazy Market Companion##markers", ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoInputs, true)
   {
@@ -210,6 +237,7 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
         // exclusive: both run every frame, independently, so the player's own bag dots keep showing
         // even while a retainer's storage window is open alongside them (Testing notes: "the ones in the player's own
         // inventory didn't show when my retainer's inventory was up").
+        _frameAnchors.Clear();
         DrawPlayerBagMarkers();
         DrawRetainerMarkersIfOpen();
       }
@@ -305,7 +333,7 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
           if (GridMap.IsExpandedGrid(binding.GridName) && !bagsPage)
             continue;
 
-          DrawForGrid(binding.GridName, addon, binding.BagIndex, orderSnapshot);
+          DrawForGrid(binding.GridName, addon, binding.BagIndex, orderSnapshot, _frameAnchors);
         }
     }
   }
@@ -366,6 +394,20 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
       return;
 
     var bindings = RetainerGridMap.Resolve(live, tabIndex);
+
+    // 0.2.8.6 retainer page diagnostics: the 20:59:39 ET session proved hidden retainer pages keep
+    // live, screen-confirmed nodes at the shown pages' panel positions (Grid2 s4 drew exactly onto
+    // Grid0 s4 at (3019.7, 442.8)). A shown-page gate for this window (the 0.1.29.0 counterpart)
+    // needs the tab->pages mapping it actually uses, so the live grid set and the parent's own
+    // TabIndex are logged whenever the set changes - the next session pairs the line with what was
+    // visible and fixes the gate with evidence instead of a guess.
+    var liveKey = string.Join(",", live);
+    if (_loggedRetainerLiveSet != liveKey)
+    {
+      _loggedRetainerLiveSet = liveKey;
+      Svc.Log.Information($"[LMC] markers: retainer window open - live grids: {liveKey}; parent TabIndex={tabIndex}");
+    }
+
     foreach (var binding in bindings)
     {
       if (!GenericHelpers.TryGetAddonByName<AtkUnitBase>(binding.GridName, out var addon)
@@ -374,7 +416,7 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
       if (!addon->RootNode->IsVisible())
         continue;
 
-      DrawForRetainerGrid(binding.GridName, addon, binding.PageIndex, orderSnapshot);
+      DrawForRetainerGrid(binding.GridName, addon, binding.PageIndex, orderSnapshot, _frameAnchors);
     }
   }
 
@@ -495,7 +537,7 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
     }
   }
 
-  private unsafe void DrawForGrid(string addonName, AtkUnitBase* addon, int bagIndex, SlotOrderSnapshot order)
+  private unsafe void DrawForGrid(string addonName, AtkUnitBase* addon, int bagIndex, SlotOrderSnapshot order, List<Vector2> frameAnchors)
   {
     var grid = (AddonInventoryGrid*)addon;
     var slotCount = grid->Slots.Length;
@@ -513,6 +555,15 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
         Svc.Log.Information($"[LMC] markers: no item order resolved for {addonName} (bag {bagIndex}) - markers suppressed for it");
       return;
     }
+
+    // 0.2.8.6 THE STABILITY GATE: draw only once this grid's resolved slot->container map has been
+    // identical for MarkerStability.FramesRequired consecutive frames. The 0.2.8.5 probe proved the
+    // read itself churns (item ids migrating between grids frame by frame); a dot drawn on a
+    // mid-flight read lands on whatever the map said that frame - the "dots are not staying"
+    // report. Fail closed: dots hold while the read is unstable and return once it settles. The
+    // episode lines are bounded per (addon, container) - see StabilityGate.
+    if (!StabilityGate(_stabilityStates, $"{addonName}:{BagTypes[bagIndex]}", MarkerStability.MapSignature(map), addonName, BagTypes[bagIndex].ToString()))
+      return;
 
     // Snapshot the classified set from the CONTAINERS, keyed by the DISPLAY slot that shows each
     // stack - so the dot lands on the cell the player is actually looking at.
@@ -532,7 +583,7 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
       stacks.Add(new MarkerMatch.Stack(kv.Key, item->ItemId, item->Flags.HasFlag(InventoryItem.ItemFlags.HighQuality)));
     }
 
-    RenderDots(addonName, grid, slotCount, stacks, BagTypes[bagIndex].ToString(), SlotOrder.IsIdentity(map, bagIndex));
+    RenderDots(addonName, grid, slotCount, stacks, BagTypes[bagIndex].ToString(), SlotOrder.IsIdentity(map, bagIndex), frameAnchors);
   }
 
   /// <summary>
@@ -543,7 +594,7 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
   /// item-agnostic - they take stacks and Auto-Market list entries, and neither cares which
   /// container the stack came from - so only the container-read half differs from the player path.
   /// </summary>
-  private unsafe void DrawForRetainerGrid(string addonName, AtkUnitBase* addon, int pageIndex, SlotOrderSnapshot order)
+  private unsafe void DrawForRetainerGrid(string addonName, AtkUnitBase* addon, int pageIndex, SlotOrderSnapshot order, List<Vector2> frameAnchors)
   {
     var grid = (AddonInventoryGrid*)addon;
     var slotCount = grid->Slots.Length;
@@ -555,6 +606,11 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
         Svc.Log.Information($"[LMC] markers: no item order resolved for {addonName} (retainer page {pageIndex}) - markers suppressed for it");
       return;
     }
+
+    // 0.2.8.6: the same stability gate as the player path (the retainer read churns the same way -
+    // same InventorySorter machinery, same mid-rewrite risk while pages load).
+    if (!StabilityGate(_stabilityStates, $"{addonName}:{RetainerPageTypes[pageIndex]}", MarkerStability.MapSignature(map), addonName, RetainerPageTypes[pageIndex].ToString()))
+      return;
 
     var inventory = InventoryManager.Instance();
     if (inventory == null)
@@ -574,7 +630,35 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
       stacks.Add(new MarkerMatch.Stack(kv.Key, item->ItemId, item->Flags.HasFlag(InventoryItem.ItemFlags.HighQuality)));
     }
 
-    RenderDots(addonName, grid, slotCount, stacks, RetainerPageTypes[pageIndex].ToString(), SlotOrder.IsIdentity(map, pageIndex));
+    RenderDots(addonName, grid, slotCount, stacks, RetainerPageTypes[pageIndex].ToString(), SlotOrder.IsIdentity(map, pageIndex), frameAnchors);
+  }
+
+  /// <summary>
+  /// 0.2.8.6: advance the display-order stability gate for one (addon, container) and log its
+  /// bounded episode lines. An episode OPENS when a map change interrupts a state that was already
+  /// drawing (startup is not churn) - the line carries the new order's head, i.e. which page each
+  /// display slot points at, which is the cross-contamination evidence. It CLOSES when drawing
+  /// resumes, with the held-frame count. One further line marks a churn that passes
+  /// MarkerStability.StillChurningFrame without settling. Past MarkerStability.EpisodeCap episodes
+  /// per (addon, container) the gate keeps running but stays silent.
+  /// </summary>
+  private bool StabilityGate(Dictionary<string, MarkerStability.State> states, string key, string signature, string addonName, string containerLabel)
+  {
+    if (!states.TryGetValue(key, out var state))
+      states[key] = state = new MarkerStability.State();
+    var d = MarkerStability.Evaluate(state, signature);
+    if (!MarkerStability.MayLogEpisode(state))
+      return d.Draw;
+    if (d.EpisodeOpened)
+    {
+      state.Episodes++;
+      Svc.Log.Information($"[LMC] markers: display order churned on {addonName} ({containerLabel}) - dots held until it settles; new order head: {MarkerStability.SignatureHead(signature)}");
+    }
+    else if (d.EpisodeClosed)
+      Svc.Log.Information($"[LMC] markers: display order settled on {addonName} ({containerLabel}) after {d.EpisodeFrames} held frame(s) - dots restored");
+    else if (d.StillChurning)
+      Svc.Log.Information($"[LMC] markers: display order still churning on {addonName} ({containerLabel}) after {MarkerStability.StillChurningFrame} frames - dots remain held; order head: {MarkerStability.SignatureHead(signature)}");
+    return d.Draw;
   }
 
   /// <summary>
@@ -583,7 +667,7 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
   /// classify predicate are identical for a player bag and a retainer page; only which container the
   /// stacks came from differs, and that has already happened by the time this runs).
   /// </summary>
-  private unsafe void RenderDots(string addonName, AddonInventoryGrid* grid, int slotCount, List<MarkerMatch.Stack> stacks, string containerLabel, bool orderIsIdentity)
+  private unsafe void RenderDots(string addonName, AddonInventoryGrid* grid, int slotCount, List<MarkerMatch.Stack> stacks, string containerLabel, bool orderIsIdentity, List<Vector2> frameAnchors)
   {
     // Marketability feeds the grey state: one sheet read per unique id in this container. An on-list
     // item is green whether or not the sheet calls it tradable (a config-entry bug is shown, not
@@ -612,7 +696,6 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
     var suppressedUnresolved = 0;
     var suppressedUnconfirmed = 0;
     var suppressedDuplicate = 0;
-    var drawnAnchors = new List<Vector2>(slotCount);
     Vector2 probeWalk = default;
     Vector2 probeScreen = default;
     var probeTaken = false;
@@ -712,13 +795,16 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
       if (color == 0u)
         continue;
 
-      // 0.2.8.4 THE STACKED-ANCHOR GATE: no visible grid ever shows two cells at one screen
-      // position. A position source that hands several cells the same anchor (one shared or
-      // template node the game still positions) stacks every dot window on one spot - the same
-      // one-stray-dot symptom the origin signature produced, one pixel-true cell at a time.
-      // The first cell keeps the spot; the rest draw nothing.
+      // 0.2.8.4 THE STACKED-ANCHOR GATE (0.2.8.6: the anchor set is now FRAME-WIDE, shared by
+      // every grid of both passes - see _frameAnchors): no visible grid ever shows two cells at
+      // one screen position, and no two grids of one frame should either. A position source that
+      // hands several cells the same anchor (one shared or template node the game still positions)
+      // stacks every dot window on one spot - the same one-stray-dot symptom the origin signature
+      // produced, one pixel-true cell at a time. Per-grid, the gate also missed hidden retainer
+      // pages drawing onto the shown pages' exact spots (Grid2 s4 onto Grid0 s4, 20:59:39 ET
+      // session). The first cell of the FRAME keeps the spot; later cells draw nothing.
       var duplicate = false;
-      foreach (var drawn in drawnAnchors)
+      foreach (var drawn in frameAnchors)
       {
         if (!MarkerAnchor.IsDuplicateAnchor(position, drawn))
           continue;
@@ -730,9 +816,19 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
         suppressedDuplicate++;
         continue;
       }
-      drawnAnchors.Add(position);
+      frameAnchors.Add(position);
 
       if (entry.Kind == MarkerMatch.MarkKind.OnList) drawnOnList++; else drawnNotListed++;
+
+      // 0.2.8.6 THE CORNER REPORT: a dot that actually draws with its center inside
+      // MarkerAnchor.CornerReportInset of the viewport's top-left corner says so, once per
+      // (addon, container) per session. The only green circle this plugin draws anywhere is the
+      // marker dot, so a corner dot without this line is another plugin's overlay - and one with
+      // the line names the grid, slot and center that drew it (the report's dot has never gone on
+      // any build, and no probe line ever showed a cell near the origin).
+      var center = MarkerAnchor.Center(position, size);
+      if (MarkerAnchor.IsNearScreenOrigin(center) && _loggedCornerReport.Add($"{addonName}:{containerLabel}"))
+        Svc.Log.Information($"[LMC] markers: dot drawn near the screen corner on {addonName} ({containerLabel}) slot s{i} center=({center.X:F1},{center.Y:F1}) - the only green circle this plugin draws is this dot; a corner dot without this line is another plugin's overlay");
 
       ImGuiHelpers.ForceNextWindowMainViewport();
       // 0.1.31.0: the dot is anchored INSIDE the cell - center inset from the right edge and inset
@@ -753,7 +849,6 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
       // Absolute anchor, not cursor-relative: the center is exactly MarkerAnchor.Center(position,
       // size) whatever the ImGui style state is (the 0.1.22.0 padding fix made cursor == window
       // pos, but that equality is an assumption about style, not a position).
-      var center = MarkerAnchor.Center(position, size);
       drawList.AddCircleFilled(center, DotRadius * scale.X, color);
       ImGui.End();
       ImGui.PopStyleVar(2);

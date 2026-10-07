@@ -5367,6 +5367,86 @@ ItemQuote FillerQuote(uint id, long unit, bool hq = false, double vel = 0, long 
     cell160.Contains("s7") && cell160.Contains("id=46051") && cell160.Contains("green"), cell160);
 }
 
+// 160d. THE DISPLAY-ORDER STABILITY GATE (0.2.8.6; the 0.2.8.5 probe caught the slot->container
+//     mapping itself churning per frame: five consecutive frames, five different maps, item ids
+//     migrating between grids, while the screen anchors never moved - the game was mid-rewrite of
+//     the structures both it and the plugin read. Drawing every frame followed a mid-flight read,
+//     which is the "dots are not staying" report verbatim). Fail-closed like every other position
+//     gate: a grid draws only once its resolved map has been identical for
+//     MarkerStability.FramesRequired consecutive frames; episodes log bounded lines (open with the
+//     new order's head, close with the held frame count, one still-churning line) so a log can
+//     tell "churned and held" from "vanished". Pure logic - no Dalamud types.
+{
+  var sigA = "0:0.0;1:0.1;2:0.2;";
+  var sigB = "0:1.5;1:0.1;2:0.2;";
+  Check("160d stability: a map's signature is deterministic whatever order the dictionary was built in",
+    MarkerStability.MapSignature(new Dictionary<int, SlotOrder.Cell> { [0] = new(0, 0), [1] = new(0, 1), [2] = new(0, 2) }) == sigA
+      && MarkerStability.MapSignature(new Dictionary<int, SlotOrder.Cell> { [2] = new(0, 2), [0] = new(0, 0), [1] = new(0, 1) }) == sigA,
+    MarkerStability.MapSignature(new Dictionary<int, SlotOrder.Cell> { [2] = new(0, 2), [0] = new(0, 0), [1] = new(0, 1) }));
+  Check("160d stability: a changed slot->container map gives a different signature (the churn trigger)",
+    MarkerStability.MapSignature(new Dictionary<int, SlotOrder.Cell> { [0] = new(1, 5), [1] = new(0, 1), [2] = new(0, 2) }) == sigB && sigA != sigB);
+  var st160d = new MarkerStability.State();
+  var d160d1 = MarkerStability.Evaluate(st160d, sigA);
+  var d160d2 = MarkerStability.Evaluate(st160d, sigA);
+  var d160d3 = MarkerStability.Evaluate(st160d, sigA);
+  Check("160d stability: the first frames of a new map draw nothing until FramesRequired identical frames",
+    !d160d1.Draw && !d160d2.Draw, "frames 1-2 of the first map");
+  Check("160d stability: the FramesRequired-th identical frame draws (the steady state is untouched)",
+    d160d3.Draw, "frame 3 of the same map");
+  Check("160d stability: startup suppression is not an episode (nothing settled was interrupted)",
+    !d160d1.EpisodeOpened && !d160d2.EpisodeOpened && !d160d3.EpisodeClosed, "no churn, no line");
+  var d160dChurn = MarkerStability.Evaluate(st160d, sigB);
+  Check("160d stability: a map change after a settled state holds the dots and opens an episode",
+    !d160dChurn.Draw && d160dChurn.EpisodeOpened, "the churn arm of the gate");
+  Check("160d stability: the episode may log and the count is caller-owned",
+    MarkerStability.MayLogEpisode(st160d) && st160d.Episodes == 0, "Evaluate never logs; the caller logs and counts");
+  st160d.Episodes = MarkerStability.EpisodeCap;
+  Check("160d stability: a capped session may not log another episode (the gate never stops, only the lines)",
+    !MarkerStability.MayLogEpisode(st160d));
+  var d160dHold = MarkerStability.Evaluate(st160d, sigB);
+  Check("160d stability: the gate still holds past the cap (silence is not permission)",
+    !d160dHold.Draw, "frame 2 of the new map");
+  var d160dSettle = MarkerStability.Evaluate(st160d, sigB);
+  Check("160d stability: a churn that settles re-opens drawing and closes the episode with its held-frame count",
+    d160dSettle.Draw && d160dSettle.EpisodeClosed && d160dSettle.EpisodeFrames == 2,
+    $"frames={d160dSettle.EpisodeFrames}");
+  var st160d2 = new MarkerStability.State();
+  MarkerStability.Evaluate(st160d2, sigA);
+  MarkerStability.Evaluate(st160d2, sigA);
+  MarkerStability.Evaluate(st160d2, sigA);
+  var stillCount = 0;
+  MarkerStability.Decision last160d = null!;
+  for (var n = 0; n < MarkerStability.StillChurningFrame + 2; n++)
+  {
+    last160d = MarkerStability.Evaluate(st160d2, n % 2 == 0 ? sigA : sigB);
+    if (last160d.StillChurning) stillCount++;
+  }
+  Check("160d stability: a churn that keeps flipping never settles and never draws (fail-closed, no stale verdict)",
+    !last160d.Draw && !last160d.EpisodeClosed, "no settle while the read keeps changing");
+  Check("160d stability: the one still-churning line fires exactly once per episode",
+    stillCount == 1, $"seen {stillCount}");
+  Check("160d stability: the signature head stays bounded for the log line",
+    MarkerStability.SignatureHead("0:0.0;1:0.1;2:0.2;3:0.3;4:0.4;5:0.5;6:0.6;").EndsWith("..."),
+    MarkerStability.SignatureHead("0:0.0;1:0.1;2:0.2;3:0.3;4:0.4;5:0.5;6:0.6;"));
+}
+
+// 160e. THE CORNER REPORT (0.2.8.6; the stray top-left green dot has never gone on any build. The
+//     origin gate only suppresses cells resolving inside MarkerAnchor.Inset of the origin in BOTH
+//     axes, so a genuinely laid-out cell near the corner passes every gate and draws - yet no
+//     probe line all session ever showed such a cell. The only green circle this plugin draws
+//     anywhere is the marker dot, so a dot that draws inside the corner window says so once per
+//     grid: a corner dot with no such log line is another plugin's overlay, and one with the line
+//     names the grid, slot and center that drew it).
+{
+  Check("160e corner report: a dot centered near the origin is inside the corner window",
+    MarkerAnchor.IsNearScreenOrigin(new System.Numerics.Vector2(50f, 41.5f)), "a laid-out cell at (30,30) with a 44px cell centers at (50, 41.5)");
+  Check("160e corner report: the live E-grid anchors are outside it, and one-axis closeness is not the corner",
+    !MarkerAnchor.IsNearScreenOrigin(new System.Numerics.Vector2(4276f, 646f))
+      && !MarkerAnchor.IsNearScreenOrigin(new System.Numerics.Vector2(63f, 65f)), "the 20:59 session's grids sat at x >= 4276");
+  Check("160e corner report: the report window is wider than the origin gate's inset (the gate answers (0,0)-ish; the report answers the rest)",
+    MarkerAnchor.CornerReportInset > MarkerAnchor.Inset);
+}
+
 
 
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");

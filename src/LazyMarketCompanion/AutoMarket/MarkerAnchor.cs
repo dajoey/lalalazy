@@ -45,6 +45,20 @@ public static class MarkerAnchor
     => Center(cellPosition, cellSize) - new Vector2(Radius, Radius);
 
   /// <summary>
+  /// The corner-diagnostic window (0.2.8.6). A dot whose CENTER lands within this many pixels of
+  /// the viewport's top-left corner is the shape the 2026-10-06 report calls the stray corner dot.
+  /// The origin gate only suppresses cells resolving inside <see cref="Inset"/> of the origin in
+  /// BOTH axes, so a genuinely laid-out cell near the corner draws - and must say so: the only
+  /// green circle this plugin draws anywhere is the marker dot, so a corner dot WITH no such log
+  /// line is another plugin's overlay, and one WITH the line names its own source.
+  /// </summary>
+  public const float CornerReportInset = 64f;
+
+  /// <summary>Whether a drawn dot's center sits inside the corner-report window (top-left corner).</summary>
+  public static bool IsNearScreenOrigin(Vector2 center)
+    => center.X < CornerReportInset && center.Y < CornerReportInset;
+
+  /// <summary>
   /// Whether a dot may be drawn for a cell that resolved to this screen position and size
   /// (0.2.8.3). The unpositioned-node signature - the state behind the 2026-10-06 report where
   /// every dot window stacked at the viewport origin and read as one stray dot in the screen's
