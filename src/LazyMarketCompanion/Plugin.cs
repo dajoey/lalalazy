@@ -401,6 +401,10 @@ public sealed class Plugin : IDalamudPlugin
       case "whatsnew":
         _changelog.ShowNow();
         return;
+      case "markertest":
+        _markers.ArmTestDot();
+        ChatGui.Print("[LMC] marker test dot armed for ~5s at the center of your screen - a green circle there means the marker drawing itself works; the plugin log carries the numbers");
+        return;
       case "debug":
         var state = _automation.DebugState();
         Log.Information("[LMC] " + state);

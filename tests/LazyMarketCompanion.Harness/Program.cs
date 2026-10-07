@@ -5449,6 +5449,41 @@ ItemQuote FillerQuote(uint id, long unit, bool hq = false, double vel = 0, long 
 
 
 
+// 160f. THE DOT WINDOW GEOMETRY (0.2.8.7; all four previous testing builds proved the anchors
+//     right - walk == screen on every probed cell, zero suppressed - and the dots still did not
+//     show. The dot window has no ImGui content: the circle is drawn on the window's draw list in
+//     absolute coordinates. An empty AlwaysAutoResize window auto-fits to zero and ImGui clamps it
+//     to its 4x4 minimum (imgui.cpp CalcWindowMinSize: AlwaysAutoResize windows get a 4 px floor),
+//     and the window's inner clip rect then cut that circle - drawn at window-local (Radius,
+//     Radius) with radius Radius*scale - down to a few pixels: effectively invisible on every
+//     build since the window went zero-padding (0.1.22.0). The window is now explicitly sized to
+//     inscribe the drawn circle; this case pins that contract against the real 0.2.8.6 session
+//     numbers (Grid0E slot 0, scale 0.9).
+{
+  var cellPos160f = new System.Numerics.Vector2(4276.1f, 646.2f);
+  var cellSize160f = new System.Numerics.Vector2(39.6f, 39.6f);
+  var center160f = MarkerAnchor.Center(cellPos160f, cellSize160f);
+  var winPos160f = MarkerAnchor.WindowPosition(cellPos160f, cellSize160f);
+  Check("160f dot window: the window top-left keeps the case-53 contract (center minus Radius in both axes)",
+    winPos160f == center160f - new System.Numerics.Vector2(MarkerAnchor.Radius, MarkerAnchor.Radius),
+    $"win=({winPos160f.X},{winPos160f.Y}) center=({center160f.X},{center160f.Y})");
+  foreach (var scale160f in new[] { 0.9f, 1.0f })
+  {
+    var r160f = MarkerAnchor.DrawRadius(scale160f);
+    var size160f = MarkerAnchor.WindowSize(scale160f);
+    Check($"160f dot window: at scale {scale160f} the window rect contains the whole circle (the 4x4 auto-fit clamp clipped it to a few pixels)",
+      winPos160f.X <= center160f.X - r160f && winPos160f.Y <= center160f.Y - r160f
+        && winPos160f.X + size160f.X >= center160f.X + r160f && winPos160f.Y + size160f.Y >= center160f.Y + r160f,
+      $"r={r160f} window x {winPos160f.X}..{winPos160f.X + size160f.X} y {winPos160f.Y}..{winPos160f.Y + size160f.Y} circle x {center160f.X - r160f}..{center160f.X + r160f} y {center160f.Y - r160f}..{center160f.Y + r160f}");
+    Check($"160f dot window: at scale {scale160f} the right/bottom edges reach one radius plus a 1px margin past the center (the anti-aliased edge survives)",
+      winPos160f.X + size160f.X >= center160f.X + r160f + 1f && winPos160f.Y + size160f.Y >= center160f.Y + r160f + 1f,
+      $"right/bottom edge {winPos160f.X + size160f.X} vs center+r+1 {center160f.X + r160f + 1f}");
+  }
+  Check("160f dot window: the drawn radius is the anchor radius times the node scale (what the draw call passes to AddCircleFilled)",
+    MarkerAnchor.DrawRadius(0.9f) == MarkerAnchor.Radius * 0.9f, $"DrawRadius(0.9)={MarkerAnchor.DrawRadius(0.9f)}");
+}
+
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 

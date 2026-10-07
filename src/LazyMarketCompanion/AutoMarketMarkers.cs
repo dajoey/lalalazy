@@ -216,8 +216,53 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
     };
   }
 
+  // 0.2.8.7 THE MARKER TEST DOT (opt-in, /lmc markertest): one labeled green dot at the screen's
+  // center for TestDotFrames frames, drawn with the SAME window pattern as the real dots (explicit
+  // size, no content, zero padding). The offline harness can pin the geometry contract but cannot
+  // render, so this is the one-command in-game answer to "do the dot windows render at all": a
+  // visible green circle at the logged position says the draw works. Nothing draws unless he types
+  // the command - nothing automatic on his machine.
+  private const int TestDotFrames = 300;
+  private int _testDotFrames;
+  private Vector2 _testDotPos;
+
+  internal void ArmTestDot()
+  {
+    _testDotPos = ImGuiHelpers.MainViewport.Pos + ImGui.GetIO().DisplaySize * 0.5f;
+    _testDotFrames = TestDotFrames;
+    Svc.Log.Information($"[LMC] marker test dot: drawing for {TestDotFrames} frame(s) (~{TestDotFrames / 60}s) at ({_testDotPos.X:F0},{_testDotPos.Y:F0}), radius 6px, window size {MarkerAnchor.WindowSize(1f).X:F0}px - a visible green circle at that position says the dot draw itself works");
+  }
+
+  private void DrawTestDot()
+  {
+    _testDotFrames--;
+    if (_testDotFrames == 0)
+      Svc.Log.Information("[LMC] marker test dot: window closed - if no green circle showed at the logged position, the dot draw itself is blocked and the next diagnostic is renderer-side");
+    const float radius = 6f;
+    ImGuiHelpers.ForceNextWindowMainViewport();
+    ImGui.SetNextWindowPos(_testDotPos - new Vector2(radius + 1f));
+    ImGui.SetNextWindowSize(new Vector2(radius * 2f + 2f));
+    ImGui.PushStyleColor(ImGuiCol.WindowBg, 0);
+    ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0, 0));
+    ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 0);
+    ImGui.Begin("###LMCMarkerTestDot", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar
+      | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoInputs | ImGuiWindowFlags.NoNavFocus
+      | ImGuiWindowFlags.AlwaysUseWindowPadding);
+    var drawList = ImGui.GetWindowDrawList();
+    drawList.AddCircleFilled(_testDotPos, radius, OnListColorPacked);
+    // The label goes on the foreground list: the dot window is dot-sized and would clip it.
+    ImGui.GetForegroundDrawList().AddText(_testDotPos + new Vector2(radius + 5f, -9f), OnListColorPacked, "LMC test dot");
+    ImGui.End();
+    ImGui.PopStyleVar(2);
+    ImGui.PopStyleColor();
+  }
+
   public override void Draw()
   {
+    // 0.2.8.7: the opt-in test dot answers whether the dot windows render at all; it runs even when
+    // markers are disabled so the diagnostic cannot be gated off by the setting it diagnoses.
+    if (_testDotFrames > 0)
+      DrawTestDot();
     if (_disposed || !Plugin.Configuration.AutoMarketMarkersEnabled)
       return;
     // Error reporting (2026-09-21): a draw that throws every frame is stopped after repeated failures
@@ -838,11 +883,18 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
       // stacked E-grids it read as a dot on the grid above (a different bag), in sparse bags as
       // a dot on the cell above ("seemingly random locations", the related support thread).
       ImGuiHelpers.SetNextWindowPosRelativeMainViewport(MarkerAnchor.WindowPosition(position, size));
+      // 0.2.8.7: the window is explicitly sized to the drawn dot (MarkerAnchor.WindowSize). It has
+      // no ImGui content - the circle is drawn on its draw list in absolute coordinates - so the old
+      // AlwaysAutoResize window auto-fit to zero and ImGui clamped it to its 4x4 minimum, whose clip
+      // rect cut the circle (drawn at window-local (Radius, Radius), radius Radius*scale) down to a
+      // few pixels: the dots were effectively invisible on every build since the window went
+      // zero-padding (0.1.22.0), whatever the anchor math - four gate/probe builds included.
+      ImGui.SetNextWindowSize(MarkerAnchor.WindowSize(scale.X));
       ImGui.PushStyleColor(ImGuiCol.WindowBg, 0);
-      // 0.1.22.0: zero padding/border like MarketAutomation.ImGuiSetup - the default padding shifted every dot a full padding-size off its cell corner onto the neighbour cell (dots on empty slots in half-empty bags). 0.1.31.0: with the anchor now absolute (MarkerAnchor), zeroed padding is belt-and-braces rather than load-bearing.
+      // 0.1.22.0: zero padding/border like MarketAutomation.ImGuiSetup - the default padding shifted every dot a full padding-size off its cell corner onto the neighbour cell (dots on empty slots in half-empty bags). 0.1.31.0: with the anchor now absolute (MarkerAnchor), zeroed padding is belt-and-braces rather than load-bearing. 0.2.8.7: with the size explicit, AlwaysAutoResize is gone - an auto-resized window without content clamps to ImGui's 4x4 minimum and clips the dot (the SetNextWindowSize note).
       ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0, 0));
       ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 0);
-      ImGui.Begin($"###LMCMarker{addonName}{i}", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.AlwaysAutoResize
+      ImGui.Begin($"###LMCMarker{addonName}{i}", ImGuiWindowFlags.NoTitleBar
         | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoInputs
         | ImGuiWindowFlags.NoNavFocus | ImGuiWindowFlags.AlwaysUseWindowPadding);
       var drawList = ImGui.GetWindowDrawList();

@@ -45,6 +45,28 @@ public static class MarkerAnchor
     => Center(cellPosition, cellSize) - new Vector2(Radius, Radius);
 
   /// <summary>
+  /// The exact circle radius the draw code passes to the draw list: <see cref="Radius"/> scaled
+  /// by the cell node's own scale (the game's UI scale lands here, 0.9 on a default setup).
+  /// </summary>
+  public static float DrawRadius(float scale) => Radius * scale;
+
+  /// <summary>
+  /// The dot window's explicit size, in screen pixels. The dot is drawn on the window's draw list
+  /// in absolute coordinates and the window has no ImGui content, so with the old
+  /// AlwaysAutoResize flag the window auto-fit to zero and ImGui clamped it to its 4x4 minimum
+  /// (imgui.cpp CalcWindowMinSize gives AlwaysAutoResize windows a 4 px floor) - whose inner clip
+  /// rect then cut the circle, drawn at window-local (Radius, Radius) with radius
+  /// <see cref="DrawRadius"/>, down to a few pixels: the dots were effectively invisible on every
+  /// build since the window went zero-padding (0.1.22.0), whatever the anchor math. The window is
+  /// now explicitly sized: from its top-left at <see cref="WindowPosition"/> (center -
+  /// (Radius, Radius), the case-53 contract, unchanged) the right/bottom edges must reach the
+  /// drawn radius plus a 2 px anti-aliasing margin past the center. (At UI scales above 1.0 the
+  /// up-left edge clips by Radius*(scale-1) px - WindowPosition is pinned by case 53; at scale 1
+  /// and below the whole circle is inside.)
+  /// </summary>
+  public static Vector2 WindowSize(float scale) => new(Radius + DrawRadius(scale) + 2f);
+
+  /// <summary>
   /// The corner-diagnostic window (0.2.8.6). A dot whose CENTER lands within this many pixels of
   /// the viewport's top-left corner is the shape the 2026-10-06 report calls the stray corner dot.
   /// The origin gate only suppresses cells resolving inside <see cref="Inset"/> of the origin in
