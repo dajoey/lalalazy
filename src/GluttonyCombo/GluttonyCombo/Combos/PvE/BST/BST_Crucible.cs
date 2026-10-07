@@ -34,6 +34,7 @@ internal partial class BST
     private static uint _crucibleTerritory;
     private static ulong _parryTargetId;
     private static long _parryEndedTick;
+    private static long _curtainsCastSeenTick = -1;
     private static string _hornWarningKey = "";
     private static int _lastLivePetRow;
     private static bool _shellWasUp;
@@ -97,6 +98,19 @@ internal partial class BST
 
     /// <summary> Seconds a lost Directional Parry still counts as "just ended" (Challenge back). </summary>
     private const long ParryEndedWindowMs = 6000;
+
+    /// <summary> How long a Curtains KO cast stays remembered after its castbar was last seen (the hold itself reads only the first ~1.5 s). </summary>
+    private const long CurtainsCastMemoryMs = 10_000;
+
+    /// <summary>
+    ///     Seconds since a Curtains KO cast was last seen on the target (stamped every tick while the castbar runs),
+    ///     so the summon hold can cover the ~1 s between the bar emptying and the knockout landing; float.MaxValue when
+    ///     none was seen recently. Read every tick from ReadState, board or not.
+    /// </summary>
+    internal static float SinceCurtainsCastSeconds(long now) =>
+        _curtainsCastSeenTick >= 0 && now - _curtainsCastSeenTick < CurtainsCastMemoryMs
+            ? (now - _curtainsCastSeenTick) / 1000f
+            : float.MaxValue;
 
     /// <summary>
     ///     How long after a low leave the party agent may still report 100 for that familiar (first-board run:
@@ -228,6 +242,7 @@ internal partial class BST
             _crucibleTerritory = territory;
             _hornWarningKey = "";
             _parryTargetId = 0;
+            _curtainsCastSeenTick = -1;
             _lastLivePetRow = 0;
             _shellWasUp = false;
             _shellBrokeTick = 0;
@@ -398,6 +413,11 @@ internal partial class BST
             {
                 s.TargetCastId = target.CastActionId;
                 s.TargetCastRemaining = Math.Max(0f, target.TotalCastTime - target.CurrentCastTime);
+                // Curtains KO cast: remember the last tick its castbar was seen. The state loses the cast the moment
+                // the bar empties (TargetCastId only reads while IsCasting), but the knockout lands about 1 s later —
+                // the summon hold needs those ticks.
+                if (BST_CrucibleData.CurtainsCasts.Contains(s.TargetCastId))
+                    _curtainsCastSeenTick = now;
             }
 
             var petId = Svc.Buddies.PetBuddy?.GameObject?.GameObjectId ?? 0;

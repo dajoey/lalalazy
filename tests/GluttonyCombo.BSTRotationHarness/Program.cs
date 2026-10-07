@@ -122,6 +122,7 @@ internal static class Program
             SinceAxe = float.MaxValue,
             SincePetHeart = float.MaxValue,
             SincePartingBlow = float.MaxValue,
+            SinceCurtainsCast = float.MaxValue,
             ShieldChargeMax = 1,
         };
     }
@@ -1367,6 +1368,26 @@ internal static class Program
         Check("Curtains timing sweep (6.0 -> 0.25 s, 0.25 s steps, 3 GCD/weave states, both casts): recalled while >= 2.4 s of retreat time remain before the KO",
             curtainsSweepMiss.Count == 0, string.Join(" | ", curtainsSweepMiss));
 
+        // 2026-10-06 review finding on the whole-window recall: the recall empties the slot about 3.7 s before the cast
+        // resolves, and the normal summon rules then blew a horn for a new familiar on the next weave (probe on the
+        // 1.0.4.289 release source: summon:slot2 at every tick from 3.5 s to 0.5 s remaining) — the new familiar walks
+        // into the KO, a wasted horn and a locked slot. Replay of the post-recall ticks: no horn press while the
+        // Curtains cast is open, and none while its knockout is still pending (the KO lands about 1.0 s after the cast
+        // completes; the hold rides 1.5 s past the last seen tick for castbar jitter).
+        var resummonMisses = new List<string>();
+        var postRecall = CrucibleState() with { ActiveSlot = 0, PetObjectPresent = false, PetObjectBeast = 0, SinceHornPress = 30f, SincePartingBlow = 2.3f };
+        foreach (var rem in new[] { 3.5f, 3.0f, 2.5f, 2.0f, 1.5f, 1.0f, 0.5f, 0.1f })
+            if (Decide(postRecall with { TargetCastId = 49428, TargetCastRemaining = rem, GcdReady = false, CanWeave = true }, cfg) is { } openTick && IsHorn(openTick.ActionId))
+                resummonMisses.Add($"cast open, {rem:F1} s left: {openTick.Reason}");
+        foreach (var since in new[] { 0.3f, 0.9f, 1.4f })
+            if (Decide(postRecall with { SinceCurtainsCast = since, GcdReady = false, CanWeave = true }, cfg) is { } koTick && IsHorn(koTick.ActionId))
+                resummonMisses.Add($"KO pending, +{since:F1} s past the cast: {koTick.Reason}");
+        Check("post-recall replay across the Curtains cast and its KO window: no summon until the KO has landed",
+            resummonMisses.Count == 0, string.Join(" | ", resummonMisses));
+        Check("... the KO has landed (+1.6 s past the cast): the normal summon rules resume",
+            Decide(postRecall with { SinceCurtainsCast = 1.6f, GcdReady = false, CanWeave = true }, cfg) is { ActionId: BST.SecondBattlehorn, Reason: "summon:slot2" },
+            Decide(postRecall with { SinceCurtainsCast = 1.6f, GcdReady = false, CanWeave = true }, cfg).Reason);
+
         var forwardGuard = CrucibleState() with { TargetCastId = 46864, TargetCastRemaining = 2.0f, PetHpPercent = 100f, ReadyParting = true };
         Check("Forward Guard cast (directional parry): Parting Blow recalls familiar before guard lands",
             Decide(forwardGuard, cfg) is { ActionId: BST.PartingBlow, Reason: "crucible:petsave-guard" });
@@ -1689,6 +1710,17 @@ internal static class Program
         Check("snarl-parting in log-only mode: logged, not pressed",
             Decide(landing, shadowCfg with { CrucibleSnarlParting = true, CrucibleTankbusterParting = true }) is { Shadow: "crucible:snarl-parting" } logged && logged.Reason != "crucible:snarl-parting");
         Check("score mode with the dormant Parting Blow step opted in: Snarl for the tankbuster", Decide(castStart, scoreCfg with { CrucibleSnarlParting = true, CrucibleTankbusterParting = true }).ActionId == BST.Snarl);
+        // 2026-10-06 review finding: the score-mode Snarl site guards on the recall the same way the normal-mode sites
+        // do, but had no case of its own — a recall in flight (the familiar already leaving) must not take the Snarl.
+        // A real measured tankbuster (48717 Sweeping Evisceration): the cover check cannot model a stand-in id.
+        var scoreSnarlCfg = scoreCfg with { CrucibleSnarlParting = true };
+        var scoreTb = CrucibleState() with { TargetCastId = 48717, TargetCastRemaining = 4f, ReadySnarl = true, ReadyParting = false };
+        Check("score mode, tankbuster cast, recall in flight (1.4 s ago): no Snarl onto the leaving familiar",
+            Decide(scoreTb with { SincePartingBlow = 1.39f }, scoreSnarlCfg).ActionId != BST.Snarl,
+            Decide(scoreTb with { SincePartingBlow = 1.39f }, scoreSnarlCfg).Reason);
+        Check("score mode, tankbuster cast, recall no longer in flight (3.5 s ago): the tankbuster Snarl fires",
+            Decide(scoreTb with { SincePartingBlow = 3.5f }, scoreSnarlCfg).Reason == "aggro:snarl-tankbuster",
+            Decide(scoreTb with { SincePartingBlow = 3.5f }, scoreSnarlCfg).Reason);
         BST_CrucibleData.Tankbusters.Remove(tb);
         Check("Erratic Blaster castbar 1.4 s left (lands in 1.7 s): not yet", Decide(landing with { TargetCastId = 49188, TargetCastRemaining = 1.4f }, spCfg).Reason != "crucible:snarl-parting");
         Check("Erratic Blaster castbar 1.0 s left (lands in 1.3 s): Parting Blow", Decide(landing with { TargetCastId = 49188, TargetCastRemaining = 1.0f }, spCfg).Reason == "crucible:snarl-parting");

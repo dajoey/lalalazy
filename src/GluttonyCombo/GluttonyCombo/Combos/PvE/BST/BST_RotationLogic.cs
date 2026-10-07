@@ -300,6 +300,7 @@ internal static class BST_RotationLogic
         public bool ReadySnarl, ReadyChallenge;
         public float SinceSnarl;                  // float.MaxValue when never
         public float SincePartingBlow;            // since the recall (Parting Blow) was last pressed; float.MaxValue when never
+        public float SinceCurtainsCast;           // since a Curtains KO cast was last seen on the target (stamped while the castbar runs); float.MaxValue when none recently
         public uint TargetNameId;                 // BNpcName of the current target (0 when none)
         public bool ShellJustBroke;               // a ShellTargets enemy (Ymir Piece) lost its damage-immune shell within the last few seconds
     }

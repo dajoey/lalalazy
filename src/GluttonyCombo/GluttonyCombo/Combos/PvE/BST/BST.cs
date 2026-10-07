@@ -256,6 +256,7 @@ internal partial class BST : Melee
             SinceTempered = Math.Min(SinceUsed(TemperedRelease), SinceUsed(TemperedReleaseTargeted)),
             SinceBorrow = SinceUsed(Borrow),
             SincePartingBlow = SinceUsed(PartingBlow),
+            SinceCurtainsCast = BST_Crucible.SinceCurtainsCastSeconds(now),
             TemperedRecastRemaining = GetCooldownRemainingTime(TemperedRelease),
 
             LastComboAction = ComboAction,
