@@ -1,3 +1,9 @@
+## v0.2.8.9 (2026-10-07) [testing]
+### Added
+- **The marker log now reports every change of a grid's state, not just its first draws.** Each panel's dots now report what happened as it happens: when they start drawing, when they stop and why (display-order hold, hidden page, unreadable item order, nothing to mark, every cell suppressed, window closed), and when they come back - one bounded log line per change, so a click that kills the dots mid-session leaves a trace naming the exact moment and reason instead of silence.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v0.2.8.8 (2026-10-07) [testing]
 ### Added
 - **The marker log now reports what the renderer actually did.** For the first dots each panel draws, one log line records the marker window's real position and size, the rectangle the drawing engine clips the dot by, and whether the circle's vertices were added - each dot graded ok or clipped. A testing session's log shows whether the circles were drawn and where they could appear, instead of only where they were aimed.
