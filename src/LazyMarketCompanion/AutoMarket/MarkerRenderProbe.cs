@@ -29,6 +29,14 @@ public static class MarkerRenderProbe
   /// <summary>The first N draw passes per (addon, container) measure and log the render side.</summary>
   public const int PassLimit = 3;
 
+  /// <summary>
+  /// How many eras a (addon, container) may measure per session: each era is <see cref="PassLimit"/>
+  /// passes, re-opened by <see cref="ReArm"/> when the grid's window is re-created. 0.2.8.9 left
+  /// the re-open era unmeasured exactly because the pass count never reset - the vanish moment was
+  /// blind. The session-wide bound is PassLimit * EraLimit lines, never lifted by a re-arm.
+  /// </summary>
+  public const int EraLimit = 3;
+
   /// <summary>How many drawn dots a render line grades: the first K dots of the pass that actually drew.</summary>
   public const int DotLimit = 5;
 
@@ -42,14 +50,21 @@ public static class MarkerRenderProbe
     public int Lines;
   }
 
-  /// <summary>Whether this pass measures and logs the render side: true for the first <see cref="PassLimit"/> passes, never past that (the line cap keeps the two gates honest even if a pass never logged).</summary>
+  /// <summary>Whether this pass measures and logs the render side: true for the first <see cref="PassLimit"/> passes of the current era, never past the session-wide bound of <see cref="PassLimit"/> * <see cref="EraLimit"/> lines (the caps keep the gates honest even if a pass never logged).</summary>
   public static bool ShouldMeasure(State state)
   {
-    if (state.Passes >= PassLimit || state.Lines >= PassLimit)
+    if (state.Passes >= PassLimit || state.Lines >= PassLimit * EraLimit)
       return false;
     state.Passes++;
     return true;
   }
+
+  /// <summary>
+  /// Open a new measurement era: called when the grid's window was re-created (the transition log
+  /// saw a closed/not-ready boundary), so the re-opened addon's first passes are measured again.
+  /// Lines keep their session-wide bound - a re-arm never lifts it.
+  /// </summary>
+  public static void ReArm(State state) => state.Passes = 0;
 
   /// <summary>Caller-side bookkeeping after a render line actually logged.</summary>
   public static void RecordLogged(State state) => state.Lines++;

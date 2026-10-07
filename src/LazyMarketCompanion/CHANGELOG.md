@@ -1,3 +1,11 @@
+## v0.2.8.10 (2026-10-07) [testing]
+### Fixed
+- **Auto-Market marker dots no longer disappear for the rest of the session after a UI state that hides windows.** A window drawn with a zero drawing-opacity leaves every marker window invisible from that point on, while the plugin's own log keeps reporting the dots as drawn. The plugin now detects that state before its marker window is created and shields its own windows from it for that frame; healthy sessions are untouched.
+### Added
+- **The log now records the drawing layer's own verdict on the marker windows.** When the style state changes (for example a zero-opacity leak from another addon), one bounded line names the state and the repair; each marker window's real flags after creation are graded (rendered, dropped at render, not active, collapsed, duplicate submission) and a window that will not reach the screen is reported as its own state change instead of a green silence. Re-created inventory panels are re-measured again after they reopen.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v0.2.8.9 (2026-10-07) [testing]
 ### Added
 - **The marker log now reports every change of a grid's state, not just its first draws.** Each panel's dots now report what happened as it happens: when they start drawing, when they stop and why (display-order hold, hidden page, unreadable item order, nothing to mark, every cell suppressed, window closed), and when they come back - one bounded log line per change, so a click that kills the dots mid-session leaves a trace naming the exact moment and reason instead of silence.

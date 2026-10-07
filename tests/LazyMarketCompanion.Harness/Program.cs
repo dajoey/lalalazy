@@ -5602,6 +5602,101 @@ ItemQuote FillerQuote(uint id, long unit, bool hq = false, double vel = 0, long 
     ringLogged160h == MarkerTransitions.LineCap, $"logged {ringLogged160h} of {MarkerTransitions.LineCap * 3} flips");
 }
 
+
+// 160i. THE RENDER-SIDE GUARD (0.2.8.10; the 0.2.8.8/0.2.8.9 probes measured everything the
+//     plugin could see and every line looked perfect while the dots still vanished: ImGui marks a
+//     window Hidden when style Alpha <= 0 at Begin, any window Begun inside a hidden window's
+//     scope inherits the flag, and ImGui::Render silently drops a hidden window's draw list -
+//     vertices still added, rects still perfect, bookkeeping green. v1.90.4 has no per-frame leak
+//     recovery, so one unbalanced PushStyleVar(Alpha, 0) by any code drawn earlier in the frame
+//     hides every window Begun after it for the rest of the session. The guard holds the two
+//     decisions the caller executes on the live ImGui: the PreDraw repair plan and the per-window
+//     flag verdict; the render probe's measurement re-arms when a grid's window is re-created, so
+//     the re-open era 0.2.8.9 left unmeasured is measured.)
+{
+  // THE REPAIR PLAN.
+  var healthy160i = MarkerRenderGuard.Plan(1f, 0);
+  Check("160i guard: a healthy alpha plans no repair (zero behavior change while the style is sound)",
+    !healthy160i.ForceAlpha && healthy160i.ObservedAlpha == 1f && healthy160i.StyleVarStackDepth == 0,
+    $"force={healthy160i.ForceAlpha} alpha={healthy160i.ObservedAlpha} depth={healthy160i.StyleVarStackDepth}");
+  var leak160i = MarkerRenderGuard.Plan(0f, 3);
+  Check("160i guard: alpha 0 plans the alpha=1 repair (a zero alpha hides every window begun under it and drops them at render)",
+    leak160i.ForceAlpha && leak160i.ObservedAlpha == 0f && leak160i.StyleVarStackDepth == 3,
+    $"force={leak160i.ForceAlpha} alpha={leak160i.ObservedAlpha} depth={leak160i.StyleVarStackDepth}");
+  Check("160i guard: a negative alpha plans the repair too (the threshold is <= 0, no visible window ever wants it)",
+    MarkerRenderGuard.Plan(-0.5f, 1).ForceAlpha, "negative");
+  Check("160i guard: a translucent alpha plans no repair (Dalamud's fade-in is ~0.2, never 0 - it must stay untouched)",
+    !MarkerRenderGuard.Plan(0.22f, 1).ForceAlpha, "0.22");
+
+  // THE WINDOW FLAG VERDICTS.
+  Check("160i guard: healthy flags classify rendered",
+    MarkerRenderGuard.Classify(true, false, false, false, 1) == MarkerRenderGuard.Verdict.Rendered, "all clear");
+  Check("160i guard: SkipItems classifies dropped at render (vertices added, dropped at ImGui::Render)",
+    MarkerRenderGuard.Classify(true, false, true, false, 1) == MarkerRenderGuard.Verdict.DroppedAtRender, "skip");
+  Check("160i guard: Hidden classifies dropped at render (own alpha or inherited from a hidden parent window)",
+    MarkerRenderGuard.Classify(true, true, false, false, 1) == MarkerRenderGuard.Verdict.DroppedAtRender, "hidden");
+  Check("160i guard: !Active classifies not active (the window never made it into this frame)",
+    MarkerRenderGuard.Classify(false, false, false, false, 0) == MarkerRenderGuard.Verdict.NotActive, "inactive");
+  Check("160i guard: Collapsed classifies collapsed (impossible for the marker windows - a surprise must name itself)",
+    MarkerRenderGuard.Classify(true, false, false, true, 1) == MarkerRenderGuard.Verdict.Collapsed, "collapsed");
+  Check("160i guard: BeginCount 2 classifies duplicate submit (the second submission's position was consumed and ignored)",
+    MarkerRenderGuard.Classify(true, false, false, false, 2) == MarkerRenderGuard.Verdict.DuplicateSubmit, "dup");
+  Check("160i guard: dropped outranks duplicate (a hidden window is the stronger truth)",
+    MarkerRenderGuard.Classify(true, true, true, false, 2) == MarkerRenderGuard.Verdict.DroppedAtRender, "skip + dup");
+  Check("160i guard: the verdict labels name what the log line will say",
+    MarkerRenderGuard.VerdictLabel(MarkerRenderGuard.Verdict.Rendered) == "rendered"
+      && MarkerRenderGuard.VerdictLabel(MarkerRenderGuard.Verdict.DroppedAtRender) == "dropped at render"
+      && MarkerRenderGuard.VerdictLabel(MarkerRenderGuard.Verdict.NotActive) == "not active"
+      && MarkerRenderGuard.VerdictLabel(MarkerRenderGuard.Verdict.Collapsed) == "collapsed"
+      && MarkerRenderGuard.VerdictLabel(MarkerRenderGuard.Verdict.DuplicateSubmit) == "duplicate submit",
+    "labels");
+
+  // THE STYLE-EPOCH LOG (change-driven, bounded).
+  var se160i = new MarkerRenderGuard.StyleEpochState();
+  Check("160i guard: the first style observation logs whatever it shows (a session that starts leaked is on record)",
+    MarkerRenderGuard.ShouldLogStyleEpoch(se160i, MarkerRenderGuard.Plan(0f, 3)), "baseline");
+  MarkerRenderGuard.RecordStyleEpochLogged(se160i);
+  Check("160i guard: the same style state again is silent (one line, not one per frame)",
+    !MarkerRenderGuard.ShouldLogStyleEpoch(se160i, MarkerRenderGuard.Plan(0f, 3)), "same");
+  Check("160i guard: a depth change logs (the leak fingerprint changed)",
+    MarkerRenderGuard.ShouldLogStyleEpoch(se160i, MarkerRenderGuard.Plan(0f, 4)), "depth");
+  MarkerRenderGuard.RecordStyleEpochLogged(se160i);
+  Check("160i guard: a heal to healthy logs (the leak ended)",
+    MarkerRenderGuard.ShouldLogStyleEpoch(se160i, MarkerRenderGuard.Plan(1f, 0)), "heal");
+  MarkerRenderGuard.RecordStyleEpochLogged(se160i);
+  Check("160i guard: a re-leak logs (the vanish moment names its own onset)",
+    MarkerRenderGuard.ShouldLogStyleEpoch(se160i, MarkerRenderGuard.Plan(0f, 3)), "re-leak");
+  MarkerRenderGuard.RecordStyleEpochLogged(se160i);
+  // heal back to healthy so the jitter check below compares two healthy epochs
+  MarkerRenderGuard.ShouldLogStyleEpoch(se160i, MarkerRenderGuard.Plan(1f, 0));
+  MarkerRenderGuard.RecordStyleEpochLogged(se160i);
+  Check("160i guard: alpha jitter among healthy frames is silent (0.98 and 1.02 are the same epoch)",
+    !MarkerRenderGuard.ShouldLogStyleEpoch(se160i, MarkerRenderGuard.Plan(1.02f, 0)), "jitter");
+  var seCap160i = new MarkerRenderGuard.StyleEpochState { Lines = MarkerRenderGuard.StyleEpochLineCap };
+  Check("160i guard: the style-epoch log is bounded at the cap",
+    !MarkerRenderGuard.ShouldLogStyleEpoch(seCap160i, MarkerRenderGuard.Plan(0f, 3)), "capped");
+  Check("160i guard: the epoch line names the state and the repair",
+    MarkerRenderGuard.StyleEpochLine(MarkerRenderGuard.Plan(0f, 3), true).Contains("alpha=0")
+      && MarkerRenderGuard.StyleEpochLine(MarkerRenderGuard.Plan(0f, 3), true).Contains("pushed alpha=1")
+      && MarkerRenderGuard.StyleEpochLine(MarkerRenderGuard.Plan(1f, 0), false).Contains("healthy"),
+    MarkerRenderGuard.StyleEpochLine(MarkerRenderGuard.Plan(0f, 3), true));
+
+  // THE RENDER PROBE'S RE-ARM (the 0.2.8.9 gap: pass count never reset on addon re-open, so the
+  // re-open era - the exact vanish moment - went unmeasured).
+  var rp160i = new MarkerRenderProbe.State();
+  for (var n = 0; n < MarkerRenderProbe.PassLimit; n++)
+    MarkerRenderProbe.ShouldMeasure(rp160i);
+  Check("160i guard: the probe's first era closes after the pass limit (unchanged)",
+    !MarkerRenderProbe.ShouldMeasure(rp160i), "era closed");
+  MarkerRenderProbe.ReArm(rp160i);
+  Check("160i guard: the re-arm opens a new era (a re-created addon's first passes are measured again - the vanish moment)",
+    MarkerRenderProbe.ShouldMeasure(rp160i), "new era");
+  var rpCap160i = new MarkerRenderProbe.State { Lines = MarkerRenderProbe.PassLimit * MarkerRenderProbe.EraLimit };
+  MarkerRenderProbe.ReArm(rpCap160i);
+  Check("160i guard: the re-arm never lifts the session-wide line bound",
+    !MarkerRenderProbe.ShouldMeasure(rpCap160i), "session cap holds");
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 
