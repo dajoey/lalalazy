@@ -1,3 +1,9 @@
+## v1.0.4.290 (2026-10-06) [testing]
+### Fixed
+- **Beastmaster in the Crucible of the Unbroken: no horn is blown for a new familiar while the Curtains for Rank 5 cast is running or its knockout has not landed yet.** The previous release recalls the familiar from the moment the knockout cast starts, which empties the familiar's slot several seconds before the cast resolves; the summon rules then filled that empty slot on the next weave, and the knockout took the newly summoned familiar anyway — a wasted horn and a familiar lost for nothing. The rotation now waits out the cast and the second or so it takes the knockout to land, and brings the new familiar in right after, so the horn is spent on a familiar that stays.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v1.0.4.289 (2026-10-06) [testing]
 ### Fixed
 - **Beastmaster in the Crucible of the Unbroken: the recall that saves a familiar from Curtains for Rank 5 now fires from the moment the cast starts, whatever the GCD is doing.** The recall used to wait for the cast's final 2.5 seconds and a weave window; with the GCD idle or in its second half it never fired at all and the familiar was left to a knockout that ignores its health. The cast gives about 6 seconds of warning and the retreat takes a little over 2, so recalling from the cast start keeps every GCD state well inside the retreat the familiar needs (the recorded recalls went out with 1.2 to 1.5 seconds to spare and the familiar survived each one).
