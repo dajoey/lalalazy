@@ -36,8 +36,7 @@ namespace CurrencySpender.Helpers
                 }));
             });
         }
-
-        // Example usage during ImGui rendering
+        
         public static void LargestText(string uidText)
         {
             LargestFont.Push();

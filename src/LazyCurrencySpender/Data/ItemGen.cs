@@ -8,11 +8,72 @@ namespace CurrencySpender.Data
     {
         internal static bool FateShopsDone = false;
         internal static bool GCShopsDone = false;
+
+        // Shared-FATE gemstone vendors: NPC → (required shared FATE rank, applicable territories).
+        private static readonly Dictionary<uint, (int Rank, List<uint> TerritoryIds)> SharedFateRanks = new()
+        {
+            { 1027998, (3, [813, 814, 815, 816, 817, 818]) },
+            { 1027538, (3, [813, 814, 815, 816, 817, 818]) },
+
+            { 1037055, (3, [956, 957, 958, 959, 960, 961]) },
+            { 1037304, (3, [956, 957, 958, 959, 960, 961]) },
+
+            { 1048383, (4, [1187, 1188, 1189, 1190, 1191, 1192]) },
+            { 1049082, (4, [1187, 1188, 1189, 1190, 1191, 1192]) },
+        };
+
+        // Shared-FATE vendors: NPC → items per rank tier; tiers above the player's rank are disabled.
+        private static readonly Dictionary<uint, List<List<uint>>> SharedFateItems = new()
+        {
+            { 1027497, [[29709, 27962, 27850, 27798, 6141, 17837, 7621, 21800], [28881,
+                25186, 25187, 25188, 25189, 25190, 25197, 25198, 26727, 26728, 26729, 26730, 26731, 26738, 26739],
+                [27896, 26769]] },
+            { 1027892, [[27963, 27852, 27756, 27735, 6141, 17837, 7621, 21800], [28882,
+                25186, 25187, 25188, 25189, 25190, 25197, 25198, 26727, 26728, 26729, 26730, 26731, 26738, 26739],
+                [27897, 26792]] },
+            { 1027385, [[29706, 28999, 29000, 27961, 27732, 27763, 27764, 6141, 17837, 7621, 21800], [28880,
+                25186, 25187, 25188, 25189, 25190, 25197, 25198, 26727, 26728, 26729, 26730, 26731, 26738, 26739],
+                [27895, 27989]] },
+            { 1027665, [[29704, 33332, 39370, 33269, 27964, 27851, 27797, 27733, 6141, 17837, 7621, 21800], [28883, 30264, 32232,
+                25186, 25187, 25188, 25189, 25190, 25197, 25198, 26727, 26728, 26729, 26730, 26731, 26738, 26739],
+                [27898, 27276, 30090]] },
+            { 1027709, [[29710, 27965, 27734, 27774, 27773, 6141, 17837, 7621, 21800], [28884, 28635,
+                25186, 25187, 25188, 25189, 25190, 25197, 25198, 26727, 26728, 26729, 26730, 26731, 26738, 26739],
+                [27899, 26804]] },
+            { 1027766, [[29713, 33274, 28972, 27966, 27736, 27799, 27800, 6141, 17837, 7621, 21800], [28885, 30263,
+                25186, 25187, 25188, 25189, 25190, 25197, 25198, 26727, 26728, 26729, 26730, 26731, 26738, 26739],
+                [27900, 27313]] },
+
+            { 1037484, [[36243, 36254, 36261], [35962], [35799, 37424]] },
+            { 1037635, [[36242, 36245, 36253, 36264], [35963], [36362, 37425, 35807, 37342]] },
+            { 1037724, [[36255, 36203, 36244], [35964], [36363, 37426, 37427, 38650, 38651, 37389, 35805, 38599 ]] },
+            { 1037793, [[36257, 36258, 36259], [35965], [36364, 37429, 35800]] },
+            { 1037909, [[36246, 36256, 36630, 36260], [35967], [36365, 37428, 36280, 38438, 41141, 38627]] },
+            { 1038004, [[36262], [356966], [36366, 36267, 37341, 35801, 40628, 35971]] },
+
+            { 1048628, [[44063, 44067, 44053], [43607], [44114], [44312, 45009, 43571]] },
+            { 1048778, [[44064, 44054, 44068, 44069], [43608], [44115], [44313, 45010, 41819]] },
+            { 1048933, [[44065, 44055, 44070], [43609], [44121], [44314, 45011, 43574]] },
+            { 1049283, [[44066, 44106, 44027, 44071], [43610], [44117], [44315, 45012, 43601, 44479]] },
+            { 1049438, [[44056, 44072], [43611], [44118], [44316, 45013, 43873]] },
+            { 1049528, [[44057], [43612], [44122], [44317, 45014, 43874, 44480]] },
+        };
+
+        /// <summary>"Orbitingway Gamba" endgame credit shops: NPC → (currency item id, item ids).</summary>
+        private static readonly Dictionary<uint, (uint Currency, uint[] Items)> CustomShops = new()
+        {
+            { 1052612, (45691, [44505, 44509, 47966, 48154, 48160, 48210, 48220, 48221]) }, // Lunar Credit
+            { 1052642, (48146, [47973, 46795, 46782, 46840, 46155]) },                      // Phaenna Credit
+            { 1052652, (48147, [50803, 50455, 50458, 50441, 50323]) },                      // Oizys Credit
+            { 1056826, (48148, [52359, 52648, 52449, 52267, 52275]) },                      // Auxesia Credit
+        };
+        
         public static void init()
         {
             PluginLog.Debug("ItemGen init");
+            ItemHelper.InitTribes();
             
-            List<uint> npcIds = [1052612, 1052642, 1052608, 1052640];
+            List<uint> npcIds = [1052612, 1052642, 1052652, 1056826];
             foreach (uint npcId in npcIds)
             {
                 Location location = Location.GetLocation(npcId);
@@ -28,23 +89,19 @@ namespace CurrencySpender.Data
             PluginLog.Debug($"CustomShops: {Generator.shops.Where(shop => shop.Type == ShopType.CustomShop).ToList().Count}");
             foreach (var shop in Generator.shops)
             {
-                if(shop.Type == ShopType.SpecialShop)
-                {
-                    specialShop(shop);
-                }
-                else if (shop.Type == ShopType.GCShop)
-                {
-                    GCShop(shop);
-                }
-                else if (shop.Type == ShopType.FateShop)
-                {
-                    specialShop(shop);
-                }
-                else if (shop.Type == ShopType.CustomShop)
-                {
-                    customShop(shop);
-                }
                 //PluginLog.Verbose($"{shop}");
+                switch (shop.Type)
+                {
+                    case ShopType.SpecialShop or ShopType.FateShop:
+                        specialShop(shop);
+                        break;
+                    case ShopType.GCShop:
+                        GCShop(shop);
+                        break;
+                    case ShopType.CustomShop:
+                        customShop(shop);
+                        break;
+                }
             }
             if (PlayerHelper.SharedFateRanksCreated)
             {
@@ -52,32 +109,30 @@ namespace CurrencySpender.Data
                 fateShops();
             } else PluginLog.Debug("Not starting fateShops");
             if (PlayerHelper.GCRanksCreated) GCShops();
+            
+            Generator.ItemsFinished = true;
+            if(Generator.ShopsFinished && Generator.ItemsFinished) Generator.AllFinished = true;
+            
             PluginLog.Debug("ItemGen init finished");
 
-            //foreach (var item in Generator.items)
-            //{
-            //    if (item.Id == 44173)
-            //        DuoLog.Information($"{item.Name}-{item.Shop.NpcName}-{item.Shop.ShopId}");
-            //}
+            // List<String> names = ["Western Reach Framer's Kit", "Eastern Reach Framer's Kit", "Mahjong Mastery Framer's Kit"];
+            // foreach (var item in Generator.items)
+            // {
+            //     if (names.Contains(item.Name))
+            //     {
+            //         DuoLog.Information($"{item.Id}");
+            //     }
+            // }
         }
 
         internal static void specialShop(Shop shop)
         {
             var shop_ = Service.DataManager.GetExcelSheet<SpecialShop>().GetRow(shop.ShopId);
             shop.ShopName = shop_.Name.ExtractText();
-            // if(shop.ShopId == 1770770) PluginLog.Verbose($"SpecialShop: {shop.ShopId}-{shop.ShopName}-{shop.NpcName}");
+            // if(shop.ShopId == 1770638) PluginLog.Verbose($"SpecialShop: {shop.ShopId}-{shop.ShopName}-{shop.NpcName}");
             var itemCol = shop_.Item;
             foreach (var itemCol_ in itemCol)
             {
-                var temp = new List<(uint, uint)>();
-                foreach (var currency in itemCol_.ItemCosts)
-                {
-                    if (currency.ItemCost.RowId == 0) continue;
-                    if (shop_.RowId != 1770766) continue;
-                    var costItemId = currency.ItemCost.RowId;
-                    costItemId = ConvertCurrencyId(shop_.RowId, costItemId, shop_.UseCurrencyType);
-                    var costItem = Service.DataManager.GetExcelSheet<Item>().GetRow(costItemId);
-                }
                 for (int i = 0; i < itemCol_.ReceiveItems.Count; i++)
                 {
                     if (i >= itemCol_.ItemCosts.Count) continue;
@@ -86,9 +141,7 @@ namespace CurrencySpender.Data
 
                     var costItemId = itemCol_.ItemCosts[i].ItemCost.RowId;
                     var cur = ConvertCurrencyId(shop_.RowId, costItemId, shop_.UseCurrencyType);
-                    var cur_item = Service.DataManager.GetExcelSheet<Item>().GetRow(cur);
-
-                    // if (shop.ShopId == 1770770) PluginLog.Verbose($"SpecialShop Item: {itemCol_.ReceiveItems[i].Item.RowId}-{itemCol_.ReceiveItems[i].Item.Value.Name}-{cur}-{cur_item.Name}-{shop.NpcName}-{shop.ShopId}-CurrencyId:{costItemId}");
+                    // if (shop.ShopId == 1770638) PluginLog.Verbose($"SpecialShop Item: {itemCol_.ReceiveItems[i].Item.RowId}-{itemCol_.ReceiveItems[i].Item.Value.Name}-Cur:{cur}-{shop.NpcName}-{shop.ShopId}-CurrencyId:{costItemId}");
 
                     if (P.Currencies.Where(c => c.Enabled && c.ItemId == cur).ToList().Count() == 0) continue;
 
@@ -96,12 +149,15 @@ namespace CurrencySpender.Data
                     var CollectableType = ItemHelper.GetCollectableType(itemCol_.ReceiveItems[i].Item, item_types);
                     //if (CollectableType == CollectableType.Container) PluginLog.Debug($"specialShop Container: {itemCol_.ReceiveItems[i].Item.RowId}, shop: {shop.NpcName}");
                     //if (CollectableType == CollectableType.Hairstyle) PluginLog.Debug($"specialShop Hairstyle: {itemCol_.ReceiveItems[i].Item.RowId}, shop: {shop.NpcName}");
-                    //PluginLog.Verbose(types.ToString());
-                    //if (!enabled_currencies.Contains(cur)) continue;
-                    //if(itemCol_.ReceiveItems[i].Item.RowId == 45988)
-                    //    PluginLog.Verbose($"{cur}-{cur_item.Name}-{shop.NpcName}-{shop.ShopId}-CurrencyId:{costItemId}-{ itemCol_.ReceiveItems[i].Item.Value.Name.ToString()}");
-                    var existing_item = Generator.items.FirstOrDefault(it => it.Id == itemCol_.ReceiveItems[i].Item.RowId && it.Shop.NpcId == shop.NpcId); //it.Shop.NpcId == shop.NpcId);
-                    if(existing_item == default)
+                    //PluginLog.Verbose(item_types.ToString());
+                    if (C.Debug && itemCol_.ReceiveItems[i].Item.RowId == 5089)
+                    {
+                        // PluginLog.Verbose($"{cur}-{cur_item.Name}-{shop.NpcName}-{shop.ShopId}-CurrencyId:{costItemId}-{ itemCol_.ReceiveItems[i].Item.Value.Name.ToString()}");
+                        // PluginLog.Verbose($"{itemCol_.ReceiveItems[i].Item.Value.}");
+                    }
+
+                    var existingItem = Generator.items.FirstOrDefault(it => it.Id == itemCol_.ReceiveItems[i].Item.RowId && it.Shop.NpcId == shop.NpcId);
+                    if(existingItem == null)
                     {
                         ShopItem shopItem = new ShopItem
                         {
@@ -112,8 +168,15 @@ namespace CurrencySpender.Data
                             Category = itemCol_.ReceiveItems[i].Item.Value.ItemUICategory.RowId,
                             Type = item_types,
                             CollectableType = CollectableType,
-                            Shop = shop
+                            Shop = shop,
+                            PreReq = itemCol_.Quest.RowId != 0 || itemCol_.AchievementUnlock.RowId != 0,
+                            QuestId = itemCol_.Quest.RowId != 0 ? itemCol_.Quest.RowId : null,
+                            AchievementId = itemCol_.AchievementUnlock.RowId != 0 ? itemCol_.AchievementUnlock.RowId : null,
                         };
+                        if (ItemHelper.TribeByCurrency.TryGetValue(cur, out var tribeId))
+                        {
+                            if (!ItemHelper.IsReputationReached(shopItem.Id, tribeId, itemCol_.Quest.RowId)) shopItem.Disabled = true;
+                        }
                         Generator.items.Add(shopItem);
                         shop.Items.Add(shopItem);
                     }
@@ -121,7 +184,6 @@ namespace CurrencySpender.Data
                 }
                 //PluginLog.Verbose($"{itemCol_.ToString()}");
             }
-            //if(missingLoc && C.Debug) { DuoLog.Error($"Missing Location: NPC:{shop.NpcId} NPCName:{shop.NpcName} Shop:{shop.ShopId}"); }
         }
 
         internal static void GCShop(Shop shop)
@@ -129,7 +191,6 @@ namespace CurrencySpender.Data
             var GCShopSheet = Service.DataManager.GetExcelSheet<GCShop>();
             var GCScripShopCategorySheet = Service.DataManager.GetExcelSheet<GCScripShopCategory>();
             var GCScripShopItemSheet = Service.DataManager.GetSubrowExcelSheet<GCScripShopItem>();
-            var GCItem = Service.DataManager.GetExcelSheet<Item>().GetRow(20);
 
             foreach (var gcShop in GCShopSheet)
             {
@@ -226,74 +287,21 @@ namespace CurrencySpender.Data
                 }
             }
 
-            Dictionary<uint, (int Rank, List<uint> TerritoryIds)> ranks = new Dictionary<uint, (int, List<uint>)>
-            {
-                { 1027998, (3, [813, 814, 815, 816, 817, 818]) },
-                { 1027538, (3, [813, 814, 815, 816, 817, 818]) },
-
-                { 1037055, (3, [956, 957, 958, 959, 960, 961]) },
-                { 1037304, (3, [956, 957, 958, 959, 960, 961]) },
-
-                { 1048383, (4, [1187, 1188, 1189, 1190, 1191, 1192]) },
-                { 1049082, (4, [1187, 1188, 1189, 1190, 1191, 1192]) },
-            };
-            Dictionary<uint, List<List<uint>>> item_ids = new Dictionary<uint, List<List<uint>>>
-            {
-                { 1027497, [[29709, 27962, 27850, 27798, 6141, 17837, 7621, 21800], [28881,
-                    25186, 25187, 25188, 25189, 25190, 25197, 25198, 26727, 26728, 26729, 26730, 26731, 26738, 26739],
-                    [27896, 26769]] },
-                { 1027892, [[27963, 27852, 27756, 27735, 6141, 17837, 7621, 21800], [28882,
-                    25186, 25187, 25188, 25189, 25190, 25197, 25198, 26727, 26728, 26729, 26730, 26731, 26738, 26739],
-                    [27897, 26792]] },
-                { 1027385, [[29706, 28999, 29000, 27961, 27732, 27763, 27764, 6141, 17837, 7621, 21800], [28880,
-                    25186, 25187, 25188, 25189, 25190, 25197, 25198, 26727, 26728, 26729, 26730, 26731, 26738, 26739],
-                    [27895, 27989]] },
-                { 1027665, [[29704, 33332, 39370, 33269, 27964, 27851, 27797, 27733, 6141, 17837, 7621, 21800], [28883, 30264, 32232,
-                    25186, 25187, 25188, 25189, 25190, 25197, 25198, 26727, 26728, 26729, 26730, 26731, 26738, 26739],
-                    [27898, 27276, 30090]] },
-                { 1027709, [[29710, 27965, 27734, 27774, 27773, 6141, 17837, 7621, 21800], [28884, 28635,
-                    25186, 25187, 25188, 25189, 25190, 25197, 25198, 26727, 26728, 26729, 26730, 26731, 26738, 26739],
-                    [27899, 26804]] },
-                { 1027766, [[29713, 33274, 28972, 27966, 27736, 27799, 27800, 6141, 17837, 7621, 21800], [28885, 30263,
-                    25186, 25187, 25188, 25189, 25190, 25197, 25198, 26727, 26728, 26729, 26730, 26731, 26738, 26739],
-                    [27900, 27313]] },
-
-                { 1037484, [[36243, 36254, 36261], [35962], [35799, 37424]] },
-                { 1037635, [[36242, 36245, 36253, 36264], [35963], [36362, 37425, 35807, 37342]] },
-                { 1037724, [[36255, 36203, 36244], [35964], [36363, 37426, 37427, 38650, 38651, 37389, 35805, 38599 ]] },
-                { 1037793, [[36257, 36258, 36259], [35965], [36364, 37429, 35800]] },
-                { 1037909, [[36246, 36256, 36630, 36260], [35967], [36365, 37428, 36280, 38438, 41141, 38627]] },
-                { 1038004, [[36262], [356966], [36366, 36267, 37341, 35801, 40628, 35971]] },
-
-                { 1048628, [[44063, 44067, 44053], [43607], [44114], [44312, 45009, 43571]] },
-                { 1048778, [[44064, 44054, 44068, 44069], [43608], [44115], [44313, 45010, 41819]] },
-                { 1048933, [[44065, 44055, 44070], [43609], [44121], [44314, 45011, 43574]] },
-                { 1049283, [[44066, 44106, 44027, 44071], [43610], [44117], [44315, 45012, 43601, 44479]] },
-                { 1049438, [[44056, 44072], [43611], [44118], [44316, 45013, 43873]] },
-                { 1049528, [[44057], [43612], [44122], [44317, 45014, 43874, 44480]] },
-            };
             foreach (var shop in Generator.shops.Where(shop => shop.Type == ShopType.FateShop && !shop.Disabled))
             {
-                if (ranks.ContainsKey(shop.NpcId))
+                if (SharedFateRanks.TryGetValue(shop.NpcId, out var rankInfo))
                 {
-                    // Get the rank and territory IDs for this NpcId
-                    var rankInfo = ranks[shop.NpcId];
-                    int requiredRank = rankInfo.Rank; // The rank required
-                    List<uint> territoryIds = rankInfo.TerritoryIds; // List of territory IDs for which this rank applies
+                    int requiredRank = rankInfo.Rank;
+                    List<uint> territoryIds = rankInfo.TerritoryIds;
                     bool unlocked = true;
                     foreach (var territoryId in territoryIds)
                     {
-                        if (PlayerHelper.SharedFateRanks.ContainsKey(territoryId))
+                        if (PlayerHelper.SharedFateRanks.TryGetValue(territoryId, out var playerRank)
+                            && playerRank != (uint)requiredRank)
                         {
-                            var playerRank = PlayerHelper.SharedFateRanks[territoryId];
-                            //PluginLog.Debug($"PlayerRank: {playerRank} for {territoryId}, Required: {requiredRank}");
-
-                            // If the player's rank matches the required rank for this NpcId, perform actions
-                            if (playerRank != requiredRank)
-                            {
-                                unlocked = false;
-                            }
+                            unlocked = false;
                         }
+                        //PluginLog.Debug($"PlayerRank: {playerRank} for {territoryId}, Required: {requiredRank}");
                     }
                     if(!unlocked)
                     {
@@ -306,15 +314,13 @@ namespace CurrencySpender.Data
                     }
                 }
 
-
-                //PluginLog.Verbose(shop.ToString());
-                if (item_ids.TryGetValue(shop.NpcId, out var rankGroups))
+                if (SharedFateItems.TryGetValue(shop.NpcId, out var rankGroups))
                 {
-                    if (PlayerHelper.SharedFateRanks.TryGetValue(shop.Location.TerritoryId, out var playerRank))
+                    if (PlayerHelper.SharedFateRanks.TryGetValue(shop.Location.TerritoryId, out var playerRank2))
                     {
                         // Flatten all visible items up to the player's current rank
                         var visibleItems = rankGroups
-                            .Take((int)playerRank) // Include only ranks up to the player's current rank
+                            .Take((int)playerRank2) // Include only ranks up to the player's current rank
                             .SelectMany(group => group) // Flatten into a single list of item IDs
                             .ToHashSet(); // Use HashSet for quick lookups
 
@@ -360,29 +366,10 @@ namespace CurrencySpender.Data
         
         internal static void customShop(Shop shop)
         {
-            uint cur = 0;
+            if (!CustomShops.TryGetValue(shop.NpcId, out var shopData)) return;
+            var cur = shopData.Currency;
             shop.ShopName = "Orbitingway Gamba";
-            List<uint> items = [];
-            items =
-            [
-                47973, 44509, 46795, 46782, 47095, 47937, 46840, 48154, 48160, 46155, 48210, 48220,
-                48221
-            ];
-            if (shop.NpcId == 1052612) // Lunar Credit
-            {
-                cur = 45691;
-                items = [44505, 44509, 47966, 48154, 48160, 48210, 48220, 48221 ];
-            } else if (shop.NpcId == 1052642) // Phanea Credit
-            {
-                cur = 48146;
-                items = [47973, 46795, 46782, 46840, 46155];
-            } else if (shop.NpcId == 1052608 || shop.NpcId == 1052640) // Mesouaidonque (Cosmocredit)
-            {
-                cur = 45690;
-                shop.ShopName = "Mesouaidonque Exchange";
-                items = [46825, 50445, 50446, 45918, 43632, 45923, 45963];
-            }
-            foreach (uint item_id in items)
+            foreach (uint item_id in shopData.Items)
             {
                 if (P.Currencies.Where(c => c.Enabled && c.ItemId == cur).ToList().Count() == 0) continue;
 
@@ -390,17 +377,17 @@ namespace CurrencySpender.Data
                 var item_types = ItemHelper.GetItemTypes(item_id);
                 var CollectableType = ItemHelper.GetCollectableType(item, item_types);
                 // PluginLog.Debug($"item: {item.RowId}, shop: {shop.NpcName}, CollectableType:{CollectableType}");
-                // PluginLog.Verbose(item_types.ToString());
-                if(item.RowId == 45988)
-                    PluginLog.Verbose($"{cur}-{shop.NpcName}-{shop.ShopId}-CurrencyId:{cur}-{item.Name.ToString()}");
-                var existing_item = Generator.items.FirstOrDefault(it => it.Id == item.RowId && it.Shop.NpcId == shop.NpcId); //it.Shop.NpcId == shop.NpcId);
-                if(existing_item == default)
+                // if(C.Debug && item.RowId == 45988)
+                //     PluginLog.Verbose($"{cur}-{shop.NpcName}-{shop.ShopId}-CurrencyId:{cur}-{item.Name.ToString()}");
+                var existingItem = Generator.items.FirstOrDefault(it => it.Id == item.RowId && it.Shop.NpcId == shop.NpcId);
+                if(existingItem == null)
                 {
                     ShopItem shopItem = new ShopItem
                     {
                         Id = item.RowId,
                         ShopId = shop.ShopId,
                         Price = 1000,
+                        Gamba = true,
                         Currency = cur,
                         Category = item.ItemUICategory.RowId,
                         Type = item_types,
@@ -409,21 +396,20 @@ namespace CurrencySpender.Data
                     };
                     Generator.items.Add(shopItem);
                     shop.Items.Add(shopItem);
+                    // if(C.Debug) PluginLog.Verbose(shopItem.ToString());
                 }
-                //PluginLog.Verbose($"{itemCol_.ToString()}");
             }
-            //if(missingLoc && C.Debug) { DuoLog.Error($"Missing Location: NPC:{shop.NpcId} NPCName:{shop.NpcName} Shop:{shop.ShopId}"); }
         }
 
         private static Dictionary<uint, uint> Currencies_Dict = new Dictionary<uint, uint>()
         {
             { 1, 10309 },
-            { 2, 33913 }, // Unlimited Crafters{  scrip
+            { 2, 33913 }, // Unlimited Crafters  scrip
             { 3, 10311 },
-            { 4, 33914 }, // Unlimited Gatherers{  scrip
+            { 4, 33914 }, // Unlimited Gatherers  scrip
             { 5, 10307 },
-            { 6, 41784 }, // Limited Crafters{  scrip
-            { 7, 41785 }, // Limited Gatherers{  scrip
+            { 6, 41784 }, // Limited Crafters  scrip
+            { 7, 41785 }, // Limited Gatherers  scrip
             { 8, 21072 },
             { 9, 21073 },
             { 10, 21074 },
@@ -448,18 +434,19 @@ namespace CurrencySpender.Data
         };
         private static Dictionary<uint, uint> TomeStones_Dict = new Dictionary<uint, uint>() {
             { 1, 28 },
-            { 2, Service.DataManager.GetExcelSheet<TomestonesItem>()!.First(item => item.Tomestones.RowId is 2).Item.RowId },
-            { 3, Service.DataManager.GetExcelSheet<TomestonesItem>()!.First(item => item.Tomestones.RowId is 3).Item.RowId },
+            { 2, Service.DataManager.GetExcelSheet<TomestonesItem>().First(item => item.Tomestones.RowId is 2).Item.RowId },
+            { 3, Service.DataManager.GetExcelSheet<TomestonesItem>().First(item => item.Tomestones.RowId is 3).Item.RowId },
         };
         public static uint ConvertCurrencyId(uint specialShopId, uint itemId, ushort useCurrencyType)
         {
             if (specialShopId == 1770637)
             {
-                if (Currencies_Dict.TryGetValue(itemId, out var currencyValue))
-                {
-                    return currencyValue;
-                }
-                return itemId;
+                return Currencies_Dict.TryGetValue(itemId, out var currencyValue) ? currencyValue : itemId;
+            }
+
+            if (specialShopId == 1770638)
+            {
+                return 33914;
             }
 
             if (specialShopId == 1770446 || (specialShopId == 1770699 && itemId < 10))
@@ -471,31 +458,15 @@ namespace CurrencySpender.Data
                 return itemId;
             }
 
-            if (useCurrencyType == 2 && itemId < 10)
+            if (itemId < 10)
             {
-                if (TomeStones_Dict.TryGetValue(itemId, out var tomestoneValue))
+                switch (useCurrencyType)
                 {
-                    return tomestoneValue;
+                    case 2 or 4:
+                        return TomeStones_Dict.TryGetValue(itemId, out var tomestoneValue) ? tomestoneValue : itemId;
+                    case 16:
+                        return Currencies_Dict.TryGetValue(itemId, out var creditValue) ? creditValue : itemId;
                 }
-                return itemId;
-            }
-
-            if (useCurrencyType == 4 && itemId < 10)
-            {
-                if (TomeStones_Dict.TryGetValue(itemId, out var currencyValue))
-                {
-                    return currencyValue;
-                }
-                return itemId;
-            }
-
-            if (useCurrencyType == 16 && itemId < 10)
-            {
-                if (Currencies_Dict.TryGetValue(itemId, out var currencyValue))
-                {
-                    return currencyValue;
-                }
-                return itemId;
             }
 
             return itemId;

@@ -1,10 +1,8 @@
 using CurrencySpender.Data;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
-using FFXIVClientStructs.FFXIV.Client.System.Framework;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
-using System.Text;
 
 namespace CurrencySpender.Helpers
 {
@@ -33,8 +31,8 @@ namespace CurrencySpender.Helpers
             }
             else
             {
-                P.TaskManager.Enqueue(() => populateGCRank());
-                P.TaskManager.Enqueue(() => populateFateRanks());
+                P.TaskManager.Enqueue(() => PopulateGcRank());
+                P.TaskManager.Enqueue(() => PopulateFateRanks());
             }
         }
         public static bool reset()
@@ -54,9 +52,9 @@ namespace CurrencySpender.Helpers
             SharedFateRanksMax = true;
             return true;
         }
-        public static bool populateGCRank()
+        private static bool PopulateGcRank()
         {
-            if (PlayerState.Instance == null || PlayerState.Instance() == null || Service.Objects.LocalPlayer == null)
+            if (PlayerState.Instance() == null || PlayerState.Instance() == null || Service.ObjectTable.LocalPlayer == null)
             {
                 PluginLog.Debug("populateGCRank not created");
                 return true;
@@ -84,9 +82,10 @@ namespace CurrencySpender.Helpers
             //EzThrottler.Throttle("AutoRetainerGenericThrottle", 200, true);
             return true;
         }
-        public static bool populateFateRanks()
+
+        private static bool PopulateFateRanks()
         {
-            if (AgentFateProgress.Instance == null || AgentFateProgress.Instance() == null)
+            if (AgentFateProgress.Instance() == null || AgentFateProgress.Instance() == null)
             {
                 PluginLog.Error("populateFateRanks: Instance is null");
                 return false;
@@ -144,17 +143,35 @@ namespace CurrencySpender.Helpers
             {
                 UIModule.Instance()->ExecuteMainCommand(84);
                 P.TaskManager.Enqueue(() => checkRefresh());
-                P.TaskManager.Enqueue(() => populateFateRanks());
+                P.TaskManager.Enqueue(() => PopulateFateRanks());
                 P.TaskManager.Enqueue(() => ItemGen.fateShops());
             }
+        }
+        public static bool IsAchievementWindowUnlocked()
+        {
+            return UIModule.Instance()->IsMainCommandUnlocked(6);
+        }
+        public static void OpenAchievementWindow()
+        {
+            UIModule.Instance()->ExecuteMainCommand(6);
         }
         public static bool checkRefresh()
         {
             if (GenericHelpers.TryGetAddonByName<AtkUnitBase>("FateProgress", out var addon) && GenericHelpers.IsAddonReady(addon))
             {
-                if (((AtkValue*)(nint)(&addon->AtkValues[54]))->Bool == false) return true;
+                if (!((AtkValue*)(nint)(&addon->AtkValues[54]))->Bool) return true;
             }
             return false;
+        }
+
+        public static string GrandCompany()
+        {
+            return PlayerState.Instance()->GrandCompany.ToString();
+        }
+
+        public static uint GrandCompanyId()
+        {
+            return (uint)PlayerState.Instance()->GrandCompany;
         }
     }
 }

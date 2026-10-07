@@ -8,32 +8,38 @@ namespace CurrencySpender.Managers
     {
         public static bool Teleport(TeleportInfo info)
         {
-            if (Service.Objects.LocalPlayer == null)
+            if (Service.ObjectTable.LocalPlayer == null)
+            {
+                PluginLog.Debug("Teleport skipped: LocalPlayer is null");
                 return false;
+            }
             var status = ActionManager.Instance()->GetActionStatus(ActionType.Action, 5);
             if (status != 0)
             {
                 var msg = GetLogMessage(status);
+                PluginLog.Debug($"Teleport skipped: status={status} ({msg}), aetheryte={info.AetheryteId}/{info.SubIndex}");
                 return false;
             }
 
-            if (Service.Objects.LocalPlayer.CurrentWorld.RowId != Service.Objects.LocalPlayer.HomeWorld.RowId)
+            if (Service.ObjectTable.LocalPlayer.CurrentWorld.RowId != Service.ObjectTable.LocalPlayer.HomeWorld.RowId)
             {
                 if (AetheryteManager.IsHousingAetheryte(info.AetheryteId, info.Plot, info.Ward, info.SubIndex))
                 {
                     //Service.LogChat($"Unable to Teleport to {AetheryteManager.GetAetheryteName(info)} while visiting other Worlds.", true);
+                    PluginLog.Debug("Teleport skipped: housing aetheryte while visiting another world");
                     return false;
                 }
             }
 
-            return Telepo.Instance()->Teleport(info.AetheryteId, info.SubIndex);
+            var result = Telepo.Instance()->Teleport(info.AetheryteId, info.SubIndex);
+            PluginLog.Debug($"Teleport to aetheryte {info.AetheryteId}/{info.SubIndex}: result={result}");
+            return result;
         }
 
 
         private static string GetLogMessage(uint id)
         {
             var sheet = Service.DataManager.GetExcelSheet<LogMessage>();
-            if (sheet == null) return string.Empty;
             var row = sheet.GetRow(id);
             return row.Text.ToString();
         }

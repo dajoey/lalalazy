@@ -1,4 +1,4 @@
-using Dalamud.Game;
+using CurrencySpender.Services;
 using Dalamud.IoC;
 using Dalamud.Plugin.Services;
 
@@ -12,7 +12,6 @@ public class Service
     [PluginService] public static IObjectTable Objects { get; set; }
     [PluginService] public static IDataManager DataManager { get; set; }
     [PluginService] public static ITextureProvider TextureProvider { get; set; }
-    [PluginService] public static IChatGui ChatGui { get; set; }
     [PluginService] public static IPluginLog Log { get; set; }
     [PluginService] public static IGameGui GameGui { get; set; }
     [PluginService] public static IFramework Framework { get; set; }
@@ -22,4 +21,8 @@ public class Service
     [PluginService] public static ICondition Condition { get; set; }
     [PluginService] public static ISigScanner SigScanner { get; set; }
     [PluginService] public static IChatGui Chat { get; set; }
+    [PluginService] public static IObjectTable ObjectTable { get; set; }
+    
+    internal static HighlightNpc HighlightNpc { get; set; } = null!;
+    internal static HighlightMenu HighlightMenu { get; set; } = null!;
 }

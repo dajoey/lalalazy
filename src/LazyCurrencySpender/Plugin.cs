@@ -50,11 +50,9 @@ public sealed unsafe class Plugin : IDalamudPlugin
     public bool Problem = false;
     internal TaskManager TaskManager;
     public List<TrackedCurrency> Currencies;
-    
-    CurrencyNodeHooker nodeHooker;
-    
-    
-    //private SpendingWindow SpendingWindow { get; init; }
+
+    public TrackedCurrency? GetCurrency(uint itemId) =>
+        Currencies?.FirstOrDefault(c => c.ItemId == itemId);
 
     public Plugin(IDalamudPluginInterface pluginInterface)
     {
@@ -124,18 +122,24 @@ public sealed unsafe class Plugin : IDalamudPlugin
             PluginInterface.UiBuilder.OpenMainUi += delegate { mainTabWindow.IsOpen = true; };
             TaskManager = new() { };
             Currencies = TrackedCurrency.GenerateCurrencyList();
+            Service.HighlightNpc = new();
+            Service.HighlightMenu = new();
+            
+            PlayerHelper.init();
             Generator.init();
             //VersionHelper.CheckGameVersion();
-            PlayerHelper.init();
-            VersionHelper.CheckVersion();
+            var previousVersion = VersionHelper.CheckVersion();
+            if (previousVersion != null)
+            {
+                configWizard.SetVersion(previousVersion, VersionHelper.GetVersion());
+                configWizard.IsOpen = true;
+            }
             //PluginLog.Debug($"unlocked: {ItemHelper.IsUnlocked(36636)}");
             //mainTabWindow.IsOpen = true;
         });
         // nodeHooker = new CurrencyNodeHooker();
         // nodeHooker.Enable();
-        
-        //PlayerHelper.init();
-        //Generator.init();
+
         FontHelper.SetupFonts();
         Version = VersionHelper.GetVersion();
         Service.ClientState.Login += OnLogin;
@@ -166,7 +170,7 @@ public sealed unsafe class Plugin : IDalamudPlugin
         PluginInterface.UiBuilder.Draw -= ws.Draw;
         ECommonsMain.Dispose();
         FontHelper.DisposeFonts();
-        nodeHooker?.Disable();
+        // nodeHooker?.Disable();
     }
 
     private void OnCommand(string command, string args)
