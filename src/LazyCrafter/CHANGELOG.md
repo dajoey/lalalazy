@@ -1,4 +1,13 @@
 # Changelog
+## v0.1.7.7 (2026-10-07) [testing]
+### Added
+- **Cart dispatches can hand vendor purchases to Knightshopper.** When a dispatch is missing materials that a vendor sells - gil vendors, and currency vendors priced in one currency Knightshopper supports - the run groups that list by currency and buys it through Knightshopper's purchase IPC at target inventory totals, before any shopping stop fires. The run prints each group, its currency and the estimated total cost before anything is spent. Market-board items are never routed, and one attempt per group means a refused purchase never retries; a repeat dispatch asks for the same target totals at most, so nothing is ever bought twice.
+- If Knightshopper is missing, busy, refuses LazyCrafter, or has no unlocked vendor for an item, those items fall back to the usual shopping stops - flagged and named in chat exactly as before. Purchases also need LazyCrafter on Knightshopper's allowed-plugins IPC list, which is set in Knightshopper's own settings (IPC permissions); LazyCrafter never changes Knightshopper's settings. The new switch (on by default) is "Buy vendor items through Knightshopper during a dispatch" in the settings.
+### Notes
+- Testing channel only; the production channel is unchanged.
+- With the switch off, or without Knightshopper installed, the run behaves exactly as before.
+- Full harness: 391/391 PASS (16 new).
+
 ## v0.1.7.6 (2026-10-03) [testing]
 ### Added
 - **Quick controls for the Lazy Hub window.** The plugin now offers the catalog and price settings (recipes above the character's level, the undersupplied thresholds, the revenue basis, pricing at the home world only, the price refresh interval, the price-match message) and the cart-run hand-off switches (fetching materials from retainers, walking to a summoning bell or to vendors, preferring a currency shop) to Lazy Hub (`/lazy`) over Dalamud IPC, so they can be changed from one window next to the other lalalazy plugins. Each change does exactly what the matching setting in the plugin's own window does.
