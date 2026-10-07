@@ -12,6 +12,13 @@ public class InventoryScanner
     public int LastInventoryHits { get; private set; }
     public int LastArmoireHits { get; private set; }
 
+    // Every item id found in the scanned inventory containers (bags, equipped, saddlebags,
+    // armoury chest) on the last scan — the raw set, before the armoire distinction.
+    // Used by the shopping-list feature to classify any armoire-eligible item, including
+    // ones without a dungeon source.
+    public IReadOnlySet<uint> LastOwnedItemIds => _lastOwnedItemIds;
+    private HashSet<uint> _lastOwnedItemIds = [];
+
     private static readonly InventoryType[] _containers =
     [
         InventoryType.Inventory1,
@@ -78,6 +85,7 @@ public class InventoryScanner
 
         // ArmoireItems are duplicated when one item drops in multiple dungeons —
         // count uniques for the headline diagnostic numbers.
+        _lastOwnedItemIds = ownedItemIds;
         var seenInInv = new HashSet<uint>();
         var seenInArm = new HashSet<uint>();
         foreach (var item in ArmoireGearDatabase.AllItems)
