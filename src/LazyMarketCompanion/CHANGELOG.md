@@ -1,3 +1,10 @@
+## v0.2.8.8 (2026-10-07) [testing]
+### Added
+- **The marker log now reports what the renderer actually did.** For the first dots each panel draws, one log line records the marker window's real position and size, the rectangle the drawing engine clips the dot by, and whether the circle's vertices were added - each dot graded ok or clipped. A testing session's log shows whether the circles were drawn and where they could appear, instead of only where they were aimed.
+- **`/lmc markertest` draws two labeled green dots for about five seconds.** One sits at the screen's center through the same kind of window every marker uses; a second sits just to its right, painted directly on the screen layer with no window at all. Both visible: the window drawing works. Only the right one: windows are being hidden. Neither: the renderer itself is blocked. The log records the measured numbers of the window dot.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v0.2.8.7 (2026-10-07) [testing]
 ### Fixed
 - **Auto-Market marker dots render again.** Each dot is a borderless window with no content of its own - the circle is painted onto the window's internal draw list - so the window, told to auto-size itself, collapsed to the drawing engine's minimum empty-window size of 4x4 pixels, and the engine's clipping then kept only a few pixels of the circle: dots have been effectively invisible since the windows lost their padding in 0.1.22.0, through four fix attempts whose position math was provably correct every time. The windows are now explicitly sized to their dot.
