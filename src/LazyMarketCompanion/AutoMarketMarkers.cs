@@ -179,7 +179,7 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
   // the first drawn dots' measured render numbers (filled between each dot window's Begin and End,
   // graded and logged after the loop by MarkerRenderProbe).
   private readonly Dictionary<string, MarkerRenderProbe.State> _renderStates = [];
-  private readonly List<(int Slot, Vector2 WindowPos, Vector2 WindowSize, Vector2 ClipMin, Vector2 ClipMax, int Vtx, Vector2 Center, float Radius)> _renderCells = [];
+  private readonly List<(int Slot, Vector2 WindowPos, Vector2 WindowSize, Vector2 ClipMin, Vector2 ClipMax, int Vtx, Vector2 Center, float Radius, MarkerRenderGuard.Verdict Guard)> _renderCells = [];
 
   // 0.2.8.6: per (grid addon, container) display-order stability state (MarkerStability). The
   // 0.2.8.5 probe caught the slot->container mapping itself churning per frame (item ids migrating
@@ -198,6 +198,25 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
   // hidden, wrong page, unreadable order, nothing to mark, every cell suppressed, no usable cell
   // node, not ready, window closed. Bounded at MarkerTransitions.LineCap lines per grid.
   private readonly Dictionary<string, MarkerTransitions.State> _transitionStates = [];
+
+  // 0.2.8.10 THE RENDER-SIDE GUARD: the style state observed at this window's PreDraw (before
+  // Dalamud Begins it) is exactly what its Begin sees, and Alpha <= 0 there hides this window and
+  // every dot window Begun inside its scope at ImGui::Render - vertices still added, rects still
+  // perfect, plugin bookkeeping green (MarkerRenderGuard). One change-driven bounded epoch line
+  // per session; the repair push lives exactly between PreDraw and PostDraw.
+  private readonly MarkerRenderGuard.StyleEpochState _styleEpoch = new();
+  private MarkerRenderGuard.RepairPlan? _lastStylePlan;
+  private bool _pushedRepairAlpha;
+
+  // 0.2.8.10: one transition state for the host window's own post-Begin verdict - a hidden host
+  // hides every dot window through ImGui's parent inheritance (imgui.cpp:7046). The key "host"
+  // is outside every grid family, so MarkFamilyClosed never touches it.
+  private readonly MarkerTransitions.State _hostTransitions = new();
+
+  // 0.2.8.10: marker window names submitted this frame - a repeated name means one window's other
+  // submission had its position consumed and ignored (ImGui applies position handling only on the
+  // frame's first Begin of a window; BeginCount shows it in the per-dot readback too).
+  private readonly HashSet<string> _markerWindowsThisFrame = [];
 
   // 0.2.8.6: one drawn-anchor set per FRAME, cleared in Draw() and shared by every grid of both
   // passes. The 0.2.8.4 stacked-anchor gate was per grid (its list was local to RenderDots), so
@@ -229,6 +248,59 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
     {
       MaximumSize = new Vector2(0, 0),
     };
+  }
+
+  // 0.2.8.10 THE PRE-DRAW REPAIR HOOK: Dalamud's window wrapper runs PreDraw BEFORE it Begins
+  // this window (WindowHost.DrawInternal order: internal-alpha push -> PreDraw ->
+  // ApplyConditionals -> Begin) and PostDraw after its End, so the style state observed here is
+  // what the host's Begin - and every dot window Begun inside its scope - will see. A zero alpha
+  // is always a leak (MarkerRenderGuard): push Alpha = 1 over the marker scope for this frame and
+  // pop it in PostDraw. Healthy frames push nothing and change nothing. Swallowing exceptions is
+  // deliberate: Dalamud does not wrap PreDraw, and a throw here would reach Dalamud's fatal
+  // handler - a failed repair is acceptable, a failed frame is not.
+  public override void PreDraw()
+  {
+    try
+    {
+      var context = ImGui.GetCurrentContext();
+      var depth = context.StyleVarStack.Size;
+      var topVar = depth > 0 ? context.StyleVarStack[depth - 1].VarIdx.ToString() : "none";
+      var plan = MarkerRenderGuard.Plan(ImGui.GetStyle().Alpha, depth);
+      _lastStylePlan = plan;
+      if (MarkerRenderGuard.ShouldLogStyleEpoch(_styleEpoch, plan))
+      {
+        Svc.Log.Information($"[LMC] markers style: {MarkerRenderGuard.StyleEpochLine(plan, plan.ForceAlpha)} (top={topVar})");
+        MarkerRenderGuard.RecordStyleEpochLogged(_styleEpoch);
+      }
+      if (plan.ForceAlpha)
+      {
+        ImGui.PushStyleVar(ImGuiStyleVar.Alpha, 1f);
+        _pushedRepairAlpha = true;
+      }
+      _markerWindowsThisFrame.Clear();
+    }
+    catch
+    {
+      // Never take the frame down from here (see the hook comment).
+    }
+  }
+
+  public override void PostDraw()
+  {
+    try
+    {
+      if (_pushedRepairAlpha)
+      {
+        ImGui.PopStyleVar();
+        _pushedRepairAlpha = false;
+      }
+    }
+    catch
+    {
+      // The pop must never take the frame down either; drop the flag so a next frame cannot
+      // pop someone else's entry on our behalf.
+      _pushedRepairAlpha = false;
+    }
   }
 
   // 0.2.8.7 THE MARKER TEST DOT (opt-in, /lmc markertest): one labeled green dot at the screen's
@@ -324,6 +396,10 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
         // even while a retainer's storage window is open alongside them (Testing notes: "the ones in the player's own
         // inventory didn't show when my retainer's inventory was up").
         _frameAnchors.Clear();
+        // 0.2.8.10: the host window's own post-Begin verdict - Dalamud is inside its Begin/End
+        // here, so the current window IS the host; a hidden host hides every dot through ImGui's
+        // parent inheritance, and the transition log names it when it changes.
+        ReportHostVerdict();
         DrawPlayerBagMarkers();
         DrawRetainerMarkersIfOpen();
       }
@@ -808,6 +884,35 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
     var previous = MarkerTransitions.PreviousOutcome(state);
     MarkerTransitions.RecordLogged(state, outcome);
     Svc.Log.Information($"[LMC] markers state: {addonName} ({containerLabel}) {previous} -> {outcome}{detail}");
+    // 0.2.8.10: a closed/not-ready boundary means the game destroyed and (usually) re-created the
+    // addon - open a new render-probe era so the re-opened window's first passes are measured
+    // (0.2.8.9's blind spot: the pass count never reset on re-open, so the exact vanish era went
+    // unmeasured). Lines keep their session-wide bound; the re-arm never lifts it.
+    if ((outcome is "closed" or "not-ready" || previous is "closed" or "not-ready")
+        && _renderStates.TryGetValue(key, out var renderStateEra))
+      MarkerRenderProbe.ReArm(renderStateEra);
+  }
+
+  /// <summary>
+  /// 0.2.8.10: read the host marker window's real post-Begin flags via ImGuiP and report a change
+  /// through the bounded transition log. This window is current right now (Dalamud's wrapper is
+  /// inside its Begin/End around Draw()), so GetCurrentWindow is the host itself; the flags are
+  /// what decides whether every dot window Begun inside this scope will render.
+  /// </summary>
+  private void ReportHostVerdict()
+  {
+    try
+    {
+      var hostWindow = ImGuiP.GetCurrentWindow();
+      var verdict = MarkerRenderGuard.Classify(hostWindow.Active, hostWindow.Hidden, hostWindow.SkipItems, hostWindow.Collapsed, hostWindow.BeginCount);
+      LogTransition("host", "markers host", "marker window", MarkerRenderGuard.VerdictToken(verdict),
+        $" (active={hostWindow.Active} hidden={hostWindow.Hidden} skip={hostWindow.SkipItems} collapsed={hostWindow.Collapsed} begins={hostWindow.BeginCount})");
+    }
+    catch (Exception ex)
+    {
+      // The readback is evidence, not a gate - never let it stop the draw.
+      Svc.Log.Debug($"[LMC] markers host readback unavailable: {ex.Message}");
+    }
   }
 
   /// <summary>
@@ -882,6 +987,12 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
     Vector2 probeWalk = default;
     Vector2 probeScreen = default;
     var probeTaken = false;
+    // 0.2.8.10: the dot windows' real post-Begin verdicts (dropped at render = vertices added but
+    // the draw list never reaches the GPU) and duplicate window submissions this frame.
+    var droppedAtRender = 0;
+    var notActiveWindows = 0;
+    var collapsedWindows = 0;
+    var duplicateSubmissions = 0;
     for (var i = 0; i < slotCount; i++)
     {
       if (!classified.TryGetValue(i, out var entry))
@@ -1038,7 +1149,13 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
       // 0.1.22.0: zero padding/border like MarketAutomation.ImGuiSetup - the default padding shifted every dot a full padding-size off its cell corner onto the neighbour cell (dots on empty slots in half-empty bags). 0.1.31.0: with the anchor now absolute (MarkerAnchor), zeroed padding is belt-and-braces rather than load-bearing. 0.2.8.7: with the size explicit, AlwaysAutoResize is gone - an auto-resized window without content clamps to ImGui's 4x4 minimum and clips the dot (the SetNextWindowSize note).
       ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0, 0));
       ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 0);
-      ImGui.Begin($"###LMCMarker{addonName}{i}", ImGuiWindowFlags.NoTitleBar
+      var windowName = $"###LMCMarker{addonName}{i}";
+      // 0.2.8.10: one submission per window per frame - a repeated name means this window's other
+      // submission had its position consumed and ignored (ImGui applies position handling only on
+      // the frame's first Begin of a window; the per-dot readback shows BeginCount too).
+      if (!_markerWindowsThisFrame.Add(windowName))
+        duplicateSubmissions++;
+      ImGui.Begin(windowName, ImGuiWindowFlags.NoTitleBar
         | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoInputs
         | ImGuiWindowFlags.NoNavFocus | ImGuiWindowFlags.AlwaysUseWindowPadding);
       var drawList = ImGui.GetWindowDrawList();
@@ -1051,8 +1168,17 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
       // question, now measured) and the clip rect the circle is finally cut by. ImGui applies
       // clip rects at render time, so the vertex count alone cannot catch clipping - the
       // geometry check in MarkerRenderProbe.Check does, after the loop.
+      // 0.2.8.10: ALSO read the window's real post-Begin flags - what the probe could not see:
+      // whether ImGui will render this window at all, or silently drop it (skip/hidden set - the
+      // vertices are still added and the rects still measure, but the draw list never reaches the
+      // GPU). While the window is current, ImGuiP.GetCurrentWindow IS this window.
+      var markerWindow = ImGuiP.GetCurrentWindow();
+      var guardVerdict = MarkerRenderGuard.Classify(markerWindow.Active, markerWindow.Hidden, markerWindow.SkipItems, markerWindow.Collapsed, markerWindow.BeginCount);
+      if (guardVerdict == MarkerRenderGuard.Verdict.DroppedAtRender) droppedAtRender++;
+      else if (guardVerdict == MarkerRenderGuard.Verdict.NotActive) notActiveWindows++;
+      else if (guardVerdict == MarkerRenderGuard.Verdict.Collapsed) collapsedWindows++;
       if (_renderCells.Count < MarkerRenderProbe.DotLimit)
-        _renderCells.Add((i, ImGui.GetWindowPos(), ImGui.GetWindowSize(), drawList.GetClipRectMin(), drawList.GetClipRectMax(), drawList.VtxBuffer.Size, center, DotRadius * scale.X));
+        _renderCells.Add((i, ImGui.GetWindowPos(), ImGui.GetWindowSize(), drawList.GetClipRectMin(), drawList.GetClipRectMax(), drawList.VtxBuffer.Size, center, DotRadius * scale.X, guardVerdict));
       ImGui.End();
       ImGui.PopStyleVar(2);
       ImGui.PopStyleColor();
@@ -1119,8 +1245,8 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
         var graded = _renderCells
           .Select(c => (Cell: c, Verdict: MarkerRenderProbe.Check(c.WindowPos, c.WindowSize, c.ClipMin, c.ClipMax, c.Vtx, c.Center, c.Radius)))
           .ToList();
-        var okCount = graded.Count(g => g.Verdict == MarkerRenderProbe.Verdict.Ok);
-        var dotsText = string.Join(" | ", graded.Select(g => MarkerRenderProbe.DotLine(g.Cell.Slot, g.Verdict, g.Cell.WindowPos, g.Cell.WindowSize, g.Cell.ClipMin, g.Cell.ClipMax, g.Cell.Vtx, g.Cell.Center, g.Cell.Radius)));
+        var okCount = graded.Count(g => g.Verdict == MarkerRenderProbe.Verdict.Ok && g.Cell.Guard == MarkerRenderGuard.Verdict.Rendered);
+        var dotsText = string.Join(" | ", graded.Select(g => $"{MarkerRenderGuard.VerdictLabel(g.Cell.Guard)} {MarkerRenderProbe.DotLine(g.Cell.Slot, g.Verdict, g.Cell.WindowPos, g.Cell.WindowSize, g.Cell.ClipMin, g.Cell.ClipMax, g.Cell.Vtx, g.Cell.Center, g.Cell.Radius)}"));
         Svc.Log.Information($"[LMC] markers render: {addonName} ({containerLabel}) pass #{renderState.Passes} host=({hostPos.X:0.#},{hostPos.Y:0.#})+({hostSize.X:0.#},{hostSize.Y:0.#}) winmin=({ImGui.GetStyle().WindowMinSize.X:0.#},{ImGui.GetStyle().WindowMinSize.Y:0.#}) | {dotsText} | {okCount} ok, {graded.Count - okCount} not fully inside their window/clip");
         MarkerRenderProbe.RecordLogged(renderState);
       }
@@ -1144,6 +1270,21 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
     {
       outcome = "no-positions";
       outcomeDetail = $" ({nullDragDrops} without a drag-drop + {degenerateNodes} degenerate node(s))";
+    }
+    // 0.2.8.10: the windows' real post-Begin verdicts outrank the bookkeeping - "drawn" while the
+    // windows are dropped at render is exactly the vanished-dots state the 0.2.8.8/0.2.8.9 probes
+    // could not see; the transition log names it when it changes. Duplicate submissions do not
+    // drop a dot (its window still renders) but they name a stale position, so they ride along.
+    if (drawnTotal > 0 && droppedAtRender + notActiveWindows + collapsedWindows > 0)
+    {
+      var alphaText = _lastStylePlan is { } observedStyle ? observedStyle.ObservedAlpha.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) : "?";
+      var depthText = _lastStylePlan is { } observedStyle2 ? observedStyle2.StyleVarStackDepth.ToString() : "?";
+      outcome = "dropped-at-render";
+      outcomeDetail = $" ({droppedAtRender} dropped + {notActiveWindows} not-active + {collapsedWindows} collapsed of {drawnTotal} drawn; style alpha {alphaText} stack {depthText} at PreDraw)";
+    }
+    else if (duplicateSubmissions > 0)
+    {
+      outcomeDetail += $" + {duplicateSubmissions} duplicate window submission(s) this frame";
     }
   }
 
