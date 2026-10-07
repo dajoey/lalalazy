@@ -5548,6 +5548,60 @@ ItemQuote FillerQuote(uint id, long unit, bool hq = false, double vel = 0, long 
     line160g);
 }
 
+
+// 160h. THE STATE-TRANSITION LOG (0.2.8.9; five testing builds proved the anchors, the draw and
+//     the renderer, and the dots still vanished - "as soon as I click my bag, they disappear and
+//     don't come back" - with NO trace in the log: every marker logger was first-draw-only or
+//     early-pass-capped, so a click that killed the dots after the first frames was invisible.
+//     Every stop now reports itself: a per-(addon, container) bounded transition log records each
+//     CHANGE of a grid's outcome - drawn, display-order hold, root node hidden, wrong page,
+//     unreadable order, nothing to mark, every cell suppressed, no usable cell node, not ready,
+//     window closed - so the next session's log names the gate that ate the dots and when it did.)
+{
+  var st160h = new MarkerTransitions.State();
+  Check("160h transitions: the first observation logs whatever it shows (a session that starts broken is on record)",
+    MarkerTransitions.ShouldLog(st160h, "drawn"), "baseline");
+  Check("160h transitions: the baseline reads 'start' as the previous outcome",
+    MarkerTransitions.PreviousOutcome(st160h) == "start", MarkerTransitions.PreviousOutcome(st160h));
+  MarkerTransitions.RecordLogged(st160h, "drawn");
+  Check("160h transitions: the same outcome again is silent (dots drawing steadily log nothing)",
+    !MarkerTransitions.ShouldLog(st160h, "drawn"), "drawn -> drawn");
+  Check("160h transitions: a change to a zero-drawn outcome logs (the click leaves a trace)",
+    MarkerTransitions.ShouldLog(st160h, "held"), "drawn -> held");
+  MarkerTransitions.RecordLogged(st160h, "held");
+  Check("160h transitions: a persisting zero outcome is silent (one line, not one per frame)",
+    !MarkerTransitions.ShouldLog(st160h, "held"), "held -> held");
+  Check("160h transitions: a reason change while at zero logs (held -> hidden names the new gate)",
+    MarkerTransitions.ShouldLog(st160h, "hidden"), "held -> hidden");
+  MarkerTransitions.RecordLogged(st160h, "hidden");
+  Check("160h transitions: the restore to drawing logs (the dots came back)",
+    MarkerTransitions.ShouldLog(st160h, "drawn"), "hidden -> drawn");
+  Check("160h transitions: the restore line names what it restored from (the caller reads previous before recording)",
+    MarkerTransitions.PreviousOutcome(st160h) == "hidden", MarkerTransitions.PreviousOutcome(st160h));
+  MarkerTransitions.RecordLogged(st160h, "drawn");
+  var dead160h = new MarkerTransitions.State();
+  Check("160h transitions: a grid that starts in a zero state logs its baseline too",
+    MarkerTransitions.ShouldLog(dead160h, "no-order"), "first observation is no-order");
+  var flip160h = new MarkerTransitions.State();
+  var flipLogged160h = 0;
+  for (var n = 0; n < 6; n++)
+  {
+    var outcome160h = n % 2 == 0 ? "drawn" : "all-suppressed";
+    if (MarkerTransitions.ShouldLog(flip160h, outcome160h)) { MarkerTransitions.RecordLogged(flip160h, outcome160h); flipLogged160h++; }
+  }
+  Check("160h transitions: every flip inside the cap logs (a flickering gate is visible, not averaged away)",
+    flipLogged160h == 6, $"logged {flipLogged160h}");
+  var ring160h = new MarkerTransitions.State();
+  var ringLogged160h = 0;
+  for (var n = 0; n < MarkerTransitions.LineCap * 3; n++)
+  {
+    var outcome160h = n % 2 == 0 ? "drawn" : "held";
+    if (MarkerTransitions.ShouldLog(ring160h, outcome160h)) { MarkerTransitions.RecordLogged(ring160h, outcome160h); ringLogged160h++; }
+  }
+  Check("160h transitions: the ring is bounded - logging stops at the cap whatever the flips do (the gate never stops, only the lines)",
+    ringLogged160h == MarkerTransitions.LineCap, $"logged {ringLogged160h} of {MarkerTransitions.LineCap * 3} flips");
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 

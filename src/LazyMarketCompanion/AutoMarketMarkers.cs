@@ -190,6 +190,15 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
   // distinguishes "the mapping churned and the dots held" from "the dots vanished".
   private readonly Dictionary<string, MarkerStability.State> _stabilityStates = [];
 
+  // 0.2.8.9: per (grid addon, container) state-transition log state (MarkerTransitions) - the
+  // change-driven log the 13:00Z directive required. Every logger before this build was
+  // first-draw-only or early-pass-capped, so a click that killed the dots after the first frames
+  // left no trace at all ("they disappear and don't come back", no line, no reason). Now every
+  // outcome a grid reaches reports itself when it CHANGES: drawn, display-order hold, root node
+  // hidden, wrong page, unreadable order, nothing to mark, every cell suppressed, no usable cell
+  // node, not ready, window closed. Bounded at MarkerTransitions.LineCap lines per grid.
+  private readonly Dictionary<string, MarkerTransitions.State> _transitionStates = [];
+
   // 0.2.8.6: one drawn-anchor set per FRAME, cleared in Draw() and shared by every grid of both
   // passes. The 0.2.8.4 stacked-anchor gate was per grid (its list was local to RenderDots), so
   // the 20:59:39 ET retainer session stacked Grid2 s4 exactly onto Grid0 s4 at (3019.7, 442.8) -
@@ -357,7 +366,12 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
             live.Add(name);
         }
         if (live.Count == 0)
+        {
+          // 0.2.8.9: the player's inventory window is gone - say so once per tracked grid instead
+          // of silence (the reopen then produces a visible closed -> drawn pair).
+          MarkFamilyClosed(GridNames, " (no live grid addon - the inventory window is closed)");
           return;
+        }
 
         int? tabIndex = null;
         if (GenericHelpers.TryGetAddonByName<AtkUnitBase>(ParentInventoryAddon, out var parent)
@@ -392,9 +406,16 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
 
         foreach (var binding in bindings)
         {
+          var containerLabel = BagTypes[binding.BagIndex].ToString();
+          var bindingKey = $"{binding.GridName}:{containerLabel}";
           if (!GenericHelpers.TryGetAddonByName<AtkUnitBase>(binding.GridName, out var addon)
               || !GenericHelpers.IsAddonReady(addon))
+          {
+            // 0.2.8.9: found but not ready - transient while the game re-creates the addon, and a
+            // possible permanent stop if a click leaves it half-alive. Either way it reports itself.
+            LogTransition(bindingKey, binding.GridName, containerLabel, "not-ready", " (addon found but not ready)");
             continue;
+          }
 
           // THE 0.1.25.0 GATE: a hidden child grid keeps its addon alive and its container loaded,
           // but its root node's Visible flag is off while the player is on another page. Drawing
@@ -404,11 +425,17 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
           // 0.1.24.0 keyed this on the InventoryExpansion parent being live, which let a frame with
           // a missing/not-ready parent draw over every resolved grid un-checked.
           if (!addon->RootNode->IsVisible())
+          {
+            LogTransition(bindingKey, binding.GridName, containerLabel, "hidden", " (grid root node not visible)");
             continue;
+          }
 
           // 0.1.29.0: on any page other than Items, an E-grid wears no dots at all.
           if (GridMap.IsExpandedGrid(binding.GridName) && !bagsPage)
+          {
+            LogTransition(bindingKey, binding.GridName, containerLabel, "page", " (expanded inventory not on the Items page)");
             continue;
+          }
 
           DrawForGrid(binding.GridName, addon, binding.BagIndex, orderSnapshot, _frameAnchors);
         }
@@ -432,7 +459,11 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
         && GenericHelpers.IsAddonReady(retainerLargeAddon);
 
     if (!retainerReady && !retainerLargeReady)
+    {
+      // 0.2.8.9: no retainer window this frame - its tracked grids report closed once.
+      MarkFamilyClosed(RetainerGridNames, " (no live grid addon - the retainer window is closed)");
       return;
+    }
 
     DrawRetainerMarkers(retainerReady ? retainerAddon : retainerLargeAddon, retainerReady);
   }
@@ -468,7 +499,12 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
         live.Add(name);
     }
     if (live.Count == 0)
+    {
+      // 0.2.8.9: the retainer window is up but no grid addon is live right now (mid-creation) -
+      // the tracked grids report closed once instead of leaving a silent gap.
+      MarkFamilyClosed(RetainerGridNames, " (no live grid addon)");
       return;
+    }
 
     var bindings = RetainerGridMap.Resolve(live, tabIndex);
 
@@ -487,11 +523,19 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
 
     foreach (var binding in bindings)
     {
+      var containerLabel = RetainerPageTypes[binding.PageIndex].ToString();
+      var bindingKey = $"{binding.GridName}:{containerLabel}";
       if (!GenericHelpers.TryGetAddonByName<AtkUnitBase>(binding.GridName, out var addon)
           || !GenericHelpers.IsAddonReady(addon))
+      {
+        LogTransition(bindingKey, binding.GridName, containerLabel, "not-ready", " (addon found but not ready)");
         continue;
+      }
       if (!addon->RootNode->IsVisible())
+      {
+        LogTransition(bindingKey, binding.GridName, containerLabel, "hidden", " (grid root node not visible)");
         continue;
+      }
 
       DrawForRetainerGrid(binding.GridName, addon, binding.PageIndex, orderSnapshot, _frameAnchors);
     }
@@ -630,6 +674,7 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
       // can tell "the order was unreadable" apart from "there was nothing to mark".
       if (_loggedOrderMissing.Add(addonName))
         Svc.Log.Information($"[LMC] markers: no item order resolved for {addonName} (bag {bagIndex}) - markers suppressed for it");
+      LogTransition($"{addonName}:{BagTypes[bagIndex]}", addonName, BagTypes[bagIndex].ToString(), "no-order", $" (no item order resolved for bag {bagIndex})");
       return;
     }
 
@@ -640,7 +685,10 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
     // report. Fail closed: dots hold while the read is unstable and return once it settles. The
     // episode lines are bounded per (addon, container) - see StabilityGate.
     if (!StabilityGate(_stabilityStates, $"{addonName}:{BagTypes[bagIndex]}", MarkerStability.MapSignature(map), addonName, BagTypes[bagIndex].ToString()))
+    {
+      LogTransition($"{addonName}:{BagTypes[bagIndex]}", addonName, BagTypes[bagIndex].ToString(), "held", " (display order unstable - dots held until it settles)");
       return;
+    }
 
     // Snapshot the classified set from the CONTAINERS, keyed by the DISPLAY slot that shows each
     // stack - so the dot lands on the cell the player is actually looking at.
@@ -660,7 +708,8 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
       stacks.Add(new MarkerMatch.Stack(kv.Key, item->ItemId, item->Flags.HasFlag(InventoryItem.ItemFlags.HighQuality)));
     }
 
-    RenderDots(addonName, grid, slotCount, stacks, BagTypes[bagIndex].ToString(), SlotOrder.IsIdentity(map, bagIndex), frameAnchors);
+    RenderDots(addonName, grid, slotCount, stacks, BagTypes[bagIndex].ToString(), SlotOrder.IsIdentity(map, bagIndex), frameAnchors, out var outcome, out var outcomeDetail);
+    LogTransition($"{addonName}:{BagTypes[bagIndex]}", addonName, BagTypes[bagIndex].ToString(), outcome, outcomeDetail);
   }
 
   /// <summary>
@@ -681,13 +730,17 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
     {
       if (_loggedOrderMissing.Add(addonName))
         Svc.Log.Information($"[LMC] markers: no item order resolved for {addonName} (retainer page {pageIndex}) - markers suppressed for it");
+      LogTransition($"{addonName}:{RetainerPageTypes[pageIndex]}", addonName, RetainerPageTypes[pageIndex].ToString(), "no-order", $" (no item order resolved for retainer page {pageIndex})");
       return;
     }
 
     // 0.2.8.6: the same stability gate as the player path (the retainer read churns the same way -
     // same InventorySorter machinery, same mid-rewrite risk while pages load).
     if (!StabilityGate(_stabilityStates, $"{addonName}:{RetainerPageTypes[pageIndex]}", MarkerStability.MapSignature(map), addonName, RetainerPageTypes[pageIndex].ToString()))
+    {
+      LogTransition($"{addonName}:{RetainerPageTypes[pageIndex]}", addonName, RetainerPageTypes[pageIndex].ToString(), "held", " (display order unstable - dots held until it settles)");
       return;
+    }
 
     var inventory = InventoryManager.Instance();
     if (inventory == null)
@@ -707,7 +760,8 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
       stacks.Add(new MarkerMatch.Stack(kv.Key, item->ItemId, item->Flags.HasFlag(InventoryItem.ItemFlags.HighQuality)));
     }
 
-    RenderDots(addonName, grid, slotCount, stacks, RetainerPageTypes[pageIndex].ToString(), SlotOrder.IsIdentity(map, pageIndex), frameAnchors);
+    RenderDots(addonName, grid, slotCount, stacks, RetainerPageTypes[pageIndex].ToString(), SlotOrder.IsIdentity(map, pageIndex), frameAnchors, out var outcome, out var outcomeDetail);
+    LogTransition($"{addonName}:{RetainerPageTypes[pageIndex]}", addonName, RetainerPageTypes[pageIndex].ToString(), outcome, outcomeDetail);
   }
 
   /// <summary>
@@ -739,12 +793,47 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
   }
 
   /// <summary>
+  /// 0.2.8.9: record one grid outcome for this frame in the bounded transition log. The first
+  /// observed outcome logs whatever it shows (a session that starts broken is on record); every
+  /// CHANGE logs with what it changed from; a persisting outcome is silent; past
+  /// MarkerTransitions.LineCap lines per (addon, container) the gate keeps running but the log
+  /// stays silent - bounded, like the probes and the episode lines.
+  /// </summary>
+  private void LogTransition(string key, string addonName, string containerLabel, string outcome, string detail)
+  {
+    if (!_transitionStates.TryGetValue(key, out var state))
+      _transitionStates[key] = state = new MarkerTransitions.State();
+    if (!MarkerTransitions.ShouldLog(state, outcome))
+      return;
+    var previous = MarkerTransitions.PreviousOutcome(state);
+    MarkerTransitions.RecordLogged(state, outcome);
+    Svc.Log.Information($"[LMC] markers state: {addonName} ({containerLabel}) {previous} -> {outcome}{detail}");
+  }
+
+  /// <summary>
+  /// 0.2.8.9: mark every tracked grid of one family (the player's GridNames or the retainer
+  /// RetainerGridNames) closed - its window is gone this frame, so its dots are legitimately
+  /// absent and the log must say that once, instead of leaving a silence that only a reopen with
+  /// no restore line would explain.
+  /// </summary>
+  private void MarkFamilyClosed(string[] familyAddonNames, string detail)
+  {
+    foreach (var key in _transitionStates.Keys.ToList())
+    {
+      var sep = key.IndexOf(':');
+      if (sep < 0 || !familyAddonNames.Contains(key[..sep]))
+        continue;
+      LogTransition(key, key[..sep], key[(sep + 1)..], "closed", detail);
+    }
+  }
+
+  /// <summary>
   /// Classify and draw dots for one grid's already-read stacks (shared by <see cref="DrawForGrid"/>
   /// and <see cref="DrawForRetainerGrid"/> - the game's grid nodes, the marker anchor math, and the
   /// classify predicate are identical for a player bag and a retainer page; only which container the
   /// stacks came from differs, and that has already happened by the time this runs).
   /// </summary>
-  private unsafe void RenderDots(string addonName, AddonInventoryGrid* grid, int slotCount, List<MarkerMatch.Stack> stacks, string containerLabel, bool orderIsIdentity, List<Vector2> frameAnchors)
+  private unsafe void RenderDots(string addonName, AddonInventoryGrid* grid, int slotCount, List<MarkerMatch.Stack> stacks, string containerLabel, bool orderIsIdentity, List<Vector2> frameAnchors, out string outcome, out string outcomeDetail)
   {
     // 0.2.8.8: the host marker window is still current here - measure it once per pass for the
     // render probe line, and reset the per-pass render scratch (this call may early-return below).
@@ -758,7 +847,14 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
     BuildMarketableScratch(stacks);
     var classified = MarkerMatch.Classify(_entriesScratch, stacks, _marketableScratch);
     if (classified.Count == 0)
+    {
+      // 0.2.8.9: this was a fully silent stop before the transition log existed - the direct
+      // "classified empty -> return" left no line, so "why are there no dots" was unanswerable
+      // whenever the list/classifier produced nothing this frame.
+      outcome = "no-classified";
+      outcomeDetail = " (nothing on the Auto-Market list and nothing marketable this frame)";
       return;
+    }
 
     // 0.2.8.5 THE NUMERIC PROBE: the first MarkerProbe.CellLimit resolved cells of the pass are
     // recorded BEFORE the position gates, so a suppressed cell's numbers are visible too. The line
@@ -767,6 +863,10 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
     // capped at MarkerProbe.LineLimit lines per (addon, container) per session.
     var probeCells = new List<(int Slot, uint ItemId, MarkerMatch.MarkKind Kind, Vector2 Walk, Vector2 Screen, Vector2 RawXY, Vector2 Scale, Vector2 Size)>(MarkerProbe.CellLimit);
     var nullDragDrops = 0;
+
+    // 0.2.8.9: cells skipped for having no usable cell node - never counted before, so a grid of
+    // nothing-but-degenerate nodes drew zero dots with all counters at zero (why was unanswerable).
+    var degenerateNodes = 0;
 
     var drawnOnList = 0;
     var drawnNotListed = 0;
@@ -818,11 +918,17 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
       var screen = new Vector2(node->ScreenX, node->ScreenY);
       var scale = GetNodeScale(node);
       if (scale.X <= 0 || scale.Y <= 0)
+      {
+        degenerateNodes++;
         continue;
+      }
 
       var size = new Vector2(node->Width, node->Height) * scale;
       if (size.X <= 0 || size.Y <= 0)
+      {
+        degenerateNodes++;
         continue;
+      }
 
       // 0.2.8.5: this cell's numbers go to the probe whether or not any gate suppresses it - a
       // suppressed cell is exactly the one whose numbers explain the failure.
@@ -1018,6 +1124,26 @@ internal sealed class AutoMarketMarkers : Window, IDisposable
         Svc.Log.Information($"[LMC] markers render: {addonName} ({containerLabel}) pass #{renderState.Passes} host=({hostPos.X:0.#},{hostPos.Y:0.#})+({hostSize.X:0.#},{hostSize.Y:0.#}) winmin=({ImGui.GetStyle().WindowMinSize.X:0.#},{ImGui.GetStyle().WindowMinSize.Y:0.#}) | {dotsText} | {okCount} ok, {graded.Count - okCount} not fully inside their window/clip");
         MarkerRenderProbe.RecordLogged(renderState);
       }
+    }
+
+    // 0.2.8.9: the outcome this grid reached this frame, reported through the transition log by
+    // the caller. drawn > 0 wins; otherwise the suppression counts name the gate that ate every
+    // classified cell; otherwise the skip counters name the cells that never became dots at all.
+    var drawnTotal = drawnOnList + drawnNotListed;
+    if (drawnTotal > 0)
+    {
+      outcome = "drawn";
+      outcomeDetail = $" ({drawnOnList} green, {drawnNotListed} grey)";
+    }
+    else if (totalSuppressed > 0)
+    {
+      outcome = "all-suppressed";
+      outcomeDetail = $" ({suppressedUnresolved} origin-gate + {suppressedUnconfirmed} not-confirmed + {suppressedDuplicate} stacked + {suppressedNoOwner} no-owner)";
+    }
+    else
+    {
+      outcome = "no-positions";
+      outcomeDetail = $" ({nullDragDrops} without a drag-drop + {degenerateNodes} degenerate node(s))";
     }
   }
 
