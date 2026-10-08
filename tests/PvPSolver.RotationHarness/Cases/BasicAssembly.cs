@@ -23,6 +23,30 @@ internal static class BasicAssembly
         return _asm = ctx.LoadFromAssemblyPath(Path.GetFullPath(path));
     }
 
+    private static Assembly? _old;
+
+    /// <summary>
+    ///     A build of the previous release (unmodified origin/main) for cross-version checks: the file named by env
+    ///     PVPROT_OLD_BASIC_DLL, loaded into its own load context, or null when the variable is not set. Used to prove a
+    ///     file written by this build loads in the previous one and that an untouched file is identical in both.
+    /// </summary>
+    public static Assembly? Old()
+    {
+        if (_old != null)
+        {
+            return _old;
+        }
+
+        var path = Environment.GetEnvironmentVariable("PVPROT_OLD_BASIC_DLL");
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        {
+            return null;
+        }
+
+        var ctx = new AssemblyLoadContext("pvprot-old-basic", isCollectible: false);
+        return _old = ctx.LoadFromAssemblyPath(Path.GetFullPath(path));
+    }
+
     public static Type Type(string fullName) =>
         Get().GetType(fullName) ?? throw new TypeLoadException(fullName + " not found in " + Get().Location);
 }

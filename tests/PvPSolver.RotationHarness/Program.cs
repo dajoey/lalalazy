@@ -40,6 +40,10 @@ internal static class Program
         RunGroup("LiteralSwaps", LiteralSwaps.Run);
         RunGroup("EmergencyOverrideLint", EmergencyOverrideLint.Run);
         RunGroup("PvpSettingsCases", PvpSettingsCases.Run);
+        RunGroup("SettingsCoreCases", SettingsCoreCases.Run);
+        RunGroup("SettingsShapeCases", SettingsShapeCases.Run);
+        RunGroup("SettingsReflectionCases", SettingsReflectionCases.Run);
+        RunGroup("ConfigRoundTripCases", ConfigRoundTripCases.Run);
 
         return Harness.Finish();
     }
