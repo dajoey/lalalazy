@@ -125,6 +125,9 @@ public class MainWindow : Window
             ImGui.TextColored(ColorMuted,
                 $"Not counted: {KnightshopperCatalogBuilder.Snapshot.UnderlistedItemCount} more armoire piece(s) sold only in shops this list "
                 + "cannot safely name (scripted vendors and gil-priced SpecialShop entries) — the real buyable total is higher.");
+        if (KnightshopperCatalogBuilder.Snapshot.LeftOutItemCount > 0)
+            ImGui.TextColored(ColorMuted,
+                $"{KnightshopperCatalogBuilder.Snapshot.LeftOutItemCount} items left out: Knightshopper cannot buy them");
 
         var ksLoaded = IsKnightshopperLoaded();
         if (!ksLoaded)

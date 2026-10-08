@@ -70,8 +70,9 @@ public static class KnightshopperCatalogBuilder
         var npcResidentSheet = Svc.Data.GetExcelSheet<ENpcResident>();
         var itemSheet = Svc.Data.GetExcelSheet<Item>();
         var cabinetSheet = Svc.Data.GetExcelSheet<LuminaCabinet>();
+        var levelSheet = Svc.Data.GetExcelSheet<Level>();
         if (gilShopSheet == null || specialShopSheet == null || npcBaseSheet == null || npcResidentSheet == null
-            || itemSheet == null)
+            || itemSheet == null || levelSheet == null)
         {
             SheetsUnavailable = true;
             CatalogBuildGate.MarkFailed();
@@ -84,7 +85,7 @@ public static class KnightshopperCatalogBuilder
         {
             var stats = KnightshopperCatalogCore.Build(
                 gilShopSheet, specialShopSheet, Svc.Data.GetSubrowExcelSheet<GilShopItem>(),
-                npcBaseSheet, npcResidentSheet, itemSheet, cabinetSheet, out var snapshot);
+                npcBaseSheet, npcResidentSheet, levelSheet, itemSheet, cabinetSheet, out var snapshot);
             Snapshot = snapshot;
             SheetsUnavailable = false;
             CatalogBuildGate.MarkBuilt();
@@ -96,11 +97,13 @@ public static class KnightshopperCatalogBuilder
                 $"[ArmoireAutoFill] Knightshopper catalog: {snapshot.Entries.Count} entries in {stats.ElapsedMs:F0} ms "
                 + $"from {stats.SpecialShopRowsScanned} SpecialShop + {stats.GilShopRowsScanned} GilShop rows "
                 + $"({string.Join(", ", perCurrency)}) — skipped: {snapshot.SkippedUnlinkedShops} shops without vendor link, "
+                + $"{snapshot.SkippedUnplacedVendors} shops behind event-spawned vendors, "
                 + $"{snapshot.SkippedGilSpecialShops} gil-priced SpecialShop entries, "
                 + $"{stats.EntriesSkippedUnresolvableItem} entries with unresolvable items, "
                 + $"{stats.ShopsFailedSpecialShop}+{stats.ShopsFailedGilShop} shops failed "
                 + $"{(stats.FirstFailure == null ? "" : $"(first: {stats.FirstFailure})")} — "
-                + $"{snapshot.UnderlistedItemCount} armoire pieces in the excluded shops");
+                + $"{snapshot.UnderlistedItemCount} armoire pieces in the excluded shops, "
+                + $"{snapshot.LeftOutItemCount} left out (Knightshopper cannot buy them)");
         }
         catch (Exception ex)
         {

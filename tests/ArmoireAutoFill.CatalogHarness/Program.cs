@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using ArmoireAutoFill.Data;
+using ArmoireAutoFill.CatalogHarness;
 using ArmoireAutoFill.Data.Shopping;
 using Lumina;
 using Lumina.Excel;
@@ -64,7 +65,7 @@ Check("Knightshopper catalog builds from real sheet rows without throwing", () =
     var gilShopItemSheet = gameData.GetSubrowExcelSheet<GilShopItem>();
     var stats = KnightshopperCatalogCore.Build(
         Sheet<GilShop>(), Sheet<SpecialShop>(), gilShopItemSheet,
-        Sheet<ENpcBase>(), Sheet<ENpcResident>(), Sheet<Item>(), Sheet<LuminaCabinet>(), out snapshot);
+        Sheet<ENpcBase>(), Sheet<ENpcResident>(), Sheet<Level>(), Sheet<Item>(), Sheet<LuminaCabinet>(), out snapshot);
 
     if (snapshot.Entries.Count == 0)
         throw new Exception("catalog is empty: no buyable entries built from real sheet rows");
@@ -133,6 +134,103 @@ Check("successful build is cached (gate built state never re-attempts)", () =>
         throw new Exception("gate asks for a rebuild although the snapshot is already built");
     if (CatalogBuildGate.Current != CatalogBuildGate.Phase.Built)
         throw new Exception("gate phase is not Built");
+});
+
+// ---- Knightshopper acceptance port (tasks-20261008-armoire-import-instructions-wording-01) ----
+// Runs the FULL export path (catalog -> shopping list -> KS1 share code -> decode) per
+// currency through a port of Knightshopper 1.0.1.6's real import validation (decompiled
+// HmcZxNdvtzR1P) over raw sqpack rows + the Level-sheet vendor placement rule its native
+// discovery uses. Nothing may be rejected: Knightshopper refuses a WHOLE list when one
+// item is unavailable (observed live: "Item 4303 is not available from its shared Gil
+// vendor." 4x at 21:44 ET). Anchors are the live-verified acceptance (4868@1001787/262158
+// in Joey's Knightshopper Gil config) and the live-verified rejections (4303 from the
+// Valentione shops 262424/262631).
+Check("exported codes per currency pass Knightshopper's real acceptance rules", () =>
+{
+    var gilShopSheet = Sheet<GilShop>();
+    var gilShopItemSheet = gameData.GetSubrowExcelSheet<GilShopItem>()
+        ?? throw new Exception("GilShopItem sheet missing from the sqpack copy");
+    var levelSheet = Sheet<Level>();
+
+    // Full export path: every armoire-eligible item NotOwned, so every buyable quadruple
+    // the plugin could emit lands in some code.
+    var armoire = new List<ShoppingListBuilder.ArmouryEntry>();
+    foreach (var row in Sheet<LuminaCabinet>())
+        if (row.Item.RowId != 0)
+            armoire.Add(new ShoppingListBuilder.ArmouryEntry(row.Item.RowId, ShoppingListBuilder.Ownership.NotOwned));
+    var itemNames = new Dictionary<uint, string>();
+    foreach (var item in Sheet<Item>())
+        itemNames[item.RowId] = item.Name.ExtractText();
+    var result = ShoppingListBuilder.Build(new ShoppingListBuilder.Input(
+        armoire, new HashSet<uint>(), snapshot.Entries, itemNames));
+    if (result.Currencies.Count == 0)
+        throw new Exception("no currency groups: export path produced nothing");
+
+    var rejected = new List<string>();
+    var validatedCount = 0;
+    foreach (var group in result.Currencies)
+    {
+        var quadruples = group.Items.Select(c => new Ks1Item(
+            c.Entry.ItemId, c.Entry.VendorId, c.Entry.ShopId, 1, c.Entry.SubCurrency)).ToList();
+        var code = KnightshopperShare.Encode(group.CurrencyId, "harness", quadruples);
+        if (!KnightshopperShare.TryDecode(code, out var decodedCurrency, out _,
+                out var decoded, out var decodeError))
+            throw new Exception($"currency {group.CurrencyId}: exported code does not round-trip: {decodeError}");
+        if (decodedCurrency != group.CurrencyId)
+            throw new Exception($"exported code currency {decodedCurrency} != {group.CurrencyId}");
+
+        foreach (var item in decoded)
+        {
+            var reason = KnightshopperAcceptance.Validate(
+                gilShopSheet, gilShopItemSheet, Sheet<SpecialShop>(), Sheet<ENpcBase>(), levelSheet,
+                item.ItemId, item.VendorId, item.ShopId, item.SubCurrency, decodedCurrency);
+            validatedCount++;
+            if (reason != null)
+                rejected.Add($"{CurrencyNames.For(decodedCurrency)}: {reason}");
+        }
+    }
+    Console.WriteLine($"  validated {validatedCount} quadruple(s) across {result.Currencies.Count} currency code(s)");
+    if (rejected.Count > 0)
+        throw new Exception($"Knightshopper would reject {rejected.Count} exported item(s) — first: {rejected[0]}");
+});
+
+Check("anchor: item 4303 (Valentione) is absent from the catalog and its shops are rejected", () =>
+{
+    var gilShopSheet = Sheet<GilShop>();
+    var gilShopItemSheet = gameData.GetSubrowExcelSheet<GilShopItem>()
+        ?? throw new Exception("GilShopItem sheet missing from the sqpack copy");
+    var levelSheet = Sheet<Level>();
+    var specialShopSheet = Sheet<SpecialShop>();
+    var npcBaseSheet = Sheet<ENpcBase>();
+
+    if (snapshot.Entries.Any(e => e.ItemId == 4303))
+    {
+        var bad = snapshot.Entries.Where(e => e.ItemId == 4303)
+            .Select(e => $"({e.VendorId}, {e.ShopId})").First();
+        throw new Exception($"item 4303 still emitted from {bad}: Knightshopper logged 'Item 4303 is not available from its shared Gil vendor.'");
+    }
+
+    // The exact observed rejection: the maid/recompense-officer shops are event-spawned.
+    foreach (var (vendor, shop) in new[] { (1005608u, 262424u), (1017613u, 262631u) })
+    {
+        var reason = KnightshopperAcceptance.Validate(gilShopSheet, gilShopItemSheet, specialShopSheet,
+            npcBaseSheet, levelSheet, 4303, vendor, shop, -1, 2);
+        if (reason == null)
+            throw new Exception($"modelled catalog wrongly accepts 4303 from ({vendor}, {shop})");
+        Console.WriteLine($"  anchor: 4303@({vendor}, {shop}) rejected — {reason}");
+    }
+});
+
+Check("anchor: Bango Zango's gil shop (4868@1001787/262158) stays accepted", () =>
+{
+    var gilShopSheet = Sheet<GilShop>();
+    var gilShopItemSheet = gameData.GetSubrowExcelSheet<GilShopItem>()
+        ?? throw new Exception("GilShopItem sheet missing from the sqpack copy");
+    var reason = KnightshopperAcceptance.Validate(gilShopSheet, gilShopItemSheet, Sheet<SpecialShop>(),
+        Sheet<ENpcBase>(), Sheet<Level>(), 4868, 1001787, 262158, -1, 2);
+    if (reason != null)
+        throw new Exception($"known-good 4868@1001787/262158 rejected: {reason}");
+    Console.WriteLine("  anchor: 4868@1001787/262158 accepted (matches Joey's Knightshopper Gil config)");
 });
 
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILURE(S)");

@@ -11,10 +11,12 @@ public sealed record CatalogSnapshot(
     IReadOnlyList<ShopEntry> Entries,
     IReadOnlyDictionary<uint, string> NpcNames,
     int SkippedUnlinkedShops,
+    int SkippedUnplacedVendors,
     int SkippedGilSpecialShops,
-    int UnderlistedItemCount)
+    int UnderlistedItemCount,
+    int LeftOutItemCount)
 {
-    public static readonly CatalogSnapshot Empty = new([], new Dictionary<uint, string>(), 0, 0, 0);
+    public static readonly CatalogSnapshot Empty = new([], new Dictionary<uint, string>(), 0, 0, 0, 0, 0);
 }
 
 // What one build attempt scanned and skipped, for the one-per-build log line and any
@@ -48,6 +50,18 @@ public sealed record CatalogBuildStats(
 //     shop row id. Handler-encoded references (topic selects, scripted shops) are not
 //     resolvable and are skipped — the generated list only ever names shops Knightshopper
 //     itself can reach, so an import never fails on an unknown shop.
+//   * Knightshopper catalog alignment (2026-10-08, task armoire-import-instructions-wording):
+//     Knightshopper 1.0.1.6 refuses a WHOLE import when one item is not in its catalog
+//     (observed live: "Item 4303 is not available from its shared Gil vendor." 4x). Its
+//     native discovery derives vendors from the sqpack and reads the Level sheet for
+//     placements (LevelPos strings in the native image); vendors placed only by event
+//     scripts (seasonal NPCs: House Valentione maid, recompense officer) have no Level
+//     row and their shops never enter its catalog, while permanently placed vendors do
+//     (Bango Zango 1001787 = the one live-verified accepted pair 4868@1001787/262158).
+//     A shop therefore only counts when at least one directly linked vendor NPC has a
+//     Level-sheet placement (Level.Type 8 = ENpcBase); otherwise it is skipped, counted
+//     (SkippedUnplacedVendors) and its armoire pieces are reported as left out
+//     (LeftOutItemCount — "Knightshopper cannot buy them").
 //   * Gil entries come from GilShop rows only. SpecialShop entries priced in gil are
 //     excluded: Knightshopper's gil catalog has not been verified to include them and one
 //     unknown shop would reject the whole import.
@@ -85,6 +99,7 @@ public static class KnightshopperCatalogCore
         SubrowExcelSheet<GilShopItem>? gilShopItemSheet,
         ExcelSheet<ENpcBase> npcBaseSheet,
         ExcelSheet<ENpcResident> npcResidentSheet,
+        ExcelSheet<Level> levelSheet,
         ExcelSheet<Item>? itemSheet,
         ExcelSheet<LuminaCabinet>? cabinetSheet,
         out CatalogSnapshot snapshot)
@@ -118,8 +133,35 @@ public static class KnightshopperCatalogCore
                 list.Add(npc.RowId);
             }
         }
+
+        // Knightshopper catalog alignment: only vendors with a static Level-sheet
+        // placement (Type 8 = ENpcBase) exist in Knightshopper's native-derived catalog.
+        // Event-spawned seasonal vendors (no Level row) must not be named — see the
+        // header comment. Shops left without any placed vendor are skipped and counted.
         foreach (var list in shopToNpcs.Values)
             list.Sort();
+
+        var placedNpcs = new HashSet<uint>();
+        foreach (var row in levelSheet)
+            if (row.Type == 8)
+            {
+                var obj = row.Object.RowId;
+                if (obj != 0)
+                    placedNpcs.Add(obj);
+            }
+
+        var buyableShopNpcs = new Dictionary<uint, List<uint>>();
+        foreach (var (shopId, npcs) in shopToNpcs)
+        {
+            var placed = npcs.Where(placedNpcs.Contains).ToList();
+            if (placed.Count > 0)
+                buyableShopNpcs[shopId] = placed;
+        }
+
+        // Armoire pieces whose ONLY directly linked shops sit behind event-spawned
+        // vendors: Knightshopper's catalog has no such vendor, so naming the shop would
+        // make it refuse the whole import. Reported as "left out" in the window.
+        var leftOutItems = new HashSet<uint>();
 
         var npcNames = new Dictionary<uint, string>();
         foreach (var npc in npcResidentSheet)
@@ -127,6 +169,7 @@ public static class KnightshopperCatalogCore
 
         var entries = new List<ShopEntry>();
         var skippedUnlinked = 0;
+        var skippedUnplaced = 0;
         var skippedGilSpecial = 0;
         var unresolvableSkips = 0;
         var failedSpecialShopShops = 0;
@@ -146,6 +189,23 @@ public static class KnightshopperCatalogCore
                         var skippedReceive = FirstReceivableItem(itemEntry);
                         if (skippedReceive.ItemId != 0)
                             underlistedItems.Add(skippedReceive.ItemId);
+                    }
+                    continue;
+                }
+
+                if (!buyableShopNpcs.TryGetValue(shop.RowId, out var shopNpcs))
+                {
+                    // Linked only behind event-spawned vendors: not in Knightshopper's
+                    // catalog. Skip, count, and report the pieces as left out.
+                    skippedUnplaced++;
+                    foreach (var itemEntry in shop.Item)
+                    {
+                        var skippedReceive = FirstReceivableItem(itemEntry);
+                        if (skippedReceive.ItemId != 0)
+                        {
+                            underlistedItems.Add(skippedReceive.ItemId);
+                            leftOutItems.Add(skippedReceive.ItemId);
+                        }
                     }
                     continue;
                 }
@@ -171,7 +231,7 @@ public static class KnightshopperCatalogCore
                         var bucket = (int)costItemId;
                         if (bucket is < 1 or > 3)
                             continue;
-                        entries.Add(new ShopEntry(receive.ItemId, FirstNpc(shopToNpcs, shop.RowId),
+                        entries.Add(new ShopEntry(receive.ItemId, FirstNpc(shopNpcs),
                             shop.RowId, bucket - 1, 7, currencyCost, receive.QuestRowId, ShopSource.SpecialShop));
                         continue;
                     }
@@ -190,7 +250,7 @@ public static class KnightshopperCatalogCore
                     if (!SpecialShopCostItems.TryGetValue(costItemId, out var family))
                         continue; // not one of Knightshopper's currencies
 
-                    entries.Add(new ShopEntry(receive.ItemId, FirstNpc(shopToNpcs, shop.RowId),
+                    entries.Add(new ShopEntry(receive.ItemId, FirstNpc(shopNpcs),
                         shop.RowId, family.SubCurrency, family.CurrencyId, currencyCost,
                         receive.QuestRowId, ShopSource.SpecialShop));
                 }
@@ -219,6 +279,21 @@ public static class KnightshopperCatalogCore
                         continue;
                     }
 
+                    if (!buyableShopNpcs.TryGetValue(shop.RowId, out var gilShopNpcs))
+                    {
+                        // Event-spawned vendors only: Knightshopper logged exactly this
+                        // refusal for item 4303 ("not available from its shared Gil
+                        // vendor"). Skip, count, and report the pieces as left out.
+                        skippedUnplaced++;
+                        foreach (var skippedSubrow in shop)
+                            if (skippedSubrow.Item.RowId != 0)
+                            {
+                                underlistedItems.Add(skippedSubrow.Item.RowId);
+                                leftOutItems.Add(skippedSubrow.Item.RowId);
+                            }
+                        continue;
+                    }
+
                     foreach (var subrow in shop)
                     {
                         var item = subrow.Item;
@@ -230,7 +305,7 @@ public static class KnightshopperCatalogCore
                             continue;
                         }
                         var quest = subrow.QuestRequired.FirstOrDefault(q => q.RowId != 0);
-                        entries.Add(new ShopEntry(item.RowId, FirstNpc(shopToNpcs, shop.RowId),
+                        entries.Add(new ShopEntry(item.RowId, FirstNpc(gilShopNpcs),
                             shop.RowId, -1, 2, itemRow.PriceMid > 0 ? itemRow.PriceMid : null,
                             quest.RowId, ShopSource.GilShop));
                     }
@@ -246,7 +321,16 @@ public static class KnightshopperCatalogCore
         underlistedItems.IntersectWith(armoireItems);
         var underlistedCount = underlistedItems.Count;
 
-        snapshot = new CatalogSnapshot(entries, npcNames, skippedUnlinked, skippedGilSpecial, underlistedCount);
+        // Left out = pieces the list would otherwise have named but Knightshopper's
+        // catalog cannot buy (their shops only sit behind event-spawned vendors), minus
+        // anything still sold by a kept shop.
+        foreach (var entry in entries)
+            leftOutItems.Remove(entry.ItemId);
+        leftOutItems.IntersectWith(armoireItems);
+        var leftOutCount = leftOutItems.Count;
+
+        snapshot = new CatalogSnapshot(entries, npcNames, skippedUnlinked, skippedUnplaced,
+            skippedGilSpecial, underlistedCount, leftOutCount);
         clock.Stop();
         return new CatalogBuildStats(
             specialShopSheet.Count, gilShopItemSheet?.Count ?? 0,
@@ -278,8 +362,8 @@ public static class KnightshopperCatalogCore
         return (0, 0, null);
     }
 
-    private static uint FirstNpc(Dictionary<uint, List<uint>> shopToNpcs, uint shopRowId)
-        => shopToNpcs.TryGetValue(shopRowId, out var list) && list.Count > 0 ? list[0] : 0;
+    private static uint FirstNpc(List<uint> shopNpcs)
+        => shopNpcs.Count > 0 ? shopNpcs[0] : 0;
 }
 
 // Pure build-once/back-off gate: the window calls ShouldAttempt() on every frame while the

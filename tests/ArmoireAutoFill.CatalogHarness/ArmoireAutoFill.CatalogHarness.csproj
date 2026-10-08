@@ -39,6 +39,7 @@
 
   <ItemGroup>
     <Compile Include="Program.cs" />
+    <Compile Include="KnightshopperAcceptance.cs" />
     <Compile Include="..\..\src\ArmoireAutoFill\Data\KnightshopperCatalogCore.cs" Link="KnightshopperCatalogCore.cs" />
     <Compile Include="..\..\src\ArmoireAutoFill\Data\Shopping\ShoppingModels.cs" Link="ShoppingModels.cs" />
     <Compile Include="..\..\src\ArmoireAutoFill\Data\Shopping\ShoppingListBuilder.cs" Link="ShoppingListBuilder.cs" />

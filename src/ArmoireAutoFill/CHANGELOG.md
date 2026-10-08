@@ -1,5 +1,9 @@
 # Changelog - ArmoireAutoFill
 
+## v0.5.4.0 (2026-10-08) [testing]
+### Fixed
+- **Import codes no longer contain items Knightshopper would refuse.** Knightshopper rejects a whole import when even one item is not in its own catalog, which the previous Gil code hit: shops whose vendors only spawn for an event never enter Knightshopper's catalog, but this plugin was still naming them. The catalog now only names shops with a permanently placed vendor, matching how Knightshopper derives its own list, and the same rule applies to every currency, not just gil.
+- Pieces that this leaves out are no longer silent: the window shows "N items left out: Knightshopper cannot buy them", the build log counts the skipped shops, and the copy buttons never produce a code Knightshopper would answer with "not available from its shared vendor".
 ## v0.5.3.0 (2026-10-08) [testing]
 ### Fixed
 - **The "Copy import code" instructions now name the exact controls.** After copying, the message says which currency window to open (the sidebar entry under "Currencies"), that the shopping-list dropdown sits at the top of the window next to "Buy All", and that the import is the clipboard icon labelled "Paste" at the right end of the "New list name..." row. It also names the list that will be created, quotes the confirmation line Knightshopper prints in chat ("Imported the shopping list from the clipboard."), and explains that each code only imports in its own currency's window - pasted elsewhere, Knightshopper refuses it and says which window to use.
