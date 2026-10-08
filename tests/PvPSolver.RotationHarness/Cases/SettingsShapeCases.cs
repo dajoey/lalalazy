@@ -16,7 +16,8 @@ internal static class SettingsShapeCases
 {
     private static string Src(params string[] parts) => Path.Combine([Program.SrcRoot, .. parts]);
 
-    private static string Read(params string[] parts) => File.ReadAllText(Src(parts));
+    // A missing file reads as empty, so on a tree that lacks the file every check about it fails by name (the red replay shows each one).
+    private static string Read(params string[] parts) => File.Exists(Src(parts)) ? File.ReadAllText(Src(parts)) : string.Empty;
 
     private static string Sanitized(params string[] parts) => CsSource.Sanitize(Read(parts));
 
@@ -73,8 +74,7 @@ internal static class SettingsShapeCases
 
     private static void StoreShape()
     {
-        string path = Src("PvPSolver.Basic", "Configuration", "RotationConfig", "RotationConfigBase.cs");
-        string san = CsSource.Sanitize(File.ReadAllText(path));
+        string san = Sanitized("PvPSolver.Basic", "Configuration", "RotationConfig", "RotationConfigBase.cs");
         int legacyAccessor = Regex.Matches(san, @"Service\.Config\.RotationConfigurations\b").Count;
         string store = BodyOf(san, "Store");
         Harness.Case("RotationConfigBase.cs reads the player-keyed Service.Config.RotationConfigurations only on the duty-rotation path (once, inside Store, after the _rotation test)",

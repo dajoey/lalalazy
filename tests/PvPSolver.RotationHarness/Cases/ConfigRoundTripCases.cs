@@ -72,16 +72,22 @@ internal static class ConfigRoundTripCases
     public static void Run()
     {
         Console.WriteLine("-- round 3 Part B, T1 by reflection and T4: the job-keyed option store and the configuration round trip --");
+        Guarded("job-keyed store", AccessorCases);
+        Guarded("configuration round trip", RoundTripCases);
+        Guarded("cross-version", CrossVersionCases);
+    }
+
+    // One part that throws (for example because the tree under test has no job-keyed accessor) is one FAIL; the other parts still run.
+    private static void Guarded(string part, Action run)
+    {
         try
         {
-            AccessorCases();
-            RoundTripCases();
-            CrossVersionCases();
+            run();
         }
         catch (Exception e)
         {
             Exception inner = e is TargetInvocationException { InnerException: { } i } ? i : e;
-            Harness.Case("the job-keyed store and round-trip cases ran to the end", false, inner.GetType().Name + ": " + inner.Message);
+            Harness.Case($"the {part} cases ran to the end", false, inner.GetType().Name + ": " + inner.Message);
         }
     }
 
