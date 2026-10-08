@@ -6,7 +6,7 @@
          T2  source-shape test: reads the real source file and fails on the old text, passes on the new.
        Source root: env PVPROT_SRC (path of a src/PvPSolver folder, used to replay the tests against the
        old tree), else the src/PvPSolver folder found above this binary.
-         dotnet run -c Release --project tests\PvPSolver.RotationHarness
+         dotnet run -c Release (project tests\PvPSolver.RotationHarness)
        Prints PASS/FAIL per case, "OK (n checks, canary failed as expected)" and exit 0 when every case
        passes. -->
   <PropertyGroup>
