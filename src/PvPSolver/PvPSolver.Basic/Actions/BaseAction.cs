@@ -190,12 +190,8 @@ public class BaseAction : IBaseAction
 			{
 				bool isAllowed = false;
 
-				// 1. Allow Sprint and standard PvP utility actions
-				if (ID == 3 ||      // Sprint
-				    ID == 29711 ||  // Recuperate
-				    ID == 29054 ||  // Purify
-				    ID == 29055 ||  // Guard
-				    ID == 29484)    // Standard Elixir
+				// 1. Allow the PvP utility actions: Guard, Standard-issue Elixir, Purify, Sprint, Recuperate
+				if (RotationSolver.Decisions.PvpUtilityActionIds.IsAllowedWithoutHostiles(ID))
 				{
 					isAllowed = true;
 				}

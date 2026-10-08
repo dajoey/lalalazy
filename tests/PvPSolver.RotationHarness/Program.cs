@@ -27,6 +27,7 @@ internal static class Program
         GnbHeart.Run();
         PldThreshold.Run();
         SmiteGuard.Run();
+        UtilityAllowlist.Run();
 
         return Harness.Finish();
     }
