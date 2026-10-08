@@ -1,5 +1,20 @@
 # Changelog - PvP Solver
 
+## v0.1.1.4 (2026-10-07) [testing]
+### Fixed
+- **Tank ability stall in PvP.** With several enemies in melee range and a tank's own mitigation on cooldown, the rotation stopped issuing every later ability until the situation ended. The defensive stage now hands over to the rest of the rotation in PvP.
+- **Melee attack abilities considered at 5 yalms.** Melee jobs considered their attack abilities only with an enemy within 3 yalms although their weaponskills reach 5; in PvP the check now uses 5 yalms. Each ability still checks its own range.
+- **Smite ignores Guard.** The target filter no longer excludes an enemy that has Guard when Smite is the action.
+- **Sprint and Purify with no enemy nearby.** The list of actions allowed with no enemy within 40 yalms named the wrong actions; PvP Sprint and Purify are now allowed.
+- **White Mage and Bard Guard, Recuperate and Elixir on the GCD path.** The emergency GCD step ended in the wrong base step and skipped them.
+- **Scholar Chain Stratagem condition** now checks the enemy the action will actually target.
+- **Viper Rattling Coil** no longer waits on Snake Scales, which the rotation never uses.
+- **Gunbreaker.** The Blasting Zone 50% check reads the chosen target; the Heart of Corundum self-save now targets the Gunbreaker.
+- **Paladin Guardian** respects the Hallowed Ground HP threshold and the 10-yalm limit.
+- **Warden's Paean on allies (Bard) and Aquaveil on allies (White Mage).** The optional cleanse of other players could never find a target because it only counted afflictions the caster had applied; it now counts any affliction. Both options remain off by default.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v0.1.1.3 (2026-10-04) [testing]
 ### Fixed
 - **A rare game crash when the plugin updates while the game is running.** While PvP Solver hooks are active and the plugin is installed or updated again, it now disables the hooks only after any call still inside them has finished, so a call can no longer land on a hook that is already gone. PvP rotation behaviour is unchanged.
