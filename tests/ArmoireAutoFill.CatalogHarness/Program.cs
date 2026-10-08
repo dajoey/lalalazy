@@ -36,6 +36,18 @@ void Check(string name, System.Action body)
 
 var gameData = new GameData(sqpack);
 
+// LGB vendor placement (what KnightshopperVendorPlacement computes in-game from the live
+// game files): fixture produced by tools/KnightshopperGroundTruth/PlacedNpcs on the same
+// install the sqpack copy and the native catalog fixture come from.
+IReadOnlySet<uint> LoadPlacedNpcs()
+{
+    using var file = File.OpenRead(Path.Combine(AppContext.BaseDirectory, "fixtures", "ks-placed-npcs.json.gz"));
+    using var gz = new System.IO.Compression.GZipStream(file, System.IO.Compression.CompressionMode.Decompress);
+    using var doc = System.Text.Json.JsonDocument.Parse(gz);
+    return doc.RootElement.GetProperty("placedNpcs").EnumerateArray().Select(e => e.GetUInt32()).ToHashSet();
+}
+var placedNpcs = LoadPlacedNpcs();
+
 ExcelSheet<T> Sheet<T>() where T : struct, IExcelRow<T>
     => gameData.GetExcelSheet<T>() ?? throw new Exception("GetExcelSheet returned null (sheet not present in the sqpack copy)");
 
@@ -65,15 +77,18 @@ Check("Knightshopper catalog builds from real sheet rows without throwing", () =
     var gilShopItemSheet = gameData.GetSubrowExcelSheet<GilShopItem>();
     var stats = KnightshopperCatalogCore.Build(
         Sheet<GilShop>(), Sheet<SpecialShop>(), gilShopItemSheet,
-        Sheet<ENpcBase>(), Sheet<ENpcResident>(), Sheet<Level>(), Sheet<Item>(), Sheet<LuminaCabinet>(), out snapshot);
+        Sheet<ENpcBase>(), Sheet<ENpcResident>(), placedNpcs, Sheet<Item>(), Sheet<LuminaCabinet>(), out snapshot);
 
     if (snapshot.Entries.Count == 0)
         throw new Exception("catalog is empty: no buyable entries built from real sheet rows");
     if (stats.ShopsFailedSpecialShop != 0 || stats.ShopsFailedGilShop != 0)
         throw new Exception($"scan threw inside {stats.ShopsFailedSpecialShop} SpecialShop and "
                             + $"{stats.ShopsFailedGilShop} GilShop shops (first: {stats.FirstFailure})");
-    if (stats.ElapsedMs > 500)
-        throw new Exception($"build took {stats.ElapsedMs:F0} ms — too heavy for the draw thread");
+    // The in-game builder runs this on a background task (KnightshopperCatalogBuilder.RequestBuild),
+    // never on the draw thread; 2 s is a regression tripwire that survives a loaded CI host
+    // (the cold scan measures ~450 ms on an idle one).
+    if (stats.ElapsedMs > 2000)
+        throw new Exception($"build took {stats.ElapsedMs:F0} ms — far heavier than the measured ~450 ms");
 
     var perCurrency = snapshot.Entries.GroupBy(e => e.CurrencyId)
         .OrderBy(g => g.Key)
@@ -136,24 +151,50 @@ Check("successful build is cached (gate built state never re-attempts)", () =>
         throw new Exception("gate phase is not Built");
 });
 
-// ---- Knightshopper acceptance port (tasks-20261008-armoire-import-instructions-wording-01) ----
-// Runs the FULL export path (catalog -> shopping list -> KS1 share code -> decode) per
-// currency through a port of Knightshopper 1.0.1.6's real import validation (decompiled
-// HmcZxNdvtzR1P) over raw sqpack rows + the Level-sheet vendor placement rule its native
-// discovery uses. Nothing may be rejected: Knightshopper refuses a WHOLE list when one
-// item is unavailable (observed live: "Item 4303 is not available from its shared Gil
-// vendor." 4x at 21:44 ET). Anchors are the live-verified acceptance (4868@1001787/262158
-// in Joey's Knightshopper Gil config) and the live-verified rejections (4303 from the
-// Valentione shops 262424/262631).
-Check("exported codes per currency pass Knightshopper's real acceptance rules", () =>
-{
-    var gilShopSheet = Sheet<GilShop>();
-    var gilShopItemSheet = gameData.GetSubrowExcelSheet<GilShopItem>()
-        ?? throw new Exception("GilShopItem sheet missing from the sqpack copy");
-    var levelSheet = Sheet<Level>();
+// ---- GROUND TRUTH (tasks-20261008-armoire-ks-gil-rejection-rootcause-01) ----
+// Why this section exists: the first Armoire acceptance harness (0.5.4.0) ran exported codes
+// through a port of Knightshopper's import check whose vendor membership was Armoire's own
+// inferred model (Level-sheet placement), so a pass only proved the model agreed with itself -
+// and Knightshopper refused 66 of the 76 Gil items that build exported. This section uses
+// Knightshopper's OWN catalog instead: the output of its native library run on a real game
+// install (fixtures/ks-native-catalog.json.gz), put through a port of its managed import check
+// (KnightshopperNativeCatalog). Nothing in it reads Armoire's catalog rules, Level rows or
+// ENpcBase links.
+var truthDir = Path.Combine(AppContext.BaseDirectory, "fixtures");
+var truth = KnightshopperNativeCatalog.Load(Path.Combine(truthDir, "ks-native-catalog.json.gz"));
+Console.WriteLine($"  ground truth: {truth.VendorCount} vendors, {truth.ShopCount} shops, {truth.ListingCount} listings - {truth.Source}");
 
-    // Full export path: every armoire-eligible item NotOwned, so every buyable quadruple
-    // the plugin could emit lands in some code.
+Check("ground truth reproduces the live Knightshopper refusals and acceptance", () =>
+{
+    // Joey's Knightshopper Gil config (live accepted pair).
+    var ok = truth.Validate(2, 4868, 1001787, 262158, -1);
+    if (ok != null) throw new Exception($"known-good 4868@1001787/262158 rejected by ground truth: {ok}");
+    // Live refusals ('Item N is not available from its shared Gil vendor.'): 4303 from the
+    // maid shop (Joey's log, the build before 0.5.4.0) and 13298 from the House Valentione
+    // maid 1016441's shop 262587 (0.5.4.0). Ground truth must refuse both pairs...
+    foreach (var (item, vendor, shop) in new[] { (4303u, 1005608u, 262424u), (13298u, 1016441u, 262587u) })
+        if (truth.Validate(2, item, vendor, shop, -1) == null)
+            throw new Exception($"ground truth accepts {item}@({vendor}, {shop}), which Knightshopper refused live");
+    // ...and Knightshopper's own catalog does sell both items, at the recompense officers.
+    foreach (var item in new[] { 4303u, 13298u })
+    {
+        var pairs = truth.Pairs(2, item).ToList();
+        if (pairs.Count == 0)
+            throw new Exception($"Knightshopper's catalog has no Gil vendor for {item}");
+        Console.WriteLine($"  Knightshopper's own catalog sells {item} at {string.Join(", ", pairs.Select(p => $"({p.Vendor}, {p.Shop})"))}");
+    }
+});
+
+Check("the vendor pairs behind the two live refusals are never exported", () =>
+{
+    foreach (var (item, vendor, shop) in new[] { (4303u, 1005608u, 262424u), (13298u, 1016441u, 262587u) })
+        if (snapshot.Entries.Any(e => e.ItemId == item && e.VendorId == vendor && e.ShopId == shop))
+            throw new Exception($"catalog still names {item}@({vendor}, {shop}), refused live by Knightshopper");
+});
+
+Check("GROUND TRUTH: every exported code, every currency, passes Knightshopper's own catalog", () =>
+{
+    var gilShopItemSheet = gameData.GetSubrowExcelSheet<GilShopItem>();
     var armoire = new List<ShoppingListBuilder.ArmouryEntry>();
     foreach (var row in Sheet<LuminaCabinet>())
         if (row.Item.RowId != 0)
@@ -162,75 +203,79 @@ Check("exported codes per currency pass Knightshopper's real acceptance rules", 
     foreach (var item in Sheet<Item>())
         itemNames[item.RowId] = item.Name.ExtractText();
     var result = ShoppingListBuilder.Build(new ShoppingListBuilder.Input(
-        armoire, new HashSet<uint>(), snapshot.Entries, itemNames));
-    if (result.Currencies.Count == 0)
-        throw new Exception("no currency groups: export path produced nothing");
+        armoire, new HashSet<uint>(), snapshot.Entries, itemNames, int.MaxValue));
 
-    var rejected = new List<string>();
-    var validatedCount = 0;
+    var total = 0;
+    var refused = new List<(string Currency, uint Item, string Name, uint Vendor, uint Shop, string Reason)>();
     foreach (var group in result.Currencies)
     {
-        var quadruples = group.Items.Select(c => new Ks1Item(
-            c.Entry.ItemId, c.Entry.VendorId, c.Entry.ShopId, 1, c.Entry.SubCurrency)).ToList();
-        var code = KnightshopperShare.Encode(group.CurrencyId, "harness", quadruples);
-        if (!KnightshopperShare.TryDecode(code, out var decodedCurrency, out _,
-                out var decoded, out var decodeError))
-            throw new Exception($"currency {group.CurrencyId}: exported code does not round-trip: {decodeError}");
-        if (decodedCurrency != group.CurrencyId)
-            throw new Exception($"exported code currency {decodedCurrency} != {group.CurrencyId}");
-
-        foreach (var item in decoded)
+        var accepted = 0;
+        foreach (var c in group.Items)
         {
-            var reason = KnightshopperAcceptance.Validate(
-                gilShopSheet, gilShopItemSheet, Sheet<SpecialShop>(), Sheet<ENpcBase>(), levelSheet,
-                item.ItemId, item.VendorId, item.ShopId, item.SubCurrency, decodedCurrency);
-            validatedCount++;
-            if (reason != null)
-                rejected.Add($"{CurrencyNames.For(decodedCurrency)}: {reason}");
+            total++;
+            var reason = truth.Validate(group.CurrencyId, c.Entry.ItemId, c.Entry.VendorId, c.Entry.ShopId, c.Entry.SubCurrency);
+            if (reason == null) accepted++;
+            else refused.Add((group.CurrencyName, c.Entry.ItemId, c.Name, c.Entry.VendorId, c.Entry.ShopId, reason));
         }
+        Console.WriteLine($"  {group.CurrencyName}: {group.Items.Count} items exported, {accepted} accepted by Knightshopper's catalog, {group.Items.Count - accepted} refused");
     }
-    Console.WriteLine($"  validated {validatedCount} quadruple(s) across {result.Currencies.Count} currency code(s)");
-    if (rejected.Count > 0)
-        throw new Exception($"Knightshopper would reject {rejected.Count} exported item(s) — first: {rejected[0]}");
+    Console.WriteLine($"  exported {total} item(s) across {result.Currencies.Count} currency code(s); Knightshopper's own catalog refuses {refused.Count}");
+    // The two items Knightshopper refused live must be IN the Gil code now (at a pair its own
+    // catalog has), not silently dropped to make the refusals go away.
+    var gilGroup = result.Currencies.First(c => c.CurrencyId == 2);
+    foreach (var item in new[] { 4303u, 13298u })
+    {
+        var c = gilGroup.Items.FirstOrDefault(i => i.Entry.ItemId == item)
+                ?? throw new Exception($"item {item} is missing from the Gil code instead of being exported at a valid vendor");
+        Console.WriteLine($"  anchor: {item} exported at ({c.Entry.VendorId}, {c.Entry.ShopId}), accepted by Knightshopper's catalog");
+    }
+    var bango = gilGroup.Items.FirstOrDefault(i => i.Entry.ItemId == 4868);
+    Console.WriteLine($"  anchor: 4868 (Gysahl Greens) is {(bango == null ? "not an armoire item, so not in the code; checked directly above" : $"exported at ({bango.Entry.VendorId}, {bango.Entry.ShopId})")}");
+    foreach (var r in refused)
+        Console.WriteLine($"    REFUSED {r.Currency}: item {r.Item} '{r.Name}' @({r.Vendor}, {r.Shop}) - {r.Reason}");
+    if (refused.Count > 0)
+        throw new Exception($"Knightshopper would refuse {refused.Count} of {total} exported item(s); a code with even one of them is rejected whole");
 });
 
-Check("anchor: item 4303 (Valentione) is absent from the catalog and its shops are rejected", () =>
+Check("GROUND TRUTH: every catalog entry, every currency, is a pair Knightshopper's catalog has", () =>
 {
-    var gilShopSheet = Sheet<GilShop>();
-    var gilShopItemSheet = gameData.GetSubrowExcelSheet<GilShopItem>()
-        ?? throw new Exception("GilShopItem sheet missing from the sqpack copy");
-    var levelSheet = Sheet<Level>();
-    var specialShopSheet = Sheet<SpecialShop>();
-    var npcBaseSheet = Sheet<ENpcBase>();
+    // Stronger than the export check: not only the armoire pieces a player is missing today
+    // but EVERY (item, vendor, shop, sub-currency) the catalog could ever put in a code, so a
+    // future cabinet addition cannot reintroduce a refusal unseen.
+    //
+    // Known divergence, NOT a regression and not exportable: Knightshopper's own catalog
+    // registers the two current-tier tomestone WEAPON shops (1770913 Mathematics IL 750,
+    // 1770982 Mnemonics IL 780) but lists none of their items, a listing filter this port
+    // does not reproduce. No Cabinet (armoire) item is sold there, which the armoire-only
+    // assertion below proves; the allow-list is exact so any other refusal fails the run.
+    uint[] knownWeaponShops = [1770913, 1770982];
+    var armoireItemIds = new HashSet<uint>();
+    foreach (var row in Sheet<LuminaCabinet>())
+        if (row.Item.RowId != 0) armoireItemIds.Add(row.Item.RowId);
 
-    if (snapshot.Entries.Any(e => e.ItemId == 4303))
+    var unexpected = new List<string>();
+    var allowed = 0;
+    foreach (var g in snapshot.Entries.GroupBy(e => e.CurrencyId).OrderBy(g => g.Key))
     {
-        var bad = snapshot.Entries.Where(e => e.ItemId == 4303)
-            .Select(e => $"({e.VendorId}, {e.ShopId})").First();
-        throw new Exception($"item 4303 still emitted from {bad}: Knightshopper logged 'Item 4303 is not available from its shared Gil vendor.'");
+        var bad = 0;
+        foreach (var e in g)
+        {
+            var reason = truth.Validate(e.CurrencyId, e.ItemId, e.VendorId, e.ShopId, e.SubCurrency);
+            if (reason == null) continue;
+            bad++;
+            if (e.CurrencyId == 7 && Array.IndexOf(knownWeaponShops, e.ShopId) >= 0 && !armoireItemIds.Contains(e.ItemId))
+            {
+                allowed++;
+                continue;
+            }
+            unexpected.Add($"{CurrencyNames.For(e.CurrencyId)}: item {e.ItemId} @({e.VendorId}, {e.ShopId}, sub {e.SubCurrency}) - {reason}");
+        }
+        Console.WriteLine($"  {CurrencyNames.For(g.Key)}: {g.Count()} catalog entries, {g.Count() - bad} accepted, {bad} refused");
     }
-
-    // The exact observed rejection: the maid/recompense-officer shops are event-spawned.
-    foreach (var (vendor, shop) in new[] { (1005608u, 262424u), (1017613u, 262631u) })
-    {
-        var reason = KnightshopperAcceptance.Validate(gilShopSheet, gilShopItemSheet, specialShopSheet,
-            npcBaseSheet, levelSheet, 4303, vendor, shop, -1, 2);
-        if (reason == null)
-            throw new Exception($"modelled catalog wrongly accepts 4303 from ({vendor}, {shop})");
-        Console.WriteLine($"  anchor: 4303@({vendor}, {shop}) rejected — {reason}");
-    }
-});
-
-Check("anchor: Bango Zango's gil shop (4868@1001787/262158) stays accepted", () =>
-{
-    var gilShopSheet = Sheet<GilShop>();
-    var gilShopItemSheet = gameData.GetSubrowExcelSheet<GilShopItem>()
-        ?? throw new Exception("GilShopItem sheet missing from the sqpack copy");
-    var reason = KnightshopperAcceptance.Validate(gilShopSheet, gilShopItemSheet, Sheet<SpecialShop>(),
-        Sheet<ENpcBase>(), Sheet<Level>(), 4868, 1001787, 262158, -1, 2);
-    if (reason != null)
-        throw new Exception($"known-good 4868@1001787/262158 rejected: {reason}");
-    Console.WriteLine("  anchor: 4868@1001787/262158 accepted (matches Joey's Knightshopper Gil config)");
+    Console.WriteLine($"  documented non-exportable divergence (tomestone weapon shops): {allowed} entries");
+    foreach (var r in unexpected.Take(40)) Console.WriteLine($"    REFUSED {r}");
+    if (unexpected.Count > 0)
+        throw new Exception($"Knightshopper's catalog lacks {unexpected.Count} catalog entries beyond the documented weapon shops - first: {unexpected[0]}");
 });
 
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILURE(S)");

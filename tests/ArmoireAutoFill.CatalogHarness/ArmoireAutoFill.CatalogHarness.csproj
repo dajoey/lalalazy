@@ -38,8 +38,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Ground truth: Knightshopper's own native catalog output + the LGB vendor placements,
+         both from a real game install (see tools/KnightshopperGroundTruth). -->
+    <None Include="fixtures\*.gz" CopyToOutputDirectory="PreserveNewest" LinkBase="fixtures" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Include="Program.cs" />
-    <Compile Include="KnightshopperAcceptance.cs" />
+    <Compile Include="KnightshopperNativeCatalog.cs" />
     <Compile Include="..\..\src\ArmoireAutoFill\Data\KnightshopperCatalogCore.cs" Link="KnightshopperCatalogCore.cs" />
     <Compile Include="..\..\src\ArmoireAutoFill\Data\Shopping\ShoppingModels.cs" Link="ShoppingModels.cs" />
     <Compile Include="..\..\src\ArmoireAutoFill\Data\Shopping\ShoppingListBuilder.cs" Link="ShoppingListBuilder.cs" />

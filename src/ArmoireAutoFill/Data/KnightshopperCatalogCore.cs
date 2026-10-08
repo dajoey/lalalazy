@@ -50,18 +50,28 @@ public sealed record CatalogBuildStats(
 //     shop row id. Handler-encoded references (topic selects, scripted shops) are not
 //     resolvable and are skipped — the generated list only ever names shops Knightshopper
 //     itself can reach, so an import never fails on an unknown shop.
-//   * Knightshopper catalog alignment (2026-10-08, task armoire-import-instructions-wording):
-//     Knightshopper 1.0.1.6 refuses a WHOLE import when one item is not in its catalog
-//     (observed live: "Item 4303 is not available from its shared Gil vendor." 4x). Its
-//     native discovery derives vendors from the sqpack and reads the Level sheet for
-//     placements (LevelPos strings in the native image); vendors placed only by event
-//     scripts (seasonal NPCs: House Valentione maid, recompense officer) have no Level
-//     row and their shops never enter its catalog, while permanently placed vendors do
-//     (Bango Zango 1001787 = the one live-verified accepted pair 4868@1001787/262158).
-//     A shop therefore only counts when at least one directly linked vendor NPC has a
-//     Level-sheet placement (Level.Type 8 = ENpcBase); otherwise it is skipped, counted
+//   * Knightshopper catalog alignment (2026-10-08, task armoire-ks-gil-rejection-rootcause).
+//     Knightshopper 1.0.1.6 refuses a WHOLE import when one item's (item, vendor, shop,
+//     sub-currency) quadruple is not in its catalog ("Item 13298 is not available from
+//     its shared Gil vendor."). Its catalog is built by its native library from the game
+//     files; run offline against a real install (tools/KnightshopperGroundTruth) it shows
+//     the real rule, which the earlier Level-sheet guess did not match (66 of the 76 Gil
+//     items 0.5.4.0 exported were refused):
+//       1. A vendor is an ENpcBase that is PLACED by an ENPC instance object in the
+//          planevent/planner LGB layers of some territory (KnightshopperVendorPlacement).
+//          Level-sheet rows are not the source: the Valentione maids have a Level row but
+//          no LGB placement and are not vendors; the recompense officers have no Level row
+//          but an LGB placement and are.
+//       2. Vendors with the same name and the same shop set that stand at the same spot
+//          (re-used seasonal NPCs) are merged into the lowest ENpcBase id; only that id
+//          is a vendor. Same name and shop set in another place (another territory) stays
+//          a separate vendor. Taking the lowest id of every (name, shop set) group is
+//          always a vendor Knightshopper keeps, and never a merged-away one.
+//       3. The shop comes from ENpcBase.ENpcData references that point directly at a
+//          GilShop/SpecialShop row (handler-coded references are not used here).
+//     A shop none of whose directly linked vendors qualifies is skipped, counted
 //     (SkippedUnplacedVendors) and its armoire pieces are reported as left out
-//     (LeftOutItemCount — "Knightshopper cannot buy them").
+//     (LeftOutItemCount - "Knightshopper cannot buy them").
 //   * Gil entries come from GilShop rows only. SpecialShop entries priced in gil are
 //     excluded: Knightshopper's gil catalog has not been verified to include them and one
 //     unknown shop would reject the whole import.
@@ -99,7 +109,7 @@ public static class KnightshopperCatalogCore
         SubrowExcelSheet<GilShopItem>? gilShopItemSheet,
         ExcelSheet<ENpcBase> npcBaseSheet,
         ExcelSheet<ENpcResident> npcResidentSheet,
-        ExcelSheet<Level> levelSheet,
+        IReadOnlySet<uint> placedNpcs,
         ExcelSheet<Item>? itemSheet,
         ExcelSheet<LuminaCabinet>? cabinetSheet,
         out CatalogSnapshot snapshot)
@@ -115,8 +125,14 @@ public static class KnightshopperCatalogCore
                     armoireItems.Add(row.Item.RowId);
         var underlistedItems = new HashSet<uint>();
 
-        // Reverse index: shop row id -> sorted NPC row ids. Only direct references.
+        var npcNames = new Dictionary<uint, string>();
+        foreach (var npc in npcResidentSheet)
+            npcNames[npc.RowId] = npc.Singular.ToString();
+
+        // Reverse index: shop row id -> sorted NPC row ids, and NPC -> its shop ids.
+        // Only direct references.
         var shopToNpcs = new Dictionary<uint, List<uint>>();
+        var npcShops = new SortedDictionary<uint, SortedSet<uint>>();
         foreach (var npc in npcBaseSheet)
         {
             foreach (var @ref in npc.ENpcData)
@@ -131,41 +147,41 @@ public static class KnightshopperCatalogCore
                 if (!shopToNpcs.TryGetValue(rowId, out var list))
                     shopToNpcs[rowId] = list = [];
                 list.Add(npc.RowId);
+                if (!npcShops.TryGetValue(npc.RowId, out var shopSet))
+                    npcShops[npc.RowId] = shopSet = [];
+                shopSet.Add(rowId);
             }
         }
 
-        // Knightshopper catalog alignment: only vendors with a static Level-sheet
-        // placement (Type 8 = ENpcBase) exist in Knightshopper's native-derived catalog.
-        // Event-spawned seasonal vendors (no Level row) must not be named — see the
-        // header comment. Shops left without any placed vendor are skipped and counted.
         foreach (var list in shopToNpcs.Values)
             list.Sort();
 
-        var placedNpcs = new HashSet<uint>();
-        foreach (var row in levelSheet)
-            if (row.Type == 8)
-            {
-                var obj = row.Object.RowId;
-                if (obj != 0)
-                    placedNpcs.Add(obj);
-            }
+        // Knightshopper catalog alignment (see the header comment): a vendor is an NPC
+        // placed by an ENPC instance in a territory LGB layer; NPCs with the same name and
+        // the same shop set collapse into the lowest id. npcShops iterates ascending ids,
+        // so the first placed NPC seen for a (name, shop set) key is that lowest id.
+        var vendorGroups = new Dictionary<(string Name, string ShopSet), uint>();
+        foreach (var (npcId, shops) in npcShops)
+        {
+            if (!placedNpcs.Contains(npcId))
+                continue;
+            vendorGroups.TryAdd(
+                (npcNames.GetValueOrDefault(npcId, ""), string.Join(',', shops)), npcId);
+        }
+        var vendorIds = new HashSet<uint>(vendorGroups.Values);
 
         var buyableShopNpcs = new Dictionary<uint, List<uint>>();
         foreach (var (shopId, npcs) in shopToNpcs)
         {
-            var placed = npcs.Where(placedNpcs.Contains).ToList();
-            if (placed.Count > 0)
-                buyableShopNpcs[shopId] = placed;
+            var vendors = npcs.Where(vendorIds.Contains).ToList();
+            if (vendors.Count > 0)
+                buyableShopNpcs[shopId] = vendors;
         }
 
-        // Armoire pieces whose ONLY directly linked shops sit behind event-spawned
-        // vendors: Knightshopper's catalog has no such vendor, so naming the shop would
-        // make it refuse the whole import. Reported as "left out" in the window.
+        // Armoire pieces whose ONLY directly linked shops sit behind NPCs Knightshopper's
+        // catalog does not have: naming the shop would make it refuse the whole import.
+        // Reported as "left out" in the window.
         var leftOutItems = new HashSet<uint>();
-
-        var npcNames = new Dictionary<uint, string>();
-        foreach (var npc in npcResidentSheet)
-            npcNames[npc.RowId] = npc.Singular.ToString();
 
         var entries = new List<ShopEntry>();
         var skippedUnlinked = 0;
@@ -195,7 +211,7 @@ public static class KnightshopperCatalogCore
 
                 if (!buyableShopNpcs.TryGetValue(shop.RowId, out var shopNpcs))
                 {
-                    // Linked only behind event-spawned vendors: not in Knightshopper's
+                    // Linked only to NPCs Knightshopper has no vendor for: not in Knightshopper's
                     // catalog. Skip, count, and report the pieces as left out.
                     skippedUnplaced++;
                     foreach (var itemEntry in shop.Item)
@@ -216,10 +232,12 @@ public static class KnightshopperCatalogCore
                     if (receive.ItemId == 0)
                         continue;
 
-                    if (itemSheet != null && !itemSheet.TryGetRow(receive.ItemId, out _))
+                    if (itemSheet != null && !(itemSheet.TryGetRow(receive.ItemId, out var receiveRow) && !receiveRow.Name.IsEmpty))
                     {
-                        // A receive id with no Item row: never emit it (an unresolvable id
-                        // could make Knightshopper's import reject a whole payload).
+                        // A receive id with no Item row, or a blank placeholder row (no name):
+                        // never emit it. Knightshopper's catalog has no listing for such rows
+                        // (items 8219-8221, 51273 in the ground-truth run), so an unresolvable
+                        // id would make it reject a whole payload.
                         unresolvableSkips++;
                         continue;
                     }
@@ -281,7 +299,7 @@ public static class KnightshopperCatalogCore
 
                     if (!buyableShopNpcs.TryGetValue(shop.RowId, out var gilShopNpcs))
                     {
-                        // Event-spawned vendors only: Knightshopper logged exactly this
+                        // No Knightshopper vendor: Knightshopper logged exactly this
                         // refusal for item 4303 ("not available from its shared Gil
                         // vendor"). Skip, count, and report the pieces as left out.
                         skippedUnplaced++;
@@ -299,7 +317,7 @@ public static class KnightshopperCatalogCore
                         var item = subrow.Item;
                         if (item.RowId == 0)
                             continue;
-                        if (itemSheet == null || !itemSheet.TryGetRow(item.RowId, out var itemRow))
+                        if (itemSheet == null || !itemSheet.TryGetRow(item.RowId, out var itemRow) || itemRow.Name.IsEmpty)
                         {
                             unresolvableSkips++;
                             continue;
@@ -322,7 +340,7 @@ public static class KnightshopperCatalogCore
         var underlistedCount = underlistedItems.Count;
 
         // Left out = pieces the list would otherwise have named but Knightshopper's
-        // catalog cannot buy (their shops only sit behind event-spawned vendors), minus
+        // catalog cannot buy (their shops only sit behind NPCs it has no vendor for), minus
         // anything still sold by a kept shop.
         foreach (var entry in entries)
             leftOutItems.Remove(entry.ItemId);

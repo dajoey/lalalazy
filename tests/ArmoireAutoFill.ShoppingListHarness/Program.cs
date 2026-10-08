@@ -289,10 +289,17 @@ internal static class Program
             Check(msg.Contains($"'Armoire fill ({window})'"), $"[{window}] names the list it creates");
             Check(msg.Contains("Imported the shopping list from the clipboard."), $"[{window}] quotes Knightshopper's success line");
             Check(msg.Contains($"{window} codes") && msg.Contains("refuses it"), $"[{window}] states the wrong-currency refusal");
+            Check(msg.Contains($"'Item N is not available from its shared {window} vendor.'") && msg.Contains("names only the first item"),
+                $"[{window}] explains Knightshopper's first-item refusal line");
         }
 
         var hunt = KnightshopperInstructions.CopiedMessage(3, 5, "Armoire fill (The Hunt)");
         Check(!hunt.Contains("Hunt tab") && !hunt.Contains("paste button"), "no vague 'tab'/'paste button' wording left");
+
+        var note = KnightshopperInstructions.CatalogCheckNote();
+        Check(note.Contains("Knightshopper 1.0.1.6's own vendor catalog") && note.Contains(KnightshopperInstructions.CatalogCheckVersion)
+              && note.Contains("Not yet confirmed in-game") && !note.Contains("works") && !note.Contains("fixed"),
+            "catalog-check note states the source and version and does not claim it works");
 
         var notLoaded = KnightshopperInstructions.NotLoadedMessage();
         Check(notLoaded.Contains("'Paste'") && notLoaded.Contains("'New list name...'") && notLoaded.Contains("window"),

@@ -128,6 +128,7 @@ public class MainWindow : Window
         if (KnightshopperCatalogBuilder.Snapshot.LeftOutItemCount > 0)
             ImGui.TextColored(ColorMuted,
                 $"{KnightshopperCatalogBuilder.Snapshot.LeftOutItemCount} items left out: Knightshopper cannot buy them");
+        ImGui.TextColored(ColorMuted, KnightshopperInstructions.CatalogCheckNote());
 
         var ksLoaded = IsKnightshopperLoaded();
         if (!ksLoaded)

@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Lists every ENPC instance object in the planevent/planner LGB layers of every
+       territory: the NPC placement source Knightshopper's native vendor discovery uses.
+       Run on a machine with a real game install (read-only). Same Lumina reference
+       assemblies as the CatalogHarness (override with -p:DalamudRefPath=<dir>). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>PlacedNpcs</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <DalamudRefPath Condition="'$(DalamudRefPath)' == ''">/home/dajoey/work/dalamud-refs/15.0.3.4</DalamudRefPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\..\..\src\ArmoireAutoFill\Data\KnightshopperVendorPlacement.cs" Link="KnightshopperVendorPlacement.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="Lumina"><HintPath>$(DalamudRefPath)/Lumina.dll</HintPath></Reference>
+    <Reference Include="Lumina.Excel"><HintPath>$(DalamudRefPath)/Lumina.Excel.dll</HintPath></Reference>
+  </ItemGroup>
+</Project>

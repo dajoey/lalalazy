@@ -1,5 +1,14 @@
 # Changelog - ArmoireAutoFill
 
+## v0.5.5.0 (2026-10-08) [testing]
+### Fixed
+- **Import codes now name vendors that Knightshopper itself has.** The previous build still produced Gil codes that Knightshopper refused whole ("Item N is not available from its shared Gil vendor"): the rule it used to decide which vendors Knightshopper knows was a guess and was wrong for most Gil shops. The rule now follows how Knightshopper builds its own vendor list: a vendor is an NPC the game actually places in an area, and seasonal NPCs that are re-used under new ids with the same name and the same shops count once. It applies to every currency, not just gil. The Gil code now carries several times as many pieces, because shops the old rule dropped by mistake are back.
+- Placeholder items with no name are no longer put in a code; Knightshopper has no entry for them.
+- Every code and every catalog entry was checked offline against the vendor data produced by Knightshopper's own library (not against this plugin's own model): no refusals. This is not yet confirmed in the game, and newer game patches than the one checked are not covered.
+### Changed
+- The shopping-list section says what the codes were checked against and that it is not yet confirmed in-game; the copy message also explains that Knightshopper names only the first item it refuses.
+- The vendor placement is read from the game's area files once per session in the background (about one second), with one log line.
+
 ## v0.5.4.0 (2026-10-08) [testing]
 ### Fixed
 - **Import codes no longer contain items Knightshopper would refuse.** Knightshopper rejects a whole import when even one item is not in its own catalog, which the previous Gil code hit: shops whose vendors only spawn for an event never enter Knightshopper's catalog, but this plugin was still naming them. The catalog now only names shops with a permanently placed vendor, matching how Knightshopper derives its own list, and the same rule applies to every currency, not just gil.

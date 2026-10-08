@@ -1,5 +1,6 @@
 using ArmoireAutoFill.Data.Shopping;
 using ECommons.DalamudServices;
+using Lumina.Data.Files;
 using Lumina.Excel.Sheets;
 using LuminaCabinet = Lumina.Excel.Sheets.Cabinet;
 
@@ -26,6 +27,7 @@ public static class KnightshopperCatalogBuilder
     public static string? BuildFailureDetail { get; private set; }
 
     private static readonly object BuildLock = new();
+    private static KnightshopperVendorPlacement.Result? _placement;
     private static int _buildInFlight;
 
     // Called from the draw every frame the shopping section is open. The measured full scan
@@ -70,9 +72,9 @@ public static class KnightshopperCatalogBuilder
         var npcResidentSheet = Svc.Data.GetExcelSheet<ENpcResident>();
         var itemSheet = Svc.Data.GetExcelSheet<Item>();
         var cabinetSheet = Svc.Data.GetExcelSheet<LuminaCabinet>();
-        var levelSheet = Svc.Data.GetExcelSheet<Level>();
+        var territorySheet = Svc.Data.GetExcelSheet<TerritoryType>();
         if (gilShopSheet == null || specialShopSheet == null || npcBaseSheet == null || npcResidentSheet == null
-            || itemSheet == null || levelSheet == null)
+            || itemSheet == null || territorySheet == null)
         {
             SheetsUnavailable = true;
             CatalogBuildGate.MarkFailed();
@@ -83,9 +85,24 @@ public static class KnightshopperCatalogBuilder
 
         try
         {
+            // Which NPCs the game places in the world (Knightshopper's notion of a vendor).
+            // Read once per session: the layer files do not change while the game runs.
+            if (_placement == null)
+            {
+                var scan = KnightshopperVendorPlacement.Scan(
+                    territorySheet.Select(t => t.Bg.ExtractText()), path => Svc.Data.GetFile<LgbFile>(path));
+                Svc.Log.Information(
+                    $"[ArmoireAutoFill] Knightshopper vendor placement: {scan.PlacedNpcs.Count} placed NPCs from "
+                    + $"{scan.FilesRead} layer files in {scan.Territories} areas ({scan.FilesFailed} unreadable) in {scan.ElapsedMs:F0} ms");
+                if (scan.PlacedNpcs.Count == 0)
+                    throw new InvalidOperationException(
+                        "no NPC placements were readable from the game's layer files, so Knightshopper's vendors cannot be matched");
+                _placement = scan;
+            }
+
             var stats = KnightshopperCatalogCore.Build(
                 gilShopSheet, specialShopSheet, Svc.Data.GetSubrowExcelSheet<GilShopItem>(),
-                npcBaseSheet, npcResidentSheet, levelSheet, itemSheet, cabinetSheet, out var snapshot);
+                npcBaseSheet, npcResidentSheet, _placement.PlacedNpcs, itemSheet, cabinetSheet, out var snapshot);
             Snapshot = snapshot;
             SheetsUnavailable = false;
             CatalogBuildGate.MarkBuilt();
@@ -97,7 +114,7 @@ public static class KnightshopperCatalogBuilder
                 $"[ArmoireAutoFill] Knightshopper catalog: {snapshot.Entries.Count} entries in {stats.ElapsedMs:F0} ms "
                 + $"from {stats.SpecialShopRowsScanned} SpecialShop + {stats.GilShopRowsScanned} GilShop rows "
                 + $"({string.Join(", ", perCurrency)}) — skipped: {snapshot.SkippedUnlinkedShops} shops without vendor link, "
-                + $"{snapshot.SkippedUnplacedVendors} shops behind event-spawned vendors, "
+                + $"{snapshot.SkippedUnplacedVendors} shops with no Knightshopper vendor, "
                 + $"{snapshot.SkippedGilSpecialShops} gil-priced SpecialShop entries, "
                 + $"{stats.EntriesSkippedUnresolvableItem} entries with unresolvable items, "
                 + $"{stats.ShopsFailedSpecialShop}+{stats.ShopsFailedGilShop} shops failed "

@@ -31,8 +31,19 @@ public static class KnightshopperInstructions
              + $"That imports a new list named '{listName}', selects it, and keeps your existing lists. "
              + "Knightshopper confirms it in your chat log: 'Imported the shopping list from the clipboard.'\n"
              + $"Each code imports only in its own currency's window: {window} codes do not import anywhere else — pasted in a "
-             + "different currency's window, Knightshopper refuses it and tells you which window to use.";
+             + "different currency's window, Knightshopper refuses it and tells you which window to use.\n"
+             + $"If Knightshopper refuses the code itself, it names only the first item it does not recognise "
+             + $"('Item N is not available from its shared {window} vendor.') — note that number; the rest of the list is not checked past it.";
     }
+
+    // Shown under the shopping list: what the codes were checked against, and what was not.
+    // The game version is the install the offline check ran on (tools/KnightshopperGroundTruth);
+    // the player's game may be on a newer patch.
+    public const string CatalogCheckVersion = "game version 2026.08.05";
+
+    public static string CatalogCheckNote() =>
+        "The vendors and shops in these codes were checked offline against Knightshopper 1.0.1.6's own vendor catalog "
+        + $"({CatalogCheckVersion}). Not yet confirmed in-game, and newer patches are not covered.";
 
     public static string NotLoadedMessage() =>
         "Knightshopper is not installed or not loaded — the codes below still copy to your clipboard; "
