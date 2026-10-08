@@ -140,6 +140,9 @@ internal static class DefensiveTableCases
             if (!got.SequenceEqual(want)) jobProblems.Add($"{job}: got [{string.Join(",", got)}] want [{string.Join(",", want)}]");
         }
 
+        var badJobKeys = JobRows.Keys.Concat(rows.Select(r => r.Job).Where(j => j is not ("*" or "TANK" or "HEALER"))).Distinct()
+            .Where(j => !Enum.TryParse<ECommons.ExcelServices.Job>(j, out var parsed) || !Enum.IsDefined(parsed) || parsed.ToString() != j).ToArray();
+        Harness.Case("every job key is the name of a member of ECommons.ExcelServices.Job (what DataCenter.Job.ToString() returns)", badJobKeys.Length == 0, string.Join(",", badJobKeys));
         Harness.Case("each of the 21 jobs sees exactly its own rows, its role's rows and Recuperate", JobRows.Count == 21 && jobProblems.Count == 0, string.Join("; ", jobProblems));
         var orderProblems = new List<string>();
         foreach (var job in JobRows.Keys)
