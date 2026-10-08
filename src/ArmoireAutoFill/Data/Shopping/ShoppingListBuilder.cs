@@ -98,17 +98,21 @@ public static class ShoppingListBuilder
 
 public static class CurrencyNames
 {
-    // Knightshopper's currency enum ordering, fixed in its share format.
+    // Knightshopper's currency enum ordering, fixed in its share format. Values are
+    // Knightshopper's OWN display names (General.json "Currency.*" / "_name.*UI"),
+    // which name its sidebar entries and currency windows - per-currency headings,
+    // list names and import instructions must match what the user sees there
+    // (e.g. the sidebar entry is "The Hunt", not "Hunt"; "Tomestones", not "Tomestone").
     public static string For(byte currencyId) => currencyId switch
     {
-        0 => "Bicolor Gemstone",
-        1 => "Company Seal",
+        0 => "Bicolor Gemstones",
+        1 => "Company Seals",
         2 => "Gil",
-        3 => "Hunt",
+        3 => "The Hunt",
         4 => "MGP",
         5 => "PvP",
-        6 => "Scrip",
-        7 => "Tomestone",
+        6 => "Scrips",
+        7 => "Tomestones",
         8 => "Firmament",
         9 => "Cosmocredits",
         10 => "Occult Crescent",

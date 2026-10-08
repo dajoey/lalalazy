@@ -24,5 +24,6 @@
     <Compile Include="..\..\src\ArmoireAutoFill\Data\Shopping\ShoppingModels.cs" Link="ShoppingModels.cs" />
     <Compile Include="..\..\src\ArmoireAutoFill\Data\Shopping\KnightshopperShare.cs" Link="KnightshopperShare.cs" />
     <Compile Include="..\..\src\ArmoireAutoFill\Data\Shopping\ShoppingListBuilder.cs" Link="ShoppingListBuilder.cs" />
+    <Compile Include="..\..\src\ArmoireAutoFill\Data\Shopping\KnightshopperInstructions.cs" Link="KnightshopperInstructions.cs" />
   </ItemGroup>
 </Project>

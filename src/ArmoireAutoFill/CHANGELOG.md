@@ -1,5 +1,11 @@
 # Changelog - ArmoireAutoFill
 
+## v0.5.3.0 (2026-10-08) [testing]
+### Fixed
+- **The "Copy import code" instructions now name the exact controls.** After copying, the message says which currency window to open (the sidebar entry under "Currencies"), that the shopping-list dropdown sits at the top of the window next to "Buy All", and that the import is the clipboard icon labelled "Paste" at the right end of the "New list name..." row. It also names the list that will be created, quotes the confirmation line Knightshopper prints in chat ("Imported the shopping list from the clipboard."), and explains that each code only imports in its own currency's window - pasted elsewhere, Knightshopper refuses it and says which window to use.
+- Currency names now match Knightshopper's own labels ("The Hunt" instead of "Hunt", "Tomestones" instead of "Tomestone", "Scrips" instead of "Scrip"), so the headings, the created list names and the instructions match what the sidebar shows.
+- When Knightshopper is not loaded, the hint now points at the same controls instead of just saying "paste them".
+
 ## v0.5.2.0 (2026-10-08) [testing]
 ### Fixed
 - **The shopping list now builds.** On the previous testing build the Knightshopper shopping list always showed "Shop catalog unavailable": one shop entry with an unusual data shape aborted the whole catalog. That entry is now skipped instead, the rest of the list still builds, and a failure is no longer retried every frame.

@@ -143,7 +143,7 @@ public sealed class SettingsTab
         ImGuiComponents.HelpMarker(
             "On by default (0.1.7.7). When a dispatch is missing materials that a vendor sells - gil vendors, and currency vendors priced in one currency Knightshopper supports - the run hands the list to Knightshopper's purchase IPC instead of stopping at each vendor: grouped by currency, bought to TARGET inventory totals (a repeat dispatch asks for the same target at most, so nothing is bought twice). " +
             "The run prints the list and its estimated cost before anything is spent. Market-board items are never routed, and one attempt per group means a refusal never retries. " +
-            "TWO switches must be on for a purchase to start: this one, and LazyCrafter on Knightshopper's allowed-plugins IPC list - that list lives in Knightshopper's settings (IPC permissions); LazyCrafter never changes it. If Knightshopper is missing, busy, not allowed, or has no vendor for an item, those items fall back to the usual shopping stops - flagged and named in chat as before. " +
+            "TWO switches must be on for a purchase to start: this one, and LazyCrafter on Knightshopper's allowed-plugins IPC list - that list lives in Knightshopper's Settings window, under its IPC section ('Allow other plugins to serve and trigger own purchase lists' plus the plugin allow-list below it); LazyCrafter never changes it. If Knightshopper is missing, busy, not allowed, or has no vendor for an item, those items fall back to the usual shopping stops - flagged and named in chat as before. " +
             "Off: the run behaves exactly like every version before 0.1.7.7 - every vendor item is flagged and named, nothing is bought automatically.");
 
         var pm = cfg.PriceMatchAfterCraft;

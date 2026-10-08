@@ -13,6 +13,10 @@ namespace ArmoireAutoFill.ShoppingListHarness;
 //    sub-currency >= -1, unique (item, sub) keys).
 // 3. Selection logic: owned-state handling, dedup per currency, multi-family items,
 //    500-item truncation, quest-flag pass-through, price totals.
+// 4. Import instructions: currency names match Knightshopper's own sidebar/window
+//    names, and the copy message names the real controls verified in Knightshopper
+//    1.0.1.6 (window, shopping-list dropdown, 'Paste' clipboard button, new-list
+//    name, the chat success line, and the wrong-currency refusal).
 internal static class Program
 {
     private static int _failures;
@@ -50,6 +54,7 @@ internal static class Program
         RealListRoundTrips();
         DecoderEdgeCases();
         SelectionLogic();
+        ImportInstructions();
 
         Console.WriteLine(_failures == 0 ? "OK" : $"{_failures} failure(s)");
         Environment.Exit(_failures == 0 ? 0 : 1);
@@ -249,5 +254,48 @@ internal static class Program
         Check(bigGil.Items.Count == 2 && bigGil.Truncated, "truncation to per-currency limit",
             $"{bigGil.Items.Count} truncated={bigGil.Truncated}");
         Check(bigGil.TotalPrice == 2, "total price sums kept items", bigGil.TotalPrice.ToString());
+    }
+
+    // ---- 4. Import instructions vs Knightshopper 1.0.1.6's real UI strings ----
+    private static void ImportInstructions()
+    {
+        // Knightshopper's own display names (General.json "_name.*UI" / "Currency.*"),
+        // verified from its 1.0.1.6 release: these name the sidebar entries and windows.
+        var expected = new Dictionary<byte, string>
+        {
+            [0] = "Bicolor Gemstones", [1] = "Company Seals", [2] = "Gil",
+            [3] = "The Hunt", [4] = "MGP", [5] = "PvP", [6] = "Scrips",
+            [7] = "Tomestones", [8] = "Firmament", [9] = "Cosmocredits",
+            [10] = "Occult Crescent",
+        };
+        foreach (var (id, name) in expected)
+            Check(CurrencyNames.For(id) == name, $"currency id {id} named as Knightshopper shows it",
+                CurrencyNames.For(id));
+
+        // The copy message must let a first-time Knightshopper user follow it: the
+        // currency window, the sidebar category, the shopping-list dropdown, the
+        // 'New list name...' row with the clipboard button labelled 'Paste', the new
+        // list's name, the chat success line, and the wrong-currency refusal.
+        foreach (var id in new byte[] { 2, 3, 4, 7 }) // the currencies Armoire can emit
+        {
+            var window = CurrencyNames.For(id);
+            var msg = KnightshopperInstructions.CopiedMessage(id, 86, $"Armoire fill ({window})");
+            Check(msg.Contains($"Copied 86 item(s) for {window}"), $"[{window}] message says the code is copied",
+                msg.Split('\n')[0]);
+            Check(msg.Contains($"click {window} in the left sidebar (under Currencies)"), $"[{window}] names the sidebar entry and category");
+            Check(msg.Contains("shopping-list dropdown at the top of the window"), $"[{window}] names the list dropdown");
+            Check(msg.Contains("'New list name...'") && msg.Contains("clipboard icon"), $"[{window}] names the import row");
+            Check(msg.Contains("tooltip is 'Paste'"), $"[{window}] names the button by Knightshopper's tooltip");
+            Check(msg.Contains($"'Armoire fill ({window})'"), $"[{window}] names the list it creates");
+            Check(msg.Contains("Imported the shopping list from the clipboard."), $"[{window}] quotes Knightshopper's success line");
+            Check(msg.Contains($"{window} codes") && msg.Contains("refuses it"), $"[{window}] states the wrong-currency refusal");
+        }
+
+        var hunt = KnightshopperInstructions.CopiedMessage(3, 5, "Armoire fill (The Hunt)");
+        Check(!hunt.Contains("Hunt tab") && !hunt.Contains("paste button"), "no vague 'tab'/'paste button' wording left");
+
+        var notLoaded = KnightshopperInstructions.NotLoadedMessage();
+        Check(notLoaded.Contains("'Paste'") && notLoaded.Contains("'New list name...'") && notLoaded.Contains("window"),
+            "not-loaded hint points at the same controls");
     }
 }

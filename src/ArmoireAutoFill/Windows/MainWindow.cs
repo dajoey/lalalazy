@@ -128,8 +128,7 @@ public class MainWindow : Window
 
         var ksLoaded = IsKnightshopperLoaded();
         if (!ksLoaded)
-            ImGui.TextColored(ColorMuted,
-                "Knightshopper is not installed or not loaded — you can still copy the codes below and paste them after loading it.");
+            ImGui.TextColored(ColorMuted, KnightshopperInstructions.NotLoadedMessage());
 
         foreach (var group in result.Currencies)
         {
@@ -147,8 +146,7 @@ public class MainWindow : Window
                         .ToList();
                     var share = KnightshopperShare.Encode(group.CurrencyId, listName, items);
                     ImGui.SetClipboardText(share);
-                    _ksStatus = $"Copied {items.Count} item(s) for {group.CurrencyName} — open Knightshopper, select the "
-                                + $"{group.CurrencyName} tab, and press its paste button. This adds a new list and keeps your existing ones.";
+                    _ksStatus = KnightshopperInstructions.CopiedMessage(group.CurrencyId, items.Count, listName);
                 }
                 catch (Exception ex)
                 {
