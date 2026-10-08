@@ -19,6 +19,7 @@ internal static class Program
         Console.WriteLine("source root: " + SrcRoot);
 
         Scaffold.Run();
+        EmergencyGcd.Run();
 
         return Harness.Finish();
     }
