@@ -127,6 +127,7 @@ public partial class WhiteMageRotation : CustomRotation
 	static partial void ModifyAquaveilPvP(ref ActionSetting setting)
 	{
 		setting.TargetStatusNeed = StatusHelper.PurifyPvPStatuses;
+		setting.StatusFromSelf = false;
 		setting.IsFriendly = true;
 		setting.TargetType = TargetType.Dispel;
 	}

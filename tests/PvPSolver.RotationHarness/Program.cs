@@ -32,6 +32,7 @@ internal static class Program
         MeleeRange.Run();
         GuardianRange.Run();
         BrdPaean.Run();
+        WhmAquaveil.Run();
 
         return Harness.Finish();
     }
