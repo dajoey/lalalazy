@@ -1,3 +1,4 @@
+using Dalamud.Game.ClientState.Objects.SubKinds;
 using RotationSolver.Basic.Configuration;
 using RotationSolver.Decisions;
 
