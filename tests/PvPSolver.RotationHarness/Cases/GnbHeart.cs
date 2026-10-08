@@ -23,8 +23,11 @@ internal static class GnbHeart
             calls[0] == "out action, targetOverride: TargetType.Self", calls[0]);
 
         var cond = CsSource.IfConditions(emergency.Body).Single(c => c.Contains("HeartOfCorundumPvP.CanUse("));
-        Harness.Case("EmergencyAbility still gates on the player's own HP <= 30 percent",
-            Regex.IsMatch(cond, @"Player\?\.GetHealthRatio\(\)\s*\*\s*100\s*<=\s*30\b"), cond);
+        // Round 3: the fixed 30 became the Heart of Corundum row's setting (default 30, the same <= comparison on the
+        // 0-100 scale); the LiteralSwaps case proves the rest of the condition is unchanged.
+        Harness.Case("EmergencyAbility still gates on the player's own HP <= the Heart of Corundum percent (default 30)",
+            Regex.IsMatch(cond, @"Player\?\.GetHealthRatio\(\)\s*\*\s*100\s*<=\s*Service\.Config\.DefensivePercentPoints\(RotationSolver\.Decisions\.DefensiveTable\.HeartOfCorundum\)")
+            && RotationSolver.Decisions.DefensiveTable.ToPercentPoints(RotationSolver.Decisions.DefensiveTable.ResolvePercent(RotationSolver.Decisions.DefensiveTable.HeartOfCorundum, null)) == 30f, cond);
 
         var defense = SourceFiles.OverrideMethod("GNB_Default.PVP.cs", "DefenseSingleAbility");
         var dcalls = Call.Matches(defense.Body).Select(m => CsSource.Squash(m.Groups["args"].Value)).ToList();

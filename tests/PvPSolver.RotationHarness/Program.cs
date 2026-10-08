@@ -34,9 +34,28 @@ internal static class Program
         BrdPaean.Run();
         WhmAquaveil.Run();
         TargetingSelect.Run();
-        DefensiveTriggerTruth.Run();
+        RunGroup("DefensiveTriggerTruth", DefensiveTriggerTruth.Run);
+        RunGroup("DefensiveTableCases", DefensiveTableCases.Run);
+        RunGroup("DefensiveStageCases", DefensiveStageCases.Run);
+        RunGroup("LiteralSwaps", LiteralSwaps.Run);
+        RunGroup("EmergencyOverrideLint", EmergencyOverrideLint.Run);
+        RunGroup("PvpSettingsCases", PvpSettingsCases.Run);
 
         return Harness.Finish();
+    }
+
+    // A group that throws (for example because the tree under test lacks a file the group reads) is one FAIL, not a crash,
+    // so the harness can be replayed against an older tree and still report every case.
+    private static void RunGroup(string name, Action run)
+    {
+        try
+        {
+            run();
+        }
+        catch (Exception e)
+        {
+            Harness.Case(name + " ran to the end", false, e.GetType().Name + ": " + e.Message);
+        }
     }
 
     // The plugin's keep-lists leave Dalamud's own assemblies out of the output folder; resolve them from the
