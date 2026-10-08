@@ -23,6 +23,7 @@ internal static class Program
         SchChain.Run();
         VprCoil.Run();
         GnbBlast.Run();
+        GnbHeart.Run();
 
         return Harness.Finish();
     }

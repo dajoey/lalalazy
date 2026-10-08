@@ -75,7 +75,7 @@ public sealed class GNB_DefaultPvP : GunbreakerRotation
 	protected override bool EmergencyAbility(IAction nextGCD, out IAction? action)
 	{
 		//You WILL try to save yourself. Configs be damned!
-		if (HeartOfCorundumPvP.CanUse(out action) && Player?.GetHealthRatio() * 100 <= 30)
+		if (HeartOfCorundumPvP.CanUse(out action, targetOverride: TargetType.Self) && Player?.GetHealthRatio() * 100 <= 30)
 		{
 			return true;
 		}
