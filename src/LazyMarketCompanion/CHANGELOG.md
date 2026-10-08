@@ -1,3 +1,16 @@
+## v0.2.8.14 (2026-10-08) [testing]
+### Fixed
+- **A pinch row that cannot get its dialog or its price is now skipped; it no longer aborts the whole retainer with the price dialog left open.** Each row step waits for a dialog or a market price. When one never arrived, the wait ran into the task manager's hard 10-second limit, which discards every remaining task of the run and leaves the dialog on screen. Each row step now has a shorter budget of its own: when it runs out, the row is skipped with a log line naming the stage and row, the row's dialogs are closed, any late market reply is dropped, and the run carries on with the next row. A skipped row keeps its current price.
+- **A Universalis timeout is no longer mistaken for a cancellation.** The sale-history lookup used when the market board is empty (and the data-center price lookup) swallowed the HTTP client's own 8-second timeout as if the run had been cancelled, so no answer was ever delivered and the row waited out the hard limit. A timeout is now reported as a failed lookup ("Universalis did not answer in time") and the row falls back to the normal no-price handling.
+- **The empty-board sale-history wait now actually times out.** Its 6-second deadline could never be reached because the pending candidate price was cleared on every retry; the candidate is now kept while the lookup is pending.
+- **A run that does stop (a step timeout, a session cap, a vendoring halt) closes what it left open before AutoRetainer is handed back.** The price dialog, item menu, market result, sell list and retainer inventory panel are closed innermost-first within a few seconds, the retainer menu is left for AutoRetainer, and the buyback-abandon confirm is never touched. The log names the last stage and what was closed.
+- **The AutoRetainer session cap grows with the number of rows the session queued** instead of staying a flat five minutes, so a long pinch list at slow market-board delays is not cut off.
+- **A manual sweep that reaches a retainer's buyback-abandon confirm now parks there with a plain report** instead of letting the next retainer's click wait out the hard limit and abort with a generic timeout. The report names the retainers that did not run.
+- **An interrupted manual sweep can be resumed.** Starting the sweep again within 30 minutes runs only the retainers that had not finished; retainers that finished are not re-priced.
+### Notes
+- Untried build: the guard was tested offline against a simulated task chain and the plugin source, not yet in the game.
+- Testing channel only; the production channel is unchanged.
+
 ## v0.2.8.13 (2026-10-08) [testing]
 ### Fixed
 - **The Auto-Market panel's confirmation dialogs open now.** In 0.2.8.12, "Add all visible", "Remove all visible" and the panel's Enable Auto-Market switch each tried to show a confirmation dialog under a different name than the one they opened it with, so no dialog could ever appear and those controls did nothing when clicked. The names now match, and a regression test scans the panel's code so a button and its dialog cannot drift apart silently again.

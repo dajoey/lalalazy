@@ -94,11 +94,13 @@ internal sealed class UniversalisPriceProvider : IDisposable
     {
       marketData = await _client.GetMarketData(itemId, dataCenterName, hqOnly, 0, EntryCount, cancellationToken).ConfigureAwait(false);
     }
-    catch (OperationCanceledException) { throw; }
+    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
     catch (Exception ex)
     {
+      // 0.2.8.14: the HttpClient's own timeout is also an OperationCanceledException. It used to be
+      // rethrown as if the caller had cancelled, and the caller swallowed it without an answer.
       Svc.Log.Warning(ex, $"[LMC] sale-history lookup failed for item {itemId}");
-      LastHistoryRefusal = "the Universalis request failed";
+      LastHistoryRefusal = ex is OperationCanceledException ? "Universalis did not answer in time" : "the Universalis request failed";
       return -1;
     }
 

@@ -229,6 +229,32 @@ internal sealed class MarketAutomation : Window, IDisposable
   private long _arStartedAt;
   private const int ArSessionCapMs = 5 * 60 * 1000;
 
+  // 0.2.8.14, the retainer-dialog stall guard (AutoMarket/StallGuard.cs, harness cases 163-169).
+  // Every row step waits on a dialog or a price and used to wait out the task manager's hard 10 s
+  // limit, which clears the WHOLE remaining chain and leaves the dialog on screen. _stall puts a
+  // soft deadline in front of that limit; the recovery below closes what an aborted chain left open
+  // before AutoRetainer is handed back.
+  private readonly StepStall _stall = new();
+  private readonly SweepProgress _sweep = new();
+  private DialogRecovery? _recovery;
+  private string _recoveryReason = "";
+  private bool _recoveryLoud;
+  private bool _recoveryReleaseAr;
+  private bool _recoveryManualRun;
+  private string _recoveryStage = "";
+  private long _recoveryMenuDeadline;
+  private string _lastStage = "none yet";
+  // A run (sweep, Auto-Market, AutoRetainer session) is in flight and has not reached its closing
+  // step. A chain that goes idle while this is set ended by timeout/abort, not by finishing.
+  private bool _chainOpen;
+  // Rows queued this session; the session cap grows with them (see ArSessionCapNow).
+  private int _arRowsQueued;
+  private string _sweepCurrent = "";
+  // The run in flight is a SweepAllRetainers (so _sweep describes it); every other entry point clears this.
+  private bool _sweepActive;
+  // CloseRetainer is static; it raises this and the per-frame watcher does the stop.
+  private static bool _buybackParkRequested;
+
   // Error reporting (2026-09-21): circuit breaker around the per-frame Draw below. A Draw that throws on
   // every frame used to abort, log and (with ShowErrorsInChat) print on EVERY frame; now it is stopped after
   // repeated failures (one ER|trip line + one chat notice), retries on its own, and while it is stopped the
@@ -236,7 +262,7 @@ internal sealed class MarketAutomation : Window, IDisposable
   // would watch (OnArPostprocessStep / OnArReadyToPostprocess).
   private readonly TelemetryGuard _drawGuard = LalaTelemetry.CreateGuard("automation.draw", "retainer automation");
 
-  public bool IsBusy => _taskManager.IsBusy;
+  public bool IsBusy => _taskManager.IsBusy || _recovery != null;
   public string? ActiveAutoRetainerSession => _arRetainer;
 
   public MarketAutomation()
@@ -285,6 +311,8 @@ internal sealed class MarketAutomation : Window, IDisposable
       AutoRetainerIPC.Instance.OnRetainerPostprocessStep -= OnArPostprocessStep;
       AutoRetainerIPC.Instance.OnRetainerReadyToPostprocess -= OnArReadyToPostprocess;
     }
+    _chainOpen = false;
+    _recovery = null;
     _taskManager.Abort();
     EndArSession("plugin unloading");
     CancelPreflightLookup();
@@ -315,11 +343,23 @@ internal sealed class MarketAutomation : Window, IDisposable
       if (_deferredAbortRequested)
       {
         _deferredAbortRequested = false;
-        _taskManager.Abort();
-        AutoRetainerIPC.Suppressed(false);
-        RemoveTalkAddonListeners();
-        EndArSession($"vendoring leg failed: {_vendorStopReason}");
+        if (_arRetainer != null)
+        {
+          // 0.2.8.14: the halt is still on purpose, but AutoRetainer is no longer handed back with
+          // the sell list or the retainer inventory panel open.
+          StartRecovery($"vendoring leg failed: {_vendorStopReason}", loud: false, releaseAr: true);
+        }
+        else
+        {
+          _chainOpen = false;
+          _taskManager.Abort();
+          AutoRetainerIPC.Suppressed(false);
+          RemoveTalkAddonListeners();
+          EndArSession($"vendoring leg failed: {_vendorStopReason}");
+        }
       }
+      if (_buybackParkRequested)
+        BuybackParkStop();
       ArSessionWatchdog();
       DrawForRetainerList();
       DrawForRetainerSellList();
@@ -333,6 +373,8 @@ internal sealed class MarketAutomation : Window, IDisposable
         Svc.Chat.PrintError($"[LMC] Error: {ex.Message}");
 
       RemoveTalkAddonListeners();
+      _chainOpen = false;
+      _recovery = null;
       EndArSession("exception");
     }
   }
@@ -443,6 +485,8 @@ internal sealed class MarketAutomation : Window, IDisposable
 
   public void CancelEverything(string reason)
   {
+    _chainOpen = false;
+    _recovery = null;
     _taskManager.Abort();
     AutoRetainerIPC.Suppressed(false);
     RemoveTalkAddonListeners();
@@ -483,6 +527,24 @@ internal sealed class MarketAutomation : Window, IDisposable
     var allEnabled = Plugin.Configuration.EnabledRetainerNames.Count == 0;
     var doMarket = withAutoMarket && Plugin.Configuration.AutoMarketEnabled;
 
+    // 0.2.8.14: a sweep that was interrupted inside the resume window runs only the retainers that
+    // did not finish; the ones that did are never re-priced.
+    var sweepNames = new List<string>();
+    for (var i = 0; i < num; i++)
+    {
+      var name = retainers[i].Name;
+      if (allEnabled || Plugin.Configuration.EnabledRetainerNames.Contains(name))
+        sweepNames.Add(name);
+    }
+    var resumedPast = _sweep.Begin(sweepNames, Environment.TickCount64);
+    _sweepActive = true;
+    if (resumedPast.Count > 0)
+    {
+      var resumeLine = $"resuming the interrupted sweep: skipping {resumedPast.Count} retainer(s) that already finished ({string.Join(", ", resumedPast)}); running {_sweep.Planned.Count} remaining";
+      Svc.Log.Information($"[LMC] {resumeLine}");
+      Communicator.PrintInfo(resumeLine);
+    }
+
     for (var i = 0; i < num; i++)
     {
       var retainerName = retainers[i].Name;
@@ -491,8 +553,11 @@ internal sealed class MarketAutomation : Window, IDisposable
         Svc.Log.Debug($"[LMC] skipping retainer '{retainerName}' (excluded by configuration)");
         continue;
       }
+      if (resumedPast.Contains(retainerName))
+        continue;
       EnqueueSingleRetainer(i, doMarket, retainerName);
     }
+    _chainOpen = true;
 
     // 0.1.42.0, final deposit lap (fixes "mostly just filled up my bags", the related support thread):
     // After the last retainer's Auto-Market session, deposit any remaining routed stock stranded in bags.
@@ -512,6 +577,7 @@ internal sealed class MarketAutomation : Window, IDisposable
 
     _taskManager.Enqueue(RemoveTalkAddonListeners);
     _taskManager.Enqueue(AnnounceRunDone, "AnnounceSweepDone");
+    _taskManager.Enqueue(() => { _sweep.Complete(); _sweepActive = false; return true; }, "SweepComplete");
     _taskManager.Enqueue(() => AutoRetainerIPC.Suppressed(false));
   }
 
@@ -566,6 +632,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     if (visited == 0)
       Communicator.PrintInfo("review sweep: no enabled retainers to visit");
 
+    _chainOpen = true;
     _taskManager.Enqueue(RemoveTalkAddonListeners);
     _taskManager.Enqueue(AnnounceReviewSweepDone, "AnnounceReviewSweepDone");
     _taskManager.Enqueue(() => AutoRetainerIPC.Suppressed(false));
@@ -655,6 +722,7 @@ internal sealed class MarketAutomation : Window, IDisposable
 
   private void AnnounceReviewSweepDone()
   {
+    _chainOpen = false;
     var moved = _reviewMovedOk;
     var left = _reviewLeftForSpace;
     var enrolled = _reviewSkippedEnrolled;
@@ -680,7 +748,9 @@ internal sealed class MarketAutomation : Window, IDisposable
     // Same execution order as the sweep's InsertSingleItem path: Insert front-pushes, so inserting rows
     // N-1..0 runs them 0..N-1. Unified onto one helper in 0.1.9.0 so the pre-flight covers all three
     // full-row entry points instead of two of them.
+    _chainOpen = true;
     InsertPinchPass();
+    _taskManager.Enqueue(() => { _chainOpen = false; return true; }, "PinchDone");
   }
 
   /// <summary>Auto-market + pinch the retainer whose sell list is open.</summary>
@@ -697,6 +767,7 @@ internal sealed class MarketAutomation : Window, IDisposable
 
     ClearState();
     BeginRun();
+    _chainOpen = true;
     _taskManager.Enqueue(() => InsertAutoMarketThenPinch(), "AutoMarketCurrent");
     _taskManager.Enqueue(AnnounceRunDone, "AnnounceDone");
   }
@@ -707,6 +778,7 @@ internal sealed class MarketAutomation : Window, IDisposable
 
   private void EnqueueSingleRetainer(int index, bool withAutoMarket, string retainerName = "")
   {
+    _taskManager.Enqueue(() => { _sweepCurrent = retainerName; return true; }, $"RetainerStart{index}");
     _taskManager.Enqueue(() => ClickRetainer(index), $"ClickRetainer{index}");
     _taskManager.DelayNext(100);
     _taskManager.Enqueue(ClickSellItems, $"ClickSellItems{index}");
@@ -724,6 +796,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     _taskManager.DelayNext(100);
     _taskManager.Enqueue(CloseRetainer, $"CloseRetainer{index}");
     _taskManager.DelayNext(100);
+    _taskManager.Enqueue(() => { _sweep.MarkDone(retainerName); return true; }, $"RetainerDone{index}");
   }
 
   /// <summary>
@@ -949,6 +1022,7 @@ internal sealed class MarketAutomation : Window, IDisposable
         _buybackConfirmed = true;
         _retainerCloseSent = false;
         _retainerCloseTicks = 0;
+        _buybackParkRequested = true;
         return true;
 
       case AutoMarket.RetainerCloseAction.CloseMenu:
@@ -1235,7 +1309,7 @@ internal sealed class MarketAutomation : Window, IDisposable
         decisions = PinchPreflight.Decide(snapshot, new Dictionary<uint, ItemQuote>(), options,
           DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), _allaganFlags, ApplyItemPriceLimitsById);
       }
-      catch (OperationCanceledException) { return; }
+      catch (OperationCanceledException) when (token.IsCancellationRequested) { return; }
       catch (Exception ex) { Svc.Log.Warning(ex, "[LMC] pinch pre-flight failed; the pass will walk nothing but placeholders"); }
 
       await Svc.Framework.RunOnFrameworkThread(() =>
@@ -2048,7 +2122,7 @@ internal sealed class MarketAutomation : Window, IDisposable
       {
         // 0.1.19.0: this arm now also catches the HttpClient's OWN timeout. A timeout throws
         // TaskCanceledException, which IS an OperationCanceledException - the old bare
-        // `catch (OperationCanceledException) { return; }` swallowed exactly that case SILENTLY:
+        // a bare catch of OperationCanceledException that only returned swallowed exactly that case SILENTLY:
         // no warning, _gateQuotesDone never set, GateWait burning its whole limit on a fetch
         // that had already died, BuildPlan blind. With the `when` filter above, a timeout lands
         // HERE instead - named, logged, and the wait completes with null quotes: a declared
@@ -2230,7 +2304,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     {
       var price = -1;
       try { price = await _universalisPriceProvider.GetNewPriceById(op.ItemId, op.HQ, token).ConfigureAwait(false); }
-      catch (OperationCanceledException) { return; }
+      catch (OperationCanceledException) when (token.IsCancellationRequested) { return; }
       catch (Exception ex) { Svc.Log.Warning(ex, $"[LMC] Universalis pre-list lookup failed for {op.ItemId}"); }
 
       await Svc.Framework.RunOnFrameworkThread(() =>
@@ -2282,7 +2356,7 @@ internal sealed class MarketAutomation : Window, IDisposable
       return;
     }
 
-    if (_taskManager.IsBusy)
+    if (_taskManager.IsBusy || _recovery != null)
     {
       Svc.Log.Warning($"[LMC] AR ready for {retainer} but we are busy; releasing immediately");
       AutoRetainerIPC.Instance?.FinishRetainerPostProcess();
@@ -2299,6 +2373,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     _arRetainer = retainer;
     _arStartedAt = Environment.TickCount64;
     ClearState();
+    _chainOpen = true;
     BeginRun();
     Communicator.PrintRetainerName(retainer);
     Svc.Log.Information($"[LMC] AR session start: {retainer}");
@@ -2312,7 +2387,7 @@ internal sealed class MarketAutomation : Window, IDisposable
     _taskManager.DelayNext(300);
     _taskManager.Enqueue(WaitSelectStringReady, 10000, "AR.WaitMenu");
     _taskManager.Enqueue(AnnounceRunDone, "AR.Announce");
-    _taskManager.Enqueue(() => EndArSession("done"), "AR.Finish");
+    _taskManager.Enqueue(() => { _chainOpen = false; EndArSession("done"); return true; }, "AR.Finish");
   }
 
   private static unsafe bool? WaitSellListReady()
@@ -2327,27 +2402,184 @@ internal sealed class MarketAutomation : Window, IDisposable
     return GenericHelpers.TryGetAddonByName<AtkUnitBase>("SelectString", out var addon) && GenericHelpers.IsAddonReady(addon);
   }
 
-  /// <summary>If the AR session's chain died (timeout/abort) or overran, release AR so it never hangs on us.</summary>
+  /// <summary>
+  /// The per-frame watcher for a run in flight. A chain that goes idle without reaching its closing
+  /// step ended by timeout/abort; one that overruns its cap is aborted. Either way (0.2.8.14) the
+  /// dialogs the chain left open are closed BEFORE AutoRetainer is handed back - the old release
+  /// went out with the price dialog still on screen, AutoRetainer's own wait for the retainer menu
+  /// then timed out, and the player came back to a stuck retainer dialog.
+  /// </summary>
   private void ArSessionWatchdog()
   {
-    if (_arRetainer == null) return;
+    if (_recovery != null)
+    {
+      ContinueRecovery();
+      return;
+    }
+
+    var arActive = _arRetainer != null;
+    if (!arActive && !_chainOpen) return;
 
     if (!_taskManager.IsBusy)
     {
-      // t_deb0e274 (2026-09-10): this used to be dalamud.log-only - "AR session end: RetainerC
-      // (chain ended without Finish (timeout/abort))" with nothing in chat. The run showed only the
-      // symptom ("gets stuck in the menu") with no indication anything had gone wrong, and every
-      // retainer AutoRetainer still had queued for this cycle silently never ran. Surface it loudly:
-      // it is exactly the "the whole AR session can silently abort mid-menu" half of this bug.
-      EndArSession("chain ended without Finish (timeout/abort)", surfaceLoudly: true);
+      // t_deb0e274 (2026-09-10): surface it loudly - exactly the "the whole AR session can silently
+      // abort mid-menu" half of that bug. The ECommons log names the step that timed out; the stage
+      // below is the last step this watcher saw running.
+      StartRecovery("chain ended without finishing (timeout/abort)", loud: true, releaseAr: arActive);
       return;
     }
-    if (Environment.TickCount64 - _arStartedAt > ArSessionCapMs)
+
+    _lastStage = ReadRunningStepName() ?? _lastStage;
+    if (arActive && Environment.TickCount64 - _arStartedAt > ArSessionCapNow())
     {
-      Svc.Log.Warning($"[LMC] AR session for {_arRetainer} exceeded {ArSessionCapMs / 1000}s; aborting");
+      Svc.Log.Warning($"[LMC] AR session for {_arRetainer} exceeded {ArSessionCapNow() / 1000}s (base {ArSessionCapMs / 1000}s + its rows); aborting");
       _taskManager.Abort();
-      EndArSession("session cap", surfaceLoudly: true);
+      StartRecovery("session cap", loud: true, releaseAr: true);
     }
+  }
+
+  // The task manager keeps the running step in a member it does not expose, so the name is read by
+  // reflection, once resolved, and only to label a log line: any failure leaves the previous label.
+  private static readonly System.Reflection.MemberInfo? RunningStepMember =
+    typeof(TaskManager).GetMember("CurrentTask", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic).FirstOrDefault();
+
+  private string? ReadRunningStepName()
+  {
+    try
+    {
+      var step = RunningStepMember switch
+      {
+        System.Reflection.FieldInfo f => f.GetValue(_taskManager),
+        System.Reflection.PropertyInfo p => p.GetValue(_taskManager),
+        _ => null,
+      };
+      if (step == null) return null;
+      var t = step.GetType();
+      return (t.GetProperty("Name")?.GetValue(step) ?? t.GetField("Name")?.GetValue(step)) as string;
+    }
+    catch
+    {
+      return null;
+    }
+  }
+
+  /// <summary>The session cap: the flat base plus the per-row budget of every row this session queued.</summary>
+  private long ArSessionCapNow()
+    => StallPolicy.SessionCapMs(ArSessionCapMs, _arRowsQueued, StallPolicy.PerRowBudgetMs(Plugin.Configuration.GetMBPricesDelayMS, Plugin.Configuration.MarketBoardKeepOpenMS));
+
+  private void StartRecovery(string reason, bool loud, bool releaseAr)
+  {
+    _chainOpen = false;
+    _taskManager.Abort();
+    AutoRetainerIPC.Suppressed(false);
+    RemoveTalkAddonListeners();
+    _stall.Clear();
+    CancelUniversalisPriceRequest();
+    _mbHandler.AbandonRequest();
+    _skipCurrentItem = false;
+    _recoveryReason = reason;
+    _recoveryLoud = loud;
+    _recoveryReleaseAr = releaseAr;
+    _recoveryManualRun = !releaseAr;
+    _recoveryStage = _lastStage;
+    _recoveryMenuDeadline = 0;
+    if (_recoveryManualRun && _sweepActive)
+      _sweep.Interrupt(Environment.TickCount64);
+    _recovery = new DialogRecovery(Environment.TickCount64);
+  }
+
+  private static unsafe bool IsDialogOpen(string name) => GenericHelpers.TryGetAddonByName<AtkUnitBase>(name, out _);
+
+  private static unsafe void CloseDialog(string name)
+  {
+    if (GenericHelpers.TryGetAddonByName<AtkUnitBase>(name, out var addon))
+    {
+      if (name == "RetainerSell" && GenericHelpers.IsAddonReady(addon))
+        ECommons.Automation.Callback.Fire(addon, true, 1); // cancel, never confirm
+      addon->Close(true);
+    }
+  }
+
+  private void ContinueRecovery()
+  {
+    var now = Environment.TickCount64;
+    var step = _recovery!.Next(now, IsDialogOpen);
+    switch (step.Kind)
+    {
+      case RecoveryKind.Close:
+        CloseDialog(step.Addon!);
+        return;
+      case RecoveryKind.Wait:
+        return;
+    }
+
+    // Our dialogs are closed (or the time bound ran out). A manual run has no AutoRetainer to carry
+    // on from the retainer menu, so it also backs out of it - unless the buyback-abandon confirm is
+    // up, which automation never answers.
+    if (step.Kind == RecoveryKind.Done && _recoveryManualRun && !IsDialogOpen(DialogRecovery.ProtectedConfirm))
+    {
+      if (_recoveryMenuDeadline == 0)
+        _recoveryMenuDeadline = now + 4000;
+      if (now < _recoveryMenuDeadline && CloseRetainer() != true)
+        return;
+    }
+
+    var stillOpen = _recovery.StillOpen(IsDialogOpen);
+    var closed = _recovery.Closed;
+    var reason = _recoveryReason;
+    var loud = _recoveryLoud;
+    var releaseAr = _recoveryReleaseAr;
+    var stage = _recoveryStage;
+    _recovery = null;
+
+    var line = StallLine.Recovered(reason, stage, closed, stillOpen);
+    if (stillOpen.Count > 0) Svc.Log.Error($"[LMC] {line}"); else Svc.Log.Warning($"[LMC] {line}");
+
+    if (!releaseAr)
+    {
+      ReportInterruptedSweep(reason, stage);
+      return;
+    }
+    EndArSession(reason, surfaceLoudly: loud, lastStage: stage);
+  }
+
+  /// <summary>Says plainly where a manual sweep stopped and which retainers did not run.</summary>
+  private void ReportInterruptedSweep(string reason, string stage)
+  {
+    var notRun = _sweepActive ? _sweep.NotRun : [];
+    var text = !_sweepActive
+      ? $"Auto-Market stopped at {stage} ({reason}); its dialogs were closed."
+      : notRun.Count == 0
+        ? $"Auto-Market stopped at {stage} ({reason}); every planned retainer had finished."
+        : $"Auto-Market stopped at {stage} ({reason}). Did not run: {string.Join(", ", notRun)}. Start the sweep again within 30 minutes and it runs only those.";
+    Svc.Log.Error($"[LMC] {text}");
+    if (Plugin.Configuration.ShowErrorsInChat)
+      Svc.Chat.PrintError($"[LMC] {text}");
+  }
+
+  /// <summary>
+  /// The sweep reached a retainer whose buyback-abandon confirm is up. The confirm is the player's
+  /// (automation never answers it), so the sweep PARKS here on purpose: the queue is cleared with
+  /// a plain report instead of letting the next retainer's click wait out the task manager's limit
+  /// and abort with a generic timeout, and AutoRetainer's suppression is lifted.
+  /// </summary>
+  private void BuybackParkStop()
+  {
+    _buybackParkRequested = false;
+    _chainOpen = false;
+    _taskManager.Abort();
+    AutoRetainerIPC.Suppressed(false);
+    RemoveTalkAddonListeners();
+    if (_sweepCurrent.Length > 0)
+      _sweep.MarkDone(_sweepCurrent);
+    if (_sweepActive)
+      _sweep.Interrupt(Environment.TickCount64);
+    var notRun = _sweepActive ? _sweep.NotRun : [];
+    var text = notRun.Count == 0
+      ? $"Auto-Market parked on {_sweepCurrent}: the buyback-abandon confirm is up and is yours to answer. Every other retainer had finished."
+      : $"Auto-Market parked on {_sweepCurrent}: the buyback-abandon confirm is up and is yours to answer (buy back first if wanted, then close the retainer). Did not run: {string.Join(", ", notRun)}. Start the sweep again within 30 minutes and it runs only those.";
+    Svc.Log.Warning($"[LMC] {text}");
+    Communicator.PrintInfo(text);
   }
 
   /// <param name="surfaceLoudly">
@@ -2356,19 +2588,25 @@ internal sealed class MarketAutomation : Window, IDisposable
   /// endings a caller already announced through its own chat line (the stop-on-failure vendor halt,
   /// the Draw() exception handler) - those would otherwise print twice.
   /// </param>
-  private void EndArSession(string reason, bool surfaceLoudly = false)
+  private void EndArSession(string reason, bool surfaceLoudly = false, string? lastStage = null)
   {
     if (_arRetainer == null) return;
     if (surfaceLoudly)
     {
-      Svc.Log.Error($"[LMC] AR session end: {_arRetainer} ({reason}) - the task chain aborted before finishing; any retainers AutoRetainer still had queued this cycle may not run");
+      Svc.Log.Error($"[LMC] AR session end: {_arRetainer} ({reason}) - the task chain stopped before finishing at {lastStage ?? _lastStage}; its dialogs were closed and AutoRetainer was released, so it carries on with its next retainer");
       if (Plugin.Configuration.ShowErrorsInChat)
-        Svc.Chat.PrintError($"[LMC] Auto-Market stopped mid-retainer on {_arRetainer} ({reason}). Retainers queued after it this cycle may not have run - check the log.");
+        Svc.Chat.PrintError($"[LMC] Auto-Market stopped mid-retainer on {_arRetainer} ({reason}, at {lastStage ?? _lastStage}). Its dialogs were closed and AutoRetainer carries on with the next retainer - check the log.");
     }
     else
     {
       Svc.Log.Information($"[LMC] AR session end: {_arRetainer} ({reason})");
     }
+    FinishArRelease();
+  }
+
+  /// <summary>The one place AutoRetainer is handed back.</summary>
+  private void FinishArRelease()
+  {
     _arRetainer = null;
     AutoRetainerIPC.Instance?.FinishRetainerPostProcess();
   }
@@ -2408,27 +2646,79 @@ internal sealed class MarketAutomation : Window, IDisposable
 
   private void EnqueueSingleItem(int index)
   {
-    _taskManager.Enqueue(() => OpenItemContextMenu(index), $"OpenItemContextMenu{index}");
+    _arRowsQueued++;
+    _taskManager.Enqueue(() => Bounded("OpenItemContextMenu", index, StallPolicy.RowStepSoftMs, "the sell list to be ready", () => OpenItemContextMenu(index)), $"OpenItemContextMenu{index}");
     _taskManager.DelayNext(100);
-    _taskManager.Enqueue(ClickAdjustPrice, $"ClickAdjustPrice{index}");
+    _taskManager.Enqueue(() => Bounded("ClickAdjustPrice", index, StallPolicy.RowStepSoftMs, "the item's context menu to open", ClickAdjustPrice), $"ClickAdjustPrice{index}");
     _taskManager.DelayNext(100);
-    _taskManager.Enqueue(DelayMarketBoard, $"DelayMB{index}");
-    _taskManager.Enqueue(ClickComparePrice, $"ClickComparePrice{index}");
+    _taskManager.Enqueue(() => Bounded("DelayMarketBoard", index, StallPolicy.RowStepSoftMs, "the price dialog (RetainerSell) to open", DelayMarketBoard), $"DelayMB{index}");
+    _taskManager.Enqueue(() => Bounded("ClickComparePrice", index, StallPolicy.RowStepSoftMs, "the price dialog (RetainerSell) to be ready", ClickComparePrice), $"ClickComparePrice{index}");
     _taskManager.DelayNext(Plugin.Configuration.MarketBoardKeepOpenMS);
-    _taskManager.Enqueue(SetNewPrice, $"SetNewPrice{index}");
+    _taskManager.Enqueue(() => Bounded("SetNewPrice", index, StallPolicy.PriceStepSoftMs, "a market price (board reply or sale-history answer)", SetNewPrice, lastOfRow: true), $"SetNewPrice{index}");
   }
 
   private void InsertSingleItem(int index)
   {
+    _arRowsQueued++;
     // reverse order because we INSERT
-    _taskManager.Insert(SetNewPrice, $"SetNewPrice{index}");
+    _taskManager.Insert(() => Bounded("SetNewPrice", index, StallPolicy.PriceStepSoftMs, "a market price (board reply or sale-history answer)", SetNewPrice, lastOfRow: true), $"SetNewPrice{index}");
     _taskManager.InsertDelayNext(Plugin.Configuration.MarketBoardKeepOpenMS);
-    _taskManager.Insert(ClickComparePrice, $"ClickComparePrice{index}");
-    _taskManager.Insert(DelayMarketBoard, $"DelayMB{index}");
+    _taskManager.Insert(() => Bounded("ClickComparePrice", index, StallPolicy.RowStepSoftMs, "the price dialog (RetainerSell) to be ready", ClickComparePrice), $"ClickComparePrice{index}");
+    _taskManager.Insert(() => Bounded("DelayMarketBoard", index, StallPolicy.RowStepSoftMs, "the price dialog (RetainerSell) to open", DelayMarketBoard), $"DelayMB{index}");
     _taskManager.InsertDelayNext(100);
-    _taskManager.Insert(ClickAdjustPrice, $"ClickAdjustPrice{index}");
+    _taskManager.Insert(() => Bounded("ClickAdjustPrice", index, StallPolicy.RowStepSoftMs, "the item's context menu to open", ClickAdjustPrice), $"ClickAdjustPrice{index}");
     _taskManager.InsertDelayNext(100);
-    _taskManager.Insert(() => OpenItemContextMenu(index), $"OpenItemContextMenu{index}");
+    _taskManager.Insert(() => Bounded("OpenItemContextMenu", index, StallPolicy.RowStepSoftMs, "the sell list to be ready", () => OpenItemContextMenu(index)), $"OpenItemContextMenu{index}");
+  }
+
+  /// <summary>
+  /// 0.2.8.14: one row step behind its soft deadline. The step runs as before; if it is still
+  /// waiting when the budget is spent, the row is skipped - a named log line, its dialogs closed,
+  /// any late market reply dropped - and the chain goes on with the next row. Without this the task
+  /// manager's hard limit cleared the whole chain with the price dialog still open. A row skipped
+  /// here is left at its current price, which is the safe outcome; new listings still at the
+  /// placeholder price are re-checked by VerifyNewListingsPriced.
+  /// </summary>
+  /// <param name="lastOfRow">True for the row's final step (SetNewPrice), which resets the per-row
+  /// flags itself; earlier steps set _skipCurrentItem so the rest of the row no-ops.</param>
+  private bool? Bounded(string stage, int row, int limitMs, string waitingFor, Func<bool?> step, bool lastOfRow = false)
+  {
+    _lastStage = stage + row;
+    var result = step();
+    var verdict = _stall.Evaluate(stage + row, Environment.TickCount64, result, limitMs, out var waited);
+    if (verdict == StallVerdict.Done)
+      return true;
+    if (verdict == StallVerdict.Pending)
+      return false;
+
+    Svc.Log.Warning($"[LMC] {StallLine.Skipped(stage, row, waited, waitingFor)}");
+    if (Plugin.Configuration.ShowErrorsInChat)
+      Svc.Chat.PrintError($"[LMC] Row {row}: gave up waiting for {waitingFor} after {waited / 1000.0:0.#} s; skipped it and carried on.");
+    CloseRowDialogs();
+    CancelUniversalisPriceRequest();
+    _mbHandler.AbandonRequest();
+    _newPrice = null;
+    _newPriceFromUniversalis = false;
+    _newPriceFromCache = false;
+    _historyRequestItem = null;
+    _historyRequestDone = false;
+    _skipCurrentItem = !lastOfRow;
+    return true;
+  }
+
+  /// <summary>Closes the three dialogs one pinch row opens: the market result, the item menu and the price dialog.</summary>
+  private static unsafe void CloseRowDialogs()
+  {
+    if (GenericHelpers.TryGetAddonByName<AtkUnitBase>("ItemSearchResult", out var result))
+      result->Close(true);
+    if (GenericHelpers.TryGetAddonByName<AtkUnitBase>("ContextMenu", out var menu))
+      menu->Close(true);
+    if (GenericHelpers.TryGetAddonByName<AddonRetainerSell>("RetainerSell", out var sell))
+    {
+      if (GenericHelpers.IsAddonReady(&sell->AtkUnitBase))
+        ECommons.Automation.Callback.Fire(&sell->AtkUnitBase, true, 1); // cancel, as SkipMismatchedRow does
+      sell->AtkUnitBase.Close(true);
+    }
   }
 
   private unsafe bool? OpenItemContextMenu(int itemIndex)
@@ -2447,6 +2737,9 @@ internal sealed class MarketAutomation : Window, IDisposable
 
   private unsafe bool? ClickAdjustPrice()
   {
+    if (_skipCurrentItem)
+      return true;
+
     if (GenericHelpers.TryGetAddonByName<AtkUnitBase>("ContextMenu", out var addon) && GenericHelpers.IsAddonReady(addon))
     {
       var reader = new ReaderContextMenu(addon);
@@ -2627,13 +2920,17 @@ internal sealed class MarketAutomation : Window, IDisposable
               _historyRequestDone = false;
               _historyRequestDeadline = Environment.TickCount64 + SaleHistoryWaitMs;
               StartSaleHistoryRequest(itemName, historyRawName);
+              _holdPriceState = true;
               return false;
             }
 
             if (!_historyRequestDone)
             {
               if (Environment.TickCount64 < _historyRequestDeadline)
+              {
+                _holdPriceState = true;
                 return false;
+              }
 
               Svc.Log.Warning($"[LMC] {itemName}: recent-sales lookup did not answer within {SaleHistoryWaitMs} ms; continuing without it");
               CancelUniversalisPriceRequest();
@@ -2722,13 +3019,24 @@ internal sealed class MarketAutomation : Window, IDisposable
     }
     finally
     {
-      _oldPrice = null;
-      _newPrice = null;
-      _newPriceFromUniversalis = false;
-      _newPriceFromCache = false;
-      _skipCurrentItem = false;
+      // 0.2.8.14: while the sale-history lookup is pending the candidate (-1, "board empty") must
+      // survive the retry. Clearing it here made the early `!_newPrice.HasValue` return win on every
+      // later tick, so the 6 s deadline above was unreachable and a lost answer waited out the task
+      // manager's hard limit, which clears the whole chain.
+      if (_holdPriceState)
+        _holdPriceState = false;
+      else
+      {
+        _oldPrice = null;
+        _newPrice = null;
+        _newPriceFromUniversalis = false;
+        _newPriceFromCache = false;
+        _skipCurrentItem = false;
+      }
     }
   }
+
+  private bool _holdPriceState;
 
   private void MBHandler_NewPriceReceived(object? sender, NewPriceEventArgs e)
   {
@@ -2772,7 +3080,10 @@ internal sealed class MarketAutomation : Window, IDisposable
     {
       price = await _universalisPriceProvider.GetNewPrice(itemName, rawItemName, cancellationToken).ConfigureAwait(false);
     }
-    catch (OperationCanceledException) { return; }
+    // 0.2.8.14: only OUR cancel returns silently. The HttpClient's own 8 s timeout is also an
+    // OperationCanceledException; swallowing it delivered no answer at all and left the row step
+    // waiting out the task manager's hard limit (the GateWait lesson of 0.1.19.0, missed here).
+    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { return; }
     catch (Exception ex) { Svc.Log.Warning(ex, $"[LMC] failed to fetch Universalis price for {itemName}"); }
 
     await Svc.Framework.RunOnFrameworkThread(() =>
@@ -2807,7 +3118,7 @@ internal sealed class MarketAutomation : Window, IDisposable
       {
         price = await _universalisPriceProvider.GetSaleHistoryPrice(itemName, rawItemName, token).ConfigureAwait(false);
       }
-      catch (OperationCanceledException) { return; }
+      catch (OperationCanceledException) when (token.IsCancellationRequested) { return; }
       catch (Exception ex) { Svc.Log.Warning(ex, $"[LMC] failed to fetch the recent-sales price for {itemName}"); }
 
       await Svc.Framework.RunOnFrameworkThread(() =>
@@ -2848,9 +3159,9 @@ internal sealed class MarketAutomation : Window, IDisposable
 
     if (Plugin.Configuration.EnablePostPinchkey && Plugin.KeyState[Plugin.Configuration.PostPinchKey])
     {
-      _taskManager.Enqueue(ClickComparePrice, "ClickComparePricePosted");
+      _taskManager.Enqueue(() => Bounded("ClickComparePrice", -1, StallPolicy.RowStepSoftMs, "the price dialog (RetainerSell) to be ready", ClickComparePrice), "ClickComparePricePosted");
       _taskManager.DelayNext(Plugin.Configuration.MarketBoardKeepOpenMS);
-      _taskManager.Enqueue(SetNewPrice, "SetNewPricePosted");
+      _taskManager.Enqueue(() => Bounded("SetNewPrice", -1, StallPolicy.PriceStepSoftMs, "a market price (board reply or sale-history answer)", SetNewPrice, lastOfRow: true), "SetNewPricePosted");
     }
   }
 
@@ -2895,6 +3206,7 @@ internal sealed class MarketAutomation : Window, IDisposable
 
   private void AnnounceRunDone()
   {
+    _chainOpen = false;
     // 0.1.15.1: with the leg running inside each retainer's session, counters at zero here mean the
     // leg genuinely never executed (chain died before the trigger) - the per-retainer trail is in
     // the log either way.
@@ -3317,6 +3629,11 @@ internal sealed class MarketAutomation : Window, IDisposable
     _retainerCloseSent = false;
     _retainerCloseTicks = 0;
     _buybackConfirmed = false;
+    _buybackParkRequested = false;
+    _stall.Clear();
+    _arRowsQueued = 0;
+    _lastStage = "run start";
+    _sweepActive = false;
   }
 
   private void CancelPreflightLookup()

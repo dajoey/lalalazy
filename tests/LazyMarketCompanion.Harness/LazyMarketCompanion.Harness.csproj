@@ -61,7 +61,9 @@
          builder its IV| audit lines are built with. -->
     <Compile Include="..\..\src\LazyMarketCompanion\Inventory\Core\*.cs" />
     <Compile Include="..\..\src\Shared\LalaTelemetry\Core\TelemetryEscape.cs" />
+    <Compile Include="..\..\src\LazyMarketCompanion\AutoMarket\StallGuard.cs" />
     <Compile Include="InventoryCases.cs" />
+    <Compile Include="StallCases.cs" />
     <Compile Include="Program.cs" />
   </ItemGroup>
 </Project>

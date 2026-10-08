@@ -147,6 +147,18 @@ namespace LazyMarketCompanion
       }
     }
 
+    /// <summary>
+    /// 0.2.8.14: a row was skipped or the chain stopped while its Compare Prices reply was still
+    /// outstanding. Dropping the pending request means a late reply cannot raise NewPriceReceived and
+    /// hand the NEXT row a price that belongs to this item.
+    /// </summary>
+    public void AbandonRequest()
+    {
+      _newRequest = false;
+      ClearPendingNoMatch();
+      ClearPendingNoOfferings();
+    }
+
     private void ItemSearchResultPostSetup(AddonEvent type, AddonArgs args)
     {
       _newRequest = true;
