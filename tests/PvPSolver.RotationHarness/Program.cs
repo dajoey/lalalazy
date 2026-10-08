@@ -33,6 +33,7 @@ internal static class Program
         GuardianRange.Run();
         BrdPaean.Run();
         WhmAquaveil.Run();
+        TargetingSelect.Run();
 
         return Harness.Finish();
     }

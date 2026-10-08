@@ -259,12 +259,7 @@ internal static class DataCenter
 	{
 		get
 		{
-			if (TargetingTypeOverride.HasValue)
-			{
-				return TargetingTypeOverride.Value;
-			}
-
-			if (Service.Config.TargetingTypes.Count == 0)
+			if (!TargetingTypeOverride.HasValue && Service.Config.TargetingTypes.Count == 0)
 			{
 				Service.Config.TargetingTypes.Add(TargetingType.LowHP);
 				Service.Config.TargetingTypes.Add(TargetingType.HighHP);
@@ -273,7 +268,8 @@ internal static class DataCenter
 				Service.Config.Save();
 			}
 
-			return Service.Config.TargetingTypes[Service.Config.TargetingIndex % Service.Config.TargetingTypes.Count];
+			return (TargetingType)RotationSolver.Decisions.TargetingChoice.Resolve((int?)TargetingTypeOverride,
+				Service.Config.TargetingTypes.ConvertAll(t => (int)t), Service.Config.TargetingIndex);
 		}
 	}
 
