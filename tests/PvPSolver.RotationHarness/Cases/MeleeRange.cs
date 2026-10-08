@@ -65,7 +65,7 @@ internal static class MeleeRange
 
         // DataCenter: JobRange is untouched, and NumberOfHostilesInRangeOf measures exactly what NumberOfHostilesInRange does.
         var dc = CsSource.Sanitize(File.ReadAllText(Path.Combine(Program.SrcRoot, "PvPSolver.Basic", "DataCenter.cs")));
-        var jobRange = Between(dc, "public static float JobRange", "/// <summary>");
+        var jobRange = Between(dc, "public static float JobRange", "SylphManagementFinished"); // comments are blanked by Sanitize, so cut at the next member
         Harness.Case("DataCenter.JobRange still returns 3 for Tank and Melee and 25 otherwise",
             Regex.IsMatch(jobRange, @"float radius = 25;") && Regex.IsMatch(jobRange, @"case JobRole\.Tank:\s*case JobRole\.Melee:\s*radius = 3;"), "JobRange body unchanged");
         var inRange = Between(dc, "public static int NumberOfHostilesInRange\n", "public static int NumberOfHostilesInMaxRange");
