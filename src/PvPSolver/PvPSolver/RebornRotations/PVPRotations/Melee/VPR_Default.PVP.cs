@@ -36,7 +36,7 @@ public sealed class VPR_DefaultPvP : ViperRotation
 
 		if (RattlingCoilPvP.CanUse(out action))
 		{
-			if (SnakeScalesPvP.Cooldown.IsCoolingDown && UncoiledFuryPvP.Cooldown.IsCoolingDown)
+			if (UncoiledFuryPvP.Cooldown.IsCoolingDown)
 			{
 				return true;
 			}
