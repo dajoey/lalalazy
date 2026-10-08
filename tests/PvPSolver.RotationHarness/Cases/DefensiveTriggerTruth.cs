@@ -20,7 +20,7 @@ internal static class DefensiveTriggerTruth
     private static readonly float[] Thresholds = [0f, 0.25f, 0.5f, 0.75f, 1f, float.NaN];
 
     private static IEnumerable<(bool On, float Ratio, float Threshold)> Rows() =>
-        from on in new[] { false, true } from r in Ratios from t in Thresholds select (on, r, t);
+        from enabled in new[] { false, true } from r in Ratios from t in Thresholds select (enabled, r, t);
 
     private static string[] Mismatches(Func<bool, float, float, bool> impl) =>
         Rows().Where(r => impl(r.On, r.Ratio, r.Threshold) != Reference(r.On, r.Ratio, r.Threshold))
