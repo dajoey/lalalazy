@@ -92,7 +92,7 @@ public sealed class PLD_DefaultPvP : PaladinRotation
 
 		if (StatusHelper.PlayerHasStatus(true, StatusID.HallowedGround_1302))
 		{
-			if (GuardianPvP.CanUse(out action, targetOverride: TargetType.LowHP))
+			if (GuardianPvP.CanUse(out action, targetOverride: TargetType.LowHP) && GuardianPvP.Target.Target.GetHealthRatio() <= HallowedGuardianThreshold)
 			{
 				return true;
 			}

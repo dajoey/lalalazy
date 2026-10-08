@@ -24,6 +24,7 @@ internal static class Program
         VprCoil.Run();
         GnbBlast.Run();
         GnbHeart.Run();
+        PldThreshold.Run();
 
         return Harness.Finish();
     }
