@@ -51,8 +51,10 @@ public static class DispatchPlan
     /// Something to buy. <paramref name="Where"/> is the optional "and here is who else sells it" clause
     /// (card t_b431de3a part C) - currently the placed currency vendors for a market item, cheapest first.
     /// Empty when nothing else is known, so every pre-existing caller keeps its exact output.
-    /// <paramref name="Owned"/> is the stock the plan already counts for the item (0.1.7.7): Knightshopper buys
-    /// to a TARGET inventory total, so the adapter starts from Owned + Quantity, never from Quantity alone.
+    /// <paramref name="Owned"/> is the bag-held stock the plan counts for the item (0.1.7.8; 0.1.7.7 put the whole
+    /// owned ledger here, which re-bought retainer stock the retrieve leg was about to pull in): Knightshopper buys
+    /// to a TARGET inventory total and runs before the retrieve, so the adapter starts from Owned + Quantity,
+    /// never from Quantity alone.
     /// </summary>
     public sealed record Purchase(uint ItemId, int Quantity, string Where = "", int Owned = 0);
     public sealed record Deferral(uint RecipeId, uint ResultItemId, int Crafts, string Reason);
@@ -173,9 +175,15 @@ public static class DispatchPlan
             var (route, match) = RouteFor(leaf, ventures, retainers, gatheredItems, shops);
             routeOf[leaf.ItemId] = route;
 
+            // What part of `Have` is physically in the bags (0.1.7.8). The retrieve below pulls the rest in before
+            // any craft runs - but the Knightshopper leg runs BEFORE the retrieve and buys to a target inventory
+            // total, so its target must start from the bag-held count or retainer stock gets bought a second time
+            // (0.1.7.7 review: need 99, 90 on a retainer, bought 99 instead of 9). inv == null keeps the old
+            // meaning: everything owned is assumed to be in the bags.
+            var inBags = inv is null ? leaf.Have : Math.Max(0, Math.Min(leaf.Have, inv.CountInBags(leaf.ItemId)));
+
             if (inv is not null && leaf.Have > 0)
             {
-                var inBags = Math.Max(0, Math.Min(leaf.Have, inv.CountInBags(leaf.ItemId)));
                 var shortfall = leaf.Have - inBags;
                 if (shortfall > 0)
                 {
@@ -190,9 +198,10 @@ public static class DispatchPlan
             {
                 case Route.Venture: ventureList.Add(new Venture(leaf.ItemId, leaf.Missing, match!)); break;
                 case Route.Gather: gatherList.Add(new Gather(leaf.ItemId, leaf.Missing, GatherKind(leaf.Sources))); break;
-                case Route.Vendor: vendorList.Add(new Purchase(leaf.ItemId, leaf.Missing, Owned: leaf.Have)); break;
+                // Owned = in the bags, not the whole ledger (K8): the target total must not re-count retainer stock.
+                case Route.Vendor: vendorList.Add(new Purchase(leaf.ItemId, leaf.Missing, Owned: inBags)); break;
                 // Same BestOffer call RouteFor used, so the line names the vendor the routing actually chose.
-                case Route.CurrencyShop: currencyList.Add(new CurrencyPurchase(leaf.ItemId, leaf.Missing, BestOffer(leaf, shops)!, Owned: leaf.Have)); break;
+                case Route.CurrencyShop: currencyList.Add(new CurrencyPurchase(leaf.ItemId, leaf.Missing, BestOffer(leaf, shops)!, Owned: inBags)); break;
                 // Market and manual now carry the "or buy it from X for Y" clause when a currency vendor is known
                 // (part C). Both channels, because before this card only manual printed sources at all - and it
                 // printed SourceKind enum names, not vendors, which is why an OnHand-only leaf rendered as "()".

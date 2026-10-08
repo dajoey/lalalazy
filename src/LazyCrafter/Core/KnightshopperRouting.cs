@@ -115,7 +115,8 @@ public static class KnightshopperCurrencies
 public static class KnightshopperRouting
 {
     /// <summary>One item Knightshopper should buy. Quantity is what the run is short; TargetTotal is what
-    /// StartItems asks for (owned count plus the shortage) so a re-run can never ask for more than the target.</summary>
+    /// StartItems asks for (the in-bags count plus the shortage, 0.1.7.8 - retainer stock is fetched, not
+    /// re-bought) so a re-run can never ask for more than the target.</summary>
     public sealed record KsItem(
         uint ItemId,
         int Quantity,

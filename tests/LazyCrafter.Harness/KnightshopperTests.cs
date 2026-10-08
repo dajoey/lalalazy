@@ -95,6 +95,34 @@ internal static class KnightshopperTests
         return DispatchPlan.Build([], leaves, graph, ventures, [], null, null, ctx);
     }
 
+    /// <summary>
+    /// A gil-vendor plan with the owned stock split the way the assessment ledger really sees it:
+    /// <paramref name="bags"/> units in the bags, <paramref name="elsewhere"/> on a retainer (Have = bags +
+    /// elsewhere). The K8 tests pin the Knightshopper target on this split - 0.1.7.7 bought to Have + Missing,
+    /// which re-bought retainer stock the retrieve leg was about to pull in anyway.
+    /// </summary>
+    private static DispatchPlan.Plan VendorPlanWithStock(int bags, int elsewhere, int need)
+    {
+        var leaf = new IngredientLeaf(Coal, Need: need, Have: bags + elsewhere, [SourceKind.GilVendor], EffortTier.SomeEffort);
+        var data = new FakeGameData().GilVendor(Coal, 3).Marketable(Coal);
+        var graph = new RecipeGraph(data);
+        var ventures = new VentureResolver(data);
+        var inv = new FakeInventory().Set(Coal, bags).SetElsewhere(Coal, elsewhere, "retainer Cid");
+        return DispatchPlan.Build([], [leaf], graph, ventures, [], null, inv, null);
+    }
+
+    /// <summary>A currency-shop plan with the same bag/retainer stock split (K8).</summary>
+    private static DispatchPlan.Plan CurrencyPlanWithStock(SpecialShopCandidate offer, int bags, int elsewhere, int need)
+    {
+        var data = new FakeGameData().Recipe(1, 30406, 1, World.Bsm, 60, (offer.ItemId, 1)).Marketable(offer.ItemId);
+        var leaf = new IngredientLeaf(offer.ItemId, Need: need, Have: bags + elsewhere, [SourceKind.SpecialShop, SourceKind.Market], EffortTier.SomeEffort);
+        var graph = new RecipeGraph(data);
+        var ventures = new VentureResolver(data);
+        var ctx = new SpecialShopContext(_ => new[] { offer }, _ => 1_000_000, true);
+        var inv = new FakeInventory().Set(offer.ItemId, bags).SetElsewhere(offer.ItemId, elsewhere, "retainer Cid");
+        return DispatchPlan.Build([], [leaf], graph, ventures, [], null, inv, ctx);
+    }
+
     private static readonly Func<uint, long?> CoalAt3 = GilPrices((Coal, 3));
     private static readonly Func<uint, string> Names = Name;
 
@@ -365,5 +393,44 @@ internal static class KnightshopperTests
             && KnightshopperCurrencies.Name(KnightshopperCurrency.CompanySeal) == "Company Seal"
             && KnightshopperCurrencies.Name(KnightshopperCurrency.MGP) == "MGP"
             && KnightshopperCurrencies.Name(KnightshopperCurrency.BicolorGemstone) == "Bicolor Gemstone"),
+
+        // ----------------- K8: the target counts BAG stock, not retainer stock (0.1.7.8 rework)
+
+        // 0.1.7.7 built the target as Have + Missing, but Have counts retainer stock that the retrieve leg pulls
+        // into the bags AFTER the Knightshopper leg has run - so retainer-held units were bought a second time.
+        // The target is the bag-held count plus the shortage; the retrieve then tops the bags up to exactly Need.
+
+        ("K8 retainer stock is not bought a second time (90 on a retainer, none in bags, need 99 -> buy 9, not 99)", () =>
+        {
+            var p = VendorPlanWithStock(bags: 0, elsewhere: 90, need: 99);
+            if (p.Vendor.Count != 1 || p.Vendor[0].Owned != 0) return false;              // 0.1.7.7 said 90
+            if (p.Retrievals.Count != 1 || p.Retrievals[0].Quantity != 90) return false;  // the fetch leg is untouched
+            var ks = KnightshopperRouting.Partition(p, true, CoalAt3);
+            return ks.Groups[0].Items[0] is { ItemId: Coal, Quantity: 9, TargetTotal: 9 };
+        }),
+
+        ("K8 bag stock is counted, retainer stock is not (5 in bags, 85 on a retainer, need 99 -> buy 14)", () =>
+        {
+            var p = VendorPlanWithStock(bags: 5, elsewhere: 85, need: 99);
+            if (p.Vendor[0].Owned != 5) return false;                                     // 0.1.7.7 said 90
+            var ks = KnightshopperRouting.Partition(p, true, CoalAt3);
+            return ks.Groups[0].Items[0] is { Quantity: 9, TargetTotal: 14 };
+        }),
+
+        ("K8 a re-run after a partial buy asks for the same target total, never a higher one (4 landed of 9 -> target 9 again)", () =>
+        {
+            // The first dispatch bought 4 of the 9: 4 sit in the bags, 90 are still on the retainer, need is 99.
+            var p = VendorPlanWithStock(bags: 4, elsewhere: 90, need: 99);
+            var ks = KnightshopperRouting.Partition(p, true, CoalAt3);
+            return ks.Groups[0].Items[0] is { Quantity: 5, TargetTotal: 9 };
+        }),
+
+        ("K8 a currency-shop buy targets bag stock too (5 in bags, 85 on a retainer, need 99 -> target 14)", () =>
+        {
+            var p = CurrencyPlanWithStock(Offer(Emery, (StormSeal, 1500)), bags: 5, elsewhere: 85, need: 99);
+            if (p.CurrencyShop.Count != 1 || p.CurrencyShop[0].Owned != 5) return false;  // 0.1.7.7 said 90
+            var ks = KnightshopperRouting.Partition(p, true, CoalAt3);
+            return ks.Groups[0].Items[0] is { ItemId: Emery, Quantity: 9, TargetTotal: 14 };
+        }),
     };
 }
