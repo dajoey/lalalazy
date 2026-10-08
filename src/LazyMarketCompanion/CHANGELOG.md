@@ -1,3 +1,10 @@
+## v0.2.8.13 (2026-10-08) [testing]
+### Fixed
+- **The Auto-Market panel's confirmation dialogs open now.** In 0.2.8.12, "Add all visible", "Remove all visible" and the panel's Enable Auto-Market switch each tried to show a confirmation dialog under a different name than the one they opened it with, so no dialog could ever appear and those controls did nothing when clicked. The names now match, and a regression test scans the panel's code so a button and its dialog cannot drift apart silently again.
+### Notes
+- Correction to 0.2.8.12's notes: the panel's Enable Auto-Market switch asks for confirmation before turning Auto-Market on. That confirmation is the panel's own safety - the main window's switch has never had one, and 0.2.8.12's notes wrongly implied it did.
+- Testing channel only; the production channel is unchanged.
+
 ## v0.2.8.12 (2026-10-07) [testing]
 ### Added
 - **A new Auto-Market panel window lists every marketable stack in your bags and whether it is on the Auto-Market list** - the same two states the bag dots mark (plus what a dot cannot show: entries whose tick is unticked, and the quick-exclude flag), as a table with quantities. Each row has quick Add/Remove, and entries expose the same stack-size, keep-in-bags and skip-routing edits as the main window's table. The panel covers your four bag containers, which is what Auto-Market's bags stock source draws from.

@@ -5861,6 +5861,49 @@ ItemQuote FillerQuote(uint id, long unit, bool hq = false, double vel = 0, long 
     PanelDock.Place(false, new PanelDock.Rect(new(100, 100), new(700, 800)), viewport, panel, new(64, 64)).Position == new System.Numerics.Vector2(64, 64));
 }
 
+// 162. (0.2.8.13) The panel's confirmation dialogs must be OPENABLE: ImGui matches an OpenPopup to
+// its BeginPopupModal by the exact string id. 0.2.8.12 shipped three controls whose OpenPopup id
+// differed from their modal's name (bulk add, bulk remove, master-switch enable), so the dialogs
+// could never appear - the buttons did nothing in game. Control form (case 46 rule): the scan
+// must FIND the modals it grades, and pins their count, so a broken scan fails instead of
+// passing vacuously.
+{
+  var roots162 = new[]
+  {
+    Path.Combine("..", "..", "..", "..", "..", "src", "LazyMarketCompanion"),
+    Path.Combine("src", "LazyMarketCompanion"),
+  };
+  var root162 = roots162.Where(Directory.Exists).FirstOrDefault() ?? "";
+  Check("162 scan: plugin source tree found (run from repo root or bin)",
+    root162.Length > 0, "src/LazyMarketCompanion not found from either candidate path");
+
+  var winPath162 = Path.Combine(root162, "Windows", "AutoMarketPanelWindow.cs");
+  Check("162 scan: the panel window source is found",
+    root162.Length > 0 && File.Exists(winPath162), winPath162);
+
+  if (File.Exists(winPath162))
+  {
+    var winSrc162 = File.ReadAllText(winPath162);
+    var opened162 = System.Text.RegularExpressions.Regex.Matches(winSrc162, "OpenPopup\\(\"([^\"]+)\"\\)")
+      .Select(m => m.Groups[1].Value).ToList();
+    var modals162 = System.Text.RegularExpressions.Regex.Matches(winSrc162, "BeginPopupModal\\(\"([^\"]+)\"")
+      .Select(m => m.Groups[1].Value).ToList();
+
+    // Control: this window draws exactly three confirmations. If the scan stops finding them it
+    // is broken (regex drift, file moved) and must fail loudly rather than pass vacuously.
+    Check("162 scan: finds the three confirmation modals it grades",
+      modals162.Count == 3, $"modals={modals162.Count}");
+
+    var unopened162 = modals162.Where(m => !opened162.Contains(m)).ToList();
+    Check("162 scan: every confirmation modal is opened by the exact same id string",
+      unopened162.Count == 0, string.Join(", ", unopened162));
+
+    var orphaned162 = opened162.Where(o => !modals162.Contains(o)).ToList();
+    Check("162 scan: every OpenPopup id names a BeginPopupModal in the same window",
+      orphaned162.Count == 0, string.Join(", ", orphaned162));
+  }
+}
+
 Console.WriteLine(failures == 0 ? "OK" : $"{failures} FAILED");
 return failures == 0 ? 0 : 1;
 

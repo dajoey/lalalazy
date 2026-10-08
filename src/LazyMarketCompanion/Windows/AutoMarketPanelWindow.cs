@@ -25,8 +25,9 @@ namespace LazyMarketCompanion.Windows;
 ///   line below names what was read.
 /// - Opens automatically with the inventory while dock-to-inventory is on; closes with it unless
 ///   pinned; <c>/lmc panel</c> toggles it any time.
-/// - The master switch keeps its confirmation on turn-ON and stays locked while a run is in
-///   progress, exactly like the main window's.
+/// - The master switch asks for confirmation on turn-ON and stays locked while a run is in
+///   progress. The confirmation is the panel's own safety (the main window's switch writes the
+///   setting directly, without one); the run lock is the same run the main window checks.
 /// - "Add all visible" / "Remove all visible" show the exact count they would touch and confirm
 ///   first; single-row edits are the same config writes the main window's table makes
 ///   (GetOrAddAutoMarketItem / AutoMarketItems.Remove), so the two can never disagree.
@@ -301,12 +302,12 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
   private void DrawBulkButtons(AutoMarketPanelModel.BulkPlan bulk)
   {
     if (ImGui.Button($"Add all visible ({bulk.Adds.Count})"))
-      ImGui.OpenPopup("##lmcPanelAddAll");
+      ImGui.OpenPopup("Add all visible items?"); // the modal's exact id string: ImGui matches the two by hash
     Tip("Adds every currently visible 'not listed' row to the Auto-Market list (default settings, enabled) - the same entries the inventory context menu's 'Add to Auto-Market' creates. You confirm first.");
 
     ImGui.SameLine(0, 12);
     if (ImGui.Button($"Remove all visible ({bulk.Removes.Count})"))
-      ImGui.OpenPopup("##lmcPanelRemoveAll");
+      ImGui.OpenPopup("Remove all visible items?"); // the modal's exact id string: ImGui matches the two by hash
     Tip("Removes every currently visible on-list row from the Auto-Market list. You confirm first - and the filters above decide what 'visible' means.");
   }
 
@@ -502,7 +503,7 @@ internal sealed unsafe class AutoMarketPanelWindow : Window, IDisposable
     if (ImGui.Checkbox("Enable Auto-Market", ref enabled))
     {
       if (enabled)
-        ImGui.OpenPopup("##lmcPanelMasterOn");
+        ImGui.OpenPopup("Turn Auto-Market on?"); // the modal's exact id string: ImGui matches the two by hash
       else
       {
         c.AutoMarketEnabled = false;
