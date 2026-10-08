@@ -89,7 +89,7 @@ public sealed class GNB_DefaultPvP : GunbreakerRotation
 			return true;
 		}
 
-		if (Target.GetHealthRatio() * 100 <= 50 && BlastingZonePvP.CanUse(out action))
+		if (BlastingZonePvP.CanUse(out action) && BlastingZonePvP.Target.Target.GetHealthRatio() * 100 <= 50)
 		{
 			return true;
 		}

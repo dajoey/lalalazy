@@ -22,6 +22,7 @@ internal static class Program
         EmergencyGcd.Run();
         SchChain.Run();
         VprCoil.Run();
+        GnbBlast.Run();
 
         return Harness.Finish();
     }
