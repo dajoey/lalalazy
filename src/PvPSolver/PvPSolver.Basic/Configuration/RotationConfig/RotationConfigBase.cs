@@ -1,4 +1,5 @@
 ﻿using ECommons.Logging;
+using System.Collections.Concurrent;
 using RotationSolver.Basic.Rotations.Duties;
 using static RotationSolver.Basic.Rotations.Duties.DutyRotation;
 
@@ -53,12 +54,30 @@ internal abstract class RotationConfigBase : IRotationConfig
 	/// </summary>
 	public string Value
 	{
-		get => !Service.Config.RotationConfigurations.TryGetValue(Name, out string? config) ? DefaultValue : config;
+		get => Store(false) is { } store && store.TryGetValue(Name, out string? config) ? config : DefaultValue;
 		set
 		{
-			Service.Config.RotationConfigurations[Name] = value;
+			ConcurrentDictionary<string, string>? store = Store(true);
+			if (store != null)
+			{
+				store[Name] = value;
+			}
+
 			SetValue(value);
 		}
+	}
+
+	/// <summary>
+	/// The stored option strings this config reads and writes. A PvP rotation's options are stored under the
+	/// rotation's own job, so they can be read and edited while another job is played and same-named options
+	/// of different jobs stay apart. Duty rotations keep the played-job property.
+	/// </summary>
+	/// <param name="create">Whether a missing entry is created (false never creates one).</param>
+	private ConcurrentDictionary<string, string>? Store(bool create)
+	{
+		return _rotation != null
+			? Service.Config.RotationSettingsFor(_rotation.Job, create)
+			: Service.Config.RotationConfigurations;
 	}
 
 	/// <summary>
@@ -108,7 +127,7 @@ internal abstract class RotationConfigBase : IRotationConfig
 		}
 
 		// Set up initial value
-		if (Service.Config.RotationConfigurations.TryGetValue(Name, out string? value))
+		if (Store(false) is { } stored && stored.TryGetValue(Name, out string? value))
 		{
 			SetValue(value);
 		}
@@ -157,7 +176,7 @@ internal abstract class RotationConfigBase : IRotationConfig
 		}
 
 		// Set up initial value
-		if (Service.Config.RotationConfigurations.TryGetValue(Name, out string? value))
+		if (Store(false) is { } stored && stored.TryGetValue(Name, out string? value))
 		{
 			SetValue(value);
 		}
