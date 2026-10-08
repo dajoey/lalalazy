@@ -203,6 +203,8 @@ public partial class PaladinRotation : CustomRotation
 		setting.StatusNeed = [StatusID.HallowedGround_1302];
 		setting.TargetType = TargetType.LowHP;
 		setting.IsFriendly = true;
+		// Guardian can only be executed on a member closer than 10 yalms (centre to centre); the action range is 20.
+		setting.CanTarget = t => Player is { } me && RotationSolver.Decisions.GuardianReach.IsWithinReach(me.Position, t.Position);
 	}
 	#endregion
 }

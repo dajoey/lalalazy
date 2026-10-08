@@ -30,6 +30,7 @@ internal static class Program
         UtilityAllowlist.Run();
         DefenseStall.Run();
         MeleeRange.Run();
+        GuardianRange.Run();
 
         return Harness.Finish();
     }
