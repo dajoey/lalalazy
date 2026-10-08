@@ -546,7 +546,12 @@ public partial class CustomRotation
 				return true;
 			}
 
-			if (RecuperatePvP.CanUse(out act))
+			if (GenericDefensives.TryFire(this, out act))
+			{
+				return true;
+			}
+
+			if (RecuperatePvP.CanUse(out act) && GenericDefensives.RecuperateGate(Player))
 			{
 				return true;
 			}
