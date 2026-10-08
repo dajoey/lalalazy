@@ -1,3 +1,13 @@
+## v0.2.8.11 (2026-10-07) [testing]
+### Fixed
+- **Auto-Market marker dots are now drawn through a single full-screen drawing layer instead of one window per dot.** Every dot is painted directly onto one transparent overlay that covers the game's window - the same drawing path other screens in this plugin family use for game-anchored overlays - at exactly the same position as before. One window per dot could report itself healthy while nothing appeared on screen; that layer is gone entirely.
+### Added
+- **The markers log now checks each drawn dot against the inventory window's own position.** The game reports where the inventory window itself is (position, size, scale) in the same frame the dots are drawn; every measured dot is graded on-addon or OFF-ADDON against it, with its offset from the window's corner, so a placement mismatch names itself.
+- **The markers log now reports the drawing viewport beside the game window's size** (window size, viewport size, display scale factor), so a scaled or letterboxed buffer shows up as two different sizes for the same screen.
+- **`/lmc markertest` is now an A/B pair across the old and new drawing paths.** Dot A is drawn through the new single-overlay path every marker uses; dot B through the old one-window-per-dot path. A visible without B means the old per-dot windows were the problem; both means the drawing works; neither means something outside the marker layer blocks the overlay too.
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v0.2.8.10 (2026-10-07) [testing]
 ### Fixed
 - **Auto-Market marker dots no longer disappear for the rest of the session after a UI state that hides windows.** A window drawn with a zero drawing-opacity leaves every marker window invisible from that point on, while the plugin's own log keeps reporting the dots as drawn. The plugin now detects that state before its marker window is created and shields its own windows from it for that frame; healthy sessions are untouched.
