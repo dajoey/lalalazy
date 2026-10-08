@@ -164,6 +164,7 @@ public partial class BardRotation : CustomRotation
 	static partial void ModifyTheWardensPaeanPvP(ref ActionSetting setting)
 	{
 		setting.TargetStatusNeed = StatusHelper.PurifyPvPStatuses;
+		setting.StatusFromSelf = false;
 		setting.IsFriendly = true;
 		setting.TargetType = TargetType.Dispel;
 	}

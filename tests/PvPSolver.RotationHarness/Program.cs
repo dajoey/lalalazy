@@ -31,6 +31,7 @@ internal static class Program
         DefenseStall.Run();
         MeleeRange.Run();
         GuardianRange.Run();
+        BrdPaean.Run();
 
         return Harness.Finish();
     }
