@@ -17,20 +17,28 @@ internal static class VprCoil
         var m = SourceFiles.OverrideMethod("VPR_Default.PVP.cs", "EmergencyAbility");
 
         // The inner gate: the `if (...)` directly inside `if (RattlingCoilPvP.CanUse(out action)) { ... }`.
-        var at = Regex.Match(m.Body, @"if\s*\(\s*RattlingCoilPvP\.CanUse\(out action\)\s*\)\s*\{");
-        Harness.Case("VPR EmergencyAbility has a Rattling Coil branch", at.Success);
-        if (!at.Success) return;
-        var open = at.Index + at.Length - 1;
-        var inner = m.Body.Substring(open + 1, CsSource.Match(m.Body, open) - open - 1);
-        var gates = CsSource.IfConditions(inner);
+        var gates = RattlingCoilGates(m.Body);
+        Harness.Case("VPR EmergencyAbility has a Rattling Coil branch", gates != null);
+        if (gates == null) return;
         Harness.Case("Rattling Coil branch gate is exactly UncoiledFuryPvP.Cooldown.IsCoolingDown",
             gates.Count == 1 && gates[0] == "UncoiledFuryPvP.Cooldown.IsCoolingDown", string.Join(" | ", gates));
 
         Harness.Case("VPR rotation never waits on Snake Scales", !Regex.IsMatch(san, @"\bSnakeScalesPvP\b"),
             "SnakeScalesPvP referenced in VPR_Default.PVP.cs");
 
-        // Canary: the old gate does not satisfy the exact-gate test.
-        const string oldGate = "SnakeScalesPvP.Cooldown.IsCoolingDown && UncoiledFuryPvP.Cooldown.IsCoolingDown";
-        Harness.Canary("old Rattling Coil gate equals the new gate", oldGate == "UncoiledFuryPvP.Cooldown.IsCoolingDown");
+        // Canary: the same extraction on the old branch text must not come back as the new gate.
+        const string oldBranch = "if (RattlingCoilPvP.CanUse(out action)) { if (SnakeScalesPvP.Cooldown.IsCoolingDown && UncoiledFuryPvP.Cooldown.IsCoolingDown) { return true; } }";
+        var oldGates = RattlingCoilGates(oldBranch);
+        Harness.Canary("old Rattling Coil gate is accepted as exactly UncoiledFuryPvP.Cooldown.IsCoolingDown",
+            oldGates is { Count: 1 } && oldGates[0] == "UncoiledFuryPvP.Cooldown.IsCoolingDown");
+    }
+
+    /// <summary>The inner `if` conditions of the `if (RattlingCoilPvP.CanUse(out action)) { ... }` branch, or null.</summary>
+    private static List<string>? RattlingCoilGates(string body)
+    {
+        var at = Regex.Match(body, @"if\s*\(\s*RattlingCoilPvP\.CanUse\(out action\)\s*\)\s*\{");
+        if (!at.Success) return null;
+        var open = at.Index + at.Length - 1;
+        return CsSource.IfConditions(body.Substring(open + 1, CsSource.Match(body, open) - open - 1));
     }
 }

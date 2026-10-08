@@ -31,7 +31,8 @@ internal static class GnbHeart
         Harness.Case("DefenseSingleAbility Heart of Corundum is untouched (no target override)",
             dcalls.Count == 1 && dcalls[0] == "out action", string.Join("|", dcalls));
 
-        // Canary: the old Emergency call text is not the Self form.
-        Harness.Canary("old Emergency call text is aimed at Self", "out action" == "out action, targetOverride: TargetType.Self");
+        // Canary: run the same extraction on the old Emergency text; it must not come back as the Self form.
+        var oldArgs = CsSource.Squash(Call.Match("if (HeartOfCorundumPvP.CanUse(out action) && Player?.GetHealthRatio() * 100 <= 30)").Groups["args"].Value);
+        Harness.Canary("old Emergency Heart of Corundum call is accepted as aimed at Self", oldArgs == "out action, targetOverride: TargetType.Self");
     }
 }
