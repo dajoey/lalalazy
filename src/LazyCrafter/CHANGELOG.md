@@ -1,4 +1,11 @@
 # Changelog
+## v0.1.7.8 (2026-10-07) [testing]
+### Fixed
+- **Knightshopper no longer buys units that are sitting on a retainer.** The purchase target counted everything the catalog can see, but the fetch-from-retainer step runs after the purchase and brings those units in anyway - with 90 units on a retainer, none in the bags and 9 missing, the run bought 99 instead of 9. The target now counts what is physically in the bags, and the fetch tops the bags up to exactly what the cart needs; every currency routes on the same corrected target.
+### Notes
+- Testing channel only; the production channel is unchanged.
+- Full harness: 395/395 PASS (4 new).
+
 ## v0.1.7.7 (2026-10-07) [testing]
 ### Added
 - **Cart dispatches can hand vendor purchases to Knightshopper.** When a dispatch is missing materials that a vendor sells - gil vendors, and currency vendors priced in one currency Knightshopper supports - the run groups that list by currency and buys it through Knightshopper's purchase IPC at target inventory totals, before any shopping stop fires. The run prints each group, its currency and the estimated total cost before anything is spent. Market-board items are never routed, and one attempt per group means a refused purchase never retries; a repeat dispatch asks for the same target totals at most, so nothing is ever bought twice.
