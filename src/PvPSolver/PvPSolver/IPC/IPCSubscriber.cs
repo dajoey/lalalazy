@@ -220,7 +220,16 @@ namespace RotationSolver.IPC
 
 	internal class IPCSubscriber_Common
 	{
-		internal static bool IsReady(string pluginName) => DalamudReflector.TryGetDalamudPlugin(pluginName, out _, false, true);
+		// Reads Dalamud's installed-plugin list. ECommons' TryGetDalamudPlugin casts the plugin instance to
+		// IDalamudPlugin, which throws for BossMod.Plugin (separate load context): it answered false while the
+		// plugin was loaded and logged an ERR with a stack trace on every call (once per frame from the config window).
+		internal static bool IsReady(string pluginName)
+			=> IsLoadedIn(Svc.PluginInterface.InstalledPlugins.Select(x => (x.Name, x.InternalName, x.IsLoaded)), pluginName);
+
+		internal static bool IsLoadedIn(IEnumerable<(string Name, string InternalName, bool IsLoaded)> plugins, string pluginName)
+			=> plugins.Any(x => x.IsLoaded
+				&& (string.Equals(x.Name, pluginName, StringComparison.OrdinalIgnoreCase)
+					|| string.Equals(x.InternalName, pluginName, StringComparison.OrdinalIgnoreCase)));
 
 		internal static Version Version(string pluginName) => DalamudReflector.TryGetDalamudPlugin(pluginName, out var dalamudPlugin, false, true) ? dalamudPlugin.GetType().Assembly.GetName().Version : new Version(0, 0, 0, 0);
 

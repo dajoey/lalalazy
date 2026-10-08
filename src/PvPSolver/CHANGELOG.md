@@ -1,5 +1,9 @@
 # Changelog - PvP Solver
 
+## v0.1.2.1 (2026-10-08) [testing]
+### Fixed
+- **BossModReborn integration was never detected, and it filled the log with errors.** The check for BossModReborn (and for WrathCombo) went through a lookup that cannot read BossModReborn's plugin object, so it reported the plugin as missing even while loaded, and wrote an error with a stack trace to the Dalamud log each time it was asked, once per frame while the settings window was open (over 11,000 lines in 35 minutes). The check now reads the list of installed plugins and quietly reports whether the plugin is loaded, so the BossModReborn timeline data is used when BossModReborn is running and the log stays clean.
+
 ## v0.1.2.0 (2026-10-08) [testing]
 ### Added
 - **New settings window.** `/pvpsolver`, the plugin's settings button and Lazy Hub now open a new window with the settings that matter for PvP, in plain words with a help line under each. It has six tabs: Match (when PvP Solver turns itself on and off), Survival (Guard, Purify, Sprint and the defensives master switch), Targeting (who to attack, area attacks, burst, invulnerable enemies), My Job, Display and Advanced.
