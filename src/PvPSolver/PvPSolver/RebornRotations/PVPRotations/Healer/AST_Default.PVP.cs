@@ -27,12 +27,12 @@ public class AST_DefaultPVP : AstrologianRotation
 			return true;
 		}
 
-		if (Player?.GetHealthRatio() < 0.6 && LadyOfCrownsPvP.CanUse(out action))
+		if (Service.Config.DefensiveActive(RotationSolver.Decisions.DefensiveTable.LadyOfCrowns) && Player?.GetHealthRatio() < Service.Config.DefensivePercent(RotationSolver.Decisions.DefensiveTable.LadyOfCrowns) && LadyOfCrownsPvP.CanUse(out action))
 		{
 			return true;
 		}
 
-		if (Player?.GetHealthRatio() < 0.6 && MicrocosmosPvP.CanUse(out action))
+		if (Service.Config.DefensiveActive(RotationSolver.Decisions.DefensiveTable.Microcosmos) && Player?.GetHealthRatio() < Service.Config.DefensivePercent(RotationSolver.Decisions.DefensiveTable.Microcosmos) && MicrocosmosPvP.CanUse(out action))
 		{
 			return true;
 		}

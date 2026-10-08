@@ -90,7 +90,7 @@ public sealed class NIN_DefaultPvP : NinjaRotation
 			return true;
 		}
 
-		if (Player?.GetHealthRatio() < .5)
+		if (Service.Config.DefensiveActive(RotationSolver.Decisions.DefensiveTable.Meisui) && Player?.GetHealthRatio() < Service.Config.DefensivePercent(RotationSolver.Decisions.DefensiveTable.Meisui))
 		{
 			if (MeisuiPvP.CanUse(out action))
 			{

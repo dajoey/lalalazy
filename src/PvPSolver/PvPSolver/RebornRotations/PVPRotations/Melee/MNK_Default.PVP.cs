@@ -44,7 +44,7 @@ public sealed class MNK_DefaultPvP : MonkRotation
 			}
 		}
 
-		if (RiddleOfEarthPvP.CanUse(out action) && InCombat && Player?.GetHealthRatio() < 0.8)
+		if (Service.Config.DefensiveActive(RotationSolver.Decisions.DefensiveTable.RiddleOfEarth) && RiddleOfEarthPvP.CanUse(out action) && InCombat && Player?.GetHealthRatio() < Service.Config.DefensivePercent(RotationSolver.Decisions.DefensiveTable.RiddleOfEarth))
 		{
 			return true;
 		}

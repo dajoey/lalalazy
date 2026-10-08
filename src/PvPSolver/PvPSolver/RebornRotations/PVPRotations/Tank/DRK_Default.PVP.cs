@@ -82,7 +82,7 @@ public sealed class DRK_DefaultPvP : DarkKnightRotation
 			return true;
 		}
 
-		if ((Player?.GetHealthRatio() * 100) < 60 && ImpalementPvP.CanUse(out action))
+		if (Service.Config.DefensiveActive(RotationSolver.Decisions.DefensiveTable.Impalement) && (Player?.GetHealthRatio() * 100) < Service.Config.DefensivePercentPoints(RotationSolver.Decisions.DefensiveTable.Impalement) && ImpalementPvP.CanUse(out action))
 		{
 			return true;
 		}
