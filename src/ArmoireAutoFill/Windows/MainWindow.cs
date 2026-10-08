@@ -87,13 +87,27 @@ public class MainWindow : Window
         var inBags = excluded == 0 ? 0 : result.Excluded.Count(e => e.Reason.Contains("inventory"));
         var missing = result.MissingNotBuyable + buyable;
 
+        if (missing == 0)
+        {
+            ImGui.TextWrapped("Nothing missing: every armoire-eligible piece is either already in the armoire "
+                              + "or in the inventory/armoury chest. Nothing to shop for.");
+            return;
+        }
+
         ImGui.Text($"Missing armoire items Knightshopper can buy: {buyable} (of {missing} missing).");
+        if (buyable == 0)
+            ImGui.TextWrapped($"None of the {missing} missing piece(s) is sold by a vendor Knightshopper can reach "
+                              + "(dropped, crafted, or handler-linked shop). Nothing to add to the shopping list.");
         if (excluded > 0)
             ImGui.TextColored(ColorMuted,
                 $"{inBags} missing piece(s) are already in your inventory/armoury chest — AutoStore handles those, no purchase needed.");
         if (result.MissingNotBuyable > 0)
             ImGui.TextColored(ColorMuted,
                 $"{result.MissingNotBuyable} missing piece(s) are not sold by any vendor Knightshopper can reach (dropped, crafted, or handler-linked shop).");
+        if (KnightshopperCatalogBuilder.Snapshot.UnderlistedItemCount > 0)
+            ImGui.TextColored(ColorMuted,
+                $"Not counted: {KnightshopperCatalogBuilder.Snapshot.UnderlistedItemCount} more armoire piece(s) sold only in shops this list "
+                + "cannot safely name (scripted vendors and gil-priced SpecialShop entries) — the real buyable total is higher.");
 
         var ksLoaded = IsKnightshopperLoaded();
         if (!ksLoaded)
@@ -131,10 +145,48 @@ public class MainWindow : Window
             if (questLocked > 0)
                 ImGui.TextColored(ColorMuted,
                     $"  {questLocked} of these are quest-locked: the vendor only sells them after you complete their quest.");
+            if (group.CurrencyId == 2)
+                ImGui.TextColored(ColorMuted,
+                    "  Gil prices are the standard vendor price; some vendors charge less with reputation.");
+
+            if (group.Items.Count > 0 && ImGui.TreeNode($"Pieces##ksItems{group.CurrencyId}"))
+            {
+                if (ImGui.BeginTable($"ksTable{group.CurrencyId}", 4,
+                        ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY,
+                        new Vector2(0, 280)))
+                {
+                    ImGui.TableSetupColumn("Item", ImGuiTableColumnFlags.WidthStretch, 3f);
+                    ImGui.TableSetupColumn("Price", ImGuiTableColumnFlags.WidthStretch, 1.2f);
+                    ImGui.TableSetupColumn("Vendor", ImGuiTableColumnFlags.WidthStretch, 1.6f);
+                    ImGui.TableSetupColumn("Qty", ImGuiTableColumnFlags.WidthStretch, 0.5f);
+                    ImGui.TableHeadersRow();
+                    foreach (var cand in group.Items)
+                    {
+                        ImGui.TableNextRow();
+                        ImGui.TableNextColumn();
+                        ImGui.TextUnformatted(cand.Name);
+                        ImGui.TableNextColumn();
+                        ImGui.TextUnformatted(cand.Entry.Price is { } price ? price.ToString("N0") : "n/a");
+                        ImGui.TableNextColumn();
+                        ImGui.TextUnformatted(VendorName(cand.Entry.VendorId));
+                        ImGui.TableNextColumn();
+                        ImGui.TextUnformatted("1");
+                    }
+                    ImGui.EndTable();
+                }
+                ImGui.TreePop();
+            }
         }
 
         if (!string.IsNullOrEmpty(_ksStatus))
             ImGui.TextWrapped(_ksStatus);
+    }
+
+    private static string VendorName(uint vendorId)
+    {
+        if (vendorId == 0)
+            return "unknown vendor";
+        return KnightshopperCatalogBuilder.Snapshot.NpcNames.GetValueOrDefault(vendorId) ?? $"npc {vendorId}";
     }
 
     private string? _ksStatus;

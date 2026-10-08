@@ -1,6 +1,7 @@
 using ArmoireAutoFill.Data.Shopping;
 using ECommons.DalamudServices;
 using Lumina.Excel.Sheets;
+using LuminaCabinet = Lumina.Excel.Sheets.Cabinet;
 
 namespace ArmoireAutoFill.Data;
 
@@ -26,9 +27,10 @@ public static class KnightshopperCatalogBuilder
         IReadOnlyList<ShopEntry> Entries,
         IReadOnlyDictionary<uint, string> NpcNames,
         int SkippedUnlinkedShops,
-        int SkippedGilSpecialShops)
+        int SkippedGilSpecialShops,
+        int UnderlistedItemCount)
     {
-        public static readonly CatalogSnapshot Empty = new([], new Dictionary<uint, string>(), 0, 0);
+        public static readonly CatalogSnapshot Empty = new([], new Dictionary<uint, string>(), 0, 0, 0);
     }
 
     public static bool IsLoaded { get; private set; }
@@ -83,8 +85,22 @@ public static class KnightshopperCatalogBuilder
         var specialShopSheet = Svc.Data.GetExcelSheet<SpecialShop>();
         var npcBaseSheet = Svc.Data.GetExcelSheet<ENpcBase>();
         var npcResidentSheet = Svc.Data.GetExcelSheet<ENpcResident>();
+        var itemSheet = Svc.Data.GetExcelSheet<Item>();
+        var cabinetSheet = Svc.Data.GetExcelSheet<LuminaCabinet>();
         if (gilShopSheet == null || specialShopSheet == null || npcBaseSheet == null || npcResidentSheet == null)
             return CatalogSnapshot.Empty;
+
+        // Armoire-eligible item ids, used to report how many pieces the generated list
+        // under-counts (shops it deliberately does not name — see the header comment).
+        var armoireItems = new HashSet<uint>();
+        if (cabinetSheet != null)
+            foreach (var row in cabinetSheet)
+                if (row.Item.RowId != 0)
+                    armoireItems.Add(row.Item.RowId);
+        var underlistedItems = new HashSet<uint>();
+
+        uint? GilPrice(uint itemId) =>
+            itemSheet != null && itemSheet.TryGetRow(itemId, out var it) && it.PriceMid > 0 ? it.PriceMid : null;
 
         // Reverse index: shop row id -> sorted NPC row ids. Only direct references.
         var shopToNpcs = new Dictionary<uint, List<uint>>();
@@ -121,6 +137,12 @@ public static class KnightshopperCatalogBuilder
             if (!shopToNpcs.ContainsKey(shop.RowId))
             {
                 skippedUnlinked++;
+                foreach (var itemEntry in shop.Item)
+                {
+                    var receive = itemEntry.ReceiveItems.FirstOrDefault(r => r.Item.RowId != 0 && r.ReceiveCount != 0);
+                    if (receive.Item.RowId != 0)
+                        underlistedItems.Add(receive.Item.RowId);
+                }
                 continue;
             }
 
@@ -150,6 +172,7 @@ public static class KnightshopperCatalogBuilder
                 {
                     // Gil-priced SpecialShop entry — excluded (see header comment).
                     skippedGilSpecial++;
+                    underlistedItems.Add(receive.Item.RowId);
                     continue;
                 }
 
@@ -171,6 +194,9 @@ public static class KnightshopperCatalogBuilder
                 if (!shopToNpcs.ContainsKey(shop.RowId))
                 {
                     skippedUnlinked++;
+                    foreach (var skippedSubrow in shop)
+                        if (skippedSubrow.Item.RowId != 0)
+                            underlistedItems.Add(skippedSubrow.Item.RowId);
                     continue;
                 }
 
@@ -181,17 +207,21 @@ public static class KnightshopperCatalogBuilder
                         continue;
                     var quest = subrow.QuestRequired.FirstOrDefault(q => q.RowId != 0);
                     entries.Add(new ShopEntry(item.RowId, FirstNpc(shopToNpcs, shop.RowId),
-                        shop.RowId, -1, 2, null, quest.RowId, ShopSource.GilShop));
+                        shop.RowId, -1, 2, GilPrice(item.RowId), quest.RowId, ShopSource.GilShop));
                 }
             }
         }
 
+        underlistedItems.IntersectWith(armoireItems);
+        var underlistedCount = underlistedItems.Count;
+
         Svc.Log.Information(
             $"[ArmoireAutoFill] Knightshopper catalog: {entries.Count} entries, "
             + $"{shopToNpcs.Count} vendor-linked shops, {skippedUnlinked} shops skipped (no direct vendor link), "
-            + $"{skippedGilSpecial} gil-priced SpecialShop entries excluded");
+            + $"{skippedGilSpecial} gil-priced SpecialShop entries excluded, "
+            + $"{underlistedCount} armoire pieces in the excluded shops");
 
-        return new CatalogSnapshot(entries, npcNames, skippedUnlinked, skippedGilSpecial);
+        return new CatalogSnapshot(entries, npcNames, skippedUnlinked, skippedGilSpecial, underlistedCount);
     }
 
     private static uint FirstNpc(Dictionary<uint, List<uint>> shopToNpcs, uint shopRowId)

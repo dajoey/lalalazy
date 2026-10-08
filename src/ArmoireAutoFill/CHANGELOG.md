@@ -1,5 +1,12 @@
 # Changelog - ArmoireAutoFill
 
+## v0.5.1.0 (2026-10-08) [testing]
+### Added
+- **The shopping list now shows its pieces.** Every currency section in the Knightshopper shopping list can be expanded into a table of the actual pieces: item, price, vendor, one needed of each. Gil prices are the standard vendor price from the item sheet (some vendors charge less with reputation).
+### Changed
+- Empty states say so in words: nothing missing at all, or none of the missing pieces sold by a vendor Knightshopper can reach.
+- The section reports how many additional armoire pieces sit only in shops the list cannot safely name (scripted vendors and gil-priced SpecialShop entries), so the partial total is visible.
+
 ## v0.5.0.0 (2026-10-07) [testing]
 ### Added
 - **Knightshopper shopping list.** New collapsible section in the main window: every armoire-eligible item that is missing, that is sold by a vendor Knightshopper can reach, and that is not already in the inventory, grouped by currency (gil, hunt seals, PvP wolf marks). One click per currency copies a Knightshopper import code to the clipboard; pasting it into Knightshopper's matching currency tab (paste button) creates a new shopping list and leaves existing lists untouched. No purchase is ever started by this feature — the clipboard is the only thing it touches.
