@@ -75,7 +75,7 @@
         "IsTestingExclusive":  false,
         "DownloadLinkInstall":  "https://github.com/dajoey/lalalazy/releases/download/ArmoireAutoFill-v0.4.4.1/ArmoireAutoFill.zip",
         "DownloadLinkUpdate":  "https://github.com/dajoey/lalalazy/releases/download/ArmoireAutoFill-v0.4.4.1/ArmoireAutoFill.zip",
-        "DownloadLinkTesting":  "https://github.com/dajoey/lalalazy/releases/download/ArmoireAutoFill-v0.5.5.0/ArmoireAutoFill-testing.zip",
+        "DownloadLinkTesting":  "https://github.com/dajoey/lalalazy/releases/download/ArmoireAutoFill-v0.5.6.0/ArmoireAutoFill-testing.zip",
         "Tags":  [
                      "armoire",
                      "dungeon",
@@ -92,7 +92,7 @@
                       ],
         "DownloadCount":  0,
         "LastUpdate":  "0",
-        "TestingAssemblyVersion":  "0.5.5.0",
+        "TestingAssemblyVersion":  "0.5.6.0",
         "TestingDalamudApiLevel":  15
     },
     {
