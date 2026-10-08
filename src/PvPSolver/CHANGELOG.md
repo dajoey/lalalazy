@@ -1,5 +1,21 @@
 # Changelog - PvP Solver
 
+## v0.1.2.0 (2026-10-08) [testing]
+### Added
+- **New settings window.** `/pvpsolver`, the plugin's settings button and Lazy Hub now open a new window with the settings that matter for PvP, in plain words with a help line under each. It has six tabs: Match (when PvP Solver turns itself on and off), Survival (Guard, Purify, Sprint and the defensives master switch), Targeting (who to attack, area attacks, burst, invulnerable enemies), My Job, Display and Advanced.
+- **Settings can be changed in any zone.** Every setting, including each job's own options, can be edited anywhere and for any of the 21 jobs, not only for the played job inside a PvP zone. Only turning PvP Solver on still needs a PvP zone; its button says so. Job options need a character in the world.
+- **Optional automatic defensives, all off by default.** Each is a "use when HP is below" setting with its own percentage, per job, in the My Job tab: Aquaveil (White Mage), Wreath of Ice (Black Mage), Tempera Coat (Pictomancer), Forte (Red Mage), Radiant Aegis (Summoner), Arcane Crest (Reaper), Snake Scales (Viper), The Blackest Night (Dark Knight), Holy Sheltron (Paladin), Bloodwhetting (Warrior), Curing Waltz (Dancer), and the PvP role actions Rampart (tanks) and Stoneskin II (healers), which can be used only while they are the selected role action. Recuperate keeps its existing rule (15,000 or more HP missing) and gains an optional second condition, an HP percentage. Default percentages run from 45 to 70.
+- **Defensives master switch.** One switch in the Survival tab (on by default) turns all automatic defensives off at once. It also covers the six that were already automatic at a fixed HP: Heart of Corundum, Riddle of Earth, Lady of Crowns, Microcosmos, Meisui and Impalement, so turning it off stops those too.
+- **Worst case of the defensives.** After one automatic defensive is used no other is used for 2.5 seconds, and none while a barrier, damage reduction or heal of the same kind from another turned-on defensive is still active, but with several turned on, more than one can still be used during one long stretch of low HP.
+### Changed
+- **Six fixed HP thresholds are now settings with unchanged defaults.** Heart of Corundum (Gunbreaker) at or below 30%, Riddle of Earth (Monk) below 80%, Lady of Crowns and Microcosmos (Astrologian) below 60%, Meisui (Ninja) below 50% and Impalement (Dark Knight) below 60% behave exactly as before until changed. Each can be moved or turned off in the My Job tab.
+- **Job options are stored per job.** Options were stored under the job being played, and the first time a job was used in a session its options shared one store, so same-named options (the Bloodbath and Smite thresholds of the six melee jobs) could carry over from one job to another. Each job's options are now stored under that job. Saved settings are kept.
+### Notes
+- Testing channel only; the production channel is unchanged.
+- The previous settings window is still available: Advanced tab, or `/pvpsolver advanced` (optionally followed by a tab name such as Actions).
+- No saved setting is renamed or lost. The new settings use new keys that appear in the settings file only after they are changed.
+- Checked offline only so far: the window layout, the automatic defensives with real targets and the job options of a job that is not being played have not yet been run in a match.
+
 ## v0.1.1.5 (2026-10-07) [testing]
 ### Fixed
 - **Targeting selection in PvP.** Entering the PvP state forced lowest-HP targeting, so the configured targeting list and the focus-fire (`PvPHighestPressure`) mode could not be selected. The configured list now applies; with default settings targeting is unchanged (lowest HP first).
