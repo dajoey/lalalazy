@@ -1,5 +1,11 @@
 # Changelog - PvP Solver
 
+## v0.1.1.5 (2026-10-07) [testing]
+### Fixed
+- **Targeting selection in PvP.** Entering the PvP state forced lowest-HP targeting, so the configured targeting list and the focus-fire (`PvPHighestPressure`) mode could not be selected. The configured list now applies; with default settings targeting is unchanged (lowest HP first).
+### Notes
+- Testing channel only; the production channel is unchanged.
+
 ## v0.1.1.4 (2026-10-07) [testing]
 ### Fixed
 - **Tank ability stall in PvP.** With several enemies in melee range and a tank's own mitigation on cooldown, the rotation stopped issuing every later ability until the situation ended. The defensive stage now hands over to the rest of the rotation in PvP.
